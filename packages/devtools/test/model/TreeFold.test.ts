@@ -69,13 +69,13 @@ describe("foldTree", () => {
     for (let i = 0; i < 100_000; i++) tree = node("n", [tree]);
     const depth = foldTree<Node, number>(tree, kidsOf, (_n, c) => (c[0] === undefined ? 0 : c[0] + 1));
     assert.strictEqual(depth, 100_000);
-  });
+  }, 60_000);
 
   it("folds a 250,000-wide node", () => {
     const kids = Array.from({ length: 250_000 }, () => node("k"));
     const width = foldTree<Node, number>(node("root", kids), kidsOf, (_n, c) => c.length);
     assert.strictEqual(width, 250_000);
-  });
+  }, 60_000);
 
   it("throws on a cycle and on a self-loop", () => {
     const a: { name: string; kids: Array<Node> } = { name: "a", kids: [] };

@@ -1,5 +1,6 @@
 import { defineSteps } from "@effect-cucumber/vitest";
 import { allOf, anyOf, denyWhen, hasPermission, hasRole, obligation, obliged, permission, permitWhen, rules } from "@qadi/core";
+import type { Combining, FieldStrategy } from "@qadi/core";
 import { describePolicy } from "./Bridge.ts";
 import { World } from "./SharedWorld.ts";
 import { canApproveInvoice } from "./TBACWhenSteps.ts";
@@ -49,6 +50,26 @@ export const explanationWhenSteps = defineSteps<World>(({ When }) => {
 
   When("the invoice approval policy is described", function* () {
     yield* describePolicy(canApproveInvoice());
+  });
+
+  /**
+   * A policy carrying a value outside its closed union. Decode rejects one, so
+   * only code can build it — here through `JSON.parse`, the same route the unit
+   * tests take, since `as` is not allowed. `renderExplanation` threw a
+   * `MatchError` on both until ADR-QD-092's amendment (CCR-QD-183).
+   */
+  When("a conjunction built in code with field strategy {string} is described", function* (raw: string) {
+    const fieldStrategy: FieldStrategy = JSON.parse(JSON.stringify(raw));
+    yield* describePolicy(
+      allOf([hasRole("editor", { fields: ["id"] }), hasRole("onCall")], { fieldStrategy }),
+    );
+  });
+
+  When("a rule table built in code with combining {string} is described", function* (raw: string) {
+    const combining: Combining = JSON.parse(JSON.stringify(raw));
+    yield* describePolicy(
+      rules([permitWhen(hasRole("editor")), denyWhen(hasRole("suspended"))], { combining }),
+    );
   });
 
   When("the rule table is described", function* () {

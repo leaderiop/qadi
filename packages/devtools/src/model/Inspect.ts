@@ -28,11 +28,10 @@
  * anything is what this library exists to remove.
  */
 import * as Match from "effect/Match";
-import { explain } from "@qadi/core";
+import * as Schema from "effect/Schema";
+import { Combining, explain, FieldStrategy } from "@qadi/core";
 import type {
-  Combining,
   Explanation,
-  FieldStrategy,
   Obligation,
   Policy,
   RuleEffect,
@@ -185,8 +184,37 @@ interface Shape {
 
 const part = (explanation: Explanation): Part => ({ explanation, effect: undefined });
 
-const strategy = (self: FieldStrategy): string => String(self);
-const algorithm = (self: Combining): string => String(self);
+/**
+ * A value outside its closed union, shown as it is — a string quoted, so `""`
+ * reads as a value — and said to be outside, and evaluated fail-closed.
+ *
+ * Decode rejects such a value, so only a policy built in code carries one, and
+ * the evaluator then reads it fail-closed: an `allOf`/`anyOf` exposes no fields
+ * and a rule table is walked as `DenyOverrides` (ADR-QD-092). Showing `Xor`
+ * bare beside `Intersection` would read as a fourth strategy. Which algorithm
+ * stands in is core's to say, not this panel's, so it is not restated here;
+ * `renderExplanation` names it (ADR-QD-092 amendment, CCR-QD-183).
+ */
+const outsideUnion = (value: unknown): string => {
+  const shown =
+    typeof value === "string"
+      ? JSON.stringify(value)
+      : typeof value === "object" && value !== null
+        ? "an object"
+        : String(value);
+  return `${shown} (outside the union, evaluated fail-closed)`;
+};
+
+/**
+ * Membership is the public schema's — the same literals decode admits — since
+ * `@qadi/core`'s own law-table guard is not on its root surface.
+ */
+const isFieldStrategy = Schema.is(FieldStrategy);
+const isCombining = Schema.is(Combining);
+
+const strategy = (self: FieldStrategy): string =>
+  isFieldStrategy(self) ? self : outsideUnion(self);
+const algorithm = (self: Combining): string => (isCombining(self) ? self : outsideUnion(self));
 
 /**
  * The node's own presentation, and its child explanations.

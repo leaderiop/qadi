@@ -5,12 +5,61 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-092                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-05                                     |
-> | Status         | Accepted — amends ADR-QD-030, ADR-QD-034       |
+> | Status         | Accepted — amends ADR-QD-030, ADR-QD-034; amended 2026-10-06 (rendering is total) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-05): Initial release (CCR-QD-174) |
+> | Change History | 1.1 (2026-10-06): amended — the "left alone" rendering item is closed: `renderExplanation` and `@qadi/devtools`' `inspect` name a value outside either union verbatim and say how it is evaluated, instead of throwing (CCR-QD-183)<br>1.0 (2026-10-05): Initial release (CCR-QD-174) |
+
+---
+
+> **Amendment (2026-10-06, rendering is total — CCR-QD-183):** the item
+> Consequences recorded as left alone is closed. `renderExplanation` threw a
+> `MatchError` for an `allOf`/`anyOf` of two or more parts whose `fieldStrategy`
+> was outside the union and for a non-empty rule table whose `combining` was —
+> the unknown string, every `Object.prototype` key and the empty string alike —
+> which broke [BEH-QD-141](../behaviors/18-explanation.md)'s "MUST NOT fail".
+> Worse than the throw, the cases that did not throw were dishonest: an empty or
+> one-part `allOf`/`anyOf` under such a strategy rendered as if it granted its
+> part's fields (`` exposing only `a` ``), when the evaluator grants none.
+>
+> **(g) Membership has one test per union, beside the table it guards.**
+> `FieldLattice.ts` exports `isFieldStrategy` and `ShortCircuit.ts` exports
+> `isCombining`: type guards over `unknown`, each an `Object.hasOwn` lookup in the
+> module's own table (and `false` for a non-string). `fieldStrategyLaws` and
+> `effectiveCombining` now read them, so the decision and the sentence cannot
+> disagree about which values are outside.
+>
+> **(h) A rendering names the value and what it is evaluated as.** An
+> `All`/`Any` whose strategy is outside the union gains, at every part count, the
+> clause *", but exposing no fields: its field strategy "Xor" is outside the
+> closed union and is evaluated fail-closed"* — an empty `allOf` included, which
+> therefore stops being atomic and is parenthesised as a child. A rule table says
+> *"the combining algorithm "Xor" is outside the closed union and is evaluated
+> under DenyOverrides, so any applying deny row wins"*, naming whatever
+> `effectiveCombining` answers rather than restating it. A string is quoted, so
+> `""` and `"__proto__"` read as values; a non-string is shown through `String`,
+> an object as "an object". An empty `anyOf` and an empty rule table deny whatever
+> their value, so their sentences are unchanged. The known values keep their
+> `Match.exhaustive`, reached only after the guard, so `SWITCH_BUDGET` is
+> unchanged and a fourth value is still a compile error.
+>
+> **(i) The devtools inspector says the same.** `inspect`'s `detail` for such a
+> node is the value verbatim plus *"(outside the union, evaluated fail-closed)"*,
+> judged by `Schema.is` over `@qadi/core`'s public `FieldStrategy`/`Combining`
+> schemas, since the law-table guards are not on the root surface a sibling
+> package imports from (AGENTS.md §1). Which algorithm stands in is left to core's
+> sentence rather than restated in a second package.
+>
+> Rejected: **`Match.orElse` on the known arms** — total, but loses the
+> compile-time exhaustiveness `Match.exhaustive` gives for a fourth value, the
+> trade (b) already declined. **Rendering the fallback instead of the value**
+> ("any applying deny row wins" alone) — total and accurate about the decision,
+> but hides that the policy is corrupt, which is the thing a reviewer most needs
+> to see. **Throwing a typed error from `renderExplanation`** — it has no error
+> channel by design (BEH-QD-141), and a reviewer shown nothing learns less than
+> one shown the value.
 
 ---
 
@@ -150,7 +199,9 @@ what the author's lost algorithm would have refused.
 - `simplify` keeps one more node in the empty-child and unknown-strategy cases.
 - `explain` still renders a strategy or combining value outside the union through a
   `Match.exhaustive` and throws. It is rendering, not a decision, and out of scope
-  here; recorded so it is not mistaken for covered.
+  here; recorded so it is not mistaken for covered. **Closed by the 2026-10-06
+  amendment above (CCR-QD-183):** it was `renderExplanation`, not `explain`, that
+  threw, and it now names the value and how it is evaluated.
 - A fourth strategy is one table row, and the compiler makes the row mandatory.
 
 ---
