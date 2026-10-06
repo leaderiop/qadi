@@ -20,7 +20,7 @@
  */
 import type { AuthSubject } from "@qadi/core";
 import { countDropped } from "./HydrationCounts.ts";
-import type { DecisionEntry, DehydratedDecisions, DehydratedPayload, HydrateOptions, InitialValues } from "./HydrationEngine.ts";
+import type { DecisionEntry, DehydratedDecisions, HydrateOptions, InitialValues } from "./HydrationEngine.ts";
 import { dehydratedPayload, dehydrateEntry } from "./HydrationEngine.ts";
 import { droppedEntriesReporter } from "./HydrationWarning.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
@@ -31,7 +31,6 @@ import type { QadiAtoms } from "./QadiAtoms.ts";
 // `QadiAtoms.ts` makes for `HydrationMismatch`, for the same reason.
 export type { HydrationDrop, HydrationDropReporter } from "./HydrationWarning.ts";
 export type { DecisionEntry, DehydratedDecisions, DehydratedEntry } from "./HydrationEngine.ts";
-export type { DehydratedDecisionsV1, DehydratedEntryV1, DehydratedPayload } from "./HydrationEngine.ts";
 export type { HydrateOptions } from "./HydrationEngine.ts";
 export type { AllowDisclosure, ClientDecision, DenyDisclosure } from "./SeededDecision.ts";
 export type { SeededDecision } from "./SeededDecision.ts";
@@ -123,8 +122,10 @@ export const dehydrateDecisions = (
  * which made a page that re-decided everything from scratch indistinguishable
  * from one that had nothing to hydrate.
  *
- * Accepts the current payload and the one before it (no `version` field); the
- * older one always seeds with its trace withheld.
+ * Reads `version: 2` payloads only — what `dehydrateDecisions` has written
+ * since 0.10. A payload with any other `version`, or none (the format 0.9 and
+ * earlier wrote, read until 0.11.0), is dropped whole as
+ * `UnsupportedPayloadVersion` (ADR-QD-078).
  *
  * Delegates to {@link QadiAtoms.hydrate}, the capability the atom set closes over
  * its own seed atoms. An atom set that merely forwards `decision`/`decisionFor`
@@ -133,7 +134,7 @@ export const dehydrateDecisions = (
  */
 export const hydrateDecisions = (
   atoms: QadiAtoms,
-  dehydrated: DehydratedPayload,
+  dehydrated: DehydratedDecisions,
   subject: AuthSubject,
   options?: HydrateOptions,
 ): InitialValues => atoms.hydrate(dehydrated, subject, options);

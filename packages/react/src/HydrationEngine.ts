@@ -36,9 +36,7 @@ import {
   DecisionWireAllow,
   DecisionWireDeny,
   MAX_DECODE_DEPTH,
-  Obligation,
   Policy as PolicySchema,
-  TraceSchema,
   UNTRUSTED_DECODE_OPTIONS,
   encodeDecision,
   exceedsJsonDepth,
@@ -116,7 +114,7 @@ const DehydratedEntryWire = Schema.Struct({
 /** One dehydrated entry. `policy` is a plain JSON value, not a `Policy`. */
 export type DehydratedEntry = typeof DehydratedEntryWire.Type;
 
-/** The payload's current version. */
+/** The payload's version: the only one `hydrateWith` reads (ADR-QD-078). */
 const PAYLOAD_VERSION = 2;
 
 const DehydratedDecisionsWire = Schema.Struct({
@@ -142,59 +140,12 @@ const DehydratedDecisionsWire = Schema.Struct({
 export type DehydratedDecisions = typeof DehydratedDecisionsWire.Type;
 
 /**
- * An entry of the payload format that predates `version`.
- *
- * Its `trace` and `reason` were a fabrication whenever the server withheld them,
- * and indistinguishable from a real one when it did not, so a client reading one
- * **always** seeds `Withheld`: the safe direction is less disclosure, and the
- * only loss is a debug trace for the length of a deploy.
- */
-const DehydratedEntryV1Wire = Schema.Struct({
-  policy: Schema.Unknown,
-  resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
-  allowed: Schema.Boolean,
-  evaluationId: Schema.String,
-  durationMillis: Schema.Number,
-  visibleFields: Schema.optional(Schema.Array(Schema.String)),
-  obligations: Schema.optional(Schema.Array(Obligation)),
-  reason: Schema.optional(Schema.String),
-  trace: Schema.optional(TraceSchema),
-});
-
-/**
- * An entry as the payload format before `version` shipped it.
- *
- * @deprecated Read-only compatibility for cached pages produced before payload
- * `version: 2`. Removed in the next minor release.
- */
-export type DehydratedEntryV1 = typeof DehydratedEntryV1Wire.Type;
-
-const DehydratedDecisionsV1Wire = Schema.Struct({
-  subjectId: Schema.optional(Schema.String),
-  entries: Schema.Array(DehydratedEntryV1Wire),
-});
-
-/**
- * A payload from before `version` existed. Read, never written.
- *
- * @deprecated Read-only compatibility for cached pages produced before payload
- * `version: 2`. Removed in the next minor release.
- */
-export type DehydratedDecisionsV1 = typeof DehydratedDecisionsV1Wire.Type;
-
-/** Every payload shape `hydrateDecisions` reads: the current one, and the one before it. */
-export type DehydratedPayload = DehydratedDecisions | DehydratedDecisionsV1;
-
-/**
  * The envelope alone, with entries left as `unknown`.
  *
  * Entries are decoded one at a time so a bad one is dropped by itself rather
  * than taking the payload with it.
  */
-const EnvelopeV2 = DehydratedDecisionsWire.mapFields(
-  Struct.assign({ entries: Schema.Array(Schema.Unknown) }),
-);
-const EnvelopeV1 = DehydratedDecisionsV1Wire.mapFields(
+const Envelope = DehydratedDecisionsWire.mapFields(
   Struct.assign({ entries: Schema.Array(Schema.Unknown) }),
 );
 
@@ -220,10 +171,8 @@ const encodePolicy = Schema.encodeSync(PolicySchema);
  * rule out.
  */
 const decodePolicy = Schema.decodeUnknownOption(PolicySchema, UNTRUSTED_DECODE_OPTIONS);
-const decodeEnvelopeV2 = Schema.decodeUnknownOption(EnvelopeV2, UNTRUSTED_DECODE_OPTIONS);
-const decodeEnvelopeV1 = Schema.decodeUnknownOption(EnvelopeV1, UNTRUSTED_DECODE_OPTIONS);
-const decodeEntryV2 = Schema.decodeUnknownOption(DehydratedEntryWire, UNTRUSTED_DECODE_OPTIONS);
-const decodeEntryV1 = Schema.decodeUnknownOption(DehydratedEntryV1Wire, UNTRUSTED_DECODE_OPTIONS);
+const decodeEnvelope = Schema.decodeUnknownOption(Envelope, UNTRUSTED_DECODE_OPTIONS);
+const decodeEntry = Schema.decodeUnknownOption(DehydratedEntryWire, UNTRUSTED_DECODE_OPTIONS);
 
 /** One decision the server made, ready to be dehydrated. */
 export interface DecisionEntry {
@@ -289,53 +238,16 @@ const rebuild = (entry: DehydratedEntry, subjectId: SubjectId): SeededDecision =
       });
 };
 
-const rebuildV1 = (entry: DehydratedEntryV1, subjectId: SubjectId): SeededDecision =>
-  entry.allowed
-    ? new SeededAllow({
-        evaluationId: entry.evaluationId,
-        subjectId,
-        durationMillis: entry.durationMillis,
-        visibleFields: entry.visibleFields,
-        obligations: entry.obligations ?? [],
-        disclosure: { _tag: "Withheld" },
-      })
-    : new SeededDeny({
-        evaluationId: entry.evaluationId,
-        subjectId,
-        durationMillis: entry.durationMillis,
-        disclosure: { _tag: "Withheld" },
-      });
-
-/** One entry, decoded as far as its policy, and how to finish rebuilding it. */
-interface EntryRead {
-  readonly policy: unknown;
-  readonly resource: Resource | undefined;
-  /** `None` when the entry contradicts itself. */
-  readonly rebuild: (policy: Policy, subjectId: SubjectId) => Option.Option<SeededDecision>;
-}
-
-const readEntry = (entry: unknown): Option.Option<EntryRead> =>
-  Option.map(decodeEntryV2(entry), (decoded) => ({
-    policy: decoded.policy,
-    resource: decoded.resource,
-    rebuild: (policy, subjectId) => {
-      const disclosure = decoded.decision.disclosure;
-      // A disclosed trace names the root policy it traced, and the evaluator's
-      // root tag is always the policy's own `_tag`. One that says otherwise is not
-      // a trace of this entry's policy — hand-built, or spliced from another
-      // entry — so the entry is refused rather than seeded with it.
-      return disclosure._tag === "Disclosed" && disclosure.trace.policyTag !== policy._tag
-        ? Option.none()
-        : Option.some(rebuild(decoded, subjectId));
-    },
-  }));
-
-const readEntryV1 = (entry: unknown): Option.Option<EntryRead> =>
-  Option.map(decodeEntryV1(entry), (decoded) => ({
-    policy: decoded.policy,
-    resource: decoded.resource,
-    rebuild: (_policy, subjectId) => Option.some(rebuildV1(decoded, subjectId)),
-  }));
+/**
+ * Whether an entry's disclosure is a trace of its own policy.
+ *
+ * A disclosed trace names the root policy it traced, and the evaluator's root
+ * tag is always the policy's own `_tag`. One that says otherwise is not a trace
+ * of this entry's policy — hand-built, or spliced from another entry — so the
+ * entry is refused rather than seeded with it.
+ */
+const disclosesItsOwnPolicy = (entry: DehydratedEntry, policy: Policy): boolean =>
+  entry.decision.disclosure._tag !== "Disclosed" || entry.decision.disclosure.trace.policyTag === policy._tag;
 
 export interface HydrateOptions {
   /**
@@ -346,7 +258,8 @@ export interface HydrateOptions {
    * another subject is a cache-key bug, an unregistered atom set is a wiring
    * mistake, an entry malformed apart from its policy is usually version skew, an
    * undecodable policy is version skew of the policy shape specifically, a payload
-   * of a `version` this client does not read is a deploy in flight, a payload that
+   * of a `version` this client does not read — or of none, the pre-0.10 format —
+   * is mismatched releases or a deploy in flight, a payload that
    * is not an envelope at all is not something a well-behaved server produces, and
    * neither is an entry nested past the structural depth guard. A bare count
    * cannot tell them apart, and each wants a different fix.
@@ -372,7 +285,7 @@ export interface HydrateOptions {
  * `JSON.parse` yields `any`, so a type on the parameter protects nothing. This
  * **never throws** — every exit is a drop that is counted and announced
  * (BEH-QD-230, INV-QD-045), including a payload that is not an object, has no
- * `entries` array, or names a version this client does not read.
+ * `entries` array, or names a version this client does not read — or none.
  *
  * Drops every entry whose shape or policy this client cannot verify, and the
  * whole payload when it names another subject. A dropped entry leaves its atom
@@ -419,15 +332,15 @@ export const hydrateWith = (
     return refuse("MalformedPayload", visible, atLeastOne);
   }
 
-  // An absent `version` is the format that predates it, which is still read. Any
-  // other value is a format this client does not know, which is not the same as
-  // a malformed one and is the signature of a deploy in flight.
-  const versioned = Object.hasOwn(payload, "version");
-  if (versioned && payload["version"] !== PAYLOAD_VERSION) {
+  // Only `version: 2` is read. Any other value — or none, the format 0.9 and
+  // earlier wrote, whose reader 0.11.0 removed (ADR-QD-078's 2026-10-06
+  // amendment) — is a format this client does not read, which is not the same
+  // as a malformed one and is the signature of mismatched releases.
+  if (!Object.hasOwn(payload, "version") || payload["version"] !== PAYLOAD_VERSION) {
     return refuse("UnsupportedPayloadVersion", visible, atLeastOne);
   }
 
-  const envelope = versioned ? decodeEnvelopeV2(payload) : decodeEnvelopeV1(payload);
+  const envelope = decodeEnvelope(payload);
   if (Option.isNone(envelope)) return refuse("MalformedPayload", visible, atLeastOne);
   const { subjectId, entries } = envelope.value;
 
@@ -450,7 +363,6 @@ export const hydrateWith = (
   // the *default* reporter withholds them.
   if (subjectId !== subject.id) return refuse("PayloadSubjectMismatch", entries);
 
-  const read = versioned ? readEntry : readEntryV1;
   const seeded: Array<readonly [Atom.Atom<unknown>, unknown]> = [];
   const tooDeep: Array<unknown> = [];
   const malformed: Array<unknown> = [];
@@ -462,7 +374,7 @@ export const hydrateWith = (
       continue;
     }
 
-    const fields = read(entry);
+    const fields = decodeEntry(entry);
     // Checked before the policy: an entry malformed at this level — a string
     // where durationMillis belongs, an obligations value that isn't an array, a
     // disclosure of the wrong shape — is a different failure than a policy shape
@@ -481,13 +393,12 @@ export const hydrateWith = (
       continue;
     }
 
-    const rebuilt = fields.value.rebuild(decoded.value, subject.id);
-    if (Option.isNone(rebuilt)) {
+    if (!disclosesItsOwnPolicy(fields.value, decoded.value)) {
       malformed.push(entry);
       continue;
     }
 
-    seeded.push([seedFor(decoded.value, fields.value.resource), rebuilt.value]);
+    seeded.push([seedFor(decoded.value, fields.value.resource), rebuild(fields.value, subject.id)]);
   }
 
   if (tooDeep.length > 0) refuse("EntryTooDeep", tooDeep);

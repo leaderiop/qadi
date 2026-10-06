@@ -308,6 +308,27 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     },
   );
 
+  Given(
+    "a payload for {string} written before 0.10, with no version, carrying {int} entries",
+    function* (id: string, count: number) {
+      // The format 0.9 and earlier wrote: no `version` key, each entry's verdict
+      // as `allowed`. Read until 0.11.0, refused since (ADR-QD-078).
+      yield* patch(() => ({
+        payload: JSON.parse(
+          JSON.stringify({
+            subjectId: id,
+            entries: Array.from({ length: count }, (_unused, index) => ({
+              policy: { _tag: "HasRole", role: "admin" },
+              allowed: true,
+              evaluationId: `pre-0.10-${index}`,
+              durationMillis: 1,
+            })),
+          }),
+        ),
+      }));
+    },
+  );
+
   Given("a payload that is not an envelope at all", function* () {
     yield* patch(() => ({ payload: JSON.parse("5") }));
   });
