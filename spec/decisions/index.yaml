@@ -314,3 +314,7 @@ entries:
     file: "097-a-decision-log-is-a-sink-and-its-own-history.md"
     title: "A decision log is a sink and its own history"
     status: "Accepted — amends ADR-QD-045, ADR-QD-046, ADR-QD-047, ADR-QD-050; amended 2026-10-06 (bare frames refused)"
+  - id: "ADR-QD-098"
+    file: "098-mutation-runs-stay-sequential.md"
+    title: "Mutation runs stay sequential: on four cores the gate is CPU-bound, and the faster options weaken it"
+    status: "Accepted — amends ADR-QD-025"

@@ -215,7 +215,7 @@ pnpm spec:gates    # the DoD table is the merge gate pnpm check actually runs
 pnpm spec:claims   # spec/devtools-spec says why each absence still holds
 pnpm spec:publish  # publish-status prose in README/CONTRIBUTING/roadmap/website matches package.json
 pnpm bench         # dispatch and evaluation throughput (measurement, not a gate)
-pnpm mutation      # Stryker on packages/core, the devtools model, predicate-sql, predicate-prisma, audit, http
+pnpm mutation      # Stryker on core, the devtools model, predicate-sql, predicate-prisma, audit, http, react's decision read
 pnpm check         # all twenty-five gates, in order
 ```
 

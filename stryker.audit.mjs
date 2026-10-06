@@ -37,5 +37,5 @@ export default {
 
   thresholds: { high: 90, low: 80, break: 80 },
   timeoutMS: 20000,
-  concurrency: 4,
+  // No `concurrency`: Stryker's default, a worker per core — see `stryker.config.mjs`.
 };

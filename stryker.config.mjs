@@ -93,6 +93,17 @@ export default {
   // A survivor that cannot be killed is a finding to record, not a number to
   // suppress — so there is no ignore list here. The one global exception is
   // `ignoreStatic` above, decided in ADR-QD-076; any other belongs in an ADR first.
+  //
+  // The 20-second allowance is load-bearing for more than hangs. A Timeout
+  // counts as detected, so this slack is what keeps a mutant whose tests are
+  // merely slow on a busy machine from being scored as killed; shortening it
+  // was weighed and rejected in ADR-QD-098.
   timeoutMS: 20000,
-  concurrency: 4,
+
+  // No `concurrency`, here or in the six sibling configurations. Stryker's
+  // default is a worker per core (cores − 1 above four): on the 4-vCPU CI
+  // runner that is the 4 this file used to pin, and on a workstation it is
+  // every core rather than four of them. More workers than cores — two
+  // configurations at once — was rejected for the reason above: it slows every
+  // test, and slowness here is scored (ADR-QD-098).
 };
