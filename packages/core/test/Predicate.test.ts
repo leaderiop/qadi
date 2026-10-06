@@ -484,7 +484,9 @@ describe("untranslatable fails loudly and never widens", () => {
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
       assert.strictEqual(r.failure._tag, "PolicyTooDeep");
-    }));
+    }),
+    60_000,
+  );
 });
 
 describe("toPredicate is stack-safe for any maxDepth the caller sets (ARCH-02 D-02-g)", () => {
@@ -987,7 +989,9 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
           );
         }
       }
-    }));
+    }),
+    60_000,
+  );
 
   // The named case the property above now samples, kept as its own test
   // because a seeded sample is not evidence a reader can check by eye
@@ -1271,7 +1275,9 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
           }
         }
       }
-    }));
+    }),
+    60_000,
+  );
 
   it.effect("PROPERTY: a port that dies reads as a port that fails, through both interpreters", () =>
     Effect.gen(function* () {

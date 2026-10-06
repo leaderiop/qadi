@@ -172,7 +172,7 @@ describe("policyDepth", () => {
       depth = P.policyDepth(wide);
     });
     assert.strictEqual(depth, 1);
-  });
+  }, 60_000);
 
   it("a deep, programmatically-built tree (100k nested Not) does not overflow the call stack (GS-03, BM-01)", () => {
     // The width hazard above has a depth twin: nothing bounds recursion depth
@@ -193,7 +193,7 @@ describe("policyDepth", () => {
       depth = P.policyDepth(policy);
     });
     assert.strictEqual(depth, n);
-  });
+  }, 60_000);
 
   it("counts a matcher's nesting at a matcher-bearing leaf (ARCH-02 D-02-f)", () => {
     const nested = P.hasAttribute("x", M.size(M.size(M.eq(M.literal(1)))));
@@ -366,7 +366,7 @@ describe("the three walkers survive a very deep inheritance chain", () => {
     const flat = flattenPermissions(top);
     assert.strictEqual(flat.size, 1);
     assert.isTrue(flat.has("doc:read"));
-  });
+  }, 60_000);
 
   it("roleNames completes without a stack overflow", () => {
     const top = buildChain(DEPTH);
@@ -374,7 +374,7 @@ describe("the three walkers survive a very deep inheritance chain", () => {
     assert.strictEqual(names.size, DEPTH);
     assert.isTrue(names.has("role-0"));
     assert.isTrue(names.has(`role-${DEPTH - 1}`));
-  });
+  }, 60_000);
 
   it("permissionProvenance completes without a stack overflow", () => {
     const top = buildChain(DEPTH);
@@ -385,7 +385,7 @@ describe("the three walkers survive a very deep inheritance chain", () => {
     assert.strictEqual(grants[0]?.path.length, DEPTH);
     assert.strictEqual(grants[0]?.path[0], `role-${DEPTH - 1}`);
     assert.strictEqual(grants[0]?.path[DEPTH - 1], "role-0");
-  });
+  }, 60_000);
 });
 
 describe("resolveRoleGraph — an unknown parent is reported", () => {

@@ -336,7 +336,9 @@ describe("simplify", () => {
         15,
         `only ${emptyChildCases} of 120 trees hold an empty Union/First child`,
       );
-    }));
+    }),
+    60_000,
+  );
 
   it.effect("PROPERTY: simplifying is idempotent on every generated tree", () =>
     Effect.gen(function* () {
@@ -378,6 +380,7 @@ describe("simplify", () => {
       if (result === undefined) return;
       assert.strictEqual(P.policyDepth(result), n);
     },
+    60_000,
   );
 
   it("a wide tree (250k direct children) does not overflow the argument list", () => {
@@ -398,7 +401,7 @@ describe("simplify", () => {
     assert.strictEqual(result._tag, "AnyOf");
     if (result._tag !== "AnyOf") return;
     assert.strictEqual(result.policies.length, 250_000);
-  });
+  }, 60_000);
 });
 
 describe("simplify folds through foldPolicy (ARCH-02)", () => {

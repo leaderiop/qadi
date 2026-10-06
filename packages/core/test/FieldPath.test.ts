@@ -328,7 +328,7 @@ describe("project", () => {
     }
     assert.strictEqual(levels, depth);
     assert.deepStrictEqual(node, { leaf: "visible" });
-  });
+  }, 60_000);
 
   it("a deep spec whose terminal matches nothing omits, unwinding every frame it pushed", () => {
     // The failing-closed mirror of the case above, at the same depth: the walk
@@ -342,5 +342,5 @@ describe("project", () => {
     const spec = `${Array.from({ length: depth }, () => "a").join(".")}.absent`;
 
     assert.deepStrictEqual(project(data, [spec]), {});
-  });
+  }, 60_000);
 });

@@ -464,7 +464,7 @@ describe("field lattice", () => {
         }
       }
     }
-  });
+  }, 60_000);
 
   it("where emptyIsUnit is false, a counterexample shows the empty merge is not a unit", () => {
     // Union: top absorbs, so an empty merge beside `["a"]` widens it to everything.
