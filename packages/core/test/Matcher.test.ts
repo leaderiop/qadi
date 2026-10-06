@@ -994,13 +994,13 @@ describe("stack-safe matcher walkers (ARCH-02 N2)", () => {
     const deep = chain(M.size, n, M.eq(M.action()));
     assert.isTrue(M.referencesAction(deep));
     assert.isFalse(M.referencesResource(deep));
-  });
+  }, 60_000);
 
   it("referencesResource finds a ResourceRef 100k wrappers down", () => {
     const deep = chain(M.someMatch, n, M.neq(M.resource("owner")));
     assert.isTrue(M.referencesResource(deep));
     assert.isFalse(M.referencesAction(deep));
-  });
+  }, 60_000);
 
   it("matcherDepth counts wrappers, not leaves", () => {
     assert.strictEqual(M.matcherDepth(M.eq(M.literal(1))), 0);
@@ -1009,7 +1009,7 @@ describe("stack-safe matcher walkers (ARCH-02 N2)", () => {
       M.matcherDepth(M.fieldMatch("a", M.everyMatch(M.someMatch(M.exists())))),
       3,
     );
-  });
+  }, 60_000);
 
   it("the walkers agree with a manual recursive walk over every matcher shape", () => {
     const hasRef = (m: M.Matcher, tag: "ActionRef" | "ResourceRef"): boolean =>

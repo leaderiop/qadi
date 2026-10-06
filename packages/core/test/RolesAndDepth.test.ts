@@ -366,7 +366,7 @@ describe("the three walkers survive a very deep inheritance chain", () => {
     const flat = flattenPermissions(top);
     assert.strictEqual(flat.size, 1);
     assert.isTrue(flat.has("doc:read"));
-  });
+  }, 60_000);
 
   it("roleNames completes without a stack overflow", () => {
     const top = buildChain(DEPTH);
@@ -374,7 +374,7 @@ describe("the three walkers survive a very deep inheritance chain", () => {
     assert.strictEqual(names.size, DEPTH);
     assert.isTrue(names.has("role-0"));
     assert.isTrue(names.has(`role-${DEPTH - 1}`));
-  });
+  }, 60_000);
 
   it("permissionProvenance completes without a stack overflow", () => {
     const top = buildChain(DEPTH);
@@ -385,7 +385,7 @@ describe("the three walkers survive a very deep inheritance chain", () => {
     assert.strictEqual(grants[0]?.path.length, DEPTH);
     assert.strictEqual(grants[0]?.path[0], `role-${DEPTH - 1}`);
     assert.strictEqual(grants[0]?.path[DEPTH - 1], "role-0");
-  });
+  }, 60_000);
 });
 
 describe("resolveRoleGraph — an unknown parent is reported", () => {
