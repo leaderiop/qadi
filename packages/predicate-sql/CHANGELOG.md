@@ -1,5 +1,62 @@
 # @qadi/predicate-sql
 
+## 0.10.0
+
+### Minor Changes
+
+- 1fd8700: `@qadi/audit`: the circuit breaker's half-open probe protocol now lives inside `CircuitBreaker.withPermit`, and three defects found while moving it are fixed.
+
+  **Fixes.** A probe interrupted while `stage()` was in flight used to hold its claim until the half-open age-out, doubling recovery time to twice `resetTimeoutMs`; the claim is now released on every exit from the moment it is taken. A write failure settling on an already-`Open` breaker no longer re-announces an `Open` transition (over-counting `qadi_audit_circuit_breaker_transitions_total`) or restarts the open window. A write's outcome now counts only toward the window that admitted it, so a late failure from before a trip cannot reopen a newer half-open window. Comments and BEH-QD-251 no longer claim that a caller's interruption of a write reaches the breaker; it is not a store failure.
+
+  **Breaking, for `@qadi/audit/CircuitBreaker` subpath imports only.** The `CircuitBreaker` interface is now `status` plus `withPermit`; `recordSuccess`, `recordFailure`, `claimProbe` and `releaseProbe` are no longer members. `Permit`, `Admitted` and `Refused` are new exports. `@qadi/audit`'s barrel and `AuditDecisionSinkLive` behave as before.
+
+- 1fd8700: Exclude non-finite rows from compiled ranges on PostgreSQL and SQLite (breaking: the SQL text of every `Gte`/`Lt` changes).
+
+  A plain `"score" >= $1` admits a row holding `Infinity`, and on PostgreSQL one holding `NaN` (which PostgreSQL orders above every number); `"score" < $1` admits `-Infinity`. The evaluator admits none of them, so a compiled filter over a float column returned rows the policy denies. Found against real PostgreSQL (PGlite) and SQLite (`node:sqlite`) with a float column added to the engine tests.
+
+  On `postgres` and `sqlite` a range now renders with a guard that excludes all three values without overflowing on any numeric column type:
+
+  ```sql
+  -- before
+  "score" >= $1
+  -- after
+  ("score" >= $1 AND "score" - "score" = 0)
+  ```
+
+  `mysql` output is unchanged: MySQL's floating types cannot store these values. There is no option to turn the guard off, because declaring a column finite when it is not would admit rows the predicate denies. Update any golden strings that pin the old range text.
+
+- 1fd8700: `compileSql` becomes a renderer of `@qadi/core`'s `toRenderable`, and gains `nullable` and `identifiers` options.
+
+  What a predicate may hold (safe values, safe columns, bounded `IN` lists, what `Compare` means against NULL) is now decided once, in `@qadi/core`, instead of in a copy per dialect package. With default options the SQL text and `params` are unchanged, apart from the SQLite boolean binding (see the previous changeset).
+
+  - `CompileSqlOptions.nullable?: ReadonlySet<string>`: which columns accept NULL. Absent declares nothing. Declared, `Neq` on a NOT NULL column renders a plain `!=` with no `OR col IS NULL`, and a null comparison on it refuses with `NullOnNonNullableColumn`. The `OR col IS NULL` stays under an odd number of `Negate`s even on a NOT NULL column, because a real engine showed that dropping it there over-admits if the declaration is wrong. A wrong declaration can only under-admit or refuse.
+  - `CompileSqlOptions.identifiers?: "Ascii" | "UnicodeBmp"`: how strictly a column name is constrained. Default `"Ascii"`, which is today's rule.
+  - `PredicateNotRenderable` is now `@qadi/core`'s class, re-exported. It gains a closed `refusal` field and its `predicateTag` narrows to `"Compare" | "MemberOf"`; `_tag` and `reason` are unchanged. `SqlSafeValue` is now an alias of core's `SafeLiteral`.
+
+- 1fd8700: Bind booleans as `1`/`0` in the SQLite dialect.
+
+  `compileSql(predicate, { dialect: "sqlite" })` put a JavaScript boolean into `params`, which neither `node:sqlite` ("Provided value cannot be bound to SQLite parameter") nor `better-sqlite3` ("SQLite3 can only bind numbers, strings, bigints, buffers, and null") can bind. SQLite stores a boolean as 1/0, so `"sealed" = ?` now binds `1` or `0`. PostgreSQL and MySQL are unchanged: `params` still carries the boolean itself.
+
+  This changes the `params` of any SQLite fragment that compares a boolean column. `SqlFragment.params` keeps its type, since a number was already a member.
+
+### Patch Changes
+
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+  - @qadi/core@0.10.0
+
 ## 0.9.0
 
 ### Minor Changes

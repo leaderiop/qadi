@@ -1,5 +1,159 @@
 # @qadi/devtools
 
+## 0.10.0
+
+### Minor Changes
+
+- 1fd8700: `toPredicate` now reads its ports the way `evaluate` does, and stops asking where `evaluate` stops (ADR-QD-077, INV-QD-058). This is a behaviour change; every change is in the fail-safe direction (an error, never a widening — INV-QD-018 is unchanged).
+
+  - A port that **dies** during `toPredicate` (throws, `Effect.die`) now fails with that port's own typed error — `AttributeResolveError` or `DecisionHistoryUnavailable` — instead of surfacing as an untyped defect, so `Effect.retry` and `Effect.catchTag` around `toPredicate` see it, exactly as they do around `evaluate`.
+  - Translation now **stops asking ports** where `evaluate` does: an `allOf` at its first constant denial, an `anyOf` (under `fieldStrategy: "First"`) at its first constant allow, a rule table at the rule nothing later can override. A policy that previously failed because a port behind an already-decisive constant failed may now succeed. It never admits differently.
+  - A **refusal now wins over a port failure** in the same tree: `PolicyNotTranslatable` and `PolicyTooDeep` are decided from the tree alone, before any port is asked, so `allOf([hasAttribute(…), hasCustom(…)])` refuses with `HasCustom` rather than surfacing the attribute store's error first, and a policy refuses for every subject or for none. `MissingAction` is still raised when translation reaches the node that needs an action.
+  - New metric `predicatePortCallsTotal` (`qadi_predicate_port_calls_total`, keyed by the new closed `PredicatePortName`) counts `toPredicate`'s port calls. `portCallsTotal` keeps counting the evaluator's only, with its description unchanged.
+  - Port spans (`qadi.attribute`, `qadi.acted`, …) gain a `qadi.interpreter` annotation, `"evaluate"` or `"toPredicate"`, and `toPredicate`'s reads now emit them. A test asserting an exact span attribute set must include the new key.
+  - `@qadi/devtools`: `PortCall` gains `interpreter` and `PortActivity` gains `translationCalls`, so the Services screen tells a translation's reads from an evaluation's. `PortActivity.translationCalls` is a required field — a hand-built `PortActivity` needs it.
+
+- 1fd8700: Policy, `Explanation` and `Matcher` walkers now fold through one stack-safe seam, and nesting depth is a property of the policy rather than of who is asking (ADR-QD-090, INV-QD-037, INV-QD-090). **Breaking, in the fail-safe direction** — a policy that used to evaluate can now be refused, never the other way round:
+
+  - **`evaluate` rejects an over-deep policy before visiting any node.** A policy deeper than `maxDepth` now fails with `PolicyTooDeep` whichever subject asks and whatever its branches would have short-circuited past. Before, `anyOf([hasRole("editor"), deepChain])` with `maxDepth: 1` evaluated for an editor (the first child allowed, so the deep branch was never reached) and failed for everyone else. `policyDepth(p) <= n` now holds _exactly when_ `evaluate(p, { maxDepth: n })` does not raise `PolicyTooDeep`; INV-QD-037 said so but only the forward direction was true. A caller whose policy sits near the bound and relied on short-circuiting must raise `maxDepth`.
+  - **Matcher nesting counts toward `maxDepth`.** A `HasAttribute` or `HasResourceAttribute` leaf contributes the nesting of its matcher, so `policyDepth(hasAttribute("tags", someMatch(eq(…))))` goes from `0` to `1`. This bounds `evaluateMatcher`'s native recursion, which a 5,000-deep in-memory matcher used to overflow as a defect. A policy near `maxDepth` that nests matchers may need a larger one.
+  - **`toPredicate` reports `PolicyTooDeep` before the fields refusal.** A policy that is both too deep and field-restricting is now always `PolicyTooDeep`; it used to be `PolicyNotTranslatable` or `PolicyTooDeep` depending on child order.
+  - **No `maxDepth` a caller supplies can turn a decision into a defect.** `evaluate(labeled^5000(…), { maxDepth: Infinity })` used to fail with a `Die` carrying a `RangeError`; `Not`, `Obliged` and `Labeled` now build their child lazily, and `toPredicate`'s refusal pass and translation are stack-safe too.
+  - **Every pure walk over a caller-held tree is stack-safe.** `renderExplanation(explain(not^n(…)))` overflowed at about n = 734, `referencesAction`/`referencesResource` and `explain` over a deep matcher had no guard, and `@qadi/devtools`' `inspect` (about 1,759 levels), `remedyEdits`/`sweepPlan`/`whatIf` (about 2,000, 256 for `rules`) and `satisfyingValue` recursed natively. All now complete at 100,000 levels and 250,000 children.
+  - **A cyclic policy throws instead of hanging.** Only in-process mutation can build one.
+  - New exports: `foldPolicy`, `fieldsOf`, `POLICY_TAGS` (`Policy.ts`), `foldExplanation` (`Explanation.ts`), `foldMatcher`, `matcherDepth` (`Matcher.ts`). `POLICY_TAGS` is derived from the schema union and replaces two hand-written copies; `fieldsOf` is the node's own `fields` restriction. `TreeFold.ts`'s `foldTree` is reachable only as the `@qadi/core/TreeFold` subpath, deliberately not in the barrel.
+
+- 1fd8700: Each evaluation port is described once, and its wrappers, fail-closed default, test doubles and environment are derived from that description (ADR-QD-094, INV-QD-095).
+
+  - **Every port has the full wrapper set.** `decisionHistoryRetrying`, `decisionHistoryBounded`, `decisionHistoryTimingOut`, `signatureHistoryRetrying`, `signatureHistoryBounded`, `signatureHistoryTimingOut` and `customPredicateTimingOut` are new, so a hung history or signature store no longer holds an evaluation open with no deadline. Every retrying wrapper annotates `qadi.attempts` on the caller's span. Each wrapper's retry now re-invokes the port's method on every attempt rather than re-running the effect the first call returned.
+  - **Port descriptions.** `attributeResolverPort`, `relationshipResolverPort`, `customPredicatePort`, `decisionHistoryPort` and `signatureHistoryPort` state each port's name, method, span, typed-error constructors, request key and fail-closed answer. New types `PortDescription`, `PortShape`, `PortReply`, `PortScript`, `PortSpanName`.
+  - **Doubles.** `scriptedPort` answers, fails with the port's own error, dies or throws per request, and falls back to the fail-closed answer; `recordingPort` records a real port's requests without absorbing failures; `replyTable` keys a script by the port's request key. Each logs requests as typed tuples.
+  - **Registry and environments.** `PortTypes`, `PORTS`, `PortServices`, `PortLayers`, `PortOverrides`, `DescriptionOf` and the `ServiceOf`/`ShapeOf`/`ArgsOf`/`AnswerOf`/`ErrorOf` helpers; `portsLayer(overrides)` gives every port its fail-closed default unless named, and order no longer matters (overriding by merging after `EvaluationServicesNone` used to keep the default when the override came first); `mapPorts`, `mergePorts`, `decoratePorts`, `forEveryPort`, `tabulatePorts`. `EvaluationServices` is now `CurrentSubject | EvaluationId | PortServices`, the same union as before.
+  - **Breaking (`@qadi/core`):** `RetryingPortName` and `TimingOutPortName` are removed; use `PortName`. `qadi_port_retries_total` and `qadi_port_timeouts_total` now preregister all five ports. Their descriptions are unchanged, so no metric registry key moved. `@qadi/core/RetryingLayer` is gone; its helpers live in `@qadi/core/PortDerivation`.
+  - **Breaking (`@qadi/testing`):** `failingAttributeResolver`, `failingRelationshipResolver`, `failingDecisionHistory`, `failingCustomPredicate`, `failingSignatureHistory`, `recordingAttributeResolver`, `recordingCustomPredicate`, `recordingSignatureHistory`, `edgeRelationshipResolver`, `eventDecisionHistory`, `CallRecorder`/`makeCallRecorder` and the `SignatureInput` re-export are removed. Use `scriptedPort(<port>Port, () => PortReply.fail(cause)).layer` for a failing port and `recordingPort(<port>Port, layer)` for a recording one. `TestLayerOptions`' `attributeResolver`/`relationshipResolver`/`decisionHistory`/`customPredicate`/`signatureHistory` become one `ports` option keyed by port name (`{ ports: { AttributeResolver: layer } }`), which wins over the matching data option. The `attributes`/`relationships`/`history`/`signatures` options now build core's fixtures, so the implementation names a wiring panel shows for them change (`attributeResolverFromRecord`, …). `qadiReviewLayer` is typed `Layer<StandingEvaluationServices>`, the same set as before.
+  - **Breaking (`@qadi/devtools`):** `CapturedAnswers` is keyed by port name (`AttributeResolver`, `RelationshipResolver`, `DecisionHistory`, `CustomPredicate`, `SignatureHistory`) instead of `attributes`/`relationships`/`history`/`custom`/`signatures`; `attributeKey`, `relationshipKey`, `historyKey`, `customPredicateKey` and `signatureHistoryKey` are removed, so use each port description's `key`. Capture and replay keys are unchanged. `PortActivity` gains a required `timeouts` field read from `qadi_port_timeouts_total`, and the Services screen shows it.
+
+- 1fd8700: One decision log replaces the ring, the feed and their pairing: a process's sink, its backlog and its live stream in one value, with every retained record reaching a reader exactly once (ADR-QD-097, INV-QD-100).
+
+  **Rollout.** `/__decisions` frames are now `{ environment, record }` envelopes. A devtools panel older than this release reads every frame from a newer server as `not-a-record` (reported through `onMalformed`, never shown mislabelled): upgrade the panel with the server. A newer panel reading an older server's bare frames labels them with `legacyEnvironment` when given, and reports them otherwise.
+
+  - **`@qadi/core` — `makeDecisionLog({ environment, capacity? })`** returns a `DecisionLog`: `layer` (the `DecisionSink`), `ingest`, `snapshot`, `clear`, a scoped `read` (`{ backlog, live }`) and `readEntries(after?)` (each record with its `LogCursor`). One `capacity` (default `DEFAULT_LOG_CAPACITY = 500`, a positive integer — zero is refused) bounds the backlog and a reader's lag. `ingest` reaches live readers as well as the backlog, which is what makes an aggregator's `Edge` record visible to a reader already watching. A record made while a reader connects is never lost or repeated; the documented ring + feed recipe lost every such record.
+  - **`@qadi/core` — the stored-record envelope.** `StoredRecordJson`, `encodeStoredRecord`/`encodeStoredRecordString` and `decodeStoredRecord`/`decodeStoredRecordString` (with `DecodeStoredRecordOptions.legacyEnvironment`, deprecated, kept for one minor) carry the producer's environment beside the unchanged record wire. Also new: `storedRecordOrder` (the one order a stored record is read in), `LogCursor`, `LogEntry`, `DecisionLogEntries`, `formatLogCursor`, `parseLogCursor`, `DecisionLogRead`, `DecisionLogReader`. `Stamped`, `StoredRecord`, `StoredDecisionRecord`, `StoredObligationRecord` and `stampRecord` now live in `DecisionRecord.ts`; their import from `@qadi/core` is unchanged.
+  - **Breaking (`@qadi/core`):** `decisionSinkRing`, `decisionSinkFeed`, `DEFAULT_RING_CAPACITY` and `DEFAULT_FEED_CAPACITY` are removed.
+
+    ```ts
+    // before
+    const ring = decisionSinkRing({ environment: "Server", capacity: 500 });
+    const feed = Effect.runSync(decisionSinkFeed({ capacity: 256, replay: 32 }));
+    const sink = decisionSinkAll([ring.layer, feed.layer]);
+    // after
+    const log = Effect.runSync(makeDecisionLog({ environment: "Server", capacity: 500 }));
+    const sink = log.layer; // ring.snapshot → log.snapshot, ring.ingest → log.ingest
+    ```
+
+  - **Breaking (`@qadi/http`):** `decisionStreamRoute(permission, policy, log, options?)` takes a `DecisionLogReader` (a `DecisionLog`), not a `Stream`: `decisionStreamRoute(p, policy, feed.stream)` becomes `decisionStreamRoute(p, policy, log)`. Each connection receives the log's backlog as `event: backlog` frames, one `event: synced` frame (`{"backlog":n}`, `DecisionStreamSynced`), then live frames; every record frame carries its cursor as its SSE `id`, and a reconnect's `Last-Event-ID` from the same log is sent only what it missed. `frame(event, cursor?)` and `decisionFrames(entries, options?)` change signature accordingly; `DecisionFrameEvent` and `syncedFrame` are new.
+  - **`@qadi/http` — `decisionBacklogRoute(permission, policy, log, options?)`** serves the backlog as a JSON array of envelopes at `/__decisions/backlog`, guarded with no unguarded variant and listed by `/__permissions`.
+  - **Breaking (`@qadi/devtools`):** a `Source` is one scoped `read` — `{ read: Effect<SourceRead, never, Scope> }` with `SourceRead = { backlog?, live }` — so the past and the future are handed over together. A `DecisionLog` is a `Source` as it is, and `sourceFromFeed` is removed: `sourceFromFeed({ stream, environment, backlog })` becomes the log itself. `sourceFromEventSource` loses `environment` (each frame names its producer), gains `legacyEnvironment` (deprecated) and `syncTimeout` (default two seconds), reads the server's prelude as its backlog, and its `DecisionEventSource` registers `onEvent` per `DecisionEventName` (`"backlog" | "synced" | "message"`) instead of `onMessage`. A hand-built `Source` (`{ backlog: Effect, live }`) becomes `{ read: Effect.succeed({ backlog, live }) }`. `DEFAULT_TIMELINE_CAPACITY` is `DEFAULT_LOG_CAPACITY`.
+
+- 1fd8700: `@qadi/audit`: the circuit breaker's half-open probe protocol now lives inside `CircuitBreaker.withPermit`, and three defects found while moving it are fixed.
+
+  **Fixes.** A probe interrupted while `stage()` was in flight used to hold its claim until the half-open age-out, doubling recovery time to twice `resetTimeoutMs`; the claim is now released on every exit from the moment it is taken. A write failure settling on an already-`Open` breaker no longer re-announces an `Open` transition (over-counting `qadi_audit_circuit_breaker_transitions_total`) or restarts the open window. A write's outcome now counts only toward the window that admitted it, so a late failure from before a trip cannot reopen a newer half-open window. Comments and BEH-QD-251 no longer claim that a caller's interruption of a write reaches the breaker; it is not a store failure.
+
+  **Breaking, for `@qadi/audit/CircuitBreaker` subpath imports only.** The `CircuitBreaker` interface is now `status` plus `withPermit`; `recordSuccess`, `recordFailure`, `claimProbe` and `releaseProbe` are no longer members. `Permit`, `Admitted` and `Refused` are new exports. `@qadi/audit`'s barrel and `AuditDecisionSinkLive` behave as before.
+
+- 1fd8700: **Breaking (`@qadi/react`).** A server-rendered decision is now its own type, not a fabricated `Allow`/`Deny`.
+
+  Hydration used to rebuild a seed into a core `Allow`/`Deny`, which needs a trace and a deny reason, so both were made up whenever the server withheld them: a single-node trace with the reason `"hydrated"` (which `<Can fallback={(deny) => deny.reason}>` rendered), and a root of `"AllOf"` for a payload with no trace. A seed is now a `SeededAllow` or `SeededDeny` carrying a tagged `disclosure` (`Withheld`, or `Disclosed` with the server's own trace and reason), and a decision atom holds a `ClientDecision = Allow | Deny | SeededAllow | SeededDeny`.
+
+  What changes for you:
+
+  - `DecisionResult`, `currentDecision`'s return type and `useDecisionSuspense` now name a `ClientDecision`. `isAllowed` from `@qadi/core` rejects one on purpose; read the verdict with the new `permits`, and tell a seed from this client's own evaluation with `isSeeded`.
+  - `DeniedNode`'s function receives `Deny | SeededDeny`. A `SeededDeny` has no `reason` or `trace` of its own, so narrow with `isSeeded` before reading either.
+  - **Fail-closed note.** Code comparing `decision._tag === "Allow"` keeps compiling and now treats a seeded allow as not allowed. That is never a grant — the page may flash again — but it is a behaviour change; move to `permits`.
+  - `HydrationMismatch.seeded` is a `SeededDecision`.
+  - The dehydrated payload is `version: 2`, and each entry nests a `decision` derived from `@qadi/core`'s new `DecisionWire`. `hydrateDecisions` still reads the format that predates `version` (typed `DehydratedDecisionsV1`, deprecated, removed in the next minor release), always seeding it `Withheld`. Any other version is dropped as `UnsupportedPayloadVersion`.
+  - `hydrateDecisions` never throws: a value that is not an envelope is dropped as `MalformedPayload`. A disclosed trace whose root is not the entry's own policy is dropped as `MalformedEntry`.
+  - `UnregisteredAtoms` is removed from the closed drop-reason union (`ClientHydrationDropReason`, `hydrationDropReasons`), and `UnsupportedPayloadVersion` and `MalformedPayload` are added. An exhaustive `Match` over the reasons stops compiling until it handles them.
+  - `QadiAtoms` gains `hydrate`, the seeding capability `hydrateDecisions` delegates to. A spread copy or wrapper of an atom set now seeds the same questions its original does, instead of being refused whole.
+  - `HydrateOptions.onDropped` receives `HydrationDrop<unknown>`: the entries are what failed to decode.
+
+  `@qadi/core` gains `DecisionWire`/`DecisionWireAllow`/`DecisionWireDeny`, `encodeDecision`/`decodeDecision` (the decision's wire form, moved out of `SinkCodec` — `SinkRecordWire`'s bytes are unchanged, but a `Deny` without a `reason`, or an `Allow` with one, is now refused on decode instead of being given an invented `"denied"`), `projectVisible` (the body of `project` after its verdict check) and `subjectEquivalence` (the structural subject equality `DecisionCache` already used). `@qadi/react`'s `subject` atom now uses it, so a nested attribute object that is equal by structure no longer re-runs every mounted decision.
+
+  `@qadi/devtools` reads the same five hydration metrics unchanged; its drop-reason table follows the new set.
+
+- 1fd8700: The decision-record wire is versioned, a decision's outcome on it is exclusive, and a reader ignores envelope metadata it does not know (ADR-QD-096, INV-QD-098, INV-QD-099).
+
+  **Rollout — read this first. This release writes wire version 2, and a reader on an earlier release refuses it. Upgrade every _reader_ of decision records — devtools panels, aggregators, audit tooling, anything that decodes another process's records or another deployment's audit rows — to this version before any _writer_ (`decisionSinkForwarding`, `decisionStreamRoute`, `AuditDecisionSinkLive`).** The change was planned as three releases — readers of both versions first, then writers defaulting to version 2 with a `wireVersion: 1` option to hold a lagging fleet, then the option's removal — and ships as one, so there is no option to hold a writer at version 1: the order above is the only lever. A process that reads its own records (the in-process devtools, a store written and read by one deployment) is unaffected.
+
+  - **Two wire versions, both read.** Version 1 is the wire every earlier release wrote (no `version` key; the outcome as `decided` or `failed`), and is read for good, so audit rows written by any earlier release — including `@qadi/audit` 0.3/0.4 rows whose error still carries the `code` 0.5.0 dropped — keep reading. Version 2 adds `version: 2` and carries the outcome as one tagged value, `outcome: { _tag: "Decided", decision } | { _tag: "Failed", error }`; it is what every sender now writes. Any other `version` is refused as `UnsupportedVersion`. `WireVersion` (`1 | 2`) and `WIRE_VERSIONS` are exported.
+  - **A newer sender's extra envelope field no longer refuses the record.** A top-level key a reader does not declare is ignored; a key it does not declare anywhere nested — inside the policy, the trace, the decision or the error — is still refused.
+  - **Breaking (`@qadi/core`):** a decision record naming neither outcome, or both, is now refused as `Malformed` instead of decoding to an invented `MissingResource` error (indistinguishable by `ACL004` from a real resolver failure) or a silently chosen `decided`. `DecodeRefusal` gains `UnsupportedVersion { version, supported }`, so an exhaustive match over it needs an arm. `SinkRecordJson` is the closed union of version-1 and version-2 bytes, and a consumer of `send`'s value reading `decided`/`failed` must read version 2's `outcome` instead (or narrow on `"version" in json`).
+  - **Breaking (`@qadi/audit`):** `AuditEntry.record` is that union: new rows are version 2, and a store adapter reading `entry.record.decided` directly must narrow on `"version" in entry.record`. `decodeAuditEntry` reads both versions with the same leniency and strictness as the core decode; it is the one re-parse path — the `AuditEntry` schema alone silently strips a typo inside a stored policy. `AuditArchive`'s `archiveVersion` stays `"1"`.
+  - **Breaking (`@qadi/http`):** frames on `/__decisions` carry version-2 records.
+  - **Breaking (`@qadi/devtools`):** `MalformedReason` gains `"unsupported-version"`: a server newer than the panel, fixed by upgrading the panel.
+
+- 1fd8700: The decision-record codec owns the whole wire in both directions, so every sink makes one call and emits the same bytes (ADR-QD-095, INV-QD-096, INV-QD-097).
+
+  - **Four operations.** `encodeSinkRecord(record)` returns `Result<SinkRecordJson, SinkRecordNotEncodable>` and `encodeSinkRecordString(record)` the same as text; `decodeSinkRecord(input: unknown)` and `decodeSinkRecordString(text)` return `Result<SinkRecord, SinkRecordNotDecodable>`. None of them throws. A refusal names its reason and, outbound, the path it was found at: `EncodeRefusal` is `Circular`, `TooDeep`, `NonFinite`, `Unrepresentable`, `Opaque` or `EncodeFailed`; `DecodeRefusal` is `NotJson`, `TooDeep` or `Malformed`. Both errors join `QadiError` (`ACL019`, `ACL020`).
+  - **Breaking (`@qadi/core`):** `toWire`, `fromWireUnsafe`, `isJsonSafe`, `isRecordJsonSafe`, `encodeRecord`, `encodeRecordSync`, `decodeRecordWire`, `decodeRecord`, `EvaluationErrorSchema` and `SinkRecordWire` are removed. Use `encodeSinkRecord`/`encodeSinkRecordString` and `decodeSinkRecord`/`decodeSinkRecordString`; `SinkRecordJson` is the encoded wire's schema and type. `decisionSinkForwarding`'s `send` receives a `SinkRecordJson`, and a record that cannot be encoded never reaches it: `onFailure` receives the `SinkRecordNotEncodable` (with no `onFailure`, a log line distinct from a send failure's). `QadiError` gains two members, so an exhaustive match over it needs two more arms.
+  - **Breaking (`@qadi/http`):** `frame`'s failure value is the `SinkRecordNotEncodable`. A refused record drops only its own frame and is reported through the new `DecisionStreamOptions.onRefused`, or a warning naming the refusal, its path and the evaluation. `decisionFrames` (the route's body stream) is exported for tests.
+  - **Breaking (`@qadi/audit`):** `AuditEntry.record` is now the encoded JSON form (`SinkRecordJson`), so a store persists `JSON.stringify(entry)` as it is and gets exactly the bytes the decision stream and forwarding emit; a store reading `entry.record.failed` as a class instance must change. Read rows back with the new `decodeAuditEntry(input)`, which is depth-guarded and returns `Result<{ entry, record }, SinkRecordNotDecodable>`. `AuditEntryNotEncodable` gains `refusal`, and `reason` is now that refusal as a sentence.
+  - **Breaking (`@qadi/devtools`):** `MalformedReason` gains `"too-deep"`: a frame nested past the decode bound, which a current sender refuses to emit, so it means an older or foreign sender.
+
+  **Wire.** For the same record, decision-stream frames and audit rows now carry an `Error` cause as `{ name, message }` where they used to carry `{}`, matching forwarding byte for byte; any other cause is normalised through `Schema.Defect()` (a cycle dropped, a `bigint` as `"10n"`) instead of being refused. A property whose value is `undefined` now crosses as absent instead of refusing the record. `Decided` records are byte-identical to before.
+
+  **Fixed.**
+
+  - A resolver `cause` with a reference cycle (an HTTP client's error) or a `bigint` no longer ends every `/__decisions` subscriber's stream.
+  - Such a `Failed` record no longer reaches an audit store's `JSON.stringify` and throws, so an attribute-store outage no longer trips the audit breaker and drops the healthy rows after it.
+  - A policy about 5,000 levels deep no longer makes forwarding's encode throw and get reported as a send failure; it is refused as `TooDeep`.
+  - A record nested past what every receiver decodes (an evaluation under a raised `maxDepth`) is refused at the sender instead of being sent and then refused by every receiver.
+  - A `Map`, `Set`, `RegExp`, binary array, `URL` or `Error` inside a resource is refused with its path instead of being persisted and streamed as `{}`.
+  - A deeply nested stored audit row is refused as `TooDeep` by `decodeAuditEntry` instead of dying with a `RangeError`.
+
+### Patch Changes
+
+- 1fd8700: Never offer a remedy whose value the matcher rejects.
+
+  `satisfyingValue` read each matcher backwards to a witness, and some of those witnesses did not satisfy the matcher they came from: `gte(Infinity)`, `gte(-Infinity)` and `gte(NaN)` offered the bound itself, `eq(literal(NaN))` offered `NaN`, and `eq(literal(undefined))` offered `undefined`. The remedies panel then showed rows that would not have helped. Every leaf witness is now checked with `@qadi/core`'s `judgeMatcher` before it is offered, and declined with the reason "the synthesised value does not satisfy the matcher" when it does not hold.
+
+- 1fd8700: **Breaking (`@qadi/react`).** The gate registry is owned by the atom set, not the process.
+
+  Every instrumented `QadiProvider` used to write its guards into one module-scope map, so two atom sets listed each other's guards, and two hydrated React roots (which derive `useId` from tree position and so mint the same id) silently replaced a still-mounted guard of the other. Each atom set now owns a registry, `atoms.gates`, beside `atoms.asked()`, and registration is a handle only `@qadi/react` can reach. A colliding id is kept, disambiguated as `<id>~<n>`, and reported once (`onGateIdCollision`, or a development warning naming `identifierPrefix`); `data-qadi-gate` still carries React's own id.
+
+  Removed, with no shim: `gateInstances`, `subscribeGates`, `registerGate`, `updateGateState` and `clearGatesUnsafe`. Added: `makeGateRegistry`, `GateRegistry`, `GateRegistryOptions`, `useGateInstances`, `QadiAtoms.gates`, `QadiAtomsOptions.onGateIdCollision` and `QadiProviderProps.gates` (hand one registry to several atom sets; it must come from `makeGateRegistry()`). `QadiContextValue` gains `gates`. `QadiAtoms` gains a required `gates` member, so a hand-written `QadiAtoms` test double stops compiling.
+
+  Migration:
+
+  ```ts
+  // before
+  useSyncExternalStore(subscribeGates, gateInstances, gateInstances);
+  // after, inside the provider
+  const gates = useGateInstances();
+  // after, outside it
+  useSyncExternalStore(atoms.gates.subscribe, atoms.gates.instances, atoms.gates.instances);
+  ```
+
+  `clearGatesUnsafe()` in a test becomes "build a fresh atom set per test".
+
+  `@qadi/devtools` is unchanged in behaviour; its empty-state text now names `useGateInstances()`.
+
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+  - @qadi/core@0.10.0
+
 ## 0.9.0
 
 ### Minor Changes
