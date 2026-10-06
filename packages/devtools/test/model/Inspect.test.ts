@@ -164,6 +164,16 @@ describe("a fieldStrategy or combining outside its closed union (ADR-QD-092, CCR
     }
   });
 
+  it("a null in a policy built by hand is shown as null, not as an object", () => {
+    // The smart constructors read `null` as absent; a literal does not.
+    const fieldStrategy: FieldStrategy = JSON.parse("null");
+    const policy: Policy = { _tag: "AllOf", policies: [hasPermission(read)], fieldStrategy };
+    assert.strictEqual(
+      inspect(policy, undefined).detail,
+      "null (outside the union, evaluated fail-closed)",
+    );
+  });
+
   it("names an unknown combining verbatim and says how it is evaluated", async () => {
     for (const raw of RAW) {
       const combining: Combining = JSON.parse(JSON.stringify(raw));
