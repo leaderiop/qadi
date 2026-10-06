@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-025                                   |
-> | Revision       | 1.3                                            |
-> | Effective Date | 2026-10-05                                     |
+> | Revision       | 1.4                                            |
+> | Effective Date | 2026-10-06                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.3 (2026-10-05): A seventh `stryker run` — `stryker.react.mjs`, scoped to `@qadi/react`'s `DecisionOutcome.ts` alone — the one exception to `@qadi/react`'s exclusion; the mutation steps are now 16-22 and the three after them 23-25 (ADR-QD-093, CCR-QD-175)<br>1.2 (2026-09-08): Added a correction blockquote under "Decision" — five more `stryker run` invocations (`@qadi/devtools`'s model, `@qadi/predicate-sql`, `@qadi/predicate-prisma`, `@qadi/audit`, `@qadi/http`) joined the original `packages/core` one since 1.1, and `mutation` no longer runs last in `pnpm check`'s chain (CCR-QD-119)<br>1.1 (2026-07-26): Named the step by position rather than index — it said "step 9" while the gate table had it at 10, and a new gate has since made it 11 (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-026) |
+> | Change History | 1.4 (2026-10-06): The seven `stryker run` invocations stay sequential, now by decision; each takes Stryker's default of a worker per core instead of a pinned 4, and `check-dod-table.mjs` checks every configuration is a step and breaks at its row's score (ADR-QD-098, CCR-QD-184)<br>1.3 (2026-10-05): A seventh `stryker run` — `stryker.react.mjs`, scoped to `@qadi/react`'s `DecisionOutcome.ts` alone — the one exception to `@qadi/react`'s exclusion; the mutation steps are now 16-22 and the three after them 23-25 (ADR-QD-093, CCR-QD-175)<br>1.2 (2026-09-08): Added a correction blockquote under "Decision" — five more `stryker run` invocations (`@qadi/devtools`'s model, `@qadi/predicate-sql`, `@qadi/predicate-prisma`, `@qadi/audit`, `@qadi/http`) joined the original `packages/core` one since 1.1, and `mutation` no longer runs last in `pnpm check`'s chain (CCR-QD-119)<br>1.1 (2026-07-26): Named the step by position rather than index — it said "step 9" while the gate table had it at 10, and a new gate has since made it 11 (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-026) |
 
 ---
 
@@ -67,6 +67,18 @@ exercised.
 > binding plus render code); this file is pure decision logic, and a surviving
 > mutant in it is a stale allow (ADR-QD-017), so the exclusion's own reason does
 > not reach it.
+
+> **Amended (revision 1.4, CCR-QD-184).** The seven invocations still run one
+> after another, and that is now a decision: running them concurrently was
+> measured against the four-core CI runner and rejected, because mutation
+> testing already keeps those cores busy and the only way to overlap two runs is
+> more workers than cores, which slows every test on a gate that scores
+> slowness. Two things did change. No configuration pins `concurrency: 4` any
+> more — Stryker's default of a worker per core is the same four on CI and every
+> core on a workstation. And `check-dod-table.mjs` now fails if a `stryker*.mjs`
+> is not one of the steps, or breaks at a score other than the one its row
+> states, so "breaking below 80%" is checked against every configuration rather
+> than trusted. See [ADR-QD-098](./098-mutation-runs-stay-sequential.md).
 
 Three parts, each with a reason that is not obvious from the config file:
 

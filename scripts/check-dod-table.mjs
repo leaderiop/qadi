@@ -16,13 +16,15 @@
  * table had it at 10, and a new gate has since made it 11."* Someone hit it, fixed
  * one instance and wrote it down; eight others drifted anyway. A note is not a gate.
  *
- * Three checks:
+ * Four checks:
  *
  *   1. TABLE      — the table's rows are exactly the commands `pnpm check` runs, in
  *                   order.
- *   2. REFERENCES — every live "gate N" / "step N of `pnpm check`" names the command
+ *   2. MUTATION   — every `stryker*.mjs` at the repository root is one of those
+ *                   commands, and each one breaks at the score its row promises.
+ *   3. REFERENCES — every live "gate N" / "step N of `pnpm check`" names the command
  *                   it means, and N is that command's row.
- *   3. COUNT      — README.md's "all N gates" is the real number, in words.
+ *   4. COUNT      — README.md's "all N gates" is the real number, in words.
  *
  * Change history is **exempt from check 2**: a CCR row saying a gate was added "as
  * merge gate 10" records what was true then, and rewriting history to keep a gate
@@ -30,6 +32,7 @@
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const DOD = join(ROOT, "spec", "process", "definitions-of-done.md");
@@ -82,7 +85,7 @@ for (const line of tableSection.split("\n")) {
   if (!line.startsWith("|") || line.includes("| ---")) continue;
   const cells = line.split("|").map((cell) => cell.trim());
   if (cells[1] === "#") continue;
-  rows.push({ number: cells[1] ?? "", command: (cells[2] ?? "").replace(/`/g, "") });
+  rows.push({ number: cells[1] ?? "", command: (cells[2] ?? "").replace(/`/g, ""), gate: cells[3] ?? "" });
 }
 
 if (rows.length === 0) {
@@ -116,7 +119,61 @@ for (const row of rows.slice(steps.length)) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. REFERENCES — a step named by number must also be named by command.
+// 2. MUTATION — every Stryker configuration runs, and breaks where its row says.
+// ---------------------------------------------------------------------------
+
+/**
+ * The two ways a mutation gate can shrink without the table above noticing.
+ *
+ * A seventh `stryker*.mjs` was added beside the others in CCR-QD-175 and wired
+ * into `mutation` by hand; a configuration added and *not* wired in would exist
+ * only as a file, with a table that never mentions it and so cannot drift from
+ * it. And each row promises a score — "at or above 80%" — that only the
+ * configuration's `thresholds.break` enforces: without one, Stryker reports and
+ * exits 0, which is a report, not a gate (ADR-QD-025). Neither was checked by
+ * anything until ADR-QD-098 (CCR-QD-184).
+ *
+ * A bare `stryker run` reads `stryker.config.mjs`, the file Stryker finds by
+ * default at this root; the check fails below if that file is ever renamed.
+ */
+const STRYKER_RUN = /^stryker run(?: (\S+))?$/;
+const strykerSteps = steps
+  .map((step, index) => {
+    const match = STRYKER_RUN.exec(step.command);
+    return match === null ? undefined : { index, config: match[1] ?? "stryker.config.mjs" };
+  })
+  .filter((step) => step !== undefined);
+
+const strykerConfigs = readdirSync(ROOT).filter((entry) => /^stryker.*\.mjs$/.test(entry));
+for (const config of strykerConfigs) {
+  if (!strykerSteps.some((step) => step.config === config)) {
+    fail(
+      "package.json",
+      `[mutation] ${config} is a Stryker configuration and \`pnpm check\` never runs it. ` +
+        "Add `stryker run " + config + "` to the `mutation` script and a row to the table, or delete the file.",
+    );
+  }
+}
+
+for (const { index, config } of strykerSteps) {
+  if (!strykerConfigs.includes(config)) {
+    fail("package.json", `[mutation] step ${index + 1} runs ${config}, which is not a file at the repository root.`);
+    continue;
+  }
+  const options = (await import(pathToFileURL(join(ROOT, config)).href)).default;
+  const threshold = options?.thresholds?.break;
+  const promised = /at or above (\d+)%/.exec(rows[index]?.gate ?? "");
+  if (typeof threshold !== "number") {
+    fail(config, `[mutation] sets no numeric \`thresholds.break\`, so step ${index + 1} reports a score and cannot fail.`);
+  } else if (promised === null) {
+    fail("spec/process/definitions-of-done.md", `[mutation] step ${index + 1} runs Stryker and its row does not say the score it breaks at ("at or above N%").`);
+  } else if (Number(promised[1]) !== threshold) {
+    fail(config, `[mutation] breaks at ${threshold}, and step ${index + 1}'s row promises ${promised[1]}%.`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 3. REFERENCES — a step named by number must also be named by command.
 // ---------------------------------------------------------------------------
 
 /**
@@ -278,7 +335,7 @@ for (const file of scanned) {
 }
 
 // ---------------------------------------------------------------------------
-// 3. COUNT — the one hard total in the repository.
+// 4. COUNT — the one hard total in the repository.
 // ---------------------------------------------------------------------------
 
 const WORDS = [

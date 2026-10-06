@@ -736,7 +736,9 @@ describe("the wire's recursive positions are depth-bounded before Schema recurse
     Effect.gen(function* () {
       const result = yield* Effect.result(decodeEffect(wireWithNestedPolicy(60_000)));
       assert.strictEqual(result._tag, "Failure");
-    }));
+    }),
+    60_000,
+  );
 });
 
 describe("decodeSinkRecord rejects an excess property inside its embedded Policy, matching Policy.ts", () => {
@@ -1315,7 +1317,7 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
 
     it("a 60,000-deep input is TooDeep, naming the bound, and nothing throws", () => {
       assert.deepStrictEqual(decodeRefusalOf(deepPolicyJson(60_000)), DecodeRefusal.TooDeep({ maxDepth: P.MAX_DECODE_DEPTH }));
-    });
+    }, 60_000);
 
     it("an unknown tag is Malformed", () => {
       assert.strictEqual(decodeRefusalOf('{"_tag":"Nope","version":2}')?._tag, "Malformed");

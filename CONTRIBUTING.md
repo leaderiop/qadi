@@ -30,13 +30,18 @@ there — but for the common loop (edit one package, check it typechecks and
 its tests pass) they are what to reach for, and `pnpm check` is what to run
 once, before you push.
 
-Seven of those twenty-five steps are independent Stryker mutation runs, chained
-sequentially by `&&` in the `mutation` script (`package.json`) because they
-share no state to coordinate — sequential is simply what `&&` gives, not a
-requirement. Nothing currently parallelizes or shards them, so their combined
-wall-clock cost is paid in full on every `pnpm check` run; treat that as a
-known, chosen cost rather than a surprise; revisiting it is a real option, not
-yet taken.
+Seven of those twenty-five steps are independent Stryker mutation runs,
+chained by `&&` in the `mutation` script (`package.json`). They run one after
+another by decision now, not by default: ADR-QD-098 measured where the time
+goes on the 4-vCPU CI runner and found mutation testing already CPU-bound
+there. Two runs could only share the same four cores, and overlapping
+them means more workers than cores — slowing every test, on a gate that scores
+slowness (a Timeout counts as detected, and Vitest's own timeout can kill a
+merely slow test). Each configuration takes Stryker's default of a worker per
+core rather than a pinned four, so the step is unchanged on CI and uses every
+core of a workstation. The large speed-ups that remain — incremental mode, or
+test files sharing modules across mutants — each change what the gate proves;
+the ADR records them as declined, with the numbers, rather than not yet tried.
 
 **Platform notes**, since CI only ever runs `pnpm check` on `ubuntu-latest`
 and these do not surface there:
