@@ -42,6 +42,11 @@ arrives as `{ name, message }` rather than `{}`. Read rows back with
 `decodeAuditEntry`, which refuses a row nested past the decode bound with a
 typed reason instead of overflowing the stack, and rebuilds the record.
 
+A row is wire version 2, the only version this release reads. A row written
+before 0.10 (wire version 1, with no `version` key) is refused as
+`UnsupportedVersion`. Re-encode such rows with 0.10.x (`decodeAuditEntry`, then
+`encodeAuditEntry`, from `@qadi/audit@0.10`) before upgrading.
+
 ## Refuses rather than approximates
 
 A record carrying a value with no safe durable representation — a function,
