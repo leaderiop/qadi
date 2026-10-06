@@ -59,6 +59,19 @@ const DECISIVE_EFFECT_BY_COMBINING: Record<Combining, RuleEffect | undefined> = 
 };
 
 /**
+ * Whether `value` is one of the closed union's combining algorithms — a key of
+ * this module's own table, read through `Object.hasOwn` for the reason the
+ * module comment gives. A value that is not a string at all is outside it too.
+ *
+ * The one membership test for an algorithm: {@link effectiveCombining} reads it
+ * to choose the fallback, and `Explanation.ts` reads it to say in words that a
+ * table's algorithm is outside the union rather than throw on it (ADR-QD-092
+ * amendment, CCR-QD-183).
+ */
+export const isCombining = (value: unknown): value is Combining =>
+  typeof value === "string" && Object.hasOwn(DECISIVE_EFFECT_BY_COMBINING, value);
+
+/**
  * The algorithm a rule table is actually walked under: its own `combining`, or
  * `DenyOverrides` for a value outside the union.
  *
@@ -73,7 +86,7 @@ const DECISIVE_EFFECT_BY_COMBINING: Record<Combining, RuleEffect | undefined> = 
  * plan for which formula a table becomes.
  */
 export const effectiveCombining = (combining: Combining): Combining =>
-  Object.hasOwn(DECISIVE_EFFECT_BY_COMBINING, combining) ? combining : "DenyOverrides";
+  isCombining(combining) ? combining : "DenyOverrides";
 
 /**
  * The effect that ends a `rules` walk, or `undefined` when the first rule that

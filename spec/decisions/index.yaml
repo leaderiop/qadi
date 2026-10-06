@@ -293,7 +293,7 @@ entries:
   - id: "ADR-QD-092"
     file: "092-field-strategy-meaning-lives-beside-the-lattice.md"
     title: "A field strategy's meaning lives beside the field lattice"
-    status: "Accepted — amends ADR-QD-030, ADR-QD-034"
+    status: "Accepted — amends ADR-QD-030, ADR-QD-034; amended 2026-10-06 (rendering is total)"
   - id: "ADR-QD-093"
     file: "093-a-decision-is-read-once.md"
     title: "A decision is read once, into a closed outcome"

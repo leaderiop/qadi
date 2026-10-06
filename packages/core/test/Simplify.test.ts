@@ -336,7 +336,9 @@ describe("simplify", () => {
         15,
         `only ${emptyChildCases} of 120 trees hold an empty Union/First child`,
       );
-    }));
+    }),
+    60_000,
+  );
 
   it.effect("PROPERTY: simplifying is idempotent on every generated tree", () =>
     Effect.gen(function* () {

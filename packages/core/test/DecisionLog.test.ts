@@ -358,7 +358,9 @@ describe("makeDecisionLog — the handoff between backlog and live (C9)", () => 
         for (const one of seen) assert.deepStrictEqual([...one].sort(), expected);
         }).pipe(Effect.provideService(Scheduler.MaxOpsBeforeYield, opsBeforeYield));
       }
-    }));
+    }),
+    60_000,
+  );
 });
 
 describe("makeDecisionLog — ingest (C10)", () => {

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-18                                    |
-> | Revision       | 1.4                                            |
-> | Effective Date | 2026-09-07                                     |
+> | Revision       | 1.5                                            |
+> | Effective Date | 2026-10-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-10-04): BEH-QD-141 — `explain` and `renderExplanation` MUST NOT exhaust the call stack, matchers included; BEH-QD-303 added (`foldExplanation`) (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-09-07): BEH-QD-139 gains an explicit requirement that `fieldStrategy` and `HasRelationship.depth` appear when non-default; `depth` was missing from the rendering entirely (INV-QD-031, issue 45, CCR-QD-114)<br>1.2 (2026-08-23): BEH-QD-137 — a rendering denotes exactly one policy; composite children are parenthesised (ADR-QD-042, INV-QD-031, CCR-QD-057)<br>1.1 (2026-08-23): BEH-QD-144 — `renderTrace`, the decision-side counterpart to `renderExplanation` (ADR-QD-039, CCR-QD-053)<br>1.0 (2026-07-26): Initial release (CCR-QD-028) |
+> | Change History | 1.5 (2026-10-06): BEH-QD-139 — a `fieldStrategy` or `combining` outside its closed union MUST appear verbatim with what it is evaluated as; BEH-QD-141 — `renderExplanation` MUST NOT throw on one; BEH-QD-137 — an empty `All` carrying one is not atomic (ADR-QD-092 amendment, CCR-QD-183)<br>1.4 (2026-10-04): BEH-QD-141 — `explain` and `renderExplanation` MUST NOT exhaust the call stack, matchers included; BEH-QD-303 added (`foldExplanation`) (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-09-07): BEH-QD-139 gains an explicit requirement that `fieldStrategy` and `HasRelationship.depth` appear when non-default; `depth` was missing from the rendering entirely (INV-QD-031, issue 45, CCR-QD-114)<br>1.2 (2026-08-23): BEH-QD-137 — a rendering denotes exactly one policy; composite children are parenthesised (ADR-QD-042, INV-QD-031, CCR-QD-057)<br>1.1 (2026-08-23): BEH-QD-144 — `renderTrace`, the decision-side counterpart to `renderExplanation` (ADR-QD-039, CCR-QD-053)<br>1.0 (2026-07-26): Initial release (CCR-QD-028) |
 
 _Previous: [17 — Concurrent Evaluation](./17-concurrency.md)_
 
@@ -51,7 +51,9 @@ REQUIREMENT: Two policies that are not equivalent MUST NOT render to the same
 Only an **atomic** explanation renders bare as a child: a `Requirement`, or an
 `All`/`Any`/`Table` with no parts, since those render fixed sentences — "always
 allows (an empty conjunction)" — with no loose end for a following word to
-attach to. Everything else is wrapped.
+attach to. Everything else is wrapped — including an empty `All` whose
+`fieldStrategy` is outside the closed union, which carries a trailing clause
+saying so ([BEH-QD-139](#beh-qd-139-restrictions-are-stated-not-only-requirements)).
 
 ```
 anyOf([admin, allOf([editor, onCall])])
@@ -125,6 +127,44 @@ while understating a restriction makes it look more permissive — and that is t
 one a reviewer would act on.
 
 ```
+REQUIREMENT: An `All`/`Any` whose `fieldStrategy` is outside the closed union,
+             and a rule table whose `combining` is, MUST name that value
+             verbatim and say how it is evaluated: an `All`/`Any` at every part
+             count, an empty `allOf` included, that it exposes no fields and is
+             evaluated fail-closed; a non-empty rule table, the algorithm it is
+             walked under. An empty `anyOf` and an empty rule table deny whatever
+             their value, and their sentences do not change.
+```
+
+> **Added in CCR-QD-183** ([ADR-QD-092](../decisions/092-field-strategy-meaning-lives-beside-the-lattice.md)'s
+> amendment). Decode rejects such a value, so only a policy built in code
+> carries one, and the evaluator reads it fail-closed. The rendering threw on
+> most of them; where it did not, it was the error direction this section is
+> about — `allOf([hasRole("editor", { fields: ["a"] })], { fieldStrategy: "Xor" })`
+> rendered "requires role `editor`, exposing only `a`" for a policy that
+> exposes no fields at all. Under a known strategy one part discloses exactly
+> itself, so a one-part composite needs no clause; under an unknown one it
+> does not, so the clause is said at every part count.
+
+```
+allOf([a, b], { fieldStrategy: "Xor" })
+  → requires role `editor`, exposing only `a` and requires role `admin`, exposing
+    only `b`, but exposing no fields: its field strategy "Xor" is outside the
+    closed union and is evaluated fail-closed
+
+rules([permitWhen(a), denyWhen(b)], { combining: "toString" })
+  → a rule table where the combining algorithm "toString" is outside the closed
+    union and is evaluated under DenyOverrides, so any applying deny row wins:
+    [0] permit when …; [1] deny when …
+```
+
+A string is quoted, so `""` and `"__proto__"` read as values rather than as
+missing words; a non-string from an untyped caller is shown as itself (`42`),
+an object as "an object". The algorithm named is whatever `effectiveCombining`
+answers — the same function both interpreters walk the table under — so the
+sentence cannot drift from the decision.
+
+```
 REQUIREMENT: An advisory obligation MUST be distinguishable from a binding one.
 ```
 
@@ -152,7 +192,18 @@ REQUIREMENT: Every `Policy` variant, every `Matcher` and every `ValueRef` MUST
 
 ```
 REQUIREMENT: `explain` MUST NOT fail and MUST NOT refuse a policy.
+             `renderExplanation` MUST NOT throw for any explanation `explain`
+             returns — including one built from a policy assembled in code
+             whose `fieldStrategy` or `combining` is outside its closed union.
 ```
+
+> **Extended in CCR-QD-183.** `explain` itself never threw on such a policy;
+> `renderExplanation` did, through a `Match.exhaustive` over the closed union,
+> for every unknown string, every `Object.prototype` key and the empty string —
+> an `allOf`/`anyOf` of two parts or more and any non-empty rule table.
+> [ADR-QD-092](../decisions/092-field-strategy-meaning-lives-beside-the-lattice.md)
+> had recorded it as "left alone: rendering, not a decision"; its 2026-10-06
+> amendment closes it.
 
 ```
 REQUIREMENT: `explain` and `renderExplanation` MUST NOT exhaust the call stack for

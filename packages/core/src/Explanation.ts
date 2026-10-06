@@ -17,11 +17,13 @@
  * leak whether the viewer satisfies a policy they are only meant to read.
  */
 import * as Match from "effect/Match";
+import { isFieldStrategy } from "./FieldLattice.ts";
 import { foldMatcher } from "./Matcher.ts";
 import type { Matcher, ValueRef } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
 import { defaultFieldStrategy, foldPolicy } from "./Policy.ts";
+import { effectiveCombining, isCombining } from "./ShortCircuit.ts";
 import { foldTree } from "./TreeFold.ts";
 import type { Combining, FieldStrategy, Policy } from "./Policy.ts";
 
@@ -384,13 +386,49 @@ export interface RenderOptions {
   readonly term?: (text: string) => string;
 }
 
-const combiningText: (self: Combining) => string = (self) =>
+/**
+ * A value outside its closed union, shown as it is: a string quoted, so `""`
+ * and `"__proto__"` read as values and not as missing words, and anything else
+ * — an untyped caller's `42` or `null` — through `String`. An object is named
+ * rather than converted, because converting one can itself throw
+ * (`Object.create(null)` has no `toString`), and rendering must not.
+ */
+const verbatim = (value: unknown): string =>
+  typeof value === "string"
+    ? JSON.stringify(value)
+    : typeof value === "object" && value !== null
+      ? "an object"
+      : String(value);
+
+/** What each algorithm in the closed union means, in words. */
+const knownCombiningText = (self: Combining): string =>
   Match.value(self).pipe(
     Match.when("FirstApplicable", () => "the first row that applies decides"),
     Match.when("DenyOverrides", () => "any applying deny row wins"),
     Match.when("PermitOverrides", () => "any applying permit row wins"),
     Match.exhaustive,
   );
+
+/**
+ * A rule table's algorithm in words — and, for a value outside the closed
+ * union, that value verbatim and the algorithm the table is actually walked
+ * under.
+ *
+ * Decode rejects such a value (ADR-QD-006), so only a policy built in code
+ * carries one. The `Match.exhaustive` above used to receive it and throw a
+ * `MatchError` out of a function that must not fail (BEH-QD-141). The fallback
+ * is not restated here: `effectiveCombining` (`ShortCircuit.ts`) is what both
+ * interpreters walk the table under, so the sentence names whatever it answers
+ * (ADR-QD-092 amendment, CCR-QD-183).
+ */
+const combiningText = (self: Combining): string => {
+  if (isCombining(self)) return knownCombiningText(self);
+  const walkedUnder = effectiveCombining(self);
+  return (
+    `the combining algorithm ${verbatim(self)} is outside the closed union and is ` +
+    `evaluated under ${walkedUnder}, so ${knownCombiningText(walkedUnder)}`
+  );
+};
 
 /**
  * How a composite's `fieldStrategy` merges its parts' visible fields — the
@@ -424,6 +462,27 @@ const isDefaultFieldStrategy = (kind: "All" | "Any", strategy: FieldStrategy): b
   strategy === defaultFieldStrategy(kind === "All" ? "AllOf" : "AnyOf");
 
 /**
+ * The clause an `All`/`Any` carries when its `fieldStrategy` is outside the
+ * closed union, or nothing for one of the three strategies.
+ *
+ * Such a strategy merges to `[]` — `FieldLattice.ts`'s fail-closed row — so the
+ * composite exposes no fields whatever its parts grant, and none of the
+ * lattice's laws hold for it. That is why this clause, unlike the known
+ * strategies', is said for every part count: one part is *not* itself under it
+ * (`singletonIsIdentity` is false), and an empty `allOf` grants no fields, not
+ * every field. Leaving it out would render ``exposing only `a` `` for a policy
+ * that exposes nothing — the understated restriction BEH-QD-139 exists to
+ * forbid. Membership is `FieldLattice.ts`'s own `isFieldStrategy`, the test its
+ * law lookup uses, so the sentence and the evaluator cannot disagree about which
+ * values are outside (ADR-QD-092 amendment, CCR-QD-183).
+ */
+const outsideStrategyClause = (strategy: FieldStrategy): string =>
+  isFieldStrategy(strategy)
+    ? ""
+    : `, but exposing no fields: its field strategy ${verbatim(strategy)} is outside the ` +
+      `closed union and is evaluated fail-closed`;
+
+/**
  * The clause naming a composite's `fieldStrategy`, or nothing when it would
  * describe a difference that cannot exist.
  *
@@ -436,14 +495,20 @@ const isDefaultFieldStrategy = (kind: "All" | "Any", strategy: FieldStrategy): b
  * strategy needs no mention because that is what a bare "and"/"either…or" has
  * always meant; only a departure from it changes what the sentence must say
  * to keep two non-equivalent policies from rendering identically.
+ *
+ * Both conditions are facts about the three known strategies only. A value
+ * outside the union gets {@link outsideStrategyClause} at every part count, and
+ * {@link fieldStrategyText}'s `Match.exhaustive` is reached only past that guard.
  */
 const fieldStrategyClause = (
   kind: "All" | "Any",
   e: { readonly fieldStrategy: FieldStrategy; readonly parts: ReadonlyArray<Explanation> },
 ): string =>
-  e.parts.length < 2 || isDefaultFieldStrategy(kind, e.fieldStrategy)
-    ? ""
-    : `, ${fieldStrategyText(e.fieldStrategy)}`;
+  !isFieldStrategy(e.fieldStrategy)
+    ? outsideStrategyClause(e.fieldStrategy)
+    : e.parts.length < 2 || isDefaultFieldStrategy(kind, e.fieldStrategy)
+      ? ""
+      : `, ${fieldStrategyText(e.fieldStrategy)}`;
 
 /**
  * Whether this node reads as one unit and so needs no parentheses as a child.
@@ -451,7 +516,8 @@ const fieldStrategyClause = (
  * A `Requirement` is a single clause. The three empty composites render fixed
  * sentences — "always allows (an empty conjunction)" — that no following word
  * can attach to. Everything else spans several clauses, and a reader has no way
- * to see where it ends.
+ * to see where it ends — including an empty `All` whose `fieldStrategy` is
+ * outside the closed union, which carries a trailing clause saying so.
  *
  * Hoisted to module scope, per AGENTS.md §5a's preferred form: unlike the
  * dispatchers inside {@link renderExplanation}, this one closes over nothing.
@@ -459,7 +525,7 @@ const fieldStrategyClause = (
 const isAtomic: (self: Explanation) => boolean = Match.type<Explanation>().pipe(
   Match.tagsExhaustive({
     Requirement: () => true,
-    All: (e) => e.parts.length === 0,
+    All: (e) => e.parts.length === 0 && isFieldStrategy(e.fieldStrategy),
     Any: (e) => e.parts.length === 0,
     Table: (e) => e.rows.length === 0,
     Negated: () => false,
@@ -534,7 +600,7 @@ const renderStep: (self: Explanation) => Render = Match.type<Explanation>().pipe
     All: (e) =>
       render((children) =>
         e.parts.length === 0
-          ? "always allows (an empty conjunction)"
+          ? `always allows (an empty conjunction)${outsideStrategyClause(e.fieldStrategy)}`
           : `${children.map(embed).join(" and ")}${fieldStrategyClause("All", e)}`),
 
     // "either" opens a disjunction but nothing closes it, so a following
@@ -586,6 +652,11 @@ const renderStep: (self: Explanation) => Render = Match.type<Explanation>().pipe
  * Folds through {@link foldExplanation}, so it is stack-safe for any nesting
  * depth. `explain` already was, and its output used to overflow here at about
  * 700 levels (ARCH-02 N1).
+ *
+ * Total over a policy built in code, too: a `fieldStrategy` or `combining`
+ * outside its closed union — which decode rejects, and the smart constructors
+ * do not — is named verbatim with what it is evaluated as, where it used to
+ * throw a `MatchError` (ADR-QD-092 amendment, CCR-QD-183).
  */
 export const renderExplanation = (
   explanation: Explanation,

@@ -1,12 +1,15 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Effect from "effect/Effect";
 import * as FastCheck from "fast-check";
+import { isAllowed } from "../src/Decision.ts";
+import { evaluate } from "../src/Evaluate.ts";
 import { explain, foldExplanation, renderExplanation } from "../src/Explanation.ts";
 import type { Requirement } from "../src/Explanation.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { chain } from "./helpers.ts";
+import { chain, subjectWith, testLayer } from "./helpers.ts";
 
 /**
  * Narrows an `Explanation` to a `Requirement`, asserting the tag along the way.
@@ -645,4 +648,175 @@ describe("explain", () => {
     if (result._tag !== "Any") return;
     assert.strictEqual(result.parts.length, 250_000);
   }, 60_000);
+});
+
+// ---------------------------------------------------------------------------
+// A `fieldStrategy` or `combining` outside its closed union (ADR-QD-092
+// amendment, CCR-QD-183)
+// ---------------------------------------------------------------------------
+
+describe("a fieldStrategy or combining value outside its closed union (ADR-QD-092, CCR-QD-183)", () => {
+  /**
+   * Built in process via `JSON.parse` (no `as`, AGENTS.md §6) — decode rejects
+   * every one, so only a policy assembled in code can carry them. Four
+   * classes: an unknown string, the keys `Object.prototype` supplies (which a
+   * bare table lookup reads as an inherited member), the empty string, and a
+   * value that is not a string at all (an untyped JavaScript caller).
+   */
+  const RAW: ReadonlyArray<string> = [
+    "Xor",
+    "toString",
+    "constructor",
+    "__proto__",
+    "hasOwnProperty",
+    "",
+  ];
+  const strategyOf = (raw: string): P.FieldStrategy => JSON.parse(JSON.stringify(raw));
+  const combiningOf = (raw: string): P.Combining => JSON.parse(JSON.stringify(raw));
+  /**
+   * JSON in, what the sentence shows out. (`null` cannot be carried: the smart
+   * constructors read it as absent.)
+   */
+  const NON_STRING: ReadonlyArray<readonly [string, string]> = [
+    ["42", "42"],
+    ["true", "true"],
+    ["{}", "an object"],
+  ];
+
+  const a = P.hasRole("editor", { fields: ["a"] });
+  const b = P.hasRole("admin", { fields: ["b"] });
+  const A = "requires role `editor`, exposing only `a`";
+  const B = "requires role `admin`, exposing only `b`";
+  /** What the evaluator does with such a strategy (`FieldLattice.ts`'s fail-closed row), in words. */
+  const noFields = (shown: string) =>
+    `, but exposing no fields: its field strategy ${shown} is outside the closed union ` +
+    `and is evaluated fail-closed`;
+
+  const render = (policy: P.Policy) => renderExplanation(explain(policy));
+
+  it("an allOf or anyOf of two parts renders the value verbatim instead of throwing", () => {
+    for (const raw of RAW) {
+      const s = strategyOf(raw);
+      const shown = JSON.stringify(raw);
+      assert.strictEqual(
+        render(P.allOf([a, b], { fieldStrategy: s })),
+        `${A} and ${B}${noFields(shown)}`,
+        raw,
+      );
+      assert.strictEqual(
+        render(P.anyOf([a, b], { fieldStrategy: s })),
+        `either ${A} or ${B}${noFields(shown)}`,
+        raw,
+      );
+    }
+  });
+
+  it("a value that is not a string at all renders as itself, unquoted", () => {
+    for (const [json, shown] of NON_STRING) {
+      const s: P.FieldStrategy = JSON.parse(json);
+      const c: P.Combining = JSON.parse(json);
+      assert.strictEqual(
+        render(P.allOf([a, b], { fieldStrategy: s })),
+        `${A} and ${B}${noFields(shown)}`,
+      );
+      assert.include(
+        render(P.rules([P.permitWhen(a)], { combining: c })),
+        `the combining algorithm ${shown} is outside the closed union`,
+      );
+    }
+  });
+
+  it("a null carried by a hand-built explanation is shown as null, not as an object", () => {
+    // The smart constructors read `null` as absent, but `renderExplanation`
+    // takes any `Explanation`, and a caller may build one by hand.
+    const strategy: P.FieldStrategy = JSON.parse("null");
+    assert.strictEqual(
+      renderExplanation({ _tag: "All", parts: [], fieldStrategy: strategy }),
+      `always allows (an empty conjunction)${noFields("null")}`,
+    );
+  });
+
+  it("a one-part composite still says so: under such a value one part is not itself", () => {
+    // A known strategy's single-part composite needs no clause: merging one
+    // field set discloses exactly it (`singletonIsIdentity`). An unknown one
+    // merges to `[]`, so leaving it out would render `exposing only \`a\`` for
+    // a policy that exposes nothing — overstating the grant (BEH-QD-139).
+    for (const raw of RAW) {
+      const s = strategyOf(raw);
+      const shown = JSON.stringify(raw);
+      assert.strictEqual(render(P.allOf([a], { fieldStrategy: s })), `${A}${noFields(shown)}`, raw);
+      assert.strictEqual(
+        render(P.anyOf([a], { fieldStrategy: s })),
+        `either ${A}${noFields(shown)}`,
+        raw,
+      );
+    }
+  });
+
+  it("an empty allOf says it allows and exposes nothing, and is parenthesised as a child", () => {
+    for (const raw of RAW) {
+      const empty = P.allOf([], { fieldStrategy: strategyOf(raw) });
+      const own = `always allows (an empty conjunction)${noFields(JSON.stringify(raw))}`;
+      assert.strictEqual(render(empty), own, raw);
+      // No longer a fixed sentence with no loose end, so not atomic (INV-QD-031).
+      assert.strictEqual(render(P.anyOf([empty, b])), `either (${own}) or ${B}`, raw);
+    }
+  });
+
+  it("an empty anyOf denies whatever its strategy, so its sentence is unchanged", () => {
+    for (const raw of RAW) {
+      assert.strictEqual(
+        render(P.anyOf([], { fieldStrategy: strategyOf(raw) })),
+        "never allows (an empty disjunction)",
+        raw,
+      );
+    }
+  });
+
+  it("a rule table names the value verbatim and the algorithm it is walked under", () => {
+    for (const raw of RAW) {
+      const c = combiningOf(raw);
+      assert.strictEqual(
+        render(P.rules([P.permitWhen(a), P.denyWhen(b)], { combining: c })),
+        `a rule table where the combining algorithm ${JSON.stringify(raw)} is outside the closed ` +
+          `union and is evaluated under DenyOverrides, so any applying deny row wins: ` +
+          `[0] permit when ${A}; [1] deny when ${B}`,
+        raw,
+      );
+      assert.strictEqual(
+        render(P.rules([], { combining: c })),
+        "never allows (an empty rule table)",
+        raw,
+      );
+    }
+  });
+
+  it("the sentence says what the evaluator decides: no fields, and DenyOverrides", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        // The rendering is only honest if it agrees with `evaluate` — so the
+        // claim each sentence above makes is checked against a real decision.
+        const layer = testLayer(subjectWith({ id: "u1", roles: ["editor", "admin"] }));
+        const run = (policy: P.Policy) => evaluate(policy).pipe(Effect.provide(layer));
+        const rows = [P.permitWhen(a), P.denyWhen(b)];
+        const reference = yield* run(P.rules(rows, { combining: "DenyOverrides" }));
+        for (const raw of RAW) {
+          const s = strategyOf(raw);
+          for (const policy of [
+            P.allOf([], { fieldStrategy: s }),
+            P.allOf([a], { fieldStrategy: s }),
+            P.allOf([a, b], { fieldStrategy: s }),
+            P.anyOf([a], { fieldStrategy: s }),
+            P.anyOf([a, b], { fieldStrategy: s }),
+          ]) {
+            const d = yield* run(policy);
+            assert.isTrue(isAllowed(d), raw);
+            if (isAllowed(d)) assert.deepStrictEqual(d.visibleFields, [], raw);
+          }
+          assert.isFalse(isAllowed(yield* run(P.anyOf([], { fieldStrategy: s }))), raw);
+          const table = yield* run(P.rules(rows, { combining: combiningOf(raw) }));
+          assert.strictEqual(isAllowed(table), isAllowed(reference), raw);
+        }
+      }),
+    ));
 });

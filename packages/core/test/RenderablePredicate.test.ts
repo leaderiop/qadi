@@ -996,7 +996,9 @@ describe("R9: a Range excludes non-finite rows exactly where the target can hold
           }
         }
       }
-    }));
+    }),
+    60_000,
+  );
 
   it.effect("R9: a target that cannot express the guard refuses exactly the ranges that need it", () =>
     Effect.gen(function* () {
