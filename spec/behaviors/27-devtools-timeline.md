@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-27                                    |
-> | Revision       | 1.5                                            |
-> | Effective Date | 2026-10-05                                     |
+> | Revision       | 1.6                                            |
+> | Effective Date | 2026-10-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-10-05): ARCH-11 — BEH-QD-203's `Source` is one scoped `read` returning `SourceRead`, and its third requirement is replaced (the environment is stamped once, by the producing log, and carried on the wire); BEH-QD-235's backlog requirements name `SourceRead.backlog` and `storedRecordOrder`; BEH-QD-204 reads the envelope; BEH-QD-205's capacity is `DEFAULT_LOG_CAPACITY` (ADR-QD-097, CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"unsupported-version"`, and a frame of either wire version decodes (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"too-deep"`, read from `decodeSinkRecordString`'s `DecodeRefusal` (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.6 (2026-10-06): BEH-QD-203 — an absent backlog is a prelude that did not arrive in time, not an older server, and the reader stamps nothing (`legacyEnvironment` removed); BEH-QD-204 — version 2 is the one version a frame decodes from, a pre-0.10 record is `"unsupported-version"` and a bare frame `"not-a-record"` (ADR-QD-096/097 amendments, CCR-QD-182)<br>1.5 (2026-10-05): ARCH-11 — BEH-QD-203's `Source` is one scoped `read` returning `SourceRead`, and its third requirement is replaced (the environment is stamped once, by the producing log, and carried on the wire); BEH-QD-235's backlog requirements name `SourceRead.backlog` and `storedRecordOrder`; BEH-QD-204 reads the envelope; BEH-QD-205's capacity is `DEFAULT_LOG_CAPACITY` (ADR-QD-097, CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"unsupported-version"`, and a frame of either wire version decodes (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"too-deep"`, read from `decodeSinkRecordString`'s `DecodeRefusal` (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 _Previous: [26 — The Decision Stream](./26-decision-stream.md)_
 
@@ -64,25 +64,32 @@ REQUIREMENT: `SourceRead.backlog` MUST be absent when the source cannot answer
 ```
 
 Two different facts. Absent is "this source has no history to give" — true of
-an SSE server older than the prelude, or one that sent none within
-`syncTimeout` — while an empty array is "it has, and there is none" (a `synced`
-frame after no `backlog` frames). A
+an SSE connection whose prelude did not arrive within `syncTimeout`, or a merge
+of sources none of which could answer — while an empty array is "it has, and
+there is none" (a `synced` frame after no `backlog` frames). Every server since
+0.10 sends the prelude; a `message` frame that arrives before `synced` is a live
+record, not a sign of an older server, and does not end the wait. A
 reader can say *no history available* for the first and *no decisions yet* for
 the second, and a defaulted empty array would make the first unsayable.
 
 ```
 REQUIREMENT: The environment MUST be stamped once, by the producing log, and
-             carried on the wire; a reader MUST NOT state it, and stamps only a
-             legacy frame, with the label it was given for that purpose.
+             carried on the wire; a reader MUST NOT state it.
 ```
+
+> **Amended in CCR-QD-182 (0.11.0).** The requirement ended "…and stamps only a
+> legacy frame, with the label it was given for that purpose." The legacy label,
+> `legacyEnvironment`, is removed
+> ([ADR-QD-097](../decisions/097-a-decision-log-is-a-sink-and-its-own-history.md)'s
+> 2026-10-06 amendment): a reader stamps nothing.
 
 Core's evaluator deliberately does not claim one, because it cannot know whether
 it is in a browser, on a server or at an edge ([BEH-QD-182](./24-decision-sink.md)).
 The process that makes the log does, and says so once
 ([BEH-QD-185](./24-decision-sink.md)); `/__decisions` carries it in each frame's
 envelope ([BEH-QD-314](./26-decision-stream.md#beh-qd-314-the-backlog-travels-on-the-stream-and-every-frame-names-its-producer)),
-and `sourceFromEventSource` reads it from there. Only a bare record from a server
-older than the envelope is stamped by the reader, with `legacyEnvironment`.
+and `sourceFromEventSource` reads it from there. A bare record from a server
+older than 0.10 carries no label and is refused, never stamped.
 
 > **Superseded in CCR-QD-181 (ARCH-11).** The requirement read: "The environment
 > MUST be stamped by the source, not read off a record." It made the reader's
@@ -157,9 +164,16 @@ panel that dies on a bad frame fails exactly when it is needed.
 ```
 REQUIREMENT: `onMalformed` MUST distinguish `"not-json"`, `"too-deep"`,
              `"not-a-record"` and `"unsupported-version"`.
-REQUIREMENT: A frame of any wire version this panel's `@qadi/core` reads —
-             version 1 from an older server, version 2 — MUST decode.
+REQUIREMENT: A frame whose record is wire version 2 MUST decode; a record of
+             any other version, or none, MUST be reported as
+             `"unsupported-version"`, and a bare record as `"not-a-record"`.
 ```
+
+> **Amended in CCR-QD-182 (0.11.0).** The second requirement read: "A frame of
+> any wire version this panel's `@qadi/core` reads — version 1 from an older
+> server, version 2 — MUST decode." 0.11.0's `@qadi/core` reads version 2 only
+> ([ADR-QD-096](../decisions/096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)'s
+> 2026-10-06 amendment).
 
 They are different problems with different fixes — a truncating proxy, a sender
 older than (or foreign to) this wire's depth bound, and a `@qadi/core` on the
@@ -169,14 +183,15 @@ started refusing to emit such a record (ARCH-09): a current `@qadi/core` never
 sends one, so the fix is upgrading the sender, not the reader. The reason comes
 from `@qadi/core`'s `decodeStoredRecordString` — the envelope read, then
 `decodeSinkRecord` on its `record` — mapped from its closed `DecodeRefusal`. A
-bare record with no `legacyEnvironment` is `"not-a-record"`, and so is every
+bare record — a server older than 0.10 — is `"not-a-record"`, and so is every
 frame a panel older than the envelope reads from a newer server: loud, not
-silently mislabelled. `"unsupported-version"` is a server newer than
-this panel, writing a wire version its `@qadi/core` does not read
+silently mislabelled. `"unsupported-version"` is a record of a wire version
+this panel's `@qadi/core` does not read
 ([ADR-QD-096](../decisions/096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)):
-the fix is upgrading the panel, which is exactly what `"not-a-record"` would
-have hidden. A frame naming neither outcome or both is `"not-a-record"`; it is
-never rebuilt into a row. Reported rather than silent,
+a newer `version`, fixed by upgrading the panel, or none — a pre-0.10 record,
+fixed by upgrading its sender — either of which `"not-a-record"` would have
+hidden. A version-2 frame naming no outcome is `"not-a-record"`; it is never
+rebuilt into a row. Reported rather than silent,
 on the precedent of `onDropped`, `onUnknownParent` and `onFailure`: a reader
 dropping every frame while looking healthy is the defect, not the drop.
 

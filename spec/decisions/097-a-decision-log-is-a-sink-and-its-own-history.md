@@ -5,14 +5,43 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-904                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-05                                     |
-> | Status         | Accepted — amends ADR-QD-045, ADR-QD-046, ADR-QD-047, ADR-QD-050 |
+> | Status         | Accepted — amends ADR-QD-045, ADR-QD-046, ADR-QD-047, ADR-QD-050; amended 2026-10-06 (bare frames refused) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-05): Initial release (ARCH-11, CCR-QD-181) |
+> | Change History | 1.1 (2026-10-06): amended — 0.11.0 reads only `{ environment, record }` envelopes: `legacyEnvironment` and `DecodeStoredRecordOptions` removed as D-11-e scheduled, and `sourceFromEventSource` no longer treats a `message` before `synced` as an older server (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-11, CCR-QD-181) |
 
 ---
+
+> **Amendment (2026-10-06, envelopes only — 0.11.0, CCR-QD-182):** D-11-e's
+> bare-record allowance ends, one minor after it shipped, as it said it would.
+>
+> - **Only an envelope is read.** `decodeStoredRecord`/`decodeStoredRecordString`
+>   take no options: `DecodeStoredRecordOptions` and its deprecated
+>   `legacyEnvironment` are removed. A bare record — what a server older than
+>   0.10 sends — is refused as `Malformed`, its message naming it bare, and
+>   `sourceFromEventSource` reports it `not-a-record` through `onMalformed`.
+>   Such a server's records are also version 1, which 0.11.0 refuses for its
+>   version (ADR-QD-096's 2026-10-06 amendment), so stamping a label on one
+>   would only have moved the refusal one step later.
+> - **No older server to detect.** `sourceFromEventSource` loses
+>   `legacyEnvironment`, and a `message` frame that arrives before `synced` no
+>   longer ends the prelude wait as "a server older than the prelude": every
+>   server since 0.10 sends the prelude first, so that frame is kept, in
+>   arrival order, on the live half, and the backlog is still the prelude's.
+> - **Kept, because it is not compatibility.** `syncTimeout` (default two
+>   seconds): a current server whose prelude has not arrived — not yet
+>   reachable, buffered by a proxy — still leaves the backlog **absent** and the
+>   stream running, with whatever arrived meanwhile at its start. `SourceRead`'s
+>   absent-versus-empty `backlog` distinction (BEH-QD-203) stands; its cause is
+>   now that, or a merge of sources none of which could answer, not an older
+>   server.
+> - **Consequences restated.** "A newer reader of an older server stamps bare
+>   frames with `legacyEnvironment`, or reports them" now reads: reports them,
+>   always. A 0.9 server must upgrade to be read at all.
+>
+> The text below is the decision as accepted on 2026-10-05, kept unedited.
 
 ## Context
 

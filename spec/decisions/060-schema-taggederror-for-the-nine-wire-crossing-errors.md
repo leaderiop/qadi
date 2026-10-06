@@ -5,12 +5,12 @@
 > | Property       | Value                                           |
 > | -------------- | ------------------------------------------------ |
 > | Document ID    | QADI-ADR-060                                      |
-> | Revision       | 1.2                                               |
+> | Revision       | 1.3                                               |
 > | Effective Date | 2026-10-05                                        |
 > | Status         | Accepted                                          |
 > | Author         | Qadi Engineering                                  |
 > | Classification | Architecture Decision Record                      |
-> | Change History | 1.2 (2026-10-05): dropping `code` was an unversioned wire change; the v1 reader tolerates it (ADR-QD-096) (CCR-QD-180)<br>1.1 (2026-10-05): `Schema.Defect()` governs `cause` on every outbound path; `EvaluationErrorSchema` is private (ADR-QD-095) (CCR-QD-179)<br>1.0 (2026-09-08): Initial release (CCR-QD-140)    |
+> | Change History | 1.3 (2026-10-06): the version-1 reader, and with it the `failed.code` tolerance, is removed in 0.11.0 (ADR-QD-096 amendment) (CCR-QD-182)<br>1.2 (2026-10-05): dropping `code` was an unversioned wire change; the v1 reader tolerates it (ADR-QD-096) (CCR-QD-180)<br>1.1 (2026-10-05): `Schema.Defect()` governs `cause` on every outbound path; `EvaluationErrorSchema` is private (ADR-QD-095) (CCR-QD-179)<br>1.0 (2026-09-08): Initial release (CCR-QD-140)    |
 
 ---
 
@@ -181,3 +181,12 @@ the record wire and its permanent version-1 reader tolerates exactly that key, a
 that position: `failed.code` is dropped before the strict decode, and any other
 excess key under `failed` is still refused. In version 2 the error sits at
 `outcome.error`, and carries no `code`.
+
+## Amendment (2026-10-06, CCR-QD-182)
+
+The "permanent" version-1 reader above is removed in 0.11.0
+([ADR-QD-096](./096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)'s
+2026-10-06 amendment), and the `failed.code` tolerance goes with it: a 0.3.x or
+0.4.x row is a version-1 row, refused as `UnsupportedVersion` like any other.
+0.10.x still reads it, code and all, and re-encodes it as version 2 — which
+carries no `code` — so the documented migration covers these rows too.

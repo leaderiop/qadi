@@ -5,13 +5,75 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-903                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-05                                     |
-> | Status         | Accepted — amends ADR-QD-002, ADR-QD-056, ADR-QD-060 |
+> | Status         | Accepted — amends ADR-QD-002, ADR-QD-056, ADR-QD-060; D-15-d reversed 2026-10-06 (version 2 only) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
+> | Change History | 1.1 (2026-10-06): amended — 0.11.0 reads version 2 only; D-15-d ("the v1 reader is permanent") reversed at the maintainer's direction, D-15-g/h/i withdrawn with it, INV-QD-099 retired, the migration path stated (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-15, CCR-QD-180) |
 
 ---
+
+> **Amendment (2026-10-06, version 2 only — 0.11.0, CCR-QD-182):** D-15-d is
+> **reversed**. Release 0.11.0 reads and writes wire version 2 and nothing
+> else; the version-1 reader this record called permanent is deleted. This is
+> the maintainer's decision, taken after being told its consequence: an audit
+> row written before 0.10 (version 1) can no longer be read by 0.11.
+>
+> - **What 0.11.0 does.** `decodeSinkRecord` reads `version: 2`. Any other
+>   `version` **or none** is `DecodeRefusal.UnsupportedVersion` — `version` is
+>   `undefined` when the record names none, which is how a version-1 record
+>   reports — never `Malformed`, never upgraded, never given a sentinel
+>   subject or an outcome. A JSON value that is not an object is still
+>   `Malformed`. `SinkRecordJson` is the version-2 encoded type alone, so
+>   `AuditEntry.record` is version 2 (D-15-h, withdrawn). `WireVersion` is `2`
+>   and `WIRE_VERSIONS` `[2]`: kept rather than deleted, because they are what
+>   `UnsupportedVersion.supported` reports, and a version 3 is then a
+>   full-union edit to them rather than a new export.
+> - **Withdrawn with D-15-d.** The frozen version-1 schema, the exactly-one-
+>   outcome check, the v1→v2 upgrade function ("one in-memory wire type" below
+>   now has nothing to upgrade from), D-15-g's pre-0.5 `failed.code`
+>   tolerance, D-15-i's `UNKNOWN_SUBJECT` sentinel, and the version-1 golden
+>   fixtures (`test/fixtures/sinkWireV1.ts`). A few version-1 literals remain in
+>   tests, as the input of refusal tests only.
+> - **Unchanged.** D-15-a (the outcome is one tagged value), D-15-c (lenient
+>   envelope, strict content — still exactly the rule for a version-2 record),
+>   D-15-e (no new error class; `UnsupportedVersion` now also covers a missing
+>   `version`, because its fix is likewise a release, not a sender bug), D-15-f,
+>   D-15-j, the depth guard, and `Policy`'s strictness.
+>   [INV-QD-096](../invariants.md#inv-qd-096-whatever-the-record-codec-emits-it-accepts),
+>   [INV-QD-097](../invariants.md#inv-qd-097-the-record-codec-is-total) and
+>   [INV-QD-098](../invariants.md#inv-qd-098-a-decoded-decision-record-has-exactly-the-outcome-its-sender-sent)
+>   still hold.
+>   [INV-QD-099](../invariants.md#inv-qd-099-a-record-decodes-the-same-whichever-wire-version-carried-it)
+>   is **retired**: there is one version, so there is nothing for two versions
+>   to agree about.
+> - **Why the alternative rejected below is now taken.** "Retire the v1 reader
+>   after N releases" was rejected as *wrong for persisted records*. That
+>   reasoning is not disputed; it is outweighed, by the maintainer's choice, by
+>   one wire format and no compatibility code to carry. What makes the cost
+>   bearable is that it is a migration, not data loss: 0.10.x reads both
+>   versions and writes version 2.
+> - **Migration (the documented path).** Before upgrading anything that reads
+>   a store to 0.11, re-encode every pre-0.10 row with 0.10.x —
+>   `decodeAuditEntry` then `encodeAuditEntry` from `@qadi/audit@0.10`, which
+>   reads version 1 and writes version 2. A row that is not migrated is
+>   reported by 0.11 as `UnsupportedVersion` with `version: undefined`, never
+>   silently skipped. A peer on 0.9 or earlier — a forwarding sender, a stream
+>   server — must upgrade: there is no compatibility path.
+> - **The pairing, as of 0.11.0.**
+>
+>   | Receiver ↓ / Sender → | 0.9 or earlier (writes v1) | 0.10 or later (writes v2) |
+>   | --------------------- | -------------------------- | ------------------------- |
+>   | 0.9 or earlier (strict v1) | OK | refused |
+>   | 0.10.x | OK (v1 reader) | OK |
+>   | 0.11 or later | **refused** (`UnsupportedVersion`, version undefined) | OK |
+>
+> - **Consequences restated.** "Rows written by `@qadi/audit` 0.3.x and 0.4.x
+>   read again" is true of 0.10.x only. "The v1 schema can never change" is
+>   moot: it is gone. "`SinkRecordJson` stays the union" is reversed.
+>
+> The text below is the decision as accepted on 2026-10-05, kept unedited.
 
 ## Context
 
