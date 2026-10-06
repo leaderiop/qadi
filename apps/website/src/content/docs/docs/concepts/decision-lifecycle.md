@@ -99,7 +99,10 @@ Two implementations, composable through `decisionSinkAll`:
   hands it to a caller-supplied `send`. `send` must return promptly — it
   runs inside the evaluation itself — and a delivery failure is reported and
   swallowed, never raised, for the same INV-QD-035 reason. The receiving
-  process `ingest`s it into its own log, under the sender's label.
+  process `ingest`s it into its own log, under the sender's label. The wire is
+  version 2, the only version 0.11 reads, so a sender on 0.9 or earlier is
+  refused rather than read
+  ([Upgrading to 0.11](/docs/reference/upgrading/#peers-on-09-or-earlier)).
 
 ```typescript
 import * as Effect from "effect/Effect";

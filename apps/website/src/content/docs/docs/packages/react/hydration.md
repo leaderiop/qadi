@@ -22,16 +22,18 @@ export const dehydrateDecisions: (
 
 export const hydrateDecisions: (
   atoms: QadiAtoms,
-  dehydrated: DehydratedPayload,
+  dehydrated: DehydratedDecisions,
   subject: AuthSubject,
   options?: HydrateOptions,
 ) => InitialValues;
 ```
 
-The payload carries `version: 2`. `hydrateDecisions` also reads the format that
-predates `version` for one release, seeding it with its trace withheld; any
-other `version` is dropped as `UnsupportedPayloadVersion`, which is what a page
-cached by one deploy and hydrated by the next looks like.
+The payload carries `version: 2`, and that is the only version
+`hydrateDecisions` reads. Any other `version` is dropped as
+`UnsupportedPayloadVersion`, and so is a payload with no `version` at all, the
+format 0.9 and earlier wrote. That is what a page cached by one deploy and
+hydrated by the next looks like. 0.10 still read the version-less format; 0.11
+does not (see [Upgrading to 0.11](/docs/reference/upgrading/#hydration-payloads-from-older-servers)).
 
 `hydrateDecisions`'s result is assignable to `QadiProvider`'s
 `initialValues` prop directly. Seeding through that prop, rather than through

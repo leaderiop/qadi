@@ -64,6 +64,7 @@ export default defineConfig({
           label: "Reference",
           items: [
             { label: "API Reference", slug: "docs/reference/api" },
+            { label: "Upgrading to 0.11", slug: "docs/reference/upgrading" },
             { label: "Access control models", slug: "docs/reference/models" },
             { label: "Glossary", slug: "docs/reference/glossary" },
           ],
