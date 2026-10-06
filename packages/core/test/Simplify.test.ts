@@ -378,6 +378,7 @@ describe("simplify", () => {
       if (result === undefined) return;
       assert.strictEqual(P.policyDepth(result), n);
     },
+    60_000,
   );
 
   it("a wide tree (250k direct children) does not overflow the argument list", () => {
@@ -398,7 +399,7 @@ describe("simplify", () => {
     assert.strictEqual(result._tag, "AnyOf");
     if (result._tag !== "AnyOf") return;
     assert.strictEqual(result.policies.length, 250_000);
-  });
+  }, 60_000);
 });
 
 describe("simplify folds through foldPolicy (ARCH-02)", () => {

@@ -484,7 +484,9 @@ describe("untranslatable fails loudly and never widens", () => {
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
       assert.strictEqual(r.failure._tag, "PolicyTooDeep");
-    }));
+    }),
+    60_000,
+  );
 });
 
 describe("toPredicate is stack-safe for any maxDepth the caller sets (ARCH-02 D-02-g)", () => {

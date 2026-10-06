@@ -559,7 +559,9 @@ describe("Policy serialization", () => {
         const json = deeplyNestedNot(60_000);
         const result = yield* Effect.result(P.fromJson(json));
         assert.strictEqual(result._tag, "Failure");
-      }));
+      }),
+      60_000,
+    );
 
     // KT-02: when `JSON.parse` itself throws, `fromJson` falls through to
     // `Schema.decodeUnknownEffect(PolicyFromJson, …)`, which re-parses the
@@ -582,6 +584,7 @@ describe("Policy serialization", () => {
           const result = yield* Effect.result(effect);
           assert.strictEqual(result._tag, "Failure");
         }),
+      60_000,
     );
   });
 

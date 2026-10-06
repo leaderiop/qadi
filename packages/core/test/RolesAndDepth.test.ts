@@ -172,7 +172,7 @@ describe("policyDepth", () => {
       depth = P.policyDepth(wide);
     });
     assert.strictEqual(depth, 1);
-  });
+  }, 60_000);
 
   it("a deep, programmatically-built tree (100k nested Not) does not overflow the call stack (GS-03, BM-01)", () => {
     // The width hazard above has a depth twin: nothing bounds recursion depth
@@ -193,7 +193,7 @@ describe("policyDepth", () => {
       depth = P.policyDepth(policy);
     });
     assert.strictEqual(depth, n);
-  });
+  }, 60_000);
 
   it("counts a matcher's nesting at a matcher-bearing leaf (ARCH-02 D-02-f)", () => {
     const nested = P.hasAttribute("x", M.size(M.size(M.eq(M.literal(1)))));

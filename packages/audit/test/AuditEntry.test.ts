@@ -198,7 +198,7 @@ describe("an audit row is the same wire the decision stream emits (ARCH-09)", ()
     if (Result.isFailure(result)) {
       assert.deepStrictEqual(result.failure.refusal, DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));
     }
-  });
+  }, 60_000);
 
   it.effect("an audit row, an SSE frame's data, and forwarding's send value are the same bytes for one record", () =>
     Effect.gen(function* () {

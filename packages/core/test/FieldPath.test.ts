@@ -328,7 +328,13 @@ describe("project", () => {
     }
     assert.strictEqual(levels, depth);
     assert.deepStrictEqual(node, { leaf: "visible" });
-  });
+    // 60 s, not Vitest's default 5. At 20,000 levels this took about two
+    // seconds in a plain run on a busy machine and over five under Stryker's
+    // instrumentation on the same one, so there the default timeout, not the
+    // code, decided the result: Stryker's dry run failed on it, and a mutation
+    // run scored eight of `FieldPath.ts`'s survivors as killed by it
+    // (ADR-QD-098). The precedent is `Explanation.test.ts`'s 100k-deep tests.
+  }, 60_000);
 
   it("a deep spec whose terminal matches nothing omits, unwinding every frame it pushed", () => {
     // The failing-closed mirror of the case above, at the same depth: the walk
@@ -342,5 +348,6 @@ describe("project", () => {
     const spec = `${Array.from({ length: depth }, () => "a").join(".")}.absent`;
 
     assert.deepStrictEqual(project(data, [spec]), {});
-  });
+    // The same depth as the case above, for the same reason the same timeout.
+  }, 60_000);
 });
