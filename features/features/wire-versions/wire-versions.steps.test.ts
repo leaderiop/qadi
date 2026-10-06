@@ -7,8 +7,10 @@
  *
  * Only the public interface is used — `encodeSinkRecordString`,
  * `decodeSinkRecordString` and `@qadi/audit`'s `decodeAuditEntry` — and the
- * version-1 bytes are literals, written the way a release before the versioned
- * wire wrote them: nothing writes version 1 any more (ADR-QD-096).
+ * version-1 bytes are literals, written the way a release before 0.10 wrote
+ * them: nothing has written version 1 since 0.10, and nothing reads it since
+ * 0.11.0 (ADR-QD-096's 2026-10-06 amendment), so they appear here only as the
+ * input of refusals.
  */
 import { describeFeature, loadFeature } from "@effect-cucumber/vitest";
 import assert from "node:assert/strict";
@@ -21,6 +23,7 @@ import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
 import {
   DecisionRecord,
+  DecodeRefusal,
   decodeSinkRecordString,
   encodeSinkRecordString,
   Failed,
@@ -28,6 +31,7 @@ import {
   makeSubjectId,
   MissingResource,
   permission,
+  WIRE_VERSIONS,
 } from "@qadi/core";
 import type { SinkRecord, SinkRecordNotDecodable } from "@qadi/core";
 import { decodeAuditEntry } from "@qadi/audit";
@@ -49,10 +53,12 @@ const FAILED = '{"_tag":"MissingResource","attribute":"owner"}';
 const DECIDED =
   '{"_tag":"Deny","evaluationId":"g","subjectId":"u1","durationMillis":2,"trace":{"policyTag":"HasPermission","allowed":false,"reason":"no","children":[],"obligations":[]},"obligations":[],"reason":"no"}';
 
-/** `sent`, as a release before the versioned wire wrote it. */
+/** `sent`, as a release before 0.10 wrote it: wire version 1, no `version`. */
 const SENT_V1 = `{${ENVELOPE_V1},"failed":${FAILED}}`;
 /** `sent`, as wire version 2. */
 const SENT_V2 = `{"_tag":"Decision","version":2,"evaluationId":"g","at":1,"subjectId":"u1","policy":${POLICY},"outcome":{"_tag":"Failed","error":${FAILED}}}`;
+/** A version-2 decision's envelope with no `outcome`. */
+const ENVELOPE_V2 = `"_tag":"Decision","version":2,"evaluationId":"g","at":1,"subjectId":"u1","policy":${POLICY}`;
 
 /** A JSON object's text with one more top-level field. */
 const withField = (text: string, key: string, value: unknown): string =>
@@ -131,14 +137,18 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     yield* patch(() => ({ text: `{${ENVELOPE_V1},"decided":${DECIDED},"failed":${FAILED}}` }));
   });
 
-  Given("a decision record carried as wire version 1 naming neither outcome", function* () {
-    yield* patch(() => ({ text: `{${ENVELOPE_V1}}` }));
+  Given("a decision record carried as wire version 2 naming no outcome", function* () {
+    yield* patch(() => ({ text: `{${ENVELOPE_V2}}` }));
   });
 
   Given("an audit row written by an earlier release, whose error still carries its code", function* () {
     yield* patch(() => ({
       text: JSON.stringify({ record: JSON.parse(SENT_V1.replace('"attribute":"owner"', '"attribute":"owner","code":"ACL004"')) }),
     }));
+  });
+
+  Given("an audit row whose record is wire version 2", function* () {
+    yield* patch(() => ({ text: JSON.stringify({ record: JSON.parse(SENT_V2), sequenceNumber: 1 }) }));
   });
 
   // -------------------------------------------------------------------------
@@ -175,12 +185,21 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     assert.deepStrictEqual(read.success, sent);
   });
 
-  Then("it is refused as malformed, saying it {string}", function* (saying: string) {
+  Then("it is refused as malformed, naming {string}", function* (field: string) {
     const read = yield* readResult();
     assert.ok(Result.isFailure(read), "the record was read");
     const refusal = read.failure.refusal;
     assert.strictEqual(refusal._tag, "Malformed");
-    assert.ok(refusal._tag === "Malformed" && refusal.message.includes(saying), JSON.stringify(refusal));
+    assert.ok(refusal._tag === "Malformed" && refusal.message.includes(`["${field}"]`), JSON.stringify(refusal));
+  });
+
+  Then("it is refused as an unsupported version, naming no version", function* () {
+    const read = yield* readResult();
+    assert.ok(Result.isFailure(read), "the record was read");
+    assert.deepStrictEqual(
+      read.failure.refusal,
+      DecodeRefusal.UnsupportedVersion({ version: undefined, supported: WIRE_VERSIONS }),
+    );
   });
 
   Then("it is refused as an unsupported version", function* () {

@@ -38,9 +38,10 @@
  * [ADR-QD-060](../../../spec/decisions/060-schema-taggederror-for-the-nine-wire-crossing-errors.md)),
  * so the class already *is* the wire schema of an error.
  *
- * **The seam for the wire's shape.** How the outcome is carried and any wire
- * version handling live behind `decodeSinkRecord`, so they change in this
- * module and nowhere else.
+ * **The seam for the wire's shape.** How the outcome is carried and the wire
+ * version check live behind `decodeSinkRecord`, so they change in this module
+ * and nowhere else. One version is read and written: version 2 (ADR-QD-096;
+ * the version-1 reader was removed in 0.11.0).
  *
  * **A stored record's envelope** ({@link StoredRecordJson}, ARCH-11). A decision
  * log's reader — `/__decisions`'s frames, `/__decisions/backlog`'s elements —
@@ -48,7 +49,7 @@
  * not carry. It travels in `{ environment, record }`, built by the same
  * pipeline: {@link encodeStoredRecord} is {@link encodeSinkRecord} plus the
  * label, and {@link decodeStoredRecord} reads the envelope and hands `record` to
- * {@link decodeSinkRecord}, so the version dispatch, the depth guard and the
+ * {@link decodeSinkRecord}, so the version check, the depth guard and the
  * strict decode apply unchanged. Forwarding and audit never see the envelope.
  */
 import * as Match from "effect/Match";
@@ -76,7 +77,7 @@ import {
   SinkRecordNotEncodable,
   WIRE_VERSIONS,
 } from "./Errors.ts";
-import type { OpaqueKind, WirePath } from "./Errors.ts";
+import type { OpaqueKind, WirePath, WireVersion } from "./Errors.ts";
 import { makeSubjectId } from "./Identity.ts";
 import { MAX_DECODE_DEPTH, Policy, policyDepth, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
 
@@ -112,105 +113,8 @@ const EvaluationErrorSchema = Schema.Union([
   SignatureHistoryUnavailable,
 ]);
 
-/**
- * The `subjectId` a version-1 record gets when it has none — a sender that
- * predates the field, mid rolling-deploy.
- *
- * A distinctive sentinel, not `""` (PH-03): `SubjectId` is a total,
- * non-validating brand (`Identity.ts`), so `""` is itself a legal subject id
- * a real caller could hold, and using it for "unknown" would make the two
- * indistinguishable to a devtools row or an audit reviewer reading the
- * decoded record back.
- *
- * Used by {@link upgradeV1} alone: version 2 requires `subjectId`
- * (ADR-QD-096 D-15-i), so this skew can only arrive as version 1.
- */
-const UNKNOWN_SUBJECT = makeSubjectId("<unknown subject: wire version skew>");
-
 // ---------------------------------------------------------------------------
-// Version 1 — FROZEN (ADR-QD-096 D-15-d)
-// ---------------------------------------------------------------------------
-
-/**
- * A version-1 decision's fields, in the order every release before
- * ADR-QD-096 wrote them (`test/fixtures/sinkWireV1.ts` holds those bytes).
- *
- * **FROZEN, and read-only.** Version 1 is read for good — audit rows are
- * durable, and a row written before ADR-QD-096 must still read years later —
- * so nothing here may change; a change to the wire is a new version. It is no
- * longer written: the writer writes version 2 (ADR-QD-096 Phase C).
- *
- * `subjectId` is optional because a sender older than the field omitted it;
- * {@link upgradeV1} substitutes {@link UNKNOWN_SUBJECT}.
- */
-const decisionV1Fields = {
-  _tag: Schema.Literal("Decision"),
-  evaluationId: Schema.String,
-  at: Schema.Number,
-  subjectId: Schema.optional(Schema.String),
-  policy: Policy,
-  resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
-  action: Schema.optional(Schema.String),
-  cache: Schema.optional(Schema.Literals(["hit", "coalesced", "miss"])),
-  decided: Schema.optional(DecisionWire),
-  failed: Schema.optional(EvaluationErrorSchema),
-};
-
-type DecisionV1Fields = Schema.Struct.Type<typeof decisionV1Fields>;
-
-/**
- * A version-1 decision names exactly one outcome: `decided` or `failed`.
- *
- * The two optional fields admit four states and only two are meaningful, so a
- * record naming neither or both is refused here, at decode, rather than given
- * an outcome its sender never sent (tickets 96 and 155, CCR-QD-180). Before,
- * "neither" became a fabricated `MissingResource`, indistinguishable by code
- * (`ACL004`) from a real resolver failure, and "both" silently preferred
- * `decided`, an artifact of check order. Version 2 cannot express either.
- */
-const exactlyOneOutcome = Schema.makeFilter((wire: DecisionV1Fields) =>
-  (wire.decided === undefined) !== (wire.failed === undefined) ||
-  (wire.decided === undefined ? "a decision record names no outcome" : "a decision record names both outcomes"),
-);
-
-/** A version-1 obligation record's fields. **FROZEN**, as {@link decisionV1Fields}. */
-const obligationsV1Fields = {
-  _tag: Schema.Literal("Obligations"),
-  evaluationId: Schema.String,
-  at: Schema.Number,
-  outcome: Schema.Literals(["Discharged", "HandlerFailed", "Refused", "NotRequired"]),
-  obligationIds: Schema.Array(Schema.String),
-};
-
-/** Version-1 bytes: no `version` key, the outcome as `decided`/`failed`. **FROZEN**, read-only. */
-const SinkRecordWireV1 = Schema.Union([
-  Schema.Struct(decisionV1Fields).check(exactlyOneOutcome),
-  Schema.Struct(obligationsV1Fields),
-]);
-
-type SinkRecordWireV1 = typeof SinkRecordWireV1.Type;
-
-/**
- * A decoded version-1 record whose outcome is exactly one of the two, by type.
- *
- * A schema check does not narrow a TypeScript type, so the decoded type still
- * admits four outcome states; {@link isExclusive} narrows it to the two the
- * check admits, and {@link upgradeV1} takes only those, so it has no arm to
- * invent an outcome in.
- */
-type ExclusiveSinkRecordWireV1 =
-  | Extract<SinkRecordWireV1, { readonly _tag: "Obligations" }>
-  | (Omit<DecisionV1Fields, "decided" | "failed"> &
-      (
-        | { readonly decided: NonNullable<DecisionV1Fields["decided"]>; readonly failed?: undefined }
-        | { readonly decided?: undefined; readonly failed: NonNullable<DecisionV1Fields["failed"]> }
-      ));
-
-const isExclusive = (wire: SinkRecordWireV1): wire is ExclusiveSinkRecordWireV1 =>
-  wire._tag === "Obligations" || (wire.decided === undefined) !== (wire.failed === undefined);
-
-// ---------------------------------------------------------------------------
-// Version 2 (ADR-QD-096)
+// Version 2 (ADR-QD-096) — the only version read or written since 0.11.0
 // ---------------------------------------------------------------------------
 
 /**
@@ -250,11 +154,12 @@ const obligationsV2Fields = {
 };
 
 /**
- * The wire form of a {@link SinkRecord}, version 2: the one in-memory wire type.
+ * The wire form of a {@link SinkRecord}, version 2: the one wire type.
  *
  * Module-private: callers see only `SinkRecordJson`, its encoded side, and the
- * four operations. Version-1 bytes decode into {@link SinkRecordWireV1} and are
- * upgraded into this type, so {@link rebuild} reads one shape.
+ * four operations. Version 2 is the only version this module reads or writes
+ * (ADR-QD-096's 2026-10-06 amendment): the version-1 reader, which upgraded
+ * pre-0.10 bytes into this type, was removed in 0.11.0.
  */
 const SinkRecordWire = Schema.Union([Schema.Struct(decisionV2Fields), Schema.Struct(obligationsV2Fields)]);
 
@@ -264,47 +169,8 @@ type SinkRecordWire = typeof SinkRecordWire.Type;
  * Each member's declared top-level keys, read from the schema's own fields so
  * they cannot drift from it: the envelope {@link envelopeOf} keeps.
  */
-const DECISION_V1_KEYS: ReadonlySet<string> = new Set(Object.keys(decisionV1Fields));
-const OBLIGATIONS_V1_KEYS: ReadonlySet<string> = new Set(Object.keys(obligationsV1Fields));
-const DECISION_V2_KEYS: ReadonlySet<string> = new Set(Object.keys(decisionV2Fields));
-const OBLIGATIONS_V2_KEYS: ReadonlySet<string> = new Set(Object.keys(obligationsV2Fields));
-
-/**
- * A version-1 record as the version-2 type: `version: 2`, the outcome as one
- * tagged value, and {@link UNKNOWN_SUBJECT} for a sender that predates
- * `subjectId`.
- *
- * A function rather than a `Schema.decodeTo` transformation into
- * `Schema.toType` of version 2, so the embedded `Policy` is walked once per
- * decode, not twice (ARCH-15 C13). Total: it takes only an exclusive record.
- */
-const upgradeV1: (wire: ExclusiveSinkRecordWireV1) => SinkRecordWire = Match.type<ExclusiveSinkRecordWireV1>().pipe(
-  Match.tagsExhaustive({
-    Obligations: (wire) => ({
-      _tag: "Obligations" as const,
-      version: 2 as const,
-      evaluationId: wire.evaluationId,
-      at: wire.at,
-      outcome: wire.outcome,
-      obligationIds: wire.obligationIds,
-    }),
-    Decision: (wire) => ({
-      _tag: "Decision" as const,
-      version: 2 as const,
-      evaluationId: wire.evaluationId,
-      at: wire.at,
-      subjectId: wire.subjectId ?? UNKNOWN_SUBJECT,
-      policy: wire.policy,
-      ...(wire.resource === undefined ? {} : { resource: wire.resource }),
-      ...(wire.action === undefined ? {} : { action: wire.action }),
-      ...(wire.cache === undefined ? {} : { cache: wire.cache }),
-      outcome:
-        wire.decided !== undefined
-          ? { _tag: "Decided" as const, decision: wire.decided }
-          : { _tag: "Failed" as const, error: wire.failed },
-    }),
-  }),
-);
+const DECISION_KEYS: ReadonlySet<string> = new Set(Object.keys(decisionV2Fields));
+const OBLIGATIONS_KEYS: ReadonlySet<string> = new Set(Object.keys(obligationsV2Fields));
 
 /** A record's outcome as the wire carries it. */
 const outcomeOf: (outcome: DecisionOutcome) => OutcomeWire = Match.type<DecisionOutcome>().pipe(
@@ -367,8 +233,7 @@ const rebuildOutcome: (outcome: OutcomeWire) => DecisionOutcome = Match.type<Out
  *
  * `Match.tagsExhaustive` over `SinkRecordWire`, not an `if (wire._tag === …)`,
  * for the reason {@link project} gives. The outcome is one tagged value and
- * `subjectId` is required, so there is no fallback arm: version-1 skew is
- * resolved by {@link upgradeV1} before this runs.
+ * `subjectId` is required, so there is no fallback arm.
  */
 const rebuild: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>().pipe(
   Match.tagsExhaustive({
@@ -394,19 +259,21 @@ const rebuild: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>
 );
 
 /**
- * The encoded form of a record — version-2 bytes or version-1 bytes, a closed
- * union (ADR-QD-096): what {@link decodeSinkRecord} reads, what an audit row
- * holds (a store keeps rows of both for good), and what forwarding's `send`
- * receives. {@link encodeSinkRecord} writes the version-2 member only; the
- * type stays the union because a receiver of the wire, or a row, may hold
- * either.
+ * The encoded form of a record — version-2 bytes: what {@link encodeSinkRecord}
+ * writes, what {@link decodeSinkRecord} reads, what an audit row holds and what
+ * forwarding's `send` receives.
  *
- * Derived from the wire schemas (ADR-QD-002), never hand-written:
- * `Schema.toEncoded` gives each schema whose `Type` is that version's encoded
- * side, so `@qadi/audit` can embed it in its own row schema. Decoding it alone
- * is a description of the bytes, not a reader: use {@link decodeSinkRecord}.
+ * One version, not a union of them (ADR-QD-096's 2026-10-06 amendment). Until
+ * 0.11.0 this was `version-2 | version-1`, because a store kept pre-0.10 rows
+ * for good; 0.11.0 reads version 2 only, and a version-1 row is re-encoded with
+ * 0.10.x before upgrading (the documented migration).
+ *
+ * Derived from the wire schema (ADR-QD-002), never hand-written:
+ * `Schema.toEncoded` gives a schema whose `Type` is the encoded side, so
+ * `@qadi/audit` can embed it in its own row schema. Decoding it alone is a
+ * description of the bytes, not a reader: use {@link decodeSinkRecord}.
  */
-export const SinkRecordJson = Schema.Union([Schema.toEncoded(SinkRecordWire), Schema.toEncoded(SinkRecordWireV1)]);
+export const SinkRecordJson = Schema.toEncoded(SinkRecordWire);
 
 export type SinkRecordJson = typeof SinkRecordJson.Type;
 
@@ -588,10 +455,7 @@ const preEncodeHazard: (record: SinkRecord) => EncodeRefusal | undefined = Match
 );
 
 
-/**
- * The wire schema's encoder, built once. It writes version 2 only: version 1
- * is read for good and written no more (ADR-QD-096 Phase C).
- */
+/** The wire schema's encoder, built once. It writes version 2, the one version there is. */
 const encodeWire = Schema.encodeResult(SinkRecordWire);
 
 /** A thrown value's message, without letting a hostile `toString` throw again. */
@@ -606,8 +470,8 @@ const encodeFailed = (thrown: unknown): EncodeRefusal => EncodeRefusal.EncodeFai
 /**
  * A record as a verified JSON wire value, or the reason it cannot be one.
  *
- * Written as wire version 2 (ADR-QD-096). A reader on a release before the
- * versioned wire reads only version 1, so readers upgrade before writers.
+ * Written as wire version 2 (ADR-QD-096), which every reader since 0.10.0
+ * reads; a reader older than 0.10 reads only version 1 and must upgrade.
  *
  * Runs the depth pre-checks, the schema encode (so every resolver error's
  * `cause` crosses through `Schema.Defect()`, ADR-QD-060), and then one walk
@@ -645,16 +509,15 @@ export const encodeSinkRecordString = (record: SinkRecord): Result.Result<string
   Result.map(encodeSinkRecord(record), (json) => JSON.stringify(json));
 
 /**
- * The untrusted decoders, one per version, built once.
+ * The untrusted decoder, built once.
  *
  * Strict everywhere (`UNTRUSTED_DECODE_OPTIONS`): a typo'd field inside the
  * embedded policy fails rather than decoding with the grant silently dropped
- * (ADR-QD-002). Each is handed the {@link envelopeOf} projection, so the one
+ * (ADR-QD-002). It is handed the {@link envelopeOf} projection, so the one
  * place an unknown key is tolerated is the envelope's top level (GH-01,
  * ADR-QD-096).
  */
-const decodeWireV1 = Schema.decodeUnknownResult(SinkRecordWireV1, UNTRUSTED_DECODE_OPTIONS);
-const decodeWireV2 = Schema.decodeUnknownResult(SinkRecordWire, UNTRUSTED_DECODE_OPTIONS);
+const decodeWire = Schema.decodeUnknownResult(SinkRecordWire, UNTRUSTED_DECODE_OPTIONS);
 
 const notDecodable = (refusal: DecodeRefusal) => Result.fail(new SinkRecordNotDecodable({ refusal }));
 
@@ -680,70 +543,38 @@ const ownValue = (input: object, key: string): unknown => Object.getOwnPropertyD
  * unknown `_tag` takes the decision's key set and fails in the decode, as it
  * always did.
  */
-const envelopeOf = (input: object, decisionKeys: ReadonlySet<string>, obligationsKeys: ReadonlySet<string>) => {
-  const keys = ownValue(input, "_tag") === "Obligations" ? obligationsKeys : decisionKeys;
-  return Object.entries(input).filter(([key]) => keys.has(key));
+const envelopeOf = (input: object): unknown => {
+  const keys = ownValue(input, "_tag") === "Obligations" ? OBLIGATIONS_KEYS : DECISION_KEYS;
+  return Object.fromEntries(Object.entries(input).filter(([key]) => keys.has(key)));
 };
 
-/**
- * A pre-0.5 error's `code`, dropped (ADR-QD-096 D-15-g).
- *
- * ADR-QD-060 removed `code` from the error's wire form in 0.5.0, unversioned,
- * and `@qadi/audit` had persisted rows since 0.3.0: every `Failed` row written
- * by 0.3.x or 0.4.x carries `failed.code`. The version-1 reader tolerates
- * exactly that key at exactly that position; any other excess key under
- * `failed`, or a `code` anywhere else, is still refused.
- */
-const withoutLegacyCode = (failed: unknown): unknown =>
-  isJsonObject(failed) ? Object.fromEntries(Object.entries(failed).filter(([key]) => key !== "code")) : failed;
+/** A decode's result as a record, or `Malformed` with the schema's message. */
+const decoded = (
+  wire: Result.Result<SinkRecordWire, { readonly message: string }>,
+): Result.Result<SinkRecord, SinkRecordNotDecodable> =>
+  Result.isFailure(wire) ? malformed(wire.failure) : Result.succeed(rebuild(wire.success));
 
-/** A version-1 envelope: its declared keys, with a pre-0.5 `failed.code` dropped. */
-const envelopeV1 = (input: object): unknown =>
-  Object.fromEntries(
-    envelopeOf(input, DECISION_V1_KEYS, OBLIGATIONS_V1_KEYS).map(([key, value]) =>
-      key === "failed" ? [key, withoutLegacyCode(value)] : [key, value],
-    ),
-  );
-
-/** A version-2 envelope: its declared keys. */
-const envelopeV2 = (input: object): unknown =>
-  Object.fromEntries(envelopeOf(input, DECISION_V2_KEYS, OBLIGATIONS_V2_KEYS));
-
-/** Version-1 bytes as a record: decoded, checked for one outcome, upgraded, rebuilt. */
-const decodeV1 = (input: object): Result.Result<SinkRecord, SinkRecordNotDecodable> => {
-  const wire = decodeWireV1(envelopeV1(input));
-  if (Result.isFailure(wire)) return malformed(wire.failure);
-  // Unreachable after the schema's `exactlyOneOutcome` check; the predicate
-  // is what narrows the type for `upgradeV1`, and its refusal says the same.
-  if (!isExclusive(wire.success)) {
-    return notDecodable(DecodeRefusal.Malformed({ message: "a decision record names no outcome, or both" }));
-  }
-  return Result.succeed(rebuild(upgradeV1(wire.success)));
-};
-
-/** Version-2 bytes as a record. */
-const decodeV2 = (input: object): Result.Result<SinkRecord, SinkRecordNotDecodable> => {
-  const wire = decodeWireV2(envelopeV2(input));
-  return Result.isFailure(wire) ? malformed(wire.failure) : Result.succeed(rebuild(wire.success));
-};
+/** The version this reader reads, as a value to compare a record's `version` with. */
+const WIRE_VERSION: WireVersion = 2;
 
 /**
  * Untrusted input as a record, or the reason it is not one.
  *
  * The depth guard runs first, so the schema's recursion through `Policy` and
- * `Trace` cannot overflow. Then the version: no `version` key is version 1,
- * read for good; `version: 2` is version 2; any other value is
- * `UnsupportedVersion` — the sender is newer than this reader — rather than
- * `Malformed` (ADR-QD-096, the same convention ADR-QD-078 gives the hydration
- * payload). Each version is projected onto its envelope's declared keys,
- * decoded with `UNTRUSTED_DECODE_OPTIONS`, and rebuilt into record classes. It
- * accepts whatever {@link encodeSinkRecord} emits (INV-QD-096), and a record
- * decodes to the same `SinkRecord` whichever version carried it (INV-QD-099).
+ * `Trace` cannot overflow. Then the version: `version: 2` is read; any other
+ * value, **or none**, is `UnsupportedVersion` rather than `Malformed`
+ * (ADR-QD-096, the same convention ADR-QD-078 gives the hydration payload).
+ * A record with no `version` is a pre-0.10 record — wire version 1, whose
+ * reader 0.11.0 removed (ADR-QD-096's 2026-10-06 amendment) — and is reported
+ * as such, with `version: undefined`, never upgraded and never given a
+ * fabricated outcome or subject. The record is projected onto its envelope's
+ * declared keys, decoded with `UNTRUSTED_DECODE_OPTIONS`, and rebuilt into
+ * record classes. It accepts whatever {@link encodeSinkRecord} emits
+ * (INV-QD-096).
  *
- * **The seam for the wire's shape.** How the outcome is carried, the refusal
- * of a record naming neither outcome or both (tickets 96 and 155,
- * CCR-QD-180), and the version dispatch live behind this function, so no
- * adapter observes them and a change to them is an edit to this module alone.
+ * **The seam for the wire's shape.** How the outcome is carried and the
+ * version dispatch live behind this function, so no adapter observes them and
+ * a change to them is an edit to this module alone.
  *
  * The depth guard is `DecodeDepthGuard.ts`'s, shared with `Policy.ts`'s own
  * untrusted entry points: the wire embeds `Policy` and the self-recursive
@@ -760,14 +591,11 @@ export const decodeSinkRecord = (input: unknown): Result.Result<SinkRecord, Sink
   if (exceedsJsonDepth(input, MAX_DECODE_DEPTH)) {
     return notDecodable(DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));
   }
-  if (!isJsonObject(input)) {
-    const wire = decodeWireV2(input);
-    return Result.isFailure(wire) ? malformed(wire.failure) : Result.succeed(rebuild(wire.success));
-  }
-  if (!Object.hasOwn(input, "version")) return decodeV1(input);
+  // Not an object, so not a record of any version: the decode says why.
+  if (!isJsonObject(input)) return decoded(decodeWire(input));
   const version = ownValue(input, "version");
-  return version === 2
-    ? decodeV2(input)
+  return version === WIRE_VERSION
+    ? decoded(decodeWire(envelopeOf(input)))
     : notDecodable(DecodeRefusal.UnsupportedVersion({ version, supported: WIRE_VERSIONS }));
 };
 
@@ -821,20 +649,6 @@ export const encodeStoredRecordString = (
 ): Result.Result<string, SinkRecordNotEncodable> =>
   Result.map(encodeStoredRecord(stored), (json) => JSON.stringify(json));
 
-/** How {@link decodeStoredRecord} reads a frame that is not an envelope. */
-export interface DecodeStoredRecordOptions {
-  /**
-   * Accept a bare record — what a server older than the envelope sends — and
-   * stamp it with this label, which is the only thing such a server cannot say.
-   * Without it, a bare record is refused as `Malformed`, so an older server is
-   * reported rather than silently mislabelled.
-   *
-   * @deprecated Accepted for one minor so a newer reader can read an older
-   * server (ARCH-11 D-11-e). Remove in the minor after next.
-   */
-  readonly legacyEnvironment?: string | undefined;
-}
-
 const notAnEnvelope = (message: string) => notDecodable(DecodeRefusal.Malformed({ message }));
 
 /**
@@ -848,34 +662,32 @@ const notAnEnvelope = (message: string) => notDecodable(DecodeRefusal.Malformed(
  * D-15-c): a newer server's additive metadata must not refuse every frame for
  * the length of a rolling deploy.
  *
+ * **Only an envelope is read.** A bare record — what a server older than 0.10,
+ * which predates the envelope, sends — is refused as `Malformed`, naming
+ * itself as bare, so an older server is reported rather than silently
+ * mislabelled. 0.10 accepted one under a deprecated `legacyEnvironment` label
+ * for one minor (ARCH-11 D-11-e); 0.11.0 removed it (ADR-QD-097's 2026-10-06
+ * amendment), and with it the only reason this function took options.
+ *
  * The record is rebuilt and stamped here, with `stampRecord`, so the
  * environment is the producer's, never the reader's. Never throws.
  */
-export const decodeStoredRecord = (
-  input: unknown,
-  options?: DecodeStoredRecordOptions,
-): Result.Result<StoredRecord, SinkRecordNotDecodable> => {
+export const decodeStoredRecord = (input: unknown): Result.Result<StoredRecord, SinkRecordNotDecodable> => {
   if (!isJsonObject(input)) return notAnEnvelope("a stored record is a JSON object { environment, record }");
-  if (Object.hasOwn(input, "environment") || Object.hasOwn(input, "record")) {
-    const environment = ownValue(input, "environment");
-    if (typeof environment !== "string") return notAnEnvelope("a stored record's environment is not a string");
-    if (!Object.hasOwn(input, "record")) return notAnEnvelope("a stored record names no record");
-    return Result.map(decodeSinkRecord(ownValue(input, "record")), (record) => stampRecord(record, environment));
+  if (!Object.hasOwn(input, "environment") && !Object.hasOwn(input, "record")) {
+    return notAnEnvelope("a bare record, not a stored-record envelope { environment, record }");
   }
-  const legacy = options?.legacyEnvironment;
-  return legacy === undefined
-    ? notAnEnvelope("a bare record, not a stored-record envelope { environment, record }")
-    : Result.map(decodeSinkRecord(input), (record) => stampRecord(record, legacy));
+  const environment = ownValue(input, "environment");
+  if (typeof environment !== "string") return notAnEnvelope("a stored record's environment is not a string");
+  if (!Object.hasOwn(input, "record")) return notAnEnvelope("a stored record names no record");
+  return Result.map(decodeSinkRecord(ownValue(input, "record")), (record) => stampRecord(record, environment));
 };
 
 /**
  * JSON text as a stored record, or the reason it is not one: `NotJson` when
  * the text does not parse, otherwise whatever {@link decodeStoredRecord} says.
  */
-export const decodeStoredRecordString = (
-  text: string,
-  options?: DecodeStoredRecordOptions,
-): Result.Result<StoredRecord, SinkRecordNotDecodable> => {
+export const decodeStoredRecordString = (text: string): Result.Result<StoredRecord, SinkRecordNotDecodable> => {
   const parsed = Result.try((): unknown => JSON.parse(text));
-  return Result.isFailure(parsed) ? notDecodable(DecodeRefusal.NotJson()) : decodeStoredRecord(parsed.success, options);
+  return Result.isFailure(parsed) ? notDecodable(DecodeRefusal.NotJson()) : decodeStoredRecord(parsed.success);
 };

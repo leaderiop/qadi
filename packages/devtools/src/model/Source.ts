@@ -35,10 +35,10 @@ export interface SourceRead {
    * produce them.
    *
    * Optional rather than an empty default, and the distinction carries meaning:
-   * absent is "this source cannot answer for the past", which is true of an
-   * older server that sends no backlog, while an empty array is "it can, and
-   * there is nothing". A reader can say "no history available" for the first
-   * and "no decisions yet" for the second.
+   * absent is "this source cannot answer for the past" — a connection whose
+   * prelude did not arrive in time, or a merge of sources none of which could —
+   * while an empty array is "it can, and there is nothing". A reader can say
+   * "no history available" for the first and "no decisions yet" for the second.
    */
   readonly backlog?: ReadonlyArray<StoredRecord>;
   /** Records made after the backlog was taken. Ends when the read's scope closes. */
@@ -105,19 +105,27 @@ const DEFAULT_SYNC_TIMEOUT: Duration.Input = "2 seconds";
  * `/__decisions` as a source: one connection, whose prelude is the backlog and
  * whose remainder is the live stream.
  *
- * `read` opens the connection in its scope and waits for the first of three
- * things: `synced`, after which the `backlog` frames received so far are the
- * backlog (an empty one when the server held nothing — not an absent one); a
- * `message` frame first, which is a server older than the prelude, so the
- * backlog is **absent** and that frame is the first live one; or `syncTimeout`
- * passing with neither, a silent older server, so the backlog is absent and the
- * stream still runs. Waiting is on `Effect.sleep`, so `TestClock` drives it.
+ * `read` opens the connection in its scope and waits for one of two things:
+ * `synced`, after which the `backlog` frames received so far are the backlog
+ * (an empty one when the server held nothing — not an absent one); or
+ * `syncTimeout` passing first — a server that has not delivered its prelude
+ * yet, being unreachable, or buffered by a proxy — so the backlog is **absent**
+ * and the stream still runs, with every frame taken while waiting at its
+ * start. Waiting is on `Effect.sleep`, so `TestClock` drives it.
+ *
+ * Every server since 0.10 sends the prelude (ADR-QD-097), so a `message` frame
+ * before `synced` is not a signal of anything: it is a live record, kept in
+ * arrival order on the live half, and the wait continues. Until 0.11.0 it was
+ * taken to mean a server older than the prelude, and ended the wait with no
+ * backlog; such a server's frames are bare records, which 0.11.0 refuses
+ * (ADR-QD-097's 2026-10-06 amendment), so there is no older server left to
+ * detect.
  *
  * **The environment comes off the wire.** Every frame is a stored-record
  * envelope decoded by `@qadi/core`'s `decodeStoredRecordString`, which stamps
- * the producer's label; this reader states none. A bare record — a server
- * older than the envelope — is stamped with `legacyEnvironment` when given,
- * and reported `not-a-record` otherwise.
+ * the producer's label; this reader states none. A bare record — what a server
+ * older than 0.10 sends — is reported `not-a-record`, never stamped with a
+ * label this reader would have to make up.
  *
  * **Every failure here degrades a row, never the stream.** A frame that is not
  * JSON, a frame that does not decode, a server that goes away — none of them may
@@ -134,13 +142,6 @@ const DEFAULT_SYNC_TIMEOUT: Duration.Input = "2 seconds";
 export const sourceFromEventSource = (options: {
   readonly url: string;
   readonly withCredentials?: boolean;
-  /**
-   * The label for a bare record from a server older than the envelope.
-   *
-   * @deprecated Accepted for one minor so this reader can read an older server
-   * (ARCH-11 D-11-e). Remove in the minor after next.
-   */
-  readonly legacyEnvironment?: string;
   /** How long to wait for the prelude. Defaults to two seconds. */
   readonly syncTimeout?: Duration.Input;
   /** Replaces the browser `EventSource`. Supply one to test without a network. */
@@ -162,7 +163,7 @@ export const sourceFromEventSource = (options: {
   }
   const open = options.open ?? openEventSource;
   const withCredentials = options.withCredentials ?? false;
-  const decode = decodeFrame(options.legacyEnvironment, options.onMalformed);
+  const decode = decodeFrame(options.onMalformed);
 
   return {
     read: Effect.gen(function* () {
@@ -190,11 +191,11 @@ export const sourceFromEventSource = (options: {
       // outside the timed wait, so a timeout loses none of them: they go to
       // the live half.
       const early: Array<Frame> = [];
-      const awaitPrelude = (): Effect.Effect<boolean> =>
+      const awaitPrelude = (): Effect.Effect<void> =>
         Effect.flatMap(Queue.take(frames), (next) => {
-          if (next.event === "synced") return Effect.succeed(true);
+          if (next.event === "synced") return Effect.void;
           early.push(next);
-          return next.event === "message" ? Effect.succeed(false) : awaitPrelude();
+          return awaitPrelude();
         });
       const synced = yield* Effect.timeoutOption(awaitPrelude(), options.syncTimeout ?? DEFAULT_SYNC_TIMEOUT);
 
@@ -206,17 +207,21 @@ export const sourceFromEventSource = (options: {
           Stream.filterMapEffect(decode),
         );
 
-      // No prelude — an older server, or a silent one: the backlog is absent,
-      // and whatever arrived while waiting is the start of the live half.
-      if (Option.isNone(synced) || !synced.value) return { live: liveAfter([...early]) };
+      // No prelude in time — a server not yet reachable, or buffered: the
+      // backlog is absent, and whatever arrived while waiting is the start of
+      // the live half.
+      if (Option.isNone(synced)) return { live: liveAfter([...early]) };
 
-      // The prelude completed, so every early frame is a `backlog` one.
+      // The prelude completed: its `backlog` frames are the backlog, and a
+      // `message` frame that arrived before `synced` is live, not history.
       const backlog: Array<StoredRecord> = [];
       for (const frame of early) {
+        if (frame.event !== "backlog") continue;
         const decoded = yield* decode(frame.data);
         if (Result.isSuccess(decoded)) backlog.push(decoded.success);
       }
-      return { backlog: backlog.sort(storedRecordOrder), live: liveAfter([]) };
+      const liveEarly = early.filter((frame) => frame.event === "message");
+      return { backlog: backlog.sort(storedRecordOrder), live: liveAfter(liveEarly) };
     }),
   };
 };
@@ -290,11 +295,10 @@ const reasonOf: (refusal: DecodeRefusal) => MalformedReason = Match.type<DecodeR
  * failing the stream.
  */
 const decodeFrame = (
-  legacyEnvironment: string | undefined,
   onMalformed: ((frame: string, reason: MalformedReason) => void) | undefined,
 ): Filter.FilterEffect<string, StoredRecord, string> =>
 (frame) =>
-  Result.match(decodeStoredRecordString(frame, { legacyEnvironment }), {
+  Result.match(decodeStoredRecordString(frame), {
     onSuccess: (record) => Effect.succeed(Result.succeed(record)),
     onFailure: (error) => malformed(frame, reasonOf(error.refusal), onMalformed),
   });
@@ -307,11 +311,13 @@ const decodeFrame = (
  * the stream, a reverse proxy injecting its own body — `too-deep` is JSON
  * nested past the bound every receiver decodes, which a current sender refuses
  * to emit, so it means an older or foreign sender; `not-a-record` is a
- * protocol mismatch, a record no version of the wire describes (a decision
- * naming neither outcome or both, a field of the wrong type); and
- * `unsupported-version` is a sender newer than this panel, writing a wire
- * version its `@qadi/core` does not read — fixed by upgrading this panel, not
- * the far side (ADR-QD-096).
+ * protocol mismatch — a frame that is not a stored-record envelope (a bare
+ * record, which a server older than 0.10 sends), or a record whose content the
+ * wire does not describe (a field of the wrong type, an unknown tag); and
+ * `unsupported-version` is a record of a wire version this panel's
+ * `@qadi/core` does not read — a sender newer than the panel, fixed by
+ * upgrading the panel, or a version-1 record (no `version`) from a sender older
+ * than 0.10, fixed by upgrading the sender (ADR-QD-096).
  *
  * A closed union rather than a free string: this is a value a caller branches
  * on, and adding a reason should be a compile error at every consumer.
