@@ -1,5 +1,12 @@
 # @qadi/react
 
+## 0.11.1
+
+### Patch Changes
+
+- Updated dependencies [e9c7afc]
+  - @qadi/core@0.11.1
+
 ## 0.11.0
 
 ### Minor Changes
