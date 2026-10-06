@@ -365,6 +365,9 @@ describe("field lattice", () => {
     for (const other of [42, true, null, undefined, {}, Symbol("Union")]) {
       assert.isFalse(isFieldStrategy(other), String(other));
     }
+    // An object whose property key is a strategy's name: `Object.hasOwn`
+    // coerces its key argument, so only the string check keeps this out.
+    assert.isFalse(isFieldStrategy({ toString: () => "Union" }));
   });
 
   it("merging no inputs is top under every known strategy", () => {

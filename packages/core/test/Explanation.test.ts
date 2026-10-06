@@ -726,6 +726,16 @@ describe("a fieldStrategy or combining value outside its closed union (ADR-QD-09
     }
   });
 
+  it("a null carried by a hand-built explanation is shown as null, not as an object", () => {
+    // The smart constructors read `null` as absent, but `renderExplanation`
+    // takes any `Explanation`, and a caller may build one by hand.
+    const strategy: P.FieldStrategy = JSON.parse("null");
+    assert.strictEqual(
+      renderExplanation({ _tag: "All", parts: [], fieldStrategy: strategy }),
+      `always allows (an empty conjunction)${noFields("null")}`,
+    );
+  });
+
   it("a one-part composite still says so: under such a value one part is not itself", () => {
     // A known strategy's single-part composite needs no clause: merging one
     // field set discloses exactly it (`singletonIsIdentity`). An unknown one

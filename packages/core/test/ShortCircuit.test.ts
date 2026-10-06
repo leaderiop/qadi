@@ -57,6 +57,8 @@ describe("rulesDecisiveEffect (INV-QD-017)", () => {
     for (const other of [42, true, null, undefined, {}, Symbol("DenyOverrides")]) {
       assert.isFalse(isCombining(other), String(other));
     }
+    // `Object.hasOwn` coerces its key, so only the string check keeps this out.
+    assert.isFalse(isCombining({ toString: () => "DenyOverrides" }));
   });
 
   it("a known value is its own effective algorithm", () => {
