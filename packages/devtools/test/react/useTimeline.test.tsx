@@ -59,13 +59,17 @@ describe("useTimeline", () => {
    */
   it("closes the connection when the panel unmounts", async () => {
     let closed = 0;
+    const handlers = new Map<string, (data: string) => void>();
     const source = sourceFromEventSource({
       url: "/__decisions",
       open: () => ({
-        // An older server: no prelude, so the first `message` frame ends the
-        // wait and is delivered live.
+        // A current server: an empty prelude, which ends the wait, then one
+        // live `message` frame.
         onEvent: (event, handler) => {
-          if (event === "message") handler(frame);
+          handlers.set(event, handler);
+          if (event !== "synced") return;
+          handler('{"backlog":0}');
+          handlers.get("message")?.(frame);
         },
         onError: () => {},
         close: () => {

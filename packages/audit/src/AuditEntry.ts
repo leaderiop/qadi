@@ -91,11 +91,13 @@ const describeRefusal: (refusal: EncodeRefusal) => string = Match.type<EncodeRef
  * `record` is the encoded wire (see this module's doc comment); its `Type` is
  * already JSON-shaped, so a store persists `JSON.stringify(entry)` as it is.
  *
- * `record` is a closed union of two byte formats, by wire version
- * (ADR-QD-096): version-2 bytes (`version: 2`, one tagged `outcome`) and
- * version-1 bytes (no `version` key, `decided`/`failed`). A store keeps rows of
- * both for good; narrow on `"version" in entry.record` to read one directly, or
- * read it back with {@link decodeAuditEntry}, which reads either.
+ * `record` is version-2 bytes (`version: 2`, one tagged `outcome`,
+ * ADR-QD-096) — the only wire version this release reads or writes. A row
+ * written before 0.10 carries version-1 bytes (no `version` key,
+ * `decided`/`failed`), which 0.11.0 no longer reads: re-encode such rows with
+ * 0.10.x (`decodeAuditEntry` then `encodeAuditEntry` from `@qadi/audit@0.10`)
+ * before upgrading, or {@link decodeAuditEntry} refuses them as
+ * `UnsupportedVersion`.
  *
  * `sequenceNumber` is the optional gap-detection field a caller's own store
  * assigns — `@qadi/audit` never populates it. Only the caller's store has
@@ -123,8 +125,8 @@ export type AuditEntry = typeof AuditEntry.Type;
  * (ARCH-09). Refuses rather than approximates: an unsafe record fails
  * `AuditEntryNotEncodable`, never partially written or silently dropped.
  *
- * Written as wire version 2 (ADR-QD-096). A row is read back by whatever reads
- * the store, so every such reader upgrades before the writer.
+ * Written as wire version 2 (ADR-QD-096), which every reader since 0.10.0
+ * reads; a reader of the store older than 0.10 must upgrade first.
  */
 export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(function* (
   record: SinkRecord,
@@ -157,9 +159,9 @@ const decodeRow = Schema.decodeUnknownResult(
  * The row's record as `SinkRecordJson`, once `decodeSinkRecord` has accepted
  * it. Default options, deliberately and only here: the strict read has run,
  * so the one thing left to drop is what that read tolerates — an envelope key
- * this version does not declare, a pre-0.5 `failed.code` (ADR-QD-096) — and
- * the entry is the row as this version describes it, not a copy of whatever
- * extra a newer writer added.
+ * this version does not declare (ADR-QD-096 D-15-c) — and the entry is the row
+ * as this version describes it, not a copy of whatever extra a newer writer
+ * added.
  */
 const recordJsonOf = Schema.decodeUnknownResult(SinkRecordJson);
 
@@ -176,10 +178,14 @@ const malformed = (message: string) =>
  * died with a `RangeError` on a deeply nested stored policy. Only then is the
  * rest of the row decoded, now safe. A refusal is a value, never a throw.
  *
- * Reads both wire versions (ADR-QD-096): a store holds version-1 rows for
- * good, and whatever leniency and strictness `decodeSinkRecord` applies —
- * an unknown envelope key ignored, a typo inside the embedded policy refused,
- * an unknown `version` refused as `UnsupportedVersion` — applies here too.
+ * Reads wire version 2 only (ADR-QD-096's 2026-10-06 amendment), and
+ * whatever leniency and strictness `decodeSinkRecord` applies — an unknown
+ * envelope key ignored, a typo inside the embedded policy refused, a record of
+ * any other `version` refused as `UnsupportedVersion` — applies here too. That
+ * includes a row written before 0.10, whose record has no `version` at all: it
+ * is refused as `UnsupportedVersion` with `version: undefined`, never upgraded.
+ * Such rows are re-encoded with 0.10.x before upgrading, which reads both
+ * versions and writes version 2.
  */
 export const decodeAuditEntry = (
   input: unknown,

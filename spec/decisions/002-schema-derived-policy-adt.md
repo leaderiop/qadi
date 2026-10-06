@@ -79,3 +79,10 @@ reader ignore a top-level envelope key it does not declare. `Policy` decoding is
 unchanged: an embedded policy — on the record wire or anywhere else — is decoded
 with `UNTRUSTED_DECODE_OPTIONS`, and readers of persisted policies still upgrade
 before writers.
+
+## Amendment (2026-10-06, CCR-QD-182)
+
+Since 0.11.0 the record wire has one version: a record with no `version` key —
+the version 1 the paragraph above describes — is refused as `UnsupportedVersion`
+rather than read ([ADR-QD-096](./096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)'s
+2026-10-06 amendment). `Policy` decoding is unchanged by this too.

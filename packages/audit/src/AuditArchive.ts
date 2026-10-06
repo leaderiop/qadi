@@ -59,8 +59,10 @@ export interface AuditArchive {
  * The bundle's own format version, not the wire version of its entries.
  *
  * It stays `"1"` across ADR-QD-096: each entry's `record` says its own wire
- * version (no `version` key for version 1, `version: 2` otherwise), and the
- * bundle's shape did not change, so an archive may mix both and needs no bump.
+ * version (`version: 2`), and the bundle's shape did not change. An archive
+ * bundled before 0.10 holds version-1 entries (no `version` key), which
+ * `decodeAuditEntry` refuses since 0.11.0; its entries are re-encoded with
+ * 0.10.x like any other pre-0.10 row, and the bundle format needs no bump.
  */
 const ARCHIVE_VERSION = "1";
 

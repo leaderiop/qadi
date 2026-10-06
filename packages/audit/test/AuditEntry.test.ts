@@ -11,6 +11,7 @@ import {
   encodeSinkRecordString,
   hasCustom,
   MAX_DECODE_DEPTH,
+  WIRE_VERSIONS,
 } from "@qadi/core";
 import { AuditEntry, decodeAuditEntry, encodeAuditEntry } from "../src/AuditEntry.ts";
 import {
@@ -34,14 +35,7 @@ describe("encodeAuditEntry", () => {
       const entry = yield* encodeAuditEntry(failedRecord({ evaluationId: "e2" }));
       const record = entry.record;
       assert.strictEqual(record._tag, "Decision");
-      const error =
-        record._tag !== "Decision"
-          ? undefined
-          : "version" in record
-            ? record.outcome._tag === "Failed"
-              ? record.outcome.error
-              : undefined
-            : record.failed;
+      const error = record._tag === "Decision" && record.outcome._tag === "Failed" ? record.outcome.error : undefined;
       assert.strictEqual(error?._tag, "MissingResource");
     }));
 
@@ -268,7 +262,7 @@ describe("decodeAuditEntry — the guarded reader (ARCH-09)", () => {
   });
 
   it("a row whose record is not a record is Malformed", () => {
-    const result = decodeAuditEntry({ record: { _tag: "Nope" } });
+    const result = decodeAuditEntry({ record: { _tag: "Nope", version: 2 } });
     assert.strictEqual(Result.isFailure(result) ? result.failure.refusal._tag : undefined, "Malformed");
   });
 
@@ -302,36 +296,39 @@ describe("decodeAuditEntry — the guarded reader (ARCH-09)", () => {
  */
 describe("decodeAuditEntry refuses what the row schema alone would accept", () => {
   const policy = { _tag: "HasPermission", permission: { resource: "doc", action: "read" } };
-  const envelope = { _tag: "Decision", evaluationId: "g", at: 1, subjectId: "u1", policy };
-  const decided = {
-    _tag: "Allow",
-    evaluationId: "g",
-    subjectId: "u1",
-    durationMillis: 2,
-    trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
-    obligations: [],
+  const envelope = { _tag: "Decision", version: 2, evaluationId: "g", at: 1, subjectId: "u1", policy };
+  const outcome = {
+    _tag: "Decided",
+    decision: {
+      _tag: "Allow",
+      evaluationId: "g",
+      subjectId: "u1",
+      durationMillis: 2,
+      trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
+      obligations: [],
+    },
   };
-  const failed = { _tag: "MissingResource", attribute: "owner" };
 
-  it("a row whose record names neither outcome is refused by decodeAuditEntry (ticket 96)", () => {
+  it("a row whose record names no outcome is refused by decodeAuditEntry (ticket 96)", () => {
     const result = decodeAuditEntry({ record: envelope });
-    assert.include(Result.isFailure(result) && result.failure.refusal._tag === "Malformed" ? result.failure.refusal.message : "", "names no outcome");
+    assert.include(Result.isFailure(result) && result.failure.refusal._tag === "Malformed" ? result.failure.refusal.message : "", 'Missing key\n  at ["outcome"]');
   });
 
-  it("a row whose record names both outcomes is refused by decodeAuditEntry (ticket 155)", () => {
-    const result = decodeAuditEntry({ record: { ...envelope, decided, failed } });
-    assert.include(Result.isFailure(result) && result.failure.refusal._tag === "Malformed" ? result.failure.refusal.message : "", "names both outcomes");
+  it("a row whose outcome carries a stray second one is refused by decodeAuditEntry (ticket 155)", () => {
+    const error = { _tag: "MissingResource", attribute: "owner" };
+    const result = decodeAuditEntry({ record: { ...envelope, outcome: { ...outcome, error } } });
+    assert.include(Result.isFailure(result) && result.failure.refusal._tag === "Malformed" ? result.failure.refusal.message : "", '["outcome"]["error"]');
   });
 
   it("a typo inside the embedded policy is refused, not silently dropped (P6e)", () => {
-    const result = decodeAuditEntry({ record: { ...envelope, policy: { ...policy, permision: "x" }, decided } });
+    const result = decodeAuditEntry({ record: { ...envelope, policy: { ...policy, permision: "x" }, outcome } });
     assert.include(Result.isFailure(result) && result.failure.refusal._tag === "Malformed" ? result.failure.refusal.message : "", "permision");
   });
 
   it.effect("the row schema alone, by contrast, drops the same typo silently — so it is not a reader", () =>
     Effect.gen(function* () {
       const result = yield* Effect.result(
-        Schema.decodeUnknownEffect(AuditEntry)({ record: { ...envelope, policy: { ...policy, permision: "x" }, decided } }),
+        Schema.decodeUnknownEffect(AuditEntry)({ record: { ...envelope, policy: { ...policy, permision: "x" }, outcome } }),
       );
       assert.isTrue(Result.isSuccess(result));
       if (Result.isSuccess(result) && result.success.record._tag === "Decision") {
@@ -341,12 +338,12 @@ describe("decodeAuditEntry refuses what the row schema alone would accept", () =
 });
 
 /**
- * A store holds rows of both wire versions for good (ADR-QD-096 D-15-h): rows
- * written before version 2, rows written by a sender held at version 1, and
- * version-2 rows. `decodeAuditEntry` reads every one, with the same envelope
- * leniency and content strictness as the core decode.
+ * A row is version-2 bytes, the one wire version 0.11.0 reads (ADR-QD-096's
+ * 2026-10-06 amendment). A row written before 0.10 — version 1, no `version`
+ * key — is refused as `UnsupportedVersion`, never upgraded: the documented
+ * migration re-encodes it with 0.10.x before upgrading.
  */
-describe("decodeAuditEntry reads rows of both wire versions", () => {
+describe("decodeAuditEntry reads version-2 rows, and refuses a pre-0.10 row", () => {
   const ROW_V1 =
     '{"_tag":"Decision","evaluationId":"g","at":1,"subjectId":"u1","policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"failed":{"_tag":"MissingResource","attribute":"owner"}}';
   const ROW_V1_PRE05 =
@@ -355,26 +352,30 @@ describe("decodeAuditEntry reads rows of both wire versions", () => {
     '{"_tag":"Decision","version":2,"evaluationId":"g","at":1,"subjectId":"u1","policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"outcome":{"_tag":"Failed","error":{"_tag":"MissingResource","attribute":"owner"}}}';
   const read = (record: string, sequenceNumber?: number) =>
     decodeAuditEntry({ record: JSON.parse(record), ...(sequenceNumber === undefined ? {} : { sequenceNumber }) });
+  const unversioned = DecodeRefusal.UnsupportedVersion({ version: undefined, supported: WIRE_VERSIONS });
 
-  it("an archive mixing v1 and v2 rows decodes every row, each to the same record", () => {
-    const rows = [read(ROW_V1, 1), read(ROW_V2, 2)];
-    assert.isTrue(rows.every(Result.isSuccess));
-    const [v1, v2] = rows;
-    if (v1 !== undefined && v2 !== undefined && Result.isSuccess(v1) && Result.isSuccess(v2)) {
-      assert.deepStrictEqual(v1.success.record, v2.success.record);
-      assert.deepStrictEqual([v1.success.entry.sequenceNumber, v2.success.entry.sequenceNumber], [1, 2]);
-      assert.isFalse("version" in v1.success.entry.record);
-      assert.isTrue("version" in v2.success.entry.record);
+  it("a version-2 row decodes, keeping its sequence number", () => {
+    const row = read(ROW_V2, 2);
+    assert.isTrue(Result.isSuccess(row));
+    if (Result.isSuccess(row)) {
+      assert.strictEqual(row.success.entry.sequenceNumber, 2);
+      assert.isTrue(row.success.record._tag === "Decision" && row.success.record.outcome._tag === "Failed");
     }
   });
 
-  it("a pre-0.5 row whose error still carries its code decodes, and the entry no longer carries it", () => {
-    const row = read(ROW_V1_PRE05);
-    assert.isTrue(Result.isSuccess(row));
-    if (Result.isSuccess(row)) {
-      assert.deepStrictEqual(row.success.record, Result.getOrUndefined(read(ROW_V1))?.record);
-      assert.notInclude(JSON.stringify(row.success.entry), "ACL004");
+  it("a pre-0.10 row is UnsupportedVersion, version undefined, never upgraded into a record", () => {
+    for (const text of [ROW_V1, ROW_V1_PRE05]) {
+      const row = read(text, 1);
+      assert.deepStrictEqual(Result.isFailure(row) ? row.failure.refusal : undefined, unversioned, text);
     }
+  });
+
+  it("an archive mixing pre-0.10 and v2 rows reads the v2 rows and names every pre-0.10 one", () => {
+    const rows = [read(ROW_V1, 1), read(ROW_V2, 2)];
+    assert.deepStrictEqual(
+      rows.map((row) => (Result.isSuccess(row) ? "read" : row.failure.refusal._tag)),
+      ["UnsupportedVersion", "read"],
+    );
   });
 
   it("a row whose record carries an unknown envelope key decodes, and the entry drops the key", () => {

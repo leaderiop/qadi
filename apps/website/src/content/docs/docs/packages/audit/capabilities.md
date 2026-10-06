@@ -27,11 +27,13 @@ that record (`encodeSinkRecord`'s output), so a store persists
 `JSON.stringify(entry)` as it is; read rows back with `decodeAuditEntry`, the
 depth-guarded reader.
 
-Rows are versioned. A row's `record` is either wire version 1 — no `version`
-key, written by `@qadi/core` before the record wire was versioned — or wire
-version 2, with `version: 2` and the decision's outcome as one tagged
-`outcome`. A store keeps both for good, and `decodeAuditEntry` reads both,
-including rows written by `@qadi/audit` 0.3 and 0.4. Read rows back with
+Rows are versioned. A row's `record` is wire version 2, with `version: 2` and
+the decision's outcome as one tagged `outcome`. It is the only version 0.11
+reads or writes. A row written before 0.10 is wire version 1: it has no
+`version` key, and `decodeAuditEntry` refuses it as `UnsupportedVersion`.
+Re-encode such rows with 0.10.x before upgrading; see
+[Upgrading to 0.11](/docs/reference/upgrading/#audit-rows-written-before-010).
+Read rows back with
 `decodeAuditEntry`, not with the `AuditEntry` schema alone, which under
 `Schema`'s default options silently strips a typo inside the stored policy. `encodeAuditEntry` refuses rather than approximates: a
 record carrying a value with no safe durable representation — a function, a

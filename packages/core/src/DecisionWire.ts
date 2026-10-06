@@ -2,7 +2,7 @@
  * The wire form of a `Decision`, shared by every module that ships one.
  *
  * `SinkCodec.ts` embeds it in the record wire's outcome — `OutcomeWire`'s
- * `Decided` member in version 2, the `decided` field in version 1 — and
+ * `Decided` member — and
  * `@qadi/react`'s hydration payload derives its entry schema from
  * {@link DecisionWire}'s own fields rather than restating them. One definition
  * means one set of tests and no second hand-rolled codec drifting beside the

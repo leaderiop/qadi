@@ -183,10 +183,11 @@ const ArticleRoute = addGuardedRoute(
 /**
  * Why an ingested body was refused, as the 400's text.
  *
- * A sender newer than this aggregator — writing a wire version its
- * `@qadi/core` does not read — is told apart from a body that is not a record
- * at all, because the fix is different: upgrade the aggregator, not the
- * sender (ADR-QD-096).
+ * A record of a wire version this aggregator's `@qadi/core` does not read is
+ * told apart from a body that is not a record at all, because the fix is
+ * different (ADR-QD-096): a newer `version` means upgrade the aggregator, and
+ * none at all means a sender older than 0.10, whose version-1 records 0.11.0
+ * no longer reads — upgrade the sender.
  */
 const refusedBecause: (refusal: DecodeRefusal) => string = Match.type<DecodeRefusal>().pipe(
   Match.tagsExhaustive({
@@ -194,7 +195,9 @@ const refusedBecause: (refusal: DecodeRefusal) => string = Match.type<DecodeRefu
     TooDeep: (refusal) => `not a decision record: ${refusal._tag}`,
     Malformed: (refusal) => `not a decision record: ${refusal._tag}`,
     UnsupportedVersion: (refusal) =>
-      `unsupported wire version ${JSON.stringify(refusal.version)}: this aggregator reads ${refusal.supported.join(", ")}`,
+      refusal.version === undefined
+        ? `no wire version — a sender older than 0.10: this aggregator reads ${refusal.supported.join(", ")}`
+        : `unsupported wire version ${JSON.stringify(refusal.version)}: this aggregator reads ${refusal.supported.join(", ")}`,
   }),
 );
 

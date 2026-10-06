@@ -53,7 +53,7 @@ const ports = EvaluationServicesNone;
 /** A source that answers for the past and nothing else — a captured session. */
 const pastOnly = (records: ReadonlyArray<StoredRecord>): Source => sourceFromRecords(records);
 
-/** A source that answers only for what happens next — an older server over SSE. */
+/** A source that answers only for what happens next — an SSE connection whose prelude did not arrive in time. */
 const futureOnly = (records: ReadonlyArray<StoredRecord>): Source => ({
   read: Effect.succeed({ live: Stream.fromArray(records) }),
 });

@@ -446,20 +446,24 @@ export class SinkRecordNotEncodable extends Data.TaggedError("SinkRecordNotEncod
 }> {}
 
 /**
- * A version of the record wire (ADR-QD-096).
+ * A version of the record wire that `decodeSinkRecord` reads (ADR-QD-096).
  *
- * Version 1 is spelled by the absence of a `version` key — every `@qadi/core`
- * before ADR-QD-096 wrote it — and carries a decision's outcome as two optional
- * fields, `decided`/`failed`. Version 2 carries `version: 2` and the outcome as
- * one tagged value. A closed union: a third version is a full-union edit.
+ * Version 2 carries `version: 2` and a decision's outcome as one tagged value.
+ * It is the only one: version 1 — spelled by the absence of a `version` key,
+ * the outcome as two optional fields `decided`/`failed`, written by every
+ * `@qadi/core` before 0.10 — was read until 0.11.0 and is now refused as
+ * `UnsupportedVersion` (ADR-QD-096's 2026-10-06 amendment). A closed union of
+ * one member, kept rather than deleted because it is what
+ * {@link DecodeRefusal}'s `UnsupportedVersion.supported` reports, and a
+ * future version 3 is a full-union edit here, not a new export.
  *
  * Declared here rather than in `SinkCodec.ts` because {@link DecodeRefusal}
  * names it, and `Errors.ts` cannot import `SinkCodec.ts` (ADR-QD-037).
  */
-export type WireVersion = 1 | 2;
+export type WireVersion = 2;
 
-/** Every wire version `decodeSinkRecord` reads: version 1 for good, and version 2. */
-export const WIRE_VERSIONS: ReadonlyArray<WireVersion> = [1, 2];
+/** Every wire version `decodeSinkRecord` reads: version 2, and only it. */
+export const WIRE_VERSIONS: ReadonlyArray<WireVersion> = [2];
 
 /**
  * Why `decodeSinkRecord` refused its input.
@@ -469,12 +473,17 @@ export const WIRE_VERSIONS: ReadonlyArray<WireVersion> = [1, 2];
  * - `NotJson`: the text did not parse as JSON (`decodeSinkRecordString` only).
  * - `TooDeep`: the input nests deeper than `maxDepth`; refused before the
  *   schema recurses into it.
- * - `Malformed`: the input is JSON but not a record of the version it claims —
- *   including a decision naming neither outcome, or both.
- * - `UnsupportedVersion`: the input's `version` is not one this reader reads
- *   (`supported`). A different fix from `Malformed`: the sender is newer than
- *   this reader, so upgrade the reader (ADR-QD-096). `version` is the value as
- *   sent, which may be any JSON value.
+ * - `Malformed`: the input is not a record of the version it claims — not a
+ *   JSON object at all, or a `version: 2` record whose content does not match
+ *   (an unknown `_tag`, a typo inside the embedded policy, a field of the wrong
+ *   type).
+ * - `UnsupportedVersion`: the input is an object whose `version` is not one
+ *   this reader reads (`supported`). A different fix from `Malformed`: the
+ *   other end runs a release this one does not speak to (ADR-QD-096). `version`
+ *   is the value as sent, which may be any JSON value, and is `undefined` when
+ *   the input names no version — a pre-0.10 (version-1) record, which 0.11.0
+ *   no longer reads: re-encode it with 0.10.x, or upgrade its sender. A newer
+ *   `version` means upgrade this reader.
  */
 export type DecodeRefusal = Data.TaggedEnum<{
   NotJson: Record<never, never>;

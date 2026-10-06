@@ -71,7 +71,11 @@ it:
 | `sourceFromEventSource` | the server's prelude, when it sends one | across processes, over SSE |
 
 The environment label is stated once, where the log is made; over SSE it
-travels inside each frame, so `sourceFromEventSource` states none.
+travels inside each frame, so `sourceFromEventSource` states none. A frame must
+be a `{ environment, record }` envelope whose record is wire version 2. A bare
+record from a server older than 0.10 is reported as `"not-a-record"`, and a
+version-1 record as `"unsupported-version"`; see
+[Upgrading to 0.11](/docs/reference/upgrading/#peers-on-09-or-earlier).
 
 A frame that is not JSON, one that does not decode, or a server that
 disconnects each drops one row and reports why via an `onMalformed`/

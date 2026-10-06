@@ -1,13 +1,13 @@
 /**
- * Version-2 decision-record bytes, as literals: the same records as
- * `sinkWireV1.ts`, carried as wire version 2 (ADR-QD-096).
+ * Version-2 decision-record bytes, as literals (ADR-QD-096): the one wire
+ * version this library writes and, since 0.11.0, the only one it reads.
  *
- * Version 2 adds `version: 2` to both envelope members and carries a
- * decision's outcome as one tagged value, `outcome: { _tag: "Decided",
- * decision } | { _tag: "Failed", error }`, where version 1 had two optional
- * fields. Hand-written from the v1 fixtures and the ADR, not captured from
- * the encoder, so the encoder is checked against them rather than the other
- * way round.
+ * Version 2 carries `version: 2` on both envelope members and a decision's
+ * outcome as one tagged value, `outcome: { _tag: "Decided", decision } |
+ * { _tag: "Failed", error }`. Hand-written from the ADR and the version-1
+ * fixtures that 0.10 kept (removed with the version-1 reader in 0.11.0), not
+ * captured from the encoder, so the encoder is checked against them rather
+ * than the other way round.
  */
 
 /** An `Allow` with `visibleFields` and an obligation. */

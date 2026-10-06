@@ -5,14 +5,37 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-078                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-04                                     |
-> | Status         | Accepted — amends ADR-QD-028, ADR-QD-039, ADR-QD-041, ADR-QD-052 |
+> | Status         | Accepted — amends ADR-QD-028, ADR-QD-039, ADR-QD-041, ADR-QD-052; amended 2026-10-06 (version-1 reader removed) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-04): Initial release (CCR-QD-156) |
+> | Change History | 1.1 (2026-10-06): amended — the version-1 payload reader removed in 0.11.0, as scheduled; `DehydratedDecisionsV1`, `DehydratedEntryV1` and `DehydratedPayload` removed (CCR-QD-182)<br>1.0 (2026-10-04): Initial release (CCR-QD-156) |
 
 ---
+
+> **Amendment (2026-10-06, the scheduled removal — 0.11.0, CCR-QD-182):** the
+> version-1 payload reader is removed in the next minor release, as the
+> Consequences below said it would be; this amendment is the follow-up they
+> promised.
+>
+> - `hydrateDecisions` reads `version: 2` payloads only. A payload with no
+>   `version` — the format `@qadi/react` 0.9 and earlier wrote — is dropped
+>   whole as `UnsupportedPayloadVersion`, the same reason, count and report as
+>   any other version this client does not read; no new drop reason, so
+>   `ClientHydrationDropReason`, `HydrationMetrics` and `@qadi/devtools`'
+>   `MEANINGS` are unchanged in shape. The page re-decides those questions
+>   itself, which is what a refused payload always meant.
+> - `DehydratedDecisionsV1` and `DehydratedEntryV1` (deprecated in 0.10) are
+>   removed, and so is `DehydratedPayload`, which was their union with
+>   `DehydratedDecisions`: `hydrateDecisions` and `QadiAtoms.hydrate` take
+>   `DehydratedDecisions`.
+> - Unlike the record wire, this was always the plan: a payload lives in one
+>   cached page, an audit row for years (ADR-QD-096 D-15-d drew that line).
+>   ADR-QD-096's own version-1 reader is removed in the same release, by a
+>   separate decision recorded in its 2026-10-06 amendment.
+>
+> The text below is the decision as accepted on 2026-10-04, kept unedited.
 
 ## Context
 

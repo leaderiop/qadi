@@ -78,7 +78,8 @@ export type ClientHydrationDropReason =
    */
   | "EntryTooDeep"
   /**
-   * The payload names a `version` this client does not read.
+   * The payload names a `version` this client does not read — or none, the
+   * format `@qadi/react` 0.9 and earlier wrote, read until 0.11.0 (ADR-QD-078).
    *
    * Not the same as malformed: a page cached by one deploy and hydrated by the
    * next carries a format the other end has not heard of, and the failure is gone

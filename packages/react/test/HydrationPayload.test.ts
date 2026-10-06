@@ -94,7 +94,7 @@ describe("hydrateDecisions never throws, whatever it is handed", () => {
   );
 
   it("a payload that is not an envelope is dropped as MalformedPayload, and reported", () => {
-    for (const payload of [5, null, "x", [], { subjectId: "u1", entries: 5 }]) {
+    for (const payload of [5, null, "x", [], { version: 2, subjectId: "u1", entries: 5 }]) {
       const drops: Array<HydrationDrop<unknown>> = [];
       const seeded = [...hydrate(payload, alice, { onDropped: (d) => drops.push(d) })];
       expect(seeded).toEqual([]);
@@ -155,10 +155,13 @@ describe("the payload is versioned", () => {
     expect(drops[0]?.entries).toHaveLength(2);
   });
 
-  it("reads a payload from before `version` existed, and seeds it Withheld", () => {
+  it("refuses a payload from before `version` existed, whole, as UnsupportedPayloadVersion (0.11.0)", () => {
     // Captured at 1caf04c: what `dehydrateDecisions` produced for a denial, with
-    // its reduced trace and its stand-in "hydrated" reason.
-    const v1 = {
+    // its reduced trace and its stand-in "hydrated" reason, beside an allow.
+    // 0.10 read it and seeded it Withheld; 0.11.0 reads version 2 only
+    // (ADR-QD-078's 2026-10-06 amendment), so nothing in it is seeded and the
+    // client asks both questions itself.
+    const preVersion = {
       subjectId: "u1",
       entries: [
         {
@@ -182,49 +185,31 @@ describe("the payload is versioned", () => {
           durationMillis: 1,
           visibleFields: ["id"],
           obligations: [{ id: "audit.log", attributes: {}, advisory: false }],
-          trace: {
-            policyTag: "HasPermission",
-            allowed: true,
-            children: [],
-            visibleFields: ["id"],
-            obligations: [],
-          },
         },
       ],
     };
-    const registry = seedWindow(v1);
+    const drops: Array<HydrationDrop<unknown>> = [];
+    const seeded = [...hydrate(preVersion, alice, { onDropped: (d) => drops.push(d) })];
+    expect(seeded).toEqual([]);
+    expect(drops.map((d) => d.reason)).toEqual(["UnsupportedPayloadVersion"]);
+    expect(drops[0]?.entries).toHaveLength(2);
 
-    const denied = currentDecision(registry.get(atoms.decision(isAdmin)));
-    expect(denied?._tag).toBe("SeededDeny");
-    // Always Withheld: a v1 trace is indistinguishable from a real one, and the
-    // safe direction is less disclosure — even though this one carried a trace.
-    expect(denied !== undefined && isSeeded(denied) && denied.disclosure).toEqual({
-      _tag: "Withheld",
-    });
-
-    const allowed = currentDecision(registry.get(atoms.decision(read)));
-    expect(allowed?._tag).toBe("SeededAllow");
-    expect(allowed?._tag === "SeededAllow" && allowed.visibleFields).toEqual(["id"]);
-    expect(allowed?._tag === "SeededAllow" && allowed.obligations.map((o) => o.id)).toEqual([
-      "audit.log",
-    ]);
+    const registry = seedWindow(preVersion);
+    expect(currentDecision(registry.get(atoms.decision(isAdmin)))).toBeUndefined();
+    expect(currentDecision(registry.get(atoms.decision(read)))).toBeUndefined();
     registry.dispose();
   });
 
-  it("drops a v1 entry that is malformed, the way it always did", () => {
-    const drops: Array<HydrationDrop<unknown>> = [];
-    const seeded = [
-      ...hydrate(
-        {
-          subjectId: "u1",
-          entries: [{ policy: {}, allowed: true, evaluationId: "e", durationMillis: "NaN" }],
-        },
-        alice,
-        { onDropped: (d) => drops.push(d) },
-      ),
-    ];
-    expect(seeded).toEqual([]);
-    expect(drops.map((d) => d.reason)).toEqual(["MalformedEntry"]);
+  it("refuses a pre-version payload as UnsupportedPayloadVersion even when an entry is malformed — it is never read entry by entry", () => {
+    for (const payload of [
+      { subjectId: "u1", entries: [{ policy: {}, allowed: true, evaluationId: "e", durationMillis: "NaN" }] },
+      { version: 1, subjectId: "u1", entries: [{}] },
+    ]) {
+      const drops: Array<HydrationDrop<unknown>> = [];
+      const seeded = [...hydrate(payload, alice, { onDropped: (d) => drops.push(d) })];
+      expect(seeded).toEqual([]);
+      expect(drops.map((d) => d.reason)).toEqual(["UnsupportedPayloadVersion"]);
+    }
   });
 });
 

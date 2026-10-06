@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-26                                    |
-> | Revision       | 1.6                                            |
-> | Effective Date | 2026-10-05                                     |
+> | Revision       | 1.7                                            |
+> | Effective Date | 2026-10-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-10-05): ARCH-11 — BEH-QD-201 rewritten for the decision log's live half; BEH-QD-202 takes a `DecisionLogReader`; BEH-QD-311's frame carries the stored-record envelope; BEH-QD-314 (the backlog travels on the stream, every frame names its producer), BEH-QD-315 (`decisionBacklogRoute`) and BEH-QD-316 (resume on reconnect) added (ADR-QD-097, CCR-QD-181)<br>1.5 (2026-10-05): BEH-QD-201 — the stale `publishUnsafe` sentence corrected to what the code does (`publish`, and why) (CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-311 — a frame's data is wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-311 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.7 (2026-10-06): BEH-QD-314 — only an envelope is read: `decodeStoredRecord` takes no options (`legacyEnvironment` removed, as scheduled), a bare record is refused as `Malformed`, and an absent backlog no longer means an older server (ADR-QD-097 amendment, CCR-QD-182)<br>1.6 (2026-10-05): ARCH-11 — BEH-QD-201 rewritten for the decision log's live half; BEH-QD-202 takes a `DecisionLogReader`; BEH-QD-311's frame carries the stored-record envelope; BEH-QD-314 (the backlog travels on the stream, every frame names its producer), BEH-QD-315 (`decisionBacklogRoute`) and BEH-QD-316 (resume on reconnect) added (ADR-QD-097, CCR-QD-181)<br>1.5 (2026-10-05): BEH-QD-201 — the stale `publishUnsafe` sentence corrected to what the code does (`publish`, and why) (CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-311 — a frame's data is wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-311 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 _Previous: [25 — Inspection](./25-inspection.md)_
 
@@ -312,10 +312,7 @@ export const syncedFrame: (backlog: number) => string;
 // @qadi/core
 export const StoredRecordJson: Schema.Struct<{ environment: Schema.String; record: typeof SinkRecordJson }>;
 export const encodeStoredRecord: (stored: StoredRecord) => Result<StoredRecordJson, SinkRecordNotEncodable>;
-export const decodeStoredRecord: (
-  input: unknown,
-  options?: { readonly legacyEnvironment?: string },
-) => Result<StoredRecord, SinkRecordNotDecodable>;
+export const decodeStoredRecord: (input: unknown) => Result<StoredRecord, SinkRecordNotDecodable>;
 ```
 
 ```
@@ -338,8 +335,11 @@ connection is also one authorization: `guardRoute` runs once, and `reauth`
 covers the prelude as it covers everything else.
 
 `synced` is sent even for an empty backlog, so a reader can tell "this server
-holds nothing" (an empty backlog) from "this server sends no prelude" (an older
-server: the backlog is absent, [BEH-QD-203](./27-devtools-timeline.md)).
+holds nothing" (an empty backlog) from "no prelude has arrived" (a connection
+not yet delivering, or buffered: after its sync timeout the reader's backlog is
+absent, [BEH-QD-203](./27-devtools-timeline.md)). Every server since 0.10 sends
+the prelude, so a reader no longer treats a `message` before `synced` as a
+server older than it.
 
 ```
 REQUIREMENT: Every `backlog` and `message` frame's data MUST be a stored-record
@@ -359,16 +359,26 @@ lives inside `record`. An unknown top-level envelope key is ignored, as one on
 the record is.
 
 ```
-REQUIREMENT: A reader given `legacyEnvironment` MUST accept a bare record — a
-             server older than the envelope — and stamp it with that label.
-             Without it, a bare record MUST be refused as `Malformed`, never
-             given the reader's label silently.
+REQUIREMENT: A reader MUST read only a stored-record envelope. A bare record —
+             what a server older than 0.10 sends — MUST be refused as
+             `Malformed`, never stamped with a label the reader states.
 ```
 
-`legacyEnvironment` is deprecated and kept for one minor. The other direction —
-a reader older than the envelope reading a newer server — reports every frame
-as `not-a-record` through its `onMalformed` ([BEH-QD-204](./27-devtools-timeline.md)):
-loud, not silently mislabelled.
+> **Amended in CCR-QD-182 (0.11.0).** This requirement read: "A reader given
+> `legacyEnvironment` MUST accept a bare record — a server older than the
+> envelope — and stamp it with that label. Without it, a bare record MUST be
+> refused as `Malformed`, never given the reader's label silently."
+> `legacyEnvironment` was deprecated and kept for one minor (ARCH-11 D-11-e);
+> it is removed, with `DecodeStoredRecordOptions`
+> ([ADR-QD-097](../decisions/097-a-decision-log-is-a-sink-and-its-own-history.md)'s
+> 2026-10-06 amendment).
+
+A server older than 0.10 sends bare, version-1 records, which 0.11.0 refuses on
+two counts; a label would only move the refusal one step later. Both directions
+are loud: a reader older than the envelope reading a newer server, and a newer
+reader reading a server older than it, each report every frame through
+`onMalformed` ([BEH-QD-204](./27-devtools-timeline.md)) — never silently
+mislabelled, never silently dropped.
 
 ## BEH-QD-315: The backlog is readable without a stream
 

@@ -68,6 +68,13 @@ Feature: Hydration accounts for every entry, and says when it seeds nothing
     And 2 entries are counted as dropped for "UnsupportedPayloadVersion"
     And the reported reason is "UnsupportedPayloadVersion"
 
+  Scenario: A payload written before 0.10, with no version, is refused by the same name
+    Given a payload for "alice" written before 0.10, with no version, carrying 2 entries
+    When the payload is hydrated by "alice"
+    Then nothing is seeded
+    And 2 entries are counted as dropped for "UnsupportedPayloadVersion"
+    And the reported reason is "UnsupportedPayloadVersion"
+
   Scenario: A payload that is not an envelope at all is dropped, not thrown on
     Given a payload that is not an envelope at all
     When the payload is hydrated by "alice"

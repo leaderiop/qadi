@@ -29,7 +29,7 @@ import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import * as Reactivity from "effect/reactivity/Reactivity";
 import {
-  type DehydratedPayload,
+  type DehydratedDecisions,
   type HydrateOptions,
   type HydrationMismatchReporter,
   type InitialValues,
@@ -152,7 +152,7 @@ export interface QadiAtoms {
    * trust crossing.
    */
   readonly hydrate: (
-    dehydrated: DehydratedPayload,
+    dehydrated: DehydratedDecisions,
     subject: AuthSubject,
     options?: HydrateOptions,
   ) => InitialValues;

@@ -31,7 +31,7 @@ import type * as Atom from "effect/reactivity/Atom";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { describe, expect, it, vi } from "vitest";
-import type { HydrationDrop } from "../src/Hydration.ts";
+import type { DehydratedDecisions, HydrationDrop } from "../src/Hydration.ts";
 import { dehydrateDecisions, hydrateDecisions, isSeeded } from "../src/Hydration.ts";
 import type { DecisionResult } from "../src/DecisionOutcome.ts";
 import { currentDecision } from "../src/DecisionOutcome.ts";
@@ -349,7 +349,11 @@ describe("hydrateDecisions", () => {
     // mismatched subject does.
     const seeded = hydrateDecisions(
       atoms,
-      { subjectId: "u1", entries: [{ policy: { _tag: "NotAPolicy" }, allowed: true, evaluationId: "e", durationMillis: 0 }] },
+      {
+        version: 2,
+        subjectId: "u1",
+        entries: [{ policy: { _tag: "NotAPolicy" }, decision: { _tag: "Allow", evaluationId: "e", durationMillis: 0, obligations: [], disclosure: { _tag: "Withheld" } } }],
+      },
       alice,
     );
     expect([...seeded]).toEqual([]);
@@ -367,8 +371,14 @@ describe("hydrateDecisions", () => {
     ).policy;
     const dehydrated = JSON.parse(
       JSON.stringify({
+        version: 2,
         subjectId: "u1",
-        entries: [{ policy, allowed: true, evaluationId: "e", durationMillis: "not-a-number" }],
+        entries: [
+          {
+            policy,
+            decision: { _tag: "Allow", evaluationId: "e", durationMillis: "not-a-number", obligations: [], disclosure: { _tag: "Withheld" } },
+          },
+        ],
       }),
     );
     const seeded = hydrateDecisions(atoms, dehydrated, alice);
@@ -381,9 +391,13 @@ describe("hydrateDecisions", () => {
     ).policy;
     const dehydrated = JSON.parse(
       JSON.stringify({
+        version: 2,
         subjectId: "u1",
         entries: [
-          { policy, allowed: true, evaluationId: "e", durationMillis: 0, obligations: "nope" },
+          {
+            policy,
+            decision: { _tag: "Allow", evaluationId: "e", durationMillis: 0, obligations: "nope", disclosure: { _tag: "Withheld" } },
+          },
         ],
       }),
     );
@@ -391,20 +405,24 @@ describe("hydrateDecisions", () => {
     expect([...seeded]).toEqual([]);
   });
 
-  it("drops an entry whose trace does not match the shape", () => {
+  it("drops an entry whose disclosed trace does not match the shape", () => {
     const policy = first(
       dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]).entries,
     ).policy;
     const dehydrated = JSON.parse(
       JSON.stringify({
+        version: 2,
         subjectId: "u1",
         entries: [
           {
             policy,
-            allowed: true,
-            evaluationId: "e",
-            durationMillis: 0,
-            trace: { policyTag: "NotARealTag" },
+            decision: {
+              _tag: "Allow",
+              evaluationId: "e",
+              durationMillis: 0,
+              obligations: [],
+              disclosure: { _tag: "Disclosed", trace: { policyTag: "NotARealTag" } },
+            },
           },
         ],
       }),
@@ -419,8 +437,14 @@ describe("hydrateDecisions", () => {
     ).policy;
     const dehydrated = JSON.parse(
       JSON.stringify({
+        version: 2,
         subjectId: "u1",
-        entries: [{ policy, allowed: true, evaluationId: "e", durationMillis: "not-a-number" }],
+        entries: [
+          {
+            policy,
+            decision: { _tag: "Allow", evaluationId: "e", durationMillis: "not-a-number", obligations: [], disclosure: { _tag: "Withheld" } },
+          },
+        ],
       }),
     );
     const onDropped = vi.fn();
@@ -441,13 +465,12 @@ describe("hydrateDecisions", () => {
     ).policy;
     const dehydrated = JSON.parse(
       JSON.stringify({
+        version: 2,
         subjectId: "u1",
         entries: [
           {
             policy,
-            allowed: true,
-            evaluationId: "e",
-            durationMillis: 0,
+            decision: { _tag: "Allow", evaluationId: "e", durationMillis: 0, obligations: [], disclosure: { _tag: "Withheld" } },
             sneaky: "not a real field",
           },
         ],
@@ -464,14 +487,13 @@ describe("hydrateDecisions", () => {
   // used to decode to a valid `Policy` with the excess key silently dropped,
   // instead of being refused as undecodable.
   it("refuses a policy carrying an excess, unrecognized field rather than silently accepting it", () => {
-    const dehydrated = {
+    const dehydrated: DehydratedDecisions = {
+      version: 2,
       subjectId: "u1",
       entries: [
         {
           policy: { _tag: "HasRole", role: "admin", sneaky: "not a real field" },
-          allowed: true,
-          evaluationId: "e",
-          durationMillis: 0,
+          decision: { _tag: "Allow", evaluationId: "e", durationMillis: 0, obligations: [], disclosure: { _tag: "Withheld" } },
         },
       ],
     };
@@ -495,9 +517,10 @@ describe("hydrateDecisions", () => {
     let policy: unknown = { _tag: "HasRole", role: "x" };
     for (let i = 0; i < MAX_DECODE_DEPTH + 10; i++) policy = { _tag: "Not", policy };
 
-    const dehydrated = {
+    const dehydrated: DehydratedDecisions = {
+      version: 2,
       subjectId: "u1",
-      entries: [{ policy, allowed: true, evaluationId: "e", durationMillis: 0 }],
+      entries: [{ policy, decision: { _tag: "Allow", evaluationId: "e", durationMillis: 0, obligations: [], disclosure: { _tag: "Withheld" } } }],
     };
 
     const onDropped = vi.fn();
@@ -514,9 +537,10 @@ describe("hydrateDecisions", () => {
     let policy: unknown = { _tag: "HasRole", role: "x" };
     for (let i = 0; i < 4; i++) policy = { _tag: "Not", policy };
 
-    const dehydrated = {
+    const dehydrated: DehydratedDecisions = {
+      version: 2,
       subjectId: "u1",
-      entries: [{ policy, allowed: true, evaluationId: "e", durationMillis: 0 }],
+      entries: [{ policy, decision: { _tag: "Allow", evaluationId: "e", durationMillis: 0, obligations: [], disclosure: { _tag: "Withheld" } } }],
     };
 
     const seeded = hydrateDecisions(atoms, dehydrated, alice);
@@ -676,10 +700,11 @@ describe("hydrateDecisions", () => {
 
   it("tolerates a hand-crafted payload missing everything optional", () => {
     // The payload is UNTRUSTED input: it arrives as JSON in a page. Nothing
-    // guarantees it was produced by `dehydrateDecisions`, so an entry with no
-    // trace, no obligations and no reason has to yield a well-formed decision
-    // rather than one with `undefined` where a reason belongs.
-    const minimal = {
+    // guarantees it was produced by `dehydrateDecisions`, so a denial with no
+    // resource and its trace and reason withheld has to yield a well-formed
+    // decision rather than one with `undefined` where a reason belongs.
+    const minimal: DehydratedDecisions = {
+      version: 2,
       subjectId: "u1",
       entries: [
         {
@@ -689,9 +714,12 @@ describe("hydrateDecisions", () => {
                 .policy,
             ),
           ),
-          allowed: false,
-          evaluationId: "eval-x",
-          durationMillis: 0,
+          decision: {
+            _tag: "Deny",
+            evaluationId: "eval-x",
+            durationMillis: 0,
+            disclosure: { _tag: "Withheld" },
+          },
         },
       ],
     };
@@ -701,9 +729,8 @@ describe("hydrateDecisions", () => {
     const registry = seedsBeforeSubject(hydrateDecisions(atoms, minimal, alice));
     const decision = currentDecision(registry.get(atoms.decision(isAdmin)));
 
-    // A payload from before `version` carries a `trace` or a `reason` that was
-    // either fabricated or indistinguishable from a real one, so it is read as
-    // withheld: no invented "AllOf" trace root and no "hydrated" sentence.
+    // Withheld is withheld: no invented "AllOf" trace root and no "hydrated"
+    // sentence stands in for what the server did not send.
     expect(decision?._tag).toBe("SeededDeny");
     expect(decision !== undefined && isSeeded(decision) && decision.disclosure).toEqual({
       _tag: "Withheld",
@@ -713,26 +740,27 @@ describe("hydrateDecisions", () => {
     registry.dispose();
   });
 
-  it("tolerates a hand-crafted allow missing its obligations", () => {
-    const minimal = {
-      subjectId: "u1",
-      entries: [
-        {
-          policy: first(dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]).entries)
-            .policy,
-          allowed: true,
-          evaluationId: "eval-y",
-          durationMillis: 0,
-        },
-      ],
-    };
+  it("drops a hand-crafted allow missing its obligations, which version 2 requires", () => {
+    // The payload format before `version` made `obligations` optional; 0.11.0
+    // reads version 2 only (ADR-QD-078), where an allow names its obligations,
+    // even when there are none, so a missing list is a malformed entry.
+    const minimal = JSON.parse(
+      JSON.stringify({
+        version: 2,
+        subjectId: "u1",
+        entries: [
+          {
+            policy: first(dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]).entries)
+              .policy,
+            decision: { _tag: "Allow", evaluationId: "eval-y", durationMillis: 0, disclosure: { _tag: "Withheld" } },
+          },
+        ],
+      }),
+    );
 
-    const registry = registryWith(hydrateDecisions(atoms, minimal, alice));
-    const decision = currentDecision(registry.get(atoms.decision(canRead)));
-
-    expect(decision?._tag).toBe("Allow");
-    expect(decision?._tag === "Allow" && decision.obligations).toEqual([]);
-    registry.dispose();
+    const onDropped = vi.fn();
+    expect([...hydrateDecisions(atoms, minimal, alice, { onDropped })]).toEqual([]);
+    expect(onDropped).toHaveBeenCalledWith(expect.objectContaining({ reason: "MalformedEntry" }));
   });
 
   it("seeds a resource-scoped decision under the right atom", () => {
