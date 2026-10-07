@@ -451,6 +451,7 @@ justification someone had written down; nothing checked the count (CCR-QD-039).
 | `Date.now()`, `new Date()` | `yield* Clock.currentTimeMillis` / `DateTime` |
 | `performance.now()` | `Effect.timed` |
 | `crypto.randomUUID()` | the `EvaluationId` service |
+| `console.*`, `process.env` | a signal in `@qadi/react`'s `DeveloperSignals.ts` — the one exempt file, enforced by `no-ambient-console` (ADR-QD-041) |
 | `Effect.either` / `effect/Either` | `Effect.result` + `Result.isSuccess/isFailure` |
 | `switch (x._tag)` | `Match.tagsExhaustive` — see §5a |
 | `as`, `as any`, `!`, `any` | fix the type |

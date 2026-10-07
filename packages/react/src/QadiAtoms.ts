@@ -40,12 +40,12 @@ import {
 } from "./HydrationEngine.ts";
 import type { GateRegistry } from "./GateRegistry.ts";
 import { makeGateRegistry } from "./GateRegistry.ts";
-import { gateIdCollisionReporter } from "./HydrationWarning.ts";
+import { gateIdCollisionReporter } from "./DeveloperSignals.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
 import type { AskedQuestion } from "./QuestionBook.ts";
 import { makeQuestionBook } from "./QuestionBook.ts";
 
-// `HydrationWarning.ts` is out of the barrel — its ambient-global boundary is
+// `DeveloperSignals.ts` is out of the barrel — its ambient-global boundary is
 // not a public surface — so the two types callers name are re-exported here.
 export type { HydrationMismatch, HydrationMismatchReporter } from "./HydrationEngine.ts";
 // Declared in `QuestionBook.ts`, which imports nothing local (ADR-QD-037).

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-080                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-10-04                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — amends ADR-QD-053                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-04): Initial release (CCR-QD-160) |
+> | Change History | 1.1 (2026-10-08): The default gate-id collision reporter now lives in `DeveloperSignals.ts`, which `HydrationWarning.ts` became; the body is history and stays (ADR-QD-041 amendment, CCR-QD-203)<br>1.0 (2026-10-04): Initial release (CCR-QD-160) |
 
 ---
 

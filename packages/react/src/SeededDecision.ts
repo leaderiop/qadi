@@ -9,7 +9,7 @@
  * reason has to be invented to make a seed look like what it is not.
  *
  * A leaf module, imported by both `HydrationEngine.ts` and
- * `HydrationWarning.ts` (whose `HydrationMismatch` names a `SeededDecision`):
+ * `DeveloperSignals.ts` (whose `HydrationMismatch` names a `SeededDecision`):
  * declaring these in the engine would make the warning module import it back,
  * and madge counts that type-only edge as a cycle (ADR-QD-037). Not in the
  * barrel; `Hydration.ts` re-exports by name what a consumer may hold.

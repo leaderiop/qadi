@@ -95,6 +95,12 @@ export const describe = (result: Parameters<typeof outcomeOf>[0]): string =>
 export const settled = currentDecision;
 ```
 
+`QadiProvider` takes the same kind of hook, `onDeveloperSignal`, for the
+situations it detects itself (instrumentation in a production bundle, an
+`atoms` prop replaced after mount, an unwritable `gates` registry). Like
+`onHydrationMismatch` it replaces the development-only console warning and runs
+in production too.
+
 ## Waiting is not a decision
 
 An `AsyncResult` that's re-checking carries a `waiting` flag, and the value

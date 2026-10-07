@@ -104,6 +104,11 @@ authorization question is signal worth watching in production — it can
 indicate a caching bug serving one user's page to another as readily as a
 wiring mistake.
 
+`QadiProvider` has the same hook for the three situations it detects itself,
+`onDeveloperSignal`. It receives `{ _tag: "InstrumentedInProduction" }`,
+`{ _tag: "AtomsReplaced" }` or `{ _tag: "UnwritableGateRegistry" }`, replaces
+the development console warning, and runs in production too.
+
 ## Bound to one subject, and every drop has a reason
 
 A dehydrated payload carries the subject id it was produced for.

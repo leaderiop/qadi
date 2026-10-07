@@ -77,6 +77,34 @@ Hydrate on the client with `hydrateDecisions`. A hydrated decision is bound to
 one subject, and the client's own answer supersedes the server's seed the moment
 it arrives.
 
+## Developer signals
+
+Everything this package says to a developer is a development-mode
+`console.warn` by default, and every one can be redirected. A server seed
+superseded by the client goes to `onHydrationMismatch` and a gate id minted by
+two roots to `onGateIdCollision` (both `makeQadiAtoms` options). The three
+situations `<QadiProvider>` itself detects — `instrument` in a production
+bundle, an `atoms` prop replaced after mount, and an unwritable `gates`
+registry — go to its `onDeveloperSignal` prop as `{ _tag }`:
+
+```tsx
+import { QadiProvider } from "@qadi/react";
+import type { AuthSubject } from "@qadi/core";
+import type { QadiAtoms } from "@qadi/react";
+
+declare const atoms: QadiAtoms;
+declare const subject: AuthSubject;
+declare const telemetry: (name: string) => void;
+
+export const App = () => (
+  <QadiProvider atoms={atoms} subject={subject} onDeveloperSignal={(signal) => telemetry(signal._tag)}>
+    {null}
+  </QadiProvider>
+);
+```
+
+A reporter replaces the console default and runs in production too.
+
 ## License
 
 MIT

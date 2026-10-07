@@ -454,13 +454,22 @@ describe("scoped to its atom set", () => {
   it("a hand-built `gates` registers nothing and renders no marker", () => {
     // Off means absent extends to a registry this package cannot write to.
     const foreign = { instances: () => [], subscribe: () => () => {} };
+    const told: Array<string> = [];
     const { container } = render(
-      <QadiProvider atoms={atoms()} subject={alice} instrument gates={foreign}>
+      <QadiProvider
+        atoms={atoms()}
+        subject={alice}
+        instrument
+        gates={foreign}
+        onDeveloperSignal={(signal) => told.push(signal._tag)}
+      >
         <Can policy={canRead}>allowed</Can>
       </QadiProvider>,
     );
     expect(container.querySelector("[data-qadi-gate]")).toBeNull();
     expect(foreign.instances()).toEqual([]);
+    // The provider says so, rather than leaving the missing marker unexplained.
+    expect(told).toEqual(["UnwritableGateRegistry"]);
   });
 
   it("StrictMode registers once", () => {

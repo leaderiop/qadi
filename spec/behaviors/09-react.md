@@ -5,12 +5,12 @@
 > | Property       | Value                                                        |
 > | -------------- | ------------------------------------------------------------ |
 > | Document ID    | QADI-BEH-09                                                  |
-> | Revision       | 3.2                                                          |
-> | Effective Date | 2026-10-06                                                   |
+> | Revision       | 3.4                                                          |
+> | Effective Date | 2026-10-08                                                   |
 > | Status         | Effective                                                    |
 > | Author         | Qadi Engineering                                             |
 > | Classification | Functional Specification                                     |
-> | Change History | 3.3 (2026-10-07): ARCH-23 — BEH-QD-065's `QadiAtoms` listing takes `decision(policy, resource?)` (`decisionFor` is removed), `decisions`, `gates`, `sweepEvictions` and the `maxTrackedQuestions`/`onGateIdCollision` options it omitted, and "the same atom" becomes "for as long as the atom set tracks the question, whatever the garbage collector does"; BEH-QD-068 gains `useQuestions` and the grouped-registration note (ADR-QD-103, ADR-QD-053 amendment, INV-QD-105, CCR-QD-201)<br>3.2 (2026-10-06): `QadiAtoms.hydrate` takes `DehydratedDecisions` — `DehydratedPayload` is removed with the version-1 payload reader (ADR-QD-078 amendment, CCR-QD-182)<br>3.1 (2026-10-05): ARCH-14 — BEH-QD-066 gains `DecisionOutcome`/`outcomeOf`, a complete state table (`Initial` with `waiting: true`, a `Failure` being re-checked, and `previousSuccess` never read) and the requirement that every surface reads through `outcomeOf`; BEH-QD-307 added (a decision result reads as one of five outcomes); BEH-QD-068's `useCan` paragraph names `outcomeOf` (ADR-QD-093, INV-QD-094, CCR-QD-175)<br>3.0 (2026-10-04): ARCH-05 — `DecisionResult` and `currentDecision` hold a `ClientDecision` (the closed union of an evaluated or a seeded decision), `useDecisionSuspense` returns one, `DeniedNode`'s function takes `Deny | SeededDeny`, and `useProjected` projects through `permits`/`projectVisible`; `QadiAtoms` gains `hydrate`; the `subject` atom compares with `subjectEquivalence` (BEH-QD-066, BEH-QD-068, BEH-QD-065, BEH-QD-067, CCR-QD-156)<br>2.9 (2026-09-19): AC-02/EY-03 — the "depends on `effect` and `react` only" and `getServerSnapshot` paragraphs corrected for CCR-QD-150's `@effect/atom-react` reversal (2026-09-13), which this revision had missed; `useCan`'s "pending, denied and failed" corrected to the fourth state, a re-check, `hooks.ts`'s own doc comment already named<br>2.8 (2026-09-19): BEH-QD-067 — the subject-seeding requirement scoped to initial construction, and a requirement added for a later `subject` prop change: written in an effect, with an accepted one-frame stale-decision window (AC-03/EY-02)<br>2.7 (2026-09-08): The `Can` RECOMMENDED note corrected — `failure ?? fallback` could not distinguish an omitted `failure` from an explicit `failure={null}`; `Can` now renders `fallback` only when `failure` is omitted, and an explicit `null` opts out of it (issue #79, CCR-QD-138)<br>2.6 (2026-09-08): BEH-QD-065 — the `QadiAtoms` interface fence was missing `asked`, cross-referenced to its normative home at BEH-QD-198 (CCR-QD-126)<br>2.5 (2026-08-30): BEH-QD-068 — an already-settled decision MUST still resolve its suspense promise, and a re-checking one MUST still suspend (COMPAT-01, gap G-01-1)<br>2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 3.4 (2026-10-08): BEH-QD-067 — `onDeveloperSignal`, and the requirement that the provider never writes to the console itself (ADR-QD-041 amendment, CCR-QD-203)<br>3.3 (2026-10-07): ARCH-23 — BEH-QD-065's `QadiAtoms` listing takes `decision(policy, resource?)` (`decisionFor` is removed), `decisions`, `gates`, `sweepEvictions` and the `maxTrackedQuestions`/`onGateIdCollision` options it omitted, and "the same atom" becomes "for as long as the atom set tracks the question, whatever the garbage collector does"; BEH-QD-068 gains `useQuestions` and the grouped-registration note (ADR-QD-103, ADR-QD-053 amendment, INV-QD-105, CCR-QD-201)<br>3.2 (2026-10-06): `QadiAtoms.hydrate` takes `DehydratedDecisions` — `DehydratedPayload` is removed with the version-1 payload reader (ADR-QD-078 amendment, CCR-QD-182)<br>3.1 (2026-10-05): ARCH-14 — BEH-QD-066 gains `DecisionOutcome`/`outcomeOf`, a complete state table (`Initial` with `waiting: true`, a `Failure` being re-checked, and `previousSuccess` never read) and the requirement that every surface reads through `outcomeOf`; BEH-QD-307 added (a decision result reads as one of five outcomes); BEH-QD-068's `useCan` paragraph names `outcomeOf` (ADR-QD-093, INV-QD-094, CCR-QD-175)<br>3.0 (2026-10-04): ARCH-05 — `DecisionResult` and `currentDecision` hold a `ClientDecision` (the closed union of an evaluated or a seeded decision), `useDecisionSuspense` returns one, `DeniedNode`'s function takes `Deny | SeededDeny`, and `useProjected` projects through `permits`/`projectVisible`; `QadiAtoms` gains `hydrate`; the `subject` atom compares with `subjectEquivalence` (BEH-QD-066, BEH-QD-068, BEH-QD-065, BEH-QD-067, CCR-QD-156)<br>2.9 (2026-09-19): AC-02/EY-03 — the "depends on `effect` and `react` only" and `getServerSnapshot` paragraphs corrected for CCR-QD-150's `@effect/atom-react` reversal (2026-09-13), which this revision had missed; `useCan`'s "pending, denied and failed" corrected to the fourth state, a re-check, `hooks.ts`'s own doc comment already named<br>2.8 (2026-09-19): BEH-QD-067 — the subject-seeding requirement scoped to initial construction, and a requirement added for a later `subject` prop change: written in an effect, with an accepted one-frame stale-decision window (AC-03/EY-02)<br>2.7 (2026-09-08): The `Can` RECOMMENDED note corrected — `failure ?? fallback` could not distinguish an omitted `failure` from an explicit `failure={null}`; `Can` now renders `fallback` only when `failure` is omitted, and an explicit `null` opts out of it (issue #79, CCR-QD-138)<br>2.6 (2026-09-08): BEH-QD-065 — the `QadiAtoms` interface fence was missing `asked`, cross-referenced to its normative home at BEH-QD-198 (CCR-QD-126)<br>2.5 (2026-08-30): BEH-QD-068 — an already-settled decision MUST still resolve its suspense promise, and a re-checking one MUST still suspend (COMPAT-01, gap G-01-1)<br>2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -252,8 +252,15 @@ export const QadiProvider: (props: {
   readonly atoms: QadiAtoms;
   readonly subject: AuthSubject | undefined;
   readonly initialValues?: Iterable<readonly [Atom.Atom<unknown>, unknown]>;
+  readonly onDeveloperSignal?: ProviderSignalReporter;
   readonly children: ReactNode;
 }) => ReactNode;
+
+export type ProviderSignal =
+  | { readonly _tag: "InstrumentedInProduction" }
+  | { readonly _tag: "AtomsReplaced" }
+  | { readonly _tag: "UnwritableGateRegistry" };
+export type ProviderSignalReporter = (signal: ProviderSignal) => void;
 ```
 
 `subject: undefined` means the subject is still loading.
@@ -290,6 +297,26 @@ REQUIREMENT: Writing a subject equal to the current one MUST NOT re-evaluate any
              `roles` and `permissions` compare by content and a nested
              attribute object compares by structure.
 ```
+
+```
+REQUIREMENT: Each signal the provider raises — `instrument` in a production
+             bundle, an `atoms` prop replaced after mount, an unwritable gate
+             registry under `instrument` — MUST go to `onDeveloperSignal` when
+             it is supplied, which then replaces the console default and runs
+             in production, and otherwise to a default warning under that
+             signal's own condition. The provider MUST NOT write to the
+             console itself.
+```
+
+The condition is the signal's own: `InstrumentedInProduction` is raised only
+outside development; `AtomsReplaced` and `UnwritableGateRegistry` are raised in
+any environment, and their console default speaks only in development, as the
+other developer signals' defaults do
+([BEH-QD-152](19-hydration.md#beh-qd-152-a-superseded-seed-is-announced)). The
+reporter is read through a ref, so an inline callback re-fires nothing.
+`InstrumentedInProduction` is told once per provider mount; its console default
+is latched once per process, so a page of several instrumented providers prints
+one line (ticket 153).
 
 `makeSubject`/`fromRoles` return a fresh object every call, so a host building its
 subject inline re-writes an equal one on every render (RC-01). The `subject` atom

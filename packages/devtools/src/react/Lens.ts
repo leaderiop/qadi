@@ -5,7 +5,7 @@
  * **Every element-measuring, drawing and hit-testing DOM call is in this
  * file.** The guard package holds a ref React filled in and calls nothing;
  * this measures it, draws over it, and hit-tests it. Keeping that boundary in
- * one named module is the discipline `HydrationWarning.ts` applies to
+ * one named module is the discipline `DeveloperSignals.ts` applies to
  * `console` and `HydrationCounts.ts` to `Context.empty()` — a boundary with a
  * file name stays visible where one spread across a component tree dissolves.
  *
