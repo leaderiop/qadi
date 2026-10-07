@@ -10,6 +10,7 @@ import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import {
+  resourceIdOf,
   customPredicateFromRecord,
   decideSubjects,
   enforce,
@@ -107,14 +108,21 @@ export const runGuarded = Effect.fn("features.runGuarded")(function* (policy: Po
 
   const work = Ref.update(state, (s) => ({ ...s, workRan: true }));
 
-  const handler = ({ decision }: ObligationDischarge) =>
+  const handler = ({ question, decision }: ObligationDischarge) =>
     Ref.update(state, (s) => ({
       ...s,
       discharged: [...s.discharged, ...decision.obligations.map((o) => o.id)],
+      dischargedFor: [...s.dischargedFor, resourceIdOf(question.resource)],
     }));
 
+  // Keys omitted rather than undefined, as in `run`: a scenario that names no
+  // resource or action enforces exactly as it did before either was passed.
   const result = yield* work.pipe(
-    enforce(policy, w.handlesObligations ? { onObligations: handler } : {}),
+    enforce(policy, {
+      ...(w.resource === undefined ? {} : { resource: w.resource }),
+      ...(w.action === undefined ? {} : { action: w.action }),
+      ...(w.handlesObligations ? { onObligations: handler } : {}),
+    }),
     Effect.provide(qadiTestLayer(subjectOf(w), {})),
     Effect.result,
   );
