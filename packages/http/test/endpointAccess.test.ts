@@ -144,6 +144,10 @@ const observe = <Id extends string, Groups extends HttpApiGroup.Constraint>(
 
 const done = () => Effect.void;
 
+/** The registry's refusal narrowed to a misplaced declaration, or `undefined`. */
+const misplacedOf = (error: { readonly _tag: string } | undefined) =>
+  error instanceof MisplacedAccessDeclaration ? error : undefined;
+
 // Case 1: a group annotated with a requirement.
 const case1 = (logs: Array<unknown>) => {
   const group = HttpApiGroup.make("g")
@@ -216,6 +220,37 @@ const case7 = (logs: Array<unknown>) => {
   return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logs);
 };
 
+// Case 8: `.middleware` before `.add` — Effect applies it only to endpoints already added.
+const case8 = (logs: Array<unknown>) => {
+  const group = HttpApiGroup.make("g").add(ep("a").pipe((e) => e.annotate(RequiredPermission, required(e))));
+  const api = HttpApi.make("t").middleware(RequirePermission).add(group);
+  const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
+  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logs);
+};
+
+// Case 9: no middleware at all.
+const case9 = (logs: Array<unknown>) => {
+  const group = HttpApiGroup.make("g").add(ep("a").pipe((e) => e.annotate(RequiredPermission, required(e))));
+  const api = HttpApi.make("t").add(group);
+  const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
+  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logs);
+};
+
+// Case 10: the middleware is on one group only.
+const case10 = (logs: Array<unknown>) => {
+  const g1 = HttpApiGroup.make("g1").add(ep("a").pipe((e) => e.annotate(RequiredPermission, required(e))));
+  const g2 = HttpApiGroup.make("g2").add(ep("b").pipe((e) => e.annotate(RequiredPermission, required(e))));
+  const api = HttpApi.make("t").add(g1).middleware(RequirePermission).add(g2);
+  const h1 = HttpApiBuilder.group(api, "g1", (h) => h.handle("a", done));
+  const h2 = HttpApiBuilder.group(api, "g2", (h) => h.handle("b", done));
+  return observe(
+    api,
+    HttpApiBuilder.layer(api).pipe(Layer.provide(h1), Layer.provide(h2)),
+    ["/a", "/b"],
+    logs,
+  );
+};
+
 const placements = [
   ["group-level requirement", case1],
   ["group requirement + endpoint public", case2],
@@ -224,6 +259,8 @@ const placements = [
   ["group.annotateEndpoints", case5],
   ["group requirement + endpoint requirement", case6],
   ["both keys on one endpoint", case7],
+  ["middleware before add", case8],
+  ["no middleware", case9],
 ] as const;
 
 const groupRefusal = (group: string, endpoint: string, keys: string) =>
@@ -240,6 +277,36 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
         }
       }));
   }
+
+  it.effect("an endpoint the middleware is not attached to is refused by registerApi, naming it", () =>
+    Effect.gen(function* () {
+      const observed = yield* case8([]);
+      assert.strictEqual(observed.registryError?._tag, "RequirePermissionNotAttached");
+      assert.deepStrictEqual(
+        observed.registryError && "group" in observed.registryError
+          ? [observed.registryError.group, observed.registryError.endpoint]
+          : undefined,
+        ["g", "a"],
+      );
+      // Serving is Effect's: only a guard layer that owns the composition (ARCH-36 T3) refuses it outright.
+      assert.strictEqual(observed.statuses.get("/a"), 204);
+      assert.isFalse(observed.listed.has("/a"));
+    }));
+
+  it.effect("middleware on one group only: the registry refuses the whole API, naming the bare endpoint", () =>
+    Effect.gen(function* () {
+      const observed = yield* case10([]);
+      assert.strictEqual(observed.registryError?._tag, "RequirePermissionNotAttached");
+      assert.deepStrictEqual(
+        observed.registryError && "group" in observed.registryError
+          ? [observed.registryError.group, observed.registryError.endpoint]
+          : undefined,
+        ["g2", "b"],
+      );
+      // `/a` is enforced and `/b` is served to anyone; nothing is half-registered.
+      assert.strictEqual(observed.statuses.get("/b"), 204);
+      assert.strictEqual(observed.listed.size, 0);
+    }));
 
   it.effect("a group requirement over a public endpoint is refused, not served and not listed", () =>
     Effect.gen(function* () {
@@ -261,10 +328,10 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
       assert.include(logs.flat(), groupRefusal("g", "b", "RequiredPermission"));
       assert.deepStrictEqual(observed.registryError?._tag, "MisplacedAccessDeclaration");
       assert.deepStrictEqual(
-        observed.registryError && [
-          observed.registryError.scope,
-          observed.registryError.identifier,
-          observed.registryError.key,
+        [
+          misplacedOf(observed.registryError)?.scope,
+          misplacedOf(observed.registryError)?.identifier,
+          misplacedOf(observed.registryError)?.key,
         ],
         ["group", "g", "RequiredPermission"],
       );
@@ -277,7 +344,7 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
       assert.strictEqual(observed.statuses.get("/a"), 500);
       assert.include(logs.flat(), groupRefusal("g", "a", "PublicEndpoint"));
       assert.deepStrictEqual(
-        observed.registryError && [observed.registryError.scope, observed.registryError.key],
+        [misplacedOf(observed.registryError)?.scope, misplacedOf(observed.registryError)?.key],
         ["group", "PublicEndpoint"],
       );
     }));
@@ -286,10 +353,10 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
     Effect.gen(function* () {
       const observed = yield* case4([]);
       assert.deepStrictEqual(
-        observed.registryError && [
-          observed.registryError.scope,
-          observed.registryError.identifier,
-          observed.registryError.key,
+        [
+          misplacedOf(observed.registryError)?.scope,
+          misplacedOf(observed.registryError)?.identifier,
+          misplacedOf(observed.registryError)?.key,
         ],
         ["api", "t", "RequiredPermission"],
       );

@@ -89,17 +89,35 @@ const askingSubject = Effect.gen(function* () {
 const query = (request: HttpServerRequest.HttpServerRequest, key: string): string | undefined =>
   new URL(request.url, "http://newsroom.invalid").searchParams.get(key) ?? undefined;
 
+const badRequest = (why: string) => HttpServerResponse.text(why, { status: 400 });
+
+/** A non-empty query parameter, or `undefined`. A missing question is a 400, never an answer. */
+const required = (request: HttpServerRequest.HttpServerRequest, key: string): string | undefined => {
+  const value = query(request, key);
+  return value === undefined || value === "" ? undefined : value;
+};
+
+/** `depth` is an integer in `[0, 64]` — core's `maxDepth` — or the question is malformed. */
+const MAX_DEPTH = 64;
+const parseDepth = (raw: string | undefined): { readonly ok: true; readonly depth: number | undefined } | { readonly ok: false } => {
+  if (raw === undefined) return { ok: true, depth: undefined };
+  if (!/^\d+$/.test(raw)) return { ok: false };
+  const depth = Number(raw);
+  return depth <= MAX_DEPTH ? { ok: true, depth } : { ok: false };
+};
+
 const AttributePort = HttpRouter.add(
   "GET",
   "/ports/attribute",
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const subject = yield* askingSubject;
-    const attribute = query(request, "attribute") ?? "";
+    const attribute = required(request, "attribute");
+    if (attribute === undefined) return badRequest("attribute is required");
 
     // A resolver failure becomes a 503, never a 200 carrying `undefined`. The
-    // browser turns a non-2xx into an `AttributeResolveError`, which denies —
-    // an outage must not be readable as "the answer was no" (INV-QD-005).
+    // browser turns a non-2xx into an `AttributeResolveError`, which fails the
+    // evaluation — an outage must not be readable as "the answer was no" (INV-QD-006).
     return yield* AttributeResolver.resolve(subject.id, attribute).pipe(
       Effect.map((value) => json({ value })),
       Effect.catchTag("AttributeResolveError", () =>
@@ -116,23 +134,31 @@ const RelationshipPort = HttpRouter.add(
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const subject = yield* askingSubject;
-    const depth = query(request, "depth");
+    const relation = required(request, "relation");
+    const resourceId = required(request, "resourceId");
+    const depth = parseDepth(query(request, "depth"));
+    if (relation === undefined || resourceId === undefined || !depth.ok) {
+      return badRequest("relation and resourceId are required, and depth is an integer in [0, 64]");
+    }
 
-    const related: RelatedResult = yield* RelationshipResolver.check({
+    // A store outage is a 503 and not `"Unknown"`: the port is three-valued so a
+    // wired-but-uncertain far end cannot be read as a denial, and an `"Unknown"`
+    // that means "the store was down" is a grant under `not(...)` (INV-QD-006).
+    return yield* RelationshipResolver.check({
       subjectId: subject.id,
-      relation: query(request, "relation") ?? "",
-      resourceId: makeResourceId(query(request, "resourceId") ?? ""),
+      relation,
+      resourceId: makeResourceId(resourceId),
       // Present-and-undefined, not absent: `RelationshipCheck.depth` is a
       // required key holding `number | undefined`, so a conditional spread does
       // not typecheck under `exactOptionalPropertyTypes`.
-      depth: depth === undefined ? undefined : Number(depth),
+      depth: depth.depth,
     }).pipe(
-      // `Unknown`, not `Unrelated`. The port is three-valued so a broken far end
-      // cannot be read as a denial someone might then trust.
-      Effect.catchTag("RelationshipResolveError", () => Effect.succeed<RelatedResult>("Unknown")),
+      Effect.map((related: RelatedResult) => json({ related })),
+      Effect.catchTag("RelationshipResolveError", () =>
+        Effect.succeed(
+          HttpServerResponse.text("the relationship store did not answer", { status: 503 }),
+        )),
     );
-
-    return json({ related });
   }),
 );
 
@@ -142,17 +168,21 @@ const HistoryPort = HttpRouter.add(
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const subject = yield* askingSubject;
-    const resourceId = query(request, "resourceId");
+    const event = required(request, "event");
+    if (event === undefined) return badRequest("event is required");
+    const resourceId = required(request, "resourceId");
 
-    const answer: ActedResult = yield* DecisionHistory.hasActed({
+    return yield* DecisionHistory.hasActed({
       subjectId: subject.id,
-      event: query(request, "event") ?? "",
+      event,
       resourceId: resourceId === undefined ? undefined : makeResourceId(resourceId),
     }).pipe(
-      Effect.catchTag("DecisionHistoryUnavailable", () => Effect.succeed<ActedResult>("Unknown")),
+      Effect.map((answer: ActedResult) => json({ answer })),
+      Effect.catchTag("DecisionHistoryUnavailable", () =>
+        Effect.succeed(
+          HttpServerResponse.text("the decision history did not answer", { status: 503 }),
+        )),
     );
-
-    return json({ answer });
   }),
 );
 

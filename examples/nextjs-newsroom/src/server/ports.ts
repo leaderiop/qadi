@@ -49,7 +49,9 @@ const attributes: Layer.Layer<AttributeResolver> = Layer.succeed(AttributeResolv
       // the subject.
       attribute === "standing"
         ? standingOf(subjectId)
-        : userById(subjectId).subject.attributes[attribute]
+        : Object.hasOwn(userById(subjectId).subject.attributes, attribute)
+          ? userById(subjectId).subject.attributes[attribute]
+          : undefined
     ),
 } satisfies AttributeResolverShape);
 

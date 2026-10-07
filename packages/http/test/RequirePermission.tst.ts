@@ -23,7 +23,11 @@ import { hasPermission, permission } from "@qadi/core";
 import type { RequirePermissionClientError } from "../src/RequirePermission.ts";
 import { RequiredPermission, RequirePermission, requiresPermission } from "../src/RequirePermission.ts";
 import { passthroughClientLayer } from "../src/HttpApiMiddlewareClient.ts";
-import type { MisplacedAccessDeclaration, PermissionRegistry } from "../src/PermissionRegistry.ts";
+import type {
+  MisplacedAccessDeclaration,
+  PermissionRegistry,
+  RequirePermissionNotAttached,
+} from "../src/PermissionRegistry.ts";
 import { registerApi } from "../src/PermissionRegistry.ts";
 
 const readPermission = permission("document", "read");
@@ -59,9 +63,9 @@ test("requiresPermission does not accept a group or an API", () => {
   });
 });
 
-test("registerApi can fail with MisplacedAccessDeclaration", () => {
+test("registerApi can fail with MisplacedAccessDeclaration or RequirePermissionNotAttached", () => {
   expect(registerApi(plainApi)).type.toBe<
-    Layer.Layer<never, MisplacedAccessDeclaration, PermissionRegistry>
+    Layer.Layer<never, MisplacedAccessDeclaration | RequirePermissionNotAttached, PermissionRegistry>
   >();
 });
 

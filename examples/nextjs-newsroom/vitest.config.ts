@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 /**
@@ -14,6 +15,10 @@ import { defineConfig } from "vitest/config";
  * instead, under `e2e/`.
  */
 export default defineConfig({
+  resolve: {
+    // Server routes are tested outside Next's `react-server` condition, where `server-only` throws.
+    alias: { "server-only": fileURLToPath(new URL("./test/stubs/server-only.ts", import.meta.url)) },
+  },
   test: {
     name: "example-nextjs",
     environment: "happy-dom",

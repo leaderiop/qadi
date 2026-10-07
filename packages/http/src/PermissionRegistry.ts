@@ -32,7 +32,7 @@ import { permissionKey } from "@qadi/core";
 import { loadNoResource } from "./NoResource.ts";
 import { guardRoute } from "./GuardRoute.ts";
 import type { AccessDeclarationKey } from "./RequirePermission.ts";
-import { endpointAccess, misplacedDeclarations } from "./RequirePermission.ts";
+import { endpointAccess, misplacedDeclarations, RequirePermission } from "./RequirePermission.ts";
 
 /** One route that requires a permission, as recorded in `PermissionRegistry`. */
 export interface EndpointDescriptor {
@@ -89,6 +89,27 @@ export const PermissionRegistryLive: Layer.Layer<PermissionRegistry> = Layer.eff
 );
 
 /**
+ * An endpoint declares access, but the `RequirePermission` middleware is not attached to it.
+ *
+ * Raised by {@link registerApi} at layer construction. Effect's `HttpApi.middleware` applies only to
+ * endpoints already added (`HttpApi.ts:100-104`), so `.middleware(RequirePermission)` before `.add(group)`,
+ * no middleware, or middleware on one group only leaves the endpoint served to anyone while an
+ * unconditional registry would list it as guarded (ARCH-36 defect C3, CCR-QD-NEXT).
+ */
+export class RequirePermissionNotAttached extends Data.TaggedError("RequirePermissionNotAttached")<{
+  readonly group: string;
+  readonly endpoint: string;
+}> {
+  override get message(): string {
+    return (
+      `endpoint "${this.endpoint}" of group "${this.group}" declares access, but the RequirePermission ` +
+      "middleware is not attached to it, so nothing would enforce it. Call .middleware(RequirePermission) " +
+      "after the group is added (HttpApi.middleware applies only to endpoints already added)."
+    );
+  }
+}
+
+/**
  * A `RequiredPermission` or `PublicEndpoint` sits on a group or an API, where
  * `RequirePermission` never reads it.
  *
@@ -133,12 +154,13 @@ export class MisplacedAccessDeclaration extends Data.TaggedError("MisplacedAcces
  */
 export const registerApi = <Id extends string, Groups extends HttpApiGroup.Constraint>(
   api: HttpApi.HttpApi<Id, Groups>,
-): Layer.Layer<never, MisplacedAccessDeclaration, PermissionRegistry> =>
+): Layer.Layer<never, MisplacedAccessDeclaration | RequirePermissionNotAttached, PermissionRegistry> =>
   Layer.effectDiscard(
     Effect.gen(function* () {
       const registry = yield* PermissionRegistry;
       const found: Array<[Permission, EndpointDescriptor]> = [];
       const misplaced: Array<MisplacedAccessDeclaration> = [];
+      const unattached: Array<RequirePermissionNotAttached> = [];
       for (const key of misplacedDeclarations(api.annotations)) {
         misplaced.push(new MisplacedAccessDeclaration({ scope: "api", identifier: api.identifier, key }));
       }
@@ -148,15 +170,24 @@ export const registerApi = <Id extends string, Groups extends HttpApiGroup.Const
             misplaced.push(new MisplacedAccessDeclaration({ scope: "group", identifier: group.identifier, key }));
           }
         },
-        onEndpoint: ({ endpoint, group }) => {
+        onEndpoint: ({ endpoint, group, middleware }) => {
+          const attached = [...middleware].some((m) => m.key === RequirePermission.key);
+          const refuse = () => {
+            unattached.push(
+              new RequirePermissionNotAttached({ group: group.identifier, endpoint: endpoint.identifier }),
+            );
+          };
           Match.valueTags(endpointAccess(endpoint.annotations), {
             Required: ({ requirement }) => {
+              if (!attached) return refuse();
               found.push([
                 requirement.permission,
                 { method: endpoint.method, path: endpoint.path, group: group.identifier },
               ]);
             },
-            Public: () => {},
+            Public: () => {
+              if (!attached) refuse();
+            },
             Undeclared: () => {},
           });
         },
@@ -166,6 +197,8 @@ export const registerApi = <Id extends string, Groups extends HttpApiGroup.Const
       // this layer exists to prevent.
       const [first] = misplaced;
       if (first !== undefined) return yield* Effect.fail(first);
+      const [firstUnattached] = unattached;
+      if (firstUnattached !== undefined) return yield* Effect.fail(firstUnattached);
       yield* Effect.forEach(found, ([permission, descriptor]) => registry.register(permission, descriptor), {
         discard: true,
       });

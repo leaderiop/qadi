@@ -57,9 +57,10 @@ import type { EvaluationPortsLayer } from "@qadi/devtools";
 const ask = (path: string, query: Record<string, string>): Effect.Effect<unknown, unknown> =>
   typeof window === "undefined"
     ? Effect.never
-    : Effect.tryPromise(async () => {
+    : Effect.tryPromise(async (signal) => {
       const url = `${path}?${new URLSearchParams(query).toString()}`;
-      const response = await fetch(url, { credentials: "same-origin" });
+      // The signal cancels an interrupted re-check's request instead of leaving it running.
+      const response = await fetch(url, { credentials: "same-origin", signal });
       if (!response.ok) throw new Error(`${url} answered ${response.status}`);
       return response.json();
     });
@@ -95,12 +96,12 @@ const relationships: Layer.Layer<RelationshipResolver> = Layer.succeed(Relations
       resourceId: request.resourceId,
       ...(request.depth === undefined ? {} : { depth: String(request.depth) }),
     }).pipe(
-      // An unrecognised answer is `Unknown`, not `Unrelated`. The port is
-      // three-valued precisely so a broken far end cannot be read as a denial
-      // that someone might then trust.
-      Effect.map((body): RelatedResult => {
+      // An unrecognised answer is a failure, not `Unknown`: the server answers an outage
+      // with a non-2xx, so a 2xx body this client cannot read is a broken far end, and a
+      // broken far end must not read as an answer a `not(...)` could turn into a grant.
+      Effect.flatMap((body): Effect.Effect<RelatedResult, string> => {
         const answer = field(body, "related");
-        return isRelated(answer) ? answer : "Unknown";
+        return isRelated(answer) ? Effect.succeed(answer) : Effect.fail("unrecognised relationship answer");
       }),
       Effect.mapError((cause) => relationshipResolverPort.failure([request], cause)),
     ),
@@ -117,9 +118,9 @@ const history: Layer.Layer<DecisionHistory> = Layer.succeed(DecisionHistory, {
       event: query.event,
       ...(query.resourceId === undefined ? {} : { resourceId: query.resourceId }),
     }).pipe(
-      Effect.map((body): ActedResult => {
+      Effect.flatMap((body): Effect.Effect<ActedResult, string> => {
         const answer = field(body, "answer");
-        return isActed(answer) ? answer : "Unknown";
+        return isActed(answer) ? Effect.succeed(answer) : Effect.fail("unrecognised history answer");
       }),
       Effect.mapError((cause) => decisionHistoryPort.failure([query], cause)),
     ),
