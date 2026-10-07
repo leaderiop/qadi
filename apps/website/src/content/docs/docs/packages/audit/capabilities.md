@@ -76,7 +76,8 @@ next, so an attacker able to modify stored rows can renumber them and defeat
 this check entirely.
 
 **Archival** — `archiveAuditTrail` sorts entries by `sequenceNumber`, stably,
-before setting `metadata.sequenceIntegrityVerified: true`.
+before setting `metadata.sequenceIntegrityVerified: true`. Entries with no
+`sequenceNumber` follow the sequenced ones, in the order given.
 
 **Decommissioning** — `makeDecommissioningChecklist`/
 `completeDecommissioningStep` walk a six-step checklist; an unknown step id

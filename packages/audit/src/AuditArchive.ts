@@ -81,7 +81,9 @@ const ARCHIVE_VERSION = "1";
  * the caller happened to read them back in. Sorted here, by `sequenceNumber`
  * — stably, so the (opt-in, unordered-by-definition) entries carrying none
  * keep their relative order rather than being shuffled by an incidental
- * comparator result.
+ * comparator result. Placed after every sequenced entry, in the order given;
+ * ordering them by `at` is a reader's job (`storedRecordOrder`, ADR-QD-056),
+ * since the archive cannot verify a clock.
  *
  * `sequenceIntegrityVerified` is `true` only when at least two entries carry
  * a `sequenceNumber` — `verifySequenceIntegrity`'s gap-and-duplicate check
