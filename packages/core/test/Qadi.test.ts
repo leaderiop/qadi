@@ -9,6 +9,8 @@ import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { renderTrace } from "../src/Decision.ts";
+import type { SinkRecord } from "../src/DecisionRecord.ts";
+import { DecisionSink } from "../src/DecisionSink.ts";
 import * as M from "../src/Matcher.ts";
 import * as Qadi from "../src/Qadi.ts";
 import { obligation } from "../src/Obligation.ts";
@@ -271,6 +273,165 @@ describe("Qadi.enforceProjected", () => {
       }).pipe(Effect.provide(clearance2)),
     );
   });
+});
+
+class NotFound extends Data.TaggedError("NotFound")<{}> {}
+
+describe("Qadi.enforceProjectedLoaded", () => {
+  const doc = { id: "d1", ownerId: "u1", title: "T", secret: "S" };
+  const ownerReads = P.allOf([
+    P.hasResourceAttribute("ownerId", M.eq(M.subjectId())),
+    P.hasPermission(read, { fields: ["id", "title"] }),
+  ]);
+  const owner = subjectWith({ id: "u1", permissions: ["doc:read"] });
+  const other = subjectWith({ id: "u2", permissions: ["doc:read"] });
+
+  it.effect("decides against the loaded value: the owner reads, another subject is AccessDenied", () =>
+    Effect.gen(function* () {
+      const asOwner = yield* Effect.succeed(doc).pipe(Qadi.enforceProjectedLoaded(ownerReads)).pipe(
+        Effect.provide(testLayer(owner)),
+      );
+      assert.deepStrictEqual(asOwner, { id: "d1", title: "T" });
+      const asOther = yield* Effect.result(
+        Effect.succeed(doc).pipe(
+          Qadi.enforceProjectedLoaded(ownerReads),
+          Effect.provide(testLayer(other)),
+        ),
+      );
+      assert.isTrue(Result.isFailure(asOther) && asOther.failure._tag === "AccessDenied");
+    }));
+
+  it.effect("a resource-reading policy never fails MissingResource", () =>
+    Effect.gen(function* () {
+      const r = yield* Effect.result(
+        Effect.succeed(doc).pipe(
+          Qadi.enforceProjectedLoaded(P.hasResourceAttribute("ownerId", M.eq(M.subjectId()))),
+          Effect.provide(testLayer(owner)),
+        ),
+      );
+      assert.isTrue(Result.isSuccess(r));
+    }));
+
+  it.effect("the mirror of the two-channel hazard: the private record's secret is not projected", () =>
+    Effect.gen(function* () {
+      const policy = P.anyOf([
+        P.allOf([
+          P.hasResourceAttribute("kind", M.eq(M.literal("public"))),
+          P.hasPermission(read, { fields: ["id", "title", "secret"] }),
+        ]),
+        P.allOf([
+          P.hasResourceAttribute("kind", M.eq(M.literal("private"))),
+          P.hasPermission(read, { fields: ["id", "title"] }),
+        ]),
+      ]);
+      const actualResource = { kind: "private", id: "1", title: "T", secret: "TOP-SECRET" };
+      const out = yield* Effect.succeed(actualResource).pipe(Qadi.enforceProjectedLoaded(policy));
+      assert.isUndefined(out.secret);
+      assert.deepStrictEqual(Object.keys(out).sort(), ["id", "title"]);
+    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+
+  it.effect("on a denial the loaded value is never returned and nothing is projected", () =>
+    Effect.gen(function* () {
+      const r = yield* Effect.result(
+        Effect.succeed(doc).pipe(
+          Qadi.enforceProjectedLoaded(ownerReads),
+          Effect.provide(testLayer(other)),
+        ),
+      );
+      assert.isTrue(Result.isFailure(r));
+      if (!Result.isFailure(r) || r.failure._tag !== "AccessDenied") return assert.fail("expected AccessDenied");
+      assert.include(renderTrace(r.failure.trace), "✗ HasResourceAttribute");
+    }));
+
+  it.effect("a loader failure precedes evaluation: no decision record", () =>
+    Effect.gen(function* () {
+      const records: Array<SinkRecord> = [];
+      const sink = Layer.succeed(DecisionSink, {
+        record: (record) => Effect.sync(() => void records.push(record)),
+      });
+      const r = yield* Effect.result(
+        Effect.fail(new NotFound()).pipe(
+          Qadi.enforceProjectedLoaded(ownerReads),
+          Effect.provide(Layer.mergeAll(testLayer(owner), sink)),
+        ),
+      );
+      assert.isTrue(Result.isFailure(r) && r.failure._tag === "NotFound");
+      assert.strictEqual(records.length, 0);
+    }));
+
+  it.effect("the decision record's resource is the loaded value", () =>
+    Effect.gen(function* () {
+      const records: Array<SinkRecord> = [];
+      const sink = Layer.succeed(DecisionSink, {
+        record: (record) => Effect.sync(() => void records.push(record)),
+      });
+      yield* Effect.succeed(doc).pipe(
+        Qadi.enforceProjectedLoaded(ownerReads),
+        Effect.provide(Layer.mergeAll(testLayer(owner), sink)),
+      );
+      const first = records[0];
+      assert.isTrue(first?._tag === "Decision");
+      if (first?._tag !== "Decision") return;
+      assert.deepStrictEqual(first.resource, doc);
+    }));
+
+  it.effect("an undischarged binding obligation fails before the value is handed over", () =>
+    Effect.gen(function* () {
+      const logIt = obligation("log-access", { channel: "audit" });
+      const policy = P.obliged(logIt, ownerReads);
+      const refused = yield* Effect.result(
+        Effect.succeed(doc).pipe(
+          Qadi.enforceProjectedLoaded(policy),
+          Effect.provide(testLayer(owner)),
+        ),
+      );
+      assert.isTrue(Result.isFailure(refused) && refused.failure._tag === "UndischargedObligation");
+      const out = yield* Effect.succeed(doc).pipe(
+        Qadi.enforceProjectedLoaded(policy, { onObligations: () => Effect.void }),
+        Effect.provide(testLayer(owner)),
+      );
+      assert.deepStrictEqual(out, { id: "d1", title: "T" });
+    }));
+
+  it.effect("composed behind enforce(coarse), the loader never runs when the coarse gate denies (D-39-g)", () =>
+    Effect.gen(function* () {
+      let runs = 0;
+      const loader = Effect.sync(() => {
+        runs += 1;
+        return doc;
+      });
+      const composed = loader.pipe(
+        Qadi.enforce(P.hasRole("reader")),
+        Qadi.enforceProjectedLoaded(ownerReads),
+      );
+      const denied = yield* Effect.result(
+        composed.pipe(Effect.provide(testLayer(subjectWith({ id: "u1", permissions: ["doc:read"] })))),
+      );
+      assert.isTrue(Result.isFailure(denied));
+      assert.strictEqual(runs, 0);
+      const out = yield* composed.pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["reader"], permissions: ["doc:read"] }))),
+      );
+      assert.strictEqual(runs, 1);
+      assert.deepStrictEqual(out, { id: "d1", title: "T" });
+    }));
+});
+
+describe("Qadi.enforceLoaded", () => {
+  const doc = { id: "d1", ownerId: "u1" };
+  const ownerOnly = P.hasResourceAttribute("ownerId", M.eq(M.subjectId()));
+
+  it.effect("passes the loaded value through unchanged on an allow", () =>
+    Effect.gen(function* () {
+      const out = yield* Effect.succeed(doc).pipe(Qadi.enforceLoaded(ownerOnly));
+      assert.strictEqual(out, doc);
+    }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))));
+
+  it.effect("fails AccessDenied on a denial", () =>
+    Effect.gen(function* () {
+      const r = yield* Effect.result(Effect.succeed(doc).pipe(Qadi.enforceLoaded(ownerOnly)));
+      assert.isTrue(Result.isFailure(r) && r.failure._tag === "AccessDenied");
+    }).pipe(Effect.provide(testLayer(subjectWith({ id: "u2" })))));
 });
 
 describe("Qadi.guard", () => {

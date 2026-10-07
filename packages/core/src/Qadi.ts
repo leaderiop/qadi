@@ -11,8 +11,8 @@
  * The line that divides this module is **reporting versus enforcing**.
  * `decide` and `check` report: they hand back an answer and run nothing, so an
  * obligation they cannot discharge is the caller's to read off the decision.
- * `assert`, `enforce`, `enforceProjected`, `guard`, `filter` and `filterStream`
- * enforce: each either runs work or hands over data, so each must refuse an
+ * `assert`, `enforce`, `enforceProjected`, `enforceLoaded`,
+ * `enforceProjectedLoaded`, `guard`, `filter` and `filterStream` enforce: each either runs work or hands over data, so each must refuse an
  * allow whose obligation nobody has met (ADR-QD-019).
  */
 import * as Brand from "effect/Brand";
@@ -74,6 +74,31 @@ export interface EnforceOptions<E = never, R = never> extends EvaluateOptions {
    */
   readonly onObligations?: ObligationHandler<E, R>;
 }
+
+/**
+ * Enforcement options for an entry point whose resource is the value it hands over.
+ *
+ * `resource` is refused (`never`): the resource is what the wrapped effect
+ * produced, and a second one is how `enforceProjected` came to decide on one
+ * record and project another (ADR-QD-104, INV-QD-106).
+ */
+export type LoadedEnforceOptions<E = never, R = never> = Omit<
+  EnforceOptions<E, R>,
+  "resource"
+> & {
+  readonly resource?: never;
+};
+
+/**
+ * Puts a loaded value into enforcement options as the resource to decide on.
+ *
+ * The one place the loaded entry points build their options, so the override
+ * is written once (as `guard`'s is, for the same reason).
+ */
+const withLoadedResource = <E, R>(
+  options: LoadedEnforceOptions<E, R> | undefined,
+  resource: Resource,
+): EnforceOptions<E, R> => ({ ...options, resource });
 
 const discharge = Effect.fn("qadi.discharge")(function* <E, R>(
   decision: Allow,
@@ -228,10 +253,8 @@ export const enforce =
  * whatever `self` resolves to, with no check that the two describe the same
  * record. A `self` that fetches a different or staler resource than
  * `options.resource` still gets projected — silently, under that mismatched
- * decision's field visibility. Callers whose wrapped effect can return a
- * resource other than `options.resource` should re-evaluate against the
- * value actually returned, or ensure the two cannot diverge, rather than rely
- * on this call to catch it.
+ * decision's field visibility. A policy that reads the resource belongs on
+ * {@link enforceProjectedLoaded}, which decides against the value it projects.
  *
  * **The return type is optimistic for a `"*"`-projected nested object** — see
  * `Decision.ts`'s `project`, which this delegates to, for the caveat.
@@ -247,6 +270,61 @@ export const enforceProjected =
   > =>
     Effect.flatMap(permitted(policy, options), (decision) =>
       Effect.map(self, (value) => project(decision, value)),
+    );
+
+/**
+ * Guards a loaded value with a policy evaluated against that value, and passes it through.
+ *
+ * The effect-shaped sibling of {@link enforce} for a read: `self` produces the
+ * record, and the policy is evaluated with *that record* as its resource, so a
+ * policy that reads the resource (`hasResourceAttribute`, `hasRelationship`,
+ * a custom predicate) sees what it is deciding about. On a denial the loaded
+ * value is never handed over.
+ *
+ * **The loader runs before the decision** — it is the decision's input, as
+ * `authorizeRequest`'s `loadResource` is — so `enforce`'s "the wrapped effect
+ * never runs" does not hold here; the guarantee is "the loaded value is never
+ * handed over" (ADR-QD-011, as amended by ADR-QD-104). A loader failure
+ * surfaces before any evaluation: no decision, no record. The loader should be
+ * a read with no side effects that matter on a denial, and its failure reveals
+ * existence to a caller who would have been denied. To keep a caller with no
+ * access at all from reaching the loader, gate it with a resource-free policy
+ * first: `load.pipe(enforce(canReadAny), enforceLoaded(isOwner))`.
+ *
+ * `options.resource` is refused at the type level: the resource is the loaded
+ * value, and a second one is the two-channel hazard INV-QD-106 closes.
+ */
+export const enforceLoaded =
+  <EO = never, RO = never>(policy: Policy, options?: LoadedEnforceOptions<EO, RO>) =>
+  <A extends Resource, E, R>(
+    self: Effect.Effect<A, E, R>,
+  ): Effect.Effect<A, E | EnforcementError | EO, R | EvaluationServices | RO> =>
+    Effect.flatMap(self, (value) =>
+      Effect.as(permitted(policy, withLoadedResource(options, value)), value),
+    );
+
+/**
+ * Guards a loaded value with a policy evaluated against that value, and projects it.
+ *
+ * {@link enforceLoaded} with field-level projection: the policy decides whether
+ * the caller may read the record *and* which of its fields come back, and the
+ * resource it decides on is the very value that is projected. A projected read
+ * decides against the value it projects (INV-QD-106).
+ *
+ * The loader runs first and a denial hands nothing over; see {@link enforceLoaded}
+ * for what that means for loader side effects and the coarse-gate composition.
+ * The return type is as optimistic as {@link enforceProjected}'s for a
+ * `"*"`-projected nested object — see `Decision.ts`'s `project`.
+ */
+export const enforceProjectedLoaded =
+  <EO = never, RO = never>(policy: Policy, options?: LoadedEnforceOptions<EO, RO>) =>
+  <A extends Resource, E, R>(
+    self: Effect.Effect<A, E, R>,
+  ): Effect.Effect<Partial<A>, E | EnforcementError | EO, R | EvaluationServices | RO> =>
+    Effect.flatMap(self, (value) =>
+      Effect.map(permitted(policy, withLoadedResource(options, value)), (decision) =>
+        project(decision, value),
+      ),
     );
 
 /**
