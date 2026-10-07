@@ -17,12 +17,21 @@ export const useDecisionSuspense: (policy: Policy, resource?: Resource) => Clien
 export const usePolicies: (
   policies: Readonly<Record<string, Policy>>,
 ) => Readonly<Record<string, DecisionResult>>;
+export const useQuestions: (
+  questions: Readonly<Record<string, AskedQuestion>>,
+) => Readonly<Record<string, DecisionResult>>;
 export const useProjected: <A extends Record<string, unknown>>(
   policy: Policy,
   data: A,
 ) => Partial<A>;
 export const useInvalidate: () => () => void;
 ```
+
+`usePolicies` and `useQuestions` read several questions as one record: each entry is
+still the shared decision, and the component re-renders once rather than once per
+question. `useQuestions` takes a policy and optionally a resource per entry
+(`{ policy, resource }`); `usePolicies` is its policy-only case. Under an
+`instrument`ed provider each entry is listed as its own guard in the devtools panel.
 
 `DecisionResult` is an `AsyncResult<ClientDecision, EvaluationError>`, and
 `outcomeOf` reads it into one of five cases, where a naive

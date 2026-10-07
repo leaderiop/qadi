@@ -636,7 +636,7 @@ state-management layer of its own. The rules that keep it that way:
   > question carries a `liveCount`, incremented when its decision atom's
   > reader runs and decremented by a finalizer `AtomRegistry` calls on genuine
   > teardown (never on a same-tick recompute, which reincrements before any
-  > other fiber can observe zero — see `QadiAtoms.ts`'s `TrackedQuestion` for
+  > other fiber can observe zero — see `QuestionBook.ts` for
   > why), and `sweepEvictions` — plain `Effect.sync`, no `AtomRegistry` access
   > at all — drops the oldest questions with `liveCount === 0` once
   > `maxTrackedQuestions` is exceeded, skipping anything still live rather than
@@ -646,7 +646,7 @@ state-management layer of its own. The rules that keep it that way:
   > `useTimeline.ts` uses for its own background subscription — entirely
   > independent of `AtomRegistry`'s scheduler, so it cannot repeat the dropped-
   > render failure: it never touches value dispatch or notification, only
-  > which entries `QadiAtoms`' own bookkeeping keeps. `QadiAtoms.test.ts` and
+  > which entries the atom set's question book keeps. `QadiAtoms.test.ts` and
   > `QadiProvider.test.tsx` cover eviction past the bound, survival of a
   > currently-mounted gate, and that the existing render-sequence tests this
   > paragraph's history is about pass unchanged.
@@ -667,9 +667,11 @@ state-management layer of its own. The rules that keep it that way:
   (`check-doc-examples.mjs`, `check-website-doc-examples.mjs`) refuse it in a
   compiled fence that imports `@qadi/react`, unless the fence says why with a
   `// qadi:raw-decision-read — <reason>` line.
-- **Atoms are keyed structurally.** `Atom.family` compares with `Equal.equals`,
-  so two separately built but equal policies share one atom and an inline policy
-  still shares. Hoist to module scope or `useMemo` anyway — the hash is cached
+- **Atoms are keyed structurally.** The atom set's question book
+  (`QuestionBook.ts`, a `MutableHashMap`, which compares with `Equal.equals` as
+  `Atom.family` does) holds each question's handle strongly while it is tracked,
+  so two separately built but equal policies share one atom, an inline policy
+  still shares, and a garbage collection cannot split one question in two. Hoist to module scope or `useMemo` anyway — the hash is cached
   per object, so a fresh object each render re-walks the tree — but do not claim
   inline "defeats sharing", because it does not.
   `v4-reactivity-smoke.test.ts` pins the keying rule.

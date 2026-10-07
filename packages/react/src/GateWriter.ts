@@ -28,7 +28,9 @@ export type GateKind =
   | "useCan"
   | "useDecision"
   | "useDecisionSuspense"
-  | "useProjected";
+  | "usePolicies"
+  | "useProjected"
+  | "useQuestions";
 
 /**
  * What the instance rendered, at the moment it last rendered.
@@ -132,69 +134,129 @@ export interface GateIdentity {
   readonly marker: RefObject<HTMLSpanElement | null>;
 }
 
+/** Whether two identities register as the same instance: everything but policy and resource. */
+const sameIdentity = (a: GateIdentity, b: GateIdentity): boolean =>
+  a.id === b.id &&
+  a.kind === b.kind &&
+  a.atom === b.atom &&
+  a.wraps === b.wraps &&
+  a.marker === b.marker;
+
 /**
- * Registers a guard with `writer` for as long as it is mounted.
+ * Registers a set of guards with `writer` for as long as they are mounted.
  *
- * `writer` is `undefined` when instrumentation is off, and then both effects
- * return immediately: the hooks run unconditionally because the rules of hooks
+ * One hook asking several questions (`usePolicies`, `useQuestions`) registers one
+ * instance per question, each under its own `id`; a single-question guard is the
+ * one-element case ({@link useGateRegistration}), so there is one lifecycle
+ * implementation and not two.
+ *
+ * `writer` is `undefined` when instrumentation is off, and then every effect
+ * returns immediately: the hooks run unconditionally because the rules of hooks
  * do not bend for a debug feature, and what the flag changes is what they do.
+ * `identities` and `states` are index-aligned, and `id`s are unique within a call.
  */
-export const useGateRegistration = (
+export const useGateRegistrations = (
   writer: GateWriter | undefined,
-  identity: GateIdentity,
-  state: GateRenderState,
+  identities: ReadonlyArray<GateIdentity>,
+  states: ReadonlyArray<GateRenderState>,
 ): void => {
-  // Read inside the effect below, rather than closed over from the render that
-  // scheduled it: `policy` and `resource` compare by reference in a dependency
-  // array, and AGENTS.md §13 blesses passing them inline in render, which builds
-  // a fresh object every time. Depending on them directly would unregister and
-  // re-register this instance on every render of a caller doing exactly that.
-  // `identity.atom` is the fix: `Atom.family` keys it structurally, so it is the
-  // same reference across renders for an equal policy and resource. Depending on
-  // it tracks "did the question this instance is asking actually change" rather
-  // than "did the caller build a new object this render"; the refs still let the
-  // effect body report the current policy and resource.
-  const policyRef = useRef(identity.policy);
-  policyRef.current = identity.policy;
-  const resourceRef = useRef(identity.resource);
-  resourceRef.current = identity.resource;
-  const stateRef = useRef(state);
-  stateRef.current = state;
-  const handle = useRef<GateHandle | undefined>(undefined);
+  // The identities as they last *changed*, so the effect below keys on "did the
+  // set of questions this hook asks actually change" and not on "did the caller
+  // build a new array or a new policy object this render". `policy` and `resource`
+  // compare by reference, and AGENTS.md §13 blesses passing them inline in render;
+  // depending on them directly would unregister and re-register every instance on
+  // every render of a caller doing exactly that. `atom` is what makes that safe:
+  // the book keys it structurally, so it is the same reference across renders for
+  // an equal policy and resource. `latest` still lets the effect body report the
+  // current policy and resource.
+  const stableRef = useRef(identities);
+  const previous = stableRef.current;
+  if (
+    previous.length !== identities.length ||
+    !identities.every((identity, i) => {
+      const before = previous[i];
+      return before !== undefined && sameIdentity(identity, before);
+    })
+  ) {
+    stableRef.current = identities;
+  }
+  const stable = stableRef.current;
+  const latest = useRef(identities);
+  latest.current = identities;
+  const statesRef = useRef(states);
+  statesRef.current = states;
+  const registered = useRef(new Map<string, { identity: GateIdentity; handle: GateHandle }>());
 
-  const { id, kind, atom, wraps, marker } = identity;
-
-  // Identity lifecycle only: mount registers, unmount unregisters. `state` is
-  // deliberately not in this dependency array — see the effect below. Re-running
-  // this one unregisters and re-registers, which is the right cost only when
-  // what is being asked has actually changed, not on every answer to the same
-  // question.
+  // The writer going away, or the hook unmounting, ends every registration.
   useEffect(() => {
     if (writer === undefined) return;
-    const registered = writer.register({
-      id,
-      kind,
-      policy: policyRef.current,
-      resource: resourceRef.current,
-      state: stateRef.current,
-      // Read inside the effect, which is the first moment React has attached
-      // it. `?? undefined` because a ref holds `null` and the registry's type
-      // says absent.
-      element: wraps ? (marker.current ?? undefined) : undefined,
-    });
-    handle.current = registered;
+    const live = registered.current;
     return () => {
-      registered.unregister();
-      if (handle.current === registered) handle.current = undefined;
+      for (const { handle } of live.values()) handle.unregister();
+      live.clear();
     };
-  }, [writer, id, kind, atom, wraps, marker]);
+  }, [writer]);
+
+  // Identity lifecycle only: an instance that is new, or whose question changed,
+  // registers; one that is gone unregisters; one that is unchanged is left alone.
+  // `state` is deliberately not here — see the effect below. Re-registering is the
+  // right cost only when what is being asked has actually changed, not on every
+  // answer to the same question.
+  useEffect(() => {
+    if (writer === undefined) return;
+    const live = registered.current;
+    const wanted = new Set(stable.map((identity) => identity.id));
+    for (const [id, entry] of live) {
+      const current = stable.find((identity) => identity.id === id);
+      if (!wanted.has(id) || current === undefined || !sameIdentity(current, entry.identity)) {
+        entry.handle.unregister();
+        live.delete(id);
+      }
+    }
+    stable.forEach((identity, i) => {
+      if (live.has(identity.id)) return;
+      const now = latest.current[i] ?? identity;
+      live.set(identity.id, {
+        identity,
+        handle: writer.register({
+          id: identity.id,
+          kind: identity.kind,
+          policy: now.policy,
+          resource: now.resource,
+          state: statesRef.current[i] ?? "Pending",
+          // Read inside the effect, which is the first moment React has attached
+          // it. `?? undefined` because a ref holds `null` and the registry's type
+          // says absent.
+          element: identity.wraps ? (identity.marker.current ?? undefined) : undefined,
+        }),
+      });
+    });
+  }, [writer, stable]);
 
   // The per-render state update, split from the effect above (AGENTS.md §13
   // still holds: this mutates the registered instance's `state` field and
   // notifies at most once, it does not decide what anything renders). Without
   // this split every decision state transition tore the instance down and
   // rebuilt it — two notifications where one update is enough.
+  const stateKey = states.join("|");
   useEffect(() => {
-    handle.current?.update(state);
-  }, [writer, state]);
+    if (writer === undefined) return;
+    stable.forEach((identity, i) => {
+      const state = statesRef.current[i];
+      if (state !== undefined) registered.current.get(identity.id)?.handle.update(state);
+    });
+  }, [writer, stable, stateKey]);
+};
+
+/**
+ * Registers one guard with `writer` for as long as it is mounted.
+ *
+ * The one-element case of {@link useGateRegistrations}.
+ */
+export const useGateRegistration = (
+  writer: GateWriter | undefined,
+  identity: GateIdentity,
+  state: GateRenderState,
+): void => {
+  useGateRegistrations(writer, [identity], [state]);
 };

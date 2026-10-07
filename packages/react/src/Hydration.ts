@@ -128,7 +128,7 @@ export const dehydrateDecisions = (
  * `UnsupportedPayloadVersion` (ADR-QD-078).
  *
  * Delegates to {@link QadiAtoms.hydrate}, the capability the atom set closes over
- * its own seed atoms. An atom set that merely forwards `decision`/`decisionFor`
+ * its own seed atoms. An atom set that merely forwards `decision`
  * — a spread copy, a wrapper — therefore seeds the same questions its inner one
  * does, which is correct: its decision atoms are the real ones.
  */

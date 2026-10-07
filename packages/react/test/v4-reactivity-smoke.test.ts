@@ -7,20 +7,22 @@
  * bump fails diffusely across the React suite and the cause has to be inferred
  * from four failing component tests.
  *
- * Every API exercised here is one `QadiAtoms.ts` or `QadiProvider.tsx` actually
- * calls. Pinning more than that would make the canary noisy, and a noisy canary
+ * Every API exercised here is one `QadiAtoms.ts`, `QuestionBook.ts` or
+ * `QadiProvider.tsx` actually calls. Pinning more than that would make the canary noisy, and a noisy canary
  * gets skipped.
  */
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as MutableHashMap from "effect/MutableHashMap";
 import * as Option from "effect/Option";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import * as Reactivity from "effect/reactivity/Reactivity";
 import { afterEach, describe, expect, it } from "vitest";
+import { collect } from "./support/collect.ts";
 
 // ---------------------------------------------------------------------------
 // A service to put behind a runtime, so "the layer reached the atom" is
@@ -206,6 +208,100 @@ describe("effect/reactivity API canary", () => {
     );
     expect(settled).toBe("u1");
     unmount();
+  });
+
+  it("Atom.family holds its VALUES weakly, which is why the question book holds them itself", async () => {
+    // `QuestionBook.ts` keeps each question's handle in a strong map because this
+    // is true: a family value nothing else references is rebuilt after a
+    // collection, so "same question, same atom" cannot rest on the family
+    // (BEH-QD-065). `decisions` (QadiAtoms.ts) still uses a family, and relies
+    // only on the keying, never on the value surviving.
+    let built = 0;
+    const family = Atom.family((key: { readonly id: string }) => {
+      built += 1;
+      return Atom.make(key.id);
+    });
+    family({ id: "x" });
+    expect(built).toBe(1);
+
+    await collect();
+    family({ id: "x" });
+
+    expect(built).toBe(2);
+  });
+
+  it("MutableHashMap keys a fresh object structurally and removes by an equal key", () => {
+    // `QuestionBook.ts` keys a question as `{ policy, resource }`, a new object
+    // every call. Decision sharing, and the sweep's removal, rest on this.
+    const map = MutableHashMap.empty<{ readonly a: string; readonly b: string | undefined }, number>();
+    MutableHashMap.set(map, { a: "x", b: undefined }, 1);
+
+    expect(MutableHashMap.get(map, { a: "x", b: undefined })._tag).toBe("Some");
+    expect(MutableHashMap.get(map, { a: "x", b: "y" })._tag).toBe("None");
+    expect(MutableHashMap.get(map, { a: "z", b: undefined })._tag).toBe("None");
+
+    MutableHashMap.remove(map, { a: "x", b: undefined });
+    expect(MutableHashMap.size(map)).toBe(0);
+  });
+
+  it("a recompute disposes and re-reads in one synchronous step", () => {
+    // The property `QuestionBook.ts`'s eviction safety rests on: when a dependency
+    // changes, `AtomRegistry` runs the finalizer and reads the atom again with no
+    // `yield*` between, so a sweep on another fiber never sees the count at zero
+    // for a question a registry still holds.
+    const events: Array<string> = [];
+    const dep = Atom.make(0);
+    const atom = Atom.readable((get) => {
+      events.push("read");
+      get.addFinalizer(() => events.push("fin"));
+      return get(dep);
+    });
+    const registry = makeRegistry();
+    registry.mount(atom);
+    events.length = 0;
+
+    registry.set(dep, 1);
+
+    expect(events).toEqual(["fin", "read"]);
+    expect(events.filter((e) => e === "read").length - events.filter((e) => e === "fin").length).toBe(0);
+  });
+
+  it("an invalidation through withReactivity never leaves a reader unheld", async () => {
+    // The same property by the path `atoms.invalidate` takes. A sampler polling
+    // between every fiber step must never see the live count at zero while the
+    // atom is mounted.
+    let live = 0;
+    const runtime = Atom.runtime(Layer.empty);
+    const key = "smoke/held";
+    const atom = Atom.readable((get) => {
+      live += 1;
+      get.addFinalizer(() => {
+        live -= 1;
+      });
+      return get(runtime.atom(Effect.succeed(1)).pipe(runtime.factory.withReactivity([key])));
+    });
+    const invalidate: Atom.AtomResultFn<void, void> = runtime.fn((_: void) =>
+      Reactivity.invalidate([key]),
+    );
+    const registry = makeRegistry();
+    registry.mount(invalidate);
+    registry.mount(atom);
+
+    const seen: Array<number> = [];
+    const sampler = Effect.runFork(
+      Effect.gen(function* () {
+        for (let i = 0; i < 20; i += 1) {
+          seen.push(live);
+          yield* Effect.yieldNow;
+        }
+      }),
+    );
+    registry.set(invalidate, undefined);
+    await Effect.runPromise(Effect.sleep(20));
+    sampler.interruptUnsafe();
+
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((n) => n >= 1)).toBe(true);
   });
 
   it("withReactivity + Reactivity.invalidate re-runs a mounted atom", async () => {

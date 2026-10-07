@@ -334,3 +334,7 @@ entries:
     file: "102-the-error-tables-stay-tables.md"
     title: "The error tables stay tables; the checks that were silent are made loud"
     status: "Accepted — amends ADR-QD-095; reads ADR-QD-008, ADR-QD-081"
+  - id: "ADR-QD-103"
+    file: "103-a-question-is-opened-once.md"
+    title: "A question is opened once, in a book its atom set owns"
+    status: "Accepted — amends ADR-QD-053, ADR-QD-080, ADR-QD-025"

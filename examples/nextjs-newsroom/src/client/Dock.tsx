@@ -104,8 +104,9 @@ void Effect.runSync(
  * (`atoms.ts`), so the dock's own build of it reads **the atoms' cache**, not a
  * throwaway: a layer value built twice is two caches. `questions` is read off
  * the atom set on the same schedule rather than subscribed to, for the reason
- * `asked()` documents: the list only grows, and a panel that re-rendered on
- * every question would re-render on every guard's first mount. Every value is at
+ * `asked()` documents: the list changes whenever a question is first asked
+ * or swept, and a panel that re-rendered on every question would re-render on
+ * every guard's first mount. Every value is at
  * module scope, because the run restarts when one of them changes identity.
  */
 export const diagnostics: DiagnosticsDockOptions = {

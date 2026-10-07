@@ -35,7 +35,9 @@ import {
   useDecision,
   useGateInstances,
   useInvalidate,
+  usePolicies,
   useProjected,
+  useQuestions,
 } from "../src/hooks.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { QadiAtoms } from "../src/QadiAtoms.ts";
@@ -531,5 +533,103 @@ describe("useGateInstances", () => {
       </QadiProvider>,
     );
     expect(screen.getByTestId("count").textContent).toBe("1");
+  });
+});
+
+describe("grouped reads register per question", () => {
+  const policies = { read: canRead, admin: isAdmin };
+
+  const Group = ({ only }: { readonly only?: ReadonlyArray<"read" | "admin"> }) => {
+    const wanted: Record<string, typeof canRead> = {};
+    for (const name of only ?? ["read", "admin"]) wanted[name] = policies[name];
+    usePolicies(wanted);
+    return null;
+  };
+
+  /** Instances as `[name, kind, state]`, the name being what follows the hook's own id. */
+  const listed = () =>
+    gateInstances()
+      .map((one) => [one.id.slice(one.id.indexOf("/") + 1), one.kind, one.state] as const)
+      .sort((a, b) => a[0].localeCompare(b[0]));
+
+  it("lists one instance per named policy, each following its own decision", async () => {
+    mount(<Group />, true);
+
+    await waitFor(() =>
+      expect(listed()).toEqual([
+        ["admin", "usePolicies", "Denied"],
+        ["read", "usePolicies", "Allowed"],
+      ]),
+    );
+    expect(new Set(gateInstances().map((one) => one.id)).size).toBe(2);
+  });
+
+  it("registers nothing when uninstrumented", () => {
+    mount(<Group />, false);
+    expect(gateInstances()).toEqual([]);
+  });
+
+  it("unregisters exactly the instance whose key was removed", async () => {
+    const set = atoms();
+    current = set;
+    const tree = (only: ReadonlyArray<"read" | "admin">) => (
+      <QadiProvider atoms={set} subject={alice} instrument>
+        <Group only={only} />
+      </QadiProvider>
+    );
+    const view = render(tree(["read", "admin"]));
+    await waitFor(() => expect(gateInstances().length).toBe(2));
+    const readId = gateInstances().find((one) => one.id.endsWith("/read"))?.id;
+
+    view.rerender(tree(["read"]));
+
+    await waitFor(() => expect(gateInstances().length).toBe(1));
+    expect(gateInstances()[0]?.id).toBe(readId);
+  });
+
+  it("unregisters every instance on unmount", async () => {
+    const view = mount(<Group />, true);
+    await waitFor(() => expect(gateInstances().length).toBe(2));
+
+    view.unmount();
+
+    expect(gateInstances()).toEqual([]);
+  });
+
+  it("does not re-register when an equal record is rebuilt each render", async () => {
+    const set = atoms();
+    current = set;
+    let notified = 0;
+    set.gates.subscribe(() => {
+      notified += 1;
+    });
+    const tree = (tick: number) => (
+      <QadiProvider atoms={set} subject={alice} instrument>
+        <span data-tick={tick} />
+        <Group />
+      </QadiProvider>
+    );
+    const view = render(tree(0));
+    await waitFor(() => expect(listed().map((x) => x[2])).toEqual(["Denied", "Allowed"]));
+    const settled = notified;
+
+    view.rerender(tree(1));
+    view.rerender(tree(2));
+
+    expect(notified).toBe(settled);
+  });
+
+  it("registers a resource-scoped entry from useQuestions, carrying its resource", async () => {
+    const Ask = () => {
+      useQuestions({ doc: { policy: canRead, resource: { id: "d1" } }, bare: { policy: isAdmin } });
+      return null;
+    };
+    mount(<Ask />, true);
+
+    await waitFor(() => expect(gateInstances().length).toBe(2));
+    const byName = new Map(gateInstances().map((one) => [one.id.slice(one.id.indexOf("/") + 1), one]));
+    expect(byName.get("doc")?.kind).toBe("useQuestions");
+    expect(byName.get("doc")?.resource).toEqual({ id: "d1" });
+    expect(byName.get("bare")?.resource).toBeUndefined();
   });
 });
