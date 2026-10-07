@@ -104,6 +104,7 @@ import {
   encodeStoredRecordString,
   formatLogCursor,
   parseLogCursor,
+  reportEncodeRefusal,
 } from "@qadi/core";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
 import { NO_RESOURCE } from "./RequirePermission.ts";
@@ -182,17 +183,7 @@ const reportRefused = Effect.fn("qadi.http.decisionStream.refused")(function* (
   refusal: SinkRecordNotEncodable,
   onRefused: ((refusal: SinkRecordNotEncodable) => void) | undefined,
 ) {
-  if (onRefused === undefined) {
-    yield* Effect.logWarning("qadi/http: a decision record could not be framed").pipe(
-      Effect.annotateLogs({
-        "qadi.refusal": refusal.refusal._tag,
-        "qadi.path": "path" in refusal.refusal ? refusal.refusal.path.join(".") : "",
-        evaluationId: refusal.evaluationId,
-      }),
-    );
-  } else {
-    yield* Effect.sync(() => onRefused(refusal));
-  }
+  yield* reportEncodeRefusal(refusal, { message: "qadi/http: a decision record could not be framed", onRefused });
   return Result.fail(refusal);
 });
 

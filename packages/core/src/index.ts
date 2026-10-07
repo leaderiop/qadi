@@ -12,6 +12,7 @@ export * from "./DecisionSink.ts";
 export * from "./DecisionSinkForwarding.ts";
 export * from "./DecisionWire.ts";
 export * from "./DecodeDepthGuard.ts";
+export * from "./EncodeRefusalReport.ts";
 export * from "./Errors.ts";
 export * from "./Evaluate.ts";
 export * from "./EvaluationId.ts";

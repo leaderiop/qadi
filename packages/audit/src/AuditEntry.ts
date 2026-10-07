@@ -33,13 +33,13 @@
  */
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
-import * as Match from "effect/Match";
 import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type { EncodeRefusal, SinkRecord } from "@qadi/core";
 import {
   DecodeRefusal,
+  describeEncodeRefusal,
   decodeSinkRecord,
   encodeSinkRecord,
   SinkRecordJson,
@@ -54,7 +54,9 @@ import {
  * representation — a function, a `Symbol`, a `bigint`, a circular reference, a
  * `Map`/`Set`/`RegExp`/binary array JSON renders as `{}`, a policy deeper than a
  * reader will decode — anywhere in the record, with the path it was found at.
- * `reason` is that refusal as a sentence, for a log line. A resolver error's
+ * `reason` is that refusal as a sentence (`@qadi/core`'s `describeEncodeRefusal`),
+ * for a log line. `evaluationId` is the refused record's, so a hook holds the
+ * correlation handle the same way `SinkRecordNotEncodable` gives it. A resolver error's
  * `cause` is never a reason: it crosses through `Schema.Defect()`.
  *
  * Never thrown; a typed `Effect` failure, the same shape
@@ -64,26 +66,10 @@ import {
  */
 export class AuditEntryNotEncodable extends Data.TaggedError("AuditEntryNotEncodable")<{
   readonly recordTag: SinkRecord["_tag"];
+  readonly evaluationId: string;
   readonly refusal: EncodeRefusal;
   readonly reason: string;
 }> {}
-
-/** `resource.tags`, or `the record` for a refusal found at the root. */
-const where = (path: ReadonlyArray<string | number>): string =>
-  path.length === 0 ? "the record" : path.join(".");
-
-/** One sentence per refusal, for `AuditEntryNotEncodable.reason`. */
-const describeRefusal: (refusal: EncodeRefusal) => string = Match.type<EncodeRefusal>().pipe(
-  Match.tagsExhaustive({
-    Circular: (refusal) => `${where(refusal.path)}: a circular reference has no JSON form`,
-    TooDeep: (refusal) =>
-      `${where(refusal.path)}: nested deeper than ${refusal.maxDepth} levels, past what a reader will decode`,
-    NonFinite: (refusal) => `${where(refusal.path)}: a non-finite number or invalid Date has no JSON form`,
-    Unrepresentable: (refusal) => `${where(refusal.path)}: a ${refusal.kind} has no JSON form`,
-    Opaque: (refusal) => `${where(refusal.path)}: a ${refusal.brand} has no JSON form`,
-    EncodeFailed: (refusal) => `the record could not be encoded: ${refusal.message}`,
-  }),
-);
 
 /**
  * The optional gap-detection field, declared once for the row schema and the
@@ -144,8 +130,9 @@ export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(functio
       (error) =>
         new AuditEntryNotEncodable({
           recordTag: record._tag,
+          evaluationId: record.evaluationId,
           refusal: error.refusal,
-          reason: describeRefusal(error.refusal),
+          reason: describeEncodeRefusal(error.refusal),
         }),
     ),
   );

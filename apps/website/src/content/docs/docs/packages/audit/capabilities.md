@@ -39,7 +39,9 @@ Read rows back with
 record carrying a value with no safe durable representation — a function, a
 `Symbol`, a circular reference, a `Map`/`Set`/`RegExp` — fails
 `AuditEntryNotEncodable`, naming the refusal and its path, instead of being
-stringified or silently dropped.
+stringified or silently dropped. The refusal is reported, not only counted: it reaches
+`AuditDecisionSinkLive`'s `onRefused` when you pass one, otherwise it is logged as a
+warning naming the refusal, its path and the record's `evaluationId`.
 
 **Staging** (`AuditStagingPort`, optional) — a best-effort durability
 *protocol*, not a write-ahead log: `@qadi/audit` owns no storage of its own,

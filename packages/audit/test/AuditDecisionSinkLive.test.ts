@@ -3,9 +3,12 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
+import * as Logger from "effect/Logger";
+import * as References from "effect/References";
 import * as TestClock from "effect/testing/TestClock";
 import { DecisionSink } from "@qadi/core";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
+import type { AuditEntryNotEncodable } from "../src/AuditEntry.ts";
 import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
 import { AuditStagingError, AuditStagingPort } from "../src/AuditStagingPort.ts";
@@ -512,5 +515,107 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
           Layer.provideMerge(AuditDecisionSinkLive({ failureThreshold: 2 }), trail),
         ),
       );
+    }));
+});
+
+describe("AuditDecisionSinkLive — an encode refusal is observable", () => {
+  const capture = () => {
+    const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+    const layer = Logger.layer([
+      Logger.make((o) => {
+        logs.push({ message: o.message, annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
+      }),
+    ]);
+    return { logs, layer };
+  };
+
+  it.effect("a refused record is logged with its refusal, path and evaluationId; no row is written", () =>
+    Effect.gen(function* () {
+      const { layer: trail, written } = AuditTrailPortTest();
+      const { logs, layer: logger } = capture();
+
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord({ evaluationId: "poisoned", resource: { tags: new Set(["finance"]) } }));
+      }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, logger))));
+
+      assert.strictEqual(written().length, 0);
+      assert.strictEqual(logs.length, 1);
+      assert.include(String(logs[0]?.message), "could not be encoded for the audit trail");
+      assert.strictEqual(logs[0]?.annotations["qadi.refusal"], "Opaque");
+      assert.strictEqual(logs[0]?.annotations["qadi.path"], "resource.tags");
+      assert.strictEqual(logs[0]?.annotations["evaluationId"], "poisoned");
+    }));
+
+  it.effect("onRefused receives the refusal once and replaces the warning", () =>
+    Effect.gen(function* () {
+      const { layer: trail, written } = AuditTrailPortTest();
+      const { logs, layer: logger } = capture();
+      const seen: Array<AuditEntryNotEncodable> = [];
+
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord({ evaluationId: "poisoned", resource: { tags: new Set(["finance"]) } }));
+      }).pipe(
+        Effect.provide(
+          Layer.provideMerge(AuditDecisionSinkLive({ onRefused: (r) => void seen.push(r) }), Layer.mergeAll(trail, logger)),
+        ),
+      );
+
+      assert.strictEqual(written().length, 0);
+      assert.strictEqual(logs.length, 0);
+      assert.strictEqual(seen.length, 1);
+      assert.strictEqual(seen[0]?.evaluationId, "poisoned");
+      assert.strictEqual(seen[0]?.refusal._tag, "Opaque");
+      assert.strictEqual(seen[0]?.reason, "resource.tags: a Set has no JSON form");
+    }));
+
+  it.effect("a throwing onRefused is logged, and the next healthy record is still written", () =>
+    Effect.gen(function* () {
+      const { layer: trail, written } = AuditTrailPortTest();
+      const { logs, layer: logger } = capture();
+
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord({ evaluationId: "poisoned", resource: { tags: new Set(["finance"]) } }));
+        yield* sink.record(decisionRecord({ evaluationId: "healthy" }));
+      }).pipe(
+        Effect.provide(
+          Layer.provideMerge(
+            AuditDecisionSinkLive({
+              onRefused: () => {
+                throw new Error("hook bug");
+              },
+            }),
+            Layer.mergeAll(trail, logger),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(written().map((e) => e.record.evaluationId), ["healthy"]);
+      assert.strictEqual(logs.length, 1);
+      assert.include(String(logs[0]?.message), "hook threw");
+      assert.strictEqual(logs[0]?.annotations["evaluationId"], "poisoned");
+    }));
+
+  it.effect("a refusal with no path (EncodeFailed) logs an empty path and never the getter's text", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest();
+      const { logs, layer: logger } = capture();
+      const hostile = {
+        get boom(): unknown {
+          throw new Error("sentinel-getter-text");
+        },
+      };
+
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord({ evaluationId: "hostile", resource: { nested: hostile } }));
+      }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, logger))));
+
+      assert.strictEqual(logs.length, 1);
+      assert.strictEqual(logs[0]?.annotations["qadi.refusal"], "EncodeFailed");
+      assert.strictEqual(logs[0]?.annotations["qadi.path"], "");
+      assert.notInclude(JSON.stringify([logs[0]?.message, logs[0]?.annotations]), "sentinel-getter-text");
     }));
 });

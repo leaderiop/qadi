@@ -61,12 +61,13 @@ describe("encodeAuditEntry", () => {
 
   it.effect("a resource carrying a function refuses rather than dropping or stringifying it", () =>
     Effect.gen(function* () {
-      const record = decisionRecord({ resource: { handler: () => "nope" } });
+      const record = decisionRecord({ evaluationId: "ev-refused", resource: { handler: () => "nope" } });
       const result = yield* Effect.result(encodeAuditEntry(record));
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
         assert.strictEqual(result.failure._tag, "AuditEntryNotEncodable");
         assert.strictEqual(result.failure.recordTag, "Decision");
+        assert.strictEqual(result.failure.evaluationId, "ev-refused");
         assert.strictEqual(result.failure.refusal._tag, "Unrepresentable");
         assert.strictEqual(result.failure.reason, "resource.handler: a function has no JSON form");
       }

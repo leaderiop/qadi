@@ -29,8 +29,9 @@ import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import type { SinkRecord } from "@qadi/core";
-import { DecisionSink } from "@qadi/core";
+import { DecisionSink, reportEncodeRefusal } from "@qadi/core";
 import { encodeAuditEntry } from "./AuditEntry.ts";
+import type { AuditEntryNotEncodable } from "./AuditEntry.ts";
 import { AuditTrailPort } from "./AuditTrailPort.ts";
 import { AuditStagingPort } from "./AuditStagingPort.ts";
 import type { AuditStagingError } from "./AuditStagingPort.ts";
@@ -48,6 +49,13 @@ export interface AuditDecisionSinkOptions {
    * millisecond number, as every existing caller passes, is unaffected.
    */
   readonly resetTimeoutMs?: Duration.Input;
+  /**
+   * Called with the refusal when a record cannot be encoded for the trail.
+   * Replaces the warning the pipeline logs otherwise; the
+   * `qadi_audit_writes_total{outcome="encode_failed"}` counter increments
+   * either way. A hook that throws is logged, never a defect (INV-QD-035).
+   */
+  readonly onRefused?: (refusal: AuditEntryNotEncodable) => void;
 }
 
 const DEFAULT_FAILURE_THRESHOLD = 5;
@@ -130,6 +138,11 @@ export const AuditDecisionSinkLive = (
           // 1. Encode. A refusal never reaches staging or the trail at all.
           const encoded = yield* Effect.result(encodeAuditEntry(sinkRecord));
           if (Result.isFailure(encoded)) {
+            yield* reportEncodeRefusal(encoded.failure, {
+              message:
+                "qadi/audit: a decision record could not be encoded for the audit trail; no row was written",
+              onRefused: options?.onRefused,
+            });
             yield* Metric.update(writesEncodeFailed, 1);
             return;
           }

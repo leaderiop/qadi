@@ -801,6 +801,46 @@ describe("one record cannot end the feed", () => {
       assert.strictEqual(refused[0]?.refusal._tag, "Circular");
     }));
 
+  it.effect("a throwing onRefused is reported and the next record is still framed", () =>
+    Effect.gen(function* () {
+      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+      const log = yield* makeDecisionLog({ environment: "Server" });
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord("refused", { tags: new Set(["finance"]) }));
+        yield* sink.record(decisionRecord("after"));
+      }).pipe(Effect.provide(log.layer));
+
+      const frames = yield* Effect.scoped(
+        Effect.flatMap(log.readEntries(), (read) =>
+          Stream.runCollect(
+            Stream.take(
+              decisionFrames(read, {
+                onRefused: () => {
+                  throw new Error("hook bug");
+                },
+              }),
+              2,
+            ),
+          )),
+      ).pipe(
+        Effect.provide(
+          Logger.layer([
+            Logger.make((o) => {
+              logs.push({ message: o.message, annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
+            }),
+          ]),
+        ),
+      );
+      assert.strictEqual(frames.length, 2);
+      assert.include(frames[0] ?? "", '"evaluationId":"after"');
+      assert.strictEqual(frames[1], syncedFrame(1));
+      assert.strictEqual(logs.length, 1);
+      assert.include(String(logs[0]?.message), "hook threw");
+      assert.strictEqual(logs[0]?.annotations["qadi.refusal"], "Opaque");
+      assert.strictEqual(logs[0]?.annotations["evaluationId"], "refused");
+    }));
+
   it.effect("with no onRefused, the refusal is logged with its reason and path", () =>
     Effect.gen(function* () {
       const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];

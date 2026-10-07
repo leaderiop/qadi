@@ -24,7 +24,7 @@ import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type { DecisionLog, Permission, Policy, SinkRecordNotEncodable, StoredRecordJson } from "@qadi/core";
-import { encodeStoredRecord } from "@qadi/core";
+import { encodeStoredRecord, reportEncodeRefusal } from "@qadi/core";
 import type { DecisionStreamOptions } from "./DecisionStreamRoute.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
 import { NO_RESOURCE } from "./RequirePermission.ts";
@@ -38,17 +38,10 @@ const reportRefused = Effect.fn("qadi.http.decisionBacklog.refused")(function* (
   refusal: SinkRecordNotEncodable,
   onRefused: ((refusal: SinkRecordNotEncodable) => void) | undefined,
 ) {
-  if (onRefused === undefined) {
-    yield* Effect.logWarning("qadi/http: a decision record could not be served in the backlog").pipe(
-      Effect.annotateLogs({
-        "qadi.refusal": refusal.refusal._tag,
-        "qadi.path": "path" in refusal.refusal ? refusal.refusal.path.join(".") : "",
-        evaluationId: refusal.evaluationId,
-      }),
-    );
-  } else {
-    yield* Effect.sync(() => onRefused(refusal));
-  }
+  yield* reportEncodeRefusal(refusal, {
+    message: "qadi/http: a decision record could not be served in the backlog",
+    onRefused,
+  });
 });
 
 /**

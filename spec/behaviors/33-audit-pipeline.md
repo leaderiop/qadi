@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-33                                    |
-> | Revision       | 1.10                                           |
+> | Revision       | 1.11                                           |
 > | Effective Date | 2026-10-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.10 (2026-10-07): BEH-QD-253 — retention is `planRetention`, which purges only with a finite age past a valid limit and refuses an impossible `now` or `maxAgeMs`; a non-finite `at` is retained and reported `undated`. BEH-QD-312 — a non-finite `at` and a non-integer `sequenceNumber` are `Malformed` (INV-QD-101, ADR-QD-095 amendment, CCR-QD-186)<br>1.9 (2026-10-07): BEH-QD-254 — entries carrying no `sequenceNumber` follow every sequenced entry in the order given, and are never ordered by `at` (pins what `archiveAuditTrail` already did; CCR-QD-185)<br>1.8 (2026-10-06): BEH-QD-312 — `decodeAuditEntry` reads wire version 2 only: a pre-0.10 row is refused as `UnsupportedVersion`, reported, never upgraded, and migrated with 0.10.x; `AuditEntry.record` is version-2 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): BEH-QD-312 — `decodeAuditEntry` applies every check `decodeSinkRecord` applies, and reads rows of both wire versions; the row schema alone is not a reader. BEH-QD-250 — rows are written as wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.6 (2026-10-05): BEH-QD-250 restated — a row's `record` is `encodeSinkRecord`'s encoded wire, byte-identical to the stream and forwarding; the refusal carries core's `EncodeRefusal`; a `cause` is never a reason to refuse. BEH-QD-312 — `decodeAuditEntry`, the guarded reader (ADR-QD-095, CCR-QD-179)<br>1.5 (2026-10-05): BEH-QD-250 widened — the guard walks the outcome as well: a resolver error's `cause` carrying a reference cycle or a `BigInt` used to pass it and then throw at the store's `JSON.stringify`, which counted as a write failure and could trip the breaker; `Map`/`Set`/`RegExp`/binary data are refused rather than persisted as `{}` (CCR-QD-178)<br>1.4 (2026-10-04): BEH-QD-251 — the half-open probe claim is released on every exit including interruption during staging; a failure settling on an already-`Open` breaker is a no-op; outcomes count only toward the window that admitted them; the interruption prose corrected (`Effect.exit` folds a typed failure, a defect and an adapter's self-interruption, not a caller's interruption) (CCR-QD-154)<br>1.3 (2026-09-09): BEH-QD-250 widened — `encodeAuditEntry` guarded only `resource` via `isJsonSafe`, not the whole record; `policy`'s `HasCustom.params` (ADR-QD-055's escape hatch) is a second caller-supplied `unknown` a `SinkRecord` can carry, and a circular or `BigInt`-valued one sailed past the narrow guard uncaught. Now guarded via `isRecordJsonSafe` (`SinkCodec.ts`), which walks `resource` **and** `policy` (issue #104)<br>1.2 (2026-09-07): BEH-QD-250 and BEH-QD-251 widened — `isJsonSafe` walks iteratively so a merely-deep (non-cyclic) value no longer risks the same stack exhaustion the circular-reference case was already guarded against; `stage()`/`write()` now run under `Effect.exit` rather than `Effect.result`, so a defect or interruption from either — not just a typed `AuditWriteError`/`AuditStagingError` — reaches the breaker and the metrics the same way a typed failure already did (CCR-QD-113)<br>1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
+> | Change History | 1.11 (2026-10-07): BEH-QD-250 — a refused record is reported (`AuditDecisionSinkOptions.onRefused`, else a warning naming the refusal, its path and the evaluation id), never dropped silently, and a hook that throws never fails the record; `AuditEntryNotEncodable` carries `evaluationId` and its `reason` is core's `describeEncodeRefusal`. BEH-QD-249's signature fence gains `onRefused` and its `resetTimeoutMs` is `Duration.Input` as the code has it (CCR-QD-193)<br>1.10 (2026-10-07): BEH-QD-253 — retention is `planRetention`, which purges only with a finite age past a valid limit and refuses an impossible `now` or `maxAgeMs`; a non-finite `at` is retained and reported `undated`. BEH-QD-312 — a non-finite `at` and a non-integer `sequenceNumber` are `Malformed` (INV-QD-101, ADR-QD-095 amendment, CCR-QD-186)<br>1.9 (2026-10-07): BEH-QD-254 — entries carrying no `sequenceNumber` follow every sequenced entry in the order given, and are never ordered by `at` (pins what `archiveAuditTrail` already did; CCR-QD-185)<br>1.8 (2026-10-06): BEH-QD-312 — `decodeAuditEntry` reads wire version 2 only: a pre-0.10 row is refused as `UnsupportedVersion`, reported, never upgraded, and migrated with 0.10.x; `AuditEntry.record` is version-2 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): BEH-QD-312 — `decodeAuditEntry` applies every check `decodeSinkRecord` applies, and reads rows of both wire versions; the row schema alone is not a reader. BEH-QD-250 — rows are written as wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.6 (2026-10-05): BEH-QD-250 restated — a row's `record` is `encodeSinkRecord`'s encoded wire, byte-identical to the stream and forwarding; the refusal carries core's `EncodeRefusal`; a `cause` is never a reason to refuse. BEH-QD-312 — `decodeAuditEntry`, the guarded reader (ADR-QD-095, CCR-QD-179)<br>1.5 (2026-10-05): BEH-QD-250 widened — the guard walks the outcome as well: a resolver error's `cause` carrying a reference cycle or a `BigInt` used to pass it and then throw at the store's `JSON.stringify`, which counted as a write failure and could trip the breaker; `Map`/`Set`/`RegExp`/binary data are refused rather than persisted as `{}` (CCR-QD-178)<br>1.4 (2026-10-04): BEH-QD-251 — the half-open probe claim is released on every exit including interruption during staging; a failure settling on an already-`Open` breaker is a no-op; outcomes count only toward the window that admitted them; the interruption prose corrected (`Effect.exit` folds a typed failure, a defect and an adapter's self-interruption, not a caller's interruption) (CCR-QD-154)<br>1.3 (2026-09-09): BEH-QD-250 widened — `encodeAuditEntry` guarded only `resource` via `isJsonSafe`, not the whole record; `policy`'s `HasCustom.params` (ADR-QD-055's escape hatch) is a second caller-supplied `unknown` a `SinkRecord` can carry, and a circular or `BigInt`-valued one sailed past the narrow guard uncaught. Now guarded via `isRecordJsonSafe` (`SinkCodec.ts`), which walks `resource` **and** `policy` (issue #104)<br>1.2 (2026-09-07): BEH-QD-250 and BEH-QD-251 widened — `isJsonSafe` walks iteratively so a merely-deep (non-cyclic) value no longer risks the same stack exhaustion the circular-reference case was already guarded against; `stage()`/`write()` now run under `Effect.exit` rather than `Effect.result`, so a defect or interruption from either — not just a typed `AuditWriteError`/`AuditStagingError` — reaches the breaker and the metrics the same way a typed failure already did (CCR-QD-113)<br>1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
 
 _Previous: [32 — Custom Predicates](./32-custom-predicates.md)_
 
@@ -23,8 +23,13 @@ What `@qadi/audit` does with the `SinkRecord`s `DecisionSink`
 ## BEH-QD-249: The assembled pipeline is reachable through one `DecisionSink.record` call
 
 ```ts
+export interface AuditDecisionSinkOptions {
+  readonly failureThreshold?: number;
+  readonly resetTimeoutMs?: Duration.Input;
+  readonly onRefused?: (refusal: AuditEntryNotEncodable) => void;
+}
 export const AuditDecisionSinkLive: (
-  options?: { readonly failureThreshold?: number; readonly resetTimeoutMs?: number },
+  options?: AuditDecisionSinkOptions,
 ) => Layer.Layer<DecisionSink, never, AuditTrailPort>;
 ```
 
@@ -50,7 +55,7 @@ what `record()` actually does, not of a function that exists beside it.
 
 ```ts
 export const AuditEntry: Schema.Struct<{ record: typeof SinkRecordJson; sequenceNumber: … }>;
-export class AuditEntryNotEncodable { recordTag; refusal: EncodeRefusal; reason: string }
+export class AuditEntryNotEncodable { recordTag; evaluationId: string; refusal: EncodeRefusal; reason: string }
 export const encodeAuditEntry: (record: SinkRecord) => Effect<AuditEntry, AuditEntryNotEncodable>;
 ```
 
@@ -67,6 +72,16 @@ REQUIREMENT: encodeAuditEntry MUST fail AuditEntryNotEncodable, carrying the
              field silently, or throw an uncaught exception.
 REQUIREMENT: A resolver error's `cause` MUST NOT be a reason to refuse: it
              crosses through `Schema.Defect()`.
+REQUIREMENT: A refused record MUST be reported — through `onRefused` when
+             given, otherwise by a warning naming the refusal, the path it was
+             found at and the evaluation id — and the
+             `qadi_audit_writes_total{outcome="encode_failed"}` counter MUST
+             increment either way. It MUST NOT be dropped silently, and a hook
+             that throws MUST NOT fail the record or the decision: it is logged,
+             and the next record is still written.
+REQUIREMENT: `AuditEntryNotEncodable.reason` MUST be `@qadi/core`'s
+             `describeEncodeRefusal` of its `refusal`, and `evaluationId` the
+             refused record's.
 ```
 
 A `Predicate`'s `Compare`/`MemberOf` values are `unknown`, and
@@ -91,6 +106,15 @@ encode step left for a store to forget, a `Failed` record is written with its
 walk is iterative with one mutable ancestor set, so a merely deep value cannot
 exhaust the call stack, and a value reachable twice without a cycle is not
 refused.
+
+**Reported, not only counted** ([ADR-QD-056](../decisions/056-audit-companion-package.md)'s
+2026-10-07 amendment, [INV-QD-104](../invariants.md#inv-qd-104-a-refusal-report-says-where-never-what)).
+Until ARCH-25 the pipeline built `reason` and discarded it, recording only the
+counter: a decision had no audit row and no `evaluationId` anywhere, the one
+reporter of the three that left no trace. The annotations are core's
+`encodeRefusalAnnotations` (`qadi.refusal`, `qadi.path`, `evaluationId`), never a
+value from the record; `reason` can carry caller text (a throwing getter's
+message) and so is for a caller holding the error, not for a log.
 
 A property whose value is `undefined` is absence — JSON drops the key — not a
 refusal; a valid `Date` is persisted as its ISO string (the named normalisations

@@ -305,7 +305,7 @@ entries:
   - id: "ADR-QD-095"
     file: "095-sinkcodec-owns-both-directions.md"
     title: "SinkCodec owns both directions of the record wire"
-    status: "Accepted — amends ADR-QD-045, ADR-QD-046, ADR-QD-056, ADR-QD-060"
+    status: "Accepted — amends ADR-QD-045, ADR-QD-046, ADR-QD-056, ADR-QD-060; amended 2026-10-07 (an encode refusal is described once, and the audit pipeline reports it)"
   - id: "ADR-QD-096"
     file: "096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md"
     title: "The record wire is versioned, its outcome is exclusive, and its envelope tolerates unknown keys"

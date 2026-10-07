@@ -21,21 +21,11 @@ import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import type { SinkRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
+import { reportEncodeRefusal } from "./EncodeRefusalReport.ts";
 import type { DecisionSinkShape } from "./DecisionSink.ts";
 import type { SinkRecordNotEncodable } from "./Errors.ts";
 import { encodeSinkRecord } from "./SinkCodec.ts";
 import type { SinkRecordJson } from "./SinkCodec.ts";
-
-/**
- * The log annotations a refused record is reported with: which refusal, where
- * in the record, and which evaluation. Shared with nothing on purpose — each
- * adapter reports in its own words — but every adapter names the same three.
- */
-const refusalAnnotations = (refusal: SinkRecordNotEncodable) => ({
-  "qadi.refusal": refusal.refusal._tag,
-  "qadi.path": "path" in refusal.refusal ? refusal.refusal.path.join(".") : "",
-  evaluationId: refusal.evaluationId,
-});
 
 /**
  * A sink that encodes each record for the wire and hands it to `send`.
@@ -97,10 +87,10 @@ export const decisionSinkForwarding = (options: {
   const reportRefusal = Effect.fn("qadi.decisionSinkForwarding.refused")(function* (
     refusal: SinkRecordNotEncodable,
   ) {
-    if (onFailure !== undefined) return yield* Effect.sync(() => onFailure(refusal));
-    yield* Effect.logWarning("qadi: a decision record could not be encoded for forwarding").pipe(
-      Effect.annotateLogs(refusalAnnotations(refusal)),
-    );
+    yield* reportEncodeRefusal(refusal, {
+      message: "qadi: a decision record could not be encoded for forwarding",
+      onRefused: onFailure,
+    });
   });
 
   const reportSendFailure = (cause: Cause.Cause<unknown>) =>

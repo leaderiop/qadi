@@ -174,6 +174,35 @@ describe("/__decisions/backlog", () => {
       );
     }));
 
+  it.effect("a throwing onRefused is reported and the response still serves the other records", () =>
+    Effect.gen(function* () {
+      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+      const layer = yield* serve(
+        (log) =>
+          Effect.gen(function* () {
+            yield* log.ingest(decision("opaque", { tags: new Set(["x"]) }));
+            yield* log.ingest(decision("good"));
+          }),
+        () => {
+          throw new Error("hook bug");
+        },
+      );
+      const capture = Logger.layer([
+        Logger.make((o) => {
+          logs.push({ message: o.message, annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
+        }),
+      ]);
+      const { handler } = HttpRouter.toWebHandler(layer.pipe(Layer.provideMerge(capture)));
+      const response = yield* get(handler, "/__decisions/backlog", "alice-token");
+      assert.strictEqual(response.status, 200);
+      const body: unknown = yield* Effect.promise(() => response.json());
+      assert.strictEqual(Array.isArray(body) ? body.length : -1, 1);
+      const threw = logs.filter((l) => String(l.message).includes("hook threw"));
+      assert.strictEqual(threw.length, 1);
+      assert.strictEqual(threw[0]?.annotations["qadi.refusal"], "Opaque");
+      assert.strictEqual(threw[0]?.annotations["evaluationId"], "opaque");
+    }));
+
   it.effect("an empty log is an empty array", () =>
     Effect.gen(function* () {
       const layer = yield* serve(() => Effect.void);

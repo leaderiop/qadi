@@ -49,6 +49,7 @@
  * not be reached" shape.
  */
 import * as Data from "effect/Data";
+import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import { TraceSchema } from "./Decision.ts";
 import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
@@ -425,6 +426,80 @@ export type EncodeRefusal = Data.TaggedEnum<{
 
 /** Constructors and guards for {@link EncodeRefusal}. */
 export const EncodeRefusal = Data.taggedEnum<EncodeRefusal>();
+
+/**
+ * Where in the record an {@link EncodeRefusal} was found, or `undefined` for
+ * `EncodeFailed`, which has no location.
+ *
+ * A module-scope `Match.tagsExhaustive` rather than `"path" in refusal`: the
+ * presence of a field stood in for the tag, so a new variant with a location
+ * under another name, or one that should have a path and lacks it, compiled and
+ * silently reported no location (AGENTS.md §5a, ARCH-25). Now it is a compile
+ * error here, beside the union.
+ */
+export const encodeRefusalPath: (self: EncodeRefusal) => WirePath | undefined = Match.type<EncodeRefusal>().pipe(
+  Match.tagsExhaustive({
+    Circular: (r) => r.path,
+    TooDeep: (r) => r.path,
+    NonFinite: (r) => r.path,
+    Unrepresentable: (r) => r.path,
+    Opaque: (r) => r.path,
+    EncodeFailed: () => undefined,
+  }),
+);
+
+/**
+ * The log annotations every report of a refused record carries: which refusal,
+ * where in the record, and which evaluation. Exactly three keys, and never a
+ * value from the record (INV-QD-104).
+ */
+export type EncodeRefusalAnnotations = {
+  readonly "qadi.refusal": EncodeRefusal["_tag"];
+  readonly "qadi.path": string;
+  readonly evaluationId: string;
+};
+
+/**
+ * The annotations a refused record is reported with: the refusal's tag, its
+ * path joined with `"."` (`""` when it has none), and the evaluation id.
+ *
+ * **Says where, never what** (INV-QD-104). Never a value from the record, and
+ * never `EncodeFailed.message`, which is caller text: the default log
+ * implementation copies annotations onto the current span, so an annotation is
+ * span data and INV-QD-044's reasoning applies. Path segments are the keys of
+ * the caller's own object, so a resource keyed by data puts that key here.
+ */
+export const encodeRefusalAnnotations = (self: {
+  readonly refusal: EncodeRefusal;
+  readonly evaluationId: string;
+}): EncodeRefusalAnnotations => ({
+  "qadi.refusal": self.refusal._tag,
+  "qadi.path": encodeRefusalPath(self.refusal)?.join(".") ?? "",
+  evaluationId: self.evaluationId,
+});
+
+/** `resource.tags`, or `the record` for a refusal found at the root. */
+const where = (path: WirePath): string => (path.length === 0 ? "the record" : path.join("."));
+
+/**
+ * One sentence per {@link EncodeRefusal}, for a caller holding the refusal.
+ *
+ * `EncodeFailed`'s sentence carries its `message`, which can be text a caller
+ * wrote (a throwing getter's message), so a sentence is never an annotation and
+ * never a default log message (INV-QD-104); only an error's own `reason` field
+ * carries it. `@qadi/audit` fills `AuditEntryNotEncodable.reason` with this.
+ */
+export const describeEncodeRefusal: (self: EncodeRefusal) => string = Match.type<EncodeRefusal>().pipe(
+  Match.tagsExhaustive({
+    Circular: (refusal) => `${where(refusal.path)}: a circular reference has no JSON form`,
+    TooDeep: (refusal) =>
+      `${where(refusal.path)}: nested deeper than ${refusal.maxDepth} levels, past what a reader will decode`,
+    NonFinite: (refusal) => `${where(refusal.path)}: a non-finite number or invalid Date has no JSON form`,
+    Unrepresentable: (refusal) => `${where(refusal.path)}: a ${refusal.kind} has no JSON form`,
+    Opaque: (refusal) => `${where(refusal.path)}: a ${refusal.brand} has no JSON form`,
+    EncodeFailed: (refusal) => `the record could not be encoded: ${refusal.message}`,
+  }),
+);
 
 /**
  * A record `encodeSinkRecord` will not put on the wire, and why.

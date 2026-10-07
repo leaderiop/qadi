@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-056                                   |
-> | Revision       | 1.8                                            |
+> | Revision       | 1.9                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted — narrows ADR-QD-016                  |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.8 (2026-10-07): retention retains an entry of unknown age and refuses an impossible `now` or `maxAgeMs` (INV-QD-101, CCR-QD-186)<br>1.7 (2026-10-06): a persisted row is version-2 bytes only; a pre-0.10 (version-1) row is refused by `decodeAuditEntry` as `UnsupportedVersion` and migrated with 0.10.x (ADR-QD-096 amendment) (CCR-QD-182)<br>1.6 (2026-10-05): a persisted row is a closed union of wire versions, read back with `decodeAuditEntry`; `archiveVersion` unchanged (ADR-QD-096) (CCR-QD-180)<br>1.5 (2026-10-05): an audit row carries the encoded wire; `decodeAuditEntry` is the guarded reader (ADR-QD-095) (CCR-QD-179)<br>1.4 (2026-09-19): The no-tamper-evidence residual risk, previously distributed across `SequenceIntegrity.ts`/`AuditArchive.ts`/`DecommissioningChecklist.ts` doc comments only, recorded once under Consequences — Negative, alongside the previously-undocumented breaker-open drop window's own invisibility to the trail (AS-03/WD-07)<br>1.3 (2026-09-09): "a `resource` carrying a value with no safe durable representation" corrected — `policy`'s `HasCustom.params` is a second caller-supplied `unknown` a `SinkRecord` carries, and encoding now refuses on either (issue #104, CCR-QD-143)<br>1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
+> | Change History | 1.9 (2026-10-07): an encode refusal is witnessed by a log line naming its `evaluationId` (or `onRefused`) as well as the `encode_failed` counter (CCR-QD-193)<br>1.8 (2026-10-07): retention retains an entry of unknown age and refuses an impossible `now` or `maxAgeMs` (INV-QD-101, CCR-QD-186)<br>1.7 (2026-10-06): a persisted row is version-2 bytes only; a pre-0.10 (version-1) row is refused by `decodeAuditEntry` as `UnsupportedVersion` and migrated with 0.10.x (ADR-QD-096 amendment) (CCR-QD-182)<br>1.6 (2026-10-05): a persisted row is a closed union of wire versions, read back with `decodeAuditEntry`; `archiveVersion` unchanged (ADR-QD-096) (CCR-QD-180)<br>1.5 (2026-10-05): an audit row carries the encoded wire; `decodeAuditEntry` is the guarded reader (ADR-QD-095) (CCR-QD-179)<br>1.4 (2026-09-19): The no-tamper-evidence residual risk, previously distributed across `SequenceIntegrity.ts`/`AuditArchive.ts`/`DecommissioningChecklist.ts` doc comments only, recorded once under Consequences — Negative, alongside the previously-undocumented breaker-open drop window's own invisibility to the trail (AS-03/WD-07)<br>1.3 (2026-09-09): "a `resource` carrying a value with no safe durable representation" corrected — `policy`'s `HasCustom.params` is a second caller-supplied `unknown` a `SinkRecord` carries, and encoding now refuses on either (issue #104, CCR-QD-143)<br>1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
 
 ---
 
@@ -321,3 +321,17 @@ alone, and `decodeAuditEntry` refuses a pre-0.10 row as `UnsupportedVersion`
 is to re-encode such rows with 0.10.x (`decodeAuditEntry` then `encodeAuditEntry`
 from `@qadi/audit@0.10`) before upgrading a store's readers. `archiveVersion`
 stays `"1"`; an archive bundled before 0.10 is migrated entry by entry the same way.
+
+## Amendment (2026-10-07, CCR-QD-193)
+
+**An encode refusal is witnessed, not only counted.** The 2026-09-19 revision
+holds a breaker-open drop to "a log line and the counter"; an encode refusal met
+less. `AuditDecisionSinkLive` recorded `qadi_audit_writes_total{outcome="encode_failed"}`
+and nothing else, so a refused record left no row and no `evaluationId` anywhere.
+It now logs a warning naming the refusal, its path and the evaluation id, or calls
+`AuditDecisionSinkOptions.onRefused` with the `AuditEntryNotEncodable` (which
+carries `evaluationId`), and increments the counter either way. A hook that
+throws is logged and never fails the record or the decision (INV-QD-035). The
+wording, the annotations and the hook's containment are core's
+([ADR-QD-095](./095-sinkcodec-owns-both-directions.md)'s amendment of the same
+date); this package keeps its own error and its own message (ADR-QD-054).

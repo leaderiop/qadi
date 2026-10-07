@@ -235,6 +235,21 @@ const RULES = [
     raw: true,
   },
   {
+    id: "no-refusal-annotation-outside-core",
+    // A refused record's path and annotations are read once, in
+    // `packages/core/src/Errors.ts` (`encodeRefusalPath`,
+    // `encodeRefusalAnnotations`), and reported once
+    // (`reportEncodeRefusal`). Three adapters each rebuilt the same three
+    // keys and a `"path" in` check before ARCH-25, and the second copy arrived
+    // through review ("mirrors the stream route"). A plain rule, not a budget:
+    // zero exceptions outside the one exempted module. Test files are not
+    // scanned by non-`testScope` rules, so tests may assert the keys.
+    re: /"qadi\.(?:refusal|path)"|"path"\s+in\s/,
+    message:
+      'A refusal is read through @qadi/core (encodeRefusalAnnotations / encodeRefusalPath / reportEncodeRefusal), not by restating "qadi.refusal", "qadi.path" or a `"path" in` check.',
+    raw: true,
+  },
+  {
     id: "no-effect-either",
     re: /from\s+["']effect\/Either["']|\bEffect\.either\b/,
     message: "Use Effect.result + Result.isSuccess/isFailure, not Effect.either/effect/Either.",
@@ -252,6 +267,7 @@ const RULES = [
  * @type {Readonly<Record<string, ReadonlyArray<string>>>}
  */
 const EXEMPTIONS = {
+  "packages/core/src/Errors.ts": ["no-refusal-annotation-outside-core"],
   "packages/core/src/EvaluationId.ts": ["no-ambient-uuid"],
   // React Suspense is *defined* in terms of a thrown promise, so one has to
   // exist at that boundary. Confined to `settled.ts`, the only module that
