@@ -61,6 +61,30 @@ rather than silently no-opping. No e-signature default ships, not even a
 no-op one — `Qadi.enforce`'s existing fail-closed behavior on an unwired
 obligation is the safe default already.
 
+## What the pipeline reports
+
+Every record `record()` receives ends as exactly one outcome, and each outcome is
+reported once: `qadi_audit_writes_total` counts it (every record, including those
+the breaker refused), `qadi_audit_staging_total` counts what staging did, and the
+line below is logged with the record's `evaluationId` and nothing else from the
+entry. `AuditDecisionSinkOptions.onOutcome` receives the same outcome as a value
+(`AuditWriteOutcome`), with the encoded entry, so you can dead-letter a lost entry
+or record a gap marker yourself; `durabilityOf(outcome)` says whether it was
+`Trail`, `StagingOnly`, `Lost` or `Refused`.
+
+| Outcome | Where the entry is | `writes_total` | `staging_total` | Log |
+| ------- | ------------------ | -------------- | --------------- | --- |
+| `Refused` | nowhere (never encodable) | `encode_failed` | | `onRefused`, else a warning naming the refusal |
+| `Written` | the trail | `written` | `staged` (committed), `staged` + `commit_failed`, `failed`, or none | a warning only if the commit failed |
+| `WriteFailed`, unwired | **lost** | `write_failed` | none | warning: `audit entry dropped: trail write failed and no staging port wired` |
+| `WriteFailed`, staged | staging only | `write_failed` | `staged` | info: `audit entry not written: trail write failed; its staged copy is left for reconciliation` |
+| `WriteFailed`, stage failed | **lost** | `write_failed` | `failed` | warning: `audit entry dropped: trail write failed and staging failed` |
+| `Skipped`, unwired | **lost** | `skipped_open` | `skipped_open` | warning: `audit entry dropped: circuit breaker open and no staging port wired` |
+| `Skipped`, staged | staging only | `skipped_open` | `staged` | info: `audit entry not written: circuit breaker open; its staged copy is left for reconciliation` |
+| `Skipped`, stage failed | **lost** | `skipped_open` | `failed_open` | warning: `audit entry dropped: circuit breaker open and staging failed` |
+
+`qadi_audit_entries_lost_total{after, staging}` counts the four **lost** rows.
+
 ## Not tamper-evident (WD-07)
 
 **The audit trail this package produces is not cryptographically
