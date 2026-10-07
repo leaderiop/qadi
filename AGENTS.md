@@ -214,16 +214,17 @@ exactly one boundary but isn't part of a generic codec: `SubjectExtractionFailed
 hand-written wire-facing `Schema.TaggedStruct` mirror
 (`SubjectExtractionRefused` in `QadiHttpError.ts`) at the one place it's
 serialized — because nothing generic needs to decode it structurally the way
-`SinkCodec` or a typed HTTP client does for the eleven above. That's the test:
+`SinkCodec` or a typed HTTP client does for the classes above. That's the test:
 **does a codec need this error's shape, or does exactly one call site need to
 turn it into a response?** The former earns `Schema.TaggedError`; the latter
 stays `Data.TaggedError` plus its own mirror.
 
 Enforced by `SCHEMA_ERROR_BUDGET` in `scripts/check-house-style.mjs`, checked
-in both directions like `UNTRACED_BUDGET`: a thirteenth `Schema.TaggedError`
+in both directions like `UNTRACED_BUDGET`: another `Schema.TaggedError`
 class added to `packages/core/src/Errors.ts` without updating the table above
 and the budget together fails the gate, and so does the count silently
-dropping back to eleven.
+dropping back by one. The table's class names are checked against the
+declared classes too (`[schema-error-table]`), so a row cannot name the wrong class.
 
 Handling — use the **array form**, never `catchTags({...})`. (The installed
 `effect@4.0.0-rc.116` still ships `Effect.catchTags` with an object-form

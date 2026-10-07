@@ -237,7 +237,7 @@ const RULES = [
   {
     id: "no-refusal-annotation-outside-core",
     // A refused record's path and annotations are read once, in
-    // `packages/core/src/Errors.ts` (`encodeRefusalPath`,
+    // `packages/core/src/SinkWire.ts` (`encodeRefusalPath`,
     // `encodeRefusalAnnotations`), and reported once
     // (`reportEncodeRefusal`). Three adapters each rebuilt the same three
     // keys and a `"path" in` check before ARCH-25, and the second copy arrived
@@ -267,7 +267,7 @@ const RULES = [
  * @type {Readonly<Record<string, ReadonlyArray<string>>>}
  */
 const EXEMPTIONS = {
-  "packages/core/src/Errors.ts": ["no-refusal-annotation-outside-core"],
+  "packages/core/src/SinkWire.ts": ["no-refusal-annotation-outside-core"],
   "packages/core/src/EvaluationId.ts": ["no-ambient-uuid"],
   // React Suspense is *defined* in terms of a thrown promise, so one has to
   // exist at that boundary. Confined to `settled.ts`, the only module that
@@ -451,14 +451,15 @@ const ANY_TYPE = /\bany\b/g;
  * named exception — an error earns it when it is part of a codec (a
  * `SinkRecord` `SinkCodec.ts` must decode/encode structurally, or an
  * `@qadi/http` response body `httpApiStatus` annotates), not merely because
- * it happens to leave the process. All eleven current members live in
+ * it happens to leave the process. Every member lives in
  * `packages/core/src/Errors.ts` — see that file's own header doc comment and
  * AGENTS.md §4's table for which crosses which boundary. Same discipline
  * `SWITCH_BUDGET`/`HAS_CUSTOM_BUDGET`/`UNTRACED_BUDGET`/`ANY_BUDGET` enforce
- * for their own exceptions, checked in both directions: a twelfth
+ * for their own exceptions, checked in both directions: another
  * `Schema.TaggedError` class added without updating AGENTS.md §4's table and
  * this budget together fails the gate, and so does the count silently
- * dropping back down.
+ * dropping back down. The table's class names are checked against the
+ * declared classes by name, not only by count (`[schema-error-table]`).
  *
  * @type {Readonly<Record<string, number>>}
  */
@@ -591,8 +592,43 @@ const PORT_DOUBLE_BUDGET = {
   "packages/http/test/fixtures/everyHttpEnforcementFailure.ts": 5,
 };
 
-const PORT_ERROR_CONSTRUCTION =
-  /\bnew\s+(AttributeResolveError|RelationshipResolveError|DecisionHistoryUnavailable|CustomPredicateError|SignatureHistoryUnavailable)\s*\(/;
+/**
+ * The port-error class names, read from `ENFORCEMENT_ERROR_CLASSES`'s
+ * `"outage"` rows in `packages/core/src/Errors.ts` rather than restated here
+ * (ARCH-27). `packages/core/test/Ports.tst.ts` pins "a port's error tag" equal
+ * to the outage tags, so the text read here and the port registry name the
+ * same set. A parse that finds nothing fails the gate loudly: a renamed table
+ * must not leave a pattern that matches nothing.
+ *
+ * @returns {ReadonlyArray<string>}
+ */
+const readPortErrorClassNames = () => {
+  const file = "packages/core/src/Errors.ts";
+  const text = readFileSync(join(ROOT, file), "utf8").replace(/\r\n/g, "\n");
+  const start = text.indexOf("export const ENFORCEMENT_ERROR_CLASSES = {");
+  const end = start === -1 ? -1 : text.indexOf("} as const satisfies", start);
+  const names =
+    end === -1
+      ? []
+      : text
+          .slice(start, end)
+          .split("\n")
+          .filter((line) => !/^\s*\/\//.test(line))
+          .flatMap((line) => {
+            const m = /^\s*(\w+):\s*"outage",/.exec(line);
+            return m?.[1] === undefined ? [] : [m[1]];
+          });
+  if (names.length === 0) {
+    console.error(
+      `${file}  [port-error-list] no "outage" row found in ENFORCEMENT_ERROR_CLASSES. ` +
+        `PORT_DOUBLE_BUDGET reads the port-error class names from there; fix the parse in scripts/check-house-style.mjs.`,
+    );
+    process.exit(1);
+  }
+  return names;
+};
+
+const PORT_ERROR_CONSTRUCTION = new RegExp(`\\bnew\\s+(${readPortErrorClassNames().join("|")})\\s*\\(`);
 
 // This is not a narrow edge case: `import * as Effect from "effect/Effect"`
 // — AGENTS.md §1's own mandated import style, on line 1 of nearly every file
@@ -737,6 +773,8 @@ const anyLines = new Map();
 
 /** @type {Map<string, number[]>} */
 const schemaErrorLines = new Map();
+/** Names of the `Schema.TaggedError` classes found in src, for the AGENTS.md §4 table check. @type {Set<string>} */
+const schemaErrorNames = new Set();
 
 /** @type {Map<string, number[]>} */
 const decisionReadLines = new Map();
@@ -851,6 +889,8 @@ for (const file of sources) {
       const found = schemaErrorLines.get(rel) ?? [];
       found.push(index + 1);
       schemaErrorLines.set(rel, found);
+      const declared = /\bexport\s+class\s+(\w+)\s+extends\s+Schema\.TaggedError\b/.exec(line);
+      if (declared?.[1] !== undefined) schemaErrorNames.add(declared[1]);
     }
 
     // Library source only (`packages/*/src`): a test reads raw results on
@@ -1117,6 +1157,34 @@ for (const [rel, found] of schemaErrorLines) {
       `    Add it to SCHEMA_ERROR_BUDGET in scripts/check-house-style.mjs and AGENTS.md §4's table, ` +
       `naming which boundary it crosses — a conscious, reviewed opt-in, not a silent grep hit.`,
   );
+}
+
+// AGENTS.md §4's table is checked by name, not only by count: a row naming a
+// class that is not declared, or a declared class with no row, fails (ARCH-27).
+{
+  const agents = readFileSync(join(ROOT, "AGENTS.md"), "utf8").replace(/\r\n/g, "\n").split("\n");
+  const header = agents.findIndex((l) => /^\|\s*Class\s*\|\s*Crosses\s*\|/.test(l));
+  const listed = new Set();
+  if (header !== -1) {
+    for (let i = header + 2; i < agents.length && agents[i].startsWith("|"); i += 1) {
+      const m = /^\|\s*`(\w+)`/.exec(agents[i]);
+      if (m?.[1] !== undefined) listed.add(m[1]);
+    }
+  }
+  if (header === -1) {
+    failures += 1;
+    console.error("AGENTS.md  [schema-error-table] the §4 `| Class | Crosses |` table was not found.");
+  }
+  for (const name of listed) {
+    if (schemaErrorNames.has(name)) continue;
+    failures += 1;
+    console.error(`AGENTS.md  [schema-error-table] §4 lists ${name} but no Schema.TaggedError class ${name} is declared.`);
+  }
+  for (const name of schemaErrorNames) {
+    if (listed.has(name)) continue;
+    failures += 1;
+    console.error(`AGENTS.md  [schema-error-table] ${name} is a declared Schema.TaggedError class with no row in §4's table.`);
+  }
 }
 
 // ---------------------------------------------------------------------------

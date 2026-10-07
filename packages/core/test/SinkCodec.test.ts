@@ -23,8 +23,6 @@ import {
   AttributeResolveError,
   CustomPredicateError,
   DecisionHistoryUnavailable,
-  DecodeRefusal,
-  EncodeRefusal,
   ERROR_CODES,
   errorCode,
   MissingAction,
@@ -33,8 +31,8 @@ import {
   PolicyTooDeep,
   RelationshipResolveError,
   SignatureHistoryUnavailable,
-  WIRE_VERSIONS,
 } from "../src/Errors.ts";
+import { DecodeRefusal, EncodeRefusal, WIRE_VERSIONS } from "../src/SinkWire.ts";
 import type { EvaluationError } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";

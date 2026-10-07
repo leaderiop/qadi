@@ -2,8 +2,8 @@
  * Describes, once per enforcement-error tag, how `@qadi/http` answers it — and
  * derives every response, status and declared error list from that one table.
  *
- * `ENFORCEMENT_ERROR_WIRE` is keyed by the twelve tags this package can
- * answer: the eleven `EnforcementError` tags from `@qadi/core`, plus the
+ * `ENFORCEMENT_ERROR_WIRE` is keyed by every tag this package can
+ * answer: each `EnforcementError` tag from `@qadi/core`, plus the
  * package-local `SubjectExtractionFailed`. Each entry carries the tag's class
  * (read from `@qadi/core`'s `ENFORCEMENT_ERROR_CLASSES`, never chosen here), its
  * status (derived from that class through `HTTP_STATUS_BY_CLASS`, never chosen
@@ -25,7 +25,7 @@
  *
  * **The two routing shapes still disclose asymmetrically, and that asymmetry
  * is deliberate, not an oversight** (WZ-05). `toResponse` answers every one of
- * the eleven `EnforcementError` tags with `HttpServerResponse.empty()` — no
+ * the `EnforcementError` tags with `HttpServerResponse.empty()` — no
  * `_tag`, no fields, nothing a bare-`HttpRouter` caller can key off beyond the
  * status code — while `RequirePermission`'s `HttpApiMiddleware` path answers
  * with a real, `_tag`-carrying body for every one of them (redacted where a
@@ -35,7 +35,7 @@
  * inventing one nobody consumes type-safely. `SubjectExtractionFailed` is the
  * one exception on the bare route: it answers its tag-only JSON 502 there too
  * (see {@link subjectExtractionFailedResponse}). Giving the bare-router
- * surface a body for the other eleven remains a separate, not-yet-decided
+ * surface a body for the other tags remains a separate, not-yet-decided
  * change.
  */
 import * as Effect from "effect/Effect";
@@ -73,7 +73,7 @@ import type { SubjectExtractionFailed } from "./SubjectExtractor.ts";
  */
 export type HttpEnforcementFailure = EnforcementError | SubjectExtractionFailed;
 
-/** The twelve tags of {@link HttpEnforcementFailure}. */
+/** Every tag of {@link HttpEnforcementFailure}. */
 export type HttpEnforcementTag = HttpEnforcementFailure["_tag"];
 
 /**
@@ -174,7 +174,7 @@ const wire = <K extends HttpEnforcementTag, S extends Schema.Top & { readonly Ty
 };
 
 /**
- * The one description of how `@qadi/http` answers each of the twelve tags.
+ * The one description of how `@qadi/http` answers each tag in `HTTP_ENFORCEMENT_TAGS`.
  *
  * Split by whether the real class schema is safe to put on the wire, since
  * BS-01's audit finding: reusing the real class schema unmodified — the "class
@@ -318,7 +318,7 @@ export const UndischargedObligationRefused = ENFORCEMENT_ERROR_WIRE.Undischarged
  */
 export const SubjectExtractionRefused = ENFORCEMENT_ERROR_WIRE.SubjectExtractionFailed.schema;
 
-/** Views onto `ENFORCEMENT_ERROR_WIRE`: the nine tags the middleware lets propagate. */
+/** Views onto `ENFORCEMENT_ERROR_WIRE`: the tags the middleware lets propagate. */
 export const AttributeResolveErrorResponse = ENFORCEMENT_ERROR_WIRE.AttributeResolveError.schema;
 export const RelationshipResolveErrorResponse = ENFORCEMENT_ERROR_WIRE.RelationshipResolveError.schema;
 export const DecisionHistoryUnavailableResponse = ENFORCEMENT_ERROR_WIRE.DecisionHistoryUnavailable.schema;
@@ -366,8 +366,8 @@ export const projectHttpEnforcementFailure = (
 
 /**
  * Every tag this package answers, for `Effect.catchTag`'s array form (house
- * style §4 — never the object form): `@qadi/core`'s eleven plus
- * `SubjectExtractionFailed`.
+ * style §4 — never the object form): `@qadi/core`'s `ENFORCEMENT_ERROR_TAGS`
+ * plus `SubjectExtractionFailed`.
  */
 export const HTTP_ENFORCEMENT_TAGS = [...ENFORCEMENT_ERROR_TAGS, "SubjectExtractionFailed"] as const;
 

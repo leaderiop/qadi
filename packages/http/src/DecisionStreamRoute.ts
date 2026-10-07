@@ -238,7 +238,7 @@ export const decisionFrames = (
  * from "this feed is temporarily unavailable, retry." (GR-01/TS-01)
  *
  * This module used to carry its own copy of that same three-bucket
- * partition, independently matched over the same eleven tags `toResponse`
+ * partition, independently matched over the same `EnforcementError` tags `toResponse`
  * (`QadiHttpError.ts`) sorts to pick an HTTP status — two exhaustive matches
  * that could each compile cleanly while silently disagreeing with each other
  * on a moved or added tag. The classification then moved into `QadiHttpError.ts`,

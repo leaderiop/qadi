@@ -9,13 +9,13 @@ import { Decided, DecisionRecord } from "../src/DecisionRecord.ts";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { Allow } from "../src/Decision.ts";
 import { reportEncodeRefusal } from "../src/EncodeRefusalReport.ts";
+import { SinkRecordNotEncodable } from "../src/Errors.ts";
 import {
   describeEncodeRefusal,
   EncodeRefusal,
   encodeRefusalAnnotations,
   encodeRefusalPath,
-  SinkRecordNotEncodable,
-} from "../src/Errors.ts";
+} from "../src/SinkWire.ts";
 import { makeSubjectId } from "../src/Identity.ts";
 import * as P from "../src/Policy.ts";
 import { permission } from "../src/Permission.ts";

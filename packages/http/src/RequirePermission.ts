@@ -232,7 +232,7 @@ export const requiresPermission = (
  *
  * Derived from `QadiHttpError.ts`'s `ENFORCEMENT_ERROR_WIRE`, so a tag added
  * to `EnforcementError` reaches this list through that table's one `satisfies`
- * rather than a hand-maintained twelve-entry array (ARCH-04).
+ * rather than a hand-maintained array (ARCH-04).
  */
 const REQUIRE_PERMISSION_ERROR_SCHEMAS = HTTP_ENFORCEMENT_ERROR_SCHEMAS;
 
@@ -245,7 +245,7 @@ const REQUIRE_PERMISSION_ERROR_SCHEMAS = HTTP_ENFORCEMENT_ERROR_SCHEMAS;
  *
  * A generated `HttpApiClient` cannot know, per endpoint, which of these a
  * given call can actually reach — a `PublicEndpoint`-annotated endpoint never
- * reaches `guard` at all, so none of the twelve can occur there, yet this
+ * reaches `guard` at all, so none of those tags can occur there, yet this
  * union is what every guarded endpoint's static error type includes
  * regardless. That over-approximation is accepted, not fixed: narrowing per
  * endpoint would need a per-endpoint `clientError` attachment point
@@ -298,14 +298,14 @@ export type RequirePermissionClientError = ClientErrorOf<typeof REQUIRE_PERMISSI
  * way any other `Layer.effect` acquires a build-time dependency.
  *
  * **`error` declares every response this middleware can produce that isn't
- * the wrapped handler's own** (ADR-QD-072, H4). All twelve reach the declared
+ * the wrapped handler's own** (ADR-QD-072, H4). Every tag in `ENFORCEMENT_ERROR_WIRE` reaches the declared
  * union as their *projection*: `RequirePermissionLive` fails with
  * `projectHttpEnforcementFailure`'s redacted wire value, and
  * `HttpApiMiddleware`'s own response encoder produces the response and the
  * OpenAPI entry from the matching schema's `httpApiStatus` annotation, not
  * from a hand-built table. The list is `QadiHttpError.ts`'s
  * `HTTP_ENFORCEMENT_ERROR_SCHEMAS`, derived from `ENFORCEMENT_ERROR_WIRE`, so
- * a schema omitted for any of the twelve tags is a compile error — before
+ * a schema omitted for any of those tags is a compile error — before
  * ADR-QD-081 the three hand-caught tags (`AccessDenied`,
  * `UndischargedObligation`, `SubjectExtractionFailed`) never reached this
  * union and could be dropped from the list with only a runtime failure to
@@ -315,7 +315,7 @@ export type RequirePermissionClientError = ClientErrorOf<typeof REQUIRE_PERMISSI
  * no-content schema does exactly that).
  *
  * **`requiredForClient: true` plus `clientError: RequirePermissionClientError`**
- * (ADR-QD-075) put the same twelve schemas into a generated `HttpApiClient`
+ * (ADR-QD-075) put the same schemas into a generated `HttpApiClient`
  * call's *static* error type, automatically, for every endpoint this
  * middleware guards — see {@link RequirePermissionClientError}'s own doc
  * comment for what that does and does not fix. Building such a client
@@ -408,7 +408,7 @@ export const RequirePermissionLive: Layer.Layer<
         // what it does and does not log (never the full `trace`).
         Effect.tapErrorTag(ENFORCEMENT_DENIAL_TAGS, logDenial),
         Effect.tapErrorTag("SubjectExtractionFailed", logSubjectExtractionFailed),
-        // One projection for all twelve tags (ARCH-04, ADR-QD-081). The tag
+        // One projection for every tag (ARCH-04, ADR-QD-081). The tag
         // list is `QadiHttpError.ts`'s, so a tag added to `EnforcementError`
         // cannot reach `HttpApiMiddleware`'s encoder as an undeclared failure.
         Effect.catchTag(HTTP_ENFORCEMENT_TAGS, (error) =>

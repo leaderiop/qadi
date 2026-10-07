@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-902                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-10-07): D-09-e gains a third reporter: the audit pipeline logs or calls `onRefused`; core owns the path, the annotations, the sentence and the hook containment (CCR-QD-193)<br>1.1 (2026-10-07): the inbound side refuses a non-finite `at` and a non-integer `sequenceNumber` (CCR-QD-186) |
+> | Change History | 1.3 (2026-10-07): the refusal vocabulary and the three readings of an `EncodeRefusal` move to the leaf `SinkWire.ts` (ARCH-27, CCR-QD-194)<br>1.2 (2026-10-07): D-09-e gains a third reporter: the audit pipeline logs or calls `onRefused`; core owns the path, the annotations, the sentence and the hook containment (CCR-QD-193)<br>1.1 (2026-10-07): the inbound side refuses a non-finite `at` and a non-integer `sequenceNumber` (CCR-QD-186) |
 
 ---
 
@@ -193,3 +193,14 @@ wire; `decodeAuditEntry` is the guarded reader) and
 [BEH-QD-250](../behaviors/33-audit-pipeline.md),
 [BEH-QD-311](../behaviors/26-decision-stream.md#beh-qd-311-one-record-never-ends-the-feed-and-a-refused-one-is-reported),
 [BEH-QD-312](../behaviors/33-audit-pipeline.md#beh-qd-312-a-stored-row-is-read-back-through-a-guard).
+
+> **Amended 2026-10-07 (CCR-QD-194, ARCH-27).** D-09-b's reason for declaring the
+> refusal types in `Errors.ts` ("which cannot import `SinkCodec.ts` without a
+> cycle") still holds, but it did not need the vocabulary to live there. `EncodeRefusal`,
+> `DecodeRefusal`, `OpaqueKind`, `UnrepresentableKind`, `WirePath`, `SinkRecordTag`,
+> `WireVersion`, `WIRE_VERSIONS` and the three pure readings of an `EncodeRefusal`
+> (`encodeRefusalPath`, `encodeRefusalAnnotations`, `describeEncodeRefusal`) are
+> now declared in the leaf `SinkWire.ts`, which imports only `effect`, so both
+> `Errors.ts` and `SinkCodec.ts` import it (ADR-QD-037, `pnpm circular` clean).
+> `SinkRecordNotEncodable` and `SinkRecordNotDecodable` stay in `Errors.ts` with
+> the rest of `QadiError`; the barrel exports every moved name, so no export changed.

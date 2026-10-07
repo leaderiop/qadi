@@ -20,14 +20,13 @@ import type {
   EnforcementErrorTagOf,
 } from "../src/Errors.ts";
 import type { AccessDenied, UndischargedObligation } from "../src/Errors.ts";
-import type { EncodeRefusal, EncodeRefusalAnnotations } from "../src/Errors.ts";
-import { encodeRefusalAnnotations } from "../src/Errors.ts";
+import type { EncodeRefusal, EncodeRefusalAnnotations, SinkRecordTag } from "../src/SinkWire.ts";
+import { encodeRefusalAnnotations } from "../src/SinkWire.ts";
 import type {
   ERROR_CODES,
   QadiError,
   SinkRecordNotDecodable,
   SinkRecordNotEncodable,
-  SinkRecordTag,
 } from "../src/Errors.ts";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { ENFORCEMENT_DENIAL_TAGS, ENFORCEMENT_ERROR_CLASSES, ENFORCEMENT_ERROR_TAGS } from "../src/Errors.ts";

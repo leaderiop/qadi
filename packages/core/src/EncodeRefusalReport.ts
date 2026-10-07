@@ -5,12 +5,12 @@
  * Each adapter keeps its own message and its own hook (ADR-QD-095 D-09-e); this
  * owns the rest: the annotations ({@link encodeRefusalAnnotations}), the choice
  * between the hook and the log, and the containment of a hook that throws. It
- * lives beside, not in, `Errors.ts` because `Errors.ts` stays free of `Effect`
+ * lives beside, not in, `SinkWire.ts` because that leaf stays free of `Effect`
  * (ADR-QD-037).
  */
 import * as Effect from "effect/Effect";
-import { encodeRefusalAnnotations } from "./Errors.ts";
-import type { EncodeRefusal } from "./Errors.ts";
+import { encodeRefusalAnnotations } from "./SinkWire.ts";
+import type { EncodeRefusal } from "./SinkWire.ts";
 
 /**
  * Calls `options.onRefused` once, or, with none, logs `options.message` as a

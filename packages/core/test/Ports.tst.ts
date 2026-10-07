@@ -12,7 +12,7 @@ import { attributeResolverFromRecord } from "../src/AttributeResolver.ts";
 import type { CurrentSubject } from "../src/CurrentSubject.ts";
 import type { CustomPredicate, CustomPredicateShape } from "../src/CustomPredicate.ts";
 import type { ActedQuery, DecisionHistory } from "../src/DecisionHistory.ts";
-import type { CustomPredicateError } from "../src/Errors.ts";
+import type { CustomPredicateError, EnforcementErrorTagOf } from "../src/Errors.ts";
 import type { EvaluationServices, StandingEvaluationServices } from "../src/Evaluate.ts";
 import type { EvaluationId } from "../src/EvaluationId.ts";
 import type { PortName } from "../src/PortMetrics.ts";
@@ -42,6 +42,16 @@ test("a description's parts are recoverable from its type", () => {
   expect<AnswerOf<PortTypes["RelationshipResolver"]>>().type.toBe<RelatedResult>();
   expect<ErrorOf<PortTypes["CustomPredicate"]>>().type.toBe<CustomPredicateError>();
   expect<ArgsOf<PortTypes["DecisionHistory"]>>().type.toBe<[query: ActedQuery]>();
+});
+
+// `scripts/check-house-style.mjs` reads the port-error class names from
+// `ENFORCEMENT_ERROR_CLASSES`'s "outage" rows to build `PORT_DOUBLE_BUDGET`'s
+// pattern (ARCH-27). That is honest only while "outage" and "a port's error"
+// name the same set, so this pins it in both directions.
+type PortErrorTag = { readonly [K in PortName]: ErrorOf<PortTypes[K]>["_tag"] }[PortName];
+
+test("a port's error tag is exactly an outage tag, so the gate can read the list from the classes (ARCH-27)", () => {
+  expect<PortErrorTag>().type.toBe<EnforcementErrorTagOf<"outage">>();
 });
 
 test("an override must provide the service of the slot it names", () => {
