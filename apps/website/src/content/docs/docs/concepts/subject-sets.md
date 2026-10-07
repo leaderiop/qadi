@@ -117,10 +117,15 @@ const allowed: Effect.Effect<FilteredSubjects, never, SubjectSetServices> = filt
 
 `decideSubjectsStream`/`filterSubjectsStream` are the streamed siblings, for
 a review too large to hold as an array — a full tenant's user base, say,
-rather than a handful of sharing-dialog candidates. Both stay sequential by
-default, for the same reason the array forms do: multiplying a resolver
-store's load by the batch size isn't a default this library chooses for a
-caller.
+rather than a handful of sharing-dialog candidates. Like the array forms
+they report a broken lookup per subject and carry on: `decideSubjectsStream`
+emits a `SubjectOutcome` (`SubjectDecided` or `SubjectFailed`) for each subject,
+and `filterSubjectsStream` emits `SubjectAllowed` for those who qualify and
+`SubjectFailed` for those it could not review. Both stay sequential by default,
+for the same reason the array forms do: multiplying a resolver store's load by
+the batch size isn't a default this library chooses for a caller. A
+`concurrency` option reaches each subject's own `allOf`/`anyOf`/`rules`; it
+never evaluates subjects concurrently.
 
 For the full ordering and deduplication guarantees — results preserve input
 order and are never deduplicated, since a review reads its answers beside

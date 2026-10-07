@@ -61,6 +61,15 @@ export const decideSubjects: (
 > the ambient-subject exclusion, "reports rather than enforces," derivation
 > from `decideSubjects` — changed.
 
+> **Amended 2026-10-07 (CCR-QD-187).** The streamed siblings follow the array
+> form. `decideSubjectsStream` emits a `SubjectOutcome` (`SubjectDecided` or
+> `SubjectFailed`) per subject and no longer fails with `EvaluationError`;
+> `filterSubjectsStream` emits `SubjectAllowed` and `SubjectFailed` (a denied
+> subject is absent, a failed one never is). All three forms evaluate through
+> `decideSubject`, one step that returns the outcome as a value. A review
+> query reports (ADR-QD-019), so isolating a failing element is right here and
+> would be wrong for `filter`, which enforces.
+
 Each element is evaluated under `Effect.provideService(…, CurrentSubject, subject)`,
 which **discharges** the requirement. The batch entry points are therefore the
 only ones in the library that do not ask for a current subject, and saying

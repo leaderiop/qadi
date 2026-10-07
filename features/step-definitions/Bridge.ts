@@ -8,6 +8,7 @@
 import * as Effect from "effect/Effect";
 import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
+import * as Stream from "effect/Stream";
 import {
   customPredicateFromRecord,
   decideSubjects,
@@ -16,6 +17,7 @@ import {
   evaluatePredicate,
   explain,
   filterSubjects,
+  filterSubjectsStream,
   fromJson,
   isAllowed,
   makeSubject,
@@ -164,6 +166,38 @@ export const runSubjectSet = Effect.fn("features.runSubjectSet")(function* (poli
   const answer = kept.subjects.map((s) => s.id);
   const failedCandidates = reviewed.failures.map((f) => f.subject.id);
   yield* Ref.update(state, (s) => ({ ...s, review, answer, failedCandidates }));
+});
+
+/**
+ * The streamed review: `filterSubjectsStream` over the same candidates and the
+ * same scripted attribute store as {@link runSubjectSet}. `answer` is the
+ * allowed subjects and `failedCandidates` the ones whose lookup failed — the
+ * stream reports a failure per element and carries on, as the array form does
+ * (BEH-QD-105).
+ */
+export const runSubjectSetStream = Effect.fn("features.runSubjectSetStream")(function* (
+  policy: Policy,
+) {
+  const { state } = yield* World;
+  const w = yield* Ref.get(state);
+
+  const options: EvaluateOptions = w.resource === undefined ? {} : { resource: w.resource };
+  const subjects = w.candidates.map((c) =>
+    makeSubject({ id: c.id, roles: c.roles, permissions: c.permissions }),
+  );
+  const attributeResolver = scriptedPort(attributeResolverPort, (candidateId, attribute) =>
+    w.brokenCandidates.includes(candidateId)
+      ? PortReply.fail("down")
+      : PortReply.answer(w.resolvedAttributes[attribute]),
+  ).layer;
+
+  const outcomes = yield* Stream.runCollect(
+    filterSubjectsStream(policy, Stream.fromIterable(subjects), options),
+  ).pipe(Effect.provide(qadiReviewLayer({ ports: { AttributeResolver: attributeResolver } })));
+
+  const answer = outcomes.filter((o) => o._tag === "SubjectAllowed").map((o) => o.subject.id);
+  const failedCandidates = outcomes.filter((o) => o._tag === "SubjectFailed").map((o) => o.subject.id);
+  yield* Ref.update(state, (st) => ({ ...st, answer, failedCandidates }));
 });
 
 /**

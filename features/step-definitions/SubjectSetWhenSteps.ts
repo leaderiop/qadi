@@ -9,7 +9,7 @@ import {
   obliged,
   subjectId,
 } from "@qadi/core";
-import { runSubjectSet } from "./Bridge.ts";
+import { runSubjectSet, runSubjectSetStream } from "./Bridge.ts";
 import { World } from "./SharedWorld.ts";
 
 const logAccess = obligation("log-access", { channel: "audit" });
@@ -31,6 +31,13 @@ export const subjectSetWhenSteps = defineSteps<World>(({ When }) => {
     "it is asked who has attribute {string} of at least {int}",
     function* (name: string, value: number) {
       yield* runSubjectSet(hasAttribute(name, gte(value)));
+    },
+  );
+
+  When(
+    "it is asked as a stream who has attribute {string} of at least {int}",
+    function* (name: string, value: number) {
+      yield* runSubjectSetStream(hasAttribute(name, gte(value)));
     },
   );
 
