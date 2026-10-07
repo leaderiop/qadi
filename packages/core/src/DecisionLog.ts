@@ -34,6 +34,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as PubSub from "effect/PubSub";
+import * as Schema from "effect/Schema";
 import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 import { stampRecord, storedRecordOrder } from "./DecisionRecord.ts";
@@ -98,6 +99,36 @@ export interface DecisionLogEntries {
   readonly backlog: ReadonlyArray<LogEntry>;
   readonly live: Stream.Stream<LogEntry>;
 }
+
+/**
+ * The events a decision log is served as: `backlog` frames, one `synced`, then
+ * `message` frames, in protocol order (ADR-QD-097).
+ *
+ * Declared here, beside {@link LogCursor}, because the writer (`@qadi/http`'s
+ * `/__decisions` route) and the reader (`@qadi/devtools`' `sourceFromEventSource`)
+ * share only this package (ADR-QD-047). Each used to declare its own copy, so a
+ * rename compiled on both sides and was caught only by the acceptance scenarios
+ * (ARCH-28). A closed union: a reader registers one listener per name.
+ */
+export const DecisionStreamEvent = Schema.Literals(["backlog", "synced", "message"]);
+
+export type DecisionStreamEvent = typeof DecisionStreamEvent.Type;
+
+/** The events that carry a stored record: every one but `synced`. */
+export type DecisionRecordEvent = Exclude<DecisionStreamEvent, "synced">;
+
+/**
+ * The `synced` frame's data: how many `backlog` frames preceded it.
+ *
+ * Its own schema so a reader can decode it as untrusted input. The count is a
+ * non-negative integer: it is the backlog frames actually sent, so `-1`, `1.5`
+ * and `NaN` are refused rather than accepted (ARCH-28 D-28-d).
+ */
+export const DecisionStreamSynced = Schema.Struct({
+  backlog: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+});
+
+export type DecisionStreamSynced = typeof DecisionStreamSynced.Type;
 
 /** A cursor as text: `<epoch>.<seq>`, both non-negative integers. */
 export const formatLogCursor = (cursor: LogCursor): string => `${cursor.epoch}.${cursor.seq}`;

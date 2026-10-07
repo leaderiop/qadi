@@ -21,9 +21,9 @@ import * as Logger from "effect/Logger";
 import * as References from "effect/References";
 import * as Stream from "effect/Stream";
 import { encodeSinkRecordString, encodeStoredRecordString, makeDecisionLog, MAX_DECODE_DEPTH } from "@qadi/core";
+import { DecisionStreamEvent } from "@qadi/core";
 import type { StoredRecord } from "@qadi/core";
 import {
-  type DecisionEventName,
   type DecisionEventSource,
   type MalformedReason,
   mergeSources,
@@ -51,11 +51,11 @@ import { decisionRecord, obligationRecord } from "../helpers.ts";
  * (ADR-QD-097), so the helpers below that model a server queue one first.
  */
 const fakeEventSource = () => {
-  const handlers = new Map<DecisionEventName, (data: string) => void>();
+  const handlers = new Map<DecisionStreamEvent, (data: string) => void>();
   let onError: (() => void) | undefined;
   let closed = false;
   let failFirst = false;
-  const pending: Array<{ readonly event: DecisionEventName; readonly data: string }> = [];
+  const pending: Array<{ readonly event: DecisionStreamEvent; readonly data: string }> = [];
 
   const flush = () => {
     if (handlers.size < 3 || onError === undefined) return;
@@ -83,7 +83,7 @@ const fakeEventSource = () => {
     /** Queues `message` frames — what a server sends live, after its prelude. */
     queue: (frames: ReadonlyArray<string>) => pending.push(...frames.map((data) => ({ event: "message" as const, data }))),
     /** Queues one frame of any event. */
-    queueEvent: (event: DecisionEventName, data: string) => pending.push({ event, data }),
+    queueEvent: (event: DecisionStreamEvent, data: string) => pending.push({ event, data }),
     queueFailure: () => {
       failFirst = true;
     },
@@ -740,7 +740,7 @@ describe("the default EventSource", () => {
       yield* liveOf(source, 1);
 
       const instance = instances[0];
-      assert.deepStrictEqual(instance?.registered, ["message", "backlog", "synced", "error"]);
+      assert.deepStrictEqual(instance?.registered, [...DecisionStreamEvent.literals, "error"]);
       assert.strictEqual(instance?.options?.withCredentials, false);
       assert.strictEqual(disconnects, 1);
     }));

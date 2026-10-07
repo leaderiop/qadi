@@ -9,7 +9,7 @@
  * 1. one `event: backlog` frame per record the log retained, oldest first in
  *    `storedRecordOrder`;
  * 2. one `event: synced` frame whose data is `{"backlog":n}`
- *    ({@link DecisionStreamSynced}), `n` the backlog frames actually sent —
+ *    (`@qadi/core`'s `DecisionStreamSynced`), `n` the backlog frames actually sent —
  *    sent even when `n` is 0, so a reader can tell "no history" from "an older
  *    server that sends none";
  * 3. a default (`message`) frame per record made after that.
@@ -87,6 +87,8 @@ import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type {
   DecisionLogReader,
+  DecisionRecordEvent,
+  DecisionStreamEvent,
   EnforcementErrorClass,
   LogCursor,
   LogEntry,
@@ -101,6 +103,7 @@ import {
   assert,
   classifyEnforcementError,
   CurrentSubject,
+  DecisionStreamSynced,
   encodeStoredRecordString,
   formatLogCursor,
   parseLogCursor,
@@ -109,23 +112,6 @@ import {
 import { addGuardedRoute } from "./PermissionRegistry.ts";
 import { NO_RESOURCE } from "./RequirePermission.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
-
-/**
- * The SSE event a stored record is framed as: `backlog` for a record the log
- * already held when the reader connected, `message` (SSE's default) for one
- * made after. A closed union — a reader branches on it.
- */
-export type DecisionFrameEvent = "backlog" | "message";
-
-/**
- * The `synced` frame's data: how many `backlog` frames preceded it.
- *
- * Its own schema rather than an ad hoc object, so a reader can decode it as
- * untrusted input like any other frame.
- */
-export const DecisionStreamSynced = Schema.Struct({ backlog: Schema.Number });
-
-export type DecisionStreamSynced = typeof DecisionStreamSynced.Type;
 
 /**
  * One stored record as an SSE frame of the given event — `event: backlog` /
@@ -153,7 +139,7 @@ export type DecisionStreamSynced = typeof DecisionStreamSynced.Type;
  * directly against a plain record.
  */
 export const frame =
-  (event: DecisionFrameEvent, cursor?: LogCursor): Filter.Filter<StoredRecord, string, SinkRecordNotEncodable> =>
+  (event: DecisionRecordEvent, cursor?: LogCursor): Filter.Filter<StoredRecord, string, SinkRecordNotEncodable> =>
   (stored) =>
     Result.map(encodeStoredRecordString(stored), (data) =>
       Sse.encoder.write({
@@ -168,7 +154,7 @@ export const frame =
 export const syncedFrame = (backlog: number): string =>
   Sse.encoder.write({
     _tag: "Event",
-    event: "synced",
+    event: "synced" satisfies DecisionStreamEvent,
     id: undefined,
     data: JSON.stringify(Schema.encodeSync(DecisionStreamSynced)({ backlog })),
   });
@@ -208,7 +194,7 @@ export const decisionFrames = (
 ): Stream.Stream<string> => {
   const onRefused = options?.onRefused;
   const framed =
-    (event: DecisionFrameEvent) =>
+    (event: DecisionRecordEvent) =>
     (entry: LogEntry): Effect.Effect<Result.Result<string, SinkRecordNotEncodable>> =>
       Result.match(frame(event, entry.cursor)(entry.record), {
         onSuccess: (data) => Effect.succeed(Result.succeed(data)),

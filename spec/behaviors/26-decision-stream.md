@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-26                                    |
-> | Revision       | 1.8                                            |
+> | Revision       | 1.9                                            |
 > | Effective Date | 2026-10-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.8 (2026-10-07): BEH-QD-311 and BEH-QD-315 — an `onRefused` that throws is reported and ends neither the feed nor the backlog response; the report is core's `reportEncodeRefusal` (CCR-QD-193)<br>1.7 (2026-10-06): BEH-QD-314 — only an envelope is read: `decodeStoredRecord` takes no options (`legacyEnvironment` removed, as scheduled), a bare record is refused as `Malformed`, and an absent backlog no longer means an older server (ADR-QD-097 amendment, CCR-QD-182)<br>1.6 (2026-10-05): ARCH-11 — BEH-QD-201 rewritten for the decision log's live half; BEH-QD-202 takes a `DecisionLogReader`; BEH-QD-311's frame carries the stored-record envelope; BEH-QD-314 (the backlog travels on the stream, every frame names its producer), BEH-QD-315 (`decisionBacklogRoute`) and BEH-QD-316 (resume on reconnect) added (ADR-QD-097, CCR-QD-181)<br>1.5 (2026-10-05): BEH-QD-201 — the stale `publishUnsafe` sentence corrected to what the code does (`publish`, and why) (CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-311 — a frame's data is wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-311 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.9 (2026-10-07): BEH-QD-311 and BEH-QD-314 — the event names and the `synced` payload are `@qadi/core`'s `DecisionStreamEvent`, `DecisionRecordEvent` and `DecisionStreamSynced`, and `DecisionStreamSynced` refuses a non-count (CCR-QD-195)<br>1.8 (2026-10-07): BEH-QD-311 and BEH-QD-315 — an `onRefused` that throws is reported and ends neither the feed nor the backlog response; the report is core's `reportEncodeRefusal` (CCR-QD-193)<br>1.7 (2026-10-06): BEH-QD-314 — only an envelope is read: `decodeStoredRecord` takes no options (`legacyEnvironment` removed, as scheduled), a bare record is refused as `Malformed`, and an absent backlog no longer means an older server (ADR-QD-097 amendment, CCR-QD-182)<br>1.6 (2026-10-05): ARCH-11 — BEH-QD-201 rewritten for the decision log's live half; BEH-QD-202 takes a `DecisionLogReader`; BEH-QD-311's frame carries the stored-record envelope; BEH-QD-314 (the backlog travels on the stream, every frame names its producer), BEH-QD-315 (`decisionBacklogRoute`) and BEH-QD-316 (resume on reconnect) added (ADR-QD-097, CCR-QD-181)<br>1.5 (2026-10-05): BEH-QD-201 — the stale `publishUnsafe` sentence corrected to what the code does (`publish`, and why) (CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-311 — a frame's data is wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-311 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 _Previous: [25 — Inspection](./25-inspection.md)_
 
@@ -256,15 +256,17 @@ load for a deployment with no revocation source to notice. See
 > **Invariant:** [INV-QD-097](../invariants.md#inv-qd-097-the-record-codec-is-total)
 
 ```ts
-export type DecisionFrameEvent = "backlog" | "message";
 export const frame: (
-  event: DecisionFrameEvent,
+  event: DecisionRecordEvent,
   cursor?: LogCursor,
 ) => Filter<StoredRecord, string, SinkRecordNotEncodable>;
 export const decisionFrames: (
   read: DecisionLogEntries,
   options?: Pick<DecisionStreamOptions, "onRefused">,
 ) => Stream<string>;
+
+// @qadi/core
+export type DecisionRecordEvent = "backlog" | "message";
 ```
 
 ```
@@ -309,10 +311,11 @@ while looking healthy is the defect, not the drop.
 > **Invariant:** [INV-QD-100](../invariants.md#inv-qd-100-a-log-reader-sees-every-retained-record-exactly-once)
 
 ```ts
-export const DecisionStreamSynced: Schema.Struct<{ backlog: Schema.Number }>;
 export const syncedFrame: (backlog: number) => string;
 
 // @qadi/core
+export const DecisionStreamEvent: Schema.Literals<readonly ["backlog", "synced", "message"]>;
+export const DecisionStreamSynced: Schema.Struct<{ backlog: Schema.Int }>; // a non-negative integer
 export const StoredRecordJson: Schema.Struct<{ environment: Schema.String; record: typeof SinkRecordJson }>;
 export const encodeStoredRecord: (stored: StoredRecord) => Result<StoredRecordJson, SinkRecordNotEncodable>;
 export const decodeStoredRecord: (input: unknown) => Result<StoredRecord, SinkRecordNotDecodable>;
@@ -326,6 +329,10 @@ REQUIREMENT: Each connection MUST make one read of the log and send, in order:
              n is 0; then one default (`message`) frame per record made after.
 REQUIREMENT: No record the log retained when the read was taken, or made
              after, MAY be missing from the connection or sent on it twice.
+REQUIREMENT: The event names and the `synced` payload MUST be `@qadi/core`'s
+             `DecisionStreamEvent` and `DecisionStreamSynced`; a writer or
+             reader MUST NOT declare its own. `DecisionStreamSynced` MUST
+             refuse a `backlog` that is not a non-negative integer.
 ```
 
 Before this, a reader got the past from one place (a ring, over a separate

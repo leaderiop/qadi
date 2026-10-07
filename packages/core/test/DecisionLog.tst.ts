@@ -6,7 +6,13 @@
 import { expect, test } from "tstyche";
 import type * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
-import type { DecisionLog, DecisionLogRead, DecisionLogReader } from "../src/DecisionLog.ts";
+import type {
+  DecisionLog,
+  DecisionLogRead,
+  DecisionLogReader,
+  DecisionRecordEvent,
+  DecisionStreamEvent,
+} from "../src/DecisionLog.ts";
 import { makeDecisionLog } from "../src/DecisionLog.ts";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
 
@@ -28,4 +34,9 @@ test("ingest, snapshot and clear cannot fail and need nothing", () => {
 test("makeDecisionLog requires an environment and returns an Effect of a log", () => {
   expect(makeDecisionLog({ environment: "Server" })).type.toBe<Effect.Effect<DecisionLog>>();
   expect(makeDecisionLog).type.not.toBeCallableWith({ capacity: 10 });
+});
+
+test("the stream's events are a closed union, and a record carries all but synced", () => {
+  expect<DecisionStreamEvent>().type.toBe<"backlog" | "synced" | "message">();
+  expect<DecisionRecordEvent>().type.toBe<"backlog" | "message">();
 });

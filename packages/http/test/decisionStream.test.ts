@@ -38,6 +38,7 @@ import {
   attributeResolverPort,
   stampRecord,
   decodeStoredRecordString,
+  DecisionStreamSynced,
 } from "@qadi/core";
 import type { AuthSubject, DecisionLogReader, SinkRecord, SinkRecordNotEncodable, StoredRecord, Trace } from "@qadi/core";
 import * as Effect from "effect/Effect";
@@ -57,7 +58,6 @@ import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import {
   decisionFrames,
   decisionStreamRoute,
-  DecisionStreamSynced,
   frame,
   reauthCheck,
   syncedFrame,

@@ -26,7 +26,7 @@ import * as Result from "effect/Result";
 import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 import type { DecodeRefusal, StoredRecord } from "@qadi/core";
-import { decodeStoredRecordString, storedRecordOrder } from "@qadi/core";
+import { DecisionStreamEvent, decodeStoredRecordString, storedRecordOrder } from "@qadi/core";
 
 /** What one `read` of a source hands its reader. */
 export interface SourceRead {
@@ -71,13 +71,6 @@ export const sourceFromRecords = (records: ReadonlyArray<StoredRecord>): Source 
 });
 
 /**
- * The SSE events `/__decisions` sends (ADR-QD-097): `backlog` frames, one
- * `synced`, then `message` frames. A closed union — the adapter registers one
- * listener per name.
- */
-export type DecisionEventName = "backlog" | "synced" | "message";
-
-/**
  * The part of `EventSource` this module uses.
  *
  * A structural subset rather than the DOM type, so the SSE adapter can be
@@ -87,14 +80,14 @@ export type DecisionEventName = "backlog" | "synced" | "message";
  * backlog-and-merge path is exactly what a *server-side* aggregator would run.
  */
 export interface DecisionEventSource {
-  readonly onEvent: (event: DecisionEventName, handler: (data: string) => void) => void;
+  readonly onEvent: (event: DecisionStreamEvent, handler: (data: string) => void) => void;
   readonly onError: (handler: () => void) => void;
   readonly close: () => void;
 }
 
 /** One frame as it arrived, before anything decided what it is. */
 interface Frame {
-  readonly event: DecisionEventName;
+  readonly event: DecisionStreamEvent;
   readonly data: string;
 }
 
@@ -174,7 +167,7 @@ export const sourceFromEventSource = (options: {
       yield* Effect.acquireRelease(
         Effect.sync(() => {
           const source = open(options.url, withCredentials);
-          for (const event of DECISION_EVENTS) {
+          for (const event of DecisionStreamEvent.literals) {
             source.onEvent(event, (data) => {
               Queue.offerUnsafe(frames, { event, data });
             });
@@ -225,8 +218,6 @@ export const sourceFromEventSource = (options: {
     }),
   };
 };
-
-const DECISION_EVENTS: ReadonlyArray<DecisionEventName> = ["message", "backlog", "synced"];
 
 /**
  * Several sources as one.

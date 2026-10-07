@@ -5,14 +5,26 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-904                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-10-05                                     |
-> | Status         | Accepted — amends ADR-QD-045, ADR-QD-046, ADR-QD-047, ADR-QD-050; amended 2026-10-06 (bare frames refused) |
+> | Status         | Accepted — amends ADR-QD-045, ADR-QD-046, ADR-QD-047, ADR-QD-050; amended 2026-10-06 (bare frames refused); amended 2026-10-07 (the protocol words are core's) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-06): amended — 0.11.0 reads only `{ environment, record }` envelopes: `legacyEnvironment` and `DecodeStoredRecordOptions` removed as D-11-e scheduled, and `sourceFromEventSource` no longer treats a `message` before `synced` as an older server (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-11, CCR-QD-181) |
+> | Change History | 1.2 (2026-10-07): amended — the protocol words D-11-f names are declared in `@qadi/core` (ARCH-28, CCR-QD-195)<br>1.1 (2026-10-06): amended — 0.11.0 reads only `{ environment, record }` envelopes: `legacyEnvironment` and `DecodeStoredRecordOptions` removed as D-11-e scheduled, and `sourceFromEventSource` no longer treats a `message` before `synced` as an older server (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-11, CCR-QD-181) |
 
 ---
+
+> **Amendment (2026-10-07, the protocol words are core's — ARCH-28, CCR-QD-195):**
+> the words D-11-f names — `backlog`, `synced`, `message` and the `{"backlog":n}`
+> payload — are declared in `@qadi/core`'s `DecisionLog.ts` beside `LogCursor`, as
+> `DecisionStreamEvent`, `DecisionRecordEvent` (the two that carry a record) and
+> `DecisionStreamSynced`. `@qadi/http` writes them and `@qadi/devtools` reads them,
+> so a rename is a compile error in both; before, each declared a copy and only two
+> acceptance scenarios noticed a mismatch. The SSE framing stays in `@qadi/http`.
+> `DecisionStreamSynced`'s count is now a non-negative integer (no decoder
+> existed to break). `@qadi/http`'s `DecisionFrameEvent` and `DecisionStreamSynced`
+> and `@qadi/devtools`' `DecisionEventName` are removed without aliases, as
+> ADR-QD-081 D-04-d did for moved names. The bytes on the wire are unchanged.
 
 > **Amendment (2026-10-06, envelopes only — 0.11.0, CCR-QD-182):** D-11-e's
 > bare-record allowance ends, one minor after it shipped, as it said it would.
