@@ -34,6 +34,14 @@ export const V2_FAILED_ATTRIBUTE_ERROR_CAUSE =
 export const V2_OBLIGATIONS =
   '{"_tag":"Obligations","version":2,"evaluationId":"g","at":1,"outcome":"Discharged","obligationIds":["audit.log"]}';
 
+/**
+ * An obligation record carrying its optional identity keys: `subjectId`,
+ * `action` and `resourceId` (ADR-QD-096's rule for the future, first use).
+ * `V2_OBLIGATIONS` above stays the backward-compatibility oracle: a row without them.
+ */
+export const V2_OBLIGATIONS_FULL_ENVELOPE =
+  '{"_tag":"Obligations","version":2,"evaluationId":"g","at":1,"outcome":"Discharged","obligationIds":["audit.log"],"subjectId":"u1","action":"approve","resourceId":"doc-1"}';
+
 /** A decision carrying every optional envelope field: `resource`, `action` and `cache`. */
 export const V2_DECISION_FULL_ENVELOPE =
   '{"_tag":"Decision","version":2,"evaluationId":"g","at":1,"subjectId":"u1","policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"resource":{"id":"doc-1","owner":"u1"},"action":"read","cache":"hit","outcome":{"_tag":"Decided","decision":{"_tag":"Allow","evaluationId":"g","subjectId":"u1","durationMillis":2,"trace":{"policyTag":"HasPermission","allowed":true,"children":[],"obligations":[]},"obligations":[]}}}';

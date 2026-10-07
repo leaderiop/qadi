@@ -110,6 +110,11 @@ const partsOf: (self: TimelineEntry) => ReadonlyArray<string> = Match.type<Timel
       entry.evaluationId,
       entry.environment,
       ...entry.obligations.obligationIds,
+      // Present only on a row written after the record named its question; the
+      // same omit-never-placeholder rule as the decision arm above.
+      ...(entry.obligations.subjectId === undefined ? [] : [entry.obligations.subjectId]),
+      ...(entry.obligations.action === undefined ? [] : [entry.obligations.action]),
+      ...(entry.obligations.resourceId === undefined ? [] : [entry.obligations.resourceId]),
     ],
   }),
 );

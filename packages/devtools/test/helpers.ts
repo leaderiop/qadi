@@ -15,6 +15,7 @@ import {
   Deny,
   Failed,
   hasPermission,
+  makeResourceId,
   makeSubjectId,
   MissingResource,
   ObligationRecord,
@@ -130,6 +131,9 @@ export const obligationRecord = (options?: {
   readonly environment?: string;
   readonly outcome?: ObligationOutcome;
   readonly obligationIds?: ReadonlyArray<string>;
+  readonly subjectId?: string;
+  readonly action?: string;
+  readonly resourceId?: string;
 }): StoredRecord =>
   stampRecord(
     new ObligationRecord({
@@ -137,6 +141,9 @@ export const obligationRecord = (options?: {
       at: options?.at ?? 1_001,
       outcome: options?.outcome ?? "Discharged",
       obligationIds: options?.obligationIds ?? ["audit"],
+      ...(options?.subjectId === undefined ? {} : { subjectId: makeSubjectId(options.subjectId) }),
+      ...(options?.action === undefined ? {} : { action: options.action }),
+      ...(options?.resourceId === undefined ? {} : { resourceId: makeResourceId(options.resourceId) }),
     }),
     options?.environment ?? "Server",
   );

@@ -142,6 +142,33 @@ describe("searchTextOf", () => {
   });
 });
 
+describe("an orphan that names its question", () => {
+  const timeline = fold([
+    obligationRecord({
+      evaluationId: "ghost",
+      at: 100,
+      obligationIds: ["audit"],
+      subjectId: "rania",
+      action: "approve",
+      resourceId: "doc-9",
+    }),
+  ]);
+
+  it("is searched by its subject, action and resource id", () => {
+    assert.strictEqual(
+      searchTextOf(timeline.entries[0] ?? fail()),
+      "ghost server audit rania approve doc-9",
+    );
+  });
+
+  it("a filter on the subject id finds it, and one on another subject does not", () => {
+    assert.deepStrictEqual(ids(applyFilters(timeline.entries, { ...noFilters, text: "rania" })), [
+      "ghost",
+    ]);
+    assert.deepStrictEqual(ids(applyFilters(timeline.entries, { ...noFilters, text: "bob" })), []);
+  });
+});
+
 describe("noFilters", () => {
   it("narrows nothing", () => {
     assert.isTrue(isUnfiltered(noFilters));

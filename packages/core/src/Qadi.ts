@@ -36,6 +36,7 @@ import type { Permission } from "./Permission.ts";
 import type { Policy } from "./Policy.ts";
 import type { Question } from "./Question.ts";
 import type { Resource } from "./Resource.ts";
+import { resourceIdOf } from "./Resource.ts";
 import { sinkEmitter } from "./SinkEmit.ts";
 
 /**
@@ -134,7 +135,7 @@ const discharge = Effect.fn("qadi.discharge")(function* <E, R>(
   asked: ObligationDischarge,
   handler: ObligationHandler<E, R> | undefined,
 ): Effect.fn.Return<void, UndischargedObligation | E, R> {
-  const { decision } = asked;
+  const { decision, question } = asked;
   // Nothing to discharge and nothing to report, so an allow carrying no duties
   // costs exactly what it did before this existed.
   if (decision.obligations.length === 0) return;
@@ -145,8 +146,18 @@ const discharge = Effect.fn("qadi.discharge")(function* <E, R>(
   const emit = yield* sinkEmitter;
   const at = yield* Clock.currentTimeMillis;
   const obligationIds = decision.obligations.map((o) => o.id);
+  // Identity, never content: the resource itself stays on the decision row.
+  const resourceId = resourceIdOf(question.resource);
   const record = (outcome: ObligationOutcome): ObligationRecord =>
-    new ObligationRecord({ evaluationId: decision.evaluationId, at, outcome, obligationIds });
+    new ObligationRecord({
+      evaluationId: decision.evaluationId,
+      at,
+      outcome,
+      obligationIds,
+      subjectId: question.subject.id,
+      ...(question.action === undefined ? {} : { action: question.action }),
+      ...(resourceId === undefined ? {} : { resourceId }),
+    });
 
   // The handler sees advisory obligations too: advice is information the caller
   // may act on, and only its *binding* siblings can block.
