@@ -3,7 +3,8 @@ import * as Effect from "effect/Effect";
 import * as FastCheck from "fast-check";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
-import { firstSequenceBreak, verifySequenceIntegrity } from "../src/SequenceIntegrity.ts";
+import { firstSequenceBreak } from "../src/SequenceBreak.ts";
+import { verifySequenceIntegrity } from "../src/SequenceIntegrity.ts";
 import { decisionRecord } from "./helpers.ts";
 
 const entryWithSequence = (sequenceNumber: number | undefined): AuditEntry => ({

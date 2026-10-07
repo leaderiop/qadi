@@ -19,7 +19,8 @@ import { UNTRUSTED_DECODE_OPTIONS } from "@qadi/core";
 import type { DecodeRefusal } from "@qadi/core";
 import { decodeAuditEntry } from "./AuditEntry.ts";
 import type { AuditEntry } from "./AuditEntry.ts";
-import { firstSequenceBreak, verifySequenceIntegrity } from "./SequenceIntegrity.ts";
+import { firstSequenceBreak } from "./SequenceBreak.ts";
+import { verifySequenceIntegrity } from "./SequenceIntegrity.ts";
 
 /**
  * Opaque pass-through metadata `@qadi/audit` never validates or interprets —

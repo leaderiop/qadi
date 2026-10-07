@@ -25,8 +25,8 @@ storage, identity or cryptography is a caller-supplied port.
   [Capabilities](/docs/packages/audit/capabilities/).
 - E-signature *capture* (`SignatureCapturePort`, `signatureObligationHandler`)
   — see [E-Signatures](/docs/packages/audit/signatures/).
-- Retention, sequence-integrity verification, archival, and a decommissioning
-  checklist — pure, caller-invoked functions structurally outside the
+- Retention, sequence-integrity verification, archival with read-back, and a
+  purge plan that selects only archived rows — pure, caller-invoked functions structurally outside the
   `DecisionSink` pipeline.
 
 For the exhaustive export list, see

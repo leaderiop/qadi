@@ -1,6 +1,6 @@
 ---
 title: Capabilities
-description: The assembled DecisionSink pipeline, and the retention, sequence-integrity, archival and decommissioning functions outside it.
+description: The assembled DecisionSink pipeline, and the retention, sequence-integrity, archival and purge-planning functions outside it.
 ---
 
 ## The assembled pipeline
@@ -88,14 +88,22 @@ or record a gap marker yourself; `durabilityOf(outcome)` says whether it was
 These are pure functions and data — caller-invoked, caller-scheduled, since
 `@qadi/audit` has no scheduler of its own.
 
-**Retention** — `getPurgeableEntries`/`enforceRetention(entries, policy, now)`
-partition a set of entries: their union is the input, unchanged, and their
-intersection is empty. `now` is a parameter, never `Date.now()`. A row is
-purgeable only with a finite `at` past a valid limit: a non-finite `at` is
-retained, and a non-finite `now` or a `maxAgeMs` that is `NaN` or negative
-purges nothing. `planRetention(entries, policy, now)` returns the same split
-plus the `undated` rows, or a `RetentionInputInvalid` naming the bad input —
-prefer it when a silently idle purge job would be a problem.
+**Retention** — `planRetention(entries, policy, now)` is the age rule: it splits
+a set of entries into `retained` and `expired` (their union is the input,
+unchanged, and their intersection is empty) and lists the `undated` rows, or
+returns a `RetentionInputInvalid` naming the bad input. `now` is a parameter,
+never `Date.now()`. A row is expired only with a finite `at` past a valid limit:
+a non-finite `at` is retained, and a non-finite `now` or a `maxAgeMs` that is
+`NaN` or negative expires nothing. `expired` is a report, not a purge selection.
+
+**Purge** — `planPurge(entries, policy, now, archive)` is the only function that
+returns rows to delete. A row is purged only when it is expired and the
+`archive` holds it; an expired row the archive does not hold is retained and
+listed in `unarchived`. Two identical rows need two archived copies. The
+`archive` is a `VerifiedArchive`, which only `readAuditArchive` produces from a
+stored bundle (see Archival), so a purge depends on what your store handed back.
+It proves what those bytes say and nothing more: not that the store is durable,
+that the bytes are untampered, or that the trail is complete.
 
 **Sequence integrity** — `verifySequenceIntegrity` fails `SequenceIntegrityError`
 for any two `sequenceNumber`s, sorted ascending, that aren't exactly one apart —
@@ -109,13 +117,28 @@ this check entirely.
 **Archival** — `archiveAuditTrail` sorts entries by `sequenceNumber`, stably,
 before setting `metadata.sequenceIntegrityVerified: true`. Entries with no
 `sequenceNumber` follow the sequenced ones, in the order given.
+`readAuditArchive(input)` reads a stored bundle back. It refuses, each with its own
+`ArchiveRefusal` in an `ArchiveNotVerified`, a bundle that is not an archive, has
+another `archiveVersion`, holds an entry that does not decode, declares a count
+it does not hold, has a sequence gap or duplicate, is out of the order
+`archiveAuditTrail` writes, or claims a verification it cannot back. It never
+sorts or repairs the bundle.
 
-**Decommissioning** — `makeDecommissioningChecklist`/
-`completeDecommissioningStep` walk a six-step checklist; an unknown step id
-fails `UnknownDecommissioningStep` rather than silently no-opping.
+**Retiring an audited system** is a list you follow, not something the library
+enforces beyond the archive, read-back and purge steps: record the final audit
+entry before you export; read the full trail; `archiveAuditTrail` it; write the
+bundle to long-term storage; read it back with `readAuditArchive`; `planPurge`
+against it and delete `purge`; then revoke signing keys and notify whoever your
+process requires.
 
 ```ts
-import { enforceRetention, verifySequenceIntegrity, makeDecommissioningChecklist } from "@qadi/audit";
+import { archiveAuditTrail, planPurge, readAuditArchive } from "@qadi/audit";
 
-const kept = enforceRetention(entries, { maxAgeMs: 90 * 24 * 60 * 60 * 1000 }, now);
+const bundle = await Effect.runPromise(archiveAuditTrail(entries, now));
+await store.put(JSON.stringify(bundle));
+const archive = readAuditArchive(JSON.parse(await store.get()));
+if (Result.isSuccess(archive)) {
+  const plan = planPurge(entries, { maxAgeMs: 90 * 24 * 60 * 60 * 1000 }, now, archive.success);
+  // delete Result.getOrThrow(plan).purge from the trail
+}
 ```
