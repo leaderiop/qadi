@@ -36,6 +36,7 @@
     "spec:verify": "bash spec/scripts/verify-traceability.sh",
     "spec:verify:strict": "bash spec/scripts/verify-traceability.sh --strict",
     "check": "pnpm typecheck && pnpm lint && pnpm circular && pnpm test:tstyche && pnpm coverage && pnpm test:bdd && pnpm spec:examples && pnpm spec:verify:strict && pnpm spec:gates && pnpm spec:claims && pnpm spec:api && pnpm spec:package && pnpm example && pnpm mutation && pnpm spec:website-examples && pnpm website && pnpm spec:publish",
+    "check:pr": "node scripts/run-check.mjs --skip-mutation",
     "spec:examples": "node scripts/check-doc-examples.mjs",
     "spec:website-examples": "node scripts/check-website-doc-examples.mjs",
     "website": "node scripts/check-website-build.mjs",

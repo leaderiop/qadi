@@ -7,6 +7,10 @@
 # to remove. Adding a gate means editing `check` and the DoD table together; CI
 # then follows for free.
 #
+# One derived exception: a pull request that is not a release PR runs
+# `pnpm check:pr`, which is `pnpm check` without its mutation step (see the
+# "Merge gate" step). It is derived from `check`, not written beside it.
+#
 # Every number in the specification was produced by someone running this by hand
 # until now.
 name: check
@@ -100,8 +104,44 @@ jobs:
         # something the author never ran.
         run: pnpm install --frozen-lockfile
 
+      # Mutation testing is most of the gate's time (seven Stryker suites), and a
+      # mutation score only changes when the code does, so it runs where a
+      # release is cut and not on every pull request:
+      #
+      #   - a release PR (head branch `changeset-release/*`, opened by
+      #     release.yml's changesets action) runs the full `pnpm check`;
+      #   - a push to main runs it in full only for the release commit
+      #     (`chore(release): ...`), the one `release.yml` goes on to publish;
+      #   - a manual run is always full;
+      #   - any other pull request, and any other push to main, runs
+      #     `pnpm check:pr`.
+      #
+      # `check:pr` is not a second list of steps: scripts/run-check.mjs reads
+      # `check` out of package.json and removes only the `pnpm mutation` step,
+      # failing if it cannot find exactly that one. `pnpm check` stays the single
+      # definition of "done".
+      #
+      # The head branch and commit message arrive through `env`, never spliced
+      # into the script, since both are chosen by whoever opens the PR or pushes.
       - name: Merge gate
-        run: pnpm check
+        env:
+          EVENT: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          full=false
+          case "$EVENT" in
+            workflow_dispatch) full=true ;;
+            pull_request) case "$HEAD_REF" in changeset-release/*) full=true ;; esac ;;
+            push) case "$HEAD_MESSAGE" in "chore(release)"*) full=true ;; esac ;;
+          esac
+          if [ "$full" = true ]; then
+            echo "Release gate: running the full pnpm check, mutation included."
+            pnpm check
+          else
+            echo "Pull-request gate: running pnpm check without mutation (release PRs run it)."
+            pnpm check:pr
+          fi
 
       # The mutation HTML reports are the artefact you want when a score drops,
       # and they are the one thing `pnpm check` produces that a log cannot show.

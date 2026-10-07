@@ -798,6 +798,14 @@ deliberate: a workflow with its own list of steps would be a second definition o
 was rewritten to remove. Adding a gate means editing `check` and the DoD table
 together, and CI follows for free.
 
+**One derived exception: mutation runs on release PRs, not on every PR.**
+`check.yml` runs `pnpm check` for a release PR (head branch `changeset-release/*`),
+for the release commit on `main` and for a manual run, and `pnpm check:pr` for every
+other pull request and push. `check:pr` is `scripts/run-check.mjs --skip-mutation`: it
+reads `check` out of `package.json` and removes only the `pnpm mutation` step, and it
+refuses to run if it cannot find exactly that one step. It is derived, not a second
+list, so `check` is still the one definition of "done".
+
 So a claim that CI does something is true exactly when that something is in
 `pnpm check`. Before CCR-QD-036 there was no CI at all and six documents said there
 was (CCR-QD-035) — check the workflow before writing the words, rather than the

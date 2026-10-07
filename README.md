@@ -233,7 +233,9 @@ run once by hand. `npx @effect/tsgo unpatch` restores the original `tsc`; see
 `node_modules/@effect/tsgo/README.md` for the rest of its CLI.
 
 `pnpm check` is the merge gate, and [CI](./.github/workflows/check.yml) runs that
-one command — not its own list of steps, so the two cannot drift apart. Every number
+one command — not its own list of steps, so the two cannot drift apart. Mutation testing
+is the one step CI defers: a release PR runs the full `pnpm check`, any other pull request
+runs `pnpm check:pr` (the same command without `pnpm mutation`). Every number
 in the specification up to CCR-QD-035 was produced by a person running it by hand.
 
 Conventions are in [`AGENTS.md`](./AGENTS.md) and are enforced, not merely
