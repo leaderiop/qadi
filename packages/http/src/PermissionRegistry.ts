@@ -29,9 +29,10 @@ import * as HttpApi from "effect/http-api/HttpApi";
 import type * as HttpApiGroup from "effect/http-api/HttpApiGroup";
 import type { Authorized, Permission, PermissionKey, Policy, Resource } from "@qadi/core";
 import { permissionKey } from "@qadi/core";
+import { loadNoResource } from "./NoResource.ts";
 import { guardRoute } from "./GuardRoute.ts";
 import type { AccessDeclarationKey } from "./RequirePermission.ts";
-import { endpointAccess, misplacedDeclarations, NO_RESOURCE } from "./RequirePermission.ts";
+import { endpointAccess, misplacedDeclarations } from "./RequirePermission.ts";
 
 /** One route that requires a permission, as recorded in `PermissionRegistry`. */
 export interface EndpointDescriptor {
@@ -252,7 +253,7 @@ export const permissionRegistryRoute = <P extends Permission>(permission: P, pol
     "/__permissions",
     permission,
     policy,
-    () => Effect.succeed(NO_RESOURCE),
+    loadNoResource,
   )(() => snapshotResponse);
 
 /**

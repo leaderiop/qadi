@@ -869,3 +869,102 @@ describe("@qadi/http", () => {
       }),
   );
 });
+
+/**
+ * What the one authorization step at the edge must not move (ARCH-19): the
+ * exact log lines a bare route writes, and the scopes `RequirePermission`'s
+ * projection and standing services wrap around the handler.
+ */
+describe("the authorization step at the edge (characterization)", () => {
+  it.effect("a bare route's denial logs exactly one line, and answers 403", () =>
+    Effect.gen(function* () {
+      const logs: Array<unknown> = [];
+      const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logs), { disableLogger: true });
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/documents/write", { method: "POST", headers: bearer(BOB_TOKEN) })),
+      );
+      assert.strictEqual(response.status, 403);
+      assert.deepStrictEqual(logs, [
+        [`qadi/http: request denied (ACL001) — subject "bob": subject attribute 'clearance' did not match`],
+      ]);
+    }));
+
+  it.effect("a bare route's extraction failure logs exactly one line, and answers 502", () =>
+    Effect.gen(function* () {
+      const logs: Array<unknown> = [];
+      const brokenStore = subjectExtractorBearer(() =>
+        Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
+      );
+      const app = WriteRoute.pipe(
+        Layer.provideMerge(PermissionRegistryLive),
+        Layer.provideMerge(brokenStore),
+        Layer.provideMerge(EvaluationServicesTest),
+        Layer.provideMerge(HttpServer.layerServices),
+        Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+      );
+      const { handler } = HttpRouter.toWebHandler(app, { disableLogger: true });
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/documents/write", { method: "POST", headers: bearer(ALICE_TOKEN) })),
+      );
+      assert.strictEqual(response.status, 502);
+      assert.deepStrictEqual(logs, [["qadi/http: subject extraction failed — token service unreachable"]]);
+    }));
+});
+
+const ProbeGroup = HttpApiGroup.make("probe").add(
+  HttpApiEndpoint.get("raise", "/probe/raise").pipe((endpoint) =>
+    endpoint.annotate(
+      RequiredPermission,
+      requiresPermission(endpoint, { permission: readPermission, policy: readPolicy }),
+    ),
+  ),
+  HttpApiEndpoint.get("again", "/probe/again").pipe((endpoint) =>
+    endpoint.annotate(
+      RequiredPermission,
+      requiresPermission(endpoint, { permission: readPermission, policy: readPolicy }),
+    ),
+  ),
+);
+const ProbeApi = HttpApi.make("probe").add(ProbeGroup).middleware(RequirePermission);
+const ProbeHandlers = HttpApiBuilder.group(ProbeApi, "probe", (handlers) =>
+  handlers
+    // Alice holds `document:read` only, so this nested `guard` denies her.
+    .handle("raise", () => guard(writePermission, hasPermission(writePermission))({}, () => Effect.void))
+    // A second check for the same subject and policy the middleware just made.
+    .handle("again", () => guard(readPermission, readPolicy)({}, () => Effect.void)),
+);
+const ProbeLayer = HttpApiBuilder.layer(ProbeApi).pipe(
+  Layer.provide(ProbeHandlers),
+  Layer.provide(RequirePermissionLive),
+  Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
+  Layer.provideMerge(EvaluationServicesTest),
+  Layer.provideMerge(decisionCacheLayer()),
+  Layer.provideMerge(HttpServer.layerServices),
+);
+
+describe("RequirePermission's scopes around the handler (characterization)", () => {
+  it.effect("a handler-raised denial is still projected to its redacted wire value", () =>
+    Effect.gen(function* () {
+      const { handler } = HttpRouter.toWebHandler(ProbeLayer, { disableLogger: true });
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/probe/raise", { headers: bearer(ALICE_TOKEN) })),
+      );
+      assert.strictEqual(response.status, 403);
+      const body: Record<string, unknown> = yield* Effect.promise(() => response.json());
+      assert.strictEqual(body._tag, "AccessDenied");
+      assert.strictEqual("trace" in body, false);
+    }));
+
+  it.effect("the standing services reach the handler: its re-check hits the DecisionCache", () =>
+    Effect.gen(function* () {
+      attributeResolverCalls.length = 0;
+      const { handler } = HttpRouter.toWebHandler(ProbeLayer, { disableLogger: true });
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/probe/again", { headers: bearer(ALICE_TOKEN) })),
+      );
+      assert.strictEqual(response.status, 204);
+      // `readPolicy` reads no attribute, so the cache shows as zero resolver
+      // calls and, more to the point, the handler's `guard` found the services.
+      assert.deepStrictEqual(attributeResolverCalls, []);
+    }));
+});

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-081                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-10-04                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted — amends ADR-QD-072, ADR-QD-075       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-04): Initial release (CCR-QD-155, ARCH-04) |
+> | Change History | 1.1 (2026-10-07): the extended table gets its reader, `classifyHttpEnforcementFailure`, which the decision stream's recheck now uses (CCR-QD-197)<br>1.0 (2026-10-04): Initial release (CCR-QD-155, ARCH-04) |
 
 ---
 
@@ -70,6 +70,11 @@ of those names, shipped as a `minor` changeset marked breaking (every package is
 
 **D-04-e: `SubjectExtractionFailed` is a row in the wire table.** Its class (`outage`) is declared in a local
 extension of core's table, its 502 is derived, and `SubjectExtractionRefused` is a view onto its entry.
+
+*Rev 1.1 (CCR-QD-197):* that extension was module-private and read only by the wire builder, so the decision
+stream's recheck labelled a broken credential store `"extraction-failed"` — a class no table contains —
+while the connect path answered the same failure 502. `classifyHttpEnforcementFailure` is the table's reader
+over all twelve tags; the recheck uses it, and the contradiction inside one package is gone.
 
 ## Alternatives considered
 

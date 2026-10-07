@@ -16,7 +16,6 @@ import {
   Failed,
   EvaluationServicesNone,
   ObligationRecord,
-  RelationshipResolver,
   decisionSinkForwarding,
   encodeStoredRecordString,
   gte,
@@ -25,11 +24,8 @@ import {
   hasPermission,
   hasRelationship,
   makeDecisionLog,
-  makeResourceId,
   makeSubject,
   makeSubjectId,
-  obligation,
-  obliged,
   permission,
   permissionKey,
   portsLayer,
@@ -59,9 +55,11 @@ import {
   decisionFrames,
   decisionStreamRoute,
   frame,
-  reauthCheck,
   syncedFrame,
 } from "../src/DecisionStreamRoute.ts";
+import { authorizeRequest } from "../src/AuthorizeRequest.ts";
+import { classifyHttpEnforcementFailure } from "../src/QadiHttpError.ts";
+import type { HttpEnforcementTag } from "../src/QadiHttpError.ts";
 import { PermissionRegistryLive, permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
 import { SubjectExtractionFailed, subjectExtractorBearer } from "../src/SubjectExtractor.ts";
 
@@ -226,16 +224,17 @@ describe("/__decisions", () => {
         // Branch coverage only — this exercises `decisionStreamRoute`'s
         // `options?.reauth === undefined ? frames : frames.pipe(Stream
         // .mergeEffect(...))` ternary's *other* arm, the one call site that
-        // wires `reauthCheck` into a live route. It is deliberately not
+        // wires the recheck into a live route. It is deliberately not
         // asking the recheck to actually fire: `HttpServerResponse.stream`'s
         // bridge to a web `ReadableStream` runs `Schedule.spaced` on real
         // wall-clock time, not `TestClock` (confirmed above, in the "reauth"
         // describe block's closing comment) — an interval far longer than
         // this test's own runtime keeps that firing outside the window a
         // fast, deterministic test can afford, while still exercising the
-        // branch that builds the merge. `reauthCheck` and the merge
+        // branch that builds the merge. The check, its labels and the merge
         // mechanism's actual recheck-driven behavior are already covered
-        // directly, on `TestClock`, by the "reauth" describe block above.
+        // directly, on `TestClock`, by `AuthorizeRequest.test.ts` and the
+        // "reauth" describe block above.
         const log = yield* makeDecisionLog({ environment: "Server" });
         const route = decisionStreamRoute(readPermission, readPolicy, log, {
           reauth: { interval: "1 hour" },
@@ -255,6 +254,48 @@ describe("/__decisions", () => {
         yield* Effect.promise(() => response.body?.cancel() ?? Promise.resolve());
       }),
   );
+
+  it.effect("a recheck that fails logs one closure line naming the tag and the class", () =>
+    Effect.gen(function* () {
+      // `Effect.repeat` runs its first iteration at once, so the recheck fires
+      // as soon as the body is pulled, no clock needed: the connect-time
+      // extraction passes and the recheck's own fails.
+      const logs: Array<unknown> = [];
+      let extractions = 0;
+      const flaky = subjectExtractorBearer(() =>
+        Effect.suspend(() => {
+          extractions += 1;
+          return extractions === 1
+            ? Effect.succeed(alice)
+            : Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" }));
+        }),
+      );
+      const log = yield* makeDecisionLog({ environment: "Server" });
+      const route = decisionStreamRoute(readPermission, readPolicy, log, { reauth: { interval: "1 hour" } });
+      const layer = route.pipe(
+        Layer.provideMerge(PermissionRegistryLive),
+        Layer.provideMerge(flaky),
+        Layer.provideMerge(EvaluationServicesTest),
+        Layer.provideMerge(HttpServer.layerServices),
+        Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+      );
+      const { handler } = HttpRouter.toWebHandler(layer, { disableLogger: true });
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/__decisions", { headers: bearer(ALICE) })),
+      );
+      assert.strictEqual(response.status, 200);
+      yield* Effect.promise(async () => {
+        try {
+          await response.text();
+        } catch {
+          // The failed recheck ends the body; how the platform reports that is not this test's concern.
+        }
+      });
+      assert.deepStrictEqual(logs, [
+        ["qadi/http: subject extraction failed — token service unreachable"],
+        ["qadi/http: /__decisions recheck ended the stream (SubjectExtractionFailed, outage)"],
+      ]);
+    }));
 
   it(
     "throws synchronously, at route construction, for a zero reauth interval",
@@ -324,140 +365,75 @@ describe("/__decisions", () => {
 });
 
 /**
- * `reauthCheck` and the merged-stream mechanism `decisionStreamRoute` builds
- * from it — directly, for the same reason `frame` is tested directly below
- * rather than through a live SSE connection.
+ * The recheck is `authorizeRequest` on a schedule, its failure labelled by
+ * `classifyHttpEnforcementFailure`: the check itself is tested in
+ * `AuthorizeRequest.test.ts`, so this block holds only the labels and the
+ * merged-stream mechanism `decisionStreamRoute` builds from them — directly,
+ * for the same reason `frame` is tested directly below rather than through a
+ * live SSE connection.
  */
 describe("reauth", () => {
-  it.effect("succeeds while the subject still holds the permission, fails the moment it does not", () =>
+  const recheckClass = <E extends { readonly _tag: HttpEnforcementTag }, R>(
+    check: Effect.Effect<unknown, E, R>,
+  ) => check.pipe(Effect.mapError(classifyHttpEnforcementFailure), Effect.flip);
+
+  it.effect("labels a revoked subject denied", () =>
     Effect.gen(function* () {
-      let revoked = false;
-      const lookup = (token: string): Effect.Effect<AuthSubject> =>
-        Effect.succeed(revoked ? bob : token === ALICE ? alice : bob);
       const request = HttpServerRequest.fromWeb(
-        new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
+        new Request("http://localhost/__decisions", { headers: bearer(BOB) }),
       );
-
-      const layer = Layer.mergeAll(subjectExtractorBearer(lookup), EvaluationServicesNone);
-
-      const check = reauthCheck(request, readPolicy, {}).pipe(Effect.provide(layer));
-      const first = yield* Effect.result(check);
-      assert.strictEqual(first._tag, "Success");
-
-      revoked = true; // the lookup now answers as if alice's token had been revoked
-      const second = yield* Effect.result(check);
-      assert.strictEqual(second._tag, "Failure");
-      if (second._tag === "Failure") assert.strictEqual(second.failure, "denied");
+      const layer = Layer.mergeAll(subjectExtractorBearer(lookupSubject), EvaluationServicesNone);
+      const label = yield* recheckClass(authorizeRequest(readPermission, readPolicy)(request)).pipe(
+        Effect.provide(layer),
+      );
+      assert.strictEqual(label, "denied");
     }));
 
-  it.effect("distinguishes a broken credential store from a denial — extraction-failed, not denied", () =>
+  it.effect("labels a broken credential store an outage, the class the connect path answers 502 for", () =>
     Effect.gen(function* () {
-      const logs: Array<unknown> = [];
       const request = HttpServerRequest.fromWeb(
         new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
       );
       const brokenStore = subjectExtractorBearer(() =>
         Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
       );
-      const layer = Layer.mergeAll(brokenStore, EvaluationServicesNone);
-      const result = yield* reauthCheck(request, readPolicy, {}).pipe(
-        Effect.provide(layer),
-        Effect.provide(Logger.layer([Logger.make((options) => logs.push(options.message))])),
-        Effect.result,
+      const label = yield* recheckClass(authorizeRequest(readPermission, readPolicy)(request)).pipe(
+        Effect.provide(Layer.mergeAll(brokenStore, EvaluationServicesNone)),
       );
-      assert.strictEqual(result._tag, "Failure");
-      if (result._tag === "Failure") assert.strictEqual(result.failure, "extraction-failed");
-      // Logged before being collapsed to the "extraction-failed" literal
-      // (this module's own doc comment on `reauthCheck`), mirroring
-      // `GuardRoute.ts`/`RequirePermission.ts`'s own `SubjectExtractionFailed`
-      // logging.
-      assert.deepStrictEqual(logs, [
-        ["qadi/http: subject extraction failed during reauth — token service unreachable"],
-      ]);
+      assert.strictEqual(label, "outage");
     }));
 
   it.effect(
-    "an evaluator outage during recheck ends the stream, but is reported as an " +
-      "outage, not a denial (GR-01, TS-01)",
+    "labels an evaluator outage an outage, not a denial (GR-01, TS-01)",
     () =>
       Effect.gen(function* () {
-        // `hasPermission` never consults an `AttributeResolver`, so a broken one
-        // would not observably change anything checked against `readPolicy` —
-        // an attribute-based policy is what actually exercises `evaluate`'s own
-        // failure channel, distinct from a decision that merely denies.
-        const attributePolicy = hasAttribute("clearance", gte(1));
         const request = HttpServerRequest.fromWeb(
           new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
         );
-        const logs: Array<unknown> = [];
-        // `attributePolicy` asks for `clearance`, so the error names it.
         const brokenResolver = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
-        // Deliberately not `EvaluationServicesNone`: this test needs a broken
-        // `AttributeResolver` in its slot, every other port at its default.
         const layer = Layer.mergeAll(
           portsLayer({ AttributeResolver: brokenResolver }),
           subjectExtractorBearer(lookupSubject),
           EvaluationIdLive,
         );
-        const result = yield* reauthCheck(request, attributePolicy, {}).pipe(
-          Effect.provide(layer),
-          Effect.provide(Logger.layer([Logger.make((options) => logs.push(options.message))])),
-          Effect.result,
-        );
-        assert.strictEqual(result._tag, "Failure");
-        // Fails closed the same as a denial would — but labeled "outage", not
-        // "denied": a consumer reading this feed must be able to tell a
-        // revoked subject apart from a broken attribute store.
-        if (result._tag === "Failure") assert.strictEqual(result.failure, "outage");
-        // Logged with both the real failure's tag AND the classification it
-        // was reduced to — an operator reading this line can tell exactly
-        // which port broke, not only that the stream ended.
-        assert.deepStrictEqual(logs, [
-          ["qadi/http: reauth check failed (AttributeResolveError), reporting outage"],
-        ]);
+        const label = yield* recheckClass(
+          authorizeRequest(readPermission, hasAttribute("clearance", gte(1)))(request),
+        ).pipe(Effect.provide(layer));
+        assert.strictEqual(label, "outage");
       }),
   );
 
-  it.effect(
-    "threads the given resource through to assert, rather than a stand-in — a HasRelationship " +
-      "policy needs the real resource.id to ever reach the resolver",
-    () =>
-      Effect.gen(function* () {
-        const request = HttpServerRequest.fromWeb(
-          new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
-        );
-        const ownerPolicy = hasRelationship("owner");
-        const relationshipResolver = Layer.succeed(RelationshipResolver, {
-          check: (check) =>
-            Effect.succeed(check.resourceId === makeResourceId("doc-1") ? "Related" : "Unrelated"),
-        });
-        const layer = Layer.mergeAll(
-          portsLayer({ RelationshipResolver: relationshipResolver }),
-          subjectExtractorBearer(lookupSubject),
-          EvaluationIdLive,
-        );
-
-        // With the real resource threaded through, the resolver sees
-        // `resourceId: "doc-1"` and answers "Related" — the check succeeds.
-        const withResource = yield* reauthCheck(request, ownerPolicy, { id: "doc-1" }).pipe(
-          Effect.provide(layer),
-          Effect.result,
-        );
-        assert.strictEqual(withResource._tag, "Success");
-
-        // A resource with no `id` at all reaches `HasRelationship`'s own
-        // `MissingResourceId` failure (a wiring mistake, not a denial) —
-        // exactly what happens if `assert` were called against an empty
-        // stand-in resource instead of the one this function was actually
-        // given.
-        const withoutResource = yield* reauthCheck(request, ownerPolicy, {}).pipe(
-          Effect.provide(layer),
-          Effect.result,
-        );
-        assert.strictEqual(withoutResource._tag, "Failure");
-        if (withoutResource._tag === "Failure") assert.strictEqual(withoutResource.failure, "wiringMistake");
-      }),
-  );
+  it.effect("labels a wiring mistake a wiringMistake", () =>
+    Effect.gen(function* () {
+      const request = HttpServerRequest.fromWeb(
+        new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
+      );
+      const layer = Layer.mergeAll(subjectExtractorBearer(lookupSubject), EvaluationServicesNone);
+      const label = yield* recheckClass(authorizeRequest(readPermission, hasRelationship("owner"))(request)).pipe(
+        Effect.provide(layer),
+      );
+      assert.strictEqual(label, "wiringMistake");
+    }));
 
   it.effect("a merged stream ends once the periodic recheck starts failing, not before", () =>
     Effect.scoped(Effect.gen(function* () {
@@ -476,7 +452,7 @@ describe("reauth", () => {
       const content = Stream.repeat(Stream.make(1), Schedule.forever);
       const guarded = content.pipe(
         Stream.mergeEffect(
-          Effect.repeat(reauthCheck(request, readPolicy, {}), Schedule.spaced("10 seconds")),
+          Effect.repeat(authorizeRequest(readPermission, readPolicy)(request), Schedule.spaced("10 seconds")),
         ),
       );
 
@@ -489,53 +465,6 @@ describe("reauth", () => {
       assert.strictEqual(result._tag, "Failure");
     })),
   );
-
-  it.effect(
-    "refuses a binding obligation the recheck cannot discharge — the same semantics " +
-      "connect-time guardRoute already enforces",
-    () =>
-      Effect.gen(function* () {
-        // `isAllowed`-based semantics would have succeeded here: the decision
-        // IS an allow. `reauthCheck` is now built on `assert`, which refuses an
-        // allow carrying a binding obligation nobody discharged — matching
-        // what `guardRoute`'s `@qadi/core` `guard` already does at connect, so
-        // the two enforcement points can no longer disagree about the same
-        // `Obliged` policy.
-        const obligedPolicy = obliged(obligation("must-log"), readPolicy);
-        const request = HttpServerRequest.fromWeb(
-          new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
-        );
-        const layer = Layer.mergeAll(
-          subjectExtractorBearer(lookupSubject),
-          EvaluationServicesNone,
-        );
-
-        const result = yield* reauthCheck(request, obligedPolicy, {}).pipe(
-          Effect.provide(layer),
-          Effect.result,
-        );
-        assert.strictEqual(result._tag, "Failure");
-        if (result._tag === "Failure") assert.strictEqual(result.failure, "denied");
-      }),
-  );
-
-  // `decisionStreamRoute`'s own `options?.reauth === undefined ? frames : ...`
-  // branch — the one call site that actually wires `reauthCheck` into a live
-  // route, as opposed to the two tests above, which exercise `reauthCheck` and
-  // a bare `Stream.mergeEffect` directly — is deliberately not driven through a
-  // real `HttpRouter.toWebHandler` response here. Tried it: `HttpServerResponse
-  // .stream`'s bridge to a web `ReadableStream` runs the merge's
-  // `Schedule.spaced` recheck on real wall-clock time, not `TestClock` —
-  // confirmed by running it with a 15s test timeout, which took a genuine
-  // ~10 real seconds and then surfaced the recheck's failure as an unhandled
-  // defect from a fiber the test does not own, rather than closing the
-  // response cleanly. Forcing that into a passing test would mean a slow,
-  // wall-clock-timed test, which is exactly what `TestClock` exists to avoid
-  // (AGENTS.md §6). This module's own doc comment already names the reason:
-  // "testing the merged `Stream` through a real, live SSE connection has no
-  // existing pattern in this repo." The wiring itself is one ternary with two
-  // arms, each independently proven correct by the tests above; what remains
-  // unverified is only that request-time branch selecting between them.
 });
 
 /**

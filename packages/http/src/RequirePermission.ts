@@ -19,17 +19,16 @@ import * as HttpApiMiddleware from "effect/http-api/HttpApiMiddleware";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type { unhandled } from "effect/Types";
-import type { Permission, Policy, Resource, StandingEvaluationServices } from "@qadi/core";
-import { anonymous, CurrentSubject, ENFORCEMENT_DENIAL_TAGS, guard } from "@qadi/core";
+import type { Permission, Policy, StandingEvaluationServices } from "@qadi/core";
+import { anonymous, CurrentSubject } from "@qadi/core";
 import {
   HTTP_ENFORCEMENT_ERROR_SCHEMAS,
   HTTP_ENFORCEMENT_TAGS,
-  logDenial,
-  logSubjectExtractionFailed,
   projectHttpEnforcementFailure,
 } from "./QadiHttpError.ts";
 import type { ClientErrorOf } from "./HttpApiMiddlewareClient.ts";
-import { SubjectExtractor } from "./SubjectExtractor.ts";
+import { authorizeRequest } from "./AuthorizeRequest.ts";
+import type { SubjectExtractor } from "./SubjectExtractor.ts";
 
 // Named `PermissionRequirement`/`PublicDeclaration`, not the usual
 // `RequiredPermissionShape`/`PublicEndpointShape` — a deliberate exception to
@@ -163,44 +162,7 @@ export const misplacedDeclarations = (
  */
 export const publicEndpoint = (reason: string): PublicDeclaration => ({ reason });
 
-/**
- * The resource `RequirePermission` checks against: an empty one. This
- * middleware enforces the contract-level requirement an endpoint declares,
- * before any resource has been loaded — a resource-scoped re-check belongs in
- * the handler, via `@qadi/core`'s `guard` directly, as defense in depth.
- *
- * Empty, deliberately, rather than absent. A policy reading a resource
- * attribute here finds nothing and, for a positive matcher, **denies** (403);
- * the same policy evaluated with no resource at all *fails* with
- * `MissingResource` (500), reporting a caller's request as a server fault.
- * This comment described the former while `guard` did the latter, because the
- * resource never reached evaluation — see `guard` in `@qadi/core`.
- *
- * **That "denies" claim used not to hold for a negative matcher, and now
- * does.** `Neq` (or any matcher built on it) compared against an attribute
- * this empty resource does not have used to resolve the comparison against
- * `undefined` and read `undefined` as unequal to anything — so the matcher
- * was *true* and the policy **allowed**, the exact
- * [INV-QD-032](../../../spec/invariants.md#inv-qd-032-a-guarded-resource-is-the-evaluated-resource)
- * hazard: a resource-scoped policy meant to refuse a mismatch, evaluated
- * against no resource at all, quietly permitted instead. `Neq` now denies on
- * an absent operand the same way every other matcher already did (H2,
- * CCR-QD-112), so this middleware's `NO_RESOURCE` placeholder now denies a
- * resource-attribute-referencing policy of either polarity, not just a
- * positive one. This middleware still runs before any resource is loaded,
- * though, so a policy meant to *allow* based on the real resource's
- * attributes cannot be satisfied here regardless — a resource-scoped
- * re-check in the handler, via `@qadi/core`'s `guard` directly against the
- * real resource, remains the correct way to evaluate such a policy for
- * real, not merely defense in depth against a hazard that no longer exists.
- *
- * Exported so `DecisionStreamRoute.ts` and `PermissionRegistry.ts`'s
- * `permissionRegistryRoute` share this exact placeholder rather than each
- * reimplementing `() => Effect.succeed({})` as their own `loadResource` — all
- * three routes evaluate before any real resource exists, for the same
- * `Neq`-denies-on-absence reasoning this comment gives.
- */
-export const NO_RESOURCE: Resource = {};
+export { NO_RESOURCE } from "./NoResource.ts";
 
 /**
  * The minimal shape `requiresPermission` needs from an endpoint. See the
@@ -411,13 +373,14 @@ export const RequirePermissionLive: Layer.Layer<
 > = Layer.effect(
   RequirePermission,
   Effect.gen(function* () {
-    const extractor = yield* SubjectExtractor;
     // Resolved once, here, at layer-build time — see `RequirePermission`'s
     // own doc comment for why this replaces a `requires` declaration on the
     // middleware class itself. Re-provided per request below, inside the
     // returned closure, so `guard`'s own `evaluate` call finds them exactly
     // as it would have found them via an ambient per-request `requires`.
-    const evaluationServices = yield* Effect.context<StandingEvaluationServices>();
+    // `SubjectExtractor` rides along because `authorizeRequest` reads it from
+    // context.
+    const evaluationServices = yield* Effect.context<StandingEvaluationServices | SubjectExtractor>();
 
     // The enforcement half: extract, guard, log, project. Kept apart from the
     // dispatch above so it can be replaced without touching how access is read.
@@ -427,31 +390,27 @@ export const RequirePermissionLive: Layer.Layer<
     ) => {
       const { permission, policy } = requirement;
 
-      // Every failure `guard` or the extractor can produce is projected
-      // in-channel to the redacted wire value its declared schema describes
+      // Every failure the edge step can produce is projected in-channel to the
+      // redacted wire value its declared schema describes
       // (`projectHttpEnforcementFailure`, `QadiHttpError.ts`), and
       // `HttpApiMiddleware`'s response encoder then builds the response from
       // the matching schema's `httpApiStatus`. `RequirePermission`'s own doc
       // comment explains why `AccessDenied`'s `trace` and the resolver
       // `cause`s must not reach a body: redaction is the per-tag `project`,
       // typed to return exactly the schema's `Type`.
+      //
+      // Extraction, the guard and the two log lines are `authorizeRequest`'s
+      // (ARCH-19). The standing services and the projection below wrap
+      // `httpEffect` too, deliberately: a defense-in-depth `guard` inside a
+      // handler finds the services this layer captured, and the enforcement
+      // failure it raises is projected rather than escaping as an
+      // undeclared error.
       return Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;
-        const subject = yield* extractor.extract(request);
-        return yield* guard(permission, policy)(NO_RESOURCE, () => httpEffect).pipe(
-          Effect.provideService(CurrentSubject, subject),
-          Effect.provide(evaluationServices),
-        );
+        const { subject } = yield* authorizeRequest(permission, policy)(request);
+        return yield* Effect.provideService(httpEffect, CurrentSubject, subject);
       }).pipe(
-        // Logged before the projection below reduces the error to its wire
-        // body — `AccessDenied`'s `reason` and `UndischargedObligation`'s
-        // `obligationIds` never reach a response, and neither does
-        // `SubjectExtractionFailed`'s `reason`, so these are an operator's only
-        // server-side answer to "why was this denied" short of a wired
-        // `DecisionSink` (JD-03, JM-05). See `logDenial`'s own doc comment for
-        // what it does and does not log (never the full `trace`).
-        Effect.tapErrorTag(ENFORCEMENT_DENIAL_TAGS, logDenial),
-        Effect.tapErrorTag("SubjectExtractionFailed", logSubjectExtractionFailed),
+        Effect.provide(evaluationServices),
         // One projection for every tag (ARCH-04, ADR-QD-081). The tag
         // list is `QadiHttpError.ts`'s, so a tag added to `EnforcementError`
         // cannot reach `HttpApiMiddleware`'s encoder as an undeclared failure.

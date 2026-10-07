@@ -89,29 +89,26 @@ import type {
   DecisionLogReader,
   DecisionRecordEvent,
   DecisionStreamEvent,
-  EnforcementErrorClass,
   LogCursor,
   LogEntry,
   Permission,
   Policy,
-  Resource,
   SinkRecordNotEncodable,
   StandingEvaluationServices,
   StoredRecord,
 } from "@qadi/core";
 import {
-  assert,
-  classifyEnforcementError,
-  CurrentSubject,
   DecisionStreamSynced,
   encodeStoredRecordString,
   formatLogCursor,
   parseLogCursor,
   reportEncodeRefusal,
 } from "@qadi/core";
+import { authorizeRequest } from "./AuthorizeRequest.ts";
+import { loadNoResource } from "./NoResource.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
-import { NO_RESOURCE } from "./RequirePermission.ts";
-import { SubjectExtractor } from "./SubjectExtractor.ts";
+import { classifyHttpEnforcementFailure } from "./QadiHttpError.ts";
+import type { SubjectExtractor } from "./SubjectExtractor.ts";
 
 /**
  * One stored record as an SSE frame of the given event — `event: backlog` /
@@ -181,7 +178,7 @@ const reportRefused = Effect.fn("qadi.http.decisionStream.refused")(function* (
  * one record never ends the stream; the `synced` count is the backlog frames
  * actually sent.
  *
- * Exported for the same reason `frame` and `reauthCheck` are: the route's body
+ * Exported for the same reason `frame` is: the route's body
  * is this stream, UTF-8 encoded, and it is tested directly as well as through
  * the route.
  */
@@ -212,27 +209,6 @@ export const decisionFrames = (
   );
 };
 
-/**
- * `reauthCheck` classifies an `assert` failure through
- * {@link classifyEnforcementError} (`@qadi/core`'s `Errors.ts`) rather than collapsing
- * every one of these to a single "denied" literal, which is exactly the
- * failure/denial conflation
- * [INV-QD-006](../../../spec/invariants.md#inv-qd-006-failure-is-not-denial)
- * forbids everywhere else: an `AttributeResolveError` mid-stream is a
- * resolver outage, not a revoked subject, and a consumer building the
- * documented dashboard (ADR-QD-046) needs to tell "you lost access" apart
- * from "this feed is temporarily unavailable, retry." (GR-01/TS-01)
- *
- * This module used to carry its own copy of that same three-bucket
- * partition, independently matched over the same `EnforcementError` tags `toResponse`
- * (`QadiHttpError.ts`) sorts to pick an HTTP status — two exhaustive matches
- * that could each compile cleanly while silently disagreeing with each other
- * on a moved or added tag. The classification then moved into `QadiHttpError.ts`,
- * and now lives in `@qadi/core`'s `ENFORCEMENT_ERROR_CLASSES`, beside
- * `ERROR_CODES`: there is exactly one place that decides which bucket a tag
- * falls into, and it is not specific to HTTP.
- */
-
 export interface DecisionStreamOptions {
   /**
    * Re-authorizes an open connection on an interval, ending it the moment
@@ -252,78 +228,25 @@ export interface DecisionStreamOptions {
 }
 
 /**
- * One re-authorization attempt: re-extract the subject from the same
- * request, re-check the policy against it on **`assert`'s** semantics —
- * succeed only on an allow whose obligations, if any, are discharged.
+ * One re-authorization attempt: the same `authorizeRequest` the connect path
+ * runs, against the same request, answered with the failure's class.
  *
- * Built on `assert` rather than `evaluate` + `isAllowed`, deliberately: the
- * latter reports whether the policy allowed and stops there, which is not
- * what connect-time `guardRoute` does — `guardRoute` enforces through
- * `@qadi/core`'s `guard`, which refuses an allow carrying a binding
- * obligation nobody discharged. An `evaluate`-based recheck and a
- * `guard`-based connect check would disagree about the same policy on the
- * same subject the moment one is `Obliged`: connect refuses, but every
- * later recheck would report the bare allow as sufficient and let the
- * connection continue past the point connecting fresh would have refused it.
- * Currently latent — no live path lets an `Obliged` policy reach this route
- * at all — but the two enforcement points must not implement different
- * semantics regardless. `assert` is `@qadi/core`'s own exported
- * enforcement-semantics primitive for exactly this: evaluate, refuse a
- * denial, discharge (or refuse) obligations, report nothing back.
- *
- * Re-extracting is the point, not a formality — for a `SubjectExtractor`
- * backed by a real token/session lookup, this calls that lookup again rather
- * than reusing whatever it answered at connect, which is exactly where a
- * revocation since connect becomes visible. `SubjectExtractionFailed` (the
- * credential store itself broken) ends the stream the same as a denial: an
- * outage on the recheck path is not a reason to keep serving decisions on
- * the strength of a subject this process can no longer confirm.
- *
- * Both failure paths are logged before being collapsed to their literal —
- * mirroring `GuardRoute.ts`/`RequirePermission.ts`'s
- * `Effect.logError(...error.reason)` for `SubjectExtractionFailed` — so an
- * outage on this path leaves a trace instead of silently ending the SSE
- * connection with zero diagnostics.
- *
- * `assert`'s failure is classified through {@link classifyEnforcementError}
- * rather than collapsed to a single `"denied"` literal (GR-01, TS-01): an
- * `AccessDenied` or `UndischargedObligation` is a real denial, but an
- * `AttributeResolveError`
- * or similar port failure is an **outage**, and reporting an outage as a
- * denial is exactly the conflation INV-QD-006 forbids everywhere else in
- * this library. The stream still fails closed either way — only the label
- * stops lying about which one happened.
- *
- * Exported for the same reason `frame` is: a recheck is driven by a schedule,
- * and through a real SSE response that schedule runs on wall-clock time — this
- * is a plain `Effect`, testable directly against `TestClock` without one.
+ * One line is logged for any failure that ends the stream, naming the tag and
+ * the class: a closed connection is a fact of its own, and an outage that ends
+ * a stream stays visible (the step itself logs only a denial and an extraction
+ * failure). The failure is labelled through `classifyHttpEnforcementFailure`,
+ * the table the connect path's status comes from, so a broken credential store
+ * is an `outage` here as it is a 502 there.
  */
-export const reauthCheck = (
-  request: HttpServerRequest.HttpServerRequest,
-  policy: Policy,
-  resource: Resource,
-): Effect.Effect<
-  void,
-  EnforcementErrorClass | "extraction-failed",
-  StandingEvaluationServices | SubjectExtractor
-> =>
-  SubjectExtractor.extract(request).pipe(
+const recheck = (permission: Permission, policy: Policy, request: HttpServerRequest.HttpServerRequest) =>
+  authorizeRequest(permission, policy)(request).pipe(
     Effect.tapError((error) =>
-      Effect.logError(`qadi/http: subject extraction failed during reauth — ${error.reason}`),
-    ),
-    Effect.mapError(() => "extraction-failed" as const),
-    Effect.flatMap((subject) =>
-      assert(policy, { resource }).pipe(
-        Effect.provideService(CurrentSubject, subject),
-        Effect.tapError((error) =>
-          Effect.logError(
-            `qadi/http: reauth check failed (${error._tag}), reporting ` +
-              `${classifyEnforcementError(error)}`,
-          ),
-        ),
-        Effect.mapError((error) => classifyEnforcementError(error)),
+      Effect.logWarning(
+        `qadi/http: /__decisions recheck ended the stream (${error._tag}, ${classifyHttpEnforcementFailure(error)})`,
       ),
     ),
+    Effect.mapError(classifyHttpEnforcementFailure),
+    Effect.asVoid,
   );
 
 /**
@@ -348,7 +271,7 @@ export const reauthCheck = (
  * precedent for a caller programming error, not a runtime authorization
  * outcome) when `options.reauth.interval` decodes to `0` or a negative
  * duration. `Schedule.spaced` accepts either without complaint, and a
- * `0`-interval reauth loop is a tight spin — one `reauthCheck` call, then
+ * `0`-interval reauth loop is a tight spin — one recheck, then
  * immediately another, forever, per open connection — rather than the
  * periodic recheck this option promises (issue #107). Failing here, at
  * route construction, turns that into an immediate startup error instead of
@@ -371,7 +294,7 @@ export const decisionStreamRoute = <P extends Permission>(
     "/__decisions",
     permission,
     policy,
-    () => Effect.succeed(NO_RESOURCE),
+    loadNoResource,
   )(() =>
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
@@ -399,7 +322,7 @@ export const decisionStreamRoute = <P extends Permission>(
           : frames.pipe(
               Stream.mergeEffect(
                 Effect.repeat(
-                  reauthCheck(request, policy, NO_RESOURCE),
+                  recheck(permission, policy, request),
                   Schedule.spaced(options.reauth.interval),
                 ),
               ),

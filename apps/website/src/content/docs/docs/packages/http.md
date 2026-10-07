@@ -87,6 +87,29 @@ const WriteRoute = addGuardedRoute(
 )((authorized, resource) => handleWrite(authorized, resource));
 ```
 
+## Building your own surface
+
+`authorizeRequest` is the one step every surface here goes through: it extracts
+the subject, loads the resource (none by default), guards it and logs a denial or
+an extraction failure once. A surface this package does not ship keeps only its
+own answer.
+
+```typescript
+import * as Effect from "effect/Effect";
+import type * as HttpServerRequest from "effect/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
+import { hasPermission, permission } from "@qadi/core";
+import { HTTP_ENFORCEMENT_TAGS, authorizeRequest, toResponse } from "@qadi/http";
+
+const readPermission = permission("document", "read");
+
+export const handle = (request: HttpServerRequest.HttpServerRequest) =>
+  authorizeRequest(readPermission, hasPermission(readPermission))(request).pipe(
+    Effect.map(({ subject }) => HttpServerResponse.text(`hello ${subject.id}`)),
+    Effect.catchTag(HTTP_ENFORCEMENT_TAGS, (error) => Effect.succeed(toResponse(error))),
+  );
+```
+
 ## Subject extraction
 
 ```ts

@@ -28,7 +28,6 @@ import * as Logger from "effect/Logger";
 import * as References from "effect/References";
 import * as Schema from "effect/Schema";
 import * as SchemaAST from "effect/SchemaAST";
-import type * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { describe, expect, it } from "vitest";
 import {
   AccessDeniedRefused,
@@ -48,10 +47,9 @@ import {
   HTTP_ENFORCEMENT_ERROR_SCHEMAS,
   HTTP_ENFORCEMENT_TAGS,
   HTTP_STATUS_BY_CLASS,
-  handleEnforcementErrors,
+  classifyHttpEnforcementFailure,
   logDenial,
   projectHttpEnforcementFailure,
-  subjectExtractionFailedResponse,
   toResponse,
 } from "../src/index.ts";
 import { everyHttpEnforcementFailure } from "./fixtures/everyHttpEnforcementFailure.ts";
@@ -111,6 +109,36 @@ describe("toResponse", () => {
       expect(toResponse(error).status).toBe(status);
     }
   });
+
+  it("answers an EnforcementError with an empty body, and logs nothing", () => {
+    const error = everyHttpEnforcementFailure.AccessDenied();
+    let response: unknown;
+    const logs = collectLogs(
+      Effect.sync(() => {
+        response = toResponse(error);
+      }),
+    );
+    expect(logs).toEqual([]);
+    expect(response).toMatchObject({ status: 403, body: { _tag: "Empty" } });
+  });
+
+  it("answers SubjectExtractionFailed with its tag-only JSON 502, and never the reason", () => {
+    const response = toResponse(new SubjectExtractionFailed({ reason: "token service unreachable" }));
+    expect(response.status).toBe(502);
+    expect(JSON.stringify(response.body)).not.toContain("token service unreachable");
+    expect(response.body).toMatchObject({ _tag: "Uint8Array", contentType: "application/json" });
+  });
+});
+
+describe("classifyHttpEnforcementFailure", () => {
+  it("agrees with every wire entry's class, and calls an extraction failure an outage", () => {
+    for (const tag of HTTP_ENFORCEMENT_TAGS) {
+      expect(classifyHttpEnforcementFailure(everyHttpEnforcementFailure[tag]())).toBe(
+        ENFORCEMENT_ERROR_WIRE[tag].class,
+      );
+    }
+    expect(classifyHttpEnforcementFailure(new SubjectExtractionFailed({ reason: "down" }))).toBe("outage");
+  });
 });
 
 describe("logDenial", () => {
@@ -148,74 +176,6 @@ describe("logDenial", () => {
     expect(logs).toEqual([
       [`qadi/http: request denied (ACL010) — subject "alice": undischarged obligation(s) log-delete, notify-owner`],
     ]);
-  });
-});
-
-describe("subjectExtractionFailedResponse", () => {
-  it("logs the real reason server-side before answering the tag-only 502", () => {
-    const error = new SubjectExtractionFailed({ reason: "token service unreachable" });
-    let response: HttpServerResponse.HttpServerResponse | undefined;
-    const logs = collectLogs(
-      subjectExtractionFailedResponse(error).pipe(
-        Effect.tap((r) =>
-          Effect.sync(() => {
-            response = r;
-          }),
-        ),
-      ),
-    );
-
-    expect(logs).toEqual([["qadi/http: subject extraction failed — token service unreachable"]]);
-    expect(response?.status).toBe(502);
-  });
-});
-
-describe("handleEnforcementErrors", () => {
-  it("logs a denial (AccessDenied) before reducing it to a bodyless 403", () => {
-    const error = new AccessDenied({
-      subjectId: makeSubjectId("bob"),
-      policyTag: "HasPermission",
-      reason: "denied",
-      trace: {
-        policyTag: "HasPermission",
-        allowed: false,
-        reason: "denied",
-        children: [],
-        obligations: [],
-      },
-    });
-
-    let status: number | undefined;
-    const logs = collectLogs(
-      handleEnforcementErrors(Effect.fail(error)).pipe(
-        Effect.tap((response) =>
-          Effect.sync(() => {
-            status = response.status;
-          }),
-        ),
-      ),
-    );
-
-    expect(status).toBe(403);
-    expect(logs).toEqual([[`qadi/http: request denied (ACL001) — subject "bob": denied`]]);
-  });
-
-  it("logs an unmet obligation (UndischargedObligation) before reducing it to a bodyless 403", () => {
-    const error = new UndischargedObligation({ subjectId: makeSubjectId("alice"), obligationIds: ["ob-1"] });
-
-    let status: number | undefined;
-    const logs = collectLogs(
-      handleEnforcementErrors(Effect.fail(error)).pipe(
-        Effect.tap((response) =>
-          Effect.sync(() => {
-            status = response.status;
-          }),
-        ),
-      ),
-    );
-
-    expect(status).toBe(403);
-    expect(logs).toEqual([[`qadi/http: request denied (ACL010) — subject "alice": undischarged obligation(s) ob-1`]]);
   });
 });
 

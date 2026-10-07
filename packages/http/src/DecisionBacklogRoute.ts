@@ -25,9 +25,9 @@ import * as Result from "effect/Result";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type { DecisionLog, Permission, Policy, SinkRecordNotEncodable, StoredRecordJson } from "@qadi/core";
 import { encodeStoredRecord, reportEncodeRefusal } from "@qadi/core";
+import { loadNoResource } from "./NoResource.ts";
 import type { DecisionStreamOptions } from "./DecisionStreamRoute.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
-import { NO_RESOURCE } from "./RequirePermission.ts";
 
 /**
  * Reports one record the codec refused to serve: `onRefused` when given,
@@ -67,7 +67,7 @@ export const decisionBacklogRoute = <P extends Permission>(
     "/__decisions/backlog",
     permission,
     policy,
-    () => Effect.succeed(NO_RESOURCE),
+    loadNoResource,
   )(() =>
     Effect.gen(function* () {
       const records = yield* log.snapshot;
