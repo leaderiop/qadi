@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-080                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — amends ADR-QD-053                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-08): The default gate-id collision reporter now lives in `DeveloperSignals.ts`, which `HydrationWarning.ts` became; the body is history and stays (ADR-QD-041 amendment, CCR-QD-203)<br>1.0 (2026-10-04): Initial release (CCR-QD-160) |
+> | Change History | 1.2 (2026-10-08): Amendment (ARCH-43, CCR-QD-250): a registry from `makeGateRegistry()` reports collisions by default, the writer is a private slot of the registry object, and the override is kept<br>1.1 (2026-10-08): The default gate-id collision reporter now lives in `DeveloperSignals.ts`, which `HydrationWarning.ts` became; the body is history and stays (ADR-QD-041 amendment, CCR-QD-203)<br>1.0 (2026-10-04): Initial release (CCR-QD-160) |
 
 ---
 
@@ -113,3 +113,31 @@ structurally; only comments and one empty-state string changed there.
 Related: [ADR-QD-053](053-a-gate-can-be-found.md),
 [ADR-QD-078](078-a-seed-is-its-own-type-and-the-payload-is-versioned.md),
 [INV-QD-064](../invariants.md#inv-qd-064-a-guard-is-listed-only-by-the-registry-its-provider-writes-to).
+
+---
+
+## Amendment (2026-10-08, CCR-QD-250, ARCH-43)
+
+The `QadiProvider` `gates` override was reconsidered for deletion and is **kept**.
+
+- **Deletion would not have removed the side table.** The writer lookup
+  (`gateWriterFor`) serves every guard on the default path, not only the override.
+  Making the writer a closure the atom set owns, like `hydrate`, would need a public
+  write side on `QadiAtoms` (rejected above) or a lookup keyed on the atom set, which
+  a spread copy `{ ...atoms }` defeats (the `UnregisteredAtoms` defect of ADR-QD-078).
+  `GateRegistry.test.tsx` now pins the spread-copy property.
+- **A host-built registry reports collisions by default.** A registry from
+  `makeGateRegistry()` warns on an id collision in development through
+  `DeveloperSignals.ts`, as an atom set's own does; a supplied `onIdCollision`
+  replaces the warning and runs in production. The override's audience (one registry
+  over several roots) is the host most likely to collide, and it was the one path
+  where the signal was off.
+- **The writer is a private slot of the registry object.** `GateWriter.ts`'s
+  `WeakMap` and `bindGateWriter` are gone; `makeGateRegistry` constructs a registry
+  that holds its writer in an ES `#private` field, set once, so the binding cannot be
+  forgotten or replaced. Semantics are unchanged: a hand-built registry, or a spread
+  copy of a registry, still has no writer.
+
+**Revisit trigger:** at the first 1.0 API review, if no host passes `gates`, or
+earlier if the dock feed finds the effective-registry indirection is the only thing
+complicating it.

@@ -7,7 +7,7 @@
  */
 import { hasPermission, permission } from "@qadi/core";
 import * as FastCheck from "fast-check";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { makeGateRegistry } from "../src/GateRegistry.ts";
 import type { GateInstance, GateRenderState } from "../src/GateRegistry.ts";
 import { gateWriterFor } from "../src/GateWriter.ts";
@@ -184,6 +184,42 @@ describe("scope and collisions", () => {
     expect(reported).toEqual(["x"]);
   });
 
+  it("a registry built with no options warns once per colliding id in development", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const writer = writerOf(makeGateRegistry());
+      writer.register(instance("x", "Allowed"));
+      writer.register(instance("x", "Denied"));
+      writer.register(instance("x", "Pending"));
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0]?.[0])).toContain("identifierPrefix");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("says nothing in production unless onIdCollision is supplied", () => {
+    const previous = process.env.NODE_ENV;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    process.env.NODE_ENV = "production";
+    try {
+      const silent = writerOf(makeGateRegistry());
+      silent.register(instance("x", "Allowed"));
+      silent.register(instance("x", "Denied"));
+      expect(warn).not.toHaveBeenCalled();
+
+      const reported: Array<string> = [];
+      const loud = writerOf(makeGateRegistry({ onIdCollision: (id) => reported.push(id) }));
+      loud.register(instance("y", "Allowed"));
+      loud.register(instance("y", "Denied"));
+      expect(reported).toEqual(["y"]);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      process.env.NODE_ENV = previous;
+      warn.mockRestore();
+    }
+  });
+
   it("a disambiguated entry updates and unregisters under its own handle", () => {
     const registry = makeGateRegistry();
     const writer = writerOf(registry);
@@ -198,6 +234,13 @@ describe("scope and collisions", () => {
   it("a hand-built registry has no writer", () => {
     const foreign = { instances: () => [], subscribe: () => () => {} };
     expect(gateWriterFor(foreign)).toBeUndefined();
+  });
+
+  it("a registry's writer is reachable by neither names nor symbols", () => {
+    const registry = makeGateRegistry();
+    expect(Object.getOwnPropertyNames(registry).sort()).toEqual(["instances", "subscribe"]);
+    expect(Object.getOwnPropertySymbols(registry)).toEqual([]);
+    expect(gateWriterFor({ ...registry })).toBeUndefined();
   });
 });
 

@@ -451,6 +451,20 @@ describe("scoped to its atom set", () => {
     expect(set.gates.instances()).toEqual([]);
   });
 
+  it("a spread copy of an atom set writes to the original's registry", () => {
+    // ADR-QD-078: a capability must survive `{ ...atoms }`. The writer is found
+    // through the registry, which a copy shares, never through the atom set.
+    const set = atoms();
+    const copy = { ...set };
+    render(
+      <QadiProvider atoms={copy} subject={alice} instrument>
+        <Can policy={canRead}>allowed</Can>
+      </QadiProvider>,
+    );
+    expect(copy.gates).toBe(set.gates);
+    expect(set.gates.instances()).toHaveLength(1);
+  });
+
   it("a hand-built `gates` registers nothing and renders no marker", () => {
     // Off means absent extends to a registry this package cannot write to.
     const foreign = { instances: () => [], subscribe: () => () => {} };

@@ -40,32 +40,19 @@
  * iterating a `Set` one is still adding to does. A future change that introduces
  * a yield point would change this and needs to say so here first.
  */
-import { bindGateWriter } from "./GateWriter.ts";
-import type { GateHandle, GateInstance, GateRenderState } from "./GateWriter.ts";
+import { gateIdCollisionReporter } from "./DeveloperSignals.ts";
+import { makeOwnedGateRegistry } from "./GateWriter.ts";
+import type { GateHandle, GateInstance, GateRegistry, GateRenderState } from "./GateWriter.ts";
 
-export type { GateInstance, GateKind, GateRenderState } from "./GateWriter.ts";
-
-/**
- * The read side of a gate registry.
- *
- * Both members are plain functions with stable identity, safe to pass straight
- * to `useSyncExternalStore`. The write side is not on this interface: only
- * `@qadi/react` can reach it.
- */
-export interface GateRegistry {
-  /** Every instance currently mounted, in registration order. Same reference until a change. */
-  readonly instances: () => ReadonlyArray<GateInstance>;
-  /** Subscribes to mounts, unmounts and render-state changes. Returns the unsubscribe. */
-  readonly subscribe: (listener: () => void) => () => void;
-}
+export type { GateInstance, GateKind, GateRegistry, GateRenderState } from "./GateWriter.ts";
 
 export interface GateRegistryOptions {
   /**
    * Told once per id when two live registrations minted the same one.
    *
-   * A `QadiAtoms`' own registry defaults to a development-mode console warning
-   * (`DeveloperSignals.ts`, the one confinement point, ADR-QD-041); a registry
-   * built here reports nowhere unless this is supplied.
+   * Defaults to a development-mode warning, like an atom set's own registry
+   * (`DeveloperSignals.ts`, the one confinement point, ADR-QD-041). A supplied
+   * callback replaces the warning outright and runs in production too.
    */
   readonly onIdCollision?: (id: string) => void;
 }
@@ -82,6 +69,7 @@ export const makeGateRegistry = (options?: GateRegistryOptions): GateRegistry =>
   const listeners = new Set<() => void>();
   const reported = new Set<string>();
   let collisions = 0;
+  const report = gateIdCollisionReporter(options?.onIdCollision);
 
   // The cached array `useSyncExternalStore` compares by reference: rebuilt on
   // the first read after a change and not before, or React re-renders forever.
@@ -110,7 +98,7 @@ export const makeGateRegistry = (options?: GateRegistryOptions): GateRegistry =>
       key = `${instance.id}~${++collisions}`;
       if (!reported.has(instance.id)) {
         reported.add(instance.id);
-        options?.onIdCollision?.(instance.id);
+        report?.(instance.id);
       }
     }
     entries.set(key, { ...instance, id: key });
@@ -135,7 +123,8 @@ export const makeGateRegistry = (options?: GateRegistryOptions): GateRegistry =>
     };
   };
 
-  const registry: GateRegistry = {
+  return makeOwnedGateRegistry({
+    register,
     instances: () => {
       if (stale) {
         snapshot = [...entries.values()];
@@ -149,7 +138,5 @@ export const makeGateRegistry = (options?: GateRegistryOptions): GateRegistry =>
         listeners.delete(listener);
       };
     },
-  };
-  bindGateWriter(registry, { register });
-  return registry;
+  });
 };
