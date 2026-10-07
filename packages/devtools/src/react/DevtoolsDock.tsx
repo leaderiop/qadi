@@ -32,6 +32,7 @@ import type { PortActivity, WiringReport } from "../model/Wiring.ts";
 import type { PairedEntry } from "../model/Pairing.ts";
 import type { Selection } from "../model/Selection.ts";
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
+import type { SimulationSession } from "../model/SimulationSession.ts";
 import type { TimelineEntry } from "../model/Timeline.ts";
 import type { Role } from "@qadi/core";
 import { DecisionLog } from "./DecisionLog.tsx";
@@ -41,6 +42,7 @@ import { QuestionsPanel, type AskedQuestionLike } from "./QuestionsPanel.tsx";
 import { RoleViewer } from "./RoleViewer.tsx";
 import { ServicesPanel } from "./ServicesPanel.tsx";
 import { Simulator } from "./Simulator.tsx";
+import { useOwnedSimulationSession } from "./useSimulationSession.ts";
 import { useTimeline } from "./useTimeline.ts";
 import { body, button, colors, dock, font, input, muted, toolbar } from "./theme.ts";
 
@@ -170,6 +172,15 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   const environments = useMemo(() => environmentsOf(timeline.entries), [timeline]);
   const selection = useMemo(() => selectionOf(timeline, selectedKey), [timeline, selectedKey]);
   const sightings = useMemo(() => catalogueOf(timeline, catalogue), [timeline, catalogue]);
+  /**
+   * The simulator's session, owned here rather than by the screen.
+   *
+   * A screen is unmounted when its tab is left, and a session held by it would
+   * take the form, the capture (one round of live I/O) and the result with it.
+   * Held by the dock it survives a round trip, and the seed and ports arrive
+   * as commands rather than being re-derived on each render.
+   */
+  const simulation = useOwnedSimulationSession({ sightings, seed, ports });
 
   const select = useCallback((key: string) => {
     setSelectedKey(key);
@@ -261,8 +272,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
           {...(hydrationMismatches === undefined ? {} : { hydrationMismatches })}
           {...(onInvalidate === undefined ? {} : { onInvalidate })}
           onReplay={replay}
-          {...(seed === undefined ? {} : { seed })}
-          {...(ports === undefined ? {} : { ports })}
+          simulation={simulation}
         />
       </div>
     </section>
@@ -322,8 +332,7 @@ const Screen: FC<{
   readonly hydrationMismatches?: number;
   readonly onInvalidate?: () => void;
   readonly onReplay: (entry: TimelineEntry) => void;
-  readonly seed?: TimelineEntry;
-  readonly ports?: EvaluationPortsLayer;
+  readonly simulation: SimulationSession;
 }> = (props) => {
   const screens: Record<TabId, () => ReactNode> = {
     log: () => (
@@ -344,13 +353,7 @@ const Screen: FC<{
         {...(props.portCalls === undefined ? {} : { portCalls: props.portCalls })}
       />
     ),
-    simulator: () => (
-      <Simulator
-        sightings={props.sightings}
-        {...(props.seed === undefined ? {} : { seed: props.seed })}
-        {...(props.ports === undefined ? {} : { ports: props.ports })}
-      />
-    ),
+    simulator: () => <Simulator sightings={props.sightings} session={props.simulation} />,
     questions: () => (
       <QuestionsPanel
         questions={props.questions}

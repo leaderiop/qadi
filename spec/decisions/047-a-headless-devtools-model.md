@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-047                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 ---
 
@@ -124,3 +124,17 @@ satisfies it as is, so `sourceFromFeed` is removed rather than replaced, and
 `sourceFromEventSource` reads the server's prelude as its backlog and each
 record's environment off the wire. The headless/React split is unchanged
 ([ADR-QD-097](./097-a-decision-log-is-a-sink-and-its-own-history.md)).
+
+## Amendment (2026-10-07, CCR-QD-199)
+
+**The simulator's state is model.** "`@qadi/devtools/react` renders that model and
+computes nothing" was not true of screen 5: `Simulator.tsx` held its form, its
+chosen source, its capture, its run and the supersede token in component state,
+and four defects sat there where no model test and no mutation run could see
+them. That state is `SimulationSession`, a store of the shape `TimelineStore`
+already is (`subscribe`, `getSnapshot`, synchronous commands) with `run`, `reap`
+and `dispose` as Effects the hook forks; the form's text is `SimulationForm`'s
+codec. `useSimulationSession` is the adapter, as `useTimeline` is for the
+timeline, and `DevtoolsDock` owns the session so it outlives a tab. The two
+stores each keep their own small listener closure for now; extracting the shared
+one is deferred until a third store exists to extract it from (ARCH-24).

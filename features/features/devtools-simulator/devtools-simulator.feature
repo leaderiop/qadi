@@ -106,3 +106,15 @@ Feature: Asking what would happen, and checking it against what did
     When the "doc:read" policy is simulated under each clock
     Then both traces are identical
     And the deterministic run reports a duration of 0
+
+  Scenario: A source the host did not supply is refused, not replaced
+    Given a simulation session for the "clearance" policy, whose fixtures would allow
+    When the reviewer chooses the Live source and runs
+    Then the run is refused because the host supplied no resolvers
+    And nothing was evaluated in its place
+
+  Scenario: A sweep runs the evaluations it said it would
+    Given a simulation session for the "either way" policy with a subject holding the role "editor"
+    When the reviewer turns the pair sweep on and runs a sweep
+    Then the sweep ran exactly the evaluations the plan stated
+

@@ -94,7 +94,10 @@ supports:
 - **Inspection** (`inspect`, `flattenTree`) — walking a decision's evaluation
   tree, including nodes that never resolved or were truncated.
 - **Simulation and what-if** (`simulate`, `whatIf`, `sweepPlan`) — replaying a
-  decision against edited inputs to see what would have changed.
+  decision against edited inputs to see what would have changed. The simulator
+  screen's state is a headless `SimulationSession` (`makeSimulationSession`): a
+  source that cannot be honoured is refused rather than answered from fixtures,
+  a Live run captures for `Snapshot`, and a superseded run never lands.
 - **Wiring and gate reports** (`wiringReport`, `gateGroups`) — which ports are
   in use, and which mounted `Can`/`Cannot` gates are asking what.
 - **Hydration activity** (`hydrationActivity`) — the counters

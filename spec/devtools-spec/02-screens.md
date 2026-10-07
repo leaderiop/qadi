@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-02                                    |
-> | Revision       | 0.10 (draft)                                   |
+> | Revision       | 0.11 (draft)                                   |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.10 (2026-10-07): §2 and §6 say five port spans and four other ports; §6 names the registry's card order and says what a defaulted card shows (`PortReport.defaulted`), and its counts of `name?` shapes and required services are corrected (ARCH-21, CCR-QD-198)<br>0.9 (2026-10-05): §6 names a decision log's `clear` in place of the removed `decisionSinkRing`'s (CCR-QD-181)<br>0.8 (2026-08-24): §7's gap notes closed against what was built — hydration counts (CCR-QD-072) and the instance registry and lens (CCR-QD-073); recorded in CCR-QD-074<br>0.7 (2026-08-24): The resolver-call gap closed, and the note corrected — annotating the spans was half of it, and a reader was the other half (CCR-QD-071)<br>0.6 (2026-08-24): Screen 5 built, and §5 corrected on two counts it had asserted since the first draft — it runs on `@qadi/core`'s own layers rather than `@qadi/testing`'s, and "never against live resolvers" was the wrong rule (CCR-QD-070)<br>0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.11 (2026-10-07): §5 states the session, the signatures row and the refused run (ARCH-20, CCR-QD-199)<br>0.10 (2026-10-07): §2 and §6 say five port spans and four other ports; §6 names the registry's card order and says what a defaulted card shows (`PortReport.defaulted`), and its counts of `name?` shapes and required services are corrected (ARCH-21, CCR-QD-198)<br>0.9 (2026-10-05): §6 names a decision log's `clear` in place of the removed `decisionSinkRing`'s (CCR-QD-181)<br>0.8 (2026-08-24): §7's gap notes closed against what was built — hydration counts (CCR-QD-072) and the instance registry and lens (CCR-QD-073); recorded in CCR-QD-074<br>0.7 (2026-08-24): The resolver-call gap closed, and the note corrected — annotating the spans was half of it, and a reader was the other half (CCR-QD-071)<br>0.6 (2026-08-24): Screen 5 built, and §5 corrected on two counts it had asserted since the first draft — it runs on `@qadi/core`'s own layers rather than `@qadi/testing`'s, and "never against live resolvers" was the wrong rule (CCR-QD-070)<br>0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -211,6 +211,18 @@ duties, and the duration labelled with the clock that measured it. When the form
 was seeded from a logged row a **baseline** card says whether the reconstruction
 reproduces it, and a **what-if** table lists one row per variation with the node
 that flipped, if one did.
+
+**The screen renders a session** (CCR-QD-199). What it knows is
+`SimulationSession`, in the model: the form, the chosen source, what a Live run
+captured, the run in flight and what each result ran against. A run the session
+refused — a Live choice with no `ports`, a Snapshot choice with no capture —
+shows its own card naming the choice and the reason, and evaluates nothing. A
+result is shown only under the policy, seed and input it ran against, and
+leaving the dock's Simulator tab keeps the session, so the form, the capture and
+the result are still there on return. The Fixtures card has a fourth row,
+**signatures**, so a replay's "signatures — yours to supply" points at a control;
+a chip is the text its codec writes, which decodes back to the same value, and an
+element naming a subject other than the form's is shown in full.
 
 Two corrections to this section, both found by re-deriving it from the code
 ([ADR-QD-050](../decisions/050-a-simulation-is-sealed.md)):

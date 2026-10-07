@@ -8,52 +8,64 @@
  * here reaches no port it was not given and writes nothing to the application's
  * log or cache.
  *
+ * **This file renders and dispatches.** What the screen knows — which source is
+ * honoured, what a Live run captured, which run is current, what is stale —
+ * lives in `SimulationSession` (model), and the form's text is
+ * `SimulationForm`'s codec. The only state held here is a chip editor's
+ * uncommitted typing buffer.
+ *
  * **The form's job is to be honest about what it does not know.** Seeded from a
  * logged row it can fill in the policy, the action and the resource, and nothing
  * else — a record names the subject by id and carries what the ports answered
  * only inside its trace. So the grants are the reviewer's hypothesis, the panel
  * says which fields those are, and the baseline card says whether the hypothesis
  * reproduces the row.
- *
- * **Effect is run with `runFork`, not `runPromise`.** A React event handler
- * cannot be an `Effect`, so something has to bridge — and a fiber gives what a
- * promise does not: unmounting *interrupts* the run rather than letting it
- * finish and drop its result on the floor. A live source is the case that makes
- * the difference real, since it is the only one where a run does I/O.
  */
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type FC,
-} from "react";
-import * as Effect from "effect/Effect";
-import * as Exit from "effect/Exit";
-import * as Fiber from "effect/Fiber";
+import { useState, type CSSProperties, type FC } from "react";
+import * as Match from "effect/Match";
 import { isAllowed } from "@qadi/core";
-import type { Allow, DecisionOutcome, PermissionKey, Policy } from "@qadi/core";
+import type { Allow, DecisionOutcome, PermissionKey } from "@qadi/core";
 import type { PolicySighting } from "../model/Catalogue.ts";
-import { capturing, type CapturedAnswers } from "../model/Capture.ts";
+import { sameEdge, sameEvent } from "../model/Edits.ts";
 import { describeTracePath, inspect } from "../model/Inspect.ts";
-import { baselineDiff, matchesBaseline, replayInput } from "../model/Replay.ts";
+import { matchesBaseline } from "../model/Replay.ts";
 import type { Baseline, UnseededField } from "../model/Replay.ts";
-import { simulate, type SimulationClock } from "../model/Simulation.ts";
-import type { EvaluationPortsLayer, SimulationInput } from "../model/SimulationInput.ts";
-import { fixtures, live, snapshot, type SimulationSource } from "../model/SimulationSource.ts";
+import type { SimulationClock } from "../model/Simulation.ts";
+import {
+  actionOf,
+  addChip,
+  attributeCodec,
+  attributeLabel,
+  edgeCodec,
+  eventCodec,
+  permissionCodec,
+  removeAt,
+  roleCodec,
+  sameSignature,
+  signatureCodec,
+  withAction,
+  withPair,
+  withoutPair,
+} from "../model/SimulationForm.ts";
+import type { ChipCodec } from "../model/SimulationForm.ts";
+import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
+import type {
+  RunState,
+  SimulationSession,
+  SimulationSnapshot,
+  SourceChoice,
+  SourceOption,
+  SourceRefusal,
+} from "../model/SimulationSession.ts";
 import type { TimelineEntry } from "../model/Timeline.ts";
 import { verdictOfOutcome } from "../model/Verdict.ts";
-import { sweepPlan, whatIf, type WhatIfReport } from "../model/WhatIf.ts";
 import { FieldsPanel, ObligationList } from "./DecisionPanels.tsx";
 import { PolicyTree } from "./PolicyTree.tsx";
+import { useSimulationSession, useSimulationSnapshot } from "./useSimulationSession.ts";
+import type { SimulationSessionView } from "./useSimulationSession.ts";
 import { VerdictTag } from "./VerdictTag.tsx";
 import { WhatIfTable } from "./WhatIfTable.tsx";
 import { button, chip, colors, font, heading, input, muted, panel } from "./theme.ts";
-
-/** Which of the three answer sources the reviewer picked. */
-type SourceChoice = SimulationSource["_tag"];
 
 export interface SimulatorProps {
   /** Policies to run. Usually the log's sightings, so the rail fills as decisions arrive. */
@@ -75,147 +87,31 @@ export interface SimulatorProps {
    * disabled, with the reason — a control that vanishes teaches nobody why.
    */
   readonly ports?: EvaluationPortsLayer;
+  /**
+   * A session the host owns, so the form, the capture and the result outlive
+   * this component — `DevtoolsDock` passes one, which is what keeps them across
+   * a tab switch. When given, `sightings`, `seed` and `ports` are the session's
+   * to be told (`useSimulationSession`), not read from here.
+   */
+  readonly session?: SimulationSession;
 }
 
-const blank: SimulationInput = { subject: { id: "someone" } };
+export const Simulator: FC<SimulatorProps> = ({ session, ...own }) =>
+  session === undefined ? <OwnedSimulator {...own} /> : <SharedSimulator session={session} />;
 
-/** What a run produced, and what it was produced from. */
-type RunResult =
-  | {
-      readonly _tag: "Ran";
-      readonly outcome: DecisionOutcome;
-      readonly report: WhatIfReport | undefined;
-      readonly clock: SimulationClock;
-      readonly input: SimulationInput;
-      readonly policy: Policy;
-    }
-  | { readonly _tag: "Broke"; readonly message: string; readonly input: SimulationInput };
+const OwnedSimulator: FC<Omit<SimulatorProps, "session">> = (props) => (
+  <SimulatorView view={useSimulationSession(props)} />
+);
 
-export const Simulator: FC<SimulatorProps> = ({ sightings, seed, ports }) => {
-  const [chosen, setChosen] = useState(0);
-  const [seeded, setSeeded] = useState<{ policy: Policy; unseeded: ReadonlyArray<UnseededField> }>();
-  const [draft, setDraft] = useState<SimulationInput>(blank);
-  const [source, setSource] = useState<SourceChoice>("Fixtures");
-  const [clock, setClock] = useState<SimulationClock>("live");
-  const [pairs, setPairs] = useState(false);
-  const [captured, setCaptured] = useState<CapturedAnswers>();
-  const [result, setResult] = useState<RunResult>();
-  const [running, setRunning] = useState(false);
+const SharedSimulator: FC<{ readonly session: SimulationSession }> = ({ session }) => (
+  <SimulatorView view={useSimulationSnapshot(session)} />
+);
 
-  /**
-   * Adjusting state while rendering, which is React's own answer to "reset when
-   * a prop changes" — and better here than an effect, because an effect would
-   * paint one frame of the *previous* row's form under the new row's heading.
-   *
-   * Initialised to `undefined` rather than to `seed`, so a simulator **mounted**
-   * with a seed seeds on its first render. Seeding it from the prop is the
-   * natural-looking version and it silently handles only the second row a
-   * reviewer opens.
-   */
-  const [seenSeed, setSeenSeed] = useState<TimelineEntry | undefined>(undefined);
-  /**
-   * Bumped on every re-seed, and handed to `CheckCard` as its `key`.
-   *
-   * `CheckCard` buffers the resource textarea's raw text locally, independent
-   * of `draft`, so it can hold text that has not parsed as JSON yet without
-   * losing a keystroke (E7.3). That buffer surviving a re-seed is the bug: the
-   * card would go on showing whatever the reviewer last typed for the *previous*
-   * row under the new one's heading — the form lying about what it runs, for
-   * the one field whose state a prop change alone cannot reach. Changing `key`
-   * remounts `CheckCard`, which is React's own reset for exactly this shape of
-   * problem — simpler and harder to miss a case in than threading a second
-   * "did the row change" comparison down into the card itself.
-   */
-  const [seedGeneration, setSeedGeneration] = useState(0);
-  if (seed !== seenSeed) {
-    setSeenSeed(seed);
-    setSeedGeneration((generation) => generation + 1);
-    setResult(undefined);
-    const replay = seed === undefined ? undefined : replayInput(seed);
-    if (replay?._tag === "Replayable") {
-      setSeeded({ policy: replay.policy, unseeded: replay.unseeded });
-      setDraft(replay.input);
-    } else {
-      setSeeded(undefined);
-    }
-  }
+const SimulatorView: FC<{ readonly view: SimulationSessionView }> = ({ view }) => {
+  const { session, snapshot, run } = view;
+  const { policy } = snapshot;
 
-  // `chosen` is state and `sightings` can shrink under it, the same shape as
-  // PolicyExplorer's rail selection — clamped at render rather than trusted,
-  // so a stale index reads the same policy the dropdown now shows instead of
-  // silently falling through to "no policy chosen".
-  const clampedChosen = sightings.length === 0 ? undefined : Math.min(chosen, sightings.length - 1);
-  const policy = seeded?.policy ?? (clampedChosen === undefined ? undefined : sightings[clampedChosen]?.policy);
-
-  const fiber = useRef<RunFiber>(undefined);
-  /**
-   * Which run's result is still wanted.
-   *
-   * A counter rather than a comparison against `fiber.current`, because
-   * `addObserver` fires **immediately** on a fiber that has already finished —
-   * and a fixture run finishes synchronously inside `runFork`, before there is
-   * anything to compare against. The token is decided before the fork, so it is
-   * correct whichever way the race goes.
-   */
-  const token = useRef(0);
-
-  // E7.8. Interrupting is the honest answer rather than a flag that suppresses
-  // a `setState` after the fact: a live source is doing real work, and a panel
-  // that has been closed should stop asking the application's resolvers.
-  useEffect(
-    () => () => {
-      token.current += 1;
-      interruptCurrent(fiber.current);
-    },
-    [],
-  );
-
-  const chooseSource = useCallback((next: SourceChoice) => {
-    setSource(next);
-    // The result stays: switching source changes where the *next* answers come
-    // from, and the run that produced this one still happened.
-  }, []);
-
-  const edit = useCallback((next: SimulationInput) => {
-    // A new object every time, which is what makes staleness exact: the result
-    // holds the very input it ran against, so `!==` is "the form has moved".
-    setDraft(next);
-  }, []);
-
-  const run = useCallback(
-    (sweep: boolean) => {
-      if (policy === undefined) return;
-      const ran = draft;
-      const program = runProgram({ policy, input: ran, sweep, clock, source, ports, captured });
-
-      const mine = token.current + 1;
-      token.current = mine;
-      // Supersedes rather than queues: the reader pressed run again, so the
-      // answer to the older question is no longer the one on screen.
-      interruptCurrent(fiber.current);
-
-      setRunning(true);
-      const started = Effect.runFork(program);
-      started.addObserver((exit) => {
-        // Superseded, or unmounted. Either way there is nothing to report to.
-        if (token.current !== mine) return;
-        setRunning(false);
-        if (Exit.isSuccess(exit)) {
-          if (exit.value.answers !== undefined) setCaptured(exit.value.answers);
-          setResult({ ...exit.value.result, input: ran });
-          return;
-        }
-        // `simulate` and `whatIf` cannot fail — a broken resolver is a `Failed`
-        // *outcome*, not an error — so reaching here means a defect, and a panel
-        // that showed nothing would look merely unresponsive.
-        setResult({ _tag: "Broke", message: String(exit.cause), input: ran });
-      });
-      fiber.current = started;
-    },
-    [policy, draft, clock, source, ports, captured],
-  );
-
-  if (policy === undefined) {
+  if (policy._tag === "None") {
     return (
       <p style={{ ...muted, padding: 16 }} data-testid="qadi-simulator-empty">
         {/* E7.1 — an empty form with a dead run button teaches nobody why it is
@@ -229,136 +125,40 @@ export const Simulator: FC<SimulatorProps> = ({ sightings, seed, ports }) => {
     );
   }
 
-  const chosenSource = sourceOf(source, ports, captured);
-  const plan = sweepPlan(policy, draft, {
-    pairs,
-    ...(chosenSource === undefined ? {} : { source: chosenSource }),
-  });
-  const stale = result !== undefined && result.input !== draft;
-
   return (
     <div style={{ padding: 12 }} data-testid="qadi-simulator">
-      <Controls
-        sightings={sightings}
-        chosen={clampedChosen ?? chosen}
-        onChoose={(index) => {
-          setChosen(index);
-          // A seeded policy belongs to the row it came from; choosing another
-          // from the rail is leaving that row behind.
-          setSeeded(undefined);
-          setResult(undefined);
-        }}
-        seeded={seeded !== undefined}
-        source={source}
-        onSource={chooseSource}
-        hasPorts={ports !== undefined}
-        hasCapture={captured !== undefined}
-        clock={clock}
-        onClock={setClock}
-        pairs={pairs}
-        onPairs={setPairs}
-        running={running}
-        evaluations={plan.evaluations}
-        causesIO={plan.causesIO}
-        onRun={() => run(false)}
-        onSweep={() => run(true)}
-      />
+      <Controls snapshot={snapshot} session={session} onRun={run} />
 
-      <SubjectCard input={draft} onChange={edit} />
-      <CheckCard key={seedGeneration} input={draft} onChange={edit} />
-      <FixturesCard input={draft} onChange={edit} />
-      {seeded === undefined ? null : <UnseededCard unseeded={seeded.unseeded} />}
+      <SubjectCard snapshot={snapshot} session={session} />
+      <CheckCard snapshot={snapshot} session={session} />
+      <FixturesCard snapshot={snapshot} session={session} />
+      {policy._tag === "Seeded" ? <UnseededCard unseeded={policy.unseeded} /> : null}
 
-      {result === undefined ? null : (
-        <ResultCard result={result} stale={stale} policy={policy} />
-      )}
-      {seed === undefined || result === undefined || result._tag !== "Ran" ? null : (
-        <BaselineCard baseline={baselineDiff(seed, result.outcome)} />
-      )}
-      {result?._tag === "Ran" && result.report !== undefined ? (
-        <WhatIfTable report={result.report} />
+      <RunView state={snapshot.run} stale={snapshot.stale} />
+      {snapshot.baseline === undefined ? null : <BaselineCard baseline={snapshot.baseline} />}
+      {snapshot.run._tag === "Ran" && snapshot.run.report !== undefined ? (
+        <WhatIfTable report={snapshot.run.report} />
       ) : null}
     </div>
   );
 };
 
-/**
- * One run, as an Effect.
- *
- * Outside the component so a test can reason about it, and so the component
- * holds no evaluation logic of its own. In `Live` mode it always **captures**:
- * the answers cost nothing extra to record and they are what makes `Snapshot`
- * reachable, which is the mode a sweep should actually use — one round of I/O
- * instead of one per edit.
- */
-const runProgram = Effect.fn("qadi.devtools.runProgram")(function* (options: {
-  readonly policy: Policy;
-  readonly input: SimulationInput;
-  readonly sweep: boolean;
-  readonly clock: SimulationClock;
-  readonly source: SourceChoice;
-  readonly ports: EvaluationPortsLayer | undefined;
-  readonly captured: CapturedAnswers | undefined;
-}) {
-  const recorder =
-    options.source === "Live" && options.ports !== undefined ? capturing(options.ports) : undefined;
-  const source =
-    recorder === undefined
-      ? sourceOf(options.source, options.ports, options.captured)
-      : live(recorder.layer);
-
-  const run = { clock: options.clock, ...(source === undefined ? {} : { source }) };
-
-  const report = options.sweep
-    ? yield* whatIf(options.policy, options.input, { ...run, pairs: true })
-    : undefined;
-  const outcome = report?.baseline ?? (yield* simulate(options.policy, options.input, run));
-
-  return {
-    result: { _tag: "Ran" as const, outcome, report, clock: options.clock, policy: options.policy },
-    answers: recorder === undefined ? undefined : yield* recorder.answers,
-  };
-});
-
-/** The fiber one run of `runProgram` is held in, typed from the program itself. */
-type RunFiber = Fiber.Fiber<
-  Effect.Success<ReturnType<typeof runProgram>>,
-  Effect.Error<ReturnType<typeof runProgram>>
->;
-
-/**
- * Interrupts a run in flight, the way `useTimeline.ts` interrupts its own
- * fiber on unmount: `Effect.runFork(Fiber.interrupt(fiber))`, not
- * `interruptUnsafe()`.
- *
- * `Fiber.interrupt` only resolves once the interrupted fiber's finalizers have
- * actually run, where `interruptUnsafe` merely signals interruption and
- * returns immediately — a difference that matters here because `Live` mode
- * does real I/O through the host's ports, and nothing should assume that I/O
- * has torn down just because the signal was sent.
- */
-const interruptCurrent = (fiber: RunFiber | undefined): void => {
-  if (fiber !== undefined) Effect.runFork(Fiber.interrupt(fiber));
-};
-
-/**
- * The source a choice names, or nothing when it cannot be honoured.
- *
- * `undefined` rather than a silent fall back to fixtures: `portsOf` treats an
- * absent source as fixtures, which is the right default for a caller who never
- * chose — and would be the wrong answer for one who chose `Live` and is entitled
- * to know it did not happen. The selector disables both unavailable options, so
- * this is the belt to that brace.
- */
-const sourceOf = (
-  choice: SourceChoice,
-  ports: EvaluationPortsLayer | undefined,
-  captured: CapturedAnswers | undefined,
-): SimulationSource | undefined => {
-  if (choice === "Fixtures") return fixtures;
-  if (choice === "Snapshot") return captured === undefined ? undefined : snapshot(captured);
-  return ports === undefined ? undefined : live(ports);
-};
+/** What a run state shows. `Idle` and `Running` show no result: nothing has answered yet. */
+const RunView: FC<{ readonly state: RunState; readonly stale: boolean }> = ({ state, stale }) =>
+  Match.value(state).pipe(
+    Match.tagsExhaustive({
+      Idle: () => null,
+      Running: () => null,
+      Ran: (ran) => <ResultCard result={ran} stale={stale} />,
+      Broke: (broke) => (
+        <section style={{ ...panel, borderColor: colors.error }} data-testid="qadi-simulator-broke">
+          <div style={{ ...heading, color: colors.error }}>the simulation itself failed</div>
+          <span>{broke.message}</span>
+        </section>
+      ),
+      Refused: (refused) => <RefusedCard choice={refused.question.source} refusal={refused.refusal} />,
+    }),
+  );
 
 // ---------------------------------------------------------------------------
 // Controls
@@ -367,104 +167,103 @@ const sourceOf = (
 const row: CSSProperties = { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" };
 
 const Controls: FC<{
-  readonly sightings: ReadonlyArray<PolicySighting>;
-  readonly chosen: number;
-  readonly onChoose: (index: number) => void;
-  readonly seeded: boolean;
-  readonly source: SourceChoice;
-  readonly onSource: (choice: SourceChoice) => void;
-  readonly hasPorts: boolean;
-  readonly hasCapture: boolean;
-  readonly clock: SimulationClock;
-  readonly onClock: (clock: SimulationClock) => void;
-  readonly pairs: boolean;
-  readonly onPairs: (pairs: boolean) => void;
-  readonly running: boolean;
-  readonly evaluations: number;
-  readonly causesIO: boolean;
-  readonly onRun: () => void;
-  readonly onSweep: () => void;
-}> = (props) => (
-  <div style={{ ...row, marginBottom: 10 }}>
-    <select
-      aria-label="Policy"
-      data-testid="qadi-simulator-policy"
-      style={input}
-      value={props.seeded ? -1 : props.chosen}
-      onChange={(event) => props.onChoose(Number(event.target.value))}
-    >
-      {props.seeded ? <option value={-1}>from the replayed row</option> : null}
-      {props.sightings.map((sighting, index) => (
-        <option key={`${sighting.label}-${index}`} value={index}>
-          {sighting.label}
-        </option>
-      ))}
-    </select>
+  readonly snapshot: SimulationSnapshot;
+  readonly session: SimulationSession;
+  readonly onRun: (kind: "Run" | "Sweep") => void;
+}> = ({ snapshot, session, onRun }) => {
+  const running = snapshot.run._tag === "Running";
+  const seeded = snapshot.policy._tag === "Seeded";
+  const chosen = snapshot.policy._tag === "Chosen" ? snapshot.policy.index : 0;
+  const plan = snapshot.plan;
+  const causesIO = plan?.causesIO === true;
 
-    <SourceSelector
-      source={props.source}
-      onSource={props.onSource}
-      hasPorts={props.hasPorts}
-      hasCapture={props.hasCapture}
-    />
+  return (
+    <div style={{ ...row, marginBottom: 10 }}>
+      <select
+        aria-label="Policy"
+        data-testid="qadi-simulator-policy"
+        style={input}
+        value={seeded ? -1 : chosen}
+        onChange={(event) => session.choosePolicy(Number(event.target.value))}
+      >
+        {seeded ? <option value={-1}>from the replayed row</option> : null}
+        {snapshot.sightings.map((sighting, index) => (
+          <option key={`${sighting.label}-${index}`} value={index}>
+            {sighting.label}
+          </option>
+        ))}
+      </select>
 
-    {/* E6.1/E6.2 — the clock is *labelled*, never inferred from the number.
-        A live run of a trivial policy also reports zero. */}
-    <span style={{ display: "inline-flex", gap: 4 }}>
-      {(["live", "deterministic"] as const).map((option) => (
-        <button
-          key={option}
-          type="button"
-          style={button(props.clock === option)}
-          aria-pressed={props.clock === option}
-          onClick={() => props.onClock(option)}
-        >
-          {option} clock
-        </button>
-      ))}
-    </span>
+      <SourceSelector
+        source={snapshot.sourceChoice}
+        options={snapshot.options}
+        onSource={session.chooseSource}
+      />
 
-    <button
-      type="button"
-      style={button(props.pairs)}
-      aria-pressed={props.pairs}
-      data-testid="qadi-simulator-pairs"
-      onClick={() => props.onPairs(!props.pairs)}
-    >
-      pairs
-    </button>
+      {/* E6.1/E6.2 — the clock is *labelled*, never inferred from the number.
+          A live run of a trivial policy also reports zero. */}
+      <span style={{ display: "inline-flex", gap: 4 }}>
+        {clocks.map((option) => (
+          <button
+            key={option}
+            type="button"
+            style={button(snapshot.clock === option)}
+            aria-pressed={snapshot.clock === option}
+            onClick={() => session.setClock(option)}
+          >
+            {option} clock
+          </button>
+        ))}
+      </span>
 
-    <button
-      type="button"
-      style={button(false)}
-      disabled={props.running}
-      data-testid="qadi-simulator-run"
-      onClick={props.onRun}
-    >
-      run
-    </button>
-    <button
-      type="button"
-      style={button(false)}
-      disabled={props.running}
-      data-testid="qadi-simulator-sweep"
-      onClick={props.onSweep}
-    >
-      what if
-    </button>
+      <button
+        type="button"
+        style={button(snapshot.pairs)}
+        aria-pressed={snapshot.pairs}
+        data-testid="qadi-simulator-pairs"
+        onClick={() => session.setPairs(!snapshot.pairs)}
+      >
+        pairs
+      </button>
 
-    {/* Before the sweep, never after it: a count discovered afterwards is not a
-        warning (E3.2). */}
-    <span
-      style={{ ...muted, fontSize: font.sizeSmall, ...(props.causesIO ? { color: colors.error } : {}) }}
-      data-testid="qadi-simulator-cost"
-    >
-      {props.causesIO
-        ? `a sweep runs ${props.evaluations} evaluations against your live resolvers`
-        : `a sweep runs ${props.evaluations} evaluations, all in this process`}
-    </span>
-  </div>
-);
+      <button
+        type="button"
+        style={button(false)}
+        disabled={running}
+        data-testid="qadi-simulator-run"
+        onClick={() => onRun("Run")}
+      >
+        run
+      </button>
+      <button
+        type="button"
+        style={button(false)}
+        disabled={running}
+        data-testid="qadi-simulator-sweep"
+        onClick={() => onRun("Sweep")}
+      >
+        what if
+      </button>
+
+      {/* Before the sweep, never after it: a count discovered afterwards is not a
+          warning (E3.2). And the count is the count the sweep runs. */}
+      <span
+        style={{ ...muted, fontSize: font.sizeSmall, ...(causesIO ? { color: colors.error } : {}) }}
+        data-testid="qadi-simulator-cost"
+      >
+        {snapshot.refusal !== undefined
+          ? `a run would be refused: ${snapshot.refusal.reason}`
+          : plan === undefined
+            ? ""
+            : causesIO
+              ? `a sweep runs ${plan.evaluations} evaluations against your live resolvers`
+              : `a sweep runs ${plan.evaluations} evaluations, all in this process`}
+      </span>
+    </div>
+  );
+};
+
+const clocks: ReadonlyArray<SimulationClock> = ["live", "deterministic"];
 
 /**
  * Three options, two of which are usually unavailable — and both say why.
@@ -472,117 +271,94 @@ const Controls: FC<{
  * A control that disappears when it cannot be used teaches nobody that it
  * exists, which matters most for `Snapshot`: it is the mode a sweep should use,
  * and nobody would guess that running once against `Live` is what unlocks it.
+ * Which options are available is the session's to say.
  */
 const SourceSelector: FC<{
   readonly source: SourceChoice;
+  readonly options: ReadonlyArray<SourceOption>;
   readonly onSource: (choice: SourceChoice) => void;
-  readonly hasPorts: boolean;
-  readonly hasCapture: boolean;
-}> = ({ source, onSource, hasPorts, hasCapture }) => {
-  const options: ReadonlyArray<{
-    readonly id: SourceChoice;
-    readonly enabled: boolean;
-    readonly why: string;
-  }> = [
-    { id: "Fixtures", enabled: true, why: "answers you typed below" },
-    {
-      id: "Snapshot",
-      enabled: hasCapture,
-      why: hasCapture
-        ? "real answers, captured once and replayed — one round of I/O for a whole sweep"
-        : "run once against Live first; this replays what that run learned",
-    },
-    {
-      id: "Live",
-      enabled: hasPorts,
-      why: hasPorts
-        ? "the application's own resolvers — every row is real I/O"
-        : "the host did not pass a `ports` layer, so this panel cannot reach any resolver",
-    },
-  ];
-
-  return (
-    <span style={{ display: "inline-flex", gap: 4 }}>
-      {options.map((option) => (
-        <button
-          key={option.id}
-          type="button"
-          title={option.why}
-          disabled={!option.enabled}
-          aria-pressed={source === option.id}
-          data-testid={`qadi-source-${option.id}`}
-          style={{ ...button(source === option.id), ...(option.enabled ? {} : { opacity: 0.45 }) }}
-          onClick={() => onSource(option.id)}
-        >
-          {option.id}
-        </button>
-      ))}
-    </span>
-  );
-};
+}> = ({ source, options, onSource }) => (
+  <span style={{ display: "inline-flex", gap: 4 }}>
+    {options.map((option) => (
+      <button
+        key={option.id}
+        type="button"
+        title={option.why}
+        disabled={!option.enabled}
+        aria-pressed={source === option.id}
+        data-testid={`qadi-source-${option.id}`}
+        style={{ ...button(source === option.id), ...(option.enabled ? {} : { opacity: 0.45 }) }}
+        onClick={() => onSource(option.id)}
+      >
+        {option.id}
+      </button>
+    ))}
+  </span>
+);
 
 // ---------------------------------------------------------------------------
 // The form
 // ---------------------------------------------------------------------------
 
-const SubjectCard: FC<{
-  readonly input: SimulationInput;
-  readonly onChange: (next: SimulationInput) => void;
-}> = ({ input: draft, onChange }) => (
-  <section style={panel} data-testid="qadi-subject-card">
-    <div style={heading}>subject</div>
-    <div style={{ ...row, marginBottom: 6 }}>
-      <label style={{ ...muted, fontSize: font.sizeSmall }} htmlFor="qadi-subject-id">
-        id
-      </label>
-      <input
-        id="qadi-subject-id"
-        style={input}
-        value={draft.subject.id}
-        data-testid="qadi-subject-id"
-        onChange={(event) =>
-          onChange({ ...draft, subject: { ...draft.subject, id: event.target.value } })
+interface CardProps {
+  readonly snapshot: SimulationSnapshot;
+  readonly session: SimulationSession;
+}
+
+const SubjectCard: FC<CardProps> = ({ snapshot, session }) => {
+  const draft = snapshot.draft;
+  const subjectId = draft.subject.id;
+  return (
+    <section style={panel} data-testid="qadi-subject-card">
+      <div style={heading}>subject</div>
+      <div style={{ ...row, marginBottom: 6 }}>
+        <label style={{ ...muted, fontSize: font.sizeSmall }} htmlFor="qadi-subject-id">
+          id
+        </label>
+        <input
+          id="qadi-subject-id"
+          style={input}
+          value={subjectId}
+          data-testid="qadi-subject-id"
+          onChange={(event) => session.renameSubject(event.target.value)}
+        />
+      </div>
+      <Chips<string>
+        label="roles"
+        testId="qadi-roles"
+        values={draft.subject.roles ?? []}
+        codec={roleCodec}
+        same={(a, b) => a === b}
+        subjectId={subjectId}
+        onChange={(roles) => session.edit({ ...draft, subject: { ...draft.subject, roles } })}
+      />
+      <Chips<PermissionKey>
+        label="permissions"
+        testId="qadi-permissions"
+        placeholder="resource:action"
+        values={draft.subject.permissions ?? []}
+        codec={permissionCodec}
+        same={(a, b) => a === b}
+        subjectId={subjectId}
+        onChange={(permissions) =>
+          session.edit({ ...draft, subject: { ...draft.subject, permissions } })
         }
       />
-    </div>
-    <Chips
-      label="roles"
-      testId="qadi-roles"
-      values={draft.subject.roles ?? []}
-      onChange={(roles) => onChange({ ...draft, subject: { ...draft.subject, roles } })}
-    />
-    <Chips
-      label="permissions"
-      testId="qadi-permissions"
-      placeholder="resource:action"
-      values={draft.subject.permissions ?? []}
-      onChange={(next) =>
-        onChange({
-          ...draft,
-          // Filtered rather than cast. `PermissionKey` is a template literal
-          // type, and a chip reading `admin` with no colon is not one — the
-          // evaluator would look up a key nothing can ever hold, and the row
-          // would deny for a reason the reviewer could not see.
-          subject: { ...draft.subject, permissions: next.filter(isPermissionKey) },
-        })
-      }
-    />
-    <Pairs
-      label="attributes"
-      testId="qadi-subject-attributes"
-      values={draft.subject.attributes ?? {}}
-      onChange={(attributes) => onChange({ ...draft, subject: { ...draft.subject, attributes } })}
-    />
-  </section>
-);
+      <Pairs
+        label="attributes"
+        testId="qadi-subject-attributes"
+        values={draft.subject.attributes ?? {}}
+        onChange={(attributes) =>
+          session.edit({ ...draft, subject: { ...draft.subject, attributes } })
+        }
+      />
+    </section>
+  );
+};
 
-const CheckCard: FC<{
-  readonly input: SimulationInput;
-  readonly onChange: (next: SimulationInput) => void;
-}> = ({ input: draft, onChange }) => {
-  const [text, setText] = useState<string>();
-  const [error, setError] = useState<string>();
-  const shown = text ?? (draft.resource === undefined ? "" : JSON.stringify(draft.resource));
+const CheckCard: FC<CardProps> = ({ snapshot, session }) => {
+  const draft = snapshot.draft;
+  const { text, error } = snapshot.resourceText;
 
   return (
     <section style={panel} data-testid="qadi-check-card">
@@ -596,12 +372,9 @@ const CheckCard: FC<{
           style={input}
           value={draft.action ?? ""}
           data-testid="qadi-action"
-          onChange={(event) => {
-            const action = event.target.value;
-            // Absent, not empty. `hasAction` fails with `MissingAction` when no
-            // action was supplied, and an empty string is a different question.
-            onChange(action === "" ? withoutAction(draft) : { ...draft, action });
-          }}
+          // Absent, not empty. `hasAction` fails with `MissingAction` when no
+          // action was supplied, and an empty string is a different question.
+          onChange={(event) => session.edit(withAction(draft, actionOf(event.target.value)))}
         />
       </div>
       <div style={row}>
@@ -611,28 +384,10 @@ const CheckCard: FC<{
         <input
           id="qadi-resource"
           style={{ ...input, minWidth: 320 }}
-          value={shown}
+          value={text}
           placeholder='{"id": "doc-1"}'
           data-testid="qadi-resource"
-          onChange={(event) => {
-            const next = event.target.value;
-            setText(next);
-            if (next.trim() === "") {
-              setError(undefined);
-              onChange(withoutResource(draft));
-              return;
-            }
-            const parsed = parseJson(next);
-            // E7.3 — reported inline, and the previous resource is left alone.
-            // Clearing it on every keystroke that is not yet valid JSON would
-            // make the form unusable halfway through typing one.
-            if (parsed._tag === "Bad") {
-              setError(parsed.message);
-              return;
-            }
-            setError(undefined);
-            onChange({ ...draft, resource: parsed.value });
-          }}
+          onChange={(event) => session.editResourceText(event.target.value)}
         />
         {error === undefined ? null : (
           <span style={{ color: colors.error }} data-testid="qadi-resource-error">
@@ -644,59 +399,57 @@ const CheckCard: FC<{
   );
 };
 
-const FixturesCard: FC<{
-  readonly input: SimulationInput;
-  readonly onChange: (next: SimulationInput) => void;
-}> = ({ input: draft, onChange }) => (
-  <section style={panel} data-testid="qadi-fixtures-card">
-    <div style={heading}>fixtures — what the ports would answer</div>
-    <Pairs
-      label="resolver attributes"
-      testId="qadi-fixture-attributes"
-      values={draft.attributes ?? {}}
-      onChange={(attributes) => onChange({ ...draft, attributes })}
-    />
-    <Chips
-      label="relationships"
-      testId="qadi-relationships"
-      placeholder="relation:resourceId"
-      values={(draft.relationships ?? []).map((e) => `${e.relation}:${e.resourceId}`)}
-      onChange={(next) =>
-        onChange({
-          ...draft,
-          relationships: next.flatMap((entry) => {
-            const split = splitOnce(entry);
-            return split === undefined
-              ? []
-              : [{ subjectId: draft.subject.id, relation: split[0], resourceId: split[1] }];
-          }),
-        })
-      }
-    />
-    <Chips
-      label="history"
-      testId="qadi-history"
-      placeholder="event:resourceId"
-      values={(draft.history ?? []).map((e) => `${e.event}:${e.resourceId}`)}
-      onChange={(next) =>
-        onChange({
-          ...draft,
-          history: next.flatMap((entry) => {
-            const split = splitOnce(entry);
-            return split === undefined
-              ? []
-              : [{ subjectId: draft.subject.id, event: split[0], resourceId: split[1] }];
-          }),
-        })
-      }
-    />
-    <p style={{ ...muted, fontSize: font.sizeSmall, margin: "6px 0 0" }}>
-      Edges and events are attributed to the subject above. A port left empty
-      answers the way an unwired one does, so a policy that needs it denies for
-      the reason a misconfigured deployment would.
-    </p>
-  </section>
-);
+const FixturesCard: FC<CardProps> = ({ snapshot, session }) => {
+  const draft = snapshot.draft;
+  const subjectId = draft.subject.id;
+  return (
+    <section style={panel} data-testid="qadi-fixtures-card">
+      <div style={heading}>fixtures — what the ports would answer</div>
+      <Pairs
+        label="resolver attributes"
+        testId="qadi-fixture-attributes"
+        values={draft.attributes ?? {}}
+        onChange={(attributes) => session.edit({ ...draft, attributes })}
+      />
+      <Chips
+        label="relationships"
+        testId="qadi-relationships"
+        placeholder="relation:resourceId"
+        values={draft.relationships ?? []}
+        codec={edgeCodec}
+        same={sameEdge}
+        subjectId={subjectId}
+        onChange={(relationships) => session.edit({ ...draft, relationships })}
+      />
+      <Chips
+        label="history"
+        testId="qadi-history"
+        placeholder="event:resourceId"
+        values={draft.history ?? []}
+        codec={eventCodec}
+        same={sameEvent}
+        subjectId={subjectId}
+        onChange={(history) => session.edit({ ...draft, history })}
+      />
+      <Chips
+        label="signatures"
+        testId="qadi-signatures"
+        placeholder="meaning:resourceId"
+        values={draft.signatures ?? []}
+        codec={signatureCodec}
+        same={sameSignature}
+        subjectId={subjectId}
+        onChange={(signatures) => session.edit({ ...draft, signatures })}
+      />
+      <p style={{ ...muted, fontSize: font.sizeSmall, margin: "6px 0 0" }}>
+        Edges, events and signatures are attributed to the subject above, and the
+        ones naming it follow a rename; one naming somebody else is shown in full
+        and stays. A port left empty answers the way an unwired one does, so a
+        policy that needs it denies for the reason a misconfigured deployment would.
+      </p>
+    </section>
+  );
+};
 
 /**
  * What a replay could not fill in, named field by field.
@@ -721,24 +474,31 @@ const UnseededCard: FC<{ readonly unseeded: ReadonlyArray<UnseededField> }> = ({
 // The result
 // ---------------------------------------------------------------------------
 
-const ResultCard: FC<{
-  readonly result: RunResult;
-  readonly stale: boolean;
-  readonly policy: Policy;
-}> = ({ result, stale, policy }) => {
-  if (result._tag === "Broke") {
-    return (
-      <section style={{ ...panel, borderColor: colors.error }} data-testid="qadi-simulator-broke">
-        <div style={{ ...heading, color: colors.error }}>the simulation itself failed</div>
-        <span>{result.message}</span>
-      </section>
-    );
-  }
+/** A run the session declined: no evaluation happened, and the card says which choice and why. */
+const RefusedCard: FC<{ readonly choice: SourceChoice; readonly refusal: SourceRefusal }> = ({
+  choice,
+  refusal,
+}) => (
+  <section style={{ ...panel, borderColor: colors.error }} data-testid="qadi-simulator-refused">
+    <div style={{ ...heading, color: colors.error }}>
+      nothing was run — {choice} cannot be used
+    </div>
+    <span>{refusal.reason}</span>
+    <p style={{ ...muted, marginBottom: 0, marginTop: 6 }}>
+      The simulator does not answer from another source in its place. Choose one
+      that is available, or have the host supply what this one needs.
+    </p>
+  </section>
+);
 
+const ResultCard: FC<{
+  readonly result: Extract<RunState, { _tag: "Ran" }>;
+  readonly stale: boolean;
+}> = ({ result, stale }) => {
   const outcome = result.outcome;
+  const policy = result.question.policy;
   const allow: Allow | undefined =
     outcome._tag === "Decided" && isAllowed(outcome.decision) ? outcome.decision : undefined;
-
   return (
     <>
       <section style={panel} data-testid="qadi-simulator-result">
@@ -880,47 +640,109 @@ const summarise = (baseline: Extract<Baseline, { _tag: "Checked" }>): string => 
 // Small editors
 // ---------------------------------------------------------------------------
 
-const Chips: FC<{
+/** What a chip editor holds that the session does not: text typed and not yet committed. */
+interface Buffer {
+  readonly text: string;
+  readonly error: string | undefined;
+}
+
+const emptyBuffer: Buffer = { text: "", error: undefined };
+
+const Remove: FC<{ readonly label: string; readonly onClick: () => void }> = ({ label, onClick }) => (
+  <button
+    type="button"
+    aria-label={`Remove ${label}`}
+    style={{ ...button(false), border: "none", padding: "0 4px" }}
+    onClick={onClick}
+  >
+    ×
+  </button>
+);
+
+const Draft: FC<{
+  readonly label: string;
+  readonly testId: string;
+  readonly placeholder: string;
+  readonly buffer: Buffer;
+  readonly onType: (text: string) => void;
+  readonly onCommit: () => void;
+}> = ({ label, testId, placeholder, buffer, onType, onCommit }) => (
+  <>
+    <input
+      style={{ ...input, minWidth: 140 }}
+      aria-label={`Add ${label}`}
+      placeholder={placeholder}
+      value={buffer.text}
+      onChange={(event) => onType(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") onCommit();
+      }}
+    />
+    {buffer.error === undefined ? null : (
+      <span style={{ color: colors.error, fontSize: font.sizeSmall }} data-testid={`${testId}-error`}>
+        {buffer.error}
+      </span>
+    )}
+  </>
+);
+
+/**
+ * One list field. A chip is shown as its codec's text, so what is on screen is
+ * what decodes back to the element behind it; a refused value is shown as the
+ * refusal, never as a lossy rendering.
+ */
+const Chips = <A,>({
+  label,
+  testId,
+  placeholder,
+  values,
+  codec,
+  same,
+  subjectId,
+  onChange,
+}: {
   readonly label: string;
   readonly testId: string;
   readonly placeholder?: string;
-  readonly values: ReadonlyArray<string>;
-  readonly onChange: (values: ReadonlyArray<string>) => void;
-}> = ({ label, testId, placeholder, values, onChange }) => {
-  const [text, setText] = useState("");
+  readonly values: ReadonlyArray<A>;
+  readonly codec: ChipCodec<A>;
+  readonly same: (a: A, b: A) => boolean;
+  readonly subjectId: string;
+  readonly onChange: (values: ReadonlyArray<A>) => void;
+}) => {
+  const [buffer, setBuffer] = useState<Buffer>(emptyBuffer);
 
   const add = () => {
-    const value = text.trim();
-    if (value === "" || values.includes(value)) return;
-    setText("");
-    onChange([...values, value]);
+    if (buffer.text.trim() === "") return;
+    const added = addChip(values, buffer.text, codec, same, subjectId);
+    if (added._tag === "Refused") {
+      setBuffer({ text: buffer.text, error: added.reason });
+      return;
+    }
+    setBuffer(emptyBuffer);
+    onChange(added.value);
   };
 
   return (
     <div style={{ ...row, marginBottom: 4 }} data-testid={testId}>
       <span style={{ ...muted, fontSize: font.sizeSmall, minWidth: 130 }}>{label}</span>
-      {values.map((value) => (
-        <span key={value} style={chip}>
-          {value}
-          <button
-            type="button"
-            aria-label={`Remove ${value}`}
-            style={{ ...button(false), border: "none", padding: "0 4px" }}
-            onClick={() => onChange(values.filter((other) => other !== value))}
-          >
-            ×
-          </button>
-        </span>
-      ))}
-      <input
-        style={{ ...input, minWidth: 140 }}
-        aria-label={`Add ${label}`}
+      {values.map((value, index) => {
+        const text = codec.encode(value, subjectId);
+        const shown = text._tag === "Ok" ? text.value : `(${text.reason})`;
+        return (
+          <span key={`${index}-${shown}`} style={chip}>
+            {shown}
+            <Remove label={shown} onClick={() => onChange(removeAt(values, index))} />
+          </span>
+        );
+      })}
+      <Draft
+        label={label}
+        testId={testId}
         placeholder={placeholder ?? label}
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") add();
-        }}
+        buffer={buffer}
+        onType={(text) => setBuffer({ text, error: undefined })}
+        onCommit={add}
       />
     </div>
   );
@@ -932,116 +754,40 @@ const Pairs: FC<{
   readonly values: Readonly<Record<string, unknown>>;
   readonly onChange: (values: Readonly<Record<string, unknown>>) => void;
 }> = ({ label, testId, values, onChange }) => {
-  const [text, setText] = useState("");
-  const entries = useMemo(() => Object.entries(values), [values]);
+  const [buffer, setBuffer] = useState<Buffer>(emptyBuffer);
 
   const add = () => {
-    const split = splitOnce(text.trim());
-    if (split === undefined) return;
-    setText("");
-    // JSON first, the raw string otherwise: `clearance:7` should be the number
-    // seven, because `gte(5)` compares numerically and would deny the string.
-    // `parseValue`, not `parseJson` — an attribute may hold a scalar, where a
-    // resource must be an object because `evaluate` reads it by path.
-    onChange({ ...values, [split[0]]: parseValue(split[1]) });
+    if (buffer.text.trim() === "") return;
+    const pair = attributeCodec.decode(buffer.text, "");
+    if (pair._tag === "Refused") {
+      setBuffer({ text: buffer.text, error: pair.reason });
+      return;
+    }
+    setBuffer(emptyBuffer);
+    onChange(withPair(values, pair.value));
   };
 
   return (
     <div style={{ ...row, marginBottom: 4 }} data-testid={testId}>
       <span style={{ ...muted, fontSize: font.sizeSmall, minWidth: 130 }}>{label}</span>
-      {entries.map(([key, value]) => (
-        <span key={key} style={chip}>
-          {key}={render(value)}
-          <button
-            type="button"
-            aria-label={`Remove ${key}`}
-            style={{ ...button(false), border: "none", padding: "0 4px" }}
-            onClick={() =>
-              onChange(Object.fromEntries(entries.filter(([other]) => other !== key)))
-            }
-          >
-            ×
-          </button>
-        </span>
-      ))}
-      <input
-        style={{ ...input, minWidth: 140 }}
-        aria-label={`Add ${label}`}
+      {Object.entries(values).map((pair) => {
+        const text = attributeLabel(pair);
+        const shown = text._tag === "Ok" ? text.value : `${pair[0]} (${text.reason})`;
+        return (
+          <span key={pair[0]} style={chip}>
+            {shown}
+            <Remove label={pair[0]} onClick={() => onChange(withoutPair(values, pair[0]))} />
+          </span>
+        );
+      })}
+      <Draft
+        label={label}
+        testId={testId}
         placeholder="name:value"
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") add();
-        }}
+        buffer={buffer}
+        onType={(text) => setBuffer({ text, error: undefined })}
+        onCommit={add}
       />
     </div>
   );
-};
-
-// ---------------------------------------------------------------------------
-// Plumbing
-// ---------------------------------------------------------------------------
-
-/** True for the `resource:action` shape a permission lookup uses. */
-const isPermissionKey = (value: string): value is PermissionKey => splitOnce(value) !== undefined;
-
-/** `name:value`, split on the **first** colon so a value may contain one. */
-const splitOnce = (text: string): readonly [string, string] | undefined => {
-  const at = text.indexOf(":");
-  if (at <= 0 || at === text.length - 1) return undefined;
-  return [text.slice(0, at), text.slice(at + 1)];
-};
-
-type Parsed =
-  | { readonly _tag: "Ok"; readonly value: Readonly<Record<string, unknown>> }
-  | { readonly _tag: "Bad"; readonly message: string };
-
-/**
- * A JSON scalar or structure, or the text itself.
- *
- * `clearance:7` must become the **number** seven — `gte(5)` compares
- * numerically and would deny the string — while `dept:legal` is not JSON at all
- * and is worth keeping as typed rather than reporting an error the reviewer
- * never asked for.
- */
-const parseValue = (text: string): unknown => {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
-};
-
-/**
- * `JSON.parse` behind a result, so a half-typed object is a message rather than
- * a thrown render.
- *
- * A parse that succeeds but yields something other than an object is refused
- * too: `evaluate` reads a resource by path, and `7` has no paths.
- */
-const parseJson = (text: string): Parsed => {
-  try {
-    const value: unknown = JSON.parse(text);
-    return typeof value === "object" && value !== null && !Array.isArray(value)
-      ? { _tag: "Ok", value: { ...value } }
-      : { _tag: "Bad", message: "expected a JSON object" };
-  } catch (error) {
-    // `String`, not `error.message`: `JSON.parse` throws a `SyntaxError` today
-    // and narrowing to `Error` would add a branch nothing can reach.
-    return { _tag: "Bad", message: String(error) };
-  }
-};
-
-const render = (value: unknown): string =>
-  typeof value === "string" ? value : String(JSON.stringify(value));
-
-/** Omitting a key, which `exactOptionalPropertyTypes` will not let a spread do. */
-const withoutAction = (self: SimulationInput): SimulationInput => {
-  const { action: _action, ...rest } = self;
-  return rest;
-};
-
-const withoutResource = (self: SimulationInput): SimulationInput => {
-  const { resource: _resource, ...rest } = self;
-  return rest;
 };

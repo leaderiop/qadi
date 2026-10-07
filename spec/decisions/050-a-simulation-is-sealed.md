@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-050                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-10-05): the sealed-sweep consequence names a decision log in place of the removed `decisionSinkRing` (ADR-QD-097) (CCR-QD-181)<br>1.1 (2026-09-19): Deployment requirement added for `Live` — it is a cross-subject attribute/relationship/history/signature read capability, not merely a data-source choice, and sealing (this ADR's own decision) does not restrict who may ask about whom; the host must gate the page or the `ports` prop to callers already authorized for that capability (.issues/medium/jessie-frazelle-JF-02.md)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.3 (2026-10-07): amendment — a chosen source that cannot be honoured is refused as a state, never replaced; a Live run captures, and the capture lives as long as the ports it came from (CCR-QD-199)<br>1.2 (2026-10-05): the sealed-sweep consequence names a decision log in place of the removed `decisionSinkRing` (ADR-QD-097) (CCR-QD-181)<br>1.1 (2026-09-19): Deployment requirement added for `Live` — it is a cross-subject attribute/relationship/history/signature read capability, not merely a data-source choice, and sealing (this ADR's own decision) does not restrict who may ask about whom; the host must gate the page or the `ports` prop to callers already authorized for that capability (.issues/medium/jessie-frazelle-JF-02.md)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 ---
 
@@ -147,3 +147,19 @@ The Consequences' "a forty-row sweep next to a real `decisionSinkRing` leaves it
 empty" is now checked against a decision log (`makeDecisionLog`), which replaced
 the ring ([ADR-QD-097](./097-a-decision-log-is-a-sink-and-its-own-history.md));
 the property is unchanged.
+
+## Amendment (2026-10-07, CCR-QD-199)
+
+**A source that cannot be honoured is refused, never replaced.** "Falling through
+to fixtures would be the worst available failure" held for `portsOf` and was
+undone one layer up: the screen turned "chosen but unavailable" into "never
+chose" and answered a Live choice, once the host stopped passing `ports`, from
+fixtures. The simulator's session now resolves the choice first
+(`resolveSource`) and, when it cannot be had, ends the run in a `Refused` state
+naming the choice and the reason, with nothing evaluated. `portsOf(undefined)`
+stays fixtures for a caller who never chose.
+
+**A Live run captures, and the capture belongs to its ports.** That a Live run
+records its answers, making `Snapshot` available, is the session's rule rather
+than the component's. A capture is dropped when the `ports` it came from change,
+and kept across edits and re-seeds.

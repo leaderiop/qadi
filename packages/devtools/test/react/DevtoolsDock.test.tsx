@@ -960,6 +960,30 @@ describe("screen 5 — the simulator, and the dock around it", () => {
     assert.strictEqual(screen.getByTestId("qadi-action").getAttribute("value"), "read");
   });
 
+  // C8 — a tab is unmounted when it is left; the session is the dock's, so the
+  // form, the capture and the result are not.
+  it("keeps the simulator's form, capture and result across a tab round trip", async () => {
+    await mount([decisionRecord({ evaluationId: "a", policy: hasPermission(read) })]);
+    await click(screen.getByRole("button", { name: "Simulator" }));
+
+    act(() => {
+      fireEvent.change(screen.getByTestId("qadi-subject-id"), { target: { value: "alice" } });
+    });
+    // A run settles across a few macrotasks (the decision cache forks).
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("qadi-simulator-run"));
+      for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.isNotNull(screen.queryByTestId("qadi-simulator-result"));
+
+    await click(screen.getByRole("button", { name: "Log" }));
+    assert.isNull(screen.queryByTestId("qadi-simulator"));
+    await click(screen.getByRole("button", { name: "Simulator" }));
+
+    assert.strictEqual(screen.getByTestId("qadi-subject-id").getAttribute("value"), "alice");
+    assert.isNotNull(screen.queryByTestId("qadi-simulator-result"));
+  });
+
   // E8.2 — absent rather than inert. A disabled button on an orphan invites a
   // click that explains nothing.
   it("offers no replay action on an orphan, which carries no policy", async () => {

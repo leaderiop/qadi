@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-29                                    |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.4 (2026-10-07): BEH-QD-220 — a source that cannot be honoured is refused, and a sweep runs the evaluations it stated; BEH-QD-225 — every field a replay names has a control; BEH-QD-322 — a simulation is a session (ADR-QD-047 and ADR-QD-050 amended, CCR-QD-199)<br>1.3 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 _Previous: [28 — The Devtools Screens](./28-devtools-screens.md)_
 
@@ -92,6 +92,27 @@ REQUIREMENT: A sweep's cost MUST be stated before it runs.
 
 `sweepPlan` returns the evaluation count and whether the sweep performs I/O
 without running anything. A count discovered afterwards is not a warning.
+
+```
+REQUIREMENT: The sweep MUST run exactly the evaluations it stated.
+```
+
+The pairs toggle is part of the plan: `whatIf` takes the same `pairs` the plan
+was computed with, so `report.evaluations` equals the stated count in both
+positions. A screen that stated three evaluations and ran four would be
+announcing a cost it did not keep, and under `Live` the difference is unannounced
+lookups against production.
+
+```
+REQUIREMENT: A chosen source that cannot be honoured MUST be refused, never
+             replaced by another.
+```
+
+`portsOf(undefined)` answering from fixtures is the right default for a caller
+who never chose, and is pinned as such. The screen's session
+([BEH-QD-322](#beh-qd-322-a-simulation-is-a-session)) never passes it: a `Live`
+choice with no `ports`, or a `Snapshot` choice with no capture, is a run the
+session refused, with the choice and the reason, and nothing is evaluated.
 
 **`Snapshot` is what makes `Live` defensible rather than merely available.** A
 sweep of N edits costs N in-memory folds on fixtures, N live sweeps on `Live`,
@@ -296,6 +317,9 @@ rerun could use. So the grants are the reviewer's hypothesis — and a form that
 filled itself in silently would present that hypothesis as a reproduction of what
 happened.
 
+Every field named has a control to supply it: the Fixtures card edits resolver
+attributes, relationships, history and signatures alike.
+
 ```
 REQUIREMENT: An orphan MUST be refused.
 ```
@@ -348,6 +372,81 @@ worse than neither, because it is believed** — a claim that stood in
 `00-overview.md` from revision 0.1 (CCR-QD-069). It survived because
 `@effect/vitest` hands `it.effect` a `TestClock`, so every test suite already had
 the half that was missing.
+
+## BEH-QD-322: A simulation is a session
+
+```ts
+export const makeSimulationSession: (init?: SimulationSessionInit) => SimulationSession;
+export interface SimulationSession {
+  readonly subscribe: (listener: () => void) => () => void;
+  readonly getSnapshot: () => SimulationSnapshot;
+  readonly run: (kind: "Run" | "Sweep") => Effect.Effect<void>;
+  readonly reap: Effect.Effect<void>;
+  readonly dispose: Effect.Effect<void>;
+  // …and one synchronous command per field of the form
+}
+export const resolveSource: (
+  choice: SourceChoice,
+  ports: EvaluationPortsLayer | undefined,
+  capture: CapturedAnswers | undefined,
+) => ResolvedSource;
+```
+
+```
+REQUIREMENT: A Live run MUST capture, and a capture MUST be dropped when the
+             ports it came from change.
+```
+
+The answers cost nothing extra to record and they are what makes `Snapshot`
+reachable. A capture is the answers of one environment; replaying it under
+another's name is the quiet mismatch this screen exists to prevent. It survives
+edits and a re-seed, because its keys include the subject.
+
+```
+REQUIREMENT: A superseded run's result MUST NOT be shown.
+```
+
+A policy change, a re-seed, a change of ports, a newer run and `dispose` each
+move a generation synchronously, so the abandoned run's exit is never applied
+whatever order the fibers finish in; `reap` then interrupts the fiber, so a Live
+run stops asking the application's resolvers. The commands stay synchronous so a
+view may dispatch them while rendering.
+
+```
+REQUIREMENT: A result MUST be shown only under the policy, the seed and the
+             input it ran against.
+```
+
+`stale` covers all three, and a baseline is present only for a result that ran
+against the current seed. Policies compare structurally, so a host rebuilding an
+equal policy each render does not mark a result stale.
+
+```
+REQUIREMENT: The form's text MUST round-trip every input it can display.
+```
+
+`SimulationForm` is one codec per field with a short form for the common case and
+an explicit JSON form for the rest: an edge, event or signature naming another
+subject is shown in full, a relation containing a colon is not split, a string
+that reads as a number is shown quoted, and a value JSON cannot carry (`NaN`,
+`-0`, a `Map`) is refused rather than rendered lossily. Renaming the subject moves
+the elements that named the old id and leaves the others.
+
+```typescript
+import {
+  edgeCodec,
+  makeSimulationSession,
+  type SimulationSnapshot,
+} from "@qadi/devtools";
+
+const session = makeSimulationSession();
+const snapshot: SimulationSnapshot = session.getSnapshot();
+const shown = edgeCodec.encode(
+  { subjectId: "bob", relation: "owner", resourceId: "doc-1" },
+  "alice",
+);
+console.log(snapshot.run._tag, shown._tag);
+```
 
 ---
 
