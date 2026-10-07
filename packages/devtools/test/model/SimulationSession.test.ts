@@ -8,6 +8,7 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Equal from "effect/Equal";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Tracer from "effect/Tracer";
@@ -319,7 +320,7 @@ describe("a superseded run never lands — C4", () => {
         assert.strictEqual(session.getSnapshot().run._tag, "Idle");
       }));
 
-  supersededBy("choosing another policy", (session) => session.choosePolicy(1));
+  supersededBy("choosing another policy", (session) => session.choosePolicy(hasRole("x")));
   supersededBy("a re-seed", (session) =>
     session.seed(entryOf(decisionRecord({ evaluationId: "ev-5", policy: hasRole("x") }))),
   );
@@ -378,7 +379,7 @@ describe("a result belongs to the question it answered", () => {
       session.edit({ ...withClearance, action: "read" });
       assert.isTrue(session.getSnapshot().stale);
 
-      session.choosePolicy(1);
+      session.choosePolicy(hasPermission(read));
       assert.strictEqual(session.getSnapshot().run._tag, "Idle");
       assert.isFalse(session.getSnapshot().stale);
     }));
@@ -389,10 +390,12 @@ describe("a result belongs to the question it answered", () => {
       yield* session.run("Run");
       session.setSightings([sighting(hasRole("a"))]);
       assert.isFalse(session.getSnapshot().stale);
+      // The rail changing is not the reviewer changing the question: the chosen
+      // policy is held, evicted or not, so the result still answers it.
       session.setSightings([sighting(hasRole("b"))]);
-      assert.isTrue(session.getSnapshot().stale);
+      assert.isFalse(session.getSnapshot().stale);
       session.setSightings([]);
-      assert.isTrue(session.getSnapshot().stale);
+      assert.isFalse(session.getSnapshot().stale);
     }));
 
   it.effect("shows a baseline only for a result that ran against the current seed — C4b", () =>
@@ -422,7 +425,7 @@ describe("a result belongs to the question it answered", () => {
       const a = entryOf(decisionRecord({ evaluationId: "ev-A", policy: hasRole("a") }));
       const session = makeSimulationSession({ sightings: [sighting(hasRole("a"))], seed: a });
       assert.strictEqual(session.getSnapshot().policy._tag, "Seeded");
-      session.choosePolicy(0);
+      session.choosePolicy(hasRole("a"));
       assert.strictEqual(session.getSnapshot().policy._tag, "Chosen");
       yield* session.run("Run");
       assert.isUndefined(session.getSnapshot().baseline);
@@ -540,20 +543,60 @@ describe("seeding", () => {
   it("choosing from the rail leaves the replayed row behind", () => {
     const session = makeSimulationSession({ sightings: [sighting(hasRole("a"))], seed });
     assert.strictEqual(session.getSnapshot().policy._tag, "Seeded");
-    session.choosePolicy(0);
+    session.choosePolicy(hasRole("a"));
     assert.strictEqual(session.getSnapshot().policy._tag, "Chosen");
   });
 
-  it("clamps a selection that outlives the rail shrinking", () => {
-    const session = makeSimulationSession({
-      sightings: [sighting(hasRole("a")), sighting(hasRole("b"))],
-    });
-    session.choosePolicy(1);
-    session.setSightings([sighting(hasRole("a"))]);
-    const policy = session.getSnapshot().policy;
-    assert.strictEqual(policy._tag === "Chosen" && policy.index, 0);
-    session.setSightings([]);
+  it.effect("keeps an evicted choice, marks it, and still runs it", () =>
+    Effect.gen(function* () {
+      const session = makeSimulationSession({
+        sightings: [sighting(hasRole("a")), sighting(clearance)],
+      });
+      session.edit(withClearance);
+      session.choosePolicy(clearance);
+      session.setSightings([sighting(hasRole("a"))]);
+      const policy = session.getSnapshot().policy;
+      assert.strictEqual(policy._tag, "Evicted");
+      assert.isTrue(policy._tag === "Evicted" && Equal.equals(policy.policy, clearance));
+      assert.strictEqual(policy._tag === "Evicted" && policy.label, policyLabel(clearance));
+
+      yield* session.run("Run");
+      const ran = session.getSnapshot().run;
+      assert.isTrue(ran._tag === "Ran" && Equal.equals(ran.question.policy, clearance));
+
+      // An evicted choice outlives an empty rail.
+      session.setSightings([]);
+      assert.strictEqual(session.getSnapshot().policy._tag, "Evicted");
+    }));
+
+  it("pins the head before any choice, and a new head does not move it", () => {
+    const session = makeSimulationSession();
     assert.strictEqual(session.getSnapshot().policy._tag, "None");
+    session.setSightings([sighting(hasRole("a"))]);
+    session.setSightings([sighting(hasRole("b")), sighting(hasRole("a"))]);
+    const policy = session.getSnapshot().policy;
+    assert.strictEqual(policy._tag, "Chosen");
+    if (policy._tag !== "Chosen") return;
+    assert.isTrue(Equal.equals(policy.policy, hasRole("a")));
+    assert.strictEqual(policy.index, 1);
+  });
+
+  it("does not pin while a replayed row is seeded, and pins when it is left", () => {
+    const session = makeSimulationSession({ seed });
+    session.setSightings([sighting(hasRole("a"))]);
+    assert.strictEqual(session.getSnapshot().policy._tag, "Seeded");
+    session.seed(undefined);
+    session.setSightings([sighting(hasRole("b")), sighting(hasRole("a"))]);
+    const policy = session.getSnapshot().policy;
+    assert.isTrue(policy._tag === "Chosen" && Equal.equals(policy.policy, hasRole("a")));
+  });
+
+  it("refuses nothing: choosing an unlisted policy holds it as evicted", () => {
+    const session = makeSimulationSession({ sightings: [sighting(hasRole("a"))] });
+    session.choosePolicy(hasRole("zzz"));
+    const policy = session.getSnapshot().policy;
+    assert.isTrue(policy._tag === "Evicted" && Equal.equals(policy.policy, hasRole("zzz")));
+    assert.strictEqual(policy._tag === "Evicted" && policy.label, policyLabel(hasRole("zzz")));
   });
 
   it.effect("runs nothing when there is no policy", () =>
@@ -561,6 +604,52 @@ describe("seeding", () => {
       const session = makeSimulationSession();
       yield* session.run("Run");
       assert.strictEqual(session.getSnapshot().run._tag, "Idle");
+    }));
+});
+
+describe("choosing a policy", () => {
+  it("keeps the chosen policy when a decision reorders the rail", () => {
+    const session = makeSimulationSession({
+      sightings: [sighting(hasRole("a")), sighting(hasRole("b"))],
+    });
+    session.choosePolicy(hasRole("b"));
+    session.setSightings([sighting(hasRole("b")), sighting(hasRole("a"))]);
+    const policy = session.getSnapshot().policy;
+    assert.strictEqual(policy._tag, "Chosen");
+    if (policy._tag !== "Chosen") return;
+    assert.isTrue(Equal.equals(policy.policy, hasRole("b")));
+    assert.strictEqual(policy.index, 0);
+  });
+
+  it("keeps the chosen policy when a new policy decides first", () => {
+    const session = makeSimulationSession({
+      sightings: [sighting(hasRole("a")), sighting(hasRole("b"))],
+    });
+    session.choosePolicy(hasRole("b"));
+    session.setSightings([sighting(hasRole("c")), sighting(hasRole("a")), sighting(hasRole("b"))]);
+    const policy = session.getSnapshot().policy;
+    assert.strictEqual(policy._tag, "Chosen");
+    if (policy._tag !== "Chosen") return;
+    assert.isTrue(Equal.equals(policy.policy, hasRole("b")));
+    assert.strictEqual(policy.index, 2);
+  });
+
+  it.effect("runs the chosen policy after the rail moved", () =>
+    Effect.gen(function* () {
+      const admin = hasRole("admin");
+      const session = makeSimulationSession({ sightings: [sighting(admin), sighting(clearance)] });
+      session.edit(withClearance);
+      session.choosePolicy(clearance);
+      yield* session.run("Run");
+      const first = session.getSnapshot().run;
+      assert.strictEqual(first._tag, "Ran");
+      assert.isTrue(first._tag === "Ran" && Equal.equals(first.question.policy, clearance));
+
+      session.setSightings([sighting(clearance), sighting(admin)]);
+      yield* session.run("Run");
+      const second = session.getSnapshot().run;
+      assert.strictEqual(second._tag, "Ran");
+      assert.isTrue(second._tag === "Ran" && Equal.equals(second.question.policy, clearance));
     }));
 });
 
@@ -644,7 +733,7 @@ describe("the form's own commands", () => {
     const before = session.getSnapshot();
 
     session.setSightings([...sightings]);
-    session.choosePolicy(0);
+    session.choosePolicy(hasRole("a"));
     session.seed(undefined);
     session.setPorts(undefined);
     session.chooseSource("Fixtures");
@@ -780,7 +869,7 @@ describe("what the session starts from, and what each command preserves", () => 
       yield* session.run("Run");
       session.setPorts(brokenPorts);
       assert.strictEqual(session.getSnapshot().run._tag, "Ran");
-      session.choosePolicy(0);
+      session.choosePolicy(hasRole("a"));
       assert.strictEqual(session.getSnapshot().run._tag, "Idle");
     }));
 

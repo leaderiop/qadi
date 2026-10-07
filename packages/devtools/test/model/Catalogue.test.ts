@@ -249,6 +249,21 @@ describe("catalogueOf", () => {
     );
   });
 
+  it("lists two structurally equal declared policies once, under the first name, whether or not they ran", () => {
+    const declared = { policies: { canEdit: hasRole("editor"), canWrite: hasRole("editor") } };
+
+    const unrun = catalogueOf(emptyTimeline(), declared);
+    assert.deepStrictEqual(labels(unrun), ["canEdit"]);
+    assert.strictEqual(unrun[0]?.count, 0);
+
+    const ran = catalogueOf(
+      fold([allowed({ evaluationId: "a", at: 100, policy: hasRole("editor") })]),
+      declared,
+    );
+    assert.deepStrictEqual(labels(ran), ["canEdit"]);
+    assert.strictEqual(ran[0]?.count, 1);
+  });
+
   it("puts what is running before what is merely declared", () => {
     const timeline = fold([allowed({ evaluationId: "a", at: 100, policy: hasPermission(read) })]);
     const catalogue = catalogueOf(timeline, { policies: { unused: hasPermission(write) } });

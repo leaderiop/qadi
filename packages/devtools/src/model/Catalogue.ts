@@ -114,7 +114,10 @@ export const policiesSeen = (self: Timeline): ReadonlyArray<PolicySighting> => {
  *
  * A declared policy that *has* run is not duplicated — it is matched
  * structurally, exactly as two observed occurrences are — but it does take the
- * declared name, since a name someone chose beats a structural summary.
+ * declared name, since a name someone chose beats a structural summary. Two
+ * structurally equal *declared* policies are one entry too
+ * ([BEH-QD-211](../../../../spec/behaviors/28-devtools-screens.md)), under the
+ * first declared name — whether or not either has run.
  */
 export const catalogueOf = (
   self: Timeline,
@@ -128,9 +131,15 @@ export const catalogueOf = (
     return match === undefined ? sighting : { ...sighting, label: match[0] };
   });
 
-  const unseen = named
-    .filter(([, policy]) => !seen.some((sighting) => Equal.equals(policy, sighting.policy)))
-    .map(([label, policy]): PolicySighting => ({
+  // Declared duplicates collapse like observed ones: the first declared name
+  // wins, here exactly as `relabelled` lets it win for a policy that ran.
+  const claimed = MutableHashMap.empty<Policy, true>();
+  for (const sighting of seen) MutableHashMap.set(claimed, sighting.policy, true);
+  const unseen: Array<PolicySighting> = [];
+  for (const [label, policy] of named) {
+    if (MutableHashMap.has(claimed, policy)) continue;
+    MutableHashMap.set(claimed, policy, true);
+    unseen.push({
       policy,
       label,
       count: 0,
@@ -138,7 +147,8 @@ export const catalogueOf = (
       denies: 0,
       errors: 0,
       lastAt: undefined,
-    }));
+    });
+  }
 
   // Declared-but-unrun after the observed ones: a reader opening this screen is
   // looking at what their application is doing, not at what it could do.

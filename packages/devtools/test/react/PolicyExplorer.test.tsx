@@ -367,10 +367,10 @@ describe("selection and drafts", () => {
     assert.notInclude(item.getAttribute("style") ?? "", "background: rgb(28, 31, 38)");
   });
 
-  // A stale index held past the list shrinking must not fall off the end:
-  // `sightings[selected]` reading `undefined` made the whole screen falsely
-  // claim there was nothing to show, even with policies still present.
-  it("clamps a selection that outlives the list shrinking", async () => {
+  // A policy that leaves the rail stays shown, and the screen says so: the
+  // reviewer chose a value, and the screen swapping to another one silently
+  // is the defect the old clamp encoded.
+  it("keeps a policy that left the rail, and says so", async () => {
     const view = mount([sighting(hasPermission(read)), sighting(hasPermission(write))]);
     await click(screen.getAllByTestId("qadi-policy-rail-item")[1] ?? fail());
     assert.include(nodes()[0]?.textContent ?? "", "doc:write");
@@ -378,7 +378,53 @@ describe("selection and drafts", () => {
     view.rerender(<PolicyExplorer sightings={[sighting(hasPermission(read))]} />);
 
     assert.isNull(screen.queryByTestId("qadi-policies-empty"));
+    assert.include(nodes()[0]?.textContent ?? "", "doc:write");
+    assert.include(screen.getByTestId("qadi-policies-evicted").textContent ?? "", "no longer in the log");
+  });
+
+  it("keeps the first policy shown when a new head arrives before any choice", () => {
+    const view = mount([sighting(hasPermission(read))]);
+    view.rerender(
+      <PolicyExplorer sightings={[sighting(hasPermission(write)), sighting(hasPermission(read))]} />,
+    );
     assert.include(nodes()[0]?.textContent ?? "", "doc:read");
+    assert.isNull(screen.queryByTestId("qadi-policies-evicted"));
+  });
+
+  it("keeps the selected policy when a decision reorders the rail", async () => {
+    const view = mount([sighting(hasPermission(read)), sighting(hasPermission(write))]);
+    await click(screen.getAllByTestId("qadi-policy-rail-item")[1] ?? fail());
+    assert.include(nodes()[0]?.textContent ?? "", "doc:write");
+    const selectedStyle = screen.getAllByTestId("qadi-policy-rail-item")[1]?.getAttribute("style");
+
+    view.rerender(
+      <PolicyExplorer sightings={[sighting(hasPermission(write)), sighting(hasPermission(read))]} />,
+    );
+
+    assert.include(nodes()[0]?.textContent ?? "", "doc:write");
+    const items = screen.getAllByTestId("qadi-policy-rail-item");
+    assert.strictEqual(items[0]?.getAttribute("style"), selectedStyle);
+    assert.notStrictEqual(items[1]?.getAttribute("style"), selectedStyle);
+  });
+
+  it("keeps a pasted draft and its rail highlight in step after a reorder", async () => {
+    const view = mount([sighting(hasPermission(read)), sighting(hasPermission(write))]);
+    await click(screen.getByRole("button", { name: "Tree" }));
+    const pasted = Effect.runSync(toJson(hasPermission(write)));
+    await act(async () => {
+      fireEvent.change(screen.getByTestId("qadi-policy-json"), { target: { value: pasted } });
+    });
+    await click(screen.getByTestId("qadi-policy-load"));
+
+    view.rerender(
+      <PolicyExplorer sightings={[sighting(hasPermission(write)), sighting(hasPermission(read))]} />,
+    );
+
+    const box = screen.getByTestId("qadi-policy-json");
+    assert.isTrue(box instanceof HTMLTextAreaElement && box.value.includes("write"));
+    for (const item of screen.getAllByTestId("qadi-policy-rail-item")) {
+      assert.notInclude(item.getAttribute("style") ?? "", "background: rgb(28, 31, 38)");
+    }
   });
 });
 
