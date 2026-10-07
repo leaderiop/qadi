@@ -528,6 +528,22 @@ const SINK_READ_ALLOWED = {
   "packages/devtools/src/model/Wiring.ts": 1,
 };
 
+/**
+ * `PolicyTooDeep` is constructed where a question is admitted, once for both
+ * interpreters (`Admission.ts`, ARCH-41), plus `evaluateNode`'s per-node guard,
+ * kept as defense in depth (ADR-QD-090).
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const ADMISSION_ALLOWED = {
+  "packages/core/src/Admission.ts": 1,
+  "packages/core/src/Walk.ts": 1,
+};
+const POLICY_TOO_DEEP_NEW = /new PolicyTooDeep\(/;
+/** The one place `maxDepth` defaults; a second `?? DEFAULT_MAX_DEPTH` is a second default. */
+const MAX_DEPTH_DEFAULT = /maxDepth\b.*\?\?\s*DEFAULT_MAX_DEPTH/;
+const MAX_DEPTH_DEFAULT_HOME = "packages/core/src/Question.ts";
+
 const DECISION_READ_BUDGET = {
   // `outcomeOf`'s `AsyncResult.isInitial(` and `result.waiting` — the read itself.
   "packages/react/src/DecisionOutcome.ts": 2,
@@ -806,6 +822,8 @@ const schemaErrorNames = new Set();
 /** @type {Map<string, number[]>} */
 const decisionReadLines = new Map();
 const sinkReadLines = new Map();
+const admissionLines = new Map();
+const maxDepthDefaultLines = new Map();
 const portDoubleLines = new Map();
 
 for (const file of sources) {
@@ -938,6 +956,20 @@ for (const file of sources) {
       const found = sinkReadLines.get(rel) ?? [];
       found.push(index + 1);
       sinkReadLines.set(rel, found);
+    }
+    // Library source only: admission (the depth gate and the `maxDepth` default)
+    // is shared by both interpreters, so it has one home (ARCH-41).
+    if (!isTestFile && rel.startsWith("packages/")) {
+      if (POLICY_TOO_DEEP_NEW.test(line)) {
+        const found = admissionLines.get(rel) ?? [];
+        found.push(index + 1);
+        admissionLines.set(rel, found);
+      }
+      if (MAX_DEPTH_DEFAULT.test(line)) {
+        const found = maxDepthDefaultLines.get(rel) ?? [];
+        found.push(index + 1);
+        maxDepthDefaultLines.set(rel, found);
+      }
     }
     // Test-scope only, unlike every budget above: PORT_DOUBLE_BUDGET is about
     // how tests describe a broken port, and shipped source constructs these
@@ -1241,6 +1273,49 @@ for (const [rel, count] of Object.entries(SINK_READ_ALLOWED)) {
         `    Update SINK_READ_ALLOWED in scripts/check-house-style.mjs so it agrees with the code.`,
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// INV-QD-037 / ADR-QD-100 / ARCH-41 — a question is admitted once, by
+// `Admission.ts`, for `walk` and `toPredicate` alike; the `maxDepth` default
+// lives in `questionOf`. A second `new PolicyTooDeep(` or `?? DEFAULT_MAX_DEPTH`
+// is a second copy of a rule the two interpreters must agree on. Checked in both
+// directions like sink-read-once above.
+// ---------------------------------------------------------------------------
+
+for (const [rel, found] of admissionLines) {
+  if (rel in ADMISSION_ALLOWED) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [admission-once] new PolicyTooDeep outside Admission.ts.\n` +
+      `    Admit through admit (packages/core/src/Admission.ts) so evaluate and toPredicate share one depth gate (INV-QD-037).`,
+  );
+}
+
+for (const [rel, count] of Object.entries(ADMISSION_ALLOWED)) {
+  const found = admissionLines.get(rel) ?? [];
+  if (found.length !== count) {
+    failures += 1;
+    console.error(
+      `${rel}  [admission-once] declares ${count} PolicyTooDeep construction(s), found ${found.length}.\n` +
+        `    Update ADMISSION_ALLOWED in scripts/check-house-style.mjs so it agrees with the code.`,
+    );
+  }
+}
+
+for (const [rel, found] of maxDepthDefaultLines) {
+  if (rel === MAX_DEPTH_DEFAULT_HOME) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [admission-once] a second maxDepth default.\n` +
+      `    questionOf (${MAX_DEPTH_DEFAULT_HOME}) is the only place maxDepth defaults; ask through a Question (ARCH-41).`,
+  );
+}
+if ((maxDepthDefaultLines.get(MAX_DEPTH_DEFAULT_HOME) ?? []).length !== 1) {
+  failures += 1;
+  console.error(
+    `${MAX_DEPTH_DEFAULT_HOME}  [admission-once] expected exactly one \`?? DEFAULT_MAX_DEPTH\`.`,
+  );
 }
 
 // ---------------------------------------------------------------------------
