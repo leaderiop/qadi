@@ -136,7 +136,7 @@ export interface Qadi {
    * `options.resource` does not exist here (it is `Omit`ted), so a policy that
    * reads the resource — `hasResourceAttribute`, `hasRelationship`, a custom
    * predicate — decides against the very record that comes back projected,
-   * never against a second one the caller restated beside it (INV-QD-106).
+   * never against a second one the caller restated beside it (INV-QD-108).
    *
    * **Rejects with `AccessDenied` when not permitted** (the record is not
    * handed over), and with `UndischargedObligation` for an allow carrying a

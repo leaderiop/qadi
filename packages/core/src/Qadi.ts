@@ -82,7 +82,7 @@ export interface EnforceOptions<E = never, R = never> extends EvaluateOptions {
  *
  * `resource` is refused (`never`): the resource is what the wrapped effect
  * produced, and a second one is how `enforceProjected` came to decide on one
- * record and project another (ADR-QD-104, INV-QD-106).
+ * record and project another (ADR-QD-104, INV-QD-108).
  */
 export type LoadedEnforceOptions<E = never, R = never> = Omit<
   EnforceOptions<E, R>,
@@ -253,7 +253,7 @@ export const enforce =
  * value it projects. `options.resource` is refused at the type level for that
  * reason: it was a second channel, evaluated against one record while `self`'s
  * value, a possibly different one, was projected under that decision's field
- * visibility (ADR-QD-104, INV-QD-106; the same defect `guard` closed under
+ * visibility (ADR-QD-104, INV-QD-108; the same defect `guard` closed under
  * [INV-QD-032](../../../spec/invariants.md#inv-qd-032-a-guarded-resource-is-the-evaluated-resource)).
  *
  * **The return type is optimistic for a `"*"`-projected nested object** — see
@@ -292,7 +292,7 @@ export const enforceProjected =
  * first: `load.pipe(enforce(canReadAny), enforceLoaded(isOwner))`.
  *
  * `options.resource` is refused at the type level: the resource is the loaded
- * value, and a second one is the two-channel hazard INV-QD-106 closes.
+ * value, and a second one is the two-channel hazard INV-QD-108 closes.
  */
 export const enforceLoaded =
   <EO = never, RO = never>(policy: Policy, options?: LoadedEnforceOptions<EO, RO>) =>
@@ -309,7 +309,7 @@ export const enforceLoaded =
  * {@link enforceLoaded} with field-level projection: the policy decides whether
  * the caller may read the record *and* which of its fields come back, and the
  * resource it decides on is the very value that is projected. A projected read
- * decides against the value it projects (INV-QD-106).
+ * decides against the value it projects (INV-QD-108).
  *
  * The loader runs first and a denial hands nothing over; see {@link enforceLoaded}
  * for what that means for loader side effects and the coarse-gate composition.

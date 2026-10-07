@@ -10,7 +10,7 @@
 > | Status         | Accepted — amends ADR-QD-011, ADR-QD-043       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-08): Initial (ARCH-39, CCR-QD-203) |
+> | Change History | 1.0 (2026-10-08): Initial (ARCH-39, CCR-QD-207) |
 
 ---
 

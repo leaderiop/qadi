@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.3 (2026-10-08): the `enforceProjected` signature listing corrected (it still showed `EvaluateOptions` and `Record<string, unknown>`); a paragraph on when the policy reads the record, naming `enforceProjectedLoaded` (ADR-QD-104, CCR-QD-203)<br>1.2 (2026-10-05): the `First` path-shaped evidence row points at `FieldLattice.test.ts` (ADR-QD-092, CCR-QD-174)<br>1.1 (2026-08-25): Field names may be dot-paths with a `*`/`**` wildcard terminal (BEH-QD-056); the leaf-variant list corrected from four to the real seven; the worked example extended (CCR-QD-078)<br>1.0 (2026-07-26): Initial release (CCR-QD-006) |
+> | Change History | 1.3 (2026-10-08): the `enforceProjected` signature listing corrected (it still showed `EvaluateOptions` and `Record<string, unknown>`); a paragraph on when the policy reads the record, naming `enforceProjectedLoaded` (ADR-QD-104, CCR-QD-207)<br>1.2 (2026-10-05): the `First` path-shaped evidence row points at `FieldLattice.test.ts` (ADR-QD-092, CCR-QD-174)<br>1.1 (2026-08-25): Field names may be dot-paths with a `*`/`**` wildcard terminal (BEH-QD-056); the leaf-variant list corrected from four to the real seven; the worked example extended (CCR-QD-078)<br>1.0 (2026-07-26): Initial release (CCR-QD-006) |
 
 ---
 
