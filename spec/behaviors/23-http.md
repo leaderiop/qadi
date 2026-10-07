@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-23                                    |
-> | Revision       | 1.5                                            |
-> | Effective Date | 2026-09-14                                     |
+> | Revision       | 1.6                                            |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-10-04): BEH-QD-177 gains a derived-status requirement and `ENFORCEMENT_ERROR_WIRE`, the one table every status, wire schema and `RequirePermission` error list derives from; BEH-QD-260 corrected — the two tag-only bodies were never empty, and the hand-converted arms are one in-channel projection; BEH-QD-263's list is derived (ADR-QD-081, CCR-QD-155)<br>1.4 (2026-09-14): BEH-QD-263 — a generated client's static error type for a `RequirePermission`-guarded endpoint now includes every enforcement outcome automatically, via `requiredForClient`/`clientError` and the new generic `passthroughClientLayer` helper, rather than a per-endpoint hand-declared `error:` subset; the disclosed `PublicEndpoint` over-approximation limitation is recorded alongside it (ADR-QD-075, CCR-QD-151)<br>1.3 (2026-09-08): BEH-QD-260 — the `HttpApiMiddleware` adapter's response body now carries real fields for the nine `EnforcementError` tags that are not a denial, declared through `httpApiStatus`-annotated schemas rather than produced by `toResponse`'s hand table; the bare-`HttpRouter` adapter is unchanged (ADR-QD-072, CCR-QD-141)<br>1.2 (2026-09-07): BEH-QD-177's status table was missing two of the eleven mappings `enforcementErrorTags` actually covers — `CustomPredicateError` and `SignatureHistoryUnavailable`, both 502, added to the row (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-180 — `/__permissions` is guarded by default; the open question closed (CCR-QD-062)<br>1.0 (2026-08-23): Initial release (CCR-QD-059) |
+> | Change History | 1.6 (2026-10-07): BEH-QD-320 — an endpoint's access is read once, from the endpoint, by `RequirePermission` and `registerApi` through `endpointAccess`; a `RequiredPermission` or `PublicEndpoint` on a group or API is refused by both (`MisplacedAccessDeclaration`); BEH-QD-180's `registerApi` signature corrected and it lists an endpoint only if the middleware enforces it (CCR-QD-196)<br>1.5 (2026-10-04): BEH-QD-177 gains a derived-status requirement and `ENFORCEMENT_ERROR_WIRE`, the one table every status, wire schema and `RequirePermission` error list derives from; BEH-QD-260 corrected — the two tag-only bodies were never empty, and the hand-converted arms are one in-channel projection; BEH-QD-263's list is derived (ADR-QD-081, CCR-QD-155)<br>1.4 (2026-09-14): BEH-QD-263 — a generated client's static error type for a `RequirePermission`-guarded endpoint now includes every enforcement outcome automatically, via `requiredForClient`/`clientError` and the new generic `passthroughClientLayer` helper, rather than a per-endpoint hand-declared `error:` subset; the disclosed `PublicEndpoint` over-approximation limitation is recorded alongside it (ADR-QD-075, CCR-QD-151)<br>1.3 (2026-09-08): BEH-QD-260 — the `HttpApiMiddleware` adapter's response body now carries real fields for the nine `EnforcementError` tags that are not a denial, declared through `httpApiStatus`-annotated schemas rather than produced by `toResponse`'s hand table; the bare-`HttpRouter` adapter is unchanged (ADR-QD-072, CCR-QD-141)<br>1.2 (2026-09-07): BEH-QD-177's status table was missing two of the eleven mappings `enforcementErrorTags` actually covers — `CustomPredicateError` and `SignatureHistoryUnavailable`, both 502, added to the row (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-180 — `/__permissions` is guarded by default; the open question closed (CCR-QD-062)<br>1.0 (2026-08-23): Initial release (CCR-QD-059) |
 
 _Previous: [22 — The Promise Facade](./22-promise-facade.md)_
 
@@ -36,9 +36,12 @@ export class PublicEndpoint extends Context.Service<PublicEndpoint, PublicDeclar
 ```
 
 ```
-REQUIREMENT: An endpoint annotated with neither `RequiredPermission` nor
+REQUIREMENT: An endpoint that itself carries neither `RequiredPermission` nor
              `PublicEndpoint` MUST be refused, with status 500.
 ```
+
+The endpoint's own annotations are the only scope read
+([BEH-QD-320](#beh-qd-320-an-endpoints-access-is-read-once-from-the-endpoint)).
 
 ```
 REQUIREMENT: `publicEndpoint` MUST require a reason.
@@ -370,7 +373,9 @@ literal cannot bypass `requiresPermission`'s duplicate check" pins it.
 ## BEH-QD-180: The registry answers which permission, not which policy
 
 ```ts
-export const registerApi: (api: HttpApi.Any) => Layer.Layer<never, never, PermissionRegistry>;
+export const registerApi: <Id extends string, Groups extends HttpApiGroup.Constraint>(
+  api: HttpApi.HttpApi<Id, Groups>,
+) => Layer.Layer<never, MisplacedAccessDeclaration, PermissionRegistry>;
 export const permissionRegistryRoute: (permission: Permission, policy: Policy) => Layer<…>;
 export const permissionRegistryRouteUnguarded: (reason: string) => Layer<…>;
 ```
@@ -385,6 +390,18 @@ REQUIREMENT: The registry MUST record every route registered through
 a guarded bare route cannot be added without the registry present. `registerApi`
 is opt-in by contrast, and an `HttpApi` application that omits it gets an empty
 snapshot.
+
+```
+REQUIREMENT: The registry MUST list an endpoint under a permission P only if
+             `RequirePermission` enforces P on it.
+```
+
+The registry reads an endpoint through `endpointAccess`, over the endpoint's own
+annotations, which is what the middleware reads
+([BEH-QD-320](#beh-qd-320-an-endpoints-access-is-read-once-from-the-endpoint)).
+It used to read `HttpApi.reflect`'s merge of API-, group- and endpoint-level
+annotations, so a group requirement over an endpoint-level `publicEndpoint` was
+listed as guarded while the middleware served the endpoint to anyone.
 
 ```
 REQUIREMENT: The registry MUST NOT participate in any authorization decision.
@@ -423,6 +440,65 @@ guarded route rather than inventing one.
 
 The other caveat stands: the registry records the **permission**, and the
 permission does not decide anything.
+
+## BEH-QD-320: An endpoint's access is read once, from the endpoint
+
+> **Invariant:** [INV-QD-034](../invariants.md#inv-qd-034-an-endpoints-authorization-is-declared-not-inferred)
+
+```ts
+export type EndpointAccess = Data.TaggedEnum<{
+  Required: { readonly requirement: RequiredPermissionShape };
+  Public: { readonly declaration: PublicDeclaration };
+  Undeclared: {};
+}>;
+export const endpointAccess: (annotations: Context.Context<never>) => EndpointAccess;
+export const misplacedDeclarations: (
+  annotations: Context.Context<never>,
+) => ReadonlyArray<"RequiredPermission" | "PublicEndpoint">;
+export class MisplacedAccessDeclaration extends Data.TaggedError("MisplacedAccessDeclaration")<{
+  readonly scope: "group" | "api";
+  readonly identifier: string;
+  readonly key: "RequiredPermission" | "PublicEndpoint";
+}> {}
+```
+
+```
+REQUIREMENT: `RequirePermission` and `registerApi` MUST each read an endpoint's
+             access through `endpointAccess`, over that endpoint's own
+             annotations and no other scope. When both keys are present,
+             `RequiredPermission` MUST win.
+```
+
+```
+REQUIREMENT: A `RequiredPermission` or `PublicEndpoint` on a group or an API MUST
+             be refused by both readers: `RequirePermission` answers 500 for
+             every endpoint of that group and logs the group's identifier and the
+             key; `registerApi` fails layer construction with
+             `MisplacedAccessDeclaration` before it registers anything.
+```
+
+```
+REQUIREMENT: `requiresPermission` MUST NOT accept a group or an API.
+```
+
+Two readers over two scopes was the defect: the middleware read the endpoint,
+and the registry read the merge of API, group and endpoint annotations. A group
+requirement over an endpoint-level `publicEndpoint` was listed under its
+permission while the middleware served the endpoint as public. The middleware
+cannot read an API-level annotation at all (Effect hands it `{ endpoint, group }`
+and never the API's annotations), and a group-level one reopens the cross-level
+override [BEH-QD-179](#beh-qd-179-a-duplicate-requirement-fails-at-construction)
+exists to forbid. So the endpoint is the one scope, and a declaration anywhere
+else is refused loudly rather than ignored: ignoring it is the
+annotate-and-forget failure [BEH-QD-174](#beh-qd-174-authorization-is-declared-never-inferred)
+rejects.
+
+A declaration for a whole group is written with
+`HttpApiGroup.annotateEndpoints(RequiredPermission, requiresPermission(endpoint, …))`,
+which Effect writes into each endpoint's own annotations, where both readers see
+it. The refusal reaches the caller as a 500 and a log line, outside
+`ENFORCEMENT_ERROR_WIRE`, like an endpoint that declares neither: it is a wiring
+mistake, not an enforcement outcome.
 
 ---
 

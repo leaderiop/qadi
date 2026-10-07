@@ -112,6 +112,8 @@ describe("effect/http API canary", () => {
 
   class Marker extends Context.Service<Marker, { readonly value: string }>()("smoke/Marker") {}
 
+  // Canary for the effect API only: `registerApi` now reads `endpoint.annotations`
+  // (ARCH-18), not `mergedAnnotations`, so this pins the merge `reflect` still offers.
   it("HttpApiGroup/HttpApiEndpoint carry annotations HttpApi.reflect can read back", () => {
     const endpoint = HttpApiEndpoint.get("ping", "/ping").pipe((e) => e.annotate(Marker, { value: "found" }));
     const group = HttpApiGroup.make("smoke").add(endpoint);

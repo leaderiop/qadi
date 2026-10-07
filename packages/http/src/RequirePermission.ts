@@ -10,12 +10,15 @@
  */
 import * as Brand from "effect/Brand";
 import * as Context from "effect/Context";
+import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as HttpApiMiddleware from "effect/http-api/HttpApiMiddleware";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
+import type { unhandled } from "effect/Types";
 import type { Permission, Policy, Resource, StandingEvaluationServices } from "@qadi/core";
 import { anonymous, CurrentSubject, ENFORCEMENT_DENIAL_TAGS, guard } from "@qadi/core";
 import {
@@ -79,6 +82,64 @@ export interface PublicDeclaration {
 export class PublicEndpoint extends Context.Service<PublicEndpoint, PublicDeclaration>()(
   "qadi/http/PublicEndpoint",
 ) {}
+
+/**
+ * What an endpoint's own annotations declare about who may call it: a
+ * requirement, a public marker, or nothing.
+ *
+ * Closed on purpose: `Undeclared` is a case, not an absence, so a reader that
+ * must refuse it has a branch to refuse in (ADR-QD-036, INV-QD-034).
+ */
+export type EndpointAccess = Data.TaggedEnum<{
+  Required: { readonly requirement: RequiredPermissionShape };
+  Public: { readonly declaration: PublicDeclaration };
+  Undeclared: {};
+}>;
+
+export const EndpointAccess = Data.taggedEnum<EndpointAccess>();
+
+/**
+ * Reads an endpoint's access declaration from its own annotations.
+ *
+ * `RequirePermission` enforces it and `registerApi` lists it, and both go
+ * through this one function so they cannot read different things. They used to:
+ * the middleware read the endpoint's annotations while the registry read
+ * `HttpApi.reflect`'s merge of API, group and endpoint annotations, so a group
+ * requirement over an endpoint-level `publicEndpoint` was listed as guarded
+ * while the middleware served it to anyone (ARCH-18, CCR-QD-196).
+ *
+ * Pass an endpoint's `annotations`, never a merge. When both keys are present
+ * `RequiredPermission` wins: the stricter declaration is the one enforced.
+ */
+export const endpointAccess = (annotations: Context.Context<never>): EndpointAccess => {
+  const required = Context.getOption(annotations, RequiredPermission);
+  if (Option.isSome(required)) return EndpointAccess.Required({ requirement: required.value });
+  const declared = Context.getOption(annotations, PublicEndpoint);
+  if (Option.isSome(declared)) return EndpointAccess.Public({ declaration: declared.value });
+  return EndpointAccess.Undeclared();
+};
+
+/** The declaration keys {@link misplacedDeclarations} reports. */
+export type AccessDeclarationKey = "RequiredPermission" | "PublicEndpoint";
+
+/**
+ * The access-declaration keys present on `annotations`, for a scope that may not
+ * carry one.
+ *
+ * Only an endpoint declares access. A group or API carrying a key is a
+ * declaration that does nothing the author expected, so both readers refuse it
+ * instead of ignoring it: the middleware by answering 500 and `registerApi` by
+ * failing layer construction. The way to declare for a whole group is
+ * `HttpApiGroup.annotateEndpoints`, which writes into each endpoint's own scope.
+ */
+export const misplacedDeclarations = (
+  annotations: Context.Context<never>,
+): ReadonlyArray<AccessDeclarationKey> => {
+  const keys: Array<AccessDeclarationKey> = [];
+  if (Option.isSome(Context.getOption(annotations, RequiredPermission))) keys.push("RequiredPermission");
+  if (Option.isSome(Context.getOption(annotations, PublicEndpoint))) keys.push("PublicEndpoint");
+  return keys;
+};
 
 /**
  * Declares an endpoint deliberately reachable without authorization.
@@ -149,6 +210,11 @@ export const NO_RESOURCE: Resource = {};
 export interface AnnotatedEndpoint {
   readonly identifier: string;
   readonly annotations: Context.Context<never>;
+  // `method` and `path` are what separate an endpoint from a group or an API,
+  // which also carry `identifier` and `annotations`: asking for them is what
+  // makes `requiresPermission(group, …)` a compile error (ARCH-18).
+  readonly method: string;
+  readonly path: string;
 }
 
 /**
@@ -353,35 +419,13 @@ export const RequirePermissionLive: Layer.Layer<
     // as it would have found them via an ambient per-request `requires`.
     const evaluationServices = yield* Effect.context<StandingEvaluationServices>();
 
-    return (httpEffect, { endpoint }) => {
-      const required = Context.getOption(endpoint.annotations, RequiredPermission);
-      if (Option.isNone(required)) {
-        // Absence is refusal, not permission. An endpoint reachable without
-        // authorization says so with `publicEndpoint`; one that says nothing is
-        // a wiring mistake, and a wiring mistake on an authorization path must
-        // not resolve to "allowed" (ADR-QD-036, INV-QD-034).
-        //
-        // Both branches here provide `CurrentSubject` explicitly (as
-        // `anonymous`) even though neither ever extracted a real one — this
-        // middleware declares `provides: CurrentSubject`, so every endpoint
-        // it guards, public or not, must actually receive one for that
-        // declaration to stay honest. `anonymous` is exactly the right value
-        // for "no subject was authenticated": every policy denies against it.
-        if (Option.isSome(Context.getOption(endpoint.annotations, PublicEndpoint))) {
-          return Effect.provideService(httpEffect, CurrentSubject, anonymous);
-        }
-        return Effect.logError(
-          `qadi/http: endpoint "${endpoint.identifier}" declares neither a permission ` +
-            "requirement nor `publicEndpoint(...)`, so it is refused. Annotate it with " +
-            "RequiredPermission, or with PublicEndpoint if it is meant to be reachable " +
-            "without authorization.",
-        ).pipe(
-          Effect.as(HttpServerResponse.empty({ status: 500 })),
-          Effect.provideService(CurrentSubject, anonymous),
-        );
-      }
-
-      const { permission, policy } = required.value;
+    // The enforcement half: extract, guard, log, project. Kept apart from the
+    // dispatch above so it can be replaced without touching how access is read.
+    const enforce = (
+      requirement: RequiredPermissionShape,
+      httpEffect: Effect.Effect<HttpServerResponse.HttpServerResponse, unhandled, CurrentSubject>,
+    ) => {
+      const { permission, policy } = requirement;
 
       // Every failure `guard` or the extractor can produce is projected
       // in-channel to the redacted wire value its declared schema describes
@@ -415,6 +459,48 @@ export const RequirePermissionLive: Layer.Layer<
           Effect.fail(projectHttpEnforcementFailure(error)),
         ),
       );
+    };
+
+    // The refusal and the public pass-through both provide `CurrentSubject`
+    // explicitly (as `anonymous`) even though neither ever extracted a real
+    // one — this middleware declares `provides: CurrentSubject`, so every
+    // endpoint it guards, public or not, must actually receive one for that
+    // declaration to stay honest. `anonymous` is exactly the right value for
+    // "no subject was authenticated": every policy denies against it.
+    const refuse = (message: string) =>
+      Effect.logError(message).pipe(
+        Effect.as(HttpServerResponse.empty({ status: 500 })),
+        Effect.provideService(CurrentSubject, anonymous),
+      );
+
+    return (httpEffect, { endpoint, group }) => {
+      // Only an endpoint declares access (`endpointAccess`'s doc comment). A
+      // group carrying a declaration is a wiring mistake the middleware can
+      // see, so it refuses every endpoint under it rather than ignore it.
+      const misplaced = misplacedDeclarations(group.annotations);
+      if (misplaced.length > 0) {
+        return refuse(
+          `qadi/http: group "${group.identifier}" carries ${misplaced.join(" and ")}, which only an ` +
+            `endpoint may declare, so endpoint "${endpoint.identifier}" is refused. Declare it on each ` +
+            "endpoint, or use HttpApiGroup.annotateEndpoints.",
+        );
+      }
+
+      // Absence is refusal, not permission. An endpoint reachable without
+      // authorization says so with `publicEndpoint`; one that says nothing is
+      // a wiring mistake, and a wiring mistake on an authorization path must
+      // not resolve to "allowed" (ADR-QD-036, INV-QD-034).
+      return Match.valueTags(endpointAccess(endpoint.annotations), {
+        Undeclared: () =>
+          refuse(
+            `qadi/http: endpoint "${endpoint.identifier}" declares neither a permission ` +
+              "requirement nor `publicEndpoint(...)`, so it is refused. Annotate it with " +
+              "RequiredPermission, or with PublicEndpoint if it is meant to be reachable " +
+              "without authorization.",
+          ),
+        Public: () => Effect.provideService(httpEffect, CurrentSubject, anonymous),
+        Required: ({ requirement }) => enforce(requirement, httpEffect),
+      });
     };
   }),
 );

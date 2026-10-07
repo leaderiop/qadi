@@ -25,6 +25,18 @@ HttpApiEndpoint.get("health", "/health").pipe((e) =>
 The `reason` is required and never read by the middleware. It exists so a
 reviewer can see that someone chose this.
 
+Only an endpoint declares access. A `RequiredPermission` or `PublicEndpoint` on
+a group or on the API is **refused** too, never ignored: the middleware answers
+500 for every endpoint under that group and names the group in its log, and
+`registerApi` fails with `MisplacedAccessDeclaration`. To declare for a whole
+group, write it into each endpoint's own annotations:
+
+```ts
+HttpApiGroup.make("documents")
+  .add(HttpApiEndpoint.get("read", "/documents"), HttpApiEndpoint.get("list", "/documents/all"))
+  .annotateEndpoints(RequiredPermission, requiresPermission(anEndpoint, { permission: readPermission, policy: readPolicy }));
+```
+
 ## Status mapping
 
 | Error | Status | Because |

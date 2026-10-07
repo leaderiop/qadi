@@ -14,9 +14,11 @@
  * before every route that populates it has run.
  */
 import * as Context from "effect/Context";
+import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as HashMap from "effect/HashMap";
 import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as HttpRouter from "effect/http/HttpRouter";
@@ -28,7 +30,8 @@ import type * as HttpApiGroup from "effect/http-api/HttpApiGroup";
 import type { Authorized, Permission, PermissionKey, Policy, Resource } from "@qadi/core";
 import { permissionKey } from "@qadi/core";
 import { guardRoute } from "./GuardRoute.ts";
-import { NO_RESOURCE, RequiredPermission } from "./RequirePermission.ts";
+import type { AccessDeclarationKey } from "./RequirePermission.ts";
+import { endpointAccess, misplacedDeclarations, NO_RESOURCE } from "./RequirePermission.ts";
 
 /** One route that requires a permission, as recorded in `PermissionRegistry`. */
 export interface EndpointDescriptor {
@@ -85,14 +88,39 @@ export const PermissionRegistryLive: Layer.Layer<PermissionRegistry> = Layer.eff
 );
 
 /**
+ * A `RequiredPermission` or `PublicEndpoint` sits on a group or an API, where
+ * `RequirePermission` never reads it.
+ *
+ * Raised by {@link registerApi} at layer construction, so the mistake surfaces
+ * when the application is built rather than as a 500 on a first request. The
+ * middleware refuses the same placement at request time (ARCH-18, CCR-QD-196).
+ */
+export class MisplacedAccessDeclaration extends Data.TaggedError("MisplacedAccessDeclaration")<{
+  readonly scope: "group" | "api";
+  readonly identifier: string;
+  readonly key: AccessDeclarationKey;
+}> {
+  override get message(): string {
+    return (
+      `${this.scope} "${this.identifier}" carries ${this.key}, which only an endpoint may declare. ` +
+      "Declare it on each endpoint, or use HttpApiGroup.annotateEndpoints."
+    );
+  }
+}
+
+/**
  * The `HttpApi`-sourced half of the registry: walks `api`'s endpoints once
  * at `Layer`-build time and pushes every `RequiredPermission` annotation
  * found through `PermissionRegistry.register` — the same write path
  * `addGuardedRoute` uses, so both sources land in the same store rather
  * than two collections a consumer would have to merge themselves.
- * `HttpApi.reflect`'s `mergedAnnotations` already resolves API-, group-, and
- * endpoint-level annotations together, so this needs no separate handling
- * for where on the API tree `requiresPermission` was called.
+ *
+ * Reads exactly the scope `RequirePermission` enforces: the endpoint's own
+ * annotations, never `HttpApi.reflect`'s `mergedAnnotations`. The merge also
+ * carries API- and group-level annotations, which the middleware never reads,
+ * so listing them put an endpoint in the registry that enforcement served as
+ * public or refused (ARCH-18). A group-wide declaration is written with
+ * `HttpApiGroup.annotateEndpoints`, which lands in each endpoint's own scope.
  *
  * Generic over `Id`/`Groups`, deliberately, rather than typed to accept
  * `HttpApi.Top` — the same finding `RequirePermission.ts`'s
@@ -104,22 +132,39 @@ export const PermissionRegistryLive: Layer.Layer<PermissionRegistry> = Layer.eff
  */
 export const registerApi = <Id extends string, Groups extends HttpApiGroup.Constraint>(
   api: HttpApi.HttpApi<Id, Groups>,
-): Layer.Layer<never, never, PermissionRegistry> =>
+): Layer.Layer<never, MisplacedAccessDeclaration, PermissionRegistry> =>
   Layer.effectDiscard(
     Effect.gen(function* () {
       const registry = yield* PermissionRegistry;
       const found: Array<[Permission, EndpointDescriptor]> = [];
+      const misplaced: Array<MisplacedAccessDeclaration> = [];
+      for (const key of misplacedDeclarations(api.annotations)) {
+        misplaced.push(new MisplacedAccessDeclaration({ scope: "api", identifier: api.identifier, key }));
+      }
       HttpApi.reflect(api, {
-        onGroup: () => {},
-        onEndpoint: ({ endpoint, group, mergedAnnotations }) => {
-          const required = Context.getOption(mergedAnnotations, RequiredPermission);
-          if (Option.isNone(required)) return;
-          found.push([
-            required.value.permission,
-            { method: endpoint.method, path: endpoint.path, group: group.identifier },
-          ]);
+        onGroup: ({ group }) => {
+          for (const key of misplacedDeclarations(group.annotations)) {
+            misplaced.push(new MisplacedAccessDeclaration({ scope: "group", identifier: group.identifier, key }));
+          }
+        },
+        onEndpoint: ({ endpoint, group }) => {
+          Match.valueTags(endpointAccess(endpoint.annotations), {
+            Required: ({ requirement }) => {
+              found.push([
+                requirement.permission,
+                { method: endpoint.method, path: endpoint.path, group: group.identifier },
+              ]);
+            },
+            Public: () => {},
+            Undeclared: () => {},
+          });
         },
       });
+      // Refused before anything registers: a half-populated registry that
+      // omits the endpoints under a misplaced declaration is the audit lie
+      // this layer exists to prevent.
+      const [first] = misplaced;
+      if (first !== undefined) return yield* Effect.fail(first);
       yield* Effect.forEach(found, ([permission, descriptor]) => registry.register(permission, descriptor), {
         discard: true,
       });

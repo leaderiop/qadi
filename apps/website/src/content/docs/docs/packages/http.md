@@ -31,6 +31,18 @@ HttpApiEndpoint.get("health", "/health").pipe((e) =>
 exists purely so a reviewer can see that being public was a decision someone
 made, not an oversight.
 
+Only an endpoint declares access. A `RequiredPermission` or `PublicEndpoint` on
+a group or on the API is **refused** too, never ignored: the middleware answers
+500 for every endpoint under that group and names the group in its log, and
+`registerApi` fails with `MisplacedAccessDeclaration`. To declare for a whole
+group, write it into each endpoint's own annotations:
+
+```ts
+HttpApiGroup.make("documents")
+  .add(HttpApiEndpoint.get("read", "/documents"), HttpApiEndpoint.get("list", "/documents/all"))
+  .annotateEndpoints(RequiredPermission, requiresPermission(anEndpoint, { permission: readPermission, policy: readPolicy }));
+```
+
 ## Attaching a requirement
 
 `requiresPermission` is not `.pipe()`-composable on its own: TypeScript only
@@ -133,7 +145,7 @@ node and why it refused, and that detail is not for the caller.
 ```ts
 export const registerApi: <Id extends string, Groups extends HttpApiGroup.Constraint>(
   api: HttpApi.HttpApi<Id, Groups>,
-) => Layer.Layer<never, never, PermissionRegistry>;
+) => Layer.Layer<never, MisplacedAccessDeclaration, PermissionRegistry>;
 export const addGuardedRoute: (...) => ...;
 export const permissionRegistryRoute: (permission: Permission, policy: Policy) => Layer<...>;
 export const permissionRegistryRouteUnguarded: (reason: string) => Layer<...>;
