@@ -173,6 +173,21 @@ REQUIREMENT: Once the number of completed entries exceeds `capacity`, the
              `compute` is still in flight.
 ```
 
+```
+REQUIREMENT: A completed entry MUST be counted once toward `capacity` however
+             many fibers asked for it, and however the run loop interleaves
+             them: a fiber that checks for a hit, is preempted, and finds the
+             owner finished MUST hit rather than compute the key a second time.
+             The hit check, the join and the claim are one synchronous step.
+```
+
+A joiner that checked `entries` in a step of its own, missed, and was preempted
+while the owner completed found nothing in flight and claimed the key afresh:
+the key was computed twice and appended to the insertion order twice, so a later
+eviction of the stale copy removed a freshly recomputed entry. It was reproduced
+under a lowered `References.MaxOpsBeforeYield` (a public knob) and not at the
+default (ARCH-45 I5).
+
 Eviction is FIFO (insertion order), not least-recently-used: recording an
 access on every hit would cost every lookup something to buy a policy this
 cache has no stated need for. `capacity` is unset by default — every behaviour
