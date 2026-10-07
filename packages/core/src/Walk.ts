@@ -10,7 +10,9 @@ import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Match from "effect/Match";
 import * as Record from "effect/Record";
+import * as Result from "effect/Result";
 import type { Concurrency } from "effect/Types";
+import { admit } from "./Admission.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
 import type { Trace } from "./Decision.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
@@ -33,7 +35,6 @@ import {
   askSignature,
   readAttribute,
 } from "./PortAccess.ts";
-import { policyDepth } from "./Policy.ts";
 import type { Policy, Rule, RuleEffect } from "./Policy.ts";
 import type { Resource } from "./Resource.ts";
 import { anyOfStopsAtAllow, rulesDecisiveEffect } from "./ShortCircuit.ts";
@@ -890,7 +891,7 @@ const evaluateRules = Effect.fnUntraced(function* (
  * times" cost `DecisionCache`'s own doc comment exists to avoid.
  * `Effect.suspend` defers the call itself to when the walk is actually run,
  * so a cache hit never invokes `evaluateNode` at all — and, by the same
- * reasoning, never builds `matcherContext` below either.
+ * reasoning, never builds the matcher context in `admit` either.
  */
 export const walk = (
   question: Question,
@@ -903,25 +904,9 @@ export const walk = (
       action: question.action,
       concurrency,
     };
-    // Built once per walk — i.e. once per evaluation the cache cannot already
-    // answer — rather than once per `evaluateNode` call. `matcherContext`
-    // depends only on `(subject, request)`, both invariant across the whole
-    // recursive walk, so a composite tag (`AllOf`, `Not`, …) and a leaf that
-    // never reads it (`HasPermission`, `HasRole`, …) used to still pay this
-    // allocation at every node. Threaded through `evaluateNode` and its
-    // `AllOf`/`AnyOf`/`Rules` helpers as a parameter instead.
-    const matcherContext: MatcherContext = {
-      subject: subject.attributes,
-      subjectId: subject.id,
-      resource: request.resource,
-      action: request.action,
-    };
-    // Nesting depth is a property of the policy, so it is judged before any
-    // node is visited: whether a policy is "too deep" must not depend on which
-    // branches this subject's attributes happen to short-circuit past, or on
-    // who is asking (ARCH-02 D-02-e, INV-QD-037). `policyDepth` is memoised per
-    // policy object, so after the first evaluation this is a lookup.
-    // `evaluateNode` keeps its own per-node guard as defense in depth.
-    if (policyDepth(policy) > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
-    return evaluateNode(policy, subject, request, matcherContext, 0, maxDepth);
+    // Admission is shared with `toPredicate` (`Admission.ts`): the depth gate,
+    // judged on the policy before any node, and the matcher context, built once.
+    const admitted = admit(question);
+    if (Result.isFailure(admitted)) return Effect.fail(admitted.failure);
+    return evaluateNode(policy, subject, request, admitted.success.matcherContext, 0, maxDepth);
   });
