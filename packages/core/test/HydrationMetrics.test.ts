@@ -7,12 +7,11 @@
  * about whether the other one can see them. These assertions pin the key
  * instead.
  *
- * Every count assertion is a **delta**, and it has to be. A private registry is
- * not available: a `Metric` memoises its hooks on itself at first touch, keyed
- * on attributes and not on the registry, so the first registry to reach a metric
- * owns it for the process and a later `Context.make(MetricRegistry, new Map())`
- * reads the same numbers through an empty map. Absolute assertions would
- * therefore depend on test ordering across the whole suite.
+ * Every count assertion is a **delta**, and it has to be. The writer is off
+ * fiber and always updates the default registry (`Context.empty()`), which no
+ * test can scope, so absolute assertions would depend on test ordering across
+ * the whole suite. (At effect 4.0.0 a fresh registry does isolate an *on-fiber*
+ * read, but these counts are written off fiber.)
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Context from "effect/Context";

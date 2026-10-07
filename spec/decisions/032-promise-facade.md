@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-032                                   |
-> | Revision       | 1.3                                            |
-> | Effective Date | 2026-09-19                                     |
+> | Revision       | 1.4                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.3 (2026-09-19): Signature listing corrected again — `filter` had drifted from the shipped `<A extends Resource>(subject, policy, items, options?: EvaluateOptions)` (BEH-QD-172), and the decision line's "nothing else" restated as one shared run helper plus five direct forwarders, since every method's `Effect.provideService(effect, CurrentSubject, subject)` is that helper's job, not a second branch (DS-02, PF-01, PF-05)<br>1.2 (2026-09-08): Added "No mutation-testing config" recording why `@qadi/promise` carries no `stryker.*.mjs`, the reasoning having existed only as an inference from AGENTS.md §14 rather than anywhere written down (CCR-QD-119)<br>1.1 (2026-07-26): Signature listing corrected — it omitted the `subject` parameter that the section below it insists on (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
+> | Change History | 1.4 (2026-10-08): amended: the facade forwards an `AbortSignal` to the runtime; cancellation was never impossible (ARCH-45 I4, CCR-QD-206)<br>1.3 (2026-09-19): Signature listing corrected again — `filter` had drifted from the shipped `<A extends Resource>(subject, policy, items, options?: EvaluateOptions)` (BEH-QD-172), and the decision line's "nothing else" restated as one shared run helper plus five direct forwarders, since every method's `Effect.provideService(effect, CurrentSubject, subject)` is that helper's job, not a second branch (DS-02, PF-01, PF-05)<br>1.2 (2026-09-08): Added "No mutation-testing config" recording why `@qadi/promise` carries no `stryker.*.mjs`, the reasoning having existed only as an inference from AGENTS.md §14 rather than anywhere written down (CCR-QD-119)<br>1.1 (2026-07-26): Signature listing corrected — it omitted the `subject` parameter that the section below it insists on (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
 
 ---
 
@@ -137,6 +137,15 @@ answer, the agreement has to be runnable rather than argued.
 The package adds a fifth workspace member and a documented boundary. What it does not
 add is any authorization logic, and a review that finds a conditional in it should
 treat that as a defect rather than a feature.
+
+> **Amended (ARCH-45 I4, 2026-10-08): forwarding a signal is forwarding.** The facade's
+> source said cancellation cannot cross the `Promise` boundary ("a platform limit").
+> It can: `runtime.runPromise(effect, { signal })` interrupts the fibre. Every call now
+> takes `FacadeOptions` (`EvaluateOptions` plus `signal`) and passes `{ signal }` to the
+> runtime. That is one more argument to the same call, not a decision: no branch reads
+> the signal, and an aborted call rejects with the runtime's interruption error rather
+> than `signal.reason`, which would need a `catch` testing `signal.aborted` (a branch,
+> AGENTS.md section 14).
 
 ---
 

@@ -12,10 +12,9 @@
  * wrong, but a reader adding them up will be.
  *
  * **2. The registry is process-global.** `@qadi/core` declares the five metrics
- * at module scope, and a `Metric` memoises its hooks on itself at first touch —
- * keyed on attributes, not on the registry — so the first registry to reach one
- * owns it for the life of the process. On a long-lived Next server that means
- * the server-side counts accumulate across every request and every user. There
+ * at module scope and `@qadi/react` writes them off fiber, into the default
+ * registry, which lives as long as the process. On a long-lived Next server that
+ * means the server-side counts accumulate across every request and every user. There
  * is no per-request view of them and there cannot be one without a different
  * design.
  *

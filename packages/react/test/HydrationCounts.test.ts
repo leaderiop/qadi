@@ -6,10 +6,9 @@
  * that was: nothing retained how many entries made the trip, and three of the
  * four ways a payload fails to seed said nothing at all.
  *
- * Every count assertion is a **delta**. A `Metric` memoises its hooks on itself
- * at first touch and ignores the registry thereafter, so there is no way to
- * scope one to a test — an absolute assertion would depend on the order the
- * whole suite ran in.
+ * Every count assertion is a **delta**. The writer is off fiber and always
+ * updates the default registry, which a test cannot scope, so an absolute
+ * assertion would depend on the order the whole suite ran in.
  */
 import {
   Allow,

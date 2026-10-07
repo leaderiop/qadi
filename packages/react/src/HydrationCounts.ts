@@ -14,18 +14,18 @@
  *
  * **`Context.empty()` is the whole subtlety, so it lives in one file.** A
  * `Context.Reference` resolves to its default when the context does not carry
- * it, and `MetricRegistry`'s default is memoised on the reference — so an
- * off-fiber write with an empty context lands in exactly the registry a reader's
- * `Metric.value` finds. `packages/core/test/HydrationMetrics.test.ts` pins that.
+ * it, and `MetricRegistry`'s default is the reference's default — so an
+ * off-fiber write with an empty context lands in the **default registry**, which
+ * is where `@qadi/devtools`' reader looks (it names `Context.empty()` too).
+ * `packages/core/test/HydrationMetrics.test.ts` pins that.
  *
  * A `Context.Context` passed here is **not** a way to scope these counts, and
- * that is worth knowing before someone tries it: a `Metric` memoises its hooks
- * on the metric object at first touch, keyed on attributes and not on the
- * registry, so the first registry to reach a metric owns it for the life of the
- * process and every later context reads that one whatever it carries. The
- * useful consequence is that a writer and a reader **sharing one metric object**
- * — which is why these are declared in `@qadi/core` — cannot diverge, whatever
- * registry a host wires and whenever it wires it.
+ * that is worth knowing before someone tries it: at effect 4.0.0 a `Metric`
+ * looks its registry up on **every** update, so a different context writes a
+ * different registry's series, which the reader would never see. Writer and
+ * reader agree because both name the default registry, not because the metric
+ * remembers one (ADR-QD-052, amended). A host exporting hydration counts from
+ * its own registry must export them from the default one.
  *
  * Confined to one named file for the reason `HydrationWarning.ts` confines
  * `console` and `process.env`: a boundary in a file with a name stays visible,

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-22                                    |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-09-19                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-09-19): KD-04 — noted that two facade-specific bugs (BEH-QD-170's error identity, `filter`'s missing options parameter) are pinned only as regression tests in `facade.test.ts`, one of them under no `BEH-QD-NNN` number at all<br>1.1 (2026-09-07): Noted that this is the one behavior with no `.feature` leg, and why<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
+> | Change History | 1.3 (2026-10-08): BEH-QD-169 — every call forwards `options.signal` and never reads it; `FacadeOptions` (ARCH-45, CCR-QD-206)<br>1.2 (2026-09-19): KD-04 — noted that two facade-specific bugs (BEH-QD-170's error identity, `filter`'s missing options parameter) are pinned only as regression tests in `facade.test.ts`, one of them under no `BEH-QD-NNN` number at all<br>1.1 (2026-09-07): Noted that this is the one behavior with no `.feature` leg, and why<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
 
 _Previous: [21 — Decision Cache](./21-decision-cache.md)_
 
