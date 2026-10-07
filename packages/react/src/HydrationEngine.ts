@@ -255,8 +255,7 @@ export interface HydrateOptions {
    *
    * The sibling of `DehydrateOptions.onDropped`, and it carries a reason because
    * the ways a payload fails to seed have different causes: the payload naming
-   * another subject is a cache-key bug, an unregistered atom set is a wiring
-   * mistake, an entry malformed apart from its policy is usually version skew, an
+   * another subject is a cache-key bug, an entry malformed apart from its policy is usually version skew, an
    * undecodable policy is version skew of the policy shape specifically, a payload
    * of a `version` this client does not read — or of none, the pre-0.10 format —
    * is mismatched releases or a deploy in flight, a payload that

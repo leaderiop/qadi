@@ -20,7 +20,7 @@
  *
  * That also makes {@link PortMetrics}'s note about descriptions — that nothing
  * reads them back, so mutation testing cannot distinguish one from none — false
- * for *these* four. Changing a description here silently detaches the reader
+ * for *these* metrics. Changing a description here silently detaches the reader
  * from the writer, so `HydrationMetrics.test.ts` pins each one.
  *
  * **Counters and frequencies rather than a log**, for the reason `PortMetrics.ts`
@@ -149,7 +149,7 @@ export const hydrationSeededTotal = Metric.counter("qadi_hydration_seeded_total"
  * is a version skew. The per-call increment costs one map write per lost entry,
  * on a path that only runs when something is already wrong.
  *
- * `preregisteredWords` puts all five reasons in the snapshot at zero, so a
+ * `preregisteredWords` puts every reason in `hydrationDropReasons` in the snapshot at zero, so a
  * reader gets the closed set from the metric rather than having to restate it —
  * and an absent reason reads as *did not happen* rather than as *this build does
  * not know about it*.

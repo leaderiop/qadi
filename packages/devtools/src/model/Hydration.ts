@@ -109,7 +109,7 @@ export const hydrationActivity: Effect.Effect<HydrationActivity> = Effect.gen(fu
     mismatched: mismatched.count,
     // The metric's **own** keys, rather than a walk of `hydrationDropReasons`
     // defaulting each miss to zero. Pre-registration is exactly what makes that
-    // walk unnecessary: it puts all five in the map at zero when the hooks are
+    // walk unnecessary: it puts every reason in `hydrationDropReasons` in the map at zero when the hooks are
     // created, so a reader that also defaulted would be a second mechanism doing
     // the first one's job — and its default could never fire, which is how the
     // mutation gate found it. Insertion order is the order `hydrationDropReasons`

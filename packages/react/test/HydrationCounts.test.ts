@@ -3,8 +3,8 @@
  *
  * Split from `Hydration.test.ts`, which is about *which entries are trusted*.
  * This file is about the two things that were missing whatever the answer to
- * that was: nothing retained how many entries made the trip, and three of the
- * four ways a payload fails to seed said nothing at all.
+ * that was: nothing retained how many entries made the trip, and several of the
+ * ways a payload fails to seed said nothing at all.
  *
  * Every count assertion is a **delta**. A `Metric` memoises its hooks on itself
  * at first touch and ignores the registry thereafter, so there is no way to
@@ -143,7 +143,7 @@ describe("counting what crosses the network", () => {
   });
 
   // INV-QD-045. Stated as a conservation law over the whole partition rather
-  // than as a list of the cases known today: three of hydration's four exits
+  // than as a list of the cases known today: several of hydration's exits
   // were found by enumerating them, not by anyone noticing one.
   it("ACCOUNTS FOR EVERY ENTRY OFFERED TO dehydrateDecisions", () => {
     const offered = [

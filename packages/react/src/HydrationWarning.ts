@@ -148,8 +148,9 @@ export const droppedEntriesReporter = <A,>(
  * entry type lives in `Hydration.ts`, which imports this module, and nothing
  * here reads an entry.
  *
- * The reason is carried because the four cases have four different causes and
- * four different fixes, and a bare count cannot tell them apart. Two of them
+ * The reason is carried because each case has a different cause and a different
+ * fix, and a bare count cannot tell them apart. The payload-level ones
+ * (`PayloadSubjectMismatch`, `UnsupportedPayloadVersion`, `MalformedPayload`)
  * reject the payload whole, so `entries` is then every entry in it.
  */
 export interface HydrationDrop<A> {
@@ -242,16 +243,16 @@ const warnHydrationDrop = (drop: HydrationDrop<unknown>): void => {
 /**
  * The reporter `hydrateDecisions` will use, or `undefined` for none.
  *
- * The third of this module's three, deliberately the same shape as the other
- * two: a development-mode warning by default, replaced outright by a supplied
+ * One of this module's reporters, deliberately the same shape as the others: a
+ * development-mode warning by default, replaced outright by a supplied
  * callback, which then runs in production.
  *
- * It exists because hydration had **four** silent exits and this file had
- * closed only the one on the dehydrate side. A payload could name the wrong
- * subject, reach an unregistered atom set, carry an entry malformed apart from
- * its policy, or carry a policy that would not decode, and in every case
- * `hydrateDecisions` returned and said nothing — so "hydration isn't working"
- * had no signal attached to it at all.
+ * It exists because hydration had silent exits and this file had closed only
+ * the one on the dehydrate side. A payload could name the wrong subject, carry
+ * an entry malformed apart from its policy, or carry a policy that would not
+ * decode, and in every case `hydrateDecisions` returned and said nothing — so
+ * "hydration isn't working" had no signal attached to it at all. The current
+ * set of reasons is `ClientHydrationDropReason` in `@qadi/core`.
  */
 export const hydrationDropReporter = <A,>(
   supplied: HydrationDropReporter<A> | undefined,

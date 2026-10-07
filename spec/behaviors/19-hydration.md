@@ -463,8 +463,13 @@ REQUIREMENT: A refused payload MUST NOT prevent the entries that did decode from
 ```
 
 The undecodable ones are dropped; the rest are not held hostage to them. Only the
-two whole-payload refusals seed nothing, and those are refusals of the payload
-rather than of its contents.
+whole-payload refusals (`PayloadSubjectMismatch`, `UnsupportedPayloadVersion`,
+`MalformedPayload`) seed nothing, and those are refusals of the payload rather
+than of its contents.
+
+> **Corrected in CCR-QD-203.** This sentence said "Only the two whole-payload
+> refusals seed nothing". There are three, and a count in prose is what let it
+> rot; it now names them.
 
 ```
 REQUIREMENT: The default reporter MUST be development-only, and MUST name no
