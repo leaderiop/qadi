@@ -31,6 +31,7 @@ import type { Authorized, Permission, PermissionKey, Policy, Resource } from "@q
 import { permissionKey } from "@qadi/core";
 import { loadNoResource } from "./NoResource.ts";
 import { guardRoute } from "./GuardRoute.ts";
+import type { HttpEnforcementFailure } from "./QadiHttpError.ts";
 import type { AccessDeclarationKey } from "./RequirePermission.ts";
 import { endpointAccess, misplacedDeclarations, RequirePermission } from "./RequirePermission.ts";
 
@@ -226,7 +227,7 @@ export const addGuardedRoute =
     handler: (
       authorized: Authorized<P>,
       resource: A,
-    ) => Effect.Effect<HttpServerResponse.HttpServerResponse, never, R>,
+    ) => Effect.Effect<HttpServerResponse.HttpServerResponse, HttpEnforcementFailure, R>,
   ) =>
     Layer.merge(
       HttpRouter.add(method, path, guardRoute(permission, policy, loadResource)(handler)),

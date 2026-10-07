@@ -51,7 +51,6 @@ import {
   EvaluationIdLive,
   guard,
   makeDecisionLog,
-  ENFORCEMENT_ERROR_TAGS,
   gte,
   hasAttribute,
   hasPermission,
@@ -70,7 +69,6 @@ import {
   permissionRegistryRoute,
   registerApi,
   subjectExtractorBearer,
-  toResponse,
 } from "@qadi/http";
 import { Api, readPermission, readPolicy } from "./api.ts";
 
@@ -195,11 +193,9 @@ const WriteRoute = addGuardedRoute(
   // arrives as the first handler argument.
   (_authorized, resource) =>
     guard(writePermission, writePolicy)(resource, () => Effect.void).pipe(
+      // The route answers (403/502) and logs a denial the inner guard raises,
+      // through the package's own table: no catch needed here.
       Effect.as(HttpServerResponse.text("written")),
-      // A bare route has no schema-fixed error channel, so the enforcement
-      // errors the inner guard can raise are answered here, through the
-      // package's own 403/502 table.
-      Effect.catchTag(ENFORCEMENT_ERROR_TAGS, (error) => Effect.succeed(toResponse(error))),
     ),
 );
 

@@ -539,10 +539,14 @@ REQUIREMENT: The subject MUST be extracted before the resource is loaded, so a
 
 ```
 REQUIREMENT: A denial (`AccessDenied`, `UndischargedObligation`) and a
-             `SubjectExtractionFailed` MUST each be logged exactly once, by
-             `authorizeRequest`, through `logDenial` and
-             `logSubjectExtractionFailed`. A resolver outage MUST NOT be logged
-             by the edge.
+             `SubjectExtractionFailed` MUST each be logged exactly once, by the
+             step that turned it into a response: `authorizeRequest` for the
+             edge check, through `logDenial` and `logSubjectExtractionFailed`,
+             and the surface (`RequirePermission`, `guardRoute`,
+             `addGuardedRoute`) for a denial a handler's own `guard` raises,
+             through `logDenial`. Each denial line MUST carry the log annotation
+             `qadi.denial_site`: `"edge"` or `"handler"`. A denial MUST NOT be
+             logged twice. A resolver outage MUST NOT be logged by the edge.
 ```
 
 ```
@@ -569,9 +573,14 @@ resource *loader*, not a value, so extraction can run first.
 
 Under `RequirePermission` the projection and the captured standing services still
 wrap the handler: a defense-in-depth `guard` inside a handler finds the services,
-and an enforcement failure it raises is projected to its redacted wire value. That
-failure is no longer logged by the edge: it is the handler's own `guard`'s
-failure. A bare route's answer is `toResponse`, which logs nothing.
+and an enforcement failure it raises is projected to its redacted wire value. A
+denial it raises is logged by the surface, on the handler's effect alone and
+annotated `"handler"`, so the edge's own denial (already logged, annotated
+`"edge"`) is never logged twice. A bare route's handler may let that failure
+through: its error channel is the closed `HttpEnforcementFailure`, and the route
+answers it with `toResponse` and logs a denial the same way. (ARCH-19 D-19-d had
+left a handler-raised denial unlogged, which contradicted the `logDenial` row in
+`spec/overview.md`; ARCH-45 reverses it.)
 `guard` builds its handler eagerly ([ADR-QD-035](../decisions/035-witness-guard-primitive.md));
 the step returns the witness and the surface builds the handler only on an allow.
 
