@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-056                                   |
-> | Revision       | 1.9                                            |
-> | Effective Date | 2026-10-05                                     |
+> | Revision       | 1.10                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — narrows ADR-QD-016                  |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.9 (2026-10-07): an encode refusal is witnessed by a log line naming its `evaluationId` (or `onRefused`) as well as the `encode_failed` counter (CCR-QD-193)<br>1.8 (2026-10-07): retention retains an entry of unknown age and refuses an impossible `now` or `maxAgeMs` (INV-QD-101, CCR-QD-186)<br>1.7 (2026-10-06): a persisted row is version-2 bytes only; a pre-0.10 (version-1) row is refused by `decodeAuditEntry` as `UnsupportedVersion` and migrated with 0.10.x (ADR-QD-096 amendment) (CCR-QD-182)<br>1.6 (2026-10-05): a persisted row is a closed union of wire versions, read back with `decodeAuditEntry`; `archiveVersion` unchanged (ADR-QD-096) (CCR-QD-180)<br>1.5 (2026-10-05): an audit row carries the encoded wire; `decodeAuditEntry` is the guarded reader (ADR-QD-095) (CCR-QD-179)<br>1.4 (2026-09-19): The no-tamper-evidence residual risk, previously distributed across `SequenceIntegrity.ts`/`AuditArchive.ts`/`DecommissioningChecklist.ts` doc comments only, recorded once under Consequences — Negative, alongside the previously-undocumented breaker-open drop window's own invisibility to the trail (AS-03/WD-07)<br>1.3 (2026-09-09): "a `resource` carrying a value with no safe durable representation" corrected — `policy`'s `HasCustom.params` is a second caller-supplied `unknown` a `SinkRecord` carries, and encoding now refuses on either (issue #104, CCR-QD-143)<br>1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
+> | Change History | 1.10 (2026-10-08): an audit write's outcome is a value — every record has exactly one, and an entry not in the trail is witnessed; `onOutcome`, `writes_total{skipped_open}`, `qadi_audit_entries_lost_total`, the `qadi.audit.record` span (CCR-QD-203)<br>1.9 (2026-10-07): an encode refusal is witnessed by a log line naming its `evaluationId` (or `onRefused`) as well as the `encode_failed` counter (CCR-QD-193)<br>1.8 (2026-10-07): retention retains an entry of unknown age and refuses an impossible `now` or `maxAgeMs` (INV-QD-101, CCR-QD-186)<br>1.7 (2026-10-06): a persisted row is version-2 bytes only; a pre-0.10 (version-1) row is refused by `decodeAuditEntry` as `UnsupportedVersion` and migrated with 0.10.x (ADR-QD-096 amendment) (CCR-QD-182)<br>1.6 (2026-10-05): a persisted row is a closed union of wire versions, read back with `decodeAuditEntry`; `archiveVersion` unchanged (ADR-QD-096) (CCR-QD-180)<br>1.5 (2026-10-05): an audit row carries the encoded wire; `decodeAuditEntry` is the guarded reader (ADR-QD-095) (CCR-QD-179)<br>1.4 (2026-09-19): The no-tamper-evidence residual risk, previously distributed across `SequenceIntegrity.ts`/`AuditArchive.ts`/`DecommissioningChecklist.ts` doc comments only, recorded once under Consequences — Negative, alongside the previously-undocumented breaker-open drop window's own invisibility to the trail (AS-03/WD-07)<br>1.3 (2026-09-09): "a `resource` carrying a value with no safe durable representation" corrected — `policy`'s `HasCustom.params` is a second caller-supplied `unknown` a `SinkRecord` carries, and encoding now refuses on either (issue #104, CCR-QD-143)<br>1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
 
 ---
 
@@ -335,3 +335,27 @@ throws is logged and never fails the record or the decision (INV-QD-035). The
 wording, the annotations and the hook's containment are core's
 ([ADR-QD-095](./095-sinkcodec-owns-both-directions.md)'s amendment of the same
 date); this package keeps its own error and its own message (ADR-QD-054).
+
+## Amendment (2026-10-08, CCR-QD-203)
+
+**An audit write's outcome is a value, and an entry not in the trail is witnessed.**
+The 2026-09-19 revision holds a breaker-open drop to "a log line and the counter";
+the 2026-10-07 amendment extended that to an encode refusal. Two losses still met
+less: a trail write that failed with no staging port wired, and one that failed after
+`stage()` had also failed, each left only a `write_failed` count that could not tell
+them from the recoverable case. They now log a warning naming the `evaluationId`.
+
+Each record has exactly one `AuditWriteOutcome` (`Refused`, `Written`, `WriteFailed`,
+`Skipped`, each with its staging result: eleven leaves). One pure projection maps a
+leaf to its metric labels, its log line and its lost-entry label; `emitWriteOutcome`
+applies it, and the port calls in `record` report nothing (INV-QD-106).
+Decisions taken (the plan's recommendations): the outcome is public with
+`AuditDecisionSinkOptions.onOutcome`, so a caller can dead-letter a lost entry or
+write the gap marker this ADR leaves open (the library writes none, and that design
+stays undecided); every entry not in the trail is witnessed, lost ones at warning and
+staged-only ones at info; `qadi_audit_writes_total` counts breaker-refused records
+under a new `skipped_open` label so its description ("SinkRecords the pipeline
+received") is true; `qadi_audit_entries_lost_total{after, staging}` counts the lost
+four; `record` is an `Effect.fn("qadi.audit.record")` span annotated with the outcome
+path and its durability (closed words, never values, ADR-QD-051). No existing metric
+label or log message is renamed.

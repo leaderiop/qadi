@@ -1,16 +1,15 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
 import * as Metric from "effect/Metric";
-import * as References from "effect/References";
 import * as TestClock from "effect/testing/TestClock";
 import { DecisionSink } from "@qadi/core";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
 import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
 import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
-import { AuditStagingError, AuditStagingPort } from "../src/AuditStagingPort.ts";
+import { driveExit } from "./driveExit.ts";
+import type { ExitSpec } from "./driveExit.ts";
 import { decisionRecord, isolatedMetrics } from "./helpers.ts";
 
 type CounterSnapshot = Extract<Metric.Metric.Snapshot, { type: "Counter" }>;
@@ -24,89 +23,6 @@ const frequencyOf = (
   snapshots.find((s): s is FrequencySnapshot => s.type === "Frequency" && s.id === id);
 
 describe("qadi_audit_writes_total", () => {
-  it.effect("a successful write is tagged 'written'", () =>
-    Effect.gen(function* () {
-      const { layer: trail } = AuditTrailPortTest();
-      const snapshots = yield* isolatedMetrics(
-        Effect.gen(function* () {
-          const sink = yield* DecisionSink;
-          yield* sink.record(decisionRecord());
-          return yield* Metric.snapshot;
-        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
-      );
-
-      const rows = counters(snapshots, "qadi_audit_writes_total");
-      const written = rows.find((r) => r.attributes?.outcome === "written");
-      assert.isDefined(written);
-      assert.strictEqual(written?.state.count, 1);
-    }));
-
-  it.effect("an unencodable resource is tagged 'encode_failed', not 'written'", () =>
-    Effect.gen(function* () {
-      const { layer: trail } = AuditTrailPortTest();
-      const snapshots = yield* isolatedMetrics(
-        Effect.gen(function* () {
-          const sink = yield* DecisionSink;
-          yield* sink.record(decisionRecord({ resource: { handler: () => "nope" } }));
-          return yield* Metric.snapshot;
-        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
-      );
-
-      const rows = counters(snapshots, "qadi_audit_writes_total");
-      assert.isDefined(rows.find((r) => r.attributes?.outcome === "encode_failed"));
-      assert.isUndefined(rows.find((r) => r.attributes?.outcome === "written"));
-    }));
-
-  it.effect("a trail write failure is tagged 'write_failed'", () =>
-    Effect.gen(function* () {
-      const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
-      });
-      const snapshots = yield* isolatedMetrics(
-        Effect.gen(function* () {
-          const sink = yield* DecisionSink;
-          yield* sink.record(decisionRecord());
-          return yield* Metric.snapshot;
-        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
-      );
-
-      const rows = counters(snapshots, "qadi_audit_writes_total");
-      const failed = rows.find((r) => r.attributes?.outcome === "write_failed");
-      assert.isDefined(failed);
-      assert.strictEqual(failed?.state.count, 1);
-    }));
-
-  it.effect(
-    "a write defect — not just a typed AuditWriteError — is tagged 'write_failed', never silent (ticket #47)",
-    () =>
-      Effect.gen(function* () {
-        // A caller's own bug (a thrown error, not the port's typed
-        // `AuditWriteError`), the same class of thing `trailPort.commit`'s
-        // `Effect.catchCause` already guards against below. Before ticket
-        // #47, `record()` ran `trailPort.write` under `Effect.result`, which
-        // only catches the typed `E` channel — a defect unwound straight
-        // past both `writesWriteFailed` and the breaker's `recordFailure`.
-        const brokenTrail = Layer.succeed(AuditTrailPort, {
-          write: () => Effect.die(new Error("caller's trail store bug")),
-        });
-
-        const snapshots = yield* isolatedMetrics(
-          Effect.gen(function* () {
-            const sink = yield* DecisionSink;
-            yield* sink.record(decisionRecord());
-            return yield* Metric.snapshot;
-          }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), brokenTrail))),
-        );
-
-        // record() itself must not defect — Metric.snapshot above only ran
-        // because the whole pipeline completed normally.
-        const rows = counters(snapshots, "qadi_audit_writes_total");
-        const failed = rows.find((r) => r.attributes?.outcome === "write_failed");
-        assert.isDefined(failed);
-        assert.strictEqual(failed?.state.count, 1);
-      }),
-  );
-
   it.effect("carries its documented description", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest();
@@ -261,220 +177,6 @@ describe("qadi_audit_circuit_breaker_transitions_total", () => {
 });
 
 describe("qadi_audit_staging_total", () => {
-  it.effect("unwired and the breaker open is tagged 'skipped_open'", () =>
-    Effect.gen(function* () {
-      const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
-      });
-
-      const snapshots = yield* isolatedMetrics(
-        Effect.gen(function* () {
-          const sink = yield* DecisionSink;
-          for (let i = 0; i < 6; i++) yield* sink.record(decisionRecord({ evaluationId: `e-${i}` }));
-          return yield* Metric.snapshot;
-        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
-      );
-
-      const rows = counters(snapshots, "qadi_audit_staging_total");
-      const skipped = rows.find((r) => r.attributes?.outcome === "skipped_open");
-      assert.isDefined(skipped);
-      assert.strictEqual(skipped?.state.count, 1);
-    }));
-
-  it.effect(
-    "unwired and the breaker open also logs the actual drop warning, not just the metric",
-    () =>
-      Effect.gen(function* () {
-        const { layer: trail } = AuditTrailPortTest({
-          failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
-        });
-        const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
-
-        yield* Effect.gen(function* () {
-          const sink = yield* DecisionSink;
-          for (let i = 0; i < 6; i++) yield* sink.record(decisionRecord({ evaluationId: `e-${i}` }));
-        }).pipe(
-          Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, Logger.layer([
-              Logger.make((o) => {
-                logs.push({
-                  message: o.message,
-                  annotations: o.fiber.getRef(References.CurrentLogAnnotations),
-                });
-              }),
-            ])))),
-        );
-
-        // The metric alone (asserted above) would still pass if a mutant
-        // deleted the `Effect.logWarning` call in AuditDecisionSinkLive.ts —
-        // this pins the log itself, the 0.4.0 fix ticket #47 names. Exactly
-        // one warning: the 6th record, dropped while the breaker is Open
-        // and no staging port is wired.
-        assert.strictEqual(logs.length, 1);
-        const [entry] = logs;
-        assert.isDefined(entry);
-        if (entry === undefined) return;
-        assert.include(String(entry.message), "circuit breaker open and no staging port wired");
-        assert.strictEqual(entry.annotations["evaluationId"], "e-5");
-      }),
-  );
-
-  it.effect("wired but a stage() failure is tagged 'failed', and never blocks the write", () =>
-    Effect.gen(function* () {
-      const { layer: trail, written } = AuditTrailPortTest();
-      const { layer: staging } = AuditStagingPortTest({
-        failStageWith: (entry) => new AuditStagingError({ entry, cause: "staging store offline" }),
-      });
-
-      const snapshots = yield* isolatedMetrics(
-        Effect.gen(function* () {
-          const sink = yield* DecisionSink;
-          yield* sink.record(decisionRecord());
-          return yield* Metric.snapshot;
-        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, staging)))),
-      );
-
-      const rows = counters(snapshots, "qadi_audit_staging_total");
-      const failed = rows.find((r) => r.attributes?.outcome === "failed");
-      assert.isDefined(failed);
-      assert.strictEqual(failed?.state.count, 1);
-      // The write itself still went through — staging is best-effort.
-      assert.strictEqual(written().length, 1);
-    }));
-
-  it.effect(
-    "a stage() defect — not just a typed AuditStagingError — is tagged 'failed', and never blocks " +
-      "the write (ticket #47)",
-    () =>
-      Effect.gen(function* () {
-        const { layer: trail, written } = AuditTrailPortTest();
-        // A caller's own bug, not this package's error type — before ticket
-        // #47, `record()` ran `stagingPort.stage` under `Effect.result`,
-        // which only catches the typed `E` channel, so this used to unwind
-        // straight past both branches below (`stagingFailed` and
-        // `stagingFailedOpen`) rather than landing in either.
-        const brokenStaging = Layer.succeed(AuditStagingPort, {
-          stage: () => Effect.die(new Error("caller's staging store bug")),
-          commit: () => Effect.void,
-        });
-
-        const snapshots = yield* isolatedMetrics(
-          Effect.gen(function* () {
-            const sink = yield* DecisionSink;
-            yield* sink.record(decisionRecord());
-            return yield* Metric.snapshot;
-          }).pipe(
-            Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, brokenStaging))),
-          ),
-        );
-
-        const rows = counters(snapshots, "qadi_audit_staging_total");
-        const failed = rows.find((r) => r.attributes?.outcome === "failed");
-        assert.isDefined(failed);
-        assert.strictEqual(failed?.state.count, 1);
-        // The write itself still went through — staging is best-effort.
-        assert.strictEqual(written().length, 1);
-      }),
-  );
-
-  it.effect("wired and stage() succeeds is tagged 'staged'", () =>
-    Effect.gen(function* () {
-      const { layer: trail } = AuditTrailPortTest();
-      const { layer: staging } = AuditStagingPortTest();
-
-      const snapshots = yield* isolatedMetrics(
-        Effect.gen(function* () {
-          const sink = yield* DecisionSink;
-          yield* sink.record(decisionRecord());
-          return yield* Metric.snapshot;
-        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, staging)))),
-      );
-
-      const rows = counters(snapshots, "qadi_audit_staging_total");
-      const staged = rows.find((r) => r.attributes?.outcome === "staged");
-      assert.isDefined(staged);
-      assert.strictEqual(staged?.state.count, 1);
-    }));
-
-  it.effect("a commit defect — not just a typed AuditStagingError — is tagged 'commit_failed', never silent", () =>
-    Effect.gen(function* () {
-      const { layer: trail, written } = AuditTrailPortTest();
-      // A caller's own bug, not this package's error type — record() must
-      // neither propagate it nor lose it without a trace.
-      const brokenStaging = Layer.succeed(AuditStagingPort, {
-        stage: () => Effect.succeed("handle"),
-        commit: () => Effect.die(new Error("caller's staging store bug")),
-      });
-
-      const snapshots = yield* isolatedMetrics(
-        Effect.gen(function* () {
-          const sink = yield* DecisionSink;
-          yield* sink.record(decisionRecord());
-          return yield* Metric.snapshot;
-        }).pipe(
-          Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, brokenStaging))),
-        ),
-      );
-
-      // The write itself still succeeded — a caller's commit bug must not
-      // make record() itself fail or lose the row.
-      assert.strictEqual(written().length, 1);
-
-      const rows = counters(snapshots, "qadi_audit_staging_total");
-      const commitFailed = rows.find((r) => r.attributes?.outcome === "commit_failed");
-      assert.isDefined(commitFailed);
-      assert.strictEqual(commitFailed?.state.count, 1);
-    }));
-
-  it.effect(
-    "a commit failure also logs a warning, not just the metric (PH-02)",
-    () =>
-      Effect.gen(function* () {
-        // The metric alone (asserted above) would still pass if a mutant
-        // deleted the `Effect.logWarning` call in AuditDecisionSinkLive.ts —
-        // this pins the log itself, the same discipline the breaker-open
-        // drop warnings above already have. The write still succeeds (the
-        // entry is durable in the trail), so this is staging-cleanup
-        // visibility, not a compliance-record-loss warning.
-        const { layer: trail, written } = AuditTrailPortTest();
-        const brokenStaging = Layer.succeed(AuditStagingPort, {
-          stage: () => Effect.succeed("handle"),
-          commit: () => Effect.die(new Error("caller's staging store bug")),
-        });
-        const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
-
-        yield* Effect.gen(function* () {
-          const sink = yield* DecisionSink;
-          yield* sink.record(decisionRecord({ evaluationId: "e-0" }));
-        }).pipe(
-          Effect.provide(
-            Layer.provideMerge(
-              AuditDecisionSinkLive(),
-              Layer.mergeAll(
-                trail,
-                brokenStaging,
-                Logger.layer([
-                  Logger.make((o) => {
-                    logs.push({
-                      message: o.message,
-                      annotations: o.fiber.getRef(References.CurrentLogAnnotations),
-                    });
-                  }),
-                ]),
-              ),
-            ),
-          ),
-        );
-
-        assert.strictEqual(written().length, 1);
-        assert.strictEqual(logs.length, 1);
-        const [entry] = logs;
-        assert.isDefined(entry);
-        if (entry === undefined) return;
-        assert.include(String(entry.message), "audit staging commit failed");
-        assert.strictEqual(entry.annotations["evaluationId"], "e-0");
-      }),
-  );
-
   it.effect("carries its documented description", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest();
@@ -490,4 +192,47 @@ describe("qadi_audit_staging_total", () => {
       const rows = counters(snapshots, "qadi_audit_staging_total");
       assert.strictEqual(rows[0]?.description, "AuditStagingPort.stage attempts, tagged by outcome.");
     }));
+});
+
+describe("qadi_audit_entries_lost_total", () => {
+  it.effect("carries its documented description", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest({
+        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+      });
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          const sink = yield* DecisionSink;
+          yield* sink.record(decisionRecord());
+          return yield* Metric.snapshot;
+        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
+      );
+
+      const rows = counters(snapshots, "qadi_audit_entries_lost_total");
+      assert.strictEqual(rows[0]?.description, "Audit entries in neither the trail nor staging, by what failed.");
+    }));
+
+  const base: ExitSpec = { wired: false, open: false, encode: "ok", stage: "ok", write: "ok", commit: "ok" };
+  const cases: ReadonlyArray<{ readonly name: string; readonly spec: ExitSpec; readonly labels: ReadonlyArray<string> }> = [
+    { name: "unwired, write failed", spec: { ...base, write: "fail" }, labels: ["write_failed/not_wired"] },
+    { name: "unwired, breaker open", spec: { ...base, open: true }, labels: ["skipped_open/not_wired"] },
+    {
+      name: "wired, stage and write failed",
+      spec: { ...base, wired: true, stage: "fail", write: "fail" },
+      labels: ["write_failed/failed"],
+    },
+    {
+      name: "wired, breaker open, stage failed",
+      spec: { ...base, wired: true, open: true, stage: "fail" },
+      labels: ["skipped_open/failed"],
+    },
+    { name: "wired, staged, write failed (recoverable)", spec: { ...base, wired: true, write: "fail" }, labels: [] },
+    { name: "wired, breaker open, staged (recoverable)", spec: { ...base, wired: true, open: true }, labels: [] },
+    { name: "written (never lost)", spec: base, labels: [] },
+  ];
+  for (const c of cases) {
+    it.effect(`${c.name}: moves ${c.labels.length === 0 ? "nothing" : c.labels.join(", ")}`, () =>
+      driveExit(c.spec).pipe(Effect.map((observed) => assert.deepStrictEqual(observed.lostLabels, c.labels))),
+    );
+  }
 });

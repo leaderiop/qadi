@@ -5,6 +5,7 @@ import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as References from "effect/References";
+import * as Tracer from "effect/Tracer";
 import * as TestClock from "effect/testing/TestClock";
 import { DecisionSink } from "@qadi/core";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
@@ -13,6 +14,8 @@ import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
 import { AuditStagingError, AuditStagingPort } from "../src/AuditStagingPort.ts";
 import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
+import { durabilityOf } from "../src/AuditWriteOutcome.ts";
+import type { AuditWriteOutcome } from "../src/AuditWriteOutcome.ts";
 import { decisionRecord, failedWithCause, httpClientError, obligationRecord } from "./helpers.ts";
 
 describe("AuditDecisionSinkLive — the assembled pipeline", () => {
@@ -617,5 +620,240 @@ describe("AuditDecisionSinkLive — an encode refusal is observable", () => {
       assert.strictEqual(logs[0]?.annotations["qadi.refusal"], "EncodeFailed");
       assert.strictEqual(logs[0]?.annotations["qadi.path"], "");
       assert.notInclude(JSON.stringify([logs[0]?.message, logs[0]?.annotations]), "sentinel-getter-text");
+    }));
+});
+
+describe("AuditDecisionSinkLive — an entry lost after a write failure is witnessed", () => {
+  const capture = () => {
+    const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+    const layer = Logger.layer([
+      Logger.make((o) => {
+        logs.push({ message: o.message, annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
+      }),
+    ]);
+    return { logs, layer };
+  };
+  const failingStage = AuditStagingPortTest({
+    failStageWith: (entry) => new AuditStagingError({ entry, cause: "staging offline" }),
+  });
+
+  it.effect("unwired, a failed write logs the drop with its evaluationId", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest({
+        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+      });
+      const { logs, layer: logger } = capture();
+
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord({ evaluationId: "lost-u" }));
+      }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, logger))));
+
+      assert.strictEqual(logs.length, 1);
+      assert.strictEqual(
+        String(logs[0]?.message),
+        "audit entry dropped: trail write failed and no staging port wired",
+      );
+      assert.strictEqual(logs[0]?.annotations["evaluationId"], "lost-u");
+    }));
+
+  it.effect("unwired, a write that dies is a loss too and logs the same drop", () =>
+    Effect.gen(function* () {
+      const trail = Layer.succeed(AuditTrailPort, { write: () => Effect.die(new Error("trail bug")) });
+      const { logs, layer: logger } = capture();
+
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord({ evaluationId: "lost-d" }));
+      }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, logger))));
+
+      assert.strictEqual(logs.length, 1);
+      assert.strictEqual(
+        String(logs[0]?.message),
+        "audit entry dropped: trail write failed and no staging port wired",
+      );
+      assert.strictEqual(logs[0]?.annotations["evaluationId"], "lost-d");
+    }));
+
+  it.effect("wired, a failed stage then a failed write logs the drop", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest({
+        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+      });
+      const { logs, layer: logger } = capture();
+
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord({ evaluationId: "lost-w" }));
+      }).pipe(
+        Effect.provide(
+          Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, failingStage.layer, logger)),
+        ),
+      );
+
+      assert.strictEqual(logs.length, 1);
+      assert.strictEqual(
+        String(logs[0]?.message),
+        "audit entry dropped: trail write failed and staging failed",
+      );
+      assert.strictEqual(logs[0]?.annotations["evaluationId"], "lost-w");
+    }));
+
+  it.effect("wired, a staged entry whose write fails is not reported as dropped", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest({
+        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+      });
+      const { layer: staging, staged } = AuditStagingPortTest();
+      const { logs, layer: logger } = capture();
+
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord({ evaluationId: "kept" }));
+      }).pipe(
+        Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, staging, logger))),
+      );
+
+      assert.strictEqual(staged().length, 1);
+      assert.isFalse(logs.some((l) => String(l.message).includes("dropped")));
+    }));
+});
+
+describe("AuditDecisionSinkLive — onOutcome and the record span", () => {
+  const capture = () => {
+    const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+    const layer = Logger.layer([
+      Logger.make((o) => {
+        logs.push({ message: o.message, annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
+      }),
+    ]);
+    return { logs, layer };
+  };
+
+  it.effect("onOutcome receives each record's outcome once, after its report", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest();
+      const seen: Array<AuditWriteOutcome> = [];
+
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord({ evaluationId: "a" }));
+        yield* sink.record(decisionRecord({ evaluationId: "b", resource: { tags: new Set(["x"]) } }));
+      }).pipe(
+        Effect.provide(
+          Layer.provideMerge(AuditDecisionSinkLive({ onOutcome: (o) => void seen.push(o) }), trail),
+        ),
+      );
+
+      assert.deepStrictEqual(
+        seen.map((o) => o._tag),
+        ["Written", "Refused"],
+      );
+    }));
+
+  it.effect("onRefused replaces the warning but onOutcome still sees the refusal", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest();
+      const refusals: Array<AuditEntryNotEncodable> = [];
+      const seen: Array<AuditWriteOutcome> = [];
+
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord({ evaluationId: "p", resource: { tags: new Set(["x"]) } }));
+      }).pipe(
+        Effect.provide(
+          Layer.provideMerge(
+            AuditDecisionSinkLive({ onRefused: (r) => void refusals.push(r), onOutcome: (o) => void seen.push(o) }),
+            trail,
+          ),
+        ),
+      );
+
+      assert.strictEqual(refusals.length, 1);
+      assert.strictEqual(seen.length, 1);
+      assert.strictEqual(seen[0]?._tag, "Refused");
+    }));
+
+  it.effect("a lost entry reaches onOutcome as Lost, carrying the entry", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest({
+        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+      });
+      const seen: Array<AuditWriteOutcome> = [];
+
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord({ evaluationId: "gone" }));
+      }).pipe(
+        Effect.provide(
+          Layer.provideMerge(AuditDecisionSinkLive({ onOutcome: (o) => void seen.push(o) }), trail),
+        ),
+      );
+
+      const [outcome] = seen;
+      assert.isDefined(outcome);
+      if (outcome === undefined || outcome._tag === "Refused") return assert.fail("expected a non-refused outcome");
+      assert.strictEqual(durabilityOf(outcome), "Lost");
+      assert.strictEqual(outcome.entry.record.evaluationId, "gone");
+    }));
+
+  it.effect("a throwing onOutcome is logged, and the next record is still written", () =>
+    Effect.gen(function* () {
+      const { layer: trail, written } = AuditTrailPortTest();
+      const { logs, layer: logger } = capture();
+      let calls = 0;
+
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord({ evaluationId: "first" }));
+        yield* sink.record(decisionRecord({ evaluationId: "second" }));
+      }).pipe(
+        Effect.provide(
+          Layer.provideMerge(
+            AuditDecisionSinkLive({
+              onOutcome: () => {
+                calls += 1;
+                throw new Error("hook bug");
+              },
+            }),
+            Layer.mergeAll(trail, logger),
+          ),
+        ),
+      );
+
+      assert.strictEqual(calls, 2);
+      assert.strictEqual(written().length, 2);
+      assert.strictEqual(logs.length, 2);
+      assert.strictEqual(String(logs[0]?.message), "qadi/audit: an onOutcome hook threw");
+      assert.strictEqual(logs[0]?.annotations["evaluationId"], "first");
+      assert.include(String(logs[0]?.annotations["qadi.cause"]), "hook bug");
+    }));
+
+  it.effect("record has a span carrying the outcome path and its durability", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest({
+        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+      });
+      const spans: Array<Tracer.Span> = [];
+      const tracer = Layer.succeed(
+        Tracer.Tracer,
+        Tracer.make({
+          span: (options) => {
+            const span = new Tracer.NativeSpan(options);
+            spans.push(span);
+            return span;
+          },
+        }),
+      );
+
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord({ evaluationId: "traced" }));
+      }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, tracer))));
+
+      const span = spans.find((s) => s.name === "qadi.audit.record");
+      assert.isDefined(span);
+      assert.strictEqual(span?.attributes.get("qadi.audit.outcome"), "WriteFailed.NotWired");
+      assert.strictEqual(span?.attributes.get("qadi.audit.durability"), "Lost");
     }));
 });
