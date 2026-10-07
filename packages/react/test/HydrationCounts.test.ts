@@ -390,6 +390,27 @@ describe("a payload that seeds nothing says so", () => {
     }
   });
 
+  it("a refused payload says the payload was refused, not that zero decisions were lost", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      hydrateDecisions(atoms, JSON.parse('{"version":3,"subjectId":"u1","entries":[]}'), alice);
+      hydrateDecisions(atoms, JSON.parse("42"), alice);
+
+      const messages = warn.mock.calls.map((call) => String(call[0]));
+      expect(messages).toHaveLength(2);
+      for (const message of messages) {
+        expect(message).not.toContain("did not seed 0");
+        expect(message).toContain("refused the payload");
+      }
+      // The per-entry form is unchanged.
+      warn.mockClear();
+      hydrateDecisions(atoms, undecodable, alice);
+      expect(String(warn.mock.calls[0]?.[0])).toContain("did not seed 1 decision(s)");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("says nothing in production unless a reporter was supplied", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const previous = process.env.NODE_ENV;

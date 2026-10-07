@@ -313,10 +313,11 @@ export const hydrateWith = (
   const refuse = (
     reason: ClientHydrationDropReason,
     entries: ReadonlyArray<unknown>,
+    wholePayload: boolean,
     count: number = entries.length,
   ): InitialValues => {
     countDropped(reason, count);
-    report?.({ reason, entries });
+    report?.({ reason, entries, wholePayload });
     return [];
   };
 
@@ -329,7 +330,7 @@ export const hydrateWith = (
   // Entries are guarded one by one below; this covers everything else, which the
   // envelope decode would otherwise recurse into on its way to refusing it.
   if (!Predicate.isObject(payload) || exceedsJsonDepth({ ...payload, entries: [] }, MAX_DECODE_DEPTH)) {
-    return refuse("MalformedPayload", visible, atLeastOne);
+    return refuse("MalformedPayload", visible, true, atLeastOne);
   }
 
   // Only `version: 2` is read. Any other value — or none, the format 0.9 and
@@ -337,11 +338,11 @@ export const hydrateWith = (
   // amendment) — is a format this client does not read, which is not the same
   // as a malformed one and is the signature of mismatched releases.
   if (!Object.hasOwn(payload, "version") || payload["version"] !== PAYLOAD_VERSION) {
-    return refuse("UnsupportedPayloadVersion", visible, atLeastOne);
+    return refuse("UnsupportedPayloadVersion", visible, true, atLeastOne);
   }
 
   const envelope = decodeEnvelope(payload);
-  if (Option.isNone(envelope)) return refuse("MalformedPayload", visible, atLeastOne);
+  if (Option.isNone(envelope)) return refuse("MalformedPayload", visible, true, atLeastOne);
   const { subjectId, entries } = envelope.value;
 
   // `undefined` names an empty payload (EC-06), not a subject that failed to
@@ -352,7 +353,7 @@ export const hydrateWith = (
   // way a real mismatch drops them, just without asserting a wrong id that was
   // never named.
   if (subjectId === undefined) {
-    if (entries.length > 0) refuse("PayloadSubjectMismatch", entries);
+    if (entries.length > 0) refuse("PayloadSubjectMismatch", entries, true);
     return [];
   }
 
@@ -361,7 +362,7 @@ export const hydrateWith = (
   // entries are handed back whole; unlike the dehydrate side this discloses
   // nothing new — they are the caller's own argument, returned to them — so only
   // the *default* reporter withholds them.
-  if (subjectId !== subject.id) return refuse("PayloadSubjectMismatch", entries);
+  if (subjectId !== subject.id) return refuse("PayloadSubjectMismatch", entries, true);
 
   const seeded: Array<readonly [Atom.Atom<unknown>, unknown]> = [];
   const tooDeep: Array<unknown> = [];
@@ -401,9 +402,9 @@ export const hydrateWith = (
     seeded.push([seedFor(decoded.value, fields.value.resource), rebuild(fields.value, subject.id)]);
   }
 
-  if (tooDeep.length > 0) refuse("EntryTooDeep", tooDeep);
-  if (malformed.length > 0) refuse("MalformedEntry", malformed);
-  if (undecodable.length > 0) refuse("UndecodablePolicy", undecodable);
+  if (tooDeep.length > 0) refuse("EntryTooDeep", tooDeep, false);
+  if (malformed.length > 0) refuse("MalformedEntry", malformed, false);
+  if (undecodable.length > 0) refuse("UndecodablePolicy", undecodable, false);
 
   countSeeded(seeded.length);
 

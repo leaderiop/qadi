@@ -155,6 +155,14 @@ export const droppedEntriesReporter = <A,>(
 export interface HydrationDrop<A> {
   readonly reason: ClientHydrationDropReason;
   readonly entries: ReadonlyArray<A>;
+  /**
+   * Whether the payload was refused whole rather than entry by entry.
+   *
+   * `entries` is then every entry the payload carried (possibly none, where the
+   * value was not an envelope at all), and a count of them says nothing about
+   * what was lost: the refusal is the event.
+   */
+  readonly wholePayload: boolean;
 }
 
 export type HydrationDropReporter<A> = (drop: HydrationDrop<A>) => void;
@@ -222,10 +230,13 @@ const warnHydrationDrop = (drop: HydrationDrop<unknown>): void => {
   // payload belongs to another subject, and printing it would be the disclosure
   // the drop exists to prevent — the rule `warnDropped` already follows. A
   // caller that needs the entries supplies a reporter and already holds them.
-  console.warn(
-    `[qadi] hydrateDecisions did not seed ${drop.entries.length} decision(s): ` +
-      `${explain(drop.reason)}. Those questions will be asked again from scratch.`,
-  );
+  // A refusal of the payload whole is not "zero decisions lost" when the payload
+  // carried none, so it is announced as a refusal and the count is only what the
+  // payload held.
+  const lead = drop.wholePayload
+    ? `[qadi] hydrateDecisions refused the payload (${drop.entries.length} decision(s) in it): `
+    : `[qadi] hydrateDecisions did not seed ${drop.entries.length} decision(s): `;
+  console.warn(`${lead}${explain(drop.reason)}. Those questions will be asked again from scratch.`);
 };
 
 /**
