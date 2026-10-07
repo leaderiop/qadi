@@ -22,9 +22,9 @@ import type { Authorized } from "../src/Authorized.ts";
 import type { EvaluationServices } from "../src/Evaluate.ts";
 import { permission } from "../src/Permission.ts";
 import { hasPermission } from "../src/Policy.ts";
-import type { EnforcementError } from "../src/Errors.ts";
-import type { EnforceOptions } from "../src/Qadi.ts";
-import { enforce, guard } from "../src/Qadi.ts";
+import type { EnforcementError, EvaluationError, UndischargedObligation } from "../src/Errors.ts";
+import type { EnforceOptions, LoadedEnforceOptions } from "../src/Qadi.ts";
+import { enforce, enforceLoaded, enforceProjected, enforceProjectedLoaded, filterProjected, guard } from "../src/Qadi.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -76,4 +76,53 @@ test("guard infers Authorized<P> from the literal permission argument, not a wid
   // actual inference too.
   expect<Witness>().type.toBe<Authorized<typeof read>>();
   expect<Authorized<typeof write>>().type.not.toBeAssignableTo<Witness>();
+});
+
+declare const loadedOptions: LoadedEnforceOptions<ObligationError, ObligationReq>;
+declare const loaded: Effect.Effect<{ readonly id: string }, WrappedError, WrappedReq>;
+
+test("the loaded entry points refuse a second resource", () => {
+  expect(enforceProjectedLoaded).type.not.toBeCallableWith(hasPermission(read), {
+    resource: { id: "x" },
+  });
+  expect(enforceLoaded).type.not.toBeCallableWith(hasPermission(read), { resource: { id: "x" } });
+  // D-39-c: the resource-free projected read refuses it too.
+  expect(enforceProjected).type.not.toBeCallableWith(hasPermission(read), {
+    resource: { id: "x" },
+  });
+  expect(enforceProjected).type.toBeCallableWith(hasPermission(read), {});
+  expect(enforceLoaded).type.toBeCallableWith(hasPermission(read), {});
+});
+
+test("enforceProjectedLoaded returns Partial<A> and widens E and R like enforce", () => {
+  const projected = loaded.pipe(enforceProjectedLoaded(hasPermission(read), loadedOptions));
+  expect<ErrorOf<typeof projected>>().type.toBe<
+    WrappedError | EnforcementError | ObligationError
+  >();
+  expect<RequirementsOf<typeof projected>>().type.toBe<
+    WrappedReq | EvaluationServices | ObligationReq
+  >();
+  const rec = { id: "1", title: "T" };
+  expect(Effect.succeed(rec).pipe(enforceProjectedLoaded(hasPermission(read)))).type.toBe<
+    Effect.Effect<Partial<typeof rec>, EnforcementError, EvaluationServices>
+  >();
+});
+
+test("enforceLoaded returns A unchanged", () => {
+  const rec = { id: "1", title: "T" };
+  expect(Effect.succeed(rec).pipe(enforceLoaded(hasPermission(read)))).type.toBe<
+    Effect.Effect<typeof rec, EnforcementError, EvaluationServices>
+  >();
+});
+
+test("filterProjected and filterStreamProjected return Partial<A>", () => {
+  const rec = { id: "1", title: "T" };
+  const items = [rec];
+  expect(filterProjected(hasPermission(read), items)).type.toBe<
+    Effect.Effect<
+      ReadonlyArray<Partial<typeof rec>>,
+      EvaluationError | UndischargedObligation,
+      EvaluationServices
+    >
+  >();
 });

@@ -72,7 +72,7 @@ import * as Layer from "effect/Layer";
 import {
   currentSubjectLayer,
   customPredicateFromRecord,
-  enforceProjected,
+  enforceProjectedLoaded,
   EvaluationIdLive,
   fromRoles,
   hasCustom,
@@ -94,8 +94,11 @@ const services = Layer.mergeAll(
 
 declare const loadDraft: (id: string) => Effect.Effect<{ id: string; authorId: string }>;
 
+// The predicate reads the draft, so the decision must see the draft:
+// `enforceProjectedLoaded` decides against the value it loaded and projects.
+// (`enforceProjected` decides before `self` runs, with no resource at all.)
 const program = loadDraft("draft-1").pipe(
-  enforceProjected(canReadOwnDraft),
+  enforceProjectedLoaded(canReadOwnDraft),
   Effect.provide(currentSubjectLayer(fromRoles({ id: "u1", roles: [] }))),
   Effect.provide(services),
 );

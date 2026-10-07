@@ -32,3 +32,16 @@ Feature: Field-level visibility
     When a policy exposing fields "id,contact.*" for "doc:read" is evaluated
     Then access is granted
     And the visible fields are "id,contact.*"
+
+  Scenario: A record's own owner decides which of its fields come back
+    Given a subject "quinn"
+    And the subject has permission "doc:read"
+    When a record owned by "quinn" with fields "id,title,secret" is read exposing fields "id,title" for "doc:read" and decided against that record
+    Then access is granted
+    And the visible fields are "id,title"
+
+  Scenario: Another subject is refused the record the policy was decided against
+    Given a subject "quinn"
+    And the subject has permission "doc:read"
+    When a record owned by "rae" with fields "id,title,secret" is read exposing fields "id,title" for "doc:read" and decided against that record
+    Then access is denied

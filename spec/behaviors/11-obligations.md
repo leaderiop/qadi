@@ -156,9 +156,13 @@ load-bearing:
 | `assert` | enforces | fails |
 | `enforce` | enforces | fails; the guarded effect never starts |
 | `enforceProjected` | enforces | fails |
+| `enforceLoaded` | enforces | fails; the loaded value is not handed over |
+| `enforceProjectedLoaded` | enforces | fails; the loaded value is not handed over |
 | `guard` | enforces | fails |
 | `filter` | enforces | fails |
 | `filterStream` | enforces | fails |
+| `filterProjected` | enforces | fails |
+| `filterStreamProjected` | enforces | fails |
 
 ```
 REQUIREMENT: An entry point that runs work or hands back data MUST fail with

@@ -1,6 +1,6 @@
 import { defineSteps } from "@effect-cucumber/vitest";
-import { anyOf, hasPermission, permission } from "@qadi/core";
-import { roundTrip, run } from "./Bridge.ts";
+import { allOf, anyOf, eq, hasPermission, hasResourceAttribute, permission, subjectId } from "@qadi/core";
+import { roundTrip, run, runProjectedLoaded } from "./Bridge.ts";
 import { parsePermissionKey, readState, World } from "./SharedWorld.ts";
 
 /** Field-visibility restriction and union-visibility composition. */
@@ -10,6 +10,24 @@ export const fieldVisibilityWhenSteps = defineSteps<World>(({ When }) => {
     function* (fields: string, key: string) {
       const [resourceName, actionName] = parsePermissionKey(key);
       yield* run(hasPermission(permission(resourceName, actionName), { fields: fields.split(",") }));
+    },
+  );
+
+  When(
+    "a record owned by {string} with fields {string} is read exposing fields {string} for {string} and decided against that record",
+    function* (owner: string, recordFields: string, exposed: string, key: string) {
+      const [resourceName, actionName] = parsePermissionKey(key);
+      const record: Record<string, unknown> = {
+        ownerId: owner,
+        ...Object.fromEntries(recordFields.split(",").map((f) => [f, `${f}-value`])),
+      };
+      yield* runProjectedLoaded(
+        allOf([
+          hasResourceAttribute("ownerId", eq(subjectId())),
+          hasPermission(permission(resourceName, actionName), { fields: exposed.split(",") }),
+        ]),
+        record,
+      );
     },
   );
 

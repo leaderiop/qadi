@@ -13,6 +13,7 @@ import {
   customPredicateFromRecord,
   decideSubjects,
   enforce,
+  enforceProjectedLoaded,
   evaluate,
   evaluatePredicate,
   explain,
@@ -118,6 +119,35 @@ export const runGuarded = Effect.fn("features.runGuarded")(function* (policy: Po
   const outcome = Result.isFailure(result)
     ? { ...NO_OUTCOME, errored: true, failure: result.failure._tag }
     : { ...NO_OUTCOME, allowed: true };
+  yield* Ref.update(state, (s) => ({ ...s, outcome }));
+});
+
+/**
+ * Runs a policy as a projected read of a record the effect itself produces,
+ * recording what came back.
+ *
+ * The decision is taken against the loaded record (BEH-QD-324), so a policy that
+ * reads the resource needs no second copy of it. The projected record's keys
+ * are recorded as the visible fields; a denial is recorded as one.
+ */
+export const runProjectedLoaded = Effect.fn("features.runProjectedLoaded")(function* (
+  policy: Policy,
+  record: Record<string, unknown>,
+) {
+  const { state } = yield* World;
+  const w = yield* Ref.get(state);
+
+  const result = yield* Effect.succeed(record).pipe(
+    enforceProjectedLoaded(policy),
+    Effect.provide(qadiTestLayer(subjectOf(w), {})),
+    Effect.result,
+  );
+
+  const outcome = Result.isFailure(result)
+    ? result.failure._tag === "AccessDenied"
+      ? { ...NO_OUTCOME, denied: true, failure: result.failure._tag }
+      : { ...NO_OUTCOME, errored: true, failure: result.failure._tag }
+    : { ...NO_OUTCOME, allowed: true, visibleFields: Object.keys(result.success) };
   yield* Ref.update(state, (s) => ({ ...s, outcome }));
 });
 

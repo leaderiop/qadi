@@ -11,8 +11,12 @@ import {
   check as checkCore,
   currentSubjectLayer,
   decide as decideCore,
+  eq,
   filter as filterCore,
+  allOf,
   hasAction,
+  hasResourceAttribute,
+  subjectId,
   hasAttribute,
   hasPermission,
   hasRelationship,
@@ -226,6 +230,53 @@ describe("makeQadi", () => {
 
     assert.deepStrictEqual(await qadi.filter(alice, owned, items), items);
     assert.deepStrictEqual(await qadi.filter(bob, owned, items), []);
+  });
+
+  describe("the one-channel projected reads", () => {
+    const read = permission("doc", "read");
+    const ownerReads = allOf([
+      hasResourceAttribute("ownerId", eq(subjectId())),
+      hasPermission(read, { fields: ["id", "title"] }),
+    ]);
+    const owner = makeSubject({ id: "u-1", permissions: ["doc:read"] });
+    const stranger = makeSubject({ id: "u-2", permissions: ["doc:read"] });
+    const doc = { id: "d1", ownerId: "u-1", title: "T", secret: "S" };
+
+    it("projected resolves the projected record for the owner and rejects AccessDenied for another subject", async () => {
+      const qadi = facade();
+      assert.deepStrictEqual(await qadi.projected(owner, ownerReads, doc), { id: "d1", title: "T" });
+      const failure = await rejection(qadi.projected(stranger, ownerReads, doc));
+      assert.instanceOf(failure, AccessDenied);
+    });
+
+    it("projected decides against the record, so a resource-reading policy never rejects MissingResource", async () => {
+      const qadi = facade();
+      const out = await qadi.projected(owner, hasResourceAttribute("ownerId", eq(subjectId())), doc);
+      assert.deepStrictEqual(out, doc);
+    });
+
+    it("projected rejects (not denies) when the dependency fails", async () => {
+      const broken = facade(
+        Layer.mergeAll(
+          baseLayer,
+          scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer,
+        ),
+      );
+      const failure = await rejection(
+        broken.projected(owner, hasAttribute("tier", gte(1)), doc),
+      );
+      assert.instanceOf(failure, AttributeResolveError);
+    });
+
+    it("filterProjected resolves each admitted item projected by its own decision", async () => {
+      const qadi = facade();
+      const mine = { id: "d2", ownerId: "u-1", title: "U", secret: "S2" };
+      const theirs = { id: "d3", ownerId: "u-9", title: "V", secret: "S3" };
+      assert.deepStrictEqual(await qadi.filterProjected(owner, ownerReads, [doc, theirs, mine]), [
+        { id: "d1", title: "T" },
+        { id: "d2", title: "U" },
+      ]);
+    });
   });
 
   it("THE SUBJECT TRAVELS PER CALL, so one runtime serves many users", async () => {

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-23                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-007) |
+> | Change History | 1.1 (2026-10-08): the worked example decides against the report it returns (CCR-QD-207)<br>1.0 (2026-07-26): Initial release (CCR-QD-007) |
 
 ---
 
@@ -106,7 +106,7 @@ import {
   allOf,
   anyOf,
   currentSubjectLayer,
-  enforceProjected,
+  enforceProjectedLoaded,
   gte,
   hasAttribute,
   hasResourceAttribute,
@@ -115,8 +115,8 @@ import {
   portsLayer,
 } from "@qadi/core";
 
-// A type alias, not an interface: `enforceProjected` requires
-// `A extends Record<string, unknown>`, which only aliases satisfy.
+// A type alias, not an interface: `enforceProjectedLoaded` requires
+// `A extends Resource`, which only aliases satisfy.
 type Report = {
   readonly id: string;
   readonly title: string;
@@ -148,10 +148,12 @@ const readClassified = anyOf([
 // Clearance 2 against an `internal` report: the second rung allows and `body`
 // is withheld rather than the read being refused. A `secret` report matches no
 // rung and denies — fail-closed, with no rung silently passing.
+//
+// The classification is read off the report that is returned, never restated
+// beside it: `enforceProjectedLoaded` decides against the loaded report, so a
+// stub resource that disagreed with it cannot be written.
 const program = loadReport("rpt-1").pipe(
-  enforceProjected(readClassified, {
-    resource: { id: "rpt-1", classification: "internal" },
-  }),
+  enforceProjectedLoaded(readClassified),
   Effect.provide(
     Layer.mergeAll(
       portsLayer(),

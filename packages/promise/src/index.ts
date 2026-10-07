@@ -31,7 +31,9 @@ import {
   check as checkCore,
   CurrentSubject,
   decide as decideCore,
+  enforceProjectedLoaded as enforceProjectedLoadedCore,
   filter as filterCore,
+  filterProjected as filterProjectedCore,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import type * as Layer from "effect/Layer";
@@ -128,6 +130,42 @@ export interface Qadi {
   ) => Promise<ReadonlyArray<A>>;
 
   /**
+   * The record, projected to the fields the policy lets this subject see.
+   *
+   * **The record is the resource: the decision sees exactly what is returned.**
+   * `options.resource` does not exist here (it is `Omit`ted), so a policy that
+   * reads the resource — `hasResourceAttribute`, `hasRelationship`, a custom
+   * predicate — decides against the very record that comes back projected,
+   * never against a second one the caller restated beside it (INV-QD-108).
+   *
+   * **Rejects with `AccessDenied` when not permitted** (the record is not
+   * handed over), and with `UndischargedObligation` for an allow carrying a
+   * binding obligation — the same caveats `assert` carries, including the
+   * full evaluation trace on the rejection.
+   */
+  readonly projected: <A extends Resource>(
+    subject: AuthSubject,
+    policy: Policy,
+    record: A,
+    options?: Omit<EvaluateOptions, "resource">,
+  ) => Promise<Partial<A>>;
+
+  /**
+   * The items the policy admits, in order, each projected by its own decision.
+   *
+   * {@link Qadi.filter} with field-level projection: `filter` returns admitted
+   * items whole and ignores an allow's field restriction, this does not. Same
+   * obligation caveat as `filter`, and `options.concurrency` reaches core
+   * unchanged.
+   */
+  readonly filterProjected: <A extends Resource>(
+    subject: AuthSubject,
+    policy: Policy,
+    items: ReadonlyArray<A>,
+    options?: EvaluateOptions,
+  ) => Promise<ReadonlyArray<Partial<A>>>;
+
+  /**
    * Releases everything the layer built.
    *
    * The facade never calls this: closing its own runtime would be guessing at the
@@ -172,6 +210,10 @@ export const makeQadi = (layer: QadiLayer): Qadi => {
     assert: (subject, policy, options) => run(subject, assertCore(policy, options)),
     filter: (subject, policy, items, options) =>
       run(subject, filterCore(policy, items, options)),
+    projected: (subject, policy, record, options) =>
+      run(subject, enforceProjectedLoadedCore(policy, options)(Effect.succeed(record))),
+    filterProjected: (subject, policy, items, options) =>
+      run(subject, filterProjectedCore(policy, items, options)),
     dispose: () => runtime.dispose(),
   };
 };
