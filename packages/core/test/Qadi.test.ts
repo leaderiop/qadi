@@ -220,6 +220,57 @@ describe("Qadi.enforceProjected", () => {
         assert.strictEqual(out.secret, "TOP-SECRET");
       }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))),
   );
+
+  describe("model 23's ladder", () => {
+    const readClassified = P.anyOf([
+      P.allOf([
+        P.hasAttribute("clearanceLevel", M.gte(3)),
+        P.hasResourceAttribute("classification", M.inArray(["public", "internal", "secret"])),
+      ]),
+      P.allOf([
+        P.hasAttribute("clearanceLevel", M.gte(2)),
+        P.hasResourceAttribute("classification", M.inArray(["public", "internal"]), {
+          fields: ["id", "title", "classification"],
+        }),
+      ]),
+      P.hasResourceAttribute("classification", M.inArray(["public"]), { fields: ["id", "title"] }),
+    ]);
+    const secretReport = {
+      id: "rpt-1",
+      title: "T",
+      body: "SECRET BODY",
+      classification: "secret",
+    };
+    const clearance2 = testLayer(subjectWith({ attributes: { clearanceLevel: 2 } }));
+
+    it.effect(
+      "a stub resource that disagrees with the loaded report hands a clearance-2 subject a secret report's title",
+      () =>
+        Effect.gen(function* () {
+          const out = yield* Effect.succeed(secretReport).pipe(
+            Qadi.enforceProjected(readClassified, {
+              resource: { id: "rpt-1", classification: "internal" },
+            }),
+          );
+          // The hazard, pinned beside the one above: the decision was taken on
+          // the stub, the projection applied to the secret report.
+          assert.deepStrictEqual(out, { id: "rpt-1", title: "T", classification: "secret" });
+        }).pipe(Effect.provide(clearance2)),
+    );
+
+    it.effect("the same report passed as its own resource is denied to a clearance-2 subject", () =>
+      Effect.gen(function* () {
+        const r = yield* Effect.result(
+          Effect.flatMap(Effect.succeed(secretReport), (report) =>
+            Effect.succeed(report).pipe(
+              Qadi.enforceProjected(readClassified, { resource: report }),
+            ),
+          ),
+        );
+        assert.isTrue(Result.isFailure(r) && r.failure._tag === "AccessDenied");
+      }).pipe(Effect.provide(clearance2)),
+    );
+  });
 });
 
 describe("Qadi.guard", () => {
@@ -372,6 +423,16 @@ describe("Qadi.filter", () => {
       const kept = yield* Qadi.filter(P.hasRole("nobody"), [{ id: "a" }]);
       assert.strictEqual(kept.length, 0);
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect(
+    "filter returns admitted items whole; a field restriction on the allow is not applied (BEH-QD-050)",
+    () =>
+      Effect.gen(function* () {
+        const record = { id: "d1", ownerId: "u1", title: "T", secret: "S" };
+        const kept = yield* Qadi.filter(P.hasPermission(read, { fields: ["id"] }), [record]);
+        assert.deepStrictEqual(kept, [record]);
+      }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))),
+  );
 });
 
 describe("Qadi.filterStream", () => {

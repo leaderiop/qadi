@@ -94,8 +94,11 @@ const services = Layer.mergeAll(
 
 declare const loadDraft: (id: string) => Effect.Effect<{ id: string; authorId: string }>;
 
-const program = loadDraft("draft-1").pipe(
-  enforceProjected(canReadOwnDraft),
+// The predicate reads the draft, so the decision must see the draft:
+// `enforceProjected` decides before `self` runs, with no resource at all.
+const program = Effect.flatMap(loadDraft("draft-1"), (draft) =>
+  Effect.succeed(draft).pipe(enforceProjected(canReadOwnDraft, { resource: draft })),
+).pipe(
   Effect.provide(currentSubjectLayer(fromRoles({ id: "u1", roles: [] }))),
   Effect.provide(services),
 );

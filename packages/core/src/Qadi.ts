@@ -348,6 +348,11 @@ const decideOne = <A extends Resource, EO, RO>(
  * dropped: dropping it would report a wiring mistake as a denial, which
  * [INV-QD-006] exists to prevent.
  *
+ * **Decides which items, never which fields.** The admitted items come back
+ * whole: an allow's `visibleFields` are not applied, so a field-restricting
+ * policy's withheld fields are returned on every admitted item (BEH-QD-050).
+ * `toPredicate` refuses such a policy for the same reason (ADR-QD-024).
+ *
  * `options.concurrency` does double duty here, deliberately: it still governs
  * each item's own `allOf`/`anyOf`/`rules` fan-out exactly as `EvaluateOptions`
  * documents, and it now also governs the fan-out **across items**. The two are

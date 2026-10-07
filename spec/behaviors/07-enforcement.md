@@ -72,6 +72,11 @@ than being silently dropped — dropping it would report a wiring mistake as a
 denial, which [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial)
 exists to prevent.
 
+`filter` decides *which* items; it does not narrow them. An allow's
+`visibleFields` are not applied, so a field-restricting policy's withheld fields
+come back on every admitted item. `toPredicate` refuses such a policy for the
+same reason ([ADR-QD-024](../decisions/024-predicate-output.md)).
+
 `filterStream` is `filter`'s streamed sibling, for a collection too large to
 hold as a `ReadonlyArray` or too large to wait on in full before the first
 admitted item is usable — paginated rows from a database, say. It shares

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-32                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-08-25): Initial release (CCR-QD-082) |
+> | Change History | 1.1 (2026-10-08): the worked example decides against the draft it returns (CCR-QD-203)<br>1.0 (2026-08-25): Initial release (CCR-QD-082) |
 
 _Previous: [31 — Predicate Compilation](./31-predicate-compilation.md)_
 
@@ -54,8 +54,11 @@ declare const loadDraft: (id: string) => Effect.Effect<{
   authorId: string;
 }>;
 
-const program = loadDraft("draft-1").pipe(
-  enforceProjected(canReadOwnDraft),
+// The predicate reads the draft, so the decision must see the draft:
+// `enforceProjected` decides before `self` runs, with no resource at all.
+const program = Effect.flatMap(loadDraft("draft-1"), (draft) =>
+  Effect.succeed(draft).pipe(enforceProjected(canReadOwnDraft, { resource: draft })),
+).pipe(
   Effect.provide(currentSubjectLayer(fromRoles({ id: "u1", roles: [] }))),
   Effect.provide(services),
 );

@@ -20,6 +20,9 @@ import {
   customPredicateFromRecord,
 } from "../src/CustomPredicate.ts";
 import { CustomPredicateError } from "../src/Errors.ts";
+import { hasCustom } from "../src/Policy.ts";
+import { enforceProjected } from "../src/Qadi.ts";
+import { subjectWith, testLayer } from "./helpers.ts";
 
 const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
 
@@ -94,3 +97,37 @@ describe("customPredicateFromRecord", () => {
 });
 
 
+
+describe("BEH-32's worked example", () => {
+  const draft = { id: "draft-1", authorId: "u1" };
+  const registry = customPredicateFromRecord({
+    isAuthor: (subject, resource) => Effect.succeed(resource?.["authorId"] === subject.id),
+  });
+  const policy = hasCustom("isAuthor");
+
+  it.effect(
+    "as published, the example denies even the author: enforceProjected decides before the draft is loaded",
+    () =>
+      Effect.gen(function* () {
+        const r = yield* Effect.result(Effect.succeed(draft).pipe(enforceProjected(policy)));
+        assert.isTrue(r._tag === "Failure" && r.failure._tag === "AccessDenied");
+      }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" }), { CustomPredicate: registry }))),
+  );
+
+  it.effect("decided against the loaded draft, the author reads it and another subject is denied", () =>
+    Effect.gen(function* () {
+      const program = Effect.flatMap(Effect.succeed(draft), (d) =>
+        Effect.succeed(d).pipe(enforceProjected(policy, { resource: d })),
+      );
+      const asAuthor = yield* program.pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u1" }), { CustomPredicate: registry })),
+      );
+      assert.deepStrictEqual(asAuthor, draft);
+      const asOther = yield* Effect.result(
+        program.pipe(
+          Effect.provide(testLayer(subjectWith({ id: "u2" }), { CustomPredicate: registry })),
+        ),
+      );
+      assert.isTrue(asOther._tag === "Failure" && asOther.failure._tag === "AccessDenied");
+    }));
+});

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-23                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-007) |
+> | Change History | 1.1 (2026-10-08): the worked example decides against the report it returns (CCR-QD-203)<br>1.0 (2026-07-26): Initial release (CCR-QD-007) |
 
 ---
 
@@ -116,7 +116,7 @@ import {
 } from "@qadi/core";
 
 // A type alias, not an interface: `enforceProjected` requires
-// `A extends Record<string, unknown>`, which only aliases satisfy.
+// `A extends Resource`, which only aliases satisfy.
 type Report = {
   readonly id: string;
   readonly title: string;
@@ -148,10 +148,13 @@ const readClassified = anyOf([
 // Clearance 2 against an `internal` report: the second rung allows and `body`
 // is withheld rather than the read being refused. A `secret` report matches no
 // rung and denies — fail-closed, with no rung silently passing.
-const program = loadReport("rpt-1").pipe(
-  enforceProjected(readClassified, {
-    resource: { id: "rpt-1", classification: "internal" },
-  }),
+//
+// The classification is read off the report that is returned, never restated
+// beside it: a hand-written stub resource that disagreed with the loaded report
+// would decide on one record and project another.
+const program = Effect.flatMap(loadReport("rpt-1"), (report) =>
+  Effect.succeed(report).pipe(enforceProjected(readClassified, { resource: report })),
+).pipe(
   Effect.provide(
     Layer.mergeAll(
       portsLayer(),
