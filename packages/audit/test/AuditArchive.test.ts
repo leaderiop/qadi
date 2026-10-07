@@ -1,8 +1,9 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Result from "effect/Result";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
-import { archiveAuditTrail } from "../src/AuditArchive.ts";
-import { decisionRecord } from "./helpers.ts";
+import { archiveAuditTrail, readAuditArchive } from "../src/AuditArchive.ts";
+import { decisionRecord, failedWithCause, httpClientError } from "./helpers.ts";
 
 describe("archiveAuditTrail", () => {
   it.effect("bundles a chain-intact set of entries with metadata", () =>
@@ -162,5 +163,196 @@ describe("archiveAuditTrail", () => {
       );
 
       assert.isTrue(archive.metadata.sequenceIntegrityVerified);
+    }));
+});
+
+/** The bundle's JSON shape, entries left opaque so a test can corrupt them. */
+interface StoredBundle {
+  readonly archiveVersion: string;
+  readonly metadata: {
+    readonly createdAt: number;
+    readonly entryCount: number;
+    readonly sequenceIntegrityVerified: boolean;
+  };
+  readonly entries: ReadonlyArray<unknown>;
+}
+
+/** What a long-term store gives back for a bundle: text, then parsed. */
+const stored = (archive: unknown): StoredBundle => JSON.parse(JSON.stringify(archive));
+
+const sequencedEntries = Effect.gen(function* () {
+  const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
+  const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
+  const c = yield* encodeAuditEntry(decisionRecord({ evaluationId: "c" }));
+  return [
+    { ...a, sequenceNumber: 1 },
+    { ...b, sequenceNumber: 2 },
+    { ...c, sequenceNumber: 3 },
+  ];
+});
+
+const refusalOf = (input: unknown) => {
+  const result = readAuditArchive(input);
+  if (!Result.isFailure(result)) return assert.fail("expected the archive to be refused");
+  assert.strictEqual(result.failure._tag, "ArchiveNotVerified");
+  return result.failure.refusal;
+};
+
+describe("readAuditArchive", () => {
+  it.effect("reads a round-tripped bundle back, and holds every original entry once", () =>
+    Effect.gen(function* () {
+      const entries = yield* sequencedEntries;
+      const archive = yield* archiveAuditTrail(entries, 5_000);
+      const read = Result.getOrThrow(readAuditArchive(stored(archive)));
+
+      assert.strictEqual(read.entryCount, 3);
+      assert.strictEqual(read.createdAt, 5_000);
+      assert.isTrue(read.sequenceIntegrityVerified);
+      assert.isUndefined(read.keyMaterial);
+      for (const entry of entries) assert.strictEqual(read.holds(entry), 1);
+      const renumbered = { ...(yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }))), sequenceNumber: 9 };
+      assert.strictEqual(read.holds(renumbered), 0);
+    }));
+
+  it.effect("reads unsequenced, mixed and empty bundles back", () =>
+    Effect.gen(function* () {
+      const u = yield* encodeAuditEntry(decisionRecord({ evaluationId: "u" }));
+      const s = yield* sequencedEntries;
+      const unsequenced = yield* archiveAuditTrail([u], 0);
+      const readUnsequenced = Result.getOrThrow(readAuditArchive(stored(unsequenced)));
+      assert.isFalse(readUnsequenced.sequenceIntegrityVerified);
+      assert.strictEqual(readUnsequenced.holds(u), 1);
+
+      const mixed = yield* archiveAuditTrail([u, ...s], 0);
+      const readMixed = Result.getOrThrow(readAuditArchive(stored(mixed)));
+      assert.deepStrictEqual(
+        readMixed.entries.map((e) => e.record.evaluationId),
+        ["a", "b", "c", "u"],
+      );
+      assert.isTrue(readMixed.sequenceIntegrityVerified);
+
+      const empty = yield* archiveAuditTrail([], 0);
+      const readEmpty = Result.getOrThrow(readAuditArchive(stored(empty)));
+      assert.strictEqual(readEmpty.entryCount, 0);
+      assert.isFalse(readEmpty.sequenceIntegrityVerified);
+    }));
+
+  it.effect("carries keyMaterial through unchanged", () =>
+    Effect.gen(function* () {
+      const keyMaterial = [{ keyId: "k1", algorithm: "Ed25519", publicKey: "base64==" }];
+      const archive = yield* archiveAuditTrail(yield* sequencedEntries, 0, { keyMaterial });
+      assert.deepStrictEqual(Result.getOrThrow(readAuditArchive(stored(archive))).keyMaterial, keyMaterial);
+    }));
+
+  it.effect("a Failed entry with an Error cause survives the round trip", () =>
+    Effect.gen(function* () {
+      const poisoned = yield* encodeAuditEntry(failedWithCause(httpClientError(), "poisoned"));
+      const archive = yield* archiveAuditTrail([poisoned], 0);
+      const read = Result.getOrThrow(readAuditArchive(stored(archive)));
+      assert.strictEqual(read.holds(poisoned), 1);
+    }));
+
+  it("refuses a bundle that is not an object, naming Malformed", () => {
+    for (const input of [null, undefined, 3, "archive", [], {}, { archiveVersion: "1" }]) {
+      assert.strictEqual(refusalOf(input)._tag, "Malformed");
+    }
+  });
+
+  it.effect("refuses a bundle with an excess property or a mistyped field as Malformed", () =>
+    Effect.gen(function* () {
+      const bundle = stored(yield* archiveAuditTrail(yield* sequencedEntries, 0));
+      assert.strictEqual(refusalOf({ ...bundle, extra: true })._tag, "Malformed");
+      assert.strictEqual(
+        refusalOf({ ...bundle, metadata: { ...bundle.metadata, entryCount: "3" } })._tag,
+        "Malformed",
+      );
+      assert.strictEqual(refusalOf({ ...bundle, keyMaterial: [{ keyId: "k" }] })._tag, "Malformed");
+    }));
+
+  it.effect("refuses another archiveVersion as UnsupportedArchiveVersion", () =>
+    Effect.gen(function* () {
+      const bundle = stored(yield* archiveAuditTrail(yield* sequencedEntries, 0));
+      const refusal = refusalOf({ ...bundle, archiveVersion: "2" });
+      assert.strictEqual(refusal._tag, "UnsupportedArchiveVersion");
+      if (refusal._tag === "UnsupportedArchiveVersion") assert.strictEqual(refusal.version, "2");
+    }));
+
+  it.effect("refuses an entry that does not decode, naming its index and the core refusal", () =>
+    Effect.gen(function* () {
+      const bundle = stored(yield* archiveAuditTrail(yield* sequencedEntries, 0));
+      const entries = [bundle.entries[0], { record: { not: "a record" }, sequenceNumber: 2 }, bundle.entries[2]];
+      const refusal = refusalOf({ ...bundle, entries });
+      assert.strictEqual(refusal._tag, "EntryNotDecodable");
+      if (refusal._tag === "EntryNotDecodable") {
+        assert.strictEqual(refusal.index, 1);
+        assert.strictEqual(refusal.refusal._tag, "UnsupportedVersion");
+      }
+    }));
+
+  it.effect("refuses a count that disagrees with the entries as CountMismatch", () =>
+    Effect.gen(function* () {
+      const bundle = stored(yield* archiveAuditTrail(yield* sequencedEntries, 0));
+      const dropped = { ...bundle, entries: bundle.entries.slice(0, 2) };
+      const refusal = refusalOf(dropped);
+      assert.strictEqual(refusal._tag, "CountMismatch");
+      if (refusal._tag === "CountMismatch") {
+        assert.strictEqual(refusal.declared, 3);
+        assert.strictEqual(refusal.actual, 2);
+      }
+    }));
+
+  it.effect("refuses a gap as SequenceBroken, naming the expected and actual numbers", () =>
+    Effect.gen(function* () {
+      const bundle = stored(yield* archiveAuditTrail(yield* sequencedEntries, 0));
+      const entries = [bundle.entries[0], bundle.entries[2]];
+      const refusal = refusalOf({ ...bundle, entries, metadata: { ...bundle.metadata, entryCount: 2 } });
+      assert.strictEqual(refusal._tag, "SequenceBroken");
+      if (refusal._tag === "SequenceBroken") {
+        assert.strictEqual(refusal.expectedSequence, 2);
+        assert.strictEqual(refusal.actualSequence, 3);
+      }
+    }));
+
+  it.effect("refuses a duplicated sequence number as SequenceBroken", () =>
+    Effect.gen(function* () {
+      const bundle = stored(yield* archiveAuditTrail(yield* sequencedEntries, 0));
+      const entries = [bundle.entries[0], bundle.entries[0], bundle.entries[1]];
+      assert.strictEqual(refusalOf({ ...bundle, entries })._tag, "SequenceBroken");
+    }));
+
+  it.effect("refuses sequenced entries out of number order as NotInSequenceOrder, naming the index", () =>
+    Effect.gen(function* () {
+      const bundle = stored(yield* archiveAuditTrail(yield* sequencedEntries, 0));
+      const entries = [bundle.entries[0], bundle.entries[2], bundle.entries[1]];
+      const refusal = refusalOf({ ...bundle, entries });
+      assert.strictEqual(refusal._tag, "NotInSequenceOrder");
+      if (refusal._tag === "NotInSequenceOrder") assert.strictEqual(refusal.index, 2);
+    }));
+
+  it.effect("refuses an unsequenced entry ahead of a sequenced one as NotInSequenceOrder", () =>
+    Effect.gen(function* () {
+      const u = yield* encodeAuditEntry(decisionRecord({ evaluationId: "u" }));
+      const bundle = stored(yield* archiveAuditTrail([...(yield* sequencedEntries), u], 0));
+      const entries = [bundle.entries[0], bundle.entries[1], bundle.entries[3], bundle.entries[2]];
+      const refusal = refusalOf({ ...bundle, entries });
+      assert.strictEqual(refusal._tag, "NotInSequenceOrder");
+      if (refusal._tag === "NotInSequenceOrder") assert.strictEqual(refusal.index, 3);
+    }));
+
+  it.effect("refuses a verified claim with fewer than two sequenced entries as UnbackedClaim", () =>
+    Effect.gen(function* () {
+      const u = yield* encodeAuditEntry(decisionRecord({ evaluationId: "u" }));
+      const bundle = stored(yield* archiveAuditTrail([u], 0));
+      const refusal = refusalOf({ ...bundle, metadata: { ...bundle.metadata, sequenceIntegrityVerified: true } });
+      assert.strictEqual(refusal._tag, "UnbackedClaim");
+      if (refusal._tag === "UnbackedClaim") assert.strictEqual(refusal.sequencedCount, 0);
+    }));
+
+  it.effect("refuses a bundle that denies a verification it has as UnbackedClaim", () =>
+    Effect.gen(function* () {
+      const bundle = stored(yield* archiveAuditTrail(yield* sequencedEntries, 0));
+      const refusal = refusalOf({ ...bundle, metadata: { ...bundle.metadata, sequenceIntegrityVerified: false } });
+      assert.strictEqual(refusal._tag, "UnbackedClaim");
+      if (refusal._tag === "UnbackedClaim") assert.strictEqual(refusal.sequencedCount, 3);
     }));
 });
