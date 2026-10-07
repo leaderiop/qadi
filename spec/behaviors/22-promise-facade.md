@@ -59,6 +59,25 @@ REQUIREMENT: Every method of `@qadi/promise` MUST be `runtime.runPromise` applie
              authorization outcome.
 ```
 
+```
+REQUIREMENT: Every method MUST forward `options.signal` to `runtime.runPromise`
+             and MUST NOT branch on it: an aborted signal interrupts the work
+             underway and rejects the promise with the runtime's interruption
+             error, not with `signal.reason`. `signal` MUST NOT be passed on to
+             `@qadi/core`'s options.
+```
+
+```ts
+export interface FacadeOptions extends EvaluateOptions {
+  readonly signal?: AbortSignal | undefined;
+}
+```
+
+Cancellation was described as impossible ("a platform limit"). It is not:
+`ManagedRuntime.runPromise(effect, { signal })` interrupts the fibre, and a
+`filter` over fifty items stopped after four lookups when its signal aborted.
+Forwarding a second argument decides nothing (ARCH-45 I4).
+
 The predecessor had a synchronous `evaluate` and an `evaluateAsync` that pre-resolved
 the whole tree before delegating back: short-circuiting destroyed, the asynchronous
 relationship API unreachable, and the second path rotted because nothing exercised it

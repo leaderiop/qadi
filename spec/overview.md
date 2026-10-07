@@ -543,6 +543,7 @@ a failure's `previousSuccess` — will report stale allows.
 | ------ | ---- | ------ |
 | `makeQadi` | function | `index.ts` |
 | `Qadi`, `QadiLayer` | type | `index.ts` |
+| `FacadeOptions` | type | `index.ts` — `EvaluateOptions` plus `signal?: AbortSignal`, what each facade call takes; the signal is forwarded to `runtime.runPromise` and never read, so an aborted call interrupts the work underway and rejects with the runtime's interruption error (BEH-QD-169, ARCH-45) |
 
 Three exports, and the package is one file with no evaluation logic in it — every
 method forwards to `@qadi/core` ([ADR-QD-032](decisions/032-promise-facade.md)).

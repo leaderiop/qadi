@@ -970,7 +970,8 @@ per-evaluation trap asserted directly; and `concurrency` shown not to split an e
 ## INV-QD-026: The facade answers what the core answers
 
 For every subject and policy, `@qadi/promise` resolves the value `@qadi/core`
-produces, and rejects exactly when the core fails.
+produces, and rejects exactly when the core fails or the caller aborts (a call's
+`options.signal`, forwarded to the runtime and never read by the facade).
 
 **Source**: `packages/promise/src/index.ts` — every method is `runPromise` applied to
 a core function. There is no branch in the package that decides an authorization
