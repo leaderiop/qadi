@@ -28,7 +28,7 @@ import * as Layer from "effect/Layer";
 import {
   currentSubjectLayer,
   customPredicateFromRecord,
-  enforceProjected,
+  enforceProjectedLoaded,
   EvaluationIdLive,
   fromRoles,
   hasCustom,
@@ -55,10 +55,10 @@ declare const loadDraft: (id: string) => Effect.Effect<{
 }>;
 
 // The predicate reads the draft, so the decision must see the draft:
-// `enforceProjected` decides before `self` runs, with no resource at all.
-const program = Effect.flatMap(loadDraft("draft-1"), (draft) =>
-  Effect.succeed(draft).pipe(enforceProjected(canReadOwnDraft, { resource: draft })),
-).pipe(
+// `enforceProjectedLoaded` decides against the value it loaded and projects.
+// (`enforceProjected` decides before `self` runs, with no resource at all.)
+const program = loadDraft("draft-1").pipe(
+  enforceProjectedLoaded(canReadOwnDraft),
   Effect.provide(currentSubjectLayer(fromRoles({ id: "u1", roles: [] }))),
   Effect.provide(services),
 );

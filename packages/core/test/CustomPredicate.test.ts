@@ -21,7 +21,7 @@ import {
 } from "../src/CustomPredicate.ts";
 import { CustomPredicateError } from "../src/Errors.ts";
 import { hasCustom } from "../src/Policy.ts";
-import { enforceProjected } from "../src/Qadi.ts";
+import { enforceProjected, enforceProjectedLoaded } from "../src/Qadi.ts";
 import { subjectWith, testLayer } from "./helpers.ts";
 
 const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
@@ -116,9 +116,7 @@ describe("BEH-32's worked example", () => {
 
   it.effect("decided against the loaded draft, the author reads it and another subject is denied", () =>
     Effect.gen(function* () {
-      const program = Effect.flatMap(Effect.succeed(draft), (d) =>
-        Effect.succeed(d).pipe(enforceProjected(policy, { resource: d })),
-      );
+      const program = Effect.succeed(draft).pipe(enforceProjectedLoaded(policy));
       const asAuthor = yield* program.pipe(
         Effect.provide(testLayer(subjectWith({ id: "u1" }), { CustomPredicate: registry })),
       );

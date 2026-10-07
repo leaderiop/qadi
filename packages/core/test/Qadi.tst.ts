@@ -24,7 +24,7 @@ import { permission } from "../src/Permission.ts";
 import { hasPermission } from "../src/Policy.ts";
 import type { EnforcementError, EvaluationError, UndischargedObligation } from "../src/Errors.ts";
 import type { EnforceOptions, LoadedEnforceOptions } from "../src/Qadi.ts";
-import { enforce, enforceLoaded, enforceProjectedLoaded, filterProjected, guard } from "../src/Qadi.ts";
+import { enforce, enforceLoaded, enforceProjected, enforceProjectedLoaded, filterProjected, guard } from "../src/Qadi.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -86,6 +86,11 @@ test("the loaded entry points refuse a second resource", () => {
     resource: { id: "x" },
   });
   expect(enforceLoaded).type.not.toBeCallableWith(hasPermission(read), { resource: { id: "x" } });
+  // D-39-c: the resource-free projected read refuses it too.
+  expect(enforceProjected).type.not.toBeCallableWith(hasPermission(read), {
+    resource: { id: "x" },
+  });
+  expect(enforceProjected).type.toBeCallableWith(hasPermission(read), {});
   expect(enforceLoaded).type.toBeCallableWith(hasPermission(read), {});
 });
 

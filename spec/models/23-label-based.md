@@ -106,7 +106,7 @@ import {
   allOf,
   anyOf,
   currentSubjectLayer,
-  enforceProjected,
+  enforceProjectedLoaded,
   gte,
   hasAttribute,
   hasResourceAttribute,
@@ -115,7 +115,7 @@ import {
   portsLayer,
 } from "@qadi/core";
 
-// A type alias, not an interface: `enforceProjected` requires
+// A type alias, not an interface: `enforceProjectedLoaded` requires
 // `A extends Resource`, which only aliases satisfy.
 type Report = {
   readonly id: string;
@@ -150,11 +150,10 @@ const readClassified = anyOf([
 // rung and denies — fail-closed, with no rung silently passing.
 //
 // The classification is read off the report that is returned, never restated
-// beside it: a hand-written stub resource that disagreed with the loaded report
-// would decide on one record and project another.
-const program = Effect.flatMap(loadReport("rpt-1"), (report) =>
-  Effect.succeed(report).pipe(enforceProjected(readClassified, { resource: report })),
-).pipe(
+// beside it: `enforceProjectedLoaded` decides against the loaded report, so a
+// stub resource that disagreed with it cannot be written.
+const program = loadReport("rpt-1").pipe(
+  enforceProjectedLoaded(readClassified),
   Effect.provide(
     Layer.mergeAll(
       portsLayer(),

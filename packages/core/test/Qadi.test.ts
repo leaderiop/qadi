@@ -181,49 +181,7 @@ describe("Qadi.enforceProjected", () => {
       assert.isUndefined(probe["polluted"]);
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
 
-  it.effect(
-    "projects under options.resource's decision even when self resolves to a different record " +
-      "(documented, unreconciled two-channel hazard)",
-    () =>
-      Effect.gen(function* () {
-        // `enforceProjected`'s own doc comment names this: the policy is
-        // evaluated against `options.resource`, and `self`'s eventual value is
-        // an independent second channel with no check that the two describe
-        // the same record. Here `options.resource` is a "public" record, whose
-        // branch of the policy grants `fields` including "secret" (harmless,
-        // since a public record has none); `self` resolves to a structurally
-        // different "private" record that actually carries a secret — one the
-        // policy's "private" branch would have hidden, had it been the one
-        // evaluated. Nothing reconciles the two, so the secret is projected
-        // anyway.
-        const policy = P.anyOf([
-          P.allOf([
-            P.hasResourceAttribute("kind", M.eq(M.literal("public"))),
-            P.hasPermission(read, { fields: ["id", "title", "secret"] }),
-          ]),
-          P.allOf([
-            P.hasResourceAttribute("kind", M.eq(M.literal("private"))),
-            P.hasPermission(read, { fields: ["id", "title"] }),
-          ]),
-        ]);
-
-        const evaluatedResource = { kind: "public", id: "1", title: "public title" };
-        const actualResource = { kind: "private", id: "1", title: "T", secret: "TOP-SECRET" };
-
-        const out = yield* Effect.succeed(actualResource).pipe(
-          Qadi.enforceProjected(policy, { resource: evaluatedResource }),
-        );
-
-        // Had the policy been evaluated against `self`'s actual value, the
-        // "private" branch would have granted only `["id", "title"]` and
-        // `secret` would never have been visible. Because the two channels are
-        // not reconciled, it leaks through under the "public" decision's field
-        // list instead.
-        assert.strictEqual(out.secret, "TOP-SECRET");
-      }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))),
-  );
-
-  describe("model 23's ladder", () => {
+  describe("model 23's ladder, decided on the loaded report", () => {
     const readClassified = P.anyOf([
       P.allOf([
         P.hasAttribute("clearanceLevel", M.gte(3)),
@@ -245,31 +203,16 @@ describe("Qadi.enforceProjected", () => {
     };
     const clearance2 = testLayer(subjectWith({ attributes: { clearanceLevel: 2 } }));
 
-    it.effect(
-      "a stub resource that disagrees with the loaded report hands a clearance-2 subject a secret report's title",
-      () =>
-        Effect.gen(function* () {
-          const out = yield* Effect.succeed(secretReport).pipe(
-            Qadi.enforceProjected(readClassified, {
-              resource: { id: "rpt-1", classification: "internal" },
-            }),
-          );
-          // The hazard, pinned beside the one above: the decision was taken on
-          // the stub, the projection applied to the secret report.
-          assert.deepStrictEqual(out, { id: "rpt-1", title: "T", classification: "secret" });
-        }).pipe(Effect.provide(clearance2)),
-    );
-
-    it.effect("the same report passed as its own resource is denied to a clearance-2 subject", () =>
+    it.effect("a secret report is denied to a clearance-2 subject, and an internal one loses its body", () =>
       Effect.gen(function* () {
         const r = yield* Effect.result(
-          Effect.flatMap(Effect.succeed(secretReport), (report) =>
-            Effect.succeed(report).pipe(
-              Qadi.enforceProjected(readClassified, { resource: report }),
-            ),
-          ),
+          Effect.succeed(secretReport).pipe(Qadi.enforceProjectedLoaded(readClassified)),
         );
         assert.isTrue(Result.isFailure(r) && r.failure._tag === "AccessDenied");
+        const internal = yield* Effect.succeed({ ...secretReport, classification: "internal" }).pipe(
+          Qadi.enforceProjectedLoaded(readClassified),
+        );
+        assert.deepStrictEqual(internal, { id: "rpt-1", title: "T", classification: "internal" });
       }).pipe(Effect.provide(clearance2)),
     );
   });

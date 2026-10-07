@@ -240,29 +240,27 @@ export const enforce =
     Effect.flatMap(permitted(policy, options), () => self);
 
 /**
- * Guards an effect and projects its result down to the visible fields.
+ * Guards an effect with a resource-free decision and projects its result down to the visible fields.
  *
  * This is where field-level authorization earns its keep: the policy decides
  * both *whether* the caller may read the record and *which* of its fields come
  * back, in one pass.
  *
- * **Two channels, and they are not reconciled.** The policy is evaluated
- * against `options.resource` — the caller's own responsibility to set, unlike
- * `guard`, which pins the evaluated resource and the handler's resource
- * together by construction ([INV-QD-032](../../../spec/invariants.md#inv-qd-032-a-guarded-resource-is-the-evaluated-resource)).
- * Here, `self`'s eventual value is a second, independent channel: the
- * `visibleFields` this call computes from `options.resource` are applied to
- * whatever `self` resolves to, with no check that the two describe the same
- * record. A `self` that fetches a different or staler resource than
- * `options.resource` still gets projected — silently, under that mismatched
- * decision's field visibility. A policy that reads the resource belongs on
- * {@link enforceProjectedLoaded}, which decides against the value it projects.
+ * The decision is taken before `self` runs, so it can see no resource: a policy
+ * that reads one (`hasResourceAttribute`, `hasRelationship`) fails closed with
+ * `MissingResource`, and a custom predicate is handed none. A policy that reads
+ * the record belongs on {@link enforceProjectedLoaded}, which decides against the
+ * value it projects. `options.resource` is refused at the type level for that
+ * reason: it was a second channel, evaluated against one record while `self`'s
+ * value, a possibly different one, was projected under that decision's field
+ * visibility (ADR-QD-104, INV-QD-106; the same defect `guard` closed under
+ * [INV-QD-032](../../../spec/invariants.md#inv-qd-032-a-guarded-resource-is-the-evaluated-resource)).
  *
  * **The return type is optimistic for a `"*"`-projected nested object** — see
  * `Decision.ts`'s `project`, which this delegates to, for the caveat.
  */
 export const enforceProjected =
-  <EO = never, RO = never>(policy: Policy, options?: EnforceOptions<EO, RO>) =>
+  <EO = never, RO = never>(policy: Policy, options?: LoadedEnforceOptions<EO, RO>) =>
   <A extends Resource, E, R>(
     self: Effect.Effect<A, E, R>,
   ): Effect.Effect<
