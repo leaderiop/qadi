@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-043                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-23                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-08-23): Initial release (CCR-QD-058) |
+> | Change History | 1.1 (2026-10-08): amendment — `enforceProjected`'s `options.resource` is the third instance (ADR-QD-104, CCR-QD-203)<br>1.0 (2026-08-23): Initial release (CCR-QD-058) |
 
 ---
 
@@ -148,3 +148,13 @@ property is not evidence of one.
 answer a question it was not asked. The alternative — keeping the id and telling
 callers to scope the cache per request — puts the safety property in
 documentation, which is exactly where it was, and where nobody read it.
+
+## Amendment (2026-10-08, ADR-QD-104)
+
+A third instance of the same defect, after `guard` and the cache key: `enforceProjected` took
+`options.resource` as the thing the policy was evaluated against and projected whatever `self`
+returned, so an input the decision depended on (which record) never reached the thing that
+decided (the projection). Its doc admitted nothing checked the two against each other, and a test
+pinned the leak. The second channel is removed from `enforceProjected`, and `enforceProjectedLoaded` decides
+against the value it projects (INV-QD-106).
+

@@ -18,7 +18,8 @@ Inside it:
 - **The evaluator** — `evaluate`, which turns a `Policy` plus a subject,
   resource and action into a `Decision` carrying a full `Trace`.
 - **Enforcement** — every call that acts on a decision: `decide`, `check`,
-  `assert`, `enforce`, `enforceProjected`, `filter`, `guard`, and their
+  `assert`, `enforce`, `enforceProjected`, `enforceLoaded`,
+  `enforceProjectedLoaded`, `filter`, `filterProjected`, `guard`, and their
   streamed siblings.
 
 This overview assumes you already know — or are about to learn — the six

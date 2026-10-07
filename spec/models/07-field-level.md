@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-07                                    |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-08-25                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.2 (2026-10-05): the `First` path-shaped evidence row points at `FieldLattice.test.ts` (ADR-QD-092, CCR-QD-174)<br>1.1 (2026-08-25): Field names may be dot-paths with a `*`/`**` wildcard terminal (BEH-QD-056); the leaf-variant list corrected from four to the real seven; the worked example extended (CCR-QD-078)<br>1.0 (2026-07-26): Initial release (CCR-QD-006) |
+> | Change History | 1.3 (2026-10-08): the `enforceProjected` signature listing corrected (it still showed `EvaluateOptions` and `Record<string, unknown>`); a paragraph on when the policy reads the record, naming `enforceProjectedLoaded` (ADR-QD-104, CCR-QD-203)<br>1.2 (2026-10-05): the `First` path-shaped evidence row points at `FieldLattice.test.ts` (ADR-QD-092, CCR-QD-174)<br>1.1 (2026-08-25): Field names may be dot-paths with a `*`/`**` wildcard terminal (BEH-QD-056); the leaf-variant list corrected from four to the real seven; the worked example extended (CCR-QD-078)<br>1.0 (2026-07-26): Initial release (CCR-QD-006) |
 
 ---
 
@@ -171,8 +171,10 @@ why this library was rewritten.
 
 ```ts
 export const project: <A extends Record<string, unknown>>(decision: Decision, data: A) => Partial<A>;
-export const enforceProjected: (policy: Policy, options?: EvaluateOptions) =>
-  <A extends Record<string, unknown>, E, R>(self: Effect.Effect<A, E, R>) => Effect.Effect<Partial<A>, ...>;
+export const enforceProjected: <EO = never, RO = never>(policy: Policy, options?: LoadedEnforceOptions<EO, RO>) =>
+  <A extends Resource, E, R>(self: Effect.Effect<A, E, R>) => Effect.Effect<Partial<A>, E | EnforcementError | EO, R | EvaluationServices | RO>;
+export const enforceProjectedLoaded: <EO = never, RO = never>(policy: Policy, options?: LoadedEnforceOptions<EO, RO>) =>
+  <A extends Resource, E, R>(self: Effect.Effect<A, E, R>) => Effect.Effect<Partial<A>, E | EnforcementError | EO, R | EvaluationServices | RO>;
 ```
 
 `enforceProjected` is the aspect form — it guards the effect and narrows its
@@ -181,6 +183,14 @@ manual form, for callers holding a `Decision` from `decide` that they wish to
 apply to more than one record. A denial projects to `{}`; an unrestricted allow
 projects to the whole record; listed fields absent from the record are skipped
 silently ([BEH-QD-051](../behaviors/07-enforcement.md)).
+
+**When the policy reads the record.** `enforceProjected` decides before the effect runs,
+so it can see no resource: a policy that reads one (`hasResourceAttribute`,
+`hasRelationship`) fails closed with `MissingResource`. When the decision depends on the
+record's own attributes, use `enforceProjectedLoaded` — it runs the effect, decides against
+the value it produced and projects that same value, so a record's owner can read the fields
+a stranger cannot with no second copy of the record to keep in step
+([BEH-QD-324](../behaviors/07-enforcement.md#beh-qd-324-a-projected-value-is-the-evaluated-resource)).
 
 ## Worked example
 

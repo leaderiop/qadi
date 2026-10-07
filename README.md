@@ -117,7 +117,8 @@ they do with a deny.
   security labels, and a JSON codec built and type-checked against the same
   recursive type, not a hand-maintained twin.
 - **One evaluator, six enforcement shapes** — `decide` / `check` report;
-  `assert` / `enforce` / `enforceProjected` / `filter` enforce — plus streamed
+  `assert` / `enforce` / `enforceProjected` / `enforceLoaded` /
+  `enforceProjectedLoaded` / `filter` enforce — plus streamed and projected
   siblings for collections.
 - **Field-level projection** — a decision can return part of a resource, not
   just allow or deny it.
