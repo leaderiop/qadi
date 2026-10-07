@@ -22,6 +22,7 @@
  */
 import * as Equal from "effect/Equal";
 import type { Trace } from "./Decision.ts";
+import { sameVisibleFields } from "./FieldLattice.ts";
 import type { Obligation } from "./Obligation.ts";
 
 /** Where a node sits: the child indices walked from the root, outermost first. */
@@ -123,35 +124,6 @@ export type TraceDifference =
   | ObligationsChanged;
 
 /**
- * Whether two string collections hold the same elements, ignoring order.
- *
- * `FieldsChanged` and `ObligationsChanged` both document SET semantics — "the
- * set of fields this node makes visible", "the duties this node contributed" —
- * but a positional array comparison reports a reorder as a change. Sorting a
- * copy of each side before comparing element-wise gives set equality (and,
- * incidentally, multiset equality, which is the stricter and still-correct
- * behavior if a caller's array ever carried a duplicate) without depending on
- * `effect/HashSet`, which buys nothing extra for elements that are already
- * primitive strings comparable with `===`.
- */
-const sameStringSet = (a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean => {
-  if (a.length !== b.length) return false;
-  const sortedA = [...a].sort();
-  const sortedB = [...b].sort();
-  return sortedA.every((f, i) => f === sortedB[i]);
-};
-
-const sameFields = (
-  a: ReadonlyArray<string> | undefined,
-  b: ReadonlyArray<string> | undefined,
-): boolean => {
-  // `undefined` and `[]` are opposite ends of the field lattice — all fields
-  // versus none — so they must never compare equal here (INV-QD-004).
-  if (a === undefined || b === undefined) return a === b;
-  return sameStringSet(a, b);
-};
-
-/**
  * Whether two obligation multisets hold the same duties.
  *
  * Compared by the **whole value**, never by `id` alone — the same rule
@@ -161,10 +133,9 @@ const sameFields = (
  * `obligation("audit.log", { level: "warn" })` as identical, which is the
  * defect this function exists to not have.
  *
- * Order-insensitive for the same reason `sameStringSet` is — `unionObligations`'s
- * insertion order is not part of what a duty *is* — and, unlike
- * `sameStringSet`, cannot sort first: an `Obligation` has no total order, so
- * this consumes matches out of a mutable copy of `b` instead. Obligation lists
+ * Order-insensitive because `unionObligations`'s insertion order is not part of
+ * what a duty *is*, and it cannot sort first: an `Obligation` has no total
+ * order, so this consumes matches out of a mutable copy of `b` instead. Obligation lists
  * are short (a handful of duties per node at most), so the resulting O(n²) is
  * not a cost worth avoiding here.
  */
@@ -272,7 +243,7 @@ export const diffTraces = (before: Trace, after: Trace): ReadonlyArray<TraceDiff
       });
     }
 
-    if (!sameFields(a.visibleFields, b.visibleFields)) {
+    if (!sameVisibleFields(a.visibleFields, b.visibleFields)) {
       out.push({
         _tag: "FieldsChanged",
         path: here(),

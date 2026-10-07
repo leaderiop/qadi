@@ -30,7 +30,7 @@
  * package's own adapters.
  */
 import * as Match from "effect/Match";
-import type { Containment } from "./FieldPath.ts";
+import type { Containment, SpecShape } from "./FieldPath.ts";
 import { compareShapes, shapeOf } from "./FieldPath.ts";
 import type { FieldStrategy } from "./Policy.ts";
 
@@ -200,6 +200,43 @@ export const intersectFields = (a: VisibleFields, b: VisibleFields): VisibleFiel
 export const unionFields = (a: VisibleFields, b: VisibleFields): VisibleFields => {
   if (a === undefined || b === undefined) return undefined;
   return [...new Set([...a, ...b])].sort();
+};
+
+/**
+ * Whether two visible-field sets disclose the same fields, whatever their
+ * spelling.
+ *
+ * `undefined` ("all fields", the top of the lattice) equals only `undefined`;
+ * `[]` ("none") is its opposite end and equals only a set that grants nothing
+ * (INV-QD-004). Otherwise equality is **mutual containment**: every spec in
+ * one side is covered by some spec in the other, in both directions, with
+ * coverage decided per pair by `compareShapes`, as `intersectFields` does.
+ * `["title"]` and `["title.**"]` are equal (they denote one set,
+ * `FieldPath.ts`), and so are `["address.**", "address.street"]` and
+ * `["address.**"]` (a subsumed spec "projects identically to omitting it",
+ * `unionFields`).
+ *
+ * **Sound, and deliberately conservative.** Equal here means the two sets
+ * project any data identically, so a diff never hides a real change. A set
+ * covered only by a *union* of the other side's specs, not by any single one,
+ * is not proved equal and reads as changed: the safe direction for a tool
+ * whose job is to show a change.
+ *
+ * Not for a check that two copies must be **byte**-equal (a decision against
+ * its own trace): there the authored text is the thing compared.
+ */
+export const sameVisibleFields = (a: VisibleFields, b: VisibleFields): boolean => {
+  if (a === undefined || b === undefined) return a === b;
+  const shapedA = a.map(shapeOf);
+  const shapedB = b.map(shapeOf);
+  const coveredBy = (narrow: ReadonlyArray<SpecShape>, wide: ReadonlyArray<SpecShape>): boolean =>
+    narrow.every((n) =>
+      wide.some((w) => {
+        const cmp = compareShapes(n, w);
+        return cmp === "Equal" || cmp === "ALessB";
+      }),
+    );
+  return coveredBy(shapedA, shapedB) && coveredBy(shapedB, shapedA);
 };
 
 // ---------------------------------------------------------------------------

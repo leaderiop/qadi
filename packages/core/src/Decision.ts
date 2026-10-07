@@ -208,7 +208,7 @@ export const projectVisible = <A extends Resource>(
 // re-exported here so `@qadi/core` keeps resolving.
 // ---------------------------------------------------------------------------
 
-export { intersectFields, mergeFields, unionFields } from "./FieldLattice.ts";
+export { intersectFields, mergeFields, sameVisibleFields, unionFields } from "./FieldLattice.ts";
 export type { VisibleFields } from "./FieldLattice.ts";
 
 // ---------------------------------------------------------------------------

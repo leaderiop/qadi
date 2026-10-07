@@ -531,3 +531,55 @@ describe("tracePathKey (ARCH-22 D-22-c)", () => {
     assert.strictEqual(tracePathKey(flip?.path ?? []), "$.1.0");
   });
 });
+
+describe("diffTraces judges field sets by the lattice, not by their spelling (ARCH-45 I2)", () => {
+  const fieldsChanged = (
+    before: ReadonlyArray<string> | undefined,
+    after: ReadonlyArray<string> | undefined,
+  ) =>
+    diffTraces(baseTrace({ visibleFields: before }), baseTrace({ visibleFields: after })).filter(
+      (d) => d._tag === "FieldsChanged",
+    );
+
+  it("one field set spelled two ways is not a change", () => {
+    assert.deepStrictEqual(fieldsChanged(["title"], ["title.**"]), []);
+    assert.deepStrictEqual(fieldsChanged(["title.**"], ["title"]), []);
+    assert.deepStrictEqual(fieldsChanged(["address.**", "address.street"], ["address.**"]), []);
+    assert.deepStrictEqual(fieldsChanged(["a", "a", "b"], ["b", "a"]), []);
+  });
+
+  it.effect("a what-if that drops a role does not report the root's respelled union", () =>
+    Effect.gen(function* () {
+      const policy = P.anyOf(
+        [P.hasRole("a", { fields: ["title"] }), P.hasRole("b", { fields: ["title.**"] })],
+        { fieldStrategy: "Union" },
+      );
+      const both = yield* evaluate(policy).pipe(
+        Effect.provide(testLayer(subjectWith({ roles: ["a", "b"] }))),
+      );
+      const dropped = yield* evaluate(policy).pipe(
+        Effect.provide(testLayer(subjectWith({ roles: ["a"] }))),
+      );
+      assert.deepStrictEqual(both.trace.visibleFields, ["title", "title.**"]);
+      assert.deepStrictEqual(dropped.trace.visibleFields, ["title"]);
+
+      const diff = diffTraces(both.trace, dropped.trace);
+      // The root's projection is unchanged; the child that lost its role is real.
+      assert.deepStrictEqual(
+        diff.filter((d) => d._tag === "FieldsChanged" && d.path.length === 0),
+        [],
+      );
+      assert.isDefined(diff.find((d) => d._tag === "VerdictChanged"));
+    }));
+
+  // The negatives: genuinely different disclosures must still report.
+  it("a set that discloses something different still reports", () => {
+    assert.lengthOf(fieldsChanged(["a"], ["a.*"]), 1);
+    assert.lengthOf(fieldsChanged(["address.*"], ["address.street"]), 1);
+    assert.lengthOf(fieldsChanged([], undefined), 1);
+    assert.lengthOf(fieldsChanged(undefined, []), 1);
+    assert.lengthOf(fieldsChanged(["a"], ["b"]), 1);
+    assert.lengthOf(fieldsChanged(["a"], ["a", "b"]), 1);
+    assert.lengthOf(fieldsChanged([], ["a"]), 1);
+  });
+});
