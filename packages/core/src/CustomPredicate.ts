@@ -23,6 +23,7 @@ import { CustomPredicateError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
+import { canonicalKey } from "./PortKey.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 import type { Resource } from "./Resource.ts";
 
@@ -100,8 +101,13 @@ const customSpan = {
 /**
  * The custom-predicate port, described once (`PortDescription.ts`).
  *
- * A request is keyed by `(subjectId, name, params)` — not by the resource,
- * which is arbitrary caller data rather than one id. `CustomPredicateError`
+ * A request is keyed by everything the predicate receives: the subject's id,
+ * the name, the params, the resource (`null` when absent) and the rest of the
+ * subject — its roles, permissions and attributes — through `canonicalKey`
+ * (`PortKey.ts`), which writes a `Set` as its sorted members. A what-if that
+ * drops a role, or a simulation that edits the resource, therefore never
+ * replays an answer given to a different question (ARCH-45 I1).
+ * `CustomPredicateError`
  * has no `cause` field, so `failure` renders the cause into `reason`, and
  * `defect` renders a defect with `Cause.pretty` — what `PortAccess.ts` always
  * did (D-10-e).
@@ -125,7 +131,18 @@ export const customPredicatePort: PortDescription<
   make: (name, call) => ({ name, evaluate: call }),
   failure: ([name], cause) => new CustomPredicateError({ name, reason: renderReason(cause) }),
   defect: ([name], cause) => new CustomPredicateError({ name, reason: Cause.pretty(cause) }),
-  key: ([name, subject, , params]) => JSON.stringify([subject.id, name, params]),
+  key: ([name, subject, resource, params]) =>
+    canonicalKey([
+      subject.id,
+      name,
+      params,
+      resource ?? null,
+      {
+        roles: subject.roles,
+        permissions: subject.permissions,
+        attributes: subject.attributes,
+      },
+    ]),
   none: { name: "CustomPredicateNone", answer: false },
 };
 
