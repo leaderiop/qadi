@@ -87,7 +87,9 @@ just running "backwards" — discharging here would fire every obligation once
 per candidate, logging accesses that never actually happened.
 
 ```typescript
+import type * as Effect from "effect/Effect";
 import { decideSubjects, filterSubjects, fromRoles, hasRole, role } from "@qadi/core";
+import type { FilteredSubjects, SubjectSetOutcome, SubjectSetServices } from "@qadi/core";
 
 const editor = role({ name: "editor" });
 const canEdit = hasRole("editor");
@@ -98,13 +100,19 @@ const candidates = [
   fromRoles({ id: "carol", roles: [editor] }),
 ];
 
-const reviewed = decideSubjects(canEdit, candidates);
-// Effect<ReadonlyArray<SubjectDecision>, EvaluationError, SubjectSetServices>
-// → alice: Allow, bob: Deny, carol: Allow — every result kept, each with its trace.
+const reviewed: Effect.Effect<SubjectSetOutcome, never, SubjectSetServices> = decideSubjects(
+  canEdit,
+  candidates,
+);
+// → { decisions: [alice: Allow, bob: Deny, carol: Allow], failures: [] }
+// Every result kept, each with its trace. Never fails: a broken lookup for one
+// subject lands in `failures`, paired with that subject.
 
-const allowed = filterSubjects(canEdit, candidates);
-// Effect<ReadonlyArray<AuthSubject>, EvaluationError, SubjectSetServices>
-// → [alice, carol] — reports who qualifies; grants nothing.
+const allowed: Effect.Effect<FilteredSubjects, never, SubjectSetServices> = filterSubjects(
+  canEdit,
+  candidates,
+);
+// → { subjects: [alice, carol], failures: [] } — reports who qualifies; grants nothing.
 ```
 
 `decideSubjectsStream`/`filterSubjectsStream` are the streamed siblings, for
