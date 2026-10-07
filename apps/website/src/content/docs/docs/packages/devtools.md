@@ -137,9 +137,14 @@ provider's registry and the feed reads them for you.
 dock a layer of its own, and the dock's build of it is its own: a service that
 keeps state in its constructor is two instances if the dock and the application
 each build the layer. Build the context once and give that one value
-to both. The `wiring`, `activity`, `portCalls`, `hydration` and `questions` props
-remain for a reading taken elsewhere, such as another process's report, and win
-over the sampled one.
+to both.
+
+The `reading` prop carries a reading taken elsewhere, such as another process's
+report, as `{ wiring, activity, hydration, portCalls, questions }`. Each field it
+carries wins over the sampled one and a field it omits falls through to the
+sample, so a dock can sample this process's activity and show another process's
+wiring. Its `wiring` is a `WiringRead`, so it can state a failed read as well as a
+report.
 
 ## What it renders
 

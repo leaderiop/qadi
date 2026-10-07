@@ -6,10 +6,14 @@ import type * as Effect from "effect/Effect";
 import type * as Layer from "effect/Layer";
 import { expect, test } from "tstyche";
 import {
+  mergeReading,
   runDiagnostics,
+  type Diagnostics,
+  type DiagnosticsReading,
   type DiagnosticsStore,
   type WiringRead,
 } from "../../src/model/DiagnosticsStore.ts";
+import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import type { WiringReport } from "../../src/model/Wiring.ts";
 
 declare const store: DiagnosticsStore;
@@ -36,4 +40,20 @@ test("WiringRead narrows by its tag", () => {
     if (self._tag === "Failed") expect(self.reason).type.toBe<string>();
   };
   expect(read).type.toBeCallableWith(wiringRead);
+});
+
+test("a supplied reading is present or absent, never an explicit undefined", () => {
+  expect<DiagnosticsReading>().type.toBeAssignableFrom<{ readonly hydration: HydrationActivity }>();
+  expect<DiagnosticsReading>().type.not.toBeAssignableFrom<{ readonly hydration: undefined }>();
+  expect<DiagnosticsReading>().type.toBeAssignableFrom<{}>();
+});
+
+test("a supplied wiring is a WiringRead, so it can state a failed read", () => {
+  expect<NonNullable<DiagnosticsReading["wiring"]>>().type.toBe<WiringRead>();
+});
+
+test("mergeReading returns a full Diagnostics", () => {
+  expect(mergeReading).type.toBe<
+    (sampled: Diagnostics, supplied: DiagnosticsReading | undefined) => Diagnostics
+  >();
 });

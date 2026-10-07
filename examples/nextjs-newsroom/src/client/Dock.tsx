@@ -2,7 +2,7 @@
 /**
  * The dock, wired the way a host would copy it.
  *
- * `DevtoolsDockProps` has fourteen optional fields and a dock mounted with none
+ * `DevtoolsDockProps` has nine optional fields and a dock mounted with none
  * of them still renders every tab — each empty screen saying why it is empty
  * ([BEH-QD-218](../../../../spec/behaviors/28-devtools-screens.md)). That is the
  * right default and it is not what this example is for: the point here is to
@@ -10,11 +10,9 @@
  * `ports`, and, from one call to `useDevtoolsFeed`, the atom set's `gates`,
  * `onInvalidate` and `diagnostics` — because the wiring is the part no unit test
  * can prove and the part a reader actually has to copy. `capacity` has a
- * sensible default. `wiring`, `activity`, `portCalls`, `hydration` and
- * `questions` are deliberately **not** passed: they carry a reading taken
- * *elsewhere* (another process, a fixture), and `diagnostics` samples this one
- * for the dock, so the host runs no loop of its own. `hydrationMismatches` is
- * not passed either: the `hydration` counts `diagnostics` samples supersede it.
+ * sensible default. `reading` is deliberately **not** passed: it carries a
+ * reading taken *elsewhere* (another process, a fixture), and `diagnostics`
+ * samples this one for the dock, so the host runs no loop of its own.
  *
  * **The feed is one call because the atom set already knows all of it.** Who is
  * asking, how to invalidate, what has been asked and which services the

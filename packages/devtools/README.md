@@ -129,8 +129,11 @@ service that keeps state in its constructor, such as `decisionCacheLayer`'s
 cache, is two instances if the dock and your application each build the layer,
 and the dock reports its own. Build the context once and give
 that one value to both (the shared-context rule is in BEH-QD-323). The
-`wiring`, `activity`, `portCalls`, `hydration` and `questions` props remain for a
-reading taken elsewhere, and win over a sampled one.
+`reading` prop carries a reading taken elsewhere (another process's report, a
+fixture) as `{ wiring, activity, hydration, portCalls, questions }`: each field it
+carries wins over the sampled one, and a field it omits falls through to the
+sample. Its `wiring` is a `WiringRead`, so it can state a failed read as well as
+a report.
 
 ## Environments
 

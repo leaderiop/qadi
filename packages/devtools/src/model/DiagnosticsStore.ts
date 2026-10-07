@@ -87,6 +87,53 @@ export const noDiagnostics: Diagnostics = {
   questions: undefined,
 };
 
+/**
+ * A reading taken elsewhere (another process, a fixture), field by field.
+ *
+ * Each field it carries wins over the sampled one; a field it omits falls
+ * through to the sample. The fields are `Diagnostics`' own types, so a supplied
+ * reading can state everything a sampled one can, `WiringRead.Failed` included.
+ *
+ * An explicit interface and not `Partial<Diagnostics>`: with
+ * `exactOptionalPropertyTypes`, `Partial<Diagnostics>` would accept an explicit
+ * `hydration: undefined`, a third state ("supplied nothing") that is neither a
+ * reading nor an omission. Here a field is present or it is absent.
+ */
+export interface DiagnosticsReading {
+  readonly wiring?: WiringRead;
+  readonly activity?: ReadonlyArray<PortActivity>;
+  readonly hydration?: HydrationActivity;
+  readonly portCalls?: PortCallLog;
+  readonly questions?: ReadonlyArray<AskedQuestionLike>;
+}
+
+/**
+ * The sampled reading with a supplied one laid over it, field by field.
+ *
+ * The one place the rule "a reading taken elsewhere wins over a sampled one"
+ * lives (BEH-QD-323). It used to be restated by five props on the dock, each
+ * with its own line of precedence and its own doc comment; ARCH-24's D-24-c
+ * kept the rule and ARCH-44 moved it here, where it is tested without React.
+ * An explicit empty list wins like any value: only an absent field falls
+ * through.
+ *
+ * With nothing supplied it returns `sampled` itself, so a dock reading from a
+ * store keeps the store's snapshot identity and does not re-render for it.
+ */
+export const mergeReading = (
+  sampled: Diagnostics,
+  supplied: DiagnosticsReading | undefined,
+): Diagnostics =>
+  supplied === undefined
+    ? sampled
+    : {
+        wiring: supplied.wiring ?? sampled.wiring,
+        activity: supplied.activity ?? sampled.activity,
+        hydration: supplied.hydration ?? sampled.hydration,
+        portCalls: supplied.portCalls ?? sampled.portCalls,
+        questions: supplied.questions ?? sampled.questions,
+      };
+
 export interface DiagnosticsStore {
   /** Registers a listener, and returns the function that removes it. */
   readonly subscribe: (listener: () => void) => () => void;

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-325, CCR-QD-240)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.8 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.7 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-325, CCR-QD-240)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -551,7 +551,19 @@ export const runDiagnostics: <ROut, E>(
   options?: DiagnosticsOptions<ROut, E>,
 ) => Effect<void>;
 export const makeDiagnosticsStore: () => DiagnosticsStore;
+export interface DiagnosticsReading {
+  readonly wiring?: WiringRead;
+  readonly activity?: ReadonlyArray<PortActivity>;
+  readonly hydration?: HydrationActivity;
+  readonly portCalls?: PortCallLog;
+  readonly questions?: ReadonlyArray<AskedQuestionLike>;
+}
+export const mergeReading: (
+  sampled: Diagnostics,
+  supplied: DiagnosticsReading | undefined,
+) => Diagnostics;
 // <DevtoolsDock diagnostics={{ layer, collector, questions, intervalMillis }} />
+// <DevtoolsDock reading={{ wiring, activity, hydration, portCalls, questions }} />
 ```
 
 The Services and React panels read four things that are pulled rather than
@@ -604,12 +616,30 @@ panel blank, which [BEH-QD-218](#beh-qd-218-every-screen-degrades-to-an-explanat
 forbids.
 
 ```
-REQUIREMENT: A reading supplied explicitly to the dock MUST take precedence over
-             a sampled one, field by field.
+REQUIREMENT: A reading supplied explicitly to the dock, as its `reading` prop,
+             MUST take precedence over a sampled one, field by field: a field
+             the reading carries wins, a field it omits falls through to the
+             sample, and an explicit empty list is a value.
 ```
 
-The snapshot props answer a different question: what another process, or a
-fixture, reported. Sampling this process cannot supply it.
+A supplied reading answers a different question: what another process, or a
+fixture, reported. Sampling this process cannot supply it. It is one value, a
+`DiagnosticsReading`, rather than five props that each restated the rule, and
+the rule is written once, in the model's `mergeReading`, where it is tested
+without React. Its fields are `Diagnostics`' own types, so a reading from
+elsewhere can state a failed wiring read (`WiringRead.Failed`) as well as a
+report, which the old `wiring` prop, typed as a bare `WiringReport`, could not.
+
+```
+REQUIREMENT: The dock MUST NOT show a host-counted mismatch total.
+```
+
+The count a host used to accumulate from `onHydrationMismatch` and pass as
+`hydrationMismatches` is `hydration.mismatched`, which `@qadi/react` counts
+whether or not a reporter is supplied
+([ADR-QD-052](../decisions/052-hydration-is-counted-where-both-ends-can-see-it.md)).
+The prop and the panel branch that showed it only when `hydration` was absent are
+removed; with nothing read, the panel says how to read it.
 
 Gates are not sampled. They stay a prop the host feeds from its subscription to
 `@qadi/react`'s registry ([ADR-QD-080](../decisions/080-a-gate-registry-belongs-to-its-atom-set.md)).

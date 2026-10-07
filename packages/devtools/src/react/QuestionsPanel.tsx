@@ -39,19 +39,12 @@ export interface QuestionsPanelProps {
   /**
    * Read with `hydrationActivity`, which needs no wiring at all.
    *
-   * It supersedes {@link hydrationMismatches}, which a host had to accumulate
-   * itself because nothing in `@qadi/react` counted anything.
+   * `hydration.mismatched` is the verdict-disagreement count a host used to
+   * accumulate itself from `onHydrationMismatch`, before anything in
+   * `@qadi/react` counted: the metric is written whether or not a reporter is
+   * supplied.
    */
   readonly hydration?: HydrationActivity;
-  /**
-   * Verdict disagreements, counted by the host.
-   *
-   * Kept for a host already passing it, and shown only when {@link hydration}
-   * is absent. A host counting its own `onHydrationMismatch` calls counts
-   * exactly what `hydration.mismatched` counts, so showing both would invite a
-   * reader to reconcile one number with itself.
-   */
-  readonly hydrationMismatches?: number;
   /**
    * The live guards, usually `useGateInstances()` or `atoms.gates.instances()` from `@qadi/react`.
    *
@@ -76,7 +69,6 @@ const row: CSSProperties = {
 export const QuestionsPanel: FC<QuestionsPanelProps> = ({
   questions,
   hydration,
-  hydrationMismatches,
   gates,
   onInvalidate,
 }) => {
@@ -128,7 +120,7 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
         ))
       )}
 
-      <Hydration activity={hydration} mismatches={hydrationMismatches} />
+      <Hydration activity={hydration} />
 
       {onInvalidate === undefined ? null : (
         <button
@@ -281,38 +273,19 @@ const heading: CSSProperties = {
  * is a comparison a reader will attempt unprompted, so `unaccountedEntries`
  * refuses it where it would not mean anything.
  */
-const Hydration: FC<{
-  readonly activity: HydrationActivity | undefined;
-  readonly mismatches: number | undefined;
-}> = ({ activity, mismatches }) => (
+const Hydration: FC<{ readonly activity: HydrationActivity | undefined }> = ({ activity }) => (
   <div style={{ marginTop: 10 }} data-testid="qadi-hydration">
     <div style={heading}>hydration</div>
     {activity === undefined ? (
-      <LegacyMismatches mismatches={mismatches} />
-    ) : (
-      <Counts activity={activity} />
-    )}
-  </div>
-);
-
-/** The one number a host could accumulate before anything counted for it. */
-const LegacyMismatches: FC<{ readonly mismatches: number | undefined }> = ({ mismatches }) => (
-  <>
-    {mismatches === undefined ? (
       <span style={muted} data-testid="qadi-hydration-unwired">
         no counts read. Pass <code>{"diagnostics={{}}"}</code> to sample them, or{" "}
         <code>hydration</code> — the result of <code>hydrationActivity</code>,
         which needs no wiring — to fill this in.
       </span>
     ) : (
-      <span data-testid="qadi-hydration-mismatches">
-        {mismatches} mismatch{mismatches === 1 ? "" : "es"}
-        <span style={{ ...muted, marginLeft: 6 }}>
-          — a server allow that no longer holds client-side
-        </span>
-      </span>
+      <Counts activity={activity} />
     )}
-  </>
+  </div>
 );
 
 const Counts: FC<{ readonly activity: HydrationActivity }> = ({ activity }) => {
