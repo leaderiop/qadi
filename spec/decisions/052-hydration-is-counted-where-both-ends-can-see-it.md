@@ -10,7 +10,7 @@
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-10-08): amended: at effect 4.0.0 a metric looks its registry up on every update; writer and reader agree because both name the default registry, not because a metric remembers one (ARCH-45 I8, CCR-QD-209)<br>1.1 (2026-10-04): The drop-reason set changes — `UnregisteredAtoms` removed, `UnsupportedPayloadVersion` and `MalformedPayload` added; the five metrics, their ids and descriptions are unchanged (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-24): Initial release (CCR-QD-072) |
+> | Change History | 1.2 (2026-10-08): amended: at effect 4.0.0 a metric looks its registry up on every update; writer and reader agree because both name the default registry, not because a metric remembers one (ARCH-45 I8, CCR-QD-269)<br>1.1 (2026-10-04): The drop-reason set changes — `UnregisteredAtoms` removed, `UnsupportedPayloadVersion` and `MalformedPayload` added; the five metrics, their ids and descriptions are unchanged (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-24): Initial release (CCR-QD-072) |
 
 ---
 

@@ -10,7 +10,7 @@
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-10-08): Document ID corrected from `QADI-ADR-902` to `QADI-ADR-095`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-208)<br>1.3 (2026-10-07): the refusal vocabulary and the three readings of an `EncodeRefusal` move to the leaf `SinkWire.ts` (ARCH-27, CCR-QD-194)<br>1.2 (2026-10-07): D-09-e gains a third reporter: the audit pipeline logs or calls `onRefused`; core owns the path, the annotations, the sentence and the hook containment (CCR-QD-193)<br>1.1 (2026-10-07): the inbound side refuses a non-finite `at` and a non-integer `sequenceNumber` (CCR-QD-186) |
+> | Change History | 1.4 (2026-10-08): Document ID corrected from `QADI-ADR-902` to `QADI-ADR-095`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.3 (2026-10-07): the refusal vocabulary and the three readings of an `EncodeRefusal` move to the leaf `SinkWire.ts` (ARCH-27, CCR-QD-194)<br>1.2 (2026-10-07): D-09-e gains a third reporter: the audit pipeline logs or calls `onRefused`; core owns the path, the annotations, the sentence and the hook containment (CCR-QD-193)<br>1.1 (2026-10-07): the inbound side refuses a non-finite `at` and a non-integer `sequenceNumber` (CCR-QD-186) |
 
 ---
 
