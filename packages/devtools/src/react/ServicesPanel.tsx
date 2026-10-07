@@ -13,10 +13,11 @@
  * does not run; what a card can truthfully say is *defaulted to a fail-closed
  * implementation*.
  */
-import type { CSSProperties, FC } from "react";
+import type { CSSProperties, FC, ReactNode } from "react";
 import * as Match from "effect/Match";
+import type { WiringRead } from "../model/DiagnosticsStore.ts";
 import type { PortCall, PortCallLog } from "../model/PortCalls.ts";
-import type { CacheReport, PortActivity, PortReport, WiringReport } from "../model/Wiring.ts";
+import type { CacheReport, PortActivity, PortReport } from "../model/Wiring.ts";
 import { colors, font, muted } from "./theme.ts";
 
 /**
@@ -29,8 +30,11 @@ import { colors, font, muted } from "./theme.ts";
 const SHOWN_PER_PORT = 5;
 
 export interface ServicesPanelProps {
-  /** Absent when the host did not hand the dock its layer. */
-  readonly wiring: WiringReport | undefined;
+  /**
+   * What the wiring read produced: no layer handed over, a layer that failed to
+   * build, or the report. Each is stated rather than left blank.
+   */
+  readonly wiring: WiringRead;
   readonly activity: ReadonlyArray<PortActivity>;
   /**
    * Recent calls, read from `collectPortCalls`.
@@ -49,28 +53,52 @@ const card: CSSProperties = {
   marginBottom: 6,
 };
 
+/**
+ * One state of the wiring read, in words, built once at module scope (AGENTS.md
+ * §5a). The first two are not error screens of the panel's own: the metrics
+ * below need no wiring at all, so the screen is still useful without it.
+ */
+interface Shown {
+  readonly activity: ReadonlyArray<PortActivity>;
+  readonly portCalls: PortCallLog | undefined;
+}
+
+const wiringView: (self: WiringRead) => (shown: Shown) => ReactNode = Match.type<WiringRead>().pipe(
+  Match.tagsExhaustive({
+    NotHanded: () => () => (
+      <p style={muted} data-testid="qadi-wiring-absent">
+        No layer was handed to the dock, so which implementation is behind each
+        port cannot be shown. Pass <code>{"diagnostics={{ layer }}"}</code>, or a{" "}
+        <code>wiring</code> report read elsewhere.
+      </p>
+    ),
+    Failed: ({ reason }) => () => (
+      <p style={{ ...muted, color: colors.error }} data-testid="qadi-wiring-failed">
+        The layer handed to the dock failed to build, so which implementation is
+        behind each port cannot be shown: {reason}
+      </p>
+    ),
+    Read: ({ report }) =>
+      ({ activity, portCalls }: Shown) => (
+        <>
+          {report.ports.map((port) => (
+            <PortCard
+              key={port.port}
+              port={port}
+              activity={activityFor(activity, port.port)}
+              calls={callsFor(portCalls, port.port)}
+              collecting={portCalls !== undefined}
+            />
+          ))}
+          <CacheCard cache={report.cache} />
+        </>
+      ),
+  }),
+);
+
 export const ServicesPanel: FC<ServicesPanelProps> = ({ wiring, activity, portCalls }) => (
   <div style={{ padding: 12 }} data-testid="qadi-services">
-    {wiring === undefined ? (
-      <p style={muted} data-testid="qadi-wiring-absent">
-        {/* Not an error state: the metrics below need no wiring at all, so the
-            screen is still useful without this. */}
-        No layer was handed to the dock, so which implementation is behind each
-        port cannot be shown. Pass <code>wiring</code> to see it.
-      </p>
-    ) : (
-      wiring.ports.map((port) => (
-        <PortCard
-          key={port.port}
-          port={port}
-          activity={activityFor(activity, port.port)}
-          calls={callsFor(portCalls, port.port)}
-          collecting={portCalls !== undefined}
-        />
-      ))
-    )}
-
-    {wiring === undefined ? null : <CacheCard cache={wiring.cache} />}
+    {wiringView(wiring)({ activity, portCalls })}
 
     <p
       style={{ ...muted, fontSize: font.sizeSmall, marginBottom: 0 }}

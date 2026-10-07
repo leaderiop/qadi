@@ -18,6 +18,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   allOf,
+  AttributeResolver,
   currentSubjectLayer,
   Decided,
   evaluate,
@@ -34,6 +35,7 @@ import {
 import type { Decision, Policy, StoredRecord } from "@qadi/core";
 import { DevtoolsDock } from "../../src/react/DevtoolsDock.tsx";
 import { sourceFromRecords } from "../../src/model/Source.ts";
+import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
 import type { WiringReport } from "../../src/model/Wiring.ts";
 import { decisionRecord, obligationRecord } from "../helpers.ts";
 
@@ -1061,5 +1063,91 @@ describe("screen 6 — the port calls the dock threads through", () => {
 
     assert.include(screen.getByTestId("qadi-port-call").textContent ?? "", "clearance");
     assert.isEmpty(screen.queryAllByTestId("qadi-calls-uncollected"));
+  });
+
+  describe("diagnostics", () => {
+    const noPortCalls: PortCallLog = { calls: [], dropped: 0, capacity: 10 };
+    const collector: PortCallCollector = {
+      layer: Layer.empty,
+      snapshot: Effect.succeed(noPortCalls),
+    };
+    const attribute = Layer.succeed(AttributeResolver, {
+      name: "sampled-resolver",
+      resolve: () => Effect.succeed(undefined),
+    });
+
+    it("fills the Services and React panels from the sampled reading alone", async () => {
+      render(<DevtoolsDock diagnostics={{ layer: attribute, collector }} />);
+      await act(async () => {});
+
+      await click(screen.getByRole("button", { name: "Services" }));
+      await screen.findAllByTestId("qadi-port");
+      assert.isEmpty(screen.queryAllByTestId("qadi-wiring-absent"));
+      assert.isEmpty(screen.queryAllByTestId("qadi-calls-uncollected"));
+      assert.include(
+        screen.getAllByTestId("qadi-port-state").map((node) => node.textContent ?? "").join("|"),
+        "sampled-resolver",
+      );
+
+      await click(screen.getByRole("button", { name: "React" }));
+      assert.isNotNull(screen.getByTestId("qadi-hydration-seeded"));
+      assert.isEmpty(screen.queryAllByTestId("qadi-hydration-unwired"));
+    });
+
+    it("samples the questions thunk, so the React panel needs no value prop", async () => {
+      render(<DevtoolsDock diagnostics={{ questions: () => [{ policy: hasPermission(read) }] }} />);
+      await act(async () => {});
+      await click(screen.getByRole("button", { name: "React" }));
+      await screen.findAllByTestId("qadi-question");
+    });
+
+    it("an explicit activity prop wins over the sampled one", async () => {
+      render(
+        <DevtoolsDock
+          diagnostics={{ layer: attribute }}
+          activity={[
+            { port: "AttributeResolver", calls: 42, retries: 0, timeouts: 0, translationCalls: 0 },
+          ]}
+        />,
+      );
+      await act(async () => {});
+      await click(screen.getByRole("button", { name: "Services" }));
+      await screen.findAllByTestId("qadi-port");
+      assert.include(
+        screen.getAllByTestId("qadi-port-activity").map((node) => node.textContent ?? "").join("|"),
+        "42 calls",
+      );
+    });
+
+    it("an explicit wiring prop wins over a sampled layer, field by field", async () => {
+      render(
+        <DevtoolsDock
+          diagnostics={{ layer: attribute }}
+          wiring={{ ports: [], cache: { present: true, size: 9 } }}
+        />,
+      );
+      await act(async () => {});
+      await click(screen.getByRole("button", { name: "Services" }));
+      assert.strictEqual(screen.getByTestId("qadi-cache-size").textContent, "9 completed entries");
+      assert.isEmpty(screen.queryAllByTestId("qadi-port"));
+    });
+
+    it("states a layer that failed to build instead of showing a blank panel", async () => {
+      const failing = Layer.effect(AttributeResolver, Effect.fail("boom"));
+      render(<DevtoolsDock diagnostics={{ layer: failing }} />);
+      await act(async () => {});
+      await click(screen.getByRole("button", { name: "Services" }));
+      const failed = await screen.findByTestId("qadi-wiring-failed");
+      assert.include(failed.textContent ?? "", "boom");
+      // The metrics still read: the failure is the wiring's, not the panel's.
+      assert.isNotNull(screen.getByTestId("qadi-activity-scope"));
+    });
+
+    it("samples nothing without the prop", async () => {
+      render(<DevtoolsDock />);
+      await act(async () => {});
+      await click(screen.getByRole("button", { name: "Services" }));
+      assert.isNotNull(screen.getByTestId("qadi-wiring-absent"));
+    });
   });
 });

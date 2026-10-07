@@ -11,6 +11,7 @@
  */
 export * from "./model/Capture.ts";
 export * from "./model/Catalogue.ts";
+export * from "./model/DiagnosticsStore.ts";
 export * from "./model/Edits.ts";
 export * from "./model/Filters.ts";
 export * from "./model/Gates.ts";

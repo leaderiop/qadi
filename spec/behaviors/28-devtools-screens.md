@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.3                                            |
-> | Effective Date | 2026-08-24                                     |
+> | Revision       | 1.4                                            |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -334,9 +334,12 @@ REQUIREMENT: A dock mounted with no optional props MUST render every tab, and
              each empty screen MUST say why it is empty.
 ```
 
-Four of the six screens read data the dock cannot obtain for itself. A blank
-panel is indistinguishable from a broken one; an empty state naming the prop, or
-naming what the log cannot observe, is not.
+Four of the six screens read data the dock cannot obtain for itself without
+being told where to look: it samples the diagnostics only when handed
+`diagnostics` ([BEH-QD-323](#beh-qd-323-diagnostics-are-sampled-by-the-model-and-a-sample-that-changed-nothing-changes-nothing)),
+and with no props it samples nothing. A blank panel is indistinguishable from a
+broken one; an empty state naming the prop, or naming what the log cannot
+observe, is not.
 
 The distinctions each empty state must keep:
 
@@ -344,7 +347,7 @@ The distinctions each empty state must keep:
 | ------ | ------ | ----------------- |
 | Policies | nothing has been evaluated and nothing declared | — |
 | Roles | roles are not observable; they come from `catalogue` | — |
-| Services | no layer was handed to the dock | metrics still render |
+| Services | no layer was handed to the dock (`diagnostics.layer`, or a `wiring` report) | metrics render once `diagnostics` is handed over; a layer that failed to build says so |
 | React | no atom set was handed to the dock | an atom set asked nothing yet |
 
 ## BEH-QD-233: A guard may record that it exists
@@ -511,3 +514,92 @@ _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 ---
 
 _Next: [29 — The Subject Simulator](./29-devtools-simulator.md)_
+
+## BEH-QD-323: Diagnostics are sampled by the model, and a sample that changed nothing changes nothing
+
+> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) (amended, CCR-QD-200)
+
+```ts
+export const runDiagnostics: <ROut, E>(
+  store: DiagnosticsStore,
+  options?: DiagnosticsOptions<ROut, E>,
+) => Effect<void>;
+export const makeDiagnosticsStore: () => DiagnosticsStore;
+// <DevtoolsDock diagnostics={{ layer, collector, questions, intervalMillis }} />
+```
+
+The Services and React panels read four things that are pulled rather than
+pushed: the wiring report, port activity, hydration counts and the port-call
+collector's snapshot. Keeping them current used to be a loop each host wrote —
+a timer, an `Effect.runSync` and a layer provided by hand — and the one host
+that wrote it did so twice and read a throwaway cache. It is written once, in
+the headless model.
+
+```
+REQUIREMENT: Sampling MUST be pull-based: a read on a schedule, never a write on
+             an evaluation's hot path.
+```
+
+[BEH-QD-216](#beh-qd-216-port-activity-is-a-passive-process-wide-aggregate) and
+[ADR-QD-052](../decisions/052-hydration-is-counted-where-both-ends-can-see-it.md)
+already say why. This behavior writes the pull once; it does not turn it into a
+push.
+
+```
+REQUIREMENT: A layer handed over MUST be built once per run, and released when
+             the run is interrupted.
+```
+
+Building it per sample rebuilt every port every tick, and could not run an
+asynchronous layer. It is still *its own build*: a service that keeps state in
+its constructor, such as `decisionCacheLayer`'s cache, is shared with the
+application only when the host shares it by value, by handing the same context
+to both as `Layer.succeedContext`.
+
+```
+REQUIREMENT: A snapshot MUST keep its identity while it is structurally
+             unchanged, and a field that did not change MUST keep its own
+             reference.
+```
+
+`useSyncExternalStore` compares by identity and every read builds fresh objects,
+so without this a dock re-renders on every tick whether or not anything moved.
+
+```
+REQUIREMENT: A layer that fails to build MUST be stated, and the other reads MUST
+             keep sampling.
+```
+
+The wiring read is a closed `WiringRead`: `NotHanded`, `Failed` with the reason,
+or `Read` with the report. A run that died on the failure would leave every
+panel blank, which [BEH-QD-218](#beh-qd-218-every-screen-degrades-to-an-explanation)
+forbids.
+
+```
+REQUIREMENT: A reading supplied explicitly to the dock MUST take precedence over
+             a sampled one, field by field.
+```
+
+The snapshot props answer a different question: what another process, or a
+fixture, reported. Sampling this process cannot supply it.
+
+Gates are not sampled. They stay a prop the host feeds from its subscription to
+`@qadi/react`'s registry ([ADR-QD-080](../decisions/080-a-gate-registry-belongs-to-its-atom-set.md)).
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
+import { decisionCacheLayer } from "@qadi/core";
+import { makeDiagnosticsStore, runDiagnostics } from "@qadi/devtools";
+
+export const sampleOnce = Effect.gen(function* () {
+  const store = makeDiagnosticsStore();
+  const run = yield* Effect.forkChild(
+    runDiagnostics(store, { layer: decisionCacheLayer() }),
+    { startImmediately: true },
+  );
+  const wiring = store.getSnapshot().wiring._tag;
+  yield* Fiber.interrupt(run);
+  return wiring;
+});
+```

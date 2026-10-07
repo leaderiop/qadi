@@ -8,9 +8,13 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import { render, screen, within } from "@testing-library/react";
+import { WiringRead } from "../../src/model/DiagnosticsStore.ts";
 import { ServicesPanel } from "../../src/react/ServicesPanel.tsx";
 import type { PortCall, PortCallLog } from "../../src/model/PortCalls.ts";
 import type { PortActivity, WiringReport } from "../../src/model/Wiring.ts";
+
+/** The state the dock hands the panel when a report was read. */
+const read = (report: WiringReport): WiringRead => WiringRead.Read({ report });
 
 const wiring: WiringReport = {
   ports: [
@@ -54,7 +58,7 @@ const cardFor = (port: string) =>
 describe("the services panel", () => {
   // E4.1
   it("names a wired implementation", () => {
-    render(<ServicesPanel wiring={wiring} activity={[]} />);
+    render(<ServicesPanel wiring={read(wiring)} activity={[]} />);
     assert.strictEqual(
       within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-port-state").textContent,
       "attributeResolverFromRecord",
@@ -63,7 +67,7 @@ describe("the services panel", () => {
 
   // E4.2 — the distinction the whole card exists for.
   it("an unnamed but present port says 'wired, unnamed', never 'unwired'", () => {
-    render(<ServicesPanel wiring={wiring} activity={[]} />);
+    render(<ServicesPanel wiring={read(wiring)} activity={[]} />);
     const card = cardFor("RelationshipResolver") ?? fail();
 
     assert.strictEqual(within(card).getByTestId("qadi-port-state").textContent, "wired, unnamed");
@@ -72,12 +76,12 @@ describe("the services panel", () => {
 
   // E4.3 — the word must not appear for a required port at all.
   it("never uses the word 'unwired' anywhere", () => {
-    render(<ServicesPanel wiring={wiring} activity={[]} />);
+    render(<ServicesPanel wiring={read(wiring)} activity={[]} />);
     assert.notInclude(screen.getByTestId("qadi-services").textContent ?? "", "unwired");
   });
 
   it("states what being defaulted costs", () => {
-    render(<ServicesPanel wiring={wiring} activity={[]} />);
+    render(<ServicesPanel wiring={read(wiring)} activity={[]} />);
     assert.include(
       cardFor("AttributeResolver")?.textContent ?? "",
       "an attribute policy denies",
@@ -99,7 +103,7 @@ describe("the services panel", () => {
       ],
       cache: { present: false, size: undefined },
     };
-    render(<ServicesPanel wiring={defaulted} activity={[]} />);
+    render(<ServicesPanel wiring={read(defaulted)} activity={[]} />);
     const card = cardFor("AttributeResolver") ?? fail();
 
     assert.strictEqual(card.getAttribute("data-defaulted"), "true");
@@ -124,7 +128,7 @@ describe("the services panel", () => {
       ],
       cache: { present: false, size: undefined },
     };
-    render(<ServicesPanel wiring={real} activity={[]} />);
+    render(<ServicesPanel wiring={read(real)} activity={[]} />);
     const card = cardFor("AttributeResolver") ?? fail();
 
     assert.strictEqual(card.getAttribute("data-defaulted"), "false");
@@ -136,7 +140,7 @@ describe("the services panel", () => {
   });
 
   it("says nothing about defaulting for a row that is not a port", () => {
-    render(<ServicesPanel wiring={wiring} activity={[]} />);
+    render(<ServicesPanel wiring={read(wiring)} activity={[]} />);
     assert.isNull(cardFor("DecisionCache")?.getAttribute("data-defaulted") ?? null);
   });
 
@@ -157,7 +161,7 @@ describe("the services panel", () => {
     };
     render(
       <ServicesPanel
-        wiring={sigWiring}
+        wiring={read(sigWiring)}
         activity={[]}
         portCalls={logOf([
           {
@@ -193,7 +197,7 @@ describe("the services panel", () => {
   it("a call that ran more than once says how many times", () => {
     render(
       <ServicesPanel
-        wiring={wiring}
+        wiring={read(wiring)}
         activity={[]}
         portCalls={logOf([
           {
@@ -230,7 +234,7 @@ describe("the services panel", () => {
     const activity: ReadonlyArray<PortActivity> = [
       { port: "AttributeResolver", calls: 12, retries: 2, timeouts: 0, translationCalls: 0 },
     ];
-    render(<ServicesPanel wiring={wiring} activity={activity} />);
+    render(<ServicesPanel wiring={read(wiring)} activity={activity} />);
 
     assert.include(
       within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-port-activity")
@@ -247,7 +251,7 @@ describe("the services panel", () => {
 
   it("does not mention retries when there were none", () => {
     render(
-      <ServicesPanel wiring={wiring} activity={[{ port: "AttributeResolver", calls: 1, retries: 0, timeouts: 0, translationCalls: 0 }]} />,
+      <ServicesPanel wiring={read(wiring)} activity={[{ port: "AttributeResolver", calls: 1, retries: 0, timeouts: 0, translationCalls: 0 }]} />,
     );
     assert.strictEqual(
       within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-port-activity").textContent,
@@ -258,7 +262,7 @@ describe("the services panel", () => {
   it("shows the timeouts beside the retries", () => {
     render(
       <ServicesPanel
-        wiring={wiring}
+        wiring={read(wiring)}
         activity={[{ port: "AttributeResolver", calls: 3, retries: 2, timeouts: 1, translationCalls: 0 }]}
       />,
     );
@@ -269,7 +273,7 @@ describe("the services panel", () => {
   });
 
   it("says the counts are process-wide, not per decision", () => {
-    render(<ServicesPanel wiring={wiring} activity={[]} />);
+    render(<ServicesPanel wiring={read(wiring)} activity={[]} />);
     // A reader who attributed one of these numbers to one row would be wrong,
     // and nothing else on the screen would tell them.
     assert.include(
@@ -280,7 +284,7 @@ describe("the services panel", () => {
 
   // E4.6
   it("with no layer handed to it, still renders the metrics and says why the rest is missing", () => {
-    render(<ServicesPanel wiring={undefined} activity={[]} />);
+    render(<ServicesPanel wiring={WiringRead.NotHanded()} activity={[]} />);
 
     assert.include(screen.getByTestId("qadi-wiring-absent").textContent ?? "", "wiring");
     assert.deepStrictEqual(screen.queryAllByTestId("qadi-port"), []);
@@ -290,14 +294,14 @@ describe("the services panel", () => {
 
   // E4.4 and E4.9
   it("an absent cache says absent", () => {
-    render(<ServicesPanel wiring={wiring} activity={[]} />);
+    render(<ServicesPanel wiring={read(wiring)} activity={[]} />);
     assert.strictEqual(screen.getByTestId("qadi-cache-size").textContent, "absent");
   });
 
   it("a wired cache reports its completed entries", () => {
     render(
       <ServicesPanel
-        wiring={{ ...wiring, cache: { present: true, size: 7 } }}
+        wiring={read({ ...wiring, cache: { present: true, size: 7 } })}
         activity={[]}
       />,
     );
@@ -306,7 +310,7 @@ describe("the services panel", () => {
 
   // E4.10 — two different buttons for two different things.
   it("says a cache flush is not the same as clearing the log", () => {
-    render(<ServicesPanel wiring={wiring} activity={[]} />);
+    render(<ServicesPanel wiring={read(wiring)} activity={[]} />);
     assert.include(
       screen.getByTestId("qadi-cache-card").textContent ?? "",
       "differs from clearing",
@@ -315,7 +319,7 @@ describe("the services panel", () => {
 
   // E4.11 — the bound is capacity, evicted by insertion order.
   it("offers no TTL, and says the bound is capacity", () => {
-    render(<ServicesPanel wiring={wiring} activity={[]} />);
+    render(<ServicesPanel wiring={read(wiring)} activity={[]} />);
     const card = screen.getByTestId("qadi-cache-card").textContent ?? "";
 
     assert.include(card.replace(/\s+/g, " "), "there is no time-to-live");
@@ -352,7 +356,7 @@ describe("recent port calls", () => {
   it("labels a call the translation made, and leaves the evaluator's unlabelled", () => {
     render(
       <ServicesPanel
-        wiring={wiring}
+        wiring={read(wiring)}
         activity={[]}
         portCalls={logOf([
           attributeCall({ interpreter: "toPredicate", attribute: "riskScore" }),
@@ -370,7 +374,7 @@ describe("recent port calls", () => {
   it("counts the translation's calls beside the evaluator's", () => {
     render(
       <ServicesPanel
-        wiring={wiring}
+        wiring={read(wiring)}
         activity={[{ port: "AttributeResolver", calls: 2, retries: 0, timeouts: 0, translationCalls: 3 }]}
       />,
     );
@@ -383,7 +387,7 @@ describe("recent port calls", () => {
 
   // E3.1 — a card with no list looks exactly like a port nothing asked.
   it("says what the detail would take when no collector is wired", () => {
-    render(<ServicesPanel wiring={wiring} activity={[]} />);
+    render(<ServicesPanel wiring={read(wiring)} activity={[]} />);
 
     assert.include(
       within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-calls-uncollected")
@@ -396,7 +400,7 @@ describe("recent port calls", () => {
   it("puts each call under the port that made it", () => {
     render(
       <ServicesPanel
-        wiring={wiring}
+        wiring={read(wiring)}
         activity={[]}
         portCalls={logOf([
           attributeCall(),
@@ -428,7 +432,7 @@ describe("recent port calls", () => {
   it("says whether a value came back, and never what it was", () => {
     render(
       <ServicesPanel
-        wiring={wiring}
+        wiring={read(wiring)}
         activity={[]}
         portCalls={logOf([
           attributeCall({ attribute: "a", resolved: true }),
@@ -451,7 +455,7 @@ describe("recent port calls", () => {
   it("reads an unrecorded field as not recorded, rather than blank", () => {
     render(
       <ServicesPanel
-        wiring={wiring}
+        wiring={read(wiring)}
         activity={[]}
         portCalls={logOf([attributeCall({ attribute: undefined })])}
       />,
@@ -467,7 +471,7 @@ describe("recent port calls", () => {
   it("marks a call still in flight rather than timing it at zero", () => {
     render(
       <ServicesPanel
-        wiring={wiring}
+        wiring={read(wiring)}
         activity={[]}
         portCalls={logOf([attributeCall({ durationMillis: undefined })])}
       />,
@@ -483,7 +487,7 @@ describe("recent port calls", () => {
   it("shows a handful and says how many it did not", () => {
     render(
       <ServicesPanel
-        wiring={wiring}
+        wiring={read(wiring)}
         activity={[]}
         portCalls={logOf(
           Array.from({ length: 8 }, (_, index) => attributeCall({ attribute: `a${index}` })),
@@ -498,7 +502,7 @@ describe("recent port calls", () => {
 
   it("adds nothing to a port that was never called", () => {
     render(
-      <ServicesPanel wiring={wiring} activity={[]} portCalls={logOf([attributeCall()])} />,
+      <ServicesPanel wiring={read(wiring)} activity={[]} portCalls={logOf([attributeCall()])} />,
     );
 
     assert.isEmpty(
@@ -513,7 +517,7 @@ describe("recent port calls", () => {
       { port: "AttributeResolver", calls: 91, retries: 0, timeouts: 0, translationCalls: 0 },
     ];
     render(
-      <ServicesPanel wiring={wiring} activity={activity} portCalls={logOf([attributeCall()])} />,
+      <ServicesPanel wiring={read(wiring)} activity={activity} portCalls={logOf([attributeCall()])} />,
     );
 
     const card = within(cardFor("AttributeResolver") ?? fail());
@@ -531,7 +535,7 @@ describe("recent port calls", () => {
   it("names the depth when one was asked, and says 'no answer' when none came back", () => {
     render(
       <ServicesPanel
-        wiring={wiring}
+        wiring={read(wiring)}
         activity={[]}
         portCalls={logOf([
           {
@@ -584,7 +588,7 @@ describe("recent port calls", () => {
 
     render(
       <ServicesPanel
-        wiring={customAndSignatureWiring}
+        wiring={read(customAndSignatureWiring)}
         activity={[]}
         portCalls={logOf([
           {

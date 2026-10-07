@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-02                                    |
-> | Revision       | 0.11 (draft)                                   |
+> | Revision       | 0.12 (draft)                                   |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.11 (2026-10-07): §5 states the session, the signatures row and the refused run (ARCH-20, CCR-QD-199)<br>0.10 (2026-10-07): §2 and §6 say five port spans and four other ports; §6 names the registry's card order and says what a defaulted card shows (`PortReport.defaulted`), and its counts of `name?` shapes and required services are corrected (ARCH-21, CCR-QD-198)<br>0.9 (2026-10-05): §6 names a decision log's `clear` in place of the removed `decisionSinkRing`'s (CCR-QD-181)<br>0.8 (2026-08-24): §7's gap notes closed against what was built — hydration counts (CCR-QD-072) and the instance registry and lens (CCR-QD-073); recorded in CCR-QD-074<br>0.7 (2026-08-24): The resolver-call gap closed, and the note corrected — annotating the spans was half of it, and a reader was the other half (CCR-QD-071)<br>0.6 (2026-08-24): Screen 5 built, and §5 corrected on two counts it had asserted since the first draft — it runs on `@qadi/core`'s own layers rather than `@qadi/testing`'s, and "never against live resolvers" was the wrong rule (CCR-QD-070)<br>0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.12 (2026-10-07): §6 and §7 say the dock samples the diagnostics when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>0.11 (2026-10-07): §5 states the session, the signatures row and the refused run (ARCH-20, CCR-QD-199)<br>0.10 (2026-10-07): §2 and §6 say five port spans and four other ports; §6 names the registry's card order and says what a defaulted card shows (`PortReport.defaulted`), and its counts of `name?` shapes and required services are corrected (ARCH-21, CCR-QD-198)<br>0.9 (2026-10-05): §6 names a decision log's `clear` in place of the removed `decisionSinkRing`'s (CCR-QD-181)<br>0.8 (2026-08-24): §7's gap notes closed against what was built — hydration counts (CCR-QD-072) and the instance registry and lens (CCR-QD-073); recorded in CCR-QD-074<br>0.7 (2026-08-24): The resolver-call gap closed, and the note corrected — annotating the spans was half of it, and a reader was the other half (CCR-QD-071)<br>0.6 (2026-08-24): Screen 5 built, and §5 corrected on two counts it had asserted since the first draft — it runs on `@qadi/core`'s own layers rather than `@qadi/testing`'s, and "never against live resolvers" was the wrong rule (CCR-QD-070)<br>0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -294,7 +294,8 @@ reports is *defaulted to a fail-closed implementation* (BEH-QD-215), which
 `PortReport.defaulted` now says outright for a port's own default.
 
 **Closed — `PortMetrics` counts both**, and `portActivity` reads them with zero
-wiring. That answers the question `name` cannot: a store that is wired but never
+wiring, on a schedule the model owns: `runDiagnostics` samples it, and the dock
+runs that when handed `diagnostics` (BEH-QD-323). That answers the question `name` cannot: a store that is wired but never
 consulted and one that is not wired at all are opposite problems with the same
 symptom. The counts are process-wide aggregates and the panel says so
 (BEH-QD-216).
@@ -334,7 +335,7 @@ conflate the two. (Corrected 2026-10-05, CCR-QD-181: this named
 - **Hydration** — dehydrated and seeded entry counts, re-checked count, mismatch
   count (a mismatch = the server allow no longer holds client-side), one row per
   drop reason that fired, and "Invalidate all". **Built**, read passively with
-  `hydrationActivity`.
+  `hydrationActivity`, sampled by `runDiagnostics`.
 
 **Rescoped, built, and then built the rest of the way.** The panel is keyed by
 **question** and says so on screen, because a reader counting rows against their

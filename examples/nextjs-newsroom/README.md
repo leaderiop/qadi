@@ -30,7 +30,7 @@ consumer gets. `pnpm build` first, therefore.
 | `src/server/runtime.ts` | One `ManagedRuntime` per process, pinned to `globalThis`. |
 | `src/server/decide.ts` | Name the questions, decide them in one pass, project the answers. |
 | `src/client/Providers.tsx` | `hydrateDecisions` → `initialValues` → `QadiProvider`. |
-| `src/client/Dock.tsx` | The dock with **all twelve** `DevtoolsDockProps` fields wired. |
+| `src/client/Dock.tsx` | The dock, wired the way a host would copy it: `diagnostics` samples the Services and React panels, and no host-side timer remains. |
 | `src/domain/` | Six policies chosen for coverage: every port, a rule table, a negation, an obligation, field restriction, and the label lattice. |
 
 Four topologies are hosted: client-only (`/spa`), SSR/hydration (`/newsroom`),

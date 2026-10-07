@@ -16,8 +16,8 @@
  * available (`run`). A run that was superseded never lands (`generation`). And a
  * result is shown only for the question it answered (`stale`, `baseline`).
  *
- * The store is a closure with a listener set, the shape `TimelineStore.ts`
- * uses; commands are synchronous and notify once. `run` is an Effect the caller
+ * The store is a closure over `makeExternalStore`, the mechanics
+ * `TimelineStore.ts` shares; commands are synchronous and notify once. `run` is an Effect the caller
  * forks: model code never forks on its own behalf.
  */
 import * as Effect from "effect/Effect";
@@ -26,6 +26,7 @@ import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
 import * as Match from "effect/Match";
 import type { DecisionOutcome, Policy } from "@qadi/core";
+import { makeExternalStore } from "./ExternalStore.ts";
 import { capturing, type CapturedAnswers } from "./Capture.ts";
 import type { PolicySighting } from "./Catalogue.ts";
 import { baselineDiff, replayInput, type Baseline, type UnseededField } from "./Replay.ts";
@@ -246,8 +247,6 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
   let current: Fiber.Fiber<unknown, unknown> | undefined;
   const retired: Array<Fiber.Fiber<unknown, unknown>> = [];
 
-  const listeners = new Set<() => void>();
-
   const policyChoice = (): PolicyChoice => {
     if (seeded !== undefined && seedEntry !== undefined) {
       return { _tag: "Seeded", entry: seedEntry, policy: seeded.policy, unseeded: seeded.unseeded };
@@ -323,12 +322,11 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
     };
   };
 
-  let latest = build();
+  const store = makeExternalStore(build());
 
   /** Rebuilds the snapshot and tells every subscriber, once per command. */
   const commit = () => {
-    latest = build();
-    for (const listener of listeners) listener();
+    store.publish(build());
   };
 
   /**
@@ -444,14 +442,9 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
   });
 
   const session: SimulationSession = {
-    subscribe: (listener) => {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
+    subscribe: store.subscribe,
 
-    getSnapshot: () => latest,
+    getSnapshot: store.getSnapshot,
 
     setSightings: (next) => {
       if (sameElements(next, sightings)) return;

@@ -1,14 +1,19 @@
 "use client";
 /**
- * The dock, with every prop supplied.
+ * The dock, wired the way a host would copy it.
  *
- * `DevtoolsDockProps` has thirteen optional fields and a dock mounted with none
+ * `DevtoolsDockProps` has fifteen optional fields and a dock mounted with none
  * of them still renders every tab — each empty screen saying why it is empty
  * ([BEH-QD-218](../../../../spec/behaviors/28-devtools-screens.md)). That is the
  * right default and it is not what this example is for: the point here is to
- * wire twelve of the thirteen (all but `capacity`, which has a sensible
- * default), because the wiring is the part no unit test can prove and the
- * part a reader actually has to copy.
+ * wire the ones a host supplies — `source`, `catalogue`, `diagnostics`, `gates`,
+ * `unknownParents`, `hydrationMismatches`, `onInvalidate` and `ports` — because
+ * the wiring is the part no unit test can prove and the part a reader actually
+ * has to copy. `capacity` has a sensible default. `wiring`, `activity`,
+ * `portCalls`, `hydration` and `questions` are deliberately **not** passed:
+ * they carry a reading taken *elsewhere* (another process, a fixture), and
+ * `diagnostics` samples this one for the dock, so the host runs no loop of its
+ * own.
  *
  * **The source is two sources.** The server's decisions arrive over SSE from
  * `/api/__decisions` — its backlog first, then live, each frame labelled by the
@@ -19,19 +24,13 @@
  * is what makes the log show them as a pair rather than as two unrelated rows
  * in two panels. No environment is named here: each producer names its own.
  */
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import * as Effect from "effect/Effect";
 import { permissionKey, resolveRoleGraph } from "@qadi/core";
 import type { Role } from "@qadi/core";
-import {
-  hydrationActivity,
-  mergeSources,
-  portActivity,
-  sourceFromEventSource,
-  wiringReport,
-} from "@qadi/devtools";
-import type { HydrationActivity, PortActivity, PortCallLog, WiringReport } from "@qadi/devtools";
+import { mergeSources, sourceFromEventSource } from "@qadi/devtools";
 import { DevtoolsDock } from "@qadi/devtools/react";
+import type { DiagnosticsDockOptions } from "@qadi/devtools/react";
 import { useGateInstances, useInvalidate, useSubject } from "@qadi/react";
 import { catalogue } from "../domain/policies.ts";
 import { readDevtools } from "../domain/permissions.ts";
@@ -92,23 +91,27 @@ void Effect.runSync(
 );
 
 /**
- * Re-read on a timer.
+ * What the dock samples for the Services and React panels.
  *
- * `wiringReport`, `portActivity` and `hydrationActivity` are pull-based: they
- * read the metric registry and the context rather than pushing. A subscription
- * would need the library to publish on every port call, which is a cost every
- * production deployment would pay for a panel almost nobody has open. Two
- * seconds is a debug affordance's refresh rate.
+ * The wiring report, the port activity and the hydration counts are pull-based:
+ * they read the metric registry and the context rather than pushing, because a
+ * subscription would need the library to publish on every port call, a cost
+ * every production deployment would pay for a panel almost nobody has open.
+ * The dock runs that pull on a two-second schedule, builds `layer` once while
+ * it is mounted and keeps a reading's identity while nothing changed.
+ *
+ * `layer` is `browserLayer`, whose cache is built once at module scope
+ * (`atoms.ts`), so the dock's own build of it reads **the atoms' cache**, not a
+ * throwaway: a layer value built twice is two caches. `questions` is read off
+ * the atom set on the same schedule rather than subscribed to, for the reason
+ * `asked()` documents: the list only grows, and a panel that re-rendered on
+ * every question would re-render on every guard's first mount. Every value is at
+ * module scope, because the run restarts when one of them changes identity.
  */
-const useSampled = <A,>(read: Effect.Effect<A>, everyMillis = 2_000): A | undefined => {
-  const [value, setValue] = useState<A | undefined>(undefined);
-  useEffect(() => {
-    const sample = () => setValue(Effect.runSync(read));
-    sample();
-    const timer = setInterval(sample, everyMillis);
-    return () => clearInterval(timer);
-  }, [read, everyMillis]);
-  return value;
+export const diagnostics: DiagnosticsDockOptions = {
+  layer: browserLayer,
+  collector: clientPortCalls,
+  questions: () => atoms.asked(),
 };
 
 export const Dock = () => {
@@ -131,27 +134,6 @@ export const Dock = () => {
   // Read from the provider above this one, so it is this render's drops and
   // never another request's.
   const drops = useDrops();
-
-  const wiring: WiringReport | undefined = useSampled(
-    // The atoms' own layer, not just the ports — a report given a subset
-    // under-reports, and this one claimed the sink feeding the Log was absent.
-    useMemo(() => Effect.provide(wiringReport, browserLayer), []),
-  );
-  const activity: ReadonlyArray<PortActivity> | undefined = useSampled(portActivity);
-  const hydration: HydrationActivity | undefined = useSampled(hydrationActivity);
-  const [portCalls, setPortCalls] = useState<PortCallLog | undefined>(undefined);
-
-  useEffect(() => {
-    const sample = () => setPortCalls(Effect.runSync(clientPortCalls.snapshot));
-    sample();
-    const timer = setInterval(sample, 2_000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Questions are read off the atom set rather than subscribed to, for the
-  // reason `asked()` documents: the list only grows, and a panel that re-rendered
-  // on every question would re-render on every guard's first mount.
-  const questions = atoms.asked();
 
   const onInvalidate = useCallback(() => {
     invalidate();
@@ -193,13 +175,9 @@ export const Dock = () => {
       <DevtoolsDock
         source={source}
         catalogue={{ policies: catalogue, roles }}
-        {...(wiring === undefined ? {} : { wiring })}
-        activity={activity ?? []}
-        {...(portCalls === undefined ? {} : { portCalls })}
-        questions={questions}
+        diagnostics={diagnostics}
         gates={gates}
         unknownParents={unknownParents}
-        {...(hydration === undefined ? {} : { hydration })}
         hydrationMismatches={mismatches.length}
         onInvalidate={onInvalidate}
         ports={browserPorts}

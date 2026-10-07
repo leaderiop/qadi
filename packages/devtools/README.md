@@ -100,6 +100,32 @@ const source = sourceFromEventSource({
 Nothing in this package decides CORS. A browser reading a separate API origin is
 a deployment's call, and inventing one here would be the wrong place for it.
 
+## Keeping the Services and React panels current
+
+The wiring report, port activity, hydration counts and port calls are pulled, so
+something has to read them again. Hand the dock what you already own and it does
+the sampling:
+
+```ts
+import { DevtoolsDock } from "@qadi/devtools/react";
+
+// <DevtoolsDock diagnostics={{ layer: appLayer, collector, questions: () => atoms.asked() }} />
+```
+
+The layer is built once while the dock is mounted and released when it
+unmounts, a reading keeps its identity while it is unchanged, and a layer that
+fails to build is stated on the Services panel rather than leaving it blank.
+Hold the fields at module scope: the run restarts when one of them changes
+identity. `runDiagnostics` and `makeDiagnosticsStore` are the same loop without
+React, for a shell of your own.
+
+**The dock's build of your layer is its own build.** A service that keeps state
+in its constructor, such as `decisionCacheLayer`'s cache, is two instances if the
+dock and your application each build the layer, and the dock reports its own.
+Build the context once and give `Layer.succeedContext(context)` to both. The
+`wiring`, `activity`, `portCalls`, `hydration` and `questions` props remain for a
+reading taken elsewhere, and win over a sampled one.
+
 ## Environments
 
 `@qadi/core` never claims where it ran — it cannot know whether it is in a
@@ -111,8 +137,8 @@ one degrades to an unfamiliar badge rather than to a wrong answer.
 ## Status
 
 All seven screens are built, and `examples/nextjs-newsroom` mounts the dock with
-twelve of `DevtoolsDockProps`' thirteen optional fields wired (all but
-`capacity`, which has a sensible default). See
+the props a host supplies wired, and `diagnostics` doing the sampling (the
+snapshot props are deliberately left unpassed). See
 [`spec/devtools-spec/`](../../spec/devtools-spec) for the design and
 [behaviour 27](../../spec/behaviors/27-devtools-timeline.md) for the normative
 rules.

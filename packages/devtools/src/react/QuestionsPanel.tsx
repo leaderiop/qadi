@@ -23,27 +23,16 @@
  */
 import type { CSSProperties, FC } from "react";
 import { useEffect, useMemo, useRef } from "react";
-import type { Policy, Resource } from "@qadi/core";
+import type { Resource } from "@qadi/core";
 import { policyLabel } from "../model/Catalogue.ts";
-import type { GateGroup, GateInstanceLike } from "../model/Gates.ts";
+import type { AskedQuestionLike, GateGroup, GateInstanceLike } from "../model/Gates.ts";
 import { gateGroups, instancesAsking, isLocatable, locatableIds } from "../model/Gates.ts";
 import type { HydrationActivity } from "../model/Hydration.ts";
 import { unaccountedEntries } from "../model/Hydration.ts";
 import { button, colors, font, muted } from "./theme.ts";
 import { useLens } from "./useLens.ts";
 
-/**
- * One question an atom set has been asked.
- *
- * Structurally identical to `@qadi/react`'s `AskedQuestion` and deliberately
- * not imported from it: `@qadi/devtools` does not depend on `@qadi/react` and
- * should not start for one type. A host passes `atoms.asked()` straight in.
- */
-export interface AskedQuestionLike {
-  readonly policy: Policy;
-  /** Absent when the question was asked with no resource in scope. */
-  readonly resource?: Resource | undefined;
-}
+export type { AskedQuestionLike } from "../model/Gates.ts";
 
 export interface QuestionsPanelProps {
   readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
@@ -311,8 +300,9 @@ const LegacyMismatches: FC<{ readonly mismatches: number | undefined }> = ({ mis
   <>
     {mismatches === undefined ? (
       <span style={muted} data-testid="qadi-hydration-unwired">
-        no counts read. Pass <code>hydration</code> — the result of{" "}
-        <code>hydrationActivity</code>, which needs no wiring — to fill this in.
+        no counts read. Pass <code>{"diagnostics={{}}"}</code> to sample them, or{" "}
+        <code>hydration</code> — the result of <code>hydrationActivity</code>,
+        which needs no wiring — to fill this in.
       </span>
     ) : (
       <span data-testid="qadi-hydration-mismatches">
