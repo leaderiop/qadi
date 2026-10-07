@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-041                                   |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-10-04                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.2 (2026-10-04): `HydrationMismatch.seeded` is a `SeededDecision`, not a `Decision`; the stated reason for naming the policy from `decided.trace` ("a stand-in that names nothing") is corrected in a blockquote, original preserved (ADR-QD-078, CCR-QD-156)<br>1.1 (2026-09-07): The worked-example paraphrase updated to match ADR-QD-040's corrected denial text (issue 45, CCR-QD-114)<br>1.0 (2026-08-23): Initial release (CCR-QD-056) |
+> | Change History | 1.3 (2026-10-08): The confinement point is `DeveloperSignals.ts` and holds every developer signal `@qadi/react` raises, including `QadiProvider`'s three, each replaceable through `onDeveloperSignal`; the confinement is enforced by `no-ambient-console`; the deferral in Consequences is superseded in a blockquote (CCR-QD-203)<br>1.2 (2026-10-04): `HydrationMismatch.seeded` is a `SeededDecision`, not a `Decision`; the stated reason for naming the policy from `decided.trace` ("a stand-in that names nothing") is corrected in a blockquote, original preserved (ADR-QD-078, CCR-QD-156)<br>1.1 (2026-09-07): The worked-example paraphrase updated to match ADR-QD-040's corrected denial text (issue 45, CCR-QD-114)<br>1.0 (2026-08-23): Initial release (CCR-QD-056) |
 
 _Follows: [ADR-QD-039](./039-a-seed-is-not-an-authority.md), which made the
 client's answer supersede the seed and said nothing about telling anyone._
@@ -159,6 +159,12 @@ vanish" into "no relationship resolver could confirm the relation" in one line.
   either. Adding a house-style rule with this file exempted would be the way to
   make it one, and is deliberately deferred: one occurrence is not yet a pattern
   worth a gate.
+
+  > **Superseded in CCR-QD-203.** The trigger above fired: `QadiProvider.tsx`
+  > reached for `console.warn` three times (DA-06, ticket 153) and nothing
+  > failed. The confinement is now the `no-ambient-console` rule in
+  > `scripts/check-house-style.mjs`, with `DeveloperSignals.ts` the one exempt
+  > file. See the amendment at the end of this decision.
 - **`typeof process === "undefined"` is unreachable under Node**, so that branch
   is uncovered by the suite. `@qadi/react` has ample headroom against its 90%
   floor; recorded here so it reads as a known cost rather than an oversight.
@@ -174,3 +180,37 @@ The alternative — silent unless configured — makes the feature useless to
 precisely the developer it exists for, who does not know there is anything to
 configure. Defaulting to loud and providing an off switch is the right way round
 for a diagnostic.
+
+---
+
+## Amendment (2026-10-08, CCR-QD-203): one module for every developer signal, and a gate
+
+The file this decision names was `HydrationWarning.ts`. It is now
+`packages/react/src/DeveloperSignals.ts`, and it holds **every** developer-facing
+signal `@qadi/react` raises, not only the hydration ones: the mismatch warning,
+the gate-id collision, a dehydrated payload that mixed subjects, a hydration
+drop, and the three situations `QadiProvider` detects. They are one closed union
+with one sentence table, and `say` is the only `console` reference in the
+library.
+
+- **The provider's three signals are reportable.** `InstrumentedInProduction`
+  (`instrument` outside development), `AtomsReplaced` (the `atoms` prop changed
+  identity after mount) and `UnwritableGateRegistry` (`instrument` with a `gates`
+  registry `makeGateRegistry()` did not build) used to call `console.warn`
+  directly and could not be redirected. `QadiProviderProps.onDeveloperSignal`
+  receives them, replaces the development console default and runs in
+  production, the rule the other four signals already follow
+  ([ADR-QD-080](080-a-gate-registry-belongs-to-its-atom-set.md)'s gate-id
+  collision default is one of them and keeps its development-only default).
+  `InstrumentedInProduction` is told once per provider mount; without a reporter
+  its console line stays once per process.
+- **The confinement is a gate.** `no-ambient-console` fails any other
+  `packages/*/src` file that writes to `console` or reads `process.env`, and an
+  `EXEMPTIONS` entry must name a file that exists. The Consequences bullet that
+  called the confinement "a convention, not a gate" is superseded above.
+- **A refused payload is announced as a refusal.** `HydrationDrop` gains
+  `wholePayload`; the default warning no longer says "did not seed 0
+  decision(s)" for a payload refused whole.
+- **The meaning of each drop reason lives in core**, beside the union that
+  defines the reasons (`hydrationDropMeaning`). The console prints its `remedy`;
+  the devtools panel shows its `summary`.
