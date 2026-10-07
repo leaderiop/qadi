@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-29                                    |
-> | Revision       | 1.4                                            |
-> | Effective Date | 2026-10-05                                     |
+> | Revision       | 1.5                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-10-07): BEH-QD-220 — a source that cannot be honoured is refused, and a sweep runs the evaluations it stated; BEH-QD-225 — every field a replay names has a control; BEH-QD-322 — a simulation is a session (ADR-QD-047 and ADR-QD-050 amended, CCR-QD-199)<br>1.3 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.5 (2026-10-08): BEH-QD-322 — a chosen policy is held by value, not by its position in the rail; `choosePolicy` takes the policy, `PolicyChoice` gains `Evicted`, and the first policy shown is held (ARCH-33, INV-QD-106, CCR-QD-203)<br>1.4 (2026-10-07): BEH-QD-220 — a source that cannot be honoured is refused, and a sweep runs the evaluations it stated; BEH-QD-225 — every field a replay names has a control; BEH-QD-322 — a simulation is a session (ADR-QD-047 and ADR-QD-050 amended, CCR-QD-199)<br>1.3 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 _Previous: [28 — The Devtools Screens](./28-devtools-screens.md)_
 
@@ -380,6 +380,7 @@ export const makeSimulationSession: (init?: SimulationSessionInit) => Simulation
 export interface SimulationSession {
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => SimulationSnapshot;
+  readonly choosePolicy: (policy: Policy) => void;
   readonly run: (kind: "Run" | "Sweep") => Effect.Effect<void>;
   readonly reap: Effect.Effect<void>;
   readonly dispose: Effect.Effect<void>;
@@ -420,6 +421,32 @@ REQUIREMENT: A result MUST be shown only under the policy, the seed and the
 `stale` covers all three, and a baseline is present only for a result that ran
 against the current seed. Policies compare structurally, so a host rebuilding an
 equal policy each render does not mark a result stale.
+
+```
+REQUIREMENT: A chosen policy MUST be held by its value: a new decision, a reorder
+             or a shrink of the rail MUST NOT change it. A policy that leaves the
+             rail MUST stay chosen and be marked as no longer in the log. Before
+             any choice, the first policy shown is held.
+```
+
+The rail lists policies newest-decided first, so a decision on a policy below the
+head moves it to the head, and a policy's first decision inserts a row and shifts
+every index by one. A choice kept as an index would name another policy the next
+time the rail was rebuilt, and the next run would evaluate that one
+([INV-QD-106](../invariants.md)). `choosePolicy` therefore takes the policy, so an
+index that names nothing cannot be expressed, and `PolicyChoice.index` is a reading
+of the current rail, never an input. The choice is compared with `Equal.equals`, as
+a result's staleness is: each decision record is decoded on its own, so the policy
+object a sighting carries is replaced whenever a newer decision on it arrives, and
+only structural equality survives that.
+
+`PolicyChoice` is `None`, `Chosen` (listed, with its current index), `Evicted` (held
+but no longer listed, with its label) or `Seeded` (the policy of a replayed row). An
+`Evicted` policy is still the one a run evaluates; a view says it has left the log
+and does not swap it for a neighbour. The first policy shown is held when the rail
+first becomes non-empty and nothing is chosen or seeded, so the default does not
+follow the head either. Choosing a policy the rail does not list holds it as
+`Evicted` at once.
 
 ```
 REQUIREMENT: The form's text MUST round-trip every input it can display.

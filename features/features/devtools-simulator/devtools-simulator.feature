@@ -118,3 +118,11 @@ Feature: Asking what would happen, and checking it against what did
     When the reviewer turns the pair sweep on and runs a sweep
     Then the sweep ran exactly the evaluations the plan stated
 
+  Scenario: A chosen policy survives a decision that reorders the rail
+    # The rail lists policies newest-decided first, so a decision on a policy
+    # below the head moves it to the head. A choice kept as a position would then
+    # name another policy, and the next run would evaluate that one instead.
+    Given a simulation session over a log that saw "clearance" and then "doc:read", with "clearance" chosen
+    When a newer decision on "clearance" is logged and the session is told the new rail
+    Then the chosen policy is still "clearance"
+    And a run evaluates "clearance"

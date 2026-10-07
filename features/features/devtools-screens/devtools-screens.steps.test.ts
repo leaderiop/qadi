@@ -182,6 +182,18 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     yield* patch(() => ({ declared, catalogue: catalogueOf(s.timeline, declared) }));
   });
 
+  Given(
+    "the application declares {string} and {string} as the same policy that has never run",
+    function* (first: string, second: string) {
+      const s = yield* readState();
+      const declared = {
+        ...s.declared,
+        policies: { [first]: hasPermission(write), [second]: hasPermission(write) },
+      };
+      yield* patch(() => ({ declared, catalogue: catalogueOf(s.timeline, declared) }));
+    },
+  );
+
   Given("the {string} policy", function* (name: string) {
     yield* patch(() => ({ structural: inspect(named(name), undefined) }));
   });
