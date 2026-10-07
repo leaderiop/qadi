@@ -245,7 +245,7 @@ export interface AlignedNode {
  * results, in `explanationChildrenOf` order. It is how the two artifacts of
  * ADR-QD-027 are read side by side without being merged: `evaluateNode` emits one
  * trace node per policy node it evaluates, in declaration order, and `explain`
- * mirrors the policy, so the trace's `i`th child is the `i`th part's (INV-QD-NEXT).
+ * mirrors the policy, so the trace's `i`th child is the `i`th part's (INV-QD-103).
  * A part beyond the trace's children was never examined (INV-QD-005, INV-QD-020):
  * its node has `trace: undefined`, and so does everything beneath it. Trace
  * children beyond the parts are ignored.

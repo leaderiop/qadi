@@ -605,7 +605,7 @@ const formulaFor = (
  * `True` for an `anyOf` that may stop at an allow, and for a rule table the
  * condition that is `True` with the effect nothing later can beat (INV-QD-017).
  * So translation asks no port the evaluator would not, and fails on no port the
- * evaluator would not reach (INV-QD-NEXT).
+ * evaluator would not reach (INV-QD-058).
  *
  * **Pruning never changes a successful predicate**, which is why it is safe to
  * stop early and what Stryker cannot tell a reader. A pruned `Conjunction` child
@@ -726,7 +726,7 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
   }
 
   // Refusals first, and from the tree alone: they cannot depend on the subject
-  // or on what any port answers (BEH-QD-NEXT-c). Only then does anything run.
+  // or on what any port answers (BEH-QD-266). Only then does anything run.
   const compiled = compile(policy, subject, options?.action, fieldsCheck);
   if (compiled instanceof Refusal) {
     return yield* untranslatable(compiled.policyTag, compiled.reason);

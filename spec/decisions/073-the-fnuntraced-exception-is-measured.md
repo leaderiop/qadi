@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-073                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.4 (2026-10-07): note — `evaluateAllOf`, `evaluateAnyOf` and `evaluateRules` moved to `Walk.ts` with the interpreter; the set and the budget count (3) are unchanged (ADR-QD-100, CCR-QD-189). 1.3 (2026-10-05): addendum — a single child-walk driver replacing the three dispatchers was measured and not adopted; the three functions and the budget are unchanged (ARCH-13, CCR-QD-176)<br>1.2 (2026-10-04): amendment note only — the traced port reads it lists now live in `PortAccess.ts`; the three `fnUntraced` dispatchers and the budget are unchanged (ADR-QD-077, CCR-QD-153)<br>1.1 (2026-09-19): PN-01 — the Context section's comparison against AGENTS.md §5a's numbers corrected to cite the per-dispatch ratios that survive ADR-QD-034's 2026-09-07 addendum, rather than the "2–4%/under 1%" end-to-end figures that addendum retracts as stale<br>1.0 (2026-09-09): Initial release (issue #102, CCR-QD-145) |
+> | Change History | 1.5 (2026-10-07): cross-reference — a narrower, schedule-free stop stepper was measured separately and not adopted (ADR-QD-077 addendum, CCR-QD-192)<br>1.4 (2026-10-07): note — `evaluateAllOf`, `evaluateAnyOf` and `evaluateRules` moved to `Walk.ts` with the interpreter; the set and the budget count (3) are unchanged (ADR-QD-100, CCR-QD-189). 1.3 (2026-10-05): addendum — a single child-walk driver replacing the three dispatchers was measured and not adopted; the three functions and the budget are unchanged (ARCH-13, CCR-QD-176)<br>1.2 (2026-10-04): amendment note only — the traced port reads it lists now live in `PortAccess.ts`; the three `fnUntraced` dispatchers and the budget are unchanged (ADR-QD-077, CCR-QD-153)<br>1.1 (2026-09-19): PN-01 — the Context section's comparison against AGENTS.md §5a's numbers corrected to cite the per-dispatch ratios that survive ADR-QD-034's 2026-09-07 addendum, rather than the "2–4%/under 1%" end-to-end figures that addendum retracts as stale<br>1.0 (2026-09-09): Initial release (issue #102, CCR-QD-145) |
 
 ---
 
@@ -296,6 +296,9 @@ node that was evaluated by tag, independent of any span.
 > `anyOf` `First`/`Union`, and per-combinator concurrency workloads in
 > `Evaluate.bench.ts` (ARCH-13 T1). So does the BEH-QD-134 correction
 > (CCR-QD-171).
+>
+> A narrower proposal, a pure stop stepper with no schedule, was measured
+> separately: ADR-QD-077 addendum 2026-10-07.
 
 ---
 

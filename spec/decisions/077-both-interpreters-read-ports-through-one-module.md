@@ -5,11 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-077                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-04                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
+> | Change History | 1.1 (2026-10-07): addendum — a pure short-circuit stepper both interpreters would call was not adopted; the benchmark gate could not be met on a loaded machine (ARCH-26, CCR-QD-192)<br>1.0 (2026-10-04): Initial release (CCR-QD-153) |
 
 ---
 
@@ -161,3 +162,54 @@ from the description's `span`. Results are byte-identical —
 description carries `defect` beside `failure`. The defect *rule* — which causes are
 converted at all — stays here, in `catchPortDefect`
 ([ADR-QD-094](./094-a-port-is-described-once.md)).
+
+> **Addendum 2026-10-07 (CCR-QD-192) — a pure short-circuit stepper both interpreters would call was not adopted.**
+>
+> **What was proposed.** `ShortCircuit.ts` hands out inputs (a law, an effect), and
+> each interpreter combines one with its child's result by hand: three conjunctions,
+> written twice, six sites (`stepAllOf`, `stepAnyOf` and `evaluateRules`'s step in
+> `Walk.ts`; `Conjunction`, `Disjunction` and `RuleTable` in `Predicate.ts`'s `run`).
+> ARCH-26 proposed pure functions from a composite's configuration and one child's
+> certain outcome to `"Stop" | "Continue"` (`allOfStep`, `anyOfStepper`,
+> `rulesStepper`), selected once per node into a local, so that both interpreters
+> ask one question and each keeps what "certain" means for its own result type
+> (ADR-QD-024). It is not the driver ADR-QD-073's Rev 1.3 addendum measured and
+> dropped: no `Effect`, no loop and no schedule, the three `fnUntraced` dispatchers
+> and their folds stay where they are, and no closure is allocated per node.
+>
+> **What was measured.** The plan's gate (D-26-a) is an interleaved A/A control, so
+> that a variant is only compared where two identical copies of the code agree to
+> within 5%. It was run twice on the same commit, with the in-process harness
+> (live ESM bindings) over the 26 `Evaluate.bench.ts` workloads, on an Apple M3 Pro
+> (12 cores), Node v22.22.0. The machine was far from quiet: load averages of
+> 125 (session 1) and 126 to 63 (session 2), against the plan's advisory start
+> condition of below 4.
+>
+> | Session | Rounds x ms | Workloads where the A/A control (A2/A) differs by more than 5% | Largest A/A difference |
+> | ------- | ----------- | ------------------------------------------------------------- | ---------------------- |
+> | 1 | 5 x 150 | 23 of 26 | 57.5% (`wide`, A2/A = 1.575) |
+> | 2 | 9 x 250 | 14 of 26 | 51.5% (`obligation-heavy`, A2/A = 1.515) |
+>
+> A session is conclusive only when the A/A band is at most 5% on every workload.
+> Neither was, so neither could say whether a stepper costs 0% or 3%, which is the
+> smallest loss the gate was sized to refuse. Two consecutive inconclusive sessions
+> are DROP (D-26-a, D2): the burden of proof is on the change, as in ADR-QD-073.
+> The stepper itself was therefore not built into a variant for the gate; the plan's
+> orientation run on a quiet machine (spike, 1466 of 1466 unchanged core tests, V
+> inside the A/A band on all 26 workloads) is evidence that it is plausible, not a
+> measurement that meets the gate. The sessions were minutes apart, not an hour,
+> which does not change the verdict: the noise was in the control, not in a variant.
+>
+> **What stays.** The conjunctions stay in the interpreters. What pins them is now
+> stated directly: `ShortCircuit.test.ts`'s "both interpreters stop where the stop
+> rule says" tests enumerate every flat composite of up to three children and
+> generate up to eight, against an oracle written from ADR-QD-013 and INV-QD-017's
+> table, and kill each of six hand-made stop-rule mutants (a stop dropped or widened
+> in either interpreter) on their own. `ShortCircuit.test.ts` previously killed none
+> of them.
+>
+> **What would justify reopening it.** Two things: a measurement meeting the gate
+> (every A/A band at most 5%, no composite workload at least 3% slower by both
+> methods, the paired-vitest method run as well) on a quiet machine, or a fourth
+> combining algorithm or field strategy, which would make a third and fourth
+> hand-written conjunction. A new argument is not enough; it needs a new measurement.

@@ -11,6 +11,11 @@
  * changes both at once; the walk-equality property in `Predicate.test.ts` is what
  * makes any disagreement visible.
  *
+ * A shared stepper that decided the stop itself, one pure function per composite
+ * both interpreters would call, was measured and not adopted (ADR-QD-077
+ * addendum, 2026-10-07): the conjunctions stay in the interpreters, and
+ * `ShortCircuit.test.ts`'s agreement tests pin where each one stops.
+ *
  * Only the rules that name an *outcome* live here. `allOf` stops at its first
  * denial under every strategy and needs no function to say so.
  *

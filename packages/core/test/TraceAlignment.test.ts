@@ -1,5 +1,5 @@
 /**
- * INV-QD-NEXT: a trace lines up with its policy's explanation, position by position.
+ * INV-QD-103: a trace lines up with its policy's explanation, position by position.
  *
  * The alignment is produced in core (`evaluateNode` and the three composites emit
  * one trace child per evaluated part, in declaration order; `explain` mirrors the
@@ -75,7 +75,7 @@ const countPaths = (e: Explanation): number => {
   return 1 + parts.reduce((total, part) => total + countPaths(part), 0);
 };
 
-describe("foldAligned — INV-QD-NEXT", () => {
+describe("foldAligned — INV-QD-103", () => {
   const sampleArbitrary = FastCheck.oneof(policyArbitrary(), sharedPolicyArbitrary);
 
   it.effect("a trace node sits at the position its policy tag explains (A1, A2)", () =>
