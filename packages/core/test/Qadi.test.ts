@@ -2,6 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Data from "effect/Data";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Equal from "effect/Equal";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
@@ -15,6 +16,8 @@ import * as M from "../src/Matcher.ts";
 import * as Qadi from "../src/Qadi.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
+import { questionOf } from "../src/Question.ts";
+import type { Resource } from "../src/Resource.ts";
 import * as P from "../src/Policy.ts";
 import { forkAndSettle, subjectWith, testLayer } from "./helpers.ts";
 
@@ -655,9 +658,9 @@ describe("Qadi.filterStream", () => {
 
       const kept = yield* Stream.runCollect(
         Qadi.filterStream(policy, Stream.fromIterable(items), {
-          onObligations: (obligations) =>
+          onObligations: ({ decision }) =>
             Effect.sync(() => {
-              for (const o of obligations) discharged.push(o.id);
+              for (const o of decision.obligations) discharged.push(o.id);
             }),
         }),
       );
@@ -765,9 +768,9 @@ describe("Qadi obligations", () => {
       const discharged: Array<string> = [];
       const result = yield* Effect.succeed("payload").pipe(
         Qadi.enforce(audited, {
-          onObligations: (obligations) =>
+          onObligations: ({ decision }) =>
             Effect.sync(() => {
-              for (const o of obligations) discharged.push(o.id);
+              for (const o of decision.obligations) discharged.push(o.id);
             }),
         }),
       );
@@ -835,9 +838,9 @@ describe("Qadi obligations", () => {
       const seen: Array<string> = [];
       yield* Effect.succeed("x").pipe(
         Qadi.enforce(advised, {
-          onObligations: (obligations) =>
+          onObligations: ({ decision }) =>
             Effect.sync(() => {
-              for (const o of obligations) seen.push(o.id);
+              for (const o of decision.obligations) seen.push(o.id);
             }),
         }),
       );
@@ -903,9 +906,9 @@ describe("Qadi obligations", () => {
           { id: "c", state: "open" },
         ],
         {
-          onObligations: (obligations) =>
+          onObligations: ({ decision }) =>
             Effect.sync(() => {
-              for (const o of obligations) discharged.push(o.id);
+              for (const o of decision.obligations) discharged.push(o.id);
             }),
         },
       );
@@ -1006,4 +1009,154 @@ describe("Qadi.filter — concurrency across items", () => {
         ["a", "c"],
       );
     }));
+});
+
+describe("a handler is handed the question its allow answered", () => {
+  const logIt = obligation("log-access", { channel: "audit" });
+  const audited = P.obliged(logIt, canRead);
+  const reader = subjectWith({ id: "rania", permissions: ["doc:read"] });
+  const doc = { id: "doc-7", title: "Q3" };
+
+  /** Records every discharge a handler is handed, and every record a sink sees. */
+  const recorder = () => {
+    const discharges: Array<Qadi.ObligationDischarge> = [];
+    const rows: Array<SinkRecord> = [];
+    const sink = Layer.succeed(DecisionSink, {
+      record: (record) =>
+        Effect.sync(() => {
+          rows.push(record);
+        }),
+    });
+    const onObligations = (discharge: Qadi.ObligationDischarge) =>
+      Effect.sync(() => {
+        discharges.push(discharge);
+      });
+    return { discharges, rows, sink, onObligations };
+  };
+
+  /** What each entry point must have handed over. */
+  const expectDischarge = (r: ReturnType<typeof recorder>, resource: Resource | undefined) => {
+    assert.strictEqual(r.discharges.length, 1);
+    const [discharge] = r.discharges;
+    if (discharge === undefined) return;
+    assert.isTrue(
+      Equal.equals(
+        discharge.question,
+        questionOf(reader, audited, {
+          action: "read",
+          ...(resource === undefined ? {} : { resource }),
+        }),
+      ),
+    );
+    assert.strictEqual(discharge.question.subject.id, "rania");
+    assert.strictEqual(discharge.question.action, "read");
+    assert.deepStrictEqual(discharge.question.resource, resource);
+    assert.deepStrictEqual(discharge.decision.obligations, [logIt]);
+    const row = r.rows.find((record) => record._tag === "Obligations");
+    assert.strictEqual(row?.evaluationId, discharge.decision.evaluationId);
+  };
+
+  it.effect("assert", () =>
+    Effect.gen(function* () {
+      const r = recorder();
+      yield* Qadi.assert(audited, {
+        resource: doc,
+        action: "read",
+        onObligations: r.onObligations,
+      }).pipe(Effect.provide(r.sink));
+      expectDischarge(r, doc);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("enforce", () =>
+    Effect.gen(function* () {
+      const r = recorder();
+      yield* Effect.void.pipe(
+        Qadi.enforce(audited, { resource: doc, action: "read", onObligations: r.onObligations }),
+        Effect.provide(r.sink),
+      );
+      expectDischarge(r, doc);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("enforceProjected (resource-free)", () =>
+    Effect.gen(function* () {
+      const r = recorder();
+      yield* Effect.succeed(doc).pipe(
+        Qadi.enforceProjected(audited, { action: "read", onObligations: r.onObligations }),
+        Effect.provide(r.sink),
+      );
+      expectDischarge(r, undefined);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("enforceLoaded: the question's resource is the loaded value", () =>
+    Effect.gen(function* () {
+      const r = recorder();
+      yield* Effect.succeed(doc).pipe(
+        Qadi.enforceLoaded(audited, { action: "read", onObligations: r.onObligations }),
+        Effect.provide(r.sink),
+      );
+      expectDischarge(r, doc);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("enforceProjectedLoaded: the question's resource is the loaded value", () =>
+    Effect.gen(function* () {
+      const r = recorder();
+      yield* Effect.succeed(doc).pipe(
+        Qadi.enforceProjectedLoaded(audited, { action: "read", onObligations: r.onObligations }),
+        Effect.provide(r.sink),
+      );
+      expectDischarge(r, doc);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("guard", () =>
+    Effect.gen(function* () {
+      const r = recorder();
+      yield* Qadi.guard(read, audited, { action: "read", onObligations: r.onObligations })(
+        doc,
+        () => Effect.void,
+      ).pipe(Effect.provide(r.sink));
+      expectDischarge(r, doc);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("filter: the discharge is about the item it admitted", () =>
+    Effect.gen(function* () {
+      const r = recorder();
+      yield* Qadi.filter(audited, [doc], { action: "read", onObligations: r.onObligations }).pipe(
+        Effect.provide(r.sink),
+      );
+      expectDischarge(r, doc);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("filterProjected", () =>
+    Effect.gen(function* () {
+      const r = recorder();
+      yield* Qadi.filterProjected(audited, [doc], {
+        action: "read",
+        onObligations: r.onObligations,
+      }).pipe(Effect.provide(r.sink));
+      expectDischarge(r, doc);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("filterStream", () =>
+    Effect.gen(function* () {
+      const r = recorder();
+      yield* Stream.runCollect(
+        Qadi.filterStream(audited, Stream.make(doc), {
+          action: "read",
+          onObligations: r.onObligations,
+        }),
+      ).pipe(Effect.provide(r.sink));
+      expectDischarge(r, doc);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("filterStreamProjected", () =>
+    Effect.gen(function* () {
+      const r = recorder();
+      yield* Stream.runCollect(
+        Qadi.filterStreamProjected(audited, Stream.make(doc), {
+          action: "read",
+          onObligations: r.onObligations,
+        }),
+      ).pipe(Effect.provide(r.sink));
+      expectDischarge(r, doc);
+    }).pipe(Effect.provide(testLayer(reader))));
 });

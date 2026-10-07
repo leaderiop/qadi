@@ -30,7 +30,7 @@ import {
   decisionHistoryPort,
   attributeResolverPort,
 } from "@qadi/core";
-import type { EvaluateOptions, Obligation, Policy } from "@qadi/core";
+import type { EvaluateOptions, ObligationDischarge, Policy } from "@qadi/core";
 import { qadiReviewLayer, qadiTestLayer } from "@qadi/testing";
 import { NO_OUTCOME, subjectOf, toOutcome, World } from "./SharedWorld.ts";
 
@@ -107,8 +107,11 @@ export const runGuarded = Effect.fn("features.runGuarded")(function* (policy: Po
 
   const work = Ref.update(state, (s) => ({ ...s, workRan: true }));
 
-  const handler = (obligations: ReadonlyArray<Obligation>) =>
-    Ref.update(state, (s) => ({ ...s, discharged: [...s.discharged, ...obligations.map((o) => o.id)] }));
+  const handler = ({ decision }: ObligationDischarge) =>
+    Ref.update(state, (s) => ({
+      ...s,
+      discharged: [...s.discharged, ...decision.obligations.map((o) => o.id)],
+    }));
 
   const result = yield* work.pipe(
     enforce(policy, w.handlesObligations ? { onObligations: handler } : {}),

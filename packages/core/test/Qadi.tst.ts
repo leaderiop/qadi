@@ -23,7 +23,15 @@ import type { EvaluationServices } from "../src/Evaluate.ts";
 import { permission } from "../src/Permission.ts";
 import { hasPermission } from "../src/Policy.ts";
 import type { EnforcementError, EvaluationError, UndischargedObligation } from "../src/Errors.ts";
-import type { EnforceOptions, LoadedEnforceOptions } from "../src/Qadi.ts";
+import type { Allow } from "../src/Decision.ts";
+import type { Obligation } from "../src/Obligation.ts";
+import type { Question } from "../src/Question.ts";
+import type {
+  EnforceOptions,
+  LoadedEnforceOptions,
+  ObligationDischarge,
+  ObligationHandler,
+} from "../src/Qadi.ts";
 import { enforce, enforceLoaded, enforceProjected, enforceProjectedLoaded, filterProjected, guard } from "../src/Qadi.ts";
 
 const read = permission("doc", "read");
@@ -58,6 +66,17 @@ test("enforce's R channel is the wrapped effect's R, EvaluationServices, and onO
   type R = RequirementsOf<typeof enforced>;
 
   expect<R>().type.toBe<WrappedReq | EvaluationServices | ObligationReq>();
+});
+
+test("onObligations' parameter is the ObligationDischarge, not the bare obligation array", () => {
+  expect<Parameters<ObligationHandler>[0]>().type.toBe<ObligationDischarge>();
+  expect<ObligationDischarge["question"]>().type.toBe<Question>();
+  expect<ObligationDischarge["decision"]>().type.toBe<Allow>();
+
+  // The pre-ObligationDischarge shape, a bare array of obligations, no longer fits.
+  expect<
+    (obligations: ReadonlyArray<Obligation>) => Effect.Effect<void>
+  >().type.not.toBeAssignableTo<ObligationHandler>();
 });
 
 test("guard infers Authorized<P> from the literal permission argument, not a widened Permission", () => {

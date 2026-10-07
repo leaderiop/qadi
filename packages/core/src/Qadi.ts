@@ -30,12 +30,43 @@ import { AccessDenied, UndischargedObligation } from "./Errors.ts";
 import type { EnforcementError, EvaluationError } from "./Errors.ts";
 import type { EvaluateOptions, EvaluationServices } from "./Evaluate.ts";
 import { evaluate } from "./Evaluate.ts";
-import type { Obligation } from "./Obligation.ts";
+import { ask } from "./Lifecycle.ts";
 import { bindingObligations } from "./Obligation.ts";
 import type { Permission } from "./Permission.ts";
 import type { Policy } from "./Policy.ts";
+import type { Question } from "./Question.ts";
 import type { Resource } from "./Resource.ts";
 import { sinkEmitter } from "./SinkEmit.ts";
+
+/**
+ * What a handler is told when an allow carries obligations: the question the
+ * allow answered, and the allow itself.
+ *
+ * Built once by the lifecycle (`ask`, `Lifecycle.ts`) and handed over as it
+ * stands, never reconstructed: `question` is the very value the decision was
+ * cached and recorded under (ADR-QD-100), so a handler learns the decided
+ * subject, resource and action without reading any ambient service. That
+ * includes the subject — `question.subject` is who the allow was decided for,
+ * which is not necessarily whoever `CurrentSubject` holds when the handler runs.
+ *
+ * `decision.obligations` is the one source of the duties (ADR-QD-019: the
+ * obligations on a decision are those contributed by the allow that was
+ * actually returned). Constructed only by `discharge`; a test builds one with
+ * `questionOf` and an `Allow`.
+ *
+ * **What is stable across a retry, and what is not.** A caller that retries an
+ * enforcing call re-runs evaluation from the top, so the handler is called again.
+ * `question` is the same each time; `decision.evaluationId` is minted per
+ * attempt and so is NOT a per-request key. Two distinct requests (two approvals
+ * of one document) can also share a question, so a key derived from the
+ * question would merge them and silently drop a duty. A handler that must not
+ * double-fire keys on the caller's own request id, captured by the
+ * `onObligations` closure; the library mints no key (ADR-QD-019, as amended).
+ */
+export interface ObligationDischarge {
+  readonly question: Question;
+  readonly decision: Allow;
+}
 
 /**
  * Discharges the obligations attached to an allow.
@@ -48,25 +79,22 @@ import { sinkEmitter } from "./SinkEmit.ts";
  * that retries a failed or transiently-erroring enforcing call re-runs
  * evaluation and discharge from the top, so a handler with side effects — an
  * audit write, a "notify purpose server" webhook — WILL see the same
- * obligations again on retry (PH-01). This callback is handed no
- * evaluation-scoped correlation data to deduplicate with: `obligation.id` is
- * explicitly not an identity ({@link Obligation}), and neither the
- * subject nor the resource under evaluation is passed here. A handler that
- * must not double-fire needs to derive its own idempotency key from
- * whatever the caller's own request already carries; passing
- * `{ evaluationId, subjectId, resource }` through this callback so the
- * handler is not left deriving that key from nothing is a real gap, tracked
- * separately as an API-shape change rather than made here.
+ * obligations again on retry (PH-01). The handler is handed the facts of the
+ * request ({@link ObligationDischarge}: the subject, resource and action, and
+ * the allow), and `obligation.id` is explicitly not an identity
+ * (`Obligation`). A handler that must not double-fire derives its
+ * idempotency key from the caller's own request id, which the `onObligations`
+ * closure can capture; `decision.evaluationId` changes on every attempt.
  *
  * **Independent obligations are not parallelized by this module.** All of a
  * decision's obligations — advisory and binding alike — go to one call of
  * this handler; nothing here iterates them separately, so running two
  * unrelated obligations (say, independent log writes) concurrently is this
  * handler's own choice — `Effect.forEach` with a `concurrency` option over
- * the array it receives — not a behavior the library provides for it.
+ * `discharge.decision.obligations` — not a behavior the library provides for it.
  */
 export interface ObligationHandler<E = never, R = never> {
-  (obligations: ReadonlyArray<Obligation>): Effect.Effect<void, E, R>;
+  (discharge: ObligationDischarge): Effect.Effect<void, E, R>;
 }
 
 export interface EnforceOptions<E = never, R = never> extends EvaluateOptions {
@@ -103,9 +131,10 @@ const withLoadedResource = <E, R>(
 ): EnforceOptions<E, R> => ({ ...options, resource });
 
 const discharge = Effect.fn("qadi.discharge")(function* <E, R>(
-  decision: Allow,
+  asked: ObligationDischarge,
   handler: ObligationHandler<E, R> | undefined,
 ): Effect.fn.Return<void, UndischargedObligation | E, R> {
+  const { decision } = asked;
   // Nothing to discharge and nothing to report, so an allow carrying no duties
   // costs exactly what it did before this existed.
   if (decision.obligations.length === 0) return;
@@ -122,7 +151,7 @@ const discharge = Effect.fn("qadi.discharge")(function* <E, R>(
   // The handler sees advisory obligations too: advice is information the caller
   // may act on, and only its *binding* siblings can block.
   if (handler !== undefined) {
-    return yield* handler(decision.obligations).pipe(
+    return yield* handler(asked).pipe(
       // `tapError` before `tap`, so a handler that fails reports
       // `HandlerFailed` and then fails unchanged — the sink cannot convert a
       // caller's error into a success or vice versa.
@@ -172,10 +201,10 @@ const permitted = <E = never, R = never>(
   options?: EnforceOptions<E, R>,
 ): Effect.Effect<Allow, EnforcementError | E, EvaluationServices | R> =>
   Effect.flatMap(
-    evaluate(policy, options),
-    (decision): Effect.Effect<Allow, EnforcementError | E, R> =>
+    ask(policy, options),
+    ({ question, decision }): Effect.Effect<Allow, EnforcementError | E, R> =>
       isAllowed(decision)
-        ? Effect.as(discharge(decision, options?.onObligations), decision)
+        ? Effect.as(discharge({ question, decision }, options?.onObligations), decision)
         : Effect.fail(
             new AccessDenied({
               subjectId: decision.subjectId,
@@ -410,10 +439,10 @@ const decideOne = <A extends Resource, EO, RO>(
   EvaluationServices | RO
 > =>
   Effect.flatMap(
-    evaluate(policy, { ...options, resource: item }),
-    (decision): Effect.Effect<FilterVerdict<A>, UndischargedObligation | EO, RO> =>
+    ask(policy, { ...options, resource: item }),
+    ({ question, decision }): Effect.Effect<FilterVerdict<A>, UndischargedObligation | EO, RO> =>
       isAllowed(decision)
-        ? Effect.as(discharge(decision, options?.onObligations), {
+        ? Effect.as(discharge({ question, decision }, options?.onObligations), {
             item,
             allowed: true,
             decision,

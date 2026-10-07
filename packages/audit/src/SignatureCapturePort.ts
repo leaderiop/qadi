@@ -43,24 +43,52 @@
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
-import { CurrentSubject } from "@qadi/core";
-import type { Obligation, Signature, SignatureMeaning } from "@qadi/core";
+import { resourceIdOf } from "@qadi/core";
+import { ledgerEntryOf } from "./SignatureLedger.ts";
+import type { SignatureLedgerError, SignatureLedgerShape } from "./SignatureLedger.ts";
+import type {
+  ObligationDischarge,
+  Resource,
+  ResourceId,
+  Signature,
+  SignatureMeaning,
+} from "@qadi/core";
 
 export { SIGNATURE_MEANINGS } from "@qadi/core";
 export type { SignatureMeaning } from "@qadi/core";
 
 /**
- * Derived from the obligations a discharge is presenting, not hand-built by a
- * caller. `signerRole`, when supplied, threads straight into the produced
- * `Signature.signerRole` — a caller with role context can now populate the
- * field `@qadi/core`'s `Signature` carries; one that doesn't gets `undefined`,
- * unchanged from before this field existed.
+ * What a `capture` is asked to obtain: derived from the discharged question
+ * (ADR-QD-057, as amended), never hand-built by a caller.
+ *
+ * Carries the question's key, so an implementation can persist the signature
+ * where a resource-scoped `hasSignature` will look for it. The key fields are
+ * required rather than optional, so a constructor cannot forget them:
+ * `resourceId` is `undefined` when the question had no resource id, and
+ * `resource` and `action` are `undefined` when the question had none.
+ *
+ * `signerId` is the subject the allow was decided for (`question.subject.id`),
+ * not an ambient lookup. `signerRole`, when supplied, threads straight into the
+ * produced `Signature.signerRole` — a caller with role context can populate the
+ * field `@qadi/core`'s `Signature` carries; one that doesn't gets `undefined`.
  */
 export interface SignatureCaptureRequest {
   readonly meaning: string;
   readonly signerId: Signature["signerId"];
   readonly signerRole?: string;
   readonly obligationIds: ReadonlyArray<string>;
+  /** The evaluation whose allow carried the duty. Per attempt, not per request. */
+  readonly evaluationId: string;
+  /**
+   * `resourceIdOf(question.resource)`: the id a resource-scoped `hasSignature`
+   * asks `SignatureHistory` with, so the key a capture writes under and the key
+   * it is read under come from one rule.
+   */
+  readonly resourceId: ResourceId | undefined;
+  /** What the signer was doing, when the question said. */
+  readonly action: string | undefined;
+  /** The thing being signed, so a ceremony can show it. */
+  readonly resource: Resource | undefined;
 }
 
 export interface SignatureValidationResult {
@@ -98,6 +126,13 @@ export interface SignatureCapturePortShape {
    * check the deployment needs (a password re-prompt, an MFA challenge, a
    * hardware key) belongs here, entirely inside the implementation (see this
    * file's own header on why `@qadi/audit` does not model it).
+   *
+   * **Where the result goes.** When no `SignatureLedger` records the returned
+   * signature (`signatureObligationHandler`'s `ledger` option), an
+   * implementation MUST persist it where the deployment's `SignatureHistory`
+   * reads, keyed by `(signerId, resourceId)` from the request — or a
+   * resource-scoped `hasSignature` will never see it, and a signature stored
+   * with no resource would answer `scope: "Any"` for every resource.
    */
   readonly capture: (
     request: SignatureCaptureRequest,
@@ -140,17 +175,18 @@ export class SignatureCapturePort extends Context.Service<
  * vocabulary. `options.signerRole`, when given, reaches `capture()`'s
  * request, which is the only way a caller can actually set that field.
  *
- * **`signerId` is the ambient `CurrentSubject`, asserted, not verified — use
- * this handler only where that identity is the acting human.** The load-
- * bearing assumption this glue makes is that whoever the evaluation context
- * holds as `CurrentSubject` is the person performing the signing act. That is
- * true for an ordinary request-scoped evaluation, and false for a service
- * account, a batch runner, or (`SubjectSet.ts`'s own precedent) a review flow
- * evaluating on behalf of the subjects being reviewed — `SubjectSet.ts`
- * refuses to discharge obligations for exactly that reason. Reusing an
- * evaluation context whose `CurrentSubject` is not the signer attributes the
- * capture to the wrong party, and nothing here or in the type system catches
- * it.
+ * **The signer is the subject the allow was decided for**, carried on the
+ * discharged question (`discharge.question.subject.id`), not read from an
+ * ambient `CurrentSubject`: the handler needs no service, and a handler run
+ * under a different provision cannot sign as someone else. That is still an
+ * assertion that the decided subject is the acting human — true for an
+ * ordinary request-scoped evaluation, false for a service account or a batch
+ * runner — which is why `capture` must establish identity itself (see its
+ * doc).
+ *
+ * The request also carries the question's key (`resourceId`, `action`,
+ * `resource`, `evaluationId`), so what `capture` persists can be found again by
+ * a resource-scoped `hasSignature`.
  *
  * **`options.signerRole` is a static, unverified assertion by whoever wired
  * this handler, not an observation made at signing time.** It is fixed at
@@ -166,16 +202,45 @@ export class SignatureCapturePort extends Context.Service<
 export const signatureObligationHandler = (
   port: SignatureCapturePortShape,
   meaning: string | SignatureMeaning,
-  options?: { readonly signerRole?: string },
-) =>
-  Effect.fn("qadi.audit.signatureObligationHandler")(function* (
-    obligations: ReadonlyArray<Obligation>,
-  ) {
-    const subject = yield* CurrentSubject;
-    yield* port.capture({
-      meaning,
-      signerId: subject.id,
-      ...(options?.signerRole === undefined ? {} : { signerRole: options.signerRole }),
-      obligationIds: obligations.map((o) => o.id),
-    });
+  options?: { readonly signerRole?: string; readonly ledger?: SignatureLedgerShape },
+): ((
+  discharge: ObligationDischarge,
+) => Effect.Effect<void, SignatureCaptureError | SignatureLedgerError>) =>
+  Effect.fn("qadi.audit.signatureObligationHandler")(function* (discharge: ObligationDischarge) {
+    const request = captureRequestOf(discharge, meaning, options?.signerRole);
+    const signature = yield* port.capture(request);
+    // A capture that attests something other than what was asked must not
+    // discharge the duty, nor be recorded as though it had (INV-QD-055).
+    if (signature.signerId !== request.signerId || signature.meaning !== request.meaning) {
+      return yield* Effect.fail(
+        new SignatureCaptureError({
+          reason: "capture returned a signature for a different signer or meaning",
+        }),
+      );
+    }
+    // Without a ledger the capture port is the store, and persisting under the
+    // request's key is its contract (see `capture`).
+    if (options?.ledger === undefined) return;
+    yield* options.ledger.append(ledgerEntryOf(request, signature));
   });
+
+/**
+ * The one place a {@link SignatureCaptureRequest} is built: from a discharge.
+ *
+ * `resourceId` is `resourceIdOf(question.resource)`, the writer's half of the
+ * rule a resource-scoped `hasSignature` reads with.
+ */
+const captureRequestOf = (
+  discharge: ObligationDischarge,
+  meaning: string,
+  signerRole: string | undefined,
+): SignatureCaptureRequest => ({
+  meaning,
+  signerId: discharge.question.subject.id,
+  ...(signerRole === undefined ? {} : { signerRole }),
+  obligationIds: discharge.decision.obligations.map((o) => o.id),
+  evaluationId: discharge.decision.evaluationId,
+  resourceId: resourceIdOf(discharge.question.resource),
+  action: discharge.question.action,
+  resource: discharge.question.resource,
+});
