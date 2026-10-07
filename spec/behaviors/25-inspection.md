@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-25                                    |
-> | Revision       | 1.11                                           |
-> | Effective Date | 2026-10-06                                     |
+> | Revision       | 1.12                                           |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.11 (2026-10-06): BEH-QD-199 — version 2 only: a record with no `version` (version 1) or any other is refused as `UnsupportedVersion`, `SinkRecordJson` is the version-2 encoded type, `WireVersion`/`WIRE_VERSIONS` are `2`/`[2]`; BEH-QD-200 — "both outcomes" is only sayable in refused version-1 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.10 (2026-10-05): BEH-QD-199 — the wire is versioned: version 1 read for good, version 2 carries one tagged `outcome` and is what the encoder writes, any other version refused as `UnsupportedVersion`; the reader ignores an unknown top-level envelope key and still refuses one at any nested position (GH-01, ADR-QD-096); BEH-QD-200 — a decision record naming neither outcome, or both, is refused rather than given an invented `MissingResource` or a silently chosen `decided` (tickets 96, 155, CCR-QD-180)<br>1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-095, CCR-QD-179)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.12 (2026-10-07): BEH-QD-318 added — `foldPolicyCases`, each arm receiving its children in the tag's own shape; BEH-QD-300's closing sentence names which consumers use which form (ADR-QD-090 amendment, CCR-QD-190)<br>1.11 (2026-10-06): BEH-QD-199 — version 2 only: a record with no `version` (version 1) or any other is refused as `UnsupportedVersion`, `SinkRecordJson` is the version-2 encoded type, `WireVersion`/`WIRE_VERSIONS` are `2`/`[2]`; BEH-QD-200 — "both outcomes" is only sayable in refused version-1 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.10 (2026-10-05): BEH-QD-199 — the wire is versioned: version 1 read for good, version 2 carries one tagged `outcome` and is what the encoder writes, any other version refused as `UnsupportedVersion`; the reader ignores an unknown top-level envelope key and still refuses one at any nested position (GH-01, ADR-QD-096); BEH-QD-200 — a decision record naming neither outcome, or both, is refused rather than given an invented `MissingResource` or a silently chosen `decided` (tickets 96, 155, CCR-QD-180)<br>1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-095, CCR-QD-179)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
@@ -169,9 +169,98 @@ REQUIREMENT: `foldPolicy` MUST NOT exhaust the call stack for any nesting depth
              or width, and a cyclic policy MUST throw rather than hang.
 ```
 
-`policyDepth`, `simplify`, `explain`, `toPredicate`'s refusal pass and devtools'
-remedy derivation are all `foldPolicy` users, so each keeps only its per-tag
-semantics and none writes its own traversal.
+`foldPolicy` is the right form for a fold that treats children alike — `toPredicate`'s
+field-restriction pass is one. A fold that reads a child by position (`policyDepth`,
+`simplify`, `explain`, `toPredicate`'s plan and devtools' remedy derivation) uses
+`foldPolicyCases` ([BEH-QD-318](#beh-qd-318-a-policy-folds-case-wise-each-arm-receiving-its-children-in-the-tags-own-shape)).
+Either way each keeps only its per-tag semantics and none writes its own traversal.
+
+## BEH-QD-318: A policy folds case-wise, each arm receiving its children in the tag's own shape
+
+> **Invariant:** [INV-QD-090](../invariants.md#inv-qd-090-a-pure-walk-over-a-caller-held-tree-never-exhausts-the-call-stack)
+> **See:** [ADR-QD-090](../decisions/090-a-tree-is-folded-through-one-seam.md)
+
+```ts
+export type LeafPolicy = Exclude<
+  Policy,
+  { readonly _tag: "AllOf" | "AnyOf" | "Rules" | "Not" | "Obliged" | "Labeled" }
+>;
+
+export interface RuleResult<R> {
+  readonly rule: Rule;
+  readonly result: R;
+}
+
+export interface PolicyCases<R> {
+  // one arm per leaf tag, each (node) => R
+  readonly AllOf: (node: Extract<Policy, { _tag: "AllOf" }>, children: ReadonlyArray<R>) => R;
+  readonly AnyOf: (node: Extract<Policy, { _tag: "AnyOf" }>, children: ReadonlyArray<R>) => R;
+  readonly Rules: (node: Extract<Policy, { _tag: "Rules" }>, rows: ReadonlyArray<RuleResult<R>>) => R;
+  readonly Not: (node: Extract<Policy, { _tag: "Not" }>, child: R) => R;
+  readonly Obliged: (node: Extract<Policy, { _tag: "Obliged" }>, child: R) => R;
+  readonly Labeled: (node: Extract<Policy, { _tag: "Labeled" }>, child: R) => R;
+}
+
+export const leafCases: <R>(
+  f: (node: LeafPolicy) => R,
+) => Pick<PolicyCases<R>, LeafPolicy["_tag"]>;
+
+export const foldPolicyCases: <R>(self: Policy, cases: PolicyCases<R>) => R;
+```
+
+```
+REQUIREMENT: A `Not`, `Obliged` or `Labeled` arm MUST receive exactly its one
+             child's result, as `R` and not as an array.
+```
+
+```
+REQUIREMENT: A `Rules` arm MUST receive one `{ rule, result }` per row, in row
+             order, `rule` being the node's own row and `result` the result for
+             that row's condition.
+```
+
+```
+REQUIREMENT: `foldPolicyCases` MUST combine a node only after its children,
+             combine a shared subtree once, MUST NOT exhaust the call stack for
+             any nesting depth or width, and MUST throw on a cyclic policy —
+             exactly as `foldPolicy` does (BEH-QD-300).
+```
+
+```
+REQUIREMENT: The children an arm receives MUST be exactly `childrenOf(node)`'s,
+             each read once, in order.
+```
+
+The array form hands `combine` a `ReadonlyArray<R>` whatever the tag, which throws
+away what the ADT states: a `Not` has one child and a `Rules` row has one
+condition. Every adapter that needed the fact rebuilt it with a runtime check no
+input could reach — seven "exactly one child" helpers and five `Rules` length
+checks — and each was an unkillable mutant. The case form moves the fact into the
+type: a missing arm is a compile error (TS2741), and an arm that treats a wrapper's
+child as an array is one too (TS2339), pinned by `Policy.tst.ts`. Alignment of a
+`Rules` row with its condition is by construction.
+
+`leafCases(f)` builds the ten leaf arms from one function, for a consumer whose
+leaves are uniform; a new leaf tag is a compile error in it.
+
+```typescript
+import { allOf, foldPolicyCases, hasRole, leafCases, not } from "@qadi/core";
+
+const policy = allOf([not(hasRole("banned")), not(not(hasRole("member")))]);
+
+// Counts `Not` nodes. Every other arm sums its children's counts.
+const negations = foldPolicyCases<number>(policy, {
+  ...leafCases(() => 0),
+  AllOf: (_node, counts) => counts.reduce((sum, count) => sum + count, 0),
+  AnyOf: (_node, counts) => counts.reduce((sum, count) => sum + count, 0),
+  Rules: (_node, rows) => rows.reduce((sum, row) => sum + row.result, 0),
+  Not: (_node, count) => count + 1,
+  Obliged: (_node, count) => count,
+  Labeled: (_node, count) => count,
+});
+
+console.log(negations); // 3
+```
 
 ## BEH-QD-301: A node reports its own field restriction
 

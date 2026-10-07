@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-18                                    |
-> | Revision       | 1.5                                            |
-> | Effective Date | 2026-10-06                                     |
+> | Revision       | 1.6                                            |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-10-06): BEH-QD-139 — a `fieldStrategy` or `combining` outside its closed union MUST appear verbatim with what it is evaluated as; BEH-QD-141 — `renderExplanation` MUST NOT throw on one; BEH-QD-137 — an empty `All` carrying one is not atomic (ADR-QD-092 amendment, CCR-QD-183)<br>1.4 (2026-10-04): BEH-QD-141 — `explain` and `renderExplanation` MUST NOT exhaust the call stack, matchers included; BEH-QD-303 added (`foldExplanation`) (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-09-07): BEH-QD-139 gains an explicit requirement that `fieldStrategy` and `HasRelationship.depth` appear when non-default; `depth` was missing from the rendering entirely (INV-QD-031, issue 45, CCR-QD-114)<br>1.2 (2026-08-23): BEH-QD-137 — a rendering denotes exactly one policy; composite children are parenthesised (ADR-QD-042, INV-QD-031, CCR-QD-057)<br>1.1 (2026-08-23): BEH-QD-144 — `renderTrace`, the decision-side counterpart to `renderExplanation` (ADR-QD-039, CCR-QD-053)<br>1.0 (2026-07-26): Initial release (CCR-QD-028) |
+> | Change History | 1.6 (2026-10-07): BEH-QD-303 gains `foldExplanationCases`, `ExplanationCases` and `RowResult`; `explain` and `renderExplanation` fold case-wise (ADR-QD-090 amendment, CCR-QD-190)<br>1.5 (2026-10-06): BEH-QD-139 — a `fieldStrategy` or `combining` outside its closed union MUST appear verbatim with what it is evaluated as; BEH-QD-141 — `renderExplanation` MUST NOT throw on one; BEH-QD-137 — an empty `All` carrying one is not atomic (ADR-QD-092 amendment, CCR-QD-183)<br>1.4 (2026-10-04): BEH-QD-141 — `explain` and `renderExplanation` MUST NOT exhaust the call stack, matchers included; BEH-QD-303 added (`foldExplanation`) (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-09-07): BEH-QD-139 gains an explicit requirement that `fieldStrategy` and `HasRelationship.depth` appear when non-default; `depth` was missing from the rendering entirely (INV-QD-031, issue 45, CCR-QD-114)<br>1.2 (2026-08-23): BEH-QD-137 — a rendering denotes exactly one policy; composite children are parenthesised (ADR-QD-042, INV-QD-031, CCR-QD-057)<br>1.1 (2026-08-23): BEH-QD-144 — `renderTrace`, the decision-side counterpart to `renderExplanation` (ADR-QD-039, CCR-QD-053)<br>1.0 (2026-07-26): Initial release (CCR-QD-028) |
 
 _Previous: [17 — Concurrent Evaluation](./17-concurrency.md)_
 
@@ -327,6 +327,23 @@ export const foldExplanation: <R>(
   self: Explanation,
   combine: (node: Explanation, children: ReadonlyArray<R>) => R,
 ) => R;
+
+export interface RowResult<R> {
+  readonly row: Row;
+  readonly result: R;
+}
+
+export interface ExplanationCases<R> {
+  readonly Requirement: (node: Requirement) => R;
+  readonly All: (node: All, parts: ReadonlyArray<R>) => R;
+  readonly Any: (node: Any, parts: ReadonlyArray<R>) => R;
+  readonly Negated: (node: Negated, part: R) => R;
+  readonly Named: (node: Named, part: R) => R;
+  readonly Owing: (node: Owing, part: R) => R;
+  readonly Table: (node: Table, rows: ReadonlyArray<RowResult<R>>) => R;
+}
+
+export const foldExplanationCases: <R>(self: Explanation, cases: ExplanationCases<R>) => R;
 ```
 
 ```
@@ -335,9 +352,16 @@ REQUIREMENT: `foldExplanation` MUST combine a node only after its children, in t
              shared subtree once, and MUST NOT exhaust the call stack.
 ```
 
+```
+REQUIREMENT: `foldExplanationCases` MUST hand a `Negated`, `Named` or `Owing` arm
+             exactly its one part's result, as `R`, and a `Table` arm one
+             `{ row, result }` per row in row order, `row` being the table's own
+             row.
+```
+
 `explain` was already stack-safe and the code reading its output was not:
 `renderExplanation(explain(not^n(…)))` overflowed at about n = 734, lower than
-`explain` itself handles. `renderExplanation` now folds through this.
+`explain` itself handles. `renderExplanation` now folds through `foldExplanationCases`, the case-wise form of this fold ([BEH-QD-318](./25-inspection.md)): a `Table` row's condition arrives paired with its row, so a rendering cannot read one out of step with the other.
 
 ---
 

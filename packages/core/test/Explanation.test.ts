@@ -3,13 +3,13 @@ import * as Effect from "effect/Effect";
 import * as FastCheck from "fast-check";
 import { isAllowed } from "../src/Decision.ts";
 import { evaluate } from "../src/Evaluate.ts";
-import { explain, foldExplanation, renderExplanation } from "../src/Explanation.ts";
-import type { Requirement } from "../src/Explanation.ts";
+import { explain, foldExplanation, foldExplanationCases, renderExplanation } from "../src/Explanation.ts";
+import type { Explanation, ExplanationCases, Requirement } from "../src/Explanation.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { chain, subjectWith, testLayer } from "./helpers.ts";
+import { chain, policyArbitrary, subjectWith, testLayer } from "./helpers.ts";
 
 /**
  * Narrows an `Explanation` to a `Requirement`, asserting the tag along the way.
@@ -819,4 +819,93 @@ describe("a fieldStrategy or combining value outside its closed union (ADR-QD-09
         }
       }),
     ));
+});
+
+describe("foldExplanationCases (ARCH-17)", () => {
+  // Every arm answers its own node, so what an arm receives IS the child node:
+  // identity against `explanationChildrenOf`'s shape checks the dispatcher reads
+  // exactly what it lists, in order.
+  const childrenOfNode = (node: Explanation): ReadonlyArray<Explanation> =>
+    node._tag === "Requirement"
+      ? []
+      : node._tag === "All" || node._tag === "Any"
+        ? node.parts
+        : node._tag === "Table"
+          ? node.rows.map((row) => row.condition)
+          : [node.part];
+  const same = (a: ReadonlyArray<Explanation>, b: ReadonlyArray<Explanation>): boolean =>
+    a.length === b.length && a.every((item, i) => item === b[i]);
+
+  const lockstep = (mismatches: Array<string>): ExplanationCases<Explanation> => {
+    const check = (node: Explanation, received: ReadonlyArray<Explanation>): Explanation => {
+      if (!same(received, childrenOfNode(node))) mismatches.push(node._tag);
+      return node;
+    };
+    return {
+      Requirement: (node) => check(node, []),
+      All: check,
+      Any: check,
+      Negated: (node, part) => check(node, [part]),
+      Named: (node, part) => check(node, [part]),
+      Owing: (node, part) => check(node, [part]),
+      Table: (node, rows) => {
+        for (const [i, { row }] of rows.entries()) if (row !== node.rows[i]) mismatches.push("row");
+        return check(
+          node,
+          rows.map((r) => r.result),
+        );
+      },
+    };
+  };
+
+  it("reads exactly the children of every node, rows paired with their own row", () => {
+    FastCheck.assert(
+      FastCheck.property(policyArbitrary(), (policy) => {
+        const tree = explain(policy);
+        const mismatches: Array<string> = [];
+        const result = foldExplanationCases(tree, lockstep(mismatches));
+        return result === tree && mismatches.length === 0;
+      }),
+      { seed: 2026101721, numRuns: 400 },
+    );
+  });
+
+  it("folds a 100,000-deep Negated and a 250,000-part Any", () => {
+    const counting: ExplanationCases<number> = {
+      Requirement: () => 0,
+      All: (_n, parts) => parts.length,
+      Any: (_n, parts) => parts.length,
+      Negated: (_n, part) => part + 1,
+      Named: (_n, part) => part + 1,
+      Owing: (_n, part) => part + 1,
+      Table: (_n, rows) => rows.length,
+    };
+    assert.strictEqual(
+      foldExplanationCases(explain(chain(P.not, 100_000, P.hasRole("a"))), counting),
+      100_000,
+    );
+    const wide = explain(P.anyOf(Array.from({ length: 250_000 }, () => P.hasRole("a"))));
+    assert.strictEqual(foldExplanationCases(wide, counting), 250_000);
+  }, 60_000);
+
+  it("throws on a cyclic explanation", () => {
+    const cycle: { _tag: "Negated"; part: Explanation } = {
+      _tag: "Negated",
+      part: { _tag: "Requirement", kind: "role", detail: "a", fields: undefined },
+    };
+    cycle.part = cycle;
+    assert.throws(
+      () =>
+        foldExplanationCases<number>(cycle, {
+          Requirement: () => 0,
+          All: () => 0,
+          Any: () => 0,
+          Negated: () => 0,
+          Named: () => 0,
+          Owing: () => 0,
+          Table: () => 0,
+        }),
+      /cycle/,
+    );
+  });
 });

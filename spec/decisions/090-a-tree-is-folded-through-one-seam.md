@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-090                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-10-04                                     |
-> | Status         | Accepted — amends ADR-QD-034, ADR-QD-024       |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-07                                     |
+> | Status         | Accepted — amends ADR-QD-034, ADR-QD-024; amended by CCR-QD-190 (case-wise folds) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-07): `TreeFold` is not reachable from outside `@qadi/core` (ADR-QD-099, CCR-QD-188) |
+> | Change History | 1.2 (2026-10-07): the seam gains a case-wise interface beside the array form — `foldTreeBy`, `foldPolicyCases`, `foldMatcherCases`, `foldExplanationCases` (CCR-QD-190)<br>1.1 (2026-10-07): `TreeFold` is not reachable from outside `@qadi/core` (ADR-QD-099, CCR-QD-188) |
 
 ---
 
@@ -144,6 +144,157 @@ their apparent −8% and −4% in the second table is machine drift rather than 
 the change. Neither threshold the plan set (outside noise on a memo hit) was
 crossed, so the fallbacks — D-02-e(a) spec-only and D-02-g(b) a `maxDepth`
 ceiling — were not taken. Ranges, not figures: only the direction transfers.
+
+## Amendment (ARCH-17, 2026-10-07)
+
+The seam is kept and its interface widens. `foldTree`'s `combine(node, children:
+ReadonlyArray<R>)` throws away a fact the ADT states — a `Not` has one child and a
+`Rules` row has one condition — so every adapter that needed the fact rebuilt it
+with a runtime check no input could reach: seven "exactly one child" helpers
+(`Simplify.ts`, `Explanation.ts` ×3, `Predicate.ts`, devtools' `Remedies.ts` ×2) and
+five `Rules` length or alignment checks, one of them silent (`renderExplanation`'s
+`Table` arm read `conditions[i]`, typed `string | undefined`, straight into a
+template literal). Each was an unkillable mutant — the guard's failing branch cannot
+run — and a line a reader had to convince themselves was dead.
+
+**The case-wise form.** `Policy.ts`, `Matcher.ts` and `Explanation.ts` each gain
+`fold…Cases(self, cases)`: one arm per tag, each receiving its children in the
+tag's own shape — a wrapper's child as `R`, a combinator's as `ReadonlyArray<R>`, a
+`Rules` or `Table` row as `{ rule | row, result }`. A missing arm is TS2741 and an
+arm that treats a wrapper's child as an array is TS2339 (`Policy.tst.ts`,
+`Matcher.tst.ts`, `Explanation.tst.ts`). `leafCases` and `leafMatcherCases` build
+every leaf arm from one function, so a consumer with uniform leaves lists only its
+composites and a new leaf tag is a compile error in the helper.
+
+**Locality.** Each dispatcher is a module-scope `Match.tagsExhaustive` beside the
+`childrenOf` it must agree with. A child it reads that `childrenOf` does not list
+throws in `foldTreeBy`; a child `childrenOf` lists that it never reads is silent,
+so a lockstep property test in each ADT's test file asserts that the arms receive
+exactly `childrenOf(node)`'s children, by identity, once each, in order.
+
+**One loop.** `TreeFold.ts` exports `foldTreeBy`, which `combine(node, resultOf)`
+reads a child's result through by naming it; `foldTree` and `foldTreeBy` are two
+projections of one private `walk`. The only check that remains is `resultOf` on a
+node the tree did not list as a child, and it *is* reachable (`TreeFold.test.ts`),
+so its mutants are killable, unlike the seven helpers'. `foldTreeBy` is as private
+as `foldTree` (ADR-QD-099): the barrel exports the three case-wise folds, not it.
+
+**The array form stays**, and three in-repo folds stay on it on purpose. It is the
+right interface for a fold that treats children alike, and `referencesRef`
+(`referencesAction`/`referencesResource`) runs once per matcher-bearing node on every
+evaluation that carries no action or resource — a case-form dispatch there would
+cost it ≈110–150 ns a call for no safety gain, since a homogeneous fold has no arity
+to check. `matcherDepth`, `restrictsFields` and `policyDepth` stay on it too (below).
+
+### Measured
+
+On a machine under load (the 1-minute load average was in the dozens, then
+well past a hundred), `pnpm bench`'s sequential runs were not usable, so the
+comparison is an **interleaved, in-process A/B** as ARCH-16's was: the same
+workloads built from HEAD's sources (A) and from the branch's (B) in one Node
+process, alternating which runs first, 150 batches of 200–400 calls each, the
+25th-percentile batch reported in µs per call (the minimum is noisier under
+load, the median noisier still). It is **not** `Evaluate.bench.ts` and is not
+vitest's harness; `Fold.bench.ts` is the committed workload set. An **A/A
+control** — HEAD against an identical copy of HEAD — measured the harness's own
+second-position bias at +0–7% (mean ≈ +3%), which is the number to read the rows
+against, not 0%.
+
+| Workload | A | B | B/A | A/A control |
+| -------- | -: | -: | -: | -: |
+| `evaluate` — one node | 19.9 | 20.5 | 1.03 | 1.05 |
+| `evaluate` — matcher-heavy | 31.7 | 33.0 | 1.04 | 1.06 |
+| `evaluate` — fresh depth 5 / 10 / 20 / 40 | 30.2 / 37.8 / 52.8 / 81.4 | 31.6 / 39.2 / 55.0 / 85.0 | 1.05 / 1.04 / 1.04 / 1.05 | 1.05 / 1.04 / 1.04 / 1.04 |
+| `policyDepth` — depth 40, fresh root | 31.2 | 30.8 | 0.99 | 1.00 |
+| `referencesAction` — `eq` / `fieldMatch` | 0.45 / 0.67 | 0.46 / 0.70 | 1.04 / 1.05 | 1.00 / 0.99 |
+| `toPredicate` — mixed / depth 10 | 76.5 / 156.1 | 50.6 / 82.1 | **0.66 / 0.53** | 1.01 / 1.00 |
+| `simplify` — depth 40 / wrapper-heavy / 3-row rules | 41.1 / 2.60 / 2.15 | 43.8 / 2.80 / 2.50 | 1.07 / 1.08 / 1.16 | 1.00 / 1.01 / 1.02 |
+| `explain` — depth 40 / wrapper-heavy / 3-row rules | 36.1 / 2.56 / 2.03 | 38.0 / 2.84 / 2.50 | 1.05 / 1.11 / 1.23 | 1.04 / 1.01 / 1.07 |
+| `renderExplanation` — depth 40 | 56.3 | 60.3 | 1.07 | 1.02 |
+
+What the table says. The evaluate path (the first five rows) is inside the
+control's bias: nothing the evaluator reaches per request got slower. `toPredicate`
+is **34–47% faster**, because the case form replaces `compileNode`'s `Match.value(node)`
+rebuilt per *node* with one cases object built per call. `simplify`, `explain` and
+`renderExplanation` — off the request path, run by tooling and admin screens — pay
+for the extra dispatch: ≈5–10% on a deep tree and up to ≈15–23% on a three-row table,
+where the fixed per-call cost (one cases object, one reader closure, one dispatcher
+closure per node) is a larger share of ≈2 µs. That is a cost the plan expected to be
+neutral; it was not, and it is recorded rather than argued away.
+
+A last simplification of `TreeFold.ts` (the positional-results flag removed, the
+memo handed in rather than bound later) was re-measured under heavier load and
+gave the same picture (`toPredicate` 0.65 / 0.50, `simplify` 1.16 / 1.13 / 1.17,
+the evaluate rows inside the control); the table is the cleaner of the two runs.
+
+**Mutation** (scoped Stryker runs, sequentially, before and after; Survived plus
+NoCoverage, `ignoreStatic` on). The deleted helpers and checks took their
+unkillable mutants with them, and the one guard that remains is covered:
+
+| File | Before | After |
+| ---- | -----: | ----: |
+| `Simplify.ts` | 19 | 1 |
+| `Explanation.ts` | 39 | 2 |
+| `Predicate.ts` | 11 | 1 |
+| devtools `Remedies.ts` | 22 | 0 |
+| `TreeFold.ts` | 0 | 0 |
+
+`Matcher.ts` (5) and `Policy.ts` (3) are unchanged, and the survivors that remain
+in the other files are lines this change did not touch. Both runs stay far above
+`break: 80` (core's subset 98.8%, devtools' `Remedies.ts` 100%).
+
+**What was measured and not taken.**
+
+- *`policyDepth` on the case form* was implemented and measured first
+  (D-17-d(a) recommended it, and its probe said faster). In the one-loop
+  implementation it ran ≈+9–15% over the control on a fresh root and ≈+5–7% on a
+  fresh `evaluate` of depth 5–40 — `policyDepth` runs once per distinct policy object
+  on the evaluate path, so that is a regression on the path this ADR protects. It
+  stays on `foldPolicy`; `matcherOf` and `leafNesting` stay with it.
+- *A second loop for `foldTreeBy`* (D-17-b(b)) was implemented and measured against
+  the one-loop form; the two were indistinguishable within the control, so the one
+  seam stays. The array form also runs the same loop unchanged: passing `combine`
+  straight through, with no wrapper closure, keeps `referencesAction` inside the
+  control (a per-call reader closure first built there cost it ≈40%).
+- *A leaf fast path in the loop* (D-17-h(a): a childless root combined without the
+  memo, path set or frame) took a leaf `referencesAction` from 0.45 µs to 0.27 µs
+  but left `evaluate`'s matcher-heavy workload where it was (31.6 → 31.9 µs) and
+  made a one-wrapper matcher ≈9% slower. The plan's rule was to keep it only if
+  matcher-heavy improved; it did not, so it was reverted and `TreeFold.ts` carries no
+  fast path.
+
+### What stays
+
+`SWITCH_BUDGET` is unchanged: every new dispatcher is a hoisted
+`Match.tagsExhaustive`, and no `switch` is added. `UNTRACED_BUDGET`, `ANY_BUDGET`
+and the other budgets are untouched; nothing here is effectful, and no arm needs an
+assertion.
+
+### Not yet
+
+- **A `Trace` fold**, when ARCH-22 builds one, takes the case form from the start.
+- **Devtools' package-private `TreeFold.ts` twin** is unchanged: its nodes are
+  virtual positions with no tag-determined arity, so a case form buys it nothing.
+
+### Alternatives considered
+
+- **Keep only the array form** and add a helper that destructures it. Moves the
+  runtime check, does not remove it; the helper's guard is the same unkillable mutant.
+- **Replace the array form outright** (D-17-a(c)), or deprecate it (D-17-a(b)). The
+  array form is the correct interface for a fold with no arity, `foldPolicy`,
+  `foldExplanation` and `foldMatcher` are published API since 0.10.0, and removing
+  them costs a measured hot-path regression for no type-safety gain.
+- **Positional reads, one check per adapter** (D-17-b(c)): `results[0]` zipped with
+  rows. Three unkillable guards instead of seven, not zero.
+- **A per-tag record table instead of `Match`** (D-17-b(d)): needs a correlated-union
+  index only a cast can type, and an AGENTS.md §5a exception like ADR-QD-092's. The
+  consumers that need arity already pay a `Match` per node, so the dispatch is not
+  where the cost is.
+- **One `Leaf` arm over `LeafPolicy`** (D-17-c(b)): a consumer with per-leaf semantics
+  needs a second `Match` over it, and a composite tag forgotten in the composite list
+  silently becomes a "leaf" whose children are folded and ignored.
+- **Overloading `foldPolicy`** (D-17-e(b)): a `typeof` branch in an exported function
+  hides which interface a call site uses.
 
 ## Consequences
 

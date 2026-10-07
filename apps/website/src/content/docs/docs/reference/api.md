@@ -52,7 +52,13 @@ closed. This section also covers the inspection helpers built on these
 services, like `policyDepth`, `permissionProvenance`, and `diffTraces`, and
 the stack-safe tree folds `foldPolicy`, `foldExplanation` and `foldMatcher`
 that `policyDepth`, `simplify` and `explain` are built on, with `fieldsOf`,
-`matcherDepth` and the derived `POLICY_TAGS` beside them.
+`matcherDepth` and the derived `POLICY_TAGS` beside them. Use those array forms
+for a fold that treats children alike (a count, a maximum, an "any"); a fold that
+reads a child by position uses `foldPolicyCases`, `foldMatcherCases` or
+`foldExplanationCases`, whose arms receive their children in the tag's own shape
+(a `Not`'s one child as a value, a `Rules` row as a `{ rule, result }`), so a
+missing arm is a compile error. `leafCases` and `leafMatcherCases` build the leaf
+arms from one function.
 
 [View on GitHub →](https://github.com/leaderiop/qadi/blob/main/spec/overview.md#services)
 

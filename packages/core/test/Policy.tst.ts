@@ -17,14 +17,22 @@
  * anything noticing.
  */
 import { expect, test } from "tstyche";
-import type { Policy as PolicyTree, PolicyEncoded } from "../src/Policy.ts";
+import type {
+  LeafPolicy,
+  Policy as PolicyTree,
+  PolicyCases,
+  PolicyEncoded,
+  RuleResult,
+} from "../src/Policy.ts";
 import {
   allOf,
   anyOf,
   fieldsOf,
   foldPolicy,
+  foldPolicyCases,
   hasPermission,
   hasRole,
+  leafCases,
   Policy,
   POLICY_TAGS,
 } from "../src/Policy.ts";
@@ -63,4 +71,64 @@ test("fieldsOf takes a policy and answers a field list or undefined", () => {
 
 test("foldPolicy infers its result type from combine", () => {
   expect(foldPolicy(hasRole("a"), (_node, children: ReadonlyArray<number>) => children.length)).type.toBe<number>();
+});
+
+test("foldPolicyCases infers its result type from the arms", () => {
+  const cases: PolicyCases<number> = {
+    ...leafCases(() => 0),
+    AllOf: (_n, children) => children.length,
+    AnyOf: (_n, children) => children.length,
+    Rules: (_n, rows) => rows.length,
+    Not: (_n, child) => child,
+    Obliged: (_n, child) => child,
+    Labeled: (_n, child) => child,
+  };
+  expect(foldPolicyCases(hasRole("a"), cases)).type.toBe<number>();
+});
+
+test("a wrapper arm receives its one child as R, a Rules arm one RuleResult per row", () => {
+  expect<Parameters<PolicyCases<number>["Not"]>[1]>().type.toBe<number>();
+  expect<Parameters<PolicyCases<number>["Obliged"]>[1]>().type.toBe<number>();
+  expect<Parameters<PolicyCases<number>["Labeled"]>[1]>().type.toBe<number>();
+  expect<Parameters<PolicyCases<number>["AllOf"]>[1]>().type.toBe<ReadonlyArray<number>>();
+  expect<Parameters<PolicyCases<number>["Rules"]>[1]>().type.toBe<ReadonlyArray<RuleResult<number>>>();
+});
+
+test("leafCases returns exactly the leaf arms", () => {
+  expect<keyof ReturnType<typeof leafCases<number>>>().type.toBe<LeafPolicy["_tag"]>();
+});
+
+test("a cases object missing an arm is a compile error", () => {
+  expect(foldPolicyCases).type.not.toBeCallableWith(hasRole("a"), {
+    ...leafCases(() => 0),
+    AllOf: () => 0,
+    AnyOf: () => 0,
+    Not: () => 0,
+    Obliged: () => 0,
+    Labeled: () => 0,
+  });
+});
+
+test("a wrapper arm that treats its child as an array is a compile error", () => {
+  expect(foldPolicyCases).type.not.toBeCallableWith(hasRole("a"), {
+    ...leafCases(() => 0),
+    AllOf: () => 0,
+    AnyOf: () => 0,
+    Rules: () => 0,
+    Not: (_n: PolicyTree, child: ReadonlyArray<number>) => child.length,
+    Obliged: () => 0,
+    Labeled: () => 0,
+  });
+});
+
+test("a complete cases object is accepted", () => {
+  expect(foldPolicyCases).type.toBeCallableWith(hasRole("a"), {
+    ...leafCases(() => 0),
+    AllOf: () => 0,
+    AnyOf: () => 0,
+    Rules: () => 0,
+    Not: (_n: PolicyTree, child: number) => child,
+    Obliged: () => 0,
+    Labeled: () => 0,
+  });
 });

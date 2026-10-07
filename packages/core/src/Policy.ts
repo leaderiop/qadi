@@ -29,7 +29,7 @@ import { Obligation } from "./Obligation.ts";
 import type { Permission } from "./Permission.ts";
 import { PermissionSchema, SEGMENT_PATTERN } from "./Permission.ts";
 import type { SignatureMeaning } from "./Signature.ts";
-import { foldTree } from "./TreeFold.ts";
+import { foldTree, foldTreeBy } from "./TreeFold.ts";
 
 /**
  * The default recursion bound for walking a `Policy` tree, shared by both
@@ -1147,11 +1147,130 @@ export const fieldsOf: (self: Policy) => ReadonlyArray<string> | undefined = Mat
  * The seam `policyDepth`, `simplify`, `explain` and the other whole-tree walkers
  * share, so each keeps only its per-tag semantics and none re-states traversal
  * order or the stack (ARCH-02). A thin adapter over the internal `TreeFold.ts`.
+ *
+ * Use this for a fold that treats children alike (count, max, any). A fold that
+ * reads a child by position — a `Not`'s one child, a `Rules` row's condition —
+ * belongs on {@link foldPolicyCases}, where that arity is a type rather than a
+ * runtime check (ARCH-17).
  */
 export const foldPolicy = <R>(
   self: Policy,
   combine: (node: Policy, children: ReadonlyArray<R>) => R,
 ): R => foldTree(self, childrenOf, combine);
+
+type PolicyOf<T extends Policy["_tag"]> = Extract<Policy, { readonly _tag: T }>;
+
+/** The ten `Policy` tags that have no children. */
+export type LeafPolicy = Exclude<
+  Policy,
+  { readonly _tag: "AllOf" | "AnyOf" | "Rules" | "Not" | "Obliged" | "Labeled" }
+>;
+
+/** One `Rules` row paired with its condition's result, in row order. */
+export interface RuleResult<R> {
+  readonly rule: Rule;
+  readonly result: R;
+}
+
+/**
+ * One arm per `Policy` tag, each receiving its children's results in the shape
+ * the tag gives them.
+ *
+ * A wrapper (`Not`/`Obliged`/`Labeled`) receives its one child as `R`, a
+ * combinator (`AllOf`/`AnyOf`) a `ReadonlyArray<R>`, a `Rules` table one
+ * {@link RuleResult} per row, and a leaf only its node. The arity is the type: a
+ * missing arm is TS2741 and an arm that treats a wrapper's child as an array is
+ * TS2339 (ARCH-17).
+ */
+export interface PolicyCases<R> {
+  readonly HasPermission: (node: PolicyOf<"HasPermission">) => R;
+  readonly HasRole: (node: PolicyOf<"HasRole">) => R;
+  readonly HasAttribute: (node: PolicyOf<"HasAttribute">) => R;
+  readonly HasResourceAttribute: (node: PolicyOf<"HasResourceAttribute">) => R;
+  readonly HasRelationship: (node: PolicyOf<"HasRelationship">) => R;
+  readonly HasAction: (node: PolicyOf<"HasAction">) => R;
+  readonly HasActed: (node: PolicyOf<"HasActed">) => R;
+  readonly HasNotActed: (node: PolicyOf<"HasNotActed">) => R;
+  readonly HasCustom: (node: PolicyOf<"HasCustom">) => R;
+  readonly HasSignature: (node: PolicyOf<"HasSignature">) => R;
+  readonly AllOf: (node: PolicyOf<"AllOf">, children: ReadonlyArray<R>) => R;
+  readonly AnyOf: (node: PolicyOf<"AnyOf">, children: ReadonlyArray<R>) => R;
+  readonly Rules: (node: PolicyOf<"Rules">, rows: ReadonlyArray<RuleResult<R>>) => R;
+  readonly Not: (node: PolicyOf<"Not">, child: R) => R;
+  readonly Obliged: (node: PolicyOf<"Obliged">, child: R) => R;
+  readonly Labeled: (node: PolicyOf<"Labeled">, child: R) => R;
+}
+
+/**
+ * The ten leaf arms of {@link PolicyCases}, every one computed by `f`.
+ *
+ * For a consumer whose leaves are uniform: spread it and write only the six
+ * composite arms. A new leaf tag is a compile error here (TS2741), so it cannot
+ * be forgotten in every consumer that spreads it.
+ */
+export const leafCases = <R>(f: (node: LeafPolicy) => R): Pick<PolicyCases<R>, LeafPolicy["_tag"]> => ({
+  HasPermission: f,
+  HasRole: f,
+  HasAttribute: f,
+  HasResourceAttribute: f,
+  HasRelationship: f,
+  HasAction: f,
+  HasActed: f,
+  HasNotActed: f,
+  HasCustom: f,
+  HasSignature: f,
+});
+
+type PolicyStep = <R>(cases: PolicyCases<R>, resultOf: (child: Policy) => R) => R;
+
+/**
+ * Reads exactly what {@link childrenOf} lists, in the shape each tag gives it.
+ *
+ * Built once at module scope; each arm returns a generic step so the cases'
+ * result type is restored at the call. It is the partner of `childrenOf`: a child
+ * this reads that `childrenOf` does not list throws in `foldTreeBy`, and a child
+ * `childrenOf` lists that this never reads is silent — `Policy.test.ts`'s
+ * lockstep property fails on either.
+ */
+const policyStep: (node: Policy) => PolicyStep = Match.type<Policy>().pipe(
+  Match.tagsExhaustive({
+    HasPermission: (p): PolicyStep => (cases) => cases.HasPermission(p),
+    HasRole: (p): PolicyStep => (cases) => cases.HasRole(p),
+    HasAttribute: (p): PolicyStep => (cases) => cases.HasAttribute(p),
+    HasResourceAttribute: (p): PolicyStep => (cases) => cases.HasResourceAttribute(p),
+    HasRelationship: (p): PolicyStep => (cases) => cases.HasRelationship(p),
+    HasAction: (p): PolicyStep => (cases) => cases.HasAction(p),
+    HasActed: (p): PolicyStep => (cases) => cases.HasActed(p),
+    HasNotActed: (p): PolicyStep => (cases) => cases.HasNotActed(p),
+    HasCustom: (p): PolicyStep => (cases) => cases.HasCustom(p),
+    HasSignature: (p): PolicyStep => (cases) => cases.HasSignature(p),
+    AllOf: (p): PolicyStep => (cases, resultOf) => cases.AllOf(p, p.policies.map(resultOf)),
+    AnyOf: (p): PolicyStep => (cases, resultOf) => cases.AnyOf(p, p.policies.map(resultOf)),
+    Rules: (p): PolicyStep => (cases, resultOf) =>
+      cases.Rules(
+        p,
+        p.rules.map((rule) => ({ rule, result: resultOf(rule.condition) })),
+      ),
+    Not: (p): PolicyStep => (cases, resultOf) => cases.Not(p, resultOf(p.policy)),
+    Obliged: (p): PolicyStep => (cases, resultOf) => cases.Obliged(p, resultOf(p.policy)),
+    Labeled: (p): PolicyStep => (cases, resultOf) => cases.Labeled(p, resultOf(p.policy)),
+  }),
+);
+
+/**
+ * Folds a policy bottom-up with one arm per tag, each receiving its children in
+ * the tag's own shape.
+ *
+ * The same loop as {@link foldPolicy} — stack-safe, shared subtrees fold once,
+ * a cycle throws — but a wrapper's child arrives as `R` and a `Rules` row as a
+ * {@link RuleResult}, so a consumer that needs a child by position has no
+ * one-child check to write and no misalignment to guard
+ * (ARCH-17).
+ *
+ * Use {@link foldPolicy} for a fold that treats children alike (count, max, any).
+ */
+export const foldPolicyCases = <R>(self: Policy, cases: PolicyCases<R>): R =>
+  foldTreeBy<Policy, R>(self, childrenOf, (node, resultOf) => policyStep(node)(cases, resultOf));
 
 /**
  * The matcher a node itself carries: `HasAttribute` and `HasResourceAttribute`

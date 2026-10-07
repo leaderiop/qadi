@@ -23,7 +23,7 @@ import {
   memberVerdict,
 } from "./Compare.ts";
 import type { Verdict } from "./Compare.ts";
-import { foldTree } from "./TreeFold.ts";
+import { foldTree, foldTreeBy } from "./TreeFold.ts";
 
 // ---------------------------------------------------------------------------
 // Value references
@@ -498,11 +498,104 @@ const refOf: (self: Matcher) => ValueRef | undefined = Match.type<Matcher>().pip
  * bound either, and every walker over one used to recurse natively — so
  * `referencesAction(size^10000(eq(action())))` threw a raw `RangeError`
  * (ARCH-02 N2).
+ *
+ * Use this for a fold that treats children alike (count, max, any); a fold that
+ * reads a wrapper's one child by position belongs on {@link foldMatcherCases}.
  */
 export const foldMatcher = <R>(
   self: Matcher,
   combine: (node: Matcher, children: ReadonlyArray<R>) => R,
 ): R => foldTree(self, matcherChildrenOf, combine);
+
+type MatcherOf<T extends Matcher["_tag"]> = Extract<Matcher, { readonly _tag: T }>;
+
+/** The eight `Matcher` tags that wrap nothing. */
+export type LeafMatcher = Exclude<
+  Matcher,
+  { readonly _tag: "FieldMatch" | "SomeMatch" | "EveryMatch" | "Size" }
+>;
+
+/**
+ * One arm per `Matcher` tag: a leaf receives its node, a wrapper
+ * (`FieldMatch`/`SomeMatch`/`EveryMatch`/`Size`) its node and its one wrapped
+ * matcher's result as `R`.
+ *
+ * The `Matcher` twin of `PolicyCases` (`Policy.ts`): the arity is the type, so a
+ * missing arm is TS2741 and a wrapper arm that treats its child as an array is
+ * TS2339 (ARCH-17).
+ */
+export interface MatcherCases<R> {
+  readonly Eq: (node: MatcherOf<"Eq">) => R;
+  readonly Neq: (node: MatcherOf<"Neq">) => R;
+  readonly Dominates: (node: MatcherOf<"Dominates">) => R;
+  readonly In: (node: MatcherOf<"In">) => R;
+  readonly Exists: (node: MatcherOf<"Exists">) => R;
+  readonly Gte: (node: MatcherOf<"Gte">) => R;
+  readonly Lt: (node: MatcherOf<"Lt">) => R;
+  readonly Contains: (node: MatcherOf<"Contains">) => R;
+  readonly FieldMatch: (node: MatcherOf<"FieldMatch">, child: R) => R;
+  readonly SomeMatch: (node: MatcherOf<"SomeMatch">, child: R) => R;
+  readonly EveryMatch: (node: MatcherOf<"EveryMatch">, child: R) => R;
+  readonly Size: (node: MatcherOf<"Size">, child: R) => R;
+}
+
+/**
+ * The eight leaf arms of {@link MatcherCases}, every one computed by `f`.
+ *
+ * For a consumer whose leaves are uniform; a new leaf tag is a compile error
+ * here (TS2741).
+ */
+export const leafMatcherCases = <R>(
+  f: (node: LeafMatcher) => R,
+): Pick<MatcherCases<R>, LeafMatcher["_tag"]> => ({
+  Eq: f,
+  Neq: f,
+  Dominates: f,
+  In: f,
+  Exists: f,
+  Gte: f,
+  Lt: f,
+  Contains: f,
+});
+
+type MatcherStep = <R>(cases: MatcherCases<R>, resultOf: (child: Matcher) => R) => R;
+
+/**
+ * Reads exactly what `matcherChildrenOf` lists, in the shape each tag gives it.
+ *
+ * The partner of `matcherChildrenOf`; `Matcher.test.ts`'s lockstep property keeps
+ * the two in agreement.
+ */
+const matcherStep: (node: Matcher) => MatcherStep = Match.type<Matcher>().pipe(
+  Match.tagsExhaustive({
+    Eq: (m): MatcherStep => (cases) => cases.Eq(m),
+    Neq: (m): MatcherStep => (cases) => cases.Neq(m),
+    Dominates: (m): MatcherStep => (cases) => cases.Dominates(m),
+    In: (m): MatcherStep => (cases) => cases.In(m),
+    Exists: (m): MatcherStep => (cases) => cases.Exists(m),
+    Gte: (m): MatcherStep => (cases) => cases.Gte(m),
+    Lt: (m): MatcherStep => (cases) => cases.Lt(m),
+    Contains: (m): MatcherStep => (cases) => cases.Contains(m),
+    FieldMatch: (m): MatcherStep => (cases, resultOf) => cases.FieldMatch(m, resultOf(m.matcher)),
+    SomeMatch: (m): MatcherStep => (cases, resultOf) => cases.SomeMatch(m, resultOf(m.matcher)),
+    EveryMatch: (m): MatcherStep => (cases, resultOf) => cases.EveryMatch(m, resultOf(m.matcher)),
+    Size: (m): MatcherStep => (cases, resultOf) => cases.Size(m, resultOf(m.matcher)),
+  }),
+);
+
+/**
+ * Folds a matcher bottom-up with one arm per tag, each wrapper receiving its one
+ * wrapped matcher's result as `R`.
+ *
+ * The same loop as {@link foldMatcher} — stack-safe, shared subtrees fold once,
+ * a cycle throws — with the arity checked by the compiler rather than by an
+ * one-child throw (ARCH-17). Use {@link foldMatcher} for a
+ * fold that treats children alike.
+ */
+export const foldMatcherCases = <R>(self: Matcher, cases: MatcherCases<R>): R =>
+  foldTreeBy<Matcher, R>(self, matcherChildrenOf, (node, resultOf) =>
+    matcherStep(node)(cases, resultOf),
+  );
 
 const isTrue = (value: boolean): boolean => value;
 

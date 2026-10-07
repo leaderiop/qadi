@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-04                                    |
-> | Revision       | 1.6                                            |
-> | Effective Date | 2026-10-05                                     |
+> | Revision       | 1.7                                            |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-10-05): BEH-QD-027 corrected — `lt`'s value guard is load-bearing (`-Infinity < 3`), not cosmetic (CCR-QD-172); `inArray` denies an absent value; BEH-QD-028 lists `judgeMatcher` and `Verdict`; BEH-QD-305 added — comparison semantics have one owner (ADR-QD-091, CCR-QD-173)<br>1.5 (2026-10-04): BEH-QD-304 added (`foldMatcher`, `matcherDepth`) and `referencesAction`/`referencesResource` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.4 (2026-09-08): `gte`/`lt` extended — both operands, not only the policy-authored bound, MUST be finite; the resolved value side was unguarded, so a `gte(...)` bound matched an `Infinity`-valued attribute regardless of the bound (issue #67, CCR-QD-116)<br>1.3 (2026-09-07): `Eq`/`Neq` corrected to deny on an absent operand on either side — `Neq` matched when a reference resolved to nothing, contradicting this document's own requirement; supersedes the "accepted as-is" call in commit `dab09bc`, which this document's Revision 1.2 never reflected (CCR-QD-112)<br>1.2 (2026-07-26): the `Dominates` matcher (CCR-QD-017)<br>1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.7 (2026-10-07): BEH-QD-304 gains `foldMatcherCases`, `MatcherCases`, `LeafMatcher` and `leafMatcherCases` — a wrapper arm receives its one child as `R` (ADR-QD-090 amendment, CCR-QD-190)<br>1.6 (2026-10-05): BEH-QD-027 corrected — `lt`'s value guard is load-bearing (`-Infinity < 3`), not cosmetic (CCR-QD-172); `inArray` denies an absent value; BEH-QD-028 lists `judgeMatcher` and `Verdict`; BEH-QD-305 added — comparison semantics have one owner (ADR-QD-091, CCR-QD-173)<br>1.5 (2026-10-04): BEH-QD-304 added (`foldMatcher`, `matcherDepth`) and `referencesAction`/`referencesResource` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.4 (2026-09-08): `gte`/`lt` extended — both operands, not only the policy-authored bound, MUST be finite; the resolved value side was unguarded, so a `gte(...)` bound matched an `Infinity`-valued attribute regardless of the bound (issue #67, CCR-QD-116)<br>1.3 (2026-09-07): `Eq`/`Neq` corrected to deny on an absent operand on either side — `Neq` matched when a reference resolved to nothing, contradicting this document's own requirement; supersedes the "accepted as-is" call in commit `dab09bc`, which this document's Revision 1.2 never reflected (CCR-QD-112)<br>1.2 (2026-07-26): the `Dominates` matcher (CCR-QD-017)<br>1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -225,6 +225,25 @@ export const foldMatcher: <R>(
 ) => R;
 
 export const matcherDepth: (self: Matcher) => number;
+
+export type LeafMatcher = Exclude<
+  Matcher,
+  { readonly _tag: "FieldMatch" | "SomeMatch" | "EveryMatch" | "Size" }
+>;
+
+export interface MatcherCases<R> {
+  // one arm per leaf tag, each (node) => R
+  readonly FieldMatch: (node: Extract<Matcher, { _tag: "FieldMatch" }>, child: R) => R;
+  readonly SomeMatch: (node: Extract<Matcher, { _tag: "SomeMatch" }>, child: R) => R;
+  readonly EveryMatch: (node: Extract<Matcher, { _tag: "EveryMatch" }>, child: R) => R;
+  readonly Size: (node: Extract<Matcher, { _tag: "Size" }>, child: R) => R;
+}
+
+export const leafMatcherCases: <R>(
+  f: (node: LeafMatcher) => R,
+) => Pick<MatcherCases<R>, LeafMatcher["_tag"]>;
+
+export const foldMatcherCases: <R>(self: Matcher, cases: MatcherCases<R>) => R;
 ```
 
 ```
@@ -241,6 +260,12 @@ REQUIREMENT: `matcherDepth` MUST be 0 for a matcher with no wrapped matcher and
 ```
 
 ```
+REQUIREMENT: `foldMatcherCases` MUST hand a `FieldMatch`, `SomeMatch`, `EveryMatch`
+             or `Size` arm exactly its one wrapped matcher's result, as `R` and
+             not as an array, and otherwise behave as `foldMatcher` does.
+```
+
+```
 REQUIREMENT: `referencesAction` and `referencesResource` MUST NOT exhaust the call
              stack for any matcher nesting depth.
 ```
@@ -248,7 +273,9 @@ REQUIREMENT: `referencesAction` and `referencesResource` MUST NOT exhaust the ca
 A matcher assembled in process has no decode bound either, and every walker over
 one recursed natively: `referencesAction(size^10000(eq(action())))` threw a raw
 `RangeError`. `matcherDepth` is what `policyDepth` adds for a matcher-bearing leaf
-([BEH-QD-191](./25-inspection.md)).
+([BEH-QD-191](./25-inspection.md)). `foldMatcherCases` is the `Matcher` twin of
+`foldPolicyCases` ([BEH-QD-318](./25-inspection.md)); `foldMatcher` stays the form for a
+fold that treats children alike, as `matcherDepth` and the two `references…` walkers do.
 
 ## BEH-QD-305: Comparison semantics have one owner
 

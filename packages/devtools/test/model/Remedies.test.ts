@@ -31,6 +31,7 @@ import {
   hasRelationship,
   hasResourceAttribute,
   hasRole,
+  hasSignature,
   inArray,
   judgeMatcher,
   labeled,
@@ -577,6 +578,13 @@ describe("remedyEdits — walking the tree", () => {
   it("proposes nothing for hasCustom — there is no matcher to read a witness from", () => {
     assert.deepStrictEqual(labels(hasCustom("isOwner")), []);
     assert.deepStrictEqual(labels(allOf([hasRole("editor"), hasCustom("isOwner")])), [
+      "with role editor",
+    ]);
+  });
+
+  it("proposes nothing for hasSignature — a signature is not built out of nothing", () => {
+    assert.deepStrictEqual(labels(hasSignature("approved")), []);
+    assert.deepStrictEqual(labels(allOf([hasRole("editor"), hasSignature("approved")])), [
       "with role editor",
     ]);
   });
