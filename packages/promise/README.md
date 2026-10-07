@@ -50,6 +50,15 @@ const qadi = makeQadi(
 );
 ```
 
+## Projecting a record you already hold
+
+`projected(subject, policy, record)` decides against `record` and hands back
+`record` narrowed to the fields the policy lets the subject see, rejecting
+`AccessDenied` when it does not. The record is the resource — there is no
+`options.resource`, so what is decided and what is returned cannot be two
+different records. `filterProjected` does the same per item over a collection;
+`filter` returns admitted items whole and does not apply a field restriction.
+
 ## This facade cannot discharge a binding obligation
 
 There is no `onObligations` anywhere on this package — every method here takes
@@ -61,7 +70,8 @@ exactly that kind of knob. The consequence differs by method:
 - `check` resolves `true` for an allow carrying a binding obligation, **with
   the obligation silently undischarged** — a boolean has no room to say
   "permitted, but something was owed and nothing paid it."
-- `assert` and `filter` reject with `UndischargedObligation` instead, the same
+- `assert`, `filter`, `projected` and `filterProjected` reject with
+  `UndischargedObligation` instead, the same
   as `@qadi/core`'s own `assert`/`filter` do with no handler supplied.
 - An obligation that is purely advisory never blocks either way.
 
