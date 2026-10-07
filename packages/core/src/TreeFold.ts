@@ -25,9 +25,9 @@
  * stack grows without bound; with it a hang becomes an immediate, named defect.
  *
  * Package-private (AGENTS.md §9, ADR-QD-099): shared scaffolding, not exported
- * from the barrel or any entry point.
- * `@qadi/devtools` keeps a package-private twin rather than importing it
- * (ARCH-02 D-02-d).
+ * from the barrel or any entry point. There is one copy: `@qadi/devtools`'s
+ * former twin went when core took over the explanation-with-trace alignment it
+ * existed for (ARCH-22, ADR-QD-NEXT).
  *
  * @param root - The tree to fold.
  * @param childrenOf - A node's children, in the order `combine` should see their results.

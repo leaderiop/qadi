@@ -27,6 +27,15 @@ import type { Obligation } from "./Obligation.ts";
 /** Where a node sits: the child indices walked from the root, outermost first. */
 export type TracePath = ReadonlyArray<number>;
 
+/**
+ * The canonical text address of a node: what an inspector keys on and what a log
+ * line prints. `"$"` for the root (`[]`), `"$.0.2"` for the third child of the first.
+ *
+ * `TracePath` stays the array a difference reports; this is its one text form, so
+ * the node a difference names is the node whose key it formats to (ARCH-22 D-22-c).
+ */
+export { tracePathKey } from "./TraceKey.ts";
+
 /** The node allowed in one evaluation and denied in the other. */
 export interface VerdictChanged {
   readonly _tag: "VerdictChanged";
@@ -188,7 +197,34 @@ const sameObligationSet = (
 export const diffTraces = (before: Trace, after: Trace): ReadonlyArray<TraceDifference> => {
   const out: Array<TraceDifference> = [];
 
-  const walk = (a: Trace, b: Trace, path: TracePath): void => {
+  // An explicit stack, not native recursion: a trace's nesting is bounded only by
+  // the `maxDepth` its evaluation ran under, so a walk that recurses turns a large
+  // one into a raw `RangeError` (ARCH-22 C2, INV-QD-090). A pair carries a
+  // parent-linked address instead of an array, because `[...path, i]` per node
+  // is quadratic in depth (ARCH-22 N2); the `TracePath` a difference reports is
+  // built once, and only for a node that has one.
+  interface Pair {
+    readonly a: Trace;
+    readonly b: Trace;
+    readonly at: Step | undefined;
+  }
+  interface Step {
+    readonly parent: Step | undefined;
+    readonly index: number;
+  }
+  const pathOf = (at: Step | undefined): TracePath => {
+    const indices: Array<number> = [];
+    for (let step = at; step !== undefined; step = step.parent) indices.push(step.index);
+    return indices.reverse();
+  };
+
+  const stack: Array<Pair> = [{ a: before, b: after, at: undefined }];
+  for (let next = stack.pop(); next !== undefined; next = stack.pop()) {
+    const { a, b } = next;
+    // Shared by every difference this node reports, and built on the first.
+    let built: TracePath | undefined;
+    const here = (): TracePath => (built ??= pathOf(next.at));
+
     // The node's own identity, checked before anything about its outcome: a
     // node whose policy tag or label changed is a real difference even when
     // its verdict, reason, fields and obligations all happen to coincide —
@@ -199,7 +235,7 @@ export const diffTraces = (before: Trace, after: Trace): ReadonlyArray<TraceDiff
     if (a.policyTag !== b.policyTag) {
       out.push({
         _tag: "PolicyTagChanged",
-        path,
+        path: here(),
         policyTag: b.policyTag,
         before: a.policyTag,
         after: b.policyTag,
@@ -208,7 +244,7 @@ export const diffTraces = (before: Trace, after: Trace): ReadonlyArray<TraceDiff
     if (a.label !== b.label) {
       out.push({
         _tag: "LabelChanged",
-        path,
+        path: here(),
         policyTag: b.policyTag,
         before: a.label,
         after: b.label,
@@ -218,7 +254,7 @@ export const diffTraces = (before: Trace, after: Trace): ReadonlyArray<TraceDiff
     if (a.allowed !== b.allowed) {
       out.push({
         _tag: "VerdictChanged",
-        path,
+        path: here(),
         policyTag: b.policyTag,
         label: b.label,
         before: a.allowed,
@@ -229,7 +265,7 @@ export const diffTraces = (before: Trace, after: Trace): ReadonlyArray<TraceDiff
     } else if (a.reason !== b.reason) {
       out.push({
         _tag: "ReasonChanged",
-        path,
+        path: here(),
         policyTag: b.policyTag,
         before: a.reason,
         after: b.reason,
@@ -239,7 +275,7 @@ export const diffTraces = (before: Trace, after: Trace): ReadonlyArray<TraceDiff
     if (!sameFields(a.visibleFields, b.visibleFields)) {
       out.push({
         _tag: "FieldsChanged",
-        path,
+        path: here(),
         policyTag: b.policyTag,
         before: a.visibleFields,
         after: b.visibleFields,
@@ -249,7 +285,7 @@ export const diffTraces = (before: Trace, after: Trace): ReadonlyArray<TraceDiff
     if (!sameObligationSet(a.obligations, b.obligations)) {
       out.push({
         _tag: "ObligationsChanged",
-        path,
+        path: here(),
         policyTag: b.policyTag,
         before: a.obligations,
         after: b.obligations,
@@ -259,26 +295,29 @@ export const diffTraces = (before: Trace, after: Trace): ReadonlyArray<TraceDiff
     if (a.children.length !== b.children.length) {
       out.push({
         _tag: "ChildCountChanged",
-        path,
+        path: here(),
         policyTag: b.policyTag,
         before: a.children.length,
         after: b.children.length,
       });
-      return;
+      continue;
     }
 
-    a.children.forEach((child, i) => {
+    // Pushed last-to-first so they pop first-to-last: the order is depth-first,
+    // parents before children, as the recursion it replaced produced.
+    for (let i = a.children.length - 1; i >= 0; i--) {
+      const child = a.children[i];
       const other = b.children[i];
       // The guard is `noUncheckedIndexedAccess` satisfaction, not a real
-      // branch: the child-count check above returned already if the lengths
-      // differed, so `b.children[i]` is always present here. Mutation testing
+      // branch: the child-count check above continued already if the lengths
+      // differed, so both are always present here. Mutation testing
       // reports it as a survivor for that reason, as it does the identical
       // guard in `DecisionCache`'s eviction loop.
-      if (other !== undefined) walk(child, other, [...path, i]);
-    });
-  };
-
-  walk(before, after, []);
+      if (child !== undefined && other !== undefined) {
+        stack.push({ a: child, b: other, at: { parent: next.at, index: i } });
+      }
+    }
+  }
   return out;
 };
 

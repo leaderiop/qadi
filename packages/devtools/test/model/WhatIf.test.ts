@@ -24,7 +24,10 @@ import {
   obligation,
   obliged,
   permission,
+  permitWhen,
+  rules,
   scriptedPort,
+  tracePathKey,
   PortReply,
   attributeResolverPort,
   portsLayer,
@@ -34,6 +37,8 @@ import { collectingTracer } from "@qadi/testing";
 import {
   changedRows,
   compareOutcomes,
+  flattenTree,
+  inspect,
   isChanged,
   live,
   simulate,
@@ -159,6 +164,31 @@ describe("whatIf", () => {
         changedRows(report).map((row) => row.edit.label),
         [dropRole.edit.label, both.edit.label],
       );
+    }));
+
+  /**
+   * The link a difference can follow (ARCH-22 C6, D-22-c): the node a flip names
+   * is the node of the inspected tree whose `path` is the flip's `tracePathKey`.
+   */
+  it.effect("a flipped node's path is the key of the node it names in the inspected tree", () =>
+    Effect.gen(function* () {
+      const policy = rules([permitWhen(hasRole("a")), permitWhen(hasRole("b"))], {
+        combining: "DenyOverrides",
+      });
+      const both: SimulationInput = { subject: { id: "alice", roles: ["a", "b"] } };
+      const report = yield* whatIf(policy, both, { remedies: false });
+
+      const row = rowFor(report.rows, "without role b");
+      const flipped = compared(row.comparison).flipped;
+      assert.deepStrictEqual(flipped?.path, [1]);
+      if (row.outcome._tag !== "Decided" || flipped === undefined) throw new Error("not decided");
+
+      const named = flattenTree(inspect(policy, row.outcome.decision.trace)).find(
+        (node) => node.path === tracePathKey(flipped.path),
+      );
+      assert.strictEqual(named?.path, "$.1");
+      assert.strictEqual(named?.status, flipped.after ? "Allowed" : "Denied");
+      assert.strictEqual(named?.kind, "Requirement");
     }));
 
   // E4.2 — the outermost changed node, which is where the answer turned.

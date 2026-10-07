@@ -37,7 +37,7 @@ import { isAllowed } from "@qadi/core";
 import type { Allow, DecisionOutcome, PermissionKey, Policy } from "@qadi/core";
 import type { PolicySighting } from "../model/Catalogue.ts";
 import { capturing, type CapturedAnswers } from "../model/Capture.ts";
-import { inspect } from "../model/Inspect.ts";
+import { describeTracePath, inspect } from "../model/Inspect.ts";
 import { baselineDiff, matchesBaseline, replayInput } from "../model/Replay.ts";
 import type { Baseline, UnseededField } from "../model/Replay.ts";
 import { simulate, type SimulationClock } from "../model/Simulation.ts";
@@ -867,7 +867,7 @@ const summarise = (baseline: Extract<Baseline, { _tag: "Checked" }>): string => 
   }
   const flipped = comparison.flipped;
   if (flipped !== undefined) {
-    return `differs — ${flipped.policyTag} at ${pathOf(flipped.path)} was ${
+    return `differs — ${flipped.policyTag} at ${describeTracePath(flipped.path)} was ${
       flipped.before ? "allowed" : "denied"
     } and is now ${flipped.after ? "allowed" : "denied"}`;
   }
@@ -875,9 +875,6 @@ const summarise = (baseline: Extract<Baseline, { _tag: "Checked" }>): string => 
     comparison.differences.length === 1 ? "" : "s"
   }, with the same verdict`;
 };
-
-const pathOf = (path: ReadonlyArray<number>): string =>
-  path.length === 0 ? "the root" : `$.${path.join(".")}`;
 
 // ---------------------------------------------------------------------------
 // Small editors

@@ -14,6 +14,7 @@
  */
 import { useState, type CSSProperties, type FC } from "react";
 import type { TraceDifference, VerdictChanged } from "@qadi/core";
+import { describeTracePath } from "../model/Inspect.ts";
 import type { SimulationEdit } from "../model/SimulationEdit.ts";
 import { verdictOfOutcome } from "../model/Verdict.ts";
 import type { Comparison, WhatIfReport, WhatIfRow } from "../model/WhatIf.ts";
@@ -186,7 +187,7 @@ const Changed: FC<{ readonly comparison: Comparison }> = ({ comparison }) => {
 
 const Flipped: FC<{ readonly flipped: VerdictChanged }> = ({ flipped }) => (
   <span style={{ color: colors.text }} data-testid="qadi-whatif-flipped">
-    {flipped.policyTag} at {pathOf(flipped.path)} {flipped.before ? "allowed" : "denied"} →{" "}
+    {flipped.policyTag} at {describeTracePath(flipped.path)} {flipped.before ? "allowed" : "denied"} →{" "}
     {flipped.after ? "allowed" : "denied"}
     {flipped.label === undefined ? null : ` (${flipped.label})`}
     {" · "}
@@ -221,9 +222,6 @@ const wording: Record<TraceDifference["_tag"], string> = {
   // past which `diffTraces` declines to descend.
   ChildCountChanged: "the path taken",
 };
-
-const pathOf = (path: ReadonlyArray<number>): string =>
-  path.length === 0 ? "the root" : `$.${path.join(".")}`;
 
 /**
  * What the sweep did not do.

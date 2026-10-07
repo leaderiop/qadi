@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-090                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-07                                     |
-> | Status         | Accepted — amends ADR-QD-034, ADR-QD-024; amended by CCR-QD-190 (case-wise folds) |
+> | Status         | Accepted — amends ADR-QD-034, ADR-QD-024; amended by CCR-QD-190 (case-wise folds); amended by ADR-QD-101 (the devtools twin deleted, `Trace` walkers closed) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-10-07): the seam gains a case-wise interface beside the array form — `foldTreeBy`, `foldPolicyCases`, `foldMatcherCases`, `foldExplanationCases` (CCR-QD-190)<br>1.1 (2026-10-07): `TreeFold` is not reachable from outside `@qadi/core` (ADR-QD-099, CCR-QD-188) |
+> | Change History | 1.3 (2026-10-07): the devtools twin is deleted and `renderTrace`/`diffTraces` are stack-safe — the alignment of an explanation with a trace is core's (ADR-QD-101, CCR-QD-191)<br>1.2 (2026-10-07): the seam gains a case-wise interface beside the array form — `foldTreeBy`, `foldPolicyCases`, `foldMatcherCases`, `foldExplanationCases` (CCR-QD-190)<br>1.1 (2026-10-07): `TreeFold` is not reachable from outside `@qadi/core` (ADR-QD-099, CCR-QD-188) |
 
 ---
 
@@ -86,6 +86,10 @@ turn a decision into a defect.
 **A cycle throws.** `foldTree` throws `Error("foldTree: the tree contains a cycle")`
 on a node met again while open. Pure functions here already throw on broken
 invariants, and a named, immediate defect beats a hang.
+
+> **Superseded by [ADR-QD-101](./101-the-alignment-of-an-explanation-with-a-trace-is-cores.md)
+> (2026-10-07).** The zip is core's (`foldAligned`), so the twin has no user and is
+> deleted; the trigger below ("a third package") did not fire, the premise dissolved.
 
 **Devtools gets a package-private twin.** `Inspect.ts` zips an `Explanation` with a
 `Trace` and a path top-down, which needs a fold over *virtual* position nodes that
@@ -273,8 +277,10 @@ assertion.
 ### Not yet
 
 - **A `Trace` fold**, when ARCH-22 builds one, takes the case form from the start.
+  *(Done: `foldTrace` and `TraceCases`, ADR-QD-101.)*
 - **Devtools' package-private `TreeFold.ts` twin** is unchanged: its nodes are
   virtual positions with no tag-determined arity, so a case form buys it nothing.
+  *(Deleted by ADR-QD-101: core's `foldAligned` describes the positions.)*
 
 ### Alternatives considered
 
@@ -309,10 +315,12 @@ assertion.
 - One definition of the tag list; a new tag is a compile error in fewer places.
 - Two copies of the fold mechanism exist (core and devtools), until a third package
   needs one, at which point D-02-d is reopened with an ADR.
+  *(Closed by [ADR-QD-101](./101-the-alignment-of-an-explanation-with-a-trace-is-cores.md): one copy.)*
 
 ### Not yet
 
-- **`Trace` walkers.** `renderTrace` and `diffTraces` recurse natively over a
+- **`Trace` walkers.** *(Closed by [ADR-QD-101](./101-the-alignment-of-an-explanation-with-a-trace-is-cores.md):
+  both are explicit-stack loops and `foldTrace` is public.)* `renderTrace` and `diffTraces` recurse natively over a
   `Trace`. A trace exists only after an evaluation succeeded, so its nesting is
   bounded by that evaluation's `maxDepth` — and `maxDepth` is a caller's to raise,
   so they are the next candidates now that `TreeFold.ts` exists.

@@ -6,13 +6,11 @@
  * `policyTag`, a string. Neither alone can render the inspector's central
  * panel, which is the requirement tree with a verdict on every node.
  *
- * **The alignment is by index, and it is sound by construction.** `evaluateNode`
- * emits exactly one trace node per policy node, in declaration order: every
- * wrapper (`Not`, `Obliged`, `Labeled`) produces a single child, and `AllOf`,
- * `AnyOf` and `Rules` push one child per element they evaluated. So the i-th
- * trace child belongs to the i-th part of the explanation — and where the trace
- * has **fewer** children than the explanation has parts, those parts were
- * short-circuited.
+ * **The alignment is core's** (`foldAligned`, INV-QD-NEXT): which trace node
+ * belongs to which part of the explanation, and what a part with no trace node
+ * means, is a fact `evaluateNode` and `explain` produce, so core states it and
+ * this module only presents it. Where the trace has **fewer** children than the
+ * explanation has parts, those parts were short-circuited.
  *
  * **A short-circuited node is not a denied one**, and this is the single place
  * in the tool where getting a distinction wrong becomes a security misreading.
@@ -29,7 +27,7 @@
  */
 import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
-import { Combining, explain, FieldStrategy } from "@qadi/core";
+import { Combining, explain, FieldStrategy, foldAligned, tracePathKey } from "@qadi/core";
 import type {
   Explanation,
   Obligation,
@@ -38,7 +36,6 @@ import type {
   Trace,
 } from "@qadi/core";
 import type { TimelineEntry } from "./Timeline.ts";
-import { foldTree } from "./TreeFold.ts";
 
 /**
  * `NeverResolved` is not "unknown" — it is a fact, and a useful one: this
@@ -58,7 +55,8 @@ export type InspectKind =
 
 export interface InspectNode {
   /**
-   * Address of this node from the root, as `$.0.2`.
+   * Address of this node from the root, as `$.0.2`: core's `tracePathKey` of
+   * the path that reaches it.
    *
    * Stable across renders and unique within a tree, so it serves as a React key
    * and as the thing a "jump to this node" link carries.
@@ -102,12 +100,32 @@ export interface InspectNode {
  * `trace` may be absent — a failed evaluation produced none — and the whole
  * tree is then `NeverResolved`, which is truthful: nothing was decided.
  *
- * Built by a fold over zipped positions, so it is stack-safe for any nesting
- * depth: `explain` is, and the tree built from its output used to overflow at
- * about 1,759 levels (ARCH-02 C3d).
+ * Built by core's `foldAligned`, so it is stack-safe for any nesting depth:
+ * `explain` is, and the tree built from its output used to overflow at about
+ * 1,759 levels (ARCH-02 C3d).
  */
 export const inspect = (policy: Policy, trace: Trace | undefined): InspectNode =>
-  foldTree(position(explain(policy), trace, "$", undefined), childrenOfPosition, toInspectNode);
+  foldAligned<InspectNode>(explain(policy), trace, (node, children) => ({
+    path: node.key,
+    ...shapeOf(node.explanation),
+    status: statusOf(node.trace),
+    reason: node.trace?.reason,
+    visibleFields: node.trace?.visibleFields,
+    obligations: node.trace?.obligations ?? [],
+    effect: node.effect,
+    children,
+  }));
+
+/**
+ * The display form of a `TracePath`: `"the root"` for `[]`, otherwise core's
+ * `tracePathKey`, which is the `path` of the node it names.
+ *
+ * The one place a path is worded for a screen (ARCH-22 D-22-c). The key itself
+ * is core's; this adds only the sentence for the root, which `"$"` does not read
+ * as.
+ */
+export const describeTracePath = (path: ReadonlyArray<number>): string =>
+  path.length === 0 ? "the root" : tracePathKey(path);
 
 /**
  * The tree for a timeline row, or nothing.
@@ -134,9 +152,11 @@ export const isNeverResolved = (node: InspectNode): boolean => node.status === "
  * of saying it: a composite that short-circuits always evaluates at least its
  * first child, so a root that *was* resolved while **every** child was not can
  * only mean the trace was truncated before it reached the reader.
- * `dehydrateDecisions` ships a reduced trace unless `includeTrace` is set, so
- * this is a disclosure boundary rather than a defect — and wording it as "never
- * resolved" would blame the evaluator for somebody's disclosure decision.
+ * No producer in this repository ships such a trace — a hydration trace the
+ * server withholds is `Withheld`, not cut short (ADR-QD-078) — but a hand-built or
+ * foreign trace, or a replay's `TraceUndisclosed` baseline, can be one, and
+ * wording it as "never resolved" would blame the evaluator for somebody's
+ * disclosure decision.
  *
  * It takes an `InspectNode` rather than a `Trace` because a `Trace` alone
  * cannot answer it: a node with no children might be a truncated composite or
@@ -169,20 +189,12 @@ export const flattenTree = (node: InspectNode): ReadonlyArray<InspectNode> => {
   return flat;
 };
 
-interface Part {
-  readonly explanation: Explanation;
-  readonly effect: RuleEffect | undefined;
-}
-
 interface Shape {
   readonly kind: InspectKind;
   readonly label: string;
   readonly detail: string | undefined;
   readonly restrictsFields: ReadonlyArray<string> | undefined;
-  readonly parts: ReadonlyArray<Part>;
 }
-
-const part = (explanation: Explanation): Part => ({ explanation, effect: undefined });
 
 /**
  * A value outside its closed union, shown as it is — a string quoted, so `""`
@@ -217,11 +229,11 @@ const strategy = (self: FieldStrategy): string =>
 const algorithm = (self: Combining): string => (isCombining(self) ? self : outsideUnion(self));
 
 /**
- * The node's own presentation, and its child explanations.
+ * The node's own presentation.
  *
  * Built once at module scope per AGENTS.md §5a, and it returns data rather than
- * closures — the trace-zipping happens outside, in ordinary code, so this stays
- * a pure description of the shape.
+ * closures — the trace-zipping is core's `foldAligned`, so this stays a pure
+ * description of one node's shape.
  */
 const shapeOf: (self: Explanation) => Shape = Match.type<Explanation>().pipe(
   Match.tagsExhaustive({
@@ -230,100 +242,45 @@ const shapeOf: (self: Explanation) => Shape = Match.type<Explanation>().pipe(
       label: e.detail,
       detail: e.kind,
       restrictsFields: e.fields,
-      parts: [],
     }),
     All: (e) => ({
       kind: "All" as const,
       label: "all of",
       detail: strategy(e.fieldStrategy),
       restrictsFields: undefined,
-      parts: e.parts.map(part),
     }),
     Any: (e) => ({
       kind: "Any" as const,
       label: "any of",
       detail: strategy(e.fieldStrategy),
       restrictsFields: undefined,
-      parts: e.parts.map(part),
     }),
-    Negated: (e) => ({
+    Negated: () => ({
       kind: "Negated" as const,
       label: "not",
       detail: undefined,
       restrictsFields: undefined,
-      parts: [part(e.part)],
     }),
     Named: (e) => ({
       kind: "Named" as const,
       label: e.label,
       detail: "named",
       restrictsFields: undefined,
-      parts: [part(e.part)],
     }),
     Owing: (e) => ({
       kind: "Owing" as const,
       label: "obliged",
       detail: e.obligation.id,
       restrictsFields: undefined,
-      parts: [part(e.part)],
     }),
     Table: (e) => ({
       kind: "Table" as const,
       label: "rules",
       detail: algorithm(e.combining),
       restrictsFields: undefined,
-      parts: e.rows.map((row) => ({ explanation: row.condition, effect: row.effect })),
     }),
   }),
 );
 
 const statusOf = (trace: Trace | undefined): NodeStatus =>
   trace === undefined ? "NeverResolved" : trace.allowed ? "Allowed" : "Denied";
-
-/**
- * One place in the zipped tree: an explanation node, the trace node at the same
- * index (if evaluation reached it), its address, and its shape.
- *
- * A *virtual* node — the fold walks positions, not the explanation, because
- * zipping needs the trace and the path to travel down with each child, and no
- * domain adapter can describe that. `shapeOf` runs once, in {@link position}.
- */
-interface Position {
-  readonly trace: Trace | undefined;
-  readonly path: string;
-  readonly effect: RuleEffect | undefined;
-  readonly shape: Shape;
-}
-
-const position = (
-  explanation: Explanation,
-  trace: Trace | undefined,
-  path: string,
-  effect: RuleEffect | undefined,
-): Position => ({ trace, path, effect, shape: shapeOf(explanation) });
-
-/**
- * A position's children: one per explanation part. A part with no trace child at
- * its index was short-circuited, and so is everything beneath it — passing
- * `undefined` down is what makes the whole subtree read as unexamined rather than
- * as denied.
- */
-const childrenOfPosition = (self: Position): ReadonlyArray<Position> =>
-  self.shape.parts.map((child, index) =>
-    position(child.explanation, self.trace?.children[index], `${self.path}.${index}`, child.effect),
-  );
-
-/** One node of the tree, from its position and its already-built children. */
-const toInspectNode = (self: Position, children: ReadonlyArray<InspectNode>): InspectNode => ({
-  path: self.path,
-  kind: self.shape.kind,
-  label: self.shape.label,
-  detail: self.shape.detail,
-  status: statusOf(self.trace),
-  reason: self.trace?.reason,
-  visibleFields: self.trace?.visibleFields,
-  restrictsFields: self.shape.restrictsFields,
-  obligations: self.trace?.obligations ?? [],
-  effect: self.effect,
-  children,
-});

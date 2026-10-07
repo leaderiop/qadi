@@ -6,6 +6,7 @@
  * the shape being rendered is the shape the evaluator actually produces.
  */
 import { assert, describe, it } from "@effect/vitest";
+import * as FastCheck from "fast-check";
 import * as Effect from "effect/Effect";
 import type { Trace } from "../src/Decision.ts";
 import { isAllowed, renderTrace } from "../src/Decision.ts";
@@ -14,7 +15,8 @@ import { makeSubject } from "../src/AuthSubject.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { testLayer } from "./helpers.ts";
+import { chain, subjectWith, testLayer } from "./helpers.ts";
+import { oracleRenderTrace, traceArbitrary } from "./TraceOracle.ts";
 
 const leaf = (over: Partial<Trace> & { readonly allowed: boolean }): Trace => ({
   policyTag: "HasRole",
@@ -149,4 +151,89 @@ describe("renderTrace", () => {
       assert.strictEqual(rendered.split("\n").length, 3);
     }),
   );
+});
+
+describe("renderTrace — stack safety, a trace of any nesting depth (ARCH-22 C2, INV-QD-090)", () => {
+  it.effect(
+    "renders a 3,000-deep evaluated chain, one line per node",
+    () =>
+      Effect.gen(function* () {
+        const policy = chain(P.not, 3_000, P.hasRole("reader"));
+        const decision = yield* evaluate(policy, { maxDepth: Infinity }).pipe(
+          Effect.provide(testLayer(subjectWith({ roles: ["reader"] }))),
+        );
+        const lines = renderTrace(decision.trace, { indentLimit: Infinity }).split("\n");
+        assert.strictEqual(lines.length, 3_001);
+        assert.strictEqual(lines[3_000], `${"  ".repeat(3_000)}✓ HasRole`);
+      }),
+    60_000,
+  );
+
+  it.effect(
+    "renders a 250k-wide allOf",
+    () =>
+      Effect.gen(function* () {
+        const policy = P.allOf(Array.from({ length: 250_000 }, () => P.hasRole("reader")));
+        const decision = yield* evaluate(policy).pipe(
+          Effect.provide(testLayer(subjectWith({ roles: ["reader"] }))),
+        );
+        assert.strictEqual(renderTrace(decision.trace).split("\n").length, 250_001);
+      }),
+    60_000,
+  );
+});
+
+describe("renderTrace — agrees with the recursive implementation it replaced (ARCH-22 T1)", () => {
+  it("renders byte for byte what the recursion did, for any shallow trace", () => {
+    FastCheck.assert(
+      FastCheck.property(traceArbitrary(8), (trace) => {
+        assert.strictEqual(renderTrace(trace), oracleRenderTrace(trace));
+        const options = { term: (t: string) => `<${t}>`, indent: "..", };
+        assert.strictEqual(renderTrace(trace, options), oracleRenderTrace(trace, options));
+      }),
+      { seed: 2026100702, numRuns: 300 },
+    );
+  });
+});
+
+describe("renderTrace — indentLimit (ARCH-22 D-22-b, N3)", () => {
+  /** A chain of `n` `Not`s over a `HasRole`; the node at depth d allows exactly when d is even. */
+  const deepTrace = (n: number): Trace => {
+    let t: Trace = { policyTag: "HasRole", allowed: n % 2 === 0, children: [], obligations: [] };
+    for (let i = n - 1; i >= 0; i--)
+      t = { policyTag: "Not", allowed: i % 2 === 0, children: [t], obligations: [] };
+    return t;
+  };
+
+  it("renders a 100k-deep trace in output linear in its node count", () => {
+    const lines = renderTrace(deepTrace(100_000)).split("\n");
+    assert.strictEqual(lines.length, 100_001);
+    assert.strictEqual(lines[100_000], `${"  ".repeat(64)}(depth 100000) ✓ HasRole`);
+    assert.strictEqual(lines[64], `${"  ".repeat(64)}✓ Not`);
+    assert.strictEqual(lines[65], `${"  ".repeat(64)}(depth 65) ✗ Not`);
+  }, 60_000);
+
+  it("is byte-identical to the unbounded format within the default bound", () => {
+    const trace = deepTrace(64);
+    assert.strictEqual(renderTrace(trace), oracleRenderTrace(trace));
+    assert.notStrictEqual(renderTrace(deepTrace(65)), oracleRenderTrace(deepTrace(65)));
+  });
+
+  it("restores full indentation at Infinity, at a depth the recursion could not render", () => {
+    const lines = renderTrace(deepTrace(3_000), { indentLimit: Infinity }).split("\n");
+    assert.strictEqual(lines.length, 3_001);
+    assert.strictEqual(lines[2_999], `${"  ".repeat(2_999)}✗ Not`);
+    assert.strictEqual(lines[3_000], `${"  ".repeat(3_000)}✓ HasRole`);
+  }, 60_000);
+
+  it("treats NaN and a negative limit as no indentation, never as unbounded", () => {
+    for (const indentLimit of [Number.NaN, -1]) {
+      assert.deepStrictEqual(renderTrace(deepTrace(3), { indentLimit }).split("\n"), [
+        "✓ Not",
+        "(depth 1) ✗ Not",
+        "(depth 2) ✓ Not",
+        "(depth 3) ✗ HasRole",
+      ]);
+    }
+  });
 });

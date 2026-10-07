@@ -18,13 +18,16 @@
  */
 import * as Match from "effect/Match";
 import { isFieldStrategy } from "./FieldLattice.ts";
+import type { Trace } from "./Decision.ts";
 import { foldMatcherCases } from "./Matcher.ts";
 import type { Matcher, MatcherCases, ValueRef } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
 import { defaultFieldStrategy, foldPolicyCases } from "./Policy.ts";
 import { effectiveCombining, isCombining } from "./ShortCircuit.ts";
+import { childKey } from "./TraceKey.ts";
 import { foldTree, foldTreeBy } from "./TreeFold.ts";
+import { defaultTerm, fieldsClause } from "./Wording.ts";
 import type { Combining, FieldStrategy, Policy, PolicyCases } from "./Policy.ts";
 
 /** What kind of leaf a {@link Requirement} came from. */
@@ -215,6 +218,68 @@ const explanationStep: (node: Explanation) => ExplanationStep = Match.type<Expla
 export const foldExplanationCases = <R>(self: Explanation, cases: ExplanationCases<R>): R =>
   foldTreeBy<Explanation, R>(self, explanationChildrenOf, (node, resultOf) =>
     explanationStep(node)(cases, resultOf),
+  );
+
+/**
+ * One position in an explanation tree, with the trace node an evaluation left
+ * there.
+ *
+ * `trace` is `undefined` when evaluation never reached the position: a branch a
+ * short-circuit skipped, everything beneath it, or no trace at all. `key` is the
+ * position's canonical address, equal to `tracePathKey` of the path that reaches
+ * it. `effect` is the row's effect when the position is a `Table` row's
+ * condition, and `undefined` anywhere else.
+ */
+export interface AlignedNode {
+  readonly explanation: Explanation;
+  readonly trace: Trace | undefined;
+  readonly key: string;
+  readonly effect: Row["effect"] | undefined;
+}
+
+/**
+ * Folds an explanation and one evaluation's trace together, position by position,
+ * bottom-up and without native recursion.
+ *
+ * `combine` receives each position's {@link AlignedNode} and its children's
+ * results, in `explanationChildrenOf` order. It is how the two artifacts of
+ * ADR-QD-027 are read side by side without being merged: `evaluateNode` emits one
+ * trace node per policy node it evaluates, in declaration order, and `explain`
+ * mirrors the policy, so the trace's `i`th child is the `i`th part's (INV-QD-NEXT).
+ * A part beyond the trace's children was never examined (INV-QD-005, INV-QD-020):
+ * its node has `trace: undefined`, and so does everything beneath it. Trace
+ * children beyond the parts are ignored.
+ *
+ * **`combine` runs once per position, not once per node.** `explain` shares a
+ * subtree by identity (`anyOf([not(p), p])` has one `p` explanation reached by two
+ * paths), and a fold memoised by node would hand the second occurrence the first
+ * one's result: the first occurrence's trace and key. The positions folded here
+ * are fresh objects, so the identity memo inside `foldTree` never merges two of
+ * them (ARCH-22 N1).
+ *
+ * The pairing is by construction and is not checked at runtime: a trace that does
+ * not belong to the explanation yields a fold over a mismatched pair, not an
+ * error. Stack-safe at any depth (INV-QD-090).
+ *
+ * @param explanation - The explanation to fold, usually `explain(policy)`.
+ * @param trace - The trace one evaluation of that policy produced, if there is one.
+ * @param combine - Builds a position's result from it and its children's results.
+ */
+export const foldAligned = <R>(
+  explanation: Explanation,
+  trace: Trace | undefined,
+  combine: (node: AlignedNode, children: ReadonlyArray<R>) => R,
+): R =>
+  foldTree<AlignedNode, R>(
+    { explanation, trace, key: "$", effect: undefined },
+    (node) =>
+      explanationChildrenOf(node.explanation).map((part, i) => ({
+        explanation: part,
+        trace: node.trace?.children[i],
+        key: childKey(node.key, i),
+        effect: node.explanation._tag === "Table" ? node.explanation.rows[i]?.effect : undefined,
+      })),
+    combine,
   );
 
 // ---------------------------------------------------------------------------
@@ -547,15 +612,6 @@ interface RenderContext {
   readonly term: (text: string) => string;
 }
 
-const fieldsText = (fields: ReadonlyArray<string> | undefined, term: RenderContext["term"]) => {
-  if (fields === undefined) return "";
-  // An empty array is the bottom of the lattice, not a missing list — say
-  // so outright rather than joining zero terms into a dangling
-  // ", exposing only ".
-  if (fields.length === 0) return ", exposing no fields";
-  return `, exposing only ${fields.map(term).join(", ")}`;
-};
-
 /**
  * One node's own text, from its already-rendered children, each arm receiving
  * them in the tag's own shape.
@@ -569,7 +625,7 @@ const renderCases = (context: RenderContext): ExplanationCases<Piece> => {
   const { term } = context;
   return {
     Requirement: (e) => ({
-      text: `requires ${e.kind} ${term(e.detail)}${fieldsText(e.fields, term)}`,
+      text: `requires ${e.kind} ${term(e.detail)}${fieldsClause(e.fields, term)}`,
       atomic: isAtomic(e),
     }),
 
@@ -645,7 +701,7 @@ export const renderExplanation = (
   explanation: Explanation,
   options?: RenderOptions,
 ): string => {
-  const context: RenderContext = { term: options?.term ?? ((t: string) => `\`${t}\``) };
+  const context: RenderContext = { term: options?.term ?? defaultTerm };
 
   // The top level is never wrapped: nothing follows it, so there is nothing for
   // it to run into.

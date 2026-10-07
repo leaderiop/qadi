@@ -7,14 +7,17 @@
  * could not be asserted on at all.
  */
 import * as Data from "effect/Data";
+import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import type { VisibleFields } from "./FieldLattice.ts";
 import { project as projectPaths } from "./FieldPath.ts";
 import type { SubjectId } from "./Identity.ts";
 import { Obligation } from "./Obligation.ts";
-import { POLICY_TAGS } from "./Policy.ts";
+import { DEFAULT_MAX_DEPTH, POLICY_TAGS } from "./Policy.ts";
 import type { Policy } from "./Policy.ts";
 import type { Resource } from "./Resource.ts";
+import { foldTreeBy } from "./TreeFold.ts";
+import { defaultTerm, fieldsClause } from "./Wording.ts";
 
 /** One node of the evaluation tree. */
 export interface Trace {
@@ -209,6 +212,121 @@ export { intersectFields, mergeFields, unionFields } from "./FieldLattice.ts";
 export type { VisibleFields } from "./FieldLattice.ts";
 
 // ---------------------------------------------------------------------------
+// Folding a trace
+// ---------------------------------------------------------------------------
+
+/**
+ * One arm per `Policy` tag, each receiving the results of the trace node's
+ * children in the shape the tag gives them.
+ *
+ * The `Trace` twin of `PolicyCases`, in the case form from the start (ARCH-17,
+ * ARCH-22 D-22-a). A leaf receives only its node; `AllOf`, `AnyOf` and `Rules`
+ * receive one result per child **that was evaluated**, which can be fewer than the
+ * policy has (short-circuiting, INV-QD-020); a wrapper (`Not`, `Obliged`,
+ * `Labeled`) receives its child's result, or `undefined` for a hand-built or
+ * foreign trace that has none. An evaluation always gives a wrapper exactly one.
+ */
+export interface TraceCases<R> {
+  readonly HasPermission: (node: Trace) => R;
+  readonly HasRole: (node: Trace) => R;
+  readonly HasAttribute: (node: Trace) => R;
+  readonly HasResourceAttribute: (node: Trace) => R;
+  readonly HasRelationship: (node: Trace) => R;
+  readonly HasAction: (node: Trace) => R;
+  readonly HasActed: (node: Trace) => R;
+  readonly HasNotActed: (node: Trace) => R;
+  readonly HasCustom: (node: Trace) => R;
+  readonly HasSignature: (node: Trace) => R;
+  readonly AllOf: (node: Trace, children: ReadonlyArray<R>) => R;
+  readonly AnyOf: (node: Trace, children: ReadonlyArray<R>) => R;
+  readonly Rules: (node: Trace, children: ReadonlyArray<R>) => R;
+  readonly Not: (node: Trace, child: R | undefined) => R;
+  readonly Obliged: (node: Trace, child: R | undefined) => R;
+  readonly Labeled: (node: Trace, child: R | undefined) => R;
+}
+
+type TraceStep = <R>(cases: TraceCases<R>, children: ReadonlyArray<R>) => R;
+
+/**
+ * The children a trace node is folded through, by its tag's shape: none for a
+ * leaf, its first child for a wrapper, every child otherwise.
+ *
+ * Read by `traceStep` below, which hands exactly these results to the arm; a
+ * leaf's `children` are not walked, so a foreign leaf that carries some cannot
+ * reach a fold that was told it has none.
+ */
+const leafTags = [
+  "HasPermission",
+  "HasRole",
+  "HasAttribute",
+  "HasResourceAttribute",
+  "HasRelationship",
+  "HasAction",
+  "HasActed",
+  "HasNotActed",
+  "HasCustom",
+  "HasSignature",
+] as const;
+
+/** How a tag's trace node is folded: nothing beneath it, one child, or all of them. */
+type TraceShape = "Leaf" | "Wrapper" | "Many";
+
+const traceShapeOf: (tag: Trace["policyTag"]) => TraceShape = Match.type<
+  Trace["policyTag"]
+>().pipe(
+  Match.whenOr(...leafTags, (): TraceShape => "Leaf"),
+  Match.whenOr("Not", "Obliged", "Labeled", (): TraceShape => "Wrapper"),
+  Match.whenOr("AllOf", "AnyOf", "Rules", (): TraceShape => "Many"),
+  Match.exhaustive,
+);
+
+const traceChildrenOf = (self: Trace): ReadonlyArray<Trace> => {
+  const shape = traceShapeOf(self.policyTag);
+  return shape === "Leaf" ? [] : shape === "Wrapper" ? self.children.slice(0, 1) : self.children;
+};
+
+const traceStep: (node: Trace) => TraceStep = (node) =>
+  Match.value(node.policyTag).pipe(
+    Match.when("HasPermission", (): TraceStep => (cases) => cases.HasPermission(node)),
+    Match.when("HasRole", (): TraceStep => (cases) => cases.HasRole(node)),
+    Match.when("HasAttribute", (): TraceStep => (cases) => cases.HasAttribute(node)),
+    Match.when("HasResourceAttribute", (): TraceStep => (cases) => cases.HasResourceAttribute(node)),
+    Match.when("HasRelationship", (): TraceStep => (cases) => cases.HasRelationship(node)),
+    Match.when("HasAction", (): TraceStep => (cases) => cases.HasAction(node)),
+    Match.when("HasActed", (): TraceStep => (cases) => cases.HasActed(node)),
+    Match.when("HasNotActed", (): TraceStep => (cases) => cases.HasNotActed(node)),
+    Match.when("HasCustom", (): TraceStep => (cases) => cases.HasCustom(node)),
+    Match.when("HasSignature", (): TraceStep => (cases) => cases.HasSignature(node)),
+    Match.when("AllOf", (): TraceStep => (cases, children) => cases.AllOf(node, children)),
+    Match.when("AnyOf", (): TraceStep => (cases, children) => cases.AnyOf(node, children)),
+    Match.when("Rules", (): TraceStep => (cases, children) => cases.Rules(node, children)),
+    Match.when("Not", (): TraceStep => (cases, children) => cases.Not(node, children[0])),
+    Match.when("Obliged", (): TraceStep => (cases, children) => cases.Obliged(node, children[0])),
+    Match.when("Labeled", (): TraceStep => (cases, children) => cases.Labeled(node, children[0])),
+    Match.exhaustive,
+  );
+
+/**
+ * Folds a trace bottom-up with one arm per tag, without native recursion.
+ *
+ * The stack-safe walk for a caller-held trace: `Trace.children` is public and
+ * `AccessDenied.trace` reaches every host, so a host that walks one needs a
+ * primitive that holds at any nesting depth (INV-QD-090). Nothing in this
+ * repository uses it, because `renderTrace` needs pre-order with indentation and
+ * `diffTraces` walks two trees in lockstep; it is for callers.
+ *
+ * The `Trace` twin of `foldPolicyCases`: a subtree **shared by identity** is
+ * combined once and its result reused (a trace the evaluator built never shares
+ * one, a hand-built trace can), and a cyclic trace throws. The loop is the
+ * internal `TreeFold.ts`'s, so those two facts are the same ones `foldPolicy` and
+ * `foldExplanation` give.
+ */
+export const foldTrace = <R>(self: Trace, cases: TraceCases<R>): R =>
+  foldTreeBy<Trace, R>(self, traceChildrenOf, (node, resultOf) =>
+    traceStep(node)(cases, traceChildrenOf(node).map(resultOf)),
+  );
+
+// ---------------------------------------------------------------------------
 // Rendering
 // ---------------------------------------------------------------------------
 
@@ -223,6 +341,16 @@ export interface RenderTraceOptions {
   readonly term?: (text: string) => string;
   /** What one level of depth prepends. Defaults to two spaces. */
   readonly indent?: string;
+  /**
+   * Levels of indentation before a line writes its depth as a number instead.
+   *
+   * Defaults to `DEFAULT_MAX_DEPTH`, so every trace evaluated under the default
+   * bound renders unchanged. Past the limit a line keeps that many levels of
+   * indent and is prefixed `(depth N) `. `Infinity` restores full indentation,
+   * whose output grows with the square of the depth; a value below 0 or `NaN` means
+   * none (ARCH-22 D-22-b).
+   */
+  readonly indentLimit?: number;
 }
 
 /**
@@ -251,20 +379,12 @@ export const renderTrace = (
   trace: Trace,
   options?: RenderTraceOptions,
 ): string => {
-  const term = options?.term ?? ((t: string) => `\`${t}\``);
+  const term = options?.term ?? defaultTerm;
   const indent = options?.indent ?? "  ";
-
-  const fieldsText = (fields: VisibleFields): string => {
-    // `undefined` is the top of the lattice — every field — so it renders as
-    // nothing rather than as an empty list, which would invert the meaning
-    // (INV-QD-004).
-    if (fields === undefined) return "";
-    // An empty array is the bottom of the lattice, not a missing list — say
-    // so outright rather than joining zero terms into a dangling
-    // ", exposing only ".
-    if (fields.length === 0) return ", exposing no fields";
-    return `, exposing only ${fields.map(term).join(", ")}`;
-  };
+  // `NaN` and a negative limit mean no indentation, never an unbounded one:
+  // `Math.min(depth, NaN)` would be `NaN` and `repeat(NaN)` is `""` by accident.
+  const requested = options?.indentLimit ?? DEFAULT_MAX_DEPTH;
+  const limit = Number.isNaN(requested) ? 0 : Math.max(0, requested);
 
   const obligationsText = (owed: ReadonlyArray<Obligation>): string =>
     owed.length === 0
@@ -273,19 +393,36 @@ export const renderTrace = (
           .map((o) => `${term(o.id)}${o.advisory ? " (advisory)" : ""}`)
           .join(", ")}`;
 
-  const go = (node: Trace, depth: number): ReadonlyArray<string> => {
+  // Pre-order over an explicit stack, not native recursion (ARCH-22 C2,
+  // INV-QD-090). A fold would re-indent every descendant's text at every level;
+  // a line is final the moment its node is met, so nothing is built twice.
+  const lines: Array<string> = [];
+  const pending: Array<{ readonly node: Trace; readonly depth: number }> = [
+    { node: trace, depth: 0 },
+  ];
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    const { node, depth } = next;
     const mark = node.allowed ? "✓" : "✗";
     const named =
       node.label === undefined
         ? node.policyTag
         : `${node.policyTag} (${term(node.label)})`;
     const because = node.reason === undefined ? "" : ` — ${node.reason}`;
-    const head = `${indent.repeat(depth)}${mark} ${named}${because}${fieldsText(
-      node.visibleFields,
-    )}${obligationsText(node.obligations)}`;
+    // Past the limit a line keeps `limit` levels of indent and says its depth,
+    // so output grows with the node count, not its square (ARCH-22 N3).
+    const prefix = depth > limit ? `(depth ${depth}) ` : "";
+    lines.push(
+      `${indent.repeat(Math.min(depth, limit))}${prefix}${mark} ${named}${because}${fieldsClause(
+        node.visibleFields,
+        term,
+      )}${obligationsText(node.obligations)}`,
+    );
+    // Last-to-first, so children pop first-to-last.
+    for (let i = node.children.length - 1; i >= 0; i--) {
+      const child = node.children[i];
+      if (child !== undefined) pending.push({ node: child, depth: depth + 1 });
+    }
+  }
 
-    return [head, ...node.children.flatMap((child) => go(child, depth + 1))];
-  };
-
-  return go(trace, 0).join("\n");
+  return lines.join("\n");
 };

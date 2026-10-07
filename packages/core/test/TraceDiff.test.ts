@@ -1,4 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as FastCheck from "fast-check";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
@@ -8,8 +9,10 @@ import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { diffTraces, flippedAt } from "../src/TraceDiff.ts";
-import { subjectWith, testLayer } from "./helpers.ts";
+import { diffTraces, flippedAt, tracePathKey } from "../src/TraceDiff.ts";
+import { childKey } from "../src/TraceKey.ts";
+import { chain, subjectWith, testLayer } from "./helpers.ts";
+import { oracleDiffTraces, tracePairArbitrary } from "./TraceOracle.ts";
 
 const read = permission("doc", "read");
 
@@ -432,4 +435,99 @@ describe("diffTraces — the comparisons themselves", () => {
       // first — both are correct, and neither may be the root's verdict.
       if (flip !== undefined) assert.isAbove(flip.path.length, 0);
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+});
+
+describe("diffTraces — stack safety, a trace of any nesting depth (ARCH-22 C2, INV-QD-090)", () => {
+  const n = 100_000;
+  const wrappers: ReadonlyArray<readonly [string, (inner: P.Policy) => P.Policy]> = [
+    ["not", P.not],
+    ["labeled", (inner) => P.labeled("l", inner)],
+    ["allOf of one", (inner) => P.allOf([inner])],
+    ["rules of one", (inner) => P.rules([P.permitWhen(inner)])],
+  ];
+
+  for (const [name, wrap] of wrappers) {
+    it.effect(
+      `diffs an evaluated 100k-deep ${name} chain against itself`,
+      () =>
+        Effect.gen(function* () {
+          const policy = chain(wrap, n, P.hasRole("reader"));
+          const holder = yield* evaluate(policy, { maxDepth: Infinity }).pipe(
+            Effect.provide(testLayer(subjectWith({ roles: ["reader"] }))),
+          );
+          assert.deepStrictEqual(diffTraces(holder.trace, holder.trace), []);
+          // Not a flipped pair: a verdict that differs at every level reports a
+          // path per level, which is quadratic in depth by the public `TracePath`
+          // type (ARCH-22 §9), so the single-difference case is the hand-built
+          // pair below.
+        }),
+      60_000,
+    );
+  }
+
+  it.effect(
+    "diffs a 250k-wide allOf of leaves",
+    () =>
+      Effect.gen(function* () {
+        const policy = P.allOf(Array.from({ length: 250_000 }, () => P.hasRole("reader")));
+        const holder = yield* evaluate(policy).pipe(
+          Effect.provide(testLayer(subjectWith({ roles: ["reader"] }))),
+        );
+        assert.strictEqual(holder.trace.children.length, 250_000);
+        assert.deepStrictEqual(diffTraces(holder.trace, holder.trace), []);
+      }),
+    60_000,
+  );
+
+  it("reports a difference only near the root of a 100k-deep pair in constant stack", () => {
+    const deep = (flip: boolean) => {
+      let t: Trace = { policyTag: "HasRole", allowed: true, children: [], obligations: [] };
+      for (let i = 0; i < n; i++)
+        t = { policyTag: "Not", allowed: i === n - 1 ? flip : true, children: [t], obligations: [] };
+      return t;
+    };
+    const diffs = diffTraces(deep(true), deep(false));
+    assert.strictEqual(diffs.length, 1);
+    assert.deepStrictEqual(diffs[0]?.path, []);
+    assert.strictEqual(flippedAt(deep(true), deep(false))?.path.length, 0);
+  }, 60_000);
+});
+
+describe("diffTraces — agrees with the recursive implementation it replaced (ARCH-22 T1)", () => {
+  it("returns the same differences, in the same order, for any pair of shallow traces", () => {
+    FastCheck.assert(
+      FastCheck.property(tracePairArbitrary(6), ([before, after]) => {
+        assert.deepStrictEqual(diffTraces(before, after), oracleDiffTraces(before, after));
+      }),
+      { seed: 2026100701, numRuns: 300 },
+    );
+  });
+});
+
+describe("tracePathKey (ARCH-22 D-22-c)", () => {
+  it("addresses the root as `$` and a node by its indices", () => {
+    assert.strictEqual(tracePathKey([]), "$");
+    assert.strictEqual(tracePathKey([0]), "$.0");
+    assert.strictEqual(tracePathKey([0, 2, 11]), "$.0.2.11");
+  });
+
+  it("is what extending a key one index at a time builds", () => {
+    FastCheck.assert(
+      FastCheck.property(
+        FastCheck.array(FastCheck.nat(50), { maxLength: 12 }),
+        FastCheck.nat(50),
+        (path, index) => tracePathKey([...path, index]) === childKey(tracePathKey(path), index),
+      ),
+      { seed: 2026100703 },
+    );
+  });
+
+  it("names the node a difference reports", () => {
+    const leaf = (allowed: boolean): Trace => baseTrace({ allowed });
+    const tree = (allowed: boolean): Trace =>
+      baseTrace({ policyTag: "AllOf", children: [leaf(true), baseTrace({ policyTag: "Not", children: [leaf(allowed)] })] });
+    const flip = flippedAt(tree(true), tree(false));
+    assert.deepStrictEqual(flip?.path, [1, 0]);
+    assert.strictEqual(tracePathKey(flip?.path ?? []), "$.1.0");
+  });
 });

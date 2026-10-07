@@ -58,7 +58,10 @@ reads a child by position uses `foldPolicyCases`, `foldMatcherCases` or
 `foldExplanationCases`, whose arms receive their children in the tag's own shape
 (a `Not`'s one child as a value, a `Rules` row as a `{ rule, result }`), so a
 missing arm is a compile error. `leafCases` and `leafMatcherCases` build the leaf
-arms from one function.
+arms from one function. `foldTrace` is the same stack-safe walk over a `Trace` you
+hold (an `AccessDenied`'s, say), `foldAligned` folds an `Explanation` and one
+evaluation's trace together, position by position, and `tracePathKey` turns a
+`TracePath` from `diffTraces` into the `"$.0.2"` address of the node it names.
 
 [View on GitHub →](https://github.com/leaderiop/qadi/blob/main/spec/overview.md#services)
 

@@ -72,7 +72,10 @@ const whoCanRead = filterSubjects(canRead, staff, { resource: { id: "doc-1" } })
 subject or services involved — it describes what a rule requires of *anyone*,
 which is safe to render on a screen listing policies the viewer may not
 satisfy. `renderTrace` is its counterpart on the decision side: it renders
-what actually happened to one subject, from the `Trace` a `Decision` carries.
+what actually happened to one subject, from the `Trace` a `Decision` carries. It
+holds for a trace of any depth: past `indentLimit` levels (64 by default) a line
+says its depth, `(depth 120) ✓ HasRole`, instead of indenting further, and
+`indentLimit: Infinity` restores full indentation for a caller who knows their depth.
 
 ```ts
 const sentence = renderExplanation(explain(mayPublish));
