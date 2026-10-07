@@ -182,7 +182,7 @@ representation.
 | `Rule`, `permitWhen`, `denyWhen` | `Policy.ts` — two members, `condition` and `effect` |
 | `Combining` — `FirstApplicable` \| `DenyOverrides` \| `PermitOverrides` | the schema |
 | `RuleEffect` — `Permit` \| `Deny` | the schema |
-| `evaluateRules` | `Evaluate.ts`, beside the two combinators |
+| `evaluateRules` | `Walk.ts`, beside the two combinators |
 | a `reason` on an *allowing* trace node | the first in the library |
 
 **The fix did not change what `AllOf` and `AnyOf` mean.** This section forecast

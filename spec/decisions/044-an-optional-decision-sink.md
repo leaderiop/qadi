@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-044                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-23                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-08-23): Initial release (CCR-QD-060) |
+> | Change History | 1.1 (2026-10-07): "an observer can never deny" is enforced at one emitter, `SinkEmit.ts`, for decision and obligation records alike, and `sink-read-once` keeps it there (ADR-QD-100, CCR-QD-189). 1.0 (2026-08-23): Initial release (CCR-QD-060) |
 
 ---
 
@@ -130,3 +130,5 @@ is unchanged; see the amendment to [ADR-QD-012](./012-deterministic-time-and-ids
   awaited rather than forked deliberately: a fire-and-forget record would be
   unordered under `TestClock` and untestable. A sink that must do I/O should
   buffer and flush on its own schedule.
+
+> **Amended in CCR-QD-189 (ADR-QD-100).** The guarantee that was enforced at two call sites (`evaluate`, `discharge`) now lives in one emitter, `sinkEmitter` in `SinkEmit.ts`, which both use. `scripts/check-house-style.mjs`'s `sink-read-once` rule fails a second `serviceOption(DecisionSink)` in library source.

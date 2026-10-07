@@ -53,7 +53,10 @@ A record carrying a value with no safe durable representation — a function,
 a circular reference, a `bigint`, a `Map`/`Set`/`RegExp`/binary array, in the
 resource, the policy or anywhere else — fails `AuditEntryNotEncodable`, with
 the refusal and the path it was found at, rather than being partially written
-or silently dropped. An unknown decommissioning step id fails `UnknownDecommissioningStep`
+or silently dropped. A refused record is reported, never dropped silently: it reaches
+`onRefused` when you pass one to `AuditDecisionSinkLive`, otherwise it is logged as a
+warning naming the refusal, its path and the `evaluationId`, and the
+`qadi_audit_writes_total{outcome="encode_failed"}` counter increments either way. An unknown decommissioning step id fails `UnknownDecommissioningStep`
 rather than silently no-opping. No e-signature default ships, not even a
 no-op one — `Qadi.enforce`'s existing fail-closed behavior on an unwired
 obligation is the safe default already.
@@ -80,6 +83,12 @@ detection — not cryptographic tamper-evidence, see `SequenceIntegrity.ts`) and
 the decommissioning checklist are pure functions and data — caller-invoked,
 caller-scheduled, since this package has no scheduler of its own. E-signature
 capture is wired through `Qadi.ts`'s `ObligationHandler`, not `DecisionSink`:
+
+A row is selected for purging only with a finite `at` past a valid limit;
+anything else retains. `getPurgeableEntries` and `enforceRetention` purge
+nothing on an invalid `now` or `maxAgeMs` without saying so, so prefer
+`planRetention`, which returns a `RetentionInputInvalid` and lists the `undated`
+rows it kept.
 
 Nothing here connects the two: `getPurgeableEntries` selects by age alone and
 has no idea whether an entry was ever handed to `archiveAuditTrail`. **Archive

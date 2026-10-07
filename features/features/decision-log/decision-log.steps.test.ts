@@ -23,6 +23,7 @@ import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
+import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 import * as Sse from "effect/encoding/Sse";
@@ -30,6 +31,7 @@ import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServer from "effect/http/HttpServer";
 import {
   currentSubjectLayer,
+  DecisionStreamEvent,
   EvaluationServicesNone,
   evaluate,
   hasPermission,
@@ -41,7 +43,7 @@ import {
 } from "@qadi/core";
 import type { AuthSubject, DecisionLog, StoredRecord } from "@qadi/core";
 import { sourceFromEventSource } from "@qadi/devtools";
-import type { DecisionEventName, DecisionEventSource, SourceRead } from "@qadi/devtools";
+import type { DecisionEventSource, SourceRead } from "@qadi/devtools";
 import { decisionStreamRoute, PermissionRegistryLive, subjectExtractorBearer } from "@qadi/http";
 
 const feature = await loadFeature(fileURLToPath(new URL("./decision-log.feature", import.meta.url)));
@@ -52,8 +54,7 @@ const reader = makeSubject({ id: "reader", permissions: [permissionKey(readDevto
 const asked = permission("doc", "read");
 const author = makeSubject({ id: "author", permissions: [permissionKey(asked)] });
 
-const isDecisionEvent = (name: string): name is DecisionEventName =>
-  name === "backlog" || name === "synced" || name === "message";
+const isDecisionEvent = Schema.is(DecisionStreamEvent);
 
 /** `/__decisions` over `log`, as a web handler a `fetch`-shaped caller can drive. */
 const serve = (log: DecisionLog) => {
@@ -74,7 +75,7 @@ const serve = (log: DecisionLog) => {
 const pipedEventSource =
   (handler: (request: Request) => Promise<Response>) =>
   (url: string): DecisionEventSource => {
-    const listeners = new Map<DecisionEventName, (data: string) => void>();
+    const listeners = new Map<DecisionStreamEvent, (data: string) => void>();
     const parser = Sse.makeParser((event) => {
       if (event._tag === "Event" && isDecisionEvent(event.event)) listeners.get(event.event)?.(event.data);
     });

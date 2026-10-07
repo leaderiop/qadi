@@ -61,12 +61,13 @@ describe("encodeAuditEntry", () => {
 
   it.effect("a resource carrying a function refuses rather than dropping or stringifying it", () =>
     Effect.gen(function* () {
-      const record = decisionRecord({ resource: { handler: () => "nope" } });
+      const record = decisionRecord({ evaluationId: "ev-refused", resource: { handler: () => "nope" } });
       const result = yield* Effect.result(encodeAuditEntry(record));
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
         assert.strictEqual(result.failure._tag, "AuditEntryNotEncodable");
         assert.strictEqual(result.failure.recordTag, "Decision");
+        assert.strictEqual(result.failure.evaluationId, "ev-refused");
         assert.strictEqual(result.failure.refusal._tag, "Unrepresentable");
         assert.strictEqual(result.failure.reason, "resource.handler: a function has no JSON form");
       }
@@ -243,6 +244,28 @@ describe("decodeAuditEntry — the guarded reader (ARCH-09)", () => {
       const entry = yield* encodeAuditEntry(decisionRecord({ evaluationId: "e1" }));
       const result = decodeAuditEntry(JSON.parse(JSON.stringify({ ...entry, sequenceNumber: 7 })));
       assert.strictEqual(Result.isSuccess(result) ? result.success.entry.sequenceNumber : undefined, 7);
+    }));
+
+  it.effect("a non-integer or NaN sequenceNumber is Malformed, even when it is the only one", () =>
+    Effect.gen(function* () {
+      const entry = yield* encodeAuditEntry(decisionRecord({ evaluationId: "e1" }));
+      for (const sequenceNumber of [1.5, Number.NaN]) {
+        const result = decodeAuditEntry({ ...entry, sequenceNumber });
+        assert.isTrue(Result.isFailure(result));
+        assert.strictEqual(
+          Result.isFailure(result) ? result.failure.refusal._tag : undefined,
+          "Malformed",
+        );
+      }
+    }));
+
+  it.effect("a stored at of 1e400 is Malformed, not an Infinity that retention would have to survive", () =>
+    Effect.gen(function* () {
+      const entry = yield* encodeAuditEntry(decisionRecord({ evaluationId: "e1", at: 1_000 }));
+      const text = JSON.stringify(entry).replace('"at":1000', '"at":1e400');
+      assert.isTrue(text.includes("1e400"));
+      const result = decodeAuditEntry(JSON.parse(text));
+      assert.strictEqual(Result.isFailure(result) ? result.failure.refusal._tag : undefined, "Malformed");
     }));
 
   it.effect("a Failed record's Error cause is read back as an Error", () =>

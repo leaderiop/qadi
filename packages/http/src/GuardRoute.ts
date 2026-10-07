@@ -13,9 +13,10 @@ import * as Effect from "effect/Effect";
 import type * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type { Authorized, EvaluationServices, Permission, Policy, Resource } from "@qadi/core";
-import { CurrentSubject, guard } from "@qadi/core";
-import { handleEnforcementErrors } from "./QadiHttpError.ts";
-import { SubjectExtractor } from "./SubjectExtractor.ts";
+import { CurrentSubject } from "@qadi/core";
+import { authorizeRequest } from "./AuthorizeRequest.ts";
+import { HTTP_ENFORCEMENT_TAGS, toResponse } from "./QadiHttpError.ts";
+import type { SubjectExtractor } from "./SubjectExtractor.ts";
 
 /**
  * Guards a bare `HttpRouter` handler with a policy, resolving `resource` via
@@ -36,8 +37,8 @@ import { SubjectExtractor } from "./SubjectExtractor.ts";
  *
  * `CurrentSubject` is excluded from `R | EvaluationServices` specifically —
  * not from `LR` too, and not by excluding it from the union as a whole.
- * Only `guard(...)(resource, handler)` runs inside this function's own
- * `Effect.provideService(CurrentSubject, subject)`; `loadResource` runs before
+ * Only the guard and the handler run inside the `CurrentSubject` scope
+ * `authorizeRequest` and this function provide; `loadResource` runs before
  * it, outside that scope. A caller's `loadResource` that genuinely depends
  * on `CurrentSubject` (unusual, but not prevented) must still see it as a
  * real requirement — an unconditional `Exclude` over the whole union would
@@ -63,19 +64,16 @@ export const guardRoute =
     never,
     Exclude<R | EvaluationServices, CurrentSubject> | LR | SubjectExtractor
   > =>
-    handleEnforcementErrors(
-      Effect.gen(function* () {
-        // Subject extraction runs before `loadResource`. A denial still
-        // reaches `loadResource` either way — the policy cannot be evaluated
-        // without the resource it might read — but an extraction *failure*
-        // (a broken credential store, an outage, not a denial) must now
-        // short-circuit before `loadResource` ever runs, rather than after
-        // paying its cost first. `RequirePermission`'s middleware already
-        // gets this order right; this route previously did not.
-        const subject = yield* SubjectExtractor.extract(request);
-        const resource = yield* loadResource(request);
-        return yield* guard(permission, policy)(resource, handler).pipe(
-          Effect.provideService(CurrentSubject, subject),
-        );
-      }),
+    // Extraction, loading, the guard and both log lines are `authorizeRequest`'s
+    // (and in that order: a broken credential store never pays `loadResource`);
+    // this route keeps only its answer.
+    authorizeRequest(
+      permission,
+      policy,
+      loadResource,
+    )(request).pipe(
+      Effect.flatMap(({ authorized, resource, subject }) =>
+        handler(authorized, resource).pipe(Effect.provideService(CurrentSubject, subject)),
+      ),
+      Effect.catchTag(HTTP_ENFORCEMENT_TAGS, (error) => Effect.succeed(toResponse(error))),
     );

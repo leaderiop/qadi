@@ -11,6 +11,7 @@
  */
 import { expect, test } from "tstyche";
 import * as Effect from "effect/Effect";
+import type * as Layer from "effect/Layer";
 import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiClient from "effect/http-api/HttpApiClient";
 import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
@@ -22,6 +23,7 @@ import { hasPermission, permission } from "@qadi/core";
 import type { RequirePermissionClientError } from "../src/RequirePermission.ts";
 import { RequiredPermission, RequirePermission, requiresPermission } from "../src/RequirePermission.ts";
 import { passthroughClientLayer } from "../src/HttpApiMiddlewareClient.ts";
+import type { MisplacedAccessDeclaration, PermissionRegistry } from "../src/PermissionRegistry.ts";
 import { registerApi } from "../src/PermissionRegistry.ts";
 
 const readPermission = permission("document", "read");
@@ -41,6 +43,26 @@ test("requiresPermission accepts a plain, options-less HttpApiEndpoint", () => {
 
 test("registerApi accepts a plain, options-less HttpApi", () => {
   expect(registerApi).type.toBeCallableWith(plainApi);
+});
+
+// Only an endpoint declares access (ARCH-18). `requiresPermission` asks for
+// `method` and `path`, which a group and an API do not have.
+test("requiresPermission does not accept a group or an API", () => {
+  const group = HttpApiGroup.make("documents").add(plainEndpoint);
+  expect(requiresPermission).type.not.toBeCallableWith(group, {
+    permission: readPermission,
+    policy: readPolicy,
+  });
+  expect(requiresPermission).type.not.toBeCallableWith(plainApi, {
+    permission: readPermission,
+    policy: readPolicy,
+  });
+});
+
+test("registerApi can fail with MisplacedAccessDeclaration", () => {
+  expect(registerApi(plainApi)).type.toBe<
+    Layer.Layer<never, MisplacedAccessDeclaration, PermissionRegistry>
+  >();
 });
 
 test("a raw { permission, policy } literal cannot bypass requiresPermission's duplicate check", () => {

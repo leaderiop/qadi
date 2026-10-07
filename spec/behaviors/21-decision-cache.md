@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-21                                    |
-> | Revision       | 1.4                                            |
-> | Effective Date | 2026-09-08                                     |
+> | Revision       | 1.5                                            |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-09-08): BEH-QD-168 corrected twice — `AuthSubject.roles`/`.permissions` are the built-in JS `Set`, not `effect/HashSet` (matching `DecisionCache.ts`'s own corrected doc comment); and the `DecisionCacheKey` listing and BEH-QD-163's requirement gained the `maxDepth` field they omitted, which is in the key for the same reason `action` is (CCR-QD-128)<br>1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
+> | Change History | 1.5 (2026-10-07): BEH-QD-163/168 — `DecisionCacheKey` is replaced by `Question`; the options that are part of the key are the type `QuestionOptions` (ADR-QD-100, CCR-QD-189)<br>1.4 (2026-09-08): BEH-QD-168 corrected twice — `AuthSubject.roles`/`.permissions` are the built-in JS `Set`, not `effect/HashSet` (matching `DecisionCache.ts`'s own corrected doc comment); and the `DecisionCacheKey` listing and BEH-QD-163's requirement gained the `maxDepth` field they omitted, which is in the key for the same reason `action` is (CCR-QD-128)<br>1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
 
 _Previous: [20 — Policy Simplification](./20-simplification.md)_
 
@@ -63,13 +63,17 @@ REQUIREMENT: The cache key MUST comprise the subject id, the policy, the resourc
              the action, and `maxDepth`.
 ```
 
+> **Restated in CCR-QD-189.** The key is the public `Question` value (ADR-QD-100).
+> Which options are in the question is the type `QuestionOptions`; `concurrency` and
+> `evaluationId` are not, because they do not change the answer.
+
 > **Extended in CCR-QD-128.** `maxDepth` is in the key for the same reason `action`
 > is: it is an `evaluate` option, not part of the `Policy` or the subject, but it
 > can still change the answer — the same subject asking the same policy with a
 > shallower `maxDepth` can turn an `Allow`/`Deny` into `PolicyTooDeep`. Omitting it
 > would let a shallow-limited caller's ask hit an entry a deeper-limited caller
 > left behind, the same class of cross-question collision `resource` and `action`
-> are already here to prevent. See the `DecisionCacheKey` listing under
+> are already here to prevent. See the `Question` listing under
 > [BEH-QD-168](#beh-qd-168-the-key-carries-the-subject-not-the-subjects-id).
 
 > **Amended in CCR-QD-058.** "the subject id" is now **the subject** — see
@@ -181,7 +185,7 @@ above this section holds unchanged when it is absent.
 
 ```
 REQUIREMENT: The key MUST identify the question structurally. Two distinct
-             `DecisionCacheKey` values MUST NOT resolve to one entry.
+             `Question` values MUST NOT resolve to one entry.
 ```
 
 ```
@@ -189,7 +193,7 @@ REQUIREMENT: Two equal questions MUST hit regardless of the order their
              properties were written in.
 ```
 
-The key is the `DecisionCacheKey` itself, held in the `HashMap` with no
+The key is the `Question` itself, held in the `HashMap` with no
 serialization step. Effect's `Equal`/`Hash` compare plain objects structurally,
 nested included, so equality of keys is equality of questions and neither
 requirement above needs anything else to hold.
@@ -252,7 +256,7 @@ subject rebuilt per request from the same token is the same key.
 > not `effect/HashSet`. That is not a gap: `effect@4.0.0-rc.112`'s
 > `Equal.equals`/`Hash.hash` special-case `self instanceof Set` and fold over its
 > elements order-independently, so this still holds. See `DecisionCache.ts`'s own
-> `DecisionCacheKey` doc comment, which records the same correction against a
+> `Question` doc comment, which records the same correction against a
 > prior version of that comment that made the identical mistake, "verified
 > empirically against the installed `effect` build, not assumed from the
 > `Equal`/`Hash` docs."

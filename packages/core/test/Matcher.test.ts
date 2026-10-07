@@ -1049,3 +1049,94 @@ describe("stack-safe matcher walkers (ARCH-02 N2)", () => {
     assert.deepStrictEqual(seen, ["Exists", "Size", "FieldMatch"]);
   });
 });
+
+describe("foldMatcherCases (ARCH-17)", () => {
+  // Every arm answers its own node, so what a wrapper arm receives IS its child
+  // node: identity against `foldMatcher`'s array form checks the dispatcher reads
+  // exactly the one matcher `matcherChildrenOf` lists.
+  const lockstep = (mismatches: Array<string>): M.MatcherCases<M.Matcher> => {
+    const wrapper =
+      (tag: "FieldMatch" | "SomeMatch" | "EveryMatch" | "Size") =>
+      (node: M.Matcher, child: M.Matcher): M.Matcher => {
+        if (!("matcher" in node) || node.matcher !== child) mismatches.push(tag);
+        return node;
+      };
+    return {
+      ...M.leafMatcherCases((node) => node),
+      FieldMatch: wrapper("FieldMatch"),
+      SomeMatch: wrapper("SomeMatch"),
+      EveryMatch: wrapper("EveryMatch"),
+      Size: wrapper("Size"),
+    };
+  };
+
+  it("hands each wrapper arm exactly its wrapped matcher, for every node", () => {
+    FastCheck.assert(
+      FastCheck.property(matcherArbitrary(4), (matcher) => {
+        const mismatches: Array<string> = [];
+        const result = M.foldMatcherCases(matcher, lockstep(mismatches));
+        return result === matcher && mismatches.length === 0;
+      }),
+      { seed: 2026101711, numRuns: 400 },
+    );
+  });
+
+  it("combines the same number of nodes as foldMatcher", () => {
+    FastCheck.assert(
+      FastCheck.property(matcherArbitrary(4), (matcher) => {
+        let arrayForm = 0;
+        M.foldMatcher<number>(matcher, () => (arrayForm += 1));
+        let caseForm = 0;
+        const count = () => (caseForm += 1);
+        M.foldMatcherCases<number>(matcher, {
+          ...M.leafMatcherCases(count),
+          FieldMatch: count,
+          SomeMatch: count,
+          EveryMatch: count,
+          Size: count,
+        });
+        return arrayForm === caseForm;
+      }),
+      { seed: 2026101712, numRuns: 300 },
+    );
+  });
+
+  it("folds a 100,000-deep size without overflowing the stack, and throws on a cycle", () => {
+    const depthCases: M.MatcherCases<number> = {
+      ...M.leafMatcherCases(() => 0),
+      FieldMatch: (_n, child) => child + 1,
+      SomeMatch: (_n, child) => child + 1,
+      EveryMatch: (_n, child) => child + 1,
+      Size: (_n, child) => child + 1,
+    };
+    assert.strictEqual(M.foldMatcherCases(chain(M.size, 100_000, M.exists()), depthCases), 100_000);
+
+    const cycle: { _tag: "Size"; matcher: M.Matcher } = { _tag: "Size", matcher: M.exists() };
+    cycle.matcher = cycle;
+    assert.throws(() => M.foldMatcherCases(cycle, depthCases), /cycle/);
+  }, 60_000);
+
+  it("leafMatcherCases routes each of the eight leaf tags to f", () => {
+    const leaves: ReadonlyArray<M.Matcher> = [
+      M.eq(M.literal(1)),
+      M.neq(M.literal(1)),
+      M.dominates(M.literal("x")),
+      M.inArray([1]),
+      M.exists(),
+      M.gte(1),
+      M.lt(1),
+      M.contains(1),
+    ];
+    const cases: M.MatcherCases<string> = {
+      ...M.leafMatcherCases((node) => node._tag),
+      FieldMatch: () => "",
+      SomeMatch: () => "",
+      EveryMatch: () => "",
+      Size: () => "",
+    };
+    assert.deepStrictEqual(
+      leaves.map((leaf) => M.foldMatcherCases(leaf, cases)),
+      ["Eq", "Neq", "Dominates", "In", "Exists", "Gte", "Lt", "Contains"],
+    );
+  });
+});

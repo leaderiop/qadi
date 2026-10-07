@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-046                                   |
-> | Revision       | 1.3                                            |
-> | Effective Date | 2026-10-05                                     |
+> | Revision       | 1.4                                            |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-10-05): the stream serves a decision log: a backlog prelude, a `synced` marker, an environment-carrying envelope and an optional `Last-Event-ID` resume (ADR-QD-097) (CCR-QD-181)<br>1.2 (2026-10-05): one record can never end the feed; a refused record is reported (ADR-QD-095) (CCR-QD-179)<br>1.1 (2026-09-07): `decisionStreamRoute` gains an optional `reauth` — periodic re-extraction of the subject and re-evaluation of the policy against an open connection, closing the window a connect-time-only check leaves for a principal revoked after connecting; documented here and in BEH-QD-202, having shipped in code (`DecisionStreamOptions`, `reauthCheck`) without either being updated (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.4 (2026-10-07): the recheck is `authorizeRequest`, the same step the connect path runs, and its failure is classified through `@qadi/http`'s class table: a broken credential store on recheck is an `outage`, not a fifth `"extraction-failed"` label; `reauthCheck` leaves the public surface (ADR-QD-036 Rev 1.5, CCR-QD-197)<br>1.3 (2026-10-05): the stream serves a decision log: a backlog prelude, a `synced` marker, an environment-carrying envelope and an optional `Last-Event-ID` resume (ADR-QD-097) (CCR-QD-181)<br>1.2 (2026-10-05): one record can never end the feed; a refused record is reported (ADR-QD-095) (CCR-QD-179)<br>1.1 (2026-09-07): `decisionStreamRoute` gains an optional `reauth` — periodic re-extraction of the subject and re-evaluation of the policy against an open connection, closing the window a connect-time-only check leaves for a principal revoked after connecting; documented here and in BEH-QD-202, having shipped in code (`DecisionStreamOptions`, `reauthCheck`) without either being updated (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 ---
 
@@ -59,7 +59,9 @@ short of the client disconnecting or the process restarting would end a
 connection for a principal revoked mid-stream. `decisionStreamRoute` takes an
 optional `reauth: { interval }` that re-extracts the subject from the same
 request and re-evaluates the policy on that interval, ending the stream on
-the first failed recheck. It is additive and off by default — the original,
+the first failed recheck. The recheck is the same `authorizeRequest` the connect
+path runs (Rev 1.4), so the two cannot disagree about who is asking, and a failure
+is labelled from the table the connect-time status comes from. It is additive and off by default — the original,
 connect-only behavior is unchanged when it is not given, and it is only
 meaningful for a `SubjectExtractor` whose lookup actually consults something
 that can change.

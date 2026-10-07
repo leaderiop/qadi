@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-091                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted — amends ADR-QD-079, ADR-QD-040       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-05): Initial release (CCR-QD-172, CCR-QD-173) |
+> | Change History | 1.1 (2026-10-07): `Compare.ts` is not reachable from outside `@qadi/core` (ADR-QD-099, CCR-QD-188)<br>1.0 (2026-10-05): Initial release (CCR-QD-172, CCR-QD-173) |
 
 ---
 
@@ -48,7 +48,7 @@ one verdict function per comparison (`equalsVerdict`, `differsVerdict`, `atLeast
 `memberVerdict`, `dominatesVerdict`, and `compareVerdict` dispatching a `CompareOp` through a module-scope
 table). It imports only `SecurityLabel.ts`, and stays out of the barrel (AGENTS.md §9): generic names like
 `holds` would leak into the flat namespace, and the interface stays free to change while only core consumes
-it. It is reachable as `@qadi/core/Compare`.
+it. It is not reachable from outside `@qadi/core` (ADR-QD-099; it was the `@qadi/core/Compare` subpath until the `./*` export was removed).
 
 **(b) A comparison answers with a closed five-way `Verdict`.** `Held | NotHeld | ValueAbsent |
 ReferenceAbsent | Incomparable`, ordered: an absent value before an absent reference, both before

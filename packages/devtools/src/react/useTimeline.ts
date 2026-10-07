@@ -13,12 +13,11 @@
  * and vaguer. They are tested in `test/model/`; this is tested for the two
  * things only React can get wrong, which are subscribing and unsubscribing.
  */
-import * as Effect from "effect/Effect";
-import * as Fiber from "effect/Fiber";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import type { Source } from "../model/Source.ts";
 import { makeTimelineStore, runSource, type TimelineStore } from "../model/TimelineStore.ts";
 import type { Timeline } from "../model/Timeline.ts";
+import { useRunningStore } from "./useRunningStore.ts";
 
 export interface UseTimeline {
   readonly timeline: Timeline;
@@ -47,17 +46,10 @@ export const useTimeline = (
     [capacity],
   );
 
-  useEffect(() => {
-    const fiber = Effect.runFork(runSource(store, source));
-    // Interrupted on unmount, so a panel that is closed stops reading — and,
-    // with an SSE source, closes the connection through the read's scope
-    // rather than leaving a browser retrying a feed nobody is watching.
-    return () => {
-      Effect.runFork(Fiber.interrupt(fiber));
-    };
-  }, [store, source]);
-
-  const timeline = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  // Interrupted on unmount, so a panel that is closed stops reading — and,
+  // with an SSE source, closes the connection through the read's scope
+  // rather than leaving a browser retrying a feed nobody is watching.
+  const timeline = useRunningStore(store, runSource(store, source), [store, source]);
   const paused = useSyncExternalStore(store.subscribe, store.isPaused, store.isPaused);
 
   const setPaused = useCallback((next: boolean) => store.setPaused(next), [store]);

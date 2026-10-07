@@ -133,11 +133,11 @@ same shape repeats in each of the five port modules (`RelationshipResolver.ts`,
 
 **A port's wrappers and default are derived from its description, not written
 by hand** (ADR-QD-094). The description states the port's facts once — name,
-method, span, a lens onto its one method, its typed-error constructors, its
-request key and its fail-closed answer — and each exported layer is a one-line
-derivation: `export const decisionHistoryRetrying = retryingPort(decisionHistoryPort)`,
+method, span, the attributes that span carries, a lens onto its one method, its
+typed-error constructors, its request key and its fail-closed answer — and each
+exported layer is a one-line derivation: `export const decisionHistoryRetrying = retryingPort(decisionHistoryPort)`,
 `export const DecisionHistoryUnknown = nonePort(decisionHistoryPort)`. The
-derivations live in `PortDerivation.ts` (internal; it absorbed the old
+derivations live in `PortDerivation.ts` (package-private; it absorbed the old
 `RetryingLayer.ts`), the doubles in `PortDoubles.ts`, and the closed registry
 of all five in `Ports.ts`. A new port is a description, a `PortName` member and
 its registry lines; the compiler asks for the rest. A test that needs a broken
@@ -214,16 +214,17 @@ exactly one boundary but isn't part of a generic codec: `SubjectExtractionFailed
 hand-written wire-facing `Schema.TaggedStruct` mirror
 (`SubjectExtractionRefused` in `QadiHttpError.ts`) at the one place it's
 serialized — because nothing generic needs to decode it structurally the way
-`SinkCodec` or a typed HTTP client does for the eleven above. That's the test:
+`SinkCodec` or a typed HTTP client does for the classes above. That's the test:
 **does a codec need this error's shape, or does exactly one call site need to
 turn it into a response?** The former earns `Schema.TaggedError`; the latter
 stays `Data.TaggedError` plus its own mirror.
 
 Enforced by `SCHEMA_ERROR_BUDGET` in `scripts/check-house-style.mjs`, checked
-in both directions like `UNTRACED_BUDGET`: a thirteenth `Schema.TaggedError`
+in both directions like `UNTRACED_BUDGET`: another `Schema.TaggedError`
 class added to `packages/core/src/Errors.ts` without updating the table above
 and the budget together fails the gate, and so does the count silently
-dropping back to eleven.
+dropping back by one. The table's class names are checked against the
+declared classes too (`[schema-error-table]`), so a row cannot name the wrong class.
 
 Handling — use the **array form**, never `catchTags({...})`. (The installed
 `effect@4.0.0-rc.116` still ships `Effect.catchTags` with an object-form
@@ -256,16 +257,16 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (policy: Policy) {
 
 `Effect.gen` to construct; `.pipe` for the error/retry tail of a single expression.
 
-**Three exceptions, measured and budgeted** (ADR-QD-073). `Effect.fnUntraced`
+**Three exceptions, measured and budgeted** (ADR-QD-073; moved from `Evaluate.ts` to `Walk.ts` by ADR-QD-100). `Effect.fnUntraced`
 replaces `Effect.fn(name)` on exactly the composite-dispatch functions below —
 the same discipline §5a's `SWITCH_BUDGET` applies to `switch`: an exact,
 enforced list rather than a convention left to be remembered.
 
 | Location | Why untraced |
 | -------- | ------------ |
-| `Evaluate.ts` — `evaluateAllOf` | Runs once per `AllOf` node, every evaluation. |
-| `Evaluate.ts` — `evaluateAnyOf` | Runs once per `AnyOf` node, every evaluation. |
-| `Evaluate.ts` — `evaluateRules` | Runs once per `Rules` node, every evaluation. |
+| `Walk.ts` — `evaluateAllOf` | Runs once per `AllOf` node, every evaluation. |
+| `Walk.ts` — `evaluateAnyOf` | Runs once per `AnyOf` node, every evaluation. |
+| `Walk.ts` — `evaluateRules` | Runs once per `Rules` node, every evaluation. |
 
 Ticket #101's `packages/core/bench/EffectFn.bench.ts` measured what a *named*
 `Effect.fn(name)(...)` call adds over `Effect.fnUntraced` on this exact call
@@ -293,6 +294,8 @@ machine variance. The rest land close to, or (on `deep`) better than,
 ticket #101's own end-to-end estimate (≈30–43% single-combinator, ≈54–66%
 ten-level-deep) — real, not merely predicted.
 
+`walk` (`Walk.ts`) is a plain function returning `Effect.suspend`, neither traced nor in the budget: it runs once per evaluation and the root span is `evaluate`'s.
+
 The boundary stops exactly at these three. The port reads in `PortAccess.ts` —
 `readAttribute` (and the `resolveAttribute` span under it), `askActedAny`,
 `askActedForResource`, `askRelationship`, `askCustom`, `askSignature` — and the
@@ -301,7 +304,7 @@ asked, and a tracer is what reads it back") treats those spans as product
 observability a deployment wires a real tracer to consume, not incidental cost,
 and none of them runs once per policy *node* the way the three above do. (They
 moved there from `Evaluate.ts` in ADR-QD-077 so that `toPredicate` reads its
-ports the same way; `Evaluate.ts`'s `evaluateActed` family are now plain
+ports the same way; `Walk.ts`'s `evaluateActed` family are now plain
 functions that turn an answer into a verdict.) `requireScopedResourceId`, now
 `requireResourceId` in `PortAccess.ts`, is a small helper called from inside the
 acted and signature reads, not a per-node dispatch point, and was considered and
@@ -358,7 +361,7 @@ file and its exact count, and gate 4 fails on any deviation.
 
 | Location | Dispatches on |
 | -------- | ------------- |
-| `Evaluate.ts` — `evaluateNode` | `policy._tag` |
+| `Walk.ts` — `evaluateNode` | `policy._tag` |
 | `Matcher.ts` — `judgeMatcher` | `self._tag` |
 | `Matcher.ts` — `resolveRef` | `ref._tag` |
 
@@ -544,6 +547,15 @@ the barrel — exporting internal helpers leaks generic names into the flat
 namespace. Re-export internal types explicitly where `.d.ts` emission needs to
 name them (TS2883).
 
+**Out of the barrel means not importable** (ADR-QD-099). A package's `exports`
+map is a closed list: the root `.` and the subpaths `spec/overview.md`'s "Entry
+points" table names, each with a reason. There is no `./*` wildcard, so a module
+kept out of the barrel is package-private and free to change. Gate 13
+(`check-api-surface.mjs`, `ENTRY`) checks the manifest and gate 14
+(`check-package-install.mjs`, check 3b) checks the packed artifact. The only
+non-root entry point is `@qadi/devtools/react`; adding one is an edit to that
+table. A module another package needs is exported from the barrel instead.
+
 ## 10. Tests
 
 `@effect/vitest`: `it.effect`, `it.scoped`, `it.layer`, `TestClock`.
@@ -624,7 +636,7 @@ state-management layer of its own. The rules that keep it that way:
   > question carries a `liveCount`, incremented when its decision atom's
   > reader runs and decremented by a finalizer `AtomRegistry` calls on genuine
   > teardown (never on a same-tick recompute, which reincrements before any
-  > other fiber can observe zero — see `QadiAtoms.ts`'s `TrackedQuestion` for
+  > other fiber can observe zero — see `QuestionBook.ts` for
   > why), and `sweepEvictions` — plain `Effect.sync`, no `AtomRegistry` access
   > at all — drops the oldest questions with `liveCount === 0` once
   > `maxTrackedQuestions` is exceeded, skipping anything still live rather than
@@ -634,7 +646,7 @@ state-management layer of its own. The rules that keep it that way:
   > `useTimeline.ts` uses for its own background subscription — entirely
   > independent of `AtomRegistry`'s scheduler, so it cannot repeat the dropped-
   > render failure: it never touches value dispatch or notification, only
-  > which entries `QadiAtoms`' own bookkeeping keeps. `QadiAtoms.test.ts` and
+  > which entries the atom set's question book keeps. `QadiAtoms.test.ts` and
   > `QadiProvider.test.tsx` cover eviction past the bound, survival of a
   > currently-mounted gate, and that the existing render-sequence tests this
   > paragraph's history is about pass unchanged.
@@ -655,9 +667,11 @@ state-management layer of its own. The rules that keep it that way:
   (`check-doc-examples.mjs`, `check-website-doc-examples.mjs`) refuse it in a
   compiled fence that imports `@qadi/react`, unless the fence says why with a
   `// qadi:raw-decision-read — <reason>` line.
-- **Atoms are keyed structurally.** `Atom.family` compares with `Equal.equals`,
-  so two separately built but equal policies share one atom and an inline policy
-  still shares. Hoist to module scope or `useMemo` anyway — the hash is cached
+- **Atoms are keyed structurally.** The atom set's question book
+  (`QuestionBook.ts`, a `MutableHashMap`, which compares with `Equal.equals` as
+  `Atom.family` does) holds each question's handle strongly while it is tracked,
+  so two separately built but equal policies share one atom, an inline policy
+  still shares, and a garbage collection cannot split one question in two. Hoist to module scope or `useMemo` anyway — the hash is cached
   per object, so a fresh object each render re-walks the tree — but do not claim
   inline "defeats sharing", because it does not.
   `v4-reactivity-smoke.test.ts` pins the keying rule.
@@ -783,6 +797,14 @@ deliberate: a workflow with its own list of steps would be a second definition o
 "done", and two definitions of one thing drifting apart is the defect this library
 was rewritten to remove. Adding a gate means editing `check` and the DoD table
 together, and CI follows for free.
+
+**One derived exception: mutation runs on release PRs, not on every PR.**
+`check.yml` runs `pnpm check` for a release PR (head branch `changeset-release/*`),
+for the release commit on `main` and for a manual run, and `pnpm check:pr` for every
+other pull request and push. `check:pr` is `scripts/run-check.mjs --skip-mutation`: it
+reads `check` out of `package.json` and removes only the `pnpm mutation` step, and it
+refuses to run if it cannot find exactly that one step. It is derived, not a second
+list, so `check` is still the one definition of "done".
 
 So a claim that CI does something is true exactly when that something is in
 `pnpm check`. Before CCR-QD-036 there was no CI at all and six documents said there

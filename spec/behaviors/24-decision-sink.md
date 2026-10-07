@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-24                                    |
-> | Revision       | 1.8                                            |
-> | Effective Date | 2026-10-06                                     |
+> | Revision       | 1.10                                           |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.8 (2026-10-06): BEH-QD-187 — forwarding's `send` receives wire version 2, the one version a 0.11 receiver reads; a 0.9 sender must upgrade (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): ARCH-11 — BEH-QD-185 rewritten for `makeDecisionLog` (one positive-integer bound; `decisionSinkRing` removed); BEH-QD-187's example is a log and a forwarder; BEH-QD-188 requires an ingested record to reach live readers; BEH-QD-313 (a reader sees each retained record once, across backlog and live) added (ADR-QD-097, CCR-QD-181)<br>1.6 (2026-10-05): BEH-QD-187 — `send` receives wire version 2; receivers upgrade before senders (ADR-QD-096, CCR-QD-180)<br>1.5 (2026-10-05): BEH-QD-187 — `send` receives a `SinkRecordJson` from `encodeSinkRecord`; an encode refusal never reaches `send` and is reported through `onFailure` as a `SinkRecordNotEncodable` (ADR-QD-095, CCR-QD-179)<br>1.4 (2026-09-08): BEH-QD-183's `DecisionRecord` ts-fence gained the two fields it omitted, `subjectId` and `cache`, matching the real class in `DecisionRecord.ts` (CCR-QD-132)<br>1.3 (2026-09-08): BEH-QD-187 — `onFailure` MUST receive the plain value `send` failed or died with, not an Effect `Cause` wrapping it; `decisionSinkForwarding` was handing the callback the raw `Cause` from `catchCause`, which does not match `error: unknown`'s documented meaning or the sibling `onDropped`/`onUnknownParent` convention (CCR-QD-122)<br>1.2 (2026-09-07): BEH-QD-181's `DecisionSinkShape.record` corrected from `DecisionRecord` to the actual `SinkRecord` (`DecisionRecord \| ObligationRecord`) (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
+> | Change History | 1.10 (2026-10-07): BEH-QD-187 — the default refusal log's annotations come from `encodeRefusalAnnotations`, and an `onFailure` that throws on a refusal is contained (CCR-QD-193)<br>1.9 (2026-10-07): BEH-QD-182 names the single emitter (`SinkEmit.ts`); BEH-QD-183 — a record's request half is projected from the `Question` (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-06): BEH-QD-187 — forwarding's `send` receives wire version 2, the one version a 0.11 receiver reads; a 0.9 sender must upgrade (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): ARCH-11 — BEH-QD-185 rewritten for `makeDecisionLog` (one positive-integer bound; `decisionSinkRing` removed); BEH-QD-187's example is a log and a forwarder; BEH-QD-188 requires an ingested record to reach live readers; BEH-QD-313 (a reader sees each retained record once, across backlog and live) added (ADR-QD-097, CCR-QD-181)<br>1.6 (2026-10-05): BEH-QD-187 — `send` receives wire version 2; receivers upgrade before senders (ADR-QD-096, CCR-QD-180)<br>1.5 (2026-10-05): BEH-QD-187 — `send` receives a `SinkRecordJson` from `encodeSinkRecord`; an encode refusal never reaches `send` and is reported through `onFailure` as a `SinkRecordNotEncodable` (ADR-QD-095, CCR-QD-179)<br>1.4 (2026-09-08): BEH-QD-183's `DecisionRecord` ts-fence gained the two fields it omitted, `subjectId` and `cache`, matching the real class in `DecisionRecord.ts` (CCR-QD-132)<br>1.3 (2026-09-08): BEH-QD-187 — `onFailure` MUST receive the plain value `send` failed or died with, not an Effect `Cause` wrapping it; `decisionSinkForwarding` was handing the callback the raw `Cause` from `catchCause`, which does not match `error: unknown`'s documented meaning or the sibling `onDropped`/`onUnknownParent` convention (CCR-QD-122)<br>1.2 (2026-09-07): BEH-QD-181's `DecisionSinkShape.record` corrected from `DecisionRecord` to the actual `SinkRecord` (`DecisionRecord \| ObligationRecord`) (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
 
 _Previous: [23 — HTTP Enforcement](./23-http.md)_
 
@@ -90,7 +90,7 @@ to it must never reach the decision — so it is given no way to say otherwise.
 **Second, at the call site**, because the type leaves one gap. A **defect** is
 still assignable: `Effect.die`, and — the realistic case — any implementation
 whose body throws, since `Effect.sync` converts that into one. That is precisely
-the subversion BEH-QD-175 recorded. So `evaluate` wraps the call in
+the subversion BEH-QD-175 recorded. So the one emitter, `sinkEmitter` in `SinkEmit.ts` (used by `evaluate` and by the obligation gate), wraps the call in
 `Effect.catchCause`, and a dying sink is swallowed whole.
 
 This is the inverse of the `Effect.orDie` [AGENTS.md §4](../../AGENTS.md) forbids
@@ -99,6 +99,8 @@ this stops a bystander's defect from becoming an authorization outcome. **An
 observer must never be able to deny.**
 
 ## BEH-QD-183: A record is complete
+
+> **Note (CCR-QD-189).** A record's request half (`subjectId`, `policy`, `resource`, `action`) is projected from the `Question` by `failedRecord`/`decidedRecord` (`SinkEmit.ts`), so it cannot disagree with what was asked. `maxDepth` is deliberately not on the wire (ADR-QD-096).
 
 > **Invariant:** [INV-QD-036](../invariants.md#inv-qd-036-a-decision-record-is-complete)
 
@@ -330,6 +332,11 @@ REQUIREMENT: A `send` that fails OR dies MUST NOT change the decision, and MUST
 REQUIREMENT: When `onFailure` is supplied, it MUST receive the plain value
              `send` failed or died with — not an Effect `Cause` wrapping it.
 ```
+
+The default log for an encode refusal annotates `qadi.refusal`, `qadi.path` and
+`evaluationId` through `@qadi/core`'s `encodeRefusalAnnotations`, the same three
+every reporter uses (INV-QD-104); `onFailure` is called through
+`reportEncodeRefusal`, so one that throws is logged, never this decision's defect.
 
 **Corrected in CCR-QD-122.** `onFailure` is typed `(error: unknown) => void`
 and documented above as "Called when a record could not be delivered", which

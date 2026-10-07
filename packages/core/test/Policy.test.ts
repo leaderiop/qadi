@@ -986,3 +986,139 @@ describe("policyArbitrary (ARCH-02 T1)", () => {
     assert.strictEqual(seen.size, 16, `saw ${[...seen].join(",")}`);
   });
 });
+
+describe("foldPolicyCases (ARCH-17)", () => {
+  // Every arm answers its own node, so the results an arm receives ARE the child
+  // nodes: comparing them to `childrenOf(node)` by identity checks that the
+  // dispatcher reads exactly what `childrenOf` lists, once each, in order.
+  const sameObjects = (a: ReadonlyArray<P.Policy>, b: ReadonlyArray<P.Policy>): boolean =>
+    a.length === b.length && a.every((item, i) => item === b[i]);
+
+  const lockstepCases = (mismatches: Array<string>): P.PolicyCases<P.Policy> => {
+    const wrap =
+      (tag: string) =>
+      (node: P.Policy, received: ReadonlyArray<P.Policy>): P.Policy => {
+        if (!sameObjects(received, P.childrenOf(node))) mismatches.push(tag);
+        return node;
+      };
+    return {
+      ...P.leafCases((node) => node),
+      AllOf: (node, children) => wrap("AllOf")(node, children),
+      AnyOf: (node, children) => wrap("AnyOf")(node, children),
+      Rules: (node, rows) => wrap("Rules")(node, rows.map((row) => row.result)),
+      Not: (node, child) => wrap("Not")(node, [child]),
+      Obliged: (node, child) => wrap("Obliged")(node, [child]),
+      Labeled: (node, child) => wrap("Labeled")(node, [child]),
+    };
+  };
+
+  it("reads exactly what childrenOf lists, in order, for every node", () => {
+    for (const [arbitrary, seed] of [
+      [policyArbitrary(), 2026101701],
+      [sharedPolicyArbitrary, 2026101702],
+    ] as const) {
+      FastCheck.assert(
+        FastCheck.property(arbitrary, (policy) => {
+          const mismatches: Array<string> = [];
+          const result = P.foldPolicyCases(policy, lockstepCases(mismatches));
+          return result === policy && mismatches.length === 0;
+        }),
+        { seed, numRuns: 400 },
+      );
+    }
+  });
+
+  it("hands a Rules arm one { rule, result } per row, the node's own row, in row order", () => {
+    const a = P.permitWhen(P.hasRole("a"));
+    const b = P.denyWhen(P.hasRole("b"));
+    const policy = P.rules([a, b]);
+    const seen = P.foldPolicyCases<string>(policy, {
+      ...P.leafCases((node) => (node._tag === "HasRole" ? node.role : node._tag)),
+      AllOf: () => "",
+      AnyOf: () => "",
+      Not: (_n, child) => child,
+      Obliged: (_n, child) => child,
+      Labeled: (_n, child) => child,
+      Rules: (node, rows) => {
+        assert.strictEqual(rows[0]?.rule, node.rules[0]);
+        assert.strictEqual(rows[1]?.rule, node.rules[1]);
+        return rows.map((row) => `${row.rule.effect}:${row.result}`).join(",");
+      },
+    });
+    assert.strictEqual(seen, "Permit:a,Deny:b");
+  });
+
+  it("combines the same number of nodes as foldPolicy", () => {
+    FastCheck.assert(
+      FastCheck.property(sharedPolicyArbitrary, (policy) => {
+        let arrayForm = 0;
+        P.foldPolicy<number>(policy, () => (arrayForm += 1));
+        let caseForm = 0;
+        const count = () => (caseForm += 1);
+        P.foldPolicyCases<number>(policy, {
+          ...P.leafCases(count),
+          AllOf: count,
+          AnyOf: count,
+          Rules: count,
+          Not: count,
+          Obliged: count,
+          Labeled: count,
+        });
+        return arrayForm === caseForm;
+      }),
+      { seed: 2026101703, numRuns: 300 },
+    );
+  });
+
+  const depthCases: P.PolicyCases<number> = {
+    ...P.leafCases(() => 0),
+    AllOf: (_n, children) => children.length,
+    AnyOf: (_n, children) => children.length,
+    Rules: (_n, rows) => rows.length,
+    Not: (_n, child) => child + 1,
+    Obliged: (_n, child) => child + 1,
+    Labeled: (_n, child) => child + 1,
+  };
+
+  it("folds a 100,000-deep not, a 100,000-row-deep rules and a 250,000-wide anyOf", () => {
+    let nots: P.Policy = P.hasRole("a");
+    let tables: P.Policy = P.hasRole("a");
+    for (let i = 0; i < 100_000; i++) {
+      nots = P.not(nots);
+      tables = P.rules([P.permitWhen(tables)]);
+    }
+    assert.strictEqual(P.foldPolicyCases(nots, depthCases), 100_000);
+    assert.isAbove(P.foldPolicyCases(tables, { ...depthCases, Rules: (_n, rows) => (rows[0]?.result ?? 0) + 1 }), 99_999);
+    const wide = P.anyOf(Array.from({ length: 250_000 }, () => P.hasRole("a")));
+    assert.strictEqual(P.foldPolicyCases(wide, depthCases), 250_000);
+  }, 60_000);
+
+  it("throws on a cyclic policy instead of hanging", () => {
+    const cycle: { _tag: "Not"; policy: P.Policy } = { _tag: "Not", policy: P.hasRole("a") };
+    cycle.policy = cycle;
+    assert.throws(() => P.foldPolicyCases(cycle, depthCases), /cycle/);
+  });
+
+  it("leafCases routes each of the ten leaf tags to f", () => {
+    const custom: P.Policy = { _tag: "HasCustom", name: "c" };
+    const leaves: ReadonlyArray<P.Policy> = [
+      P.hasPermission(permission("doc", "read")),
+      P.hasRole("r"),
+      P.hasAttribute("a", M.exists()),
+      P.hasResourceAttribute("a", M.exists()),
+      P.hasRelationship("owner"),
+      P.hasAction("read"),
+      P.hasActed("approved"),
+      P.hasNotActed("approved"),
+      custom,
+      P.hasSignature("approved"),
+    ];
+    const tagLength = { ...depthCases, ...P.leafCases((node) => node._tag.length) };
+    const seen = leaves.map((leaf) => P.foldPolicyCases(leaf, tagLength));
+    assert.deepStrictEqual(
+      seen,
+      leaves.map((leaf) => leaf._tag.length),
+    );
+    assert.deepStrictEqual(Object.keys(P.leafCases(() => 0)).sort(), leaves.map((leaf) => leaf._tag).sort());
+  });
+});

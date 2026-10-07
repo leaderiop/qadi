@@ -29,12 +29,14 @@ import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type * as Schedule from "effect/Schedule";
+import * as Schema from "effect/Schema";
 import { SignatureHistoryUnavailable } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import { makeSubjectId } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
+import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 import type { Signature } from "./Signature.ts";
 
 export interface SignatureQuery {
@@ -76,6 +78,45 @@ export class SignatureHistory extends Context.Service<
 const NO_SIGNATURES: ReadonlyArray<Signature> = Object.freeze([]);
 
 /**
+ * What `HasSignature` needs from the signatures on file: whether one matched,
+ * and whether there were any at all (the deny reason distinguishes "nothing on
+ * file" from "none match").
+ *
+ * What the signature span's `disclose` reads. `onFile` is deliberately not on
+ * the span (ARCH-21's non-goals): a count of signatures is a disclosure
+ * decision of its own.
+ */
+export interface SignatureAnswer {
+  readonly matched: boolean;
+  readonly onFile: number;
+}
+
+/**
+ * What the signature span says (BEH-QD-227). `qadi.matched` rather than a
+ * three-valued answer: a signature either matches or it does not.
+ */
+const signatureSpan = {
+  question: spanStruct(
+    {
+      meaning: Schema.optionalKey(Schema.String),
+      scope: Schema.optionalKey(Schema.Literals(["Any", "Resource"])),
+      signerRole: Schema.optionalKey(Schema.String),
+      resourceId: Schema.optionalKey(Schema.String),
+      ...sharedQuestionFields,
+    },
+    {
+      meaning: "qadi.meaning",
+      scope: "qadi.scope",
+      signerRole: "qadi.signer_role",
+      resourceId: "qadi.resource_id",
+      ...sharedQuestionKeys,
+    },
+  ),
+  answer: spanStruct({ matched: Schema.optionalKey(Schema.Boolean) }, { matched: "qadi.matched" }),
+  disclose: (outcome: SignatureAnswer) => ({ matched: outcome.matched }),
+};
+
+/**
  * The signature-history port, described once (`PortDescription.ts`).
  *
  * A request is keyed by `(subjectId, resourceId)`, with an absent resource as
@@ -87,11 +128,13 @@ export const signatureHistoryPort: PortDescription<
   SignatureHistoryShape,
   [query: SignatureQuery],
   ReadonlyArray<Signature>,
-  SignatureHistoryUnavailable
+  SignatureHistoryUnavailable,
+  typeof signatureSpan
 > = {
   port: "SignatureHistory",
   method: "signaturesFor",
   span: "qadi.hasSignature",
+  attributes: signatureSpan,
   service: SignatureHistory,
   invoke: (shape) => (query) => shape.signaturesFor(query),
   make: (name, call) => ({ name, signaturesFor: call }),

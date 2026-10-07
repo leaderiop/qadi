@@ -18,6 +18,7 @@ import * as Metric from "effect/Metric";
 import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
+import * as Schema from "effect/Schema";
 import * as TestClock from "effect/testing/TestClock";
 import type * as Tracer from "effect/Tracer";
 import type { PortDescription } from "../src/PortDescription.ts";
@@ -30,6 +31,7 @@ import {
   wrapPort,
 } from "../src/PortDerivation.ts";
 import { recordingPort, replyTable, scriptedPort } from "../src/PortDoubles.ts";
+import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "../src/PortSpanEncode.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "../src/PortMetrics.ts";
 import { collectingTracer, forkAllAndSettle, isolatedMetrics } from "./helpers.ts";
 
@@ -47,6 +49,12 @@ class ProbePort extends Context.Service<ProbePort, ProbeShape>()("qadi/test/Prob
   static readonly ask = (who: string, what: string) => ProbePort.use((p) => p.ask(who, what));
 }
 
+const probeSpan = {
+  question: spanStruct({ ...sharedQuestionFields }, { ...sharedQuestionKeys }),
+  answer: spanStruct({ resolved: Schema.optionalKey(Schema.Boolean) }, { resolved: "qadi.resolved" }),
+  disclose: (value: number | undefined) => ({ resolved: value !== undefined }),
+};
+
 /**
  * Borrows `"AttributeResolver"` as its port name, so the metric words it
  * updates are real ones; nothing else about it is the attribute port's.
@@ -57,11 +65,13 @@ const probePort: PortDescription<
   ProbeShape,
   [who: string, what: string],
   number | undefined,
-  ProbeError
+  ProbeError,
+  typeof probeSpan
 > = {
   port: "AttributeResolver",
   method: "ask",
   span: "qadi.attribute",
+  attributes: probeSpan,
   service: ProbePort,
   invoke: (shape) => (who, what) => shape.ask(who, what),
   make: (name, call) => ({ name, ask: call }),

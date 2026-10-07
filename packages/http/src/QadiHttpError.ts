@@ -2,8 +2,8 @@
  * Describes, once per enforcement-error tag, how `@qadi/http` answers it — and
  * derives every response, status and declared error list from that one table.
  *
- * `ENFORCEMENT_ERROR_WIRE` is keyed by the twelve tags this package can
- * answer: the eleven `EnforcementError` tags from `@qadi/core`, plus the
+ * `ENFORCEMENT_ERROR_WIRE` is keyed by every tag this package can
+ * answer: each `EnforcementError` tag from `@qadi/core`, plus the
  * package-local `SubjectExtractionFailed`. Each entry carries the tag's class
  * (read from `@qadi/core`'s `ENFORCEMENT_ERROR_CLASSES`, never chosen here), its
  * status (derived from that class through `HTTP_STATUS_BY_CLASS`, never chosen
@@ -13,7 +13,7 @@
  * one site — the `satisfies` on the table (ARCH-04, ADR-QD-081).
  *
  * **Two routing shapes read that table** (ADR-QD-072).
- * `toResponse`/`handleEnforcementErrors` are what `GuardRoute.ts`'s bare
+ * `toResponse` is what `GuardRoute.ts`'s bare
  * `HttpRouter` routes need — a bare route has no schema-fixed error channel,
  * so nothing else can answer it. `RequirePermission.ts`'s `HttpApiMiddleware`
  * path projects each failure in-channel through the table's `project` and lets
@@ -25,7 +25,7 @@
  *
  * **The two routing shapes still disclose asymmetrically, and that asymmetry
  * is deliberate, not an oversight** (WZ-05). `toResponse` answers every one of
- * the eleven `EnforcementError` tags with `HttpServerResponse.empty()` — no
+ * the `EnforcementError` tags with `HttpServerResponse.empty()` — no
  * `_tag`, no fields, nothing a bare-`HttpRouter` caller can key off beyond the
  * status code — while `RequirePermission`'s `HttpApiMiddleware` path answers
  * with a real, `_tag`-carrying body for every one of them (redacted where a
@@ -34,8 +34,8 @@
  * honest, so there is no schema `toResponse` could encode against without
  * inventing one nobody consumes type-safely. `SubjectExtractionFailed` is the
  * one exception on the bare route: it answers its tag-only JSON 502 there too
- * (see {@link subjectExtractionFailedResponse}). Giving the bare-router
- * surface a body for the other eleven remains a separate, not-yet-decided
+ * (see {@link toResponse}). Giving the bare-router
+ * surface a body for the other tags remains a separate, not-yet-decided
  * change.
  */
 import * as Effect from "effect/Effect";
@@ -51,7 +51,6 @@ import type {
 } from "@qadi/core";
 import {
   AccessDeniedPublic,
-  ENFORCEMENT_DENIAL_TAGS,
   ENFORCEMENT_ERROR_CLASSES,
   ENFORCEMENT_ERROR_TAGS,
   MissingAction,
@@ -60,7 +59,6 @@ import {
   PolicyTooDeep,
   ResourceIdSchema,
   SubjectIdSchema,
-  classifyEnforcementError,
   errorCode,
   toAccessDeniedPublic,
 } from "@qadi/core";
@@ -73,7 +71,7 @@ import type { SubjectExtractionFailed } from "./SubjectExtractor.ts";
  */
 export type HttpEnforcementFailure = EnforcementError | SubjectExtractionFailed;
 
-/** The twelve tags of {@link HttpEnforcementFailure}. */
+/** Every tag of {@link HttpEnforcementFailure}. */
 export type HttpEnforcementTag = HttpEnforcementFailure["_tag"];
 
 /**
@@ -89,6 +87,20 @@ const HTTP_ENFORCEMENT_CLASSES = {
   ...ENFORCEMENT_ERROR_CLASSES,
   SubjectExtractionFailed: "outage",
 } as const satisfies EnforcementErrorClassTable<HttpEnforcementFailure>;
+
+/**
+ * The {@link EnforcementErrorClass} of any failure a guarded `@qadi/http`
+ * request can produce, `SubjectExtractionFailed` included.
+ *
+ * The reader of the table `wire` derives every status from, so a surface that
+ * labels a failure with it (the decision stream's recheck) cannot disagree with
+ * the status the connect path answers the same failure with. The stream's recheck
+ * used to invent a fifth label for a broken credential store instead
+ * (CCR-QD-197, ADR-QD-081).
+ */
+export const classifyHttpEnforcementFailure = (self: {
+  readonly _tag: HttpEnforcementTag;
+}): EnforcementErrorClass => HTTP_ENFORCEMENT_CLASSES[self._tag];
 
 /**
  * The status each {@link EnforcementErrorClass} answers with, on both routing
@@ -174,7 +186,7 @@ const wire = <K extends HttpEnforcementTag, S extends Schema.Top & { readonly Ty
 };
 
 /**
- * The one description of how `@qadi/http` answers each of the twelve tags.
+ * The one description of how `@qadi/http` answers each tag in `HTTP_ENFORCEMENT_TAGS`.
  *
  * Split by whether the real class schema is safe to put on the wire, since
  * BS-01's audit finding: reusing the real class schema unmodified — the "class
@@ -318,7 +330,7 @@ export const UndischargedObligationRefused = ENFORCEMENT_ERROR_WIRE.Undischarged
  */
 export const SubjectExtractionRefused = ENFORCEMENT_ERROR_WIRE.SubjectExtractionFailed.schema;
 
-/** Views onto `ENFORCEMENT_ERROR_WIRE`: the nine tags the middleware lets propagate. */
+/** Views onto `ENFORCEMENT_ERROR_WIRE`: the tags the middleware lets propagate. */
 export const AttributeResolveErrorResponse = ENFORCEMENT_ERROR_WIRE.AttributeResolveError.schema;
 export const RelationshipResolveErrorResponse = ENFORCEMENT_ERROR_WIRE.RelationshipResolveError.schema;
 export const DecisionHistoryUnavailableResponse = ENFORCEMENT_ERROR_WIRE.DecisionHistoryUnavailable.schema;
@@ -366,8 +378,8 @@ export const projectHttpEnforcementFailure = (
 
 /**
  * Every tag this package answers, for `Effect.catchTag`'s array form (house
- * style §4 — never the object form): `@qadi/core`'s eleven plus
- * `SubjectExtractionFailed`.
+ * style §4 — never the object form): `@qadi/core`'s `ENFORCEMENT_ERROR_TAGS`
+ * plus `SubjectExtractionFailed`.
  */
 export const HTTP_ENFORCEMENT_TAGS = [...ENFORCEMENT_ERROR_TAGS, "SubjectExtractionFailed"] as const;
 
@@ -381,15 +393,32 @@ export const HTTP_ENFORCEMENT_ERROR_SCHEMAS = Record.values(ENFORCEMENT_ERROR_WI
 );
 
 /**
- * Maps an `EnforcementError` to the bodyless response a bare `HttpRouter`
- * route answers it with.
+ * Answers one failure the way a bare `HttpRouter` route does: the eleven
+ * `EnforcementError` tags with a bodyless response, `SubjectExtractionFailed`
+ * with its tag-only JSON 502.
  *
- * The status is `HTTP_STATUS_BY_CLASS[classifyEnforcementError(error)]` — the
- * same lookup the table's `wire` builder uses, so this and the HttpApi schemas
- * cannot disagree.
+ * The status is `HTTP_STATUS_BY_CLASS[classifyHttpEnforcementFailure(error)]` —
+ * the same lookup the table's `wire` builder uses, so this and the HttpApi
+ * schemas cannot disagree. It logs nothing: `authorizeRequest` logs a denial
+ * and an extraction failure once, where it raises them.
+ *
+ * The 502 body is {@link SubjectExtractionRefused}'s encoded tag, not an empty
+ * response — an empty body decodes to `undefined` through a generated
+ * `HttpApiClient`, which satisfies no `Schema.TaggedStruct`, so a client built
+ * against `RequirePermission.ts`'s declared `clientError` union could never
+ * actually decode this outage as the typed `SubjectExtractionFailed` it
+ * promises (BL-01/MH-01/RM-01/GR-02). The real `reason` stays server-side, in
+ * the log line `authorizeRequest` writes.
  */
-export const toResponse = (error: EnforcementError): HttpServerResponse.HttpServerResponse =>
-  HttpServerResponse.empty({ status: HTTP_STATUS_BY_CLASS[classifyEnforcementError(error)] });
+export const toResponse = (error: HttpEnforcementFailure): HttpServerResponse.HttpServerResponse =>
+  error._tag === "SubjectExtractionFailed"
+    ? HttpServerResponse.jsonUnsafe(
+        Schema.encodeSync(ENFORCEMENT_ERROR_WIRE.SubjectExtractionFailed.schema)(
+          ENFORCEMENT_ERROR_WIRE.SubjectExtractionFailed.project(error),
+        ),
+        { status: ENFORCEMENT_ERROR_WIRE.SubjectExtractionFailed.status },
+      )
+    : HttpServerResponse.empty({ status: HTTP_STATUS_BY_CLASS[classifyHttpEnforcementFailure(error)] });
 
 /**
  * Logs a {@link SubjectExtractionFailed}'s real reason server-side.
@@ -400,31 +429,6 @@ export const toResponse = (error: EnforcementError): HttpServerResponse.HttpServ
  */
 export const logSubjectExtractionFailed = (error: SubjectExtractionFailed): Effect.Effect<void> =>
   Effect.logError(`qadi/http: subject extraction failed — ${error.reason}`);
-
-/**
- * The `SubjectExtractionFailed` arm `handleEnforcementErrors` below answers a
- * bare route with: log the actual reason, then answer 502 — an outage, not a
- * denial, the same status a broken `AttributeResolver` gets (INV-QD-006).
- *
- * The 502 body is {@link SubjectExtractionRefused}'s encoded tag, not an empty
- * response — an empty body decodes to `undefined` through a generated
- * `HttpApiClient`, which satisfies no `Schema.TaggedStruct`, so a client built
- * against `RequirePermission.ts`'s declared `clientError` union could never
- * actually decode this outage as the typed `SubjectExtractionFailed` it
- * promises (BL-01/MH-01/RM-01/GR-02). The real `reason` stays server-side, in
- * the log line.
- */
-export const subjectExtractionFailedResponse = (error: SubjectExtractionFailed) =>
-  logSubjectExtractionFailed(error).pipe(
-    Effect.as(
-      HttpServerResponse.jsonUnsafe(
-        Schema.encodeSync(ENFORCEMENT_ERROR_WIRE.SubjectExtractionFailed.schema)(
-          ENFORCEMENT_ERROR_WIRE.SubjectExtractionFailed.project(error),
-        ),
-        { status: ENFORCEMENT_ERROR_WIRE.SubjectExtractionFailed.status },
-      ),
-    ),
-  );
 
 /**
  * Logs a denial's stable code, subject and root reason before the response
@@ -449,26 +453,4 @@ export const logDenial = (error: EnforcementDenial): Effect.Effect<void> =>
       ? `qadi/http: request denied (${errorCode(error)}) — subject "${error.subjectId}": ${error.reason}`
       : `qadi/http: request denied (${errorCode(error)}) — subject "${error.subjectId}": ` +
           `undischarged obligation(s) ${error.obligationIds.join(", ")}`,
-  );
-
-/**
- * Maps every enforcement failure a guarded bare `HttpRouter` request can
- * produce — an `EnforcementError` from `@qadi/core`'s `guard`, or a
- * {@link SubjectExtractionFailed} from `SubjectExtractor` — down to an HTTP
- * response, discharging both error tags to `never`.
- *
- * `never` in the error channel is load-bearing here: a bare `HttpRouter`
- * handler has no schema-fixed error channel to escape into, so an enforcement
- * failure that isn't converted to a response here has nowhere else to go — see
- * `GuardRoute.ts`'s `guardRoute` doc comment. `RequirePermission.ts`'s
- * `HttpApiMiddleware` has no counterpart: its declared `error:` union is that
- * channel, and `HttpApiMiddleware`'s own encoder answers from it (ADR-QD-072).
- */
-export const handleEnforcementErrors = <A, R>(
-  self: Effect.Effect<A, HttpEnforcementFailure, R>,
-): Effect.Effect<A | HttpServerResponse.HttpServerResponse, never, R> =>
-  self.pipe(
-    Effect.tapErrorTag(ENFORCEMENT_DENIAL_TAGS, logDenial),
-    Effect.catchTag(ENFORCEMENT_ERROR_TAGS, (error) => Effect.succeed(toResponse(error))),
-    Effect.catchTag("SubjectExtractionFailed", subjectExtractionFailedResponse),
   );

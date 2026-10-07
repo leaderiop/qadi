@@ -15,7 +15,11 @@ import * as Metric from "effect/Metric";
 import * as Schedule from "effect/Schedule";
 import {
   AttributeResolver,
+  AttributeResolverNone,
+  attributeResolverFromRecord,
   attributeResolverRetrying,
+  EvaluationServicesNone,
+  forEveryPort,
   currentSubjectLayer,
   decisionCacheLayer,
   makeDecisionLog,
@@ -57,11 +61,11 @@ describe("wiringReport", () => {
 
       assert.deepStrictEqual(required, [
         "AttributeResolver",
-        "RelationshipResolver",
         "DecisionHistory",
-        "EvaluationId",
+        "RelationshipResolver",
         "CustomPredicate",
         "SignatureHistory",
+        "EvaluationId",
         "CurrentSubject",
       ]);
     }));
@@ -82,6 +86,75 @@ describe("wiringReport", () => {
       const history = report.ports.find((port) => port.port === "DecisionHistory");
       // ADR-QD-020's three-valued default, stated where a reader will look.
       assert.include(history?.consequence ?? "", "denies hasActed and hasNotActed alike");
+    }));
+
+  // C6 — the port rows are the registry's, in its order, so a sixth port is a row.
+  it.effect("every registry port has exactly one row, in the registry's order", () =>
+    Effect.gen(function* () {
+      const report = yield* wiringReport;
+      const portNames: ReadonlyArray<string> = forEveryPort((d) => d.port);
+      const rows: ReadonlyArray<string> = report.ports.map((row) => row.port);
+
+      assert.deepStrictEqual(rows.slice(0, portNames.length), portNames);
+      assert.deepStrictEqual(rows.slice(portNames.length), [
+        "EvaluationId",
+        "CurrentSubject",
+        "DecisionCache",
+        "DecisionSink",
+      ]);
+    }));
+
+  // C7 — a fail-closed default is reported as such, not as just another adapter.
+  it.effect("a port at its fail-closed default says so", () =>
+    Effect.gen(function* () {
+      const report = yield* wiringReport;
+      const ports = report.ports.slice(0, forEveryPort((d) => d.port).length);
+
+      assert.isTrue(ports.every((row) => row.present && row.defaulted === true));
+      // Not ports: nothing to be defaulted to.
+      assert.isTrue(
+        report.ports
+          .filter((row) => row.port === "EvaluationId" || row.port === "CurrentSubject")
+          .every((row) => row.defaulted === undefined),
+      );
+    }).pipe(Effect.provide(EvaluationServicesNone)));
+
+  it.effect("a wrapped default is still defaulted", () =>
+    Effect.gen(function* () {
+      const report = yield* wiringReport;
+      const attribute = report.ports.find((port) => port.port === "AttributeResolver");
+
+      assert.strictEqual(attribute?.name, "AttributeResolverNone (retrying)");
+      assert.isTrue(attribute?.defaulted);
+    }).pipe(
+      Effect.provide(attributeResolverRetrying(Schedule.recurs(1))(AttributeResolverNone)),
+    ));
+
+  it.effect("a real adapter is not defaulted, named or not", () =>
+    Effect.gen(function* () {
+      const named = (yield* wiringReport).ports.find((port) => port.port === "AttributeResolver");
+      assert.isFalse(named?.defaulted);
+    }).pipe(Effect.provide(attributeResolverFromRecord({}))));
+
+  it.effect("an unnamed adapter is not defaulted", () =>
+    Effect.gen(function* () {
+      const report = yield* wiringReport;
+      const attribute = report.ports.find((port) => port.port === "AttributeResolver");
+
+      assert.isFalse(attribute?.defaulted);
+    }).pipe(
+      Effect.provide(
+        Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
+      ),
+    ));
+
+  it.effect("an absent port is not called defaulted", () =>
+    Effect.gen(function* () {
+      const report = yield* wiringReport;
+      const attribute = report.ports.find((port) => port.port === "AttributeResolver");
+
+      assert.isFalse(attribute?.present);
+      assert.isUndefined(attribute?.defaulted);
     }));
 
   // E4.1

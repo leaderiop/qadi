@@ -25,6 +25,41 @@ HttpApiEndpoint.get("health", "/health").pipe((e) =>
 The `reason` is required and never read by the middleware. It exists so a
 reviewer can see that someone chose this.
 
+Only an endpoint declares access. A `RequiredPermission` or `PublicEndpoint` on
+a group or on the API is **refused** too, never ignored: the middleware answers
+500 for every endpoint under that group and names the group in its log, and
+`registerApi` fails with `MisplacedAccessDeclaration`. To declare for a whole
+group, write it into each endpoint's own annotations:
+
+```ts
+HttpApiGroup.make("documents")
+  .add(HttpApiEndpoint.get("read", "/documents"), HttpApiEndpoint.get("list", "/documents/all"))
+  .annotateEndpoints(RequiredPermission, requiresPermission(anEndpoint, { permission: readPermission, policy: readPolicy }));
+```
+
+## Building your own surface
+
+`authorizeRequest` is the one step every surface here goes through: it extracts
+the subject, loads the resource (none by default), guards it and logs a denial or
+an extraction failure once. A surface this package does not ship keeps only its
+own answer.
+
+```typescript
+import * as Effect from "effect/Effect";
+import type * as HttpServerRequest from "effect/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
+import { hasPermission, permission } from "@qadi/core";
+import { HTTP_ENFORCEMENT_TAGS, authorizeRequest, toResponse } from "@qadi/http";
+
+const readPermission = permission("document", "read");
+
+export const handle = (request: HttpServerRequest.HttpServerRequest) =>
+  authorizeRequest(readPermission, hasPermission(readPermission))(request).pipe(
+    Effect.map(({ subject }) => HttpServerResponse.text(`hello ${subject.id}`)),
+    Effect.catchTag(HTTP_ENFORCEMENT_TAGS, (error) => Effect.succeed(toResponse(error))),
+  );
+```
+
 ## Status mapping
 
 | Error | Status | Because |

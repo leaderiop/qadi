@@ -2,21 +2,24 @@
 /**
  * The browser's own five counters, and the serverless round trip.
  *
- * Sampled on a timer rather than subscribed to. `hydrationActivity` reads the
+ * Sampled on a schedule rather than subscribed to. `hydrationActivity` reads the
  * metric registry, which does not publish — and making it publish would cost
  * every production deployment something for the benefit of a panel almost nobody
- * has open.
+ * has open. `useDiagnostics` runs that pull, here at one second.
  */
-import { useEffect, useState } from "react";
-import * as Effect from "effect/Effect";
-import { hydrationActivity, unaccountedEntries } from "@qadi/devtools";
-import type { HydrationActivity } from "@qadi/devtools";
+import { useState } from "react";
+import { unaccountedEntries } from "@qadi/devtools";
+import { useDiagnostics } from "@qadi/devtools/react";
+import type { DiagnosticsDockOptions } from "@qadi/devtools/react";
 import { button, card, colors, mono, muted, pre } from "../ui/theme.ts";
 
 interface EdgeOutcome {
   readonly verdict: string;
   readonly forwardFailures: ReadonlyArray<string>;
 }
+
+/** Only the metric reads are wanted here, so nothing is handed over but a cadence. */
+const sampling: DiagnosticsDockOptions = { intervalMillis: 1_000 };
 
 const isEdgeOutcome = (value: unknown): value is EdgeOutcome =>
   typeof value === "object" && value !== null && "verdict" in value && "forwardFailures" in value;
@@ -28,16 +31,9 @@ export const Counters = ({
   readonly entriesInPayload: number;
   readonly articleId: string;
 }) => {
-  const [activity, setActivity] = useState<HydrationActivity | undefined>(undefined);
+  const { hydration: activity } = useDiagnostics(sampling);
   const [edge, setEdge] = useState<EdgeOutcome | undefined>(undefined);
   const [edgeError, setEdgeError] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    const sample = () => setActivity(Effect.runSync(hydrationActivity));
-    sample();
-    const timer = setInterval(sample, 1_000);
-    return () => clearInterval(timer);
-  }, []);
 
   const unaccounted = activity === undefined ? undefined : unaccountedEntries(activity);
 

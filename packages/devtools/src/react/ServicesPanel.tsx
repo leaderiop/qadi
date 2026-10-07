@@ -13,10 +13,11 @@
  * does not run; what a card can truthfully say is *defaulted to a fail-closed
  * implementation*.
  */
-import type { CSSProperties, FC } from "react";
+import type { CSSProperties, FC, ReactNode } from "react";
 import * as Match from "effect/Match";
+import type { WiringRead } from "../model/DiagnosticsStore.ts";
 import type { PortCall, PortCallLog } from "../model/PortCalls.ts";
-import type { CacheReport, PortActivity, PortReport, WiringReport } from "../model/Wiring.ts";
+import type { CacheReport, PortActivity, PortReport } from "../model/Wiring.ts";
 import { colors, font, muted } from "./theme.ts";
 
 /**
@@ -29,8 +30,11 @@ import { colors, font, muted } from "./theme.ts";
 const SHOWN_PER_PORT = 5;
 
 export interface ServicesPanelProps {
-  /** Absent when the host did not hand the dock its layer. */
-  readonly wiring: WiringReport | undefined;
+  /**
+   * What the wiring read produced: no layer handed over, a layer that failed to
+   * build, or the report. Each is stated rather than left blank.
+   */
+  readonly wiring: WiringRead;
   readonly activity: ReadonlyArray<PortActivity>;
   /**
    * Recent calls, read from `collectPortCalls`.
@@ -49,28 +53,52 @@ const card: CSSProperties = {
   marginBottom: 6,
 };
 
+/**
+ * One state of the wiring read, in words, built once at module scope (AGENTS.md
+ * §5a). The first two are not error screens of the panel's own: the metrics
+ * below need no wiring at all, so the screen is still useful without it.
+ */
+interface Shown {
+  readonly activity: ReadonlyArray<PortActivity>;
+  readonly portCalls: PortCallLog | undefined;
+}
+
+const wiringView: (self: WiringRead) => (shown: Shown) => ReactNode = Match.type<WiringRead>().pipe(
+  Match.tagsExhaustive({
+    NotHanded: () => () => (
+      <p style={muted} data-testid="qadi-wiring-absent">
+        No layer was handed to the dock, so which implementation is behind each
+        port cannot be shown. Pass <code>{"diagnostics={{ layer }}"}</code>, or a{" "}
+        <code>wiring</code> report read elsewhere.
+      </p>
+    ),
+    Failed: ({ reason }) => () => (
+      <p style={{ ...muted, color: colors.error }} data-testid="qadi-wiring-failed">
+        The layer handed to the dock failed to build, so which implementation is
+        behind each port cannot be shown: {reason}
+      </p>
+    ),
+    Read: ({ report }) =>
+      ({ activity, portCalls }: Shown) => (
+        <>
+          {report.ports.map((port) => (
+            <PortCard
+              key={port.port}
+              port={port}
+              activity={activityFor(activity, port.port)}
+              calls={callsFor(portCalls, port.port)}
+              collecting={portCalls !== undefined}
+            />
+          ))}
+          <CacheCard cache={report.cache} />
+        </>
+      ),
+  }),
+);
+
 export const ServicesPanel: FC<ServicesPanelProps> = ({ wiring, activity, portCalls }) => (
   <div style={{ padding: 12 }} data-testid="qadi-services">
-    {wiring === undefined ? (
-      <p style={muted} data-testid="qadi-wiring-absent">
-        {/* Not an error state: the metrics below need no wiring at all, so the
-            screen is still useful without this. */}
-        No layer was handed to the dock, so which implementation is behind each
-        port cannot be shown. Pass <code>wiring</code> to see it.
-      </p>
-    ) : (
-      wiring.ports.map((port) => (
-        <PortCard
-          key={port.port}
-          port={port}
-          activity={activityFor(activity, port.port)}
-          calls={callsFor(portCalls, port.port)}
-          collecting={portCalls !== undefined}
-        />
-      ))
-    )}
-
-    {wiring === undefined ? null : <CacheCard cache={wiring.cache} />}
+    {wiringView(wiring)({ activity, portCalls })}
 
     <p
       style={{ ...muted, fontSize: font.sizeSmall, marginBottom: 0 }}
@@ -94,7 +122,12 @@ const PortCard: FC<{
   readonly calls: ReadonlyArray<PortCall>;
   readonly collecting: boolean;
 }> = ({ port, activity, calls, collecting }) => (
-  <section style={card} data-testid="qadi-port" data-port={port.port}>
+  <section
+    style={card}
+    data-testid="qadi-port"
+    data-port={port.port}
+    data-defaulted={port.defaulted === undefined ? undefined : String(port.defaulted)}
+  >
     <div style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
       <strong>{port.port}</strong>
       <span data-testid="qadi-port-state" style={{ fontSize: font.sizeSmall }}>
@@ -113,7 +146,20 @@ const PortCard: FC<{
           }`}
       </span>
     </div>
-    <div style={{ ...muted, fontSize: font.sizeSmall }}>{port.consequence}</div>
+    <div
+      style={{
+        ...muted,
+        fontSize: font.sizeSmall,
+        // A fail-closed default is a warning, not an error (00-overview's
+        // vocabulary rules), so it takes the amber the dock uses for one.
+        ...(port.defaulted === true ? { color: colors.error } : {}),
+      }}
+      data-testid="qadi-port-consequence"
+    >
+      {/* Said for every card, but in its own voice: a defaulted port is paying
+          this cost now, and a wired one is only exposed to it. */}
+      {port.defaulted === false ? `if defaulted: ${port.consequence}` : port.consequence}
+    </div>
     <RecentCalls calls={calls} collecting={collecting} />
   </section>
 );
@@ -187,7 +233,7 @@ const RecentCalls: FC<{
  * than a blank or a plausible default: a reader chasing a wiring problem needs
  * to know the difference between "it said nothing" and "nobody asked".
  */
-const describe: (self: PortCall) => string = Match.type<PortCall>().pipe(
+const describeOne: (self: PortCall) => string = Match.type<PortCall>().pipe(
   Match.tagsExhaustive({
     AttributeResolver: (call) =>
       `${call.attribute ?? "not recorded"} → ${
@@ -212,9 +258,25 @@ const describe: (self: PortCall) => string = Match.type<PortCall>().pipe(
     SignatureHistory: (call) =>
       `${call.meaning ?? "not recorded"}${
         call.signerRole === undefined ? "" : ` from a '${call.signerRole}'`
+      }${
+        call.resourceId !== undefined
+          ? ` on ${call.resourceId}`
+          : call.scope === "Any"
+            ? " anywhere"
+            : ""
       } → ${call.matched === undefined ? "no answer" : call.matched ? "matched" : "no match"}`,
   }),
 );
+
+/**
+ * One call in a sentence, with how many times it ran when a retrying wrapper
+ * made it more than once — the per-call count a process-wide `retried` total
+ * cannot give (`qadi.attempts`).
+ */
+const describe = (call: PortCall): string =>
+  call.attempts !== undefined && call.attempts > 1
+    ? `${describeOne(call)} · ${String(call.attempts)} attempts`
+    : describeOne(call);
 
 const callsFor = (log: PortCallLog | undefined, port: string): ReadonlyArray<PortCall> =>
   log === undefined ? [] : log.calls.filter((call) => call._tag === port);
@@ -228,7 +290,10 @@ const callsFor = (log: PortCallLog | undefined, port: string): ReadonlyArray<Por
  */
 const stateOf = (port: PortReport): string => {
   if (!port.present) return port.required ? "not provided to this reader" : "absent";
-  return port.name === undefined ? "wired, unnamed" : port.name;
+  if (port.name === undefined) return "wired, unnamed";
+  // The name, and the fact: a default reads as just another implementation
+  // otherwise, which is exactly what it must not look like.
+  return port.defaulted === true ? `defaulted — ${port.name}` : port.name;
 };
 
 /**

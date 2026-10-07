@@ -33,7 +33,7 @@
  * boundary crosses a trust boundary, which is the reasoning
  * [ADR-QD-002](../../../spec/decisions/002-schema-derived-policy-adt.md) applies to
  * policies, so the wire form is one schema and decoding validates rather than
- * casts. The nine `EvaluationError` tags are `Schema.TaggedError` classes
+ * casts. The wire-crossing `EvaluationError` tags are `Schema.TaggedError` classes
  * ([AGENTS.md §4](../../../AGENTS.md),
  * [ADR-QD-060](../../../spec/decisions/060-schema-taggederror-for-the-nine-wire-crossing-errors.md)),
  * so the class already *is* the wire schema of an error.
@@ -71,18 +71,16 @@ import {
   PolicyTooDeep,
   RelationshipResolveError,
   SignatureHistoryUnavailable,
-  DecodeRefusal,
-  EncodeRefusal,
   SinkRecordNotDecodable,
   SinkRecordNotEncodable,
-  WIRE_VERSIONS,
 } from "./Errors.ts";
-import type { OpaqueKind, WirePath, WireVersion } from "./Errors.ts";
 import { makeSubjectId } from "./Identity.ts";
 import { MAX_DECODE_DEPTH, Policy, policyDepth, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
+import { DecodeRefusal, EncodeRefusal, WIRE_VERSIONS } from "./SinkWire.ts";
+import type { OpaqueKind, WirePath, WireVersion } from "./SinkWire.ts";
 
 /**
- * An `EvaluationError` on the wire — the union of the nine wire-crossing
+ * An `EvaluationError` on the wire — the union of the wire-crossing
  * classes themselves (ADR-QD-060), not a second description of them.
  *
  * `cause` (`AttributeResolveError`, `RelationshipResolveError`,
@@ -129,12 +127,18 @@ const OutcomeWire = Schema.Union([
 
 type OutcomeWire = typeof OutcomeWire.Type;
 
-/** A version-2 decision's fields, in the order they are written. */
+/**
+ * A version-2 decision's fields, in the order they are written.
+ *
+ * `at` is `Schema.Finite`: the inbound twin of `wireHazard`'s `NonFinite`
+ * refusal, so a stored `1e400` (which `JSON.parse` reads as `Infinity`) or a
+ * `NaN` is `Malformed` rather than a timestamp every reader must distrust.
+ */
 const decisionV2Fields = {
   _tag: Schema.Literal("Decision"),
   version: Schema.Literal(2),
   evaluationId: Schema.String,
-  at: Schema.Number,
+  at: Schema.Finite,
   subjectId: Schema.String,
   policy: Policy,
   resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
@@ -148,7 +152,7 @@ const obligationsV2Fields = {
   _tag: Schema.Literal("Obligations"),
   version: Schema.Literal(2),
   evaluationId: Schema.String,
-  at: Schema.Number,
+  at: Schema.Finite,
   outcome: Schema.Literals(["Discharged", "HandlerFailed", "Refused", "NotRequired"]),
   obligationIds: Schema.Array(Schema.String),
 };

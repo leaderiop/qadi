@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-053                                   |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-10-05                                     |
-> | Status         | Accepted — amended by ADR-QD-080, ADR-QD-093   |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-10-07                                     |
+> | Status         | Accepted — amended by ADR-QD-080, ADR-QD-093, ADR-QD-103 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-10-05): `GateRenderState` is derived from `DecisionOutcome`'s tag, not restated; amended by ADR-QD-093 (CCR-QD-175)<br>1.1 (2026-10-04): the registry is no longer module-scope; amended by ADR-QD-080 (CCR-QD-160)<br>1.0 (2026-08-24): Initial release (CCR-QD-073) |
+> | Change History | 1.3 (2026-10-07): `GateKind` gains `usePolicies` and `useQuestions`; a hook asking several questions registers one instance per question (ADR-QD-103, CCR-QD-201)<br>1.2 (2026-10-05): `GateRenderState` is derived from `DecisionOutcome`'s tag, not restated; amended by ADR-QD-093 (CCR-QD-175)<br>1.1 (2026-10-04): the registry is no longer module-scope; amended by ADR-QD-080 (CCR-QD-160)<br>1.0 (2026-08-24): Initial release (CCR-QD-073) |
 
 ---
 
@@ -195,3 +195,12 @@ a live authorization map on every production page.
 
 **A `[data-qadi-gate]` selector for both directions.** Rejected on ADR-QD-052's
 evidence, and the first draft of `gateIdAt` had already made the mistake.
+
+> **Amended in ADR-QD-103 (2026-10-07).** `usePolicies` read through a family of its own
+> and registered nothing, so a question it asked appeared in `asked()` with no instance
+> under it and the lens had nothing to point at. `GateKind` is now the closed union
+> `Can | Cannot | useCan | useDecision | useDecisionSuspense | usePolicies | useProjected |
+> useQuestions`, and a hook asking several questions registers **one instance per named
+> question**, each `id` being the hook's `useId`, a `/`, and the entry's name. `GateInstance`'s
+> shape is unchanged, so `@qadi/devtools` needs no change: it already reads `kind` as a string
+> and shows an unknown one as itself.

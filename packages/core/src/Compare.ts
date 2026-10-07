@@ -6,7 +6,7 @@
  * `judgeMatcher`/`evaluateMatcher` (`Matcher.ts`) for a matcher against a
  * resolved value, `evaluatePredicate` (`Predicate.ts`) for a predicate leaf
  * against a row, the renderable classifier (`RenderablePredicate.ts`) through
- * `evaluatePredicate`, and the evaluator's denial reason (`Evaluate.ts`) through
+ * `evaluatePredicate`, and the evaluator's denial reason (`Walk.ts`) through
  * the `Verdict` itself.
  *
  * Before this module the same rules lived in three hand-kept copies, each with
@@ -22,8 +22,8 @@
  * Pure and synchronous, with no spans: a comparison runs once per matcher node
  * and once per row, the hot paths AGENTS.md §5 and §5a protect. The verdicts are
  * string literals, so returning one costs what returning a boolean does.
- * Internal: kept out of the barrel (AGENTS.md §9), reachable as
- * `@qadi/core/Compare`. `Verdict` reaches the public surface through
+ * Package-private: kept out of the barrel (AGENTS.md §9) and not exported
+ * from any entry point (ADR-QD-099). `Verdict` reaches the public surface through
  * `Matcher.ts`, beside `judgeMatcher`.
  */
 import { isSecurityLabel, labelDominates } from "./SecurityLabel.ts";

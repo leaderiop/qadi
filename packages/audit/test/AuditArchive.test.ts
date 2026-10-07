@@ -86,6 +86,39 @@ describe("archiveAuditTrail", () => {
       );
     }));
 
+  it.effect("in a mixed input, sequenced entries come first in number order and unsequenced follow in input order", () =>
+    Effect.gen(function* () {
+      const uLate = yield* encodeAuditEntry(decisionRecord({ evaluationId: "u-late", at: 300 }));
+      const s2 = yield* encodeAuditEntry(decisionRecord({ evaluationId: "s2", at: 200 }));
+      const uEarly = yield* encodeAuditEntry(decisionRecord({ evaluationId: "u-early", at: 100 }));
+      const s1 = yield* encodeAuditEntry(decisionRecord({ evaluationId: "s1", at: 150 }));
+
+      const archive = yield* archiveAuditTrail(
+        [uLate, { ...s2, sequenceNumber: 2 }, uEarly, { ...s1, sequenceNumber: 1 }],
+        0,
+      );
+
+      assert.deepStrictEqual(
+        archive.entries.map((e) => e.record.evaluationId),
+        ["s1", "s2", "u-late", "u-early"],
+      );
+      assert.isTrue(archive.metadata.sequenceIntegrityVerified);
+    }));
+
+  it.effect("one sequenced entry among unsequenced ones comes first, wherever it was given", () =>
+    Effect.gen(function* () {
+      const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
+      const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
+      const c = yield* encodeAuditEntry(decisionRecord({ evaluationId: "c" }));
+
+      const archive = yield* archiveAuditTrail([a, b, { ...c, sequenceNumber: 7 }], 0);
+
+      assert.deepStrictEqual(
+        archive.entries.map((e) => e.record.evaluationId),
+        ["c", "a", "b"],
+      );
+    }));
+
   it.effect("an empty set archives to zero entries", () =>
     Effect.gen(function* () {
       const archive = yield* archiveAuditTrail([], 0);

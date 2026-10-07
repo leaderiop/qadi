@@ -90,7 +90,7 @@ documents and those disagree, those win.
 **Built.** The data plane (ADR-QD-044), the transport (ADR-QD-045, ADR-QD-046),
 and the surface: `@qadi/devtools` ships a headless model — sources, timeline,
 verdicts, pairing, the policy/trace zip, filters, selection, simulation, port
-calls and gate instances — and `@qadi/devtools/react` renders **all seven
+calls, gate instances and diagnostics sampling — and `@qadi/devtools/react` renders **all seven
 screens** in a dock the host mounts.
 
 Screens 3 to 6 landed in CCR-QD-068, the subject simulator in CCR-QD-070, port

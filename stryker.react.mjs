@@ -1,6 +1,6 @@
 /**
- * Mutation testing for `@qadi/react`'s **decision read**, and nothing else in
- * that package.
+ * Mutation testing for `@qadi/react`'s **decision read** and its **question
+ * book**, and nothing else in that package.
  *
  * `stryker.config.mjs` keeps `@qadi/react` out of the core run because the
  * package is "a thin binding over `effect/reactivity` plus render code" — and
@@ -15,8 +15,8 @@
  * A separate configuration for the `vitest.dir` reason every per-package config
  * here gives: `stryker.config.mjs` pins `vitest.dir` to `packages/core`, so a
  * mutant in this package would have no covering test there. The covering tests
- * are `packages/react/test/DecisionOutcome.test.ts` (no rendering, fast), plus
- * whatever else in the package reaches the module — `perTest` coverage analysis
+ * are `packages/react/test/DecisionOutcome.test.ts` and `QuestionBook.test.ts` (no
+ * rendering, fast), plus whatever else in the package reaches the module — `perTest` coverage analysis
  * runs only those.
  *
  * @type {import('@stryker-mutator/api/core').PartialStrykerOptions}
@@ -46,7 +46,7 @@ export default {
   // suite for each, and they dominated the run time. Set false to examine them by hand.
   ignoreStatic: true,
 
-  mutate: ["packages/react/src/DecisionOutcome.ts"],
+  mutate: ["packages/react/src/DecisionOutcome.ts", "packages/react/src/QuestionBook.ts"],
 
   thresholds: { high: 90, low: 80, break: 80 },
 

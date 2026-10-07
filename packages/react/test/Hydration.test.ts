@@ -38,6 +38,7 @@ import { currentDecision } from "../src/DecisionOutcome.ts";
 import type { HydrationMismatch, QadiAtoms } from "../src/QadiAtoms.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { InitialValues } from "../src/QadiProvider.tsx";
+import { collect } from "./support/collect.ts";
 
 /**
  * Waits for `atom`'s decision to leave `Initial`/`waiting` in `registry`.
@@ -598,7 +599,7 @@ describe("hydrateDecisions", () => {
   });
 
   it("a spread copy of the atom set seeds the real questions", () => {
-    // A copy's `decision`/`decisionFor` are the real ones, so what it seeds is
+    // A copy's `decision` are the real ones, so what it seeds is
     // what it reads. This used to be refused whole, because the seed lookup was a
     // side table keyed on the atom set's identity: a property of the keying, not
     // a defence of anything.
@@ -621,6 +622,19 @@ describe("hydrateDecisions", () => {
     const payload = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]);
 
     expect([...hydrateDecisions(double, payload, alice)]).toEqual([]);
+  });
+
+  it("keeps a seed across a collection that lands before the first read", async () => {
+    // The question's atoms are only weakly held by `Atom.family`; a seed written
+    // to a collected question's seed atom was lost, and the gate read Pending.
+    const payload = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]);
+    const seeded = hydrateDecisions(atoms, payload, alice);
+
+    await collect();
+
+    const registry = seedsBeforeSubject(seeded);
+    expect(currentDecision(registry.get(atoms.decision(canRead)))?._tag).toBe("SeededAllow");
+    registry.dispose();
   });
 
   it("still covers the window before this client can answer", () => {
@@ -771,7 +785,7 @@ describe("hydrateDecisions", () => {
     const registry = registryWith(hydrateDecisions(atoms, payload, alice));
 
     expect(
-      currentDecision(registry.get(atoms.decisionFor(canRead, resource)))?._tag,
+      currentDecision(registry.get(atoms.decision(canRead, resource)))?._tag,
     ).toBe("Allow");
     // And NOT under the resourceless atom, which is a different question. Alice
     // does hold the permission, so that atom decides Allow on its own — the tell
@@ -1060,7 +1074,7 @@ describe("hydration mismatch", () => {
       { policy: isAdmin, resource, decision: serverAllow("u1") },
     ]);
     const registry = open(hydrateDecisions(watched, payload, alice));
-    registry.get(watched.decisionFor(isAdmin, resource));
+    registry.get(watched.decision(isAdmin, resource));
 
     expect(seen).toHaveLength(1);
     expect(first(seen).resource).toEqual(resource);

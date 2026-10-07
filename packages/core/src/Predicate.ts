@@ -32,9 +32,9 @@ import {
   referencesResource,
 } from "./Matcher.ts";
 import { permissionKey } from "./Permission.ts";
-import { DEFAULT_MAX_DEPTH, fieldsOf, foldPolicy, policyDepth } from "./Policy.ts";
+import { DEFAULT_MAX_DEPTH, fieldsOf, foldPolicy, foldPolicyCases, policyDepth } from "./Policy.ts";
 import { askActedAny, readAttribute } from "./PortAccess.ts";
-import type { Combining, Policy, RuleEffect } from "./Policy.ts";
+import type { Combining, Policy, PolicyCases, RuleEffect } from "./Policy.ts";
 import { anyOfStopsAtAllow, effectiveCombining, rulesDecisiveEffect } from "./ShortCircuit.ts";
 
 // ---------------------------------------------------------------------------
@@ -400,18 +400,6 @@ const compileTree = (
   };
 
   /**
-   * The one child a wrapper folded, or a thrown invariant failure: `Not` and
-   * `Labeled` always fold exactly one, by construction of `childrenOf`.
-   */
-  const onlyChild = (tag: string, folded: ReadonlyArray<Compiled>): Compiled => {
-    const [first, ...rest] = folded;
-    if (first === undefined || rest.length !== 0) {
-      throw new Error(`toPredicate: ${tag} expected exactly one child, got ${folded.length}`);
-    }
-    return first;
-  };
-
-  /**
    * The scope is what decides a history question. `"Any"` asks about the
    * subject and folds; `"Resource"` asks once per row, which is the cost a
    * predicate exists to avoid.
@@ -430,138 +418,129 @@ const compileTree = (
         });
 
   /**
-   * One node's plan, from its already-compiled children, supplied in
-   * `childrenOf`'s order (a leaf's `folded` is empty).
+   * One node's plan, from its already-compiled children, each arm receiving
+   * them in the tag's own shape (`PolicyCases`): a wrapper its one child, a
+   * `Rules` table one `{ rule, result }` per row (ARCH-17). Built per call
+   * because the arms close over the subject, the action and the matcher context.
    */
-  const compileNode = (node: Policy, folded: ReadonlyArray<Compiled>): Compiled =>
-  Match.value(node).pipe(
-    Match.tagsExhaustive({
-      HasRole: (p) => planned({ _tag: "Constant", value: subject.roles.has(p.role) }),
+  const cases: PolicyCases<Compiled> = {
+    HasRole: (p) => planned({ _tag: "Constant", value: subject.roles.has(p.role) }),
 
-      HasPermission: (p) =>
-        planned({ _tag: "Constant", value: subject.permissions.has(permissionKey(p.permission)) }),
+    HasPermission: (p) =>
+      planned({ _tag: "Constant", value: subject.permissions.has(permissionKey(p.permission)) }),
 
-      HasAction: (p) =>
-        action === undefined
-          ? planned({ _tag: "NeedAction", expected: p.action })
-          : planned({ _tag: "Constant", value: action === p.action }),
+    HasAction: (p) =>
+      action === undefined
+        ? planned({ _tag: "NeedAction", expected: p.action })
+        : planned({ _tag: "Constant", value: action === p.action }),
 
-      HasAttribute: (p) => {
-        // Folds against the subject — but only if it does not reach for a column
-        // on the other side of the comparison.
-        if (referencesResource(p.matcher)) {
-          return refused(
-            "HasAttribute",
-            "the matcher compares against the resource, which is a column",
-          );
-        }
-        if (action === undefined && referencesAction(p.matcher)) {
-          return planned({ _tag: "NeedAction", expected: undefined });
-        }
-        return planned({ _tag: "AskAttribute", attribute: p.attribute, matcher: p.matcher });
-      },
+    HasAttribute: (p) => {
+      // Folds against the subject — but only if it does not reach for a column
+      // on the other side of the comparison.
+      if (referencesResource(p.matcher)) {
+        return refused(
+          "HasAttribute",
+          "the matcher compares against the resource, which is a column",
+        );
+      }
+      if (action === undefined && referencesAction(p.matcher)) {
+        return planned({ _tag: "NeedAction", expected: undefined });
+      }
+      return planned({ _tag: "AskAttribute", attribute: p.attribute, matcher: p.matcher });
+    },
 
-      HasResourceAttribute: (p) => {
-        if (action === undefined && referencesAction(p.matcher)) {
-          return planned({ _tag: "NeedAction", expected: undefined });
-        }
-        const column = columnPredicate(p.attribute, p.matcher, context);
-        return column === undefined
-          ? refused(
-              "HasResourceAttribute",
-              `matcher '${p.matcher._tag}' on column '${p.attribute}' has no predicate form`,
-            )
-          : planned({ _tag: "Column", predicate: column });
-      },
+    HasResourceAttribute: (p) => {
+      if (action === undefined && referencesAction(p.matcher)) {
+        return planned({ _tag: "NeedAction", expected: undefined });
+      }
+      const column = columnPredicate(p.attribute, p.matcher, context);
+      return column === undefined
+        ? refused(
+            "HasResourceAttribute",
+            `matcher '${p.matcher._tag}' on column '${p.attribute}' has no predicate form`,
+          )
+        : planned({ _tag: "Column", predicate: column });
+    },
 
-      HasActed: (p) => history("HasActed", p.event, p.scope),
-      HasNotActed: (p) => history("HasNotActed", p.event, p.scope),
+    HasActed: (p) => history("HasActed", p.event, p.scope),
+    HasNotActed: (p) => history("HasNotActed", p.event, p.scope),
 
-      HasRelationship: () =>
-        refused("HasRelationship", "a relationship is keyed by the row's id and cannot fold"),
+    HasRelationship: () =>
+      refused("HasRelationship", "a relationship is keyed by the row's id and cannot fold"),
 
-      // Opaque, externally-registered logic — there is nothing here to fold,
-      // and approximating it would be exactly the failure mode ADR-QD-024
-      // refuses (ADR-QD-055).
-      HasCustom: (p) =>
-        refused(
-          "HasCustom",
-          `'${p.name}' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression`,
-        ),
+    // Opaque, externally-registered logic — there is nothing here to fold,
+    // and approximating it would be exactly the failure mode ADR-QD-024
+    // refuses (ADR-QD-055).
+    HasCustom: (p) =>
+      refused(
+        "HasCustom",
+        `'${p.name}' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression`,
+      ),
 
-      // Looked up through an external port (SignatureHistory), keyed by
-      // subject/resource — not a column any row carries, the same reason
-      // HasRelationship refuses rather than HasCustom's opacity reason
-      // (INV-QD-056).
-      HasSignature: () =>
-        refused(
-          "HasSignature",
-          "a signature is looked up through an external port and cannot fold into a resource-independent expression",
-        ),
+    // Looked up through an external port (SignatureHistory), keyed by
+    // subject/resource — not a column any row carries, the same reason
+    // HasRelationship refuses rather than HasCustom's opacity reason
+    // (INV-QD-056).
+    HasSignature: () =>
+      refused(
+        "HasSignature",
+        "a signature is looked up through an external port and cannot fold into a resource-independent expression",
+      ),
 
-      // INV-QD-013 reaching a construct it could not otherwise reach: a
-      // predicate has no channel to carry a duty, so rows selected by one would
-      // be handed over with a condition nobody was told about.
-      Obliged: () =>
-        refused(
-          "Obliged",
-          "a predicate cannot carry an obligation, and rows would be handed over with it unmet",
-        ),
+    // INV-QD-013 reaching a construct it could not otherwise reach: a
+    // predicate has no channel to carry a duty, so rows selected by one would
+    // be handed over with a condition nobody was told about.
+    Obliged: () =>
+      refused(
+        "Obliged",
+        "a predicate cannot carry an obligation, and rows would be handed over with it unmet",
+      ),
 
-      AllOf: () => {
-        const plans = plansOf(folded);
-        return plans instanceof Refusal ? plans : planned({ _tag: "Conjunction", plans });
-      },
+    AllOf: (_p, folded) => {
+      const plans = plansOf(folded);
+      return plans instanceof Refusal ? plans : planned({ _tag: "Conjunction", plans });
+    },
 
-      AnyOf: (p) => {
-        const plans = plansOf(folded);
-        return plans instanceof Refusal
-          ? plans
-          : planned({
-              _tag: "Disjunction",
-              plans,
-              stopsAtTrue: anyOfStopsAtAllow(p.fieldStrategy),
-            });
-      },
+    AnyOf: (p, folded) => {
+      const plans = plansOf(folded);
+      return plans instanceof Refusal
+        ? plans
+        : planned({
+            _tag: "Disjunction",
+            plans,
+            stopsAtTrue: anyOfStopsAtAllow(p.fieldStrategy),
+          });
+    },
 
-      Not: () => {
-        const plan = onlyChild("Not", folded);
-        return plan instanceof Refusal ? plan : planned({ _tag: "Negation", plan });
-      },
+    Not: (_p, plan) => (plan instanceof Refusal ? plan : planned({ _tag: "Negation", plan })),
 
-      // Transparent. The label survives only in the caller's own logging; a
-      // predicate has no trace to put it on.
-      Labeled: () => onlyChild("Labeled", folded),
+    // Transparent. The label survives only in the caller's own logging; a
+    // predicate has no trace to put it on.
+    Labeled: (_p, plan) => plan,
 
-      Rules: (p) => {
-        const plans = plansOf(folded);
-        if (plans instanceof Refusal) return plans;
-        // Carrying the effect and its plan together, rather than indexing two
-        // parallel arrays back into alignment, makes a reorder-one-without-the-
-        // other bug unrepresentable rather than merely unlikely. The plans arrive
-        // in row order, so one iterator pairs each row with its own.
-        const remaining = plans[Symbol.iterator]();
-        const rules: Array<{ readonly effect: RuleEffect; readonly plan: Plan }> = [];
-        for (const rule of p.rules) {
-          const next = remaining.next();
-          if (next.done) throw new Error("toPredicate: Rules folded fewer children than rows");
-          rules.push({ effect: rule.effect, plan: next.value });
-        }
-        // The effective algorithm, not the raw field: a value outside the union
-        // walks and translates as `DenyOverrides`, as the evaluator decides it
-        // (`ShortCircuit.ts`), rather than reaching `formulaFor`'s
-        // `Match.exhaustive` and throwing (CCR-QD-174).
-        return planned({ _tag: "RuleTable", rules, combining: effectiveCombining(p.combining) });
-      },
-    }),
-  );
+    Rules: (p, rows) => {
+      // Walks the rows once, in row order: the first refusal wins, and each
+      // plan is carried with its own row's effect, so a reorder-one-without-the-
+      // other bug is unrepresentable rather than merely unlikely.
+      const rules: Array<{ readonly effect: RuleEffect; readonly plan: Plan }> = [];
+      for (const { rule, result } of rows) {
+        if (result instanceof Refusal) return result;
+        rules.push({ effect: rule.effect, plan: result });
+      }
+      // The effective algorithm, not the raw field: a value outside the union
+      // walks and translates as `DenyOverrides`, as the evaluator decides it
+      // (`ShortCircuit.ts`), rather than reaching `formulaFor`'s
+      // `Match.exhaustive` and throwing (CCR-QD-174).
+      return planned({ _tag: "RuleTable", rules, combining: effectiveCombining(p.combining) });
+    },
+  };
 
-  // Folded through `foldPolicy`, not recursed natively: a caller-held policy has
+  // Folded through `foldPolicyCases`, not recursed natively: a caller-held policy has
   // no decode bound and `maxDepth` is the caller's to set arbitrarily high. Every
   // child is compiled before its parent, which is harmless because compiling is
   // pure, and the first refusal in declaration order still wins because
   // `plansOf` takes the first one it meets in `childrenOf`'s order.
-  return foldPolicy<Compiled>(policy, compileNode);
+  return foldPolicyCases(policy, cases);
 };
 
 /**
@@ -626,7 +605,7 @@ const formulaFor = (
  * `True` for an `anyOf` that may stop at an allow, and for a rule table the
  * condition that is `True` with the effect nothing later can beat (INV-QD-017).
  * So translation asks no port the evaluator would not, and fails on no port the
- * evaluator would not reach (INV-QD-NEXT).
+ * evaluator would not reach (INV-QD-058).
  *
  * **Pruning never changes a successful predicate**, which is why it is safe to
  * stop early and what Stryker cannot tell a reader. A pruned `Conjunction` child
@@ -747,7 +726,7 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
   }
 
   // Refusals first, and from the tree alone: they cannot depend on the subject
-  // or on what any port answers (BEH-QD-NEXT-c). Only then does anything run.
+  // or on what any port answers (BEH-QD-266). Only then does anything run.
   const compiled = compile(policy, subject, options?.action, fieldsCheck);
   if (compiled instanceof Refusal) {
     return yield* untranslatable(compiled.policyTag, compiled.reason);

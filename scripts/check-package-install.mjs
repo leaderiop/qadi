@@ -14,13 +14,15 @@
  * publishable with exactly one of the two tools, and nothing recorded which
  * (ADR-QD-033).
  *
- * Five checks, in order of what they would catch:
+ * Six checks, in order of what they would catch:
  *
  *   0. build    — every public package is referenced by `tsconfig.build.json`,
  *                 *and* by the root `tsconfig.json` (the typecheck graph)
  *   1. protocol — no `catalog:`/`workspace:` survives into the packed manifest
  *   2. exports  — every path the `exports` map points at exists in the tarball
  *   3. runtime  — each entry point imports through that map and has exports
+ *   3b. closed  — no wildcard subpath; every declared subpath imports and every
+ *                 other `lib/` module is refused with ERR_PACKAGE_PATH_NOT_EXPORTED
  *   4. consumer — a TypeScript consumer type-checks against the shipped
  *                 `.d.ts` and then authorizes correctly when run
  *
@@ -300,6 +302,85 @@ try {
   }
 } catch (error) {
   fail(`importing the packed packages failed:\n${error.stderr ?? error.message}`);
+}
+
+// ---------------------------------------------------------------------------
+// Check 3b — an entry point list is closed (ADR-QD-099).
+//
+// Every non-root key the packed `exports` map declares imports, and every
+// other module the tarball ships under `lib/` is refused with
+// `ERR_PACKAGE_PATH_NOT_EXPORTED`. "Out of the barrel" is therefore not
+// importable, rather than importable through a `./*` wildcard nobody chose.
+// Barreled modules are refused too: their names are reachable from the root,
+// which is the one path to them. `check-api-surface.mjs` (gate 13) reads the manifest;
+// this reads the artifact, which is what a consumer installs.
+// ---------------------------------------------------------------------------
+
+const libModules = (root, relative = "") =>
+  readdirSync(join(root, relative), { withFileTypes: true }).flatMap((entry) => {
+    const next = relative === "" ? entry.name : `${relative}/${entry.name}`;
+    if (entry.isDirectory()) return libModules(root, next);
+    return entry.name.endsWith(".js") ? [next.slice(0, -".js".length)] : [];
+  });
+
+const declaredSubpaths = [];
+const refusedSpecifiers = [];
+
+for (const { name, target } of installed) {
+  const packed = JSON.parse(readFileSync(join(target, "package.json"), "utf8"));
+  const declared = Object.keys(packed.exports ?? {}).filter((key) => key !== ".");
+  for (const key of declared) {
+    if (key.includes("*")) {
+      fail(`${name}: exports declares the wildcard "${key}"; an entry point list is closed (ADR-QD-099)`);
+    } else {
+      declaredSubpaths.push(`${name}${key.slice(1)}`);
+    }
+  }
+  const lib = join(target, "lib");
+  if (!existsSync(lib)) continue;
+  for (const module of libModules(lib)) {
+    if (module === "index") continue;
+    const specifier = `${name}/${module}`;
+    if (!declaredSubpaths.includes(specifier)) refusedSpecifiers.push(specifier);
+  }
+}
+
+writeFileSync(
+  join(SANDBOX, "probe-subpaths.mjs"),
+  `const declared = ${JSON.stringify(declaredSubpaths)};
+const refused = ${JSON.stringify(refusedSpecifiers)};
+const problems = [];
+for (const specifier of declared) {
+  try {
+    const m = await import(specifier);
+    if (Object.keys(m).length === 0) problems.push(specifier + " imported but provided no runtime exports");
+  } catch (error) {
+    problems.push(specifier + " is declared and failed to import: " + (error.code ?? error.message));
+  }
+}
+for (const specifier of refused) {
+  try {
+    await import(specifier);
+    problems.push(specifier + " imported; it is not a declared entry point");
+  } catch (error) {
+    if (error.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") {
+      problems.push(specifier + " failed with " + (error.code ?? error.message) + ", wanted ERR_PACKAGE_PATH_NOT_EXPORTED");
+    }
+  }
+}
+console.log(JSON.stringify(problems));
+`,
+);
+
+try {
+  const output = execFileSync("node", ["probe-subpaths.mjs"], {
+    cwd: SANDBOX,
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+  for (const problem of JSON.parse(output.trim().split("\n").at(-1) ?? "[]")) fail(problem);
+} catch (error) {
+  fail(`probing the entry-point list failed:\n${error.stderr ?? error.message}`);
 }
 
 // ---------------------------------------------------------------------------

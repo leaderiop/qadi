@@ -54,6 +54,7 @@ import {
   emptyTimeline,
   ingest,
   live,
+  makeSimulationSession,
   matchesBaseline,
   replayInput,
   replayLayer,
@@ -63,6 +64,7 @@ import {
   whatIf,
   type CapturedAnswers,
   type EvaluationPortsLayer,
+  type SimulationSession,
   type Replay,
   type SimulationInput,
   type TimelineEntry,
@@ -137,6 +139,7 @@ interface DevtoolsSimulatorWorldState {
   readonly answers: CapturedAnswers | undefined;
   readonly replayed: DecisionOutcome | undefined;
   readonly capturedPolicy: Policy | undefined;
+  readonly session: SimulationSession | undefined;
 }
 
 const initialState: DevtoolsSimulatorWorldState = {
@@ -151,6 +154,7 @@ const initialState: DevtoolsSimulatorWorldState = {
   answers: undefined,
   replayed: undefined,
   capturedPolicy: undefined,
+  session: undefined,
 };
 
 export interface WorldShape {
@@ -513,5 +517,75 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   Then("the deterministic run reports a duration of {int}", function* (millis: number) {
     const s = yield* readState();
     assert.equal(decided(s.secondOutcome).durationMillis, millis);
+  });
+
+  // -------------------------------------------------------------------------
+  // The simulation session — headless, no DOM
+  // -------------------------------------------------------------------------
+
+  const sessionFor = (policy: Policy, input: SimulationInput): SimulationSession => {
+    const session = makeSimulationSession({
+      sightings: [{ policy, label: "the policy", count: 1, allows: 1, denies: 0, errors: 0, lastAt: 1 }],
+    });
+    session.edit(input);
+    return session;
+  };
+
+  const sessionOf = (s: DevtoolsSimulatorWorldState): SimulationSession => {
+    if (s.session === undefined) throw new Error("no simulation session");
+    return s.session;
+  };
+
+  Given(
+    "a simulation session for the {string} policy, whose fixtures would allow",
+    function* (name: string) {
+      const session = sessionFor(policyNamed(name), {
+        subject: { id: "alice" },
+        attributes: { clearance: 9 },
+      });
+      yield* patch(() => ({ session }));
+    },
+  );
+
+  Given(
+    "a simulation session for the {string} policy with a subject holding the role {string}",
+    function* (name: string, role: string) {
+      const session = sessionFor(policyNamed(name), { subject: { id: "alice", roles: [role] } });
+      yield* patch(() => ({ session }));
+    },
+  );
+
+  When("the reviewer chooses the Live source and runs", function* () {
+    const session = sessionOf(yield* readState());
+    session.chooseSource("Live");
+    yield* session.run("Run");
+  });
+
+  When("the reviewer turns the pair sweep on and runs a sweep", function* () {
+    const session = sessionOf(yield* readState());
+    session.setPairs(true);
+    yield* session.run("Sweep");
+  });
+
+  Then("the run is refused because the host supplied no resolvers", function* () {
+    const run = sessionOf(yield* readState()).getSnapshot().run;
+    assert.equal(run._tag, "Refused");
+    assert.equal(run._tag === "Refused" && run.refusal._tag, "LiveWithoutPorts");
+  });
+
+  Then("nothing was evaluated in its place", function* () {
+    const run = sessionOf(yield* readState()).getSnapshot().run;
+    // A fixture answer would have arrived as a `Ran` state with an outcome.
+    assert.notEqual(run._tag, "Ran");
+  });
+
+  Then("the sweep ran exactly the evaluations the plan stated", function* () {
+    const snapshot = sessionOf(yield* readState()).getSnapshot();
+    const { run, plan } = snapshot;
+    if (run._tag !== "Ran" || run.report === undefined || plan === undefined) {
+      throw new Error("expected a sweep that ran");
+    }
+    assert.equal(run.report.evaluations, plan.evaluations);
+    assert.equal(run.report.rows.length + 1, plan.evaluations);
   });
 });

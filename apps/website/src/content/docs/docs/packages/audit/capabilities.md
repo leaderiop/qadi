@@ -39,7 +39,9 @@ Read rows back with
 record carrying a value with no safe durable representation — a function, a
 `Symbol`, a circular reference, a `Map`/`Set`/`RegExp` — fails
 `AuditEntryNotEncodable`, naming the refusal and its path, instead of being
-stringified or silently dropped.
+stringified or silently dropped. The refusal is reported, not only counted: it reaches
+`AuditDecisionSinkLive`'s `onRefused` when you pass one, otherwise it is logged as a
+warning naming the refusal, its path and the record's `evaluationId`.
 
 **Staging** (`AuditStagingPort`, optional) — a best-effort durability
 *protocol*, not a write-ahead log: `@qadi/audit` owns no storage of its own,
@@ -64,7 +66,12 @@ These are pure functions and data — caller-invoked, caller-scheduled, since
 
 **Retention** — `getPurgeableEntries`/`enforceRetention(entries, policy, now)`
 partition a set of entries: their union is the input, unchanged, and their
-intersection is empty. `now` is a parameter, never `Date.now()`.
+intersection is empty. `now` is a parameter, never `Date.now()`. A row is
+purgeable only with a finite `at` past a valid limit: a non-finite `at` is
+retained, and a non-finite `now` or a `maxAgeMs` that is `NaN` or negative
+purges nothing. `planRetention(entries, policy, now)` returns the same split
+plus the `undated` rows, or a `RetentionInputInvalid` naming the bad input —
+prefer it when a silently idle purge job would be a problem.
 
 **Sequence integrity** — `verifySequenceIntegrity` fails `SequenceIntegrityError`
 for any two `sequenceNumber`s, sorted ascending, that aren't exactly one apart —
@@ -76,7 +83,8 @@ next, so an attacker able to modify stored rows can renumber them and defeat
 this check entirely.
 
 **Archival** — `archiveAuditTrail` sorts entries by `sequenceNumber`, stably,
-before setting `metadata.sequenceIntegrityVerified: true`.
+before setting `metadata.sequenceIntegrityVerified: true`. Entries with no
+`sequenceNumber` follow the sequenced ones, in the order given.
 
 **Decommissioning** — `makeDecommissioningChecklist`/
 `completeDecommissioningStep` walk a six-step checklist; an unknown step id

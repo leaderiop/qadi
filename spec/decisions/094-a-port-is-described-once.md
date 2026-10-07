@@ -4,12 +4,13 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | QADI-ADR-901                                   |
-> | Revision       | 1.0                                            |
+> | Document ID    | QADI-ADR-094                                   |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
+> | Change History | 1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
 
 ---
 
@@ -140,8 +141,9 @@ script by `d.key`.
 - One name for the five-port set; no hand-listed port override object remains in
   core, `@qadi/testing`, devtools or the examples.
 - The next port is a description, a `PortName` member and its registry lines; the
-  compiler asks for the rest (devtools' row decoder stays per-port on purpose — each
-  port asks a different question).
+  compiler asks for the rest (each port's span *fields* stay per-port on purpose —
+  each port asks a different question — but are stated once, in the description;
+  see the amendment below).
 - Devtools' replay defaults are the real defaults, not copies.
 
 **Negative.**
@@ -180,3 +182,35 @@ script by `d.key`.
 [BEH-QD-308](../behaviors/06-services.md#beh-qd-308-every-port-has-the-standard-wrapper-set),
 [BEH-QD-309](../behaviors/06-services.md#beh-qd-309-an-environment-names-only-what-it-overrides),
 [BEH-QD-310](../behaviors/06-services.md#beh-qd-310-a-port-can-be-scripted).
+
+## Amendment (2026-10-07, CCR-QD-198)
+
+The decision above said "devtools' row decoder stays per-port on purpose — each
+port asks a different question". The per-port *fields* are genuine and stay
+per-port. What was not genuine was restating their spelling and types: the writer
+(`PortAccess.ts`) and the reader (`@qadi/devtools`' `rowOf`) each spelled thirteen
+`qadi.*` keys, with prose in two spec documents as a third and fourth copy, and
+the seam between them was string equality — which drifted twice (a signature
+span's `qadi.scope`/`qadi.resource_id`, and every retried call's `qadi.attempts`,
+were written and never read, ARCH-21 C4/C5).
+
+A description therefore also states its span's attributes: `attributes` is a
+**question** struct annotated before the call, an **answer** struct annotated
+after it, and `disclose`, a projection from the port's outcome to the answer
+(`PortSpan.ts`, a seventh `PortDescription` type parameter defaulted to a
+structural bound so `PortDerivation.ts` and `PortDoubles.ts` are unchanged).
+`PortAccess.ts` encodes through it; devtools decodes through it
+(`decodePortSpan`), so a key is renamed in one place and a new field reaches the
+trace and the panel with one edit. The span *name* stays `span`.
+
+Each struct is a table of Schema leaves and the key each is written under
+(`PortSpanEncode.ts`, internal). A whole `Schema.Struct` with `encodeKeys` was
+measured and rejected: ≈1.1 µs per encode, twice per read, on ADR-QD-051's
+resolver-miss path, and a whole-struct decode fails on one wrong-typed attribute,
+contradicting BEH-QD-228. Encoding is a walk over the value's own entries;
+decoding takes each field alone. The wiring report's five port rows are likewise
+derived from the registry (`forEveryPort`), each reporting whether its name is the
+description's fail-closed default or a wrapper around it (`none.name`) — a
+reader's label, never an input to a decision. `EvaluationId`, `CurrentSubject`,
+`DecisionCache` and `DecisionSink` stay hand-listed: they are not ports.
+

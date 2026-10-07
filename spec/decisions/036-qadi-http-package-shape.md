@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-036                                   |
-> | Revision       | 1.3                                             |
-> | Effective Date | 2026-08-23                                     |
+> | Revision       | 1.5                                             |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.3 (2026-08-23): The code is brought in line with this ADR's own Alternatives section — "annotate-and-forget" was rejected here and shipped anyway; an unannotated endpoint now refuses and `publicEndpoint(reason)` is the opt-out. `SubjectExtractorShape.extract` gains an error channel, the Bearer scheme is matched case-insensitively, and `PolicyTooDeep` maps to 500. Behaviour 23 written, the document this package shipped without (CCR-QD-059)<br>1.2 (2026-08-22): Three corrections found by the first real HTTP round-trip test — `requiresPermission` is no longer `.pipe()`-composable at all (the widened return type it shipped with in 1.1 breaks `HttpApiBuilder.group`'s handler exhaustiveness for the whole group, not just later `.pipe()` chaining); its parameter type is a minimal structural `AnnotatedEndpoint`, not `HttpApiEndpoint.Top` (a param-less endpoint isn't actually assignable to `Top`); `GuardRoute.ts`'s `guardRoute` under-excluded `CurrentSubject` from its declared return type (CCR-QD-046)<br>1.1 (2026-08-22): `requiresPermission`'s type-preservation claim corrected — it does not survive a reusable generic wrapper; the shipped signature returns the widened `HttpApiEndpoint.Top` instead (CCR-QD-045)<br>1.0 (2026-08-22): Initial release (CCR-QD-042) |
+> | Change History | 1.5 (2026-10-07): "one enforcement path" is now literal: `RequirePermission`, `guardRoute` and the decision stream's recheck all call one `authorizeRequest`, which extracts, loads, guards and logs; the edge no longer builds a handler before the policy allows (CCR-QD-197)<br>1.4 (2026-10-07): Rev 1.4 (CCR-QD-196): the middleware reads `RequiredPermission` off the endpoint's own annotations only; "off `{ endpoint, group }`" was never true. The group is read to refuse a misplaced declaration, an API-level one is refused by `registerApi`, and a group-wide declaration is `HttpApiGroup.annotateEndpoints`. Group-level merging was rejected: an API's annotations are invisible to a middleware, and a group-level requirement reopens the cross-level override BEH-QD-179 closed. A group requirement over an endpoint `publicEndpoint` was listed by the registry while served as public<br>1.3 (2026-08-23): The code is brought in line with this ADR's own Alternatives section — "annotate-and-forget" was rejected here and shipped anyway; an unannotated endpoint now refuses and `publicEndpoint(reason)` is the opt-out. `SubjectExtractorShape.extract` gains an error channel, the Bearer scheme is matched case-insensitively, and `PolicyTooDeep` maps to 500. Behaviour 23 written, the document this package shipped without (CCR-QD-059)<br>1.2 (2026-08-22): Three corrections found by the first real HTTP round-trip test — `requiresPermission` is no longer `.pipe()`-composable at all (the widened return type it shipped with in 1.1 breaks `HttpApiBuilder.group`'s handler exhaustiveness for the whole group, not just later `.pipe()` chaining); its parameter type is a minimal structural `AnnotatedEndpoint`, not `HttpApiEndpoint.Top` (a param-less endpoint isn't actually assignable to `Top`); `GuardRoute.ts`'s `guardRoute` under-excluded `CurrentSubject` from its declared return type (CCR-QD-046)<br>1.1 (2026-08-22): `requiresPermission`'s type-preservation claim corrected — it does not survive a reusable generic wrapper; the shipped signature returns the widened `HttpApiEndpoint.Top` instead (CCR-QD-045)<br>1.0 (2026-08-22): Initial release (CCR-QD-042) |
 
 ---
 
@@ -165,9 +165,10 @@ codebase (`AttributeResolver`, `RelationshipResolver`: "a service that answers
 a question the subject cannot").
 
 **One `RequirePermission` middleware, not one per permission**, reading the
-`RequiredPermission` annotation back off `{ endpoint, group }` at request time
+`RequiredPermission` annotation back off the endpoint's own annotations at request time
+(the group is read only to refuse a declaration placed on it, Rev 1.4)
 and calling `@qadi/core`'s `guard`. **The `HttpRouter` adapter is a second,
-thin combinator over the same `guard`** — not a second enforcement
+thin combinator over the same `guard`** (Rev 1.5: both reach it through `authorizeRequest`) — not a second enforcement
 implementation — shaped for a plain `(request) => Effect<Response, E, R>`
 handler rather than an `HttpApiBuilder` handler, since a bare `HttpRouter`
 handler has no signature constraint stopping it from receiving the witness

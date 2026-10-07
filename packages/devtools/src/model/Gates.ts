@@ -26,6 +26,24 @@ import type { Policy, Resource } from "@qadi/core";
 import { policyLabel } from "./Catalogue.ts";
 
 /**
+ * One question an atom set has been asked.
+ *
+ * Structurally identical to `@qadi/react`'s `AskedQuestion` and deliberately
+ * not imported from it: `@qadi/devtools` does not depend on `@qadi/react` and
+ * should not start for one type. A host passes `atoms.asked()` straight in.
+ *
+ * Declared in the model rather than beside the panel that renders it, because
+ * `DiagnosticsStore` samples a thunk returning these and the model must not
+ * import from `react/` (ADR-QD-037). `QuestionsPanel.tsx` re-exports it, so the
+ * React entry point still names it.
+ */
+export interface AskedQuestionLike {
+  readonly policy: Policy;
+  /** Absent when the question was asked with no resource in scope. */
+  readonly resource?: Resource | undefined;
+}
+
+/**
  * One live guard, as `@qadi/react`'s registry reports it.
  *
  * Structurally identical to that package's `GateInstance` and deliberately not

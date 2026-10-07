@@ -28,6 +28,7 @@ import { decisionHistoryPort } from "./DecisionHistory.ts";
 import { nonePort } from "./PortDerivation.ts";
 import type { PortDescription, PortShape } from "./PortDescription.ts";
 import type { PortName } from "./PortMetrics.ts";
+import type { PortSpanAttributesLike } from "./PortSpan.ts";
 import { relationshipResolverPort } from "./RelationshipResolver.ts";
 import { signatureHistoryPort } from "./SignatureHistory.ts";
 
@@ -75,6 +76,11 @@ export type ArgsOf<D> = D extends {
 /** A description's answer. */
 export type AnswerOf<D> = D extends { readonly none: { readonly answer: infer A } } ? A : never;
 
+/** A description's span attributes (`PortSpan.ts`). */
+export type SpanOf<D> = D extends { readonly attributes: infer Span extends PortSpanAttributesLike }
+  ? Span
+  : never;
+
 /** A description's typed error. */
 export type ErrorOf<D> = D extends { readonly failure: (args: never, cause: unknown) => infer E }
   ? E
@@ -95,7 +101,8 @@ export type DescriptionOf<K extends PortName> = PortDescription<
   ShapeOf<PortTypes[K]>,
   ArgsOf<PortTypes[K]>,
   AnswerOf<PortTypes[K]>,
-  ErrorOf<PortTypes[K]>
+  ErrorOf<PortTypes[K]>,
+  SpanOf<PortTypes[K]>
 >;
 
 /**

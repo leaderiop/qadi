@@ -16,10 +16,9 @@
  * Verdict-preserving, field-preserving, obligation-preserving. Trace-changing, by
  * definition.
  */
-import * as Match from "effect/Match";
 import { fieldStrategyLaws } from "./FieldLattice.ts";
-import type { FieldStrategy, Policy } from "./Policy.ts";
-import { foldPolicy } from "./Policy.ts";
+import type { FieldStrategy, Policy, PolicyCases } from "./Policy.ts";
+import { foldPolicyCases, leafCases } from "./Policy.ts";
 
 /**
  * Whether a composite's children can be absorbed into a parent of the same tag.
@@ -84,26 +83,10 @@ const flatten = (
   );
 
 /**
- * `childrenOf`'s single-child tags (`Not`/`Labeled`/`Obliged`) always produce
- * exactly one entry, by construction — but a generic `ReadonlyArray<Policy>`
- * parameter can't carry that in its type, and AGENTS.md §6 bans `children[0]!`
- * as the way around it. Failing loudly on the invariant instead (rather than
- * silently falling back to some other `Policy`) keeps a future bug in
- * `rebuild`'s wiring a thrown error, not a policy quietly rewritten wrong.
- */
-const expectOne = (tag: string, children: ReadonlyArray<Policy>): Policy => {
-  const [only, ...rest] = children;
-  if (only === undefined || rest.length !== 0) {
-    throw new Error(`simplify: ${tag} expected exactly one child, got ${children.length}`);
-  }
-  return only;
-};
-
-/**
- * Rebuilds one node from its own **already-simplified** children, supplied in
- * the same order `childrenOf` produced them — the one piece of state
- * `simplify`'s explicit-stack walk (below) passes in that this function's
- * previous native-recursion form got by calling itself directly instead.
+ * Rebuilds one node from its own **already-simplified** children, each arm
+ * receiving them in the tag's own shape (`PolicyCases`): a wrapper its one child,
+ * a `Rules` table one `{ rule, result }` per row. No arm re-checks an arity the
+ * type already states (ARCH-17).
  *
  * Two rewrites and nothing clever: single-child composites, and nesting of a
  * composite inside the same composite **under the same field strategy**.
@@ -114,21 +97,11 @@ const expectOne = (tag: string, children: ReadonlyArray<Policy>): Policy => {
  * `labeled` is never removed, which is what keeps a denial's attribution intact
  * through the transform.
  */
-const rebuild: (node: Policy) => (children: ReadonlyArray<Policy>) => Policy = Match.type<Policy>().pipe(
-  Match.tagsExhaustive({
+const simplifyCases: PolicyCases<Policy> = {
     // Leaves have no structure to remove, and no children to rebuild from.
-    HasPermission: (p) => () => p,
-    HasRole: (p) => () => p,
-    HasAttribute: (p) => () => p,
-    HasResourceAttribute: (p) => () => p,
-    HasRelationship: (p) => () => p,
-    HasAction: (p) => () => p,
-    HasActed: (p) => () => p,
-    HasNotActed: (p) => () => p,
-    HasCustom: (p) => () => p,
-    HasSignature: (p) => () => p,
+    ...leafCases((p) => p),
 
-    AllOf: (p) => (simplifiedChildren: ReadonlyArray<Policy>) => {
+    AllOf: (p, simplifiedChildren) => {
       const children = flatten(simplifiedChildren, "AllOf", p.fieldStrategy);
       // One child means the merge has one input, so every known strategy yields
       // that child's own field set and the wrapper carries nothing — but only a
@@ -149,7 +122,7 @@ const rebuild: (node: Policy) => (children: ReadonlyArray<Policy>) => Policy = M
         : { ...p, policies: children };
     },
 
-    AnyOf: (p) => (simplifiedChildren: ReadonlyArray<Policy>) => {
+    AnyOf: (p, simplifiedChildren) => {
       const children = flatten(simplifiedChildren, "AnyOf", p.fieldStrategy);
       const [only, ...rest] = children;
       return only !== undefined && rest.length === 0 && unwrappable(p.fieldStrategy)
@@ -176,54 +149,30 @@ const rebuild: (node: Policy) => (children: ReadonlyArray<Policy>) => Policy = M
      * promises to change neither. A property over generated policies and four
      * subjects caught it; the textbook rewrite is unsound here.
      */
-    Not: (p) => (children: ReadonlyArray<Policy>) => ({ ...p, policy: expectOne("Not", children) }),
+    Not: (p, policy) => ({ ...p, policy }),
 
     // A label is the author's name for a branch and the only thing a denial can be
     // attributed to. Removing one would silently change what a trace can say.
-    Labeled: (p) => (children: ReadonlyArray<Policy>) => ({
-      ...p,
-      policy: expectOne("Labeled", children),
-    }),
+    Labeled: (p, policy) => ({ ...p, policy }),
 
-    Obliged: (p) => (children: ReadonlyArray<Policy>) => ({
-      ...p,
-      policy: expectOne("Obliged", children),
-    }),
+    Obliged: (p, policy) => ({ ...p, policy }),
 
     // Row order is semantic and the deciding row is chosen by index, so rows are
     // simplified individually and never reordered, merged or dropped.
-    Rules: (p) => (children: ReadonlyArray<Policy>) => {
-      if (children.length !== p.rules.length) {
-        throw new Error(
-          `simplify: Rules expected ${p.rules.length} children, got ${children.length}`,
-        );
-      }
-      const rules: Array<(typeof p.rules)[number]> = [];
-      for (let i = 0; i < p.rules.length; i++) {
-        const rule = p.rules[i];
-        const condition = children[i];
-        // Both indices are in range by the length check above;
-        // `noUncheckedIndexedAccess` still types each lookup as possibly
-        // `undefined`, so this is that same check, not a new one.
-        if (rule === undefined || condition === undefined) {
-          throw new Error(`simplify: Rules children misaligned at index ${i}`);
-        }
-        rules.push({ ...rule, condition });
-      }
-      return { ...p, rules };
-    },
-  }),
-);
+    Rules: (p, rows) => ({
+      ...p,
+      rules: rows.map(({ rule, result }) => ({ ...rule, condition: result })),
+    }),
+};
 
 /**
  * Rewrites a policy to an equivalent one with fewer nodes.
  *
- * Folds through `foldPolicy` rather than recursing natively, so it cannot
+ * Folds through `foldPolicyCases` rather than recursing natively, so it cannot
  * overflow the stack: a decoded policy's nesting is bounded by
  * `MAX_DECODE_DEPTH`, but a policy assembled programmatically never crosses that
  * boundary — the smart constructors do not depth-check, so a loop of `not()`
  * builds a tree exactly as deep as the loop runs — and this function is
  * reachable directly on a caller-held `Policy` with no prior decode step at all.
  */
-export const simplify = (policy: Policy): Policy =>
-  foldPolicy<Policy>(policy, (node, children) => rebuild(node)(children));
+export const simplify = (policy: Policy): Policy => foldPolicyCases(policy, simplifyCases);

@@ -24,10 +24,10 @@
  * only in-process mutation can produce (decoding cannot). Without the check the
  * stack grows without bound; with it a hang becomes an immediate, named defect.
  *
- * Deliberately not exported from the barrel (AGENTS.md §9): this is shared
- * scaffolding, reachable only through the `@qadi/core/TreeFold` subpath.
- * `@qadi/devtools` keeps a package-private twin rather than importing it
- * (ARCH-02 D-02-d).
+ * Package-private (AGENTS.md §9, ADR-QD-099): shared scaffolding, not exported
+ * from the barrel or any entry point. There is one copy: `@qadi/devtools`'s
+ * former twin went when core took over the explanation-with-trace alignment it
+ * existed for (ARCH-22, ADR-QD-NEXT).
  *
  * @param root - The tree to fold.
  * @param childrenOf - A node's children, in the order `combine` should see their results.
@@ -37,6 +37,61 @@ export const foldTree = <N extends object, R>(
   root: N,
   childrenOf: (node: N) => ReadonlyArray<N>,
   combine: (node: N, children: ReadonlyArray<R>) => R,
+): R => walk(root, childrenOf, combine);
+
+/**
+ * Folds a finite tree bottom-up, handing `combine` a way to read a child's
+ * result *by naming the child* instead of a positional array.
+ *
+ * The same loop as {@link foldTree} (one seam, ADR-QD-090): `foldTree` and this
+ * are two projections of one private `walk`. What differs is only what `combine`
+ * is given. A named read lets an adapter that knows its ADT's arity — `Not` has
+ * one child, a `Rules` row has one condition — receive each child's result in the
+ * shape of the field it came from, so a case that treats a wrapper's child as an
+ * array is a compile error and "the fold supplied fewer children than rows" is
+ * unrepresentable (ARCH-17).
+ *
+ * The one check that remains is `resultOf` on a node `childrenOf` did not list
+ * for the node being combined: it throws, because the loop memoises only what it
+ * has walked. That is the single reachable guard — it fires when an adapter's
+ * dispatcher and its `childrenOf` drift apart, and a lockstep property test
+ * keeps them in agreement.
+ *
+ * @param root - The tree to fold.
+ * @param childrenOf - A node's children; every one `combine` reads must be listed.
+ * @param combine - Builds a node's result from the node and a reader of its children's results.
+ */
+export const foldTreeBy = <N extends object, R>(
+  root: N,
+  childrenOf: (node: N) => ReadonlyArray<N>,
+  combine: (node: N, resultOf: (child: N) => R) => R,
+): R => {
+  // Boxed so a stored `undefined` result needs no sentinel and no cast.
+  const memo = new Map<N, { readonly value: R }>();
+  // One reader per call, so a node's `combine` allocates nothing to read its
+  // children by name.
+  const resultOf = (child: N): R => {
+    const known = memo.get(child);
+    if (known === undefined) {
+      throw new Error("foldTree: combine read a node that was not folded as a child");
+    }
+    return known.value;
+  };
+  return walk<N, R>(root, childrenOf, (node) => combine(node, resultOf), memo);
+};
+
+/**
+ * The one loop behind both folds. {@link foldTree} passes its `combine` straight
+ * through, so the array form allocates nothing for the named read; {@link foldTreeBy}
+ * hands in the memo it reads children from (ARCH-17 T1: a reader closure built per
+ * call inside this loop cost the array form ≈40% on a leaf-only `referencesAction`).
+ */
+const walk = <N extends object, R>(
+  root: N,
+  childrenOf: (node: N) => ReadonlyArray<N>,
+  finish: (node: N, results: ReadonlyArray<R>) => R,
+  // Boxed so a stored `undefined` result needs no sentinel and no cast.
+  memo: Map<N, { readonly value: R }> = new Map(),
 ): R => {
   interface Frame {
     readonly node: N;
@@ -44,8 +99,6 @@ export const foldTree = <N extends object, R>(
     readonly results: Array<R>;
   }
 
-  // Boxed so a stored `undefined` result needs no sentinel and no cast.
-  const memo = new Map<N, { readonly value: R }>();
   const onPath = new Set<N>();
 
   const open = (node: N): Frame => {
@@ -76,7 +129,7 @@ export const foldTree = <N extends object, R>(
 
     // `onPath` is never cleared: a finished node is in `memo`, which is checked
     // first, so a node still in `onPath` but not in `memo` is exactly one still open.
-    const value = combine(frame.node, frame.results);
+    const value = finish(frame.node, frame.results);
     memo.set(frame.node, { value });
     const parent = ancestors.pop();
     if (parent === undefined) return value;

@@ -505,7 +505,7 @@ export const makeSeededQuestion = <E,>(input: {
   ) => Atom.Atom<AsyncResult.AsyncResult<Decision, E>>;
   readonly report: HydrationMismatchReporter | undefined;
   /**
-   * `QadiAtoms`' liveness bookkeeping for the eviction sweep. Runs FIRST inside
+   * The question book's liveness bookkeeping for the eviction sweep. Runs FIRST inside
    * the reader, before any `get`, exactly where it ran when it was inline.
    */
   readonly track: (get: Atom.AtomContext) => void;

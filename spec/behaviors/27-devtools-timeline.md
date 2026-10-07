@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-27                                    |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-10-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-10-06): BEH-QD-208 — a node whose `fieldStrategy` or `combining` is outside its closed union shows the value verbatim and says it is evaluated fail-closed (ADR-QD-092 amendment, CCR-QD-183)<br>1.6 (2026-10-06): BEH-QD-203 — an absent backlog is a prelude that did not arrive in time, not an older server, and the reader stamps nothing (`legacyEnvironment` removed); BEH-QD-204 — version 2 is the one version a frame decodes from, a pre-0.10 record is `"unsupported-version"` and a bare frame `"not-a-record"` (ADR-QD-096/097 amendments, CCR-QD-182)<br>1.5 (2026-10-05): ARCH-11 — BEH-QD-203's `Source` is one scoped `read` returning `SourceRead`, and its third requirement is replaced (the environment is stamped once, by the producing log, and carried on the wire); BEH-QD-235's backlog requirements name `SourceRead.backlog` and `storedRecordOrder`; BEH-QD-204 reads the envelope; BEH-QD-205's capacity is `DEFAULT_LOG_CAPACITY` (ADR-QD-097, CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"unsupported-version"`, and a frame of either wire version decodes (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"too-deep"`, read from `decodeSinkRecordString`'s `DecodeRefusal` (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.8 (2026-10-07): BEH-QD-208 — the alignment is core's (`foldAligned`, INV-QD-103) and the devtools `TreeFold.ts` twin is deleted; `describeTracePath` words a path for a screen; the stale `dehydrateDecisions` clause is corrected (ADR-QD-101, CCR-QD-191)<br>1.7 (2026-10-06): BEH-QD-208 — a node whose `fieldStrategy` or `combining` is outside its closed union shows the value verbatim and says it is evaluated fail-closed (ADR-QD-092 amendment, CCR-QD-183)<br>1.6 (2026-10-06): BEH-QD-203 — an absent backlog is a prelude that did not arrive in time, not an older server, and the reader stamps nothing (`legacyEnvironment` removed); BEH-QD-204 — version 2 is the one version a frame decodes from, a pre-0.10 record is `"unsupported-version"` and a bare frame `"not-a-record"` (ADR-QD-096/097 amendments, CCR-QD-182)<br>1.5 (2026-10-05): ARCH-11 — BEH-QD-203's `Source` is one scoped `read` returning `SourceRead`, and its third requirement is replaced (the environment is stamped once, by the producing log, and carried on the wire); BEH-QD-235's backlog requirements name `SourceRead.backlog` and `storedRecordOrder`; BEH-QD-204 reads the envelope; BEH-QD-205's capacity is `DEFAULT_LOG_CAPACITY` (ADR-QD-097, CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"unsupported-version"`, and a frame of either wire version decodes (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"too-deep"`, read from `decodeSinkRecordString`'s `DecodeRefusal` (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 _Previous: [26 — The Decision Stream](./26-decision-stream.md)_
 
@@ -345,11 +345,14 @@ one place where a rendering bug becomes a security misreading: a branch that was
 never reached performed no lookup, and a reviewer who reads it as a denial
 concludes their policy rejected something it never examined.
 
-The alignment is by index and is sound by construction — `evaluateNode` emits
-one trace node per policy node in declaration order, every wrapper produces a
-single child, and `AllOf` / `AnyOf` / `Rules` push one child per element they
-evaluated. Where the trace has *fewer* children than the explanation has parts,
-those parts were short-circuited.
+The alignment is core's and is sound by construction
+([INV-QD-103](../invariants.md#inv-qd-103-a-trace-lines-up-with-its-policys-explanation-position-by-position)):
+`evaluateNode` emits one trace node per policy node in declaration order, and `inspect`
+reads it through `foldAligned` ([BEH-QD-319](./18-explanation.md)), supplying only the
+presentation. Where the trace has *fewer* children than the explanation has parts, those
+parts were short-circuited. `InspectNode.path` is that fold's `key`, core's
+`tracePathKey` of the path that reaches the node, and `describeTracePath` is the one
+way a screen words a `TracePath` (`"the root"` for `[]`, otherwise the key).
 
 ```
 REQUIREMENT: A `Failed` outcome MUST produce no tree at all.
@@ -378,9 +381,10 @@ REQUIREMENT: `inspect` and `flattenTree` MUST NOT exhaust the call stack for any
 ```
 
 `explain` is stack-safe, so the tree zipped from its output has to be: `inspect`
-used to overflow at about 1,759 levels. It folds over zipped positions through a
-package-private `TreeFold.ts` twin
-([ADR-QD-090](../decisions/090-a-tree-is-folded-through-one-seam.md)), and
+used to overflow at about 1,759 levels. It folds over zipped positions through core's `foldAligned`; devtools carries no copy of
+the fold loop any more
+([ADR-QD-090](../decisions/090-a-tree-is-folded-through-one-seam.md),
+[ADR-QD-101](../decisions/101-the-alignment-of-an-explanation-with-a-trace-is-cores.md)), and
 `flattenTree` is a pre-order loop, not a fold, because folding would concatenate a
 result array per level.
 
@@ -389,8 +393,9 @@ REQUIREMENT: A trace truncated below the root MUST be reported as undisclosed
              rather than as unexamined.
 ```
 
-`dehydrateDecisions` ships a reduced trace unless `includeTrace: true`, so a
-hydrated decision arrives with a root and no children. That is a **disclosure
+A hand-built or foreign trace, or a replay baseline whose trace was not disclosed,
+can arrive with a root and no children (no producer in this repository cuts one short:
+a hydration trace the server withholds is `Withheld`, [ADR-QD-078](../decisions/078-a-seed-is-its-own-type-and-the-payload-is-versioned.md)). That is a **disclosure
 boundary, not a defect** — the fix is to say so, never to fabricate a tree and
 never to loosen the payload. It is distinguishable from short-circuiting because
 a composite that short-circuits always evaluates its first child.

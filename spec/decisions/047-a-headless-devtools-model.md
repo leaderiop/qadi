@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-047                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-10-05                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 ---
 
@@ -124,3 +124,47 @@ satisfies it as is, so `sourceFromFeed` is removed rather than replaced, and
 `sourceFromEventSource` reads the server's prelude as its backlog and each
 record's environment off the wire. The headless/React split is unchanged
 ([ADR-QD-097](./097-a-decision-log-is-a-sink-and-its-own-history.md)).
+
+## Amendment (2026-10-07, CCR-QD-199)
+
+**The simulator's state is model.** "`@qadi/devtools/react` renders that model and
+computes nothing" was not true of screen 5: `Simulator.tsx` held its form, its
+chosen source, its capture, its run and the supersede token in component state,
+and four defects sat there where no model test and no mutation run could see
+them. That state is `SimulationSession`, a store of the shape `TimelineStore`
+already is (`subscribe`, `getSnapshot`, synchronous commands) with `run`, `reap`
+and `dispose` as Effects the hook forks; the form's text is `SimulationForm`'s
+codec. `useSimulationSession` is the adapter, as `useTimeline` is for the
+timeline, and `DevtoolsDock` owns the session so it outlives a tab. The two
+stores each kept their own small listener closure at the time; extracting the
+shared one was deferred until a third store existed to extract it from, which
+the amendment below did (ARCH-24).
+
+## Amendment (2026-10-07, CCR-QD-200)
+
+**Sampling is the model's.** "The model computes, the shell renders" was not true
+of the one loop a host needs most: keeping the Services and React panels
+current. Each host wrote it itself — four pull-based reads, two timers, an
+`Effect.runSync` and a layer provided by hand — and the only host that did wrote
+it twice and read a throwaway cache (CCR-QD-200). `runDiagnostics` is that loop,
+beside `runSource` and written the same way: a named `Effect.fn`, scheduled with
+`Schedule.spaced`, testable under `TestClock`, feeding a `DiagnosticsStore` the
+shell reads with `useSyncExternalStore`. `useDiagnostics` is the adapter, and
+`DevtoolsDock` takes a `diagnostics` prop so a host hands over what it already
+owns (its layer, its collector, its question list) and knows no Effects.
+
+Three things the model now owns. A handed layer is **built once per run** and
+released on interruption; it is still its own build, so stateful services are
+shared with the application by value, not by being the same layer. A snapshot
+**keeps its identity** field by field while `Equal.equals` says it is
+unchanged. A layer that fails to build is a stated `WiringRead.Failed`, not a
+dead fiber. The explicit snapshot props stay and win field by field, because
+they carry what sampling this process cannot: another process's report.
+
+The shared mechanics of the three stores (`TimelineStore`, `SimulationSession`,
+`DiagnosticsStore`) are `model/ExternalStore.ts` and `react/useRunningStore.ts`,
+internal and out of both barrels. What stays in each store is its identity
+policy. Sampling stays pull-based
+([BEH-QD-216](../behaviors/28-devtools-screens.md), [ADR-QD-052](./052-hydration-is-counted-where-both-ends-can-see-it.md));
+the headless/React split and the hydration counts are unchanged, and gates stay
+a prop fed by the host's subscription ([ADR-QD-080](./080-a-gate-registry-belongs-to-its-atom-set.md)).

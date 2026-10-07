@@ -12,8 +12,8 @@
  * what is genuinely its own: what to do with the answer.
  *
  * Deliberately out of the barrel (AGENTS.md §9): scaffolding shared by the two
- * interpreters, like `PortDerivation.ts`, reachable only through the `./*`
- * subpath.
+ * interpreters, like `PortDerivation.ts`, and not importable from outside
+ * `@qadi/core` (ADR-QD-099).
  *
  * The per-port facts a read needs — the span it opens and the typed error a
  * defect becomes — come from each port's description (`PortDescription.ts`,
@@ -40,7 +40,15 @@ import type { PredicatePortName } from "./PortMetrics.ts";
 import type { RelatedResult, RelationshipCheck } from "./RelationshipResolver.ts";
 import { RelationshipResolver, relationshipResolverPort } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
-import type { SignatureQuery } from "./SignatureHistory.ts";
+import type {
+  PortInterpreter,
+  PortSpanAttributes,
+  SpanFields,
+  SpanStruct,
+  SpanType,
+} from "./PortSpan.ts";
+import { encodeSpan } from "./PortSpanEncode.ts";
+import type { SignatureAnswer, SignatureQuery } from "./SignatureHistory.ts";
 import { SignatureHistory, signatureHistoryPort } from "./SignatureHistory.ts";
 
 /**
@@ -51,7 +59,31 @@ import { SignatureHistory, signatureHistoryPort } from "./SignatureHistory.ts";
  * compile error everywhere it is matched rather than a word that silently falls
  * into the wrong series.
  */
-export type Interpreter = "evaluate" | "toPredicate";
+type Interpreter = PortInterpreter;
+
+/**
+ * Annotates the current span with a port's **question**, as its description
+ * states it (`PortDescription.attributes`, BEH-QD-227).
+ *
+ * A plain function, not an `Effect.fn`: it annotates the span the read already
+ * opened and must not open one of its own (ADR-QD-073). Called before the port
+ * is asked, so a call that fails still leaves a span saying what it was asked.
+ */
+const annotateQuestion = <Q extends SpanFields, Ans extends SpanFields, O>(
+  d: { readonly attributes: PortSpanAttributes<Q, Ans, O> },
+  question: SpanType<SpanStruct<Q>>,
+): Effect.Effect<void> => Effect.annotateCurrentSpan(encodeSpan(d.attributes.question, question));
+
+/**
+ * Annotates the current span with a port's **answer**, through its
+ * description's `disclose` — the one path from what a port returned to what a
+ * span may say ([INV-QD-044](../../../spec/invariants.md)).
+ */
+const annotateAnswer = <Q extends SpanFields, Ans extends SpanFields, O>(
+  d: { readonly attributes: PortSpanAttributes<Q, Ans, O> },
+  outcome: O,
+): Effect.Effect<void> =>
+  Effect.annotateCurrentSpan(encodeSpan(d.attributes.answer, d.attributes.disclose(outcome)));
 
 /**
  * Converts a port call's defect into its own typed error, leaving an
@@ -129,11 +161,9 @@ const countFor: (interpreter: Interpreter) => (port: PredicatePortName) => Effec
  * rather than counting two different things. It also keeps the commonest branch
  * — the attribute the subject already carries — free of any tracing cost at all.
  *
- * **The value is never recorded.** `hasActed` and `hasRelationship` answer with
- * closed three-valued enums, which are safe to annotate; an attribute resolves
- * to arbitrary data, and a span attribute goes to whatever backend is wired.
- * `qadi.resolved` says a value came back, not what it was
- * ([INV-QD-044](../../../spec/invariants.md)) — the same line
+ * **The value is never recorded**, and the only path from it to a span is the
+ * description's `disclose` (`attributeResolverPort.attributes`,
+ * [INV-QD-044](../../../spec/invariants.md)) — the same line
  * `dehydrateDecisions` draws with `includeTrace`.
  */
 const resolveAttribute = Effect.fn(attributeResolverPort.span)(function* (
@@ -144,18 +174,16 @@ const resolveAttribute = Effect.fn(attributeResolverPort.span)(function* (
   // Before the call, so a resolver that fails still leaves a span saying what
   // it was asked. A failed lookup with no question on it is the least useful
   // span there is.
-  yield* Effect.annotateCurrentSpan({
-    "qadi.attribute": attribute,
-    "qadi.subject_id": subject.id,
-    "qadi.interpreter": interpreter,
+  yield* annotateQuestion(attributeResolverPort, {
+    attribute,
+    subjectId: subject.id,
+    interpreter,
   });
   yield* countFor(interpreter)("AttributeResolver");
   const value = yield* AttributeResolver.resolve(subject.id, attribute).pipe(
     catchPortDefect((cause) => attributeResolverPort.defect([subject.id, attribute], cause)),
   );
-  // `undefined` is the absent sentinel every fail-closed default answers with;
-  // `null` is a value a store genuinely returned.
-  yield* Effect.annotateCurrentSpan({ "qadi.resolved": value !== undefined });
+  yield* annotateAnswer(attributeResolverPort, value);
   return value;
 });
 
@@ -212,8 +240,7 @@ const callHasActed = (
     const answer = yield* DecisionHistory.hasActed(query).pipe(
       catchPortDefect((cause) => decisionHistoryPort.defect([query], cause)),
     );
-    // A closed three-valued enum, so this discloses nothing a policy tag does not.
-    yield* Effect.annotateCurrentSpan({ "qadi.answer": answer });
+    yield* annotateAnswer(decisionHistoryPort, answer);
     return answer;
   });
 
@@ -231,11 +258,11 @@ export const askActedAny = Effect.fn(decisionHistoryPort.span)(function* (
 ) {
   // An `Any`-scoped question asks about no resource even where the request has
   // one, and the span says what was asked rather than what was available.
-  yield* Effect.annotateCurrentSpan({
-    "qadi.subject_id": subject.id,
-    "qadi.event": event,
-    "qadi.scope": "Any",
-    "qadi.interpreter": interpreter,
+  yield* annotateQuestion(decisionHistoryPort, {
+    subjectId: subject.id,
+    event,
+    scope: "Any",
+    interpreter,
   });
   const answer: ActedResult = yield* callHasActed(interpreter, subject, event, undefined);
   return answer;
@@ -259,12 +286,12 @@ export const askActedForResource = Effect.fn(decisionHistoryPort.span)(function*
 ) {
   // Annotated before the `MissingResourceId` check, so the span that records a
   // wiring error still names the event it was asked about.
-  yield* Effect.annotateCurrentSpan({
-    "qadi.subject_id": subject.id,
-    "qadi.event": event,
-    "qadi.scope": "Resource",
-    "qadi.interpreter": interpreter,
-    ...(typeof rawResourceId === "string" ? { "qadi.resource_id": rawResourceId } : {}),
+  yield* annotateQuestion(decisionHistoryPort, {
+    subjectId: subject.id,
+    event,
+    scope: "Resource",
+    interpreter,
+    resourceId: typeof rawResourceId === "string" ? rawResourceId : undefined,
   });
   const resourceId = yield* requireResourceId(rawResourceId, event);
   const answer: ActedResult = yield* callHasActed(
@@ -336,12 +363,12 @@ export const askRelationship = Effect.fn(relationshipResolverPort.span)(function
   // name the relation it wanted one for. Annotated with the clamped value, not
   // the raw decoded one: the span should say what was actually asked of the
   // resolver.
-  yield* Effect.annotateCurrentSpan({
-    "qadi.subject_id": subject.id,
-    "qadi.relation": relation,
-    "qadi.interpreter": "evaluate",
-    ...(typeof rawResourceId === "string" ? { "qadi.resource_id": rawResourceId } : {}),
-    ...(clamped === undefined ? {} : { "qadi.depth": clamped }),
+  yield* annotateQuestion(relationshipResolverPort, {
+    subjectId: subject.id,
+    relation,
+    interpreter: "evaluate",
+    resourceId: typeof rawResourceId === "string" ? rawResourceId : undefined,
+    depth: clamped,
   });
   if (typeof rawResourceId !== "string") {
     return yield* Effect.fail(new MissingResourceId({ relation }));
@@ -356,7 +383,7 @@ export const askRelationship = Effect.fn(relationshipResolverPort.span)(function
   const related: RelatedResult = yield* RelationshipResolver.check(request).pipe(
     catchPortDefect((cause) => relationshipResolverPort.defect([request], cause)),
   );
-  yield* Effect.annotateCurrentSpan({ "qadi.answer": related });
+  yield* annotateAnswer(relationshipResolverPort, related);
   return related;
 });
 
@@ -370,10 +397,10 @@ export const askCustom = Effect.fn(customPredicatePort.span)(function* (
   name: string,
   params: unknown,
 ) {
-  yield* Effect.annotateCurrentSpan({
-    "qadi.custom_predicate": name,
-    "qadi.subject_id": subject.id,
-    "qadi.interpreter": "evaluate",
+  yield* annotateQuestion(customPredicatePort, {
+    name,
+    subjectId: subject.id,
+    interpreter: "evaluate",
   });
   yield* Metric.update(portCallsTotal, "CustomPredicate");
   const allowed = yield* CustomPredicate.evaluate(name, subject, resource, params).pipe(
@@ -381,19 +408,9 @@ export const askCustom = Effect.fn(customPredicatePort.span)(function* (
     // a defect into `reason` with `Cause.pretty` (`customPredicatePort`).
     catchPortDefect((cause) => customPredicatePort.defect([name, subject, resource, params], cause)),
   );
-  yield* Effect.annotateCurrentSpan({ "qadi.answer": allowed });
+  yield* annotateAnswer(customPredicatePort, allowed);
   return allowed;
 });
-
-/**
- * What `HasSignature` needs from the signatures on file: whether one matched,
- * and whether there were any at all (the deny reason distinguishes "nothing on
- * file" from "none match").
- */
-export interface SignatureAnswer {
-  readonly matched: boolean;
-  readonly onFile: number;
-}
 
 /**
  * Asks the signature history and matches the requirement against what it
@@ -412,13 +429,13 @@ export const askSignature = Effect.fn(signatureHistoryPort.span)(function* (
   rawResourceId: unknown,
 ) {
   const scoped = scope === "Resource";
-  yield* Effect.annotateCurrentSpan({
-    "qadi.subject_id": subject.id,
-    "qadi.meaning": meaning,
-    "qadi.scope": scope,
-    "qadi.interpreter": "evaluate",
-    ...(signerRole === undefined ? {} : { "qadi.signer_role": signerRole }),
-    ...(scoped && typeof rawResourceId === "string" ? { "qadi.resource_id": rawResourceId } : {}),
+  yield* annotateQuestion(signatureHistoryPort, {
+    subjectId: subject.id,
+    meaning,
+    scope,
+    interpreter: "evaluate",
+    signerRole,
+    resourceId: scoped && typeof rawResourceId === "string" ? rawResourceId : undefined,
   });
   const signatureResourceId = scoped
     ? makeResourceId(yield* requireResourceId(rawResourceId, meaning))
@@ -431,7 +448,7 @@ export const askSignature = Effect.fn(signatureHistoryPort.span)(function* (
   const matched = signatures.some(
     (s) => s.meaning === meaning && (signerRole === undefined || s.signerRole === signerRole),
   );
-  yield* Effect.annotateCurrentSpan({ "qadi.matched": matched });
   const answer: SignatureAnswer = { matched, onFile: signatures.length };
+  yield* annotateAnswer(signatureHistoryPort, answer);
   return answer;
 });

@@ -5,11 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-902                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
+> | Change History | 1.3 (2026-10-07): the refusal vocabulary and the three readings of an `EncodeRefusal` move to the leaf `SinkWire.ts` (ARCH-27, CCR-QD-194)<br>1.2 (2026-10-07): D-09-e gains a third reporter: the audit pipeline logs or calls `onRefused`; core owns the path, the annotations, the sentence and the hook containment (CCR-QD-193)<br>1.1 (2026-10-07): the inbound side refuses a non-finite `at` and a non-integer `sequenceNumber` (CCR-QD-186) |
 
 ---
 
@@ -139,6 +140,35 @@ check (a `DecodeRefusal` variant, added as a full-union edit), is one module's e
   store must remember a step BEH-QD-250's prose already assumed was
   `JSON.stringify` — the per-caller pattern moved into user code.
 
+> **Amended 2026-10-07 (CCR-QD-186).** The inbound side refuses what the outbound
+> walk already refuses: `at` decodes as a finite number, so a stored `1e400`
+> (which `JSON.parse` reads as `Infinity`) is `Malformed`, and an audit row's
+> `sequenceNumber` is an integer, declared once for the row schema and the row
+> decode. No encoder ever emitted either, so wire version 2 is unchanged
+> (ADR-QD-096) and no valid row is refused.
+
+> **Amended 2026-10-07 (CCR-QD-193, ARCH-25).** D-09-e named two reporters and left a
+> third silent: `AuditDecisionSinkLive` built `AuditEntryNotEncodable.reason` and
+> discarded it, recording only the `encode_failed` counter, so a refused record had
+> no audit row and no `evaluationId` anywhere. It is a reporter now: its options
+> gain `onRefused`, else a warning "could not be encoded for the audit trail", with
+> the same three annotations. And no adapter re-derives a refusal's meaning: the
+> path (`encodeRefusalPath`, a `Match.tagsExhaustive`, replacing three
+> `"path" in refusal.refusal` checks that a new variant would have passed
+> silently), the annotations (`encodeRefusalAnnotations`: `qadi.refusal`,
+> `qadi.path`, `evaluationId`, never a value from the record, INV-QD-104), the
+> sentence (`describeEncodeRefusal`, moved from `@qadi/audit` and byte-identical)
+> and the hook-or-log choice (`reportEncodeRefusal`) are read through `@qadi/core`,
+> and `no-refusal-annotation-outside-core` in `scripts/check-house-style.mjs`
+> refuses the restated literals. Each adapter keeps its own message and its own
+> hook, as D-09-e requires. A hook that throws is contained and logged
+> ("an encode-refusal hook threw", with `qadi.cause`), never a defect: the stream
+> and the backlog route previously ran it uncontained, so one throwing `onRefused`
+> ended the feed and emptied the backlog response (INV-QD-097).
+> `AuditEntryNotEncodable` gains `evaluationId`. `Errors.ts` still imports no
+> `Effect` (ADR-QD-037): the three pure readings sit beside `EncodeRefusal` and
+> the reporter is the new `EncodeRefusalReport.ts`.
+
 ## Related
 
 Amends [ADR-QD-045](./045-the-topology-is-a-choice-of-sink.md) (`send` receives a
@@ -163,3 +193,14 @@ wire; `decodeAuditEntry` is the guarded reader) and
 [BEH-QD-250](../behaviors/33-audit-pipeline.md),
 [BEH-QD-311](../behaviors/26-decision-stream.md#beh-qd-311-one-record-never-ends-the-feed-and-a-refused-one-is-reported),
 [BEH-QD-312](../behaviors/33-audit-pipeline.md#beh-qd-312-a-stored-row-is-read-back-through-a-guard).
+
+> **Amended 2026-10-07 (CCR-QD-194, ARCH-27).** D-09-b's reason for declaring the
+> refusal types in `Errors.ts` ("which cannot import `SinkCodec.ts` without a
+> cycle") still holds, but it did not need the vocabulary to live there. `EncodeRefusal`,
+> `DecodeRefusal`, `OpaqueKind`, `UnrepresentableKind`, `WirePath`, `SinkRecordTag`,
+> `WireVersion`, `WIRE_VERSIONS` and the three pure readings of an `EncodeRefusal`
+> (`encodeRefusalPath`, `encodeRefusalAnnotations`, `describeEncodeRefusal`) are
+> now declared in the leaf `SinkWire.ts`, which imports only `effect`, so both
+> `Errors.ts` and `SinkCodec.ts` import it (ADR-QD-037, `pnpm circular` clean).
+> `SinkRecordNotEncodable` and `SinkRecordNotDecodable` stay in `Errors.ts` with
+> the rest of `QadiError`; the barrel exports every moved name, so no export changed.

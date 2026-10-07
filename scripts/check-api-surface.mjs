@@ -9,7 +9,7 @@
  * Nothing connected an export to its documentation, so the connection survived only
  * as long as someone remembered it.
  *
- * Three checks:
+ * Four checks:
  *
  *   1. MISSING  — every export of every public package appears, as a backticked
  *                 token, somewhere between `## Public API surface` and
@@ -18,6 +18,9 @@
  *   2. STALE    — every backticked name in the Export column of the API tables is a
  *                 real export.
  *   3. PACKAGES — every workspace package appears in the Packages table.
+ *   4. ENTRY    — a package's `exports` map is a closed list: no key contains `*`,
+ *                 and every key other than `.` is a row of the "Entry points"
+ *                 table in `spec/overview.md`, with a reason (ADR-QD-099).
  *
  * To leave an export out of the main tables, name it in the "Not listed above" table
  * *inside the document* with a reason. The rule is no **silent** omission, not no
@@ -175,14 +178,11 @@ const exportsOf = (file) => {
  * have been invisible to this checker and could have drifted indefinitely — the
  * silent omission §15 exists to forbid.
  *
- * A wildcard subpath (`@qadi/core`'s `./*`, and five other packages') names no
- * single file — it makes every `src/*.ts` module directly importable
- * (`@qadi/core/FieldPath`), which is not "the root barrel already reaches it":
- * a module the barrel deliberately omits (§9) is exactly the shape a wildcard
- * subpath still exposes. So it is expanded to every `src/*.ts` module the
- * package has, barreled or not, rather than skipped — an omission here made
- * eleven exports invisible to this checker across four packages until a
- * read-only audit found them by hand (CCR-QD-102).
+ * A wildcard subpath is not an entry point this checker can read, and it is
+ * refused by the ENTRY check below, so it contributes nothing here. It used to
+ * be expanded to every `src/*.ts` module (CCR-QD-102, after a wildcard made
+ * eleven exports invisible to this checker); ADR-QD-099 removed the wildcards,
+ * so there is nothing left to expand.
  */
 const entryPointsOf = ({ dir }) => {
   const packageDir = join(ROOT, "packages", dir);
@@ -190,7 +190,7 @@ const entryPointsOf = ({ dir }) => {
   const { exports: map } = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"));
 
   const entries = new Set();
-  for (const target of collectSourceTargets(map ?? {}, src)) {
+  for (const target of collectSourceTargets(map ?? {})) {
     const file = join(packageDir, target);
     if (existsSync(file)) entries.add(file);
   }
@@ -199,19 +199,12 @@ const entryPointsOf = ({ dir }) => {
   return [...entries];
 };
 
-/**
- * The `bun` condition of every subpath in an `exports` map, source files
- * behind a `./*` wildcard expanded to every `.ts` module actually on disk.
- */
-const collectSourceTargets = (map, src) =>
+/** The `bun` condition of every non-wildcard subpath in an `exports` map. */
+const collectSourceTargets = (map) =>
   Object.entries(map).flatMap(([subpath, condition]) => {
     if (condition === null || typeof condition !== "object") return [];
-    if (typeof condition.bun !== "string") return [];
-    if (!subpath.includes("*")) return [condition.bun];
-    if (!existsSync(src)) return [];
-    return readdirSync(src)
-      .filter((file) => file.endsWith(".ts"))
-      .map((file) => condition.bun.replace("*", file.slice(0, -".ts".length)));
+    if (typeof condition.bun !== "string" || subpath.includes("*")) return [];
+    return [condition.bun];
   });
 
 /**
@@ -331,6 +324,57 @@ const packageTable = overview.split("\n## Packages")[1]?.split("\n## ")[0] ?? ""
 for (const pkg of packages) {
   if (!packageTable.includes(`\`${pkg.name}\``)) {
     fail("spec/overview.md", `[package] ${pkg.name} is missing from the Packages table.`);
+  }
+}
+
+// --- 4. Entry points --------------------------------------------------------
+//
+// A package's `exports` map is a closed list (ADR-QD-099). `./*` made every
+// module a barrel deliberately omits (AGENTS.md §9) importable, while the
+// repository called subpath changes both "Breaking" (CHANGELOGs) and "free to
+// change" (overview). The only way to add an entry point now is a row in the
+// "Entry points" table, which carries the reason.
+
+const entryTable = overview.split("\n## Entry points")[1]?.split("\n## ")[0] ?? "";
+const declaredEntryPoints = new Set(
+  entryTable
+    .split("\n")
+    .filter((line) => line.startsWith("|") && !line.includes("| ---"))
+    .map((line) => /^\|\s*`([^`]+)`/.exec(line)?.[1])
+    .filter((entry) => entry !== undefined),
+);
+const manifestKeys = new Set();
+
+for (const pkg of publicPackages) {
+  const { exports: map } = JSON.parse(
+    readFileSync(join(ROOT, "packages", pkg.dir, "package.json"), "utf8"),
+  );
+  for (const key of Object.keys(map ?? {})) {
+    if (key === ".") continue;
+    const specifier = `${pkg.name}${key.slice(1)}`;
+    manifestKeys.add(specifier);
+    if (key.includes("*")) {
+      fail(
+        `packages/${pkg.dir}/package.json`,
+        `[entry] exports declares the wildcard "${key}". An entry point list is closed: ` +
+          `remove it, and name any real subpath in "Entry points" in spec/overview.md.`,
+      );
+    } else if (!declaredEntryPoints.has(specifier)) {
+      fail(
+        `packages/${pkg.dir}/package.json`,
+        `[entry] exports declares "${key}" (${specifier}), which is not a row of "Entry points" ` +
+          `in spec/overview.md. Add the row, with a reason, or remove the subpath.`,
+      );
+    }
+  }
+}
+
+for (const specifier of declaredEntryPoints) {
+  if (!manifestKeys.has(specifier)) {
+    fail(
+      "spec/overview.md",
+      `[entry] "Entry points" lists ${specifier}, which no package.json exports.`,
+    );
   }
 }
 

@@ -54,8 +54,8 @@ companion to this page.)
 ## Atom, atom registry: one evaluation per question, not per component
 
 `@qadi/react` builds one `Atom` per distinct authorization question —
-`makeQadiAtoms`'s `decision(policy)` and `decisionFor(policy, resource)`.
-`Atom.family` keys structurally, so ten components in different parts of the
+`makeQadiAtoms`'s `decision(policy, resource?)`.
+The atom set keys questions structurally, so ten components in different parts of the
 tree asking the identical question share one evaluation rather than each
 running its own. The **atom registry** — one per `QadiProvider` — is what
 computes those atom values, tracks their dependencies, and disposes them once

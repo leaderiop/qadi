@@ -49,7 +49,7 @@ export const extractCodeFences = (source) => {
 };
 
 /**
- * Every public package's `src/index.ts`, as a scratch-tsconfig `paths` map
+ * Every public package's `src/index.ts` (and `@qadi/devtools`' React entry point), as a scratch-tsconfig `paths` map
  * relative to a scratch directory one level below repo root (e.g. `.doc-examples/`).
  * The one map both checkers use — adding a 10th package means editing this
  * once, not once per checker.
@@ -61,6 +61,8 @@ export const PACKAGE_PATHS = {
   "@qadi/promise": ["../packages/promise/src/index.ts"],
   "@qadi/http": ["../packages/http/src/index.ts"],
   "@qadi/devtools": ["../packages/devtools/src/index.ts"],
+  // A distinct entry point on purpose (AGENTS.md §1), so an example can render the dock.
+  "@qadi/devtools/react": ["../packages/devtools/src/react/index.ts"],
   "@qadi/predicate-sql": ["../packages/predicate-sql/src/index.ts"],
   "@qadi/predicate-prisma": ["../packages/predicate-prisma/src/index.ts"],
   "@qadi/audit": ["../packages/audit/src/index.ts"],

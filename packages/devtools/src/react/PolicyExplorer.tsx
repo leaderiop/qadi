@@ -18,7 +18,7 @@ import * as Equal from "effect/Equal";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import * as SchemaIssue from "effect/SchemaIssue";
-import { fromJson, policyDepth, simplify, toJson } from "@qadi/core";
+import { DEFAULT_MAX_DEPTH, fromJson, policyDepth, simplify, toJson } from "@qadi/core";
 import type { Policy, PolicyDecodeTooDeep } from "@qadi/core";
 import type { PolicySighting } from "../model/Catalogue.ts";
 import { inspect } from "../model/Inspect.ts";
@@ -54,16 +54,6 @@ const formatDecodeFailure = (failure: PolicyDecodeTooDeep | Schema.SchemaError):
     )
     .join("\n");
 };
-
-/**
- * The depth `evaluate` bounds at unless a caller says otherwise.
- *
- * Shown beside a policy's own depth because `policyDepth(p) <= n` is *exactly*
- * the condition under which `evaluate(p, { maxDepth: n })` will not raise
- * ([INV-QD-037](../../../../spec/invariants.md)) — so the comparison is
- * meaningful rather than indicative.
- */
-const DEFAULT_MAX_DEPTH = 64;
 
 export interface PolicyExplorerProps {
   readonly sightings: ReadonlyArray<PolicySighting>;

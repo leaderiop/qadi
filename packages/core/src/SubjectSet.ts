@@ -21,7 +21,11 @@
  * never happened, which is the defect the read-only history port exists to
  * prevent.
  */
+import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
+import * as Filter from "effect/Filter";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
 import * as Stream from "effect/Stream";
 import type { AuthSubject } from "./AuthSubject.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
@@ -72,6 +76,60 @@ export interface SubjectSetOutcome {
 }
 
 /**
+ * One subject's review outcome: the decision it received, or the evaluation
+ * failure that kept it from getting one.
+ *
+ * A failed subject is never a denial (INV-QD-006): `SubjectFailed` is its own
+ * case, carrying the `EvaluationError` and the subject it was resolving for.
+ * It is what {@link decideSubject} returns and what the streamed siblings
+ * emit, so a downstream `Stream.filter`/`Stream.map` can tell a decision from
+ * a failure.
+ */
+export type SubjectOutcome = Data.TaggedEnum<{
+  SubjectDecided: { readonly subject: AuthSubject; readonly decision: Decision };
+  SubjectFailed: { readonly subject: AuthSubject; readonly error: EvaluationError };
+}>;
+
+/** Constructors and guards for {@link SubjectOutcome}. */
+export const SubjectOutcome = Data.taggedEnum<SubjectOutcome>();
+
+/**
+ * What `filterSubjectsStream` emits: an allowed subject, or a subject whose
+ * evaluation failed. A denied subject is simply absent (it is not allowed), but
+ * a failed one never is (BEH-QD-108).
+ */
+export type FilteredSubjectOutcome = Data.TaggedEnum<{
+  SubjectAllowed: { readonly subject: AuthSubject };
+  SubjectFailed: { readonly subject: AuthSubject; readonly error: EvaluationError };
+}>;
+
+/** Constructors and guards for {@link FilteredSubjectOutcome}. */
+export const FilteredSubjectOutcome = Data.taggedEnum<FilteredSubjectOutcome>();
+
+/**
+ * Evaluates one policy against one subject and reports the outcome as a
+ * value; never fails.
+ *
+ * The one per-subject step: the array form ({@link decideSubjects}) and the
+ * streamed forms both fold over it, so the per-subject error mapping lives in
+ * one place. Providing `CurrentSubject` is what discharges the requirement,
+ * and it is also what isolates the element: each subject is evaluated exactly
+ * as it would have been alone (INV-QD-016).
+ */
+export const decideSubject = Effect.fn("qadi.decideSubject")(function* (
+  policy: Policy,
+  subject: AuthSubject,
+  options?: EvaluateOptions,
+) {
+  return yield* Effect.provideService(evaluate(policy, options), CurrentSubject, subject).pipe(
+    Effect.match({
+      onSuccess: (decision): SubjectOutcome => SubjectOutcome.SubjectDecided({ subject, decision }),
+      onFailure: (error): SubjectOutcome => SubjectOutcome.SubjectFailed({ subject, error }),
+    }),
+  );
+});
+
+/**
  * Evaluates one policy against many subjects, keeping every decision — and
  * every failure, separately, rather than discarding the rest of the batch.
  *
@@ -87,8 +145,8 @@ export interface SubjectSetOutcome {
  * two against `subjects` is `failures`'s job, not an index the caller can
  * assume.
  *
- * `Effect.partition`, not `Effect.forEach`: one flaky resolver used to fail
- * the whole call, discarding every decision already reached for every other
+ * A fold over {@link decideSubject}, not an `Effect.forEach` that fails: one
+ * flaky resolver used to fail the whole call, discarding every decision already reached for every other
  * subject in the batch — for an access review over a full tenant, exactly
  * the shape of thing this entry point exists to avoid ("the transpose of
  * `Qadi.filter`", this file's own top comment says, and `Qadi.filter` is
@@ -97,6 +155,10 @@ export interface SubjectSetOutcome {
  * never fails, so a caller no longer loses partial progress to a single
  * broken lookup; `failures` is where that lookup's `EvaluationError` — paired
  * with the subject it was resolving for — now goes (issue #107).
+ *
+ * `options.concurrency` applies to each element's own evaluation — the
+ * children of its `allOf`/`anyOf`/`rules` — and never across elements
+ * (BEH-QD-108).
  *
  * Sequential, and not for E3's reason: separate subjects produce separate
  * decisions and nothing combines them. A batch multiplies the load on the
@@ -113,16 +175,18 @@ export const decideSubjects = Effect.fn("qadi.decideSubjects")(function* (
     "qadi.policy_tag": policy._tag,
   });
 
-  // `[passes, fails]` since effect 4.0.0 — rc.118 and earlier returned `[fails, passes]`.
-  const [decisions, failures] = yield* Effect.partition(subjects, (subject) =>
-    // Providing the service is what discharges the requirement, and it is
-    // also what isolates the elements: each subject is evaluated exactly as
-    // it would have been alone (INV-QD-016).
-    Effect.provideService(evaluate(policy, options), CurrentSubject, subject).pipe(
-      Effect.map((decision): SubjectDecision => ({ subject, decision })),
-      Effect.mapError((error): SubjectEvaluationFailure => ({ subject, error })),
-    ),
-  );
+  // Sequential: `Effect.forEach` with no `concurrency` runs one element at a time.
+  const outcomes = yield* Effect.forEach(subjects, (subject) => decideSubject(policy, subject, options));
+
+  const decisions: Array<SubjectDecision> = [];
+  const failures: Array<SubjectEvaluationFailure> = [];
+  for (const outcome of outcomes) {
+    if (outcome._tag === "SubjectDecided") {
+      decisions.push({ subject: outcome.subject, decision: outcome.decision });
+    } else {
+      failures.push({ subject: outcome.subject, error: outcome.error });
+    }
+  }
 
   return { decisions, failures };
 });
@@ -163,6 +227,12 @@ export const filterSubjects = (
  * a `ReadonlyArray` — a full tenant's user base, say, rather than a handful
  * of candidates for a sharing dialog.
  *
+ * Emits one {@link SubjectOutcome} per subject, through the same
+ * {@link decideSubject} step the array form folds over, so it has the array
+ * form's failure isolation: a subject whose evaluation breaks is emitted as
+ * `SubjectFailed` and the stream continues with the next one. The error
+ * channel is the input stream's own `E2` alone.
+ *
  * Sequential, for the same reason `decideSubjects` itself is and not a
  * convenience this loses: `Stream.mapEffect` with no `concurrency` given
  * processes subjects one at a time, matching `decideSubjects`'s deliberate
@@ -176,46 +246,44 @@ export const filterSubjects = (
  * here: `subjects` is a `Stream`, so its length is not known in advance and
  * may not even be finite — a span annotated with a count would either block
  * on consuming the whole stream first or lie about what has been seen so far.
- *
- * **Not given the array form's per-element failure isolation.** `decideSubjects`
- * never fails — one subject's broken lookup lands in `failures` and every other
- * subject's decision still comes back (issue #107). This function has no
- * equivalent sink: a failing element fails the whole stream, and every decision
- * already emitted downstream is lost along with it — there is no way for a
- * consumer to learn which subject broke or how far the review got before it
- * did. That is a real asymmetry between the batch-scale entry point and its
- * array sibling, not an oversight papered over here: giving the stream form
- * the same partial-progress guarantee needs a `SubjectEvaluationFailure`-shaped
- * element in the success channel (so a downstream `Stream.filter`/`Stream.map`
- * can tell a decision from a failure) rather than a change to this function's
- * error channel, which is a real API shape decision this file does not make
- * unilaterally — see `spec/behaviors/14-subject-sets.md`'s note on this being
- * deferred work.
  */
 export const decideSubjectsStream = <E2 = never, R2 = never>(
   policy: Policy,
   subjects: Stream.Stream<AuthSubject, E2, R2>,
   options?: EvaluateOptions,
-): Stream.Stream<SubjectDecision, EvaluationError | E2, SubjectSetServices | R2> =>
+): Stream.Stream<SubjectOutcome, E2, SubjectSetServices | R2> =>
   subjects.pipe(
-    Stream.mapEffect((subject) =>
-      Effect.map(
-        Effect.provideService(evaluate(policy, options), CurrentSubject, subject),
-        (decision): SubjectDecision => ({ subject, decision }),
-      ),
-    ),
+    Stream.mapEffect((subject) => decideSubject(policy, subject, options)),
     Stream.withSpan("qadi.decideSubjectsStream", {
       attributes: { "qadi.policy_tag": policy._tag },
     }),
   );
 
-/** The streamed sibling of `filterSubjects` — see `decideSubjectsStream`. */
+/** One outcome as `filterSubjectsStream` reports it: allowed, failed, or nothing for a denial. */
+const toFilteredOutcome: (outcome: SubjectOutcome) => Option.Option<FilteredSubjectOutcome> =
+  Match.type<SubjectOutcome>().pipe(
+    Match.tagsExhaustive({
+      SubjectDecided: (o) =>
+        isAllowed(o.decision)
+          ? Option.some(FilteredSubjectOutcome.SubjectAllowed({ subject: o.subject }))
+          : Option.none(),
+      SubjectFailed: (o) =>
+        Option.some(FilteredSubjectOutcome.SubjectFailed({ subject: o.subject, error: o.error })),
+    }),
+  );
+
+const keepAllowedAndFailed = Filter.fromPredicateOption(toFilteredOutcome);
+
+/**
+ * The streamed sibling of `filterSubjects` — see `decideSubjectsStream`.
+ *
+ * Emits every allowed subject as `SubjectAllowed` and every subject whose
+ * evaluation failed as `SubjectFailed`; a denied subject is absent, a failed
+ * one never is, so the consumer can tell a clean run from a partial one.
+ */
 export const filterSubjectsStream = <E2 = never, R2 = never>(
   policy: Policy,
   subjects: Stream.Stream<AuthSubject, E2, R2>,
   options?: EvaluateOptions,
-): Stream.Stream<AuthSubject, EvaluationError | E2, SubjectSetServices | R2> =>
-  decideSubjectsStream(policy, subjects, options).pipe(
-    Stream.filter((r) => isAllowed(r.decision)),
-    Stream.map((r) => r.subject),
-  );
+): Stream.Stream<FilteredSubjectOutcome, E2, SubjectSetServices | R2> =>
+  decideSubjectsStream(policy, subjects, options).pipe(Stream.filterMap(keepAllowedAndFailed));

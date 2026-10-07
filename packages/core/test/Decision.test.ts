@@ -6,9 +6,12 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Schema from "effect/Schema";
-import { Allow, Deny, project, TraceSchema } from "../src/Decision.ts";
+import * as FastCheck from "fast-check";
+import { Allow, Deny, foldTrace, project, TraceSchema } from "../src/Decision.ts";
+import type { Trace, TraceCases } from "../src/Decision.ts";
 import { makeSubjectId } from "../src/Identity.ts";
 import { POLICY_TAGS } from "../src/Policy.ts";
+import { chain } from "./helpers.ts";
 
 describe("project", () => {
   const data = { id: "1", title: "T", secret: "S" };
@@ -67,6 +70,140 @@ describe("TraceSchema's tag list (ARCH-02 C5)", () => {
     }
     assert.throws(() =>
       decode({ policyTag: "Probe", allowed: true, children: [], obligations: [] }),
+    );
+  });
+});
+
+describe("foldTrace (ARCH-22 D-22-a)", () => {
+  const node = (policyTag: Trace["policyTag"], children: ReadonlyArray<Trace> = []): Trace => ({
+    policyTag,
+    allowed: true,
+    children,
+    obligations: [],
+  });
+
+  /** One answer for every tag, whatever its arity: the arms ignore their children. */
+  const uniform = <R>(f: (node: Trace) => R): TraceCases<R> => ({
+    HasPermission: f,
+    HasRole: f,
+    HasAttribute: f,
+    HasResourceAttribute: f,
+    HasRelationship: f,
+    HasAction: f,
+    HasActed: f,
+    HasNotActed: f,
+    HasCustom: f,
+    HasSignature: f,
+    AllOf: f,
+    AnyOf: f,
+    Rules: f,
+    Not: f,
+    Obliged: f,
+    Labeled: f,
+  });
+
+  /** Every arm answers a string naming what it was handed. */
+  const describing: TraceCases<string> = {
+    HasPermission: () => "perm",
+    HasRole: () => "role",
+    HasAttribute: () => "attr",
+    HasResourceAttribute: () => "rattr",
+    HasRelationship: () => "rel",
+    HasAction: () => "act",
+    HasActed: () => "acted",
+    HasNotActed: () => "notacted",
+    HasCustom: () => "custom",
+    HasSignature: () => "sig",
+    AllOf: (_n, children) => `all(${children.join(",")})`,
+    AnyOf: (_n, children) => `any(${children.join(",")})`,
+    Rules: (_n, children) => `rules(${children.join(",")})`,
+    Not: (_n, child) => `not(${child ?? "-"})`,
+    Obliged: (_n, child) => `obliged(${child ?? "-"})`,
+    Labeled: (_n, child) => `labeled(${child ?? "-"})`,
+  };
+
+  it("combines post-order, each arm receiving its children in the tag's own shape", () => {
+    const tree = node("AllOf", [
+      node("Not", [node("HasRole")]),
+      node("Rules", [node("HasPermission"), node("HasAction")]),
+      node("AnyOf"),
+      node("Labeled"),
+    ]);
+    assert.strictEqual(foldTrace(tree, describing), "all(not(role),rules(perm,act),any(),labeled(-))");
+  });
+
+  it("does not walk a leaf's children, and a wrapper's walk is its first child", () => {
+    const seen: Array<string> = [];
+    const record = (name: string) => (): string => {
+      seen.push(name);
+      return name;
+    };
+    const cases: TraceCases<string> = {
+      ...describing,
+      HasRole: record("role"),
+      HasAction: record("action"),
+      Not: (_n, child) => child ?? "-",
+    };
+    foldTrace(node("Not", [node("HasRole", [node("HasAction")]), node("HasAction")]), cases);
+    assert.deepStrictEqual(seen, ["role"]);
+  });
+
+  it("folds a 100,000-deep chain and a 250,000-wide node", () => {
+    const counting: TraceCases<number> = {
+      ...uniform(() => 0),
+      AllOf: (_n, children) => children.length,
+      Not: (_n, child) => (child ?? 0) + 1,
+    };
+    assert.strictEqual(
+      foldTrace(
+        chain((inner: Trace) => node("Not", [inner]), 100_000, node("HasRole")),
+        counting,
+      ),
+      100_000,
+    );
+    const wide = node("AllOf", Array.from({ length: 250_000 }, () => node("HasRole")));
+    assert.strictEqual(foldTrace(wide, counting), 250_000);
+  }, 60_000);
+
+  it("combines a shared child once and hands every parent the same result", () => {
+    const shared = node("HasRole");
+    let combined = 0;
+    const results: Array<unknown> = [];
+    const cases: TraceCases<object> = {
+      ...uniform((): object => ({})),
+      HasRole: () => {
+        combined += 1;
+        return {};
+      },
+      AllOf: (_n, children) => {
+        results.push(...children);
+        return {};
+      },
+    };
+    foldTrace(node("AllOf", [shared, node("AllOf", [shared]), shared]), cases);
+    assert.strictEqual(combined, 1);
+    // The inner AllOf's one child, then the root's three.
+    assert.strictEqual(results.length, 4);
+    assert.strictEqual(results[0], results[1]);
+    assert.strictEqual(results[0], results[3]);
+  });
+
+  it("throws on a cyclic trace", () => {
+    const cycle: { policyTag: "Not"; allowed: boolean; children: Array<Trace>; obligations: [] } = {
+      policyTag: "Not",
+      allowed: true,
+      children: [],
+      obligations: [],
+    };
+    cycle.children.push(cycle);
+    assert.throws(() => foldTrace(cycle, describing), "cycle");
+  });
+
+  it("every tag of a trace reaches its own arm", () => {
+    FastCheck.assert(
+      FastCheck.property(FastCheck.constantFrom(...POLICY_TAGS), (tag) => {
+        return foldTrace(node(tag), uniform((n) => n.policyTag)) === tag;
+      }),
     );
   });
 });

@@ -33,6 +33,7 @@ import {
   type HydrateOptions,
   type HydrationMismatchReporter,
   type InitialValues,
+  type SeededQuestion,
   hydrateWith,
   makeSeededQuestion,
   resolveMismatchReporter,
@@ -41,10 +42,14 @@ import type { GateRegistry } from "./GateRegistry.ts";
 import { makeGateRegistry } from "./GateRegistry.ts";
 import { gateIdCollisionReporter } from "./HydrationWarning.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
+import type { AskedQuestion } from "./QuestionBook.ts";
+import { makeQuestionBook } from "./QuestionBook.ts";
 
 // `HydrationWarning.ts` is out of the barrel — its ambient-global boundary is
 // not a public surface — so the two types callers name are re-exported here.
 export type { HydrationMismatch, HydrationMismatchReporter } from "./HydrationEngine.ts";
+// Declared in `QuestionBook.ts`, which imports nothing local (ADR-QD-037).
+export type { AskedQuestion } from "./QuestionBook.ts";
 
 /**
  * The services a Qadi runtime layer supplies.
@@ -78,10 +83,34 @@ export interface QadiAtoms {
   readonly runtime: Atom.AtomRuntime<QadiRuntimeServices>;
   /** The subject under authorization. `undefined` means "not known yet". */
   readonly subject: Atom.Writable<AuthSubject | undefined>;
-  /** The decision for a policy, with no resource in scope. */
-  readonly decision: (policy: Policy) => Atom.Atom<DecisionResult>;
-  /** The decision for a policy against one resource. */
-  readonly decisionFor: (policy: Policy, resource: Resource) => Atom.Atom<DecisionResult>;
+  /**
+   * The decision for a policy, against one resource or with none in scope.
+   *
+   * The same atom for an equal question for as long as this atom set tracks it,
+   * regardless of garbage collection (BEH-QD-065): the atom set's question book
+   * holds it strongly, and forgets it only when `sweepEvictions` drops the
+   * question while no reader holds it open.
+   *
+   * **A `resource` is a key, and a key must not be mutated after its first use
+   * (BL-05).** Equality is structural and its comparison is cached per object
+   * pair, so a caller who mutates a `resource` in place after asking keeps
+   * hitting the entry made against the pre-mutation shape. `useInvalidate` does
+   * not help: it recomputes the cached decision behind an existing key, it does
+   * not give a mutated object a new one. Treat a `resource` as immutable for as
+   * long as any component might still be asking about it.
+   */
+  readonly decision: (policy: Policy, resource?: Resource) => Atom.Atom<DecisionResult>;
+  /**
+   * Several questions, read as one record.
+   *
+   * Each entry is still the shared {@link QadiAtoms.decision} atom; grouping only
+   * means a reader re-renders once rather than once per question. The same atom
+   * for an equal record. Not tracked or seeded itself, so a collected group costs
+   * only a re-derivation.
+   */
+  readonly decisions: (
+    questions: Readonly<Record<string, AskedQuestion>>,
+  ) => Atom.Atom<Readonly<Record<string, DecisionResult>>>;
   /** Writing to this discards every decision and re-evaluates the mounted ones. */
   readonly invalidate: Atom.AtomResultFn<void, void>;
   /**
@@ -96,13 +125,13 @@ export interface QadiAtoms {
    * joins the two structurally, with `Equal.equals`, because `@qadi/devtools`
    * does not depend on this package.
    *
-   * Read the verdict for each with `decision`/`decisionFor`, which is what keeps a
+   * Read the verdict for each with `decision`, which is what keeps a
    * stale entry rendering as re-checking rather than as its old answer
    * ([ADR-QD-017](../../../spec/decisions/017-stale-decisions-are-not-decisions.md)).
    *
    * Bounded: `sweepEvictions` drops the oldest questions no reader is holding
    * once `maxTrackedQuestions` is exceeded, and never one a mounted gate still has
-   * open — see {@link TrackedQuestion}.
+   * open — see `QuestionBook.ts`.
    */
   readonly asked: () => ReadonlyArray<AskedQuestion>;
   /**
@@ -147,7 +176,7 @@ export interface QadiAtoms {
    * straight into a registry, bypassing the subject check and the evaluator).
    *
    * Never throws, and drops what it cannot verify — see `hydrateDecisions`. A
-   * wrapper that forwards `decision`/`decisionFor` can forward this too, and a
+   * wrapper that forwards `decision` can forward this too, and a
    * hand-built test double supplies its own: that is the caller's code, not a
    * trust crossing.
    */
@@ -156,59 +185,6 @@ export interface QadiAtoms {
     subject: AuthSubject,
     options?: HydrateOptions,
   ) => InitialValues;
-}
-
-/** One question an atom set has been asked. */
-export interface AskedQuestion {
-  readonly policy: Policy;
-  /** Absent when the question was asked with no resource in scope. */
-  readonly resource?: Resource | undefined;
-}
-
-/**
- * Bookkeeping for one asked question, kept alongside the public
- * {@link AskedQuestion} it wraps.
- *
- * `liveCount` is how many currently-subscribed computations — across every
- * registry sharing this atom set, since `bare`/`byResource`'s memoized atoms
- * are shared objects, not per-registry ones — are holding the question's
- * decision atom open. Incremented when `combined`'s reader runs and
- * decremented by the finalizer it registers through `get.addFinalizer`,
- * which `AtomRegistry` invokes both on a genuine teardown (last subscriber
- * gone) and on a recompute (a dependency changed, or `useInvalidate` fired).
- * The two cases are distinguishable in effect, if not in the count itself:
- * `NodeImpl.invalidate` calls `disposeLifetime()` (dropping this to `0`) and
- * then, synchronously and with no `yield*` in between, `this.value()` (which
- * reads the atom again, bringing it back to `1`) — so `sweepEvictions`,
- * running on its own fiber, can never observe a momentarily-zero count for
- * something a registry still actually holds open; only a real teardown
- * leaves it at zero for `sweepEvictions` to find.
- *
- * `sweepEvictions` must never drop an entry while this is above zero: doing
- * so would silently remove a still-mounted gate from `asked()` forever,
- * since `Atom.family`'s constructor callback runs exactly once per distinct
- * key's lifetime, not on every read (`QadiAtoms.test.ts`'s "hands back a
- * copy" test is what pins that once-only construction).
- *
- * That once-only construction cuts the other way too, and `inTracked` is
- * what closes it: `Atom.family` has no public API to force-remove an entry,
- * so evicting a *cold* (`liveCount === 0`) question from `tracked` does not
- * remove its atom from the family's own cache — the atom can still be
- * alive, just untracked. A component that re-asks the identical question
- * before that atom is GC'd gets the same cached atom back, and because the
- * constructor callback that does `tracked.push` never runs again for an
- * already-cached key, the reawakened question would otherwise never
- * reappear in `tracked`/`asked()` at all, contradicting "a question a gate
- * still has open is never dropped" for the one case that actually asks
- * again after eviction. `combined`'s reader re-adds the entry (and flips
- * this back to `true`) the moment it observes `inTracked === false`, before
- * incrementing `liveCount` — so a reawakened question is visible again from
- * its very first new subscriber, not only after the next full sweep.
- */
-interface TrackedQuestion {
-  readonly question: AskedQuestion;
-  liveCount: number;
-  inTracked: boolean;
 }
 
 /**
@@ -220,8 +196,8 @@ interface TrackedQuestion {
  * own doc comment — safe because that cache is meant to be scoped to one
  * request), this package's atoms are the long-lived case: a single-page
  * session that asks many distinct (policy, resource) combinations over
- * hours has nothing else bounding `asked()` or the underlying `Atom.family`
- * tracking, which is exactly the audited leak this default closes.
+ * hours has nothing else bounding `asked()` or the question book's handles,
+ * which is exactly the audited leak this default closes.
  */
 const DEFAULT_MAX_TRACKED_QUESTIONS = 500;
 
@@ -250,7 +226,7 @@ export interface QadiAtomsOptions {
   readonly onGateIdCollision?: (id: string) => void;
   /**
    * The most distinct questions this atom set keeps in `asked()` and its own
-   * `Atom.family` tracking at once.
+   * question book at once.
    *
    * Once exceeded, `sweepEvictions` drops the oldest questions with no reader
    * currently holding them — never one a mounted gate still has open. Must be
@@ -288,20 +264,6 @@ export const makeQadiAtoms = (
   layer: QadiLayer,
   options?: QadiAtomsOptions,
 ): QadiAtoms => {
-  const maxTrackedQuestions = options?.maxTrackedQuestions ?? DEFAULT_MAX_TRACKED_QUESTIONS;
-  // Mirrors `decisionCacheLayer`'s own capacity validation (`DecisionCache.ts`)
-  // and for the same two reasons: a negative capacity makes an eviction loop's
-  // `while (tracked.length > maxTrackedQuestions)` unsatisfiable once `tracked`
-  // empties out, and a `NaN` one makes that comparison always `false`, silently
-  // turning "bounded" into unbounded instead of failing loudly. Checked once
-  // here, at construction, rather than left to fail in whichever of those two
-  // ways the first time `sweepEvictions` runs.
-  if (!(Number.isInteger(maxTrackedQuestions) && maxTrackedQuestions >= 1)) {
-    throw new Error(
-      `makeQadiAtoms: maxTrackedQuestions must be a positive integer, got ${maxTrackedQuestions}`,
-    );
-  }
-
   const runtime = Atom.runtime(layer);
   const subject = Atom.make<AuthSubject | undefined>(undefined).pipe(
     Atom.withEquality(subjectsEqual),
@@ -315,7 +277,7 @@ export const makeQadiAtoms = (
   const seededDecision = (
     policy: Policy,
     resource: Resource | undefined,
-    tracking: TrackedQuestion,
+    live: () => () => void,
   ) =>
     makeSeededQuestion<EvaluationError>({
       policy,
@@ -347,99 +309,55 @@ export const makeQadiAtoms = (
             }).pipe(Effect.provideService(CurrentSubject, current));
           })
           .pipe(runtime.factory.withReactivity([DECISIONS_KEY])),
-      // Marks this question live for as long as this computation stays
-      // cached — see `TrackedQuestion`'s own doc comment for why a recompute
-      // (dispose-then-reread, synchronous, no `yield*` in between) can never
-      // be observed by `sweepEvictions` as a real drop to zero, only a
-      // genuine teardown can.
+      // Marks this question live for as long as this computation stays cached.
+      // The count goes up first, inside the reader, and the release is the
+      // reader's finalizer: a recompute (dispose, then a synchronous re-read) is
+      // never seen by `sweepEvictions` as a drop to zero — see `QuestionBook.ts`.
       track: (get) => {
-        if (!tracking.inTracked) {
-          // A previous sweep evicted this question while it was cold, but
-          // `Atom.family` handed back the same cached atom rather than
-          // rebuilding it — see `TrackedQuestion.inTracked`'s own doc comment.
-          tracked.push(tracking);
-          tracking.inTracked = true;
-        }
-        tracking.liveCount += 1;
-        get.addFinalizer(() => {
-          tracking.liveCount -= 1;
-        });
+        get.addFinalizer(live());
       },
     });
 
-  // `Atom.family` memoises on the argument, so every component asking the same
-  // question shares one evaluation. It keys **structurally** — the family holds
-  // a `MutableHashMap`, which compares with `Equal.equals` — so two separately
-  // constructed but equal policies share one atom, and sharing survives a policy
-  // built inline in render. Hoisting to module scope is still worth doing, but
-  // for hashing cost rather than for correctness: the hash is cached per object,
-  // so a fresh object each render re-walks the whole policy tree.
+  // **What this closure owns, and who may reach it.** Everything per-atom-set
+  // lives here and nowhere at module scope: the question book (one
+  // `SeededQuestion` per question, from `HydrationEngine.ts`, holding its private
+  // seed atom and the one atom a consumer reads, and the liveness the eviction
+  // sweep needs), the grouped-read family, and the `hydrate` capability that
+  // closes over the book. Nothing outside `makeQadiAtoms` can reach a seed atom —
+  // that is ADR-QD-039's requirement, met by scope rather than by a side table
+  // keyed on this object. Anything else that needs to be scoped to one atom set
+  // (a gate registry, say) belongs in this closure and on the `QadiAtoms`
+  // interface, in the same shape.
+  //
+  // The book keys **structurally** (a `MutableHashMap`, which compares with
+  // `Equal.equals`), so two separately constructed but equal policies share one
+  // atom and sharing survives a policy built inline in render. Hoisting is still
+  // worth doing, for hashing cost rather than correctness: the hash is cached per
+  // object, so a fresh object each render re-walks the whole policy tree.
   // `v4-reactivity-smoke.test.ts` pins this; a bump to reference keying would
   // silently stop inline policies sharing.
-  // Appended as each family key is first built, which is exactly once per
-  // distinct question — `Atom.family` memoises, so a repeat ask does not run the
-  // constructor again and cannot double-count. `tracked`, not a plain
-  // `Array<AskedQuestion>`, so `sweepEvictions` has somewhere to record which
-  // entries currently have a live reader (`TrackedQuestion.liveCount`) — see
-  // that interface's own doc comment for why eviction cannot rely on anything
-  // computed from `Policy`/`Resource` structural equality instead.
-  //
-  // **`byResource`'s `resource` argument is a family key, and a family key must
-  // not be mutated after its first use (BL-05).** `Atom.family` compares with
-  // `Equal.equals` and caches the comparison per object pair in a `WeakMap`
-  // (`effect`'s own `Equal` contract) — the same structural keying
-  // `DecisionCacheKey.resource` relies on in `@qadi/core/DecisionCache.ts`,
-  // and the same caveat applies here: a caller who mutates a `resource` object
-  // in place after asking a question with it keeps hitting this family's
-  // existing entry, because the key's hash and the cached comparison were
-  // computed against the pre-mutation shape. `useInvalidate`/`Reactivity.invalidate`
-  // does not help — it recomputes the *cached decision* behind an existing key,
-  // it does not give a mutated object a new one. Treat a `resource` passed to
-  // `decisionFor` as immutable for as long as any component might still be
-  // asking about it; build a new object for a new state instead of mutating
-  // the old one in place.
-  //
-  // **What this closure owns, and who may reach it.** Everything per-atom-set
-  // lives here and nowhere at module scope: `tracked` (liveness, for the eviction
-  // sweep), the `bare`/`byResource` families (one `SeededQuestion` per question,
-  // from `HydrationEngine.ts`, holding its private seed atom and the one atom a
-  // consumer reads), and the `hydrate` capability that closes over those families.
-  // Nothing outside `makeQadiAtoms` can reach a seed atom — that is ADR-QD-039's
-  // requirement, met by scope rather than by a side table keyed on this object.
-  // Anything else that needs to be scoped to one atom set (a gate registry, say)
-  // belongs in this closure and on the `QadiAtoms` interface, in the same shape.
-  const tracked: Array<TrackedQuestion> = [];
-
-  const bare = Atom.family((policy: Policy) => {
-    const tracking: TrackedQuestion = { question: { policy }, liveCount: 0, inTracked: true };
-    tracked.push(tracking);
-    return seededDecision(policy, undefined, tracking);
+  const book = makeQuestionBook<SeededQuestion<EvaluationError>>({
+    capacity: options?.maxTrackedQuestions ?? DEFAULT_MAX_TRACKED_QUESTIONS,
+    build: (question, live) => seededDecision(question.policy, question.resource, live),
   });
 
-  const byResource = Atom.family((policy: Policy) =>
-    Atom.family((resource: Resource) => {
-      const tracking: TrackedQuestion = {
-        question: { policy, resource },
-        liveCount: 0,
-        inTracked: true,
-      };
-      tracked.push(tracking);
-      return seededDecision(policy, resource, tracking);
+  const decision = (policy: Policy, resource?: Resource): Atom.Atom<DecisionResult> =>
+    book.open({ policy, resource }).read;
+
+  // Keyed structurally by the record, like every other family here. Its values
+  // are weakly held, which only costs a re-derivation: a group is neither tracked
+  // nor seeded, and each entry it reads is the book's strongly held atom.
+  const decisions = Atom.family((questions: Readonly<Record<string, AskedQuestion>>) =>
+    Atom.make((get) => {
+      const out: Record<string, DecisionResult> = {};
+      for (const [key, question] of Object.entries(questions)) {
+        out[key] = get(decision(question.policy, question.resource));
+      }
+      return out;
     }),
   );
 
-  const sweepEvictions: Effect.Effect<void> = Effect.sync(() => {
-    while (tracked.length > maxTrackedQuestions) {
-      const entry = tracked.find((candidate) => candidate.liveCount === 0);
-      // Every remaining entry over the bound is still live — stop rather than
-      // evict something in use. The bound becomes best-effort in that case,
-      // which is the same tradeoff `DecisionCache.ts`'s own bounded mode makes
-      // for an entry with a `compute` still in flight.
-      if (entry === undefined) break;
-      entry.inTracked = false;
-      tracked.splice(tracked.indexOf(entry), 1);
-    }
-  });
+  const sweepEvictions: Effect.Effect<void> = Effect.sync(book.sweep);
 
   /**
    * Discards every decision, and every cached answer behind one.
@@ -471,21 +389,20 @@ export const makeQadiAtoms = (
   const atoms: QadiAtoms = {
     runtime,
     subject,
-    decision: (policy) => bare(policy).read,
-    decisionFor: (policy, resource) => byResource(policy)(resource).read,
+    decision,
+    decisions,
     invalidate,
-    // A fresh array of the wrapped questions, so a reader cannot mutate the
-    // atom set's own record of what it has been asked (or reach `liveCount`,
+    // A fresh array of the questions, so a reader cannot mutate the atom set's own
+    // record of what it has been asked (or reach a question's liveness count,
     // which is not part of the public `AskedQuestion` shape).
-    asked: () => tracked.map((entry) => entry.question),
+    asked: book.asked,
     gates,
     sweepEvictions,
     // The one place a seed atom is looked up, and it never leaves this closure:
     // `hydrateWith` is handed the lookup, not the atoms.
     hydrate: (dehydrated, hydrateSubject, hydrateOptions) =>
       hydrateWith(
-        (policy, resource) =>
-          resource === undefined ? bare(policy).seed : byResource(policy)(resource).seed,
+        (policy, resource) => book.open({ policy, resource }).seed,
         dehydrated,
         hydrateSubject,
         hydrateOptions,

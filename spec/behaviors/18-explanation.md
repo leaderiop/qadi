@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-18                                    |
-> | Revision       | 1.5                                            |
-> | Effective Date | 2026-10-06                                     |
+> | Revision       | 1.7                                            |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-10-06): BEH-QD-139 — a `fieldStrategy` or `combining` outside its closed union MUST appear verbatim with what it is evaluated as; BEH-QD-141 — `renderExplanation` MUST NOT throw on one; BEH-QD-137 — an empty `All` carrying one is not atomic (ADR-QD-092 amendment, CCR-QD-183)<br>1.4 (2026-10-04): BEH-QD-141 — `explain` and `renderExplanation` MUST NOT exhaust the call stack, matchers included; BEH-QD-303 added (`foldExplanation`) (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-09-07): BEH-QD-139 gains an explicit requirement that `fieldStrategy` and `HasRelationship.depth` appear when non-default; `depth` was missing from the rendering entirely (INV-QD-031, issue 45, CCR-QD-114)<br>1.2 (2026-08-23): BEH-QD-137 — a rendering denotes exactly one policy; composite children are parenthesised (ADR-QD-042, INV-QD-031, CCR-QD-057)<br>1.1 (2026-08-23): BEH-QD-144 — `renderTrace`, the decision-side counterpart to `renderExplanation` (ADR-QD-039, CCR-QD-053)<br>1.0 (2026-07-26): Initial release (CCR-QD-028) |
+> | Change History | 1.7 (2026-10-07): BEH-QD-144 — `renderTrace` is stack-safe and caps indentation (`indentLimit`); BEH-QD-319 added — `foldAligned` and `foldTrace` (ADR-QD-101, CCR-QD-191)<br>1.6 (2026-10-07): BEH-QD-303 gains `foldExplanationCases`, `ExplanationCases` and `RowResult`; `explain` and `renderExplanation` fold case-wise (ADR-QD-090 amendment, CCR-QD-190)<br>1.5 (2026-10-06): BEH-QD-139 — a `fieldStrategy` or `combining` outside its closed union MUST appear verbatim with what it is evaluated as; BEH-QD-141 — `renderExplanation` MUST NOT throw on one; BEH-QD-137 — an empty `All` carrying one is not atomic (ADR-QD-092 amendment, CCR-QD-183)<br>1.4 (2026-10-04): BEH-QD-141 — `explain` and `renderExplanation` MUST NOT exhaust the call stack, matchers included; BEH-QD-303 added (`foldExplanation`) (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-09-07): BEH-QD-139 gains an explicit requirement that `fieldStrategy` and `HasRelationship.depth` appear when non-default; `depth` was missing from the rendering entirely (INV-QD-031, issue 45, CCR-QD-114)<br>1.2 (2026-08-23): BEH-QD-137 — a rendering denotes exactly one policy; composite children are parenthesised (ADR-QD-042, INV-QD-031, CCR-QD-057)<br>1.1 (2026-08-23): BEH-QD-144 — `renderTrace`, the decision-side counterpart to `renderExplanation` (ADR-QD-039, CCR-QD-053)<br>1.0 (2026-07-26): Initial release (CCR-QD-028) |
 
 _Previous: [17 — Concurrent Evaluation](./17-concurrency.md)_
 
@@ -284,6 +284,15 @@ REQUIREMENT: It MUST render an `undefined` `visibleFields` as no restriction,
              never as an empty set.
 ```
 
+```
+REQUIREMENT: It MUST NOT exhaust the call stack, and MUST NOT throw, for a trace of
+             any nesting depth. A line deeper than `options.indentLimit` (default
+             `DEFAULT_MAX_DEPTH`, 64) MUST keep `indentLimit` levels of indent and be
+             prefixed `(depth N) `, so a trace evaluated under the default bound
+             renders unchanged. `indentLimit: Infinity` MUST give full indentation;
+             a limit below 0 or `NaN` MUST mean none.
+```
+
 `renderExplanation` says what a *rule* requires and takes no subject.
 `renderTrace` says what *happened* to one subject and is meaningless without
 them. Keeping the two apart is [ADR-QD-027](../decisions/027-policy-explanation.md)'s
@@ -315,7 +324,19 @@ const why: string = renderTrace(decision.trace);
 
 // The same tree with the caller's own emphasis, for a terminal that has none.
 const plain: string = renderTrace(decision.trace, { term: (t) => t });
+
+// A trace evaluated under a large `maxDepth` renders too: past `indentLimit`
+// levels a line says its depth instead of indenting further.
+const deep: string = renderTrace(decision.trace, { indentLimit: 8 });
 ```
+
+A trace's nesting is bounded only by the `maxDepth` its evaluation ran under, which a
+caller may raise, so the walk is an explicit-stack loop and a trace of any depth
+renders ([INV-QD-090](../invariants.md#inv-qd-090-a-pure-walk-over-a-caller-held-tree-never-exhausts-the-call-stack)).
+Full indentation is quadratic in characters (a chain of n nodes renders about n² of
+them, and the string limit is reached near 23,000 levels), which is what the cap
+removes; the field sentence and the default `term` are `Wording.ts`'s, shared with
+`renderExplanation`.
 
 ## BEH-QD-303: An explanation folds bottom-up through the same seam
 
@@ -327,6 +348,23 @@ export const foldExplanation: <R>(
   self: Explanation,
   combine: (node: Explanation, children: ReadonlyArray<R>) => R,
 ) => R;
+
+export interface RowResult<R> {
+  readonly row: Row;
+  readonly result: R;
+}
+
+export interface ExplanationCases<R> {
+  readonly Requirement: (node: Requirement) => R;
+  readonly All: (node: All, parts: ReadonlyArray<R>) => R;
+  readonly Any: (node: Any, parts: ReadonlyArray<R>) => R;
+  readonly Negated: (node: Negated, part: R) => R;
+  readonly Named: (node: Named, part: R) => R;
+  readonly Owing: (node: Owing, part: R) => R;
+  readonly Table: (node: Table, rows: ReadonlyArray<RowResult<R>>) => R;
+}
+
+export const foldExplanationCases: <R>(self: Explanation, cases: ExplanationCases<R>) => R;
 ```
 
 ```
@@ -335,9 +373,96 @@ REQUIREMENT: `foldExplanation` MUST combine a node only after its children, in t
              shared subtree once, and MUST NOT exhaust the call stack.
 ```
 
+```
+REQUIREMENT: `foldExplanationCases` MUST hand a `Negated`, `Named` or `Owing` arm
+             exactly its one part's result, as `R`, and a `Table` arm one
+             `{ row, result }` per row in row order, `row` being the table's own
+             row.
+```
+
 `explain` was already stack-safe and the code reading its output was not:
 `renderExplanation(explain(not^n(…)))` overflowed at about n = 734, lower than
-`explain` itself handles. `renderExplanation` now folds through this.
+`explain` itself handles. `renderExplanation` now folds through `foldExplanationCases`, the case-wise form of this fold ([BEH-QD-318](./25-inspection.md)): a `Table` row's condition arrives paired with its row, so a rendering cannot read one out of step with the other.
+
+## BEH-QD-319: An explanation and a trace fold together
+
+> **Invariant:** [INV-QD-103](../invariants.md#inv-qd-103-a-trace-lines-up-with-its-policys-explanation-position-by-position),
+> [INV-QD-090](../invariants.md#inv-qd-090-a-pure-walk-over-a-caller-held-tree-never-exhausts-the-call-stack)
+> **See:** [ADR-QD-101](../decisions/101-the-alignment-of-an-explanation-with-a-trace-is-cores.md)
+
+```ts
+export interface AlignedNode {
+  readonly explanation: Explanation;
+  readonly trace: Trace | undefined;
+  readonly key: string;
+  readonly effect: Row["effect"] | undefined;
+}
+
+export const foldAligned: <R>(
+  explanation: Explanation,
+  trace: Trace | undefined,
+  combine: (node: AlignedNode, children: ReadonlyArray<R>) => R,
+) => R;
+
+export interface TraceCases<R> {
+  readonly HasRole: (node: Trace) => R;
+  // …the other nine leaf tags, likewise
+  readonly AllOf: (node: Trace, children: ReadonlyArray<R>) => R;
+  readonly AnyOf: (node: Trace, children: ReadonlyArray<R>) => R;
+  readonly Rules: (node: Trace, children: ReadonlyArray<R>) => R;
+  readonly Not: (node: Trace, child: R | undefined) => R;
+  readonly Obliged: (node: Trace, child: R | undefined) => R;
+  readonly Labeled: (node: Trace, child: R | undefined) => R;
+}
+
+export const foldTrace: <R>(self: Trace, cases: TraceCases<R>) => R;
+```
+
+```
+REQUIREMENT: `foldAligned` MUST call `combine` once per position of the explanation
+             tree, bottom-up, children before their parent in the order the node
+             lists them (`Table` rows in row order), and MUST NOT merge two positions
+             that share one explanation node.
+```
+
+```
+REQUIREMENT: A position's `trace` MUST be the `i`th child of its parent's trace, and
+             `undefined` when the parent has no `i`th child or has no trace. Its `key`
+             MUST equal `tracePathKey` of the path that reaches it, and its `effect`
+             MUST be the row's effect for a `Table` row's condition and `undefined`
+             elsewhere.
+```
+
+```
+REQUIREMENT: `foldTrace` MUST combine a node after its children, a shared child once,
+             and MUST throw on a cycle. A leaf arm MUST receive no children, a wrapper
+             arm its first child's result or `undefined`, and `AllOf`/`AnyOf`/`Rules`
+             one result per child. Neither fold MAY exhaust the call stack.
+```
+
+`explain` shares a subtree by identity — `anyOf([not(p), p])` has one `p` explanation
+reached by two paths — so a fold memoised by node would hand the second occurrence the
+first one's trace and key. `foldAligned` folds fresh position frames and never does.
+A part with no trace child was not reached (short-circuiting, [INV-QD-005](../invariants.md)),
+and neither was anything beneath it: the position reads as *unexamined*, never as denied.
+The pairing is by construction; a trace that does not belong to the explanation yields a
+fold over a mismatched pair and is not an error.
+
+```typescript
+import { explain, foldAligned, hasRole, not, type Trace } from "@qadi/core";
+
+declare const trace: Trace;
+
+// One line per position: its address, and whether evaluation reached it.
+const lines: ReadonlyArray<string> = foldAligned<ReadonlyArray<string>>(
+  explain(not(hasRole("admin"))),
+  trace,
+  (node, children) => [
+    `${node.key} ${node.trace === undefined ? "not reached" : node.trace.allowed ? "allowed" : "denied"}`,
+    ...children.flat(),
+  ],
+);
+```
 
 ---
 

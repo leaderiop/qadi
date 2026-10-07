@@ -55,11 +55,7 @@ export interface Gate {
  */
 export const useGate = (kind: GateKind, policy: Policy, resource?: Resource): Gate => {
   const { atoms, instrument, gates } = useQadiContext(kind);
-  const atom = useMemo(
-    () =>
-      resource === undefined ? atoms.decision(policy) : atoms.decisionFor(policy, resource),
-    [atoms, policy, resource],
-  );
+  const atom = useMemo(() => atoms.decision(policy, resource), [atoms, policy, resource]);
   const result = useAtomValue(atom);
 
   const id = useId();

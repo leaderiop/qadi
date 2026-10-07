@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-GLOSSARY                                  |
-> | Revision       | 1.7                                            |
-> | Effective Date | 2026-09-06                                     |
+> | Revision       | 1.9                                            |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-09-06): Policy variant count corrected from fourteen to sixteen (`HasCustom`/`HasSignature` postdate the earlier count); Value reference corrected from three kinds to the actual five (`subjectId`/`action` were missing) (CCR-QD-101)<br>1.6 (2026-09-06): Service count corrected — said four, sixteen exist across three packages; the entry now names the pattern rather than a count that drifts every time a service is added (CCR-QD-093)<br>1.5 (2026-08-22): Witness and Guard added; the Revision field corrected to match the latest entry, which had drifted since CCR-QD-019 (CCR-QD-043)<br>1.4 (2026-07-26): Predicate, translatable subset and reference interpreter added (CCR-QD-020)<br>1.3 (2026-07-26): Rule table, rule effect and combining algorithm added; the variant count corrected (CCR-QD-019)<br>1.2 (2026-07-26): Subject set and review query added (CCR-QD-018)<br>1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.9 (2026-10-07): Simulation session added (BEH-QD-322, CCR-QD-199)<br>1.8 (2026-10-07): Question added (ADR-QD-100, CCR-QD-189)<br>1.7 (2026-09-06): Policy variant count corrected from fourteen to sixteen (`HasCustom`/`HasSignature` postdate the earlier count); Value reference corrected from three kinds to the actual five (`subjectId`/`action` were missing) (CCR-QD-101)<br>1.6 (2026-09-06): Service count corrected — said four, sixteen exist across three packages; the entry now names the pattern rather than a count that drifts every time a service is added (CCR-QD-093)<br>1.5 (2026-08-22): Witness and Guard added; the Revision field corrected to match the latest entry, which had drifted since CCR-QD-019 (CCR-QD-043)<br>1.4 (2026-07-26): Predicate, translatable subset and reference interpreter added (CCR-QD-020)<br>1.3 (2026-07-26): Rule table, rule effect and combining algorithm added; the variant count corrected (CCR-QD-019)<br>1.2 (2026-07-26): Subject set and review query added (CCR-QD-018)<br>1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -92,6 +92,22 @@ expresses relational rules such as "the document's owner equals the subject's id
 See [BEH-QD-026](behaviors/04-matchers.md).
 
 ## Evaluation
+
+## Question
+
+The value a decision answers: subject, policy, resource, action and `maxDepth`,
+built once by `questionOf`. It is the decision cache's key and the request half
+of a decision record. `@qadi/react` uses "question" informally for a policy and
+resource asked under one provider's subject.
+
+## Simulation session
+
+Everything the devtools simulator screen knows, held as a store
+(`makeSimulationSession`): the form, the chosen source, what a Live run
+captured, the run in flight and the result it left, and what each is judged
+against. A result belongs to the question it answered, so a policy change, a
+re-seed or a newer run supersedes it. See
+[BEH-QD-322](behaviors/29-devtools-simulator.md).
 
 ## Decision
 

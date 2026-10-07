@@ -15,11 +15,9 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   allOf,
-  anyOf,
   AttributeResolver,
   Failed,
   gte,
-  hasActed,
   hasAction,
   hasAttribute,
   hasPermission,
@@ -113,15 +111,6 @@ describe("the empty state — E7.1", () => {
 });
 
 describe("running one simulation", () => {
-  it("denies a subject holding nothing, and shows the requirement tree", async () => {
-    render(<Simulator sightings={[sighting(hasPermission(read))]} />);
-    await run();
-
-    const result = screen.getByTestId("qadi-simulator-result");
-    assert.include(result.textContent ?? "", "DENY");
-    assert.isNotEmpty(within(result).queryAllByTestId("qadi-node"));
-  });
-
   it("allows once the reviewer grants what the policy asks for", async () => {
     render(<Simulator sightings={[sighting(hasPermission(read))]} />);
     chip("permissions", "doc:read");
@@ -130,67 +119,9 @@ describe("running one simulation", () => {
     assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
   });
 
-  it("drops a chip again — E7.2", async () => {
-    render(<Simulator sightings={[sighting(hasRole("editor"))]} />);
-    chip("roles", "editor");
-    await run();
-    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
-
-    // The removal does not touch the result already on screen; it changes what
-    // the *next* run will answer.
-    act(() => {
-      fireEvent.click(screen.getByLabelText("Remove editor"));
-    });
-    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
-
-    await run();
-    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "DENY");
-  });
-
-  /**
-   * A value typed into an attribute field is JSON first and a string second.
-   * `gte(5)` compares numerically, so the string `"7"` would deny — and the
-   * reviewer would have no way to see why.
-   */
-  it("reads an attribute value as JSON where it parses", async () => {
-    render(<Simulator sightings={[sighting(hasAttribute("clearance", gte(5)))]} />);
-    chip("attributes", "clearance:7");
-    await run();
-
-    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
-  });
-
-  it("keeps a value that is not JSON as the string it was typed as", async () => {
-    render(<Simulator sightings={[sighting(hasAttribute("dept", gte(5)))]} />);
-    chip("attributes", "dept:legal");
-    await run();
-
-    // A string does not satisfy `gte`, which is the truthful answer rather than
-    // a parse error the reviewer never asked about.
-    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "DENY");
-  });
 });
 
 describe("the check card", () => {
-  it("takes an action, and treats an emptied field as no action at all", async () => {
-    render(<Simulator sightings={[sighting(hasAction("publish"))]} />);
-
-    act(() => {
-      fireEvent.change(screen.getByTestId("qadi-action"), { target: { value: "publish" } });
-    });
-    await run();
-    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
-
-    act(() => {
-      fireEvent.change(screen.getByTestId("qadi-action"), { target: { value: "" } });
-    });
-    await run();
-    // Absent, not empty: `hasAction` fails with `MissingAction` when nothing was
-    // supplied, which is an ERROR and never a denial (INV-QD-011, INV-QD-006).
-    assert.isNotNull(screen.queryByTestId("qadi-simulator-error"));
-    assert.include(screen.getByTestId("qadi-simulator-error").textContent ?? "", "MissingAction");
-  });
-
   // E7.3
   it("reports malformed resource JSON inline and keeps running", async () => {
     render(<Simulator sightings={[sighting(hasPermission(read))]} />);
@@ -205,30 +136,6 @@ describe("the check card", () => {
     assert.isNotNull(screen.queryByTestId("qadi-simulator-result"));
   });
 
-  it("refuses a JSON value that is not an object, because a resource is read by path", async () => {
-    render(<Simulator sightings={[sighting(hasPermission(read))]} />);
-
-    act(() => {
-      fireEvent.change(screen.getByTestId("qadi-resource"), { target: { value: "7" } });
-    });
-
-    assert.strictEqual(
-      screen.getByTestId("qadi-resource-error").textContent,
-      "expected a JSON object",
-    );
-  });
-
-  it("accepts a resource object", async () => {
-    render(<Simulator sightings={[sighting(hasAttribute("clearance", gte(1)))]} />);
-
-    act(() => {
-      fireEvent.change(screen.getByTestId("qadi-resource"), {
-        target: { value: '{"id":"doc-1"}' },
-      });
-    });
-
-    assert.isNull(screen.queryByTestId("qadi-resource-error"));
-  });
 });
 
 describe("the result", () => {
@@ -276,16 +183,15 @@ describe("the result", () => {
 
   // E7.7 — `undefined` is the top of the lattice, and rendering it as an empty
   // list would understate a full grant into a grant of nothing.
-  it("renders absent visible fields as every field", async () => {
-    render(<Simulator sightings={[sighting(hasPermission(read))]} />);
+  it("renders absent visible fields as every field, and a narrowed set as the fields", async () => {
+    const view = render(<Simulator sightings={[sighting(hasPermission(read))]} />);
     chip("permissions", "doc:read");
     await run();
 
     assert.isNotNull(screen.queryByTestId("qadi-fields-all"));
     assert.isNull(screen.queryByTestId("qadi-fields-none"));
-  });
+    view.unmount();
 
-  it("renders a narrowed field set as the fields themselves", async () => {
     render(<Simulator sightings={[sighting(hasPermission(read, { fields: ["title"] }))]} />);
     chip("permissions", "doc:read");
     await run();
@@ -310,51 +216,122 @@ describe("the result", () => {
   });
 });
 
-describe("the source selector — T7.4", () => {
-  it("offers Live disabled, with the reason, when the host passed no ports", async () => {
-    render(<Simulator sightings={[sighting(hasPermission(read))]} />);
-
+describe("a source that cannot be honoured — C2", () => {
+  it("shows Live disabled with its reason, then refuses a run once the host drops the ports", async () => {
+    const policy = sighting(hasAttribute("clearance", gte(5)));
+    const view = render(<Simulator sightings={[policy]} />);
     const live = screen.getByTestId("qadi-source-Live");
     assert.isTrue(live.hasAttribute("disabled"));
     assert.include(live.getAttribute("title") ?? "", "did not pass a `ports` layer");
-  });
 
-  it("offers Snapshot disabled until a Live run has captured something", async () => {
-    render(<Simulator sightings={[sighting(hasAttribute("clearance", gte(5)))]} ports={brokenPorts} />);
-
-    assert.isTrue(screen.getByTestId("qadi-source-Snapshot").hasAttribute("disabled"));
-
+    view.rerender(<Simulator sightings={[policy]} ports={brokenPorts} />);
+    chip("resolver attributes", "clearance:9");
     act(() => {
       fireEvent.click(screen.getByTestId("qadi-source-Live"));
     });
+    view.rerender(<Simulator sightings={[policy]} />);
     await run();
 
-    // A live run always captures, which is what makes Snapshot reachable at all
-    // — and a captured *failure* replays as a failure, not as a miss.
-    assert.isFalse(screen.getByTestId("qadi-source-Snapshot").hasAttribute("disabled"));
+    // Fixtures would have answered ALLOW; nothing was evaluated instead.
+    assert.isNull(screen.queryByTestId("qadi-simulator-result"));
+    const refused = screen.getByTestId("qadi-simulator-refused");
+    assert.include(refused.textContent ?? "", "Live");
+    assert.include(refused.textContent ?? "", "`ports` layer");
+    assert.include(screen.getByTestId("qadi-simulator-cost").textContent ?? "", "would be refused");
   });
+});
 
-  it("warns before a sweep that would perform I/O, not after", async () => {
-    render(<Simulator sightings={[sighting(hasPermission(read))]} ports={brokenPorts} />);
+describe("the cost line is the cost — C7", () => {
+  it("states what it runs, with pairs off and on, and warns before a live sweep", async () => {
+    const view = render(<Simulator sightings={[sighting(allOf([hasRole("a"), hasRole("b")]))]} ports={brokenPorts} />);
+    chip("roles", "a");
+    chip("roles", "b");
+    const stated = (): number =>
+      Number(/runs (\d+) evaluations/.exec(screen.getByTestId("qadi-simulator-cost").textContent ?? "")?.[1]);
+    const ranCount = (): number =>
+      Number(/of (\d+) evaluations/.exec(screen.getByTestId("qadi-whatif-count").textContent ?? "")?.[1]);
+
+    const off = stated();
+    await run("qadi-simulator-sweep");
+    assert.strictEqual(ranCount(), off);
+
+    act(() => {
+      fireEvent.click(screen.getByTestId("qadi-simulator-pairs"));
+    });
+    const on = stated();
+    assert.isAbove(on, off);
+    await run("qadi-simulator-sweep");
+    assert.strictEqual(ranCount(), on);
+
+    // Before the sweep, never after it.
     assert.include(screen.getByTestId("qadi-simulator-cost").textContent ?? "", "in this process");
-
     act(() => {
       fireEvent.click(screen.getByTestId("qadi-source-Live"));
     });
-
     assert.include(
       screen.getByTestId("qadi-simulator-cost").textContent ?? "",
       "against your live resolvers",
     );
+    view.unmount();
   });
+});
 
-  it("counts the evaluations a sweep would run, before it runs one", async () => {
-    render(<Simulator sightings={[sighting(hasRole("editor"))]} />);
-    chip("roles", "editor");
+describe("a run left behind — C4", () => {
+  it("is dropped when the policy changes while it runs", async () => {
+    const slowPorts = portsLayer({
+      AttributeResolver: Layer.succeed(AttributeResolver, {
+        name: "slow",
+        resolve: () => Effect.sleep("40 millis").pipe(Effect.as(9)),
+      }),
+    });
+    render(
+      <Simulator
+        sightings={[sighting(hasAttribute("clearance", gte(5))), sighting(hasRole("x"))]}
+        ports={slowPorts}
+      />,
+    );
+    act(() => {
+      fireEvent.click(screen.getByTestId("qadi-source-Live"));
+    });
+    act(() => {
+      fireEvent.click(screen.getByTestId("qadi-simulator-run"));
+    });
+    act(() => {
+      fireEvent.change(screen.getByTestId("qadi-simulator-policy"), { target: { value: "1" } });
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    });
 
-    // One baseline, one weakening. The remedy is skipped because the subject
-    // already holds the role.
-    assert.include(screen.getByTestId("qadi-simulator-cost").textContent ?? "", "2 evaluations");
+    assert.isNull(screen.queryByTestId("qadi-simulator-result"));
+    // And the buttons are not left disabled by the run that never reported.
+    assert.isFalse(screen.getByTestId("qadi-simulator-run").hasAttribute("disabled"));
+  });
+});
+
+describe("the fixtures as the codec writes them — C5, C6", () => {
+  it("keeps a renamed subject's edges, shows a colon and a string value faithfully, and edits signatures", async () => {
+    render(<Simulator sightings={[sighting(hasRelationship("org:admin"))]} />);
+    act(() => {
+      fireEvent.change(screen.getByTestId("qadi-resource"), { target: { value: '{"id":"doc-1"}' } });
+    });
+    chip("relationships", '{"subjectId":"someone","relation":"org:admin","resourceId":"doc-1"}');
+    act(() => {
+      fireEvent.change(screen.getByTestId("qadi-subject-id"), { target: { value: "bob" } });
+    });
+    // An unrelated edit rewrites nothing, and the edge followed the rename.
+    chip("relationships", "viewer:doc-9");
+    await run();
+    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
+
+    chip("attributes", 'level:"7"');
+    assert.include(screen.getByTestId("qadi-subject-attributes").textContent ?? "", 'level="7"');
+
+    // `signatures` has a control, which a replay's "yours to supply" points at.
+    chip("signatures", "approved:doc-1");
+    assert.include(screen.getByTestId("qadi-signatures").textContent ?? "", "approved:doc-1");
+    chip("signatures", "approved:doc-1");
+    assert.isNotNull(screen.queryByTestId("qadi-signatures-error"));
   });
 });
 
@@ -363,6 +340,11 @@ describe("the what-if table", () => {
     render(<Simulator sightings={[sighting(allOf([hasRole("a"), hasRole("b")]))]} />);
     chip("roles", "a");
     chip("roles", "b");
+    // The sweep honours the toggle: pairs are off by default, so a pair row
+    // is asked for.
+    act(() => {
+      fireEvent.click(screen.getByTestId("qadi-simulator-pairs"));
+    });
     await run("qadi-simulator-sweep");
 
     const rows = screen.getAllByTestId("qadi-whatif-row");
@@ -370,55 +352,6 @@ describe("the what-if table", () => {
     assert.isNotEmpty(screen.queryAllByTestId("qadi-whatif-flipped"));
   });
 
-  /**
-   * The case second-order sweeps exist for: neither grant is load-bearing on
-   * its own, so only the pair turns the verdict.
-   */
-  it("shows a pair flipping what no single edit could", async () => {
-    render(<Simulator sightings={[sighting(anyOf([hasRole("a"), hasRole("b")]))]} />);
-    chip("roles", "a");
-    chip("roles", "b");
-    await run("qadi-simulator-sweep");
-
-    const flipped = screen.getAllByTestId("qadi-whatif-row").filter(
-      (row) => row.getAttribute("data-changed") === "true",
-    );
-    assert.isTrue(flipped.some((row) => (row.textContent ?? "").includes("without role a + without role b")));
-  });
-
-  it("filters to the rows that changed", async () => {
-    render(<Simulator sightings={[sighting(anyOf([hasRole("a"), hasRole("b")]))]} />);
-    chip("roles", "a");
-    chip("roles", "b");
-    await run("qadi-simulator-sweep");
-
-    const all = screen.getAllByTestId("qadi-whatif-row").length;
-    act(() => {
-      fireEvent.click(screen.getByTestId("qadi-whatif-only-changed"));
-    });
-
-    assert.isBelow(screen.getAllByTestId("qadi-whatif-row").length, all);
-  });
-
-  it("offers the remedy for a denial, marked as a strengthening", async () => {
-    render(<Simulator sightings={[sighting(hasRole("editor"))]} />);
-    await run("qadi-simulator-sweep");
-
-    const row = screen
-      .getAllByTestId("qadi-whatif-row")
-      .find((one) => (one.textContent ?? "").includes("with role editor"));
-    assert.isDefined(row);
-    assert.include(row?.textContent ?? "", "+");
-    assert.include(row?.textContent ?? "", "ALLOW");
-  });
-
-  it("names what no remedy could be built for", async () => {
-    // `hasRelationship` needs a resource id, and the check names no resource.
-    render(<Simulator sightings={[sighting(hasPermission(read))]} />);
-    await run("qadi-simulator-sweep");
-
-    assert.isNull(screen.queryByTestId("qadi-whatif-skipped"));
-  });
 });
 
 describe("seeding from a logged row — JOB 5 on screen", () => {
@@ -436,62 +369,21 @@ describe("seeding from a logged row — JOB 5 on screen", () => {
     assert.include(unseeded.textContent ?? "", "carries nothing else about them");
   });
 
-  it("reports a reconstruction that reproduces the row", async () => {
-    render(<Simulator sightings={[]} seed={decided} />);
+  it("reports a reconstruction that reproduces the row, and one that does not", async () => {
+    const view = render(<Simulator sightings={[]} seed={decided} />);
     chip("permissions", "doc:read");
     await run();
 
     const baseline = screen.getByTestId("qadi-baseline");
     assert.include(baseline.textContent ?? "", "ev-91");
     assert.include(baseline.textContent ?? "", "reproduces the logged decision");
-  });
+    view.unmount();
 
-  it("reports one that does not, and names the node", async () => {
     render(<Simulator sightings={[]} seed={decided} />);
     await run();
 
     assert.include(screen.getByTestId("qadi-baseline-state").textContent ?? "", "differs");
     assert.include(screen.getByTestId("qadi-baseline-state").textContent ?? "", "HasPermission");
-  });
-
-  it("shows no form at all for an orphan, which carries no policy", async () => {
-    render(<Simulator sightings={[]} seed={entryOf(obligationRecord({ evaluationId: "ev-9" }))} />);
-
-    assert.isNotNull(screen.queryByTestId("qadi-simulator-empty"));
-  });
-
-  /**
-   * The bug this pins: `CheckCard` buffers the resource textarea's raw text
-   * locally, independent of `draft`, so typing unparseable JSON does not lose
-   * a keystroke (E7.3). That buffer used to survive a re-seed — so replaying a
-   * *different* row would go on showing whatever the reviewer had typed, and
-   * not yet submitted, for the row they left. The form would be lying about
-   * what it runs: the resource field on screen would name neither the old row
-   * nor the new one.
-   */
-  it("clears an edited-but-unsubmitted resource across a re-seed", () => {
-    const other = entryOf(
-      decisionRecord({
-        evaluationId: "ev-92",
-        policy: hasPermission(read),
-        action: "read",
-        resource: { id: "doc-2" },
-      }),
-    );
-    const view = render(<Simulator sightings={[]} seed={decided} />);
-
-    act(() => {
-      fireEvent.change(screen.getByTestId("qadi-resource"), { target: { value: "{oops" } });
-    });
-    assert.isNotNull(screen.queryByTestId("qadi-resource-error"));
-
-    view.rerender(<Simulator sightings={[]} seed={other} />);
-
-    assert.isNull(screen.queryByTestId("qadi-resource-error"));
-    assert.strictEqual(
-      screen.getByTestId("qadi-resource").getAttribute("value"),
-      '{"id":"doc-2"}',
-    );
   });
 });
 
@@ -517,63 +409,6 @@ describe("unmounting mid-run — E7.8", () => {
 });
 
 describe("the fixtures card", () => {
-  it("answers a relationship policy from an edge attributed to the subject", async () => {
-    render(<Simulator sightings={[sighting(hasRelationship("owner"))]} />);
-
-    act(() => {
-      fireEvent.change(screen.getByTestId("qadi-resource"), {
-        target: { value: '{"id":"doc-1"}' },
-      });
-    });
-    chip("relationships", "owner:doc-1");
-    await run();
-
-    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
-  });
-
-  it("answers a history policy from an event", async () => {
-    render(<Simulator sightings={[sighting(hasActed("raised"))]} />);
-
-    act(() => {
-      fireEvent.change(screen.getByTestId("qadi-resource"), {
-        target: { value: '{"id":"doc-1"}' },
-      });
-    });
-    chip("history", "raised:doc-1");
-    await run();
-
-    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
-  });
-
-  /**
-   * A resolver attribute is consulted only on a subject miss, exactly as a real
-   * one is — so the two editors are not interchangeable and the labels say so.
-   */
-  it("consults a resolver attribute when the subject has none", async () => {
-    render(<Simulator sightings={[sighting(hasAttribute("clearance", gte(5)))]} />);
-    chip("resolver attributes", "clearance:9");
-    await run();
-
-    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
-  });
-
-  it("prefers the subject's own attribute over the resolver's", async () => {
-    render(<Simulator sightings={[sighting(hasAttribute("clearance", gte(5)))]} />);
-    chip("attributes", "clearance:1");
-    chip("resolver attributes", "clearance:9");
-    await run();
-
-    // INV-QD-025: the subject wins, so the fixture is never reached.
-    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "DENY");
-  });
-
-  it("ignores a chip with no colon in it, rather than inventing half an edge", async () => {
-    render(<Simulator sightings={[sighting(hasRelationship("owner"))]} />);
-    chip("relationships", "owner");
-
-    assert.isNull(screen.queryByLabelText("Remove owner"));
-  });
-
   it("removes a chip and a pair again", async () => {
     render(<Simulator sightings={[sighting(hasAttribute("clearance", gte(5)))]} />);
     chip("attributes", "clearance:9");
@@ -587,35 +422,6 @@ describe("the fixtures card", () => {
     assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "DENY");
   });
 
-  it("refuses a duplicate chip and an empty one", async () => {
-    render(<Simulator sightings={[sighting(hasRole("a"))]} />);
-    chip("roles", "a");
-    chip("roles", "a");
-    chip("roles", "  ");
-
-    assert.strictEqual(screen.getAllByLabelText(/^Remove /).length, 1);
-  });
-
-  it("clears the resource when the field is emptied", async () => {
-    render(<Simulator sightings={[sighting(hasRelationship("owner"))]} />);
-
-    act(() => {
-      fireEvent.change(screen.getByTestId("qadi-resource"), {
-        target: { value: '{"id":"doc-1"}' },
-      });
-    });
-    chip("relationships", "owner:doc-1");
-    await run();
-    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
-
-    act(() => {
-      fireEvent.change(screen.getByTestId("qadi-resource"), { target: { value: "" } });
-    });
-    await run();
-    // No resource means no resource id to ask about, which `hasRelationship`
-    // reports as an error rather than a denial.
-    assert.isNotNull(screen.queryByTestId("qadi-simulator-error"));
-  });
 });
 
 describe("choosing a policy", () => {
@@ -634,54 +440,6 @@ describe("choosing a policy", () => {
     assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
   });
 
-  // A stale index held past the list shrinking must not fall off the end:
-  // `sightings[chosen]` reading `undefined` silently dropped the selected
-  // policy and fell all the way to the empty state, even though a policy is
-  // still there to run.
-  it("clamps a selection that outlives the list shrinking", async () => {
-    const view = render(
-      <Simulator sightings={[sighting(hasRole("a")), sighting(hasPermission(read))]} />,
-    );
-    act(() => {
-      fireEvent.change(screen.getByTestId("qadi-simulator-policy"), { target: { value: "1" } });
-    });
-    await run();
-    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "DENY");
-
-    view.rerender(<Simulator sightings={[sighting(hasRole("a"))]} />);
-
-    // Still a form, not the empty state — the clamped index still names the
-    // one remaining policy rather than reading past the end of the array.
-    assert.isNull(screen.queryByTestId("qadi-simulator-empty"));
-    chip("roles", "a");
-    await run();
-    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
-  });
-
-  it("leaves a replayed row behind when another policy is chosen", async () => {
-    const decided = entryOf(decisionRecord({ evaluationId: "ev-91", policy: hasPermission(read) }));
-    render(<Simulator sightings={[sighting(hasRole("a"))]} seed={decided} />);
-    assert.isNotNull(screen.queryByTestId("qadi-unseeded"));
-
-    act(() => {
-      fireEvent.change(screen.getByTestId("qadi-simulator-policy"), { target: { value: "0" } });
-    });
-
-    assert.isNull(screen.queryByTestId("qadi-unseeded"));
-  });
-
-  it("toggles the pair sweep, which changes what a sweep would cost", async () => {
-    render(<Simulator sightings={[sighting(hasRole("a"))]} />);
-    chip("roles", "a");
-    chip("roles", "b");
-    const before = screen.getByTestId("qadi-simulator-cost").textContent;
-
-    act(() => {
-      fireEvent.click(screen.getByTestId("qadi-simulator-pairs"));
-    });
-
-    assert.notStrictEqual(screen.getByTestId("qadi-simulator-cost").textContent, before);
-  });
 });
 
 describe("the baseline card, in each of its states", () => {

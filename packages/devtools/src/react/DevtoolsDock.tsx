@@ -25,22 +25,26 @@ import { selectionOf } from "../model/Selection.ts";
 import { sourceFromRecords, type Source } from "../model/Source.ts";
 import { countsOf, type Verdict } from "../model/Verdict.ts";
 import { catalogueOf, type Catalogue, type PolicySighting } from "../model/Catalogue.ts";
+import { WiringRead } from "../model/DiagnosticsStore.ts";
 import type { PortCallLog } from "../model/PortCalls.ts";
-import type { GateInstanceLike } from "../model/Gates.ts";
+import type { AskedQuestionLike, GateInstanceLike } from "../model/Gates.ts";
 import type { HydrationActivity } from "../model/Hydration.ts";
 import type { PortActivity, WiringReport } from "../model/Wiring.ts";
 import type { PairedEntry } from "../model/Pairing.ts";
 import type { Selection } from "../model/Selection.ts";
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
+import type { SimulationSession } from "../model/SimulationSession.ts";
 import type { TimelineEntry } from "../model/Timeline.ts";
 import type { Role } from "@qadi/core";
 import { DecisionLog } from "./DecisionLog.tsx";
 import { Inspector } from "./Inspector.tsx";
 import { PolicyExplorer } from "./PolicyExplorer.tsx";
-import { QuestionsPanel, type AskedQuestionLike } from "./QuestionsPanel.tsx";
+import { QuestionsPanel } from "./QuestionsPanel.tsx";
 import { RoleViewer } from "./RoleViewer.tsx";
 import { ServicesPanel } from "./ServicesPanel.tsx";
 import { Simulator } from "./Simulator.tsx";
+import { useDiagnostics, type DiagnosticsDockOptions } from "./useDiagnostics.ts";
+import { useOwnedSimulationSession } from "./useSimulationSession.ts";
 import { useTimeline } from "./useTimeline.ts";
 import { body, button, colors, dock, font, input, muted, toolbar } from "./theme.ts";
 
@@ -81,19 +85,47 @@ export interface DevtoolsDockProps {
    * plus the names. Roles are not observable at all and come only from here.
    */
   readonly catalogue?: Catalogue;
-  /** Read with `wiringReport` provided the application's layer. */
+  /**
+   * What to sample while the dock is mounted: the application's layer, the
+   * port-call collector and a question source, each optional.
+   *
+   * The way to keep the Services and React panels current without writing the
+   * loop: the dock samples on a schedule, keeps a reading's identity while it is
+   * unchanged, and releases the layer on unmount. Absent, nothing is sampled and
+   * the panels explain what they would need; `{}` samples the metric reads
+   * alone. Hold the fields at module scope, since the run restarts when one of
+   * them changes identity.
+   *
+   * Gates are not in it: they are pushed by `@qadi/react`'s registry through the
+   * host's subscription, and stay the plain `gates` prop below.
+   */
+  readonly diagnostics?: DiagnosticsDockOptions;
+  /**
+   * A wiring report read elsewhere, such as another process's or a fixture's.
+   *
+   * Takes precedence over what `diagnostics` samples. For this process, hand
+   * over `diagnostics.layer` instead.
+   */
   readonly wiring?: WiringReport;
-  /** Read with `portActivity`, which needs no wiring at all. */
+  /**
+   * Port activity read elsewhere, with `portActivity`.
+   *
+   * Takes precedence over what `diagnostics` samples.
+   */
   readonly activity?: ReadonlyArray<PortActivity>;
   /**
-   * Recent port calls, read with `collectPortCalls`.
+   * Recent port calls read elsewhere, with `collectPortCalls`.
    *
-   * Needs the collector's tracer layer wired where evaluations run, so it is
-   * opt-in. Without it the services panel shows counts and says what the detail
-   * would take.
+   * Takes precedence over what `diagnostics` samples. Needs the collector's
+   * tracer layer wired where evaluations run, so it is opt-in. Without it the
+   * services panel shows counts and says what the detail would take.
    */
   readonly portCalls?: PortCallLog;
-  /** Usually `atoms.asked()` from `@qadi/react`. */
+  /**
+   * Questions listed elsewhere, usually `atoms.asked()` from `@qadi/react`.
+   *
+   * Takes precedence over what `diagnostics.questions` samples.
+   */
   readonly questions?: ReadonlyArray<AskedQuestionLike>;
   /**
    * The live guards, usually `useGateInstances()` or `atoms.gates.instances()` from `@qadi/react`.
@@ -104,7 +136,11 @@ export interface DevtoolsDockProps {
   readonly gates?: ReadonlyArray<GateInstanceLike>;
   /** Parent names `resolveRoleGraph` dropped. */
   readonly unknownParents?: ReadonlyArray<string>;
-  /** Read with `hydrationActivity`, which needs no wiring at all. */
+  /**
+   * Hydration counts read elsewhere, with `hydrationActivity`.
+   *
+   * Takes precedence over what `diagnostics` samples.
+   */
   readonly hydration?: HydrationActivity;
   /**
    * Verdict disagreements counted by an `onHydrationMismatch` reporter.
@@ -129,8 +165,9 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   source = nothing,
   capacity,
   catalogue,
+  diagnostics,
   wiring,
-  activity = [],
+  activity,
   portCalls,
   questions,
   unknownParents,
@@ -144,6 +181,17 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
     source,
     capacity === undefined ? undefined : { capacity },
   );
+
+  // Each field is the explicit prop when there is one, and the sampled reading
+  // otherwise: a prop answers "what another process or a fixture saw", which a
+  // sample of this one cannot.
+  const sampled = useDiagnostics(diagnostics);
+  const wiringRead = useMemo(
+    () => (wiring === undefined ? sampled.wiring : WiringRead.Read({ report: wiring })),
+    [wiring, sampled.wiring],
+  );
+  const shownPortCalls = portCalls ?? sampled.portCalls;
+  const shownHydration = hydration ?? sampled.hydration;
 
   const [filters, setFilters] = useState<Filters>(noFilters);
   const [tab, setTab] = useState<TabId>("log");
@@ -170,6 +218,15 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   const environments = useMemo(() => environmentsOf(timeline.entries), [timeline]);
   const selection = useMemo(() => selectionOf(timeline, selectedKey), [timeline, selectedKey]);
   const sightings = useMemo(() => catalogueOf(timeline, catalogue), [timeline, catalogue]);
+  /**
+   * The simulator's session, owned here rather than by the screen.
+   *
+   * A screen is unmounted when its tab is left, and a session held by it would
+   * take the form, the capture (one round of live I/O) and the result with it.
+   * Held by the dock it survives a round trip, and the seed and ports arrive
+   * as commands rather than being re-derived on each render.
+   */
+  const simulation = useOwnedSimulationSession({ sightings, seed, ports });
 
   const select = useCallback((key: string) => {
     setSelectedKey(key);
@@ -252,17 +309,16 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
           sightings={sightings}
           roles={catalogue?.roles ?? []}
           {...(unknownParents === undefined ? {} : { unknownParents })}
-          wiring={wiring}
-          activity={activity}
-          {...(portCalls === undefined ? {} : { portCalls })}
-          questions={questions}
+          wiring={wiringRead}
+          activity={activity ?? sampled.activity}
+          {...(shownPortCalls === undefined ? {} : { portCalls: shownPortCalls })}
+          questions={questions ?? sampled.questions}
           {...(gates === undefined ? {} : { gates })}
-          {...(hydration === undefined ? {} : { hydration })}
+          {...(shownHydration === undefined ? {} : { hydration: shownHydration })}
           {...(hydrationMismatches === undefined ? {} : { hydrationMismatches })}
           {...(onInvalidate === undefined ? {} : { onInvalidate })}
           onReplay={replay}
-          {...(seed === undefined ? {} : { seed })}
-          {...(ports === undefined ? {} : { ports })}
+          simulation={simulation}
         />
       </div>
     </section>
@@ -313,7 +369,7 @@ const Screen: FC<{
   readonly sightings: ReadonlyArray<PolicySighting>;
   readonly roles: ReadonlyArray<Role>;
   readonly unknownParents?: ReadonlyArray<string>;
-  readonly wiring: WiringReport | undefined;
+  readonly wiring: WiringRead;
   readonly activity: ReadonlyArray<PortActivity>;
   readonly portCalls?: PortCallLog;
   readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
@@ -322,8 +378,7 @@ const Screen: FC<{
   readonly hydrationMismatches?: number;
   readonly onInvalidate?: () => void;
   readonly onReplay: (entry: TimelineEntry) => void;
-  readonly seed?: TimelineEntry;
-  readonly ports?: EvaluationPortsLayer;
+  readonly simulation: SimulationSession;
 }> = (props) => {
   const screens: Record<TabId, () => ReactNode> = {
     log: () => (
@@ -344,13 +399,7 @@ const Screen: FC<{
         {...(props.portCalls === undefined ? {} : { portCalls: props.portCalls })}
       />
     ),
-    simulator: () => (
-      <Simulator
-        sightings={props.sightings}
-        {...(props.seed === undefined ? {} : { seed: props.seed })}
-        {...(props.ports === undefined ? {} : { ports: props.ports })}
-      />
-    ),
+    simulator: () => <Simulator sightings={props.sightings} session={props.simulation} />,
     questions: () => (
       <QuestionsPanel
         questions={props.questions}

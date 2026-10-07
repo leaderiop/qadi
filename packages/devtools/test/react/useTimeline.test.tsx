@@ -64,12 +64,16 @@ describe("useTimeline", () => {
       url: "/__decisions",
       open: () => ({
         // A current server: an empty prelude, which ends the wait, then one
-        // live `message` frame.
+        // live `message` frame. Sent once every listener is registered, as a
+        // browser would: the order the source registers them in is not part
+        // of its contract.
         onEvent: (event, handler) => {
           handlers.set(event, handler);
           if (event !== "synced") return;
-          handler('{"backlog":0}');
-          handlers.get("message")?.(frame);
+          queueMicrotask(() => {
+            handlers.get("synced")?.('{"backlog":0}');
+            handlers.get("message")?.(frame);
+          });
         },
         onError: () => {},
         close: () => {

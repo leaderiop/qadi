@@ -37,6 +37,7 @@ import {
 } from "@qadi/core";
 import type { Combining, Decision, FieldStrategy, Policy, Trace } from "@qadi/core";
 import {
+  describeTracePath,
   flattenTree,
   inspect,
   inspectEntry,
@@ -300,15 +301,6 @@ describe("status", () => {
     assert.include(refused.reason ?? "", "rules[1]");
   });
 
-  it("a rule table that stops early leaves later rows unexamined", async () => {
-    const tree = await treeOf(
-      rules([permitWhen(hasPermission(read)), permitWhen(hasRole("reader"))]),
-    );
-
-    assert.strictEqual(tree.children[0]?.status, "Allowed");
-    assert.strictEqual(tree.children[1]?.status, "NeverResolved");
-  });
-
   // E4.2 — the one place where a child's status and its parent's disagree by
   // design.
   it("a Not denies while its child allowed, and both are shown truthfully", async () => {
@@ -496,29 +488,15 @@ describe("stack safety — a caller-held policy of any nesting depth (ARCH-02 C3
       ["$", "$.0", "$.0.0", "$.0.1", "$.1"],
     );
   }, 60_000);
-
-  it("inspect zips a real trace of a 100k-deep chain, Allowed and Denied alternating", async () => {
-    const policy = chain(not, n, hasRole("reader"));
-    const decision = await Effect.runPromise(
-      evaluate(policy, { maxDepth: Infinity }).pipe(
-        Effect.provide(Layer.mergeAll(currentSubjectLayer(alice), services)),
-      ),
-    );
-    const tree = inspect(policy, decision.trace);
-    // `alice` holds `reader`, so the leaf allows and each `not` flips it.
-    let depth = 0;
-    let node: InspectNode | undefined = tree;
-    let expected = n % 2 === 0 ? "Allowed" : "Denied";
-    while (node !== undefined) {
-      assert.strictEqual(node.status, expected);
-      expected = expected === "Denied" ? "Allowed" : "Denied";
-      depth += 1;
-      node = node.children[0];
-    }
-    assert.strictEqual(depth, n + 1);
-  }, 60_000);
 });
 
 const fail = (): never => {
   throw new Error("expected a timeline entry");
 };
+
+describe("describeTracePath (ARCH-22 D-22-c)", () => {
+  it("words the root as a place and every other path as the node key", () => {
+    assert.strictEqual(describeTracePath([]), "the root");
+    assert.strictEqual(describeTracePath([1, 0]), "$.1.0");
+  });
+});

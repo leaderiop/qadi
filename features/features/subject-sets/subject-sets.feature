@@ -74,3 +74,12 @@ Feature: Subject-set review
     When it is asked who has attribute "clearance" of at least 3
     Then the answer is "alice, carol"
     And "bob" could not be reviewed
+
+  Scenario: A streamed review continues past a broken lookup
+    Given the attribute service resolves "clearance" to 5
+    And the candidate "alice"
+    And the candidate "bob" whose attribute lookup fails
+    And the candidate "carol"
+    When it is asked as a stream who has attribute "clearance" of at least 3
+    Then the answer is "alice, carol"
+    And "bob" could not be reviewed

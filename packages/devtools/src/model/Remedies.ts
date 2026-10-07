@@ -20,8 +20,8 @@
  */
 import * as Match from "effect/Match";
 import {
-  foldMatcher,
-  foldPolicy,
+  foldMatcherCases,
+  foldPolicyCases,
   getByPath,
   isSecurityLabel,
   judgeMatcher,
@@ -31,9 +31,11 @@ import {
 import type {
   HistoryScope,
   Matcher,
+  MatcherCases,
   MatcherContext,
   Permission,
   Policy,
+  PolicyCases,
   Resource,
   ValueRef,
 } from "@qadi/core";
@@ -141,10 +143,7 @@ const dedupeBy = <A>(items: ReadonlyArray<A>, key: (item: A) => string): Readonl
  * in the leaves, so whatever they do next, a remedy cannot lie about them.
  */
 export const satisfyingValue = (matcher: Matcher, input: SimulationInput): Synthesised => {
-  const context = contextOf(input);
-  return foldMatcher<Synthesised>(matcher, (node, children) =>
-    checked(node, children.length === 0, witnessStep(node)(children, input), context),
-  );
+  return foldMatcherCases(matcher, witnessCases(input, contextOf(input)));
 };
 
 /** The evaluator's view of a simulation input, so a witness is judged against what `evaluate` would see. */
@@ -155,14 +154,12 @@ const contextOf = (input: SimulationInput): MatcherContext => ({
   action: input.action,
 });
 
-/** A leaf's witness, kept only if `judgeMatcher` holds it; a wrapper's passes through (see `satisfyingValue`). */
-const checked = (
-  node: Matcher,
-  isLeaf: boolean,
-  found: Synthesised,
-  context: MatcherContext,
-): Synthesised =>
-  isLeaf && found._tag === "Value" && judgeMatcher(node, found.value, context) !== "Held"
+/**
+ * A leaf's witness, kept only if `judgeMatcher` holds it. Only the leaf arms
+ * call it; a wrapper's witness passes through unjudged (see `satisfyingValue`).
+ */
+const checked = (node: Matcher, found: Synthesised, context: MatcherContext): Synthesised =>
+  found._tag === "Value" && judgeMatcher(node, found.value, context) !== "Held"
     ? cannot("the synthesised value does not satisfy the matcher")
     : found;
 
@@ -173,99 +170,94 @@ const mapValue = (self: Synthesised, f: (v: unknown) => Synthesised): Synthesise
   self._tag === "Value" ? f(self.value) : self;
 
 /**
- * The one child witness a wrapper matcher folded, or a thrown invariant
- * failure: `FieldMatch`/`SomeMatch`/`EveryMatch`/`Size` always fold exactly one
- * child, by construction of `@qadi/core`'s `foldMatcher`.
- */
-const onlyWitness = (tag: string, children: ReadonlyArray<Synthesised>): Synthesised => {
-  const [first, ...rest] = children;
-  if (first === undefined || rest.length !== 0) {
-    throw new Error(`satisfyingValue: ${tag} expected exactly one child, got ${children.length}`);
-  }
-  return first;
-};
-
-/** A node's witness from its folded children; `step` only gives each arm its parameter types. */
-type Step = (children: ReadonlyArray<Synthesised>, input: SimulationInput) => Synthesised;
-const step = (self: Step): Step => self;
-
-/**
- * Built once at module scope, returning a function per arm — the shape
- * AGENTS.md §5a prescribes for a dispatcher that needs a second argument. The
+ * A node's witness from its folded wrapped matcher, each arm receiving it in the
+ * tag's own shape (`MatcherCases`): a wrapper its one child's witness, a leaf
+ * only its node (ARCH-17).
+ *
+ * Built per call because the arms close over the simulation input and the
+ * evaluator's view of it; every **leaf** arm goes through {@link checked}. The
  * recursive arms read their one folded child instead of calling back into
- * themselves, so `satisfyingValue` folds through `foldMatcher` and cannot
- * overflow the stack on a deeply nested matcher (ARCH-02 N2).
+ * themselves, so `satisfyingValue` cannot overflow the stack on a deeply nested
+ * matcher (ARCH-02 N2).
  */
-const witnessStep: (self: Matcher) => Step = Match.type<Matcher>().pipe(
-  Match.tagsExhaustive({
-    Eq: (m) => step((_children, input) => refValue(m.ref)(input)),
-    // Conservative on purpose. Where the reference does resolve, any distinct
-    // value serves and `null` is distinct from everything except itself.
-    // Where it does not, this declines rather than guessing: an unresolvable
-    // reference reads as `undefined` at evaluation time, so `null` would in
-    // fact match — but relying on that would make a remedy's correctness
-    // depend on a coincidence between two modules.
-    Neq: (m) =>
-      step((_children, input) =>
-        mapValue(refValue(m.ref)(input), (v) => value(v === null ? false : null))),
-    Dominates: (m) =>
-      step((_children, input) =>
-        mapValue(refValue(m.ref)(input), (v) =>
-          isSecurityLabel(v)
-            ? // A label dominates itself, so the reference's own value is the
-              // least witness — and the only one derivable without the lattice.
-              value(v)
-            : cannot("`dominates` compares security labels and this reference is not one"),
-        )),
-    In: (m) =>
-      step(() =>
-        m.values.length === 0 ? cannot("an empty `in` accepts nothing") : value(m.values[0])),
-    Exists: () => step(() => value(true)),
-    // The bound itself, when it is a finite number: a non-finite bound has no
-    // value at or above it that `atLeastVerdict` accepts, so it declines with a
-    // specific reason here rather than the leaf check's generic one — the
-    // mirror of `Lt`'s guard below.
-    Gte: (m) =>
-      step(() =>
-        Number.isFinite(m.value)
-          ? value(m.value)
-          : cannot(`no value at least ${String(m.value)} can be synthesised`)),
-    // `m.value - 1` is not a witness for every threshold: float rounding
-    // swallows the subtraction once `m.value` is large enough (1e308 and its
-    // own predecessor are the same float), and `Infinity`/`NaN` have no
-    // predecessor at all — `Infinity - 1` is still `Infinity`, which does
-    // not satisfy `lt`. The finiteness check and the strict-decrease check
-    // together catch both: BEH-QD-223 requires a synthesised value to
-    // actually satisfy the matcher, and declining beats a row that lies.
-    Lt: (m) =>
-      step(() =>
-        Number.isFinite(m.value) && m.value - 1 < m.value
-          ? value(m.value - 1)
-          : cannot(`no value less than ${String(m.value)} can be synthesised`)),
-    Contains: (m) => step(() => value([m.value])),
-    FieldMatch: (m) =>
-      step((children) =>
-        mapValue(onlyWitness("FieldMatch", children), (v) => value({ [m.field]: v }))),
-    SomeMatch: () =>
-      step((children) => mapValue(onlyWitness("SomeMatch", children), (v) => value([v]))),
-    // One element satisfies "every" as surely as it satisfies "some", and a
-    // one-element array is the smallest witness of both.
-    EveryMatch: () =>
-      step((children) => mapValue(onlyWitness("EveryMatch", children), (v) => value([v]))),
-    // Two refusals rather than one, because they are two different things
-    // wrong with the policy: `size(eq(literal("two")))` compares a length
-    // against a string and can never match anything, while `size(gte(1e6))`
-    // is satisfiable and merely beyond what a panel should allocate.
-    Size: () =>
-      step((children) =>
-        mapValue(onlyWitness("Size", children), (v) => {
-          if (typeof v !== "number") return cannot(`a size is a number, and ${render(v)} is not`);
-          return Number.isInteger(v) && v >= 0 && v <= MAX_SYNTHESISED_LENGTH
-            ? value(Array.from({ length: v }, () => null))
-            : cannot(`no array of length ${String(v)} can be built`);
-        })),
-  }),
-);
+const witnessCases = (input: SimulationInput, context: MatcherContext): MatcherCases<Synthesised> => ({
+  Eq: (m) => checked(m, refValue(m.ref)(input), context),
+  // Conservative on purpose. Where the reference does resolve, any distinct
+  // value serves and `null` is distinct from everything except itself.
+  // Where it does not, this declines rather than guessing: an unresolvable
+  // reference reads as `undefined` at evaluation time, so `null` would in
+  // fact match — but relying on that would make a remedy's correctness
+  // depend on a coincidence between two modules.
+  Neq: (m) =>
+    checked(
+      m,
+      mapValue(refValue(m.ref)(input), (v) => value(v === null ? false : null)),
+      context,
+    ),
+  Dominates: (m) =>
+    checked(
+      m,
+      mapValue(refValue(m.ref)(input), (v) =>
+        isSecurityLabel(v)
+          ? // A label dominates itself, so the reference's own value is the
+            // least witness — and the only one derivable without the lattice.
+            value(v)
+          : cannot("`dominates` compares security labels and this reference is not one"),
+      ),
+      context,
+    ),
+  In: (m) =>
+    checked(
+      m,
+      m.values.length === 0 ? cannot("an empty `in` accepts nothing") : value(m.values[0]),
+      context,
+    ),
+  Exists: (m) => checked(m, value(true), context),
+  // The bound itself, when it is a finite number: a non-finite bound has no
+  // value at or above it that `atLeastVerdict` accepts, so it declines with a
+  // specific reason here rather than the leaf check's generic one — the
+  // mirror of `Lt`'s guard below.
+  Gte: (m) =>
+    checked(
+      m,
+      Number.isFinite(m.value)
+        ? value(m.value)
+        : cannot(`no value at least ${String(m.value)} can be synthesised`),
+      context,
+    ),
+  // `m.value - 1` is not a witness for every threshold: float rounding
+  // swallows the subtraction once `m.value` is large enough (1e308 and its
+  // own predecessor are the same float), and `Infinity`/`NaN` have no
+  // predecessor at all — `Infinity - 1` is still `Infinity`, which does
+  // not satisfy `lt`. The finiteness check and the strict-decrease check
+  // together catch both: BEH-QD-223 requires a synthesised value to
+  // actually satisfy the matcher, and declining beats a row that lies.
+  Lt: (m) =>
+    checked(
+      m,
+      Number.isFinite(m.value) && m.value - 1 < m.value
+        ? value(m.value - 1)
+        : cannot(`no value less than ${String(m.value)} can be synthesised`),
+      context,
+    ),
+  Contains: (m) => checked(m, value([m.value]), context),
+  FieldMatch: (m, child) => mapValue(child, (v) => value({ [m.field]: v })),
+  SomeMatch: (_m, child) => mapValue(child, (v) => value([v])),
+  // One element satisfies "every" as surely as it satisfies "some", and a
+  // one-element array is the smallest witness of both.
+  EveryMatch: (_m, child) => mapValue(child, (v) => value([v])),
+  // Two refusals rather than one, because they are two different things
+  // wrong with the policy: `size(eq(literal("two")))` compares a length
+  // against a string and can never match anything, while `size(gte(1e6))`
+  // is satisfiable and merely beyond what a panel should allocate.
+  Size: (_m, child) =>
+    mapValue(child, (v) => {
+      if (typeof v !== "number") return cannot(`a size is a number, and ${render(v)} is not`);
+      return Number.isInteger(v) && v >= 0 && v <= MAX_SYNTHESISED_LENGTH
+        ? value(Array.from({ length: v }, () => null))
+        : cannot(`no array of length ${String(v)} can be built`);
+    }),
+});
 
 /**
  * The longest array a `Size` witness will build.
@@ -332,81 +324,52 @@ const concat = (
 };
 
 /**
- * The one child list a wrapper folded, or a thrown invariant failure:
- * `Obliged`/`Labeled` always fold exactly one child, by construction of
- * `@qadi/core`'s `childrenOf`.
- */
-const onlyRequirements = (
-  tag: string,
-  children: ReadonlyArray<ReadonlyArray<Requirement>>,
-): ReadonlyArray<Requirement> => {
-  const [first, ...rest] = children;
-  if (first === undefined || rest.length !== 0) {
-    throw new Error(`remedyEdits: ${tag} expected exactly one child, got ${children.length}`);
-  }
-  return first;
-};
-
-/**
- * One node's requirements, from its already-folded children (a leaf's `children`
- * is empty and ignored).
+ * One node's requirements, from its already-folded children, each arm receiving
+ * them in the tag's own shape (`PolicyCases`): a wrapper its one child's list, a
+ * `Rules` table one `{ rule, result }` per row (ARCH-17).
  *
  * Built once at module scope, per AGENTS.md §5a. `Not` ignores its folded child
  * and `Rules` keeps only the children of `Permit` rows: that is the
  * anti-remedy rule, now applied where the children arrive rather than by not
  * descending.
  */
-const requirementStep: (
-  self: Policy,
-) => (children: ReadonlyArray<ReadonlyArray<Requirement>>) => ReadonlyArray<Requirement> =
-  Match.type<Policy>().pipe(
-    Match.tagsExhaustive({
-      HasPermission: (p) => () => [{ _tag: "Permission" as const, permission: p.permission }],
-      HasRole: (p) => () => [{ _tag: "Role" as const, role: p.role }],
-      HasAttribute: (p) => () => [
-        { _tag: "SubjectAttribute" as const, attribute: p.attribute, matcher: p.matcher },
-      ],
-      HasResourceAttribute: (p) => () => [
-        { _tag: "ResourceAttribute" as const, attribute: p.attribute, matcher: p.matcher },
-      ],
-      HasRelationship: (p) => () => [{ _tag: "Relationship" as const, relation: p.relation }],
-      HasAction: (p) => () => [{ _tag: "Action" as const, action: p.action }],
-      HasActed: (p) => () => [{ _tag: "Acted" as const, event: p.event, scope: p.scope }],
-      // The remedy for "has not acted" is to remove the event, which `singleEdits`
-      // already offers for every event the fixtures list.
-      HasNotActed: () => () => [],
-      // Opaque, externally-registered logic — there is no matcher to read a
-      // witness out of, and no set membership to strengthen either, so this
-      // sweep has nothing to offer for it (ADR-QD-055).
-      HasCustom: () => () => [],
-      // Unlike HasCustom this isn't opaque, but synthesizing a remedy would mean
-      // building a plausible on-file signature (meaning, role) out of nothing —
-      // a different kind of guess than strengthening an existing subject
-      // attribute or fixture edge, so this sweep offers nothing here either.
-      HasSignature: () => () => [],
-      AllOf: () => (children: ReadonlyArray<ReadonlyArray<Requirement>>) => concat(children),
-      AnyOf: () => (children: ReadonlyArray<ReadonlyArray<Requirement>>) => concat(children),
-      // Only `Permit` rows: a rule's `condition` is evaluated for applicability,
-      // and satisfying a `Deny` row's condition makes *that* row apply, which
-      // means denying, not allowing. Descending into it here would offer "grant
-      // this" as a fix for exactly the thing that would trigger the deny — the
-      // same anti-remedy `Not` is excluded for below, and for the same reason.
-      // The children arrive in row order, so one iterator pairs each row with its own.
-      Rules: (p) => (children: ReadonlyArray<ReadonlyArray<Requirement>>) => {
-        const remaining = children[Symbol.iterator]();
-        const chosen: Array<ReadonlyArray<Requirement>> = [];
-        for (const rule of p.rules) {
-          const next = remaining.next();
-          if (next.done) throw new Error("remedyEdits: Rules folded fewer children than rows");
-          if (rule.effect === "Permit") chosen.push(next.value);
-        }
-        return concat(chosen);
-      },
-      Not: () => () => [],
-      Obliged: () => (children: ReadonlyArray<ReadonlyArray<Requirement>>) => onlyRequirements("Obliged", children),
-      Labeled: () => (children: ReadonlyArray<ReadonlyArray<Requirement>>) => onlyRequirements("Labeled", children),
-    }),
-  );
+const requirementCases: PolicyCases<ReadonlyArray<Requirement>> = {
+  HasPermission: (p) => [{ _tag: "Permission" as const, permission: p.permission }],
+  HasRole: (p) => [{ _tag: "Role" as const, role: p.role }],
+  HasAttribute: (p) => [
+    { _tag: "SubjectAttribute" as const, attribute: p.attribute, matcher: p.matcher },
+  ],
+  HasResourceAttribute: (p) => [
+    { _tag: "ResourceAttribute" as const, attribute: p.attribute, matcher: p.matcher },
+  ],
+  HasRelationship: (p) => [{ _tag: "Relationship" as const, relation: p.relation }],
+  HasAction: (p) => [{ _tag: "Action" as const, action: p.action }],
+  HasActed: (p) => [{ _tag: "Acted" as const, event: p.event, scope: p.scope }],
+  // The remedy for "has not acted" is to remove the event, which `singleEdits`
+  // already offers for every event the fixtures list.
+  HasNotActed: () => [],
+  // Opaque, externally-registered logic — there is no matcher to read a
+  // witness out of, and no set membership to strengthen either, so this
+  // sweep has nothing to offer for it (ADR-QD-055).
+  HasCustom: () => [],
+  // Unlike HasCustom this isn't opaque, but synthesizing a remedy would mean
+  // building a plausible on-file signature (meaning, role) out of nothing —
+  // a different kind of guess than strengthening an existing subject
+  // attribute or fixture edge, so this sweep offers nothing here either.
+  HasSignature: () => [],
+  AllOf: (_p, children) => concat(children),
+  AnyOf: (_p, children) => concat(children),
+  // Only `Permit` rows: a rule's `condition` is evaluated for applicability,
+  // and satisfying a `Deny` row's condition makes *that* row apply, which
+  // means denying, not allowing. Descending into it here would offer "grant
+  // this" as a fix for exactly the thing that would trigger the deny — the
+  // same anti-remedy `Not` is excluded for below, and for the same reason.
+  Rules: (_p, rows) =>
+    concat(rows.filter(({ rule }) => rule.effect === "Permit").map(({ result }) => result)),
+  Not: () => [],
+  Obliged: (_p, child) => child,
+  Labeled: (_p, child) => child,
+};
 
 /**
  * Every requirement in the tree, outermost first.
@@ -415,16 +378,14 @@ const requirementStep: (
  * asking for the same role are one remedy, but they are two requirements and
  * this function's job is to report the tree faithfully.
  *
- * Folded through `@qadi/core`'s `foldPolicy`, so a caller-held policy of any
+ * Folded through `@qadi/core`'s `foldPolicyCases`, so a caller-held policy of any
  * nesting depth cannot overflow it: `remedyEdits` is reached from `sweepPlan` and
  * `whatIf` with no `maxDepth` to consult, and the old recursion crashed at about
  * 2,000 levels (256 for `Rules`) (ARCH-02 C7). Concatenation copies match the
  * old `flatMap` (O(leaves × nesting depth)), which is not a regression.
  */
 const requirementsOf = (self: Policy): ReadonlyArray<Requirement> =>
-  foldPolicy<ReadonlyArray<Requirement>>(self, (node, children) =>
-    requirementStep(node)(children),
-  );
+  foldPolicyCases(self, requirementCases);
 
 
 // ---------------------------------------------------------------------------

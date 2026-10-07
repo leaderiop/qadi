@@ -9,11 +9,14 @@
 import type { AuthSubject, Policy, Resource } from "@qadi/core";
 import { projectVisible } from "@qadi/core";
 import { useAtomSuspense } from "@effect/atom-react/Hooks";
-import * as Atom from "effect/reactivity/Atom";
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import type { RefObject } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useSyncExternalStore } from "react";
 import type { GateInstance } from "./GateRegistry.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
-import type { QadiAtoms } from "./QadiAtoms.ts";
+import { outcomeOf } from "./DecisionOutcome.ts";
+import type { GateIdentity } from "./GateWriter.ts";
+import { gateWriterFor, useGateRegistrations } from "./GateWriter.ts";
+import type { AskedQuestion } from "./QuestionBook.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
 import type { ClientDecision } from "./SeededDecision.ts";
 import { useGate } from "./useGate.ts";
@@ -62,11 +65,7 @@ export const useCan = (policy: Policy, resource?: Resource): boolean =>
  */
 export const useDecisionSuspense = (policy: Policy, resource?: Resource): ClientDecision => {
   const { atoms } = useQadiContext("useDecisionSuspense");
-  const atom = useMemo(
-    () =>
-      resource === undefined ? atoms.decision(policy) : atoms.decisionFor(policy, resource),
-    [atoms, policy, resource],
-  );
+  const atom = useMemo(() => atoms.decision(policy, resource), [atoms, policy, resource]);
   // Registers this instance for devtools instrumentation; its own `result`
   // read is unused here — `useAtomSuspense` below does the actual suspending
   // read of the same registry entry.
@@ -82,48 +81,87 @@ export const useDecisionSuspense = (policy: Policy, resource?: Resource): Client
 };
 
 /**
- * The combined atom `usePolicies` reads, keyed structurally.
+ * One hook asking several questions: the shared body of `useQuestions` and
+ * `usePolicies`, which differ only in the name they register under.
  *
- * `Atom.family` compares its argument with `Equal.equals` — a plain record
- * hashes and compares by its own contents, recursively, down to each
- * `Policy`'s own structural equality — so two components asking for the same
- * named set of policies share one underlying atom even when each built its
- * `policies` record as a fresh object literal in render. Keyed first by
- * `atoms`, because the combined atom reads through `atoms.decision`, which is
- * specific to one `makeQadiAtoms` context; keying by record identity alone,
- * the way this hook used to, is exactly the inline churn the family keying
- * everywhere else in this package (`bare`/`byResource` in `QadiAtoms.ts`)
- * exists to eliminate.
+ * Out of the barrel for the reason `useGate` is: the kind is not a caller's to
+ * choose. The raw results are returned, as ADR-QD-093(d) keeps for
+ * `useDecision`; each entry is read once more through `outcomeOf`, and only to
+ * record its tag with the gate registry.
  */
-const combinedFamily = Atom.family((atoms: QadiAtoms) =>
-  Atom.family((policies: Readonly<Record<string, Policy>>) =>
-    Atom.make((get) => {
-      const out: Record<string, DecisionResult> = {};
-      for (const [key, policy] of Object.entries(policies)) {
-        out[key] = get(atoms.decision(policy));
-      }
-      return out;
-    }),
-  ),
-);
+const useQuestionsAs = (
+  kind: "usePolicies" | "useQuestions",
+  questions: Readonly<Record<string, AskedQuestion>>,
+): Readonly<Record<string, DecisionResult>> => {
+  const { atoms, instrument, gates } = useQadiContext(kind);
+  // `useMemo` here is a performance hoist, not the source of correctness: the
+  // atom set's `decisions` family keys structurally, so calling it fresh every
+  // render would return the same atom. This only spares re-walking the records'
+  // hashes on every render (AGENTS.md §13). It is also what makes the
+  // registration below stable: an equal record is one `group` atom.
+  const group = useMemo(() => atoms.decisions(questions), [atoms, questions]);
+  const results = useAtomValue(group);
+
+  const base = useId();
+  const markers = useRef<RefObject<HTMLSpanElement | null>>({ current: null });
+  const writer = useMemo(
+    () => (instrument ? gateWriterFor(gates) : undefined),
+    [instrument, gates],
+  );
+  // Keyed on `group`, so an inline record that is equal each render does not churn
+  // registration. Each entry registers under its own `id`, the one `useId` this
+  // hook minted plus the entry's name.
+  const identities = useMemo(
+    () =>
+      Object.entries(questions).map(
+        ([name, question]): GateIdentity => ({
+          id: `${base}/${name}`,
+          kind,
+          atom: atoms.decision(question.policy, question.resource),
+          wraps: false,
+          policy: question.policy,
+          resource: question.resource,
+          marker: markers.current,
+        }),
+      ),
+    [atoms, base, kind, group],
+  );
+  const states = Object.keys(questions).map((name) => {
+    const result = results[name];
+    return result === undefined ? "Pending" : outcomeOf(result)._tag;
+  });
+  useGateRegistrations(writer, identities, states);
+
+  return results;
+};
 
 /**
- * Evaluates several policies as one unit.
+ * Evaluates several questions as one unit, each a policy and optionally a resource.
  *
  * Each decision is still shared with every other component asking the same
  * question; grouping them only means the component re-renders once instead of
- * once per policy.
+ * once per question. The raw results, unread, as {@link useDecision} returns
+ * them; read each with `outcomeOf`. Under an instrumented provider each entry is
+ * a gate instance of kind `useQuestions`, so the devtools panel sees every
+ * question the hook is asking.
+ */
+export const useQuestions = (
+  questions: Readonly<Record<string, AskedQuestion>>,
+): Readonly<Record<string, DecisionResult>> => useQuestionsAs("useQuestions", questions);
+
+/**
+ * Evaluates several policies as one unit, with no resource in scope.
+ *
+ * {@link useQuestions} for policies alone: each entry is a gate instance of kind
+ * `usePolicies`. Reach for `useQuestions` when an entry needs a resource.
  */
 export const usePolicies = (
   policies: Readonly<Record<string, Policy>>,
 ): Readonly<Record<string, DecisionResult>> => {
-  const { atoms } = useQadiContext("usePolicies");
-  // `useMemo` here is a performance hoist, not the source of correctness —
-  // `combinedFamily` already memoises structurally, so calling it fresh every
-  // render would still return the same atom. This only spares re-walking the
-  // policy records' hashes on every render (AGENTS.md §13).
-  const atom = useMemo(() => combinedFamily(atoms)(policies), [atoms, policies]);
-  return useAtomValue(atom);
+  // A fresh record each render is fine: `atoms.decisions` keys structurally.
+  const questions: Record<string, AskedQuestion> = {};
+  for (const [name, policy] of Object.entries(policies)) questions[name] = { policy };
+  return useQuestionsAs("usePolicies", questions);
 };
 
 /**

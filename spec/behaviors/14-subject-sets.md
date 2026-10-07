@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-14                                    |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-09-09): BEH-QD-262 — `decideSubjects`/`filterSubjects` never fail; a subject whose evaluation breaks is reported in `failures` instead of discarding the whole batch's decisions (issue #107, CCR-QD-148)<br>1.0 (2026-07-26): Initial release (CCR-QD-018) |
+> | Change History | 1.2 (2026-10-07): BEH-QD-105 — the streamed siblings report per element: `SubjectOutcome`/`FilteredSubjectOutcome`, `decideSubject`, no `EvaluationError` in their error channel (breaking; the earlier rationale corrected). BEH-QD-108 — `concurrency` applies within an element, never across elements (CCR-QD-187)<br>1.1 (2026-09-09): BEH-QD-262 — `decideSubjects`/`filterSubjects` never fail; a subject whose evaluation breaks is reported in `failures` instead of discarding the whole batch's decisions (issue #107, CCR-QD-148)<br>1.0 (2026-07-26): Initial release (CCR-QD-018) |
 
 _Previous: [13 — The Label Lattice](./13-labels.md)_
 
@@ -68,11 +68,65 @@ that did that: both functions now never fail, and a broken subject's
 alongside whatever `decisions`/`subjects` did complete. See BEH-QD-108 below for
 the requirement this revises, and this file's own `decideSubjects` doc comment
 (`SubjectSet.ts`) for why `Qadi.filter` was deliberately **not** changed the same
-way. The streamed siblings, `decideSubjectsStream`/`filterSubjectsStream`, are
-unchanged — they still fail the stream on a resolver error, since a stream
-consumed incrementally has no "batch" left to discard by the time an error
-reaches a subscriber, and accumulating one is future work this ticket does not
-take on.
+way.
+
+**Revised (CCR-QD-187).** The streamed siblings, `decideSubjectsStream` and
+`filterSubjectsStream`, used to fail the whole stream at the first resolver
+error: the elements after the failing one were never evaluated and the consumer
+could not learn which subject broke or how far the review had got — the harm the
+array form's fix removed, and the opposite of BEH-QD-108's "the batch continues
+past a failing element". (The earlier note's reason, that a stream "has no
+batch left to discard", was wrong: the cost is the unevaluated rest of the
+stream, not discarded work.) They now report per element, through the same
+per-subject step the array form folds over.
+
+```ts
+export type SubjectOutcome = Data.TaggedEnum<{
+  SubjectDecided: { readonly subject: AuthSubject; readonly decision: Decision };
+  SubjectFailed: { readonly subject: AuthSubject; readonly error: EvaluationError };
+}>;
+
+export type FilteredSubjectOutcome = Data.TaggedEnum<{
+  SubjectAllowed: { readonly subject: AuthSubject };
+  SubjectFailed: { readonly subject: AuthSubject; readonly error: EvaluationError };
+}>;
+
+export const decideSubject: (
+  policy: Policy,
+  subject: AuthSubject,
+  options?: EvaluateOptions,
+) => Effect.Effect<SubjectOutcome, never, SubjectSetServices>;
+
+export const decideSubjectsStream: <E2 = never, R2 = never>(
+  policy: Policy,
+  subjects: Stream.Stream<AuthSubject, E2, R2>,
+  options?: EvaluateOptions,
+) => Stream.Stream<SubjectOutcome, E2, SubjectSetServices | R2>;
+
+export const filterSubjectsStream: <E2 = never, R2 = never>(
+  policy: Policy,
+  subjects: Stream.Stream<AuthSubject, E2, R2>,
+  options?: EvaluateOptions,
+) => Stream.Stream<FilteredSubjectOutcome, E2, SubjectSetServices | R2>;
+```
+
+```
+REQUIREMENT: decideSubjectsStream MUST emit one SubjectOutcome per subject, in
+             input order, and MUST NOT fail with an EvaluationError: a subject
+             whose evaluation breaks is a SubjectFailed and the stream
+             continues with the next subject. Its error channel is the input
+             stream's own.
+REQUIREMENT: filterSubjectsStream MUST emit a SubjectAllowed for every allowed
+             subject and a SubjectFailed for every subject whose evaluation
+             broke, and nothing for a denied subject. A failed subject MUST
+             NOT be silently absent.
+REQUIREMENT: decideSubjects, decideSubjectsStream and filterSubjectsStream MUST
+             all evaluate a subject through decideSubject, so the per-subject
+             failure mapping exists once.
+```
+
+`Qadi.filter`/`filterStream` are unchanged: they enforce (ADR-QD-019) and must
+still fail.
 
 ```
 REQUIREMENT: `filterSubjects` MUST be derived from `decideSubjects`. Two
@@ -162,6 +216,13 @@ question. Separate subjects produce separate decisions and nothing combines them
 so no combining algorithm has to be settled first — this is not blocked by E3.
 Concurrency, if it is ever added, belongs as a bounded option rather than a
 change of default.
+
+```
+REQUIREMENT: EvaluateOptions.concurrency MUST apply to each element's own
+             evaluation (the children of its allOf, anyOf or rules) and MUST
+             NOT evaluate elements concurrently. It was never a cross-subject
+             option; one would be a separate, bounded option.
+```
 
 ```
 REQUIREMENT (superseded by BEH-QD-262, issue #107): A failure MUST fail the

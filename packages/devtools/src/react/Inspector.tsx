@@ -167,10 +167,10 @@ const ExplanationPanel: FC<{ readonly tree: InspectNode }> = ({ tree }) => (
     <div style={heading}>explanation</div>
     {isTruncated(tree) ? (
       <p style={{ ...muted, marginTop: 0 }} data-testid="qadi-trace-undisclosed">
-        {/* A dehydrated payload ships a reduced trace unless `includeTrace` is
-            set. That is a disclosure boundary rather than a defect, so the fix
-            is to say so — never to fabricate a tree, and never to let the
-            reader read "never resolved" as "short-circuited". */}
+        {/* A trace cut off below its root (a hand-built or foreign one, or a replay
+            baseline that was not disclosed) is a disclosure boundary rather than
+            a defect, so the fix is to say so — never to fabricate a tree, and
+            never to let the reader read "never resolved" as "short-circuited". */}
         Trace not disclosed below the root. This decision was hydrated from a
         payload that did not carry one.
       </p>

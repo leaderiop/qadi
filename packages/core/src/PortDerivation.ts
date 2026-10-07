@@ -16,7 +16,7 @@
  * Deliberately out of the barrel (AGENTS.md §9, D-10-c): callers use the
  * fifteen named wrappers and five named defaults the port modules export, not
  * these derivations, and there is no sixth port they could be applied to.
- * Reachable through the `./*` subpath, as `RetryingLayer.ts` was.
+ * Package-private (ADR-QD-099): not exported from the barrel or any entry point.
  */
 import * as Context from "effect/Context";
 import type * as Duration from "effect/Duration";
@@ -28,6 +28,7 @@ import type * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
 import { InvalidBoundedPermits } from "./Errors.ts";
 import type { PortDescription, PortShape } from "./PortDescription.ts";
+import { attemptsStruct, encodeSpan } from "./PortSpanEncode.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "./PortMetrics.ts";
 import type { PortName } from "./PortMetrics.ts";
 
@@ -119,7 +120,7 @@ export const retryCountingAttempts = <A, E>(
       Effect.tapError(() => Metric.update(portRetriesTotal, port)),
       Effect.retry(schedule),
       Effect.ensuring(
-        Effect.flatMap(Ref.get(attempts), (n) => Effect.annotateCurrentSpan({ "qadi.attempts": n })),
+        Effect.flatMap(Ref.get(attempts), (n) => Effect.annotateCurrentSpan(encodeSpan(attemptsStruct, { attempts: n }))),
       ),
     );
   });

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-031                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-032). 1.1 (2026-08-19): `decisionCacheLayer` takes an optional `capacity`, FIFO-evicted once exceeded. |
+> | Change History | 1.2 (2026-10-07): the key is the `Question` and its listing is corrected to `subject + policy + resource + action + maxDepth`; a readiness probe never consults the cache (ADR-QD-100, CCR-QD-189). 1.0 (2026-07-26): Initial release (CCR-QD-032). 1.1 (2026-08-19): `decisionCacheLayer` takes an optional `capacity`, FIFO-evicted once exceeded. |
 
 ---
 
@@ -69,8 +69,10 @@ was faster**, which is the only difference a cache is entitled to make.
 ### The key includes the subject, and that is a security boundary
 
 ```
-subjectId + policy + resource + action
+subject + policy + resource + action + maxDepth
 ```
+
+> **Amended in CCR-QD-189 (ADR-QD-100).** The listing above was stale twice over (ADR-QD-043 replaced `subjectId` with the subject; CCR-QD-128 added `maxDepth`). The key is now the public `Question` value, built once by `questionOf`. A readiness probe never consults the cache: a cache with no TTL turns a probe into a constant.
 
 A cache keyed on the policy alone would serve one subject's allow to another. That is
 the same class of defect as the hydration payload

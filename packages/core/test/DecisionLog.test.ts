@@ -19,12 +19,21 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Latch from "effect/Latch";
 import * as Option from "effect/Option";
+import * as Result from "effect/Result";
 import * as Scheduler from "effect/Scheduler";
+import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import * as FastCheck from "fast-check";
 import { isAllowed } from "../src/Decision.ts";
-import { DEFAULT_LOG_CAPACITY, formatLogCursor, makeDecisionLog, parseLogCursor } from "../src/DecisionLog.ts";
+import {
+  DEFAULT_LOG_CAPACITY,
+  DecisionStreamEvent,
+  DecisionStreamSynced,
+  formatLogCursor,
+  makeDecisionLog,
+  parseLogCursor,
+} from "../src/DecisionLog.ts";
 import type { DecisionLog } from "../src/DecisionLog.ts";
 import { ObligationRecord, StoredDecisionRecord, StoredObligationRecord } from "../src/DecisionRecord.ts";
 import type { StoredRecord } from "../src/DecisionRecord.ts";
@@ -516,6 +525,26 @@ describe("makeDecisionLog — cursors and resume (D-11-g)", () => {
     assert.deepStrictEqual(parseLogCursor("0.0"), Option.some({ epoch: 0, seq: 0 }));
     for (const malformed of ["", "1", "1.", ".1", "1.2.3", "-1.2", "1.-2", "1e3.4", "1.5e1", " 1.2", "1.2 ", "a.b", "99999999999999999999.1"]) {
       assert.isTrue(Option.isNone(parseLogCursor(malformed)), JSON.stringify(malformed));
+    }
+  });
+});
+
+describe("the decision stream's protocol words (ARCH-28)", () => {
+  it("DecisionStreamEvent is the three wire names, in protocol order (a golden: changing it is a protocol break)", () => {
+    assert.deepStrictEqual([...DecisionStreamEvent.literals], ["backlog", "synced", "message"]);
+  });
+
+  it("Schema.is(DecisionStreamEvent) holds for the three names and nothing else", () => {
+    const is = Schema.is(DecisionStreamEvent);
+    for (const name of ["backlog", "synced", "message"]) assert.isTrue(is(name), name);
+    for (const name of ["error", "", "Backlog"]) assert.isFalse(is(name), name);
+  });
+
+  it("DecisionStreamSynced accepts a count and refuses what no sender produces", () => {
+    const decode = Schema.decodeUnknownResult(DecisionStreamSynced);
+    for (const backlog of [0, 3]) assert.isTrue(Result.isSuccess(decode({ backlog })), String(backlog));
+    for (const bad of [{ backlog: -1 }, { backlog: 1.5 }, { backlog: Number.NaN }, { backlog: "3" }, {}]) {
+      assert.isTrue(Result.isFailure(decode(bad)), JSON.stringify(bad));
     }
   });
 });

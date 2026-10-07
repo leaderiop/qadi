@@ -11,6 +11,7 @@
  */
 export * from "./model/Capture.ts";
 export * from "./model/Catalogue.ts";
+export * from "./model/DiagnosticsStore.ts";
 export * from "./model/Edits.ts";
 export * from "./model/Filters.ts";
 export * from "./model/Gates.ts";
@@ -24,7 +25,9 @@ export * from "./model/RoleTree.ts";
 export * from "./model/Selection.ts";
 export * from "./model/Simulation.ts";
 export * from "./model/SimulationEdit.ts";
+export * from "./model/SimulationForm.ts";
 export * from "./model/SimulationInput.ts";
+export * from "./model/SimulationSession.ts";
 export * from "./model/SimulationSource.ts";
 export * from "./model/Source.ts";
 export * from "./model/Timeline.ts";

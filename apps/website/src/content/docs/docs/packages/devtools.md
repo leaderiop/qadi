@@ -83,6 +83,43 @@ disconnects each drops one row and reports why via an `onMalformed`/
 is what you look at when something is already wrong, so it has to survive a
 bad frame.
 
+## Keeping the Services and React panels current
+
+The wiring report, port activity, hydration counts and port calls are pulled,
+not pushed, so something has to read them again. That is the dock's job when
+handed `diagnostics`; a host hands over what it already owns and runs no Effect
+and no timer.
+
+```tsx
+import * as Layer from "effect/Layer";
+import { decisionCacheLayer } from "@qadi/core";
+import { collectPortCalls } from "@qadi/devtools";
+import { DevtoolsDock } from "@qadi/devtools/react";
+import type { DiagnosticsDockOptions } from "@qadi/devtools/react";
+
+const collector = collectPortCalls({ capacity: 200 });
+const appLayer = Layer.mergeAll(decisionCacheLayer({ capacity: 256 }), collector.layer);
+
+// Held at module scope: the run restarts when one of these changes identity.
+const diagnostics: DiagnosticsDockOptions = { layer: appLayer, collector };
+
+export const Dock = () => <DevtoolsDock diagnostics={diagnostics} />;
+```
+
+The layer is built once while the dock is mounted and released on unmount, and a
+reading keeps its identity while nothing changed, so the dock does not re-render
+on every tick. A layer that fails to build is stated on the Services panel, and
+the other reads carry on. `diagnostics={{}}` samples the metric reads alone;
+with the prop absent nothing is sampled. Gates are not sampled: they come from
+`@qadi/react`'s registry through `useGateInstances()` and stay a plain prop.
+
+**The dock's build of the layer is its own.** A service that keeps state in its
+constructor, such as `decisionCacheLayer`'s cache, is two instances if the dock
+and the application each build the layer. Build its context once and hand
+`Layer.succeedContext(context)` to both, as the example app does. The `wiring`,
+`activity`, `portCalls`, `hydration` and `questions` props remain for a reading
+taken elsewhere, such as another process's report, and win over the sampled one.
+
 ## What it renders
 
 `DevtoolsDock` (and the panels it composes — `DecisionLog`, `Inspector`,
@@ -94,7 +131,10 @@ supports:
 - **Inspection** (`inspect`, `flattenTree`) — walking a decision's evaluation
   tree, including nodes that never resolved or were truncated.
 - **Simulation and what-if** (`simulate`, `whatIf`, `sweepPlan`) — replaying a
-  decision against edited inputs to see what would have changed.
+  decision against edited inputs to see what would have changed. The simulator
+  screen's state is a headless `SimulationSession` (`makeSimulationSession`): a
+  source that cannot be honoured is refused rather than answered from fixtures,
+  a Live run captures for `Snapshot`, and a superseded run never lands.
 - **Wiring and gate reports** (`wiringReport`, `gateGroups`) — which ports are
   in use, and which mounted `Can`/`Cannot` gates are asking what.
 - **Hydration activity** (`hydrationActivity`) — the counters

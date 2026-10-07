@@ -668,3 +668,38 @@ describe("the obligation emit cannot change enforcement either", () => {
       assert.strictEqual(out, "ran");
     }).pipe(Effect.provide(testLayer(allowed))));
 });
+
+describe("one emitter guards every emit site (SinkEmit.ts)", () => {
+  it.effect("a sink that dies on every record leaves decide, enforce and an obligation discharge intact", () =>
+    Effect.gen(function* () {
+      // Pins that the guard is shared: deleting `catchCause` in `sinkEmitter`
+      // fails these assertions together, where a per-site guard would fail one.
+      const dying = Layer.succeed(DecisionSink, {
+        record: () => Effect.die(new Error("sink defect")),
+      });
+      const withSink = Effect.provide(dying);
+
+      const decided = yield* decide(P.hasPermission(read)).pipe(withSink);
+      assert.isTrue(isAllowed(decided));
+
+      const ran = yield* enforce(P.hasPermission(read))(Effect.succeed("ran")).pipe(withSink);
+      assert.strictEqual(ran, "ran");
+
+      const discharged = yield* enforce(P.obliged(obligation("audit.log"), P.hasPermission(read)), {
+        onObligations: () => Effect.void,
+      })(Effect.succeed("ok")).pipe(withSink);
+      assert.strictEqual(discharged, "ok");
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("a sink that dies while the store is down still surfaces the typed failure", () =>
+    Effect.gen(function* () {
+      const dying = Layer.succeed(DecisionSink, {
+        record: () => Effect.die(new Error("sink defect")),
+      });
+      const result = yield* Effect.result(
+        decide(P.hasAttribute("plan", M.eq(M.literal("pro")))).pipe(Effect.provide(dying)),
+      );
+      assert.strictEqual(result._tag, "Failure");
+      if (result._tag === "Failure") assert.strictEqual(result.failure._tag, "AttributeResolveError");
+    }).pipe(Effect.provide(testLayer(allowed, { AttributeResolver: brokenAttributes }))));
+});

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-00                                    |
-> | Revision       | 0.7 (draft)                                    |
+> | Revision       | 0.8 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.7 (2026-10-05): the data plane is one decision log per process — the ring and the feed are gone, `ingest` reaches live readers, and `/__decisions` sends the backlog as a prelude (ADR-QD-097, CCR-QD-181)<br>0.6 (2026-08-24): Screens 3, 6 and 7 re-marked **Built** and four stale data claims corrected — resolver calls, port counts, wired implementations and hydration counts are all obtainable now (CCR-QD-074)<br>0.5 (2026-08-24): The surface exists for three of the six topologies; screens 1 and 2 built (CCR-QD-067)<br>0.4 (2026-08-24): The transport now exists; the topology table and the transport prose corrected against it (CCR-QD-066)<br>0.3 (2026-08-24): Six gaps closed in code; the feature table re-marked against what now exists (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.8 (2026-10-07): the gap table's screen 2 row says `collectPortCalls` keeps five port spans, not three (ARCH-21, CCR-QD-198)<br>0.7 (2026-10-05): the data plane is one decision log per process — the ring and the feed are gone, `ingest` reaches live readers, and `/__decisions` sends the backlog as a prelude (ADR-QD-097, CCR-QD-181)<br>0.6 (2026-08-24): Screens 3, 6 and 7 re-marked **Built** and four stale data claims corrected — resolver calls, port counts, wired implementations and hydration counts are all obtainable now (CCR-QD-074)<br>0.5 (2026-08-24): The surface exists for three of the six topologies; screens 1 and 2 built (CCR-QD-067)<br>0.4 (2026-08-24): The transport now exists; the topology table and the transport prose corrected against it (CCR-QD-066)<br>0.3 (2026-08-24): Six gaps closed in code; the feature table re-marked against what now exists (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -151,7 +151,7 @@ remaining gaps are listed here rather than discovered during implementation.
 | # | Screen | Data status |
 | - | ------ | ----------- |
 | 1 | Decision log | **Ready.** A record carries every column, including the `resource` and timestamp a `Decision` never had. |
-| 2 | Decision inspector | **Ready**, including per-decision cache outcome. Resolver calls **are** recorded now — `collectPortCalls` keeps the three port spans and the Services panel lists them (CCR-QD-071); they are not correlated to one decision, which is a different and still-open thing. Remaining: obligation *discharged/pending* state is unobservable by construction. |
+| 2 | Decision inspector | **Ready**, including per-decision cache outcome. Resolver calls **are** recorded now — `collectPortCalls` keeps the five port spans and the Services panel lists them (CCR-QD-071); they are not correlated to one decision, which is a different and still-open thing. Remaining: obligation *discharged/pending* state is unobservable by construction. |
 | 3 | Policy explorer | **Built** (CCR-QD-068). The rail is fed by `catalogueOf`, which merges what the log has **seen** — every record carries its policy — with an optional `catalogue` the host passes. Remaining, and unchanged: nothing can enumerate "all named policies" from inside the program, because a policy is a value the app holds. The screen names what it was given rather than implying completeness. |
 | 4 | Role DAG viewer | **Ready.** `permissionProvenance` supplies the granting role and path, in agreement with `flattenPermissions`; an unknown parent is now reported rather than silently dropped. |
 | 5 | Subject simulator | **Built** (CCR-QD-070). Sealed in every mode; three answer sources; what-if in both directions; replay checked against the logged trace. |

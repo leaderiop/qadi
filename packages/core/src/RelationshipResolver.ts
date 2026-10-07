@@ -15,11 +15,13 @@ import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
 import type * as Schedule from "effect/Schedule";
+import * as Schema from "effect/Schema";
 import { RelationshipResolveError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
+import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 
 export interface RelationshipCheck {
   readonly subjectId: SubjectId;
@@ -72,7 +74,7 @@ export interface RelationshipCheck {
  * default — is the common source, but not the only one: a wired resolver may
  * answer it too, for a relation it has genuinely no answer for (a graph store
  * with no namespace for this relation, say). The port cannot tell the two
- * apart, which is why `evaluateHasRelationship` (`Evaluate.ts`, over
+ * apart, which is why `evaluateHasRelationship` (`Walk.ts`, over
  * `PortAccess.ts`'s `askRelationship`) does not name wiring as the cause in the denial it produces (BEH-QD-045) — doing so would
  * assert a fact about a store INV-QD-029 forbids asserting without having
  * consulted it. A resolver that is wired and unreachable is a
@@ -114,6 +116,32 @@ export class RelationshipResolver extends Context.Service<
 }
 
 /**
+ * What the relationship span says (BEH-QD-227). `depth` is the clamped value
+ * actually asked of the resolver, and the answer a closed three-valued enum.
+ */
+const relationshipSpan = {
+  question: spanStruct(
+    {
+      relation: Schema.optionalKey(Schema.String),
+      resourceId: Schema.optionalKey(Schema.String),
+      depth: Schema.optionalKey(Schema.Number),
+      ...sharedQuestionFields,
+    },
+    {
+      relation: "qadi.relation",
+      resourceId: "qadi.resource_id",
+      depth: "qadi.depth",
+      ...sharedQuestionKeys,
+    },
+  ),
+  answer: spanStruct(
+    { answer: Schema.optionalKey(Schema.Literals(["Related", "Unrelated", "Unknown"])) },
+    { answer: "qadi.answer" },
+  ),
+  disclose: (answer: RelatedResult) => ({ answer }),
+};
+
+/**
  * The relationship port, described once (`PortDescription.ts`).
  *
  * A request is keyed by `(subjectId, relation, resourceId)` — never by the
@@ -126,11 +154,13 @@ export const relationshipResolverPort: PortDescription<
   RelationshipResolverShape,
   [request: RelationshipCheck],
   RelatedResult,
-  RelationshipResolveError
+  RelationshipResolveError,
+  typeof relationshipSpan
 > = {
   port: "RelationshipResolver",
   method: "check",
   span: "qadi.hasRelationship",
+  attributes: relationshipSpan,
   service: RelationshipResolver,
   invoke: (shape) => (request) => shape.check(request),
   make: (name, call) => ({ name, check: call }),

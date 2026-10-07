@@ -1057,7 +1057,7 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
     }));
 
   // -------------------------------------------------------------------------
-  // INV-QD-NEXT — translation fails only as evaluation would. The properties
+  // INV-QD-058 — translation fails only as evaluation would. The properties
   // above sample well-behaved ports; these sample *faulty* ones, because a
   // property is only as strong as the untidiness of its data (see this
   // invariant's own lesson, INV-QD-018). Each port answers, fails typed, dies,
@@ -1201,7 +1201,7 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
 
   it.effect("PROPERTY: on resource-free trees the two interpreters make the same port calls and end the same way", () =>
     Effect.gen(function* () {
-      // INV-QD-NEXT (2). The strongest statement available: not merely "the
+      // INV-QD-058 (2). The strongest statement available: not merely "the
       // same answer" but "asked the same stores, in the same order" — so a
       // translation that asks a port the evaluator would have skipped, or
       // fails where the evaluator decided, is a counterexample.
@@ -1237,7 +1237,7 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
 
   it.effect("PROPERTY: a translation that succeeds agrees with the evaluator on every row, and a failure is typed", () =>
     Effect.gen(function* () {
-      // INV-QD-NEXT (1) and (3), over full trees with columns.
+      // INV-QD-058 (1) and (3), over full trees with columns.
       const cases = FastCheck.sample(FastCheck.tuple(tree, worlds), { numRuns: 120, seed: 4096 });
       const sample = FastCheck.sample(rows, { numRuns: 12, seed: 4096 });
 
@@ -1281,7 +1281,7 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
 
   it.effect("PROPERTY: a port that dies reads as a port that fails, through both interpreters", () =>
     Effect.gen(function* () {
-      // INV-QD-NEXT (1), stated as an equivalence: replacing every death with
+      // INV-QD-058 (1), stated as an equivalence: replacing every death with
       // the port's own typed failure changes nothing either interpreter says.
       const cases = FastCheck.sample(FastCheck.tuple(tree, worlds), { numRuns: 120, seed: 8192 });
       const row = { tenantId: "t-1", ownerId: "u-1", level: 3, tag: "red", sealed: false };
@@ -1348,7 +1348,7 @@ describe("qadi_predicates_translated_total", () => {
  * defect would sail past `Effect.retry` and `Effect.catchTag`, which only ever
  * see the typed channel.
  */
-describe("BEH-QD-NEXT-a: a defecting port fails translation typed, not dead", () => {
+describe("BEH-QD-264: a defecting port fails translation typed, not dead", () => {
   const riskPolicy = P.hasAttribute("riskScore", M.lt(50));
   const actedPolicy = P.hasActed("onboarded", { scope: "Any" });
 
@@ -1433,12 +1433,12 @@ describe("BEH-QD-NEXT-a: a defecting port fails translation typed, not dead", ()
 });
 
 /**
- * `toPredicate`'s port reads are spans too (ADR-QD-051, BEH-QD-NEXT-d): the same
+ * `toPredicate`'s port reads are spans too (ADR-QD-051, BEH-QD-267): the same
  * `qadi.attribute`/`qadi.acted` the evaluator emits, under `qadi.toPredicate`,
  * annotated `qadi.interpreter: "toPredicate"` so a trace reader can tell a
  * translation's read from an evaluation's.
  */
-describe("BEH-QD-NEXT-d: translation's port reads are spans", () => {
+describe("BEH-QD-267: translation's port reads are spans", () => {
   const named = (spans: ReadonlyArray<Tracer.Span>, name: string) =>
     spans.find((s) => s.name === name);
   const attributesOf = (span: Tracer.Span | undefined): Record<string, unknown> =>
@@ -1448,6 +1448,34 @@ describe("BEH-QD-NEXT-d: translation's port reads are spans", () => {
     name: "record",
     resolve: (_id: string, attribute: string) => Effect.succeed(attribute === "riskScore" ? 20 : undefined),
   });
+
+  // INV-QD-044 under the other interpreter (C9): no span carries the value.
+  it.effect("a resolved attribute's value never reaches any span under toPredicate", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const secret = "sentinel-8f21-do-not-disclose";
+      yield* toPredicate(P.hasAttribute("clearance", M.eq(M.literal(secret)))).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u9" }), {
+              AttributeResolver: Layer.succeed(AttributeResolver, {
+                name: "record",
+                resolve: (_id: string, attribute: string) =>
+                  Effect.succeed(attribute === "clearance" ? secret : undefined),
+              }),
+            }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      assert.isDefined(named(spans, "qadi.attribute"));
+      const rendered = spans
+        .flatMap((span) => [...span.attributes.values()])
+        .map((value) => String(value))
+        .join(" ");
+      assert.notInclude(rendered, secret);
+    }));
 
   it.effect("a resolved attribute spans under qadi.toPredicate and records no value", () =>
     Effect.gen(function* () {
@@ -1538,112 +1566,13 @@ describe("BEH-QD-NEXT-d: translation's port reads are spans", () => {
 });
 
 /**
- * Translation asks no port a constant has already decided (BEH-QD-NEXT-b), and a
- * refusal depends on the tree alone (BEH-QD-NEXT-c). Each case is the shape
+ * A refusal depends on the tree alone (BEH-QD-266). Each case is the shape
  * ARCH-01's E8 found diverging from the evaluator, kept as a named test because a
- * seeded property sample is not evidence a reader can check by eye.
+ * seeded property sample is not evidence a reader can check by eye. Translation
+ * asking no port a constant has already decided (BEH-QD-265) is stated against
+ * both interpreters at once in `ShortCircuit.test.ts`.
  */
-describe("BEH-QD-NEXT-b: translation stops where the evaluator stops", () => {
-  /** A resolver that always fails typed; its `calls` are how often it was asked. */
-  const failingResolver = () => scriptedPort(attributeResolverPort, () => PortReply.fail("down"));
-
-  const askWith = (
-    policy: P.Policy,
-    attributes: Layer.Layer<AttributeResolver>,
-    options?: { readonly action?: string; readonly subject?: ReturnType<typeof subjectWith> },
-  ) =>
-    Effect.result(
-      toPredicate(policy, options?.action === undefined ? undefined : { action: options.action }).pipe(
-        Effect.provide(testLayer(options?.subject ?? tenant, { AttributeResolver: attributes })),
-      ),
-    );
-
-  const broken = P.hasAttribute("riskScore", M.gte(1));
-
-  it.effect("an anyOf stops at a role that already allows", () =>
-    Effect.gen(function* () {
-      const resolver = failingResolver();
-      const r = yield* askWith(P.anyOf([P.hasRole("editor"), broken]), resolver.layer);
-      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "True" });
-      assert.strictEqual(resolver.calls.length, 0);
-    }));
-
-  it.effect("under Union an anyOf must see every child, as the evaluator does", () =>
-    Effect.gen(function* () {
-      const resolver = failingResolver();
-      const policy = P.anyOf([P.hasRole("editor"), broken], { fieldStrategy: "Union" });
-      const r = yield* askWith(policy, resolver.layer);
-      assert.strictEqual(r._tag, "Failure");
-      if (r._tag !== "Failure") return;
-      assert.instanceOf(r.failure, AttributeResolveError);
-      assert.strictEqual(resolver.calls.length, 1);
-    }));
-
-  it.effect("an allOf stops at a role that already denies", () =>
-    Effect.gen(function* () {
-      const resolver = failingResolver();
-      const r = yield* askWith(P.allOf([P.hasRole("admin"), broken]), resolver.layer);
-      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "False" });
-      assert.strictEqual(resolver.calls.length, 0);
-    }));
-
-  it.effect("PermitOverrides stops at a permit that already holds", () =>
-    Effect.gen(function* () {
-      const resolver = failingResolver();
-      const policy = P.rules([P.permitWhen(P.hasRole("editor")), P.permitWhen(broken)], {
-        combining: "PermitOverrides",
-      });
-      const r = yield* askWith(policy, resolver.layer);
-      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "True" });
-      assert.strictEqual(resolver.calls.length, 0);
-    }));
-
-  it.effect("DenyOverrides stops at a deny that already holds", () =>
-    Effect.gen(function* () {
-      const resolver = failingResolver();
-      const policy = P.rules([P.denyWhen(P.hasRole("editor")), P.permitWhen(broken)], {
-        combining: "DenyOverrides",
-      });
-      const r = yield* askWith(policy, resolver.layer);
-      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "False" });
-      assert.strictEqual(resolver.calls.length, 0);
-    }));
-
-  it.effect("DenyOverrides does not stop at a permit — a later deny could still beat it", () =>
-    Effect.gen(function* () {
-      const resolver = failingResolver();
-      const policy = P.rules([P.permitWhen(P.hasRole("editor")), P.denyWhen(broken)], {
-        combining: "DenyOverrides",
-      });
-      const r = yield* askWith(policy, resolver.layer);
-      assert.strictEqual(r._tag, "Failure");
-      assert.strictEqual(resolver.calls.length, 1);
-    }));
-
-  it.effect("FirstApplicable stops at the first rule that applies, whatever its effect", () =>
-    Effect.gen(function* () {
-      const resolver = failingResolver();
-      const policy = P.rules([P.denyWhen(P.hasRole("editor")), P.permitWhen(broken)], {
-        combining: "FirstApplicable",
-      });
-      const r = yield* askWith(policy, resolver.layer);
-      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "False" });
-      assert.strictEqual(resolver.calls.length, 0);
-    }));
-
-  it.effect("a rule that does not apply is walked past", () =>
-    Effect.gen(function* () {
-      const resolver = failingResolver();
-      const policy = P.rules([P.permitWhen(P.hasRole("admin")), P.permitWhen(broken)], {
-        combining: "FirstApplicable",
-      });
-      const r = yield* askWith(policy, resolver.layer);
-      assert.strictEqual(r._tag, "Failure");
-      assert.strictEqual(resolver.calls.length, 1);
-    }));
-});
-
-describe("BEH-QD-NEXT-c: a refusal depends on the tree alone", () => {
+describe("BEH-QD-266: a refusal depends on the tree alone", () => {
   const throwing = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
 
   const outcomeFor = (

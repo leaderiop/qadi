@@ -18,6 +18,7 @@ import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
 import type { StoredRecord } from "@qadi/core";
 import type { Source } from "./Source.ts";
+import { makeExternalStore } from "./ExternalStore.ts";
 import { emptyTimeline, ingest, type Timeline } from "./Timeline.ts";
 
 export interface TimelineStore {
@@ -42,21 +43,13 @@ export interface TimelineStore {
 export const makeTimelineStore = (options?: { readonly capacity?: number }): TimelineStore => {
   let timeline = emptyTimeline(options);
   let frozen: Timeline | undefined;
-  const listeners = new Set<() => void>();
-
-  const notify = () => {
-    for (const listener of listeners) listener();
-  };
+  // What is rendered: the live timeline, or the one the pause froze.
+  const view = makeExternalStore<Timeline>(timeline);
 
   return {
-    subscribe: (listener) => {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
+    subscribe: view.subscribe,
 
-    getSnapshot: () => frozen ?? timeline,
+    getSnapshot: view.getSnapshot,
 
     accept: (record) => {
       const next = ingest(timeline, record);
@@ -64,19 +57,21 @@ export const makeTimelineStore = (options?: { readonly capacity?: number }): Tim
       // feed stops costing a render.
       if (next === timeline) return;
       timeline = next;
-      if (frozen === undefined) notify();
+      if (frozen === undefined) view.set(next);
     },
 
     clear: () => {
       timeline = emptyTimeline(options);
       frozen = undefined;
-      notify();
+      view.publish(timeline);
     },
 
     setPaused: (paused) => {
       if (paused === (frozen !== undefined)) return;
       frozen = paused ? timeline : undefined;
-      notify();
+      // The view may not have moved (pausing freezes what is shown), but
+      // `isPaused` is read by a second subscription that must hear of it.
+      view.publish(frozen ?? timeline);
     },
 
     isPaused: () => frozen !== undefined,
