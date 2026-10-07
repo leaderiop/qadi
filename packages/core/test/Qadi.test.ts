@@ -596,6 +596,82 @@ describe("Qadi.filter", () => {
   );
 });
 
+describe("Qadi.filterProjected / filterStreamProjected", () => {
+  const byKind = P.anyOf([
+    P.allOf([
+      P.hasResourceAttribute("kind", M.eq(M.literal("a"))),
+      P.hasPermission(read, { fields: ["id", "kind", "x"] }),
+    ]),
+    P.allOf([
+      P.hasResourceAttribute("kind", M.eq(M.literal("b"))),
+      P.hasPermission(read, { fields: ["id", "kind"] }),
+    ]),
+  ]);
+  const items = [
+    { id: "1", kind: "a", x: "X1", y: "Y1" },
+    { id: "2", kind: "c", x: "X2", y: "Y2" },
+    { id: "3", kind: "b", x: "X3", y: "Y3" },
+  ];
+  const reader = testLayer(subjectWith({ permissions: ["doc:read"] }));
+
+  it.effect("filterProjected projects each admitted item by its own decision", () =>
+    Effect.gen(function* () {
+      const out = yield* Qadi.filterProjected(byKind, items);
+      assert.deepStrictEqual(out, [
+        { id: "1", kind: "a", x: "X1" },
+        { id: "3", kind: "b" },
+      ]);
+    }).pipe(Effect.provide(reader)));
+
+  it.effect("filterProjected drops denied items and keeps order", () =>
+    Effect.gen(function* () {
+      const out = yield* Qadi.filterProjected(byKind, [...items].reverse());
+      assert.deepStrictEqual(
+        out.map((i) => i["id"]),
+        ["3", "1"],
+      );
+    }).pipe(Effect.provide(reader)));
+
+  it.effect("filterStreamProjected agrees with filterProjected", () =>
+    Effect.gen(function* () {
+      const array = yield* Qadi.filterProjected(byKind, items);
+      const chunk = yield* Stream.runCollect(
+        Qadi.filterStreamProjected(byKind, Stream.fromIterable(items)),
+      );
+      assert.deepStrictEqual(Array.from(chunk), array);
+    }).pipe(Effect.provide(reader)));
+
+  it.effect("an undischarged binding obligation fails filterProjected and filterStreamProjected", () =>
+    Effect.gen(function* () {
+      const policy = P.obliged(obligation("log-access", { channel: "audit" }), canRead);
+      const array = yield* Effect.result(Qadi.filterProjected(policy, items));
+      assert.isTrue(Result.isFailure(array) && array.failure._tag === "UndischargedObligation");
+      const streamed = yield* Effect.result(
+        Stream.runCollect(Qadi.filterStreamProjected(policy, Stream.fromIterable(items))),
+      );
+      assert.isTrue(Result.isFailure(streamed) && streamed.failure._tag === "UndischargedObligation");
+    }).pipe(Effect.provide(reader)));
+
+  it.effect("filterProjected honors options.concurrency across items", () =>
+    Effect.gen(function* () {
+      const invocations = yield* Ref.make(0);
+      const gate = yield* Deferred.make<void>();
+      const gated = P.hasAttribute("clearance", M.gte(1));
+      yield* Effect.gen(function* () {
+        const fiber = yield* forkAndSettle(
+          Qadi.filterProjected(gated, items, { concurrency: "unbounded" }),
+        );
+        assert.strictEqual(yield* Ref.get(invocations), items.length);
+        yield* Deferred.succeed(gate, undefined);
+        yield* Fiber.join(fiber);
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({}), { AttributeResolver: blockingResolver(invocations, gate) }),
+        ),
+      );
+    }));
+});
+
 describe("Qadi.filterStream", () => {
   it.effect("keeps only the items the policy allows, same as filter", () =>
     Effect.gen(function* () {

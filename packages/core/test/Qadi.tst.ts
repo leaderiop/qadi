@@ -22,9 +22,9 @@ import type { Authorized } from "../src/Authorized.ts";
 import type { EvaluationServices } from "../src/Evaluate.ts";
 import { permission } from "../src/Permission.ts";
 import { hasPermission } from "../src/Policy.ts";
-import type { EnforcementError } from "../src/Errors.ts";
+import type { EnforcementError, EvaluationError, UndischargedObligation } from "../src/Errors.ts";
 import type { EnforceOptions, LoadedEnforceOptions } from "../src/Qadi.ts";
-import { enforce, enforceLoaded, enforceProjectedLoaded, guard } from "../src/Qadi.ts";
+import { enforce, enforceLoaded, enforceProjectedLoaded, filterProjected, guard } from "../src/Qadi.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -82,8 +82,11 @@ declare const loadedOptions: LoadedEnforceOptions<ObligationError, ObligationReq
 declare const loaded: Effect.Effect<{ readonly id: string }, WrappedError, WrappedReq>;
 
 test("the loaded entry points refuse a second resource", () => {
-  expect(enforceProjectedLoaded(hasPermission(read), { resource: { id: "x" } })).type.toRaiseError();
-  expect(enforceLoaded(hasPermission(read), { resource: { id: "x" } })).type.toRaiseError();
+  expect(enforceProjectedLoaded).type.not.toBeCallableWith(hasPermission(read), {
+    resource: { id: "x" },
+  });
+  expect(enforceLoaded).type.not.toBeCallableWith(hasPermission(read), { resource: { id: "x" } });
+  expect(enforceLoaded).type.toBeCallableWith(hasPermission(read), {});
 });
 
 test("enforceProjectedLoaded returns Partial<A> and widens E and R like enforce", () => {
@@ -104,5 +107,17 @@ test("enforceLoaded returns A unchanged", () => {
   const rec = { id: "1", title: "T" };
   expect(Effect.succeed(rec).pipe(enforceLoaded(hasPermission(read)))).type.toBe<
     Effect.Effect<typeof rec, EnforcementError, EvaluationServices>
+  >();
+});
+
+test("filterProjected and filterStreamProjected return Partial<A>", () => {
+  const rec = { id: "1", title: "T" };
+  const items = [rec];
+  expect(filterProjected(hasPermission(read), items)).type.toBe<
+    Effect.Effect<
+      ReadonlyArray<Partial<typeof rec>>,
+      EvaluationError | UndischargedObligation,
+      EvaluationServices
+    >
   >();
 });

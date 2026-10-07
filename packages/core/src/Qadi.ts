@@ -12,12 +12,14 @@
  * `decide` and `check` report: they hand back an answer and run nothing, so an
  * obligation they cannot discharge is the caller's to read off the decision.
  * `assert`, `enforce`, `enforceProjected`, `enforceLoaded`,
- * `enforceProjectedLoaded`, `guard`, `filter` and `filterStream` enforce: each either runs work or hands over data, so each must refuse an
+ * `enforceProjectedLoaded`, `guard`, `filter`, `filterStream`, `filterProjected`
+ * and `filterStreamProjected` enforce: each either runs work or hands over data, so each must refuse an
  * allow whose obligation nobody has met (ADR-QD-019).
  */
 import * as Brand from "effect/Brand";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
+import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import type { Authorized } from "./Authorized.ts";
 import type { Allow, Decision } from "./Decision.ts";
@@ -390,10 +392,9 @@ export const guard =
       handler(Brand.nominal<Authorized<P>>()({ permission }), resource),
     );
 
-interface FilterVerdict<A> {
-  readonly item: A;
-  readonly allowed: boolean;
-}
+type FilterVerdict<A> =
+  | { readonly item: A; readonly allowed: false }
+  | { readonly item: A; readonly allowed: true; readonly decision: Allow };
 
 /**
  * Evaluates one item against `policy` and discharges its obligations if it
@@ -414,7 +415,11 @@ const decideOne = <A extends Resource, EO, RO>(
     evaluate(policy, { ...options, resource: item }),
     (decision): Effect.Effect<FilterVerdict<A>, UndischargedObligation | EO, RO> =>
       isAllowed(decision)
-        ? Effect.as(discharge(decision, options?.onObligations), { item, allowed: true })
+        ? Effect.as(discharge(decision, options?.onObligations), {
+            item,
+            allowed: true,
+            decision,
+          })
         : Effect.succeed({ item, allowed: false }),
   );
 
@@ -509,4 +514,67 @@ export const filterStream = <A extends Resource, E2 = never, R2 = never, EO = ne
     }),
     Stream.filter((r) => r.allowed),
     Stream.map((r) => r.item),
+  );
+
+/**
+ * Keeps only the elements a policy allows, each projected by its own decision.
+ *
+ * {@link filter} with field-level projection: every admitted item is the
+ * resource of its own evaluation, and comes back narrowed to the `visibleFields`
+ * of that evaluation's allow, so a field-restricting policy's withheld fields
+ * never reach the caller. Items are admitted, dropped, discharged and ordered
+ * exactly as `filter` does it — the two share `decideOne` and cannot disagree
+ * about who passes; only the shape of what an admitted item comes back as
+ * differs (BEH-QD-050).
+ */
+export const filterProjected = <A extends Resource, EO = never, RO = never>(
+  policy: Policy,
+  items: ReadonlyArray<A>,
+  options?: EnforceOptions<EO, RO>,
+): Effect.Effect<
+  ReadonlyArray<Partial<A>>,
+  EvaluationError | UndischargedObligation | EO,
+  EvaluationServices | RO
+> =>
+  Effect.map(
+    Effect.forEach(items, (item) => decideOne(policy, item, options), {
+      concurrency: options?.concurrency,
+    }),
+    (results) => {
+      const kept: Array<Partial<A>> = [];
+      for (const result of results) {
+        if (result.allowed) kept.push(project(result.decision, result.item));
+      }
+      return kept;
+    },
+  );
+
+/**
+ * The streamed sibling of {@link filterProjected}: admitted items, each
+ * projected by its own decision, as they are decided.
+ *
+ * Shares `decideOne` with `filterProjected` and `filter`, so all of them agree
+ * about who passes, and carries `filterStream`'s `options.concurrency` double
+ * duty for the same reason.
+ */
+export const filterStreamProjected = <
+  A extends Resource,
+  E2 = never,
+  R2 = never,
+  EO = never,
+  RO = never,
+>(
+  policy: Policy,
+  items: Stream.Stream<A, E2, R2>,
+  options?: EnforceOptions<EO, RO>,
+): Stream.Stream<
+  Partial<A>,
+  EvaluationError | UndischargedObligation | EO | E2,
+  EvaluationServices | RO | R2
+> =>
+  items.pipe(
+    Stream.mapEffect((item) => decideOne(policy, item, options), {
+      concurrency: options?.concurrency,
+    }),
+    Stream.filterMap((r) => (r.allowed ? Result.succeed(project(r.decision, r.item)) : Result.failVoid)),
   );
