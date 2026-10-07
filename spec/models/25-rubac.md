@@ -63,7 +63,7 @@ wins over the sibling that allowed".
 | `Rules` | the policy union, eleventh variant of fourteen |
 | `Rule`, `RuleEffect`, `Combining` | `Policy.ts` |
 | `rules`, `permitWhen`, `denyWhen` | the constructors |
-| `evaluateRules` | `Evaluate.ts`, beside `evaluateAllOf` and `evaluateAnyOf` |
+| `evaluateRules` | `Walk.ts`, beside `evaluateAllOf` and `evaluateAnyOf` |
 | a `reason` on an *allowing* trace node | `Decision.ts` — the first in the library |
 
 ## The shape it took

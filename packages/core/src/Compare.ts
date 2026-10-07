@@ -6,7 +6,7 @@
  * `judgeMatcher`/`evaluateMatcher` (`Matcher.ts`) for a matcher against a
  * resolved value, `evaluatePredicate` (`Predicate.ts`) for a predicate leaf
  * against a row, the renderable classifier (`RenderablePredicate.ts`) through
- * `evaluatePredicate`, and the evaluator's denial reason (`Evaluate.ts`) through
+ * `evaluatePredicate`, and the evaluator's denial reason (`Walk.ts`) through
  * the `Verdict` itself.
  *
  * Before this module the same rules lived in three hand-kept copies, each with

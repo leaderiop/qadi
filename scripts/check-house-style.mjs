@@ -286,7 +286,7 @@ const SWITCH_BUDGET = {
   // `evaluateNode` on `policy._tag`. (`mergeFields` on the `FieldStrategy`
   // literal union was the second until ARCH-12 replaced it with
   // `FieldLattice.ts`'s own-property law table, measured first: ADR-QD-092.)
-  "packages/core/src/Evaluate.ts": 1,
+  "packages/core/src/Walk.ts": 1,
   // `judgeMatcher` on `self._tag` (it hosted in `evaluateMatcher` until
   // ARCH-08 T8, which made `evaluateMatcher` its one-line adapter), and
   // `resolveRef` on `ref._tag`.
@@ -305,7 +305,7 @@ const SWITCH = /\bswitch\s*\(/;
  * @type {Readonly<Record<string, ReadonlyArray<string>>>}
  */
 const SWITCH_BUDGET_NAMES = {
-  "packages/core/src/Evaluate.ts": ["evaluateNode"],
+  "packages/core/src/Walk.ts": ["evaluateNode"],
   "packages/core/src/Matcher.ts": ["judgeMatcher", "resolveRef"],
 };
 
@@ -350,7 +350,7 @@ const HAS_CUSTOM_EXEMPT_PREFIXES = ["packages/core/src/", "packages/testing/src/
  * ≈2.7–2.9 µs/call more (a second `Error()` capture, a span allocation, a
  * `CurrentStackFrame` record) than the untraced one, and issue #102 spent
  * that saving on exactly three per-policy-node dispatch functions in
- * `Evaluate.ts` — `evaluateAllOf`, `evaluateAnyOf`, `evaluateRules` — after
+ * `Evaluate.ts` (now `Walk.ts`, ARCH-16) — `evaluateAllOf`, `evaluateAnyOf`, `evaluateRules` — after
  * confirming with `Evaluate.bench.ts` that the end-to-end improvement actually
  * shows up, not just the isolated per-call number — see AGENTS.md §5's table
  * for the current per-workload figures rather than a number restated here,
@@ -371,8 +371,8 @@ const HAS_CUSTOM_EXEMPT_PREFIXES = ["packages/core/src/", "packages/testing/src/
  */
 const UNTRACED_BUDGET = {
   // evaluateAllOf, evaluateAnyOf, evaluateRules — see the doc comment above
-  // each in Evaluate.ts.
-  "packages/core/src/Evaluate.ts": 3,
+  // each in Walk.ts (moved there from Evaluate.ts by ARCH-16).
+  "packages/core/src/Walk.ts": 3,
 };
 
 const UNTRACED_CALL = /\bEffect\.fnUntraced\s*\(/;
@@ -385,7 +385,7 @@ const UNTRACED_CALL = /\bEffect\.fnUntraced\s*\(/;
  * @type {Readonly<Record<string, ReadonlyArray<string>>>}
  */
 const UNTRACED_BUDGET_NAMES = {
-  "packages/core/src/Evaluate.ts": ["evaluateAllOf", "evaluateAnyOf", "evaluateRules"],
+  "packages/core/src/Walk.ts": ["evaluateAllOf", "evaluateAnyOf", "evaluateRules"],
 };
 
 /**
@@ -470,6 +470,20 @@ const SCHEMA_TAGGED_ERROR = /\bextends\s+Schema\.TaggedError\b/;
  *
  * @type {Readonly<Record<string, number>>}
  */
+const SINK_READ = /serviceOption\(\s*DecisionSink\s*\)/;
+
+/**
+ * The files allowed to read `DecisionSink` with `serviceOption`, by exact
+ * count (INV-QD-035, ARCH-16): the one emitter, and devtools' wiring report,
+ * which only learns whether a sink is present and never emits.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const SINK_READ_ALLOWED = {
+  "packages/core/src/SinkEmit.ts": 1,
+  "packages/devtools/src/model/Wiring.ts": 1,
+};
+
 const DECISION_READ_BUDGET = {
   // `outcomeOf`'s `AsyncResult.isInitial(` and `result.waiting` — the read itself.
   "packages/react/src/DecisionOutcome.ts": 2,
@@ -710,6 +724,7 @@ const schemaErrorLines = new Map();
 
 /** @type {Map<string, number[]>} */
 const decisionReadLines = new Map();
+const sinkReadLines = new Map();
 const portDoubleLines = new Map();
 
 for (const file of sources) {
@@ -832,6 +847,14 @@ for (const file of sources) {
         for (let i = 0; i < matches.length; i += 1) found.push(index + 1);
         decisionReadLines.set(rel, found);
       }
+    }
+    // Library source only: the sink is read in one place (`SinkEmit.ts`), so
+    // "an observer can never deny" (INV-QD-035) has locality. A presence read
+    // for reporting, not an emission, is allowlisted by file.
+    if (!isTestFile && rel.startsWith("packages/") && SINK_READ.test(line)) {
+      const found = sinkReadLines.get(rel) ?? [];
+      found.push(index + 1);
+      sinkReadLines.set(rel, found);
     }
     // Test-scope only, unlike every budget above: PORT_DOUBLE_BUDGET is about
     // how tests describe a broken port, and shipped source constructs these
@@ -1078,6 +1101,33 @@ for (const [rel, found] of schemaErrorLines) {
       `    Add it to SCHEMA_ERROR_BUDGET in scripts/check-house-style.mjs and AGENTS.md §4's table, ` +
       `naming which boundary it crosses — a conscious, reviewed opt-in, not a silent grep hit.`,
   );
+}
+
+// ---------------------------------------------------------------------------
+// INV-QD-035 / ADR-QD-044 / ARCH-16 — the DecisionSink is read once, by
+// `SinkEmit.ts`'s `sinkEmitter`, which carries the guard that stops a sink
+// from denying. A second read is a second copy of that guard to forget.
+// Checked in both directions: `SinkEmit.ts` must hold exactly one.
+// ---------------------------------------------------------------------------
+
+for (const [rel, found] of sinkReadLines) {
+  if (rel in SINK_READ_ALLOWED) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [sink-read-once] serviceOption(DecisionSink) outside SinkEmit.ts.\n` +
+      `    Emit through sinkEmitter (packages/core/src/SinkEmit.ts) so an observer can never deny (INV-QD-035).`,
+  );
+}
+
+for (const [rel, count] of Object.entries(SINK_READ_ALLOWED)) {
+  const found = sinkReadLines.get(rel) ?? [];
+  if (found.length !== count) {
+    failures += 1;
+    console.error(
+      `${rel}  [sink-read-once] declares ${count} DecisionSink read(s), found ${found.length}.\n` +
+        `    Update SINK_READ_ALLOWED in scripts/check-house-style.mjs so it agrees with the code.`,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

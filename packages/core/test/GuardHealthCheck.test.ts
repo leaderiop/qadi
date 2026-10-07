@@ -1,13 +1,20 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Metric from "effect/Metric";
+import type * as Tracer from "effect/Tracer";
 import * as TestClock from "effect/testing/TestClock";
 import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolver.ts";
+import { currentSubjectLayer } from "../src/CurrentSubject.ts";
+import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import { createGuardHealthCheck } from "../src/GuardHealthCheck.ts";
 import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { subjectWith, testLayer } from "./helpers.ts";
+import type { SinkRecord } from "../src/DecisionRecord.ts";
+import { DecisionSink } from "../src/DecisionSink.ts";
+import { portsLayer } from "../src/Ports.ts";
+import { collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
 
@@ -73,4 +80,98 @@ describe("createGuardHealthCheck", () => {
       }).pipe(Effect.provide(testLayer(subjectWith({}), { AttributeResolver: dying })));
     },
   );
+  describe("with a decision cache wired", () => {
+    // `getOrCompute` serves a completed success forever (ADR-QD-031 rejects a
+    // TTL), so a probe that went through `decide` was a constant after the
+    // first call. The probe now walks the policy and never consults the cache.
+    const flakyPort = () => {
+      let n = 0;
+      return scriptedPort(attributeResolverPort, () =>
+        n++ === 0 ? PortReply.answer("pro") : PortReply.fail("down"),
+      );
+    };
+    const policy = P.hasAttribute("plan", M.eq(M.literal("pro")));
+
+    it.effect("a probe after the store goes down reports unhealthy, not a cached allow", () => {
+      const flaky = flakyPort();
+      return Effect.gen(function* () {
+        const first = yield* createGuardHealthCheck(policy);
+        const second = yield* createGuardHealthCheck(policy);
+        assert.isTrue(first.healthy);
+        assert.isFalse(second.healthy);
+        assert.deepStrictEqual(second.errors, ["AttributeResolveError"]);
+        assert.strictEqual(flaky.calls.length, 2);
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({}), { AttributeResolver: flaky.layer }),
+            decisionCacheLayer(),
+          ),
+        ),
+      );
+    });
+
+    it.effect("control: without a cache the second probe is unhealthy", () => {
+      const flaky = flakyPort();
+      return Effect.gen(function* () {
+        yield* createGuardHealthCheck(policy);
+        const second = yield* createGuardHealthCheck(policy);
+        assert.isFalse(second.healthy);
+        assert.strictEqual(flaky.calls.length, 2);
+      }).pipe(
+        Effect.provide(testLayer(subjectWith({}), { AttributeResolver: flaky.layer })),
+      );
+    });
+
+    it.effect("a probe records nothing and fills no cache entry", () => {
+      const records: Array<SinkRecord> = [];
+      const sink = Layer.succeed(DecisionSink, {
+        record: (record) => Effect.sync(() => void records.push(record)),
+      });
+      return Effect.gen(function* () {
+        yield* createGuardHealthCheck(canRead);
+        yield* createGuardHealthCheck(P.not(canRead));
+        assert.strictEqual(records.length, 0);
+        assert.strictEqual(yield* DecisionCache.use((c) => c.size), 0);
+      }).pipe(
+        Effect.provide(Layer.mergeAll(testLayer(subjectWith({})), decisionCacheLayer(), sink)),
+      );
+    });
+
+    it.effect("a probe counts no decisions", () =>
+      isolatedMetrics(
+        Effect.gen(function* () {
+          yield* createGuardHealthCheck(canRead);
+          yield* createGuardHealthCheck(canRead);
+          const snapshots = yield* Metric.snapshot;
+          assert.isUndefined(snapshots.find((m) => m.id === "qadi_decisions_total"));
+        }),
+      ).pipe(Effect.provide(testLayer(subjectWith({})))));
+  });
+
+  it.effect("a probe needs no evaluation id", () =>
+    Effect.gen(function* () {
+      // No `evaluationIdSequential()`: the requirement is `CurrentSubject | PortServices`.
+      const result = yield* createGuardHealthCheck(canRead);
+      assert.isTrue(result.healthy);
+    }).pipe(Effect.provide(Layer.mergeAll(currentSubjectLayer(subjectWith({})), portsLayer()))));
+
+  it.effect("the probe span says whether it was healthy", () => {
+    const spans: Array<Tracer.Span> = [];
+    const down = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
+    return Effect.gen(function* () {
+      yield* createGuardHealthCheck(P.hasAttribute("plan", M.eq(M.literal("pro"))));
+      const probe = spans.find((s) => s.name === "qadi.guardHealthCheck");
+      assert.strictEqual(probe?.attributes.get("qadi.healthy"), false);
+      assert.strictEqual(probe?.attributes.get("qadi.error_tag"), "AttributeResolveError");
+      assert.isUndefined(spans.find((s) => s.name === "qadi.evaluate"));
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          testLayer(subjectWith({}), { AttributeResolver: down }),
+          collectingTracer(spans),
+        ),
+      ),
+    );
+  });
 });

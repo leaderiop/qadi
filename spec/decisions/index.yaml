@@ -322,3 +322,7 @@ entries:
     file: "099-entry-points-are-a-closed-list.md"
     title: "A package's entry points are a closed list: out of the barrel means not importable"
     status: "Accepted — amends ADR-QD-033, ADR-QD-090, ADR-QD-091"
+  - id: "ADR-QD-100"
+    file: "100-a-question-is-asked-once.md"
+    title: "A question is asked once: one request value, an internal walk, a probe that is not a decision"
+    status: "Accepted — amends ADR-QD-031, ADR-QD-044, ADR-QD-073"

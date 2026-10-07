@@ -31,6 +31,7 @@ export * from "./Ports.ts";
 export * from "./Predicate.ts";
 export * from "./PredicateLiteral.ts";
 export * from "./Qadi.ts";
+export * from "./Question.ts";
 export * from "./RelationshipResolver.ts";
 export * from "./RenderablePredicate.ts";
 export * from "./Resource.ts";

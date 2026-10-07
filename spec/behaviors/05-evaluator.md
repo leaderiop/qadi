@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-05                                    |
-> | Revision       | 1.8                                            |
-> | Effective Date | 2026-10-04                                     |
+> | Revision       | 1.9                                            |
+> | Effective Date | 2026-10-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.8 (2026-10-05): BEH-QD-035 — the stop rule reads the field lattice's `decidedByFirst` law; a strategy outside the union, prototype keys included, never stops early (ADR-QD-092, CCR-QD-174)<br>1.7 (2026-10-04): BEH-QD-038 — nesting depth is judged on the policy before any node is visited, matcher nesting counts, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-261 — scope sentence: the conversion lives in `PortAccess.ts` and applies to every port read core makes, `toPredicate`'s included (BEH-QD-264); the requirement text for `evaluate` is unchanged (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-09): BEH-QD-261 — the five bare `yield*` port calls (`AttributeResolver.resolve`, `DecisionHistory.hasActed`, `RelationshipResolver.check`, `CustomPredicate.evaluate`, `SignatureHistory.signaturesFor`) now each convert a defecting implementation into their own typed `EvaluationError`, joining the four `EvaluationError` tags (`MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep`) that were already synchronous and so never at risk of dying — so a caller's `Effect.retry` around `evaluate` now sees a retryable failure at all nine tags, not just those four (issue #100, CCR-QD-142)<br>1.4 (2026-09-07): BEH-QD-033's `evaluate` signature corrected — the requirement channel omitted `CustomPredicate`/`SignatureHistory`, both joined by CCR-QD-082/CCR-QD-089 (CCR-QD-110)<br>1.3 (2026-07-26): `DecisionHistory` joins `EvaluationServices` (CCR-QD-016)<br>1.2 (2026-07-26): `Trace.obligations` (CCR-QD-015)<br>1.1 (2026-07-26): Missing-action rule cross-referenced (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.9 (2026-10-07): BEH-QD-033 — the interpreter is the internal `walk`, `evaluate` the only public path to a decision; BEH-QD-317 added, a readiness probe asks the ports every time (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-05): BEH-QD-035 — the stop rule reads the field lattice's `decidedByFirst` law; a strategy outside the union, prototype keys included, never stops early (ADR-QD-092, CCR-QD-174)<br>1.7 (2026-10-04): BEH-QD-038 — nesting depth is judged on the policy before any node is visited, matcher nesting counts, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-261 — scope sentence: the conversion lives in `PortAccess.ts` and applies to every port read core makes, `toPredicate`'s included (BEH-QD-264); the requirement text for `evaluate` is unchanged (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-09): BEH-QD-261 — the five bare `yield*` port calls (`AttributeResolver.resolve`, `DecisionHistory.hasActed`, `RelationshipResolver.check`, `CustomPredicate.evaluate`, `SignatureHistory.signaturesFor`) now each convert a defecting implementation into their own typed `EvaluationError`, joining the four `EvaluationError` tags (`MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep`) that were already synchronous and so never at risk of dying — so a caller's `Effect.retry` around `evaluate` now sees a retryable failure at all nine tags, not just those four (issue #100, CCR-QD-142)<br>1.4 (2026-09-07): BEH-QD-033's `evaluate` signature corrected — the requirement channel omitted `CustomPredicate`/`SignatureHistory`, both joined by CCR-QD-082/CCR-QD-089 (CCR-QD-110)<br>1.3 (2026-07-26): `DecisionHistory` joins `EvaluationServices` (CCR-QD-016)<br>1.2 (2026-07-26): `Trace.obligations` (CCR-QD-015)<br>1.1 (2026-07-26): Missing-action rule cross-referenced (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -41,6 +41,10 @@ REQUIREMENT: There MUST be exactly one evaluator. A separate synchronous path
              is what rendered the predecessor's asynchronous relationship API
              unreachable.
 ```
+
+The interpreter is `walk` (`Walk.ts`, internal, not in the barrel). It decides
+without an id, a record or a metric, so `evaluate` is the only public path to a
+decision; `evaluate` is the lifecycle around it ([ADR-QD-100](../decisions/100-a-question-is-asked-once.md)).
 
 ## BEH-QD-034: Lazy attribute resolution
 
@@ -238,6 +242,34 @@ Each port's `Shape` interface documents this as part of its own contract —
 `AttributeResolverShape.resolve`'s doc comment states it first, and the other
 four cross-reference it — so an implementer reads the guarantee at the method
 they are writing, not only here.
+
+## BEH-QD-317: A readiness probe asks the ports every time
+
+> **Invariant:** [INV-QD-102](../invariants.md#inv-qd-102-a-probes-verdict-on-port-health-is-never-served-from-a-cache)
+> **See:** [ADR-QD-100](../decisions/100-a-question-is-asked-once.md)
+
+```
+REQUIREMENT: `createGuardHealthCheck` MUST consult the wired ports on every call,
+             whatever `DecisionCache` is wired. It MUST NOT emit a `SinkRecord`
+             and MUST NOT update `qadi_decisions_total`. It MUST require only
+             `CurrentSubject` and the ports.
+```
+
+```typescript
+import * as Effect from "effect/Effect";
+import { createGuardHealthCheck, decisionCacheLayer, hasRole } from "@qadi/core";
+
+// With a cache wired, both probes still reach the ports.
+export const probeTwice = Effect.gen(function* () {
+  const first = yield* createGuardHealthCheck(hasRole("canary"));
+  const second = yield* createGuardHealthCheck(hasRole("canary"));
+  return [first.healthy, second.healthy] as const;
+}).pipe(Effect.provide(decisionCacheLayer()));
+```
+
+A probe answers "do the wired ports answer?", which is not an authorization
+decision. Its `qadi.guardHealthCheck` span carries `qadi.healthy` and, when
+unhealthy, `qadi.error_tag`.
 
 ---
 

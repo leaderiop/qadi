@@ -1,16 +1,22 @@
 /**
- * A readiness probe for the guard machinery: runs a canary policy through the
- * wired `EvaluationServices` and reports whether it evaluated cleanly.
+ * A readiness probe for the guard machinery: asks the wired ports a canary
+ * question and reports whether they answered.
  *
  * Unlike HexDi's `createGuardHealthCheck` (`libs/guard/core/src/guard/guard.ts`,
  * researched as this feature's precedent), which probes a single required
  * port (`AuditTrailPort`), Qadi has no single analogous required port —
- * `EvaluationServices` bundles seven, and every one carries a fail-closed
+ * `PortServices` bundles five, and every one carries a fail-closed
  * default that answers cleanly even when nothing real is wired
  * (INV-QD-007), so "nothing configured" is never itself unhealthy. A canary
- * evaluation exercises whichever ports are actually configured in one pass;
+ * walk exercises whichever ports are actually configured in one pass;
  * a typed `EvaluationError` escaping it — a resolver genuinely unreachable,
  * rather than one answering "I don't know" — is the unhealthy signal.
+ *
+ * It walks the policy rather than deciding it (ARCH-16, ADR-QD-100). Going
+ * through `decide` served every probe after the first from the `DecisionCache`
+ * — which has no TTL and keeps successes — so a probe reported healthy while
+ * the store was down; it also wrote a `DecisionRecord`, bumped the decision
+ * metrics and minted an evaluation id per poll, none of which a probe is.
  *
  * The canary policy, and `options.resource` where relevant, are the
  * caller's to choose: only the caller knows a policy cheap and
@@ -22,8 +28,10 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
 import type { EvaluateOptions } from "./Evaluate.ts";
+import { CurrentSubject } from "./CurrentSubject.ts";
 import type { Policy } from "./Policy.ts";
-import { decide } from "./Qadi.ts";
+import { questionOf } from "./Question.ts";
+import { walk } from "./Walk.ts";
 
 /** What a guard health check found. */
 export interface GuardHealthCheckResult {
@@ -42,7 +50,12 @@ export interface GuardHealthCheckResult {
 }
 
 /**
- * Runs `canaryPolicy` through `EvaluationServices` and reports the result.
+ * Walks `canaryPolicy` against the wired ports and reports the result.
+ *
+ * Requires only `CurrentSubject` and the ports. `options.evaluationId` is
+ * accepted and ignored (a probe has no id); `concurrency` is honoured.
+ * The `qadi.guardHealthCheck` span carries `qadi.healthy` and, when
+ * unhealthy, `qadi.error_tag`, so a tracer still sees a failed probe.
  *
  * Never fails: a typed `EvaluationError` from the probed evaluation is
  * captured into the result rather than propagated — a health check that
@@ -53,16 +66,16 @@ export interface GuardHealthCheckResult {
  * captured, but a **defect** (a resolver's own implementation throwing
  * rather than failing with a typed error) was said to be left uncaught here,
  * propagating and failing this Effect outright. That was true only because
- * `Evaluate.ts` itself had the same gap — the defect reached this function
+ * the evaluator itself had the same gap — the defect reached this function
  * because nothing between the resolver and here had converted it. Now that
- * `Evaluate.ts`'s five port calls each catch a defect and convert it into
+ * `PortAccess.ts`'s five port calls each catch a defect and convert it into
  * that port's own typed error (`AttributeResolveError` and its four
  * siblings), a dying port is a typed `EvaluationError` by the time it
  * reaches `Effect.result` below, same as one that failed cleanly — so this
  * function reports it as `healthy: false`, not a crashed probe. That is
  * strictly better for a health check: an operator polling this now learns
  * "the resolver is broken" instead of the probe itself dying, with no
- * change needed here to get it. A defect from something `Evaluate.ts` does
+ * change needed here to get it. A defect from something the walk does
  * not wrap (a bug in this library's own evaluation logic, say, rather than
  * in a port implementation) is not converted by anything and still
  * propagates — that half of the original claim stands, narrowed to what it
@@ -82,8 +95,16 @@ export const createGuardHealthCheck = Effect.fn("qadi.guardHealthCheck")(functio
   canaryPolicy: Policy,
   options?: EvaluateOptions,
 ) {
+  const subject = yield* CurrentSubject;
   const checkedAt = yield* Clock.currentTimeMillis;
-  const [elapsed, result] = yield* Effect.timed(Effect.result(decide(canaryPolicy, options)));
+  const [elapsed, result] = yield* Effect.timed(
+    Effect.result(walk(questionOf(subject, canaryPolicy, options), options?.concurrency)),
+  );
+  yield* Effect.annotateCurrentSpan(
+    Result.isSuccess(result)
+      ? { "qadi.healthy": true }
+      : { "qadi.healthy": false, "qadi.error_tag": result.failure._tag },
+  );
 
   return {
     healthy: Result.isSuccess(result),

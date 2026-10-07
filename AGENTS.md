@@ -256,16 +256,16 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (policy: Policy) {
 
 `Effect.gen` to construct; `.pipe` for the error/retry tail of a single expression.
 
-**Three exceptions, measured and budgeted** (ADR-QD-073). `Effect.fnUntraced`
+**Three exceptions, measured and budgeted** (ADR-QD-073; moved from `Evaluate.ts` to `Walk.ts` by ADR-QD-100). `Effect.fnUntraced`
 replaces `Effect.fn(name)` on exactly the composite-dispatch functions below —
 the same discipline §5a's `SWITCH_BUDGET` applies to `switch`: an exact,
 enforced list rather than a convention left to be remembered.
 
 | Location | Why untraced |
 | -------- | ------------ |
-| `Evaluate.ts` — `evaluateAllOf` | Runs once per `AllOf` node, every evaluation. |
-| `Evaluate.ts` — `evaluateAnyOf` | Runs once per `AnyOf` node, every evaluation. |
-| `Evaluate.ts` — `evaluateRules` | Runs once per `Rules` node, every evaluation. |
+| `Walk.ts` — `evaluateAllOf` | Runs once per `AllOf` node, every evaluation. |
+| `Walk.ts` — `evaluateAnyOf` | Runs once per `AnyOf` node, every evaluation. |
+| `Walk.ts` — `evaluateRules` | Runs once per `Rules` node, every evaluation. |
 
 Ticket #101's `packages/core/bench/EffectFn.bench.ts` measured what a *named*
 `Effect.fn(name)(...)` call adds over `Effect.fnUntraced` on this exact call
@@ -293,6 +293,8 @@ machine variance. The rest land close to, or (on `deep`) better than,
 ticket #101's own end-to-end estimate (≈30–43% single-combinator, ≈54–66%
 ten-level-deep) — real, not merely predicted.
 
+`walk` (`Walk.ts`) is a plain function returning `Effect.suspend`, neither traced nor in the budget: it runs once per evaluation and the root span is `evaluate`'s.
+
 The boundary stops exactly at these three. The port reads in `PortAccess.ts` —
 `readAttribute` (and the `resolveAttribute` span under it), `askActedAny`,
 `askActedForResource`, `askRelationship`, `askCustom`, `askSignature` — and the
@@ -301,7 +303,7 @@ asked, and a tracer is what reads it back") treats those spans as product
 observability a deployment wires a real tracer to consume, not incidental cost,
 and none of them runs once per policy *node* the way the three above do. (They
 moved there from `Evaluate.ts` in ADR-QD-077 so that `toPredicate` reads its
-ports the same way; `Evaluate.ts`'s `evaluateActed` family are now plain
+ports the same way; `Walk.ts`'s `evaluateActed` family are now plain
 functions that turn an answer into a verdict.) `requireScopedResourceId`, now
 `requireResourceId` in `PortAccess.ts`, is a small helper called from inside the
 acted and signature reads, not a per-node dispatch point, and was considered and
@@ -358,7 +360,7 @@ file and its exact count, and gate 4 fails on any deviation.
 
 | Location | Dispatches on |
 | -------- | ------------- |
-| `Evaluate.ts` — `evaluateNode` | `policy._tag` |
+| `Walk.ts` — `evaluateNode` | `policy._tag` |
 | `Matcher.ts` — `judgeMatcher` | `self._tag` |
 | `Matcher.ts` — `resolveRef` | `ref._tag` |
 

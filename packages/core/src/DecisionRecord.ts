@@ -89,7 +89,7 @@ export class DecisionRecord extends Data.TaggedClass("Decision")<{
    * and whatever this resource carries — potentially customer data — travels
    * to whatever that sink forwards to, in full. `policy` above discloses
    * every other rule in the deployment for the same reason. Denial reasons
-   * (`Evaluate.ts`'s `attributeReason`) deliberately withhold attribute
+   * (`Walk.ts`'s `attributeReason`) deliberately withhold attribute
    * values by contrast; this field does not have an equivalent restraint.
    * A `DecisionSink` implementation that forwards outside a trust boundary
    * as controlled as the enforcement path itself is the caller's own

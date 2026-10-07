@@ -72,7 +72,7 @@ export interface RelationshipCheck {
  * default — is the common source, but not the only one: a wired resolver may
  * answer it too, for a relation it has genuinely no answer for (a graph store
  * with no namespace for this relation, say). The port cannot tell the two
- * apart, which is why `evaluateHasRelationship` (`Evaluate.ts`, over
+ * apart, which is why `evaluateHasRelationship` (`Walk.ts`, over
  * `PortAccess.ts`'s `askRelationship`) does not name wiring as the cause in the denial it produces (BEH-QD-045) — doing so would
  * assert a fact about a store INV-QD-029 forbids asserting without having
  * consulted it. A resolver that is wired and unreachable is a

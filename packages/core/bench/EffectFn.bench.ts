@@ -36,7 +36,7 @@
  *
  * The composite/`allOf`/`anyOf`/`rules` evaluation spans this ticket exists to
  * measure are exactly the shape above: `evaluateAllOf`, `evaluateAnyOf`,
- * `evaluateRules` and `evaluate` itself (`Evaluate.ts`) are each a *named*
+ * `evaluateRules` and `evaluate` itself (`Evaluate.ts`; the three untraced ones are in `Walk.ts`) are each a *named*
  * `Effect.fn`, so each one pays the per-call cost on every policy node that
  * reaches it. `evaluateNode` is deliberately a plain `switch`, not wrapped at
  * all (§5a) — the wrapping happens once per *combinator* node, not once per

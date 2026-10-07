@@ -33,7 +33,7 @@ import { foldTree } from "./TreeFold.ts";
 
 /**
  * The default recursion bound for walking a `Policy` tree, shared by both
- * interpreters — `Evaluate.ts`'s `evaluateNode` and `Predicate.ts`'s
+ * interpreters — `Walk.ts`'s `evaluateNode` and `Predicate.ts`'s
  * `compile` — rather than each declaring its own copy of the same
  * literal. `Predicate.ts`'s own header comment calls "the two interpreters
  * must agree" load-bearing (INV-QD-018); a `maxDepth` default that could
