@@ -71,7 +71,7 @@ const BARREL = /^export \* from "\.\/([^"]+)"/;
  * Understood rather than rejected, because the names are on the line — no module
  * resolution is needed to know what this adds to the surface. The form appears
  * where a module is deliberately out of the barrel and only its types are public
- * (`HydrationWarning.ts`, whose ambient-global boundary is not a public surface).
+ * (`DeveloperSignals.ts`, whose ambient-global boundary is not a public surface).
  *
  * The `from` clause is required. `export { foo }` with no source is a different
  * thing — it can publish a locally-declared name that carries no `export`

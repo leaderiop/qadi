@@ -22,14 +22,14 @@ import type { AuthSubject } from "@qadi/core";
 import { countDropped } from "./HydrationCounts.ts";
 import type { DecisionEntry, DehydratedDecisions, HydrateOptions, InitialValues } from "./HydrationEngine.ts";
 import { dehydratedPayload, dehydrateEntry } from "./HydrationEngine.ts";
-import { droppedEntriesReporter } from "./HydrationWarning.ts";
+import { droppedEntriesReporter } from "./DeveloperSignals.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
 
-// Named explicitly rather than reached through the barrel: `HydrationWarning.ts`
+// Named explicitly rather than reached through the barrel: `DeveloperSignals.ts`
 // and `HydrationEngine.ts` stay out of it (AGENTS.md §9), and `.d.ts` emission has
 // to be able to name what `HydrateOptions` refers to (TS2883). The same re-export
 // `QadiAtoms.ts` makes for `HydrationMismatch`, for the same reason.
-export type { HydrationDrop, HydrationDropReporter } from "./HydrationWarning.ts";
+export type { HydrationDrop, HydrationDropReporter } from "./DeveloperSignals.ts";
 export type { DecisionEntry, DehydratedDecisions, DehydratedEntry } from "./HydrationEngine.ts";
 export type { HydrateOptions } from "./HydrationEngine.ts";
 export type { AllowDisclosure, ClientDecision, DenyDisclosure } from "./SeededDecision.ts";

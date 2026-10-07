@@ -39,7 +39,8 @@ import {
 import type { GateRegistry } from "./GateRegistry.ts";
 import { gateWriterFor } from "./GateWriter.ts";
 import type { InitialValues } from "./HydrationEngine.ts";
-import { isDevelopment } from "./HydrationWarning.ts";
+import { isDevelopment, providerSignalReporter, providerSignals } from "./DeveloperSignals.ts";
+import type { ProviderSignal, ProviderSignalReporter } from "./DeveloperSignals.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
 
 export interface QadiContextValue {
@@ -62,37 +63,6 @@ export interface QadiContextValue {
 }
 
 const QadiContext = createContext<QadiContextValue | null>(null);
-
-/**
- * Whether the production-instrumentation warning below has already fired.
- *
- * Module scope, not per-provider: several `QadiProvider`s can share one
- * process, and the point is a single signal that instrumentation reached a
- * production bundle at all, not one line per provider instance.
- */
-let warnedInstrumentedInProduction = false;
-
-/**
- * Warns once when `instrument` is `true` outside development.
- *
- * `instrument` guards a debug affordance that hands any script on the page a
- * list of what the current user may and may not do (`QadiProviderProps.instrument`'s
- * own doc comment). Every other prod-visible conditional in this codebase says
- * so out loud — `isDevelopment()` gates `HydrationWarning.ts`'s console warnings,
- * and `permissionRegistryRouteUnguarded` logs per request in `@qadi/http` — and
- * this one did not, so a build that accidentally ships `instrument` had nothing
- * naming the leak.
- */
-const warnInstrumentedInProduction = (): void => {
-  if (warnedInstrumentedInProduction) return;
-  warnedInstrumentedInProduction = true;
-  console.warn(
-    "[qadi] <QadiProvider instrument> is true outside development. This is a debug " +
-      "affordance: it registers every guarded control's policy, resource and verdict " +
-      "for @qadi/devtools, readable by any script on the page. Pass instrument only in " +
-      "development, or gate it the way you gate the devtools dock itself.",
-  );
-};
 
 /** Raised when a hook is used outside a provider. */
 export class MissingQadiProviderError extends Error {
@@ -149,6 +119,10 @@ export const useAtomValue: <A>(atom: Atom.Atom<A>) => A = useLibraryAtomValue;
 // file (a type-only import still counts as a madge cycle, ADR-QD-037); its
 // public home is unchanged.
 export type { InitialValues } from "./HydrationEngine.ts";
+
+// Declared in `DeveloperSignals.ts`, the one module that writes to the console;
+// its public types are named here, which is the form gate 13 reads.
+export type { ProviderSignal, ProviderSignalReporter } from "./DeveloperSignals.ts";
 
 /**
  * The default for {@link QadiProviderProps.sweepIntervalMillis}.
@@ -223,6 +197,24 @@ export interface QadiProviderProps {
    * which is redundant but harmless — `sweepEvictions` is idempotent.
    */
   readonly sweepIntervalMillis?: number;
+  /**
+   * Told what this provider detects, in place of its console warnings.
+   *
+   * Three situations: `InstrumentedInProduction` (`instrument` is `true`
+   * outside development), `AtomsReplaced` (the `atoms` prop changed identity
+   * after mount) and `UnwritableGateRegistry` (`instrument` is on and `gates`
+   * was not built by `makeGateRegistry()`). Each arrives as `{ _tag }`.
+   *
+   * Supplying this replaces the development-mode console default for all three
+   * and runs in production, exactly as `onHydrationMismatch` and
+   * `onGateIdCollision` do, so a host can route them to telemetry. It is read
+   * through a ref, so an inline callback does not re-run anything.
+   *
+   * `InstrumentedInProduction` is told once per provider mount. Without a
+   * reporter its console line appears once per process, however many providers
+   * mount.
+   */
+  readonly onDeveloperSignal?: ProviderSignalReporter;
   readonly children: ReactNode;
 }
 
@@ -240,9 +232,17 @@ export const QadiProvider = ({
   instrument = false,
   gates: gatesProp,
   sweepIntervalMillis = DEFAULT_SWEEP_INTERVAL_MILLIS,
+  onDeveloperSignal,
   children,
 }: QadiProviderProps): ReactNode => {
   const gates = gatesProp ?? atoms.gates;
+  // Read through a ref, never a dependency: a reporter written inline changes
+  // identity every render, and none of the effects below should re-run for it.
+  const signalRef = useRef(onDeveloperSignal);
+  signalRef.current = onDeveloperSignal;
+  const report = (signal: ProviderSignal): void => {
+    providerSignalReporter(signalRef.current)(signal);
+  };
   // The subject is seeded at registry construction rather than written in an
   // effect, so the first render already has it. Writing it afterwards would
   // show every guarded control in its pending state for one frame.
@@ -262,20 +262,13 @@ export const QadiProvider = ({
   // `initialValues` are never seeded, and decisions evaluated against the
   // previous atom set stay cached until this provider unmounts. Warned in
   // development only — this is an invariant announced, not an assumption
-  // remembered, matching this file's own `warnInstrumentedInProduction`
-  // precedent for a rule nothing else here enforces (DA-06).
+  // remembered, matching the instrumentation signal's precedent for a rule
+  // nothing else here enforces (DA-06). Detected in any environment and
+  // reported through `DeveloperSignals.ts`, whose default speaks only in
+  // development while a supplied reporter hears it in production too.
   const atomsIdentityRef = useRef(atoms);
   useEffect(() => {
-    if (isDevelopment() && atomsIdentityRef.current !== atoms) {
-      console.warn(
-        "[qadi] <QadiProvider>'s `atoms` prop changed identity after mount. " +
-          "makeQadiAtoms() must be called once per context, at module scope " +
-          "(or memoised) — this provider's registry is not rebuilt for a new " +
-          "atom set, so the new atoms' initial values are silently ignored and " +
-          "decisions from the previous atom set keep answering until this " +
-          "provider unmounts.",
-      );
-    }
+    if (atomsIdentityRef.current !== atoms) report(providerSignals.atomsReplaced());
     atomsIdentityRef.current = atoms;
   }, [atoms]);
 
@@ -299,16 +292,20 @@ export const QadiProvider = ({
     }
   }, [registry, atoms, subject]);
 
+  // Told once per mount: the ref keeps a re-render, or `instrument` toggling off
+  // and on, from telling a reporter twice. The console default is latched once
+  // per process by `DeveloperSignals.ts`.
+  const reportedInstrumented = useRef(false);
   useEffect(() => {
-    if (instrument && !isDevelopment()) warnInstrumentedInProduction();
+    if (instrument && !isDevelopment() && !reportedInstrumented.current) {
+      reportedInstrumented.current = true;
+      report(providerSignals.instrumentedInProduction());
+    }
   }, [instrument]);
 
   useEffect(() => {
-    if (instrument && isDevelopment() && gateWriterFor(gates) === undefined) {
-      console.warn(
-        "[qadi] <QadiProvider>'s `gates` was not built by makeGateRegistry(); " +
-          "guards under this provider will not register.",
-      );
+    if (instrument && gateWriterFor(gates) === undefined) {
+      report(providerSignals.unwritableGateRegistry());
     }
   }, [instrument, gates]);
 

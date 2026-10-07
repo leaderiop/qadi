@@ -50,14 +50,14 @@ import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { countDehydrated, countDropped, countRecheck, countSeeded } from "./HydrationCounts.ts";
-import type { HydrationDropReporter, HydrationMismatchReporter } from "./HydrationWarning.ts";
-import { hydrationDropReporter, hydrationMismatchReporter } from "./HydrationWarning.ts";
+import type { HydrationDropReporter, HydrationMismatchReporter } from "./DeveloperSignals.ts";
+import { hydrationDropReporter, hydrationMismatchReporter } from "./DeveloperSignals.ts";
 import type { ClientDecision, SeededDecision } from "./SeededDecision.ts";
 import { AllowDisclosure, DenyDisclosure, SeededAllow, SeededDeny, permits } from "./SeededDecision.ts";
 
-// Named here rather than reached through the barrel: `HydrationWarning.ts` stays
+// Named here rather than reached through the barrel: `DeveloperSignals.ts` stays
 // out of it (AGENTS.md §9), and `.d.ts` emission has to be able to name them.
-export type { HydrationMismatch, HydrationMismatchReporter } from "./HydrationWarning.ts";
+export type { HydrationMismatch, HydrationMismatchReporter } from "./DeveloperSignals.ts";
 
 /** Seed values applied when the provider creates its registry. */
 export type InitialValues = Iterable<readonly [Atom.Atom<unknown>, unknown]>;

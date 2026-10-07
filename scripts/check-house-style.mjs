@@ -42,6 +42,11 @@
  * back once the file list included tests. Verified free: zero matches in any
  * test file at the time this scope changed.
  *
+ * **`no-ambient-console`** is a plain rule over `src` scope with one exempt
+ * file, `packages/react/src/DeveloperSignals.ts` (ADR-QD-041): no other library
+ * module writes to the console or reads `process.env`. Its exemption, like every
+ * `EXEMPTIONS` entry, must name a file that exists (`[stale-exemption]`).
+ *
  * **Scope beyond `packages`.** `pnpm-workspace.yaml` lists `features`,
  * `examples/*` and `apps/*` as workspace members too, and only `features/
  * step-definitions` is scanned here (as a test-scoped tree, alongside
@@ -163,6 +168,20 @@ const RULES = [
     id: "no-ambient-uuid",
     re: /crypto\.randomUUID\s*\(/,
     message: "No ambient UUIDs — use the EvaluationId service.",
+  },
+  {
+    id: "no-ambient-console",
+    // `console` and `process.env` are ambient globals, and every developer signal
+    // `@qadi/react` raises reaches the console through one module,
+    // `packages/react/src/DeveloperSignals.ts` (ADR-QD-041). The confinement was
+    // a convention until it leaked once, through `QadiProvider`'s three direct
+    // `console.warn` calls (DA-06, ticket 153), and nobody noticed. A plain rule,
+    // not a budget: zero exceptions outside the one exempted module. Runs on the
+    // stripped line, so prose that mentions `console.warn` never trips it, and
+    // not `testScope`: tests spy on `console` legitimately.
+    re: /\bconsole\s*\.|\bprocess\.env\b|\btypeof\s+process\b/,
+    message:
+      "Developer signals go through @qadi/react's DeveloperSignals.ts (ADR-QD-041); a library module never writes to the console or reads process.env.",
   },
   {
     id: "no-non-null-assertion",
@@ -296,11 +315,12 @@ const RULES = [
 const EXEMPTIONS = {
   "packages/core/src/SinkWire.ts": ["no-refusal-annotation-outside-core"],
   "packages/core/src/EvaluationId.ts": ["no-ambient-uuid"],
-  // React Suspense is *defined* in terms of a thrown promise, so one has to
-  // exist at that boundary. Confined to `settled.ts`, the only module that
-  // constructs one; every hook that reads a decision does so synchronously
-  // and needs no Promise at all.
-  "packages/react/src/settled.ts": ["no-raw-promise"],
+  // The one module that writes to the console or reads `process.env`: every
+  // developer signal `@qadi/react` raises, including `QadiProvider`'s three,
+  // goes through it (ADR-QD-041). An exemption naming a file that does not exist
+  // fails the gate (`[stale-exemption]` below), so a rename cannot silently
+  // ungate the new name.
+  "packages/react/src/DeveloperSignals.ts": ["no-ambient-console"],
 };
 
 /**
@@ -1422,6 +1442,25 @@ for (const rel of sources
       );
       break;
     }
+  }
+}
+
+// An exemption is a path, and a path outlives the file it named: renaming or
+// deleting the exempted module leaves a dead entry that silently ungates
+// whatever takes its place (an orphan `settled.ts` entry sat here for exactly
+// that reason). Each key must name a file on disk.
+for (const key of Object.keys(EXEMPTIONS)) {
+  let exists = false;
+  try {
+    exists = statSync(join(ROOT, key)).isFile();
+  } catch {
+    exists = false;
+  }
+  if (!exists) {
+    failures += 1;
+    console.error(
+      `${key}  [stale-exemption] names no file; delete the entry or fix the path.`,
+    );
   }
 }
 

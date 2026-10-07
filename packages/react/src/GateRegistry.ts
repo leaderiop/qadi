@@ -64,7 +64,7 @@ export interface GateRegistryOptions {
    * Told once per id when two live registrations minted the same one.
    *
    * A `QadiAtoms`' own registry defaults to a development-mode console warning
-   * (`HydrationWarning.ts`, the one confinement point, ADR-QD-041); a registry
+   * (`DeveloperSignals.ts`, the one confinement point, ADR-QD-041); a registry
    * built here reports nowhere unless this is supplied.
    */
   readonly onIdCollision?: (id: string) => void;
@@ -94,7 +94,7 @@ export const makeGateRegistry = (options?: GateRegistryOptions): GateRegistry =>
     // the fan-out from being notified, and must not propagate into the guard
     // effect that triggered it. Swallowed rather than logged: this module has no
     // reporter of its own, and a bare `console.*` call here would be a second,
-    // undeclared confinement point alongside `HydrationWarning.ts`'s.
+    // undeclared confinement point alongside `DeveloperSignals.ts`'s.
     for (const listener of listeners) {
       try {
         listener();

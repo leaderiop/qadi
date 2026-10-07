@@ -27,7 +27,7 @@
  * — which is why these are declared in `@qadi/core` — cannot diverge, whatever
  * registry a host wires and whenever it wires it.
  *
- * Confined to one named file for the reason `HydrationWarning.ts` confines
+ * Confined to one named file for the reason `DeveloperSignals.ts` confines
  * `console` and `process.env`: a boundary in a file with a name stays visible,
  * where one spread across three call sites dissolves into convention.
  */
