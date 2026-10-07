@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-056                                   |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted — narrows ADR-QD-016                  |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.7 (2026-10-06): a persisted row is version-2 bytes only; a pre-0.10 (version-1) row is refused by `decodeAuditEntry` as `UnsupportedVersion` and migrated with 0.10.x (ADR-QD-096 amendment) (CCR-QD-182)<br>1.6 (2026-10-05): a persisted row is a closed union of wire versions, read back with `decodeAuditEntry`; `archiveVersion` unchanged (ADR-QD-096) (CCR-QD-180)<br>1.5 (2026-10-05): an audit row carries the encoded wire; `decodeAuditEntry` is the guarded reader (ADR-QD-095) (CCR-QD-179)<br>1.4 (2026-09-19): The no-tamper-evidence residual risk, previously distributed across `SequenceIntegrity.ts`/`AuditArchive.ts`/`DecommissioningChecklist.ts` doc comments only, recorded once under Consequences — Negative, alongside the previously-undocumented breaker-open drop window's own invisibility to the trail (AS-03/WD-07)<br>1.3 (2026-09-09): "a `resource` carrying a value with no safe durable representation" corrected — `policy`'s `HasCustom.params` is a second caller-supplied `unknown` a `SinkRecord` carries, and encoding now refuses on either (issue #104, CCR-QD-143)<br>1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
+> | Change History | 1.8 (2026-10-07): retention retains an entry of unknown age and refuses an impossible `now` or `maxAgeMs` (INV-QD-101, CCR-QD-186)<br>1.7 (2026-10-06): a persisted row is version-2 bytes only; a pre-0.10 (version-1) row is refused by `decodeAuditEntry` as `UnsupportedVersion` and migrated with 0.10.x (ADR-QD-096 amendment) (CCR-QD-182)<br>1.6 (2026-10-05): a persisted row is a closed union of wire versions, read back with `decodeAuditEntry`; `archiveVersion` unchanged (ADR-QD-096) (CCR-QD-180)<br>1.5 (2026-10-05): an audit row carries the encoded wire; `decodeAuditEntry` is the guarded reader (ADR-QD-095) (CCR-QD-179)<br>1.4 (2026-09-19): The no-tamper-evidence residual risk, previously distributed across `SequenceIntegrity.ts`/`AuditArchive.ts`/`DecommissioningChecklist.ts` doc comments only, recorded once under Consequences — Negative, alongside the previously-undocumented breaker-open drop window's own invisibility to the trail (AS-03/WD-07)<br>1.3 (2026-09-09): "a `resource` carrying a value with no safe durable representation" corrected — `policy`'s `HasCustom.params` is a second caller-supplied `unknown` a `SinkRecord` carries, and encoding now refuses on either (issue #104, CCR-QD-143)<br>1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
 
 ---
 
@@ -206,6 +206,13 @@ carries `at`, and optionally `sequenceNumber`, so a reader reconstructs true
 order by sorting rather than trusting write order. Serializing writes to
 provide an ordering guarantee nobody asked for would reintroduce the kind of
 internal buffering state staging's own design already refused.
+
+> **Amended 2026-10-07 (CCR-QD-186).** Retention reads `at`, so an `at` that is
+> not a finite number must never make a row purgeable: an entry of unknown age
+> is retained, and `planRetention` reports it as `undated`. `decodeAuditEntry`
+> refuses a non-finite `at` and a non-integer `sequenceNumber` (ADR-QD-095),
+> but a hand-built `AuditEntry` never passes through decode, so retention
+> guards itself (INV-QD-101).
 
 ### Alternatives rejected
 

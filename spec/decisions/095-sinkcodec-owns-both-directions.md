@@ -5,11 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-902                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
+> | Change History | 1.1 (2026-10-07): the inbound side refuses a non-finite `at` and a non-integer `sequenceNumber` (CCR-QD-186) |
 
 ---
 
@@ -138,6 +139,13 @@ check (a `DecodeRefusal` variant, added as a full-union edit), is one module's e
 - **A store-side `Schema.encode` step for audit rows.** No type change, but every
   store must remember a step BEH-QD-250's prose already assumed was
   `JSON.stringify` — the per-caller pattern moved into user code.
+
+> **Amended 2026-10-07 (CCR-QD-186).** The inbound side refuses what the outbound
+> walk already refuses: `at` decodes as a finite number, so a stored `1e400`
+> (which `JSON.parse` reads as `Infinity`) is `Malformed`, and an audit row's
+> `sequenceNumber` is an integer, declared once for the row schema and the row
+> decode. No encoder ever emitted either, so wire version 2 is unchanged
+> (ADR-QD-096) and no valid row is refused.
 
 ## Related
 

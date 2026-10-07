@@ -81,6 +81,12 @@ the decommissioning checklist are pure functions and data — caller-invoked,
 caller-scheduled, since this package has no scheduler of its own. E-signature
 capture is wired through `Qadi.ts`'s `ObligationHandler`, not `DecisionSink`:
 
+A row is selected for purging only with a finite `at` past a valid limit;
+anything else retains. `getPurgeableEntries` and `enforceRetention` purge
+nothing on an invalid `now` or `maxAgeMs` without saying so, so prefer
+`planRetention`, which returns a `RetentionInputInvalid` and lists the `undated`
+rows it kept.
+
 Nothing here connects the two: `getPurgeableEntries` selects by age alone and
 has no idea whether an entry was ever handed to `archiveAuditTrail`. **Archive
 before you purge** is a documented invariant a caller must uphold itself, not

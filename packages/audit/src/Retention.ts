@@ -6,7 +6,16 @@
  * capability on this map avoiding ambient timers or state: pure functions and
  * data, parameterized on `now` rather than reading `Date.now()` internally
  * (AGENTS.md §6), so a caller decides when and how often retention runs.
+ *
+ * **A row is selected for deletion only with a finite age past a valid
+ * limit.** `at` and `now` are finite, `maxAgeMs >= 0`, and `now - at >
+ * maxAgeMs`; nothing else purges. Fail-closed for a deletion selector means
+ * retaining, never expiring: a wrong retain keeps a row too long, a wrong
+ * purge destroys evidence that may never have been archived. The rule lives
+ * in {@link planRetention}; the two older functions project it (INV-QD-101).
  */
+import * as Data from "effect/Data";
+import * as Result from "effect/Result";
 import type { AuditEntry } from "./AuditEntry.ts";
 
 export interface RetentionPolicy {
@@ -14,28 +23,65 @@ export interface RetentionPolicy {
   readonly maxAgeMs: number;
 }
 
-const isPurgeable = (entry: AuditEntry, policy: RetentionPolicy, now: number): boolean =>
-  now - entry.record.at > policy.maxAgeMs;
+/**
+ * `planRetention` refused its input: `now` is not a finite number, or
+ * `maxAgeMs` is `NaN` or negative. `value` is the offending number.
+ */
+export class RetentionInputInvalid extends Data.TaggedError("RetentionInputInvalid")<{
+  readonly field: "now" | "maxAgeMs";
+  readonly value: number;
+}> {}
 
 /**
- * One pass, one evaluation of `isPurgeable` per entry, so `retained` and
- * `purged` partition `entries` by construction —
- * `retained ∪ purged = entries`, `retained ∩ purged = ∅` — rather than by
- * relying on `getPurgeableEntries`/`enforceRetention` staying negations of
- * each other across two independent `.filter()` calls, which a later edit to
- * only one of them could quietly break.
+ * What a retention run decided, by one pass over the entries.
+ *
+ * `retained` and `purged` partition the input — `retained ∪ purged =
+ * entries`, `retained ∩ purged = ∅` (INV-QD-053). `undated` is the part of
+ * `retained` whose `at` is not a finite number (`NaN`, `±Infinity`): such a
+ * row's age is unknown, so it is kept, and reported here rather than silently.
  */
-const partitionByRetention = (
+export interface RetentionPlan {
+  readonly retained: ReadonlyArray<AuditEntry>;
+  readonly purged: ReadonlyArray<AuditEntry>;
+  readonly undated: ReadonlyArray<AuditEntry>;
+}
+
+/**
+ * The one rule for "may this row be deleted?".
+ *
+ * Refuses `RetentionInputInvalid` when `now` is not finite or `maxAgeMs` is
+ * `NaN` or negative (`+Infinity` is valid and means "retain forever").
+ * Otherwise one pass: a row with a non-finite `at` is retained and `undated`;
+ * one with `now - at > maxAgeMs` is purged; the rest are retained. Prefer it
+ * to {@link getPurgeableEntries}, which on a refusal purges nothing without
+ * telling the caller why.
+ */
+export const planRetention = (
   entries: ReadonlyArray<AuditEntry>,
   policy: RetentionPolicy,
   now: number,
-): { readonly retained: ReadonlyArray<AuditEntry>; readonly purged: ReadonlyArray<AuditEntry> } => {
+): Result.Result<RetentionPlan, RetentionInputInvalid> => {
+  if (!Number.isFinite(now)) {
+    return Result.fail(new RetentionInputInvalid({ field: "now", value: now }));
+  }
+  if (!(policy.maxAgeMs >= 0)) {
+    return Result.fail(new RetentionInputInvalid({ field: "maxAgeMs", value: policy.maxAgeMs }));
+  }
   const retained: Array<AuditEntry> = [];
   const purged: Array<AuditEntry> = [];
+  const undated: Array<AuditEntry> = [];
   for (const entry of entries) {
-    (isPurgeable(entry, policy, now) ? purged : retained).push(entry);
+    const at = entry.record.at;
+    if (!Number.isFinite(at)) {
+      retained.push(entry);
+      undated.push(entry);
+    } else if (now - at > policy.maxAgeMs) {
+      purged.push(entry);
+    } else {
+      retained.push(entry);
+    }
   }
-  return { retained, purged };
+  return Result.succeed({ retained, purged, undated });
 };
 
 /**
@@ -56,7 +102,11 @@ export const getPurgeableEntries = (
   entries: ReadonlyArray<AuditEntry>,
   policy: RetentionPolicy,
   now: number,
-): ReadonlyArray<AuditEntry> => partitionByRetention(entries, policy, now).purged;
+): ReadonlyArray<AuditEntry> =>
+  Result.match(planRetention(entries, policy, now), {
+    onFailure: () => [],
+    onSuccess: (plan) => plan.purged,
+  });
 
 /**
  * Entries `policy` says must be retained.
@@ -70,4 +120,8 @@ export const enforceRetention = (
   entries: ReadonlyArray<AuditEntry>,
   policy: RetentionPolicy,
   now: number,
-): ReadonlyArray<AuditEntry> => partitionByRetention(entries, policy, now).retained;
+): ReadonlyArray<AuditEntry> =>
+  Result.match(planRetention(entries, policy, now), {
+    onFailure: () => entries,
+    onSuccess: (plan) => plan.retained,
+  });

@@ -86,6 +86,14 @@ const describeRefusal: (refusal: EncodeRefusal) => string = Match.type<EncodeRef
 );
 
 /**
+ * The optional gap-detection field, declared once for the row schema and the
+ * row decode: an integer, so `1.5` and `NaN` are `Malformed` even when a row
+ * is the only sequenced one (`verifySequenceIntegrity` can only refuse them
+ * from two samples up).
+ */
+const SequenceNumber = Schema.optional(Schema.Int);
+
+/**
  * One persisted row.
  *
  * `record` is the encoded wire (see this module's doc comment); its `Type` is
@@ -109,7 +117,7 @@ const describeRefusal: (refusal: EncodeRefusal) => string = Match.type<EncodeRef
  */
 export const AuditEntry = Schema.Struct({
   record: SinkRecordJson,
-  sequenceNumber: Schema.optional(Schema.Number),
+  sequenceNumber: SequenceNumber,
 });
 export type AuditEntry = typeof AuditEntry.Type;
 
@@ -151,7 +159,7 @@ export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(functio
  * record is `unknown` here because `decodeSinkRecord` has already read it.
  */
 const decodeRow = Schema.decodeUnknownResult(
-  Schema.Struct({ record: Schema.Unknown, sequenceNumber: Schema.optional(Schema.Number) }),
+  Schema.Struct({ record: Schema.Unknown, sequenceNumber: SequenceNumber }),
   UNTRUSTED_DECODE_OPTIONS,
 );
 

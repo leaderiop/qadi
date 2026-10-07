@@ -815,6 +815,19 @@ describe("decodeSinkRecord ignores an unknown envelope key and refuses one anywh
   it("an array is not an envelope: refused, never projected into an empty record", () => {
     assert.strictEqual(decodeRefusalOf("[1,2]")?._tag, "Malformed");
   });
+
+  it("a stored `at` of 1e400 or -1e400 (which JSON.parse reads as ±Infinity) is Malformed: the inbound twin of wireHazard's NonFinite", () => {
+    const text = stringOf(recordWith({}));
+    assert.isTrue(text.includes('"at":1,'));
+    assert.strictEqual(decodeRefusalOf(text.replace('"at":1,', '"at":1e400,'))?._tag, "Malformed");
+    assert.strictEqual(decodeRefusalOf(text.replace('"at":1,', '"at":-1e400,'))?._tag, "Malformed");
+  });
+
+  it("an in-memory record with `at: NaN` is Malformed", () => {
+    const json = jsonOf(recordWith({}));
+    const result = decodeSinkRecord({ ...json, at: Number.NaN });
+    assert.strictEqual(Result.isFailure(result) ? result.failure.refusal._tag : undefined, "Malformed");
+  });
 });
 
 /** The text `encodeSinkRecordString` produces, failing the test on a refusal. */

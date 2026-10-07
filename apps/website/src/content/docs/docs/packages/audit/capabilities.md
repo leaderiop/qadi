@@ -64,7 +64,12 @@ These are pure functions and data — caller-invoked, caller-scheduled, since
 
 **Retention** — `getPurgeableEntries`/`enforceRetention(entries, policy, now)`
 partition a set of entries: their union is the input, unchanged, and their
-intersection is empty. `now` is a parameter, never `Date.now()`.
+intersection is empty. `now` is a parameter, never `Date.now()`. A row is
+purgeable only with a finite `at` past a valid limit: a non-finite `at` is
+retained, and a non-finite `now` or a `maxAgeMs` that is `NaN` or negative
+purges nothing. `planRetention(entries, policy, now)` returns the same split
+plus the `undated` rows, or a `RetentionInputInvalid` naming the bad input —
+prefer it when a silently idle purge job would be a problem.
 
 **Sequence integrity** — `verifySequenceIntegrity` fails `SequenceIntegrityError`
 for any two `sequenceNumber`s, sorted ascending, that aren't exactly one apart —

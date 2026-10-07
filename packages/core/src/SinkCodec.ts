@@ -129,12 +129,18 @@ const OutcomeWire = Schema.Union([
 
 type OutcomeWire = typeof OutcomeWire.Type;
 
-/** A version-2 decision's fields, in the order they are written. */
+/**
+ * A version-2 decision's fields, in the order they are written.
+ *
+ * `at` is `Schema.Finite`: the inbound twin of `wireHazard`'s `NonFinite`
+ * refusal, so a stored `1e400` (which `JSON.parse` reads as `Infinity`) or a
+ * `NaN` is `Malformed` rather than a timestamp every reader must distrust.
+ */
 const decisionV2Fields = {
   _tag: Schema.Literal("Decision"),
   version: Schema.Literal(2),
   evaluationId: Schema.String,
-  at: Schema.Number,
+  at: Schema.Finite,
   subjectId: Schema.String,
   policy: Policy,
   resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
@@ -148,7 +154,7 @@ const obligationsV2Fields = {
   _tag: Schema.Literal("Obligations"),
   version: Schema.Literal(2),
   evaluationId: Schema.String,
-  at: Schema.Number,
+  at: Schema.Finite,
   outcome: Schema.Literals(["Discharged", "HandlerFailed", "Refused", "NotRequired"]),
   obligationIds: Schema.Array(Schema.String),
 };

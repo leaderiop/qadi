@@ -245,6 +245,28 @@ describe("decodeAuditEntry — the guarded reader (ARCH-09)", () => {
       assert.strictEqual(Result.isSuccess(result) ? result.success.entry.sequenceNumber : undefined, 7);
     }));
 
+  it.effect("a non-integer or NaN sequenceNumber is Malformed, even when it is the only one", () =>
+    Effect.gen(function* () {
+      const entry = yield* encodeAuditEntry(decisionRecord({ evaluationId: "e1" }));
+      for (const sequenceNumber of [1.5, Number.NaN]) {
+        const result = decodeAuditEntry({ ...entry, sequenceNumber });
+        assert.isTrue(Result.isFailure(result));
+        assert.strictEqual(
+          Result.isFailure(result) ? result.failure.refusal._tag : undefined,
+          "Malformed",
+        );
+      }
+    }));
+
+  it.effect("a stored at of 1e400 is Malformed, not an Infinity that retention would have to survive", () =>
+    Effect.gen(function* () {
+      const entry = yield* encodeAuditEntry(decisionRecord({ evaluationId: "e1", at: 1_000 }));
+      const text = JSON.stringify(entry).replace('"at":1000', '"at":1e400');
+      assert.isTrue(text.includes("1e400"));
+      const result = decodeAuditEntry(JSON.parse(text));
+      assert.strictEqual(Result.isFailure(result) ? result.failure.refusal._tag : undefined, "Malformed");
+    }));
+
   it.effect("a Failed record's Error cause is read back as an Error", () =>
     Effect.gen(function* () {
       const entry = yield* encodeAuditEntry(failedWithCause(new Error("db down")));
