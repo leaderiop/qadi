@@ -591,6 +591,40 @@ describe("seeding", () => {
     assert.isTrue(policy._tag === "Chosen" && Equal.equals(policy.policy, hasRole("a")));
   });
 
+  it("pins the head at the moment a replayed row is left, not before", () => {
+    const session = makeSimulationSession({ sightings: [sighting(hasRole("a"))], seed });
+    session.setSightings([sighting(hasRole("a"))]);
+    session.setSightings([sighting(hasRole("c")), sighting(hasRole("a"))]);
+    session.seed(undefined);
+    const policy = session.getSnapshot().policy;
+    assert.isTrue(policy._tag === "Chosen" && Equal.equals(policy.policy, hasRole("c")));
+  });
+
+  it("choosing the held policy while a replayed row is seeded still leaves the row", () => {
+    const session = makeSimulationSession({ sightings: [sighting(hasRole("a"))] });
+    session.seed(seed);
+    assert.strictEqual(session.getSnapshot().policy._tag, "Seeded");
+    session.choosePolicy(hasRole("a"));
+    assert.strictEqual(session.getSnapshot().policy._tag, "Chosen");
+  });
+
+  it("remembers the rail's label for a chosen policy once it leaves the rail", () => {
+    const named: PolicySighting = { ...sighting(hasRole("a")), label: "canArchive" };
+    const session = makeSimulationSession({ sightings: [sighting(hasRole("b")), named] });
+    session.choosePolicy(hasRole("a"));
+    session.setSightings([]);
+    const policy = session.getSnapshot().policy;
+    assert.strictEqual(policy._tag === "Evicted" && policy.label, "canArchive");
+  });
+
+  it("holds a policy chosen before the rail has any", () => {
+    const session = makeSimulationSession();
+    session.choosePolicy(hasRole("a"));
+    session.setSightings([sighting(hasRole("b")), sighting(hasRole("a"))]);
+    const policy = session.getSnapshot().policy;
+    assert.isTrue(policy._tag === "Chosen" && Equal.equals(policy.policy, hasRole("a")));
+  });
+
   it("refuses nothing: choosing an unlisted policy holds it as evicted", () => {
     const session = makeSimulationSession({ sightings: [sighting(hasRole("a"))] });
     session.choosePolicy(hasRole("zzz"));

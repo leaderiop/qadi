@@ -16,6 +16,7 @@
  */
 import * as Equal from "effect/Equal";
 import * as MutableHashMap from "effect/MutableHashMap";
+import * as MutableHashSet from "effect/MutableHashSet";
 import * as Option from "effect/Option";
 import type { Policy, Role } from "@qadi/core";
 import { inspect } from "./Inspect.ts";
@@ -133,12 +134,12 @@ export const catalogueOf = (
 
   // Declared duplicates collapse like observed ones: the first declared name
   // wins, here exactly as `relabelled` lets it win for a policy that ran.
-  const claimed = MutableHashMap.empty<Policy, true>();
-  for (const sighting of seen) MutableHashMap.set(claimed, sighting.policy, true);
+  const claimed = MutableHashSet.empty<Policy>();
+  for (const sighting of seen) MutableHashSet.add(claimed, sighting.policy);
   const unseen: Array<PolicySighting> = [];
   for (const [label, policy] of named) {
-    if (MutableHashMap.has(claimed, policy)) continue;
-    MutableHashMap.set(claimed, policy, true);
+    if (MutableHashSet.has(claimed, policy)) continue;
+    MutableHashSet.add(claimed, policy);
     unseen.push({
       policy,
       label,
