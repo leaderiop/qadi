@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-051                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-04                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-10-04): amendment — port spans are emitted by both interpreters, distinguished by `qadi.interpreter`, and the span code moved to `PortAccess.ts`; the metric for translation is a sibling, not `portCallsTotal` (ADR-QD-077, CCR-QD-153)<br>1.1 (2026-09-07): The "three closed values" quote corrected to match `PortMetrics.ts`'s current five, `CustomPredicate` and `SignatureHistory` having joined `portCallsTotal` after this ADR was written (issue 45, CCR-QD-114)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
+> | Change History | 1.3 (2026-10-07): amendment — the annotation table is stated by the five port descriptions (`attributes`), not by prose and two hand-written spellings; INV-QD-044 has a type-level floor and one home (`disclose`); `qadi.attempts` is a decoded field of every row (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-04): amendment — port spans are emitted by both interpreters, distinguished by `qadi.interpreter`, and the span code moved to `PortAccess.ts`; the metric for translation is a sibling, not `portCallsTotal` (ADR-QD-077, CCR-QD-153)<br>1.1 (2026-09-07): The "three closed values" quote corrected to match `PortMetrics.ts`'s current five, `CustomPredicate` and `SignatureHistory` having joined `portCallsTotal` after this ADR was written (issue 45, CCR-QD-114)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
 
 ---
 
@@ -177,3 +177,24 @@ implementation. The port span names (`qadi.attribute`, `qadi.acted`,
 `qadi.hasRelationship`, `qadi.hasCustom`, `qadi.hasSignature`) are unchanged; they
 are read from each port's description (`span`) rather than spelled as literals
 ([ADR-QD-094](./094-a-port-is-described-once.md)).
+
+## Amendment (2026-10-07, CCR-QD-198)
+
+The annotation table above is now stated by the five descriptions, not by this
+table: each port's `attributes` (`PortSpan.ts`) is its question annotated before
+the call, its answer annotated after, and `disclose`
+([ADR-QD-094](./094-a-port-is-described-once.md)). `PortAccess.ts` writes through
+them and `@qadi/devtools` reads through them, so the "what was asked" a trace
+reader sees and the row the panel shows cannot name different keys. The write
+order above is unchanged: the question before the call, the answer after, and
+`qadi.attempts` between them from the retrying wrappers.
+
+[INV-QD-044](../invariants.md) gains a floor in the type. A field of a span struct
+must be a `SpanValue` (a string, a number or a boolean), so a field that holds
+arbitrary data — `Schema.Unknown`, an object — does not compile, and the attribute
+port's `disclose` (`(value) => ({ resolved: value !== undefined })`) is the single
+path from a resolved value to a span. `qadi.attempts` is a decoded field of every
+row, and a signature row carries its `scope` and `resourceId`; both were written
+and never read. The hot-path cost is the two table walks, measured against
+`Evaluate.bench.ts`'s resolver-miss workload (CCR-QD-198).
+

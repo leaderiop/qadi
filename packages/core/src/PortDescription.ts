@@ -26,6 +26,7 @@ import type * as Cause from "effect/Cause";
 import type * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
 import type { PortName, PortSpanName } from "./PortMetrics.ts";
+import type { PortSpanAttributesLike } from "./PortSpan.ts";
 
 /**
  * What every port Shape has in common: an optional implementation label.
@@ -48,6 +49,9 @@ export interface PortShape {
  *   a script or observer written with positional parameters,
  *   `(subjectId, attribute) => …`, is then assignable to `(...args: Args)`.
  * - `A`/`E` — the method's answer and typed error.
+ * - `Span` — the span's attributes, exactly typed per port. Defaulted to the
+ *   structural bound, so the generic derivations (`PortDerivation.ts`,
+ *   `PortDoubles.ts`) need not name a port's fields.
  */
 export interface PortDescription<
   N extends PortName,
@@ -56,6 +60,7 @@ export interface PortDescription<
   Args extends ReadonlyArray<unknown>,
   A,
   E,
+  Span extends PortSpanAttributesLike = PortSpanAttributesLike,
 > {
   /** The port's name — the word its metrics are keyed by. */
   readonly port: N;
@@ -67,6 +72,14 @@ export interface PortDescription<
   readonly method: string;
   /** The span `PortAccess.ts` opens around a read of this port (BEH-QD-227). */
   readonly span: PortSpanName;
+  /**
+   * What that span says: the question annotated before the call, the answer
+   * annotated after it, and the `disclose` projection between the port's
+   * outcome and the answer (ADR-QD-051, BEH-QD-227). `PortAccess.ts` writes
+   * through it and `@qadi/devtools` reads through it, so a key is spelled once,
+   * here. Every field is a `SpanValue`, which is INV-QD-044 as a type.
+   */
+  readonly attributes: Span;
   /** The service key. */
   readonly service: Context.Key<Self, Shape>;
   /**

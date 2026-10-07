@@ -34,6 +34,7 @@ import {
 import type { Decision, Policy, StoredRecord } from "@qadi/core";
 import { DevtoolsDock } from "../../src/react/DevtoolsDock.tsx";
 import { sourceFromRecords } from "../../src/model/Source.ts";
+import type { WiringReport } from "../../src/model/Wiring.ts";
 import { decisionRecord, obligationRecord } from "../helpers.ts";
 
 const read = permission("doc", "read");
@@ -860,6 +861,7 @@ describe("the six screens", () => {
               name: "fromRecord",
               required: true,
               present: true,
+              defaulted: undefined,
               consequence: "denies",
             },
           ],
@@ -982,13 +984,14 @@ describe("screen 5 — the simulator, and the dock around it", () => {
 });
 
 describe("screen 6 — the port calls the dock threads through", () => {
-  const oneAttributePort = {
+  const oneAttributePort: WiringReport = {
     ports: [
       {
         port: "AttributeResolver",
         name: "record",
         required: true,
         present: true,
+        defaulted: undefined,
         consequence: "an unanswered attribute denies",
       },
     ],

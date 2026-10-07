@@ -24,36 +24,25 @@
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Match from "effect/Match";
 import * as Tracer from "effect/Tracer";
-import { forEveryPort } from "@qadi/core";
-import type { PortSpanName } from "@qadi/core";
+import { decodePortSpan, forEveryPort, PORTS } from "@qadi/core";
+import type { DescriptionOf, PortInterpreter, PortName, PortSpanName, PortSpanRowOf } from "@qadi/core";
 
 /** The five ports an evaluation can touch, named as `wiringReport` names them. */
 export type PortCallPort = PortCall["_tag"];
 
 /**
- * The spans this collector keeps, as a closed union.
+ * Which span belongs to which port, read from the descriptions.
  *
- * One list rather than two. Deciding what to *keep* and deciding how to *decode*
- * used to be separate — a lookup at collection time and a chain of name tests at
- * read time — and the pair could disagree: a name added to the lookup without an
- * arm to decode it produced a row with every field blank, and the guard that was
- * supposed to catch that could never fire, because nothing else could reach it.
- * Narrowing the name once makes `rowOf` exhaustive, so a sixth span is a
- * compile error rather than a blank row.
+ * One map rather than a list and a chain of name tests: deciding what to *keep*
+ * and deciding how to *decode* used to be separate, and the pair could disagree.
+ * Both now start from the span's port, and the decode table below is indexed by
+ * `PortName`, so a sixth port without a row is a compile error rather than a
+ * blank one.
  */
-const PORT_SPANS: ReadonlyArray<PortSpanName> = forEveryPort((d) => d.span);
-
-/**
- * Every span a port read opens — `@qadi/core`'s `PortSpanName`, which each
- * port's description names (BEH-QD-227). Read from there rather than listed
- * here, so the collector and `PortAccess.ts` cannot name different spans.
- */
-type PortSpan = PortSpanName;
-
-const isPortSpan = (name: string): name is PortSpan =>
-  PORT_SPANS.some((one) => one === name);
+const PORT_BY_SPAN: ReadonlyMap<string, PortName> = new Map(
+  forEveryPort((d): readonly [PortSpanName, PortName] => [d.span, d.port]),
+);
 
 /**
  * Which interpreter made a call — `qadi.interpreter` on the span, a closed pair.
@@ -62,17 +51,12 @@ const isPortSpan = (name: string): name is PortSpan =>
  * an older `@qadi/core` that does not annotate the span, or a value outside the
  * pair, is not guessed at.
  */
-export type PortCallInterpreter = "evaluate" | "toPredicate";
+export type PortCallInterpreter = PortInterpreter;
 
+/** What every row carries, whatever the port asked. */
 interface PortCallBase {
   /** The span this row was read from. */
   readonly span: string;
-  /**
-   * Whether the evaluator or `toPredicate` asked. Both emit `qadi.attribute` and
-   * `qadi.acted`, and without this a translation's reads would read as the
-   * evaluator's.
-   */
-  readonly interpreter: PortCallInterpreter | undefined;
   /** When the call started, in epoch millis — the same clock `DecisionRecord.at` uses. */
   readonly at: number;
   /**
@@ -83,9 +67,22 @@ interface PortCallBase {
    * would invent the one number a reader is looking at this table for.
    */
   readonly durationMillis: number | undefined;
-  /** Absent when the span did not record it. */
-  readonly subjectId: string | undefined;
 }
+
+/**
+ * One port's row: what every call carries, plus the fields its description
+ * states (`PortDescription.attributes`, BEH-QD-228).
+ *
+ * The per-port fields are the description's — `subjectId`, `interpreter` (both
+ * recorded on every span, and when the evaluator or `toPredicate` asked), the
+ * question's own, the answer's, and `attempts` when a retrying wrapper ran. Each
+ * is absent when the span did not record it or recorded something of another
+ * type: a wrong-typed value reads the same as a missing one, because coercing it
+ * would put a number's `String()` where a name belongs.
+ */
+export type PortCallOf<K extends PortName> = PortCallBase & {
+  readonly _tag: K;
+} & PortSpanRowOf<DescriptionOf<K>>;
 
 /**
  * An attribute resolution.
@@ -95,28 +92,13 @@ interface PortCallBase {
  * and this row is read in a panel and, upstream of it, in whatever tracing
  * backend the host wired.
  */
-export interface AttributeCall extends PortCallBase {
-  readonly _tag: "AttributeResolver";
-  readonly attribute: string | undefined;
-  readonly resolved: boolean | undefined;
-}
+export type AttributeCall = PortCallOf<"AttributeResolver">;
 
-export interface ActedCall extends PortCallBase {
-  readonly _tag: "DecisionHistory";
-  readonly event: string | undefined;
-  readonly scope: string | undefined;
-  /** Absent for an `Any`-scoped question, which asks about no resource at all. */
-  readonly resourceId: string | undefined;
-  readonly answer: string | undefined;
-}
+/** A `HasActed`/`HasNotActed` read. `resourceId` is absent for an `Any`-scoped question. */
+export type ActedCall = PortCallOf<"DecisionHistory">;
 
-export interface RelationshipCall extends PortCallBase {
-  readonly _tag: "RelationshipResolver";
-  readonly relation: string | undefined;
-  readonly resourceId: string | undefined;
-  readonly depth: number | undefined;
-  readonly answer: string | undefined;
-}
+/** A `HasRelationship` read. */
+export type RelationshipCall = PortCallOf<"RelationshipResolver">;
 
 /**
  * A `HasCustom` node's registered predicate.
@@ -126,24 +108,16 @@ export interface RelationshipCall extends PortCallBase {
  * registry already denies through `CustomPredicateNone` rather than answering
  * a closed third value.
  */
-export interface CustomPredicateCall extends PortCallBase {
-  readonly _tag: "CustomPredicate";
-  readonly name: string | undefined;
-  readonly answer: boolean | undefined;
-}
+export type CustomPredicateCall = PortCallOf<"CustomPredicate">;
 
 /**
  * A `HasSignature` node's lookup. `matched` is a plain boolean, the same shape
  * `CustomPredicateCall.answer` is and for the same reason — no three-valued
  * "unwired" case, since an unwired history already denies through
- * `SignatureHistoryNone` rather than answering a closed third value.
+ * `SignatureHistoryNone` rather than answering a closed third value. `scope`
+ * and `resourceId` say whether the lookup was about one resource or any.
  */
-export interface SignatureHistoryCall extends PortCallBase {
-  readonly _tag: "SignatureHistory";
-  readonly meaning: string | undefined;
-  readonly signerRole: string | undefined;
-  readonly matched: boolean | undefined;
-}
+export type SignatureHistoryCall = PortCallOf<"SignatureHistory">;
 
 /**
  * One row per port call.
@@ -217,10 +191,10 @@ export const collectPortCalls = (options?: {
     );
   }
 
-  // The narrowed name is carried beside the span rather than re-derived at read
-  // time. `span.name` is a bare `string`, so reading it back would need a second
-  // `isPortSpan` whose failing branch nothing could ever reach.
-  const kept: Array<{ readonly span: Tracer.Span; readonly name: PortSpan }> = [];
+  // The port is carried beside the span rather than re-derived at read time.
+  // `span.name` is a bare `string`, so reading it back would need a second
+  // lookup whose failing branch nothing could ever reach.
+  const kept: Array<{ readonly span: Tracer.Span; readonly port: PortName }> = [];
   let dropped = 0;
 
   const layer = Layer.effect(
@@ -232,11 +206,12 @@ export const collectPortCalls = (options?: {
       return Tracer.make({
         span: (spanOptions) => {
           const span = inner.span(spanOptions);
-          if (isPortSpan(spanOptions.name)) {
+          const port = PORT_BY_SPAN.get(spanOptions.name);
+          if (port !== undefined) {
             // The span object is mutable and outlives this call — its
             // attributes are annotated and its status ends afterwards — so
             // holding it is how a row reads its own final state.
-            kept.push({ span, name: spanOptions.name });
+            kept.push({ span, port });
             while (kept.length > capacity) {
               kept.shift();
               dropped += 1;
@@ -251,87 +226,55 @@ export const collectPortCalls = (options?: {
   return {
     layer,
     snapshot: Effect.sync(() => ({
-      calls: kept.map((one) => rowOf(one.span, one.name)),
+      calls: kept.map((one) => ROWS[one.port](one.span)),
       dropped,
       capacity,
     })),
   };
 };
 
-/**
- * One span as a row.
- *
- * Total over `PortSpan` via `Match.value(name).pipe(..., Match.exhaustive)`
- * (AGENTS.md §5a — a plain literal union has no `_tag`, so the values rather
- * than a tag are matched), so adding a sixth name to `PORT_SPANS` without an
- * arm here is a compile error rather than a blank row. `Match.value` rather
- * than a module-scope `Match.type<PortSpan>()`: this runs once per span read
- * out of the collector's bounded log, not once per policy-node dispatch on an
- * evaluation's hot path, so the per-call rebuild §5a warns against there costs
- * nothing here.
- */
-const rowOf = (span: Tracer.Span, name: PortSpan): PortCall => {
-  const base = {
-    span: span.name,
-    interpreter: interpreterAt(span),
-    at: Number(span.status.startTime / 1_000_000n),
-    durationMillis: durationOf(span),
-    subjectId: stringAt(span, "qadi.subject_id"),
-  };
+/** What every row carries, read off the span itself. */
+const baseOf = (span: Tracer.Span): PortCallBase => ({
+  span: span.name,
+  at: Number(span.status.startTime / 1_000_000n),
+  durationMillis: durationOf(span),
+});
 
-  return Match.value(name).pipe(
-    Match.when(
-      "qadi.attribute",
-      (): PortCall => ({
-        ...base,
-        _tag: "AttributeResolver",
-        attribute: stringAt(span, "qadi.attribute"),
-        resolved: booleanAt(span, "qadi.resolved"),
-      }),
-    ),
-    Match.when(
-      "qadi.acted",
-      (): PortCall => ({
-        ...base,
-        _tag: "DecisionHistory",
-        event: stringAt(span, "qadi.event"),
-        scope: stringAt(span, "qadi.scope"),
-        resourceId: stringAt(span, "qadi.resource_id"),
-        answer: stringAt(span, "qadi.answer"),
-      }),
-    ),
-    Match.when(
-      "qadi.hasCustom",
-      (): PortCall => ({
-        ...base,
-        _tag: "CustomPredicate",
-        name: stringAt(span, "qadi.custom_predicate"),
-        answer: booleanAt(span, "qadi.answer"),
-      }),
-    ),
-    Match.when(
-      "qadi.hasSignature",
-      (): PortCall => ({
-        ...base,
-        _tag: "SignatureHistory",
-        meaning: stringAt(span, "qadi.meaning"),
-        signerRole: stringAt(span, "qadi.signer_role"),
-        matched: booleanAt(span, "qadi.matched"),
-      }),
-    ),
-    Match.when(
-      "qadi.hasRelationship",
-      (): PortCall => ({
-        ...base,
-        _tag: "RelationshipResolver",
-        relation: stringAt(span, "qadi.relation"),
-        resourceId: stringAt(span, "qadi.resource_id"),
-        depth: numberAt(span, "qadi.depth"),
-        answer: stringAt(span, "qadi.answer"),
-      }),
-    ),
-    Match.exhaustive,
-  );
+/**
+ * One span as a row, per port.
+ *
+ * A mapped type over `PortName`, so a port without a line here is a compile
+ * error; and no key appears — each field is read through the port's own
+ * description (`decodePortSpan`), the one statement of what its span says.
+ * Built once, and indexed rather than matched: this runs once per span read out
+ * of the collector's bounded log, not on an evaluation's hot path.
+ */
+const ROWS: { readonly [K in PortName]: (span: Tracer.Span) => PortCallOf<K> } = {
+  AttributeResolver: (span) => ({
+    ...baseOf(span),
+    _tag: "AttributeResolver",
+    ...decodePortSpan(PORTS.AttributeResolver, span.attributes),
+  }),
+  DecisionHistory: (span) => ({
+    ...baseOf(span),
+    _tag: "DecisionHistory",
+    ...decodePortSpan(PORTS.DecisionHistory, span.attributes),
+  }),
+  RelationshipResolver: (span) => ({
+    ...baseOf(span),
+    _tag: "RelationshipResolver",
+    ...decodePortSpan(PORTS.RelationshipResolver, span.attributes),
+  }),
+  CustomPredicate: (span) => ({
+    ...baseOf(span),
+    _tag: "CustomPredicate",
+    ...decodePortSpan(PORTS.CustomPredicate, span.attributes),
+  }),
+  SignatureHistory: (span) => ({
+    ...baseOf(span),
+    _tag: "SignatureHistory",
+    ...decodePortSpan(PORTS.SignatureHistory, span.attributes),
+  }),
 };
 
 /** Nanoseconds to milliseconds, and `undefined` while the span is open. */
@@ -339,31 +282,3 @@ const durationOf = (span: Tracer.Span): number | undefined =>
   span.status._tag === "Ended"
     ? Number(span.status.endTime - span.status.startTime) / 1_000_000
     : undefined;
-
-/**
- * A span attribute is `unknown`, so every read is a check.
- *
- * A wrong-typed value reads the same as an absent one — `undefined`, which the
- * panel renders as *not recorded*. Coercing it instead would put a number's
- * `String()` where a name belongs and give a reader something to chase.
- */
-const stringAt = (span: Tracer.Span, key: string): string | undefined => {
-  const value = span.attributes.get(key);
-  return typeof value === "string" ? value : undefined;
-};
-
-/** Narrows `qadi.interpreter` to the closed pair; anything else is not recorded. */
-const interpreterAt = (span: Tracer.Span): PortCallInterpreter | undefined => {
-  const value = stringAt(span, "qadi.interpreter");
-  return value === "evaluate" || value === "toPredicate" ? value : undefined;
-};
-
-const numberAt = (span: Tracer.Span, key: string): number | undefined => {
-  const value = span.attributes.get(key);
-  return typeof value === "number" ? value : undefined;
-};
-
-const booleanAt = (span: Tracer.Span, key: string): boolean | undefined => {
-  const value = span.attributes.get(key);
-  return typeof value === "boolean" ? value : undefined;
-};

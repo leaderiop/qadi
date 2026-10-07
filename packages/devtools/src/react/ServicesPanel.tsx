@@ -94,7 +94,12 @@ const PortCard: FC<{
   readonly calls: ReadonlyArray<PortCall>;
   readonly collecting: boolean;
 }> = ({ port, activity, calls, collecting }) => (
-  <section style={card} data-testid="qadi-port" data-port={port.port}>
+  <section
+    style={card}
+    data-testid="qadi-port"
+    data-port={port.port}
+    data-defaulted={port.defaulted === undefined ? undefined : String(port.defaulted)}
+  >
     <div style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
       <strong>{port.port}</strong>
       <span data-testid="qadi-port-state" style={{ fontSize: font.sizeSmall }}>
@@ -113,7 +118,20 @@ const PortCard: FC<{
           }`}
       </span>
     </div>
-    <div style={{ ...muted, fontSize: font.sizeSmall }}>{port.consequence}</div>
+    <div
+      style={{
+        ...muted,
+        fontSize: font.sizeSmall,
+        // A fail-closed default is a warning, not an error (00-overview's
+        // vocabulary rules), so it takes the amber the dock uses for one.
+        ...(port.defaulted === true ? { color: colors.error } : {}),
+      }}
+      data-testid="qadi-port-consequence"
+    >
+      {/* Said for every card, but in its own voice: a defaulted port is paying
+          this cost now, and a wired one is only exposed to it. */}
+      {port.defaulted === false ? `if defaulted: ${port.consequence}` : port.consequence}
+    </div>
     <RecentCalls calls={calls} collecting={collecting} />
   </section>
 );
@@ -187,7 +205,7 @@ const RecentCalls: FC<{
  * than a blank or a plausible default: a reader chasing a wiring problem needs
  * to know the difference between "it said nothing" and "nobody asked".
  */
-const describe: (self: PortCall) => string = Match.type<PortCall>().pipe(
+const describeOne: (self: PortCall) => string = Match.type<PortCall>().pipe(
   Match.tagsExhaustive({
     AttributeResolver: (call) =>
       `${call.attribute ?? "not recorded"} → ${
@@ -212,9 +230,25 @@ const describe: (self: PortCall) => string = Match.type<PortCall>().pipe(
     SignatureHistory: (call) =>
       `${call.meaning ?? "not recorded"}${
         call.signerRole === undefined ? "" : ` from a '${call.signerRole}'`
+      }${
+        call.resourceId !== undefined
+          ? ` on ${call.resourceId}`
+          : call.scope === "Any"
+            ? " anywhere"
+            : ""
       } → ${call.matched === undefined ? "no answer" : call.matched ? "matched" : "no match"}`,
   }),
 );
+
+/**
+ * One call in a sentence, with how many times it ran when a retrying wrapper
+ * made it more than once — the per-call count a process-wide `retried` total
+ * cannot give (`qadi.attempts`).
+ */
+const describe = (call: PortCall): string =>
+  call.attempts !== undefined && call.attempts > 1
+    ? `${describeOne(call)} · ${String(call.attempts)} attempts`
+    : describeOne(call);
 
 const callsFor = (log: PortCallLog | undefined, port: string): ReadonlyArray<PortCall> =>
   log === undefined ? [] : log.calls.filter((call) => call._tag === port);
@@ -228,7 +262,10 @@ const callsFor = (log: PortCallLog | undefined, port: string): ReadonlyArray<Por
  */
 const stateOf = (port: PortReport): string => {
   if (!port.present) return port.required ? "not provided to this reader" : "absent";
-  return port.name === undefined ? "wired, unnamed" : port.name;
+  if (port.name === undefined) return "wired, unnamed";
+  // The name, and the fact: a default reads as just another implementation
+  // otherwise, which is exactly what it must not look like.
+  return port.defaulted === true ? `defaulted — ${port.name}` : port.name;
 };
 
 /**

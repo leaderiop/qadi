@@ -13,11 +13,13 @@ import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type * as Schedule from "effect/Schedule";
+import * as Schema from "effect/Schema";
 import { AttributeResolveError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import type { SubjectId } from "./Identity.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
+import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 
 export interface AttributeResolverShape {
   /**
@@ -77,6 +79,27 @@ export class AttributeResolver extends Context.Service<
 }
 
 /**
+ * What the attribute span says (BEH-QD-227).
+ *
+ * **The value is never recorded** ([INV-QD-044](../../../spec/invariants.md)).
+ * `hasActed` and `hasRelationship` answer with closed enums, which are safe to
+ * annotate; an attribute resolves to arbitrary data, and a span attribute goes
+ * to whatever backend is wired. `qadi.resolved` says a value came back, not what
+ * it was, and `disclose` is the only path from a resolved value to a span: its
+ * return type cannot carry the value. `undefined` is the absent sentinel every
+ * fail-closed default answers with; `null` is a value a store genuinely
+ * returned.
+ */
+const attributeSpan = {
+  question: spanStruct(
+    { attribute: Schema.optionalKey(Schema.String), ...sharedQuestionFields },
+    { attribute: "qadi.attribute", ...sharedQuestionKeys },
+  ),
+  answer: spanStruct({ resolved: Schema.optionalKey(Schema.Boolean) }, { resolved: "qadi.resolved" }),
+  disclose: (value: unknown) => ({ resolved: value !== undefined }),
+};
+
+/**
  * The attribute port, described once (`PortDescription.ts`): the wrappers and
  * the default below, `PortAccess.ts`'s defect mapping and span, the doubles
  * (`PortDoubles.ts`) and `@qadi/devtools`' capture/replay all read it.
@@ -89,11 +112,13 @@ export const attributeResolverPort: PortDescription<
   AttributeResolverShape,
   [subjectId: SubjectId, attribute: string],
   unknown,
-  AttributeResolveError
+  AttributeResolveError,
+  typeof attributeSpan
 > = {
   port: "AttributeResolver",
   method: "resolve",
   span: "qadi.attribute",
+  attributes: attributeSpan,
   service: AttributeResolver,
   invoke: (shape) => (subjectId, attribute) => shape.resolve(subjectId, attribute),
   make: (name, call) => ({ name, resolve: call }),

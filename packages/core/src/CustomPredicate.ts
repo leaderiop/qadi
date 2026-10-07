@@ -17,11 +17,13 @@ import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type * as Schedule from "effect/Schedule";
+import * as Schema from "effect/Schema";
 import type { AuthSubject } from "./AuthSubject.ts";
 import { CustomPredicateError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
+import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 import type { Resource } from "./Resource.ts";
 
 export interface CustomPredicateShape {
@@ -83,6 +85,19 @@ const renderReason = (cause: unknown): string => {
 };
 
 /**
+ * What the custom-predicate span says (BEH-QD-227). The registered name is
+ * recorded; `params` never are, since they are arbitrary caller data.
+ */
+const customSpan = {
+  question: spanStruct(
+    { name: Schema.optionalKey(Schema.String), ...sharedQuestionFields },
+    { name: "qadi.custom_predicate", ...sharedQuestionKeys },
+  ),
+  answer: spanStruct({ answer: Schema.optionalKey(Schema.Boolean) }, { answer: "qadi.answer" }),
+  disclose: (answer: boolean) => ({ answer }),
+};
+
+/**
  * The custom-predicate port, described once (`PortDescription.ts`).
  *
  * A request is keyed by `(subjectId, name, params)` — not by the resource,
@@ -97,11 +112,13 @@ export const customPredicatePort: PortDescription<
   CustomPredicateShape,
   [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown],
   boolean,
-  CustomPredicateError
+  CustomPredicateError,
+  typeof customSpan
 > = {
   port: "CustomPredicate",
   method: "evaluate",
   span: "qadi.hasCustom",
+  attributes: customSpan,
   service: CustomPredicate,
   invoke: (shape) => (name, subject, resource, params) =>
     shape.evaluate(name, subject, resource, params),

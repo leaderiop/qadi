@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -175,9 +175,9 @@ export const wiringReport: Effect<WiringReport>;
 ```
 
 ```
-REQUIREMENT: `AttributeResolver`, `RelationshipResolver`, `DecisionHistory`,
-             `EvaluationId` and `CurrentSubject` MUST NOT be described as
-             unwired.
+REQUIREMENT: `AttributeResolver`, `DecisionHistory`, `RelationshipResolver`,
+             `CustomPredicate`, `SignatureHistory`, `EvaluationId` and
+             `CurrentSubject` MUST NOT be described as unwired.
 ```
 
 They are in `EvaluationServices`: a program that has not provided them does not
@@ -185,6 +185,29 @@ run. What a card can truthfully report is that one is **defaulted to a
 fail-closed implementation** ([INV-QD-007](../invariants.md)), and it carries the
 consequence of that default. `DecisionCache` and `DecisionSink` are the only two
 genuinely optional ones.
+
+```
+REQUIREMENT: The port rows MUST be the registry's ports (`forEveryPort`), in its
+             order, followed by the four services that are not ports.
+```
+
+A sixth port is a row without an edit to `wiringReport`, and its consequence line
+is a compile error until written. `EvaluationId`, `CurrentSubject`,
+`DecisionCache` and `DecisionSink` stay hand-listed: they are not ports (no
+request, no typed failure, or optional).
+
+```
+REQUIREMENT: A port at its description's fail-closed default, or a wrapper around
+             it, MUST be reported as defaulted (`defaulted: true`); a wired
+             adapter MUST be reported `false`; an absent port, and a row that is
+             not a port, `undefined`.
+```
+
+The default names itself (`none.name`), and a wrapper composes it as
+`"<default> (retrying)"` ([BEH-QD-196](./25-inspection.md)), so a wrapped default is
+still a fail-closed port. `defaulted` is a **reader's label derived from `name`**:
+core never branches on a name, and a host that names its own adapter after a
+default is reported as defaulted, which is what it asked for.
 
 ```
 REQUIREMENT: An unnamed implementation MUST be reported as unnamed.

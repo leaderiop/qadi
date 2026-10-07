@@ -21,11 +21,13 @@ import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
 import type * as Schedule from "effect/Schedule";
+import * as Schema from "effect/Schema";
 import { DecisionHistoryUnavailable } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
+import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 
 /**
  * What the port can say about a past event.
@@ -80,6 +82,32 @@ export class DecisionHistory extends Context.Service<
 }
 
 /**
+ * What the history span says (BEH-QD-227). The answer is a closed three-valued
+ * enum, so it discloses nothing a policy tag does not.
+ */
+const actedSpan = {
+  question: spanStruct(
+    {
+      event: Schema.optionalKey(Schema.String),
+      scope: Schema.optionalKey(Schema.Literals(["Any", "Resource"])),
+      resourceId: Schema.optionalKey(Schema.String),
+      ...sharedQuestionFields,
+    },
+    {
+      event: "qadi.event",
+      scope: "qadi.scope",
+      resourceId: "qadi.resource_id",
+      ...sharedQuestionKeys,
+    },
+  ),
+  answer: spanStruct(
+    { answer: Schema.optionalKey(Schema.Literals(["Acted", "NotActed", "Unknown"])) },
+    { answer: "qadi.answer" },
+  ),
+  disclose: (answer: ActedResult) => ({ answer }),
+};
+
+/**
  * The decision-history port, described once (`PortDescription.ts`).
  *
  * A request is keyed by `(subjectId, event, resourceId)`, with an absent
@@ -92,11 +120,13 @@ export const decisionHistoryPort: PortDescription<
   DecisionHistoryShape,
   [query: ActedQuery],
   ActedResult,
-  DecisionHistoryUnavailable
+  DecisionHistoryUnavailable,
+  typeof actedSpan
 > = {
   port: "DecisionHistory",
   method: "hasActed",
   span: "qadi.acted",
+  attributes: actedSpan,
   service: DecisionHistory,
   invoke: (shape) => (query) => shape.hasActed(query),
   make: (name, call) => ({ name, hasActed: call }),

@@ -19,6 +19,7 @@ const wiring: WiringReport = {
       name: "attributeResolverFromRecord",
       required: true,
       present: true,
+      defaulted: undefined,
       consequence: "a missing attribute resolves to undefined, so an attribute policy denies",
     },
     {
@@ -26,6 +27,7 @@ const wiring: WiringReport = {
       name: undefined,
       required: true,
       present: true,
+      defaulted: undefined,
       consequence: "an unanswered relationship denies",
     },
     {
@@ -33,11 +35,18 @@ const wiring: WiringReport = {
       name: undefined,
       required: false,
       present: false,
+      defaulted: undefined,
       consequence: "every evaluation is computed",
     },
   ],
   cache: { present: false, size: undefined },
 };
+
+const logOf = (calls: ReadonlyArray<PortCall>): PortCallLog => ({
+  calls,
+  dropped: 0,
+  capacity: 200,
+});
 
 const cardFor = (port: string) =>
   screen.getAllByTestId("qadi-port").find((card) => card.getAttribute("data-port") === port);
@@ -73,6 +82,147 @@ describe("the services panel", () => {
       cardFor("AttributeResolver")?.textContent ?? "",
       "an attribute policy denies",
     );
+  });
+
+  // C7 — a fail-closed default must not read as just another implementation.
+  it("a defaulted port says so, in the warning tone, with its cost", () => {
+    const defaulted: WiringReport = {
+      ports: [
+        {
+          port: "AttributeResolver",
+          name: "AttributeResolverNone",
+          required: true,
+          present: true,
+          defaulted: true,
+          consequence: "a missing attribute resolves to undefined, so an attribute policy denies",
+        },
+      ],
+      cache: { present: false, size: undefined },
+    };
+    render(<ServicesPanel wiring={defaulted} activity={[]} />);
+    const card = cardFor("AttributeResolver") ?? fail();
+
+    assert.strictEqual(card.getAttribute("data-defaulted"), "true");
+    assert.include(within(card).getByTestId("qadi-port-state").textContent ?? "", "defaulted");
+    assert.include(within(card).getByTestId("qadi-port-state").textContent ?? "", "AttributeResolverNone");
+    const consequence = within(card).getByTestId("qadi-port-consequence");
+    assert.include(consequence.textContent ?? "", "an attribute policy denies");
+    assert.notInclude(consequence.textContent ?? "", "if defaulted");
+  });
+
+  it("a wired port says what being defaulted would cost, as a condition", () => {
+    const real: WiringReport = {
+      ports: [
+        {
+          port: "AttributeResolver",
+          name: "attributeResolverFromRecord",
+          required: true,
+          present: true,
+          defaulted: false,
+          consequence: "a missing attribute resolves to undefined, so an attribute policy denies",
+        },
+      ],
+      cache: { present: false, size: undefined },
+    };
+    render(<ServicesPanel wiring={real} activity={[]} />);
+    const card = cardFor("AttributeResolver") ?? fail();
+
+    assert.strictEqual(card.getAttribute("data-defaulted"), "false");
+    assert.notInclude(within(card).getByTestId("qadi-port-state").textContent ?? "", "defaulted");
+    assert.include(
+      within(card).getByTestId("qadi-port-consequence").textContent ?? "",
+      "if defaulted: a missing attribute",
+    );
+  });
+
+  it("says nothing about defaulting for a row that is not a port", () => {
+    render(<ServicesPanel wiring={wiring} activity={[]} />);
+    assert.isNull(cardFor("DecisionCache")?.getAttribute("data-defaulted") ?? null);
+  });
+
+  // C4/C5 — the facts that were written on the span and never shown.
+  it("a signature call says which resource it was about, or that it was about any", () => {
+    const sigWiring: WiringReport = {
+      ports: [
+        {
+          port: "SignatureHistory",
+          name: undefined,
+          required: true,
+          present: true,
+          defaulted: undefined,
+          consequence: "denies",
+        },
+      ],
+      cache: { present: false, size: undefined },
+    };
+    render(
+      <ServicesPanel
+        wiring={sigWiring}
+        activity={[]}
+        portCalls={logOf([
+          {
+            _tag: "SignatureHistory",
+            span: "qadi.hasSignature",
+            at: 1,
+            durationMillis: 0.1,
+            meaning: "approve",
+            scope: "Resource",
+            resourceId: "doc-1",
+            matched: true,
+          },
+          {
+            _tag: "SignatureHistory",
+            span: "qadi.hasSignature",
+            at: 2,
+            durationMillis: 0.1,
+            meaning: "approve",
+            scope: "Any",
+            matched: false,
+          },
+        ])}
+      />,
+    );
+
+    const texts = within(cardFor("SignatureHistory") ?? fail())
+      .getAllByTestId("qadi-port-call")
+      .map((row) => row.textContent ?? "");
+    assert.isTrue(texts.some((t) => t.includes("approve on doc-1 → matched")));
+    assert.isTrue(texts.some((t) => t.includes("approve anywhere → no match")));
+  });
+
+  it("a call that ran more than once says how many times", () => {
+    render(
+      <ServicesPanel
+        wiring={wiring}
+        activity={[]}
+        portCalls={logOf([
+          {
+            _tag: "AttributeResolver",
+            span: "qadi.attribute",
+            at: 1,
+            durationMillis: 0.1,
+            attribute: "tier",
+            resolved: true,
+            attempts: 3,
+          },
+          {
+            _tag: "AttributeResolver",
+            span: "qadi.attribute",
+            at: 2,
+            durationMillis: 0.1,
+            attribute: "level",
+            resolved: true,
+            attempts: 1,
+          },
+        ])}
+      />,
+    );
+
+    const texts = within(cardFor("AttributeResolver") ?? fail())
+      .getAllByTestId("qadi-port-call")
+      .map((row) => row.textContent ?? "");
+    assert.isTrue(texts.some((t) => t.includes("tier → a value · 3 attempts")));
+    assert.isFalse(texts.some((t) => t.includes("level") && t.includes("attempts")));
   });
 
   // E4.7 — the two facts that look like one.
@@ -187,12 +337,6 @@ const fail = (): never => {
  * nothing" from "nobody asked".
  */
 describe("recent port calls", () => {
-  const logOf = (calls: ReadonlyArray<PortCall>): PortCallLog => ({
-    calls,
-    dropped: 0,
-    capacity: 200,
-  });
-
   const attributeCall = (over?: Partial<Extract<PortCall, { _tag: "AttributeResolver" }>>) => ({
     _tag: "AttributeResolver" as const,
     span: "qadi.attribute",
@@ -423,6 +567,7 @@ describe("recent port calls", () => {
           name: "customPredicateFromRecord",
           required: false,
           present: true,
+          defaulted: undefined,
           consequence: "an unregistered predicate name is an error, never a denial",
         },
         {
@@ -430,6 +575,7 @@ describe("recent port calls", () => {
           name: undefined,
           required: false,
           present: true,
+          defaulted: undefined,
           consequence: "a hasSignature node is never compiled to a Predicate",
         },
       ],

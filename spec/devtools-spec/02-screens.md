@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-02                                    |
-> | Revision       | 0.9 (draft)                                    |
+> | Revision       | 0.10 (draft)                                   |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.9 (2026-10-05): §6 names a decision log's `clear` in place of the removed `decisionSinkRing`'s (CCR-QD-181)<br>0.8 (2026-08-24): §7's gap notes closed against what was built — hydration counts (CCR-QD-072) and the instance registry and lens (CCR-QD-073); recorded in CCR-QD-074<br>0.7 (2026-08-24): The resolver-call gap closed, and the note corrected — annotating the spans was half of it, and a reader was the other half (CCR-QD-071)<br>0.6 (2026-08-24): Screen 5 built, and §5 corrected on two counts it had asserted since the first draft — it runs on `@qadi/core`'s own layers rather than `@qadi/testing`'s, and "never against live resolvers" was the wrong rule (CCR-QD-070)<br>0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.10 (2026-10-07): §2 and §6 say five port spans and four other ports; §6 names the registry's card order and says what a defaulted card shows (`PortReport.defaulted`), and its counts of `name?` shapes and required services are corrected (ARCH-21, CCR-QD-198)<br>0.9 (2026-10-05): §6 names a decision log's `clear` in place of the removed `decisionSinkRing`'s (CCR-QD-181)<br>0.8 (2026-08-24): §7's gap notes closed against what was built — hydration counts (CCR-QD-072) and the instance registry and lens (CCR-QD-073); recorded in CCR-QD-074<br>0.7 (2026-08-24): The resolver-call gap closed, and the note corrected — annotating the spans was half of it, and a reader was the other half (CCR-QD-071)<br>0.6 (2026-08-24): Screen 5 built, and §5 corrected on two counts it had asserted since the first draft — it runs on `@qadi/core`'s own layers rather than `@qadi/testing`'s, and "never against live resolvers" was the wrong rule (CCR-QD-070)<br>0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -122,20 +122,20 @@ shared by every cache in the process.
 **Resolver calls and history touches — closed, and it was two jobs rather than
 one** (CCR-QD-071, [ADR-QD-051](../decisions/051-a-span-says-what-was-asked.md)).
 
-`readAttribute`'s port call is now a `qadi.attribute` span, and all three port
-spans carry what they asked and what they heard. That half was the recorded gap.
+`readAttribute`'s port call is now a `qadi.attribute` span, and every port
+span carries what it asked and what it heard. That half was the recorded gap.
 
 The half the note missed is that **annotating a span does nothing for this
 screen**: the devtools model read `Metric` and only `Metric`, and spans reach an
 OpenTelemetry backend rather than the dock. So `collectPortCalls` is the reader —
-a tracer layer that wraps the one already in scope and keeps the three port
+a tracer layer that wraps the one already in scope and keeps the five port
 spans. Richer metrics could not have done it (`PortMetrics.ts` keys on the port
 name for cardinality, and an attribute name is unbounded) and a per-call sink was
 already rejected there for putting a write on the hot path.
 
 **The value never travels.** `qadi.resolved` says a value came back, not what it
-was ([INV-QD-044](../invariants.md)) — the other two ports answer with closed
-enums and are reported in full. A subject-carried attribute emits nothing at all,
+was ([INV-QD-044](../invariants.md)) — the other four ports answer with closed
+enums or booleans and are reported in full. A subject-carried attribute emits nothing at all,
 so the span and `portCallsTotal` agree about what a port call is.
 
 Measured rather than asserted: +4.7 µs on a resolver miss against a
@@ -264,18 +264,22 @@ rather than inferring anything from the number.
 
 ## 6. Services & cache
 
-One card per port: CurrentSubject, AttributeResolver, RelationshipResolver,
-DecisionHistory, EvaluationId, DecisionCache and DecisionSink (the last two
+One card per port: AttributeResolver, DecisionHistory, RelationshipResolver,
+CustomPredicate and SignatureHistory (the registry's order, ARCH-21), then
+EvaluationId, CurrentSubject, DecisionCache and DecisionSink (the last two
 marked optional). Each card: wiring state tag, and a meta line with the
-fail-closed consequence when defaulted. DecisionHistory's card names the
+fail-closed consequence. A port at its fail-closed default (or a wrapper around
+it) reads `defaulted — <name>` and shows the consequence in the warning tone; a
+wired adapter shows it muted, as `if defaulted: …`. DecisionHistory's card names the
 three-valued default (denies `hasActed` and `hasNotActed` alike,
 [ADR-QD-020](../decisions/020-decision-history-port.md)).
 
-**Closed — `name?` exists on four port shapes**, and wrappers compose it
+**Closed — `name?` exists on five port shapes**, and wrappers compose it
 (`"fromRecord (retrying)"`). The card reports the name, or *wired, unnamed* — and
 never "unwired" for a required port, because the misnomer this note identified
-is real: five of the seven are in `EvaluationServices`, so what the card reports
-is *defaulted to a fail-closed implementation* (BEH-QD-215).
+is real: seven of the nine services are in `EvaluationServices`, so what the card
+reports is *defaulted to a fail-closed implementation* (BEH-QD-215), which
+`PortReport.defaulted` now says outright for a port's own default.
 
 **Closed — `PortMetrics` counts both**, and `portActivity` reads them with zero
 wiring. That answers the question `name` cannot: a store that is wired but never

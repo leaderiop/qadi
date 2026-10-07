@@ -1449,6 +1449,34 @@ describe("BEH-QD-267: translation's port reads are spans", () => {
     resolve: (_id: string, attribute: string) => Effect.succeed(attribute === "riskScore" ? 20 : undefined),
   });
 
+  // INV-QD-044 under the other interpreter (C9): no span carries the value.
+  it.effect("a resolved attribute's value never reaches any span under toPredicate", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const secret = "sentinel-8f21-do-not-disclose";
+      yield* toPredicate(P.hasAttribute("clearance", M.eq(M.literal(secret)))).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u9" }), {
+              AttributeResolver: Layer.succeed(AttributeResolver, {
+                name: "record",
+                resolve: (_id: string, attribute: string) =>
+                  Effect.succeed(attribute === "clearance" ? secret : undefined),
+              }),
+            }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      assert.isDefined(named(spans, "qadi.attribute"));
+      const rendered = spans
+        .flatMap((span) => [...span.attributes.values()])
+        .map((value) => String(value))
+        .join(" ");
+      assert.notInclude(rendered, secret);
+    }));
+
   it.effect("a resolved attribute spans under qadi.toPredicate and records no value", () =>
     Effect.gen(function* () {
       const spans: Array<Tracer.Span> = [];

@@ -28,6 +28,7 @@ import type * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
 import { InvalidBoundedPermits } from "./Errors.ts";
 import type { PortDescription, PortShape } from "./PortDescription.ts";
+import { attemptsStruct, encodeSpan } from "./PortSpanEncode.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "./PortMetrics.ts";
 import type { PortName } from "./PortMetrics.ts";
 
@@ -119,7 +120,7 @@ export const retryCountingAttempts = <A, E>(
       Effect.tapError(() => Metric.update(portRetriesTotal, port)),
       Effect.retry(schedule),
       Effect.ensuring(
-        Effect.flatMap(Ref.get(attempts), (n) => Effect.annotateCurrentSpan({ "qadi.attempts": n })),
+        Effect.flatMap(Ref.get(attempts), (n) => Effect.annotateCurrentSpan(encodeSpan(attemptsStruct, { attempts: n }))),
       ),
     );
   });

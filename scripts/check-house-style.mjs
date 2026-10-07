@@ -111,7 +111,10 @@ const ROOT = new URL("..", import.meta.url).pathname;
  * bans built from a common word and a common operator, which is why — unlike
  * those two — they stay per-line rather than getting the same conversion.
  *
- * @type {ReadonlyArray<{ id: string, re: RegExp, message: string, raw?: boolean, testScope?: boolean }>}
+ * `files`, when present, scopes a rule to exactly those repo-relative paths, and
+ * `skipLineComments` makes a `raw` rule ignore a line that is only a `//` comment.
+ *
+ * @type {ReadonlyArray<{ id: string, re: RegExp, message: string, raw?: boolean, testScope?: boolean, files?: ReadonlyArray<string>, skipLineComments?: boolean }>}
  */
 const RULES = [
   {
@@ -247,6 +250,30 @@ const RULES = [
     re: /"qadi\.(?:refusal|path)"|"path"\s+in\s/,
     message:
       'A refusal is read through @qadi/core (encodeRefusalAnnotations / encodeRefusalPath / reportEncodeRefusal), not by restating "qadi.refusal", "qadi.path" or a `"path" in` check.',
+    raw: true,
+  },
+  {
+    id: "no-port-span-key-literals",
+    // A port span's keys are stated once, in the port's description
+    // (`PortDescription.attributes`, ARCH-21): `PortAccess.ts` writes through
+    // it, the retrying wrappers write `qadi.attempts` through `attemptsStruct`,
+    // and `@qadi/devtools`' collector reads through `decodePortSpan`. A
+    // `"qadi.<key>"` literal in any of the three is a fourth spelling, and the
+    // writer and the reader drifted twice while each spelled their own (a
+    // signature span's `qadi.scope`/`qadi.resource_id` and every retried call's
+    // `qadi.attempts` were written and never read). A fixed file list with zero
+    // allowed, not a counted budget: nothing here is an exception to be
+    // measured. Span *names* are not literals in these files (they come from
+    // `d.span`), and a `//` comment may name a key.
+    files: [
+      "packages/core/src/PortAccess.ts",
+      "packages/core/src/PortDerivation.ts",
+      "packages/devtools/src/model/PortCalls.ts",
+    ],
+    skipLineComments: true,
+    re: /["'`]qadi\.[a-z_]+["'`]/,
+    message:
+      "A port span's keys are stated once, in its description (`attributes`). Write through `annotateQuestion`/`annotateAnswer`/`attemptsStruct` and read through `decodePortSpan`; do not spell a `qadi.<key>` here.",
     raw: true,
   },
   {
@@ -924,6 +951,8 @@ for (const file of sources) {
     for (const rule of RULES) {
       if (isTestFile && !rule.testScope) continue;
       if (exempt.includes(rule.id)) continue;
+      if (rule.files !== undefined && !rule.files.includes(rel)) continue;
+      if (rule.skipLineComments === true && raw.trimStart().startsWith("//")) continue;
       if (rule.id === "no-type-assertion" && importActive) continue;
       if (rule.re.test(rule.raw === true ? raw : line)) {
         failures += 1;

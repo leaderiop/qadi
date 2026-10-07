@@ -19,23 +19,32 @@ import * as Effect from "effect/Effect";
 import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
 import {
-  AttributeResolver,
   CurrentSubject,
-  CustomPredicate,
   DecisionCache,
-  DecisionHistory,
   DecisionSink,
   EvaluationId,
+  forEveryPort,
   portCallsTotal,
   portRetriesTotal,
   portTimeoutsTotal,
   predicatePortCallsTotal,
-  RelationshipResolver,
-  SignatureHistory,
 } from "@qadi/core";
+import type { PortName } from "@qadi/core";
+
+/**
+ * Every row of the wiring report: the five ports of the registry, and the four
+ * services that are not ports (`EvaluationId`, `CurrentSubject`, `DecisionCache`,
+ * `DecisionSink` — no request, no typed failure, or optional).
+ */
+export type WiredServiceName =
+  | PortName
+  | "EvaluationId"
+  | "CurrentSubject"
+  | "DecisionCache"
+  | "DecisionSink";
 
 export interface PortReport {
-  readonly port: string;
+  readonly port: WiredServiceName;
   /**
    * The implementation's own name, when it declares one.
    *
@@ -46,6 +55,17 @@ export interface PortReport {
   /** In `EvaluationServices`, so a program cannot run without it. */
   readonly required: boolean;
   readonly present: boolean;
+  /**
+   * Whether this port is its description's fail-closed default, or a wrapper
+   * around it (`"<default> (retrying)"`, BEH-QD-196's naming contract).
+   *
+   * `undefined` when there is nothing to say: the port is absent from the
+   * layer, or the row is not a port at all. A reader's label, derived from
+   * `name` for display — core never branches on a name, and a host that names
+   * its own adapter after a default is reported as defaulted, which is what it
+   * asked for.
+   */
+  readonly defaulted: boolean | undefined;
   /** What it means for this one to be defaulted or absent. */
   readonly consequence: string;
 }
@@ -71,13 +91,17 @@ export interface WiringReport {
  * arises.
  */
 export const wiringReport: Effect.Effect<WiringReport> = Effect.gen(function* () {
-  const attribute = yield* Effect.serviceOption(AttributeResolver);
-  const relationship = yield* Effect.serviceOption(RelationshipResolver);
-  const history = yield* Effect.serviceOption(DecisionHistory);
+  // The five ports come from the registry, in its order: a sixth port is a row
+  // here without an edit, and a missing consequence below is a compile error.
+  const ports = yield* Effect.all(
+    forEveryPort((d) =>
+      Effect.map(Effect.serviceOption(d.service), (shape) =>
+        portRow(d.port, d.none.name, shape),
+      ),
+    ),
+  );
   const ids = yield* Effect.serviceOption(EvaluationId);
-  const custom = yield* Effect.serviceOption(CustomPredicate);
   const subject = yield* Effect.serviceOption(CurrentSubject);
-  const signature = yield* Effect.serviceOption(SignatureHistory);
   const cache = yield* Effect.serviceOption(DecisionCache);
   const sink = yield* Effect.serviceOption(DecisionSink);
 
@@ -85,18 +109,9 @@ export const wiringReport: Effect.Effect<WiringReport> = Effect.gen(function* ()
 
   return {
     ports: [
-      required("AttributeResolver", nameOf(attribute), Option.isSome(attribute),
-        "a missing attribute resolves to undefined, so an attribute policy denies"),
-      required("RelationshipResolver", nameOf(relationship), Option.isSome(relationship),
-        "an unanswered relationship denies"),
-      required("DecisionHistory", nameOf(history), Option.isSome(history),
-        "the three-valued default denies hasActed and hasNotActed alike"),
+      ...ports,
       required("EvaluationId", nameOf(ids), Option.isSome(ids),
         "identifiers correlate a decision with its trace; nothing else depends on them"),
-      required("CustomPredicate", nameOf(custom), Option.isSome(custom),
-        "every hasCustom node denies, since no registered predicate can be reached"),
-      required("SignatureHistory", nameOf(signature), Option.isSome(signature),
-        "an unwired signature history answers no signatures on file, so every hasSignature node denies"),
       required("CurrentSubject", undefined, Option.isSome(subject),
         "supplied per request, so its absence here says nothing about the application"),
       optional("DecisionCache", Option.isSome(cache),
@@ -107,6 +122,44 @@ export const wiringReport: Effect.Effect<WiringReport> = Effect.gen(function* ()
     cache: { present: Option.isSome(cache), size },
   };
 });
+
+/** What it costs for each port to be defaulted, by port — exhaustive over the registry. */
+const CONSEQUENCES: { readonly [K in PortName]: string } = {
+  AttributeResolver: "a missing attribute resolves to undefined, so an attribute policy denies",
+  DecisionHistory: "the three-valued default denies hasActed and hasNotActed alike",
+  RelationshipResolver: "an unanswered relationship denies",
+  CustomPredicate: "every hasCustom node denies, since no registered predicate can be reached",
+  SignatureHistory:
+    "an unwired signature history answers no signatures on file, so every hasSignature node denies",
+};
+
+/**
+ * Whether `name` is the description's default, or a wrapper around it.
+ *
+ * A wrapper composes its inner name as `"<inner> (<suffix>)"` (BEH-QD-196), so
+ * a retrying default reads `"AttributeResolverNone (retrying)"` and exact
+ * equality would call it a real adapter.
+ */
+const isDefaultName = (name: string, noneName: string): boolean =>
+  name === noneName || name.startsWith(`${noneName} (`);
+
+const portRow = (
+  port: PortName,
+  noneName: string,
+  service: Option.Option<{ readonly name?: string | undefined }>,
+): PortReport => {
+  const name = nameOf(service);
+  return {
+    port,
+    name,
+    required: true,
+    present: Option.isSome(service),
+    defaulted: Option.isSome(service)
+      ? name !== undefined && isDefaultName(name, noneName)
+      : undefined,
+    consequence: CONSEQUENCES[port],
+  };
+};
 
 export interface PortActivity {
   readonly port: string;
@@ -191,16 +244,17 @@ const nameOf = (service: Option.Option<{ readonly name?: string | undefined }>):
   Option.isSome(service) ? service.value.name : undefined;
 
 const required = (
-  port: string,
+  port: WiredServiceName,
   name: string | undefined,
   present: boolean,
   consequence: string,
-): PortReport => ({ port, name, required: true, present, consequence });
+): PortReport => ({ port, name, required: true, present, defaulted: undefined, consequence });
 
-const optional = (port: string, present: boolean, consequence: string): PortReport => ({
+const optional = (port: WiredServiceName, present: boolean, consequence: string): PortReport => ({
   port,
   name: undefined,
   required: false,
   present,
+  defaulted: undefined,
   consequence,
 });

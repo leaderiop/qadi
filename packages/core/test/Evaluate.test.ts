@@ -9,7 +9,11 @@ import * as Metric from "effect/Metric";
 import * as References from "effect/References";
 import * as Schedule from "effect/Schedule";
 import * as Tracer from "effect/Tracer";
-import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolver.ts";
+import {
+  AttributeResolver,
+  attributeResolverPort,
+  attributeResolverRetrying,
+} from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
 import { customPredicateFromRecord, customPredicatePort } from "../src/CustomPredicate.ts";
 import {
@@ -2758,6 +2762,63 @@ describe("observability", () => {
         "qadi.interpreter": "evaluate",
         "qadi.resolved": true,
       });
+    }));
+
+  // C5 — the per-call retry count reaches the port span in a real evaluation.
+  it.effect("a retried read records its attempts on the port span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      let n = 0;
+      const flaky = scriptedPort(attributeResolverPort, () =>
+        n++ < 2 ? PortReply.fail("down") : PortReply.answer(5),
+      ).layer;
+
+      yield* evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1" }), {
+              AttributeResolver: attributeResolverRetrying(Schedule.recurs(3))(flaky),
+            }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(attributes(named(spans, "qadi.attribute")), {
+        "qadi.attribute": "tier",
+        "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
+        "qadi.attempts": 3,
+        "qadi.resolved": true,
+      });
+    }));
+
+  // A resource id that is not a string is not recorded as one: the span says
+  // what was asked, and a numeric id was never a usable question (BEH-QD-227).
+  it.effect("a resource id that is not a string never reaches a span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const policies = [
+        P.hasActed("raised"),
+        P.hasRelationship("owner"),
+        P.hasSignature("approve"),
+      ];
+
+      for (const policy of policies) {
+        yield* Effect.result(
+          evaluate(policy, { resource: { id: 42 } }).pipe(
+            Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u1" })), collectingTracer(spans))),
+          ),
+        );
+      }
+
+      const portSpans = ["qadi.acted", "qadi.hasRelationship", "qadi.hasSignature"].map((name) =>
+        named(spans, name),
+      );
+      assert.isTrue(portSpans.every((span) => span !== undefined));
+      for (const span of portSpans) {
+        assert.isFalse(Object.hasOwn(attributes(span), "qadi.resource_id"));
+      }
     }));
 
   it.effect("an attribute the resolver does not have says so, without inventing one", () =>

@@ -13,6 +13,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Schedule from "effect/Schedule";
 import * as Tracer from "effect/Tracer";
 import {
   anyOf,
@@ -33,6 +34,10 @@ import {
   hasCustom,
   hasRelationship,
   hasRole,
+  hasSignature,
+  SignatureHistory,
+  signatureHistoryFromSignatures,
+  attributeResolverRetrying,
   makeSubject,
   RelationshipResolver,
   RelationshipResolverNever,
@@ -61,6 +66,7 @@ interface Overrides {
   readonly relationships?: Layer.Layer<RelationshipResolver>;
   readonly history?: Layer.Layer<DecisionHistory>;
   readonly customPredicate?: Layer.Layer<CustomPredicate>;
+  readonly signatures?: Layer.Layer<SignatureHistory>;
 }
 
 const services = (overrides?: Overrides) =>
@@ -70,6 +76,7 @@ const services = (overrides?: Overrides) =>
       RelationshipResolver: overrides?.relationships ?? RelationshipResolverNever,
       DecisionHistory: overrides?.history ?? DecisionHistoryUnknown,
       CustomPredicate: overrides?.customPredicate ?? CustomPredicateNone,
+      ...(overrides?.signatures === undefined ? {} : { SignatureHistory: overrides.signatures }),
     }),
     currentSubjectLayer(alice),
     evaluationIdSequential("ev"),
@@ -257,6 +264,57 @@ describe("what a row says", () => {
       const call: AttributeCall = only(log.calls, "AttributeResolver");
       assert.strictEqual(call.attribute, "tier");
       assert.isUndefined(call.resolved);
+    }));
+
+  it.effect("a resource-scoped signature call names its scope and the resource", () =>
+    Effect.gen(function* () {
+      const log = yield* watch(hasSignature("approve"), {
+        resource: { id: "doc-1" },
+        layers: {
+          signatures: signatureHistoryFromSignatures([
+            { subjectId: "alice", meaning: "approve", resourceId: "doc-1" },
+          ]),
+        },
+      });
+
+      const call = only(log.calls, "SignatureHistory");
+      assert.strictEqual(call.scope, "Resource");
+      assert.strictEqual(call.resourceId, "doc-1");
+    }));
+
+  it.effect("an Any-scoped signature call names no resource", () =>
+    Effect.gen(function* () {
+      const log = yield* watch(hasSignature("approve", { scope: "Any" }), {
+        resource: { id: "doc-1" },
+      });
+
+      const call = only(log.calls, "SignatureHistory");
+      assert.strictEqual(call.scope, "Any");
+      assert.isUndefined(call.resourceId);
+    }));
+
+  it.effect("a call through a retrying wrapper carries its attempt count", () =>
+    Effect.gen(function* () {
+      let n = 0;
+      const flaky = scriptedPort(
+        attributeResolverPort,
+        () => (n++ < 2 ? PortReply.fail("down") : PortReply.answer(5)),
+        "flaky",
+      ).layer;
+      const log = yield* watch(hasAttribute("tier", gte(3)), {
+        layers: { attributes: attributeResolverRetrying(Schedule.recurs(3))(flaky) },
+      });
+
+      assert.strictEqual(only(log.calls, "AttributeResolver").attempts, 3);
+    }));
+
+  it.effect("a call with no retrying wrapper carries no attempt count", () =>
+    Effect.gen(function* () {
+      const log = yield* watch(hasAttribute("tier", gte(3)), {
+        layers: { attributes: resolverOf({ tier: 5 }) },
+      });
+
+      assert.isUndefined(only(log.calls, "AttributeResolver").attempts);
     }));
 
   // E2.4 — a finished call reports a real duration; the in-flight case is below.

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-30                                    |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-10-05): BEH-QD-227 — each span's name is read from its port's description (`span`, `PortSpanName`) by both `PortAccess.ts` and `@qadi/devtools`' collector; BEH-QD-229 — the Services screen shows timeouts beside retries (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-04): BEH-QD-227/BEH-QD-228 — the spans move to `PortAccess.ts` and gain `qadi.interpreter`; BEH-QD-267 — `toPredicate`'s port reads are spans too (CCR-QD-153, ADR-QD-077)<br>1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
+> | Change History | 1.4 (2026-10-07): BEH-QD-227 — each span's attributes are stated once, by its port's description (`attributes`: a question annotated before the call, an answer annotated after, and `disclose`), and `PortAccess.ts` writes through that statement; `qadi.attempts` joins the listing; the list of ports whose answers are closed is corrected (four, not two); BEH-QD-228 — `@qadi/devtools` reads a span through the same description (`decodePortSpan`), a value outside a field's closed union reads as absent, and a row carries `attempts`, and a signature row its `scope` and `resourceId` (ARCH-21, CCR-QD-198)<br>1.3 (2026-10-05): BEH-QD-227 — each span's name is read from its port's description (`span`, `PortSpanName`) by both `PortAccess.ts` and `@qadi/devtools`' collector; BEH-QD-229 — the Services screen shows timeouts beside retries (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-04): BEH-QD-227/BEH-QD-228 — the spans move to `PortAccess.ts` and gain `qadi.interpreter`; BEH-QD-267 — `toPredicate`'s port reads are spans too (CCR-QD-153, ADR-QD-077)<br>1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
 
 _Previous: [29 — The Subject Simulator](./29-devtools-simulator.md)_
 
@@ -32,7 +32,17 @@ the **port name** for cardinality, so an attribute name could never live in it.
 "qadi.hasRelationship"  // qadi.subject_id, qadi.relation, qadi.resource_id, qadi.depth, qadi.interpreter, qadi.answer
 "qadi.hasCustom"        // qadi.custom_predicate, qadi.subject_id, qadi.interpreter, qadi.answer
 "qadi.hasSignature"     // qadi.subject_id, qadi.meaning, qadi.scope, qadi.signer_role, qadi.resource_id, qadi.interpreter, qadi.matched
+// and, on every one of them when a retrying wrapper ran the call: qadi.attempts
 ```
+
+The listing is a reading aid. What a port's span says is **stated once, in its
+description** — `PortDescription.attributes` (`PortSpan.ts`): the *question*
+annotated before the call, the *answer* annotated after it, and `disclose`, the
+projection from what the port returned to what the answer may say. A field's type
+is a string, a number or a boolean and nothing else, so a field that could hold
+arbitrary data does not compile ([INV-QD-044](../invariants.md)).
+`qadi.attempts` is written between the two by the retrying wrappers
+(`PortDerivation.ts`), once per call, with the number of times the call ran.
 
 Each name is its port's description's `span` — a member of the closed
 `PortSpanName` — and both `PortAccess.ts`, which opens the span, and
@@ -47,6 +57,21 @@ refuses those nodes before it would ask
 so their value is always `"evaluate"`.
 
 ```
+REQUIREMENT: `PortAccess.ts` MUST write a port span's attributes through the
+             port's description, and `@qadi/devtools` MUST read them through the
+             same description. No other module spells a port span's key.
+```
+
+Before ARCH-21 the writer and the reader each spelled thirteen keys and their
+types, and the two drifted twice: a signature span's `qadi.scope` and
+`qadi.resource_id`, and every retried call's `qadi.attempts`, were written and
+never read. `scripts/check-house-style.mjs`'s `no-port-span-key-literals` refuses
+a `"qadi.<key>"` literal in `PortAccess.ts`, `PortDerivation.ts` and devtools'
+`PortCalls.ts`; the wire itself is pinned by the literal-key assertions in
+`Evaluate.test.ts` and `Predicate.test.ts`, which a round trip through the codec
+could not see.
+
+```
 REQUIREMENT: An attribute resolved through the port MUST emit a span naming the
              attribute and the subject.
 ```
@@ -57,9 +82,12 @@ REQUIREMENT: An attribute resolved through the port MUST emit a span naming the
 REQUIREMENT: A span MUST NOT carry a resolved attribute's value.
 ```
 
-[INV-QD-044](../invariants.md). `qadi.resolved` is a boolean. The other two
-ports answer with closed three-valued enums and are reported in full; an
-attribute resolves to arbitrary data and the library cannot know what.
+[INV-QD-044](../invariants.md). `qadi.resolved` is a boolean. The other four
+ports answer with closed enums (`DecisionHistory`, `RelationshipResolver`) or
+booleans (`CustomPredicate`, and `SignatureHistory`'s `matched`) and are reported
+in full; an attribute resolves to arbitrary data and the library cannot know what.
+`attributeResolverPort.attributes.disclose` is the only path from a resolved value
+to a span.
 
 ```
 REQUIREMENT: An attribute the **subject** carries MUST emit no span.
@@ -133,7 +161,7 @@ outside the pair), which reads as *not recorded* like every other field.
 span-and-collect pattern as the other three: `askCustom` and `askSignature` in
 `PortAccess.ts` are `Effect.fn("qadi.hasCustom")` /
 `Effect.fn("qadi.hasSignature")` just as `askRelationship` is, and
-`PortCalls.ts`'s single collector loop and `rowOf` dispatch handle all five
+`PortCalls.ts`'s single collector loop and per-port row table handle all five
 span names uniformly — there is no second mechanism for the two custom/signature
 leaves.
 
@@ -174,6 +202,20 @@ REQUIREMENT: A field the span did not record MUST read as absent.
 Span attributes are `unknown`, and any producer may write into the `qadi.`
 namespace — so every read is a type check, and a wrong-typed value reads the same
 as a missing one rather than being coerced into something a reader would chase.
+The check is the description's: `decodePortSpan(description, attributes)` decodes
+each field on its own, so one wrong-typed attribute costs that field and not the
+row, and a value outside a closed union (`scope` is `"Any"` or `"Resource"`, a
+history answer is `"Acted"`, `"NotActed"` or `"Unknown"`) reads as absent exactly
+as a wrong type does.
+
+```
+REQUIREMENT: A row MUST carry every fact its span records: a retried call's
+             `attempts`, and a signature call's `scope` and `resourceId`.
+```
+
+Both were written and not read before ARCH-21. The Services screen says which
+resource a signature lookup was about (or that it was about any), and how many
+times a retried call ran.
 
 ## BEH-QD-229: The panel shows the counts and the calls, and says which is which
 
