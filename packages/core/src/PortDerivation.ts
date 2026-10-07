@@ -16,7 +16,7 @@
  * Deliberately out of the barrel (AGENTS.md §9, D-10-c): callers use the
  * fifteen named wrappers and five named defaults the port modules export, not
  * these derivations, and there is no sixth port they could be applied to.
- * Reachable through the `./*` subpath, as `RetryingLayer.ts` was.
+ * Package-private (ADR-QD-099): not exported from the barrel or any entry point.
  */
 import * as Context from "effect/Context";
 import type * as Duration from "effect/Duration";

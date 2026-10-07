@@ -12,8 +12,8 @@
  * what is genuinely its own: what to do with the answer.
  *
  * Deliberately out of the barrel (AGENTS.md §9): scaffolding shared by the two
- * interpreters, like `PortDerivation.ts`, reachable only through the `./*`
- * subpath.
+ * interpreters, like `PortDerivation.ts`, and not importable from outside
+ * `@qadi/core` (ADR-QD-099).
  *
  * The per-port facts a read needs — the span it opens and the typed error a
  * defect becomes — come from each port's description (`PortDescription.ts`,

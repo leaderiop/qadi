@@ -105,7 +105,7 @@ would deny; `toPredicate`'s `formulaFor` threw a `MatchError` on it outright.
 meaning.** It holds `VisibleFields`, `intersectFields`, `unionFields`, `mergeFields`,
 `fieldStrategyLaws` and `StrategyLaws`. It stays out of the barrel (AGENTS.md §9);
 `Decision.ts` re-exports `intersectFields`, `unionFields`, `mergeFields` and
-`VisibleFields`, so `@qadi/core` and `@qadi/core/Decision` keep resolving.
+`VisibleFields`, so `@qadi/core` keeps resolving (`@qadi/core/Decision` stopped resolving with ADR-QD-099).
 `mergeFields` is new on the public surface, for the reason
 [ADR-QD-029](./029-lattice-join-and-meet.md) gives for `join`/`meet`: a caller made to
 reimplement it will get it wrong.

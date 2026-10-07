@@ -5,11 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-090                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-04                                     |
 > | Status         | Accepted — amends ADR-QD-034, ADR-QD-024       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
+> | Change History | 1.1 (2026-10-07): `TreeFold` is not reachable from outside `@qadi/core` (ADR-QD-099, CCR-QD-188) |
 
 ---
 
@@ -54,7 +55,8 @@ they were needed. Verified at `1caf04c`, on Node 22.22.0 with the default stack:
 folding (`foldTree`). `Policy.ts`, `Explanation.ts` and `Matcher.ts` are thin
 adapters over it (`foldPolicy`, `foldExplanation`, `foldMatcher`), each supplying
 only its ADT's children function. `foldTree` is deliberately kept out of the barrel
-(AGENTS.md §9); it is reachable only as the `@qadi/core/TreeFold` subpath.
+(AGENTS.md §9) and is not reachable from outside `@qadi/core` (ADR-QD-099; it was
+the `@qadi/core/TreeFold` subpath until the `./*` export was removed).
 
 **`Policy.ts` owns the per-tag structural facts.** `POLICY_TAGS` (derived from the
 schema union with `Schema.toTaggedUnion`, so ADR-QD-002's "one definition" holds),
@@ -184,7 +186,7 @@ ceiling — were not taken. Ranges, not figures: only the direction transfers.
 would need an ADR exception.
 
 **Import `@qadi/core/TreeFold` from devtools.** Breaks AGENTS.md §1: no package
-imports a core subpath.
+imports a core subpath; since ADR-QD-099 no such subpath exists to import.
 
 **Leave `Inspect` recursive and document the ≈1.7k limit.** Leaves a walker that
 crashes on input the other walkers accept.

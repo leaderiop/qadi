@@ -318,3 +318,7 @@ entries:
     file: "098-mutation-runs-stay-sequential.md"
     title: "Mutation runs stay sequential: on four cores the gate is CPU-bound, and the faster options weaken it"
     status: "Accepted — amends ADR-QD-025"
+  - id: "ADR-QD-099"
+    file: "099-entry-points-are-a-closed-list.md"
+    title: "A package's entry points are a closed list: out of the barrel means not importable"
+    status: "Accepted — amends ADR-QD-033, ADR-QD-090, ADR-QD-091"

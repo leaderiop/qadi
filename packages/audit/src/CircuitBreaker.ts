@@ -37,8 +37,8 @@
  * is recorded. `status`'s own age-out check is the last fallback — so none of
  * these can wedge the breaker `HalfOpen` forever.
  *
- * Not exported from the package barrel — this module is assembly-internal,
- * though reachable as `@qadi/audit/CircuitBreaker`.
+ * Package-private: not exported from the barrel or any entry point
+ * (ADR-QD-099); this module is assembly-internal.
  */
 import * as Clock from "effect/Clock";
 import * as Data from "effect/Data";

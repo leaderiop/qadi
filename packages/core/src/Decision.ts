@@ -202,7 +202,7 @@ export const projectVisible = <A extends Resource>(
 
 // ---------------------------------------------------------------------------
 // Field visibility lattice — lives in `FieldLattice.ts` (ARCH-12, ADR-QD-092),
-// re-exported here so `@qadi/core` and `@qadi/core/Decision` keep resolving.
+// re-exported here so `@qadi/core` keeps resolving.
 // ---------------------------------------------------------------------------
 
 export { intersectFields, mergeFields, unionFields } from "./FieldLattice.ts";

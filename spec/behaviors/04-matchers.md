@@ -314,8 +314,8 @@ Before this the rules lived in three hand-kept copies — `evaluateMatcher`,
 patched one copy that the others then had to follow: the absent-operand rule
 (CCR-QD-112), the finite value (CCR-QD-116), the finite bound (CCR-QD-120). The
 fourth was not followed, and `toPredicate` failed open on a non-finite row
-(CCR-QD-172). `Compare.ts` is out of the barrel (reachable as
-`@qadi/core/Compare`); `Verdict` and `judgeMatcher` are public from `Matcher.ts`.
+(CCR-QD-172). `Compare.ts` is out of the barrel and not importable from outside
+`@qadi/core` (ADR-QD-099); `Verdict` and `judgeMatcher` are public from `Matcher.ts`.
 
 ---
 

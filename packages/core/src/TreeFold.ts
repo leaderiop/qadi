@@ -24,8 +24,8 @@
  * only in-process mutation can produce (decoding cannot). Without the check the
  * stack grows without bound; with it a hang becomes an immediate, named defect.
  *
- * Deliberately not exported from the barrel (AGENTS.md §9): this is shared
- * scaffolding, reachable only through the `@qadi/core/TreeFold` subpath.
+ * Package-private (AGENTS.md §9, ADR-QD-099): shared scaffolding, not exported
+ * from the barrel or any entry point.
  * `@qadi/devtools` keeps a package-private twin rather than importing it
  * (ARCH-02 D-02-d).
  *

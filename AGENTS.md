@@ -137,7 +137,7 @@ method, span, a lens onto its one method, its typed-error constructors, its
 request key and its fail-closed answer — and each exported layer is a one-line
 derivation: `export const decisionHistoryRetrying = retryingPort(decisionHistoryPort)`,
 `export const DecisionHistoryUnknown = nonePort(decisionHistoryPort)`. The
-derivations live in `PortDerivation.ts` (internal; it absorbed the old
+derivations live in `PortDerivation.ts` (package-private; it absorbed the old
 `RetryingLayer.ts`), the doubles in `PortDoubles.ts`, and the closed registry
 of all five in `Ports.ts`. A new port is a description, a `PortName` member and
 its registry lines; the compiler asks for the rest. A test that needs a broken
@@ -543,6 +543,15 @@ shared `Schema.suspend` ref; `parseJson(s)` → `fromJsonString(s)`;
 the barrel — exporting internal helpers leaks generic names into the flat
 namespace. Re-export internal types explicitly where `.d.ts` emission needs to
 name them (TS2883).
+
+**Out of the barrel means not importable** (ADR-QD-099). A package's `exports`
+map is a closed list: the root `.` and the subpaths `spec/overview.md`'s "Entry
+points" table names, each with a reason. There is no `./*` wildcard, so a module
+kept out of the barrel is package-private and free to change. Gate 13
+(`check-api-surface.mjs`, `ENTRY`) checks the manifest and gate 14
+(`check-package-install.mjs`, check 3b) checks the packed artifact. The only
+non-root entry point is `@qadi/devtools/react`; adding one is an edit to that
+table. A module another package needs is exported from the barrel instead.
 
 ## 10. Tests
 

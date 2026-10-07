@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-033                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-038) |
+> | Change History | 1.1 (2026-10-07): check 3b added: the entry-point list is closed and the packed artifact is probed for it (ADR-QD-099, CCR-QD-188)<br>1.0 (2026-07-26): Initial release (CCR-QD-038) |
 
 ---
 
@@ -58,7 +58,7 @@ one.
 TypeScript consumer authorize through it.** `scripts/check-package-install.mjs`, wired
 into `pnpm check` before `stryker`.
 
-Five checks:
+Six checks:
 
 | # | Check | Catches |
 | - | ----- | ------- |
@@ -66,6 +66,7 @@ Five checks:
 | 1 | no `catalog:`/`workspace:`/`link:`/`file:`/`portal:` in the packed manifest | a tarball no registry can resolve |
 | 2 | every path in `exports`, and every `files` entry, exists in the tarball | a manifest pointing at absent files |
 | 3 | each entry point imports through that `exports` map | a broken module graph |
+| 3b | no wildcard subpath in `exports`; every declared subpath imports, and every other `lib/` module is refused with `ERR_PACKAGE_PATH_NOT_EXPORTED` | a module the package meant to keep internal that a consumer can still import (ADR-QD-099) |
 | 4 | a TypeScript consumer type-checks against the shipped `.d.ts`, then authorizes | a declaration or behaviour regression |
 
 **Check 0 is first because it is the only one a stale `lib/` cannot fool.** Checks 2 to
