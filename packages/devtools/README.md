@@ -119,10 +119,16 @@ Hold the fields at module scope: the run restarts when one of them changes
 identity. `runDiagnostics` and `makeDiagnosticsStore` are the same loop without
 React, for a shell of your own.
 
-**The dock's build of your layer is its own build.** A service that keeps state
-in its constructor, such as `decisionCacheLayer`'s cache, is two instances if the
-dock and your application each build the layer, and the dock reports its own.
-Build the context once and give `Layer.succeedContext(context)` to both. The
+Under a `QadiProvider`, `@qadi/react` hands you all of that in one call:
+`<DevtoolsDock {...useDevtoolsFeed({ collector })} />` supplies `gates`,
+`onInvalidate` and a `diagnostics` whose layer is the provider's own build, so
+the dock reads the cache your decisions filled and nothing needs hoisting.
+
+**Without a provider, the dock's build of your layer is its own build.** A
+service that keeps state in its constructor, such as `decisionCacheLayer`'s
+cache, is two instances if the dock and your application each build the layer,
+and the dock reports its own. Build the context once and give
+that one value to both (the shared-context rule is in BEH-QD-323). The
 `wiring`, `activity`, `portCalls`, `hydration` and `questions` props remain for a
 reading taken elsewhere, and win over a sampled one.
 

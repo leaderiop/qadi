@@ -88,37 +88,58 @@ bad frame.
 The wiring report, port activity, hydration counts and port calls are pulled,
 not pushed, so something has to read them again. That is the dock's job when
 handed `diagnostics`; a host hands over what it already owns and runs no Effect
-and no timer.
+and no timer. Under a `QadiProvider`, `@qadi/react` hands over all of the atom
+set's half in one call:
 
 ```tsx
-import * as Layer from "effect/Layer";
-import { decisionCacheLayer } from "@qadi/core";
 import { collectPortCalls } from "@qadi/devtools";
 import { DevtoolsDock } from "@qadi/devtools/react";
-import type { DiagnosticsDockOptions } from "@qadi/devtools/react";
+import type { AuthSubject } from "@qadi/core";
+import { QadiProvider, makeQadiAtoms, useDevtoolsFeed } from "@qadi/react";
+import type { QadiLayer } from "@qadi/react";
 
+declare const AppLayer: QadiLayer;
+declare const currentUser: AuthSubject;
+
+const atoms = makeQadiAtoms(AppLayer); // once, at module scope
 const collector = collectPortCalls({ capacity: 200 });
-const appLayer = Layer.mergeAll(decisionCacheLayer({ capacity: 256 }), collector.layer);
 
 // Held at module scope: the run restarts when one of these changes identity.
-const diagnostics: DiagnosticsDockOptions = { layer: appLayer, collector };
+const extras = { collector };
 
-export const Dock = () => <DevtoolsDock diagnostics={diagnostics} />;
+const Dock = () => {
+  const feed = useDevtoolsFeed(extras);
+  return <DevtoolsDock {...feed} />;
+};
+
+export const App = () => (
+  <QadiProvider atoms={atoms} subject={currentUser}>
+    <Dock />
+  </QadiProvider>
+);
 ```
 
-The layer is built once while the dock is mounted and released on unmount, and a
-reading keeps its identity while nothing changed, so the dock does not re-render
-on every tick. A layer that fails to build is stated on the Services panel, and
-the other reads carry on. `diagnostics={{}}` samples the metric reads alone;
-with the prop absent nothing is sampled. Gates are not sampled: they come from
-`@qadi/react`'s registry through `useGateInstances()` and stay a plain prop.
+`useDevtoolsFeed` returns `gates`, `onInvalidate` and `diagnostics`, and
+`diagnostics` carries your `extras` plus the two fields the feed owns: a `layer`
+that is the provider's own built services, and `questions`. Because that layer is
+the registry's own build, a service that keeps state in its constructor, such as
+`decisionCacheLayer`'s cache, is one instance shared by the decisions and the
+dock; nothing needs hoisting out of the atom set. Setting `layer` or `questions`
+in your extras is a compile error.
 
-**The dock's build of the layer is its own.** A service that keeps state in its
-constructor, such as `decisionCacheLayer`'s cache, is two instances if the dock
-and the application each build the layer. Build its context once and hand
-`Layer.succeedContext(context)` to both, as the example app does. The `wiring`,
-`activity`, `portCalls`, `hydration` and `questions` props remain for a reading
-taken elsewhere, such as another process's report, and win over the sampled one.
+The layer is held while the dock is mounted and released when it unmounts, a
+reading keeps its identity while nothing changed, so the dock does not re-render
+on every tick, and a layer that fails to build is stated on the Services panel,
+with the other reads carrying on. Gates are not sampled: they come from the
+provider's registry and the feed reads them for you.
+
+**A host with no `QadiProvider`** (a shell running `runDiagnostics`) hands the
+dock a layer of its own, and the dock's build of it is its own: a service that
+keeps state in its constructor is two instances if the dock and the application
+each build the layer. Build the context once and give that one value
+to both. The `wiring`, `activity`, `portCalls`, `hydration` and `questions` props
+remain for a reading taken elsewhere, such as another process's report, and win
+over the sampled one.
 
 ## What it renders
 

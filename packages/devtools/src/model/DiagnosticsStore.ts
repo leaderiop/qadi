@@ -21,7 +21,10 @@
  * build*: a layer value built twice is two instances, and a service that keeps
  * state in its constructor (`decisionCacheLayer`'s cache) is shared with the
  * application only if the host shares it by value, for example by building its
- * context once and handing `Layer.succeedContext(context)` to both.
+ * context once and handing `Layer.succeedContext(context)` to both. Under a
+ * `QadiProvider` there is nothing to share by hand: `@qadi/react`'s
+ * `useDevtoolsFeed()` hands over a layer that is the provider's own build, so
+ * the decisions and the panel read one instance (BEH-QD-323).
  *
  * **A sample that changed nothing changes nothing.** `useSyncExternalStore`
  * compares snapshots by identity, and every read builds fresh objects, so

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-047                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-07                                     |
-> | Status         | Accepted                                       |
+> | Status         | Accepted; amended 2026-10-07 (sampling is the model's), 2026-10-08 (the feed) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.3 (2026-10-08): amendment — under a `QadiProvider`, the layer the dock builds is the provider's own, handed by `@qadi/react`'s `useDevtoolsFeed` (ARCH-34, BEH-QD-325, CCR-QD-240)<br>1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 ---
 
@@ -160,6 +160,15 @@ shared with the application by value, not by being the same layer. A snapshot
 unchanged. A layer that fails to build is a stated `WiringRead.Failed`, not a
 dead fiber. The explicit snapshot props stay and win field by field, because
 they carry what sampling this process cannot: another process's report.
+
+> **Amended 2026-10-08 (CCR-QD-240).** "Stateful services are shared with the
+> application by value" is still the rule for a host that builds the layer
+> itself, and it is the only one for a host with no `QadiProvider`. Under one it
+> is no longer the host's to get right: `@qadi/react`'s `useDevtoolsFeed()` hands
+> the dock a layer that is the provider's own build of the application layer, so
+> there is no second build to keep consistent
+> ([BEH-QD-325](../behaviors/09-react.md#beh-qd-325-a-devtools-feed-reads-the-providers-own-runtime),
+> [ADR-QD-053](./053-a-gate-can-be-found.md)). Devtools' API did not change.
 
 The shared mechanics of the three stores (`TimelineStore`, `SimulationSession`,
 `DiagnosticsStore`) are `model/ExternalStore.ts` and `react/useRunningStore.ts`,
