@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-100                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted — amends ADR-QD-031, ADR-QD-044, ADR-QD-073 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-07): Initial (CCR-QD-189)         |
+> | Change History | 1.1 (2026-10-08): Amendment, `toPredicate` admits through `Question` (CCR-QD-203)<br>1.0 (2026-10-07): Initial (CCR-QD-189) |
 
 ---
 
@@ -64,3 +64,18 @@ probes). Each probe also wrote a `DecisionRecord` (a permanent audit row per pol
 - `evaluateNode`, `evaluateAllOf`, `evaluateAnyOf`, `evaluateRules` move to `Walk.ts`; the
   `SWITCH_BUDGET` and `UNTRACED_BUDGET` counts (1 and 3) are unchanged, re-keyed.
 - Measured cost: see CCR-QD-189 in `spec/README.md`.
+
+## Amendment (2026-10-08, ARCH-41): `toPredicate` is admitted by the same rule
+
+`toPredicate` asks the same `Question` (with no resource, explicitly) and is admitted by
+the same rule as `walk`: internal `Admission.ts`'s `admit(question)` returns either
+`PolicyTooDeep` or an `Admitted` proof carrying the question and its matcher context. The
+depth gate, the matcher context and the `maxDepth` default (only `questionOf` defaults it
+now) were each written twice, in `Walk.ts` and `Predicate.ts`; they agreed, but nothing
+made them. Only admission is shared, never the walk (ADR-QD-024). `PredicateOptions` is
+`Omit<QuestionOptions, "resource">`, so an option added to `QuestionOptions` reaches
+translation by type, and `Question.test.ts` classifies every key for translation
+(`folds`, `bounds`, `absent-by-design`; TS2741 until classified). `evaluateNode`'s
+per-node guard stays as defense in depth (ADR-QD-090). `scripts/check-house-style.mjs`'s
+`admission-once` rule enforces the single owner. This closes the "optional polish" ARCH-16
+left in `toPredicate`'s own default.
