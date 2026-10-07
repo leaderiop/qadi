@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.5                                            |
-> | Effective Date | 2026-10-07                                     |
+> | Revision       | 1.6                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -51,7 +51,9 @@ By `Equal.equals`, which is structural for plain objects in Effect v4 — the
 property `Atom.family` relies on to share one atom between two independently
 built equal policies, pinned by `v4-reactivity-smoke.test.ts`. Two components
 building the same policy inline contribute to one row, which is what the
-evaluator already does.
+evaluator already does. Declared policies are included: two declared names for one
+structure are one entry under the first declared name, run or not, as a declared
+name already replaces the derived one for a policy that ran.
 
 ```
 REQUIREMENT: A label MUST NOT be an identity.
@@ -68,6 +70,18 @@ REQUIREMENT: Order MUST be the timeline's own, reversed.
 Borrowed rather than re-derived, so the rail cannot disagree with the log about
 which decision came last — and so `NaN`, which the timeline already solved once
 ([INV-QD-039](../invariants.md)), is not solved a second way.
+
+```
+REQUIREMENT: The explorer MUST keep the policy it shows when the rail moves.
+```
+
+That order moves under a reader: a decision on a policy below the head moves it to
+the head, and a policy's first decision shifts every position. The explorer (and the
+role viewer, whose list a host may rebuild in any order) therefore holds its
+selection by value, through one rule, `resolveHeld` (`HeldChoice.ts`). A selection
+that leaves the list stays shown, marked as no longer there, and the first item
+shown is held, so nothing here changes without the reviewer
+([INV-QD-107](../invariants.md)).
 
 ## BEH-QD-212: A structural view states no verdict
 

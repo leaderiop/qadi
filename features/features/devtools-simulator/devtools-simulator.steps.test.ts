@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
+import * as Equal from "effect/Equal";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import {
@@ -51,6 +52,7 @@ import type { DecisionLog, DecisionOutcome, Policy, StoredRecord, Trace } from "
 import {
   baselineDiff,
   capturing,
+  catalogueOf,
   emptyTimeline,
   ingest,
   live,
@@ -67,6 +69,7 @@ import {
   type SimulationSession,
   type Replay,
   type SimulationInput,
+  type Timeline,
   type TimelineEntry,
   type WhatIfReport,
 } from "@qadi/devtools";
@@ -121,6 +124,30 @@ const decided = (self: DecisionOutcome | undefined) => {
   return self.decision;
 };
 
+/** One logged allow, decided at `at`, against `policy`. */
+const decisionAt = (at: number, policy: Policy): StoredRecord => {
+  const evaluationId = `ev-${at}`;
+  return stampRecord(
+    new DecisionRecord({
+      evaluationId,
+      at,
+      subjectId: makeSubjectId("alice"),
+      policy,
+      outcome: new Decided({
+        decision: new Allow({
+          evaluationId,
+          subjectId: makeSubjectId("alice"),
+          durationMillis: 1,
+          trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
+          visibleFields: undefined,
+          obligations: [],
+        }),
+      }),
+    }),
+    "Server",
+  );
+};
+
 const entryOf = (record: StoredRecord): TimelineEntry => {
   const [only] = ingest(emptyTimeline(), record).entries;
   if (only === undefined) throw new Error("expected an entry");
@@ -140,6 +167,7 @@ interface DevtoolsSimulatorWorldState {
   readonly replayed: DecisionOutcome | undefined;
   readonly capturedPolicy: Policy | undefined;
   readonly session: SimulationSession | undefined;
+  readonly timeline: Timeline;
 }
 
 const initialState: DevtoolsSimulatorWorldState = {
@@ -155,6 +183,7 @@ const initialState: DevtoolsSimulatorWorldState = {
   replayed: undefined,
   capturedPolicy: undefined,
   session: undefined,
+  timeline: emptyTimeline(),
 };
 
 export interface WorldShape {
@@ -587,5 +616,49 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     }
     assert.equal(run.report.evaluations, plan.evaluations);
     assert.equal(run.report.rows.length + 1, plan.evaluations);
+  });
+
+  // -------------------------------------------------------------------------
+  // A chosen policy is held by value
+  // -------------------------------------------------------------------------
+
+  Given(
+    "a simulation session over a log that saw {string} and then {string}, with {string} chosen",
+    function* (first: string, second: string, chosen: string) {
+      const timeline = ingest(
+        ingest(emptyTimeline(), decisionAt(1, policyNamed(first))),
+        decisionAt(2, policyNamed(second)),
+      );
+      const session = makeSimulationSession({ sightings: catalogueOf(timeline) });
+      session.edit({ subject: { id: "alice" }, attributes: { clearance: 9 } });
+      session.choosePolicy(policyNamed(chosen));
+      yield* patch(() => ({ session, timeline }));
+    },
+  );
+
+  When(
+    "a newer decision on {string} is logged and the session is told the new rail",
+    function* (name: string) {
+      const s = yield* readState();
+      const timeline = ingest(s.timeline, decisionAt(3, policyNamed(name)));
+      sessionOf(s).setSightings(catalogueOf(timeline));
+      yield* patch(() => ({ timeline }));
+    },
+  );
+
+  Then("the chosen policy is still {string}", function* (name: string) {
+    const policy = sessionOf(yield* readState()).getSnapshot().policy;
+    assert.equal(policy._tag, "Chosen");
+    assert.ok(policy._tag === "Chosen" && Equal.equals(policy.policy, policyNamed(name)));
+    // The rail now lists it first, which is the reorder the scenario is about.
+    assert.equal(policy._tag === "Chosen" && policy.index, 0);
+  });
+
+  Then("a run evaluates {string}", function* (name: string) {
+    const session = sessionOf(yield* readState());
+    yield* session.run("Run");
+    const run = session.getSnapshot().run;
+    assert.equal(run._tag, "Ran");
+    assert.ok(run._tag === "Ran" && Equal.equals(run.question.policy, policyNamed(name)));
   });
 });

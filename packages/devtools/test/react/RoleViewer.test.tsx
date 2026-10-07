@@ -75,18 +75,31 @@ describe("the role viewer", () => {
     assert.deepStrictEqual(screen.queryAllByTestId("qadi-role-chip"), []);
   });
 
-  // A stale index held past the list shrinking must not fall off the end:
-  // `roles[selected]` reading `undefined` made the screen falsely claim there
-  // were no roles at all, even with one still present.
-  it("clamps a selection that outlives the list shrinking", async () => {
+  it("keeps the chosen role when the list is rebuilt in another order", async () => {
     const view = render(<RoleViewer roles={[editor, commenter]} />);
     await click(screen.getAllByTestId("qadi-role-chip")[1] ?? fail());
     assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "commenter");
 
+    view.rerender(<RoleViewer roles={[commenter, editor]} />);
+
+    assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "commenter");
+    assert.isNull(screen.queryByTestId("qadi-role-evicted"));
+  });
+
+  // A role that left the list stays shown, and the screen says so: swapping to
+  // a neighbour silently is the defect the old clamp encoded.
+  it("keeps a role that left the list, and says so", async () => {
+    const view = render(<RoleViewer roles={[editor, commenter]} />);
+    await click(screen.getAllByTestId("qadi-role-chip")[1] ?? fail());
+
     view.rerender(<RoleViewer roles={[editor]} />);
 
     assert.isNull(screen.queryByTestId("qadi-roles-empty"));
-    assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "editor");
+    assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "commenter");
+    assert.include(screen.getByTestId("qadi-role-evicted").textContent ?? "", "no longer in the list");
+
+    view.rerender(<RoleViewer roles={[]} />);
+    assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "commenter");
   });
 
   // E3.3, rendered.

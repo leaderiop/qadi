@@ -62,6 +62,13 @@ const entryOf = (record: Parameters<typeof ingestAll>[1][number]): TimelineEntry
   return entry;
 };
 
+/** The policy dropdown, narrowed rather than asserted. */
+const policySelect = (): HTMLSelectElement => {
+  const element = screen.getByTestId("qadi-simulator-policy");
+  if (!(element instanceof HTMLSelectElement)) throw new Error("expected a <select>");
+  return element;
+};
+
 /** Adds a chip to the named editor and commits it with Enter. */
 const chip = (label: string, value: string) => {
   const field = screen.getByLabelText(`Add ${label}`);
@@ -440,6 +447,39 @@ describe("choosing a policy", () => {
     assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
   });
 
+  it("keeps the dropdown on the chosen policy when the rail reverses", () => {
+    const a = sighting(hasRole("a"));
+    const b = sighting(hasPermission(read));
+    const view = render(<Simulator sightings={[a, b]} />);
+    act(() => {
+      fireEvent.change(screen.getByTestId("qadi-simulator-policy"), { target: { value: "1" } });
+    });
+    const dropdown = () => policySelect();
+    assert.strictEqual(dropdown().value, "1");
+
+    view.rerender(<Simulator sightings={[b, a]} />);
+
+    assert.strictEqual(dropdown().value, "0");
+    assert.include(dropdown().options[0]?.textContent ?? "", "doc:read");
+  });
+
+  it("says when the chosen policy is no longer in the log, and still runs it", async () => {
+    const a = sighting(hasRole("a"));
+    const b = sighting(hasPermission(read));
+    const view = render(<Simulator sightings={[a, b]} />);
+    act(() => {
+      fireEvent.change(screen.getByTestId("qadi-simulator-policy"), { target: { value: "1" } });
+    });
+
+    view.rerender(<Simulator sightings={[a]} />);
+
+    const dropdown = policySelect();
+    assert.strictEqual(dropdown.value, "evicted");
+    assert.include(dropdown.textContent ?? "", "doc:read — no longer in the log");
+    chip("permissions", "doc:read");
+    await run();
+    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
+  });
 });
 
 describe("the baseline card, in each of its states", () => {

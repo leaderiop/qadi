@@ -15,7 +15,9 @@
  * nothing.
  */
 import { useState, type CSSProperties, type FC } from "react";
+import * as Match from "effect/Match";
 import type { Role } from "@qadi/core";
+import { resolveHeld } from "../model/HeldChoice.ts";
 import { grantPath, roleSummary, type RoleNode } from "../model/RoleTree.ts";
 import { button, colors, font, muted } from "./theme.ts";
 
@@ -37,13 +39,21 @@ const chip = (own: boolean): CSSProperties => ({
 });
 
 export const RoleViewer: FC<RoleViewerProps> = ({ roles, unknownParents }) => {
-  const [selected, setSelected] = useState(0);
-  // `selected` is state and `roles` can shrink under it — clamped at render
-  // rather than trusted, the same shape as PolicyExplorer's rail selection.
-  // An unclamped index would read `undefined` past the new end and this
-  // screen would falsely claim there were no roles at all.
-  const clampedIndex = roles.length === 0 ? undefined : Math.min(selected, roles.length - 1);
-  const role = clampedIndex === undefined ? undefined : roles[clampedIndex];
+  /** The role the reviewer chose, held by name: a host may rebuild `roles` in any order. */
+  const [held, setHeld] = useState<Role | undefined>(undefined);
+  // Pinned during render, so the first role shown is the one held.
+  if (held === undefined && roles[0] !== undefined) setHeld(roles[0]);
+
+  // Position is a reading of the current list, never the selection (see
+  // `HeldChoice`). A role that left the list stays shown, and says so.
+  const shown = Match.value(resolveHeld(roles, held, (a, b) => a.name === b.name)).pipe(
+    Match.tagsExhaustive({
+      Empty: () => ({ role: undefined, index: undefined, evicted: false }),
+      Listed: (listed) => ({ role: listed.value, index: listed.index, evicted: false }),
+      Evicted: (gone) => ({ role: gone.value, index: undefined, evicted: true }),
+    }),
+  );
+  const role = shown.role;
 
   if (role === undefined) {
     return (
@@ -58,21 +68,27 @@ export const RoleViewer: FC<RoleViewerProps> = ({ roles, unknownParents }) => {
 
   return (
     <div style={{ padding: 12 }} data-testid="qadi-roles">
-      {roles.length === 1 ? null : (
+      {roles.length === 1 && !shown.evicted ? null : (
         <div style={{ display: "flex", gap: 4, marginBottom: 10, flexWrap: "wrap" }}>
           {roles.map((candidate, index) => (
             <button
               key={candidate.name}
               type="button"
               data-testid="qadi-role-chip"
-              style={button(index === clampedIndex)}
-              onClick={() => setSelected(index)}
+              style={button(index === shown.index)}
+              onClick={() => setHeld(candidate)}
             >
               {candidate.name}
             </button>
           ))}
         </div>
       )}
+
+      {shown.evicted ? (
+        <p style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-role-evicted">
+          {role.name} is no longer in the list
+        </p>
+      ) : null}
 
       <div style={{ marginBottom: 8 }} data-testid="qadi-role-counts">
         <strong>{role.name}</strong>
