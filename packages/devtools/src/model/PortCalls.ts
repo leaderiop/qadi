@@ -45,11 +45,12 @@ const PORT_BY_SPAN: ReadonlyMap<string, PortName> = new Map(
 );
 
 /**
- * Which interpreter made a call — `qadi.interpreter` on the span, a closed pair.
+ * Which interpreter made a call — `qadi.interpreter` on the span, a closed set of
+ * three (the evaluator, the translator, and a host answering a remote asker).
  *
  * `undefined` is "not recorded", the same reading every other field here has:
  * an older `@qadi/core` that does not annotate the span, or a value outside the
- * pair, is not guessed at.
+ * set, is not guessed at.
  */
 export type PortCallInterpreter = PortInterpreter;
 

@@ -35,14 +35,16 @@ import { MissingResourceId } from "./Errors.ts";
 import type { ResourceId } from "./Identity.ts";
 import { makeResourceId } from "./Identity.ts";
 import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
-import { portCallsTotal, predicatePortCallsTotal } from "./PortMetrics.ts";
-import type { PredicatePortName } from "./PortMetrics.ts";
+import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "./PortMetrics.ts";
+import type { PortName, PredicatePortName } from "./PortMetrics.ts";
 import type { RelatedResult, RelationshipCheck } from "./RelationshipResolver.ts";
 import { RelationshipResolver, relationshipResolverPort } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
+import type { AnswerOf, ArgsOf, DescriptionOf, ErrorOf, PortTypes, ServiceOf } from "./Ports.ts";
 import type {
   PortInterpreter,
   PortSpanAttributes,
+  PortSpanAttributesLike,
   SpanFields,
   SpanStruct,
   SpanType,
@@ -52,14 +54,16 @@ import type { SignatureAnswer, SignatureQuery } from "./SignatureHistory.ts";
 import { SignatureHistory, signatureHistoryPort } from "./SignatureHistory.ts";
 
 /**
- * Which interpreter is asking.
+ * Which interpreter of a policy is asking: the evaluator or the translator.
  *
  * Closed on purpose: it is annotated on every port span (`qadi.interpreter`) and
- * decides which call metric a read counts in, so a third interpreter is a
- * compile error everywhere it is matched rather than a word that silently falls
- * into the wrong series.
+ * decides which call metric a read counts in, so a new interpreter is a compile
+ * error everywhere it is matched rather than a word that silently falls into
+ * the wrong series. `"remote"`, the third member of {@link PortInterpreter}, is
+ * not an interpreter of a policy at all but a host answering another process
+ * (`servePortRead`), and is excluded here so `countFor` stays a two-arm match.
  */
-type Interpreter = PortInterpreter;
+type Interpreter = Exclude<PortInterpreter, "remote">;
 
 /**
  * Annotates the current span with a port's **question**, as its description
@@ -452,3 +456,49 @@ export const askSignature = Effect.fn(signatureHistoryPort.span)(function* (
   yield* annotateAnswer(signatureHistoryPort, answer);
   return answer;
 });
+
+/** The body of {@link servePortRead}, unnamed so the span it runs under is the port's own. */
+const servedBody = Effect.fn(function* <K extends PortName>(
+  d: DescriptionOf<K>,
+  args: ArgsOf<PortTypes[K]>,
+) {
+  // Before the call, so a store that fails still leaves a span saying what it
+  // was asked, as every other read does.
+  const attributes: PortSpanAttributesLike = d.attributes;
+  yield* Effect.annotateCurrentSpan(
+    encodeSpan(attributes.question, { ...d.wire.spanQuestion(args), interpreter: "remote" }),
+  );
+  yield* Metric.update(servedPortCallsTotal, d.port);
+  const shape = yield* d.service;
+  const answer = yield* d.invoke(shape)(...args).pipe(
+    catchPortDefect((cause) => d.defect(args, cause)),
+  );
+  yield* Effect.annotateCurrentSpan(encodeSpan(attributes.answer, d.wire.spanAnswer(answer)));
+  return answer;
+});
+
+/**
+ * The served read of any port: ask it on behalf of a remote asker, with the
+ * port's own span, call metric and defect mapping (ARCH-31, ADR-QD-077).
+ *
+ * `answerRemotely` reads a port only through this, so a served question is as
+ * visible as an evaluated one: it opens the port's span with
+ * `qadi.interpreter = "remote"`, counts in `servedPortCallsTotal`, and a store
+ * that **dies** becomes the port's typed error rather than a defect. Before it,
+ * a host's routes called the service directly and the server's own Port calls
+ * panel never showed the calls a browser caused.
+ *
+ * The question is written through the description's wire projection and the
+ * answer through the wire's `spanAnswer`, which routes an answer through the
+ * port's `disclose` (the attribute port's span says a value came back, never
+ * what it was, INV-QD-044; the signature port's says nothing).
+ *
+ * The span's name is the description's, which an `Effect.fn` name cannot be
+ * (it is static), so the body is an unnamed `Effect.fn` run under
+ * `Effect.withSpan(d.span)`.
+ */
+export const servePortRead = <K extends PortName>(
+  d: DescriptionOf<K>,
+  ...args: ArgsOf<PortTypes[K]>
+): Effect.Effect<AnswerOf<PortTypes[K]>, ErrorOf<PortTypes[K]>, ServiceOf<PortTypes[K]>> =>
+  servedBody(d, args).pipe(Effect.withSpan(d.span));
