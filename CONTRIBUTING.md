@@ -24,6 +24,9 @@ and save the full gate for before you push:
 - `npx vitest run --project <package>` — e.g. `npx vitest run --project core`
   — the affected package's own suite, without the other eight.
 
+- `pnpm worktree:setup` — first thing in a fresh git worktree: it installs from the
+  lockfile (offline) and builds the packages, because a new worktree has neither
+  `node_modules` nor `lib/`. Idempotent.
 - `pnpm check:fast` — every cheap step of the gate in one command (typecheck,
   lint, circular, tstyche, the tests uninstrumented, BDD and the spec gates),
   about four minutes, one line per passing step and the tail of the failing
