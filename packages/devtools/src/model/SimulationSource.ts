@@ -22,13 +22,7 @@
  */
 import type * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
-import {
-  attributeResolverFromRecord,
-  decisionHistoryFromEvents,
-  portsLayer,
-  relationshipResolverFromEdges,
-  signatureHistoryFromSignatures,
-} from "@qadi/core";
+import { fixturePortsLayer } from "@qadi/core";
 import type { CapturedAnswers } from "./Capture.ts";
 import { replayLayer } from "./Capture.ts";
 import type { EvaluationPorts, SimulationInput } from "./SimulationInput.ts";
@@ -121,25 +115,20 @@ const dispatch: (self: SimulationSource) => (input: SimulationInput) => Layer.La
  * the reason a real evaluation would.
  */
 const fixtureLayer = (input: SimulationInput): Layer.Layer<EvaluationPorts> =>
-  portsLayer({
-    AttributeResolver:
-      input.attributes === undefined ? undefined : attributeResolverFromRecord(input.attributes),
-    RelationshipResolver:
-      input.relationships === undefined
-        ? undefined
-        : relationshipResolverFromEdges(input.relationships),
-    DecisionHistory:
-      input.history === undefined ? undefined : decisionHistoryFromEvents(input.history),
+  fixturePortsLayer({
+    AttributeResolver: input.attributes,
+    RelationshipResolver: input.relationships,
+    DecisionHistory: input.history,
     // `SimulationInput` has no form vocabulary for a custom predicate's
     // answer — unlike an attribute or an edge, there is no small typed value a
     // reviewer could type in that stands for arbitrary registered logic — so
     // Fixtures mode leaves `CustomPredicate` at its default and always denies
     // a `HasCustom` node, the same fail-closed default a real deployment gets
-    // from an unwired registry. Supplying a real answer needs `Snapshot` or
-    // `Live`. Unlike HasCustom, SignatureHistory is data-fetching, so it earns
-    // the same declarative form attributes/edges/events get.
-    SignatureHistory:
-      input.signatures === undefined
-        ? undefined
-        : signatureHistoryFromSignatures(input.signatures),
+    // from an unwired registry. Core's fixture table does have a vocabulary for
+    // it (`PortFixtureData.CustomPredicate`: fixed answers by name); building
+    // the form that feeds it is devtools UI work, not a gap in the table.
+    // Supplying a real answer today needs `Snapshot` or `Live`. Unlike
+    // HasCustom, SignatureHistory is data-fetching, so it earns the same
+    // declarative form attributes/edges/events get.
+    SignatureHistory: input.signatures,
   });
