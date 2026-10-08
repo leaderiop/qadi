@@ -6,10 +6,13 @@ import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as Ref from "effect/Ref";
+import * as Scheduler from "effect/Scheduler";
 import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolver.ts";
 import type { AuthSubject } from "../src/AuthSubject.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import { isAllowed } from "../src/Decision.ts";
+import type { Trace } from "../src/Decision.ts";
+import { questionOf } from "../src/Question.ts";
 import { AttributeResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { makeSubjectId } from "../src/Identity.ts";
@@ -1091,6 +1094,77 @@ describe("DecisionCache", () => {
         assert.isTrue(isAllowed(first));
         assert.isTrue(isAllowed(second));
       }));
+
+    /**
+     * ARCH-45 I5. A joiner that checks `entries` (a miss), is preempted, and then
+     * finds the owner finished (`entries[K]` set, `inFlight[K]` gone) used to claim
+     * `K` afresh: `K` computed twice, appended to `insertionOrder` twice, and a
+     * later pop of the stale copy evicted a freshly recomputed `K`. The fix makes
+     * hit check, join and claim one synchronous step.
+     *
+     * The red is scheduler-dependent (it needs the run loop to yield in a window
+     * a few turns wide, so it appears only under a small `MaxOpsBeforeYield`),
+     * and the green is not: a later change that never yields there keeps this
+     * test green for the right reason.
+     */
+    it.effect(
+      "a joiner racing its owner's completion never recomputes the key, and FIFO stays exact",
+      () =>
+        Effect.gen(function* () {
+          const subject = subjectWith({ id: "u-1" });
+          const K = questionOf(subject, P.hasRole("k"));
+          const X = questionOf(subject, P.hasRole("x"));
+          const Y = questionOf(subject, P.hasRole("y"));
+          const trace = (label: string): Trace => ({
+            policyTag: "HasRole",
+            allowed: true,
+            reason: label,
+            children: [],
+            obligations: [],
+          });
+          const raced: Array<string> = [];
+
+          for (const budget of [3, 4, 5, 6]) {
+            for (let gap = 0; gap <= 12; gap++) {
+              const outcomes = yield* Effect.gen(function* () {
+                const cache = yield* DecisionCache;
+                const computes: Array<string> = [];
+                const compute = (label: string, spin: number) =>
+                  Effect.gen(function* () {
+                    computes.push(label);
+                    for (let i = 0; i < spin; i++) yield* Effect.yieldNow;
+                    return trace(label);
+                  });
+                // The owner claims K and finishes after a few yields.
+                const owner = yield* Effect.forkChild(cache.getOrCompute(K, compute("K", 3)));
+                for (let i = 0; i < gap; i++) yield* Effect.yieldNow;
+                // The joiner asks K while the owner is (maybe) still in flight.
+                const joiner = yield* Effect.forkChild(cache.getOrCompute(K, compute("K", 0)));
+                yield* Fiber.join(owner);
+                yield* Fiber.join(joiner);
+                const kComputes = computes.filter((c) => c === "K").length;
+                const followOn = [
+                  (yield* cache.getOrCompute(X, compute("X", 0))).outcome,
+                  (yield* cache.getOrCompute(Y, compute("Y", 0))).outcome,
+                  (yield* cache.getOrCompute(K, compute("K", 0))).outcome,
+                  (yield* cache.getOrCompute(K, compute("K", 0))).outcome,
+                ];
+                return { kComputes, followOn };
+              }).pipe(
+                Effect.provide(
+                  Layer.mergeAll(testLayer(subject), decisionCacheLayer({ capacity: 2 })),
+                ),
+                Effect.provideService(Scheduler.MaxOpsBeforeYield, budget),
+              );
+              // Capacity 2: X, Y evict K (FIFO), so K misses, then hits.
+              if (outcomes.kComputes !== 1 || outcomes.followOn.join(",") !== "miss,miss,miss,hit") {
+                raced.push(`budget ${budget} gap ${gap}: ${JSON.stringify(outcomes)}`);
+              }
+            }
+          }
+          assert.deepStrictEqual(raced, []);
+        }),
+    );
   });
 
   describe("qadi_decision_cache_lookups_total", () => {

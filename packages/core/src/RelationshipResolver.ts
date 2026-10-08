@@ -144,9 +144,12 @@ const relationshipSpan = {
 /**
  * The relationship port, described once (`PortDescription.ts`).
  *
- * A request is keyed by `(subjectId, relation, resourceId)` — never by the
- * relation alone, and not by `depth`, which is traversal fuel rather than part
- * of the question.
+ * A request is keyed by `(subjectId, relation, resourceId, depth)` — never by
+ * the relation alone, and by `depth` too: a resolver that traverses must honour
+ * the hop budget it is handed (`RelationshipCheck.depth`), so depth 1 and
+ * depth 3 are different questions with different answers, and a capture that
+ * collapsed them would replay a depth-3 answer to a depth-1 ask (ARCH-45 I1).
+ * An absent `depth` keys as `null`.
  */
 export const relationshipResolverPort: PortDescription<
   "RelationshipResolver",
@@ -176,7 +179,13 @@ export const relationshipResolverPort: PortDescription<
       resourceId: request.resourceId,
       cause: Cause.squash(cause),
     }),
-  key: ([request]) => JSON.stringify([request.subjectId, request.relation, request.resourceId]),
+  key: ([request]) =>
+    JSON.stringify([
+      request.subjectId,
+      request.relation,
+      request.resourceId,
+      request.depth ?? null,
+    ]),
   none: { name: "RelationshipResolverNever", answer: "Unknown" },
 };
 

@@ -20,14 +20,16 @@ import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type { unhandled } from "effect/Types";
 import type { Permission, Policy, StandingEvaluationServices } from "@qadi/core";
-import { anonymous, CurrentSubject } from "@qadi/core";
+import { anonymous, CurrentSubject, ENFORCEMENT_DENIAL_TAGS } from "@qadi/core";
 import {
   HTTP_ENFORCEMENT_ERROR_SCHEMAS,
   HTTP_ENFORCEMENT_TAGS,
   projectHttpEnforcementFailure,
 } from "./QadiHttpError.ts";
+import type { HttpEnforcementFailure } from "./QadiHttpError.ts";
 import type { ClientErrorOf } from "./HttpApiMiddlewareClient.ts";
 import { authorizeRequest } from "./AuthorizeRequest.ts";
+import { logDenialAt } from "./DenialLog.ts";
 import type { SubjectExtractor } from "./SubjectExtractor.ts";
 
 // Named `PermissionRequirement`/`PublicDeclaration`, not the usual
@@ -386,7 +388,14 @@ export const RequirePermissionLive: Layer.Layer<
     // dispatch above so it can be replaced without touching how access is read.
     const enforce = (
       requirement: RequiredPermissionShape,
-      httpEffect: Effect.Effect<HttpServerResponse.HttpServerResponse, unhandled, CurrentSubject>,
+      // `unhandled` is the middleware's own error slot; the union names the
+      // enforcement failures a handler's `guard` can raise through it, so the
+      // denial tap below can read their tags.
+      httpEffect: Effect.Effect<
+        HttpServerResponse.HttpServerResponse,
+        unhandled | HttpEnforcementFailure,
+        CurrentSubject
+      >,
     ) => {
       const { permission, policy } = requirement;
 
@@ -399,16 +408,21 @@ export const RequirePermissionLive: Layer.Layer<
       // `cause`s must not reach a body: redaction is the per-tag `project`,
       // typed to return exactly the schema's `Type`.
       //
-      // Extraction, the guard and the two log lines are `authorizeRequest`'s
+      // Extraction, the edge guard and their log lines are `authorizeRequest`'s
       // (ARCH-19). The standing services and the projection below wrap
       // `httpEffect` too, deliberately: a defense-in-depth `guard` inside a
       // handler finds the services this layer captured, and the enforcement
       // failure it raises is projected rather than escaping as an
-      // undeclared error.
+      // undeclared error. A denial that `guard` raises is logged here, on the
+      // handler's effect alone, annotated `"handler"` (ARCH-45 I3, BEH-QD-321):
+      // the edge denial above has already logged itself, so tapping the whole
+      // pipeline would log it twice.
       return Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;
         const { subject } = yield* authorizeRequest(permission, policy)(request);
-        return yield* Effect.provideService(httpEffect, CurrentSubject, subject);
+        return yield* Effect.provideService(httpEffect, CurrentSubject, subject).pipe(
+          Effect.tapErrorTag(ENFORCEMENT_DENIAL_TAGS, logDenialAt("handler")),
+        );
       }).pipe(
         Effect.provide(evaluationServices),
         // One projection for every tag (ARCH-04, ADR-QD-081). The tag

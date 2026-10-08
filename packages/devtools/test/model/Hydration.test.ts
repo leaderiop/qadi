@@ -8,13 +8,15 @@
  * test. Importing the React package to drive it would prove the reader agrees
  * with itself.
  *
- * Every count assertion is a **delta**. A `Metric` memoises its hooks on itself
- * at first touch and ignores the registry thereafter, so a per-test registry is
- * not available and absolute numbers would depend on suite ordering.
+ * Every count assertion is a **delta**. The writer is off fiber and always
+ * updates the default registry, and the reader reads that one whatever
+ * `MetricRegistry` is wired (ARCH-45 I8), so a per-test registry is not
+ * available and absolute numbers would depend on suite ordering.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
+import * as Metric from "effect/Metric";
 import {
   hydrationDehydratedTotal,
   hydrationDropReasons,
@@ -71,6 +73,23 @@ describe("hydrationActivity", () => {
       assert.strictEqual(after.rechecked - before.rechecked, 2);
       assert.strictEqual(after.mismatched - before.mismatched, 1);
     }));
+
+  it.effect("a count written off-fiber is read whatever registry the host wired", () =>
+    Effect.gen(function* () {
+      // `@qadi/react` writes off fiber, into the default registry; a host may
+      // run this reader under its own `MetricRegistry`. effect 4.0.0 looks the
+      // registry up on every update, so a reader that followed the fiber's
+      // registry would read zero forever (ARCH-45 I8).
+      const before = yield* hydrationActivity;
+      hydrationSeededTotal.updateUnsafe(3, registry);
+      hydrationDroppedTotal.updateUnsafe("UndecodablePolicy", registry);
+      const after = yield* hydrationActivity;
+
+      assert.strictEqual(after.seeded - before.seeded, 3);
+      const countOf = (self: HydrationActivity) =>
+        self.drops.find((drop) => drop.reason === "UndecodablePolicy")?.count ?? 0;
+      assert.strictEqual(countOf(after) - countOf(before), 1);
+    }).pipe(Effect.provideService(Metric.MetricRegistry, new Map())));
 
   it.effect("reports every reason, including the ones that never fired", () =>
     Effect.gen(function* () {

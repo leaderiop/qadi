@@ -49,6 +49,24 @@ import * as ManagedRuntime from "effect/ManagedRuntime";
  */
 export type QadiLayer = Layer.Layer<StandingEvaluationServices>;
 
+/**
+ * What each facade call takes: core's `EvaluateOptions`, plus the one thing the
+ * `Promise` boundary adds.
+ *
+ * `signal` is forwarded, untouched and unread, to the runtime's `runPromise`
+ * (the platform's own convention, as in `fetch(url, { signal })`). Aborting it
+ * interrupts the fibre running the call: work underway stops, and the promise
+ * **rejects** with the runtime's interruption error (today
+ * `Error("All fibers interrupted without error")`), not with `signal.reason` —
+ * mapping it would need a branch here, which this facade does not have
+ * ([ADR-QD-032](../../../spec/decisions/032-promise-facade.md), BEH-QD-169).
+ * A signal aborted before the call starts rejects without running any lookup.
+ * `signal` is not passed on to `@qadi/core`'s options.
+ */
+export interface FacadeOptions extends EvaluateOptions {
+  readonly signal?: AbortSignal | undefined;
+}
+
 export interface Qadi {
   /**
    * `true` when permitted, `false` when denied.
@@ -60,7 +78,7 @@ export interface Qadi {
    * A boolean has no room for an obligation: a policy carrying one resolves
    * `true` with the obligation silently undischarged, the same caveat core's
    * own `check` carries. There is no `onObligations` on this facade at all —
-   * every method here takes the plain `EvaluateOptions`, never core's
+   * every method here takes `EvaluateOptions` (plus `signal`, below), never core's
    * `EnforceOptions` that adds it. `assert`/`filter` below still discharge
    * through core's own `assert`/`filter` (which default `onObligations` to
    * undefined) and so can reject `UndischargedObligation`, but nothing on
@@ -70,14 +88,14 @@ export interface Qadi {
   readonly check: (
     subject: AuthSubject,
     policy: Policy,
-    options?: EvaluateOptions,
+    options?: FacadeOptions,
   ) => Promise<boolean>;
 
   /** The full decision, with its trace, visible fields and obligations. */
   readonly decide: (
     subject: AuthSubject,
     policy: Policy,
-    options?: EvaluateOptions,
+    options?: FacadeOptions,
   ) => Promise<Decision>;
 
   /**
@@ -108,7 +126,7 @@ export interface Qadi {
   readonly assert: (
     subject: AuthSubject,
     policy: Policy,
-    options?: EvaluateOptions,
+    options?: FacadeOptions,
   ) => Promise<void>;
 
   /**
@@ -126,7 +144,7 @@ export interface Qadi {
     subject: AuthSubject,
     policy: Policy,
     items: ReadonlyArray<A>,
-    options?: EvaluateOptions,
+    options?: FacadeOptions,
   ) => Promise<ReadonlyArray<A>>;
 
   /**
@@ -147,7 +165,7 @@ export interface Qadi {
     subject: AuthSubject,
     policy: Policy,
     record: A,
-    options?: Omit<EvaluateOptions, "resource">,
+    options?: Omit<FacadeOptions, "resource">,
   ) => Promise<Partial<A>>;
 
   /**
@@ -162,7 +180,7 @@ export interface Qadi {
     subject: AuthSubject,
     policy: Policy,
     items: ReadonlyArray<A>,
-    options?: EvaluateOptions,
+    options?: FacadeOptions,
   ) => Promise<ReadonlyArray<Partial<A>>>;
 
   /**
@@ -182,17 +200,13 @@ export interface Qadi {
  * const allowed = await qadi.check(subject, canEdit, { resource: doc });
  * ```
  *
- * **No cancellation crosses this boundary** (AN-03). Every method forwards
- * through `runtime.runPromise`, and a `Promise` carries no interruption
- * signal back to the fiber running it — a caller who abandons a `check` (a
- * client disconnecting mid-`filter` over a large collection) cannot stop the
- * work underway; every item still runs to completion. This is a platform
- * limit of the `Effect` → `Promise` boundary itself, not a choice this facade
- * makes, and there is no workaround through this API: a caller whose calls
- * need to be cancellable (a `filter` over an unbounded or very large input)
- * should size them accordingly, or reach for `@qadi/core` directly and drive
- * the `Effect` with `Effect.runFork` plus its own interruption instead of
- * through this facade.
+ * **Cancellation crosses this boundary by `options.signal`** (AN-03, ARCH-45).
+ * Every method forwards `{ signal }` to `runtime.runPromise` and decides
+ * nothing about it: aborting stops the work underway (a `filter` over a large
+ * collection issues no further lookups) and the promise rejects with the
+ * runtime's interruption error. A caller who wants more control than one signal
+ * per call can still reach for `@qadi/core` directly and drive the `Effect`
+ * with `Effect.runFork` plus its own interruption.
  */
 export const makeQadi = (layer: QadiLayer): Qadi => {
   const runtime = ManagedRuntime.make(layer);
@@ -201,19 +215,23 @@ export const makeQadi = (layer: QadiLayer): Qadi => {
   const run = <A, E>(
     subject: AuthSubject,
     effect: Effect.Effect<A, E, EvaluationServices>,
+    signal: AbortSignal | undefined,
   ): Promise<A> =>
-    runtime.runPromise(Effect.provideService(effect, CurrentSubject, subject));
+    runtime.runPromise(Effect.provideService(effect, CurrentSubject, subject), { signal });
 
   return {
-    check: (subject, policy, options) => run(subject, checkCore(policy, options)),
-    decide: (subject, policy, options) => run(subject, decideCore(policy, options)),
-    assert: (subject, policy, options) => run(subject, assertCore(policy, options)),
-    filter: (subject, policy, items, options) =>
-      run(subject, filterCore(policy, items, options)),
-    projected: (subject, policy, record, options) =>
-      run(subject, enforceProjectedLoadedCore(policy, options)(Effect.succeed(record))),
-    filterProjected: (subject, policy, items, options) =>
-      run(subject, filterProjectedCore(policy, items, options)),
+    check: (subject, policy, { signal, ...options } = {}) =>
+      run(subject, checkCore(policy, options), signal),
+    decide: (subject, policy, { signal, ...options } = {}) =>
+      run(subject, decideCore(policy, options), signal),
+    assert: (subject, policy, { signal, ...options } = {}) =>
+      run(subject, assertCore(policy, options), signal),
+    filter: (subject, policy, items, { signal, ...options } = {}) =>
+      run(subject, filterCore(policy, items, options), signal),
+    projected: (subject, policy, record, { signal, ...options } = {}) =>
+      run(subject, enforceProjectedLoadedCore(policy, options)(Effect.succeed(record)), signal),
+    filterProjected: (subject, policy, items, { signal, ...options } = {}) =>
+      run(subject, filterProjectedCore(policy, items, options), signal),
     dispose: () => runtime.dispose(),
   };
 };

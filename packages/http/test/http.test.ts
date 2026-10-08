@@ -13,6 +13,7 @@
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
+import * as References from "effect/References";
 import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
@@ -953,6 +954,92 @@ describe("RequirePermission's scopes around the handler (characterization)", () 
       const body: Record<string, unknown> = yield* Effect.promise(() => response.json());
       assert.strictEqual(body._tag, "AccessDenied");
       assert.strictEqual("trace" in body, false);
+    }));
+
+  const probeWithLogger = (logs: Array<unknown>) =>
+    ProbeLayer.pipe(
+      Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+    );
+
+  it.effect("a handler-raised denial is logged once, as the handler's", () =>
+    Effect.gen(function* () {
+      const logs: Array<unknown> = [];
+      const { handler } = HttpRouter.toWebHandler(probeWithLogger(logs), { disableLogger: true });
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/probe/raise", { headers: bearer(ALICE_TOKEN) })),
+      );
+      assert.strictEqual(response.status, 403);
+      assert.deepStrictEqual(logs, [
+        [`qadi/http: request denied (ACL001) — subject "alice": subject lacks permission 'document:write'`],
+      ]);
+    }));
+
+  it.effect("the log line says which step raised the denial", () =>
+    Effect.gen(function* () {
+      const sites: Array<unknown> = [];
+      const layer = ProbeLayer.pipe(
+        Layer.provideMerge(
+          Logger.layer([
+            Logger.make((options) => {
+              sites.push(options.fiber.getRef(References.CurrentLogAnnotations)["qadi.denial_site"]);
+            }),
+          ]),
+        ),
+      );
+      const { handler } = HttpRouter.toWebHandler(layer, { disableLogger: true });
+      yield* Effect.promise(() =>
+        handler(new Request("http://localhost/probe/raise", { headers: bearer(BOB_TOKEN) })),
+      );
+      yield* Effect.promise(() =>
+        handler(new Request("http://localhost/probe/raise", { headers: bearer(ALICE_TOKEN) })),
+      );
+      assert.deepStrictEqual(sites, ["edge", "handler"]);
+    }));
+
+  it.effect("an edge denial is still logged exactly once", () =>
+    Effect.gen(function* () {
+      const logs: Array<unknown> = [];
+      const { handler } = HttpRouter.toWebHandler(probeWithLogger(logs), { disableLogger: true });
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/probe/raise", { headers: bearer(BOB_TOKEN) })),
+      );
+      assert.strictEqual(response.status, 403);
+      assert.deepStrictEqual(logs, [
+        [`qadi/http: request denied (ACL001) — subject "bob": subject lacks permission 'document:read'`],
+      ]);
+    }));
+
+  it.effect("a bare route's handler-raised denial is answered 403 and logged once", () =>
+    Effect.gen(function* () {
+      const logs: Array<unknown> = [];
+      // The handler's own `guard` fails with a denial and catches nothing:
+      // the surface answers and logs it (ARCH-45 I3).
+      const RaiseRoute = addGuardedRoute(
+        "GET",
+        "/documents/raise",
+        readPermission,
+        readPolicy,
+        () => Effect.succeed({}),
+      )((_authorized, resource) =>
+        guard(writePermission, hasPermission(writePermission))(resource, () => Effect.void).pipe(
+          Effect.as(HttpServerResponse.text("written")),
+        ),
+      );
+      const app = RaiseRoute.pipe(
+        Layer.provideMerge(PermissionRegistryLive),
+        Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
+        Layer.provideMerge(EvaluationServicesTest),
+        Layer.provideMerge(HttpServer.layerServices),
+        Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+      );
+      const { handler } = HttpRouter.toWebHandler(app, { disableLogger: true });
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/documents/raise", { headers: bearer(ALICE_TOKEN) })),
+      );
+      assert.strictEqual(response.status, 403);
+      assert.deepStrictEqual(logs, [
+        [`qadi/http: request denied (ACL001) — subject "alice": subject lacks permission 'document:write'`],
+      ]);
     }));
 
   it.effect("the standing services reach the handler: its re-check hits the DecisionCache", () =>

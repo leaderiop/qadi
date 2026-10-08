@@ -24,8 +24,9 @@
  * from the writer, so `HydrationMetrics.test.ts` pins each one.
  *
  * **Counters and frequencies rather than a log**, for the reason `PortMetrics.ts`
- * gives: the default registry is memoised on the reference, so a reader calls
- * `Metric.value` and gets these with **zero wiring**. Hydration runs where no
+ * gives: the default registry is the `MetricRegistry` reference's default, so a
+ * reader that names it (`valueUnsafe(Context.empty())`, as `@qadi/devtools`
+ * does) gets these with **zero wiring**. Hydration runs where no
  * Effect runtime need exist at all — `dehydrateDecisions` on a server rendering
  * a page, `hydrateDecisions` during a client's first render — so the write side
  * uses `updateUnsafe`, which is the only form available off a fiber.

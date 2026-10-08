@@ -118,6 +118,34 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 3a. Every ADR's Document ID names its own file number.
+#
+# QADI-ADR-NNN must match NNN-*.md. Three ADRs (095 to 097) carried IDs
+# 902 to 904 for months, and ADR-094's carried 901: the slip was found by
+# accident twice, so the third time is a check (ARCH-45 I7). An ADR with no
+# Document ID row is not checked here: not every ADR carries a Document Control
+# table.
+# ---------------------------------------------------------------------------
+if [[ -d "$SPEC_DIR/decisions" ]]; then
+  mismatched=""
+  checked=0
+  for f in "$SPEC_DIR"/decisions/[0-9][0-9][0-9]-*.md; do
+    [[ -e "$f" ]] || continue
+    num="$(basename "$f" | cut -c1-3)"
+    id="$(grep -m1 -oE '\| Document ID +\| +QADI-ADR-[0-9]+' "$f" | grep -oE '[0-9]+$' || true)"
+    [[ -n "$id" ]] || continue
+    checked=$((checked + 1))
+    [[ "$id" == "$num" ]] || mismatched="${mismatched} ${num}(QADI-ADR-${id})"
+  done
+
+  if [[ -n "$mismatched" ]]; then
+    report FAIL "ADR Document ID = file number" "mismatched:${mismatched}"
+  else
+    report PASS "ADR Document ID = file number" "$checked ADR(s) agree"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # 3b. Every URS-QD-NNN declared in urs.md appears in its traceability table.
 #
 # The heading declares a requirement; the table is where it is tied to a

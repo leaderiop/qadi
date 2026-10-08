@@ -62,7 +62,7 @@ different records. `filterProjected` does the same per item over a collection;
 ## This facade cannot discharge a binding obligation
 
 There is no `onObligations` anywhere on this package — every method here takes
-the plain `EvaluateOptions`, never `@qadi/core`'s `EnforceOptions` that adds a
+the plain `EvaluateOptions` (plus `signal`), never `@qadi/core`'s `EnforceOptions` that adds a
 handler. That is a hard ceiling, not an oversight: every knob added to this
 facade is a second decision path waiting to rot, and an obligation handler is
 exactly that kind of knob. The consequence differs by method:
@@ -89,6 +89,28 @@ permitted", so a denial rejects too.
 
 The subject travels per call rather than living in the layer, so one runtime
 serves every user.
+
+## Cancelling a call
+
+Every method takes a `signal` among its options, forwarded untouched to the
+runtime — the same convention as `fetch(url, { signal })`. Aborting it stops
+the work underway (a `filter` over a large collection issues no further
+lookups) and the promise **rejects** with the runtime's interruption error,
+not with `signal.reason`: mapping it would be a branch, and this facade has
+none. A signal aborted before the call starts rejects without running a lookup.
+
+```typescript
+import { EvaluationServicesNone, hasRole, makeSubject } from "@qadi/core";
+import { makeQadi } from "@qadi/promise";
+
+const qadi = makeQadi(EvaluationServicesNone);
+const subject = makeSubject({ id: "u-1", roles: ["editor"] });
+
+export const filterUnlessAbandoned = async (
+  items: ReadonlyArray<{ readonly id: string }>,
+  signal: AbortSignal,
+) => qadi.filter(subject, hasRole("editor"), items, { signal });
+```
 
 ## License
 

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-22                                    |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-09-19                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-09-19): KD-04 — noted that two facade-specific bugs (BEH-QD-170's error identity, `filter`'s missing options parameter) are pinned only as regression tests in `facade.test.ts`, one of them under no `BEH-QD-NNN` number at all<br>1.1 (2026-09-07): Noted that this is the one behavior with no `.feature` leg, and why<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
+> | Change History | 1.3 (2026-10-08): BEH-QD-169 — every call forwards `options.signal` and never reads it; `FacadeOptions` (ARCH-45, CCR-QD-266)<br>1.2 (2026-09-19): KD-04 — noted that two facade-specific bugs (BEH-QD-170's error identity, `filter`'s missing options parameter) are pinned only as regression tests in `facade.test.ts`, one of them under no `BEH-QD-NNN` number at all<br>1.1 (2026-09-07): Noted that this is the one behavior with no `.feature` leg, and why<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
 
 _Previous: [21 — Decision Cache](./21-decision-cache.md)_
 
@@ -58,6 +58,25 @@ REQUIREMENT: Every method of `@qadi/promise` MUST be `runtime.runPromise` applie
              to a `@qadi/core` function. No branch in the package MAY decide an
              authorization outcome.
 ```
+
+```
+REQUIREMENT: Every method MUST forward `options.signal` to `runtime.runPromise`
+             and MUST NOT branch on it: an aborted signal interrupts the work
+             underway and rejects the promise with the runtime's interruption
+             error, not with `signal.reason`. `signal` MUST NOT be passed on to
+             `@qadi/core`'s options.
+```
+
+```ts
+export interface FacadeOptions extends EvaluateOptions {
+  readonly signal?: AbortSignal | undefined;
+}
+```
+
+Cancellation was described as impossible ("a platform limit"). It is not:
+`ManagedRuntime.runPromise(effect, { signal })` interrupts the fibre, and a
+`filter` over fifty items stopped after four lookups when its signal aborted.
+Forwarding a second argument decides nothing (ARCH-45 I4).
 
 The predecessor had a synchronous `evaluate` and an `evaluateAsync` that pre-resolved
 the whole tree before delegating back: short-circuiting destroyed, the asynchronous

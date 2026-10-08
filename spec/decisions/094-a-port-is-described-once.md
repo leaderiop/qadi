@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-094                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-10-05                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
+> | Change History | 1.2 (2026-10-08): amended: a request key is injective over every argument the port receives; the relationship and custom-predicate keys are corrected (ARCH-45 I1, CCR-QD-263)<br>1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
 
 ---
 
@@ -214,3 +214,18 @@ description's fail-closed default or a wrapper around it (`none.name`) — a
 reader's label, never an input to a decision. `EvaluationId`, `CurrentSubject`,
 `DecisionCache` and `DecisionSink` stay hand-listed: they are not ports.
 
+> **Amended (ARCH-45 I1, 2026-10-08): a request key is injective over every argument
+> the port receives.** `PortDescription.key` was documented as "a collision-safe key
+> ... that always includes the subject", and two descriptions dropped an argument the
+> port receives: the relationship key ignored `depth` ("traversal fuel, not part of the
+> question", although the resolver contract on the same page requires a traversing
+> resolver to honour it), and the custom-predicate key ignored the resource and
+> everything in the subject but its id. Devtools' capture and replay, keyed by them,
+> answered a depth-1 ask with a depth-3 capture, one resource with another's answer,
+> and a what-if that dropped a role with the original subject's answer (a stale allow).
+> The law is now stated on `key` and checked for all five ports in
+> `PortConformance.test.ts`: two requests share a key only if every argument is
+> structurally equal. The custom-predicate key is canonical (`PortKey.ts`'s
+> `canonicalKey`, package-private: a `Set` as its sorted members, an object with sorted
+> keys), because `JSON.stringify` writes a `Set` as `{}`. Observable change: two key
+> strings, and `CapturedAnswers` (exported) keys with them; no type changes.

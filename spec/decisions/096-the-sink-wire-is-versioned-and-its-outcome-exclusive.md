@@ -4,13 +4,13 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | QADI-ADR-903                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-10-05                                     |
+> | Document ID    | QADI-ADR-096                                   |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — amends ADR-QD-002, ADR-QD-056, ADR-QD-060; D-15-d reversed 2026-10-06 (version 2 only) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-06): amended — 0.11.0 reads version 2 only; D-15-d ("the v1 reader is permanent") reversed at the maintainer's direction, D-15-g/h/i withdrawn with it, INV-QD-099 retired, the migration path stated (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-15, CCR-QD-180) |
+> | Change History | 1.2 (2026-10-08): Document ID corrected from `QADI-ADR-903` to `QADI-ADR-096`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.1 (2026-10-06): amended — 0.11.0 reads version 2 only; D-15-d ("the v1 reader is permanent") reversed at the maintainer's direction, D-15-g/h/i withdrawn with it, INV-QD-099 retired, the migration path stated (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-15, CCR-QD-180) |
 
 ---
 

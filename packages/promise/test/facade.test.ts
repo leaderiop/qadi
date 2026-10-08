@@ -393,3 +393,103 @@ describe("makeQadi", () => {
     assert.deepStrictEqual(viaFacade, viaCore);
   });
 });
+
+describe("cancellation crosses the boundary by options.signal (ARCH-45 I4)", () => {
+  /** A resolver that takes a moment and counts every lookup it was asked for. */
+  const slowLayer = () => {
+    const state = { lookups: 0, onFirst: () => {} };
+    const first = new Promise<void>((resolve) => {
+      state.onFirst = resolve;
+    });
+    const layer = Layer.mergeAll(
+      portsLayer({
+        AttributeResolver: Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Effect.sleep("20 millis").pipe(
+              Effect.as(5),
+              Effect.tap(() =>
+                Effect.sync(() => {
+                  state.lookups += 1;
+                  state.onFirst();
+                }),
+              ),
+            ),
+        }),
+      }),
+      EvaluationIdLive,
+    );
+    return { state, first, layer };
+  };
+  const clearance = hasAttribute("clearance", gte(1));
+  const items = Array.from({ length: 50 }, (_, i) => ({ id: `doc-${i}` }));
+
+  it("filter stops when its signal aborts", async () => {
+    const { state, first, layer } = slowLayer();
+    const controller = new AbortController();
+    const pending = facade(layer).filter(alice, clearance, items, { signal: controller.signal });
+    await first;
+    controller.abort();
+
+    await rejection(pending);
+    const atAbort = state.lookups;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    // The work stopped: no lookup ran after the rejection, and nowhere near all 50 did.
+    assert.strictEqual(state.lookups, atAbort);
+    assert.isBelow(state.lookups, items.length);
+  });
+
+  it("filterProjected stops when its signal aborts (ARCH-39 methods take the signal too)", async () => {
+    const { state, first, layer } = slowLayer();
+    const controller = new AbortController();
+    const pending = facade(layer).filterProjected(alice, clearance, items, { signal: controller.signal });
+    await first;
+    controller.abort();
+
+    await rejection(pending);
+    const atAbort = state.lookups;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.strictEqual(state.lookups, atAbort);
+    assert.isBelow(state.lookups, items.length);
+  });
+
+  it("a pre-aborted signal performs no lookup for projected either", async () => {
+    const { state, layer } = slowLayer();
+    const controller = new AbortController();
+    controller.abort();
+    await rejection(facade(layer).projected(alice, clearance, { id: "doc-1" }, { signal: controller.signal }));
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    assert.strictEqual(state.lookups, 0);
+  });
+
+  it("a pre-aborted signal performs no lookup", async () => {
+    const { state, layer } = slowLayer();
+    const controller = new AbortController();
+    controller.abort();
+    await rejection(facade(layer).filter(alice, clearance, items, { signal: controller.signal }));
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    assert.strictEqual(state.lookups, 0);
+  });
+
+  it("an unaborted signal changes nothing", async () => {
+    const controller = new AbortController();
+    const withSignal = { signal: controller.signal };
+    const qadi = facade();
+    assert.strictEqual(await qadi.check(alice, canRead, withSignal), await qadi.check(alice, canRead));
+    assert.strictEqual(await qadi.check(alice, isAdmin, withSignal), false);
+    const decided = await qadi.decide(alice, canRead, withSignal);
+    assert.strictEqual(decided._tag, (await qadi.decide(alice, canRead))._tag);
+    await qadi.assert(alice, canRead, withSignal);
+    assert.deepStrictEqual(await qadi.filter(alice, canRead, [{ id: "a" }], withSignal), [{ id: "a" }]);
+  });
+
+  it("an aborted signal does not reach core's own options", async () => {
+    // `signal` is the runtime's, not an `EvaluateOptions` field: it must not
+    // leak into core's `check`/`decide` options object.
+    const controller = new AbortController();
+    const result = await facade().check(alice, canRead, {
+      signal: controller.signal,
+      resource: { id: "doc-1" },
+    });
+    assert.strictEqual(result, true);
+  });
+});

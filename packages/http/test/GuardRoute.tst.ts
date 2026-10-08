@@ -18,8 +18,10 @@ import type * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type { Authorized, CurrentSubject } from "@qadi/core";
 import { hasPermission, permission } from "@qadi/core";
 import { guardRoute } from "../src/GuardRoute.ts";
+import type { HttpEnforcementFailure } from "../src/QadiHttpError.ts";
 
 type RequirementsOf<T> = T extends Effect.Effect<infer _A, infer _E, infer R> ? R : never;
+type ErrorOf<T> = T extends Effect.Effect<infer _A, infer E, infer _R> ? E : never;
 
 const readPermission = permission("document", "read");
 const readPolicy = hasPermission(readPermission);
@@ -45,6 +47,21 @@ test("guardRoute discharges CurrentSubject from the wrapped handler's own R", ()
   type R = RequirementsOf<ReturnType<typeof route>>;
 
   expect<Extract<R, CurrentSubject>>().type.toBe<never>();
+});
+
+// A handler whose own `guard` may deny: the route answers and logs the denial
+// itself (ARCH-45 I3), so the handler's error channel may carry the closed
+// `HttpEnforcementFailure` union, and the route's own stays `never`.
+declare const handlerThatMayDeny: (
+  authorized: Authorized<typeof readPermission>,
+  resource: {},
+) => Effect.Effect<HttpServerResponse.HttpServerResponse, HttpEnforcementFailure, CurrentSubject>;
+
+test("guardRoute accepts a handler whose own guard may deny, and answers every enforcement failure", () => {
+  const route = guardRoute(readPermission, readPolicy, loadResourceClean)(handlerThatMayDeny);
+  type E = ErrorOf<ReturnType<typeof route>>;
+
+  expect<E>().type.toBe<never>();
 });
 
 test("guardRoute does NOT discharge CurrentSubject from loadResource's own LR", () => {

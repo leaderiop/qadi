@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-23                                    |
-> | Revision       | 1.7                                            |
-> | Effective Date | 2026-10-07                                     |
+> | Revision       | 1.8                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-10-07): BEH-QD-321 — every `@qadi/http` surface authorizes through `authorizeRequest`; `toResponse` answers all twelve tags and `handleEnforcementErrors`/`subjectExtractionFailedResponse` are removed; BEH-QD-177's prose follows (ADR-QD-036 Rev 1.5, CCR-QD-197)<br>1.6 (2026-10-07): BEH-QD-320 — an endpoint's access is read once, from the endpoint, by `RequirePermission` and `registerApi` through `endpointAccess`; a `RequiredPermission` or `PublicEndpoint` on a group or API is refused by both (`MisplacedAccessDeclaration`); BEH-QD-180's `registerApi` signature corrected and it lists an endpoint only if the middleware enforces it (CCR-QD-196)<br>1.5 (2026-10-04): BEH-QD-177 gains a derived-status requirement and `ENFORCEMENT_ERROR_WIRE`, the one table every status, wire schema and `RequirePermission` error list derives from; BEH-QD-260 corrected — the two tag-only bodies were never empty, and the hand-converted arms are one in-channel projection; BEH-QD-263's list is derived (ADR-QD-081, CCR-QD-155)<br>1.4 (2026-09-14): BEH-QD-263 — a generated client's static error type for a `RequirePermission`-guarded endpoint now includes every enforcement outcome automatically, via `requiredForClient`/`clientError` and the new generic `passthroughClientLayer` helper, rather than a per-endpoint hand-declared `error:` subset; the disclosed `PublicEndpoint` over-approximation limitation is recorded alongside it (ADR-QD-075, CCR-QD-151)<br>1.3 (2026-09-08): BEH-QD-260 — the `HttpApiMiddleware` adapter's response body now carries real fields for the nine `EnforcementError` tags that are not a denial, declared through `httpApiStatus`-annotated schemas rather than produced by `toResponse`'s hand table; the bare-`HttpRouter` adapter is unchanged (ADR-QD-072, CCR-QD-141)<br>1.2 (2026-09-07): BEH-QD-177's status table was missing two of the eleven mappings `enforcementErrorTags` actually covers — `CustomPredicateError` and `SignatureHistoryUnavailable`, both 502, added to the row (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-180 — `/__permissions` is guarded by default; the open question closed (CCR-QD-062)<br>1.0 (2026-08-23): Initial release (CCR-QD-059) |
+> | Change History | 1.8 (2026-10-08): BEH-QD-321 — a denial is logged once by the step that turned it into a response (the edge, or the surface for a handler's own `guard`), annotated `qadi.denial_site`; `guardRoute`'s handler error channel is `HttpEnforcementFailure` (ARCH-45, CCR-QD-265)<br>1.7 (2026-10-07): BEH-QD-321 — every `@qadi/http` surface authorizes through `authorizeRequest`; `toResponse` answers all twelve tags and `handleEnforcementErrors`/`subjectExtractionFailedResponse` are removed; BEH-QD-177's prose follows (ADR-QD-036 Rev 1.5, CCR-QD-197)<br>1.6 (2026-10-07): BEH-QD-320 — an endpoint's access is read once, from the endpoint, by `RequirePermission` and `registerApi` through `endpointAccess`; a `RequiredPermission` or `PublicEndpoint` on a group or API is refused by both (`MisplacedAccessDeclaration`); BEH-QD-180's `registerApi` signature corrected and it lists an endpoint only if the middleware enforces it (CCR-QD-196)<br>1.5 (2026-10-04): BEH-QD-177 gains a derived-status requirement and `ENFORCEMENT_ERROR_WIRE`, the one table every status, wire schema and `RequirePermission` error list derives from; BEH-QD-260 corrected — the two tag-only bodies were never empty, and the hand-converted arms are one in-channel projection; BEH-QD-263's list is derived (ADR-QD-081, CCR-QD-155)<br>1.4 (2026-09-14): BEH-QD-263 — a generated client's static error type for a `RequirePermission`-guarded endpoint now includes every enforcement outcome automatically, via `requiredForClient`/`clientError` and the new generic `passthroughClientLayer` helper, rather than a per-endpoint hand-declared `error:` subset; the disclosed `PublicEndpoint` over-approximation limitation is recorded alongside it (ADR-QD-075, CCR-QD-151)<br>1.3 (2026-09-08): BEH-QD-260 — the `HttpApiMiddleware` adapter's response body now carries real fields for the nine `EnforcementError` tags that are not a denial, declared through `httpApiStatus`-annotated schemas rather than produced by `toResponse`'s hand table; the bare-`HttpRouter` adapter is unchanged (ADR-QD-072, CCR-QD-141)<br>1.2 (2026-09-07): BEH-QD-177's status table was missing two of the eleven mappings `enforcementErrorTags` actually covers — `CustomPredicateError` and `SignatureHistoryUnavailable`, both 502, added to the row (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-180 — `/__permissions` is guarded by default; the open question closed (CCR-QD-062)<br>1.0 (2026-08-23): Initial release (CCR-QD-059) |
 
 _Previous: [22 — The Promise Facade](./22-promise-facade.md)_
 
@@ -539,10 +539,14 @@ REQUIREMENT: The subject MUST be extracted before the resource is loaded, so a
 
 ```
 REQUIREMENT: A denial (`AccessDenied`, `UndischargedObligation`) and a
-             `SubjectExtractionFailed` MUST each be logged exactly once, by
-             `authorizeRequest`, through `logDenial` and
-             `logSubjectExtractionFailed`. A resolver outage MUST NOT be logged
-             by the edge.
+             `SubjectExtractionFailed` MUST each be logged exactly once, by the
+             step that turned it into a response: `authorizeRequest` for the
+             edge check, through `logDenial` and `logSubjectExtractionFailed`,
+             and the surface (`RequirePermission`, `guardRoute`,
+             `addGuardedRoute`) for a denial a handler's own `guard` raises,
+             through `logDenial`. Each denial line MUST carry the log annotation
+             `qadi.denial_site`: `"edge"` or `"handler"`. A denial MUST NOT be
+             logged twice. A resolver outage MUST NOT be logged by the edge.
 ```
 
 ```
@@ -569,9 +573,14 @@ resource *loader*, not a value, so extraction can run first.
 
 Under `RequirePermission` the projection and the captured standing services still
 wrap the handler: a defense-in-depth `guard` inside a handler finds the services,
-and an enforcement failure it raises is projected to its redacted wire value. That
-failure is no longer logged by the edge: it is the handler's own `guard`'s
-failure. A bare route's answer is `toResponse`, which logs nothing.
+and an enforcement failure it raises is projected to its redacted wire value. A
+denial it raises is logged by the surface, on the handler's effect alone and
+annotated `"handler"`, so the edge's own denial (already logged, annotated
+`"edge"`) is never logged twice. A bare route's handler may let that failure
+through: its error channel is the closed `HttpEnforcementFailure`, and the route
+answers it with `toResponse` and logs a denial the same way. (ARCH-19 D-19-d had
+left a handler-raised denial unlogged, which contradicted the `logDenial` row in
+`spec/overview.md`; ARCH-45 reverses it.)
 `guard` builds its handler eagerly ([ADR-QD-035](../decisions/035-witness-guard-primitive.md));
 the step returns the witness and the surface builds the handler only on an allow.
 

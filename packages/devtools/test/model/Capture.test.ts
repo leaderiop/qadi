@@ -26,6 +26,7 @@ import {
   hasCustom,
   hasNotActed,
   hasRelationship,
+  not,
   attributeResolverPort,
   customPredicatePort,
   makeSubject,
@@ -171,6 +172,82 @@ describe("capture fidelity — INV-QD-043", () => {
 
       assert.strictEqual(liveRun._tag, "Failed");
       assert.strictEqual(replayed._tag, "Failed");
+    }));
+});
+
+describe("capture fidelity — a key covers every argument the port received (ARCH-45 I1)", () => {
+  const tagOf = (outcome: DecisionOutcome): string =>
+    outcome._tag === "Decided" ? outcome.decision._tag : outcome._tag;
+
+  it.effect("a policy asking one relation at two depths replays as it ran", () =>
+    Effect.gen(function* () {
+      // A traversing resolver: related only when the hop budget is at least 2.
+      const traversing = Layer.succeed(RelationshipResolver, {
+        name: "traversing",
+        check: (request) => Effect.succeed((request.depth ?? 64) >= 2 ? "Related" : "Unrelated"),
+      });
+      const ports = portsLayer({ RelationshipResolver: traversing });
+      // "a member, but not a direct one"
+      const indirect = allOf([
+        not(hasRelationship("member", { depth: 1 })),
+        hasRelationship("member", { depth: 3 }),
+      ]);
+      const capture = capturing(ports);
+      const liveRun = decisionOf(yield* simulate(indirect, alice, { source: live(capture.layer) }));
+      const replayed = decisionOf(
+        yield* simulate(indirect, alice, { source: snapshot(yield* capture.answers) }),
+      );
+      assert.strictEqual(liveRun._tag, "Allow");
+      assert.strictEqual(replayed._tag, liveRun._tag);
+      assert.deepStrictEqual(diffTraces(liveRun.trace, replayed.trace), []);
+    }));
+
+  it.effect("a capture for one resource does not answer another", () =>
+    Effect.gen(function* () {
+      const owns = Layer.succeed(CustomPredicate, {
+        name: "owns",
+        evaluate: (_name, _subject, resource) => Effect.succeed(resource?.id === "doc-1"),
+      });
+      const ports = portsLayer({ CustomPredicate: owns });
+      const policy = hasCustom("owns");
+      const capture = capturing(ports);
+      yield* simulate(policy, alice, { source: live(capture.layer) });
+      const answers = yield* capture.answers;
+
+      const other: SimulationInput = { subject: { id: "alice" }, resource: { id: "doc-2" } };
+      const liveRun = yield* simulate(policy, other, { source: live(ports) });
+      const replayed = yield* simulate(policy, other, { source: snapshot(answers) });
+      assert.strictEqual(tagOf(liveRun), "Deny");
+      assert.strictEqual(tagOf(replayed), tagOf(liveRun));
+    }));
+
+  it.effect("a capture does not answer a what-if that changed the subject's roles", () =>
+    Effect.gen(function* () {
+      const byRole = Layer.succeed(CustomPredicate, {
+        name: "byRole",
+        evaluate: (_name, subject) => Effect.succeed(Array.from(subject.roles, String).includes("editor")),
+      });
+      const ports = portsLayer({ CustomPredicate: byRole });
+      const policy = hasCustom("isEditor");
+      const capture = capturing(ports);
+      const asEditor: SimulationInput = {
+        subject: { id: "alice", roles: ["editor"] },
+        resource: { id: "doc-1" },
+      };
+      assert.strictEqual(
+        tagOf(yield* simulate(policy, asEditor, { source: live(capture.layer) })),
+        "Allow",
+      );
+      const answers = yield* capture.answers;
+
+      const dropped: SimulationInput = {
+        subject: { id: "alice", roles: [] },
+        resource: { id: "doc-1" },
+      };
+      const liveRun = yield* simulate(policy, dropped, { source: live(ports) });
+      const replayed = yield* simulate(policy, dropped, { source: snapshot(answers) });
+      assert.strictEqual(tagOf(liveRun), "Deny");
+      assert.strictEqual(tagOf(replayed), "Deny");
     }));
 });
 
@@ -574,7 +651,7 @@ describe("custom predicate capture", () => {
       assert.deepStrictEqual(diffTraces(liveRun.trace, replayed.trace), []);
     }));
 
-  it.effect("records the custom predicate's answer, keyed by subject, name and params", () =>
+  it.effect("records the custom predicate's answer, keyed by the whole request", () =>
     Effect.gen(function* () {
       const capture = capturing(withCustom);
       yield* simulate(hasCustom("isOwner"), alice, { source: live(capture.layer) });
@@ -585,7 +662,7 @@ describe("custom predicate capture", () => {
         answers.CustomPredicate.get(customPredicatePort.key([
           "isOwner",
           makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} }),
-          undefined,
+          { id: "doc-1" },
           undefined,
         ])),
         { _tag: "Answered", value: true },

@@ -41,12 +41,11 @@ import { walk } from "./Walk.ts";
  *
  * Two fixed, module-scope taggings — `Metric.withAttributes(decisionsTotal,
  * {...})` built fresh per call, the shape Effect's own docs show — rather
- * than one, deliberately: `Metric`'s untagged fast path caches a metric's
- * resolved hooks on the metric object itself, for the process's lifetime,
- * the first time it is touched (`Object.keys(extraAttributes).length === 0`
- * in `effect/Metric`'s `hook`) — cheap for a singleton reused across every
- * call, defeated by rebuilding the tagged wrapper on every `evaluate`
- * instead.
+ * than one, deliberately: `Metric`'s untagged fast path memoises a metric's
+ * resolved key on the metric object itself, the first time it is touched
+ * (`Object.keys(extraAttributes).length === 0` in `effect/Metric`'s `hook`) —
+ * cheap for a singleton reused across every call, defeated by rebuilding the
+ * tagged wrapper on every `evaluate`, which recomputes the key each time.
  */
 const decisionsTotal = Metric.counter("qadi_decisions_total", {
   description: "Authorization decisions reached by `evaluate`, tagged by outcome.",

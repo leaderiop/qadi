@@ -8,10 +8,15 @@
  * trace shallow enough for a recursion to survive. Do not "improve" them; if a
  * walker's contract changes on purpose, change the oracle in the same commit and
  * say why.
+ *
+ * Changed in ARCH-45 T4 on purpose: field equality is the lattice's
+ * (`sameVisibleFields`), not text, so two spellings of one set are not a
+ * difference. Everything else is as it stood.
  */
 import * as Equal from "effect/Equal";
 import * as FastCheck from "fast-check";
 import type { Trace } from "../src/Decision.ts";
+import { sameVisibleFields } from "../src/FieldLattice.ts";
 import { obligation } from "../src/Obligation.ts";
 import type { Obligation } from "../src/Obligation.ts";
 import type { TraceDifference, TracePath } from "../src/TraceDiff.ts";
@@ -42,21 +47,6 @@ export const oracleRenderTrace = (
     return [head, ...node.children.flatMap((child) => go(child, depth + 1))];
   };
   return go(trace, 0).join("\n");
-};
-
-const sameStringSet = (a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean => {
-  if (a.length !== b.length) return false;
-  const sortedA = [...a].sort();
-  const sortedB = [...b].sort();
-  return sortedA.every((f, i) => f === sortedB[i]);
-};
-
-const sameFields = (
-  a: ReadonlyArray<string> | undefined,
-  b: ReadonlyArray<string> | undefined,
-): boolean => {
-  if (a === undefined || b === undefined) return a === b;
-  return sameStringSet(a, b);
 };
 
 const sameObligationSet = (a: ReadonlyArray<Obligation>, b: ReadonlyArray<Obligation>): boolean => {
@@ -111,7 +101,7 @@ export const oracleDiffTraces = (before: Trace, after: Trace): ReadonlyArray<Tra
         after: b.reason,
       });
     }
-    if (!sameFields(a.visibleFields, b.visibleFields)) {
+    if (!sameVisibleFields(a.visibleFields, b.visibleFields)) {
       out.push({
         _tag: "FieldsChanged",
         path,
