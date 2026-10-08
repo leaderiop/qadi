@@ -25,11 +25,11 @@ import { selectionOf } from "../model/Selection.ts";
 import { sourceFromRecords, type Source } from "../model/Source.ts";
 import { countsOf, type Verdict } from "../model/Verdict.ts";
 import { catalogueOf, type Catalogue, type PolicySighting } from "../model/Catalogue.ts";
-import { WiringRead } from "../model/DiagnosticsStore.ts";
+import { mergeReading, type DiagnosticsReading, type WiringRead } from "../model/DiagnosticsStore.ts";
 import type { PortCallLog } from "../model/PortCalls.ts";
 import type { AskedQuestionLike, GateInstanceLike } from "../model/Gates.ts";
 import type { HydrationActivity } from "../model/Hydration.ts";
-import type { PortActivity, WiringReport } from "../model/Wiring.ts";
+import type { PortActivity } from "../model/Wiring.ts";
 import type { PairedEntry } from "../model/Pairing.ts";
 import type { Selection } from "../model/Selection.ts";
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
@@ -101,32 +101,18 @@ export interface DevtoolsDockProps {
    */
   readonly diagnostics?: DiagnosticsDockOptions;
   /**
-   * A wiring report read elsewhere, such as another process's or a fixture's.
+   * A reading taken elsewhere, such as another process's or a fixture's.
    *
-   * Takes precedence over what `diagnostics` samples. For this process, hand
-   * over `diagnostics.layer` instead.
+   * Each field it carries takes precedence over the same field of what
+   * `diagnostics` samples, and a field it omits falls through to the sample
+   * (`mergeReading`). It answers "what did another process see", which sampling
+   * this one cannot: for this process, hand over `diagnostics` instead. Its
+   * `wiring` is a `WiringRead`, so a reading from elsewhere can state a failed
+   * read as well as a report; its `portCalls` come from `collectPortCalls` and
+   * need the collector's tracer layer wired where evaluations ran; its
+   * `questions` are usually `atoms.asked()` from `@qadi/react`.
    */
-  readonly wiring?: WiringReport;
-  /**
-   * Port activity read elsewhere, with `portActivity`.
-   *
-   * Takes precedence over what `diagnostics` samples.
-   */
-  readonly activity?: ReadonlyArray<PortActivity>;
-  /**
-   * Recent port calls read elsewhere, with `collectPortCalls`.
-   *
-   * Takes precedence over what `diagnostics` samples. Needs the collector's
-   * tracer layer wired where evaluations run, so it is opt-in. Without it the
-   * services panel shows counts and says what the detail would take.
-   */
-  readonly portCalls?: PortCallLog;
-  /**
-   * Questions listed elsewhere, usually `atoms.asked()` from `@qadi/react`.
-   *
-   * Takes precedence over what `diagnostics.questions` samples.
-   */
-  readonly questions?: ReadonlyArray<AskedQuestionLike>;
+  readonly reading?: DiagnosticsReading;
   /**
    * The live guards, usually `useGateInstances()` or `atoms.gates.instances()` from `@qadi/react`.
    *
@@ -136,19 +122,6 @@ export interface DevtoolsDockProps {
   readonly gates?: ReadonlyArray<GateInstanceLike>;
   /** Parent names `resolveRoleGraph` dropped. */
   readonly unknownParents?: ReadonlyArray<string>;
-  /**
-   * Hydration counts read elsewhere, with `hydrationActivity`.
-   *
-   * Takes precedence over what `diagnostics` samples.
-   */
-  readonly hydration?: HydrationActivity;
-  /**
-   * Verdict disagreements counted by an `onHydrationMismatch` reporter.
-   *
-   * Superseded by {@link hydration}, which counts the same thing without the
-   * host having to. Shown only when that is absent.
-   */
-  readonly hydrationMismatches?: number;
   /** Usually `useInvalidate()`. */
   readonly onInvalidate?: () => void;
   /**
@@ -166,14 +139,9 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   capacity,
   catalogue,
   diagnostics,
-  wiring,
-  activity,
-  portCalls,
-  questions,
+  reading,
   unknownParents,
   gates,
-  hydration,
-  hydrationMismatches,
   onInvalidate,
   ports,
 }) => {
@@ -182,16 +150,11 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
     capacity === undefined ? undefined : { capacity },
   );
 
-  // Each field is the explicit prop when there is one, and the sampled reading
-  // otherwise: a prop answers "what another process or a fixture saw", which a
-  // sample of this one cannot.
+  // Each field is the supplied reading's when it carries one, and the sampled
+  // reading's otherwise: a supplied reading answers "what another process or a
+  // fixture saw", which a sample of this one cannot.
   const sampled = useDiagnostics(diagnostics);
-  const wiringRead = useMemo(
-    () => (wiring === undefined ? sampled.wiring : WiringRead.Read({ report: wiring })),
-    [wiring, sampled.wiring],
-  );
-  const shownPortCalls = portCalls ?? sampled.portCalls;
-  const shownHydration = hydration ?? sampled.hydration;
+  const shown = useMemo(() => mergeReading(sampled, reading), [sampled, reading]);
 
   const [filters, setFilters] = useState<Filters>(noFilters);
   const [tab, setTab] = useState<TabId>("log");
@@ -309,13 +272,12 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
           sightings={sightings}
           roles={catalogue?.roles ?? []}
           {...(unknownParents === undefined ? {} : { unknownParents })}
-          wiring={wiringRead}
-          activity={activity ?? sampled.activity}
-          {...(shownPortCalls === undefined ? {} : { portCalls: shownPortCalls })}
-          questions={questions ?? sampled.questions}
+          wiring={shown.wiring}
+          activity={shown.activity}
+          {...(shown.portCalls === undefined ? {} : { portCalls: shown.portCalls })}
+          questions={shown.questions}
           {...(gates === undefined ? {} : { gates })}
-          {...(shownHydration === undefined ? {} : { hydration: shownHydration })}
-          {...(hydrationMismatches === undefined ? {} : { hydrationMismatches })}
+          {...(shown.hydration === undefined ? {} : { hydration: shown.hydration })}
           {...(onInvalidate === undefined ? {} : { onInvalidate })}
           onReplay={replay}
           simulation={simulation}
@@ -375,7 +337,6 @@ const Screen: FC<{
   readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
   readonly gates?: ReadonlyArray<GateInstanceLike>;
   readonly hydration?: HydrationActivity;
-  readonly hydrationMismatches?: number;
   readonly onInvalidate?: () => void;
   readonly onReplay: (entry: TimelineEntry) => void;
   readonly simulation: SimulationSession;
@@ -405,9 +366,6 @@ const Screen: FC<{
         questions={props.questions}
         {...(props.gates === undefined ? {} : { gates: props.gates })}
         {...(props.hydration === undefined ? {} : { hydration: props.hydration })}
-        {...(props.hydrationMismatches === undefined
-          ? {}
-          : { hydrationMismatches: props.hydrationMismatches })}
         {...(props.onInvalidate === undefined ? {} : { onInvalidate: props.onInvalidate })}
       />
     ),

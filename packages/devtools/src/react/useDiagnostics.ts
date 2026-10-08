@@ -37,7 +37,9 @@ export interface DiagnosticsDockOptions {
    * Built once while the dock is mounted, and released on unmount. It is its
    * own build, so a service that keeps state in its constructor is shared with
    * the application only if the host shares it by value: build its context once
-   * and pass `Layer.succeedContext(context)` here and to the atoms.
+   * and pass that context here and to the atoms as one value. Under a
+   * `QadiProvider`, hand `useDevtoolsFeed()`'s `diagnostics` from `@qadi/react`
+   * instead: its layer is the provider's own build, so nothing needs sharing.
    *
    * Typed `Layer<never, unknown>` because `Layer` is contravariant in what it
    * provides: that is the one type every layer is assignable to.

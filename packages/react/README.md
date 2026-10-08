@@ -77,6 +77,23 @@ Hydrate on the client with `hydrateDecisions`. A hydrated decision is bound to
 one subject, and the client's own answer supersedes the server's seed the moment
 it arrives.
 
+## Feeding the devtools dock
+
+`useDevtoolsFeed(extra)` returns what `@qadi/devtools`' dock reads from this
+provider: `gates`, `onInvalidate`, and a `diagnostics` whose `layer` is the
+provider's own built services and whose `questions` is `atoms.asked`.
+
+```ts
+// const feed = useDevtoolsFeed({ collector });   // `collector` at module scope
+// <DevtoolsDock {...feed} source={source} />
+```
+
+Because that layer is the registry's own build, the dock's wiring read sees the
+decision cache your guards filled, with no layer hoisted out of the atom set.
+`runtimeLayer(atoms, registry)` is the same thing without React. Nothing here
+reads a decision or registers a gate, and `@qadi/devtools` takes the feed
+structurally, with no dependency on this package.
+
 ## Developer signals
 
 Everything this package says to a developer is a development-mode

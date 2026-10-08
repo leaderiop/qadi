@@ -36,6 +36,7 @@ import type { Decision, Policy, StoredRecord } from "@qadi/core";
 import { DevtoolsDock } from "../../src/react/DevtoolsDock.tsx";
 import { sourceFromRecords } from "../../src/model/Source.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
+import { WiringRead } from "../../src/model/DiagnosticsStore.ts";
 import type { WiringReport } from "../../src/model/Wiring.ts";
 import { decisionRecord, obligationRecord } from "../helpers.ts";
 
@@ -806,7 +807,15 @@ describe("the six screens", () => {
     await click(screen.getByRole("button", { name: "Services" }));
     assert.isNotNull(screen.getByTestId("qadi-wiring-absent"));
 
-    view.rerender(<DevtoolsDock activity={[{ port: "AttributeResolver", calls: 1, retries: 0, timeouts: 0, translationCalls: 0 }]} />);
+    view.rerender(
+      <DevtoolsDock
+        reading={{
+          activity: [
+            { port: "AttributeResolver", calls: 1, retries: 0, timeouts: 0, translationCalls: 0 },
+          ],
+        }}
+      />,
+    );
     await act(async () => {});
 
     // Still on Services. A dock that reset its tab whenever a prop changed
@@ -882,22 +891,27 @@ describe("the six screens", () => {
     let invalidated = 0;
     render(
       <DevtoolsDock
-        wiring={{
-          ports: [
-            {
-              port: "AttributeResolver",
-              name: "fromRecord",
-              required: true,
-              present: true,
-              defaulted: undefined,
-              consequence: "denies",
+        reading={{
+          wiring: WiringRead.Read({
+            report: {
+              ports: [
+                {
+                  port: "AttributeResolver",
+                  name: "fromRecord",
+                  required: true,
+                  present: true,
+                  defaulted: undefined,
+                  consequence: "denies",
+                },
+              ],
+              cache: { present: true, size: 3 },
             },
+          }),
+          activity: [
+            { port: "AttributeResolver", calls: 5, retries: 0, timeouts: 0, translationCalls: 0 },
           ],
-          cache: { present: true, size: 3 },
+          questions: [{ policy: hasPermission(read) }],
         }}
-        activity={[{ port: "AttributeResolver", calls: 5, retries: 0, timeouts: 0, translationCalls: 0 }]}
-        questions={[{ policy: hasPermission(read) }]}
-        hydrationMismatches={1}
         onInvalidate={() => (invalidated += 1)}
       />,
     );
@@ -910,7 +924,6 @@ describe("the six screens", () => {
 
     await click(screen.getByRole("button", { name: "React" }));
     assert.strictEqual(screen.getAllByTestId("qadi-question").length, 1);
-    assert.include(screen.getByTestId("qadi-hydration-mismatches").textContent ?? "", "1 mismatch");
 
     await click(screen.getByTestId("qadi-invalidate"));
     assert.strictEqual(invalidated, 1);
@@ -1050,8 +1063,10 @@ describe("screen 6 — the port calls the dock threads through", () => {
     cache: { present: false, size: undefined },
   };
 
+  const onePort = WiringRead.Read({ report: oneAttributePort });
+
   it("names what the detail would take when no collector was wired", async () => {
-    render(<DevtoolsDock source={sourceFromRecords([])} wiring={oneAttributePort} />);
+    render(<DevtoolsDock source={sourceFromRecords([])} reading={{ wiring: onePort }} />);
     await act(async () => {});
     await click(screen.getByRole("button", { name: "Services" }));
 
@@ -1065,22 +1080,24 @@ describe("screen 6 — the port calls the dock threads through", () => {
     render(
       <DevtoolsDock
         source={sourceFromRecords([])}
-        wiring={oneAttributePort}
-        portCalls={{
-          calls: [
-            {
-              _tag: "AttributeResolver",
-              span: "qadi.attribute",
-              interpreter: undefined,
-              at: 1_000,
-              durationMillis: 0.4,
-              subjectId: "alice",
-              attribute: "clearance",
-              resolved: true,
-            },
-          ],
-          dropped: 0,
-          capacity: 200,
+        reading={{
+          wiring: onePort,
+          portCalls: {
+            calls: [
+              {
+                _tag: "AttributeResolver",
+                span: "qadi.attribute",
+                interpreter: undefined,
+                at: 1_000,
+                durationMillis: 0.4,
+                subjectId: "alice",
+                attribute: "clearance",
+                resolved: true,
+              },
+            ],
+            dropped: 0,
+            capacity: 200,
+          },
         }}
       />,
     );
@@ -1131,9 +1148,11 @@ describe("screen 6 — the port calls the dock threads through", () => {
       render(
         <DevtoolsDock
           diagnostics={{ layer: attribute }}
-          activity={[
-            { port: "AttributeResolver", calls: 42, retries: 0, timeouts: 0, translationCalls: 0 },
-          ]}
+          reading={{
+            activity: [
+              { port: "AttributeResolver", calls: 42, retries: 0, timeouts: 0, translationCalls: 0 },
+            ],
+          }}
         />,
       );
       await act(async () => {});
@@ -1145,17 +1164,91 @@ describe("screen 6 — the port calls the dock threads through", () => {
       );
     });
 
+    it("a supplied reading can state a failed wiring read", async () => {
+      render(
+        <DevtoolsDock
+          reading={{ wiring: WiringRead.Failed({ reason: "from the server" }) }}
+        />,
+      );
+      await act(async () => {});
+      await click(screen.getByRole("button", { name: "Services" }));
+      const failed = await screen.findByTestId("qadi-wiring-failed");
+      assert.include(failed.textContent ?? "", "from the server");
+    });
+
     it("an explicit wiring prop wins over a sampled layer, field by field", async () => {
       render(
         <DevtoolsDock
           diagnostics={{ layer: attribute }}
-          wiring={{ ports: [], cache: { present: true, size: 9 } }}
+          reading={{
+            wiring: WiringRead.Read({ report: { ports: [], cache: { present: true, size: 9 } } }),
+          }}
         />,
       );
       await act(async () => {});
       await click(screen.getByRole("button", { name: "Services" }));
       assert.strictEqual(screen.getByTestId("qadi-cache-size").textContent, "9 completed entries");
       assert.isEmpty(screen.queryAllByTestId("qadi-port"));
+    });
+
+    it("an explicit portCalls prop wins over the sampled collector", async () => {
+      const call = (attribute: string): PortCallLog["calls"][number] => ({
+        _tag: "AttributeResolver",
+        span: "qadi.attribute",
+        interpreter: undefined,
+        at: 1_000,
+        durationMillis: 0.4,
+        subjectId: "alice",
+        attribute,
+        resolved: true,
+      });
+      const sampling: PortCallCollector = {
+        layer: Layer.empty,
+        snapshot: Effect.succeed({ calls: [call("sampled-attr")], dropped: 0, capacity: 10 }),
+      };
+      render(
+        <DevtoolsDock
+          diagnostics={{ layer: attribute, collector: sampling }}
+          reading={{
+            portCalls: { calls: [call("supplied-attr")], dropped: 0, capacity: 10 },
+          }}
+        />,
+      );
+      await act(async () => {});
+      await click(screen.getByRole("button", { name: "Services" }));
+      await screen.findAllByTestId("qadi-port-call");
+      const shown = screen.getAllByTestId("qadi-port-call").map((node) => node.textContent ?? "");
+      assert.include(shown.join("|"), "supplied-attr");
+      assert.notInclude(shown.join("|"), "sampled-attr");
+    });
+
+    it("an explicit questions prop wins over the sampled thunk", async () => {
+      render(
+        <DevtoolsDock
+          diagnostics={{ questions: () => [{ policy: hasPermission(read) }] }}
+          reading={{ questions: [{ policy: hasPermission(write) }] }}
+        />,
+      );
+      await act(async () => {});
+      await click(screen.getByRole("button", { name: "React" }));
+      const shown = await screen.findAllByTestId("qadi-question");
+      assert.strictEqual(shown.length, 1);
+      assert.include(shown[0]?.textContent ?? "", "write");
+      assert.notInclude(shown[0]?.textContent ?? "", "read");
+    });
+
+    it("an explicit hydration prop wins over the sampled counts", async () => {
+      render(
+        <DevtoolsDock
+          diagnostics={{}}
+          reading={{
+            hydration: { dehydrated: 0, seeded: 7, rechecked: 0, mismatched: 0, drops: [] },
+          }}
+        />,
+      );
+      await act(async () => {});
+      await click(screen.getByRole("button", { name: "React" }));
+      assert.include(screen.getByTestId("qadi-hydration-seeded").textContent ?? "", "7");
     });
 
     it("states a layer that failed to build instead of showing a blank panel", async () => {

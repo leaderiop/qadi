@@ -703,9 +703,10 @@ state-management layer of its own. The rules that keep it that way:
   (the registry lives in `@qadi/react`) and `DevtoolsDock.tsx` takes
   `gates` as a plain, one-shot prop — it does not subscribe to anything.
   What subscribes is the **host** wiring the two packages together:
-  `examples/nextjs-newsroom/src/client/Dock.tsx` calls `useGateInstances()`
-  (or `useSyncExternalStore(atoms.gates.subscribe, atoms.gates.instances,
-  atoms.gates.instances)`) and passes the result down as `gates`. That is the correct place for it — `@qadi/devtools`'s panel is
+  `examples/nextjs-newsroom/src/client/Dock.tsx` calls `useDevtoolsFeed()`
+  (which reads `useGateInstances()`, or `useSyncExternalStore(atoms.gates.subscribe,
+  atoms.gates.instances, atoms.gates.instances)` outside the provider) and spreads
+  the result onto the dock, `gates` included. That is the correct place for it — `@qadi/devtools`'s panel is
   meant to render for a host that has no `@qadi/react` at all, fed `gates`
   from wherever it likes — not a gap in `@qadi/devtools` to close.
 

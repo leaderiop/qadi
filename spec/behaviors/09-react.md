@@ -5,12 +5,12 @@
 > | Property       | Value                                                        |
 > | -------------- | ------------------------------------------------------------ |
 > | Document ID    | QADI-BEH-09                                                  |
-> | Revision       | 3.4                                                          |
+> | Revision       | 3.5                                                          |
 > | Effective Date | 2026-10-08                                                   |
 > | Status         | Effective                                                    |
 > | Author         | Qadi Engineering                                             |
 > | Classification | Functional Specification                                     |
-> | Change History | 3.4 (2026-10-08): BEH-QD-067 — `onDeveloperSignal`, and the requirement that the provider never writes to the console itself (ADR-QD-041 amendment, CCR-QD-203)<br>3.3 (2026-10-07): ARCH-23 — BEH-QD-065's `QadiAtoms` listing takes `decision(policy, resource?)` (`decisionFor` is removed), `decisions`, `gates`, `sweepEvictions` and the `maxTrackedQuestions`/`onGateIdCollision` options it omitted, and "the same atom" becomes "for as long as the atom set tracks the question, whatever the garbage collector does"; BEH-QD-068 gains `useQuestions` and the grouped-registration note (ADR-QD-103, ADR-QD-053 amendment, INV-QD-105, CCR-QD-201)<br>3.2 (2026-10-06): `QadiAtoms.hydrate` takes `DehydratedDecisions` — `DehydratedPayload` is removed with the version-1 payload reader (ADR-QD-078 amendment, CCR-QD-182)<br>3.1 (2026-10-05): ARCH-14 — BEH-QD-066 gains `DecisionOutcome`/`outcomeOf`, a complete state table (`Initial` with `waiting: true`, a `Failure` being re-checked, and `previousSuccess` never read) and the requirement that every surface reads through `outcomeOf`; BEH-QD-307 added (a decision result reads as one of five outcomes); BEH-QD-068's `useCan` paragraph names `outcomeOf` (ADR-QD-093, INV-QD-094, CCR-QD-175)<br>3.0 (2026-10-04): ARCH-05 — `DecisionResult` and `currentDecision` hold a `ClientDecision` (the closed union of an evaluated or a seeded decision), `useDecisionSuspense` returns one, `DeniedNode`'s function takes `Deny | SeededDeny`, and `useProjected` projects through `permits`/`projectVisible`; `QadiAtoms` gains `hydrate`; the `subject` atom compares with `subjectEquivalence` (BEH-QD-066, BEH-QD-068, BEH-QD-065, BEH-QD-067, CCR-QD-156)<br>2.9 (2026-09-19): AC-02/EY-03 — the "depends on `effect` and `react` only" and `getServerSnapshot` paragraphs corrected for CCR-QD-150's `@effect/atom-react` reversal (2026-09-13), which this revision had missed; `useCan`'s "pending, denied and failed" corrected to the fourth state, a re-check, `hooks.ts`'s own doc comment already named<br>2.8 (2026-09-19): BEH-QD-067 — the subject-seeding requirement scoped to initial construction, and a requirement added for a later `subject` prop change: written in an effect, with an accepted one-frame stale-decision window (AC-03/EY-02)<br>2.7 (2026-09-08): The `Can` RECOMMENDED note corrected — `failure ?? fallback` could not distinguish an omitted `failure` from an explicit `failure={null}`; `Can` now renders `fallback` only when `failure` is omitted, and an explicit `null` opts out of it (issue #79, CCR-QD-138)<br>2.6 (2026-09-08): BEH-QD-065 — the `QadiAtoms` interface fence was missing `asked`, cross-referenced to its normative home at BEH-QD-198 (CCR-QD-126)<br>2.5 (2026-08-30): BEH-QD-068 — an already-settled decision MUST still resolve its suspense promise, and a re-checking one MUST still suspend (COMPAT-01, gap G-01-1)<br>2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 3.5 (2026-10-08): BEH-QD-327 added — a devtools feed reads the provider's own runtime: `useDevtoolsFeed` and `runtimeLayer` (ARCH-34, ADR-QD-053 amendment, CCR-QD-240)<br>3.4 (2026-10-08): BEH-QD-067 — `onDeveloperSignal`, and the requirement that the provider never writes to the console itself (ADR-QD-041 amendment, CCR-QD-203)<br>3.3 (2026-10-07): ARCH-23 — BEH-QD-065's `QadiAtoms` listing takes `decision(policy, resource?)` (`decisionFor` is removed), `decisions`, `gates`, `sweepEvictions` and the `maxTrackedQuestions`/`onGateIdCollision` options it omitted, and "the same atom" becomes "for as long as the atom set tracks the question, whatever the garbage collector does"; BEH-QD-068 gains `useQuestions` and the grouped-registration note (ADR-QD-103, ADR-QD-053 amendment, INV-QD-105, CCR-QD-201)<br>3.2 (2026-10-06): `QadiAtoms.hydrate` takes `DehydratedDecisions` — `DehydratedPayload` is removed with the version-1 payload reader (ADR-QD-078 amendment, CCR-QD-182)<br>3.1 (2026-10-05): ARCH-14 — BEH-QD-066 gains `DecisionOutcome`/`outcomeOf`, a complete state table (`Initial` with `waiting: true`, a `Failure` being re-checked, and `previousSuccess` never read) and the requirement that every surface reads through `outcomeOf`; BEH-QD-307 added (a decision result reads as one of five outcomes); BEH-QD-068's `useCan` paragraph names `outcomeOf` (ADR-QD-093, INV-QD-094, CCR-QD-175)<br>3.0 (2026-10-04): ARCH-05 — `DecisionResult` and `currentDecision` hold a `ClientDecision` (the closed union of an evaluated or a seeded decision), `useDecisionSuspense` returns one, `DeniedNode`'s function takes `Deny | SeededDeny`, and `useProjected` projects through `permits`/`projectVisible`; `QadiAtoms` gains `hydrate`; the `subject` atom compares with `subjectEquivalence` (BEH-QD-066, BEH-QD-068, BEH-QD-065, BEH-QD-067, CCR-QD-156)<br>2.9 (2026-09-19): AC-02/EY-03 — the "depends on `effect` and `react` only" and `getServerSnapshot` paragraphs corrected for CCR-QD-150's `@effect/atom-react` reversal (2026-09-13), which this revision had missed; `useCan`'s "pending, denied and failed" corrected to the fourth state, a re-check, `hooks.ts`'s own doc comment already named<br>2.8 (2026-09-19): BEH-QD-067 — the subject-seeding requirement scoped to initial construction, and a requirement added for a later `subject` prop change: written in an effect, with an accepted one-frame stale-decision window (AC-03/EY-02)<br>2.7 (2026-09-08): The `Can` RECOMMENDED note corrected — `failure ?? fallback` could not distinguish an omitted `failure` from an explicit `failure={null}`; `Can` now renders `fallback` only when `failure` is omitted, and an explicit `null` opts out of it (issue #79, CCR-QD-138)<br>2.6 (2026-09-08): BEH-QD-065 — the `QadiAtoms` interface fence was missing `asked`, cross-referenced to its normative home at BEH-QD-198 (CCR-QD-126)<br>2.5 (2026-08-30): BEH-QD-068 — an already-settled decision MUST still resolve its suspense promise, and a re-checking one MUST still suspend (COMPAT-01, gap G-01-1)<br>2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -588,6 +588,110 @@ new atom and no sharing. Writing the reactivity canary disproved it. The
 practical advice was unchanged by the correction, which is exactly why it
 survived three revisions unchallenged — the guidance was right and the reason
 was wrong.
+
+## BEH-QD-327: A devtools feed reads the provider's own runtime
+
+A devtools panel reads four things off an atom set: who is asking, how to
+invalidate, what has been asked, and the services the decisions evaluated in.
+Hosts used to wire each by hand, and the last was got wrong once: a layer *value*
+built twice is two instances of every stateful service in it, so a dock that
+built the application layer itself read a second, empty `decisionCacheLayer` and
+reported "0 completed entries" for as long as the page stayed open
+([CCR-QD-200](../README.md)). `@qadi/react` produces all four, and the last one
+is the registry's own build rather than a second one.
+
+```ts
+export const runtimeLayer: (
+  atoms: QadiAtoms,
+  registry: AtomRegistry.AtomRegistry,
+) => Layer.Layer<QadiRuntimeServices>;
+
+export interface DevtoolsDiagnosticsFeed {
+  readonly layer: Layer.Layer<QadiRuntimeServices>;
+  readonly questions: () => ReadonlyArray<AskedQuestion>;
+}
+export interface DevtoolsFeed<Extra> {
+  readonly gates: ReadonlyArray<GateInstance>;
+  readonly onInvalidate: () => void;
+  readonly diagnostics: Extra & DevtoolsDiagnosticsFeed;
+}
+export const useDevtoolsFeed: <
+  Extra extends { readonly [K in keyof Extra]: K extends keyof DevtoolsDiagnosticsFeed ? never : Extra[K] },
+>(
+  extra: Extra,
+) => DevtoolsFeed<Extra>;
+```
+
+```
+REQUIREMENT: The feed's layer MUST yield the context the provider's decisions
+             evaluate in: a service built once by the atom set MUST be the same
+             instance through the feed, with no second build of any service.
+```
+
+```
+REQUIREMENT: The feed MUST hold that context only for the scope of the consumer
+             that builds the layer, and MUST release it with that scope.
+```
+
+The runtime atom is not `keepAlive`: the layer mounts it in the provider's
+registry for the building scope and nothing outlives the panel.
+
+```
+REQUIREMENT: The feed MUST NOT read decision state directly, and MUST NOT
+             register a gate.
+```
+
+The context is obtained with `AtomRegistry.getResult`, an Effect, never by
+inspecting an `AsyncResult` ([ADR-QD-017](../decisions/017-stale-decisions-are-not-decisions.md),
+[ADR-QD-093](../decisions/093-a-decision-is-read-once.md)); `gates` is the same read
+`useGateInstances` makes ([ADR-QD-080](../decisions/080-a-gate-registry-belongs-to-its-atom-set.md)),
+so `instrument` still governs whether any gate exists.
+
+```
+REQUIREMENT: The fields the feed owns (`layer`, `questions`) MUST NOT be
+             overridable by `extra`; a collision MUST be a compile error.
+```
+
+```
+REQUIREMENT: `@qadi/devtools` MUST NOT depend on `@qadi/react` to accept the
+             feed; it takes it structurally.
+```
+
+Its `DiagnosticsDockOptions.layer` is a `Layer<never, unknown>`, which a
+`Layer<QadiRuntimeServices>` is assignable to
+([ADR-QD-053](../decisions/053-a-gate-can-be-found.md)). A host with no
+`QadiProvider` hands devtools a layer of its own and shares stateful services by
+value, as [BEH-QD-323](./28-devtools-screens.md) says.
+
+The context is per registry, so two providers over one atom set read two caches,
+as they do decisions. Headless, over a bare registry:
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as AtomRegistry from "effect/reactivity/AtomRegistry";
+import { decisionCacheLayer, DecisionCache, EvaluationServicesNone } from "@qadi/core";
+import { makeQadiAtoms, runtimeLayer } from "@qadi/react";
+
+// The cache layer is an ordinary member of the atoms' layer: nothing is hoisted.
+const atoms = makeQadiAtoms(
+  Layer.mergeAll(EvaluationServicesNone, decisionCacheLayer({ capacity: 8 })),
+);
+const registry = AtomRegistry.make();
+
+/** The cache a panel reads through the feed's layer is the cache the atoms use. */
+export const feedSeesTheAtomsCache = Effect.gen(function* () {
+  const viaFeed = yield* Effect.serviceOption(DecisionCache).pipe(
+    Effect.provide(runtimeLayer(atoms, registry)),
+  );
+  const viaAtoms = yield* AtomRegistry.getResult(
+    registry,
+    atoms.runtime.atom(Effect.serviceOption(DecisionCache)),
+  );
+  return Option.isSome(viaFeed) && Option.isSome(viaAtoms) && viaFeed.value === viaAtoms.value;
+});
+```
 
 ---
 
