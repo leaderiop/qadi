@@ -17,36 +17,50 @@ const { ApiLayer } = await import("../src/server/api.ts");
 const { handler, dispose } = HttpRouter.toWebHandler(ApiLayer, { disableLogger: true });
 afterAll(() => dispose());
 
-const route = (path: string, user: string) =>
-  handler(new Request(`http://newsroom.test${path}`, { headers: { cookie: `${SESSION_COOKIE}=${user}` } }));
+const ask = (port: string, body: unknown, user: string) =>
+  handler(
+    new Request(`http://newsroom.test/ports/${port}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: { cookie: `${SESSION_COOKIE}=${user}` },
+    }),
+  );
 
-const asked = [
-  "/ports/relationship?subjectId=nadia&relation=author-of&resourceId=night-shift",
-  "/ports/history?subjectId=nadia&event=legal-review&resourceId=night-shift",
-  "/ports/attribute?subjectId=nadia&attribute=clearance",
+const asked: ReadonlyArray<readonly [string, unknown]> = [
+  ["RelationshipResolver", { subjectId: "nadia", relation: "author-of", resourceId: "night-shift" }],
+  ["DecisionHistory", { subjectId: "nadia", event: "legal-review", resourceId: "night-shift" }],
+  ["AttributeResolver", { subjectId: "nadia", attribute: "clearance" }],
 ];
 
 describe("a question about another subject is a 403 that names no one's answer", () => {
-  for (const path of asked) {
-    it(path, async () => {
-      const response = await route(path, "yasmine");
+  for (const [port, question] of asked) {
+    it(port, async () => {
+      const response = await ask(port, question, "yasmine");
       expect(response.status).toBe(403);
-      const body = await response.text();
-      expect(body).not.toMatch(/Related|Unrelated|Acted|level|value/);
+      expect(await response.json()).toEqual({ _tag: "Refused", reason: "SubjectMismatch" });
     });
   }
 });
 
 describe("a question without a subjectId is refused, not answered about the cookie", () => {
   it("relationship", async () => {
-    expect((await route("/ports/relationship?relation=author-of&resourceId=night-shift", "nadia")).status).toBe(403);
+    const response = await ask("RelationshipResolver", { relation: "author-of", resourceId: "night-shift" }, "nadia");
+    expect(response.status).toBe(400);
+  });
+});
+
+describe("a question no policy asks is not served", () => {
+  it("an attribute the catalogue never reads, including a prototype key", async () => {
+    for (const attribute of ["constructor", "__proto__", "salary"]) {
+      expect((await ask("AttributeResolver", { subjectId: "nadia", attribute }, "nadia")).status).toBe(404);
+    }
   });
 });
 
 describe("a question about the session's own subject is answered", () => {
   it("relationship", async () => {
-    const response = await route(asked[0] ?? "", "nadia");
+    const response = await ask("RelationshipResolver", asked[0]?.[1], "nadia");
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ related: "Related" });
+    expect(await response.json()).toEqual({ _tag: "Answered", answer: "Related" });
   });
 });

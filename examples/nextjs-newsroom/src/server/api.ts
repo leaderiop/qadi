@@ -29,24 +29,19 @@ import * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as Result from "effect/Result";
-import {
-  AttributeResolver,
-  DecisionHistory,
-  decodeSinkRecordString,
-  makeResourceId,
-  RelationshipResolver,
-} from "@qadi/core";
-import type { ActedResult, DecodeRefusal, RelatedResult } from "@qadi/core";
+import { decodeSinkRecordString, servingFor } from "@qadi/core";
+import type { DecodeRefusal } from "@qadi/core";
 import {
   addGuardedRoute,
   decisionBacklogRoute,
   decisionStreamRoute,
   permissionRegistryRoute,
   PermissionRegistryLive,
+  portRoutesUnguarded,
   SubjectExtractor,
 } from "@qadi/http";
 import { articleById } from "../domain/articles.ts";
-import { canReadArticle, canReadDevtools } from "../domain/policies.ts";
+import { canReadArticle, canReadDevtools, catalogue } from "../domain/policies.ts";
 import { readArticle, readDevtools } from "../domain/permissions.ts";
 import { AppLayer, log } from "./layer.ts";
 import { userFromCookieHeader } from "./session.ts";
@@ -69,131 +64,35 @@ const subjects: Layer.Layer<SubjectExtractor> = Layer.succeed(SubjectExtractor, 
 const json = (body: unknown) =>
   HttpServerResponse.text(JSON.stringify(body), { contentType: "application/json" });
 
-/** The request's query string. The base is a placeholder; only the path matters. */
-const query = (request: HttpServerRequest.HttpServerRequest, key: string): string | undefined =>
-  new URL(request.url, "http://newsroom.invalid").searchParams.get(key) ?? undefined;
-
 /**
- * The session's subject, for the three port routes, **if it is the one asked about**.
+ * The three ports a browser re-check asks, answered for the session's own subject.
  *
- * These endpoints answer only about whoever the cookie names. The question carries
- * its `subjectId` (the shape the port hands the browser's resolvers) and it is
- * compared with the session's: a mismatch, or no `subjectId` at all, is refused
- * (D-31-b). Substituting the cookie's subject instead answered a different
- * question under the asked one's name, so asking about Nadia with Yasmine's cookie
- * returned Yasmine's `Unrelated`. An endpoint that answered about whoever it was
+ * `portRoutesUnguarded` (`@qadi/http`) is the whole serving half: it decodes a
+ * question, **refuses one about any subject but the cookie's** (403), refuses one
+ * the policies below cannot ask (404), reads the port through the same traced,
+ * counted path an evaluation uses, and answers a store outage with a 503 that
+ * carries no cause — never as `"Unknown"`, which a `not(...)` would turn into a
+ * grant (INV-QD-006). Identity is `subjects` above, the cookie and nothing else.
+ *
+ * **Unguarded, and said so.** There is no permission to require: every visitor,
+ * anonymous included, may ask the server about *themselves*, because that is what
+ * their own client's re-check is. An endpoint that answered about whoever it was
  * asked about would be a subject-enumeration API with an authorization library
- * bolted to the side, so refusing is the only honest answer.
+ * bolted to the side; this one cannot.
+ *
+ * The declaration is derived from the catalogue, so a policy that starts asking a
+ * new attribute, relation or event is served without an edit here, and a question
+ * no policy asks is not.
  */
-const askingSubject = Effect.gen(function* () {
-  const request = yield* HttpServerRequest.HttpServerRequest;
-  const session = userFromCookieHeader(Option.getOrNull(Headers.get(request.headers, "cookie"))).subject;
-  return query(request, "subjectId") === session.id ? session : undefined;
-});
-
-const notYourSubject = () =>
-  HttpServerResponse.text("this endpoint answers only about the session's own subject", {
-    status: 403,
-  });
-
-const badRequest = (why: string) => HttpServerResponse.text(why, { status: 400 });
-
-/** A non-empty query parameter, or `undefined`. A missing question is a 400, never an answer. */
-const required = (request: HttpServerRequest.HttpServerRequest, key: string): string | undefined => {
-  const value = query(request, key);
-  return value === undefined || value === "" ? undefined : value;
-};
-
-/** `depth` is an integer in `[0, 64]` — core's `maxDepth` — or the question is malformed. */
-const MAX_DEPTH = 64;
-const parseDepth = (raw: string | undefined): { readonly ok: true; readonly depth: number | undefined } | { readonly ok: false } => {
-  if (raw === undefined) return { ok: true, depth: undefined };
-  if (!/^\d+$/.test(raw)) return { ok: false };
-  const depth = Number(raw);
-  return depth <= MAX_DEPTH ? { ok: true, depth } : { ok: false };
-};
-
-const AttributePort = HttpRouter.add(
-  "GET",
-  "/ports/attribute",
-  Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const subject = yield* askingSubject;
-    if (subject === undefined) return notYourSubject();
-    const attribute = required(request, "attribute");
-    if (attribute === undefined) return badRequest("attribute is required");
-
-    // A resolver failure becomes a 503, never a 200 carrying `undefined`. The
-    // browser turns a non-2xx into an `AttributeResolveError`, which fails the
-    // evaluation — an outage must not be readable as "the answer was no" (INV-QD-006).
-    return yield* AttributeResolver.resolve(subject.id, attribute).pipe(
-      Effect.map((value) => json({ value })),
-      Effect.catchTag("AttributeResolveError", () =>
-        Effect.succeed(
-          HttpServerResponse.text("the attribute store did not answer", { status: 503 }),
-        )),
-    );
-  }),
-);
-
-const RelationshipPort = HttpRouter.add(
-  "GET",
-  "/ports/relationship",
-  Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const subject = yield* askingSubject;
-    if (subject === undefined) return notYourSubject();
-    const relation = required(request, "relation");
-    const resourceId = required(request, "resourceId");
-    const depth = parseDepth(query(request, "depth"));
-    if (relation === undefined || resourceId === undefined || !depth.ok) {
-      return badRequest("relation and resourceId are required, and depth is an integer in [0, 64]");
-    }
-
-    // A store outage is a 503 and not `"Unknown"`: the port is three-valued so a
-    // wired-but-uncertain far end cannot be read as a denial, and an `"Unknown"`
-    // that means "the store was down" is a grant under `not(...)` (INV-QD-006).
-    return yield* RelationshipResolver.check({
-      subjectId: subject.id,
-      relation,
-      resourceId: makeResourceId(resourceId),
-      // Present-and-undefined, not absent: `RelationshipCheck.depth` is a
-      // required key holding `number | undefined`, so a conditional spread does
-      // not typecheck under `exactOptionalPropertyTypes`.
-      depth: depth.depth,
-    }).pipe(
-      Effect.map((related: RelatedResult) => json({ related })),
-      Effect.catchTag("RelationshipResolveError", () =>
-        Effect.succeed(
-          HttpServerResponse.text("the relationship store did not answer", { status: 503 }),
-        )),
-    );
-  }),
-);
-
-const HistoryPort = HttpRouter.add(
-  "GET",
-  "/ports/history",
-  Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const subject = yield* askingSubject;
-    if (subject === undefined) return notYourSubject();
-    const event = required(request, "event");
-    if (event === undefined) return badRequest("event is required");
-    const resourceId = required(request, "resourceId");
-
-    return yield* DecisionHistory.hasActed({
-      subjectId: subject.id,
-      event,
-      resourceId: resourceId === undefined ? undefined : makeResourceId(resourceId),
-    }).pipe(
-      Effect.map((answer: ActedResult) => json({ answer })),
-      Effect.catchTag("DecisionHistoryUnavailable", () =>
-        Effect.succeed(
-          HttpServerResponse.text("the decision history did not answer", { status: 503 }),
-        )),
-    );
-  }),
+const served = servingFor(Object.values(catalogue));
+const PortRoutes = portRoutesUnguarded(
+  "answers only about the session's own subject",
+  {
+    AttributeResolver: served.AttributeResolver,
+    RelationshipResolver: served.RelationshipResolver,
+    DecisionHistory: served.DecisionHistory,
+  },
+  { prefix: "/ports" },
 );
 
 /**
@@ -285,9 +184,7 @@ const IngestRoute = HttpRouter.add(
 );
 
 const Routes = Layer.mergeAll(
-  AttributePort,
-  RelationshipPort,
-  HistoryPort,
+  PortRoutes,
   ArticleRoute,
   IngestRoute,
   decisionStreamRoute(readDevtools, canReadDevtools, log),

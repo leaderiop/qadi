@@ -48,42 +48,57 @@ if (nadia === undefined) throw new Error("no demo user named nadia");
 const { handler, dispose } = HttpRouter.toWebHandler(ApiLayer, { disableLogger: true });
 afterAll(() => dispose());
 
-const route = (path: string, user = "nadia") =>
-  handler(new Request(`http://newsroom.test${path}`, { headers: { cookie: `${SESSION_COOKIE}=${user}` } }));
+/** A question POSTed to a port route, as `user`. `body` is sent as JSON text when it is not already a string. */
+const ask = (port: string, body: unknown, user = "nadia") =>
+  handler(
+    new Request(`http://newsroom.test/ports/${port}`, {
+      method: "POST",
+      body: typeof body === "string" ? body : JSON.stringify(body),
+      headers: { cookie: `${SESSION_COOKIE}=${user}` },
+    }),
+  );
 
-describe("a store outage is a 503, never an answer", () => {
-  it("attribute (characterization)", async () => {
-    expect((await route("/ports/attribute?subjectId=nadia&attribute=standing")).status).toBe(503);
-  });
-  it("relationship", async () => {
-    expect((await route("/ports/relationship?subjectId=nadia&relation=author-of&resourceId=a")).status).toBe(503);
-  });
-  it("history", async () => {
-    expect((await route("/ports/history?subjectId=nadia&event=legal-review&resourceId=a")).status).toBe(503);
-  });
+describe("a store outage is a 503 and an Unavailable reply, never an answer", () => {
+  const cases: ReadonlyArray<readonly [string, unknown]> = [
+    ["AttributeResolver", { subjectId: "nadia", attribute: "standing" }],
+    ["RelationshipResolver", { subjectId: "nadia", relation: "author-of", resourceId: "a" }],
+    ["DecisionHistory", { subjectId: "nadia", event: "legal-review", resourceId: "a" }],
+  ];
+  for (const [port, question] of cases) {
+    it(port, async () => {
+      const response = await ask(port, question);
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ _tag: "Unavailable" });
+    });
+  }
 });
 
-describe("a malformed question is a 400", () => {
-  const cases = [
-    "/ports/relationship?subjectId=nadia",
-    "/ports/relationship?subjectId=nadia&relation=author-of&resourceId=a&depth=abc",
-    "/ports/relationship?subjectId=nadia&relation=author-of&resourceId=a&depth=65",
-    "/ports/relationship?subjectId=nadia&relation=author-of&resourceId=a&depth=1.5",
-    "/ports/relationship?subjectId=nadia&relation=author-of&resourceId=a&depth=-1",
-    "/ports/history?subjectId=nadia",
-    "/ports/attribute?subjectId=nadia",
+describe("a malformed question is a 400, never an answer", () => {
+  const cases: ReadonlyArray<readonly [string, unknown]> = [
+    ["RelationshipResolver", {}],
+    ["RelationshipResolver", "not json"],
+    ["RelationshipResolver", { subjectId: "nadia", relation: "author-of", resourceId: "a", depth: "abc" }],
+    ["RelationshipResolver", { subjectId: "nadia", relation: "author-of", resourceId: "a", depth: 65 }],
+    ["RelationshipResolver", { subjectId: "nadia", relation: "author-of", resourceId: "a", depth: 1.5 }],
+    ["RelationshipResolver", { subjectId: "nadia", relation: "author-of", resourceId: "a", depth: -1 }],
+    ["DecisionHistory", { subjectId: "nadia" }],
+    ["AttributeResolver", { subjectId: "nadia" }],
   ];
-  for (const path of cases) {
-    it(path, async () => {
-      expect((await route(path)).status).toBe(400);
+  for (const [port, question] of cases) {
+    it(`${port} ${JSON.stringify(question)}`, async () => {
+      expect((await ask(port, question)).status).toBe(400);
     });
   }
 });
 
 /** The client's evaluation with `fetch` routed straight into the real handler. */
 const evaluateInBrowser = (policy: Parameters<typeof decide>[0]) => {
-  vi.stubGlobal("window", globalThis);
-  vi.stubGlobal("fetch", (input: RequestInfo | URL) => route(String(input).replace("/api", "")));
+  vi.stubGlobal("window", { location: { origin: "http://newsroom.test" } });
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init);
+    request.headers.set("cookie", `${SESSION_COOKIE}=nadia`);
+    return handler(new Request(request.url.replace("/api", ""), request));
+  });
   return Effect.runPromiseExit(
     decide(policy, { resource: { id: "the-harbour-contract" } }).pipe(
       Effect.provide(Layer.mergeAll(browserPorts, currentSubjectLayer(nadia), EvaluationIdLive)),
@@ -105,7 +120,7 @@ const failsWith = (exit: Exit.Exit<unknown, unknown>, tag: string) => {
 
 describe("an outage fails the browser's evaluation; it never denies or grants", () => {
   it("not(hasRelationship) does not grant", async () => {
-    expect(failsWith(await evaluateInBrowser(not(hasRelationship("banned"))), "RelationshipResolveError")).toBe(true);
+    expect(failsWith(await evaluateInBrowser(not(hasRelationship("author-of"))), "RelationshipResolveError")).toBe(true);
   });
   it("hasRelationship does not deny", async () => {
     expect(failsWith(await evaluateInBrowser(hasRelationship("author-of")), "RelationshipResolveError")).toBe(true);
@@ -120,7 +135,7 @@ describe("an outage fails the browser's evaluation; it never denies or grants", 
 
 describe("a 2xx body the client does not recognise is a failure, not Unknown", () => {
   it("relationship", async () => {
-    vi.stubGlobal("window", globalThis);
+    vi.stubGlobal("window", { location: { origin: "http://newsroom.test" } });
     vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ related: "maybe" }), { status: 200 })));
     const exit = await Effect.runPromiseExit(
       decide(hasRelationship("author-of"), { resource: { id: "a" } }).pipe(
