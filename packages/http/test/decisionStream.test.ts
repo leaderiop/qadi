@@ -61,6 +61,7 @@ import { classifyHttpEnforcementFailure } from "../src/QadiHttpError.ts";
 import type { HttpEnforcementTag } from "../src/QadiHttpError.ts";
 import { PermissionRegistryLive, permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
 import { SubjectExtractionFailed, subjectExtractorBearer } from "../src/SubjectExtractor.ts";
+import { stack } from "./fixtures/stack.ts";
 
 const readPermission = permission("devtools", "read");
 const readPolicy = hasPermission(readPermission);
@@ -133,13 +134,9 @@ const httpClientError = (): Error => {
   return Object.assign(new Error("Request failed with status code 503"), { config, request });
 };
 
-// Composed through named intermediate steps, deliberately: chaining every
-// `Layer.provideMerge` inline in one expression is an instantiation-depth
-// failure mode this codebase has already hit once (see http.test.ts's
-// `RoutesLayer`/`WithRegistry`/`WithSubjects` comment) — TypeScript can
-// silently mis-infer the result's remaining requirement rather than raising
-// a diagnostic at the chain itself, only surfacing downstream (as it did
-// here, at the one call site that runs `Layer.build` directly on `layer`).
+// Composed through named intermediate steps, for reading. An earlier note here
+// claimed a single inline chain mis-infers the remaining requirement; that does
+// not reproduce on `effect@4.0.0` (ARCH-36), so the naming is a readability choice.
 const EvaluationServicesTest = EvaluationServicesNone;
 
 /** A record as a log on this server would hold it. */
@@ -162,10 +159,7 @@ const appLayer = Effect.gen(function* () {
   const log = yield* makeDecisionLog({ environment: "Server" });
   const route = decisionStreamRoute(readPermission, readPolicy, log);
 
-  const withRegistry = route.pipe(Layer.provideMerge(PermissionRegistryLive));
-  const withSubjects = withRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
-  const withServices = withSubjects.pipe(Layer.provideMerge(EvaluationServicesTest));
-  const layer = withServices.pipe(Layer.provideMerge(HttpServer.layerServices));
+  const layer = stack(route, subjectExtractorBearer(lookupSubject), EvaluationServicesTest);
 
   return { log, layer };
 });
@@ -238,10 +232,7 @@ describe("/__decisions", () => {
         const route = decisionStreamRoute(readPermission, readPolicy, log, {
           reauth: { interval: "1 hour" },
         });
-        const withRegistry = route.pipe(Layer.provideMerge(PermissionRegistryLive));
-        const withSubjects = withRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
-        const withServices = withSubjects.pipe(Layer.provideMerge(EvaluationServicesTest));
-        const layer = withServices.pipe(Layer.provideMerge(HttpServer.layerServices));
+        const layer = stack(route, subjectExtractorBearer(lookupSubject), EvaluationServicesTest);
         const { handler } = HttpRouter.toWebHandler(layer);
 
         const response = yield* Effect.promise(() =>

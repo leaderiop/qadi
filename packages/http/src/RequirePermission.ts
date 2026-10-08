@@ -11,26 +11,12 @@
 import * as Brand from "effect/Brand";
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
-import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
-import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as HttpApiMiddleware from "effect/http-api/HttpApiMiddleware";
-import * as HttpServerRequest from "effect/http/HttpServerRequest";
-import * as HttpServerResponse from "effect/http/HttpServerResponse";
-import type { unhandled } from "effect/Types";
-import type { Permission, Policy, StandingEvaluationServices } from "@qadi/core";
-import { anonymous, CurrentSubject, ENFORCEMENT_DENIAL_TAGS } from "@qadi/core";
-import {
-  HTTP_ENFORCEMENT_ERROR_SCHEMAS,
-  HTTP_ENFORCEMENT_TAGS,
-  projectHttpEnforcementFailure,
-} from "./QadiHttpError.ts";
-import type { HttpEnforcementFailure } from "./QadiHttpError.ts";
+import type { Permission, Policy } from "@qadi/core";
+import { CurrentSubject } from "@qadi/core";
+import { HTTP_ENFORCEMENT_ERROR_SCHEMAS } from "./QadiHttpError.ts";
 import type { ClientErrorOf } from "./HttpApiMiddlewareClient.ts";
-import { authorizeRequest } from "./AuthorizeRequest.ts";
-import { logDenialAt } from "./DenialLog.ts";
-import type { SubjectExtractor } from "./SubjectExtractor.ts";
 
 // Named `PermissionRequirement`/`PublicDeclaration`, not the usual
 // `RequiredPermissionShape`/`PublicEndpointShape` — a deliberate exception to
@@ -102,7 +88,7 @@ export const EndpointAccess = Data.taggedEnum<EndpointAccess>();
 /**
  * Reads an endpoint's access declaration from its own annotations.
  *
- * `RequirePermission` enforces it and `registerApi` lists it, and both go
+ * `RequirePermission` enforces it and `guardApi` lists it, and both go
  * through this one function so they cannot read different things. They used to:
  * the middleware read the endpoint's annotations while the registry read
  * `HttpApi.reflect`'s merge of API, group and endpoint annotations, so a group
@@ -129,7 +115,7 @@ export type AccessDeclarationKey = "RequiredPermission" | "PublicEndpoint";
  *
  * Only an endpoint declares access. A group or API carrying a key is a
  * declaration that does nothing the author expected, so both readers refuse it
- * instead of ignoring it: the middleware by answering 500 and `registerApi` by
+ * instead of ignoring it: the middleware by answering 500 and `guardApi` by
  * failing layer construction. The way to declare for a whole group is
  * `HttpApiGroup.annotateEndpoints`, which writes into each endpoint's own scope.
  */
@@ -310,7 +296,7 @@ export type RequirePermissionClientError = ClientErrorOf<typeof REQUIRE_PERMISSI
  * subject-injecting middleware to declare itself.
  *
  * **`requires: never`, deliberately — that standing requirement is captured
- * as an ordinary `RequirePermissionLive` build-time dependency instead of
+ * as an ordinary `guardApi` build-time dependency instead of
  * being declared here.** `effect`'s own `HttpApiMiddleware.ApplyServices<A,
  * R> = Exclude<R, Provides<A>> | Requires<A>` computes `Requires<A>` via a
  * conditional type keyed on `A`'s own shape (`A extends {[TypeId]:
@@ -323,13 +309,13 @@ export type RequirePermissionClientError = ClientErrorOf<typeof REQUIRE_PERMISSI
  * class is declared. A non-trivial `requires` value here left it
  * permanently opaque downstream (`HttpApiBuilder.group`,
  * `HttpApiTest.groups`), forcing every consumer into a type-widening cast
- * to use this middleware at all — precisely what `RequirePermissionLive`
- * below now avoids by resolving the standing services itself, once, the same
+ * to use this middleware at all — precisely what `guardApi`
+ * now avoids by resolving the standing services itself, once, the same
  * way any other `Layer.effect` acquires a build-time dependency.
  *
  * **`error` declares every response this middleware can produce that isn't
  * the wrapped handler's own** (ADR-QD-072, H4). Every tag in `ENFORCEMENT_ERROR_WIRE` reaches the declared
- * union as their *projection*: `RequirePermissionLive` fails with
+ * union as their *projection*: the middleware fails with
  * `projectHttpEnforcementFailure`'s redacted wire value, and
  * `HttpApiMiddleware`'s own response encoder produces the response and the
  * OpenAPI entry from the matching schema's `httpApiStatus` annotation, not
@@ -367,113 +353,3 @@ export class RequirePermission extends HttpApiMiddleware.Service<
   // See this class's own doc comment above (ADR-QD-075).
   requiredForClient: true,
 }) {}
-
-export const RequirePermissionLive: Layer.Layer<
-  RequirePermission,
-  never,
-  SubjectExtractor | StandingEvaluationServices
-> = Layer.effect(
-  RequirePermission,
-  Effect.gen(function* () {
-    // Resolved once, here, at layer-build time — see `RequirePermission`'s
-    // own doc comment for why this replaces a `requires` declaration on the
-    // middleware class itself. Re-provided per request below, inside the
-    // returned closure, so `guard`'s own `evaluate` call finds them exactly
-    // as it would have found them via an ambient per-request `requires`.
-    // `SubjectExtractor` rides along because `authorizeRequest` reads it from
-    // context.
-    const evaluationServices = yield* Effect.context<StandingEvaluationServices | SubjectExtractor>();
-
-    // The enforcement half: extract, guard, log, project. Kept apart from the
-    // dispatch above so it can be replaced without touching how access is read.
-    const enforce = (
-      requirement: RequiredPermissionShape,
-      // `unhandled` is the middleware's own error slot; the union names the
-      // enforcement failures a handler's `guard` can raise through it, so the
-      // denial tap below can read their tags.
-      httpEffect: Effect.Effect<
-        HttpServerResponse.HttpServerResponse,
-        unhandled | HttpEnforcementFailure,
-        CurrentSubject
-      >,
-    ) => {
-      const { permission, policy } = requirement;
-
-      // Every failure the edge step can produce is projected in-channel to the
-      // redacted wire value its declared schema describes
-      // (`projectHttpEnforcementFailure`, `QadiHttpError.ts`), and
-      // `HttpApiMiddleware`'s response encoder then builds the response from
-      // the matching schema's `httpApiStatus`. `RequirePermission`'s own doc
-      // comment explains why `AccessDenied`'s `trace` and the resolver
-      // `cause`s must not reach a body: redaction is the per-tag `project`,
-      // typed to return exactly the schema's `Type`.
-      //
-      // Extraction, the edge guard and their log lines are `authorizeRequest`'s
-      // (ARCH-19). The standing services and the projection below wrap
-      // `httpEffect` too, deliberately: a defense-in-depth `guard` inside a
-      // handler finds the services this layer captured, and the enforcement
-      // failure it raises is projected rather than escaping as an
-      // undeclared error. A denial that `guard` raises is logged here, on the
-      // handler's effect alone, annotated `"handler"` (ARCH-45 I3, BEH-QD-321):
-      // the edge denial above has already logged itself, so tapping the whole
-      // pipeline would log it twice.
-      return Effect.gen(function* () {
-        const request = yield* HttpServerRequest.HttpServerRequest;
-        const { subject } = yield* authorizeRequest(permission, policy)(request);
-        return yield* Effect.provideService(httpEffect, CurrentSubject, subject).pipe(
-          Effect.tapErrorTag(ENFORCEMENT_DENIAL_TAGS, logDenialAt("handler")),
-        );
-      }).pipe(
-        Effect.provide(evaluationServices),
-        // One projection for every tag (ARCH-04, ADR-QD-081). The tag
-        // list is `QadiHttpError.ts`'s, so a tag added to `EnforcementError`
-        // cannot reach `HttpApiMiddleware`'s encoder as an undeclared failure.
-        Effect.catchTag(HTTP_ENFORCEMENT_TAGS, (error) =>
-          Effect.fail(projectHttpEnforcementFailure(error)),
-        ),
-      );
-    };
-
-    // The refusal and the public pass-through both provide `CurrentSubject`
-    // explicitly (as `anonymous`) even though neither ever extracted a real
-    // one — this middleware declares `provides: CurrentSubject`, so every
-    // endpoint it guards, public or not, must actually receive one for that
-    // declaration to stay honest. `anonymous` is exactly the right value for
-    // "no subject was authenticated": every policy denies against it.
-    const refuse = (message: string) =>
-      Effect.logError(message).pipe(
-        Effect.as(HttpServerResponse.empty({ status: 500 })),
-        Effect.provideService(CurrentSubject, anonymous),
-      );
-
-    return (httpEffect, { endpoint, group }) => {
-      // Only an endpoint declares access (`endpointAccess`'s doc comment). A
-      // group carrying a declaration is a wiring mistake the middleware can
-      // see, so it refuses every endpoint under it rather than ignore it.
-      const misplaced = misplacedDeclarations(group.annotations);
-      if (misplaced.length > 0) {
-        return refuse(
-          `qadi/http: group "${group.identifier}" carries ${misplaced.join(" and ")}, which only an ` +
-            `endpoint may declare, so endpoint "${endpoint.identifier}" is refused. Declare it on each ` +
-            "endpoint, or use HttpApiGroup.annotateEndpoints.",
-        );
-      }
-
-      // Absence is refusal, not permission. An endpoint reachable without
-      // authorization says so with `publicEndpoint`; one that says nothing is
-      // a wiring mistake, and a wiring mistake on an authorization path must
-      // not resolve to "allowed" (ADR-QD-036, INV-QD-034).
-      return Match.valueTags(endpointAccess(endpoint.annotations), {
-        Undeclared: () =>
-          refuse(
-            `qadi/http: endpoint "${endpoint.identifier}" declares neither a permission ` +
-              "requirement nor `publicEndpoint(...)`, so it is refused. Annotate it with " +
-              "RequiredPermission, or with PublicEndpoint if it is meant to be reachable " +
-              "without authorization.",
-          ),
-        Public: () => Effect.provideService(httpEffect, CurrentSubject, anonymous),
-        Required: ({ requirement }) => enforce(requirement, httpEffect),
-      });
-    };
-  }),
-);

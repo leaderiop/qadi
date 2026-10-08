@@ -54,7 +54,8 @@ import { assert, describe, it } from "@effect/vitest";
 import {
   RequiredPermission,
   RequirePermission,
-  RequirePermissionLive,
+  PermissionRegistryLive,
+  guardApi,
   SubjectExtractionFailed,
   passthroughClientLayer,
   requiresPermission,
@@ -139,7 +140,8 @@ const makeClient = HttpApiTest.groups(Api, ["documents"]);
 // output for the next step, ending in a layer requiring nothing.
 const testLayer = (resolverDown: boolean) =>
   DocumentsHandlers.pipe(
-    Layer.provideMerge(RequirePermissionLive),
+    Layer.provideMerge(guardApi(Api)),
+    Layer.provideMerge(PermissionRegistryLive),
     Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
     Layer.provideMerge(
       Layer.mergeAll(
@@ -160,7 +162,7 @@ describe("RequirePermission client-error typing", () => {
         // `readPolicy`'s attribute check is ever reached.
         const error = yield* client.documents.read({ headers: {} }).pipe(Effect.flip);
         // Before `AccessDeniedRefused` carried real fields (`RequirePermission`'s
-        // brand/`AccessDeniedPublic` work), `RequirePermissionLive` answered an
+        // brand/`AccessDeniedPublic` work), the middleware answered an
         // empty 403 body that didn't match its own declared schema — the client
         // could only fail to decode it, surfacing as a generic `HttpClientError`.
         // Now the body actually matches `AccessDeniedRefused`
@@ -201,7 +203,7 @@ describe("RequirePermission client-error typing", () => {
         const error = yield* client.documents
           .delete({ headers: { authorization: `Bearer ${ALICE_TOKEN}` } })
           .pipe(Effect.flip, Effect.provide(logger));
-        // Before this fix, `RequirePermissionLive` answered an empty 403 body
+        // Before this fix, the middleware answered an empty 403 body
         // that didn't match `UndischargedObligationRefused`'s declared
         // `Schema.TaggedStruct("UndischargedObligation", {})` — the client
         // could only fail to decode it, surfacing as a generic
@@ -212,7 +214,7 @@ describe("RequirePermission client-error typing", () => {
         // fields are, so neither reaches the wire.
         assert.strictEqual("subjectId" in error, false);
         assert.strictEqual("obligationIds" in error, false);
-        // `RequirePermissionLive`'s `tapErrorTag(["AccessDenied",
+        // the middleware's `tapErrorTag(["AccessDenied",
         // "UndischargedObligation"], logDenial)` runs before the hand
         // conversion above — this is the obligation half of that array; the
         // denial half is pinned server-side in `http.test.ts`.

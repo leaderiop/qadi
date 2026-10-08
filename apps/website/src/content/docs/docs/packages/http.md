@@ -34,7 +34,7 @@ made, not an oversight.
 Only an endpoint declares access. A `RequiredPermission` or `PublicEndpoint` on
 a group or on the API is **refused** too, never ignored: the middleware answers
 500 for every endpoint under that group and names the group in its log, and
-`registerApi` fails with `MisplacedAccessDeclaration`. To declare for a whole
+`guardApi` fails with `MisplacedAccessDeclaration`. To declare for a whole
 group, write it into each endpoint's own annotations:
 
 ```ts
@@ -67,15 +67,58 @@ would make the combinator's meaning depend on how many times it was called). A
 second permission on one endpoint is written as one `allOf([...])` policy.
 
 One `RequirePermission` middleware handles every annotated endpoint, reading
-the annotation back off at request time; mount it once via
-`RequirePermissionLive`.
+the annotation back off at request time. `guardApi(Api)` provides it for that
+API, and by being built it registers every endpoint it enforces with
+`PermissionRegistry`, so `/__permissions` lists exactly what is enforced.
+
+It refuses what it cannot enforce: an endpoint the middleware is not attached to
+(`.middleware(RequirePermission)` before `.add(group)`, no middleware, or
+middleware on one group only) is a compile error where the type is precise and
+`RequirePermissionNotAttached` at layer build otherwise, and the middleware
+answers 500 for an endpoint outside the API it was built for.
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as HttpApi from "effect/http-api/HttpApi";
+import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
+import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
+import * as HttpApiGroup from "effect/http-api/HttpApiGroup";
+import { hasPermission, permission } from "@qadi/core";
+import { RequiredPermission, RequirePermission, guardApi, requiresPermission } from "@qadi/http";
+
+const readPermission = permission("document", "read");
+
+const Documents = HttpApiGroup.make("documents").add(
+  HttpApiEndpoint.get("read", "/documents").pipe((endpoint) =>
+    endpoint.annotate(
+      RequiredPermission,
+      requiresPermission(endpoint, { permission: readPermission, policy: hasPermission(readPermission) }),
+    ),
+  ),
+);
+
+// The middleware goes on after the groups are added: Effect applies it only to
+// endpoints already added.
+export const Api = HttpApi.make("app").add(Documents).middleware(RequirePermission);
+
+const Handlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
+  handlers.handle("read", () => Effect.void),
+);
+
+// `guardApi` provides the middleware for this API and registers what it enforces.
+export const Routes = HttpApiBuilder.layer(Api).pipe(
+  Layer.provide(Handlers),
+  Layer.provide(guardApi(Api)),
+);
+```
 
 ## `HttpRouter`, bare
 
-`guardRoute` is the same enforcement over a plain
-`(request) => Effect<Response, E, R>` handler, and `addGuardedRoute` registers
-a bare route while also feeding the permission registry — use it in place of a
-bare `HttpRouter.add` for any route that should be guarded and registered.
+`addGuardedRoute` enforces a plain `(request) => Effect<Response, E, R>`
+handler and registers the bare route with the permission registry in the same
+layer — use it in place of a bare `HttpRouter.add` for any route that should be
+guarded and registered.
 
 ```ts
 const WriteRoute = addGuardedRoute(
@@ -92,7 +135,8 @@ const WriteRoute = addGuardedRoute(
 `authorizeRequest` is the one step every surface here goes through: it extracts
 the subject, loads the resource (none by default), guards it and logs a denial or
 an extraction failure once. A surface this package does not ship keeps only its
-own answer.
+own answer. It registers nothing: a surface that should appear in `/__permissions`
+registers with `PermissionRegistry.register` when its layer is built.
 
 ```typescript
 import * as Effect from "effect/Effect";
@@ -166,18 +210,24 @@ node and why it refused, and that detail is not for the caller.
 ## The permission registry
 
 ```ts
-export const registerApi: <Id extends string, Groups extends HttpApiGroup.Constraint>(
-  api: HttpApi.HttpApi<Id, Groups>,
-) => Layer.Layer<never, MisplacedAccessDeclaration, PermissionRegistry>;
+export const guardApi: <Id extends string, Groups extends HttpApiGroup.Constraint>(
+  api: HttpApi.HttpApi<Id, Groups> & EveryEndpointGuarded<Groups>,
+) => Layer.Layer<
+  RequirePermission,
+  MisplacedAccessDeclaration | RequirePermissionNotAttached,
+  SubjectExtractor | StandingEvaluationServices | PermissionRegistry
+>;
 export const addGuardedRoute: (...) => ...;
 export const permissionRegistryRoute: (permission: Permission, policy: Policy) => Layer<...>;
 export const permissionRegistryRouteUnguarded: (reason: string) => Layer<...>;
 ```
 
 `PermissionRegistry` answers "which permission does which endpoint require,"
-for a mix of both surfaces: seed it from an `HttpApi` with `registerApi`, and
-from bare `HttpRouter` routes by registering through `addGuardedRoute` instead
-of a plain `HttpRouter.add`. It records the **permission**, not the policy, and
+for a mix of both surfaces, and both register because they guard: an `HttpApi`
+when the `guardApi(Api)` that provides its middleware is built, a bare
+`HttpRouter` route when `addGuardedRoute` adds it instead of a plain
+`HttpRouter.add`. A custom surface built on `authorizeRequest` registers with
+`PermissionRegistry.register`. It records the **permission**, not the policy, and
 does not participate in any decision — two endpoints reporting the same
 permission may enforce entirely unrelated rules, and it cannot answer what is
 *un*guarded at all.

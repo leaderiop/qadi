@@ -209,6 +209,11 @@ designed or prototyped for this decision, and is not chosen here — named so
 a future map that revisits this limitation starts from it rather than
 re-discovering it.
 
+(ARCH-36's compile-time attachment check, `guardApi`'s `EveryEndpointGuarded`,
+is a sibling of this idea and not it: it verifies that `RequirePermission` is
+attached to every endpoint of a guarded API, and says nothing about how a
+client's error type is derived. The completeness check described here stays open.)
+
 No upstream request has been filed against `effect` for a per-endpoint
 `clientError` override point — unlike `ADR-QD-074`'s citation of a real,
 tracked upstream issue and PR for an analogous gap. This limitation is

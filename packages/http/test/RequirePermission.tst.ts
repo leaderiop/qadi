@@ -1,7 +1,7 @@
 /**
  * Pins the two findings from
  * `.scratch/qadi-http/issues/16-http-integration-tests.md` that motivated
- * `AnnotatedEndpoint` and `registerApi`'s genericity: `HttpApiEndpoint.Top`/
+ * `AnnotatedEndpoint` and `guardApi`'s genericity (pinned in `GuardApi.tst.ts`): `HttpApiEndpoint.Top`/
  * `HttpApi.Top` are not supertypes of a plain, options-less endpoint or API
  * — the common case — so a parameter typed against either silently rejects
  * the most ordinary caller. A future "simplification" back to
@@ -11,7 +11,6 @@
  */
 import { expect, test } from "tstyche";
 import * as Effect from "effect/Effect";
-import type * as Layer from "effect/Layer";
 import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiClient from "effect/http-api/HttpApiClient";
 import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
@@ -23,12 +22,6 @@ import { hasPermission, permission } from "@qadi/core";
 import type { RequirePermissionClientError } from "../src/RequirePermission.ts";
 import { RequiredPermission, RequirePermission, requiresPermission } from "../src/RequirePermission.ts";
 import { passthroughClientLayer } from "../src/HttpApiMiddlewareClient.ts";
-import type {
-  MisplacedAccessDeclaration,
-  PermissionRegistry,
-  RequirePermissionNotAttached,
-} from "../src/PermissionRegistry.ts";
-import { registerApi } from "../src/PermissionRegistry.ts";
 
 const readPermission = permission("document", "read");
 const readPolicy = hasPermission(readPermission);
@@ -45,10 +38,6 @@ test("requiresPermission accepts a plain, options-less HttpApiEndpoint", () => {
   });
 });
 
-test("registerApi accepts a plain, options-less HttpApi", () => {
-  expect(registerApi).type.toBeCallableWith(plainApi);
-});
-
 // Only an endpoint declares access (ARCH-18). `requiresPermission` asks for
 // `method` and `path`, which a group and an API do not have.
 test("requiresPermission does not accept a group or an API", () => {
@@ -61,12 +50,6 @@ test("requiresPermission does not accept a group or an API", () => {
     permission: readPermission,
     policy: readPolicy,
   });
-});
-
-test("registerApi can fail with MisplacedAccessDeclaration or RequirePermissionNotAttached", () => {
-  expect(registerApi(plainApi)).type.toBe<
-    Layer.Layer<never, MisplacedAccessDeclaration | RequirePermissionNotAttached, PermissionRegistry>
-  >();
 });
 
 test("a raw { permission, policy } literal cannot bypass requiresPermission's duplicate check", () => {

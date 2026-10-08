@@ -8,12 +8,10 @@ import "server-only";
  * in `app/api/[[...route]]/route.ts` is a dozen lines, and everything below is
  * ordinary Effect that would run unchanged behind `HttpServer.serve`.
  *
- * **Composed through named intermediate steps.** Chaining every
- * `Layer.provideMerge` into one expression makes TypeScript silently infer `any`
- * for the whole thing — no diagnostic, just every downstream use losing its
- * type. `packages/http/test/http.test.ts` records the same failure and the same
- * remedy; it is a property of this shape of long `.pipe()` chain, not of any one
- * step in it.
+ * **Composed through named intermediate steps, for reading.** Each line says
+ * what it adds. An earlier note here claimed that chaining every
+ * `Layer.provideMerge` into one expression silently infers `any`; that does not
+ * reproduce on `effect@4.0.0` (ARCH-36), so the naming is a readability choice.
  *
  * **Paths have no `/api` prefix here.** Next mounts this at `/api/[[...route]]`
  * and the route handler strips the prefix before calling in, because

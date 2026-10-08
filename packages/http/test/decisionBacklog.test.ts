@@ -24,9 +24,9 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import * as HttpRouter from "effect/http/HttpRouter";
-import * as HttpServer from "effect/http/HttpServer";
 import { decisionBacklogRoute } from "../src/DecisionBacklogRoute.ts";
-import { PermissionRegistryLive, permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
+import { stack } from "./fixtures/stack.ts";
+import { permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
 import { subjectExtractorBearer } from "../src/SubjectExtractor.ts";
 
 const readPermission = permission("devtools", "read");
@@ -70,10 +70,7 @@ const serve = (
       log,
       onRefused === undefined ? undefined : { onRefused },
     );
-    const withRegistry = route.pipe(Layer.provideMerge(PermissionRegistryLive));
-    const withSubjects = withRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
-    const withServices = withSubjects.pipe(Layer.provideMerge(EvaluationServicesNone));
-    return withServices.pipe(Layer.provideMerge(HttpServer.layerServices));
+    return stack(route, subjectExtractorBearer(lookupSubject), EvaluationServicesNone);
   });
 
 const get = (handler: (request: Request) => Promise<Response>, path: string, token?: string) =>
