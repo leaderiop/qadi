@@ -85,6 +85,7 @@ and these do not surface there:
 | A public export | `spec/overview.md` must list it — `scripts/check-api-surface.mjs` fails otherwise |
 | A claim that something is absent, in `spec/devtools-spec/` | Register it in that folder's "Claims of absence" table with the reason — `scripts/check-devtools-claims.mjs` fails otherwise |
 | A merge gate | `pnpm check` and `spec/process/definitions-of-done.md` together — `scripts/check-dod-table.mjs` fails otherwise. Name the script beside any "gate N" |
+| A new CCR, INV, BEH or ADR number | `pnpm spec:next-id CCR|INV|BEH|ADR` — it reads every worktree and reserves the number it prints, so parallel branches cannot pick the same one. Then `pnpm spec:revise <doc> "<entry>"` for each document you change, after merging rather than while implementing in parallel |
 | Package `dependencies`/publishing | `AGENTS.md` §16 — `pnpm publish` only, `tsconfig.build.json` membership |
 | Publish-status prose in README/CONTRIBUTING/roadmap/website | `scripts/check-publish-status.mjs` fails if a quoted version disagrees with `package.json`'s |
 | Why `pnpm install` patches `node_modules/typescript` | `README.md`'s Development section — `effect-tsgo patch` is `@effect/tsgo`'s own `prepare` step, not this repo's |
