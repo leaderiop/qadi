@@ -17,7 +17,7 @@ export const hasSignature: (meaning: string | SignatureMeaning, options?: Signat
 
 ## Check and capture are two different ports
 
-<svg viewBox="0 0 680 170" width="100%" style="max-width: 680px" role="img" aria-label="Diagram: SignatureCapturePort, from the @qadi/audit package, writes a Signature record into the SignatureHistory port at enforcement time, through an ObligationHandler. hasSignature, a @qadi/core policy leaf, only ever reads what SignatureHistory already holds. The two never talk to each other directly.">
+<svg viewBox="0 0 680 170" width="100%" style="max-width: 680px" role="img" aria-label="Diagram: SignatureCapturePort, from the @qadi/audit package, captures a Signature at enforcement time, through an ObligationHandler. A SignatureLedger records it under the signer and the resource, and is read back as the SignatureHistory port. hasSignature, a @qadi/core policy leaf, only ever reads what SignatureHistory already holds. The capture and the check never talk to each other directly.">
   <defs>
     <marker id="sig-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--sl-color-gray-3)"/>
@@ -33,12 +33,18 @@ export const hasSignature: (meaning: string | SignatureMeaning, options?: Signat
   <text x="560" y="80" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="11" fill="var(--sl-color-white)">hasSignature(meaning)</text>
   <text x="560" y="97" text-anchor="middle" font-family="var(--sl-font, 'IBM Plex Sans', sans-serif)" font-size="10" fill="var(--sl-color-gray-3)">policy leaf — @qadi/core</text>
   <path d="M 220 85 L 260 85" fill="none" stroke="var(--sl-color-gray-3)" stroke-width="1" marker-end="url(#sig-arrow)"/>
-  <text x="240" y="75" text-anchor="middle" font-family="var(--sl-font, 'IBM Plex Sans', sans-serif)" font-size="9" fill="var(--sl-color-gray-3)">writes</text>
+  <text x="240" y="75" text-anchor="middle" font-family="var(--sl-font, 'IBM Plex Sans', sans-serif)" font-size="9" fill="var(--sl-color-gray-3)">ledger records</text>
   <path d="M 460 85 L 420 85" fill="none" stroke="var(--sl-color-gray-3)" stroke-width="1" marker-end="url(#sig-arrow)"/>
   <text x="440" y="75" text-anchor="middle" font-family="var(--sl-font, 'IBM Plex Sans', sans-serif)" font-size="9" fill="var(--sl-color-gray-3)">reads</text>
-  <text x="340" y="145" text-anchor="middle" font-family="var(--sl-font, 'IBM Plex Sans', sans-serif)" font-size="10" fill="var(--sl-color-gray-3)">Capture runs once, at enforcement time, through an ObligationHandler.</text>
+  <text x="340" y="145" text-anchor="middle" font-family="var(--sl-font, 'IBM Plex Sans', sans-serif)" font-size="10" fill="var(--sl-color-gray-3)">Capture runs once, at enforcement time, through an ObligationHandler; a SignatureLedger records it under (signer, resource).</text>
   <text x="340" y="160" text-anchor="middle" font-family="var(--sl-font, 'IBM Plex Sans', sans-serif)" font-size="10" fill="var(--sl-color-gray-3)">hasSignature only ever reads what's already there — trust-on-presence, no re-verification.</text>
 </svg>
+
+A default-scope `hasSignature` is resource-scoped: it asks `SignatureHistory`
+for `(subjectId, resourceId)` and needs a resource with a string `id`, else it
+fails with `MissingResourceId`. A signature captured while a duty is discharged
+is recorded under that same pair, so it answers the document it was captured
+for and no other (see [E-Signatures](/docs/packages/audit/signatures/)).
 
 `SignatureHistory` has one method, `signaturesFor({ subjectId, resourceId? })`,
 mirroring `DecisionHistory`'s shape exactly. Its default,
@@ -55,7 +61,7 @@ import {
   currentSubjectLayer,
   enforce,
   EvaluationIdLive,
-  fromRoles,
+  makeSubject,
   hasPermission,
   hasSignature,
   permission,
@@ -71,7 +77,10 @@ const mayPublish = allOf([hasPermission(publish), hasSignature("approved")]);
 
 const services = Layer.mergeAll(
   portsLayer({
-    SignatureHistory: signatureHistoryFromSignatures([{ subjectId: "u1", meaning: "approved" }]),
+    // The default scope is the resource: the signature is on file for u1 AND doc-1.
+    SignatureHistory: signatureHistoryFromSignatures([
+      { subjectId: "u1", resourceId: "doc-1", meaning: "approved" },
+    ]),
   }),
   EvaluationIdLive,
 );
@@ -79,11 +88,11 @@ const services = Layer.mergeAll(
 declare const doPublish: Effect.Effect<void>;
 
 const program = doPublish.pipe(
-  enforce(mayPublish),
-  Effect.provide(currentSubjectLayer(fromRoles({ id: "u1", roles: [] }))),
+  enforce(mayPublish, { resource: { id: "doc-1" } }),
+  Effect.provide(currentSubjectLayer(makeSubject({ id: "u1", permissions: ["doc:publish"] }))),
   Effect.provide(services),
 );
-// → runs: u1 has an "approved" signature on file.
+// → runs: u1 holds doc:publish and has an "approved" signature on file for doc-1.
 ```
 
 ## Decomposable, unlike `hasCustom`

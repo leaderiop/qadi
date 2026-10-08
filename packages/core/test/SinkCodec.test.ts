@@ -1603,6 +1603,17 @@ const goldenObligations: SinkRecord = new ObligationRecord({
   obligationIds: ["audit.log"],
 });
 
+/** The obligation record `V2_OBLIGATIONS_FULL_ENVELOPE` describes: its identity keys set. */
+const goldenObligationsFull: SinkRecord = new ObligationRecord({
+  evaluationId: "g",
+  at: 1,
+  outcome: "Discharged",
+  obligationIds: ["audit.log"],
+  subjectId: makeSubjectId("u1"),
+  action: "approve",
+  resourceId: makeResourceId("doc-1"),
+});
+
 /** The decision the full-envelope goldens describe: every optional envelope field set. */
 const goldenFullEnvelope: SinkRecord = new DecisionRecord({
   evaluationId: "g",
@@ -1662,6 +1673,10 @@ describe("v2 bytes: the writer writes the version-2 goldens", () => {
 
   it("an obligation record", () => {
     assert.strictEqual(v2Of(goldenObligations), V2.V2_OBLIGATIONS);
+  });
+
+  it("an obligation record carrying subjectId, action and resourceId", () => {
+    assert.strictEqual(v2Of(goldenObligationsFull), V2.V2_OBLIGATIONS_FULL_ENVELOPE);
   });
 
   it("a decision carrying resource, action and cache", () => {
@@ -1743,6 +1758,7 @@ describe("decodeSinkRecord reads wire version 2, and only it", () => {
       goldenFailedCause,
     ],
     ["an obligation record", V2.V2_OBLIGATIONS, goldenObligations],
+    ["an obligation record with identity keys", V2.V2_OBLIGATIONS_FULL_ENVELOPE, goldenObligationsFull],
     ["a full envelope", V2.V2_DECISION_FULL_ENVELOPE, goldenFullEnvelope],
   ];
 
@@ -1753,6 +1769,25 @@ describe("decodeSinkRecord reads wire version 2, and only it", () => {
       assert.deepStrictEqual(recordOf(v2), recordOf(stringOf(original)));
     });
   }
+
+  it("a row written before the identity keys decodes with them absent, and re-encodes byte-identically", () => {
+    const decoded = recordOf(V2.V2_OBLIGATIONS);
+    assert.strictEqual(decoded._tag, "Obligations");
+    for (const key of ["subjectId", "action", "resourceId"]) {
+      assert.isFalse(Object.hasOwn(decoded, key), key);
+    }
+    assert.strictEqual(stringOf(decoded), V2.V2_OBLIGATIONS);
+  });
+
+  it("an obligation row's identity keys survive a round trip as typed values", () => {
+    const decoded = recordOf(V2.V2_OBLIGATIONS_FULL_ENVELOPE);
+    assert.strictEqual(decoded._tag, "Obligations");
+    if (decoded._tag !== "Obligations") return;
+    assert.strictEqual(decoded.subjectId, "u1");
+    assert.strictEqual(decoded.action, "approve");
+    assert.strictEqual(decoded.resourceId, "doc-1");
+    assert.strictEqual(stringOf(decoded), V2.V2_OBLIGATIONS_FULL_ENVELOPE);
+  });
 
   it("a v2 record with an unknown top-level key decodes; a stray pre-0.10 `decided` beside `outcome` is one", () => {
     const text = JSON.stringify({ ...JSON.parse(V2.V2_FAILED_MISSING_RESOURCE), traceparent: "00-abc", decided: {} });

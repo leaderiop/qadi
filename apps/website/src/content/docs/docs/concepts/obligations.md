@@ -54,7 +54,7 @@ an allow carrying one that nobody discharged.
   <text x="160" y="66" text-anchor="middle" font-family="var(--sl-font, 'IBM Plex Sans', sans-serif)" font-size="10" fill="var(--sl-color-gray-3)">onObligations supplied</text>
   <text x="480" y="66" text-anchor="middle" font-family="var(--sl-font, 'IBM Plex Sans', sans-serif)" font-size="10" fill="var(--sl-color-gray-3)">no handler supplied</text>
   <rect x="70" y="76" width="180" height="30" rx="6" fill="oklch(0.19 0.014 260)" stroke="var(--sl-color-hairline-light)"/>
-  <text x="160" y="95" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="11" fill="var(--sl-color-white)">handler(obligations)</text>
+  <text x="160" y="95" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="11" fill="var(--sl-color-white)">handler(discharge)</text>
   <path d="M 160 106 L 160 128" fill="none" stroke="var(--sl-color-gray-3)" marker-end="url(#ob-arrow)"/>
   <rect x="70" y="130" width="180" height="30" rx="6" fill="oklch(0.19 0.014 260)" stroke="oklch(0.75 0.14 150)"/>
   <text x="160" y="149" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="11" fill="oklch(0.75 0.14 150)">discharged</text>
@@ -75,13 +75,13 @@ fails, the protected work must never start.
 ```typescript
 import * as Effect from "effect/Effect";
 import { enforce, hasPermission, obligation, obliged, permission } from "@qadi/core";
-import type { Obligation } from "@qadi/core";
+import type { ObligationDischarge } from "@qadi/core";
 
 const readDoc = permission("doc", "read");
 const readWithAudit = obliged(obligation("log-access"), hasPermission(readDoc));
 
 declare const loadDocument: (id: string) => Effect.Effect<{ id: string; title: string }>;
-declare const auditLog: (obligations: ReadonlyArray<Obligation>) => Effect.Effect<void>;
+declare const auditLog: (discharge: ObligationDischarge) => Effect.Effect<void>;
 
 const read = loadDocument("doc-1").pipe(
   enforce(readWithAudit, { onObligations: auditLog }),
@@ -89,6 +89,40 @@ const read = loadDocument("doc-1").pipe(
 // Without `onObligations`, this same call fails with UndischargedObligation
 // instead of running `loadDocument` — the obligation is binding by default.
 ```
+
+## What the handler is told
+
+A handler receives one `ObligationDischarge`: `{ question, decision }`. The
+`decision` is the `Allow` whose `obligations` are the duties, and the `question`
+is what that allow answered: the subject, the policy, the resource and the action.
+So a handler learns who asked about what without reading any ambient service:
+
+```typescript
+import * as Effect from "effect/Effect";
+import type { ObligationDischarge } from "@qadi/core";
+
+declare const writeAuditEntry: (entry: {
+  readonly subject: string;
+  readonly action: string | undefined;
+  readonly obligations: ReadonlyArray<string>;
+}) => Effect.Effect<void>;
+
+export const auditLog = ({ question, decision }: ObligationDischarge): Effect.Effect<void> =>
+  writeAuditEntry({
+    subject: question.subject.id,
+    action: question.action,
+    obligations: decision.obligations.map((o) => o.id),
+  });
+```
+
+The handler is called **at least once** per request, never exactly once: a caller
+that retries re-runs evaluation, and the handler runs again. The question is the
+same on every attempt, but `decision.evaluationId` is minted per attempt, and two
+distinct requests can share a question, so neither makes a safe idempotency key.
+Key on your own request id, captured by the `onObligations` closure.
+
+An HTTP-guarded route passes no handler, so a binding obligation there answers
+403 `UndischargedObligation`.
 
 ## Reporting calls don't discharge anything
 

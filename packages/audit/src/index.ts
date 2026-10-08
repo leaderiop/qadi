@@ -9,3 +9,5 @@ export * from "./AuditWriteOutcome.ts";
 export * from "./Retention.ts";
 export * from "./SequenceIntegrity.ts";
 export * from "./SignatureCapturePort.ts";
+export * from "./SignatureLedger.ts";
+export * from "./SignatureLedgerTest.ts";

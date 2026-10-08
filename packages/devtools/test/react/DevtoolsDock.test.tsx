@@ -678,6 +678,32 @@ describe("screen 2 — the inspector", () => {
     assert.include(screen.getByTestId("qadi-orphan").textContent ?? "", "never did");
   });
 
+  it("an orphaned outcome that names its question shows who, what and which resource", async () => {
+    await mount([
+      obligationRecord({
+        evaluationId: "ghost",
+        at: 100,
+        outcome: "Refused",
+        subjectId: "rania",
+        action: "approve",
+        resourceId: "doc-9",
+      }),
+    ]);
+    await click(rows()[0] ?? fail());
+
+    assert.strictEqual(
+      screen.getByTestId("qadi-orphan-question").textContent,
+      "for subject rania, action approve, resource doc-9",
+    );
+  });
+
+  it("an orphaned outcome from before the record named its question shows no question line", async () => {
+    await mount([obligationRecord({ evaluationId: "ghost", at: 100, outcome: "Refused" })]);
+    await click(rows()[0] ?? fail());
+
+    assert.isNull(screen.queryByTestId("qadi-orphan-question"));
+  });
+
   /**
    * E5.7 — the partner of a filtered-out row stays reachable.
    *

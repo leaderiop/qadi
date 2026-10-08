@@ -157,14 +157,26 @@ import { signatureObligationHandler, SIGNATURE_MEANINGS } from "@qadi/audit";
 import * as Qadi from "@qadi/core";
 
 Qadi.enforce(policy, {
-  onObligations: signatureObligationHandler(mySignaturePort, SIGNATURE_MEANINGS.APPROVED),
+  onObligations: signatureObligationHandler(mySignaturePort, SIGNATURE_MEANINGS.APPROVED, {
+    // Records the signature `capture` returned, under (signer, resource), where a
+    // resource-scoped `hasSignature` will look: read it back with
+    // `signatureHistoryFromLedger(ledger)`.
+    ledger,
+  }),
 });
 ```
+
+The handler takes the discharged question: the signer is the subject the allow was
+decided for, and the capture request carries `resourceId`, `action`, `resource` and
+`evaluationId`. A `capture` returning a signature for a different signer or meaning
+fails the discharge. Without a `ledger`, `capture` itself must persist where your
+`SignatureHistory` reads, keyed by the request's `signerId` and `resourceId`.
 
 ## Testing
 
 `AuditTrailPortTest`/`AuditStagingPortTest` ship as public, deterministic,
-in-memory `Layer` factories for any consumer's own tests.
+in-memory `Layer` factories for any consumer's own tests, and `SignatureLedgerTest`
+is the in-memory `SignatureLedger` (with `signatureHistoryFromLedger` to read it back).
 
 See [ADR-QD-056](https://github.com/leaderiop/qadi/blob/main/spec/decisions/056-audit-companion-package.md).
 

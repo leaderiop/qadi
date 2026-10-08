@@ -13,6 +13,9 @@
   },
   "references": [
     {
+      "path": "../packages/audit/tsconfig.src.json"
+    },
+    {
       "path": "../packages/core/tsconfig.src.json"
     },
     {

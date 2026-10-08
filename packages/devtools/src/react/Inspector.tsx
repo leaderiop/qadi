@@ -15,7 +15,7 @@ import { isAllowed } from "@qadi/core";
 import type { Allow } from "@qadi/core";
 import { inspectEntry, isTruncated, type InspectNode } from "../model/Inspect.ts";
 import type { Selection } from "../model/Selection.ts";
-import type { TimelineDecision, TimelineEntry } from "../model/Timeline.ts";
+import type { TimelineDecision, TimelineEntry, TimelineOrphan } from "../model/Timeline.ts";
 import { verdictOf } from "../model/Verdict.ts";
 import { button, colors, heading, muted, panel } from "./theme.ts";
 import { FieldsPanel, ObligationList } from "./DecisionPanels.tsx";
@@ -93,7 +93,7 @@ const Detail: FC<{
         replay in simulator
       </button>
     )}
-    {entry._tag === "TimelineDecision" ? <DecisionPanels entry={entry} /> : <OrphanPanel />}
+    {entry._tag === "TimelineDecision" ? <DecisionPanels entry={entry} /> : <OrphanPanel entry={entry} />}
   </div>
 );
 
@@ -108,16 +108,28 @@ const Header: FC<{ readonly entry: TimelineEntry }> = ({ entry }) => (
   </div>
 );
 
-const OrphanPanel: FC = () => (
-  <section style={panel} data-testid="qadi-orphan">
-    <div style={heading}>obligations</div>
-    <p style={muted}>
-      An obligation outcome arrived for this evaluation, but the decision it
-      belongs to never did — so there is nothing to explain. It is kept because a
-      duty that was refused turned someone&apos;s allow into an error.
-    </p>
-  </section>
-);
+const OrphanPanel: FC<{ readonly entry: TimelineOrphan }> = ({ entry }) => {
+  const { subjectId, action, resourceId } = entry.obligations;
+  return (
+    <section style={panel} data-testid="qadi-orphan">
+      <div style={heading}>obligations</div>
+      {/* Present only on a row written after the record named its question; an
+          older row is anonymous, as every orphan used to be. */}
+      {subjectId === undefined ? null : (
+        <p style={{ ...muted, marginTop: 0 }} data-testid="qadi-orphan-question">
+          for subject {subjectId}
+          {action === undefined ? "" : `, action ${action}`}
+          {resourceId === undefined ? "" : `, resource ${resourceId}`}
+        </p>
+      )}
+      <p style={muted}>
+        An obligation outcome arrived for this evaluation, but the decision it
+        belongs to never did — so there is nothing to explain. It is kept because a
+        duty that was refused turned someone&apos;s allow into an error.
+      </p>
+    </section>
+  );
+};
 
 const DecisionPanels: FC<{ readonly entry: TimelineDecision }> = ({ entry }) => {
   const outcome = entry.decision.outcome;
@@ -182,9 +194,10 @@ const ExplanationPanel: FC<{ readonly tree: InspectNode }> = ({ tree }) => (
 /**
  * Duties, with the state marked **unobtainable per duty** rather than guessed.
  *
- * `ObligationHandler` receives the whole array and returns `void`, so the
- * library observes that a set was presented and that the handler succeeded or
- * failed — never which individual duty was met. Showing a per-duty tick would
+ * `ObligationHandler` receives one discharge (the question and the allow, so
+ * every duty at once) and returns `void`, so the library observes that a set was
+ * presented and that the handler succeeded or failed — never which individual
+ * duty was met. Showing a per-duty tick would
  * be an invention.
  */
 const ObligationsPanel: FC<{ readonly entry: TimelineDecision }> = ({ entry }) => {

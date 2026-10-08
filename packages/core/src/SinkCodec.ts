@@ -74,7 +74,7 @@ import {
   SinkRecordNotDecodable,
   SinkRecordNotEncodable,
 } from "./Errors.ts";
-import { makeSubjectId } from "./Identity.ts";
+import { makeResourceId, makeSubjectId } from "./Identity.ts";
 import { MAX_DECODE_DEPTH, Policy, policyDepth, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
 import { DecodeRefusal, EncodeRefusal, WIRE_VERSIONS } from "./SinkWire.ts";
 import type { OpaqueKind, WirePath, WireVersion } from "./SinkWire.ts";
@@ -155,6 +155,12 @@ const obligationsV2Fields = {
   at: Schema.Finite,
   outcome: Schema.Literals(["Discharged", "HandlerFailed", "Refused", "NotRequired"]),
   obligationIds: Schema.Array(Schema.String),
+  // Optional envelope keys, the first use of ADR-QD-096's rule for the future:
+  // a record written before they existed lacks them, and a reader that does not
+  // declare them drops them silently.
+  subjectId: Schema.optional(Schema.String),
+  action: Schema.optional(Schema.String),
+  resourceId: Schema.optional(Schema.String),
 };
 
 /**
@@ -201,6 +207,9 @@ const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>()
       at: record.at,
       outcome: record.outcome,
       obligationIds: record.obligationIds,
+      ...(record.subjectId === undefined ? {} : { subjectId: record.subjectId }),
+      ...(record.action === undefined ? {} : { action: record.action }),
+      ...(record.resourceId === undefined ? {} : { resourceId: record.resourceId }),
     }),
     Decision: (record) => ({
       _tag: "Decision" as const,
@@ -247,6 +256,9 @@ const rebuild: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>
         at: wire.at,
         outcome: wire.outcome,
         obligationIds: wire.obligationIds,
+        ...(wire.subjectId === undefined ? {} : { subjectId: makeSubjectId(wire.subjectId) }),
+        ...(wire.action === undefined ? {} : { action: wire.action }),
+        ...(wire.resourceId === undefined ? {} : { resourceId: makeResourceId(wire.resourceId) }),
       }),
     Decision: (wire) =>
       new DecisionRecord({

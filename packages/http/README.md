@@ -68,6 +68,8 @@ export const handle = (request: HttpServerRequest.HttpServerRequest) =>
 | `AttributeResolveError`, `RelationshipResolveError`, `DecisionHistoryUnavailable`, `SubjectExtractionFailed`, `CustomPredicateError`, `SignatureHistoryUnavailable` | 502 | a dependency of this service broke |
 | `MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep` | 500 | a wiring mistake in this service |
 
+A guarded route passes no obligation handler, so a binding obligation on its policy always answers 403 `UndischargedObligation`.
+
 The 403/502 split is the library's central rule at the wire: a broken attribute
 store must never be reported as "not permitted". The bare-route `toResponse` answers
 an empty body; `RequirePermission` answers a redacted body that always carries

@@ -41,4 +41,14 @@ export const obligationThenSteps = defineSteps<World>(({ Then }) => {
       .sort();
     assert.deepEqual([...s.discharged].sort(), want);
   });
+
+  Then("the handler was told the resource {string}", function* (expected: string) {
+    const s = yield* readState();
+    assert.deepEqual(s.dischargedFor, [expected]);
+  });
+
+  Then("the handler was told no resource", function* () {
+    const s = yield* readState();
+    assert.deepEqual(s.dischargedFor, [undefined]);
+  });
 });
