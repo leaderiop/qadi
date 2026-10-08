@@ -16,7 +16,9 @@
  * WAL and circuit breaker. This side fits cleanly: signature capture is a
  * condition of enforcement, and `Qadi.ts`'s `ObligationHandler` is exactly
  * that mechanism already. `signatureObligationHandler` below is what makes it
- * actually reachable, not merely possible in principle.
+ * actually reachable, not merely possible in principle, and `SignatureLedger`
+ * (its `ledger` option) is what makes the loop actually assembled: it records the
+ * signature under the key a resource-scoped `hasSignature` reads with.
  *
  * **No reauthentication modeling.** No `ReauthenticationChallenge`/`Token`
  * types — whatever reauthentication flow a real `capture` implementation

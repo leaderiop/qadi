@@ -71,8 +71,10 @@ const program = doPublish.pipe(
 
 `signatureObligationHandler(port, meaning, options?)` calls `port.capture`
 exactly once per discharge — never once per obligation — with a request
-derived from the current subject and, if `options.signerRole` is given,
-threaded into the produced `Signature.signerRole`. `SIGNATURE_MEANINGS` and
+derived from the discharged question: the signer is the subject the allow was
+decided for (no ambient `CurrentSubject` is read), and the request carries
+`resourceId`, `action`, `resource` and `evaluationId`. If `options.signerRole`
+is given it is threaded into the produced `Signature.signerRole`. `SIGNATURE_MEANINGS` and
 `SignatureMeaning` are defined in `@qadi/core` and re-exported from
 `@qadi/audit` unchanged.
 
@@ -85,14 +87,94 @@ export interface SignatureCapturePortShape {
 }
 ```
 
+```ts
+export interface SignatureCaptureRequest {
+  readonly meaning: string;
+  readonly signerId: SubjectId;
+  readonly signerRole?: string;
+  readonly obligationIds: ReadonlyArray<string>;
+  readonly evaluationId: string;
+  readonly resourceId: ResourceId | undefined; // resourceIdOf(question.resource)
+  readonly action: string | undefined;
+  readonly resource: Resource | undefined;
+}
+```
+
 Neither method models reauthentication — no challenge/token types exist here.
 Whatever reauthentication a real `capture` implementation needs happens
 inside the caller's own port; `@qadi/audit` treats it as invisible.
 
+## Where the signature goes — `SignatureLedger`
+
+`hasSignature` asks `SignatureHistory` for `(subjectId, resourceId)`, so a
+signature must be stored under that pair to be found. A `capture` that persists
+without a resource stores it subject-wide, which a resource-scoped check cannot
+find and a `scope: "Any"` check finds for every resource.
+
+Pass a `SignatureLedger` and the handler records the signature `capture`
+**returned**, keyed by the question, then `signatureHistoryFromLedger` reads the
+same store back as `SignatureHistory`:
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import {
+  currentSubjectLayer,
+  decide,
+  EvaluationIdLive,
+  guard,
+  hasPermission,
+  hasSignature,
+  makeSubject,
+  obligation,
+  obliged,
+  permission,
+  portsLayer,
+} from "@qadi/core";
+import {
+  signatureHistoryFromLedger,
+  signatureObligationHandler,
+  SignatureLedgerTest,
+} from "@qadi/audit";
+import type { SignatureCapturePortShape } from "@qadi/audit";
+
+const approve = permission("doc", "approve");
+
+// A real port runs the signing ceremony. This one returns what it was asked for.
+declare const port: SignatureCapturePortShape;
+
+// SignatureLedgerTest is in-memory; a deployment implements SignatureLedgerShape over its store.
+const { ledger } = SignatureLedgerTest();
+
+const services = Layer.mergeAll(
+  portsLayer({ SignatureHistory: signatureHistoryFromLedger(ledger) }),
+  EvaluationIdLive,
+  currentSubjectLayer(makeSubject({ id: "alice", permissions: ["doc:approve"] })),
+);
+
+const program = Effect.gen(function* () {
+  yield* guard(approve, obliged(obligation("sig.approve"), hasPermission(approve)), {
+    onObligations: signatureObligationHandler(port, "approved", { ledger }),
+  })({ id: "doc-1" }, () => Effect.void);
+
+  // Allow on doc-1, Deny on doc-2: the signature answers the document it was captured for.
+  return yield* decide(hasSignature("approved"), { resource: { id: "doc-1" } });
+}).pipe(Effect.provide(services));
+```
+
+A `capture` that returns a signature for a different signer or meaning than the
+request asked for fails the discharge (nothing is appended), and so does a
+ledger that cannot record: enforcement is refused rather than proceeding as
+though the duty were met. A `capture` that normalises `meaning` is therefore
+refused. If your e-signature system is itself your `SignatureHistory`, skip the
+ledger: `capture` then must persist where `SignatureHistory` reads, keyed by the
+request's `signerId` and `resourceId`.
+
 ## No default ships
 
 There is no shipped default `SignatureCapturePort` implementation — not even
-a no-op one. An obligation wired to `signatureObligationHandler` with no real
+a no-op one. A `SignatureLedger` is a store, not a capture: it records only what
+your own `capture` returned. An obligation wired to `signatureObligationHandler` with no real
 port behind it, or a `hasSignature` policy with no `SignatureHistory`
 provided, fails closed the same way any other unwired port does: enforcement
 refuses with `UndischargedObligation` rather than proceeding.

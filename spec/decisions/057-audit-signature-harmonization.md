@@ -138,3 +138,13 @@ unchanged property does not.
 `packages/audit/test/SignatureCapturePort.test.ts`; INV-QD-055 and
 BEH-QD-256 revised in place (`spec/invariants.md`,
 `spec/behaviors/33-audit-pipeline.md`).
+
+## Amendment (2026-10-08, ADR-QD-105)
+
+`SignatureCaptureRequest` gains the discharged question's key as required fields (`evaluationId`,
+`resourceId`, `action`, `resource`), and `signerId` is the decided subject
+(`question.subject.id`), not the ambient `CurrentSubject`. The handler's type was
+`(obligations) => Effect<void, SignatureCaptureError, CurrentSubject>`; it is now
+`(discharge: ObligationDischarge) => Effect<void, SignatureCaptureError | SignatureLedgerError>`,
+with an empty requirement channel. A capture returning a signature for a different signer or
+meaning than asked fails the discharge.

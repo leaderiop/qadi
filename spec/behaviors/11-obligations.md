@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-09-08): BEH-QD-085 — the entry-point table was missing `guard` and `filterStream`, both of which enforce and fail on an undischarged obligation (CCR-QD-127)<br>1.0 (2026-07-26): Initial release (CCR-QD-015) |
+> | Change History | 1.2 (2026-10-08): BEH-QD-085 — `ObligationHandler` receives one `ObligationDischarge`, the question and the allow; BEH-QD-325 added; BEH-QD-087's example reads `decision.obligations` (ARCH-30, CCR-QD-220, ADR-QD-105)<br>1.1 (2026-09-08): BEH-QD-085 — the entry-point table was missing `guard` and `filterStream`, both of which enforce and fail on an undischarged obligation (CCR-QD-127)<br>1.0 (2026-07-26): Initial release (CCR-QD-015) |
 
 _Previous: [10 — The Action Dimension](./10-actions.md)_
 
@@ -130,8 +130,13 @@ already means exactly that.
 > **Invariant:** [INV-QD-013](../invariants.md#inv-qd-013-enforcement-never-proceeds-on-an-undischarged-obligation)
 
 ```ts
+export interface ObligationDischarge {
+  readonly question: Question;
+  readonly decision: Allow;
+}
+
 export interface ObligationHandler<E = never, R = never> {
-  (obligations: ReadonlyArray<Obligation>): Effect.Effect<void, E, R>;
+  (discharge: ObligationDischarge): Effect.Effect<void, E, R>;
 }
 
 export interface EnforceOptions<E = never, R = never> extends EvaluateOptions {
@@ -187,6 +192,48 @@ REQUIREMENT: An advisory obligation MUST NOT block enforcement, and MUST still
              be passed to a handler. Advice is information the caller may act
              on; only its binding siblings can refuse.
 ```
+
+## BEH-QD-325: A handler is handed the question its allow answered
+
+> **See:** [ADR-QD-105](../decisions/105-an-obligation-is-discharged-against-the-question-it-answered.md)
+> **Invariant:** [INV-QD-120](../invariants.md#inv-qd-120-a-signature-recorded-for-a-discharge-is-keyed-by-the-question-it-discharged)
+
+A handler used to receive the obligation array and nothing else, so every handler
+rebuilt the subject, resource and action from ambient services, and the one
+shipped handler (`signatureObligationHandler`) could not rebuild the resource at
+all. The gate now hands over what it knows.
+
+```
+REQUIREMENT: `onObligations` MUST receive the `Question` the lifecycle decided
+             (the very value the decision was cached and recorded under) and
+             the `Allow` itself. It MUST NOT need any ambient service to learn
+             the subject, resource or action.
+```
+
+```
+REQUIREMENT: The `Question` a handler receives MUST be the one the lifecycle
+             built for that ask: no second construction. Every enforcing entry
+             point (`assert`, `enforce`, `enforceProjected`, `enforceLoaded`,
+             `enforceProjectedLoaded`, `guard`, `filter`, `filterStream`,
+             `filterProjected`, `filterStreamProjected`) MUST hand its handler
+             the question of the decision it is discharging; for `filter` and
+             its siblings that is the item's own question.
+```
+
+```
+REQUIREMENT: The `ObligationRecord` for a discharge MUST name the question's
+             subject (`subjectId`), and its `action` and `resourceId` when the
+             question had them. It MUST NOT carry the resource itself.
+```
+
+**What is and is not stable across a retry.** A caller that retries an enforcing
+call re-runs evaluation, so the handler is called again (at least once, never
+exactly once). The question is the same each time; `decision.evaluationId` is
+minted per attempt and so is not a per-request key; and two distinct requests
+(two approvals of one document) can share a question, so a key derived from it
+would merge them and silently drop a duty. A handler that must not double-fire
+keys on the caller's own request id, captured by the `onObligations` closure.
+The library mints no idempotency key.
 
 ## BEH-QD-086: Observability
 
@@ -246,8 +293,8 @@ const services = Layer.mergeAll(
 // reads the record — the permission had a condition nobody met.
 const program = readRecord.pipe(
   enforce(mayRead, {
-    onObligations: (obligations) =>
-      Effect.forEach(obligations, (o) => writeAuditEntry(o.id), { discard: true }),
+    onObligations: ({ decision }) =>
+      Effect.forEach(decision.obligations, (o) => writeAuditEntry(o.id), { discard: true }),
   }),
   Effect.provide(services),
 );

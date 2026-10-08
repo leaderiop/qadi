@@ -286,3 +286,11 @@ union of wire versions, read back with `decodeAuditEntry`) and
 [BEH-QD-200](../behaviors/25-inspection.md),
 [BEH-QD-204](../behaviors/27-devtools-timeline.md),
 [BEH-QD-312](../behaviors/33-audit-pipeline.md#beh-qd-312-a-stored-row-is-read-back-through-a-guard).
+
+## Amendment (2026-10-08, ADR-QD-105)
+
+The `Obligations` envelope gains three optional keys, `subjectId`, `action` and `resourceId`, under
+version 2 and with no version 3: the first use of "the rule for the future" above (additive,
+optional envelope metadata needs no version). A reader at this release keeps them, because the
+key set is read from the schema; a 0.11 reader ignores them silently, and a row written by 0.11
+decodes with them absent and re-encodes byte-identically (`V2_OBLIGATIONS` is the oracle).

@@ -1,0 +1,5 @@
+---
+"@qadi/core": minor
+---
+
+An obligation is discharged against the question it answered. **Breaking:** `ObligationHandler` receives one `ObligationDischarge`, `{ question, decision }`, instead of the obligation array. The `question` is the very `Question` the allow was decided, cached and recorded under (subject, policy, resource, action) and the `decision` is the `Allow`, so a handler no longer rebuilds its context from ambient services. Migrate `(obligations) => ...` to `({ decision }) => ...` reading `decision.obligations`; a handler written `() => ...` is unchanged. `ObligationRecord` gains optional `subjectId`, `action` and `resourceId` (the question's identity, never the resource), carried as optional version-2 envelope keys: no new wire version, a record written before them still decodes and re-encodes byte-identically, and a 0.11 reader ignores them. New `resourceIdOf(resource)` is the writer's half of the id rule `hasSignature`'s history read applies. The handler is still called at least once per request, never exactly once; `decision.evaluationId` is per attempt, so key idempotency on your own request id.
