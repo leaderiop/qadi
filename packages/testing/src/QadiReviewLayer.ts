@@ -4,20 +4,13 @@
  * Every default fails closed, so a test that forgets to grant something sees a
  * denial rather than an accidental allow.
  */
-import {
-  attributeResolverFromRecord,
-  decisionHistoryFromEvents,
-  evaluationIdSequential,
-  portsLayer,
-  relationshipResolverFromEdges,
-  signatureHistoryFromSignatures,
-} from "@qadi/core";
+import { evaluationIdSequential, fixturePortsLayer } from "@qadi/core";
 import type {
-  ActedEventInput,
   EvaluationServices,
-  PortOverrides,
-  RelationshipEdgeInput,
-  SignatureInput,
+  PortFixtureData,
+  PortName,
+  PortTypes,
+  ServiceOf,
   StandingEvaluationServices,
 } from "@qadi/core";
 import * as Layer from "effect/Layer";
@@ -35,15 +28,24 @@ import * as TestClock from "effect/testing/TestClock";
  */
 export type QadiTestServices = EvaluationServices;
 
+/**
+ * How one port is set up: its fixture data, or a layer of its service — never
+ * both, which the `never` members make a type error rather than a precedence
+ * rule to remember.
+ *
+ * `answers` is `@qadi/core`'s `PortFixtureData` for the port (an attribute
+ * record, an edge list, an event list, a signature list, fixed custom-predicate
+ * answers), turned into the port's layer by core's fixture table. A `layer` is
+ * for everything data cannot say: a failing, scripted or recording port is
+ * `@qadi/core`'s `scriptedPort` or `recordingPort` over that port's description
+ * (`attributeResolverPort`, ...), and a predicate that reads the subject or the
+ * resource is `customPredicateFromRecord` with real functions.
+ */
+export type PortSetup<K extends PortName> =
+  | { readonly answers: PortFixtureData[K]; readonly layer?: never }
+  | { readonly layer: Layer.Layer<ServiceOf<PortTypes[K]>>; readonly answers?: never };
+
 export interface TestLayerOptions {
-  /** Attributes resolved on a subject miss. */
-  readonly attributes?: Readonly<Record<string, unknown>>;
-  /** Relationship edges. */
-  readonly relationships?: ReadonlyArray<RelationshipEdgeInput>;
-  /** Past events. */
-  readonly history?: ReadonlyArray<ActedEventInput>;
-  /** On-file signatures. */
-  readonly signatures?: ReadonlyArray<SignatureInput>;
   /** Prefix for the deterministic evaluation ids. Defaults to `eval`. */
   readonly idPrefix?: string;
   /**
@@ -102,19 +104,25 @@ export interface TestLayerOptions {
    */
   readonly clock?: "live" | "test";
   /**
-   * Supplies any port's layer directly, keyed by port name
-   * (`{ AttributeResolver: … }`). An entry here wins over the matching data
-   * option above (`attributes`, `relationships`, `history`, `signatures`).
+   * Sets up any port, keyed by port name: `{ AttributeResolver: { answers: ... } }`
+   * or `{ AttributeResolver: { layer: ... } }`. A port left out stays at its
+   * fail-closed default.
    *
-   * Needed because this layer already satisfies every port — an outer
-   * `Effect.provide` cannot override one, since the innermost provide wins.
-   * A failing, scripted or recording port is `@qadi/core`'s `scriptedPort` or
-   * `recordingPort` over that port's description (`attributeResolverPort`, …):
-   * `{ AttributeResolver: scriptedPort(attributeResolverPort, () =>
-   * PortReply.fail("down")).layer }`.
+   * One way per port. This layer already satisfies every port, so an outer
+   * `Effect.provide` could not override one (the innermost provide wins), which
+   * is why the layer form lives here. Before ARCH-42 there were also four
+   * top-level data options (`attributes`, `relationships`, `history`,
+   * `signatures`) and a rule that an entry here won over the matching one; the
+   * two ways to say the same thing are gone, and `CustomPredicate` has a data
+   * form (`{ answers }`) like the other four.
    */
-  readonly ports?: PortOverrides;
+  readonly ports?: PortSetups;
 }
+
+/** {@link TestLayerOptions}' `ports`: any subset of the ports, each set up one way. */
+export type PortSetups = {
+  readonly [K in PortName]?: PortSetup<K> | undefined;
+};
 
 /**
  * The same environment `qadiTestLayer` builds, with no current subject.
@@ -128,40 +136,45 @@ export interface TestLayerOptions {
  * bodies resolving the same options would eventually disagree about a default,
  * and a fixture that fails *open* in one of them is not a failure anyone reads.
  *
- * Built on `@qadi/core`'s `portsLayer`, as core's own test helpers are, so
- * neither lists the ports: a port added to the registry is here, at its
- * fail-closed default, without an edit. Each data option becomes that port's
- * core fixture (`attributeResolverFromRecord`, `relationshipResolverFromEdges`,
- * `decisionHistoryFromEvents`, `signatureHistoryFromSignatures`); an explicit
- * `ports` entry wins over the matching data option.
+ * Built on `@qadi/core`'s `fixturePortsLayer`, as `@qadi/devtools`' Fixtures
+ * simulation is, so neither lists the ports or the data-to-layer map: a port
+ * added to the registry is here, at its fail-closed default, without an edit,
+ * and its fixture is one row in core's `PORT_FIXTURES`.
  */
 export const qadiReviewLayer = (
   options?: TestLayerOptions,
 ): Layer.Layer<StandingEvaluationServices> =>
   Layer.mergeAll(
-    portsLayer({
-      ...options?.ports,
-      AttributeResolver:
-        options?.ports?.AttributeResolver ??
-        fixture(options?.attributes, attributeResolverFromRecord),
-      RelationshipResolver:
-        options?.ports?.RelationshipResolver ??
-        fixture(options?.relationships, relationshipResolverFromEdges),
-      DecisionHistory:
-        options?.ports?.DecisionHistory ?? fixture(options?.history, decisionHistoryFromEvents),
-      SignatureHistory:
-        options?.ports?.SignatureHistory ??
-        fixture(options?.signatures, signatureHistoryFromSignatures),
-    }),
+    fixturePortsLayer(answersOf(options?.ports ?? {}), layersOf(options?.ports ?? {})),
     evaluationIdSequential(options?.idPrefix ?? "eval"),
     clockLayer(options?.clock),
   );
 
-/** A data option's core fixture, or `undefined` (the port's default) when the option is absent. */
-const fixture = <D, Self>(
-  data: D | undefined,
-  build: (data: D) => Layer.Layer<Self>,
-): Layer.Layer<Self> | undefined => (data === undefined ? undefined : build(data));
+/**
+ * Each port's `answers`, or `undefined` when it was set up with a layer or not
+ * at all. Typed over `PortName` so a port missing from this record is a
+ * compile error.
+ */
+const answersOf = (
+  ports: PortSetups,
+): { readonly [K in PortName]: PortFixtureData[K] | undefined } => ({
+  AttributeResolver: ports.AttributeResolver?.answers,
+  DecisionHistory: ports.DecisionHistory?.answers,
+  RelationshipResolver: ports.RelationshipResolver?.answers,
+  CustomPredicate: ports.CustomPredicate?.answers,
+  SignatureHistory: ports.SignatureHistory?.answers,
+});
+
+/** Each port's `layer`, or `undefined`; the counterpart of {@link answersOf}. */
+const layersOf = (
+  ports: PortSetups,
+): { readonly [K in PortName]: Layer.Layer<ServiceOf<PortTypes[K]>> | undefined } => ({
+  AttributeResolver: ports.AttributeResolver?.layer,
+  DecisionHistory: ports.DecisionHistory?.layer,
+  RelationshipResolver: ports.RelationshipResolver?.layer,
+  CustomPredicate: ports.CustomPredicate?.layer,
+  SignatureHistory: ports.SignatureHistory?.layer,
+});
 
 /**
  * `Layer.empty` for `live`, so nothing shadows the runtime's own clock.

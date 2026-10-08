@@ -10,7 +10,6 @@ import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import {
-  customPredicateFromRecord,
   decideSubjects,
   enforce,
   enforceProjectedLoaded,
@@ -59,32 +58,27 @@ export const run = Effect.fn("features.run")(function* (policy: Policy) {
   const result = yield* evaluate(policy, options).pipe(
     Effect.provide(
       qadiTestLayer(subjectOf(w), {
-        attributes: w.resolvedAttributes,
-        ...(w.relationships === undefined ? {} : { relationships: w.relationships }),
-        // A store that is *down* and a port that is *unwired* are different
-        // answers, and only one of them is a denial.
-        ...(w.historyUnreachable || w.events === undefined ? {} : { history: w.events }),
+        // Each port is set up one way. A key left out keeps the port's own
+        // fail-closed default: nothing registered for `CustomPredicate`, so
+        // every name denies; no signatures on file for `SignatureHistory`, so
+        // every hasSignature node denies.
         ports: {
-          ...(w.historyUnreachable ? { DecisionHistory: unreachableHistory } : {}),
-          // `undefined` leaves `qadiTestLayer`'s own `CustomPredicateNone`
-          // default in place — nothing registered, so every name denies.
+          AttributeResolver: { answers: w.resolvedAttributes },
+          ...(w.relationships === undefined
+            ? {}
+            : { RelationshipResolver: { answers: w.relationships } }),
+          // A store that is *down* and a port that is *unwired* are different
+          // answers, and only one of them is a denial.
+          ...(w.historyUnreachable
+            ? { DecisionHistory: { layer: unreachableHistory } }
+            : w.events === undefined
+              ? {}
+              : { DecisionHistory: { answers: w.events } }),
           ...(w.customPredicates === undefined
             ? {}
-            : {
-                CustomPredicate: customPredicateFromRecord(
-                  Object.fromEntries(
-                    Object.entries(w.customPredicates).map(([name, answer]) => [
-                      name,
-                      () => Effect.succeed(answer),
-                    ]),
-                  ),
-                ),
-              }),
+            : { CustomPredicate: { answers: w.customPredicates } }),
+          ...(w.signatures === undefined ? {} : { SignatureHistory: { answers: w.signatures } }),
         },
-        // `undefined` leaves `qadiTestLayer`'s own `SignatureHistoryNone`
-        // default in place — no signatures on file, so every hasSignature
-        // node denies.
-        ...(w.signatures === undefined ? {} : { signatures: w.signatures }),
       }),
     ),
     Effect.result,
@@ -170,8 +164,8 @@ export const runSubjectSet = Effect.fn("features.runSubjectSet")(function* (poli
   // Keyed by subject id, not by a flat table like `attributeResolverFromRecord`'s,
   // so `w.brokenCandidates` can single out one candidate's lookup — the
   // flaky-resolver scenario `decideSubjects`/`filterSubjects` now survive
-  // (issue #107). Behaves exactly like `qadiReviewLayer({ attributes:
-  // w.resolvedAttributes })` when `brokenCandidates` is empty, which every
+  // (issue #107). Behaves exactly like `qadiReviewLayer({ ports: {
+  // AttributeResolver: { answers: w.resolvedAttributes } } })` when `brokenCandidates` is empty, which every
   // scenario before this one is.
   const attributeResolver = scriptedPort(attributeResolverPort, (candidateId, attribute) =>
     w.brokenCandidates.includes(candidateId)
@@ -185,7 +179,7 @@ export const runSubjectSet = Effect.fn("features.runSubjectSet")(function* (poli
   const [reviewed, kept] = yield* Effect.all([
     decideSubjects(policy, subjects, options),
     filterSubjects(policy, subjects, options),
-  ]).pipe(Effect.provide(qadiReviewLayer({ ports: { AttributeResolver: attributeResolver } })));
+  ]).pipe(Effect.provide(qadiReviewLayer({ ports: { AttributeResolver: { layer: attributeResolver } } })));
 
   const review = reviewed.decisions.map(({ subject, decision }) => ({
     id: subject.id,
@@ -223,7 +217,7 @@ export const runSubjectSetStream = Effect.fn("features.runSubjectSetStream")(fun
 
   const outcomes = yield* Stream.runCollect(
     filterSubjectsStream(policy, Stream.fromIterable(subjects), options),
-  ).pipe(Effect.provide(qadiReviewLayer({ ports: { AttributeResolver: attributeResolver } })));
+  ).pipe(Effect.provide(qadiReviewLayer({ ports: { AttributeResolver: { layer: attributeResolver } } })));
 
   const answer = outcomes.filter((o) => o._tag === "SubjectAllowed").map((o) => o.subject.id);
   const failedCandidates = outcomes.filter((o) => o._tag === "SubjectFailed").map((o) => o.subject.id);
@@ -251,8 +245,12 @@ export const compile = Effect.fn("features.compile")(function* (policy: Policy) 
   const result = yield* toPredicate(policy).pipe(
     Effect.provide(
       qadiTestLayer(subjectOf(w), {
-        attributes: w.resolvedAttributes,
-        ...(w.attributeFault === "none" ? {} : { ports: { AttributeResolver: faulted.layer } }),
+        ports: {
+          AttributeResolver:
+            w.attributeFault === "none"
+              ? { answers: w.resolvedAttributes }
+              : { layer: faulted.layer },
+        },
       }),
     ),
     Effect.result,
@@ -290,7 +288,7 @@ export const agreesWith = Effect.fn("features.agreesWith")(function* (
 
   for (const row of rows) {
     const decision = yield* evaluate(policy, { resource: row }).pipe(
-      Effect.provide(qadiTestLayer(subjectOf(w), { attributes: w.resolvedAttributes })),
+      Effect.provide(qadiTestLayer(subjectOf(w), { ports: { AttributeResolver: { answers: w.resolvedAttributes } } })),
     );
     if (evaluatePredicate(compiled, row) !== isAllowed(decision)) return false;
   }

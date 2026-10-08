@@ -100,7 +100,7 @@ describe("qadiTestLayer", () => {
     Effect.gen(function* () {
       const d = yield* evaluate(hasAttribute("tier", gte(3)));
       assert.isTrue(isAllowed(d));
-    }).pipe(Effect.provide(qadiTestLayer(nobody, { attributes: { tier: 5 } }))));
+    }).pipe(Effect.provide(qadiTestLayer(nobody, { ports: { AttributeResolver: { answers: { tier: 5 } } } }))));
 
   it.effect("resolves configured relationships", () =>
     Effect.gen(function* () {
@@ -109,7 +109,11 @@ describe("qadiTestLayer", () => {
     }).pipe(
       Effect.provide(
         qadiTestLayer(subjectWith({ id: "u1" }), {
-          relationships: [{ subjectId: "u1", relation: "owner", resourceId: "d1" }],
+          ports: {
+            RelationshipResolver: {
+              answers: [{ subjectId: "u1", relation: "owner", resourceId: "d1" }],
+            },
+          },
         }),
       ),
     ));
@@ -121,7 +125,11 @@ describe("qadiTestLayer", () => {
     }).pipe(
       Effect.provide(
         qadiTestLayer(subjectWith({ id: "u1" }), {
-          signatures: [{ subjectId: "u1", resourceId: "d1", meaning: "approved" }],
+          ports: {
+            SignatureHistory: {
+              answers: [{ subjectId: "u1", resourceId: "d1", meaning: "approved" }],
+            },
+          },
         }),
       ),
     ));
@@ -205,30 +213,35 @@ describe("the clock", () => {
     }).pipe(Effect.provide(qadiTestLayer(administrator, { clock: "test" }))));
 });
 
-describe("ports and data options", () => {
-  it.effect("an explicit port wins over the matching data option", () =>
+describe("ports", () => {
+  it.effect("ports set up one way each coexist: answers for one, a layer for another", () =>
     Effect.gen(function* () {
-      const d = yield* evaluate(hasAttribute("tier", gte(3)));
-      assert.isFalse(isAllowed(d));
+      assert.isTrue(isAllowed(yield* evaluate(hasAttribute("tier", gte(3)))));
+      const r = yield* Effect.result(evaluate(hasCustom("isOwner")));
+      assert.strictEqual(r._tag, "Failure");
     }).pipe(
       Effect.provide(
         qadiTestLayer(nobody, {
-          attributes: { tier: 5 },
           ports: {
-            AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.answer(1)).layer,
+            AttributeResolver: { answers: { tier: 5 } },
+            CustomPredicate: { layer: customPredicateFromRecord({}) },
           },
         }),
       ),
     ));
 
-  it.effect("a port left out of `ports` keeps its data option", () =>
+  it.effect("CustomPredicate answers are fixed verdicts by name, and an unlisted name fails", () =>
     Effect.gen(function* () {
-      assert.isTrue(isAllowed(yield* evaluate(hasAttribute("tier", gte(3)))));
+      assert.strictEqual((yield* CustomPredicate).name, "customPredicateFromRecord");
+      assert.isTrue(isAllowed(yield* evaluate(hasCustom("isOwner"))));
+      assert.isFalse(isAllowed(yield* evaluate(hasCustom("isBanned"))));
+      const r = yield* Effect.result(evaluate(hasCustom("unlisted")));
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag === "Failure") assert.strictEqual(r.failure._tag, "CustomPredicateError");
     }).pipe(
       Effect.provide(
         qadiTestLayer(nobody, {
-          attributes: { tier: 5 },
-          ports: { CustomPredicate: customPredicateFromRecord({}) },
+          ports: { CustomPredicate: { answers: { isOwner: true, isBanned: false } } },
         }),
       ),
     ));
@@ -240,7 +253,7 @@ describe("ports and data options", () => {
       const policy = anyOf([hasAttribute("tier", gte(1)), hasAttribute("other", gte(1))]);
 
       yield* evaluate(policy).pipe(
-        Effect.provide(qadiTestLayer(nobody, { ports: { AttributeResolver: resolver.layer } })),
+        Effect.provide(qadiTestLayer(nobody, { ports: { AttributeResolver: { layer: resolver.layer } } })),
       );
 
       assert.deepStrictEqual(resolver.calls, [[nobody.id, "tier"]]);
@@ -258,7 +271,11 @@ describe("ports and data options", () => {
     }).pipe(
       Effect.provide(
         qadiTestLayer(subjectWith({ id: "u1" }), {
-          relationships: [{ subjectId: "u1", relation: "owner", resourceId: "d1" }],
+          ports: {
+            RelationshipResolver: {
+              answers: [{ subjectId: "u1", relation: "owner", resourceId: "d1" }],
+            },
+          },
         }),
       ),
     ));
@@ -269,29 +286,31 @@ describe("ports and data options", () => {
       const cases = [
         {
           policy: hasAttribute("x", gte(1)),
-          ports: { AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer },
+          ports: { AttributeResolver: { layer: scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer } },
           tag: "AttributeResolveError",
         },
         {
           policy: hasRelationship("owner"),
           ports: {
-            RelationshipResolver: scriptedPort(relationshipResolverPort, () => PortReply.fail("down")).layer,
+            RelationshipResolver: {
+              layer: scriptedPort(relationshipResolverPort, () => PortReply.fail("down")).layer,
+            },
           },
           tag: "RelationshipResolveError",
         },
         {
           policy: hasActed("raised"),
-          ports: { DecisionHistory: scriptedPort(decisionHistoryPort, () => PortReply.fail("down")).layer },
+          ports: { DecisionHistory: { layer: scriptedPort(decisionHistoryPort, () => PortReply.fail("down")).layer } },
           tag: "DecisionHistoryUnavailable",
         },
         {
           policy: hasCustom("isOwner"),
-          ports: { CustomPredicate: scriptedPort(customPredicatePort, () => PortReply.fail("down")).layer },
+          ports: { CustomPredicate: { layer: scriptedPort(customPredicatePort, () => PortReply.fail("down")).layer } },
           tag: "CustomPredicateError",
         },
         {
           policy: hasSignature("approved"),
-          ports: { SignatureHistory: scriptedPort(signatureHistoryPort, () => PortReply.fail("down")).layer },
+          ports: { SignatureHistory: { layer: scriptedPort(signatureHistoryPort, () => PortReply.fail("down")).layer } },
           tag: "SignatureHistoryUnavailable",
         },
       ];
@@ -309,13 +328,13 @@ describe("ports and data options", () => {
       const r = yield* Effect.result(evaluate(hasCustom("isOwner")));
       assert.strictEqual(r._tag, "Failure");
     }).pipe(
-      Effect.provide(qadiTestLayer(nobody, { ports: { CustomPredicate: customPredicateFromRecord({}) } })),
+      Effect.provide(qadiTestLayer(nobody, { ports: { CustomPredicate: { layer: customPredicateFromRecord({}) } } })),
     ));
 
-  it.effect("each data option is that port's core fixture, and says so", () =>
+  it.effect("each port's answers are that port's core fixture, and say so", () =>
     Effect.gen(function* () {
       // Diagnostics read these names (`@qadi/devtools`' wiring panel, the
-      // wrappers' composed names), so the fixture a data option builds is named.
+      // wrappers' composed names), so the fixture a port's answers build is named.
       assert.strictEqual((yield* AttributeResolver).name, "attributeResolverFromRecord");
       assert.strictEqual((yield* RelationshipResolver).name, "relationshipResolverFromEdges");
       assert.strictEqual((yield* DecisionHistory).name, "decisionHistoryFromEvents");
@@ -323,7 +342,14 @@ describe("ports and data options", () => {
       assert.strictEqual((yield* CustomPredicate).name, "CustomPredicateNone");
     }).pipe(
       Effect.provide(
-        qadiTestLayer(nobody, { attributes: {}, relationships: [], history: [], signatures: [] }),
+        qadiTestLayer(nobody, {
+          ports: {
+            AttributeResolver: { answers: {} },
+            RelationshipResolver: { answers: [] },
+            DecisionHistory: { answers: [] },
+            SignatureHistory: { answers: [] },
+          },
+        }),
       ),
     ));
 });
@@ -338,7 +364,7 @@ describe("the history option", () => {
         decisionHistoryPort,
         decisionHistoryFromEvents([{ subjectId: "u1", event: "raised", resourceId: "inv-1" }]),
       );
-      const layer = qadiTestLayer(clerk, { ports: { DecisionHistory: history.layer } });
+      const layer = qadiTestLayer(clerk, { ports: { DecisionHistory: { layer: history.layer } } });
 
       const own = yield* evaluate(hasNotActed("raised"), { resource: { id: "inv-1" } }).pipe(
         Effect.provide(layer),
@@ -362,19 +388,23 @@ describe("the history option", () => {
     }).pipe(
       Effect.provide(
         qadiTestLayer(clerk, {
-          history: [{ subjectId: "u1", event: "raised", resourceId: "inv-9" }],
+          ports: {
+            DecisionHistory: { answers: [{ subjectId: "u1", event: "raised", resourceId: "inv-9" }] },
+          },
         }),
       ),
     ));
 
-  it.effect("the `history` shorthand wires the same layer", () =>
+  it.effect("`DecisionHistory` answers wire the same layer", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(hasActed("raised"), { resource: { id: "inv-1" } });
       assert.isTrue(isAllowed(d));
     }).pipe(
       Effect.provide(
         qadiTestLayer(clerk, {
-          history: [{ subjectId: "u1", event: "raised", resourceId: "inv-1" }],
+          ports: {
+            DecisionHistory: { answers: [{ subjectId: "u1", event: "raised", resourceId: "inv-1" }] },
+          },
         }),
       ),
     ));
@@ -401,12 +431,12 @@ describe("the signatures option", () => {
 
       yield* evaluate(hasSignature("approved", { scope: "Any" })).pipe(
         Effect.provide(
-          qadiTestLayer(subjectWith({ id: "subjectA" }), { ports: { SignatureHistory: history.layer } }),
+          qadiTestLayer(subjectWith({ id: "subjectA" }), { ports: { SignatureHistory: { layer: history.layer } } }),
         ),
       );
       yield* evaluate(hasSignature("approved"), { resource: { id: "resourceX" } }).pipe(
         Effect.provide(
-          qadiTestLayer(subjectWith({ id: "subjectB" }), { ports: { SignatureHistory: history.layer } }),
+          qadiTestLayer(subjectWith({ id: "subjectB" }), { ports: { SignatureHistory: { layer: history.layer } } }),
         ),
       );
 
@@ -458,5 +488,5 @@ describe("qadiReviewLayer", () => {
         nobody,
       ]);
       assert.deepStrictEqual(allowed.map((s) => s.id), [nobody.id]);
-    }).pipe(Effect.provide(qadiReviewLayer({ attributes: { tier: 5 } }))));
+    }).pipe(Effect.provide(qadiReviewLayer({ ports: { AttributeResolver: { answers: { tier: 5 } } } }))));
 });

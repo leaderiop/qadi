@@ -297,7 +297,7 @@ describe("portActivity", () => {
         // already carries it is answered without the resolver ever being
         // reached, which is the behaviour, not a gap.
         yield* evaluate(hasAttribute("clearance", gte(1))).pipe(
-          Effect.provide(qadiTestLayer(subjectWith({}), { attributes: { clearance: 3 } })),
+          Effect.provide(qadiTestLayer(subjectWith({}), { ports: { AttributeResolver: { answers: { clearance: 3 } } } })),
         );
 
         const activity = yield* portActivity;
@@ -314,7 +314,7 @@ describe("portActivity", () => {
           { subjectId: "u-1", resourceId: "doc-1", meaning: "approved" },
         ]);
         yield* evaluate(hasSignature("approved"), { resource: { id: "doc-1" } }).pipe(
-          Effect.provide(qadiTestLayer(subjectWith({ id: "u-1" }), { ports: { SignatureHistory: history } })),
+          Effect.provide(qadiTestLayer(subjectWith({ id: "u-1" }), { ports: { SignatureHistory: { layer: history } } })),
         );
 
         const activity = yield* portActivity;
