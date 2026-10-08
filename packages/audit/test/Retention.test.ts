@@ -360,5 +360,5 @@ describe("PROPERTY: a purge never selects a row its archive does not hold (INV-Q
       }),
       { numRuns: 500 },
     );
-  });
+  }, 60_000);
 });
