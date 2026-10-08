@@ -80,6 +80,17 @@ const BARREL = /^export \* from "\.\/([^"]+)"/;
  */
 const REEXPORT_FROM = /^export (?:type )?\{([^}]*)\} from "/;
 
+/**
+ * The opening line of such a list that is wrapped over several lines: `export {`
+ * or `export type { A,` with no closing brace yet.
+ *
+ * `@qadi/devtools`' barrels name every export per module (ARCH-40), and a long
+ * list wraps at the codebase's hand-wrap width. `logicalLines` joins the wrapped
+ * list back into the one line `REEXPORT_FROM` reads, so the form is understood
+ * and not merely tolerated: a list that never closes still reaches `UNSUPPORTED`.
+ */
+const REEXPORT_OPEN = /^export (?:type )?\{[^}]*$/;
+
 /** One clause of such a list. A rename publishes the name after `as`. */
 const REEXPORT_NAME = /^(?:type\s+)?[A-Za-z_$][\w$]*(?:\s+as\s+([A-Za-z_$][\w$]*))?$/;
 
@@ -123,6 +134,37 @@ const packages = readdirSync(join(ROOT, "packages"))
   })
   .filter((p) => p !== undefined);
 
+/**
+ * The source's lines, with a wrapped named re-export list joined into one line.
+ *
+ * Yields `[index, line]` where `index` is the first physical line of the
+ * statement, so a failure still points at the line a reader would look at.
+ */
+function* logicalLines(source) {
+  const lines = source.split("\n");
+  for (let index = 0; index < lines.length; index += 1) {
+    let line = lines[index];
+    if (REEXPORT_OPEN.test(line)) {
+      let end = index;
+      while (end + 1 < lines.length && !lines[end].includes("}")) {
+        end += 1;
+      }
+      // Only a list that closes is joined; otherwise the opener alone reaches
+      // `UNSUPPORTED`, as before.
+      if (lines[end].includes("}") && end > index) {
+        line = lines
+          .slice(index, end + 1)
+          .map((one) => one.trim())
+          .join(" ");
+        yield [index, line];
+        index = end;
+        continue;
+      }
+    }
+    yield [index, line];
+  }
+}
+
 /** Reads a module and returns the names it exports. */
 const exportsOf = (file) => {
   // `readFileSync` rather than a shell tool on purpose. `RelationshipResolver.ts`
@@ -136,7 +178,7 @@ const exportsOf = (file) => {
   const source = readFileSync(file, "utf8");
   const names = new Set();
 
-  for (const [index, line] of source.split("\n").entries()) {
+  for (const [index, line] of logicalLines(source)) {
     const reexport = REEXPORT_FROM.exec(line);
     if (reexport) {
       const clauses = reexport[1]

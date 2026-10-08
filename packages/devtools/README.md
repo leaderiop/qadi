@@ -22,6 +22,15 @@ model and computes nothing. A backend aggregator can consume the first without
 pulling in a UI, and `react` is an optional peer dependency for exactly that
 reason.
 
+What each exports is what a shell crosses, not everything the modules declare.
+The root has the three stores (`makeTimelineStore` and `runSource`,
+`makeSimulationSession`, `makeDiagnosticsStore` and `runDiagnostics`), the wiring
+the dock takes, the timeline readings (`verdictOf`, `pairedEntries`, `inspect`,
+`applyFilters`, `selectionOf`) and the types those name. The React entry has
+`DevtoolsDock` and the React half of the stores (`useTimeline`,
+`useSimulationSession`, `useDiagnostics`). The dock's panels and a screen's
+mechanics are package-private.
+
 ## The model absorbs a hostile feed
 
 Records arrive from several processes at once, and none of them promises order,

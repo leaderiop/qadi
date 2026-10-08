@@ -1577,6 +1577,46 @@ for (const rel of sources
   }
 }
 
+// ---------------------------------------------------------------------------
+// §9 — `@qadi/devtools`' barrels name their exports (ARCH-40, ADR-QD-047's
+// amendment). Its interface is narrower than its modules, so a screen's
+// mechanics stay package-private (ADR-QD-099: out of the barrel means not
+// importable). An `export *` would silently re-widen it to every name a module
+// declares, and `barrel-order` above cannot see these barrels because they are
+// not pure `export *` lists. So the two devtools barrels carry no `export *`, and
+// their named groups run in module-path order (case-sensitive ASCII), the same
+// order `barrel-order` asks of every other barrel. Zero exceptions.
+// ---------------------------------------------------------------------------
+
+const DEVTOOLS_BARRELS = ["packages/devtools/src/index.ts", "packages/devtools/src/react/index.ts"];
+const STAR_EXPORT = /^\s*export\s+(?:type\s+)?\*/m;
+const NAMED_EXPORT = /export\s+(?:type\s+)?\{[^}]*\}\s*from\s*["']([^"']+)["']/g;
+
+for (const rel of DEVTOOLS_BARRELS) {
+  // Comments are not exports, and these barrels' header comments say "export".
+  const code = readFileSync(join(ROOT, rel), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+  if (STAR_EXPORT.test(code)) {
+    failures += 1;
+    console.error(
+      `${rel}  [devtools-named-barrel] \`export *\` re-widens the interface to every ` +
+        "name a module declares. Name the exports per module (ARCH-40, ADR-QD-047).",
+    );
+  }
+  const specifiers = [...code.matchAll(NAMED_EXPORT)].map((m) => m[1]);
+  for (let i = 1; i < specifiers.length; i += 1) {
+    if (specifiers[i - 1] > specifiers[i]) {
+      failures += 1;
+      console.error(
+        `${rel}  [devtools-named-barrel] "${specifiers[i]}" sorts before "${specifiers[i - 1]}" — ` +
+          "keep the named groups in module-path order (ARCH-40, ADR-QD-047).",
+      );
+      break;
+    }
+  }
+}
+
 // An exemption is a path, and a path outlives the file it named: renaming or
 // deleting the exempted module leaves a dead entry that silently ungates
 // whatever takes its place (an orphan `settled.ts` entry sat here for exactly

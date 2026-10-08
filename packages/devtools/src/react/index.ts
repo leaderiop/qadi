@@ -7,30 +7,27 @@
  *
  * Nothing here computes. Merging, ordering, pairing and inspection are the
  * model's, and this renders what the model produced.
+ *
+ * **The list below is the interface** (ADR-QD-047's amendment, ARCH-40): the
+ * dock, and the React half of the three stores (`useTimeline` and
+ * `useTimelineStore`, `useDiagnostics`, the simulation session's hooks). The
+ * panels the dock composes and the pick-gesture lens are package-private, and
+ * `theme.ts` is internal scaffolding as before (AGENTS.md §9). Adding a name is a
+ * line here, a row in `spec/overview.md` and a line in `test/surface.test.ts`.
  */
-export * from "./DecisionLog.tsx";
-export * from "./DecisionPanels.tsx";
-export * from "./DevtoolsDock.tsx";
-export * from "./Inspector.tsx";
-export * from "./Lens.ts";
-export * from "./PolicyExplorer.tsx";
-export * from "./PolicyTree.tsx";
-export * from "./QuestionsPanel.tsx";
-export * from "./RoleViewer.tsx";
-export * from "./ServicesPanel.tsx";
-export * from "./Simulator.tsx";
-export * from "./VerdictTag.tsx";
-export * from "./WhatIfTable.tsx";
-// `useDiagnostics.ts`, `useLens.ts` and `useTimeline.ts` are deliberate
-// multi-export grouping files, not one-PascalCase-file-per-domain-concept: each
-// groups a small family of closely related exports (the sampled diagnostics and
-// their options; the pick gesture's DOM listeners;
-// timeline-scrubbing state; the simulator session's adapter hooks) with no
-// independent lifecycle worth a file each.
-// `theme.ts` is a third such file but, per AGENTS.md §9, is not re-exported
-// here at all — it is internal shared scaffolding (styling tokens consumed
-// directly by sibling components), not public API.
-export * from "./useDiagnostics.ts";
-export * from "./useLens.ts";
-export * from "./useSimulationSession.ts";
-export * from "./useTimeline.ts";
+export type { AskedQuestionLike } from "../model/Gates.ts";
+export { DevtoolsDock } from "./DevtoolsDock.tsx";
+export type { DevtoolsDockProps } from "./DevtoolsDock.tsx";
+export { useDiagnostics } from "./useDiagnostics.ts";
+export type { DiagnosticsDockOptions } from "./useDiagnostics.ts";
+export {
+  useOwnedSimulationSession,
+  useSimulationSession,
+  useSimulationSnapshot,
+} from "./useSimulationSession.ts";
+export type {
+  SimulationSessionView,
+  UseSimulationSessionInput,
+} from "./useSimulationSession.ts";
+export { useTimeline, useTimelineStore } from "./useTimeline.ts";
+export type { UseTimeline } from "./useTimeline.ts";

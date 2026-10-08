@@ -115,3 +115,36 @@ The decisions behind this release are the 2026-10-06 amendments to
 (stored-record envelopes) and
 [ADR-QD-078](https://github.com/leaderiop/qadi/blob/main/spec/decisions/078-a-seed-is-its-own-type-and-the-payload-is-versioned.md)
 (the hydration payload).
+
+## 0.12: `@qadi/devtools`' interface
+
+`@qadi/devtools` used to export every name each of its modules declared: 245
+across both entry points, of which an application used about a dozen. Its barrels
+now name what a shell crosses, so a screen's mechanics can change without being a
+breaking change to anyone. A name that is not exported is not importable
+(`ERR_PACKAGE_PATH_NOT_EXPORTED`, or TS2305 in the editor).
+
+What stays: the three stores (`makeTimelineStore` and `runSource`,
+`makeSimulationSession`, `makeDiagnosticsStore` and `runDiagnostics`) with their
+types, the sources and `mergeSources`, the timeline and its readings (`verdictOf`,
+`pairedEntries`, `inspect`, `applyFilters`, `selectionOf`), the collectors,
+`hydrationActivity`, `wiringReport`, `catalogueOf`, and the types all of those
+name. From `@qadi/devtools/react`: `DevtoolsDock`, `useDiagnostics`, `useTimeline`
+and the simulation session's hooks.
+
+| Removed | Instead |
+| - | - |
+| `simulate`, `whatIf`, `sweepPlan`, `simulationLayer`, `SimulationOptions`, `WhatIfOptions` | `makeSimulationSession(...)`: `run("Run")`, `run("Sweep")`, and `getSnapshot().plan` |
+| `fixtures`, `snapshot`, `live`, `capturing`, `replayLayer`, `SimulationSource` and its members | `session.chooseSource("Fixtures" \| "Snapshot" \| "Live")` and `session.setPorts(...)` |
+| `replayInput`, `baselineDiff`, `matchesBaseline`, `Replay` | `session.seed(entry)`, then `getSnapshot().policy` and `getSnapshot().baseline` |
+| `compareOutcomes`, `isChanged`, `changedRows`, `remedyEdits`, `singleEdits`, `pairEdits`, `composeEdits`, `applyEdits` | the rows of `run.report` from a sweep |
+| `roleSummary`, `grantPath`, `decidingSet`, `gateGroups`, `isLocatable`, `policyLabel`, `policiesSeen` | none: screen internals; `flattenPermissions` and `permissionProvenance` from `@qadi/core` for a role |
+| the `SimulationForm` codecs (`edgeCodec`, `withPair`, `encodeResource`, ...) | `session.edit`, `session.editResourceText`, `getSnapshot().resourceText` |
+| from `@qadi/devtools/react`: `DecisionLog`, `Inspector`, `PolicyExplorer`, `PolicyTree`, `RoleViewer`, `ServicesPanel`, `Simulator`, `WhatIfTable`, `QuestionsPanel`, `FieldsPanel`, `ObligationList`, `VerdictTag`, `EnvironmentTag`, and their props | `DevtoolsDock` |
+| from `@qadi/devtools/react`: `useLens`, `Lens`, `drawLens`, `clearLens`, `boxOf`, `boxesOf`, `gateIdAt`, `isMeasurable`, `GateBox` | none: the lens is the dock's |
+
+Eighty-seven of these names were in 0.11.0. The 21 `SimulationForm` codecs and
+three more were never released.
+
+The decision is the 2026-10-08 amendment to
+[ADR-QD-047](https://github.com/leaderiop/qadi/blob/main/spec/decisions/047-a-headless-devtools-model.md).

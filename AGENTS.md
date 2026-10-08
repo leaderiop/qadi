@@ -543,7 +543,11 @@ shared `Schema.suspend` ref; `parseJson(s)` → `fromJsonString(s)`;
 
 ## 9. Barrels
 
-`export * from "./File.ts"`, alphabetical. Shared scaffolding stays **out** of
+`export * from "./File.ts"`, alphabetical. A package whose interface is narrower
+than its modules names its exports per module (`export { … } from`, `export type
+{ … } from`), grouped by module path; `@qadi/devtools` is the one today (ARCH-40,
+ADR-QD-047), and the `devtools-named-barrel` house-style rule refuses an `export *`
+in its two barrels. Shared scaffolding stays **out** of
 the barrel — exporting internal helpers leaks generic names into the flat
 namespace. Re-export internal types explicitly where `.d.ts` emission needs to
 name them (TS2883).

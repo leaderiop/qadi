@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-099                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-07                                     |
-> | Status         | Accepted — amends ADR-QD-033, ADR-QD-090, ADR-QD-091 |
+> | Status         | Accepted — amends ADR-QD-033, ADR-QD-090, ADR-QD-091; amended 2026-10-08 (a barrel may name its exports) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-07): Initial (CCR-QD-188)         |
+> | Change History | 1.1 (2026-10-08): amendment — a barrel may name its exports when a package's interface is narrower than its modules (ARCH-40, CCR-QD-321)<br>1.0 (2026-10-07): Initial (CCR-QD-188) |
 
 ---
 
@@ -72,6 +72,19 @@ Two gates enforce it, from both ends:
   relies on. A module a sibling package then needs must be exported from the barrel.
 - A Bun consumer, whose `bun` condition pointed `./*` at `src/*.ts`, loses the same paths and
   takes the same migration.
+
+## Amendment (2026-10-08, CCR-QD-321): a barrel may name its exports
+
+"Out of the barrel means not importable" says what a barrel is for, and `export * from`
+is only one way to write one. A package whose interface is *narrower than its modules*
+(a module part-public, part-private) names its exports per module instead,
+`export { … } from "./model/X.ts"` and `export type { … } from "./model/X.ts"`, grouped by
+module path. The list is then the interface, in one reviewable file, and a module's other
+names are package-private by the same rule as an unbarreled module. `@qadi/devtools` is the
+one today (ADR-QD-047's 2026-10-08 amendment). Gate 13 (`scripts/check-api-surface.mjs`) reads the form, wrapped over several
+lines as well as on one, and the house-style rule `devtools-named-barrel` forbids `export *`
+in those two barrels and keeps their groups in module-path order. This adds no entry point
+and no row to the "Entry points" table.
 
 ## Alternatives considered
 

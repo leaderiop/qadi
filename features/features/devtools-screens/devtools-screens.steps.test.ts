@@ -12,6 +12,7 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import {
   allOf,
   Allow,
@@ -32,12 +33,20 @@ import {
   inspect,
   flattenTree,
   portActivity,
-  roleSummary,
   wiringReport,
   type Catalogue,
   type PolicySighting,
   type Timeline,
 } from "@qadi/devtools";
+
+// Registered before `@testing-library/react` is imported: it reads `document`
+// at module scope. The role scenarios read the role panel through the dock a
+// host mounts, since the role tree's mechanics are package-private (ARCH-40).
+if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register();
+
+const { DevtoolsDock } = await import("@qadi/devtools/react");
+const { cleanup, fireEvent, render } = await import("@testing-library/react");
+const { createElement } = await import("react");
 
 const feature = await loadFeature(
   fileURLToPath(new URL("./devtools-screens.feature", import.meta.url)),
@@ -136,10 +145,43 @@ const ingestDecision = Effect.fn("devtools-screens.ingestDecision")(function* (p
   yield* patch(() => ({ timeline, at, catalogue: catalogueOf(timeline, s.declared) }));
 });
 
-describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
+/**
+ * What the dock's Roles tab shows for one role: each permission with the path text
+ * beside it (`own`, or `via …`).
+ *
+ * The same rows a reviewer reads, rather than `roleSummary`'s return value, which
+ * is a screen's mechanics and no part of the package's interface.
+ */
+const grantsShown = (roles: ReadonlyArray<Role>, roleName: string): Map<string, string> => {
+  cleanup();
+  const view = render(createElement(DevtoolsDock, { catalogue: { roles } }));
+  fireEvent.click(view.getByText("Roles"));
+  // With one role there is no chip row; with several, the chip picks the role.
+  for (const chip of view.queryAllByTestId("qadi-role-chip")) {
+    if (chip.textContent === roleName) fireEvent.click(chip);
+  }
+  const shown = new Map<string, string>();
+  for (const row of view.getAllByTestId("qadi-grant")) {
+    const [permissionText, pathText] = Array.from(
+      row.querySelectorAll("span"),
+      (span) => span.textContent ?? "",
+    );
+    if (permissionText !== undefined && pathText !== undefined) shown.set(permissionText, pathText);
+  }
+  return shown;
+};
+
+describeFeature(feature, World.layer, ({ AfterAllScenarios, Before, Given, When, Then }) => {
   Before(function* () {
+    cleanup();
     const { state } = yield* World;
     yield* Ref.set(state, initialState);
+  });
+
+  // `isolate: false` (features/vitest.config.ts): without this the happy-dom
+  // globals stay installed for every file that runs after this one.
+  AfterAllScenarios(function* () {
+    yield* Effect.promise(() => GlobalRegistrator.unregister());
   });
 
   // -------------------------------------------------------------------------
@@ -278,20 +320,14 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
 
   Then("{string} shows {string} as own", function* (roleName: string, key: string) {
     const s = yield* readState();
-    const subject = s.roles[roleName];
-    assert.ok(subject !== undefined);
-    const grant = roleSummary(subject).grants.find((g) => g.permission === key);
-    assert.deepEqual([...(grant?.path ?? [])], [roleName]);
+    assert.equal(grantsShown(Object.values(s.roles), roleName).get(key), "own");
   });
 
   Then(
     "{string} shows {string} via {string}",
     function* (roleName: string, key: string, parent: string) {
       const s = yield* readState();
-      const subject = s.roles[roleName];
-      assert.ok(subject !== undefined);
-      const grant = roleSummary(subject).grants.find((g) => g.permission === key);
-      assert.deepEqual([...(grant?.path ?? [])], [roleName, parent]);
+      assert.equal(grantsShown(Object.values(s.roles), roleName).get(key), `via ${parent}`);
     },
   );
 
@@ -302,7 +338,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
       const subject = s.roles[roleName];
       assert.ok(subject !== undefined);
       assert.deepEqual(
-        new Set(roleSummary(subject).grants.map((g) => g.permission)),
+        new Set(grantsShown(Object.values(s.roles), roleName).keys()),
         flattenPermissions(subject),
       );
     },
