@@ -40,7 +40,6 @@ import {
 } from "./HydrationEngine.ts";
 import type { GateRegistry } from "./GateRegistry.ts";
 import { makeGateRegistry } from "./GateRegistry.ts";
-import { gateIdCollisionReporter } from "./DeveloperSignals.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
 import type { AskedQuestion } from "./QuestionBook.ts";
 import { makeQuestionBook } from "./QuestionBook.ts";
@@ -269,9 +268,8 @@ export const makeQadiAtoms = (
     Atom.withEquality(subjectsEqual),
   );
   const report = resolveMismatchReporter(options?.onHydrationMismatch);
-  const collisionReporter = gateIdCollisionReporter(options?.onGateIdCollision);
   const gates = makeGateRegistry(
-    collisionReporter === undefined ? {} : { onIdCollision: collisionReporter },
+    options?.onGateIdCollision === undefined ? {} : { onIdCollision: options.onGateIdCollision },
   );
 
   const seededDecision = (
