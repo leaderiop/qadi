@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-29                                    |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-10-08): BEH-QD-221 — a capture keys by the whole question the port received, not by a projection of it (ARCH-45, CCR-QD-263)<br>1.5 (2026-10-08): BEH-QD-322 — a chosen policy is held by value, not by its position in the rail; `choosePolicy` takes the policy, `PolicyChoice` gains `Evicted`, and the first policy shown is held (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.4 (2026-10-07): BEH-QD-220 — a source that cannot be honoured is refused, and a sweep runs the evaluations it stated; BEH-QD-225 — every field a replay names has a control; BEH-QD-322 — a simulation is a session (ADR-QD-047 and ADR-QD-050 amended, CCR-QD-199)<br>1.3 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.7 (2026-10-08): the simulator's mechanics (`simulate`, `whatIf`, `sweepPlan`, `capturing`, `replayLayer`, `remedyEdits`, `replayInput`, `baselineDiff`, the form codecs) are package-private; specified here because the simulator screen relies on them, and a host drives `makeSimulationSession` (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.6 (2026-10-08): BEH-QD-221 — a capture keys by the whole question the port received, not by a projection of it (ARCH-45, CCR-QD-263)<br>1.5 (2026-10-08): BEH-QD-322 — a chosen policy is held by value, not by its position in the rail; `choosePolicy` takes the policy, `PolicyChoice` gains `Evicted`, and the first policy shown is held (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.4 (2026-10-07): BEH-QD-220 — a source that cannot be honoured is refused, and a sweep runs the evaluations it stated; BEH-QD-225 — every field a replay names has a control; BEH-QD-322 — a simulation is a session (ADR-QD-047 and ADR-QD-050 amended, CCR-QD-199)<br>1.3 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 _Previous: [28 — The Devtools Screens](./28-devtools-screens.md)_
 
@@ -34,6 +34,8 @@ export const simulate: (
   options?: SimulationOptions,
 ) => Effect.Effect<DecisionOutcome>;
 ```
+
+> Package-private since [CCR-QD-321](../README.md#document-history): `SimulationOptions`, `simulate`. Specified because the screens rely on it; a host reaches the behaviour through `makeSimulationSession` or the dock, not through these names (ADR-QD-047).
 
 ```
 REQUIREMENT: A simulation MUST write no DecisionRecord, in any source mode.
@@ -77,6 +79,8 @@ right shape for the answer ([INV-QD-006](../invariants.md)).
 export type SimulationSource = FixtureSource | SnapshotSource | LiveSource;
 export const causesIO: (self: SimulationSource) => boolean;
 ```
+
+> Package-private since [CCR-QD-321](../README.md#document-history): `FixtureSource`, `LiveSource`, `SimulationSource`, `SnapshotSource`, `causesIO`. Specified because the screens rely on it; a host reaches the behaviour through `makeSimulationSession` or the dock, not through these names (ADR-QD-047).
 
 ```
 REQUIREMENT: The source union MUST dispatch exhaustively, with no default.
@@ -128,6 +132,8 @@ export const capturing: (ports: Layer.Layer<EvaluationPorts>) => {
 export const replayLayer: (answers: CapturedAnswers) => Layer.Layer<EvaluationPorts>;
 ```
 
+> Package-private since [CCR-QD-321](../README.md#document-history): `capturing`, `replayLayer`. Specified because the screens rely on it; a host reaches the behaviour through `makeSimulationSession` or the dock, not through these names (ADR-QD-047).
+
 ```
 REQUIREMENT: Replaying a capture MUST produce the trace the captured run produced.
 ```
@@ -178,6 +184,8 @@ export const whatIf: (
 ) => Effect.Effect<WhatIfReport>;
 ```
 
+> Package-private since [CCR-QD-321](../README.md#document-history): `RemedySweep`, `WhatIfOptions`, `remedyEdits`, `singleEdits`, `whatIf`. Specified because the screens rely on it; a host reaches the behaviour through `makeSimulationSession` or the dock, not through these names (ADR-QD-047).
+
 ```
 REQUIREMENT: A sweep MUST offer both weakenings and strengthenings.
 ```
@@ -226,6 +234,8 @@ recursion that crashed at about two thousand levels (ARCH-02,
 ```ts
 export const satisfyingValue: (matcher: Matcher, input: SimulationInput) => Synthesised;
 ```
+
+> Package-private since [CCR-QD-321](../README.md#document-history): `Synthesised`, `satisfyingValue`. Specified because the screens rely on it; a host reaches the behaviour through `makeSimulationSession` or the dock, not through these names (ADR-QD-047).
 
 ```
 REQUIREMENT: A synthesised value MUST satisfy the matcher it came from.
@@ -279,6 +289,8 @@ export type Comparison = Compared | BecameError | Recovered | StillFailed;
 export const compareOutcomes: (baseline: DecisionOutcome, edited: DecisionOutcome) => Comparison;
 ```
 
+> Package-private since [CCR-QD-321](../README.md#document-history): `compareOutcomes`. Specified because the screens rely on it; a host reaches the behaviour through `makeSimulationSession` or the dock, not through these names (ADR-QD-047).
+
 ```
 REQUIREMENT: An edit that turns a decision into a failure MUST be reported as an
              error, never as a denial.
@@ -312,6 +324,8 @@ export const replayInput: (entry: TimelineEntry) => Replay;
 export const baselineDiff: (entry: TimelineEntry, simulated: DecisionOutcome) => Baseline;
 export const matchesBaseline: (self: Baseline) => boolean;
 ```
+
+> Package-private since [CCR-QD-321](../README.md#document-history): `baselineDiff`, `matchesBaseline`, `replayInput`. Specified because the screens rely on it; a host reaches the behaviour through `makeSimulationSession` or the dock, not through these names (ADR-QD-047).
 
 ```
 REQUIREMENT: A replay MUST seed the policy, the action and the resource, and MUST
@@ -400,6 +414,8 @@ export const resolveSource: (
 ) => ResolvedSource;
 ```
 
+> Package-private since [CCR-QD-321](../README.md#document-history): `ResolvedSource`, `resolveSource`. Specified because the screens rely on it; a host reaches the behaviour through `makeSimulationSession` or the dock, not through these names (ADR-QD-047).
+
 ```
 REQUIREMENT: A Live run MUST capture, and a capture MUST be dropped when the
              ports it came from change.
@@ -485,7 +501,7 @@ console.log(shown.error, typing.resourceText.error !== undefined, typing.draft.r
 
 Everything this section names other than `makeSimulationSession` and the types it
 returns (the form codecs, `sweepPlan`, `whatIf`, `simulate`) is package-private
-since [CCR-QD-300](../README.md): a host drives the session, and the codecs are
+since [CCR-QD-321](../README.md#document-history): a host drives the session, and the codecs are
 specified here because the simulator screen relies on them.
 
 ---

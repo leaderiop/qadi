@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-047                                   |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-10-07                                     |
-> | Status         | Accepted; amended 2026-10-07 (sampling is the model's), 2026-10-08 (the feed) |
+> | Status         | Accepted; amended 2026-10-07 (sampling is the model's), 2026-10-08 (the feed, a supplied reading, the interface) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-10-08): amendment — a supplied reading is one value, `DiagnosticsReading`, merged by `mergeReading` (ARCH-44, CCR-QD-241)<br>1.3 (2026-10-08): amendment — under a `QadiProvider`, the layer the dock builds is the provider's own, handed by `@qadi/react`'s `useDevtoolsFeed` (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.6 (2026-10-08): amendment — the model's interface is its stores, the host wiring and the timeline readings; a screen's mechanics and the panels are package-private (ARCH-40, CCR-QD-321)<br>1.4 (2026-10-08): amendment — a supplied reading is one value, `DiagnosticsReading`, merged by `mergeReading` (ARCH-44, CCR-QD-241)<br>1.3 (2026-10-08): amendment — under a `QadiProvider`, the layer the dock builds is the provider's own, handed by `@qadi/react`'s `useDevtoolsFeed` (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 ---
 
@@ -193,3 +193,33 @@ policy. Sampling stays pull-based
 ([BEH-QD-216](../behaviors/28-devtools-screens.md), [ADR-QD-052](./052-hydration-is-counted-where-both-ends-can-see-it.md));
 the headless/React split and the hydration counts are unchanged, and gates stay
 a prop fed by the host's subscription ([ADR-QD-080](./080-a-gate-registry-belongs-to-its-atom-set.md)).
+
+> **Amended 2026-10-08 (CCR-QD-321): the model's interface.** "The headless model for
+> non-React shells" named what a second shell is for and not what it may import, and
+> the barrel answered by exporting every name a module declared: 245 across both entry
+> points, of which a host (the newsroom example) used 11. Each screen refactor was then
+> a public API change with a gate-13 row, and one revision (1.54) added 36 names, almost
+> all a screen's mechanics.
+>
+> The model's interface is now what a shell *crosses*. The root exports the three
+> stores (`TimelineStore` with `runSource`, `SimulationSession`, `DiagnosticsStore` with
+> `runDiagnostics`); the host wiring `DevtoolsDock` takes (sources and their merge, the
+> collectors, hydration, the wiring report, ports and the catalogue); the timeline
+> readings this ADR's Decision lists (verdict classification, pairing, the policy/trace
+> zip, filters, selection); and every type those signatures name (a type a public
+> signature names is public, whether or not anything constructs it). The React entry
+> exports the dock and the React half of the three stores. A screen's mechanics (form
+> codecs, sweep planning, remedy synthesis, capture decorators, replay reconstruction,
+> role-tree walks, gate grouping, lens geometry) and the panels the dock composes are
+> package-private: they exist to produce what one screen draws, and no non-React shell
+> needs them.
+>
+> A second shell built inside this package (ADR-QD-049's CLI, whose package no ADR has
+> named) may read private modules; one built outside it uses the readings. The simulator
+> a host drives is `makeSimulationSession`, not `simulate` and `whatIf`, which the
+> acceptance suite now reflects: it tests what ships. The barrels *name* their exports
+> (ADR-QD-099's amendment), `test/surface.test.ts` and `surface.tst.ts` pin the list,
+> and the house-style rule `devtools-named-barrel` refuses an `export *` there.
+> **Breaking** for `@qadi/devtools`: 87 names released in 0.11.0 are no longer
+> importable (56 from the root, 31 from `@qadi/devtools/react`), and 24 more were never
+> released. The Decision's list is unchanged; only its reachability is.

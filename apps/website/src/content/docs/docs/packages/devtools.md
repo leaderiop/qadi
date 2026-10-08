@@ -148,24 +148,34 @@ report.
 
 ## What it renders
 
-`DevtoolsDock` (and the panels it composes — `DecisionLog`, `Inspector`,
-`PolicyExplorer`, `RoleViewer`, `ServicesPanel`, `Simulator`, `WhatIfTable`,
-`QuestionsPanel`) is a dock the host mounts explicitly; nothing in the package
-runs on import or installs itself. Beyond the raw decision log, the model
-supports:
+`DevtoolsDock` is a dock the host mounts explicitly; nothing in the package
+runs on import or installs itself. The panels it composes (the decision log,
+the inspector, the policy explorer, the role viewer, the Services, Simulator and
+React panels) are what the dock draws, **not exports**: a host mounts the dock
+and hands it a `source`, a `catalogue`, `diagnostics` and `gates`.
 
+What the headless model exports is what a shell crosses: three stores, the wiring
+the dock takes, and the readings of a timeline.
+
+- **Stores.** `makeTimelineStore` and `runSource` hold the timeline;
+  `makeSimulationSession` holds the simulator; `makeDiagnosticsStore` and
+  `runDiagnostics` hold what the dock samples. `@qadi/devtools/react` has the
+  React half of each (`useTimeline`, `useSimulationSession`, `useDiagnostics`).
 - **Inspection** (`inspect`, `flattenTree`) — walking a decision's evaluation
-  tree, including nodes that never resolved or were truncated.
-- **Simulation and what-if** (`simulate`, `whatIf`, `sweepPlan`) — replaying a
-  decision against edited inputs to see what would have changed. The simulator
-  screen's state is a headless `SimulationSession` (`makeSimulationSession`): a
-  source that cannot be honoured is refused rather than answered from fixtures,
-  a Live run captures for `Snapshot`, and a superseded run never lands.
-- **Wiring and gate reports** (`wiringReport`, `gateGroups`) — which ports are
-  in use, and which mounted `Can`/`Cannot` gates are asking what.
-- **Hydration activity** (`hydrationActivity`) — the counters
-  `@qadi/react` writes and this package reads, covering drops, mismatches, and
-  rechecks between a server render and its client.
+  tree, including nodes that never resolved or were truncated; with verdict
+  classification (`verdictOf`), pairing, filters and selection.
+- **Simulation and what-if** (`makeSimulationSession`) — replaying a decision
+  against edited inputs to see what would have changed. The session holds the
+  simulator's state headlessly: its `snapshot.plan` says what a sweep will cost
+  before it runs, `run("Sweep")` produces the `run.report`, a source that cannot
+  be honoured is refused rather than answered from fixtures, a Live run captures
+  for `Snapshot`, and a superseded run never lands. The sweep, the capture and the
+  replay it is made of are package-private.
+- **Wiring and hydration reports** (`wiringReport`, `portActivity`,
+  `hydrationActivity`) — which ports are in use, and the counters `@qadi/react`
+  writes and this package reads, covering drops, mismatches, and rechecks between
+  a server render and its client. Which mounted `Can`/`Cannot` gates are asking
+  what is the dock's Questions panel, fed `gates` by the host.
 
 `environment` is a plain `string` on every record, not a closed union, because
 nothing here branches on it — it is a label a reader sees, and an unfamiliar
