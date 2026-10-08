@@ -1485,6 +1485,63 @@ for (const [rel, found] of portDoubleLines) {
 }
 
 // ---------------------------------------------------------------------------
+// ARCH-42 — `@qadi/core`'s test helpers cannot import `@qadi/testing` (it depends
+// on core), so three observation helpers exist twice: `@qadi/testing`'s is the
+// definition, core's `test/helpers.ts` is a twin. Each twin's body must equal
+// the definition's once comments and whitespace are normalized, so a divergence
+// fails here rather than showing up as a span or a log line a core test
+// stopped seeing.
+// ---------------------------------------------------------------------------
+
+const TEST_HELPER_TWINS = [
+  { name: "collectingTracer", definition: "packages/testing/src/CollectingTracer.ts" },
+  { name: "collectingLogger", definition: "packages/testing/src/CollectingLogger.ts" },
+  { name: "isolatedMetrics", definition: "packages/testing/src/IsolatedMetrics.ts" },
+];
+const TEST_HELPER_TWIN_HOME = "packages/core/test/helpers.ts";
+
+/** `export const <name> = …;` as one whitespace-free string with comments removed, or undefined. */
+const exportedConstBody = (source, name) => {
+  const code = source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:"'`])\/\/[^\n]*/g, "$1");
+  const start = code.search(new RegExp(`\\bexport\\s+const\\s+${name}\\b`));
+  if (start === -1) return undefined;
+  let depth = 0;
+  for (let i = code.indexOf("=", start); i < code.length; i += 1) {
+    const c = code[i];
+    if ("([{".includes(c)) depth += 1;
+    else if (")]}".includes(c)) depth -= 1;
+    else if (c === ";" && depth === 0) {
+      return code
+        .slice(start, i + 1)
+        .replace(/\s+/g, "")
+        .replace(/,([)\]}>])/g, "$1");
+    }
+  }
+  return undefined;
+};
+
+for (const { name, definition } of TEST_HELPER_TWINS) {
+  const defined = exportedConstBody(readFileSync(join(ROOT, definition), "utf8"), name);
+  const twin = exportedConstBody(readFileSync(join(ROOT, TEST_HELPER_TWIN_HOME), "utf8"), name);
+  if (defined === undefined || twin === undefined || defined !== twin) {
+    failures += 1;
+    const why =
+      defined === undefined
+        ? `is not exported by ${definition}.`
+        : twin === undefined
+          ? "is not exported here."
+          : `differs from ${definition}.`;
+    console.error(
+      `${TEST_HELPER_TWIN_HOME}  [test-helper-twin] \`${name}\` ${why}\n` +
+        `    Core's test helpers cannot import @qadi/testing; a twin's body must equal the ` +
+        `definition's (comments and whitespace aside). Edit them together.`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // §9 — barrel `export * from` lines are alphabetical (case-sensitive ASCII).
 // Only checked on files that are *purely* a barrel: `packages/promise/src/index.ts`
 // is deliberately the implementation itself (ADR-QD-032), not a re-export list, so

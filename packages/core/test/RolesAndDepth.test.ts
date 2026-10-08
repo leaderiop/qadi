@@ -10,8 +10,6 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
 import * as FastCheck from "fast-check";
-import * as Logger from "effect/Logger";
-import * as References from "effect/References";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
@@ -26,7 +24,7 @@ import {
   roleNames,
 } from "../src/Role.ts";
 import type { Role } from "../src/Role.ts";
-import { subjectWith, testLayer } from "./helpers.ts";
+import { collectingLogger, subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -430,20 +428,13 @@ describe("resolveRoleGraph — an unknown parent is reported", () => {
 
   it.effect("with no callback, it warns — the default path most callers get", () =>
     Effect.gen(function* () {
-      const logs: Array<{ message: unknown; annotations: unknown }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
 
       yield* resolveRoleGraph([
         { name: "editor", permissions: [write], inherits: ["viewr"] },
       ]).pipe(
         Effect.provide(
-          Logger.layer([
-            Logger.make((options) => {
-              logs.push({
-                message: options.message,
-                annotations: options.fiber.getRef(References.CurrentLogAnnotations),
-              });
-            }),
-          ]),
+          logger,
         ),
       );
 
@@ -454,20 +445,20 @@ describe("resolveRoleGraph — an unknown parent is reported", () => {
 
   it.effect("no unknown parents means no log at all", () =>
     Effect.gen(function* () {
-      const logs: Array<unknown> = [];
+      const { lines, layer: logger } = collectingLogger();
 
       yield* resolveRoleGraph([
         { name: "viewer", permissions: [read] },
         { name: "editor", inherits: ["viewer"] },
       ]).pipe(
         Effect.provide(
-          Logger.layer([Logger.make((options) => { logs.push(options.message); })]),
+          logger,
         ),
       );
 
       // Guards the outer `size > 0`: without it a clean catalogue would warn
       // about nothing on every resolve.
-      assert.deepStrictEqual(logs, []);
+      assert.deepStrictEqual(lines, []);
     }));
 
   it.effect("still fails on a genuine cycle", () =>

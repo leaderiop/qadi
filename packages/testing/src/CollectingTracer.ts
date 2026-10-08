@@ -9,7 +9,11 @@
  * times over before this file, one per call site, each an exact or
  * near-exact copy (`SubjectSet.test.ts`, `Evaluate.test.ts`,
  * `WhatIf.test.ts`, `PortCalls.test.ts`, and the port-calls feature steps).
- * This is the one implementation the other four now import.
+ * This is the one implementation the other four now import. The exception is
+ * `@qadi/core`'s own tests, which cannot import this package (it depends on
+ * core): `packages/core/test/helpers.ts` keeps a twin, held equal to this body
+ * by `scripts/check-house-style.mjs`'s `test-helper-twin` rule, as it does for
+ * `collectingLogger` and `isolatedMetrics`.
  *
  * **Replaces rather than wraps.** Unlike `@qadi/devtools`'s
  * `collectPortCalls`, which reads the existing tracer first and delegates so
