@@ -111,6 +111,34 @@ distinct from a wired resolver's `"Unrelated"` so a denial can name what it
 actually checked rather than claiming a store answered when none was ever
 consulted.
 
+## Answering a port from another process
+
+A client that re-checks a seeded decision has no stores of its own, so its ports are
+answered by a server. Each port's description states what its question and answer look
+like on a wire, and two halves derive from that: `answerRemotely` on the answering side
+and `askRemotely` on the asking side. `@qadi/http` supplies the HTTP adapters:
+
+```ts
+// Server: answers only about the session's own subject, and only what these policies ask.
+portRoutesUnguarded("answers only about the session's own subject", servingFor(policies), {
+  prefix: "/ports",
+});
+
+// Browser: the same ports, asked of the server.
+remotePortsLayer({ baseUrl: "/api", prefix: "/ports", ports: ["AttributeResolver"] });
+```
+
+Three rules make this safe to leave on. **A store outage is the port's own error**, never
+`"Unknown"`: an outage read as `"Unknown"` denies, and under `not(...)` it grants. **A
+question about any subject but the session's is refused** (403), not answered about the
+session's subject under the asked name. **A host declares what it serves**: an attribute
+or predicate name must be on an allowlist, and the signature port, which returns full
+records, is an explicit opt-in. A served read opens the port's span with
+`qadi.interpreter = "remote"` and counts in `qadi_port_served_calls_total`. See
+[34 — Remote Ports](https://github.com/leaderiop/qadi/blob/main/spec/behaviors/34-remote-ports.md)
+and
+[ADR-QD-107](https://github.com/leaderiop/qadi/blob/main/spec/decisions/107-a-port-is-answered-remotely-through-its-description.md).
+
 For the full service list (nine, seven required), the three-valued
 `DecisionHistory` default, and the metrics every resolver call increments,
 see

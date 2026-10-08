@@ -452,6 +452,59 @@ const conform: CaseVisitor = (c) => {
         }
       });
     });
+
+    describe("wire (ADR-QD-NEXT)", () => {
+      /** Through JSON text, the way a transport carries it. */
+      const overTheWire = (json: unknown): unknown => JSON.parse(JSON.stringify(json));
+      const subject = c.args.length === 4 ? alice : makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
+
+      it("a question round-trips through JSON text, about the session subject", () => {
+        const encoded = d.wire.encodeQuestion(c.args);
+        if (Result.isFailure(encoded)) return assert.fail(encoded.failure);
+        const decoded = d.wire.decodeQuestion(overTheWire(encoded.success));
+        if (Result.isFailure(decoded)) return assert.fail(decoded.failure);
+        assert.strictEqual(decoded.success.subjectId, aliceId);
+        assert.deepStrictEqual(decoded.success.args(subject), c.args);
+      });
+
+      it("an answer round-trips through JSON text, the fail-closed answer included", () => {
+        for (const answer of [c.answer, d.none.answer]) {
+          const encoded = d.wire.encodeAnswer(answer);
+          if (Result.isFailure(encoded)) return assert.fail(encoded.failure);
+          const decoded = d.wire.decodeAnswer(overTheWire(encoded.success));
+          if (Result.isFailure(decoded)) return assert.fail(decoded.failure);
+          assert.deepStrictEqual(decoded.success, answer);
+        }
+      });
+
+      it("a malformed question is refused, never thrown", () => {
+        let deep: unknown = {};
+        for (let i = 0; i < 200; i += 1) deep = { next: deep };
+        for (const input of [{}, null, undefined, 7, "q", [], deep, { subjectId: 5 }]) {
+          assert.isTrue(Result.isFailure(d.wire.decodeQuestion(input)));
+        }
+      });
+
+      it("a question with a field no port asks is refused", () => {
+        const encoded = d.wire.encodeQuestion(c.args);
+        if (Result.isFailure(encoded)) return assert.fail(encoded.failure);
+        const widened = { ...Object(encoded.success), isAdmin: true };
+        assert.isTrue(Result.isFailure(d.wire.decodeQuestion(widened)));
+      });
+
+      it("a malformed answer is refused, never thrown", () => {
+        for (const input of [undefined, null, 7, "maybe", { value: 1, extra: 1 }]) {
+          assert.isTrue(
+            Result.isFailure(d.wire.decodeAnswer(input)),
+            `${d.port} accepted ${JSON.stringify(input)} when decoding an answer`,
+          );
+        }
+      });
+
+      it("the span projection of a question names the subject", () => {
+        assert.strictEqual(d.wire.spanQuestion(c.args)["subjectId"], aliceId);
+      });
+    });
   });
 };
 

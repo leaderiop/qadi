@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-051                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-04                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-10-07): amendment — the annotation table is stated by the five port descriptions (`attributes`), not by prose and two hand-written spellings; INV-QD-044 has a type-level floor and one home (`disclose`); `qadi.attempts` is a decoded field of every row (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-04): amendment — port spans are emitted by both interpreters, distinguished by `qadi.interpreter`, and the span code moved to `PortAccess.ts`; the metric for translation is a sibling, not `portCallsTotal` (ADR-QD-077, CCR-QD-153)<br>1.1 (2026-09-07): The "three closed values" quote corrected to match `PortMetrics.ts`'s current five, `CustomPredicate` and `SignatureHistory` having joined `portCallsTotal` after this ADR was written (issue 45, CCR-QD-114)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
+> | Change History | 1.4 (2026-10-08): amendment — `qadi.interpreter` gains `"remote"` and a third sibling metric, `qadi_port_served_calls_total`, counts a served read (ARCH-31, ADR-QD-107, CCR-QD-382)<br>1.3 (2026-10-07): amendment — the annotation table is stated by the five port descriptions (`attributes`), not by prose and two hand-written spellings; INV-QD-044 has a type-level floor and one home (`disclose`); `qadi.attempts` is a decoded field of every row (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-04): amendment — port spans are emitted by both interpreters, distinguished by `qadi.interpreter`, and the span code moved to `PortAccess.ts`; the metric for translation is a sibling, not `portCallsTotal` (ADR-QD-077, CCR-QD-153)<br>1.1 (2026-09-07): The "three closed values" quote corrected to match `PortMetrics.ts`'s current five, `CustomPredicate` and `SignatureHistory` having joined `portCallsTotal` after this ADR was written (issue 45, CCR-QD-114)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
 
 ---
 
@@ -198,3 +198,12 @@ row, and a signature row carries its `scope` and `resourceId`; both were written
 and never read. The hot-path cost is the two table walks, measured against
 `Evaluate.bench.ts`'s resolver-miss workload (CCR-QD-198).
 
+## Amendment (2026-10-08, ADR-QD-107, CCR-QD-382)
+
+`qadi.interpreter` is a closed set of three: `"evaluate"`, `"toPredicate"` and `"remote"`, stated once
+(`PortInterpreter.ts`, a schema with the type derived). `"remote"` is a host answering another process's
+question: `servePortRead` (`PortAccess.ts`) opens the port's own span with it, so a served read is as visible
+as an evaluated one. It counts in a third sibling metric, `qadi_port_served_calls_total` (all five ports
+preregistered; its description is part of its registry key, ADR-QD-052), for the reason the second sibling
+exists: each reader of a port counts in a series of its own. `@qadi/devtools` labels the call `served`.
+**Breaking** for an exhaustive match over the interpreter.

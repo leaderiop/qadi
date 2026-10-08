@@ -28,6 +28,7 @@
  */
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
+import { portInterpreter } from "./PortInterpreter.ts";
 import type { SpanFields, SpanKey, SpanStruct, SpanType, SpanValue } from "./PortSpan.ts";
 
 /**
@@ -89,7 +90,7 @@ export const decodeSpan = <Fields extends SpanFields>(
 /** The two fields every port span's question carries. */
 export const sharedQuestionFields = {
   subjectId: Schema.optionalKey(Schema.String),
-  interpreter: Schema.optionalKey(Schema.Literals(["evaluate", "toPredicate"])),
+  interpreter: Schema.optionalKey(portInterpreter),
 };
 
 /** Their keys, spelled once. */

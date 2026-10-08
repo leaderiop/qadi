@@ -9,6 +9,8 @@ export * from "./DecisionStreamRoute.ts";
 export * from "./GuardApi.ts";
 export * from "./HttpApiMiddlewareClient.ts";
 export * from "./PermissionRegistry.ts";
+export * from "./PortRoutes.ts";
 export * from "./QadiHttpError.ts";
+export * from "./RemotePorts.ts";
 export * from "./RequirePermission.ts";
 export * from "./SubjectExtractor.ts";

@@ -32,6 +32,7 @@ import {
   portRetriesTotal,
   portTimeoutsTotal,
   predicatePortCallsTotal,
+  servedPortCallsTotal,
 } from "../src/PortMetrics.ts";
 import { toPredicate } from "../src/Predicate.ts";
 import {
@@ -380,6 +381,11 @@ describe("translation's port activity is counted separately", () => {
       "Calls the evaluator made into a resolver or history port, by port. " +
         "Scoped to Evaluate.ts only — Predicate.ts's translateNode reaches the " +
         "same ports via a second interpreter and is not counted here.",
+    );
+    assert.strictEqual(
+      servedPortCallsTotal.description,
+      "Reads a host made into a port to answer a remote asker, by port. " +
+        "The evaluator's calls are qadi_port_calls_total.",
     );
     // Widening the two wrapper metrics' `preregisteredWords` to every port
     // (ARCH-10) changes no registry key: the words are not part of it. These

@@ -123,6 +123,33 @@ permissionRegistryRoute(adminPermission, isAdmin)
 `permissionRegistryRouteUnguarded(reason)` exists for local development and says
 so in the logs on every request.
 
+## Answering ports for a remote client
+
+A browser that re-checks a seeded decision asks a server for each port's answer.
+`portRoutes(permission, policy, serving, options?)` serves `POST <prefix>/<PortName>` behind a
+policy (and lists the paths in `/__permissions`); `portRoutesUnguarded(reason, serving,
+options?)` serves the extracted subject's own questions with no policy and says so once in
+the logs. Both answer **only about the request's subject** (a question naming anyone else is a
+403), serve only the ports and names `serving` declares (`servingFor(policies)` derives it),
+and reply with a closed JSON union and `Cache-Control: no-store`. The default prefix is
+`/__ports`.
+
+```ts
+portRoutesUnguarded("answers only about the session's own subject", servingFor(policies), {
+  prefix: "/ports",
+});
+
+remotePortsLayer({ baseUrl: "/api", prefix: "/ports", ports: ["AttributeResolver"] }).pipe(
+  Layer.provide(FetchHttpClient.layer),
+);
+```
+
+`remotePortsLayer` is the client half: a store outage, a refusal and an unreadable reply are
+each the port's own typed error (never `"Unknown"`), so an outage fails the evaluation
+instead of denying or granting. For cookies, provide
+`Layer.succeed(FetchHttpClient.RequestInit, { credentials: "same-origin" })`. See
+[ADR-QD-107](../../spec/decisions/107-a-port-is-answered-remotely-through-its-description.md).
+
 ## License
 
 MIT
