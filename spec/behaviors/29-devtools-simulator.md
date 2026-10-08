@@ -467,20 +467,26 @@ that reads as a number is shown quoted, and a value JSON cannot carry (`NaN`,
 the elements that named the old id and leaves the others.
 
 ```typescript
-import {
-  edgeCodec,
-  makeSimulationSession,
-  type SimulationSnapshot,
-} from "@qadi/devtools";
+import { makeSimulationSession } from "@qadi/devtools";
 
 const session = makeSimulationSession();
-const snapshot: SimulationSnapshot = session.getSnapshot();
-const shown = edgeCodec.encode(
-  { subjectId: "bob", relation: "owner", resourceId: "doc-1" },
-  "alice",
-);
-console.log(snapshot.run._tag, shown._tag);
+
+// A resource is shown as JSON text, and the text parses back to the resource.
+session.edit({ subject: { id: "alice" }, resource: { id: "doc-1", tags: ["draft"] } });
+const shown = session.getSnapshot().resourceText;
+
+// Text that does not parse yet is reported inline and the last good resource is kept.
+session.editResourceText("{ not json");
+const typing = session.getSnapshot();
+
+session.editResourceText(shown.text);
+console.log(shown.error, typing.resourceText.error !== undefined, typing.draft.resource);
 ```
+
+Everything this section names other than `makeSimulationSession` and the types it
+returns (the form codecs, `sweepPlan`, `whatIf`, `simulate`) is package-private
+since [CCR-QD-300](../README.md): a host drives the session, and the codecs are
+specified here because the simulator screen relies on them.
 
 ---
 

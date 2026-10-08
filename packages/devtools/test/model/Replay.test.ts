@@ -31,17 +31,12 @@ import {
   portsLayer,
 } from "@qadi/core";
 import type { DecisionOutcome, StoredRecord, Trace } from "@qadi/core";
-import {
-  baselineDiff,
-  emptyTimeline,
-  ingestAll,
-  matchesBaseline,
-  replayInput,
-  simulate,
-  unseededByReplay,
-  verdictOfOutcome,
-} from "../../src/index.ts";
-import type { Baseline, Replay, TimelineEntry } from "../../src/index.ts";
+import { baselineDiff, matchesBaseline, replayInput, unseededByReplay } from "../../src/model/Replay.ts";
+import type { Baseline, Replay } from "../../src/model/Replay.ts";
+import { simulate } from "../../src/model/Simulation.ts";
+import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
+import type { TimelineEntry } from "../../src/model/Timeline.ts";
+import { verdictOfOutcome } from "../../src/model/Verdict.ts";
 import {
   allow,
   allowTrace,

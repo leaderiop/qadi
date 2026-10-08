@@ -6,9 +6,9 @@
  * observe that without mounting one. `@testing-library/react` and a DOM come
  * from the same devDependencies the package's own suite uses.
  *
- * The grouping is asserted through `@qadi/devtools`, which does not depend on
- * `@qadi/react`. That is the pairing worth exercising end to end: the two agree
- * about what one question is only because both go through `Equal.equals`.
+ * The grouping is asserted over `@qadi/devtools`' public `GateInstanceLike`, which
+ * does not depend on `@qadi/react`: the two agree about what one question is only
+ * because both go through `Equal.equals`.
  *
  * The registry under test is the scenario's own atom set's `gates`
  * (ADR-QD-080), which lives in World state beside the rest of the step state
@@ -20,6 +20,7 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
+import * as Equal from "effect/Equal";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
@@ -31,7 +32,6 @@ import {
   permission,
 } from "@qadi/core";
 import type { Policy } from "@qadi/core";
-import { gateGroups, isLocatable } from "@qadi/devtools";
 import type { GateInstanceLike } from "@qadi/devtools";
 import type { QadiAtoms } from "@qadi/react";
 
@@ -61,6 +61,24 @@ const policyNamed = (name: string): Policy => {
   if (found === undefined) throw new Error(`no policy named ${name}`);
   return found;
 };
+
+/**
+ * How many questions these guards ask: the distinct `(policy, resource)` pairs,
+ * compared with `Equal.equals`.
+ *
+ * What the dock's Questions panel groups by. The grouping function itself is
+ * package-private (ARCH-40), so this reads the same rule off the public
+ * `GateInstanceLike`: the two packages agree about what one question is only
+ * because both go through `Equal.equals`.
+ */
+const questionsAsked = (xs: ReadonlyArray<GateInstanceLike>): number =>
+  xs.filter(
+    (g, i) =>
+      xs.findIndex((h) => Equal.equals(h.policy, g.policy) && Equal.equals(h.resource, g.resource)) === i,
+  ).length;
+
+/** A guard with a node of its own can be pointed at; a hook has none. */
+const locatable = (g: GateInstanceLike): boolean => g.element !== undefined && g.element !== null;
 
 const instances = Effect.fn("gate-instances.instances")(function* () {
   const { atoms: built } = yield* readState();
@@ -251,9 +269,7 @@ describeFeature(feature, World.layer, ({ AfterAllScenarios, Before, Given, When,
   });
 
   Then("they are grouped into {int} question", function* (count: number) {
-    // Through `@qadi/devtools`, which does not depend on `@qadi/react`. The two
-    // agree only because both go through `Equal.equals`.
-    assert.equal(gateGroups(yield* instances()).length, count);
+    assert.equal(questionsAsked(yield* instances()), count);
   });
 
   Then("that guard reports the state {string}", function* (state: string) {
@@ -261,12 +277,12 @@ describeFeature(feature, World.layer, ({ AfterAllScenarios, Before, Given, When,
   });
 
   Then("{int} guard can be pointed at", function* (count: number) {
-    assert.equal((yield* instances()).filter(isLocatable).length, count);
+    assert.equal((yield* instances()).filter(locatable).length, count);
   });
 
   Then("no guard can be pointed at", function* () {
     // A hook has no node of its own: enumerable, and not locatable.
-    assert.equal((yield* instances()).filter(isLocatable).length, 0);
+    assert.equal((yield* instances()).filter(locatable).length, 0);
   });
 
   Then("the marker generates no box", function* () {
