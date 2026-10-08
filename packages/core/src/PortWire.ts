@@ -16,6 +16,7 @@
  * subject, and a span never does.
  */
 import * as Data from "effect/Data";
+import * as Match from "effect/Match";
 import type * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type { AuthSubject } from "./AuthSubject.ts";
@@ -83,6 +84,41 @@ export type RemotePortFailure = Data.TaggedEnum<{
 
 /** Constructors and guards for {@link RemotePortFailure}. */
 export const RemotePortFailure = Data.taggedEnum<RemotePortFailure>();
+
+/**
+ * One sentence for a {@link RemotePortFailure}, naming its tag and, for a
+ * refusal, its reason.
+ *
+ * What `RemotePortError.message` says, and so what a port whose error has no
+ * `cause` field (`CustomPredicateError`) renders into its `reason`: a bare
+ * enum would render as `[object Object]` there.
+ */
+export const describeRemotePortFailure: (self: RemotePortFailure) => string =
+  Match.type<RemotePortFailure>().pipe(
+    Match.tagsExhaustive({
+      Unavailable: () => "Unavailable: the answering side's store did not answer",
+      Refused: (failure) => `Refused (${failure.reason}): the answering side did not ask its store`,
+      Transport: (failure) => `Transport: no reply came back (${failure.message})`,
+      Undecodable: (failure) => `Undecodable: the reply is not one this port can read (${failure.message})`,
+    }),
+  );
+
+/**
+ * The `cause` a remote port's typed error carries: a {@link RemotePortFailure}
+ * with a readable message.
+ *
+ * An `Error`, so every port's `failure` renders it — `AttributeResolveError`
+ * keeps it as `cause`, `CustomPredicateError` renders its `message` into
+ * `reason` — and a log of the chain says what happened. It never carries the
+ * answering side's own cause (ADR-QD-072): the failure is the closed enum.
+ */
+export class RemotePortError extends Data.TaggedError("RemotePortError")<{
+  readonly failure: RemotePortFailure;
+}> {
+  override get message(): string {
+    return describeRemotePortFailure(this.failure);
+  }
+}
 
 /**
  * A question read off the wire, before it is bound to a session.
