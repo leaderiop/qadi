@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-056                                   |
-> | Revision       | 1.10                                            |
+> | Revision       | 1.11                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — narrows ADR-QD-016                  |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.10 (2026-10-08): an audit write's outcome is a value — every record has exactly one, and an entry not in the trail is witnessed; `onOutcome`, `writes_total{skipped_open}`, `qadi_audit_entries_lost_total`, the `qadi.audit.record` span (CCR-QD-204)<br>1.9 (2026-10-07): an encode refusal is witnessed by a log line naming its `evaluationId` (or `onRefused`) as well as the `encode_failed` counter (CCR-QD-193)<br>1.8 (2026-10-07): retention retains an entry of unknown age and refuses an impossible `now` or `maxAgeMs` (INV-QD-101, CCR-QD-186)<br>1.7 (2026-10-06): a persisted row is version-2 bytes only; a pre-0.10 (version-1) row is refused by `decodeAuditEntry` as `UnsupportedVersion` and migrated with 0.10.x (ADR-QD-096 amendment) (CCR-QD-182)<br>1.6 (2026-10-05): a persisted row is a closed union of wire versions, read back with `decodeAuditEntry`; `archiveVersion` unchanged (ADR-QD-096) (CCR-QD-180)<br>1.5 (2026-10-05): an audit row carries the encoded wire; `decodeAuditEntry` is the guarded reader (ADR-QD-095) (CCR-QD-179)<br>1.4 (2026-09-19): The no-tamper-evidence residual risk, previously distributed across `SequenceIntegrity.ts`/`AuditArchive.ts`/`DecommissioningChecklist.ts` doc comments only, recorded once under Consequences — Negative, alongside the previously-undocumented breaker-open drop window's own invisibility to the trail (AS-03/WD-07)<br>1.3 (2026-09-09): "a `resource` carrying a value with no safe durable representation" corrected — `policy`'s `HasCustom.params` is a second caller-supplied `unknown` a `SinkRecord` carries, and encoding now refuses on either (issue #104, CCR-QD-143)<br>1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
+> | Change History | 1.11 (2026-10-08): amendment — a purge selects only rows an archive read back from storage holds, and the decommissioning checklist is retired (ARCH-38, CCR-QD-230)<br>1.10 (2026-10-08): an audit write's outcome is a value — every record has exactly one, and an entry not in the trail is witnessed; `onOutcome`, `writes_total{skipped_open}`, `qadi_audit_entries_lost_total`, the `qadi.audit.record` span (CCR-QD-204)<br>1.9 (2026-10-07): an encode refusal is witnessed by a log line naming its `evaluationId` (or `onRefused`) as well as the `encode_failed` counter (CCR-QD-193)<br>1.8 (2026-10-07): retention retains an entry of unknown age and refuses an impossible `now` or `maxAgeMs` (INV-QD-101, CCR-QD-186)<br>1.7 (2026-10-06): a persisted row is version-2 bytes only; a pre-0.10 (version-1) row is refused by `decodeAuditEntry` as `UnsupportedVersion` and migrated with 0.10.x (ADR-QD-096 amendment) (CCR-QD-182)<br>1.6 (2026-10-05): a persisted row is a closed union of wire versions, read back with `decodeAuditEntry`; `archiveVersion` unchanged (ADR-QD-096) (CCR-QD-180)<br>1.5 (2026-10-05): an audit row carries the encoded wire; `decodeAuditEntry` is the guarded reader (ADR-QD-095) (CCR-QD-179)<br>1.4 (2026-09-19): The no-tamper-evidence residual risk, previously distributed across `SequenceIntegrity.ts`/`AuditArchive.ts`/`DecommissioningChecklist.ts` doc comments only, recorded once under Consequences — Negative, alongside the previously-undocumented breaker-open drop window's own invisibility to the trail (AS-03/WD-07)<br>1.3 (2026-09-09): "a `resource` carrying a value with no safe durable representation" corrected — `policy`'s `HasCustom.params` is a second caller-supplied `unknown` a `SinkRecord` carries, and encoding now refuses on either (issue #104, CCR-QD-143)<br>1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
 
 ---
 
@@ -128,16 +128,15 @@ requiring `AuditTrailPort`, reading `AuditStagingPort` optionally. One
 skip, react to the outcome — reachable through the one call every evaluation
 already makes.
 
-**Retention, archival and decommissioning** (`Retention.ts`,
-`SequenceIntegrity.ts`, `AuditArchive.ts`, `DecommissioningChecklist.ts`) sit
-structurally **outside** `DecisionSink.record` entirely: pure functions and
-data, caller-invoked and caller-scheduled, since `@qadi/audit` has no
-scheduler of its own. Purge selection is parameterized on `now` rather than
-reading `Date.now()`. Sequence-gap verification is a single flat, global
-sequence — no HexDi-style `scopeId` grouping key, since Qadi has no scope
-concept to group by. The six-step decommissioning checklist refuses an
-unknown step id rather than silently no-opping, the one place this ADR found
-HexDi's own behavior worth explicitly not copying.
+**Retention and archival** (`Retention.ts`, `SequenceIntegrity.ts`,
+`AuditArchive.ts`) sit structurally **outside** `DecisionSink.record` entirely:
+pure functions and data, caller-invoked and caller-scheduled, since
+`@qadi/audit` has no scheduler of its own. Purge selection is parameterized on
+`now` rather than reading `Date.now()`. Sequence-gap verification is a single
+flat, global sequence — no HexDi-style `scopeId` grouping key, since Qadi has no
+scope concept to group by. The decommissioning checklist this ADR first
+described (a six-step list that refused an unknown step id) was retired in the
+2026-10-08 amendment below.
 
 **E-signature capture** (`SignatureCapturePort`,
 `signatureObligationHandler`) is wired through `Qadi.ts`'s
@@ -241,9 +240,11 @@ internal buffering state staging's own design already refused.
   without `@qadi/core` acquiring any new dependency — the exact gap ADR-QD-016
   left, closed the way ADR-QD-054 already closed row-level security's.
 - The one piece of the predecessor's/HexDi's story genuinely worth keeping —
-  the state-machine shape of the circuit breaker, the six-step decommissioning
-  sequence — survives; the parts that were unassembled or over-claiming do
-  not.
+  the state-machine shape of the circuit breaker — survives; the parts that were
+  unassembled or over-claiming do not. (The six-step decommissioning sequence
+  was kept by the first decision and retired by the 2026-10-08 ARCH-38
+  amendment: its mechanical part is `archiveAuditTrail`, `readAuditArchive` and
+  `planPurge`.)
 - `DecisionRecord.subjectId` closes a real, previously undocumented gap for
   every `DecisionSink` consumer, not just this one.
 
@@ -359,3 +360,50 @@ received") is true; `qadi_audit_entries_lost_total{after, staging}` counts the l
 four; `record` is an `Effect.fn("qadi.audit.record")` span annotated with the outcome
 path and its durability (closed words, never values, ADR-QD-051). No existing metric
 label or log message is renamed.
+
+## Amendment (2026-10-08, CCR-QD-230)
+
+**A purge selects only rows an archive read back from storage holds, and the
+decommissioning checklist is retired.** "Archive before purge" had been a
+documented caller duty in three doc comments and the README, while the package's
+own selector (`getPurgeableEntries`, and `planRetention`'s `purged`) returned
+rows to delete by age alone. It is now mechanical. `readAuditArchive(input:
+unknown)` reads a stored bundle back: the envelope, `archiveVersion`, every entry
+through `decodeAuditEntry`, the count, the sequence check, the order
+`archiveAuditTrail` writes (read, never repaired) and the
+`sequenceIntegrityVerified` claim, each failure its own `ArchiveRefusal` in an
+`ArchiveNotVerified`. The result is a `VerifiedArchive`, a type with a private
+member that no object literal can satisfy. `planPurge(entries, policy, now,
+archive)` is then the only function that returns rows to delete: a row is purged
+only when it is past its age (INV-QD-101) and the archive holds it, counted
+(INV-QD-130).
+
+Decisions taken (the plan's recommendations): evidence is an archive read back,
+not `archiveAuditTrail`'s in-memory result, so a purge depends on what the store
+returned (D-38-b); the brand is an unexported class with an ECMAScript `#private`
+field exported only as a type (D-38-c); membership is structural and counted, so
+two identical rows need two archived copies (D-38-d); the archive's sequence is
+reported on the plan and not required, so an unsequenced trail can be purged
+(D-38-g). **Breaking** (0.x): `getPurgeableEntries` and `enforceRetention` are
+removed (D-38-a); `RetentionPlan.purged` is renamed `expired`, since an age report
+names rows past their age, not rows to delete (D-38-f); and the checklist
+(`makeDecommissioningChecklist`, `completeDecommissioningStep`,
+`DecommissioningChecklist`, `DecommissioningStep`, `DecommissioningStepId`,
+`UnknownDecommissioningStep`) is removed (D-38-e). It failed the deletion test: no
+caller, no behavior spec, no mechanical guarantee (any step completed first, a
+step overwritten by whoever completed it last), a second step that repeated the
+first once `archiveAuditTrail` verifies as it exports, and an order that put
+"Record the final audit entry" after "Export the full audit trail" so a checklist
+completed in its own order archived a trail missing its final entry. Its
+procedure moves to the README and website as an unenforced list in a corrected
+order.
+
+**What a `VerifiedArchive` proves.** That the bytes handed to `readAuditArchive`
+decoded, were complete by count, passed the gap check and were in order. It does
+not prove that the store is durable, that the bytes are untampered, that the
+trail is complete or that retention was long enough; the tamper-evidence negative
+above and ADR-QD-016 stand unchanged, and no document may describe it otherwise.
+The archive keeps its sequence order and time order stays a reader's job
+(ADR-QD-097). A bundle written before the 2026-09 correction, whose
+`sequenceIntegrityVerified` was a vacuous `true`, is refused as `UnbackedClaim`
+and re-bundled with `archiveAuditTrail`.

@@ -3,6 +3,7 @@ import * as Effect from "effect/Effect";
 import * as FastCheck from "fast-check";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
+import { firstSequenceBreak } from "../src/SequenceBreak.ts";
 import { verifySequenceIntegrity } from "../src/SequenceIntegrity.ts";
 import { decisionRecord } from "./helpers.ts";
 
@@ -81,6 +82,28 @@ describe("verifySequenceIntegrity", () => {
         assert.strictEqual(result.failure.actualSequence, 3);
       }
     }));
+});
+
+describe("firstSequenceBreak", () => {
+  it("a single sequenced entry among unsequenced ones is intact", () => {
+    assert.isUndefined(
+      firstSequenceBreak([entryWithSequence(undefined), entryWithSequence(7), entryWithSequence(undefined)]),
+    );
+  });
+
+  it("names the first break in sorted order, not input order", () => {
+    assert.deepStrictEqual(
+      firstSequenceBreak([entryWithSequence(9), entryWithSequence(1), entryWithSequence(2), entryWithSequence(5)]),
+      { expectedSequence: 3, actualSequence: 5 },
+    );
+  });
+
+  it("a duplicate reports the repeated number as the actual one", () => {
+    assert.deepStrictEqual(firstSequenceBreak([entryWithSequence(4), entryWithSequence(4)]), {
+      expectedSequence: 5,
+      actualSequence: 4,
+    });
+  });
 });
 
 describe("PROPERTY: gap and duplicate detection over generated sequences", () => {

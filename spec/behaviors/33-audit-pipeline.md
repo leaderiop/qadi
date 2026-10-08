@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-33                                    |
-> | Revision       | 1.12                                           |
+> | Revision       | 1.13                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.12 (2026-10-08): BEH-QD-249 gains `AuditDecisionSinkOptions.onOutcome`. BEH-QD-251 — an entry neither written nor staged is reported by a warning naming its evaluation id, including after a failed trail write; `qadi_audit_writes_total` counts every record received exactly once, breaker-refused ones as `skipped_open`. BEH-QD-252 — a staged entry that was not written is reported at info; the eleven outcomes are tabled; `qadi_audit_entries_lost_total` (INV-QD-106, ADR-QD-056, CCR-QD-204)<br>1.11 (2026-10-07): BEH-QD-250 — a refused record is reported (`AuditDecisionSinkOptions.onRefused`, else a warning naming the refusal, its path and the evaluation id), never dropped silently, and a hook that throws never fails the record; `AuditEntryNotEncodable` carries `evaluationId` and its `reason` is core's `describeEncodeRefusal`. BEH-QD-249's signature fence gains `onRefused` and its `resetTimeoutMs` is `Duration.Input` as the code has it (CCR-QD-193)<br>1.10 (2026-10-07): BEH-QD-253 — retention is `planRetention`, which purges only with a finite age past a valid limit and refuses an impossible `now` or `maxAgeMs`; a non-finite `at` is retained and reported `undated`. BEH-QD-312 — a non-finite `at` and a non-integer `sequenceNumber` are `Malformed` (INV-QD-101, ADR-QD-095 amendment, CCR-QD-186)<br>1.9 (2026-10-07): BEH-QD-254 — entries carrying no `sequenceNumber` follow every sequenced entry in the order given, and are never ordered by `at` (pins what `archiveAuditTrail` already did; CCR-QD-185)<br>1.8 (2026-10-06): BEH-QD-312 — `decodeAuditEntry` reads wire version 2 only: a pre-0.10 row is refused as `UnsupportedVersion`, reported, never upgraded, and migrated with 0.10.x; `AuditEntry.record` is version-2 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): BEH-QD-312 — `decodeAuditEntry` applies every check `decodeSinkRecord` applies, and reads rows of both wire versions; the row schema alone is not a reader. BEH-QD-250 — rows are written as wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.6 (2026-10-05): BEH-QD-250 restated — a row's `record` is `encodeSinkRecord`'s encoded wire, byte-identical to the stream and forwarding; the refusal carries core's `EncodeRefusal`; a `cause` is never a reason to refuse. BEH-QD-312 — `decodeAuditEntry`, the guarded reader (ADR-QD-095, CCR-QD-179)<br>1.5 (2026-10-05): BEH-QD-250 widened — the guard walks the outcome as well: a resolver error's `cause` carrying a reference cycle or a `BigInt` used to pass it and then throw at the store's `JSON.stringify`, which counted as a write failure and could trip the breaker; `Map`/`Set`/`RegExp`/binary data are refused rather than persisted as `{}` (CCR-QD-178)<br>1.4 (2026-10-04): BEH-QD-251 — the half-open probe claim is released on every exit including interruption during staging; a failure settling on an already-`Open` breaker is a no-op; outcomes count only toward the window that admitted them; the interruption prose corrected (`Effect.exit` folds a typed failure, a defect and an adapter's self-interruption, not a caller's interruption) (CCR-QD-154)<br>1.3 (2026-09-09): BEH-QD-250 widened — `encodeAuditEntry` guarded only `resource` via `isJsonSafe`, not the whole record; `policy`'s `HasCustom.params` (ADR-QD-055's escape hatch) is a second caller-supplied `unknown` a `SinkRecord` can carry, and a circular or `BigInt`-valued one sailed past the narrow guard uncaught. Now guarded via `isRecordJsonSafe` (`SinkCodec.ts`), which walks `resource` **and** `policy` (issue #104)<br>1.2 (2026-09-07): BEH-QD-250 and BEH-QD-251 widened — `isJsonSafe` walks iteratively so a merely-deep (non-cyclic) value no longer risks the same stack exhaustion the circular-reference case was already guarded against; `stage()`/`write()` now run under `Effect.exit` rather than `Effect.result`, so a defect or interruption from either — not just a typed `AuditWriteError`/`AuditStagingError` — reaches the breaker and the metrics the same way a typed failure already did (CCR-QD-113)<br>1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
+> | Change History | 1.13 (2026-10-08): BEH-QD-253 — a purge selects only rows a `VerifiedArchive` holds (`planPurge`); `planRetention` reports `expired`; `getPurgeableEntries` and `enforceRetention` removed. BEH-QD-254 — `readAuditArchive` reads a stored bundle back, each failure its own `ArchiveRefusal` (ARCH-38, CCR-QD-230)<br>1.12 (2026-10-08): BEH-QD-249 gains `AuditDecisionSinkOptions.onOutcome`. BEH-QD-251 — an entry neither written nor staged is reported by a warning naming its evaluation id, including after a failed trail write; `qadi_audit_writes_total` counts every record received exactly once, breaker-refused ones as `skipped_open`. BEH-QD-252 — a staged entry that was not written is reported at info; the eleven outcomes are tabled; `qadi_audit_entries_lost_total` (INV-QD-106, ADR-QD-056, CCR-QD-204)<br>1.11 (2026-10-07): BEH-QD-250 — a refused record is reported (`AuditDecisionSinkOptions.onRefused`, else a warning naming the refusal, its path and the evaluation id), never dropped silently, and a hook that throws never fails the record; `AuditEntryNotEncodable` carries `evaluationId` and its `reason` is core's `describeEncodeRefusal`. BEH-QD-249's signature fence gains `onRefused` and its `resetTimeoutMs` is `Duration.Input` as the code has it (CCR-QD-193)<br>1.10 (2026-10-07): BEH-QD-253 — retention is `planRetention`, which purges only with a finite age past a valid limit and refuses an impossible `now` or `maxAgeMs`; a non-finite `at` is retained and reported `undated`. BEH-QD-312 — a non-finite `at` and a non-integer `sequenceNumber` are `Malformed` (INV-QD-101, ADR-QD-095 amendment, CCR-QD-186)<br>1.9 (2026-10-07): BEH-QD-254 — entries carrying no `sequenceNumber` follow every sequenced entry in the order given, and are never ordered by `at` (pins what `archiveAuditTrail` already did; CCR-QD-185)<br>1.8 (2026-10-06): BEH-QD-312 — `decodeAuditEntry` reads wire version 2 only: a pre-0.10 row is refused as `UnsupportedVersion`, reported, never upgraded, and migrated with 0.10.x; `AuditEntry.record` is version-2 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): BEH-QD-312 — `decodeAuditEntry` applies every check `decodeSinkRecord` applies, and reads rows of both wire versions; the row schema alone is not a reader. BEH-QD-250 — rows are written as wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.6 (2026-10-05): BEH-QD-250 restated — a row's `record` is `encodeSinkRecord`'s encoded wire, byte-identical to the stream and forwarding; the refusal carries core's `EncodeRefusal`; a `cause` is never a reason to refuse. BEH-QD-312 — `decodeAuditEntry`, the guarded reader (ADR-QD-095, CCR-QD-179)<br>1.5 (2026-10-05): BEH-QD-250 widened — the guard walks the outcome as well: a resolver error's `cause` carrying a reference cycle or a `BigInt` used to pass it and then throw at the store's `JSON.stringify`, which counted as a write failure and could trip the breaker; `Map`/`Set`/`RegExp`/binary data are refused rather than persisted as `{}` (CCR-QD-178)<br>1.4 (2026-10-04): BEH-QD-251 — the half-open probe claim is released on every exit including interruption during staging; a failure settling on an already-`Open` breaker is a no-op; outcomes count only toward the window that admitted them; the interruption prose corrected (`Effect.exit` folds a typed failure, a defect and an adapter's self-interruption, not a caller's interruption) (CCR-QD-154)<br>1.3 (2026-09-09): BEH-QD-250 widened — `encodeAuditEntry` guarded only `resource` via `isJsonSafe`, not the whole record; `policy`'s `HasCustom.params` (ADR-QD-055's escape hatch) is a second caller-supplied `unknown` a `SinkRecord` can carry, and a circular or `BigInt`-valued one sailed past the narrow guard uncaught. Now guarded via `isRecordJsonSafe` (`SinkCodec.ts`), which walks `resource` **and** `policy` (issue #104)<br>1.2 (2026-09-07): BEH-QD-250 and BEH-QD-251 widened — `isJsonSafe` walks iteratively so a merely-deep (non-cyclic) value no longer risks the same stack exhaustion the circular-reference case was already guarded against; `stage()`/`write()` now run under `Effect.exit` rather than `Effect.result`, so a defect or interruption from either — not just a typed `AuditWriteError`/`AuditStagingError` — reaches the breaker and the metrics the same way a typed failure already did (CCR-QD-113)<br>1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
 
 _Previous: [32 — Custom Predicates](./32-custom-predicates.md)_
 
@@ -325,43 +325,61 @@ the gap marker ADR-QD-056 leaves open: the library writes none.
 
 ## BEH-QD-253: Retention partitions entries, by construction
 
-> **Invariant:** [INV-QD-053](../invariants.md#inv-qd-053-retained-and-purged-partition-entries)
+> **Invariant:** [INV-QD-053](../invariants.md#inv-qd-053-retained-and-purged-partition-entries), [INV-QD-101](../invariants.md#inv-qd-101-retention-never-selects-a-row-without-a-finite-age-past-a-valid-limit), [INV-QD-130](../invariants.md#inv-qd-130-a-purge-never-selects-a-row-its-archive-does-not-hold)
 
 ```
 REQUIREMENT: For any entries, RetentionPolicy and now, the sets
-             enforceRetention(entries, policy, now) and
-             getPurgeableEntries(entries, policy, now) MUST partition
-             entries: their union is entries, unchanged and undeduplicated;
-             their intersection is empty.
+             planRetention(...).retained and planRetention(...).expired MUST
+             partition entries: their union is entries, unchanged and
+             undeduplicated; their intersection is empty. planPurge(...).purge
+             and planPurge(...).retain MUST partition entries the same way.
 ```
 
 ```
-REQUIREMENT: An entry MUST be purgeable only if its `at` and `now` are finite,
-             `maxAgeMs >= 0`, and `now - at > maxAgeMs`. An entry whose `at`
-             is not finite (`NaN`, `±Infinity`) MUST be retained.
+REQUIREMENT: An entry MUST be expired (and so purgeable) only if its `at` and
+             `now` are finite, `maxAgeMs >= 0`, and `now - at > maxAgeMs`. An
+             entry whose `at` is not finite (`NaN`, `±Infinity`) MUST be
+             retained.
 REQUIREMENT: planRetention(entries, policy, now) MUST return
              `RetentionInputInvalid` (naming `now` or `maxAgeMs` and the value)
              for a `now` that is not finite or a `maxAgeMs` that is `NaN` or
-             negative, and otherwise a plan `{ retained, purged, undated }`
+             negative, and otherwise a plan `{ retained, expired, undated }`
              with `undated` the retained entries whose `at` is not finite.
-             `maxAgeMs = +Infinity` is valid and purges nothing.
-REQUIREMENT: getPurgeableEntries and enforceRetention MUST be projections of
-             planRetention: on a refusal they purge nothing
-             (`getPurgeableEntries` is empty, `enforceRetention` is `entries`).
+             `maxAgeMs = +Infinity` is valid and expires nothing. `expired`
+             is an age report, not a purge selection.
+REQUIREMENT: planPurge(entries, policy, now, archive) is the only function that
+             returns rows to delete. A row MUST be in `purge` only if
+             planRetention finds it expired AND the given VerifiedArchive holds
+             it, counted: two structurally identical rows need two archived
+             copies. An expired row the archive does not hold MUST be in
+             `retain` and listed in `unarchived`. `undated` rows MUST be in
+             `retain`. planPurge MUST refuse the input planRetention refuses.
+REQUIREMENT: planPurge MUST NOT be callable without a VerifiedArchive, and a
+             VerifiedArchive MUST be obtainable only from readAuditArchive.
 ```
 
-Computed in one pass by `planRetention`, the one owner of "may this row be
-deleted?", rather than by two independent `.filter()` calls that could drift
-out of agreement with each other — retention/archival/decommissioning are pure
-functions and data, caller-invoked and caller-scheduled, since `@qadi/audit`
-has no scheduler of its own. Fail-closed for a deletion selector means
-retaining: a wrong retain keeps a row too long, a wrong purge destroys
-evidence that may never have been archived. A caller that wants to be told a
-job is misconfigured calls `planRetention` and reads the refusal.
+Computed by `planRetention`, the one owner of "is this row past its age?",
+rather than by independent `.filter()` calls that could drift out of agreement
+with each other — retention/archival are pure functions and data,
+caller-invoked and caller-scheduled, since `@qadi/audit` has no scheduler of its
+own. Fail-closed for a deletion selector means retaining: a wrong retain keeps a
+row too long, a wrong purge destroys evidence that may never have been
+archived. "Archive before purge" is therefore a property of the types, not a
+caller's duty: `planPurge` needs the evidence `readAuditArchive` produces from
+the bytes a store handed back (ADR-QD-056, [INV-QD-130](../invariants.md#inv-qd-130-a-purge-never-selects-a-row-its-archive-does-not-hold)).
+The age-only selectors `getPurgeableEntries` and `enforceRetention` were removed
+in ARCH-38: each returned rows to delete with no evidence they were kept. A
+caller that wants to be told a job is misconfigured reads the refusal.
+
+What a `VerifiedArchive` is evidence of is narrow: the bundle decoded and holds
+together, and it holds those rows. It is not evidence that the store is durable,
+that the bytes are untampered, or that the retention period is adequate;
+`@qadi/audit` owns no storage and offers no cryptographic proof
+([ADR-QD-016](../decisions/016-gxp-out-of-scope.md)).
 
 ## BEH-QD-254: Sequence-integrity verification detects a gap or a duplicate, and trusts neither write order
 
-> **Invariant:** [INV-QD-054](../invariants.md#inv-qd-054-verifysequenceintegrity-detects-every-gap-and-duplicate-sequence-number)
+> **Invariant:** [INV-QD-054](../invariants.md#inv-qd-054-verifysequenceintegrity-detects-every-gap-and-duplicate-sequence-number), [INV-QD-130](../invariants.md#inv-qd-130-a-purge-never-selects-a-row-its-archive-does-not-hold)
 
 ```
 REQUIREMENT: verifySequenceIntegrity MUST fail SequenceIntegrityError for any
@@ -379,6 +397,17 @@ REQUIREMENT: Entries carrying no sequenceNumber MUST follow every sequenced
              entry, in the order given; archiveAuditTrail MUST NOT order them
              by `at`. The archive claims only the order sequenceIntegrityVerified
              backs; time order is a reader's job (storedRecordOrder, ADR-QD-056).
+REQUIREMENT: readAuditArchive(input) MUST read a stored bundle back and return
+             a VerifiedArchive only if the envelope is a bundle, archiveVersion
+             is "1", every entry decodes through decodeAuditEntry, the declared
+             entryCount equals the number of entries, the sequence numbers have
+             no gap or duplicate, the entries are in the order archiveAuditTrail
+             writes (sequenced in number order, then unsequenced), and
+             sequenceIntegrityVerified equals (sequenced count >= 2). Each
+             failure MUST be its own ArchiveRefusal (Malformed,
+             UnsupportedArchiveVersion, EntryNotDecodable, CountMismatch,
+             SequenceBroken, NotInSequenceOrder, UnbackedClaim) in an
+             ArchiveNotVerified. It MUST NOT sort or repair the bundle.
 ```
 
 No `scopeId`-style grouping key, unlike HexDi's version: Qadi has no "scope"
