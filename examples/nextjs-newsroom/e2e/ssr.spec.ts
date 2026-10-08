@@ -151,15 +151,16 @@ test.describe("the proxy is not a security boundary", () => {
 });
 
 test.describe("the port endpoints answer only about the session", () => {
-  test("a subjectId in the query is not identity", async () => {
+  test("a question about another subject is refused, not answered about the cookie", async () => {
     const response = await fetch(
       "http://127.0.0.1:3211/api/ports/attribute?subjectId=hakim&attribute=clearance",
       { headers: { cookie: "qadi-newsroom-user=yasmine" } },
     );
-    const body: unknown = await response.json();
+    const body = await response.text();
 
-    // Yasmine's clearance, not Hakim's, however the question was phrased.
-    expect(JSON.stringify(body)).toContain('"level":0');
+    // A 403 and no data: neither Hakim's clearance nor Yasmine's under Hakim's name.
+    expect(response.status).toBe(403);
+    expect(body).not.toContain('"level"');
   });
 });
 

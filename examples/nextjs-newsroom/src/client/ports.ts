@@ -9,9 +9,10 @@
  * that proves nothing.
  *
  * So the ports are remote, and the endpoints answer **only for the session's own
- * subject** — the `subjectId` in the request is sent for the server's logs and
- * is never read as identity. A port endpoint that answered for whoever it was
- * asked about would be a subject-enumeration API with extra steps.
+ * subject** — the `subjectId` in the request is compared with the session's, and
+ * a question about anyone else is a 403, never an answer about the cookie's
+ * subject under the asked one's name. A port endpoint that answered for whoever it
+ * was asked about would be a subject-enumeration API with extra steps.
  *
  * Each call is one round trip. That is the honest cost of a client that can
  * re-check, and it is visible: the Services screen's Port calls list is fed by

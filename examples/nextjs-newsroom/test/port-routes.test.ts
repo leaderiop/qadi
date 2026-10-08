@@ -53,25 +53,25 @@ const route = (path: string, user = "nadia") =>
 
 describe("a store outage is a 503, never an answer", () => {
   it("attribute (characterization)", async () => {
-    expect((await route("/ports/attribute?attribute=standing")).status).toBe(503);
+    expect((await route("/ports/attribute?subjectId=nadia&attribute=standing")).status).toBe(503);
   });
   it("relationship", async () => {
-    expect((await route("/ports/relationship?relation=author-of&resourceId=a")).status).toBe(503);
+    expect((await route("/ports/relationship?subjectId=nadia&relation=author-of&resourceId=a")).status).toBe(503);
   });
   it("history", async () => {
-    expect((await route("/ports/history?event=legal-review&resourceId=a")).status).toBe(503);
+    expect((await route("/ports/history?subjectId=nadia&event=legal-review&resourceId=a")).status).toBe(503);
   });
 });
 
 describe("a malformed question is a 400", () => {
   const cases = [
-    "/ports/relationship",
-    "/ports/relationship?relation=author-of&resourceId=a&depth=abc",
-    "/ports/relationship?relation=author-of&resourceId=a&depth=65",
-    "/ports/relationship?relation=author-of&resourceId=a&depth=1.5",
-    "/ports/relationship?relation=author-of&resourceId=a&depth=-1",
-    "/ports/history",
-    "/ports/attribute",
+    "/ports/relationship?subjectId=nadia",
+    "/ports/relationship?subjectId=nadia&relation=author-of&resourceId=a&depth=abc",
+    "/ports/relationship?subjectId=nadia&relation=author-of&resourceId=a&depth=65",
+    "/ports/relationship?subjectId=nadia&relation=author-of&resourceId=a&depth=1.5",
+    "/ports/relationship?subjectId=nadia&relation=author-of&resourceId=a&depth=-1",
+    "/ports/history?subjectId=nadia",
+    "/ports/attribute?subjectId=nadia",
   ];
   for (const path of cases) {
     it(path, async () => {

@@ -69,23 +69,32 @@ const subjects: Layer.Layer<SubjectExtractor> = Layer.succeed(SubjectExtractor, 
 const json = (body: unknown) =>
   HttpServerResponse.text(JSON.stringify(body), { contentType: "application/json" });
 
-/**
- * The session's subject, for the three port routes.
- *
- * These endpoints answer **only** about whoever the cookie names. A caller may
- * put any `subjectId` in the query string — the browser's resolvers do, because
- * that is the shape the port hands them — and it is read for the log and never
- * as identity. An endpoint that answered about whoever it was asked about would
- * be a subject-enumeration API with an authorization library bolted to the side.
- */
-const askingSubject = Effect.gen(function* () {
-  const request = yield* HttpServerRequest.HttpServerRequest;
-  return userFromCookieHeader(Option.getOrNull(Headers.get(request.headers, "cookie"))).subject;
-});
-
 /** The request's query string. The base is a placeholder; only the path matters. */
 const query = (request: HttpServerRequest.HttpServerRequest, key: string): string | undefined =>
   new URL(request.url, "http://newsroom.invalid").searchParams.get(key) ?? undefined;
+
+/**
+ * The session's subject, for the three port routes, **if it is the one asked about**.
+ *
+ * These endpoints answer only about whoever the cookie names. The question carries
+ * its `subjectId` (the shape the port hands the browser's resolvers) and it is
+ * compared with the session's: a mismatch, or no `subjectId` at all, is refused
+ * (D-31-b). Substituting the cookie's subject instead answered a different
+ * question under the asked one's name, so asking about Nadia with Yasmine's cookie
+ * returned Yasmine's `Unrelated`. An endpoint that answered about whoever it was
+ * asked about would be a subject-enumeration API with an authorization library
+ * bolted to the side, so refusing is the only honest answer.
+ */
+const askingSubject = Effect.gen(function* () {
+  const request = yield* HttpServerRequest.HttpServerRequest;
+  const session = userFromCookieHeader(Option.getOrNull(Headers.get(request.headers, "cookie"))).subject;
+  return query(request, "subjectId") === session.id ? session : undefined;
+});
+
+const notYourSubject = () =>
+  HttpServerResponse.text("this endpoint answers only about the session's own subject", {
+    status: 403,
+  });
 
 const badRequest = (why: string) => HttpServerResponse.text(why, { status: 400 });
 
@@ -110,6 +119,7 @@ const AttributePort = HttpRouter.add(
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const subject = yield* askingSubject;
+    if (subject === undefined) return notYourSubject();
     const attribute = required(request, "attribute");
     if (attribute === undefined) return badRequest("attribute is required");
 
@@ -132,6 +142,7 @@ const RelationshipPort = HttpRouter.add(
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const subject = yield* askingSubject;
+    if (subject === undefined) return notYourSubject();
     const relation = required(request, "relation");
     const resourceId = required(request, "resourceId");
     const depth = parseDepth(query(request, "depth"));
@@ -166,6 +177,7 @@ const HistoryPort = HttpRouter.add(
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const subject = yield* askingSubject;
+    if (subject === undefined) return notYourSubject();
     const event = required(request, "event");
     if (event === undefined) return badRequest("event is required");
     const resourceId = required(request, "resourceId");
