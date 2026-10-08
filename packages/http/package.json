@@ -45,6 +45,7 @@
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
+    "@qadi/testing": "workspace:^",
     "effect": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

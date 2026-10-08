@@ -12,6 +12,7 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
+import * as Metric from "effect/Metric";
 import * as Schema from "effect/Schema";
 
 // ---------------------------------------------------------------------------
@@ -197,5 +198,53 @@ describe("effect v4 API canary", () => {
 
       const decoded = yield* Schema.decodeUnknownEffect(WidgetIdSchema)("widget-2");
       assert.strictEqual(decoded, "widget-2");
+    }));
+  // `@qadi/testing`'s `isolatedMetrics` (and core's twin of it) relies on exactly this
+  // fact: at effect 4.0.0 the registry owns the series and is looked up on every update,
+  // so a fresh `MetricRegistry` alone isolates a metric already touched elsewhere. No
+  // `CurrentMetricAttributes` override is needed (ARCH-42).
+  it.effect("a fresh MetricRegistry isolates a metric already touched in another", () =>
+    Effect.gen(function* () {
+      const plain = Metric.counter("smoke_isolation_plain_total");
+      const tagged = Metric.withAttributes(
+        Metric.counter("smoke_isolation_tagged_total"),
+        { outcome: "x" },
+      );
+      yield* Metric.update(plain, 5);
+      yield* Metric.update(tagged, 7);
+      const readBoth = Effect.all([Metric.value(plain), Metric.value(tagged)]);
+      const inFresh = yield* Effect.provideService(
+        Effect.gen(function* () {
+          const before = yield* readBoth;
+          yield* Metric.update(plain, 1);
+          yield* Metric.update(tagged, 1);
+          return { before, after: yield* readBoth };
+        }),
+        Metric.MetricRegistry,
+        new Map(),
+      );
+      assert.deepStrictEqual([inFresh.before[0].count, inFresh.before[1].count], [0, 0]);
+      assert.deepStrictEqual([inFresh.after[0].count, inFresh.after[1].count], [1, 1]);
+      const [ambientPlain, ambientTagged] = yield* readBoth;
+      assert.deepStrictEqual([ambientPlain.count, ambientTagged.count], [5, 7]);
+    }));
+
+  // The limit of that helper: a write that carries no fiber context (what `@qadi/react`'s
+  // hydration counters do) resolves `MetricRegistry` to its default, whatever a test's
+  // fiber provides. Such tests assert deltas.
+  it.effect("an off-fiber write with an empty context lands in the default registry", () =>
+    Effect.gen(function* () {
+      const counter = Metric.counter("smoke_offfiber_total");
+      const before = (yield* Metric.value(counter)).count;
+      const inFresh = yield* Effect.provideService(
+        Effect.gen(function* () {
+          counter.updateUnsafe(3, Context.empty());
+          return (yield* Metric.value(counter)).count;
+        }),
+        Metric.MetricRegistry,
+        new Map(),
+      );
+      assert.strictEqual(inFresh, 0);
+      assert.strictEqual((yield* Metric.value(counter)).count, before + 3);
     }));
 });

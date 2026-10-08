@@ -4,13 +4,14 @@ import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as TestClock from "effect/testing/TestClock";
 import { DecisionSink } from "@qadi/core";
+import { isolatedMetrics } from "@qadi/testing";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
 import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
 import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
 import { driveExit } from "./driveExit.ts";
 import type { ExitSpec } from "./driveExit.ts";
-import { decisionRecord, isolatedMetrics } from "./helpers.ts";
+import { decisionRecord } from "./helpers.ts";
 
 type CounterSnapshot = Extract<Metric.Metric.Snapshot, { type: "Counter" }>;
 type FrequencySnapshot = Extract<Metric.Metric.Snapshot, { type: "Frequency" }>;

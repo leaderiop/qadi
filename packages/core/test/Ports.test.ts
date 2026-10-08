@@ -26,6 +26,7 @@ import {
 } from "../src/EvaluationId.ts";
 import * as M from "../src/Matcher.ts";
 import * as P from "../src/Policy.ts";
+import type { Policy } from "../src/Policy.ts";
 import {
   portCallsTotal,
   portRetriesTotal,
@@ -42,6 +43,9 @@ import {
 import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
+import type { PortName } from "../src/PortMetrics.ts";
+import { PORT_FIXTURES, PORTS, fixturePortsLayer } from "../src/Ports.ts";
+import type { PortFixtureData } from "../src/Ports.ts";
 
 describe("a port says which implementation it is", () => {
   // Before this, a service value was an anonymous object literal, so the only
@@ -466,4 +470,115 @@ describe("EvaluationServicesNone", () => {
       );
       assert.isFalse(isAllowed(decision));
     }).pipe(Effect.provide(layer())));
+});
+
+describe("fixturePortsLayer", () => {
+  // One row per port, typed over `PortName`: a port added to the registry without a
+  // sample here is a compile error, and `PORT_FIXTURES` is typed the same way.
+  const subject = subjectWith({ id: "u1" });
+  const resource = { resource: { id: "d1" } };
+  const samples: {
+    readonly [K in PortName]: {
+      readonly data: PortFixtureData[K];
+      readonly allowed: Policy;
+      readonly denied: Policy;
+    };
+  } = {
+    AttributeResolver: {
+      data: { tier: 5 },
+      allowed: P.hasAttribute("tier", M.gte(3)),
+      denied: P.hasAttribute("tier", M.gte(9)),
+    },
+    RelationshipResolver: {
+      data: [{ subjectId: "u1", relation: "owner", resourceId: "d1" }],
+      allowed: P.hasRelationship("owner"),
+      denied: P.hasRelationship("reader"),
+    },
+    DecisionHistory: {
+      data: [{ subjectId: "u1", event: "raised", resourceId: "d1" }],
+      allowed: P.hasActed("raised"),
+      denied: P.hasActed("approved"),
+    },
+    SignatureHistory: {
+      data: [{ subjectId: "u1", resourceId: "d1", meaning: "approved" }],
+      allowed: P.hasSignature("approved"),
+      denied: P.hasSignature("witnessed"),
+    },
+    CustomPredicate: {
+      data: { isOwner: true, isBanned: false },
+      allowed: P.hasCustom("isOwner"),
+      denied: P.hasCustom("isBanned"),
+    },
+  };
+
+  const environment = (data: Parameters<typeof fixturePortsLayer>[0]) =>
+    Layer.mergeAll(
+      currentSubjectLayer(subject),
+      evaluationIdSequential("fx"),
+      fixturePortsLayer(data),
+    );
+
+  it("has a fixture for every port in the registry, and a sample for each", () => {
+    assert.deepStrictEqual(Object.keys(PORT_FIXTURES).sort(), Object.keys(PORTS).sort());
+    assert.deepStrictEqual(Object.keys(samples).sort(), Object.keys(PORTS).sort());
+  });
+
+  it.effect("each port answers from its data: the sampled question allows, a missing one denies", () =>
+    Effect.gen(function* () {
+      const run = (port: PortName, data: Parameters<typeof fixturePortsLayer>[0]) =>
+        Effect.gen(function* () {
+          const sample = samples[port];
+          return [
+            isAllowed(yield* evaluate(sample.allowed, resource)),
+            isAllowed(yield* evaluate(sample.denied, resource)),
+          ];
+        }).pipe(Effect.provide(environment(data)));
+
+      assert.deepStrictEqual(
+        yield* run("AttributeResolver", { AttributeResolver: samples.AttributeResolver.data }),
+        [true, false],
+      );
+      assert.deepStrictEqual(
+        yield* run("RelationshipResolver", {
+          RelationshipResolver: samples.RelationshipResolver.data,
+        }),
+        [true, false],
+      );
+      assert.deepStrictEqual(
+        yield* run("DecisionHistory", { DecisionHistory: samples.DecisionHistory.data }),
+        [true, false],
+      );
+      assert.deepStrictEqual(
+        yield* run("SignatureHistory", { SignatureHistory: samples.SignatureHistory.data }),
+        [true, false],
+      );
+      assert.deepStrictEqual(
+        yield* run("CustomPredicate", { CustomPredicate: samples.CustomPredicate.data }),
+        [true, false],
+      );
+    }));
+
+  it.effect("a port with no data stays at its fail-closed default", () =>
+    Effect.gen(function* () {
+      assert.isFalse(isAllowed(yield* evaluate(samples.AttributeResolver.allowed, resource)));
+      assert.isFalse(isAllowed(yield* evaluate(samples.CustomPredicate.allowed, resource)));
+    }).pipe(Effect.provide(environment({}))));
+
+  it.effect("an override wins over the same port's data, and leaves the others alone", () =>
+    Effect.gen(function* () {
+      const overridden = Layer.mergeAll(
+        currentSubjectLayer(subject),
+        evaluationIdSequential("fx"),
+        fixturePortsLayer(
+          { AttributeResolver: { tier: 5 }, CustomPredicate: { isOwner: true } },
+          { AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.answer(1)).layer },
+        ),
+      );
+      const [tier, custom] = yield* Effect.all([
+        evaluate(samples.AttributeResolver.allowed, resource),
+        evaluate(samples.CustomPredicate.allowed, resource),
+      ]).pipe(Effect.provide(overridden));
+      assert.isFalse(isAllowed(tier));
+      assert.isTrue(isAllowed(custom));
+    }));
 });

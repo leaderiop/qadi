@@ -4,7 +4,6 @@ import * as Effect from "effect/Effect";
 import * as FastCheck from "fast-check";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
 import * as Metric from "effect/Metric";
 import * as References from "effect/References";
 import * as Schedule from "effect/Schedule";
@@ -40,7 +39,7 @@ import {
   relationshipResolverPort,
 } from "../src/RelationshipResolver.ts";
 import { signatureHistoryFromSignatures, signatureHistoryPort } from "../src/SignatureHistory.ts";
-import { chain, collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import { chain, collectingLogger, collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
 
@@ -3348,26 +3347,14 @@ describe("qadi_evaluation_duration_millis", () => {
 });
 
 describe("qadi.evaluate Debug log on denial", () => {
-  const collectingLogger = (
-    logs: Array<{ readonly message: unknown; readonly annotations: Record<string, unknown> }>,
-  ) =>
-    Logger.layer([
-      Logger.make((options) => {
-        logs.push({
-          message: options.message,
-          annotations: options.fiber.getRef(References.CurrentLogAnnotations),
-        });
-      }),
-    ]);
-
   it.effect("logs the policy tag, subject and reason", () =>
     Effect.gen(function* () {
-      const logs: Array<{ readonly message: unknown; readonly annotations: Record<string, unknown> }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
 
       yield* evaluate(P.hasPermission(write)).pipe(
         Effect.provide(testLayer(subjectWith({ id: "u2" }))),
         Effect.provideService(References.MinimumLogLevel, "Debug"),
-        Effect.provide(collectingLogger(logs)),
+        Effect.provide(logger),
       );
 
       assert.strictEqual(logs.length, 1);
@@ -3383,12 +3370,12 @@ describe("qadi.evaluate Debug log on denial", () => {
 
   it.effect("an allow logs nothing", () =>
     Effect.gen(function* () {
-      const logs: Array<{ readonly message: unknown; readonly annotations: Record<string, unknown> }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
 
       yield* evaluate(P.hasRole("editor")).pipe(
         Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
         Effect.provideService(References.MinimumLogLevel, "Debug"),
-        Effect.provide(collectingLogger(logs)),
+        Effect.provide(logger),
       );
 
       assert.strictEqual(logs.length, 0);

@@ -37,12 +37,11 @@ import {
   DecisionStreamSynced,
 } from "@qadi/core";
 import type { AuthSubject, DecisionLogReader, SinkRecord, SinkRecordNotEncodable, StoredRecord, Trace } from "@qadi/core";
+import { collectingLogger } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
-import * as References from "effect/References";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
@@ -260,7 +259,7 @@ describe("/__decisions", () => {
       // `Effect.repeat` runs its first iteration at once, so the recheck fires
       // as soon as the body is pulled, no clock needed: the connect-time
       // extraction passes and the recheck's own fails.
-      const logs: Array<unknown> = [];
+      const { lines, layer: logger } = collectingLogger();
       let extractions = 0;
       const flaky = subjectExtractorBearer(() =>
         Effect.suspend(() => {
@@ -277,7 +276,7 @@ describe("/__decisions", () => {
         Layer.provideMerge(flaky),
         Layer.provideMerge(EvaluationServicesTest),
         Layer.provideMerge(HttpServer.layerServices),
-        Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+        Layer.provideMerge(logger),
       );
       const { handler } = HttpRouter.toWebHandler(layer, { disableLogger: true });
       const response = yield* Effect.promise(() =>
@@ -291,7 +290,7 @@ describe("/__decisions", () => {
           // The failed recheck ends the body; how the platform reports that is not this test's concern.
         }
       });
-      assert.deepStrictEqual(logs, [
+      assert.deepStrictEqual(lines.map((line) => line.message), [
         ["qadi/http: subject extraction failed — token service unreachable"],
         ["qadi/http: /__decisions recheck ended the stream (SubjectExtractionFailed, outage)"],
       ]);
@@ -732,7 +731,7 @@ describe("one record cannot end the feed", () => {
 
   it.effect("a throwing onRefused is reported and the next record is still framed", () =>
     Effect.gen(function* () {
-      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
       const log = yield* makeDecisionLog({ environment: "Server" });
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
@@ -754,11 +753,7 @@ describe("one record cannot end the feed", () => {
           )),
       ).pipe(
         Effect.provide(
-          Logger.layer([
-            Logger.make((o) => {
-              logs.push({ message: o.message, annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
-            }),
-          ]),
+          logger,
         ),
       );
       assert.strictEqual(frames.length, 2);
@@ -772,7 +767,7 @@ describe("one record cannot end the feed", () => {
 
   it.effect("with no onRefused, the refusal is logged with its reason and path", () =>
     Effect.gen(function* () {
-      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
       const log = yield* makeDecisionLog({ environment: "Server" });
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
@@ -784,14 +779,7 @@ describe("one record cannot end the feed", () => {
         Effect.flatMap(log.readEntries(), (read) => Stream.runCollect(Stream.take(decisionFrames(read), 1))),
       ).pipe(
         Effect.provide(
-          Logger.layer([
-            Logger.make((o) => {
-              logs.push({
-                message: o.message,
-                annotations: o.fiber.getRef(References.CurrentLogAnnotations),
-              });
-            }),
-          ]),
+          logger,
         ),
       );
       assert.include(frames[0] ?? "", '"evaluationId":"after"');
@@ -804,7 +792,7 @@ describe("one record cannot end the feed", () => {
 
   it.effect("a refusal with no path (EncodeFailed) is logged with an empty path", () =>
     Effect.gen(function* () {
-      const logs: Array<{ annotations: Record<string, unknown> }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
       const log = yield* makeDecisionLog({ environment: "Server" });
       // A getter that throws while the codec inspects the resource: the refusal
       // is `EncodeFailed`, which carries a message and no path.
@@ -823,11 +811,7 @@ describe("one record cannot end the feed", () => {
         Effect.flatMap(log.readEntries(), (read) => Stream.runCollect(Stream.take(decisionFrames(read), 1))),
       ).pipe(
         Effect.provide(
-          Logger.layer([
-            Logger.make((o) => {
-              logs.push({ annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
-            }),
-          ]),
+          logger,
         ),
       );
       assert.include(frames[0] ?? "", '"evaluationId":"after"');

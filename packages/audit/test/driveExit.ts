@@ -5,10 +5,9 @@
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
 import * as Metric from "effect/Metric";
-import * as References from "effect/References";
 import { DecisionSink } from "@qadi/core";
+import { collectingLogger, isolatedMetrics } from "@qadi/testing";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
@@ -16,7 +15,7 @@ import { AuditStagingError, AuditStagingPort } from "../src/AuditStagingPort.ts"
 import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
 import type { AuditWriteOutcome } from "../src/AuditWriteOutcome.ts";
 import type { StagingLabel, WritesLabel } from "../src/AuditWriteReport.ts";
-import { decisionRecord, isolatedMetrics } from "./helpers.ts";
+import { decisionRecord } from "./helpers.ts";
 
 export type Mode = "ok" | "fail" | "die";
 
@@ -96,7 +95,6 @@ export const driveExit = (spec: ExitSpec): Effect.Effect<ExitObservation> =>
   Effect.gen(function* () {
     const rows: Array<AuditEntry> = [];
     const outcomes: Array<AuditWriteOutcome> = [];
-    const logs: Array<ObservedLog> = [];
     const isTarget = (entry: AuditEntry) => entry.record.evaluationId === "target";
 
     const trail = Layer.succeed(AuditTrailPort, {
@@ -116,15 +114,7 @@ export const driveExit = (spec: ExitSpec): Effect.Effect<ExitObservation> =>
           : Effect.succeed("handle"),
       commit: () => failOrDie(spec.commit, new AuditStagingError({ entry: healthyEntry, cause: "commit offline" })),
     });
-    const logger = Logger.layer([
-      Logger.make((o) => {
-        logs.push({
-          level: o.logLevel,
-          message: String(Array.isArray(o.message) ? o.message[0] : o.message),
-          evaluationId: o.fiber.getRef(References.CurrentLogAnnotations)["evaluationId"],
-        });
-      }),
-    ]);
+    const { lines, layer: logger } = collectingLogger();
     const sinkLayer = Layer.provideMerge(
       AuditDecisionSinkLive({ failureThreshold: 1, onOutcome: (o) => void outcomes.push(o) }),
       Layer.mergeAll(trail, spec.wired ? staging : Layer.empty, logger),
@@ -139,7 +129,7 @@ export const driveExit = (spec: ExitSpec): Effect.Effect<ExitObservation> =>
         const sink = yield* DecisionSink;
         if (spec.open) yield* sink.record(decisionRecord({ evaluationId: "trip" }));
         const before = yield* Metric.snapshot;
-        const logsBefore = logs.length;
+        const logsBefore = lines.length;
         const outcomesBefore = outcomes.length;
         yield* sink.record(target);
         const after = yield* Metric.snapshot;
@@ -166,7 +156,13 @@ export const driveExit = (spec: ExitSpec): Effect.Effect<ExitObservation> =>
           },
           lost: lostCount(after) - lostCount(before),
           lostLabels: lostLabelsMoved(before, after),
-          logs: logs.slice(logsBefore),
+          logs: lines.slice(logsBefore).map(
+            (line): ObservedLog => ({
+              level: line.level,
+              message: String(Array.isArray(line.message) ? line.message[0] : line.message),
+              evaluationId: line.annotations["evaluationId"],
+            }),
+          ),
           rows: rows.length,
           hookCalls: outcomes.length - outcomesBefore,
         };

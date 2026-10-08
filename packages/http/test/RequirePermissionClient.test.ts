@@ -25,7 +25,6 @@
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
 import * as Schema from "effect/Schema";
 import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
@@ -50,6 +49,7 @@ import {
   attributeResolverPort,
 } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
+import { collectingLogger } from "@qadi/testing";
 import { assert, describe, it } from "@effect/vitest";
 import {
   RequiredPermission,
@@ -191,7 +191,7 @@ describe("RequirePermission client-error typing", () => {
     "a generated client decodes an undischarged obligation as the real typed UndischargedObligation, tag-only",
     () =>
       Effect.gen(function* () {
-        const logs: Array<unknown> = [];
+        const { lines, layer: logger } = collectingLogger();
         const client = yield* makeClient;
         // Alice holds `deletePermission`, so `hasPermission` allows — but
         // `deletePolicy`'s binding `auditObligation` is never discharged
@@ -200,7 +200,7 @@ describe("RequirePermission client-error typing", () => {
         // `UndischargedObligation` rather than a denial.
         const error = yield* client.documents
           .delete({ headers: { authorization: `Bearer ${ALICE_TOKEN}` } })
-          .pipe(Effect.flip, Effect.provide(Logger.layer([Logger.make((o) => logs.push(o.message))])));
+          .pipe(Effect.flip, Effect.provide(logger));
         // Before this fix, `RequirePermissionLive` answered an empty 403 body
         // that didn't match `UndischargedObligationRefused`'s declared
         // `Schema.TaggedStruct("UndischargedObligation", {})` — the client
@@ -216,7 +216,7 @@ describe("RequirePermission client-error typing", () => {
         // "UndischargedObligation"], logDenial)` runs before the hand
         // conversion above — this is the obligation half of that array; the
         // denial half is pinned server-side in `http.test.ts`.
-        assert.deepStrictEqual(logs, [
+        assert.deepStrictEqual(lines.map((line) => line.message), [
           [`qadi/http: request denied (ACL010) — subject "alice": undischarged obligation(s) log-delete`],
         ]);
       }).pipe(Effect.provide(Layer.mergeAll(passthroughClientLayer(RequirePermission), testLayer(false)))),

@@ -35,7 +35,9 @@ const holds = Effect.fn("features.signatureHolds")(function* (
   assert.ok(ledger !== undefined, "no signature was captured in this scenario");
   const decision = yield* decide(policy, { resource }).pipe(
     Effect.provide(
-      qadiTestLayer(subjectOf(w), { ports: { SignatureHistory: signatureHistoryFromLedger(ledger) } }),
+      qadiTestLayer(subjectOf(w), {
+        ports: { SignatureHistory: { layer: signatureHistoryFromLedger(ledger) } },
+      }),
     ),
   );
   return decision._tag === "Allow";

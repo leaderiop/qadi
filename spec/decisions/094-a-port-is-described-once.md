@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-094                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-10-08): amended: a request key is injective over every argument the port receives; the relationship and custom-predicate keys are corrected (ARCH-45 I1, CCR-QD-263)<br>1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
+> | Change History | 1.3 (2026-10-08): amendment — each port's fixture builder is listed in `PORT_FIXTURES`, closed over `PortName`, beside its description (ARCH-42, CCR-QD-270)<br>1.2 (2026-10-08): amended: a request key is injective over every argument the port receives; the relationship and custom-predicate keys are corrected (ARCH-45 I1, CCR-QD-263)<br>1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
 
 ---
 
@@ -229,3 +229,20 @@ reader's label, never an input to a decision. `EvaluationId`, `CurrentSubject`,
 > `canonicalKey`, package-private: a `Set` as its sorted members, an object with sorted
 > keys), because `JSON.stringify` writes a `Set` as `{}`. Observable change: two key
 > strings, and `CapturedAnswers` (exported) keys with them; no type changes.
+
+## Amendment (2026-10-08, CCR-QD-270)
+
+Each port's fixture builder is listed in `PORT_FIXTURES` (`Ports.ts`), closed over
+`PortName`, beside its description; the description itself gains no field. The
+data a fixture takes is `PortFixtureData[K]`, and `fixturePortsLayer(data, overrides?)`
+is the one place a set of fixture data becomes an environment: `@qadi/testing`'s
+`qadiReviewLayer` and `@qadi/devtools`' Fixtures simulation both call it. Before
+it the data-to-layer map was written twice, once in each, and devtools cannot depend
+on `@qadi/testing` (no test fixtures in a production bundle), so only core could
+hold it. A `fixture` field on `PortDescription` was rejected: it would put a
+test-data shape into every production description and break every literal. A new
+port is therefore a description, a `PortName` member, its registry lines **and one
+`PORT_FIXTURES` row**; omitting the row is TS2741. `CustomPredicate`'s fixture is
+fixed verdicts by name (`Readonly<Record<string, boolean>>`), not functions, so
+`PortFixtureData` stays serializable and devtools' sealed input (ADR-QD-050) stays
+data-only.

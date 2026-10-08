@@ -28,9 +28,9 @@ import {
   scriptedPort,
 } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
+import { collectingLogger } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import { authorizeRequest, SubjectExtractionFailed, subjectExtractorBearer } from "../src/index.ts";
 
@@ -51,11 +51,8 @@ const requestAs = (token: string) =>
   );
 
 const withLogs = <A, E, R>(effect: Effect.Effect<A, E, R>) => {
-  const logs: Array<unknown> = [];
-  return {
-    logs,
-    run: effect.pipe(Effect.provide(Logger.layer([Logger.make((options) => logs.push(options.message))]))),
-  };
+  const { lines, layer } = collectingLogger();
+  return { lines, run: effect.pipe(Effect.provide(layer)) };
 };
 
 const standing = Layer.mergeAll(subjectExtractorBearer(lookupSubject), EvaluationServicesNone);
@@ -73,12 +70,12 @@ describe("authorizeRequest", () => {
 
   it.effect("a denial fails with AccessDenied and logs exactly one line", () =>
     Effect.gen(function* () {
-      const { logs, run } = withLogs(
+      const { lines, run } = withLogs(
         authorizeRequest(readPermission, readPolicy)(requestAs(BOB)).pipe(Effect.provide(standing), Effect.flip),
       );
       const error = yield* run;
       assert.strictEqual(error._tag, "AccessDenied");
-      assert.deepStrictEqual(logs, [
+      assert.deepStrictEqual(lines.map((line) => line.message), [
         [`qadi/http: request denied (ACL001) — subject "bob": subject lacks permission 'devtools:read'`],
       ]);
     }));
@@ -86,12 +83,12 @@ describe("authorizeRequest", () => {
   it.effect("an obligation nobody discharged is refused, as connect-time guard refuses it", () =>
     Effect.gen(function* () {
       const policy = obliged(obligation("must-log"), readPolicy);
-      const { logs, run } = withLogs(
+      const { lines, run } = withLogs(
         authorizeRequest(readPermission, policy)(requestAs(ALICE)).pipe(Effect.provide(standing), Effect.flip),
       );
       const error = yield* run;
       assert.strictEqual(error._tag, "UndischargedObligation");
-      assert.strictEqual(logs.length, 1);
+      assert.strictEqual(lines.length, 1);
     }));
 
   it.effect("an extraction failure logs one line and never loads the resource", () =>
@@ -100,7 +97,7 @@ describe("authorizeRequest", () => {
       const brokenStore = subjectExtractorBearer(() =>
         Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
       );
-      const { logs, run } = withLogs(
+      const { lines, run } = withLogs(
         authorizeRequest(readPermission, readPolicy, () =>
           Effect.sync(() => {
             loads += 1;
@@ -114,7 +111,7 @@ describe("authorizeRequest", () => {
       const error = yield* run;
       assert.strictEqual(error._tag, "SubjectExtractionFailed");
       assert.strictEqual(loads, 0);
-      assert.deepStrictEqual(logs, [["qadi/http: subject extraction failed — token service unreachable"]]);
+      assert.deepStrictEqual(lines.map((line) => line.message), [["qadi/http: subject extraction failed — token service unreachable"]]);
     }));
 
   it.effect("a resolver outage fails as itself and the edge logs nothing", () =>
@@ -125,7 +122,7 @@ describe("authorizeRequest", () => {
         subjectExtractorBearer(lookupSubject),
         EvaluationIdLive,
       );
-      const { logs, run } = withLogs(
+      const { lines, run } = withLogs(
         authorizeRequest(readPermission, hasAttribute("clearance", gte(1)))(requestAs(ALICE)).pipe(
           Effect.provide(layer),
           Effect.flip,
@@ -133,7 +130,7 @@ describe("authorizeRequest", () => {
       );
       const error = yield* run;
       assert.strictEqual(error._tag, "AttributeResolveError");
-      assert.deepStrictEqual(logs, []);
+      assert.deepStrictEqual(lines.map((line) => line.message), []);
     }));
 
   it.effect("evaluates the loaded resource, and returns that one", () =>

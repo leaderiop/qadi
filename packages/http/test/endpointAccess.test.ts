@@ -9,7 +9,6 @@
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
 import * as HashMap from "effect/HashMap";
 import * as Result from "effect/Result";
 import * as HttpApi from "effect/http-api/HttpApi";
@@ -19,6 +18,7 @@ import * as HttpApiGroup from "effect/http-api/HttpApiGroup";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServer from "effect/http/HttpServer";
 import type { Permission } from "@qadi/core";
+import { collectingLogger } from "@qadi/testing";
 import {
   EvaluationIdLive,
   hasPermission,
@@ -77,7 +77,7 @@ const observe = <Id extends string, Groups extends HttpApiGroup.Constraint>(
     RequirePermission | HttpRouter.HttpRouter | Layer.Success<typeof HttpServer.layerServices>
   >,
   paths: ReadonlyArray<string>,
-  logs: Array<unknown> = [],
+  logger: Layer.Layer<never> = Layer.empty,
 ) =>
   Effect.gen(function* () {
     const registryBuilt = yield* Effect.scoped(
@@ -105,7 +105,7 @@ const observe = <Id extends string, Groups extends HttpApiGroup.Constraint>(
       ),
       Layer.provideMerge(Layer.mergeAll(portsLayer({}), EvaluationIdLive)),
       Layer.provideMerge(HttpServer.layerServices),
-      Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+      Layer.provideMerge(logger),
     );
     const { handler, dispose } = HttpRouter.toWebHandler(app, { disableLogger: true });
     const status = (path: string, token?: string) =>
@@ -149,67 +149,67 @@ const misplacedOf = (error: { readonly _tag: string } | undefined) =>
   error instanceof MisplacedAccessDeclaration ? error : undefined;
 
 // Case 1: a group annotated with a requirement.
-const case1 = (logs: Array<unknown>) => {
+const case1 = (logger: Layer.Layer<never>) => {
   const group = HttpApiGroup.make("g")
     .add(ep("a"), ep("b"))
     .annotate(RequiredPermission, required(decoy));
   const api = HttpApi.make("t").add(group).middleware(RequirePermission);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done).handle("b", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a", "/b"], logs);
+  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a", "/b"], logger);
 };
 
 // Case 2: a group-level requirement over an endpoint-level `publicEndpoint`.
-const case2 = (logs: Array<unknown>) => {
+const case2 = (logger: Layer.Layer<never>) => {
   const group = HttpApiGroup.make("g")
     .add(ep("a").pipe((e) => e.annotate(PublicEndpoint, publicEndpoint("probe"))))
     .annotate(RequiredPermission, required(decoy));
   const api = HttpApi.make("t").add(group).middleware(RequirePermission);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logs);
+  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 3: a group-level `publicEndpoint` alone.
-const case3 = (logs: Array<unknown>) => {
+const case3 = (logger: Layer.Layer<never>) => {
   const group = HttpApiGroup.make("g")
     .add(ep("a"))
     .annotate(PublicEndpoint, publicEndpoint("probe"));
   const api = HttpApi.make("t").add(group).middleware(RequirePermission);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logs);
+  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 4: an API-level requirement.
-const case4 = (logs: Array<unknown>) => {
+const case4 = (logger: Layer.Layer<never>) => {
   const api = HttpApi.make("t")
     .add(HttpApiGroup.make("g").add(ep("a")))
     .middleware(RequirePermission)
     .annotate(RequiredPermission, required(decoy));
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logs);
+  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 5: `annotateEndpoints`, the supported way to declare for a whole group.
-const case5 = (logs: Array<unknown>) => {
+const case5 = (logger: Layer.Layer<never>) => {
   const group = HttpApiGroup.make("g")
     .add(ep("a"))
     .annotateEndpoints(RequiredPermission, required(decoy));
   const api = HttpApi.make("t").add(group).middleware(RequirePermission);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logs);
+  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 6: a group requirement over an endpoint requirement of its own.
-const case6 = (logs: Array<unknown>) => {
+const case6 = (logger: Layer.Layer<never>) => {
   const group = HttpApiGroup.make("g")
     .add(ep("a").pipe((e) => e.annotate(RequiredPermission, required(e, writeP))))
     .annotate(RequiredPermission, required(decoy));
   const api = HttpApi.make("t").add(group).middleware(RequirePermission);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logs);
+  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 7: both keys on one endpoint.
-const case7 = (logs: Array<unknown>) => {
+const case7 = (logger: Layer.Layer<never>) => {
   const group = HttpApiGroup.make("g").add(
     ep("a").pipe((e) =>
       e.annotate(RequiredPermission, required(e)).annotate(PublicEndpoint, publicEndpoint("probe")),
@@ -217,27 +217,27 @@ const case7 = (logs: Array<unknown>) => {
   );
   const api = HttpApi.make("t").add(group).middleware(RequirePermission);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logs);
+  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 8: `.middleware` before `.add` — Effect applies it only to endpoints already added.
-const case8 = (logs: Array<unknown>) => {
+const case8 = (logger: Layer.Layer<never>) => {
   const group = HttpApiGroup.make("g").add(ep("a").pipe((e) => e.annotate(RequiredPermission, required(e))));
   const api = HttpApi.make("t").middleware(RequirePermission).add(group);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logs);
+  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 9: no middleware at all.
-const case9 = (logs: Array<unknown>) => {
+const case9 = (logger: Layer.Layer<never>) => {
   const group = HttpApiGroup.make("g").add(ep("a").pipe((e) => e.annotate(RequiredPermission, required(e))));
   const api = HttpApi.make("t").add(group);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logs);
+  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 10: the middleware is on one group only.
-const case10 = (logs: Array<unknown>) => {
+const case10 = (logger: Layer.Layer<never>) => {
   const g1 = HttpApiGroup.make("g1").add(ep("a").pipe((e) => e.annotate(RequiredPermission, required(e))));
   const g2 = HttpApiGroup.make("g2").add(ep("b").pipe((e) => e.annotate(RequiredPermission, required(e))));
   const api = HttpApi.make("t").add(g1).middleware(RequirePermission).add(g2);
@@ -247,7 +247,7 @@ const case10 = (logs: Array<unknown>) => {
     api,
     HttpApiBuilder.layer(api).pipe(Layer.provide(h1), Layer.provide(h2)),
     ["/a", "/b"],
-    logs,
+    logger,
   );
 };
 
@@ -271,7 +271,7 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
   for (const [name, run] of placements) {
     it.effect(`${name}: listed under P if and only if P is enforced`, () =>
       Effect.gen(function* () {
-        const observed = yield* run([]);
+        const observed = yield* run(Layer.empty);
         for (const [path, enforcedKey] of observed.enforced) {
           assert.strictEqual(observed.listed.get(path), enforcedKey, `${name} ${path}`);
         }
@@ -280,7 +280,7 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
 
   it.effect("an endpoint the middleware is not attached to is refused by registerApi, naming it", () =>
     Effect.gen(function* () {
-      const observed = yield* case8([]);
+      const observed = yield* case8(Layer.empty);
       assert.strictEqual(observed.registryError?._tag, "RequirePermissionNotAttached");
       assert.deepStrictEqual(
         observed.registryError && "group" in observed.registryError
@@ -295,7 +295,7 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
 
   it.effect("middleware on one group only: the registry refuses the whole API, naming the bare endpoint", () =>
     Effect.gen(function* () {
-      const observed = yield* case10([]);
+      const observed = yield* case10(Layer.empty);
       assert.strictEqual(observed.registryError?._tag, "RequirePermissionNotAttached");
       assert.deepStrictEqual(
         observed.registryError && "group" in observed.registryError
@@ -310,22 +310,22 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
 
   it.effect("a group requirement over a public endpoint is refused, not served and not listed", () =>
     Effect.gen(function* () {
-      const logs: Array<unknown> = [];
-      const observed = yield* case2(logs);
+      const { lines, layer: logger } = collectingLogger();
+      const observed = yield* case2(logger);
       // Served as 204 to anyone and listed as guarded, before ARCH-18.
       assert.strictEqual(observed.statuses.get("/a"), 500);
       assert.isFalse(observed.listed.has("/a"));
-      assert.include(logs.flat(), groupRefusal("g", "a", "RequiredPermission"));
+      assert.include(lines.map((line) => line.message).flat(), groupRefusal("g", "a", "RequiredPermission"));
     }));
 
   it.effect("a group requirement refuses every endpoint under it, and registerApi names the group", () =>
     Effect.gen(function* () {
-      const logs: Array<unknown> = [];
-      const observed = yield* case1(logs);
+      const { lines, layer: logger } = collectingLogger();
+      const observed = yield* case1(logger);
       assert.strictEqual(observed.statuses.get("/a"), 500);
       assert.strictEqual(observed.statuses.get("/b"), 500);
-      assert.include(logs.flat(), groupRefusal("g", "a", "RequiredPermission"));
-      assert.include(logs.flat(), groupRefusal("g", "b", "RequiredPermission"));
+      assert.include(lines.map((line) => line.message).flat(), groupRefusal("g", "a", "RequiredPermission"));
+      assert.include(lines.map((line) => line.message).flat(), groupRefusal("g", "b", "RequiredPermission"));
       assert.deepStrictEqual(observed.registryError?._tag, "MisplacedAccessDeclaration");
       assert.deepStrictEqual(
         [
@@ -339,10 +339,10 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
 
   it.effect("a group-level publicEndpoint is refused by both readers", () =>
     Effect.gen(function* () {
-      const logs: Array<unknown> = [];
-      const observed = yield* case3(logs);
+      const { lines, layer: logger } = collectingLogger();
+      const observed = yield* case3(logger);
       assert.strictEqual(observed.statuses.get("/a"), 500);
-      assert.include(logs.flat(), groupRefusal("g", "a", "PublicEndpoint"));
+      assert.include(lines.map((line) => line.message).flat(), groupRefusal("g", "a", "PublicEndpoint"));
       assert.deepStrictEqual(
         [misplacedOf(observed.registryError)?.scope, misplacedOf(observed.registryError)?.key],
         ["group", "PublicEndpoint"],
@@ -351,7 +351,7 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
 
   it.effect("an api-level requirement is refused by registerApi, and the middleware cannot serve it", () =>
     Effect.gen(function* () {
-      const observed = yield* case4([]);
+      const observed = yield* case4(Layer.empty);
       assert.deepStrictEqual(
         [
           misplacedOf(observed.registryError)?.scope,
@@ -365,14 +365,14 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
 
   it.effect("a group requirement over an endpoint requirement is refused rather than overridden", () =>
     Effect.gen(function* () {
-      const observed = yield* case6([]);
+      const observed = yield* case6(Layer.empty);
       assert.strictEqual(observed.statuses.get("/a"), 500);
       assert.isDefined(observed.registryError);
     }));
 
   it.effect("group.annotateEndpoints is honored by both readers", () =>
     Effect.gen(function* () {
-      const observed = yield* case5([]);
+      const observed = yield* case5(Layer.empty);
       assert.isUndefined(observed.registryError);
       assert.strictEqual(observed.listed.get("/a"), READ_KEY);
       assert.strictEqual(observed.enforced.get("/a"), READ_KEY);
@@ -380,7 +380,7 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
 
   it.effect("an endpoint carrying both keys is enforced and listed: the requirement wins", () =>
     Effect.gen(function* () {
-      const observed = yield* case7([]);
+      const observed = yield* case7(Layer.empty);
       assert.isUndefined(observed.registryError);
       assert.strictEqual(observed.statuses.get("/a"), 403);
       assert.strictEqual(observed.enforced.get("/a"), READ_KEY);

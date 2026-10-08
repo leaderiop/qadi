@@ -17,12 +17,11 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as TestClock from "effect/testing/TestClock";
 import * as Result from "effect/Result";
-import * as Logger from "effect/Logger";
-import * as References from "effect/References";
 import * as Stream from "effect/Stream";
 import { encodeSinkRecordString, encodeStoredRecordString, makeDecisionLog, MAX_DECODE_DEPTH } from "@qadi/core";
 import { DecisionStreamEvent } from "@qadi/core";
 import type { StoredRecord } from "@qadi/core";
+import { collectingLogger } from "@qadi/testing";
 import {
   type DecisionEventSource,
   type MalformedReason,
@@ -582,7 +581,7 @@ describe("sourceFromEventSource", () => {
   it.effect("without onMalformed the drop is logged, with the frame attached", () =>
     Effect.gen(function* () {
       const fake = fakeEventSource();
-      const logs: Array<{ message: unknown; annotations: unknown }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
 
       const got = yield* collect(
         fake,
@@ -590,14 +589,7 @@ describe("sourceFromEventSource", () => {
         1,
       ).pipe(
         Effect.provide(
-          Logger.layer([
-            Logger.make((o) => {
-              logs.push({
-                message: o.message,
-                annotations: o.fiber.getRef(References.CurrentLogAnnotations),
-              });
-            }),
-          ]),
+          logger,
         ),
       );
 
