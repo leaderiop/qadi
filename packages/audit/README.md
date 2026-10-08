@@ -46,6 +46,7 @@ A row is wire version 2, the only version this release reads. A row written
 before 0.10 (wire version 1, with no `version` key) is refused as
 `UnsupportedVersion`. Re-encode such rows with 0.10.x (`decodeAuditEntry`, then
 `encodeAuditEntry`, from `@qadi/audit@0.10`) before upgrading.
+A row whose record contradicts itself (the decision is not its own trace's) is refused as `Inconsistent`.
 
 ## Refuses rather than approximates
 

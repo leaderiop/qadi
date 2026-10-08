@@ -18,7 +18,7 @@
  */
 import { test } from "vitest";
 import { Allow } from "../src/Decision.ts";
-import type { Trace } from "../src/Decision.ts";
+import type { AllowingTrace } from "../src/Decision.ts";
 import { Decided, DecisionRecord, Failed } from "../src/DecisionRecord.ts";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { AttributeResolveError } from "../src/Errors.ts";
@@ -29,9 +29,9 @@ import { encodeSinkRecord, encodeSinkRecordString } from "../src/SinkCodec.ts";
 
 const read = permission("doc", "read");
 
-const leafTrace: Trace = { policyTag: "HasPermission", allowed: true, children: [], obligations: [] };
+const leafTrace: AllowingTrace = { policyTag: "HasPermission", allowed: true, children: [], obligations: [] };
 
-const decided = (policy: P.Policy, trace: Trace): SinkRecord =>
+const decided = (policy: P.Policy, trace: AllowingTrace): SinkRecord =>
   new DecisionRecord({
     evaluationId: "bench",
     at: 1,
@@ -45,8 +45,6 @@ const decided = (policy: P.Policy, trace: Trace): SinkRecord =>
         subjectId: makeSubjectId("u1"),
         durationMillis: 1,
         trace,
-        visibleFields: undefined,
-        obligations: [],
       }),
     }),
   });
@@ -55,7 +53,7 @@ const oneNode = decided(P.hasPermission(read), leafTrace);
 
 const wide: SinkRecord = (() => {
   let policy: P.Policy = P.hasPermission(read);
-  let trace: Trace = leafTrace;
+  let trace: AllowingTrace = leafTrace;
   for (let i = 0; i < 64; i++) {
     policy = P.allOf([policy]);
     trace = { policyTag: "AllOf", allowed: true, children: [trace], obligations: [] };

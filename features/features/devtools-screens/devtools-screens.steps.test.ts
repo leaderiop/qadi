@@ -25,7 +25,7 @@ import {
   role,
   stampRecord,
 } from "@qadi/core";
-import type { Policy, Role, StoredRecord, Trace } from "@qadi/core";
+import type { AllowingTrace, Policy, Role, StoredRecord } from "@qadi/core";
 import {
   catalogueOf,
   emptyTimeline,
@@ -61,7 +61,7 @@ const policies: Record<string, Policy> = {
   "all of doc:read": allOf([hasPermission(read)]),
 };
 
-const trace: Trace = {
+const trace: AllowingTrace = {
   policyTag: "HasPermission",
   allowed: true,
   children: [],
@@ -129,8 +129,6 @@ const decisionFor = (at: number, policy: Policy): StoredRecord => {
         subjectId: makeSubjectId("alice"),
         durationMillis: 1,
         trace,
-        visibleFields: undefined,
-        obligations: [],
       }),
     }),
   });

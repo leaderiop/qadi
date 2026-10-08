@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-078                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-10-04                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — amends ADR-QD-028, ADR-QD-039, ADR-QD-041, ADR-QD-052; amended 2026-10-06 (version-1 reader removed) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-06): amended — the version-1 payload reader removed in 0.11.0, as scheduled; `DehydratedDecisionsV1`, `DehydratedEntryV1` and `DehydratedPayload` removed (CCR-QD-182)<br>1.0 (2026-10-04): Initial release (CCR-QD-156) |
+> | Change History | 1.2 (2026-10-08): amended — a `Disclosed` seed must agree with its own trace as well as name its own policy (ADR-QD-106, CCR-QD-301)<br>1.1 (2026-10-06): amended — the version-1 payload reader removed in 0.11.0, as scheduled; `DehydratedDecisionsV1`, `DehydratedEntryV1` and `DehydratedPayload` removed (CCR-QD-182)<br>1.0 (2026-10-04): Initial release (CCR-QD-156) |
 
 ---
 
@@ -160,6 +160,10 @@ as not allowed — fail-closed, never a grant — and moves to `permits`.
 The version-1 reader is removed in the next minor release; a follow-up is filed when
 that lands. `@qadi/devtools` reads the same five metrics unchanged; only its
 `MEANINGS` table follows the reason set.
+
+## Amendment (2026-10-08, ADR-QD-106)
+
+A `Disclosed` seed must agree with its own trace, not only name its own policy: its verdict, `visibleFields`, `obligations` and (for a denial) `reason` must be the trace root's, as `@qadi/core's` `decisionDisagreement` judges (INV-QD-170). One that is not is dropped as `MalformedEntry`, the reason the root-tag check already used; the drop reasons, `hydrationDropReasons` and the payload version do not change. A `Withheld` seed has no trace, so its fields are the only copy and there is nothing to compare. This is integrity of the payload, not trust in it (ADR-QD-039): a consistently forged seed still seeds, and the client's own answer supersedes it.
 
 ---
 

@@ -85,11 +85,50 @@ export const TraceSchema: Schema.Codec<Trace> = Schema.suspend(
     }),
 );
 
+/**
+ * A trace whose root allows.
+ *
+ * The type `Allow`'s constructor demands of its trace, so that an `Allow` built
+ * beside a denying trace is a compile error rather than a contradictory value
+ * (INV-QD-170).
+ */
+export type AllowingTrace = Trace & { readonly allowed: true };
+
+/** A trace whose root denies: what `Deny`'s constructor demands of its trace. */
+export type DenyingTrace = Trace & { readonly allowed: false };
+
+/** Narrows a trace to one whose root allows. */
+export const isAllowingTrace = (trace: Trace): trace is AllowingTrace => trace.allowed;
+
+/** Narrows a trace to one whose root denies. */
+export const isDenyingTrace = (trace: Trace): trace is DenyingTrace => !trace.allowed;
+
+/**
+ * What a decision records beside its trace: who asked, under which evaluation,
+ * and how long it took.
+ *
+ * Everything else a decision says (its verdict, `visibleFields`, `obligations`
+ * and `reason`) is a reading of the trace root, and {@link makeDecision} takes
+ * it from there. A stamp is the part of a decision that is not in its trace.
+ */
+export interface DecisionStamp {
+  readonly evaluationId: string;
+  readonly subjectId: SubjectId;
+  readonly durationMillis: number;
+}
+
+/**
+ * An `Allow`, built from a stamp and a trace whose root allows.
+ *
+ * `visibleFields` and `obligations` are the trace root's, taken by the
+ * constructor; a caller cannot pass them (ARCH-32). The fields stay own,
+ * readonly properties, so a decision still serializes and spreads with them.
+ */
 export class Allow extends Data.TaggedClass("Allow")<{
   readonly evaluationId: string;
   readonly subjectId: SubjectId;
   readonly durationMillis: number;
-  readonly trace: Trace;
+  readonly trace: AllowingTrace;
   /** See {@link VisibleFields} for what `undefined` means here. */
   readonly visibleFields: VisibleFields;
   /**
@@ -99,17 +138,138 @@ export class Allow extends Data.TaggedClass("Allow")<{
    * obligation conditions permission, and a denial permits nothing.
    */
   readonly obligations: ReadonlyArray<Obligation>;
-}> {}
+}> {
+  constructor(args: DecisionStamp & { readonly trace: AllowingTrace }) {
+    super({
+      ...args,
+      visibleFields: args.trace.visibleFields,
+      obligations: args.trace.obligations,
+    });
+  }
+}
 
+/**
+ * A `Deny`, built from a stamp and a trace whose root denies.
+ *
+ * `reason` is the trace root's, or `"denied"` for a foreign trace that carries
+ * none: an evaluated denial always has one (see {@link Trace.reason}), so the
+ * fallback only serves a hand-built or decoded trace.
+ */
 export class Deny extends Data.TaggedClass("Deny")<{
   readonly evaluationId: string;
   readonly subjectId: SubjectId;
   readonly durationMillis: number;
-  readonly trace: Trace;
+  readonly trace: DenyingTrace;
   readonly reason: string;
-}> {}
+}> {
+  constructor(args: DecisionStamp & { readonly trace: DenyingTrace }) {
+    super({ ...args, reason: args.trace.reason ?? "denied" });
+  }
+}
 
 export type Decision = Allow | Deny;
+
+/**
+ * Builds the decision a trace amounts to.
+ *
+ * The one constructor of a {@link Decision}: its verdict is the trace root's
+ * `allowed`, and its `visibleFields`, `obligations` and `reason` are the root's
+ * too, so the decision cannot disagree with the trace it carries (INV-QD-170).
+ * A value that arrives already carrying both copies is checked with
+ * {@link decisionDisagreement} instead.
+ *
+ * A denial's trace is the root with `allowed: false` restated, one shallow
+ * copy, because a type predicate narrows only the true branch of a trace that
+ * is not a union.
+ */
+export const makeDecision = (stamp: DecisionStamp, trace: Trace): Decision =>
+  isAllowingTrace(trace)
+    ? new Allow({ ...stamp, trace })
+    : new Deny({ ...stamp, trace: { ...trace, allowed: false } });
+
+/**
+ * The ways a decision, a record or a seed can contradict itself.
+ *
+ * A closed union: the whole vocabulary of disagreement. The first five are
+ * raised by {@link decisionDisagreement} against a trace; `"EvaluationId"`,
+ * `"SubjectId"` and `"PolicyTag"` are the record-level three, raised by the
+ * record codec from this same type so that one list names every one.
+ */
+export type DecisionDisagreement =
+  | "Verdict"
+  | "VisibleFields"
+  | "Obligations"
+  | "Reason"
+  | "DenyObligations"
+  | "EvaluationId"
+  | "SubjectId"
+  | "PolicyTag";
+
+/**
+ * What a value claims beside its trace: a wire decision, or a disclosed seed.
+ *
+ * A seed's `Deny` claim passes `obligations: []`, since a denial owes nothing.
+ */
+export type DecisionClaim =
+  | {
+      readonly verdict: "Allow";
+      readonly visibleFields: VisibleFields;
+      readonly obligations: ReadonlyArray<Obligation>;
+    }
+  | {
+      readonly verdict: "Deny";
+      readonly reason: string;
+      readonly obligations: ReadonlyArray<Obligation>;
+    };
+
+/**
+ * Equivalences derived from the schemas the codec uses, so the comparison
+ * cannot drift from the wire (ADR-QD-002). Byte for byte: `undefined` (every
+ * field) is not `[]` (none), INV-QD-004, and order matters.
+ */
+const sameFields = Schema.toEquivalence(Schema.UndefinedOr(Schema.Array(Schema.String)));
+const sameObligations = Schema.toEquivalence(Schema.Array(Obligation));
+
+/**
+ * A claim as the check it makes of a trace. Built once at module scope
+ * (AGENTS.md section 5a); `decisionDisagreement` applies it per call.
+ */
+const claimDisagreement: (
+  claim: DecisionClaim,
+) => (trace: Trace) => DecisionDisagreement | undefined = Match.type<DecisionClaim>().pipe(
+  Match.discriminatorsExhaustive("verdict")({
+    Allow: (claim) => (trace: Trace) =>
+      !trace.allowed
+        ? "Verdict"
+        : !sameFields(claim.visibleFields, trace.visibleFields)
+          ? "VisibleFields"
+          : !sameObligations(claim.obligations, trace.obligations)
+            ? "Obligations"
+            : undefined,
+    Deny: (claim) => (trace: Trace) =>
+      trace.allowed
+        ? "Verdict"
+        : claim.obligations.length > 0
+          ? "DenyObligations"
+          : claim.reason !== (trace.reason ?? "denied")
+            ? "Reason"
+            : undefined,
+  }),
+);
+
+/**
+ * The first way a claim contradicts its trace root, or `undefined` when it
+ * does not.
+ *
+ * The one home of the agreement rule: the record codec and the hydration
+ * engine are its two adapters, each refusing in its own vocabulary. The order
+ * is fixed (verdict, then fields, then obligations, then reason), so the
+ * reported disagreement is deterministic.
+ */
+export const decisionDisagreement = (
+  claim: DecisionClaim,
+  trace: Trace,
+): DecisionDisagreement | undefined => claimDisagreement(claim)(trace);
 
 /** True when the decision permits the action. */
 export const isAllowed = (self: Decision): self is Allow => self._tag === "Allow";

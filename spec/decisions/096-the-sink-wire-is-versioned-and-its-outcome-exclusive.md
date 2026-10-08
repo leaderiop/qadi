@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-096                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — amends ADR-QD-002, ADR-QD-056, ADR-QD-060; D-15-d reversed 2026-10-06 (version 2 only) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-10-08): Document ID corrected from `QADI-ADR-903` to `QADI-ADR-096`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.1 (2026-10-06): amended — 0.11.0 reads version 2 only; D-15-d ("the v1 reader is permanent") reversed at the maintainer's direction, D-15-g/h/i withdrawn with it, INV-QD-099 retired, the migration path stated (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-15, CCR-QD-180) |
+> | Change History | 1.3 (2026-10-08): amended — a version-2 decision whose copies disagree is refused as `Inconsistent`, and the duplicated fields are queued for the next version (ADR-QD-106, CCR-QD-301)<br>1.2 (2026-10-08): Document ID corrected from `QADI-ADR-903` to `QADI-ADR-096`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.1 (2026-10-06): amended — 0.11.0 reads version 2 only; D-15-d ("the v1 reader is permanent") reversed at the maintainer's direction, D-15-g/h/i withdrawn with it, INV-QD-099 retired, the migration path stated (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-15, CCR-QD-180) |
 
 ---
 
@@ -294,3 +294,9 @@ version 2 and with no version 3: the first use of "the rule for the future" abov
 optional envelope metadata needs no version). A reader at this release keeps them, because the
 key set is read from the schema; a 0.11 reader ignores them silently, and a row written by 0.11
 decodes with them absent and re-encodes byte-identically (`V2_OBLIGATIONS` is the oracle).
+
+## Amendment (2026-10-08, ADR-QD-106)
+
+A version-2 record whose decision contradicts itself is refused as `DecodeRefusal.Inconsistent { disagreement }`, with no version bump. The decision repeats its trace root's verdict, `visibleFields`, `obligations` and `reason`, and the record repeats the decision's `evaluationId`, `subjectId` and the trace root's policy tag; `decodeSinkRecord` now compares each copy. Refusing changes acceptance, not content: `evaluate` builds a decision from its trace and cannot produce a disagreeing one, so no producer of any version wrote such a record. The library tightened version 2's acceptance twice before on the same ground without a bump (the tagged `DecisionWire` union, whose module doc records it, and the strict decode options of CCR-QD-139). The two in-repo records that did disagree, `V2_DECIDED_ALLOW` and the main round-trip fixture, were hand-written test data and are corrected, inside the trace only.
+
+The duplicated fields stay on the wire for now. Dropping them (`visibleFields`, `obligations`, `reason`, a Deny's empty `obligations` and the decision's `evaluationId` and `subjectId`) saves tens of bytes a record and adds no guarantee the refusal lacks, and a version that removed them would force operators to re-encode retained audit rows (ADR-QD-056), split `DecisionWire` into a sink form and a hydration form (a `Withheld` seed has no trace and needs the fields), and show `UnsupportedVersion` on every older panel during a rolling deploy. **The next wire version, whatever moves it, omits the decision's duplicated fields.**

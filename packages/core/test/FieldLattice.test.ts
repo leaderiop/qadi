@@ -141,9 +141,13 @@ describe("field lattice", () => {
       evaluationId: "e",
       subjectId: makeSubjectId("u"),
       durationMillis: 0,
-      trace: { policyTag: "HasRole", allowed: true, children: [], obligations: [] },
-      visibleFields: fields,
-      obligations: [],
+      trace: {
+        policyTag: "HasRole",
+        allowed: true,
+        children: [],
+        visibleFields: fields,
+        obligations: [],
+      },
     });
 
   /** What `fields` actually discloses of `data`, independent of which of two shape-equal spec strings represents it. */

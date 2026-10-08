@@ -35,8 +35,6 @@ const recordWith = (resource: unknown): SinkRecord =>
         subjectId: makeSubjectId("u1"),
         durationMillis: 0,
         trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
-        visibleFields: undefined,
-        obligations: [],
       }),
     }),
   });

@@ -92,6 +92,16 @@ A page cached by a 0.9 server goes through this once, until the cache turns
 over. If it keeps happening, the server and the client are running different
 releases.
 
+## A decision is built from its trace
+
+`Allow` and `Deny` no longer take `visibleFields`, `obligations` or `reason`: they take a stamp (`evaluationId`, `subjectId`, `durationMillis`) and a trace whose root allows or denies, and read those fields from it. `makeDecision(stamp, trace)` picks the class. Fixture code that passed the fields moves them onto the trace.
+
+```ts
+new Allow({ ...stamp, trace: { ...allowingTrace, visibleFields: ["id"] } });
+```
+
+`decodeDecision` returns a `Result` (a `DecisionDisagreement` on failure), and `decodeSinkRecord` refuses a record whose decision contradicts its own trace, or whose ids or policy tag contradict its decision, as `Inconsistent`. A consumer that matches `DecodeRefusal` exhaustively, or `/devtools`' `MalformedReason`, needs an arm for the new member. Records written by `evaluate` never trigger it; a test store seeded from a hand-built record that disagreed with itself will.
+
 ## Removed exports
 
 | Package | Removed | Instead |

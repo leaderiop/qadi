@@ -59,8 +59,6 @@ const decisionFor = (subjectId: string, index: number): Decision =>
       visibleFields: undefined,
       obligations: [],
     },
-    visibleFields: undefined,
-    obligations: [],
   });
 
 /** An entry no schema can decode — a policy shape from another version. */

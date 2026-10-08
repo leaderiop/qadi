@@ -272,6 +272,21 @@ const RULES = [
     raw: true,
   },
   {
+    id: "no-decision-constructor-outside-decision",
+    // A `Decision` is built from its trace by `makeDecision`
+    // (`packages/core/src/Decision.ts`, ARCH-32): its verdict, `visibleFields`,
+    // `obligations` and `reason` are readings of the trace root, and `Allow`'s
+    // and `Deny`'s constructors take a stamp and a trace and derive them. Two
+    // modules (`Evaluate.ts`, `DecisionWire.ts`) each filled those fields by
+    // hand and nothing compared them. A plain rule, not a budget: zero
+    // exceptions outside the one exempted module, and test files are not
+    // scanned, so a fixture may still write `new Allow({ ...stamp, trace })`.
+    re: /\bnew\s+(?:Allow|Deny)\s*\(/,
+    message:
+      "A Decision is built from its trace by makeDecision (packages/core/src/Decision.ts), never field by field.",
+    raw: true,
+  },
+  {
     id: "no-port-span-key-literals",
     // A port span's keys are stated once, in the port's description
     // (`PortDescription.attributes`, ARCH-21): `PortAccess.ts` writes through
@@ -313,6 +328,7 @@ const RULES = [
  * @type {Readonly<Record<string, ReadonlyArray<string>>>}
  */
 const EXEMPTIONS = {
+  "packages/core/src/Decision.ts": ["no-decision-constructor-outside-decision"],
   "packages/core/src/SinkWire.ts": ["no-refusal-annotation-outside-core"],
   "packages/core/src/EvaluationId.ts": ["no-ambient-uuid"],
   // The one module that writes to the console or reads `process.env`: every

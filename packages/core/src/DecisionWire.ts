@@ -15,9 +15,10 @@
  * in `@qadi/core`, where both consumers can reach it.
  */
 import * as Match from "effect/Match";
+import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
-import type { Decision } from "./Decision.ts";
-import { Allow, Deny, TraceSchema } from "./Decision.ts";
+import type { Decision, DecisionClaim, DecisionDisagreement } from "./Decision.ts";
+import { decisionDisagreement, makeDecision, TraceSchema } from "./Decision.ts";
 import { makeSubjectId } from "./Identity.ts";
 import { Obligation } from "./Obligation.ts";
 
@@ -97,25 +98,46 @@ export const encodeDecision = (decision: Decision): DecisionWire =>
         reason: decision.reason,
       };
 
-/** Rebuilds a `Decision` from its (already validated) wire form. */
-export const decodeDecision: (wire: DecisionWire) => Decision = Match.type<DecisionWire>().pipe(
+/** What a wire decision claims beside its trace, as `decisionDisagreement` reads it. */
+const claimOf: (wire: DecisionWire) => DecisionClaim = Match.type<DecisionWire>().pipe(
   Match.tagsExhaustive({
-    Allow: (wire) =>
-      new Allow({
-        evaluationId: wire.evaluationId,
-        subjectId: makeSubjectId(wire.subjectId),
-        durationMillis: wire.durationMillis,
-        trace: wire.trace,
-        visibleFields: wire.visibleFields,
-        obligations: wire.obligations,
-      }),
-    Deny: (wire) =>
-      new Deny({
-        evaluationId: wire.evaluationId,
-        subjectId: makeSubjectId(wire.subjectId),
-        durationMillis: wire.durationMillis,
-        trace: wire.trace,
-        reason: wire.reason,
-      }),
+    Allow: (wire): DecisionClaim => ({
+      verdict: "Allow",
+      visibleFields: wire.visibleFields,
+      obligations: wire.obligations,
+    }),
+    Deny: (wire): DecisionClaim => ({
+      verdict: "Deny",
+      reason: wire.reason,
+      obligations: wire.obligations,
+    }),
   }),
 );
+
+/**
+ * Rebuilds a `Decision` from its (already validated) wire form, or says how
+ * its copies disagree.
+ *
+ * The wire carries the verdict, `visibleFields`, `obligations` and `reason`
+ * beside the trace that already holds them. This module only shapes the claim;
+ * the agreement rule is `Decision.ts`'s {@link decisionDisagreement}, and an
+ * agreeing wire value is built through {@link makeDecision}, so the decision
+ * returned is the trace's reading and nothing else (INV-QD-170).
+ */
+export const decodeDecision = (
+  wire: DecisionWire,
+): Result.Result<Decision, DecisionDisagreement> => {
+  const disagreement = decisionDisagreement(claimOf(wire), wire.trace);
+  return disagreement === undefined
+    ? Result.succeed(
+        makeDecision(
+          {
+            evaluationId: wire.evaluationId,
+            subjectId: makeSubjectId(wire.subjectId),
+            durationMillis: wire.durationMillis,
+          },
+          wire.trace,
+        ),
+      )
+    : Result.fail(disagreement);
+};

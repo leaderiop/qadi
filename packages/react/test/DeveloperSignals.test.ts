@@ -28,10 +28,8 @@ const decided: Decision = new Deny({
     allowed: false,
     reason: "subject lacks role 'admin'",
     children: [],
-    visibleFields: undefined,
     obligations: [],
   },
-  reason: "subject lacks role 'admin'",
 });
 
 const seeded = new SeededAllow({

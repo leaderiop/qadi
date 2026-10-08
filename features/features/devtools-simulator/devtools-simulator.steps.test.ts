@@ -48,7 +48,7 @@ import {
   decisionHistoryPort,
   signatureHistoryPort,
 } from "@qadi/core";
-import type { DecisionLog, DecisionOutcome, Policy, StoredRecord, Trace } from "@qadi/core";
+import type { AllowingTrace, DecisionLog, DecisionOutcome, Policy, StoredRecord } from "@qadi/core";
 import {
   catalogueOf,
   emptyTimeline,
@@ -166,8 +166,6 @@ const decisionAt = (at: number, policy: Policy): StoredRecord => {
           subjectId: makeSubjectId("alice"),
           durationMillis: 1,
           trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
-          visibleFields: undefined,
-          obligations: [],
         }),
       }),
     }),
@@ -306,7 +304,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   Given(
     "a logged decision {string} against the {string} policy for {string}",
     function* (evaluationId: string, name: string, subjectId: string) {
-      const trace: Trace = {
+      const trace: AllowingTrace = {
         policyTag: "HasPermission",
         allowed: true,
         children: [],
@@ -323,8 +321,6 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
             subjectId: makeSubjectId(subjectId),
             durationMillis: 1,
             trace,
-            visibleFields: undefined,
-            obligations: [],
           }),
         }),
       });

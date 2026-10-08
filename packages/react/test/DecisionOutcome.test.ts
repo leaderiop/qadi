@@ -28,7 +28,7 @@ import {
   permission,
   attributeResolverPort,
 } from "@qadi/core";
-import type { EvaluationError, Trace } from "@qadi/core";
+import type { AllowingTrace, DenyingTrace, EvaluationError } from "@qadi/core";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -45,27 +45,31 @@ import type { ClientDecision } from "../src/SeededDecision.ts";
 import { SeededAllow, SeededDeny, permits } from "../src/SeededDecision.ts";
 
 const subjectId = makeSubjectId("u1");
-const trace = (allowed: boolean): Trace => ({
+const allowTrace: AllowingTrace = {
   policyTag: "HasAttribute",
-  allowed,
+  allowed: true,
   children: [],
   obligations: [],
-});
+};
+const denyTrace: DenyingTrace = {
+  policyTag: "HasAttribute",
+  allowed: false,
+  reason: "no",
+  children: [],
+  obligations: [],
+};
 
 const evaluatedAllow = new Allow({
   evaluationId: "e-allow",
   subjectId,
   durationMillis: 1,
-  trace: trace(true),
-  visibleFields: undefined,
-  obligations: [],
+  trace: allowTrace,
 });
 const evaluatedDeny = new Deny({
   evaluationId: "e-deny",
   subjectId,
   durationMillis: 1,
-  trace: trace(false),
-  reason: "no",
+  trace: denyTrace,
 });
 const seededAllow = new SeededAllow({
   evaluationId: "s-allow",

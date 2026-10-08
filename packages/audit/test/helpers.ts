@@ -16,12 +16,12 @@ import {
   ObligationRecord,
   permission,
 } from "@qadi/core";
-import type { ObligationOutcome, Policy, SinkRecord, Trace } from "@qadi/core";
+import type { AllowingTrace, ObligationOutcome, Policy, SinkRecord } from "@qadi/core";
 
 export const read = permission("doc", "read");
 export const readPolicy: Policy = hasPermission(read);
 
-export const allowTrace: Trace = {
+export const allowTrace: AllowingTrace = {
   policyTag: "HasPermission",
   allowed: true,
   children: [],
@@ -50,8 +50,6 @@ export const decisionRecord = (options?: {
           ...allowTrace,
           policyTag: options?.policy?._tag ?? allowTrace.policyTag,
         },
-        visibleFields: undefined,
-        obligations: [],
       }),
     }),
   });

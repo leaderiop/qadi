@@ -36,7 +36,7 @@ import {
   decodeStoredRecordString,
   DecisionStreamSynced,
 } from "@qadi/core";
-import type { AuthSubject, DecisionLogReader, SinkRecord, SinkRecordNotEncodable, StoredRecord, Trace } from "@qadi/core";
+import type { AuthSubject, DecisionLogReader, SinkRecord, SinkRecordNotEncodable, StoredRecord, AllowingTrace } from "@qadi/core";
 import { collectingLogger } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -81,7 +81,7 @@ const lookupSubject = (token: string): Effect.Effect<AuthSubject> =>
 
 const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
 
-const allowTrace: Trace = {
+const allowTrace: AllowingTrace = {
   policyTag: "HasPermission",
   allowed: true,
   children: [],
@@ -101,8 +101,6 @@ const decisionRecord = (evaluationId: string, resource?: Record<string, unknown>
         subjectId: makeSubjectId("alice"),
         durationMillis: 1,
         trace: allowTrace,
-        visibleFields: undefined,
-        obligations: [],
       }),
     }),
   });
@@ -548,8 +546,6 @@ describe("frame", () => {
             subjectId: makeSubjectId("alice"),
             durationMillis: 1,
             trace: allowTrace,
-            visibleFields: undefined,
-            obligations: [],
           }),
         }),
       });

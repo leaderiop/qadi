@@ -1,4 +1,4 @@
-import type { Decision } from "@qadi/core";
+import type { Decision, DenyingTrace } from "@qadi/core";
 import { Deny, hasRole, makeSubjectId } from "@qadi/core";
 import { assert, describe, it } from "@effect/vitest";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
@@ -9,12 +9,13 @@ import type { HydrationMismatch } from "../src/HydrationEngine.ts";
 import { SeededAllow } from "../src/SeededDecision.ts";
 
 const subjectId = makeSubjectId("u1");
-const trace = (allowed: boolean) => ({
-  policyTag: "HasRole" as const,
-  allowed,
+const denyTrace: DenyingTrace = {
+  policyTag: "HasRole",
+  allowed: false,
+  reason: "no",
   children: [],
   obligations: [],
-});
+};
 const policy = hasRole("admin");
 
 const allow = new SeededAllow({
@@ -29,8 +30,7 @@ const deny = new Deny({
   evaluationId: "e2",
   subjectId,
   durationMillis: 0,
-  trace: trace(false),
-  reason: "no",
+  trace: denyTrace,
 });
 
 describe("makeSeededQuestion", () => {

@@ -222,6 +222,8 @@ const refusedBecause: (refusal: DecodeRefusal) => string = Match.type<DecodeRefu
     NotJson: (refusal) => `not a decision record: ${refusal._tag}`,
     TooDeep: (refusal) => `not a decision record: ${refusal._tag}`,
     Malformed: (refusal) => `not a decision record: ${refusal._tag}`,
+    Inconsistent: (refusal) =>
+      `a decision record that contradicts its own ${refusal.disagreement}`,
     UnsupportedVersion: (refusal) =>
       refusal.version === undefined
         ? `no wire version — a sender older than 0.10: this aggregator reads ${refusal.supported.join(", ")}`
