@@ -263,9 +263,9 @@ const recheck = (permission: Permission, policy: Policy, request: HttpServerRequ
  *
  * Built on `addGuardedRoute`, which registers with `PermissionRegistry` the
  * same way it does for any other bare `HttpRouter` route — otherwise
- * `/__permissions`'s own claim to list "every permission this application
- * enforces, and the routes that require it" would be false of exactly the
- * one route that publishes decisions rather than the topology.
+ * `/__permissions`'s own listing of every permission registered with
+ * `PermissionRegistry` would omit exactly the one route that publishes
+ * decisions rather than the topology.
  *
  * **Throws synchronously** (`RequirePermission.ts`'s `requiresPermission`
  * precedent for a caller programming error, not a runtime authorization

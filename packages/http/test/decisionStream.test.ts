@@ -133,13 +133,9 @@ const httpClientError = (): Error => {
   return Object.assign(new Error("Request failed with status code 503"), { config, request });
 };
 
-// Composed through named intermediate steps, deliberately: chaining every
-// `Layer.provideMerge` inline in one expression is an instantiation-depth
-// failure mode this codebase has already hit once (see http.test.ts's
-// `RoutesLayer`/`WithRegistry`/`WithSubjects` comment) — TypeScript can
-// silently mis-infer the result's remaining requirement rather than raising
-// a diagnostic at the chain itself, only surfacing downstream (as it did
-// here, at the one call site that runs `Layer.build` directly on `layer`).
+// Composed through named intermediate steps, for reading. An earlier note here
+// claimed a single inline chain mis-infers the remaining requirement; that does
+// not reproduce on `effect@4.0.0` (ARCH-36), so the naming is a readability choice.
 const EvaluationServicesTest = EvaluationServicesNone;
 
 /** A record as a log on this server would hold it. */

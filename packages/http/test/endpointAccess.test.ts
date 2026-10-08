@@ -1,7 +1,7 @@
 /**
  * An endpoint's access declaration is read once, over one scope, by both
  * readers (ARCH-18, CCR-QD-196): `RequirePermission` enforces it and
- * `registerApi` lists it, and for every placement of a declaration on the API
+ * `guardApi` lists it, and for every placement of a declaration on the API
  * tree the two must agree. The differential below is the test that would have
  * caught the registry listing a group-required endpoint that the middleware
  * served to anyone.
@@ -17,7 +17,7 @@ import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
 import * as HttpApiGroup from "effect/http-api/HttpApiGroup";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServer from "effect/http/HttpServer";
-import type { Permission } from "@qadi/core";
+import type { Permission, StandingEvaluationServices } from "@qadi/core";
 import { collectingLogger } from "@qadi/testing";
 import {
   EvaluationIdLive,
@@ -28,7 +28,8 @@ import {
   portsLayer,
 } from "@qadi/core";
 import { assert, describe, it } from "@effect/vitest";
-import type { AnnotatedEndpoint } from "../src/index.ts";
+import type { AnnotatedEndpoint, ApiGuardRefusal, SubjectExtractor } from "../src/index.ts";
+import { makeRequirePermission } from "../src/RequirePermissionMiddleware.ts";
 import {
   EndpointAccess,
   MisplacedAccessDeclaration,
@@ -37,11 +38,10 @@ import {
   PublicEndpoint,
   RequiredPermission,
   RequirePermission,
-  RequirePermissionLive,
   endpointAccess,
+  guardApi,
   misplacedDeclarations,
   publicEndpoint,
-  registerApi,
   requiresPermission,
   subjectExtractorBearer,
 } from "../src/index.ts";
@@ -64,13 +64,40 @@ const decoy = HttpApiEndpoint.get("decoy", "/decoy");
 
 const ep = <const Id extends string>(id: Id) => HttpApiEndpoint.get(id, `/${id}`);
 
+/** Every `"<group>/<endpoint>"` key of `api`, the membership the middleware is built for. */
+const memberKeys = <Id extends string, Groups extends HttpApiGroup.Constraint>(
+  api: HttpApi.HttpApi<Id, Groups>,
+): ReadonlySet<string> => {
+  const keys = new Set<string>();
+  HttpApi.reflect(api, {
+    onGroup: () => {},
+    onEndpoint: ({ endpoint, group }) => {
+      keys.add(`${group.identifier}/${endpoint.identifier}`);
+    },
+  });
+  return keys;
+};
+
 /**
- * Serves `routes` through the real middleware stack and reads what
- * `registerApi(api)` recorded, returning for each path the permission the
- * registry lists and the permission the middleware demonstrably enforces.
+ * The middleware alone, without `guardApi`'s registration or refusals, so a test can see what the
+ * middleware itself does with a placement `guardApi` would refuse to build.
+ */
+const bareMiddleware = <Id extends string, Groups extends HttpApiGroup.Constraint>(
+  api: HttpApi.HttpApi<Id, Groups>,
+) => Layer.effect(RequirePermission, makeRequirePermission(memberKeys(api)));
+
+/**
+ * Reads what `guard` (a `guardApi(api)`) registered, and serves `routes` through the real
+ * middleware stack, returning for each path the permission the registry lists and the permission
+ * the middleware demonstrably enforces.
  */
 const observe = <Id extends string, Groups extends HttpApiGroup.Constraint>(
   api: HttpApi.HttpApi<Id, Groups>,
+  guard: Layer.Layer<
+    RequirePermission,
+    ApiGuardRefusal,
+    SubjectExtractor | StandingEvaluationServices | PermissionRegistry
+  >,
   routes: Layer.Layer<
     never,
     never,
@@ -80,10 +107,21 @@ const observe = <Id extends string, Groups extends HttpApiGroup.Constraint>(
   logger: Layer.Layer<never> = Layer.empty,
 ) =>
   Effect.gen(function* () {
+    const subjectsLayer = subjectExtractorBearer((token) =>
+      token === "read-token"
+        ? Effect.succeed(subjects["read-token"])
+        : token === "write-token"
+          ? Effect.succeed(subjects["write-token"])
+          : Effect.die(new Error(`unknown token ${token}`)),
+    );
     const registryBuilt = yield* Effect.scoped(
-      Layer.build(registerApi(api).pipe(Layer.provideMerge(PermissionRegistryLive))).pipe(
-        Effect.flatMap((ctx) => Context.get(ctx, PermissionRegistry).snapshot),
-      ),
+      Layer.build(
+        guard.pipe(
+          Layer.provideMerge(PermissionRegistryLive),
+          Layer.provide(subjectsLayer),
+          Layer.provide(Layer.mergeAll(portsLayer({}), EvaluationIdLive)),
+        ),
+      ).pipe(Effect.flatMap((ctx) => Context.get(ctx, PermissionRegistry).snapshot)),
     ).pipe(Effect.result);
     const listed = new Map<string, string>();
     if (Result.isSuccess(registryBuilt)) {
@@ -93,16 +131,8 @@ const observe = <Id extends string, Groups extends HttpApiGroup.Constraint>(
     }
 
     const app = routes.pipe(
-      Layer.provide(RequirePermissionLive),
-      Layer.provideMerge(
-        subjectExtractorBearer((token) =>
-          token === "read-token"
-            ? Effect.succeed(subjects["read-token"])
-            : token === "write-token"
-              ? Effect.succeed(subjects["write-token"])
-              : Effect.die(new Error(`unknown token ${token}`)),
-        ),
-      ),
+      Layer.provide(bareMiddleware(api)),
+      Layer.provideMerge(subjectsLayer),
       Layer.provideMerge(Layer.mergeAll(portsLayer({}), EvaluationIdLive)),
       Layer.provideMerge(HttpServer.layerServices),
       Layer.provideMerge(logger),
@@ -155,7 +185,7 @@ const case1 = (logger: Layer.Layer<never>) => {
     .annotate(RequiredPermission, required(decoy));
   const api = HttpApi.make("t").add(group).middleware(RequirePermission);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done).handle("b", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a", "/b"], logger);
+  return observe(api, guardApi(api), HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a", "/b"], logger);
 };
 
 // Case 2: a group-level requirement over an endpoint-level `publicEndpoint`.
@@ -165,7 +195,7 @@ const case2 = (logger: Layer.Layer<never>) => {
     .annotate(RequiredPermission, required(decoy));
   const api = HttpApi.make("t").add(group).middleware(RequirePermission);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
+  return observe(api, guardApi(api), HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 3: a group-level `publicEndpoint` alone.
@@ -175,7 +205,7 @@ const case3 = (logger: Layer.Layer<never>) => {
     .annotate(PublicEndpoint, publicEndpoint("probe"));
   const api = HttpApi.make("t").add(group).middleware(RequirePermission);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
+  return observe(api, guardApi(api), HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 4: an API-level requirement.
@@ -185,7 +215,7 @@ const case4 = (logger: Layer.Layer<never>) => {
     .middleware(RequirePermission)
     .annotate(RequiredPermission, required(decoy));
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
+  return observe(api, guardApi(api), HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 5: `annotateEndpoints`, the supported way to declare for a whole group.
@@ -195,7 +225,7 @@ const case5 = (logger: Layer.Layer<never>) => {
     .annotateEndpoints(RequiredPermission, required(decoy));
   const api = HttpApi.make("t").add(group).middleware(RequirePermission);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
+  return observe(api, guardApi(api), HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 6: a group requirement over an endpoint requirement of its own.
@@ -205,7 +235,7 @@ const case6 = (logger: Layer.Layer<never>) => {
     .annotate(RequiredPermission, required(decoy));
   const api = HttpApi.make("t").add(group).middleware(RequirePermission);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
+  return observe(api, guardApi(api), HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 7: both keys on one endpoint.
@@ -217,7 +247,7 @@ const case7 = (logger: Layer.Layer<never>) => {
   );
   const api = HttpApi.make("t").add(group).middleware(RequirePermission);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
+  return observe(api, guardApi(api), HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 8: `.middleware` before `.add` — Effect applies it only to endpoints already added.
@@ -225,7 +255,9 @@ const case8 = (logger: Layer.Layer<never>) => {
   const group = HttpApiGroup.make("g").add(ep("a").pipe((e) => e.annotate(RequiredPermission, required(e))));
   const api = HttpApi.make("t").middleware(RequirePermission).add(group);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
+  // @ts-expect-error — the type already refuses this API; the runtime refusal is what this exercises.
+  const guard = guardApi(api);
+  return observe(api, guard, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 9: no middleware at all.
@@ -233,7 +265,9 @@ const case9 = (logger: Layer.Layer<never>) => {
   const group = HttpApiGroup.make("g").add(ep("a").pipe((e) => e.annotate(RequiredPermission, required(e))));
   const api = HttpApi.make("t").add(group);
   const handlers = HttpApiBuilder.group(api, "g", (h) => h.handle("a", done));
-  return observe(api, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
+  // @ts-expect-error — the type already refuses this API; the runtime refusal is what this exercises.
+  const guard = guardApi(api);
+  return observe(api, guard, HttpApiBuilder.layer(api).pipe(Layer.provide(handlers)), ["/a"], logger);
 };
 
 // Case 10: the middleware is on one group only.
@@ -243,8 +277,11 @@ const case10 = (logger: Layer.Layer<never>) => {
   const api = HttpApi.make("t").add(g1).middleware(RequirePermission).add(g2);
   const h1 = HttpApiBuilder.group(api, "g1", (h) => h.handle("a", done));
   const h2 = HttpApiBuilder.group(api, "g2", (h) => h.handle("b", done));
+  // @ts-expect-error — the type already refuses this API; the runtime refusal is what this exercises.
+  const guard = guardApi(api);
   return observe(
     api,
+    guard,
     HttpApiBuilder.layer(api).pipe(Layer.provide(h1), Layer.provide(h2)),
     ["/a", "/b"],
     logger,
@@ -278,7 +315,7 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
       }));
   }
 
-  it.effect("an endpoint the middleware is not attached to is refused by registerApi, naming it", () =>
+  it.effect("an endpoint the middleware is not attached to is refused by guardApi, naming it", () =>
     Effect.gen(function* () {
       const observed = yield* case8(Layer.empty);
       assert.strictEqual(observed.registryError?._tag, "RequirePermissionNotAttached");
@@ -288,7 +325,7 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
           : undefined,
         ["g", "a"],
       );
-      // Serving is Effect's: only a guard layer that owns the composition (ARCH-36 T3) refuses it outright.
+      // Serving is Effect's; the bare middleware is never invoked for it. guardApi refuses the composition outright.
       assert.strictEqual(observed.statuses.get("/a"), 204);
       assert.isFalse(observed.listed.has("/a"));
     }));
@@ -318,7 +355,7 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
       assert.include(lines.map((line) => line.message).flat(), groupRefusal("g", "a", "RequiredPermission"));
     }));
 
-  it.effect("a group requirement refuses every endpoint under it, and registerApi names the group", () =>
+  it.effect("a group requirement refuses every endpoint under it, and guardApi names the group", () =>
     Effect.gen(function* () {
       const { lines, layer: logger } = collectingLogger();
       const observed = yield* case1(logger);
@@ -349,7 +386,7 @@ describe("endpointAccess: the registry and the middleware read one scope", () =>
       );
     }));
 
-  it.effect("an api-level requirement is refused by registerApi, and the middleware cannot serve it", () =>
+  it.effect("an api-level requirement is refused by guardApi, and the middleware cannot serve it", () =>
     Effect.gen(function* () {
       const observed = yield* case4(Layer.empty);
       assert.deepStrictEqual(

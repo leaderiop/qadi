@@ -52,17 +52,16 @@ import {
   PublicEndpoint,
   RequiredPermission,
   RequirePermission,
-  RequirePermissionLive,
   SubjectExtractionFailed,
   SubjectExtractor,
   addGuardedRoute,
-  guardRoute,
+  guardApi,
   publicEndpoint,
-  registerApi,
   requiresPermission,
   subjectExtractorBearer,
   toResponse,
 } from "../src/index.ts";
+import { guardRoute } from "../src/GuardRoute.ts";
 
 const readPermission = permission("document", "read");
 const readPolicy = hasPermission(readPermission);
@@ -90,7 +89,7 @@ const DocumentsGroup = HttpApiGroup.make("documents").add(
     ),
   ),
   // Declared public, which is now something you have to say. It exercises
-  // `RequirePermissionLive`'s pass-through and `registerApi`'s
+  // the middleware's pass-through and `guardApi`'s
   // skip-when-absent path.
   HttpApiEndpoint.get("list", "/documents/public").pipe((endpoint) =>
     endpoint.annotate(PublicEndpoint, publicEndpoint("the public document index")),
@@ -111,7 +110,7 @@ const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
 
 const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
   Layer.provide(DocumentsHandlers),
-  Layer.provide(RequirePermissionLive),
+  Layer.provide(guardApi(Api)),
 );
 
 /**
@@ -159,18 +158,15 @@ const CountingAttributeResolver = Layer.succeed(AttributeResolver, {
   },
 });
 
-const RegistryLayer = registerApi(Api).pipe(Layer.provideMerge(PermissionRegistryLive));
 
 const EvaluationServicesTest = Layer.mergeAll(
   portsLayer({ AttributeResolver: CountingAttributeResolver }),
   EvaluationIdLive,
 );
 
-// Composed through named intermediate steps, deliberately: chaining every
-// `Layer.provideMerge` inline in one expression made TypeScript silently
-// infer `any` for the whole thing (no diagnostic — just every downstream
-// usage losing its type), an instantiation-depth failure mode particular to
-// this shape of long `.pipe()` chain, not anything wrong with any one step.
+// Composed through named intermediate steps, for reading. An earlier note here
+// claimed a single inline chain silently infers `any`; that does not reproduce on
+// `effect@4.0.0` (ARCH-36), so the naming is a readability choice.
 // Guarded, because the route is no longer offered any other way: it publishes
 // every guarded path and the permission each requires, which is a map of what
 // to attack and where.
@@ -180,7 +176,7 @@ const RoutesLayer = Layer.mergeAll(
   WriteRoute2,
   permissionRegistryRoute(readPermission, readPolicy),
 );
-const WithRegistry = RoutesLayer.pipe(Layer.provideMerge(RegistryLayer));
+const WithRegistry = RoutesLayer.pipe(Layer.provideMerge(PermissionRegistryLive));
 const WithSubjects = WithRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
 const WithEvaluation = WithSubjects.pipe(Layer.provideMerge(EvaluationServicesTest));
 const WithCache = WithEvaluation.pipe(Layer.provideMerge(decisionCacheLayer()));
@@ -290,7 +286,7 @@ describe("@qadi/http", () => {
       }> = yield* Effect.promise(() => response.json());
 
       const byPermission = new Map(body.map((entry) => [entry.permission, entry.endpoints]));
-      // Exactly these two keys and no others: `registerApi` walks `Api`'s own
+      // Exactly these two keys and no others: `guardApi` walks `Api`'s own
       // endpoints to build its `found` list before registering them, and a
       // corrupted walk (an extra or malformed entry) would still pass a check
       // that only ever reads two known keys back out with `.get`.
@@ -321,8 +317,10 @@ describe("@qadi/http", () => {
       // own layer, not `AppLayer`: both variants mount at `/__permissions`
       // and cannot coexist on one router.
       const { lines, layer: logger } = collectingLogger();
-      const unguardedApp = permissionRegistryRouteUnguarded("test fixture").pipe(
-        Layer.provideMerge(RegistryLayer),
+      const unguardedApp = Layer.mergeAll(ApiRoutes, permissionRegistryRouteUnguarded("test fixture")).pipe(
+        Layer.provideMerge(PermissionRegistryLive),
+        Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
+        Layer.provideMerge(EvaluationServicesTest),
         Layer.provideMerge(HttpServer.layerServices),
         Layer.provideMerge(logger),
       );
@@ -330,9 +328,9 @@ describe("@qadi/http", () => {
       const response = yield* Effect.promise(() => handler(new Request("http://localhost/__permissions")));
       assert.strictEqual(response.status, 200);
       const body: ReadonlyArray<{ readonly permission: string }> = yield* Effect.promise(() => response.json());
-      // This fixture composes `RegistryLayer` alone (the `HttpApi`-sourced half
-      // registerApi populates), not the `addGuardedRoute` write routes too, so
-      // only `Api`'s own annotated endpoint is expected here.
+      // This fixture composes `Api` alone (the `HttpApi`-sourced half `guardApi`
+      // registers), not the `addGuardedRoute` write routes too, so only `Api`'s
+      // own annotated endpoint is expected here.
       assert.deepStrictEqual(body.map((entry) => entry.permission), ["document:read"]);
       // Logged on every request, not once at construction (see this route's
       // own doc comment) — and names the `reason` a caller gave for opting
@@ -662,7 +660,7 @@ describe("@qadi/http", () => {
     // UndischargedObligationRefused share the one status), 500 (the four
     // wiring-mistake tags share one status entry) and 502
     // (SubjectExtractionRefused, plus the five outage tags) are every status
-    // RequirePermissionLive can now actually return, all visible without
+    // the RequirePermission middleware can now actually return, all visible without
     // running the server at all.
     assert.deepStrictEqual(statuses, ["204", "403", "500", "502"]);
   });
@@ -672,7 +670,7 @@ describe("@qadi/http", () => {
       // A dedicated, minimal fixture rather than `AppLayer`: the shared
       // fixture's own "read" endpoint uses `hasPermission`, which never
       // touches `AttributeResolver` — this scenario needs a policy that does,
-      // to reach `RequirePermissionLive`'s now-uncaught nine-tag path rather
+      // to reach the middleware's now-uncaught nine-tag path rather
       // than its hand-caught `AccessDenied`/`SubjectExtractionFailed` arms.
       const attributePolicy = hasAttribute("clearance", gte(1));
       const AttributeGroup = HttpApiGroup.make("attribute-checked").add(
@@ -689,7 +687,7 @@ describe("@qadi/http", () => {
       );
       const AttributeRoutes = HttpApiBuilder.layer(AttributeApi).pipe(
         Layer.provide(AttributeHandlers),
-        Layer.provide(RequirePermissionLive),
+        Layer.provide(guardApi(AttributeApi)),
       );
 
       // Unlike AccessDenied/UndischargedObligation, an AttributeResolveError
@@ -701,6 +699,7 @@ describe("@qadi/http", () => {
       ).layer;
 
       const app = AttributeRoutes.pipe(
+        Layer.provideMerge(PermissionRegistryLive),
         Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
         Layer.provideMerge(
           Layer.mergeAll(
@@ -750,13 +749,14 @@ describe("@qadi/http", () => {
       );
       const AttributeRoutes = HttpApiBuilder.layer(AttributeApi).pipe(
         Layer.provide(AttributeHandlers),
-        Layer.provide(RequirePermissionLive),
+        Layer.provide(guardApi(AttributeApi)),
       );
 
       const secretCause = new Error("connect ECONNREFUSED 10.0.0.42:5432 (attribute-store-primary.internal)");
       const failingResolver = scriptedPort(attributeResolverPort, () => PortReply.fail(secretCause)).layer;
 
       const app = AttributeRoutes.pipe(
+        Layer.provideMerge(PermissionRegistryLive),
         Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
         Layer.provideMerge(
           Layer.mergeAll(
@@ -809,7 +809,7 @@ describe("@qadi/http", () => {
   );
 
   it.effect(
-    "a denial's server-side log names the stable code, subject and reason (logDenial fires via RequirePermissionLive)",
+    "a denial's server-side log names the stable code, subject and reason (logDenial fires via the RequirePermission middleware)",
     () =>
       Effect.gen(function* () {
         const { lines, layer: logger } = collectingLogger();
@@ -845,7 +845,7 @@ describe("@qadi/http", () => {
   );
 
   it.effect(
-    "a credential store outage logs the real reason server-side, through RequirePermissionLive's own " +
+    "a credential store outage logs the real reason server-side, through the RequirePermission middleware's own " +
       "catchTag('SubjectExtractionFailed', ...) arm",
     () =>
       Effect.gen(function* () {
@@ -936,7 +936,8 @@ const ProbeHandlers = HttpApiBuilder.group(ProbeApi, "probe", (handlers) =>
 );
 const ProbeLayer = HttpApiBuilder.layer(ProbeApi).pipe(
   Layer.provide(ProbeHandlers),
-  Layer.provide(RequirePermissionLive),
+  Layer.provide(guardApi(ProbeApi)),
+  Layer.provideMerge(PermissionRegistryLive),
   Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
   Layer.provideMerge(EvaluationServicesTest),
   Layer.provideMerge(decisionCacheLayer()),

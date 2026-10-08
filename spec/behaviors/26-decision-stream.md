@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-26                                    |
-> | Revision       | 1.10                                           |
+> | Revision       | 1.11                                           |
 > | Effective Date | 2026-10-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.10 (2026-10-07): BEH-QD-202 — the recheck is `authorizeRequest` ([BEH-QD-321](./23-http.md)) and `reauthCheck` is removed; a recheck failure is labelled by `classifyHttpEnforcementFailure`, so a broken credential store is an `outage`, not `"extraction-failed"`; a recheck that ends a stream logs one line (ADR-QD-046 Rev 1.4, CCR-QD-197)<br>1.9 (2026-10-07): BEH-QD-311 and BEH-QD-314 — the event names and the `synced` payload are `@qadi/core`'s `DecisionStreamEvent`, `DecisionRecordEvent` and `DecisionStreamSynced`, and `DecisionStreamSynced` refuses a non-count (CCR-QD-195)<br>1.8 (2026-10-07): BEH-QD-311 and BEH-QD-315 — an `onRefused` that throws is reported and ends neither the feed nor the backlog response; the report is core's `reportEncodeRefusal` (CCR-QD-193)<br>1.7 (2026-10-06): BEH-QD-314 — only an envelope is read: `decodeStoredRecord` takes no options (`legacyEnvironment` removed, as scheduled), a bare record is refused as `Malformed`, and an absent backlog no longer means an older server (ADR-QD-097 amendment, CCR-QD-182)<br>1.6 (2026-10-05): ARCH-11 — BEH-QD-201 rewritten for the decision log's live half; BEH-QD-202 takes a `DecisionLogReader`; BEH-QD-311's frame carries the stored-record envelope; BEH-QD-314 (the backlog travels on the stream, every frame names its producer), BEH-QD-315 (`decisionBacklogRoute`) and BEH-QD-316 (resume on reconnect) added (ADR-QD-097, CCR-QD-181)<br>1.5 (2026-10-05): BEH-QD-201 — the stale `publishUnsafe` sentence corrected to what the code does (`publish`, and why) (CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-311 — a frame's data is wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-311 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.11 (2026-10-08): present-tense `guardRoute` becomes `addGuardedRoute` / the route's guard, `guardRoute` having left the surface (ARCH-36, CCR-QD-311)<br>1.10 (2026-10-07): BEH-QD-202 — the recheck is `authorizeRequest` ([BEH-QD-321](./23-http.md)) and `reauthCheck` is removed; a recheck failure is labelled by `classifyHttpEnforcementFailure`, so a broken credential store is an `outage`, not `"extraction-failed"`; a recheck that ends a stream logs one line (ADR-QD-046 Rev 1.4, CCR-QD-197)<br>1.9 (2026-10-07): BEH-QD-311 and BEH-QD-314 — the event names and the `synced` payload are `@qadi/core`'s `DecisionStreamEvent`, `DecisionRecordEvent` and `DecisionStreamSynced`, and `DecisionStreamSynced` refuses a non-count (CCR-QD-195)<br>1.8 (2026-10-07): BEH-QD-311 and BEH-QD-315 — an `onRefused` that throws is reported and ends neither the feed nor the backlog response; the report is core's `reportEncodeRefusal` (CCR-QD-193)<br>1.7 (2026-10-06): BEH-QD-314 — only an envelope is read: `decodeStoredRecord` takes no options (`legacyEnvironment` removed, as scheduled), a bare record is refused as `Malformed`, and an absent backlog no longer means an older server (ADR-QD-097 amendment, CCR-QD-182)<br>1.6 (2026-10-05): ARCH-11 — BEH-QD-201 rewritten for the decision log's live half; BEH-QD-202 takes a `DecisionLogReader`; BEH-QD-311's frame carries the stored-record envelope; BEH-QD-314 (the backlog travels on the stream, every frame names its producer), BEH-QD-315 (`decisionBacklogRoute`) and BEH-QD-316 (resume on reconnect) added (ADR-QD-097, CCR-QD-181)<br>1.5 (2026-10-05): BEH-QD-201 — the stale `publishUnsafe` sentence corrected to what the code does (`publish`, and why) (CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-311 — a frame's data is wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-311 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 _Previous: [25 — Inspection](./25-inspection.md)_
 
@@ -180,7 +180,7 @@ REQUIREMENT: The response MUST carry `text/event-stream`, and MUST disable
 **SSE rather than a WebSocket**, decided by the traffic rather than by taste.
 Records flow one way; a reader never sends a decision back. SSE is plain HTTP, so
 it passes through the same `HttpRouter`, the same middleware and the same
-`guardRoute` as every other route in the package — a socket would need an upgrade
+`addGuardedRoute` as every other route in the package — a socket would need an upgrade
 path outside all three and would have to re-answer authorization on its own
 terms. `EventSource` reconnects by itself, and a reconnect reads the log again —
 the minimal protocol of [BEH-QD-314](#beh-qd-314-the-backlog-travels-on-the-stream-and-every-frame-names-its-producer)
@@ -200,7 +200,7 @@ bidirectional RPC channel. This is a feed.
 requirement, not decoration: without them a proxy buffers the stream and the feed
 appears to hang rather than to work slowly.
 
-**`guardRoute` runs once, at connect — and again, periodically, for as long as
+**The route's guard runs once, at connect — and again, periodically, for as long as
 the connection stays open, when `reauth` is given.** Without it, a revoked or
 logged-out principal whose connection is still open keeps receiving every
 decision this process makes for as long as the stream stays up: nothing short
@@ -228,12 +228,12 @@ REQUIREMENT: A failed re-extraction or a denial on recheck MUST end the
 
 The recheck is `authorizeRequest` ([BEH-QD-321](./23-http.md#beh-qd-321-one-authorization-step-at-the-http-edge)),
 which is `guard`'s semantics — permitted *and* discharged — not
-`evaluate` + `isAllowed`. `guardRoute`'s connect-time check already enforces
+`evaluate` + `isAllowed`. The connect-time check (`addGuardedRoute`) already enforces
 through `guard`, which refuses an allow carrying an undischarged binding
 obligation; a recheck built on the weaker `evaluate` would let a connection
 survive past the point connecting fresh would have refused it, the moment a
 policy is `Obliged`. `EventSource`'s own automatic reconnect is what recovers
-from either failure, going through `guardRoute`'s full check again on the new
+from either failure, going through the route's full check again on the new
 connection — no protocol of ours.
 
 ```
@@ -345,7 +345,7 @@ documented pairing lost every record made between reading the first and
 subscribing to the second (ARCH-11 C9). The prelude is the backlog on the *same*
 connection as the live stream, read by one `log.read` — subscribe, then
 snapshot — so the handoff is the log's to get right, not each reader's. One
-connection is also one authorization: `guardRoute` runs once, and `reauth`
+connection is also one authorization: the route's guard runs once, and `reauth`
 covers the prelude as it covers everything else.
 
 `synced` is sent even for an empty backlog, so a reader can tell "this server

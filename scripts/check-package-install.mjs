@@ -428,9 +428,10 @@ import { compileSql } from "@qadi/predicate-sql";
 import { compilePrismaWhere } from "@qadi/predicate-prisma";
 import { AuditDecisionSinkLive, AuditTrailPortTest } from "@qadi/audit";
 import {
+  PermissionRegistryLive,
   RequiredPermission,
   RequirePermission,
-  RequirePermissionLive,
+  guardApi,
   requiresPermission,
   subjectExtractorBearer,
 } from "@qadi/http";
@@ -545,9 +546,10 @@ const HttpFixtureHandlers = HttpApiBuilder.group(HttpFixtureApi, "documents", (h
 );
 const HttpFixtureRoutes = HttpApiBuilder.layer(HttpFixtureApi).pipe(
   Layer.provide(HttpFixtureHandlers),
-  Layer.provide(RequirePermissionLive),
+  Layer.provide(guardApi(HttpFixtureApi)),
 );
 const HttpFixtureLayer = HttpFixtureRoutes.pipe(
+  Layer.provideMerge(PermissionRegistryLive),
   Layer.provideMerge(subjectExtractorBearer(() => Effect.succeed(alice))),
   Layer.provideMerge(services),
   Layer.provideMerge(HttpServer.layerServices),
@@ -557,6 +559,13 @@ const httpAllowed = await handler(new Request("http://localhost/documents", { he
 expect("http allowed request", httpAllowed.status, 204);
 const httpDenied = await handler(new Request("http://localhost/documents"));
 expect("http anonymous request denied", httpDenied.status, 403);
+
+// The closed surface (ADR-QD-099, ARCH-36): the layers that enforced without
+// registering are not importable from the published package.
+const httpSurface = Object.keys(await import("@qadi/http"));
+for (const removed of ["RequirePermissionLive", "registerApi", "guardRoute"]) {
+  expect(\`\${removed} is not exported\`, httpSurface.includes(removed), false);
+}
 
 console.log("consumer: the published artifact authorizes correctly");
 `;

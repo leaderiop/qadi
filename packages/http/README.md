@@ -28,7 +28,7 @@ reviewer can see that someone chose this.
 Only an endpoint declares access. A `RequiredPermission` or `PublicEndpoint` on
 a group or on the API is **refused** too, never ignored: the middleware answers
 500 for every endpoint under that group and names the group in its log, and
-`registerApi` fails with `MisplacedAccessDeclaration`. To declare for a whole
+`guardApi` fails with `MisplacedAccessDeclaration`. To declare for a whole
 group, write it into each endpoint's own annotations:
 
 ```ts
@@ -37,12 +37,27 @@ HttpApiGroup.make("documents")
   .annotateEndpoints(RequiredPermission, requiresPermission(anEndpoint, { permission: readPermission, policy: readPolicy }));
 ```
 
+## Guarding an `HttpApi`
+
+`guardApi(Api)` is the one layer that guards an `HttpApi`: it provides the
+`RequirePermission` middleware for that API and, by being built, registers every
+endpoint it enforces with `PermissionRegistry`. It requires `PermissionRegistry`,
+the subject extractor and the standing evaluation services.
+
+An endpoint the middleware is not attached to (`.middleware(RequirePermission)`
+before `.add(group)`, no middleware, or middleware on one group only) is refused
+rather than served to anyone: a compile error where the type is precise, and
+`RequirePermissionNotAttached` at layer build otherwise. The middleware also answers
+500 for an endpoint outside the API it was built for. Bare routes register the same
+way, because `addGuardedRoute` registers in the layer that adds the route.
+
 ## Building your own surface
 
 `authorizeRequest` is the one step every surface here goes through: it extracts
 the subject, loads the resource (none by default), guards it and logs a denial or
 an extraction failure once. A surface this package does not ship keeps only its
-own answer.
+own answer. It registers nothing: a surface that should appear in `/__permissions`
+registers with `PermissionRegistry.register` when its layer is built.
 
 ```typescript
 import * as Effect from "effect/Effect";
@@ -96,8 +111,9 @@ check left open as future work rather than built here.
 
 ## The permission registry
 
-`/__permissions` publishes every guarded path and the permission it requires,
-which is a map of what to attack and where. It is therefore served **behind a
+`/__permissions` publishes every guarded path and the permission it requires
+(every route registered through `guardApi` or `addGuardedRoute`), which is a map of
+what to attack and where. It is therefore served **behind a
 policy**:
 
 ```ts
