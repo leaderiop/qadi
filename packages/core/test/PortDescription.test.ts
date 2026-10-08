@@ -33,6 +33,8 @@ import {
 import { recordingPort, replyTable, scriptedPort } from "../src/PortDoubles.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "../src/PortSpanEncode.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "../src/PortMetrics.ts";
+import { portWire } from "../src/PortWireEncode.ts";
+import { makeSubjectId, SubjectIdSchema } from "../src/Identity.ts";
 import { collectingTracer, forkAllAndSettle, isolatedMetrics } from "./helpers.ts";
 
 class ProbeError extends Data.TaggedError("ProbeError")<{
@@ -72,6 +74,18 @@ const probePort: PortDescription<
   method: "ask",
   span: "qadi.attribute",
   attributes: probeSpan,
+  wire: portWire({
+    question: Schema.Struct({ subjectId: SubjectIdSchema, what: Schema.String }),
+    answer: Schema.Struct({ n: Schema.optionalKey(Schema.Number) }),
+    toQuestion: ([who, what]: [who: string, what: string]) =>
+      Result.succeed({ subjectId: makeSubjectId(who), what }),
+    fromQuestion: (question, subject): [who: string, what: string] => [subject.id, question.what],
+    toAnswer: (n: number | undefined) => Result.succeed(n === undefined ? {} : { n }),
+    fromAnswer: (wire) => wire.n,
+    asked: ([, what]) => what,
+    spanQuestion: ([who]) => ({ subjectId: who }),
+    spanAnswer: (n) => probeSpan.disclose(n),
+  }),
   service: ProbePort,
   invoke: (shape) => (who, what) => shape.ask(who, what),
   make: (name, call) => ({ name, ask: call }),

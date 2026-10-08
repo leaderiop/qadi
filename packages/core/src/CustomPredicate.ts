@@ -16,15 +16,20 @@ import * as Context from "effect/Context";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import type { AuthSubject } from "./AuthSubject.ts";
 import { CustomPredicateError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
+import { SubjectIdSchema } from "./Identity.ts";
+import { toJson, toJsonRecord } from "./JsonHazard.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import { canonicalKey } from "./PortKey.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import { portWire, sameAnswer, WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
+import type { EncodeRefusal } from "./SinkWire.ts";
 import type { Resource } from "./Resource.ts";
 
 export interface CustomPredicateShape {
@@ -98,6 +103,67 @@ const customSpan = {
   disclose: (answer: boolean) => ({ answer }),
 };
 
+type CustomArgs = [
+  name: string,
+  subject: AuthSubject,
+  resource: Resource | undefined,
+  params: unknown,
+];
+
+/**
+ * What the custom-predicate question and answer look like on a wire (ARCH-31).
+ *
+ * **The subject is its id and nothing else.** The serving side builds the
+ * request with the *session's* `AuthSubject`, so a predicate is handed the
+ * session's roles and attributes and never a client's description of them.
+ * `resource` and `params` are JSON, refused (never thrown) where they hold a
+ * `Set`, a function or a cycle; an absent `params` is absent on the wire too.
+ */
+const customWire = portWire({
+  question: Schema.Struct({
+    subjectId: SubjectIdSchema,
+    name: Schema.String,
+    resource: Schema.optionalKey(Schema.Record(Schema.String, Schema.Json)),
+    params: Schema.optionalKey(Schema.Json),
+  }),
+  answer: Schema.Boolean,
+  toQuestion: ([name, subject, resource, params]: CustomArgs) => {
+    const wireResource =
+      resource === undefined
+        ? Result.succeed(undefined)
+        : toJsonRecord(resource, WIRE_MAX_DEPTH);
+    const wireParams = params === undefined ? Result.succeed(undefined) : toJson(params, WIRE_MAX_DEPTH);
+    return Result.flatMap(
+      wireResource,
+      (resourceJson): Result.Result<
+        {
+          readonly subjectId: typeof subject.id;
+          readonly name: string;
+          readonly resource?: { readonly [key: string]: Schema.Json };
+          readonly params?: Schema.Json;
+        },
+        EncodeRefusal
+      > =>
+        Result.map(wireParams, (paramsJson) => ({
+          subjectId: subject.id,
+          name,
+          ...(resourceJson === undefined ? {} : { resource: resourceJson }),
+          ...(paramsJson === undefined ? {} : { params: paramsJson }),
+        })),
+    );
+  },
+  fromQuestion: (question, subject): CustomArgs => [
+    question.name,
+    subject,
+    question.resource,
+    question.params,
+  ],
+  ...sameAnswer<boolean>(),
+  asked: ([name]) => name,
+  spanQuestion: ([name, subject]) => ({ name, subjectId: subject.id }),
+  spanAnswer: (answer) => customSpan.disclose(answer),
+});
+
 /**
  * The custom-predicate port, described once (`PortDescription.ts`).
  *
@@ -125,6 +191,7 @@ export const customPredicatePort: PortDescription<
   method: "evaluate",
   span: "qadi.hasCustom",
   attributes: customSpan,
+  wire: customWire,
   service: CustomPredicate,
   invoke: (shape) => (name, subject, resource, params) =>
     shape.evaluate(name, subject, resource, params),

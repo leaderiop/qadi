@@ -20,14 +20,17 @@ import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import { DecisionHistoryUnavailable } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
+import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import { portWire, sameAnswer } from "./PortWireEncode.ts";
 
 /**
  * What the port can say about a past event.
@@ -41,7 +44,9 @@ import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpan
  * and unreachable is a `DecisionHistoryUnavailable`, which is an error, not an
  * answer.
  */
-export type ActedResult = "Acted" | "NotActed" | "Unknown";
+export const ActedResult = Schema.Literals(["Acted", "NotActed", "Unknown"]);
+
+export type ActedResult = typeof ActedResult.Type;
 
 export interface ActedQuery {
   readonly subjectId: SubjectId;
@@ -100,12 +105,42 @@ const actedSpan = {
       ...sharedQuestionKeys,
     },
   ),
-  answer: spanStruct(
-    { answer: Schema.optionalKey(Schema.Literals(["Acted", "NotActed", "Unknown"])) },
-    { answer: "qadi.answer" },
-  ),
+  answer: spanStruct({ answer: Schema.optionalKey(ActedResult) }, { answer: "qadi.answer" }),
   disclose: (answer: ActedResult) => ({ answer }),
 };
+
+/**
+ * What the history question and answer look like on a wire (ARCH-31).
+ *
+ * An absent `resourceId` is an "ever, at all" question (`scope: "Any"`); the
+ * span says which it was.
+ */
+const actedWire = portWire({
+  question: Schema.Struct({
+    subjectId: SubjectIdSchema,
+    event: Schema.String,
+    resourceId: Schema.optionalKey(ResourceIdSchema),
+  }),
+  answer: ActedResult,
+  toQuestion: ([query]: [query: ActedQuery]) =>
+    Result.succeed({
+      subjectId: query.subjectId,
+      event: query.event,
+      ...(query.resourceId === undefined ? {} : { resourceId: query.resourceId }),
+    }),
+  fromQuestion: (question, subject): [query: ActedQuery] => [
+    { subjectId: subject.id, event: question.event, resourceId: question.resourceId },
+  ],
+  ...sameAnswer<ActedResult>(),
+  asked: ([query]) => query.event,
+  spanQuestion: ([query]) => ({
+    subjectId: query.subjectId,
+    event: query.event,
+    scope: query.resourceId === undefined ? "Any" : "Resource",
+    resourceId: query.resourceId,
+  }),
+  spanAnswer: (answer) => actedSpan.disclose(answer),
+});
 
 /**
  * The decision-history port, described once (`PortDescription.ts`).
@@ -127,6 +162,7 @@ export const decisionHistoryPort: PortDescription<
   method: "hasActed",
   span: "qadi.acted",
   attributes: actedSpan,
+  wire: actedWire,
   service: DecisionHistory,
   invoke: (shape) => (query) => shape.hasActed(query),
   make: (name, call) => ({ name, hasActed: call }),

@@ -27,6 +27,7 @@ import type * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
 import type { PortName, PortSpanName } from "./PortMetrics.ts";
 import type { PortSpanAttributesLike } from "./PortSpan.ts";
+import type { PortWire } from "./PortWire.ts";
 
 /**
  * What every port Shape has in common: an optional implementation label.
@@ -80,6 +81,18 @@ export interface PortDescription<
    * here. Every field is a `SpanValue`, which is INV-QD-044 as a type.
    */
   readonly attributes: Span;
+  /**
+   * What the port's question and answer look like on a wire: the only
+   * statement of them off-process (ARCH-31, ADR-QD-NEXT). `answerRemotely`
+   * serves a port through it and `askRemotely` asks one through it, so a host
+   * writes neither half by hand and a sixth port is a compile error until it
+   * states its wire.
+   *
+   * Separate from {@link attributes} on purpose (INV-QD-044): a span field
+   * cannot hold an attribute's value, and a wire must — to the session's own
+   * subject.
+   */
+  readonly wire: PortWire<Args, A>;
   /** The service key. */
   readonly service: Context.Key<Self, Shape>;
   /**

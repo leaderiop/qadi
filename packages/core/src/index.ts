@@ -30,6 +30,7 @@ export * from "./PortDoubles.ts";
 export * from "./PortMetrics.ts";
 export * from "./PortSpan.ts";
 export * from "./PortSpanDecode.ts";
+export * from "./PortWire.ts";
 export * from "./Ports.ts";
 export * from "./Predicate.ts";
 export * from "./PredicateLiteral.ts";
