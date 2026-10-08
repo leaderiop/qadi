@@ -56,7 +56,7 @@ import * as Match from "effect/Match";
 import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
-import type { Trace } from "./Decision.ts";
+import type { DecisionDisagreement, Trace } from "./Decision.ts";
 import type { DecisionOutcome, SinkRecord, StoredRecord } from "./DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord, stampRecord } from "./DecisionRecord.ts";
 import { DecisionWire, decodeDecision, encodeDecision } from "./DecisionWire.ts";
@@ -226,13 +226,39 @@ const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>()
   }),
 );
 
-/** A wire outcome as the record's own classes. */
-const rebuildOutcome: (outcome: OutcomeWire) => DecisionOutcome = Match.type<OutcomeWire>().pipe(
-  Match.tagsExhaustive({
-    Decided: (outcome) => new Decided({ decision: decodeDecision(outcome.decision) }),
-    Failed: (outcome) => new Failed({ error: outcome.error }),
-  }),
-);
+/** The record-level facts a decided outcome's decision must agree with. */
+interface RecordFacts {
+  readonly evaluationId: string;
+  readonly subjectId: string;
+  readonly policyTag: Policy["_tag"];
+}
+
+/**
+ * A wire outcome as the record's own classes, or how it contradicts itself.
+ *
+ * A decided outcome's decision repeats the record's `evaluationId` and
+ * `subjectId`, and its trace root names the record's policy; the three are
+ * compared before the decision is read, then {@link decodeDecision} checks the
+ * decision against its own trace (INV-QD-170). Both facts and checks are
+ * `Decision.ts`'s vocabulary ({@link DecisionDisagreement}); this is the one
+ * place the record wire raises the record-level three, so no adapter re-checks.
+ */
+const rebuildOutcome: (
+  outcome: OutcomeWire,
+) => (facts: RecordFacts) => Result.Result<DecisionOutcome, DecisionDisagreement> =
+  Match.type<OutcomeWire>().pipe(
+    Match.tagsExhaustive({
+      Decided: (outcome) => (facts: RecordFacts): Result.Result<DecisionOutcome, DecisionDisagreement> => {
+        const wire = outcome.decision;
+        if (wire.evaluationId !== facts.evaluationId) return Result.fail("EvaluationId");
+        if (wire.subjectId !== facts.subjectId) return Result.fail("SubjectId");
+        if (wire.trace.policyTag !== facts.policyTag) return Result.fail("PolicyTag");
+        return Result.map(decodeDecision(wire), (decision) => new Decided({ decision }));
+      },
+      Failed: (outcome) => (): Result.Result<DecisionOutcome, DecisionDisagreement> =>
+        Result.succeed(new Failed({ error: outcome.error })),
+    }),
+  );
 
 /**
  * Rebuilds a record from an already-validated version-2 wire value.
@@ -248,31 +274,44 @@ const rebuildOutcome: (outcome: OutcomeWire) => DecisionOutcome = Match.type<Out
  * for the reason {@link project} gives. The outcome is one tagged value and
  * `subjectId` is required, so there is no fallback arm.
  */
-const rebuild: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>().pipe(
-  Match.tagsExhaustive({
-    Obligations: (wire) =>
-      new ObligationRecord({
-        evaluationId: wire.evaluationId,
-        at: wire.at,
-        outcome: wire.outcome,
-        obligationIds: wire.obligationIds,
-        ...(wire.subjectId === undefined ? {} : { subjectId: makeSubjectId(wire.subjectId) }),
-        ...(wire.action === undefined ? {} : { action: wire.action }),
-        ...(wire.resourceId === undefined ? {} : { resourceId: makeResourceId(wire.resourceId) }),
-      }),
-    Decision: (wire) =>
-      new DecisionRecord({
-        evaluationId: wire.evaluationId,
-        at: wire.at,
-        subjectId: makeSubjectId(wire.subjectId),
-        policy: wire.policy,
-        ...(wire.resource === undefined ? {} : { resource: wire.resource }),
-        ...(wire.action === undefined ? {} : { action: wire.action }),
-        ...(wire.cache === undefined ? {} : { cache: wire.cache }),
-        outcome: rebuildOutcome(wire.outcome),
-      }),
-  }),
-);
+const rebuild: (wire: SinkRecordWire) => Result.Result<SinkRecord, DecisionDisagreement> =
+  Match.type<SinkRecordWire>().pipe(
+    Match.tagsExhaustive({
+      Obligations: (wire) =>
+        Result.succeed(
+          new ObligationRecord({
+            evaluationId: wire.evaluationId,
+            at: wire.at,
+            outcome: wire.outcome,
+            obligationIds: wire.obligationIds,
+            ...(wire.subjectId === undefined ? {} : { subjectId: makeSubjectId(wire.subjectId) }),
+            ...(wire.action === undefined ? {} : { action: wire.action }),
+            ...(wire.resourceId === undefined
+              ? {}
+              : { resourceId: makeResourceId(wire.resourceId) }),
+          }),
+        ),
+      Decision: (wire) =>
+        Result.map(
+          rebuildOutcome(wire.outcome)({
+            evaluationId: wire.evaluationId,
+            subjectId: wire.subjectId,
+            policyTag: wire.policy._tag,
+          }),
+          (outcome) =>
+            new DecisionRecord({
+              evaluationId: wire.evaluationId,
+              at: wire.at,
+              subjectId: makeSubjectId(wire.subjectId),
+              policy: wire.policy,
+              ...(wire.resource === undefined ? {} : { resource: wire.resource }),
+              ...(wire.action === undefined ? {} : { action: wire.action }),
+              ...(wire.cache === undefined ? {} : { cache: wire.cache }),
+              outcome,
+            }),
+        ),
+    }),
+  );
 
 /**
  * The encoded form of a record — version-2 bytes: what {@link encodeSinkRecord}
@@ -564,11 +603,19 @@ const envelopeOf = (input: object): unknown => {
   return Object.fromEntries(Object.entries(input).filter(([key]) => keys.has(key)));
 };
 
-/** A decode's result as a record, or `Malformed` with the schema's message. */
+/**
+ * A decode's result as a record, `Malformed` with the schema's message, or
+ * `Inconsistent` when the record's copies disagree.
+ */
 const decoded = (
   wire: Result.Result<SinkRecordWire, { readonly message: string }>,
-): Result.Result<SinkRecord, SinkRecordNotDecodable> =>
-  Result.isFailure(wire) ? malformed(wire.failure) : Result.succeed(rebuild(wire.success));
+): Result.Result<SinkRecord, SinkRecordNotDecodable> => {
+  if (Result.isFailure(wire)) return malformed(wire.failure);
+  const record = rebuild(wire.success);
+  return Result.isFailure(record)
+    ? notDecodable(DecodeRefusal.Inconsistent({ disagreement: record.failure }))
+    : Result.succeed(record.success);
+};
 
 /** The version this reader reads, as a value to compare a record's `version` with. */
 const WIRE_VERSION: WireVersion = 2;

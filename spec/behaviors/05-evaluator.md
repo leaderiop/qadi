@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-05                                    |
-> | Revision       | 1.9                                            |
-> | Effective Date | 2026-10-07                                     |
+> | Revision       | 1.10                                           |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.9 (2026-10-07): BEH-QD-033 — the interpreter is the internal `walk`, `evaluate` the only public path to a decision; BEH-QD-317 added, a readiness probe asks the ports every time (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-05): BEH-QD-035 — the stop rule reads the field lattice's `decidedByFirst` law; a strategy outside the union, prototype keys included, never stops early (ADR-QD-092, CCR-QD-174)<br>1.7 (2026-10-04): BEH-QD-038 — nesting depth is judged on the policy before any node is visited, matcher nesting counts, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-261 — scope sentence: the conversion lives in `PortAccess.ts` and applies to every port read core makes, `toPredicate`'s included (BEH-QD-264); the requirement text for `evaluate` is unchanged (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-09): BEH-QD-261 — the five bare `yield*` port calls (`AttributeResolver.resolve`, `DecisionHistory.hasActed`, `RelationshipResolver.check`, `CustomPredicate.evaluate`, `SignatureHistory.signaturesFor`) now each convert a defecting implementation into their own typed `EvaluationError`, joining the four `EvaluationError` tags (`MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep`) that were already synchronous and so never at risk of dying — so a caller's `Effect.retry` around `evaluate` now sees a retryable failure at all nine tags, not just those four (issue #100, CCR-QD-142)<br>1.4 (2026-09-07): BEH-QD-033's `evaluate` signature corrected — the requirement channel omitted `CustomPredicate`/`SignatureHistory`, both joined by CCR-QD-082/CCR-QD-089 (CCR-QD-110)<br>1.3 (2026-07-26): `DecisionHistory` joins `EvaluationServices` (CCR-QD-016)<br>1.2 (2026-07-26): `Trace.obligations` (CCR-QD-015)<br>1.1 (2026-07-26): Missing-action rule cross-referenced (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.10 (2026-10-08): BEH-QD-039 — a decision is built from a stamp and a trace (`makeDecision`), and its verdict, `visibleFields`, `obligations` and `reason` are the trace root's (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.9 (2026-10-07): BEH-QD-033 — the interpreter is the internal `walk`, `evaluate` the only public path to a decision; BEH-QD-317 added, a readiness probe asks the ports every time (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-05): BEH-QD-035 — the stop rule reads the field lattice's `decidedByFirst` law; a strategy outside the union, prototype keys included, never stops early (ADR-QD-092, CCR-QD-174)<br>1.7 (2026-10-04): BEH-QD-038 — nesting depth is judged on the policy before any node is visited, matcher nesting counts, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-261 — scope sentence: the conversion lives in `PortAccess.ts` and applies to every port read core makes, `toPredicate`'s included (BEH-QD-264); the requirement text for `evaluate` is unchanged (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-09): BEH-QD-261 — the five bare `yield*` port calls (`AttributeResolver.resolve`, `DecisionHistory.hasActed`, `RelationshipResolver.check`, `CustomPredicate.evaluate`, `SignatureHistory.signaturesFor`) now each convert a defecting implementation into their own typed `EvaluationError`, joining the four `EvaluationError` tags (`MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep`) that were already synchronous and so never at risk of dying — so a caller's `Effect.retry` around `evaluate` now sees a retryable failure at all nine tags, not just those four (issue #100, CCR-QD-142)<br>1.4 (2026-09-07): BEH-QD-033's `evaluate` signature corrected — the requirement channel omitted `CustomPredicate`/`SignatureHistory`, both joined by CCR-QD-082/CCR-QD-089 (CCR-QD-110)<br>1.3 (2026-07-26): `DecisionHistory` joins `EvaluationServices` (CCR-QD-016)<br>1.2 (2026-07-26): `Trace.obligations` (CCR-QD-015)<br>1.1 (2026-07-26): Missing-action rule cross-referenced (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -155,6 +155,28 @@ defense in depth.
 ```ts
 export type Decision = Allow | Deny;
 
+export interface DecisionStamp {
+  readonly evaluationId: string;
+  readonly subjectId: SubjectId;
+  readonly durationMillis: number;
+}
+
+export type AllowingTrace = Trace & { readonly allowed: true };
+export type DenyingTrace = Trace & { readonly allowed: false };
+
+// The one constructor. `new Allow({ ...stamp, trace })` and
+// `new Deny({ ...stamp, trace })` take the same stamp and a trace of their
+// verdict; the derived fields cannot be passed.
+export const makeDecision: (stamp: DecisionStamp, trace: Trace) => Decision;
+
+export type DecisionDisagreement =
+  | "Verdict" | "VisibleFields" | "Obligations" | "Reason" | "DenyObligations"
+  | "EvaluationId" | "SubjectId" | "PolicyTag";
+export type DecisionClaim =
+  | { readonly verdict: "Allow"; readonly visibleFields: VisibleFields; readonly obligations: ReadonlyArray<Obligation> }
+  | { readonly verdict: "Deny"; readonly reason: string; readonly obligations: ReadonlyArray<Obligation> };
+export const decisionDisagreement: (claim: DecisionClaim, trace: Trace) => DecisionDisagreement | undefined;
+
 export interface Trace {
   readonly policyTag: Policy["_tag"];
   readonly label?: string | undefined;
@@ -169,6 +191,15 @@ export interface Trace {
 ```
 REQUIREMENT: Every evaluation MUST produce a full trace tree, so that a denial
              can always answer "why".
+
+REQUIREMENT: A `Decision`'s verdict, `visibleFields`, `obligations` and `reason`
+             MUST be those of its trace root, and a decision MUST be built
+             from a stamp and a trace and from nothing else: `Allow` and
+             `Deny` take `(stamp, trace)` and derive their own fields, so a
+             decision that disagrees with its trace cannot be built. A value
+             that arrives carrying both copies (a wire record, a disclosed
+             seed) MUST be checked with `decisionDisagreement`, which
+             reports the first way they differ (INV-QD-170).
 ```
 
 ## BEH-QD-040: Worked example

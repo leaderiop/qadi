@@ -91,6 +91,9 @@ const source = sourceFromEventSource({
     // "not-a-record"        — a protocol mismatch: the far side disagrees about
     //                         the wire form.
     // "unsupported-version" — a newer server: upgrade this panel.
+    // "inconsistent"        — a record that contradicts itself: its decision is
+    //                         not its own trace's, or its ids are not its
+    //                         record's. Not skew: a hand-built record or tampering.
     console.warn(reason, frame);
   },
   onDisconnect: () => console.info("reconnecting…"),

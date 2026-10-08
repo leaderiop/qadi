@@ -88,10 +88,8 @@ const serverAllow = (subjectId: string) =>
       allowed: true,
       children: [],
       visibleFields: ["id", "title"],
-      obligations: [],
+      obligations: [obligation("audit.log")],
     },
-    visibleFields: ["id", "title"],
-    obligations: [obligation("audit.log")],
   });
 
 const serverDeny = (subjectId: string) =>
@@ -104,10 +102,8 @@ const serverDeny = (subjectId: string) =>
       allowed: false,
       reason: "subject lacks role 'admin'",
       children: [],
-      visibleFields: undefined,
       obligations: [],
     },
-    reason: "subject lacks role 'admin'",
   });
 
 /** The first element of an array every call site here already knows is non-empty. */
@@ -696,11 +692,8 @@ describe("hydrateDecisions", () => {
         policyTag: "HasPermission",
         allowed: true,
         children: [],
-        visibleFields: undefined,
         obligations: [],
       },
-      visibleFields: undefined,
-      obligations: [],
     });
 
     const payload = dehydrateDecisions([{ policy: canRead, decision: unrestricted }]);
@@ -1157,8 +1150,6 @@ describe("a re-check that settles asynchronously", () => {
       subjectId: makeSubjectId(subjectId),
       durationMillis: 2,
       trace: { policyTag: "HasAttribute", allowed: true, children: [], obligations: [] },
-      visibleFields: undefined,
-      obligations: [],
     });
 
   const mount = (answer: string) => {

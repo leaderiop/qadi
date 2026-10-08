@@ -24,7 +24,7 @@ import { CurrentSubject } from "./CurrentSubject.ts";
 import type { CacheOutcome } from "./DecisionCache.ts";
 import { DecisionCache } from "./DecisionCache.ts";
 import type { Decision, Trace } from "./Decision.ts";
-import { Allow, Deny } from "./Decision.ts";
+import { makeDecision } from "./Decision.ts";
 import { Decided, Failed } from "./DecisionRecord.ts";
 import type { EvaluationError } from "./Errors.ts";
 import { EvaluationId } from "./EvaluationId.ts";
@@ -238,22 +238,10 @@ export const decideQuestion = Effect.fn("qadi.evaluate")(function* (
   const trace = lookup.trace;
   const durationMillis = (yield* Clock.currentTimeMillis) - startedAt;
 
-  const decision: Decision = trace.allowed
-    ? new Allow({
-        evaluationId,
-        subjectId: question.subject.id,
-        durationMillis,
-        trace,
-        visibleFields: trace.visibleFields,
-        obligations: trace.obligations,
-      })
-    : new Deny({
-        evaluationId,
-        subjectId: question.subject.id,
-        durationMillis,
-        trace,
-        reason: trace.reason ?? "denied",
-      });
+  const decision: Decision = makeDecision(
+    { evaluationId, subjectId: question.subject.id, durationMillis },
+    trace,
+  );
 
   yield* Effect.annotateCurrentSpan({
     "qadi.decision": decision._tag,

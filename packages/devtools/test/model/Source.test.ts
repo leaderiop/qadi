@@ -517,6 +517,40 @@ describe("sourceFromEventSource", () => {
       assert.strictEqual(got[0]?.evaluationId, "after");
     }));
 
+  // ARCH-32: a well-formed record whose decision says allow beside a trace
+  // that says deny is neither version skew nor not-a-record.
+  it.effect("a decision that contradicts its own trace is dropped as inconsistent", () =>
+    Effect.gen(function* () {
+      const fake = fakeEventSource();
+      const reported: Array<readonly [string, MalformedReason]> = [];
+      const frame = enveloped(JSON.stringify({
+        _tag: "Decision",
+        version: 2,
+        evaluationId: "contradiction",
+        at: 1,
+        subjectId: "alice",
+        policy: { _tag: "HasPermission", permission: { resource: "doc", action: "read" } },
+        outcome: {
+          _tag: "Decided",
+          decision: {
+            _tag: "Allow",
+            evaluationId: "contradiction",
+            subjectId: "alice",
+            durationMillis: 1,
+            trace: { policyTag: "HasPermission", allowed: false, reason: "no", children: [], obligations: [] },
+            obligations: [],
+          },
+        },
+      }));
+
+      const got = yield* collect(fake, [frame, frameOf(decisionRecord({ evaluationId: "after" }))], 1, {
+        onMalformed: (bad, reason) => reported.push([bad, reason]),
+      });
+
+      assert.deepStrictEqual(reported, [[frame, "inconsistent"]]);
+      assert.strictEqual(got[0]?.evaluationId, "after");
+    }));
+
   /**
    * Wire versions (ADR-QD-096): a panel reads version 2, the one version since
    * 0.11.0, and names a record of any other version — a server newer than

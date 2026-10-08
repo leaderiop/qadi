@@ -555,8 +555,6 @@ describe("through a provider, as an application reads it", () => {
         subjectId: makeSubjectId("u1"),
         durationMillis: 1,
         trace: { policyTag: "HasAttribute", allowed: true, children: [], obligations: [] },
-        visibleFields: undefined,
-        obligations: [],
       }),
     }]);
 

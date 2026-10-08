@@ -50,8 +50,6 @@ const decision = (evaluationId: string, resource?: Record<string, unknown>) =>
         subjectId: makeSubjectId("alice"),
         durationMillis: 1,
         trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
-        visibleFields: undefined,
-        obligations: [],
       }),
     }),
   });

@@ -346,3 +346,7 @@ entries:
     file: "105-an-obligation-is-discharged-against-the-question-it-answered.md"
     title: "An obligation is discharged against the question it answered"
     status: "Accepted — amends ADR-QD-019, ADR-QD-057, ADR-QD-058, ADR-QD-096"
+  - id: "ADR-QD-106"
+    file: "106-a-decision-is-constructed-from-its-trace.md"
+    title: "A decision is constructed from its trace"
+    status: "Accepted — amends ADR-QD-078, ADR-QD-096"

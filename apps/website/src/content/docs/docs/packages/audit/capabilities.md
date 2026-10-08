@@ -33,6 +33,7 @@ reads or writes. A row written before 0.10 is wire version 1: it has no
 `version` key, and `decodeAuditEntry` refuses it as `UnsupportedVersion`.
 Re-encode such rows with 0.10.x before upgrading; see
 [Upgrading to 0.11](/docs/reference/upgrading/#audit-rows-written-before-010).
+A row whose record contradicts itself, such as a decision that says allow beside a trace that says deny, is refused as `Inconsistent` by the same reader.
 Read rows back with
 `decodeAuditEntry`, not with the `AuditEntry` schema alone, which under
 `Schema`'s default options silently strips a typo inside the stored policy. `encodeAuditEntry` refuses rather than approximates: a

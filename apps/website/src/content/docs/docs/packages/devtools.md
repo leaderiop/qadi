@@ -77,6 +77,8 @@ record from a server older than 0.10 is reported as `"not-a-record"`, and a
 version-1 record as `"unsupported-version"`; see
 [Upgrading to 0.11](/docs/reference/upgrading/#peers-on-09-or-earlier).
 
+A frame whose record is well-formed but contradicts itself (a decision that says allow beside a trace that says deny, or ids that are not the decision's) is reported as `"inconsistent"`: it is neither version skew nor a malformed frame, and the log and the inspector would otherwise have read different copies of one evaluation.
+
 A frame that is not JSON, one that does not decode, or a server that
 disconnects each drops one row and reports why via an `onMalformed`/
 `onDisconnect` callback, rather than taking the panel down — a devtools panel

@@ -24,7 +24,7 @@ import type {
   ObligationDischarge,
   ObligationRecord,
   Resource,
-  Trace,
+  AllowingTrace,
 } from "@qadi/core";
 import {
   SIGNATURE_MEANINGS,
@@ -64,7 +64,7 @@ const dischargeFor = (
   options?: { readonly resource?: Resource; readonly action?: string },
 ): ObligationDischarge => {
   const policy = obliged(obligation("unused"), hasPermission(permission("doc", "read")));
-  const trace: Trace = { policyTag: "Obliged", allowed: true, children: [], obligations };
+  const trace: AllowingTrace = { policyTag: "Obliged", allowed: true, children: [], obligations };
   return {
     question: questionOf(subject, policy, options),
     decision: new Allow({
@@ -72,8 +72,6 @@ const dischargeFor = (
       subjectId: subject.id,
       durationMillis: 0,
       trace,
-      visibleFields: undefined,
-      obligations,
     }),
   };
 };

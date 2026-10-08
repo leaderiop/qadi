@@ -30,7 +30,7 @@ import {
   role,
   portsLayer,
 } from "@qadi/core";
-import type { DecisionOutcome, StoredRecord, Trace } from "@qadi/core";
+import type { AllowingTrace, DecisionOutcome, StoredRecord } from "@qadi/core";
 import {
   baselineDiff,
   emptyTimeline,
@@ -247,7 +247,7 @@ describe("baselineDiff", () => {
    */
   it("caveats a comparison against a trace that was truncated before it arrived", () => {
     const policy = allOf([hasPermission(read), hasRole("editor")]);
-    const rootOnly: Trace = {
+    const rootOnly: AllowingTrace = {
       policyTag: "AllOf",
       allowed: true,
       children: [],

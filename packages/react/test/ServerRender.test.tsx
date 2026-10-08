@@ -79,8 +79,6 @@ const serverAllow = (policyTag: Trace["policyTag"]) =>
     subjectId: makeSubjectId("u1"),
     durationMillis: 2,
     trace: { policyTag, allowed: true, children: [], visibleFields: undefined, obligations: [] },
-    visibleFields: undefined,
-    obligations: [],
   });
 
 describe("server rendering", () => {

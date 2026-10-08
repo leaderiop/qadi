@@ -36,6 +36,7 @@ import {
   DecisionWireAllow,
   DecisionWireDeny,
   MAX_DECODE_DEPTH,
+  decisionDisagreement,
   Policy as PolicySchema,
   UNTRUSTED_DECODE_OPTIONS,
   encodeDecision,
@@ -239,15 +240,33 @@ const rebuild = (entry: DehydratedEntry, subjectId: SubjectId): SeededDecision =
 };
 
 /**
- * Whether an entry's disclosure is a trace of its own policy.
+ * Whether an entry's disclosed trace agrees with the entry, and is its policy's.
  *
  * A disclosed trace names the root policy it traced, and the evaluator's root
  * tag is always the policy's own `_tag`. One that says otherwise is not a trace
  * of this entry's policy — hand-built, or spliced from another entry — so the
  * entry is refused rather than seeded with it.
+ *
+ * The entry also repeats the verdict, `visibleFields`, `obligations` and
+ * (a denial's) `reason` that the trace root already holds. `@qadi/core`'s
+ * {@link decisionDisagreement} is the one rule for whether two such copies
+ * agree; this module only shapes the claim, and a seed that disagrees with the
+ * trace it carries is refused the same way (INV-QD-170). A `Withheld` seed has
+ * no trace, so its fields are the only copy and there is nothing to compare.
  */
-const disclosesItsOwnPolicy = (entry: DehydratedEntry, policy: Policy): boolean =>
-  entry.decision.disclosure._tag !== "Disclosed" || entry.decision.disclosure.trace.policyTag === policy._tag;
+const entryAgrees = (entry: DehydratedEntry, policy: Policy): boolean => {
+  const decision = entry.decision;
+  if (decision.disclosure._tag !== "Disclosed") return true;
+  if (decision.disclosure.trace.policyTag !== policy._tag) return false;
+  return (
+    decisionDisagreement(
+      decision._tag === "Allow"
+        ? { verdict: "Allow", visibleFields: decision.visibleFields, obligations: decision.obligations }
+        : { verdict: "Deny", reason: decision.disclosure.reason, obligations: [] },
+      decision.disclosure.trace,
+    ) === undefined
+  );
+};
 
 export interface HydrateOptions {
   /**
@@ -393,7 +412,7 @@ export const hydrateWith = (
       continue;
     }
 
-    if (!disclosesItsOwnPolicy(fields.value, decoded.value)) {
+    if (!entryAgrees(fields.value, decoded.value)) {
       malformed.push(entry);
       continue;
     }

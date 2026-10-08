@@ -57,8 +57,6 @@ const serverAllow = (subjectId: string, id: string) =>
       visibleFields: undefined,
       obligations: [],
     },
-    visibleFields: undefined,
-    obligations: [],
   });
 
 /** The wire form of an allow whose trace the server withheld, as a hand-built entry. */

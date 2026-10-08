@@ -271,6 +271,7 @@ const reasonOf: (refusal: DecodeRefusal) => MalformedReason = Match.type<DecodeR
     TooDeep: (): MalformedReason => "too-deep",
     Malformed: (): MalformedReason => "not-a-record",
     UnsupportedVersion: (): MalformedReason => "unsupported-version",
+    Inconsistent: (): MalformedReason => "inconsistent",
   }),
 );
 
@@ -297,7 +298,7 @@ const decodeFrame = (
 /**
  * Why a frame was dropped.
  *
- * The four are different problems with different fixes and the reader is owed
+ * The five are different problems with different fixes and the reader is owed
  * the distinction: `not-json` is a broken transport — a proxy that truncated
  * the stream, a reverse proxy injecting its own body — `too-deep` is JSON
  * nested past the bound every receiver decodes, which a current sender refuses
@@ -308,12 +309,21 @@ const decodeFrame = (
  * `unsupported-version` is a record of a wire version this panel's
  * `@qadi/core` does not read — a sender newer than the panel, fixed by
  * upgrading the panel, or a version-1 record (no `version`) from a sender older
- * than 0.10, fixed by upgrading the sender (ADR-QD-096).
+ * than 0.10, fixed by upgrading the sender (ADR-QD-096); and `inconsistent` is a
+ * well-formed record that contradicts itself: a decision whose verdict, fields,
+ * duties or reason are not its own trace's, or whose ids or policy tag are not
+ * its record's. Not version skew: a producer that built a decision by hand, or
+ * tampering (INV-QD-170).
  *
  * A closed union rather than a free string: this is a value a caller branches
  * on, and adding a reason should be a compile error at every consumer.
  */
-export type MalformedReason = "not-json" | "too-deep" | "not-a-record" | "unsupported-version";
+export type MalformedReason =
+  | "not-json"
+  | "too-deep"
+  | "not-a-record"
+  | "unsupported-version"
+  | "inconsistent";
 
 /** Reports the drop, then filters the frame out. */
 const malformed = (
