@@ -324,6 +324,17 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 8. Every document's Revision row equals its newest Change History entry.
+#    scripts/spec-revise.mjs owns the header format; a change that adds history
+#    without bumping the row (or the reverse) fails here, not in review.
+# ---------------------------------------------------------------------------
+if revision_out="$(node "$ROOT_DIR/scripts/spec-revise.mjs" --check 2>&1)"; then
+  report PASS "Revision = newest history entry" "every header agrees"
+else
+  report FAIL "Revision = newest history entry" "$(tr '\n' ' ' <<< "$revision_out" | cut -c1-200)"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo

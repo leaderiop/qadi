@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.1 (2026-07-26): E6 shipped; status now partial (CCR-QD-018)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
+> | Change History | 1.2 (2026-10-08): the Revision row read 1.2 with no history entry recording it; the entry is added by the Revision-versus-history check, and what changed in 1.2 was not recorded<br>1.1 (2026-07-26): E6 shipped; status now partial (CCR-QD-018)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
 
 ---
 
