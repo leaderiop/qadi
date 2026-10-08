@@ -126,6 +126,18 @@ The decisions behind this release are the 2026-10-06 amendments to
 [ADR-QD-078](https://github.com/leaderiop/qadi/blob/main/spec/decisions/078-a-seed-is-its-own-type-and-the-payload-is-versioned.md)
 (the hydration payload).
 
+## 0.12: a port states its wire
+
+`PortDescription` has a required `wire` (`PortWire<Args, A>`), the one statement of what a port's
+question and answer look like off-process. The five ports in `@qadi/core` have theirs; code that builds
+a `PortDescription` by hand (this is rare, because the registry of ports is closed) must add one. `PortInterpreter`
+(and `@qadi/devtools`' `PortCallInterpreter`) is now `"evaluate" | "toPredicate" | "remote"`, so an
+exhaustive match over it needs a `"remote"` arm. If your host wrote its own routes and browser adapters
+for a re-check's ports, `portRoutesUnguarded` and `remotePortsLayer` (`@qadi/http`) replace them, and two
+behaviours change: a store outage is the port's own typed error and never `"Unknown"`, and a question
+about a subject other than the session's is a 403 instead of an answer about the session's subject. See
+[ADR-QD-107](https://github.com/leaderiop/qadi/blob/main/spec/decisions/107-a-port-is-answered-remotely-through-its-description.md).
+
 ## 0.12: `@qadi/devtools`' interface
 
 `@qadi/devtools` used to export every name each of its modules declared: 245

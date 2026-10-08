@@ -350,3 +350,7 @@ entries:
     file: "106-a-decision-is-constructed-from-its-trace.md"
     title: "A decision is constructed from its trace"
     status: "Accepted — amends ADR-QD-078, ADR-QD-096"
+  - id: "ADR-QD-107"
+    file: "107-a-port-is-answered-remotely-through-its-description.md"
+    title: "A port is answered remotely through its description"
+    status: "Accepted — amends ADR-QD-094, ADR-QD-051"
