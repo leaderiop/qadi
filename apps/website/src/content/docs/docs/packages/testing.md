@@ -27,12 +27,11 @@ generator instead of `crypto.randomUUID()` — a decision's id is `eval-1`,
 import { qadiTestLayer, subjectWith } from "@qadi/testing";
 
 const layer = qadiTestLayer(subjectWith({ permissions: ["doc:read"] }), {
-  attributes: { clearance: 5 },
+  ports: { AttributeResolver: { answers: { clearance: 5 } } },
 });
 ```
 
-`TestLayerOptions` also accepts `relationships`, `history`, `signatures`,
-`ports` (below), an `idPrefix`, and a `clock` of `"live"` (the default) or `"test"` — set `"test"`
+`TestLayerOptions` takes `ports` (below), an `idPrefix`, and a `clock` of `"live"` (the default) or `"test"` — set `"test"`
 outside `it.effect`, where no ambient `TestClock` exists, to make
 `durationMillis` reproducibly zero when two decisions are compared field by
 field. `qadiReviewLayer` is the subject-less half, for wiring the same
@@ -64,12 +63,24 @@ export const subjectWith: (config: {
 Deliberately small and boring — these exist so a test can say what it is
 about, not to model a realistic domain.
 
-## Overriding a port
+## Setting up a port
 
-Each data option — `attributes`, `relationships`, `history`, `signatures` —
-becomes that port's `@qadi/core` fixture. To wire any port directly, pass it
-under `ports`, keyed by port name. An entry there wins over the matching data
-option, and every port you do not name stays at its fail-closed default:
+Each port has one way to be set up, under `ports`, keyed by port name. The
+value is either the port's fixture data, `{ answers }`, or a layer of its own
+service, `{ layer }`; giving both for one port is a type error. Every port you
+do not name stays at its fail-closed default.
+
+| Port | `answers` |
+| ---- | --------- |
+| `AttributeResolver` | an attribute record |
+| `RelationshipResolver` | a list of edges |
+| `DecisionHistory` | a list of acted events |
+| `SignatureHistory` | a list of signatures |
+| `CustomPredicate` | fixed verdicts by name, `{ isOwner: true }` |
+
+Each is built by `@qadi/core`'s fixture table, so it is the same fixture
+`@qadi/devtools` uses. A predicate that reads the subject or the resource is
+not data: give it as `{ layer: customPredicateFromRecord({ ... }) }`.
 
 ```typescript
 import { customPredicateFromRecord } from "@qadi/core";
@@ -77,12 +88,29 @@ import { qadiTestLayer, subjectWith } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 
 const layer = qadiTestLayer(subjectWith({ id: "u1" }), {
-  attributes: { clearance: 5 },
   ports: {
-    CustomPredicate: customPredicateFromRecord({ isOwner: () => Effect.succeed(true) }),
+    AttributeResolver: { answers: { clearance: 5 } },
+    // Behaviour, not data: a layer.
+    CustomPredicate: {
+      layer: customPredicateFromRecord({ isOwner: () => Effect.succeed(true) }),
+    },
   },
 });
 ```
+
+## Observing what ran
+
+Three helpers capture what a test needs to see. Each replaces what is ambient
+rather than adding to it, and each is written once here.
+
+- `isolatedMetrics(effect)` runs `effect` against its own empty
+  `MetricRegistry`, so counters a test reads start at zero and never reach the
+  process-wide registry. It isolates what happens on the effect's fiber; a write
+  made off-fiber (as `@qadi/react`'s hydration counters are) lands in the default
+  registry whatever the fiber carries, so a test of those asserts a delta.
+- `collectingLogger()` returns `{ lines, layer }`: every log line, with its
+  `message`, `level` and `annotations`, in `lines` after the effect has run.
+- `collectingTracer(spans)` records every span into the array you pass.
 
 ## Scripted and recording ports
 
@@ -116,7 +144,9 @@ const down = scriptedPort(attributeResolverPort, () => PortReply.fail("down"));
 const table = recordingPort(attributeResolverPort, attributeResolverFromRecord({ tier: 5 }));
 
 const program = evaluate(anyOf([hasAttribute("tier", gte(1)), hasAttribute("other", gte(1))])).pipe(
-  Effect.provide(qadiTestLayer(subjectWith({}), { ports: { AttributeResolver: table.layer } })),
+  Effect.provide(
+    qadiTestLayer(subjectWith({}), { ports: { AttributeResolver: { layer: table.layer } } }),
+  ),
 );
 // After running `program`, `table.calls` is `[["test-subject", "tier"]]` —
 // `anyOf` stopped at the first allow. `down.layer` in the same slot makes

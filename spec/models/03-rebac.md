@@ -179,7 +179,7 @@ question with a depth budget attached.
 | An unevaluated branch performs **no relationship lookup**, under both `anyOf` and `allOf`; `Union` performs every lookup by design; a resolver failure propagates rather than denying | `packages/core/test/Evaluate.test.ts` |
 | `RelationshipResolverNever` denies everything; `relationshipResolverFromEdges` matches direct edges only | `packages/core/test/Layers.test.ts` |
 | `hasRelationship` carries `depth` and `fields`; JSON round trip via the FastCheck generator | `packages/core/test/Policy.test.ts` |
-| The `relationships` option answers `Unrelated` for an edge it does not hold; `qadiTestLayer` defaults fail closed | `packages/testing/test/TestLayers.test.ts` |
+| `ports.RelationshipResolver.answers` answers `Unrelated` for an edge it does not hold; `qadiTestLayer` defaults fail closed | `packages/testing/test/TestLayers.test.ts` |
 | Acceptance scenarios, tagged `@REQ-QD-005` | `features/features/rebac/relationships.feature` |
 
 `REQ-QD-005` maps to `BEH-QD-036` in the

@@ -252,7 +252,7 @@ is still a contract for readability, even where nothing enforces it.
 
 | Test file | Covers |
 | --------- | ------ |
-| `packages/core/test/v4-api-smoke.test.ts` | Effect v4 API canary |
+| `packages/core/test/v4-api-smoke.test.ts` | Effect v4 API canary, including the `MetricRegistry` facts `isolatedMetrics` relies on |
 | `packages/core/test/AuthSubject.test.ts` | `makeSubject`/`fromRoles`/`withAttributes`'s copy-on-build guarantee; `subjectEquivalence` (BEH-QD-067) |
 | `packages/http/test/v4-http-smoke.test.ts` | `effect/http`/`effect/http-api` API canary |
 | `packages/core/test/PortConformance.test.ts` | One suite over every port in the registry (INV-QD-095, BEH-QD-308): each port's named default, its retrying, bounded and timing-out wrappers (attempt annotation, retry and timeout metrics, permit validation, deadline message, composed names), its scripted and recording doubles and its defect constructor agree with its description; a port without a case is a compile error. Replaced the per-port wrapper tests in `AttributeResolver.test.ts` (deleted), `RelationshipResolver.test.ts`, `CustomPredicate.test.ts` and `Ports.test.ts` |
@@ -315,7 +315,7 @@ is still a contract for readability, even where nothing enforces it.
 | `packages/core/test/Policy.tst.ts` | BEH-QD-300, BEH-QD-318, INV-QD-003 (`tstyche`: the recursive `Policy` pair assigns both ways; `PolicyCases` hands a wrapper its child as `R` and a `Rules` arm a `RuleResult` per row, and a missing arm or a wrapper arm treating its child as an array does not compile) |
 | `packages/core/test/Matcher.tst.ts` | BEH-QD-304, BEH-QD-318 (`tstyche`: `MatcherCases`'s wrapper arms receive `R`; a missing arm does not compile) |
 | `packages/core/test/Explanation.tst.ts` | BEH-QD-303, BEH-QD-318 (`tstyche`: `ExplanationCases`'s wrapper arms receive `R` and `Table` a `RowResult` per row) |
-| `packages/core/test/Ports.test.ts` | BEH-QD-196, BEH-QD-197, BEH-QD-267, INV-QD-005 |
+| `packages/core/test/Ports.test.ts` | BEH-QD-196, BEH-QD-197, BEH-QD-267, INV-QD-005; `fixturePortsLayer` and `PORT_FIXTURES` (ADR-QD-094) |
 | `packages/core/test/SinkCodec.test.ts` | BEH-QD-199, BEH-QD-200, INV-QD-096, INV-QD-097, INV-QD-098, INV-QD-099 (retired: the refusal that replaced it), ADR-QD-096 — the four operations' refusals and normalisations, the round-trip, totality and depth-agreement properties, golden v2 bytes (the `Decided` goldens pinned at 1caf04c), version 2 the one version read, the ignored envelope key and the strict nested content, `UnsupportedVersion` for a newer version and for none, pre-0.10 (version-1) records refused whole, a bare stored-record frame refused, and the one-version and malformed-record properties |
 | `packages/core/test/fixtures/sinkWireV2.ts` | BEH-QD-199, ADR-QD-096 — the version-2 bytes, as literals (the version-1 fixtures were removed with the version-1 reader in 0.11.0) |
 | `packages/core/test/EncodeRefusalReport.test.ts` | BEH-QD-250, BEH-QD-311, INV-QD-104, INV-QD-097, INV-QD-035 — the readings of every `EncodeRefusal` variant, the sentinel property, and the reporter's hook, log and throwing-hook branches |
@@ -378,6 +378,8 @@ is still a contract for readability, even where nothing enforces it.
 | `packages/core/test/Qadi.test.ts` | BEH-QD-049–055, BEH-QD-085, BEH-QD-324, INV-QD-009, INV-QD-013, INV-QD-032, INV-QD-108 |
 | `packages/core/test/Qadi.tst.ts` | Type level: `enforce`'s and `guard`'s inferred channels; `enforceLoaded`, `enforceProjectedLoaded` and `enforceProjected` refuse `resource`; the loaded and projected return types (BEH-QD-324, INV-QD-108) |
 | `packages/testing/test/TestLayers.test.ts` | Test fixtures and layers, BEH-QD-226, BEH-QD-246, BEH-QD-247, INV-QD-014, INV-QD-049, BEH-QD-309 (`ports` overrides), BEH-QD-310 (core doubles through `qadiTestLayer`) |
+| `packages/testing/test/Observation.test.ts` | `isolatedMetrics` and `collectingLogger` (CCR-QD-270) |
+| `packages/testing/test/TestLayerOptions.tst.ts` | `TestLayerOptions.ports` sets a port up one way: answers or a layer, never both (CCR-QD-270) |
 | `packages/react/test/QadiAtoms.test.ts` | BEH-QD-065, BEH-QD-069, BEH-QD-070, BEH-QD-071, BEH-QD-198, INV-QD-105 |
 | `packages/react/test/QuestionBook.test.ts` | BEH-QD-198, INV-QD-105, ADR-QD-103 — the book with plain objects: keying, FIFO among cold entries, never-evict-live, release, re-admission, the capacity check |
 | `packages/react/test/QadiProvider.test.tsx` | BEH-QD-067, BEH-QD-068, BEH-QD-070, BEH-QD-072 |

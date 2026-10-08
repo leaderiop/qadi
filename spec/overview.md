@@ -274,6 +274,8 @@ answered.
 | `EvaluationServicesNone` | layer | `EvaluationServicesNone.ts` — `Layer.merge(portsLayer(), EvaluationIdLive)`: every port's fail-closed default plus `EvaluationIdLive`; excludes `CurrentSubject` (ADR-QD-022) |
 | `PortTypes`, `PORTS` | type + constant | `Ports.ts` — the closed registry of the five port descriptions, keyed by `PortName`; a port name without an entry is a compile error wherever a derived type indexes it (ADR-QD-094) |
 | `PortServices`, `PortLayers`, `PortOverrides` | type | `Ports.ts` — the five port services as one union, one layer per port, and any subset of ports replaced by a layer of their own service |
+| `PortFixtureData`, `PortFixtures` | type | `Ports.ts` — the plain data a port's fixture takes (an attribute record, an edge list, an event list, a signature list, fixed custom-predicate verdicts by name), and any subset of it |
+| `PORT_FIXTURES`, `fixturePortsLayer` | constant + function | `Ports.ts` — each port's fixture builder, closed over `PortName` (a port without a row is TS2741), and the one place fixture data becomes an environment; `@qadi/testing` and `@qadi/devtools` both call it (ADR-QD-094, CCR-QD-270) |
 | `ServiceOf`, `ShapeOf`, `ArgsOf`, `AnswerOf`, `ErrorOf` | type | `Ports.ts` — a description's service, Shape, request tuple, answer and typed error, recovered from its type |
 | `DescriptionOf` | type | `Ports.ts` — the description of the port named `K`, spelled through the registry, so a function generic in the port keeps its name, service and answer correlated (`answers[d.port]` and `d.none.answer` agree) |
 | `tabulatePorts` | function | `Ports.ts` — one value per port, keyed by name, for values uniform across ports (an empty answer map per port) |
@@ -751,10 +753,12 @@ favor of it.
 | ------ | ---- | ------ |
 | `qadiTestLayer` | layer | `QadiTestLayer.ts` |
 | `qadiReviewLayer` | layer | `QadiReviewLayer.ts` |
-| `QadiTestServices`, `TestLayerOptions` | type | `QadiReviewLayer.ts` — `TestLayerOptions.ports` overrides any port by name (`PortOverrides`), winning over the matching data option; a failing, scripted or recording port is `@qadi/core`'s `scriptedPort`/`recordingPort`, which replaced this package's eleven per-port doubles (ADR-QD-094) |
+| `QadiTestServices`, `TestLayerOptions`, `PortSetup`, `PortSetups` | type | `QadiReviewLayer.ts` — `TestLayerOptions.ports` is the one way to set up a port: each entry is `{ answers }` (that port's `PortFixtureData`) or `{ layer }` (a layer of its service), never both (a type error). The four top-level data options are removed (**breaking**, CCR-QD-270); a failing, scripted or recording port is `@qadi/core`'s `scriptedPort`/`recordingPort`, which replaced this package's eleven per-port doubles (ADR-QD-094) |
 | `subjectWith`, `permissions`, `roles`, `policies` | fixture | `Fixtures.ts` |
 | `nobody`, `viewer`, `administrator` | fixture | `Fixtures.ts` |
-| `collectingTracer` | function | `CollectingTracer.ts` — the shared span-capturing `Tracer` five test files each hand-rolled a copy of before this consolidation |
+| `collectingTracer` | function | `CollectingTracer.ts` — the shared span-capturing `Tracer`; `@qadi/core`'s own tests keep a twin (`packages/core/test/helpers.ts`, which cannot import this package), held equal by `scripts/check-house-style.mjs`'s `test-helper-twin` rule |
+| `collectingLogger`, `CapturedLog` | function + type | `CollectingLogger.ts` — a logger that replaces the ambient ones and records each line's message, level and annotations; it replaced 27 hand-rolled captures in 14 test files (CCR-QD-270) |
+| `isolatedMetrics` | function | `IsolatedMetrics.ts` — runs an effect against its own empty `MetricRegistry`; it isolates on-fiber updates and reads, not an off-fiber write such as `@qadi/react`'s hydration counters (CCR-QD-270) |
 
 ### `@qadi/devtools`
 
