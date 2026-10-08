@@ -62,6 +62,7 @@ import {
   toResponse,
 } from "../src/index.ts";
 import { guardRoute } from "../src/GuardRoute.ts";
+import { stack, stackWithCache } from "./fixtures/stack.ts";
 
 const readPermission = permission("document", "read");
 const readPolicy = hasPermission(readPermission);
@@ -177,10 +178,7 @@ const RoutesLayer = Layer.mergeAll(
   permissionRegistryRoute(readPermission, readPolicy),
 );
 const WithRegistry = RoutesLayer.pipe(Layer.provideMerge(PermissionRegistryLive));
-const WithSubjects = WithRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
-const WithEvaluation = WithSubjects.pipe(Layer.provideMerge(EvaluationServicesTest));
-const WithCache = WithEvaluation.pipe(Layer.provideMerge(decisionCacheLayer()));
-const AppLayer = WithCache.pipe(Layer.provideMerge(HttpServer.layerServices));
+const AppLayer = stackWithCache(RoutesLayer, subjectExtractorBearer(lookupSubject), EvaluationServicesTest);
 
 const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
 
@@ -317,13 +315,11 @@ describe("@qadi/http", () => {
       // own layer, not `AppLayer`: both variants mount at `/__permissions`
       // and cannot coexist on one router.
       const { lines, layer: logger } = collectingLogger();
-      const unguardedApp = Layer.mergeAll(ApiRoutes, permissionRegistryRouteUnguarded("test fixture")).pipe(
-        Layer.provideMerge(PermissionRegistryLive),
-        Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
-        Layer.provideMerge(EvaluationServicesTest),
-        Layer.provideMerge(HttpServer.layerServices),
-        Layer.provideMerge(logger),
-      );
+      const unguardedApp = stack(
+        Layer.mergeAll(ApiRoutes, permissionRegistryRouteUnguarded("test fixture")),
+        subjectExtractorBearer(lookupSubject),
+        EvaluationServicesTest,
+      ).pipe(Layer.provideMerge(logger));
       const { handler } = HttpRouter.toWebHandler(unguardedApp, { disableLogger: true });
       const response = yield* Effect.promise(() => handler(new Request("http://localhost/__permissions")));
       assert.strictEqual(response.status, 200);
@@ -698,17 +694,10 @@ describe("@qadi/http", () => {
         PortReply.fail("attribute store unreachable"),
       ).layer;
 
-      const app = AttributeRoutes.pipe(
-        Layer.provideMerge(PermissionRegistryLive),
-        Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
-        Layer.provideMerge(
-          Layer.mergeAll(
-            portsLayer({ AttributeResolver: failingResolver }),
-            EvaluationIdLive,
-          ),
-        ),
-        Layer.provideMerge(decisionCacheLayer()),
-        Layer.provideMerge(HttpServer.layerServices),
+      const app = stackWithCache(
+        AttributeRoutes,
+        subjectExtractorBearer(lookupSubject),
+        Layer.mergeAll(portsLayer({ AttributeResolver: failingResolver }), EvaluationIdLive),
       );
       const { handler } = HttpRouter.toWebHandler(app);
       const response = yield* Effect.promise(() =>
@@ -755,17 +744,10 @@ describe("@qadi/http", () => {
       const secretCause = new Error("connect ECONNREFUSED 10.0.0.42:5432 (attribute-store-primary.internal)");
       const failingResolver = scriptedPort(attributeResolverPort, () => PortReply.fail(secretCause)).layer;
 
-      const app = AttributeRoutes.pipe(
-        Layer.provideMerge(PermissionRegistryLive),
-        Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
-        Layer.provideMerge(
-          Layer.mergeAll(
-            portsLayer({ AttributeResolver: failingResolver }),
-            EvaluationIdLive,
-          ),
-        ),
-        Layer.provideMerge(decisionCacheLayer()),
-        Layer.provideMerge(HttpServer.layerServices),
+      const app = stackWithCache(
+        AttributeRoutes,
+        subjectExtractorBearer(lookupSubject),
+        Layer.mergeAll(portsLayer({ AttributeResolver: failingResolver }), EvaluationIdLive),
       );
       const { handler } = HttpRouter.toWebHandler(app);
       const response = yield* Effect.promise(() =>
@@ -934,14 +916,10 @@ const ProbeHandlers = HttpApiBuilder.group(ProbeApi, "probe", (handlers) =>
     // A second check for the same subject and policy the middleware just made.
     .handle("again", () => guard(readPermission, readPolicy)({}, () => Effect.void)),
 );
-const ProbeLayer = HttpApiBuilder.layer(ProbeApi).pipe(
-  Layer.provide(ProbeHandlers),
-  Layer.provide(guardApi(ProbeApi)),
-  Layer.provideMerge(PermissionRegistryLive),
-  Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
-  Layer.provideMerge(EvaluationServicesTest),
-  Layer.provideMerge(decisionCacheLayer()),
-  Layer.provideMerge(HttpServer.layerServices),
+const ProbeLayer = stackWithCache(
+  HttpApiBuilder.layer(ProbeApi).pipe(Layer.provide(ProbeHandlers), Layer.provide(guardApi(ProbeApi))),
+  subjectExtractorBearer(lookupSubject),
+  EvaluationServicesTest,
 );
 
 describe("RequirePermission's scopes around the handler (characterization)", () => {

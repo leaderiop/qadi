@@ -61,6 +61,7 @@ import { classifyHttpEnforcementFailure } from "../src/QadiHttpError.ts";
 import type { HttpEnforcementTag } from "../src/QadiHttpError.ts";
 import { PermissionRegistryLive, permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
 import { SubjectExtractionFailed, subjectExtractorBearer } from "../src/SubjectExtractor.ts";
+import { stack } from "./fixtures/stack.ts";
 
 const readPermission = permission("devtools", "read");
 const readPolicy = hasPermission(readPermission);
@@ -158,10 +159,7 @@ const appLayer = Effect.gen(function* () {
   const log = yield* makeDecisionLog({ environment: "Server" });
   const route = decisionStreamRoute(readPermission, readPolicy, log);
 
-  const withRegistry = route.pipe(Layer.provideMerge(PermissionRegistryLive));
-  const withSubjects = withRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
-  const withServices = withSubjects.pipe(Layer.provideMerge(EvaluationServicesTest));
-  const layer = withServices.pipe(Layer.provideMerge(HttpServer.layerServices));
+  const layer = stack(route, subjectExtractorBearer(lookupSubject), EvaluationServicesTest);
 
   return { log, layer };
 });
@@ -234,10 +232,7 @@ describe("/__decisions", () => {
         const route = decisionStreamRoute(readPermission, readPolicy, log, {
           reauth: { interval: "1 hour" },
         });
-        const withRegistry = route.pipe(Layer.provideMerge(PermissionRegistryLive));
-        const withSubjects = withRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
-        const withServices = withSubjects.pipe(Layer.provideMerge(EvaluationServicesTest));
-        const layer = withServices.pipe(Layer.provideMerge(HttpServer.layerServices));
+        const layer = stack(route, subjectExtractorBearer(lookupSubject), EvaluationServicesTest);
         const { handler } = HttpRouter.toWebHandler(layer);
 
         const response = yield* Effect.promise(() =>

@@ -20,6 +20,7 @@ import { EvaluationIdLive, hasPermission, makeSubject, permission, permissionKey
 import { collectingLogger } from "@qadi/testing";
 import { assert, describe, it } from "@effect/vitest";
 import type { SubjectExtractor } from "../src/index.ts";
+import { stack } from "./fixtures/stack.ts";
 import {
   PermissionRegistry,
   PermissionRegistryLive,
@@ -90,13 +91,11 @@ const serve = <E>(
   >,
   logger: Layer.Layer<never> = Layer.empty,
 ) => {
-  const app = Layer.mergeAll(routes, permissionRegistryRouteUnguarded("test fixture")).pipe(
-    Layer.provideMerge(PermissionRegistryLive),
-    Layer.provideMerge(subjectsLayer),
-    Layer.provideMerge(Layer.mergeAll(portsLayer({}), EvaluationIdLive)),
-    Layer.provideMerge(HttpServer.layerServices),
-    Layer.provideMerge(logger),
-  );
+  const app = stack(
+    Layer.mergeAll(routes, permissionRegistryRouteUnguarded("test fixture")),
+    subjectsLayer,
+    Layer.mergeAll(portsLayer({}), EvaluationIdLive),
+  ).pipe(Layer.provideMerge(logger));
   return HttpRouter.toWebHandler(app, { disableLogger: true });
 };
 
