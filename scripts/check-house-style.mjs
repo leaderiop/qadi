@@ -834,7 +834,17 @@ const strip = (line) =>
     .replace(/\/\/.*$/, "")
     .replace(/\/\*.*?\*\//g, "")
     .replace(/"(?:[^"\\]|\\.)*"/g, '""')
-    .replace(/'(?:[^'\\]|\\.)*'/g, "''");
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''")
+    // A single-line template literal: blank its text, keep each `${…}` expression,
+    // because code in an interpolation is still code. Without this the word "as"
+    // in a message (`wrote as ${name}`) read as a type assertion. A template that
+    // spans lines is not handled here, as with every other literal in this function.
+    .replace(/`((?:[^`\\]|\\.)*)`/g, (_m, inner) =>
+      `\`${inner
+        .split(/(\$\{[^}]*\})/)
+        .map((part) => (part.startsWith("${") ? part : ""))
+        .join("")}\``,
+    );
 
 let failures = 0;
 
