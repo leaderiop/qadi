@@ -32,9 +32,8 @@ const alice: AuthSubject = makeSubject({ id: "alice", permissions: ["doc:read"] 
 
 /**
  * The full evaluation environment `Qadi.assert` needs — self-contained from
- * `@qadi/core`'s own trivial default layers, the same pattern
- * `@qadi/http`'s tests use, rather than adding `@qadi/testing` as a
- * dependency for one describe block.
+ * `@qadi/core`'s own trivial default layers: this describe block needs a
+ * subject and the fail-closed ports and nothing `@qadi/testing`'s fixtures add.
  */
 const testEnv = (subject: AuthSubject) =>
   Layer.mergeAll(currentSubjectLayer(subject), EvaluationServicesNone);

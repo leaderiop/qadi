@@ -3,11 +3,10 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
-import * as References from "effect/References";
 import * as Tracer from "effect/Tracer";
 import * as TestClock from "effect/testing/TestClock";
 import { DecisionSink } from "@qadi/core";
+import { collectingLogger } from "@qadi/testing";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
 import type { AuditEntryNotEncodable } from "../src/AuditEntry.ts";
 import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
@@ -522,20 +521,11 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
 });
 
 describe("AuditDecisionSinkLive — an encode refusal is observable", () => {
-  const capture = () => {
-    const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
-    const layer = Logger.layer([
-      Logger.make((o) => {
-        logs.push({ message: o.message, annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
-      }),
-    ]);
-    return { logs, layer };
-  };
 
   it.effect("a refused record is logged with its refusal, path and evaluationId; no row is written", () =>
     Effect.gen(function* () {
       const { layer: trail, written } = AuditTrailPortTest();
-      const { logs, layer: logger } = capture();
+      const { lines: logs, layer: logger } = collectingLogger();
 
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
@@ -553,7 +543,7 @@ describe("AuditDecisionSinkLive — an encode refusal is observable", () => {
   it.effect("onRefused receives the refusal once and replaces the warning", () =>
     Effect.gen(function* () {
       const { layer: trail, written } = AuditTrailPortTest();
-      const { logs, layer: logger } = capture();
+      const { lines: logs, layer: logger } = collectingLogger();
       const seen: Array<AuditEntryNotEncodable> = [];
 
       yield* Effect.gen(function* () {
@@ -576,7 +566,7 @@ describe("AuditDecisionSinkLive — an encode refusal is observable", () => {
   it.effect("a throwing onRefused is logged, and the next healthy record is still written", () =>
     Effect.gen(function* () {
       const { layer: trail, written } = AuditTrailPortTest();
-      const { logs, layer: logger } = capture();
+      const { lines: logs, layer: logger } = collectingLogger();
 
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
@@ -604,7 +594,7 @@ describe("AuditDecisionSinkLive — an encode refusal is observable", () => {
   it.effect("a refusal with no path (EncodeFailed) logs an empty path and never the getter's text", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest();
-      const { logs, layer: logger } = capture();
+      const { lines: logs, layer: logger } = collectingLogger();
       const hostile = {
         get boom(): unknown {
           throw new Error("sentinel-getter-text");
@@ -624,15 +614,6 @@ describe("AuditDecisionSinkLive — an encode refusal is observable", () => {
 });
 
 describe("AuditDecisionSinkLive — an entry lost after a write failure is witnessed", () => {
-  const capture = () => {
-    const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
-    const layer = Logger.layer([
-      Logger.make((o) => {
-        logs.push({ message: o.message, annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
-      }),
-    ]);
-    return { logs, layer };
-  };
   const failingStage = AuditStagingPortTest({
     failStageWith: (entry) => new AuditStagingError({ entry, cause: "staging offline" }),
   });
@@ -642,7 +623,7 @@ describe("AuditDecisionSinkLive — an entry lost after a write failure is witne
       const { layer: trail } = AuditTrailPortTest({
         failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
       });
-      const { logs, layer: logger } = capture();
+      const { lines: logs, layer: logger } = collectingLogger();
 
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
@@ -660,7 +641,7 @@ describe("AuditDecisionSinkLive — an entry lost after a write failure is witne
   it.effect("unwired, a write that dies is a loss too and logs the same drop", () =>
     Effect.gen(function* () {
       const trail = Layer.succeed(AuditTrailPort, { write: () => Effect.die(new Error("trail bug")) });
-      const { logs, layer: logger } = capture();
+      const { lines: logs, layer: logger } = collectingLogger();
 
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
@@ -680,7 +661,7 @@ describe("AuditDecisionSinkLive — an entry lost after a write failure is witne
       const { layer: trail } = AuditTrailPortTest({
         failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
       });
-      const { logs, layer: logger } = capture();
+      const { lines: logs, layer: logger } = collectingLogger();
 
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
@@ -705,7 +686,7 @@ describe("AuditDecisionSinkLive — an entry lost after a write failure is witne
         failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
       });
       const { layer: staging, staged } = AuditStagingPortTest();
-      const { logs, layer: logger } = capture();
+      const { lines: logs, layer: logger } = collectingLogger();
 
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
@@ -720,15 +701,6 @@ describe("AuditDecisionSinkLive — an entry lost after a write failure is witne
 });
 
 describe("AuditDecisionSinkLive — onOutcome and the record span", () => {
-  const capture = () => {
-    const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
-    const layer = Logger.layer([
-      Logger.make((o) => {
-        logs.push({ message: o.message, annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
-      }),
-    ]);
-    return { logs, layer };
-  };
 
   it.effect("onOutcome receives each record's outcome once, after its report", () =>
     Effect.gen(function* () {
@@ -800,7 +772,7 @@ describe("AuditDecisionSinkLive — onOutcome and the record span", () => {
   it.effect("a throwing onOutcome is logged, and the next record is still written", () =>
     Effect.gen(function* () {
       const { layer: trail, written } = AuditTrailPortTest();
-      const { logs, layer: logger } = capture();
+      const { lines: logs, layer: logger } = collectingLogger();
       let calls = 0;
 
       yield* Effect.gen(function* () {

@@ -23,8 +23,8 @@ import {
   makeResourceId,
   makeSubjectId,
 } from "@qadi/core";
+import { collectingLogger } from "@qadi/testing";
 import * as Effect from "effect/Effect";
-import * as Logger from "effect/Logger";
 import * as References from "effect/References";
 import * as Schema from "effect/Schema";
 import * as SchemaAST from "effect/SchemaAST";
@@ -63,14 +63,14 @@ import { everyHttpEnforcementFailure } from "./fixtures/everyHttpEnforcementFail
  * runtime.
  */
 const collectLogs = (effect: Effect.Effect<unknown>): ReadonlyArray<unknown> => {
-  const logs: Array<unknown> = [];
+  const { lines, layer } = collectingLogger();
   Effect.runSync(
     effect.pipe(
-      Effect.provide(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+      Effect.provide(layer),
       Effect.provideService(References.MinimumLogLevel, "Debug"),
     ),
   );
-  return logs;
+  return lines.map((line) => line.message);
 };
 
 describe("toResponse", () => {

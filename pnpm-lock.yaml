@@ -269,6 +269,9 @@ importers:
       '@effect/vitest':
         specifier: 'catalog:'
         version: 4.0.0(effect@4.0.0)(vitest@5.0.0)
+      '@qadi/testing':
+        specifier: workspace:^
+        version: link:../testing
       effect:
         specifier: 'catalog:'
         version: 4.0.0
@@ -352,6 +355,9 @@ importers:
       '@effect/vitest':
         specifier: 'catalog:'
         version: 4.0.0(effect@4.0.0)(vitest@5.0.0)
+      '@qadi/testing':
+        specifier: workspace:^
+        version: link:../testing
       effect:
         specifier: 'catalog:'
         version: 4.0.0
@@ -380,6 +386,9 @@ importers:
       '@prisma/client-runtime-utils':
         specifier: 7.10.0
         version: 7.10.0
+      '@qadi/testing':
+        specifier: workspace:^
+        version: link:../testing
       better-sqlite3:
         specifier: 12.11.1
         version: 12.11.1
@@ -411,6 +420,9 @@ importers:
       '@electric-sql/pglite':
         specifier: 0.4.3
         version: 0.4.3
+      '@qadi/testing':
+        specifier: workspace:^
+        version: link:../testing
       effect:
         specifier: 'catalog:'
         version: 4.0.0

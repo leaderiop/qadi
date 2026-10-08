@@ -12,7 +12,6 @@
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
 import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
@@ -42,6 +41,7 @@ import {
   attributeResolverPort,
 } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
+import { collectingLogger } from "@qadi/testing";
 import { assert, describe, it } from "@effect/vitest";
 import {
   PermissionRegistryLive,
@@ -197,8 +197,7 @@ const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
  * built layer, downstream of anything the caller's ambient effect provides.
  * Confirmed by running both shapes before relying on this one.
  */
-const appLayerWithLogger = (logs: Array<unknown>) =>
-  AppLayer.pipe(Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])));
+const appLayerWithLogger = (logger: Layer.Layer<never>) => AppLayer.pipe(Layer.provideMerge(logger));
 
 describe("@qadi/http", () => {
   it.effect("an allowed request reaches the handler", () =>
@@ -319,11 +318,11 @@ describe("@qadi/http", () => {
       // BEH-QD-180 requires — a route nothing above exercises otherwise. Its
       // own layer, not `AppLayer`: both variants mount at `/__permissions`
       // and cannot coexist on one router.
-      const logs: Array<unknown> = [];
+      const { lines, layer: logger } = collectingLogger();
       const unguardedApp = permissionRegistryRouteUnguarded("test fixture").pipe(
         Layer.provideMerge(RegistryLayer),
         Layer.provideMerge(HttpServer.layerServices),
-        Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+        Layer.provideMerge(logger),
       );
       const { handler } = HttpRouter.toWebHandler(unguardedApp, { disableLogger: true });
       const response = yield* Effect.promise(() => handler(new Request("http://localhost/__permissions")));
@@ -336,7 +335,7 @@ describe("@qadi/http", () => {
       // Logged on every request, not once at construction (see this route's
       // own doc comment) — and names the `reason` a caller gave for opting
       // out, so a reviewer can tell who decided this and why.
-      assert.deepStrictEqual(logs, [
+      assert.deepStrictEqual(lines.map((line) => line.message), [
         [
           "qadi/http: serving /__permissions unguarded — the full authorization topology is public. " +
             "Reason given: test fixture",
@@ -811,13 +810,13 @@ describe("@qadi/http", () => {
     "a denial's server-side log names the stable code, subject and reason (logDenial fires via RequirePermissionLive)",
     () =>
       Effect.gen(function* () {
-        const logs: Array<unknown> = [];
-        const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logs), { disableLogger: true });
+        const { lines, layer: logger } = collectingLogger();
+        const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logger), { disableLogger: true });
         const response = yield* Effect.promise(() =>
           handler(new Request("http://localhost/documents", { headers: bearer(BOB_TOKEN) })),
         );
         assert.strictEqual(response.status, 403);
-        assert.deepStrictEqual(logs, [
+        assert.deepStrictEqual(lines.map((line) => line.message), [
           [`qadi/http: request denied (ACL001) — subject "bob": subject lacks permission 'document:read'`],
         ]);
       }),
@@ -827,13 +826,13 @@ describe("@qadi/http", () => {
     "an endpoint declaring neither logs the wiring mistake it refuses for, exactly",
     () =>
       Effect.gen(function* () {
-        const logs: Array<unknown> = [];
-        const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logs), { disableLogger: true });
+        const { lines, layer: logger } = collectingLogger();
+        const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logger), { disableLogger: true });
         const response = yield* Effect.promise(() =>
           handler(new Request("http://localhost/documents/forgotten", { headers: bearer(ALICE_TOKEN) })),
         );
         assert.strictEqual(response.status, 500);
-        assert.deepStrictEqual(logs, [
+        assert.deepStrictEqual(lines.map((line) => line.message), [
           [
             'qadi/http: endpoint "forgotten" declares neither a permission requirement nor `publicEndpoint(...)`, ' +
               "so it is refused. Annotate it with RequiredPermission, or with PublicEndpoint if it is meant to be " +
@@ -848,7 +847,7 @@ describe("@qadi/http", () => {
       "catchTag('SubjectExtractionFailed', ...) arm",
     () =>
       Effect.gen(function* () {
-        const logs: Array<unknown> = [];
+        const { lines, layer: logger } = collectingLogger();
         const brokenStore = subjectExtractorBearer(() =>
           Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
         );
@@ -857,7 +856,7 @@ describe("@qadi/http", () => {
           Layer.provideMerge(EvaluationServicesTest),
           Layer.provideMerge(decisionCacheLayer()),
           Layer.provideMerge(HttpServer.layerServices),
-          Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+          Layer.provideMerge(logger),
         );
         const { handler } = HttpRouter.toWebHandler(app, { disableLogger: true });
 
@@ -865,7 +864,7 @@ describe("@qadi/http", () => {
           handler(new Request("http://localhost/documents", { headers: bearer(ALICE_TOKEN) })),
         );
         assert.strictEqual(response.status, 502);
-        assert.deepStrictEqual(logs, [["qadi/http: subject extraction failed — token service unreachable"]]);
+        assert.deepStrictEqual(lines.map((line) => line.message), [["qadi/http: subject extraction failed — token service unreachable"]]);
       }),
   );
 });
@@ -878,20 +877,20 @@ describe("@qadi/http", () => {
 describe("the authorization step at the edge (characterization)", () => {
   it.effect("a bare route's denial logs exactly one line, and answers 403", () =>
     Effect.gen(function* () {
-      const logs: Array<unknown> = [];
-      const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logs), { disableLogger: true });
+      const { lines, layer: logger } = collectingLogger();
+      const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logger), { disableLogger: true });
       const response = yield* Effect.promise(() =>
         handler(new Request("http://localhost/documents/write", { method: "POST", headers: bearer(BOB_TOKEN) })),
       );
       assert.strictEqual(response.status, 403);
-      assert.deepStrictEqual(logs, [
+      assert.deepStrictEqual(lines.map((line) => line.message), [
         [`qadi/http: request denied (ACL001) — subject "bob": subject attribute 'clearance' did not match`],
       ]);
     }));
 
   it.effect("a bare route's extraction failure logs exactly one line, and answers 502", () =>
     Effect.gen(function* () {
-      const logs: Array<unknown> = [];
+      const { lines, layer: logger } = collectingLogger();
       const brokenStore = subjectExtractorBearer(() =>
         Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
       );
@@ -900,14 +899,14 @@ describe("the authorization step at the edge (characterization)", () => {
         Layer.provideMerge(brokenStore),
         Layer.provideMerge(EvaluationServicesTest),
         Layer.provideMerge(HttpServer.layerServices),
-        Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+        Layer.provideMerge(logger),
       );
       const { handler } = HttpRouter.toWebHandler(app, { disableLogger: true });
       const response = yield* Effect.promise(() =>
         handler(new Request("http://localhost/documents/write", { method: "POST", headers: bearer(ALICE_TOKEN) })),
       );
       assert.strictEqual(response.status, 502);
-      assert.deepStrictEqual(logs, [["qadi/http: subject extraction failed — token service unreachable"]]);
+      assert.deepStrictEqual(lines.map((line) => line.message), [["qadi/http: subject extraction failed — token service unreachable"]]);
     }));
 });
 

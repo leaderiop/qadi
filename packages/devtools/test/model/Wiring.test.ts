@@ -35,7 +35,7 @@ import {
   predicatePortCallsTotal,
   signatureHistoryFromSignatures,
 } from "@qadi/core";
-import { qadiTestLayer, subjectWith } from "@qadi/testing";
+import { isolatedMetrics, qadiTestLayer, subjectWith } from "@qadi/testing";
 import { portActivity, wiringReport } from "../../src/model/Wiring.ts";
 
 const read = permission("doc", "read");
@@ -276,30 +276,22 @@ describe("wiringReport", () => {
 });
 
 describe("portActivity", () => {
-  /**
-   * Read with **zero wiring**, which is the whole reason `PortMetrics` counts
-   * aggregates rather than emitting a record per call.
-   *
-   * The registry is process-global, so each case here isolates its own —
-   * otherwise one test's counts would leak into the next, and the assertion
-   * would depend on file order.
-   */
-  const isolated = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-    effect.pipe(
-      Effect.provideService(Metric.MetricRegistry, new Map()),
-      Effect.provideService(Metric.CurrentMetricAttributes, { test: "isolated" }),
-    );
-
+  // Read with **zero wiring**, which is the whole reason `PortMetrics` counts
+  // aggregates rather than emitting a record per call.
+  //
+  // The registry is process-global, so each case here runs under `isolatedMetrics` —
+  // otherwise one test's counts would leak into the next, and the assertion
+  // would depend on file order.
   // E4.7 — wired but never called is not the same as absent.
   it.effect("reports nothing when no port has been reached", () =>
-    isolated(
+    isolatedMetrics(
       Effect.gen(function* () {
         assert.deepStrictEqual(yield* portActivity, []);
       }),
     ));
 
   it.effect("counts the calls an evaluation made, by port", () =>
-    isolated(
+    isolatedMetrics(
       Effect.gen(function* () {
         // The attribute is on the *layer*, not on the subject: a subject that
         // already carries it is answered without the resolver ever being
@@ -316,7 +308,7 @@ describe("portActivity", () => {
     ));
 
   it.effect("counts a hasSignature evaluation's port call under SignatureHistory", () =>
-    isolated(
+    isolatedMetrics(
       Effect.gen(function* () {
         const history = signatureHistoryFromSignatures([
           { subjectId: "u-1", resourceId: "doc-1", meaning: "approved" },
@@ -333,7 +325,7 @@ describe("portActivity", () => {
     ));
 
   it.effect("a policy touching no port counts nothing", () =>
-    isolated(
+    isolatedMetrics(
       Effect.gen(function* () {
         yield* evaluate(hasPermission(read)).pipe(
           Effect.provide(qadiTestLayer(subjectWith({ permissions: ["doc:read"] }))),
@@ -346,7 +338,7 @@ describe("portActivity", () => {
     ));
 
   it.effect("both frequencies are read, even when only one has been touched", () =>
-    isolated(
+    isolatedMetrics(
       Effect.gen(function* () {
         yield* Metric.update(portCallsTotal, "AttributeResolver");
 
@@ -358,7 +350,7 @@ describe("portActivity", () => {
     ));
 
   it.effect("a translation's calls are reported apart from the evaluator's", () =>
-    isolated(
+    isolatedMetrics(
       Effect.gen(function* () {
         yield* Metric.update(predicatePortCallsTotal, "AttributeResolver");
 
@@ -372,7 +364,7 @@ describe("portActivity", () => {
     ));
 
   it.effect("a port that only ever retried still appears", () =>
-    isolated(
+    isolatedMetrics(
       Effect.gen(function* () {
         yield* Metric.update(portRetriesTotal, "RelationshipResolver");
 
@@ -385,7 +377,7 @@ describe("portActivity", () => {
   // D-10-i: every port can carry a deadline now, and a timeout is what tells a
   // slow store from a down one. Nothing read `qadi_port_timeouts_total` before.
   it.effect("a port that only ever timed out still appears, with its timeouts", () =>
-    isolated(
+    isolatedMetrics(
       Effect.gen(function* () {
         yield* Metric.update(portTimeoutsTotal, "DecisionHistory");
 
@@ -396,7 +388,7 @@ describe("portActivity", () => {
     ));
 
   it.effect("touching the timeout frequency alone still reports nothing reached", () =>
-    isolated(
+    isolatedMetrics(
       Effect.gen(function* () {
         // `preregisteredWords` puts every port in the snapshot at zero once the
         // metric is read; the `> 0` filter keeps those out.

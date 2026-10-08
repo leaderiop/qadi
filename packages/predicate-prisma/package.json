@@ -46,6 +46,7 @@
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
+    "@qadi/testing": "workspace:^",
     "@prisma/adapter-better-sqlite3": "7.10.0",
     "@prisma/client": "7.10.0",
     "@prisma/client-runtime-utils": "7.10.0",

@@ -8,9 +8,9 @@ import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import * as TestClock from "effect/testing/TestClock";
 import * as FastCheck from "fast-check";
+import { isolatedMetrics } from "@qadi/testing";
 import { makeCircuitBreaker } from "../src/CircuitBreaker.ts";
 import type { CircuitBreaker } from "../src/CircuitBreaker.ts";
-import { isolatedMetrics } from "./helpers.ts";
 
 type FrequencySnapshot = Extract<Metric.Metric.Snapshot, { type: "Frequency" }>;
 

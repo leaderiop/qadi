@@ -2,14 +2,8 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Metric from "effect/Metric";
 import type { Predicate } from "@qadi/core";
+import { isolatedMetrics } from "@qadi/testing";
 import { compile } from "./fixture.ts";
-
-/** Isolates one test's counts from the process-wide registry every other test shares. */
-const isolatedMetrics = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-  effect.pipe(
-    Effect.provideService(Metric.MetricRegistry, new Map()),
-    Effect.provideService(Metric.CurrentMetricAttributes, { test: "isolated" }),
-  );
 
 type CounterSnapshot = Extract<Metric.Metric.Snapshot, { type: "Counter" }>;
 const isCounter = (s: Metric.Metric.Snapshot): s is CounterSnapshot =>
