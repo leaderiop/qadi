@@ -1,5 +1,61 @@
 # @qadi/react
 
+## 0.12.0
+
+### Minor Changes
+
+- b655b3b: **Breaking.** A `Decision` is constructed from its trace, and a record or seed whose copies disagree is refused (ARCH-32, ADR-QD-106). `Allow` and `Deny` stored the verdict, `visibleFields`, `obligations` and `reason` beside the trace that already held them, and nothing compared the two: a version-2 record whose `Allow` said `allowed: false` in its trace, or whose fields or duties differed from the trace root's, decoded and re-encoded unchanged, and a `Disclosed` hydration seed had the same gap.
+
+  `@qadi/core`: `new Allow({ ...stamp, trace })` and `new Deny({ ...stamp, trace })` take a stamp (`evaluationId`, `subjectId`, `durationMillis`) and a trace of their verdict (`AllowingTrace`, `DenyingTrace`) and derive `visibleFields`, `obligations` and `reason` from it; passing one of those, or a trace not known to allow or deny, no longer compiles. New `makeDecision(stamp, trace)`, `DecisionStamp`, `isAllowingTrace`, `isDenyingTrace`, and `decisionDisagreement(claim, trace)` with `DecisionClaim` and the closed `DecisionDisagreement`. `decodeDecision` returns `Result<Decision, DecisionDisagreement>`. `decodeSinkRecord` refuses a decision that contradicts its own trace, or whose `evaluationId`, `subjectId` or policy tag contradict its record, as the new `DecodeRefusal.Inconsistent { disagreement }`, so an exhaustive match over `DecodeRefusal` needs an `Inconsistent` arm. The wire bytes do not change; a record written by `evaluate` is unaffected.
+
+  `@qadi/react`: a `Disclosed` hydration seed that disagrees with its own trace is dropped as `MalformedEntry`.
+
+  `@qadi/devtools`: `MalformedReason` gains `"inconsistent"`, so an exhaustive consumer needs a new arm.
+
+- b655b3b: Every developer signal `@qadi/react` raises now goes through one module, and the meaning of each hydration drop reason is stated once, in `@qadi/core`.
+
+  `@qadi/react`: `QadiProvider` takes `onDeveloperSignal` (type `ProviderSignalReporter`), told `{ _tag: "InstrumentedInProduction" }`, `{ _tag: "AtomsReplaced" }` or `{ _tag: "UnwritableGateRegistry" }` (type `ProviderSignal`, a closed union). Supplying it replaces the development console warning for all three and runs in production, as `onHydrationMismatch` does; without it the warnings are unchanged. **Breaking, for a test double only:** `HydrationDrop` gains a required `wholePayload: boolean`, so a hand-built `HydrationDrop` literal must add it. The default warning for a payload refused whole now reads "hydrateDecisions refused the payload (N decision(s) in it): …" instead of "did not seed 0 decision(s)" beside a counter that read one, and `MalformedPayload`'s sentence now also names the structural depth guard. Every other console message is byte-identical.
+
+  `@qadi/core`: `hydrationDropMeaning(reason)` returns `{ summary, remedy }` for a `HydrationDropReason` (`HydrationDropMeaning`), and `isHydrationDropReason(word)` narrows a metric key to one. The console prints `remedy`; the devtools panel shows `summary`.
+
+  `@qadi/devtools`: the hydration panel reads each reason's sentence from `hydrationDropMeaning`; the text is unchanged.
+
+- b655b3b: `useDevtoolsFeed(extra)` and `runtimeLayer(atoms, registry)`: hand the devtools dock everything it reads off the atom set in one call. `useDevtoolsFeed` returns `gates`, `onInvalidate` and a `diagnostics` (your `extra` plus a `layer` and `questions`) to spread onto `<DevtoolsDock {...feed} />`; the layer is the provider's own built runtime context, mounted for the dock's run, so the dock's wiring read sees the decision cache your guards filled and no stateful layer needs hoisting out of the atom set. Setting `layer` or `questions` in `extra` is a compile error. `DevtoolsFeed` and `DevtoolsDiagnosticsFeed` are exported types. `@qadi/devtools` gains no API (documentation and doc comments only), and still has no dependency on `@qadi/react` (ADR-QD-053, BEH-QD-327, ARCH-34).
+- b655b3b: **Breaking.** One question path. A question's decision atom, its `asked()` row and its hydrated seed now survive garbage collection: `Atom.family` holds its values weakly and nothing held a question's atom, so after a collection the same question got a second atom (a second evaluation and sink record), was listed twice and lost a seed written before its first read. An atom set now keeps each tracked question's handle in an internal question book (`QuestionBook.ts`), and `sweepEvictions` forgets a swept question's handle as well as its row.
+
+  - `QadiAtoms.decisionFor` is removed. Replace `atoms.decisionFor(policy, resource)` with `atoms.decision(policy, resource)`; `decision` now takes `(policy, resource?)`.
+  - `QadiAtoms` gains a required member, `decisions(questions)`, the grouped read `usePolicies` and `useQuestions` use. A hand-written `QadiAtoms` double must add it. The module-scope cache `usePolicies` kept is gone.
+  - `GateKind` gains `"usePolicies"` and `"useQuestions"`: an exhaustive `Match` over it needs two more arms. `@qadi/devtools` is unaffected.
+  - `usePolicies` now registers one gate instance per named policy under an `instrument`ed provider (it registered none), each `<useId>/<name>`; uninstrumented it still registers nothing.
+  - Adds `useQuestions(questions)`, a policy and optionally a resource per entry.
+  - A cold question's seed that was written and never read is forgotten with its row once more than `maxTrackedQuestions` (default 500) questions are cold.
+
+### Patch Changes
+
+- b655b3b: A gate registry built by `makeGateRegistry()` now warns on an id collision in development, as an atom set's own registry does; a supplied `onIdCollision` replaces the warning and runs in production. Internally, a registry now holds its writer in a private slot of the registry object instead of a module-level side table; nothing exported changes.
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [e9c7afc]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+  - @qadi/core@0.12.0
+
 ## 0.11.0
 
 ### Minor Changes

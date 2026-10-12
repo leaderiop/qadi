@@ -1,5 +1,51 @@
 # @qadi/audit
 
+## 0.12.0
+
+### Minor Changes
+
+- b655b3b: Every record `AuditDecisionSinkLive` receives now has exactly one reported outcome. An entry lost after a failed trail write (unwired, or after a failed `stage()`) is now logged as `audit entry dropped: trail write failed and ...` with its `evaluationId`, where it used to leave only a `write_failed` count; a staged entry that was not written is logged at info. `qadi_audit_writes_total` now counts breaker-refused records too, under a new `outcome="skipped_open"` label, so `sum(qadi_audit_writes_total)` is the number of records received (a dashboard dividing by it sees the denominator grow during an outage); a new `qadi_audit_entries_lost_total{after, staging}` counter counts entries held by neither the trail nor staging. New `AuditDecisionSinkOptions.onOutcome` receives each record's `AuditWriteOutcome` (exported, with `WrittenStaging`, `UnwrittenStaging`, `Durability` and `durabilityOf`) so a caller can dead-letter a lost entry; `record` now has a `qadi.audit.record` span carrying the outcome and its durability. No metric label or log message is renamed (ADR-QD-056, ARCH-35).
+- b655b3b: **Breaking, for subpath importers only.** The `./*` subpath export is removed from `@qadi/core`, `@qadi/audit`, `@qadi/http`, `@qadi/testing`, `@qadi/promise`, `@qadi/predicate-sql` and `@qadi/predicate-prisma`. A package's entry points are now a closed list: the root, and (for `@qadi/devtools`) `./react`. A module kept out of a barrel is no longer importable, so `@qadi/core/TreeFold`, `/Compare`, `/FieldLattice`, `/FieldPath`, `/PortAccess`, `/PortDerivation`, `/ShortCircuit` and `@qadi/audit/CircuitBreaker` are gone with no replacement, and importing a barreled module by subpath (`@qadi/core/Policy`) now fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`. Migration: import the same names from the package root (`import { hasRole } from "@qadi/core"`); every barreled module is re-exported with `export *`, so each of its names is still there. No repository code imported a subpath. Enforced by gate 13's `ENTRY` check and gate 14's check 3b (ADR-QD-099).
+- b655b3b: An encode refusal is described once, in core, and every adapter reports one the same way.
+
+  `@qadi/core` adds `encodeRefusalPath`, `encodeRefusalAnnotations` (and its `EncodeRefusalAnnotations` type), `describeEncodeRefusal` and `reportEncodeRefusal`. The three pure readings sit beside `EncodeRefusal`; the reporter calls an adapter's hook once or logs its message with the same three annotations, and contains a hook that throws.
+
+  `@qadi/audit` no longer drops a refused record silently: `AuditDecisionSinkLive` logs a warning naming the refusal, its path and the `evaluationId`, or calls the new `AuditDecisionSinkOptions.onRefused`. **Breaking:** `AuditEntryNotEncodable` carries a required `evaluationId`, so code that constructs the class must supply it. Nothing in this repository does.
+
+  `@qadi/http`: an `onRefused` that throws no longer ends the decision stream or empties `/__decisions/backlog`; the failure is logged and the next record is still served.
+
+- b655b3b: **Breaking.** A purge selects only rows an archive read back from storage holds. New `readAuditArchive(input: unknown)` reads a stored `AuditArchive` bundle back (every entry through `decodeAuditEntry`, the count, the sequence check, the order `archiveAuditTrail` writes and the `sequenceIntegrityVerified` claim) and returns `Result<VerifiedArchive, ArchiveNotVerified>`, each failure one of seven `ArchiveRefusal`s. `VerifiedArchive` cannot be built by hand. New `planPurge(entries, policy, now, archive)` is the only function that returns rows to delete: a row is in `purge` only when it is past its age and the archive holds it (two identical rows need two archived copies); an expired row the archive lacks is retained and listed in `unarchived`. A `VerifiedArchive` proves what the stored bytes say, not that the store is durable or untampered.
+
+  Removed: `getPurgeableEntries` and `enforceRetention` (use `planPurge`, or `planRetention` for an age report); `RetentionPlan.purged` is now `RetentionPlan.expired`; the decommissioning checklist (`makeDecommissioningChecklist`, `completeDecommissioningStep`, `DecommissioningChecklist`, `DecommissioningStep`, `DecommissioningStepId`, `UnknownDecommissioningStep`), whose procedure is now an unenforced list in the README. A bundle written before the 2026-09 correction, whose `sequenceIntegrityVerified` was a vacuous `true`, is refused as `UnbackedClaim`; re-bundle its entries with `archiveAuditTrail` (ADR-QD-056, ARCH-38).
+
+- b655b3b: Retention no longer deletes on an impossible age. `getPurgeableEntries` selected every row for `at = -Infinity` (a stored `-1e400`), `now = +Infinity` or a negative `maxAgeMs`; a row is now purgeable only with a finite `at` and `now`, `maxAgeMs >= 0` and `now - at > maxAgeMs`. New `planRetention(entries, policy, now)` returns `Result<RetentionPlan, RetentionInputInvalid>` (`{ retained, purged, undated }`; a non-finite `at` is retained and `undated`), and the two older functions project it (on a refusal they purge nothing). `decodeAuditEntry` and `decodeSinkRecord` now refuse, as `Malformed`, a non-finite `at` (a stored `1e400`) and a non-integer `sequenceNumber`: values no encoder ever emitted, so no wire version bump.
+- b655b3b: A captured signature now answers the question it was captured for. Before, `signatureObligationHandler` gave `capture` no resource, so a flow that stored what it captured stored it subject-wide: a default-scope `hasSignature` could not find it and `scope: "Any"` found it for every resource. **Breaking:** `SignatureCaptureRequest` gains required `evaluationId`, `resourceId`, `action` and `resource` (code that constructs a request must supply them; `capture` implementations just receive more), and `signatureObligationHandler` takes an `ObligationDischarge` and no longer requires `CurrentSubject`: the signer is the subject the allow was decided for. A `capture` that returns a signature for a different signer or meaning than asked now fails the discharge (`SignatureCaptureError`). New `SignatureLedger`, `signatureHistoryFromLedger`, `ledgerEntryOf` and `SignatureLedgerTest`: pass `{ ledger }` to the handler and the signature `capture` returned is recorded under `(signer, resourceId)`, read back as `SignatureHistory`; a ledger that cannot record fails the discharge. Without a ledger, `capture` must persist where your `SignatureHistory` reads, keyed by the request.
+
+### Patch Changes
+
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [e9c7afc]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+  - @qadi/core@0.12.0
+
 ## 0.11.0
 
 ### Minor Changes
