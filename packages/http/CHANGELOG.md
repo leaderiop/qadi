@@ -1,5 +1,95 @@
 # @qadi/http
 
+## 0.12.0
+
+### Minor Changes
+
+- b655b3b: **Breaking.** A port is answered remotely through its description (ARCH-31, ADR-QD-107). A browser that re-checks a seeded decision needs its ports answered by a server, and every host wrote both halves by hand: the newsroom example answered a relationship or history outage with `200 "Unknown"` (a denial, and under `not(...)` a grant), answered a malformed question, answered the cookie's subject under the asked subject's name, read an unrecognised 2xx body as `"Unknown"`, and left a served read invisible.
+
+  `@qadi/core`: `PortDescription` gains a required `wire: PortWire<Args, A>`, so a hand-built description without one no longer compiles. `PortInterpreter` (and `@qadi/devtools`' `PortCallInterpreter`) gains `"remote"`, so an exhaustive match over it needs an arm. New: `answerRemotely`, `askRemotely`, `remotePorts`, `servingFor`, `PortServing`, `PortServingOf`, `PortWire`, `PortWireReply`, `PortWireRefusal`, `RemotePortFailure`, `RemotePortError`, `describeRemotePortFailure`, `DecodedQuestion`, `PortWireSpan`, `servedPortCallsTotal` (`qadi_port_served_calls_total`) and `RelationshipDepth`. `RelatedResult` and `ActedResult` are now schema-derived consts with the same types. A served read goes through `servePortRead`, which opens the port's span with `qadi.interpreter = "remote"`. The question carries its subject and `answerRemotely` refuses any subject but the session's; a store outage reaches the asker as the port's own typed error with a `RemotePortError` cause and no server cause text.
+
+  `@qadi/http`: new `portRoutes`, `portRoutesUnguarded`, `PortRoutesOptions`, `PORT_REPLY_STATUS` (a `POST <prefix>/<PortName>` route per served port, `no-store`, status from a closed table) and `remotePortsLayer`, `RemotePortsOptions` (the client half over `HttpClient`).
+
+  `@qadi/devtools`: the Services panel labels a served call `served`.
+
+- b655b3b: **Breaking, for subpath importers only.** The `./*` subpath export is removed from `@qadi/core`, `@qadi/audit`, `@qadi/http`, `@qadi/testing`, `@qadi/promise`, `@qadi/predicate-sql` and `@qadi/predicate-prisma`. A package's entry points are now a closed list: the root, and (for `@qadi/devtools`) `./react`. A module kept out of a barrel is no longer importable, so `@qadi/core/TreeFold`, `/Compare`, `/FieldLattice`, `/FieldPath`, `/PortAccess`, `/PortDerivation`, `/ShortCircuit` and `@qadi/audit/CircuitBreaker` are gone with no replacement, and importing a barreled module by subpath (`@qadi/core/Policy`) now fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`. Migration: import the same names from the package root (`import { hasRole } from "@qadi/core"`); every barreled module is re-exported with `export *`, so each of its names is still there. No repository code imported a subpath. Enforced by gate 13's `ENTRY` check and gate 14's check 3b (ADR-QD-099).
+- b655b3b: **Breaking (`@qadi/http`, `@qadi/devtools`):** the decision stream's protocol words are declared once, in `@qadi/core`. `DecisionStreamEvent` (`"backlog" | "synced" | "message"`), `DecisionRecordEvent` (`"backlog" | "message"`) and `DecisionStreamSynced` are new core exports; `@qadi/http` no longer exports `DecisionFrameEvent` or `DecisionStreamSynced`, and `@qadi/devtools` no longer exports `DecisionEventName`. Migration: import `DecisionRecordEvent`, `DecisionStreamSynced` and `DecisionStreamEvent` from `@qadi/core`. `DecisionStreamSynced` now refuses a `backlog` that is not a non-negative integer. The bytes on the wire are unchanged (ADR-QD-097 amendment).
+- b655b3b: **Breaking.** An endpoint's access declaration is read once, from the endpoint's own annotations, by both `RequirePermission` and `registerApi` (`endpointAccess`, BEH-QD-320). The registry used to read the API-, group- and endpoint-level merge, so a group requirement over an endpoint-level `publicEndpoint` was listed in `/__permissions` as guarded while the middleware served it to anyone; that disagreement is gone.
+
+  - A `RequiredPermission` or `PublicEndpoint` on a group or an API is now refused instead of ignored: the middleware answers 500 for every endpoint under the group and logs the group, and `registerApi` fails with the new `MisplacedAccessDeclaration`, so its type is now `Layer<never, MisplacedAccessDeclaration, PermissionRegistry>`.
+  - `requiresPermission` no longer accepts a group or an API (`AnnotatedEndpoint` also requires `method` and `path`).
+  - Added `endpointAccess`, `EndpointAccess`, `misplacedDeclarations`, `AccessDeclarationKey` and `MisplacedAccessDeclaration`.
+
+  Migration: move the declaration to each endpoint, or write it once with `HttpApiGroup.annotateEndpoints(RequiredPermission, requiresPermission(endpoint, …))`, which lands in each endpoint's own annotations. Handle the new error in the layer that composes `registerApi`, or `Layer.orDie` it at the top of the application.
+
+- b655b3b: **Breaking:** a guarded `HttpApi` is registered by the layer that guards it.
+
+  `guardApi(api)` provides `RequirePermission` for that API and, by being built, registers every endpoint it enforces with `PermissionRegistry`, so `/__permissions` lists exactly what `@qadi/http` enforces. It requires `PermissionRegistry` (as `addGuardedRoute` always has) in addition to the subject extractor and the standing evaluation services.
+
+  Removed from the public surface: `RequirePermissionLive`, `registerApi` and `guardRoute`. Migration:
+
+  ```ts
+  // before
+  HttpApiBuilder.layer(Api).pipe(Layer.provide(Handlers), Layer.provide(RequirePermissionLive));
+  registerApi(Api).pipe(Layer.provideMerge(PermissionRegistryLive));
+
+  // after
+  HttpApiBuilder.layer(Api).pipe(Layer.provide(Handlers), Layer.provide(guardApi(Api)));
+  // ...and provide PermissionRegistryLive once, wherever the stack is composed.
+  ```
+
+  `addGuardedRoute` replaces `guardRoute` for a route that should be guarded and listed; `authorizeRequest` stays public for a surface this package does not ship, and registers nothing (register such a surface with `PermissionRegistry.register`).
+
+  An endpoint of a guarded API that `RequirePermission` is not attached to (`.middleware(RequirePermission)` before `.add(group)`, no middleware, or middleware on one group only) no longer compiles as an argument to `guardApi` where the type is precise, and fails the layer build with `RequirePermissionNotAttached` otherwise; previously such an endpoint was served to anyone while `/__permissions` listed it as guarded. The middleware `guardApi` provides answers 500 with one error log line for an endpoint outside the API it was built for (for example `guardApi(A)` provided to the layer that serves `B`).
+
+  Added: `guardApi`, `ApiGuardRefusal`, `UnguardedEndpoints`, `EveryEndpointGuarded`. `MisplacedAccessDeclaration` and `RequirePermissionNotAttached` are now declared in `GuardApi.ts` (same names).
+
+- b655b3b: A denial raised by a handler's own `guard` is now logged. Under `RequirePermission`, `guardRoute` and `addGuardedRoute` it was answered 403 and left no server-side line, contradicting the `logDenial` contract (one record per denial on every surface). The surface now logs it once through `logDenial`, and every denial line carries a `qadi.denial_site` log annotation, `"edge"` for the authorization step and `"handler"` for a handler's own `guard`; an edge denial is still logged exactly once. `guardRoute`'s and `addGuardedRoute`'s handler error channel widens from `never` to `HttpEnforcementFailure`, so a handler need not catch its own `guard`'s failure (an input widening: every existing handler still type-checks).
+- b655b3b: **Breaking.** Every `@qadi/http` surface authorizes through one `authorizeRequest` (BEH-QD-321): it extracts the subject, loads the resource, guards it and logs a denial or an extraction failure once. `RequirePermission`, `guardRoute` and the decision stream's recheck each keep only their own answer. The recheck had drifted from the connect path; that drift is fixed.
+
+  - A broken credential store on a stream recheck is now an `outage`, the class the connect path answers 502 for, not the `"extraction-failed"` label no table contained. A recheck that ends a stream logs one line naming the failure's tag and class.
+  - `reauthCheck`, `handleEnforcementErrors` and `subjectExtractionFailedResponse` are removed. Replacement: `authorizeRequest` plus `toResponse`.
+  - A handler-raised denial under `RequirePermission` is still projected to its redacted wire value but is no longer logged by the edge: it is the handler's own `guard`'s failure.
+  - The edge no longer builds a handler function before the policy allows (`guard` builds its handler eagerly; the step does not).
+  - Added `authorizeRequest`, `AuthorizedRequest` and `classifyHttpEnforcementFailure`. `toResponse` accepts all twelve tags (`SubjectExtractionFailed` answers its tag-only JSON 502); it logs nothing.
+
+  Migration: where a bare route called `handleEnforcementErrors(effect)`, run `authorizeRequest(permission, policy, loadResource)(request)`, then your handler, then `Effect.catchTag(HTTP_ENFORCEMENT_TAGS, (error) => Effect.succeed(toResponse(error)))`.
+
+- b655b3b: `registerApi` no longer lists an endpoint that `RequirePermission` is not attached to. An annotated endpoint behind `.middleware(RequirePermission)` called before `.add(group)`, behind no middleware, or in a group the middleware does not cover was served to anyone while `/__permissions` listed it as guarded. `registerApi` now fails with the new `RequirePermissionNotAttached`, naming the group and endpoint, and its error union widens.
+
+### Patch Changes
+
+- b655b3b: An encode refusal is described once, in core, and every adapter reports one the same way.
+
+  `@qadi/core` adds `encodeRefusalPath`, `encodeRefusalAnnotations` (and its `EncodeRefusalAnnotations` type), `describeEncodeRefusal` and `reportEncodeRefusal`. The three pure readings sit beside `EncodeRefusal`; the reporter calls an adapter's hook once or logs its message with the same three annotations, and contains a hook that throws.
+
+  `@qadi/audit` no longer drops a refused record silently: `AuditDecisionSinkLive` logs a warning naming the refusal, its path and the `evaluationId`, or calls the new `AuditDecisionSinkOptions.onRefused`. **Breaking:** `AuditEntryNotEncodable` carries a required `evaluationId`, so code that constructs the class must supply it. Nothing in this repository does.
+
+  `@qadi/http`: an `onRefused` that throws no longer ends the decision stream or empties `/__decisions/backlog`; the failure is logged and the next record is still served.
+
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [e9c7afc]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+  - @qadi/core@0.12.0
+
 ## 0.11.0
 
 ### Patch Changes

@@ -1,5 +1,39 @@
 # @qadi/testing
 
+## 0.12.0
+
+### Minor Changes
+
+- b655b3b: **Breaking, for subpath importers only.** The `./*` subpath export is removed from `@qadi/core`, `@qadi/audit`, `@qadi/http`, `@qadi/testing`, `@qadi/promise`, `@qadi/predicate-sql` and `@qadi/predicate-prisma`. A package's entry points are now a closed list: the root, and (for `@qadi/devtools`) `./react`. A module kept out of a barrel is no longer importable, so `@qadi/core/TreeFold`, `/Compare`, `/FieldLattice`, `/FieldPath`, `/PortAccess`, `/PortDerivation`, `/ShortCircuit` and `@qadi/audit/CircuitBreaker` are gone with no replacement, and importing a barreled module by subpath (`@qadi/core/Policy`) now fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`. Migration: import the same names from the package root (`import { hasRole } from "@qadi/core"`); every barreled module is re-exported with `export *`, so each of its names is still there. No repository code imported a subpath. Enforced by gate 13's `ENTRY` check and gate 14's check 3b (ADR-QD-099).
+- b655b3b: **Breaking.** `TestLayerOptions` has one way to set up each port. The top-level `attributes`, `relationships`, `history` and `signatures` options are removed; `ports.<Port>` is now either `{ answers }` (that port's fixture data) or `{ layer }` (a layer of its service), and giving both for one port is a type error, so the old rule that a `ports` entry wins over the matching data option is gone. Migration is mechanical: `attributes: x` becomes `ports: { AttributeResolver: { answers: x } }`, `relationships: x` becomes `ports: { RelationshipResolver: { answers: x } }`, `history: x` becomes `ports: { DecisionHistory: { answers: x } }`, `signatures: x` becomes `ports: { SignatureHistory: { answers: x } }`, and a layer previously given as `ports: { P: layer }` becomes `ports: { P: { layer } }`. `CustomPredicate` gains a data form: `ports: { CustomPredicate: { answers: { isOwner: true } } }`. New exports `PortSetup` and `PortSetups`.
+
+  New observation helpers, each written once: `isolatedMetrics(effect)` runs an effect against its own empty `MetricRegistry` (on-fiber updates and reads only; an off-fiber write lands in the default registry), `collectingLogger()` returns `{ lines, layer }` recording every log line's message, level and annotations, and `CapturedLog` types a line. `collectingTracer` is unchanged.
+
+### Patch Changes
+
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [e9c7afc]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+  - @qadi/core@0.12.0
+
 ## 0.11.0
 
 ### Patch Changes
