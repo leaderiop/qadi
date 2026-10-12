@@ -45,6 +45,7 @@
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
+    "@qadi/testing": "workspace:^",
     "@electric-sql/pglite": "0.4.3",
     "effect": "catalog:",
     "fast-check": "catalog:",

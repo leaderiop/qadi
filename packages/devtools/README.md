@@ -22,6 +22,15 @@ model and computes nothing. A backend aggregator can consume the first without
 pulling in a UI, and `react` is an optional peer dependency for exactly that
 reason.
 
+What each exports is what a shell crosses, not everything the modules declare.
+The root has the three stores (`makeTimelineStore` and `runSource`,
+`makeSimulationSession`, `makeDiagnosticsStore` and `runDiagnostics`), the wiring
+the dock takes, the timeline readings (`verdictOf`, `pairedEntries`, `inspect`,
+`applyFilters`, `selectionOf`) and the types those name. The React entry has
+`DevtoolsDock` and the React half of the stores (`useTimeline`,
+`useSimulationSession`, `useDiagnostics`). The dock's panels and a screen's
+mechanics are package-private.
+
 ## The model absorbs a hostile feed
 
 Records arrive from several processes at once, and none of them promises order,
@@ -91,6 +100,9 @@ const source = sourceFromEventSource({
     // "not-a-record"        — a protocol mismatch: the far side disagrees about
     //                         the wire form.
     // "unsupported-version" — a newer server: upgrade this panel.
+    // "inconsistent"        — a record that contradicts itself: its decision is
+    //                         not its own trace's, or its ids are not its
+    //                         record's. Not skew: a hand-built record or tampering.
     console.warn(reason, frame);
   },
   onDisconnect: () => console.info("reconnecting…"),
@@ -119,12 +131,21 @@ Hold the fields at module scope: the run restarts when one of them changes
 identity. `runDiagnostics` and `makeDiagnosticsStore` are the same loop without
 React, for a shell of your own.
 
-**The dock's build of your layer is its own build.** A service that keeps state
-in its constructor, such as `decisionCacheLayer`'s cache, is two instances if the
-dock and your application each build the layer, and the dock reports its own.
-Build the context once and give `Layer.succeedContext(context)` to both. The
-`wiring`, `activity`, `portCalls`, `hydration` and `questions` props remain for a
-reading taken elsewhere, and win over a sampled one.
+Under a `QadiProvider`, `@qadi/react` hands you all of that in one call:
+`<DevtoolsDock {...useDevtoolsFeed({ collector })} />` supplies `gates`,
+`onInvalidate` and a `diagnostics` whose layer is the provider's own build, so
+the dock reads the cache your decisions filled and nothing needs hoisting.
+
+**Without a provider, the dock's build of your layer is its own build.** A
+service that keeps state in its constructor, such as `decisionCacheLayer`'s
+cache, is two instances if the dock and your application each build the layer,
+and the dock reports its own. Build the context once and give
+that one value to both (the shared-context rule is in BEH-QD-323). The
+`reading` prop carries a reading taken elsewhere (another process's report, a
+fixture) as `{ wiring, activity, hydration, portCalls, questions }`: each field it
+carries wins over the sampled one, and a field it omits falls through to the
+sample. Its `wiring` is a `WiringRead`, so it can state a failed read as well as
+a report.
 
 ## Environments
 

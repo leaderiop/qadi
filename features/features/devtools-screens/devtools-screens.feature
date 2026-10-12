@@ -23,6 +23,13 @@ Feature: Reading the rules, not only the decisions
     And a decision against a separately built "all of doc:read" policy
     Then the catalogue lists 1 policy
 
+  Scenario: Two equal declared policies are one rail entry
+    # BEH-QD-211's rule holds for declared policies too, run or not: the first
+    # declared name wins, as it already does for one that has run.
+    Given the application declares "canEdit" and "canWrite" as the same policy that has never run
+    Then the catalogue lists 1 policy
+    And the catalogue names it "canEdit"
+
   Scenario: Two different policies stay apart
     Given a decision against the "doc:read" policy
     And a decision against the "doc:write" policy

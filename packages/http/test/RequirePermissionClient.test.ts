@@ -25,7 +25,6 @@
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
 import * as Schema from "effect/Schema";
 import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
@@ -50,11 +49,13 @@ import {
   attributeResolverPort,
 } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
+import { collectingLogger } from "@qadi/testing";
 import { assert, describe, it } from "@effect/vitest";
 import {
   RequiredPermission,
   RequirePermission,
-  RequirePermissionLive,
+  PermissionRegistryLive,
+  guardApi,
   SubjectExtractionFailed,
   passthroughClientLayer,
   requiresPermission,
@@ -139,7 +140,8 @@ const makeClient = HttpApiTest.groups(Api, ["documents"]);
 // output for the next step, ending in a layer requiring nothing.
 const testLayer = (resolverDown: boolean) =>
   DocumentsHandlers.pipe(
-    Layer.provideMerge(RequirePermissionLive),
+    Layer.provideMerge(guardApi(Api)),
+    Layer.provideMerge(PermissionRegistryLive),
     Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
     Layer.provideMerge(
       Layer.mergeAll(
@@ -160,7 +162,7 @@ describe("RequirePermission client-error typing", () => {
         // `readPolicy`'s attribute check is ever reached.
         const error = yield* client.documents.read({ headers: {} }).pipe(Effect.flip);
         // Before `AccessDeniedRefused` carried real fields (`RequirePermission`'s
-        // brand/`AccessDeniedPublic` work), `RequirePermissionLive` answered an
+        // brand/`AccessDeniedPublic` work), the middleware answered an
         // empty 403 body that didn't match its own declared schema — the client
         // could only fail to decode it, surfacing as a generic `HttpClientError`.
         // Now the body actually matches `AccessDeniedRefused`
@@ -191,7 +193,7 @@ describe("RequirePermission client-error typing", () => {
     "a generated client decodes an undischarged obligation as the real typed UndischargedObligation, tag-only",
     () =>
       Effect.gen(function* () {
-        const logs: Array<unknown> = [];
+        const { lines, layer: logger } = collectingLogger();
         const client = yield* makeClient;
         // Alice holds `deletePermission`, so `hasPermission` allows — but
         // `deletePolicy`'s binding `auditObligation` is never discharged
@@ -200,8 +202,8 @@ describe("RequirePermission client-error typing", () => {
         // `UndischargedObligation` rather than a denial.
         const error = yield* client.documents
           .delete({ headers: { authorization: `Bearer ${ALICE_TOKEN}` } })
-          .pipe(Effect.flip, Effect.provide(Logger.layer([Logger.make((o) => logs.push(o.message))])));
-        // Before this fix, `RequirePermissionLive` answered an empty 403 body
+          .pipe(Effect.flip, Effect.provide(logger));
+        // Before this fix, the middleware answered an empty 403 body
         // that didn't match `UndischargedObligationRefused`'s declared
         // `Schema.TaggedStruct("UndischargedObligation", {})` — the client
         // could only fail to decode it, surfacing as a generic
@@ -212,11 +214,11 @@ describe("RequirePermission client-error typing", () => {
         // fields are, so neither reaches the wire.
         assert.strictEqual("subjectId" in error, false);
         assert.strictEqual("obligationIds" in error, false);
-        // `RequirePermissionLive`'s `tapErrorTag(["AccessDenied",
+        // the middleware's `tapErrorTag(["AccessDenied",
         // "UndischargedObligation"], logDenial)` runs before the hand
         // conversion above — this is the obligation half of that array; the
         // denial half is pinned server-side in `http.test.ts`.
-        assert.deepStrictEqual(logs, [
+        assert.deepStrictEqual(lines.map((line) => line.message), [
           [`qadi/http: request denied (ACL010) — subject "alice": undischarged obligation(s) log-delete`],
         ]);
       }).pipe(Effect.provide(Layer.mergeAll(passthroughClientLayer(RequirePermission), testLayer(false)))),

@@ -8,12 +8,10 @@ import "server-only";
  * in `app/api/[[...route]]/route.ts` is a dozen lines, and everything below is
  * ordinary Effect that would run unchanged behind `HttpServer.serve`.
  *
- * **Composed through named intermediate steps.** Chaining every
- * `Layer.provideMerge` into one expression makes TypeScript silently infer `any`
- * for the whole thing — no diagnostic, just every downstream use losing its
- * type. `packages/http/test/http.test.ts` records the same failure and the same
- * remedy; it is a property of this shape of long `.pipe()` chain, not of any one
- * step in it.
+ * **Composed through named intermediate steps, for reading.** Each line says
+ * what it adds. An earlier note here claimed that chaining every
+ * `Layer.provideMerge` into one expression silently infers `any`; that does not
+ * reproduce on `effect@4.0.0` (ARCH-36), so the naming is a readability choice.
  *
  * **Paths have no `/api` prefix here.** Next mounts this at `/api/[[...route]]`
  * and the route handler strips the prefix before calling in, because
@@ -31,24 +29,19 @@ import * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as Result from "effect/Result";
-import {
-  AttributeResolver,
-  DecisionHistory,
-  decodeSinkRecordString,
-  makeResourceId,
-  RelationshipResolver,
-} from "@qadi/core";
-import type { ActedResult, DecodeRefusal, RelatedResult } from "@qadi/core";
+import { decodeSinkRecordString, servingFor } from "@qadi/core";
+import type { DecodeRefusal } from "@qadi/core";
 import {
   addGuardedRoute,
   decisionBacklogRoute,
   decisionStreamRoute,
   permissionRegistryRoute,
   PermissionRegistryLive,
+  portRoutesUnguarded,
   SubjectExtractor,
 } from "@qadi/http";
 import { articleById } from "../domain/articles.ts";
-import { canReadArticle, canReadDevtools } from "../domain/policies.ts";
+import { canReadArticle, canReadDevtools, catalogue } from "../domain/policies.ts";
 import { readArticle, readDevtools } from "../domain/permissions.ts";
 import { AppLayer, log } from "./layer.ts";
 import { userFromCookieHeader } from "./session.ts";
@@ -72,88 +65,34 @@ const json = (body: unknown) =>
   HttpServerResponse.text(JSON.stringify(body), { contentType: "application/json" });
 
 /**
- * The session's subject, for the three port routes.
+ * The three ports a browser re-check asks, answered for the session's own subject.
  *
- * These endpoints answer **only** about whoever the cookie names. A caller may
- * put any `subjectId` in the query string — the browser's resolvers do, because
- * that is the shape the port hands them — and it is read for the log and never
- * as identity. An endpoint that answered about whoever it was asked about would
- * be a subject-enumeration API with an authorization library bolted to the side.
+ * `portRoutesUnguarded` (`@qadi/http`) is the whole serving half: it decodes a
+ * question, **refuses one about any subject but the cookie's** (403), refuses one
+ * the policies below cannot ask (404), reads the port through the same traced,
+ * counted path an evaluation uses, and answers a store outage with a 503 that
+ * carries no cause — never as `"Unknown"`, which a `not(...)` would turn into a
+ * grant (INV-QD-006). Identity is `subjects` above, the cookie and nothing else.
+ *
+ * **Unguarded, and said so.** There is no permission to require: every visitor,
+ * anonymous included, may ask the server about *themselves*, because that is what
+ * their own client's re-check is. An endpoint that answered about whoever it was
+ * asked about would be a subject-enumeration API with an authorization library
+ * bolted to the side; this one cannot.
+ *
+ * The declaration is derived from the catalogue, so a policy that starts asking a
+ * new attribute, relation or event is served without an edit here, and a question
+ * no policy asks is not.
  */
-const askingSubject = Effect.gen(function* () {
-  const request = yield* HttpServerRequest.HttpServerRequest;
-  return userFromCookieHeader(Option.getOrNull(Headers.get(request.headers, "cookie"))).subject;
-});
-
-/** The request's query string. The base is a placeholder; only the path matters. */
-const query = (request: HttpServerRequest.HttpServerRequest, key: string): string | undefined =>
-  new URL(request.url, "http://newsroom.invalid").searchParams.get(key) ?? undefined;
-
-const AttributePort = HttpRouter.add(
-  "GET",
-  "/ports/attribute",
-  Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const subject = yield* askingSubject;
-    const attribute = query(request, "attribute") ?? "";
-
-    // A resolver failure becomes a 503, never a 200 carrying `undefined`. The
-    // browser turns a non-2xx into an `AttributeResolveError`, which denies —
-    // an outage must not be readable as "the answer was no" (INV-QD-005).
-    return yield* AttributeResolver.resolve(subject.id, attribute).pipe(
-      Effect.map((value) => json({ value })),
-      Effect.catchTag("AttributeResolveError", () =>
-        Effect.succeed(
-          HttpServerResponse.text("the attribute store did not answer", { status: 503 }),
-        )),
-    );
-  }),
-);
-
-const RelationshipPort = HttpRouter.add(
-  "GET",
-  "/ports/relationship",
-  Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const subject = yield* askingSubject;
-    const depth = query(request, "depth");
-
-    const related: RelatedResult = yield* RelationshipResolver.check({
-      subjectId: subject.id,
-      relation: query(request, "relation") ?? "",
-      resourceId: makeResourceId(query(request, "resourceId") ?? ""),
-      // Present-and-undefined, not absent: `RelationshipCheck.depth` is a
-      // required key holding `number | undefined`, so a conditional spread does
-      // not typecheck under `exactOptionalPropertyTypes`.
-      depth: depth === undefined ? undefined : Number(depth),
-    }).pipe(
-      // `Unknown`, not `Unrelated`. The port is three-valued so a broken far end
-      // cannot be read as a denial someone might then trust.
-      Effect.catchTag("RelationshipResolveError", () => Effect.succeed<RelatedResult>("Unknown")),
-    );
-
-    return json({ related });
-  }),
-);
-
-const HistoryPort = HttpRouter.add(
-  "GET",
-  "/ports/history",
-  Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const subject = yield* askingSubject;
-    const resourceId = query(request, "resourceId");
-
-    const answer: ActedResult = yield* DecisionHistory.hasActed({
-      subjectId: subject.id,
-      event: query(request, "event") ?? "",
-      resourceId: resourceId === undefined ? undefined : makeResourceId(resourceId),
-    }).pipe(
-      Effect.catchTag("DecisionHistoryUnavailable", () => Effect.succeed<ActedResult>("Unknown")),
-    );
-
-    return json({ answer });
-  }),
+const served = servingFor(Object.values(catalogue));
+const PortRoutes = portRoutesUnguarded(
+  "answers only about the session's own subject",
+  {
+    AttributeResolver: served.AttributeResolver,
+    RelationshipResolver: served.RelationshipResolver,
+    DecisionHistory: served.DecisionHistory,
+  },
+  { prefix: "/ports" },
 );
 
 /**
@@ -194,6 +133,8 @@ const refusedBecause: (refusal: DecodeRefusal) => string = Match.type<DecodeRefu
     NotJson: (refusal) => `not a decision record: ${refusal._tag}`,
     TooDeep: (refusal) => `not a decision record: ${refusal._tag}`,
     Malformed: (refusal) => `not a decision record: ${refusal._tag}`,
+    Inconsistent: (refusal) =>
+      `a decision record that contradicts its own ${refusal.disagreement}`,
     UnsupportedVersion: (refusal) =>
       refusal.version === undefined
         ? `no wire version — a sender older than 0.10: this aggregator reads ${refusal.supported.join(", ")}`
@@ -243,9 +184,7 @@ const IngestRoute = HttpRouter.add(
 );
 
 const Routes = Layer.mergeAll(
-  AttributePort,
-  RelationshipPort,
-  HistoryPort,
+  PortRoutes,
   ArticleRoute,
   IngestRoute,
   decisionStreamRoute(readDevtools, canReadDevtools, log),

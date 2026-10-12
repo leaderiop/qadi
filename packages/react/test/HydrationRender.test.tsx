@@ -26,7 +26,6 @@ const serverDeny = new Deny({
     children: [],
     obligations: [],
   },
-  reason: "subject lacks role 'admin'",
 });
 
 afterEach(() => {

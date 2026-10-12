@@ -18,7 +18,7 @@ which `@effect/vitest`'s `it.effect` already provides.
 import { qadiTestLayer, subjectWith } from "@qadi/testing";
 
 const layer = qadiTestLayer(subjectWith({ permissions: ["doc:read"] }), {
-  attributes: { clearance: 5 },
+  ports: { AttributeResolver: { answers: { clearance: 5 } } },
 });
 ```
 
@@ -28,12 +28,38 @@ Every default here denies, so a test that forgets to grant something sees a
 denial rather than an accidental allow. That is the same posture the library
 takes in production, which is what makes a test meaningful.
 
-## Overriding a port
+## Setting up a port
 
-Each data option (`attributes`, `relationships`, `history`, `signatures`)
-becomes that port's `@qadi/core` fixture. To wire any port directly, pass it
-under `ports`, keyed by port name; an entry there wins over the matching data
-option, and every port you do not name stays at its fail-closed default.
+Each port has one way to be set up, under `ports`, keyed by port name. The
+value is either the port's fixture data, `{ answers }`, or a layer of its own
+service, `{ layer }`; giving both for one port is a type error. Every port you
+do not name stays at its fail-closed default.
+
+| Port | `answers` |
+| ---- | --------- |
+| `AttributeResolver` | an attribute record |
+| `RelationshipResolver` | a list of edges |
+| `DecisionHistory` | a list of acted events |
+| `SignatureHistory` | a list of signatures |
+| `CustomPredicate` | fixed verdicts by name, `{ isOwner: true }` |
+
+Each is built by `@qadi/core`'s fixture table, so it is the same fixture
+`@qadi/devtools` uses. A predicate that reads the subject or the resource is
+not data: give it as `{ layer: customPredicateFromRecord({ ... }) }`.
+
+## Observing what ran
+
+Three helpers capture what a test needs to see. Each replaces what is ambient
+rather than adding to it, and each is written once here.
+
+- `isolatedMetrics(effect)` runs `effect` against its own empty
+  `MetricRegistry`, so counters a test reads start at zero and never reach the
+  process-wide registry. It isolates what happens on the effect's fiber; a write
+  made off-fiber (as `@qadi/react`'s hydration counters are) lands in the default
+  registry whatever the fiber carries, so a test of those asserts a delta.
+- `collectingLogger()` returns `{ lines, layer }`: every log line, with its
+  `message`, `level` and `annotations`, in `lines` after the effect has run.
+- `collectingTracer(spans)` records every span into the array you pass.
 
 ## Scripted and recording ports
 
@@ -66,7 +92,9 @@ const down = scriptedPort(attributeResolverPort, () => PortReply.fail("down"));
 const table = recordingPort(attributeResolverPort, attributeResolverFromRecord({ tier: 5 }));
 
 const program = evaluate(anyOf([hasAttribute("tier", gte(1)), hasAttribute("other", gte(1))])).pipe(
-  Effect.provide(qadiTestLayer(subjectWith({}), { ports: { AttributeResolver: table.layer } })),
+  Effect.provide(
+    qadiTestLayer(subjectWith({}), { ports: { AttributeResolver: { layer: table.layer } } }),
+  ),
 );
 // After running `program`, `table.calls` is `[["test-subject", "tier"]]`:
 // `anyOf` stopped at the first allow. `down.layer` in the same slot would make

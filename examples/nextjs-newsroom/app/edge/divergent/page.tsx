@@ -59,7 +59,7 @@ const Page = async () => {
             This page decides <code>inGoodStanding</code> on the server — an allow — and seeds it.
             Then, before responding, it revokes this subject&rsquo;s standing. The browser hydrates
             with the allow already in the HTML, re-checks against{" "}
-            <code>/api/ports/attribute</code>, and gets <code>suspended</code>.
+            <code>/api/ports/AttributeResolver</code>, and gets <code>suspended</code>.
           </>
         }
         watch={

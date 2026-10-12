@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.5                                            |
-> | Effective Date | 2026-10-07                                     |
+> | Revision       | 1.10                                           |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -33,6 +33,8 @@ export const policiesSeen: (self: Timeline) => ReadonlyArray<PolicySighting>;
 export const catalogueOf: (self: Timeline, declared?: Catalogue) => ReadonlyArray<PolicySighting>;
 ```
 
+> Package-private since [CCR-QD-321](../README.md#document-history): `policiesSeen`. Specified because the screens rely on it; a host reaches the behaviour through `DevtoolsDock`, not through these names (ADR-QD-047).
+
 ```
 REQUIREMENT: The policy list MUST be derivable from the timeline alone.
 ```
@@ -51,7 +53,9 @@ By `Equal.equals`, which is structural for plain objects in Effect v4 — the
 property `Atom.family` relies on to share one atom between two independently
 built equal policies, pinned by `v4-reactivity-smoke.test.ts`. Two components
 building the same policy inline contribute to one row, which is what the
-evaluator already does.
+evaluator already does. Declared policies are included: two declared names for one
+structure are one entry under the first declared name, run or not, as a declared
+name already replaces the derived one for a policy that ran.
 
 ```
 REQUIREMENT: A label MUST NOT be an identity.
@@ -69,11 +73,25 @@ Borrowed rather than re-derived, so the rail cannot disagree with the log about
 which decision came last — and so `NaN`, which the timeline already solved once
 ([INV-QD-039](../invariants.md)), is not solved a second way.
 
+```
+REQUIREMENT: The explorer MUST keep the policy it shows when the rail moves.
+```
+
+That order moves under a reader: a decision on a policy below the head moves it to
+the head, and a policy's first decision shifts every position. The explorer (and the
+role viewer, whose list a host may rebuild in any order) therefore holds its
+selection by value, through one rule, `resolveHeld` (`HeldChoice.ts`). A selection
+that leaves the list stays shown, marked as no longer there, and the first item
+shown is held, so nothing here changes without the reviewer
+([INV-QD-107](../invariants.md)).
+
 ## BEH-QD-212: A structural view states no verdict
 
 ```ts
 export const PolicyTree: FC<{ node: InspectNode; showStatus: boolean }>;
 ```
+
+> Package-private since [CCR-QD-321](../README.md#document-history): `PolicyTree`. Specified because the screens rely on it; a host reaches the behaviour through `DevtoolsDock`, not through these names (ADR-QD-047).
 
 ```
 REQUIREMENT: A policy rendered without an evaluation MUST carry no verdict
@@ -361,7 +379,8 @@ export interface GateRegistry {
   readonly subscribe: (listener: () => void) => () => void;
 }
 // QadiAtoms.gates: GateRegistry — the registry this atom set's guards write to.
-// QadiProviderProps.gates?: GateRegistry — an override, built by makeGateRegistry.
+// QadiProviderProps.gates?: GateRegistry — an override, built by makeGateRegistry;
+// it warns on an id collision in development unless GateRegistryOptions.onIdCollision is given.
 export const useGateInstances: () => ReadonlyArray<GateInstance>;
 ```
 
@@ -443,6 +462,15 @@ registry keeps both, the second under `${id}~${n}`, and reports the collision on
 `data-qadi-gate` keeps React's raw id, which is hydration-stable.
 
 ```
+REQUIREMENT: A registry built by `makeGateRegistry` MUST report a colliding id once,
+             through `onIdCollision` when supplied, otherwise by a development-mode
+             warning.
+```
+
+The default is the same warning an atom set's own registry gives (ADR-QD-080
+amendment, CCR-QD-250), so a host-built registry over several roots is not silent.
+
+```
 REQUIREMENT: A registry not built by `makeGateRegistry` MUST receive no
              registration, and its guards MUST render no marker.
 ```
@@ -457,6 +485,8 @@ export const boxesOf: (instances: ReadonlyArray<{ id: string; element?: unknown 
 export const drawLens: (target: Document, boxes: ReadonlyArray<GateBox>) => void;
 export const gateIdAt: (target: Document, x: number, y: number, instances: …) => string | undefined;
 ```
+
+> Package-private since [CCR-QD-321](../README.md#document-history): `GateBox`, `boxesOf`, `drawLens`, `gateIdAt`. Specified because the screens rely on it; a host reaches the behaviour through `DevtoolsDock`, not through these names (ADR-QD-047).
 
 ```
 REQUIREMENT: The marker MUST NOT change the host's layout.
@@ -537,7 +567,19 @@ export const runDiagnostics: <ROut, E>(
   options?: DiagnosticsOptions<ROut, E>,
 ) => Effect<void>;
 export const makeDiagnosticsStore: () => DiagnosticsStore;
+export interface DiagnosticsReading {
+  readonly wiring?: WiringRead;
+  readonly activity?: ReadonlyArray<PortActivity>;
+  readonly hydration?: HydrationActivity;
+  readonly portCalls?: PortCallLog;
+  readonly questions?: ReadonlyArray<AskedQuestionLike>;
+}
+export const mergeReading: (
+  sampled: Diagnostics,
+  supplied: DiagnosticsReading | undefined,
+) => Diagnostics;
 // <DevtoolsDock diagnostics={{ layer, collector, questions, intervalMillis }} />
+// <DevtoolsDock reading={{ wiring, activity, hydration, portCalls, questions }} />
 ```
 
 The Services and React panels read four things that are pulled rather than
@@ -566,7 +608,9 @@ Building it per sample rebuilt every port every tick, and could not run an
 asynchronous layer. It is still *its own build*: a service that keeps state in
 its constructor, such as `decisionCacheLayer`'s cache, is shared with the
 application only when the host shares it by value, by handing the same context
-to both as `Layer.succeedContext`.
+to both as `Layer.succeedContext` — or, under a `QadiProvider`, by handing
+`useDevtoolsFeed()`'s layer, which is the provider's own build
+([BEH-QD-327](./09-react.md#beh-qd-327-a-devtools-feed-reads-the-providers-own-runtime)).
 
 ```
 REQUIREMENT: A snapshot MUST keep its identity while it is structurally
@@ -588,12 +632,30 @@ panel blank, which [BEH-QD-218](#beh-qd-218-every-screen-degrades-to-an-explanat
 forbids.
 
 ```
-REQUIREMENT: A reading supplied explicitly to the dock MUST take precedence over
-             a sampled one, field by field.
+REQUIREMENT: A reading supplied explicitly to the dock, as its `reading` prop,
+             MUST take precedence over a sampled one, field by field: a field
+             the reading carries wins, a field it omits falls through to the
+             sample, and an explicit empty list is a value.
 ```
 
-The snapshot props answer a different question: what another process, or a
-fixture, reported. Sampling this process cannot supply it.
+A supplied reading answers a different question: what another process, or a
+fixture, reported. Sampling this process cannot supply it. It is one value, a
+`DiagnosticsReading`, rather than five props that each restated the rule, and
+the rule is written once, in the model's `mergeReading`, where it is tested
+without React. Its fields are `Diagnostics`' own types, so a reading from
+elsewhere can state a failed wiring read (`WiringRead.Failed`) as well as a
+report, which the old `wiring` prop, typed as a bare `WiringReport`, could not.
+
+```
+REQUIREMENT: The dock MUST NOT show a host-counted mismatch total.
+```
+
+The count a host used to accumulate from `onHydrationMismatch` and pass as
+`hydrationMismatches` is `hydration.mismatched`, which `@qadi/react` counts
+whether or not a reporter is supplied
+([ADR-QD-052](../decisions/052-hydration-is-counted-where-both-ends-can-see-it.md)).
+The prop and the panel branch that showed it only when `hydration` was absent are
+removed; with nothing read, the panel says how to read it.
 
 Gates are not sampled. They stay a prop the host feeds from its subscription to
 `@qadi/react`'s registry ([ADR-QD-080](../decisions/080-a-gate-registry-belongs-to-its-atom-set.md)).

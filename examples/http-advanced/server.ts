@@ -22,7 +22,9 @@
  *     `reauth` — the stream re-extracts the subject and re-checks the policy on
  *     an interval, so a revocation mid-stream ends the connection.
  *  5. The `/__permissions` registry route, served **behind a policy**, merging
- *     endpoint annotations and bare routes into one audit topology.
+ *     endpoint annotations and bare routes into one audit topology. Both
+ *     register because they guard: `guardApi` when its layer is built,
+ *     `addGuardedRoute` when its route is.
  *  6. The 403/502 split at the wire: an unknown token resolves to `anonymous`
  *     (a denial, 403); a broken credential store fails with
  *     `SubjectExtractionFailed` (an outage, 502 — never a silent lockout).
@@ -51,7 +53,6 @@ import {
   EvaluationIdLive,
   guard,
   makeDecisionLog,
-  ENFORCEMENT_ERROR_TAGS,
   gte,
   hasAttribute,
   hasPermission,
@@ -63,14 +64,12 @@ import {
 } from "@qadi/core";
 import {
   PermissionRegistryLive,
-  RequirePermissionLive,
   SubjectExtractionFailed,
   addGuardedRoute,
   decisionStreamRoute,
+  guardApi,
   permissionRegistryRoute,
-  registerApi,
   subjectExtractorBearer,
-  toResponse,
 } from "@qadi/http";
 import { Api, readPermission, readPolicy } from "./api.ts";
 
@@ -153,7 +152,7 @@ const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
 
 const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
   Layer.provide(DocumentsHandlers),
-  Layer.provide(RequirePermissionLive),
+  Layer.provide(guardApi(Api)),
 );
 
 // ---------------------------------------------------------------------------
@@ -195,18 +194,16 @@ const WriteRoute = addGuardedRoute(
   // arrives as the first handler argument.
   (_authorized, resource) =>
     guard(writePermission, writePolicy)(resource, () => Effect.void).pipe(
+      // The route answers (403/502) and logs a denial the inner guard raises,
+      // through the package's own table: no catch needed here.
       Effect.as(HttpServerResponse.text("written")),
-      // A bare route has no schema-fixed error channel, so the enforcement
-      // errors the inner guard can raise are answered here, through the
-      // package's own 403/502 table.
-      Effect.catchTag(ENFORCEMENT_ERROR_TAGS, (error) => Effect.succeed(toResponse(error))),
     ),
 );
 
 // ---------------------------------------------------------------------------
-// Composition — named intermediate steps, deliberately: one long inline
-// `.pipe(Layer.provideMerge(...))` chain can silently infer `any` past its
-// instantiation-depth budget, with no diagnostic at the chain itself.
+// Composition — named intermediate steps, for reading: each line says what it
+// adds. (An inline chain of this length also type-checks on `effect@4.0.0`; an
+// older note here claimed it silently inferred `any`, which does not reproduce.)
 // ---------------------------------------------------------------------------
 
 const AttributeServices = Layer.succeed(AttributeResolver, {
@@ -253,12 +250,11 @@ const main = Effect.gen(function* () {
     RegistryRoute,
   );
 
-  // `registerApi` walks the built `HttpApi` once and pushes every
-  // `RequiredPermission` annotation into the registry — the same store
-  // `addGuardedRoute` writes to — so `/__permissions` reports both sources.
-  const RegistryLayer = registerApi(Api).pipe(Layer.provideMerge(PermissionRegistryLive));
-
-  const WithRegistry = RoutesLayer.pipe(Layer.provideMerge(RegistryLayer));
+  // `guardApi(Api)` (in `ApiRoutes`) walks the `HttpApi` once, when it is built,
+  // and pushes every `RequiredPermission` annotation into the registry — the
+  // same store `addGuardedRoute` writes to — so `/__permissions` reports both
+  // sources. The registry itself is just the store.
+  const WithRegistry = RoutesLayer.pipe(Layer.provideMerge(PermissionRegistryLive));
   const WithSubjects = WithRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
   const WithEvaluation = WithSubjects.pipe(Layer.provideMerge(EvaluationServices));
   const WithCache = WithEvaluation.pipe(Layer.provideMerge(decisionCacheLayer()));

@@ -359,12 +359,16 @@ export const decisionCacheLayer = (options?: {
 
       const getOrCompute: DecisionCacheShape["getOrCompute"] = (key, compute) =>
         Effect.gen(function* () {
-          const cached = HashMap.get(entries, key);
-          if (Option.isSome(cached)) {
-            yield* Metric.update(cacheLookupsTotal, "hit");
-            return { trace: cached.value, outcome: "hit" };
-          }
-
+          // The hit check is NOT made here, before the claim, but inside the
+          // claim's own synchronous step below (ARCH-45 I5). A check made in its
+          // own step could miss, the fiber be preempted, and the owner finish in
+          // the gap (`entries[key]` set, `inFlight[key]` removed): the claim would
+          // then find nothing in flight and compute `key` a second time, appending
+          // it to `insertionOrder` twice, so that a later pop of the stale copy
+          // evicted a freshly recomputed entry. Reading `entries`, then `inFlight`,
+          // then claiming in one synchronous step leaves no gap for an owner's
+          // `onExit` to land in.
+          //
           // The claim-or-join step, the fork that starts `compute` (owner
           // only), and the assignment of `entry.fiber` all live inside one
           // `Effect.uninterruptibleMask` — not because any single step needs
@@ -396,14 +400,19 @@ export const decisionCacheLayer = (options?: {
               // allocation stay inside the one atomic check instead of paying for
               // it up front on every ask.
               const claimed = yield* Effect.sync(():
-                | { readonly owned: true; readonly entry: InFlightClaim; readonly generation: number }
-                | { readonly owned: false; readonly entry: InFlightClaim } => {
+                | { readonly _tag: "Hit"; readonly trace: Trace }
+                | { readonly _tag: "Claimed"; readonly entry: InFlightClaim; readonly generation: number }
+                | { readonly _tag: "Joined"; readonly entry: InFlightClaim } => {
+                // First, in the same step as the join and the claim: see the
+                // comment at the top of `getOrCompute`.
+                const cached = HashMap.get(entries, key);
+                if (Option.isSome(cached)) return { _tag: "Hit", trace: cached.value };
                 const existing = HashMap.get(inFlight, key);
                 if (Option.isSome(existing)) {
                   // Joining, not claiming: one more fiber now cares about
                   // this entry's eventual answer — see `awaitShared`.
                   existing.value.waiters += 1;
-                  return { owned: false, entry: existing.value };
+                  return { _tag: "Joined", entry: existing.value };
                 }
                 const entry: InFlightClaim = {
                   claim: Deferred.makeUnsafe<Trace, EvaluationError>(),
@@ -413,12 +422,16 @@ export const decisionCacheLayer = (options?: {
                 inFlight = HashMap.set(inFlight, key, entry);
                 // Read in the same synchronous step the claim itself is made in —
                 // see `clear`'s own doc comment for what this closes.
-                return { owned: true, entry, generation };
+                return { _tag: "Claimed", entry, generation };
               });
 
+              if (claimed._tag === "Hit") {
+                yield* Metric.update(cacheLookupsTotal, "hit");
+                return { trace: claimed.trace, outcome: "hit" as const };
+              }
               // Someone else already claimed this key — share their result,
               // success or failure, rather than compute a second time.
-              if (!claimed.owned) {
+              if (claimed._tag === "Joined") {
                 yield* Metric.update(cacheLookupsTotal, "coalesced");
                 return { trace: yield* restore(awaitShared(claimed.entry)), outcome: "coalesced" as const };
               }
@@ -499,7 +512,10 @@ export const decisionCacheLayer = (options?: {
                       while (HashMap.size(entries) > options.capacity) {
                         // `Chunk.size(insertionOrder) === HashMap.size(entries)`
                         // always — every append here has exactly one corresponding
-                        // `entries` insert, and eviction always removes one of each —
+                        // `entries` insert (a key is claimed by one fiber at a time,
+                        // and a hit never claims, so it is appended once per
+                        // completed compute nobody else answered), and eviction
+                        // always removes one of each —
                         // so this loop's own condition (`size(entries) > capacity >=
                         // 0`) guarantees `insertionOrder` is non-empty. The `Option`
                         // check exists for that same reason `noUncheckedIndexedAccess`

@@ -89,34 +89,14 @@ describe("the questions panel", () => {
     );
   });
 
-  describe("hydration, counted by the host", () => {
-    // The shape from before anything counted for itself. Kept working, and
-    // superseded by `hydration` below.
-    it("reports mismatches when a reporter is wired", () => {
-      render(<QuestionsPanel questions={[]} hydrationMismatches={2} />);
-      const text = screen.getByTestId("qadi-hydration-mismatches").textContent ?? "";
-
-      assert.include(text, "2 mismatches");
-      assert.include(text, "no longer holds client-side");
-    });
-
-    it("reads naturally for a single mismatch", () => {
-      render(<QuestionsPanel questions={[]} hydrationMismatches={1} />);
-      assert.include(screen.getByTestId("qadi-hydration-mismatches").textContent ?? "", "1 mismatch");
-      assert.notInclude(
-        screen.getByTestId("qadi-hydration-mismatches").textContent ?? "",
-        "1 mismatches",
-      );
-    });
-
+  describe("hydration, with nothing read", () => {
     it("says when nothing is wired, rather than showing zero", () => {
       render(<QuestionsPanel questions={[]} />);
       // Zero would claim there were no mismatches; there is simply nobody
-      // counting. And it names the fix, which is now a real one.
+      // counting. And it names the fix, which is a real one.
       const text = screen.getByTestId("qadi-hydration-unwired").textContent ?? "";
       assert.include(text, "hydrationActivity");
       assert.include(text, "needs no wiring");
-      assert.isNull(screen.queryByTestId("qadi-hydration-mismatches"));
     });
   });
 
@@ -142,20 +122,6 @@ describe("the questions panel", () => {
       assert.include(screen.getByTestId("qadi-hydration-seeded").textContent ?? "", "10");
       assert.include(screen.getByTestId("qadi-hydration-rechecked").textContent ?? "", "8");
       assert.include(screen.getByTestId("qadi-hydration-mismatched").textContent ?? "", "1");
-    });
-
-    it("supersedes a host-counted mismatch rather than showing both", () => {
-      // Both count the same thing, so showing both invites a reader to
-      // reconcile one number with itself.
-      render(
-        <QuestionsPanel
-          questions={[]}
-          hydration={reading({ rechecked: 3, mismatched: 1 })}
-          hydrationMismatches={1}
-        />,
-      );
-      assert.isNull(screen.queryByTestId("qadi-hydration-mismatches"));
-      assert.isNotNull(screen.getByTestId("qadi-hydration-mismatched"));
     });
 
     it("states the rate where anything was re-checked", () => {

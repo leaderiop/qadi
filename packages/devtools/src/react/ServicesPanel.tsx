@@ -201,11 +201,13 @@ const RecentCalls: FC<{
           data-testid="qadi-port-call"
         >
           <span>{describe(call)}</span>
-          {call.interpreter === "toPredicate" ? (
-            // Only the translation is labelled: an evaluation is the default
-            // reading, and an unrecorded interpreter is not guessed at.
+          {call.interpreter === "toPredicate" || call.interpreter === "remote" ? (
+            // Only the two that are not an evaluation are labelled: an
+            // evaluation is the default reading, and an unrecorded interpreter
+            // is not guessed at. `remote` is a read this host made to answer
+            // another process (ARCH-31).
             <span style={muted} data-testid="qadi-port-call-interpreter">
-              translation
+              {call.interpreter === "remote" ? "served" : "translation"}
             </span>
           ) : null}
           <span style={muted} data-testid="qadi-port-call-duration">

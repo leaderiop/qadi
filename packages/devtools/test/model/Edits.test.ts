@@ -6,17 +6,10 @@
  * runs, and that applying one changes exactly the thing it names.
  */
 import { assert, describe, it } from "@effect/vitest";
-import {
-  applyEdits,
-  composeEdits,
-  DEFAULT_MAX_PAIRS,
-  editParts,
-  pairEdits,
-  sameEdge,
-  sameEvent,
-  singleEdits,
-} from "../../src/index.ts";
-import type { SimulationEdit, SimulationInput } from "../../src/index.ts";
+import { DEFAULT_MAX_PAIRS, pairEdits, sameEdge, sameEvent, singleEdits } from "../../src/model/Edits.ts";
+import { applyEdits, composeEdits, editParts } from "../../src/model/SimulationEdit.ts";
+import type { SimulationEdit } from "../../src/model/SimulationEdit.ts";
+import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 
 /**
  * Two of everything, deliberately.

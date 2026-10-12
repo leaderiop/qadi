@@ -50,14 +50,8 @@ import {
 } from "@qadi/core";
 import type { Policy } from "@qadi/core";
 import { collectingTracer } from "@qadi/testing";
-import { collectPortCalls, DEFAULT_PORT_CALL_CAPACITY } from "../../src/index.ts";
-import type {
-  ActedCall,
-  AttributeCall,
-  CustomPredicateCall,
-  PortCall,
-  RelationshipCall,
-} from "../../src/index.ts";
+import { DEFAULT_PORT_CALL_CAPACITY, collectPortCalls } from "../../src/model/PortCalls.ts";
+import type { ActedCall, AttributeCall, CustomPredicateCall, PortCall, RelationshipCall } from "../../src/model/PortCalls.ts";
 
 const alice = makeSubject({ id: "alice", roles: ["editor"], permissions: [], attributes: {} });
 

@@ -12,7 +12,7 @@ it refuses to do that for an allow whose obligation nobody has discharged
 
 ## Which one to call
 
-<svg viewBox="0 0 680 280" width="100%" style="max-width: 680px" role="img" aria-label="Diagram: evaluate produces a Decision, which splits into six calls across two groups. Report — decide, check — never throws; a denial is carried in the Decision and an allow's obligation is the caller's to discharge. Enforce — assert, enforce, enforceProjected, filter — fails with AccessDenied on a denial and the wrapped effect never runs; on an allow the obligation is already discharged.">
+<svg viewBox="0 0 680 280" width="100%" style="max-width: 680px" role="img" aria-label="Diagram: evaluate produces a Decision, which splits into six calls across two groups. Report — decide, check — never throws; a denial is carried in the Decision and an allow's obligation is the caller's to discharge. Enforce — assert, enforce, enforceProjected, filter (and their loaded and projected siblings) — fails with AccessDenied on a denial and the wrapped effect never runs; on an allow the obligation is already discharged.">
   <defs>
     <marker id="enf-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--sl-color-gray-3)"/>
@@ -53,7 +53,10 @@ it refuses to do that for an allow whose obligation nobody has discharged
 | `assert` | You have no `Effect` to wrap — a standalone precondition before an otherwise-imperative block. | `void` | Fails with `AccessDenied` |
 | `enforce` | You have one `Effect` to guard, and its result should pass through unchanged. | `A`, the wrapped effect's own result | Fails with `AccessDenied`; the wrapped effect never runs |
 | `enforceProjected` | You have one `Effect` returning a record, and the caller on the other side should see only the fields the policy allows. | `Partial<A>` | Fails with `AccessDenied`; the wrapped effect never runs |
+| `enforceLoaded` | The policy reads the resource and one `Effect` loads it: the decision is taken on the record that is returned, which passes through whole. | `A`, the loaded value | Fails with `AccessDenied`; the loader has run, its value is never handed over |
+| `enforceProjectedLoaded` | As `enforceLoaded`, and the caller should see only the fields the policy allows. | `Partial<A>` | Fails with `AccessDenied`; the loader has run, its value is never handed over |
 | `filter` | You have a list of items to authorize one at a time, each as the evaluation's resource, and want back only the allowed ones. | `ReadonlyArray<A>` | Denied items are dropped, not surfaced individually |
+| `filterProjected` | As `filter`, and each admitted item comes back narrowed to the fields its own decision allows; `filter` returns items whole. | `ReadonlyArray<Partial<A>>` | Denied items are dropped, not surfaced individually |
 
 `decide` and `check` are the closest pair — both report, so the choice is just
 how much of the decision you need. Reach for `decide` by default, and drop to
@@ -63,6 +66,15 @@ through `check` is silently never discharged. `enforce` and `enforceProjected`
 are the other close pair — identical enforcement behavior, differing only in
 whether the wrapped effect's result is a record whose fields get filtered on
 the way out.
+
+When the policy reads the resource — `hasResourceAttribute`, `hasRelationship`, a
+custom predicate — use `enforceLoaded` or `enforceProjectedLoaded`. They run the
+effect first and decide against the value it produced, so what is decided and what
+is handed over are one record. `enforce` and `enforceProjected` decide before the
+effect runs and can see no resource; `enforceProjected` refuses `options.resource`
+for that reason. Because the loader runs before the decision, its side effects and
+failures are visible to a caller who is then denied; gate it first with
+`enforce(canReadAny)` when that matters.
 
 ```ts
 import * as Effect from "effect/Effect";

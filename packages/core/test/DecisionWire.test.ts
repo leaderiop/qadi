@@ -1,6 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Schema from "effect/Schema";
+import * as Result from "effect/Result";
 import { Allow, Deny } from "../src/Decision.ts";
+import type { AllowingTrace, DenyingTrace } from "../src/Decision.ts";
 import { decodeDecision, DecisionWire, encodeDecision } from "../src/DecisionWire.ts";
 import { makeSubjectId } from "../src/Identity.ts";
 import { UNTRUSTED_DECODE_OPTIONS } from "../src/Policy.ts";
@@ -13,23 +15,45 @@ const trace = (allowed: boolean) => ({
   obligations: [],
 });
 
+const allowingTrace = (
+  visibleFields: ReadonlyArray<string> | undefined,
+): AllowingTrace => ({
+  policyTag: "HasRole",
+  allowed: true,
+  children: [],
+  visibleFields,
+  obligations: [obligation("audit.log")],
+});
+
+const denyingTrace: DenyingTrace = {
+  policyTag: "HasRole",
+  allowed: false,
+  reason: "no",
+  children: [],
+  obligations: [],
+};
+
 const allow = (visibleFields: ReadonlyArray<string> | undefined) =>
   new Allow({
     evaluationId: "e1",
     subjectId: makeSubjectId("u1"),
     durationMillis: 4,
-    trace: trace(true),
-    visibleFields,
-    obligations: [obligation("audit.log")],
+    trace: allowingTrace(visibleFields),
   });
 
 const deny = new Deny({
   evaluationId: "e2",
   subjectId: makeSubjectId("u1"),
   durationMillis: 1,
-  trace: { ...trace(false), reason: "no" },
-  reason: "no",
+  trace: denyingTrace,
 });
+
+/** A decode that must succeed, as the decision it built. */
+const decoded = (...args: Parameters<typeof decodeDecision>) => {
+  const result = decodeDecision(...args);
+  assert.isTrue(Result.isSuccess(result));
+  return Result.isSuccess(result) ? result.success : undefined;
+};
 
 describe("encodeDecision", () => {
   it("omits visibleFields when they are undefined (INV-QD-004: top)", () => {
@@ -59,28 +83,46 @@ describe("encodeDecision", () => {
 describe("decodeDecision(encodeDecision(d))", () => {
   it("round-trips an Allow with every field visible", () => {
     const d = allow(undefined);
-    assert.deepStrictEqual(decodeDecision(encodeDecision(d)), d);
+    assert.deepStrictEqual(decoded(encodeDecision(d)), d);
   });
 
   it("round-trips an Allow with no field visible", () => {
     const d = allow([]);
-    assert.deepStrictEqual(decodeDecision(encodeDecision(d)), d);
+    assert.deepStrictEqual(decoded(encodeDecision(d)), d);
   });
 
   it("round-trips an Allow with some fields visible", () => {
     const d = allow(["id", "title"]);
-    assert.deepStrictEqual(decodeDecision(encodeDecision(d)), d);
+    assert.deepStrictEqual(decoded(encodeDecision(d)), d);
   });
 
   it("round-trips a Deny", () => {
-    assert.deepStrictEqual(decodeDecision(encodeDecision(deny)), deny);
+    assert.deepStrictEqual(decoded(encodeDecision(deny)), deny);
   });
 
   it("survives JSON and the schema", () => {
     const wire = Schema.decodeUnknownSync(DecisionWire)(
       JSON.parse(JSON.stringify(encodeDecision(deny))),
     );
-    assert.deepStrictEqual(decodeDecision(wire), deny);
+    assert.deepStrictEqual(decoded(wire), deny);
+  });
+});
+
+describe("decodeDecision refuses a wire decision that contradicts its trace (ARCH-32)", () => {
+  it("returns the disagreement, not a decision", () => {
+    const wire = encodeDecision(allow(["id"]));
+    assert.deepStrictEqual(
+      decodeDecision({ ...wire, trace: { ...wire.trace, allowed: false } }),
+      Result.fail("Verdict"),
+    );
+    const denyWire = encodeDecision(deny);
+    assert.strictEqual(denyWire._tag, "Deny");
+    if (denyWire._tag === "Deny") {
+      assert.deepStrictEqual(
+        decodeDecision({ ...denyWire, reason: "other" }),
+        Result.fail("Reason"),
+      );
+    }
   });
 });
 

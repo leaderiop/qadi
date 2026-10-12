@@ -116,7 +116,8 @@ export interface Question {
  * can change the answer.
  *
  * All five keys are always present (`undefined`, not absent), so two questions
- * built by different callers hash alike. The only place `maxDepth` defaults.
+ * built by different callers hash alike. The only place `maxDepth` defaults:
+ * `toPredicate` asks through it too (ARCH-41).
  */
 export const questionOf = (
   subject: AuthSubject,

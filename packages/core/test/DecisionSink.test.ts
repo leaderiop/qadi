@@ -561,6 +561,43 @@ describe("the obligation gate is recorded", () => {
       assert.strictEqual(events[0]?.evaluationId, sink.seen[0]?.evaluationId);
     }).pipe(Effect.provide(testLayer(allowed))));
 
+  it.effect("every outcome's record names who and what: subjectId, action, resourceId", () =>
+    Effect.gen(function* () {
+      for (const handler of [{ onObligations: () => Effect.void }, {}]) {
+        const sink = collecting();
+        yield* Effect.result(
+          enforce(audited, { resource: { id: "doc-1" }, action: "approve", ...handler })(
+            Effect.succeed(1),
+          ).pipe(Effect.provide(sink.layer)),
+        );
+        const event = obligationsOf(sink.all)[0];
+        assert.strictEqual(event?.subjectId, allowed.id);
+        assert.strictEqual(event?.action, "approve");
+        assert.strictEqual(event?.resourceId, "doc-1");
+      }
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("an allow with no resource or action leaves those keys absent, not undefined", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+      yield* enforce(audited, { onObligations: () => Effect.void })(Effect.succeed(1)).pipe(
+        Effect.provide(sink.layer),
+      );
+      const event = obligationsOf(sink.all)[0];
+      assert.strictEqual(event?.subjectId, allowed.id);
+      assert.isFalse(Object.hasOwn(event ?? {}, "action"));
+      assert.isFalse(Object.hasOwn(event ?? {}, "resourceId"));
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("a resource whose id is not a string leaves resourceId absent", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+      yield* enforce(audited, { resource: { id: 7 }, onObligations: () => Effect.void })(
+        Effect.succeed(1),
+      ).pipe(Effect.provide(sink.layer));
+      assert.isFalse(Object.hasOwn(obligationsOf(sink.all)[0] ?? {}, "resourceId"));
+    }).pipe(Effect.provide(testLayer(allowed))));
+
   it.effect("an undischarged binding obligation is recorded as Refused", () =>
     Effect.gen(function* () {
       const sink = collecting();

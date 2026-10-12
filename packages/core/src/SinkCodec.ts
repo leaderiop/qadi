@@ -53,10 +53,9 @@
  * strict decode apply unchanged. Forwarding and audit never see the envelope.
  */
 import * as Match from "effect/Match";
-import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
-import type { Trace } from "./Decision.ts";
+import type { DecisionDisagreement, Trace } from "./Decision.ts";
 import type { DecisionOutcome, SinkRecord, StoredRecord } from "./DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord, stampRecord } from "./DecisionRecord.ts";
 import { DecisionWire, decodeDecision, encodeDecision } from "./DecisionWire.ts";
@@ -74,10 +73,11 @@ import {
   SinkRecordNotDecodable,
   SinkRecordNotEncodable,
 } from "./Errors.ts";
-import { makeSubjectId } from "./Identity.ts";
+import { makeResourceId, makeSubjectId } from "./Identity.ts";
 import { MAX_DECODE_DEPTH, Policy, policyDepth, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
+import { wireHazard } from "./JsonHazard.ts";
 import { DecodeRefusal, EncodeRefusal, WIRE_VERSIONS } from "./SinkWire.ts";
-import type { OpaqueKind, WirePath, WireVersion } from "./SinkWire.ts";
+import type { WireVersion } from "./SinkWire.ts";
 
 /**
  * An `EvaluationError` on the wire — the union of the wire-crossing
@@ -155,6 +155,12 @@ const obligationsV2Fields = {
   at: Schema.Finite,
   outcome: Schema.Literals(["Discharged", "HandlerFailed", "Refused", "NotRequired"]),
   obligationIds: Schema.Array(Schema.String),
+  // Optional envelope keys, the first use of ADR-QD-096's rule for the future:
+  // a record written before they existed lacks them, and a reader that does not
+  // declare them drops them silently.
+  subjectId: Schema.optional(Schema.String),
+  action: Schema.optional(Schema.String),
+  resourceId: Schema.optional(Schema.String),
 };
 
 /**
@@ -201,6 +207,9 @@ const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>()
       at: record.at,
       outcome: record.outcome,
       obligationIds: record.obligationIds,
+      ...(record.subjectId === undefined ? {} : { subjectId: record.subjectId }),
+      ...(record.action === undefined ? {} : { action: record.action }),
+      ...(record.resourceId === undefined ? {} : { resourceId: record.resourceId }),
     }),
     Decision: (record) => ({
       _tag: "Decision" as const,
@@ -217,13 +226,39 @@ const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>()
   }),
 );
 
-/** A wire outcome as the record's own classes. */
-const rebuildOutcome: (outcome: OutcomeWire) => DecisionOutcome = Match.type<OutcomeWire>().pipe(
-  Match.tagsExhaustive({
-    Decided: (outcome) => new Decided({ decision: decodeDecision(outcome.decision) }),
-    Failed: (outcome) => new Failed({ error: outcome.error }),
-  }),
-);
+/** The record-level facts a decided outcome's decision must agree with. */
+interface RecordFacts {
+  readonly evaluationId: string;
+  readonly subjectId: string;
+  readonly policyTag: Policy["_tag"];
+}
+
+/**
+ * A wire outcome as the record's own classes, or how it contradicts itself.
+ *
+ * A decided outcome's decision repeats the record's `evaluationId` and
+ * `subjectId`, and its trace root names the record's policy; the three are
+ * compared before the decision is read, then {@link decodeDecision} checks the
+ * decision against its own trace (INV-QD-170). Both facts and checks are
+ * `Decision.ts`'s vocabulary ({@link DecisionDisagreement}); this is the one
+ * place the record wire raises the record-level three, so no adapter re-checks.
+ */
+const rebuildOutcome: (
+  outcome: OutcomeWire,
+) => (facts: RecordFacts) => Result.Result<DecisionOutcome, DecisionDisagreement> =
+  Match.type<OutcomeWire>().pipe(
+    Match.tagsExhaustive({
+      Decided: (outcome) => (facts: RecordFacts): Result.Result<DecisionOutcome, DecisionDisagreement> => {
+        const wire = outcome.decision;
+        if (wire.evaluationId !== facts.evaluationId) return Result.fail("EvaluationId");
+        if (wire.subjectId !== facts.subjectId) return Result.fail("SubjectId");
+        if (wire.trace.policyTag !== facts.policyTag) return Result.fail("PolicyTag");
+        return Result.map(decodeDecision(wire), (decision) => new Decided({ decision }));
+      },
+      Failed: (outcome) => (): Result.Result<DecisionOutcome, DecisionDisagreement> =>
+        Result.succeed(new Failed({ error: outcome.error })),
+    }),
+  );
 
 /**
  * Rebuilds a record from an already-validated version-2 wire value.
@@ -239,28 +274,44 @@ const rebuildOutcome: (outcome: OutcomeWire) => DecisionOutcome = Match.type<Out
  * for the reason {@link project} gives. The outcome is one tagged value and
  * `subjectId` is required, so there is no fallback arm.
  */
-const rebuild: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>().pipe(
-  Match.tagsExhaustive({
-    Obligations: (wire) =>
-      new ObligationRecord({
-        evaluationId: wire.evaluationId,
-        at: wire.at,
-        outcome: wire.outcome,
-        obligationIds: wire.obligationIds,
-      }),
-    Decision: (wire) =>
-      new DecisionRecord({
-        evaluationId: wire.evaluationId,
-        at: wire.at,
-        subjectId: makeSubjectId(wire.subjectId),
-        policy: wire.policy,
-        ...(wire.resource === undefined ? {} : { resource: wire.resource }),
-        ...(wire.action === undefined ? {} : { action: wire.action }),
-        ...(wire.cache === undefined ? {} : { cache: wire.cache }),
-        outcome: rebuildOutcome(wire.outcome),
-      }),
-  }),
-);
+const rebuild: (wire: SinkRecordWire) => Result.Result<SinkRecord, DecisionDisagreement> =
+  Match.type<SinkRecordWire>().pipe(
+    Match.tagsExhaustive({
+      Obligations: (wire) =>
+        Result.succeed(
+          new ObligationRecord({
+            evaluationId: wire.evaluationId,
+            at: wire.at,
+            outcome: wire.outcome,
+            obligationIds: wire.obligationIds,
+            ...(wire.subjectId === undefined ? {} : { subjectId: makeSubjectId(wire.subjectId) }),
+            ...(wire.action === undefined ? {} : { action: wire.action }),
+            ...(wire.resourceId === undefined
+              ? {}
+              : { resourceId: makeResourceId(wire.resourceId) }),
+          }),
+        ),
+      Decision: (wire) =>
+        Result.map(
+          rebuildOutcome(wire.outcome)({
+            evaluationId: wire.evaluationId,
+            subjectId: wire.subjectId,
+            policyTag: wire.policy._tag,
+          }),
+          (outcome) =>
+            new DecisionRecord({
+              evaluationId: wire.evaluationId,
+              at: wire.at,
+              subjectId: makeSubjectId(wire.subjectId),
+              policy: wire.policy,
+              ...(wire.resource === undefined ? {} : { resource: wire.resource }),
+              ...(wire.action === undefined ? {} : { action: wire.action }),
+              ...(wire.cache === undefined ? {} : { cache: wire.cache }),
+              outcome,
+            }),
+        ),
+    }),
+  );
 
 /**
  * The encoded form of a record — version-2 bytes: what {@link encodeSinkRecord}
@@ -280,140 +331,6 @@ const rebuild: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>
 export const SinkRecordJson = Schema.toEncoded(SinkRecordWire);
 
 export type SinkRecordJson = typeof SinkRecordJson.Type;
-
-/**
- * A container the walk has entered and not yet left: an array's items, or an
- * object's own enumerable string keys.
- */
-interface WalkFrame {
-  readonly container: object;
-  readonly items: ReadonlyArray<unknown> | undefined;
-  readonly keys: ReadonlyArray<string>;
-  readonly length: number;
-  readonly depth: number;
-  index: number;
-}
-
-/**
- * The `OpaqueKind` of each built-in brand JSON cannot carry. A lookup table
- * rather than a dispatch: any brand absent here (and not `Object`/`Array`) is
- * `"OtherBuiltIn"`. Binary data is recognised by `ArrayBuffer.isView` or its
- * buffer brands, since each typed array has a brand of its own.
- */
-const OPAQUE_KIND_BY_BRAND: ReadonlyMap<string, OpaqueKind> = new Map<string, OpaqueKind>([
-  ["Map", "Map"],
-  ["Set", "Set"],
-  ["WeakMap", "WeakMap"],
-  ["WeakSet", "WeakSet"],
-  ["RegExp", "RegExp"],
-  ["Promise", "Promise"],
-  ["Error", "Error"],
-  ["ArrayBuffer", "BinaryData"],
-  ["SharedArrayBuffer", "BinaryData"],
-  ["DataView", "BinaryData"],
-  ["Boolean", "BoxedPrimitive"],
-  ["Number", "BoxedPrimitive"],
-  ["String", "BoxedPrimitive"],
-]);
-
-/** `"Set"` for a `Set`: the `Object.prototype.toString` brand, unwrapped. */
-const brandOf = (value: object): string => Object.prototype.toString.call(value).slice(8, -1);
-
-const opaqueKindOf = (value: object, brand: string): OpaqueKind =>
-  ArrayBuffer.isView(value) ? "BinaryData" : (OPAQUE_KIND_BY_BRAND.get(brand) ?? "OtherBuiltIn");
-
-const hasCustomToJSON = (value: object): boolean =>
-  Predicate.hasProperty(value, "toJSON") && typeof value.toJSON === "function";
-
-const hasEnumerableSymbolKey = (value: object): boolean =>
-  Object.getOwnPropertySymbols(value).some((key) => Object.prototype.propertyIsEnumerable.call(value, key));
-
-/** A plain object — `Object.prototype` or no prototype — needs no brand lookup. */
-const isPlainObject = (value: object): boolean => {
-  const proto: unknown = Object.getPrototypeOf(value);
-  return proto === Object.prototype || proto === null;
-};
-
-const NO_KEYS: ReadonlyArray<string> = [];
-
-/**
- * The first value in an encoded record that would not survive JSON as itself,
- * or `undefined` when the whole value round-trips.
- *
- * One iterative walk with one mutable on-path set, the technique the retired `isJsonSafe`
- * used, over the *encoded* output — so it cannot miss a field the way per-field
- * guards did: whatever the encode emitted is what it checks. Its depth count
- * matches `exceedsJsonDepth`'s (the root is depth 0, each child one more, and
- * any value deeper than `maxDepth` is refused), so it refuses exactly what a
- * receiver's depth guard would.
- *
- * An `undefined` object property is absence, not a hazard: JSON drops the key
- * and decode reads it as absent, and `Schema`'s own encoded output carries such
- * keys for unset optional fields. An `undefined` array element is refused,
- * because JSON writes it as `null`. A valid `Date` is accepted and crosses as
- * its ISO string, a named normalisation. The path is rebuilt from the stack
- * only when a hazard is found, so the accepting walk allocates no paths.
- */
-const wireHazard = (root: unknown, maxDepth: number): EncodeRefusal | undefined => {
-  const onPath = new Set<object>();
-  const stack: Array<WalkFrame> = [];
-  const pathHere = (): WirePath =>
-    stack.map((frame) => (frame.items === undefined ? (frame.keys[frame.index - 1] ?? "") : frame.index - 1));
-
-  const visit = (value: unknown, depth: number, isElement: boolean): EncodeRefusal | undefined => {
-    if (value === undefined) {
-      return isElement ? EncodeRefusal.Unrepresentable({ path: pathHere(), kind: "undefined-element" }) : undefined;
-    }
-    if (depth > maxDepth) return EncodeRefusal.TooDeep({ path: pathHere(), maxDepth });
-    if (value === null || typeof value === "string" || typeof value === "boolean") return undefined;
-    if (typeof value === "number") {
-      return Number.isFinite(value) ? undefined : EncodeRefusal.NonFinite({ path: pathHere() });
-    }
-    if (typeof value === "function") return EncodeRefusal.Unrepresentable({ path: pathHere(), kind: "function" });
-    if (typeof value === "symbol") return EncodeRefusal.Unrepresentable({ path: pathHere(), kind: "symbol" });
-    if (typeof value === "bigint") return EncodeRefusal.Unrepresentable({ path: pathHere(), kind: "bigint" });
-    if (value instanceof Date) {
-      return Number.isNaN(value.getTime()) ? EncodeRefusal.NonFinite({ path: pathHere() }) : undefined;
-    }
-    if (onPath.has(value)) return EncodeRefusal.Circular({ path: pathHere() });
-    if (Array.isArray(value)) {
-      onPath.add(value);
-      stack.push({ container: value, items: value, keys: NO_KEYS, length: value.length, depth, index: 0 });
-      return undefined;
-    }
-    if (hasCustomToJSON(value)) {
-      return EncodeRefusal.Opaque({ path: pathHere(), kind: "CustomToJSON", brand: brandOf(value) });
-    }
-    if (!isPlainObject(value)) {
-      const brand = brandOf(value);
-      if (brand !== "Object") return EncodeRefusal.Opaque({ path: pathHere(), kind: opaqueKindOf(value, brand), brand });
-    }
-    if (hasEnumerableSymbolKey(value)) return EncodeRefusal.Unrepresentable({ path: pathHere(), kind: "symbol" });
-    const keys = Object.keys(value);
-    onPath.add(value);
-    stack.push({ container: value, items: undefined, keys, length: keys.length, depth, index: 0 });
-    return undefined;
-  };
-
-  const atRoot = visit(root, 0, false);
-  if (atRoot !== undefined) return atRoot;
-  while (stack.length > 0) {
-    const frame = stack[stack.length - 1];
-    if (frame === undefined) break;
-    if (frame.index >= frame.length) {
-      onPath.delete(frame.container);
-      stack.pop();
-      continue;
-    }
-    const index = frame.index;
-    frame.index += 1;
-    const child: unknown =
-      frame.items === undefined ? Reflect.get(frame.container, frame.keys[index] ?? "") : frame.items[index];
-    const refusal = visit(child, frame.depth + 1, frame.items !== undefined);
-    if (refusal !== undefined) return refusal;
-  }
-  return undefined;
-};
 
 /**
  * `true` once a trace nests deeper than `maxDepth` nodes. Iterative, and
@@ -552,11 +469,19 @@ const envelopeOf = (input: object): unknown => {
   return Object.fromEntries(Object.entries(input).filter(([key]) => keys.has(key)));
 };
 
-/** A decode's result as a record, or `Malformed` with the schema's message. */
+/**
+ * A decode's result as a record, `Malformed` with the schema's message, or
+ * `Inconsistent` when the record's copies disagree.
+ */
 const decoded = (
   wire: Result.Result<SinkRecordWire, { readonly message: string }>,
-): Result.Result<SinkRecord, SinkRecordNotDecodable> =>
-  Result.isFailure(wire) ? malformed(wire.failure) : Result.succeed(rebuild(wire.success));
+): Result.Result<SinkRecord, SinkRecordNotDecodable> => {
+  if (Result.isFailure(wire)) return malformed(wire.failure);
+  const record = rebuild(wire.success);
+  return Result.isFailure(record)
+    ? notDecodable(DecodeRefusal.Inconsistent({ disagreement: record.failure }))
+    : Result.succeed(record.success);
+};
 
 /** The version this reader reads, as a value to compare a record's `version` with. */
 const WIRE_VERSION: WireVersion = 2;

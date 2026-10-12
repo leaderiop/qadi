@@ -34,19 +34,14 @@ import {
 } from "@qadi/core";
 import type { DecisionOutcome } from "@qadi/core";
 import { collectingTracer } from "@qadi/testing";
-import {
-  changedRows,
-  compareOutcomes,
-  flattenTree,
-  inspect,
-  isChanged,
-  live,
-  simulate,
-  sweepPlan,
-  verdictOfOutcome,
-  whatIf,
-} from "../../src/index.ts";
-import type { Comparison, SimulationEdit, SimulationInput, WhatIfRow } from "../../src/index.ts";
+import { flattenTree, inspect } from "../../src/model/Inspect.ts";
+import { simulate } from "../../src/model/Simulation.ts";
+import type { SimulationEdit } from "../../src/model/SimulationEdit.ts";
+import type { SimulationInput } from "../../src/model/SimulationInput.ts";
+import { live } from "../../src/model/SimulationSource.ts";
+import { verdictOfOutcome } from "../../src/model/Verdict.ts";
+import { changedRows, compareOutcomes, isChanged, sweepPlan, whatIf } from "../../src/model/WhatIf.ts";
+import type { Comparison, WhatIfRow } from "../../src/model/WhatIf.ts";
 import { chain } from "../helpers.ts";
 
 const read = permission("doc", "read");

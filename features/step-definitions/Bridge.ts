@@ -10,9 +10,10 @@ import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import {
-  customPredicateFromRecord,
+  resourceIdOf,
   decideSubjects,
   enforce,
+  enforceProjectedLoaded,
   evaluate,
   evaluatePredicate,
   explain,
@@ -29,7 +30,7 @@ import {
   decisionHistoryPort,
   attributeResolverPort,
 } from "@qadi/core";
-import type { EvaluateOptions, Obligation, Policy } from "@qadi/core";
+import type { EvaluateOptions, ObligationDischarge, Policy } from "@qadi/core";
 import { qadiReviewLayer, qadiTestLayer } from "@qadi/testing";
 import { NO_OUTCOME, subjectOf, toOutcome, World } from "./SharedWorld.ts";
 
@@ -58,32 +59,27 @@ export const run = Effect.fn("features.run")(function* (policy: Policy) {
   const result = yield* evaluate(policy, options).pipe(
     Effect.provide(
       qadiTestLayer(subjectOf(w), {
-        attributes: w.resolvedAttributes,
-        ...(w.relationships === undefined ? {} : { relationships: w.relationships }),
-        // A store that is *down* and a port that is *unwired* are different
-        // answers, and only one of them is a denial.
-        ...(w.historyUnreachable || w.events === undefined ? {} : { history: w.events }),
+        // Each port is set up one way. A key left out keeps the port's own
+        // fail-closed default: nothing registered for `CustomPredicate`, so
+        // every name denies; no signatures on file for `SignatureHistory`, so
+        // every hasSignature node denies.
         ports: {
-          ...(w.historyUnreachable ? { DecisionHistory: unreachableHistory } : {}),
-          // `undefined` leaves `qadiTestLayer`'s own `CustomPredicateNone`
-          // default in place — nothing registered, so every name denies.
+          AttributeResolver: { answers: w.resolvedAttributes },
+          ...(w.relationships === undefined
+            ? {}
+            : { RelationshipResolver: { answers: w.relationships } }),
+          // A store that is *down* and a port that is *unwired* are different
+          // answers, and only one of them is a denial.
+          ...(w.historyUnreachable
+            ? { DecisionHistory: { layer: unreachableHistory } }
+            : w.events === undefined
+              ? {}
+              : { DecisionHistory: { answers: w.events } }),
           ...(w.customPredicates === undefined
             ? {}
-            : {
-                CustomPredicate: customPredicateFromRecord(
-                  Object.fromEntries(
-                    Object.entries(w.customPredicates).map(([name, answer]) => [
-                      name,
-                      () => Effect.succeed(answer),
-                    ]),
-                  ),
-                ),
-              }),
+            : { CustomPredicate: { answers: w.customPredicates } }),
+          ...(w.signatures === undefined ? {} : { SignatureHistory: { answers: w.signatures } }),
         },
-        // `undefined` leaves `qadiTestLayer`'s own `SignatureHistoryNone`
-        // default in place — no signatures on file, so every hasSignature
-        // node denies.
-        ...(w.signatures === undefined ? {} : { signatures: w.signatures }),
       }),
     ),
     Effect.result,
@@ -106,11 +102,21 @@ export const runGuarded = Effect.fn("features.runGuarded")(function* (policy: Po
 
   const work = Ref.update(state, (s) => ({ ...s, workRan: true }));
 
-  const handler = (obligations: ReadonlyArray<Obligation>) =>
-    Ref.update(state, (s) => ({ ...s, discharged: [...s.discharged, ...obligations.map((o) => o.id)] }));
+  const handler = ({ question, decision }: ObligationDischarge) =>
+    Ref.update(state, (s) => ({
+      ...s,
+      discharged: [...s.discharged, ...decision.obligations.map((o) => o.id)],
+      dischargedFor: [...s.dischargedFor, resourceIdOf(question.resource)],
+    }));
 
+  // Keys omitted rather than undefined, as in `run`: a scenario that names no
+  // resource or action enforces exactly as it did before either was passed.
   const result = yield* work.pipe(
-    enforce(policy, w.handlesObligations ? { onObligations: handler } : {}),
+    enforce(policy, {
+      ...(w.resource === undefined ? {} : { resource: w.resource }),
+      ...(w.action === undefined ? {} : { action: w.action }),
+      ...(w.handlesObligations ? { onObligations: handler } : {}),
+    }),
     Effect.provide(qadiTestLayer(subjectOf(w), {})),
     Effect.result,
   );
@@ -118,6 +124,35 @@ export const runGuarded = Effect.fn("features.runGuarded")(function* (policy: Po
   const outcome = Result.isFailure(result)
     ? { ...NO_OUTCOME, errored: true, failure: result.failure._tag }
     : { ...NO_OUTCOME, allowed: true };
+  yield* Ref.update(state, (s) => ({ ...s, outcome }));
+});
+
+/**
+ * Runs a policy as a projected read of a record the effect itself produces,
+ * recording what came back.
+ *
+ * The decision is taken against the loaded record (BEH-QD-324), so a policy that
+ * reads the resource needs no second copy of it. The projected record's keys
+ * are recorded as the visible fields; a denial is recorded as one.
+ */
+export const runProjectedLoaded = Effect.fn("features.runProjectedLoaded")(function* (
+  policy: Policy,
+  record: Record<string, unknown>,
+) {
+  const { state } = yield* World;
+  const w = yield* Ref.get(state);
+
+  const result = yield* Effect.succeed(record).pipe(
+    enforceProjectedLoaded(policy),
+    Effect.provide(qadiTestLayer(subjectOf(w), {})),
+    Effect.result,
+  );
+
+  const outcome = Result.isFailure(result)
+    ? result.failure._tag === "AccessDenied"
+      ? { ...NO_OUTCOME, denied: true, failure: result.failure._tag }
+      : { ...NO_OUTCOME, errored: true, failure: result.failure._tag }
+    : { ...NO_OUTCOME, allowed: true, visibleFields: Object.keys(result.success) };
   yield* Ref.update(state, (s) => ({ ...s, outcome }));
 });
 
@@ -140,8 +175,8 @@ export const runSubjectSet = Effect.fn("features.runSubjectSet")(function* (poli
   // Keyed by subject id, not by a flat table like `attributeResolverFromRecord`'s,
   // so `w.brokenCandidates` can single out one candidate's lookup — the
   // flaky-resolver scenario `decideSubjects`/`filterSubjects` now survive
-  // (issue #107). Behaves exactly like `qadiReviewLayer({ attributes:
-  // w.resolvedAttributes })` when `brokenCandidates` is empty, which every
+  // (issue #107). Behaves exactly like `qadiReviewLayer({ ports: {
+  // AttributeResolver: { answers: w.resolvedAttributes } } })` when `brokenCandidates` is empty, which every
   // scenario before this one is.
   const attributeResolver = scriptedPort(attributeResolverPort, (candidateId, attribute) =>
     w.brokenCandidates.includes(candidateId)
@@ -155,7 +190,7 @@ export const runSubjectSet = Effect.fn("features.runSubjectSet")(function* (poli
   const [reviewed, kept] = yield* Effect.all([
     decideSubjects(policy, subjects, options),
     filterSubjects(policy, subjects, options),
-  ]).pipe(Effect.provide(qadiReviewLayer({ ports: { AttributeResolver: attributeResolver } })));
+  ]).pipe(Effect.provide(qadiReviewLayer({ ports: { AttributeResolver: { layer: attributeResolver } } })));
 
   const review = reviewed.decisions.map(({ subject, decision }) => ({
     id: subject.id,
@@ -193,7 +228,7 @@ export const runSubjectSetStream = Effect.fn("features.runSubjectSetStream")(fun
 
   const outcomes = yield* Stream.runCollect(
     filterSubjectsStream(policy, Stream.fromIterable(subjects), options),
-  ).pipe(Effect.provide(qadiReviewLayer({ ports: { AttributeResolver: attributeResolver } })));
+  ).pipe(Effect.provide(qadiReviewLayer({ ports: { AttributeResolver: { layer: attributeResolver } } })));
 
   const answer = outcomes.filter((o) => o._tag === "SubjectAllowed").map((o) => o.subject.id);
   const failedCandidates = outcomes.filter((o) => o._tag === "SubjectFailed").map((o) => o.subject.id);
@@ -221,8 +256,12 @@ export const compile = Effect.fn("features.compile")(function* (policy: Policy) 
   const result = yield* toPredicate(policy).pipe(
     Effect.provide(
       qadiTestLayer(subjectOf(w), {
-        attributes: w.resolvedAttributes,
-        ...(w.attributeFault === "none" ? {} : { ports: { AttributeResolver: faulted.layer } }),
+        ports: {
+          AttributeResolver:
+            w.attributeFault === "none"
+              ? { answers: w.resolvedAttributes }
+              : { layer: faulted.layer },
+        },
       }),
     ),
     Effect.result,
@@ -260,7 +299,7 @@ export const agreesWith = Effect.fn("features.agreesWith")(function* (
 
   for (const row of rows) {
     const decision = yield* evaluate(policy, { resource: row }).pipe(
-      Effect.provide(qadiTestLayer(subjectOf(w), { attributes: w.resolvedAttributes })),
+      Effect.provide(qadiTestLayer(subjectOf(w), { ports: { AttributeResolver: { answers: w.resolvedAttributes } } })),
     );
     if (evaluatePredicate(compiled, row) !== isAllowed(decision)) return false;
   }

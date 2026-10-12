@@ -20,6 +20,7 @@ import {
 import {
   DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS,
   makeDiagnosticsStore,
+  mergeReading,
   noDiagnostics,
   runDiagnostics,
   WiringRead,
@@ -296,4 +297,95 @@ describe("runDiagnostics", () => {
       yield* Fiber.interrupt(fiber);
     }),
   );
+});
+
+describe("mergeReading", () => {
+  const sampledWiring = WiringRead.Read({ report: { ports: [], cache: { present: true, size: 1 } } });
+  const sampledActivity = [
+    { port: "AttributeResolver", calls: 1, retries: 0, timeouts: 0, translationCalls: 0 },
+  ] as const;
+  const sampledHydration = { dehydrated: 0, seeded: 1, rechecked: 0, mismatched: 0, drops: [] };
+  const sampledCalls: PortCallLog = { calls: [], dropped: 0, capacity: 1 };
+  const sampledQuestions = [{ policy: hasRole("Reader") }];
+
+  const sampled: Diagnostics = {
+    wiring: sampledWiring,
+    activity: sampledActivity,
+    hydration: sampledHydration,
+    portCalls: sampledCalls,
+    questions: sampledQuestions,
+  };
+
+  const suppliedWiring = WiringRead.Failed({ reason: "from the server" });
+  const suppliedActivity = [
+    { port: "AttributeResolver", calls: 42, retries: 0, timeouts: 0, translationCalls: 0 },
+  ] as const;
+  const suppliedHydration = { dehydrated: 0, seeded: 7, rechecked: 0, mismatched: 0, drops: [] };
+  const suppliedCalls: PortCallLog = { calls: [], dropped: 3, capacity: 9 };
+  const suppliedQuestions = [{ policy: hasRole("Editor") }];
+
+  it("returns the sampled reading itself when nothing is supplied", () => {
+    assert.strictEqual(mergeReading(sampled, undefined), sampled);
+  });
+
+  it("an empty reading changes nothing, field by field", () => {
+    assert.deepStrictEqual(mergeReading(sampled, {}), sampled);
+  });
+
+  it("a supplied wiring wins, and can state a failed read", () => {
+    assert.strictEqual(mergeReading(sampled, { wiring: suppliedWiring }).wiring, suppliedWiring);
+  });
+  it("an absent wiring falls through to the sample", () => {
+    assert.strictEqual(mergeReading(sampled, { activity: suppliedActivity }).wiring, sampledWiring);
+  });
+
+  it("a supplied activity wins, an explicit empty list included", () => {
+    assert.strictEqual(
+      mergeReading(sampled, { activity: suppliedActivity }).activity,
+      suppliedActivity,
+    );
+    assert.deepStrictEqual(mergeReading(sampled, { activity: [] }).activity, []);
+  });
+  it("an absent activity falls through to the sample", () => {
+    assert.strictEqual(mergeReading(sampled, { wiring: suppliedWiring }).activity, sampledActivity);
+  });
+
+  it("supplied hydration wins", () => {
+    assert.strictEqual(
+      mergeReading(sampled, { hydration: suppliedHydration }).hydration,
+      suppliedHydration,
+    );
+  });
+  it("absent hydration falls through to the sample", () => {
+    assert.strictEqual(mergeReading(sampled, { wiring: suppliedWiring }).hydration, sampledHydration);
+  });
+
+  it("supplied port calls win", () => {
+    assert.strictEqual(
+      mergeReading(sampled, { portCalls: suppliedCalls }).portCalls,
+      suppliedCalls,
+    );
+  });
+  it("absent port calls fall through to the sample", () => {
+    assert.strictEqual(mergeReading(sampled, { wiring: suppliedWiring }).portCalls, sampledCalls);
+  });
+
+  it("supplied questions win", () => {
+    assert.strictEqual(
+      mergeReading(sampled, { questions: suppliedQuestions }).questions,
+      suppliedQuestions,
+    );
+  });
+  it("absent questions fall through to the sample", () => {
+    assert.strictEqual(
+      mergeReading(sampled, { wiring: suppliedWiring }).questions,
+      sampledQuestions,
+    );
+  });
+
+  it("supplies a field before the first sample has anything", () => {
+    const merged = mergeReading(noDiagnostics, { hydration: suppliedHydration });
+    assert.strictEqual(merged.hydration, suppliedHydration);
+    assert.strictEqual(merged.wiring, noDiagnostics.wiring);
+  });
 });

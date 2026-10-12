@@ -51,16 +51,11 @@ export type Answer<A> =
  * (`@qadi/core`'s `PortDescription`), so the capture and the replay agree
  * about a key by construction rather than by calling the same hand-written
  * function from both sides — and so a port added to `@qadi/core`'s registry
- * is captured and replayed with no edit here. Every key includes the
- * **subject**, the axis a what-if sweep varies: a capture taken for `alice`
- * must not answer a question asked about `bob` after her `editor` role was
- * dropped. A relationship is keyed by `(subjectId, relation, resourceId)`,
- * never by relation alone; history by `(subjectId, event, resourceId?)` so
- * "ever, at all" stays distinct; a custom predicate by
- * `(subjectId, name, params)` — not by the resource, which is arbitrary
- * caller data, so a capture taken against more than one resource per triple
- * would collapse onto one answer (a simulation fixes one resource for its
- * duration, so this does not arise in practice).
+ * is captured and replayed with no edit here. Every key is injective over
+ * the request the port received (ADR-QD-094), so a capture taken for `alice`
+ * does not answer a question asked about `bob`, nor about `alice` after her
+ * `editor` role was dropped, nor about another resource or relationship depth
+ * — the axes a what-if sweep and a session edit vary.
  */
 export type CapturedAnswers = {
   readonly [K in PortName]: ReadonlyMap<string, Answer<AnswerOf<PortTypes[K]>>>;

@@ -15,6 +15,7 @@ import {
   Deny,
   Failed,
   hasPermission,
+  makeResourceId,
   makeSubjectId,
   MissingResource,
   ObligationRecord,
@@ -22,25 +23,26 @@ import {
   stampRecord,
 } from "@qadi/core";
 import type {
+  AllowingTrace,
+  DenyingTrace,
   EvaluationError,
   ObligationOutcome,
   Policy,
   StoredRecord,
-  Trace,
 } from "@qadi/core";
 
 export const read = permission("doc", "read");
 export const readPolicy: Policy = hasPermission(read);
 
 /** A minimal allowing trace for the policy above. */
-export const allowTrace: Trace = {
+export const allowTrace: AllowingTrace = {
   policyTag: "HasPermission",
   allowed: true,
   children: [],
   obligations: [],
 };
 
-export const denyTrace: Trace = {
+export const denyTrace: DenyingTrace = {
   policyTag: "HasPermission",
   allowed: false,
   reason: "the subject does not hold doc:read",
@@ -52,7 +54,7 @@ export const allow = (options?: {
   readonly evaluationId?: string;
   readonly subjectId?: string;
   readonly durationMillis?: number;
-  readonly trace?: Trace;
+  readonly trace?: AllowingTrace;
   readonly visibleFields?: ReadonlyArray<string> | undefined;
   readonly obligations?: ReadonlyArray<Allow["obligations"][number]>;
 }): Allow =>
@@ -60,23 +62,30 @@ export const allow = (options?: {
     evaluationId: options?.evaluationId ?? "ev-1",
     subjectId: makeSubjectId(options?.subjectId ?? "alice"),
     durationMillis: options?.durationMillis ?? 1,
-    trace: options?.trace ?? allowTrace,
-    visibleFields: options?.visibleFields,
-    obligations: options?.obligations ?? [],
+    trace: {
+      ...(options?.trace ?? allowTrace),
+      // The decision reads both from its trace, so an override goes into the trace.
+      ...(options !== undefined && Object.hasOwn(options, "visibleFields")
+        ? { visibleFields: options.visibleFields }
+        : {}),
+      ...(options?.obligations === undefined ? {} : { obligations: options.obligations }),
+    },
   });
 
 export const deny = (options?: {
   readonly evaluationId?: string;
   readonly subjectId?: string;
   readonly reason?: string;
-  readonly trace?: Trace;
+  readonly trace?: DenyingTrace;
 }): Deny =>
   new Deny({
     evaluationId: options?.evaluationId ?? "ev-1",
     subjectId: makeSubjectId(options?.subjectId ?? "alice"),
     durationMillis: 1,
-    trace: options?.trace ?? denyTrace,
-    reason: options?.reason ?? "the subject does not hold doc:read",
+    trace: {
+      ...(options?.trace ?? denyTrace),
+      ...(options?.reason === undefined ? {} : { reason: options.reason }),
+    },
   });
 
 /** A `Decision` record, stamped. The workhorse of these tests. */
@@ -130,6 +139,9 @@ export const obligationRecord = (options?: {
   readonly environment?: string;
   readonly outcome?: ObligationOutcome;
   readonly obligationIds?: ReadonlyArray<string>;
+  readonly subjectId?: string;
+  readonly action?: string;
+  readonly resourceId?: string;
 }): StoredRecord =>
   stampRecord(
     new ObligationRecord({
@@ -137,6 +149,9 @@ export const obligationRecord = (options?: {
       at: options?.at ?? 1_001,
       outcome: options?.outcome ?? "Discharged",
       obligationIds: options?.obligationIds ?? ["audit"],
+      ...(options?.subjectId === undefined ? {} : { subjectId: makeSubjectId(options.subjectId) }),
+      ...(options?.action === undefined ? {} : { action: options.action }),
+      ...(options?.resourceId === undefined ? {} : { resourceId: makeResourceId(options.resourceId) }),
     }),
     options?.environment ?? "Server",
   );

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-053                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-07                                     |
-> | Status         | Accepted — amended by ADR-QD-080, ADR-QD-093, ADR-QD-103 |
+> | Status         | Accepted — amended by ADR-QD-080, ADR-QD-093, ADR-QD-103; amended 2026-10-08 (the devtools feed) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-10-07): `GateKind` gains `usePolicies` and `useQuestions`; a hook asking several questions registers one instance per question (ADR-QD-103, CCR-QD-201)<br>1.2 (2026-10-05): `GateRenderState` is derived from `DecisionOutcome`'s tag, not restated; amended by ADR-QD-093 (CCR-QD-175)<br>1.1 (2026-10-04): the registry is no longer module-scope; amended by ADR-QD-080 (CCR-QD-160)<br>1.0 (2026-08-24): Initial release (CCR-QD-073) |
+> | Change History | 1.4 (2026-10-08): amendment — `@qadi/react` produces the devtools feed, built runtime included; devtools still consumes it structurally (BEH-QD-327, CCR-QD-240)<br>1.3 (2026-10-07): `GateKind` gains `usePolicies` and `useQuestions`; a hook asking several questions registers one instance per question (ADR-QD-103, CCR-QD-201)<br>1.2 (2026-10-05): `GateRenderState` is derived from `DecisionOutcome`'s tag, not restated; amended by ADR-QD-093 (CCR-QD-175)<br>1.1 (2026-10-04): the registry is no longer module-scope; amended by ADR-QD-080 (CCR-QD-160)<br>1.0 (2026-08-24): Initial release (CCR-QD-073) |
 
 ---
 
@@ -204,3 +204,22 @@ evidence, and the first draft of `gateIdAt` had already made the mistake.
 > question**, each `id` being the hook's `useId`, a `/`, and the entry's name. `GateInstance`'s
 > shape is unchanged, so `@qadi/devtools` needs no change: it already reads `kind` as a string
 > and shows an unknown one as itself.
+
+> **Amended 2026-10-08 (CCR-QD-240): `@qadi/react` produces the devtools feed.** The
+> producer/consumer split this ADR drew for gates now covers the rest of what a panel
+> reads off an atom set. `useDevtoolsFeed(extra)` returns `gates` (the provider's
+> effective registry, read through `useGateInstances`), `onInvalidate`, and a
+> `diagnostics` whose `layer` is the registry's own built runtime context and whose
+> `questions` is `atoms.asked`; `runtimeLayer(atoms, registry)` is the headless
+> function under it ([BEH-QD-327](../behaviors/09-react.md#beh-qd-327-a-devtools-feed-reads-the-providers-own-runtime)).
+> The context is the one the decisions evaluate in, so no stateful service is built
+> twice: the dock's wiring read used to build the application layer in a memo map of
+> its own and report an empty cache ([ADR-QD-047](./047-a-headless-devtools-model.md),
+> CCR-QD-200). Nothing else moves. The feed reads no decision (it uses
+> `AtomRegistry.getResult`, an Effect) and writes no gate, `instrument` still decides
+> whether any gate exists, and `@qadi/devtools` takes all of it structurally with no
+> dependency on `@qadi/react`, because `DiagnosticsDockOptions.layer` is a
+> `Layer<never, unknown>` and `GateInstanceLike` and `AskedQuestionLike` are
+> structural. Devtools gained no API: a second `context` input beside `layer` was
+> rejected as two inputs that can disagree, and would have needed a raw `AsyncResult`
+> read in `@qadi/react`, which `DECISION_READ_BUDGET` refuses.

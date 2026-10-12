@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-27                                    |
-> | Revision       | 1.8                                            |
-> | Effective Date | 2026-10-06                                     |
+> | Revision       | 1.10                                           |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.8 (2026-10-07): BEH-QD-208 — the alignment is core's (`foldAligned`, INV-QD-103) and the devtools `TreeFold.ts` twin is deleted; `describeTracePath` words a path for a screen; the stale `dehydrateDecisions` clause is corrected (ADR-QD-101, CCR-QD-191)<br>1.7 (2026-10-06): BEH-QD-208 — a node whose `fieldStrategy` or `combining` is outside its closed union shows the value verbatim and says it is evaluated fail-closed (ADR-QD-092 amendment, CCR-QD-183)<br>1.6 (2026-10-06): BEH-QD-203 — an absent backlog is a prelude that did not arrive in time, not an older server, and the reader stamps nothing (`legacyEnvironment` removed); BEH-QD-204 — version 2 is the one version a frame decodes from, a pre-0.10 record is `"unsupported-version"` and a bare frame `"not-a-record"` (ADR-QD-096/097 amendments, CCR-QD-182)<br>1.5 (2026-10-05): ARCH-11 — BEH-QD-203's `Source` is one scoped `read` returning `SourceRead`, and its third requirement is replaced (the environment is stamped once, by the producing log, and carried on the wire); BEH-QD-235's backlog requirements name `SourceRead.backlog` and `storedRecordOrder`; BEH-QD-204 reads the envelope; BEH-QD-205's capacity is `DEFAULT_LOG_CAPACITY` (ADR-QD-097, CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"unsupported-version"`, and a frame of either wire version decodes (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"too-deep"`, read from `decodeSinkRecordString`'s `DecodeRefusal` (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.10 (2026-10-08): BEH-QD-204 — `onMalformed` also distinguishes `"inconsistent"`, a record that contradicts its own trace or envelope (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.9 (2026-10-08): BEH-QD-209 — an orphan shows its subject, action and resource id when the record carries them, and its filter text includes them; the handler wording follows `ObligationDischarge` (ADR-QD-105, CCR-QD-220)<br>1.8 (2026-10-07): BEH-QD-208 — the alignment is core's (`foldAligned`, INV-QD-103) and the devtools `TreeFold.ts` twin is deleted; `describeTracePath` words a path for a screen; the stale `dehydrateDecisions` clause is corrected (ADR-QD-101, CCR-QD-191)<br>1.7 (2026-10-06): BEH-QD-208 — a node whose `fieldStrategy` or `combining` is outside its closed union shows the value verbatim and says it is evaluated fail-closed (ADR-QD-092 amendment, CCR-QD-183)<br>1.6 (2026-10-06): BEH-QD-203 — an absent backlog is a prelude that did not arrive in time, not an older server, and the reader stamps nothing (`legacyEnvironment` removed); BEH-QD-204 — version 2 is the one version a frame decodes from, a pre-0.10 record is `"unsupported-version"` and a bare frame `"not-a-record"` (ADR-QD-096/097 amendments, CCR-QD-182)<br>1.5 (2026-10-05): ARCH-11 — BEH-QD-203's `Source` is one scoped `read` returning `SourceRead`, and its third requirement is replaced (the environment is stamped once, by the producing log, and carried on the wire); BEH-QD-235's backlog requirements name `SourceRead.backlog` and `storedRecordOrder`; BEH-QD-204 reads the envelope; BEH-QD-205's capacity is `DEFAULT_LOG_CAPACITY` (ADR-QD-097, CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"unsupported-version"`, and a frame of either wire version decodes (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"too-deep"`, read from `decodeSinkRecordString`'s `DecodeRefusal` (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 _Previous: [26 — The Decision Stream](./26-decision-stream.md)_
 
@@ -163,7 +163,7 @@ panel that dies on a bad frame fails exactly when it is needed.
 
 ```
 REQUIREMENT: `onMalformed` MUST distinguish `"not-json"`, `"too-deep"`,
-             `"not-a-record"` and `"unsupported-version"`.
+             `"not-a-record"`, `"unsupported-version"` and `"inconsistent"`.
 REQUIREMENT: A frame whose record is wire version 2 MUST decode; a record of
              any other version, or none, MUST be reported as
              `"unsupported-version"`, and a bare record as `"not-a-record"`.
@@ -191,7 +191,13 @@ this panel's `@qadi/core` does not read
 a newer `version`, fixed by upgrading the panel, or none — a pre-0.10 record,
 fixed by upgrading its sender — either of which `"not-a-record"` would have
 hidden. A version-2 frame naming no outcome is `"not-a-record"`; it is never
-rebuilt into a row. Reported rather than silent,
+rebuilt into a row. `"inconsistent"` is a well-formed record that contradicts
+itself: a decision whose verdict, fields, duties or reason are not its own
+trace's, or whose ids or policy tag are not its record's. It is neither skew nor
+a malformed frame, and it is the case in which the log and the inspector would
+otherwise have read different copies of one evaluation
+([ADR-QD-106](../decisions/106-a-decision-is-constructed-from-its-trace.md)).
+Reported rather than silent,
 on the precedent of `onDropped`, `onUnknownParent` and `onFailure`: a reader
 dropping every frame while looking healthy is the defect, not the drop.
 
@@ -415,10 +421,18 @@ is the one direction of error a reviewer acts on.
 REQUIREMENT: Obligation state MUST be reported per decision, never per duty.
 ```
 
-`ObligationHandler` receives the whole array and returns `void`, so the library
-observes that a set was presented and that the handler succeeded or failed —
-never which individual duty was met. A per-duty tick would be an invention, and
-one a reviewer would act on.
+`ObligationHandler` receives one `ObligationDischarge` (the question and the allow,
+so every duty at once) and returns `void`, so the library observes that a set
+was presented and that the handler succeeded or failed — never which individual
+duty was met. A per-duty tick would be an invention, and one a reviewer would
+act on.
+
+```
+REQUIREMENT: An orphan (an obligation row whose decision never arrived) MUST
+             show its subject, action and resource id when the record carries
+             them, and a text filter MUST search them. A row written before the
+             record named its question MUST render as it did, with no question line.
+```
 
 ```
 REQUIREMENT: An absent `cache` MUST be worded differently from `"miss"`.

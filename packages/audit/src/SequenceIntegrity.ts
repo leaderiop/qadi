@@ -19,6 +19,7 @@
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import type { AuditEntry } from "./AuditEntry.ts";
+import { firstSequenceBreak } from "./SequenceBreak.ts";
 
 export class SequenceIntegrityError extends Data.TaggedError("SequenceIntegrityError")<{
   readonly expectedSequence: number;
@@ -37,20 +38,8 @@ export class SequenceIntegrityError extends Data.TaggedError("SequenceIntegrityE
 export const verifySequenceIntegrity = Effect.fn("qadi.audit.verifySequenceIntegrity")(function* (
   entries: ReadonlyArray<AuditEntry>,
 ) {
-  const sequenceNumbers = entries
-    .map((entry) => entry.sequenceNumber)
-    .filter((n): n is number => n !== undefined)
-    .toSorted((a, b) => a - b);
-
-  for (let i = 1; i < sequenceNumbers.length; i++) {
-    const previous = sequenceNumbers[i - 1];
-    const actual = sequenceNumbers[i];
-    if (previous === undefined || actual === undefined) continue;
-    const expected = previous + 1;
-    if (actual !== expected) {
-      return yield* Effect.fail(
-        new SequenceIntegrityError({ expectedSequence: expected, actualSequence: actual }),
-      );
-    }
+  const broken = firstSequenceBreak(entries);
+  if (broken !== undefined) {
+    return yield* Effect.fail(new SequenceIntegrityError(broken));
   }
 });

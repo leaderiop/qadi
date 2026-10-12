@@ -150,6 +150,24 @@ export const portTimeoutsTotal = Metric.frequency("qadi_port_timeouts_total", {
  * `PortAccess.ts`'s signatures, rather than a word silently missing from this
  * metric.
  */
+/**
+ * Reads a host made into a port to answer another process's question
+ * (`servePortRead`, ARCH-31), by port.
+ *
+ * The third sibling of {@link portCallsTotal} and {@link predicatePortCallsTotal}
+ * for the same reason the second exists: each interpreter counts in a series of
+ * its own, so a served read never inflates the evaluator's count and a reader
+ * can tell a question the host asked itself from one a browser asked it. The
+ * description is part of the metric's registry key (ADR-QD-052), so changing
+ * this text re-keys the series.
+ */
+export const servedPortCallsTotal = Metric.frequency("qadi_port_served_calls_total", {
+  description:
+    "Reads a host made into a port to answer a remote asker, by port. " +
+    "The evaluator's calls are qadi_port_calls_total.",
+  preregisteredWords: PORT_NAMES,
+});
+
 export type PredicatePortName = "AttributeResolver" | "DecisionHistory";
 
 const PREDICATE_PORT_NAMES_BY_NAME: Record<PredicatePortName, true> = {

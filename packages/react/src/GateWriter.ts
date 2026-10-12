@@ -7,14 +7,15 @@
  * list a `<Can>` that does not exist. `GateRegistry.ts` re-exports the three
  * public types by name; nothing else here is reachable from outside the package.
  *
- * A registry the package built is bound to its writer in a side table keyed on
- * the registry object, the way hydration's seed lookup hides its seed atoms
- * (a closure the atom set owns, `QadiAtoms.hydrate`, ADR-QD-078). The table holds
- * no guard and no state of its own, so it is not the module-scope registry
- * [ADR-QD-080](../../../spec/decisions/080-a-gate-registry-belongs-to-its-atom-set.md)
- * removed. It is keyed on `object`, which is the real constraint, so this module
- * imports nothing local but the leaf `DecisionOutcome.ts`, and only its type, so
- * no import cycle can form (ADR-QD-037).
+ * A registry the package built owns its writer as a private slot of the registry
+ * object, set once at construction, so the binding cannot be forgotten or made
+ * twice and there is no module-scope table (ARCH-43). The slot is keyed on the
+ * registry and not on the atom set on purpose: a spread copy `{ ...atoms }` is a
+ * different atom set sharing the same `gates`, and a lookup keyed on the atom set
+ * is the `UnregisteredAtoms` defect ADR-QD-078 removed for hydration. See
+ * [ADR-QD-080](../../../spec/decisions/080-a-gate-registry-belongs-to-its-atom-set.md).
+ * This module imports nothing local but the leaf `DecisionOutcome.ts`, and only
+ * its type, so no import cycle can form (ADR-QD-037).
  */
 import type { Policy, Resource } from "@qadi/core";
 import { useEffect, useRef } from "react";
@@ -102,12 +103,47 @@ export interface GateWriter {
   readonly register: (instance: GateInstance) => GateHandle;
 }
 
-const writers = new WeakMap<object, GateWriter>();
+/**
+ * The read side of a gate registry.
+ *
+ * Both members are plain functions with stable identity, safe to pass straight
+ * to `useSyncExternalStore`. The write side is not on this interface: only
+ * `@qadi/react` can reach it.
+ */
+export interface GateRegistry {
+  /** Every instance currently mounted, in registration order. Same reference until a change. */
+  readonly instances: () => ReadonlyArray<GateInstance>;
+  /** Subscribes to mounts, unmounts and render-state changes. Returns the unsubscribe. */
+  readonly subscribe: (listener: () => void) => () => void;
+}
 
-/** Binds a registry to its writer. Called once, by `makeGateRegistry`. */
-export const bindGateWriter = (registry: object, writer: GateWriter): void => {
-  writers.set(registry, writer);
-};
+/**
+ * A registry that holds its own writer in an ES private slot.
+ *
+ * Set once, in the constructor, so it can be neither forgotten nor replaced, and
+ * unreachable by reflection (`Object.keys`, `getOwnPropertySymbols`). `#writer in
+ * registry` is a language-level brand check: true only for an object this class
+ * constructed, and TypeScript narrows it without a cast.
+ */
+class OwnedGateRegistry implements GateRegistry {
+  readonly #writer: GateWriter;
+  readonly instances: GateRegistry["instances"];
+  readonly subscribe: GateRegistry["subscribe"];
+
+  constructor(parts: GateRegistry & GateWriter) {
+    this.#writer = { register: parts.register };
+    this.instances = parts.instances;
+    this.subscribe = parts.subscribe;
+  }
+
+  static writerOf(registry: object): GateWriter | undefined {
+    return #writer in registry ? registry.#writer : undefined;
+  }
+}
+
+/** Builds a registry that owns its writer. Called by `makeGateRegistry`. */
+export const makeOwnedGateRegistry = (parts: GateRegistry & GateWriter): GateRegistry =>
+  new OwnedGateRegistry(parts);
 
 /**
  * The writer for a registry this package built, or `undefined` for anything else.
@@ -117,7 +153,7 @@ export const bindGateWriter = (registry: object, writer: GateWriter): void => {
  * to a registry nothing here can write to.
  */
 export const gateWriterFor = (registry: object): GateWriter | undefined =>
-  writers.get(registry);
+  OwnedGateRegistry.writerOf(registry);
 
 /** What one guard is, as it renders. */
 export interface GateIdentity {

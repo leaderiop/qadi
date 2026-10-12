@@ -55,21 +55,16 @@ const record = (mismatch: HydrationMismatch): void => {
 };
 
 /**
- * The browser's decision cache, built once and handed to every reader by value.
+ * The browser's services, with a decision cache in them like any other.
  *
- * A second layer of memoisation: `Atom.family` already keeps one evaluation per
- * question, so this earns its place mainly by surviving a re-render, and on a
- * server, where a hit spans requests, rather more.
- *
- * **Built here, not inside `browserLayer`.** `decisionCacheLayer` keeps its
- * state in the closure of a `Layer.effect`, so a layer *value* built twice is two
- * caches: the atoms build `browserLayer` in their registry's memo map, and
- * `Effect.provide(wiringReport, browserLayer)` builds it again in a memo map of
- * its own. The dock reads the cache outside the atom runtime, and what it read
- * was a throwaway, empty for as long as the page stayed open. Building the
- * context once and putting it in as `Layer.succeedContext` makes both readers
- * see this one instance. The layer registers no finalizer, so closing the
- * build scope at once loses nothing.
+ * The cache is a second layer of memoisation: `Atom.family` already keeps one
+ * evaluation per question, so it earns its place mainly by surviving a
+ * re-render, and on a server, where a hit spans requests, rather more. It is
+ * one member of the layer and nothing more — the dock's wiring read gets the
+ * instance the provider's decisions used from `useDevtoolsFeed`, which hands it
+ * the registry's own build, so this file no longer builds the cache out of band
+ * (it used to, to stop the dock reading a throwaway: a layer *value* built twice
+ * is two caches, CCR-QD-200).
  *
  * It is here deliberately. Having one is what exposed `useInvalidate()` failing
  * to invalidate: the atoms were discarded, recomputed, and answered from this
@@ -78,14 +73,10 @@ const record = (mismatch: HydrationMismatch): void => {
  * recompute — and keeping the cache is what keeps this example exercising the
  * path that found it.
  */
-const cacheContext = Effect.runSync(
-  Effect.scoped(Layer.build(decisionCacheLayer({ capacity: 256 }))),
-);
-
 export const browserLayer = Layer.mergeAll(
   browserPorts,
   EvaluationIdLive,
-  Layer.succeedContext(cacheContext),
+  decisionCacheLayer({ capacity: 256 }),
   clientLog.layer,
   clientPortCalls.layer,
 );

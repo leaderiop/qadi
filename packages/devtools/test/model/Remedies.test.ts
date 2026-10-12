@@ -52,8 +52,8 @@ import {
   subjectId,
 } from "@qadi/core";
 import type { Matcher, MatcherContext } from "@qadi/core";
-import { remedyEdits, satisfyingValue } from "../../src/index.ts";
-import type { SimulationInput } from "../../src/index.ts";
+import { remedyEdits, satisfyingValue } from "../../src/model/Remedies.ts";
+import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { chain } from "../helpers.ts";
 
 const alice: SimulationInput = {

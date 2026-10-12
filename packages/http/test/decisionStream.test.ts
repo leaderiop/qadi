@@ -36,13 +36,12 @@ import {
   decodeStoredRecordString,
   DecisionStreamSynced,
 } from "@qadi/core";
-import type { AuthSubject, DecisionLogReader, SinkRecord, SinkRecordNotEncodable, StoredRecord, Trace } from "@qadi/core";
+import type { AuthSubject, DecisionLogReader, SinkRecord, SinkRecordNotEncodable, StoredRecord, AllowingTrace } from "@qadi/core";
+import { collectingLogger } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
-import * as References from "effect/References";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
@@ -62,6 +61,7 @@ import { classifyHttpEnforcementFailure } from "../src/QadiHttpError.ts";
 import type { HttpEnforcementTag } from "../src/QadiHttpError.ts";
 import { PermissionRegistryLive, permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
 import { SubjectExtractionFailed, subjectExtractorBearer } from "../src/SubjectExtractor.ts";
+import { stack } from "./fixtures/stack.ts";
 
 const readPermission = permission("devtools", "read");
 const readPolicy = hasPermission(readPermission);
@@ -81,7 +81,7 @@ const lookupSubject = (token: string): Effect.Effect<AuthSubject> =>
 
 const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
 
-const allowTrace: Trace = {
+const allowTrace: AllowingTrace = {
   policyTag: "HasPermission",
   allowed: true,
   children: [],
@@ -101,8 +101,6 @@ const decisionRecord = (evaluationId: string, resource?: Record<string, unknown>
         subjectId: makeSubjectId("alice"),
         durationMillis: 1,
         trace: allowTrace,
-        visibleFields: undefined,
-        obligations: [],
       }),
     }),
   });
@@ -134,13 +132,9 @@ const httpClientError = (): Error => {
   return Object.assign(new Error("Request failed with status code 503"), { config, request });
 };
 
-// Composed through named intermediate steps, deliberately: chaining every
-// `Layer.provideMerge` inline in one expression is an instantiation-depth
-// failure mode this codebase has already hit once (see http.test.ts's
-// `RoutesLayer`/`WithRegistry`/`WithSubjects` comment) — TypeScript can
-// silently mis-infer the result's remaining requirement rather than raising
-// a diagnostic at the chain itself, only surfacing downstream (as it did
-// here, at the one call site that runs `Layer.build` directly on `layer`).
+// Composed through named intermediate steps, for reading. An earlier note here
+// claimed a single inline chain mis-infers the remaining requirement; that does
+// not reproduce on `effect@4.0.0` (ARCH-36), so the naming is a readability choice.
 const EvaluationServicesTest = EvaluationServicesNone;
 
 /** A record as a log on this server would hold it. */
@@ -163,10 +157,7 @@ const appLayer = Effect.gen(function* () {
   const log = yield* makeDecisionLog({ environment: "Server" });
   const route = decisionStreamRoute(readPermission, readPolicy, log);
 
-  const withRegistry = route.pipe(Layer.provideMerge(PermissionRegistryLive));
-  const withSubjects = withRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
-  const withServices = withSubjects.pipe(Layer.provideMerge(EvaluationServicesTest));
-  const layer = withServices.pipe(Layer.provideMerge(HttpServer.layerServices));
+  const layer = stack(route, subjectExtractorBearer(lookupSubject), EvaluationServicesTest);
 
   return { log, layer };
 });
@@ -239,10 +230,7 @@ describe("/__decisions", () => {
         const route = decisionStreamRoute(readPermission, readPolicy, log, {
           reauth: { interval: "1 hour" },
         });
-        const withRegistry = route.pipe(Layer.provideMerge(PermissionRegistryLive));
-        const withSubjects = withRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
-        const withServices = withSubjects.pipe(Layer.provideMerge(EvaluationServicesTest));
-        const layer = withServices.pipe(Layer.provideMerge(HttpServer.layerServices));
+        const layer = stack(route, subjectExtractorBearer(lookupSubject), EvaluationServicesTest);
         const { handler } = HttpRouter.toWebHandler(layer);
 
         const response = yield* Effect.promise(() =>
@@ -260,7 +248,7 @@ describe("/__decisions", () => {
       // `Effect.repeat` runs its first iteration at once, so the recheck fires
       // as soon as the body is pulled, no clock needed: the connect-time
       // extraction passes and the recheck's own fails.
-      const logs: Array<unknown> = [];
+      const { lines, layer: logger } = collectingLogger();
       let extractions = 0;
       const flaky = subjectExtractorBearer(() =>
         Effect.suspend(() => {
@@ -277,7 +265,7 @@ describe("/__decisions", () => {
         Layer.provideMerge(flaky),
         Layer.provideMerge(EvaluationServicesTest),
         Layer.provideMerge(HttpServer.layerServices),
-        Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+        Layer.provideMerge(logger),
       );
       const { handler } = HttpRouter.toWebHandler(layer, { disableLogger: true });
       const response = yield* Effect.promise(() =>
@@ -291,7 +279,7 @@ describe("/__decisions", () => {
           // The failed recheck ends the body; how the platform reports that is not this test's concern.
         }
       });
-      assert.deepStrictEqual(logs, [
+      assert.deepStrictEqual(lines.map((line) => line.message), [
         ["qadi/http: subject extraction failed — token service unreachable"],
         ["qadi/http: /__decisions recheck ended the stream (SubjectExtractionFailed, outage)"],
       ]);
@@ -558,8 +546,6 @@ describe("frame", () => {
             subjectId: makeSubjectId("alice"),
             durationMillis: 1,
             trace: allowTrace,
-            visibleFields: undefined,
-            obligations: [],
           }),
         }),
       });
@@ -732,7 +718,7 @@ describe("one record cannot end the feed", () => {
 
   it.effect("a throwing onRefused is reported and the next record is still framed", () =>
     Effect.gen(function* () {
-      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
       const log = yield* makeDecisionLog({ environment: "Server" });
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
@@ -754,11 +740,7 @@ describe("one record cannot end the feed", () => {
           )),
       ).pipe(
         Effect.provide(
-          Logger.layer([
-            Logger.make((o) => {
-              logs.push({ message: o.message, annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
-            }),
-          ]),
+          logger,
         ),
       );
       assert.strictEqual(frames.length, 2);
@@ -772,7 +754,7 @@ describe("one record cannot end the feed", () => {
 
   it.effect("with no onRefused, the refusal is logged with its reason and path", () =>
     Effect.gen(function* () {
-      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
       const log = yield* makeDecisionLog({ environment: "Server" });
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
@@ -784,14 +766,7 @@ describe("one record cannot end the feed", () => {
         Effect.flatMap(log.readEntries(), (read) => Stream.runCollect(Stream.take(decisionFrames(read), 1))),
       ).pipe(
         Effect.provide(
-          Logger.layer([
-            Logger.make((o) => {
-              logs.push({
-                message: o.message,
-                annotations: o.fiber.getRef(References.CurrentLogAnnotations),
-              });
-            }),
-          ]),
+          logger,
         ),
       );
       assert.include(frames[0] ?? "", '"evaluationId":"after"');
@@ -804,7 +779,7 @@ describe("one record cannot end the feed", () => {
 
   it.effect("a refusal with no path (EncodeFailed) is logged with an empty path", () =>
     Effect.gen(function* () {
-      const logs: Array<{ annotations: Record<string, unknown> }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
       const log = yield* makeDecisionLog({ environment: "Server" });
       // A getter that throws while the codec inspects the resource: the refusal
       // is `EncodeFailed`, which carries a message and no path.
@@ -823,11 +798,7 @@ describe("one record cannot end the feed", () => {
         Effect.flatMap(log.readEntries(), (read) => Stream.runCollect(Stream.take(decisionFrames(read), 1))),
       ).pipe(
         Effect.provide(
-          Logger.layer([
-            Logger.make((o) => {
-              logs.push({ annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
-            }),
-          ]),
+          logger,
         ),
       );
       assert.include(frames[0] ?? "", '"evaluationId":"after"');

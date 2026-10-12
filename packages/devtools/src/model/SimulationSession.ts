@@ -28,7 +28,8 @@ import * as Match from "effect/Match";
 import type { DecisionOutcome, Policy } from "@qadi/core";
 import { makeExternalStore } from "./ExternalStore.ts";
 import { capturing, type CapturedAnswers } from "./Capture.ts";
-import type { PolicySighting } from "./Catalogue.ts";
+import { policyLabel, type PolicySighting } from "./Catalogue.ts";
+import { pinHead, resolveHeld } from "./HeldChoice.ts";
 import { baselineDiff, replayInput, type Baseline, type UnseededField } from "./Replay.ts";
 import { simulate, type SimulationClock } from "./Simulation.ts";
 import { decodeResource, encodeResource, renameSubject, withResource } from "./SimulationForm.ts";
@@ -119,10 +120,19 @@ export const sourceOptions = (
   },
 ];
 
-/** The policy being simulated, and where it came from. */
+/**
+ * The policy being simulated, and where it came from.
+ *
+ * `Chosen.index` is a reading of the rail as it is now, never an input: the
+ * choice itself is the policy, held by value (`choosePolicy`). `Evicted` is a
+ * chosen policy the rail no longer lists. It is still the one a run evaluates,
+ * and a view says it has left the log; it is neither dropped nor swapped for a
+ * neighbour.
+ */
 export type PolicyChoice =
   | { readonly _tag: "None" }
   | { readonly _tag: "Chosen"; readonly index: number; readonly policy: Policy }
+  | { readonly _tag: "Evicted"; readonly policy: Policy; readonly label: string }
   | {
       readonly _tag: "Seeded";
       readonly entry: TimelineEntry;
@@ -187,7 +197,12 @@ export interface SimulationSession {
   readonly getSnapshot: () => SimulationSnapshot;
 
   readonly setSightings: (sightings: ReadonlyArray<PolicySighting>) => void;
-  readonly choosePolicy: (index: number) => void;
+  /**
+   * Chooses a policy, held by value from here on: a rail that reorders, grows or
+   * loses it does not change the choice. A policy the rail does not list is held
+   * as `Evicted` at once.
+   */
+  readonly choosePolicy: (policy: Policy) => void;
   /** Re-seeds from a logged row, resets the form to it and drops any run. */
   readonly seed: (entry: TimelineEntry | undefined) => void;
   /** The host's resolvers. A different layer drops the capture taken from the old one. */
@@ -221,6 +236,17 @@ const blank: SimulationInput = { subject: { id: "someone" } };
 const sameElements = <A>(a: ReadonlyArray<A>, b: ReadonlyArray<A>): boolean =>
   a === b || (a.length === b.length && a.every((one, index) => one === b[index]));
 
+/** A policy the rail does not list, held as chosen: a zero tally under its derived label. */
+const unlisted = (policy: Policy): PolicySighting => ({
+  policy,
+  label: policyLabel(policy),
+  count: 0,
+  allows: 0,
+  denies: 0,
+  errors: 0,
+  lastAt: undefined,
+});
+
 const resourceTextOf = (input: SimulationInput): ResourceText => {
   const text = encodeResource(input.resource);
   return text._tag === "Ok"
@@ -230,7 +256,8 @@ const resourceTextOf = (input: SimulationInput): ResourceText => {
 
 export const makeSimulationSession = (init?: SimulationSessionInit): SimulationSession => {
   let sightings: ReadonlyArray<PolicySighting> = init?.sightings ?? [];
-  let chosen = 0;
+  /** The chosen policy and the sighting it was chosen from. A value, never an index. */
+  let held: PolicySighting | undefined = init?.seed === undefined ? pinHead(sightings, undefined) : undefined;
   let seedEntry: TimelineEntry | undefined;
   let seeded: { readonly policy: Policy; readonly unseeded: ReadonlyArray<UnseededField> } | undefined;
   let draft: SimulationInput = blank;
@@ -251,13 +278,32 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
     if (seeded !== undefined && seedEntry !== undefined) {
       return { _tag: "Seeded", entry: seedEntry, policy: seeded.policy, unseeded: seeded.unseeded };
     }
-    // `chosen` can outlive `sightings` shrinking: clamped here rather than
-    // trusted, so a stale index reads the policy the dropdown now shows.
-    const index = sightings.length === 0 ? undefined : Math.min(chosen, sightings.length - 1);
-    const sighting = index === undefined ? undefined : sightings[index];
-    return index === undefined || sighting === undefined
-      ? { _tag: "None" }
-      : { _tag: "Chosen", index, policy: sighting.policy };
+    const resolved = resolveHeld(sightings, held, (a, b) => Equal.equals(a.policy, b.policy));
+    return Match.value(resolved).pipe(
+      Match.tagsExhaustive({
+        Empty: (): PolicyChoice => ({ _tag: "None" }),
+        Listed: (listed): PolicyChoice => ({
+          _tag: "Chosen",
+          index: listed.index,
+          policy: listed.value.policy,
+        }),
+        Evicted: (gone): PolicyChoice => ({
+          _tag: "Evicted",
+          policy: gone.value.policy,
+          label: gone.value.label,
+        }),
+      }),
+    );
+  };
+
+  /**
+   * Holds the head of the rail once there is one and nothing is chosen or seeded.
+   *
+   * Without it the default would follow the head, and a reviewer who never
+   * touched the dropdown would run a different policy after a decision arrived.
+   */
+  const pin = () => {
+    if (seeded === undefined) held = pinHead(sightings, held);
   };
 
   const policyOf = (choice: PolicyChoice): Policy | undefined =>
@@ -449,14 +495,23 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
     setSightings: (next) => {
       if (sameElements(next, sightings)) return;
       sightings = next;
+      pin();
       commit();
     },
 
-    choosePolicy: (index) => {
+    choosePolicy: (policy) => {
       // A seeded policy belongs to the row it came from; choosing another from
       // the rail is leaving that row behind.
-      if (seeded === undefined && index === chosen && run._tag === "Idle") return;
-      chosen = index;
+      if (
+        seeded === undefined &&
+        held !== undefined &&
+        Equal.equals(held.policy, policy) &&
+        run._tag === "Idle"
+      ) {
+        return;
+      }
+      held =
+        sightings.find((one) => Equal.equals(one.policy, policy)) ?? unlisted(policy);
       seeded = undefined;
       retire();
       run = { _tag: "Idle" };
@@ -474,6 +529,7 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
         seeded = undefined;
       }
       resourceText = resourceTextOf(draft);
+      pin();
       retire();
       run = { _tag: "Idle" };
       commit();

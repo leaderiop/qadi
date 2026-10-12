@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
+import * as Equal from "effect/Equal";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import {
@@ -47,26 +48,18 @@ import {
   decisionHistoryPort,
   signatureHistoryPort,
 } from "@qadi/core";
-import type { DecisionLog, DecisionOutcome, Policy, StoredRecord, Trace } from "@qadi/core";
+import type { AllowingTrace, DecisionLog, DecisionOutcome, Policy, StoredRecord } from "@qadi/core";
 import {
-  baselineDiff,
-  capturing,
+  catalogueOf,
   emptyTimeline,
   ingest,
-  live,
   makeSimulationSession,
-  matchesBaseline,
-  replayInput,
-  replayLayer,
-  simulate,
-  snapshot,
-  sweepPlan,
-  whatIf,
-  type CapturedAnswers,
+  type Baseline,
   type EvaluationPortsLayer,
-  type SimulationSession,
-  type Replay,
+  type RunState,
   type SimulationInput,
+  type SimulationSession,
+  type Timeline,
   type TimelineEntry,
   type WhatIfReport,
 } from "@qadi/devtools";
@@ -113,12 +106,71 @@ const policyNamed = (name: string): Policy => {
   return found;
 };
 
-const sourceOptions = (ports: EvaluationPortsLayer | undefined) =>
-  ports === undefined ? {} : { source: live(ports) };
+/**
+ * A session over one policy, the way a host builds one: the interface a host
+ * crosses (`makeSimulationSession`), not the mechanics under it.
+ *
+ * Every scenario here drives the session and reads its snapshot. The sweep
+ * planner, the capture decorator and the replay reconstruction are
+ * package-private since ARCH-40, and keep their own unit tests.
+ */
+const sessionFor = (
+  policy: Policy,
+  input: SimulationInput,
+  ports?: EvaluationPortsLayer,
+): SimulationSession => {
+  const session = makeSimulationSession({
+    sightings: [{ policy, label: "the policy", count: 1, allows: 1, denies: 0, errors: 0, lastAt: 1 }],
+    ...(ports === undefined ? {} : { ports }),
+  });
+  session.edit(input);
+  return session;
+};
+
+type Ran = Extract<RunState, { readonly _tag: "Ran" }>;
+
+/** The run the session finished, or a failure naming what it was in instead. */
+const ranOf = (session: SimulationSession): Ran => {
+  const run = session.getSnapshot().run;
+  if (run._tag !== "Ran") throw new Error(`expected a finished run, found ${run._tag}`);
+  return run;
+};
+
+/**
+ * `matchesBaseline`'s whole rule, read off the public `Baseline`: a comparison
+ * the record can attest to (no caveat) in which nothing differed.
+ */
+const reproduces = (baseline: Baseline | undefined): boolean =>
+  baseline?._tag === "Checked" &&
+  baseline.caveat === undefined &&
+  baseline.comparison._tag === "Compared" &&
+  baseline.comparison.differences.length === 0;
 
 const decided = (self: DecisionOutcome | undefined) => {
   if (self?._tag !== "Decided") throw new Error("expected a decision");
   return self.decision;
+};
+
+/** One logged allow, decided at `at`, against `policy`. */
+const decisionAt = (at: number, policy: Policy): StoredRecord => {
+  const evaluationId = `ev-${at}`;
+  return stampRecord(
+    new DecisionRecord({
+      evaluationId,
+      at,
+      subjectId: makeSubjectId("alice"),
+      policy,
+      outcome: new Decided({
+        decision: new Allow({
+          evaluationId,
+          subjectId: makeSubjectId("alice"),
+          durationMillis: 1,
+          trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
+        }),
+      }),
+    }),
+    "Server",
+  );
 };
 
 const entryOf = (record: StoredRecord): TimelineEntry => {
@@ -134,12 +186,10 @@ interface DevtoolsSimulatorWorldState {
   readonly outcome: DecisionOutcome | undefined;
   readonly secondOutcome: DecisionOutcome | undefined;
   readonly report: WhatIfReport | undefined;
-  readonly replay: Replay | undefined;
   readonly entry: TimelineEntry | undefined;
-  readonly answers: CapturedAnswers | undefined;
   readonly replayed: DecisionOutcome | undefined;
-  readonly capturedPolicy: Policy | undefined;
   readonly session: SimulationSession | undefined;
+  readonly timeline: Timeline;
 }
 
 const initialState: DevtoolsSimulatorWorldState = {
@@ -149,12 +199,15 @@ const initialState: DevtoolsSimulatorWorldState = {
   outcome: undefined,
   secondOutcome: undefined,
   report: undefined,
-  replay: undefined,
   entry: undefined,
-  answers: undefined,
   replayed: undefined,
-  capturedPolicy: undefined,
   session: undefined,
+  timeline: emptyTimeline(),
+};
+
+const sessionOf = (s: DevtoolsSimulatorWorldState): SimulationSession => {
+  if (s.session === undefined) throw new Error("no simulation session");
+  return s.session;
 };
 
 export interface WorldShape {
@@ -251,7 +304,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   Given(
     "a logged decision {string} against the {string} policy for {string}",
     function* (evaluationId: string, name: string, subjectId: string) {
-      const trace: Trace = {
+      const trace: AllowingTrace = {
         policyTag: "HasPermission",
         allowed: true,
         children: [],
@@ -268,8 +321,6 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
             subjectId: makeSubjectId(subjectId),
             durationMillis: 1,
             trace,
-            visibleFields: undefined,
-            obligations: [],
           }),
         }),
       });
@@ -297,82 +348,100 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   // When
   // -------------------------------------------------------------------------
 
+  /** The source a host with these resolvers would have picked: Live when it supplied some. */
+  const chooseHostSource = (session: SimulationSession, ports: EvaluationPortsLayer | undefined) => {
+    session.chooseSource(ports === undefined ? "Fixtures" : "Live");
+  };
+
   When("the {string} policy is simulated", function* (name: string) {
     const s = yield* readState();
-    const program = simulate(policyNamed(name), s.input, sourceOptions(s.ports));
-    const outcome = yield* (s.ring === undefined ? program : program.pipe(Effect.provide(s.ring.layer)));
-    yield* patch(() => ({ outcome }));
+    const session = sessionFor(policyNamed(name), s.input, s.ports);
+    chooseHostSource(session, s.ports);
+    const program = session.run("Run");
+    yield* s.ring === undefined ? program : program.pipe(Effect.provide(s.ring.layer));
+    yield* patch(() => ({ session, outcome: ranOf(session).outcome }));
   });
 
   When("the {string} policy is simulated against the live resolvers", function* (name: string) {
     const s = yield* readState();
     if (s.ports === undefined) throw new Error("no live resolvers were given");
-    const outcome = yield* simulate(policyNamed(name), s.input, { source: live(s.ports) });
-    yield* patch(() => ({ outcome }));
+    const session = sessionFor(policyNamed(name), s.input, s.ports);
+    session.chooseSource("Live");
+    yield* session.run("Run");
+    yield* patch(() => ({ session, outcome: ranOf(session).outcome }));
   });
 
   When("a what-if sweep runs against the {string} policy", function* (name: string) {
     const s = yield* readState();
-    const program = whatIf(policyNamed(name), s.input, sourceOptions(s.ports));
-    const report = yield* (s.ring === undefined ? program : program.pipe(Effect.provide(s.ring.layer)));
-    yield* patch(() => ({ report }));
+    const session = sessionFor(policyNamed(name), s.input, s.ports);
+    chooseHostSource(session, s.ports);
+    const program = session.run("Sweep");
+    yield* s.ring === undefined ? program : program.pipe(Effect.provide(s.ring.layer));
+    yield* patch(() => ({ session, report: ranOf(session).report }));
   });
 
   When("a paired what-if sweep runs against the {string} policy", function* (name: string) {
     const s = yield* readState();
-    const report = yield* whatIf(policyNamed(name), s.input, {
-      ...sourceOptions(s.ports),
-      pairs: true,
-      remedies: false,
-    });
-    yield* patch(() => ({ report }));
+    const session = sessionFor(policyNamed(name), s.input, s.ports);
+    chooseHostSource(session, s.ports);
+    session.setPairs(true);
+    yield* session.run("Sweep");
+    yield* patch(() => ({ session, report: ranOf(session).report }));
   });
 
   When("that row is replayed", function* () {
     const s = yield* readState();
     const { entry } = s;
     if (entry === undefined) throw new Error("no row to replay");
-    yield* patch(() => ({ replay: replayInput(entry) }));
+    // An empty rail: the policy the session runs can only come from the row.
+    const session = makeSimulationSession();
+    session.seed(entry);
+    yield* patch(() => ({ session }));
   });
 
   When("the reviewer supposes the subject held the permission {string}", function* (key: string) {
-    const s = yield* readState();
-    if (s.replay?._tag !== "Replayable") throw new Error("the row was not replayable");
+    const session = sessionOf(yield* readState());
+    const { policy, draft } = session.getSnapshot();
+    if (policy._tag !== "Seeded") throw new Error("the row was not replayable");
     const [resource = "", action = ""] = key.split(":");
-    const outcome = yield* simulate(s.replay.policy, {
-      ...s.replay.input,
-      subject: { ...s.replay.input.subject, permissions: [`${resource}:${action}`] },
+    session.edit({
+      ...draft,
+      subject: { ...draft.subject, permissions: [`${resource}:${action}`] },
     });
-    yield* patch(() => ({ outcome }));
+    yield* session.run("Run");
+    yield* patch(() => ({ outcome: ranOf(session).outcome }));
   });
 
   When("the {string} policy is captured against the live resolvers", function* (name: string) {
     const s = yield* readState();
     if (s.ports === undefined) throw new Error("no live resolvers were given");
-    const recorder = capturing(s.ports);
-    const first = yield* simulate(policyNamed(name), s.input, { source: live(recorder.layer) });
-    const captured = yield* recorder.answers;
-    // Kept so the replay step runs the same policy against the same input.
-    yield* patch(() => ({ outcome: first, answers: captured, capturedPolicy: policyNamed(name) }));
+    // A Live run records what the resolvers answered; that capture is what the
+    // Snapshot source replays.
+    const session = sessionFor(policyNamed(name), s.input, s.ports);
+    session.chooseSource("Live");
+    yield* session.run("Run");
+    yield* patch(() => ({ session, outcome: ranOf(session).outcome }));
   });
 
   When("the capture is replayed", function* () {
-    const s = yield* readState();
-    if (s.answers === undefined || s.capturedPolicy === undefined) {
-      throw new Error("nothing was captured");
-    }
-    // Through `snapshot`, the source a panel would pick — not `replayLayer`
-    // directly, so the scenario exercises the path a reviewer takes.
-    assert.ok(replayLayer(s.answers));
-    const replayed = yield* simulate(s.capturedPolicy, s.input, { source: snapshot(s.answers) });
-    yield* patch(() => ({ replayed }));
+    const session = sessionOf(yield* readState());
+    // Through the Snapshot source, the one a panel offers once a Live run has
+    // captured — which is why choosing it is refused before that run.
+    session.chooseSource("Snapshot");
+    yield* session.run("Run");
+    yield* patch(() => ({ replayed: ranOf(session).outcome }));
   });
 
   When("the {string} policy is simulated under each clock", function* (name: string) {
     const s = yield* readState();
-    const outcome = yield* simulate(policyNamed(name), s.input, { clock: "live" });
-    const secondOutcome = yield* simulate(policyNamed(name), s.input, { clock: "deterministic" });
-    yield* patch(() => ({ outcome, secondOutcome }));
+    const session = sessionFor(policyNamed(name), s.input);
+    session.setClock("live");
+    yield* session.run("Run");
+    const outcome = ranOf(session).outcome;
+    session.setClock("deterministic");
+    yield* session.run("Run");
+    const secondOutcome = ranOf(session).outcome;
+    yield* patch(() => ({ session, outcome, secondOutcome }));
   });
 
   // -------------------------------------------------------------------------
@@ -448,57 +517,57 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   Then("a sweep against the live resolvers is reported as performing lookups", function* () {
     const s = yield* readState();
     if (s.ports === undefined) throw new Error("no live resolvers were given");
-    const plan = sweepPlan(policies["editor role"] ?? hasRole("editor"), s.input, {
-      source: live(s.ports),
-    });
+    const session = sessionFor(policyNamed("editor role"), s.input, s.ports);
+    session.chooseSource("Live");
+    const { plan } = session.getSnapshot();
+    assert.ok(plan !== undefined, "no plan");
     assert.equal(plan.causesIO, true);
     assert.ok(plan.evaluations > 1);
   });
 
   Then("a sweep against fixtures is reported as performing none", function* () {
     const s = yield* readState();
-    assert.equal(sweepPlan(policies["editor role"] ?? hasRole("editor"), s.input).causesIO, false);
+    const { plan } = sessionFor(policyNamed("editor role"), s.input).getSnapshot();
+    assert.ok(plan !== undefined, "no plan");
+    assert.equal(plan.causesIO, false);
   });
 
   Then("the replayed policy is the logged one", function* () {
-    const s = yield* readState();
-    assert.equal(s.replay?._tag, "Replayable");
-    if (s.replay?._tag !== "Replayable") return;
-    assert.deepEqual(s.replay.policy, policies["doc:read"]);
+    const { policy } = sessionOf(yield* readState()).getSnapshot();
+    assert.equal(policy._tag, "Seeded");
+    if (policy._tag !== "Seeded") return;
+    assert.deepEqual(policy.policy, policies["doc:read"]);
   });
 
   Then("the replay names {string} among the fields it could not seed", function* (field: string) {
-    const s = yield* readState();
-    if (s.replay?._tag !== "Replayable") throw new Error("the row was not replayable");
+    const { policy } = sessionOf(yield* readState()).getSnapshot();
+    if (policy._tag !== "Seeded") throw new Error("the row was not replayable");
     assert.ok(
-      s.replay.unseeded.some((one) => one.field === field),
+      policy.unseeded.some((one) => one.field === field),
       field,
     );
   });
 
   Then("the replay is refused", function* () {
-    const s = yield* readState();
-    assert.equal(s.replay?._tag, "NotReplayable");
+    // An orphan carries no policy, so the session stays on its empty rail
+    // instead of seeding from it.
+    const { policy } = sessionOf(yield* readState()).getSnapshot();
+    assert.equal(policy._tag, "None");
   });
 
   Then("the reconstruction matches the baseline", function* () {
-    const s = yield* readState();
-    if (s.entry === undefined || s.outcome === undefined) throw new Error("nothing to compare");
-    assert.equal(matchesBaseline(baselineDiff(s.entry, s.outcome)), true);
+    const { baseline } = sessionOf(yield* readState()).getSnapshot();
+    assert.equal(reproduces(baseline), true);
   });
 
   Then("the reconstruction does not match the baseline", function* () {
-    const s = yield* readState();
-    if (s.entry === undefined || s.outcome === undefined) throw new Error("nothing to compare");
-    assert.equal(matchesBaseline(baselineDiff(s.entry, s.outcome)), false);
+    const { baseline } = sessionOf(yield* readState()).getSnapshot();
+    assert.equal(reproduces(baseline), false);
   });
 
   Then("the difference names the node {string}", function* (tag: string) {
-    const s = yield* readState();
-    if (s.entry === undefined || s.outcome === undefined) throw new Error("nothing to compare");
-    const baseline = baselineDiff(s.entry, s.outcome);
-    assert.equal(baseline._tag, "Checked");
-    if (baseline._tag !== "Checked" || baseline.comparison._tag !== "Compared") {
+    const { baseline } = sessionOf(yield* readState()).getSnapshot();
+    if (baseline?._tag !== "Checked" || baseline.comparison._tag !== "Compared") {
       throw new Error("expected a compared baseline");
     }
     assert.equal(baseline.comparison.flipped?.policyTag, tag);
@@ -522,19 +591,6 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   // -------------------------------------------------------------------------
   // The simulation session — headless, no DOM
   // -------------------------------------------------------------------------
-
-  const sessionFor = (policy: Policy, input: SimulationInput): SimulationSession => {
-    const session = makeSimulationSession({
-      sightings: [{ policy, label: "the policy", count: 1, allows: 1, denies: 0, errors: 0, lastAt: 1 }],
-    });
-    session.edit(input);
-    return session;
-  };
-
-  const sessionOf = (s: DevtoolsSimulatorWorldState): SimulationSession => {
-    if (s.session === undefined) throw new Error("no simulation session");
-    return s.session;
-  };
 
   Given(
     "a simulation session for the {string} policy, whose fixtures would allow",
@@ -587,5 +643,49 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     }
     assert.equal(run.report.evaluations, plan.evaluations);
     assert.equal(run.report.rows.length + 1, plan.evaluations);
+  });
+
+  // -------------------------------------------------------------------------
+  // A chosen policy is held by value
+  // -------------------------------------------------------------------------
+
+  Given(
+    "a simulation session over a log that saw {string} and then {string}, with {string} chosen",
+    function* (first: string, second: string, chosen: string) {
+      const timeline = ingest(
+        ingest(emptyTimeline(), decisionAt(1, policyNamed(first))),
+        decisionAt(2, policyNamed(second)),
+      );
+      const session = makeSimulationSession({ sightings: catalogueOf(timeline) });
+      session.edit({ subject: { id: "alice" }, attributes: { clearance: 9 } });
+      session.choosePolicy(policyNamed(chosen));
+      yield* patch(() => ({ session, timeline }));
+    },
+  );
+
+  When(
+    "a newer decision on {string} is logged and the session is told the new rail",
+    function* (name: string) {
+      const s = yield* readState();
+      const timeline = ingest(s.timeline, decisionAt(3, policyNamed(name)));
+      sessionOf(s).setSightings(catalogueOf(timeline));
+      yield* patch(() => ({ timeline }));
+    },
+  );
+
+  Then("the chosen policy is still {string}", function* (name: string) {
+    const policy = sessionOf(yield* readState()).getSnapshot().policy;
+    assert.equal(policy._tag, "Chosen");
+    assert.ok(policy._tag === "Chosen" && Equal.equals(policy.policy, policyNamed(name)));
+    // The rail now lists it first, which is the reorder the scenario is about.
+    assert.equal(policy._tag === "Chosen" && policy.index, 0);
+  });
+
+  Then("a run evaluates {string}", function* (name: string) {
+    const session = sessionOf(yield* readState());
+    yield* session.run("Run");
+    const run = session.getSnapshot().run;
+    assert.equal(run._tag, "Ran");
+    assert.ok(run._tag === "Ran" && Equal.equals(run.question.policy, policyNamed(name)));
   });
 });

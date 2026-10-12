@@ -90,8 +90,8 @@ export const scriptedPort = <
 
 /**
  * A script that replies from a table of requests, keyed by the description's
- * `key` — so two requests that differ only in a field the key ignores share a
- * reply, exactly as a capture and its replay do. A request not in the table
+ * `key` — so two requests share a reply exactly when they share a key, as a
+ * capture and its replay do (a key is injective over the request, ADR-QD-094). A request not in the table
  * falls through to the fail-closed default.
  */
 export const replyTable = <

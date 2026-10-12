@@ -25,6 +25,8 @@ export const useProjected: <A extends Record<string, unknown>>(
   data: A,
 ) => Partial<A>;
 export const useInvalidate: () => () => void;
+export const useGateInstances: () => ReadonlyArray<GateInstance>;
+export const useDevtoolsFeed: <Extra>(extra: Extra) => DevtoolsFeed<Extra>;
 ```
 
 `usePolicies` and `useQuestions` read several questions as one record: each entry is
@@ -104,6 +106,16 @@ the fuller version of this rule).
 Calling any of these hooks outside a `QadiProvider` throws
 `MissingQadiProviderError`, naming the hook — a wiring mistake is not allowed
 to present as a permissions problem.
+
+## Feeding the devtools dock
+
+`useDevtoolsFeed(extra)` returns what a devtools dock reads from this provider:
+the `gates` that `useGateInstances` lists, an `onInvalidate` that is
+`useInvalidate`, and `diagnostics` (your `extra` plus a `layer` that is the
+provider's own built services and `questions`, which is `atoms.asked`). Spread it
+onto `<DevtoolsDock />`. Hold `extra` at module scope. It reads no decision and
+registers no gate, and `@qadi/devtools` takes it structurally with no dependency
+on this package. See [Devtools](/docs/packages/devtools/) for the wiring.
 
 ## `Can` and `Cannot`
 

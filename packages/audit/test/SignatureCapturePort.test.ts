@@ -3,19 +3,29 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
 import {
+  Allow,
   assert as qadiAssert,
   currentSubjectLayer,
   DecisionSink,
   EvaluationServicesNone,
   hasPermission,
+  makeResourceId,
   makeSubject,
   makeSubjectId,
   obligation,
   obliged,
   permission,
+  questionOf,
   Signature,
 } from "@qadi/core";
-import type { AuthSubject, ObligationRecord } from "@qadi/core";
+import type {
+  AuthSubject,
+  Obligation,
+  ObligationDischarge,
+  ObligationRecord,
+  Resource,
+  AllowingTrace,
+} from "@qadi/core";
 import {
   SIGNATURE_MEANINGS,
   SignatureCaptureError,
@@ -32,9 +42,8 @@ const alice: AuthSubject = makeSubject({ id: "alice", permissions: ["doc:read"] 
 
 /**
  * The full evaluation environment `Qadi.assert` needs — self-contained from
- * `@qadi/core`'s own trivial default layers, the same pattern
- * `@qadi/http`'s tests use, rather than adding `@qadi/testing` as a
- * dependency for one describe block.
+ * `@qadi/core`'s own trivial default layers: this describe block needs a
+ * subject and the fail-closed ports and nothing `@qadi/testing`'s fixtures add.
  */
 const testEnv = (subject: AuthSubject) =>
   Layer.mergeAll(currentSubjectLayer(subject), EvaluationServicesNone);
@@ -45,8 +54,30 @@ const signature: Signature = {
   meaning: SIGNATURE_MEANINGS.APPROVED,
 };
 
+/**
+ * A discharge as the lifecycle would build one: the question an allow answered
+ * and the allow itself, with no `CurrentSubject` anywhere.
+ */
+const dischargeFor = (
+  subject: AuthSubject,
+  obligations: ReadonlyArray<Obligation>,
+  options?: { readonly resource?: Resource; readonly action?: string },
+): ObligationDischarge => {
+  const policy = obliged(obligation("unused"), hasPermission(permission("doc", "read")));
+  const trace: AllowingTrace = { policyTag: "Obliged", allowed: true, children: [], obligations };
+  return {
+    question: questionOf(subject, policy, options),
+    decision: new Allow({
+      evaluationId: "ev-1",
+      subjectId: subject.id,
+      durationMillis: 0,
+      trace,
+    }),
+  };
+};
+
 describe("signatureObligationHandler — unit", () => {
-  it.effect("calls capture exactly once, with a request derived from CurrentSubject and the obligations", () =>
+  it.effect("calls capture exactly once, with a request derived from the discharged question", () =>
     Effect.gen(function* () {
       let calls = 0;
       let seenRequest: SignatureCaptureRequest | undefined;
@@ -61,8 +92,12 @@ describe("signatureObligationHandler — unit", () => {
       };
 
       const handler = signatureObligationHandler(port, SIGNATURE_MEANINGS.APPROVED);
-      yield* handler([obligation("sig.capture")]).pipe(
-        Effect.provide(currentSubjectLayer(alice)),
+      // No CurrentSubject is provided at all: the handler needs none.
+      yield* handler(
+        dischargeFor(alice, [obligation("sig.capture")], {
+          resource: { id: "doc-1" },
+          action: "approve",
+        }),
       );
 
       assert.strictEqual(calls, 1);
@@ -70,7 +105,72 @@ describe("signatureObligationHandler — unit", () => {
         meaning: SIGNATURE_MEANINGS.APPROVED,
         signerId: alice.id,
         obligationIds: ["sig.capture"],
+        evaluationId: "ev-1",
+        resourceId: makeResourceId("doc-1"),
+        action: "approve",
+        resource: { id: "doc-1" },
       });
+    }));
+
+  it.effect("a question with no resource or action gives a request carrying undefined for each", () =>
+    Effect.gen(function* () {
+      let seenRequest: SignatureCaptureRequest | undefined;
+      const port: SignatureCapturePortShape = {
+        capture: (request) =>
+          Effect.sync(() => {
+            seenRequest = request;
+            return signature;
+          }),
+        validate: () => Effect.succeed({ valid: true, validatedAt: 0 }),
+      };
+
+      yield* signatureObligationHandler(port, "approved")(dischargeFor(alice, [obligation("s")]));
+
+      assert.isDefined(seenRequest);
+      for (const key of ["resourceId", "action", "resource"] as const) {
+        assert.isTrue(Object.hasOwn(seenRequest ?? {}, key), key);
+        assert.isUndefined(seenRequest?.[key]);
+      }
+    }));
+
+  it.effect("a resource whose id is not a string gives no resourceId, but still carries the resource", () =>
+    Effect.gen(function* () {
+      let seenRequest: SignatureCaptureRequest | undefined;
+      const port: SignatureCapturePortShape = {
+        capture: (request) =>
+          Effect.sync(() => {
+            seenRequest = request;
+            return signature;
+          }),
+        validate: () => Effect.succeed({ valid: true, validatedAt: 0 }),
+      };
+
+      yield* signatureObligationHandler(port, "approved")(
+        dischargeFor(alice, [obligation("s")], { resource: { id: 7 } }),
+      );
+
+      assert.isUndefined(seenRequest?.resourceId);
+      assert.deepStrictEqual(seenRequest?.resource, { id: 7 });
+    }));
+
+  it.effect("the signer is the question's subject, even when a different CurrentSubject is provided", () =>
+    Effect.gen(function* () {
+      const bob: AuthSubject = makeSubject({ id: "bob", permissions: ["doc:read"] });
+      let seenRequest: SignatureCaptureRequest | undefined;
+      const port: SignatureCapturePortShape = {
+        capture: (request) =>
+          Effect.sync(() => {
+            seenRequest = request;
+            return { ...signature, signerId: request.signerId };
+          }),
+        validate: () => Effect.succeed({ valid: true, validatedAt: 0 }),
+      };
+
+      yield* signatureObligationHandler(port, "approved")(dischargeFor(bob, [obligation("s")])).pipe(
+        Effect.provide(currentSubjectLayer(alice)),
+      );
+
+      assert.strictEqual(seenRequest?.signerId, "bob");
     }));
 
   it.effect("options.signerRole reaches capture()'s request; omitting it leaves the field absent", () =>
@@ -85,11 +185,11 @@ describe("signatureObligationHandler — unit", () => {
         validate: () => Effect.succeed({ valid: true, validatedAt: 0 }),
       };
 
-      yield* signatureObligationHandler(port, "approved", { signerRole: "manager" })([
-        obligation("sig.capture"),
-      ]).pipe(Effect.provide(currentSubjectLayer(alice)));
-      yield* signatureObligationHandler(port, "approved")([obligation("sig.capture")]).pipe(
-        Effect.provide(currentSubjectLayer(alice)),
+      yield* signatureObligationHandler(port, "approved", { signerRole: "manager" })(
+        dischargeFor(alice, [obligation("sig.capture")]),
+      );
+      yield* signatureObligationHandler(port, "approved")(
+        dischargeFor(alice, [obligation("sig.capture")]),
       );
 
       assert.strictEqual(seen.length, 2);
@@ -106,9 +206,7 @@ describe("signatureObligationHandler — unit", () => {
       };
 
       const handler = signatureObligationHandler(port, SIGNATURE_MEANINGS.APPROVED);
-      const result = yield* Effect.result(
-        handler([obligation("sig.capture")]).pipe(Effect.provide(currentSubjectLayer(alice))),
-      );
+      const result = yield* Effect.result(handler(dischargeFor(alice, [obligation("sig.capture")])));
 
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
@@ -132,6 +230,10 @@ describe("signatureObligationHandler — unit", () => {
         meaning: SIGNATURE_MEANINGS.APPROVED,
         signerId: alice.id,
         obligationIds: [],
+        evaluationId: "ev-1",
+        resourceId: undefined,
+        action: undefined,
+        resource: undefined,
       }).pipe(Effect.provide(layer));
       assert.strictEqual(captured, signature);
 

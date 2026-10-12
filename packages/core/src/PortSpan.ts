@@ -70,8 +70,12 @@ export interface SpanStruct<Fields extends SpanFields> {
   readonly decode: (attributes: ReadonlyMap<string, unknown>) => SpanType<SpanStruct<Fields>>;
 }
 
-/** Which interpreter is asking — `qadi.interpreter` on every port span. */
-export type PortInterpreter = "evaluate" | "toPredicate";
+/**
+ * Which interpreter is asking — `qadi.interpreter` on every port span: the
+ * evaluator, the translator, or a host answering a remote asker (ARCH-31).
+ * Stated once, in `PortInterpreter.ts`.
+ */
+export type { PortInterpreter } from "./PortInterpreter.ts";
 
 /**
  * One port's span attributes: its question, its answer, and the projection

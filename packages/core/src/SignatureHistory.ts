@@ -28,16 +28,18 @@ import * as Context from "effect/Context";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import { SignatureHistoryUnavailable } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
-import { makeSubjectId } from "./Identity.ts";
+import { makeSubjectId, ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
-import type { Signature } from "./Signature.ts";
+import { portWire, sameAnswer } from "./PortWireEncode.ts";
+import { Signature } from "./Signature.ts";
 
 export interface SignatureQuery {
   readonly subjectId: SubjectId;
@@ -117,6 +119,41 @@ const signatureSpan = {
 };
 
 /**
+ * What the signature question and answer look like on a wire (ARCH-31).
+ *
+ * The answer is the **full `Signature` records** — more than `askSignature`
+ * reads (`meaning`, `signerRole`) — because redacting them would fabricate a
+ * `signerId` and `signedAt` the client would then read as real (D-31-e). The
+ * query is scoped to the asking subject, so these are the subject's own
+ * records; a host opts in to serving them (`PortServing`). The span discloses
+ * no answer field: `qadi.matched` is made in `PortAccess.ts`, where the
+ * requirement is known, and `onFile` stays unrecorded (ARCH-21).
+ */
+const signatureWire = portWire({
+  question: Schema.Struct({
+    subjectId: SubjectIdSchema,
+    resourceId: Schema.optionalKey(ResourceIdSchema),
+  }),
+  answer: Schema.Array(Signature),
+  toQuestion: ([query]: [query: SignatureQuery]) =>
+    Result.succeed({
+      subjectId: query.subjectId,
+      ...(query.resourceId === undefined ? {} : { resourceId: query.resourceId }),
+    }),
+  fromQuestion: (question, subject): [query: SignatureQuery] => [
+    { subjectId: subject.id, resourceId: question.resourceId },
+  ],
+  ...sameAnswer<ReadonlyArray<Signature>>(),
+  asked: () => undefined,
+  spanQuestion: ([query]) => ({
+    subjectId: query.subjectId,
+    scope: query.resourceId === undefined ? "Any" : "Resource",
+    resourceId: query.resourceId,
+  }),
+  spanAnswer: () => ({}),
+});
+
+/**
  * The signature-history port, described once (`PortDescription.ts`).
  *
  * A request is keyed by `(subjectId, resourceId)`, with an absent resource as
@@ -135,6 +172,7 @@ export const signatureHistoryPort: PortDescription<
   method: "signaturesFor",
   span: "qadi.hasSignature",
   attributes: signatureSpan,
+  wire: signatureWire,
   service: SignatureHistory,
   invoke: (shape) => (query) => shape.signaturesFor(query),
   make: (name, call) => ({ name, signaturesFor: call }),

@@ -1,8 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
-import * as Logger from "effect/Logger";
-import * as References from "effect/References";
 import * as Result from "effect/Result";
 import * as FastCheck from "fast-check";
 import { Decided, DecisionRecord } from "../src/DecisionRecord.ts";
@@ -20,6 +18,7 @@ import { makeSubjectId } from "../src/Identity.ts";
 import * as P from "../src/Policy.ts";
 import { permission } from "../src/Permission.ts";
 import { encodeSinkRecord } from "../src/SinkCodec.ts";
+import { collectingLogger } from "./helpers.ts";
 
 const read = permission("doc", "read");
 
@@ -36,8 +35,6 @@ const recordWith = (resource: unknown): SinkRecord =>
         subjectId: makeSubjectId("u1"),
         durationMillis: 0,
         trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
-        visibleFields: undefined,
-        obligations: [],
       }),
     }),
   });
@@ -150,15 +147,6 @@ describe("a refusal report says where, never what (INV-QD-104)", () => {
 });
 
 describe("reportEncodeRefusal", () => {
-  const capture = () => {
-    const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
-    const layer = Logger.layer([
-      Logger.make((o) => {
-        logs.push({ message: o.message, annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
-      }),
-    ]);
-    return { logs, layer };
-  };
   const refused = new SinkRecordNotEncodable({
     recordTag: "Decision",
     evaluationId: "ev",
@@ -167,7 +155,7 @@ describe("reportEncodeRefusal", () => {
 
   it.effect("with a hook, calls it once and logs nothing", () =>
     Effect.gen(function* () {
-      const { logs, layer } = capture();
+      const { lines: logs, layer } = collectingLogger();
       const seen: Array<SinkRecordNotEncodable> = [];
       yield* reportEncodeRefusal(refused, { message: "m", onRefused: (r) => void seen.push(r) }).pipe(
         Effect.provide(layer),
@@ -178,7 +166,7 @@ describe("reportEncodeRefusal", () => {
 
   it.effect("with no hook, logs its message once with the three annotations", () =>
     Effect.gen(function* () {
-      const { logs, layer } = capture();
+      const { lines: logs, layer } = collectingLogger();
       yield* reportEncodeRefusal(refused, { message: "my words", onRefused: undefined }).pipe(Effect.provide(layer));
       assert.strictEqual(logs.length, 1);
       assert.include(String(logs[0]?.message), "my words");
@@ -187,7 +175,7 @@ describe("reportEncodeRefusal", () => {
 
   it.effect("a hook that throws is logged, never a defect", () =>
     Effect.gen(function* () {
-      const { logs, layer } = capture();
+      const { lines: logs, layer } = collectingLogger();
       const exit = yield* Effect.exit(
         reportEncodeRefusal(refused, {
           message: "m",

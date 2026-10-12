@@ -4,13 +4,13 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | QADI-ADR-904                                   |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-10-05                                     |
+> | Document ID    | QADI-ADR-097                                   |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — amends ADR-QD-045, ADR-QD-046, ADR-QD-047, ADR-QD-050; amended 2026-10-06 (bare frames refused); amended 2026-10-07 (the protocol words are core's) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-10-07): amended — the protocol words D-11-f names are declared in `@qadi/core` (ARCH-28, CCR-QD-195)<br>1.1 (2026-10-06): amended — 0.11.0 reads only `{ environment, record }` envelopes: `legacyEnvironment` and `DecodeStoredRecordOptions` removed as D-11-e scheduled, and `sourceFromEventSource` no longer treats a `message` before `synced` as an older server (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-11, CCR-QD-181) |
+> | Change History | 1.3 (2026-10-08): Document ID corrected from `QADI-ADR-904` to `QADI-ADR-097`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.2 (2026-10-07): amended — the protocol words D-11-f names are declared in `@qadi/core` (ARCH-28, CCR-QD-195)<br>1.1 (2026-10-06): amended — 0.11.0 reads only `{ environment, record }` envelopes: `legacyEnvironment` and `DecodeStoredRecordOptions` removed as D-11-e scheduled, and `sourceFromEventSource` no longer treats a `message` before `synced` as an older server (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-11, CCR-QD-181) |
 
 ---
 

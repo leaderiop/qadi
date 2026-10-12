@@ -406,4 +406,54 @@ describe("effect/reactivity API canary", () => {
     expect(AsyncResult.isSuccess(stale)).toBe(true);
     expect(stale.waiting).toBe(true);
   });
+
+  // -------------------------------------------------------------------------
+  // The runtime as a context — what `DevtoolsFeed.ts` rests on (ARCH-34)
+  // -------------------------------------------------------------------------
+
+  it("an AtomRuntime is an atom of its built context, one per registry", async () => {
+    // `runtimeLayer` hands a devtools panel the context the decision atoms
+    // evaluate in. That is only the *same* instance if a runtime builds its
+    // layer once per registry and a second registry builds its own.
+    let builds = 0;
+    const runtime = Atom.runtime(
+      Layer.effect(
+        Ticker,
+        Effect.sync(() => {
+          builds += 1;
+          const mine = builds;
+          return { next: Effect.succeed(mine) };
+        }),
+      ),
+    );
+
+    const first = makeRegistry();
+    const a = await Effect.runPromise(AtomRegistry.getResult(first, runtime));
+    const b = await Effect.runPromise(AtomRegistry.getResult(first, runtime));
+    expect(Context.get(a, Ticker)).toBe(Context.get(b, Ticker));
+    expect(builds).toBe(1);
+
+    const second = makeRegistry();
+    const c = await Effect.runPromise(AtomRegistry.getResult(second, runtime));
+    expect(Context.get(c, Ticker)).not.toBe(Context.get(a, Ticker));
+    expect(builds).toBe(2);
+  });
+
+  it("AtomRegistry.mount holds a runtime for the scope and releases it", async () => {
+    const runtime = Atom.runtime(tickerLayer({ count: 0 }));
+    const registry = makeRegistry();
+
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          yield* AtomRegistry.mount(registry, runtime);
+          yield* AtomRegistry.getResult(registry, runtime);
+          expect(registry.getNodes().has(runtime)).toBe(true);
+        }),
+      ),
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(registry.getNodes().has(runtime)).toBe(false);
+  });
 });

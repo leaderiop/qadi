@@ -7,12 +7,11 @@
  * about whether the other one can see them. These assertions pin the key
  * instead.
  *
- * Every count assertion is a **delta**, and it has to be. A private registry is
- * not available: a `Metric` memoises its hooks on itself at first touch, keyed
- * on attributes and not on the registry, so the first registry to reach a metric
- * owns it for the process and a later `Context.make(MetricRegistry, new Map())`
- * reads the same numbers through an empty map. Absolute assertions would
- * therefore depend on test ordering across the whole suite.
+ * Every count assertion is a **delta**, and it has to be. The writer is off
+ * fiber and always updates the default registry (`Context.empty()`), which no
+ * test can scope, so absolute assertions would depend on test ordering across
+ * the whole suite. (At effect 4.0.0 a fresh registry does isolate an *on-fiber*
+ * read, but these counts are written off fiber.)
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Context from "effect/Context";
@@ -22,10 +21,13 @@ import {
   hydrationDehydratedTotal,
   hydrationDropReasons,
   hydrationDroppedTotal,
+  hydrationDropMeaning,
   hydrationMismatchesTotal,
   hydrationRechecksTotal,
   hydrationSeededTotal,
+  isHydrationDropReason,
 } from "../src/HydrationMetrics.ts";
+import type { HydrationDropReason } from "../src/HydrationMetrics.ts";
 
 /** Whatever registry these metrics were first touched through. */
 const registry = Context.empty();
@@ -210,5 +212,43 @@ describe("HydrationMetrics", () => {
         assert.strictEqual(mismatches, 1);
       }),
     );
+  });
+
+  describe("what each reason means", () => {
+    // Written out by hand rather than read from `hydrationDropReasons`: a table
+    // derived from the thing under test cannot notice that thing losing a row.
+    const pinned: ReadonlyArray<readonly [HydrationDropReason, string, string]> = [
+      ["ForeignSubject", "two subjects' decisions", "no safe reading"],
+      ["PayloadSubjectMismatch", "not rendered for", "serving one user's page to another"],
+      ["MalformedEntry", "apart from its policy", "hand-built payload"],
+      ["UndecodablePolicy", "version skew", "did not decode"],
+      ["EntryTooDeep", "depth guard", "deeper than this client will walk"],
+      ["UnsupportedPayloadVersion", "deploy in flight", "different @qadi/react releases"],
+      ["MalformedPayload", "dehydrated payload", "depth guard"],
+    ];
+
+    for (const [reason, summary, remedy] of pinned) {
+      it(`${reason} has its summary and its remedy`, () => {
+        assert.include(hydrationDropMeaning(reason).summary, summary);
+        assert.include(hydrationDropMeaning(reason).remedy, remedy);
+      });
+    }
+
+    it("covers every reason, with a distinct non-empty sentence of each kind", () => {
+      assert.strictEqual(pinned.length, hydrationDropReasons.length);
+      const summaries = hydrationDropReasons.map((reason) => hydrationDropMeaning(reason).summary);
+      const remedies = hydrationDropReasons.map((reason) => hydrationDropMeaning(reason).remedy);
+      for (const sentence of [...summaries, ...remedies]) assert.isAbove(sentence.length, 0);
+      assert.strictEqual(new Set(summaries).size, hydrationDropReasons.length);
+      assert.strictEqual(new Set(remedies).size, hydrationDropReasons.length);
+    });
+
+    it("narrows a metric key to a reason this build knows, and refuses any other", () => {
+      for (const reason of hydrationDropReasons) assert.isTrue(isHydrationDropReason(reason));
+      assert.isFalse(isHydrationDropReason("SomethingElse"));
+      assert.isFalse(isHydrationDropReason(""));
+      // The removed reason: a build that still counts it is not this one.
+      assert.isFalse(isHydrationDropReason("UnregisteredAtoms"));
+    });
   });
 });

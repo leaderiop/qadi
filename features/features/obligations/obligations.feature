@@ -61,3 +61,20 @@ Feature: Obligations
     When the guarded work runs under an audited requirement
     Then the guarded work runs
     And the handler discharged "log-access"
+
+  Scenario: The handler is told which resource the allow was for
+    Given a subject "rania"
+    And the subject has role "auditor"
+    And the resource "doc-7"
+    And an obligation handler is supplied
+    When the guarded work runs under an audited requirement
+    Then the handler discharged "log-access"
+    And the handler was told the resource "doc-7"
+
+  Scenario: A handler is told no resource when the question had none
+    Given a subject "rania"
+    And the subject has role "auditor"
+    And an obligation handler is supplied
+    When the guarded work runs under an audited requirement
+    Then the handler discharged "log-access"
+    And the handler was told no resource

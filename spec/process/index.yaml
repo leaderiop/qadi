@@ -8,3 +8,6 @@ entries:
   - id: "QADI-PROC-02"
     file: "definitions-of-done.md"
     title: "Definitions of Done"
+  - id: "QADI-PROC-03"
+    file: "house-rules-evidence.md"
+    title: "House Rules — Evidence and Corrections"

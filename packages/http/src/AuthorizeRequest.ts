@@ -15,7 +15,8 @@ import type {
 } from "@qadi/core";
 import { CurrentSubject, ENFORCEMENT_DENIAL_TAGS, guard } from "@qadi/core";
 import type { HttpEnforcementFailure } from "./QadiHttpError.ts";
-import { logDenial, logSubjectExtractionFailed } from "./QadiHttpError.ts";
+import { logSubjectExtractionFailed } from "./QadiHttpError.ts";
+import { logDenialAt } from "./DenialLog.ts";
 import { loadNoResource } from "./NoResource.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
 
@@ -46,9 +47,12 @@ export interface AuthorizedRequest<P extends Permission, A extends Resource> {
  * the returned witness (`guard` itself builds its handler eagerly, ADR-QD-035),
  * and with `subject` provided as `CurrentSubject`.
  *
- * The log taps sit here, not on the surface: a denial logs through `logDenial`
- * and an extraction failure through `logSubjectExtractionFailed`, one line each.
- * A resolver outage logs nothing at the edge. Omit `loadResource` to evaluate
+ * The log taps for the edge check sit here: a denial logs through `logDenial`
+ * (annotated `qadi.denial_site: "edge"`) and an extraction failure through
+ * `logSubjectExtractionFailed`, one line each. A denial a *handler's own*
+ * `guard` raises is not this step's: the surface that turns it into a response
+ * logs it, annotated `"handler"` (BEH-QD-321). A resolver outage logs nothing
+ * at the edge. Omit `loadResource` to evaluate
  * against `NO_RESOURCE`.
  *
  * Returns a value over a closed error union rather than taking a continuation:
@@ -92,7 +96,7 @@ export function authorizeRequest<P extends Permission, LR>(
     return { authorized, resource, subject };
   }, (self) =>
     self.pipe(
-      Effect.tapErrorTag(ENFORCEMENT_DENIAL_TAGS, logDenial),
+      Effect.tapErrorTag(ENFORCEMENT_DENIAL_TAGS, logDenialAt("edge")),
       Effect.tapErrorTag("SubjectExtractionFailed", logSubjectExtractionFailed),
     ));
 }

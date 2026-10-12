@@ -10,13 +10,12 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
 import * as FastCheck from "fast-check";
-import * as Logger from "effect/Logger";
-import * as References from "effect/References";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
+import { toPredicate } from "../src/Predicate.ts";
 import {
   flattenPermissions,
   permissionProvenance,
@@ -25,7 +24,7 @@ import {
   roleNames,
 } from "../src/Role.ts";
 import type { Role } from "../src/Role.ts";
-import { subjectWith, testLayer } from "./helpers.ts";
+import { collectingLogger, subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -429,20 +428,13 @@ describe("resolveRoleGraph — an unknown parent is reported", () => {
 
   it.effect("with no callback, it warns — the default path most callers get", () =>
     Effect.gen(function* () {
-      const logs: Array<{ message: unknown; annotations: unknown }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
 
       yield* resolveRoleGraph([
         { name: "editor", permissions: [write], inherits: ["viewr"] },
       ]).pipe(
         Effect.provide(
-          Logger.layer([
-            Logger.make((options) => {
-              logs.push({
-                message: options.message,
-                annotations: options.fiber.getRef(References.CurrentLogAnnotations),
-              });
-            }),
-          ]),
+          logger,
         ),
       );
 
@@ -453,20 +445,20 @@ describe("resolveRoleGraph — an unknown parent is reported", () => {
 
   it.effect("no unknown parents means no log at all", () =>
     Effect.gen(function* () {
-      const logs: Array<unknown> = [];
+      const { lines, layer: logger } = collectingLogger();
 
       yield* resolveRoleGraph([
         { name: "viewer", permissions: [read] },
         { name: "editor", inherits: ["viewer"] },
       ]).pipe(
         Effect.provide(
-          Logger.layer([Logger.make((options) => { logs.push(options.message); })]),
+          logger,
         ),
       );
 
       // Guards the outer `size > 0`: without it a clean catalogue would warn
       // about nothing on every resolve.
-      assert.deepStrictEqual(logs, []);
+      assert.deepStrictEqual(lines, []);
     }));
 
   it.effect("still fails on a genuine cycle", () =>
@@ -545,4 +537,97 @@ describe("the policy a record carries can be measured", () => {
       assert.strictEqual(P.policyDepth(decoded), 3);
       assert.isTrue(P.policyDepth(decoded) <= P.DEFAULT_MAX_DEPTH);
     }));
+});
+
+describe("INV-QD-037: toPredicate checks the same bound evaluate does", () => {
+  const leaf = FastCheck.oneof(
+    FastCheck.constant<P.Policy>(P.hasRole("editor")),
+    FastCheck.constant<P.Policy>(P.hasAttribute("x", M.gte(1))),
+    // Matcher nesting counts toward depth (ARCH-02 D-02-f).
+    FastCheck.constant<P.Policy>(
+      P.hasAttribute("tags", M.someMatch(M.fieldMatch("a", M.eq(M.literal(1))))),
+    ),
+  );
+  const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
+    node: FastCheck.oneof(
+      { maxDepth: 5, withCrossShrink: true },
+      leaf,
+      tie("node").map(P.not),
+      tie("node").map((p) => P.labeled("l", p)),
+      FastCheck.array(tie("node"), { maxLength: 3 }).map((ps) => P.allOf(ps)),
+      FastCheck.array(tie("node"), { maxLength: 3 }).map((ps) => P.anyOf(ps)),
+    ),
+  })).node;
+  const bounds = FastCheck.constantFrom<number | undefined>(
+    undefined,
+    -1,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    8,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    2.5,
+  );
+  const world = testLayer(subjectWith({ roles: ["editor"], attributes: { x: 2, tags: [{ a: 1 }] } }));
+
+  /** The `maxDepth` a `PolicyTooDeep` carries, or `"other"`/`"ok"` when the run did not fail that way. */
+  const tooDeep = <E extends { readonly _tag: string }>(r: Result.Result<unknown, E>) =>
+    Result.isSuccess(r)
+      ? "ok"
+      : r.failure._tag === "PolicyTooDeep" && "maxDepth" in r.failure
+        ? r.failure.maxDepth
+        : "other";
+
+  it.effect("PROPERTY: evaluate fails PolicyTooDeep exactly when toPredicate does, at every maxDepth", () =>
+    Effect.gen(function* () {
+      const cases = FastCheck.sample(FastCheck.tuple(tree, bounds), { numRuns: 200, seed: 4141 });
+      for (const [policy, maxDepth] of cases) {
+        const options = maxDepth === undefined ? undefined : { maxDepth };
+        const evaluated = yield* Effect.result(evaluate(policy, options));
+        const translated = yield* Effect.result(toPredicate(policy, options));
+        const where = JSON.stringify({ policy, maxDepth: String(maxDepth) });
+        const a = tooDeep(evaluated);
+        const b = tooDeep(translated);
+        assert.strictEqual(
+          typeof a === "number",
+          typeof b === "number",
+          `the two interpreters disagree on whether this is too deep: ${where}`,
+        );
+        assert.isTrue(Object.is(a, b) || (typeof a !== "number" && typeof b !== "number"), where);
+      }
+    }).pipe(Effect.provide(world)));
+
+  it.effect("a too-deep field-restricting tree is PolicyTooDeep through both", () =>
+    Effect.gen(function* () {
+      let policy: P.Policy = P.hasRole("editor", { fields: ["a"] });
+      for (let i = 0; i < 4; i += 1) policy = P.not(policy);
+      const evaluated = yield* Effect.result(evaluate(policy, { maxDepth: 2 }));
+      const translated = yield* Effect.result(toPredicate(policy, { maxDepth: 2 }));
+      assert.strictEqual(tooDeep(evaluated), 2);
+      assert.strictEqual(tooDeep(translated), 2);
+    }).pipe(Effect.provide(world)));
+});
+
+describe("INV-QD-037: the default bound is the same for both interpreters", () => {
+  it.effect("with no maxDepth, DEFAULT_MAX_DEPTH is admitted and one past it is refused, by both", () =>
+    Effect.gen(function* () {
+      // Generated trees are shallow, so the default is only visible at its own
+      // boundary: this is the case that notices one interpreter's default drifting.
+      const nested = (levels: number): P.Policy => {
+        let policy: P.Policy = P.hasRole("editor");
+        for (let i = 0; i < levels; i += 1) policy = P.not(policy);
+        return policy;
+      };
+      const at = nested(P.DEFAULT_MAX_DEPTH);
+      const past = nested(P.DEFAULT_MAX_DEPTH + 1);
+      assert.strictEqual((yield* Effect.result(evaluate(at)))._tag, "Success");
+      assert.strictEqual((yield* Effect.result(toPredicate(at)))._tag, "Success");
+      for (const r of [yield* Effect.result(evaluate(past)), yield* Effect.result(toPredicate(past))]) {
+        assert.strictEqual(r._tag === "Failure" ? r.failure._tag : r._tag, "PolicyTooDeep");
+      }
+    }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["editor"] })))));
 });

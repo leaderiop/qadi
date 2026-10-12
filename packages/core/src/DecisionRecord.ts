@@ -24,7 +24,7 @@ import * as Order from "effect/Order";
 import type { Decision } from "./Decision.ts";
 import type { CacheOutcome } from "./DecisionCache.ts";
 import type { EvaluationError } from "./Errors.ts";
-import type { SubjectId } from "./Identity.ts";
+import type { ResourceId, SubjectId } from "./Identity.ts";
 import type { Policy } from "./Policy.ts";
 import type { Resource } from "./Resource.ts";
 
@@ -117,11 +117,12 @@ export class DecisionRecord extends Data.TaggedClass("Decision")<{
  * What happened at the obligation gate, for an allow that carried duties.
  *
  * **Per decision, not per obligation, and that is the honest limit.**
- * `ObligationHandler` receives the whole array and returns `void`, so the
- * library observes that a set was presented to a handler and that the handler
- * succeeded or failed — never which individual duty was met. Reporting
- * per-obligation state would mean changing the handler contract, and a handler
- * that reported falsely would still be unverifiable.
+ * `ObligationHandler` receives one `ObligationDischarge` (the question and the
+ * allow, so every duty at once) and returns `void`, so the library observes
+ * that a set was presented to a handler and that the handler succeeded or
+ * failed — never which individual duty was met. Reporting per-obligation state
+ * would mean changing the handler contract again, and a handler that reported
+ * falsely would still be unverifiable.
  *
  * Emitted only when the allow carried obligations, so a decision with none adds
  * no traffic.
@@ -137,6 +138,21 @@ export class ObligationRecord extends Data.TaggedClass("Obligations")<{
   readonly at: number;
   readonly outcome: ObligationOutcome;
   readonly obligationIds: ReadonlyArray<string>;
+  /**
+   * Who the allow was decided for, so an obligation row can say whom it
+   * concerns without its decision row (an orphan, whose decision never arrived).
+   *
+   * Identity, not content: the question's subject, action and resource id are
+   * here, never the resource itself, which stays on the {@link DecisionRecord}
+   * so customer data is not disclosed twice to every sink. Optional only because
+   * a row written before these keys existed lacks them; `discharge` always sets
+   * `subjectId`.
+   */
+  readonly subjectId?: SubjectId | undefined;
+  /** What the caller was doing, when the question said. */
+  readonly action?: string | undefined;
+  /** The question's resource id, when its resource had a string `id`. */
+  readonly resourceId?: ResourceId | undefined;
 }> {}
 
 /**

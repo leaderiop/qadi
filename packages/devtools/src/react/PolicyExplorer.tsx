@@ -15,12 +15,14 @@
 import { useMemo, useState, type CSSProperties, type FC } from "react";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
+import * as Match from "effect/Match";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import * as SchemaIssue from "effect/SchemaIssue";
 import { DEFAULT_MAX_DEPTH, fromJson, policyDepth, simplify, toJson } from "@qadi/core";
 import type { Policy, PolicyDecodeTooDeep } from "@qadi/core";
 import type { PolicySighting } from "../model/Catalogue.ts";
+import { resolveHeld } from "../model/HeldChoice.ts";
 import { inspect } from "../model/Inspect.ts";
 import { PolicyTree } from "./PolicyTree.tsx";
 import { button, colors, font, input, muted } from "./theme.ts";
@@ -81,21 +83,29 @@ const railItem = (selected: boolean): CSSProperties => ({
 });
 
 export const PolicyExplorer: FC<PolicyExplorerProps> = ({ sightings }) => {
-  const [selected, setSelected] = useState(0);
+  /** The sighting the reviewer chose, held by value: the rail reorders as decisions arrive. */
+  const [held, setHeld] = useState<PolicySighting | undefined>(undefined);
   const [json, setJson] = useState(false);
   /** A policy loaded from pasted JSON, or produced by applying a simplification. */
   const [draft, setDraft] = useState<Policy | undefined>(undefined);
   const [preview, setPreview] = useState<Policy | undefined>(undefined);
   const [pasteError, setPasteError] = useState<string | undefined>(undefined);
 
-  // `selected` is state and the list can shrink under it — "clear view" while
-  // an index from a longer list is still held, for instance — so it is
-  // clamped at render rather than trusted. An unclamped index would read
-  // `undefined` past the new end and this screen would falsely claim there was
-  // nothing to show, even though `sightings` is non-empty.
-  const clampedIndex = sightings.length === 0 ? undefined : Math.min(selected, sightings.length - 1);
-  const sighting = clampedIndex === undefined ? undefined : sightings[clampedIndex];
-  const policy = draft ?? sighting?.policy;
+  // Pinned during render (React's derived-state pattern): the first policy
+  // shown is the one held, so a new head never changes what the reviewer reads.
+  if (held === undefined && sightings[0] !== undefined) setHeld(sightings[0]);
+
+  // Position is a reading of the current rail, never the selection: a new
+  // decision moves the policy it concerns, so an index would name another one.
+  const resolved = resolveHeld(sightings, held, (a, b) => Equal.equals(a.policy, b.policy));
+  const shown = Match.value(resolved).pipe(
+    Match.tagsExhaustive({
+      Empty: () => ({ sighting: undefined, index: undefined, evicted: false }),
+      Listed: (listed) => ({ sighting: listed.value, index: listed.index, evicted: false }),
+      Evicted: (gone) => ({ sighting: gone.value, index: undefined, evicted: true }),
+    }),
+  );
+  const policy = draft ?? shown.sighting?.policy;
 
   if (policy === undefined) {
     return (
@@ -108,7 +118,7 @@ export const PolicyExplorer: FC<PolicyExplorerProps> = ({ sightings }) => {
   }
 
   const choose = (index: number) => {
-    setSelected(index);
+    setHeld(sightings[index]);
     // A draft belongs to the policy it was derived from; carrying it across a
     // selection would show one policy's JSON under another's name.
     setDraft(undefined);
@@ -124,7 +134,7 @@ export const PolicyExplorer: FC<PolicyExplorerProps> = ({ sightings }) => {
             key={`${entry.label}-${index}`}
             type="button"
             data-testid="qadi-policy-rail-item"
-            style={railItem(index === clampedIndex && draft === undefined)}
+            style={railItem(index === shown.index && draft === undefined)}
             onClick={() => choose(index)}
           >
             <div>{entry.label}</div>
@@ -138,6 +148,14 @@ export const PolicyExplorer: FC<PolicyExplorerProps> = ({ sightings }) => {
       </div>
 
       <div style={{ flex: 1, minWidth: 0, overflow: "auto", padding: 12 }}>
+        {shown.evicted && draft === undefined ? (
+          <div
+            style={{ ...muted, fontSize: font.sizeSmall, marginBottom: 8 }}
+            data-testid="qadi-policies-evicted"
+          >
+            {shown.sighting?.label} is no longer in the log
+          </div>
+        ) : null}
         <Toolbar
           json={json}
           onToggleJson={() => setJson(!json)}

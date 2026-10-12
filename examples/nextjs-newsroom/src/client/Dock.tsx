@@ -2,18 +2,25 @@
 /**
  * The dock, wired the way a host would copy it.
  *
- * `DevtoolsDockProps` has fifteen optional fields and a dock mounted with none
+ * `DevtoolsDockProps` has nine optional fields and a dock mounted with none
  * of them still renders every tab — each empty screen saying why it is empty
  * ([BEH-QD-218](../../../../spec/behaviors/28-devtools-screens.md)). That is the
  * right default and it is not what this example is for: the point here is to
- * wire the ones a host supplies — `source`, `catalogue`, `diagnostics`, `gates`,
- * `unknownParents`, `hydrationMismatches`, `onInvalidate` and `ports` — because
- * the wiring is the part no unit test can prove and the part a reader actually
- * has to copy. `capacity` has a sensible default. `wiring`, `activity`,
- * `portCalls`, `hydration` and `questions` are deliberately **not** passed:
- * they carry a reading taken *elsewhere* (another process, a fixture), and
- * `diagnostics` samples this one for the dock, so the host runs no loop of its
- * own.
+ * wire the ones a host supplies — `source`, `catalogue`, `unknownParents` and
+ * `ports`, and, from one call to `useDevtoolsFeed`, the atom set's `gates`,
+ * `onInvalidate` and `diagnostics` — because the wiring is the part no unit test
+ * can prove and the part a reader actually has to copy. `capacity` has a
+ * sensible default. `reading` is deliberately **not** passed: it carries a
+ * reading taken *elsewhere* (another process, a fixture), and `diagnostics`
+ * samples this one for the dock, so the host runs no loop of its own.
+ *
+ * **The feed is one call because the atom set already knows all of it.** Who is
+ * asking, how to invalidate, what has been asked and which services the
+ * decisions ran in are all the provider's; `useDevtoolsFeed` reads them from
+ * there, so this file hoists no layer, subscribes to nothing and wraps no
+ * callback. In particular the dock's wiring read sees the cache the provider's
+ * own decisions filled without `browserLayer` having to build it out of band
+ * (CCR-QD-200: a layer value built twice is two caches).
  *
  * **The source is two sources.** The server's decisions arrive over SSE from
  * `/api/__decisions` — its backlog first, then live, each frame labelled by the
@@ -24,25 +31,17 @@
  * is what makes the log show them as a pair rather than as two unrelated rows
  * in two panels. No environment is named here: each producer names its own.
  */
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useMemo } from "react";
 import * as Effect from "effect/Effect";
 import { permissionKey, resolveRoleGraph } from "@qadi/core";
 import type { Role } from "@qadi/core";
 import { mergeSources, sourceFromEventSource } from "@qadi/devtools";
 import { DevtoolsDock } from "@qadi/devtools/react";
-import type { DiagnosticsDockOptions } from "@qadi/devtools/react";
-import { useGateInstances, useInvalidate, useSubject } from "@qadi/react";
+import { useDevtoolsFeed, useSubject } from "@qadi/react";
 import { catalogue } from "../domain/policies.ts";
 import { readDevtools } from "../domain/permissions.ts";
 import { allRoles } from "../domain/roles.ts";
-import {
-  atoms,
-  browserLayer,
-  clientLog,
-  clientPortCalls,
-  mismatchSnapshot,
-  subscribeMismatches,
-} from "./atoms.ts";
+import { clientLog, clientPortCalls } from "./atoms.ts";
 import { browserPorts } from "./ports.ts";
 import { useDrops } from "./Providers.tsx";
 
@@ -100,23 +99,20 @@ void Effect.runSync(
  * The dock runs that pull on a two-second schedule, builds `layer` once while
  * it is mounted and keeps a reading's identity while nothing changed.
  *
- * `layer` is `browserLayer`, whose cache is built once at module scope
- * (`atoms.ts`), so the dock's own build of it reads **the atoms' cache**, not a
- * throwaway: a layer value built twice is two caches. `questions` is read off
+ * The feed supplies `layer` (the provider's own built services, so the wiring
+ * read sees **the atoms' cache** and not a throwaway) and `questions` (read off
  * the atom set on the same schedule rather than subscribed to, for the reason
- * `asked()` documents: the list changes whenever a question is first asked
- * or swept, and a panel that re-rendered on every question would re-render on
- * every guard's first mount. Every value is at
- * module scope, because the run restarts when one of them changes identity.
+ * `asked()` documents: the list changes whenever a question is first asked or
+ * swept, and a panel that re-rendered on every question would re-render on every
+ * guard's first mount). What is left to the host is the one thing the feed
+ * cannot know: the collector that recorded this browser's port calls. It is at
+ * module scope, because the dock's run restarts when the object's identity
+ * changes.
  */
-export const diagnostics: DiagnosticsDockOptions = {
-  layer: browserLayer,
-  collector: clientPortCalls,
-  questions: () => atoms.asked(),
-};
+const dockExtras = { collector: clientPortCalls };
 
 export const Dock = () => {
-  const invalidate = useInvalidate();
+  const feed = useDevtoolsFeed(dockExtras);
   const subject = useSubject();
 
   // One connection per session. `useSubject` comes from the provider above, so
@@ -124,21 +120,9 @@ export const Dock = () => {
   // changes — and never on a re-render that changes nothing about it.
   const source = useMemo(makeSource, [subject?.id]);
 
-  // Who is asking, from the provider's own registry — the one `atoms.asked()`
-  // below belongs to, so the two halves of the Questions panel share a scope.
-  const gates = useGateInstances();
-  const mismatches = useSyncExternalStore(
-    subscribeMismatches,
-    mismatchSnapshot,
-    mismatchSnapshot,
-  );
   // Read from the provider above this one, so it is this render's drops and
   // never another request's.
   const drops = useDrops();
-
-  const onInvalidate = useCallback(() => {
-    invalidate();
-  }, [invalidate]);
 
   // Said on screen, because otherwise its absence looks like a broken transport.
   // `/__decisions` is guarded by `canReadDevtools`, which only the chief editor
@@ -174,13 +158,10 @@ export const Dock = () => {
           lets every element scroll clear of it. */}
       <div aria-hidden="true" style={{ height: "45vh" }} />
       <DevtoolsDock
+        {...feed}
         source={source}
         catalogue={{ policies: catalogue, roles }}
-        diagnostics={diagnostics}
-        gates={gates}
         unknownParents={unknownParents}
-        hydrationMismatches={mismatches.length}
-        onInvalidate={onInvalidate}
         ports={browserPorts}
       />
     </>

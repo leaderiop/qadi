@@ -421,7 +421,7 @@ const HasResourceAttribute = Schema.TaggedStruct("HasResourceAttribute", {
  * deliberately total, per `makeRoleName`'s comment above) never reaches this
  * check and still needs a runtime guard before it becomes resolver fuel.
  */
-const RelationshipDepth = Schema.Int.check(
+export const RelationshipDepth = Schema.Int.check(
   Schema.isBetween({ minimum: 0, maximum: DEFAULT_MAX_DEPTH }),
 );
 

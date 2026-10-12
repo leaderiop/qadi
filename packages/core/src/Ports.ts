@@ -22,15 +22,18 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Record from "effect/Record";
-import { attributeResolverPort } from "./AttributeResolver.ts";
-import { customPredicatePort } from "./CustomPredicate.ts";
-import { decisionHistoryPort } from "./DecisionHistory.ts";
+import { attributeResolverFromRecord, attributeResolverPort } from "./AttributeResolver.ts";
+import { customPredicateFromRecord, customPredicatePort } from "./CustomPredicate.ts";
+import { decisionHistoryFromEvents, decisionHistoryPort } from "./DecisionHistory.ts";
+import type { ActedEventInput } from "./DecisionHistory.ts";
 import { nonePort } from "./PortDerivation.ts";
 import type { PortDescription, PortShape } from "./PortDescription.ts";
 import type { PortName } from "./PortMetrics.ts";
 import type { PortSpanAttributesLike } from "./PortSpan.ts";
-import { relationshipResolverPort } from "./RelationshipResolver.ts";
-import { signatureHistoryPort } from "./SignatureHistory.ts";
+import { relationshipResolverFromEdges, relationshipResolverPort } from "./RelationshipResolver.ts";
+import type { RelationshipEdgeInput } from "./RelationshipResolver.ts";
+import { signatureHistoryFromSignatures, signatureHistoryPort } from "./SignatureHistory.ts";
+import type { SignatureInput } from "./SignatureHistory.ts";
 
 /**
  * The registry's type: each port's name to its description's exact type.
@@ -211,6 +214,92 @@ const NONE: PortLayers = mapPorts(nonePort);
  */
 export const portsLayer = (overrides: PortOverrides = {}): Layer.Layer<PortServices> =>
   mergePorts(mapPorts((d) => overrides[d.port] ?? NONE[d.port]));
+
+/**
+ * The plain data a test or a simulation can state for each port — the shape
+ * {@link PORT_FIXTURES} turns into that port's layer.
+ *
+ * Data only, never a layer: devtools' Fixtures mode is sealed (ADR-QD-050) and
+ * takes data, and a value that is not serializable could not cross into it.
+ * `CustomPredicate` is answers (`name` to a fixed verdict), not functions; a
+ * predicate that reads the subject or resource is a layer, supplied as an
+ * override.
+ */
+export interface PortFixtureData {
+  readonly AttributeResolver: Readonly<Record<string, unknown>>;
+  readonly RelationshipResolver: ReadonlyArray<RelationshipEdgeInput>;
+  readonly DecisionHistory: ReadonlyArray<ActedEventInput>;
+  readonly SignatureHistory: ReadonlyArray<SignatureInput>;
+  readonly CustomPredicate: Readonly<Record<string, boolean>>;
+}
+
+/**
+ * Each port's fixture builder, closed over `PortName`: a port added to the
+ * registry without a row here is TS2741 (ADR-QD-094).
+ *
+ * This is the one place the data-to-layer mapping is written. `@qadi/testing`'s
+ * review layer and `@qadi/devtools`' Fixtures simulation both go through
+ * {@link fixturePortsLayer}; before it each kept its own copy, and devtools
+ * cannot depend on `@qadi/testing` (no test fixtures in a production bundle),
+ * so only core could hold it.
+ */
+export const PORT_FIXTURES: {
+  readonly [K in PortName]: (data: PortFixtureData[K]) => Layer.Layer<ServiceOf<PortTypes[K]>>;
+} = {
+  AttributeResolver: attributeResolverFromRecord,
+  DecisionHistory: decisionHistoryFromEvents,
+  RelationshipResolver: relationshipResolverFromEdges,
+  CustomPredicate: (answers) =>
+    customPredicateFromRecord(Record.map(answers, (answer) => () => Effect.succeed(answer))),
+  SignatureHistory: signatureHistoryFromSignatures,
+};
+
+/**
+ * Any subset of the ports' fixture data. `| undefined` for the same reason as
+ * {@link PortOverrides}: a conditional slot compiles under
+ * `exactOptionalPropertyTypes`, and an `undefined` slot is the fail-closed
+ * default.
+ */
+export type PortFixtures = {
+  readonly [K in PortName]?: PortFixtureData[K] | undefined;
+};
+
+/** A fixture's layer, or `undefined` (the port's default) when it has no data. */
+const fixtureLayer = <D, S>(
+  build: (data: D) => Layer.Layer<S>,
+  data: D | undefined,
+): Layer.Layer<S> | undefined => (data === undefined ? undefined : build(data));
+
+/**
+ * Every port, each answering from its fixture data, or at its fail-closed
+ * default when it has none, unless `overrides` names a layer for it.
+ *
+ * An override wins over the same port's data, port by port. A caller whose own
+ * surface offers a port as data or as a layer, never both (`@qadi/testing`'s
+ * `ports` option), never reaches that case.
+ */
+export const fixturePortsLayer = (
+  data: PortFixtures = {},
+  overrides: PortOverrides = {},
+): Layer.Layer<PortServices> => {
+  // Typed over `PortName` so a port left out of this record is a compile error.
+  const layers: { readonly [K in PortName]: Layer.Layer<ServiceOf<PortTypes[K]>> | undefined } = {
+    AttributeResolver:
+      overrides.AttributeResolver ??
+      fixtureLayer(PORT_FIXTURES.AttributeResolver, data.AttributeResolver),
+    DecisionHistory:
+      overrides.DecisionHistory ?? fixtureLayer(PORT_FIXTURES.DecisionHistory, data.DecisionHistory),
+    RelationshipResolver:
+      overrides.RelationshipResolver ??
+      fixtureLayer(PORT_FIXTURES.RelationshipResolver, data.RelationshipResolver),
+    CustomPredicate:
+      overrides.CustomPredicate ?? fixtureLayer(PORT_FIXTURES.CustomPredicate, data.CustomPredicate),
+    SignatureHistory:
+      overrides.SignatureHistory ??
+      fixtureLayer(PORT_FIXTURES.SignatureHistory, data.SignatureHistory),
+  };
+  return portsLayer(layers);
+};
 
 /**
  * Rebuilds every port of `ports` through `f` — the shape a capture, a recording

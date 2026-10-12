@@ -1,9 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
 import * as Predicate from "effect/Predicate";
-import * as References from "effect/References";
 import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import { isAllowed } from "../src/Decision.ts";
@@ -18,7 +16,7 @@ import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import { decodeSinkRecord, encodeSinkRecord } from "../src/SinkCodec.ts";
 import * as V2 from "./fixtures/sinkWireV2.ts";
-import { subjectWith, testLayer } from "./helpers.ts";
+import { collectingLogger, subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
 const allowed = subjectWith({ permissions: ["doc:read"] });
@@ -142,17 +140,10 @@ describe("decisionSinkForwarding", () => {
 
   it.effect("with no onFailure it warns rather than going quiet", () =>
     Effect.gen(function* () {
-      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
 
       yield* evaluate(policy).pipe(
-        Effect.provide(Layer.mergeAll(decisionSinkForwarding({ send: () => Effect.fail("unreachable") }), Logger.layer([
-            Logger.make((o) => {
-              logs.push({
-                message: o.message,
-                annotations: o.fiber.getRef(References.CurrentLogAnnotations),
-              });
-            }),
-          ]))),
+        Effect.provide(Layer.mergeAll(decisionSinkForwarding({ send: () => Effect.fail("unreachable") }), logger)),
       );
 
       assert.strictEqual(logs.length, 1);
@@ -167,18 +158,18 @@ describe("decisionSinkForwarding", () => {
 
   it.effect("a successful send logs nothing", () =>
     Effect.gen(function* () {
-      const logs: Array<unknown> = [];
+      const { lines, layer: logger } = collectingLogger();
 
       yield* evaluate(policy).pipe(
         Effect.provide(
           Layer.mergeAll(
             decisionSinkForwarding({ send: () => Effect.void }),
-            Logger.layer([Logger.make((o) => { logs.push(o.message); })]),
+            logger,
           ),
         ),
       );
 
-      assert.deepStrictEqual(logs, []);
+      assert.deepStrictEqual(lines, []);
     }).pipe(Effect.provide(testLayer(allowed))));
 });
 
@@ -292,20 +283,13 @@ describe("decisionSinkForwarding reports a refusal as a refusal (ARCH-09 T6)", (
 
   it.effect("with no onFailure, a refusal logs its own message, distinct from a send failure", () =>
     Effect.gen(function* () {
-      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
 
       yield* evaluate(policy, { resource: { tags: new Set(["finance"]) } }).pipe(
         Effect.provide(
           Layer.mergeAll(
             decisionSinkForwarding({ send: () => Effect.void }),
-            Logger.layer([
-              Logger.make((o) => {
-                logs.push({
-                  message: o.message,
-                  annotations: o.fiber.getRef(References.CurrentLogAnnotations),
-                });
-              }),
-            ]),
+            logger,
           ),
         ),
       );
@@ -322,7 +306,7 @@ describe("decisionSinkForwarding reports a refusal as a refusal (ARCH-09 T6)", (
 
   it.effect("a refusal with no path (EncodeFailed) logs an empty qadi.path", () =>
     Effect.gen(function* () {
-      const logs: Array<Record<string, unknown>> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
       const hostile = {
         get boom(): unknown {
           throw new Error("getter exploded");
@@ -333,14 +317,14 @@ describe("decisionSinkForwarding reports a refusal as a refusal (ARCH-09 T6)", (
         Effect.provide(
           Layer.mergeAll(
             decisionSinkForwarding({ send: () => Effect.void }),
-            Logger.layer([Logger.make((o) => void logs.push(o.fiber.getRef(References.CurrentLogAnnotations)))]),
+            logger,
           ),
         ),
       );
 
       assert.strictEqual(logs.length, 1);
-      assert.strictEqual(logs[0]?.["qadi.refusal"], "EncodeFailed");
-      assert.strictEqual(logs[0]?.["qadi.path"], "");
+      assert.strictEqual(logs[0]?.annotations["qadi.refusal"], "EncodeFailed");
+      assert.strictEqual(logs[0]?.annotations["qadi.path"], "");
     }).pipe(Effect.provide(testLayer(allowed))));
 
   it.effect("an onFailure that throws on a refusal still cannot change the decision", () =>
@@ -448,7 +432,7 @@ describe("decisionSinkAll", () => {
 
   it.effect("a member's death is reported through a log, not silently swallowed", () =>
     Effect.gen(function* () {
-      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
       const dying = Layer.succeed(DecisionSink, {
         record: () => Effect.die(new Error("boom")),
       });
@@ -457,14 +441,7 @@ describe("decisionSinkAll", () => {
         Effect.provide(
           Layer.mergeAll(
             decisionSinkAll([dying]),
-            Logger.layer([
-              Logger.make((o) => {
-                logs.push({
-                  message: o.message,
-                  annotations: o.fiber.getRef(References.CurrentLogAnnotations),
-                });
-              }),
-            ]),
+            logger,
           ),
         ),
       );

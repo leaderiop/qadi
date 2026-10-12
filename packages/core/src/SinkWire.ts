@@ -6,13 +6,15 @@
  * `SinkRecordNotDecodable` carry these types) and `SinkCodec.ts` (which raises
  * them) can both import it without a cycle: `Errors.ts` cannot import
  * `SinkCodec.ts` (ADR-QD-037, which counts type-only edges), and this module
- * imports only `effect`. The error classes stay in `Errors.ts` with the rest of
+ * imports only `effect` and one type from `Decision.ts`, whose import closure
+ * does not reach this module. The error classes stay in `Errors.ts` with the rest of
  * `QadiError`; only the vocabulary they name lives here (ADR-QD-095's ARCH-27
  * amendment). Package-private: the barrel re-exports every name, so nothing
  * here is reached by its own path.
  */
 import * as Data from "effect/Data";
 import * as Match from "effect/Match";
+import type { DecisionDisagreement } from "./Decision.ts";
 
 /**
  * The `_tag` of a `SinkRecord` — `"Decision"` or `"Obligations"`.
@@ -200,11 +202,17 @@ export const WIRE_VERSIONS: ReadonlyArray<WireVersion> = [2];
  *   the input names no version — a pre-0.10 (version-1) record, which 0.11.0
  *   no longer reads: re-encode it with 0.10.x, or upgrade its sender. A newer
  *   `version` means upgrade this reader.
+ * - `Inconsistent`: a well-formed version-2 record that contradicts itself: a
+ *   decision whose verdict, `visibleFields`, `obligations` or `reason` differ
+ *   from its own trace root's, or whose ids or policy tag differ from its
+ *   record's (`disagreement` names the first, INV-QD-170). A producer that
+ *   built a decision by hand, or tampering; not version skew.
  */
 export type DecodeRefusal = Data.TaggedEnum<{
   NotJson: Record<never, never>;
   TooDeep: { readonly maxDepth: number };
   Malformed: { readonly message: string };
+  Inconsistent: { readonly disagreement: DecisionDisagreement };
   UnsupportedVersion: { readonly version: unknown; readonly supported: ReadonlyArray<WireVersion> };
 }>;
 

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-036                                   |
-> | Revision       | 1.5                                             |
-> | Effective Date | 2026-10-07                                     |
+> | Revision       | 1.7                                             |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.5 (2026-10-07): "one enforcement path" is now literal: `RequirePermission`, `guardRoute` and the decision stream's recheck all call one `authorizeRequest`, which extracts, loads, guards and logs; the edge no longer builds a handler before the policy allows (CCR-QD-197)<br>1.4 (2026-10-07): Rev 1.4 (CCR-QD-196): the middleware reads `RequiredPermission` off the endpoint's own annotations only; "off `{ endpoint, group }`" was never true. The group is read to refuse a misplaced declaration, an API-level one is refused by `registerApi`, and a group-wide declaration is `HttpApiGroup.annotateEndpoints`. Group-level merging was rejected: an API's annotations are invisible to a middleware, and a group-level requirement reopens the cross-level override BEH-QD-179 closed. A group requirement over an endpoint `publicEndpoint` was listed by the registry while served as public<br>1.3 (2026-08-23): The code is brought in line with this ADR's own Alternatives section — "annotate-and-forget" was rejected here and shipped anyway; an unannotated endpoint now refuses and `publicEndpoint(reason)` is the opt-out. `SubjectExtractorShape.extract` gains an error channel, the Bearer scheme is matched case-insensitively, and `PolicyTooDeep` maps to 500. Behaviour 23 written, the document this package shipped without (CCR-QD-059)<br>1.2 (2026-08-22): Three corrections found by the first real HTTP round-trip test — `requiresPermission` is no longer `.pipe()`-composable at all (the widened return type it shipped with in 1.1 breaks `HttpApiBuilder.group`'s handler exhaustiveness for the whole group, not just later `.pipe()` chaining); its parameter type is a minimal structural `AnnotatedEndpoint`, not `HttpApiEndpoint.Top` (a param-less endpoint isn't actually assignable to `Top`); `GuardRoute.ts`'s `guardRoute` under-excluded `CurrentSubject` from its declared return type (CCR-QD-046)<br>1.1 (2026-08-22): `requiresPermission`'s type-preservation claim corrected — it does not survive a reusable generic wrapper; the shipped signature returns the widened `HttpApiEndpoint.Top` instead (CCR-QD-045)<br>1.0 (2026-08-22): Initial release (CCR-QD-042) |
+> | Change History | 1.7 (2026-10-08): amended: a guarded `HttpApi` is registered by the layer that guards it (`guardApi`); an endpoint the middleware is not attached to is refused; `RequirePermissionLive`, `registerApi` and `guardRoute` leave the surface (ARCH-36, CCR-QD-311)<br>1.6 (2026-10-08): amended: a denial a handler's own guard raises is logged by the surface that answers it, annotated `qadi.denial_site`; reverses ARCH-19 D-19-d's trade-off (ARCH-45 I3, CCR-QD-265)<br>1.5 (2026-10-07): "one enforcement path" is now literal: `RequirePermission`, `guardRoute` and the decision stream's recheck all call one `authorizeRequest`, which extracts, loads, guards and logs; the edge no longer builds a handler before the policy allows (CCR-QD-197)<br>1.4 (2026-10-07): Rev 1.4 (CCR-QD-196): the middleware reads `RequiredPermission` off the endpoint's own annotations only; "off `{ endpoint, group }`" was never true. The group is read to refuse a misplaced declaration, an API-level one is refused by `registerApi`, and a group-wide declaration is `HttpApiGroup.annotateEndpoints`. Group-level merging was rejected: an API's annotations are invisible to a middleware, and a group-level requirement reopens the cross-level override BEH-QD-179 closed. A group requirement over an endpoint `publicEndpoint` was listed by the registry while served as public<br>1.3 (2026-08-23): The code is brought in line with this ADR's own Alternatives section — "annotate-and-forget" was rejected here and shipped anyway; an unannotated endpoint now refuses and `publicEndpoint(reason)` is the opt-out. `SubjectExtractorShape.extract` gains an error channel, the Bearer scheme is matched case-insensitively, and `PolicyTooDeep` maps to 500. Behaviour 23 written, the document this package shipped without (CCR-QD-059)<br>1.2 (2026-08-22): Three corrections found by the first real HTTP round-trip test — `requiresPermission` is no longer `.pipe()`-composable at all (the widened return type it shipped with in 1.1 breaks `HttpApiBuilder.group`'s handler exhaustiveness for the whole group, not just later `.pipe()` chaining); its parameter type is a minimal structural `AnnotatedEndpoint`, not `HttpApiEndpoint.Top` (a param-less endpoint isn't actually assignable to `Top`); `GuardRoute.ts`'s `guardRoute` under-excluded `CurrentSubject` from its declared return type (CCR-QD-046)<br>1.1 (2026-08-22): `requiresPermission`'s type-preservation claim corrected — it does not survive a reusable generic wrapper; the shipped signature returns the widened `HttpApiEndpoint.Top` instead (CCR-QD-045)<br>1.0 (2026-08-22): Initial release (CCR-QD-042) |
 
 ---
 
@@ -191,6 +191,21 @@ side has nothing to walk — bare `HttpRouter.Route` carries no annotation slot
 instead. Both mechanisms record a requirement at application-definition time,
 before any request is served; they differ only because the two frameworks
 offer different extension points, not because they model different things.
+**Rev 1.7 (ARCH-36): the `HttpApi` half is no longer a separate opt-in walk.**
+It is the layer that provides `RequirePermission` (`guardApi`), so it registers
+because it guards, as `addGuardedRoute` always did. Two layers composed
+independently (`RequirePermissionLive` and `registerApi`) let the audit surface
+omit what was enforced, and, found while verifying that, list what was not:
+`.middleware(RequirePermission)` before `.add(group)`, or on one group only,
+leaves an annotated endpoint served to anyone while the registry listed it
+(Effect documents that `HttpApi.middleware` applies only to endpoints already
+added). `guardApi` refuses such an API at layer build and, where the type is
+precise, at compile time; and the middleware it provides refuses at request time
+an endpoint outside the API it registered.
+`RequirePermissionLive`, `registerApi` and `guardRoute` left the public surface
+(ADR-QD-099): `guardRoute`'s only distinct capability was enforcing without
+registering. `authorizeRequest` stays public, registering nothing, for a surface
+this package does not ship.
 The push side is backed by a `Ref`-holding service, aggregated through
 Effect's own `Layer` composition — not a plain mutable module-level
 collection, which could not prove every route had registered before the
@@ -268,7 +283,10 @@ runs over an already-fully-built, immutable value.
 - The `HttpRouter`-side registry's `Layer`-ordering requirement is a
   correctness property that has to be maintained deliberately; nothing in
   the type system currently proves an application's `Layer` graph actually
-  orders every route registration before the registry is read.
+  orders every route registration before the registry is read. (Rev 1.7: the
+  ordering is `Layer`'s to settle; the gap that remained was whether the
+  `HttpApi` half registered at all, which `guardApi` closes for both
+  surfaces.)
 - Construction-time failure on a duplicate `requiresPermission` call is a
   hard stop rather than a warning — a defensible default, but one that
   surfaces as a startup crash rather than a lint if a developer trips it.
@@ -278,6 +296,17 @@ to build than one adapter, but a single supported surface would either force
 every consumer onto `HttpApi` or leave bare `HttpRouter` consumers with no
 enforcement mechanism at all — both worse than the maintenance cost of
 keeping two thin wrappers honest against one shared primitive.
+
+> **Amended (ARCH-45 I3, 2026-10-08): a handler-raised denial is logged.** ARCH-19
+> D-19-d accepted that a denial a handler's own `guard` raises is "no longer logged by
+> the edge" and left it unlogged, which contradicted the `logDenial` contract (one
+> server-side record per denial on every surface). It is reversed: the surface that
+> turns the denial into a response logs it once, on the handler's effect only (so an
+> edge denial, already logged by `authorizeRequest`, is not logged twice), and every
+> denial line carries `qadi.denial_site` (`edge` or `handler`). `guardRoute`'s and
+> `addGuardedRoute`'s handler error channel widens from `never` to
+> `HttpEnforcementFailure` (an input widening), so a handler need not catch its own
+> `guard`. Not breaking: one new log line, one widened input type.
 
 ---
 

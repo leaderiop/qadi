@@ -244,3 +244,13 @@ evaluator to propagate `child.obligations` through `Not` kills no test — the
 mutant is *equivalent*, because that expression is provably `[]` at that point.
 "Needs no rule" and "any rule would be unobservable" turn out to be the same
 statement, which is a stronger result than this ADR claimed.
+
+## Amendment (2026-10-08, ADR-QD-105)
+
+"Callers who want to discharge obligations pass a handler" now says what the handler is told:
+one `ObligationDischarge`, the `Question` the allow answered and the `Allow` itself. The handler
+shape was only ever written in BEH-QD-085, never here. "The obligations on a decision are those
+contributed by the allow that was actually returned" is unchanged and is why the allow is the one
+source of the duties. The library mints no retry idempotency key: the evaluation id is per
+attempt, and the caller's own request id, captured by the `onObligations` closure, is the honest
+source of one.

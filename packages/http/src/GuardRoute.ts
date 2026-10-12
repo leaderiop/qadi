@@ -13,9 +13,11 @@ import * as Effect from "effect/Effect";
 import type * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type { Authorized, EvaluationServices, Permission, Policy, Resource } from "@qadi/core";
-import { CurrentSubject } from "@qadi/core";
+import { CurrentSubject, ENFORCEMENT_DENIAL_TAGS } from "@qadi/core";
 import { authorizeRequest } from "./AuthorizeRequest.ts";
+import { logDenialAt } from "./DenialLog.ts";
 import { HTTP_ENFORCEMENT_TAGS, toResponse } from "./QadiHttpError.ts";
+import type { HttpEnforcementFailure } from "./QadiHttpError.ts";
 import type { SubjectExtractor } from "./SubjectExtractor.ts";
 
 /**
@@ -56,7 +58,12 @@ export const guardRoute =
     policy: Policy,
     loadResource: (request: HttpServerRequest.HttpServerRequest) => Effect.Effect<A, never, LR>,
   ) =>
-  <B, R>(handler: (authorized: Authorized<P>, resource: A) => Effect.Effect<B, never, R>) =>
+  <B, R>(
+    handler: (
+      authorized: Authorized<P>,
+      resource: A,
+    ) => Effect.Effect<B, HttpEnforcementFailure, R>,
+  ) =>
   (
     request: HttpServerRequest.HttpServerRequest,
   ): Effect.Effect<
@@ -73,7 +80,12 @@ export const guardRoute =
       loadResource,
     )(request).pipe(
       Effect.flatMap(({ authorized, resource, subject }) =>
-        handler(authorized, resource).pipe(Effect.provideService(CurrentSubject, subject)),
+        handler(authorized, resource).pipe(
+          Effect.provideService(CurrentSubject, subject),
+          // Only the handler's effect: the edge check above has logged its own
+          // denial, so this logs a denial the handler's own `guard` raised, once.
+          Effect.tapErrorTag(ENFORCEMENT_DENIAL_TAGS, logDenialAt("handler")),
+        ),
       ),
       Effect.catchTag(HTTP_ENFORCEMENT_TAGS, (error) => Effect.succeed(toResponse(error))),
     );

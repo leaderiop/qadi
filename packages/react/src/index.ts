@@ -1,4 +1,5 @@
 export * from "./DecisionOutcome.ts";
+export * from "./DevtoolsFeed.ts";
 export * from "./GateRegistry.ts";
 export * from "./Hydration.ts";
 export * from "./QadiAtoms.ts";

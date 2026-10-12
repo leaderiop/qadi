@@ -14,6 +14,7 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Ref from "effect/Ref";
 import type * as Types from "effect/Types";
+import type { SignatureLedgerShape } from "@qadi/audit";
 import { isAllowed, makeSubject } from "@qadi/core";
 import type {
   ActedEventInput,
@@ -90,6 +91,16 @@ export interface WorldState {
   readonly handlesObligations: boolean;
   /** What a supplied handler was actually asked to discharge. */
   readonly discharged: ReadonlyArray<string>;
+  /**
+   * The resource id each discharge was told it was for, one entry per handler
+   * call (`undefined` when the question's resource had no string id).
+   */
+  readonly dischargedFor: ReadonlyArray<string | undefined>;
+  /**
+   * The ledger a signature-capturing scenario records into. `undefined` until a
+   * scenario captures a signature.
+   */
+  readonly signatureLedger: SignatureLedgerShape | undefined;
   /** Whether the effect behind `enforce` was started. */
   readonly workRan: boolean;
   /** Past events. Undefined means unwired. */
@@ -161,6 +172,8 @@ export const initialWorldState: WorldState = {
   action: undefined,
   handlesObligations: false,
   discharged: [],
+  dischargedFor: [],
+  signatureLedger: undefined,
   workRan: false,
   events: undefined,
   customPredicates: undefined,

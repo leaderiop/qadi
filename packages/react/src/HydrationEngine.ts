@@ -36,6 +36,7 @@ import {
   DecisionWireAllow,
   DecisionWireDeny,
   MAX_DECODE_DEPTH,
+  decisionDisagreement,
   Policy as PolicySchema,
   UNTRUSTED_DECODE_OPTIONS,
   encodeDecision,
@@ -50,14 +51,14 @@ import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { countDehydrated, countDropped, countRecheck, countSeeded } from "./HydrationCounts.ts";
-import type { HydrationDropReporter, HydrationMismatchReporter } from "./HydrationWarning.ts";
-import { hydrationDropReporter, hydrationMismatchReporter } from "./HydrationWarning.ts";
+import type { HydrationDropReporter, HydrationMismatchReporter } from "./DeveloperSignals.ts";
+import { hydrationDropReporter, hydrationMismatchReporter } from "./DeveloperSignals.ts";
 import type { ClientDecision, SeededDecision } from "./SeededDecision.ts";
 import { AllowDisclosure, DenyDisclosure, SeededAllow, SeededDeny, permits } from "./SeededDecision.ts";
 
-// Named here rather than reached through the barrel: `HydrationWarning.ts` stays
+// Named here rather than reached through the barrel: `DeveloperSignals.ts` stays
 // out of it (AGENTS.md §9), and `.d.ts` emission has to be able to name them.
-export type { HydrationMismatch, HydrationMismatchReporter } from "./HydrationWarning.ts";
+export type { HydrationMismatch, HydrationMismatchReporter } from "./DeveloperSignals.ts";
 
 /** Seed values applied when the provider creates its registry. */
 export type InitialValues = Iterable<readonly [Atom.Atom<unknown>, unknown]>;
@@ -239,15 +240,33 @@ const rebuild = (entry: DehydratedEntry, subjectId: SubjectId): SeededDecision =
 };
 
 /**
- * Whether an entry's disclosure is a trace of its own policy.
+ * Whether an entry's disclosed trace agrees with the entry, and is its policy's.
  *
  * A disclosed trace names the root policy it traced, and the evaluator's root
  * tag is always the policy's own `_tag`. One that says otherwise is not a trace
  * of this entry's policy — hand-built, or spliced from another entry — so the
  * entry is refused rather than seeded with it.
+ *
+ * The entry also repeats the verdict, `visibleFields`, `obligations` and
+ * (a denial's) `reason` that the trace root already holds. `@qadi/core`'s
+ * {@link decisionDisagreement} is the one rule for whether two such copies
+ * agree; this module only shapes the claim, and a seed that disagrees with the
+ * trace it carries is refused the same way (INV-QD-170). A `Withheld` seed has
+ * no trace, so its fields are the only copy and there is nothing to compare.
  */
-const disclosesItsOwnPolicy = (entry: DehydratedEntry, policy: Policy): boolean =>
-  entry.decision.disclosure._tag !== "Disclosed" || entry.decision.disclosure.trace.policyTag === policy._tag;
+const entryAgrees = (entry: DehydratedEntry, policy: Policy): boolean => {
+  const decision = entry.decision;
+  if (decision.disclosure._tag !== "Disclosed") return true;
+  if (decision.disclosure.trace.policyTag !== policy._tag) return false;
+  return (
+    decisionDisagreement(
+      decision._tag === "Allow"
+        ? { verdict: "Allow", visibleFields: decision.visibleFields, obligations: decision.obligations }
+        : { verdict: "Deny", reason: decision.disclosure.reason, obligations: [] },
+      decision.disclosure.trace,
+    ) === undefined
+  );
+};
 
 export interface HydrateOptions {
   /**
@@ -255,8 +274,7 @@ export interface HydrateOptions {
    *
    * The sibling of `DehydrateOptions.onDropped`, and it carries a reason because
    * the ways a payload fails to seed have different causes: the payload naming
-   * another subject is a cache-key bug, an unregistered atom set is a wiring
-   * mistake, an entry malformed apart from its policy is usually version skew, an
+   * another subject is a cache-key bug, an entry malformed apart from its policy is usually version skew, an
    * undecodable policy is version skew of the policy shape specifically, a payload
    * of a `version` this client does not read — or of none, the pre-0.10 format —
    * is mismatched releases or a deploy in flight, a payload that
@@ -313,10 +331,11 @@ export const hydrateWith = (
   const refuse = (
     reason: ClientHydrationDropReason,
     entries: ReadonlyArray<unknown>,
+    wholePayload: boolean,
     count: number = entries.length,
   ): InitialValues => {
     countDropped(reason, count);
-    report?.({ reason, entries });
+    report?.({ reason, entries, wholePayload });
     return [];
   };
 
@@ -329,7 +348,7 @@ export const hydrateWith = (
   // Entries are guarded one by one below; this covers everything else, which the
   // envelope decode would otherwise recurse into on its way to refusing it.
   if (!Predicate.isObject(payload) || exceedsJsonDepth({ ...payload, entries: [] }, MAX_DECODE_DEPTH)) {
-    return refuse("MalformedPayload", visible, atLeastOne);
+    return refuse("MalformedPayload", visible, true, atLeastOne);
   }
 
   // Only `version: 2` is read. Any other value — or none, the format 0.9 and
@@ -337,11 +356,11 @@ export const hydrateWith = (
   // amendment) — is a format this client does not read, which is not the same
   // as a malformed one and is the signature of mismatched releases.
   if (!Object.hasOwn(payload, "version") || payload["version"] !== PAYLOAD_VERSION) {
-    return refuse("UnsupportedPayloadVersion", visible, atLeastOne);
+    return refuse("UnsupportedPayloadVersion", visible, true, atLeastOne);
   }
 
   const envelope = decodeEnvelope(payload);
-  if (Option.isNone(envelope)) return refuse("MalformedPayload", visible, atLeastOne);
+  if (Option.isNone(envelope)) return refuse("MalformedPayload", visible, true, atLeastOne);
   const { subjectId, entries } = envelope.value;
 
   // `undefined` names an empty payload (EC-06), not a subject that failed to
@@ -352,7 +371,7 @@ export const hydrateWith = (
   // way a real mismatch drops them, just without asserting a wrong id that was
   // never named.
   if (subjectId === undefined) {
-    if (entries.length > 0) refuse("PayloadSubjectMismatch", entries);
+    if (entries.length > 0) refuse("PayloadSubjectMismatch", entries, true);
     return [];
   }
 
@@ -361,7 +380,7 @@ export const hydrateWith = (
   // entries are handed back whole; unlike the dehydrate side this discloses
   // nothing new — they are the caller's own argument, returned to them — so only
   // the *default* reporter withholds them.
-  if (subjectId !== subject.id) return refuse("PayloadSubjectMismatch", entries);
+  if (subjectId !== subject.id) return refuse("PayloadSubjectMismatch", entries, true);
 
   const seeded: Array<readonly [Atom.Atom<unknown>, unknown]> = [];
   const tooDeep: Array<unknown> = [];
@@ -393,7 +412,7 @@ export const hydrateWith = (
       continue;
     }
 
-    if (!disclosesItsOwnPolicy(fields.value, decoded.value)) {
+    if (!entryAgrees(fields.value, decoded.value)) {
       malformed.push(entry);
       continue;
     }
@@ -401,9 +420,9 @@ export const hydrateWith = (
     seeded.push([seedFor(decoded.value, fields.value.resource), rebuild(fields.value, subject.id)]);
   }
 
-  if (tooDeep.length > 0) refuse("EntryTooDeep", tooDeep);
-  if (malformed.length > 0) refuse("MalformedEntry", malformed);
-  if (undecodable.length > 0) refuse("UndecodablePolicy", undecodable);
+  if (tooDeep.length > 0) refuse("EntryTooDeep", tooDeep, false);
+  if (malformed.length > 0) refuse("MalformedEntry", malformed, false);
+  if (undecodable.length > 0) refuse("UndecodablePolicy", undecodable, false);
 
   countSeeded(seeded.length);
 

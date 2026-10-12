@@ -14,14 +14,18 @@ import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import { RelationshipResolveError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
+import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
+import { RelationshipDepth } from "./Policy.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import { portWire, sameAnswer } from "./PortWireEncode.ts";
 
 export interface RelationshipCheck {
   readonly subjectId: SubjectId;
@@ -80,7 +84,9 @@ export interface RelationshipCheck {
  * consulted it. A resolver that is wired and unreachable is a
  * `RelationshipResolveError`, which is an error, not an answer.
  */
-export type RelatedResult = "Related" | "Unrelated" | "Unknown";
+export const RelatedResult = Schema.Literals(["Related", "Unrelated", "Unknown"]);
+
+export type RelatedResult = typeof RelatedResult.Type;
 
 export interface RelationshipResolverShape {
   /** Which implementation this is. A label only — see `AttributeResolverShape`. */
@@ -134,19 +140,63 @@ const relationshipSpan = {
       ...sharedQuestionKeys,
     },
   ),
-  answer: spanStruct(
-    { answer: Schema.optionalKey(Schema.Literals(["Related", "Unrelated", "Unknown"])) },
-    { answer: "qadi.answer" },
-  ),
+  answer: spanStruct({ answer: Schema.optionalKey(RelatedResult) }, { answer: "qadi.answer" }),
   disclose: (answer: RelatedResult) => ({ answer }),
 };
 
 /**
+ * What the relationship question and answer look like on a wire (ARCH-31).
+ *
+ * `depth` is the same bounded integer a decoded policy holds
+ * (`RelationshipDepth`), so a question the serving side receives is held to the
+ * bound the traversal resolver spends it against; a non-integer `depth` is a
+ * malformed question, never `NaN` fuel. The answer is core's own three-valued
+ * `RelatedResult`, so `"Unknown"` crosses only as an answer the serving port
+ * gave and an outage is never written as one.
+ */
+const relationshipWire = portWire({
+  question: Schema.Struct({
+    subjectId: SubjectIdSchema,
+    relation: Schema.String,
+    resourceId: ResourceIdSchema,
+    depth: Schema.optionalKey(RelationshipDepth),
+  }),
+  answer: RelatedResult,
+  toQuestion: ([request]: [request: RelationshipCheck]) =>
+    Result.succeed({
+      subjectId: request.subjectId,
+      relation: request.relation,
+      resourceId: request.resourceId,
+      ...(request.depth === undefined ? {} : { depth: request.depth }),
+    }),
+  fromQuestion: (question, subject): [request: RelationshipCheck] => [
+    {
+      subjectId: subject.id,
+      relation: question.relation,
+      resourceId: question.resourceId,
+      depth: question.depth,
+    },
+  ],
+  ...sameAnswer<RelatedResult>(),
+  asked: ([request]) => request.relation,
+  spanQuestion: ([request]) => ({
+    subjectId: request.subjectId,
+    relation: request.relation,
+    resourceId: request.resourceId,
+    depth: request.depth,
+  }),
+  spanAnswer: (answer) => relationshipSpan.disclose(answer),
+});
+
+/**
  * The relationship port, described once (`PortDescription.ts`).
  *
- * A request is keyed by `(subjectId, relation, resourceId)` — never by the
- * relation alone, and not by `depth`, which is traversal fuel rather than part
- * of the question.
+ * A request is keyed by `(subjectId, relation, resourceId, depth)` — never by
+ * the relation alone, and by `depth` too: a resolver that traverses must honour
+ * the hop budget it is handed (`RelationshipCheck.depth`), so depth 1 and
+ * depth 3 are different questions with different answers, and a capture that
+ * collapsed them would replay a depth-3 answer to a depth-1 ask (ARCH-45 I1).
+ * An absent `depth` keys as `null`.
  */
 export const relationshipResolverPort: PortDescription<
   "RelationshipResolver",
@@ -161,6 +211,7 @@ export const relationshipResolverPort: PortDescription<
   method: "check",
   span: "qadi.hasRelationship",
   attributes: relationshipSpan,
+  wire: relationshipWire,
   service: RelationshipResolver,
   invoke: (shape) => (request) => shape.check(request),
   make: (name, call) => ({ name, check: call }),
@@ -176,7 +227,13 @@ export const relationshipResolverPort: PortDescription<
       resourceId: request.resourceId,
       cause: Cause.squash(cause),
     }),
-  key: ([request]) => JSON.stringify([request.subjectId, request.relation, request.resourceId]),
+  key: ([request]) =>
+    JSON.stringify([
+      request.subjectId,
+      request.relation,
+      request.resourceId,
+      request.depth ?? null,
+    ]),
   none: { name: "RelationshipResolverNever", answer: "Unknown" },
 };
 

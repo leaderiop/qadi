@@ -371,6 +371,23 @@ describe("recent port calls", () => {
     assert.strictEqual(labels[0]?.textContent, "translation");
   });
 
+  it("labels a read the host made to answer a remote asker", () => {
+    render(
+      <ServicesPanel
+        wiring={read(wiring)}
+        activity={[]}
+        portCalls={logOf([
+          attributeCall({ interpreter: "remote", attribute: "clearance" }),
+          attributeCall({ interpreter: "evaluate", attribute: "tier", at: 2_000 }),
+        ])}
+      />,
+    );
+
+    const labels = screen.queryAllByTestId("qadi-port-call-interpreter");
+    assert.strictEqual(labels.length, 1);
+    assert.strictEqual(labels[0]?.textContent, "served");
+  });
+
   it("counts the translation's calls beside the evaluator's", () => {
     render(
       <ServicesPanel

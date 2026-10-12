@@ -19,15 +19,14 @@ import {
   permissionKey,
 } from "@qadi/core";
 import type { AuthSubject, DecisionLog, SinkRecordNotEncodable } from "@qadi/core";
+import { collectingLogger } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
-import * as References from "effect/References";
 import * as Result from "effect/Result";
 import * as HttpRouter from "effect/http/HttpRouter";
-import * as HttpServer from "effect/http/HttpServer";
 import { decisionBacklogRoute } from "../src/DecisionBacklogRoute.ts";
-import { PermissionRegistryLive, permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
+import { stack } from "./fixtures/stack.ts";
+import { permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
 import { subjectExtractorBearer } from "../src/SubjectExtractor.ts";
 
 const readPermission = permission("devtools", "read");
@@ -51,8 +50,6 @@ const decision = (evaluationId: string, resource?: Record<string, unknown>) =>
         subjectId: makeSubjectId("alice"),
         durationMillis: 1,
         trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
-        visibleFields: undefined,
-        obligations: [],
       }),
     }),
   });
@@ -71,10 +68,7 @@ const serve = (
       log,
       onRefused === undefined ? undefined : { onRefused },
     );
-    const withRegistry = route.pipe(Layer.provideMerge(PermissionRegistryLive));
-    const withSubjects = withRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
-    const withServices = withSubjects.pipe(Layer.provideMerge(EvaluationServicesNone));
-    return withServices.pipe(Layer.provideMerge(HttpServer.layerServices));
+    return stack(route, subjectExtractorBearer(lookupSubject), EvaluationServicesNone);
   });
 
 const get = (handler: (request: Request) => Promise<Response>, path: string, token?: string) =>
@@ -141,7 +135,7 @@ describe("/__decisions/backlog", () => {
 
   it.effect("with no onRefused, each refusal is logged with its reason and path, and left out", () =>
     Effect.gen(function* () {
-      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
       const hostile = {
         get boom(): unknown {
           throw new Error("getter exploded");
@@ -154,11 +148,7 @@ describe("/__decisions/backlog", () => {
           yield* log.ingest(decision("good"));
         }),
       );
-      const capture = Logger.layer([
-        Logger.make((o) => {
-          logs.push({ message: o.message, annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
-        }),
-      ]);
+      const capture = logger;
       const { handler } = HttpRouter.toWebHandler(layer.pipe(Layer.provideMerge(capture)));
       const response = yield* get(handler, "/__decisions/backlog", "alice-token");
       const body: unknown = yield* Effect.promise(() => response.json());
@@ -176,7 +166,7 @@ describe("/__decisions/backlog", () => {
 
   it.effect("a throwing onRefused is reported and the response still serves the other records", () =>
     Effect.gen(function* () {
-      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+      const { lines: logs, layer: logger } = collectingLogger();
       const layer = yield* serve(
         (log) =>
           Effect.gen(function* () {
@@ -187,11 +177,7 @@ describe("/__decisions/backlog", () => {
           throw new Error("hook bug");
         },
       );
-      const capture = Logger.layer([
-        Logger.make((o) => {
-          logs.push({ message: o.message, annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
-        }),
-      ]);
+      const capture = logger;
       const { handler } = HttpRouter.toWebHandler(layer.pipe(Layer.provideMerge(capture)));
       const response = yield* get(handler, "/__decisions/backlog", "alice-token");
       assert.strictEqual(response.status, 200);

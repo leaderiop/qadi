@@ -1,12 +1,20 @@
 /**
  * How many decisions crossed the network, and how many were lost on the way.
  *
- * The sibling of `portActivity` in `Wiring.ts`, and read the same way: through
- * `Metric.value` on metrics `@qadi/core` declares, which needs **no wiring at
- * all** because the default registry is memoised on the reference. That matters
- * more here than it does for the ports, because the writer is `@qadi/react` and
- * this package deliberately does not depend on it — the metric registry is the
- * only thing the two share.
+ * The sibling of `portActivity` in `Wiring.ts`, read from metrics `@qadi/core`
+ * declares, which needs **no wiring at all**. That matters more here than it does
+ * for the ports, because the writer is `@qadi/react` and this package
+ * deliberately does not depend on it — the metric registry is the only thing the
+ * two share.
+ *
+ * Both ends name **the default registry** (`Context.empty()`): `@qadi/react`
+ * writes off fiber (`HydrationCounts.ts`) and cannot see any fiber's registry,
+ * and this reader reads the same one explicitly, so the two agree whatever
+ * `MetricRegistry` a host wired on the fiber running the panel. At effect 4.0.0 a
+ * metric looks its registry up on every update (it no longer remembers the first
+ * one to reach it), so a reader that followed the fiber would read zero forever
+ * under a host registry (ADR-QD-052, amended). A host exporting from its own
+ * registry must export these counts from the default one.
  *
  * Re-declaring the metrics here instead would compile and read zero forever:
  * the registry key is `type:id:description`, so a description that drifted by a
@@ -16,17 +24,23 @@
  * server they accumulate across every request the process has served, so
  * `dehydrated` is not "this page's payload" and a panel must not imply it is.
  */
+import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
-import * as Metric from "effect/Metric";
 import {
   hydrationDehydratedTotal,
-  hydrationDropReasons,
+  hydrationDropMeaning,
   hydrationDroppedTotal,
   hydrationMismatchesTotal,
   hydrationRechecksTotal,
   hydrationSeededTotal,
+  isHydrationDropReason,
 } from "@qadi/core";
-import type { HydrationDropReason } from "@qadi/core";
+
+/**
+ * The registry the writer (`@qadi/react`'s `HydrationCounts.ts`) updates into,
+ * and so the one this reader must read: the default one, named explicitly.
+ */
+const DEFAULT_REGISTRY = Context.empty();
 
 /** Entries lost for one reason, with the sentence explaining it. */
 export interface HydrationDrops {
@@ -41,7 +55,7 @@ export interface HydrationDrops {
    */
   readonly reason: string;
   readonly count: number;
-  /** What a reader should do about it. Constant per reason. */
+  /** What a reader should do about it: `hydrationDropMeaning(reason).summary` from `@qadi/core`. */
   readonly meaning: string;
 }
 
@@ -58,34 +72,17 @@ export interface HydrationActivity {
   readonly drops: ReadonlyArray<HydrationDrops>;
 }
 
-/**
- * What each reason means for whoever is reading the panel.
- *
- * A `Record` over the closed union rather than a `Match`: there is no dispatch
- * here, only a constant per key, and the exhaustiveness a `Record` over a closed
- * union gives is the same compile error a `Match.exhaustive` would.
- *
- * These sentences are shorter than `@qadi/react`'s console warnings and say the
- * same things. The warning is read once by whoever caused it; this is read on a
- * panel beside a number, by someone who may not have.
- */
-const MEANINGS: Record<HydrationDropReason, string> = {
-  ForeignSubject: "the server put two subjects' decisions in one payload",
-  PayloadSubjectMismatch: "a payload reached a client it was not rendered for",
-  MalformedEntry: "an entry's shape didn't match what this client expects, apart from its policy",
-  UndecodablePolicy: "a policy shape the client's schema does not know — usually version skew",
-  EntryTooDeep: "an entry nested past the client's structural depth guard, before any decode ran",
-  UnsupportedPayloadVersion:
-    "a payload version this client does not read — a deploy in flight, or mismatched releases",
-  MalformedPayload: "a payload that is not shaped like a dehydrated payload at all",
-};
-
 const UNRECOGNISED = "not a reason this build knows — something else writes to this metric";
 
-const isReason = (word: string): word is HydrationDropReason =>
-  hydrationDropReasons.some((one) => one === word);
-
-const meaningOf = (word: string): string => (isReason(word) ? MEANINGS[word] : UNRECOGNISED);
+/**
+ * The panel's sentence for a metric key.
+ *
+ * `summary` from `@qadi/core`'s `hydrationDropMeaning`, where the meaning of each
+ * reason is stated once beside the union that defines the reasons. The console
+ * warning in `@qadi/react` reads the same row's `remedy`.
+ */
+const meaningOf = (word: string): string =>
+  isHydrationDropReason(word) ? hydrationDropMeaning(word).summary : UNRECOGNISED;
 
 /**
  * Reads the hydration counts, **passively**.
@@ -95,12 +92,12 @@ const meaningOf = (word: string): string => (isReason(word) ? MEANINGS[word] : U
  * lost a reason look identical, and it is the reasons at zero that tell a reader
  * the panel is watching for them at all.
  */
-export const hydrationActivity: Effect.Effect<HydrationActivity> = Effect.gen(function* () {
-  const dehydrated = yield* Metric.value(hydrationDehydratedTotal);
-  const seeded = yield* Metric.value(hydrationSeededTotal);
-  const rechecked = yield* Metric.value(hydrationRechecksTotal);
-  const mismatched = yield* Metric.value(hydrationMismatchesTotal);
-  const drops = yield* Metric.value(hydrationDroppedTotal);
+export const hydrationActivity: Effect.Effect<HydrationActivity> = Effect.sync(() => {
+  const dehydrated = hydrationDehydratedTotal.valueUnsafe(DEFAULT_REGISTRY);
+  const seeded = hydrationSeededTotal.valueUnsafe(DEFAULT_REGISTRY);
+  const rechecked = hydrationRechecksTotal.valueUnsafe(DEFAULT_REGISTRY);
+  const mismatched = hydrationMismatchesTotal.valueUnsafe(DEFAULT_REGISTRY);
+  const drops = hydrationDroppedTotal.valueUnsafe(DEFAULT_REGISTRY);
 
   return {
     dehydrated: dehydrated.count,
@@ -109,9 +106,9 @@ export const hydrationActivity: Effect.Effect<HydrationActivity> = Effect.gen(fu
     mismatched: mismatched.count,
     // The metric's **own** keys, rather than a walk of `hydrationDropReasons`
     // defaulting each miss to zero. Pre-registration is exactly what makes that
-    // walk unnecessary: it puts all five in the map at zero when the hooks are
-    // created, so a reader that also defaulted would be a second mechanism doing
-    // the first one's job — and its default could never fire, which is how the
+    // walk unnecessary: it puts every reason in `hydrationDropReasons` in the
+    // map at zero when the hooks are created, so a reader that also defaulted
+    // would be a second mechanism doing the first one's job — and its default could never fire, which is how the
     // mutation gate found it. Insertion order is the order `hydrationDropReasons`
     // declares, so the rows stay stable and any foreign key sorts after them.
     drops: [...drops.occurrences].map(([reason, count]) => ({

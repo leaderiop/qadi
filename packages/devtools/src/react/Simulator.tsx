@@ -172,8 +172,18 @@ const Controls: FC<{
   readonly onRun: (kind: "Run" | "Sweep") => void;
 }> = ({ snapshot, session, onRun }) => {
   const running = snapshot.run._tag === "Running";
-  const seeded = snapshot.policy._tag === "Seeded";
-  const chosen = snapshot.policy._tag === "Chosen" ? snapshot.policy.index : 0;
+  const { policy } = snapshot;
+  // The option the dropdown shows is a reading of the policy the session holds,
+  // never the other way round: the session is told which policy was picked, by
+  // value, from the very list this render drew.
+  const selected = Match.value(policy).pipe(
+    Match.tagsExhaustive({
+      None: () => "",
+      Chosen: (chosen) => String(chosen.index),
+      Evicted: () => "evicted",
+      Seeded: () => "seeded",
+    }),
+  );
   const plan = snapshot.plan;
   const causesIO = plan?.causesIO === true;
 
@@ -183,10 +193,20 @@ const Controls: FC<{
         aria-label="Policy"
         data-testid="qadi-simulator-policy"
         style={input}
-        value={seeded ? -1 : chosen}
-        onChange={(event) => session.choosePolicy(Number(event.target.value))}
+        value={selected}
+        onChange={(event) => {
+          // "seeded" and "evicted" are already selected when they exist, so they
+          // cannot fire; anything that is not a listed position names no policy.
+          const picked = /^\d+$/.test(event.target.value)
+            ? snapshot.sightings[Number(event.target.value)]
+            : undefined;
+          if (picked !== undefined) session.choosePolicy(picked.policy);
+        }}
       >
-        {seeded ? <option value={-1}>from the replayed row</option> : null}
+        {policy._tag === "Seeded" ? <option value="seeded">from the replayed row</option> : null}
+        {policy._tag === "Evicted" ? (
+          <option value="evicted">{policy.label} — no longer in the log</option>
+        ) : null}
         {snapshot.sightings.map((sighting, index) => (
           <option key={`${sighting.label}-${index}`} value={index}>
             {sighting.label}

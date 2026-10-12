@@ -222,3 +222,12 @@ latter references no required service by name at all.
 `Explanation.ts`, `Predicate.ts`, `SinkCodec.ts`, `Simplify.ts`; consumer
 wiring across `@qadi/testing`, `@qadi/http`, `@qadi/devtools`, the Next.js
 example and the Gherkin feature suite; INV-QD-056.
+
+## Amendment (2026-10-08, ADR-QD-105)
+
+"Typically `@qadi/audit`'s capture flow through `ObligationHandler`" is now true for a default-scope
+`hasSignature`. Until this amendment it was not: the capture request named no resource, so a
+captured signature was stored subject-wide, where a resource-scoped query could not find it and a
+`scope: "Any"` one found it for every resource. The request is keyed by the question, and
+`SignatureLedger` is the documented way to record under the key `SignatureHistory` is read with.
+Trust-on-presence is unchanged.

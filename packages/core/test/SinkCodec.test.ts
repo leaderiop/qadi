@@ -3,8 +3,8 @@ import * as Effect from "effect/Effect";
 import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as FastCheck from "fast-check";
-import { Allow, Deny } from "../src/Decision.ts";
-import type { Trace } from "../src/Decision.ts";
+import { Allow, Deny, makeDecision } from "../src/Decision.ts";
+import type { AllowingTrace, DenyingTrace } from "../src/Decision.ts";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
 import {
   Decided,
@@ -37,6 +37,7 @@ import type { EvaluationError } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
+import type { Obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import {
@@ -134,6 +135,27 @@ const trace = (allowed: boolean) => ({
   obligations: [],
 });
 
+/** A trace whose root allows; an `undefined` field set is omitted, as the codec reads it. */
+const allowTrace = (
+  visibleFields: ReadonlyArray<string> | undefined,
+  obligations: ReadonlyArray<Obligation> = [],
+): AllowingTrace => ({
+  policyTag: "HasPermission",
+  allowed: true,
+  children: [],
+  ...(visibleFields === undefined ? {} : { visibleFields }),
+  obligations,
+});
+
+/** A trace whose root denies, with its reason. */
+const denyTrace = (reason: string): DenyingTrace => ({
+  policyTag: "HasPermission",
+  allowed: false,
+  reason,
+  children: [],
+  obligations: [],
+});
+
 const allowRecord: SinkRecord = new DecisionRecord({
   evaluationId: "eval-1",
   at: 1000,
@@ -147,9 +169,7 @@ const allowRecord: SinkRecord = new DecisionRecord({
       evaluationId: "eval-1",
       subjectId: makeSubjectId("u1"),
       durationMillis: 3,
-      trace: trace(true),
-      visibleFields: ["id", "title"],
-      obligations: [obligation("audit.log")],
+      trace: allowTrace(["id", "title"], [obligation("audit.log")]),
     }),
   }),
 });
@@ -178,15 +198,7 @@ describe("a record survives the wire", () => {
             evaluationId: "eval-fp",
             subjectId: makeSubjectId("u1"),
             durationMillis: 0,
-            trace: {
-              policyTag: "HasPermission",
-              allowed: true,
-              children: [],
-              visibleFields: ["id", "contact.*"],
-              obligations: [],
-            },
-            visibleFields: ["id", "contact.*"],
-            obligations: [],
+            trace: allowTrace(["id", "contact.*"]),
           }),
         }),
       });
@@ -207,8 +219,7 @@ describe("a record survives the wire", () => {
             evaluationId: "eval-2",
             subjectId: makeSubjectId("u2"),
             durationMillis: 1,
-            trace: { ...trace(false), reason: "subject lacks role 'editor'" },
-            reason: "subject lacks role 'editor'",
+            trace: { ...denyTrace("subject lacks role 'editor'"), policyTag: "HasRole" },
           }),
         }),
       });
@@ -248,13 +259,9 @@ describe("a record survives the wire", () => {
             trace: {
               policyTag: "AllOf",
               allowed: true,
-              children: [trace(true), { ...trace(true), policyTag: "Not" }],
+              children: [allowTrace(["id", "title"]), { ...allowTrace(["id", "title"]), policyTag: "Not" }],
               obligations: [],
             },
-            // Required on `Allow`, unlike the optional key on a `Trace`, so the
-            // rebuilt object always carries it.
-            visibleFields: undefined,
-            obligations: [],
           }),
         }),
       });
@@ -281,9 +288,7 @@ describe("optional fields normalise", () => {
             evaluationId: "e",
             subjectId: makeSubjectId("u1"),
             durationMillis: 1,
-            trace: trace(true),
-            visibleFields: undefined,
-            obligations: [],
+            trace: allowTrace(undefined),
           }),
         }),
       });
@@ -920,7 +925,7 @@ const nestedAllOf = (levels: number): P.Policy => {
   return policy;
 };
 
-const decidedWith = (policy: P.Policy, decisionTrace: Trace): SinkRecord =>
+const decidedWith = (policy: P.Policy, decisionTrace: AllowingTrace): SinkRecord =>
   new DecisionRecord({
     evaluationId: "d",
     at: 1,
@@ -932,14 +937,12 @@ const decidedWith = (policy: P.Policy, decisionTrace: Trace): SinkRecord =>
         subjectId: makeSubjectId("u1"),
         durationMillis: 1,
         trace: decisionTrace,
-        visibleFields: undefined,
-        obligations: [],
       }),
     }),
   });
 
-const nestedTrace = (levels: number): Trace => {
-  let node: Trace = { policyTag: "HasPermission", allowed: true, children: [], obligations: [] };
+const nestedTrace = (levels: number): AllowingTrace => {
+  let node: AllowingTrace = { policyTag: "HasPermission", allowed: true, children: [], obligations: [] };
   for (let i = 0; i < levels; i++) node = { policyTag: "AllOf", allowed: true, children: [node], obligations: [] };
   return node;
 };
@@ -1476,6 +1479,25 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
         ),
       })).node;
 
+    /**
+     * The generated outcome with its trace root naming the generated policy:
+     * the codec refuses a record whose policy and trace root disagree (ARCH-32),
+     * and the generators draw them independently.
+     */
+    const retagged = (result: Decided | Failed, policyTag: P.Policy["_tag"]): Decided | Failed =>
+      result._tag === "Failed"
+        ? result
+        : new Decided({
+            decision: makeDecision(
+              {
+                evaluationId: result.decision.evaluationId,
+                subjectId: result.decision.subjectId,
+                durationMillis: result.decision.durationMillis,
+              },
+              { ...result.decision.trace, policyTag },
+            ),
+          });
+
     const outcome: FastCheck.Arbitrary<Decided | Failed> = FastCheck.oneof(
       FastCheck.tuple(FastCheck.boolean(), FastCheck.string()).map(
         ([allowed, reason]) =>
@@ -1485,16 +1507,13 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
                   evaluationId: "e",
                   subjectId: makeSubjectId("u1"),
                   durationMillis: 1,
-                  trace: trace(true),
-                  visibleFields: undefined,
-                  obligations: [obligation("audit.log")],
+                  trace: allowTrace(undefined, [obligation("audit.log")]),
                 })
               : new Deny({
                   evaluationId: "e",
                   subjectId: makeSubjectId("u1"),
                   durationMillis: 1,
-                  trace: { ...trace(false), reason },
-                  reason,
+                  trace: denyTrace(reason),
                 }),
           }),
       ),
@@ -1510,7 +1529,7 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
             subjectId: makeSubjectId("u1"),
             policy,
             ...(value === undefined ? {} : { resource: { value } }),
-            outcome: result,
+            outcome: retagged(result, policy._tag),
           });
           const encoded = encodeSinkRecordString(record);
           if (Result.isFailure(encoded)) return true;
@@ -1544,7 +1563,7 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
             subjectId: makeSubjectId("u1"),
             policy,
             ...(value === undefined ? {} : { resource: { value } }),
-            outcome: result,
+            outcome: retagged(result, policy._tag),
           });
           const v2 = encodeSinkRecordString(record);
           if (Result.isFailure(v2)) return true;
@@ -1603,6 +1622,17 @@ const goldenObligations: SinkRecord = new ObligationRecord({
   obligationIds: ["audit.log"],
 });
 
+/** The obligation record `V2_OBLIGATIONS_FULL_ENVELOPE` describes: its identity keys set. */
+const goldenObligationsFull: SinkRecord = new ObligationRecord({
+  evaluationId: "g",
+  at: 1,
+  outcome: "Discharged",
+  obligationIds: ["audit.log"],
+  subjectId: makeSubjectId("u1"),
+  action: "approve",
+  resourceId: makeResourceId("doc-1"),
+});
+
 /** The decision the full-envelope goldens describe: every optional envelope field set. */
 const goldenFullEnvelope: SinkRecord = new DecisionRecord({
   evaluationId: "g",
@@ -1617,9 +1647,7 @@ const goldenFullEnvelope: SinkRecord = new DecisionRecord({
       evaluationId: "g",
       subjectId: makeSubjectId("u1"),
       durationMillis: 2,
-      trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
-      visibleFields: undefined,
-      obligations: [],
+      trace: allowTrace(undefined),
     }),
   }),
 });
@@ -1630,7 +1658,6 @@ const goldenFullEnvelope: SinkRecord = new DecisionRecord({
  */
 describe("v2 bytes: the writer writes the version-2 goldens", () => {
   const v2Of = stringOf;
-  const goldenTrace = { policyTag: "HasPermission" as const, allowed: true, children: [], obligations: [] };
 
   it("a decided record", () => {
     const record = new DecisionRecord({
@@ -1643,9 +1670,7 @@ describe("v2 bytes: the writer writes the version-2 goldens", () => {
           evaluationId: "g",
           subjectId: makeSubjectId("u1"),
           durationMillis: 2,
-          trace: { ...goldenTrace, visibleFields: ["id"] },
-          visibleFields: ["id"],
-          obligations: [obligation("audit.log")],
+          trace: allowTrace(["id"], [obligation("audit.log")]),
         }),
       }),
     });
@@ -1664,6 +1689,10 @@ describe("v2 bytes: the writer writes the version-2 goldens", () => {
     assert.strictEqual(v2Of(goldenObligations), V2.V2_OBLIGATIONS);
   });
 
+  it("an obligation record carrying subjectId, action and resourceId", () => {
+    assert.strictEqual(v2Of(goldenObligationsFull), V2.V2_OBLIGATIONS_FULL_ENVELOPE);
+  });
+
   it("a decision carrying resource, action and cache", () => {
     assert.strictEqual(v2Of(goldenFullEnvelope), V2.V2_DECISION_FULL_ENVELOPE);
   });
@@ -1676,12 +1705,6 @@ describe("v2 bytes: the writer writes the version-2 goldens", () => {
  * `decided`/`failed`, written before 0.10 — is refused as `UnsupportedVersion`.
  */
 describe("decodeSinkRecord reads wire version 2, and only it", () => {
-  const goldenTrace = (allowed: boolean) => ({
-    policyTag: "HasPermission" as const,
-    allowed,
-    children: [],
-    obligations: [],
-  });
   const decided = (decision: Allow | Deny): SinkRecord =>
     new DecisionRecord({
       evaluationId: "g",
@@ -1699,9 +1722,7 @@ describe("decodeSinkRecord reads wire version 2, and only it", () => {
           evaluationId: "g",
           subjectId: makeSubjectId("u1"),
           durationMillis: 2,
-          trace: { ...goldenTrace(true), visibleFields: ["id"] },
-          visibleFields: ["id"],
-          obligations: [obligation("audit.log")],
+          trace: allowTrace(["id"], [obligation("audit.log")]),
         }),
       ),
     ],
@@ -1713,9 +1734,7 @@ describe("decodeSinkRecord reads wire version 2, and only it", () => {
           evaluationId: "g",
           subjectId: makeSubjectId("u1"),
           durationMillis: 2,
-          trace: goldenTrace(true),
-          visibleFields: undefined,
-          obligations: [],
+          trace: allowTrace(undefined),
         }),
       ),
     ],
@@ -1727,8 +1746,7 @@ describe("decodeSinkRecord reads wire version 2, and only it", () => {
           evaluationId: "g",
           subjectId: makeSubjectId("u1"),
           durationMillis: 2,
-          trace: { ...goldenTrace(false), reason: "no" },
-          reason: "no",
+          trace: denyTrace("no"),
         }),
       ),
     ],
@@ -1743,6 +1761,7 @@ describe("decodeSinkRecord reads wire version 2, and only it", () => {
       goldenFailedCause,
     ],
     ["an obligation record", V2.V2_OBLIGATIONS, goldenObligations],
+    ["an obligation record with identity keys", V2.V2_OBLIGATIONS_FULL_ENVELOPE, goldenObligationsFull],
     ["a full envelope", V2.V2_DECISION_FULL_ENVELOPE, goldenFullEnvelope],
   ];
 
@@ -1753,6 +1772,25 @@ describe("decodeSinkRecord reads wire version 2, and only it", () => {
       assert.deepStrictEqual(recordOf(v2), recordOf(stringOf(original)));
     });
   }
+
+  it("a row written before the identity keys decodes with them absent, and re-encodes byte-identically", () => {
+    const decoded = recordOf(V2.V2_OBLIGATIONS);
+    assert.strictEqual(decoded._tag, "Obligations");
+    for (const key of ["subjectId", "action", "resourceId"]) {
+      assert.isFalse(Object.hasOwn(decoded, key), key);
+    }
+    assert.strictEqual(stringOf(decoded), V2.V2_OBLIGATIONS);
+  });
+
+  it("an obligation row's identity keys survive a round trip as typed values", () => {
+    const decoded = recordOf(V2.V2_OBLIGATIONS_FULL_ENVELOPE);
+    assert.strictEqual(decoded._tag, "Obligations");
+    if (decoded._tag !== "Obligations") return;
+    assert.strictEqual(decoded.subjectId, "u1");
+    assert.strictEqual(decoded.action, "approve");
+    assert.strictEqual(decoded.resourceId, "doc-1");
+    assert.strictEqual(stringOf(decoded), V2.V2_OBLIGATIONS_FULL_ENVELOPE);
+  });
 
   it("a v2 record with an unknown top-level key decodes; a stray pre-0.10 `decided` beside `outcome` is one", () => {
     const text = JSON.stringify({ ...JSON.parse(V2.V2_FAILED_MISSING_RESOURCE), traceparent: "00-abc", decided: {} });
@@ -1862,9 +1900,7 @@ describe("the stored-record envelope (ARCH-11 D-11-e)", () => {
             evaluationId: "e-1",
             subjectId: makeSubjectId("u1"),
             durationMillis: 2,
-            trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
-            visibleFields: undefined,
-            obligations: [],
+            trace: allowTrace(undefined),
           }),
         }),
       }),

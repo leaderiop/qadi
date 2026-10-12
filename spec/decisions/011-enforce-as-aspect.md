@@ -48,3 +48,13 @@ decision exposes, so a single pass answers both "may they read this?" and
 which is what the predecessor's container attempted and its documentation
 overstated. An honest, explicit aspect beats an implicit mechanism that does not
 actually exist.
+
+## Amendment (2026-10-08, ADR-QD-104)
+
+"The protected effect never runs" is a statement about guarded *work*. A read whose policy
+reads the resource has no resource until something loads it, so for `enforceLoaded` and
+`enforceProjectedLoaded` the loader is the decision's input and runs first. Their guarantee is
+that the loaded value is never handed over, not that the loader never ran; `enforce` and
+`enforceProjected` keep the stronger statement, and `@qadi/http`'s `authorizeRequest` is the
+prior art for load-then-decide. A caller who needs the loader gated runs `enforce(coarse)` first.
+

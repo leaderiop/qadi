@@ -42,6 +42,11 @@
  * back once the file list included tests. Verified free: zero matches in any
  * test file at the time this scope changed.
  *
+ * **`no-ambient-console`** is a plain rule over `src` scope with one exempt
+ * file, `packages/react/src/DeveloperSignals.ts` (ADR-QD-041): no other library
+ * module writes to the console or reads `process.env`. Its exemption, like every
+ * `EXEMPTIONS` entry, must name a file that exists (`[stale-exemption]`).
+ *
  * **Scope beyond `packages`.** `pnpm-workspace.yaml` lists `features`,
  * `examples/*` and `apps/*` as workspace members too, and only `features/
  * step-definitions` is scanned here (as a test-scoped tree, alongside
@@ -165,6 +170,20 @@ const RULES = [
     message: "No ambient UUIDs — use the EvaluationId service.",
   },
   {
+    id: "no-ambient-console",
+    // `console` and `process.env` are ambient globals, and every developer signal
+    // `@qadi/react` raises reaches the console through one module,
+    // `packages/react/src/DeveloperSignals.ts` (ADR-QD-041). The confinement was
+    // a convention until it leaked once, through `QadiProvider`'s three direct
+    // `console.warn` calls (DA-06, ticket 153), and nobody noticed. A plain rule,
+    // not a budget: zero exceptions outside the one exempted module. Runs on the
+    // stripped line, so prose that mentions `console.warn` never trips it, and
+    // not `testScope`: tests spy on `console` legitimately.
+    re: /\bconsole\s*\.|\bprocess\.env\b|\btypeof\s+process\b/,
+    message:
+      "Developer signals go through @qadi/react's DeveloperSignals.ts (ADR-QD-041); a library module never writes to the console or reads process.env.",
+  },
+  {
     id: "no-non-null-assertion",
     // `x!` — an identifier or a closing `)`/`]` immediately followed by `!`,
     // not itself followed by `=` (which rules out `!=`/`!==`, tokenized as one
@@ -253,6 +272,21 @@ const RULES = [
     raw: true,
   },
   {
+    id: "no-decision-constructor-outside-decision",
+    // A `Decision` is built from its trace by `makeDecision`
+    // (`packages/core/src/Decision.ts`, ARCH-32): its verdict, `visibleFields`,
+    // `obligations` and `reason` are readings of the trace root, and `Allow`'s
+    // and `Deny`'s constructors take a stamp and a trace and derive them. Two
+    // modules (`Evaluate.ts`, `DecisionWire.ts`) each filled those fields by
+    // hand and nothing compared them. A plain rule, not a budget: zero
+    // exceptions outside the one exempted module, and test files are not
+    // scanned, so a fixture may still write `new Allow({ ...stamp, trace })`.
+    re: /\bnew\s+(?:Allow|Deny)\s*\(/,
+    message:
+      "A Decision is built from its trace by makeDecision (packages/core/src/Decision.ts), never field by field.",
+    raw: true,
+  },
+  {
     id: "no-port-span-key-literals",
     // A port span's keys are stated once, in the port's description
     // (`PortDescription.attributes`, ARCH-21): `PortAccess.ts` writes through
@@ -294,13 +328,15 @@ const RULES = [
  * @type {Readonly<Record<string, ReadonlyArray<string>>>}
  */
 const EXEMPTIONS = {
+  "packages/core/src/Decision.ts": ["no-decision-constructor-outside-decision"],
   "packages/core/src/SinkWire.ts": ["no-refusal-annotation-outside-core"],
   "packages/core/src/EvaluationId.ts": ["no-ambient-uuid"],
-  // React Suspense is *defined* in terms of a thrown promise, so one has to
-  // exist at that boundary. Confined to `settled.ts`, the only module that
-  // constructs one; every hook that reads a decision does so synchronously
-  // and needs no Promise at all.
-  "packages/react/src/settled.ts": ["no-raw-promise"],
+  // The one module that writes to the console or reads `process.env`: every
+  // developer signal `@qadi/react` raises, including `QadiProvider`'s three,
+  // goes through it (ADR-QD-041). An exemption naming a file that does not exist
+  // fails the gate (`[stale-exemption]` below), so a rename cannot silently
+  // ungate the new name.
+  "packages/react/src/DeveloperSignals.ts": ["no-ambient-console"],
 };
 
 /**
@@ -527,6 +563,22 @@ const SINK_READ_ALLOWED = {
   "packages/core/src/SinkEmit.ts": 1,
   "packages/devtools/src/model/Wiring.ts": 1,
 };
+
+/**
+ * `PolicyTooDeep` is constructed where a question is admitted, once for both
+ * interpreters (`Admission.ts`, ARCH-41), plus `evaluateNode`'s per-node guard,
+ * kept as defense in depth (ADR-QD-090).
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const ADMISSION_ALLOWED = {
+  "packages/core/src/Admission.ts": 1,
+  "packages/core/src/Walk.ts": 1,
+};
+const POLICY_TOO_DEEP_NEW = /new PolicyTooDeep\(/;
+/** The one place `maxDepth` defaults; a second `?? DEFAULT_MAX_DEPTH` is a second default. */
+const MAX_DEPTH_DEFAULT = /maxDepth\b.*\?\?\s*DEFAULT_MAX_DEPTH/;
+const MAX_DEPTH_DEFAULT_HOME = "packages/core/src/Question.ts";
 
 const DECISION_READ_BUDGET = {
   // `outcomeOf`'s `AsyncResult.isInitial(` and `result.waiting` — the read itself.
@@ -782,7 +834,17 @@ const strip = (line) =>
     .replace(/\/\/.*$/, "")
     .replace(/\/\*.*?\*\//g, "")
     .replace(/"(?:[^"\\]|\\.)*"/g, '""')
-    .replace(/'(?:[^'\\]|\\.)*'/g, "''");
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''")
+    // A single-line template literal: blank its text, keep each `${…}` expression,
+    // because code in an interpolation is still code. Without this the word "as"
+    // in a message (`wrote as ${name}`) read as a type assertion. A template that
+    // spans lines is not handled here, as with every other literal in this function.
+    .replace(/`((?:[^`\\]|\\.)*)`/g, (_m, inner) =>
+      `\`${inner
+        .split(/(\$\{[^}]*\})/)
+        .map((part) => (part.startsWith("${") ? part : ""))
+        .join("")}\``,
+    );
 
 let failures = 0;
 
@@ -806,6 +868,8 @@ const schemaErrorNames = new Set();
 /** @type {Map<string, number[]>} */
 const decisionReadLines = new Map();
 const sinkReadLines = new Map();
+const admissionLines = new Map();
+const maxDepthDefaultLines = new Map();
 const portDoubleLines = new Map();
 
 for (const file of sources) {
@@ -938,6 +1002,20 @@ for (const file of sources) {
       const found = sinkReadLines.get(rel) ?? [];
       found.push(index + 1);
       sinkReadLines.set(rel, found);
+    }
+    // Library source only: admission (the depth gate and the `maxDepth` default)
+    // is shared by both interpreters, so it has one home (ARCH-41).
+    if (!isTestFile && rel.startsWith("packages/")) {
+      if (POLICY_TOO_DEEP_NEW.test(line)) {
+        const found = admissionLines.get(rel) ?? [];
+        found.push(index + 1);
+        admissionLines.set(rel, found);
+      }
+      if (MAX_DEPTH_DEFAULT.test(line)) {
+        const found = maxDepthDefaultLines.get(rel) ?? [];
+        found.push(index + 1);
+        maxDepthDefaultLines.set(rel, found);
+      }
     }
     // Test-scope only, unlike every budget above: PORT_DOUBLE_BUDGET is about
     // how tests describe a broken port, and shipped source constructs these
@@ -1244,6 +1322,49 @@ for (const [rel, count] of Object.entries(SINK_READ_ALLOWED)) {
 }
 
 // ---------------------------------------------------------------------------
+// INV-QD-037 / ADR-QD-100 / ARCH-41 — a question is admitted once, by
+// `Admission.ts`, for `walk` and `toPredicate` alike; the `maxDepth` default
+// lives in `questionOf`. A second `new PolicyTooDeep(` or `?? DEFAULT_MAX_DEPTH`
+// is a second copy of a rule the two interpreters must agree on. Checked in both
+// directions like sink-read-once above.
+// ---------------------------------------------------------------------------
+
+for (const [rel, found] of admissionLines) {
+  if (rel in ADMISSION_ALLOWED) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [admission-once] new PolicyTooDeep outside Admission.ts.\n` +
+      `    Admit through admit (packages/core/src/Admission.ts) so evaluate and toPredicate share one depth gate (INV-QD-037).`,
+  );
+}
+
+for (const [rel, count] of Object.entries(ADMISSION_ALLOWED)) {
+  const found = admissionLines.get(rel) ?? [];
+  if (found.length !== count) {
+    failures += 1;
+    console.error(
+      `${rel}  [admission-once] declares ${count} PolicyTooDeep construction(s), found ${found.length}.\n` +
+        `    Update ADMISSION_ALLOWED in scripts/check-house-style.mjs so it agrees with the code.`,
+    );
+  }
+}
+
+for (const [rel, found] of maxDepthDefaultLines) {
+  if (rel === MAX_DEPTH_DEFAULT_HOME) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [admission-once] a second maxDepth default.\n` +
+      `    questionOf (${MAX_DEPTH_DEFAULT_HOME}) is the only place maxDepth defaults; ask through a Question (ARCH-41).`,
+  );
+}
+if ((maxDepthDefaultLines.get(MAX_DEPTH_DEFAULT_HOME) ?? []).length !== 1) {
+  failures += 1;
+  console.error(
+    `${MAX_DEPTH_DEFAULT_HOME}  [admission-once] expected exactly one \`?? DEFAULT_MAX_DEPTH\`.`,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // AGENTS.md §13 / ADR-QD-017 — a decision result is read once, by `outcomeOf`.
 // Checked in both directions like SWITCH_BUDGET above: a new raw read anywhere
 // in library source is a second home for the stale-allow rule, and a budgeted
@@ -1390,6 +1511,63 @@ for (const [rel, found] of portDoubleLines) {
 }
 
 // ---------------------------------------------------------------------------
+// ARCH-42 — `@qadi/core`'s test helpers cannot import `@qadi/testing` (it depends
+// on core), so three observation helpers exist twice: `@qadi/testing`'s is the
+// definition, core's `test/helpers.ts` is a twin. Each twin's body must equal
+// the definition's once comments and whitespace are normalized, so a divergence
+// fails here rather than showing up as a span or a log line a core test
+// stopped seeing.
+// ---------------------------------------------------------------------------
+
+const TEST_HELPER_TWINS = [
+  { name: "collectingTracer", definition: "packages/testing/src/CollectingTracer.ts" },
+  { name: "collectingLogger", definition: "packages/testing/src/CollectingLogger.ts" },
+  { name: "isolatedMetrics", definition: "packages/testing/src/IsolatedMetrics.ts" },
+];
+const TEST_HELPER_TWIN_HOME = "packages/core/test/helpers.ts";
+
+/** `export const <name> = …;` as one whitespace-free string with comments removed, or undefined. */
+const exportedConstBody = (source, name) => {
+  const code = source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:"'`])\/\/[^\n]*/g, "$1");
+  const start = code.search(new RegExp(`\\bexport\\s+const\\s+${name}\\b`));
+  if (start === -1) return undefined;
+  let depth = 0;
+  for (let i = code.indexOf("=", start); i < code.length; i += 1) {
+    const c = code[i];
+    if ("([{".includes(c)) depth += 1;
+    else if (")]}".includes(c)) depth -= 1;
+    else if (c === ";" && depth === 0) {
+      return code
+        .slice(start, i + 1)
+        .replace(/\s+/g, "")
+        .replace(/,([)\]}>])/g, "$1");
+    }
+  }
+  return undefined;
+};
+
+for (const { name, definition } of TEST_HELPER_TWINS) {
+  const defined = exportedConstBody(readFileSync(join(ROOT, definition), "utf8"), name);
+  const twin = exportedConstBody(readFileSync(join(ROOT, TEST_HELPER_TWIN_HOME), "utf8"), name);
+  if (defined === undefined || twin === undefined || defined !== twin) {
+    failures += 1;
+    const why =
+      defined === undefined
+        ? `is not exported by ${definition}.`
+        : twin === undefined
+          ? "is not exported here."
+          : `differs from ${definition}.`;
+    console.error(
+      `${TEST_HELPER_TWIN_HOME}  [test-helper-twin] \`${name}\` ${why}\n` +
+        `    Core's test helpers cannot import @qadi/testing; a twin's body must equal the ` +
+        `definition's (comments and whitespace aside). Edit them together.`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // §9 — barrel `export * from` lines are alphabetical (case-sensitive ASCII).
 // Only checked on files that are *purely* a barrel: `packages/promise/src/index.ts`
 // is deliberately the implementation itself (ADR-QD-032), not a re-export list, so
@@ -1422,6 +1600,65 @@ for (const rel of sources
       );
       break;
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// §9 — `@qadi/devtools`' barrels name their exports (ARCH-40, ADR-QD-047's
+// amendment). Its interface is narrower than its modules, so a screen's
+// mechanics stay package-private (ADR-QD-099: out of the barrel means not
+// importable). An `export *` would silently re-widen it to every name a module
+// declares, and `barrel-order` above cannot see these barrels because they are
+// not pure `export *` lists. So the two devtools barrels carry no `export *`, and
+// their named groups run in module-path order (case-sensitive ASCII), the same
+// order `barrel-order` asks of every other barrel. Zero exceptions.
+// ---------------------------------------------------------------------------
+
+const DEVTOOLS_BARRELS = ["packages/devtools/src/index.ts", "packages/devtools/src/react/index.ts"];
+const STAR_EXPORT = /^\s*export\s+(?:type\s+)?\*/m;
+const NAMED_EXPORT = /export\s+(?:type\s+)?\{[^}]*\}\s*from\s*["']([^"']+)["']/g;
+
+for (const rel of DEVTOOLS_BARRELS) {
+  // Comments are not exports, and these barrels' header comments say "export".
+  const code = readFileSync(join(ROOT, rel), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+  if (STAR_EXPORT.test(code)) {
+    failures += 1;
+    console.error(
+      `${rel}  [devtools-named-barrel] \`export *\` re-widens the interface to every ` +
+        "name a module declares. Name the exports per module (ARCH-40, ADR-QD-047).",
+    );
+  }
+  const specifiers = [...code.matchAll(NAMED_EXPORT)].map((m) => m[1]);
+  for (let i = 1; i < specifiers.length; i += 1) {
+    if (specifiers[i - 1] > specifiers[i]) {
+      failures += 1;
+      console.error(
+        `${rel}  [devtools-named-barrel] "${specifiers[i]}" sorts before "${specifiers[i - 1]}" — ` +
+          "keep the named groups in module-path order (ARCH-40, ADR-QD-047).",
+      );
+      break;
+    }
+  }
+}
+
+// An exemption is a path, and a path outlives the file it named: renaming or
+// deleting the exempted module leaves a dead entry that silently ungates
+// whatever takes its place (an orphan `settled.ts` entry sat here for exactly
+// that reason). Each key must name a file on disk.
+for (const key of Object.keys(EXEMPTIONS)) {
+  let exists = false;
+  try {
+    exists = statSync(join(ROOT, key)).isFile();
+  } catch {
+    exists = false;
+  }
+  if (!exists) {
+    failures += 1;
+    console.error(
+      `${key}  [stale-exemption] names no file; delete the entry or fix the path.`,
+    );
   }
 }
 

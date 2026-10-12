@@ -35,7 +35,8 @@ English.
 
 `evaluate` itself, the `Decision` type (`Allow`/`Deny`) and its trace, and
 the family of calls built on top of it — `decide`, `check`, `assert`,
-`enforce`, `enforceProjected`, `filter`, `guard`, their streamed siblings,
+`enforce`, `enforceProjected`, `enforceLoaded`, `enforceProjectedLoaded`, `filter`,
+`filterProjected`, `guard`, their streamed siblings,
 and subject-set evaluation (`decideSubjects`, `filterSubjects`). This is
 where the "reporting versus enforcing" split lives, and where `toPredicate`
 turns a policy into a row filter for query-side authorization.

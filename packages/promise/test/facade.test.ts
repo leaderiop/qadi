@@ -11,8 +11,12 @@ import {
   check as checkCore,
   currentSubjectLayer,
   decide as decideCore,
+  eq,
   filter as filterCore,
+  allOf,
   hasAction,
+  hasResourceAttribute,
+  subjectId,
   hasAttribute,
   hasPermission,
   hasRelationship,
@@ -228,6 +232,53 @@ describe("makeQadi", () => {
     assert.deepStrictEqual(await qadi.filter(bob, owned, items), []);
   });
 
+  describe("the one-channel projected reads", () => {
+    const read = permission("doc", "read");
+    const ownerReads = allOf([
+      hasResourceAttribute("ownerId", eq(subjectId())),
+      hasPermission(read, { fields: ["id", "title"] }),
+    ]);
+    const owner = makeSubject({ id: "u-1", permissions: ["doc:read"] });
+    const stranger = makeSubject({ id: "u-2", permissions: ["doc:read"] });
+    const doc = { id: "d1", ownerId: "u-1", title: "T", secret: "S" };
+
+    it("projected resolves the projected record for the owner and rejects AccessDenied for another subject", async () => {
+      const qadi = facade();
+      assert.deepStrictEqual(await qadi.projected(owner, ownerReads, doc), { id: "d1", title: "T" });
+      const failure = await rejection(qadi.projected(stranger, ownerReads, doc));
+      assert.instanceOf(failure, AccessDenied);
+    });
+
+    it("projected decides against the record, so a resource-reading policy never rejects MissingResource", async () => {
+      const qadi = facade();
+      const out = await qadi.projected(owner, hasResourceAttribute("ownerId", eq(subjectId())), doc);
+      assert.deepStrictEqual(out, doc);
+    });
+
+    it("projected rejects (not denies) when the dependency fails", async () => {
+      const broken = facade(
+        Layer.mergeAll(
+          baseLayer,
+          scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer,
+        ),
+      );
+      const failure = await rejection(
+        broken.projected(owner, hasAttribute("tier", gte(1)), doc),
+      );
+      assert.instanceOf(failure, AttributeResolveError);
+    });
+
+    it("filterProjected resolves each admitted item projected by its own decision", async () => {
+      const qadi = facade();
+      const mine = { id: "d2", ownerId: "u-1", title: "U", secret: "S2" };
+      const theirs = { id: "d3", ownerId: "u-9", title: "V", secret: "S3" };
+      assert.deepStrictEqual(await qadi.filterProjected(owner, ownerReads, [doc, theirs, mine]), [
+        { id: "d1", title: "T" },
+        { id: "d2", title: "U" },
+      ]);
+    });
+  });
+
   it("THE SUBJECT TRAVELS PER CALL, so one runtime serves many users", async () => {
     // `CurrentSubject` is excluded from the layer deliberately. A runtime holding one
     // subject would be a per-process subject — wrong for a server, a hazard in a
@@ -340,5 +391,105 @@ describe("makeQadi", () => {
 
     assert.deepStrictEqual(viaFacade, items);
     assert.deepStrictEqual(viaFacade, viaCore);
+  });
+});
+
+describe("cancellation crosses the boundary by options.signal (ARCH-45 I4)", () => {
+  /** A resolver that takes a moment and counts every lookup it was asked for. */
+  const slowLayer = () => {
+    const state = { lookups: 0, onFirst: () => {} };
+    const first = new Promise<void>((resolve) => {
+      state.onFirst = resolve;
+    });
+    const layer = Layer.mergeAll(
+      portsLayer({
+        AttributeResolver: Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Effect.sleep("20 millis").pipe(
+              Effect.as(5),
+              Effect.tap(() =>
+                Effect.sync(() => {
+                  state.lookups += 1;
+                  state.onFirst();
+                }),
+              ),
+            ),
+        }),
+      }),
+      EvaluationIdLive,
+    );
+    return { state, first, layer };
+  };
+  const clearance = hasAttribute("clearance", gte(1));
+  const items = Array.from({ length: 50 }, (_, i) => ({ id: `doc-${i}` }));
+
+  it("filter stops when its signal aborts", async () => {
+    const { state, first, layer } = slowLayer();
+    const controller = new AbortController();
+    const pending = facade(layer).filter(alice, clearance, items, { signal: controller.signal });
+    await first;
+    controller.abort();
+
+    await rejection(pending);
+    const atAbort = state.lookups;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    // The work stopped: no lookup ran after the rejection, and nowhere near all 50 did.
+    assert.strictEqual(state.lookups, atAbort);
+    assert.isBelow(state.lookups, items.length);
+  });
+
+  it("filterProjected stops when its signal aborts (ARCH-39 methods take the signal too)", async () => {
+    const { state, first, layer } = slowLayer();
+    const controller = new AbortController();
+    const pending = facade(layer).filterProjected(alice, clearance, items, { signal: controller.signal });
+    await first;
+    controller.abort();
+
+    await rejection(pending);
+    const atAbort = state.lookups;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.strictEqual(state.lookups, atAbort);
+    assert.isBelow(state.lookups, items.length);
+  });
+
+  it("a pre-aborted signal performs no lookup for projected either", async () => {
+    const { state, layer } = slowLayer();
+    const controller = new AbortController();
+    controller.abort();
+    await rejection(facade(layer).projected(alice, clearance, { id: "doc-1" }, { signal: controller.signal }));
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    assert.strictEqual(state.lookups, 0);
+  });
+
+  it("a pre-aborted signal performs no lookup", async () => {
+    const { state, layer } = slowLayer();
+    const controller = new AbortController();
+    controller.abort();
+    await rejection(facade(layer).filter(alice, clearance, items, { signal: controller.signal }));
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    assert.strictEqual(state.lookups, 0);
+  });
+
+  it("an unaborted signal changes nothing", async () => {
+    const controller = new AbortController();
+    const withSignal = { signal: controller.signal };
+    const qadi = facade();
+    assert.strictEqual(await qadi.check(alice, canRead, withSignal), await qadi.check(alice, canRead));
+    assert.strictEqual(await qadi.check(alice, isAdmin, withSignal), false);
+    const decided = await qadi.decide(alice, canRead, withSignal);
+    assert.strictEqual(decided._tag, (await qadi.decide(alice, canRead))._tag);
+    await qadi.assert(alice, canRead, withSignal);
+    assert.deepStrictEqual(await qadi.filter(alice, canRead, [{ id: "a" }], withSignal), [{ id: "a" }]);
+  });
+
+  it("an aborted signal does not reach core's own options", async () => {
+    // `signal` is the runtime's, not an `EvaluateOptions` field: it must not
+    // leak into core's `check`/`decide` options object.
+    const controller = new AbortController();
+    const result = await facade().check(alice, canRead, {
+      signal: controller.signal,
+      resource: { id: "doc-1" },
+    });
+    assert.strictEqual(result, true);
   });
 });

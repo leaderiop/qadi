@@ -44,7 +44,8 @@ subject; `explain` describes what the rule requires, of anyone.
 ## Enforcing
 
 `decide` and `check` **report** — they hand back an answer and run nothing.
-`assert`, `enforce`, `enforceProjected` and `filter` **enforce** — each either
+`assert`, `enforce`, `enforceProjected`, `enforceLoaded`, `enforceProjectedLoaded`,
+`filter` and `filterProjected` **enforce** — each either
 runs work or hands over data, so each refuses an allow whose obligation nobody
 discharged.
 

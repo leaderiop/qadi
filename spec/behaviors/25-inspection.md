@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-25                                    |
-> | Revision       | 1.14                                           |
-> | Effective Date | 2026-10-07                                     |
+> | Revision       | 1.17                                           |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.14 (2026-10-07): BEH-QD-198 — `asked` MUST NOT list one question twice, MUST bound itself to `maxTrackedQuestions` cold questions, MUST NOT drop a question any reader holds open (including across a recompute), and a question asked again after eviction reappears; the question book (`QuestionBook.ts`) is its home, and a collection no longer splits one question into two (ADR-QD-103, INV-QD-105, CCR-QD-201)<br>1.13 (2026-10-07): BEH-QD-194 — `diffTraces` is stack-safe, and `tracePathKey` is a path's one text form (ADR-QD-101, CCR-QD-191)<br>1.12 (2026-10-07): BEH-QD-318 added — `foldPolicyCases`, each arm receiving its children in the tag's own shape; BEH-QD-300's closing sentence names which consumers use which form (ADR-QD-090 amendment, CCR-QD-190)<br>1.11 (2026-10-06): BEH-QD-199 — version 2 only: a record with no `version` (version 1) or any other is refused as `UnsupportedVersion`, `SinkRecordJson` is the version-2 encoded type, `WireVersion`/`WIRE_VERSIONS` are `2`/`[2]`; BEH-QD-200 — "both outcomes" is only sayable in refused version-1 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.10 (2026-10-05): BEH-QD-199 — the wire is versioned: version 1 read for good, version 2 carries one tagged `outcome` and is what the encoder writes, any other version refused as `UnsupportedVersion`; the reader ignores an unknown top-level envelope key and still refuses one at any nested position (GH-01, ADR-QD-096); BEH-QD-200 — a decision record naming neither outcome, or both, is refused rather than given an invented `MissingResource` or a silently chosen `decided` (tickets 96, 155, CCR-QD-180)<br>1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-095, CCR-QD-179)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.17 (2026-10-08): BEH-QD-199 — `decodeSinkRecord` refuses a decision that contradicts its own trace, or a record whose ids or policy tag contradict its decision, as `Inconsistent` naming the first disagreement; BEH-QD-200 unchanged (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.16 (2026-10-08): BEH-QD-195 — the handler receives one `ObligationDischarge` (the question and the allow), and the `ObligationRecord` names `subjectId`, `action` and `resourceId` (ADR-QD-105, CCR-QD-220)<br>1.15 (2026-10-08): BEH-QD-194 — a field change is judged by the lattice (`sameVisibleFields`), not by text (ARCH-45, CCR-QD-264)<br>1.14 (2026-10-07): BEH-QD-198 — `asked` MUST NOT list one question twice, MUST bound itself to `maxTrackedQuestions` cold questions, MUST NOT drop a question any reader holds open (including across a recompute), and a question asked again after eviction reappears; the question book (`QuestionBook.ts`) is its home, and a collection no longer splits one question into two (ADR-QD-103, INV-QD-105, CCR-QD-201)<br>1.13 (2026-10-07): BEH-QD-194 — `diffTraces` is stack-safe, and `tracePathKey` is a path's one text form (ADR-QD-101, CCR-QD-191)<br>1.12 (2026-10-07): BEH-QD-318 added — `foldPolicyCases`, each arm receiving its children in the tag's own shape; BEH-QD-300's closing sentence names which consumers use which form (ADR-QD-090 amendment, CCR-QD-190)<br>1.11 (2026-10-06): BEH-QD-199 — version 2 only: a record with no `version` (version 1) or any other is refused as `UnsupportedVersion`, `SinkRecordJson` is the version-2 encoded type, `WireVersion`/`WIRE_VERSIONS` are `2`/`[2]`; BEH-QD-200 — "both outcomes" is only sayable in refused version-1 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.10 (2026-10-05): BEH-QD-199 — the wire is versioned: version 1 read for good, version 2 carries one tagged `outcome` and is what the encoder writes, any other version refused as `UnsupportedVersion`; the reader ignores an unknown top-level envelope key and still refuses one at any nested position (GH-01, ADR-QD-096); BEH-QD-200 — a decision record naming neither outcome, or both, is refused rather than given an invented `MissingResource` or a silently chosen `decided` (tickets 96, 155, CCR-QD-180)<br>1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-095, CCR-QD-179)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
@@ -372,6 +372,21 @@ REQUIREMENT: `diffTraces` MUST report verdict, reason, field and obligation
 ```
 
 ```
+REQUIREMENT: A field change MUST be judged by the field lattice
+             (`sameVisibleFields`): two sets that disclose the same fields are
+             not a change, whatever their spelling (`["title"]` and
+             `["title.**"]`; `["address.**", "address.street"]` and
+             `["address.**"]`). `undefined` (all fields) and `[]` (none) are
+             never equal. `FieldsChanged.before` and `.after` keep the authored
+             text.
+```
+
+Equal means the two sets project any data identically (a property test checks it),
+so the diff never hides a real change; a set covered only by a union of the other
+side's specs reads as changed. A check that two copies must be byte-equal (a
+decision against its own trace, ARCH-32) does not use it.
+
+```
 REQUIREMENT: `diffTraces` and `flippedAt` MUST NOT exhaust the call stack for a trace
              of any nesting depth, and `tracePathKey` of a difference's `path` MUST
              be the `key` of the position it names (`"$"` for the root, `"$.0.2"` for
@@ -451,17 +466,30 @@ REQUIREMENT: An allow carrying obligations MUST produce an `ObligationRecord`
 REQUIREMENT: An allow carrying none MUST produce nothing.
 ```
 
+```
+REQUIREMENT: The record MUST name the question's subject (`subjectId`) and, when
+             the question had them, its `action` and the resource's string
+             `id` (`resourceId`). It MUST NOT carry the resource itself: that
+             stays on the decision row, so customer data is not disclosed
+             twice to every sink.
+```
+
+The three keys are optional envelope keys under wire version 2 (the rule for the
+future in ADR-QD-096, first used here), so a row written before they existed
+decodes with them absent and re-encodes byte-identically. They let an obligation
+row whose decision never arrived say whom it concerns.
+
 The gap this closes is a fidelity gap in the log, not a decoration: a binding
 obligation nobody discharges turns an **allow** into a refusal at the
 enforcement boundary, so a log of decisions alone showed such a request as
 `ALLOW` while the caller received `UndischargedObligation`.
 
 **Per decision, not per obligation, and that limit is honest.**
-`ObligationHandler` receives the whole array and returns `void`, so the library
-observes that a set was presented and that the handler succeeded or failed —
-never which individual duty was met. Reporting per-obligation state would mean
-changing the handler contract, and a handler reporting falsely would still be
-unverifiable. The four outcomes are what can actually be known.
+`ObligationHandler` receives one `ObligationDischarge` (the question and the allow,
+so every duty at once) and returns `void`, so the library observes that a set was
+presented and that the handler succeeded or failed — never which individual duty
+was met. Reporting per-obligation state would mean changing the handler
+contract, and a handler reporting falsely would still be unverifiable. The four outcomes are what can actually be known.
 
 Reporting must not change the outcome: a handler that fails reports
 `HandlerFailed` and then fails **unchanged**, so a sink can no more rewrite an
@@ -629,7 +657,8 @@ export const encodeSinkRecord: (record: SinkRecord) => Result<SinkRecordJson, Si
 export const encodeSinkRecordString: (record: SinkRecord) => Result<string, SinkRecordNotEncodable>;
 export const decodeSinkRecord: (input: unknown) => Result<SinkRecord, SinkRecordNotDecodable>;
 export const decodeSinkRecordString: (text: string) => Result<SinkRecord, SinkRecordNotDecodable>;
-// SinkRecordNotDecodable.refusal: NotJson | TooDeep | Malformed | UnsupportedVersion { version, supported }
+// SinkRecordNotDecodable.refusal: NotJson | TooDeep | Malformed | Inconsistent { disagreement } | UnsupportedVersion { version, supported }
+// Inconsistent.disagreement: the first DecisionDisagreement found (BEH-QD-039)
 // UnsupportedVersion.version: the value sent, or undefined when the record names none (version 1)
 ```
 
@@ -642,6 +671,10 @@ REQUIREMENT: Every outbound path — forwarding, the decision stream, the audit
              projection, encode or parse.
 REQUIREMENT: `decodeSinkRecord` MUST validate untrusted input, MUST NOT
              produce a half-built record, and MUST NOT throw.
+REQUIREMENT: `decodeSinkRecord` MUST refuse a decision record whose decision
+             contradicts its own trace, or whose `evaluationId`, `subjectId`
+             or policy tag contradict its decision, as `Inconsistent`, naming
+             the first disagreement (INV-QD-170).
 ```
 
 ```
@@ -696,7 +729,11 @@ applies to policies. So the wire form is a Schema and decoding validates rather
 than casts: a payload naming a policy shape the ADT does not have is refused,
 not walked. A refusal is a `SinkRecordNotDecodable` whose closed
 `DecodeRefusal` says why: `NotJson` (text only), `TooDeep`, `Malformed` or
-`UnsupportedVersion`.
+`Inconsistent` or `UnsupportedVersion`. `Inconsistent` is a well-formed version-2 record that contradicts itself: the decision it carries
+says one thing and its own trace another (the verdict, `visibleFields`, `obligations` or a denial's `reason`), or its `evaluationId`, `subjectId` or the tag of the
+policy it names are not the decision's. That is neither version skew nor a malformed record, so it has its own reason (a producer that built a
+decision by hand, or tampering), and the check is the same `decisionDisagreement` rule the constructor guarantees in memory (INV-QD-170). The wire
+bytes do not change: the encoder never wrote such a record, so version 2 stays version 2.
 
 `decodeSinkRecord` pre-checks structural depth before `Schema` ever recurses
 into the input — the same `DecodeDepthGuard.ts` guard, in the same order,

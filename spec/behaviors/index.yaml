@@ -101,3 +101,6 @@ entries:
   - id: "BEH-QD-249"
     file: "33-audit-pipeline.md"
     title: "33 — Audit Pipeline"
+  - id: "BEH-QD-329"
+    file: "34-remote-ports.md"
+    title: "34 — Remote Ports"

@@ -12,14 +12,19 @@ import * as Context from "effect/Context";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import { AttributeResolveError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
+import { SubjectIdSchema } from "./Identity.ts";
 import type { SubjectId } from "./Identity.ts";
+import { toJson } from "./JsonHazard.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import { portWire, WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
+import type { EncodeRefusal } from "./SinkWire.ts";
 
 export interface AttributeResolverShape {
   /**
@@ -100,6 +105,34 @@ const attributeSpan = {
 };
 
 /**
+ * What the attribute question and answer look like on a wire (ARCH-31).
+ *
+ * The answer is `{ value?: Json }`: absent is `undefined`, the fail-closed
+ * sentinel every default answers with, and `null` is a value a store genuinely
+ * returned. **This is the one wire that carries an attribute's value**, to the
+ * session's own subject, which is why it is not the span (INV-QD-044): a value
+ * with no JSON form (a `Set`, a `bigint`, a cycle) is refused, never thrown.
+ */
+const attributeWire = portWire({
+  question: Schema.Struct({ subjectId: SubjectIdSchema, attribute: Schema.String }),
+  answer: Schema.Struct({ value: Schema.optionalKey(Schema.Json) }),
+  toQuestion: ([subjectId, attribute]: [subjectId: SubjectId, attribute: string]) =>
+    Result.succeed({ subjectId, attribute }),
+  fromQuestion: (question, subject): [subjectId: SubjectId, attribute: string] => [
+    subject.id,
+    question.attribute,
+  ],
+  toAnswer: (value: unknown): Result.Result<{ readonly value?: Schema.Json }, EncodeRefusal> =>
+    value === undefined
+      ? Result.succeed({})
+      : Result.map(toJson(value, WIRE_MAX_DEPTH), (json) => ({ value: json })),
+  fromAnswer: (wire): unknown => wire.value,
+  asked: ([, attribute]) => attribute,
+  spanQuestion: ([subjectId, attribute]) => ({ subjectId, attribute }),
+  spanAnswer: (value) => attributeSpan.disclose(value),
+});
+
+/**
  * The attribute port, described once (`PortDescription.ts`): the wrappers and
  * the default below, `PortAccess.ts`'s defect mapping and span, the doubles
  * (`PortDoubles.ts`) and `@qadi/devtools`' capture/replay all read it.
@@ -119,6 +152,7 @@ export const attributeResolverPort: PortDescription<
   method: "resolve",
   span: "qadi.attribute",
   attributes: attributeSpan,
+  wire: attributeWire,
   service: AttributeResolver,
   invoke: (shape) => (subjectId, attribute) => shape.resolve(subjectId, attribute),
   make: (name, call) => ({ name, resolve: call }),

@@ -19,6 +19,7 @@ import {
   isFieldStrategy,
   intersectFields,
   mergeFields,
+  sameVisibleFields,
   unionFields,
 } from "../src/FieldLattice.ts";
 import * as FieldPath from "../src/FieldPath.ts";
@@ -140,9 +141,13 @@ describe("field lattice", () => {
       evaluationId: "e",
       subjectId: makeSubjectId("u"),
       durationMillis: 0,
-      trace: { policyTag: "HasRole", allowed: true, children: [], obligations: [] },
-      visibleFields: fields,
-      obligations: [],
+      trace: {
+        policyTag: "HasRole",
+        allowed: true,
+        children: [],
+        visibleFields: fields,
+        obligations: [],
+      },
     });
 
   /** What `fields` actually discloses of `data`, independent of which of two shape-equal spec strings represents it. */
@@ -476,5 +481,82 @@ describe("field lattice", () => {
     // First: an empty merge ahead of `["a"]` becomes the first input and wins.
     assert.deepStrictEqual(mergeFields("First", [["a"]]), ["a"]);
     assert.isUndefined(mergeFields("First", [mergeFields("First", []), ["a"]]));
+  });
+});
+
+describe("sameVisibleFields (ARCH-45 I2)", () => {
+  it("undefined equals only undefined, and none equals only none", () => {
+    assert.isTrue(sameVisibleFields(undefined, undefined));
+    assert.isFalse(sameVisibleFields(undefined, []));
+    assert.isFalse(sameVisibleFields([], undefined));
+    assert.isFalse(sameVisibleFields(undefined, ["a.**"]));
+    assert.isTrue(sameVisibleFields([], []));
+    assert.isFalse(sameVisibleFields([], ["a"]));
+    assert.isFalse(sameVisibleFields(["a"], []));
+  });
+
+  it("two spellings of one set are equal, in both directions", () => {
+    assert.isTrue(sameVisibleFields(["title"], ["title.**"]));
+    assert.isTrue(sameVisibleFields(["title.**"], ["title"]));
+    assert.isTrue(sameVisibleFields(["address.**", "address.street"], ["address.**"]));
+    assert.isTrue(sameVisibleFields(["address.**"], ["address.**", "address.street"]));
+    assert.isTrue(sameVisibleFields(["a", "a", "b"], ["b", "a"]));
+  });
+
+  it("a set that discloses more or different is not equal", () => {
+    assert.isFalse(sameVisibleFields(["a"], ["a.*"]));
+    assert.isFalse(sameVisibleFields(["a.*"], ["a"]));
+    assert.isFalse(sameVisibleFields(["address.*"], ["address.street"]));
+    assert.isFalse(sameVisibleFields(["a"], ["b"]));
+    assert.isFalse(sameVisibleFields(["a"], ["a", "b"]));
+    assert.isFalse(sameVisibleFields(["a", "b"], ["a"]));
+  });
+
+  const segment = FastCheck.constantFrom("a", "b", "c");
+  const literalPath = FastCheck.array(segment, { minLength: 1, maxLength: 3 }).map((s) =>
+    s.join("."),
+  );
+  const wildcardPath = FastCheck.tuple(
+    FastCheck.array(segment, { minLength: 0, maxLength: 2 }),
+    FastCheck.constantFrom("*", "**"),
+  ).map(([prefix, terminal]) => [...prefix, terminal].join("."));
+  const fieldSpec = FastCheck.oneof(
+    literalPath,
+    wildcardPath,
+    FastCheck.constantFrom("a.", ".b", "a.*.b", "**.a"),
+  );
+  const fieldSet = FastCheck.array(fieldSpec, { minLength: 0, maxLength: 4 });
+  const leaf = FastCheck.oneof(FastCheck.string(), FastCheck.integer());
+  const nested = FastCheck.dictionary(
+    segment,
+    FastCheck.oneof(
+      leaf,
+      FastCheck.dictionary(
+        segment,
+        FastCheck.oneof(leaf, FastCheck.dictionary(segment, leaf, { maxKeys: 3 })),
+        { maxKeys: 3 },
+      ),
+    ),
+    { maxKeys: 3 },
+  );
+
+  it("is sound: equal field sets project any data identically", () => {
+    FastCheck.assert(
+      FastCheck.property(fieldSet, fieldSet, nested, (a, b, data) => {
+        if (sameVisibleFields(a, b)) {
+          assert.deepStrictEqual(FieldPath.project(data, a), FieldPath.project(data, b));
+        }
+      }),
+      { numRuns: 2000 },
+    );
+  });
+
+  it("is reflexive and symmetric", () => {
+    FastCheck.assert(
+      FastCheck.property(fieldSet, fieldSet, (a, b) => {
+        assert.isTrue(sameVisibleFields(a, a));
+        assert.strictEqual(sameVisibleFields(a, b), sameVisibleFields(b, a));
+      }),
+    );
   });
 });

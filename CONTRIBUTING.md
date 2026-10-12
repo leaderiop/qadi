@@ -24,7 +24,17 @@ and save the full gate for before you push:
 - `npx vitest run --project <package>` — e.g. `npx vitest run --project core`
   — the affected package's own suite, without the other eight.
 
-None of the three replaces `pnpm check` — coverage thresholds, mutation
+- `pnpm worktree:setup` — first thing in a fresh git worktree: it installs from the
+  lockfile (offline) and builds the packages, because a new worktree has neither
+  `node_modules` nor `lib/`. Idempotent.
+- `pnpm check:fast` — every cheap step of the gate in one command (typecheck,
+  lint, circular, tstyche, the tests uninstrumented, BDD and the spec gates),
+  about four minutes, one line per passing step and the tail of the failing
+  one. It is derived from `check` (`scripts/run-check.mjs --tier fast`), so it
+  follows `check` when `check` changes. Run it before handing work back; it is
+  not the gate.
+
+None of these replaces `pnpm check` — coverage thresholds, mutation
 testing, spec traceability, and the rest of the twenty-five steps only run
 there — but for the common loop (edit one package, check it typechecks and
 its tests pass) they are what to reach for, and `pnpm check` is what to run
@@ -78,6 +88,7 @@ and these do not surface there:
 | A public export | `spec/overview.md` must list it — `scripts/check-api-surface.mjs` fails otherwise |
 | A claim that something is absent, in `spec/devtools-spec/` | Register it in that folder's "Claims of absence" table with the reason — `scripts/check-devtools-claims.mjs` fails otherwise |
 | A merge gate | `pnpm check` and `spec/process/definitions-of-done.md` together — `scripts/check-dod-table.mjs` fails otherwise. Name the script beside any "gate N" |
+| A new CCR, INV, BEH or ADR number | `pnpm spec:next-id <CCR, INV, BEH or ADR>` — it reads every worktree and reserves the number it prints, so parallel branches cannot pick the same one. Then `pnpm spec:revise <doc> "<entry>"` for each document you change, after merging rather than while implementing in parallel |
 | Package `dependencies`/publishing | `AGENTS.md` §16 — `pnpm publish` only, `tsconfig.build.json` membership |
 | Publish-status prose in README/CONTRIBUTING/roadmap/website | `scripts/check-publish-status.mjs` fails if a quoted version disagrees with `package.json`'s |
 | Why `pnpm install` patches `node_modules/typescript` | `README.md`'s Development section — `effect-tsgo patch` is `@effect/tsgo`'s own `prepare` step, not this repo's |

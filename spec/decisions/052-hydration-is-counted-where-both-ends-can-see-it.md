@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-052                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-10-04                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-04): The drop-reason set changes — `UnregisteredAtoms` removed, `UnsupportedPayloadVersion` and `MalformedPayload` added; the five metrics, their ids and descriptions are unchanged (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-24): Initial release (CCR-QD-072) |
+> | Change History | 1.2 (2026-10-08): amended: at effect 4.0.0 a metric looks its registry up on every update; writer and reader agree because both name the default registry, not because a metric remembers one (ARCH-45 I8, CCR-QD-269)<br>1.1 (2026-10-04): The drop-reason set changes — `UnregisteredAtoms` removed, `UnsupportedPayloadVersion` and `MalformedPayload` added; the five metrics, their ids and descriptions are unchanged (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-24): Initial release (CCR-QD-072) |
 
 ---
 
@@ -139,11 +139,23 @@ subtraction** where it would go negative, rather than reporting "−4
 unaccounted" and sending a reader after a bug that is not one.
 
 **A registry cannot scope these**, and it is worth knowing before someone tries.
-A `Metric` memoises its hooks on the metric object at first touch, keyed on
-attributes and not on the registry, so the first registry to reach a metric owns
-it for the life of the process. The useful consequence is that a writer and a
-reader sharing one metric object cannot diverge whatever a host wires; the cost
+The writer is off fiber and always updates the default registry
+(`Context.empty()`), so there is nothing for a test or a host to scope; the cost
 is that every test assertion here is a delta rather than an absolute.
+
+> **Amended (ARCH-45 I8, effect 4.0.0).** This paragraph used to say a `Metric`
+> memoises its hooks on the metric object at first touch, so the first registry to
+> reach it owns it, and that a writer and a reader "sharing one metric object
+> cannot diverge whatever a host wires". At 4.0.0 that is false: the key is
+> memoised per metric object, but the **registry is looked up on every update**
+> (`effect/Metric` `hook`). A reader that followed its fiber's registry, under a
+> host that wired its own `MetricRegistry`, read zero while `@qadi/react` wrote
+> into the default one (probed: host registry stayed at 0 after an off-fiber +3,
+> default registry read 3). Writer and reader now agree **by construction**: the
+> writer names `Context.empty()`, and `@qadi/devtools`' `hydrationActivity` reads
+> with `valueUnsafe(Context.empty())`. A host that exports metrics from its own
+> registry must export these five from the default one. A fresh registry now
+> isolates an *on-fiber* metric (ARCH-42), but not these off-fiber ones.
 
 ## Alternatives considered
 

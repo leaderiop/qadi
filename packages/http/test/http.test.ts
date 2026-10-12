@@ -13,6 +13,7 @@
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
+import * as References from "effect/References";
 import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
@@ -42,6 +43,7 @@ import {
   attributeResolverPort,
 } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
+import { collectingLogger } from "@qadi/testing";
 import { assert, describe, it } from "@effect/vitest";
 import {
   PermissionRegistryLive,
@@ -50,17 +52,17 @@ import {
   PublicEndpoint,
   RequiredPermission,
   RequirePermission,
-  RequirePermissionLive,
   SubjectExtractionFailed,
   SubjectExtractor,
   addGuardedRoute,
-  guardRoute,
+  guardApi,
   publicEndpoint,
-  registerApi,
   requiresPermission,
   subjectExtractorBearer,
   toResponse,
 } from "../src/index.ts";
+import { guardRoute } from "../src/GuardRoute.ts";
+import { stack, stackWithCache } from "./fixtures/stack.ts";
 
 const readPermission = permission("document", "read");
 const readPolicy = hasPermission(readPermission);
@@ -88,7 +90,7 @@ const DocumentsGroup = HttpApiGroup.make("documents").add(
     ),
   ),
   // Declared public, which is now something you have to say. It exercises
-  // `RequirePermissionLive`'s pass-through and `registerApi`'s
+  // the middleware's pass-through and `guardApi`'s
   // skip-when-absent path.
   HttpApiEndpoint.get("list", "/documents/public").pipe((endpoint) =>
     endpoint.annotate(PublicEndpoint, publicEndpoint("the public document index")),
@@ -109,7 +111,7 @@ const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
 
 const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
   Layer.provide(DocumentsHandlers),
-  Layer.provide(RequirePermissionLive),
+  Layer.provide(guardApi(Api)),
 );
 
 /**
@@ -157,18 +159,15 @@ const CountingAttributeResolver = Layer.succeed(AttributeResolver, {
   },
 });
 
-const RegistryLayer = registerApi(Api).pipe(Layer.provideMerge(PermissionRegistryLive));
 
 const EvaluationServicesTest = Layer.mergeAll(
   portsLayer({ AttributeResolver: CountingAttributeResolver }),
   EvaluationIdLive,
 );
 
-// Composed through named intermediate steps, deliberately: chaining every
-// `Layer.provideMerge` inline in one expression made TypeScript silently
-// infer `any` for the whole thing (no diagnostic — just every downstream
-// usage losing its type), an instantiation-depth failure mode particular to
-// this shape of long `.pipe()` chain, not anything wrong with any one step.
+// Composed through named intermediate steps, for reading. An earlier note here
+// claimed a single inline chain silently infers `any`; that does not reproduce on
+// `effect@4.0.0` (ARCH-36), so the naming is a readability choice.
 // Guarded, because the route is no longer offered any other way: it publishes
 // every guarded path and the permission each requires, which is a map of what
 // to attack and where.
@@ -178,11 +177,8 @@ const RoutesLayer = Layer.mergeAll(
   WriteRoute2,
   permissionRegistryRoute(readPermission, readPolicy),
 );
-const WithRegistry = RoutesLayer.pipe(Layer.provideMerge(RegistryLayer));
-const WithSubjects = WithRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
-const WithEvaluation = WithSubjects.pipe(Layer.provideMerge(EvaluationServicesTest));
-const WithCache = WithEvaluation.pipe(Layer.provideMerge(decisionCacheLayer()));
-const AppLayer = WithCache.pipe(Layer.provideMerge(HttpServer.layerServices));
+const WithRegistry = RoutesLayer.pipe(Layer.provideMerge(PermissionRegistryLive));
+const AppLayer = stackWithCache(RoutesLayer, subjectExtractorBearer(lookupSubject), EvaluationServicesTest);
 
 const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
 
@@ -197,8 +193,7 @@ const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
  * built layer, downstream of anything the caller's ambient effect provides.
  * Confirmed by running both shapes before relying on this one.
  */
-const appLayerWithLogger = (logs: Array<unknown>) =>
-  AppLayer.pipe(Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])));
+const appLayerWithLogger = (logger: Layer.Layer<never>) => AppLayer.pipe(Layer.provideMerge(logger));
 
 describe("@qadi/http", () => {
   it.effect("an allowed request reaches the handler", () =>
@@ -289,7 +284,7 @@ describe("@qadi/http", () => {
       }> = yield* Effect.promise(() => response.json());
 
       const byPermission = new Map(body.map((entry) => [entry.permission, entry.endpoints]));
-      // Exactly these two keys and no others: `registerApi` walks `Api`'s own
+      // Exactly these two keys and no others: `guardApi` walks `Api`'s own
       // endpoints to build its `found` list before registering them, and a
       // corrupted walk (an extra or malformed entry) would still pass a check
       // that only ever reads two known keys back out with `.get`.
@@ -319,24 +314,24 @@ describe("@qadi/http", () => {
       // BEH-QD-180 requires — a route nothing above exercises otherwise. Its
       // own layer, not `AppLayer`: both variants mount at `/__permissions`
       // and cannot coexist on one router.
-      const logs: Array<unknown> = [];
-      const unguardedApp = permissionRegistryRouteUnguarded("test fixture").pipe(
-        Layer.provideMerge(RegistryLayer),
-        Layer.provideMerge(HttpServer.layerServices),
-        Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
-      );
+      const { lines, layer: logger } = collectingLogger();
+      const unguardedApp = stack(
+        Layer.mergeAll(ApiRoutes, permissionRegistryRouteUnguarded("test fixture")),
+        subjectExtractorBearer(lookupSubject),
+        EvaluationServicesTest,
+      ).pipe(Layer.provideMerge(logger));
       const { handler } = HttpRouter.toWebHandler(unguardedApp, { disableLogger: true });
       const response = yield* Effect.promise(() => handler(new Request("http://localhost/__permissions")));
       assert.strictEqual(response.status, 200);
       const body: ReadonlyArray<{ readonly permission: string }> = yield* Effect.promise(() => response.json());
-      // This fixture composes `RegistryLayer` alone (the `HttpApi`-sourced half
-      // registerApi populates), not the `addGuardedRoute` write routes too, so
-      // only `Api`'s own annotated endpoint is expected here.
+      // This fixture composes `Api` alone (the `HttpApi`-sourced half `guardApi`
+      // registers), not the `addGuardedRoute` write routes too, so only `Api`'s
+      // own annotated endpoint is expected here.
       assert.deepStrictEqual(body.map((entry) => entry.permission), ["document:read"]);
       // Logged on every request, not once at construction (see this route's
       // own doc comment) — and names the `reason` a caller gave for opting
       // out, so a reviewer can tell who decided this and why.
-      assert.deepStrictEqual(logs, [
+      assert.deepStrictEqual(lines.map((line) => line.message), [
         [
           "qadi/http: serving /__permissions unguarded — the full authorization topology is public. " +
             "Reason given: test fixture",
@@ -661,7 +656,7 @@ describe("@qadi/http", () => {
     // UndischargedObligationRefused share the one status), 500 (the four
     // wiring-mistake tags share one status entry) and 502
     // (SubjectExtractionRefused, plus the five outage tags) are every status
-    // RequirePermissionLive can now actually return, all visible without
+    // the RequirePermission middleware can now actually return, all visible without
     // running the server at all.
     assert.deepStrictEqual(statuses, ["204", "403", "500", "502"]);
   });
@@ -671,7 +666,7 @@ describe("@qadi/http", () => {
       // A dedicated, minimal fixture rather than `AppLayer`: the shared
       // fixture's own "read" endpoint uses `hasPermission`, which never
       // touches `AttributeResolver` — this scenario needs a policy that does,
-      // to reach `RequirePermissionLive`'s now-uncaught nine-tag path rather
+      // to reach the middleware's now-uncaught nine-tag path rather
       // than its hand-caught `AccessDenied`/`SubjectExtractionFailed` arms.
       const attributePolicy = hasAttribute("clearance", gte(1));
       const AttributeGroup = HttpApiGroup.make("attribute-checked").add(
@@ -688,7 +683,7 @@ describe("@qadi/http", () => {
       );
       const AttributeRoutes = HttpApiBuilder.layer(AttributeApi).pipe(
         Layer.provide(AttributeHandlers),
-        Layer.provide(RequirePermissionLive),
+        Layer.provide(guardApi(AttributeApi)),
       );
 
       // Unlike AccessDenied/UndischargedObligation, an AttributeResolveError
@@ -699,16 +694,10 @@ describe("@qadi/http", () => {
         PortReply.fail("attribute store unreachable"),
       ).layer;
 
-      const app = AttributeRoutes.pipe(
-        Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
-        Layer.provideMerge(
-          Layer.mergeAll(
-            portsLayer({ AttributeResolver: failingResolver }),
-            EvaluationIdLive,
-          ),
-        ),
-        Layer.provideMerge(decisionCacheLayer()),
-        Layer.provideMerge(HttpServer.layerServices),
+      const app = stackWithCache(
+        AttributeRoutes,
+        subjectExtractorBearer(lookupSubject),
+        Layer.mergeAll(portsLayer({ AttributeResolver: failingResolver }), EvaluationIdLive),
       );
       const { handler } = HttpRouter.toWebHandler(app);
       const response = yield* Effect.promise(() =>
@@ -749,22 +738,16 @@ describe("@qadi/http", () => {
       );
       const AttributeRoutes = HttpApiBuilder.layer(AttributeApi).pipe(
         Layer.provide(AttributeHandlers),
-        Layer.provide(RequirePermissionLive),
+        Layer.provide(guardApi(AttributeApi)),
       );
 
       const secretCause = new Error("connect ECONNREFUSED 10.0.0.42:5432 (attribute-store-primary.internal)");
       const failingResolver = scriptedPort(attributeResolverPort, () => PortReply.fail(secretCause)).layer;
 
-      const app = AttributeRoutes.pipe(
-        Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
-        Layer.provideMerge(
-          Layer.mergeAll(
-            portsLayer({ AttributeResolver: failingResolver }),
-            EvaluationIdLive,
-          ),
-        ),
-        Layer.provideMerge(decisionCacheLayer()),
-        Layer.provideMerge(HttpServer.layerServices),
+      const app = stackWithCache(
+        AttributeRoutes,
+        subjectExtractorBearer(lookupSubject),
+        Layer.mergeAll(portsLayer({ AttributeResolver: failingResolver }), EvaluationIdLive),
       );
       const { handler } = HttpRouter.toWebHandler(app);
       const response = yield* Effect.promise(() =>
@@ -808,16 +791,16 @@ describe("@qadi/http", () => {
   );
 
   it.effect(
-    "a denial's server-side log names the stable code, subject and reason (logDenial fires via RequirePermissionLive)",
+    "a denial's server-side log names the stable code, subject and reason (logDenial fires via the RequirePermission middleware)",
     () =>
       Effect.gen(function* () {
-        const logs: Array<unknown> = [];
-        const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logs), { disableLogger: true });
+        const { lines, layer: logger } = collectingLogger();
+        const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logger), { disableLogger: true });
         const response = yield* Effect.promise(() =>
           handler(new Request("http://localhost/documents", { headers: bearer(BOB_TOKEN) })),
         );
         assert.strictEqual(response.status, 403);
-        assert.deepStrictEqual(logs, [
+        assert.deepStrictEqual(lines.map((line) => line.message), [
           [`qadi/http: request denied (ACL001) — subject "bob": subject lacks permission 'document:read'`],
         ]);
       }),
@@ -827,13 +810,13 @@ describe("@qadi/http", () => {
     "an endpoint declaring neither logs the wiring mistake it refuses for, exactly",
     () =>
       Effect.gen(function* () {
-        const logs: Array<unknown> = [];
-        const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logs), { disableLogger: true });
+        const { lines, layer: logger } = collectingLogger();
+        const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logger), { disableLogger: true });
         const response = yield* Effect.promise(() =>
           handler(new Request("http://localhost/documents/forgotten", { headers: bearer(ALICE_TOKEN) })),
         );
         assert.strictEqual(response.status, 500);
-        assert.deepStrictEqual(logs, [
+        assert.deepStrictEqual(lines.map((line) => line.message), [
           [
             'qadi/http: endpoint "forgotten" declares neither a permission requirement nor `publicEndpoint(...)`, ' +
               "so it is refused. Annotate it with RequiredPermission, or with PublicEndpoint if it is meant to be " +
@@ -844,11 +827,11 @@ describe("@qadi/http", () => {
   );
 
   it.effect(
-    "a credential store outage logs the real reason server-side, through RequirePermissionLive's own " +
+    "a credential store outage logs the real reason server-side, through the RequirePermission middleware's own " +
       "catchTag('SubjectExtractionFailed', ...) arm",
     () =>
       Effect.gen(function* () {
-        const logs: Array<unknown> = [];
+        const { lines, layer: logger } = collectingLogger();
         const brokenStore = subjectExtractorBearer(() =>
           Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
         );
@@ -857,7 +840,7 @@ describe("@qadi/http", () => {
           Layer.provideMerge(EvaluationServicesTest),
           Layer.provideMerge(decisionCacheLayer()),
           Layer.provideMerge(HttpServer.layerServices),
-          Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+          Layer.provideMerge(logger),
         );
         const { handler } = HttpRouter.toWebHandler(app, { disableLogger: true });
 
@@ -865,7 +848,7 @@ describe("@qadi/http", () => {
           handler(new Request("http://localhost/documents", { headers: bearer(ALICE_TOKEN) })),
         );
         assert.strictEqual(response.status, 502);
-        assert.deepStrictEqual(logs, [["qadi/http: subject extraction failed — token service unreachable"]]);
+        assert.deepStrictEqual(lines.map((line) => line.message), [["qadi/http: subject extraction failed — token service unreachable"]]);
       }),
   );
 });
@@ -878,20 +861,20 @@ describe("@qadi/http", () => {
 describe("the authorization step at the edge (characterization)", () => {
   it.effect("a bare route's denial logs exactly one line, and answers 403", () =>
     Effect.gen(function* () {
-      const logs: Array<unknown> = [];
-      const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logs), { disableLogger: true });
+      const { lines, layer: logger } = collectingLogger();
+      const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logger), { disableLogger: true });
       const response = yield* Effect.promise(() =>
         handler(new Request("http://localhost/documents/write", { method: "POST", headers: bearer(BOB_TOKEN) })),
       );
       assert.strictEqual(response.status, 403);
-      assert.deepStrictEqual(logs, [
+      assert.deepStrictEqual(lines.map((line) => line.message), [
         [`qadi/http: request denied (ACL001) — subject "bob": subject attribute 'clearance' did not match`],
       ]);
     }));
 
   it.effect("a bare route's extraction failure logs exactly one line, and answers 502", () =>
     Effect.gen(function* () {
-      const logs: Array<unknown> = [];
+      const { lines, layer: logger } = collectingLogger();
       const brokenStore = subjectExtractorBearer(() =>
         Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
       );
@@ -900,14 +883,14 @@ describe("the authorization step at the edge (characterization)", () => {
         Layer.provideMerge(brokenStore),
         Layer.provideMerge(EvaluationServicesTest),
         Layer.provideMerge(HttpServer.layerServices),
-        Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+        Layer.provideMerge(logger),
       );
       const { handler } = HttpRouter.toWebHandler(app, { disableLogger: true });
       const response = yield* Effect.promise(() =>
         handler(new Request("http://localhost/documents/write", { method: "POST", headers: bearer(ALICE_TOKEN) })),
       );
       assert.strictEqual(response.status, 502);
-      assert.deepStrictEqual(logs, [["qadi/http: subject extraction failed — token service unreachable"]]);
+      assert.deepStrictEqual(lines.map((line) => line.message), [["qadi/http: subject extraction failed — token service unreachable"]]);
     }));
 });
 
@@ -933,13 +916,10 @@ const ProbeHandlers = HttpApiBuilder.group(ProbeApi, "probe", (handlers) =>
     // A second check for the same subject and policy the middleware just made.
     .handle("again", () => guard(readPermission, readPolicy)({}, () => Effect.void)),
 );
-const ProbeLayer = HttpApiBuilder.layer(ProbeApi).pipe(
-  Layer.provide(ProbeHandlers),
-  Layer.provide(RequirePermissionLive),
-  Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
-  Layer.provideMerge(EvaluationServicesTest),
-  Layer.provideMerge(decisionCacheLayer()),
-  Layer.provideMerge(HttpServer.layerServices),
+const ProbeLayer = stackWithCache(
+  HttpApiBuilder.layer(ProbeApi).pipe(Layer.provide(ProbeHandlers), Layer.provide(guardApi(ProbeApi))),
+  subjectExtractorBearer(lookupSubject),
+  EvaluationServicesTest,
 );
 
 describe("RequirePermission's scopes around the handler (characterization)", () => {
@@ -953,6 +933,92 @@ describe("RequirePermission's scopes around the handler (characterization)", () 
       const body: Record<string, unknown> = yield* Effect.promise(() => response.json());
       assert.strictEqual(body._tag, "AccessDenied");
       assert.strictEqual("trace" in body, false);
+    }));
+
+  const probeWithLogger = (logs: Array<unknown>) =>
+    ProbeLayer.pipe(
+      Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+    );
+
+  it.effect("a handler-raised denial is logged once, as the handler's", () =>
+    Effect.gen(function* () {
+      const logs: Array<unknown> = [];
+      const { handler } = HttpRouter.toWebHandler(probeWithLogger(logs), { disableLogger: true });
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/probe/raise", { headers: bearer(ALICE_TOKEN) })),
+      );
+      assert.strictEqual(response.status, 403);
+      assert.deepStrictEqual(logs, [
+        [`qadi/http: request denied (ACL001) — subject "alice": subject lacks permission 'document:write'`],
+      ]);
+    }));
+
+  it.effect("the log line says which step raised the denial", () =>
+    Effect.gen(function* () {
+      const sites: Array<unknown> = [];
+      const layer = ProbeLayer.pipe(
+        Layer.provideMerge(
+          Logger.layer([
+            Logger.make((options) => {
+              sites.push(options.fiber.getRef(References.CurrentLogAnnotations)["qadi.denial_site"]);
+            }),
+          ]),
+        ),
+      );
+      const { handler } = HttpRouter.toWebHandler(layer, { disableLogger: true });
+      yield* Effect.promise(() =>
+        handler(new Request("http://localhost/probe/raise", { headers: bearer(BOB_TOKEN) })),
+      );
+      yield* Effect.promise(() =>
+        handler(new Request("http://localhost/probe/raise", { headers: bearer(ALICE_TOKEN) })),
+      );
+      assert.deepStrictEqual(sites, ["edge", "handler"]);
+    }));
+
+  it.effect("an edge denial is still logged exactly once", () =>
+    Effect.gen(function* () {
+      const logs: Array<unknown> = [];
+      const { handler } = HttpRouter.toWebHandler(probeWithLogger(logs), { disableLogger: true });
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/probe/raise", { headers: bearer(BOB_TOKEN) })),
+      );
+      assert.strictEqual(response.status, 403);
+      assert.deepStrictEqual(logs, [
+        [`qadi/http: request denied (ACL001) — subject "bob": subject lacks permission 'document:read'`],
+      ]);
+    }));
+
+  it.effect("a bare route's handler-raised denial is answered 403 and logged once", () =>
+    Effect.gen(function* () {
+      const logs: Array<unknown> = [];
+      // The handler's own `guard` fails with a denial and catches nothing:
+      // the surface answers and logs it (ARCH-45 I3).
+      const RaiseRoute = addGuardedRoute(
+        "GET",
+        "/documents/raise",
+        readPermission,
+        readPolicy,
+        () => Effect.succeed({}),
+      )((_authorized, resource) =>
+        guard(writePermission, hasPermission(writePermission))(resource, () => Effect.void).pipe(
+          Effect.as(HttpServerResponse.text("written")),
+        ),
+      );
+      const app = RaiseRoute.pipe(
+        Layer.provideMerge(PermissionRegistryLive),
+        Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
+        Layer.provideMerge(EvaluationServicesTest),
+        Layer.provideMerge(HttpServer.layerServices),
+        Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+      );
+      const { handler } = HttpRouter.toWebHandler(app, { disableLogger: true });
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/documents/raise", { headers: bearer(ALICE_TOKEN) })),
+      );
+      assert.strictEqual(response.status, 403);
+      assert.deepStrictEqual(logs, [
+        [`qadi/http: request denied (ACL001) — subject "alice": subject lacks permission 'document:write'`],
+      ]);
     }));
 
   it.effect("the standing services reach the handler: its re-check hits the DecisionCache", () =>

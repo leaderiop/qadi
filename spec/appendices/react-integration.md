@@ -446,7 +446,7 @@ export const withQadi = (subject: AuthSubject | undefined, ui: ReactNode) => {
 
 An instrumented provider records each guard in its atom set's `gates` registry, beside
 `atoms.asked()` ([ADR-QD-080](../decisions/080-a-gate-registry-belongs-to-its-atom-set.md)).
-Read it with `instances()` and `subscribe()`, or `useGateInstances()` inside the provider.
+Read it with `instances()` and `subscribe()`, or `useGateInstances()` inside the provider; `useDevtoolsFeed()` returns the same list with the rest of what a devtools panel reads from the atom set (BEH-QD-327).
 
 ```tsx
 import { EvaluationServicesNone } from "@qadi/core";

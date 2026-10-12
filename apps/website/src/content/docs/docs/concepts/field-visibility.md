@@ -6,7 +6,8 @@ description: Why an absent field set means everything, not nothing — and how a
 Authorization in Qadi isn't just a yes/no gate — a policy can also say *which
 fields* of an allowed record a subject may see. `hasPermission(perm, { fields:
 ["id", "title"] })` means "yes, and only these two fields." That set of
-visible fields is projected onto the record by `enforceProjected`, so
+visible fields is projected onto the record by `enforceProjected` (or, when
+the decision depends on the record itself, `enforceProjectedLoaded`), so
 authorization becomes a projection, not just a boolean.
 
 The one rule that trips people up: **an absent field set means all fields**,

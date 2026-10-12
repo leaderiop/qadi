@@ -27,6 +27,7 @@ import type * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
 import type { PortName, PortSpanName } from "./PortMetrics.ts";
 import type { PortSpanAttributesLike } from "./PortSpan.ts";
+import type { PortWire } from "./PortWire.ts";
 
 /**
  * What every port Shape has in common: an optional implementation label.
@@ -80,6 +81,18 @@ export interface PortDescription<
    * here. Every field is a `SpanValue`, which is INV-QD-044 as a type.
    */
   readonly attributes: Span;
+  /**
+   * What the port's question and answer look like on a wire: the only
+   * statement of them off-process (ARCH-31, ADR-QD-NEXT). `answerRemotely`
+   * serves a port through it and `askRemotely` asks one through it, so a host
+   * writes neither half by hand and a sixth port is a compile error until it
+   * states its wire.
+   *
+   * Separate from {@link attributes} on purpose (INV-QD-044): a span field
+   * cannot hold an attribute's value, and a wire must — to the session's own
+   * subject.
+   */
+  readonly wire: PortWire<Args, A>;
   /** The service key. */
   readonly service: Context.Key<Self, Shape>;
   /**
@@ -105,11 +118,19 @@ export interface PortDescription<
    */
   readonly defect: (args: Args, cause: Cause.Cause<unknown>) => E;
   /**
-   * A collision-safe key for one request: `JSON.stringify` of a tuple that
-   * always includes the subject, so a capture taken for one subject never
-   * answers a question about another. `JSON.stringify` throws on a circular or
-   * `BigInt` value; a double or replay keyed by it then dies, which
-   * `PortAccess.ts` turns into this port's typed error like any other defect.
+   * A collision-safe key for one request, **injective over every argument the
+   * port receives**: two requests share a key only if every argument is
+   * structurally equal (ADR-QD-094). A capture taken for one subject, resource
+   * or depth therefore never answers a question about another. A key that
+   * drops an argument is a stale answer waiting for a what-if sweep to find
+   * it. `PortConformance.test.ts` checks the law for every port in the
+   * registry.
+   *
+   * `JSON.stringify` of a tuple, or `canonicalKey` (`PortKey.ts`) when an
+   * argument holds a `Set` or an object whose key order is not meaningful.
+   * Both throw on a circular or `BigInt` value; a double or replay keyed by it
+   * then dies, which `PortAccess.ts` turns into this port's typed error like
+   * any other defect.
    */
   readonly key: (args: Args) => string;
   /**

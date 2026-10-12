@@ -50,10 +50,19 @@ const qadi = makeQadi(
 );
 ```
 
+## Projecting a record you already hold
+
+`projected(subject, policy, record)` decides against `record` and hands back
+`record` narrowed to the fields the policy lets the subject see, rejecting
+`AccessDenied` when it does not. The record is the resource — there is no
+`options.resource`, so what is decided and what is returned cannot be two
+different records. `filterProjected` does the same per item over a collection;
+`filter` returns admitted items whole and does not apply a field restriction.
+
 ## This facade cannot discharge a binding obligation
 
 There is no `onObligations` anywhere on this package — every method here takes
-the plain `EvaluateOptions`, never `@qadi/core`'s `EnforceOptions` that adds a
+the plain `EvaluateOptions` (plus `signal`), never `@qadi/core`'s `EnforceOptions` that adds a
 handler. That is a hard ceiling, not an oversight: every knob added to this
 facade is a second decision path waiting to rot, and an obligation handler is
 exactly that kind of knob. The consequence differs by method:
@@ -61,7 +70,8 @@ exactly that kind of knob. The consequence differs by method:
 - `check` resolves `true` for an allow carrying a binding obligation, **with
   the obligation silently undischarged** — a boolean has no room to say
   "permitted, but something was owed and nothing paid it."
-- `assert` and `filter` reject with `UndischargedObligation` instead, the same
+- `assert`, `filter`, `projected` and `filterProjected` reject with
+  `UndischargedObligation` instead, the same
   as `@qadi/core`'s own `assert`/`filter` do with no handler supplied.
 - An obligation that is purely advisory never blocks either way.
 
@@ -79,6 +89,28 @@ permitted", so a denial rejects too.
 
 The subject travels per call rather than living in the layer, so one runtime
 serves every user.
+
+## Cancelling a call
+
+Every method takes a `signal` among its options, forwarded untouched to the
+runtime — the same convention as `fetch(url, { signal })`. Aborting it stops
+the work underway (a `filter` over a large collection issues no further
+lookups) and the promise **rejects** with the runtime's interruption error,
+not with `signal.reason`: mapping it would be a branch, and this facade has
+none. A signal aborted before the call starts rejects without running a lookup.
+
+```typescript
+import { EvaluationServicesNone, hasRole, makeSubject } from "@qadi/core";
+import { makeQadi } from "@qadi/promise";
+
+const qadi = makeQadi(EvaluationServicesNone);
+const subject = makeSubject({ id: "u-1", roles: ["editor"] });
+
+export const filterUnlessAbandoned = async (
+  items: ReadonlyArray<{ readonly id: string }>,
+  signal: AbortSignal,
+) => qadi.filter(subject, hasRole("editor"), items, { signal });
+```
 
 ## License
 

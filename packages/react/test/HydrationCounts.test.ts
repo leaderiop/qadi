@@ -3,13 +3,12 @@
  *
  * Split from `Hydration.test.ts`, which is about *which entries are trusted*.
  * This file is about the two things that were missing whatever the answer to
- * that was: nothing retained how many entries made the trip, and three of the
- * four ways a payload fails to seed said nothing at all.
+ * that was: nothing retained how many entries made the trip, and several of the
+ * ways a payload fails to seed said nothing at all.
  *
- * Every count assertion is a **delta**. A `Metric` memoises its hooks on itself
- * at first touch and ignores the registry thereafter, so there is no way to
- * scope one to a test — an absolute assertion would depend on the order the
- * whole suite ran in.
+ * Every count assertion is a **delta**. The writer is off fiber and always
+ * updates the default registry, which a test cannot scope, so an absolute
+ * assertion would depend on the order the whole suite ran in.
  */
 import {
   Allow,
@@ -58,8 +57,6 @@ const serverAllow = (subjectId: string, id: string) =>
       visibleFields: undefined,
       obligations: [],
     },
-    visibleFields: undefined,
-    obligations: [],
   });
 
 /** The wire form of an allow whose trace the server withheld, as a hand-built entry. */
@@ -143,7 +140,7 @@ describe("counting what crosses the network", () => {
   });
 
   // INV-QD-045. Stated as a conservation law over the whole partition rather
-  // than as a list of the cases known today: three of hydration's four exits
+  // than as a list of the cases known today: several of hydration's exits
   // were found by enumerating them, not by anyone noticing one.
   it("ACCOUNTS FOR EVERY ENTRY OFFERED TO dehydrateDecisions", () => {
     const offered = [
@@ -385,6 +382,27 @@ describe("a payload that seeds nothing says so", () => {
       const messages = warn.mock.calls.map((call) => String(call[0]));
       expect(messages[0]).toContain("different subject");
       expect(messages[1]).toContain("version");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("a refused payload says the payload was refused, not that zero decisions were lost", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      hydrateDecisions(atoms, JSON.parse('{"version":3,"subjectId":"u1","entries":[]}'), alice);
+      hydrateDecisions(atoms, JSON.parse("42"), alice);
+
+      const messages = warn.mock.calls.map((call) => String(call[0]));
+      expect(messages).toHaveLength(2);
+      for (const message of messages) {
+        expect(message).not.toContain("did not seed 0");
+        expect(message).toContain("refused the payload");
+      }
+      // The per-entry form is unchanged.
+      warn.mockClear();
+      hydrateDecisions(atoms, undecodable, alice);
+      expect(String(warn.mock.calls[0]?.[0])).toContain("did not seed 1 decision(s)");
     } finally {
       warn.mockRestore();
     }

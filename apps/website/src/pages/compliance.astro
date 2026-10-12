@@ -477,11 +477,11 @@ const description =
             </p>
           </div>
           <div class="cap">
-            <h3>Retention, archival &amp; decommissioning <span class="tag">pure functions</span></h3>
+            <h3>Retention, archival &amp; purge <span class="tag">pure functions</span></h3>
             <p>
               Retention selection, sequence-integrity checking across sequence numbers, archival, and
-              a six-step decommissioning checklist all ship as plain, invocable functions and
-              data. They run when you call them: nothing here is triggered on a timer or a
+              a purge plan that selects only rows an archive read back from your store holds all
+              ship as plain, invocable functions and data. They run when you call them: nothing here is triggered on a timer or a
               schedule internal to the library.
             </p>
           </div>
@@ -524,7 +524,7 @@ const description =
             <span class="glyph">03</span>
             <p>
               <strong>Your own retention schedule.</strong> Qadi never runs a retention job on a
-              timer of its own. You invoke retention, archival, and decommissioning yourself, on
+              timer of its own. You invoke retention, archival, and purging yourself, on
               whatever cadence your policies require.
             </p>
           </li>

@@ -77,6 +77,8 @@ record from a server older than 0.10 is reported as `"not-a-record"`, and a
 version-1 record as `"unsupported-version"`; see
 [Upgrading to 0.11](/docs/reference/upgrading/#peers-on-09-or-earlier).
 
+A frame whose record is well-formed but contradicts itself (a decision that says allow beside a trace that says deny, or ids that are not the decision's) is reported as `"inconsistent"`: it is neither version skew nor a malformed frame, and the log and the inspector would otherwise have read different copies of one evaluation.
+
 A frame that is not JSON, one that does not decode, or a server that
 disconnects each drops one row and reports why via an `onMalformed`/
 `onDisconnect` callback, rather than taking the panel down — a devtools panel
@@ -88,58 +90,94 @@ bad frame.
 The wiring report, port activity, hydration counts and port calls are pulled,
 not pushed, so something has to read them again. That is the dock's job when
 handed `diagnostics`; a host hands over what it already owns and runs no Effect
-and no timer.
+and no timer. Under a `QadiProvider`, `@qadi/react` hands over all of the atom
+set's half in one call:
 
 ```tsx
-import * as Layer from "effect/Layer";
-import { decisionCacheLayer } from "@qadi/core";
 import { collectPortCalls } from "@qadi/devtools";
 import { DevtoolsDock } from "@qadi/devtools/react";
-import type { DiagnosticsDockOptions } from "@qadi/devtools/react";
+import type { AuthSubject } from "@qadi/core";
+import { QadiProvider, makeQadiAtoms, useDevtoolsFeed } from "@qadi/react";
+import type { QadiLayer } from "@qadi/react";
 
+declare const AppLayer: QadiLayer;
+declare const currentUser: AuthSubject;
+
+const atoms = makeQadiAtoms(AppLayer); // once, at module scope
 const collector = collectPortCalls({ capacity: 200 });
-const appLayer = Layer.mergeAll(decisionCacheLayer({ capacity: 256 }), collector.layer);
 
 // Held at module scope: the run restarts when one of these changes identity.
-const diagnostics: DiagnosticsDockOptions = { layer: appLayer, collector };
+const extras = { collector };
 
-export const Dock = () => <DevtoolsDock diagnostics={diagnostics} />;
+const Dock = () => {
+  const feed = useDevtoolsFeed(extras);
+  return <DevtoolsDock {...feed} />;
+};
+
+export const App = () => (
+  <QadiProvider atoms={atoms} subject={currentUser}>
+    <Dock />
+  </QadiProvider>
+);
 ```
 
-The layer is built once while the dock is mounted and released on unmount, and a
-reading keeps its identity while nothing changed, so the dock does not re-render
-on every tick. A layer that fails to build is stated on the Services panel, and
-the other reads carry on. `diagnostics={{}}` samples the metric reads alone;
-with the prop absent nothing is sampled. Gates are not sampled: they come from
-`@qadi/react`'s registry through `useGateInstances()` and stay a plain prop.
+`useDevtoolsFeed` returns `gates`, `onInvalidate` and `diagnostics`, and
+`diagnostics` carries your `extras` plus the two fields the feed owns: a `layer`
+that is the provider's own built services, and `questions`. Because that layer is
+the registry's own build, a service that keeps state in its constructor, such as
+`decisionCacheLayer`'s cache, is one instance shared by the decisions and the
+dock; nothing needs hoisting out of the atom set. Setting `layer` or `questions`
+in your extras is a compile error.
 
-**The dock's build of the layer is its own.** A service that keeps state in its
-constructor, such as `decisionCacheLayer`'s cache, is two instances if the dock
-and the application each build the layer. Build its context once and hand
-`Layer.succeedContext(context)` to both, as the example app does. The `wiring`,
-`activity`, `portCalls`, `hydration` and `questions` props remain for a reading
-taken elsewhere, such as another process's report, and win over the sampled one.
+The layer is held while the dock is mounted and released when it unmounts, a
+reading keeps its identity while nothing changed, so the dock does not re-render
+on every tick, and a layer that fails to build is stated on the Services panel,
+with the other reads carrying on. Gates are not sampled: they come from the
+provider's registry and the feed reads them for you.
+
+**A host with no `QadiProvider`** (a shell running `runDiagnostics`) hands the
+dock a layer of its own, and the dock's build of it is its own: a service that
+keeps state in its constructor is two instances if the dock and the application
+each build the layer. Build the context once and give that one value
+to both.
+
+The `reading` prop carries a reading taken elsewhere, such as another process's
+report, as `{ wiring, activity, hydration, portCalls, questions }`. Each field it
+carries wins over the sampled one and a field it omits falls through to the
+sample, so a dock can sample this process's activity and show another process's
+wiring. Its `wiring` is a `WiringRead`, so it can state a failed read as well as a
+report.
 
 ## What it renders
 
-`DevtoolsDock` (and the panels it composes — `DecisionLog`, `Inspector`,
-`PolicyExplorer`, `RoleViewer`, `ServicesPanel`, `Simulator`, `WhatIfTable`,
-`QuestionsPanel`) is a dock the host mounts explicitly; nothing in the package
-runs on import or installs itself. Beyond the raw decision log, the model
-supports:
+`DevtoolsDock` is a dock the host mounts explicitly; nothing in the package
+runs on import or installs itself. The panels it composes (the decision log,
+the inspector, the policy explorer, the role viewer, the Services, Simulator and
+React panels) are what the dock draws, **not exports**: a host mounts the dock
+and hands it a `source`, a `catalogue`, `diagnostics` and `gates`.
 
+What the headless model exports is what a shell crosses: three stores, the wiring
+the dock takes, and the readings of a timeline.
+
+- **Stores.** `makeTimelineStore` and `runSource` hold the timeline;
+  `makeSimulationSession` holds the simulator; `makeDiagnosticsStore` and
+  `runDiagnostics` hold what the dock samples. `@qadi/devtools/react` has the
+  React half of each (`useTimeline`, `useSimulationSession`, `useDiagnostics`).
 - **Inspection** (`inspect`, `flattenTree`) — walking a decision's evaluation
-  tree, including nodes that never resolved or were truncated.
-- **Simulation and what-if** (`simulate`, `whatIf`, `sweepPlan`) — replaying a
-  decision against edited inputs to see what would have changed. The simulator
-  screen's state is a headless `SimulationSession` (`makeSimulationSession`): a
-  source that cannot be honoured is refused rather than answered from fixtures,
-  a Live run captures for `Snapshot`, and a superseded run never lands.
-- **Wiring and gate reports** (`wiringReport`, `gateGroups`) — which ports are
-  in use, and which mounted `Can`/`Cannot` gates are asking what.
-- **Hydration activity** (`hydrationActivity`) — the counters
-  `@qadi/react` writes and this package reads, covering drops, mismatches, and
-  rechecks between a server render and its client.
+  tree, including nodes that never resolved or were truncated; with verdict
+  classification (`verdictOf`), pairing, filters and selection.
+- **Simulation and what-if** (`makeSimulationSession`) — replaying a decision
+  against edited inputs to see what would have changed. The session holds the
+  simulator's state headlessly: its `snapshot.plan` says what a sweep will cost
+  before it runs, `run("Sweep")` produces the `run.report`, a source that cannot
+  be honoured is refused rather than answered from fixtures, a Live run captures
+  for `Snapshot`, and a superseded run never lands. The sweep, the capture and the
+  replay it is made of are package-private.
+- **Wiring and hydration reports** (`wiringReport`, `portActivity`,
+  `hydrationActivity`) — which ports are in use, and the counters `@qadi/react`
+  writes and this package reads, covering drops, mismatches, and rechecks between
+  a server render and its client. Which mounted `Can`/`Cannot` gates are asking
+  what is the dock's Questions panel, fed `gates` by the host.
 
 `environment` is a plain `string` on every record, not a closed union, because
 nothing here branches on it — it is a label a reader sees, and an unfamiliar

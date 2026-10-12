@@ -5,12 +5,14 @@
  * in `FieldLattice.test.ts` (ARCH-12).
  */
 import { assert, describe, it } from "@effect/vitest";
+import * as Equal from "effect/Equal";
 import * as Schema from "effect/Schema";
 import * as FastCheck from "fast-check";
-import { Allow, Deny, foldTrace, project, TraceSchema } from "../src/Decision.ts";
+import { Allow, Deny, foldTrace, makeDecision, project, TraceSchema } from "../src/Decision.ts";
 import type { Trace, TraceCases } from "../src/Decision.ts";
 import { makeSubjectId } from "../src/Identity.ts";
 import { POLICY_TAGS } from "../src/Policy.ts";
+import { obligation } from "../src/Obligation.ts";
 import { chain } from "./helpers.ts";
 
 describe("project", () => {
@@ -20,9 +22,13 @@ describe("project", () => {
       evaluationId: "e",
       subjectId: makeSubjectId("u"),
       durationMillis: 0,
-      trace: { policyTag: "HasRole", allowed: true, children: [], obligations: [] },
-      visibleFields: fields,
-      obligations: [],
+      trace: {
+        policyTag: "HasRole",
+        allowed: true,
+        children: [],
+        visibleFields: fields,
+        obligations: [],
+      },
     });
 
   it("a denial exposes nothing", () => {
@@ -30,8 +36,7 @@ describe("project", () => {
       evaluationId: "e",
       subjectId: makeSubjectId("u"),
       durationMillis: 0,
-      trace: { policyTag: "HasRole", allowed: false, children: [], obligations: [] },
-      reason: "no",
+      trace: { policyTag: "HasRole", allowed: false, reason: "no", children: [], obligations: [] },
     });
     assert.deepStrictEqual(project(deny, data), {});
   });
@@ -205,5 +210,48 @@ describe("foldTrace (ARCH-22 D-22-a)", () => {
         return foldTrace(node(tag), uniform((n) => n.policyTag)) === tag;
       }),
     );
+  });
+});
+
+describe("a decision is built from a stamp and a trace (ARCH-32)", () => {
+  const stamp = { evaluationId: "e", subjectId: makeSubjectId("u"), durationMillis: 2 };
+  const allowing: Trace = {
+    policyTag: "HasRole",
+    allowed: true,
+    children: [],
+    visibleFields: ["id"],
+    obligations: [obligation("audit.log")],
+  };
+
+  it("an allowing trace builds an Allow equal to a second build of it", () => {
+    const first = makeDecision(stamp, allowing);
+    const second = makeDecision(stamp, allowing);
+    assert.strictEqual(first._tag, "Allow");
+    assert.isTrue(Equal.equals(first, second));
+  });
+
+  it("an Allow still serializes and spreads with the fields it derived", () => {
+    const decision = new Allow({ ...stamp, trace: { ...allowing, allowed: true } });
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(decision)).visibleFields, ["id"]);
+    assert.deepStrictEqual({ ...decision }.visibleFields, ["id"]);
+    assert.deepStrictEqual(decision.obligations, allowing.obligations);
+  });
+
+  it("a denying trace gives its reason, and 'denied' when it has none", () => {
+    const base: Trace = { policyTag: "HasRole", allowed: false, children: [], obligations: [] };
+    const worded = makeDecision(stamp, { ...base, reason: "no" });
+    const bare = makeDecision(stamp, base);
+    assert.strictEqual(worded._tag === "Deny" ? worded.reason : undefined, "no");
+    assert.strictEqual(bare._tag === "Deny" ? bare.reason : undefined, "denied");
+  });
+
+  it("a denying trace is carried as a denying trace", () => {
+    const decision = makeDecision(stamp, {
+      policyTag: "HasRole",
+      allowed: false,
+      children: [],
+      obligations: [],
+    });
+    assert.isFalse(decision.trace.allowed);
   });
 });

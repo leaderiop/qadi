@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.65                                           |
-> | Effective Date | 2026-10-07                                     |
+> | Revision       | 1.77                                           |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.65 (2026-10-07): INV-QD-105 added — a live question is never evicted, and one question has one handle while tracked; found by ARCH-23, where a garbage collection split a question's atom, its `asked()` row and its seed (ADR-QD-103, CCR-QD-201)<br>1.64 (2026-10-07): INV-QD-044 — the invariant gains a type-level floor (a span field is a `SpanValue`, so a field that could hold arbitrary data does not compile) and one home (`attributeResolverPort.attributes.disclose`); the four other ports, not two, are named with their closed or boolean answers; Enforcement adds the same sentinel search under `toPredicate` and the codec tests (ADR-QD-051 amendment, ARCH-21, CCR-QD-198)<br>1.63 (2026-10-07): INV-QD-034 — an endpoint declares on itself; a declaration on a group or API is refused, not ignored (BEH-QD-320, CCR-QD-196)<br>1.62 (2026-10-07): INV-QD-104's Source names `SinkWire.ts`, where the three readings now live (CCR-QD-194)<br>1.61 (2026-10-07): INV-QD-104 added — a refusal report says where, never what; INV-QD-097's Source and Enforcement name `EncodeRefusalReport.ts` and the throwing-hook tests (ADR-QD-095 amendment, CCR-QD-193)<br>1.60 (2026-10-07): INV-QD-058's Enforcement says what pins what — `ShortCircuit.test.ts` held only the lookups, never a stop; the agreement tests are named (ARCH-26, CCR-QD-192)<br>1.59 (2026-10-07): INV-QD-103 added — a trace lines up with its policy's explanation, position by position; INV-QD-090 covers `Trace` (`renderTrace`, `diffTraces`, `foldTrace` are stack-safe) and its devtools twin is gone; INV-QD-040 cites INV-QD-103 and drops the stale `dehydrateDecisions` clause (ADR-QD-101, CCR-QD-191)<br>1.58 (2026-10-07): INV-QD-090's Source and Enforcement name `foldTreeBy` and the three case-wise folds (`foldPolicyCases`, `foldMatcherCases`, `foldExplanationCases`) (ADR-QD-090 amendment, CCR-QD-190)<br>1.57 (2026-10-07): INV-QD-102 added — a probe's verdict on port health is never served from a cache; INV-QD-030/033/035 Sources and Enforcement follow `Question`, `Walk.ts` and `SinkEmit.ts` (ADR-QD-100, CCR-QD-189)<br>1.56 (2026-10-07): INV-QD-101 added — retention never selects a row without a finite age past a valid limit; INV-QD-053's generators widened to non-finite and negative draws (CCR-QD-186)<br>1.55 (2026-10-06): INV-QD-021 — totality extends to `renderExplanation` over a `fieldStrategy` or `combining` outside its closed union, with the Source and Enforcement that pin it; INV-QD-031 — an empty `All` carrying such a strategy is not atomic, and the value is named verbatim (ADR-QD-092 amendment, CCR-QD-183)<br>1.54 (2026-10-06): INV-QD-099 retired — 0.11.0 reads one wire version, so there are no two to agree; INV-QD-098 restated for version 2 only, a pre-0.10 record refused as `UnsupportedVersion` before any outcome is read (ADR-QD-096 amendment, CCR-QD-182)<br>1.53 (2026-10-05): INV-QD-100 (a log reader sees every retained record exactly once); INV-QD-039's Source names `storedRecordOrder` as the one order (ADR-QD-097, CCR-QD-181)<br>1.52 (2026-10-05): INV-QD-098 (a decoded decision record has exactly the outcome its sender sent) and INV-QD-099 (a record decodes the same whichever wire version carried it) (ADR-QD-096, CCR-QD-180)<br>1.51 (2026-10-05): INV-QD-096 and INV-QD-097 added — whatever the record codec emits it accepts, and the codec is total (ADR-QD-095, CCR-QD-179)<br>1.50 (2026-10-05): INV-QD-095 added — every port is described once, and every derived layer agrees with its description; INV-QD-007 gains its Enforcement (the conformance suite's default cases) and names all five port defaults; INV-QD-043's Source and key paragraph follow the move of capture/replay keys and fail-closed answers into the port descriptions (ADR-QD-094, CCR-QD-177)<br>1.49 (2026-10-05): INV-QD-094 added (a decision being re-checked, or that failed, never reads as a verdict); INV-QD-028's note on a staleness invariant that speaks only of the flag is answered for `previousSuccess` (ADR-QD-093, CCR-QD-175)<br>1.48 (2026-10-05): INV-QD-093 added (a merge discloses nothing its inputs did not); INV-QD-004's Source moves to `FieldLattice.ts` and gains Enforcement; INV-QD-024's Source and Enforcement name the lattice laws and the empty-child generator arm, and its vacuity threshold is corrected from twenty to ten; INV-QD-003's Source no longer names the deleted `POLICY_TAGS_BY_TAG` or calls `mergeFields` a `_tag` switch (ADR-QD-092, CCR-QD-174)<br>1.47 (2026-10-05): INV-QD-018 violated a second time on the row operand — `toPredicate` admitted `±Infinity` rows `evaluate` denied, and the agreement properties now sample non-finite rows (CCR-QD-172); INV-QD-047/048 — the engines hold a float column, PostgreSQL's `NaN` ordering found, a range excludes or refuses non-finite rows; INV-QD-061's Source names `finiteGuardFor` and its Enforcement non-finite cells and R9; new INV-QD-091 (a primitive matcher and its predicate leaf are one function) and INV-QD-092 (an absent value never satisfies a matcher) (ADR-QD-091, CCR-QD-173)<br>1.46 (2026-10-04): INV-QD-047/048 — Enforcement now names real engines (PGlite, `node:sqlite`, Prisma Client over SQLite) in place of the JavaScript readers, which are retired, and the Implication that "there is no `Predicate` shape that renders to one target and not the other" is corrected to the declared reserved-column difference. INV-QD-048 gains the third-time-found paragraph (a three-valued `NOT` dropped NULL rows; CCR-QD-157). INV-QD-061 (`toRenderable` preserves `evaluatePredicate`) and INV-QD-062 (a wrong nullability declaration never over-admits) added (ADR-QD-079, CCR-QD-158)<br>1.45 (2026-10-04): ARCH-06 — new INV-QD-064, a guard is listed only by the registry its provider writes to; INV-QD-046's Source and Enforcement extended to the handle-based write side and a foreign `gates` registry (ADR-QD-080, CCR-QD-160)<br>1.44 (2026-10-04): ARCH-05 — INV-QD-022's Source is now `HydrationEngine.ts`'s v2 entry schema (derived from `DecisionWire`) plus a root-tag integrity check on a disclosed trace; INV-QD-028's Source moves from `QadiAtoms.ts` to `HydrationEngine.ts`'s `makeSeededQuestion`, the precedence expression unchanged; INV-QD-045's reason set is now seven and `hydrateDecisions` never throws; new INV-QD-059, a seeded decision never claims a trace it was not given (ADR-QD-078, CCR-QD-156)<br>1.43 (2026-10-04): INV-QD-037 corrected — exact in both directions, matcher nesting counts, depth judged on the policy first; INV-QD-090 — a pure walk over a caller-held tree never exhausts the call stack (ADR-QD-090, CCR-QD-170)<br>1.42 (2026-10-04): INV-QD-060 — an enforcement failure is reported with the same meaning on every route; INV-QD-006's Related gains it (ADR-QD-081, CCR-QD-155)<br>1.41 (2026-10-04): INV-QD-058 — translation fails only as evaluation would, with its three faulty-port properties; INV-QD-006's Source and INV-QD-057's Source now name `PortAccess.ts`, where every port read lives; INV-QD-018's Enforcement and INV-QD-050/056's Source updated for the compile/run split (ADR-QD-077, CCR-QD-153)<br>1.40 (2026-10-04): INV-QD-052's Source and Enforcement updated — the probe protocol moved behind `CircuitBreaker.withPermit`, generation-tagged permits, and the new over-threshold, release-on-interrupt and model-based property tests (CCR-QD-154)<br>1.39 (2026-09-19): Three Source citations corrected (100-lens audit, second batch). INV-QD-033's Source named `HashSet` for `AuthSubject.roles`/`.permissions`; the code is the built-in JS `Set`, and `DecisionCache.ts`'s own doc comment already corrects this after once making the same mistake — restated to match, citing `Equal`/`Hash`'s `instanceof Set` special-case rather than a `HashSet`. INV-QD-003's Source cited only the one-directional `Schema.Codec<Policy, PolicyEncoded>` type assertion, which alone cannot forbid a `Policy` variant added without a matching schema member (assignability checks one direction); restated to name the layered guard system that actually forecloses that gap (`POLICY_TAGS_BY_TAG`, `policyDepth`'s `Match.tagsExhaustive`, the two `_tag`-switch TS2366 checks). INV-QD-008's Source described `scripts/check-house-style.mjs`'s ambient-randomness regex as unqualified enforcement; restated as a line-level drift guard that an aliased or indexed `crypto["randomUUID"]()` call would pass silently, matching the house-style script's own doc comments' standard of precision about what a regex cannot see (.issues/high/domenic-denicola-DD-01.md's corroborators .issues/low/butler-lampson-BL-03.md, .issues/low/xavier-leroy-XL-03.md, .issues/low/bruce-schneier-BS-04.md)<br>1.38 (2026-09-19): INV-QD-057 — `hasSignature` consults no clock, promoting a limitation previously stated only in `Signature.ts`'s doc comment to a checkable, `TestClock`-pinned invariant (LL-04)<br>1.37 (2026-09-19): INV-QD-020 made literally true rather than true-except-for-failures — `AllOf`/`AnyOf`/`Rules`'s concurrent paths dispatched children through `Effect.forEach`'s fail-fast default, so a later-indexed child's failure could pre-empt an earlier-indexed child's already-decisive `Deny`/`Allow` (or, for `Rules`, its already-decisive applying row), a `Failure` where sequential evaluation would have produced a `Decision`. Children are now run through `Effect.exit` and folded in declaration order, the same fold the trace already used, so a failure is placed at the same index sequential evaluation would have reached it at (`Evaluate.ts`, INV-QD-020, CCR-QD-152)<br>1.36 (2026-09-09): INV-QD-006's Source extended — a failure this invariant covers now includes a port that dies rather than fails; `Evaluate.ts`'s five port call sites each catch that cause and convert it into the port's own typed error, so `Effect.orDie`'s absence was necessary but not sufficient on its own (BEH-QD-261, issue #100, CCR-QD-142)<br>1.35 (2026-09-08): INV-QD-013's Source corrected — `filter`/`filterStream` enforce the same obligation rule through a second path, `decideOne`, which independently reimplements evaluate → `isAllowed` → discharge per item rather than calling the shared `permitted`; a deliberate second implementation, tested on its own terms by `Qadi.test.ts`'s dedicated filter/filterStream obligation tests, not a gap. INV-QD-009's Source corrected — `enforce` is `Effect.flatMap(permitted(policy, options), () => self)`; it never calls `assert`, and both independently call `permitted`. INV-QD-052 extended — `claimProbe`/`releaseProbe` carry the same single-`Ref.modify` atomicity as `status`/`recordSuccess`/`recordFailure`, bounding a half-open window to exactly one concurrent probe (issue #72, CCR-QD-136)<br>1.34 (2026-09-08): INV-QD-018 violated in production code and INV-QD-047 with it — `Predicate.ts`'s `compare` carried only the `typeof` half of the `Number.isFinite` guard `Matcher.ts`'s `evaluateMatcher` has on a `Gte`/`Lt` bound, so `toPredicate` on `gte(-Infinity)` admitted every numeric row while `evaluate` on the same policy denied every one; and `@qadi/predicate-sql`'s `isSafeValue` admitted `NaN`, which PostgreSQL treats as equal to itself and `evaluatePredicate` does not. Both fixed, and both fuzz generators extended to sample the non-finite bounds they never drew (INV-QD-048 gained the matching property; issue #65, CCR-QD-120)<br>1.33 (2026-09-08): INV-QD-038's Enforcement corrected — `flattenPermissions` does not run inside `makeSubject` as stated; `makeSubject` takes an already-flattened `Iterable<PermissionKey>`, and `flattenPermissions` runs inside the sibling `fromRoles` constructor instead (issue 69, CCR-QD-117)<br>1.32 (2026-09-08): INV-QD-004 extended — projecting a record is stack-safe; `FieldPath.ts`'s `projectAt` recursed once per field-spec segment over an uncapped dot-path and raised a raw `RangeError` out of the enforcement path, and now walks with the explicit array-backed stack `DecodeDepthGuard.ts` and `SinkCodec.ts` already use (issue 66, BEH-QD-056, CCR-QD-115)<br>1.31 (2026-09-07): INV-QD-031 extended — `fieldStrategy` and `HasRelationship.depth` named as the same shape of gap the invariant already covered, `depth` having been dropped from the rendering entirely; INV-QD-029's `RelationshipResolver` denial no longer claims an unverifiable wiring state (issue 45, CCR-QD-114)<br>1.30 (2026-09-07): INV-QD-032 updated — "`neq` on `undefined` is `true`" was the wiring bug's mechanism, not just a description of it; the mechanism itself is now closed at the source, not only the resource-wiring path (CCR-QD-112)<br>1.29 (2026-09-07): INV-QD-048's Enforcement corrected — the test-only `matchesPrismaWhere` reader it named implements the same JS `.every`/`.some` semantics `evaluatePredicate` does, and so could not by itself catch `renderNode` nesting a vacuous identity where Prisma's real engine silently mishandles it (C1, issue 34); a second, engine-accurate reader now checks this invariant too (BEH-QD-239, BEH-QD-242, CCR-QD-111)<br>1.28 (2026-09-06): six in-page anchors repointed from pre-rename heading slugs to the current headings (INV-QD-004, INV-QD-006, INV-QD-007, INV-QD-018, INV-QD-029, plus the sibling references in traceability.md and behaviors/27-devtools-timeline.md); INV-QD-050 gained the Enforcement block and Related line its own text already implied, which the 1.26 edit had displaced onto INV-QD-056's section (CCR-QD-097)<br>1.27 (2026-09-06): INV-QD-054 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` and the implication note made explicit about the gap this does not close (CCR-QD-094)<br>1.26 (2026-08-25): INV-QD-056 — a `HasSignature` node never appears in a compiled `Predicate`, one leaf after `HasCustom`'s own; INV-QD-055's Related line updated for ADR-QD-057's harmonization (ADR-QD-057, ADR-QD-058, CCR-QD-089)<br>1.25 (2026-08-25): INV-QD-051–055 — the family of properties `@qadi/audit`'s correctness rests on, formalized: staging non-observability, circuit-breaker atomicity, retention partition, chain-integrity gap detection, and the signature obligation handler's call-once/outcome-match guarantee (ADR-QD-056, CCR-QD-086)<br>1.24 (2026-08-25): INV-QD-003's Source corrected — `Policy`'s recursive type is hand-written first and the schema is type-asserted against it, not derived from a single `Schema.Union` (CCR-QD-084)<br>1.23 (2026-08-25): INV-QD-022 revised — every `DehydratedEntry` field is verified, not just `policy` (CCR-QD-083)<br>1.22 (2026-08-25): INV-QD-049, INV-QD-050 — a custom predicate's own failure and an unrecognised name are errors, never denials; a `HasCustom` node never appears in a compiled `Predicate` (ADR-QD-055, CCR-QD-082)<br>1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.77 (2026-10-08): INV-QD-241 added — a remote port fails where its store fails; found by ARCH-31, whose probe showed a relationship or history outage answered `200 "Unknown"` (a denial, and under `not(...)` a grant) and a route answering the cookie's subject under the asked subject's name. INV-QD-006's Related gains it (ADR-QD-107, CCR-QD-382)<br>1.76 (2026-10-08): INV-QD-170 added — a decision agrees with its trace; found by ARCH-32, whose probe showed a version-2 record whose Allow said allowed:false in its trace, or whose fields and duties differed from the trace root's, decoding and re-encoding unchanged. INV-QD-022's Source names the agreement check on a disclosed seed; INV-QD-096's Enforcement notes the corrected golden (ADR-QD-106, CCR-QD-301)<br>1.75 (2026-10-08): INV-QD-180 added — `/__permissions` lists what `@qadi/http` enforces, and only that; INV-QD-034 names `guardApi` and the attachment refusal (ARCH-36, CCR-QD-311)<br>1.74 (2026-10-08): INV-QD-120 added — a signature recorded for a discharge is keyed by the question it discharged; found by ARCH-30, whose probe showed a captured signature landing subject-wide, so the default-scope `hasSignature` denied it and `scope: "Any"` allowed it for every resource. INV-QD-055 restated — the request is built from the discharged question, and a signature for a different signer or meaning fails the discharge. INV-QD-013's Source names `ask` as the shared front of both paths (ADR-QD-105, CCR-QD-220)<br>1.73 (2026-10-08): INV-QD-130 added — a purge never selects a row its archive does not hold; INV-QD-053 and INV-QD-101 restated over `planRetention`/`planPurge` (ARCH-38, CCR-QD-230)<br>1.72 (2026-10-08): INV-QD-064 — the writer is a private slot of the registry object; spread-copy and reflection tests added (ARCH-43, CCR-QD-250)<br>1.71 (2026-10-08): INV-QD-043's key paragraph and Enforcement state the injectivity law and the three capture-fidelity tests; INV-QD-026 reads "rejects exactly when the core fails or the caller aborts" (ARCH-45, CCR-QD-263, CCR-QD-266)<br>1.70 (2026-10-08): INV-QD-108 added — a projected value is the evaluated resource; found by ARCH-39, whose probe showed `enforceProjected` projecting a secret report under a stub resource's decision (ADR-QD-104, CCR-QD-207)<br>1.69 (2026-10-08): INV-QD-107 added — a screen never changes what it shows without the reviewer; found by ARCH-33, where a new decision reordered the rail and the simulator and the explorer silently showed another policy (CCR-QD-206)<br>1.68 (2026-10-08): INV-QD-037 — `toPredicate` and `walk` admit through one `Admission.ts`; the `toPredicate` half is now enforced (a differential over generated trees and every `maxDepth`, including `NaN`, negatives and the default boundary), where it was only stated (ADR-QD-100 amendment, ARCH-41, CCR-QD-205)<br>1.67 (2026-10-08): INV-QD-106 added — every audit record has exactly one write outcome, and an entry not in the trail is witnessed (ARCH-35, CCR-QD-204)<br>1.66 (2026-10-08): INV-QD-045's Enforcement names `DeveloperSignals.ts` and the whole-payload wording test (ADR-QD-041 amendment, CCR-QD-203)<br>1.65 (2026-10-07): INV-QD-105 added — a live question is never evicted, and one question has one handle while tracked; found by ARCH-23, where a garbage collection split a question's atom, its `asked()` row and its seed (ADR-QD-103, CCR-QD-201)<br>1.64 (2026-10-07): INV-QD-044 — the invariant gains a type-level floor (a span field is a `SpanValue`, so a field that could hold arbitrary data does not compile) and one home (`attributeResolverPort.attributes.disclose`); the four other ports, not two, are named with their closed or boolean answers; Enforcement adds the same sentinel search under `toPredicate` and the codec tests (ADR-QD-051 amendment, ARCH-21, CCR-QD-198)<br>1.63 (2026-10-07): INV-QD-034 — an endpoint declares on itself; a declaration on a group or API is refused, not ignored (BEH-QD-320, CCR-QD-196)<br>1.62 (2026-10-07): INV-QD-104's Source names `SinkWire.ts`, where the three readings now live (CCR-QD-194)<br>1.61 (2026-10-07): INV-QD-104 added — a refusal report says where, never what; INV-QD-097's Source and Enforcement name `EncodeRefusalReport.ts` and the throwing-hook tests (ADR-QD-095 amendment, CCR-QD-193)<br>1.60 (2026-10-07): INV-QD-058's Enforcement says what pins what — `ShortCircuit.test.ts` held only the lookups, never a stop; the agreement tests are named (ARCH-26, CCR-QD-192)<br>1.59 (2026-10-07): INV-QD-103 added — a trace lines up with its policy's explanation, position by position; INV-QD-090 covers `Trace` (`renderTrace`, `diffTraces`, `foldTrace` are stack-safe) and its devtools twin is gone; INV-QD-040 cites INV-QD-103 and drops the stale `dehydrateDecisions` clause (ADR-QD-101, CCR-QD-191)<br>1.58 (2026-10-07): INV-QD-090's Source and Enforcement name `foldTreeBy` and the three case-wise folds (`foldPolicyCases`, `foldMatcherCases`, `foldExplanationCases`) (ADR-QD-090 amendment, CCR-QD-190)<br>1.57 (2026-10-07): INV-QD-102 added — a probe's verdict on port health is never served from a cache; INV-QD-030/033/035 Sources and Enforcement follow `Question`, `Walk.ts` and `SinkEmit.ts` (ADR-QD-100, CCR-QD-189)<br>1.56 (2026-10-07): INV-QD-101 added — retention never selects a row without a finite age past a valid limit; INV-QD-053's generators widened to non-finite and negative draws (CCR-QD-186)<br>1.55 (2026-10-06): INV-QD-021 — totality extends to `renderExplanation` over a `fieldStrategy` or `combining` outside its closed union, with the Source and Enforcement that pin it; INV-QD-031 — an empty `All` carrying such a strategy is not atomic, and the value is named verbatim (ADR-QD-092 amendment, CCR-QD-183)<br>1.54 (2026-10-06): INV-QD-099 retired — 0.11.0 reads one wire version, so there are no two to agree; INV-QD-098 restated for version 2 only, a pre-0.10 record refused as `UnsupportedVersion` before any outcome is read (ADR-QD-096 amendment, CCR-QD-182)<br>1.53 (2026-10-05): INV-QD-100 (a log reader sees every retained record exactly once); INV-QD-039's Source names `storedRecordOrder` as the one order (ADR-QD-097, CCR-QD-181)<br>1.52 (2026-10-05): INV-QD-098 (a decoded decision record has exactly the outcome its sender sent) and INV-QD-099 (a record decodes the same whichever wire version carried it) (ADR-QD-096, CCR-QD-180)<br>1.51 (2026-10-05): INV-QD-096 and INV-QD-097 added — whatever the record codec emits it accepts, and the codec is total (ADR-QD-095, CCR-QD-179)<br>1.50 (2026-10-05): INV-QD-095 added — every port is described once, and every derived layer agrees with its description; INV-QD-007 gains its Enforcement (the conformance suite's default cases) and names all five port defaults; INV-QD-043's Source and key paragraph follow the move of capture/replay keys and fail-closed answers into the port descriptions (ADR-QD-094, CCR-QD-177)<br>1.49 (2026-10-05): INV-QD-094 added (a decision being re-checked, or that failed, never reads as a verdict); INV-QD-028's note on a staleness invariant that speaks only of the flag is answered for `previousSuccess` (ADR-QD-093, CCR-QD-175)<br>1.48 (2026-10-05): INV-QD-093 added (a merge discloses nothing its inputs did not); INV-QD-004's Source moves to `FieldLattice.ts` and gains Enforcement; INV-QD-024's Source and Enforcement name the lattice laws and the empty-child generator arm, and its vacuity threshold is corrected from twenty to ten; INV-QD-003's Source no longer names the deleted `POLICY_TAGS_BY_TAG` or calls `mergeFields` a `_tag` switch (ADR-QD-092, CCR-QD-174)<br>1.47 (2026-10-05): INV-QD-018 violated a second time on the row operand — `toPredicate` admitted `±Infinity` rows `evaluate` denied, and the agreement properties now sample non-finite rows (CCR-QD-172); INV-QD-047/048 — the engines hold a float column, PostgreSQL's `NaN` ordering found, a range excludes or refuses non-finite rows; INV-QD-061's Source names `finiteGuardFor` and its Enforcement non-finite cells and R9; new INV-QD-091 (a primitive matcher and its predicate leaf are one function) and INV-QD-092 (an absent value never satisfies a matcher) (ADR-QD-091, CCR-QD-173)<br>1.46 (2026-10-04): INV-QD-047/048 — Enforcement now names real engines (PGlite, `node:sqlite`, Prisma Client over SQLite) in place of the JavaScript readers, which are retired, and the Implication that "there is no `Predicate` shape that renders to one target and not the other" is corrected to the declared reserved-column difference. INV-QD-048 gains the third-time-found paragraph (a three-valued `NOT` dropped NULL rows; CCR-QD-157). INV-QD-061 (`toRenderable` preserves `evaluatePredicate`) and INV-QD-062 (a wrong nullability declaration never over-admits) added (ADR-QD-079, CCR-QD-158)<br>1.45 (2026-10-04): ARCH-06 — new INV-QD-064, a guard is listed only by the registry its provider writes to; INV-QD-046's Source and Enforcement extended to the handle-based write side and a foreign `gates` registry (ADR-QD-080, CCR-QD-160)<br>1.44 (2026-10-04): ARCH-05 — INV-QD-022's Source is now `HydrationEngine.ts`'s v2 entry schema (derived from `DecisionWire`) plus a root-tag integrity check on a disclosed trace; INV-QD-028's Source moves from `QadiAtoms.ts` to `HydrationEngine.ts`'s `makeSeededQuestion`, the precedence expression unchanged; INV-QD-045's reason set is now seven and `hydrateDecisions` never throws; new INV-QD-059, a seeded decision never claims a trace it was not given (ADR-QD-078, CCR-QD-156)<br>1.43 (2026-10-04): INV-QD-037 corrected — exact in both directions, matcher nesting counts, depth judged on the policy first; INV-QD-090 — a pure walk over a caller-held tree never exhausts the call stack (ADR-QD-090, CCR-QD-170)<br>1.42 (2026-10-04): INV-QD-060 — an enforcement failure is reported with the same meaning on every route; INV-QD-006's Related gains it (ADR-QD-081, CCR-QD-155)<br>1.41 (2026-10-04): INV-QD-058 — translation fails only as evaluation would, with its three faulty-port properties; INV-QD-006's Source and INV-QD-057's Source now name `PortAccess.ts`, where every port read lives; INV-QD-018's Enforcement and INV-QD-050/056's Source updated for the compile/run split (ADR-QD-077, CCR-QD-153)<br>1.40 (2026-10-04): INV-QD-052's Source and Enforcement updated — the probe protocol moved behind `CircuitBreaker.withPermit`, generation-tagged permits, and the new over-threshold, release-on-interrupt and model-based property tests (CCR-QD-154)<br>1.39 (2026-09-19): Three Source citations corrected (100-lens audit, second batch). INV-QD-033's Source named `HashSet` for `AuthSubject.roles`/`.permissions`; the code is the built-in JS `Set`, and `DecisionCache.ts`'s own doc comment already corrects this after once making the same mistake — restated to match, citing `Equal`/`Hash`'s `instanceof Set` special-case rather than a `HashSet`. INV-QD-003's Source cited only the one-directional `Schema.Codec<Policy, PolicyEncoded>` type assertion, which alone cannot forbid a `Policy` variant added without a matching schema member (assignability checks one direction); restated to name the layered guard system that actually forecloses that gap (`POLICY_TAGS_BY_TAG`, `policyDepth`'s `Match.tagsExhaustive`, the two `_tag`-switch TS2366 checks). INV-QD-008's Source described `scripts/check-house-style.mjs`'s ambient-randomness regex as unqualified enforcement; restated as a line-level drift guard that an aliased or indexed `crypto["randomUUID"]()` call would pass silently, matching the house-style script's own doc comments' standard of precision about what a regex cannot see (.issues/high/domenic-denicola-DD-01.md's corroborators .issues/low/butler-lampson-BL-03.md, .issues/low/xavier-leroy-XL-03.md, .issues/low/bruce-schneier-BS-04.md)<br>1.38 (2026-09-19): INV-QD-057 — `hasSignature` consults no clock, promoting a limitation previously stated only in `Signature.ts`'s doc comment to a checkable, `TestClock`-pinned invariant (LL-04)<br>1.37 (2026-09-19): INV-QD-020 made literally true rather than true-except-for-failures — `AllOf`/`AnyOf`/`Rules`'s concurrent paths dispatched children through `Effect.forEach`'s fail-fast default, so a later-indexed child's failure could pre-empt an earlier-indexed child's already-decisive `Deny`/`Allow` (or, for `Rules`, its already-decisive applying row), a `Failure` where sequential evaluation would have produced a `Decision`. Children are now run through `Effect.exit` and folded in declaration order, the same fold the trace already used, so a failure is placed at the same index sequential evaluation would have reached it at (`Evaluate.ts`, INV-QD-020, CCR-QD-152)<br>1.36 (2026-09-09): INV-QD-006's Source extended — a failure this invariant covers now includes a port that dies rather than fails; `Evaluate.ts`'s five port call sites each catch that cause and convert it into the port's own typed error, so `Effect.orDie`'s absence was necessary but not sufficient on its own (BEH-QD-261, issue #100, CCR-QD-142)<br>1.35 (2026-09-08): INV-QD-013's Source corrected — `filter`/`filterStream` enforce the same obligation rule through a second path, `decideOne`, which independently reimplements evaluate → `isAllowed` → discharge per item rather than calling the shared `permitted`; a deliberate second implementation, tested on its own terms by `Qadi.test.ts`'s dedicated filter/filterStream obligation tests, not a gap. INV-QD-009's Source corrected — `enforce` is `Effect.flatMap(permitted(policy, options), () => self)`; it never calls `assert`, and both independently call `permitted`. INV-QD-052 extended — `claimProbe`/`releaseProbe` carry the same single-`Ref.modify` atomicity as `status`/`recordSuccess`/`recordFailure`, bounding a half-open window to exactly one concurrent probe (issue #72, CCR-QD-136)<br>1.34 (2026-09-08): INV-QD-018 violated in production code and INV-QD-047 with it — `Predicate.ts`'s `compare` carried only the `typeof` half of the `Number.isFinite` guard `Matcher.ts`'s `evaluateMatcher` has on a `Gte`/`Lt` bound, so `toPredicate` on `gte(-Infinity)` admitted every numeric row while `evaluate` on the same policy denied every one; and `@qadi/predicate-sql`'s `isSafeValue` admitted `NaN`, which PostgreSQL treats as equal to itself and `evaluatePredicate` does not. Both fixed, and both fuzz generators extended to sample the non-finite bounds they never drew (INV-QD-048 gained the matching property; issue #65, CCR-QD-120)<br>1.33 (2026-09-08): INV-QD-038's Enforcement corrected — `flattenPermissions` does not run inside `makeSubject` as stated; `makeSubject` takes an already-flattened `Iterable<PermissionKey>`, and `flattenPermissions` runs inside the sibling `fromRoles` constructor instead (issue 69, CCR-QD-117)<br>1.32 (2026-09-08): INV-QD-004 extended — projecting a record is stack-safe; `FieldPath.ts`'s `projectAt` recursed once per field-spec segment over an uncapped dot-path and raised a raw `RangeError` out of the enforcement path, and now walks with the explicit array-backed stack `DecodeDepthGuard.ts` and `SinkCodec.ts` already use (issue 66, BEH-QD-056, CCR-QD-115)<br>1.31 (2026-09-07): INV-QD-031 extended — `fieldStrategy` and `HasRelationship.depth` named as the same shape of gap the invariant already covered, `depth` having been dropped from the rendering entirely; INV-QD-029's `RelationshipResolver` denial no longer claims an unverifiable wiring state (issue 45, CCR-QD-114)<br>1.30 (2026-09-07): INV-QD-032 updated — "`neq` on `undefined` is `true`" was the wiring bug's mechanism, not just a description of it; the mechanism itself is now closed at the source, not only the resource-wiring path (CCR-QD-112)<br>1.29 (2026-09-07): INV-QD-048's Enforcement corrected — the test-only `matchesPrismaWhere` reader it named implements the same JS `.every`/`.some` semantics `evaluatePredicate` does, and so could not by itself catch `renderNode` nesting a vacuous identity where Prisma's real engine silently mishandles it (C1, issue 34); a second, engine-accurate reader now checks this invariant too (BEH-QD-239, BEH-QD-242, CCR-QD-111)<br>1.28 (2026-09-06): six in-page anchors repointed from pre-rename heading slugs to the current headings (INV-QD-004, INV-QD-006, INV-QD-007, INV-QD-018, INV-QD-029, plus the sibling references in traceability.md and behaviors/27-devtools-timeline.md); INV-QD-050 gained the Enforcement block and Related line its own text already implied, which the 1.26 edit had displaced onto INV-QD-056's section (CCR-QD-097)<br>1.27 (2026-09-06): INV-QD-054 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` and the implication note made explicit about the gap this does not close (CCR-QD-094)<br>1.26 (2026-08-25): INV-QD-056 — a `HasSignature` node never appears in a compiled `Predicate`, one leaf after `HasCustom`'s own; INV-QD-055's Related line updated for ADR-QD-057's harmonization (ADR-QD-057, ADR-QD-058, CCR-QD-089)<br>1.25 (2026-08-25): INV-QD-051–055 — the family of properties `@qadi/audit`'s correctness rests on, formalized: staging non-observability, circuit-breaker atomicity, retention partition, chain-integrity gap detection, and the signature obligation handler's call-once/outcome-match guarantee (ADR-QD-056, CCR-QD-086)<br>1.24 (2026-08-25): INV-QD-003's Source corrected — `Policy`'s recursive type is hand-written first and the schema is type-asserted against it, not derived from a single `Schema.Union` (CCR-QD-084)<br>1.23 (2026-08-25): INV-QD-022 revised — every `DehydratedEntry` field is verified, not just `policy` (CCR-QD-083)<br>1.22 (2026-08-25): INV-QD-049, INV-QD-050 — a custom predicate's own failure and an unrecognised name are errors, never denials; a `HasCustom` node never appears in a compiled `Predicate` (ADR-QD-055, CCR-QD-082)<br>1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -208,7 +208,7 @@ conversion to be forgotten.
 sending an engineer to audit permissions — whether the store fails cleanly or
 dies, and whether or not a caller wraps `evaluate` in its own `Effect.retry`.
 
-**Related**: [BEH-QD-036](behaviors/05-evaluator.md), [BEH-QD-261](behaviors/05-evaluator.md#beh-qd-261-a-defecting-port-fails-typed-not-dead), [BEH-QD-264](behaviors/16-predicates.md#beh-qd-264-a-defecting-port-fails-translation-typed-not-dead), [BEH-QD-066](behaviors/09-react.md), [INV-QD-060](#inv-qd-060-an-enforcement-failure-is-reported-with-the-same-meaning-on-every-route).
+**Related**: [INV-QD-241](#inv-qd-241-a-remote-port-fails-where-its-store-fails), [BEH-QD-036](behaviors/05-evaluator.md), [BEH-QD-261](behaviors/05-evaluator.md#beh-qd-261-a-defecting-port-fails-typed-not-dead), [BEH-QD-264](behaviors/16-predicates.md#beh-qd-264-a-defecting-port-fails-translation-typed-not-dead), [BEH-QD-066](behaviors/09-react.md), [INV-QD-060](#inv-qd-060-an-enforcement-failure-is-reported-with-the-same-meaning-on-every-route).
 
 ---
 
@@ -368,9 +368,10 @@ obligation nobody has met.
 
 **Source**: `packages/core/src/Qadi.ts` — `assert`, `enforce` and
 `enforceProjected` all route through one internal `permitted`, which
-evaluates, refuses a denial, and discharges. `filter` and `filterStream`
+asks (`ask`, `Lifecycle.ts`: the decision and the `Question` it answered),
+refuses a denial, and discharges. `filter` and `filterStream`
 enforce the same rule through a second path instead: the shared `decideOne`
-they both call independently reimplements evaluate → `isAllowed` → discharge
+they both call independently reimplements ask → `isAllowed` → discharge
 per item, rather than calling `permitted`. That is deliberate, not a gap —
 `permitted` returns one decision and has nowhere to put a per-item loop, and
 `decideOne` is exercised on its own terms by `Qadi.test.ts`'s dedicated
@@ -784,7 +785,7 @@ verify: `evaluationId`, `durationMillis`, `visibleFields`, `obligations` and the
 `DecisionWire`, not restated — and `policy` is checked separately against
 `PolicySchema`. A `Disclosed` trace must also name the entry's own policy: its
 root `policyTag` must equal the decoded `policy._tag`, or the entry is dropped as
-`MalformedEntry`. Every field of the untrusted payload is validated, not just the
+`MalformedEntry`. A `Disclosed` trace must also agree with the entry itself: `entryAgrees` asks `@qadi/core`'s `decisionDisagreement` (INV-QD-170), and an entry whose verdict, `visibleFields`, `obligations` or a denial's `reason` is not its trace root's is dropped as `MalformedEntry` too. Every field of the untrusted payload is validated, not just the
 one this invariant used to name, and so is the envelope itself. `dehydrateDecisions`
 drops entries whose decision belongs to a different subject than the payload
 claims.
@@ -970,7 +971,8 @@ per-evaluation trap asserted directly; and `concurrency` shown not to split an e
 ## INV-QD-026: The facade answers what the core answers
 
 For every subject and policy, `@qadi/promise` resolves the value `@qadi/core`
-produces, and rejects exactly when the core fails.
+produces, and rejects exactly when the core fails or the caller aborts (a call's
+`options.signal`, forwarded to the runtime and never read by the facade).
 
 **Source**: `packages/promise/src/index.ts` — every method is `runPromise` applied to
 a core function. There is no branch in the package that decides an authorization
@@ -1325,14 +1327,15 @@ An HTTP endpoint that declares neither a permission requirement nor an explicit
 public marker on itself is refused, and a requirement or marker on a group or an
 API is refused too.
 
-**Source**: `packages/http/src/RequirePermission.ts` — `RequirePermissionLive`
-serves an endpoint only when `endpointAccess` finds `RequiredPermission` (enforce)
+**Source**: `packages/http/src/RequirePermissionMiddleware.ts` — the middleware
+`guardApi` (`GuardApi.ts`) provides serves an endpoint only when `endpointAccess` finds `RequiredPermission` (enforce)
 or `PublicEndpoint` (pass through) in the endpoint's own annotations. Neither is
 a 500, logged with the endpoint's identifier. A group carrying either key is a
 500 for each of its endpoints, logged with the group's identifier, and
-`registerApi` fails with `MisplacedAccessDeclaration`; both refuse the same
-placements, so the registry cannot list what the middleware serves as public
-(BEH-QD-320).
+`guardApi` fails with `MisplacedAccessDeclaration`, and with
+`RequirePermissionNotAttached` for an endpoint the middleware is not attached to;
+both refuse the same placements, so the registry cannot list what the middleware
+serves as public (BEH-QD-320, BEH-QD-328).
 
 **Implication**: the reverse shipped, and
 [ADR-QD-036](decisions/036-qadi-http-package-shape.md) had **already rejected
@@ -1355,9 +1358,10 @@ operator to audit the wrong system — the same reasoning that puts `MissingActi
 and `MissingResource` in the 500 group
 ([BEH-QD-177](behaviors/23-http.md)).
 
-**Enforcement**: `packages/http/test/http.test.ts` serves an endpoint declaring
+**Enforcement**: `http.test.ts` serves an endpoint declaring
 neither and asserts 500, beside one declared public asserting 204 — so the fix
-cannot pass by refusing everything.
+cannot pass by refusing everything; `GuardApi.test.ts` and `GuardApi.tst.ts` for
+the attachment half.
 
 **Related**: [BEH-QD-174](behaviors/23-http.md), [ADR-QD-036](decisions/036-qadi-http-package-shape.md), [INV-QD-007](#inv-qd-007-defaults-fail-closed).
 
@@ -1439,9 +1443,10 @@ short-circuit past — and the same bound is what `toPredicate` checks first.
 **Source**: `packages/core/src/Policy.ts` — `policyDepth` counts a leaf as 0 and
 adds one at each recursive position, plus `matcherDepth` for a leaf that carries a
 matcher (`HasAttribute`, `HasResourceAttribute`), because `evaluateMatcher`
-recurses through it too; `Walk.ts` and `Predicate.ts` reject
-`policyDepth(policy) > maxDepth` before visiting any node, so the converse
-direction holds by construction rather than by coincidence.
+recurses through it too; `Admission.ts`'s `admit` rejects
+`policyDepth(policy) > maxDepth` before any node is visited, and both `walk` and
+`toPredicate` admit through it, so the converse direction holds by construction
+rather than by coincidence and the two interpreters cannot hold different bounds.
 
 **Corrected in ADR-QD-090.** This invariant used to say "exactly when" while only
 the forward direction held: `anyOf([hasRole("editor"), not(not(not(hasRole("x"))))])`
@@ -1470,6 +1475,15 @@ raises. A second test does the same over short-circuiting policies
 that allow and that deny, at five `maxDepth`s around the depth. A `FastCheck`
 property pins a right-leaning spine of arbitrary length. `Evaluate.test.ts` pins
 that `PolicyTooDeep` is identical for subjects holding different roles.
+`RolesAndDepth.test.ts` also pins the `toPredicate` half: a property over generated
+trees (matcher-bearing leaves included) and every `maxDepth` in `undefined, -1, 0,
+1, 2, 3, 4, 5, 8, NaN, Infinity, 2.5` asserts that `evaluate` fails `PolicyTooDeep`
+exactly when `toPredicate` does, with the same `maxDepth`; a second case pins the
+default boundary (`DEFAULT_MAX_DEPTH` admitted, one past it refused, by both) and a
+third a too-deep field-restricting tree. `Admission.test.ts` pins `admit` itself,
+and `scripts/check-house-style.mjs`'s `admission-once` rule refuses a second
+`new PolicyTooDeep(` or `maxDepth` default outside `Admission.ts`, `Walk.ts`'s
+per-node guard and `questionOf`.
 
 **Related**: [BEH-QD-191](behaviors/25-inspection.md), [INV-QD-018](#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows).
 
@@ -1686,9 +1700,13 @@ a correctly-denying policy rather than a broken port ([INV-QD-006](#inv-qd-006-f
 
 The **keys are written once** — in each port's description — and called from both
 sides. Two functions deriving one key would make this invariant fail in a way no
-single test of either side could see. Every key includes the subject, because the subject is the axis a
-what-if sweep varies: a capture taken for `alice` must not answer a question
-asked about `bob` after her `editor` role was dropped.
+single test of either side could see. Every key is **injective over every argument the
+port receives** (ADR-QD-094): the subject, because the subject is the axis a what-if
+sweep varies (a capture taken for `alice` must not answer a question asked about
+`bob`, nor about `alice` after her `editor` role was dropped), and the relationship
+`depth` and the custom predicate's resource, which a traversing resolver and a
+resource-reading predicate answer differently. A key that dropped an argument
+replayed a stale answer, and the direction was the dangerous one (an allow).
 
 A query the capture never saw answers the **fail-closed default** — `undefined`
 for an attribute, `Unknown` for a relationship and for history, `false` for a
@@ -1702,9 +1720,15 @@ deployment would rather than for one peculiar to this panel.
 a fixture layer, replays, and asserts `diffTraces` between the two runs is empty;
 it asserts a captured failure replays as the same error class with the same
 cause. The keys' distinctness — the subject in every key, a relationship keyed by
-`(subject, relation, resource)` rather than the relation alone, an "ever, at all"
-history question apart from a resource-scoped one — is pinned for every port by
-`packages/core/test/PortConformance.test.ts` ("request keys").
+`(subject, relation, resource, depth)` rather than the relation alone, an "ever, at all"
+history question apart from a resource-scoped one, a custom predicate keyed by its
+resource and the whole subject — is pinned for every port by
+`packages/core/test/PortConformance.test.ts` ("request keys", and the law "a request
+key is injective over the request": two requests differing in exactly one field key
+differently, and structurally equal ones, up to `Set` and object-key order, key alike).
+Three capture-fidelity tests in `Capture.test.ts` replay a depth-1 and a depth-3 ask
+of one relation, a capture for one resource asked about another, and a what-if that
+dropped a role.
 
 **Related**: [BEH-QD-221](behaviors/29-devtools-simulator.md), [ADR-QD-050](decisions/050-a-simulation-is-sealed.md).
 
@@ -1810,7 +1834,11 @@ negative.
 partition for both functions, including that an empty payload lands in neither
 bin — a working system must not report a fault on every request that happened to
 ask no questions; `HydrationPayload.test.ts` asserts the accounting identity, and
-that nothing throws, over arbitrary JSON.
+that nothing throws, over arbitrary JSON. A refusal of the
+whole payload is announced as one, never as zero lost decisions: the same file's
+"a refused payload says the payload was refused" test pins the wording, and
+`packages/react/test/DeveloperSignals.test.ts` pins every signal's sentence
+(`packages/react/src/DeveloperSignals.ts`).
 
 **Related**: [BEH-QD-230](behaviors/19-hydration.md), [BEH-QD-231](behaviors/19-hydration.md), [ADR-QD-052](decisions/052-hydration-is-counted-where-both-ends-can-see-it.md).
 
@@ -2156,14 +2184,15 @@ transition counts.
 
 ## INV-QD-053: Retained and purged partition entries
 
-For any `entries`, `RetentionPolicy` and `now`,
-`enforceRetention(entries, policy, now)` and
-`getPurgeableEntries(entries, policy, now)` partition `entries`: their union
+For any `entries`, `RetentionPolicy` and `now`, `planRetention(...).retained`
+and `planRetention(...).expired` partition `entries`, and so do
+`planPurge(entries, policy, now, archive).purge` and `.retain`: their union
 recovers `entries`, and their intersection is empty.
 
-**Source**: `packages/audit/src/Retention.ts` — both exported functions
-project `planRetention`, which evaluates the purgeability rule exactly once per
-entry in a single pass.
+**Source**: `packages/audit/src/Retention.ts` — `planRetention` evaluates the
+age rule exactly once per entry in a single pass, and `planPurge` splits its
+`expired` rows by what the archive holds. (Before ARCH-38 the partition was
+`enforceRetention` and `getPurgeableEntries`, both removed.)
 
 **Implication**: retention is a caller-invoked, caller-scheduled surface
 entirely outside the `DecisionSink` pipeline
@@ -2172,22 +2201,25 @@ A partition violated — an entry counted as both retained and purged, or as
 neither — would mean either a compliance-relevant row silently vanishing
 from both sets, or a row a caller believed purged still being retained.
 
-**Enforcement**: a `FastCheck` property over generated timestamp arrays,
-`maxAgeMs` values and `now` values — each drawn from integers, negative
-integers, `NaN` and `±Infinity` — asserting the union/intersection identities
-hold for every generated case.
+**Enforcement**: `FastCheck` properties in `packages/audit/test/Retention.test.ts`
+over generated timestamp arrays, `maxAgeMs` values and `now` values — each
+drawn from integers, negative integers, `NaN` and `±Infinity` — asserting the
+union/intersection identities hold for every generated case, for
+`planRetention` and for `planPurge` against a generated archive.
 
-**Related**: [BEH-QD-253](behaviors/33-audit-pipeline.md#beh-qd-253-retention-partitions-entries-by-construction), [ADR-QD-056](decisions/056-audit-companion-package.md).
+**Related**: [BEH-QD-253](behaviors/33-audit-pipeline.md#beh-qd-253-retention-partitions-entries-by-construction), [INV-QD-130](#inv-qd-130-a-purge-never-selects-a-row-its-archive-does-not-hold), [ADR-QD-056](decisions/056-audit-companion-package.md).
 
 ## INV-QD-101: Retention never selects a row without a finite age past a valid limit
 
 For any `entries`, `RetentionPolicy` and `now`, an entry is in
-`getPurgeableEntries(entries, policy, now)` only if its `at` and `now` are
-finite, `policy.maxAgeMs >= 0`, and `now - at > policy.maxAgeMs`. A row whose
-age cannot be computed is retained, and `planRetention` lists it as `undated`.
+`planRetention(entries, policy, now).expired` (and so in `planPurge`'s `purge`)
+only if its `at` and `now` are finite, `policy.maxAgeMs >= 0`, and
+`now - at > policy.maxAgeMs`. A row whose age cannot be computed is retained,
+and `planRetention` lists it as `undated`.
 
 **Source**: `packages/audit/src/Retention.ts` — `planRetention` is the one place
-the rule is written; the older functions project it.
+the rule is written; `planPurge` runs it. (The older `getPurgeableEntries` and
+`enforceRetention` projected it and were removed by ARCH-38.)
 
 **Implication**: before this, `at = -Infinity` (a stored `-1e400`),
 `now = +Infinity` and a negative `maxAgeMs` each purged every row they touched,
@@ -2201,10 +2233,11 @@ but a hand-built `AuditEntry` never passes through decode, so retention guards
 itself.
 
 **Enforcement**: `packages/audit/test/Retention.test.ts` — one example per
-impossible input, and the partition property's "purged implies a provable age"
+impossible input, over both `planRetention` and `planPurge` against an archive
+holding every row, and the partition property's "expired implies a provable age"
 conjunct, over draws that include `NaN`, `±Infinity` and negatives.
 
-**Related**: [BEH-QD-253](behaviors/33-audit-pipeline.md#beh-qd-253-retention-partitions-entries-by-construction), [INV-QD-053](#inv-qd-053-retained-and-purged-partition-entries), [ADR-QD-056](decisions/056-audit-companion-package.md).
+**Related**: [BEH-QD-253](behaviors/33-audit-pipeline.md#beh-qd-253-retention-partitions-entries-by-construction), [INV-QD-053](#inv-qd-053-retained-and-purged-partition-entries), [INV-QD-130](#inv-qd-130-a-purge-never-selects-a-row-its-archive-does-not-hold), [ADR-QD-056](decisions/056-audit-companion-package.md).
 
 ## INV-QD-054: `verifySequenceIntegrity` detects every gap and duplicate sequence number
 
@@ -2239,20 +2272,25 @@ to sign or verify anything — this invariant is the whole of what
 element (always caught), plus hand-written cases for a duplicate and for a
 mix of sequenced and unsequenced entries.
 
-**Related**: [BEH-QD-254](behaviors/33-audit-pipeline.md#beh-qd-254-sequence-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order), [ADR-QD-056](decisions/056-audit-companion-package.md).
+**Related**: [BEH-QD-254](behaviors/33-audit-pipeline.md#beh-qd-254-sequence-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order), [INV-QD-130](#inv-qd-130-a-purge-never-selects-a-row-its-archive-does-not-hold) (the read-back reuses the check), [ADR-QD-056](decisions/056-audit-companion-package.md).
 
 ## INV-QD-055: `signatureObligationHandler` calls `capture` exactly once, and the `ObligationRecord` matches
 
 For one discharge, `signatureObligationHandler(port, meaning)` calls
 `port.capture` exactly once, and the `ObligationRecord` outcome
 `DecisionSink` observes for that discharge is `Discharged` exactly when that
-call succeeded and `HandlerFailed` exactly when it failed.
+call succeeded and `HandlerFailed` exactly when it failed. A `capture` that
+returns a signature for a different signer or meaning than the request asked for
+is a failure of the discharge, not a success.
 
 **Source**: `packages/audit/src/SignatureCapturePort.ts` —
 `signatureObligationHandler`'s returned `ObligationHandler` calls `capture`
-once per invocation, with a request built from the whole obligations array
-rather than once per obligation; `Qadi.ts`'s `discharge` maps the handler's
-own success/failure to the `ObligationRecord` outcome unconditionally.
+once per invocation, with a request built (`captureRequestOf`) from the
+discharged question (the signer is `question.subject.id`, the key is the
+question's resource id) and the whole obligations array rather than once per
+obligation, then refuses a returned signature whose `signerId` or `meaning`
+differs from the request's; `Qadi.ts`'s `discharge` maps the handler's own
+success/failure to the `ObligationRecord` outcome unconditionally.
 
 **Implication**: signature capture is wired through `ObligationHandler`, the
 only mechanism this library has for enforcement-time custom logic, never
@@ -2265,7 +2303,10 @@ mismatched `ObligationRecord` outcome would report a captured signature as
 exactly the event a compliance reviewer reads this log for.
 
 **Enforcement**: unit tests over `signatureObligationHandler` in isolation
-(call count, request shape, failure propagation), plus integration tests
+(call count, request shape built from a discharge with no `CurrentSubject`,
+the signer being the question's subject, failure propagation), the mismatch
+tests in `SignatureLedger.test.ts` (a different signer or meaning fails the
+discharge and appends nothing), plus integration tests
 through `Qadi.assert`'s real `discharge` path asserting the recorded
 `ObligationRecord.outcome` for both a successful and a failing `capture`.
 
@@ -2497,7 +2538,8 @@ each other, so the ids in one `instances()` snapshot are pairwise distinct.
 **Source**: `packages/react/src/GateRegistry.ts` (`makeGateRegistry`: every piece
 of state is inside the closure, and a colliding id is disambiguated) and
 `packages/react/src/GateWriter.ts` (the handle closes over its own key, so a stale
-cleanup can only end the registration it made).
+cleanup can only end the registration it made; `OwnedGateRegistry` holds the writer in a
+private slot, so only a registry the package built has one).
 
 **Implication**: the panel's two views, "asked" and "asking", must be about the same
 thing. A process-wide registry listed tenant B's guards under tenant A's question,
@@ -2508,7 +2550,9 @@ a guard they were debugging.
 **Enforcement**: `packages/react/test/GateRegistry.store.test.ts` checks random
 `register`/`update`/`unregister` sequences against a reference model and asserts the
 ids stay distinct; `GateRegistry.test.tsx` ("scoped to its atom set") mounts two atom
-sets and two hydrated roots over one; `gate-instances.feature` has a scenario for two
+sets and two hydrated roots over one, and ("a spread copy of an atom set") a copy
+shares the original's registry; `GateRegistry.store.test.ts` also checks the writer is
+reachable by neither names nor symbols; `gate-instances.feature` has a scenario for two
 atom sets.
 
 **Related**: [BEH-QD-233](behaviors/28-devtools-screens.md), [ADR-QD-080](decisions/080-a-gate-registry-belongs-to-its-atom-set.md), [INV-QD-046](#inv-qd-046-instrumentation-never-changes-what-a-guard-renders).
@@ -2778,7 +2822,7 @@ over generated policies, resources, params and causes (JSON and hostile values),
 the agreement property between the outbound `TooDeep` refusal and
 `exceedsJsonDepth`, and the golden bytes for `Decided` records;
 `packages/audit/test/AuditEntry.test.ts` — an audit row, a frame's data and
-forwarding's `send` value are the same bytes for one record.
+forwarding's `send` value are the same bytes for one record. The golden `V2_DECIDED_ALLOW` and the main round-trip fixture owe the trace root's duties and fields, as a decision agrees with its trace (INV-QD-170): both were disagreeing records no evaluator produces, and the corrected golden changes inside the trace only.
 
 **Related**: [ADR-QD-095](decisions/095-sinkcodec-owns-both-directions.md), [BEH-QD-199](behaviors/25-inspection.md), [BEH-QD-200](behaviors/25-inspection.md), [BEH-QD-250](behaviors/33-audit-pipeline.md), [INV-QD-097](#inv-qd-097-the-record-codec-is-total).
 
@@ -3028,3 +3072,142 @@ flight; `packages/react/test/Hydration.test.ts` — a seed survives a collection
 that depends on it; `stryker.react.mjs` mutates `QuestionBook.ts`.
 
 **Related**: [INV-QD-028](#inv-qd-028-a-seed-never-outlives-the-clients-own-answer), [INV-QD-046](#inv-qd-046-instrumentation-never-changes-what-a-guard-renders), [BEH-QD-065](behaviors/09-react.md#beh-qd-065-the-atom-set), [BEH-QD-198](behaviors/25-inspection.md#beh-qd-198-an-atom-set-records-the-questions-it-was-asked), [ADR-QD-039](decisions/039-a-seed-is-not-an-authority.md), [ADR-QD-103](decisions/103-a-question-is-opened-once.md).
+
+## INV-QD-106: Every audit record has exactly one write outcome, and an entry not in the trail is witnessed
+
+`AuditDecisionSinkLive.record` returns each record's fate as one `AuditWriteOutcome`
+(eleven leaves, no illegal states) and reports it exactly once: its
+`qadi_audit_writes_total` label, its `qadi_audit_staging_total` labels, its log line
+and the `onOutcome` hook are all read from that value by one pure projection. An
+entry that is in neither the trail nor staging (`durabilityOf` is `"Lost"`) is
+logged as a warning naming its `evaluationId` and counted in
+`qadi_audit_entries_lost_total`; a staged entry that was not written is logged at
+info. The port calls report nothing themselves.
+
+**Source**: `packages/audit/src/AuditWriteOutcome.ts` (the union and `durabilityOf`),
+`packages/audit/src/AuditWriteReport.ts` (`describeAuditWriteOutcome`, the one
+projection; `emitWriteOutcome`, the one place a metric is updated or a line logged on
+the write path), `packages/audit/src/AuditDecisionSinkLive.ts` (`record`).
+
+**Implication**: a twelfth outcome is one compile error in each `Match.tagsExhaustive`
+table. Before this invariant two of the eleven leaves (a failed write with no staging,
+and a failed write after a failed stage) lost the entry and logged nothing.
+
+**Enforcement**: `packages/audit/test/AuditWriteOutcome.test.ts` pins every leaf's
+projection exactly; `packages/audit/test/AuditWriteExits.test.ts` drives every
+reachable exit through the real sink and asserts the observed metrics and log equal the
+projection; `AuditWriteOutcome.tst.ts` pins the illegal states.
+
+**Related**: [INV-QD-051](#inv-qd-051-staging-presence-or-absence-never-changes-the-committed-audit-entries), [INV-QD-052](#inv-qd-052-once-a-circuit-breaker-trips-write-is-never-attempted-again-until-reset), [INV-QD-104](#inv-qd-104-a-refusal-report-says-where-never-what), [BEH-QD-251](behaviors/33-audit-pipeline.md), [BEH-QD-252](behaviors/33-audit-pipeline.md), [ADR-QD-056](decisions/056-audit-companion-package.md).
+## INV-QD-107: A screen never changes what it shows without the reviewer
+
+A list screen shows the item the reviewer chose, or the head it first showed, until the
+reviewer chooses another. A new decision, a reorder of the list, an insertion before
+the item and the item leaving the list do not change which item is shown. An item that
+left the list stays shown and is marked as no longer there; it is never replaced by a
+neighbour, and the screen does not empty.
+
+**Source**: `packages/devtools/src/model/HeldChoice.ts` — `resolveHeld(list, held, same)`
+returns `Empty`, `Listed` at an index, or `Evicted`, and `pinHead` holds the first item
+shown. `SimulationSession.ts` (policies, `Equal.equals`), `PolicyExplorer.tsx` (policies,
+`Equal.equals`) and `RoleViewer.tsx` (roles, by name) each supply a list and an equality,
+and none of them keeps an index as the choice.
+
+**Implication**: before it, each screen held a position and clamped it, so a decision
+that moved the chosen policy made the dropdown, the tree and the next simulation run show
+another policy with nothing to say so. Keying by the policy and not by a label follows
+ADR-QD-048 ("a label is a display string, never an identity"). `Equal.equals` is
+required and `===` is not: each decision record is decoded on its own, so a sighting's
+policy object is replaced when a newer decision on it arrives.
+
+**Enforcement**: `packages/devtools/test/model/HeldChoice.test.ts` — every arm of
+`resolveHeld`, a reorder, a head insertion, an eviction, duplicates, and a property over
+permutations; `packages/devtools/test/model/SimulationSession.test.ts` (reorder, head
+insertion, a run after the rail moved, eviction and its run, the pinned head),
+`packages/devtools/test/react/PolicyExplorer.test.tsx`, `packages/devtools/test/react/Simulator.test.tsx`
+and `packages/devtools/test/react/RoleViewer.test.tsx`; `features/devtools-simulator` under
+`@REQ-QD-026`; `stryker.devtools.mjs` mutates `HeldChoice.ts`.
+
+**Related**: [INV-QD-039](#inv-qd-039-the-timeline-is-ordered-unique-and-independent-of-arrival), [INV-QD-041](#inv-qd-041-a-structural-view-states-no-verdict), [BEH-QD-211](behaviors/28-devtools-screens.md), [BEH-QD-322](behaviors/29-devtools-simulator.md#beh-qd-322-a-simulation-is-a-session).
+---
+
+## INV-QD-108: A projected value is the evaluated resource
+
+Every entry point that hands over a record narrowed by a decision evaluated that decision against the same record.
+
+**Source**: `packages/core/src/Qadi.ts` — `enforceLoaded` and `enforceProjectedLoaded` evaluate with the value the wrapped effect produced as the resource (`withLoadedResource`) and then pass through or project that same value; `LoadedEnforceOptions` types `resource` as `never` and is the options type of `enforceProjected` too, so a second resource cannot be written. `filterProjected` and `filterStreamProjected` project each admitted item by the decision `decideOne` took on that item.
+
+**Implication**: `enforceProjected` took `options.resource` and projected whatever `self` returned, with no check that the two were one record. A policy with a "public" branch granting `secret` and a "private" branch withholding it, evaluated against a public stub while `self` returned the private record, projected the secret: the decision was taken on one record and applied to another. `guard` had the same two-channel defect and closed it under [INV-QD-032](#inv-qd-032-a-guarded-resource-is-the-evaluated-resource); this is the third instance of an input the decision depends on never reaching the thing that decides (after `guard` and the cache key, [ADR-QD-043](decisions/043-a-decision-is-computed-from-its-inputs.md)). The reverse hazard remains named, not hidden: the loader runs before the decision, so its side effects, its failure and its latency are visible to a caller who is then denied ([ADR-QD-104](decisions/104-a-projected-read-decides-against-the-value-it-projects.md)).
+
+**Enforcement**: `packages/core/test/Qadi.test.ts` — the mirror of the two-channel hazard (the private record's `secret` is not projected, which kills a mutant dropping `resource: value`), a resource-reading policy never failing `MissingResource`, a denial handing nothing over, a loader failure taking no decision and recording none, the decision record's resource being the loaded value, an undischarged binding obligation failing before the value is handed over, the composed coarse gate never running the loader, and `filterProjected` projecting per item; `packages/core/test/Qadi.tst.ts` — `resource` is refused by `enforceLoaded`, `enforceProjectedLoaded` and `enforceProjected`; `features/features/field-visibility/field-visibility.feature` — a record's own owner decides which fields come back.
+
+**Related**: [INV-QD-032](#inv-qd-032-a-guarded-resource-is-the-evaluated-resource), [BEH-QD-324](behaviors/07-enforcement.md#beh-qd-324-a-projected-value-is-the-evaluated-resource), [ADR-QD-043](decisions/043-a-decision-is-computed-from-its-inputs.md), [ADR-QD-104](decisions/104-a-projected-read-decides-against-the-value-it-projects.md).
+
+---
+
+## INV-QD-130: A purge never selects a row its archive does not hold
+
+For any `entries`, `RetentionPolicy`, `now` and `VerifiedArchive`, every row in `planPurge(entries, policy, now, archive).purge` is past its age (INV-QD-101) and is held by `archive`, counted: the number of structurally equal rows purged never exceeds the number the archive holds. Every other age-expired row is in `retain` and in `unarchived`. A `VerifiedArchive` exists only as the result of `readAuditArchive` over a stored bundle that decodes, matches its declared count, has no sequence gap or duplicate, is in the order `archiveAuditTrail` writes and does not claim a verification it cannot back.
+
+**Source**: `packages/audit/src/Retention.ts` — `planPurge`, the only function returning rows to delete; `packages/audit/src/AuditArchive.ts` — `readAuditArchive` and `VerifiedArchive`, whose `#private` member means no object literal is assignable to it.
+
+**Implication**: "archive before purge" was a sentence in three doc comments and the README, and the package's own selector returned rows to delete that it knew nothing about. It is now the type of the function's fourth argument, and what counts as "archived" is what a store handed back, not what the caller believes. A `VerifiedArchive` is evidence of what the bytes say and nothing more: it does not prove the store is durable, the bytes are untampered, the trail is complete or the retention period adequate, and it must never be described as such (ADR-QD-016: durability and tamper-evidence are out of scope; ADR-QD-056). The compile-time guard does not stop a caller who forges the value by reflection.
+
+**Enforcement**: the property in `packages/audit/test/Retention.test.ts` (random entries, a random sub-multiset archived through `archiveAuditTrail`, `JSON`, `readAuditArchive`: `purge` is a sub-multiset of the archive and equals the smaller of the eligible and archived copies of each row); the examples there (empty archive, edited row, renumbered row, two identical rows, sibling row, a round trip through `decodeAuditEntry`); `packages/audit/test/Retention.tst.ts` and `AuditArchive.tst.ts` (no call without an archive, no forged archive); `packages/audit/test/AuditArchive.test.ts` (one test per `ArchiveRefusal`).
+
+**Related**: [INV-QD-053](#inv-qd-053-retained-and-purged-partition-entries), [INV-QD-054](#inv-qd-054-verifysequenceintegrity-detects-every-gap-and-duplicate-sequence-number), [INV-QD-101](#inv-qd-101-retention-never-selects-a-row-without-a-finite-age-past-a-valid-limit), [BEH-QD-253](behaviors/33-audit-pipeline.md#beh-qd-253-retention-partitions-entries-by-construction), [BEH-QD-254](behaviors/33-audit-pipeline.md#beh-qd-254-sequence-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order), [ADR-QD-056](decisions/056-audit-companion-package.md).
+---
+
+## INV-QD-120: A signature recorded for a discharge is keyed by the question it discharged
+
+A signature recorded while an obligation is discharged is stored under the pair `SignatureHistory` is later asked with, `(subjectId, resourceId)`, both derived from the discharged question. A resource-scoped `hasSignature` on that resource finds it, one on any other resource does not, and a subject-global (`scope: "Any"`) one does not find a signature recorded for a resource.
+
+**Source**: `packages/core/src/Resource.ts` — `resourceIdOf`, the writer's reading of the id rule `askSignature` reads with (a string `id`, else none); `packages/audit/src/SignatureCapturePort.ts` — `captureRequestOf` carries `resourceIdOf(question.resource)` and the signer `question.subject.id`; `packages/audit/src/SignatureLedger.ts` — `ledgerEntryOf` computes the write key once, and `SignatureLedgerTest` groups by `signatureHistoryPort.key`, the read key.
+
+**Implication**: the loop obligation -> capture -> `SignatureHistory` -> `hasSignature` did not close. The capture request carried no resource, so a flow that stored what it captured stored it with none; the default-scope `hasSignature` then denied ("no signatures are on file") and a `scope: "Any"` one allowed for every resource, which is wider than the signer attested, since the signing act was about one document. A write key and a read key that are computed in two places can drift; here they are one rule ([ADR-QD-105](decisions/105-an-obligation-is-discharged-against-the-question-it-answered.md)).
+
+**Enforcement**: `packages/audit/test/SignatureLoop.test.ts` — the loop in both modes (the capture port persists under the request's key, and the ledger): the discharged resource is satisfied, another resource is not, `scope: "Any"` is not; `packages/audit/test/SignatureLedger.test.ts` — the ledger's keying, a copy per read, mismatch and ledger-failure refusals; `packages/core/test/Resource.test.ts` — `resourceIdOf`; `features/features/signatures/signatures.feature`.
+
+**Related**: [INV-QD-055](#inv-qd-055-signatureobligationhandler-calls-capture-exactly-once-and-the-obligationrecord-matches), [INV-QD-013](#inv-qd-013-enforcement-never-proceeds-on-an-undischarged-obligation), [BEH-QD-326](behaviors/33-audit-pipeline.md#beh-qd-326-a-signature-captured-for-a-discharged-question-answers-that-question-and-no-other), [ADR-QD-058](decisions/058-hassignature-a-ninth-service-and-a-decomposable-leaf.md), [ADR-QD-105](decisions/105-an-obligation-is-discharged-against-the-question-it-answered.md).
+
+---
+
+## INV-QD-180: `/__permissions` lists what `@qadi/http` enforces, and only that
+
+For every endpoint an application serves through `@qadi/http`, `PermissionRegistry` lists the endpoint under permission P if and only if the middleware or route that serves it enforces P on it. A surface that enforces registers as a consequence of being built; a composition that would list an endpoint nothing enforces is refused at layer build, and at compile time where the type is precise.
+
+**Source**: `packages/http/src/GuardApi.ts` — `guardApi`, the only way to obtain `RequirePermission`'s middleware, registers each `Required` endpoint of its API when built and fails (registering nothing) with `MisplacedAccessDeclaration` or `RequirePermissionNotAttached`; `packages/http/src/RequirePermissionMiddleware.ts` refuses an endpoint outside the API it was built for; `packages/http/src/PermissionRegistry.ts` — `addGuardedRoute`, the bare-route half, registers in the same layer that adds the route.
+
+**Implication**: two layers used to do this, composed independently. Forgetting `registerApi` left `/__permissions` claiming to list every permission the application enforces while omitting every `HttpApi` endpoint; attaching the middleware wrongly (`.middleware(RequirePermission).add(group)`, which Effect documents as not applying to endpoints added afterwards) did the opposite, listing an endpoint as guarded while it was served to anyone. Five in-repo compositions enforced an `HttpApi` without `registerApi`, one of them the package-install gate's consumer fixture. BEH-QD-180 already said the registry MUST list a permission only if it is enforced; with two layers nothing could make that true.
+
+**Enforcement**: `packages/http/test/endpointAccess.test.ts` — the differential over every placement of a declaration: listed under P if and only if P is enforced; `packages/http/test/GuardApi.test.ts` — registration with no second call, a refused build registers nothing, the membership refusal, two APIs each with their own `guardApi`; `packages/http/test/GuardApi.tst.ts` — the compile-time attachment refusal and the layer's requirements.
+
+**Related**: [INV-QD-034](#inv-qd-034-an-endpoints-authorization-is-declared-not-inferred), [BEH-QD-328](behaviors/23-http.md#beh-qd-328-a-guarded-httpapi-is-registered-by-the-layer-that-guards-it), [BEH-QD-180](behaviors/23-http.md#beh-qd-180-the-registry-answers-which-permission-not-which-policy), [BEH-QD-320](behaviors/23-http.md#beh-qd-320-an-endpoints-access-is-read-once-from-the-endpoint), [ADR-QD-036](decisions/036-qadi-http-package-shape.md).
+---
+
+## INV-QD-170: A decision agrees with its trace
+
+A `Decision`'s verdict, `visibleFields`, `obligations` and `reason` are its trace root's: an `Allow` is built from a trace whose root allows and carries that root's fields and duties, a `Deny` from one whose root denies and carries its reason (or `"denied"` when the root has none). A value that arrives already carrying both copies is accepted only when they agree: a decoded record's decision agrees with its own trace, its `evaluationId` and `subjectId` are the record's, and its trace root names the record's policy tag; a `Disclosed` hydration seed agrees with its own trace. Fields are compared byte for byte, so `undefined` (every field) and `[]` (none) disagree (INV-QD-004).
+
+**Source**: `packages/core/src/Decision.ts` — `makeDecision` (the one constructor), the `Allow` and `Deny` constructors (a stamp and a trace; the derived fields cannot be passed), and `decisionDisagreement` with its closed `DecisionDisagreement` union (the one rule, its equivalences derived by `Schema.toEquivalence` from the codec schemas); `packages/core/src/DecisionWire.ts` — `decodeDecision` builds through `makeDecision` after the rule; `packages/core/src/SinkCodec.ts` — the record-level `EvaluationId`, `SubjectId` and `PolicyTag` comparisons, refused as `DecodeRefusal.Inconsistent`; `packages/react/src/HydrationEngine.ts` — `entryAgrees`, a disagreeing `Disclosed` seed dropped as `MalformedEntry`; `scripts/check-house-style.mjs` — `no-decision-constructor-outside-decision`.
+
+**Implication**: the verdict, the fields and the duties were stored twice and nothing compared them, so a contradictory record (a trace that denies beside an `Allow`, a restricted trace beside an `Allow` showing every field, a binding duty dropped) decoded, projected the wrong fields and re-encoded unchanged, and the devtools log and inspector read different copies of one evaluation. What this closes is contradiction, not forgery: the wire is not signed, so a record that is consistently forged still decodes (ADR-QD-039: a seed is not an authority, and the client's own answer supersedes it, INV-QD-028). The codec's own `V2_DECIDED_ALLOW` golden and main round-trip fixture were disagreeing records that no evaluator produces; they are corrected, inside the trace only, and the wire format does not change.
+
+**Enforcement**: `packages/core/test/Decision.tst.ts` — a disagreeing `Allow` or `Deny` does not compile; `packages/core/test/DecisionAgreement.test.ts` — each arm of the rule, `undefined` against `[]`, nested duty attributes, and the properties that `makeDecision` over any trace and every decision `evaluate` produces agree with their traces; `packages/core/test/SinkCodecAgreement.test.ts` — ten hand-built contradictory records refused with the exact disagreement, and a property that each one-field contradiction of an evaluated record is refused while the record itself decodes; `packages/core/test/Decision.test.ts` and `DecisionWire.test.ts` — the constructors and the wire round trip; `packages/devtools/test/model/Source.test.ts` — a frame dropped as `"inconsistent"`; `packages/react/test/HydrationPayload.test.ts` — four forged disclosures dropped, a mutated-trace property, and the evaluated control.
+
+**Related**: [INV-QD-004](#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top), [INV-QD-022](#inv-qd-022-a-hydrated-decision-belongs-to-the-subject-that-hydrates-it), [INV-QD-059](#inv-qd-059-a-seeded-decision-never-claims-a-trace-it-was-not-given), [INV-QD-096](#inv-qd-096-whatever-the-record-codec-emits-it-accepts), [INV-QD-098](#inv-qd-098-a-decoded-decision-record-has-exactly-the-outcome-its-sender-sent), [INV-QD-103](#inv-qd-103-a-trace-lines-up-with-its-policys-explanation-position-by-position), [ADR-QD-106](decisions/106-a-decision-is-constructed-from-its-trace.md).
+
+
+---
+
+## INV-QD-241: A remote port fails where its store fails
+
+A port answered through `answerRemotely` and asked through `askRemotely` gives the asker the answer the serving port gave, or the port's own typed error, and nothing in between. A store that fails or dies on the answering side is `Unavailable` on the wire and the port's typed error on the asking side (with a `RemotePortError` as its `cause`); `"Unknown"` crosses only as an `Answered` value the serving port returned. A question about any subject but the session's is refused (`SubjectMismatch`), one outside the host's serving declaration is refused (`NotServed`), a malformed one is refused (`Malformed`), and an answer with no JSON form is refused (`Unencodable`), none of them ever thrown. No server cause text reaches the asker.
+
+**Source**: `packages/core/src/PortRemote.ts` — `answerRemotely` (decode, then the subject against `CurrentSubject`, then the declaration, then `servePortRead`, then `encodeAnswer`; it never fails), `askRemotely` (every non-answer is `d.failure(args, RemotePortError)`), and the hoisted `replyOutcome`; `packages/core/src/PortWire.ts` — the closed `PortWireReply`, `PortWireRefusal` and `RemotePortFailure`; `packages/core/src/PortAccess.ts` — `servePortRead`, the only way a served question reads a port; `packages/core/src/PortWireEncode.ts` and `JsonHazard.ts` — strict decode, depth bound and the refusal of a value with no JSON form.
+
+**Implication**: the newsroom example answered a relationship or history outage with `200 "Unknown"`, which the evaluator denies on and which `not(hasRelationship("banned"))` turns into a grant (INV-QD-006), and read an unrecognised 2xx body as `"Unknown"` for the same effect. The wire has no value that means "the store was down" except a failure, so there is nothing for a negation to flip. The subject rule closes the other half: the route used to answer the cookie's subject under the asked subject's name, so a devtools simulator asking about someone else was told a confident wrong answer.
+
+**Enforcement**: `packages/core/test/PortConformance.test.ts` — the wire cases for every registry row (question and answer round trips through JSON text including `none.answer`, malformed and widened questions, malformed answers); `packages/core/test/PortWire.test.ts` — an attribute value round-trips, a value with no JSON form is refused and never thrown, `toJson` detaches, `__proto__` stays a key; `packages/core/test/PortRemote.test.ts` — per registry row: answered, an outage and a dying store as the port's own error with no cause text, a question about another subject, a question outside the declaration, a malformed body, a transport failure, an unreadable reply; the `not(hasRelationship)`, `hasNotActed`, `hasRelationship` and attribute failures; a serving `RelationshipResolverNever` still denies; `servingFor` admits every question `evaluate` asks for a generated policy; `packages/core/test/PortServe.test.ts` — the served span, metric and defect mapping per row; `packages/core/test/PortWire.tst.ts` — a description without a wire, or with the wrong answer type, does not compile; `packages/http/test/PortRoutes.test.ts` — the same per row over `HttpRouter.toWebHandler`, the status table, `no-store`, the guarded and unguarded forms; `examples/nextjs-newsroom/test/port-routes.test.ts` and `port-subject.test.ts` — the example's routes and browser adapters.
+
+**Related**: [INV-QD-006](#inv-qd-006-failure-is-not-denial), [INV-QD-014](#inv-qd-014-an-unwired-history-port-denies-both-polarities), [INV-QD-044](#inv-qd-044-a-span-never-carries-a-resolved-attributes-value), [INV-QD-095](#inv-qd-095-every-port-is-described-once-and-every-derived-layer-agrees-with-its-description), [BEH-QD-329](behaviors/34-remote-ports.md#beh-qd-329-an-outage-on-the-answering-side-reaches-the-asker-as-the-ports-own-error), [ADR-QD-107](decisions/107-a-port-is-answered-remotely-through-its-description.md).

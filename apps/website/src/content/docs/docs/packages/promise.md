@@ -60,6 +60,28 @@ That keeps one runtime usable across every user of a server process: a login
 never rebuilds the attribute resolver, and a long-lived runtime never ends up
 holding one subject as ambient state.
 
+## Cancelling a call
+
+Every method takes a `signal` among its options, forwarded untouched to the
+runtime — the same convention as `fetch(url, { signal })`. Aborting it stops
+the work underway (a `filter` over a large collection issues no further
+lookups) and the promise **rejects** with the runtime's interruption error,
+not with `signal.reason`: mapping it would be a branch, and this facade has
+none. A signal aborted before the call starts rejects without running a lookup.
+
+```typescript
+import { EvaluationServicesNone, hasRole, makeSubject } from "@qadi/core";
+import { makeQadi } from "@qadi/promise";
+
+const qadi = makeQadi(EvaluationServicesNone);
+const subject = makeSubject({ id: "u-1", roles: ["editor"] });
+
+export const filterUnlessAbandoned = async (
+  items: ReadonlyArray<{ readonly id: string }>,
+  signal: AbortSignal,
+) => qadi.filter(subject, hasRole("editor"), items, { signal });
+```
+
 ## License
 
 MIT

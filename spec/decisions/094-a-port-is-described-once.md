@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-094                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-10-05                                     |
+> | Revision       | 1.4                                            |
+> | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
+> | Change History | 1.4 (2026-10-08): amendment — a description also states its wire, `PortDescription.wire`, and the registry makes a missing wire a compile error (ARCH-31, ADR-QD-107, CCR-QD-382)<br>1.3 (2026-10-08): amendment — each port's fixture builder is listed in `PORT_FIXTURES`, closed over `PortName`, beside its description (ARCH-42, CCR-QD-270)<br>1.2 (2026-10-08): amended: a request key is injective over every argument the port receives; the relationship and custom-predicate keys are corrected (ARCH-45 I1, CCR-QD-263)<br>1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
 
 ---
 
@@ -214,3 +214,48 @@ description's fail-closed default or a wrapper around it (`none.name`) — a
 reader's label, never an input to a decision. `EvaluationId`, `CurrentSubject`,
 `DecisionCache` and `DecisionSink` stay hand-listed: they are not ports.
 
+> **Amended (ARCH-45 I1, 2026-10-08): a request key is injective over every argument
+> the port receives.** `PortDescription.key` was documented as "a collision-safe key
+> ... that always includes the subject", and two descriptions dropped an argument the
+> port receives: the relationship key ignored `depth` ("traversal fuel, not part of the
+> question", although the resolver contract on the same page requires a traversing
+> resolver to honour it), and the custom-predicate key ignored the resource and
+> everything in the subject but its id. Devtools' capture and replay, keyed by them,
+> answered a depth-1 ask with a depth-3 capture, one resource with another's answer,
+> and a what-if that dropped a role with the original subject's answer (a stale allow).
+> The law is now stated on `key` and checked for all five ports in
+> `PortConformance.test.ts`: two requests share a key only if every argument is
+> structurally equal. The custom-predicate key is canonical (`PortKey.ts`'s
+> `canonicalKey`, package-private: a `Set` as its sorted members, an object with sorted
+> keys), because `JSON.stringify` writes a `Set` as `{}`. Observable change: two key
+> strings, and `CapturedAnswers` (exported) keys with them; no type changes.
+
+## Amendment (2026-10-08, CCR-QD-270)
+
+Each port's fixture builder is listed in `PORT_FIXTURES` (`Ports.ts`), closed over
+`PortName`, beside its description; the description itself gains no field. The
+data a fixture takes is `PortFixtureData[K]`, and `fixturePortsLayer(data, overrides?)`
+is the one place a set of fixture data becomes an environment: `@qadi/testing`'s
+`qadiReviewLayer` and `@qadi/devtools`' Fixtures simulation both call it. Before
+it the data-to-layer map was written twice, once in each, and devtools cannot depend
+on `@qadi/testing` (no test fixtures in a production bundle), so only core could
+hold it. A `fixture` field on `PortDescription` was rejected: it would put a
+test-data shape into every production description and break every literal. A new
+port is therefore a description, a `PortName` member, its registry lines **and one
+`PORT_FIXTURES` row**; omitting the row is TS2741. `CustomPredicate`'s fixture is
+fixed verdicts by name (`Readonly<Record<string, boolean>>`), not functions, so
+`PortFixtureData` stays serializable and devtools' sealed input (ADR-QD-050) stays
+data-only.
+
+## Amendment (2026-10-08, ADR-QD-107, CCR-QD-382)
+
+A description also states its **wire**: `PortDescription.wire` (`PortWire<Args, A>`), a required member
+written in each port module beside `attributes` through the package-private `portWire`
+(`PortWireEncode.ts`). It is the only statement of what a port's question and answer look like off-process,
+and `answerRemotely` / `askRemotely` (`PortRemote.ts`) derive both halves of a remote port from it. It is
+separate from `attributes` because a span field cannot hold an attribute's value (INV-QD-044) and a wire
+must. The ARCH-42 amendment's sentence that the description "gains no field" was about fixtures and still
+holds for them. A new port is therefore a description, a `PortName` member, its registry lines, one
+`PORT_FIXTURES` row **and its wire**; a description without one is a compile error
+(`PortWire.tst.ts`). **Breaking** for anything that builds a `PortDescription` by hand; in this repository
+that is the five port modules and one test probe.

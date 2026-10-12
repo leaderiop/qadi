@@ -20,12 +20,13 @@
  *
  * That also makes {@link PortMetrics}'s note about descriptions — that nothing
  * reads them back, so mutation testing cannot distinguish one from none — false
- * for *these* four. Changing a description here silently detaches the reader
+ * for *these* metrics. Changing a description here silently detaches the reader
  * from the writer, so `HydrationMetrics.test.ts` pins each one.
  *
  * **Counters and frequencies rather than a log**, for the reason `PortMetrics.ts`
- * gives: the default registry is memoised on the reference, so a reader calls
- * `Metric.value` and gets these with **zero wiring**. Hydration runs where no
+ * gives: the default registry is the `MetricRegistry` reference's default, so a
+ * reader that names it (`valueUnsafe(Context.empty())`, as `@qadi/devtools`
+ * does) gets these with **zero wiring**. Hydration runs where no
  * Effect runtime need exist at all — `dehydrateDecisions` on a server rendering
  * a page, `hydrateDecisions` during a client's first render — so the write side
  * uses `updateUnsafe`, which is the only form available off a fiber.
@@ -119,6 +120,95 @@ export const hydrationDropReasons: ReadonlyArray<HydrationDropReason> = [
 ];
 
 /**
+ * What a hydration drop reason means, in the two registers it is read in.
+ *
+ * The meaning of a reason is a fact about this module's closed union, so it is
+ * stated here once and read by every adapter: `@qadi/react`'s console warning
+ * prints `remedy` and `@qadi/devtools`' panel shows `summary`. Two tables in two
+ * packages that cannot see each other's had already drifted apart.
+ *
+ * `summary` is read on a panel beside a count, by someone who may not have
+ * caused the drop. `remedy` is read once, by whoever did, and names the fix.
+ * Neither names an entry's contents: a dropped decision may belong to another
+ * subject (BEH-QD-230).
+ */
+export interface HydrationDropMeaning {
+  readonly summary: string;
+  readonly remedy: string;
+}
+
+/**
+ * A mapped type over the closed union rather than a `Match`: there is no
+ * dispatch here, only a constant per key, and the exhaustiveness a mapped type
+ * over a closed union gives is the same compile error a `Match.exhaustive`
+ * would.
+ */
+const MEANINGS: { readonly [R in HydrationDropReason]: HydrationDropMeaning } = {
+  ForeignSubject: {
+    summary: "the server put two subjects' decisions in one payload",
+    remedy:
+      "a payload mixing subjects has no safe reading, so the others were discarded — " +
+      "check what fed this call",
+  },
+  PayloadSubjectMismatch: {
+    summary: "a payload reached a client it was not rendered for",
+    remedy:
+      "the payload names a different subject than this client's. Nothing was seeded, " +
+      "and nothing should have been — check that the page and its payload were " +
+      "rendered for the same user, and that no cache is serving one user's page to another",
+  },
+  MalformedEntry: {
+    summary: "an entry's shape didn't match what this client expects, apart from its policy",
+    remedy:
+      "an entry's shape didn't match what this client expects — a field other than " +
+      "the policy was missing, of the wrong type, or shaped wrong. The usual cause is " +
+      "version skew, same as an undecodable policy; a hand-built payload that skips " +
+      "required fields is the other",
+  },
+  UndecodablePolicy: {
+    summary: "a policy shape the client's schema does not know — usually version skew",
+    remedy:
+      "their policies did not decode. The usual cause is version skew: the server " +
+      "encoded a policy shape this client's schema does not know",
+  },
+  EntryTooDeep: {
+    summary: "an entry nested past the client's structural depth guard, before any decode ran",
+    remedy:
+      "an entry nested deeper than this client will walk. That is not a shape a " +
+      "well-behaved server produces — check what fed this payload",
+  },
+  UnsupportedPayloadVersion: {
+    summary:
+      "a payload version this client does not read — a deploy in flight, or mismatched releases",
+    remedy:
+      "the payload's version is one this client does not read. A page cached by one " +
+      "deploy and hydrated by the next does this for as long as the deploy takes; if " +
+      "it persists, the server and the client are running different @qadi/react releases",
+  },
+  MalformedPayload: {
+    summary: "a payload that is not shaped like a dehydrated payload at all",
+    remedy:
+      "the payload is not shaped like a dehydrated payload — not an object, no " +
+      "entries array, an unrecognised key, or nested past the structural depth guard. " +
+      "Check that what reached hydrateDecisions is the JSON dehydrateDecisions " +
+      "produced, unmodified",
+  },
+};
+
+/** The summary and the remedy for one reason. */
+export const hydrationDropMeaning = (reason: HydrationDropReason): HydrationDropMeaning =>
+  MEANINGS[reason];
+
+/**
+ * Whether a metric key is one of {@link hydrationDropReasons}.
+ *
+ * A frequency's keys arrive as `string`, and any module in the process can write
+ * a word into it; this narrows one without a cast.
+ */
+export const isHydrationDropReason = (word: string): word is HydrationDropReason =>
+  hydrationDropReasons.some((one) => one === word);
+
+/**
  * Decisions a server projected into a payload.
  *
  * A **counter** rather than a key on a shared frequency, and the reason is
@@ -149,7 +239,7 @@ export const hydrationSeededTotal = Metric.counter("qadi_hydration_seeded_total"
  * is a version skew. The per-call increment costs one map write per lost entry,
  * on a path that only runs when something is already wrong.
  *
- * `preregisteredWords` puts all five reasons in the snapshot at zero, so a
+ * `preregisteredWords` puts every reason in `hydrationDropReasons` in the snapshot at zero, so a
  * reader gets the closed set from the metric rather than having to restate it —
  * and an absent reason reads as *did not happen* rather than as *this build does
  * not know about it*.

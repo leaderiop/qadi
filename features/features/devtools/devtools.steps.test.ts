@@ -31,7 +31,7 @@ import {
   role,
   stampRecord,
 } from "@qadi/core";
-import type { StoredRecord, Trace } from "@qadi/core";
+import type { AllowingTrace, DenyingTrace, StoredRecord } from "@qadi/core";
 import {
   countsOf,
   emptyTimeline,
@@ -52,13 +52,20 @@ const alice = fromRoles({ id: "alice", roles: [reader] });
 
 const services = EvaluationServicesNone;
 
-const trace = (allowed: boolean): Trace => ({
+const allowingTrace: AllowingTrace = {
   policyTag: "HasPermission",
-  allowed,
-  ...(allowed ? {} : { reason: "the subject does not hold doc:read" }),
+  allowed: true,
   children: [],
   obligations: [],
-});
+};
+
+const denyingTrace: DenyingTrace = {
+  policyTag: "HasPermission",
+  allowed: false,
+  reason: "the subject does not hold doc:read",
+  children: [],
+  obligations: [],
+};
 
 // Unstamped, and taking an `evaluationId` override, so the re-check steps
 // below can build a second record for the same evaluation without spreading
@@ -77,16 +84,13 @@ const buildDecision = (at: number, allowed: boolean, evaluationId?: string): Dec
             evaluationId: id,
             subjectId: makeSubjectId("alice"),
             durationMillis: 1,
-            trace: trace(true),
-            visibleFields: undefined,
-            obligations: [],
+            trace: allowingTrace,
           })
         : new Deny({
             evaluationId: id,
             subjectId: makeSubjectId("alice"),
             durationMillis: 1,
-            trace: trace(false),
-            reason: "the subject does not hold doc:read",
+            trace: denyingTrace,
           }),
     }),
   });

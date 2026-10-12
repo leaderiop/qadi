@@ -275,3 +275,137 @@ describe("what a seed carries is what the server decided", () => {
     expect(drops.map((d) => d.reason)).toEqual(["MalformedEntry"]);
   });
 });
+
+describe("a Disclosed seed that contradicts its own trace is dropped (ARCH-32)", () => {
+  const policy = { _tag: "HasRole", role: "admin" };
+  const traceOf = (allowed: boolean, extra: object = {}) => ({
+    policyTag: "HasRole",
+    allowed,
+    children: [],
+    obligations: [],
+    ...extra,
+  });
+  const base = { evaluationId: "e1", durationMillis: 0 };
+  const payloadOf = (decision: object) => ({
+    version: 2,
+    subjectId: "u1",
+    entries: [{ policy, decision }],
+  });
+
+  const forged: ReadonlyArray<readonly [string, object]> = [
+    [
+      "H1 an Allow whose Disclosed trace says allowed:false",
+      {
+        _tag: "Allow",
+        ...base,
+        obligations: [],
+        disclosure: { _tag: "Disclosed", trace: traceOf(false, { reason: "no" }) },
+      },
+    ],
+    [
+      "H2 an Allow showing every field whose Disclosed trace restricts to [title]",
+      {
+        _tag: "Allow",
+        ...base,
+        obligations: [],
+        disclosure: { _tag: "Disclosed", trace: traceOf(true, { visibleFields: ["title"] }) },
+      },
+    ],
+    [
+      "H3 a Deny whose Disclosed trace says allowed:true",
+      {
+        _tag: "Deny",
+        ...base,
+        disclosure: { _tag: "Disclosed", trace: traceOf(true), reason: "x" },
+      },
+    ],
+    [
+      "H4 a Deny whose Disclosed reason is not the trace's",
+      {
+        _tag: "Deny",
+        ...base,
+        disclosure: { _tag: "Disclosed", trace: traceOf(false, { reason: "real" }), reason: "forged" },
+      },
+    ],
+  ];
+
+  it.each(forged)("%s", (_name, decision) => {
+    const drops: Array<HydrationDrop<unknown>> = [];
+    const seeded = [...hydrate(payloadOf(decision), alice, { onDropped: (d) => drops.push(d) })];
+    expect(seeded).toEqual([]);
+    expect(drops.map((d) => d.reason)).toEqual(["MalformedEntry"]);
+  });
+
+
+  it("an evaluated, disclosed entry whose trace root is changed in one duplicated field is dropped", async () => {
+    /** The part of a payload the mutations reach: the first entry's disclosed trace root. */
+    interface Root {
+      entries: Array<{
+        decision: {
+          disclosure: {
+            trace: {
+              allowed: boolean;
+              visibleFields?: Array<string>;
+              obligations: Array<unknown>;
+              reason?: string;
+            };
+          };
+        };
+      }>;
+    }
+    const rootOf = (payload: Root) => {
+      const entry = payload.entries[0];
+      if (entry === undefined) throw new Error("expected an entry");
+      return entry.decision.disclosure.trace;
+    };
+    // Only a copy the entry repeats can disagree: an allow repeats the fields and
+    // duties, a denial repeats the reason, and both repeat the verdict.
+    const forAllow: ReadonlyArray<(payload: Root) => void> = [
+      (payload) => {
+        rootOf(payload).allowed = false;
+      },
+      (payload) => {
+        rootOf(payload).visibleFields = ["zzz"];
+      },
+      (payload) => {
+        rootOf(payload).obligations.push({ id: "extra", attributes: {}, advisory: false });
+      },
+    ];
+    const forDeny: ReadonlyArray<(payload: Root) => void> = [
+      (payload) => {
+        rootOf(payload).allowed = true;
+      },
+      (payload) => {
+        const root = rootOf(payload);
+        root.reason = `${root.reason ?? "denied"}!`;
+      },
+    ];
+    for (const entryPolicy of [read, isAdmin, obliged(obligation("audit.log"), read)]) {
+      const server = await decide(entryPolicy);
+      const wire = json(
+        dehydrateDecisions([{ policy: entryPolicy, decision: server }], { includeTrace: true }),
+      );
+      for (const mutate of isAllowed(server) ? forAllow : forDeny) {
+        const mutated: Root = JSON.parse(JSON.stringify(wire));
+        mutate(mutated);
+        const drops: Array<HydrationDrop<unknown>> = [];
+        const seeded = [...hydrate(mutated, alice, { onDropped: (d) => drops.push(d) })];
+        expect(seeded).toEqual([]);
+        expect(drops.map((d) => d.reason)).toEqual(["MalformedEntry"]);
+      }
+    }
+  });
+
+  it("an evaluated decision, disclosed, still seeds (the control)", async () => {
+    for (const entryPolicy of [read, isAdmin]) {
+      const server = await decide(entryPolicy);
+      const wire = dehydrateDecisions([{ policy: entryPolicy, decision: server }], {
+        includeTrace: true,
+      });
+      const drops: Array<HydrationDrop<unknown>> = [];
+      const seeded = [...hydrate(wire, alice, { onDropped: (d) => drops.push(d) })];
+      expect(seeded).toHaveLength(1);
+      expect(drops).toEqual([]);
+    }
+  });
+});

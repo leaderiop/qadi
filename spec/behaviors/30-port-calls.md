@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-30                                    |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-10-07): BEH-QD-227 — each span's attributes are stated once, by its port's description (`attributes`: a question annotated before the call, an answer annotated after, and `disclose`), and `PortAccess.ts` writes through that statement; `qadi.attempts` joins the listing; the list of ports whose answers are closed is corrected (four, not two); BEH-QD-228 — `@qadi/devtools` reads a span through the same description (`decodePortSpan`), a value outside a field's closed union reads as absent, and a row carries `attempts`, and a signature row its `scope` and `resourceId` (ARCH-21, CCR-QD-198)<br>1.3 (2026-10-05): BEH-QD-227 — each span's name is read from its port's description (`span`, `PortSpanName`) by both `PortAccess.ts` and `@qadi/devtools`' collector; BEH-QD-229 — the Services screen shows timeouts beside retries (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-04): BEH-QD-227/BEH-QD-228 — the spans move to `PortAccess.ts` and gain `qadi.interpreter`; BEH-QD-267 — `toPredicate`'s port reads are spans too (CCR-QD-153, ADR-QD-077)<br>1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
+> | Change History | 1.5 (2026-10-08): BEH-QD-227 — `qadi.interpreter` gains `"remote"` for a served read; `PortCall.interpreter` follows (ARCH-31, CCR-QD-382)<br>1.4 (2026-10-07): BEH-QD-227 — each span's attributes are stated once, by its port's description (`attributes`: a question annotated before the call, an answer annotated after, and `disclose`), and `PortAccess.ts` writes through that statement; `qadi.attempts` joins the listing; the list of ports whose answers are closed is corrected (four, not two); BEH-QD-228 — `@qadi/devtools` reads a span through the same description (`decodePortSpan`), a value outside a field's closed union reads as absent, and a row carries `attempts`, and a signature row its `scope` and `resourceId` (ARCH-21, CCR-QD-198)<br>1.3 (2026-10-05): BEH-QD-227 — each span's name is read from its port's description (`span`, `PortSpanName`) by both `PortAccess.ts` and `@qadi/devtools`' collector; BEH-QD-229 — the Services screen shows timeouts beside retries (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-04): BEH-QD-227/BEH-QD-228 — the spans move to `PortAccess.ts` and gain `qadi.interpreter`; BEH-QD-267 — `toPredicate`'s port reads are spans too (CCR-QD-153, ADR-QD-077)<br>1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
 
 _Previous: [29 — The Subject Simulator](./29-devtools-simulator.md)_
 
@@ -49,8 +49,9 @@ Each name is its port's description's `span` — a member of the closed
 `@qadi/devtools`' `collectPortCalls`, which keeps it, read it there, so the two
 cannot name different spans ([ADR-QD-094](../decisions/094-a-port-is-described-once.md)).
 
-`qadi.interpreter` is `"evaluate"` or `"toPredicate"` (a closed pair): the span
-says which interpreter asked. `qadi.hasRelationship`, `qadi.hasCustom` and
+`qadi.interpreter` is `"evaluate"`, `"toPredicate"` or `"remote"` (a closed set of three, stated once in
+`PortInterpreter.ts`): the span says which interpreter asked, or that the host was answering another
+process ([BEH-QD-332](./34-remote-ports.md)). `qadi.hasRelationship`, `qadi.hasCustom` and
 `qadi.hasSignature` are only ever emitted by `evaluate`, because translation
 refuses those nodes before it would ask
 ([BEH-QD-123](./16-predicates.md#beh-qd-123-untranslatable-fails-nothing-is-approximated)),
@@ -153,9 +154,9 @@ export type PortCall =
   | SignatureHistoryCall;
 ```
 
-Every `PortCall` carries an `interpreter` — `"evaluate"`, `"toPredicate"`, or
+Every `PortCall` carries an `interpreter` — `"evaluate"`, `"toPredicate"`, `"remote"`, or
 `undefined` when the span did not record one (an older `@qadi/core`, or a value
-outside the pair), which reads as *not recorded* like every other field.
+outside the set), which reads as *not recorded* like every other field.
 
 `CustomPredicateCall` and `SignatureHistoryCall` reuse the same `Effect.fn`
 span-and-collect pattern as the other three: `askCustom` and `askSignature` in

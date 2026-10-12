@@ -118,6 +118,34 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 3a. Every ADR's Document ID names its own file number.
+#
+# QADI-ADR-NNN must match NNN-*.md. Three ADRs (095 to 097) carried IDs
+# 902 to 904 for months, and ADR-094's carried 901: the slip was found by
+# accident twice, so the third time is a check (ARCH-45 I7). An ADR with no
+# Document ID row is not checked here: not every ADR carries a Document Control
+# table.
+# ---------------------------------------------------------------------------
+if [[ -d "$SPEC_DIR/decisions" ]]; then
+  mismatched=""
+  checked=0
+  for f in "$SPEC_DIR"/decisions/[0-9][0-9][0-9]-*.md; do
+    [[ -e "$f" ]] || continue
+    num="$(basename "$f" | cut -c1-3)"
+    id="$(grep -m1 -oE '\| Document ID +\| +QADI-ADR-[0-9]+' "$f" | grep -oE '[0-9]+$' || true)"
+    [[ -n "$id" ]] || continue
+    checked=$((checked + 1))
+    [[ "$id" == "$num" ]] || mismatched="${mismatched} ${num}(QADI-ADR-${id})"
+  done
+
+  if [[ -n "$mismatched" ]]; then
+    report FAIL "ADR Document ID = file number" "mismatched:${mismatched}"
+  else
+    report PASS "ADR Document ID = file number" "$checked ADR(s) agree"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # 3b. Every URS-QD-NNN declared in urs.md appears in its traceability table.
 #
 # The heading declares a requirement; the table is where it is tied to a
@@ -293,6 +321,17 @@ if [[ -f "$SPEC_DIR/README.md" ]]; then
   fi
 else
   report SKIP "CCR register coverage" "spec/README.md absent"
+fi
+
+# ---------------------------------------------------------------------------
+# 8. Every document's Revision row equals its newest Change History entry.
+#    scripts/spec-revise.mjs owns the header format; a change that adds history
+#    without bumping the row (or the reverse) fails here, not in review.
+# ---------------------------------------------------------------------------
+if revision_out="$(node "$ROOT_DIR/scripts/spec-revise.mjs" --check 2>&1)"; then
+  report PASS "Revision = newest history entry" "every header agrees"
+else
+  report FAIL "Revision = newest history entry" "$(tr '\n' ' ' <<< "$revision_out" | cut -c1-200)"
 fi
 
 # ---------------------------------------------------------------------------

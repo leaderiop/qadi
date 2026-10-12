@@ -15,6 +15,9 @@
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
+import * as Result from "effect/Result";
+import { admit } from "./Admission.ts";
+import type { Admitted } from "./Admission.ts";
 import type { AttributeResolver } from "./AttributeResolver.ts";
 import { compareVerdict, holds, memberVerdict } from "./Compare.ts";
 import type { CompareOp } from "./Compare.ts";
@@ -23,7 +26,7 @@ import { CurrentSubject } from "./CurrentSubject.ts";
 import type { DecisionHistory } from "./DecisionHistory.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
 import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors.ts";
-import { MissingAction, PolicyNotTranslatable, PolicyTooDeep } from "./Errors.ts";
+import { MissingAction, PolicyNotTranslatable } from "./Errors.ts";
 import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
 import {
   evaluateMatcher,
@@ -32,8 +35,10 @@ import {
   referencesResource,
 } from "./Matcher.ts";
 import { permissionKey } from "./Permission.ts";
-import { DEFAULT_MAX_DEPTH, fieldsOf, foldPolicy, foldPolicyCases, policyDepth } from "./Policy.ts";
+import { fieldsOf, foldPolicy, foldPolicyCases } from "./Policy.ts";
 import { askActedAny, readAttribute } from "./PortAccess.ts";
+import { questionOf } from "./Question.ts";
+import type { Question, QuestionOptions } from "./Question.ts";
 import type { Combining, Policy, PolicyCases, RuleEffect } from "./Policy.ts";
 import { anyOfStopsAtAllow, effectiveCombining, rulesDecisiveEffect } from "./ShortCircuit.ts";
 
@@ -182,16 +187,15 @@ export const evaluatePredicate = (
  */
 export type PredicateServices = CurrentSubject | AttributeResolver | DecisionHistory;
 
-export interface PredicateOptions {
-  /**
-   * What the caller is doing. A property of the request, so it folds — but a
-   * policy that reads it without one supplied fails, exactly as in the
-   * evaluator (INV-QD-011).
-   */
-  readonly action?: string;
-  /** Maximum policy tree depth. Bounds recursion on hostile decoded input. */
-  readonly maxDepth?: number;
-}
+/**
+ * What `toPredicate` is asked: {@link QuestionOptions} without `resource`.
+ *
+ * Derived rather than listed, so an option that can change `evaluate`'s answer
+ * reaches translation by this type and cannot be silently ignored by it
+ * (INV-QD-018, ARCH-41). `resource` is absent by design: a predicate filters
+ * rows not yet loaded (ADR-QD-024). `Question.test.ts` classifies every key.
+ */
+export type PredicateOptions = Omit<QuestionOptions, "resource">;
 
 const untranslatable = (
   policyTag: string,
@@ -279,34 +283,9 @@ const restrictsFields = (policy: Policy): boolean =>
   );
 
 /**
- * A tree shown to be no deeper than `maxDepth`, and whether any node in it
- * restricts visible fields.
- *
- * Also the proof `compile` demands: only {@link checkFields} constructs one, so
- * "the depth was already checked" is something the type checker proves rather
- * than a second runtime guard whose failing branch could never run — an
- * unkillable mutant.
- */
-class Checked {
-  constructor(readonly restricts: boolean) {}
-}
-
-/**
- * The depth check, as a result: `undefined` when the policy nests deeper than
- * `maxDepth`, otherwise the {@link Checked} proof.
- *
- * Depth is judged first and from the policy alone (`policyDepth`, which counts
- * matcher nesting too), so a policy that is both too deep and field-restricting
- * is always `PolicyTooDeep` — independent of child order, as the evaluator's own
- * root check is independent of who is asking (ARCH-02 D-02-e, N4).
- */
-const checkFields = (policy: Policy, maxDepth: number): Checked | undefined =>
-  policyDepth(policy) > maxDepth ? undefined : new Checked(restrictsFields(policy));
-
-/**
  * What a translation can fail with once it is running — a port that failed, or
  * an action nobody supplied. Refusals and depth are decided before anything runs
- * (see {@link compile}), so `PolicyNotTranslatable` and `PolicyTooDeep` are not
+ * (see {@link compileTree}), so `PolicyNotTranslatable` and `PolicyTooDeep` are not
  * in this set.
  */
 type RunError = AttributeResolveError | DecisionHistoryUnavailable | MissingAction;
@@ -357,22 +336,12 @@ const planned = (plan: Plan): Compiled => plan;
 
 const refused = (policyTag: string, reason: string): Compiled => new Refusal(policyTag, reason);
 
-/** What a matcher sees: the subject, the request's action, and no resource. */
-const matcherContextFor = (subject: AuthSubject, action: string | undefined): MatcherContext => ({
-  subject: subject.attributes,
-  subjectId: subject.id,
-  // There is no resource: that is the whole point. A matcher that reads one
-  // is rejected rather than folded against `undefined`.
-  resource: undefined,
-  action,
-});
-
 /**
  * Plans one `Policy` tree — or refuses it. Pure and synchronous.
  *
  * Every property of the *tree* is decided here: whether a node is in the
  * translatable subset (`PolicyNotTranslatable`, BEH-QD-123) and, by the
- * {@link Checked} proof it demands, whether it is too deep. None of it
+ * {@link Admitted} proof it demands, whether it is too deep. None of it
  * depends on the subject's attributes, the action, or what any port answers, so
  * a policy that refuses for one caller refuses for all of them — it cannot work
  * for an admin in development and fail in production. The first refusal in
@@ -382,12 +351,9 @@ const matcherContextFor = (subject: AuthSubject, action: string | undefined): Ma
  * absent action becomes a `NeedAction` node and fails only if `run` reaches it
  * (INV-QD-011), exactly as the evaluator fails only on reach.
  */
-const compileTree = (
-  policy: Policy,
-  subject: AuthSubject,
-  action: string | undefined,
-): Compiled => {
-  const context = matcherContextFor(subject, action);
+const compileTree = (admitted: Admitted): Compiled => {
+  const { policy, subject, action } = admitted.question;
+  const context = admitted.matcherContext;
 
   /** Plans every folded child in order, stopping at the first refusal. */
   const plansOf = (folded: ReadonlyArray<Compiled>): ReadonlyArray<Plan> | Refusal => {
@@ -544,19 +510,6 @@ const compileTree = (
 };
 
 /**
- * {@link compileTree}, for a tree already shown to be within `maxDepth`.
- *
- * The {@link Checked} parameter is a proof, not data: it is never read, and
- * exists so a caller cannot reach the walk without having checked the depth.
- */
-const compile = (
-  policy: Policy,
-  subject: AuthSubject,
-  action: string | undefined,
-  _checked: Checked,
-): Compiled => compileTree(policy, subject, action);
-
-/**
  * A rule table as a set-based formula, over the conditions `run` asked.
  *
  * The overrides do not depend on position, so each is one line. `FirstApplicable`
@@ -702,6 +655,10 @@ const predicatesTranslatedTotal = Metric.counter("qadi_predicates_translated_tot
  * rendered as `True` would return rows the policy denies — the one failure mode
  * that makes this feature worse than its absence (ADR-QD-024).
  *
+ * `options.action` is a property of the request, so it folds — but a policy
+ * that reads it without one supplied fails, exactly as in the evaluator
+ * (INV-QD-011). `options.maxDepth` bounds recursion on hostile decoded input.
+ *
  * Answers **which rows**, never which columns: a policy carrying a `fields`
  * restriction is refused, because a row filter alone would let a caller select
  * columns the policy withheld. Narrow the page with this, then judge the columns
@@ -712,13 +669,15 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
   options?: PredicateOptions,
 ) {
   const subject = yield* CurrentSubject;
-  const maxDepth = options?.maxDepth ?? DEFAULT_MAX_DEPTH;
-
-  const fieldsCheck = checkFields(policy, maxDepth);
-  if (fieldsCheck === undefined) {
-    return yield* Effect.fail(new PolicyTooDeep({ maxDepth }));
-  }
-  if (fieldsCheck.restricts) {
+  // Translation answers for rows not yet loaded, so its question has no
+  // resource — explicitly, even if a caller's untyped options carried one.
+  const question: Question = { ...questionOf(subject, policy, options), resource: undefined };
+  // Admission first, and from the policy alone: a policy that is both too deep
+  // and field-restricting is always `PolicyTooDeep`, independent of child order
+  // (ARCH-02 D-02-e, N4; INV-QD-037). Shared with `walk` (`Admission.ts`).
+  const admitted = admit(question);
+  if (Result.isFailure(admitted)) return yield* Effect.fail(admitted.failure);
+  if (restrictsFields(policy)) {
     return yield* untranslatable(
       policy._tag,
       "the policy restricts visible fields, and a predicate selects rows rather than columns",
@@ -727,11 +686,11 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
 
   // Refusals first, and from the tree alone: they cannot depend on the subject
   // or on what any port answers (BEH-QD-266). Only then does anything run.
-  const compiled = compile(policy, subject, options?.action, fieldsCheck);
+  const compiled = compileTree(admitted.success);
   if (compiled instanceof Refusal) {
     return yield* untranslatable(compiled.policyTag, compiled.reason);
   }
-  const predicate = yield* run(compiled, subject, matcherContextFor(subject, options?.action));
+  const predicate = yield* run(compiled, subject, admitted.success.matcherContext);
 
   yield* Effect.annotateCurrentSpan({
     "qadi.subject_id": subject.id,

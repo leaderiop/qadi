@@ -1,6 +1,8 @@
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Logger from "effect/Logger";
 import * as Metric from "effect/Metric";
+import * as References from "effect/References";
 import * as Tracer from "effect/Tracer";
 import * as FastCheck from "fast-check";
 import type { AuthSubject } from "../src/AuthSubject.ts";
@@ -76,9 +78,10 @@ export const subjectWith = (config: {
  * The identical implementation `@qadi/testing`'s `CollectingTracer.ts`
  * exports, hand-copied here rather than imported for the same
  * circular-import reason `testLayer`/`subjectWith` above cross-reference:
- * `@qadi/core` cannot depend on `@qadi/testing`, which depends on it. Both
- * copies are two lines of body; a divergence between them would show up as a
- * span this file's own tests stopped seeing, not as a silent drift.
+ * `@qadi/core` cannot depend on `@qadi/testing`, which depends on it.
+ * `scripts/check-house-style.mjs`'s `test-helper-twin` rule fails when the two
+ * bodies differ, so a divergence is a gate failure rather than a span this
+ * file's own tests quietly stopped seeing.
  */
 export const collectingTracer = (spans: Array<Tracer.Span>): Layer.Layer<never> =>
   Layer.succeed(
@@ -95,22 +98,51 @@ export const collectingTracer = (spans: Array<Tracer.Span>): Layer.Layer<never> 
 /**
  * Gives an effect its own `MetricRegistry` for the duration of a test.
  *
- * The `CurrentMetricAttributes` override alongside it is not optional:
- * `effect/Metric`'s `hook` caches an untagged metric's resolved hooks on the
- * metric object itself, for the process's lifetime, the first time it is
- * touched with no ambient `CurrentMetricAttributes` set — the fast path a
- * real deployment (one registry, one process) wants. Every metric this test
- * suite touches is "untagged" by that check even where it carries its own
- * fixed attributes (`Metric.withAttributes`), since the check looks at the
- * ambient context, not at the metric's own attributes. Left unset, the first
- * test to touch a given metric would pin it to that test's registry for
- * every test after.
+ * The identical implementation `@qadi/testing`'s `IsolatedMetrics.ts` exports,
+ * a twin for the same circular-import reason as {@link collectingTracer}, and
+ * held equal to it by `scripts/check-house-style.mjs`'s `test-helper-twin` rule.
+ *
+ * At effect 4.0.0 the registry owns the series and is looked up on every update,
+ * so a fresh `MetricRegistry` alone isolates a metric already touched elsewhere;
+ * `v4-api-smoke.test.ts` pins that fact. (Earlier builds of `effect/Metric` memoised an
+ * untagged metric's hooks on the metric object, which is what a
+ * `CurrentMetricAttributes` override used to defeat; nothing needs it now.) It
+ * cannot isolate an off-fiber write such as `@qadi/react`'s hydration counters,
+ * which land in the default registry whatever the fiber carries.
  */
-export const isolatedMetrics = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-  effect.pipe(
-    Effect.provideService(Metric.MetricRegistry, new Map()),
-    Effect.provideService(Metric.CurrentMetricAttributes, { test: "isolated" }),
-  );
+export const isolatedMetrics = <A, E, R>(
+  effect: Effect.Effect<A, E, R>,
+): Effect.Effect<A, E, R> => Effect.provideService(effect, Metric.MetricRegistry, new Map());
+
+/** One recorded log line (the twin of `@qadi/testing`'s `CapturedLog`). */
+export interface CapturedLog {
+  readonly message: unknown;
+  readonly level: string;
+  readonly annotations: Readonly<{ readonly [key: string]: unknown }>;
+}
+
+/**
+ * A logger that replaces whatever is ambient and records every line it sees.
+ *
+ * The identical implementation `@qadi/testing`'s `CollectingLogger.ts` exports,
+ * a twin for the same circular-import reason as {@link collectingTracer}.
+ */
+export const collectingLogger = (): {
+  readonly lines: ReadonlyArray<CapturedLog>;
+  readonly layer: Layer.Layer<never>;
+} => {
+  const lines: Array<CapturedLog> = [];
+  const layer = Logger.layer([
+    Logger.make((options) => {
+      lines.push({
+        message: options.message,
+        level: options.logLevel,
+        annotations: options.fiber.getRef(References.CurrentLogAnnotations),
+      });
+    }),
+  ]);
+  return { lines, layer };
+};
 
 /**
  * How many scheduler turns {@link forkAndSettle}/{@link forkAllAndSettle} yield
