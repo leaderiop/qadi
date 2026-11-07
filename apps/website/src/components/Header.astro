@@ -15,12 +15,15 @@
 // restyled in starlight.css to the same quiet, unbordered register as the
 // nav links — the marketing nav has no search to copy, so this is the one
 // element built to match the surrounding voice rather than shared.
-import config from "virtual:starlight/user-config";
-import Search from "virtual:starlight/components/Search";
+//
+// It is imported from Starlight's public `components/*` export. Starlight
+// 0.42 ships compiled JavaScript and no longer declares its
+// `virtual:starlight/*` modules for consumers. The default Header's
+// `shouldRenderSearch` check is not repeated here: this site neither
+// overrides `Search` nor disables `pagefind` in `astro.config.mjs`, so it is
+// always true. If either changes, this needs to change with it.
+import Search from "@astrojs/starlight/components/Search.astro";
 import SiteNav from "./SiteNav.astro";
-
-const shouldRenderSearch =
-  config.pagefind || config.components.Search !== "@astrojs/starlight/components/Search.astro";
 ---
 
 <div class="qadi-header">
@@ -35,7 +38,7 @@ const shouldRenderSearch =
     chrome={false}
   >
     <div slot="extra" class="qadi-search sl-flex print:hidden">
-      {shouldRenderSearch && <Search />}
+      <Search />
     </div>
   </SiteNav>
 </div>

@@ -63,6 +63,11 @@
         "diagnostics": true,
         "namespaceImportPackages": ["effect", "@effect/*", "@qadi/*", "@effect-cucumber/*"],
         "includeSuggestionsInTsc": false,
+        // `unstableApiUsage` (new in @effect/tsgo 0.67) flags every `@stability unstable`
+        // effect API. `@effect/vitest`'s `it`, `effect/http`, `effect/http-api` and
+        // `effect/reactivity` are what the test suite, @qadi/http and @qadi/react are built
+        // on, so it fired ~3,500 times with nothing to act on and buried real warnings.
+        "diagnosticSeverity": { "unstableApiUsage": "off" },
         "ignoreEffectWarningsInTscExitCode": true,
         "ignoreEffectErrorsInTscExitCode": false
       }

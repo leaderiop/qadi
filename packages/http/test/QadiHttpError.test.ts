@@ -238,12 +238,22 @@ const wireSchemaByTag = {
 } as const;
 
 /**
- * The `httpApiStatus` annotation `HttpApiSchema.status` writes and
- * `HttpApiBuilder`'s encoder reads. `HttpApiSchema.getStatusErrorSchema` is
- * `@internal`, so the public `SchemaAST.resolveAt` reads the same key.
+ * Reads the `httpApiStatus` annotation that `HttpApiSchema.status` writes and
+ * `HttpApiBuilder`'s encoder reads.
+ *
+ * `HttpApiSchema.getStatusErrorSchema` is `@internal`, and it defaults to 500,
+ * which would hide a missing annotation. So this mirrors its resolution order
+ * with public API instead. Since `effect@4.1`, `status` writes through
+ * `annotateKey` (the AST's key context) unless the schema already carries a
+ * status. So the schema's own annotation is checked first, then the key
+ * context, as `resolveHttpApiStatus` does.
  */
-const httpApiStatusOf = (schema: Schema.Top): number | undefined =>
-  SchemaAST.resolveAt<number>("httpApiStatus")(schema.ast);
+const httpApiStatusOf = (schema: Schema.Top): number | undefined => {
+  const own = SchemaAST.resolveAt<number>("httpApiStatus")(schema.ast);
+  if (own !== undefined) return own;
+  const keyed = schema.ast.context?.annotations?.["httpApiStatus"];
+  return typeof keyed === "number" ? keyed : undefined;
+};
 
 describe("the two routing shapes", () => {
   it("answer the same status for every tag", () => {

@@ -47,13 +47,13 @@
   "devDependencies": {
     "@effect/vitest": "catalog:",
     "@qadi/testing": "workspace:^",
-    "@prisma/adapter-better-sqlite3": "7.10.0",
-    "@prisma/client": "7.10.0",
-    "@prisma/client-runtime-utils": "7.10.0",
+    "@prisma/adapter-better-sqlite3": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "@prisma/client-runtime-utils": "7.10.1",
     "better-sqlite3": "12.11.1",
     "effect": "catalog:",
     "fast-check": "catalog:",
-    "prisma": "7.10.0",
+    "prisma": "7.10.1",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

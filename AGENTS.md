@@ -219,7 +219,7 @@ dropping back by one. The table's class names are checked against the
 declared classes too (`[schema-error-table]`), so a row cannot name the wrong class.
 
 Handling — use the **array form**, never `catchTags({...})`. (The installed
-`effect@4.0.0-rc.116` still ships `Effect.catchTags` with an object-form
+`effect@4.1.2` still ships `Effect.catchTags` with an object-form
 signature, so this is a house-style choice enforced by
 `scripts/check-house-style.mjs`'s `no-catchtags-object-form` rule, not
 something the API's absence makes moot — a stray call compiles cleanly.)

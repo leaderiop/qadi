@@ -5,8 +5,10 @@ packages:
   - apps/*
 
 # The Effect packages follow npm's `latest` dist-tag in the dev catalog, never a pin;
-# `pnpm-lock.yaml` is what makes an install reproducible (`pnpm update -r effect @effect/vitest
-# @effect/platform-node @effect/atom-react` moves it). Published @qadi packages do NOT depend on
+# `pnpm-lock.yaml` is what makes an install reproducible. To move it:
+#   pnpm update -r --no-save effect @effect/vitest @effect/platform-node @effect/atom-react
+# `--no-save` is required: without it pnpm rewrites this catalog, replacing `latest` with the
+# resolved `^4.x.y` and deleting every comment in this file (CCR-QD-384). Published @qadi packages do NOT depend on
 # `effect` at runtime: they declare it (and `@effect/atom-react` for @qadi/react) under
 # `peerDependencies` via the `peer` catalog below, so a consumer has exactly one effect instance in
 # their tree. Our public API is made of effect classes (`Context.Service`, `Data.TaggedError`),
@@ -18,17 +20,17 @@ catalog:
   '@effect/atom-react': latest
   '@effect/platform-node': latest
   '@effect/vitest': latest
-  '@testing-library/react': ^16.3.2
+  '@testing-library/react': ^16.3.3
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0
-  '@vitest/coverage-v8': 5.0.0
+  '@vitest/coverage-v8': 5.1.0
   effect: latest
-  fast-check: 4.10.0
-  happy-dom: ^20.11.1
-  react: 19.3.0
-  react-dom: 19.3.0
+  fast-check: 4.10.2
+  happy-dom: ^21.0.4
+  react: 19.3.1
+  react-dom: 19.3.1
   typescript: ^7.0.0
-  vitest: 5.0.0
+  vitest: 5.1.0
 
 # Ranges, peerDependencies only: stable Effect v4 and any later 4.x.
 catalogs:
@@ -42,6 +44,3 @@ onlyBuiltDependencies:
   - better-sqlite3
   - esbuild
   - msgpackr-extract
-
-patchedDependencies:
-  '@stryker-mutator/vitest-runner@10.0.0': patches/@stryker-mutator__vitest-runner@10.0.0.patch
