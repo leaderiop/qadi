@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-074                                   |
-> | Revision       | 1.1                                             |
+> | Revision       | 1.2                                             |
 > | Effective Date | 2026-09-11                                      |
 > | Status         | Accepted                                        |
 > | Author         | Qadi Engineering                                |
 > | Classification | Architecture Decision Record                    |
-> | Change History | 1.1 (2026-09-11): The `vitest` 5 bump broke the mutation gate too — `@stryker-mutator/vitest-runner`'s per-test coverage filter stopped matching anything under `vitest` 5, collapsing the mutation score to ~18% with no code change of ours. Patched (`pnpm patch`) rather than worked around, since no config workaround exists upstream. §"Mutation gate" added, `stryker.config.mjs` and the changeset both reference this ADR<br>1.0 (2026-09-11): Initial release |
+> | Change History | 1.2 (2026-11-07, CCR-QD-383): The `pnpm patch` on `@stryker-mutator/vitest-runner@10.0.0` is removed; 10.1.1 ships the upstream fix. See §"Amendment (2026-11-07)"<br>1.1 (2026-09-11): The `vitest` 5 bump broke the mutation gate too — `@stryker-mutator/vitest-runner`'s per-test coverage filter stopped matching anything under `vitest` 5, collapsing the mutation score to ~18% with no code change of ours. Patched (`pnpm patch`) rather than worked around, since no config workaround exists upstream. §"Mutation gate" added, `stryker.config.mjs` and the changeset both reference this ADR<br>1.0 (2026-09-11): Initial release |
 
 ---
 
@@ -146,6 +146,17 @@ joins. Verified by running all six mutation suites after patching: core
 stopgap: remove it (`pnpm patch-remove @stryker-mutator/vitest-runner`, plus
 dropping `stryker.config.mjs`'s comment) once a released
 `@stryker-mutator/vitest-runner` version ships the fix.
+
+## Amendment (2026-11-07, CCR-QD-383)
+
+`@stryker-mutator/core`/`@stryker-mutator/vitest-runner` are bumped `10.0.0` →
+`10.1.1`, which ships PR #6214's fix (`stryker-setup.js` injects a
+`testNameSeparator` and `test-helpers.js` joins with `' > '` on modern
+`vitest`, checked in the published tarball before the bump). The patch
+described above, `patches/@stryker-mutator__vitest-runner@10.0.0.patch`, and
+its `patchedDependencies` entry in `pnpm-workspace.yaml` are deleted, and
+`stryker.config.mjs`'s comment now states the `>=10.1.1` floor instead. The
+paragraph above is kept as the record of why the patch existed.
 
 ## Alternatives considered
 

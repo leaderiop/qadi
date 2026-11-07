@@ -31,17 +31,15 @@ export default {
    * glob does not follow that far and the child process reports
    * "no TestRunner plugins were loaded". An explicit name is imported directly.
    *
-   * `@stryker-mutator/vitest-runner@10.0.0` is patched (`pnpm patch`,
-   * `patches/@stryker-mutator__vitest-runner@10.0.0.patch`, ADR-QD-074):
-   * Vitest 5 matches `testNamePattern` against the suite chain joined with
-   * `' > '`, but the runner still builds its per-test filter by joining names
-   * with a space, so under `coverageAnalysis: "perTest"` below the filter
-   * matches zero tests and every covered mutant is reported "Survived" —
-   * confirmed by the mutation score collapsing to ~18% with no code change of
-   * our own. Upstream bug, no working config workaround (`coverageAnalysis:
-   * "all"` doesn't avoid it either): https://github.com/stryker-mutator/stryker-js/issues/6210,
-   * fix pending in https://github.com/stryker-mutator/stryker-js/pull/6214. The
-   * patch backports that PR's fix. Remove the patch once a release ships it.
+   * `@stryker-mutator/vitest-runner` must be `>=10.1.1` (ADR-QD-074's
+   * 2026-11-07 amendment): Vitest 5 matches `testNamePattern` against the
+   * suite chain joined with `' > '`, and earlier runners joined names with a
+   * space, so under `coverageAnalysis: "perTest"` below the per-test filter
+   * matched zero tests and every covered mutant was reported "Survived" — the
+   * score collapsed to ~18% with no code change of our own
+   * (https://github.com/stryker-mutator/stryker-js/issues/6210). 10.1.1 ships
+   * the upstream fix (https://github.com/stryker-mutator/stryker-js/pull/6214),
+   * which replaced the `pnpm patch` this repo carried on 10.0.0.
    */
   plugins: ["@stryker-mutator/vitest-runner"],
   vitest: {
