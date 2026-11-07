@@ -22,7 +22,7 @@
     "@effect-cucumber/vitest": "^0.10.3",
     "@effect/platform-node": "catalog:",
     "@effect/vitest": "catalog:",
-    "@happy-dom/global-registrator": "^20.11.1",
+    "@happy-dom/global-registrator": "^21.0.4",
     "@testing-library/react": "catalog:",
     "@types/node": "^22.12.0",
     "@types/react": "catalog:",
