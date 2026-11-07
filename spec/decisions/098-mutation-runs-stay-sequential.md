@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-098                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-06                                     |
 > | Status         | Accepted — amends ADR-QD-025                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-06): Initial (CCR-QD-184)         |
+> | Change History | 1.1 (2026-11-08): `stryker.predicate-sql.mjs` caps the default worker count at 8 for memory (CCR-QD-384)<br>1.0 (2026-10-06): Initial (CCR-QD-184) |
 
 ---
 
@@ -223,6 +223,21 @@ jobs is a second definition of done (AGENTS.md §15).
 **A larger runner.** The one lever that is neither scheduling nor semantics: with no pinned
 `concurrency`, a configuration uses every core it is given, so more cores shorten the step without
 touching a verdict. It is a billing and repository-settings decision, outside this ADR.
+
+## Amendment (2026-11-08, CCR-QD-384)
+
+A worker per core assumed workers are cheap in memory. `predicate-sql`'s are not: each runs its
+own PGlite, a whole PostgreSQL in WASM, at about 0.86 GB peak RSS (one Vitest worker over the
+suite, measured with `/usr/bin/time`; PGlite 0.4.3 and 0.5.15 within 5% of each other). On a
+32-core workstation that is 31 workers and about 27 GB, and the kernel's OOM killer stopped the
+run twice in a row. `stryker.predicate-sql.mjs` now sets
+`concurrency: Math.min(8, <Stryker's default>)`, writing the default formula out (every core, one
+fewer above four). On the 4-core CI runner that is still 4, so the per-test contention this ADR
+calibrates against is unchanged; only a machine with more than nine cores is capped.
+
+The other six configurations keep the bare default. `predicate-prisma`'s SQLite worker peaks
+at about 0.24 GB, about 7.4 GB at 31 workers, and it passed at default concurrency in every full
+run on the same machine. A cap there would cost time with nothing to show for it.
 
 ## Consequences
 

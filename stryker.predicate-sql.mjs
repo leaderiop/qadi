@@ -1,3 +1,5 @@
+import { availableParallelism } from "node:os";
+
 /**
  * Mutation testing for `@qadi/predicate-sql`.
  *
@@ -48,5 +50,11 @@ export default {
   thresholds: { high: 90, low: 80, break: 80 },
 
   timeoutMS: 20000,
-  // No `concurrency`: Stryker's default, a worker per core — see `stryker.config.mjs`.
+  // Capped, unlike the six other configurations (ADR-QD-098's 2026-11-08 amendment). Each worker
+  // runs its own PGlite, a whole PostgreSQL in WASM, at ~0.86 GB peak RSS. A worker per core on a
+  // 32-core workstation is ~27 GB, and the kernel's OOM killer stopped this run twice.
+  // (predicate-prisma's SQLite worker peaks at ~0.24 GB and needs no cap.) The formula is
+  // Stryker's own default (every core, one fewer above four), so CI's 4-core runner still gets 4
+  // and per-test contention there is unchanged; only a machine with more than 9 cores is capped.
+  concurrency: Math.min(8, availableParallelism() > 4 ? availableParallelism() - 1 : availableParallelism()),
 };

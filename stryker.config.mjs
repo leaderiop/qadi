@@ -98,10 +98,12 @@ export default {
   // was weighed and rejected in ADR-QD-098.
   timeoutMS: 20000,
 
-  // No `concurrency`, here or in the six sibling configurations. Stryker's
+  // No `concurrency` here or in five of the six sibling configurations. Stryker's
   // default is a worker per core (cores − 1 above four): on the 4-vCPU CI
   // runner that is the 4 this file used to pin, and on a workstation it is
   // every core rather than four of them. More workers than cores — two
   // configurations at once — was rejected for the reason above: it slows every
-  // test, and slowness here is scored (ADR-QD-098).
+  // test, and slowness here is scored (ADR-QD-098). `stryker.predicate-sql.mjs`
+  // keeps this same default but caps it at 8 for memory; the cap is explained
+  // there.
 };
