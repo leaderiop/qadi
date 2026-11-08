@@ -1,6 +1,6 @@
 /**
- * Every port read either interpreter makes, with its question, span, call
- * metric and defect mapping.
+ * Every port read either interpreter makes, and the one body they all run:
+ * its question, span, call metric and defect mapping.
  *
  * `evaluate` and `toPredicate` are two interpreters over one policy tree
  * (ADR-QD-024). Before this module they agreed about *how to ask a port* only by
@@ -11,25 +11,31 @@
  * ARCH-01's E4/E6). Each read lives here once, and each interpreter keeps only
  * what is genuinely its own: what to do with the answer.
  *
+ * Every read is a named `Effect.fn` that owns its span and does only its own
+ * argument shaping and validation, then runs `readPort` (ADR-QD-109), a plain
+ * function that opens no span of its own. A host answering another process
+ * (`servePortRead`) runs the same body under the port's span, so a served span
+ * is a local one of the same request apart from `qadi.interpreter`.
+ *
  * Deliberately out of the barrel (AGENTS.md §9): scaffolding shared by the two
  * interpreters, like `PortDerivation.ts`, and not importable from outside
  * `@qadi/core` (ADR-QD-099).
  *
- * The per-port facts a read needs — the span it opens and the typed error a
- * defect becomes — come from each port's description (`PortDescription.ts`,
- * ADR-QD-094), so no port's error class or span name is spelled here. The
- * defect *rule* — which causes are converted at all — stays here, in
- * `catchPortDefect` (ADR-QD-077).
+ * The per-port facts a read needs — the span it opens, the question and answer
+ * it annotates and the typed error a defect becomes — come from each port's
+ * description (`PortDescription.ts`, ADR-QD-094), so no port's error class,
+ * span name or span key is spelled here. The defect *rule* — which causes are
+ * converted at all — stays here, in `catchPortDefect` (ADR-QD-077).
  */
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
-import { AttributeResolver, attributeResolverPort } from "./AttributeResolver.ts";
+import type { AttributeResolver } from "./AttributeResolver.ts";
+import { attributeResolverPort } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
-import { CustomPredicate, customPredicatePort } from "./CustomPredicate.ts";
-import type { ActedQuery, ActedResult } from "./DecisionHistory.ts";
-import { DecisionHistory, decisionHistoryPort } from "./DecisionHistory.ts";
+import { customPredicatePort } from "./CustomPredicate.ts";
+import { decisionHistoryPort } from "./DecisionHistory.ts";
 import type { AttributeResolveError } from "./Errors.ts";
 import { MissingResourceId } from "./Errors.ts";
 import type { ResourceId } from "./Identity.ts";
@@ -37,8 +43,7 @@ import { makeResourceId } from "./Identity.ts";
 import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
 import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "./PortMetrics.ts";
 import type { PortName } from "./PortMetrics.ts";
-import type { RelatedResult, RelationshipCheck } from "./RelationshipResolver.ts";
-import { RelationshipResolver, relationshipResolverPort } from "./RelationshipResolver.ts";
+import { relationshipResolverPort } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
 import type { AnswerOf, ArgsOf, DescriptionOf, ErrorOf, PortTypes, ServiceOf } from "./Ports.ts";
 import type { PortInterpreter, SpanFields, SpanStruct, SpanType } from "./PortSpan.ts";
@@ -193,7 +198,9 @@ const readPort = <K extends PortName>(
 // a span says what was asked, and a tracer is what reads it back). That is why
 // none is in `UNTRACED_BUDGET` — none runs once per policy *node* the way
 // `evaluateAllOf`/`evaluateAnyOf`/`evaluateRules` do, and the port call under
-// them is the expensive part.
+// them is the expensive part. Each does only what is its own — argument
+// shaping, the resource-id check, the depth clamp, the signature match — and
+// hands the rest to `readPort`, the one body (ADR-QD-109), which opens no span.
 // ---------------------------------------------------------------------------
 
 /**
@@ -209,30 +216,16 @@ const readPort = <K extends PortName>(
  * **The value is never recorded**, and the only path from it to a span is the
  * description's `disclose` (`attributeResolverPort.attributes`,
  * [INV-QD-044](../../../spec/invariants.md)) — the same line
- * `dehydrateDecisions` draws with `includeTrace`.
+ * `dehydrateDecisions` draws with `includeTrace`. `readPort` annotates the
+ * question before the call, so a resolver that fails still leaves a span saying
+ * what it was asked.
  */
 const resolveAttribute = Effect.fn(attributeResolverPort.span)(function* (
   interpreter: Interpreter,
   subject: AuthSubject,
   attribute: string,
 ) {
-  // Before the call, so a resolver that fails still leaves a span saying what
-  // it was asked. A failed lookup with no question on it is the least useful
-  // span there is.
-  yield* annotateQuestion(attributeResolverPort, {
-    attribute,
-    subjectId: subject.id,
-    interpreter,
-  });
-  yield* countFor(interpreter)("AttributeResolver");
-  const value = yield* AttributeResolver.resolve(subject.id, attribute).pipe(
-    catchPortDefect((cause) => attributeResolverPort.defect([subject.id, attribute], cause)),
-  );
-  yield* annotateAnswer(
-    attributeResolverPort,
-    attributeResolverPort.attributes.disclose(value, [subject.id, attribute]),
-  );
-  return value;
+  return yield* readPort(attributeResolverPort, interpreter, [subject.id, attribute]);
 });
 
 /**
@@ -272,48 +265,22 @@ const requireResourceId = Effect.fn("qadi.requireScopedResourceId")(function* (
 });
 
 /**
- * The port half of a `HasActed`/`HasNotActed` read, once the question is formed.
- *
- * A plain function, not a span of its own: its two callers each own one.
- */
-const callHasActed = (
-  interpreter: Interpreter,
-  subject: AuthSubject,
-  event: string,
-  resourceId: ResourceId | undefined,
-) =>
-  Effect.gen(function* () {
-    yield* countFor(interpreter)("DecisionHistory");
-    const query: ActedQuery = { subjectId: subject.id, event, resourceId };
-    const answer = yield* DecisionHistory.hasActed(query).pipe(
-      catchPortDefect((cause) => decisionHistoryPort.defect([query], cause)),
-    );
-    yield* annotateAnswer(decisionHistoryPort, decisionHistoryPort.attributes.disclose(answer, [query]));
-    return answer;
-  });
-
-/**
  * Asks whether the subject has ever performed `event`, about no resource in
  * particular (`scope: "Any"`).
  *
  * The answer is three-valued (`"Unknown"` matches neither polarity, so both deny
- * under an unwired port, ADR-QD-020); what to do with it is the caller's.
+ * under an unwired port, ADR-QD-020); what to do with it is the caller's. An
+ * `Any`-scoped question asks about no resource even where the request has one,
+ * and the span says what was asked rather than what was available.
  */
 export const askActedAny = Effect.fn(decisionHistoryPort.span)(function* (
   interpreter: Interpreter,
   subject: AuthSubject,
   event: string,
 ) {
-  // An `Any`-scoped question asks about no resource even where the request has
-  // one, and the span says what was asked rather than what was available.
-  yield* annotateQuestion(decisionHistoryPort, {
-    subjectId: subject.id,
-    event,
-    scope: "Any",
-    interpreter,
-  });
-  const answer: ActedResult = yield* callHasActed(interpreter, subject, event, undefined);
-  return answer;
+  return yield* readPort(decisionHistoryPort, interpreter, [
+    { subjectId: subject.id, event, resourceId: undefined },
+  ]);
 });
 
 /**
@@ -324,7 +291,10 @@ export const askActedAny = Effect.fn(decisionHistoryPort.span)(function* (
  * question because it is keyed by the row — but the parameter is `Interpreter`
  * all the same, because nothing about the read itself is evaluator-specific.
  * Takes the raw `resource.id` and fails with `MissingResourceId` when it is not a
- * string, after annotating the span with the question.
+ * string, after annotating the span with the question: annotated before the
+ * check, so the span that records a wiring error still names the event it was
+ * asked about. `readPort` annotates the same question again on the success path,
+ * with agreeing values (ADR-QD-109).
  */
 export const askActedForResource = Effect.fn(decisionHistoryPort.span)(function* (
   interpreter: Interpreter,
@@ -332,8 +302,6 @@ export const askActedForResource = Effect.fn(decisionHistoryPort.span)(function*
   event: string,
   rawResourceId: unknown,
 ) {
-  // Annotated before the `MissingResourceId` check, so the span that records a
-  // wiring error still names the event it was asked about.
   yield* annotateQuestion(decisionHistoryPort, {
     subjectId: subject.id,
     event,
@@ -342,13 +310,9 @@ export const askActedForResource = Effect.fn(decisionHistoryPort.span)(function*
     resourceId: typeof rawResourceId === "string" ? rawResourceId : undefined,
   });
   const resourceId = yield* requireResourceId(rawResourceId, event);
-  const answer: ActedResult = yield* callHasActed(
-    interpreter,
-    subject,
-    event,
-    makeResourceId(resourceId),
-  );
-  return answer;
+  return yield* readPort(decisionHistoryPort, interpreter, [
+    { subjectId: subject.id, event, resourceId: makeResourceId(resourceId) },
+  ]);
 });
 
 /**
@@ -410,7 +374,8 @@ export const askRelationship = Effect.fn(relationshipResolverPort.span)(function
   // Before the check: the span that records a missing resource id should still
   // name the relation it wanted one for. Annotated with the clamped value, not
   // the raw decoded one: the span should say what was actually asked of the
-  // resolver.
+  // resolver. The check is inline rather than `requireResourceId`, which would
+  // add a nested `qadi.requireScopedResourceId` span to this read's trace.
   yield* annotateQuestion(relationshipResolverPort, {
     subjectId: subject.id,
     relation,
@@ -421,26 +386,22 @@ export const askRelationship = Effect.fn(relationshipResolverPort.span)(function
   if (typeof rawResourceId !== "string") {
     return yield* Effect.fail(new MissingResourceId({ relation }));
   }
-  yield* Metric.update(portCallsTotal, "RelationshipResolver");
-  const request: RelationshipCheck = {
-    subjectId: subject.id,
-    relation,
-    resourceId: makeResourceId(rawResourceId),
-    depth: clamped,
-  };
-  const related: RelatedResult = yield* RelationshipResolver.check(request).pipe(
-    catchPortDefect((cause) => relationshipResolverPort.defect([request], cause)),
-  );
-  yield* annotateAnswer(
-    relationshipResolverPort,
-    relationshipResolverPort.attributes.disclose(related, [request]),
-  );
-  return related;
+  return yield* readPort(relationshipResolverPort, "evaluate", [
+    {
+      subjectId: subject.id,
+      relation,
+      resourceId: makeResourceId(rawResourceId),
+      depth: clamped,
+    },
+  ]);
 });
 
 /**
  * Asks a registered custom predicate. Evaluator-only (translation refuses
  * `HasCustom`, ADR-QD-055).
+ *
+ * `CustomPredicateError` has no `cause` field, so the description renders a
+ * defect into `reason` with `Cause.pretty` (`customPredicatePort.defect`).
  */
 export const askCustom = Effect.fn(customPredicatePort.span)(function* (
   subject: AuthSubject,
@@ -448,22 +409,7 @@ export const askCustom = Effect.fn(customPredicatePort.span)(function* (
   name: string,
   params: unknown,
 ) {
-  yield* annotateQuestion(customPredicatePort, {
-    name,
-    subjectId: subject.id,
-    interpreter: "evaluate",
-  });
-  yield* Metric.update(portCallsTotal, "CustomPredicate");
-  const allowed = yield* CustomPredicate.evaluate(name, subject, resource, params).pipe(
-    // `CustomPredicateError` has no `cause` field, so the description renders
-    // a defect into `reason` with `Cause.pretty` (`customPredicatePort`).
-    catchPortDefect((cause) => customPredicatePort.defect([name, subject, resource, params], cause)),
-  );
-  yield* annotateAnswer(
-    customPredicatePort,
-    customPredicatePort.attributes.disclose(allowed, [name, subject, resource, params]),
-  );
-  return allowed;
+  return yield* readPort(customPredicatePort, "evaluate", [name, subject, resource, params]);
 });
 
 /**
