@@ -25,7 +25,6 @@ import {
   PortReply,
   decoratePorts,
   forEveryPort,
-  mapPorts,
   mergePorts,
   scriptedPort,
   tabulatePorts,
@@ -223,7 +222,7 @@ const unseenReply = (port: PortName): PortReply<never> | undefined =>
  */
 export const replayLayer = (answers: CapturedAnswers): Layer.Layer<EvaluationPorts> =>
   mergePorts(
-    mapPorts(
+    tabulatePorts(
       (d) =>
         scriptedPort(
           d,

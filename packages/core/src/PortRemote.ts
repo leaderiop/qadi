@@ -34,7 +34,7 @@ import { nonePort } from "./PortDerivation.ts";
 import type { PortName } from "./PortMetrics.ts";
 import { PortWireReply, RemotePortError, RemotePortFailure } from "./PortWire.ts";
 import { WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
-import { mapPorts, mergePorts } from "./Ports.ts";
+import { mergePorts, tabulatePorts } from "./Ports.ts";
 import type { ArgsOf, DescriptionOf, ErrorOf, PortServices, PortTypes, ServiceOf, ShapeOf } from "./Ports.ts";
 
 /**
@@ -261,7 +261,7 @@ export const remotePorts = (
   ports: ReadonlyArray<PortName>,
 ): Layer.Layer<PortServices> =>
   mergePorts(
-    mapPorts((d) =>
+    tabulatePorts((d) =>
       ports.includes(d.port)
         ? Layer.succeed(d.service, askRemotely(d, (question) => send(d.port, question)))
         : nonePort(d),

@@ -43,8 +43,8 @@ import {
   signatureHistoryPort,
   portsLayer,
   forEveryPort,
-  mapPorts,
   mergePorts,
+  tabulatePorts,
 } from "@qadi/core";
 import type { Decision, DecisionOutcome } from "@qadi/core";
 import {
@@ -346,7 +346,7 @@ describe("what a capture records", () => {
     Effect.gen(function* () {
       // Every port, each with no name at all.
       const anonymous = mergePorts(
-        mapPorts((d) =>
+        tabulatePorts((d) =>
           Layer.succeed(d.service, {
             ...d.make("x", () => Effect.succeed(d.none.answer)),
             name: undefined,

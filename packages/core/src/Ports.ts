@@ -141,7 +141,10 @@ export interface PortVisitor<R> {
   <K extends PortName>(d: DescriptionOf<K>): R;
 }
 
-/** A function from any port's description to a layer of that port's service. */
+/**
+ * A function from any port's description to a layer of that port's service —
+ * what {@link tabulatePorts}' layer form takes.
+ */
 export interface PortLayerVisitor {
   <K extends PortName>(d: DescriptionOf<K>): Layer.Layer<ServiceOf<PortTypes[K]>>;
 }
@@ -153,25 +156,35 @@ export interface PortDecorator {
 
 /**
  * One value per port, each computed by `f` from that port's description, as a
- * record keyed by port name — the shape `@qadi/devtools`' capture uses for its
- * per-port answer maps.
+ * record keyed by port name. Entries are in `PortName`'s declaration order.
  *
- * `F` names the record (`tabulatePorts<CapturedAnswers>(() => new Map())`).
- * For a port named generically, TypeScript checks `f`'s result against what
- * *every* port's slot accepts, so this suits values that are uniform across
- * ports (an empty map, a count, a label); a value that depends on the port's
- * own types belongs in {@link mapPorts} or {@link decoratePorts}, whose
- * visitors are typed per port. Entries are in `PortName`'s declaration order.
+ * Given a {@link PortLayerVisitor}, each slot is a layer typed by that port's
+ * own service (`tabulatePorts(nonePort)` is {@link PortLayers}). Given `F`, each
+ * slot is `F[K]`, for values uniform across ports (an empty map, a count, a
+ * label): `tabulatePorts<CapturedAnswers>(() => new Map())`, with `F` always
+ * passed explicitly.
+ *
+ * Two signatures over one body because TypeScript reads `F[K]` as a return
+ * target to be the intersection of every slot (TS #30769), so a value that
+ * depends on the port's own types cannot be checked through `F`. The layer
+ * overload states that correlation directly. The wider implementation signature
+ * is invisible to callers, as with `createPermissionGroup` (`Permission.ts`), and
+ * the body is the five rows and nothing else, so it cannot place one port's value
+ * in another's slot.
  */
-export const tabulatePorts = <F extends { readonly [K in PortName]: unknown }>(
+export function tabulatePorts(f: PortLayerVisitor): PortLayers;
+export function tabulatePorts<F extends { readonly [K in PortName]: unknown }>(
   f: <K extends PortName>(d: DescriptionOf<K>) => F[K],
-): { readonly [K in PortName]: F[K] } => ({
-  AttributeResolver: f(PORTS.AttributeResolver),
-  DecisionHistory: f(PORTS.DecisionHistory),
-  RelationshipResolver: f(PORTS.RelationshipResolver),
-  CustomPredicate: f(PORTS.CustomPredicate),
-  SignatureHistory: f(PORTS.SignatureHistory),
-});
+): { readonly [K in PortName]: F[K] };
+export function tabulatePorts(f: PortVisitor<unknown>): { readonly [K in PortName]: unknown } {
+  return {
+    AttributeResolver: f(PORTS.AttributeResolver),
+    DecisionHistory: f(PORTS.DecisionHistory),
+    RelationshipResolver: f(PORTS.RelationshipResolver),
+    CustomPredicate: f(PORTS.CustomPredicate),
+    SignatureHistory: f(PORTS.SignatureHistory),
+  };
+}
 
 /**
  * Runs `f` over every port's description, in `PortName`'s declaration order
@@ -181,15 +194,6 @@ export const tabulatePorts = <F extends { readonly [K in PortName]: unknown }>(
  */
 export const forEveryPort = <R>(f: PortVisitor<R>): ReadonlyArray<R> =>
   Record.values(tabulatePorts<{ readonly [K in PortName]: R }>(f));
-
-/** A layer per port, built by `f` from that port's description. */
-export const mapPorts = (f: PortLayerVisitor): PortLayers => ({
-  AttributeResolver: f(PORTS.AttributeResolver),
-  DecisionHistory: f(PORTS.DecisionHistory),
-  RelationshipResolver: f(PORTS.RelationshipResolver),
-  CustomPredicate: f(PORTS.CustomPredicate),
-  SignatureHistory: f(PORTS.SignatureHistory),
-});
 
 /** All five port layers as one. */
 export const mergePorts = (layers: PortLayers): Layer.Layer<PortServices> =>
@@ -202,7 +206,7 @@ export const mergePorts = (layers: PortLayers): Layer.Layer<PortServices> =>
   );
 
 /** Every port's fail-closed default, derived once. */
-const NONE: PortLayers = mapPorts(nonePort);
+const NONE: PortLayers = tabulatePorts(nonePort);
 
 /**
  * Every port, each at its fail-closed default unless `overrides` names it.
@@ -213,7 +217,7 @@ const NONE: PortLayers = mapPorts(nonePort);
  * denied (ARCH-10 E9). A host names only the ports it wires.
  */
 export const portsLayer = (overrides: PortOverrides = {}): Layer.Layer<PortServices> =>
-  mergePorts(mapPorts((d) => overrides[d.port] ?? NONE[d.port]));
+  mergePorts(tabulatePorts((d) => overrides[d.port] ?? NONE[d.port]));
 
 /**
  * The plain data a test or a simulation can state for each port — the shape
@@ -292,7 +296,7 @@ const fixtureLayer = <D, S>(
  */
 export const fixturePortsLayer = (setups: PortFixtures = {}): Layer.Layer<PortServices> =>
   mergePorts(
-    mapPorts((d) => {
+    tabulatePorts((d) => {
       const setup = setups[d.port];
       return setup?.layer ?? fixtureLayer(PORT_FIXTURES[d.port], setup?.answers) ?? NONE[d.port];
     }),
@@ -316,7 +320,7 @@ export const decoratePorts = (
   Layer.unwrap(
     Effect.map(Layer.build(ports), (context) =>
       mergePorts(
-        mapPorts((d) => Layer.succeed(d.service, f(d, Context.get(context, d.service)))),
+        tabulatePorts((d) => Layer.succeed(d.service, f(d, Context.get(context, d.service)))),
       ),
     ),
   );
