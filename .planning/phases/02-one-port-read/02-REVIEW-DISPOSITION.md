@@ -5,15 +5,15 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`disclose` and `pose` run outside the defect mapping, so a served read can die and `answerRemotely`'s \"never fails\" no longer holds"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "the pre-validation question is still written by hand in three reads, a second statement of the projection"
   - id: WR-03
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "\"over-keying can only miss and deny, never replay a stale allow\" is false for a negated `hasSignature`"
   - id: IN-01
     severity: info
@@ -35,18 +35,18 @@ findings:
     severity: info
     disposition: open
     title: "version skew and the wire's strict decode are documented only in the changeset"
-open: 8
+open: 5
 total: 8
-recorded: 2026-11-08T02:54:51.829Z
+recorded: 2026-11-08T03:07:01.261Z
 ---
 
 # Phase 02: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
-| WR-03 | warning | open | - |
+| WR-01 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-02 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-03 | warning | fixed | 02-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
