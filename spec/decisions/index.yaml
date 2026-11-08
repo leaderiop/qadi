@@ -362,3 +362,7 @@ entries:
     file: "109-a-ports-span-is-projected-once-and-every-read-is-one-body.md"
     title: "A port's span is projected once, and every read is one body"
     status: "Accepted — amends ADR-QD-077, ADR-QD-094, ADR-QD-107, ADR-QD-058"
+  - id: "ADR-QD-110"
+    file: "110-an-archives-facts-are-computed-once.md"
+    title: "An archive's facts are computed once"
+    status: "Accepted — amends ADR-QD-056"
