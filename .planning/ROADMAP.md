@@ -17,7 +17,7 @@ ARCH ticket with its own ADR, CCR and changeset, and each ends with `pnpm check:
 - [x] **Phase 1: HTTP request enforcement** - Put the whole enforcement chain behind one module and fix the missing log on unguarded port routes (ARCH-46) (completed 2026-11-08)
 - [x] **Phase 2: One port read** - Give the span projection one home on the port description and send every port read through one body (ARCH-47) (completed 2026-11-08)
 - [x] **Phase 3: Audit archive facts** - Use one module for the archive's rules, shared by writer and reader (ARCH-48) (completed 2026-11-08)
-- [ ] **Phase 4: Gate instrumentation hook** - Resolve the writer once and use one `useGates` hook for every gate kind (ARCH-49)
+- [x] **Phase 4: Gate instrumentation hook** - Resolve the writer once and use one `useGates` hook for every gate kind (ARCH-49) (completed 2026-11-08)
 - [ ] **Phase 5: Decision log over HTTP** - Use one encoder and one refusal policy for both stream and backlog (ARCH-50)
 - [ ] **Phase 6: Dehydration in the engine** - Add `dehydrateWith` beside `hydrateWith`; both directions get one owner (ARCH-51)
 - [ ] **Phase 7: One port route address** - Server and client share one address and one status contract (ARCH-52)
@@ -89,7 +89,7 @@ Plans:
   3. A test pins how often `usePolicies` re-creates its group atom across re-renders.
   4. With `instrument` off the existing React suite passes untouched.
   5. `pnpm check:pr` is green, and ADR-QD-111 (or CCR-only), CCR-QD-388 and a changeset are recorded.
-**Plans**: 4/4 plans executed
+**Plans**: 4/4 plans complete
 
 Plans:
 - [x] 04-01 (W1): Provider resolves the gate writer once (`GateScopeContext`); `useGates` in GateWriter; useGate thin; useDecisionSuspense opens its atom once
@@ -189,7 +189,7 @@ Plans:
 | 1. HTTP request enforcement | 5/5 | Complete    | 2026-11-08 |
 | 2. One port read | 4/4 | Complete    | 2026-11-08 |
 | 3. Audit archive facts | 3/3 | Complete    | 2026-11-08 |
-| 4. Gate instrumentation hook | 4/4 | In Progress | - |
+| 4. Gate instrumentation hook | 4/4 | Complete    | 2026-11-08 |
 | 5. Decision log over HTTP | 0/2 | Planned | - |
 | 6. Dehydration in the engine | 0/2 | Planned | - |
 | 7. One port route address | 0/3 | Planned | - |
