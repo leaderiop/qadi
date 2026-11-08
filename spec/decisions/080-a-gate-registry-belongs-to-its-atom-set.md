@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-080                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-08                                     |
-> | Status         | Accepted — amends ADR-QD-053                   |
+> | Status         | Accepted — amends ADR-QD-053; amended by ADR-QD-111 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-10-08): Amendment (ARCH-43, CCR-QD-250): a registry from `makeGateRegistry()` reports collisions by default, the writer is a private slot of the registry object, and the override is kept<br>1.1 (2026-10-08): The default gate-id collision reporter now lives in `DeveloperSignals.ts`, which `HydrationWarning.ts` became; the body is history and stays (ADR-QD-041 amendment, CCR-QD-203)<br>1.0 (2026-10-04): Initial release (CCR-QD-160) |
+> | Change History | 1.3 (2026-11-08): Amendment (ARCH-49, CCR-QD-388): the writer is resolved once, by QadiProvider, and reaches gates through an internal context (ADR-QD-111)<br>1.2 (2026-10-08): Amendment (ARCH-43, CCR-QD-250): a registry from `makeGateRegistry()` reports collisions by default, the writer is a private slot of the registry object, and the override is kept<br>1.1 (2026-10-08): The default gate-id collision reporter now lives in `DeveloperSignals.ts`, which `HydrationWarning.ts` became; the body is history and stays (ADR-QD-041 amendment, CCR-QD-203)<br>1.0 (2026-10-04): Initial release (CCR-QD-160) |
 
 ---
 
@@ -141,3 +141,14 @@ The `QadiProvider` `gates` override was reconsidered for deletion and is **kept*
 **Revisit trigger:** at the first 1.0 API review, if no host passes `gates`, or
 earlier if the dock feed finds the effective-registry indirection is the only thing
 complicating it.
+
+## Amendment (2026-11-08, CCR-QD-388, ARCH-49)
+
+The writer is resolved once per provider, not by every guard. `QadiProvider` calls
+`gateWriterFor` once and hands the result, `undefined` unless instrumented, to every
+gate through `GateScopeContext`, which `GateWriter.ts` declares and keeps out of the
+barrel; the 2026-10-08 amendment's "serves every guard on the default path" now reads
+as "serves the provider, which serves every guard". The private slot, the override and
+every semantic in this ADR are unchanged. A hand-built or spread registry still yields
+no writer, so its guards register nothing and render no marker. See
+[ADR-QD-111](111-a-gate-writer-is-resolved-once-by-its-provider.md).
