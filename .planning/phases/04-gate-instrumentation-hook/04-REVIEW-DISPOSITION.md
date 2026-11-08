@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The \"opens its decision atom once\" test never exercises the suspending path"
   - id: IN-01
     severity: info
@@ -23,16 +23,16 @@ findings:
     severity: info
     disposition: open
     title: "Test header overstates \"written against the code before the move\""
-open: 5
+open: 4
 total: 5
-recorded: 2026-11-08T05:06:40.584Z
+recorded: 2026-11-08T05:14:30.700Z
 ---
 
 # Phase 04: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
+| WR-01 | warning | fixed | 04-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
