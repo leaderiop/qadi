@@ -19,10 +19,14 @@
  * (ADR-QD-039). What a consumer may hold is re-exported here **by name**.
  */
 import type { AuthSubject } from "@qadi/core";
-import { countDropped } from "./HydrationCounts.ts";
-import type { DecisionEntry, DehydratedDecisions, HydrateOptions, InitialValues } from "./HydrationEngine.ts";
-import { dehydratedPayload, dehydrateEntry } from "./HydrationEngine.ts";
-import { droppedEntriesReporter } from "./DeveloperSignals.ts";
+import type {
+  DecisionEntry,
+  DehydrateOptions,
+  DehydratedDecisions,
+  HydrateOptions,
+  InitialValues,
+} from "./HydrationEngine.ts";
+import { dehydrateWith } from "./HydrationEngine.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
 
 // Named explicitly rather than reached through the barrel: `DeveloperSignals.ts`
@@ -31,36 +35,10 @@ import type { QadiAtoms } from "./QadiAtoms.ts";
 // `QadiAtoms.ts` makes for `HydrationMismatch`, for the same reason.
 export type { HydrationDrop, HydrationDropReporter } from "./DeveloperSignals.ts";
 export type { DecisionEntry, DehydratedDecisions, DehydratedEntry } from "./HydrationEngine.ts";
-export type { HydrateOptions } from "./HydrationEngine.ts";
+export type { DehydrateOptions, HydrateOptions } from "./HydrationEngine.ts";
 export type { AllowDisclosure, ClientDecision, DenyDisclosure } from "./SeededDecision.ts";
 export type { SeededDecision } from "./SeededDecision.ts";
 export { SeededAllow, SeededDeny, isSeeded, permits } from "./SeededDecision.ts";
-
-export interface DehydrateOptions {
-  /**
-   * Ship the full trace, and a denial's reason.
-   *
-   * Off by default, and the default is the security decision. A trace names every
-   * node's tag, its label and the sentence explaining why it refused — a
-   * description of the policy's internal structure plus which branch this subject
-   * failed, readable by anyone with developer tools and by any script on the page.
-   * Withheld, an entry carries `disclosure: { _tag: "Withheld" }` and neither.
-   */
-  readonly includeTrace?: boolean;
-  /**
-   * Called with the entries discarded for belonging to another subject.
-   *
-   * Supplying this replaces the development-mode console warning and runs in
-   * production, exactly as `onHydrationMismatch` does — a payload mixing
-   * subjects means something upstream fed this call two users' decisions, which
-   * is a bug worth alerting on rather than only logging.
-   *
-   * It observes; it cannot change the outcome. The entries are dropped either
-   * way ([BEH-QD-146](../../../spec/behaviors/19-hydration.md)) — the only safe
-   * reading of a mixed payload is to trust none of it.
-   */
-  readonly onDropped?: (dropped: ReadonlyArray<DecisionEntry>) => void;
-}
 
 /**
  * Projects decisions into a payload safe to embed in a server-rendered page.
@@ -72,36 +50,7 @@ export interface DehydrateOptions {
 export const dehydrateDecisions = (
   entries: ReadonlyArray<DecisionEntry>,
   options?: DehydrateOptions,
-): DehydratedDecisions => {
-  // `undefined`, not `""` (EC-06): an empty `entries` names no subject at
-  // all, and `""` is not a value `SubjectId` can actually hold, so it read as
-  // data rather than as "nothing here." `subjectId` is `undefined` only when
-  // `entries` is already empty, so the filter below still reduces to `[]`
-  // in that case with no special-casing needed.
-  const subjectId = entries[0]?.decision.subjectId;
-  const includeTrace = options?.includeTrace ?? false;
-
-  const kept = entries.filter((e) => e.decision.subjectId === subjectId);
-
-  // Said, not merely done. Dropping is correct and specified; doing it in
-  // silence is what let a server ship one row where it meant to ship a thousand
-  // and see nothing wrong.
-  if (kept.length !== entries.length) {
-    countDropped("ForeignSubject", entries.length - kept.length);
-    const report = droppedEntriesReporter(options?.onDropped);
-    if (report !== undefined) {
-      report(entries.filter((e) => e.decision.subjectId !== subjectId));
-    }
-  }
-
-  // Counted here rather than left to the caller. A count is what makes the
-  // *other* end legible: `qadi_hydration_seeded_total` next to this one is the
-  // difference between "hydration ran" and "hydration ran and did nothing".
-  return dehydratedPayload(
-    subjectId,
-    kept.map((entry) => dehydrateEntry(entry, includeTrace)),
-  );
-};
+): DehydratedDecisions => dehydrateWith(entries, options);
 
 /**
  * Turns a payload into `initialValues` for `QadiProvider`.
