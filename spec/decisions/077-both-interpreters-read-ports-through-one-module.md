@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-077                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-10-04                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-07): addendum — a pure short-circuit stepper both interpreters would call was not adopted; the benchmark gate could not be met on a loaded machine (ARCH-26, CCR-QD-192)<br>1.0 (2026-10-04): Initial release (CCR-QD-153) |
+> | Change History | 1.2 (2026-11-08): amendment — every port read, local or served, is one body, readPort (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.1 (2026-10-07): addendum — a pure short-circuit stepper both interpreters would call was not adopted; the benchmark gate could not be met on a loaded machine (ARCH-26, CCR-QD-192)<br>1.0 (2026-10-04): Initial release (CCR-QD-153) |
 
 ---
 
@@ -213,3 +213,16 @@ converted at all — stays here, in `catchPortDefect`
 > methods, the paired-vitest method run as well) on a quiet machine, or a fourth
 > combining algorithm or field strategy, which would make a third and fourth
 > hand-written conjunction. A new argument is not enough; it needs a new measurement.
+
+## Amendment (2026-11-08, ADR-QD-109, CCR-QD-386)
+
+Every port read, both interpreters' and the served one, is now one body, `readPort`
+(`PortAccess.ts`), a plain function that opens no span. It annotates the question, counts in the
+interpreter's own sibling metric through a three-arm match over `evaluate`, `toPredicate` and
+`remote` (the pair-only `Match.type<Interpreter>()` above grew a third arm for the served read,
+[ADR-QD-107](107-a-port-is-answered-remotely-through-its-description.md)), invokes the port inside
+the effect `catchPortDefect` wraps, and annotates the answer. The `ask*` functions keep argument
+shaping and their own validation, `requireResourceId` with its annotate-before-validate order
+included, and each is still the named `Effect.fn` that owns its span. The claim that each read
+lives in this module once is now literal: no read restates the annotate, count, call, defect and
+annotate sequence. See [ADR-QD-109](109-a-ports-span-is-projected-once-and-every-read-is-one-body.md).

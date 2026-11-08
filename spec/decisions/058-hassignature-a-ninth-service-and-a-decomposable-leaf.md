@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-058                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-08-25): Initial release (CCR-QD-089) |
+> | Change History | 1.1 (2026-11-08): amendment — the signature query carries the asker's requirement as optional context (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-08-25): Initial release (CCR-QD-089) |
 
 ---
 
@@ -231,3 +231,12 @@ captured signature was stored subject-wide, where a resource-scoped query could 
 `scope: "Any"` one found it for every resource. The request is keyed by the question, and
 `SignatureLedger` is the documented way to record under the key `SignatureHistory` is read with.
 Trust-on-presence is unchanged.
+
+## Amendment (2026-11-08, ADR-QD-109, CCR-QD-386)
+
+The signature query carries the asker's requirement, `meaning` and `signerRole`, as optional context;
+there is still one method. A store returns every signature on file for the subject and resource
+whatever the requirement says, and the match rule is stated once (`signatureMatches`,
+package-private). The requirement is there so a served read can say what was asked and whether the
+records matched; it is never a filter on the store's side. See
+[ADR-QD-109](109-a-ports-span-is-projected-once-and-every-read-is-one-body.md).

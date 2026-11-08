@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-094                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-10-08): amendment — a description also states its wire, `PortDescription.wire`, and the registry makes a missing wire a compile error (ARCH-31, ADR-QD-107, CCR-QD-382)<br>1.3 (2026-10-08): amendment — each port's fixture builder is listed in `PORT_FIXTURES`, closed over `PortName`, beside its description (ARCH-42, CCR-QD-270)<br>1.2 (2026-10-08): amended: a request key is injective over every argument the port receives; the relationship and custom-predicate keys are corrected (ARCH-45 I1, CCR-QD-263)<br>1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
+> | Change History | 1.5 (2026-11-08): amendment — a description's span attributes state the question projection, pose, beside disclose; the signature key covers the requirement (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.4 (2026-10-08): amendment — a description also states its wire, `PortDescription.wire`, and the registry makes a missing wire a compile error (ARCH-31, ADR-QD-107, CCR-QD-382)<br>1.3 (2026-10-08): amendment — each port's fixture builder is listed in `PORT_FIXTURES`, closed over `PortName`, beside its description (ARCH-42, CCR-QD-270)<br>1.2 (2026-10-08): amended: a request key is injective over every argument the port receives; the relationship and custom-predicate keys are corrected (ARCH-45 I1, CCR-QD-263)<br>1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
 
 ---
 
@@ -259,3 +259,13 @@ holds for them. A new port is therefore a description, a `PortName` member, its 
 `PORT_FIXTURES` row **and its wire**; a description without one is a compile error
 (`PortWire.tst.ts`). **Breaking** for anything that builds a `PortDescription` by hand; in this repository
 that is the five port modules and one test probe.
+
+## Amendment (2026-11-08, ADR-QD-109, CCR-QD-386)
+
+A description's span attributes state the projection too, not only the struct tables: `pose(request)`
+projects the question beside `disclose(answer, request)` for the answer, both typed by the
+description's own request and answer. The ARCH-31 amendment above gave the wire a copy of both
+(`spanQuestion`, `spanAnswer`); that copy is gone, and the wire states only JSON. The signature
+port's request key now covers the asker's requirement, `meaning` and `signerRole`, so it stays
+injective over every argument the port receives (the ARCH-45 I1 law above). See
+[ADR-QD-109](109-a-ports-span-is-projected-once-and-every-read-is-one-body.md).
