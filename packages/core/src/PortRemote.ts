@@ -68,7 +68,15 @@ export const answerRemotely = <K extends PortName>(d: DescriptionOf<K>, serving:
     const args = decoded.success.args(subject);
     const admitted = d.serving.admitted(serving);
     const asked = d.serving.asked(args);
-    if (admitted !== undefined && (asked === undefined || !admitted.includes(asked))) {
+    // The facet's own word decides what a missing list means: `"required"` is
+    // fail-closed, so a declaration that reaches here without its list (loaded
+    // from JSON, or built by a caller the type checker does not see) serves
+    // nothing, and a value that is not a list never gets `String#includes`'s
+    // substring semantics. Only an `"open"` port reads a missing list as open.
+    const notServed = Array.isArray(admitted)
+      ? asked === undefined || !admitted.includes(asked)
+      : admitted !== undefined || d.serving.allowlist === "required";
+    if (notServed) {
       return { _tag: "Refused", reason: "NotServed" };
     }
     const answered = yield* Effect.result(servePortRead(d, ...args));

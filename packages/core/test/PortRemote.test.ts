@@ -261,7 +261,8 @@ describe("a remote port (ADR-QD-NEXT)", () => {
 /**
  * What a declaration admits is decided by the port's own `serving` facet
  * (SERV-02, ADR-QD-114): a required allowlist declared empty admits nothing,
- * and an open port with no list admits any name.
+ * and an open port with no list admits any name. A required allowlist that is
+ * missing, or not a list, admits nothing either (fail-closed, code review WR-01).
  */
 describe("a declaration is admitted through the port's facet (SERV-02)", () => {
   const refused: PortWireReply = { _tag: "Refused", reason: "NotServed" };
@@ -295,6 +296,34 @@ describe("a declaration is admitted through the port's facet (SERV-02)", () => {
       const reply = yield* answerWith(PORTS.CustomPredicate, { names: [] }, store.layer, CASES.CustomPredicate.args);
       assert.deepStrictEqual(reply, refused);
       assert.strictEqual(store.calls.length, 0);
+    }));
+
+  // A declaration the type checker never saw, the way a host config loaded from
+  // JSON arrives: `JSON.parse` is typed loosely, so no cast is needed to hand it
+  // to a parameter that, in typed code, could not be built this way.
+  const loaded = (text: string): PortServingOf<"AttributeResolver"> & PortServingOf<"CustomPredicate"> =>
+    JSON.parse(text);
+
+  it.effect("a required attribute list that is missing or not a list serves nothing", () =>
+    Effect.gen(function* () {
+      for (const text of ["{}", '{"attributes":null}', '{"attributes":"clearance"}']) {
+        const store = recordingPort(PORTS.AttributeResolver, AttributeResolverNone);
+        for (const attribute of ["clearance", "constructor", "__proto__"]) {
+          const reply = yield* answerWith(PORTS.AttributeResolver, loaded(text), store.layer, [aliceId, attribute]);
+          assert.deepStrictEqual(reply, refused);
+        }
+        assert.strictEqual(store.calls.length, 0);
+      }
+    }));
+
+  it.effect("a required predicate list that is missing or not a list serves nothing", () =>
+    Effect.gen(function* () {
+      for (const text of ["{}", '{"names":null}', '{"names":"isOwner"}']) {
+        const store = recordingPort(PORTS.CustomPredicate, CustomPredicateNone);
+        const reply = yield* answerWith(PORTS.CustomPredicate, loaded(text), store.layer, CASES.CustomPredicate.args);
+        assert.deepStrictEqual(reply, refused);
+        assert.strictEqual(store.calls.length, 0);
+      }
     }));
 
   it.effect("an open port with no list admits any name", () =>

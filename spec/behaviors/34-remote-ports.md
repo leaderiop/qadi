@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-34                                    |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-11-08): BEH-QD-331 — the serving facts are stated once on the port's description, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.3 (2026-11-08): BEH-QD-333 points to BEH-QD-338, where the port route address and the reply-body contract are defined once (ARCH-52, CCR-QD-391)<br>1.2 (2026-11-08): BEH-QD-332 — an answer the span's `disclose` cannot read is the port's typed error, answered `Unavailable`, never a defect (code review WR-01)<br>1.1 (2026-11-08): BEH-QD-332 — a served span equals a local one through pose and disclose, carries a signature asker's requirement, and a store that throws is the port's typed error (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
+> | Change History | 1.5 (2026-11-08): BEH-QD-331 — a required allowlist that is missing or not a list is refused `NotServed` at run time, the store never read (code review WR-01)<br>1.4 (2026-11-08): BEH-QD-331 — the serving facts are stated once on the port's description, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.3 (2026-11-08): BEH-QD-333 points to BEH-QD-338, where the port route address and the reply-body contract are defined once (ARCH-52, CCR-QD-391)<br>1.2 (2026-11-08): BEH-QD-332 — an answer the span's `disclose` cannot read is the port's typed error, answered `Unavailable`, never a defect (code review WR-01)<br>1.1 (2026-11-08): BEH-QD-332 — a served span equals a local one through pose and disclose, carries a signature asker's requirement, and a store that throws is the port's typed error (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
 
 _Previous: [33 — Audit Pipeline](./33-audit-pipeline.md)_
 
@@ -73,8 +73,10 @@ predicate receives the session's roles and attributes, never a client's descript
 A port a host's `PortServing` does not name has no route. A question whose attribute, relation,
 event or predicate name is not admitted by the declaration is `Refused: NotServed` (404). An
 attribute or custom-predicate allowlist is required, so a prototype key (`constructor`,
-`__proto__`) is never served by default; the signature port is served only by the explicit opt-in
-`signatures: "own-records"`. `servingFor(policies)` derives the declaration from the policies a
+`__proto__`) is never served by default, and that holds at run time as well as in the type: a
+declaration that reaches `answerRemotely` without a required list, or with a value that is not a
+list, is `Refused: NotServed` and never reaches the store; the signature port is served only by the
+explicit opt-in `signatures: "own-records"`. `servingFor(policies)` derives the declaration from the policies a
 client may ask about, and every question `evaluate` asks of a port for those policies is admitted
 by it.
 
