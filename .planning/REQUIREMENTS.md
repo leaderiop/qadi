@@ -125,13 +125,13 @@
 
 ### XC — Cross-cutting (every phase)
 
-- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase.
-- [ ] **XC-02**: Each phase records its ADR (or states why none is needed), a CCR row, the
+- [x] **XC-01**: `pnpm check:pr` is green at the end of each phase.
+- [x] **XC-02**: Each phase records its ADR (or states why none is needed), a CCR row, the
   `spec/README.md` change history line, its traceability rows, and a `.changeset/*.md`.
-- [ ] **XC-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
+- [x] **XC-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
 - [x] **XC-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await` or
   `console.*` outside their budgets.
-- [ ] **XC-05**: Coverage thresholds hold (core at least 95%, others at least 90%).
+- [x] **XC-05**: Coverage thresholds hold (core at least 95%, others at least 90%).
 
 ## v2 Requirements
 

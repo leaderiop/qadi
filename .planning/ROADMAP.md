@@ -55,13 +55,13 @@ Plans:
   3. `PortAccess.ts` has one generic read body, and each `ask*` contains only argument shaping and its own validation.
   4. The traced span names from AGENTS.md §5 are unchanged, and UNTRACED_BUDGET is unchanged.
   5. `pnpm check:pr` is green, and ADR-QD-109, CCR-QD-386 and a changeset are recorded.
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans executed
 
 Plans:
 - [x] 02-01 (W1): `attributes.pose` beside `disclose` on every port; one plain `readPort` body; per-port local-equals-served span table; fixes the served-read synchronous-throw Die
 - [x] 02-02 (W2): Signature requirement crosses the wire and keys the request; delete `spanQuestion`/`spanAnswer`/`PortWireSpan`
 - [x] 02-03 (W2): ADR-QD-109; amendments to ADR-077/094/107/058; BEH-QD-227/332; new INV; traceability
-- [ ] 02-04 (W3): Overview rows, CCR-QD-386, changeset (and ARCH-31 changeset correction), website pages, `pnpm check:pr`
+- [x] 02-04 (W3): Overview rows, CCR-QD-386, changeset (and ARCH-31 changeset correction), website pages, `pnpm check:pr`
 
 ### Phase 3: Audit archive facts
 **Goal**: The archive's ordering, claim and sequence rules are each stated once, and the writer and reader both use them.
@@ -187,7 +187,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. HTTP request enforcement | 5/5 | In Progress | - |
-| 2. One port read | 3/4 | In Progress | - |
+| 2. One port read | 4/4 | In Progress | - |
 | 3. Audit archive facts | 0/3 | Planned | - |
 | 4. Gate instrumentation hook | 0/4 | Planned | - |
 | 5. Decision log over HTTP | 0/2 | Planned | - |
