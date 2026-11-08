@@ -2,7 +2,7 @@
 phase: "06"
 slug: "dehydration-in-engine"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-status: draft
+status: validated
 nyquist_compliant: true
 wave_0_complete: true
 created: "2026-11-08"
@@ -39,11 +39,11 @@ created: "2026-11-08"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 06-01-01 | 01 | 1 | HYD-01, HYD-02, HYD-04 | T-06-01, T-06-02, T-06-03 | The foreign entry never reaches the payload or a seed. The trace is withheld by default. The ForeignSubject count and the one report survive the move. The bytes and signature are pinned before any source edit | golden + type pin + round trip (tracer) | `pnpm vitest run --project react packages/react/test/HydrationPayload.test.ts packages/react/test/HydrationEngine.test.ts packages/react/test/HydrationCounts.test.ts packages/react/test/Hydration.test.ts packages/react/test/DeveloperSignals.test.ts && pnpm tstyche packages/react/test/Hydration.tst.ts` plus the grep gates and `pnpm typecheck && pnpm spec:api` | ✅ (tests extended) | ⬜ pending |
-| 06-01-02 | 01 | 1 | HYD-02, HYD-03, XC-03, XC-04 | T-06-01, T-06-05 | The payload builders are reachable only through `dehydrateWith`. Nothing new is exported from `@qadi/react` | unit + gate | `pnpm vitest run --project react && pnpm typecheck && pnpm lint && pnpm circular && pnpm spec:api` plus the grep gates | ✅ | ⬜ pending |
-| 06-02-01 | 02 | 2 | XC-02 | T-06-06 | Spec wording keeps subject binding, withholding and the count-only default warning | doc gate | `node scripts/spec-revise.mjs --check` plus the grep gates | ✅ | ⬜ pending |
-| 06-02-02 | 02 | 2 | XC-02 | T-06-07 | Registries, links, test paths, CCRs and revisions agree | doc gate | `pnpm spec:verify:strict` | ✅ | ⬜ pending |
-| 06-02-03 | 02 | 2 | XC-01, XC-04, XC-05 | all | The whole merge gate minus mutation, including the newsroom example and the hydration BDD feature | gate | `pnpm check:pr` | ✅ | ⬜ pending |
+| 06-01-01 | 01 | 1 | HYD-01, HYD-02, HYD-04 | T-06-01, T-06-02, T-06-03 | The foreign entry never reaches the payload or a seed. The trace is withheld by default. The ForeignSubject count and the one report survive the move. The bytes and signature are pinned before any source edit | golden + type pin + round trip (tracer) | `pnpm vitest run --project react packages/react/test/HydrationPayload.test.ts packages/react/test/HydrationEngine.test.ts packages/react/test/HydrationCounts.test.ts packages/react/test/Hydration.test.ts packages/react/test/DeveloperSignals.test.ts && pnpm tstyche packages/react/test/Hydration.tst.ts` plus the grep gates and `pnpm typecheck && pnpm spec:api` | ✅ (tests extended) | ✅ green |
+| 06-01-02 | 01 | 1 | HYD-02, HYD-03, XC-03, XC-04 | T-06-01, T-06-05 | The payload builders are reachable only through `dehydrateWith`. Nothing new is exported from `@qadi/react` | unit + gate | `pnpm vitest run --project react && pnpm typecheck && pnpm lint && pnpm circular && pnpm spec:api` plus the grep gates | ✅ | ✅ green |
+| 06-02-01 | 02 | 2 | XC-02 | T-06-06 | Spec wording keeps subject binding, withholding and the count-only default warning | doc gate | `node scripts/spec-revise.mjs --check` plus the grep gates | ✅ | ✅ green |
+| 06-02-02 | 02 | 2 | XC-02 | T-06-07 | Registries, links, test paths, CCRs and revisions agree | doc gate | `pnpm spec:verify:strict` | ✅ | ✅ green |
+| 06-02-03 | 02 | 2 | XC-01, XC-04, XC-05 | all | The whole merge gate minus mutation, including the newsroom example and the hydration BDD feature | gate | `pnpm check:pr` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -70,4 +70,12 @@ All phase behaviors have automated verification.
 - [x] Feedback latency under 10 s for per-task checks (except `pnpm check:pr`, by nature)
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-11-08 (validate-phase). 06-02-03 note: on this host `pnpm check:pr` stopped at `pnpm example`'s `playwright install --with-deps` (sudo needs a terminal). Every remaining step passed when run by hand: e2e 30/30, spec:website-examples, website, spec:publish. Re-run the literal gate on a host with the Playwright system deps installed.
+
+## Validation Audit 2026-11-08
+
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
