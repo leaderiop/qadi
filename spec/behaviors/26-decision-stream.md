@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-26                                    |
-> | Revision       | 1.12                                           |
+> | Revision       | 1.13                                           |
 > | Effective Date | 2026-11-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.12 (2026-11-08): BEH-QD-202 — the recheck runs the request-enforcement module's guarded mode (edge step `authorizeRequest`) answered by its own projection, and the line closing a stream is beyond the one the module writes; no requirement changes meaning (ARCH-46, ADR-QD-108, CCR-QD-385)<br>1.11 (2026-10-08): present-tense `guardRoute` becomes `addGuardedRoute` / the route's guard, `guardRoute` having left the surface (ARCH-36, CCR-QD-311)<br>1.10 (2026-10-07): BEH-QD-202 — the recheck is `authorizeRequest` ([BEH-QD-321](./23-http.md)) and `reauthCheck` is removed; a recheck failure is labelled by `classifyHttpEnforcementFailure`, so a broken credential store is an `outage`, not `"extraction-failed"`; a recheck that ends a stream logs one line (ADR-QD-046 Rev 1.4, CCR-QD-197)<br>1.9 (2026-10-07): BEH-QD-311 and BEH-QD-314 — the event names and the `synced` payload are `@qadi/core`'s `DecisionStreamEvent`, `DecisionRecordEvent` and `DecisionStreamSynced`, and `DecisionStreamSynced` refuses a non-count (CCR-QD-195)<br>1.8 (2026-10-07): BEH-QD-311 and BEH-QD-315 — an `onRefused` that throws is reported and ends neither the feed nor the backlog response; the report is core's `reportEncodeRefusal` (CCR-QD-193)<br>1.7 (2026-10-06): BEH-QD-314 — only an envelope is read: `decodeStoredRecord` takes no options (`legacyEnvironment` removed, as scheduled), a bare record is refused as `Malformed`, and an absent backlog no longer means an older server (ADR-QD-097 amendment, CCR-QD-182)<br>1.6 (2026-10-05): ARCH-11 — BEH-QD-201 rewritten for the decision log's live half; BEH-QD-202 takes a `DecisionLogReader`; BEH-QD-311's frame carries the stored-record envelope; BEH-QD-314 (the backlog travels on the stream, every frame names its producer), BEH-QD-315 (`decisionBacklogRoute`) and BEH-QD-316 (resume on reconnect) added (ADR-QD-097, CCR-QD-181)<br>1.5 (2026-10-05): BEH-QD-201 — the stale `publishUnsafe` sentence corrected to what the code does (`publish`, and why) (CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-311 — a frame's data is wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-311 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.13 (2026-11-08): BEH-QD-337 added (the stream and the backlog encode, and refuse, alike, through one `@qadi/http` module); BEH-QD-311 and BEH-QD-315 listings show the options shape both routes share (ARCH-50, CCR-QD-389)<br>1.12 (2026-11-08): BEH-QD-202 — the recheck runs the request-enforcement module's guarded mode (edge step `authorizeRequest`) answered by its own projection, and the line closing a stream is beyond the one the module writes; no requirement changes meaning (ARCH-46, ADR-QD-108, CCR-QD-385)<br>1.11 (2026-10-08): present-tense `guardRoute` becomes `addGuardedRoute` / the route's guard, `guardRoute` having left the surface (ARCH-36, CCR-QD-311)<br>1.10 (2026-10-07): BEH-QD-202 — the recheck is `authorizeRequest` ([BEH-QD-321](./23-http.md)) and `reauthCheck` is removed; a recheck failure is labelled by `classifyHttpEnforcementFailure`, so a broken credential store is an `outage`, not `"extraction-failed"`; a recheck that ends a stream logs one line (ADR-QD-046 Rev 1.4, CCR-QD-197)<br>1.9 (2026-10-07): BEH-QD-311 and BEH-QD-314 — the event names and the `synced` payload are `@qadi/core`'s `DecisionStreamEvent`, `DecisionRecordEvent` and `DecisionStreamSynced`, and `DecisionStreamSynced` refuses a non-count (CCR-QD-195)<br>1.8 (2026-10-07): BEH-QD-311 and BEH-QD-315 — an `onRefused` that throws is reported and ends neither the feed nor the backlog response; the report is core's `reportEncodeRefusal` (CCR-QD-193)<br>1.7 (2026-10-06): BEH-QD-314 — only an envelope is read: `decodeStoredRecord` takes no options (`legacyEnvironment` removed, as scheduled), a bare record is refused as `Malformed`, and an absent backlog no longer means an older server (ADR-QD-097 amendment, CCR-QD-182)<br>1.6 (2026-10-05): ARCH-11 — BEH-QD-201 rewritten for the decision log's live half; BEH-QD-202 takes a `DecisionLogReader`; BEH-QD-311's frame carries the stored-record envelope; BEH-QD-314 (the backlog travels on the stream, every frame names its producer), BEH-QD-315 (`decisionBacklogRoute`) and BEH-QD-316 (resume on reconnect) added (ADR-QD-097, CCR-QD-181)<br>1.5 (2026-10-05): BEH-QD-201 — the stale `publishUnsafe` sentence corrected to what the code does (`publish`, and why) (CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-311 — a frame's data is wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-311 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 _Previous: [25 — Inspection](./25-inspection.md)_
 
@@ -269,7 +269,9 @@ export const frame: (
 ) => Filter<StoredRecord, string, SinkRecordNotEncodable>;
 export const decisionFrames: (
   read: DecisionLogEntries,
-  options?: Pick<DecisionStreamOptions, "onRefused">,
+  // The decision-log options `DecisionStreamOptions` extends (package-private),
+  // so `Pick<DecisionStreamOptions, "onRefused">` still type-checks.
+  options?: { readonly onRefused?: (refusal: SinkRecordNotEncodable) => void },
 ) => Stream<string>;
 
 // @qadi/core
@@ -404,7 +406,9 @@ export const decisionBacklogRoute: (
   permission: Permission,
   policy: Policy,
   log: Pick<DecisionLog, "snapshot">,
-  options?: Pick<DecisionStreamOptions, "onRefused">,
+  // The decision-log options `DecisionStreamOptions` extends (package-private),
+  // so `Pick<DecisionStreamOptions, "onRefused">` still type-checks.
+  options?: { readonly onRefused?: (refusal: SinkRecordNotEncodable) => void },
 ) => Layer<…>;
 ```
 
@@ -454,6 +458,53 @@ missed. The epoch is the `Clock` time the log was made
 process's sequence numbers are never mistaken for the old one's. The cursor
 text is strict — two non-negative safe integers — because it is a request header
 a client controls.
+
+## BEH-QD-337: The stream and the backlog encode, and refuse, alike
+
+> **Invariant:** [INV-QD-097](../invariants.md#inv-qd-097-the-record-codec-is-total), [INV-QD-104](../invariants.md#inv-qd-104-a-refusal-report-says-where-never-what)
+
+```ts
+// @qadi/http, package-private (packages/http/src/DecisionLogHttp.ts)
+export interface DecisionLogServeOptions {
+  readonly onRefused?: (refusal: SinkRecordNotEncodable) => void;
+}
+```
+
+```
+REQUIREMENT: `/__decisions` and `/__decisions/backlog` MUST encode each record
+             through the same stored-record encoder, so a record one refuses
+             the other refuses, for the same reason.
+REQUIREMENT: In both, a refused record MUST drop only its own frame or array
+             element and MUST be reported exactly once: through `onRefused`
+             when given, otherwise by a warning in the route's own words ("a
+             decision record could not be framed" for the stream, "a decision
+             record could not be served in the backlog" for the backlog),
+             annotated with the refusal, the path it was found at and the
+             evaluation id.
+REQUIREMENT: In both, an `onRefused` that throws MUST be contained: it is
+             reported once as "an encode-refusal hook threw", and every other
+             record is still served.
+REQUIREMENT: An encodable record MUST open no refusal span. A refused one MUST
+             open its route's own span, `qadi.http.decisionStream.refused` or
+             `qadi.http.decisionBacklog.refused`.
+```
+
+This is BEH-QD-311 and BEH-QD-315 stated once across both routes, and it adds
+no behaviour either route lacked.
+
+ARCH-50 (CCR-QD-389): each route held its own reporter and its own
+encode-or-report loop, which differed only in their words, and the second had
+been written by copying the first. A fix to one (a hook that throws, an
+annotation) had to be made twice, and nothing checked that it was.
+
+Both now go through the package-private `packages/http/src/DecisionLogHttp.ts`.
+The policy itself (hook or warning, containment, annotations) stays core's
+`reportEncodeRefusal` ([ADR-QD-095](../decisions/095-sinkcodec-owns-both-directions.md)
+D-09-e), and each route keeps its own words and span. `frame` is declared in
+that module and stays public through `DecisionStreamRoute.ts`. The table that
+pins it is `packages/http/test/DecisionLogHttp.test.ts`: every framing (the
+stream's backlog, the stream's live half, the backlog's JSON) against every
+refusal scenario.
 
 ---
 
