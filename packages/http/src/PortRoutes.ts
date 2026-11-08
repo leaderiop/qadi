@@ -1,6 +1,6 @@
 /**
  * The HTTP route family that answers a host's ports for a remote asker
- * (ARCH-31, ADR-QD-NEXT): `POST <prefix>/<PortName>` with a JSON question,
+ * (ARCH-31, ADR-QD-107): `POST <prefix>/<PortName>` with a JSON question,
  * answering with the closed `PortWireReply` as JSON.
  *
  * Only an adapter. Decoding the question, refusing one about any subject but
@@ -34,6 +34,7 @@ import { answerRemotely, CurrentSubject, forEveryPort, tabulatePorts } from "@qa
 import { answerWithResponse, enforceSubject } from "./AuthorizeRequest.ts";
 import { loadNoResource } from "./NoResource.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
+import { portPath } from "./PortRouteAddress.ts";
 
 /**
  * The status each refusal answers with, closed over the refusals so a new one is
@@ -64,14 +65,12 @@ export const PORT_REPLY_STATUS: (reply: PortWireReply) => number = Match.type<Po
 
 /** Options for {@link portRoutes} and {@link portRoutesUnguarded}. */
 export interface PortRoutesOptions {
-  /** Where the routes mount, without a trailing slash. Defaults to `"/__ports"`. */
+  /**
+   * Where the routes mount, without a trailing slash. Defaults to `"/__ports"`, the
+   * `PORT_ROUTE_PREFIX` of `PortRouteAddress.ts`.
+   */
   readonly prefix?: `/${string}` | undefined;
 }
-
-const DEFAULT_PREFIX = "/__ports";
-
-const pathOf = (options: PortRoutesOptions | undefined, port: PortName): `/${string}` =>
-  `${options?.prefix ?? DEFAULT_PREFIX}/${port}`;
 
 /** A reply as a response: its status from the table, never cached. */
 const respond = (reply: PortWireReply): HttpServerResponse.HttpServerResponse =>
@@ -130,7 +129,7 @@ export const portRoutes = <P extends Permission>(
       if (answer === undefined) return Layer.empty;
       return addGuardedRoute(
         "POST",
-        pathOf(options, port),
+        portPath(options?.prefix, port),
         permission,
         policy,
         loadNoResource,
@@ -178,7 +177,7 @@ export const portRoutesUnguarded = (
         if (answer === undefined) return Layer.empty;
         return HttpRouter.add(
           "POST",
-          pathOf(options, port),
+          portPath(options?.prefix, port),
           Effect.flatMap(
             HttpServerRequest.HttpServerRequest,
             enforceSubject(answerWithResponse, () => Effect.map(Effect.flatMap(questionOf, answer), respond)),

@@ -1,6 +1,6 @@
 /**
  * The port route family and the client layer, end to end over
- * `HttpRouter.toWebHandler` (ARCH-31 T6, ADR-QD-NEXT).
+ * `HttpRouter.toWebHandler` (ARCH-31 T6, ADR-QD-107).
  *
  * The client's `FetchHttpClient.Fetch` is provided as the web handler, so what
  * crosses is exactly an HTTP request and response. For every port in the
@@ -45,6 +45,7 @@ import { collectingLogger } from "@qadi/testing";
 import { permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
 import { PORT_REPLY_STATUS, portRoutes, portRoutesUnguarded } from "../src/PortRoutes.ts";
 import type { PortRoutesOptions } from "../src/PortRoutes.ts";
+import { PORT_ROUTE_PREFIX, portPath } from "../src/PortRouteAddress.ts";
 import { remotePortsLayer } from "../src/RemotePorts.ts";
 import { SubjectExtractionFailed, subjectExtractorBearer } from "../src/SubjectExtractor.ts";
 import { stack } from "./fixtures/stack.ts";
@@ -230,7 +231,7 @@ const routeCase = <K extends PortName>(d: DescriptionOf<K>, c: Case<K>) => {
   }
 };
 
-describe("the port routes (ADR-QD-NEXT)", () => {
+describe("the port routes (ADR-QD-107)", () => {
   const RUN: { readonly [K in PortName]: () => void } = {
     AttributeResolver: () => routeCase(PORTS.AttributeResolver, CASES.AttributeResolver),
     DecisionHistory: () => routeCase(PORTS.DecisionHistory, CASES.DecisionHistory),
@@ -239,6 +240,14 @@ describe("the port routes (ADR-QD-NEXT)", () => {
     SignatureHistory: () => routeCase(PORTS.SignatureHistory, CASES.SignatureHistory),
   };
   for (const run of Record.values(RUN)) run();
+});
+
+describe("the address (ARCH-52)", () => {
+  it("the default prefix is /__ports and a path is <prefix>/<PortName>", () => {
+    assert.strictEqual(PORT_ROUTE_PREFIX, "/__ports");
+    assert.strictEqual(portPath(undefined, "AttributeResolver"), "/__ports/AttributeResolver");
+    assert.strictEqual(portPath("/x/ports", "SignatureHistory"), "/x/ports/SignatureHistory");
+  });
 });
 
 describe("one address on both sides (ARCH-52)", () => {
