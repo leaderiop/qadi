@@ -3,6 +3,14 @@ phase: 03
 review: 03-REVIEW.md
 titles: json
 findings:
+  - id: WR-02
+    severity: warning
+    disposition: open
+    title: "Two doc comments still describe the pre-fix failure contract"
+  - id: IN-03
+    severity: info
+    disposition: open
+    title: "The changeset's first paragraph says the same bundles are written, and the second says some are no longer written"
   - id: WR-01
     severity: warning
     disposition: fixed
@@ -15,18 +23,20 @@ findings:
     severity: info
     disposition: fixed
     title: "ADR-QD-110 mutation and \"97 killed / 1 survivor\" claim is not reproducible from the changed files"
-open: 0
-total: 3
-recorded: 2026-11-08T04:16:41.550Z
+open: 2
+total: 5
+recorded: 2026-11-08T04:39:42.559Z
 ---
 
 # Phase 03: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | fixed | ba6e377 (writer fails SequenceNumberInvalid), ccafcb8 (spec) |
-| IN-01 | info | fixed | ba6e377 |
-| IN-02 | info | fixed | ccafcb8 (ADR-QD-110 cites the Stryker command; re-run 117 killed / 1 survived) |
+| WR-02 | warning | open | - |
+| IN-03 | info | open | - |
+| WR-01 | warning | fixed | ba6e377 (writer fails SequenceNumberInvalid), ccafcb8 (spec) (not in the current review) |
+| IN-01 | info | fixed | ba6e377 (not in the current review) |
+| IN-02 | info | fixed | ccafcb8 (ADR-QD-110 cites the Stryker command; re-run 117 killed / 1 survived) (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
