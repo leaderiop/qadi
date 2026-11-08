@@ -160,23 +160,37 @@ const signatureSpan = {
  * reads (`meaning`, `signerRole`) — because redacting them would fabricate a
  * `signerId` and `signedAt` the client would then read as real (D-31-e). The
  * query is scoped to the asking subject, so these are the subject's own
- * records; a host opts in to serving them (`PortServing`). The question does
- * not yet carry the requirement (a later plan extends it), and the span
- * projections here are retired in favour of `signatureSpan`'s own.
+ * records; a host opts in to serving them (`PortServing`).
+ *
+ * The question carries the asker's requirement, `meaning` and `signerRole`, as
+ * optional keys, so the served span can say what was asked and whether the
+ * records matched it, as the local span does (ADR-QD-109). They are strings the
+ * span records and no store filters by, and a question without them still
+ * decodes, so an older client's question is read as before. The decode stays
+ * strict: any other key is refused.
  */
 const signatureWire = portWire({
   question: Schema.Struct({
     subjectId: SubjectIdSchema,
     resourceId: Schema.optionalKey(ResourceIdSchema),
+    meaning: Schema.optionalKey(Schema.String),
+    signerRole: Schema.optionalKey(Schema.String),
   }),
   answer: Schema.Array(Signature),
   toQuestion: ([query]: [query: SignatureQuery]) =>
     Result.succeed({
       subjectId: query.subjectId,
       ...(query.resourceId === undefined ? {} : { resourceId: query.resourceId }),
+      ...(query.meaning === undefined ? {} : { meaning: query.meaning }),
+      ...(query.signerRole === undefined ? {} : { signerRole: query.signerRole }),
     }),
   fromQuestion: (question, subject): [query: SignatureQuery] => [
-    { subjectId: subject.id, resourceId: question.resourceId },
+    {
+      subjectId: subject.id,
+      resourceId: question.resourceId,
+      ...(question.meaning === undefined ? {} : { meaning: question.meaning }),
+      ...(question.signerRole === undefined ? {} : { signerRole: question.signerRole }),
+    },
   ],
   ...sameAnswer<ReadonlyArray<Signature>>(),
   asked: () => undefined,
@@ -191,8 +205,13 @@ const signatureWire = portWire({
 /**
  * The signature-history port, described once (`PortDescription.ts`).
  *
- * A request is keyed by `(subjectId, resourceId)`, with an absent resource as
- * `null` — the same pair `signatureHistoryFromSignatures` groups by.
+ * A request is keyed by `(subjectId, resourceId, meaning, signerRole)`, with
+ * each absent member as `null`. The key is injective over every argument the
+ * port receives (ADR-QD-094, INV-QD-043), and the requirement is one: over-keying
+ * is the safe direction, since a capture keyed per requirement can only miss and
+ * deny, never replay a stale allow. `signatureHistoryFromSignatures` still groups
+ * by the first two, because the store answers every signature on file whatever
+ * the requirement says.
  */
 export const signatureHistoryPort: PortDescription<
   "SignatureHistory",
@@ -223,7 +242,13 @@ export const signatureHistoryPort: PortDescription<
       resourceId: query.resourceId,
       cause: Cause.squash(cause),
     }),
-  key: ([query]) => JSON.stringify([query.subjectId, query.resourceId ?? null]),
+  key: ([query]) =>
+    JSON.stringify([
+      query.subjectId,
+      query.resourceId ?? null,
+      query.meaning ?? null,
+      query.signerRole ?? null,
+    ]),
   none: { name: "SignatureHistoryNone", answer: NO_SIGNATURES },
 };
 
