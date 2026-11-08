@@ -141,6 +141,12 @@ const relationshipSpan = {
     },
   ),
   answer: spanStruct({ answer: Schema.optionalKey(RelatedResult) }, { answer: "qadi.answer" }),
+  pose: ([request]: [request: RelationshipCheck]) => ({
+    subjectId: request.subjectId,
+    relation: request.relation,
+    resourceId: request.resourceId,
+    depth: request.depth,
+  }),
   disclose: (answer: RelatedResult) => ({ answer }),
 };
 

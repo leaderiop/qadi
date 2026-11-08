@@ -101,6 +101,10 @@ const attributeSpan = {
     { attribute: "qadi.attribute", ...sharedQuestionKeys },
   ),
   answer: spanStruct({ resolved: Schema.optionalKey(Schema.Boolean) }, { resolved: "qadi.resolved" }),
+  pose: ([subjectId, attribute]: [subjectId: SubjectId, attribute: string]) => ({
+    subjectId,
+    attribute,
+  }),
   disclose: (value: unknown) => ({ resolved: value !== undefined }),
 };
 

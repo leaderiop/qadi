@@ -37,14 +37,26 @@ import { makeSubjectId, ResourceIdSchema, SubjectIdSchema } from "./Identity.ts"
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
+import type { SpanType } from "./PortSpan.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 import { portWire, sameAnswer } from "./PortWireEncode.ts";
 import { Signature } from "./Signature.ts";
+import { signatureMatches } from "./SignatureMatch.ts";
 
 export interface SignatureQuery {
   readonly subjectId: SubjectId;
   /** The resource the question is scoped to. Absent for a subject-global question. */
   readonly resourceId: ResourceId | undefined;
+  /**
+   * The meaning the asker will match the answer against (`"approved"`).
+   *
+   * Context, not a filter: a store answers with **every** signature on file for
+   * `subjectId`/`resourceId`, whatever this says. It is carried so that the
+   * port's span, local or served, says what was asked (BEH-QD-227, ADR-QD-109).
+   */
+  readonly meaning?: string | undefined;
+  /** The signer role the asker will match the answer against. Context, like `meaning`. */
+  readonly signerRole?: string | undefined;
 }
 
 export interface SignatureHistoryShape {
@@ -84,9 +96,12 @@ const NO_SIGNATURES: ReadonlyArray<Signature> = Object.freeze([]);
  * and whether there were any at all (the deny reason distinguishes "nothing on
  * file" from "none match").
  *
- * What the signature span's `disclose` reads. `onFile` is deliberately not on
- * the span (ARCH-21's non-goals): a count of signatures is a disclosure
- * decision of its own.
+ * What `askSignature` hands the walk. The span's `disclose` does not read it: it
+ * reads the signatures themselves and the request's requirement
+ * (`signatureMatches`), so a served read, which makes no `SignatureAnswer`,
+ * leaves the same `qadi.matched`. `onFile` stays off the span (ARCH-21's
+ * non-goals, and BEH-QD-227 does not list it): a count of signatures is a
+ * disclosure decision of its own, recorded as ADR-QD-109's choice.
  */
 export interface SignatureAnswer {
   readonly matched: boolean;
@@ -96,26 +111,46 @@ export interface SignatureAnswer {
 /**
  * What the signature span says (BEH-QD-227). `qadi.matched` rather than a
  * three-valued answer: a signature either matches or it does not.
+ *
+ * `pose` projects the request, requirement included, so a served read says the
+ * `meaning` and `signerRole` it was asked about as a local one does. `disclose`
+ * says nothing when the request carries no `meaning`: with no requirement there
+ * is nothing to have matched.
  */
+const signatureQuestion = spanStruct(
+  {
+    meaning: Schema.optionalKey(Schema.String),
+    scope: Schema.optionalKey(Schema.Literals(["Any", "Resource"])),
+    signerRole: Schema.optionalKey(Schema.String),
+    resourceId: Schema.optionalKey(Schema.String),
+    ...sharedQuestionFields,
+  },
+  {
+    meaning: "qadi.meaning",
+    scope: "qadi.scope",
+    signerRole: "qadi.signer_role",
+    resourceId: "qadi.resource_id",
+    ...sharedQuestionKeys,
+  },
+);
+
 const signatureSpan = {
-  question: spanStruct(
-    {
-      meaning: Schema.optionalKey(Schema.String),
-      scope: Schema.optionalKey(Schema.Literals(["Any", "Resource"])),
-      signerRole: Schema.optionalKey(Schema.String),
-      resourceId: Schema.optionalKey(Schema.String),
-      ...sharedQuestionFields,
-    },
-    {
-      meaning: "qadi.meaning",
-      scope: "qadi.scope",
-      signerRole: "qadi.signer_role",
-      resourceId: "qadi.resource_id",
-      ...sharedQuestionKeys,
-    },
-  ),
+  question: signatureQuestion,
   answer: spanStruct({ matched: Schema.optionalKey(Schema.Boolean) }, { matched: "qadi.matched" }),
-  disclose: (outcome: SignatureAnswer) => ({ matched: outcome.matched }),
+  pose: ([query]: [query: SignatureQuery]): SpanType<typeof signatureQuestion> => ({
+    subjectId: query.subjectId,
+    scope: query.resourceId === undefined ? "Any" : "Resource",
+    resourceId: query.resourceId,
+    meaning: query.meaning,
+    signerRole: query.signerRole,
+  }),
+  disclose: (
+    signatures: ReadonlyArray<Signature>,
+    [query]: [query: SignatureQuery],
+  ): { readonly matched?: boolean } =>
+    query.meaning === undefined
+      ? {}
+      : { matched: signatureMatches(signatures, query.meaning, query.signerRole) },
 };
 
 /**
@@ -125,9 +160,9 @@ const signatureSpan = {
  * reads (`meaning`, `signerRole`) — because redacting them would fabricate a
  * `signerId` and `signedAt` the client would then read as real (D-31-e). The
  * query is scoped to the asking subject, so these are the subject's own
- * records; a host opts in to serving them (`PortServing`). The span discloses
- * no answer field: `qadi.matched` is made in `PortAccess.ts`, where the
- * requirement is known, and `onFile` stays unrecorded (ARCH-21).
+ * records; a host opts in to serving them (`PortServing`). The question does
+ * not yet carry the requirement (a later plan extends it), and the span
+ * projections here are retired in favour of `signatureSpan`'s own.
  */
 const signatureWire = portWire({
   question: Schema.Struct({

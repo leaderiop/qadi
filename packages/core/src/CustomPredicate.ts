@@ -90,6 +90,14 @@ const renderReason = (cause: unknown): string => {
   }
 };
 
+/** The custom predicate's request: what `evaluate` receives, positionally. */
+type CustomArgs = [
+  name: string,
+  subject: AuthSubject,
+  resource: Resource | undefined,
+  params: unknown,
+];
+
 /**
  * What the custom-predicate span says (BEH-QD-227). The registered name is
  * recorded; `params` never are, since they are arbitrary caller data.
@@ -100,15 +108,9 @@ const customSpan = {
     { name: "qadi.custom_predicate", ...sharedQuestionKeys },
   ),
   answer: spanStruct({ answer: Schema.optionalKey(Schema.Boolean) }, { answer: "qadi.answer" }),
+  pose: ([name, subject]: CustomArgs) => ({ name, subjectId: subject.id }),
   disclose: (answer: boolean) => ({ answer }),
 };
-
-type CustomArgs = [
-  name: string,
-  subject: AuthSubject,
-  resource: Resource | undefined,
-  params: unknown,
-];
 
 /**
  * What the custom-predicate question and answer look like on a wire (ARCH-31).

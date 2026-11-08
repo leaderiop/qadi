@@ -54,6 +54,7 @@ class ProbePort extends Context.Service<ProbePort, ProbeShape>()("qadi/test/Prob
 const probeSpan = {
   question: spanStruct({ ...sharedQuestionFields }, { ...sharedQuestionKeys }),
   answer: spanStruct({ resolved: Schema.optionalKey(Schema.Boolean) }, { resolved: "qadi.resolved" }),
+  pose: ([who]: [who: string, what: string]) => ({ subjectId: who }),
   disclose: (value: number | undefined) => ({ resolved: value !== undefined }),
 };
 

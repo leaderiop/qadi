@@ -29,6 +29,7 @@ import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
+import type { SpanType } from "./PortSpan.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 import { portWire, sameAnswer } from "./PortWireEncode.ts";
 
@@ -90,22 +91,30 @@ export class DecisionHistory extends Context.Service<
  * What the history span says (BEH-QD-227). The answer is a closed three-valued
  * enum, so it discloses nothing a policy tag does not.
  */
+const actedQuestion = spanStruct(
+  {
+    event: Schema.optionalKey(Schema.String),
+    scope: Schema.optionalKey(Schema.Literals(["Any", "Resource"])),
+    resourceId: Schema.optionalKey(Schema.String),
+    ...sharedQuestionFields,
+  },
+  {
+    event: "qadi.event",
+    scope: "qadi.scope",
+    resourceId: "qadi.resource_id",
+    ...sharedQuestionKeys,
+  },
+);
+
 const actedSpan = {
-  question: spanStruct(
-    {
-      event: Schema.optionalKey(Schema.String),
-      scope: Schema.optionalKey(Schema.Literals(["Any", "Resource"])),
-      resourceId: Schema.optionalKey(Schema.String),
-      ...sharedQuestionFields,
-    },
-    {
-      event: "qadi.event",
-      scope: "qadi.scope",
-      resourceId: "qadi.resource_id",
-      ...sharedQuestionKeys,
-    },
-  ),
+  question: actedQuestion,
   answer: spanStruct({ answer: Schema.optionalKey(ActedResult) }, { answer: "qadi.answer" }),
+  pose: ([query]: [query: ActedQuery]): SpanType<typeof actedQuestion> => ({
+    subjectId: query.subjectId,
+    event: query.event,
+    scope: query.resourceId === undefined ? "Any" : "Resource",
+    resourceId: query.resourceId,
+  }),
   disclose: (answer: ActedResult) => ({ answer }),
 };
 
