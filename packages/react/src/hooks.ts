@@ -9,21 +9,10 @@
 import type { AuthSubject, Policy, Resource } from "@qadi/core";
 import { projectVisible } from "@qadi/core";
 import { useAtomSuspense } from "@effect/atom-react/Hooks";
-import type { RefObject } from "react";
-import {
-  useCallback,
-  useContext,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import type { GateInstance } from "./GateRegistry.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
-import { outcomeOf } from "./DecisionOutcome.ts";
-import type { GateIdentity } from "./GateWriter.ts";
-import { GateScopeContext, useGateRegistrations } from "./GateWriter.ts";
+import { useGates } from "./GateWriter.ts";
 import type { AskedQuestion } from "./QuestionBook.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
 import type { ClientDecision } from "./SeededDecision.ts";
@@ -90,55 +79,16 @@ export const useDecisionSuspense = (policy: Policy, resource?: Resource): Client
  * One hook asking several questions: the shared body of `useQuestions` and
  * `usePolicies`, which differ only in the name they register under.
  *
- * Out of the barrel for the reason `useGate` is: the kind is not a caller's to
- * choose. The raw results are returned, as ADR-QD-093(d) keeps for
- * `useDecision`; each entry is read once more through `outcomeOf`, and only to
- * record its tag with the gate registry.
+ * A thin caller of `useGates`, which owns the group read, the one per-entry atom
+ * lookup, each entry's identity and the registration, so this hook builds and
+ * looks up nothing itself (ARCH-49, D-03). Out of the barrel for the reason
+ * `useGate` is: the kind is not a caller's to choose. The raw results are
+ * returned unread, as ADR-QD-093(d) keeps for `useDecision`.
  */
 const useQuestionsAs = (
   kind: "usePolicies" | "useQuestions",
   questions: Readonly<Record<string, AskedQuestion>>,
-): Readonly<Record<string, DecisionResult>> => {
-  const { atoms } = useQadiContext(kind);
-  // The provider's once-resolved writer (ARCH-49): `undefined` unless instrumented.
-  // Read here only until this hook moves onto `useGates` (plan 04-02).
-  const writer = useContext(GateScopeContext)?.writer;
-  // `useMemo` here is a performance hoist, not the source of correctness: the
-  // atom set's `decisions` family keys structurally, so calling it fresh every
-  // render would return the same atom. This only spares re-walking the records'
-  // hashes on every render (AGENTS.md §13). It is also what makes the
-  // registration below stable: an equal record is one `group` atom.
-  const group = useMemo(() => atoms.decisions(questions), [atoms, questions]);
-  const results = useAtomValue(group);
-
-  const base = useId();
-  const markers = useRef<RefObject<HTMLSpanElement | null>>({ current: null });
-  // Keyed on `group`, so an inline record that is equal each render does not churn
-  // registration. Each entry registers under its own `id`, the one `useId` this
-  // hook minted plus the entry's name.
-  const identities = useMemo(
-    () =>
-      Object.entries(questions).map(
-        ([name, question]): GateIdentity => ({
-          id: `${base}/${name}`,
-          kind,
-          atom: atoms.decision(question.policy, question.resource),
-          wraps: false,
-          policy: question.policy,
-          resource: question.resource,
-          marker: markers.current,
-        }),
-      ),
-    [atoms, base, kind, group],
-  );
-  const states = Object.keys(questions).map((name) => {
-    const result = results[name];
-    return result === undefined ? "Pending" : outcomeOf(result)._tag;
-  });
-  useGateRegistrations(writer, identities, states);
-
-  return results;
-};
+): Readonly<Record<string, DecisionResult>> => useGates(kind, questions).results;
 
 /**
  * Evaluates several questions as one unit, each a policy and optionally a resource.
@@ -163,7 +113,10 @@ export const useQuestions = (
 export const usePolicies = (
   policies: Readonly<Record<string, Policy>>,
 ): Readonly<Record<string, DecisionResult>> => {
-  // A fresh record each render is fine: `atoms.decisions` keys structurally.
+  // A fresh record each render is fine: `atoms.decisions` keys structurally, and
+  // each entry's identity is keyed on its decision atom, so an equal record is the
+  // same group and registers nothing new. Pinned by `hooks.rerender.test.tsx`
+  // (ARCH-49, D-07).
   const questions: Record<string, AskedQuestion> = {};
   for (const [name, policy] of Object.entries(policies)) questions[name] = { policy };
   return useQuestionsAs("usePolicies", questions);
