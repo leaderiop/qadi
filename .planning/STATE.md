@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 07
-current_phase_name: One port route address
-status: verifying
-stopped_at: Completed 07-03-PLAN.md
-last_updated: "2026-11-08T06:31:07.991Z"
+current_phase: 08
+current_phase_name: Port serving from the registry
+status: executing
+stopped_at: Phase 07 complete, ready to execute Phase 08
+last_updated: "2026-11-08T07:35:15.524Z"
 last_activity: 2026-11-08
-last_activity_desc: Phase 07 execution started
-state_head: fb03d438e9707492d07749d6a9099fc8bd7134d1
+last_activity_desc: Phase 07 complete, transitioned to Phase 08
+state_head: c63eea7471ce484662086171883113761755da93
 progress:
   total_phases: 9
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 33
   completed_plans: 23
-  percent: 67
+  percent: 70
 ---
 
 # Project State
@@ -27,17 +27,17 @@ See: .planning/PROJECT.md (updated 2026-11-08)
 
 ## Current Position
 
-Phase: 07 (One port route address) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-11-08 — Phase 07 execution started
+Phase: 08 — Port serving from the registry
+Plan: Not started
+Status: Ready to execute
+Last activity: 2026-11-08 — Phase 07 complete, transitioned to Phase 08
 
-Progress: [████████████░░░░░░░░] 20/33 plans ([███████░░░] 67%); 6/9 phases
+Progress: [██████████████░░░░░░] 23/33 plans ([███████░░░] 70%); 7/9 phases
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
+- Total plans completed: 23
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -52,6 +52,7 @@ Progress: [████████████░░░░░░░░] 20/33 p
 | 05 | 2 | - | - |
 | 06 | 2 | - | - |
 | 06 | 2 | - | - |
+| 07 | 3 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -119,6 +120,8 @@ Progress: [████████████░░░░░░░░] 20/33 p
 - [Phase 07]: PortRouteAddress.ts is a leaf module (not PortRoutes.ts) so the browser-bundled client does not depend on the server route code; portPath takes and returns template-literal path types; PORT_REPLY_STATUS stays in PortRoutes.ts and only the reply-body contract moved beside the address.
 - [Phase 07]: 07-02: no ADR for ARCH-52 (no export change, ADR-QD-107 route design unchanged); BEH-QD-338 holds the address and reply-body contract, BEH-QD-333 points to it; CCR-QD-391 recorded; ADR-QD-114 stays reserved for ARCH-53
 - [Phase 07]: 07-03: records matched the built tree, nothing corrected; pnpm check:pr steps 13-16 run individually after sudo-blocked Playwright install, accepted by the user for XC-01
+- [Phase 07] review fix WR-01: `portPath` strips trailing slashes from the prefix (`/x/ports/` and `/x/ports//` → `/x/ports/<Port>`); BEH-QD-338 updated; re-verified 9/9 passed after the fix
+- [Phase 07]: UAT: literal `pnpm check:pr` exit 0 (16/16) on a clean clone of 88187a5 in the podman Ubuntu Playwright container (same route as Phase 06); vitest 3974+559+42, e2e 30/30
 
 ### Pending Todos
 
@@ -135,12 +138,13 @@ Progress: [████████████░░░░░░░░] 20/33 p
 - BEH/INV ids are allocated at execution time with `node scripts/next-id.mjs`.
 - [Phase 02] Pre-existing, out of scope: in devtools replay the other four ports' `none` answers (attribute `undefined`, relationship/history `Unknown`, custom `false`) still grant under `not(...)` on a capture miss — the INV-QD-007 fail-open an unwired deployment also has. Flipping them is one word each in Capture.ts's `UNSEEN_REQUEST_IS_AN_OUTAGE`; needs a decision.
 - Seven info-level review findings for Phase 02 remain open (02-REVIEW-DISPOSITION.md: IN-01..07).
+- Three info-level review findings for Phase 07 remain open (07-REVIEW-DISPOSITION.md: IN-01..03).
 - [Phase 05] Three review findings open (05-REVIEW-DISPOSITION.md): WR-01, no route-level test that `decisionStreamRoute` threads `onRefused` to `decisionFrames`; IN-01 (`DecisionLogServeOptions` package-private yet shapes public options); IN-02 (refusal table's SSE cells don't assert `event:`/`id:`).
 - Every other ROADMAP phase still lists `XC-01..05` as a range, which `phase.complete` cannot parse (Phase 05's line was expanded); `XC-01..05` traceability row stays Pending as cross-cutting.
 - [Phase 04] Five review findings open (04-REVIEW-DISPOSITION.md): WR-01, the D-04 test never exercises a cold suspend (needs a latched-port cold case); IN-01..04 (unused `useGateRegistration`, stale `useAtomValue` comment, unmarked dep-array omissions, overstated test header).
 
 ## Session Continuity
 
-Last session: 2026-11-08T06:31:07.924Z
-Stopped at: Completed 07-03-PLAN.md
+Last session: 2026-11-08T07:36:00Z
+Stopped at: Phase 07 complete, ready to execute Phase 08
 Resume file: None

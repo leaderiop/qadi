@@ -156,7 +156,7 @@ None. Every finding in the review is in scope.
 | GATE-01..05 | Phase 4 | Pending |
 | LOGH-01..04 | Phase 5 | Complete |
 | HYD-01..04 | Phase 6 | Complete |
-| ADDR-01..03 | Phase 7 | Pending |
+| ADDR-01..03 | Phase 7 | Complete |
 | SERV-01..05 | Phase 8 | Pending |
 | SINK-01..03 | Phase 9 | Pending |
 | XC-01..05 | All phases | Pending |

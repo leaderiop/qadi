@@ -20,7 +20,7 @@ ARCH ticket with its own ADR, CCR and changeset, and each ends with `pnpm check:
 - [x] **Phase 4: Gate instrumentation hook** - Resolve the writer once and use one `useGates` hook for every gate kind (ARCH-49) (completed 2026-11-08)
 - [x] **Phase 5: Decision log over HTTP** - Use one encoder and one refusal policy for both stream and backlog (ARCH-50) (completed 2026-11-08)
 - [x] **Phase 6: Dehydration in the engine** - Add `dehydrateWith` beside `hydrateWith`; both directions get one owner (ARCH-51) (completed 2026-11-08)
-- [ ] **Phase 7: One port route address** - Server and client share one address and one status contract (ARCH-52)
+- [x] **Phase 7: One port route address** - Server and client share one address and one status contract (ARCH-52) (completed 2026-11-08)
 - [ ] **Phase 8: Port serving from the registry** - Derive the serving tables from descriptions behind an ADR-094 checkpoint, and remove pass-through enumerations (ARCH-53)
 - [ ] **Phase 9: Sink record projection** - SinkEmit owns every record projection, and JSON refusal words leave the sink wire (ARCH-54)
 
@@ -136,7 +136,7 @@ Plans:
   1. The string `"/__ports"` appears once in `packages/http/src` (excluding comments).
   2. A round trip with a non-default prefix succeeds end to end.
   3. `pnpm check:pr` is green, and CCR-QD-391 and a changeset are recorded.
-**Plans**: 3/3 plans executed
+**Plans**: 3/3 plans complete
 
 Plans:
 - [x] 07-01 (W1): Round-trip test under `/x/ports`; leaf `PortRouteAddress.ts` (`PORT_ROUTE_PREFIX`, `portPath`); reply-body contract beside it
@@ -192,6 +192,6 @@ Plans:
 | 4. Gate instrumentation hook | 4/4 | Complete    | 2026-11-08 |
 | 5. Decision log over HTTP | 2/2 | Complete    | 2026-11-08 |
 | 6. Dehydration in the engine | 2/2 | Complete    | 2026-11-08 |
-| 7. One port route address | 3/3 | In Progress | - |
+| 7. One port route address | 3/3 | Complete    | 2026-11-08 |
 | 8. Port serving from the registry | 0/6 | Planned | - |
 | 9. Sink record projection | 0/4 | Planned | - |
