@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 06
-current_phase_name: Dehydration in the engine
-status: verifying
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-11-08T05:59:17.203Z"
+current_phase: 07
+current_phase_name: One port route address
+status: executing
+stopped_at: Phase 06 complete, ready to execute Phase 07
+last_updated: "2026-11-08T06:17:09.900Z"
 last_activity: 2026-11-08
-last_activity_desc: Phase 06 execution started
-state_head: e6924549fb2387bdfb62ac307b0789864463ae42
+last_activity_desc: Phase 06 complete, transitioned to Phase 07
+state_head: 06035b8be9ac06166e8dc8efd6d683100c5dc10f
 progress:
   total_phases: 9
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 33
   completed_plans: 20
-  percent: 56
+  percent: 61
 ---
 
 # Project State
@@ -23,21 +23,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-08)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 06 — Dehydration in the engine
+**Current focus:** Phase 07 — One port route address
 
 ## Current Position
 
-Phase: 06 (Dehydration in the engine) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-11-08 — Phase 06 execution started
+Phase: 07 — One port route address
+Plan: Not started
+Status: Ready to execute
+Last activity: 2026-11-08 — Phase 06 complete, transitioned to Phase 07
 
-Progress: [███████████░░░░░░░░░] 18/33 plans ([██████░░░░] 56%); 5/9 phases
+Progress: [████████████░░░░░░░░] 20/33 plans (61%); 6/9 phases
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
+- Total plans completed: 20
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -50,6 +50,8 @@ Progress: [███████████░░░░░░░░░] 18/33 p
 | 03 | 3 | - | - |
 | 04 | 4 | - | - |
 | 05 | 2 | - | - |
+| 06 | 2 | - | - |
+| 06 | 2 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -110,6 +112,7 @@ Progress: [███████████░░░░░░░░░] 18/33 p
 - [Phase 05]: UAT: full `pnpm check:pr` exit 0 (16/16) with Playwright's `--with-deps` apt install neutralized by a no-op `sudo` on PATH for that one process — on Fedora it falls back to Ubuntu `apt-get`, so it cannot pass here even with sudo
 - [Phase 06]: dehydrateWith resolves its dropped-entries reporter inside the drop branch (as dehydrateDecisions did); option names includeTrace/onDropped unchanged; D-09 grep clean so removing the private builders and wrapper is not breaking
 - [Phase 06]: ADR-QD-078 amended (2026-11-08) rather than superseded by ADR-QD-113; ADR-QD-113 left unused — The amendment fits in one paragraph (D-08 threshold); CCR-QD-390 used as reserved
+- [Phase 06]: UAT: literal `pnpm check:pr` exit 0 (16/16, step 13 including `playwright install --with-deps chromium`) in a rootless podman Ubuntu 24.04 container (`mcr.microsoft.com/playwright:v1.65.0-noble`, Node 26.13.0, pnpm 10.17.1) from a clean copy of the working tree — no host workaround needed. Node 26 ships no corepack (install pnpm via npm); copy only `git ls-files -co --exclude-standard` so stale `.tsbuildinfo` doesn't fake a built `lib/`
 
 ### Pending Todos
 
@@ -117,7 +120,7 @@ Progress: [███████████░░░░░░░░░] 18/33 p
 
 ### Blockers/Concerns
 
-- [Phase 01] `pnpm example` cannot finish on this Fedora host without sudo (`playwright install --with-deps`); UAT ran its e2e suite directly (30/30). A single uninterrupted `pnpm check` run still needs CI or a host with sudo. [Phase 03] Workaround used: the check:pr chain run in order with only that one command as `playwright install chromium` (browser and system libs already present) — all steps green, e2e 30/30.
+- [Phase 01] `pnpm example` cannot finish on this Fedora host without sudo (`playwright install --with-deps`); UAT ran its e2e suite directly (30/30). A single uninterrupted `pnpm check` run still needs CI or a host with sudo. [Phase 03] Workaround used: the check:pr chain run in order with only that one command as `playwright install chromium` (browser and system libs already present) — all steps green, e2e 30/30. [Phase 06] Resolved route: run the literal `pnpm check:pr` in a podman Ubuntu Playwright container (see the Phase 06 UAT decision) — exits 0 with no workaround.
 - [Phase 01] 01-VALIDATION.md is still `draft` (nyquist audit not completed); REQUIREMENTS.md has no Traceability rows for ENF-01..06/XC-01..05 and ENF-03 is unregistered (phase.complete warnings).
 
 - Phase 8 Plan 08-01 is a blocking human checkpoint (SERV-01: amend ADR-QD-094 or not).
@@ -132,6 +135,6 @@ Progress: [███████████░░░░░░░░░] 18/33 p
 
 ## Session Continuity
 
-Last session: 2026-11-08T05:59:17.117Z
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-11-08T06:20:00Z
+Stopped at: Phase 06 complete, ready to execute Phase 07
 Resume file: None

@@ -19,7 +19,7 @@ ARCH ticket with its own ADR, CCR and changeset, and each ends with `pnpm check:
 - [x] **Phase 3: Audit archive facts** - Use one module for the archive's rules, shared by writer and reader (ARCH-48) (completed 2026-11-08)
 - [x] **Phase 4: Gate instrumentation hook** - Resolve the writer once and use one `useGates` hook for every gate kind (ARCH-49) (completed 2026-11-08)
 - [x] **Phase 5: Decision log over HTTP** - Use one encoder and one refusal policy for both stream and backlog (ARCH-50) (completed 2026-11-08)
-- [ ] **Phase 6: Dehydration in the engine** - Add `dehydrateWith` beside `hydrateWith`; both directions get one owner (ARCH-51)
+- [x] **Phase 6: Dehydration in the engine** - Add `dehydrateWith` beside `hydrateWith`; both directions get one owner (ARCH-51) (completed 2026-11-08)
 - [ ] **Phase 7: One port route address** - Server and client share one address and one status contract (ARCH-52)
 - [ ] **Phase 8: Port serving from the registry** - Derive the serving tables from descriptions behind an ADR-094 checkpoint, and remove pass-through enumerations (ARCH-53)
 - [ ] **Phase 9: Sink record projection** - SinkEmit owns every record projection, and JSON refusal words leave the sink wire (ARCH-54)
@@ -115,14 +115,14 @@ Plans:
 ### Phase 6: Dehydration in the engine
 **Goal**: The hydration engine owns both directions of the seed payload.
 **Depends on**: Nothing
-**Requirements**: HYD-01, HYD-02, HYD-03, HYD-04, XC-01..05
+**Requirements**: HYD-01, HYD-02, HYD-03, HYD-04, XC-01, XC-02, XC-03, XC-04, XC-05
 **Success Criteria** (what must be TRUE):
   1. `dehydrateEntry` and `dehydratedPayload` are not exported from HydrationEngine.ts.
   2. `Hydration.ts`'s `dehydrateDecisions` holds no subject filter and no count of its own.
   3. `resolveMismatchReporter` no longer exists.
   4. A round-trip test runs both directions through the engine.
   5. `pnpm check:pr` is green, and ADR-078 is amended (or ADR-QD-113 written), with CCR-QD-390 and a changeset recorded.
-**Plans**: 2/2 plans executed
+**Plans**: 2/2 plans complete
 
 Plans:
 - [x] 06-01 (W1): Pin `dehydrateDecisions` output; `dehydrateWith` in the engine; round-trip test; privatise the helpers; delete the identity wrapper
@@ -191,7 +191,7 @@ Plans:
 | 3. Audit archive facts | 3/3 | Complete    | 2026-11-08 |
 | 4. Gate instrumentation hook | 4/4 | Complete    | 2026-11-08 |
 | 5. Decision log over HTTP | 2/2 | Complete    | 2026-11-08 |
-| 6. Dehydration in the engine | 2/2 | In Progress | - |
+| 6. Dehydration in the engine | 2/2 | Complete    | 2026-11-08 |
 | 7. One port route address | 0/3 | Planned | - |
 | 8. Port serving from the registry | 0/6 | Planned | - |
 | 9. Sink record projection | 0/4 | Planned | - |
