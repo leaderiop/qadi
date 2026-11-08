@@ -10,12 +10,13 @@
  */
 import { EvaluationServicesNone, hasPermission, makeSubject, permission } from "@qadi/core";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { Suspense } from "react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { Can } from "../src/components.tsx";
 import type { DecisionResult } from "../src/DecisionOutcome.ts";
 import { outcomeOf } from "../src/DecisionOutcome.ts";
-import { useDecision } from "../src/hooks.ts";
+import { useDecision, useDecisionSuspense } from "../src/hooks.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { QadiAtoms } from "../src/QadiAtoms.ts";
 import { MissingQadiProviderError, QadiProvider, useQadiContext } from "../src/QadiProvider.tsx";
@@ -93,5 +94,34 @@ describe("useGates: one hook over the provider's writer (ARCH-49)", () => {
       expect(seen.result === undefined ? undefined : outcomeOf(seen.result)._tag).toBe("Allowed");
     });
     expect(seen.result).toBe(seen.held);
+  });
+
+  it("useDecisionSuspense opens its decision atom once (D-04)", async () => {
+    const real = makeQadiAtoms(EvaluationServicesNone);
+    let opened = 0;
+    const counting: QadiAtoms = {
+      ...real,
+      decision: (question, resource) => {
+        opened += 1;
+        return real.decision(question, resource);
+      },
+    };
+    const SuspenseProbe = () => <span>{useDecisionSuspense(policy)._tag}</span>;
+    const tree = (withProbe: boolean) => (
+      <QadiProvider atoms={counting} subject={alice}>
+        <Can policy={policy}>can</Can>
+        {withProbe ? (
+          <Suspense fallback={<span>waiting</span>}>
+            <SuspenseProbe />
+          </Suspense>
+        ) : null}
+      </QadiProvider>
+    );
+    const view = render(tree(false));
+    await screen.findByText("can");
+    const before = opened;
+    view.rerender(tree(true));
+    await screen.findByText("Allow");
+    expect(opened - before).toBe(1);
   });
 });

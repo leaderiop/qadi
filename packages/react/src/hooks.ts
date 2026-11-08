@@ -72,12 +72,10 @@ export const useCan = (policy: Policy, resource?: Resource): boolean =>
  * as a hidden button.
  */
 export const useDecisionSuspense = (policy: Policy, resource?: Resource): ClientDecision => {
-  const { atoms } = useQadiContext("useDecisionSuspense");
-  const atom = useMemo(() => atoms.decision(policy, resource), [atoms, policy, resource]);
-  // Registers this instance for devtools instrumentation; its own `result`
-  // read is unused here — `useAtomSuspense` below does the actual suspending
-  // read of the same registry entry.
-  useGate("useDecisionSuspense", policy, resource);
+  // `useGate` both registers this instance and opens the atom this hook suspends
+  // on, so the question is opened once; its own `result` read is unused here,
+  // `useAtomSuspense` below does the actual suspending read of the same atom.
+  const { atom } = useGate("useDecisionSuspense", policy, resource);
   // Replaces `settled.ts`'s hand-rolled Suspense-race fix with
   // `@effect/atom-react`'s own `useAtomSuspense` — closed, not experimental;
   // see ADR-QD-014's Reversal section for why. `suspendOnWaiting: true`
