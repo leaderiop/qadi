@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Dehydration in the engine
-status: executing
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-11-08T05:54:27.306Z"
+status: verifying
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-11-08T05:59:17.203Z"
 last_activity: 2026-11-08
 last_activity_desc: Phase 06 execution started
-state_head: b34cf2d2ac0537c6d3b378f9243fa05d229bd978
+state_head: e6924549fb2387bdfb62ac307b0789864463ae42
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 33
-  completed_plans: 19
+  completed_plans: 20
   percent: 56
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-08)
 
 Phase: 06 (Dehydration in the engine) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-08 — Phase 06 execution started
 
 Progress: [███████████░░░░░░░░░] 18/33 plans ([██████░░░░] 56%); 5/9 phases
@@ -68,6 +68,7 @@ Progress: [███████████░░░░░░░░░] 18/33 p
 | Phase 05 P01 | 4 min | 2 tasks | 5 files |
 | Phase 05 P02 | 6 min | 3 tasks | 6 files |
 | Phase 06 P01 | 6 min | 2 tasks | 6 files |
+| Phase 06 P02 | 6 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,7 @@ Progress: [███████████░░░░░░░░░] 18/33 p
 - [Phase 05]: 05-02: new behaviour is BEH-QD-337 in 26-decision-stream.md; pnpm check:pr step 13 (playwright install --with-deps) needs sudo on this host, all other steps and the example e2e passed when run directly
 - [Phase 05]: UAT: full `pnpm check:pr` exit 0 (16/16) with Playwright's `--with-deps` apt install neutralized by a no-op `sudo` on PATH for that one process — on Fedora it falls back to Ubuntu `apt-get`, so it cannot pass here even with sudo
 - [Phase 06]: dehydrateWith resolves its dropped-entries reporter inside the drop branch (as dehydrateDecisions did); option names includeTrace/onDropped unchanged; D-09 grep clean so removing the private builders and wrapper is not breaking
+- [Phase 06]: ADR-QD-078 amended (2026-11-08) rather than superseded by ADR-QD-113; ADR-QD-113 left unused — The amendment fits in one paragraph (D-08 threshold); CCR-QD-390 used as reserved
 
 ### Pending Todos
 
@@ -130,6 +132,6 @@ Progress: [███████████░░░░░░░░░] 18/33 p
 
 ## Session Continuity
 
-Last session: 2026-11-08T05:54:27.231Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-11-08T05:59:17.117Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None

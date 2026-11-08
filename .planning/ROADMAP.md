@@ -122,11 +122,11 @@ Plans:
   3. `resolveMismatchReporter` no longer exists.
   4. A round-trip test runs both directions through the engine.
   5. `pnpm check:pr` is green, and ADR-078 is amended (or ADR-QD-113 written), with CCR-QD-390 and a changeset recorded.
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans executed
 
 Plans:
 - [x] 06-01 (W1): Pin `dehydrateDecisions` output; `dehydrateWith` in the engine; round-trip test; privatise the helpers; delete the identity wrapper
-- [ ] 06-02 (W2): BEH-QD-146, INV-QD-022/045, ADR-078 amendment (ADR-QD-113 unused), CCR-QD-390, changeset, `pnpm check:pr`
+- [x] 06-02 (W2): BEH-QD-146, INV-QD-022/045, ADR-078 amendment (ADR-QD-113 unused), CCR-QD-390, changeset, `pnpm check:pr`
 
 ### Phase 7: One port route address
 **Goal**: The server and client adapters for remote ports share one address definition and one status contract.
@@ -191,7 +191,7 @@ Plans:
 | 3. Audit archive facts | 3/3 | Complete    | 2026-11-08 |
 | 4. Gate instrumentation hook | 4/4 | Complete    | 2026-11-08 |
 | 5. Decision log over HTTP | 2/2 | Complete    | 2026-11-08 |
-| 6. Dehydration in the engine | 1/2 | In Progress | - |
+| 6. Dehydration in the engine | 2/2 | In Progress | - |
 | 7. One port route address | 0/3 | Planned | - |
 | 8. Port serving from the registry | 0/6 | Planned | - |
 | 9. Sink record projection | 0/4 | Planned | - |
