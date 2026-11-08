@@ -776,7 +776,8 @@ REQUIREMENT: `remotePortsLayer` MUST read the reply from the response body
 The definition is `packages/http/src/PortRouteAddress.ts` (`PORT_ROUTE_PREFIX`,
 `portPath`). It is package-private ([ADR-QD-099](../decisions/099-entry-points-are-a-closed-list.md)),
 so a host names a prefix only through `PortRoutesOptions.prefix` and
-`RemotePortsOptions.prefix`; no export is added or removed. The reply-body
+`RemotePortsOptions.prefix`; no export is added or removed. `portPath` drops trailing
+slashes from a prefix, so `"/x/"` and `"/"` never produce a `//` in the route. The reply-body
 contract is stated beside the address, and `PORT_REPLY_STATUS` in `PortRoutes.ts`
 points to it.
 

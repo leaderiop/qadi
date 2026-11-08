@@ -31,6 +31,13 @@ export const PORT_ROUTE_PREFIX = "/__ports";
  * `prefix` is a host's `prefix` option, `undefined` for the default. The template-literal types
  * are those `HttpRouter.PathInput` and both options interfaces already use, so no call site
  * needs a cast.
+ *
+ * Trailing slashes on the prefix are dropped, so `"/x/"` and `"/"` cannot produce a `//` in the
+ * path: both option docs say "without a trailing slash", and this is the one place that rule is
+ * enforced rather than only stated. A proxy that collapses `//` would otherwise 404 every remote
+ * read (the client reports a 404 as the port's own error).
  */
-export const portPath = (prefix: `/${string}` | undefined, port: PortName): `/${string}` =>
-  `${prefix ?? PORT_ROUTE_PREFIX}/${port}`;
+export const portPath = (prefix: `/${string}` | undefined, port: PortName): `/${string}` => {
+  const rest = (prefix ?? PORT_ROUTE_PREFIX).slice(1).replace(/\/+$/, "");
+  return rest === "" ? `/${port}` : `/${rest}/${port}`;
+};

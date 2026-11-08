@@ -251,6 +251,12 @@ describe("the address (ARCH-52)", () => {
     assert.strictEqual(portPath(undefined, "AttributeResolver"), "/__ports/AttributeResolver");
     assert.strictEqual(portPath("/x/ports", "SignatureHistory"), "/x/ports/SignatureHistory");
   });
+
+  it("a trailing slash on the prefix never yields a // in the path", () => {
+    assert.strictEqual(portPath("/x/ports/", "SignatureHistory"), "/x/ports/SignatureHistory");
+    assert.strictEqual(portPath("/x/ports//", "SignatureHistory"), "/x/ports/SignatureHistory");
+    assert.strictEqual(portPath("/", "AttributeResolver"), "/AttributeResolver");
+  });
 });
 
 describe("one address on both sides (ARCH-52)", () => {
