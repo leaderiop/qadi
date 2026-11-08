@@ -36,13 +36,13 @@ ARCH ticket with its own ADR, CCR and changeset, and each ends with `pnpm check:
   3. One table-driven test asserts the log line per failure tag for every caller.
   4. The endpoint member key is built in exactly one function.
   5. `pnpm check:pr` is green, and ADR-QD-108, CCR-QD-385 and a changeset are recorded.
-**Plans**: 3/5 plans executed
+**Plans**: 4/5 plans executed
 
 Plans:
 - [x] 01-01 (W1): Tracer: red regression test, then `enforceSubject` subject-only mode; `AuthorizeRequest.ts` grows into the enforcement module; guarded mode `enforceRequest`; GuardRoute rewired
 - [x] 01-02 (W2): `endpointMemberKey` built once; middleware and stream recheck go through `enforceRequest`
 - [x] 01-03 (W3): Table-driven `RequestEnforcement.test.ts` (5 callers × 6 columns); prune redundant per-route log assertions
-- [ ] 01-04 (W3): ADR-QD-108, ADR-036 amendment, new BEHs/INV, traceability §1–§3
+- [x] 01-04 (W3): ADR-QD-108, ADR-036 amendment, new BEHs/INV, traceability §1–§3
 - [ ] 01-05 (W4): Traceability §4, CCR-QD-385, changeset, `pnpm check:pr`
 
 ### Phase 2: One port read
@@ -186,7 +186,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. HTTP request enforcement | 3/5 | In Progress | - |
+| 1. HTTP request enforcement | 4/5 | In Progress | - |
 | 2. One port read | 0/4 | Planned | - |
 | 3. Audit archive facts | 0/3 | Planned | - |
 | 4. Gate instrumentation hook | 0/4 | Planned | - |
