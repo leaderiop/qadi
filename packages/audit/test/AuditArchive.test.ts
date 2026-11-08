@@ -47,7 +47,7 @@ describe("archiveAuditTrail", () => {
       const result = yield* Effect.result(archiveAuditTrail(entries, 0));
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
-        assert.strictEqual(result.failure._tag, "SequenceIntegrityError");
+        if (result.failure._tag !== "SequenceIntegrityError") return assert.fail("expected SequenceIntegrityError");
         assert.strictEqual(result.failure.expectedSequence, 2);
       }
     }));

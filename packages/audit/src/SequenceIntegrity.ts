@@ -1,6 +1,6 @@
 /**
- * The public sequence check, `verifySequenceIntegrity` and `SequenceIntegrityError`,
- * re-exported from `ArchiveFacts.ts`.
+ * The public sequence check, `verifySequenceIntegrity`, `SequenceIntegrityError` and
+ * `SequenceNumberInvalid`, re-exported from `ArchiveFacts.ts`.
  *
  * Named for what this actually checks — a caller-assigned sequence number has
  * no gap or duplicate — not for what it does not: there is no per-entry hash,
@@ -19,8 +19,8 @@
  *
  * The file survives the move of the check into `ArchiveFacts.ts` (ARCH-48,
  * ADR-QD-110) because the barrel's `export *` line for this module is what keeps
- * the two names public, while `ArchiveFacts.ts` stays out of the barrel
+ * the three names public, while `ArchiveFacts.ts` stays out of the barrel
  * (ADR-QD-099). The package README, `spec/urs.md`, `spec/models/17-purpose.md`
  * and ADR-QD-009 cite this file for the disclaimers above.
  */
-export { SequenceIntegrityError, verifySequenceIntegrity } from "./ArchiveFacts.ts";
+export { SequenceIntegrityError, SequenceNumberInvalid, verifySequenceIntegrity } from "./ArchiveFacts.ts";

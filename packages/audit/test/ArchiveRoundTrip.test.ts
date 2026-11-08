@@ -2,12 +2,13 @@
  * Properties that the archive reader accepts what the writer writes, and
  * refuses every tampering of it.
  *
- * Written before the archive's facts module exists (ARCH-48, D-06): the writer
- * ({@link archiveAuditTrail}) and the reader ({@link readAuditArchive}) each
- * restate the order, the claim rule and the sequence-break check today, and the
- * refactor that states them once has to leave every behavior here unchanged. So
- * this file passes before and after that refactor, and imports only module
- * paths that survive it.
+ * Written before `ArchiveFacts.ts` existed (ARCH-48, D-06), so the refactor that
+ * moved the writer's ({@link archiveAuditTrail}) and the reader's
+ * ({@link readAuditArchive}) order, claim rule and sequence-break check into it
+ * had to leave every behavior here unchanged; the file imports only the public
+ * modules for that reason. The last property, over the whole `number` domain,
+ * was added after code review found the writer archiving sequence numbers the
+ * reader refuses (WR-01, ADR-QD-110).
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -245,12 +246,64 @@ describe("PROPERTY: the writer refuses exactly the inputs the reader reports as 
 
         assert.strictEqual(Result.isFailure(writer), readerBroken);
         if (Result.isFailure(writer) && refusal !== undefined && refusal._tag === "SequenceBroken") {
-          assert.strictEqual(writer.failure._tag, "SequenceIntegrityError");
+          if (writer.failure._tag !== "SequenceIntegrityError") return assert.fail("expected SequenceIntegrityError");
           assert.strictEqual(writer.failure.expectedSequence, refusal.expectedSequence);
           assert.strictEqual(writer.failure.actualSequence, refusal.actualSequence);
         }
       }),
       { numRuns: 300 },
+    );
+  });
+});
+
+describe("PROPERTY: over any number, the writer refuses what the reader would refuse, and the reader accepts the rest", () => {
+  // Small integers to make contiguous runs likely, and every kind of number the
+  // TypeScript type admits but the AuditEntry codec does not.
+  const anyNumber = FastCheck.oneof(
+    FastCheck.integer({ min: 0, max: 4 }),
+    FastCheck.double(),
+    FastCheck.constantFrom(
+      2 ** 53,
+      2 ** 53 + 2,
+      -(2 ** 53),
+      Number.MAX_VALUE,
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+      Number.NaN,
+      0.5,
+      1.5,
+    ),
+  );
+  const maybeNumbered = FastCheck.array(FastCheck.option(anyNumber, { nil: undefined }), { maxLength: 8 });
+
+  it("fails SequenceNumberInvalid at the first non-safe-integer, and otherwise writes only readable bundles", () => {
+    FastCheck.assert(
+      FastCheck.property(maybeNumbered, (numbers) => {
+        const entries = numbers.flatMap((sequenceNumber, i) => {
+          const entry = pool[i];
+          if (entry === undefined) return [];
+          return [sequenceNumber === undefined ? entry : { ...entry, sequenceNumber }];
+        });
+        // The test's own oracle for the domain, stated independently of the source.
+        const firstInvalid = entries.findIndex(
+          (entry) => entry.sequenceNumber !== undefined && !Number.isSafeInteger(entry.sequenceNumber),
+        );
+        const writer = Effect.runSync(Effect.result(archiveAuditTrail(entries, 0)));
+
+        if (firstInvalid !== -1) {
+          if (!Result.isFailure(writer)) return assert.fail("the writer archived a non-safe-integer sequence number");
+          if (writer.failure._tag !== "SequenceNumberInvalid") return assert.fail("expected SequenceNumberInvalid");
+          assert.strictEqual(writer.failure.index, firstInvalid);
+          assert.isTrue(Object.is(writer.failure.sequenceNumber, entries[firstInvalid]?.sequenceNumber));
+          return;
+        }
+        if (Result.isFailure(writer)) {
+          assert.strictEqual(writer.failure._tag, "SequenceIntegrityError");
+          return;
+        }
+        assert.isTrue(Result.isSuccess(readAuditArchive(stored(writer.success))));
+      }),
+      { numRuns: 500 },
     );
   });
 });
