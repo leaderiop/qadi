@@ -5,8 +5,16 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: fixed
-    title: "`disclose` and `pose` run outside the defect mapping, so a served read can die and `answerRemotely`'s \"never fails\" no longer holds"
+    disposition: open
+    title: "devtools what-if replay still grants `not(hasSignature)` for a requirement the capture never saw (carried over from the prior review's WR-03, behavior unfixed)"
+  - id: IN-01
+    severity: info
+    disposition: open
+    title: "the resource-id `typeof` check and brand are now written in three places, and `askActedForResource` discards `requireResourceId`'s result"
+  - id: IN-02
+    severity: info
+    disposition: open
+    title: "doc-comment line over the hand-wrapped width"
   - id: WR-02
     severity: warning
     disposition: fixed
@@ -15,14 +23,6 @@ findings:
     severity: warning
     disposition: fixed
     title: "\"over-keying can only miss and deny, never replay a stale allow\" is false for a negated `hasSignature`"
-  - id: IN-01
-    severity: info
-    disposition: open
-    title: "`SignatureLedgerTest.ts` and `SignatureLedger.ts` doc comments contradict the new key"
-  - id: IN-02
-    severity: info
-    disposition: open
-    title: "stale `ADR-QD-NEXT` / `INV-QD-NEXT` placeholders in touched files"
   - id: IN-03
     severity: info
     disposition: open
@@ -35,23 +35,23 @@ findings:
     severity: info
     disposition: open
     title: "version skew and the wire's strict decode are documented only in the changeset"
-open: 5
+open: 6
 total: 8
-recorded: 2026-11-08T03:07:01.261Z
+recorded: 2026-11-08T03:26:58.100Z
 ---
 
 # Phase 02: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | fixed | 02-REVIEW-FIX.md |
-| WR-02 | warning | fixed | 02-REVIEW-FIX.md |
-| WR-03 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-01 | warning | open | - |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
-| IN-03 | info | open | - |
-| IN-04 | info | open | - |
-| IN-05 | info | open | - |
+| WR-02 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| WR-03 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| IN-03 | info | open | - (not in the current review) |
+| IN-04 | info | open | - (not in the current review) |
+| IN-05 | info | open | - (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
