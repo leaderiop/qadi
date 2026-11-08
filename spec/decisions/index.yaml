@@ -358,3 +358,7 @@ entries:
     file: "108-a-request-is-enforced-once-through-one-module.md"
     title: "A request is enforced once, through one module"
     status: "Accepted — amends ADR-QD-036; reads ADR-QD-081, ADR-QD-102"
+  - id: "ADR-QD-109"
+    file: "109-a-ports-span-is-projected-once-and-every-read-is-one-body.md"
+    title: "A port's span is projected once, and every read is one body"
+    status: "Accepted — amends ADR-QD-077, ADR-QD-094, ADR-QD-107, ADR-QD-058"
