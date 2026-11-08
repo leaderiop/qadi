@@ -300,8 +300,9 @@ export const askActedAny = Effect.fn(decisionHistoryPort.span)(function* (
  * Takes the raw `resource.id` and fails with `MissingResourceId` when it is not a
  * string, after annotating the span with the question: annotated before the
  * check, so the span that records a wiring error still names the event it was
- * asked about. `readPort` annotates the same question again on the success path,
- * with agreeing values (ADR-QD-109).
+ * asked about. The early question is the description's `pose` of the request,
+ * not a second statement of it (WR-02); `readPort` annotates it again on the
+ * success path, from the same request, so the two cannot disagree (ADR-QD-109).
  */
 export const askActedForResource = Effect.fn(decisionHistoryPort.span)(function* (
   interpreter: Interpreter,
@@ -309,17 +310,21 @@ export const askActedForResource = Effect.fn(decisionHistoryPort.span)(function*
   event: string,
   rawResourceId: unknown,
 ) {
-  yield* annotateQuestion(decisionHistoryPort, {
+  const request = {
     subjectId: subject.id,
     event,
+    resourceId: typeof rawResourceId === "string" ? makeResourceId(rawResourceId) : undefined,
+  };
+  // The question is the description's, from the request as far as it is known;
+  // `scope` is the read's own fact, not the request's (an id that is missing
+  // still makes this a Resource question, and `pose` would say `Any`).
+  yield* annotateQuestion(decisionHistoryPort, {
+    ...decisionHistoryPort.attributes.pose([request]),
     scope: "Resource",
     interpreter,
-    resourceId: typeof rawResourceId === "string" ? rawResourceId : undefined,
   });
-  const resourceId = yield* requireResourceId(rawResourceId, event);
-  return yield* readPort(decisionHistoryPort, interpreter, [
-    { subjectId: subject.id, event, resourceId: makeResourceId(resourceId) },
-  ]);
+  yield* requireResourceId(rawResourceId, event);
+  return yield* readPort(decisionHistoryPort, interpreter, [request]);
 });
 
 /**
@@ -383,23 +388,21 @@ export const askRelationship = Effect.fn(relationshipResolverPort.span)(function
   // the raw decoded one: the span should say what was actually asked of the
   // resolver. The check is inline rather than `requireResourceId`, which would
   // add a nested `qadi.requireScopedResourceId` span to this read's trace.
-  yield* annotateQuestion(relationshipResolverPort, {
+  const request = {
     subjectId: subject.id,
     relation,
-    interpreter: "evaluate",
-    resourceId: typeof rawResourceId === "string" ? rawResourceId : undefined,
+    resourceId: typeof rawResourceId === "string" ? makeResourceId(rawResourceId) : undefined,
     depth: clamped,
+  };
+  yield* annotateQuestion(relationshipResolverPort, {
+    ...relationshipResolverPort.attributes.pose([request]),
+    interpreter: "evaluate",
   });
-  if (typeof rawResourceId !== "string") {
+  if (request.resourceId === undefined) {
     return yield* Effect.fail(new MissingResourceId({ relation }));
   }
   return yield* readPort(relationshipResolverPort, "evaluate", [
-    {
-      subjectId: subject.id,
-      relation,
-      resourceId: makeResourceId(rawResourceId),
-      depth: clamped,
-    },
+    { ...request, resourceId: request.resourceId },
   ]);
 });
 
@@ -430,8 +433,9 @@ export const askCustom = Effect.fn(customPredicatePort.span)(function* (
  *
  * A Resource-scoped question is annotated *before* its resource id is
  * validated, so the span that records a wiring error still names the question
- * it was asked (BEH-QD-227, ADR-QD-077); `readPort` then annotates the same
- * question again, with agreeing values (ADR-QD-109).
+ * it was asked (BEH-QD-227, ADR-QD-077). That early question is the description's
+ * `pose` of the request as far as it is known, not a second statement of it
+ * (WR-02); `readPort` then annotates it again, with agreeing values (ADR-QD-109).
  */
 export const askSignature = Effect.fn(signatureHistoryPort.span)(function* (
   subject: AuthSubject,
@@ -443,12 +447,16 @@ export const askSignature = Effect.fn(signatureHistoryPort.span)(function* (
   let resourceId: ResourceId | undefined;
   if (scope === "Resource") {
     yield* annotateQuestion(signatureHistoryPort, {
-      subjectId: subject.id,
-      meaning,
+      ...signatureHistoryPort.attributes.pose([
+        {
+          subjectId: subject.id,
+          resourceId: typeof rawResourceId === "string" ? makeResourceId(rawResourceId) : undefined,
+          meaning,
+          signerRole,
+        },
+      ]),
       scope,
       interpreter: "evaluate",
-      signerRole,
-      resourceId: typeof rawResourceId === "string" ? rawResourceId : undefined,
     });
     resourceId = makeResourceId(yield* requireResourceId(rawResourceId, meaning));
   }

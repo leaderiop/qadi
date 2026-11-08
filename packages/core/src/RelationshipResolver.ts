@@ -141,7 +141,11 @@ const relationshipSpan = {
     },
   ),
   answer: spanStruct({ answer: Schema.optionalKey(RelatedResult) }, { answer: "qadi.answer" }),
-  pose: ([request]: [request: RelationshipCheck]) => ({
+  // Takes a `resourceId` that may be absent so a read can state its question
+  // before the id is validated (D-07); every real request is assignable to it.
+  pose: ([request]: [
+    request: Omit<RelationshipCheck, "resourceId"> & { readonly resourceId: ResourceId | undefined },
+  ]) => ({
     subjectId: request.subjectId,
     relation: request.relation,
     resourceId: request.resourceId,

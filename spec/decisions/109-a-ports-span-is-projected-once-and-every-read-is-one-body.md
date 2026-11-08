@@ -5,12 +5,12 @@
 > | Property       | Value                                                                    |
 > | -------------- | ------------------------------------------------------------------------ |
 > | Document ID    | QADI-ADR-109                                                             |
-> | Revision       | 1.1                                                                      |
+> | Revision       | 1.2                                                                      |
 > | Effective Date | 2026-11-08                                                               |
 > | Status         | Accepted — amends ADR-QD-077, ADR-QD-094, ADR-QD-107, ADR-QD-058         |
 > | Author         | Qadi Engineering                                                         |
 > | Classification | Architecture Decision Record                                             |
-> | Change History | 1.1 (2026-11-08): Decision 3 — `disclose` runs under the defect mapping, so a malformed store answer is the port's typed error, never a defect (code review WR-01)<br>1.0 (2026-11-08): Initial (ARCH-47, CCR-QD-386)                          |
+> | Change History | 1.2 (2026-11-08): Alternatives — the annotate-before-validate question is derived from the description's `pose`, not hand-written in the three resource-scoped reads (code review WR-02)<br>1.1 (2026-11-08): Decision 3 — `disclose` runs under the defect mapping, so a malformed store answer is the port's typed error, never a defect (code review WR-01)<br>1.0 (2026-11-08): Initial (ARCH-47, CCR-QD-386)                          |
 
 ---
 
@@ -101,9 +101,12 @@ own).
   composite dispatchers, and a new call site needs a benchmark (AGENTS.md §5).
 - **Validate the resource id, then annotate only on failure.** Refused: ADR-QD-077's order is to
   annotate the question first so a span recording a `MissingResourceId` says what the id was wanted
-  for (BEH-QD-227). The cost of keeping it literal is one extra, agreeing annotation on the success
+  for (BEH-QD-227). The cost of keeping it is one extra, agreeing annotation on the success
   path of the three resource-scoped reads (`askActedForResource`, `askRelationship`, `askSignature`
-  at Resource scope), which writes equal values to the same attributes.
+  at Resource scope), which writes equal values to the same attributes. The early annotation is
+  derived from the description's `pose` of the request as far as it is known (with `scope` set by
+  the read, since a missing id would make `pose` say `Any`), not hand-written beside it, so a field
+  added to `pose` reaches the failure span too (code review WR-02).
 - **The requirement as wire-only context.** Impossible: `askRemotely`'s Shape sees only the port's
   request, so for the requirement to reach the served read it has to be part of the request.
 - **Recording `qadi.on_file`.** Refused for the reason in decision 4.
