@@ -5,12 +5,12 @@
 > | Property       | Value                                                                    |
 > | -------------- | ------------------------------------------------------------------------ |
 > | Document ID    | QADI-ADR-109                                                             |
-> | Revision       | 1.2                                                                      |
+> | Revision       | 1.3                                                                      |
 > | Effective Date | 2026-11-08                                                               |
 > | Status         | Accepted — amends ADR-QD-077, ADR-QD-094, ADR-QD-107, ADR-QD-058         |
 > | Author         | Qadi Engineering                                                         |
 > | Classification | Architecture Decision Record                                             |
-> | Change History | 1.2 (2026-11-08): Alternatives — the annotate-before-validate question is derived from the description's `pose`, not hand-written in the three resource-scoped reads (code review WR-02)<br>1.1 (2026-11-08): Decision 3 — `disclose` runs under the defect mapping, so a malformed store answer is the port's typed error, never a defect (code review WR-01)<br>1.0 (2026-11-08): Initial (ARCH-47, CCR-QD-386)                          |
+> | Change History | 1.3 (2026-11-08): Consequences — correct the claim that over-keying can only deny: an unseen requirement replays as an empty list, which `not(hasSignature)` grants, in devtools' what-if (code review WR-03)<br>1.2 (2026-11-08): Alternatives — the annotate-before-validate question is derived from the description's `pose`, not hand-written in the three resource-scoped reads (code review WR-02)<br>1.1 (2026-11-08): Decision 3 — `disclose` runs under the defect mapping, so a malformed store answer is the port's typed error, never a defect (code review WR-01)<br>1.0 (2026-11-08): Initial (ARCH-47, CCR-QD-386)                          |
 
 ---
 
@@ -117,8 +117,13 @@ own).
   parameter, `pose`, and a two-argument `disclose`; `PortSpanAttributesLike` follows.
 - **The signature request key is now subject, resource, meaning and signer role**
   (`JSON.stringify([subjectId, resourceId ?? null, meaning ?? null, signerRole ?? null])`), which is
-  what INV-QD-043's injectivity law asks of a key. A devtools capture keys per requirement, so
-  over-keying can only miss and deny, never replay a stale allow.
+  what INV-QD-043's injectivity law asks of a key. A devtools capture keys per requirement, so it
+  never replays one requirement's answer for another. **A requirement the capture never saw is a
+  miss, and a miss is the port's `none` answer, an empty list**: `hasSignature` denies on it, but
+  `not(hasSignature)` grants, so a devtools what-if that edits a policy's `meaning` or `signerRole`
+  can report an allow the real store would not give. This is confined to that panel's replay and
+  not to live enforcement. The first draft of this bullet said over-keying "can only miss and deny,
+  never replay a stale allow", which holds for the un-negated leaf only (code review WR-03).
 - **Version skew fails closed.** A new client's question carries keys an old, strict server does not
   decode, so it comes back `Malformed` and the asker turns that into the port's own typed error
   (ADR-QD-107). A question without the two keys still decodes on a new server.

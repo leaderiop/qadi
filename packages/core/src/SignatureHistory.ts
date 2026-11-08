@@ -201,11 +201,14 @@ const signatureWire = portWire({
  *
  * A request is keyed by `(subjectId, resourceId, meaning, signerRole)`, with
  * each absent member as `null`. The key is injective over every argument the
- * port receives (ADR-QD-094, INV-QD-043), and the requirement is one: over-keying
- * is the safe direction, since a capture keyed per requirement can only miss and
- * deny, never replay a stale allow. `signatureHistoryFromSignatures` still groups
- * by the first two, because the store answers every signature on file whatever
- * the requirement says.
+ * port receives (ADR-QD-094, INV-QD-043), and the requirement is one. Over-keying
+ * does not replay a stale answer, but it is not "only deny" either: a capture
+ * keyed per requirement answers a requirement it never saw with the port's
+ * `none` value, an empty list, which `hasSignature` denies and `not(hasSignature)`
+ * grants, so a what-if that edits a policy's `meaning` or `signerRole` can read a
+ * miss as an allow the real store would not give (devtools' replay only).
+ * `signatureHistoryFromSignatures` still groups by the first two, because the
+ * store answers every signature on file whatever the requirement says.
  */
 export const signatureHistoryPort: PortDescription<
   "SignatureHistory",
