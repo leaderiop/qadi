@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Port serving from the registry
 status: executing
-stopped_at: Completed 08-03-PLAN.md
-last_updated: "2026-11-08T13:39:12.096Z"
+stopped_at: Completed 08-04-PLAN.md
+last_updated: "2026-11-08T13:41:58.880Z"
 last_activity: 2026-11-08
 last_activity_desc: Phase 08 execution started
-state_head: 9eafd8915989620e40a0c2f8aae5ded27f12440d
+state_head: a23bb9cb4cbcba271b293479984892b89aa4a03b
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 33
-  completed_plans: 27
+  completed_plans: 28
   percent: 78
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-08)
 ## Current Position
 
 Phase: 08 (Port serving from the registry) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-11-08 — Phase 08 execution started
 
@@ -78,6 +78,7 @@ Progress: [██████████████░░░░░░] 23/33 p
 | Phase 08 P01 | 10min | 2 tasks | 1 files |
 | Phase 08 P02 | 25min | 2 tasks | 11 files |
 | Phase 08 P03 | 35min | 3 tasks | 15 files |
+| Phase 08 P04 | 15min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -128,6 +129,7 @@ Progress: [██████████████░░░░░░] 23/33 p
 - [Phase 08]: D-01 approved: port descriptions may carry a serving facet (amends ADR-QD-094); plans 08-03/08-04 run, 08-05 skips
 - [Phase 08]: D-07: tabulatePorts is two overloads over one body; separate layer builder removed. D-08: fixturePortsLayer derived from the registry with no as. D-09: testing passes ports to core unchanged
 - [Phase 08]: 08-03: serving facet on every port description (PortServingFacet, ServedLeaves in PortServing.ts); PortWire.asked removed; overview Rev 1.76
+- [Phase 08]: 08-04: INV-QD-095 amended in place for the serving facet; ADR-QD-114 recorded (amends ADR-QD-094, ADR-QD-107)
 
 ### Pending Todos
 
@@ -151,6 +153,6 @@ Progress: [██████████████░░░░░░] 23/33 p
 
 ## Session Continuity
 
-Last session: 2026-11-08T13:39:12.000Z
-Stopped at: Completed 08-03-PLAN.md
+Last session: 2026-11-08T13:41:58.766Z
+Stopped at: Completed 08-04-PLAN.md
 Resume file: None

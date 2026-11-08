@@ -152,13 +152,13 @@ Plans:
   2. If approved: `ADMITTED`, `Collector` and `collectNames` are derived from the registry, and the `PortServing` shape is unchanged.
   3. `mapPorts` no longer exists separately from `tabulatePorts`, and `@qadi/testing` has no `answersOf`/`layersOf` split.
   4. `pnpm check:pr` is green, and ADR-QD-114 (or an ADR-094 rejection note), CCR-QD-392 and a changeset are recorded.
-**Plans**: 4/6 plans executed
+**Plans**: 5/6 plans executed
 
 Plans:
 - [x] 08-01 (W1, **human checkpoint**): D-01: approve or reject amending ADR-QD-094 for a `serving` facet; opens CCR-QD-392
 - [x] 08-02 (W2, always): `fixturePortsLayer` derived from the registry; `mapPorts` merged into `tabulatePorts` (Breaking: shipped in 0.10.0); testing passes `ports` through
 - [x] 08-03 (W3, if approved): `PortServing.ts` leaf; `serving` facet per port; derived `servingFor`; delete ADMITTED/Collector/collectNames
-- [ ] 08-04 (W4, if approved): ADR-QD-114, ADR-094/107 amendments, BEH-QD-331, INV-QD-095
+- [x] 08-04 (W4, if approved): ADR-QD-114, ADR-094/107 amendments, BEH-QD-331, INV-QD-095
 - [x] 08-05 (W2, if rejected): Dated 'Considered and rejected' note on ADR-094
 - [ ] 08-06 (W5): Records, CCR-QD-392 completed, changeset, upgrading page, `pnpm check:pr`
 
@@ -193,5 +193,5 @@ Plans:
 | 5. Decision log over HTTP | 2/2 | Complete    | 2026-11-08 |
 | 6. Dehydration in the engine | 2/2 | Complete    | 2026-11-08 |
 | 7. One port route address | 3/3 | Complete    | 2026-11-08 |
-| 8. Port serving from the registry | 4/6 | In Progress | - |
+| 8. Port serving from the registry | 5/6 | In Progress | - |
 | 9. Sink record projection | 0/4 | Planned | - |
