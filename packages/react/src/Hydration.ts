@@ -14,9 +14,11 @@
  * **carries no trace** by default, and every entry it cannot verify is
  * **dropped** rather than trusted.
  *
- * The public interface over `HydrationEngine.ts`, which owns the payload codec,
- * the seed atoms and the precedence rule, and stays out of the barrel
- * (ADR-QD-039). What a consumer may hold is re-exported here **by name**.
+ * The public interface over `HydrationEngine.ts`, which owns both directions of
+ * the payload (`dehydrateWith`, `hydrateWith`), the seed atoms and the precedence
+ * rule, and stays out of the barrel (ADR-QD-039). What a consumer may hold is
+ * re-exported here **by name**. This file holds the public names, their doc
+ * comments and two one-line delegations.
  */
 import type { AuthSubject } from "@qadi/core";
 import type {

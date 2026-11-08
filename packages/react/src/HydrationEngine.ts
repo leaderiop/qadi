@@ -53,7 +53,7 @@ import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { countDehydrated, countDropped, countRecheck, countSeeded } from "./HydrationCounts.ts";
 import type { HydrationDropReporter, HydrationMismatchReporter } from "./DeveloperSignals.ts";
-import { droppedEntriesReporter, hydrationDropReporter, hydrationMismatchReporter } from "./DeveloperSignals.ts";
+import { droppedEntriesReporter, hydrationDropReporter } from "./DeveloperSignals.ts";
 import type { ClientDecision, SeededDecision } from "./SeededDecision.ts";
 import { AllowDisclosure, DenyDisclosure, SeededAllow, SeededDeny, permits } from "./SeededDecision.ts";
 
@@ -230,16 +230,23 @@ const dehydrateDecision = (decision: Decision, includeTrace: boolean): Dehydrate
  *
  * Derived from `encodeDecision`, so the fields a decision ships are the ones
  * `@qadi/core` says it has. The trace, and a denial's reason, ship only under
- * `includeTrace`.
+ * `includeTrace`. Reached only through {@link dehydrateWith}.
  */
-export const dehydrateEntry = (entry: DecisionEntry, includeTrace: boolean): DehydratedEntry => ({
+const dehydrateEntry = (entry: DecisionEntry, includeTrace: boolean): DehydratedEntry => ({
   policy: encodePolicy(entry.policy),
   resource: entry.resource,
   decision: dehydrateDecision(entry.decision, includeTrace),
 });
 
-/** A payload for `entries`, already filtered to one subject. */
-export const dehydratedPayload = (
+/**
+ * The envelope for entries {@link dehydrateWith} has already filtered to one subject.
+ *
+ * Private on purpose: were it exported, a second caller could build a payload
+ * that skipped the subject filter, its count or its report (ARCH-51,
+ * ADR-QD-078). That the entries are already filtered is a fact of this module,
+ * not a precondition a caller is trusted to meet.
+ */
+const dehydratedPayload = (
   subjectId: string | undefined,
   entries: ReadonlyArray<DehydratedEntry>,
 ): DehydratedDecisions => {
@@ -513,16 +520,6 @@ export type HydrationSeedLookup = (
   policy: Policy,
   resource: Resource | undefined,
 ) => Atom.Writable<SeededDecision | undefined>;
-
-/**
- * The reporter an atom set will use for mismatches, or `undefined` for none.
- *
- * `QadiAtoms.ts` resolves this once per atom set and hands the result to each
- * question, so the development-mode default is decided at construction.
- */
-export const resolveMismatchReporter = (
-  supplied: HydrationMismatchReporter | undefined,
-): HydrationMismatchReporter | undefined => hydrationMismatchReporter(supplied);
 
 /**
  * Announcement state for one question, kept **per registry**.
