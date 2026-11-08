@@ -10,12 +10,20 @@ import type { AuthSubject, Policy, Resource } from "@qadi/core";
 import { projectVisible } from "@qadi/core";
 import { useAtomSuspense } from "@effect/atom-react/Hooks";
 import type { RefObject } from "react";
-import { useCallback, useEffect, useId, useMemo, useRef, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import type { GateInstance } from "./GateRegistry.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
 import { outcomeOf } from "./DecisionOutcome.ts";
 import type { GateIdentity } from "./GateWriter.ts";
-import { gateWriterFor, useGateRegistrations } from "./GateWriter.ts";
+import { GateScopeContext, useGateRegistrations } from "./GateWriter.ts";
 import type { AskedQuestion } from "./QuestionBook.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
 import type { ClientDecision } from "./SeededDecision.ts";
@@ -93,7 +101,10 @@ const useQuestionsAs = (
   kind: "usePolicies" | "useQuestions",
   questions: Readonly<Record<string, AskedQuestion>>,
 ): Readonly<Record<string, DecisionResult>> => {
-  const { atoms, instrument, gates } = useQadiContext(kind);
+  const { atoms } = useQadiContext(kind);
+  // The provider's once-resolved writer (ARCH-49): `undefined` unless instrumented.
+  // Read here only until this hook moves onto `useGates` (plan 04-02).
+  const writer = useContext(GateScopeContext)?.writer;
   // `useMemo` here is a performance hoist, not the source of correctness: the
   // atom set's `decisions` family keys structurally, so calling it fresh every
   // render would return the same atom. This only spares re-walking the records'
@@ -104,10 +115,6 @@ const useQuestionsAs = (
 
   const base = useId();
   const markers = useRef<RefObject<HTMLSpanElement | null>>({ current: null });
-  const writer = useMemo(
-    () => (instrument ? gateWriterFor(gates) : undefined),
-    [instrument, gates],
-  );
   // Keyed on `group`, so an inline record that is equal each render does not churn
   // registration. Each entry registers under its own `id`, the one `useId` this
   // hook minted plus the entry's name.

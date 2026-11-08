@@ -1,6 +1,7 @@
 "use client";
 /**
- * The write side of a gate registry, and the types a registry holds.
+ * The write side of a gate registry, the types a registry holds, and the one
+ * hook every gate kind reads, identifies and registers through.
  *
  * Out of the barrel (AGENTS.md §9) for the reason `useGate.ts` is: the kind is
  * not a caller's to choose, and a consumer able to register an instance could
@@ -14,13 +15,28 @@
  * different atom set sharing the same `gates`, and a lookup keyed on the atom set
  * is the `UnregisteredAtoms` defect ADR-QD-078 removed for hydration. See
  * [ADR-QD-080](../../../spec/decisions/080-a-gate-registry-belongs-to-its-atom-set.md).
- * This module imports nothing local but the leaf `DecisionOutcome.ts`, and only
- * its type, so no import cycle can form (ADR-QD-037).
+ *
+ * `QadiProvider` resolves the writer once and hands it to gates through
+ * {@link GateScopeContext}, which this module declares so the writer never
+ * reaches the public `QadiContextValue` (ARCH-49). This module imports only
+ * external modules and the leaves `DecisionOutcome.ts`, `QuestionBook.ts` and
+ * `MissingQadiProviderError.ts`, never `QadiProvider.tsx`, `QadiAtoms.ts` or
+ * `GateRegistry.ts`: `QadiAtoms.ts` imports `GateRegistry.ts`, which imports this
+ * module, so any of the three would close a cycle (ADR-QD-037). That is why the
+ * provider's atoms reach {@link useGates} typed structurally by {@link GateAtoms}
+ * and not through `useQadiContext`.
  */
 import type { Policy, Resource } from "@qadi/core";
-import { useEffect, useRef } from "react";
+import { useAtomValue } from "@effect/atom-react/Hooks";
+import * as Record from "effect/Record";
+import * as AsyncResult from "effect/reactivity/AsyncResult";
+import type * as Atom from "effect/reactivity/Atom";
+import { createContext, useContext, useEffect, useId, useMemo, useRef } from "react";
 import type { RefObject } from "react";
-import type { DecisionOutcome } from "./DecisionOutcome.ts";
+import type { DecisionOutcome, DecisionResult } from "./DecisionOutcome.ts";
+import { outcomeOf } from "./DecisionOutcome.ts";
+import { MissingQadiProviderError } from "./MissingQadiProviderError.ts";
+import type { AskedQuestion } from "./QuestionBook.ts";
 
 /** Which surface the instance is. */
 export type GateKind =
@@ -32,6 +48,29 @@ export type GateKind =
   | "usePolicies"
   | "useProjected"
   | "useQuestions";
+
+/**
+ * What each kind is, stated once.
+ *
+ * `wraps`: whether the surface has a node to point at. `Can` and `Cannot` wrap
+ * children; a hook returns a value to a component that may render nothing, so it
+ * is enumerable and not locatable. `grouped`: whether one hook instance asks
+ * several questions and so mints one id per entry name (`usePolicies`,
+ * `useQuestions`). A `Record` over {@link GateKind}, so a ninth kind fails to
+ * compile until both are decided.
+ */
+const KIND_FACTS: Readonly<
+  Record<GateKind, { readonly wraps: boolean; readonly grouped: boolean }>
+> = {
+  Can: { wraps: true, grouped: false },
+  Cannot: { wraps: true, grouped: false },
+  useCan: { wraps: false, grouped: false },
+  useDecision: { wraps: false, grouped: false },
+  useDecisionSuspense: { wraps: false, grouped: false },
+  usePolicies: { wraps: false, grouped: true },
+  useProjected: { wraps: false, grouped: false },
+  useQuestions: { wraps: false, grouped: true },
+};
 
 /**
  * What the instance rendered, at the moment it last rendered.
@@ -160,8 +199,9 @@ export interface GateIdentity {
   readonly id: string;
   readonly kind: GateKind;
   /**
-   * The memoised decision atom for this question. Effects key on it, not on the
-   * raw policy and resource, so an inline policy does not churn registration.
+   * The memoised decision atom for this question, looked up by {@link useGates}.
+   * Effects key on it, not on the raw policy and resource, so an inline policy
+   * does not churn registration.
    */
   readonly atom: object;
   readonly wraps: boolean;
@@ -295,4 +335,162 @@ export const useGateRegistration = (
   state: GateRenderState,
 ): void => {
   useGateRegistrations(writer, [identity], [state]);
+};
+
+/**
+ * The two openers a gate reads through, declared structurally.
+ *
+ * This module cannot import `QadiAtoms.ts` for its type (ADR-QD-037, see the
+ * header), so it states the two members it uses; `QadiAtoms` satisfies it as is.
+ */
+export interface GateAtoms {
+  /** The decision atom for one question, the very one the atom set's question book holds. */
+  readonly decision: (policy: Policy, resource?: Resource) => Atom.Atom<DecisionResult>;
+  /** Several questions read as one record, each value a question's own decision result. */
+  readonly decisions: (
+    questions: Readonly<Record<string, AskedQuestion>>,
+  ) => Atom.Atom<Readonly<Record<string, DecisionResult>>>;
+}
+
+/**
+ * What a gate needs from its provider: the atoms to read through and the writer
+ * to register with.
+ *
+ * `writer` is `undefined` whenever the provider is not instrumented, or when its
+ * registry was not built by `makeGateRegistry`; either way nothing registers and
+ * no marker renders (D-01, D-06).
+ */
+export interface GateScope {
+  readonly atoms: GateAtoms;
+  readonly writer: GateWriter | undefined;
+}
+
+/**
+ * The context `QadiProvider` provides a {@link GateScope} through.
+ *
+ * Only `QadiProvider` provides it, and it is internal: the writer must never
+ * reach `QadiContextValue`, which is public through `useQadiContext`, because a
+ * consumer able to reach the writer could register a `<Can>` that does not exist
+ * (ADR-QD-080, ADR-QD-099).
+ */
+export const GateScopeContext = createContext<GateScope | null>(null);
+
+/** What one question's gate gives the surface that asked it. */
+export interface GateRead {
+  /**
+   * This question's decision atom. A surface that must suspend on it
+   * (`useDecisionSuspense`) suspends on this one and opens none of its own.
+   */
+  readonly atom: Atom.Atom<DecisionResult>;
+  /** The raw result, for `useDecision`, which hands it on unread (ADR-QD-017's opt-in). */
+  readonly result: DecisionResult;
+  /** What the result means: the one read every other surface renders from. */
+  readonly outcome: DecisionOutcome;
+  /** React's own id for this instance, so a marker can be labelled with it. */
+  readonly id: string;
+  /**
+   * Attached to the marker element, or `undefined` when uninstrumented.
+   *
+   * `undefined` rather than an unused ref, so a component can tell whether to
+   * render a marker at all by asking one question, and so an uninstrumented
+   * tree renders byte for byte what it rendered before.
+   */
+  readonly ref: RefObject<HTMLSpanElement | null> | undefined;
+}
+
+/** What {@link useGates} returns: the group's raw record, and one read per question. */
+export interface Gates<K extends string> {
+  /** The group's raw results, which the grouped hooks hand back unread (ADR-QD-093(d)). */
+  readonly results: Readonly<Record<string, DecisionResult>>;
+  readonly entries: Readonly<Record<K, GateRead>>;
+}
+
+/**
+ * A result not yet in the group.
+ *
+ * Fail-closed: `outcomeOf` reads an `Initial` as `Pending`, never `Allowed`, so
+ * a question the group does not yet hold is treated as not known yet.
+ */
+const NOT_YET: DecisionResult = AsyncResult.initial();
+
+/** The enclosing scope, or `MissingQadiProviderError` naming `kind` outside a provider. */
+const useGateScope = (kind: GateKind): GateScope => {
+  const scope = useContext(GateScopeContext);
+  if (scope === null) throw new MissingQadiProviderError(kind);
+  return scope;
+};
+
+/**
+ * Reads a set of questions, identifies each as a gate, and registers them while
+ * instrumentation is on.
+ *
+ * The one hook every gate kind goes through: the grouped read, the per-entry
+ * atom lookup, {@link GateIdentity} construction, the rule that only `Can` and
+ * `Cannot` wrap a marker, the marker ref, and registration. A one-question
+ * surface passes a record of one. Every hook runs unconditionally, because the
+ * rules of hooks do not bend for a debug feature; what the flag changes is what
+ * the registration effects *do*, which is nothing when the writer is `undefined`.
+ *
+ * Each entry's result is read once, with `outcomeOf`, and that one object is both
+ * what the registry records (`outcome._tag`) and what the surface renders from,
+ * so the panel and the guard cannot disagree about what is on screen.
+ */
+export const useGates = <K extends string>(
+  kind: GateKind,
+  questions: Readonly<Record<K, AskedQuestion>>,
+): Gates<K> => {
+  const scope = useGateScope(kind);
+  const { wraps, grouped } = KIND_FACTS[kind];
+  // A performance hoist, not the source of correctness: the atom set's `decisions`
+  // family keys structurally, so a fresh call every render returns the same atom.
+  const group = useMemo(() => scope.atoms.decisions(questions), [scope.atoms, questions]);
+  const results = useAtomValue(group);
+  // `id` stays React's raw `useId`: it is hydration-stable and is what
+  // `data-qadi-gate` renders. Only the registry rewrites an id, and only on a
+  // collision (ADR-QD-080).
+  const base = useId();
+  const marker = useRef<HTMLSpanElement | null>(null);
+  // Keyed on `group`, not `questions`, so an equal re-render, which yields the
+  // same group, looks nothing up. This is the identity `sameIdentity` compares,
+  // and the group atom stands for the structural question set.
+  const atomOf = useMemo(
+    () =>
+      Record.map(questions, (question) =>
+        scope.atoms.decision(question.policy, question.resource),
+      ),
+    [scope.atoms, group],
+  );
+
+  const entries = Record.map(
+    questions,
+    (_question, name): GateRead => {
+      const result = results[name] ?? NOT_YET;
+      return {
+        atom: atomOf[name],
+        result,
+        outcome: outcomeOf(result),
+        id: grouped ? `${base}/${name}` : base,
+        ref: scope.writer !== undefined && wraps ? marker : undefined,
+      };
+    },
+  );
+  const identities = Record.map(
+    questions,
+    (question, name): GateIdentity => ({
+      id: entries[name].id,
+      kind,
+      atom: atomOf[name],
+      wraps,
+      policy: question.policy,
+      resource: question.resource,
+      marker,
+    }),
+  );
+  useGateRegistrations(
+    scope.writer,
+    Record.values(identities),
+    Record.values(entries).map((entry) => entry.outcome._tag),
+  );
+
+  return { results, entries };
 };
