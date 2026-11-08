@@ -1,8 +1,8 @@
 ---
 phase: 03-audit-archive-facts
-verified: 2026-11-08T05:30:00Z
-status: human_needed
-score: 9/10 must-haves verified
+verified: 2026-11-08T06:00:00Z
+status: passed
+score: 10/10 must-haves verified
 covered_files:
   - ".planning/phases/03-audit-archive-facts/03-01-PLAN.md"
   - ".planning/phases/03-audit-archive-facts/03-01-SUMMARY.md"
@@ -12,27 +12,31 @@ covered_files:
   - ".planning/phases/03-audit-archive-facts/03-03-SUMMARY.md"
   - "packages/audit/src/ArchiveFacts.ts"
   - "packages/audit/src/AuditArchive.ts"
+  - "packages/audit/src/AuditEntry.ts"
   - "packages/audit/src/SequenceIntegrity.ts"
   - "packages/audit/test/ArchiveFacts.test.ts"
   - "packages/audit/test/ArchiveRoundTrip.test.ts"
-covered_digest: "v4:sha256:3f44f1e29e6c7d909544d2e9416ed3f1bc962097c067467277fd993cc575e56d"
+  - "packages/audit/test/AuditArchive.test.ts"
+  - "packages/audit/test/SequenceIntegrity.test.ts"
+covered_digest: "v4:sha256:9148b26f874ea5e738db32934f1a9824bc4483cb576e59843256f04ab2df55ef"
 behavior_unverified: 0
 overrides_applied: 0
-human_verification:
-  - test: "Decide WR-01: writer accepts sequence numbers the reader refuses (1.5/2.5, 2**53/2**53)"
-    expected: "Either the writer refuses them (domain stated once in ArchiveFacts.ts) or BEH-QD-254's 'MUST accept every bundle archiveAuditTrail writes' is scoped to safe-integer sequence numbers. Disposition recorded in 03-REVIEW-DISPOSITION.md (currently `open`)"
-    why_human: "Pre-existing behaviour, but the phase added an unscoped normative MUST that this input falsifies, and the new property tests only draw integers 0..1000. Whether to fix now (public-surface choice: a new writer error or a SequenceBreak payload) or narrow the spec is a maintainer call"
-  - test: "Confirm ROADMAP success criterion 4 (`pnpm check:pr` green) given step 13 `pnpm example` cannot run here"
-    expected: "`pnpm check:pr` exits 0 on a machine where `playwright install --with-deps chromium` can run (sudo/TTY), e.g. CI"
-    why_human: "`pnpm example` needs sudo to install Chromium system deps. This verifier ran every other pnpm check step independently and they passed, but did not run `pnpm example`, `pnpm website`, `spec:website-examples` or `spec:publish`"
+re_verification:
+  previous_status: human_needed
+  previous_score: 9/10
+  gaps_closed:
+    - "WR-01: writer archived sequence numbers the reader refuses (fixed in the writer: SequenceNumberInvalid, ba6e377, ccafcb8)"
+    - "Success criterion 4: check:pr sequence executed with every step exit 0 (UAT test 2, accepted)"
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 3: Audit archive facts Verification Report
 
 **Phase Goal:** The archive's ordering, claim and sequence rules are each stated once, and the writer and reader both use them.
 **Verified:** 2026-11-08
-**Status:** human_needed
-**Re-verification:** No, initial verification
+**Status:** passed
+**Re-verification:** Yes. The previous report was `human_needed` with two items, both now resolved. Source was re-read and the gates re-run for this report.
 
 ## Goal Achievement
 
@@ -40,31 +44,31 @@ human_verification:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | `sequencedCount >= 2` and the ordering comparator each appear once in `packages/audit/src` | VERIFIED | `grep -rn "sequencedCount >= 2" packages/audit/src` gives one code hit, `ArchiveFacts.ts:99`. The `archiveOrder` comparator (`POSITIVE_INFINITY` difference) is defined once, `ArchiveFacts.ts:52-53`; `toSorted(archiveOrder)` is the only entry sort. No `sequenceNumber` ordering or counting logic remains in `AuditArchive.ts`, `Retention.ts` or elsewhere in src (only schema fields in `AuditEntry.ts`). `SequenceBreak.ts` is deleted. The one other `toSorted((a, b) => a - b)` in `archiveFacts` sorts bare numbers to find the break, not entries by archive order. It is a second sort expression, but not a second statement of the entry-ordering rule |
-| 2 | A property test shows the reader accepts every archive the writer produces | VERIFIED, with caveat (see WR-01) | `ArchiveRoundTrip.test.ts` has 4 `FastCheck.property` blocks. The round-trip property runs 200 cases through writer, JSON text and reader. `pnpm vitest run packages/audit`: 17 files, 299 tests pass. Caveat: sequence numbers are drawn only from integers 0..1000, and I reproduced that the writer accepts `[1.5, 2.5]` and `[2**53, 2**53]` while the reader refuses both as `EntryNotDecodable` |
-| 3 | Each `ArchiveRefusal` kind still fires on a tampered bundle | VERIFIED | The tamper property covers all seven kinds (`Malformed`, `UnsupportedArchiveVersion`, `EntryNotDecodable`, `CountMismatch`, `SequenceBroken`, `NotInSequenceOrder`, `UnbackedClaim`) with payload asserts. The file was written in 03-01 before any `src` change and is unchanged by 03-02. The reader's check order (decode, count, break, order, claim) is intact in `readAuditArchive` |
-| 4 | `pnpm check:pr` is green; ADR-QD-110, CCR-QD-387 and a changeset recorded | UNCERTAIN (human) | Records verified: ADR-QD-110 file, `index.yaml` entry, ADR-056 amendment, traceability §3/§4 rows, `CCR-QD-387` row in `spec/README.md`, `.changeset/archive-facts.md` (`"@qadi/audit": patch`). Gate steps I ran independently, all exit 0: `typecheck`, `lint`, `lint:style`, `circular`, `test:tstyche`, `test:bdd`, `spec:examples`, `spec:verify:strict` (21/0/0), `spec:gates`, `spec:claims`, `spec:api` (861 exports), `spec:package` (9 packages). Not run here: `pnpm example`, `spec:website-examples`, `website`, `spec:publish`. The orchestrator and 03-03 executor report these run by hand (e2e: one flaky timeout that passed on rerun). A single `pnpm check:pr` invocation has not been green in this environment |
-| 5 | Writer builds from the facts and reader recomputes them (ARC-02) | VERIFIED | `archiveAuditTrail` calls `verifiedArchiveFacts(entries)` and uses `facts.ordered`, `facts.sequenceIntegrityVerified` (`AuditArchive.ts:113-123`). `readAuditArchive` calls `archiveFacts(entries)` and compares `sequenceBreak`, `outOfOrderAt` and the claim (`:297-306`). It builds `VerifiedArchiveImpl` from the decoded entries, not `facts.ordered`, so it never repairs |
-| 6 | `SequenceIntegrity.ts` and `SequenceBreak.ts` folded in; public names survive (ARC-03) | VERIFIED | `SequenceIntegrity.ts` is `export { SequenceIntegrityError, verifySequenceIntegrity } from "./ArchiveFacts.ts"`. `SequenceBreak.ts` is absent. `ArchiveFacts.ts` is not in the barrel. `spec:api` and `spec:package` pass |
-| 7 | `NotInSequenceOrder.index` meaning unchanged | VERIFIED | `outOfOrderAt` is the first index where `archiveOrder(previous, entry) > 0`. The review traced equivalence to the old loop (sequenced then unsequenced is `-Infinity`, in order; unsequenced then sequenced is `+Infinity`, out of order; two unsequenced give `NaN`, not out of order). The reordering property and the pinned `AuditArchive.test.ts` cases pass |
-| 8 | Spec records: BEH-QD-254, INV-QD-054/130, overview Source cells (D-07) | VERIFIED | BEH-QD-254 carries the new REQUIREMENT, Rev 1.16. `spec/overview.md` names `ArchiveFacts.ts` as the source for both public names. Gates 11, 12 and 13 pass |
-| 9 | XC-04 no new budgeted constructs; XC-05 coverage | VERIFIED | `lint:style`: 399 files clean, 3 declared switches (unchanged). `UNTRACED_BUDGET` untouched (`verifySequenceIntegrity` is an unnamed `Effect.fn` over a named one). `packages/audit/src` coverage is 99.26% lines. Full `pnpm coverage` failed here with 9 unrelated 5 s timeouts, all in `packages/core` tests under instrumentation load. No audit test failed, and the orchestrator's plain `pnpm test` run was green |
-| 10 | Reader accepts every writer bundle across the writer's whole input domain (BEH-QD-254 REQUIREMENT, ADR-QD-110) | UNCERTAIN (human) | The spec says `readAuditArchive MUST accept every bundle archiveAuditTrail writes`, unscoped. Reproduced with a throwaway test (deleted afterwards): `[1.5, 2.5]` and `[2**53, 2**53]` are written (claim `true`) and then refused. See WR-01 |
+| 1 | `sequencedCount >= 2` and the ordering comparator each appear once in `packages/audit/src` | VERIFIED | `grep` over `packages/audit/src` for `sequencedCount >= 2`, `toSorted` and `POSITIVE_INFINITY` hits only `ArchiveFacts.ts`: the claim at line 125, `archiveOrder` at 74-75, and `entries.toSorted(archiveOrder)` at 123. The other `toSorted((a, b) => a - b)` (line 107) sorts bare numbers to find the break, not entries in archive order. `AuditArchive.ts`, `Retention.ts` and `AuditEntry.ts` hold no ordering or counting logic. `SequenceBreak.ts` is gone and `SequenceIntegrity.ts` is a one-line re-export |
+| 2 | A property test shows the reader accepts every archive the writer produces | VERIFIED | `ArchiveRoundTrip.test.ts` has `FastCheck.property` blocks for round trip, tamper, reordering, break agreement, and a final one over the whole `number` domain (`double()`, `NaN`, `±Infinity`, `2**53`, `MAX_VALUE`). That one asserts the writer fails `SequenceNumberInvalid` at the first non-safe-integer (oracle: `Number.isSafeInteger`, independent of the source) and otherwise every written bundle reads back. I disabled `isSequenceNumber` (replaced with `() => true`), and the file failed with counterexample `[-5e-324]`; I restored the source (`git status` clean for `packages/`) and it passed again. `pnpm vitest run packages/audit`: 17 files, 307 tests pass. The previous caveat (WR-01) is closed |
+| 3 | Each `ArchiveRefusal` kind still fires on a tampered bundle | VERIFIED | The tamper property exercises all seven kinds with payload asserts (`ArchiveRoundTrip.test.ts` lines 136-173). `AuditArchive.test.ts` still pins the `NotInSequenceOrder.index` cases. The reader's check order is unchanged in `AuditArchive.ts` |
+| 4 | `pnpm check:pr` is green; ADR-QD-110, CCR-QD-387 and a changeset recorded | VERIFIED | Records present: `spec/decisions/110-an-archives-facts-are-computed-once.md`, the `CCR-QD-387` row (`spec/README.md:325`), `.changeset/archive-facts.md` (`@qadi/audit: minor`, with a **Breaking.** note). I re-ran independently at HEAD, all exit 0: `typecheck`, `lint`, `lint:style` (399 files, 3 declared switches), `circular`, `test:tstyche`, `spec:examples` (101 blocks), `spec:verify:strict` (21/0/0), `spec:gates`, `spec:claims`, `spec:api` (862 exports), `spec:package` (9 packages). The orchestrator and UAT report the remaining steps (`coverage` 153 files / 3928 tests, `test:bdd`, `example` with e2e 30/30, `spec:website-examples`, `website`, `spec:publish`) green, with one substitution: `playwright install chromium` instead of `--with-deps chromium` (apt step needs sudo). I did not re-run `example`, `website` or `spec:publish`. I accept the substitution: it changes only how the OS libraries are installed, which were already present, and the browser tests themselves ran 30/30. CI still runs the `--with-deps` form and stays the authority |
+| 5 | Writer builds from the facts and reader recomputes them (ARC-02) | VERIFIED | `archiveAuditTrail` uses `verifiedArchiveFacts(entries)` and its `ordered` and `sequenceIntegrityVerified` (`AuditArchive.ts:114-121`). `readAuditArchive` calls `archiveFacts(entries)` and compares the claim (`:298-306`). It builds the `VerifiedArchive` from the decoded entries, not `facts.ordered`, so the reader never repairs a bundle |
+| 6 | `SequenceIntegrity.ts` and `SequenceBreak.ts` folded in; public names survive (ARC-03) | VERIFIED | `SequenceIntegrity.ts` is `export { SequenceIntegrityError, SequenceNumberInvalid, verifySequenceIntegrity } from "./ArchiveFacts.ts"`. `ArchiveFacts.ts` stays out of the barrel. `spec:api` and `spec:package` pass |
+| 7 | `NotInSequenceOrder.index` meaning unchanged | VERIFIED | `outOfOrderAt` is the first index where `archiveOrder(previous, entry) > 0`, the same comparator that orders `ordered`. Pinned by the reordering property and the existing `AuditArchive.test.ts` cases |
+| 8 | Spec records: BEH-QD-254, INV-QD-054/130, overview Source cells | VERIFIED | Gates 11, 12 and 13 (`spec:gates`, `spec:claims`, `spec:api`) and `spec:verify:strict` pass; CCR-QD-387 names the `SequenceNumberInvalid` change |
+| 9 | XC-04 no new budgeted constructs; XC-05 coverage | VERIFIED | `lint:style` clean, with no new switches. `pnpm vitest run packages/audit --coverage` over `packages/audit/src`: 99.27% statements, 99.37% branches, 98.63% functions, against a 90% threshold. The full-repo coverage run is reported green by UAT (153 files / 3928 tests) |
+| 10 | Reader accepts every writer bundle across the writer's whole input domain (BEH-QD-254, ADR-QD-110) | VERIFIED | The writer now refuses what the reader would refuse. `isSequenceNumber = Schema.is(Schema.Int)` in `ArchiveFacts.ts:84` is the same schema `AuditEntry.ts:82` declares `sequenceNumber` with, so the domain is stated once and both sides use it. `verifiedArchiveFacts` fails `SequenceNumberInvalid` before the gap check. The whole-domain property and its mutation check (truth 2) back it. The spec text, ADR and changeset were updated to match (ccafcb8) |
 
-**Score:** 9/10 must-haves verified (truth 4 and truth 10 are the two routed to human; truth 2 is counted verified with the caveat above).
+**Score:** 10/10 truths verified (0 present-but-behavior-unverified).
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `packages/audit/src/ArchiveFacts.ts` | One module for order, claim, break, out-of-order index | VERIFIED | 143 lines, pure `archiveFacts`, `verifiedArchiveFacts`, `SequenceIntegrityError`, `verifySequenceIntegrity` |
+| `packages/audit/src/ArchiveFacts.ts` | One module for order, claim, break, out-of-order index and sequence-number domain | VERIFIED | Pure `archiveFacts`, `verifiedArchiveFacts`, `SequenceIntegrityError`, `SequenceNumberInvalid`, `verifySequenceIntegrity` |
 | `packages/audit/src/SequenceIntegrity.ts` | Public re-export only | VERIFIED | One `export {} from` line plus doc comment |
 | `packages/audit/src/AuditArchive.ts` | Writer and reader on the facts | VERIFIED | Imports and uses both facts functions; no local ordering or claim logic |
-| `packages/audit/test/ArchiveRoundTrip.test.ts` | 4 properties | VERIFIED | Imports only `AuditArchive.ts` and `AuditEntry.ts` from src |
+| `packages/audit/test/ArchiveRoundTrip.test.ts` | Properties for round trip, tamper, order, break agreement, whole domain | VERIFIED | 5 tests, killed a deliberate mutation |
 | `packages/audit/test/ArchiveFacts.test.ts` | Unit and permutation tests | VERIFIED | Passes |
-| `spec/decisions/110-an-archives-facts-are-computed-once.md` | ADR-QD-110 | VERIFIED | Present, indexed, traced, cited by ADR-056 amendment |
-| `.changeset/archive-facts.md` | Patch for `@qadi/audit` | VERIFIED | Present |
-| `spec/README.md` CCR-QD-387 row | Register row | VERIFIED | Present (line 325) and in the change history |
+| `spec/decisions/110-an-archives-facts-are-computed-once.md` | ADR-QD-110 | VERIFIED | Present and indexed |
+| `.changeset/archive-facts.md` | Changeset | VERIFIED | `minor`, with a **Breaking.** note for `SequenceNumberInvalid` |
+| `spec/README.md` CCR-QD-387 row | Register row | VERIFIED | Line 325 and the change history |
 
 ### Key Link Verification
 
@@ -72,19 +76,22 @@ human_verification:
 |------|----|-----|--------|
 | `AuditArchive.ts` | `ArchiveFacts.ts` | `verifiedArchiveFacts(entries)` and `archiveFacts(entries)` | WIRED |
 | `index.ts` barrel | `ArchiveFacts.ts` | `SequenceIntegrity.ts` re-export | WIRED |
-| `traceability.md` | ADR-110 and `ArchiveRoundTrip.test.ts` | §3 and §4 rows | WIRED (`spec:verify:strict` passes) |
+| `ArchiveFacts.ts` | `AuditEntry.ts` | Same `Schema.Int` domain on writer and codec | WIRED |
+| `traceability.md` | ADR-110 and `ArchiveRoundTrip.test.ts` | Rows | WIRED (`spec:verify:strict` passes) |
 
 ### Data-Flow Trace (Level 4)
 
-Not applicable. The phase is pure functions and a codec path, with no rendered dynamic data. The round-trip property exercises the writer, JSON, reader flow end to end.
+Not applicable: pure functions and a codec path, with nothing rendered. The round-trip property exercises writer, JSON text and reader end to end.
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Audit suite | `pnpm vitest run packages/audit` | 17 files, 299 tests pass | PASS |
-| House style / budgets | `pnpm lint:style` | 399 files clean | PASS |
-| Writer vs reader on non-integer / unsafe sequence numbers | throwaway test, deleted | writer ok, reader `EntryNotDecodable` for both | FAIL (this is WR-01) |
+| Audit suite | `pnpm vitest run packages/audit` | 17 files, 307 tests pass | PASS |
+| Audit coverage | `pnpm vitest run packages/audit --coverage` (src only) | 99.27% statements | PASS |
+| Writer/reader domain property detects drift | disable `isSequenceNumber`, run `ArchiveRoundTrip.test.ts` | fails, counterexample `[-5e-324]`; passes after restore | PASS |
+| House style | `pnpm lint:style` | 399 files clean | PASS |
+| Public surface | `pnpm spec:api` | 862 exports documented | PASS |
 
 ### Probe Execution
 
@@ -94,48 +101,31 @@ Step 7c: no probes declared by this phase. SKIPPED.
 
 | Requirement | Source Plan | Status | Evidence |
 |-------------|-------------|--------|----------|
-| ARC-01 | 03-02, 03-03 | SATISFIED | `ArchiveFacts.ts` computes ordered, `sequenceIntegrityVerified` and the first break |
+| ARC-01 | 03-02, 03-03 | SATISFIED | `ArchiveFacts.ts` computes order, count, claim, first break and the out-of-order index once |
 | ARC-02 | 03-02, 03-03 | SATISFIED | Truth 5 |
 | ARC-03 | 03-02, 03-03 | SATISFIED | Truth 6 |
-| ARC-04 | 03-01, 03-03 | SATISFIED for integer sequence numbers | Round-trip and tamper properties pass; see WR-01 for the non-integer domain |
-| XC-01 | 03-03 | NEEDS HUMAN | `check:pr` not run as one command here (`pnpm example` needs sudo) |
-| XC-02 | 03-03 | SATISFIED | ADR-QD-110, CCR-QD-387, `spec/README.md` history line, traceability rows, changeset all present |
-| XC-03 | 03-02, 03-03 | SATISFIED | `spec:api` passes. The two public names are retained and no export was added |
-| XC-04 | 03-01, 03-02 | SATISFIED | `lint:style` clean |
-| XC-05 | 03-02, 03-03 | SATISFIED for audit (99.26%) | Full `pnpm coverage` failed here on core timeouts (environment load, 9 tests, none in audit). The thresholds themselves were not evaluated by me |
+| ARC-04 | 03-01, 03-03 | SATISFIED | Truths 2, 3 and 10, over the whole number domain |
+| XC-01 | 03-03 | SATISFIED | Truth 4 (the one stated substitution is judged acceptable) |
+| XC-02 | 03-03 | SATISFIED | ADR-QD-110, CCR-QD-387, traceability rows and changeset present |
+| XC-03 | 03-02, 03-03 | SATISFIED | `spec:api` passes; `SequenceNumberInvalid` is the one added public name and `spec/overview.md` names it |
+| XC-04 | 03-01, 03-02 | SATISFIED | `lint:style` clean; typecheck clean |
+| XC-05 | 03-02, 03-03 | SATISFIED | Audit at 99.27%; full run reported green by UAT |
 
-No orphaned requirements. REQUIREMENTS.md maps ARC-01..04 and XC-01..05 to this phase, and every ID is claimed by at least one plan.
+All IDs from the phase (ARC-01..04, XC-01..05) are claimed by at least one plan. No orphaned requirements.
 
 ### Anti-Patterns Found
 
-None in the phase's source files. There are no TBD, FIXME or XXX markers and no stubs. The only open items are review findings:
-
-| Finding | Severity | Status |
-|---------|----------|--------|
-| WR-01 writer/reader domain drift (confirmed by reproduction) | Warning | open |
-| IN-01 stale test commentary (`ArchiveRoundTrip.test.ts` header; `SequenceIntegrity.test.ts` mutant note) | Info | open |
-| IN-02 ADR-QD-110's "97 killed / 1 survivor" has no re-runnable command cited | Info | open |
+None. No `TBD`, `FIXME` or `XXX` markers and no stubs in the phase's source files. The code-review disposition lists 5 findings (WR-01, WR-02, IN-01, IN-02, IN-03), all `fixed`, 0 open.
 
 ### Human Verification Required
 
-#### 1. WR-01 decision
-
-**Test:** Choose between (a) stating the sequence-number domain once in `ArchiveFacts.ts` so the writer refuses what the reader refuses, with a generator arm for non-integers and unsafe integers in `ArchiveRoundTrip.test.ts`, and an ADR-QD-110 note; or (b) scoping BEH-QD-254's REQUIREMENT and the ADR to safe-integer sequence numbers.
-**Expected:** The normative text and the code agree. Set the disposition in `03-REVIEW-DISPOSITION.md`.
-**Why human:** The behaviour pre-dates the phase and no refusal kind regressed. The phase added the unscoped "MUST accept every bundle the writer writes", so spec and code currently disagree on a reachable input. Option (a) may add public surface.
-
-#### 2. `pnpm check:pr` as a single green command
-
-**Test:** Run `pnpm check:pr` where Playwright's system deps can install (CI, or a machine with sudo).
-**Expected:** Exit 0.
-**Why human:** The only unreproducible step in this environment is `pnpm example` (sudo). Every other step I could run passed.
+None. UAT (`03-UAT.md`) shows 2 passed, 0 issues.
 
 ### Gaps Summary
 
-The refactor goal is achieved in code. The order, the claim and the break are each stated once in `ArchiveFacts.ts`. The writer builds from them and the reader recomputes and compares. The refusal vocabulary, payloads and check order are unchanged, and the spec, ADR, CCR and changeset records are in place. Nothing is FAILED outright. Two items need a human decision.
+The goal is achieved. The archive's order, claim, first-break and out-of-order rules, and the sequence-number domain, are each stated once in `ArchiveFacts.ts`. The writer builds from them and the reader recomputes and compares. The earlier writer/reader disagreement on non-integer and unsafe-integer sequence numbers is fixed in the code and pinned by a property that fails when the fix is removed.
 
-1. WR-01 is a real, reproduced divergence between writer and reader. It is not a regression, but it makes the phase's own new normative sentence false for non-integer and unsafe-integer sequence numbers. A small fix or a one-line spec scoping closes it.
-2. Success criterion 4 cannot be confirmed as one `pnpm check:pr` run from this environment.
+Bookkeeping, not a goal gap: `.planning/ROADMAP.md` still shows Phase 3 as unchecked (`- [ ] **Phase 3`) and `.planning/REQUIREMENTS.md`'s traceability table still says `Pending` for ARC-01..04 and XC-01..05, though the requirement checkboxes are ticked. The orchestrator should update both when closing the phase.
 
 ---
 
