@@ -13,8 +13,11 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Record from "effect/Record";
+import * as Result from "effect/Result";
 import * as FetchHttpClient from "effect/http/FetchHttpClient";
 import * as HttpRouter from "effect/http/HttpRouter";
+import * as HttpServer from "effect/http/HttpServer";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import {
   anonymous,
   EvaluationIdLive,
@@ -353,6 +356,69 @@ describe("one address on both sides (ARCH-52)", () => {
           assert.strictEqual((yield* post(handler, "AttributeResolver", body, "bob-token", PREFIX)).status, 403);
         }),
       ({ dispose }) => Effect.promise(dispose),
+    ));
+});
+
+describe("the client reads the reply from the body, whatever the status (ARCH-52)", () => {
+  /** A server whose one route, the AttributeResolver's, answers `response` and nothing else. */
+  const canned = (response: HttpServerResponse.HttpServerResponse) =>
+    HttpRouter.toWebHandler(
+      HttpRouter.add("POST", "/__ports/AttributeResolver", response).pipe(
+        Layer.provideMerge(HttpServer.layerServices),
+      ),
+      { disableLogger: true },
+    );
+
+  /** The AttributeResolver's `clearance` read through a client whose server sent `response`. */
+  const asked = (response: HttpServerResponse.HttpServerResponse) =>
+    Effect.acquireUseRelease(
+      Effect.sync(() => canned(response)),
+      ({ handler }) =>
+        Effect.scoped(
+          Effect.gen(function* () {
+            const context = yield* Layer.build(clientFor(handler, ["AttributeResolver"], "alice-token"));
+            const d = PORTS.AttributeResolver;
+            return yield* Effect.result(d.invoke(Context.get(context, d.service))(aliceId, "clearance"));
+          }),
+        ),
+      ({ dispose }) => Effect.promise(dispose),
+    );
+
+  const failureTag = PORTS.AttributeResolver.failure(CASES.AttributeResolver.args, "x")._tag;
+
+  it.effect("an answer under a 503 is still read as the answer", () =>
+    asked(
+      HttpServerResponse.jsonUnsafe(
+        { _tag: "Answered", answer: { value: { level: 3 } } },
+        { status: 503 },
+      ),
+    ).pipe(
+      Effect.map((result) => {
+        assert.isTrue(Result.isSuccess(result));
+        if (Result.isSuccess(result)) assert.deepStrictEqual(result.success, { level: 3 });
+      }),
+    ));
+
+  it.effect("a refusal under a 200 is still the port's own error, never an answer", () =>
+    asked(HttpServerResponse.jsonUnsafe({ _tag: "Refused", reason: "NotServed" }, { status: 200 })).pipe(
+      Effect.map((result) => {
+        assert.isTrue(Result.isFailure(result));
+        if (Result.isFailure(result)) {
+          assert.strictEqual(Reflect.get(Object(result.failure), "_tag"), failureTag);
+          assert.include(rendered(result.failure), "NotServed");
+        }
+      }),
+    ));
+
+  it.effect("a proxy's HTML page under a 502 is the port's own error, never an answer", () =>
+    asked(HttpServerResponse.text("<html>Bad Gateway</html>", { status: 502, contentType: "text/html" })).pipe(
+      Effect.map((result) => {
+        assert.isTrue(Result.isFailure(result));
+        if (Result.isFailure(result)) {
+          assert.strictEqual(Reflect.get(Object(result.failure), "_tag"), failureTag);
+          assert.include(rendered(result.failure), "Transport");
+        }
+      }),
     ));
 });
 
