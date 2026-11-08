@@ -92,11 +92,11 @@
 
 ### ADDR — One port route address (Phase 7, ARCH-52)
 
-- [ ] **ADDR-01**: One exported definition of the port route address (the default prefix and
+- [x] **ADDR-01**: One exported definition of the port route address (the default prefix and
   `portPath(prefix?, port)`) is imported by both PortRoutes.ts and RemotePorts.ts.
-- [ ] **ADDR-02**: The "decode the body whatever the status" contract is stated beside that
+- [x] **ADDR-02**: The "decode the body whatever the status" contract is stated beside that
   address and referenced by both adapters.
-- [ ] **ADDR-03**: A round-trip test serves `portRoutes` and calls `remotePortsLayer` with a
+- [x] **ADDR-03**: A round-trip test serves `portRoutes` and calls `remotePortsLayer` with a
   non-default prefix.
 
 ### SERV — Port serving derived from the registry (Phase 8, ARCH-53)
