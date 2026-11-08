@@ -57,7 +57,7 @@
 
 ### GATE — Gate instrumentation hook (Phase 4, ARCH-49)
 
-- [ ] **GATE-01**: QadiProvider resolves the gate writer once and exposes it to hooks
+- [x] **GATE-01**: QadiProvider resolves the gate writer once and exposes it to hooks
   internally. `gateWriterFor(gates)` is called from exactly one place.
 - [x] **GATE-02**: GateWriter offers one internal hook, `useGates(kind, questions)`, that owns
   atom lookup, `GateIdentity` construction, the `wraps` rule and the marker refs.
@@ -66,7 +66,7 @@
 - [x] **GATE-04**: The `usePolicies` per-render `questions` record is investigated. If it
   recreates the group atom or the identities on every render, it is fixed and pinned by a test.
   If it does not, a test pins that it does not.
-- [ ] **GATE-05**: With instrumentation off, the DOM is unchanged and the existing React suite
+- [x] **GATE-05**: With instrumentation off, the DOM is unchanged and the existing React suite
   passes untouched (AGENTS.md §13).
 
 ### LOGH — Decision log over HTTP (Phase 5, ARCH-50)

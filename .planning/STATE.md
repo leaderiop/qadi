@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Gate instrumentation hook
-status: executing
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-11-08T04:57:52.041Z"
+status: verifying
+stopped_at: Completed 04-04-PLAN.md
+last_updated: "2026-11-08T05:00:57.462Z"
 last_activity: 2026-11-08
 last_activity_desc: Phase 04 execution started
-state_head: 8a6f372b1bef8c0f45519419756adc9e84b3585f
+state_head: 34072ffb84b48d417f3cc4a9441e84094e5caca4
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 33
-  completed_plans: 15
+  completed_plans: 16
   percent: 33
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-08)
 
 Phase: 04 (Gate instrumentation hook) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-08 — Phase 04 execution started
 
 Progress: [███████░░░░░░░░░░░░░] 12/33 plans ([███░░░░░░░] 33%); 3/9 phases
@@ -62,6 +62,7 @@ Progress: [███████░░░░░░░░░░░░░] 12/33 p
 | Phase 04 P01 | 3 min | 2 tasks | 6 files |
 | Phase 04 P02 | 5 min | 3 tasks | 3 files |
 | Phase 04 P03 | 10 min | 3 tasks | 10 files |
+| Phase 04 P04 | 3 min | 2 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,7 @@ Progress: [███████░░░░░░░░░░░░░] 12/33 p
 - [Phase 04]: 04-02: usePolicies does not re-create its group atom or registrations across equal re-renders (pinned by hooks.rerender.test.tsx); GateWriter.ts needs no Equal-keyed memo (D-07)
 - [Phase 04]: 04-02: the one per-entry decision lookup lives in useGates, memoised on the group, not the group atom as identity, so a changed entry re-registers alone (D-03, BEH-QD-068)
 - [Phase 04]: ADR-QD-111 written (not a CCR-only note) because ADR-QD-080's amendment names the writer lookup as serving every guard; CCR-QD-388 registered; patch changeset for @qadi/react
+- [Phase 04]: 04-04: Playwright's sudo-only dependency install was skipped in check:pr step 13; test:e2e run directly (30 passed) and steps 14-16 run individually
 
 ### Pending Todos
 
@@ -114,6 +116,6 @@ Progress: [███████░░░░░░░░░░░░░] 12/33 p
 
 ## Session Continuity
 
-Last session: 2026-11-08T04:57:51.997Z
-Stopped at: Completed 04-03-PLAN.md
+Last session: 2026-11-08T05:00:57.421Z
+Stopped at: Completed 04-04-PLAN.md
 Resume file: None
