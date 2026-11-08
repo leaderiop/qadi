@@ -101,7 +101,7 @@
 
 ### SERV — Port serving derived from the registry (Phase 8, ARCH-53)
 
-- [ ] **SERV-01**: A human checkpoint confirms amending ADR-QD-094 to allow a `serving` facet
+- [x] **SERV-01**: A human checkpoint confirms amending ADR-QD-094 to allow a `serving` facet
   on a port description before any code changes.
 - [ ] **SERV-02**: Each port description states its serving facet: the allowlist kind and the
   policy leaf tags it answers. `ADMITTED`, `Collector`, `collectNames` and the per-port sets in
