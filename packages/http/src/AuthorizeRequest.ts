@@ -27,7 +27,12 @@ import type {
 } from "@qadi/core";
 import { CurrentSubject, ENFORCEMENT_DENIAL_TAGS, guard } from "@qadi/core";
 import type { HttpEnforcementFailure } from "./QadiHttpError.ts";
-import { HTTP_ENFORCEMENT_TAGS, logSubjectExtractionFailed, toResponse } from "./QadiHttpError.ts";
+import {
+  HTTP_ENFORCEMENT_TAGS,
+  logSubjectExtractionFailed,
+  projectHttpEnforcementFailure,
+  toResponse,
+} from "./QadiHttpError.ts";
 import { logDenialAt } from "./DenialLog.ts";
 import { loadNoResource } from "./NoResource.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
@@ -71,6 +76,20 @@ export type EnforcementProjection<B, E, R> = (error: HttpEnforcementFailure) => 
 export const answerWithResponse: EnforcementProjection<HttpServerResponse.HttpServerResponse, never, never> = (
   error,
 ) => Effect.succeed(toResponse(error));
+
+/**
+ * The `HttpApi` projection: fails in-channel with the failure's redacted wire value.
+ *
+ * The second of the two projections in use today (D-02, ADR-QD-108), the first being
+ * `answerWithResponse`. `RequirePermission`'s middleware cannot answer with a response: its
+ * declared error schemas are what `HttpApiMiddleware`'s encoder builds the response from, via each
+ * schema's `httpApiStatus`. So the projection fails, with `projectHttpEnforcementFailure`'s value,
+ * typed to exactly the schema's `Type`, so `AccessDenied`'s `trace` and a resolver `cause` never
+ * reach a body (ADR-QD-072, ADR-QD-081).
+ */
+export const answerInChannel: EnforcementProjection<never, ReturnType<typeof projectHttpEnforcementFailure>, never> = (
+  error,
+) => Effect.fail(projectHttpEnforcementFailure(error));
 
 /**
  * Extracts the subject, logging an extraction failure once.

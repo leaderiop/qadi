@@ -6,10 +6,11 @@
  * (`GuardApi.ts`), which registers every endpoint of the API this middleware serves before it
  * hands the middleware back, so what is enforced is always what `/__permissions` lists.
  *
- * Moved here verbatim from `RequirePermission.ts`'s `RequirePermissionLive` (ARCH-36 T5),
- * including `enforce`'s handler-denial log (ARCH-45), so the class stays the declaration and this
- * module is the behavior. See `RequirePermission`'s doc comment for why the standing services are
- * captured at build time rather than declared as a `requires`.
+ * Moved here from `RequirePermission.ts`'s `RequirePermissionLive` (ARCH-36 T5), so the class stays
+ * the declaration and this module is the behavior. Its enforcement half, including the
+ * handler-denial log (ARCH-45), is the request-enforcement module's since ARCH-46 (ADR-QD-108).
+ * See `RequirePermission`'s doc comment for why the standing services are captured at build time
+ * rather than declared as a `requires`.
  */
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -18,14 +19,10 @@ import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type { unhandled } from "effect/Types";
 import type { StandingEvaluationServices } from "@qadi/core";
-import { anonymous, CurrentSubject, ENFORCEMENT_DENIAL_TAGS } from "@qadi/core";
-import { authorizeRequest, endpointMemberKey } from "./AuthorizeRequest.ts";
+import { anonymous, CurrentSubject } from "@qadi/core";
+import { answerInChannel, endpointMemberKey, enforceRequest } from "./AuthorizeRequest.ts";
 import type { EndpointMemberKey } from "./AuthorizeRequest.ts";
-import { logDenialAt } from "./DenialLog.ts";
-import {
-  HTTP_ENFORCEMENT_TAGS,
-  projectHttpEnforcementFailure,
-} from "./QadiHttpError.ts";
+import { loadNoResource } from "./NoResource.ts";
 import type { HttpEnforcementFailure } from "./QadiHttpError.ts";
 import { endpointAccess, misplacedDeclarations } from "./RequirePermission.ts";
 import type { RequirePermission, RequiredPermissionShape } from "./RequirePermission.ts";
@@ -45,59 +42,33 @@ export const makeRequirePermission = Effect.fn("qadi.http.makeRequirePermission"
   // middleware class itself. Re-provided per request below, inside the
   // returned closure, so `guard`'s own `evaluate` call finds them exactly
   // as it would have found them via an ambient per-request `requires`.
-  // `SubjectExtractor` rides along because `authorizeRequest` reads it from
+  // `SubjectExtractor` rides along because the request-enforcement module reads it from
   // context.
   const evaluationServices = yield* Effect.context<StandingEvaluationServices | SubjectExtractor>();
 
-  // The enforcement half: extract, guard, log, project. Kept apart from the
-  // dispatch above so it can be replaced without touching how access is read.
+  // The enforcement half. The request-enforcement module (`AuthorizeRequest.ts`) runs
+  // extraction, the edge decision, `CurrentSubject`, the handler-denial log (annotated
+  // `"handler"`) and the projection; this middleware supplies only `answerInChannel`, the
+  // `HttpApi` projection, so every failure reaches `HttpApiMiddleware`'s encoder as the redacted
+  // wire value its declared schema describes (ENF-04, ADR-QD-108). `RequirePermission`'s own doc
+  // comment explains why `AccessDenied`'s `trace` and the resolver `cause`s must not reach a body.
+  //
+  // The standing services wrap the whole of it, deliberately: a defense-in-depth `guard` inside
+  // a handler finds the services this layer captured, and the enforcement failure it raises is
+  // projected rather than escaping as an undeclared error. `httpEffect`'s error carries
+  // `unhandled`, the middleware's own error slot, so the module's second overload keeps it.
   const enforce = (
-    requirement: RequiredPermissionShape,
-    // `unhandled` is the middleware's own error slot; the union names the
-    // enforcement failures a handler's `guard` can raise through it, so the
-    // denial tap below can read their tags.
+    { permission, policy }: RequiredPermissionShape,
     httpEffect: Effect.Effect<
       HttpServerResponse.HttpServerResponse,
       unhandled | HttpEnforcementFailure,
       CurrentSubject
     >,
-  ) => {
-    const { permission, policy } = requirement;
-
-    // Every failure the edge step can produce is projected in-channel to the
-    // redacted wire value its declared schema describes
-    // (`projectHttpEnforcementFailure`, `QadiHttpError.ts`), and
-    // `HttpApiMiddleware`'s response encoder then builds the response from
-    // the matching schema's `httpApiStatus`. `RequirePermission`'s own doc
-    // comment explains why `AccessDenied`'s `trace` and the resolver
-    // `cause`s must not reach a body: redaction is the per-tag `project`,
-    // typed to return exactly the schema's `Type`.
-    //
-    // Extraction, the edge guard and their log lines are `authorizeRequest`'s
-    // (ARCH-19). The standing services and the projection below wrap
-    // `httpEffect` too, deliberately: a defense-in-depth `guard` inside a
-    // handler finds the services this layer captured, and the enforcement
-    // failure it raises is projected rather than escaping as an
-    // undeclared error. A denial that `guard` raises is logged here, on the
-    // handler's effect alone, annotated `"handler"` (ARCH-45 I3, BEH-QD-321):
-    // the edge denial above has already logged itself, so tapping the whole
-    // pipeline would log it twice.
-    return Effect.gen(function* () {
-      const request = yield* HttpServerRequest.HttpServerRequest;
-      const { subject } = yield* authorizeRequest(permission, policy)(request);
-      return yield* Effect.provideService(httpEffect, CurrentSubject, subject).pipe(
-        Effect.tapErrorTag(ENFORCEMENT_DENIAL_TAGS, logDenialAt("handler")),
-      );
-    }).pipe(
-      Effect.provide(evaluationServices),
-      // One projection for every tag (ARCH-04, ADR-QD-081). The tag
-      // list is `QadiHttpError.ts`'s, so a tag added to `EnforcementError`
-      // cannot reach `HttpApiMiddleware`'s encoder as an undeclared failure.
-      Effect.catchTag(HTTP_ENFORCEMENT_TAGS, (error) =>
-        Effect.fail(projectHttpEnforcementFailure(error)),
-      ),
-    );
-  };
+  ) =>
+    Effect.flatMap(
+      HttpServerRequest.HttpServerRequest,
+      enforceRequest({ permission, policy, loadResource: loadNoResource }, answerInChannel, () => httpEffect),
+    ).pipe(Effect.provide(evaluationServices));
 
   // The refusal and the public pass-through both provide `CurrentSubject`
   // explicitly (as `anonymous`) even though neither ever extracted a real
