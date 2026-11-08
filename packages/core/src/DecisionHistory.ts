@@ -31,6 +31,7 @@ import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDeriva
 import type { PortDescription } from "./PortDescription.ts";
 import type { SpanType } from "./PortSpan.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, sameAnswer } from "./PortWireEncode.ts";
 
 /**
@@ -145,6 +146,21 @@ const actedWire = portWire({
 });
 
 /**
+ * A host may serve events from an allowlist or leave the port open.
+ *
+ * The answer is a closed three-valued word, so an event name discloses no more
+ * than a policy tag does (INV-QD-044). `HasActed` and `HasNotActed` both ask
+ * the same event of this one port.
+ */
+const actedServing: PortServingFacet<"DecisionHistory", [query: ActedQuery]> = {
+  allowlist: "open",
+  leaves: { HasActed: (leaf) => leaf.event, HasNotActed: (leaf) => leaf.event },
+  asked: ([query]) => query.event,
+  admitted: (declaration) => declaration.events,
+  declare: (names) => ({ DecisionHistory: { events: names } }),
+};
+
+/**
  * The decision-history port, described once (`PortDescription.ts`).
  *
  * A request is keyed by `(subjectId, event, resourceId)`, with an absent
@@ -165,6 +181,7 @@ export const decisionHistoryPort: PortDescription<
   span: "qadi.acted",
   attributes: actedSpan,
   wire: actedWire,
+  serving: actedServing,
   service: DecisionHistory,
   invoke: (shape) => (query) => shape.hasActed(query),
   make: (name, call) => ({ name, hasActed: call }),

@@ -25,6 +25,7 @@ import { RelationshipDepth } from "./Policy.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, sameAnswer } from "./PortWireEncode.ts";
 
 export interface RelationshipCheck {
@@ -192,6 +193,21 @@ const relationshipWire = portWire({
 });
 
 /**
+ * A host may serve relations from an allowlist or leave the port open.
+ *
+ * The answer is a closed three-valued word, so a relation name discloses no
+ * more than a policy tag does (INV-QD-044). Only `HasRelationship` reads this
+ * port.
+ */
+const relationshipServing: PortServingFacet<"RelationshipResolver", [request: RelationshipCheck]> = {
+  allowlist: "open",
+  leaves: { HasRelationship: (leaf) => leaf.relation },
+  asked: ([request]) => request.relation,
+  admitted: (declaration) => declaration.relations,
+  declare: (names) => ({ RelationshipResolver: { relations: names } }),
+};
+
+/**
  * The relationship port, described once (`PortDescription.ts`).
  *
  * A request is keyed by `(subjectId, relation, resourceId, depth)` — never by
@@ -215,6 +231,7 @@ export const relationshipResolverPort: PortDescription<
   span: "qadi.hasRelationship",
   attributes: relationshipSpan,
   wire: relationshipWire,
+  serving: relationshipServing,
   service: RelationshipResolver,
   invoke: (shape) => (request) => shape.check(request),
   make: (name, call) => ({ name, check: call }),

@@ -39,6 +39,7 @@ import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDeriva
 import type { PortDescription } from "./PortDescription.ts";
 import type { SpanType } from "./PortSpan.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, sameAnswer } from "./PortWireEncode.ts";
 import { Signature } from "./Signature.ts";
 import { signatureMatches } from "./SignatureMatch.ts";
@@ -197,6 +198,24 @@ const signatureWire = portWire({
 });
 
 /**
+ * A host serves signature records only when it opts in.
+ *
+ * The port answers full `Signature` records, more than evaluation reads, so
+ * serving it is an explicit one-member declaration with no names to list: a
+ * request asks none, and once the port is declared every request is admitted.
+ * `HasSignature` reads this port, and `servingFor` declares it for a policy set
+ * that has one.
+ */
+const signatureServing: PortServingFacet<"SignatureHistory", [query: SignatureQuery]> = {
+  allowlist: "opt-in",
+  leaves: { HasSignature: () => "own-records" },
+  asked: () => undefined,
+  admitted: () => undefined,
+  declare: (names) =>
+    names.length > 0 ? { SignatureHistory: { signatures: "own-records" } } : {},
+};
+
+/**
  * The signature-history port, described once (`PortDescription.ts`).
  *
  * A request is keyed by `(subjectId, resourceId, meaning, signerRole)`, with
@@ -224,6 +243,7 @@ export const signatureHistoryPort: PortDescription<
   span: "qadi.hasSignature",
   attributes: signatureSpan,
   wire: signatureWire,
+  serving: signatureServing,
   service: SignatureHistory,
   invoke: (shape) => (query) => shape.signaturesFor(query),
   make: (name, call) => ({ name, signaturesFor: call }),

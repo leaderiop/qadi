@@ -27,6 +27,7 @@ import type * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
 import type { PortName, PortSpanName } from "./PortMetrics.ts";
 import type { PortSpanAttributesLike, SpanFields, SpanStruct, SpanType } from "./PortSpan.ts";
+import type { PortServingFacet } from "./PortServing.ts";
 import type { PortWire } from "./PortWire.ts";
 
 /**
@@ -105,6 +106,18 @@ export interface PortDescription<
    * subject.
    */
   readonly wire: PortWire<Args, A>;
+  /**
+   * What a host may answer about this port, and which policy leaves ask it
+   * (ADR-QD-114). `answerRemotely` admits a request through it and
+   * `servingFor` collects and declares through it, so "which leaf asks which
+   * port, under what name" is stated here and nowhere else.
+   *
+   * Typed by the description's own name `N`, so generic code reading
+   * `d.serving.admitted(serving)` stays correlated with the port's
+   * `PortServing` slot, the same way {@link wire} stays correlated with
+   * `Args`.
+   */
+  readonly serving: PortServingFacet<N, Args>;
   /** The service key. */
   readonly service: Context.Key<Self, Shape>;
   /**

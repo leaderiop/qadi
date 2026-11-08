@@ -8,8 +8,9 @@
  * of hosts, and a sixth port is a compile error until it states its wire.
  *
  * - {@link answerRemotely} decodes a question, **refuses one about any subject
- *   but the session's**, checks the host's serving declaration, reads the port
- *   through `PortAccess.ts` like any other read, and replies with a closed
+ *   but the session's**, checks the host's serving declaration through the
+ *   port's own `serving` facet (`PortServing.ts`), reads the port through
+ *   `PortAccess.ts` like any other read, and replies with a closed
  *   {@link PortWireReply}. It never fails.
  * - {@link askRemotely} builds a port's Shape from any `send` and turns every
  *   non-answer into the port's **own** typed error, so a remote outage reaches
@@ -32,55 +33,22 @@ import type { Policy } from "./Policy.ts";
 import { servePortRead } from "./PortAccess.ts";
 import { nonePort } from "./PortDerivation.ts";
 import type { PortName } from "./PortMetrics.ts";
+import type { PortServing, PortServingOf } from "./PortServing.ts";
 import { PortWireReply, RemotePortError, RemotePortFailure } from "./PortWire.ts";
 import { WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
 import { mergePorts, tabulatePorts } from "./Ports.ts";
 import type { ArgsOf, DescriptionOf, ErrorOf, PortServices, PortTypes, ServiceOf, ShapeOf } from "./Ports.ts";
 
 /**
- * What a host agrees to answer, port by port.
- *
- * A port that is not named is not served at all. Where a question is
- * open-ended and its answer is a value (an attribute) or a client-chosen
- * resource (a custom predicate), the allowlist is **required**: a host that
- * served any attribute name would serve `constructor` and `__proto__` too
- * (ARCH-31 C13). A relation or an event may be left open, because its answer is
- * a closed three-valued word that discloses no more than a policy tag does
- * (INV-QD-044). The signature port answers full `Signature` records — more than
- * evaluation reads — so serving it is an explicit one-member opt-in.
- */
-export interface PortServing {
-  readonly AttributeResolver?: { readonly attributes: ReadonlyArray<string> } | undefined;
-  readonly RelationshipResolver?: { readonly relations?: ReadonlyArray<string> | undefined } | undefined;
-  readonly DecisionHistory?: { readonly events?: ReadonlyArray<string> | undefined } | undefined;
-  readonly CustomPredicate?: { readonly names: ReadonlyArray<string> } | undefined;
-  readonly SignatureHistory?: { readonly signatures: "own-records" } | undefined;
-}
-
-/** The serving declaration of the one port named `K`. */
-export type PortServingOf<K extends PortName> = NonNullable<PortServing[K]>;
-
-/**
- * The names a declaration admits, or `undefined` when it leaves the port open.
- * Closed over `PortName`, so a sixth port without a row is TS2741.
- */
-const ADMITTED: { readonly [K in PortName]: (serving: PortServingOf<K>) => ReadonlyArray<string> | undefined } = {
-  AttributeResolver: (serving) => serving.attributes,
-  RelationshipResolver: (serving) => serving.relations,
-  DecisionHistory: (serving) => serving.events,
-  CustomPredicate: (serving) => serving.names,
-  SignatureHistory: () => undefined,
-};
-
-/**
  * Answers one port's question for another process, as JSON.
  *
  * In order: the question decodes (`Refused: Malformed`); it is about the
  * session's own subject — `CurrentSubject`, never a subject read from the body
- * (`Refused: SubjectMismatch`); the host's declaration admits it
- * (`Refused: NotServed`); the port is read through `servePortRead`, which opens
- * its span and counts it (`Unavailable` when the store fails); and the answer
- * has a JSON form (`Refused: Unencodable`). Only then is it `Answered`.
+ * (`Refused: SubjectMismatch`); the host's declaration admits it, checked
+ * through the port's own `serving` facet (`Refused: NotServed`); the port is
+ * read through `servePortRead`, which opens its span and counts it
+ * (`Unavailable` when the store fails); and the answer has a JSON form
+ * (`Refused: Unencodable`). Only then is it `Answered`.
  *
  * **Never fails**, whatever the body or the store does, and puts no server
  * cause on the reply: an `Unavailable` or `Unencodable` outcome is logged once,
@@ -98,8 +66,8 @@ export const answerRemotely = <K extends PortName>(d: DescriptionOf<K>, serving:
       return { _tag: "Refused", reason: "SubjectMismatch" };
     }
     const args = decoded.success.args(subject);
-    const admitted = ADMITTED[d.port](serving);
-    const asked = d.wire.asked(args);
+    const admitted = d.serving.admitted(serving);
+    const asked = d.serving.asked(args);
     if (admitted !== undefined && (asked === undefined || !admitted.includes(asked))) {
       return { _tag: "Refused", reason: "NotServed" };
     }

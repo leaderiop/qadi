@@ -264,7 +264,7 @@ describe("a remote port (ADR-QD-NEXT)", () => {
  * and an open port with no list admits any name.
  */
 describe("a declaration is admitted through the port's facet (SERV-02)", () => {
-  const refused = { _tag: "Refused", reason: "NotServed" };
+  const refused: PortWireReply = { _tag: "Refused", reason: "NotServed" };
 
   const answerWith = <K extends PortName>(
     d: DescriptionOf<K>,

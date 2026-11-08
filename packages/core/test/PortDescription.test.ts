@@ -85,6 +85,13 @@ const probePort: PortDescription<
     fromAnswer: (wire) => wire.n,
     asked: ([, what]) => what,
   }),
+  serving: {
+    allowlist: "required",
+    leaves: {},
+    asked: ([, what]) => what,
+    admitted: (declaration) => declaration.attributes,
+    declare: (names) => ({ AttributeResolver: { attributes: names } }),
+  },
   service: ProbePort,
   invoke: (shape) => (who, what) => shape.ask(who, what),
   make: (name, call) => ({ name, ask: call }),

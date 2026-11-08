@@ -28,6 +28,7 @@ import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDeriva
 import type { PortDescription } from "./PortDescription.ts";
 import { canonicalKey } from "./PortKey.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, sameAnswer, WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
 import type { EncodeRefusal } from "./SinkWire.ts";
 import type { Resource } from "./Resource.ts";
@@ -165,6 +166,24 @@ const customWire = portWire({
 });
 
 /**
+ * A host serves predicates only from a required allowlist.
+ *
+ * A predicate name is a client-chosen resource, and what it runs is the host's
+ * own code, so a declaration must list every name it serves and an empty list
+ * admits nothing. Only `HasCustom` reads this port.
+ */
+const customServing: PortServingFacet<
+  "CustomPredicate",
+  [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown]
+> = {
+  allowlist: "required",
+  leaves: { HasCustom: (leaf) => leaf.name },
+  asked: ([name]) => name,
+  admitted: (declaration) => declaration.names,
+  declare: (names) => ({ CustomPredicate: { names } }),
+};
+
+/**
  * The custom-predicate port, described once (`PortDescription.ts`).
  *
  * A request is keyed by everything the predicate receives: the subject's id,
@@ -192,6 +211,7 @@ export const customPredicatePort: PortDescription<
   span: "qadi.hasCustom",
   attributes: customSpan,
   wire: customWire,
+  serving: customServing,
   service: CustomPredicate,
   invoke: (shape) => (name, subject, resource, params) =>
     shape.evaluate(name, subject, resource, params),
