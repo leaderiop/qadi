@@ -25,6 +25,11 @@ import type { AccessDeclarationKey } from "./RequirePermission.ts";
 import { makeRequirePermission } from "./RequirePermissionMiddleware.ts";
 import type { SubjectExtractor } from "./SubjectExtractor.ts";
 
+// Public through this module, as `NO_RESOURCE` is through `RequirePermission.ts`; everything else in
+// `AuthorizeRequest.ts` (the request-enforcement module) is package-private (ADR-QD-099, ADR-QD-108).
+export { authorizeRequest } from "./AuthorizeRequest.ts";
+export type { AuthorizedRequest } from "./AuthorizeRequest.ts";
+
 /**
  * An endpoint of a guarded API has no `RequirePermission` middleware attached, so nothing would
  * enforce it.

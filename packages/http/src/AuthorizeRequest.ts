@@ -1,10 +1,22 @@
 /**
- * The one authorization step at the HTTP edge: who is asking, against what, and
- * may they. `RequirePermission`, `guardRoute` and the decision stream's recheck
- * each end in their own answer; none of them extracts, loads or guards by hand.
+ * The request-enforcement module: everything `@qadi/http` does to a request before
+ * and around its handler. It extracts the subject, loads the resource, makes the
+ * edge decision, provides `CurrentSubject`, runs the handler and turns every
+ * enforcement failure into the caller's own answer.
+ *
+ * ARCH-19 (CCR-QD-197) introduced the edge step, `authorizeRequest`. ARCH-46
+ * (ADR-QD-108) made this file own the whole chain, because every surface repeated
+ * the handler-denial tap and the projection catch by hand, and one surface, the
+ * unguarded port route, dropped the extraction log. A caller now supplies only
+ * what differs, its projection (`EnforcementProjection`), and the rest is here.
+ *
+ * Package-private since ADR-QD-099: `authorizeRequest` and `AuthorizedRequest`
+ * are public through `GuardApi.ts`, and every other export is for this package.
  */
 import * as Effect from "effect/Effect";
 import type * as HttpServerRequest from "effect/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
+import type { unhandled } from "effect/Types";
 import type {
   Authorized,
   AuthSubject,
@@ -15,7 +27,7 @@ import type {
 } from "@qadi/core";
 import { CurrentSubject, ENFORCEMENT_DENIAL_TAGS, guard } from "@qadi/core";
 import type { HttpEnforcementFailure } from "./QadiHttpError.ts";
-import { logSubjectExtractionFailed } from "./QadiHttpError.ts";
+import { HTTP_ENFORCEMENT_TAGS, logSubjectExtractionFailed, toResponse } from "./QadiHttpError.ts";
 import { logDenialAt } from "./DenialLog.ts";
 import { loadNoResource } from "./NoResource.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
@@ -28,6 +40,30 @@ export interface AuthorizedRequest<P extends Permission, A extends Resource> {
   readonly subject: AuthSubject;
 }
 
+/**
+ * How a surface answers an enforcement failure: `toResponse` on a bare route,
+ * `projectHttpEnforcementFailure` in the `HttpApi` middleware's error channel,
+ * the stream's own class on a recheck (ADR-QD-108).
+ *
+ * The one thing a caller of this module supplies that the module cannot decide.
+ */
+export type EnforcementProjection<B, E, R> = (error: HttpEnforcementFailure) => Effect.Effect<B, E, R>;
+
+/** The bare-route projection: the failure's `toResponse`, shared by `guardRoute` and both port-route forms. */
+export const answerWithResponse: EnforcementProjection<HttpServerResponse.HttpServerResponse, never, never> = (
+  error,
+) => Effect.succeed(toResponse(error));
+
+/**
+ * Extracts the subject, logging an extraction failure once.
+ *
+ * The one place `logSubjectExtractionFailed` is applied, so a path that extracts
+ * cannot forget the line: the unguarded port route did (ARCH-46, ENF-03).
+ */
+const extractSubject = (request: HttpServerRequest.HttpServerRequest) =>
+  SubjectExtractor.extract(request).pipe(
+    Effect.tapErrorTag("SubjectExtractionFailed", logSubjectExtractionFailed),
+  );
 
 /**
  * Authorizes one HTTP request: extracts the subject, loads the resource, and
@@ -88,15 +124,78 @@ export function authorizeRequest<P extends Permission, LR>(
   ) => Effect.Effect<Resource, never, LR> = loadNoResource,
 ) {
   return Effect.fn("qadi.http.authorizeRequest")(function* (request: HttpServerRequest.HttpServerRequest) {
-    const subject = yield* SubjectExtractor.extract(request);
+    const subject = yield* extractSubject(request);
     const resource = yield* loadResource(request);
     const authorized = yield* guard(permission, policy)(resource, (witness) => Effect.succeed(witness)).pipe(
       Effect.provideService(CurrentSubject, subject),
     );
     return { authorized, resource, subject };
-  }, (self) =>
-    self.pipe(
-      Effect.tapErrorTag(ENFORCEMENT_DENIAL_TAGS, logDenialAt("edge")),
-      Effect.tapErrorTag("SubjectExtractionFailed", logSubjectExtractionFailed),
-    ));
+  }, Effect.tapErrorTag(ENFORCEMENT_DENIAL_TAGS, logDenialAt("edge")));
+}
+
+/**
+ * The one handler step: runs `handler` with the edge's `CurrentSubject`, logs a
+ * denial the handler itself raised once, and projects every enforcement failure,
+ * the edge's and the handler's, through `project` (ADR-QD-108).
+ *
+ * Two overloads rather than a generic handler-error parameter. `Effect.catchTag`
+ * over an error typed by a constrained type parameter (`EH extends
+ * HttpEnforcementFailure | unhandled`) fails with TS2345 ("not assignable to
+ * ... Tags<EH>"), measured against effect@4.1.2, the limit `GuardRoute.ts`
+ * documents. A closed union for a bare route and `HttpEnforcementFailure |
+ * unhandled` for the `HttpApi` middleware's own error slot are the two shapes
+ * callers need; the implementation is typed at the wider one and compiles
+ * without a cast.
+ *
+ * The denial tap sits on the handler's effect only, so an edge denial is logged
+ * by the edge and never twice (BEH-QD-321).
+ */
+function enforced<S extends { readonly subject: AuthSubject }, RE, H, R, B, EP, RP>(
+  edge: Effect.Effect<S, HttpEnforcementFailure, RE>,
+  project: EnforcementProjection<B, EP, RP>,
+  handler: (allowed: S) => Effect.Effect<H, HttpEnforcementFailure, R>,
+): Effect.Effect<H | B, EP, RE | Exclude<R, CurrentSubject> | RP>;
+function enforced<S extends { readonly subject: AuthSubject }, RE, H, R, B, EP, RP>(
+  edge: Effect.Effect<S, HttpEnforcementFailure, RE>,
+  project: EnforcementProjection<B, EP, RP>,
+  handler: (allowed: S) => Effect.Effect<H, HttpEnforcementFailure | unhandled, R>,
+): Effect.Effect<H | B, EP | unhandled, RE | Exclude<R, CurrentSubject> | RP>;
+function enforced<S extends { readonly subject: AuthSubject }, RE, H, R, B, EP, RP>(
+  edge: Effect.Effect<S, HttpEnforcementFailure, RE>,
+  project: EnforcementProjection<B, EP, RP>,
+  handler: (allowed: S) => Effect.Effect<H, HttpEnforcementFailure | unhandled, R>,
+): Effect.Effect<H | B, EP | unhandled, RE | Exclude<R, CurrentSubject> | RP> {
+  return edge.pipe(
+    Effect.flatMap((allowed) =>
+      handler(allowed).pipe(
+        Effect.provideService(CurrentSubject, allowed.subject),
+        Effect.tapErrorTag(ENFORCEMENT_DENIAL_TAGS, logDenialAt("handler")),
+      ),
+    ),
+    Effect.catchTag(HTTP_ENFORCEMENT_TAGS, project),
+  );
+}
+
+/**
+ * The subject-only mode: extracts the subject, logs an extraction failure,
+ * provides `CurrentSubject` and runs `handler`, applying no policy.
+ *
+ * The handler never runs when extraction fails, so a broken credential store
+ * fails closed. `portRoutesUnguarded` is its one caller; it routes here so an
+ * unguarded route logs an extraction failure exactly as a guarded one does
+ * (ARCH-46, ENF-03).
+ */
+export function enforceSubject<H, R, B, EP, RP>(
+  project: EnforcementProjection<B, EP, RP>,
+  handler: (allowed: { readonly subject: AuthSubject }) => Effect.Effect<H, HttpEnforcementFailure, R>,
+): (
+  request: HttpServerRequest.HttpServerRequest,
+) => Effect.Effect<H | B, EP, Exclude<R, CurrentSubject> | SubjectExtractor | RP> {
+  return Effect.fn("qadi.http.enforceSubject")(function* (request: HttpServerRequest.HttpServerRequest) {
+    return yield* enforced(
+      extractSubject(request).pipe(Effect.map((subject) => ({ subject }))),
+      project,
+      handler,
+    );
+  });
 }

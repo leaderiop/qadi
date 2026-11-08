@@ -31,10 +31,9 @@ import type {
   PortWireReply,
 } from "@qadi/core";
 import { answerRemotely, CurrentSubject, forEveryPort, tabulatePorts } from "@qadi/core";
+import { answerWithResponse, enforceSubject } from "./AuthorizeRequest.ts";
 import { loadNoResource } from "./NoResource.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
-import { toResponse } from "./QadiHttpError.ts";
-import { SubjectExtractor } from "./SubjectExtractor.ts";
 
 /**
  * The status each refusal answers with, closed over the refusals so a new one is
@@ -154,6 +153,11 @@ export const portRoutes = <P extends Permission>(
  * An anonymous caller is answered about the anonymous subject, so a store that
  * knows nothing of it answers as it would to any unknown id. Nothing is
  * registered in `/__permissions`, because there is no permission to list.
+ *
+ * The subject is extracted, and an extraction failure logged, by the
+ * request-enforcement module's subject-only mode (`enforceSubject`), exactly as
+ * on every guarded path (ARCH-46, ADR-QD-108). This form once extracted by hand
+ * and answered a broken credential store with a 502 and no log line.
  */
 export const portRoutesUnguarded = (
   reason: string,
@@ -175,16 +179,10 @@ export const portRoutesUnguarded = (
         return HttpRouter.add(
           "POST",
           pathOf(options, port),
-          Effect.gen(function* () {
-            const request = yield* HttpServerRequest.HttpServerRequest;
-            const extracted = yield* Effect.result(SubjectExtractor.extract(request));
-            if (extracted._tag === "Failure") return toResponse(extracted.failure);
-            const body = yield* questionOf;
-            const reply = yield* answer(body).pipe(
-              Effect.provideService(CurrentSubject, extracted.success),
-            );
-            return respond(reply);
-          }),
+          Effect.flatMap(
+            HttpServerRequest.HttpServerRequest,
+            enforceSubject(answerWithResponse, () => Effect.map(Effect.flatMap(questionOf, answer), respond)),
+          ),
         );
       }),
     ),

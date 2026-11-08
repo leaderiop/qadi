@@ -3,7 +3,6 @@
  *
  * See ADR-QD-036.
  */
-export * from "./AuthorizeRequest.ts";
 export * from "./DecisionBacklogRoute.ts";
 export * from "./DecisionStreamRoute.ts";
 export * from "./GuardApi.ts";
