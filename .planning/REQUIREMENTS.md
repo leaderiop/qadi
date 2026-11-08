@@ -44,14 +44,14 @@
 
 ### ARC — Audit archive facts (Phase 3, ARCH-48)
 
-- [ ] **ARC-01**: One module computes the archive facts of a list of entries: the ordered
+- [x] **ARC-01**: One module computes the archive facts of a list of entries: the ordered
   entries, `sequenceIntegrityVerified` (sequencedCount ≥ 2), and the first sequence break.
-- [ ] **ARC-02**: `archiveAuditTrail` builds its bundle from those facts, and `readAuditArchive`
+- [x] **ARC-02**: `archiveAuditTrail` builds its bundle from those facts, and `readAuditArchive`
   recomputes them and compares them with the bundle's claims. Neither restates the ordering
   rule or the claim rule.
-- [ ] **ARC-03**: `SequenceIntegrity.ts` and `SequenceBreak.ts` are folded into the new module,
+- [x] **ARC-03**: `SequenceIntegrity.ts` and `SequenceBreak.ts` are folded into the new module,
   or reduced to re-exports where a public name must survive.
-- [ ] **ARC-04**: A property test proves that `readAuditArchive` accepts every bundle
+- [x] **ARC-04**: A property test proves that `readAuditArchive` accepts every bundle
   `archiveAuditTrail` produces, and that each refusal kind (`OutOfOrder`, `SequenceBreak`,
   `UnbackedClaim`) still fires on a tampered bundle.
 

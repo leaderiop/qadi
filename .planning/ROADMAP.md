@@ -72,12 +72,12 @@ Plans:
   2. A property test shows the reader accepts every archive the writer produces.
   3. Each `ArchiveRefusal` kind still fires on a tampered bundle.
   4. `pnpm check:pr` is green, and ADR-QD-110 (or a CCR-only justification), CCR-QD-387 and a changeset are recorded.
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans executed
 
 Plans:
 - [x] 03-01 (W1): Writer/reader agreement property tests and tamper cases, written before any refactor (fast-check)
 - [x] 03-02 (W2): `ArchiveFacts.ts` owns the ordering, claim and sequence-break rules; fold in SequenceBreak; SequenceIntegrity becomes a re-export; scoped Stryker
-- [ ] 03-03 (W3): ADR-QD-110, ADR-056 amendment, BEH-QD-254, INV-QD-054/130, CCR-QD-387, changeset, `pnpm check:pr`
+- [x] 03-03 (W3): ADR-QD-110, ADR-056 amendment, BEH-QD-254, INV-QD-054/130, CCR-QD-387, changeset, `pnpm check:pr`
 
 ### Phase 4: Gate instrumentation hook
 **Goal**: Gate instrumentation is one hook over a writer the provider resolved once, so each gate kind's hook is a thin caller.
@@ -188,7 +188,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. HTTP request enforcement | 5/5 | Complete    | 2026-11-08 |
 | 2. One port read | 4/4 | Complete    | 2026-11-08 |
-| 3. Audit archive facts | 2/3 | In Progress | - |
+| 3. Audit archive facts | 3/3 | In Progress | - |
 | 4. Gate instrumentation hook | 0/4 | Planned | - |
 | 5. Decision log over HTTP | 0/2 | Planned | - |
 | 6. Dehydration in the engine | 0/2 | Planned | - |
