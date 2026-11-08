@@ -2,7 +2,7 @@
 phase: "04"
 slug: "gate-instrumentation-hook"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-status: draft
+status: validated
 nyquist_compliant: true
 wave_0_complete: true
 created: "2026-11-08"
@@ -39,26 +39,28 @@ created: "2026-11-08"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 04-01-01 | 01 | 1 | GATE-01, GATE-02, GATE-05, XC-04 | T-04-01, T-04-02, T-04-03, T-04-04, T-04-05 | Uninstrumented means no registration and no marker. The writer never reaches the public context. A missing group entry reads Pending. Outside a provider, a gate throws `MissingQadiProviderError` naming its kind | characterization pins (tracer) + structural grep gates | `pnpm vitest run --project react && pnpm typecheck && pnpm circular && node scripts/check-house-style.mjs && pnpm spec:api` plus the `gateWriterFor(` count gate (exactly 1; 3 at HEAD) and the useGate.ts identity gate (0; 7 at HEAD) | ❌ W0 (created in Step A: `GateWriter.useGates.test.tsx`) | ⬜ pending |
-| 04-01-02 | 01 | 1 | GATE-03 | — | `useDecisionSuspense` behaviour unchanged (suspend, throw, re-suspend on a re-check) | unit (RED 2 → GREEN 1) | `pnpm vitest run --project react && pnpm typecheck` plus the `useDecisionSuspense` body gate (0 lines; 2 at HEAD) | ✅ (file from 04-01-01) | ⬜ pending |
-| 04-02-01 | 02 | 2 | GATE-04 | T-04-06 | No group-atom re-creation, no lookup and no registration churn across equal re-renders | pin, test first | `pnpm vitest run --project react packages/react/test/hooks.rerender.test.tsx && pnpm typecheck` | ❌ W0 (created by this task) | ⬜ pending |
-| 04-02-02 | 02 | 2 | GATE-03, GATE-05, XC-04 | T-04-06, T-04-07 | Grouped registration stays exact (BEH-QD-068), and the untouched suite stays green | refactor + grep gates | `pnpm vitest run --project react && pnpm typecheck && pnpm circular && node scripts/check-house-style.mjs` plus the hooks.ts/useGate.ts gates (0 and 0; 17 and 4 at HEAD) | ✅ | ⬜ pending |
-| 04-02-03 | 02 | 2 | GATE-02 | T-04-07 | Every kind registers once. A sibling's entry is untouched when another entry changes | table-driven + precision pin | `pnpm vitest run --project react packages/react/test/GateWriter.kinds.test.tsx && pnpm vitest run --project react` | ❌ W0 (created by this task) | ⬜ pending |
-| 04-03-01 | 03 | 3 | XC-02 | T-04-08 | ADR, index, CCR register and traceability agree | doc gate | `pnpm spec:verify:strict` plus file and row greps | ✅ | ⬜ pending |
-| 04-03-02 | 03 | 3 | XC-02 | T-04-08 | Amended documents keep their REQUIREMENT blocks verbatim, and revision headers agree | doc gate | `pnpm spec:verify:strict && pnpm spec:examples` | ✅ | ⬜ pending |
-| 04-03-03 | 03 | 3 | XC-02, XC-03 | T-04-08 | No export added or removed | doc gate | `pnpm spec:api && pnpm spec:verify:strict && pnpm spec:gates` | ✅ | ⬜ pending |
-| 04-04-01 | 04 | 4 | GATE-01, GATE-05, XC-04 | T-04-09 | No phase-4 commit modified a pre-existing React test or a gate configuration | phase-wide gate batch | the Task 1 `<verify>` batch (commit-scoped `git log --fixed-strings --grep='(04-0'` checks) | ✅ | ⬜ pending |
-| 04-04-02 | 04 | 4 | XC-01, XC-05 | T-04-09, T-04-10 | Off means absent through the packed artifact and the newsroom example. Coverage holds | gate | `pnpm check:pr` | ✅ | ⬜ pending |
+| 04-01-01 | 01 | 1 | GATE-01, GATE-02, GATE-05, XC-04 | T-04-01, T-04-02, T-04-03, T-04-04, T-04-05 | Uninstrumented means no registration and no marker. The writer never reaches the public context. A missing group entry reads Pending. Outside a provider, a gate throws `MissingQadiProviderError` naming its kind | characterization pins (tracer) + structural grep gates | `pnpm vitest run --project react && pnpm typecheck && pnpm circular && node scripts/check-house-style.mjs && pnpm spec:api` plus the `gateWriterFor(` count gate (exactly 1; 3 at HEAD) and the useGate.ts identity gate (0; 7 at HEAD) | ❌ W0 (created in Step A: `GateWriter.useGates.test.tsx`) | ✅ green |
+| 04-01-02 | 01 | 1 | GATE-03 | — | `useDecisionSuspense` behaviour unchanged (suspend, throw, re-suspend on a re-check) | unit (RED 2 → GREEN 1) | `pnpm vitest run --project react && pnpm typecheck` plus the `useDecisionSuspense` body gate (0 lines; 2 at HEAD) | ✅ (file from 04-01-01) | ✅ green |
+| 04-02-01 | 02 | 2 | GATE-04 | T-04-06 | No group-atom re-creation, no lookup and no registration churn across equal re-renders | pin, test first | `pnpm vitest run --project react packages/react/test/hooks.rerender.test.tsx && pnpm typecheck` | ❌ W0 (created by this task) | ✅ green |
+| 04-02-02 | 02 | 2 | GATE-03, GATE-05, XC-04 | T-04-06, T-04-07 | Grouped registration stays exact (BEH-QD-068), and the untouched suite stays green | refactor + grep gates | `pnpm vitest run --project react && pnpm typecheck && pnpm circular && node scripts/check-house-style.mjs` plus the hooks.ts/useGate.ts gates (0 and 0; 17 and 4 at HEAD) | ✅ | ✅ green |
+| 04-02-03 | 02 | 2 | GATE-02 | T-04-07 | Every kind registers once. A sibling's entry is untouched when another entry changes | table-driven + precision pin | `pnpm vitest run --project react packages/react/test/GateWriter.kinds.test.tsx && pnpm vitest run --project react` | ❌ W0 (created by this task) | ✅ green |
+| 04-03-01 | 03 | 3 | XC-02 | T-04-08 | ADR, index, CCR register and traceability agree | doc gate | `pnpm spec:verify:strict` plus file and row greps | ✅ | ✅ green |
+| 04-03-02 | 03 | 3 | XC-02 | T-04-08 | Amended documents keep their REQUIREMENT blocks verbatim, and revision headers agree | doc gate | `pnpm spec:verify:strict && pnpm spec:examples` | ✅ | ✅ green |
+| 04-03-03 | 03 | 3 | XC-02, XC-03 | T-04-08 | No export added or removed | doc gate | `pnpm spec:api && pnpm spec:verify:strict && pnpm spec:gates` | ✅ | ✅ green |
+| 04-04-01 | 04 | 4 | GATE-01, GATE-05, XC-04 | T-04-09 | No phase-4 commit modified a pre-existing React test or a gate configuration | phase-wide gate batch | the Task 1 `<verify>` batch (commit-scoped `git log --fixed-strings --grep='(04-0'` checks) | ✅ | ✅ green |
+| 04-04-02 | 04 | 4 | XC-01, XC-05 | T-04-09, T-04-10 | Off means absent through the packed artifact and the newsroom example. Coverage holds | gate | `pnpm check:pr` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+
+04-04-02: every `pnpm check:pr` step passed, but not as one uninterrupted run on the executor host. Step 13 (`pnpm example`) stops at `playwright install --with-deps`, which needs sudo; its remaining commands (e2e 30/30, `spec:website-examples`, `website`, `spec:publish`) were run directly and passed (04-04-SUMMARY.md). CI runs it whole.
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `packages/react/test/GateWriter.useGates.test.tsx`: created and committed alone in 04-01 Task 1 Step A, green against unmodified `packages/react/src` before any source edit.
-- [ ] `packages/react/test/hooks.rerender.test.tsx`: created in 04-02 Task 1 and run against the code before `useQuestionsAs` moves (D-07: test first).
-- [ ] `packages/react/test/GateWriter.kinds.test.tsx`: created in 04-02 Task 3.
+- [x] `packages/react/test/GateWriter.useGates.test.tsx`: created and committed alone in 04-01 Task 1 Step A, green against unmodified `packages/react/src` before any source edit.
+- [x] `packages/react/test/hooks.rerender.test.tsx`: created in 04-02 Task 1 and run against the code before `useQuestionsAs` moves (D-07: test first).
+- [x] `packages/react/test/GateWriter.kinds.test.tsx`: created in 04-02 Task 3.
 
 Existing infrastructure covers everything else: vitest, `@testing-library/react` and `happy-dom` are installed and configured. No Stryker config mutates a file this phase touches (`stryker.react.mjs` mutates only `DecisionOutcome.ts` and `QuestionBook.ts`), so no mutation baseline is needed.
 
@@ -79,4 +81,12 @@ All phase behaviors have automated verification.
 - [x] Feedback latency under 10 s for per-task checks (except `pnpm check:pr`, by nature)
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-11-08 by /gsd-validate-phase (0 gaps; React project 361 tests green; typecheck, circular, house-style, spec:api, spec:gates and spec:verify:strict all exit 0).
+
+## Validation Audit 2026-11-08
+
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
