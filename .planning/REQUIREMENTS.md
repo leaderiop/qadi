@@ -7,21 +7,21 @@
 
 ### ENF — Request enforcement in @qadi/http (Phase 1, ARCH-46)
 
-- [ ] **ENF-01**: One internal `@qadi/http` module owns the whole request-enforcement chain:
+- [x] **ENF-01**: One internal `@qadi/http` module owns the whole request-enforcement chain:
   subject extraction plus its log, the edge decision plus its log, providing `CurrentSubject`,
   and the handler-raised denial plus its log. GuardRoute, RequirePermissionMiddleware,
   DecisionStreamRoute's recheck and the port routes all go through it.
-- [ ] **ENF-02**: The chain has a subject-only mode (extract, log, provide; no policy) that
+- [x] **ENF-02**: The chain has a subject-only mode (extract, log, provide; no policy) that
   `portRoutesUnguarded` uses.
 - [ ] **ENF-03 (bug)**: A `SubjectExtractionFailed` on an unguarded port route is logged
   through `logSubjectExtractionFailed`, exactly as it is on every guarded path. A regression
   test proves it.
-- [ ] **ENF-04**: Callers supply only the failure projection (an HTTP response, or an
+- [x] **ENF-04**: Callers supply only the failure projection (an HTTP response, or an
   in-channel wire value). They no longer repeat `Effect.tapErrorTag(ENFORCEMENT_DENIAL_TAGS, …)`
   or `Effect.catchTag(HTTP_ENFORCEMENT_TAGS, …)` themselves.
-- [ ] **ENF-05**: The endpoint member key `${group.identifier}/${endpoint.identifier}` is built
+- [x] **ENF-05**: The endpoint member key `${group.identifier}/${endpoint.identifier}` is built
   in one place, used by both GuardApi.ts and RequirePermissionMiddleware.ts.
-- [ ] **ENF-06**: One table-driven test covers every caller (guard, middleware, stream recheck,
+- [x] **ENF-06**: One table-driven test covers every caller (guard, middleware, stream recheck,
   guarded port, unguarded port) and asserts the log line for each failure tag.
 
 ### PORT — One port read (Phase 2, ARCH-47)

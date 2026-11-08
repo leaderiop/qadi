@@ -14,7 +14,7 @@ ARCH ticket with its own ADR, CCR and changeset, and each ends with `pnpm check:
 - Integer phases (1, 2, 3): planned milestone work
 - Decimal phases (2.1, 2.2): urgent insertions (marked INSERTED)
 
-- [ ] **Phase 1: HTTP request enforcement** - Put the whole enforcement chain behind one module and fix the missing log on unguarded port routes (ARCH-46)
+- [x] **Phase 1: HTTP request enforcement** - Put the whole enforcement chain behind one module and fix the missing log on unguarded port routes (ARCH-46) (completed 2026-11-08)
 - [x] **Phase 2: One port read** - Give the span projection one home on the port description and send every port read through one body (ARCH-47) (completed 2026-11-08)
 - [ ] **Phase 3: Audit archive facts** - Use one module for the archive's rules, shared by writer and reader (ARCH-48)
 - [ ] **Phase 4: Gate instrumentation hook** - Resolve the writer once and use one `useGates` hook for every gate kind (ARCH-49)
@@ -36,7 +36,7 @@ ARCH ticket with its own ADR, CCR and changeset, and each ends with `pnpm check:
   3. One table-driven test asserts the log line per failure tag for every caller.
   4. The endpoint member key is built in exactly one function.
   5. `pnpm check:pr` is green, and ADR-QD-108, CCR-QD-385 and a changeset are recorded.
-**Plans**: 5/5 plans executed
+**Plans**: 5/5 plans complete
 
 Plans:
 - [x] 01-01 (W1): Tracer: red regression test, then `enforceSubject` subject-only mode; `AuthorizeRequest.ts` grows into the enforcement module; guarded mode `enforceRequest`; GuardRoute rewired
@@ -186,7 +186,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. HTTP request enforcement | 5/5 | In Progress | - |
+| 1. HTTP request enforcement | 5/5 | Complete    | 2026-11-08 |
 | 2. One port read | 4/4 | Complete    | 2026-11-08 |
 | 3. Audit archive facts | 0/3 | Planned | - |
 | 4. Gate instrumentation hook | 0/4 | Planned | - |
