@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: WR-04
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "devtools what-if replay still grants `not(hasSignature)` for a requirement the capture never saw (carried over from the prior review's WR-03, behavior unfixed)"
   - id: IN-06
     severity: info
@@ -47,16 +47,16 @@ findings:
     severity: info
     disposition: open
     title: "version skew and the wire's strict decode are documented only in the changeset"
-open: 8
+open: 7
 total: 11
-recorded: 2026-11-08T03:27:32.768Z
+recorded: 2026-11-08T03:33:43.399Z
 ---
 
 # Phase 02: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-04 | warning | open | - |
+| WR-04 | warning | fixed | 02-REVIEW-FIX.md |
 | IN-06 | info | open | - |
 | IN-07 | info | open | - |
 | WR-01 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
