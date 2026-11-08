@@ -82,13 +82,13 @@
 
 ### HYD — Dehydration in the engine (Phase 6, ARCH-51)
 
-- [ ] **HYD-01**: `HydrationEngine` exposes `dehydrateWith(entries, options)`, mirroring
+- [x] **HYD-01**: `HydrationEngine` exposes `dehydrateWith(entries, options)`, mirroring
   `hydrateWith`. It owns the subject filter, the `ForeignSubject` drop count, the dropped-entry
   reporting and the envelope.
-- [ ] **HYD-02**: `dehydrateEntry` and `dehydratedPayload` become private to the engine, and
+- [x] **HYD-02**: `dehydrateEntry` and `dehydratedPayload` become private to the engine, and
   `Hydration.ts`'s `dehydrateDecisions` is a one-line delegation.
-- [ ] **HYD-03**: The identity wrapper `resolveMismatchReporter` is deleted.
-- [ ] **HYD-04**: A round-trip test exercises both directions through the engine's interface.
+- [x] **HYD-03**: The identity wrapper `resolveMismatchReporter` is deleted.
+- [x] **HYD-04**: A round-trip test exercises both directions through the engine's interface.
 
 ### ADDR — One port route address (Phase 7, ARCH-52)
 

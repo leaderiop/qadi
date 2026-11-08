@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Dehydration in the engine
 status: executing
-stopped_at: Phase 05 complete, ready to execute Phase 06
-last_updated: "2026-11-08T05:47:21.709Z"
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-11-08T05:54:27.306Z"
 last_activity: 2026-11-08
-last_activity_desc: Phase 05 complete, transitioned to Phase 06
-state_head: 6f8d04f68afca92e2268596763e58a9e645a2506
+last_activity_desc: Phase 06 execution started
+state_head: b34cf2d2ac0537c6d3b378f9243fa05d229bd978
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 33
-  completed_plans: 18
-  percent: 55
+  completed_plans: 19
+  percent: 56
 ---
 
 # Project State
@@ -27,12 +27,12 @@ See: .planning/PROJECT.md (updated 2026-11-08)
 
 ## Current Position
 
-Phase: 06 — Dehydration in the engine
-Plan: Not started
+Phase: 06 (Dehydration in the engine) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-11-08 — Phase 05 complete, transitioned to Phase 06
+Last activity: 2026-11-08 — Phase 06 execution started
 
-Progress: [███████████░░░░░░░░░] 18/33 plans (55%); 5/9 phases
+Progress: [███████████░░░░░░░░░] 18/33 plans ([██████░░░░] 56%); 5/9 phases
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ Progress: [███████████░░░░░░░░░] 18/33 p
 | Phase 04 P04 | 3 min | 2 tasks | 0 files |
 | Phase 05 P01 | 4 min | 2 tasks | 5 files |
 | Phase 05 P02 | 6 min | 3 tasks | 6 files |
+| Phase 06 P01 | 6 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -106,6 +107,7 @@ Progress: [███████████░░░░░░░░░] 18/33 p
 - [Phase 05]: 05-02: no ADR for ARCH-50 — the refusal policy's documented owner is still core's reportEncodeRefusal (ADR-QD-095 D-09-e); reserved ADR-QD-112 left unused, CCR-QD-389 records it
 - [Phase 05]: 05-02: new behaviour is BEH-QD-337 in 26-decision-stream.md; pnpm check:pr step 13 (playwright install --with-deps) needs sudo on this host, all other steps and the example e2e passed when run directly
 - [Phase 05]: UAT: full `pnpm check:pr` exit 0 (16/16) with Playwright's `--with-deps` apt install neutralized by a no-op `sudo` on PATH for that one process — on Fedora it falls back to Ubuntu `apt-get`, so it cannot pass here even with sudo
+- [Phase 06]: dehydrateWith resolves its dropped-entries reporter inside the drop branch (as dehydrateDecisions did); option names includeTrace/onDropped unchanged; D-09 grep clean so removing the private builders and wrapper is not breaking
 
 ### Pending Todos
 
@@ -128,6 +130,6 @@ Progress: [███████████░░░░░░░░░] 18/33 p
 
 ## Session Continuity
 
-Last session: 2026-11-08
-Stopped at: Phase 05 complete, ready to execute Phase 06
+Last session: 2026-11-08T05:54:27.231Z
+Stopped at: Completed 06-01-PLAN.md
 Resume file: None
