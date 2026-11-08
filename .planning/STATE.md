@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Decision log over HTTP
 status: executing
-stopped_at: Phase 04 complete, ready to execute Phase 05
-last_updated: "2026-11-08T05:10:59.288Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-11-08T05:21:03.133Z"
 last_activity: 2026-11-08
-last_activity_desc: Phase 04 complete, transitioned to Phase 05
-state_head: 1a95ae4ef97f7859b8b744273bdb5a1a4d6ec2b5
+last_activity_desc: Phase 05 execution started
+state_head: cc57ba35ca0e953012ad6fc24386990dc850e8c3
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 33
-  completed_plans: 16
+  completed_plans: 17
   percent: 44
 ---
 
@@ -27,12 +27,12 @@ See: .planning/PROJECT.md (updated 2026-11-08)
 
 ## Current Position
 
-Phase: 05 — Decision log over HTTP
-Plan: Not started
+Phase: 05 (Decision log over HTTP) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-11-08 — Phase 04 complete, transitioned to Phase 05
+Last activity: 2026-11-08 — Phase 05 execution started
 
-Progress: [██████████░░░░░░░░░░] 16/33 plans (48%); 4/9 phases
+Progress: [██████████░░░░░░░░░░] 16/33 plans ([████░░░░░░] 44%); 4/9 phases
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Progress: [██████████░░░░░░░░░░] 16/33 p
 | Phase 04 P02 | 5 min | 3 tasks | 3 files |
 | Phase 04 P03 | 10 min | 3 tasks | 10 files |
 | Phase 04 P04 | 3 min | 2 tasks | 0 files |
+| Phase 05 P01 | 4 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -98,6 +99,8 @@ Progress: [██████████░░░░░░░░░░] 16/33 p
 - [Phase 04]: 04-02: the one per-entry decision lookup lives in useGates, memoised on the group, not the group atom as identity, so a changed entry re-registers alone (D-03, BEH-QD-068)
 - [Phase 04]: ADR-QD-111 written (not a CCR-only note) because ADR-QD-080's amendment names the writer lookup as serving every guard; CCR-QD-388 registered; patch changeset for @qadi/react
 - [Phase 04]: 04-04: Playwright's sudo-only dependency install was skipped in check:pr step 13; test:e2e run directly (30 passed) and steps 14-16 run individually
+- [Phase 05]: 05-01: frame moves into DecisionLogHttp.ts and is re-exported by name from DecisionStreamRoute.ts (avoids a module cycle); syncedFrame stays in the stream route
+- [Phase 05]: 05-01: DecisionStreamOptions extends DecisionLogServeOptions; one reportRefused factory with per-route span and message (byte-identical to HEAD)
 
 ### Pending Todos
 
@@ -118,6 +121,6 @@ Progress: [██████████░░░░░░░░░░] 16/33 p
 
 ## Session Continuity
 
-Last session: 2026-11-08
-Stopped at: Phase 04 complete, ready to plan Phase 05
+Last session: 2026-11-08T05:21:03.070Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None

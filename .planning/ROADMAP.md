@@ -106,10 +106,10 @@ Plans:
   2. DecisionBacklogRoute imports nothing from DecisionStreamRoute.
   3. One table-driven test covers refusal in both framings.
   4. `pnpm check:pr` is green, and CCR-QD-389 and a changeset are recorded (ADR-QD-112 if a decision is made).
-**Plans**: 2 plans
+**Plans**: 1/2 plans executed
 
 Plans:
-- [ ] 05-01 (W1): Package-private `DecisionLogHttp.ts` (one `reportRefused`, shared encode-or-report, `frame`); both routes go through it
+- [x] 05-01 (W1): Package-private `DecisionLogHttp.ts` (one `reportRefused`, shared encode-or-report, `frame`); both routes go through it
 - [ ] 05-02 (W2): New BEH in 26-decision-stream, INV-QD-097, CCR-QD-389, changeset, `pnpm check:pr` (ADR-QD-112 unused)
 
 ### Phase 6: Dehydration in the engine
@@ -190,7 +190,7 @@ Plans:
 | 2. One port read | 4/4 | Complete    | 2026-11-08 |
 | 3. Audit archive facts | 3/3 | Complete    | 2026-11-08 |
 | 4. Gate instrumentation hook | 4/4 | Complete    | 2026-11-08 |
-| 5. Decision log over HTTP | 0/2 | Planned | - |
+| 5. Decision log over HTTP | 1/2 | In Progress | - |
 | 6. Dehydration in the engine | 0/2 | Planned | - |
 | 7. One port route address | 0/3 | Planned | - |
 | 8. Port serving from the registry | 0/6 | Planned | - |

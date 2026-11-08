@@ -71,14 +71,14 @@
 
 ### LOGH — Decision log over HTTP (Phase 5, ARCH-50)
 
-- [ ] **LOGH-01**: One internal `@qadi/http` module encodes a decision-log read into records in
+- [x] **LOGH-01**: One internal `@qadi/http` module encodes a decision-log read into records in
   SSE framing or as a JSON array, and owns refusal reporting: a refused record drops only its
   own frame.
-- [ ] **LOGH-02**: DecisionStreamRoute and DecisionBacklogRoute both use it. The two
+- [x] **LOGH-02**: DecisionStreamRoute and DecisionBacklogRoute both use it. The two
   `reportRefused` copies and the two encode-or-report loops are gone.
-- [ ] **LOGH-03**: DecisionBacklogRoute no longer imports its options type from
+- [x] **LOGH-03**: DecisionBacklogRoute no longer imports its options type from
   DecisionStreamRoute.
-- [ ] **LOGH-04**: One table-driven refusal test covers both framings.
+- [x] **LOGH-04**: One table-driven refusal test covers both framings.
 
 ### HYD — Dehydration in the engine (Phase 6, ARCH-51)
 
