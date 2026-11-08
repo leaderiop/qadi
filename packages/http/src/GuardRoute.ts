@@ -8,15 +8,17 @@
  * `HttpApiBuilder` handler does, so — unlike `RequirePermission`, which can
  * only discard the witness `guard` produces — this can hand it to the
  * wrapped handler directly, as an explicit argument. See ADR-QD-036.
+ *
+ * Extraction, the edge decision, the handler-denial log and the projection are the
+ * request-enforcement module's (`AuthorizeRequest.ts`, ADR-QD-108); this file keeps
+ * the bare-`HttpRouter` shape, and the typing contract below that
+ * `GuardRoute.tst.ts` pins.
  */
-import * as Effect from "effect/Effect";
+import type * as Effect from "effect/Effect";
 import type * as HttpServerRequest from "effect/http/HttpServerRequest";
-import * as HttpServerResponse from "effect/http/HttpServerResponse";
-import type { Authorized, EvaluationServices, Permission, Policy, Resource } from "@qadi/core";
-import { CurrentSubject, ENFORCEMENT_DENIAL_TAGS } from "@qadi/core";
-import { authorizeRequest } from "./AuthorizeRequest.ts";
-import { logDenialAt } from "./DenialLog.ts";
-import { HTTP_ENFORCEMENT_TAGS, toResponse } from "./QadiHttpError.ts";
+import type * as HttpServerResponse from "effect/http/HttpServerResponse";
+import type { Authorized, CurrentSubject, EvaluationServices, Permission, Policy, Resource } from "@qadi/core";
+import { answerWithResponse, enforceRequest } from "./AuthorizeRequest.ts";
 import type { HttpEnforcementFailure } from "./QadiHttpError.ts";
 import type { SubjectExtractor } from "./SubjectExtractor.ts";
 
@@ -24,8 +26,9 @@ import type { SubjectExtractor } from "./SubjectExtractor.ts";
  * Guards a bare `HttpRouter` handler with a policy, resolving `resource` via
  * `loadResource` and handing the wrapped handler the resulting witness.
  *
- * `loadResource` and `handler` are both required to resolve to `never` in
- * the error channel — deliberately, not an oversight. `Effect.catchTag`
+ * `loadResource` is required to resolve to `never` in its error channel and
+ * `handler` to the closed `HttpEnforcementFailure` union, which is the one the
+ * module accepts — deliberately, not an oversight. `Effect.catchTag`
  * narrows by excluding matched tags from the *whole* error union it's
  * applied to; when that union also contains a fully open, caller-supplied
  * type parameter, TypeScript cannot prove the open parameter doesn't itself
@@ -71,21 +74,10 @@ export const guardRoute =
     never,
     Exclude<R | EvaluationServices, CurrentSubject> | LR | SubjectExtractor
   > =>
-    // Extraction, loading, the guard and both log lines are `authorizeRequest`'s
-    // (and in that order: a broken credential store never pays `loadResource`);
-    // this route keeps only its answer.
-    authorizeRequest(
-      permission,
-      policy,
-      loadResource,
-    )(request).pipe(
-      Effect.flatMap(({ authorized, resource, subject }) =>
-        handler(authorized, resource).pipe(
-          Effect.provideService(CurrentSubject, subject),
-          // Only the handler's effect: the edge check above has logged its own
-          // denial, so this logs a denial the handler's own `guard` raised, once.
-          Effect.tapErrorTag(ENFORCEMENT_DENIAL_TAGS, logDenialAt("handler")),
-        ),
-      ),
-      Effect.catchTag(HTTP_ENFORCEMENT_TAGS, (error) => Effect.succeed(toResponse(error))),
-    );
+    // Extraction, loading, the guard, both log lines and the projection are the
+    // request-enforcement module's; this route keeps only its answer.
+    enforceRequest(
+      { permission, policy, loadResource },
+      answerWithResponse,
+      ({ authorized, resource }) => handler(authorized, resource),
+    )(request);

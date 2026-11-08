@@ -199,3 +199,70 @@ export function enforceSubject<H, R, B, EP, RP>(
     );
   });
 }
+
+/**
+ * What the guarded mode checks a request against: the permission it enforces,
+ * the policy, and how to load the resource the policy is evaluated on.
+ *
+ * The loader is required, so the guarded mode has one overload axis (the
+ * handler's error) and not `authorizeRequest`'s with/without-loader axis as well:
+ * a caller with no resource passes `loadNoResource`.
+ */
+export interface RequestAccess<P extends Permission, A extends Resource, LR> {
+  readonly permission: P;
+  readonly policy: Policy;
+  readonly loadResource: (request: HttpServerRequest.HttpServerRequest) => Effect.Effect<A, never, LR>;
+}
+
+/**
+ * The guarded mode: extracts the subject, loads the resource, guards it at the
+ * edge, provides `CurrentSubject`, runs `handler` with the witness, logs a
+ * denial the handler itself raised and projects every enforcement failure.
+ *
+ * The caller supplies only the projection (ENF-04); the handler-denial tap and
+ * the `HTTP_ENFORCEMENT_TAGS` catch are `enforced`'s. The handler is not built
+ * until the edge allows (`guard` builds its own eagerly, ADR-QD-035). Two
+ * overloads for the reason `enforced` documents: a closed handler error answers
+ * with the projection's error alone, an `unhandled` one adds it.
+ */
+export function enforceRequest<P extends Permission, A extends Resource, LR, H, R, B, EP, RP>(
+  access: RequestAccess<P, A, LR>,
+  project: EnforcementProjection<B, EP, RP>,
+  handler: (allowed: AuthorizedRequest<P, A>) => Effect.Effect<H, HttpEnforcementFailure, R>,
+): (
+  request: HttpServerRequest.HttpServerRequest,
+) => Effect.Effect<
+  H | B,
+  EP,
+  Exclude<R, CurrentSubject> | StandingEvaluationServices | SubjectExtractor | LR | RP
+>;
+export function enforceRequest<P extends Permission, A extends Resource, LR, H, R, B, EP, RP>(
+  access: RequestAccess<P, A, LR>,
+  project: EnforcementProjection<B, EP, RP>,
+  handler: (allowed: AuthorizedRequest<P, A>) => Effect.Effect<H, HttpEnforcementFailure | unhandled, R>,
+): (
+  request: HttpServerRequest.HttpServerRequest,
+) => Effect.Effect<
+  H | B,
+  EP | unhandled,
+  Exclude<R, CurrentSubject> | StandingEvaluationServices | SubjectExtractor | LR | RP
+>;
+export function enforceRequest<P extends Permission, A extends Resource, LR, H, R, B, EP, RP>(
+  access: RequestAccess<P, A, LR>,
+  project: EnforcementProjection<B, EP, RP>,
+  handler: (allowed: AuthorizedRequest<P, A>) => Effect.Effect<H, HttpEnforcementFailure | unhandled, R>,
+): (
+  request: HttpServerRequest.HttpServerRequest,
+) => Effect.Effect<
+  H | B,
+  EP | unhandled,
+  Exclude<R, CurrentSubject> | StandingEvaluationServices | SubjectExtractor | LR | RP
+> {
+  return Effect.fn("qadi.http.enforceRequest")(function* (request: HttpServerRequest.HttpServerRequest) {
+    return yield* enforced(
+      authorizeRequest(access.permission, access.policy, access.loadResource)(request),
+      project,
+      handler,
+    );
+  });
+}
