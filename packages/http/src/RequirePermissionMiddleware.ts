@@ -19,7 +19,8 @@ import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type { unhandled } from "effect/Types";
 import type { StandingEvaluationServices } from "@qadi/core";
 import { anonymous, CurrentSubject, ENFORCEMENT_DENIAL_TAGS } from "@qadi/core";
-import { authorizeRequest } from "./AuthorizeRequest.ts";
+import { authorizeRequest, endpointMemberKey } from "./AuthorizeRequest.ts";
+import type { EndpointMemberKey } from "./AuthorizeRequest.ts";
 import { logDenialAt } from "./DenialLog.ts";
 import {
   HTTP_ENFORCEMENT_TAGS,
@@ -31,13 +32,13 @@ import type { RequirePermission, RequiredPermissionShape } from "./RequirePermis
 import type { SubjectExtractor } from "./SubjectExtractor.ts";
 
 /**
- * Builds the middleware for the endpoints named by `members` (`"<group>/<endpoint>"` keys).
+ * Builds the middleware for the endpoints named by `members` (their `endpointMemberKey`s).
  *
  * An endpoint outside `members` is refused with a 500 and one error log, never served: it was not
  * part of the API `guardApi` registered.
  */
 export const makeRequirePermission = Effect.fn("qadi.http.makeRequirePermission")(function* (
-  members: ReadonlySet<string>,
+  members: ReadonlySet<EndpointMemberKey>,
 ) {
   // Resolved once, here, at layer-build time — see `RequirePermission`'s
   // own doc comment for why this replaces a `requires` declaration on the
@@ -115,7 +116,7 @@ export const makeRequirePermission = Effect.fn("qadi.http.makeRequirePermission"
     // misplaced declarations and found to carry the middleware. Anything else was never
     // vetted by `guardApi`, so serving it would reopen the omission `guardApi` exists to close
     // (ARCH-36, D-36-e).
-    if (!members.has(`${group.identifier}/${endpoint.identifier}`)) {
+    if (!members.has(endpointMemberKey(group, endpoint))) {
       return refuse(
         `qadi/http: endpoint "${endpoint.identifier}" of group "${group.identifier}" is not part of the ` +
           "HttpApi this RequirePermission was built for, so it was never registered and is refused. " +

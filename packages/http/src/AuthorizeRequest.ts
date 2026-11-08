@@ -32,6 +32,24 @@ import { logDenialAt } from "./DenialLog.ts";
 import { loadNoResource } from "./NoResource.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
 
+/** The key of one endpoint of a guarded `HttpApi`: `<group identifier>/<endpoint identifier>`. */
+export type EndpointMemberKey = `${string}/${string}`;
+
+/**
+ * The key that names one endpoint of a guarded `HttpApi`: its group's identifier and its own.
+ *
+ * `guardApi`'s walk registers it and `RequirePermission`'s middleware checks it, so what is
+ * enforced is exactly what was registered only while both spell it the same way (ENF-05, D-05,
+ * ADR-QD-108). It lives in this module, not `GuardApi.ts`, because `GuardApi.ts` value-imports
+ * `makeRequirePermission` from `RequirePermissionMiddleware.ts`: the middleware importing the key
+ * from `GuardApi.ts` would be a `GuardApi` and `RequirePermissionMiddleware` cycle that
+ * `pnpm circular` (madge) refuses. Both files already import this one.
+ */
+export const endpointMemberKey = (
+  group: { readonly identifier: string },
+  endpoint: { readonly identifier: string },
+): EndpointMemberKey => `${group.identifier}/${endpoint.identifier}`;
+
 /** What an allowed request carries forward: the witness, the resource it was checked against, and who asked. */
 export interface AuthorizedRequest<P extends Permission, A extends Resource> {
   readonly authorized: Authorized<P>;
