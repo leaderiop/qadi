@@ -107,10 +107,10 @@
   policy leaf tags it answers. `ADMITTED`, `Collector`, `collectNames` and the per-port sets in
   `servingFor` are derived from the registry.
 - [ ] **SERV-03**: The public `PortServing` shape is unchanged.
-- [ ] **SERV-04**: Pass-through enumerations are removed: `mapPorts` merges into
+- [x] **SERV-04**: Pass-through enumerations are removed: `mapPorts` merges into
   `tabulatePorts`, `fixturePortsLayer` derives from the registry, and `@qadi/testing`'s
   `answersOf`/`layersOf` split is gone.
-- [ ] **SERV-05**: If the checkpoint rejects the amendment, SERV-04 still ships and the
+- [x] **SERV-05**: If the checkpoint rejects the amendment, SERV-04 still ships and the
   rejection is recorded as an ADR-094 note so that future reviews do not suggest it again.
 
 ### SINK — Sink record projection and JSON refusal vocabulary (Phase 9, ARCH-54)

@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Port serving from the registry
 status: executing
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-11-08T13:24:29.971Z"
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-11-08T13:31:33.457Z"
 last_activity: 2026-11-08
 last_activity_desc: Phase 08 execution started
-state_head: eefdf830d1b2ca188bddc961cb4dda07d6bf32d2
+state_head: a0333efc8a47dd389687fa2a0a7ab0655ca827a4
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 33
-  completed_plans: 24
-  percent: 73
+  completed_plans: 25
+  percent: 76
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-11-08)
 ## Current Position
 
 Phase: 08 (Port serving from the registry) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-11-08 — Phase 08 execution started
 
-Progress: [██████████████░░░░░░] 23/33 plans ([███████░░░] 73%); 7/9 phases
+Progress: [██████████████░░░░░░] 23/33 plans ([████████░░] 76%); 7/9 phases
 
 ## Performance Metrics
 
@@ -76,6 +76,7 @@ Progress: [██████████████░░░░░░] 23/33 p
 | Phase 07 P02 | 10 min | 2 tasks | 5 files |
 | Phase 07 P03 | ~1h | 2 tasks | 0 files |
 | Phase 08 P01 | 10min | 2 tasks | 1 files |
+| Phase 08 P02 | 25min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,7 @@ Progress: [██████████████░░░░░░] 23/33 p
 - [Phase 07] review fix WR-01: `portPath` strips trailing slashes from the prefix (`/x/ports/` and `/x/ports//` → `/x/ports/<Port>`); BEH-QD-338 updated; re-verified 9/9 passed after the fix
 - [Phase 07]: UAT: literal `pnpm check:pr` exit 0 (16/16) on a clean clone of 88187a5 in the podman Ubuntu Playwright container (same route as Phase 06); vitest 3974+559+42, e2e 30/30
 - [Phase 08]: D-01 approved: port descriptions may carry a serving facet (amends ADR-QD-094); plans 08-03/08-04 run, 08-05 skips
+- [Phase 08]: D-07: tabulatePorts is two overloads over one body; separate layer builder removed. D-08: fixturePortsLayer derived from the registry with no as. D-09: testing passes ports to core unchanged
 
 ### Pending Todos
 
@@ -147,6 +149,6 @@ Progress: [██████████████░░░░░░] 23/33 p
 
 ## Session Continuity
 
-Last session: 2026-11-08T13:24:29.887Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-11-08T13:31:33.361Z
+Stopped at: Completed 08-02-PLAN.md
 Resume file: None
