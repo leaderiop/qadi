@@ -23,7 +23,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-08)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 04 — Gate instrumentation hook
+**Current focus:** Phase 05 — Decision log over HTTP
 
 ## Current Position
 
@@ -32,7 +32,7 @@ Plan: Not started
 Status: Ready to execute
 Last activity: 2026-11-08 — Phase 04 complete, transitioned to Phase 05
 
-Progress: [███████░░░░░░░░░░░░░] 12/33 plans ([████░░░░░░] 44%); 3/9 phases
+Progress: [██████████░░░░░░░░░░] 16/33 plans (48%); 4/9 phases
 
 ## Performance Metrics
 
@@ -114,9 +114,10 @@ Progress: [███████░░░░░░░░░░░░░] 12/33 p
 - BEH/INV ids are allocated at execution time with `node scripts/next-id.mjs`.
 - [Phase 02] Pre-existing, out of scope: in devtools replay the other four ports' `none` answers (attribute `undefined`, relationship/history `Unknown`, custom `false`) still grant under `not(...)` on a capture miss — the INV-QD-007 fail-open an unwired deployment also has. Flipping them is one word each in Capture.ts's `UNSEEN_REQUEST_IS_AN_OUTAGE`; needs a decision.
 - Seven info-level review findings for Phase 02 remain open (02-REVIEW-DISPOSITION.md: IN-01..07).
+- [Phase 04] Five review findings open (04-REVIEW-DISPOSITION.md): WR-01, the D-04 test never exercises a cold suspend (needs a latched-port cold case); IN-01..04 (unused `useGateRegistration`, stale `useAtomValue` comment, unmarked dep-array omissions, overstated test header).
 
 ## Session Continuity
 
-Last session: 2026-11-08T05:00:57.421Z
-Stopped at: Phase 04 complete, ready to execute Phase 05
+Last session: 2026-11-08
+Stopped at: Phase 04 complete, ready to plan Phase 05
 Resume file: None
