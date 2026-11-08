@@ -2,7 +2,7 @@
 phase: "07"
 slug: "port-route-address"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-status: draft
+status: validated
 nyquist_compliant: true
 wave_0_complete: true
 created: "2026-11-08"
@@ -41,12 +41,12 @@ created: "2026-11-08"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 07-01-01 | 01 | 1 | ADDR-01, ADDR-03 | T-07-02, T-07-03, T-07-04 | A mismatched prefix fails closed as the port's own error. The guarded form still denies under a custom prefix. No new export | integration (HTTP round trip over `toWebHandler`) + gates | `pnpm vitest run --project http packages/http/test/PortRoutes.test.ts && pnpm typecheck && pnpm lint && pnpm circular && pnpm spec:api`, plus the `/__ports`-once, deleted-constant, inline-template and import grep gates | ✅ (round trip written first, green on the pre-refactor tree as a characterization) | ⬜ pending |
-| 07-01-02 | 01 | 1 | ADDR-02 | T-07-01 | A reply under a disagreeing status is read from its body. A proxy's HTML 502 is the port's own error, never an answer | integration (canned responses) + gates | `pnpm vitest run --project http packages/http/test/PortRoutes.test.ts && pnpm typecheck && pnpm lint && pnpm circular && pnpm spec:api`, plus the contract-reference greps | ✅ | ⬜ pending |
-| 07-02-01 | 02 | 1 | XC-02, ADDR-02 | T-07-05 | — | doc gate | BEH heading and pointer greps, `node scripts/spec-revise.mjs --check && pnpm spec:verify:strict` | ✅ | ⬜ pending |
-| 07-02-02 | 02 | 1 | XC-02, XC-03 | T-07-05 | — | doc gate | CCR row, traceability and changeset greps, `node scripts/spec-revise.mjs --check && pnpm spec:verify:strict && pnpm spec:gates` | ✅ | ⬜ pending |
-| 07-03-01 | 03 | 2 | XC-03 | T-07-07 | Export set unchanged; records name what was built | gates + targeted tests | criterion-1 grep, `pnpm vitest run --project http packages/http/test/PortRoutes.test.ts -t "ARCH-52"`, CCR file-list completeness loop, `pnpm spec:examples && pnpm spec:api && pnpm spec:verify:strict && pnpm spec:gates` | ✅ | ⬜ pending |
-| 07-03-02 | 03 | 2 | XC-01, XC-04, XC-05 | T-07-06 | The merge gate runs unmodified and is green | full gate | `pnpm check:pr`, plus the criterion-1 grep and the ARCH-52 tests by name | ✅ | ⬜ pending |
+| 07-01-01 | 01 | 1 | ADDR-01, ADDR-03 | T-07-02, T-07-03, T-07-04 | A mismatched prefix fails closed as the port's own error. The guarded form still denies under a custom prefix. No new export | integration (HTTP round trip over `toWebHandler`) + gates | `pnpm vitest run --project http packages/http/test/PortRoutes.test.ts && pnpm typecheck && pnpm lint && pnpm circular && pnpm spec:api`, plus the `/__ports`-once, deleted-constant, inline-template and import grep gates | ✅ (round trip written first, green on the pre-refactor tree as a characterization) | ✅ green |
+| 07-01-02 | 01 | 1 | ADDR-02 | T-07-01 | A reply under a disagreeing status is read from its body. A proxy's HTML 502 is the port's own error, never an answer | integration (canned responses) + gates | `pnpm vitest run --project http packages/http/test/PortRoutes.test.ts && pnpm typecheck && pnpm lint && pnpm circular && pnpm spec:api`, plus the contract-reference greps | ✅ | ✅ green |
+| 07-02-01 | 02 | 1 | XC-02, ADDR-02 | T-07-05 | — | doc gate | BEH heading and pointer greps, `node scripts/spec-revise.mjs --check && pnpm spec:verify:strict` | ✅ | ✅ green |
+| 07-02-02 | 02 | 1 | XC-02, XC-03 | T-07-05 | — | doc gate | CCR row, traceability and changeset greps, `node scripts/spec-revise.mjs --check && pnpm spec:verify:strict && pnpm spec:gates` | ✅ | ✅ green |
+| 07-03-01 | 03 | 2 | XC-03 | T-07-07 | Export set unchanged; records name what was built | gates + targeted tests | criterion-1 grep, `pnpm vitest run --project http packages/http/test/PortRoutes.test.ts -t "ARCH-52"`, CCR file-list completeness loop, `pnpm spec:examples && pnpm spec:api && pnpm spec:verify:strict && pnpm spec:gates` | ✅ | ✅ green |
+| 07-03-02 | 03 | 2 | XC-01, XC-04, XC-05 | T-07-06 | The merge gate runs unmodified and is green | full gate | `pnpm check:pr`, plus the criterion-1 grep and the ARCH-52 tests by name | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -73,4 +73,12 @@ All phase behaviors have automated verification.
 - [x] Feedback latency < 60 s per task (the full gate runs once, at the end)
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-11-08 (validate-phase audit: all six task commands re-run green at HEAD 154afa1; 07-03-02's `pnpm check:pr` stopped at step 13 on a host-only Playwright `--with-deps` sudo install, steps 13-16 then ran individually green, and the user accepted that evidence at the 07-03 checkpoint)
+
+## Validation Audit 2026-11-08
+
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
