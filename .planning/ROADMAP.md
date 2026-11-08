@@ -89,12 +89,12 @@ Plans:
   3. A test pins how often `usePolicies` re-creates its group atom across re-renders.
   4. With `instrument` off the existing React suite passes untouched.
   5. `pnpm check:pr` is green, and ADR-QD-111 (or CCR-only), CCR-QD-388 and a changeset are recorded.
-**Plans**: 2/4 plans executed
+**Plans**: 3/4 plans executed
 
 Plans:
 - [x] 04-01 (W1): Provider resolves the gate writer once (`GateScopeContext`); `useGates` in GateWriter; useGate thin; useDecisionSuspense opens its atom once
 - [x] 04-02 (W2): `usePolicies` re-render pin; useQuestionsAs onto `useGates`; table over all eight gate kinds
-- [ ] 04-03 (W3): ADR-QD-111, ADR-053/080 amendments, BEH-QD-233, INV-QD-046, CCR-QD-388, changeset
+- [x] 04-03 (W3): ADR-QD-111, ADR-053/080 amendments, BEH-QD-233, INV-QD-046, CCR-QD-388, changeset
 - [ ] 04-04 (W4): Recheck success criteria; prove pre-existing React tests untouched; `pnpm check:pr`
 
 ### Phase 5: Decision log over HTTP
@@ -189,7 +189,7 @@ Plans:
 | 1. HTTP request enforcement | 5/5 | Complete    | 2026-11-08 |
 | 2. One port read | 4/4 | Complete    | 2026-11-08 |
 | 3. Audit archive facts | 3/3 | Complete    | 2026-11-08 |
-| 4. Gate instrumentation hook | 2/4 | In Progress | - |
+| 4. Gate instrumentation hook | 3/4 | In Progress | - |
 | 5. Decision log over HTTP | 0/2 | Planned | - |
 | 6. Dehydration in the engine | 0/2 | Planned | - |
 | 7. One port route address | 0/3 | Planned | - |
