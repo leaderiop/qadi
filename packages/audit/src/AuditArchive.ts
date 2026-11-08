@@ -17,9 +17,9 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import { UNTRUSTED_DECODE_OPTIONS } from "@qadi/core";
 import type { DecodeRefusal } from "@qadi/core";
+import { archiveFacts } from "./ArchiveFacts.ts";
 import { decodeAuditEntry } from "./AuditEntry.ts";
 import type { AuditEntry } from "./AuditEntry.ts";
-import { firstSequenceBreak } from "./SequenceBreak.ts";
 import { verifySequenceIntegrity } from "./SequenceIntegrity.ts";
 
 /**
@@ -114,20 +114,16 @@ export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(funct
 ) {
   yield* verifySequenceIntegrity(entries);
 
-  const ordered = entries.toSorted(
-    (a, b) => (a.sequenceNumber ?? Number.POSITIVE_INFINITY) - (b.sequenceNumber ?? Number.POSITIVE_INFINITY),
-  );
-
-  const sequencedCount = entries.filter((entry) => entry.sequenceNumber !== undefined).length;
+  const facts = archiveFacts(entries);
 
   const archive: AuditArchive = {
     archiveVersion: ARCHIVE_VERSION,
     metadata: {
       createdAt: now,
-      entryCount: ordered.length,
-      sequenceIntegrityVerified: sequencedCount >= 2,
+      entryCount: facts.ordered.length,
+      sequenceIntegrityVerified: facts.sequenceIntegrityVerified,
     },
-    entries: ordered,
+    entries: facts.ordered,
     ...(options?.keyMaterial === undefined ? {} : { keyMaterial: options.keyMaterial }),
   };
   return archive;
@@ -258,23 +254,6 @@ const decodeEnvelope = Schema.decodeUnknownResult(ArchiveEnvelope, UNTRUSTED_DEC
 
 const refuse = (refusal: ArchiveRefusal) => Result.fail(new ArchiveNotVerified({ refusal }));
 
-/** The index of the first entry that breaks sequenced-then-unsequenced, ascending order. */
-const firstOutOfOrder = (entries: ReadonlyArray<AuditEntry>): number | undefined => {
-  let previous: number | undefined;
-  let unsequencedSeen = false;
-  for (const [index, entry] of entries.entries()) {
-    const sequenceNumber = entry.sequenceNumber;
-    if (sequenceNumber === undefined) {
-      unsequencedSeen = true;
-    } else if (unsequencedSeen || (previous !== undefined && sequenceNumber < previous)) {
-      return index;
-    } else {
-      previous = sequenceNumber;
-    }
-  }
-  return undefined;
-};
-
 /**
  * Reads a stored archive bundle back and, if it holds together, returns the
  * {@link VerifiedArchive} a purge needs.
@@ -315,17 +294,15 @@ export const readAuditArchive = (input: unknown): Result.Result<VerifiedArchive,
       ArchiveRefusal.CountMismatch({ declared: bundle.metadata.entryCount, actual: entries.length }),
     );
   }
-  const broken = firstSequenceBreak(entries);
-  if (broken !== undefined) {
-    return refuse(ArchiveRefusal.SequenceBroken(broken));
+  const facts = archiveFacts(entries);
+  if (facts.sequenceBreak !== undefined) {
+    return refuse(ArchiveRefusal.SequenceBroken(facts.sequenceBreak));
   }
-  const outOfOrder = firstOutOfOrder(entries);
-  if (outOfOrder !== undefined) {
-    return refuse(ArchiveRefusal.NotInSequenceOrder({ index: outOfOrder }));
+  if (facts.outOfOrderAt !== undefined) {
+    return refuse(ArchiveRefusal.NotInSequenceOrder({ index: facts.outOfOrderAt }));
   }
-  const sequencedCount = entries.filter((entry) => entry.sequenceNumber !== undefined).length;
-  if (bundle.metadata.sequenceIntegrityVerified !== sequencedCount >= 2) {
-    return refuse(ArchiveRefusal.UnbackedClaim({ sequencedCount }));
+  if (bundle.metadata.sequenceIntegrityVerified !== facts.sequenceIntegrityVerified) {
+    return refuse(ArchiveRefusal.UnbackedClaim({ sequencedCount: facts.sequencedCount }));
   }
   return Result.succeed(
     new VerifiedArchiveImpl({
