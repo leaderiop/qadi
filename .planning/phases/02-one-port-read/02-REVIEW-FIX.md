@@ -24,7 +24,7 @@ Edits and commits were made in the main checkout on `arch-wave-5` (`workflow.use
 
 ## Fixed Issues
 
-### WR-04: devtools what-if replay still grants `not(hasSignature)` for a requirement the capture never saw
+### WR-04: devtools what-if replay still grants `not(hasSignature)` for a requirement the capture never saw (carried over from the prior review's WR-03, behavior unfixed)
 
 **Files modified:** `packages/devtools/src/model/Capture.ts`, `packages/devtools/test/model/Capture.test.ts`, `packages/core/src/SignatureHistory.ts` (doc comment only), `spec/invariants.md`, `spec/decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md`, `spec/behaviors/29-devtools-simulator.md`, `apps/website/src/content/docs/docs/concepts/signatures.md`, `apps/website/src/content/docs/docs/packages/audit/signatures.md`, `.changeset/devtools-unseen-signature-fails.md`
 **Commit:** ad5b3fe
