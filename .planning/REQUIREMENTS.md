@@ -26,10 +26,10 @@
 
 ### PORT — One port read (Phase 2, ARCH-47)
 
-- [ ] **PORT-01**: Each port's question→span-attributes and answer→span-attributes projection
+- [x] **PORT-01**: Each port's question→span-attributes and answer→span-attributes projection
   is stated once, on the description's span attributes (`PortSpanAttributes`), not in
   `PortWire`.
-- [ ] **PORT-02**: The `spanQuestion`/`spanAnswer` fields are removed from all five port
+- [x] **PORT-02**: The `spanQuestion`/`spanAnswer` fields are removed from all five port
   modules' `wire` blocks, and `PortWire` deals only with JSON.
 - [x] **PORT-03**: One internal generic read in `PortAccess.ts` performs span annotation,
   metric counting, defect catching and answer annotation for every local read and for
@@ -129,7 +129,7 @@
 - [ ] **XC-02**: Each phase records its ADR (or states why none is needed), a CCR row, the
   `spec/README.md` change history line, its traceability rows, and a `.changeset/*.md`.
 - [ ] **XC-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
-- [ ] **XC-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await` or
+- [x] **XC-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await` or
   `console.*` outside their budgets.
 - [ ] **XC-05**: Coverage thresholds hold (core at least 95%, others at least 90%).
 
