@@ -1,0 +1,40 @@
+---
+status: testing
+phase: 02-one-port-read
+source: [02-VERIFICATION.md]
+started: 2026-11-08T02:58:35Z
+updated: 2026-11-08T02:58:35Z
+---
+
+## Current Test
+
+number: 1
+name: Run `pnpm check:pr` end to end on a machine where `playwright install --with-deps chromium` can run (CI, or a host with sudo)
+expected: |
+  Exit 0 in one run.
+awaiting: user response
+
+## Tests
+
+### 1. Run `pnpm check:pr` end to end on a machine where `playwright install --with-deps chromium` can run (CI, or a host with sudo)
+expected: Exit 0 in one run.
+result: [pending]
+
+### 2. Decide WR-02: accept the three hand-written pre-validation question objects in askActedForResource, askRelationship and askSignature as the recorded D-07 trade-off, or derive them from `pose`
+expected: A recorded decision. Accepted means ADR-QD-109's wording is enough. Derived means a follow-up edit to PortAccess.ts.
+result: [pending]
+
+### 3. Decide WR-01: should `disclose` run inside `catchPortDefect`?
+expected: A recorded decision. If yes, a signature store returning a malformed list must give the port's typed error on a served read, not a defect.
+result: [pending]
+
+## Summary
+
+total: 3
+passed: 0
+issues: 0
+pending: 3
+skipped: 0
+blocked: 0
+
+## Gaps
