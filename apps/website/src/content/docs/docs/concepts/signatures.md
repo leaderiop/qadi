@@ -46,8 +46,12 @@ fails with `MissingResourceId`. A signature captured while a duty is discharged
 is recorded under that same pair, so it answers the document it was captured
 for and no other (see [E-Signatures](/docs/packages/audit/signatures/)).
 
-`SignatureHistory` has one method, `signaturesFor({ subjectId, resourceId? })`,
-mirroring `DecisionHistory`'s shape exactly. Its default,
+`SignatureHistory` has one method,
+`signaturesFor({ subjectId, resourceId?, meaning?, signerRole? })`,
+mirroring `DecisionHistory`'s shape exactly. The evaluator passes the
+`meaning` and `signerRole` a `HasSignature` node requires as context, so the
+port's span says what was asked, locally or when served; a store answers with
+every signature on file whatever they say, and the evaluator does the matching. Its default,
 `SignatureHistoryNone`, answers with an empty list — no signatures on file,
 denying unambiguously. Unlike `DecisionHistory`'s `ActedResult`, there's no
 third "unknown" value here: an empty list already denies on its own, so no
