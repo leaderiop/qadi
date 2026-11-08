@@ -54,13 +54,13 @@ pass untouched.
 - The `scope` override is needed. `pose` alone would say `Any` for a missing id.
 
 **WR-03 fix (ce9ecbd): the wording is now accurate, but the behavior it
-describes is still present.** See WR-01 below.
+describes is still present.** See WR-04 below.
 
 No new defects were introduced by the three commits.
 
 ## Warnings
 
-### WR-01: devtools what-if replay still grants `not(hasSignature)` for a requirement the capture never saw (carried over from the prior review's WR-03, behavior unfixed)
+### WR-04: devtools what-if replay still grants `not(hasSignature)` for a requirement the capture never saw (carried over from the prior review's WR-03, behavior unfixed)
 
 **File:** `packages/core/src/SignatureHistory.ts:248` (the `key`), `packages/devtools/src/model/Capture.ts:184`
 **Issue:** This phase widened the signature request key to
@@ -92,7 +92,7 @@ or record an explicit decision accepting the regression with a test that pins it
 
 ## Info
 
-### IN-01: the resource-id `typeof` check and brand are now written in three places, and `askActedForResource` discards `requireResourceId`'s result
+### IN-06: the resource-id `typeof` check and brand are now written in three places, and `askActedForResource` discards `requireResourceId`'s result
 
 **File:** `packages/core/src/PortAccess.ts:316`, `:394`, `:453`
 **Issue:** `typeof rawResourceId === "string" ? makeResourceId(rawResourceId) : undefined`
@@ -106,7 +106,7 @@ twice, once in `pose` and once through `requireResourceId`.
 Use it at the three sites. Alternatively, drop the "returns the id" claim from
 `requireResourceId`'s comment.
 
-### IN-02: doc-comment line over the hand-wrapped width
+### IN-07: doc-comment line over the hand-wrapped width
 
 **File:** `packages/core/src/PortAccess.ts:162`
 **Issue:** The WR-01 edit left a line of about 107 characters
