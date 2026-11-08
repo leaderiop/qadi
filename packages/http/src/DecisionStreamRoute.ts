@@ -89,6 +89,7 @@ import type {
   DecisionLogReader,
   DecisionRecordEvent,
   DecisionStreamEvent,
+  EnforcementErrorClass,
   LogCursor,
   LogEntry,
   Permission,
@@ -104,7 +105,8 @@ import {
   parseLogCursor,
   reportEncodeRefusal,
 } from "@qadi/core";
-import { authorizeRequest } from "./AuthorizeRequest.ts";
+import { enforceRequest } from "./AuthorizeRequest.ts";
+import type { EnforcementProjection } from "./AuthorizeRequest.ts";
 import { loadNoResource } from "./NoResource.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
 import { classifyHttpEnforcementFailure } from "./QadiHttpError.ts";
@@ -228,24 +230,31 @@ export interface DecisionStreamOptions {
 }
 
 /**
- * One re-authorization attempt: the same `authorizeRequest` the connect path
- * runs, against the same request, answered with the failure's class.
+ * How the recheck answers an enforcement failure: one closure line naming the tag
+ * and the class, then the failure's class.
  *
- * One line is logged for any failure that ends the stream, naming the tag and
- * the class: a closed connection is a fact of its own, and an outage that ends
- * a stream stays visible (the step itself logs only a denial and an extraction
- * failure). The failure is labelled through `classifyHttpEnforcementFailure`,
- * the table the connect path's status comes from, so a broken credential store
- * is an `outage` here as it is a 502 there.
+ * The stream's own projection (D-02, ADR-QD-108), the third beside
+ * `answerWithResponse` and `answerInChannel`: a stream that is already open has no
+ * response to send, so the failure ends it, labelled through
+ * `classifyHttpEnforcementFailure`, the table the connect path's status comes from.
+ * A closed connection is a fact of its own, and an outage that ends a stream stays
+ * visible (the edge step itself logs only a denial and an extraction failure).
+ */
+const endStream: EnforcementProjection<never, EnforcementErrorClass, never> = (error) =>
+  Effect.logWarning(
+    `qadi/http: /__decisions recheck ended the stream (${error._tag}, ${classifyHttpEnforcementFailure(error)})`,
+  ).pipe(Effect.andThen(Effect.fail(classifyHttpEnforcementFailure(error))));
+
+/**
+ * One re-authorization attempt: the request-enforcement module's guarded mode on a
+ * schedule, against the same request the connect path ran, answered by `endStream`.
+ *
+ * Its edge step is `authorizeRequest`, so a denial or an extraction failure is
+ * logged there once, then `endStream` logs the closure line. There is no handler to
+ * run: success is the stream carrying on.
  */
 const recheck = (permission: Permission, policy: Policy, request: HttpServerRequest.HttpServerRequest) =>
-  authorizeRequest(permission, policy)(request).pipe(
-    Effect.tapError((error) =>
-      Effect.logWarning(
-        `qadi/http: /__decisions recheck ended the stream (${error._tag}, ${classifyHttpEnforcementFailure(error)})`,
-      ),
-    ),
-    Effect.mapError(classifyHttpEnforcementFailure),
+  enforceRequest({ permission, policy, loadResource: loadNoResource }, endStream, () => Effect.void)(request).pipe(
     Effect.asVoid,
   );
 
