@@ -17,18 +17,20 @@ import {
   Decided,
   DecisionRecord,
   decodeStoredRecord,
+  decodeStoredRecordString,
   hasPermission,
   makeSubjectId,
   permission,
   stampRecord,
 } from "@qadi/core";
-import type { SinkRecordNotEncodable, StoredRecord } from "@qadi/core";
+import type { LogEntry, SinkRecordNotEncodable, StoredRecord } from "@qadi/core";
 import { collectingLogger, collectingTracer } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
+import * as Stream from "effect/Stream";
 import type * as Tracer from "effect/Tracer";
-import { jsonElements } from "../src/DecisionLogHttp.ts";
+import { frameEntries, frameEntry, jsonElements } from "../src/DecisionLogHttp.ts";
 import type { DecisionLogServeOptions } from "../src/DecisionLogHttp.ts";
 
 const policy = hasPermission(permission("devtools", "read"));
@@ -53,7 +55,7 @@ const decision = (evaluationId: string, resource?: Record<string, unknown>) =>
 const stored = (record: DecisionRecord): StoredRecord => stampRecord(record, "Server");
 
 type Scenario = "all encodable" | "one refused in the middle" | "onRefused throws" | "no onRefused";
-type Framing = "json";
+type Framing = "json" | "sse backlog" | "sse live";
 type Hook = "none" | "collect" | "throw";
 
 interface ExpectedLine {
@@ -130,12 +132,39 @@ interface FramingSpec {
 const idsOf = (decoded: ReadonlyArray<Result.Result<StoredRecord, unknown>>): ReadonlyArray<string> =>
   decoded.flatMap((result) => (Result.isSuccess(result) ? [result.success.evaluationId] : []));
 
+const entriesOf = (records: ReadonlyArray<StoredRecord>): ReadonlyArray<LogEntry> =>
+  records.map((record, seq) => ({ cursor: { epoch: 1, seq }, record }));
+
+/** The envelope an SSE frame carries on its `data:` line, read back through the codec. */
+const decodeFrame = (text: string): Result.Result<StoredRecord, unknown> => {
+  const data = text.split("\n").find((line) => line.startsWith("data: "));
+  return data === undefined ? Result.fail("no data line") : decodeStoredRecordString(data.slice("data: ".length));
+};
+
+const SSE_MESSAGE = "qadi/http: a decision record could not be framed";
+const SSE_SPAN = "qadi.http.decisionStream.refused";
+
 const FRAMINGS = {
   json: {
     drive: (records, options) =>
       Effect.map(jsonElements(records, options), (elements) => idsOf(elements.map(decodeStoredRecord))),
     message: "qadi/http: a decision record could not be served in the backlog",
     span: "qadi.http.decisionBacklog.refused",
+  },
+  "sse backlog": {
+    drive: (records, options) =>
+      Effect.map(frameEntries("backlog", entriesOf(records), options), (frames) => idsOf(frames.map(decodeFrame))),
+    message: SSE_MESSAGE,
+    span: SSE_SPAN,
+  },
+  "sse live": {
+    drive: (records, options) =>
+      Effect.map(
+        Stream.runCollect(Stream.filterMapEffect(Stream.fromIterable(entriesOf(records)), frameEntry("message", options))),
+        (frames) => idsOf(frames.map(decodeFrame)),
+      ),
+    message: SSE_MESSAGE,
+    span: SSE_SPAN,
   },
 } satisfies Record<Framing, FramingSpec>;
 
