@@ -14,10 +14,14 @@ import { isAllowed } from "@qadi/core";
 import type { DeniedNode } from "../src/components.tsx";
 import type {
   ClientDecision,
+  DecisionEntry,
+  DehydrateOptions,
+  DehydratedDecisions,
   SeededAllow,
   SeededDecision,
   SeededDeny,
 } from "../src/Hydration.ts";
+import { dehydrateDecisions } from "../src/Hydration.ts";
 import { permits } from "../src/SeededDecision.ts";
 
 declare const anyDecision: ClientDecision;
@@ -41,5 +45,19 @@ test("permits reads the verdict of every case", () => {
 test("a denied fallback is handed an evaluated or a seeded denial", () => {
   expect<Parameters<Extract<DeniedNode, (...args: never) => unknown>>[0]>().type.toBe<
     Deny | SeededDeny
+  >();
+});
+
+test("dehydrateDecisions' signature and options are pinned (ARCH-51)", () => {
+  // ARCH-51 moves the dehydrate direction into the engine behind this function;
+  // its type is the public contract and must not move with it.
+  expect<Parameters<typeof dehydrateDecisions>>().type.toBe<
+    [entries: ReadonlyArray<DecisionEntry>, options?: DehydrateOptions]
+  >();
+  expect<ReturnType<typeof dehydrateDecisions>>().type.toBe<DehydratedDecisions>();
+  expect<keyof DehydrateOptions>().type.toBe<"includeTrace" | "onDropped">();
+  expect<DehydrateOptions["includeTrace"]>().type.toBe<boolean | undefined>();
+  expect<DehydrateOptions["onDropped"]>().type.toBe<
+    ((dropped: ReadonlyArray<DecisionEntry>) => void) | undefined
   >();
 });
