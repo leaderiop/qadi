@@ -162,8 +162,6 @@ const customWire = portWire({
   ],
   ...sameAnswer<boolean>(),
   asked: ([name]) => name,
-  spanQuestion: ([name, subject]) => ({ name, subjectId: subject.id }),
-  spanAnswer: (answer) => customSpan.disclose(answer),
 });
 
 /**

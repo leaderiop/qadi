@@ -13,7 +13,10 @@
  *
  * The wire is **not** the span. A span field is a `SpanValue` and cannot hold
  * an attribute's value (INV-QD-044); the wire carries it, to the session's own
- * subject, and a span never does.
+ * subject, and a span never does. What a span says is the description's
+ * `attributes` (`pose` and `disclose`, ADR-QD-109), so the wire states only
+ * JSON and carries no span projection. ADR-QD-107 rejected span structs as the
+ * wire; moving the projection off the wire does not contradict it.
  */
 import * as Data from "effect/Data";
 import * as Match from "effect/Match";
@@ -21,7 +24,6 @@ import type * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type { AuthSubject } from "./AuthSubject.ts";
 import type { SubjectId } from "./Identity.ts";
-import type { SpanValue } from "./PortSpan.ts";
 
 /**
  * Why a served question was not answered at all — not a failure of the store.
@@ -134,13 +136,6 @@ export interface DecodedQuestion<Args extends ReadonlyArray<unknown>> {
 }
 
 /**
- * The attributes of a span, as a plain table: what a wire projects a question
- * or an answer into, for `PortAccess.ts` to encode through the port's own span
- * struct.
- */
-export type PortWireSpan = { readonly [prop: string]: SpanValue | undefined };
-
-/**
  * One port's wire: encode and decode its question and its answer, closed over
  * the question type so generic code never names it.
  *
@@ -153,8 +148,6 @@ export type PortWireSpan = { readonly [prop: string]: SpanValue | undefined };
  * - `asked` — the one name an allowlist can admit or refuse: the attribute, the
  *   relation, the event, the predicate's name; `undefined` where the port has
  *   none (the signature port).
- * - `spanQuestion` / `spanAnswer` — the projection into the port's span, which
- *   `servePortRead` writes through the description's span structs.
  */
 export interface PortWire<Args extends ReadonlyArray<unknown>, A> {
   readonly encodeQuestion: (args: Args) => Result.Result<Schema.Json, string>;
@@ -162,6 +155,4 @@ export interface PortWire<Args extends ReadonlyArray<unknown>, A> {
   readonly encodeAnswer: (answer: A) => Result.Result<Schema.Json, string>;
   readonly decodeAnswer: (input: unknown) => Result.Result<A, string>;
   readonly asked: (args: Args) => string | undefined;
-  readonly spanQuestion: (args: Args) => PortWireSpan;
-  readonly spanAnswer: (answer: A) => PortWireSpan;
 }

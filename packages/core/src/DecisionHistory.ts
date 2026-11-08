@@ -142,13 +142,6 @@ const actedWire = portWire({
   ],
   ...sameAnswer<ActedResult>(),
   asked: ([query]) => query.event,
-  spanQuestion: ([query]) => ({
-    subjectId: query.subjectId,
-    event: query.event,
-    scope: query.resourceId === undefined ? "Any" : "Resource",
-    resourceId: query.resourceId,
-  }),
-  spanAnswer: (answer) => actedSpan.disclose(answer),
 });
 
 /**

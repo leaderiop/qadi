@@ -19,7 +19,7 @@ import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
 import type { SubjectId } from "./Identity.ts";
 import { toJson } from "./JsonHazard.ts";
 import { MAX_DECODE_DEPTH, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
-import type { PortWire, PortWireSpan } from "./PortWire.ts";
+import type { PortWire } from "./PortWire.ts";
 import { describeEncodeRefusal } from "./SinkWire.ts";
 import type { EncodeRefusal } from "./SinkWire.ts";
 
@@ -49,8 +49,6 @@ export interface PortWireSpec<
   readonly toAnswer: (answer: A) => Result.Result<W, EncodeRefusal>;
   readonly fromAnswer: (wire: W) => A;
   readonly asked: (args: Args) => string | undefined;
-  readonly spanQuestion: (args: Args) => PortWireSpan;
-  readonly spanAnswer: (answer: A) => PortWireSpan;
 }
 
 /** The answer conversions of a port whose answer is its own wire shape. */
@@ -114,7 +112,5 @@ export const portWire = <
             spec.fromAnswer,
           ),
     asked: spec.asked,
-    spanQuestion: spec.spanQuestion,
-    spanAnswer: spec.spanAnswer,
   };
 };

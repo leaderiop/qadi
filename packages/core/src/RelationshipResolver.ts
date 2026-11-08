@@ -185,13 +185,6 @@ const relationshipWire = portWire({
   ],
   ...sameAnswer<RelatedResult>(),
   asked: ([request]) => request.relation,
-  spanQuestion: ([request]) => ({
-    subjectId: request.subjectId,
-    relation: request.relation,
-    resourceId: request.resourceId,
-    depth: request.depth,
-  }),
-  spanAnswer: (answer) => relationshipSpan.disclose(answer),
 });
 
 /**

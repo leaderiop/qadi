@@ -132,8 +132,6 @@ const attributeWire = portWire({
       : Result.map(toJson(value, WIRE_MAX_DEPTH), (json) => ({ value: json })),
   fromAnswer: (wire): unknown => wire.value,
   asked: ([, attribute]) => attribute,
-  spanQuestion: ([subjectId, attribute]) => ({ subjectId, attribute }),
-  spanAnswer: (value) => attributeSpan.disclose(value),
 });
 
 /**

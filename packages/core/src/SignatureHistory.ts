@@ -194,12 +194,6 @@ const signatureWire = portWire({
   ],
   ...sameAnswer<ReadonlyArray<Signature>>(),
   asked: () => undefined,
-  spanQuestion: ([query]) => ({
-    subjectId: query.subjectId,
-    scope: query.resourceId === undefined ? "Any" : "Resource",
-    resourceId: query.resourceId,
-  }),
-  spanAnswer: () => ({}),
 });
 
 /**
