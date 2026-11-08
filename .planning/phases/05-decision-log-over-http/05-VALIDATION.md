@@ -2,9 +2,9 @@
 phase: "05"
 slug: "decision-log-over-http"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-status: draft
+status: validated
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: "2026-11-08"
 ---
 
@@ -39,11 +39,11 @@ created: "2026-11-08"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 05-01-01 | 01 | 1 | LOGH-01, LOGH-03, LOGH-04 | T-05-01..04, T-05-06 | JSON: a refused record drops only its element, is reported once (hook, or the backlog's warning and span), and a throwing hook is contained; the backlog route no longer imports the stream route | unit (table at the module seam) + integration (route test unedited) + type | `pnpm vitest run --project http packages/http/test/DecisionLogHttp.test.ts packages/http/test/decisionBacklog.test.ts && pnpm exec tstyche packages/http/test/DecisionLogHttp.tst.ts && pnpm typecheck && pnpm lint && pnpm circular && pnpm spec:api` + grep gates | ❌ W0, created red by this task (D-06) | ⬜ pending |
-| 05-01-02 | 01 | 1 | LOGH-01, LOGH-02, LOGH-04 | T-05-01..06 | SSE backlog and live agree with JSON cell for cell; one reporter and one encode-or-report remain; the export set is unchanged | unit (table) + integration (whole http project, unedited) + type | `pnpm vitest run --project http && pnpm exec tstyche packages/http/test/DecisionLogHttp.tst.ts packages/http/test/DecisionStreamRoute.tst.ts && pnpm typecheck && pnpm lint && pnpm circular && pnpm spec:api` + grep gates | ✅ (extended in this task) | ⬜ pending |
-| 05-02-01 | 02 | 2 | XC-02, XC-03 | T-05-07 | — | doc gates | `node scripts/spec-revise.mjs --check && pnpm spec:examples && pnpm spec:api` + greps | ✅ | ⬜ pending |
-| 05-02-02 | 02 | 2 | XC-02 | T-05-07, T-05-08 | — | doc gates | `pnpm spec:verify:strict && pnpm spec:api && pnpm spec:gates && pnpm spec:examples` + register order check | ✅ | ⬜ pending |
-| 05-02-03 | 02 | 2 | XC-01, XC-04, XC-05 | T-05-08, T-05-09 | Merge gate unmodified and green | full gate | `pnpm check:pr` + phase greps + the refusal table by file | ✅ | ⬜ pending |
+| 05-01-01 | 01 | 1 | LOGH-01, LOGH-03, LOGH-04 | T-05-01..04, T-05-06 | JSON: a refused record drops only its element, is reported once (hook, or the backlog's warning and span), and a throwing hook is contained; the backlog route no longer imports the stream route | unit (table at the module seam) + integration (route test unedited) + type | `pnpm vitest run --project http packages/http/test/DecisionLogHttp.test.ts packages/http/test/decisionBacklog.test.ts && pnpm exec tstyche packages/http/test/DecisionLogHttp.tst.ts && pnpm typecheck && pnpm lint && pnpm circular && pnpm spec:api` + grep gates | ✅ (created red, now green) | ✅ green |
+| 05-01-02 | 01 | 1 | LOGH-01, LOGH-02, LOGH-04 | T-05-01..06 | SSE backlog and live agree with JSON cell for cell; one reporter and one encode-or-report remain; the export set is unchanged | unit (table) + integration (whole http project, unedited) + type | `pnpm vitest run --project http && pnpm exec tstyche packages/http/test/DecisionLogHttp.tst.ts packages/http/test/DecisionStreamRoute.tst.ts && pnpm typecheck && pnpm lint && pnpm circular && pnpm spec:api` + grep gates | ✅ (extended in this task) | ✅ green |
+| 05-02-01 | 02 | 2 | XC-02, XC-03 | T-05-07 | — | doc gates | `node scripts/spec-revise.mjs --check && pnpm spec:examples && pnpm spec:api` + greps | ✅ | ✅ green |
+| 05-02-02 | 02 | 2 | XC-02 | T-05-07, T-05-08 | — | doc gates | `pnpm spec:verify:strict && pnpm spec:api && pnpm spec:gates && pnpm spec:examples` + register order check | ✅ | ✅ green |
+| 05-02-03 | 02 | 2 | XC-01, XC-04, XC-05 | T-05-08, T-05-09 | Merge gate unmodified and green | full gate | `pnpm check:pr` + phase greps + the refusal table by file | ✅ | ⚠️ manual-only (host: playwright deps need sudo) |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -51,8 +51,8 @@ created: "2026-11-08"
 
 ## Wave 0 Requirements
 
-- [ ] `packages/http/test/DecisionLogHttp.test.ts`: the framing × scenario refusal table, written red at the start of 05-01-01 (D-06) and extended red at the start of 05-01-02.
-- [ ] `packages/http/test/DecisionLogHttp.tst.ts`: compatibility pins (D-04). They pass on HEAD by design; their job is to keep passing after the move.
+- [x] `packages/http/test/DecisionLogHttp.test.ts`: the framing × scenario refusal table, written red at the start of 05-01-01 (D-06) and extended red at the start of 05-01-02.
+- [x] `packages/http/test/DecisionLogHttp.tst.ts`: compatibility pins (D-04). They pass on HEAD by design; their job is to keep passing after the move.
 
 Existing infrastructure (vitest projects, tstyche, `collectingLogger` and `collectingTracer` from `@qadi/testing`) covers everything else. Nothing needs installing.
 
@@ -60,7 +60,9 @@ Existing infrastructure (vitest projects, tstyche, `collectingLogger` and `colle
 
 ## Manual-Only Verifications
 
-All phase behaviors have automated verification.
+| Behavior | Requirement | Why Manual | Test Instructions |
+|----------|-------------|------------|-------------------|
+| Full merge gate green | XC-01 | `pnpm check:pr` step 13 (`pnpm example`) runs `playwright install --with-deps chromium`, which needs sudo on this Fedora host; all later sub-steps (`test:e2e` 30 passed, `spec:website-examples`, `website`, `spec:publish`) passed when run directly | Run `pnpm check:pr` on a host where Playwright's dependency install works (CI, or locally with sudo) and confirm exit 0 |
 
 ---
 
@@ -73,4 +75,12 @@ All phase behaviors have automated verification.
 - [x] Feedback latency < 60 s per task (the full gate runs once, at the end)
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-11-08 — 4/5 tasks automated green, 05-02-03 (XC-01) manual-only
+
+## Validation Audit 2026-11-08
+
+| Metric | Count |
+|---|---|
+| Gaps found | 1 |
+| Resolved | 0 |
+| Escalated | 1 |
