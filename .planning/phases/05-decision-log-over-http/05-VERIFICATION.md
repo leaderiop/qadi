@@ -1,7 +1,7 @@
 ---
 phase: 05-decision-log-over-http
 verified: 2026-11-08T07:00:00Z
-status: human_needed
+status: passed
 score: 9/9 must-haves verified
 covered_files:
   - ".planning/phases/05-decision-log-over-http/05-01-PLAN.md"

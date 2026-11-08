@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 05
-current_phase_name: Decision log over HTTP
-status: verifying
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-11-08T05:29:02.184Z"
+current_phase: 06
+current_phase_name: Dehydration in the engine
+status: executing
+stopped_at: Phase 05 complete, ready to execute Phase 06
+last_updated: "2026-11-08T05:47:21.709Z"
 last_activity: 2026-11-08
-last_activity_desc: Phase 05 execution started
-state_head: 7b6b438d8ac26e718f15030c4f09523e5e3b1ffb
+last_activity_desc: Phase 05 complete, transitioned to Phase 06
+state_head: 6f8d04f68afca92e2268596763e58a9e645a2506
 progress:
   total_phases: 9
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 33
   completed_plans: 18
-  percent: 44
+  percent: 55
 ---
 
 # Project State
@@ -23,21 +23,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-08)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 05 — Decision log over HTTP
+**Current focus:** Phase 06 — Dehydration in the engine
 
 ## Current Position
 
-Phase: 05 (Decision log over HTTP) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-11-08 — Phase 05 execution started
+Phase: 06 — Dehydration in the engine
+Plan: Not started
+Status: Ready to execute
+Last activity: 2026-11-08 — Phase 05 complete, transitioned to Phase 06
 
-Progress: [██████████░░░░░░░░░░] 16/33 plans ([████░░░░░░] 44%); 4/9 phases
+Progress: [███████████░░░░░░░░░] 18/33 plans (55%); 5/9 phases
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16
+- Total plans completed: 18
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -49,6 +49,7 @@ Progress: [██████████░░░░░░░░░░] 16/33 p
 | 01 | 5 | - | - |
 | 03 | 3 | - | - |
 | 04 | 4 | - | - |
+| 05 | 2 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -104,6 +105,7 @@ Progress: [██████████░░░░░░░░░░] 16/33 p
 - [Phase 05]: 05-01: DecisionStreamOptions extends DecisionLogServeOptions; one reportRefused factory with per-route span and message (byte-identical to HEAD)
 - [Phase 05]: 05-02: no ADR for ARCH-50 — the refusal policy's documented owner is still core's reportEncodeRefusal (ADR-QD-095 D-09-e); reserved ADR-QD-112 left unused, CCR-QD-389 records it
 - [Phase 05]: 05-02: new behaviour is BEH-QD-337 in 26-decision-stream.md; pnpm check:pr step 13 (playwright install --with-deps) needs sudo on this host, all other steps and the example e2e passed when run directly
+- [Phase 05]: UAT: full `pnpm check:pr` exit 0 (16/16) with Playwright's `--with-deps` apt install neutralized by a no-op `sudo` on PATH for that one process — on Fedora it falls back to Ubuntu `apt-get`, so it cannot pass here even with sudo
 
 ### Pending Todos
 
@@ -120,10 +122,12 @@ Progress: [██████████░░░░░░░░░░] 16/33 p
 - BEH/INV ids are allocated at execution time with `node scripts/next-id.mjs`.
 - [Phase 02] Pre-existing, out of scope: in devtools replay the other four ports' `none` answers (attribute `undefined`, relationship/history `Unknown`, custom `false`) still grant under `not(...)` on a capture miss — the INV-QD-007 fail-open an unwired deployment also has. Flipping them is one word each in Capture.ts's `UNSEEN_REQUEST_IS_AN_OUTAGE`; needs a decision.
 - Seven info-level review findings for Phase 02 remain open (02-REVIEW-DISPOSITION.md: IN-01..07).
+- [Phase 05] Three review findings open (05-REVIEW-DISPOSITION.md): WR-01, no route-level test that `decisionStreamRoute` threads `onRefused` to `decisionFrames`; IN-01 (`DecisionLogServeOptions` package-private yet shapes public options); IN-02 (refusal table's SSE cells don't assert `event:`/`id:`).
+- Every other ROADMAP phase still lists `XC-01..05` as a range, which `phase.complete` cannot parse (Phase 05's line was expanded); `XC-01..05` traceability row stays Pending as cross-cutting.
 - [Phase 04] Five review findings open (04-REVIEW-DISPOSITION.md): WR-01, the D-04 test never exercises a cold suspend (needs a latched-port cold case); IN-01..04 (unused `useGateRegistration`, stale `useAtomValue` comment, unmarked dep-array omissions, overstated test header).
 
 ## Session Continuity
 
-Last session: 2026-11-08T05:29:02.110Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-11-08
+Stopped at: Phase 05 complete, ready to execute Phase 06
 Resume file: None

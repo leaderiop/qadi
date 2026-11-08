@@ -18,7 +18,7 @@ ARCH ticket with its own ADR, CCR and changeset, and each ends with `pnpm check:
 - [x] **Phase 2: One port read** - Give the span projection one home on the port description and send every port read through one body (ARCH-47) (completed 2026-11-08)
 - [x] **Phase 3: Audit archive facts** - Use one module for the archive's rules, shared by writer and reader (ARCH-48) (completed 2026-11-08)
 - [x] **Phase 4: Gate instrumentation hook** - Resolve the writer once and use one `useGates` hook for every gate kind (ARCH-49) (completed 2026-11-08)
-- [ ] **Phase 5: Decision log over HTTP** - Use one encoder and one refusal policy for both stream and backlog (ARCH-50)
+- [x] **Phase 5: Decision log over HTTP** - Use one encoder and one refusal policy for both stream and backlog (ARCH-50) (completed 2026-11-08)
 - [ ] **Phase 6: Dehydration in the engine** - Add `dehydrateWith` beside `hydrateWith`; both directions get one owner (ARCH-51)
 - [ ] **Phase 7: One port route address** - Server and client share one address and one status contract (ARCH-52)
 - [ ] **Phase 8: Port serving from the registry** - Derive the serving tables from descriptions behind an ADR-094 checkpoint, and remove pass-through enumerations (ARCH-53)
@@ -100,13 +100,13 @@ Plans:
 ### Phase 5: Decision log over HTTP
 **Goal**: The HTTP side of the decision log encodes and reports refusals in one module, for both SSE and JSON.
 **Depends on**: Phase 1 (both phases touch DecisionStreamRoute.ts)
-**Requirements**: LOGH-01, LOGH-02, LOGH-03, LOGH-04, XC-01..05
+**Requirements**: LOGH-01, LOGH-02, LOGH-03, LOGH-04, XC-01, XC-02, XC-03, XC-04, XC-05
 **Success Criteria** (what must be TRUE):
   1. One `reportRefused` exists in `packages/http/src`.
   2. DecisionBacklogRoute imports nothing from DecisionStreamRoute.
   3. One table-driven test covers refusal in both framings.
   4. `pnpm check:pr` is green, and CCR-QD-389 and a changeset are recorded (ADR-QD-112 if a decision is made).
-**Plans**: 2/2 plans executed
+**Plans**: 2/2 plans complete
 
 Plans:
 - [x] 05-01 (W1): Package-private `DecisionLogHttp.ts` (one `reportRefused`, shared encode-or-report, `frame`); both routes go through it
@@ -190,7 +190,7 @@ Plans:
 | 2. One port read | 4/4 | Complete    | 2026-11-08 |
 | 3. Audit archive facts | 3/3 | Complete    | 2026-11-08 |
 | 4. Gate instrumentation hook | 4/4 | Complete    | 2026-11-08 |
-| 5. Decision log over HTTP | 2/2 | In Progress | - |
+| 5. Decision log over HTTP | 2/2 | Complete    | 2026-11-08 |
 | 6. Dehydration in the engine | 0/2 | Planned | - |
 | 7. One port route address | 0/3 | Planned | - |
 | 8. Port serving from the registry | 0/6 | Planned | - |
