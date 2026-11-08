@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-078                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-08                                     |
-> | Status         | Accepted — amends ADR-QD-028, ADR-QD-039, ADR-QD-041, ADR-QD-052; amended 2026-10-06 (version-1 reader removed) |
+> | Status         | Accepted — amends ADR-QD-028, ADR-QD-039, ADR-QD-041, ADR-QD-052; amended 2026-10-06 (version-1 reader removed); amended 2026-11-08 (both directions in the engine) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-10-08): amended — a `Disclosed` seed must agree with its own trace as well as name its own policy (ADR-QD-106, CCR-QD-301)<br>1.1 (2026-10-06): amended — the version-1 payload reader removed in 0.11.0, as scheduled; `DehydratedDecisionsV1`, `DehydratedEntryV1` and `DehydratedPayload` removed (CCR-QD-182)<br>1.0 (2026-10-04): Initial release (CCR-QD-156) |
+> | Change History | 1.3 (2026-11-08): amended — the engine owns both directions of the payload: dehydrateWith beside hydrateWith, private payload builders, no identity wrapper (ARCH-51, CCR-QD-390)<br>1.2 (2026-10-08): amended — a `Disclosed` seed must agree with its own trace as well as name its own policy (ADR-QD-106, CCR-QD-301)<br>1.1 (2026-10-06): amended — the version-1 payload reader removed in 0.11.0, as scheduled; `DehydratedDecisionsV1`, `DehydratedEntryV1` and `DehydratedPayload` removed (CCR-QD-182)<br>1.0 (2026-10-04): Initial release (CCR-QD-156) |
 
 ---
 
@@ -164,6 +164,10 @@ that lands. `@qadi/devtools` reads the same five metrics unchanged; only its
 ## Amendment (2026-10-08, ADR-QD-106)
 
 A `Disclosed` seed must agree with its own trace, not only name its own policy: its verdict, `visibleFields`, `obligations` and (for a denial) `reason` must be the trace root's, as `@qadi/core's` `decisionDisagreement` judges (INV-QD-170). One that is not is dropped as `MalformedEntry`, the reason the root-tag check already used; the drop reasons, `hydrationDropReasons` and the payload version do not change. A `Withheld` seed has no trace, so its fields are the only copy and there is nothing to compare. This is integrity of the payload, not trust in it (ADR-QD-039): a consistently forged seed still seeds, and the client's own answer supersedes it.
+
+## Amendment (2026-11-08, ARCH-51, CCR-QD-390)
+
+**Both directions of the payload have one owner.** `HydrationEngine.ts` gains `dehydrateWith(entries, options)`, the mirror of `hydrateWith`: it takes the subject from the first entry and keeps the entries decided for it, counts every other entry as `ForeignSubject` and hands those to `DehydrateOptions.onDropped` (or to the development default in `DeveloperSignals.ts`), applies `includeTrace` and builds the `version: 2` envelope. `DehydrateOptions` is declared beside `HydrateOptions` and `Hydration.ts` re-exports both by name, so `dehydrateDecisions` is a one-line delegation and the file is the thin public interface the Decision above describes. The per-entry projection and the envelope builder are module-private, so the precondition "already filtered to one subject", until now a doc comment, is a property of the module. The identity wrapper over `hydrationMismatchReporter` is deleted, and `QadiAtoms.ts` resolves the reporter from `DeveloperSignals.ts` once per atom set, as before. Nothing public moves: the signature and output bytes of `dehydrateDecisions` are pinned by tests written before the change, counts still go to the default registry ([ADR-QD-052](./052-hydration-is-counted-where-both-ends-can-see-it.md)), and every console signal still comes from `DeveloperSignals.ts` ([ADR-QD-041](./041-a-mismatch-is-announced.md)). It is an amendment rather than a new ADR because it completes this record's own decision rather than making a new one.
 
 ---
 
