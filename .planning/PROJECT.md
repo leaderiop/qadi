@@ -24,6 +24,7 @@ logged, counted or spanned.
 ### Validated
 
 - ARCH-01 to ARCH-45 (waves 1–4, commits #140, #148, #150), ADR-QD-077 to ADR-QD-107.
+- ✓ ARCH-47 One port read (PORT-01..06): a port's span projection is stated once (`pose`/`disclose`) and every local and served read runs through `readPort` — Phase 2 (ADR-QD-109, CCR-QD-386, INV-QD-244)
 
 ### Active
 
@@ -87,6 +88,8 @@ LOGH, HYD, ADDR, SERV, SINK), plus the cross-cutting group XC.
 | One phase per review finding | Each finding is an independent deepening with its own ADR, CCR and changeset, matching ARCH-NN practice | Accepted |
 | Phase 1 first | It is the only finding with a live defect (a missing `SubjectExtractionFailed` log) | Accepted |
 | Phase 8 amends ADR-QD-094 behind a human checkpoint | Serving facts belong to the port, but ADR-094 kept non-behavioral data out of descriptions | Pending human confirmation |
+| Signature request key includes the requirement (meaning, signerRole) | A store receives the requirement and may filter on it, so the key must be injective over it (INV-QD-043) | Accepted (Phase 2) |
+| Devtools replay fails closed on an unseen signature request | An empty list would let `not(hasSignature)` show an allow the real store might not give | Accepted (Phase 2, WR-04); the other four ports undecided |
 
 ---
-*Last updated: 2026-11-08 after the architecture review*
+*Last updated: 2026-11-08 after Phase 2*

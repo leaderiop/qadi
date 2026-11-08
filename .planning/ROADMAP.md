@@ -15,7 +15,7 @@ ARCH ticket with its own ADR, CCR and changeset, and each ends with `pnpm check:
 - Decimal phases (2.1, 2.2): urgent insertions (marked INSERTED)
 
 - [ ] **Phase 1: HTTP request enforcement** - Put the whole enforcement chain behind one module and fix the missing log on unguarded port routes (ARCH-46)
-- [ ] **Phase 2: One port read** - Give the span projection one home on the port description and send every port read through one body (ARCH-47)
+- [x] **Phase 2: One port read** - Give the span projection one home on the port description and send every port read through one body (ARCH-47) (completed 2026-11-08)
 - [ ] **Phase 3: Audit archive facts** - Use one module for the archive's rules, shared by writer and reader (ARCH-48)
 - [ ] **Phase 4: Gate instrumentation hook** - Resolve the writer once and use one `useGates` hook for every gate kind (ARCH-49)
 - [ ] **Phase 5: Decision log over HTTP** - Use one encoder and one refusal policy for both stream and backlog (ARCH-50)
@@ -55,7 +55,7 @@ Plans:
   3. `PortAccess.ts` has one generic read body, and each `ask*` contains only argument shaping and its own validation.
   4. The traced span names from AGENTS.md §5 are unchanged, and UNTRACED_BUDGET is unchanged.
   5. `pnpm check:pr` is green, and ADR-QD-109, CCR-QD-386 and a changeset are recorded.
-**Plans**: 4/4 plans executed
+**Plans**: 4/4 plans complete
 
 Plans:
 - [x] 02-01 (W1): `attributes.pose` beside `disclose` on every port; one plain `readPort` body; per-port local-equals-served span table; fixes the served-read synchronous-throw Die
@@ -187,7 +187,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. HTTP request enforcement | 5/5 | In Progress | - |
-| 2. One port read | 4/4 | In Progress | - |
+| 2. One port read | 4/4 | Complete    | 2026-11-08 |
 | 3. Audit archive facts | 0/3 | Planned | - |
 | 4. Gate instrumentation hook | 0/4 | Planned | - |
 | 5. Decision log over HTTP | 0/2 | Planned | - |
