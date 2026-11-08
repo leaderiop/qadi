@@ -1,5 +1,7 @@
 ---
-"@qadi/audit": patch
+"@qadi/audit": minor
 ---
 
-The archive's rules are computed once. `archiveAuditTrail` and `readAuditArchive` now share one internal computation of an archive's order (sequenced entries by number, then unsequenced ones in the order given), its `sequenceIntegrityVerified` claim (at least two sequenced entries) and its first sequence gap or duplicate, so the reader cannot drift from the writer. There is no behavior change. The same bundles are written and read. Every `ArchiveRefusal` and its payload is unchanged. `verifySequenceIntegrity` and `SequenceIntegrityError` keep their names, signature and `_tag` (ARCH-48, ADR-QD-110).
+The archive's rules are computed once. `archiveAuditTrail` and `readAuditArchive` now share one internal computation of an archive's order (sequenced entries by number, then unsequenced ones in the order given), its `sequenceIntegrityVerified` claim (at least two sequenced entries) and its first sequence gap or duplicate, so the reader cannot drift from the writer. The same bundles are written and read, and every `ArchiveRefusal` and its payload is unchanged (ARCH-48, ADR-QD-110).
+
+`verifySequenceIntegrity` and `archiveAuditTrail` now fail with the new `SequenceNumberInvalid` (`index`, `sequenceNumber`) when a `sequenceNumber` is not a safe integer, before looking for a gap or duplicate. Before, the writer archived `1.5` or `2 ** 53` with `sequenceIntegrityVerified: true`, and `readAuditArchive` refused that bundle as `EntryNotDecodable`; a duplicate past `2 ** 53` also passed the check. Code that reads `expectedSequence` from the failure should narrow on `_tag === "SequenceIntegrityError"` first.

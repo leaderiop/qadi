@@ -41,6 +41,13 @@ reader accepts what the writer writes.
 - `SequenceBreak.ts` is removed. `SequenceIntegrity.ts` re-exports `verifySequenceIntegrity` and
   `SequenceIntegrityError`, with names, signature, `_tag` and span unchanged.
 - `ArchiveRefusal` and every payload are unchanged (ARCH-38, CCR-QD-230).
+- The facts also state the sequence-number domain: a safe integer, through the same `Schema.Int` the
+  `AuditEntry` codec reads `sequenceNumber` with. `archiveFacts` reports the first number outside it as
+  `invalidSequenceNumber`, and `verifiedArchiveFacts` fails `SequenceNumberInvalid` (`index`,
+  `sequenceNumber`) before the break. Code review found the writer archiving `1.5, 2.5` or
+  `2 ** 53, 2 ** 53` with a verified claim that the reader then refused as `EntryNotDecodable`
+  (WR-01), which made BEH-QD-254's "the reader accepts every bundle the writer writes" false.
+  `SequenceNumberInvalid` is public, re-exported through `SequenceIntegrity.ts` with the other two.
 
 ### Decisions taken (ARCH-48)
 
@@ -52,18 +59,25 @@ reader accepts what the writer writes.
 | D-48-d | One claim |
 | D-48-e | The refusal vocabulary is unchanged |
 | D-48-f | The agreement is pinned by properties written before the refactor |
+| D-48-g | The writer refuses a sequence number the reader cannot decode, rather than the spec excusing it |
 
 ## Consequences
 
-- No public API change (a patch).
+- One public addition, `SequenceNumberInvalid`. It widens the failure of `verifySequenceIntegrity` and
+  `archiveAuditTrail`, so a caller that reads `expectedSequence` from that failure now narrows on
+  `_tag` first (a minor bump for `@qadi/audit`). A number the writer refused before still fails; one it
+  accepted and the reader refused now fails at the writer.
 - `NotInSequenceOrder.index` keeps its meaning.
 - On a verified bundle the reader computes a sorted order it does not use, at O(n log n) like the writer.
 - New tests: `ArchiveRoundTrip.test.ts` (round trip; each refusal on its tampering; reorderings refused
-  at the first descent; writer and reader agree on the break) and `ArchiveFacts.test.ts`.
+  at the first descent; writer and reader agree on the break; over the whole `number` domain the writer
+  refuses what the reader would) and `ArchiveFacts.test.ts`.
 - INV-QD-054's Source moves to `ArchiveFacts.ts`.
-- A scoped mutation run over `ArchiveFacts.ts`, `AuditArchive.ts` and `SequenceIntegrity.ts` ended with
-  97 killed and 1 survivor, against 3 before the change. The survivor is the `Malformed` message
-  literal in the reader, which this change does not touch. `ArchiveFacts.ts` itself has none.
+- A scoped mutation run over `ArchiveFacts.ts`, `AuditArchive.ts` and `SequenceIntegrity.ts`
+  (`pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/ArchiveFacts.ts,packages/audit/src/AuditArchive.ts,packages/audit/src/SequenceIntegrity.ts`)
+  ended with 117 killed and 1 survivor, against 3 survivors before the change. The survivor is the
+  `Malformed` message literal in the reader, which this change does not touch. `ArchiveFacts.ts` itself
+  has none.
 - The "gap-and-duplicate, not tamper-evidence" disclaimer in INV-QD-054 and `SequenceIntegrity.ts` is
   unchanged: nothing here hashes an entry.
 
@@ -80,6 +94,11 @@ payload D-05 keeps.
 each module imports the other, an import cycle `pnpm circular` refuses.
 
 **A CCR-only record.** Rejected because three normative documents name where the rule lives.
+
+**Scope BEH-QD-254's agreement to safe-integer sequence numbers instead of refusing at the writer.**
+That keeps the surface unchanged, but it writes the drift this decision exists to remove into the
+spec: the writer would still claim a verified sequence for a bundle the reader refuses, and the public
+check would still pass a duplicate past `2 ** 53`.
 
 ## See also
 

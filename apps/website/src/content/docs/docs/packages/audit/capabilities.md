@@ -113,7 +113,10 @@ ignored: sequencing is opt-in, assigned only by the caller's own store, never
 by `@qadi/audit` itself. This is gap-and-duplicate detection, not cryptographic
 tamper-evidence: there is no per-entry hash and nothing links one entry to the
 next, so an attacker able to modify stored rows can renumber them and defeat
-this check entirely.
+this check entirely. A `sequenceNumber` that is not a safe integer (`1.5`,
+`2 ** 53`, `Infinity`) fails `SequenceNumberInvalid` first, naming the entry's
+`index`: such a number cannot be stored and read back, and past `2 ** 53` a
+duplicate would not be seen.
 
 **Archival** — `archiveAuditTrail` sorts entries by `sequenceNumber`, stably,
 before setting `metadata.sequenceIntegrityVerified: true`. Entries with no

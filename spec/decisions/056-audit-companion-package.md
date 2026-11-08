@@ -414,4 +414,6 @@ The archive's order, claim and sequence-break rules are computed once, by `archi
 `ArchiveFacts.ts`, which `archiveAuditTrail` builds from and `readAuditArchive` recomputes
 ([ADR-QD-110](110-an-archives-facts-are-computed-once.md)). `SequenceIntegrity.ts`, named under
 "Retention and archival" above, now re-exports `verifySequenceIntegrity` and `SequenceIntegrityError`
-from it. Names, signature, `_tag` and span are unchanged, and so is every `ArchiveRefusal`.
+from it. Names, signature, `_tag` and span are unchanged, and so is every `ArchiveRefusal`. It also
+re-exports the new `SequenceNumberInvalid`: the check and `archiveAuditTrail` refuse a
+`sequenceNumber` that is not a safe integer, which the reader could never decode.
