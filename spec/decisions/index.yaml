@@ -370,3 +370,7 @@ entries:
     file: "111-a-gate-writer-is-resolved-once-by-its-provider.md"
     title: "A gate's writer is resolved once, by its provider, and one hook serves every gate kind"
     status: "Accepted — amends ADR-QD-053, ADR-QD-080"
+  - id: "ADR-QD-114"
+    file: "114-a-port-states-what-it-serves.md"
+    title: "A port states what it serves"
+    status: "Accepted — amends ADR-QD-094, ADR-QD-107"
