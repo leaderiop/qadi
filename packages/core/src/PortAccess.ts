@@ -157,9 +157,9 @@ const countFor: (interpreter: PortInterpreter) => (port: PortName) => Effect.Eff
  * The one body of every port read, local or served (ADR-QD-109).
  *
  * In order: annotate the question the description's `pose` states for this
- * request, count the call, ask the port, turn a defect into the port's own
- * typed error, annotate the answer the description's `disclose` states, and
- * return the answer. A plain function and not an `Effect.fn`, so it opens **no**
+ * request, count the call, ask the port, annotate the answer the description's
+ * `disclose` states, and return the answer; a defect in the call or in
+ * `disclose` becomes the port's own typed error. A plain function and not an `Effect.fn`, so it opens **no**
  * span of its own: each caller owns the one span its read is named for, the
  * `ask*` reads through their `Effect.fn(<port>.span)` and `servePortRead`
  * through `Effect.withSpan(d.span)` (ADR-QD-051, AGENTS.md §5, `UNTRACED_BUDGET`
@@ -174,7 +174,10 @@ const countFor: (interpreter: PortInterpreter) => (port: PortName) => Effect.Eff
  * The invocation is `Effect.flatMap(d.service, …)` for that second reason: the
  * method is called *inside* the effect, so a synchronous throw is a defect
  * `catchPortDefect` sees, as it did for the `Service.use` accessors the local
- * reads called.
+ * reads called. `disclose` runs in an `Effect.tap` under the same mapping, for
+ * the same reason: it reads the store's answer, and a malformed one must not
+ * escape as a defect. `pose` reads only the request the read itself built, so it
+ * stays outside.
  */
 const readPort = <K extends PortName>(
   d: DescriptionOf<K>,
@@ -186,11 +189,15 @@ const readPort = <K extends PortName>(
     // would otherwise settle on one port's fields.
     yield* annotateQuestion<SpanFields>(d, { ...d.attributes.pose(args), interpreter });
     yield* countFor(interpreter)(d.port);
-    const answer = yield* Effect.flatMap(d.service, (shape) => d.invoke(shape)(...args)).pipe(
+    return yield* Effect.flatMap(d.service, (shape) => d.invoke(shape)(...args)).pipe(
+      // Inside the defect mapping: `disclose` reads what the store returned (the
+      // signature port's matches its list against the requirement), so a store
+      // that answers something `disclose` cannot read throws here, and that is
+      // the port's own typed error, not a defect past `answerRemotely`'s "never
+      // fails" (WR-01, ADR-QD-109).
+      Effect.tap((answer) => annotateAnswer<SpanFields>(d, d.attributes.disclose(answer, args))),
       catchPortDefect((cause) => d.defect(args, cause)),
     );
-    yield* annotateAnswer<SpanFields>(d, d.attributes.disclose(answer, args));
-    return answer;
   });
 
 // ---------------------------------------------------------------------------

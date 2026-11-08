@@ -34,7 +34,7 @@ import { answerRemotely, askRemotely, remotePorts, servingFor } from "../src/Por
 import type { PortServing, PortServingOf } from "../src/PortRemote.ts";
 import { RemotePortFailure } from "../src/PortWire.ts";
 import type { PortWireReply } from "../src/PortWire.ts";
-import { askSignature } from "../src/PortAccess.ts";
+import { askSignature, servePortRead } from "../src/PortAccess.ts";
 import { PORTS, portsLayer, tabulatePorts } from "../src/Ports.ts";
 import type { AnswerOf, ArgsOf, DescriptionOf, PortServices, PortTypes, ServiceOf } from "../src/Ports.ts";
 import { RelationshipResolverNever } from "../src/RelationshipResolver.ts";
@@ -322,6 +322,45 @@ describe("a signature question asked remotely (PORT-04)", () => {
       const found = signatureSpans(spans);
       assert.strictEqual(found.length, 2);
       for (const attributes of found) assert.strictEqual(attributes["qadi.matched"], false);
+    }));
+});
+
+/**
+ * A store that answers something the signature span cannot read is a typed
+ * failure on both sides of the wire, never a defect (WR-01, ADR-QD-109): the
+ * span's `disclose` matches the list against the requirement, so it throws on a
+ * malformed one, and `answerRemotely`'s "never fails" has to hold regardless.
+ */
+describe("a malformed signature answer from a store is never a defect (WR-01)", () => {
+  const d = PORTS.SignatureHistory;
+  // `JSON.parse` returns `any`, which is what an untyped adapter hands back.
+  const malformed = PortReply.answer<AnswerOf<PortTypes["SignatureHistory"]>>(JSON.parse("[null]"));
+  const store = scriptedPort(d, () => malformed).layer;
+  const query = { subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" };
+
+  it.effect("a served read fails with the port's typed error", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(servePortRead(d, query).pipe(Effect.provide(store)));
+      assert.isTrue(Result.isFailure(result));
+      if (Result.isFailure(result)) assert.strictEqual(result.failure._tag, "SignatureHistoryUnavailable");
+    }));
+
+  it.effect("a local read fails with the port's typed error", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        askSignature(alice, "approved", "manager", "Resource", "doc-1").pipe(Effect.provide(store)),
+      );
+      assert.isTrue(Result.isFailure(result));
+      if (Result.isFailure(result)) assert.strictEqual(result.failure._tag, "SignatureHistoryUnavailable");
+    }));
+
+  it.effect("answerRemotely replies Unavailable and does not die", () =>
+    Effect.gen(function* () {
+      const question = Result.getOrThrow(d.wire.encodeQuestion([query]));
+      const reply = yield* answerRemotely(d, { signatures: "own-records" })(overTheWire(question)).pipe(
+        Effect.provide(Layer.merge(store, currentSubjectLayer(alice))),
+      );
+      assert.deepStrictEqual(reply, { _tag: "Unavailable" });
     }));
 });
 

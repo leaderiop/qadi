@@ -5,12 +5,12 @@
 > | Property       | Value                                                                    |
 > | -------------- | ------------------------------------------------------------------------ |
 > | Document ID    | QADI-ADR-109                                                             |
-> | Revision       | 1.0                                                                      |
+> | Revision       | 1.1                                                                      |
 > | Effective Date | 2026-11-08                                                               |
 > | Status         | Accepted — amends ADR-QD-077, ADR-QD-094, ADR-QD-107, ADR-QD-058         |
 > | Author         | Qadi Engineering                                                         |
 > | Classification | Architecture Decision Record                                             |
-> | Change History | 1.0 (2026-11-08): Initial (ARCH-47, CCR-QD-386)                          |
+> | Change History | 1.1 (2026-11-08): Decision 3 — `disclose` runs under the defect mapping, so a malformed store answer is the port's typed error, never a defect (code review WR-01)<br>1.0 (2026-11-08): Initial (ARCH-47, CCR-QD-386)                          |
 
 ---
 
@@ -64,8 +64,11 @@ own).
 3. **One read body.** `readPort` in `PortAccess.ts` is a plain function that opens no span. It
    annotates the question (`pose` plus `qadi.interpreter`), counts in the interpreter's own sibling
    metric (a three-arm match over `evaluate`, `toPredicate` and `remote`), invokes the port inside the
-   effect `catchPortDefect` wraps, converts a defect to the port's typed error, and annotates the
-   answer through `disclose`. `servePortRead` is `readPort` with interpreter `"remote"` under the
+   effect `catchPortDefect` wraps, annotates the answer through `disclose` in an `Effect.tap` under
+   the same mapping, and converts a defect in either to the port's typed error. `disclose` is
+   inside because it reads what the store returned: the signature port's matches the list against
+   the requirement, so a store that answers a malformed list would otherwise make a served read die
+   past `answerRemotely`'s "never fails" (code review WR-01). `servePortRead` is `readPort` with interpreter `"remote"` under the
    port's span. Each `ask*` keeps only what is its own: argument shaping, `requireResourceId` with its
    annotate-before-validate order, the relationship depth clamp, and the signature match. The six
    span names and `UNTRACED_BUDGET` are unchanged, because the named `Effect.fn` that owns a span
