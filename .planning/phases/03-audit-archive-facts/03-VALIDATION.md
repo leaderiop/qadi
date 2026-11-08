@@ -2,7 +2,7 @@
 phase: "03"
 slug: "audit-archive-facts"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-status: draft
+status: validated
 nyquist_compliant: true
 wave_0_complete: true
 created: "2026-11-08"
@@ -39,14 +39,14 @@ created: "2026-11-08"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 03-01-01 | 01 | 1 | ARC-04 | T-03-01 | The reader accepts what the writer writes, end to end through JSON | property (tracer) | `pnpm vitest run packages/audit/test/ArchiveRoundTrip.test.ts` | ❌ W1 creates | ⬜ pending |
-| 03-01-02 | 01 | 1 | ARC-04 | T-03-01 | Every `ArchiveRefusal` fires on its own tampering; reorderings refused at the first descent; the writer and reader agree on the break | property | `pnpm vitest run packages/audit/test/ArchiveRoundTrip.test.ts packages/audit/test/AuditArchive.test.ts` | ❌ W1 creates | ⬜ pending |
-| 03-02-01 | 02 | 2 | ARC-01, ARC-02 | T-03-02 | The reader's order and claim come from the writer's facts | unit + property | `pnpm vitest run packages/audit/test/ArchiveFacts.test.ts packages/audit/test/ArchiveRoundTrip.test.ts packages/audit/test/AuditArchive.test.ts` plus the one-statement gates | ❌ W2 creates | ⬜ pending |
-| 03-02-02 | 02 | 2 | ARC-03, XC-03 | T-03-03, T-03-04 | Span name kept; no new public export | unit + gate | `pnpm vitest run packages/audit && pnpm spec:api && pnpm circular` | ✅ | ⬜ pending |
-| 03-02-03 | 02 | 2 | XC-05 | T-03-02 | Mutation survivors at or below the baseline of 3 | mutation | `pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/ArchiveFacts.ts,packages/audit/src/AuditArchive.ts,packages/audit/src/SequenceIntegrity.ts` plus the survivor count | ✅ | ⬜ pending |
-| 03-03-01 | 03 | 3 | XC-02, XC-03 | T-03-05 | Spec keeps the "not tamper-evidence" wording | doc gate | `node scripts/spec-revise.mjs --check && pnpm spec:api` | ✅ | ⬜ pending |
-| 03-03-02 | 03 | 3 | XC-02 | T-03-06 | Registries, links and revisions agree | doc gate | `pnpm spec:verify:strict` | ✅ | ⬜ pending |
-| 03-03-03 | 03 | 3 | XC-01, XC-04, XC-05 | all | The whole merge gate minus mutation | gate | `pnpm check:pr` | ✅ | ⬜ pending |
+| 03-01-01 | 01 | 1 | ARC-04 | T-03-01 | The reader accepts what the writer writes, end to end through JSON | property (tracer) | `pnpm vitest run packages/audit/test/ArchiveRoundTrip.test.ts` | ✅ | ✅ green |
+| 03-01-02 | 01 | 1 | ARC-04 | T-03-01 | Every `ArchiveRefusal` fires on its own tampering; reorderings refused at the first descent; the writer and reader agree on the break | property | `pnpm vitest run packages/audit/test/ArchiveRoundTrip.test.ts packages/audit/test/AuditArchive.test.ts` | ✅ | ✅ green |
+| 03-02-01 | 02 | 2 | ARC-01, ARC-02 | T-03-02 | The reader's order and claim come from the writer's facts | unit + property | `pnpm vitest run packages/audit/test/ArchiveFacts.test.ts packages/audit/test/ArchiveRoundTrip.test.ts packages/audit/test/AuditArchive.test.ts` plus the one-statement gates | ✅ | ✅ green |
+| 03-02-02 | 02 | 2 | ARC-03, XC-03 | T-03-03, T-03-04 | Span name kept; no new public export | unit + gate | `pnpm vitest run packages/audit && pnpm spec:api && pnpm circular` | ✅ | ✅ green |
+| 03-02-03 | 02 | 2 | XC-05 | T-03-02 | Mutation survivors at or below the baseline of 3 | mutation | `pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/ArchiveFacts.ts,packages/audit/src/AuditArchive.ts,packages/audit/src/SequenceIntegrity.ts` plus the survivor count | ✅ | ✅ green |
+| 03-03-01 | 03 | 3 | XC-02, XC-03 | T-03-05 | Spec keeps the "not tamper-evidence" wording | doc gate | `node scripts/spec-revise.mjs --check && pnpm spec:api` | ✅ | ✅ green |
+| 03-03-02 | 03 | 3 | XC-02 | T-03-06 | Registries, links and revisions agree | doc gate | `pnpm spec:verify:strict` | ✅ | ✅ green |
+| 03-03-03 | 03 | 3 | XC-01, XC-04, XC-05 | all | The whole merge gate minus mutation | gate | `pnpm check:pr` | ✅ | ⚠️ flaky — steps 1-12 green; step 13 `pnpm example` needs sudo for `playwright install --with-deps` (local env); remaining steps run by hand green, one e2e flake passed on rerun |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -60,7 +60,7 @@ Existing infrastructure covers all phase requirements: vitest, `@effect/vitest`,
 
 ## Manual-Only Verifications
 
-All phase behaviors have automated verification.
+All phase behaviors have automated verification. One environment confirmation remains: `pnpm check:pr` as a single uninterrupted command, in CI or a shell with sudo (03-03-03 — local run stopped at `pnpm example`'s browser install, not at a test).
 
 ---
 
@@ -73,4 +73,12 @@ All phase behaviors have automated verification.
 - [x] Feedback latency under 10 s for per-task checks (except the scoped Stryker run and `pnpm check:pr`, by nature)
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-11-08 (03-02-03: Stryker 97 killed / 1 survived, baseline 3)
+
+## Validation Audit 2026-11-08
+
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
