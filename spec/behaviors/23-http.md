@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-23                                    |
-> | Revision       | 1.10                                            |
-> | Effective Date | 2026-10-08                                     |
+> | Revision       | 1.11                                            |
+> | Effective Date | 2026-11-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.10 (2026-10-08): BEH-QD-328 — a guarded `HttpApi` is registered by the layer that guards it (`guardApi`); BEH-QD-180 and BEH-QD-320 name `guardApi` in place of `registerApi`; `RequirePermissionLive`, `registerApi` and `guardRoute` leave the surface; `authorizeRequest` registers nothing (ARCH-36, CCR-QD-311)<br>1.9 (2026-10-08): states that an HTTP-guarded route passes no obligation handler (ARCH-30, CCR-QD-220)<br>1.8 (2026-10-08): BEH-QD-321 — a denial is logged once by the step that turned it into a response (the edge, or the surface for a handler's own `guard`), annotated `qadi.denial_site`; `guardRoute`'s handler error channel is `HttpEnforcementFailure` (ARCH-45, CCR-QD-265)<br>1.7 (2026-10-07): BEH-QD-321 — every `@qadi/http` surface authorizes through `authorizeRequest`; `toResponse` answers all twelve tags and `handleEnforcementErrors`/`subjectExtractionFailedResponse` are removed; BEH-QD-177's prose follows (ADR-QD-036 Rev 1.5, CCR-QD-197)<br>1.6 (2026-10-07): BEH-QD-320 — an endpoint's access is read once, from the endpoint, by `RequirePermission` and `registerApi` through `endpointAccess`; a `RequiredPermission` or `PublicEndpoint` on a group or API is refused by both (`MisplacedAccessDeclaration`); BEH-QD-180's `registerApi` signature corrected and it lists an endpoint only if the middleware enforces it (CCR-QD-196)<br>1.5 (2026-10-04): BEH-QD-177 gains a derived-status requirement and `ENFORCEMENT_ERROR_WIRE`, the one table every status, wire schema and `RequirePermission` error list derives from; BEH-QD-260 corrected — the two tag-only bodies were never empty, and the hand-converted arms are one in-channel projection; BEH-QD-263's list is derived (ADR-QD-081, CCR-QD-155)<br>1.4 (2026-09-14): BEH-QD-263 — a generated client's static error type for a `RequirePermission`-guarded endpoint now includes every enforcement outcome automatically, via `requiredForClient`/`clientError` and the new generic `passthroughClientLayer` helper, rather than a per-endpoint hand-declared `error:` subset; the disclosed `PublicEndpoint` over-approximation limitation is recorded alongside it (ADR-QD-075, CCR-QD-151)<br>1.3 (2026-09-08): BEH-QD-260 — the `HttpApiMiddleware` adapter's response body now carries real fields for the nine `EnforcementError` tags that are not a denial, declared through `httpApiStatus`-annotated schemas rather than produced by `toResponse`'s hand table; the bare-`HttpRouter` adapter is unchanged (ADR-QD-072, CCR-QD-141)<br>1.2 (2026-09-07): BEH-QD-177's status table was missing two of the eleven mappings `enforcementErrorTags` actually covers — `CustomPredicateError` and `SignatureHistoryUnavailable`, both 502, added to the row (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-180 — `/__permissions` is guarded by default; the open question closed (CCR-QD-062)<br>1.0 (2026-08-23): Initial release (CCR-QD-059) |
+> | Change History | 1.11 (2026-11-08): BEH-QD-335 and BEH-QD-336 added — every request path enforces and logs through one module, and an unguarded port route logs a subject-extraction failure; BEH-QD-321 amended — the surfaces authorize through the request-enforcement module (`portRoutes` and `portRoutesUnguarded` named), whose handler step logs a handler-raised denial (ARCH-46, ADR-QD-108, CCR-QD-385)<br>1.10 (2026-10-08): BEH-QD-328 — a guarded `HttpApi` is registered by the layer that guards it (`guardApi`); BEH-QD-180 and BEH-QD-320 name `guardApi` in place of `registerApi`; `RequirePermissionLive`, `registerApi` and `guardRoute` leave the surface; `authorizeRequest` registers nothing (ARCH-36, CCR-QD-311)<br>1.9 (2026-10-08): states that an HTTP-guarded route passes no obligation handler (ARCH-30, CCR-QD-220)<br>1.8 (2026-10-08): BEH-QD-321 — a denial is logged once by the step that turned it into a response (the edge, or the surface for a handler's own `guard`), annotated `qadi.denial_site`; `guardRoute`'s handler error channel is `HttpEnforcementFailure` (ARCH-45, CCR-QD-265)<br>1.7 (2026-10-07): BEH-QD-321 — every `@qadi/http` surface authorizes through `authorizeRequest`; `toResponse` answers all twelve tags and `handleEnforcementErrors`/`subjectExtractionFailedResponse` are removed; BEH-QD-177's prose follows (ADR-QD-036 Rev 1.5, CCR-QD-197)<br>1.6 (2026-10-07): BEH-QD-320 — an endpoint's access is read once, from the endpoint, by `RequirePermission` and `registerApi` through `endpointAccess`; a `RequiredPermission` or `PublicEndpoint` on a group or API is refused by both (`MisplacedAccessDeclaration`); BEH-QD-180's `registerApi` signature corrected and it lists an endpoint only if the middleware enforces it (CCR-QD-196)<br>1.5 (2026-10-04): BEH-QD-177 gains a derived-status requirement and `ENFORCEMENT_ERROR_WIRE`, the one table every status, wire schema and `RequirePermission` error list derives from; BEH-QD-260 corrected — the two tag-only bodies were never empty, and the hand-converted arms are one in-channel projection; BEH-QD-263's list is derived (ADR-QD-081, CCR-QD-155)<br>1.4 (2026-09-14): BEH-QD-263 — a generated client's static error type for a `RequirePermission`-guarded endpoint now includes every enforcement outcome automatically, via `requiredForClient`/`clientError` and the new generic `passthroughClientLayer` helper, rather than a per-endpoint hand-declared `error:` subset; the disclosed `PublicEndpoint` over-approximation limitation is recorded alongside it (ADR-QD-075, CCR-QD-151)<br>1.3 (2026-09-08): BEH-QD-260 — the `HttpApiMiddleware` adapter's response body now carries real fields for the nine `EnforcementError` tags that are not a denial, declared through `httpApiStatus`-annotated schemas rather than produced by `toResponse`'s hand table; the bare-`HttpRouter` adapter is unchanged (ADR-QD-072, CCR-QD-141)<br>1.2 (2026-09-07): BEH-QD-177's status table was missing two of the eleven mappings `enforcementErrorTags` actually covers — `CustomPredicateError` and `SignatureHistoryUnavailable`, both 502, added to the row (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-180 — `/__permissions` is guarded by default; the open question closed (CCR-QD-062)<br>1.0 (2026-08-23): Initial release (CCR-QD-059) |
 
 _Previous: [22 — The Promise Facade](./22-promise-facade.md)_
 
@@ -529,10 +529,12 @@ export const authorizeRequest: <P extends Permission, A extends Resource, LR = n
 ```
 
 ```
-REQUIREMENT: Every `@qadi/http` surface (`RequirePermission`, `addGuardedRoute`
-             and the decision stream's recheck) MUST authorize through
-             `authorizeRequest`; none MAY extract a subject, load a resource or
-             call `guard` for the edge check itself.
+REQUIREMENT: Every `@qadi/http` surface (`RequirePermission`, `addGuardedRoute`,
+             `portRoutes`, `portRoutesUnguarded` and the decision stream's
+             recheck) MUST authorize through the request-enforcement module
+             ([BEH-QD-335](#beh-qd-335-a-request-is-enforced-through-one-module)),
+             whose edge step is `authorizeRequest`; none MAY extract a subject,
+             load a resource or call `guard` for the edge check itself.
 ```
 
 ```
@@ -545,7 +547,8 @@ REQUIREMENT: A denial (`AccessDenied`, `UndischargedObligation`) and a
              `SubjectExtractionFailed` MUST each be logged exactly once, by the
              step that turned it into a response: `authorizeRequest` for the
              edge check, through `logDenial` and `logSubjectExtractionFailed`,
-             and the surface (`RequirePermission`, `addGuardedRoute`) for a denial a
+             and the module's handler step (for `RequirePermission`,
+             `addGuardedRoute` and the port routes) for a denial a
              handler's own `guard` raises,
              through `logDenial`. Each denial line MUST carry the log annotation
              `qadi.denial_site`: `"edge"` or `"handler"`. A denial MUST NOT be
@@ -554,7 +557,7 @@ REQUIREMENT: A denial (`AccessDenied`, `UndischargedObligation`) and a
 
 ```
 REQUIREMENT: The handler MUST NOT be invoked unless `authorizeRequest`
-             allowed. The surface runs it with the returned `subject` as
+             allowed. The module runs it with the returned `subject` as
              `CurrentSubject` and MUST use the returned `resource`, never load
              it again.
 ```
@@ -583,11 +586,11 @@ built; the two surfaces this package ships register as a consequence of guarding
 Under `RequirePermission` the projection and the captured standing services still
 wrap the handler: a defense-in-depth `guard` inside a handler finds the services,
 and an enforcement failure it raises is projected to its redacted wire value. A
-denial it raises is logged by the surface, on the handler's effect alone and
+denial it raises is logged by the module's handler step, on the handler's effect alone and
 annotated `"handler"`, so the edge's own denial (already logged, annotated
 `"edge"`) is never logged twice. A bare route's handler may let that failure
 through: its error channel is the closed `HttpEnforcementFailure`, and the route
-answers it with `toResponse` and logs a denial the same way. (ARCH-19 D-19-d had
+answers it with `toResponse` and logs a denial the same way, because both go through the one handler step. (ARCH-19 D-19-d had
 left a handler-raised denial unlogged, which contradicted the `logDenial` row in
 `spec/overview.md`; ARCH-45 reverses it.)
 `guard` builds its handler eagerly ([ADR-QD-035](../decisions/035-witness-guard-primitive.md));
@@ -663,6 +666,91 @@ failure and a logged 500, like an endpoint that declares neither
 ([ADR-QD-099](../decisions/099-entry-points-are-a-closed-list.md)):
 `guardRoute`'s only distinct capability was enforcing without registering, and
 `authorizeRequest` stays public for surfaces this package does not ship.
+
+## BEH-QD-335: A request is enforced through one module
+
+> **Invariant:** [INV-QD-243](../invariants.md#inv-qd-243-every-qadihttp-request-path-enforces-and-logs-through-one-module), [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial), [INV-QD-032](../invariants.md#inv-qd-032-a-guarded-resource-is-the-evaluated-resource)
+
+```ts
+// Package-private: `packages/http/src/AuthorizeRequest.ts` is not in the barrel.
+// Only `authorizeRequest` and `AuthorizedRequest` are public, through `GuardApi.ts`.
+export type EnforcementProjection<B, E, R> = (error: HttpEnforcementFailure) => Effect<B, E, R>;
+export const answerWithResponse: EnforcementProjection<HttpServerResponse, never, never>;
+export const answerInChannel: EnforcementProjection<never, ProjectedHttpEnforcementFailure, never>;
+export function enforceRequest(access, project, handler): (request: HttpServerRequest) => Effect</* … */>;
+export function enforceSubject(project, handler): (request: HttpServerRequest) => Effect</* … */>;
+export const endpointMemberKey: (group: string, endpoint: string) => EndpointMemberKey;
+```
+
+```
+REQUIREMENT: Every `@qadi/http` surface that extracts a subject (`addGuardedRoute`,
+             `RequirePermission`, `portRoutes`, `portRoutesUnguarded` and the
+             decision stream's recheck) MUST enforce through the
+             request-enforcement module, and MUST NOT extract the subject, tap a
+             denial into the log or catch an enforcement failure itself.
+```
+
+```
+REQUIREMENT: The module's handler step MUST log a handler-raised denial exactly
+             once, annotated `"handler"`, and MUST answer every
+             `HTTP_ENFORCEMENT_TAGS` failure through the projection the caller
+             supplied. A caller supplies a projection and a handler and nothing
+             else; the denial tap and the failure catch exist once.
+```
+
+```
+REQUIREMENT: The subject-only mode MUST extract the subject, MUST log an
+             extraction failure through `logSubjectExtractionFailed`, MUST provide
+             `CurrentSubject` and MUST run the handler. It MUST apply no policy,
+             and MUST NOT run the handler when extraction fails.
+```
+
+```
+REQUIREMENT: The endpoint member key `<group>/<endpoint>` MUST be built by
+             `endpointMemberKey`, the one function both the registrar
+             (`guardApi`) and the middleware's membership check use.
+```
+
+Subject extraction, the edge decision, `CurrentSubject` and the handler-denial step
+were written once per surface, and the copies drifted: `portRoutesUnguarded`
+extracted by hand and logged nothing
+([BEH-QD-336](#beh-qd-336-an-unguarded-port-route-logs-a-subject-extraction-failure)).
+`AuthorizeRequest.ts` is now the request-enforcement module, with two modes: the
+guarded mode runs `authorizeRequest` (the edge step of
+[BEH-QD-321](#beh-qd-321-one-authorization-step-at-the-http-edge)) and then the
+handler step, and the subject-only mode extracts and runs the handler step with no
+policy. The decision stream's recheck runs the guarded mode and answers with its
+own projection, which ends the stream; the module knows nothing about streams.
+Which projections exist is the caller's business: `answerWithResponse` is
+`toResponse`, for a bare route and the port routes, and `answerInChannel` is
+`projectHttpEnforcementFailure`, the in-channel wire value the middleware returns.
+
+The module is package-private (ADR-QD-099); `authorizeRequest` is still the public
+edge step, so no export is added or removed. Which table answers each failure
+(`ENFORCEMENT_ERROR_WIRE`) is unchanged; only who applies it moved (ARCH-46,
+[ADR-QD-108](../decisions/108-a-request-is-enforced-once-through-one-module.md)).
+
+## BEH-QD-336: An unguarded port route logs a subject-extraction failure
+
+> **Invariant:** [INV-QD-243](../invariants.md#inv-qd-243-every-qadihttp-request-path-enforces-and-logs-through-one-module), [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial)
+
+```
+REQUIREMENT: `portRoutesUnguarded` MUST log a `SubjectExtractionFailed` exactly
+             once, through `logSubjectExtractionFailed`, as every guarded path
+             does. It MUST answer it 502 with the tag-only body `toResponse`
+             writes, and MUST NOT read the port.
+```
+
+`portRoutesUnguarded` extracted the subject with `SubjectExtractor.extract(request)`
+and answered `toResponse(extracted.failure)`, so a credential-store outage behind it
+produced a 502 and no log line, where `addGuardedRoute`, `RequirePermission`, the
+guarded `portRoutes` and the decision stream all log it. An operator looking for the
+cause of a run of 502s found nothing. The 2026-11-08 architecture review found it
+(ARCH-46); the route now enforces through the subject-only mode of
+[BEH-QD-335](#beh-qd-335-a-request-is-enforced-through-one-module). The regression
+test is in `packages/http/test/PortRoutes.test.ts` (written red first), and the
+caller × failure table in `packages/http/test/RequestEnforcement.test.ts` holds the
+same cell.
 
 ---
 
