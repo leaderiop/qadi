@@ -252,10 +252,13 @@ export const signatureHistoryPort: PortDescription<
 /**
  * Knows of no signatures, so every `hasSignature` policy denies.
  *
- * The default. Unlike `DecisionHistoryUnknown`, no polarity argument applies
- * here — `hasSignature` has no `hasNotSigned` counterpart the way
- * `HasActed`/`HasNotActed` do, so an empty list denying is unambiguous
- * (INV-QD-007: defaults fail closed). Derived from
+ * The default. `hasSignature` has no `hasNotSigned` counterpart the way
+ * `HasActed`/`HasNotActed` do, so the un-negated leaf denies on an empty list
+ * (INV-QD-007: defaults fail closed). `not(hasSignature(...))` grants on it, as
+ * `not` of any denying leaf does, so a deployment that negates a signature
+ * requirement must wire the port. `@qadi/devtools`' replay does not use this
+ * answer for a request it never captured: that fails with
+ * `SignatureHistoryUnavailable` (INV-QD-043). Derived from
  * {@link signatureHistoryPort}'s `none` (ADR-QD-040).
  */
 export const SignatureHistoryNone: Layer.Layer<SignatureHistory> = nonePort(signatureHistoryPort);

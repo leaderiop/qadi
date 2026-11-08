@@ -26,9 +26,11 @@ import {
   hasCustom,
   hasNotActed,
   hasRelationship,
+  hasSignature,
   not,
   attributeResolverPort,
   customPredicatePort,
+  makeResourceId,
   makeSubject,
   makeSubjectId,
   relationshipResolverFromEdges,
@@ -37,6 +39,8 @@ import {
   PortReply,
   relationshipResolverPort,
   decisionHistoryPort,
+  signatureHistoryFromSignatures,
+  signatureHistoryPort,
   portsLayer,
   forEveryPort,
   mapPorts,
@@ -701,5 +705,100 @@ describe("custom predicate capture", () => {
         source: snapshot(emptyAnswers),
       });
       assert.strictEqual(decisionOf(outcome)._tag, "Deny");
+    }));
+});
+
+describe("replaying a signature request the capture never saw (code review WR-04)", () => {
+  /**
+   * `SignatureHistory`'s key carries the asker's `meaning` and `signerRole`, which a
+   * store receives and answers whatever they say. A what-if that edits either asks a
+   * request the capture never saw, so the replay cannot know what the store would
+   * have said. Answering the empty list would claim "no signatures on file", which
+   * denies `hasSignature` and grants `not(hasSignature)`.
+   */
+  const withSignature = portsLayer({
+    AttributeResolver: attributeResolverFromRecord({}),
+    SignatureHistory: signatureHistoryFromSignatures([
+      { subjectId: "alice", meaning: "approve", resourceId: "doc-1" },
+    ]),
+  });
+
+  const capture = Effect.gen(function* () {
+    const capturer = capturing(withSignature);
+    const liveRun = decisionOf(
+      yield* simulate(hasSignature("approve"), alice, { source: live(capturer.layer) }),
+    );
+    return { liveRun, answers: yield* capturer.answers };
+  });
+
+  it.effect("a captured signature answer still replays exactly", () =>
+    Effect.gen(function* () {
+      const { liveRun, answers } = yield* capture;
+      const replayed = decisionOf(
+        yield* simulate(hasSignature("approve"), alice, { source: snapshot(answers) }),
+      );
+
+      assert.strictEqual(liveRun._tag, "Allow");
+      assert.strictEqual(replayed._tag, "Allow");
+      assert.deepStrictEqual(diffTraces(liveRun.trace, replayed.trace), []);
+
+      const recorded = answers.SignatureHistory.get(
+        signatureHistoryPort.key([
+          { subjectId: makeSubjectId("alice"), resourceId: makeResourceId("doc-1"), meaning: "approve" },
+        ]),
+      );
+      assert.strictEqual(recorded?._tag, "Answered");
+    }));
+
+  it.effect("an edited meaning is an outage, under the node and under not(...)", () =>
+    Effect.gen(function* () {
+      const { answers } = yield* capture;
+      const edited = hasSignature("review");
+
+      // The real store answers every signature on file whatever the requirement
+      // says, so it would have denied `hasSignature("review")` and granted its
+      // negation. The replay must not guess either.
+      for (const policy of [edited, not(edited)]) {
+        const outcome = yield* simulate(policy, alice, { source: snapshot(answers) });
+        assert.strictEqual(outcome._tag, "Failed");
+        if (outcome._tag !== "Failed") return;
+        assert.strictEqual(outcome.error._tag, "SignatureHistoryUnavailable");
+        assert.include(String(outcome.error.cause), "not captured");
+      }
+    }));
+
+  it.effect("an edited signer role is an outage too", () =>
+    Effect.gen(function* () {
+      const { answers } = yield* capture;
+      const outcome = yield* simulate(
+        not(hasSignature("approve", { signerRole: "manager" })),
+        alice,
+        { source: snapshot(answers) },
+      );
+
+      assert.strictEqual(outcome._tag, "Failed");
+    }));
+
+  it.effect("an empty capture fails a signature request instead of denying it", () =>
+    Effect.gen(function* () {
+      const outcome = yield* simulate(hasSignature("approve"), alice, {
+        source: snapshot(emptyAnswers),
+      });
+
+      assert.strictEqual(outcome._tag, "Failed");
+    }));
+
+  it.effect("another port's unseen request still answers its own default", () =>
+    Effect.gen(function* () {
+      // Each decides (a denial), none fails: only SignatureHistory's miss is an outage.
+      for (const policy of [
+        hasAttribute("clearance", gte(1)),
+        hasRelationship("owner"),
+        hasActed("raised"),
+        hasCustom("isOwner"),
+      ]) {
+        const outcome = yield* simulate(policy, alice, { source: snapshot(emptyAnswers) });
+        assert.strictEqual(decisionOf(outcome)._tag, "Deny");
+      }
     }));
 });

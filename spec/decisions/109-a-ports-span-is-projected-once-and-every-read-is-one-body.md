@@ -5,12 +5,12 @@
 > | Property       | Value                                                                    |
 > | -------------- | ------------------------------------------------------------------------ |
 > | Document ID    | QADI-ADR-109                                                             |
-> | Revision       | 1.3                                                                      |
+> | Revision       | 1.4                                                                      |
 > | Effective Date | 2026-11-08                                                               |
 > | Status         | Accepted — amends ADR-QD-077, ADR-QD-094, ADR-QD-107, ADR-QD-058         |
 > | Author         | Qadi Engineering                                                         |
 > | Classification | Architecture Decision Record                                             |
-> | Change History | 1.3 (2026-11-08): Consequences — correct the claim that over-keying can only deny: an unseen requirement replays as an empty list, which `not(hasSignature)` grants, in devtools' what-if (code review WR-03)<br>1.2 (2026-11-08): Alternatives — the annotate-before-validate question is derived from the description's `pose`, not hand-written in the three resource-scoped reads (code review WR-02)<br>1.1 (2026-11-08): Decision 3 — `disclose` runs under the defect mapping, so a malformed store answer is the port's typed error, never a defect (code review WR-01)<br>1.0 (2026-11-08): Initial (ARCH-47, CCR-QD-386)                          |
+> | Change History | 1.4 (2026-11-08): Consequences — an unseen signature requirement replays as `SignatureHistoryUnavailable`, not an empty list; the replay fails closed rather than accepting the regression (code review WR-04)<br>1.3 (2026-11-08): Consequences — correct the claim that over-keying can only deny: an unseen requirement replays as an empty list, which `not(hasSignature)` grants, in devtools' what-if (code review WR-03)<br>1.2 (2026-11-08): Alternatives — the annotate-before-validate question is derived from the description's `pose`, not hand-written in the three resource-scoped reads (code review WR-02)<br>1.1 (2026-11-08): Decision 3 — `disclose` runs under the defect mapping, so a malformed store answer is the port's typed error, never a defect (code review WR-01)<br>1.0 (2026-11-08): Initial (ARCH-47, CCR-QD-386)                          |
 
 ---
 
@@ -119,11 +119,17 @@ own).
   (`JSON.stringify([subjectId, resourceId ?? null, meaning ?? null, signerRole ?? null])`), which is
   what INV-QD-043's injectivity law asks of a key. A devtools capture keys per requirement, so it
   never replays one requirement's answer for another. **A requirement the capture never saw is a
-  miss, and a miss is the port's `none` answer, an empty list**: `hasSignature` denies on it, but
-  `not(hasSignature)` grants, so a devtools what-if that edits a policy's `meaning` or `signerRole`
-  can report an allow the real store would not give. This is confined to that panel's replay and
-  not to live enforcement. The first draft of this bullet said over-keying "can only miss and deny,
-  never replay a stale allow", which holds for the un-negated leaf only (code review WR-03).
+  miss, and a miss on this port is its own typed error, `SignatureHistoryUnavailable`, not its
+  `none` answer.** The empty list would say "no signatures on file", which denies `hasSignature`
+  but grants `not(hasSignature)`, so a devtools what-if that edits a policy's `meaning` or
+  `signerRole` would report an allow the real store would not give (code review WR-03, WR-04). The
+  replay now fails closed instead: the what-if reports a failure, never a verdict, under the node
+  and under its negation. The capture is not re-keyed by `(subject, resource)`: a store receives the
+  requirement and may filter on it, so that would replay one requirement's answer for another. The
+  first draft of this bullet said over-keying "can only miss and deny, never replay a stale allow",
+  which holds for the un-negated leaf only; the second accepted the empty list. The other four
+  ports' misses still answer `none` and still grant under `not(...)`, as an unwired real deployment
+  does (INV-QD-007).
 - **Version skew fails closed.** A new client's question carries keys an old, strict server does not
   decode, so it comes back `Malformed` and the asker turns that into the port's own typed error
   (ADR-QD-107). A question without the two keys still decodes on a new server.

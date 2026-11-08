@@ -49,7 +49,8 @@ export const Signature = Schema.Struct({
 ```
 
 `SignatureHistory`'s default, `SignatureHistoryNone`, answers with an empty
-array — no signatures on file, denying unambiguously.
+array — no signatures on file, so `hasSignature` denies (and `not(hasSignature(...))`
+grants, as `not` of any denying leaf does).
 
 ## Capture — wired through `ObligationHandler`
 
