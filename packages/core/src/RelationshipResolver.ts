@@ -189,7 +189,6 @@ const relationshipWire = portWire({
     },
   ],
   ...sameAnswer<RelatedResult>(),
-  asked: ([request]) => request.relation,
 });
 
 /**

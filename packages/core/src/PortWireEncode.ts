@@ -48,7 +48,6 @@ export interface PortWireSpec<
   readonly fromQuestion: (question: Q, subject: AuthSubject) => Args;
   readonly toAnswer: (answer: A) => Result.Result<W, EncodeRefusal>;
   readonly fromAnswer: (wire: W) => A;
-  readonly asked: (args: Args) => string | undefined;
 }
 
 /** The answer conversions of a port whose answer is its own wire shape. */
@@ -111,6 +110,5 @@ export const portWire = <
             Result.mapError(decodeA(input), (error) => error.message),
             spec.fromAnswer,
           ),
-    asked: spec.asked,
   };
 };

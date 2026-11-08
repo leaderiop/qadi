@@ -161,7 +161,7 @@ const signatureSpan = {
  * reads (`meaning`, `signerRole`) — because redacting them would fabricate a
  * `signerId` and `signedAt` the client would then read as real (D-31-e). The
  * query is scoped to the asking subject, so these are the subject's own
- * records; a host opts in to serving them (`PortServing`).
+ * records; a host opts in to serving them (`signatureServing`, below).
  *
  * The question carries the asker's requirement, `meaning` and `signerRole`, as
  * optional keys, so the served span can say what was asked and whether the
@@ -194,7 +194,6 @@ const signatureWire = portWire({
     },
   ],
   ...sameAnswer<ReadonlyArray<Signature>>(),
-  asked: () => undefined,
 });
 
 /**

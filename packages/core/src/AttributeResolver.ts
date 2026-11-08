@@ -132,7 +132,6 @@ const attributeWire = portWire({
       ? Result.succeed({})
       : Result.map(toJson(value, WIRE_MAX_DEPTH), (json) => ({ value: json })),
   fromAnswer: (wire): unknown => wire.value,
-  asked: ([, attribute]) => attribute,
 });
 
 /**

@@ -145,14 +145,12 @@ export interface DecodedQuestion<Args extends ReadonlyArray<unknown>> {
  * strict, excess-property-rejecting decode, because a question arriving at a
  * server crosses a trust boundary (ADR-QD-002).
  *
- * - `asked` — the one name an allowlist can admit or refuse: the attribute, the
- *   relation, the event, the predicate's name; `undefined` where the port has
- *   none (the signature port).
+ * The name an allowlist admits is the description's `serving.asked`
+ * (ADR-QD-114), so the wire states only JSON.
  */
 export interface PortWire<Args extends ReadonlyArray<unknown>, A> {
   readonly encodeQuestion: (args: Args) => Result.Result<Schema.Json, string>;
   readonly decodeQuestion: (input: unknown) => Result.Result<DecodedQuestion<Args>, string>;
   readonly encodeAnswer: (answer: A) => Result.Result<Schema.Json, string>;
   readonly decodeAnswer: (input: unknown) => Result.Result<A, string>;
-  readonly asked: (args: Args) => string | undefined;
 }

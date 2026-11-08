@@ -83,7 +83,6 @@ const probePort: PortDescription<
     fromQuestion: (question, subject): [who: string, what: string] => [subject.id, question.what],
     toAnswer: (n: number | undefined) => Result.succeed(n === undefined ? {} : { n }),
     fromAnswer: (wire) => wire.n,
-    asked: ([, what]) => what,
   }),
   serving: {
     allowlist: "required",

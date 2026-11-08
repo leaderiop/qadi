@@ -162,7 +162,6 @@ const customWire = portWire({
     question.params,
   ],
   ...sameAnswer<boolean>(),
-  asked: ([name]) => name,
 });
 
 /**

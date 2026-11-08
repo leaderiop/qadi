@@ -142,7 +142,6 @@ const actedWire = portWire({
     { subjectId: subject.id, event: question.event, resourceId: question.resourceId },
   ],
   ...sameAnswer<ActedResult>(),
-  asked: ([query]) => query.event,
 });
 
 /**
