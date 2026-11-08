@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-30                                    |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-10-08): BEH-QD-227 — `qadi.interpreter` gains `"remote"` for a served read; `PortCall.interpreter` follows (ARCH-31, CCR-QD-382)<br>1.4 (2026-10-07): BEH-QD-227 — each span's attributes are stated once, by its port's description (`attributes`: a question annotated before the call, an answer annotated after, and `disclose`), and `PortAccess.ts` writes through that statement; `qadi.attempts` joins the listing; the list of ports whose answers are closed is corrected (four, not two); BEH-QD-228 — `@qadi/devtools` reads a span through the same description (`decodePortSpan`), a value outside a field's closed union reads as absent, and a row carries `attempts`, and a signature row its `scope` and `resourceId` (ARCH-21, CCR-QD-198)<br>1.3 (2026-10-05): BEH-QD-227 — each span's name is read from its port's description (`span`, `PortSpanName`) by both `PortAccess.ts` and `@qadi/devtools`' collector; BEH-QD-229 — the Services screen shows timeouts beside retries (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-04): BEH-QD-227/BEH-QD-228 — the spans move to `PortAccess.ts` and gain `qadi.interpreter`; BEH-QD-267 — `toPredicate`'s port reads are spans too (CCR-QD-153, ADR-QD-077)<br>1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
+> | Change History | 1.6 (2026-11-08): BEH-QD-227 — a span's question is the description's pose and its answer disclose, written by one read body; a local and a served span agree apart from the interpreter; onFile is on neither (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.5 (2026-10-08): BEH-QD-227 — `qadi.interpreter` gains `"remote"` for a served read; `PortCall.interpreter` follows (ARCH-31, CCR-QD-382)<br>1.4 (2026-10-07): BEH-QD-227 — each span's attributes are stated once, by its port's description (`attributes`: a question annotated before the call, an answer annotated after, and `disclose`), and `PortAccess.ts` writes through that statement; `qadi.attempts` joins the listing; the list of ports whose answers are closed is corrected (four, not two); BEH-QD-228 — `@qadi/devtools` reads a span through the same description (`decodePortSpan`), a value outside a field's closed union reads as absent, and a row carries `attempts`, and a signature row its `scope` and `resourceId` (ARCH-21, CCR-QD-198)<br>1.3 (2026-10-05): BEH-QD-227 — each span's name is read from its port's description (`span`, `PortSpanName`) by both `PortAccess.ts` and `@qadi/devtools`' collector; BEH-QD-229 — the Services screen shows timeouts beside retries (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-04): BEH-QD-227/BEH-QD-228 — the spans move to `PortAccess.ts` and gain `qadi.interpreter`; BEH-QD-267 — `toPredicate`'s port reads are spans too (CCR-QD-153, ADR-QD-077)<br>1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
 
 _Previous: [29 — The Subject Simulator](./29-devtools-simulator.md)_
 
@@ -71,6 +71,25 @@ a `"qadi.<key>"` literal in `PortAccess.ts`, `PortDerivation.ts` and devtools'
 `PortCalls.ts`; the wire itself is pinned by the literal-key assertions in
 `Evaluate.test.ts` and `Predicate.test.ts`, which a round trip through the codec
 could not see.
+
+```
+REQUIREMENT: A port span's question MUST be its description's `pose(request)` and
+             its answer `disclose(answer, request)`, both written by `PortAccess.ts`'s
+             one read body (`readPort`), and a local read and a served read of the
+             same request MUST carry the same span attributes, `qadi.interpreter`
+             aside.
+```
+
+The projection used to be stated twice, once on the span attributes and once on the
+port's wire, and the two disagreed for the signature port: the served span lacked the
+asker's `qadi.meaning` and `qadi.signer_role` and the `qadi.matched` answer that the
+local span carried, so `@qadi/devtools` showed a served signature call as "not recorded,
+no answer" ([ADR-QD-109](../decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md),
+ARCH-47, [INV-QD-244](../invariants.md#inv-qd-244-a-ports-span-says-the-same-thing-whoever-asked)).
+The asker's requirement crosses to a served read as part of the signature question, so both
+spans can say it. `qadi.on_file` is recorded on **neither** span: the answer is `matched` only,
+and a count of the records on file is kept off a span as a disclosure decision of its own
+(ARCH-21). The wire states only JSON ([BEH-QD-332](./34-remote-ports.md)).
 
 ```
 REQUIREMENT: An attribute resolved through the port MUST emit a span naming the

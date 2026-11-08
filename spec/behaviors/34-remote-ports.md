@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-34                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
+> | Change History | 1.1 (2026-11-08): BEH-QD-332 — a served span equals a local one through pose and disclose, carries a signature asker's requirement, and a store that throws is the port's typed error (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
 
 _Previous: [33 — Audit Pipeline](./33-audit-pipeline.md)_
 
@@ -80,12 +80,18 @@ by it.
 
 ## BEH-QD-332: A served read MUST open the port's span with `qadi.interpreter = "remote"`
 
-A served question is read through `servePortRead` (`PortAccess.ts`), so it opens the port's own
-span ([BEH-QD-227](./30-port-calls.md)) with `qadi.interpreter = "remote"` and the question's
-attributes, counts once in `qadi_port_served_calls_total` (never in `qadi_port_calls_total`), and a
-store that dies becomes the port's typed error rather than a defect
-([BEH-QD-261](./05-evaluator.md)). The answer reaches the span only through the description's
-`disclose`, so an attribute's value is never recorded ([INV-QD-044](../invariants.md)).
+A served question is read through `servePortRead` (`PortAccess.ts`), which is `readPort`, the one
+body every local read runs, under the port's own span ([BEH-QD-227](./30-port-calls.md)) with
+`qadi.interpreter = "remote"`. The question reaches the span through the description's `pose` and
+the answer through `disclose(answer, request)`, so a served span carries exactly what a local read
+of the same request carries, apart from the interpreter. A signature asker's requirement crosses in
+the question, so the served span says `qadi.meaning`, `qadi.signer_role` and `qadi.matched`
+([ADR-QD-109](../decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md)). The
+call counts once in `qadi_port_served_calls_total` (never in `qadi_port_calls_total`), and a store
+that dies **or throws** becomes the port's typed error rather than a defect, answered `Unavailable`
+on the wire ([BEH-QD-261](./05-evaluator.md)). The answer reaches the span only through the
+description's `disclose`, so an attribute's value is never recorded
+([INV-QD-044](../invariants.md)).
 
 ## BEH-QD-333: An answer with no JSON form MUST be refused, never thrown
 
