@@ -16,7 +16,7 @@ ARCH ticket with its own ADR, CCR and changeset, and each ends with `pnpm check:
 
 - [x] **Phase 1: HTTP request enforcement** - Put the whole enforcement chain behind one module and fix the missing log on unguarded port routes (ARCH-46) (completed 2026-11-08)
 - [x] **Phase 2: One port read** - Give the span projection one home on the port description and send every port read through one body (ARCH-47) (completed 2026-11-08)
-- [ ] **Phase 3: Audit archive facts** - Use one module for the archive's rules, shared by writer and reader (ARCH-48)
+- [x] **Phase 3: Audit archive facts** - Use one module for the archive's rules, shared by writer and reader (ARCH-48) (completed 2026-11-08)
 - [ ] **Phase 4: Gate instrumentation hook** - Resolve the writer once and use one `useGates` hook for every gate kind (ARCH-49)
 - [ ] **Phase 5: Decision log over HTTP** - Use one encoder and one refusal policy for both stream and backlog (ARCH-50)
 - [ ] **Phase 6: Dehydration in the engine** - Add `dehydrateWith` beside `hydrateWith`; both directions get one owner (ARCH-51)
@@ -66,13 +66,13 @@ Plans:
 ### Phase 3: Audit archive facts
 **Goal**: The archive's ordering, claim and sequence rules are each stated once, and the writer and reader both use them.
 **Depends on**: Nothing
-**Requirements**: ARC-01, ARC-02, ARC-03, ARC-04, XC-01..05
+**Requirements**: ARC-01, ARC-02, ARC-03, ARC-04, XC-01, XC-02, XC-03, XC-04, XC-05
 **Success Criteria** (what must be TRUE):
   1. `sequencedCount >= 2` and the ordering comparator each appear once in `packages/audit/src`.
   2. A property test shows the reader accepts every archive the writer produces.
   3. Each `ArchiveRefusal` kind still fires on a tampered bundle.
   4. `pnpm check:pr` is green, and ADR-QD-110 (or a CCR-only justification), CCR-QD-387 and a changeset are recorded.
-**Plans**: 3/3 plans executed
+**Plans**: 3/3 plans complete
 
 Plans:
 - [x] 03-01 (W1): Writer/reader agreement property tests and tamper cases, written before any refactor (fast-check)
@@ -188,7 +188,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. HTTP request enforcement | 5/5 | Complete    | 2026-11-08 |
 | 2. One port read | 4/4 | Complete    | 2026-11-08 |
-| 3. Audit archive facts | 3/3 | In Progress | - |
+| 3. Audit archive facts | 3/3 | Complete    | 2026-11-08 |
 | 4. Gate instrumentation hook | 0/4 | Planned | - |
 | 5. Decision log over HTTP | 0/2 | Planned | - |
 | 6. Dehydration in the engine | 0/2 | Planned | - |

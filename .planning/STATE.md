@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 03
-current_phase_name: Audit archive facts
-status: verifying
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-11-08T04:08:01.361Z"
+current_phase: 04
+current_phase_name: Gate instrumentation hook
+status: executing
+stopped_at: Phase 03 complete, ready to execute Phase 04
+last_updated: "2026-11-08T04:42:37.533Z"
 last_activity: 2026-11-08
-last_activity_desc: Phase 03 execution started
-state_head: 880edca1c03806cdc308ca1d496667b1e812e5a6
+last_activity_desc: Phase 03 complete, transitioned to Phase 04
+state_head: 2cf0e6b9424833e0ca7668b29484b5825a704385
 progress:
   total_phases: 9
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 33
   completed_plans: 12
-  percent: 22
+  percent: 33
 ---
 
 # Project State
@@ -23,21 +23,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-08)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 03 — Audit archive facts
+**Current focus:** Phase 04 — Gate instrumentation hook
 
 ## Current Position
 
-Phase: 03 (Audit archive facts) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-11-08 — Phase 03 execution started
+Phase: 04 — Gate instrumentation hook
+Plan: Not started
+Status: Ready to execute
+Last activity: 2026-11-08 — Phase 03 complete, transitioned to Phase 04
 
-Progress: [█████░░░░░░░░░░░░░░░] 9/33 plans ([██░░░░░░░░] 22%); 2/9 phases
+Progress: [███████░░░░░░░░░░░░░] 12/33 plans (36%); 3/9 phases
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+- Total plans completed: 12
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -47,6 +47,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 9/33 pl
 |-------|-------|-------|----------|
 | 02 | 4 | - | - |
 | 01 | 5 | - | - |
+| 03 | 3 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -85,6 +86,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 9/33 pl
 - [Phase 03]: ArchiveFacts.ts owns the archive order, claim rule and sequence break; the reader derives its out-of-order index from the writer's comparator and never sorts or repairs
 - [Phase 03]: verifySequenceIntegrity is an unnamed Effect.fn over verifiedArchiveFacts, so span qadi.audit.verifySequenceIntegrity opens once per call and UNTRACED_BUDGET is unchanged
 - [Phase 03]: ADR-QD-110 and CCR-QD-387 used as reserved; ADR-QD-056 amended; INV-QD-054 Implication left untouched
+- [Phase 03] review fix WR-01 (decision delegated by user): the writer refuses a non-safe-integer sequenceNumber with the new public `SequenceNumberInvalid` (ArchiveFacts.ts states the domain with the codec's `Schema.Int`); changeset is now minor with a **Breaking.** note (ADR-QD-110 D-48-g)
 
 ### Pending Todos
 
@@ -92,7 +94,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 9/33 pl
 
 ### Blockers/Concerns
 
-- [Phase 01] `pnpm example` cannot finish on this Fedora host without sudo (`playwright install --with-deps`); UAT ran its e2e suite directly (30/30). A single uninterrupted `pnpm check` run still needs CI or a host with sudo.
+- [Phase 01] `pnpm example` cannot finish on this Fedora host without sudo (`playwright install --with-deps`); UAT ran its e2e suite directly (30/30). A single uninterrupted `pnpm check` run still needs CI or a host with sudo. [Phase 03] Workaround used: the check:pr chain run in order with only that one command as `playwright install chromium` (browser and system libs already present) — all steps green, e2e 30/30.
 - [Phase 01] 01-VALIDATION.md is still `draft` (nyquist audit not completed); REQUIREMENTS.md has no Traceability rows for ENF-01..06/XC-01..05 and ENF-03 is unregistered (phase.complete warnings).
 
 - Phase 8 Plan 08-01 is a blocking human checkpoint (SERV-01: amend ADR-QD-094 or not).
@@ -104,6 +106,6 @@ Progress: [█████░░░░░░░░░░░░░░░] 9/33 pl
 
 ## Session Continuity
 
-Last session: 2026-11-08T04:08:01.282Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-11-08
+Stopped at: Phase 03 complete, ready to execute Phase 04
 Resume file: None

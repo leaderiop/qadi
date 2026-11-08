@@ -152,7 +152,7 @@ None. Every finding in the review is in scope.
 |-------------|-------|--------|
 | ENF-01..06 | Phase 1 | Pending |
 | PORT-01..06 | Phase 2 | Complete |
-| ARC-01..04 | Phase 3 | Pending |
+| ARC-01..04 | Phase 3 | Complete |
 | GATE-01..05 | Phase 4 | Pending |
 | LOGH-01..04 | Phase 5 | Pending |
 | HYD-01..04 | Phase 6 | Pending |
