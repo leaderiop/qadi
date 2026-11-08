@@ -137,44 +137,19 @@ export type PortSetups = {
  * and a fixture that fails *open* in one of them is not a failure anyone reads.
  *
  * Built on `@qadi/core`'s `fixturePortsLayer`, as `@qadi/devtools`' Fixtures
- * simulation is, so neither lists the ports or the data-to-layer map: a port
- * added to the registry is here, at its fail-closed default, without an edit,
- * and its fixture is one row in core's `PORT_FIXTURES`.
+ * simulation is. The `ports` option crosses to it as it is, so neither package
+ * lists the ports or zips per-port records: a port added to the registry is
+ * here, at its fail-closed default, without an edit, and its fixture is one row
+ * in core's `PORT_FIXTURES`.
  */
 export const qadiReviewLayer = (
   options?: TestLayerOptions,
 ): Layer.Layer<StandingEvaluationServices> =>
   Layer.mergeAll(
-    fixturePortsLayer(answersOf(options?.ports ?? {}), layersOf(options?.ports ?? {})),
+    fixturePortsLayer(options?.ports),
     evaluationIdSequential(options?.idPrefix ?? "eval"),
     clockLayer(options?.clock),
   );
-
-/**
- * Each port's `answers`, or `undefined` when it was set up with a layer or not
- * at all. Typed over `PortName` so a port missing from this record is a
- * compile error.
- */
-const answersOf = (
-  ports: PortSetups,
-): { readonly [K in PortName]: PortFixtureData[K] | undefined } => ({
-  AttributeResolver: ports.AttributeResolver?.answers,
-  DecisionHistory: ports.DecisionHistory?.answers,
-  RelationshipResolver: ports.RelationshipResolver?.answers,
-  CustomPredicate: ports.CustomPredicate?.answers,
-  SignatureHistory: ports.SignatureHistory?.answers,
-});
-
-/** Each port's `layer`, or `undefined`; the counterpart of {@link answersOf}. */
-const layersOf = (
-  ports: PortSetups,
-): { readonly [K in PortName]: Layer.Layer<ServiceOf<PortTypes[K]>> | undefined } => ({
-  AttributeResolver: ports.AttributeResolver?.layer,
-  DecisionHistory: ports.DecisionHistory?.layer,
-  RelationshipResolver: ports.RelationshipResolver?.layer,
-  CustomPredicate: ports.CustomPredicate?.layer,
-  SignatureHistory: ports.SignatureHistory?.layer,
-});
 
 /**
  * `Layer.empty` for `live`, so nothing shadows the runtime's own clock.

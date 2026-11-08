@@ -116,9 +116,9 @@ const dispatch: (self: SimulationSource) => (input: SimulationInput) => Layer.La
  */
 const fixtureLayer = (input: SimulationInput): Layer.Layer<EvaluationPorts> =>
   fixturePortsLayer({
-    AttributeResolver: input.attributes,
-    RelationshipResolver: input.relationships,
-    DecisionHistory: input.history,
+    AttributeResolver: { answers: input.attributes },
+    RelationshipResolver: { answers: input.relationships },
+    DecisionHistory: { answers: input.history },
     // `SimulationInput` has no form vocabulary for a custom predicate's
     // answer — unlike an attribute or an edge, there is no small typed value a
     // reviewer could type in that stands for arbitrary registered logic — so
@@ -130,5 +130,5 @@ const fixtureLayer = (input: SimulationInput): Layer.Layer<EvaluationPorts> =>
     // Supplying a real answer today needs `Snapshot` or `Live`. Unlike
     // HasCustom, SignatureHistory is data-fetching, so it earns the same
     // declarative form attributes/edges/events get.
-    SignatureHistory: input.signatures,
+    SignatureHistory: { answers: input.signatures },
   });

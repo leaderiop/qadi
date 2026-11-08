@@ -255,13 +255,24 @@ export const PORT_FIXTURES: {
 };
 
 /**
- * Any subset of the ports' fixture data. `| undefined` for the same reason as
- * {@link PortOverrides}: a conditional slot compiles under
- * `exactOptionalPropertyTypes`, and an `undefined` slot is the fail-closed
- * default.
+ * Any subset of the ports, each set up by `answers` (that port's
+ * {@link PortFixtureData}), by `layer` (a layer of its own service), by both, or
+ * by neither.
+ *
+ * A layer wins over the same port's answers, and a port with neither stays at
+ * its fail-closed default. `@qadi/testing`'s `PortSetup`, which allows exactly
+ * one of the two, is assignable to this as it stands. Each field and each slot
+ * is `| undefined` for the `exactOptionalPropertyTypes` reason
+ * {@link PortOverrides} gives: a conditional entry compiles, and `undefined` is
+ * the fail-closed default, the same as an absent one.
  */
 export type PortFixtures = {
-  readonly [K in PortName]?: PortFixtureData[K] | undefined;
+  readonly [K in PortName]?:
+    | {
+        readonly answers?: PortFixtureData[K] | undefined;
+        readonly layer?: Layer.Layer<ServiceOf<PortTypes[K]>> | undefined;
+      }
+    | undefined;
 };
 
 /** A fixture's layer, or `undefined` (the port's default) when it has no data. */
@@ -271,35 +282,21 @@ const fixtureLayer = <D, S>(
 ): Layer.Layer<S> | undefined => (data === undefined ? undefined : build(data));
 
 /**
- * Every port, each answering from its fixture data, or at its fail-closed
- * default when it has none, unless `overrides` names a layer for it.
+ * Every port, each set up by its entry in `setups`: its layer, else its
+ * fixture answers, else its fail-closed default.
  *
- * An override wins over the same port's data, port by port. A caller whose own
- * surface offers a port as data or as a layer, never both (`@qadi/testing`'s
- * `ports` option), never reaches that case.
+ * Names no port. Each slot is derived from the registry, so a port added there
+ * is here at its default without an edit here (ADR-QD-094). A layer wins over
+ * the same port's answers; a caller whose own surface offers one or the other,
+ * never both (`@qadi/testing`'s `ports` option), passes it through unchanged.
  */
-export const fixturePortsLayer = (
-  data: PortFixtures = {},
-  overrides: PortOverrides = {},
-): Layer.Layer<PortServices> => {
-  // Typed over `PortName` so a port left out of this record is a compile error.
-  const layers: { readonly [K in PortName]: Layer.Layer<ServiceOf<PortTypes[K]>> | undefined } = {
-    AttributeResolver:
-      overrides.AttributeResolver ??
-      fixtureLayer(PORT_FIXTURES.AttributeResolver, data.AttributeResolver),
-    DecisionHistory:
-      overrides.DecisionHistory ?? fixtureLayer(PORT_FIXTURES.DecisionHistory, data.DecisionHistory),
-    RelationshipResolver:
-      overrides.RelationshipResolver ??
-      fixtureLayer(PORT_FIXTURES.RelationshipResolver, data.RelationshipResolver),
-    CustomPredicate:
-      overrides.CustomPredicate ?? fixtureLayer(PORT_FIXTURES.CustomPredicate, data.CustomPredicate),
-    SignatureHistory:
-      overrides.SignatureHistory ??
-      fixtureLayer(PORT_FIXTURES.SignatureHistory, data.SignatureHistory),
-  };
-  return portsLayer(layers);
-};
+export const fixturePortsLayer = (setups: PortFixtures = {}): Layer.Layer<PortServices> =>
+  mergePorts(
+    mapPorts((d) => {
+      const setup = setups[d.port];
+      return setup?.layer ?? fixtureLayer(PORT_FIXTURES[d.port], setup?.answers) ?? NONE[d.port];
+    }),
+  );
 
 /**
  * Rebuilds every port of `ports` through `f` — the shape a capture, a recording
