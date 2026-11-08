@@ -3,6 +3,18 @@ phase: 02
 review: 02-REVIEW.md
 titles: json
 findings:
+  - id: WR-04
+    severity: warning
+    disposition: open
+    title: "devtools what-if replay still grants `not(hasSignature)` for a requirement the capture never saw (carried over from the prior review's WR-03, behavior unfixed)"
+  - id: IN-06
+    severity: info
+    disposition: open
+    title: "the resource-id `typeof` check and brand are now written in three places, and `askActedForResource` discards `requireResourceId`'s result"
+  - id: IN-07
+    severity: info
+    disposition: open
+    title: "doc-comment line over the hand-wrapped width"
   - id: WR-01
     severity: warning
     disposition: fixed
@@ -35,23 +47,26 @@ findings:
     severity: info
     disposition: open
     title: "version skew and the wire's strict decode are documented only in the changeset"
-open: 5
-total: 8
-recorded: 2026-11-08T03:07:01.261Z
+open: 8
+total: 11
+recorded: 2026-11-08T03:27:32.768Z
 ---
 
 # Phase 02: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | fixed | 02-REVIEW-FIX.md |
-| WR-02 | warning | fixed | 02-REVIEW-FIX.md |
-| WR-03 | warning | fixed | 02-REVIEW-FIX.md |
-| IN-01 | info | open | - |
-| IN-02 | info | open | - |
-| IN-03 | info | open | - |
-| IN-04 | info | open | - |
-| IN-05 | info | open | - |
+| WR-04 | warning | open | - |
+| IN-06 | info | open | - |
+| IN-07 | info | open | - |
+| WR-01 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| WR-02 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| WR-03 | warning | fixed | 02-REVIEW-FIX.md (not in the current review) |
+| IN-01 | info | open | - (not in the current review) |
+| IN-02 | info | open | - (not in the current review) |
+| IN-03 | info | open | - (not in the current review) |
+| IN-04 | info | open | - (not in the current review) |
+| IN-05 | info | open | - (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
