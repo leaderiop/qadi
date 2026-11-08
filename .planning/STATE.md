@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Port serving from the registry
-status: executing
-stopped_at: Completed 08-04-PLAN.md
-last_updated: "2026-11-08T13:41:58.880Z"
+status: verifying
+stopped_at: Completed 08-06-PLAN.md
+last_updated: "2026-11-08T13:46:48.546Z"
 last_activity: 2026-11-08
 last_activity_desc: Phase 08 execution started
-state_head: a23bb9cb4cbcba271b293479984892b89aa4a03b
+state_head: 2c6c5ca98ab7fb68def6e1fbd60034d0a78e7a70
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 33
-  completed_plans: 28
+  completed_plans: 29
   percent: 78
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-08)
 
 Phase: 08 (Port serving from the registry) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-08 — Phase 08 execution started
 
 Progress: [██████████████░░░░░░] 23/33 plans ([████████░░] 78%); 7/9 phases
@@ -79,6 +79,7 @@ Progress: [██████████████░░░░░░] 23/33 p
 | Phase 08 P02 | 25min | 2 tasks | 11 files |
 | Phase 08 P03 | 35min | 3 tasks | 15 files |
 | Phase 08 P04 | 15min | 2 tasks | 7 files |
+| Phase 08 P06 | 35min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -130,6 +131,7 @@ Progress: [██████████████░░░░░░] 23/33 p
 - [Phase 08]: D-07: tabulatePorts is two overloads over one body; separate layer builder removed. D-08: fixturePortsLayer derived from the registry with no as. D-09: testing passes ports to core unchanged
 - [Phase 08]: 08-03: serving facet on every port description (PortServingFacet, ServedLeaves in PortServing.ts); PortWire.asked removed; overview Rev 1.76
 - [Phase 08]: 08-04: INV-QD-095 amended in place for the serving facet; ADR-QD-114 recorded (amends ADR-QD-094, ADR-QD-107)
+- [Phase 08]: 08-06: mapPorts removal recorded as Breaking (0.10.0); fixture/serving changes unreleased; port-fixture-table changeset and overview left untouched
 
 ### Pending Todos
 
@@ -153,6 +155,6 @@ Progress: [██████████████░░░░░░] 23/33 p
 
 ## Session Continuity
 
-Last session: 2026-11-08T13:41:58.766Z
-Stopped at: Completed 08-04-PLAN.md
+Last session: 2026-11-08T13:46:48.437Z
+Stopped at: Completed 08-06-PLAN.md
 Resume file: None
