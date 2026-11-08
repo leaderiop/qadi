@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-094                                   |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.6 (2026-11-08): amendment — a description also states what it serves, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.5 (2026-11-08): amendment — a description's span attributes state the question projection, pose, beside disclose; the signature key covers the requirement (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.4 (2026-10-08): amendment — a description also states its wire, `PortDescription.wire`, and the registry makes a missing wire a compile error (ARCH-31, ADR-QD-107, CCR-QD-382)<br>1.3 (2026-10-08): amendment — each port's fixture builder is listed in `PORT_FIXTURES`, closed over `PortName`, beside its description (ARCH-42, CCR-QD-270)<br>1.2 (2026-10-08): amended: a request key is injective over every argument the port receives; the relationship and custom-predicate keys are corrected (ARCH-45 I1, CCR-QD-263)<br>1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
+> | Change History | 1.7 (2026-11-08): amendment — one per-port table builder; fixture setups pass through to a registry-derived fixturePortsLayer (ARCH-53, CCR-QD-392)<br>1.6 (2026-11-08): amendment — a description also states what it serves, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.5 (2026-11-08): amendment — a description's span attributes state the question projection, pose, beside disclose; the signature key covers the requirement (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.4 (2026-10-08): amendment — a description also states its wire, `PortDescription.wire`, and the registry makes a missing wire a compile error (ARCH-31, ADR-QD-107, CCR-QD-382)<br>1.3 (2026-10-08): amendment — each port's fixture builder is listed in `PORT_FIXTURES`, closed over `PortName`, beside its description (ARCH-42, CCR-QD-270)<br>1.2 (2026-10-08): amended: a request key is injective over every argument the port receives; the relationship and custom-predicate keys are corrected (ARCH-45 I1, CCR-QD-263)<br>1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
 
 ---
 
@@ -289,3 +289,28 @@ description including its wire and its serving facet, a `PortName` member, its r
 allowlist word disagrees with its slot, is a compile error (`PortServing.tst.ts`). **Breaking** for
 anything that builds a `PortDescription` by hand, and unreleased, since it ships with `wire`. See
 [ADR-QD-114](114-a-port-states-what-it-serves.md).
+
+## Amendment (2026-11-08, CCR-QD-392)
+
+`tabulatePorts` is the one per-port table builder. Its layer form (`PortLayerVisitor` to
+`PortLayers`) replaces `mapPorts`, whose body was identical to `tabulatePorts`'; this supersedes
+the registry section's list of tables (`tabulatePorts`, `mapPorts`, `mergePorts`, `decoratePorts`)
+and its naming of the visitor types and what takes them. There are two signatures over one
+five-row body because TypeScript reads `F[K]` as a return target to be the intersection of every
+slot (TS #30769), so a value typed per port cannot be checked through `F`; that is the
+`createPermissionGroup` shape. `PortLayerVisitor` stays as the layer form's parameter.
+**Breaking** for `@qadi/core` consumers of `mapPorts` (published in 0.10.0): `tabulatePorts(f)`
+takes the same visitor and returns the same `PortLayers`.
+
+`fixturePortsLayer` takes per-port setups, `PortFixtures`: for each port `answers` (fixture
+data), a `layer`, both with the layer winning, or neither, meaning the port's fail-closed
+default. It derives every slot from the registry (`tabulatePorts`, `PORT_FIXTURES`, `NONE`)
+with no hand-written row and no `as`, which supersedes the CCR-QD-270 amendment's
+`fixturePortsLayer(data, overrides?)`. Both `fixturePortsLayer` and `PortFixtures` came with
+ARCH-42 after 0.11.0, so the change is unreleased. `@qadi/testing` passes
+`TestLayerOptions.ports` through to it unchanged, so its public shape is unchanged, and
+devtools' Fixtures simulation calls the same function.
+
+A new port is therefore a description (including its wire and its serving facet), a `PortName`
+member, its registry lines and one `PORT_FIXTURES` row; there is no layer-builder line left to
+write. See [ADR-QD-114](114-a-port-states-what-it-serves.md) for the serving facet.
