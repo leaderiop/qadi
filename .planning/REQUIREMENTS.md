@@ -59,11 +59,11 @@
 
 - [ ] **GATE-01**: QadiProvider resolves the gate writer once and exposes it to hooks
   internally. `gateWriterFor(gates)` is called from exactly one place.
-- [ ] **GATE-02**: GateWriter offers one internal hook, `useGates(kind, questions)`, that owns
+- [x] **GATE-02**: GateWriter offers one internal hook, `useGates(kind, questions)`, that owns
   atom lookup, `GateIdentity` construction, the `wraps` rule and the marker refs.
-- [ ] **GATE-03**: `useGate` and `useQuestionsAs` become thin callers of that hook, and
+- [x] **GATE-03**: `useGate` and `useQuestionsAs` become thin callers of that hook, and
   `useDecisionSuspense` stops opening the decision atom twice.
-- [ ] **GATE-04**: The `usePolicies` per-render `questions` record is investigated. If it
+- [x] **GATE-04**: The `usePolicies` per-render `questions` record is investigated. If it
   recreates the group atom or the identities on every render, it is fixed and pinned by a test.
   If it does not, a test pins that it does not.
 - [ ] **GATE-05**: With instrumentation off, the DOM is unchanged and the existing React suite

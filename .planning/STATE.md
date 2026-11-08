@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Gate instrumentation hook
 status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-11-08T04:50:01.845Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-11-08T04:53:47.006Z"
 last_activity: 2026-11-08
 last_activity_desc: Phase 04 execution started
-state_head: a80b39ed57b3aa29ed95ae1ab3c177f8d463408f
+state_head: 0a637622adb4d456723cbbf1a1e20c4ce673d5f7
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 33
-  completed_plans: 13
+  completed_plans: 14
   percent: 33
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-08)
 ## Current Position
 
 Phase: 04 (Gate instrumentation hook) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-11-08 — Phase 04 execution started
 
@@ -60,6 +60,7 @@ Progress: [███████░░░░░░░░░░░░░] 12/33 p
 | Phase 03 P02 | 3 min | 3 tasks | 6 files |
 | Phase 03 P03 | 20 min | 3 tasks | 9 files |
 | Phase 04 P01 | 3 min | 2 tasks | 6 files |
+| Phase 04 P02 | 5 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,8 @@ Progress: [███████░░░░░░░░░░░░░] 12/33 p
 - [Phase 03] review fix WR-01 (decision delegated by user): the writer refuses a non-safe-integer sequenceNumber with the new public `SequenceNumberInvalid` (ArchiveFacts.ts states the domain with the codec's `Schema.Int`); changeset is now minor with a **Breaking.** note (ADR-QD-110 D-48-g)
 - [Phase 04]: Gate writer resolved once in QadiProvider and carried to gates on an internal GateScopeContext declared in GateWriter.ts, never on public QadiContextValue (D-01)
 - [Phase 04]: useDecisionSuspense suspends on the atom useGate opened; decision opener count 2 -> 1 (D-04)
+- [Phase 04]: 04-02: usePolicies does not re-create its group atom or registrations across equal re-renders (pinned by hooks.rerender.test.tsx); GateWriter.ts needs no Equal-keyed memo (D-07)
+- [Phase 04]: 04-02: the one per-entry decision lookup lives in useGates, memoised on the group, not the group atom as identity, so a changed entry re-registers alone (D-03, BEH-QD-068)
 
 ### Pending Todos
 
@@ -109,6 +112,6 @@ Progress: [███████░░░░░░░░░░░░░] 12/33 p
 
 ## Session Continuity
 
-Last session: 2026-11-08T04:50:01.811Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-11-08T04:53:46.966Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None
