@@ -1,8 +1,8 @@
 ---
 phase: 07-port-route-address
-verified: 2026-11-08T07:00:00Z
-status: human_needed
-score: 8/9 must-haves verified
+verified: 2026-11-08T08:20:00Z
+status: passed
+score: 9/9 must-haves verified
 covered_files:
   - ".changeset/port-route-address.md"
   - ".planning/phases/07-port-route-address/07-01-PLAN.md"
@@ -15,121 +15,119 @@ covered_files:
   - "packages/http/src/PortRoutes.ts"
   - "packages/http/src/RemotePorts.ts"
   - "packages/http/test/PortRoutes.test.ts"
-  - "spec/README.md"
   - "spec/behaviors/23-http.md"
   - "spec/behaviors/34-remote-ports.md"
-  - "spec/traceability.md"
-covered_digest: "v4:sha256:34508cb373a688b00b6d59be1ed679c94cf5397a0f2823faf858dbfc81df137d"
+covered_digest: "v4:sha256:836dc8a65654f2b55be7b2753470377c87da2eda4ad1d80da8e86cf6ac3d4d26"
 behavior_unverified: 0
 overrides_applied: 0
-human_verification:
-  - test: "Run `pnpm check:pr` to completion on a host that can run `playwright install --with-deps chromium` (CI, `.github/workflows/check.yml`, or a machine with sudo/TTY) against this branch."
-    expected: "Exit 0 across all 16 steps, in one run."
-    why_human: "On the verification host the single run stops at step 13 (`pnpm example`, sudo needed for Playwright system deps), regardless of tree state. Steps 1-12 were green inside that run and 13-16 were run individually, but a clean single-run exit 0 (XC-01, ROADMAP criterion 3) has not been observed. The user accepted the split evidence at the 07-03 checkpoint per 07-03-SUMMARY.md, but that acceptance is a claim in a SUMMARY, not an `overrides:` entry, so it is surfaced rather than absorbed."
+re_verification:
+  previous_status: human_needed
+  previous_score: 8/9
+  gaps_closed:
+    - "Full `pnpm check:pr` in one run (satisfied by 07-UAT.md test 1, clean clone of 88187a5 in the Playwright container, exit 0)"
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 7: One port route address Verification Report
 
 **Phase Goal:** The server and client adapters for remote ports share one address definition and one status contract.
 **Verified:** 2026-11-08
-**Status:** human_needed
-**Re-verification:** No, initial verification
+**Status:** passed
+**Re-verification:** Yes. The previous report was written before code-review fix fc2c324 (WR-01, trailing-slash normalisation in `portPath`). This run covers current HEAD (36c3cf1), including that fix.
 
 ## Goal Achievement
 
-The goal is achieved in the code. `PortRouteAddress.ts` is the one address definition; `portRoutes`, `portRoutesUnguarded` and `remotePortsLayer` all build their paths through it; the reply-body contract is stated beside it and cited by both adapters; a round trip under `/x/ports` proves it. The only open item is the literal "`pnpm check:pr` exits 0" for XC-01, which this host cannot produce.
-
 ### Observable Truths
 
-| # | Truth | Status | Evidence |
-| - | ----- | ------ | -------- |
-| 1 | ROADMAP SC1 / ADDR-01: `"/__ports"` appears once in `packages/http/src` outside comments | VERIFIED | `grep -rn "__ports" packages/http/src` returns three lines: `PortRouteAddress.ts:26` (`export const PORT_ROUTE_PREFIX = "/__ports"`), and two doc-comment lines (`PortRoutes.ts:69`, `RemotePorts.ts:33`). No `DEFAULT_PREFIX` or inline path template remains. |
-| 2 | ADDR-01 wiring: both adapters build every path through `portPath` | VERIFIED | `PortRoutes.ts:132` and `:180` (both forms) call `portPath(options?.prefix, port)`; `RemotePorts.ts:56` calls `portPath(options.prefix, port)`. The leaf imports only `type { PortName }`, so the client does not pull in server code. |
-| 3 | ROADMAP SC2 / ADDR-03: a round trip with a non-default prefix succeeds end to end | VERIFIED | `describe("one address on both sides (ARCH-52)")` at `PortRoutes.test.ts:256` with `PREFIX = "/x/ports"`: both forms, every port, "nowhere else", default-prefix client gets the port's own error, guarded form still denies. I ran `pnpm vitest run --project http packages/http/test/PortRoutes.test.ts`: 60 passed. |
-| 4 | ADDR-02: the status contract is stated beside the address and both adapters reference it | VERIFIED | Contract prose in the `PortRouteAddress.ts` module doc (reply is the JSON body under every status; client never reads an answer from a status; non-reply body is the port's own error). `RemotePorts.ts:9` and `:59` cite it, and the decode at `:60` is `response.json` with no status check. Three canned-response tests (503 body read as the answer, 200 refusal is an error, proxy 502 HTML is an error) at `PortRoutes.test.ts:362-413`, passing. |
-| 5 | Public export set unchanged; leaf not in the barrel (ADR-QD-099) | VERIFIED | `grep PortRouteAddress\|portPath packages/http/src/index.ts` returns nothing. `spec/overview.md` is absent from the phase's diff (`git diff --name-only 1cb87a3 HEAD -- packages spec .changeset` lists 9 paths, none of them overview). `pnpm spec:api` 862 exports reported unchanged in 07-01 and 07-03; not re-run by me (see Behavioral Spot-Checks). |
-| 6 | ROADMAP SC3 (recording half) / XC-02: CCR-QD-391 and a changeset are recorded; ADR decision stated | VERIFIED | `spec/README.md:329` carries the `CCR-QD-391` row with a 9-path file list that equals the `git diff` file list; `.changeset/port-route-address.md` is `"@qadi/http": patch`; BEH-QD-338 exists at `23-http.md:755`, BEH-QD-333 links to it (`34-remote-ports.md:106`), traceability §1 (`:65`) and §4 (`:337`) name it. No ADR is written, with the reason stated in 07-02-SUMMARY and CCR row. |
-| 7 | XC-03: `spec/overview.md` names every added export and drops every removed one | VERIFIED | No export was added or removed (barrel check above), so no overview edit is owed. `pnpm spec:gates` and `spec:api` green per 07-03-SUMMARY. |
-| 8 | XC-04 and XC-05: no forbidden constructs added; coverage thresholds hold | VERIFIED | `node scripts/check-house-style.mjs`: 406 files clean (3 declared switches, unchanged). The added lines in `packages/http/src` contain no `as`/`!`/`any`/`switch`/`fnUntraced`/`async`/`await`/`console` code (the only grep hits are the words "as" in doc prose). `pnpm typecheck` exits 0. `pnpm coverage` ran green with `http/src` at 100% statements / 97.87% branches, total 99.1% statements and 96.82% branches, no threshold failure reported. |
-| 9 | ROADMAP SC3 (gate half) / XC-01: `pnpm check:pr` is green | UNCERTAIN | Not observed as one exit 0. 07-03-SUMMARY records steps 1-12 green in the run, exit 1 at step 13 on `playwright install --with-deps chromium` (sudo, no TTY), and steps 13-16 green individually. The orchestrator's post-merge gate (`pnpm run build` exit 0, `pnpm test` 157 files / 3973 tests) corroborates the code, and I independently re-ran typecheck, house-style, the PortRoutes test file and coverage, all green. The failure is environmental and not a test or build failure, but "green" for XC-01 is defined as `check:pr` passing, and that exact command was not seen to pass. Routed to human verification, not FAILED. |
+| #   | Truth | Status | Evidence |
+| --- | ----- | ------ | -------- |
+| 1 | ROADMAP SC1: the string `"/__ports"` appears once in `packages/http/src`, comments excluded | VERIFIED | `grep -rn "__ports" packages/http/src` returns three lines. One is the code literal `PORT_ROUTE_PREFIX = "/__ports"` (`PortRouteAddress.ts:26`). The other two are doc comments (`PortRoutes.ts:69`, `RemotePorts.ts:33`). |
+| 2 | ROADMAP SC2: a round trip with a non-default prefix succeeds end to end | VERIFIED | `PortRoutes.test.ts` "one address on both sides" (L262-366). It serves under the literal `/x/ports`, in both guarded and unguarded forms. It builds the real `remotePortsLayer` client against the served handler and asks all five ports. The vitest run passed 61/61. |
+| 3 | ROADMAP SC3: `pnpm check:pr` is green, and CCR-QD-391 and a changeset are recorded | VERIFIED | 07-UAT.md test 1 (complete, 1 passed): clean clone of 88187a5, `pnpm install --frozen-lockfile && pnpm check:pr` exited 0 (16 of 17 steps, mutation skipped by design), vitest 3974+559+42 and e2e 30/30 passed. The commits after 88187a5 touch only `.planning/` files. CCR-QD-391 is in `spec/README.md:329`, and `.changeset/port-route-address.md` exists (`@qadi/http` patch). |
+| 4 | A non-default prefix is answered for every port, guarded and unguarded (ADDR-03, D-04) | VERIFIED | Tests `${form}: every port answers under /x/ports...`. `ASK` is a `Record` over `PortName`, so every registry port is exercised. |
+| 5 | Under `/x/ports` nothing answers at `/__ports`. A default-prefix client gets the port's own error, never an answer. The guarded form still denies a subject without the permission | VERIFIED | Tests "routes are at /x/ports and nowhere else" (200 there, 404 at default), "client left on the default prefix gets the port's own error", and "a subject without the permission is still denied" (403). All pass. |
+| 6 | `PortRoutes.ts` and `RemotePorts.ts` build every path through `portPath` (ADDR-01) | VERIFIED | `PortRoutes.ts:132,180` and `RemotePorts.ts:56` call `portPath(options.prefix, port)`. Both import it from `./PortRouteAddress.ts`. No other path construction exists. |
+| 7 | The reply-body contract is stated beside the address and both adapters reference it (ADDR-02, D-03) | VERIFIED | The module doc in `PortRouteAddress.ts` has "The route contract both adapters rely on (ADR-QD-107)". `RemotePorts.ts:9,59` and `PortRoutes.ts:56` cite it by file name. `RemotePorts.ts` checks no status, and goes straight to `response.json`. |
+| 8 | A reply under a disagreeing status is still read from its body, and a non-reply body is the port's own error | VERIFIED | Tests "answer under a 503 is still the answer", "refusal under a 200 is still the port's own error", "proxy HTML under a 502 is the port's own error". All pass. |
+| 9 | The public export set is unchanged and `PortRouteAddress.ts` is not in the barrel (ADR-QD-099) | VERIFIED | `packages/http/src/index.ts` has no `PortRouteAddress` line. `spec/overview.md` does not mention it. UAT's `pnpm check:pr` included the api-surface gate, which passed. |
 
-**Score:** 8/9 truths verified (0 present, behavior-unverified).
+**Score:** 9/9 truths verified (0 present, behavior-unverified)
+
+### WR-01 fix (fc2c324), re-checked at HEAD
+
+`portPath` strips trailing slashes from the prefix and builds the path from the remainder. `"/x/ports/"` and `"/x/ports//"` give `/x/ports/<Port>`, and `"/"` gives `/<Port>`.
+
+- The code branches on an empty remainder, so the return type stays `/${string}` with no cast.
+- The test "a trailing slash on the prefix never yields a // in the path" (L255-257) pins the first two cases. The `"/"` case is not asserted in the test, but the logic is trivially correct (`slice(1)` gives `""`, so `/${port}`).
+- `spec/behaviors/23-http.md` was updated for the BEH-QD-338 paragraph (AGENTS.md §11).
+- The fix does not disturb the non-prefix paths. The 61 tests pass, and `check-house-style.mjs` reports 406 files clean.
+- The `/\/+$/` regex is linear, with no backtracking risk.
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 | -------- | -------- | ------ | ------- |
-| `packages/http/src/PortRouteAddress.ts` | `PORT_ROUTE_PREFIX`, `portPath`, contract prose | VERIFIED | 36 lines, substantive, imported by both adapters, not in the barrel |
-| `packages/http/test/PortRoutes.test.ts` | round trip under `/x/ports`, address unit, status contract | VERIFIED | Three ARCH-52 `describe` blocks present, 60 tests pass |
-| `spec/behaviors/23-http.md` | BEH-QD-338 | VERIFIED | `:755` |
-| `spec/README.md` | `| CCR-QD-391 |` | VERIFIED | `:329` |
-| `.changeset/port-route-address.md` | `"@qadi/http": patch` | VERIFIED | content read |
+| `packages/http/src/PortRouteAddress.ts` | `PORT_ROUTE_PREFIX`, `portPath`, contract doc | VERIFIED | Substantive, imported by both adapters, a leaf module (imports only the `PortName` type). |
+| `packages/http/test/PortRoutes.test.ts` | non-default-prefix round trip, address unit test, status-contract tests | VERIFIED | Contains `/x/ports`. The tests use literal URLs, so they cannot pass by taking the answer from the module under test. |
+| `.changeset/port-route-address.md` | changeset | VERIFIED | `@qadi/http` patch. |
+| CCR-QD-391, BEH-QD-338, traceability rows | records | VERIFIED | Present in `spec/README.md`, `spec/behaviors/23-http.md` and `spec/traceability.md`. |
 
 ### Key Link Verification
 
-| From | To | Via | Status | Details |
-| ---- | -- | --- | ------ | ------- |
-| `PortRoutes.ts` | `PortRouteAddress.ts` | `portPath(options?.prefix, port)` | WIRED | lines 37, 132, 180 |
-| `RemotePorts.ts` | `PortRouteAddress.ts` | `portPath(options.prefix, port)` | WIRED | lines 24, 56 |
-| `34-remote-ports.md` | `23-http.md` | BEH-QD-333 -> BEH-QD-338 anchor | WIRED | line 106 |
-| `traceability.md` | `PortRoutes.test.ts` | §4 row names BEH-QD-338 | WIRED | line 337 |
-| `spec/README.md` | `.changeset/port-route-address.md` | CCR row lists it | WIRED | line 329 |
+| From | To | Via | Status |
+| ---- | -- | --- | ------ |
+| `PortRoutes.ts` | `PortRouteAddress.ts` | `portPath` in guarded and unguarded `PORT_NAMES.map` | WIRED |
+| `RemotePorts.ts` | `PortRouteAddress.ts` | `portPath` in the `HttpClientRequest.post` URL | WIRED |
+| client | server | round-trip tests via `HttpRouter.toWebHandler` handler | WIRED |
 
 ### Data-Flow Trace (Level 4)
 
-Not applicable: the phase changes how a path string is built and adds no rendered dynamic data. The path flows from the host's `prefix` option through `portPath` to both the router mount and the client request URL, and the round trip test exercises that end to end.
+Not applicable. This is an address-building module, with no rendered dynamic data. The round-trip test shows scripted port answers flowing through server and client.
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 | -------- | ------- | ------ | ------ |
-| Round trip, address unit and status contract | `pnpm vitest run --project http packages/http/test/PortRoutes.test.ts` | 60 passed | PASS |
-| House-style budgets | `node scripts/check-house-style.mjs` | 406 files clean | PASS |
-| Typecheck, src and tests | `pnpm typecheck` | exit 0 | PASS |
-| Coverage thresholds | `pnpm coverage` | 99.1% stmts, 96.82% branches, no threshold error | PASS |
-| `pnpm spec:api`, `spec:gates`, `spec:verify:strict`, example, website, `spec:publish` | not re-run | taken from 07-03-SUMMARY | SKIPPED (relied on SUMMARY and orchestrator evidence) |
+| Port routes, address, and status contract | `npx vitest run --project http packages/http/test/PortRoutes.test.ts` (repo root) | 1 file, 61 tests passed | PASS |
+| House style budgets (`as`, `!`, `any`, `switch`, `fnUntraced`) | `node scripts/check-house-style.mjs` | 406 files clean (3 declared switches) | PASS |
+| New banned constructs in `packages/http/src` diff | grep over the phase diff | none (one false match in a comment) | PASS |
 
 ### Probe Execution
 
-SKIPPED: the phase declares no `probe-*.sh` scripts.
+No phase-declared probes. SKIPPED.
 
 ### Requirements Coverage
 
 | Requirement | Source Plan | Description | Status | Evidence |
 | ----------- | ----------- | ----------- | ------ | -------- |
-| ADDR-01 | 07-01 | One exported definition of the route address | SATISFIED | Truths 1, 2 |
-| ADDR-02 | 07-01, 07-02 | Decode-whatever-the-status contract stated beside it | SATISFIED | Truth 4 |
-| ADDR-03 | 07-01 | Round-trip test with a non-default prefix | SATISFIED | Truth 3 |
-| XC-01 | 07-03 | `pnpm check:pr` green | NEEDS HUMAN | Truth 9 |
-| XC-02 | 07-02 | ADR-or-reason, CCR row, traceability, changeset | SATISFIED | Truth 6 |
-| XC-03 | 07-02, 07-03 | `spec/overview.md` / gate 13 | SATISFIED | Truth 7 |
-| XC-04 | 07-01, 07-03 | No new forbidden constructs | SATISFIED | Truth 8 |
-| XC-05 | 07-03 | Coverage thresholds hold | SATISFIED | Truth 8 |
+| ADDR-01 | 07-01 | One exported definition of the address, imported by both adapters | SATISFIED | Truths 1 and 6. |
+| ADDR-02 | 07-01 | Body-whatever-status contract stated beside the address and referenced by both | SATISFIED | Truths 7 and 8. |
+| ADDR-03 | 07-01 | Round-trip test with a non-default prefix | SATISFIED | Truths 2, 4 and 5. |
+| XC-01 | 07-03 | `pnpm check:pr` green | SATISFIED | 07-UAT.md test 1 (exit 0 on a clean clone of 88187a5). Later commits are `.planning/`-only. |
+| XC-02 | 07-02 | ADR or reason, CCR row, README history, traceability rows, changeset | SATISFIED | CCR-QD-391 and the README history line exist. Traceability rows are at v1.127, and the changeset exists. The report states no ADR is needed, and the contract cites ADR-QD-107. |
+| XC-03 | 07-01 | `spec/overview.md` names added/removed exports (gate 13) | SATISFIED | No export added or removed. Gate 13 passed inside `check:pr`. |
+| XC-04 | 07-01 | No new `as`, `!`, `any`, `switch`, `fnUntraced`, `async`, `console` | SATISFIED | House-style gate clean. |
+| XC-05 | 07-03 | Coverage thresholds hold | SATISFIED | The coverage step ran inside the UAT `check:pr` (exit 0). |
 
-All eight IDs (ADDR-01..03, XC-01..05) are claimed by at least one plan's `requirements`. REQUIREMENTS.md maps ADDR-01..03 to Phase 7 and XC-01..05 to all phases; no orphaned requirement. REQUIREMENTS.md already shows them `[x]` while its traceability table still says "Pending" (lines 159, 162); that is bookkeeping, not a code gap.
+All eight IDs in the phase requirement list are accounted for, and REQUIREMENTS.md maps no further IDs to Phase 7, so there are no orphans.
 
 ### Anti-Patterns Found
 
-| File | Line | Pattern | Severity | Impact |
-| ---- | ---- | ------- | -------- | ------ |
-| `packages/http/src/PortRouteAddress.ts` | 35-36 | `portPath` accepts prefixes its own option docs forbid: `"/"` or `"/x/"` yield `//Port` paths (WR-01 in 07-REVIEW.md, still `open`) | Warning | Both adapters stay consistent with each other, and a mismatch still fails closed as the port's own error. A proxy that collapses `//` would 404 every remote read. Not a must-have failure: no truth or requirement states the prefix is validated. Recommend triage (fix by trimming in `portPath`, or defer) before the milestone closes. |
-| `packages/http/test/PortRoutes.test.ts` | 1-10 | Header describes pre-ARCH-52 scope (IN-01) | Info | Cosmetic |
-| `packages/http/test/PortRoutes.test.ts` | n/a | Default-prefix-client test asserts only the error tag (IN-02) | Info | Weaker assertion, but the "nowhere else" test covers the not-answered half |
-| `spec/behaviors/23-http.md` / `34-remote-ports.md` | n/a | BEH-QD-333 addition runs into previous paragraph; stale Effective Date (IN-03) | Info | Cosmetic |
-
-No TBD/FIXME/XXX debt markers were found in the phase's source files.
+No TBD, FIXME or XXX markers, stubs or empty implementations in the phase's source files. Open code-review findings IN-01 to IN-03 are info-level (stale test header, a test asserting only a tag, a spec paragraph run-on), recorded in 07-REVIEW-DISPOSITION.md as `open`. They are not goal-blocking.
 
 ### Human Verification Required
 
-#### 1. Full `pnpm check:pr` run (XC-01)
+None. The earlier human item (full `pnpm check:pr` in one run) is satisfied by 07-UAT.md.
 
-**Test:** Run `pnpm check:pr` on this branch where Playwright's system dependencies can be installed (CI via `.github/workflows/check.yml`, or a host with sudo and a TTY).
-**Expected:** Exit 0 through all 16 steps in a single run.
-**Why human:** On the verification host the run cannot pass step 13 whatever the tree's state. XC-01 is recorded complete in REQUIREMENTS.md on a user acceptance that exists only as a statement in 07-03-SUMMARY.md. If the maintainer wants that acceptance to stand in place of a CI run, record it as an `overrides:` entry (`must_have: "pnpm check:pr is green"`, `accepted_by`, `accepted_at`) and the phase becomes `passed`. The same host limit applied to Phase 06's UAT, so the project may want a standing note rather than a per-phase decision.
+### Notes (non-blocking)
+
+- ROADMAP.md's phase-list checkbox for Phase 7 (line 23) and the REQUIREMENTS.md traceability table (lines 159, 162) still read "Pending". The per-requirement checkboxes are `[x]`. The orchestrator should flip these at phase completion.
+- The `"/"` prefix case from WR-01 is not asserted in a test. This is cosmetic.
 
 ### Gaps Summary
 
-No gaps. Every code-observable truth holds. One item (XC-01's literal single-run exit 0) is not observable on this host and needs a CI run or an explicit maintainer override. WR-01 is an open warning, not blocking.
+No gaps. The server and client adapters build every route through the single `portPath` definition. The reply-body status contract is stated once beside it and cited by both adapters. A real round trip under a non-default prefix is tested, including fail-closed behavior for a mismatched client. The WR-01 trailing-slash fix is present and tested at HEAD.
 
 ---
 
