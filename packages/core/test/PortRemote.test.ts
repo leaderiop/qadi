@@ -35,7 +35,7 @@ import type { PortServing, PortServingOf } from "../src/PortServing.ts";
 import { RemotePortFailure } from "../src/PortWire.ts";
 import type { PortWireReply } from "../src/PortWire.ts";
 import { askSignature, servePortRead } from "../src/PortAccess.ts";
-import { PORTS, portsLayer, tabulatePorts } from "../src/Ports.ts";
+import { forEveryPort, PORTS, portsLayer, tabulatePorts } from "../src/Ports.ts";
 import type { AnswerOf, ArgsOf, DescriptionOf, PortServices, PortTypes, ServiceOf } from "../src/Ports.ts";
 import { RelationshipResolverNever } from "../src/RelationshipResolver.ts";
 import { SignatureHistory, SignatureHistoryNone } from "../src/SignatureHistory.ts";
@@ -574,4 +574,59 @@ describe("servingFor", () => {
         if (signatures.calls.length > 0) assert.isDefined(serving.SignatureHistory);
       }
     }));
+});
+
+describe("serving facets (SERV-02)", () => {
+  /** The leaf tags that read a port; every other policy tag asks none. */
+  const PORT_LEAVES: { readonly [K in PortName]: ReadonlyArray<P.Policy["_tag"]> } = {
+    AttributeResolver: ["HasAttribute"],
+    DecisionHistory: ["HasActed", "HasNotActed"],
+    RelationshipResolver: ["HasRelationship"],
+    CustomPredicate: ["HasCustom"],
+    SignatureHistory: ["HasSignature"],
+  };
+
+  /** The word each port's `PortServing` slot earns, written out per port. */
+  const WORDS: { readonly [K in PortName]: "required" | "open" | "opt-in" } = {
+    AttributeResolver: "required",
+    DecisionHistory: "open",
+    RelationshipResolver: "open",
+    CustomPredicate: "required",
+    SignatureHistory: "opt-in",
+  };
+
+  it("names each port-reading leaf under exactly one port, and no other policy tag", () => {
+    for (const d of Record.values(PORTS)) {
+      assert.deepStrictEqual(Object.keys(d.serving.leaves).toSorted(), PORT_LEAVES[d.port].toSorted(), d.port);
+    }
+    const named = forEveryPort((d) => Object.keys(d.serving.leaves)).flat();
+    assert.deepStrictEqual(
+      named.toSorted(),
+      ["HasActed", "HasAttribute", "HasCustom", "HasNotActed", "HasRelationship", "HasSignature"],
+    );
+    for (const tag of named) assert.include(P.POLICY_TAGS, tag);
+  });
+
+  it("states each port's allowlist word", () => {
+    for (const d of Record.values(PORTS)) assert.strictEqual(d.serving.allowlist, WORDS[d.port], d.port);
+  });
+
+  it("declares what it admits: declare and admitted agree, per port", () => {
+    forEveryPort((d) => {
+      const optIn = WORDS[d.port] === "opt-in";
+      const slot = d.serving.declare(["a", "b"])[d.port];
+      assert.isDefined(slot, d.port);
+      if (slot !== undefined) {
+        assert.deepStrictEqual(d.serving.admitted(slot), optIn ? undefined : ["a", "b"], d.port);
+      }
+      const nothing = d.serving.declare([]);
+      if (optIn) {
+        assert.notProperty(nothing, d.port);
+        return;
+      }
+      const empty = nothing[d.port];
+      assert.isDefined(empty, d.port);
+      if (empty !== undefined) assert.deepStrictEqual(d.serving.admitted(empty), [], d.port);
+    });
+  });
 });

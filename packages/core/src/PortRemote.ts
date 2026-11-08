@@ -33,10 +33,10 @@ import type { Policy } from "./Policy.ts";
 import { servePortRead } from "./PortAccess.ts";
 import { nonePort } from "./PortDerivation.ts";
 import type { PortName } from "./PortMetrics.ts";
-import type { PortServing, PortServingOf } from "./PortServing.ts";
+import type { PortServing, PortServingOf, ServedLeaves } from "./PortServing.ts";
 import { PortWireReply, RemotePortError, RemotePortFailure } from "./PortWire.ts";
 import { WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
-import { mergePorts, tabulatePorts } from "./Ports.ts";
+import { forEveryPort, mergePorts, tabulatePorts } from "./Ports.ts";
 import type { ArgsOf, DescriptionOf, ErrorOf, PortServices, PortTypes, ServiceOf, ShapeOf } from "./Ports.ts";
 
 /**
@@ -158,63 +158,55 @@ export const askRemotely = <K extends PortName>(
     }),
   );
 
+/** Each policy tag mapped to its own node type: the index that correlates a tag with its node (TS #47109). */
+type NodeOf = { readonly [T in Policy["_tag"]]: Extract<Policy, { readonly _tag: T }> };
+
+/**
+ * The name `leaf` asks the port whose `leaves` these are, if that port reads
+ * this tag at all.
+ *
+ * Typed through {@link NodeOf} rather than `Extract<Policy, …>` so the handler
+ * stored under `tag` is applied to a node of exactly that tag.
+ */
+const leafName = <T extends Policy["_tag"]>(
+  leaves: ServedLeaves,
+  tag: T,
+  leaf: NodeOf[T],
+): string | undefined => leaves[tag]?.(leaf);
+
 /**
  * The serving declaration a set of policies needs: every attribute, relation,
  * event and predicate name they ask a port about, and the signature port when
  * any of them asks it.
  *
  * What a host that serves "the questions this application's policies can ask"
- * wants, derived rather than listed by hand. A property test pins it: every
- * question `evaluate` puts to a port for a generated policy is admitted by
- * `servingFor([policy])`. A matcher's `subject(...)` ref reads the subject the
- * request already carries, never a port, so only a node's own names are
- * collected. Every port a policy can reach is named, with an empty allowlist
- * where it has no name to give.
+ * wants, derived rather than listed by hand. It reads each port's
+ * `serving.leaves`, so a new port-reading leaf is one entry in one description
+ * and nothing here changes. A property test pins it: every question `evaluate`
+ * puts to a port for a generated policy is admitted by `servingFor([policy])`.
+ * A matcher's `subject(...)` ref reads the subject the request already
+ * carries, never a port, so only a node's own names are collected. Every port
+ * a policy can reach is named, with an empty allowlist where it has no name to
+ * give; an opt-in port with nothing asked contributes no member at all.
+ *
+ * Runs once per node at start-up, never per request, which is why folding every
+ * node past every port's facet is fine.
  */
 export const servingFor = (policies: Iterable<Policy>): PortServing => {
-  const attributes = new Set<string>();
-  const relations = new Set<string>();
-  const events = new Set<string>();
-  const names = new Set<string>();
-  const signatures = new Set<string>();
+  const heard = tabulatePorts<{ readonly [K in PortName]: Set<string> }>(() => new Set());
   for (const policy of policies) {
     foldPolicy<void>(policy, (node) => {
-      collectNames(node, { attributes, relations, events, names, signatures });
+      forEveryPort((d) => {
+        const name = leafName(d.serving.leaves, node._tag, node);
+        if (name !== undefined) heard[d.port].add(name);
+      });
     });
   }
-  return {
-    AttributeResolver: { attributes: [...attributes].toSorted() },
-    RelationshipResolver: { relations: [...relations].toSorted() },
-    DecisionHistory: { events: [...events].toSorted() },
-    CustomPredicate: { names: [...names].toSorted() },
-    ...(signatures.size > 0 ? { SignatureHistory: { signatures: "own-records" as const } } : {}),
-  };
-};
-
-interface Collector {
-  readonly attributes: Set<string>;
-  readonly relations: Set<string>;
-  readonly events: Set<string>;
-  readonly names: Set<string>;
-  readonly signatures: Set<string>;
-}
-
-/**
- * What one policy node asks a port about, if anything.
- *
- * `Match.value` rather than a hoisted matcher (§5a): it runs once per node of a
- * policy set at start-up, never per request, and its arms close over the
- * collector.
- */
-const collectNames: (node: Policy, into: Collector) => void = (node, into) =>
-  Match.value(node).pipe(
-    Match.tag("HasAttribute", (n) => void into.attributes.add(n.attribute)),
-    Match.tag("HasRelationship", (n) => void into.relations.add(n.relation)),
-    Match.tag("HasActed", "HasNotActed", (n) => void into.events.add(n.event)),
-    Match.tag("HasCustom", (n) => void into.names.add(n.name)),
-    Match.tag("HasSignature", () => void into.signatures.add("own-records")),
-    Match.orElse(() => undefined),
+  return forEveryPort((d): PortServing => d.serving.declare([...heard[d.port]].toSorted())).reduce<PortServing>(
+    (all, part) => ({ ...all, ...part }),
+    {},
   );
+};
 
 /**
  * The ports of a process that answers them remotely: each listed port is asked
