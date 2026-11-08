@@ -83,10 +83,11 @@ const ARCHIVE_VERSION = "1";
 
 /**
  * Builds the bundle from the entries' facts (`archiveFacts`, ADR-QD-110). Fails
- * with `SequenceIntegrityError` rather than archiving a set of rows already known
- * to have a gap or a duplicate — an archive exists to be trusted later, so it
- * refuses to be built on a foundation this package can already tell is
- * broken.
+ * with `SequenceNumberInvalid` for a `sequenceNumber` that is not a safe integer
+ * (one `readAuditArchive` could not decode), and with `SequenceIntegrityError`
+ * rather than archiving a set of rows already known to have a gap or a
+ * duplicate — an archive exists to be trusted later, so it refuses to be built
+ * on a foundation this package can already tell is broken.
  *
  * The sequence check tolerates and is tested against entries arriving out of
  * write order — it checks the *sequence numbers*, not array order.

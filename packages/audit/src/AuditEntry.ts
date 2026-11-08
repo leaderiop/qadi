@@ -73,9 +73,11 @@ export class AuditEntryNotEncodable extends Data.TaggedError("AuditEntryNotEncod
 
 /**
  * The optional gap-detection field, declared once for the row schema and the
- * row decode: an integer, so `1.5` and `NaN` are `Malformed` even when a row
- * is the only sequenced one (`verifySequenceIntegrity` can only refuse them
- * from two samples up).
+ * row decode: a safe integer, so `1.5`, `NaN` and `2 ** 53` are `Malformed` on
+ * decode. `archiveFacts` (`ArchiveFacts.ts`) states the same domain with the
+ * same `Schema.Int`, so `verifySequenceIntegrity` and `archiveAuditTrail` fail
+ * `SequenceNumberInvalid` for any one such number and never archive a row this
+ * decode would refuse (ADR-QD-110).
  */
 const SequenceNumber = Schema.optional(Schema.Int);
 
