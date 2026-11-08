@@ -1,10 +1,10 @@
 ---
 phase: 02-one-port-read
-fixed_at: 2026-11-08T00:00:00Z
+fixed_at: 2026-11-08T04:40:00+01:00
 review_path: /home/yopu/Project/Perso/qadi/.planning/phases/02-one-port-read/02-REVIEW.md
-iteration: 1
-findings_in_scope: 3
-fixed: 3
+iteration: 2
+findings_in_scope: 1
+fixed: 1
 skipped: 0
 status: all_fixed
 ---
@@ -13,55 +13,79 @@ status: all_fixed
 
 **Fixed at:** 2026-11-08
 **Source review:** .planning/phases/02-one-port-read/02-REVIEW.md
-**Iteration:** 1
+**Iteration:** 2
 
 **Summary:**
-- Findings in scope: 3 (WR-01, WR-02, WR-03; Info findings are out of `critical_warning` scope)
-- Fixed: 3
+- Findings in scope: 1 (WR-04; IN-06 and IN-07 are out of scope for `critical_warning`)
+- Fixed: 1
 - Skipped: 0
 
-**Where verification ran:** the main checkout. `workflow.use_worktrees` is `false`, so no worktree was created and the commits are on `arch-wave-5` directly.
+Edits and commits were made in the main checkout on `arch-wave-5` (`workflow.use_worktrees` is `false`). Every gate below ran in that checkout.
 
 ## Fixed Issues
 
-### WR-01: `disclose` and `pose` run outside the defect mapping, so a served read can die and `answerRemotely`'s "never fails" no longer holds
+### WR-04: devtools what-if replay still grants `not(hasSignature)` for a requirement the capture never saw
 
-**Files modified:** `packages/core/src/PortAccess.ts`, `packages/core/test/PortRemote.test.ts`, `spec/behaviors/34-remote-ports.md`, `spec/decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md`
-**Commit:** 7cbd7c8
-**Applied fix:** `readPort` now annotates the answer in an `Effect.tap` before `catchPortDefect`. A throw in `disclose` is therefore the port's typed error (`SignatureHistoryUnavailable` for the signature port), for the local and the served read alike. `pose` stays outside, because it reads only the request the read built itself. Three tests were added: a malformed signature answer (`[null]`) fails `servePortRead` and a local `askSignature` with the typed error, and `answerRemotely` replies `{ _tag: "Unavailable" }`. All three fail on the old code. BEH-QD-332 and ADR-QD-109 decision 3 were amended and revised through `spec-revise` (BEH-34 is now 1.2, ADR-109 is 1.1). Logic change, so it needs human verification.
+**Files modified:** `packages/devtools/src/model/Capture.ts`, `packages/devtools/test/model/Capture.test.ts`, `packages/core/src/SignatureHistory.ts` (doc comment only), `spec/invariants.md`, `spec/decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md`, `spec/behaviors/29-devtools-simulator.md`, `apps/website/src/content/docs/docs/concepts/signatures.md`, `apps/website/src/content/docs/docs/packages/audit/signatures.md`, `.changeset/devtools-unseen-signature-fails.md`
+**Commit:** ad5b3fe
+**Status:** fixed: requires human verification (a logic change to what replay answers)
 
-**Behavior note:** before the phase, a malformed answer on a served read came back `Refused: Unencodable`. It now comes back `Unavailable`. The reviewer's description of the regression was "dies", and the fix is "clean typed reply". It is not the earlier `Unencodable`.
+**Applied fix:** Fail closed on a miss, as decided. The capture is not re-keyed.
+- `replayLayer` now answers a request the capture never saw with `PortReply.fail("the capture holds no answer for this SignatureHistory request (not captured)")` for `SignatureHistory`. That becomes `SignatureHistoryUnavailable` through the description's own `failure`. The other four ports still fall through to `none`.
+- "Which port's miss is not safe to answer with `none`" is a local closed table in `Capture.ts`, `UNSEEN_REQUEST_IS_AN_OUTAGE: { readonly [K in PortName]: boolean }`. A sixth port is a compile error until it states which it is. No public `@qadi/core` export was added. I did not put a field on `PortDescription`, because a new required field would break hand-built descriptions.
+- Tests in `Capture.test.ts` (new `describe`, 5 tests):
+  1. A captured signature answer replays exactly (empty `diffTraces`, key lookup is `Answered`).
+  2. An edited `meaning` fails with `SignatureHistoryUnavailable`, both as `hasSignature("review")` and as `not(hasSignature("review"))`. An edited `signerRole` under `not(...)` fails too.
+  3. An empty capture fails a signature request instead of denying it.
+  4. The other four ports' unseen requests still produce a `Deny` decision, not a failure.
+  I confirmed the three miss tests fail on the old `Capture.ts` (stashed it and re-ran) and pass on the new one. The existing INV-QD-043 tests all still pass.
+- Docs updated in the same commit:
+  - `Capture.ts` doc comments (the `replayLayer` comment no longer says "no signatures" or claims the miss denies "for the reason a misconfigured deployment would").
+  - INV-QD-043: Source, key paragraph and Enforcement. Revision 1.79 to 1.80, dated 2026-11-08 via `spec-revise.mjs`.
+  - ADR-QD-109 Consequences bullet, rewritten. 1.3 to 1.4.
+  - BEH-QD-221 in `spec/behaviors/29-devtools-simulator.md`: new REQUIREMENT, and the "never saw" requirement now carries the exception. 1.7 to 1.8.
+  - The `SignatureHistoryNone` doc comment in `SignatureHistory.ts`.
+  - `concepts/signatures.md` and `packages/audit/signatures.md`, which both said "denying unambiguously".
+- Changeset: `.changeset/devtools-unseen-signature-fails.md`, `@qadi/devtools` patch.
 
-### WR-02: the pre-validation question is still written by hand in three reads, a second statement of the projection
+## Finding for the caller: the "other ports' `none` does not grant under negation" claim is false
 
-**Files modified:** `packages/core/src/PortAccess.ts`, `packages/core/src/RelationshipResolver.ts`, `spec/decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md`
-**Commit:** e744e97
-**Applied fix:** `askActedForResource`, `askRelationship` and `askSignature` (Resource scope) keep D-07's annotate-then-validate order. The early annotation is now `{ ...<port>.attributes.pose([request]), interpreter }`, with `scope: "Resource"` set by the read where the port has that field. `askActedForResource` and `askRelationship` build `request` once and reuse it for `readPort` on the success path. `relationshipSpan.pose` now accepts `resourceId: ResourceId | undefined` (a widened parameter, so every real request is still assignable), because the id may be unvalidated at that point. ADR-QD-109's Alternatives bullet is amended (ADR-109 is now 1.2).
+You asked me to verify this for each port before relying on it. I ran `not(<leaf>)` against `snapshot(emptyAnswers)` with a scratch test (deleted afterwards). All four ports' unseen requests **grant** under negation:
 
-**Decision on the asserted `scope` value:** the failure-path span for a missing id keeps `qadi.scope = "Resource"`. `pose` alone would say `"Any"` when `resourceId` is `undefined`, which would misdescribe a Resource-scoped question. Scope is a fact of the read, not of the request, so the read overrides it. The "a missing resource id still leaves its question on the span (D-07)" tests pass unchanged; no asserted value moved. Logic change, so it needs human verification.
+| Leaf under `not(...)` | Unseen answer | Result |
+| --- | --- | --- |
+| `hasAttribute("clearance", gte(1))` | `undefined` | Allow |
+| `hasRelationship("owner")` | `Unknown` | Allow |
+| `hasActed("raised")` | `Unknown` | Allow |
+| `hasCustom("x")` | `false` | Allow |
 
-### WR-03: "over-keying can only miss and deny, never replay a stale allow" is false for a negated `hasSignature`
+The cause is `Walk.ts`'s `Not` arm: any denying child becomes an allow. It is the same fail-open an unwired real deployment has under `not(...)`, which is the INV-QD-007 question the review already flagged as predating this phase. I kept scope narrow, as instructed, and did not change these four. What I did:
+- The `replayLayer` doc comment and INV-QD-043 now say plainly that the `none` default is safe for an un-negated leaf only.
+- I did not add a test pinning the four negated allows, so they are not fossilised as intended behavior.
 
-**Files modified:** `packages/core/src/SignatureHistory.ts` (the `signatureHistoryPort` doc comment), `spec/decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md`
-**Commit:** ce9ecbd
-**Applied fix:** wording corrected, in place, with a Change History entry (ADR-109 is now 1.3). The ADR bullet and the doc comment now say a requirement the capture never saw is the port's `none` answer (an empty list). `hasSignature` denies on it and `not(hasSignature)` grants, so a devtools what-if that edits `meaning` or `signerRole` can report an allow the real store would not give. The effect is confined to the devtools replay and does not reach live enforcement. The ADR records that the first draft's claim held only for the un-negated leaf. This is a documentation correction only; the behavior is unchanged and the replay fidelity regression remains (see below).
+Whether the other four ports should also fail on a miss is a decision for you. With the new table it is a one-word change per port (`false` to `true`). It would also make a what-if of any policy that uses `not(...)` over a port fail on every unseen request.
 
 ## Verification
 
-Run in the main checkout after all three commits:
-- `pnpm typecheck`: pass
-- `node scripts/check-house-style.mjs`: 397 files clean, 3 declared switches
-- `pnpm vitest run` (full): 151 files, 3895 tests passed
-- `node scripts/spec-revise.mjs --check`: every Revision matches its newest history entry
-- `pnpm spec:verify:strict`: PASS 21, FAIL 0, SKIP 0
-- `pnpm spec:examples`: 101 blocks compile
+All gates ran in the main checkout, post-commit state identical to the committed tree:
 
-## Residual, not fixed (needs a decision)
+| Gate | Result |
+| --- | --- |
+| `pnpm typecheck` | pass |
+| `pnpm lint` | 0 errors (the warnings it prints are pre-existing and in other files) |
+| `node scripts/check-house-style.mjs` | 397 files clean, 3 declared switches |
+| `pnpm vitest run` (full) | 151 files, 3900 tests passed |
+| `pnpm test:bdd` | 34 files, 559 tests passed |
+| `node scripts/spec-revise.mjs --check` | every revision matches |
+| `pnpm spec:verify:strict` | PASS 21, FAIL 0, SKIP 0 |
+| `pnpm spec:examples` | 101 blocks compile |
+| `pnpm spec:api` | 861 exports documented |
+| `pnpm spec:website-examples` | 40 blocks compile |
 
-WR-03's behavioral half is open. The reviewer offered two options: key signature captures by `(subjectId, resourceId)` with the requirement as span context only, or make devtools replay answer `SignatureHistoryUnavailable` for an unseen signature request. Either changes `packages/devtools/src/model/Capture.ts` or the port key and its spec. That is beyond a wording correction, so only the claim was corrected. `apps/website/.../concepts/signatures.md:57` ("an empty list already denies on its own") is likewise true only for the un-negated leaf and was left as is.
+The commit went through the repository hooks (no `--no-verify`). `.planning/config.json` and `.planning/state.json` were not touched.
 
 ---
 
 _Fixed: 2026-11-08_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 1_
+_Iteration: 2_
