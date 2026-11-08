@@ -103,10 +103,10 @@
 
 - [x] **SERV-01**: A human checkpoint confirms amending ADR-QD-094 to allow a `serving` facet
   on a port description before any code changes.
-- [ ] **SERV-02**: Each port description states its serving facet: the allowlist kind and the
+- [x] **SERV-02**: Each port description states its serving facet: the allowlist kind and the
   policy leaf tags it answers. `ADMITTED`, `Collector`, `collectNames` and the per-port sets in
   `servingFor` are derived from the registry.
-- [ ] **SERV-03**: The public `PortServing` shape is unchanged.
+- [x] **SERV-03**: The public `PortServing` shape is unchanged.
 - [x] **SERV-04**: Pass-through enumerations are removed: `mapPorts` merges into
   `tabulatePorts`, `fixturePortsLayer` derives from the registry, and `@qadi/testing`'s
   `answersOf`/`layersOf` split is gone.

@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Port serving from the registry
 status: executing
-stopped_at: "Completed 08-05-PLAN.md (skipped: D-01 approved)"
-last_updated: "2026-11-08T13:32:33.110Z"
+stopped_at: Completed 08-03-PLAN.md
+last_updated: "2026-11-08T13:39:12.096Z"
 last_activity: 2026-11-08
 last_activity_desc: Phase 08 execution started
-state_head: d984413aa1f9b407432b6b19f0441dafca752fc4
+state_head: 9eafd8915989620e40a0c2f8aae5ded27f12440d
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 33
-  completed_plans: 26
+  completed_plans: 27
   percent: 78
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-08)
 ## Current Position
 
 Phase: 08 (Port serving from the registry) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-11-08 — Phase 08 execution started
 
@@ -77,6 +77,7 @@ Progress: [██████████████░░░░░░] 23/33 p
 | Phase 07 P03 | ~1h | 2 tasks | 0 files |
 | Phase 08 P01 | 10min | 2 tasks | 1 files |
 | Phase 08 P02 | 25min | 2 tasks | 11 files |
+| Phase 08 P03 | 35min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,7 @@ Progress: [██████████████░░░░░░] 23/33 p
 - [Phase 07]: UAT: literal `pnpm check:pr` exit 0 (16/16) on a clean clone of 88187a5 in the podman Ubuntu Playwright container (same route as Phase 06); vitest 3974+559+42, e2e 30/30
 - [Phase 08]: D-01 approved: port descriptions may carry a serving facet (amends ADR-QD-094); plans 08-03/08-04 run, 08-05 skips
 - [Phase 08]: D-07: tabulatePorts is two overloads over one body; separate layer builder removed. D-08: fixturePortsLayer derived from the registry with no as. D-09: testing passes ports to core unchanged
+- [Phase 08]: 08-03: serving facet on every port description (PortServingFacet, ServedLeaves in PortServing.ts); PortWire.asked removed; overview Rev 1.76
 
 ### Pending Todos
 
@@ -149,6 +151,6 @@ Progress: [██████████████░░░░░░] 23/33 p
 
 ## Session Continuity
 
-Last session: 2026-11-08T13:32:33.016Z
-Stopped at: Completed 08-05-PLAN.md (skipped: D-01 approved)
+Last session: 2026-11-08T13:39:12.000Z
+Stopped at: Completed 08-03-PLAN.md
 Resume file: None
