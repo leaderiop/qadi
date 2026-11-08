@@ -24,7 +24,7 @@ status: all_fixed
 
 ## Fixed Issues
 
-### WR-01: `disclose` runs outside the defect mapping
+### WR-01: `disclose` and `pose` run outside the defect mapping, so a served read can die and `answerRemotely`'s "never fails" no longer holds
 
 **Files modified:** `packages/core/src/PortAccess.ts`, `packages/core/test/PortRemote.test.ts`, `spec/behaviors/34-remote-ports.md`, `spec/decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md`
 **Commit:** 7cbd7c8
@@ -32,7 +32,7 @@ status: all_fixed
 
 **Behavior note:** before the phase, a malformed answer on a served read came back `Refused: Unencodable`. It now comes back `Unavailable`. The reviewer's description of the regression was "dies", and the fix is "clean typed reply". It is not the earlier `Unencodable`.
 
-### WR-02: pre-validation question hand-written beside `pose`
+### WR-02: the pre-validation question is still written by hand in three reads, a second statement of the projection
 
 **Files modified:** `packages/core/src/PortAccess.ts`, `packages/core/src/RelationshipResolver.ts`, `spec/decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md`
 **Commit:** e744e97
@@ -40,7 +40,7 @@ status: all_fixed
 
 **Decision on the asserted `scope` value:** the failure-path span for a missing id keeps `qadi.scope = "Resource"`. `pose` alone would say `"Any"` when `resourceId` is `undefined`, which would misdescribe a Resource-scoped question. Scope is a fact of the read, not of the request, so the read overrides it. The "a missing resource id still leaves its question on the span (D-07)" tests pass unchanged; no asserted value moved. Logic change, so it needs human verification.
 
-### WR-03: "over-keying can only deny" is false under `not(...)`
+### WR-03: "over-keying can only miss and deny, never replay a stale allow" is false for a negated `hasSignature`
 
 **Files modified:** `packages/core/src/SignatureHistory.ts` (the `signatureHistoryPort` doc comment), `spec/decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md`
 **Commit:** ce9ecbd
