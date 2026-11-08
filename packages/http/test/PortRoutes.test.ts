@@ -40,10 +40,11 @@ import type {
   PortServingOf,
   PortTypes,
 } from "@qadi/core";
+import { collectingLogger } from "@qadi/testing";
 import { permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
 import { PORT_REPLY_STATUS, portRoutes, portRoutesUnguarded } from "../src/PortRoutes.ts";
 import { remotePortsLayer } from "../src/RemotePorts.ts";
-import { subjectExtractorBearer } from "../src/SubjectExtractor.ts";
+import { SubjectExtractionFailed, subjectExtractorBearer } from "../src/SubjectExtractor.ts";
 import { stack } from "./fixtures/stack.ts";
 
 const readPorts = permission("ports", "read");
@@ -427,4 +428,43 @@ describe("the unguarded form", () => {
         }),
       ({ dispose }) => Effect.promise(dispose),
     ));
+
+  it.effect("logs a subject extraction failure once, as a guarded route does (ENF-03)", () => {
+    const { lines, layer: logger } = collectingLogger();
+    const double = scriptedPort(PORTS.AttributeResolver, () => PortReply.answer(1));
+    const brokenStore = subjectExtractorBearer(() =>
+      Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
+    );
+    return Effect.acquireUseRelease(
+      Effect.sync(() =>
+        HttpRouter.toWebHandler(
+          stack(
+            portRoutesUnguarded("test: answers only about the session's own subject", {
+              AttributeResolver: { attributes: ["clearance"] },
+            }),
+            brokenStore,
+            Layer.merge(portsLayer({ AttributeResolver: double.layer }), EvaluationIdLive),
+          ).pipe(Layer.provideMerge(logger)),
+          { disableLogger: true },
+        ),
+      ),
+      ({ handler }) =>
+        Effect.gen(function* () {
+          const response = yield* post(
+            handler,
+            "AttributeResolver",
+            JSON.stringify({ subjectId: "alice", attribute: "clearance" }),
+            "alice-token",
+          );
+          assert.strictEqual(response.status, 502);
+          // Error level only: the route's construction-time Warn line is not under test.
+          assert.deepStrictEqual(
+            lines.filter((line) => line.level === "Error").map((line) => line.message),
+            [["qadi/http: subject extraction failed — token service unreachable"]],
+          );
+          assert.strictEqual(double.calls.length, 0);
+        }),
+      ({ dispose }) => Effect.promise(dispose),
+    );
+  });
 });
