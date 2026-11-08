@@ -144,6 +144,18 @@ read of the same request leave the same span. A hand-built description (rare, be
 closed) states both. See
 [ADR-QD-109](https://github.com/leaderiop/qadi/blob/main/spec/decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md).
 
+A hand-built description also states `serving` (`PortServingFacet`): the allowlist word for the port, the
+policy leaves that read it, the one name it asks, and what a declaration admits. `PortWire` no longer has
+`asked`; it is `serving.asked`. See
+[ADR-QD-114](https://github.com/leaderiop/qadi/blob/main/spec/decisions/114-a-port-states-what-it-serves.md).
+
+## 0.12: one per-port table builder
+
+`mapPorts` is removed from `@qadi/core`. `tabulatePorts(f)` takes the same visitor and returns the same
+record of layers (`PortLayers`), so replace `mapPorts(f)` with `tabulatePorts(f)`; `PortLayerVisitor` is
+unchanged. `tabulatePorts` also still takes a visitor that returns any one type for every port. See
+[ADR-QD-094](https://github.com/leaderiop/qadi/blob/main/spec/decisions/094-a-port-is-described-once.md).
+
 ## 0.12: `@qadi/devtools`' interface
 
 `@qadi/devtools` used to export every name each of its modules declared: 245
