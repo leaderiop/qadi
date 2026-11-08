@@ -354,3 +354,7 @@ entries:
     file: "107-a-port-is-answered-remotely-through-its-description.md"
     title: "A port is answered remotely through its description"
     status: "Accepted — amends ADR-QD-094, ADR-QD-051"
+  - id: "ADR-QD-108"
+    file: "108-a-request-is-enforced-once-through-one-module.md"
+    title: "A request is enforced once, through one module"
+    status: "Accepted — amends ADR-QD-036; reads ADR-QD-081, ADR-QD-102"
