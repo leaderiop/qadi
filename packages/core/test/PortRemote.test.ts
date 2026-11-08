@@ -15,6 +15,7 @@ import * as Layer from "effect/Layer";
 import * as Record from "effect/Record";
 import * as Result from "effect/Result";
 import type * as Schema from "effect/Schema";
+import type * as Tracer from "effect/Tracer";
 import * as FastCheck from "fast-check";
 import { AttributeResolverNone } from "../src/AttributeResolver.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
@@ -33,11 +34,12 @@ import { answerRemotely, askRemotely, remotePorts, servingFor } from "../src/Por
 import type { PortServing, PortServingOf } from "../src/PortRemote.ts";
 import { RemotePortFailure } from "../src/PortWire.ts";
 import type { PortWireReply } from "../src/PortWire.ts";
+import { askSignature } from "../src/PortAccess.ts";
 import { PORTS, portsLayer, tabulatePorts } from "../src/Ports.ts";
 import type { AnswerOf, ArgsOf, DescriptionOf, PortServices, PortTypes, ServiceOf } from "../src/Ports.ts";
 import { RelationshipResolverNever } from "../src/RelationshipResolver.ts";
-import { SignatureHistoryNone } from "../src/SignatureHistory.ts";
-import { policyArbitrary } from "./helpers.ts";
+import { SignatureHistory, SignatureHistoryNone } from "../src/SignatureHistory.ts";
+import { collectingTracer, policyArbitrary } from "./helpers.ts";
 
 const aliceId = makeSubjectId("alice");
 const bobId = makeSubjectId("bob");
@@ -85,9 +87,9 @@ const CASES: { readonly [K in PortName]: Case<K> } = {
     unserved: { names: ["isEditor"] },
   },
   SignatureHistory: {
-    args: [{ subjectId: aliceId, resourceId: doc }],
+    args: [{ subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" }],
     answer: [{ signerId: aliceId, meaning: "approved", signedAt: 0 }],
-    other: [{ subjectId: bobId, resourceId: doc }],
+    other: [{ subjectId: bobId, resourceId: doc, meaning: "approved", signerRole: "manager" }],
     serving: { signatures: "own-records" },
     unserved: undefined,
   },
@@ -101,6 +103,10 @@ const rendered = (error: unknown): string => `${String(Reflect.get(Object(error)
 
 /** Through JSON text, the way a transport carries it. */
 const overTheWire = (json: unknown): unknown => JSON.parse(JSON.stringify(json));
+
+/** A port's question for `args`, as the asking half encodes it. */
+const asQuestion = <K extends PortName>(d: DescriptionOf<K>, args: ArgsOf<PortTypes[K]>): Schema.Json =>
+  Result.getOrThrow(d.wire.encodeQuestion(args));
 
 const remoteCase = <K extends PortName>(d: DescriptionOf<K>, c: Case<K>) => {
   /** A `send` served by `store`, for a session about `session`. */
@@ -145,6 +151,15 @@ const remoteCase = <K extends PortName>(d: DescriptionOf<K>, c: Case<K>) => {
         const error = yield* Effect.flip(ask(sendTo(dying, c.serving), c.args));
         assert.strictEqual(error._tag, d.failure(c.args, "x")._tag);
         assert.notInclude(JSON.stringify(error), "the-secret-boom");
+      }));
+
+    it.effect("a store that throws is answered Unavailable, never a defect", () =>
+      Effect.gen(function* () {
+        const throwing = scriptedPort(d, () => PortReply.throw(new Error("boom"))).layer;
+        const reply = yield* answerRemotely(d, c.serving)(overTheWire(asQuestion(d, c.args))).pipe(
+          Effect.provide(Layer.merge(throwing, currentSubjectLayer(alice))),
+        );
+        assert.deepStrictEqual(reply, { _tag: "Unavailable" });
       }));
 
     it.effect("a question about another subject is refused, not answered", () =>
@@ -257,6 +272,88 @@ const remoteEvaluation = (
     remotePorts(send, ports),
   );
 };
+
+describe("a signature question asked remotely (PORT-04)", () => {
+  const records = [{ signerId: aliceId, meaning: "approved", signerRole: "manager", signedAt: 0 }];
+  const store = scriptedPort(PORTS.SignatureHistory, () => PortReply.answer(records)).layer;
+  const send = (question: Schema.Json) =>
+    answerRemotely(PORTS.SignatureHistory, { signatures: "own-records" })(overTheWire(question)).pipe(
+      Effect.provide(Layer.merge(store, currentSubjectLayer(alice))),
+      Effect.map(overTheWire),
+    );
+  const signed = (spans: Array<Tracer.Span>, meaning: string, signerRole: string | undefined) =>
+    askSignature(alice, meaning, signerRole, "Resource", "doc-1").pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          Layer.succeed(SignatureHistory, askRemotely(PORTS.SignatureHistory, send)),
+          collectingTracer(spans),
+        ),
+      ),
+    );
+  const signatureSpans = (spans: ReadonlyArray<Tracer.Span>) =>
+    spans
+      .filter((s) => s.name === PORTS.SignatureHistory.span)
+      .map((s) => Object.fromEntries(s.attributes));
+
+  it.effect("leaves a local and a served span equal apart from the interpreter", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const answer = yield* signed(spans, "approved", "manager");
+      assert.isTrue(answer.matched);
+      const found = signatureSpans(spans);
+      assert.strictEqual(found.length, 2);
+      const local = found.find((a) => a["qadi.interpreter"] === "evaluate");
+      const served = found.find((a) => a["qadi.interpreter"] === "remote");
+      assert.isDefined(local);
+      assert.isDefined(served);
+      const { "qadi.interpreter": _local, ...localRest } = local ?? {};
+      const { "qadi.interpreter": _served, ...servedRest } = served ?? {};
+      assert.deepStrictEqual(servedRest, localRest);
+      assert.strictEqual(servedRest["qadi.meaning"], "approved");
+      assert.strictEqual(servedRest["qadi.signer_role"], "manager");
+      assert.strictEqual(servedRest["qadi.matched"], true);
+    }));
+
+  it.effect("says a requirement that matches nothing on file did not match, on both spans", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const answer = yield* signed(spans, "approved", "director");
+      assert.isFalse(answer.matched);
+      const found = signatureSpans(spans);
+      assert.strictEqual(found.length, 2);
+      for (const attributes of found) assert.strictEqual(attributes["qadi.matched"], false);
+    }));
+});
+
+describe("the signature question carries the asker's requirement (D-03)", () => {
+  const d = PORTS.SignatureHistory;
+  const roundTrip = (query: { subjectId: typeof aliceId; resourceId: typeof doc | undefined; meaning?: string; signerRole?: string }) => {
+    const encoded = Result.getOrThrow(d.wire.encodeQuestion([query]));
+    return Result.getOrThrow(d.wire.decodeQuestion(overTheWire(encoded))).args(alice);
+  };
+
+  it("meaning and signerRole survive encode, decode and args", () => {
+    assert.deepStrictEqual(roundTrip({ subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" }), [
+      { subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" },
+    ]);
+  });
+
+  it("their absence survives the round trip, and an old question still decodes", () => {
+    assert.deepStrictEqual(roundTrip({ subjectId: aliceId, resourceId: doc }), [{ subjectId: aliceId, resourceId: doc }]);
+    const old = Result.getOrThrow(d.wire.decodeQuestion({ subjectId: "alice", resourceId: "doc-1" }));
+    assert.deepStrictEqual(old.args(alice), [{ subjectId: aliceId, resourceId: doc }]);
+  });
+
+  it("an excess property is still refused", () => {
+    const widened = { subjectId: "alice", resourceId: "doc-1", meaning: "approved", isAdmin: true };
+    assert.isTrue(Result.isFailure(d.wire.decodeQuestion(widened)));
+  });
+
+  it("a requirement that is not a string is refused", () => {
+    assert.isTrue(Result.isFailure(d.wire.decodeQuestion({ subjectId: "alice", meaning: 7 })));
+    assert.isTrue(Result.isFailure(d.wire.decodeQuestion({ subjectId: "alice", signerRole: {} })));
+  });
+});
 
 describe("an outage on the answering side fails the asker's evaluation", () => {
   const down = portsLayer({

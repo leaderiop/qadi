@@ -170,7 +170,7 @@ const CASES: { readonly [K in PortName]: CaseOf<PortTypes[K]> } = {
   },
   SignatureHistory: {
     description: signatureHistoryPort,
-    args: [{ subjectId: aliceId, resourceId: doc }],
+    args: [{ subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" }],
     answer: [{ signerId: aliceId, meaning: "approved", signedAt: 0 }],
     none: SignatureHistoryNone,
     retrying: signatureHistoryRetrying,
@@ -501,8 +501,8 @@ const conform: CaseVisitor = (c) => {
         }
       });
 
-      it("the span projection of a question names the subject", () => {
-        assert.strictEqual(d.wire.spanQuestion(c.args)["subjectId"], aliceId);
+      it("the span question of a request names the subject", () => {
+        assert.strictEqual(d.attributes.pose(c.args)["subjectId"], aliceId);
       });
     });
   });
@@ -539,11 +539,17 @@ describe("request keys", () => {
     );
     assert.strictEqual(
       signatureHistoryPort.key([{ subjectId: aliceId, resourceId: undefined }]),
-      '["alice",null]',
+      '["alice",null,null,null]',
     );
     assert.strictEqual(
       signatureHistoryPort.key([{ subjectId: aliceId, resourceId: doc }]),
-      '["alice","doc-1"]',
+      '["alice","doc-1",null,null]',
+    );
+    assert.strictEqual(
+      signatureHistoryPort.key([
+        { subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" },
+      ]),
+      '["alice","doc-1","approved","manager"]',
     );
   });
 });
@@ -717,12 +723,21 @@ describe("a request key is injective over the request", () => {
     },
     SignatureHistory: {
       description: signatureHistoryPort,
-      base: [{ subjectId: aliceId, resourceId: doc }],
-      rebuilt: [{ resourceId: makeResourceId("doc-1"), subjectId: aliceId }],
+      base: [{ subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" }],
+      rebuilt: [
+        { signerRole: "manager", meaning: "approved", resourceId: makeResourceId("doc-1"), subjectId: aliceId },
+      ],
       variants: [
-        ["subjectId", [{ subjectId: bobId, resourceId: doc }]],
-        ["resourceId", [{ subjectId: aliceId, resourceId: other }]],
-        ["resourceId absent", [{ subjectId: aliceId, resourceId: undefined }]],
+        ["subjectId", [{ subjectId: bobId, resourceId: doc, meaning: "approved", signerRole: "manager" }]],
+        ["resourceId", [{ subjectId: aliceId, resourceId: other, meaning: "approved", signerRole: "manager" }]],
+        [
+          "resourceId absent",
+          [{ subjectId: aliceId, resourceId: undefined, meaning: "approved", signerRole: "manager" }],
+        ],
+        ["meaning", [{ subjectId: aliceId, resourceId: doc, meaning: "reviewed", signerRole: "manager" }]],
+        ["meaning absent", [{ subjectId: aliceId, resourceId: doc, signerRole: "manager" }]],
+        ["signerRole", [{ subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "director" }]],
+        ["signerRole absent", [{ subjectId: aliceId, resourceId: doc, meaning: "approved" }]],
       ],
     },
   };
