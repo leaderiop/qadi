@@ -5,17 +5,17 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Writer accepts sequence numbers the reader refuses, so \"reader accepts every bundle the writer writes\" (BEH-QD-254, ADR-QD-110) is false"
   - id: IN-01
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Stale test commentary left behind by the refactor"
   - id: IN-02
     severity: info
-    disposition: open
+    disposition: fixed
     title: "ADR-QD-110 mutation and \"97 killed / 1 survivor\" claim is not reproducible from the changed files"
-open: 3
+open: 0
 total: 3
 recorded: 2026-11-08T04:16:41.550Z
 ---
@@ -24,9 +24,9 @@ recorded: 2026-11-08T04:16:41.550Z
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| IN-01 | info | open | - |
-| IN-02 | info | open | - |
+| WR-01 | warning | fixed | ba6e377 (writer fails SequenceNumberInvalid), ccafcb8 (spec) |
+| IN-01 | info | fixed | ba6e377 |
+| IN-02 | info | fixed | ccafcb8 (ADR-QD-110 cites the Stryker command; re-run 117 killed / 1 survived) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
