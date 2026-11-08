@@ -31,7 +31,7 @@ import { PortReply } from "../src/PortDescription.ts";
 import { recordingPort, scriptedPort } from "../src/PortDoubles.ts";
 import type { PortName } from "../src/PortMetrics.ts";
 import { answerRemotely, askRemotely, remotePorts, servingFor } from "../src/PortRemote.ts";
-import type { PortServing, PortServingOf } from "../src/PortRemote.ts";
+import type { PortServing, PortServingOf } from "../src/PortServing.ts";
 import { RemotePortFailure } from "../src/PortWire.ts";
 import type { PortWireReply } from "../src/PortWire.ts";
 import { askSignature, servePortRead } from "../src/PortAccess.ts";
@@ -53,6 +53,8 @@ interface Case<K extends PortName> {
   /** The same question, about someone else. */
   readonly other: ArgsOf<PortTypes[K]>;
   readonly serving: PortServingOf<K>;
+  /** The one name an allowlist admits for `args`, or `undefined` where the port has none. */
+  readonly asked: string | undefined;
   /** A declaration that does not admit `args`, or `undefined` where a port has none to refuse. */
   readonly unserved: PortServingOf<K> | undefined;
 }
@@ -63,6 +65,7 @@ const CASES: { readonly [K in PortName]: Case<K> } = {
     answer: { level: 3 },
     other: [bobId, "clearance"],
     serving: { attributes: ["clearance"] },
+    asked: "clearance",
     unserved: { attributes: ["constructor"] },
   },
   DecisionHistory: {
@@ -70,6 +73,7 @@ const CASES: { readonly [K in PortName]: Case<K> } = {
     answer: "Acted",
     other: [{ subjectId: bobId, event: "approved", resourceId: doc }],
     serving: { events: ["approved"] },
+    asked: "approved",
     unserved: { events: ["rejected"] },
   },
   RelationshipResolver: {
@@ -77,6 +81,7 @@ const CASES: { readonly [K in PortName]: Case<K> } = {
     answer: "Related",
     other: [{ subjectId: bobId, relation: "owner", resourceId: doc, depth: 2 }],
     serving: { relations: ["owner"] },
+    asked: "owner",
     unserved: { relations: [] },
   },
   CustomPredicate: {
@@ -84,6 +89,7 @@ const CASES: { readonly [K in PortName]: Case<K> } = {
     answer: true,
     other: ["isOwner", bob, { id: "doc-1" }, { strict: true }],
     serving: { names: ["isOwner"] },
+    asked: "isOwner",
     unserved: { names: ["isEditor"] },
   },
   SignatureHistory: {
@@ -91,6 +97,7 @@ const CASES: { readonly [K in PortName]: Case<K> } = {
     answer: [{ signerId: aliceId, meaning: "approved", signedAt: 0 }],
     other: [{ subjectId: bobId, resourceId: doc, meaning: "approved", signerRole: "manager" }],
     serving: { signatures: "own-records" },
+    asked: undefined,
     unserved: undefined,
   },
 };
@@ -128,6 +135,11 @@ const remoteCase = <K extends PortName>(d: DescriptionOf<K>, c: Case<K>) => {
       Effect.gen(function* () {
         const answer = yield* ask(sendTo(answering, c.serving), c.args);
         assert.deepStrictEqual(answer, c.answer);
+      }));
+
+    it.effect("the port's own facet names the one name an allowlist admits", () =>
+      Effect.sync(() => {
+        assert.strictEqual(d.serving.asked(c.args), c.asked);
       }));
 
     it.effect("the shape is named for what it is", () =>
@@ -243,6 +255,61 @@ describe("a remote port (ADR-QD-NEXT)", () => {
         Effect.provide(Layer.merge(store, currentSubjectLayer(alice))),
       );
       assert.deepStrictEqual(seen, ["editor"]);
+    }));
+});
+
+/**
+ * What a declaration admits is decided by the port's own `serving` facet
+ * (SERV-02, ADR-QD-114): a required allowlist declared empty admits nothing,
+ * and an open port with no list admits any name.
+ */
+describe("a declaration is admitted through the port's facet (SERV-02)", () => {
+  const refused = { _tag: "Refused", reason: "NotServed" };
+
+  const answerWith = <K extends PortName>(
+    d: DescriptionOf<K>,
+    serving: PortServingOf<K>,
+    store: Layer.Layer<ServiceOf<PortTypes[K]>>,
+    args: ArgsOf<PortTypes[K]>,
+  ) =>
+    answerRemotely(d, serving)(overTheWire(asQuestion(d, args))).pipe(
+      Effect.provide(Layer.merge(store, currentSubjectLayer(alice))),
+    );
+
+  it.effect("a required attribute list declared empty admits nothing, not even inherited names", () =>
+    Effect.gen(function* () {
+      for (const attribute of ["clearance", "constructor", "__proto__"]) {
+        const store = recordingPort(PORTS.AttributeResolver, AttributeResolverNone);
+        const reply = yield* answerWith(PORTS.AttributeResolver, { attributes: [] }, store.layer, [
+          aliceId,
+          attribute,
+        ]);
+        assert.deepStrictEqual(reply, refused);
+        assert.strictEqual(store.calls.length, 0);
+      }
+    }));
+
+  it.effect("a required predicate list declared empty admits nothing", () =>
+    Effect.gen(function* () {
+      const store = recordingPort(PORTS.CustomPredicate, CustomPredicateNone);
+      const reply = yield* answerWith(PORTS.CustomPredicate, { names: [] }, store.layer, CASES.CustomPredicate.args);
+      assert.deepStrictEqual(reply, refused);
+      assert.strictEqual(store.calls.length, 0);
+    }));
+
+  it.effect("an open port with no list admits any name", () =>
+    Effect.gen(function* () {
+      const relationships = scriptedPort(PORTS.RelationshipResolver, () => PortReply.answer("Related")).layer;
+      const related = yield* answerWith(
+        PORTS.RelationshipResolver,
+        {},
+        relationships,
+        CASES.RelationshipResolver.args,
+      );
+      assert.deepStrictEqual(related, { _tag: "Answered", answer: "Related" });
+      const history = scriptedPort(PORTS.DecisionHistory, () => PortReply.answer("Acted")).layer;
+      const acted = yield* answerWith(PORTS.DecisionHistory, {}, history, CASES.DecisionHistory.args);
+      assert.deepStrictEqual(acted, { _tag: "Answered", answer: "Acted" });
     }));
 });
 
