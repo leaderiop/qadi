@@ -34,7 +34,7 @@
 - [x] **PORT-03**: One internal generic read in `PortAccess.ts` performs span annotation,
   metric counting, defect catching and answer annotation for every local read and for
   `servePortRead`.
-- [ ] **PORT-04**: Local and served spans for the same question carry identical attributes.
+- [x] **PORT-04**: Local and served spans for the same question carry identical attributes.
   This fixes the signature port's divergence: a served span lacked `meaning`/`signerRole`, and
   its answer span was `{}` while the local one carried `matched`. `onFile` stays off both spans, per BEH-QD-227 and ADR-QD-109.
 - [x] **PORT-05**: Every read named in AGENTS.md §5 keeps its traced `Effect.fn(name)` span
