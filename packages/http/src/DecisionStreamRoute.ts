@@ -76,9 +76,7 @@
  */
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
-import type * as Filter from "effect/Filter";
 import * as Option from "effect/Option";
-import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
@@ -87,67 +85,26 @@ import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type {
   DecisionLogReader,
-  DecisionRecordEvent,
   DecisionStreamEvent,
   EnforcementErrorClass,
-  LogCursor,
   LogEntry,
   Permission,
   Policy,
-  SinkRecordNotEncodable,
   StandingEvaluationServices,
-  StoredRecord,
 } from "@qadi/core";
-import {
-  DecisionStreamSynced,
-  encodeStoredRecordString,
-  formatLogCursor,
-  parseLogCursor,
-  reportEncodeRefusal,
-} from "@qadi/core";
+import { DecisionStreamSynced, parseLogCursor } from "@qadi/core";
 import { enforceRequest } from "./AuthorizeRequest.ts";
 import type { EnforcementProjection } from "./AuthorizeRequest.ts";
+import { frameEntries, frameEntry } from "./DecisionLogHttp.ts";
+import type { DecisionLogServeOptions } from "./DecisionLogHttp.ts";
 import { loadNoResource } from "./NoResource.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
 import { classifyHttpEnforcementFailure } from "./QadiHttpError.ts";
 import type { SubjectExtractor } from "./SubjectExtractor.ts";
 
-/**
- * One stored record as an SSE frame of the given event — `event: backlog` /
- * `data: <envelope>`, or `data: <envelope>` alone for `message`, with an `id:`
- * line when a cursor is given (ARCH-11 D-11-g) — produced by
- * `effect/encoding/Sse`'s own `encoder.write` rather than a hand-built template
- * string (H6, ADR-QD-072). That is the same encoder `HttpApiBuilder`'s
- * `HttpApiSchema.StreamSse` machinery calls internally; the machinery itself is
- * inseparable from the full `HttpApi` pipeline, and this route's `reauth`
- * recheck is a `Stream.mergeEffect` over the response stream with no
- * `HttpApiMiddleware` equivalent, so the encoder is reused directly.
- *
- * For `message`, `Sse.encoder.write` omits the `event:` line, so a live frame
- * is `data: <json>\n\n` — what an `EventSource`'s `message` listener reads.
- *
- * **One call, to `@qadi/core`'s `encodeStoredRecordString`.** The frame's data
- * is the stored-record envelope `{ environment, record }`, whose `record` is the
- * same bytes forwarding sends and an audit row stores; every rule about what can
- * cross lives in the codec, over the whole encoded record (ARCH-09). A refused
- * record drops only its own frame: the refusal is the filter's failure value,
- * reported by {@link decisionFrames}, and the stream carries on.
- *
- * A `Filter`: `Result.succeed` keeps a value, `Result.fail` drops it
- * (`effect/Filter`'s own doc comment). Exported so the refusal can be tested
- * directly against a plain record.
- */
-export const frame =
-  (event: DecisionRecordEvent, cursor?: LogCursor): Filter.Filter<StoredRecord, string, SinkRecordNotEncodable> =>
-  (stored) =>
-    Result.map(encodeStoredRecordString(stored), (data) =>
-      Sse.encoder.write({
-        _tag: "Event",
-        event,
-        id: cursor === undefined ? undefined : formatLogCursor(cursor),
-        data,
-      }),
-    );
+// The record frame is the decision-log module's, and it is public through this
+// module as `NO_RESOURCE` is public through RequirePermission.ts.
+export { frame } from "./DecisionLogHttp.ts";
 
 /** The `synced` frame: the backlog is over, and how many frames it was. */
 export const syncedFrame = (backlog: number): string =>
@@ -157,20 +114,6 @@ export const syncedFrame = (backlog: number): string =>
     id: undefined,
     data: JSON.stringify(Schema.encodeSync(DecisionStreamSynced)({ backlog })),
   });
-
-/**
- * Reports one refused record, then drops its frame: `onRefused` when the
- * caller supplied one, otherwise a warning naming the refusal, where in the
- * record it was found, and the evaluation. Runs only on the refusal branch,
- * so a framed record pays for no span.
- */
-const reportRefused = Effect.fn("qadi.http.decisionStream.refused")(function* (
-  refusal: SinkRecordNotEncodable,
-  onRefused: ((refusal: SinkRecordNotEncodable) => void) | undefined,
-) {
-  yield* reportEncodeRefusal(refusal, { message: "qadi/http: a decision record could not be framed", onRefused });
-  return Result.fail(refusal);
-});
 
 /**
  * One read of a decision log as SSE frames: each backlog entry as a `backlog`
@@ -189,29 +132,16 @@ export const decisionFrames = (
     readonly backlog: ReadonlyArray<LogEntry>;
     readonly live: Stream.Stream<LogEntry>;
   },
-  options?: Pick<DecisionStreamOptions, "onRefused">,
-): Stream.Stream<string> => {
-  const onRefused = options?.onRefused;
-  const framed =
-    (event: DecisionRecordEvent) =>
-    (entry: LogEntry): Effect.Effect<Result.Result<string, SinkRecordNotEncodable>> =>
-      Result.match(frame(event, entry.cursor)(entry.record), {
-        onSuccess: (data) => Effect.succeed(Result.succeed(data)),
-        onFailure: (refusal) => reportRefused(refusal, onRefused),
-      });
-  const prelude: Effect.Effect<ReadonlyArray<string>> = Effect.map(
-    Effect.forEach(read.backlog, (entry) => framed("backlog")(entry)),
-    (results) => results.flatMap((result) => (Result.isSuccess(result) ? [result.success] : [])),
-  );
-  return Stream.unwrap(
-    Effect.map(prelude, (frames) =>
+  options?: DecisionLogServeOptions,
+): Stream.Stream<string> =>
+  Stream.unwrap(
+    Effect.map(frameEntries("backlog", read.backlog, options), (frames) =>
       Stream.fromIterable([...frames, syncedFrame(frames.length)]).pipe(
-        Stream.concat(Stream.filterMapEffect(read.live, framed("message"))),
+        Stream.concat(Stream.filterMapEffect(read.live, frameEntry("message", options))),
       )),
   );
-};
 
-export interface DecisionStreamOptions {
+export interface DecisionStreamOptions extends DecisionLogServeOptions {
   /**
    * Re-authorizes an open connection on an interval, ending it the moment
    * that check no longer passes. See this module's own doc comment for what
@@ -221,12 +151,6 @@ export interface DecisionStreamOptions {
   readonly reauth?: {
     readonly interval: Duration.Input;
   };
-  /**
-   * Called once for each record that cannot be framed — `encodeStoredRecordString`
-   * refused it — in place of the default warning. The record's frame is dropped
-   * either way, and the stream carries on: one record never ends it.
-   */
-  readonly onRefused?: (refusal: SinkRecordNotEncodable) => void;
 }
 
 /**
