@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`portPath` is the one place the address is built, but accepts prefixes its own docs forbid"
   - id: IN-01
     severity: info
@@ -19,16 +19,16 @@ findings:
     severity: info
     disposition: open
     title: "BEH-QD-333 addition runs into the previous paragraph, and the revised document keeps an old Effective Date"
-open: 4
+open: 3
 total: 4
-recorded: 2026-11-08T06:45:45.721Z
+recorded: 2026-11-08T07:00:53.134Z
 ---
 
 # Phase 07: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
+| WR-01 | warning | fixed | 07-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
