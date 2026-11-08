@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 01
-current_phase_name: HTTP request enforcement
+current_phase: 02
+current_phase_name: One port read
 status: executing
-stopped_at: "Planning complete. Next: `/gsd-execute-phase 1`"
-last_updated: "2026-11-08T01:56:12.327Z"
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-11-08T02:35:20.109Z"
 last_activity: 2026-11-08
-last_activity_desc: Phase 01 execution started
-state_head: 8960dae12b1e025e4c13e0595042464079cad9e9
+last_activity_desc: Phase 02 execution started
+state_head: dbda748e34adb214a7bb820c7763e8c381cadbe1
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 33
-  completed_plans: 0
+  completed_plans: 6
   percent: 0
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-08)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 01 — HTTP request enforcement
+**Current focus:** Phase 02 — One port read
 
 ## Current Position
 
-Phase: 01 (HTTP request enforcement) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 01
-Last activity: 2026-11-08 — Phase 01 execution started
+Phase: 02 (One port read) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-11-08 — Phase 02 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -46,6 +46,11 @@ Progress: [░░░░░░░░░░] 0%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | - | - | - | - |
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 02 P01 | 8 min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -59,6 +64,9 @@ Progress: [░░░░░░░░░░] 0%
 - 2026-11-08 (planner): Phase 4 implements D-03 by intent. The per-entry lookup lives in `useGates`, memoised on the group atom, because reusing group atoms would break BEH-QD-068.
 - 2026-11-08 (planner): Phases 5, 6 and 9 leave ADR-QD-112, ADR-QD-113 and ADR-QD-115 unused (CCR/amendment instead).
 - 2026-11-08 (planner): Phase 8 removes `mapPorts`, which is **Breaking** (shipped in @qadi/core 0.10.0). The overloaded `tabulatePorts` implementation signature needs reviewer attention.
+- [Phase 02]: Phase 02 P01: pose beside disclose on each port description's span attributes; readPort is the one read body, a plain function that opens no span
+- [Phase 02]: Phase 02 P01: D-03 recorded, local and served signature spans are equal including meaning, signer_role and matched; onFile is on neither span
+- [Phase 02]: Phase 02 P01: the three resource-scoped reads annotate the question twice with agreeing values on the success path, to keep annotate-then-validate literal (ADR-QD-109 consequence)
 
 ### Pending Todos
 
@@ -73,6 +81,6 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-11-08
-Stopped at: Planning complete. Next: `/gsd-execute-phase 1`
+Last session: 2026-11-08T02:35:20.074Z
+Stopped at: Completed 02-01-PLAN.md
 Resume file: None

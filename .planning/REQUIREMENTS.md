@@ -31,15 +31,15 @@
   `PortWire`.
 - [ ] **PORT-02**: The `spanQuestion`/`spanAnswer` fields are removed from all five port
   modules' `wire` blocks, and `PortWire` deals only with JSON.
-- [ ] **PORT-03**: One internal generic read in `PortAccess.ts` performs span annotation,
+- [x] **PORT-03**: One internal generic read in `PortAccess.ts` performs span annotation,
   metric counting, defect catching and answer annotation for every local read and for
   `servePortRead`.
 - [ ] **PORT-04**: Local and served spans for the same question carry identical attributes.
   This fixes the signature port's divergence: a served span lacked `meaning`/`signerRole`, and
   its answer span was `{}` while the local one carried `matched`. `onFile` stays off both spans, per BEH-QD-227 and ADR-QD-109.
-- [ ] **PORT-05**: Every read named in AGENTS.md §5 keeps its traced `Effect.fn(name)` span
+- [x] **PORT-05**: Every read named in AGENTS.md §5 keeps its traced `Effect.fn(name)` span
   and span name. UNTRACED_BUDGET is unchanged.
-- [ ] **PORT-06**: The PortAccess tests become a per-port table that asserts span equality
+- [x] **PORT-06**: The PortAccess tests become a per-port table that asserts span equality
   between local and served reads.
 
 ### ARC — Audit archive facts (Phase 3, ARCH-48)
