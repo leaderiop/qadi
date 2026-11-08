@@ -2,12 +2,14 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as Layer from "effect/Layer";
+import type * as Tracer from "effect/Tracer";
 import { attributeResolverPort } from "../src/AttributeResolver.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
 import { customPredicatePort } from "../src/CustomPredicate.ts";
 import { decisionHistoryPort } from "../src/DecisionHistory.ts";
 import { AttributeResolveError } from "../src/Errors.ts";
-import { makeResourceId } from "../src/Identity.ts";
+import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import {
   askActedAny,
   askCustom,
@@ -15,12 +17,14 @@ import {
   askSignature,
   catchPortDefect,
   readAttribute,
+  servePortRead,
 } from "../src/PortAccess.ts";
 import { PortReply } from "../src/PortDescription.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { portsLayer } from "../src/Ports.ts";
 import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
 import { signatureHistoryPort } from "../src/SignatureHistory.ts";
+import { collectingTracer } from "./helpers.ts";
 
 /**
  * `catchPortDefect`'s whole contract is a cause matrix: which shapes of cause it
@@ -195,5 +199,90 @@ describe("a read's defect error is its port description's", () => {
         error,
         signatureHistoryPort.defect([{ subjectId: alice.id, resourceId: doc }], dying),
       );
+    }));
+});
+
+/**
+ * A port's span is projected once and every read is one body (ARCH-47,
+ * ADR-QD-109): a local read and a served read of the same request leave the
+ * same span, apart from `qadi.interpreter`, and a store that throws is the
+ * port's typed error whichever way it was asked.
+ */
+describe("a read is one body, locally and served (ARCH-47)", () => {
+  const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
+  const aliceId = makeSubjectId("alice");
+  const doc = makeResourceId("doc-1");
+  const signed = [{ signerId: aliceId, meaning: "approved", signerRole: "manager", signedAt: 0 }];
+
+  const attributesOf = (spans: ReadonlyArray<Tracer.Span>, name: string) => {
+    const span = spans.find((s) => s.name === name);
+    assert.isDefined(span);
+    return Object.fromEntries(span?.attributes ?? []);
+  };
+
+  const without = (record: Readonly<Record<string, unknown>>, key: string) =>
+    Object.fromEntries(Object.entries(record).filter(([k]) => k !== key));
+
+  const spansOfSignature = Effect.gen(function* () {
+    const store = scriptedPort(signatureHistoryPort, () => PortReply.answer(signed)).layer;
+    const localSpans: Array<Tracer.Span> = [];
+    yield* askSignature(alice, "approved", "manager", "Resource", "doc-1").pipe(
+      Effect.provide(Layer.mergeAll(portsLayer({ SignatureHistory: store }), collectingTracer(localSpans))),
+    );
+    const servedSpans: Array<Tracer.Span> = [];
+    yield* servePortRead(signatureHistoryPort, {
+      subjectId: aliceId,
+      resourceId: doc,
+      meaning: "approved",
+      signerRole: "manager",
+    }).pipe(Effect.provide(Layer.mergeAll(store, collectingTracer(servedSpans))));
+    return {
+      local: attributesOf(localSpans, signatureHistoryPort.span),
+      served: attributesOf(servedSpans, signatureHistoryPort.span),
+    };
+  });
+
+  it.effect("a signature question leaves equal local and served spans, apart from the interpreter", () =>
+    Effect.gen(function* () {
+      const { local, served } = yield* spansOfSignature;
+      assert.strictEqual(local["qadi.interpreter"], "evaluate");
+      assert.strictEqual(served["qadi.interpreter"], "remote");
+      assert.deepStrictEqual(without(served, "qadi.interpreter"), without(local, "qadi.interpreter"));
+      assert.strictEqual(served["qadi.meaning"], "approved");
+      assert.strictEqual(served["qadi.signer_role"], "manager");
+      assert.strictEqual(served["qadi.scope"], "Resource");
+      assert.strictEqual(served["qadi.resource_id"], "doc-1");
+      assert.strictEqual(served["qadi.matched"], true);
+    }));
+
+  it.effect("the signature answer keys are the struct's, and onFile is recorded on neither span", () =>
+    Effect.gen(function* () {
+      const { local, served } = yield* spansOfSignature;
+      const { question, answer } = signatureHistoryPort.attributes;
+      const answerKeys: ReadonlyArray<string> = Object.values(answer.keys);
+      const known: ReadonlyArray<string> = [...Object.values(question.keys), ...answerKeys];
+      for (const attributes of [local, served]) {
+        assert.deepStrictEqual(
+          Object.keys(attributes).filter((k) => answerKeys.includes(k)),
+          ["qadi.matched"],
+        );
+        assert.deepStrictEqual(
+          Object.keys(attributes).filter((k) => !known.includes(k)),
+          [],
+        );
+      }
+    }));
+
+  it.effect("a served read whose store throws is the port's typed error, never a defect", () =>
+    Effect.gen(function* () {
+      const query = { subjectId: aliceId, event: "approved", resourceId: undefined };
+      const result = yield* Effect.result(
+        servePortRead(decisionHistoryPort, query).pipe(
+          Effect.provide(scriptedPort(decisionHistoryPort, () => PortReply.throw("dead")).layer),
+        ),
+      );
+      assert.strictEqual(result._tag, "Failure");
+      if (result._tag !== "Failure") return;
+      assert.deepStrictEqual(result.failure, decisionHistoryPort.defect([query], Cause.die("dead")));
     }));
 });
