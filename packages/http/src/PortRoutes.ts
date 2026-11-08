@@ -51,9 +51,9 @@ const REFUSAL_STATUS: { readonly [R in PortWireRefusal]: number } = {
  * The HTTP status a reply is sent with: `Answered` 200, `Unavailable` 503, and a
  * refusal by its reason.
  *
- * The body is always the reply, and a client decodes it whatever the status, so
- * the semantics live in the reply and the status is only for the layers between
- * (a proxy, a log, `curl`).
+ * A client reads the body whatever this table says: the contract, and why the
+ * status is only for the layers between, is stated beside the address in
+ * `PortRouteAddress.ts`.
  */
 export const PORT_REPLY_STATUS: (reply: PortWireReply) => number = Match.type<PortWireReply>().pipe(
   Match.tagsExhaustive({

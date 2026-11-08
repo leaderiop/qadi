@@ -6,9 +6,11 @@
  * `send` and turns every non-answer into the port's own typed error; this
  * module supplies a `send` over `HttpClient`. The question is a JSON `POST` to
  * `<baseUrl><prefix>/<PortName>`, and the reply body is decoded **whatever the
- * status**, because the body is the reply (`PortRoutes.ts`): a 503 with an
- * `Unavailable` reply is an outage, a 502 from a proxy with an HTML page is a
- * transport failure, and neither is ever read as an answer.
+ * status**, because the body is the reply (the contract in `PortRouteAddress.ts`):
+ * a 503 with an `Unavailable` reply is an outage, a 502 from a proxy with an HTML
+ * page is a transport failure, and neither is ever read as an answer. The status
+ * `PORT_REPLY_STATUS` (`PortRoutes.ts`) chooses is the one thing this client
+ * deliberately does not read.
  *
  * The host provides the client: `FetchHttpClient.layer` in a browser, and for
  * cookies `Layer.succeed(FetchHttpClient.RequestInit, { credentials: "same-origin" })`.
@@ -54,6 +56,7 @@ export const remotePortsLayer = (
           HttpClientRequest.post(`${options.baseUrl}${portPath(options.prefix, port)}`).pipe(
             HttpClientRequest.bodyJson(question),
             Effect.flatMap((request) => client.execute(request)),
+            // The status is not checked here, on purpose: the body is the reply (PortRouteAddress.ts).
             Effect.flatMap((response) => response.json),
             Effect.mapError(transport),
           ),
