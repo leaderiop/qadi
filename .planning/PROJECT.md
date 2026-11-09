@@ -4,14 +4,24 @@
 
 Qadi is an Effect v4-native authorization library: a pnpm monorepo of `@qadi/core`,
 `@qadi/http`, `@qadi/react`, `@qadi/audit`, `@qadi/promise`, `@qadi/testing`,
-`@qadi/devtools`, `@qadi/predicate-sql` and `@qadi/predicate-prisma`. This milestone is the
-fifth architecture-deepening wave. It resolves the nine findings from the 2026-11-08
-architecture review: one live logging defect and eight places where knowledge about one
-concept is spread across several modules (poor locality) or where a module is a shallow
-pass-through.
+`@qadi/devtools`, `@qadi/predicate-sql` and `@qadi/predicate-prisma`. Milestone v1.0
+(shipped 2026-11-09) was the fifth architecture-deepening wave. It resolved the nine findings
+from the 2026-11-08 architecture review: one live logging defect and eight places where
+knowledge about one concept was spread across several modules (poor locality) or where a
+module was a shallow pass-through.
 
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
+
+## Current State
+
+v1.0 Arch Wave 5 shipped 2026-11-09 on branch `arch-wave-5` (240 commits, 134 files, +7,660 / −1,815
+outside `.planning`): ARCH-46 to ARCH-54, ADR-QD-108..116 (112, 113 and 115 left unused), CCR-QD-385..393.
+All 9 phases verified `passed` against the final tree; the full `pnpm check` is green on Node 22.12.0
+(CI run 42676403473 at 127d6fa). Archive: `.planning/milestones/v1.0-ROADMAP.md`.
+
+**Next milestone goals:** not yet defined. Start with `/gsd-new-milestone`. Candidates carried
+forward are in Known Issues below.
 
 ## Core Value
 
@@ -38,8 +48,7 @@ logged, counted or spanned.
 
 ### Active
 
-See `.planning/REQUIREMENTS.md`. There is one requirement group per phase (ENF, PORT, ARC, GATE,
-LOGH, HYD, ADDR, SERV, SINK), plus the cross-cutting group XC.
+(None. Every v1.0 requirement shipped. The next milestone defines new ones.)
 
 ### Out of Scope
 
@@ -80,6 +89,20 @@ LOGH, HYD, ADDR, SERV, SINK), plus the cross-cutting group XC.
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
 
+### Known Issues (carried forward from v1.0)
+
+- CI: the Node 26 matrix leg exceeds the 60-minute `timeout-minutes` during mutation on a full
+  `pnpm check` (seen at c807b64 and 127d6fa); release PRs will hit it.
+- Devtools replay: the other four ports' `none` answers still grant under `not(...)` on a
+  capture miss (INV-QD-007 fail-open); flipping each is one word in `Capture.ts`. Needs a decision.
+- Open review findings, all warning or info: Phase 01 WR-02/WR-03/IN-03, Phase 02 IN-01..07,
+  Phase 04 IN-01..03, Phase 05 WR-01/IN-01/IN-02, Phase 07 IN-01..03, Phase 09 IN-01
+  (see each phase's `*-REVIEW-DISPOSITION.md` in the archive).
+- `pnpm example` needs sudo on the Fedora dev host (`playwright install --with-deps`); use CI or
+  the podman Ubuntu Playwright container route.
+- Running vitest from inside a package directory fails at collection; run from the repo root
+  with `--project`.
+
 ## Constraints
 
 - **Tech stack**: Effect v4 (`effect@4.1.2`), TypeScript with `verbatimModuleSyntax`, `@effect/vitest`.
@@ -110,4 +133,4 @@ LOGH, HYD, ADDR, SERV, SINK), plus the cross-cutting group XC.
 | The obligation record is projected before the handler runs | A handler reassigning `resource.id` must not change the record it is logged under (WR-01) | Accepted (Phase 9, dafe9e1) |
 
 ---
-*Last updated: 2026-11-09 after Phase 9*
+*Last updated: 2026-11-09 after v1.0 milestone*
