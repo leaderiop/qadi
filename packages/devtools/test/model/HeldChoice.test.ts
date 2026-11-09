@@ -6,7 +6,12 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as FastCheck from "fast-check";
-import { pinHead, resolveHeld } from "../../src/model/HeldChoice.ts";
+import {
+  makeHeldChoiceStore,
+  pinHead,
+  resolveHeld,
+  type HeldChoiceStore,
+} from "../../src/model/HeldChoice.ts";
 
 interface Item {
   readonly key: string;
@@ -98,5 +103,72 @@ describe("pinHead", () => {
 
   it("holds nothing from an empty list", () => {
     assert.isUndefined(pinHead([], undefined));
+  });
+});
+
+describe("makeHeldChoiceStore", () => {
+  const listed = (store: HeldChoiceStore<Item>) => store.getSnapshot().choice;
+
+  it("pins the head at construction", () => {
+    const store = makeHeldChoiceStore([item("a"), item("b")], sameKey);
+    assert.deepStrictEqual(listed(store), { _tag: "Listed", value: item("a"), index: 0 });
+  });
+
+  it("is Empty over an empty list", () => {
+    assert.deepStrictEqual(listed(makeHeldChoiceStore<Item>([], sameKey)), { _tag: "Empty" });
+  });
+
+  it("keeps the first value shown when a new head arrives", () => {
+    const store = makeHeldChoiceStore([item("a")], sameKey);
+    store.setList([item("z"), item("a")]);
+    assert.deepStrictEqual(listed(store), { _tag: "Listed", value: item("a"), index: 1 });
+  });
+
+  it("pins the head once a list arrives for an empty store", () => {
+    const store = makeHeldChoiceStore<Item>([], sameKey);
+    store.setList([item("a"), item("b")]);
+    store.setList([item("b"), item("a")]);
+    assert.deepStrictEqual(listed(store), { _tag: "Listed", value: item("a"), index: 1 });
+  });
+
+  it("holds a chosen value by value through a reorder", () => {
+    const store = makeHeldChoiceStore([item("a"), item("b")], sameKey);
+    store.choose(item("b"));
+    store.setList([item("b"), item("a")]);
+    assert.deepStrictEqual(listed(store), { _tag: "Listed", value: item("b"), index: 0 });
+  });
+
+  it("keeps a value that left the list, as Evicted", () => {
+    const store = makeHeldChoiceStore([item("a"), item("b")], sameKey);
+    store.choose(item("b"));
+    store.setList([item("a")]);
+    assert.deepStrictEqual(listed(store), { _tag: "Evicted", value: item("b") });
+    store.setList([]);
+    assert.deepStrictEqual(listed(store), { _tag: "Evicted", value: item("b") });
+  });
+
+  it("publishes the list with the choice", () => {
+    const next = [item("a"), item("c")];
+    const store = makeHeldChoiceStore([item("a")], sameKey);
+    store.setList(next);
+    assert.strictEqual(store.getSnapshot().list, next);
+  });
+
+  it("notifies once per effective command, and not for a no-op", () => {
+    const list = [item("a"), item("b")];
+    const store = makeHeldChoiceStore(list, sameKey);
+    let calls = 0;
+    store.subscribe(() => (calls += 1));
+    const before = store.getSnapshot();
+
+    store.setList([...list]); // same elements: a no-op
+    store.choose(item("a")); // already held
+    assert.strictEqual(calls, 0);
+    assert.strictEqual(store.getSnapshot(), before);
+
+    store.choose(item("b"));
+    assert.strictEqual(calls, 1);
+    store.setList([item("b")]);
+    assert.strictEqual(calls, 2);
   });
 });

@@ -77,6 +77,8 @@ interface DevtoolsScreensWorldState {
   readonly catalogue: ReadonlyArray<PolicySighting>;
   readonly roles: Record<string, Role>;
   readonly structural: ReturnType<typeof inspect> | undefined;
+  /** The dock a scenario mounted, so a later step can leave a tab and come back. */
+  readonly dock: ReturnType<typeof render> | undefined;
   readonly at: number;
 }
 
@@ -86,6 +88,7 @@ const initialState: DevtoolsScreensWorldState = {
   catalogue: [],
   roles: {},
   structural: undefined,
+  dock: undefined,
   at: 100,
 };
 
@@ -178,7 +181,10 @@ describeFeature(feature, World.layer, ({ AfterAllScenarios, Before, Given, When,
 
   // `isolate: false` (features/vitest.config.ts): without this the happy-dom
   // globals stay installed for every file that runs after this one.
+  // The last scenario's dock is still mounted: unmount it first, or the next
+  // file's `cleanup()` removes nodes from a document that no longer exists.
   AfterAllScenarios(function* () {
+    cleanup();
     yield* Effect.promise(() => GlobalRegistrator.unregister());
   });
 
@@ -278,6 +284,42 @@ describeFeature(feature, World.layer, ({ AfterAllScenarios, Before, Given, When,
   // When
   // -------------------------------------------------------------------------
 
+  Given("the application declares {string} and {string}", function* (first: string, second: string) {
+    yield* patch(() => ({ declared: { policies: { [first]: hasPermission(read), [second]: hasPermission(write) } } }));
+  });
+
+  When("the reviewer chooses {string} in the policy explorer", function* (label: string) {
+    const s = yield* readState();
+    const dock = render(createElement(DevtoolsDock, { catalogue: s.declared }));
+    fireEvent.click(dock.getByText("Policies"));
+    const item = dock
+      .getAllByTestId("qadi-policy-rail-item")
+      .find((entry) => (entry.textContent ?? "").startsWith(label));
+    assert.ok(item !== undefined);
+    fireEvent.click(item);
+    yield* patch(() => ({ dock }));
+  });
+
+  When("the reviewer chooses the role {string}", function* (name: string) {
+    const s = yield* readState();
+    const dock = render(
+      createElement(DevtoolsDock, { catalogue: { roles: Object.values(s.roles) } }),
+    );
+    fireEvent.click(dock.getByText("Roles"));
+    const chip = dock.getAllByTestId("qadi-role-chip").find((entry) => entry.textContent === name);
+    assert.ok(chip !== undefined);
+    fireEvent.click(chip);
+    yield* patch(() => ({ dock }));
+  });
+
+  When("opens the log and comes back", function* () {
+    const s = yield* readState();
+    assert.ok(s.dock !== undefined);
+    const tab = s.dock.getByRole("button", { pressed: true }).textContent ?? "";
+    fireEvent.click(s.dock.getByRole("button", { name: "Log" }));
+    fireEvent.click(s.dock.getByRole("button", { name: tab }));
+  });
+
   When("it is viewed structurally", function* () {
     // `inspect(policy, undefined)` is what the explorer renders, and the screen
     // shows it with `showStatus={false}`.
@@ -305,6 +347,20 @@ describeFeature(feature, World.layer, ({ AfterAllScenarios, Before, Given, When,
   Then("the catalogue names it {string}", function* (expected: string) {
     const s = yield* readState();
     assert.equal(s.catalogue[0]?.label, expected);
+  });
+
+  Then("the policy explorer still shows {string}", function* (label: string) {
+    const s = yield* readState();
+    assert.ok(s.dock !== undefined);
+    // The tree's root names the requirement the chosen policy states.
+    const root = s.dock.getAllByTestId("qadi-node")[0]?.textContent ?? "";
+    assert.ok(root.includes(label === "canWrite" ? "doc:write" : "doc:read"));
+  });
+
+  Then("the role viewer still shows {string}", function* (name: string) {
+    const s = yield* readState();
+    assert.ok(s.dock !== undefined);
+    assert.ok((s.dock.getByTestId("qadi-role-counts").textContent ?? "").startsWith(name));
   });
 
   Then("no node carries a verdict", function* () {

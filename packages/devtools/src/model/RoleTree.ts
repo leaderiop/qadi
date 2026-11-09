@@ -88,3 +88,6 @@ const nodeOf = (self: Role, path: string, seen: Set<string>): RoleNode => {
     repeated,
   };
 };
+
+/** Whether two roles are the same role: by name, which is what a host rebuilding its list keeps. */
+export const sameRole = (a: Role, b: Role): boolean => a.name === b.name;

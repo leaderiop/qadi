@@ -54,3 +54,13 @@ export const makeExternalStore = <A>(initial: A): ExternalStore<A> => {
     },
   };
 };
+
+/**
+ * Whether two lists hold the very same elements in the same order.
+ *
+ * Reference equality per element, on purpose: a store's `setSightings` or
+ * `setList` is called from a render path on every tick, and a deep comparison
+ * of policies there would cost what the no-op is meant to save.
+ */
+export const sameElements = <A>(a: ReadonlyArray<A>, b: ReadonlyArray<A>): boolean =>
+  a === b || (a.length === b.length && a.every((one, index) => one === b[index]));

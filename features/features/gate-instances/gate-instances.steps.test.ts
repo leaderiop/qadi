@@ -197,6 +197,9 @@ describeFeature(feature, World.layer, ({ AfterAllScenarios, Before, Given, When,
   // never re-evaluated per file, so without this the happy-dom globals would
   // stay installed on `globalThis` for every file that runs after this one.
   AfterAllScenarios(function* () {
+    // Unmount first: a tree left mounted in a document that is then
+    // unregistered makes the next file's `cleanup()` throw on `removeChild`.
+    cleanup();
     yield* Effect.promise(() => GlobalRegistrator.unregister());
   });
 

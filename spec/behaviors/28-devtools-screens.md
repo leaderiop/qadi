@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.11                                           |
+> | Revision       | 1.12                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -83,7 +83,9 @@ role viewer, whose list a host may rebuild in any order) therefore holds its
 selection by value, through one rule, `resolveHeld` (`HeldChoice.ts`). A selection
 that leaves the list stays shown, marked as no longer there, and the first item
 shown is held, so nothing here changes without the reviewer
-([INV-QD-107](../invariants.md)).
+([INV-QD-107](../invariants.md)). The rule runs in a session the dock owns
+([BEH-QD-337](#beh-qd-337-what-the-explorer-shows-is-a-session-the-dock-owns)), so a
+tab switch is not a choice either.
 
 ## BEH-QD-212: A structural view states no verdict
 
@@ -117,7 +119,8 @@ REQUIREMENT: `simplify` MUST be offered as an explicit action and MUST be
 ```
 
 Never automatic ([ADR-QD-030](../decisions/030-policy-simplification.md)): it
-rewrites the tree a reviewer is reading.
+rewrites the tree a reviewer is reading. What is applied is what was previewed
+([BEH-QD-337](#beh-qd-337-what-the-explorer-shows-is-a-session-the-dock-owns)).
 
 ```
 REQUIREMENT: The screen MUST NOT offer a rewrite `simplify` does not perform.
@@ -679,3 +682,59 @@ export const sampleOnce = Effect.gen(function* () {
   return wiring;
 });
 ```
+
+## BEH-QD-337: What the explorer shows is a session the dock owns
+
+> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) (amended, CCR-QD-394)
+
+```ts
+export const makeExplorerSession: (init?: ExplorerSessionInit) => ExplorerSession;
+export const makeHeldChoiceStore: <A>(
+  list: ReadonlyArray<A>,
+  same: (a: A, b: A) => boolean,
+) => HeldChoiceStore<A>;
+```
+
+> Package-private since [CCR-QD-394](../README.md#document-history): `ExplorerSession`
+> and `HeldChoiceStore`. Specified because the dock relies on them; a host reaches the
+> behaviour through `DevtoolsDock`, not through these names (ADR-QD-047).
+
+The explorer's chosen policy, draft, preview and JSON pane, and the role viewer's
+chosen role, used to be component state: lost with the tab, and governed by event
+handlers no model test could see.
+
+```
+REQUIREMENT: Leaving the Policies or Roles tab and returning MUST NOT change what
+             it shows.
+```
+
+A screen is unmounted when its tab is left, so the dock owns the state, as it owns the
+simulator's ([INV-QD-107](../invariants.md)). The chosen policy, a pasted or
+simplified draft, the Tree or JSON view, an unloaded edit and the chosen role are kept;
+a decision that arrives during the visit does not move them.
+
+```
+REQUIREMENT: A preview MUST be of the policy shown, and `apply` MUST apply exactly the
+             tree that was previewed.
+```
+
+A preview is a flag, never a stored policy: the tree previewed is always `simplify`
+of the policy on screen, and every change of the shown policy (a choice, a load, an
+apply) ends it. A preview of some other policy is unrepresentable.
+
+```
+REQUIREMENT: Everything the JSON pane shows MUST describe the text in it.
+```
+
+An unloaded edit belongs to the policy shown and survives a Tree/JSON switch and a
+reorder of the rail; it is dropped when the shown policy changes. A refusal belongs to
+the text it refused: it leaves when the text changes or the shown policy does. Loading
+text equal to the policy already shown makes no draft.
+
+```
+REQUIREMENT: A paste MUST decode through `fromJson`, in the model.
+```
+
+The refusal sentence (path-relative issues, the decode-limit sentence, and a stated
+refusal for a defect inside the decoder rather than a throw from a click handler) is
+the model's, so it is under the model's coverage bar and the mutation gate.

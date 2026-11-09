@@ -26,9 +26,9 @@ import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
 import * as Match from "effect/Match";
 import type { DecisionOutcome, Policy } from "@qadi/core";
-import { makeExternalStore } from "./ExternalStore.ts";
+import { makeExternalStore, sameElements } from "./ExternalStore.ts";
 import { capturing, type CapturedAnswers } from "./Capture.ts";
-import { policyLabel, type PolicySighting } from "./Catalogue.ts";
+import { sameSighting, sightingFor, type PolicySighting } from "./Catalogue.ts";
 import { pinHead, resolveHeld } from "./HeldChoice.ts";
 import { baselineDiff, replayInput, type Baseline, type UnseededField } from "./Replay.ts";
 import { simulate, type SimulationClock } from "./Simulation.ts";
@@ -233,20 +233,6 @@ export interface SimulationSessionInit {
 
 const blank: SimulationInput = { subject: { id: "someone" } };
 
-const sameElements = <A>(a: ReadonlyArray<A>, b: ReadonlyArray<A>): boolean =>
-  a === b || (a.length === b.length && a.every((one, index) => one === b[index]));
-
-/** A policy the rail does not list, held as chosen: a zero tally under its derived label. */
-const unlisted = (policy: Policy): PolicySighting => ({
-  policy,
-  label: policyLabel(policy),
-  count: 0,
-  allows: 0,
-  denies: 0,
-  errors: 0,
-  lastAt: undefined,
-});
-
 const resourceTextOf = (input: SimulationInput): ResourceText => {
   const text = encodeResource(input.resource);
   return text._tag === "Ok"
@@ -278,7 +264,7 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
     if (seeded !== undefined && seedEntry !== undefined) {
       return { _tag: "Seeded", entry: seedEntry, policy: seeded.policy, unseeded: seeded.unseeded };
     }
-    const resolved = resolveHeld(sightings, held, (a, b) => Equal.equals(a.policy, b.policy));
+    const resolved = resolveHeld(sightings, held, sameSighting);
     return Match.value(resolved).pipe(
       Match.tagsExhaustive({
         Empty: (): PolicyChoice => ({ _tag: "None" }),
@@ -510,8 +496,7 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
       ) {
         return;
       }
-      held =
-        sightings.find((one) => Equal.equals(one.policy, policy)) ?? unlisted(policy);
+      held = sightingFor(sightings, policy);
       seeded = undefined;
       retire();
       run = { _tag: "Idle" };

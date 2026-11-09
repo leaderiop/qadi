@@ -34,6 +34,7 @@ import {
 } from "@qadi/core";
 import type { Decision, Policy, StoredRecord } from "@qadi/core";
 import { DevtoolsDock } from "../../src/react/DevtoolsDock.tsx";
+import type { Catalogue } from "../../src/model/Catalogue.ts";
 import { sourceFromRecords } from "../../src/model/Source.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
 import { WiringRead } from "../../src/model/DiagnosticsStore.ts";
@@ -1023,6 +1024,81 @@ describe("screen 5 — the simulator, and the dock around it", () => {
 
     assert.strictEqual(screen.getByTestId("qadi-subject-id").getAttribute("value"), "alice");
     assert.isNotNull(screen.queryByTestId("qadi-simulator-result"));
+  });
+
+  // C8 / C13 — a screen is unmounted when its tab is left; what it shows is the dock's.
+  describe("a tab round trip", () => {
+    const mountCatalogue = async (catalogue: Catalogue) => {
+      const view = render(<DevtoolsDock source={sourceFromRecords([])} catalogue={catalogue} />);
+      await act(async () => {});
+      return view;
+    };
+    const tree = () => screen.getAllByTestId("qadi-node")[0]?.textContent ?? "";
+    const leaveAndReturn = async (tab: string) => {
+      await click(screen.getByRole("button", { name: "Log" }));
+      await click(screen.getByRole("button", { name: tab }));
+    };
+
+    it("the explorer keeps its chosen policy", async () => {
+      await mountCatalogue({ policies: { canRead: hasPermission(read), canWrite: hasPermission(write) } });
+      await click(screen.getByRole("button", { name: "Policies" }));
+      await click(screen.getAllByTestId("qadi-policy-rail-item")[1] ?? fail());
+      const chosen = tree();
+      await leaveAndReturn("Policies");
+      assert.strictEqual(tree(), chosen);
+    });
+
+    it("the explorer keeps a pasted draft, its view and an unloaded edit", async () => {
+      await mountCatalogue({ policies: { canRead: hasPermission(read) } });
+      await click(screen.getByRole("button", { name: "Policies" }));
+      await click(screen.getByRole("button", { name: "Tree" }));
+      const type = async (value: string) => {
+        await act(async () => {
+          fireEvent.change(screen.getByTestId("qadi-policy-json"), { target: { value } });
+        });
+      };
+      await type('{"_tag":"HasRole","role":"editor"}');
+      await click(screen.getByTestId("qadi-policy-load"));
+      await type("{");
+      await leaveAndReturn("Policies");
+
+      assert.strictEqual(screen.getByTestId<HTMLTextAreaElement>("qadi-policy-json").value, "{");
+      await click(screen.getByRole("button", { name: "JSON" }));
+      assert.include(tree(), "editor");
+    });
+
+    it("a new head during the visit does not change what the explorer shows", async () => {
+      const view = render(
+        <DevtoolsDock
+          source={sourceFromRecords([decisionRecord({ evaluationId: "a", at: 100, policy: hasPermission(read) })])}
+        />,
+      );
+      await screen.findAllByTestId("qadi-log-row");
+      await click(screen.getByRole("button", { name: "Policies" }));
+      assert.include(tree(), "doc:read");
+      await click(screen.getByRole("button", { name: "Log" }));
+      view.rerender(
+        <DevtoolsDock
+          source={sourceFromRecords([
+            decisionRecord({ evaluationId: "a", at: 100, policy: hasPermission(read) }),
+            decisionRecord({ evaluationId: "b", at: 200, policy: hasPermission(write) }),
+          ])}
+        />,
+      );
+      await act(async () => {});
+      await click(screen.getByRole("button", { name: "Policies" }));
+      assert.include(tree(), "doc:read");
+    });
+
+    it("the role viewer keeps its chosen role", async () => {
+      const a = role({ name: "a", permissions: [read] });
+      const b = role({ name: "b", permissions: [write] });
+      await mountCatalogue({ roles: [a, b] });
+      await click(screen.getByRole("button", { name: "Roles" }));
+      await click(screen.getAllByTestId("qadi-role-chip")[1] ?? fail());
+      await leaveAndReturn("Roles");
+      assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "b");
+    });
   });
 
   // E8.2 — absent rather than inert. A disabled button on an orphan invites a

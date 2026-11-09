@@ -67,6 +67,38 @@ export const policyLabel = (policy: Policy): string => {
 };
 
 /**
+ * Whether two sightings are the same policy.
+ *
+ * The one equality every screen holding a chosen policy compares with: by value
+ * (`Equal.equals`), never by label or position. Counts and labels differ between
+ * two sightings of one policy as the log grows, and neither is an identity.
+ */
+export const sameSighting = (a: PolicySighting, b: PolicySighting): boolean =>
+  Equal.equals(a.policy, b.policy);
+
+/**
+ * The sighting to hold for a chosen policy.
+ *
+ * The listed element when the rail has one (the list's own object, so its tally
+ * is current), else a policy the rail does not list, held as chosen: a zero
+ * tally under its derived label. Choosing by value means a policy that has left
+ * the rail is still a legitimate choice.
+ */
+export const sightingFor = (
+  sightings: ReadonlyArray<PolicySighting>,
+  policy: Policy,
+): PolicySighting =>
+  sightings.find((one) => Equal.equals(one.policy, policy)) ?? {
+    policy,
+    label: policyLabel(policy),
+    count: 0,
+    allows: 0,
+    denies: 0,
+    errors: 0,
+    lastAt: undefined,
+  };
+
+/**
  * Every policy the timeline has seen, most recently decided first.
  *
  * Grouped by `Equal.equals`, which is **structural** for plain objects in
