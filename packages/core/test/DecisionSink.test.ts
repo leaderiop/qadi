@@ -6,15 +6,14 @@ import * as TestClock from "effect/testing/TestClock";
 import { attributeResolverPort } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
-import type {
-  DecisionRecord,
-  ObligationRecord,
-  SinkRecord,
-} from "../src/DecisionRecord.ts";
+import { ObligationRecord } from "../src/DecisionRecord.ts";
+import type { DecisionRecord, SinkRecord } from "../src/DecisionRecord.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { makeResourceId } from "../src/Identity.ts";
 import { obligation } from "../src/Obligation.ts";
 import { decide, enforce } from "../src/Qadi.ts";
+import type { EnforceOptions } from "../src/Qadi.ts";
 import { explain, renderExplanation } from "../src/Explanation.ts";
 import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
@@ -596,6 +595,108 @@ describe("the obligation gate is recorded", () => {
         Effect.succeed(1),
       ).pipe(Effect.provide(sink.layer));
       assert.isFalse(Object.hasOwn(obligationsOf(sink.all)[0] ?? {}, "resourceId"));
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  // The whole-record pin (D-03, ARCH-54): written green at c3ce9d2, before the
+  // projection moved to SinkEmit.ts, and it must pass unmodified after. Deep
+  // equality alone cannot tell an absent key from an `undefined`-valued one, so
+  // the sorted key list is asserted too (BEH-QD-195).
+  it.effect("the whole obligation record is pinned for every question shape and outcome", () =>
+    Effect.gen(function* () {
+      const rows: ReadonlyArray<{
+        readonly policy: typeof audited;
+        readonly options: EnforceOptions<string>;
+        readonly expected: (evaluationId: string) => ObligationRecord;
+      }> = [
+        {
+          policy: audited,
+          options: {
+            resource: { id: "doc-1" },
+            action: "approve",
+            onObligations: () => Effect.void,
+          },
+          expected: (evaluationId) =>
+            new ObligationRecord({
+              evaluationId,
+              at: 0,
+              outcome: "Discharged",
+              obligationIds: ["audit.log"],
+              subjectId: allowed.id,
+              action: "approve",
+              resourceId: makeResourceId("doc-1"),
+            }),
+        },
+        {
+          policy: audited,
+          options: {},
+          expected: (evaluationId) =>
+            new ObligationRecord({
+              evaluationId,
+              at: 0,
+              outcome: "Refused",
+              obligationIds: ["audit.log"],
+              subjectId: allowed.id,
+            }),
+        },
+        {
+          policy: audited,
+          options: {
+            resource: { id: 7 },
+            action: "approve",
+            onObligations: () => Effect.fail("down"),
+          },
+          expected: (evaluationId) =>
+            new ObligationRecord({
+              evaluationId,
+              at: 0,
+              outcome: "HandlerFailed",
+              obligationIds: ["audit.log"],
+              subjectId: allowed.id,
+              action: "approve",
+            }),
+        },
+        {
+          policy: audited,
+          options: { resource: { id: "doc-1" }, onObligations: () => Effect.void },
+          expected: (evaluationId) =>
+            new ObligationRecord({
+              evaluationId,
+              at: 0,
+              outcome: "Discharged",
+              obligationIds: ["audit.log"],
+              subjectId: allowed.id,
+              resourceId: makeResourceId("doc-1"),
+            }),
+        },
+        {
+          policy: advised,
+          options: { action: "approve" },
+          expected: (evaluationId) =>
+            new ObligationRecord({
+              evaluationId,
+              at: 0,
+              outcome: "NotRequired",
+              obligationIds: ["notify.owner"],
+              subjectId: allowed.id,
+              action: "approve",
+            }),
+        },
+      ];
+
+      for (const row of rows) {
+        const sink = collecting();
+        yield* Effect.result(
+          enforce(row.policy, row.options)(Effect.succeed(1)).pipe(Effect.provide(sink.layer)),
+        );
+        const events = obligationsOf(sink.all);
+        assert.strictEqual(events.length, 1);
+        const event = events[0];
+        assert.isDefined(event);
+        if (event === undefined) return;
+        const expected = row.expected(sink.seen[0]?.evaluationId ?? "no decision record");
+        assert.deepStrictEqual(event, expected);
+        assert.deepStrictEqual(Object.keys(event).sort(), Object.keys(expected).sort());
+      }
     }).pipe(Effect.provide(testLayer(allowed))));
 
   it.effect("an undischarged binding obligation is recorded as Refused", () =>
