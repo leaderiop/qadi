@@ -9,13 +9,13 @@
  * imports it back and its tests pass unmodified.
  *
  * Package-private: not in the barrel (AGENTS.md §9, ADR-QD-099). It imports
- * `SinkWire.ts` only, and no port module (ADR-QD-037).
+ * `JsonRefusal.ts` only, and no port module (ADR-QD-037).
  */
 import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import type * as Schema from "effect/Schema";
-import { EncodeRefusal } from "./SinkWire.ts";
-import type { OpaqueKind, WirePath } from "./SinkWire.ts";
+import { EncodeRefusal } from "./JsonRefusal.ts";
+import type { OpaqueKind, WirePath } from "./JsonRefusal.ts";
 
 /**
  * A container the walk has entered and not yet left: an array's items, or an

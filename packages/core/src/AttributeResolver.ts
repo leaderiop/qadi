@@ -20,12 +20,12 @@ import type { InvalidBoundedPermits } from "./Errors.ts";
 import { SubjectIdSchema } from "./Identity.ts";
 import type { SubjectId } from "./Identity.ts";
 import { toJson } from "./JsonHazard.ts";
+import type { EncodeRefusal } from "./JsonRefusal.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
-import type { EncodeRefusal } from "./SinkWire.ts";
 
 export interface AttributeResolverShape {
   /**

@@ -24,13 +24,13 @@ import { CustomPredicateError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import { SubjectIdSchema } from "./Identity.ts";
 import { toJson, toJsonRecord } from "./JsonHazard.ts";
+import type { EncodeRefusal } from "./JsonRefusal.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import { canonicalKey } from "./PortKey.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, sameAnswer, WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
-import type { EncodeRefusal } from "./SinkWire.ts";
 import type { Resource } from "./Resource.ts";
 
 export interface CustomPredicateShape {

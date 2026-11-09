@@ -9,8 +9,8 @@
  *
  * Deliberately out of the barrel (AGENTS.md §9, ADR-QD-099): a host has no port
  * to describe — the registry is closed — so the builder is core's alone. It
- * imports `JsonHazard.ts`, `DecodeDepthGuard.ts` and `Policy.ts`, and no port
- * module (ADR-QD-037).
+ * imports `JsonHazard.ts`, `JsonRefusal.ts`, `DecodeDepthGuard.ts` and
+ * `Policy.ts`, and no port module (ADR-QD-037).
  */
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
@@ -18,10 +18,10 @@ import type { AuthSubject } from "./AuthSubject.ts";
 import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
 import type { SubjectId } from "./Identity.ts";
 import { toJson } from "./JsonHazard.ts";
+import { describeEncodeRefusal } from "./JsonRefusal.ts";
+import type { EncodeRefusal } from "./JsonRefusal.ts";
 import { MAX_DECODE_DEPTH, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
 import type { PortWire } from "./PortWire.ts";
-import { describeEncodeRefusal } from "./SinkWire.ts";
-import type { EncodeRefusal } from "./SinkWire.ts";
 
 /** The depth bound a wire value is held to — the one a policy and a sink record are. */
 export const WIRE_MAX_DEPTH = MAX_DECODE_DEPTH;
