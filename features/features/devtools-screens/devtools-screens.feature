@@ -77,3 +77,18 @@ Feature: Reading the rules, not only the decisions
     # are — so this asserts an absence, not an empty registry.
     Given a port that nothing ever calls
     Then it does not appear in the port activity
+
+  Scenario: Leaving the Policies tab keeps what it shows
+    # BEH-QD-337 / INV-QD-107: a screen is unmounted when its tab is left, and
+    # looking at the log and coming back is not a choice of another policy.
+    Given the application declares "canRead" and "canWrite"
+    When the reviewer chooses "canWrite" in the policy explorer
+    And opens the log and comes back
+    Then the policy explorer still shows "canWrite"
+
+  Scenario: Leaving the Roles tab keeps the chosen role
+    Given a role "viewer" granting "doc:read"
+    And a role "editor" granting "doc:write"
+    When the reviewer chooses the role "editor"
+    And opens the log and comes back
+    Then the role viewer still shows "editor"

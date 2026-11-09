@@ -10,6 +10,9 @@
 import { assert, describe, it } from "@effect/vitest";
 import { act, render, screen, within } from "@testing-library/react";
 import { permission, role } from "@qadi/core";
+import type { Role } from "@qadi/core";
+import { makeHeldChoiceStore } from "../../src/model/HeldChoice.ts";
+import { sameRole } from "../../src/model/RoleTree.ts";
 import { RoleViewer } from "../../src/react/RoleViewer.tsx";
 
 const read = permission("doc", "read");
@@ -20,6 +23,8 @@ const commenter = role({ name: "commenter", permissions: [comment] });
 const viewer = role({ name: "viewer", permissions: [read], inherits: [commenter] });
 const editor = role({ name: "editor", permissions: [write], inherits: [viewer] });
 
+const store = (roles: ReadonlyArray<Role>) => makeHeldChoiceStore(roles, sameRole);
+
 const click = async (element: HTMLElement) => {
   await act(async () => {
     element.click();
@@ -29,14 +34,14 @@ const click = async (element: HTMLElement) => {
 describe("the role viewer", () => {
   // E3.7 — a role is a value the application holds, not something the log sees.
   it("with no roles, says where roles come from", () => {
-    render(<RoleViewer roles={[]} />);
+    render(<RoleViewer choice={store([])} />);
     const empty = screen.getByTestId("qadi-roles-empty").textContent ?? "";
     assert.include(empty, "not something the log can observe");
     assert.include(empty, "catalogue");
   });
 
   it("draws the inheritance chain, indented", () => {
-    render(<RoleViewer roles={[editor]} />);
+    render(<RoleViewer choice={store([editor])} />);
 
     assert.deepStrictEqual(
       screen.getAllByTestId("qadi-role-node").map((n) => n.getAttribute("data-role")),
@@ -45,12 +50,12 @@ describe("the role viewer", () => {
   });
 
   it("counts own against inherited", () => {
-    render(<RoleViewer roles={[editor]} />);
+    render(<RoleViewer choice={store([editor])} />);
     assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "1 own · 2 inherited");
   });
 
   it("marks every permission with where it came from", () => {
-    render(<RoleViewer roles={[editor]} />);
+    render(<RoleViewer choice={store([editor])} />);
 
     const grants = screen.getAllByTestId("qadi-grant").map((g) => g.textContent ?? "");
     assert.strictEqual(grants.length, 3);
@@ -62,7 +67,7 @@ describe("the role viewer", () => {
   });
 
   it("switches between roles", async () => {
-    render(<RoleViewer roles={[editor, commenter]} />);
+    render(<RoleViewer choice={store([editor, commenter])} />);
     assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "editor");
 
     await click(screen.getAllByTestId("qadi-role-chip")[1] ?? fail());
@@ -71,40 +76,13 @@ describe("the role viewer", () => {
   });
 
   it("offers no chips when there is only one role to show", () => {
-    render(<RoleViewer roles={[editor]} />);
+    render(<RoleViewer choice={store([editor])} />);
     assert.deepStrictEqual(screen.queryAllByTestId("qadi-role-chip"), []);
-  });
-
-  it("keeps the chosen role when the list is rebuilt in another order", async () => {
-    const view = render(<RoleViewer roles={[editor, commenter]} />);
-    await click(screen.getAllByTestId("qadi-role-chip")[1] ?? fail());
-    assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "commenter");
-
-    view.rerender(<RoleViewer roles={[commenter, editor]} />);
-
-    assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "commenter");
-    assert.isNull(screen.queryByTestId("qadi-role-evicted"));
-  });
-
-  // A role that left the list stays shown, and the screen says so: swapping to
-  // a neighbour silently is the defect the old clamp encoded.
-  it("keeps a role that left the list, and says so", async () => {
-    const view = render(<RoleViewer roles={[editor, commenter]} />);
-    await click(screen.getAllByTestId("qadi-role-chip")[1] ?? fail());
-
-    view.rerender(<RoleViewer roles={[editor]} />);
-
-    assert.isNull(screen.queryByTestId("qadi-roles-empty"));
-    assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "commenter");
-    assert.include(screen.getByTestId("qadi-role-evicted").textContent ?? "", "no longer in the list");
-
-    view.rerender(<RoleViewer roles={[]} />);
-    assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "commenter");
   });
 
   // E3.3, rendered.
   it("marks a diamond's second arm as already reached", () => {
-    render(<RoleViewer roles={[role({ name: "both", inherits: [viewer, editor] })]} />);
+    render(<RoleViewer choice={store([role({ name: "both", inherits: [viewer, editor] })])} />);
 
     const repeated = screen
       .getAllByTestId("qadi-role-node")
@@ -117,7 +95,7 @@ describe("the role viewer", () => {
 
   // E3.9 — dropping is right; doing it silently was not.
   it("surfaces a parent name that was dropped", () => {
-    render(<RoleViewer roles={[editor]} unknownParents={["reviewer"]} />);
+    render(<RoleViewer choice={store([editor])} unknownParents={["reviewer"]} />);
 
     const warning = screen.getByTestId("qadi-unknown-parents").textContent ?? "";
     assert.include(warning, "reviewer");
@@ -125,10 +103,10 @@ describe("the role viewer", () => {
   });
 
   it("says nothing when no parent was dropped", () => {
-    render(<RoleViewer roles={[editor]} unknownParents={[]} />);
+    render(<RoleViewer choice={store([editor])} unknownParents={[]} />);
     assert.isNull(screen.queryByTestId("qadi-unknown-parents"));
 
-    render(<RoleViewer roles={[commenter]} />);
+    render(<RoleViewer choice={store([commenter])} />);
     assert.isNull(screen.queryByTestId("qadi-unknown-parents"));
   });
 
@@ -136,7 +114,7 @@ describe("the role viewer", () => {
    * E3.8 — the false assurance this screen refuses to give.
    */
   it("claims no cycle check, and explains why there is none to claim", () => {
-    render(<RoleViewer roles={[editor]} />);
+    render(<RoleViewer choice={store([editor])} />);
 
     const note = screen.getByTestId("qadi-cycle-note").textContent ?? "";
     assert.include(note, "cannot express a cycle");
@@ -147,7 +125,7 @@ describe("the role viewer", () => {
   });
 
   it("a role with no permissions renders its name and nothing more", () => {
-    render(<RoleViewer roles={[role({ name: "bare" })]} />);
+    render(<RoleViewer choice={store([role({ name: "bare" })])} />);
 
     assert.strictEqual(screen.getAllByTestId("qadi-role-node").length, 1);
     assert.deepStrictEqual(screen.queryAllByTestId("qadi-grant"), []);

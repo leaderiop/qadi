@@ -12,53 +12,16 @@
  * short-circuited*, and here would say a policy was skipped when it was simply
  * never run.
  */
-import { useMemo, useState, type CSSProperties, type FC } from "react";
-import * as Effect from "effect/Effect";
-import * as Equal from "effect/Equal";
-import * as Match from "effect/Match";
-import * as Result from "effect/Result";
-import * as Schema from "effect/Schema";
-import * as SchemaIssue from "effect/SchemaIssue";
-import { DEFAULT_MAX_DEPTH, fromJson, policyDepth, simplify, toJson } from "@qadi/core";
-import type { Policy, PolicyDecodeTooDeep } from "@qadi/core";
-import type { PolicySighting } from "../model/Catalogue.ts";
-import { resolveHeld } from "../model/HeldChoice.ts";
+import type { CSSProperties, FC } from "react";
+import type { ExplorerSession, ExplorerSnapshot } from "../model/ExplorerSession.ts";
 import { inspect } from "../model/Inspect.ts";
 import { PolicyTree } from "./PolicyTree.tsx";
+import { useExplorerSnapshot } from "./useExplorerSession.ts";
 import { button, colors, font, input, muted } from "./theme.ts";
 
-/**
- * Renders a decode failure the way `PolicyExplorer`'s paste box wants it —
- * path-relative issue sentences, not a debug dump of the error object.
- *
- * `String(failure)` (the predecessor of this function) gave
- * `"SchemaError(Expected { readonly \"_tag\": ... } | ... )"` for the one
- * decode failure a policy author is guaranteed to meet — the entire
- * 17-member recursive `Policy` union spelled out, with no path and no hint
- * which value was actually wrong (WZ-01). `SchemaIssue.makeFormatterStandardSchemaV1`
- * already flattens the issue tree into `{ message, path }` pairs — this only
- * adds the `at <path>:` prefix per entry and a dedicated sentence for
- * {@link PolicyDecodeTooDeep}, which isn't a `Schema.SchemaError` at all and so
- * has no issue tree to format.
- */
-const formatDecodeFailure = (failure: PolicyDecodeTooDeep | Schema.SchemaError): string => {
-  if (failure._tag === "PolicyDecodeTooDeep") {
-    return (
-      `Policy nesting exceeds the decode limit (max depth ${failure.maxDepth}). ` +
-      "Simplify the policy, or split it into smaller pieces."
-    );
-  }
-  const { issues } = SchemaIssue.makeFormatterStandardSchemaV1()(failure.issue);
-  if (issues.length === 0) return failure.message;
-  return issues
-    .map(({ path, message }) =>
-      path === undefined || path.length === 0 ? message : `at ${path.map(String).join(".")}: ${message}`,
-    )
-    .join("\n");
-};
-
 export interface PolicyExplorerProps {
-  readonly sightings: ReadonlyArray<PolicySighting>;
+  /** Owned by the dock, so what this shows survives leaving the tab (INV-QD-107). */
+  readonly session: ExplorerSession;
 }
 
 const rail: CSSProperties = {
@@ -82,32 +45,19 @@ const railItem = (selected: boolean): CSSProperties => ({
   cursor: "pointer",
 });
 
-export const PolicyExplorer: FC<PolicyExplorerProps> = ({ sightings }) => {
-  /** The sighting the reviewer chose, held by value: the rail reorders as decisions arrive. */
-  const [held, setHeld] = useState<PolicySighting | undefined>(undefined);
-  const [json, setJson] = useState(false);
-  /** A policy loaded from pasted JSON, or produced by applying a simplification. */
-  const [draft, setDraft] = useState<Policy | undefined>(undefined);
-  const [preview, setPreview] = useState<Policy | undefined>(undefined);
-  const [pasteError, setPasteError] = useState<string | undefined>(undefined);
+type Showing = Extract<ExplorerSnapshot, { readonly _tag: "Showing" }>;
 
-  // Pinned during render (React's derived-state pattern): the first policy
-  // shown is the one held, so a new head never changes what the reviewer reads.
-  if (held === undefined && sightings[0] !== undefined) setHeld(sightings[0]);
+/**
+ * Renders the explorer session; decides nothing.
+ *
+ * Which policy is shown, what a preview is, and what the JSON pane describes
+ * are the session's (`ExplorerSession.ts`). This file is the wording and the
+ * wiring.
+ */
+export const PolicyExplorer: FC<PolicyExplorerProps> = ({ session }) => {
+  const snapshot = useExplorerSnapshot(session);
 
-  // Position is a reading of the current rail, never the selection: a new
-  // decision moves the policy it concerns, so an index would name another one.
-  const resolved = resolveHeld(sightings, held, (a, b) => Equal.equals(a.policy, b.policy));
-  const shown = Match.value(resolved).pipe(
-    Match.tagsExhaustive({
-      Empty: () => ({ sighting: undefined, index: undefined, evicted: false }),
-      Listed: (listed) => ({ sighting: listed.value, index: listed.index, evicted: false }),
-      Evicted: (gone) => ({ sighting: gone.value, index: undefined, evicted: true }),
-    }),
-  );
-  const policy = draft ?? shown.sighting?.policy;
-
-  if (policy === undefined) {
+  if (snapshot._tag === "Empty") {
     return (
       <p style={{ ...muted, padding: 16 }} data-testid="qadi-policies-empty">
         No policies to show. This rail lists what the log has seen, so it fills as
@@ -117,25 +67,16 @@ export const PolicyExplorer: FC<PolicyExplorerProps> = ({ sightings }) => {
     );
   }
 
-  const choose = (index: number) => {
-    setHeld(sightings[index]);
-    // A draft belongs to the policy it was derived from; carrying it across a
-    // selection would show one policy's JSON under another's name.
-    setDraft(undefined);
-    setPreview(undefined);
-    setPasteError(undefined);
-  };
-
   return (
     <div style={{ display: "flex", height: "100%" }} data-testid="qadi-policies">
       <div style={rail}>
-        {sightings.map((entry, index) => (
+        {snapshot.sightings.map((entry, index) => (
           <button
             key={`${entry.label}-${index}`}
             type="button"
             data-testid="qadi-policy-rail-item"
-            style={railItem(index === shown.index && draft === undefined)}
-            onClick={() => choose(index)}
+            style={railItem(index === snapshot.railIndex)}
+            onClick={() => session.choose(entry.policy)}
           >
             <div>{entry.label}</div>
             <div style={{ ...muted, fontSize: font.sizeSmall }}>
@@ -148,88 +89,61 @@ export const PolicyExplorer: FC<PolicyExplorerProps> = ({ sightings }) => {
       </div>
 
       <div style={{ flex: 1, minWidth: 0, overflow: "auto", padding: 12 }}>
-        {shown.evicted && draft === undefined ? (
+        {snapshot.shown._tag === "Evicted" ? (
           <div
             style={{ ...muted, fontSize: font.sizeSmall, marginBottom: 8 }}
             data-testid="qadi-policies-evicted"
           >
-            {shown.sighting?.label} is no longer in the log
+            {snapshot.shown.sighting.label} is no longer in the log
           </div>
         ) : null}
-        <Toolbar
-          json={json}
-          onToggleJson={() => setJson(!json)}
-          policy={policy}
-          preview={preview}
-          onPreview={setPreview}
-          onApply={(next) => {
-            setDraft(next);
-            setPreview(undefined);
-          }}
-        />
-        <DepthLine policy={policy} />
-        {json ? (
-          <JsonView
-            policy={policy}
-            error={pasteError}
-            onLoad={(text) => {
-              const decoded = Effect.runSync(Effect.result(fromJson(text)));
-              if (Result.isFailure(decoded)) {
-                // The issue is shown rather than swallowed: a paste that did not
-                // decode is the ordinary way to learn a payload is malformed —
-                // formatted into path-relative sentences, not a debug dump of
-                // the error object (WZ-01).
-                setPasteError(formatDecodeFailure(decoded.failure));
-                return;
-              }
-              setPasteError(undefined);
-              setDraft(decoded.success);
-            }}
-          />
+        <Toolbar snapshot={snapshot} session={session} />
+        <DepthLine depth={snapshot.depth} />
+        {snapshot.view === "Json" ? (
+          <JsonView snapshot={snapshot} session={session} />
         ) : (
-          <PolicyTree node={inspect(preview ?? policy, undefined)} showStatus={false} />
+          <PolicyTree node={inspect(snapshot.tree, undefined)} showStatus={false} />
         )}
       </div>
     </div>
   );
 };
 
-const Toolbar: FC<{
-  readonly json: boolean;
-  readonly onToggleJson: () => void;
-  readonly policy: Policy;
-  readonly preview: Policy | undefined;
-  readonly onPreview: (policy: Policy | undefined) => void;
-  readonly onApply: (policy: Policy) => void;
-}> = ({ json, onToggleJson, policy, preview, onPreview, onApply }) => {
-  const simplified = useMemo(() => simplify(policy), [policy]);
-  const changes = !Equal.equals(simplified, policy);
+const Toolbar: FC<{ readonly snapshot: Showing; readonly session: ExplorerSession }> = ({
+  snapshot,
+  session,
+}) => {
+  const { simplification, view } = snapshot;
 
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
-      <button type="button" style={button(!json)} onClick={onToggleJson}>
-        {json ? "JSON" : "Tree"}
+      <button
+        type="button"
+        style={button(view === "Tree")}
+        onClick={() => session.setView(view === "Tree" ? "Json" : "Tree")}
+      >
+        {view === "Json" ? "JSON" : "Tree"}
       </button>
 
       {/* Never automatic (ADR-QD-030), and never applied without being shown
           first: simplification rewrites the tree a reviewer is reading. */}
       <button
         type="button"
-        style={button(preview !== undefined)}
+        style={button(simplification.previewing)}
         data-testid="qadi-simplify"
-        onClick={() => onPreview(preview === undefined ? simplified : undefined)}
+        onClick={() => session.setPreviewing(!simplification.previewing)}
       >
-        {preview === undefined ? "simplify" : "cancel"}
+        {simplification.previewing ? "cancel" : "simplify"}
       </button>
 
-      {preview === undefined ? null : (
-        <button type="button" style={button(false)} onClick={() => onApply(simplified)}>
+      {simplification.previewing ? (
+        <button type="button" style={button(false)} onClick={session.apply}>
           apply
         </button>
-      )}
+      ) : null}
 
       <span style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-simplify-effect">
-        {changes
+        {simplification.changes
           ? "simplification would collapse or flatten this tree"
           // The two rewrites `simplify` performs are single-child composite
           // collapse and same-tag/same-strategy flattening. It deliberately
@@ -241,85 +155,55 @@ const Toolbar: FC<{
   );
 };
 
-const DepthLine: FC<{ readonly policy: Policy }> = ({ policy }) => {
-  const depth = policyDepth(policy);
-  const overBound = depth > DEFAULT_MAX_DEPTH;
-
-  return (
-    <div
-      style={{ ...muted, fontSize: font.sizeSmall, marginBottom: 8 }}
-      data-testid="qadi-policy-depth"
-    >
-      depth {depth} of {DEFAULT_MAX_DEPTH}
-      {overBound ? (
-        <span style={{ color: colors.error, marginLeft: 6 }} data-testid="qadi-depth-over">
-          — deeper than the default bound; `evaluate` would raise PolicyTooDeep
-        </span>
-      ) : null}
-    </div>
-  );
-};
+const DepthLine: FC<{ readonly depth: Showing["depth"] }> = ({ depth }) => (
+  <div
+    style={{ ...muted, fontSize: font.sizeSmall, marginBottom: 8 }}
+    data-testid="qadi-policy-depth"
+  >
+    depth {depth.depth} of {depth.bound}
+    {depth.overBound ? (
+      <span style={{ color: colors.error, marginLeft: 6 }} data-testid="qadi-depth-over">
+        — deeper than the default bound; `evaluate` would raise PolicyTooDeep
+      </span>
+    ) : null}
+  </div>
+);
 
 /**
  * The real codec, not `JSON.stringify`.
  *
  * `toJson` is the encoder a persisted policy actually round-trips through, so
- * what this shows is what a caller would store — and `fromJson` below is what
- * would read it back. Rendering an approximation here would make the screen
- * useless for the one job it has.
- *
- * `Effect.runSync` behind `Effect.result`: encoding a policy is synchronous and
- * total, and wrapping it means a failure becomes a value rather than a throw
- * inside a render.
+ * what this shows is what a caller would store — and `fromJson` is what would
+ * read it back. Rendering an approximation here would make the screen useless
+ * for the one job it has. Both run in the session, which also decides when an
+ * unloaded edit and a refusal are still describing the text in the box.
  */
-const JsonView: FC<{
-  readonly policy: Policy;
-  readonly error: string | undefined;
-  readonly onLoad: (text: string) => void;
-}> = ({ policy, error, onLoad }) => {
-  const encoded = useMemo(() => Effect.runSync(Effect.result(toJson(policy))), [policy]);
-  const [text, setText] = useState<string | undefined>(undefined);
-  /**
-   * Adjusting state while rendering, the same idiom `Simulator` uses to reset
-   * on a re-seed: `policy` changes out from under this textarea whenever the
-   * reviewer picks a different rail entry, applies a simplification, or loads
-   * a new paste — and unlike `Simulator`'s `draft`, nothing else in this
-   * screen mutates `policy` on every keystroke, so comparing it directly here
-   * is safe. Without this, an edit typed but never loaded keeps showing after
-   * the policy underneath it has changed — the form claiming to be JSON for a
-   * policy it no longer is.
-   */
-  const [seenPolicy, setSeenPolicy] = useState(policy);
-  if (!Equal.equals(policy, seenPolicy)) {
-    setSeenPolicy(policy);
-    setText(undefined);
-  }
-  const shown = text ?? (Result.isSuccess(encoded) ? encoded.success : String(encoded.failure));
-
-  return (
-    <div>
-      <textarea
-        aria-label="Policy JSON"
-        data-testid="qadi-policy-json"
-        value={shown}
-        onChange={(event) => setText(event.target.value)}
-        style={{ ...input, width: "100%", minHeight: 160, fontFamily: "inherit" }}
-      />
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
-        <button
-          type="button"
-          style={button(false)}
-          onClick={() => onLoad(shown)}
-          data-testid="qadi-policy-load"
-        >
-          load
-        </button>
-        {error === undefined ? null : (
-          <span style={{ color: colors.error }} data-testid="qadi-policy-json-error">
-            {error}
-          </span>
-        )}
-      </div>
+const JsonView: FC<{ readonly snapshot: Showing; readonly session: ExplorerSession }> = ({
+  snapshot,
+  session,
+}) => (
+  <div>
+    <textarea
+      aria-label="Policy JSON"
+      data-testid="qadi-policy-json"
+      value={snapshot.json.text}
+      onChange={(event) => session.editJson(event.target.value)}
+      style={{ ...input, width: "100%", minHeight: 160, fontFamily: "inherit" }}
+    />
+    <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
+      <button
+        type="button"
+        style={button(false)}
+        onClick={session.load}
+        data-testid="qadi-policy-load"
+      >
+        load
+      </button>
+      {snapshot.json.refusal === undefined ? null : (
+        <span style={{ color: colors.error }} data-testid="qadi-policy-json-error">
+          {snapshot.json.refusal}
+        </span>
+      )}
     </div>
-  );
-};
+  </div>
+);

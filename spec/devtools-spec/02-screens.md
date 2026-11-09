@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-02                                    |
-> | Revision       | 0.12 (draft)                                   |
+> | Revision       | 0.13 (draft)                                   |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.12 (2026-10-07): §6 and §7 say the dock samples the diagnostics when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>0.11 (2026-10-07): §5 states the session, the signatures row and the refused run (ARCH-20, CCR-QD-199)<br>0.10 (2026-10-07): §2 and §6 say five port spans and four other ports; §6 names the registry's card order and says what a defaulted card shows (`PortReport.defaulted`), and its counts of `name?` shapes and required services are corrected (ARCH-21, CCR-QD-198)<br>0.9 (2026-10-05): §6 names a decision log's `clear` in place of the removed `decisionSinkRing`'s (CCR-QD-181)<br>0.8 (2026-08-24): §7's gap notes closed against what was built — hydration counts (CCR-QD-072) and the instance registry and lens (CCR-QD-073); recorded in CCR-QD-074<br>0.7 (2026-08-24): The resolver-call gap closed, and the note corrected — annotating the spans was half of it, and a reader was the other half (CCR-QD-071)<br>0.6 (2026-08-24): Screen 5 built, and §5 corrected on two counts it had asserted since the first draft — it runs on `@qadi/core`'s own layers rather than `@qadi/testing`'s, and "never against live resolvers" was the wrong rule (CCR-QD-070)<br>0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.13 (2026-11-09): §3 and §4 say what the explorer and the role viewer show is kept across a tab switch, in a session the dock owns (ARCH-58, BEH-QD-337, CCR-QD-394)<br>0.12 (2026-10-07): §6 and §7 say the dock samples the diagnostics when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>0.11 (2026-10-07): §5 states the session, the signatures row and the refused run (ARCH-20, CCR-QD-199)<br>0.10 (2026-10-07): §2 and §6 say five port spans and four other ports; §6 names the registry's card order and says what a defaulted card shows (`PortReport.defaulted`), and its counts of `name?` shapes and required services are corrected (ARCH-21, CCR-QD-198)<br>0.9 (2026-10-05): §6 names a decision log's `clear` in place of the removed `decisionSinkRing`'s (CCR-QD-181)<br>0.8 (2026-08-24): §7's gap notes closed against what was built — hydration counts (CCR-QD-072) and the instance registry and lens (CCR-QD-073); recorded in CCR-QD-074<br>0.7 (2026-08-24): The resolver-call gap closed, and the note corrected — annotating the spans was half of it, and a reader was the other half (CCR-QD-071)<br>0.6 (2026-08-24): Screen 5 built, and §5 corrected on two counts it had asserted since the first draft — it runs on `@qadi/core`'s own layers rather than `@qadi/testing`'s, and "never against live resolvers" was the wrong rule (CCR-QD-070)<br>0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -164,6 +164,11 @@ registry, no registration call sites (ADR-QD-048, BEH-QD-211).
 > composite collapse, and same-tag/same-strategy flattening. The preview must
 > show those.
 
+**What the screen shows is kept across a tab switch.** The rail's choice, a pasted or
+simplified draft, the Tree/JSON view and an unloaded edit belong to a session the dock
+owns (BEH-QD-337), so looking at the log and coming back changes nothing. A preview is
+always of the policy shown, so applying it applies the tree that was on screen.
+
 **Depth is now measurable.** `policyDepth(policy)` counts the way the evaluator
 counts, so `policyDepth(p) <= n` is exactly the condition under which
 `evaluate(p, { maxDepth: n })` will not raise
@@ -190,6 +195,9 @@ partial catalogue is a normal deployment state and failing closed would deny
 everything — but says so, at warning level or through `onUnknownParent`
 ([BEH-QD-193](../behaviors/25-inspection.md)). The screen surfaces that as a
 warning on the graph.
+
+**The chosen role is kept across a tab switch** for the same reason (BEH-QD-337,
+INV-QD-107): the dock owns it.
 
 > **Correction — the cycle check.** There is still no positive "acyclic ✓" for
 > the common case: a by-value `Role` **cannot represent a cycle**, so the check

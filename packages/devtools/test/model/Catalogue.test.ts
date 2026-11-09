@@ -25,7 +25,14 @@ import {
   rules,
 } from "@qadi/core";
 import type { Policy } from "@qadi/core";
-import { catalogueOf, policiesSeen, policyLabel } from "../../src/model/Catalogue.ts";
+import {
+  catalogueOf,
+  policiesSeen,
+  policyLabel,
+  sameSighting,
+  sightingFor,
+  type PolicySighting,
+} from "../../src/model/Catalogue.ts";
 import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
 import { allow, decisionRecord, deny, failedRecord, obligationRecord } from "../helpers.ts";
 
@@ -281,5 +288,42 @@ describe("catalogueOf", () => {
   it("an empty declaration adds nothing", () => {
     assert.deepStrictEqual(catalogueOf(emptyTimeline(), { policies: {} }), []);
     assert.deepStrictEqual(catalogueOf(emptyTimeline(), { roles: [] }), []);
+  });
+});
+
+describe("choosing a sighting", () => {
+  const sighting = (policy: Policy, label: string, count: number): PolicySighting => ({
+    policy,
+    label,
+    count,
+    allows: count,
+    denies: 0,
+    errors: 0,
+    lastAt: 1,
+  });
+
+  it("sameSighting compares the policy by value, not the label or the tally", () => {
+    const a = sighting(hasPermission(read), "one", 1);
+    assert.isTrue(sameSighting(a, sighting(hasPermission(read), "two", 9)));
+    assert.isFalse(sameSighting(a, sighting(hasPermission(write), "one", 1)));
+  });
+
+  it("sightingFor returns the rail's own element for a listed policy", () => {
+    const listed = sighting(hasPermission(read), "named", 3);
+    const rail = [sighting(hasPermission(write), "w", 1), listed];
+    assert.strictEqual(sightingFor(rail, hasPermission(read)), listed);
+  });
+
+  it("sightingFor holds an unlisted policy under its derived label with a zero tally", () => {
+    const policy = hasPermission(write);
+    assert.deepStrictEqual(sightingFor([sighting(hasPermission(read), "r", 1)], policy), {
+      policy,
+      label: policyLabel(policy),
+      count: 0,
+      allows: 0,
+      denies: 0,
+      errors: 0,
+      lastAt: undefined,
+    });
   });
 });

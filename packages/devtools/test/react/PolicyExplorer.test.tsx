@@ -1,5 +1,5 @@
 /**
- * JOB 2 ledger — E2.1 … E2.12.
+ * JOB 2 ledger — E2.1 … E2.12, rendered.
  *
  * The load-bearing case is E2.1, and it is why `PolicyTree` has a `showStatus`
  * prop at all: `inspect(policy, undefined)` marks every node `NeverResolved`,
@@ -10,14 +10,11 @@
 import { assert, describe, it } from "@effect/vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import * as Effect from "effect/Effect";
-import * as Equal from "effect/Equal";
 import {
   allOf,
   anyOf,
-  fromJson,
   hasPermission,
   hasRole,
-  labeled,
   not,
   permission,
   toJson,
@@ -25,6 +22,7 @@ import {
 import type { Policy } from "@qadi/core";
 import { PolicyExplorer } from "../../src/react/PolicyExplorer.tsx";
 import type { PolicySighting } from "../../src/model/Catalogue.ts";
+import { makeExplorerSession } from "../../src/model/ExplorerSession.ts";
 import { policyLabel } from "../../src/model/Catalogue.ts";
 
 const read = permission("doc", "read");
@@ -40,8 +38,17 @@ const sighting = (policy: Policy, count = 1): PolicySighting => ({
   lastAt: count === 0 ? undefined : 100,
 });
 
-const mount = (sightings: ReadonlyArray<PolicySighting>) =>
-  render(<PolicyExplorer sightings={sightings} />);
+/**
+ * Mounts the panel over a session it owns, as the dock does.
+ *
+ * The rules (which policy is shown, what a preview is, what the JSON pane
+ * describes) are pinned in `test/model/ExplorerSession.test.ts`; what is here is
+ * the wording and the wiring from each control to its command.
+ */
+const mount = (sightings: ReadonlyArray<PolicySighting>) => {
+  const session = makeExplorerSession({ sightings });
+  return { session, ...render(<PolicyExplorer session={session} />) };
+};
 
 const click = async (element: HTMLElement) => {
   await act(async () => {
@@ -77,12 +84,33 @@ describe("the rail", () => {
     );
   });
 
-  it("selecting a policy shows it", async () => {
+  it("a rail click chooses that policy", async () => {
     mount([sighting(hasPermission(read)), sighting(hasPermission(write))]);
     assert.include(nodes()[0]?.textContent ?? "", "doc:read");
 
     await click(screen.getAllByTestId("qadi-policy-rail-item")[1] ?? fail());
     assert.include(nodes()[0]?.textContent ?? "", "doc:write");
+  });
+
+  it("says so when the chosen policy has left the log", async () => {
+    const { session } = mount([sighting(hasPermission(read)), sighting(hasPermission(write))]);
+    await click(screen.getAllByTestId("qadi-policy-rail-item")[1] ?? fail());
+
+    act(() => session.setSightings([sighting(hasPermission(read))]));
+
+    assert.include(nodes()[0]?.textContent ?? "", "doc:write");
+    assert.include(screen.getByTestId("qadi-policies-evicted").textContent ?? "", "no longer in the log");
+  });
+
+  it("highlights the chosen policy only while no draft covers it", async () => {
+    mount([sighting(hasPermission(read))]);
+    const style = () => screen.getAllByTestId("qadi-policy-rail-item")[0]?.getAttribute("style") ?? "";
+    const highlighted = style();
+
+    await click(screen.getByRole("button", { name: "Tree" }));
+    await paste(Effect.runSync(toJson(hasRole("editor"))));
+    await click(screen.getByTestId("qadi-policy-load"));
+    assert.notStrictEqual(style(), highlighted);
   });
 });
 
@@ -134,47 +162,14 @@ describe("depth", () => {
     for (let i = 0; i < 65; i += 1) policy = allOf([policy]);
 
     mount([sighting(policy)]);
-    // `policyDepth(p) <= n` is exactly the condition under which
-    // `evaluate(p, { maxDepth: n })` will not raise (INV-QD-037), so this
-    // comparison is a fact rather than a hint.
-    assert.include(
-      screen.getByTestId("qadi-depth-over").textContent ?? "",
-      "PolicyTooDeep",
-    );
+    assert.include(screen.getByTestId("qadi-depth-over").textContent ?? "", "PolicyTooDeep");
   });
 });
 
 describe("simplify", () => {
-  // E2.6 — one of the two rewrites `simplify` actually performs.
-  it("previews a single-child composite collapse", async () => {
-    mount([sighting(allOf([hasPermission(read)]))]);
-    assert.include(screen.getByTestId("qadi-simplify-effect").textContent ?? "", "would collapse");
-
-    await click(screen.getByTestId("qadi-simplify"));
-    // The preview is the collapsed tree: one node where there were two.
-    assert.strictEqual(nodes().length, 1);
-    assert.include(nodes()[0]?.textContent ?? "", "doc:read");
-  });
-
-  // E2.7 — the other one.
-  it("previews same-tag flattening", async () => {
-    mount([sighting(allOf([allOf([hasPermission(read), hasRole("a")]), hasRole("b")]))]);
-    await click(screen.getByTestId("qadi-simplify"));
-
-    // Flattened: three leaves directly under one `all of`, not a nested pair.
-    const root = nodes()[0];
-    assert.include(root?.textContent ?? "", "all of");
-    assert.strictEqual(nodes().length, 4);
-  });
-
-  /**
-   * E2.8 — the correction the design document had to make about itself.
-   *
-   * `simplify` does exactly two things, and double-negation elimination is not
-   * one of them: `Simplify.ts` records that as a finding rather than an
-   * omission. A screen offering it would promise a rewrite the library refuses.
-   */
-  it("leaves a double negation alone, and says the policy is already simple", () => {
+  // E2.8 — the correction the design document had to make about itself: the
+  // screen offers no double-negation elimination the library refuses.
+  it("says a policy with nothing to rewrite is already simple", () => {
     mount([sighting(not(not(hasPermission(read))))]);
     assert.include(
       screen.getByTestId("qadi-simplify-effect").textContent ?? "",
@@ -182,31 +177,28 @@ describe("simplify", () => {
     );
   });
 
-  // E2.9
-  it("a policy with nothing to simplify says so rather than showing an empty diff", () => {
-    mount([sighting(hasPermission(read))]);
-    assert.include(
-      screen.getByTestId("qadi-simplify-effect").textContent ?? "",
-      "already as simple",
-    );
+  it("says a rewritable policy would collapse or flatten", () => {
+    mount([sighting(allOf([hasPermission(read)]))]);
+    assert.include(screen.getByTestId("qadi-simplify-effect").textContent ?? "", "would collapse");
   });
 
   // E2.10 — previewing is not applying.
-  it("previewing can be cancelled, and applying is a second action", async () => {
+  it("simplify, cancel and apply are three controls on three commands", async () => {
     mount([sighting(allOf([hasPermission(read)]))]);
     assert.strictEqual(nodes().length, 2);
+    assert.isNull(screen.queryByRole("button", { name: "apply" }));
 
     await click(screen.getByTestId("qadi-simplify"));
+    assert.strictEqual(screen.getByTestId("qadi-simplify").textContent, "cancel");
     assert.strictEqual(nodes().length, 1);
 
-    // Cancel restores the original — nothing was applied.
     await click(screen.getByTestId("qadi-simplify"));
     assert.strictEqual(nodes().length, 2);
 
     await click(screen.getByTestId("qadi-simplify"));
     await click(screen.getByRole("button", { name: "apply" }));
     assert.strictEqual(nodes().length, 1);
-    // And once applied, there is nothing left to simplify.
+    assert.strictEqual(screen.getByTestId("qadi-simplify").textContent, "simplify");
     assert.include(
       screen.getByTestId("qadi-simplify-effect").textContent ?? "",
       "already as simple",
@@ -214,29 +206,32 @@ describe("simplify", () => {
   });
 });
 
+const paste = async (text: string) => {
+  await act(async () => {
+    fireEvent.change(screen.getByTestId("qadi-policy-json"), { target: { value: text } });
+  });
+};
+
 describe("the JSON view", () => {
   // E2.3 — the real codec, not an approximation.
-  it("shows what `toJson` produces, which is what a caller would store", async () => {
+  it("the Tree/JSON button switches the view and shows what `toJson` produces", async () => {
     const policy = allOf([hasPermission(read)]);
     mount([sighting(policy)]);
     await click(screen.getByRole("button", { name: "Tree" }));
 
-    const encoded = Effect.runSync(toJson(policy));
     assert.strictEqual(
       screen.getByTestId<HTMLTextAreaElement>("qadi-policy-json").value,
-      encoded,
+      Effect.runSync(toJson(policy)),
     );
+    await click(screen.getByRole("button", { name: "JSON" }));
+    assert.isNull(screen.queryByTestId("qadi-policy-json"));
   });
 
   // E2.5
-  it("loads a pasted policy and redraws the tree", async () => {
+  it("typing and load redraw the tree from a pasted policy", async () => {
     mount([sighting(hasPermission(read))]);
     await click(screen.getByRole("button", { name: "Tree" }));
-
-    const pasted = Effect.runSync(toJson(anyOf([hasRole("editor"), hasRole("admin")])));
-    await act(async () => {
-      fireEvent.change(screen.getByTestId("qadi-policy-json"), { target: { value: pasted } });
-    });
+    await paste(Effect.runSync(toJson(anyOf([hasRole("editor"), hasRole("admin")]))));
     await click(screen.getByTestId("qadi-policy-load"));
     await click(screen.getByRole("button", { name: "JSON" }));
 
@@ -245,186 +240,14 @@ describe("the JSON view", () => {
   });
 
   // E2.4 — the ordinary way to learn a payload is malformed.
-  it("a paste that does not decode shows the issue and keeps the panel", async () => {
+  it("a paste that does not decode shows the issue beside the box", async () => {
     mount([sighting(hasPermission(read))]);
     await click(screen.getByRole("button", { name: "Tree" }));
-
-    await act(async () => {
-      fireEvent.change(screen.getByTestId("qadi-policy-json"), {
-        target: { value: '{"_tag":"NotAPolicy"}' },
-      });
-    });
-    await click(screen.getByTestId("qadi-policy-load"));
-
-    const errorNode = screen.getByTestId("qadi-policy-json-error");
-    assert.isNotNull(errorNode);
-    assert.isNotNull(screen.getByTestId("qadi-policy-json"));
-    // WZ-01: this used to be `String(decoded.failure)` — a raw
-    // `SchemaError(Expected { readonly "_tag": ... } | ...)` dump naming the
-    // entire 17-member `Policy` union. It is now formatted, path-relative
-    // issue text instead.
-    assert.notInclude(errorNode.textContent ?? "", "SchemaError(");
-  });
-
-  it("a policy nested past the decode guard reports the depth, not a raw stack-overflow-shaped error", async () => {
-    mount([sighting(hasPermission(read))]);
-    await click(screen.getByRole("button", { name: "Tree" }));
-
-    let nested = '{"_tag":"HasPermission","permission":"read"}';
-    for (let i = 0; i < 5000; i++) {
-      nested = `{"_tag":"Not","policy":${nested}}`;
-    }
-
-    await act(async () => {
-      fireEvent.change(screen.getByTestId("qadi-policy-json"), { target: { value: nested } });
-    });
-    await click(screen.getByTestId("qadi-policy-load"));
-
-    const errorNode = screen.getByTestId("qadi-policy-json-error");
-    assert.include(errorNode.textContent ?? "", "decode limit");
-  });
-
-  it("a paste that is not JSON at all is reported the same way", async () => {
-    mount([sighting(hasPermission(read))]);
-    await click(screen.getByRole("button", { name: "Tree" }));
-
-    await act(async () => {
-      fireEvent.change(screen.getByTestId("qadi-policy-json"), { target: { value: "}{" } });
-    });
+    await paste('{"_tag":"NotAPolicy"}');
     await click(screen.getByTestId("qadi-policy-load"));
 
     assert.isNotNull(screen.getByTestId("qadi-policy-json-error"));
-  });
-
-  it("round-trips: what it shows decodes back to the policy it showed", () => {
-    const policy = labeled("can publish", allOf([hasPermission(write), hasRole("editor")]));
-    const encoded = Effect.runSync(toJson(policy));
-    assert.isTrue(Equal.equals(Effect.runSync(Effect.orDie(fromJson(encoded))), policy));
-  });
-
-  /**
-   * The bug this pins: `JsonView` buffers the textarea's raw text locally, so
-   * a paste that has not been loaded yet is not lost while the reviewer keeps
-   * typing. That buffer used to survive switching rail items — so the textarea
-   * would go on showing text edited against the *previous* policy, unloaded,
-   * under the newly selected one's name. The screen's own claim is that this is
-   * "the real codec, not an approximation" — text belonging to a different
-   * policy fails that on its face.
-   */
-  it("clears an edited-but-unloaded paste when a different policy is selected", async () => {
-    mount([sighting(hasPermission(read)), sighting(hasPermission(write))]);
-    await click(screen.getByRole("button", { name: "Tree" }));
-
-    await act(async () => {
-      fireEvent.change(screen.getByTestId("qadi-policy-json"), {
-        target: { value: "not yet loaded" },
-      });
-    });
-    assert.strictEqual(
-      screen.getByTestId<HTMLTextAreaElement>("qadi-policy-json").value,
-      "not yet loaded",
-    );
-
-    await click(screen.getAllByTestId("qadi-policy-rail-item")[1] ?? fail());
-
-    assert.strictEqual(
-      screen.getByTestId<HTMLTextAreaElement>("qadi-policy-json").value,
-      Effect.runSync(toJson(hasPermission(write))),
-    );
-  });
-});
-
-describe("selection and drafts", () => {
-  it("choosing another policy discards a draft belonging to the first", async () => {
-    mount([sighting(hasPermission(read)), sighting(hasPermission(write))]);
-    await click(screen.getByRole("button", { name: "Tree" }));
-
-    const pasted = Effect.runSync(toJson(hasRole("editor")));
-    await act(async () => {
-      fireEvent.change(screen.getByTestId("qadi-policy-json"), { target: { value: pasted } });
-    });
-    await click(screen.getByTestId("qadi-policy-load"));
-    await click(screen.getByRole("button", { name: "JSON" }));
-    assert.include(nodes()[0]?.textContent ?? "", "editor");
-
-    // A draft belongs to the policy it came from; carrying it across would show
-    // one policy's contents under another's name.
-    await click(screen.getAllByTestId("qadi-policy-rail-item")[1] ?? fail());
-    assert.include(nodes()[0]?.textContent ?? "", "doc:write");
-  });
-
-  it("a rail item stops looking selected while a draft is showing", async () => {
-    mount([sighting(hasPermission(read))]);
-    await click(screen.getByRole("button", { name: "Tree" }));
-
-    const pasted = Effect.runSync(toJson(hasRole("editor")));
-    await act(async () => {
-      fireEvent.change(screen.getByTestId("qadi-policy-json"), { target: { value: pasted } });
-    });
-    await click(screen.getByTestId("qadi-policy-load"));
-
-    const item = screen.getAllByTestId("qadi-policy-rail-item")[0] ?? fail();
-    assert.notInclude(item.getAttribute("style") ?? "", "background: rgb(28, 31, 38)");
-  });
-
-  // A policy that leaves the rail stays shown, and the screen says so: the
-  // reviewer chose a value, and the screen swapping to another one silently
-  // is the defect the old clamp encoded.
-  it("keeps a policy that left the rail, and says so", async () => {
-    const view = mount([sighting(hasPermission(read)), sighting(hasPermission(write))]);
-    await click(screen.getAllByTestId("qadi-policy-rail-item")[1] ?? fail());
-    assert.include(nodes()[0]?.textContent ?? "", "doc:write");
-
-    view.rerender(<PolicyExplorer sightings={[sighting(hasPermission(read))]} />);
-
-    assert.isNull(screen.queryByTestId("qadi-policies-empty"));
-    assert.include(nodes()[0]?.textContent ?? "", "doc:write");
-    assert.include(screen.getByTestId("qadi-policies-evicted").textContent ?? "", "no longer in the log");
-  });
-
-  it("keeps the first policy shown when a new head arrives before any choice", () => {
-    const view = mount([sighting(hasPermission(read))]);
-    view.rerender(
-      <PolicyExplorer sightings={[sighting(hasPermission(write)), sighting(hasPermission(read))]} />,
-    );
-    assert.include(nodes()[0]?.textContent ?? "", "doc:read");
-    assert.isNull(screen.queryByTestId("qadi-policies-evicted"));
-  });
-
-  it("keeps the selected policy when a decision reorders the rail", async () => {
-    const view = mount([sighting(hasPermission(read)), sighting(hasPermission(write))]);
-    await click(screen.getAllByTestId("qadi-policy-rail-item")[1] ?? fail());
-    assert.include(nodes()[0]?.textContent ?? "", "doc:write");
-    const selectedStyle = screen.getAllByTestId("qadi-policy-rail-item")[1]?.getAttribute("style");
-
-    view.rerender(
-      <PolicyExplorer sightings={[sighting(hasPermission(write)), sighting(hasPermission(read))]} />,
-    );
-
-    assert.include(nodes()[0]?.textContent ?? "", "doc:write");
-    const items = screen.getAllByTestId("qadi-policy-rail-item");
-    assert.strictEqual(items[0]?.getAttribute("style"), selectedStyle);
-    assert.notStrictEqual(items[1]?.getAttribute("style"), selectedStyle);
-  });
-
-  it("keeps a pasted draft and its rail highlight in step after a reorder", async () => {
-    const view = mount([sighting(hasPermission(read)), sighting(hasPermission(write))]);
-    await click(screen.getByRole("button", { name: "Tree" }));
-    const pasted = Effect.runSync(toJson(hasPermission(write)));
-    await act(async () => {
-      fireEvent.change(screen.getByTestId("qadi-policy-json"), { target: { value: pasted } });
-    });
-    await click(screen.getByTestId("qadi-policy-load"));
-
-    view.rerender(
-      <PolicyExplorer sightings={[sighting(hasPermission(write)), sighting(hasPermission(read))]} />,
-    );
-
-    const box = screen.getByTestId("qadi-policy-json");
-    assert.isTrue(box instanceof HTMLTextAreaElement && box.value.includes("write"));
-    for (const item of screen.getAllByTestId("qadi-policy-rail-item")) {
-      assert.notInclude(item.getAttribute("style") ?? "", "background: rgb(28, 31, 38)");
-    }
+    assert.isNotNull(screen.getByTestId("qadi-policy-json"));
   });
 });
 

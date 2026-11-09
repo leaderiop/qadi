@@ -14,15 +14,20 @@
  * reassurance about a check that never ran, which is worse than showing
  * nothing.
  */
-import { useState, type CSSProperties, type FC } from "react";
+import type { CSSProperties, FC } from "react";
 import * as Match from "effect/Match";
 import type { Role } from "@qadi/core";
-import { resolveHeld } from "../model/HeldChoice.ts";
+import type { HeldChoiceStore } from "../model/HeldChoice.ts";
 import { grantPath, roleSummary, type RoleNode } from "../model/RoleTree.ts";
+import { useHeldChoiceSnapshot } from "./useExplorerSession.ts";
 import { button, colors, font, muted } from "./theme.ts";
 
 export interface RoleViewerProps {
-  readonly roles: ReadonlyArray<Role>;
+  /**
+   * The roles and the one the reviewer chose, owned by the dock so that leaving
+   * the tab is not a choice (INV-QD-107).
+   */
+  readonly choice: HeldChoiceStore<Role>;
   /**
    * Parent names `resolveRoleGraph` dropped because no definition supplied them.
    *
@@ -38,15 +43,11 @@ const chip = (own: boolean): CSSProperties => ({
   fontSize: font.sizeSmall,
 });
 
-export const RoleViewer: FC<RoleViewerProps> = ({ roles, unknownParents }) => {
-  /** The role the reviewer chose, held by name: a host may rebuild `roles` in any order. */
-  const [held, setHeld] = useState<Role | undefined>(undefined);
-  // Pinned during render, so the first role shown is the one held.
-  if (held === undefined && roles[0] !== undefined) setHeld(roles[0]);
-
+export const RoleViewer: FC<RoleViewerProps> = ({ choice, unknownParents }) => {
   // Position is a reading of the current list, never the selection (see
   // `HeldChoice`). A role that left the list stays shown, and says so.
-  const shown = Match.value(resolveHeld(roles, held, (a, b) => a.name === b.name)).pipe(
+  const { list: roles, choice: resolved } = useHeldChoiceSnapshot(choice);
+  const shown = Match.value(resolved).pipe(
     Match.tagsExhaustive({
       Empty: () => ({ role: undefined, index: undefined, evicted: false }),
       Listed: (listed) => ({ role: listed.value, index: listed.index, evicted: false }),
@@ -76,7 +77,7 @@ export const RoleViewer: FC<RoleViewerProps> = ({ roles, unknownParents }) => {
               type="button"
               data-testid="qadi-role-chip"
               style={button(index === shown.index)}
-              onClick={() => setHeld(candidate)}
+              onClick={() => choice.choose(candidate)}
             >
               {candidate.name}
             </button>

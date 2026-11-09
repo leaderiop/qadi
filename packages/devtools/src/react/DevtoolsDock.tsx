@@ -26,6 +26,9 @@ import { sourceFromRecords, type Source } from "../model/Source.ts";
 import { countsOf, type Verdict } from "../model/Verdict.ts";
 import { catalogueOf, type Catalogue, type PolicySighting } from "../model/Catalogue.ts";
 import { mergeReading, type DiagnosticsReading, type WiringRead } from "../model/DiagnosticsStore.ts";
+import type { ExplorerSession } from "../model/ExplorerSession.ts";
+import type { HeldChoiceStore } from "../model/HeldChoice.ts";
+import { sameRole } from "../model/RoleTree.ts";
 import type { PortCallLog } from "../model/PortCalls.ts";
 import type { AskedQuestionLike, GateInstanceLike } from "../model/Gates.ts";
 import type { HydrationActivity } from "../model/Hydration.ts";
@@ -44,6 +47,7 @@ import { RoleViewer } from "./RoleViewer.tsx";
 import { ServicesPanel } from "./ServicesPanel.tsx";
 import { Simulator } from "./Simulator.tsx";
 import { useDiagnostics, type DiagnosticsDockOptions } from "./useDiagnostics.ts";
+import { useOwnedExplorerSession, useOwnedHeldChoice } from "./useExplorerSession.ts";
 import { useOwnedSimulationSession } from "./useSimulationSession.ts";
 import { useTimeline } from "./useTimeline.ts";
 import { body, button, colors, dock, font, input, muted, toolbar } from "./theme.ts";
@@ -58,6 +62,9 @@ const nothing: Source = sourceFromRecords([]);
  * Data-driven, which is what made growing from two screens to six an entry in
  * this list rather than a rewrite. A seventh is the same.
  */
+/** A stable empty list, so an absent catalogue does not dispatch `setList` on every render. */
+const NO_ROLES: ReadonlyArray<Role> = [];
+
 const TABS = [
   { id: "log", label: "Log" },
   { id: "inspector", label: "Inspector" },
@@ -190,6 +197,13 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
    * as commands rather than being re-derived on each render.
    */
   const simulation = useOwnedSimulationSession({ sightings, seed, ports });
+  /**
+   * The explorer's session and the role viewer's choice, owned here for the
+   * simulator's reason: what a screen shows is not a choice the reviewer made by
+   * looking elsewhere and coming back (INV-QD-107).
+   */
+  const explorer = useOwnedExplorerSession(sightings);
+  const roleChoice = useOwnedHeldChoice(catalogue?.roles ?? NO_ROLES, sameRole);
 
   const select = useCallback((key: string) => {
     setSelectedKey(key);
@@ -270,7 +284,8 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
           onSelect={select}
           selection={selection}
           sightings={sightings}
-          roles={catalogue?.roles ?? []}
+          explorer={explorer}
+          roleChoice={roleChoice}
           {...(unknownParents === undefined ? {} : { unknownParents })}
           wiring={shown.wiring}
           activity={shown.activity}
@@ -329,7 +344,8 @@ const Screen: FC<{
   readonly onSelect: (key: string) => void;
   readonly selection: Selection;
   readonly sightings: ReadonlyArray<PolicySighting>;
-  readonly roles: ReadonlyArray<Role>;
+  readonly explorer: ExplorerSession;
+  readonly roleChoice: HeldChoiceStore<Role>;
   readonly unknownParents?: ReadonlyArray<string>;
   readonly wiring: WiringRead;
   readonly activity: ReadonlyArray<PortActivity>;
@@ -346,10 +362,10 @@ const Screen: FC<{
       <DecisionLog rows={props.rows} selectedKey={props.selectedKey} onSelect={props.onSelect} />
     ),
     inspector: () => <Inspector selection={props.selection} onReplay={props.onReplay} />,
-    policies: () => <PolicyExplorer sightings={props.sightings} />,
+    policies: () => <PolicyExplorer session={props.explorer} />,
     roles: () => (
       <RoleViewer
-        roles={props.roles}
+        choice={props.roleChoice}
         {...(props.unknownParents === undefined ? {} : { unknownParents: props.unknownParents })}
       />
     ),

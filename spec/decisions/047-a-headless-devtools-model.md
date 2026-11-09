@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-047                                   |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-10-07                                     |
-> | Status         | Accepted; amended 2026-10-07 (sampling is the model's), 2026-10-08 (the feed, a supplied reading, the interface) |
+> | Status         | Accepted; amended 2026-10-07 (sampling is the model's), 2026-10-08 (the feed, a supplied reading, the interface), 2026-11-09 (the explorer's state is model too) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.6 (2026-10-08): amendment — the model's interface is its stores, the host wiring and the timeline readings; a screen's mechanics and the panels are package-private (ARCH-40, CCR-QD-321)<br>1.4 (2026-10-08): amendment — a supplied reading is one value, `DiagnosticsReading`, merged by `mergeReading` (ARCH-44, CCR-QD-241)<br>1.3 (2026-10-08): amendment — under a `QadiProvider`, the layer the dock builds is the provider's own, handed by `@qadi/react`'s `useDevtoolsFeed` (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.7 (2026-11-09): amendment — the policy explorer's state is `ExplorerSession` and the role viewer's choice a `HeldChoiceStore`, both owned by `DevtoolsDock` and package-private (ARCH-58, BEH-QD-337, INV-QD-107, CCR-QD-394)<br>1.6 (2026-10-08): amendment — the model's interface is its stores, the host wiring and the timeline readings; a screen's mechanics and the panels are package-private (ARCH-40, CCR-QD-321)<br>1.4 (2026-10-08): amendment — a supplied reading is one value, `DiagnosticsReading`, merged by `mergeReading` (ARCH-44, CCR-QD-241)<br>1.3 (2026-10-08): amendment — under a `QadiProvider`, the layer the dock builds is the provider's own, handed by `@qadi/react`'s `useDevtoolsFeed` (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 ---
 
@@ -223,3 +223,21 @@ a prop fed by the host's subscription ([ADR-QD-080](./080-a-gate-registry-belong
 > **Breaking** for `@qadi/devtools`: 87 names released in 0.11.0 are no longer
 > importable (56 from the root, 31 from `@qadi/devtools/react`), and 24 more were never
 > released. The Decision's list is unchanged; only its reachability is.
+
+> **Amended 2026-11-09 (CCR-QD-394): the explorer's state is model too.** Screen 3 held
+> its chosen policy, its draft, its preview and its JSON pane in seven `useState`s across
+> two views, and three of its rules were wrong where no model test and no mutation run
+> could see them: a preview outlived the policy it previewed (so `apply` applied a tree
+> that was never shown), a paste's refusal outlived the text it refused, and an unloaded
+> edit was lost by glancing at the tree. It also lived as long as its tab, so choosing a
+> policy, looking at the log and coming back showed the head again.
+>
+> It is `ExplorerSession` now (`model/ExplorerSession.ts`), the 1.2 amendment's argument
+> one screen later: a store on `makeExternalStore` with seven synchronous commands, the
+> held-choice rule through `HeldChoice.ts`, the codec round trip and the refusal
+> formatter in the model, under the 95% coverage bar and the mutation gate. A preview is
+> a flag and never a stored policy, so a preview of a policy other than the one shown is
+> unrepresentable. The session is package-private (the 1.6 amendment's rule for a
+> screen's mechanics: nothing but the dock drives it) and `DevtoolsDock` owns it, as it
+> owns the simulator's. The role viewer's held choice is a `HeldChoiceStore`
+> (`HeldChoice.ts`) the dock owns for the same reason. No exported name changed.
