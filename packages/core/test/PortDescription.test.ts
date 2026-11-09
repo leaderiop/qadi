@@ -54,6 +54,7 @@ class ProbePort extends Context.Service<ProbePort, ProbeShape>()("qadi/test/Prob
 const probeSpan = {
   question: spanStruct({ ...sharedQuestionFields }, { ...sharedQuestionKeys }),
   answer: spanStruct({ resolved: Schema.optionalKey(Schema.Boolean) }, { resolved: "qadi.resolved" }),
+  pose: ([who]: [who: string, what: string]) => ({ subjectId: who }),
   disclose: (value: number | undefined) => ({ resolved: value !== undefined }),
 };
 
@@ -82,10 +83,14 @@ const probePort: PortDescription<
     fromQuestion: (question, subject): [who: string, what: string] => [subject.id, question.what],
     toAnswer: (n: number | undefined) => Result.succeed(n === undefined ? {} : { n }),
     fromAnswer: (wire) => wire.n,
-    asked: ([, what]) => what,
-    spanQuestion: ([who]) => ({ subjectId: who }),
-    spanAnswer: (n) => probeSpan.disclose(n),
   }),
+  serving: {
+    allowlist: "required",
+    leaves: {},
+    asked: ([, what]) => what,
+    admitted: (declaration) => declaration.attributes,
+    declare: (names) => ({ AttributeResolver: { attributes: names } }),
+  },
   service: ProbePort,
   invoke: (shape) => (who, what) => shape.ask(who, what),
   make: (name, call) => ({ name, ask: call }),

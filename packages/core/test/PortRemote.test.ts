@@ -15,6 +15,7 @@ import * as Layer from "effect/Layer";
 import * as Record from "effect/Record";
 import * as Result from "effect/Result";
 import type * as Schema from "effect/Schema";
+import type * as Tracer from "effect/Tracer";
 import * as FastCheck from "fast-check";
 import { AttributeResolverNone } from "../src/AttributeResolver.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
@@ -30,14 +31,15 @@ import { PortReply } from "../src/PortDescription.ts";
 import { recordingPort, scriptedPort } from "../src/PortDoubles.ts";
 import type { PortName } from "../src/PortMetrics.ts";
 import { answerRemotely, askRemotely, remotePorts, servingFor } from "../src/PortRemote.ts";
-import type { PortServing, PortServingOf } from "../src/PortRemote.ts";
+import type { PortServing, PortServingOf } from "../src/PortServing.ts";
 import { RemotePortFailure } from "../src/PortWire.ts";
 import type { PortWireReply } from "../src/PortWire.ts";
-import { PORTS, portsLayer, tabulatePorts } from "../src/Ports.ts";
+import { askSignature, servePortRead } from "../src/PortAccess.ts";
+import { forEveryPort, PORTS, portsLayer, tabulatePorts } from "../src/Ports.ts";
 import type { AnswerOf, ArgsOf, DescriptionOf, PortServices, PortTypes, ServiceOf } from "../src/Ports.ts";
 import { RelationshipResolverNever } from "../src/RelationshipResolver.ts";
-import { SignatureHistoryNone } from "../src/SignatureHistory.ts";
-import { policyArbitrary } from "./helpers.ts";
+import { SignatureHistory, SignatureHistoryNone } from "../src/SignatureHistory.ts";
+import { collectingTracer, policyArbitrary } from "./helpers.ts";
 
 const aliceId = makeSubjectId("alice");
 const bobId = makeSubjectId("bob");
@@ -51,6 +53,8 @@ interface Case<K extends PortName> {
   /** The same question, about someone else. */
   readonly other: ArgsOf<PortTypes[K]>;
   readonly serving: PortServingOf<K>;
+  /** The one name an allowlist admits for `args`, or `undefined` where the port has none. */
+  readonly asked: string | undefined;
   /** A declaration that does not admit `args`, or `undefined` where a port has none to refuse. */
   readonly unserved: PortServingOf<K> | undefined;
 }
@@ -61,6 +65,7 @@ const CASES: { readonly [K in PortName]: Case<K> } = {
     answer: { level: 3 },
     other: [bobId, "clearance"],
     serving: { attributes: ["clearance"] },
+    asked: "clearance",
     unserved: { attributes: ["constructor"] },
   },
   DecisionHistory: {
@@ -68,6 +73,7 @@ const CASES: { readonly [K in PortName]: Case<K> } = {
     answer: "Acted",
     other: [{ subjectId: bobId, event: "approved", resourceId: doc }],
     serving: { events: ["approved"] },
+    asked: "approved",
     unserved: { events: ["rejected"] },
   },
   RelationshipResolver: {
@@ -75,6 +81,7 @@ const CASES: { readonly [K in PortName]: Case<K> } = {
     answer: "Related",
     other: [{ subjectId: bobId, relation: "owner", resourceId: doc, depth: 2 }],
     serving: { relations: ["owner"] },
+    asked: "owner",
     unserved: { relations: [] },
   },
   CustomPredicate: {
@@ -82,13 +89,15 @@ const CASES: { readonly [K in PortName]: Case<K> } = {
     answer: true,
     other: ["isOwner", bob, { id: "doc-1" }, { strict: true }],
     serving: { names: ["isOwner"] },
+    asked: "isOwner",
     unserved: { names: ["isEditor"] },
   },
   SignatureHistory: {
-    args: [{ subjectId: aliceId, resourceId: doc }],
+    args: [{ subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" }],
     answer: [{ signerId: aliceId, meaning: "approved", signedAt: 0 }],
-    other: [{ subjectId: bobId, resourceId: doc }],
+    other: [{ subjectId: bobId, resourceId: doc, meaning: "approved", signerRole: "manager" }],
     serving: { signatures: "own-records" },
+    asked: undefined,
     unserved: undefined,
   },
 };
@@ -101,6 +110,10 @@ const rendered = (error: unknown): string => `${String(Reflect.get(Object(error)
 
 /** Through JSON text, the way a transport carries it. */
 const overTheWire = (json: unknown): unknown => JSON.parse(JSON.stringify(json));
+
+/** A port's question for `args`, as the asking half encodes it. */
+const asQuestion = <K extends PortName>(d: DescriptionOf<K>, args: ArgsOf<PortTypes[K]>): Schema.Json =>
+  Result.getOrThrow(d.wire.encodeQuestion(args));
 
 const remoteCase = <K extends PortName>(d: DescriptionOf<K>, c: Case<K>) => {
   /** A `send` served by `store`, for a session about `session`. */
@@ -124,6 +137,11 @@ const remoteCase = <K extends PortName>(d: DescriptionOf<K>, c: Case<K>) => {
         assert.deepStrictEqual(answer, c.answer);
       }));
 
+    it.effect("the port's own facet names the one name an allowlist admits", () =>
+      Effect.sync(() => {
+        assert.strictEqual(d.serving.asked(c.args), c.asked);
+      }));
+
     it.effect("the shape is named for what it is", () =>
       Effect.sync(() => {
         assert.strictEqual(askRemotely(d, () => Effect.never).name, `${d.port} (remote)`);
@@ -145,6 +163,15 @@ const remoteCase = <K extends PortName>(d: DescriptionOf<K>, c: Case<K>) => {
         const error = yield* Effect.flip(ask(sendTo(dying, c.serving), c.args));
         assert.strictEqual(error._tag, d.failure(c.args, "x")._tag);
         assert.notInclude(JSON.stringify(error), "the-secret-boom");
+      }));
+
+    it.effect("a store that throws is answered Unavailable, never a defect", () =>
+      Effect.gen(function* () {
+        const throwing = scriptedPort(d, () => PortReply.throw(new Error("boom"))).layer;
+        const reply = yield* answerRemotely(d, c.serving)(overTheWire(asQuestion(d, c.args))).pipe(
+          Effect.provide(Layer.merge(throwing, currentSubjectLayer(alice))),
+        );
+        assert.deepStrictEqual(reply, { _tag: "Unavailable" });
       }));
 
     it.effect("a question about another subject is refused, not answered", () =>
@@ -231,6 +258,90 @@ describe("a remote port (ADR-QD-NEXT)", () => {
     }));
 });
 
+/**
+ * What a declaration admits is decided by the port's own `serving` facet
+ * (SERV-02, ADR-QD-114): a required allowlist declared empty admits nothing,
+ * and an open port with no list admits any name. A required allowlist that is
+ * missing, or not a list, admits nothing either (fail-closed, code review WR-01).
+ */
+describe("a declaration is admitted through the port's facet (SERV-02)", () => {
+  const refused: PortWireReply = { _tag: "Refused", reason: "NotServed" };
+
+  const answerWith = <K extends PortName>(
+    d: DescriptionOf<K>,
+    serving: PortServingOf<K>,
+    store: Layer.Layer<ServiceOf<PortTypes[K]>>,
+    args: ArgsOf<PortTypes[K]>,
+  ) =>
+    answerRemotely(d, serving)(overTheWire(asQuestion(d, args))).pipe(
+      Effect.provide(Layer.merge(store, currentSubjectLayer(alice))),
+    );
+
+  it.effect("a required attribute list declared empty admits nothing, not even inherited names", () =>
+    Effect.gen(function* () {
+      for (const attribute of ["clearance", "constructor", "__proto__"]) {
+        const store = recordingPort(PORTS.AttributeResolver, AttributeResolverNone);
+        const reply = yield* answerWith(PORTS.AttributeResolver, { attributes: [] }, store.layer, [
+          aliceId,
+          attribute,
+        ]);
+        assert.deepStrictEqual(reply, refused);
+        assert.strictEqual(store.calls.length, 0);
+      }
+    }));
+
+  it.effect("a required predicate list declared empty admits nothing", () =>
+    Effect.gen(function* () {
+      const store = recordingPort(PORTS.CustomPredicate, CustomPredicateNone);
+      const reply = yield* answerWith(PORTS.CustomPredicate, { names: [] }, store.layer, CASES.CustomPredicate.args);
+      assert.deepStrictEqual(reply, refused);
+      assert.strictEqual(store.calls.length, 0);
+    }));
+
+  // A declaration the type checker never saw, the way a host config loaded from
+  // JSON arrives: `JSON.parse` is typed loosely, so no cast is needed to hand it
+  // to a parameter that, in typed code, could not be built this way.
+  const loaded = (text: string): PortServingOf<"AttributeResolver"> & PortServingOf<"CustomPredicate"> =>
+    JSON.parse(text);
+
+  it.effect("a required attribute list that is missing or not a list serves nothing", () =>
+    Effect.gen(function* () {
+      for (const text of ["{}", '{"attributes":null}', '{"attributes":"clearance"}']) {
+        const store = recordingPort(PORTS.AttributeResolver, AttributeResolverNone);
+        for (const attribute of ["clearance", "constructor", "__proto__"]) {
+          const reply = yield* answerWith(PORTS.AttributeResolver, loaded(text), store.layer, [aliceId, attribute]);
+          assert.deepStrictEqual(reply, refused);
+        }
+        assert.strictEqual(store.calls.length, 0);
+      }
+    }));
+
+  it.effect("a required predicate list that is missing or not a list serves nothing", () =>
+    Effect.gen(function* () {
+      for (const text of ["{}", '{"names":null}', '{"names":"isOwner"}']) {
+        const store = recordingPort(PORTS.CustomPredicate, CustomPredicateNone);
+        const reply = yield* answerWith(PORTS.CustomPredicate, loaded(text), store.layer, CASES.CustomPredicate.args);
+        assert.deepStrictEqual(reply, refused);
+        assert.strictEqual(store.calls.length, 0);
+      }
+    }));
+
+  it.effect("an open port with no list admits any name", () =>
+    Effect.gen(function* () {
+      const relationships = scriptedPort(PORTS.RelationshipResolver, () => PortReply.answer("Related")).layer;
+      const related = yield* answerWith(
+        PORTS.RelationshipResolver,
+        {},
+        relationships,
+        CASES.RelationshipResolver.args,
+      );
+      assert.deepStrictEqual(related, { _tag: "Answered", answer: "Related" });
+      const history = scriptedPort(PORTS.DecisionHistory, () => PortReply.answer("Acted")).layer;
+      const acted = yield* answerWith(PORTS.DecisionHistory, {}, history, CASES.DecisionHistory.args);
+      assert.deepStrictEqual(acted, { _tag: "Answered", answer: "Acted" });
+    }));
+});
+
 /** The whole evaluation, with every listed port answered remotely by `store`. */
 const remoteEvaluation = (
   store: Layer.Layer<PortServices>,
@@ -257,6 +368,127 @@ const remoteEvaluation = (
     remotePorts(send, ports),
   );
 };
+
+describe("a signature question asked remotely (PORT-04)", () => {
+  const records = [{ signerId: aliceId, meaning: "approved", signerRole: "manager", signedAt: 0 }];
+  const store = scriptedPort(PORTS.SignatureHistory, () => PortReply.answer(records)).layer;
+  const send = (question: Schema.Json) =>
+    answerRemotely(PORTS.SignatureHistory, { signatures: "own-records" })(overTheWire(question)).pipe(
+      Effect.provide(Layer.merge(store, currentSubjectLayer(alice))),
+      Effect.map(overTheWire),
+    );
+  const signed = (spans: Array<Tracer.Span>, meaning: string, signerRole: string | undefined) =>
+    askSignature(alice, meaning, signerRole, "Resource", "doc-1").pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          Layer.succeed(SignatureHistory, askRemotely(PORTS.SignatureHistory, send)),
+          collectingTracer(spans),
+        ),
+      ),
+    );
+  const signatureSpans = (spans: ReadonlyArray<Tracer.Span>) =>
+    spans
+      .filter((s) => s.name === PORTS.SignatureHistory.span)
+      .map((s) => Object.fromEntries(s.attributes));
+
+  it.effect("leaves a local and a served span equal apart from the interpreter", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const answer = yield* signed(spans, "approved", "manager");
+      assert.isTrue(answer.matched);
+      const found = signatureSpans(spans);
+      assert.strictEqual(found.length, 2);
+      const local = found.find((a) => a["qadi.interpreter"] === "evaluate");
+      const served = found.find((a) => a["qadi.interpreter"] === "remote");
+      assert.isDefined(local);
+      assert.isDefined(served);
+      const { "qadi.interpreter": _local, ...localRest } = local ?? {};
+      const { "qadi.interpreter": _served, ...servedRest } = served ?? {};
+      assert.deepStrictEqual(servedRest, localRest);
+      assert.strictEqual(servedRest["qadi.meaning"], "approved");
+      assert.strictEqual(servedRest["qadi.signer_role"], "manager");
+      assert.strictEqual(servedRest["qadi.matched"], true);
+    }));
+
+  it.effect("says a requirement that matches nothing on file did not match, on both spans", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const answer = yield* signed(spans, "approved", "director");
+      assert.isFalse(answer.matched);
+      const found = signatureSpans(spans);
+      assert.strictEqual(found.length, 2);
+      for (const attributes of found) assert.strictEqual(attributes["qadi.matched"], false);
+    }));
+});
+
+/**
+ * A store that answers something the signature span cannot read is a typed
+ * failure on both sides of the wire, never a defect (WR-01, ADR-QD-109): the
+ * span's `disclose` matches the list against the requirement, so it throws on a
+ * malformed one, and `answerRemotely`'s "never fails" has to hold regardless.
+ */
+describe("a malformed signature answer from a store is never a defect (WR-01)", () => {
+  const d = PORTS.SignatureHistory;
+  // `JSON.parse` returns `any`, which is what an untyped adapter hands back.
+  const malformed = PortReply.answer<AnswerOf<PortTypes["SignatureHistory"]>>(JSON.parse("[null]"));
+  const store = scriptedPort(d, () => malformed).layer;
+  const query = { subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" };
+
+  it.effect("a served read fails with the port's typed error", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(servePortRead(d, query).pipe(Effect.provide(store)));
+      assert.isTrue(Result.isFailure(result));
+      if (Result.isFailure(result)) assert.strictEqual(result.failure._tag, "SignatureHistoryUnavailable");
+    }));
+
+  it.effect("a local read fails with the port's typed error", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        askSignature(alice, "approved", "manager", "Resource", "doc-1").pipe(Effect.provide(store)),
+      );
+      assert.isTrue(Result.isFailure(result));
+      if (Result.isFailure(result)) assert.strictEqual(result.failure._tag, "SignatureHistoryUnavailable");
+    }));
+
+  it.effect("answerRemotely replies Unavailable and does not die", () =>
+    Effect.gen(function* () {
+      const question = Result.getOrThrow(d.wire.encodeQuestion([query]));
+      const reply = yield* answerRemotely(d, { signatures: "own-records" })(overTheWire(question)).pipe(
+        Effect.provide(Layer.merge(store, currentSubjectLayer(alice))),
+      );
+      assert.deepStrictEqual(reply, { _tag: "Unavailable" });
+    }));
+});
+
+describe("the signature question carries the asker's requirement (D-03)", () => {
+  const d = PORTS.SignatureHistory;
+  const roundTrip = (query: { subjectId: typeof aliceId; resourceId: typeof doc | undefined; meaning?: string; signerRole?: string }) => {
+    const encoded = Result.getOrThrow(d.wire.encodeQuestion([query]));
+    return Result.getOrThrow(d.wire.decodeQuestion(overTheWire(encoded))).args(alice);
+  };
+
+  it("meaning and signerRole survive encode, decode and args", () => {
+    assert.deepStrictEqual(roundTrip({ subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" }), [
+      { subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" },
+    ]);
+  });
+
+  it("their absence survives the round trip, and an old question still decodes", () => {
+    assert.deepStrictEqual(roundTrip({ subjectId: aliceId, resourceId: doc }), [{ subjectId: aliceId, resourceId: doc }]);
+    const old = Result.getOrThrow(d.wire.decodeQuestion({ subjectId: "alice", resourceId: "doc-1" }));
+    assert.deepStrictEqual(old.args(alice), [{ subjectId: aliceId, resourceId: doc }]);
+  });
+
+  it("an excess property is still refused", () => {
+    const widened = { subjectId: "alice", resourceId: "doc-1", meaning: "approved", isAdmin: true };
+    assert.isTrue(Result.isFailure(d.wire.decodeQuestion(widened)));
+  });
+
+  it("a requirement that is not a string is refused", () => {
+    assert.isTrue(Result.isFailure(d.wire.decodeQuestion({ subjectId: "alice", meaning: 7 })));
+    assert.isTrue(Result.isFailure(d.wire.decodeQuestion({ subjectId: "alice", signerRole: {} })));
+  });
+});
 
 describe("an outage on the answering side fails the asker's evaluation", () => {
   const down = portsLayer({
@@ -371,4 +603,59 @@ describe("servingFor", () => {
         if (signatures.calls.length > 0) assert.isDefined(serving.SignatureHistory);
       }
     }));
+});
+
+describe("serving facets (SERV-02)", () => {
+  /** The leaf tags that read a port; every other policy tag asks none. */
+  const PORT_LEAVES: { readonly [K in PortName]: ReadonlyArray<P.Policy["_tag"]> } = {
+    AttributeResolver: ["HasAttribute"],
+    DecisionHistory: ["HasActed", "HasNotActed"],
+    RelationshipResolver: ["HasRelationship"],
+    CustomPredicate: ["HasCustom"],
+    SignatureHistory: ["HasSignature"],
+  };
+
+  /** The word each port's `PortServing` slot earns, written out per port. */
+  const WORDS: { readonly [K in PortName]: "required" | "open" | "opt-in" } = {
+    AttributeResolver: "required",
+    DecisionHistory: "open",
+    RelationshipResolver: "open",
+    CustomPredicate: "required",
+    SignatureHistory: "opt-in",
+  };
+
+  it("names each port-reading leaf under exactly one port, and no other policy tag", () => {
+    for (const d of Record.values(PORTS)) {
+      assert.deepStrictEqual(Object.keys(d.serving.leaves).toSorted(), PORT_LEAVES[d.port].toSorted(), d.port);
+    }
+    const named = forEveryPort((d) => Object.keys(d.serving.leaves)).flat();
+    assert.deepStrictEqual(
+      named.toSorted(),
+      ["HasActed", "HasAttribute", "HasCustom", "HasNotActed", "HasRelationship", "HasSignature"],
+    );
+    for (const tag of named) assert.include(P.POLICY_TAGS, tag);
+  });
+
+  it("states each port's allowlist word", () => {
+    for (const d of Record.values(PORTS)) assert.strictEqual(d.serving.allowlist, WORDS[d.port], d.port);
+  });
+
+  it("declares what it admits: declare and admitted agree, per port", () => {
+    forEveryPort((d) => {
+      const optIn = WORDS[d.port] === "opt-in";
+      const slot = d.serving.declare(["a", "b"])[d.port];
+      assert.isDefined(slot, d.port);
+      if (slot !== undefined) {
+        assert.deepStrictEqual(d.serving.admitted(slot), optIn ? undefined : ["a", "b"], d.port);
+      }
+      const nothing = d.serving.declare([]);
+      if (optIn) {
+        assert.notProperty(nothing, d.port);
+        return;
+      }
+      const empty = nothing[d.port];
+      assert.isDefined(empty, d.port);
+      if (empty !== undefined) assert.deepStrictEqual(d.serving.admitted(empty), [], d.port);
+    });
+  });
 });

@@ -17,10 +17,9 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import { UNTRUSTED_DECODE_OPTIONS } from "@qadi/core";
 import type { DecodeRefusal } from "@qadi/core";
+import { archiveFacts, verifiedArchiveFacts } from "./ArchiveFacts.ts";
 import { decodeAuditEntry } from "./AuditEntry.ts";
 import type { AuditEntry } from "./AuditEntry.ts";
-import { firstSequenceBreak } from "./SequenceBreak.ts";
-import { verifySequenceIntegrity } from "./SequenceIntegrity.ts";
 
 /**
  * Opaque pass-through metadata `@qadi/audit` never validates or interprets —
@@ -59,10 +58,11 @@ export interface AuditArchive {
      * which this package carries but never uses to sign or verify anything.
      *
      * `false` when fewer than two entries carry a `sequenceNumber`:
-     * sequencing is opt-in and `verifySequenceIntegrity`'s gap check has
-     * nothing to compare below two samples, so an archive built entirely (or
-     * almost entirely) from unsequenced entries has not actually had its
-     * sequence verified, whatever this field said before this correction.
+     * sequencing is opt-in and the gap check has nothing to compare below two
+     * samples, so an archive built entirely (or almost entirely) from
+     * unsequenced entries has not actually had its sequence verified, whatever
+     * this field said before this correction. The claim is `archiveFacts`'s
+     * (`ArchiveFacts.ts`, ADR-QD-110), the one place it is stated.
      */
     readonly sequenceIntegrityVerified: boolean;
   };
@@ -82,52 +82,45 @@ export interface AuditArchive {
 const ARCHIVE_VERSION = "1";
 
 /**
- * Verifies sequence integrity, then bundles. Fails with
- * `SequenceIntegrityError` rather than archiving a set of rows already known
- * to have a gap or a duplicate — an archive exists to be trusted later, so it
- * refuses to be built on a foundation this package can already tell is
- * broken.
+ * Builds the bundle from the entries' facts (`archiveFacts`, ADR-QD-110). Fails
+ * with `SequenceNumberInvalid` for a `sequenceNumber` that is not a safe integer
+ * (one `readAuditArchive` could not decode), and with `SequenceIntegrityError`
+ * rather than archiving a set of rows already known to have a gap or a
+ * duplicate — an archive exists to be trusted later, so it refuses to be built
+ * on a foundation this package can already tell is broken.
  *
- * `verifySequenceIntegrity` tolerates and is tested against entries arriving
- * out of write order — it checks the *sequence numbers*, not array order.
+ * The sequence check tolerates and is tested against entries arriving out of
+ * write order — it checks the *sequence numbers*, not array order.
  * `metadata.sequenceIntegrityVerified: true` would be a false claim if the
  * archive then stored `entries` exactly as handed in: a reviewer trusting a
  * verified archive to be in sequence order would get rows in whatever order
- * the caller happened to read them back in. Sorted here, by `sequenceNumber`
- * — stably, so the (opt-in, unordered-by-definition) entries carrying none
- * keep their relative order rather than being shuffled by an incidental
- * comparator result. Placed after every sequenced entry, in the order given;
- * ordering them by `at` is a reader's job (`storedRecordOrder`, ADR-QD-056),
- * since the archive cannot verify a clock.
+ * the caller happened to read them back in. So the facts' order is stored:
+ * sequenced entries by number, stably, and the (opt-in, unordered-by-definition)
+ * entries carrying none after every sequenced one, in the order given rather than
+ * shuffled by an incidental comparator result. Ordering them by `at` is a reader's
+ * job (`storedRecordOrder`, ADR-QD-056), since the archive cannot verify a clock.
  *
- * `sequenceIntegrityVerified` is `true` only when at least two entries carry
- * a `sequenceNumber` — `verifySequenceIntegrity`'s gap-and-duplicate check
- * has nothing to compare below two samples, so passing it with zero or one
- * sequenced entries proves nothing. Passing that check is necessary but not
- * sufficient for the claim; this second condition is what makes it
- * sufficient too.
+ * `sequenceIntegrityVerified` is the facts' claim: true only when at least two
+ * entries carry a `sequenceNumber`. The gap-and-duplicate check has nothing to
+ * compare below two samples, so passing it with zero or one sequenced entries
+ * proves nothing. Passing that check is necessary but not sufficient for the
+ * claim; the facts' second condition is what makes it sufficient too.
  */
 export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(function* (
   entries: ReadonlyArray<AuditEntry>,
   now: number,
   options?: ArchivalOptions,
 ) {
-  yield* verifySequenceIntegrity(entries);
-
-  const ordered = entries.toSorted(
-    (a, b) => (a.sequenceNumber ?? Number.POSITIVE_INFINITY) - (b.sequenceNumber ?? Number.POSITIVE_INFINITY),
-  );
-
-  const sequencedCount = entries.filter((entry) => entry.sequenceNumber !== undefined).length;
+  const facts = yield* verifiedArchiveFacts(entries);
 
   const archive: AuditArchive = {
     archiveVersion: ARCHIVE_VERSION,
     metadata: {
       createdAt: now,
-      entryCount: ordered.length,
-      sequenceIntegrityVerified: sequencedCount >= 2,
+      entryCount: facts.ordered.length,
+      sequenceIntegrityVerified: facts.sequenceIntegrityVerified,
     },
-    entries: ordered,
+    entries: facts.ordered,
     ...(options?.keyMaterial === undefined ? {} : { keyMaterial: options.keyMaterial }),
   };
   return archive;
@@ -145,11 +138,13 @@ export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(funct
  * - `CountMismatch`: `metadata.entryCount` (`declared`) differs from the number
  *   of entries (`actual`) — rows were dropped or added after bundling.
  * - `SequenceBroken`: the caller-assigned `sequenceNumber`s have a gap or a
- *   duplicate (`SequenceIntegrity.ts`).
+ *   duplicate (`archiveFacts`, `ArchiveFacts.ts`).
  * - `NotInSequenceOrder`: the entry at `index` breaks the order the writer
- *   uses — sequenced entries in number order, then unsequenced ones.
- * - `UnbackedClaim`: `sequenceIntegrityVerified` is not `sequencedCount >= 2`
- *   (it claims a verification there was nothing to verify, or denies one).
+ *   uses — sequenced entries in number order, then unsequenced ones — as
+ *   `archiveFacts` reads it.
+ * - `UnbackedClaim`: `sequenceIntegrityVerified` is not the claim `archiveFacts`
+ *   makes for these entries (it claims a verification there was nothing to
+ *   verify, or denies one).
  */
 export type ArchiveRefusal = Data.TaggedEnum<{
   Malformed: { readonly message: string };
@@ -258,23 +253,6 @@ const decodeEnvelope = Schema.decodeUnknownResult(ArchiveEnvelope, UNTRUSTED_DEC
 
 const refuse = (refusal: ArchiveRefusal) => Result.fail(new ArchiveNotVerified({ refusal }));
 
-/** The index of the first entry that breaks sequenced-then-unsequenced, ascending order. */
-const firstOutOfOrder = (entries: ReadonlyArray<AuditEntry>): number | undefined => {
-  let previous: number | undefined;
-  let unsequencedSeen = false;
-  for (const [index, entry] of entries.entries()) {
-    const sequenceNumber = entry.sequenceNumber;
-    if (sequenceNumber === undefined) {
-      unsequencedSeen = true;
-    } else if (unsequencedSeen || (previous !== undefined && sequenceNumber < previous)) {
-      return index;
-    } else {
-      previous = sequenceNumber;
-    }
-  }
-  return undefined;
-};
-
 /**
  * Reads a stored archive bundle back and, if it holds together, returns the
  * {@link VerifiedArchive} a purge needs.
@@ -288,8 +266,10 @@ const firstOutOfOrder = (entries: ReadonlyArray<AuditEntry>): number | undefined
  * every entry decodes through `decodeAuditEntry` (`EntryNotDecodable`), the
  * count matches (`CountMismatch`), no sequence gap or duplicate
  * (`SequenceBroken`), the order is the writer's (`NotInSequenceOrder`), and
- * `sequenceIntegrityVerified` is exactly `sequencedCount >= 2`
- * (`UnbackedClaim`). The order is read, never repaired: this does not sort.
+ * `sequenceIntegrityVerified` is exactly the claim the entries back
+ * (`UnbackedClaim`). The last three are read from `archiveFacts` recomputed on the
+ * decoded entries (`ArchiveFacts.ts`, ADR-QD-110), the same facts the writer
+ * builds from. The order is read, never repaired: this does not sort.
  * A bundle written before the 2026-09 vacuous-`true` correction fails
  * `UnbackedClaim`; re-bundle its entries with {@link archiveAuditTrail}.
  */
@@ -315,17 +295,15 @@ export const readAuditArchive = (input: unknown): Result.Result<VerifiedArchive,
       ArchiveRefusal.CountMismatch({ declared: bundle.metadata.entryCount, actual: entries.length }),
     );
   }
-  const broken = firstSequenceBreak(entries);
-  if (broken !== undefined) {
-    return refuse(ArchiveRefusal.SequenceBroken(broken));
+  const facts = archiveFacts(entries);
+  if (facts.sequenceBreak !== undefined) {
+    return refuse(ArchiveRefusal.SequenceBroken(facts.sequenceBreak));
   }
-  const outOfOrder = firstOutOfOrder(entries);
-  if (outOfOrder !== undefined) {
-    return refuse(ArchiveRefusal.NotInSequenceOrder({ index: outOfOrder }));
+  if (facts.outOfOrderAt !== undefined) {
+    return refuse(ArchiveRefusal.NotInSequenceOrder({ index: facts.outOfOrderAt }));
   }
-  const sequencedCount = entries.filter((entry) => entry.sequenceNumber !== undefined).length;
-  if (bundle.metadata.sequenceIntegrityVerified !== sequencedCount >= 2) {
-    return refuse(ArchiveRefusal.UnbackedClaim({ sequencedCount }));
+  if (bundle.metadata.sequenceIntegrityVerified !== facts.sequenceIntegrityVerified) {
+    return refuse(ArchiveRefusal.UnbackedClaim({ sequencedCount: facts.sequencedCount }));
   }
   return Result.succeed(
     new VerifiedArchiveImpl({

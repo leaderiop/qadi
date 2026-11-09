@@ -20,8 +20,9 @@ import type {
   EnforcementErrorTagOf,
 } from "../src/Errors.ts";
 import type { AccessDenied, UndischargedObligation } from "../src/Errors.ts";
-import type { EncodeRefusal, EncodeRefusalAnnotations, SinkRecordTag } from "../src/SinkWire.ts";
-import { encodeRefusalAnnotations } from "../src/SinkWire.ts";
+import type { EncodeRefusal, EncodeRefusalAnnotations } from "../src/JsonRefusal.ts";
+import { encodeRefusalAnnotations } from "../src/JsonRefusal.ts";
+import type { SinkRecordTag } from "../src/SinkWire.ts";
 import type {
   ERROR_CODES,
   QadiError,

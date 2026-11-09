@@ -1,6 +1,6 @@
 /**
  * The HTTP route family that answers a host's ports for a remote asker
- * (ARCH-31, ADR-QD-NEXT): `POST <prefix>/<PortName>` with a JSON question,
+ * (ARCH-31, ADR-QD-107): `POST <prefix>/<PortName>` with a JSON question,
  * answering with the closed `PortWireReply` as JSON.
  *
  * Only an adapter. Decoding the question, refusing one about any subject but
@@ -31,10 +31,10 @@ import type {
   PortWireReply,
 } from "@qadi/core";
 import { answerRemotely, CurrentSubject, forEveryPort, tabulatePorts } from "@qadi/core";
+import { answerWithResponse, enforceSubject } from "./AuthorizeRequest.ts";
 import { loadNoResource } from "./NoResource.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
-import { toResponse } from "./QadiHttpError.ts";
-import { SubjectExtractor } from "./SubjectExtractor.ts";
+import { portPath } from "./PortRouteAddress.ts";
 
 /**
  * The status each refusal answers with, closed over the refusals so a new one is
@@ -51,9 +51,9 @@ const REFUSAL_STATUS: { readonly [R in PortWireRefusal]: number } = {
  * The HTTP status a reply is sent with: `Answered` 200, `Unavailable` 503, and a
  * refusal by its reason.
  *
- * The body is always the reply, and a client decodes it whatever the status, so
- * the semantics live in the reply and the status is only for the layers between
- * (a proxy, a log, `curl`).
+ * A client reads the body whatever this table says: the contract, and why the
+ * status is only for the layers between, is stated beside the address in
+ * `PortRouteAddress.ts`.
  */
 export const PORT_REPLY_STATUS: (reply: PortWireReply) => number = Match.type<PortWireReply>().pipe(
   Match.tagsExhaustive({
@@ -65,14 +65,12 @@ export const PORT_REPLY_STATUS: (reply: PortWireReply) => number = Match.type<Po
 
 /** Options for {@link portRoutes} and {@link portRoutesUnguarded}. */
 export interface PortRoutesOptions {
-  /** Where the routes mount, without a trailing slash. Defaults to `"/__ports"`. */
+  /**
+   * Where the routes mount, without a trailing slash. Defaults to `"/__ports"`, the
+   * `PORT_ROUTE_PREFIX` of `PortRouteAddress.ts`.
+   */
   readonly prefix?: `/${string}` | undefined;
 }
-
-const DEFAULT_PREFIX = "/__ports";
-
-const pathOf = (options: PortRoutesOptions | undefined, port: PortName): `/${string}` =>
-  `${options?.prefix ?? DEFAULT_PREFIX}/${port}`;
 
 /** A reply as a response: its status from the table, never cached. */
 const respond = (reply: PortWireReply): HttpServerResponse.HttpServerResponse =>
@@ -131,7 +129,7 @@ export const portRoutes = <P extends Permission>(
       if (answer === undefined) return Layer.empty;
       return addGuardedRoute(
         "POST",
-        pathOf(options, port),
+        portPath(options?.prefix, port),
         permission,
         policy,
         loadNoResource,
@@ -154,6 +152,11 @@ export const portRoutes = <P extends Permission>(
  * An anonymous caller is answered about the anonymous subject, so a store that
  * knows nothing of it answers as it would to any unknown id. Nothing is
  * registered in `/__permissions`, because there is no permission to list.
+ *
+ * The subject is extracted, and an extraction failure logged, by the
+ * request-enforcement module's subject-only mode (`enforceSubject`), exactly as
+ * on every guarded path (ARCH-46, ADR-QD-108). This form once extracted by hand
+ * and answered a broken credential store with a 502 and no log line.
  */
 export const portRoutesUnguarded = (
   reason: string,
@@ -174,17 +177,11 @@ export const portRoutesUnguarded = (
         if (answer === undefined) return Layer.empty;
         return HttpRouter.add(
           "POST",
-          pathOf(options, port),
-          Effect.gen(function* () {
-            const request = yield* HttpServerRequest.HttpServerRequest;
-            const extracted = yield* Effect.result(SubjectExtractor.extract(request));
-            if (extracted._tag === "Failure") return toResponse(extracted.failure);
-            const body = yield* questionOf;
-            const reply = yield* answer(body).pipe(
-              Effect.provideService(CurrentSubject, extracted.success),
-            );
-            return respond(reply);
-          }),
+          portPath(options?.prefix, port),
+          Effect.flatMap(
+            HttpServerRequest.HttpServerRequest,
+            enforceSubject(answerWithResponse, () => Effect.map(Effect.flatMap(questionOf, answer), respond)),
+          ),
         );
       }),
     ),

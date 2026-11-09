@@ -76,7 +76,8 @@ import {
 import { makeResourceId, makeSubjectId } from "./Identity.ts";
 import { MAX_DECODE_DEPTH, Policy, policyDepth, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
 import { wireHazard } from "./JsonHazard.ts";
-import { DecodeRefusal, EncodeRefusal, WIRE_VERSIONS } from "./SinkWire.ts";
+import { EncodeRefusal } from "./JsonRefusal.ts";
+import { DecodeRefusal, WIRE_VERSIONS } from "./SinkWire.ts";
 import type { WireVersion } from "./SinkWire.ts";
 
 /**

@@ -3,7 +3,6 @@ import * as Effect from "effect/Effect";
 import * as FastCheck from "fast-check";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
-import { firstSequenceBreak } from "../src/SequenceBreak.ts";
 import { verifySequenceIntegrity } from "../src/SequenceIntegrity.ts";
 import { decisionRecord } from "./helpers.ts";
 
@@ -35,6 +34,7 @@ describe("verifySequenceIntegrity", () => {
       );
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
+        if (result.failure._tag !== "SequenceIntegrityError") return assert.fail("expected SequenceIntegrityError");
         assert.strictEqual(result.failure.expectedSequence, 2);
         assert.strictEqual(result.failure.actualSequence, 3);
       }
@@ -47,6 +47,7 @@ describe("verifySequenceIntegrity", () => {
       );
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
+        if (result.failure._tag !== "SequenceIntegrityError") return assert.fail("expected SequenceIntegrityError");
         assert.strictEqual(result.failure.expectedSequence, 2);
         assert.strictEqual(result.failure.actualSequence, 1);
       }
@@ -64,11 +65,9 @@ describe("verifySequenceIntegrity", () => {
 
   it.effect("an unsequenced entry sitting between two sequenced ones does not hide the gap between them", () =>
     Effect.gen(function* () {
-      // `Array.prototype.toSorted` moves `undefined` to the end unconditionally
-      // — the comparator is never even called for it — so this passes whether or
-      // not `.filter` ran first; the two are pinned together here rather than as
-      // separate cases because that spec guarantee is exactly why removing
-      // `.filter` is a genuinely equivalent mutant, not a coverage gap.
+      // `archiveFacts` collects sequence numbers with a `flatMap` that drops an
+      // entry carrying none, so the unsequenced entry never sits between 1 and 3
+      // in the sorted run the gap check walks.
       const result = yield* Effect.result(
         verifySequenceIntegrity([
           entryWithSequence(1),
@@ -78,32 +77,11 @@ describe("verifySequenceIntegrity", () => {
       );
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
+        if (result.failure._tag !== "SequenceIntegrityError") return assert.fail("expected SequenceIntegrityError");
         assert.strictEqual(result.failure.expectedSequence, 2);
         assert.strictEqual(result.failure.actualSequence, 3);
       }
     }));
-});
-
-describe("firstSequenceBreak", () => {
-  it("a single sequenced entry among unsequenced ones is intact", () => {
-    assert.isUndefined(
-      firstSequenceBreak([entryWithSequence(undefined), entryWithSequence(7), entryWithSequence(undefined)]),
-    );
-  });
-
-  it("names the first break in sorted order, not input order", () => {
-    assert.deepStrictEqual(
-      firstSequenceBreak([entryWithSequence(9), entryWithSequence(1), entryWithSequence(2), entryWithSequence(5)]),
-      { expectedSequence: 3, actualSequence: 5 },
-    );
-  });
-
-  it("a duplicate reports the repeated number as the actual one", () => {
-    assert.deepStrictEqual(firstSequenceBreak([entryWithSequence(4), entryWithSequence(4)]), {
-      expectedSequence: 5,
-      actualSequence: 4,
-    });
-  });
 });
 
 describe("PROPERTY: gap and duplicate detection over generated sequences", () => {
@@ -139,4 +117,44 @@ describe("PROPERTY: gap and duplicate detection over generated sequences", () =>
       { numRuns: 100 },
     );
   });
+});
+
+describe("verifySequenceIntegrity: a sequence number outside the safe integers", () => {
+  const invalidAt = (numbers: ReadonlyArray<number | undefined>) =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(verifySequenceIntegrity(numbers.map(entryWithSequence)));
+      if (result._tag !== "Failure") return assert.fail("expected a failure");
+      if (result.failure._tag !== "SequenceNumberInvalid") return assert.fail("expected SequenceNumberInvalid");
+      return result.failure;
+    });
+
+  it.effect("a fractional number fails SequenceNumberInvalid, even in an otherwise contiguous run", () =>
+    Effect.gen(function* () {
+      const failure = yield* invalidAt([1.5, 2.5]);
+      assert.strictEqual(failure.index, 0);
+      assert.strictEqual(failure.sequenceNumber, 1.5);
+    }));
+
+  it.effect("a duplicate past 2 ** 53, which the gap check alone cannot see, fails SequenceNumberInvalid", () =>
+    Effect.gen(function* () {
+      const failure = yield* invalidAt([undefined, 2 ** 53, 2 ** 53]);
+      assert.strictEqual(failure.index, 1);
+      assert.strictEqual(failure.sequenceNumber, 2 ** 53);
+    }));
+
+  it.effect("Infinity and NaN fail SequenceNumberInvalid, reported at the first one in the order given", () =>
+    Effect.gen(function* () {
+      assert.strictEqual((yield* invalidAt([Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY])).index, 0);
+      const nan = yield* invalidAt([3, 1, Number.NaN]);
+      assert.strictEqual(nan.index, 2);
+      assert.isTrue(Number.isNaN(nan.sequenceNumber));
+    }));
+
+  it.effect("the largest safe integers are accepted", () =>
+    Effect.gen(function* () {
+      yield* verifySequenceIntegrity([
+        entryWithSequence(Number.MAX_SAFE_INTEGER),
+        entryWithSequence(Number.MAX_SAFE_INTEGER - 1),
+      ]);
+    }));
 });

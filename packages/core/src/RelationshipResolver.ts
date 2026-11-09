@@ -25,6 +25,7 @@ import { RelationshipDepth } from "./Policy.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, sameAnswer } from "./PortWireEncode.ts";
 
 export interface RelationshipCheck {
@@ -141,6 +142,16 @@ const relationshipSpan = {
     },
   ),
   answer: spanStruct({ answer: Schema.optionalKey(RelatedResult) }, { answer: "qadi.answer" }),
+  // Takes a `resourceId` that may be absent so a read can state its question
+  // before the id is validated (D-07); every real request is assignable to it.
+  pose: ([request]: [
+    request: Omit<RelationshipCheck, "resourceId"> & { readonly resourceId: ResourceId | undefined },
+  ]) => ({
+    subjectId: request.subjectId,
+    relation: request.relation,
+    resourceId: request.resourceId,
+    depth: request.depth,
+  }),
   disclose: (answer: RelatedResult) => ({ answer }),
 };
 
@@ -178,15 +189,22 @@ const relationshipWire = portWire({
     },
   ],
   ...sameAnswer<RelatedResult>(),
-  asked: ([request]) => request.relation,
-  spanQuestion: ([request]) => ({
-    subjectId: request.subjectId,
-    relation: request.relation,
-    resourceId: request.resourceId,
-    depth: request.depth,
-  }),
-  spanAnswer: (answer) => relationshipSpan.disclose(answer),
 });
+
+/**
+ * A host may serve relations from an allowlist or leave the port open.
+ *
+ * The answer is a closed three-valued word, so a relation name discloses no
+ * more than a policy tag does (INV-QD-044). Only `HasRelationship` reads this
+ * port.
+ */
+const relationshipServing: PortServingFacet<"RelationshipResolver", [request: RelationshipCheck]> = {
+  allowlist: "open",
+  leaves: { HasRelationship: (leaf) => leaf.relation },
+  asked: ([request]) => request.relation,
+  admitted: (declaration) => declaration.relations,
+  declare: (names) => ({ RelationshipResolver: { relations: names } }),
+};
 
 /**
  * The relationship port, described once (`PortDescription.ts`).
@@ -212,6 +230,7 @@ export const relationshipResolverPort: PortDescription<
   span: "qadi.hasRelationship",
   attributes: relationshipSpan,
   wire: relationshipWire,
+  serving: relationshipServing,
   service: RelationshipResolver,
   invoke: (shape) => (request) => shape.check(request),
   make: (name, call) => ({ name, check: call }),

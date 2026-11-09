@@ -1,8 +1,9 @@
 /**
  * Everything between a server's decision and the moment this client supersedes it.
  *
- * That is the payload codec, the seed atom a server-rendered decision is written
- * to, the rule that the client's own answer wins
+ * That is the payload codec in both directions (`dehydrateWith` and
+ * `hydrateWith`), the seed atom a server-rendered decision is written to, the
+ * rule that the client's own answer wins
  * ([INV-QD-028](../../../spec/invariants.md)), the once-per-registry
  * announcement of a disagreement, and the re-check count. It used to be spread
  * over `Hydration.ts`, a module-scope side table keyed on the atom set, and
@@ -52,7 +53,7 @@ import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { countDehydrated, countDropped, countRecheck, countSeeded } from "./HydrationCounts.ts";
 import type { HydrationDropReporter, HydrationMismatchReporter } from "./DeveloperSignals.ts";
-import { hydrationDropReporter, hydrationMismatchReporter } from "./DeveloperSignals.ts";
+import { droppedEntriesReporter, hydrationDropReporter } from "./DeveloperSignals.ts";
 import type { ClientDecision, SeededDecision } from "./SeededDecision.ts";
 import { AllowDisclosure, DenyDisclosure, SeededAllow, SeededDeny, permits } from "./SeededDecision.ts";
 
@@ -183,6 +184,32 @@ export interface DecisionEntry {
   readonly decision: Decision;
 }
 
+export interface DehydrateOptions {
+  /**
+   * Ship the full trace, and a denial's reason.
+   *
+   * Off by default, and the default is the security decision. A trace names every
+   * node's tag, its label and the sentence explaining why it refused — a
+   * description of the policy's internal structure plus which branch this subject
+   * failed, readable by anyone with developer tools and by any script on the page.
+   * Withheld, an entry carries `disclosure: { _tag: "Withheld" }` and neither.
+   */
+  readonly includeTrace?: boolean;
+  /**
+   * Called with the entries discarded for belonging to another subject.
+   *
+   * Supplying this replaces the development-mode console warning and runs in
+   * production, exactly as `onHydrationMismatch` does — a payload mixing
+   * subjects means something upstream fed this call two users' decisions, which
+   * is a bug worth alerting on rather than only logging.
+   *
+   * It observes; it cannot change the outcome. The entries are dropped either
+   * way ([BEH-QD-146](../../../spec/behaviors/19-hydration.md)) — the only safe
+   * reading of a mixed payload is to trust none of it.
+   */
+  readonly onDropped?: (dropped: ReadonlyArray<DecisionEntry>) => void;
+}
+
 const dehydrateDecision = (decision: Decision, includeTrace: boolean): DehydratedEntry["decision"] => {
   const wire = encodeDecision(decision);
   return wire._tag === "Allow"
@@ -203,21 +230,76 @@ const dehydrateDecision = (decision: Decision, includeTrace: boolean): Dehydrate
  *
  * Derived from `encodeDecision`, so the fields a decision ships are the ones
  * `@qadi/core` says it has. The trace, and a denial's reason, ship only under
- * `includeTrace`.
+ * `includeTrace`. Reached only through {@link dehydrateWith}.
  */
-export const dehydrateEntry = (entry: DecisionEntry, includeTrace: boolean): DehydratedEntry => ({
+const dehydrateEntry = (entry: DecisionEntry, includeTrace: boolean): DehydratedEntry => ({
   policy: encodePolicy(entry.policy),
   resource: entry.resource,
   decision: dehydrateDecision(entry.decision, includeTrace),
 });
 
-/** A payload for `entries`, already filtered to one subject. */
-export const dehydratedPayload = (
+/**
+ * The envelope for entries {@link dehydrateWith} has already filtered to one subject.
+ *
+ * Private on purpose: were it exported, a second caller could build a payload
+ * that skipped the subject filter, its count or its report (ARCH-51,
+ * ADR-QD-078). That the entries are already filtered is a fact of this module,
+ * not a precondition a caller is trusted to meet.
+ */
+const dehydratedPayload = (
   subjectId: string | undefined,
   entries: ReadonlyArray<DehydratedEntry>,
 ): DehydratedDecisions => {
   countDehydrated(entries.length);
   return { version: PAYLOAD_VERSION, subjectId, entries };
+};
+
+/**
+ * Projects decisions into a version-2 payload bound to one subject, dropping,
+ * counting and reporting every entry decided for another.
+ *
+ * The mirror of {@link hydrateWith}. It owns both the subject filter and the
+ * envelope, so a payload cannot be built from unfiltered entries (ARCH-51,
+ * ADR-QD-078). Counts go to the default registry through `HydrationCounts.ts`
+ * (ADR-QD-052) and the default warning through `DeveloperSignals.ts`
+ * (ADR-QD-041).
+ *
+ * Every entry must belong to the same subject; the first one's `subjectId` names
+ * the payload and any entry disagreeing with it is **dropped**, because a payload
+ * mixing subjects is a bug whose only safe reading is to trust none of it.
+ */
+export const dehydrateWith = (
+  entries: ReadonlyArray<DecisionEntry>,
+  options?: DehydrateOptions,
+): DehydratedDecisions => {
+  // `undefined`, not `""` (EC-06): an empty `entries` names no subject at
+  // all, and `""` is not a value `SubjectId` can actually hold, so it read as
+  // data rather than as "nothing here." `subjectId` is `undefined` only when
+  // `entries` is already empty, so the filter below still reduces to `[]`
+  // in that case with no special-casing needed.
+  const subjectId = entries[0]?.decision.subjectId;
+  const includeTrace = options?.includeTrace ?? false;
+
+  const kept = entries.filter((e) => e.decision.subjectId === subjectId);
+
+  // Said, not merely done. Dropping is correct and specified; doing it in
+  // silence is what let a server ship one row where it meant to ship a thousand
+  // and see nothing wrong.
+  if (kept.length !== entries.length) {
+    countDropped("ForeignSubject", entries.length - kept.length);
+    const report = droppedEntriesReporter(options?.onDropped);
+    if (report !== undefined) {
+      report(entries.filter((e) => e.decision.subjectId !== subjectId));
+    }
+  }
+
+  // Counted here rather than left to the caller. A count is what makes the
+  // *other* end legible: `qadi_hydration_seeded_total` next to this one is the
+  // difference between "hydration ran" and "hydration ran and did nothing".
+  return dehydratedPayload(
+    subjectId,
+    kept.map((entry) => dehydrateEntry(entry, includeTrace)),
+  );
 };
 
 const rebuild = (entry: DehydratedEntry, subjectId: SubjectId): SeededDecision => {
@@ -438,16 +520,6 @@ export type HydrationSeedLookup = (
   policy: Policy,
   resource: Resource | undefined,
 ) => Atom.Writable<SeededDecision | undefined>;
-
-/**
- * The reporter an atom set will use for mismatches, or `undefined` for none.
- *
- * `QadiAtoms.ts` resolves this once per atom set and hands the result to each
- * question, so the development-mode default is decided at construction.
- */
-export const resolveMismatchReporter = (
-  supplied: HydrationMismatchReporter | undefined,
-): HydrationMismatchReporter | undefined => hydrationMismatchReporter(supplied);
 
 /**
  * Announcement state for one question, kept **per registry**.

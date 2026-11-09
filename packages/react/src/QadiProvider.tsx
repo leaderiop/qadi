@@ -37,10 +37,11 @@ import {
   type ReactNode,
 } from "react";
 import type { GateRegistry } from "./GateRegistry.ts";
-import { gateWriterFor } from "./GateWriter.ts";
+import { GateScopeContext, gateWriterFor } from "./GateWriter.ts";
 import type { InitialValues } from "./HydrationEngine.ts";
 import { isDevelopment, providerSignalReporter, providerSignals } from "./DeveloperSignals.ts";
 import type { ProviderSignal, ProviderSignalReporter } from "./DeveloperSignals.ts";
+import { MissingQadiProviderError } from "./MissingQadiProviderError.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
 
 export interface QadiContextValue {
@@ -63,18 +64,6 @@ export interface QadiContextValue {
 }
 
 const QadiContext = createContext<QadiContextValue | null>(null);
-
-/** Raised when a hook is used outside a provider. */
-export class MissingQadiProviderError extends Error {
-  constructor(hookName: string) {
-    super(
-      `${hookName} must be used inside <QadiProvider>. ` +
-        `Without a provider there is no subject, and failing loudly is safer ` +
-        `than silently denying every check.`,
-    );
-    this.name = "MissingQadiProviderError";
-  }
-}
 
 /**
  * Reads the enclosing guard context.
@@ -119,6 +108,10 @@ export const useAtomValue: <A>(atom: Atom.Atom<A>) => A = useLibraryAtomValue;
 // file (a type-only import still counts as a madge cycle, ADR-QD-037); its
 // public home is unchanged.
 export type { InitialValues } from "./HydrationEngine.ts";
+
+// Declared in `MissingQadiProviderError.ts` so `GateWriter.ts` can throw it
+// without importing this file (ADR-QD-037); its public home is unchanged.
+export { MissingQadiProviderError } from "./MissingQadiProviderError.ts";
 
 // Declared in `DeveloperSignals.ts`, the one module that writes to the console;
 // its public types are named here, which is the form gate 13 reads.
@@ -236,6 +229,14 @@ export const QadiProvider = ({
   children,
 }: QadiProviderProps): ReactNode => {
   const gates = gatesProp ?? atoms.gates;
+  // The one place a registry's writer is resolved (ARCH-49; ADR-QD-080's private
+  // slot is unchanged). `undefined` when instrumentation is off, or when `gates`
+  // is a registry this package did not build: either way nothing registers and no
+  // marker renders.
+  const writer = useMemo(
+    () => (instrument ? gateWriterFor(gates) : undefined),
+    [instrument, gates],
+  );
   // Read through a ref, never a dependency: a reporter written inline changes
   // identity every render, and none of the effects below should re-run for it.
   const signalRef = useRef(onDeveloperSignal);
@@ -304,7 +305,7 @@ export const QadiProvider = ({
   }, [instrument]);
 
   useEffect(() => {
-    if (instrument && gateWriterFor(gates) === undefined) {
+    if (instrument && writer === undefined) {
       report(providerSignals.unwritableGateRegistry());
     }
   }, [instrument, gates]);
@@ -353,9 +354,15 @@ export const QadiProvider = ({
     [atoms, registry, instrument, gates],
   );
 
+  // What gates read through: the atoms and the once-resolved writer, on a context
+  // of their own so the writer never reaches the public `value` above.
+  const gateScope = useMemo(() => ({ atoms, writer }), [atoms, writer]);
+
   return (
     <RegistryContext.Provider value={registry}>
-      <QadiContext.Provider value={value}>{children}</QadiContext.Provider>
+      <QadiContext.Provider value={value}>
+        <GateScopeContext.Provider value={gateScope}>{children}</GateScopeContext.Provider>
+      </QadiContext.Provider>
     </RegistryContext.Provider>
   );
 };

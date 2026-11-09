@@ -29,6 +29,8 @@ import {
 } from "@qadi/core";
 import { assert, describe, it } from "@effect/vitest";
 import type { AnnotatedEndpoint, ApiGuardRefusal, SubjectExtractor } from "../src/index.ts";
+import { endpointMemberKey } from "../src/AuthorizeRequest.ts";
+import type { EndpointMemberKey } from "../src/AuthorizeRequest.ts";
 import { makeRequirePermission } from "../src/RequirePermissionMiddleware.ts";
 import {
   EndpointAccess,
@@ -64,15 +66,15 @@ const decoy = HttpApiEndpoint.get("decoy", "/decoy");
 
 const ep = <const Id extends string>(id: Id) => HttpApiEndpoint.get(id, `/${id}`);
 
-/** Every `"<group>/<endpoint>"` key of `api`, the membership the middleware is built for. */
+/** Every `endpointMemberKey` of `api`, the membership the middleware is built for. */
 const memberKeys = <Id extends string, Groups extends HttpApiGroup.Constraint>(
   api: HttpApi.HttpApi<Id, Groups>,
-): ReadonlySet<string> => {
-  const keys = new Set<string>();
+): ReadonlySet<EndpointMemberKey> => {
+  const keys = new Set<EndpointMemberKey>();
   HttpApi.reflect(api, {
     onGroup: () => {},
     onEndpoint: ({ endpoint, group }) => {
-      keys.add(`${group.identifier}/${endpoint.identifier}`);
+      keys.add(endpointMemberKey(group, endpoint));
     },
   });
   return keys;

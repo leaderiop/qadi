@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-34                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
+> | Change History | 1.5 (2026-11-08): BEH-QD-331 — a required allowlist that is missing or not a list is refused `NotServed` at run time, the store never read (code review WR-01)<br>1.4 (2026-11-08): BEH-QD-331 — the serving facts are stated once on the port's description, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.3 (2026-11-08): BEH-QD-333 points to BEH-QD-338, where the port route address and the reply-body contract are defined once (ARCH-52, CCR-QD-391)<br>1.2 (2026-11-08): BEH-QD-332 — an answer the span's `disclose` cannot read is the port's typed error, answered `Unavailable`, never a defect (code review WR-01)<br>1.1 (2026-11-08): BEH-QD-332 — a served span equals a local one through pose and disclose, carries a signature asker's requirement, and a store that throws is the port's typed error (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
 
 _Previous: [33 — Audit Pipeline](./33-audit-pipeline.md)_
 
@@ -73,19 +73,34 @@ predicate receives the session's roles and attributes, never a client's descript
 A port a host's `PortServing` does not name has no route. A question whose attribute, relation,
 event or predicate name is not admitted by the declaration is `Refused: NotServed` (404). An
 attribute or custom-predicate allowlist is required, so a prototype key (`constructor`,
-`__proto__`) is never served by default; the signature port is served only by the explicit opt-in
-`signatures: "own-records"`. `servingFor(policies)` derives the declaration from the policies a
+`__proto__`) is never served by default, and that holds at run time as well as in the type: a
+declaration that reaches `answerRemotely` without a required list, or with a value that is not a
+list, is `Refused: NotServed` and never reaches the store; the signature port is served only by the
+explicit opt-in `signatures: "own-records"`. `servingFor(policies)` derives the declaration from the policies a
 client may ask about, and every question `evaluate` asks of a port for those policies is admitted
 by it.
 
+Which policy leaves ask a port, the name a served request asks, and whether the port's allowlist is
+required, open or an opt-in are stated once, on the port's description (`PortDescription.serving`,
+[ADR-QD-114](../decisions/114-a-port-states-what-it-serves.md)). `answerRemotely` admits through it and
+`servingFor` collects through it, so a new port-reading leaf changes one description. The declaration's
+shape (`PortServing`) is unchanged.
+
 ## BEH-QD-332: A served read MUST open the port's span with `qadi.interpreter = "remote"`
 
-A served question is read through `servePortRead` (`PortAccess.ts`), so it opens the port's own
-span ([BEH-QD-227](./30-port-calls.md)) with `qadi.interpreter = "remote"` and the question's
-attributes, counts once in `qadi_port_served_calls_total` (never in `qadi_port_calls_total`), and a
-store that dies becomes the port's typed error rather than a defect
-([BEH-QD-261](./05-evaluator.md)). The answer reaches the span only through the description's
-`disclose`, so an attribute's value is never recorded ([INV-QD-044](../invariants.md)).
+A served question is read through `servePortRead` (`PortAccess.ts`), which is `readPort`, the one
+body every local read runs, under the port's own span ([BEH-QD-227](./30-port-calls.md)) with
+`qadi.interpreter = "remote"`. The question reaches the span through the description's `pose` and
+the answer through `disclose(answer, request)`, so a served span carries exactly what a local read
+of the same request carries, apart from the interpreter. A signature asker's requirement crosses in
+the question, so the served span says `qadi.meaning`, `qadi.signer_role` and `qadi.matched`
+([ADR-QD-109](../decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md)). The
+call counts once in `qadi_port_served_calls_total` (never in `qadi_port_calls_total`), and a store
+that dies **or throws**, or answers something the span's `disclose` cannot read, becomes the port's
+typed error rather than a defect, answered `Unavailable` on the wire
+([BEH-QD-261](./05-evaluator.md)). The answer reaches the span only through the
+description's `disclose`, so an attribute's value is never recorded
+([INV-QD-044](../invariants.md)).
 
 ## BEH-QD-333: An answer with no JSON form MUST be refused, never thrown
 
@@ -95,3 +110,5 @@ refusal (`Refused: Unencodable` or `Malformed`; on the asking side `Undecodable`
 exception. The same walk a sink record uses decides what has a JSON form, and every wire value is
 rebuilt as a detached copy. Every HTTP reply is JSON, carries `Cache-Control: no-store`, and is
 decoded by a client whatever its status.
+The address both adapters use, and this status contract, are defined once
+([BEH-QD-338](./23-http.md#beh-qd-338-the-port-routes-and-their-client-share-one-address)).

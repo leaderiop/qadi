@@ -25,7 +25,6 @@ import {
   PORTS,
   decoratePorts,
   forEveryPort,
-  mapPorts,
   mergePorts,
   portsLayer,
   tabulatePorts,
@@ -144,17 +143,17 @@ describe("tabulatePorts", () => {
   });
 });
 
-describe("mapPorts and mergePorts", () => {
+describe("tabulatePorts and mergePorts", () => {
   it.effect("round-trip to the same environment portsLayer builds", () =>
     Effect.gen(function* () {
-      const viaMap = yield* askEveryPort.pipe(Effect.provide(mergePorts(mapPorts(nonePort))));
+      const viaMap = yield* askEveryPort.pipe(Effect.provide(mergePorts(tabulatePorts(nonePort))));
       const viaDefaults = yield* askEveryPort.pipe(Effect.provide(portsLayer()));
       assert.deepStrictEqual(viaMap, viaDefaults);
     }));
 
   it.effect("build one layer per port from its description", () =>
     Effect.gen(function* () {
-      const layers = mapPorts((d) => scriptedPort(d, () => PortReply.fail("down")).layer);
+      const layers = tabulatePorts((d) => scriptedPort(d, () => PortReply.fail("down")).layer);
       const result = yield* Effect.result(
         AttributeResolver.resolve(aliceId, "level").pipe(Effect.provide(layers.AttributeResolver)),
       );

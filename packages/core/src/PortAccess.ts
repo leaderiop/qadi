@@ -1,6 +1,6 @@
 /**
- * Every port read either interpreter makes, with its question, span, call
- * metric and defect mapping.
+ * Every port read either interpreter makes, and the one body they all run:
+ * its question, span, call metric and defect mapping.
  *
  * `evaluate` and `toPredicate` are two interpreters over one policy tree
  * (ADR-QD-024). Before this module they agreed about *how to ask a port* only by
@@ -11,47 +11,46 @@
  * ARCH-01's E4/E6). Each read lives here once, and each interpreter keeps only
  * what is genuinely its own: what to do with the answer.
  *
+ * Every read is a named `Effect.fn` that owns its span and does only its own
+ * argument shaping and validation, then runs `readPort` (ADR-QD-109), a plain
+ * function that opens no span of its own. A host answering another process
+ * (`servePortRead`) runs the same body under the port's span, so a served span
+ * is a local one of the same request apart from `qadi.interpreter`.
+ *
  * Deliberately out of the barrel (AGENTS.md §9): scaffolding shared by the two
  * interpreters, like `PortDerivation.ts`, and not importable from outside
  * `@qadi/core` (ADR-QD-099).
  *
- * The per-port facts a read needs — the span it opens and the typed error a
- * defect becomes — come from each port's description (`PortDescription.ts`,
- * ADR-QD-094), so no port's error class or span name is spelled here. The
- * defect *rule* — which causes are converted at all — stays here, in
- * `catchPortDefect` (ADR-QD-077).
+ * The per-port facts a read needs — the span it opens, the question and answer
+ * it annotates and the typed error a defect becomes — come from each port's
+ * description (`PortDescription.ts`, ADR-QD-094), so no port's error class,
+ * span name or span key is spelled here. The defect *rule* — which causes are
+ * converted at all — stays here, in `catchPortDefect` (ADR-QD-077).
  */
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
-import { AttributeResolver, attributeResolverPort } from "./AttributeResolver.ts";
+import type { AttributeResolver } from "./AttributeResolver.ts";
+import { attributeResolverPort } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
-import { CustomPredicate, customPredicatePort } from "./CustomPredicate.ts";
-import type { ActedQuery, ActedResult } from "./DecisionHistory.ts";
-import { DecisionHistory, decisionHistoryPort } from "./DecisionHistory.ts";
+import { customPredicatePort } from "./CustomPredicate.ts";
+import { decisionHistoryPort } from "./DecisionHistory.ts";
 import type { AttributeResolveError } from "./Errors.ts";
 import { MissingResourceId } from "./Errors.ts";
 import type { ResourceId } from "./Identity.ts";
 import { makeResourceId } from "./Identity.ts";
 import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
 import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "./PortMetrics.ts";
-import type { PortName, PredicatePortName } from "./PortMetrics.ts";
-import type { RelatedResult, RelationshipCheck } from "./RelationshipResolver.ts";
-import { RelationshipResolver, relationshipResolverPort } from "./RelationshipResolver.ts";
+import type { PortName } from "./PortMetrics.ts";
+import { relationshipResolverPort } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
 import type { AnswerOf, ArgsOf, DescriptionOf, ErrorOf, PortTypes, ServiceOf } from "./Ports.ts";
-import type {
-  PortInterpreter,
-  PortSpanAttributes,
-  PortSpanAttributesLike,
-  SpanFields,
-  SpanStruct,
-  SpanType,
-} from "./PortSpan.ts";
+import type { PortInterpreter, SpanFields, SpanStruct, SpanType } from "./PortSpan.ts";
 import { encodeSpan } from "./PortSpanEncode.ts";
-import type { SignatureAnswer, SignatureQuery } from "./SignatureHistory.ts";
-import { SignatureHistory, signatureHistoryPort } from "./SignatureHistory.ts";
+import type { SignatureAnswer } from "./SignatureHistory.ts";
+import { signatureHistoryPort } from "./SignatureHistory.ts";
+import { signatureMatches } from "./SignatureMatch.ts";
 
 /**
  * Which interpreter of a policy is asking: the evaluator or the translator.
@@ -61,7 +60,8 @@ import { SignatureHistory, signatureHistoryPort } from "./SignatureHistory.ts";
  * error everywhere it is matched rather than a word that silently falls into
  * the wrong series. `"remote"`, the third member of {@link PortInterpreter}, is
  * not an interpreter of a policy at all but a host answering another process
- * (`servePortRead`), and is excluded here so `countFor` stays a two-arm match.
+ * (`servePortRead`), and is excluded here so no `ask*` read can claim it: it is
+ * the one word `servePortRead` passes to {@link readPort} itself.
  */
 type Interpreter = Exclude<PortInterpreter, "remote">;
 
@@ -72,22 +72,28 @@ type Interpreter = Exclude<PortInterpreter, "remote">;
  * A plain function, not an `Effect.fn`: it annotates the span the read already
  * opened and must not open one of its own (ADR-QD-073). Called before the port
  * is asked, so a call that fails still leaves a span saying what it was asked.
+ * The `ask*` reads call it themselves for the one thing `readPort` cannot do
+ * for them, annotating *before* a resource id is validated (ADR-QD-077).
  */
-const annotateQuestion = <Q extends SpanFields, Ans extends SpanFields, O>(
-  d: { readonly attributes: PortSpanAttributes<Q, Ans, O> },
+const annotateQuestion = <Q extends SpanFields>(
+  d: { readonly attributes: { readonly question: SpanStruct<Q> } },
   question: SpanType<SpanStruct<Q>>,
 ): Effect.Effect<void> => Effect.annotateCurrentSpan(encodeSpan(d.attributes.question, question));
 
 /**
- * Annotates the current span with a port's **answer**, through its
- * description's `disclose` — the one path from what a port returned to what a
+ * Annotates the current span with a port's **answer**, as its description's
+ * `disclose` projected it — the one path from what a port returned to what a
  * span may say ([INV-QD-044](../../../spec/invariants.md)).
+ *
+ * Takes the projected fields, not the outcome: the projection is the
+ * description's (`disclose(answer, request)`, which reads the request too, so
+ * the signature port's span can say what the asker required, ADR-QD-109), and a
+ * caller that already holds the description calls it where it holds the types.
  */
-const annotateAnswer = <Q extends SpanFields, Ans extends SpanFields, O>(
-  d: { readonly attributes: PortSpanAttributes<Q, Ans, O> },
-  outcome: O,
-): Effect.Effect<void> =>
-  Effect.annotateCurrentSpan(encodeSpan(d.attributes.answer, d.attributes.disclose(outcome)));
+const annotateAnswer = <Ans extends SpanFields>(
+  d: { readonly attributes: { readonly answer: SpanStruct<Ans> } },
+  disclosed: SpanType<SpanStruct<Ans>>,
+): Effect.Effect<void> => Effect.annotateCurrentSpan(encodeSpan(d.attributes.answer, disclosed));
 
 /**
  * Converts a port call's defect into its own typed error, leaving an
@@ -135,24 +141,73 @@ export const catchPortDefect =
  * The call metric a read counts in, by who is asking.
  *
  * Hoisted `Match.type` (§5a): each arm returns a closure over nothing but the
- * port name, and this runs on every port read of either interpreter.
+ * port name, and this runs on every port read of either interpreter and of a
+ * host answering a remote asker. Total over {@link PortInterpreter}, so a fourth
+ * asker is a compile error here rather than a read that counts nowhere.
  */
-const countFor: (interpreter: Interpreter) => (port: PredicatePortName) => Effect.Effect<void> =
-  Match.type<Interpreter>().pipe(
-    Match.when("evaluate", () => (port: PredicatePortName) => Metric.update(portCallsTotal, port)),
-    Match.when(
-      "toPredicate",
-      () => (port: PredicatePortName) => Metric.update(predicatePortCallsTotal, port),
-    ),
+const countFor: (interpreter: PortInterpreter) => (port: PortName) => Effect.Effect<void> =
+  Match.type<PortInterpreter>().pipe(
+    Match.when("evaluate", () => (port: PortName) => Metric.update(portCallsTotal, port)),
+    Match.when("toPredicate", () => (port: PortName) => Metric.update(predicatePortCallsTotal, port)),
+    Match.when("remote", () => (port: PortName) => Metric.update(servedPortCallsTotal, port)),
     Match.exhaustive,
   );
+
+/**
+ * The one body of every port read, local or served (ADR-QD-109).
+ *
+ * In order: annotate the question the description's `pose` states for this
+ * request, count the call, ask the port, annotate the answer the description's
+ * `disclose` states, and return the answer; a defect in the call or in
+ * `disclose` becomes the port's own typed error. A plain function and not an `Effect.fn`, so it opens **no**
+ * span of its own: each caller owns the one span its read is named for, the
+ * `ask*` reads through their `Effect.fn(<port>.span)` and `servePortRead`
+ * through `Effect.withSpan(d.span)` (ADR-QD-051, AGENTS.md §5, `UNTRACED_BUDGET`
+ * untouched).
+ *
+ * Before it, six reads each carried their own copy of these steps, and a served
+ * read a seventh built from the wire's separate projection, so a served
+ * signature span lacked the meaning and the match a local one carried, and a
+ * store that **threw** instead of failing escaped the defect mapping, because
+ * the service method was called outside any effect `catchPortDefect` wrapped.
+ *
+ * The invocation is `Effect.flatMap(d.service, …)` for that second reason: the
+ * method is called *inside* the effect, so a synchronous throw is a defect
+ * `catchPortDefect` sees, as it did for the `Service.use` accessors the local
+ * reads called. `disclose` runs in an `Effect.tap` under the same mapping, for
+ * the same reason: it reads the store's answer, and a malformed one must not
+ * escape as a defect. `pose` reads only the request the read itself built, so it
+ * stays outside.
+ */
+const readPort = <K extends PortName>(
+  d: DescriptionOf<K>,
+  interpreter: PortInterpreter,
+  args: ArgsOf<PortTypes[K]>,
+): Effect.Effect<AnswerOf<PortTypes[K]>, ErrorOf<PortTypes[K]>, ServiceOf<PortTypes[K]>> =>
+  Effect.gen(function* () {
+    // Widened to the structural bound: for a port named only by `K`, inference
+    // would otherwise settle on one port's fields.
+    yield* annotateQuestion<SpanFields>(d, { ...d.attributes.pose(args), interpreter });
+    yield* countFor(interpreter)(d.port);
+    return yield* Effect.flatMap(d.service, (shape) => d.invoke(shape)(...args)).pipe(
+      // Inside the defect mapping: `disclose` reads what the store returned (the
+      // signature port's matches its list against the requirement), so a store
+      // that answers something `disclose` cannot read throws here, and that is
+      // the port's own typed error, not a defect past `answerRemotely`'s "never
+      // fails" (WR-01, ADR-QD-109).
+      Effect.tap((answer) => annotateAnswer<SpanFields>(d, d.attributes.disclose(answer, args))),
+      catchPortDefect((cause) => d.defect(args, cause)),
+    );
+  });
 
 // ---------------------------------------------------------------------------
 // The reads. Each is a named `Effect.fn`, because each owns a span (ADR-QD-051:
 // a span says what was asked, and a tracer is what reads it back). That is why
 // none is in `UNTRACED_BUDGET` — none runs once per policy *node* the way
 // `evaluateAllOf`/`evaluateAnyOf`/`evaluateRules` do, and the port call under
-// them is the expensive part.
+// them is the expensive part. Each does only what is its own — argument
+// shaping, the resource-id check, the depth clamp, the signature match — and
+// hands the rest to `readPort`, the one body (ADR-QD-109), which opens no span.
 // ---------------------------------------------------------------------------
 
 /**
@@ -168,27 +223,16 @@ const countFor: (interpreter: Interpreter) => (port: PredicatePortName) => Effec
  * **The value is never recorded**, and the only path from it to a span is the
  * description's `disclose` (`attributeResolverPort.attributes`,
  * [INV-QD-044](../../../spec/invariants.md)) — the same line
- * `dehydrateDecisions` draws with `includeTrace`.
+ * `dehydrateDecisions` draws with `includeTrace`. `readPort` annotates the
+ * question before the call, so a resolver that fails still leaves a span saying
+ * what it was asked.
  */
 const resolveAttribute = Effect.fn(attributeResolverPort.span)(function* (
   interpreter: Interpreter,
   subject: AuthSubject,
   attribute: string,
 ) {
-  // Before the call, so a resolver that fails still leaves a span saying what
-  // it was asked. A failed lookup with no question on it is the least useful
-  // span there is.
-  yield* annotateQuestion(attributeResolverPort, {
-    attribute,
-    subjectId: subject.id,
-    interpreter,
-  });
-  yield* countFor(interpreter)("AttributeResolver");
-  const value = yield* AttributeResolver.resolve(subject.id, attribute).pipe(
-    catchPortDefect((cause) => attributeResolverPort.defect([subject.id, attribute], cause)),
-  );
-  yield* annotateAnswer(attributeResolverPort, value);
-  return value;
+  return yield* readPort(attributeResolverPort, interpreter, [subject.id, attribute]);
 });
 
 /**
@@ -228,48 +272,22 @@ const requireResourceId = Effect.fn("qadi.requireScopedResourceId")(function* (
 });
 
 /**
- * The port half of a `HasActed`/`HasNotActed` read, once the question is formed.
- *
- * A plain function, not a span of its own: its two callers each own one.
- */
-const callHasActed = (
-  interpreter: Interpreter,
-  subject: AuthSubject,
-  event: string,
-  resourceId: ResourceId | undefined,
-) =>
-  Effect.gen(function* () {
-    yield* countFor(interpreter)("DecisionHistory");
-    const query: ActedQuery = { subjectId: subject.id, event, resourceId };
-    const answer = yield* DecisionHistory.hasActed(query).pipe(
-      catchPortDefect((cause) => decisionHistoryPort.defect([query], cause)),
-    );
-    yield* annotateAnswer(decisionHistoryPort, answer);
-    return answer;
-  });
-
-/**
  * Asks whether the subject has ever performed `event`, about no resource in
  * particular (`scope: "Any"`).
  *
  * The answer is three-valued (`"Unknown"` matches neither polarity, so both deny
- * under an unwired port, ADR-QD-020); what to do with it is the caller's.
+ * under an unwired port, ADR-QD-020); what to do with it is the caller's. An
+ * `Any`-scoped question asks about no resource even where the request has one,
+ * and the span says what was asked rather than what was available.
  */
 export const askActedAny = Effect.fn(decisionHistoryPort.span)(function* (
   interpreter: Interpreter,
   subject: AuthSubject,
   event: string,
 ) {
-  // An `Any`-scoped question asks about no resource even where the request has
-  // one, and the span says what was asked rather than what was available.
-  yield* annotateQuestion(decisionHistoryPort, {
-    subjectId: subject.id,
-    event,
-    scope: "Any",
-    interpreter,
-  });
-  const answer: ActedResult = yield* callHasActed(interpreter, subject, event, undefined);
-  return answer;
+  return yield* readPort(decisionHistoryPort, interpreter, [
+    { subjectId: subject.id, event, resourceId: undefined },
+  ]);
 });
 
 /**
@@ -280,7 +298,11 @@ export const askActedAny = Effect.fn(decisionHistoryPort.span)(function* (
  * question because it is keyed by the row — but the parameter is `Interpreter`
  * all the same, because nothing about the read itself is evaluator-specific.
  * Takes the raw `resource.id` and fails with `MissingResourceId` when it is not a
- * string, after annotating the span with the question.
+ * string, after annotating the span with the question: annotated before the
+ * check, so the span that records a wiring error still names the event it was
+ * asked about. The early question is the description's `pose` of the request,
+ * not a second statement of it (WR-02); `readPort` annotates it again on the
+ * success path, from the same request, so the two cannot disagree (ADR-QD-109).
  */
 export const askActedForResource = Effect.fn(decisionHistoryPort.span)(function* (
   interpreter: Interpreter,
@@ -288,23 +310,21 @@ export const askActedForResource = Effect.fn(decisionHistoryPort.span)(function*
   event: string,
   rawResourceId: unknown,
 ) {
-  // Annotated before the `MissingResourceId` check, so the span that records a
-  // wiring error still names the event it was asked about.
-  yield* annotateQuestion(decisionHistoryPort, {
+  const request = {
     subjectId: subject.id,
     event,
+    resourceId: typeof rawResourceId === "string" ? makeResourceId(rawResourceId) : undefined,
+  };
+  // The question is the description's, from the request as far as it is known;
+  // `scope` is the read's own fact, not the request's (an id that is missing
+  // still makes this a Resource question, and `pose` would say `Any`).
+  yield* annotateQuestion(decisionHistoryPort, {
+    ...decisionHistoryPort.attributes.pose([request]),
     scope: "Resource",
     interpreter,
-    resourceId: typeof rawResourceId === "string" ? rawResourceId : undefined,
   });
-  const resourceId = yield* requireResourceId(rawResourceId, event);
-  const answer: ActedResult = yield* callHasActed(
-    interpreter,
-    subject,
-    event,
-    makeResourceId(resourceId),
-  );
-  return answer;
+  yield* requireResourceId(rawResourceId, event);
+  return yield* readPort(decisionHistoryPort, interpreter, [request]);
 });
 
 /**
@@ -366,34 +386,32 @@ export const askRelationship = Effect.fn(relationshipResolverPort.span)(function
   // Before the check: the span that records a missing resource id should still
   // name the relation it wanted one for. Annotated with the clamped value, not
   // the raw decoded one: the span should say what was actually asked of the
-  // resolver.
-  yield* annotateQuestion(relationshipResolverPort, {
+  // resolver. The check is inline rather than `requireResourceId`, which would
+  // add a nested `qadi.requireScopedResourceId` span to this read's trace.
+  const request = {
     subjectId: subject.id,
     relation,
-    interpreter: "evaluate",
-    resourceId: typeof rawResourceId === "string" ? rawResourceId : undefined,
-    depth: clamped,
-  });
-  if (typeof rawResourceId !== "string") {
-    return yield* Effect.fail(new MissingResourceId({ relation }));
-  }
-  yield* Metric.update(portCallsTotal, "RelationshipResolver");
-  const request: RelationshipCheck = {
-    subjectId: subject.id,
-    relation,
-    resourceId: makeResourceId(rawResourceId),
+    resourceId: typeof rawResourceId === "string" ? makeResourceId(rawResourceId) : undefined,
     depth: clamped,
   };
-  const related: RelatedResult = yield* RelationshipResolver.check(request).pipe(
-    catchPortDefect((cause) => relationshipResolverPort.defect([request], cause)),
-  );
-  yield* annotateAnswer(relationshipResolverPort, related);
-  return related;
+  yield* annotateQuestion(relationshipResolverPort, {
+    ...relationshipResolverPort.attributes.pose([request]),
+    interpreter: "evaluate",
+  });
+  if (request.resourceId === undefined) {
+    return yield* Effect.fail(new MissingResourceId({ relation }));
+  }
+  return yield* readPort(relationshipResolverPort, "evaluate", [
+    { ...request, resourceId: request.resourceId },
+  ]);
 });
 
 /**
  * Asks a registered custom predicate. Evaluator-only (translation refuses
  * `HasCustom`, ADR-QD-055).
+ *
+ * `CustomPredicateError` has no `cause` field, so the description renders a
+ * defect into `reason` with `Cause.pretty` (`customPredicatePort.defect`).
  */
 export const askCustom = Effect.fn(customPredicatePort.span)(function* (
   subject: AuthSubject,
@@ -401,29 +419,23 @@ export const askCustom = Effect.fn(customPredicatePort.span)(function* (
   name: string,
   params: unknown,
 ) {
-  yield* annotateQuestion(customPredicatePort, {
-    name,
-    subjectId: subject.id,
-    interpreter: "evaluate",
-  });
-  yield* Metric.update(portCallsTotal, "CustomPredicate");
-  const allowed = yield* CustomPredicate.evaluate(name, subject, resource, params).pipe(
-    // `CustomPredicateError` has no `cause` field, so the description renders
-    // a defect into `reason` with `Cause.pretty` (`customPredicatePort`).
-    catchPortDefect((cause) => customPredicatePort.defect([name, subject, resource, params], cause)),
-  );
-  yield* annotateAnswer(customPredicatePort, allowed);
-  return allowed;
+  return yield* readPort(customPredicatePort, "evaluate", [name, subject, resource, params]);
 });
 
 /**
  * Asks the signature history and matches the requirement against what it
  * returns. Evaluator-only (translation refuses `HasSignature`, INV-QD-056).
  *
- * The match lives here, not in the evaluator's arm, because `qadi.matched` is
- * annotated on the span and must be there even when the verdict is built
- * elsewhere. `qadi.matched` rather than a three-valued `qadi.answer`: a
+ * The match is made here too, from the same `signatureMatches` the span's
+ * `disclose` reads, so `qadi.matched` is on the span even when the verdict is
+ * built elsewhere. `qadi.matched` rather than a three-valued `qadi.answer`: a
  * signature either matches or it doesn't, with no analogous middle state.
+ *
+ * A Resource-scoped question is annotated *before* its resource id is
+ * validated, so the span that records a wiring error still names the question
+ * it was asked (BEH-QD-227, ADR-QD-077). That early question is the description's
+ * `pose` of the request as far as it is known, not a second statement of it
+ * (WR-02); `readPort` then annotates it again, with agreeing values (ADR-QD-109).
  */
 export const askSignature = Effect.fn(signatureHistoryPort.span)(function* (
   subject: AuthSubject,
@@ -432,48 +444,29 @@ export const askSignature = Effect.fn(signatureHistoryPort.span)(function* (
   scope: "Resource" | "Any",
   rawResourceId: unknown,
 ) {
-  const scoped = scope === "Resource";
-  yield* annotateQuestion(signatureHistoryPort, {
-    subjectId: subject.id,
-    meaning,
-    scope,
-    interpreter: "evaluate",
-    signerRole,
-    resourceId: scoped && typeof rawResourceId === "string" ? rawResourceId : undefined,
-  });
-  const signatureResourceId = scoped
-    ? makeResourceId(yield* requireResourceId(rawResourceId, meaning))
-    : undefined;
-  yield* Metric.update(portCallsTotal, "SignatureHistory");
-  const query: SignatureQuery = { subjectId: subject.id, resourceId: signatureResourceId };
-  const signatures = yield* SignatureHistory.signaturesFor(query).pipe(
-    catchPortDefect((cause) => signatureHistoryPort.defect([query], cause)),
-  );
-  const matched = signatures.some(
-    (s) => s.meaning === meaning && (signerRole === undefined || s.signerRole === signerRole),
-  );
-  const answer: SignatureAnswer = { matched, onFile: signatures.length };
-  yield* annotateAnswer(signatureHistoryPort, answer);
-  return answer;
-});
-
-/** The body of {@link servePortRead}, unnamed so the span it runs under is the port's own. */
-const servedBody = Effect.fn(function* <K extends PortName>(
-  d: DescriptionOf<K>,
-  args: ArgsOf<PortTypes[K]>,
-) {
-  // Before the call, so a store that fails still leaves a span saying what it
-  // was asked, as every other read does.
-  const attributes: PortSpanAttributesLike = d.attributes;
-  yield* Effect.annotateCurrentSpan(
-    encodeSpan(attributes.question, { ...d.wire.spanQuestion(args), interpreter: "remote" }),
-  );
-  yield* Metric.update(servedPortCallsTotal, d.port);
-  const shape = yield* d.service;
-  const answer = yield* d.invoke(shape)(...args).pipe(
-    catchPortDefect((cause) => d.defect(args, cause)),
-  );
-  yield* Effect.annotateCurrentSpan(encodeSpan(attributes.answer, d.wire.spanAnswer(answer)));
+  let resourceId: ResourceId | undefined;
+  if (scope === "Resource") {
+    yield* annotateQuestion(signatureHistoryPort, {
+      ...signatureHistoryPort.attributes.pose([
+        {
+          subjectId: subject.id,
+          resourceId: typeof rawResourceId === "string" ? makeResourceId(rawResourceId) : undefined,
+          meaning,
+          signerRole,
+        },
+      ]),
+      scope,
+      interpreter: "evaluate",
+    });
+    resourceId = makeResourceId(yield* requireResourceId(rawResourceId, meaning));
+  }
+  const signatures = yield* readPort(signatureHistoryPort, "evaluate", [
+    { subjectId: subject.id, resourceId, meaning, signerRole },
+  ]);
+  const answer: SignatureAnswer = {
+    matched: signatureMatches(signatures, meaning, signerRole),
+    onFile: signatures.length,
+  };
   return answer;
 });
 
@@ -484,21 +477,20 @@ const servedBody = Effect.fn(function* <K extends PortName>(
  * `answerRemotely` reads a port only through this, so a served question is as
  * visible as an evaluated one: it opens the port's span with
  * `qadi.interpreter = "remote"`, counts in `servedPortCallsTotal`, and a store
- * that **dies** becomes the port's typed error rather than a defect. Before it,
- * a host's routes called the service directly and the server's own Port calls
- * panel never showed the calls a browser caused.
+ * that **dies or throws** becomes the port's typed error rather than a defect.
+ * Before it, a host's routes called the service directly and the server's own
+ * Port calls panel never showed the calls a browser caused.
  *
- * The question is written through the description's wire projection and the
- * answer through the wire's `spanAnswer`, which routes an answer through the
- * port's `disclose` (the attribute port's span says a value came back, never
- * what it was, INV-QD-044; the signature port's says nothing).
+ * It is {@link readPort}, the body every local read runs, so the question goes
+ * through the description's `pose` and the answer through `disclose(answer,
+ * request)`: a served span equals a local one of the same request apart from
+ * `qadi.interpreter` (ADR-QD-109).
  *
  * The span's name is the description's, which an `Effect.fn` name cannot be
- * (it is static), so the body is an unnamed `Effect.fn` run under
- * `Effect.withSpan(d.span)`.
+ * (it is static), so the read runs under `Effect.withSpan(d.span)`.
  */
 export const servePortRead = <K extends PortName>(
   d: DescriptionOf<K>,
   ...args: ArgsOf<PortTypes[K]>
 ): Effect.Effect<AnswerOf<PortTypes[K]>, ErrorOf<PortTypes[K]>, ServiceOf<PortTypes[K]>> =>
-  servedBody(d, args).pipe(Effect.withSpan(d.span));
+  readPort(d, "remote", args).pipe(Effect.withSpan(d.span));

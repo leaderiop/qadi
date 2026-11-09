@@ -54,7 +54,8 @@ import * as Schema from "effect/Schema";
 import { TraceSchema } from "./Decision.ts";
 import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { PolicyDecodeTooDeep } from "./Policy.ts";
-import type { DecodeRefusal, EncodeRefusal, SinkRecordTag } from "./SinkWire.ts";
+import type { EncodeRefusal } from "./JsonRefusal.ts";
+import type { DecodeRefusal, SinkRecordTag } from "./SinkWire.ts";
 
 /** A policy referenced a resource attribute but no resource was in context. */
 export class MissingResource extends Schema.TaggedError<MissingResource>()("MissingResource", {
@@ -366,7 +367,7 @@ export class InvalidBoundedPermits extends Data.TaggedError("InvalidBoundedPermi
  * Declared here rather than in `SinkCodec.ts`, which raises it, because it
  * joins `QadiError` and `ERROR_CODES`, and `Errors.ts` cannot import
  * `SinkCodec.ts` without a cycle (ADR-QD-037). The vocabulary it
- * names (`EncodeRefusal` and its parts) is the leaf `SinkWire.ts`'s.
+ * names (`EncodeRefusal` and its parts) is the leaf `JsonRefusal.ts`'s (ADR-QD-116).
  * `Data.TaggedError`, not
  * `Schema.TaggedError`: it is reported where it happens and crosses no codec,
  * so `SCHEMA_ERROR_BUDGET` is unchanged.

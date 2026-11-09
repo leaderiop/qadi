@@ -36,8 +36,8 @@ import {
   type SeededQuestion,
   hydrateWith,
   makeSeededQuestion,
-  resolveMismatchReporter,
 } from "./HydrationEngine.ts";
+import { hydrationMismatchReporter } from "./DeveloperSignals.ts";
 import type { GateRegistry } from "./GateRegistry.ts";
 import { makeGateRegistry } from "./GateRegistry.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
@@ -267,7 +267,9 @@ export const makeQadiAtoms = (
   const subject = Atom.make<AuthSubject | undefined>(undefined).pipe(
     Atom.withEquality(subjectsEqual),
   );
-  const report = resolveMismatchReporter(options?.onHydrationMismatch);
+  // Resolved once per atom set and handed to every question, so the
+  // development-mode default is decided at construction.
+  const report = hydrationMismatchReporter(options?.onHydrationMismatch);
   const gates = makeGateRegistry(
     options?.onGateIdCollision === undefined ? {} : { onIdCollision: options.onGateIdCollision },
   );

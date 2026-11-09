@@ -13,7 +13,7 @@ import {
   EncodeRefusal,
   encodeRefusalAnnotations,
   encodeRefusalPath,
-} from "../src/SinkWire.ts";
+} from "../src/JsonRefusal.ts";
 import { makeSubjectId } from "../src/Identity.ts";
 import * as P from "../src/Policy.ts";
 import { permission } from "../src/Permission.ts";

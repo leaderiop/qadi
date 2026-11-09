@@ -6,7 +6,9 @@
  * rules; this file pins the codec itself (ARCH-05).
  */
 import {
+  Allow,
   CurrentSubject,
+  Deny,
   EvaluationServicesNone,
   allOf,
   anyOf,
@@ -16,6 +18,7 @@ import {
   isAllowed,
   labeled,
   makeSubject,
+  makeSubjectId,
   not,
   obliged,
   obligation,
@@ -28,7 +31,7 @@ import * as FastCheck from "fast-check";
 import { describe, expect, it } from "vitest";
 import { dehydrateDecisions, hydrateDecisions, isSeeded, permits } from "../src/Hydration.ts";
 import type { HydrateOptions } from "../src/Hydration.ts";
-import type { HydrationDrop } from "../src/Hydration.ts";
+import type { DecisionEntry, HydrationDrop } from "../src/Hydration.ts";
 import { currentDecision } from "../src/DecisionOutcome.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 
@@ -407,5 +410,70 @@ describe("a Disclosed seed that contradicts its own trace is dropped (ARCH-32)",
       expect(seeded).toHaveLength(1);
       expect(drops).toEqual([]);
     }
+  });
+});
+
+// ARCH-51 moves the dehydrate direction into `HydrationEngine.ts`, and these
+// bytes must not move with it. The literals below were taken from the code as it
+// stood before that change (D-04); hand-built decisions keep them deterministic,
+// where `evaluate` would vary the evaluation ids and durations from run to run.
+describe("dehydrateDecisions' output is pinned byte for byte (ARCH-51)", () => {
+  const pinnedAllow = (subjectId: string, evaluationId: string, durationMillis: number): Allow =>
+    new Allow({
+      evaluationId,
+      subjectId: makeSubjectId(subjectId),
+      durationMillis,
+      trace: {
+        policyTag: "HasPermission",
+        allowed: true,
+        children: [],
+        visibleFields: undefined,
+        obligations: [],
+      },
+    });
+
+  const ownAllow: DecisionEntry = { policy: read, decision: pinnedAllow("u1", "e1", 3) };
+  const ownDeny: DecisionEntry = {
+    policy: isAdmin,
+    resource: { id: "doc-1", owner: "u1" },
+    decision: new Deny({
+      evaluationId: "e2",
+      subjectId: makeSubjectId("u1"),
+      durationMillis: 4,
+      trace: {
+        policyTag: "HasRole",
+        allowed: false,
+        reason: "no",
+        children: [],
+        obligations: [],
+      },
+    }),
+  };
+  const foreign: DecisionEntry = { policy: read, decision: pinnedAllow("u2", "e3", 5) };
+  const fixture: ReadonlyArray<DecisionEntry> = [ownAllow, ownDeny, foreign];
+
+  it("withholds the trace and the reason by default", () => {
+    const dropped: Array<ReadonlyArray<DecisionEntry>> = [];
+    const payload = dehydrateDecisions(fixture, { onDropped: (entries) => dropped.push(entries) });
+    expect(JSON.stringify(payload)).toBe(
+      `{"version":2,"subjectId":"u1","entries":[{"policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"decision":{"_tag":"Allow","evaluationId":"e1","durationMillis":3,"obligations":[],"disclosure":{"_tag":"Withheld"}}},{"policy":{"_tag":"HasRole","role":"admin"},"resource":{"id":"doc-1","owner":"u1"},"decision":{"_tag":"Deny","evaluationId":"e2","durationMillis":4,"disclosure":{"_tag":"Withheld"}}}]}`,
+    );
+    expect(dropped).toHaveLength(1);
+    expect(dropped[0]).toHaveLength(1);
+    expect(dropped[0]?.[0]).toBe(foreign);
+  });
+
+  it("discloses the trace and the reason under includeTrace", () => {
+    const dropped: Array<ReadonlyArray<DecisionEntry>> = [];
+    const payload = dehydrateDecisions(fixture, {
+      includeTrace: true,
+      onDropped: (entries) => dropped.push(entries),
+    });
+    expect(JSON.stringify(payload)).toBe(
+      `{"version":2,"subjectId":"u1","entries":[{"policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"decision":{"_tag":"Allow","evaluationId":"e1","durationMillis":3,"obligations":[],"disclosure":{"_tag":"Disclosed","trace":{"policyTag":"HasPermission","allowed":true,"children":[],"obligations":[]}}}},{"policy":{"_tag":"HasRole","role":"admin"},"resource":{"id":"doc-1","owner":"u1"},"decision":{"_tag":"Deny","evaluationId":"e2","durationMillis":4,"disclosure":{"_tag":"Disclosed","trace":{"policyTag":"HasRole","allowed":false,"reason":"no","children":[],"obligations":[]},"reason":"no"}}}]}`,
+    );
+    expect(dropped).toHaveLength(1);
+    expect(dropped[0]).toHaveLength(1);
+    expect(dropped[0]?.[0]).toBe(foreign);
   });
 });

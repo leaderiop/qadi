@@ -20,11 +20,12 @@ import type { InvalidBoundedPermits } from "./Errors.ts";
 import { SubjectIdSchema } from "./Identity.ts";
 import type { SubjectId } from "./Identity.ts";
 import { toJson } from "./JsonHazard.ts";
+import type { EncodeRefusal } from "./JsonRefusal.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
-import type { EncodeRefusal } from "./SinkWire.ts";
 
 export interface AttributeResolverShape {
   /**
@@ -101,6 +102,10 @@ const attributeSpan = {
     { attribute: "qadi.attribute", ...sharedQuestionKeys },
   ),
   answer: spanStruct({ resolved: Schema.optionalKey(Schema.Boolean) }, { resolved: "qadi.resolved" }),
+  pose: ([subjectId, attribute]: [subjectId: SubjectId, attribute: string]) => ({
+    subjectId,
+    attribute,
+  }),
   disclose: (value: unknown) => ({ resolved: value !== undefined }),
 };
 
@@ -127,10 +132,26 @@ const attributeWire = portWire({
       ? Result.succeed({})
       : Result.map(toJson(value, WIRE_MAX_DEPTH), (json) => ({ value: json })),
   fromAnswer: (wire): unknown => wire.value,
-  asked: ([, attribute]) => attribute,
-  spanQuestion: ([subjectId, attribute]) => ({ subjectId, attribute }),
-  spanAnswer: (value) => attributeSpan.disclose(value),
 });
+
+/**
+ * A host serves attributes only from a required allowlist.
+ *
+ * An attribute's answer is a value, and the name is chosen by the client: a
+ * host that served any name would serve `constructor` and `__proto__` too
+ * (ARCH-31 C13), so a declaration must list every attribute it serves and an
+ * empty list admits nothing. Only `HasAttribute` reads this port.
+ */
+const attributeServing: PortServingFacet<
+  "AttributeResolver",
+  [subjectId: SubjectId, attribute: string]
+> = {
+  allowlist: "required",
+  leaves: { HasAttribute: (leaf) => leaf.attribute },
+  asked: ([, attribute]) => attribute,
+  admitted: (declaration) => declaration.attributes,
+  declare: (names) => ({ AttributeResolver: { attributes: names } }),
+};
 
 /**
  * The attribute port, described once (`PortDescription.ts`): the wrappers and
@@ -153,6 +174,7 @@ export const attributeResolverPort: PortDescription<
   span: "qadi.attribute",
   attributes: attributeSpan,
   wire: attributeWire,
+  serving: attributeServing,
   service: AttributeResolver,
   invoke: (shape) => (subjectId, attribute) => shape.resolve(subjectId, attribute),
   make: (name, call) => ({ name, resolve: call }),

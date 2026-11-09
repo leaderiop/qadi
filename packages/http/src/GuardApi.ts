@@ -18,12 +18,19 @@ import * as HttpApi from "effect/http-api/HttpApi";
 import type * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
 import type * as HttpApiGroup from "effect/http-api/HttpApiGroup";
 import type { Permission, StandingEvaluationServices } from "@qadi/core";
+import { endpointMemberKey } from "./AuthorizeRequest.ts";
+import type { EndpointMemberKey } from "./AuthorizeRequest.ts";
 import { PermissionRegistry } from "./PermissionRegistry.ts";
 import type { EndpointDescriptor } from "./PermissionRegistry.ts";
 import { endpointAccess, misplacedDeclarations, RequirePermission } from "./RequirePermission.ts";
 import type { AccessDeclarationKey } from "./RequirePermission.ts";
 import { makeRequirePermission } from "./RequirePermissionMiddleware.ts";
 import type { SubjectExtractor } from "./SubjectExtractor.ts";
+
+// Public through this module, as `NO_RESOURCE` is through `RequirePermission.ts`; everything else in
+// `AuthorizeRequest.ts` (the request-enforcement module) is package-private (ADR-QD-099, ADR-QD-108).
+export { authorizeRequest } from "./AuthorizeRequest.ts";
+export type { AuthorizedRequest } from "./AuthorizeRequest.ts";
 
 /**
  * An endpoint of a guarded API has no `RequirePermission` middleware attached, so nothing would
@@ -105,12 +112,12 @@ export type EveryEndpointGuarded<Groups> = [UnguardedEndpoints<Groups>] extends 
 interface WalkedApi {
   readonly found: ReadonlyArray<readonly [Permission, EndpointDescriptor]>;
   readonly refusal: ApiGuardRefusal | undefined;
-  readonly members: ReadonlySet<string>;
+  readonly members: ReadonlySet<EndpointMemberKey>;
 }
 
 /**
  * Reads `api` once, synchronously: the declared permissions to register, the first wiring mistake,
- * and the `"<group>/<endpoint>"` key of every endpoint.
+ * and the `endpointMemberKey` of every endpoint.
  *
  * Reads exactly the scope `RequirePermission` enforces: the endpoint's own annotations, never
  * `HttpApi.reflect`'s `mergedAnnotations`. The merge also carries API- and group-level
@@ -129,7 +136,7 @@ const walkApi = <Id extends string, Groups extends HttpApiGroup.Constraint>(
   const found: Array<readonly [Permission, EndpointDescriptor]> = [];
   const misplaced: Array<MisplacedAccessDeclaration> = [];
   const unattached: Array<RequirePermissionNotAttached> = [];
-  const members = new Set<string>();
+  const members = new Set<EndpointMemberKey>();
   for (const key of misplacedDeclarations(api.annotations)) {
     misplaced.push(new MisplacedAccessDeclaration({ scope: "api", identifier: api.identifier, key }));
   }
@@ -140,7 +147,7 @@ const walkApi = <Id extends string, Groups extends HttpApiGroup.Constraint>(
       }
     },
     onEndpoint: ({ endpoint, group, middleware }) => {
-      members.add(`${group.identifier}/${endpoint.identifier}`);
+      members.add(endpointMemberKey(group, endpoint));
       if (![...middleware].some((m) => m.key === RequirePermission.key)) {
         unattached.push(new RequirePermissionNotAttached({ group: group.identifier, endpoint: endpoint.identifier }));
         return;

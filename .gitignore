@@ -39,5 +39,3 @@ packages/predicate-prisma/prisma/*.db
 .claude/
 .impeccable/
 
-# Local GSD planning state — no longer tracked in git.
-.planning/

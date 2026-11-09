@@ -32,7 +32,8 @@ import {
   RelationshipResolveError,
   SignatureHistoryUnavailable,
 } from "../src/Errors.ts";
-import { DecodeRefusal, EncodeRefusal, WIRE_VERSIONS } from "../src/SinkWire.ts";
+import { EncodeRefusal } from "../src/JsonRefusal.ts";
+import { DecodeRefusal, WIRE_VERSIONS } from "../src/SinkWire.ts";
 import type { EvaluationError } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";

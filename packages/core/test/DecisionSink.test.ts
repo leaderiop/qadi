@@ -4,21 +4,22 @@ import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as TestClock from "effect/testing/TestClock";
 import { attributeResolverPort } from "../src/AttributeResolver.ts";
-import { isAllowed } from "../src/Decision.ts";
+import { Allow, isAllowed } from "../src/Decision.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
-import type {
-  DecisionRecord,
-  ObligationRecord,
-  SinkRecord,
-} from "../src/DecisionRecord.ts";
+import { ObligationRecord } from "../src/DecisionRecord.ts";
+import type { DecisionRecord, ObligationOutcome, SinkRecord } from "../src/DecisionRecord.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import { obligation } from "../src/Obligation.ts";
 import { decide, enforce } from "../src/Qadi.ts";
+import type { EnforceOptions, ObligationDischarge } from "../src/Qadi.ts";
 import { explain, renderExplanation } from "../src/Explanation.ts";
 import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
+import { questionOf } from "../src/Question.ts";
 import * as P from "../src/Policy.ts";
+import { obligationRecordFor } from "../src/SinkEmit.ts";
 import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
@@ -598,6 +599,239 @@ describe("the obligation gate is recorded", () => {
       assert.isFalse(Object.hasOwn(obligationsOf(sink.all)[0] ?? {}, "resourceId"));
     }).pipe(Effect.provide(testLayer(allowed))));
 
+  // The whole-record pin (D-03, ARCH-54): written green at c3ce9d2, before the
+  // projection moved to SinkEmit.ts, and it must pass unmodified after. Deep
+  // equality alone cannot tell an absent key from an `undefined`-valued one, so
+  // the sorted key list is asserted too (BEH-QD-195).
+  it.effect("the whole obligation record is pinned for every question shape and outcome", () =>
+    Effect.gen(function* () {
+      const rows: ReadonlyArray<{
+        readonly policy: typeof audited;
+        readonly options: EnforceOptions<string>;
+        readonly expected: (evaluationId: string) => ObligationRecord;
+      }> = [
+        {
+          policy: audited,
+          options: {
+            resource: { id: "doc-1" },
+            action: "approve",
+            onObligations: () => Effect.void,
+          },
+          expected: (evaluationId) =>
+            new ObligationRecord({
+              evaluationId,
+              at: 0,
+              outcome: "Discharged",
+              obligationIds: ["audit.log"],
+              subjectId: allowed.id,
+              action: "approve",
+              resourceId: makeResourceId("doc-1"),
+            }),
+        },
+        {
+          policy: audited,
+          options: {},
+          expected: (evaluationId) =>
+            new ObligationRecord({
+              evaluationId,
+              at: 0,
+              outcome: "Refused",
+              obligationIds: ["audit.log"],
+              subjectId: allowed.id,
+            }),
+        },
+        {
+          policy: audited,
+          options: {
+            resource: { id: 7 },
+            action: "approve",
+            onObligations: () => Effect.fail("down"),
+          },
+          expected: (evaluationId) =>
+            new ObligationRecord({
+              evaluationId,
+              at: 0,
+              outcome: "HandlerFailed",
+              obligationIds: ["audit.log"],
+              subjectId: allowed.id,
+              action: "approve",
+            }),
+        },
+        {
+          policy: audited,
+          options: { resource: { id: "doc-1" }, onObligations: () => Effect.void },
+          expected: (evaluationId) =>
+            new ObligationRecord({
+              evaluationId,
+              at: 0,
+              outcome: "Discharged",
+              obligationIds: ["audit.log"],
+              subjectId: allowed.id,
+              resourceId: makeResourceId("doc-1"),
+            }),
+        },
+        {
+          policy: advised,
+          options: { action: "approve" },
+          expected: (evaluationId) =>
+            new ObligationRecord({
+              evaluationId,
+              at: 0,
+              outcome: "NotRequired",
+              obligationIds: ["notify.owner"],
+              subjectId: allowed.id,
+              action: "approve",
+            }),
+        },
+      ];
+
+      for (const row of rows) {
+        const sink = collecting();
+        yield* Effect.result(
+          enforce(row.policy, row.options)(Effect.succeed(1)).pipe(Effect.provide(sink.layer)),
+        );
+        const events = obligationsOf(sink.all);
+        assert.strictEqual(events.length, 1);
+        const event = events[0];
+        assert.isDefined(event);
+        if (event === undefined) return;
+        const expected = row.expected(sink.seen[0]?.evaluationId ?? "no decision record");
+        assert.deepStrictEqual(event, expected);
+        assert.deepStrictEqual(Object.keys(event).sort(), Object.keys(expected).sort());
+      }
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("the record carries the identity of the very question and allow the handler was given", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+      const handled: Array<ObligationDischarge> = [];
+
+      yield* enforce(audited, {
+        resource: { id: "doc-1", title: "T" },
+        action: "approve",
+        onObligations: (discharge) =>
+          Effect.sync(() => {
+            handled.push(discharge);
+          }),
+      })(Effect.succeed(1)).pipe(Effect.provide(sink.layer));
+
+      const event = obligationsOf(sink.all)[0];
+      const discharge = handled[0];
+      assert.isDefined(event);
+      assert.isDefined(discharge);
+      if (event === undefined || discharge === undefined) return;
+      // Built field by field from what the handler was handed, not by calling the
+      // projection under test, so a row projected from any other question or
+      // allow fails here.
+      assert.deepStrictEqual(
+        event,
+        new ObligationRecord({
+          evaluationId: discharge.decision.evaluationId,
+          at: 0,
+          outcome: "Discharged",
+          obligationIds: discharge.decision.obligations.map((o) => o.id),
+          subjectId: discharge.question.subject.id,
+          action: "approve",
+          resourceId: makeResourceId(String(discharge.question.resource?.["id"])),
+        }),
+      );
+      assert.strictEqual(event.evaluationId, sink.seen[0]?.evaluationId);
+      // Identity, never content: the resource and its fields are not on the row.
+      assert.isFalse(Object.hasOwn(event, "resource"));
+      assert.isFalse(Object.hasOwn(event, "title"));
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  // WR-01 (09-REVIEW): the projection is read once, before the handler runs. The
+  // `Question`'s resource is the caller's own object, not a snapshot, so a handler
+  // that reassigns `id` (a create-then-audit duty) must not change what the row says
+  // the allow was decided for.
+  it.effect("a handler that reassigns the resource id does not change the obligation row", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+      const resource: Record<string, unknown> = { id: "doc-1" };
+
+      yield* enforce(audited, {
+        resource,
+        onObligations: () =>
+          Effect.sync(() => {
+            resource["id"] = "doc-2";
+          }),
+      })(Effect.succeed(1)).pipe(Effect.provide(sink.layer));
+
+      const event = obligationsOf(sink.all)[0];
+      assert.strictEqual(event?.outcome, "Discharged");
+      assert.strictEqual(event?.resourceId, makeResourceId("doc-1"));
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("a handler that fails after reassigning the resource id still reports the original id", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+      const resource: Record<string, unknown> = { id: "doc-1" };
+
+      const result = yield* Effect.result(
+        enforce(audited, {
+          resource,
+          onObligations: () =>
+            Effect.suspend(() => {
+              resource["id"] = "doc-2";
+              return Effect.fail("down");
+            }),
+        })(Effect.succeed(1)).pipe(Effect.provide(sink.layer)),
+      );
+
+      assert.strictEqual(result._tag, "Failure");
+      const event = obligationsOf(sink.all)[0];
+      assert.strictEqual(event?.outcome, "HandlerFailed");
+      assert.strictEqual(event?.resourceId, makeResourceId("doc-1"));
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  // The same guarantee as the decision row's (INV-QD-035): a projection that can
+  // only throw after the duty ran must neither become a defect nor replace the
+  // handler's own failure. Read before the handler, the throw cannot happen here.
+  it.effect("a resource id that throws once the handler has run neither fails the success nor masks the handler's error", () =>
+    Effect.gen(function* () {
+      const arm = (): { readonly resource: Record<string, unknown>; readonly arm: () => void } => {
+        let armed = false;
+        return {
+          resource: {
+            get id(): string {
+              if (armed) throw new Error("id read after the handler");
+              return "doc-1";
+            },
+          },
+          arm: () => {
+            armed = true;
+          },
+        };
+      };
+
+      const ok = arm();
+      const sink = collecting();
+      const succeeded = yield* Effect.result(
+        enforce(audited, { resource: ok.resource, onObligations: () => Effect.sync(ok.arm) })(
+          Effect.succeed(1),
+        ).pipe(Effect.provide(sink.layer)),
+      );
+      assert.strictEqual(succeeded._tag, "Success");
+      assert.strictEqual(obligationsOf(sink.all)[0]?.resourceId, makeResourceId("doc-1"));
+
+      const bad = arm();
+      const failedSink = collecting();
+      const failed = yield* Effect.result(
+        enforce(audited, {
+          resource: bad.resource,
+          onObligations: () =>
+            Effect.suspend(() => {
+              bad.arm();
+              return Effect.fail("down");
+            }),
+        })(Effect.succeed(1)).pipe(Effect.provide(failedSink.layer)),
+      );
+      assert.strictEqual(failed._tag, "Failure");
+      if (failed._tag === "Failure") assert.strictEqual(failed.failure, "down");
+      assert.strictEqual(obligationsOf(failedSink.all)[0]?.outcome, "HandlerFailed");
+    }).pipe(Effect.provide(testLayer(allowed))));
+
   it.effect("an undischarged binding obligation is recorded as Refused", () =>
     Effect.gen(function* () {
       const sink = collecting();
@@ -669,6 +903,86 @@ describe("the obligation gate is recorded", () => {
 
       assert.deepStrictEqual(obligationsOf(sink.all), []);
     }).pipe(Effect.provide(testLayer(allowed))));
+});
+
+describe("obligationRecordFor projects the question (SinkEmit.ts)", () => {
+  const allowWith = (...ids: ReadonlyArray<string>): Allow =>
+    new Allow({
+      evaluationId: "eval-9",
+      subjectId: makeSubjectId("u"),
+      durationMillis: 0,
+      trace: {
+        policyTag: "HasPermission",
+        allowed: true,
+        children: [],
+        obligations: ids.map((id) => obligation(id)),
+      },
+    });
+  const outcomes: ReadonlyArray<ObligationOutcome> = [
+    "Discharged",
+    "HandlerFailed",
+    "Refused",
+    "NotRequired",
+  ];
+  const policy = P.hasPermission(read);
+
+  it("every outcome carries the question's identity and the allow's duties in order", () => {
+    const question = questionOf(allowed, policy, { resource: { id: "doc-1" }, action: "approve" });
+    for (const outcome of outcomes) {
+      const record = obligationRecordFor(question, allowWith("a", "b"), 5)(outcome);
+      assert.strictEqual(record._tag, "Obligations");
+      assert.strictEqual(record.outcome, outcome);
+      assert.strictEqual(record.at, 5);
+      assert.strictEqual(record.evaluationId, "eval-9");
+      assert.deepStrictEqual(record.obligationIds, ["a", "b"]);
+      assert.strictEqual(record.subjectId, allowed.id);
+      assert.strictEqual(record.action, "approve");
+      assert.strictEqual(record.resourceId, "doc-1");
+    }
+  });
+
+  it("a question with neither a resource nor an action leaves those keys absent", () => {
+    const record = obligationRecordFor(questionOf(allowed, policy), allowWith("a"), 0)("Discharged");
+    assert.deepStrictEqual(Object.keys(record).sort(), [
+      "_tag",
+      "at",
+      "evaluationId",
+      "obligationIds",
+      "outcome",
+      "subjectId",
+    ]);
+  });
+
+  it("a resource whose id is not a string, or that has none, yields no resourceId", () => {
+    for (const resource of [{ id: 7 }, { title: "no id" }]) {
+      const record = obligationRecordFor(
+        questionOf(allowed, policy, { resource }),
+        allowWith("a"),
+        0,
+      )("Discharged");
+      assert.isFalse(Object.hasOwn(record, "resourceId"));
+    }
+  });
+
+  it("everything but the outcome is fixed when the projection is made", () => {
+    const resource: Record<string, unknown> = { id: "doc-1" };
+    const stamp = obligationRecordFor(questionOf(allowed, policy, { resource }), allowWith("a"), 0);
+    resource["id"] = "doc-2";
+    assert.strictEqual(stamp("Discharged").resourceId, makeResourceId("doc-1"));
+    assert.strictEqual(stamp("Refused").resourceId, makeResourceId("doc-1"));
+  });
+
+  it("the resource's content never reaches the row, only its id", () => {
+    const record = obligationRecordFor(
+      questionOf(allowed, policy, { resource: { id: "doc-1", title: "secret" } }),
+      allowWith("a"),
+      0,
+    )("Discharged");
+    assert.strictEqual(record.resourceId, makeResourceId("doc-1"));
+    assert.isFalse(Object.hasOwn(record, "resource"));
+    assert.isFalse(Object.hasOwn(record, "title"));
+    assert.notInclude(JSON.stringify(record), "secret");
+  });
 });
 
 describe("the obligation emit cannot change enforcement either", () => {

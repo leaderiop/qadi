@@ -24,12 +24,13 @@ import { CustomPredicateError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import { SubjectIdSchema } from "./Identity.ts";
 import { toJson, toJsonRecord } from "./JsonHazard.ts";
+import type { EncodeRefusal } from "./JsonRefusal.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import { canonicalKey } from "./PortKey.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, sameAnswer, WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
-import type { EncodeRefusal } from "./SinkWire.ts";
 import type { Resource } from "./Resource.ts";
 
 export interface CustomPredicateShape {
@@ -90,6 +91,14 @@ const renderReason = (cause: unknown): string => {
   }
 };
 
+/** The custom predicate's request: what `evaluate` receives, positionally. */
+type CustomArgs = [
+  name: string,
+  subject: AuthSubject,
+  resource: Resource | undefined,
+  params: unknown,
+];
+
 /**
  * What the custom-predicate span says (BEH-QD-227). The registered name is
  * recorded; `params` never are, since they are arbitrary caller data.
@@ -100,15 +109,9 @@ const customSpan = {
     { name: "qadi.custom_predicate", ...sharedQuestionKeys },
   ),
   answer: spanStruct({ answer: Schema.optionalKey(Schema.Boolean) }, { answer: "qadi.answer" }),
+  pose: ([name, subject]: CustomArgs) => ({ name, subjectId: subject.id }),
   disclose: (answer: boolean) => ({ answer }),
 };
-
-type CustomArgs = [
-  name: string,
-  subject: AuthSubject,
-  resource: Resource | undefined,
-  params: unknown,
-];
 
 /**
  * What the custom-predicate question and answer look like on a wire (ARCH-31).
@@ -159,10 +162,25 @@ const customWire = portWire({
     question.params,
   ],
   ...sameAnswer<boolean>(),
-  asked: ([name]) => name,
-  spanQuestion: ([name, subject]) => ({ name, subjectId: subject.id }),
-  spanAnswer: (answer) => customSpan.disclose(answer),
 });
+
+/**
+ * A host serves predicates only from a required allowlist.
+ *
+ * A predicate name is a client-chosen resource, and what it runs is the host's
+ * own code, so a declaration must list every name it serves and an empty list
+ * admits nothing. Only `HasCustom` reads this port.
+ */
+const customServing: PortServingFacet<
+  "CustomPredicate",
+  [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown]
+> = {
+  allowlist: "required",
+  leaves: { HasCustom: (leaf) => leaf.name },
+  asked: ([name]) => name,
+  admitted: (declaration) => declaration.names,
+  declare: (names) => ({ CustomPredicate: { names } }),
+};
 
 /**
  * The custom-predicate port, described once (`PortDescription.ts`).
@@ -192,6 +210,7 @@ export const customPredicatePort: PortDescription<
   span: "qadi.hasCustom",
   attributes: customSpan,
   wire: customWire,
+  serving: customServing,
   service: CustomPredicate,
   invoke: (shape) => (name, subject, resource, params) =>
     shape.evaluate(name, subject, resource, params),

@@ -11,8 +11,10 @@ import { assert, describe, it } from "@effect/vitest";
 import * as FastCheck from "fast-check";
 import * as Schema from "effect/Schema";
 import { attributeResolverPort } from "../src/AttributeResolver.ts";
+import { makeSubject } from "../src/AuthSubject.ts";
 import { customPredicatePort } from "../src/CustomPredicate.ts";
 import { decisionHistoryPort } from "../src/DecisionHistory.ts";
+import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import type { PortSpanAttributes, SpanFields, SpanStruct, SpanType } from "../src/PortSpan.ts";
 import { decodePortSpan } from "../src/PortSpanDecode.ts";
 import {
@@ -119,16 +121,25 @@ describe("encodeSpan / decodeSpan", () => {
  * through the description, so the two cannot be written against the wrong
  * struct.
  */
-const conformSpan = <Q extends SpanFields, Ans extends SpanFields, O>(
-  d: { readonly port: PortName; readonly attributes: PortSpanAttributes<Q, Ans, O> },
+const conformSpan = <Q extends SpanFields, Ans extends SpanFields, O, Args extends ReadonlyArray<unknown>>(
+  d: { readonly port: PortName; readonly attributes: PortSpanAttributes<Q, Ans, O, Args> },
+  request: Args,
   question: SpanType<SpanStruct<Q>>,
   outcome: O,
   expected: Readonly<Record<string, unknown>>,
 ) => {
   const { question: q, answer: a } = d.attributes;
+  // The description's own projection of the request is the question the case states.
+  assert.deepStrictEqual(
+    decodeSpan(q, attributesOf(encodeSpan(q, d.attributes.pose(request)))),
+    withoutUndefined(
+      Object.fromEntries(Object.entries(question).filter(([k]) => k !== "interpreter")),
+    ),
+    d.port,
+  );
   const written = {
     ...encodeSpan(q, question),
-    ...encodeSpan(a, d.attributes.disclose(outcome)),
+    ...encodeSpan(a, d.attributes.disclose(outcome, request)),
   };
 
   // The question and the answer are disjoint, and neither collides with `attempts`.
@@ -152,10 +163,15 @@ const conformSpan = <Q extends SpanFields, Ans extends SpanFields, O>(
 };
 
 describe("every port's description round-trips its span (ARCH-21)", () => {
+  const aliceId = makeSubjectId("alice");
+  const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
+  const doc = makeResourceId("doc-1");
+
   const CASES: { readonly [K in PortName]: () => void } = {
     AttributeResolver: () =>
       conformSpan(
         attributeResolverPort,
+        [aliceId, "tier"],
         { attribute: "tier", subjectId: "alice", interpreter: "evaluate" },
         5,
         { attribute: "tier", subjectId: "alice", interpreter: "evaluate", resolved: true },
@@ -163,6 +179,7 @@ describe("every port's description round-trips its span (ARCH-21)", () => {
     DecisionHistory: () =>
       conformSpan(
         decisionHistoryPort,
+        [{ subjectId: aliceId, event: "raised", resourceId: doc }],
         {
           subjectId: "alice",
           event: "raised",
@@ -183,6 +200,7 @@ describe("every port's description round-trips its span (ARCH-21)", () => {
     RelationshipResolver: () =>
       conformSpan(
         relationshipResolverPort,
+        [{ subjectId: aliceId, relation: "owner", resourceId: doc, depth: 3 }],
         { subjectId: "alice", relation: "owner", interpreter: "evaluate", resourceId: "doc-1", depth: 3 },
         "Unrelated",
         {
@@ -197,6 +215,7 @@ describe("every port's description round-trips its span (ARCH-21)", () => {
     CustomPredicate: () =>
       conformSpan(
         customPredicatePort,
+        ["isOwner", alice, undefined, undefined],
         { name: "isOwner", subjectId: "alice", interpreter: "evaluate" },
         false,
         { name: "isOwner", subjectId: "alice", interpreter: "evaluate", answer: false },
@@ -204,6 +223,7 @@ describe("every port's description round-trips its span (ARCH-21)", () => {
     SignatureHistory: () =>
       conformSpan(
         signatureHistoryPort,
+        [{ subjectId: aliceId, resourceId: doc, meaning: "approve", signerRole: "lead" }],
         {
           subjectId: "alice",
           meaning: "approve",
@@ -212,7 +232,7 @@ describe("every port's description round-trips its span (ARCH-21)", () => {
           signerRole: "lead",
           resourceId: "doc-1",
         },
-        { matched: true, onFile: 4 },
+        [{ signerId: aliceId, meaning: "approve", signerRole: "lead", signedAt: 0 }],
         {
           subjectId: "alice",
           meaning: "approve",
@@ -250,11 +270,13 @@ describe("every port's description round-trips its span (ARCH-21)", () => {
 });
 
 describe("INV-QD-044 through the attribute port's disclose", () => {
+  const aliceId = makeSubjectId("alice");
+
   it("whatever a store returned, the answer encodes to a lone boolean", () => {
     FastCheck.assert(
       FastCheck.property(FastCheck.anything(), (value) => {
         const { answer, disclose } = attributeResolverPort.attributes;
-        assert.deepStrictEqual(encodeSpan(answer, disclose(value)), {
+        assert.deepStrictEqual(encodeSpan(answer, disclose(value, [aliceId, "tier"])), {
           "qadi.resolved": value !== undefined,
         });
       }),
@@ -263,8 +285,8 @@ describe("INV-QD-044 through the attribute port's disclose", () => {
 
   it("an absent value is undefined and a returned null is a value", () => {
     const { answer, disclose } = attributeResolverPort.attributes;
-    assert.deepStrictEqual(encodeSpan(answer, disclose(undefined)), { "qadi.resolved": false });
-    assert.deepStrictEqual(encodeSpan(answer, disclose(null)), { "qadi.resolved": true });
+    assert.deepStrictEqual(encodeSpan(answer, disclose(undefined, [aliceId, "tier"])), { "qadi.resolved": false });
+    assert.deepStrictEqual(encodeSpan(answer, disclose(null, [aliceId, "tier"])), { "qadi.resolved": true });
   });
 });
 

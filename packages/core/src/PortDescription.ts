@@ -26,7 +26,8 @@ import type * as Cause from "effect/Cause";
 import type * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
 import type { PortName, PortSpanName } from "./PortMetrics.ts";
-import type { PortSpanAttributesLike } from "./PortSpan.ts";
+import type { PortSpanAttributesLike, SpanFields, SpanStruct, SpanType } from "./PortSpan.ts";
+import type { PortServingFacet } from "./PortServing.ts";
 import type { PortWire } from "./PortWire.ts";
 
 /**
@@ -75,12 +76,24 @@ export interface PortDescription<
   readonly span: PortSpanName;
   /**
    * What that span says: the question annotated before the call, the answer
-   * annotated after it, and the `disclose` projection between the port's
-   * outcome and the answer (ADR-QD-051, BEH-QD-227). `PortAccess.ts` writes
-   * through it and `@qadi/devtools` reads through it, so a key is spelled once,
-   * here. Every field is a `SpanValue`, which is INV-QD-044 as a type.
+   * annotated after it, and the two projections that fill them, `pose` from a
+   * request to its question and `disclose` from the port's answer and its
+   * request to the answer's fields (ADR-QD-051, BEH-QD-227, ADR-QD-109).
+   * `PortAccess.ts` writes through it, local read and served read alike, and
+   * `@qadi/devtools` reads through it, so a key and a projection are spelled
+   * once, here. Every field is a `SpanValue`, which is INV-QD-044 as a type.
+   *
+   * Typed `Span` for the exact per-port fields, intersected with the two
+   * functions typed by *this description's* request and answer: a function
+   * generic in the port (`readPort`) cannot call `Span`'s own `pose`, whose
+   * parameter is `never`, but it can call these, the same correlation `wire`
+   * gets from `PortWire<Args, A>`. Only the two functions are intersected, so
+   * `Span`'s `question` and `answer` structs stay exact for `PortSpanRowOf`.
    */
-  readonly attributes: Span;
+  readonly attributes: Span & {
+    readonly pose: (args: Args) => SpanType<SpanStruct<SpanFields>>;
+    readonly disclose: (answer: A, args: Args) => SpanType<SpanStruct<SpanFields>>;
+  };
   /**
    * What the port's question and answer look like on a wire: the only
    * statement of them off-process (ARCH-31, ADR-QD-NEXT). `answerRemotely`
@@ -93,6 +106,18 @@ export interface PortDescription<
    * subject.
    */
   readonly wire: PortWire<Args, A>;
+  /**
+   * What a host may answer about this port, and which policy leaves ask it
+   * (ADR-QD-114). `answerRemotely` admits a request through it and
+   * `servingFor` collects and declares through it, so "which leaf asks which
+   * port, under what name" is stated here and nowhere else.
+   *
+   * Typed by the description's own name `N`, so generic code reading
+   * `d.serving.admitted(serving)` stays correlated with the port's
+   * `PortServing` slot, the same way {@link wire} stays correlated with
+   * `Args`.
+   */
+  readonly serving: PortServingFacet<N, Args>;
   /** The service key. */
   readonly service: Context.Key<Self, Shape>;
   /**

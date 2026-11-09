@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-107                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — amends ADR-QD-094, ADR-QD-051       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
+> | Change History | 1.2 (2026-11-08): amendment — asked leaves PortWire for the description's serving facet; admission and servingFor derive from it (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.1 (2026-11-08): amendment — the span projections leave PortWire; a served span equals a local one; a throwing store is Unavailable (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
 
 ---
 
@@ -129,3 +129,24 @@ is a `SpanValue`, and an attribute's value is arbitrary data, INV-QD-044).
   Services card does not yet show served counts.
 - Reopening ADR-QD-094's "the description gains no field" (ARCH-42's amendment): that sentence was
   about fixtures, not about wire.
+
+## Amendment (2026-11-08, ADR-QD-109, CCR-QD-386)
+
+The span projections leave `PortWire`. The Decision bullet's "and the span projections" is
+superseded: `PortWire` exposes `encodeQuestion`, `decodeQuestion`, `encodeAnswer`, `decodeAnswer`
+and `asked`, and `PortWireSpan` is removed. What a span says is the description's
+`attributes.pose` and `attributes.disclose`, so a served span equals a local span of the same
+request apart from `qadi.interpreter`. A store that throws is answered `Unavailable`, like one that
+dies: `servePortRead` runs the same body as a local read. This is not the rejected "span structs as
+the wire" (Alternatives considered): the wire still never becomes a span, and a span never becomes
+the wire. See [ADR-QD-109](109-a-ports-span-is-projected-once-and-every-read-is-one-body.md).
+
+## Amendment (2026-11-08, ADR-QD-114, CCR-QD-392)
+
+`asked` leaves `PortWire` for the description's `serving.asked`. The Decision bullet's list of
+`PortWire` operations is superseded: `PortWire` exposes `encodeQuestion`, `decodeQuestion`,
+`encodeAnswer` and `decodeAnswer`, and deals only with JSON. The serving declaration's admission
+(`answerRemotely`) and `servingFor`'s collection derive from each description's `serving` facet, so
+which policy leaf asks which port, under what name, is stated once on the port. `PortServing`'s shape
+is unchanged (it moved to `PortServing.ts`). See
+[ADR-QD-114](114-a-port-states-what-it-serves.md).

@@ -32,7 +32,7 @@ const doc = makeResourceId("doc-1");
 interface Case<K extends PortName> {
   readonly args: ArgsOf<PortTypes[K]>;
   readonly answer: AnswerOf<PortTypes[K]>;
-  /** The span attributes the question must leave, beyond the interpreter. */
+  /** The span attributes the read must leave, beyond the interpreter. */
   readonly question: Readonly<Record<string, string | number | boolean>>;
 }
 
@@ -71,9 +71,16 @@ const CASES: { readonly [K in PortName]: Case<K> } = {
     question: { "qadi.subject_id": "alice", "qadi.custom_predicate": "isOwner" },
   },
   SignatureHistory: {
-    args: [{ subjectId: aliceId, resourceId: doc }],
-    answer: [{ signerId: aliceId, meaning: "approved", signedAt: 0 }],
-    question: { "qadi.subject_id": "alice", "qadi.scope": "Resource", "qadi.resource_id": "doc-1" },
+    args: [{ subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" }],
+    answer: [{ signerId: aliceId, meaning: "approved", signerRole: "manager", signedAt: 0 }],
+    question: {
+      "qadi.subject_id": "alice",
+      "qadi.scope": "Resource",
+      "qadi.resource_id": "doc-1",
+      "qadi.meaning": "approved",
+      "qadi.signer_role": "manager",
+      "qadi.matched": true,
+    },
   },
 };
 
@@ -150,11 +157,23 @@ describe("a served read (ADR-QD-NEXT)", () => {
   for (const run of Record.values(RUN)) run();
 
   it("the attribute span says a value came back, never what it was", () => {
-    assert.deepStrictEqual(PORTS.AttributeResolver.wire.spanAnswer(SECRET), { resolved: true });
-    assert.deepStrictEqual(PORTS.AttributeResolver.wire.spanAnswer(undefined), { resolved: false });
+    const { attributes } = PORTS.AttributeResolver;
+    const args = CASES.AttributeResolver.args;
+    assert.deepStrictEqual(attributes.disclose(SECRET, args), { resolved: true });
+    assert.deepStrictEqual(attributes.disclose(undefined, args), { resolved: false });
   });
 
-  it("the signature span discloses no answer field", () => {
-    assert.deepStrictEqual(PORTS.SignatureHistory.wire.spanAnswer(CASES.SignatureHistory.answer), {});
+  it("the signature span says whether the requirement matched, and nothing without one", () => {
+    const { attributes } = PORTS.SignatureHistory;
+    const { args, answer } = CASES.SignatureHistory;
+    assert.deepStrictEqual(attributes.disclose(answer, args), { matched: true });
+    const [query] = args;
+    assert.deepStrictEqual(attributes.disclose(answer, [{ ...query, signerRole: "director" }]), {
+      matched: false,
+    });
+    assert.deepStrictEqual(
+      attributes.disclose(answer, [{ subjectId: query.subjectId, resourceId: query.resourceId }]),
+      {},
+    );
   });
 });

@@ -259,7 +259,7 @@ const RULES = [
   {
     id: "no-refusal-annotation-outside-core",
     // A refused record's path and annotations are read once, in
-    // `packages/core/src/SinkWire.ts` (`encodeRefusalPath`,
+    // `packages/core/src/JsonRefusal.ts` (`encodeRefusalPath`,
     // `encodeRefusalAnnotations`), and reported once
     // (`reportEncodeRefusal`). Three adapters each rebuilt the same three
     // keys and a `"path" in` check before ARCH-25, and the second copy arrived
@@ -329,7 +329,7 @@ const RULES = [
  */
 const EXEMPTIONS = {
   "packages/core/src/Decision.ts": ["no-decision-constructor-outside-decision"],
-  "packages/core/src/SinkWire.ts": ["no-refusal-annotation-outside-core"],
+  "packages/core/src/JsonRefusal.ts": ["no-refusal-annotation-outside-core"],
   "packages/core/src/EvaluationId.ts": ["no-ambient-uuid"],
   // The one module that writes to the console or reads `process.env`: every
   // developer signal `@qadi/react` raises, including `QadiProvider`'s three,

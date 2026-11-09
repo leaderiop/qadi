@@ -517,11 +517,11 @@ describe("fixturePortsLayer", () => {
     },
   };
 
-  const environment = (data: Parameters<typeof fixturePortsLayer>[0]) =>
+  const environment = (setups: Parameters<typeof fixturePortsLayer>[0]) =>
     Layer.mergeAll(
       currentSubjectLayer(subject),
       evaluationIdSequential("fx"),
-      fixturePortsLayer(data),
+      fixturePortsLayer(setups),
     );
 
   it("has a fixture for every port in the registry, and a sample for each", () => {
@@ -531,59 +531,106 @@ describe("fixturePortsLayer", () => {
 
   it.effect("each port answers from its data: the sampled question allows, a missing one denies", () =>
     Effect.gen(function* () {
-      const run = (port: PortName, data: Parameters<typeof fixturePortsLayer>[0]) =>
+      const run = (port: PortName, setups: Parameters<typeof fixturePortsLayer>[0]) =>
         Effect.gen(function* () {
           const sample = samples[port];
-          return [
+          const verdicts = [
             isAllowed(yield* evaluate(sample.allowed, resource)),
             isAllowed(yield* evaluate(sample.denied, resource)),
           ];
-        }).pipe(Effect.provide(environment(data)));
+          return verdicts.map((allowed) => (allowed ? "allow" : "deny")).join(",");
+        }).pipe(Effect.provide(environment(setups)));
 
       assert.deepStrictEqual(
-        yield* run("AttributeResolver", { AttributeResolver: samples.AttributeResolver.data }),
-        [true, false],
+        yield* run("AttributeResolver", {
+          AttributeResolver: { answers: samples.AttributeResolver.data },
+        }),
+        "allow,deny",
       );
       assert.deepStrictEqual(
         yield* run("RelationshipResolver", {
-          RelationshipResolver: samples.RelationshipResolver.data,
+          RelationshipResolver: { answers: samples.RelationshipResolver.data },
         }),
-        [true, false],
+        "allow,deny",
       );
       assert.deepStrictEqual(
-        yield* run("DecisionHistory", { DecisionHistory: samples.DecisionHistory.data }),
-        [true, false],
+        yield* run("DecisionHistory", {
+          DecisionHistory: { answers: samples.DecisionHistory.data },
+        }),
+        "allow,deny",
       );
       assert.deepStrictEqual(
-        yield* run("SignatureHistory", { SignatureHistory: samples.SignatureHistory.data }),
-        [true, false],
+        yield* run("SignatureHistory", {
+          SignatureHistory: { answers: samples.SignatureHistory.data },
+        }),
+        "allow,deny",
       );
       assert.deepStrictEqual(
-        yield* run("CustomPredicate", { CustomPredicate: samples.CustomPredicate.data }),
-        [true, false],
+        yield* run("CustomPredicate", {
+          CustomPredicate: { answers: samples.CustomPredicate.data },
+        }),
+        "allow,deny",
       );
     }));
 
-  it.effect("a port with no data stays at its fail-closed default", () =>
+  it.effect("a port with no setup stays at its fail-closed default", () =>
     Effect.gen(function* () {
       assert.isFalse(isAllowed(yield* evaluate(samples.AttributeResolver.allowed, resource)));
       assert.isFalse(isAllowed(yield* evaluate(samples.CustomPredicate.allowed, resource)));
     }).pipe(Effect.provide(environment({}))));
 
-  it.effect("an override wins over the same port's data, and leaves the others alone", () =>
+  it.effect("no argument, and a port whose entry names neither answers nor layer, fail closed", () =>
     Effect.gen(function* () {
-      const overridden = Layer.mergeAll(
+      const everyDenied = Effect.gen(function* () {
+        return [
+          isAllowed(yield* evaluate(samples.AttributeResolver.allowed, resource)),
+          isAllowed(yield* evaluate(samples.RelationshipResolver.allowed, resource)),
+          isAllowed(yield* evaluate(samples.DecisionHistory.allowed, resource)),
+          isAllowed(yield* evaluate(samples.SignatureHistory.allowed, resource)),
+          isAllowed(yield* evaluate(samples.CustomPredicate.allowed, resource)),
+        ];
+      });
+      const bare = yield* everyDenied.pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            currentSubjectLayer(subject),
+            evaluationIdSequential("fx"),
+            fixturePortsLayer(),
+          ),
+        ),
+      );
+      const empty = yield* everyDenied.pipe(
+        Effect.provide(
+          environment({
+            AttributeResolver: {},
+            RelationshipResolver: {},
+            DecisionHistory: {},
+            SignatureHistory: {},
+            CustomPredicate: {},
+          }),
+        ),
+      );
+      assert.deepStrictEqual(bare, [false, false, false, false, false]);
+      assert.deepStrictEqual(empty, [false, false, false, false, false]);
+    }));
+
+  it.effect("a layer wins over the same port's answers, and leaves the others alone", () =>
+    Effect.gen(function* () {
+      const scripted = Layer.mergeAll(
         currentSubjectLayer(subject),
         evaluationIdSequential("fx"),
-        fixturePortsLayer(
-          { AttributeResolver: { tier: 5 }, CustomPredicate: { isOwner: true } },
-          { AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.answer(1)).layer },
-        ),
+        fixturePortsLayer({
+          AttributeResolver: {
+            answers: { tier: 5 },
+            layer: scriptedPort(attributeResolverPort, () => PortReply.answer(1)).layer,
+          },
+          CustomPredicate: { answers: { isOwner: true } },
+        }),
       );
       const [tier, custom] = yield* Effect.all([
         evaluate(samples.AttributeResolver.allowed, resource),
         evaluate(samples.CustomPredicate.allowed, resource),
-      ]).pipe(Effect.provide(overridden));
+      ]).pipe(Effect.provide(scripted));
       assert.isFalse(isAllowed(tier));
       assert.isTrue(isAllowed(custom));
     }));

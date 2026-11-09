@@ -441,8 +441,22 @@ describe("the signatures option", () => {
       );
 
       assert.deepStrictEqual(history.calls, [
-        [{ subjectId: makeSubjectId("subjectA"), resourceId: undefined }],
-        [{ subjectId: makeSubjectId("subjectB"), resourceId: makeResourceId("resourceX") }],
+        [
+          {
+            subjectId: makeSubjectId("subjectA"),
+            resourceId: undefined,
+            meaning: "approved",
+            signerRole: undefined,
+          },
+        ],
+        [
+          {
+            subjectId: makeSubjectId("subjectB"),
+            resourceId: makeResourceId("resourceX"),
+            meaning: "approved",
+            signerRole: undefined,
+          },
+        ],
       ]);
     }));
 });

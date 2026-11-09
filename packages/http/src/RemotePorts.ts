@@ -1,14 +1,16 @@
 /**
  * The client half of a remote port: the ports a host answers over HTTP, as one
- * layer (ARCH-31, ADR-QD-NEXT).
+ * layer (ARCH-31, ADR-QD-107).
  *
  * Only an adapter. `remotePorts` (`@qadi/core`) builds each port's Shape from a
  * `send` and turns every non-answer into the port's own typed error; this
  * module supplies a `send` over `HttpClient`. The question is a JSON `POST` to
  * `<baseUrl><prefix>/<PortName>`, and the reply body is decoded **whatever the
- * status**, because the body is the reply (`PortRoutes.ts`): a 503 with an
- * `Unavailable` reply is an outage, a 502 from a proxy with an HTML page is a
- * transport failure, and neither is ever read as an answer.
+ * status**, because the body is the reply (the contract in `PortRouteAddress.ts`):
+ * a 503 with an `Unavailable` reply is an outage, a 502 from a proxy with an HTML
+ * page is a transport failure, and neither is ever read as an answer. The status
+ * `PORT_REPLY_STATUS` (`PortRoutes.ts`) chooses is the one thing this client
+ * deliberately does not read.
  *
  * The host provides the client: `FetchHttpClient.layer` in a browser, and for
  * cookies `Layer.succeed(FetchHttpClient.RequestInit, { credentials: "same-origin" })`.
@@ -19,6 +21,7 @@ import * as HttpClient from "effect/http/HttpClient";
 import * as HttpClientRequest from "effect/http/HttpClientRequest";
 import type { PortName, PortServices } from "@qadi/core";
 import { RemotePortFailure, remotePorts } from "@qadi/core";
+import { portPath } from "./PortRouteAddress.ts";
 
 /** Where the answering side's port routes are, and which ports to ask them. */
 export interface RemotePortsOptions {
@@ -26,11 +29,12 @@ export interface RemotePortsOptions {
   readonly baseUrl: string;
   /** The ports to ask remotely. Every other port keeps its fail-closed default. */
   readonly ports: ReadonlyArray<PortName>;
-  /** Where the answering side mounts its routes (`PortRoutesOptions.prefix`). Defaults to `"/__ports"`. */
+  /**
+   * Where the answering side mounts its routes (`PortRoutesOptions.prefix`). Defaults to `"/__ports"`,
+   * the `PORT_ROUTE_PREFIX` of `PortRouteAddress.ts`.
+   */
   readonly prefix?: `/${string}` | undefined;
 }
-
-const DEFAULT_PREFIX = "/__ports";
 
 const transport = (error: unknown): RemotePortFailure =>
   RemotePortFailure.Transport({ message: error instanceof Error ? error.message : String(error) });
@@ -49,9 +53,10 @@ export const remotePortsLayer = (
       const client = yield* HttpClient.HttpClient;
       return remotePorts(
         (port, question) =>
-          HttpClientRequest.post(`${options.baseUrl}${options.prefix ?? DEFAULT_PREFIX}/${port}`).pipe(
+          HttpClientRequest.post(`${options.baseUrl}${portPath(options.prefix, port)}`).pipe(
             HttpClientRequest.bodyJson(question),
             Effect.flatMap((request) => client.execute(request)),
+            // The status is not checked here, on purpose: the body is the reply (PortRouteAddress.ts).
             Effect.flatMap((response) => response.json),
             Effect.mapError(transport),
           ),

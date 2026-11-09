@@ -8,9 +8,10 @@
  * handler (ARCH-45 I3, BEH-QD-321).
  *
  * A denial is logged exactly once, by the step that turned it into a response:
- * `authorizeRequest` for the edge check (`"edge"`), the surface for a handler's
- * own `guard` (`"handler"`). The surface taps the handler's effect only, never
- * the whole request, so an edge denial is never logged twice.
+ * `authorizeRequest` for the edge check (`"edge"`), and the request-enforcement
+ * module's handler step (`AuthorizeRequest.ts`) for a handler's own `guard`
+ * (`"handler"`), the same for every surface. The handler step taps the handler's
+ * effect only, never the whole request, so an edge denial is never logged twice.
  */
 import * as Effect from "effect/Effect";
 import type { EnforcementDenial } from "@qadi/core";

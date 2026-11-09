@@ -6,6 +6,11 @@
  * `ledger` option and `signatureHistoryFromLedger` in their own tests without
  * writing a store. Entries are grouped by `signatureHistoryPort.key`, the very
  * key `hasSignature` reads with, so the write and the read cannot disagree.
+ *
+ * The key a read is grouped by leaves out the asker's requirement (`meaning`,
+ * `signerRole`): the request key is injective over it, but a store answers every
+ * signature on file for the subject and resource, and the asker matches the
+ * requirement against that answer (`SignatureQuery`).
  */
 import * as Effect from "effect/Effect";
 import * as MutableRef from "effect/MutableRef";
@@ -38,7 +43,9 @@ export const SignatureLedgerTest = (): SignatureLedgerTestHandle => {
       // a caller mutating the answer must not change the next one.
       signaturesFor: (query) =>
         Effect.sync((): ReadonlyArray<Signature> => {
-          const key = signatureHistoryPort.key([query]);
+          const key = signatureHistoryPort.key([
+            { subjectId: query.subjectId, resourceId: query.resourceId },
+          ]);
           return MutableRef.get(store)
             .filter(
               (entry) =>

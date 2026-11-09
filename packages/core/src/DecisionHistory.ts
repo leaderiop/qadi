@@ -29,7 +29,9 @@ import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
+import type { SpanType } from "./PortSpan.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, sameAnswer } from "./PortWireEncode.ts";
 
 /**
@@ -90,22 +92,30 @@ export class DecisionHistory extends Context.Service<
  * What the history span says (BEH-QD-227). The answer is a closed three-valued
  * enum, so it discloses nothing a policy tag does not.
  */
+const actedQuestion = spanStruct(
+  {
+    event: Schema.optionalKey(Schema.String),
+    scope: Schema.optionalKey(Schema.Literals(["Any", "Resource"])),
+    resourceId: Schema.optionalKey(Schema.String),
+    ...sharedQuestionFields,
+  },
+  {
+    event: "qadi.event",
+    scope: "qadi.scope",
+    resourceId: "qadi.resource_id",
+    ...sharedQuestionKeys,
+  },
+);
+
 const actedSpan = {
-  question: spanStruct(
-    {
-      event: Schema.optionalKey(Schema.String),
-      scope: Schema.optionalKey(Schema.Literals(["Any", "Resource"])),
-      resourceId: Schema.optionalKey(Schema.String),
-      ...sharedQuestionFields,
-    },
-    {
-      event: "qadi.event",
-      scope: "qadi.scope",
-      resourceId: "qadi.resource_id",
-      ...sharedQuestionKeys,
-    },
-  ),
+  question: actedQuestion,
   answer: spanStruct({ answer: Schema.optionalKey(ActedResult) }, { answer: "qadi.answer" }),
+  pose: ([query]: [query: ActedQuery]): SpanType<typeof actedQuestion> => ({
+    subjectId: query.subjectId,
+    event: query.event,
+    scope: query.resourceId === undefined ? "Any" : "Resource",
+    resourceId: query.resourceId,
+  }),
   disclose: (answer: ActedResult) => ({ answer }),
 };
 
@@ -132,15 +142,22 @@ const actedWire = portWire({
     { subjectId: subject.id, event: question.event, resourceId: question.resourceId },
   ],
   ...sameAnswer<ActedResult>(),
-  asked: ([query]) => query.event,
-  spanQuestion: ([query]) => ({
-    subjectId: query.subjectId,
-    event: query.event,
-    scope: query.resourceId === undefined ? "Any" : "Resource",
-    resourceId: query.resourceId,
-  }),
-  spanAnswer: (answer) => actedSpan.disclose(answer),
 });
+
+/**
+ * A host may serve events from an allowlist or leave the port open.
+ *
+ * The answer is a closed three-valued word, so an event name discloses no more
+ * than a policy tag does (INV-QD-044). `HasActed` and `HasNotActed` both ask
+ * the same event of this one port.
+ */
+const actedServing: PortServingFacet<"DecisionHistory", [query: ActedQuery]> = {
+  allowlist: "open",
+  leaves: { HasActed: (leaf) => leaf.event, HasNotActed: (leaf) => leaf.event },
+  asked: ([query]) => query.event,
+  admitted: (declaration) => declaration.events,
+  declare: (names) => ({ DecisionHistory: { events: names } }),
+};
 
 /**
  * The decision-history port, described once (`PortDescription.ts`).
@@ -163,6 +180,7 @@ export const decisionHistoryPort: PortDescription<
   span: "qadi.acted",
   attributes: actedSpan,
   wire: actedWire,
+  serving: actedServing,
   service: DecisionHistory,
   invoke: (shape) => (query) => shape.hasActed(query),
   make: (name, call) => ({ name, hasActed: call }),

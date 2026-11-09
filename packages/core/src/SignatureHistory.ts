@@ -37,14 +37,27 @@ import { makeSubjectId, ResourceIdSchema, SubjectIdSchema } from "./Identity.ts"
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
+import type { SpanType } from "./PortSpan.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, sameAnswer } from "./PortWireEncode.ts";
 import { Signature } from "./Signature.ts";
+import { signatureMatches } from "./SignatureMatch.ts";
 
 export interface SignatureQuery {
   readonly subjectId: SubjectId;
   /** The resource the question is scoped to. Absent for a subject-global question. */
   readonly resourceId: ResourceId | undefined;
+  /**
+   * The meaning the asker will match the answer against (`"approved"`).
+   *
+   * Context, not a filter: a store answers with **every** signature on file for
+   * `subjectId`/`resourceId`, whatever this says. It is carried so that the
+   * port's span, local or served, says what was asked (BEH-QD-227, ADR-QD-109).
+   */
+  readonly meaning?: string | undefined;
+  /** The signer role the asker will match the answer against. Context, like `meaning`. */
+  readonly signerRole?: string | undefined;
 }
 
 export interface SignatureHistoryShape {
@@ -84,9 +97,12 @@ const NO_SIGNATURES: ReadonlyArray<Signature> = Object.freeze([]);
  * and whether there were any at all (the deny reason distinguishes "nothing on
  * file" from "none match").
  *
- * What the signature span's `disclose` reads. `onFile` is deliberately not on
- * the span (ARCH-21's non-goals): a count of signatures is a disclosure
- * decision of its own.
+ * What `askSignature` hands the walk. The span's `disclose` does not read it: it
+ * reads the signatures themselves and the request's requirement
+ * (`signatureMatches`), so a served read, which makes no `SignatureAnswer`,
+ * leaves the same `qadi.matched`. `onFile` stays off the span (ARCH-21's
+ * non-goals, and BEH-QD-227 does not list it): a count of signatures is a
+ * disclosure decision of its own, recorded as ADR-QD-109's choice.
  */
 export interface SignatureAnswer {
   readonly matched: boolean;
@@ -96,26 +112,46 @@ export interface SignatureAnswer {
 /**
  * What the signature span says (BEH-QD-227). `qadi.matched` rather than a
  * three-valued answer: a signature either matches or it does not.
+ *
+ * `pose` projects the request, requirement included, so a served read says the
+ * `meaning` and `signerRole` it was asked about as a local one does. `disclose`
+ * says nothing when the request carries no `meaning`: with no requirement there
+ * is nothing to have matched.
  */
+const signatureQuestion = spanStruct(
+  {
+    meaning: Schema.optionalKey(Schema.String),
+    scope: Schema.optionalKey(Schema.Literals(["Any", "Resource"])),
+    signerRole: Schema.optionalKey(Schema.String),
+    resourceId: Schema.optionalKey(Schema.String),
+    ...sharedQuestionFields,
+  },
+  {
+    meaning: "qadi.meaning",
+    scope: "qadi.scope",
+    signerRole: "qadi.signer_role",
+    resourceId: "qadi.resource_id",
+    ...sharedQuestionKeys,
+  },
+);
+
 const signatureSpan = {
-  question: spanStruct(
-    {
-      meaning: Schema.optionalKey(Schema.String),
-      scope: Schema.optionalKey(Schema.Literals(["Any", "Resource"])),
-      signerRole: Schema.optionalKey(Schema.String),
-      resourceId: Schema.optionalKey(Schema.String),
-      ...sharedQuestionFields,
-    },
-    {
-      meaning: "qadi.meaning",
-      scope: "qadi.scope",
-      signerRole: "qadi.signer_role",
-      resourceId: "qadi.resource_id",
-      ...sharedQuestionKeys,
-    },
-  ),
+  question: signatureQuestion,
   answer: spanStruct({ matched: Schema.optionalKey(Schema.Boolean) }, { matched: "qadi.matched" }),
-  disclose: (outcome: SignatureAnswer) => ({ matched: outcome.matched }),
+  pose: ([query]: [query: SignatureQuery]): SpanType<typeof signatureQuestion> => ({
+    subjectId: query.subjectId,
+    scope: query.resourceId === undefined ? "Any" : "Resource",
+    resourceId: query.resourceId,
+    meaning: query.meaning,
+    signerRole: query.signerRole,
+  }),
+  disclose: (
+    signatures: ReadonlyArray<Signature>,
+    [query]: [query: SignatureQuery],
+  ): { readonly matched?: boolean } =>
+    query.meaning === undefined
+      ? {}
+      : { matched: signatureMatches(signatures, query.meaning, query.signerRole) },
 };
 
 /**
@@ -125,39 +161,72 @@ const signatureSpan = {
  * reads (`meaning`, `signerRole`) — because redacting them would fabricate a
  * `signerId` and `signedAt` the client would then read as real (D-31-e). The
  * query is scoped to the asking subject, so these are the subject's own
- * records; a host opts in to serving them (`PortServing`). The span discloses
- * no answer field: `qadi.matched` is made in `PortAccess.ts`, where the
- * requirement is known, and `onFile` stays unrecorded (ARCH-21).
+ * records; a host opts in to serving them (`signatureServing`, below).
+ *
+ * The question carries the asker's requirement, `meaning` and `signerRole`, as
+ * optional keys, so the served span can say what was asked and whether the
+ * records matched it, as the local span does (ADR-QD-109). They are strings the
+ * span records and no store filters by, and a question without them still
+ * decodes, so an older client's question is read as before. The decode stays
+ * strict: any other key is refused.
  */
 const signatureWire = portWire({
   question: Schema.Struct({
     subjectId: SubjectIdSchema,
     resourceId: Schema.optionalKey(ResourceIdSchema),
+    meaning: Schema.optionalKey(Schema.String),
+    signerRole: Schema.optionalKey(Schema.String),
   }),
   answer: Schema.Array(Signature),
   toQuestion: ([query]: [query: SignatureQuery]) =>
     Result.succeed({
       subjectId: query.subjectId,
       ...(query.resourceId === undefined ? {} : { resourceId: query.resourceId }),
+      ...(query.meaning === undefined ? {} : { meaning: query.meaning }),
+      ...(query.signerRole === undefined ? {} : { signerRole: query.signerRole }),
     }),
   fromQuestion: (question, subject): [query: SignatureQuery] => [
-    { subjectId: subject.id, resourceId: question.resourceId },
+    {
+      subjectId: subject.id,
+      resourceId: question.resourceId,
+      ...(question.meaning === undefined ? {} : { meaning: question.meaning }),
+      ...(question.signerRole === undefined ? {} : { signerRole: question.signerRole }),
+    },
   ],
   ...sameAnswer<ReadonlyArray<Signature>>(),
-  asked: () => undefined,
-  spanQuestion: ([query]) => ({
-    subjectId: query.subjectId,
-    scope: query.resourceId === undefined ? "Any" : "Resource",
-    resourceId: query.resourceId,
-  }),
-  spanAnswer: () => ({}),
 });
+
+/**
+ * A host serves signature records only when it opts in.
+ *
+ * The port answers full `Signature` records, more than evaluation reads, so
+ * serving it is an explicit one-member declaration with no names to list: a
+ * request asks none, and once the port is declared every request is admitted.
+ * `HasSignature` reads this port, and `servingFor` declares it for a policy set
+ * that has one.
+ */
+const signatureServing: PortServingFacet<"SignatureHistory", [query: SignatureQuery]> = {
+  allowlist: "opt-in",
+  leaves: { HasSignature: () => "own-records" },
+  asked: () => undefined,
+  admitted: () => undefined,
+  declare: (names) =>
+    names.length > 0 ? { SignatureHistory: { signatures: "own-records" } } : {},
+};
 
 /**
  * The signature-history port, described once (`PortDescription.ts`).
  *
- * A request is keyed by `(subjectId, resourceId)`, with an absent resource as
- * `null` — the same pair `signatureHistoryFromSignatures` groups by.
+ * A request is keyed by `(subjectId, resourceId, meaning, signerRole)`, with
+ * each absent member as `null`. The key is injective over every argument the
+ * port receives (ADR-QD-094, INV-QD-043), and the requirement is one. Over-keying
+ * does not replay a stale answer, but it is not "only deny" either: a capture
+ * keyed per requirement answers a requirement it never saw with the port's
+ * `none` value, an empty list, which `hasSignature` denies and `not(hasSignature)`
+ * grants, so a what-if that edits a policy's `meaning` or `signerRole` can read a
+ * miss as an allow the real store would not give (devtools' replay only).
+ * `signatureHistoryFromSignatures` still groups by the first two, because the
+ * store answers every signature on file whatever the requirement says.
  */
 export const signatureHistoryPort: PortDescription<
   "SignatureHistory",
@@ -173,6 +242,7 @@ export const signatureHistoryPort: PortDescription<
   span: "qadi.hasSignature",
   attributes: signatureSpan,
   wire: signatureWire,
+  serving: signatureServing,
   service: SignatureHistory,
   invoke: (shape) => (query) => shape.signaturesFor(query),
   make: (name, call) => ({ name, signaturesFor: call }),
@@ -188,17 +258,26 @@ export const signatureHistoryPort: PortDescription<
       resourceId: query.resourceId,
       cause: Cause.squash(cause),
     }),
-  key: ([query]) => JSON.stringify([query.subjectId, query.resourceId ?? null]),
+  key: ([query]) =>
+    JSON.stringify([
+      query.subjectId,
+      query.resourceId ?? null,
+      query.meaning ?? null,
+      query.signerRole ?? null,
+    ]),
   none: { name: "SignatureHistoryNone", answer: NO_SIGNATURES },
 };
 
 /**
  * Knows of no signatures, so every `hasSignature` policy denies.
  *
- * The default. Unlike `DecisionHistoryUnknown`, no polarity argument applies
- * here — `hasSignature` has no `hasNotSigned` counterpart the way
- * `HasActed`/`HasNotActed` do, so an empty list denying is unambiguous
- * (INV-QD-007: defaults fail closed). Derived from
+ * The default. `hasSignature` has no `hasNotSigned` counterpart the way
+ * `HasActed`/`HasNotActed` do, so the un-negated leaf denies on an empty list
+ * (INV-QD-007: defaults fail closed). `not(hasSignature(...))` grants on it, as
+ * `not` of any denying leaf does, so a deployment that negates a signature
+ * requirement must wire the port. `@qadi/devtools`' replay does not use this
+ * answer for a request it never captured: that fails with
+ * `SignatureHistoryUnavailable` (INV-QD-043). Derived from
  * {@link signatureHistoryPort}'s `none` (ADR-QD-040).
  */
 export const SignatureHistoryNone: Layer.Layer<SignatureHistory> = nonePort(signatureHistoryPort);

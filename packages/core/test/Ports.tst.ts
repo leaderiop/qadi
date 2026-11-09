@@ -16,8 +16,17 @@ import type { CustomPredicateError, EnforcementErrorTagOf } from "../src/Errors.
 import type { EvaluationServices, StandingEvaluationServices } from "../src/Evaluate.ts";
 import type { EvaluationId } from "../src/EvaluationId.ts";
 import type { PortName } from "../src/PortMetrics.ts";
-import { portsLayer } from "../src/Ports.ts";
-import type { AnswerOf, ArgsOf, ErrorOf, PortServices, PortTypes, ShapeOf } from "../src/Ports.ts";
+import { forEveryPort, portsLayer, tabulatePorts } from "../src/Ports.ts";
+import { nonePort } from "../src/PortDerivation.ts";
+import type {
+  AnswerOf,
+  ArgsOf,
+  ErrorOf,
+  PortLayers,
+  PortServices,
+  PortTypes,
+  ShapeOf,
+} from "../src/Ports.ts";
 import type { RelatedResult, RelationshipResolver } from "../src/RelationshipResolver.ts";
 import { RelationshipResolverNever } from "../src/RelationshipResolver.ts";
 import type { SignatureHistory } from "../src/SignatureHistory.ts";
@@ -58,4 +67,18 @@ test("an override must provide the service of the slot it names", () => {
   expect(portsLayer).type.toBeCallableWith({ AttributeResolver: attributeResolverFromRecord({}) });
   expect(portsLayer).type.toBeCallableWith({ AttributeResolver: undefined });
   expect(portsLayer).type.not.toBeCallableWith({ AttributeResolver: RelationshipResolverNever });
+});
+
+test("the layer form of tabulatePorts returns one layer per port, each of its own service", () => {
+  expect(tabulatePorts(nonePort)).type.toBe<PortLayers>();
+});
+
+test("the uniform form of tabulatePorts returns the record it is given", () => {
+  expect(tabulatePorts<{ readonly [K in PortName]: string }>((d) => d.method)).type.toBe<{
+    readonly [K in PortName]: string;
+  }>();
+});
+
+test("forEveryPort returns the results as an array", () => {
+  expect(forEveryPort((d): number => d.method.length)).type.toBe<ReadonlyArray<number>>();
 });

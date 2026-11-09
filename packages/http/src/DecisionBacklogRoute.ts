@@ -21,28 +21,12 @@
  * `addGuardedRoute`, so `/__permissions` lists it.
  */
 import * as Effect from "effect/Effect";
-import * as Result from "effect/Result";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
-import type { DecisionLog, Permission, Policy, SinkRecordNotEncodable, StoredRecordJson } from "@qadi/core";
-import { encodeStoredRecord, reportEncodeRefusal } from "@qadi/core";
+import type { DecisionLog, Permission, Policy } from "@qadi/core";
+import { jsonElements } from "./DecisionLogHttp.ts";
+import type { DecisionLogServeOptions } from "./DecisionLogHttp.ts";
 import { loadNoResource } from "./NoResource.ts";
-import type { DecisionStreamOptions } from "./DecisionStreamRoute.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
-
-/**
- * Reports one record the codec refused to serve: `onRefused` when given,
- * otherwise a warning naming the refusal, where in the record it was found,
- * and the evaluation. The record is left out of the body either way.
- */
-const reportRefused = Effect.fn("qadi.http.decisionBacklog.refused")(function* (
-  refusal: SinkRecordNotEncodable,
-  onRefused: ((refusal: SinkRecordNotEncodable) => void) | undefined,
-) {
-  yield* reportEncodeRefusal(refusal, {
-    message: "qadi/http: a decision record could not be served in the backlog",
-    onRefused,
-  });
-});
 
 /**
  * Mounts `/__decisions/backlog`, serving `log`'s retained records to callers
@@ -51,7 +35,8 @@ const reportRefused = Effect.fn("qadi.http.decisionBacklog.refused")(function* (
  * The body is a JSON array of stored-record envelopes in `storedRecordOrder`,
  * `content-type: application/json` and `cache-control: no-store` — a snapshot
  * of authorization data a shared cache must not keep. A record the codec
- * refuses is left out and reported, so one record never empties the response.
+ * refuses is left out and reported by the decision-log module, in this route's
+ * own words, so one record never empties the response.
  *
  * `log` is anything with a `snapshot` — a `DecisionLog`, or a fake — so this
  * route cannot write to the log it serves.
@@ -60,7 +45,7 @@ export const decisionBacklogRoute = <P extends Permission>(
   permission: P,
   policy: Policy,
   log: Pick<DecisionLog, "snapshot">,
-  options?: Pick<DecisionStreamOptions, "onRefused">,
+  options?: DecisionLogServeOptions,
 ) =>
   addGuardedRoute(
     "GET",
@@ -70,13 +55,7 @@ export const decisionBacklogRoute = <P extends Permission>(
     loadNoResource,
   )(() =>
     Effect.gen(function* () {
-      const records = yield* log.snapshot;
-      const body: Array<StoredRecordJson> = [];
-      for (const stored of records) {
-        const encoded = encodeStoredRecord(stored);
-        if (Result.isSuccess(encoded)) body.push(encoded.success);
-        else yield* reportRefused(encoded.failure, options?.onRefused);
-      }
+      const body = yield* jsonElements(yield* log.snapshot, options);
       // `JSON.stringify` cannot throw here: every element passed the codec's
       // walk, which refuses cycles, `bigint`, depth past the decode bound and
       // any `toJSON` but `Date`'s.
