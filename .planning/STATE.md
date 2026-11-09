@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 09
 current_phase_name: Sink record projection
 status: executing
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-11-09T18:21:22.206Z"
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-11-09T18:24:13.287Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 09 execution started
-state_head: e71f756896e6f521fb461d7441c94c70be050ea5
+state_head: 43bc14d206fbb10393cafccc5e7821142df6a65f
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 33
-  completed_plans: 30
+  completed_plans: 31
   percent: 89
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 09 (Sink record projection) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-11-09 — Phase 09 execution started
 
@@ -82,6 +82,7 @@ Progress: [██████████████████░░] 29/33 p
 | Phase 08 P04 | 15min | 2 tasks | 7 files |
 | Phase 08 P06 | 35min | 3 tasks | 5 files |
 | Phase 09 P01 | 5 min | 2 tasks | 3 files |
+| Phase 09 P02 | 12 min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,7 @@ Progress: [██████████████████░░] 29/33 p
 - [Phase 08]: UAT: XC-01 verified by the agent: CI run 42662291585 (workflow_dispatch, full `pnpm check`) passed steps 1-13 on Node 22.12.0 and 26, including `playwright install --with-deps` (e2e 30/30), then hit the 60-min job timeout in mutation; steps 15-17 run locally on c807b64, exit 0. A manual dispatch runs mutation and does not fit in 60 min; use a PR (`check:pr`) or the podman route for future XC-01 checks
 - [Phase 08]: 08-06: mapPorts removal recorded as Breaking (0.10.0); fixture/serving changes unreleased; port-fixture-table changeset and overview left untouched
 - [Phase 09]: obligationRecord keeps conditional spreads so absent action/resourceId are absent keys; caller reads the clock and passes at (09-01)
+- [Phase 09]: JsonRefusal.ts is a separate leaf, not folded into JsonHazard.ts: the moved names are public, JsonHazard.ts is package-private (ADR-QD-116)
 
 ### Pending Todos
 
@@ -159,6 +161,6 @@ Progress: [██████████████████░░] 29/33 p
 
 ## Session Continuity
 
-Last session: 2026-11-09T18:21:22.089Z
-Stopped at: Completed 09-01-PLAN.md
+Last session: 2026-11-09T18:24:13.159Z
+Stopped at: Completed 09-02-PLAN.md
 Resume file: None

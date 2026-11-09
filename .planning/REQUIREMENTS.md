@@ -117,10 +117,10 @@
 
 - [x] **SINK-01**: SinkEmit owns all three record projections: failed, decided and obligation.
   `Qadi.ts`'s `discharge` no longer builds an `ObligationRecord` inline.
-- [ ] **SINK-02**: `EncodeRefusal`, `OpaqueKind`, `WirePath` and `describeEncodeRefusal` move
+- [x] **SINK-02**: `EncodeRefusal`, `OpaqueKind`, `WirePath` and `describeEncodeRefusal` move
   to a leaf module next to `JsonHazard.ts`. `SinkWire.ts` keeps `WireVersion`, `DecodeRefusal`
   and `SinkRecordTag`.
-- [ ] **SINK-03**: PortWireEncode, AttributeResolver and CustomPredicate no longer import from
+- [x] **SINK-03**: PortWireEncode, AttributeResolver and CustomPredicate no longer import from
   `SinkWire.ts`, and `pnpm circular` stays green.
 
 ### XC — Cross-cutting (every phase)

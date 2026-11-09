@@ -171,11 +171,11 @@ Plans:
   2. No module under `packages/core/src/Port*` or any port module imports `./SinkWire.ts`.
   3. `pnpm circular` is green.
   4. `pnpm check:pr` is green, and ADR-QD-115/116 (or a CCR-only justification), CCR-QD-393 and a changeset are recorded.
-**Plans**: 1/4 plans executed
+**Plans**: 2/4 plans executed
 
 Plans:
 - [x] 09-01 (W1): `obligationRecord` in SinkEmit; `discharge` calls it (whole-record pin first)
-- [ ] 09-02 (W1): `JsonRefusal.ts` leaf holds the encode-refusal vocabulary; importers retargeted; house-style exemption re-keyed
+- [x] 09-02 (W1): `JsonRefusal.ts` leaf holds the encode-refusal vocabulary; importers retargeted; house-style exemption re-keyed
 - [ ] 09-03 (W2): CCR-QD-393 row first, then ADR-QD-116 (ADR-QD-115 unused), ADR-095/102/100 amendments, traceability
 - [ ] 09-04 (W3): Overview prose, README revision, changeset, `pnpm check:pr`
 
@@ -194,4 +194,4 @@ Plans:
 | 6. Dehydration in the engine | 2/2 | Complete    | 2026-11-08 |
 | 7. One port route address | 3/3 | Complete    | 2026-11-08 |
 | 8. Port serving from the registry | 6/6 | Complete    | 2026-11-09 |
-| 9. Sink record projection | 1/4 | In Progress | - |
+| 9. Sink record projection | 2/4 | In Progress | - |
