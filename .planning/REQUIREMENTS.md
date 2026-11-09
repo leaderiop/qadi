@@ -115,7 +115,7 @@
 
 ### SINK — Sink record projection and JSON refusal vocabulary (Phase 9, ARCH-54)
 
-- [ ] **SINK-01**: SinkEmit owns all three record projections: failed, decided and obligation.
+- [x] **SINK-01**: SinkEmit owns all three record projections: failed, decided and obligation.
   `Qadi.ts`'s `discharge` no longer builds an `ObligationRecord` inline.
 - [ ] **SINK-02**: `EncodeRefusal`, `OpaqueKind`, `WirePath` and `describeEncodeRefusal` move
   to a leaf module next to `JsonHazard.ts`. `SinkWire.ts` keeps `WireVersion`, `DecodeRefusal`

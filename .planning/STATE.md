@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 09
 current_phase_name: Sink record projection
 status: executing
-stopped_at: Phase 08 complete, ready to execute Phase 09
-last_updated: "2026-11-09T18:15:47.178Z"
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-11-09T18:21:22.206Z"
 last_activity: 2026-11-09
-last_activity_desc: Phase 08 complete, transitioned to Phase 09
-state_head: 9e20e75e96098a72731bc0fdefac54f60e951833
+last_activity_desc: Phase 09 execution started
+state_head: e71f756896e6f521fb461d7441c94c70be050ea5
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 33
-  completed_plans: 29
-  percent: 88
+  completed_plans: 30
+  percent: 89
 ---
 
 # Project State
@@ -27,12 +27,12 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 ## Current Position
 
-Phase: 09 — Sink record projection
-Plan: Not started
+Phase: 09 (Sink record projection) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-11-09 — Phase 08 complete, transitioned to Phase 09
+Last activity: 2026-11-09 — Phase 09 execution started
 
-Progress: [██████████████████░░] 29/33 plans (88%); 8/9 phases
+Progress: [██████████████████░░] 29/33 plans ([█████████░] 89%); 8/9 phases
 
 ## Performance Metrics
 
@@ -81,6 +81,7 @@ Progress: [██████████████████░░] 29/33 p
 | Phase 08 P03 | 35min | 3 tasks | 15 files |
 | Phase 08 P04 | 15min | 2 tasks | 7 files |
 | Phase 08 P06 | 35min | 3 tasks | 5 files |
+| Phase 09 P01 | 5 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -134,6 +135,7 @@ Progress: [██████████████████░░] 29/33 p
 - [Phase 08]: 08-04: INV-QD-095 amended in place for the serving facet; ADR-QD-114 recorded (amends ADR-QD-094, ADR-QD-107)
 - [Phase 08]: UAT: XC-01 verified by the agent: CI run 42662291585 (workflow_dispatch, full `pnpm check`) passed steps 1-13 on Node 22.12.0 and 26, including `playwright install --with-deps` (e2e 30/30), then hit the 60-min job timeout in mutation; steps 15-17 run locally on c807b64, exit 0. A manual dispatch runs mutation and does not fit in 60 min; use a PR (`check:pr`) or the podman route for future XC-01 checks
 - [Phase 08]: 08-06: mapPorts removal recorded as Breaking (0.10.0); fixture/serving changes unreleased; port-fixture-table changeset and overview left untouched
+- [Phase 09]: obligationRecord keeps conditional spreads so absent action/resourceId are absent keys; caller reads the clock and passes at (09-01)
 
 ### Pending Todos
 
@@ -157,6 +159,6 @@ Progress: [██████████████████░░] 29/33 p
 
 ## Session Continuity
 
-Last session: 2026-11-09T18:20:00Z
-Stopped at: Phase 08 complete, ready to plan/execute Phase 09
+Last session: 2026-11-09T18:21:22.089Z
+Stopped at: Completed 09-01-PLAN.md
 Resume file: None
