@@ -34,6 +34,8 @@ logged, counted or spanned.
 
 - ✓ ARCH-53 Port serving from the registry (SERV-01..05): D-01 approved, so ADR-QD-094 is amended and every port description carries a serving facet (`PortServingFacet`, `PortServing.ts`); `servingFor` and `answerRemotely` derive admission from it, and a required port with a missing allowlist is refused (WR-01); `tabulatePorts` is two overloads over one body; `fixturePortsLayer` is derived from the registry; `mapPorts` removed (**Breaking**, shipped in 0.10.0) — Phase 8 (ADR-QD-114, CCR-QD-392, INV-QD-095 amended; 08-SECURITY.md 17/17 closed)
 
+- ✓ ARCH-54 Sink record projection (SINK-01..03): `SinkEmit.ts` owns all three record projections (failed, decided, obligation), and `new ObligationRecord` is built only there and in the codec's decoder; the obligation record is projected once, before the handler runs (WR-01); the refusal vocabulary moved to the public leaf `JsonRefusal.ts`, and `SinkWire.ts` keeps only record-side words, so no port module imports the sink wire — Phase 9 (ADR-QD-116, ADR-QD-115 unused, CCR-QD-393)
+
 ### Active
 
 See `.planning/REQUIREMENTS.md`. There is one requirement group per phase (ENF, PORT, ARC, GATE,
@@ -104,6 +106,8 @@ LOGH, HYD, ADDR, SERV, SINK), plus the cross-cutting group XC.
 | No ADR for ARCH-50; reserved ADR-QD-112 left unused | The refusal policy's documented owner is still core's `reportEncodeRefusal` (ADR-QD-095 D-09-e); the http module only frames and applies it per route | Accepted (Phase 5, CCR-QD-389) |
 | `tabulatePorts` is two overloads over one body; the separate layer builder and `mapPorts` are removed | One enumeration of the five ports instead of pass-through copies; overload 1 is checked at every call site | Accepted (Phase 8, D-07); `mapPorts` removal is Breaking |
 | `PortRouteAddress.ts` is a leaf module, not part of `PortRoutes.ts`; no ADR for ARCH-52 (ADR-QD-114 stays reserved for ARCH-53) | The browser-bundled client must not import server route code; no export changes and ADR-QD-107's route design is unchanged | Accepted (Phase 7, CCR-QD-391) |
+| The refusal vocabulary lives in a new public leaf `JsonRefusal.ts`, not in `JsonHazard.ts` | The moved names are public and `JsonHazard.ts` is package-private (ADR-QD-099); a leaf keeps the port wire off the sink wire | Accepted (Phase 9, ADR-QD-116) |
+| The obligation record is projected before the handler runs | A handler reassigning `resource.id` must not change the record it is logged under (WR-01) | Accepted (Phase 9, dafe9e1) |
 
 ---
-*Last updated: 2026-11-09 after Phase 8*
+*Last updated: 2026-11-09 after Phase 9*

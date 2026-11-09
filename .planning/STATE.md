@@ -1,19 +1,18 @@
 ---
 gsd_state_version: "1.0"
 current_phase: 09
-current_phase_name: Sink record projection
-status: verifying
-stopped_at: Completed 09-04-PLAN.md
-last_updated: "2026-11-09T18:31:49.521Z"
+status: completed
+stopped_at: Phase 09 complete — all phases complete
+last_updated: "2026-11-09T20:39:32.843Z"
 last_activity: 2026-11-09
-last_activity_desc: Phase 09 execution started
-state_head: ca3a15c18fbcad20ffb71b501e4de185bc8d0687
+last_activity_desc: Phase 09 complete
+state_head: 173377411c2db96c16c8bb1b90362d85c9fcb201
 progress:
   total_phases: 9
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 33
   completed_plans: 33
-  percent: 89
+  percent: 100
 ---
 
 # Project State
@@ -23,21 +22,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 09 — Sink record projection
+**Current focus:** Milestone complete (all 9 phases), ready for /gsd-complete-milestone
 
 ## Current Position
 
-Phase: 09 (Sink record projection) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-11-09 — Phase 09 execution started
+Phase: 09
+Plan: Not started
+Status: All phases complete
+Last activity: 2026-11-09 — Phase 09 complete
 
-Progress: [██████████████████░░] 29/33 plans ([█████████░] 89%); 8/9 phases
+Progress: [████████████████████] 33/33 plans ([██████████] 100%); 9/9 phases
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 31
+- Total plans completed: 35
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -54,6 +53,7 @@ Progress: [██████████████████░░] 29/33 p
 | 06 | 2 | - | - |
 | 07 | 3 | - | - |
 | 08 | 6 | - | - |
+| 09 | 4 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -142,6 +142,8 @@ Progress: [██████████████████░░] 29/33 p
 - [Phase 09]: JsonRefusal.ts is a separate leaf, not folded into JsonHazard.ts: the moved names are public, JsonHazard.ts is package-private (ADR-QD-116)
 - [Phase 09]: ADR-QD-116 records the JsonRefusal.ts leaf; ADR-QD-115 left unused because the record projection changes no documented contract (CCR-QD-393)
 - [Phase 09]: 09-04: pnpm check:pr passes every gate except the example's sudo-only 'playwright install --with-deps'; remaining steps and e2e verified directly
+- [Phase 09]: WR-01 fixed (dafe9e1): obligationRecordFor projects resourceId and obligation ids before the handler runs
+- [Phase 09]: UAT 2/2: CI run 42676403473 @ 127d6fa green on Node 22.12.0 (full pnpm check incl. mutation + Playwright); Node 26 leg hit the pre-existing 60-min job timeout in mutation; re-verified passed 7/7
 
 ### Pending Todos
 
@@ -158,6 +160,8 @@ Progress: [██████████████████░░] 29/33 p
 - [Phase 02] Pre-existing, out of scope: in devtools replay the other four ports' `none` answers (attribute `undefined`, relationship/history `Unknown`, custom `false`) still grant under `not(...)` on a capture miss — the INV-QD-007 fail-open an unwired deployment also has. Flipping them is one word each in Capture.ts's `UNSEEN_REQUEST_IS_AN_OUTAGE`; needs a decision.
 - Seven info-level review findings for Phase 02 remain open (02-REVIEW-DISPOSITION.md: IN-01..07).
 - [Phase 08] 08-VALIDATION.md is still `draft` (nyquist audit not completed); review disposition in 08-REVIEW-DISPOSITION.md.
+- [Phase 09] IN-01 open (09-REVIEW-DISPOSITION.md): `JsonRefusal.ts` docs speak only of "records" (cosmetic).
+- [CI] The Node 26 matrix leg exceeds the 60-min `timeout-minutes` during mutation on a full `pnpm check` (seen at c807b64 and 127d6fa); release PRs will hit it.
 - Three info-level review findings for Phase 07 remain open (07-REVIEW-DISPOSITION.md: IN-01..03).
 - [Phase 05] Three review findings open (05-REVIEW-DISPOSITION.md): WR-01, no route-level test that `decisionStreamRoute` threads `onRefused` to `decisionFrames`; IN-01 (`DecisionLogServeOptions` package-private yet shapes public options); IN-02 (refusal table's SSE cells don't assert `event:`/`id:`).
 - Every other ROADMAP phase still lists `XC-01..05` as a range, which `phase.complete` cannot parse (Phase 05's line was expanded); `XC-01..05` traceability row stays Pending as cross-cutting.
@@ -165,6 +169,6 @@ Progress: [██████████████████░░] 29/33 p
 
 ## Session Continuity
 
-Last session: 2026-11-09T18:31:49.403Z
-Stopped at: Completed 09-04-PLAN.md
+Last session: 2026-11-09T20:40:00Z
+Stopped at: Phase 09 complete, milestone ready to complete
 Resume file: None

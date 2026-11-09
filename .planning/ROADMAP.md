@@ -22,7 +22,7 @@ ARCH ticket with its own ADR, CCR and changeset, and each ends with `pnpm check:
 - [x] **Phase 6: Dehydration in the engine** - Add `dehydrateWith` beside `hydrateWith`; both directions get one owner (ARCH-51) (completed 2026-11-08)
 - [x] **Phase 7: One port route address** - Server and client share one address and one status contract (ARCH-52) (completed 2026-11-08)
 - [x] **Phase 8: Port serving from the registry** - Derive the serving tables from descriptions behind an ADR-094 checkpoint, and remove pass-through enumerations (ARCH-53) (completed 2026-11-09)
-- [ ] **Phase 9: Sink record projection** - SinkEmit owns every record projection, and JSON refusal words leave the sink wire (ARCH-54)
+- [x] **Phase 9: Sink record projection** - SinkEmit owns every record projection, and JSON refusal words leave the sink wire (ARCH-54) (completed 2026-11-09)
 
 ## Phase Details
 
@@ -171,7 +171,7 @@ Plans:
   2. No module under `packages/core/src/Port*` or any port module imports `./SinkWire.ts`.
   3. `pnpm circular` is green.
   4. `pnpm check:pr` is green, and ADR-QD-115/116 (or a CCR-only justification), CCR-QD-393 and a changeset are recorded.
-**Plans**: 4/4 plans executed
+**Plans**: 4/4 plans complete
 
 Plans:
 - [x] 09-01 (W1): `obligationRecord` in SinkEmit; `discharge` calls it (whole-record pin first)
@@ -194,4 +194,4 @@ Plans:
 | 6. Dehydration in the engine | 2/2 | Complete    | 2026-11-08 |
 | 7. One port route address | 3/3 | Complete    | 2026-11-08 |
 | 8. Port serving from the registry | 6/6 | Complete    | 2026-11-09 |
-| 9. Sink record projection | 4/4 | In Progress | - |
+| 9. Sink record projection | 4/4 | Complete    | 2026-11-09 |
