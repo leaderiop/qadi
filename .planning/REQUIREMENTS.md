@@ -13,7 +13,7 @@
   DecisionStreamRoute's recheck and the port routes all go through it.
 - [x] **ENF-02**: The chain has a subject-only mode (extract, log, provide; no policy) that
   `portRoutesUnguarded` uses.
-- [ ] **ENF-03 (bug)**: A `SubjectExtractionFailed` on an unguarded port route is logged
+- [x] **ENF-03 (bug)**: A `SubjectExtractionFailed` on an unguarded port route is logged
   through `logSubjectExtractionFailed`, exactly as it is on every guarded path. A regression
   test proves it.
 - [x] **ENF-04**: Callers supply only the failure projection (an HTTP response, or an
@@ -150,16 +150,16 @@ None. Every finding in the review is in scope.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ENF-01..06 | Phase 1 | Pending |
+| ENF-01..06 | Phase 1 | Complete |
 | PORT-01..06 | Phase 2 | Complete |
 | ARC-01..04 | Phase 3 | Complete |
-| GATE-01..05 | Phase 4 | Pending |
+| GATE-01..05 | Phase 4 | Complete |
 | LOGH-01..04 | Phase 5 | Complete |
 | HYD-01..04 | Phase 6 | Complete |
 | ADDR-01..03 | Phase 7 | Complete |
 | SERV-01..05 | Phase 8 | Complete |
 | SINK-01..03 | Phase 9 | Complete |
-| XC-01..05 | All phases | Pending |
+| XC-01..05 | All phases | Complete |
 
 **Coverage:** 45 requirements in v1, all mapped, none unmapped.
 

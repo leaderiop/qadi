@@ -1,6 +1,6 @@
 ---
 phase: 01-http-request-enforcement
-verified: 2026-11-08T04:10:00Z
+verified: 2026-11-09T22:35:00Z
 status: passed
 score: 5/5 must-haves verified
 covered_files:
@@ -27,94 +27,83 @@ covered_files:
   - packages/http/test/RequestEnforcement.tst.ts
   - packages/http/test/endpointAccess.test.ts
   - packages/http/test/http.test.ts
-covered_digest: "v4:sha256:7f5a34ef82c371958c2db960de073907b6cca29230bb74ab55184601bf987e98"
+covered_digest: "v4:sha256:855f761b409f9bfc6eb9f826f03fa97052e299d327022a82815431e5936de3a9"
 behavior_unverified: 0
 overrides_applied: 0
-human_verification:
-  - test: "Run `pnpm check:pr` to completion on a host where `playwright install --with-deps chromium` can run (CI, or a machine with sudo), or confirm the `check` workflow is green on the phase PR."
-    expected: "All 16 steps exit 0 in one run, including step 13 `pnpm example`."
-    why_human: "On this host `pnpm check:pr` stops at step 13 because `playwright install --with-deps` needs sudo. Steps 1-12 and the steps after 13 were run by hand, and the verifier re-ran the example's e2e suite (30 passed). The literal single-command green that XC-01 and ROADMAP criterion 5 name has not been observed."
+re_verification:
+  previous_status: human_needed
+  previous_score: 5/5
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 1: HTTP request enforcement Verification Report
 
 **Phase Goal:** Every `@qadi/http` request path enforces and logs through one internal module, and an unguarded port route logs a subject-extraction failure.
-**Verified:** 2026-11-08
-**Status:** human_needed
-**Re-verification:** No, initial verification
+**Verified:** 2026-11-09
+**Status:** passed
+**Re-verification:** Yes, milestone-close re-run against today's code. Phases 5, 7 and later edited `DecisionStreamRoute.ts`, `PortRoutes.ts` and `PortRoutes.test.ts` after the first report; every truth was re-checked against the current files.
 
 ## Goal Achievement
 
-The code goal is achieved. The one open item is the literal `pnpm check:pr` exit code (XC-01), which this host cannot produce.
+The goal still holds on today's code. Later phases reshaped the three files (the stream framing moved to `DecisionLogHttp.ts`, the port address to `PortRouteAddress.ts`), but the enforcement chain still lives in one module and the ENF-03 regression test still exists, passes, and goes red when the extraction log is removed.
 
 ### Observable Truths (ROADMAP Success Criteria)
 
 | # | Truth | Status | Evidence |
 | --- | --- | --- | --- |
-| 1 | An unguarded port route whose extractor fails emits the same `SubjectExtractionFailed` log line as a guarded route, and the regression test fails on today's `main`. | VERIFIED | `portRoutesUnguarded` now routes through `enforceSubject(answerWithResponse, ...)` (PortRoutes.ts:184), whose `extractSubject` applies `tapErrorTag("SubjectExtractionFailed", logSubjectExtractionFailed)`. I restored the pre-phase `PortRoutes.ts` (from `8960dae`) temporarily and ran "logs a subject extraction failure once": it FAILED with the Error-line deepStrictEqual. With the current file it passes. The working tree was restored (`git status` clean apart from `.planning/state.json`). The red test commit `3748e0b` precedes the fix `99ec0f5`. |
-| 2 | GuardRoute, RequirePermissionMiddleware, DecisionStreamRoute's recheck and both port-route variants contain no `tapErrorTag(ENFORCEMENT_DENIAL_TAGS` or `catchTag(HTTP_ENFORCEMENT_TAGS` calls of their own. | VERIFIED | `grep` over `packages/http/src` finds these only in `AuthorizeRequest.ts` (lines 170, 209, 212). `GuardRoute.ts:79`, `RequirePermissionMiddleware.ts:70` and `DecisionStreamRoute.ts:257` each call `enforceRequest(...)`. `PortRoutes.ts:184` calls `enforceSubject(...)`. The guarded `portRoutes` goes through `addGuardedRoute`, which uses `guardRoute`. |
-| 3 | One table-driven test asserts the log line per failure tag for every caller. | VERIFIED (with caveat, see WR below) | `RequestEnforcement.test.ts` has a `TABLE` mapped type over 5 callers x 6 columns (extractionFailure, edgeDenial, edgeObligation, edgeOutage, handlerDenial, success). Cells that cannot occur are explicit `notApplicable(reason)`. It passes (124 tests across the four http test files). The columns cover one representative of each log class, not each of the 12 tags (one outage tag, `AttributeResolveError`, stands for the silent class). |
-| 4 | The endpoint member key is built in exactly one function. | VERIFIED | `grep 'identifier}/'` over `packages/http/src` returns a single hit, `AuthorizeRequest.ts:56` (`endpointMemberKey`). `GuardApi.ts:150` and `RequirePermissionMiddleware.ts:90` both call it. The home in `AuthorizeRequest.ts` is justified in its doc: `GuardApi.ts` importing it back would be a madge cycle. `pnpm circular` is clean. |
-| 5 | `pnpm check:pr` is green, and ADR-QD-108, CCR-QD-385 and a changeset are recorded. | PRESENT, literal run not observed | The records exist: ADR file `spec/decisions/108-a-request-is-enforced-once-through-one-module.md`, `CCR-QD-385` in `spec/README.md`, and `.changeset/request-enforced-once.md` (`"@qadi/http": patch`). Gate evidence is in the table below. The single-command exit is the human item. |
+| 1 | An unguarded port route whose extractor fails emits the same `SubjectExtractionFailed` log line as a guarded route; the regression test fails without the fix. | VERIFIED | `PortRoutes.ts:183` routes `portRoutesUnguarded` through `enforceSubject(answerWithResponse, ...)`. `enforceSubject` calls `extractSubject` (`AuthorizeRequest.ts:100-103`), which applies `tapErrorTag("SubjectExtractionFailed", logSubjectExtractionFailed)`. The test "logs a subject extraction failure once, as a guarded route does (ENF-03)" is at `PortRoutes.test.ts:633`. It passes on today's tree. Mutation check: I temporarily removed that `tapErrorTag` from `extractSubject`, and the test failed with `expected [] to deeply equal [ Array(1) ]`. The file was restored (`git status` shows only the pre-existing `.planning` changes). The pre-phase code (`8960dae`) answered 502 with no log line (hand-rolled `Effect.result(SubjectExtractor.extract(...))`), and the earlier verifier already showed the red run there. |
+| 2 | GuardRoute, RequirePermissionMiddleware, DecisionStreamRoute's recheck and both port-route variants contain no `tapErrorTag(ENFORCEMENT_DENIAL_TAGS` or `catchTag(HTTP_ENFORCEMENT_TAGS` calls of their own. | VERIFIED | `grep` over `packages/http/src` finds these calls only in `AuthorizeRequest.ts` (lines 170, 209, 212). `QadiHttpError.ts` only defines `HTTP_ENFORCEMENT_TAGS`. Callers: `GuardRoute.ts:79` `enforceRequest`, `RequirePermissionMiddleware.ts:70` `enforceRequest`, `DecisionStreamRoute.ts:181` `enforceRequest(..., endStream, ...)` (the recheck, with its own projection), `PortRoutes.ts:183` `enforceSubject`. The guarded `portRoutes` goes through `addGuardedRoute`, which uses `guardRoute`. Phase 5's reshaping of `DecisionStreamRoute.ts` did not reintroduce a per-caller tap or catch. |
+| 3 | One table-driven test asserts the log line per failure tag for every caller. | VERIFIED (class-level) | `RequestEnforcement.test.ts` is a `TABLE` of 5 callers x 6 columns. It passes in the run below. The columns cover one representative of each log class, not each of the 12 tags (carried-forward warning, unchanged from the first report). |
+| 4 | The endpoint member key is built in exactly one function. | VERIFIED | `grep 'identifier}/' packages/http/src` returns one hit, `AuthorizeRequest.ts:56` (`endpointMemberKey`). `GuardApi.ts:150` and `RequirePermissionMiddleware.ts:90` call it. |
+| 5 | `pnpm check:pr` is green, and ADR-QD-108, CCR-QD-385 and a changeset are recorded. | VERIFIED | Records present: `spec/decisions/108-a-request-is-enforced-once-through-one-module.md`; `CCR-QD-385` in `spec/README.md` (change-history row 1.118); `.changeset/request-enforced-once.md` (`"@qadi/http": patch`); BEH-QD-335/336 in `spec/behaviors/23-http.md`; INV-QD-243 in `spec/invariants.md`. Gate: GitHub Actions run 42676403473 at `127d6fa`, job `check (22.12.0)`, concluded `success` with no non-success step (confirmed with `gh run view`). The `check (26)` job was cancelled at the "Merge gate" step by the workflow's 60-minute timeout during mutation; Phase 9's records document that this timeout predates this work (baseline run 42662291585 timed out on both legs). `git diff 127d6fa HEAD` outside `.planning` is empty, so that run covers today's code. This also closes the earlier report's only human item (the literal `check:pr` run), which the earlier UAT had closed by hand-run steps. |
 
-**Score:** 5/5 truths verified (criterion 5's record half verified; its single-command half routed to human).
+**Score:** 5/5 truths verified.
 
-### Plan-level must-haves (merged, no scope reduction)
+### Plan-level must-haves (re-checked)
 
 | Truth | Status | Evidence |
 | --- | --- | --- |
-| Handler step taps a handler-raised denial once (`"handler"`) and projects every `HTTP_ENFORCEMENT_TAGS` failure via the caller's projection | VERIFIED | `enforced` (AuthorizeRequest.ts:200-213): the tap is on the handler effect only; the catch uses the array form. |
-| Subject-only mode applies no policy and never runs the handler on extraction failure (fails closed) | VERIFIED | `enforceSubject` builds `enforced(extractSubject(...).pipe(map), ...)`. The handler runs inside `flatMap` after the edge succeeds. |
-| Public export set unchanged; module is package-private apart from `authorizeRequest`/`AuthorizedRequest` | VERIFIED | `index.ts` drops only `export * from "./AuthorizeRequest.ts"`. `GuardApi.ts` keeps the named re-export. `pnpm spec:api` reports 862 exports documented, and `pnpm spec:package` passes. |
-| Recheck keeps its own projection, with byte-identical lines | VERIFIED | `endStream` (DecisionStreamRoute.ts) is passed as the projection. The table's `streamRecheck` column asserts the closure line per cell. |
-| ADR-QD-108, BEH-QD-335/336, INV-QD-243, traceability and spec/README records | VERIFIED | `pnpm spec:verify:strict` reports 21 pass and 0 fail. BEH-QD-335, BEH-QD-336 and INV-QD-243 are present in `23-http.md` and `invariants.md`. |
+| Handler step taps a handler-raised denial once (`"handler"`) and projects every `HTTP_ENFORCEMENT_TAGS` failure via the caller's projection | VERIFIED | `enforced` (`AuthorizeRequest.ts:200-213`): tap on the handler effect only, array-form catch. |
+| Subject-only mode applies no policy and never runs the handler on extraction failure | VERIFIED | `enforceSubject` (`:231-237`) runs the handler inside `enforced`'s `flatMap`, after the edge succeeds. The ENF-03 test asserts `double.calls.length === 0`. |
+| Public export set unchanged; module package-private apart from `authorizeRequest`/`AuthorizedRequest` | VERIFIED | `index.ts` no longer re-exports `AuthorizeRequest.ts` (the diff vs `8960dae` shows its one removed line). CI ran `spec:api` and `spec:package` green. |
+| Recheck keeps its own projection | VERIFIED | `endStream` (`DecisionStreamRoute.ts:157-161`) is the recheck's projection; it logs a closure line and fails with the classified class. |
+| ADR/BEH/INV/traceability/CCR records | VERIFIED | Files and rows present (see criterion 5); `spec:verify:strict` ran green inside the CI `pnpm check`. |
 
 ### Required Artifacts
 
-| Artifact | Expected | Status | Details |
-| --- | --- | --- | --- |
-| `packages/http/src/AuthorizeRequest.ts` | The request-enforcement module (`extractSubject`, `enforced`, `enforceSubject`, `enforceRequest`, `endpointMemberKey`, `answerWithResponse`, `answerInChannel`) | VERIFIED | Substantive and wired into all five callers. |
-| `packages/http/test/RequestEnforcement.test.ts` | Caller x failure table | VERIFIED | 512 lines, passes. |
-| `packages/http/test/RequestEnforcement.tst.ts` | tstyche pins for both overloads | VERIFIED | `pnpm test:tstyche` passes (34 files, 148 tests). |
-| `packages/http/test/PortRoutes.test.ts` | ENF-03 regression test | VERIFIED | Red on the old tree, green on the new. |
-| `.changeset/request-enforced-once.md` | `@qadi/http` patch | VERIFIED | Present, with the correct package and bump. |
+| Artifact | Status | Details |
+| --- | --- | --- |
+| `packages/http/src/AuthorizeRequest.ts` | VERIFIED | Substantive (`extractSubject`, `enforced`, `enforceSubject`, `enforceRequest`, `endpointMemberKey`), wired into all five callers. |
+| `packages/http/test/RequestEnforcement.test.ts` | VERIFIED | Present, passes. |
+| `packages/http/test/RequestEnforcement.tst.ts` | VERIFIED | Present; `pnpm test:tstyche` is part of the green CI `check`. |
+| `packages/http/test/PortRoutes.test.ts` | VERIFIED | ENF-03 test present at line 633, passes, fails under mutation. |
+| `.changeset/request-enforced-once.md` | VERIFIED | `@qadi/http` patch. |
 
 ### Key Link Verification
 
 | From | To | Via | Status |
 | --- | --- | --- | --- |
-| `PortRoutes.ts` | `AuthorizeRequest.ts` | `enforceSubject(answerWithResponse, ...)` | WIRED |
-| `GuardRoute.ts` | `AuthorizeRequest.ts` | `enforceRequest(...)` | WIRED |
-| `GuardApi.ts` / `RequirePermissionMiddleware.ts` | `AuthorizeRequest.ts` | `endpointMemberKey` | WIRED |
-| `RequirePermissionMiddleware.ts` | `AuthorizeRequest.ts` | `enforceRequest(..., answerInChannel, ...)` | WIRED |
-| `DecisionStreamRoute.ts` | `AuthorizeRequest.ts` | `enforceRequest(..., endStream, ...)` | WIRED |
-| `GuardApi.ts` | `AuthorizeRequest.ts` | `export { authorizeRequest }` keeps the public name | WIRED |
+| `PortRoutes.ts` | `AuthorizeRequest.ts` | `enforceSubject(answerWithResponse, ...)` (:183) | WIRED |
+| `GuardRoute.ts` | `AuthorizeRequest.ts` | `enforceRequest(...)` (:79) | WIRED |
+| `GuardApi.ts` / `RequirePermissionMiddleware.ts` | `AuthorizeRequest.ts` | `endpointMemberKey` (:150 / :90) | WIRED |
+| `RequirePermissionMiddleware.ts` | `AuthorizeRequest.ts` | `enforceRequest(..., answerInChannel, ...)` (:70) | WIRED |
+| `DecisionStreamRoute.ts` | `AuthorizeRequest.ts` | `enforceRequest(..., endStream, ...)` (:181) | WIRED |
+| `GuardApi.ts` | `AuthorizeRequest.ts` | named `authorizeRequest` re-export keeps the public name | WIRED |
 
 ### Data-Flow Trace (Level 4)
 
-Not applicable. This phase has no rendered dynamic data. The log lines are asserted end to end by the table (real routes over `HttpRouter.toWebHandler`, captured with `collectingLogger`).
+Not applicable: no rendered dynamic data. Log lines are asserted end to end by the table and the ENF-03 test through a real `HttpRouter.toWebHandler` and a collecting logger.
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 | --- | --- | --- | --- |
-| http test files | `pnpm vitest run --project http` on `RequestEnforcement`, `PortRoutes`, `http` and `endpointAccess` | 4 files, 124 tests passed | PASS |
-| ENF-03 regression is red on the pre-phase `PortRoutes.ts` | Old file swapped in, `-t "logs a subject extraction failure once"` | 1 failed | PASS (the failure is the expected evidence) |
-| Typecheck | `pnpm typecheck` | exit 0 | PASS |
-| Type tests | `pnpm test:tstyche` | 148 passed | PASS |
-| House style and budgets (`switch`, `as`, `any`, `fnUntraced`) | `node scripts/check-house-style.mjs` | 396 files clean, 3 declared switches (unchanged) | PASS |
-| Cycles | `pnpm circular` | no circular dependency | PASS |
-| Example e2e | `pnpm test:e2e` in `examples/nextjs-newsroom` | 30 passed | PASS |
-
-### Gate Evidence (steps of `pnpm check:pr`)
-
-| Step | Result | How observed |
-| --- | --- | --- |
-| typecheck, lint, circular, tstyche | pass | Re-run by the verifier |
-| spec:verify:strict, spec:gates, spec:claims, spec:api, spec:package | pass | Re-run by the verifier |
-| coverage (http/src 99.65% lines), bdd, spec:examples | pass | Reported in 01-05-SUMMARY (not re-run in full by the verifier) |
-| `pnpm example` | fails at `playwright install --with-deps` (needs sudo) | Reported in 01-05-SUMMARY. The substantive part, the e2e suite, was re-run by the verifier and passed (30). |
-| spec:website-examples, website, spec:publish | pass | Run by hand per 01-05-SUMMARY |
+| http enforcement tests | `pnpm vitest run --project http` on `PortRoutes`, `RequestEnforcement`, `http`, `endpointAccess` | 4 files, 136 tests passed | PASS |
+| ENF-03 regression depends on the module's extraction log | Removed `tapErrorTag("SubjectExtractionFailed", ...)` from `extractSubject`, ran `-t "logs a subject extraction failure once"` | 1 failed (`expected [] to deeply equal [ Array(1) ]`); file restored | PASS (expected failure) |
+| House style and budgets | `node scripts/check-house-style.mjs` | 408 files clean, 3 declared switches | PASS |
+| Whole-suite gate | GitHub Actions run 42676403473 at `127d6fa`, job `check (22.12.0)` | success, every step; no non-`.planning` change since | PASS |
 
 ### Probe Execution
 
@@ -124,59 +113,41 @@ Step 7c: SKIPPED. The plans declare no probe scripts.
 
 | Requirement | Source Plan | Status | Evidence |
 | --- | --- | --- | --- |
-| ENF-01 | 01, 02, 03 | SATISFIED | All five callers go through `enforceRequest` or `enforceSubject`. |
-| ENF-02 | 01 | SATISFIED | `enforceSubject` is used by `portRoutesUnguarded`. |
-| ENF-03 | 01, 03 | SATISFIED | Regression test is red on `8960dae` and green now. |
-| ENF-04 | 01, 02 | SATISFIED | The handler tap and the catch live only in `enforced`. |
+| ENF-01 | 01, 02, 03 | SATISFIED | All five callers use `enforceRequest` or `enforceSubject`; no per-caller tap or catch remains. |
+| ENF-02 | 01 | SATISFIED | `enforceSubject` is the subject-only mode, used by `portRoutesUnguarded`. |
+| ENF-03 | 01, 03 | SATISFIED | Regression test present, green, and red under mutation. |
+| ENF-04 | 01, 02 | SATISFIED | The handler tap and the catch exist only in `enforced`; callers supply only projections (`answerWithResponse`, `answerInChannel`, `endStream`). |
 | ENF-05 | 02 | SATISFIED | `endpointMemberKey` is the single construction site. |
-| ENF-06 | 03 | SATISFIED (see WR-02, WR-03) | The table covers 5 callers x 6 columns. |
-| XC-01 | 05 | NEEDS HUMAN | Literal `check:pr` exit not observed here (sudo). Every step's substance passed. |
-| XC-02 | 04, 05 | SATISFIED | ADR-108, CCR-QD-385, README history line, traceability rows and the changeset all exist, and the strict spec gate passes. |
-| XC-03 | 05 | SATISFIED | `pnpm spec:api` passes and no export was added or removed. |
-| XC-04 | 01, 02, 05 | SATISFIED | The house-style gate is clean and the budgets are unchanged. |
-| XC-05 | 03, 05 | SATISFIED (reported) | Coverage passed per 01-05-SUMMARY (http/src 99.65% lines, 96.07% branches). Not re-run in full by the verifier. |
+| ENF-06 | 03 | SATISFIED | 5 x 6 table passes. |
+| XC-01 | 05 | SATISFIED | CI `check (22.12.0)` green at `127d6fa`, full `pnpm check` with the example step. |
+| XC-02 | 04, 05 | SATISFIED | ADR-QD-108, CCR-QD-385, BEH-QD-335/336, INV-QD-243, changeset all present. |
+| XC-03 | 05 | SATISFIED | No export added or removed; `spec:api` green in CI. |
+| XC-04 | 01, 02, 05 | SATISFIED | House-style gate clean (408 files, switch budget unchanged). |
+| XC-05 | 03, 05 | SATISFIED | Coverage runs inside the green CI `pnpm check`. |
 
-All 11 IDs are accounted for in the PLAN frontmatter (ENF-01..06 across plans 01-03, XC-01..05 across plans 04-05). REQUIREMENTS.md maps no other ID to Phase 1, so there are no orphans. The REQUIREMENTS.md checkboxes and Traceability table still read "Pending". The orchestrator should flip them at phase close.
+All 11 IDs are claimed by the PLAN frontmatter; REQUIREMENTS.md maps no other ID to Phase 1, so there are no orphans.
+
+Bookkeeping note for the orchestrator: `.planning/REQUIREMENTS.md` still shows `ENF-03` as `[ ]` (line 16) and the Traceability rows for `ENF-01..06` and `XC-01..05` as "Pending" (lines 153, 162). The requirement is satisfied; the checkbox and table are stale and should be flipped at milestone close.
 
 ### Anti-Patterns Found
 
-| File | Line | Pattern | Severity | Impact |
-| --- | --- | --- | --- | --- |
-| AuthorizeRequest.ts, GuardRoute.ts, NoResource.ts | 126-128, 45-47, 40/51-53 | Stale doc comments naming the pre-ARCH-46 split (REVIEW IN-01) | Warning | AGENTS.md §15 treats drift as a defect, but it does not affect behavior. |
-| RequestEnforcement.test.ts | 276-288 | Prefix allow-list filter weakens "exactly one line" (REVIEW WR-02) | Warning | A reworded duplicate line would pass. |
-| RequestEnforcement.test.ts | 439-443 | `streamRecheck x success` asserts absence after 20 `yieldNow` turns (REVIEW WR-03) | Warning | The cell can pass vacuously. |
-| AuthorizeRequest.ts | 53-56 | `endpointMemberKey` is not injective (REVIEW IN-03) | Info | Practically unreachable. |
+| File | Pattern | Severity | Impact |
+| --- | --- | --- | --- |
+| RequestEnforcement.test.ts | Prefix allow-list filter weakens "exactly one line" (REVIEW WR-02) | Warning | A reworded duplicate line could pass. Carried forward, does not defeat the goal. |
+| RequestEnforcement.test.ts | `streamRecheck x success` asserts absence after yields (REVIEW WR-03) | Warning | The cell can pass vacuously. Carried forward. |
+| AuthorizeRequest.ts | `endpointMemberKey` not injective (REVIEW IN-03) | Info | Practically unreachable. |
 
-No `TBD`, `FIXME` or `XXX` markers in the files this phase changed. No blocker anti-patterns.
-
-### WR-01 assessment (resolver outage at the edge returns 5xx with no module log line)
-
-This is outside the phase goal and does not contradict it. Evidence:
-
-- The silence is the pre-existing, normative contract. `spec/behaviors/23-http.md` BEH-QD-321 line 555 states "A resolver outage MUST NOT be logged by the edge." The pre-phase `AuthorizeRequest.ts` doc said the same (line 54 at `8960dae`).
-- The phase goal is a structural claim: every request path enforces and logs through one module, and the unguarded route's extraction log is restored. Both hold. The module logs what the spec says it logs, once, for every caller.
-- The stream recheck's outage line comes from `endStream`, the caller's projection. That is a different, intentional log (closure of an open stream), documented in its doc comment. It is not an inconsistency the module introduced.
-- Making outages loggable would change normative behavior (BEH-QD-321 and the table's `edgeOutage` expectation). That belongs in a separate ticket with its own spec edit, not in a refactor whose ADR, BEH and tests pin the current behavior.
-
-Recommendation: do not block. Optionally record the outage-observability question as a follow-up. ADR-QD-108 does not currently mention it.
-
-### XC-01 assessment (`pnpm check:pr` failed at step 13)
-
-The failure is environmental. `playwright install --with-deps chromium` needs sudo, and Chromium is already cached. Nothing in this phase touches that command. The verifier re-ran the example's e2e suite, which exercises `@qadi/http`, and it passed (30), so the substance of step 13 holds. I classify XC-01 as satisfied in substance but not observed as a literal single-command exit 0, so I do not call it a gap. I also do not count it as VERIFIED, because the criterion says "`pnpm check:pr` is green". CI (`check.yml`) is the real merge gate and runs `check:pr` on a runner where the install works. A human should confirm that run, and that is the one human-verification item.
+No `TBD`, `FIXME` or `XXX` markers in the covered source files.
 
 ### Human Verification Required
 
-#### 1. `pnpm check:pr` end to end
-
-**Test:** Run `pnpm check:pr` on a sudo-capable host, or read the `check` workflow result for the phase PR.
-**Expected:** Every step exits 0, including `pnpm example`.
-**Why human:** This host cannot run `playwright install --with-deps`. The remaining steps were run individually and passed, but the single-command result is unobserved.
+None. The first report's only item (a literal green `pnpm check:pr`) is closed by CI run 42676403473's Node 22.12.0 leg at `127d6fa`, which ran the full `pnpm check` green on the current code.
 
 ### Gaps Summary
 
-No gaps. The module owns the whole chain, the live defect is fixed with a regression test that is red on the old tree, the single member-key site and the absence of per-caller taps are grep-verified, and the spec records exist and pass the strict gates. The status is `human_needed` solely for the literal `check:pr` run. The three warnings (WR-02, WR-03, IN-01) are test-strength and doc-drift items worth a follow-up but they do not defeat the goal.
+No gaps. One internal module still owns the enforcement chain for all five request paths, the unguarded port route logs a subject-extraction failure and the regression test proves it, the member key has one construction site, and the spec records exist. Later phases' edits to `DecisionStreamRoute.ts`, `PortRoutes.ts` and `PortRoutes.test.ts` were intentional reshapes that preserved every Phase 1 truth.
 
 ---
 
-_Verified: 2026-11-08_
+_Verified: 2026-11-09_
 _Verifier: Claude (gsd-verifier)_
