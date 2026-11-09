@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 09
 current_phase_name: Sink record projection
 status: executing
-stopped_at: Completed 09-02-PLAN.md
-last_updated: "2026-11-09T18:24:13.287Z"
+stopped_at: Completed 09-03-PLAN.md
+last_updated: "2026-11-09T18:27:43.115Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 09 execution started
-state_head: 43bc14d206fbb10393cafccc5e7821142df6a65f
+state_head: cb23c3b7a978a3ec43305f701110d3b999e70f70
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 33
-  completed_plans: 31
+  completed_plans: 32
   percent: 89
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 09 (Sink record projection) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-11-09 — Phase 09 execution started
 
@@ -83,6 +83,7 @@ Progress: [██████████████████░░] 29/33 p
 | Phase 08 P06 | 35min | 3 tasks | 5 files |
 | Phase 09 P01 | 5 min | 2 tasks | 3 files |
 | Phase 09 P02 | 12 min | 3 tasks | 14 files |
+| Phase 09 P03 | 10 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -138,6 +139,7 @@ Progress: [██████████████████░░] 29/33 p
 - [Phase 08]: 08-06: mapPorts removal recorded as Breaking (0.10.0); fixture/serving changes unreleased; port-fixture-table changeset and overview left untouched
 - [Phase 09]: obligationRecord keeps conditional spreads so absent action/resourceId are absent keys; caller reads the clock and passes at (09-01)
 - [Phase 09]: JsonRefusal.ts is a separate leaf, not folded into JsonHazard.ts: the moved names are public, JsonHazard.ts is package-private (ADR-QD-116)
+- [Phase 09]: ADR-QD-116 records the JsonRefusal.ts leaf; ADR-QD-115 left unused because the record projection changes no documented contract (CCR-QD-393)
 
 ### Pending Todos
 
@@ -161,6 +163,6 @@ Progress: [██████████████████░░] 29/33 p
 
 ## Session Continuity
 
-Last session: 2026-11-09T18:24:13.159Z
-Stopped at: Completed 09-02-PLAN.md
+Last session: 2026-11-09T18:27:42.980Z
+Stopped at: Completed 09-03-PLAN.md
 Resume file: None
