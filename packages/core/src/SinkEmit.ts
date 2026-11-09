@@ -1,19 +1,26 @@
 /**
- * The one place that hands a record to the optional `DecisionSink`.
+ * The one place that hands a record to the optional `DecisionSink`, and the
+ * one place a record is projected from its question.
  *
  * Internal (not in the barrel). `evaluate` and `discharge` each used to read
  * the sink, wrap the call and stamp the record by hand, so "an observer can
  * never deny" (INV-QD-035) was enforced twice; it is now enforced here, and
  * `scripts/check-house-style.mjs`'s `sink-read-once` rule refuses a second
  * read of the service (ADR-QD-044, ADR-QD-100).
+ *
+ * `failedRecord`, `decidedRecord` and `obligationRecord` are the three
+ * projections of a {@link Question} into a record, so no record can disagree
+ * with the question it reports (ADR-QD-100, ADR-QD-105, ARCH-54).
  */
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import type { CacheOutcome } from "./DecisionCache.ts";
-import { DecisionRecord } from "./DecisionRecord.ts";
-import type { Decided, Failed, SinkRecord } from "./DecisionRecord.ts";
+import type { Allow } from "./Decision.ts";
+import { DecisionRecord, ObligationRecord } from "./DecisionRecord.ts";
+import type { Decided, Failed, ObligationOutcome, SinkRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 import type { Question } from "./Question.ts";
+import { resourceIdOf } from "./Resource.ts";
 
 /** What an evaluation stamps on every record it makes. */
 export interface Stamp {
@@ -84,3 +91,34 @@ export const decidedRecord = (
     cache,
     outcome,
   });
+
+/**
+ * The record of what the obligation gate did with an allow's duties, projected
+ * from the question the allow answered.
+ *
+ * Identity, never content: the resource itself stays on the decision row so
+ * customer data is not disclosed twice to every sink (BEH-QD-195). The question
+ * is the one the lifecycle decided and handed to the handler (ADR-QD-105), so
+ * the row cannot disagree with what was asked. `at` is the caller's, read after
+ * `discharge`'s early return, so an allow with no duties reads no clock.
+ *
+ * An absent `action` or resource id is an absent key, never an `undefined`-valued
+ * one, hence the conditional spreads.
+ */
+export const obligationRecord = (
+  question: Question,
+  decision: Allow,
+  at: number,
+  outcome: ObligationOutcome,
+): ObligationRecord => {
+  const resourceId = resourceIdOf(question.resource);
+  return new ObligationRecord({
+    evaluationId: decision.evaluationId,
+    at,
+    outcome,
+    obligationIds: decision.obligations.map((o) => o.id),
+    subjectId: question.subject.id,
+    ...(question.action === undefined ? {} : { action: question.action }),
+    ...(resourceId === undefined ? {} : { resourceId }),
+  });
+};

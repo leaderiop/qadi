@@ -13,13 +13,14 @@ import { evaluate } from "../src/Evaluate.ts";
 import { makeResourceId } from "../src/Identity.ts";
 import { obligation } from "../src/Obligation.ts";
 import { decide, enforce } from "../src/Qadi.ts";
-import type { EnforceOptions } from "../src/Qadi.ts";
+import type { EnforceOptions, ObligationDischarge } from "../src/Qadi.ts";
 import { explain, renderExplanation } from "../src/Explanation.ts";
 import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
+import { obligationRecord } from "../src/SinkEmit.ts";
 import { PortReply } from "../src/PortDescription.ts";
 
 const read = permission("doc", "read");
@@ -697,6 +698,34 @@ describe("the obligation gate is recorded", () => {
         assert.deepStrictEqual(event, expected);
         assert.deepStrictEqual(Object.keys(event).sort(), Object.keys(expected).sort());
       }
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("the record is the projection of the very question and allow the handler was given", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+      const handled: Array<ObligationDischarge> = [];
+
+      yield* enforce(audited, {
+        resource: { id: "doc-1", title: "T" },
+        action: "approve",
+        onObligations: (discharge) =>
+          Effect.sync(() => {
+            handled.push(discharge);
+          }),
+      })(Effect.succeed(1)).pipe(Effect.provide(sink.layer));
+
+      const event = obligationsOf(sink.all)[0];
+      const discharge = handled[0];
+      assert.isDefined(event);
+      assert.isDefined(discharge);
+      if (event === undefined || discharge === undefined) return;
+      assert.deepStrictEqual(
+        event,
+        obligationRecord(discharge.question, discharge.decision, 0, "Discharged"),
+      );
+      // Identity, never content: the resource and its fields are not on the row.
+      assert.isFalse(Object.hasOwn(event, "resource"));
+      assert.isFalse(Object.hasOwn(event, "title"));
     }).pipe(Effect.provide(testLayer(allowed))));
 
   it.effect("an undischarged binding obligation is recorded as Refused", () =>

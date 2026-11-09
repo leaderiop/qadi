@@ -24,8 +24,7 @@ import * as Stream from "effect/Stream";
 import type { Authorized } from "./Authorized.ts";
 import type { Allow, Decision } from "./Decision.ts";
 import { isAllowed, project } from "./Decision.ts";
-import type { ObligationOutcome } from "./DecisionRecord.ts";
-import { ObligationRecord } from "./DecisionRecord.ts";
+import type { ObligationOutcome, ObligationRecord } from "./DecisionRecord.ts";
 import { AccessDenied, UndischargedObligation } from "./Errors.ts";
 import type { EnforcementError, EvaluationError } from "./Errors.ts";
 import type { EvaluateOptions, EvaluationServices } from "./Evaluate.ts";
@@ -36,8 +35,7 @@ import type { Permission } from "./Permission.ts";
 import type { Policy } from "./Policy.ts";
 import type { Question } from "./Question.ts";
 import type { Resource } from "./Resource.ts";
-import { resourceIdOf } from "./Resource.ts";
-import { sinkEmitter } from "./SinkEmit.ts";
+import { obligationRecord, sinkEmitter } from "./SinkEmit.ts";
 
 /**
  * What a handler is told when an allow carries obligations: the question the
@@ -145,19 +143,8 @@ const discharge = Effect.fn("qadi.discharge")(function* <E, R>(
   // (INV-QD-035). After the early return, so an allow with no duties reads nothing.
   const emit = yield* sinkEmitter;
   const at = yield* Clock.currentTimeMillis;
-  const obligationIds = decision.obligations.map((o) => o.id);
-  // Identity, never content: the resource itself stays on the decision row.
-  const resourceId = resourceIdOf(question.resource);
   const record = (outcome: ObligationOutcome): ObligationRecord =>
-    new ObligationRecord({
-      evaluationId: decision.evaluationId,
-      at,
-      outcome,
-      obligationIds,
-      subjectId: question.subject.id,
-      ...(question.action === undefined ? {} : { action: question.action }),
-      ...(resourceId === undefined ? {} : { resourceId }),
-    });
+    obligationRecord(question, decision, at, outcome);
 
   // The handler sees advisory obligations too: advice is information the caller
   // may act on, and only its *binding* siblings can block.
