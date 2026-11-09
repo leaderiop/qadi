@@ -158,7 +158,7 @@ None. Every finding in the review is in scope.
 | HYD-01..04 | Phase 6 | Complete |
 | ADDR-01..03 | Phase 7 | Complete |
 | SERV-01..05 | Phase 8 | Complete |
-| SINK-01..03 | Phase 9 | Pending |
+| SINK-01..03 | Phase 9 | Complete |
 | XC-01..05 | All phases | Pending |
 
 **Coverage:** 45 requirements in v1, all mapped, none unmapped.
