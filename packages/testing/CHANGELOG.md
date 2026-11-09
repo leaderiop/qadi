@@ -1,5 +1,50 @@
 # @qadi/testing
 
+## 0.12.0
+
+### Minor Changes
+
+- b655b3b: **Breaking, for subpath importers only.** The `./*` subpath export is removed from `@qadi/core`, `@qadi/audit`, `@qadi/http`, `@qadi/testing`, `@qadi/promise`, `@qadi/predicate-sql` and `@qadi/predicate-prisma`. A package's entry points are now a closed list: the root, and (for `@qadi/devtools`) `./react`. A module kept out of a barrel is no longer importable, so `@qadi/core/TreeFold`, `/Compare`, `/FieldLattice`, `/FieldPath`, `/PortAccess`, `/PortDerivation`, `/ShortCircuit` and `@qadi/audit/CircuitBreaker` are gone with no replacement, and importing a barreled module by subpath (`@qadi/core/Policy`) now fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`. Migration: import the same names from the package root (`import { hasRole } from "@qadi/core"`); every barreled module is re-exported with `export *`, so each of its names is still there. No repository code imported a subpath. Enforced by gate 13's `ENTRY` check and gate 14's check 3b (ADR-QD-099).
+- b655b3b: **Breaking.** `TestLayerOptions` has one way to set up each port. The top-level `attributes`, `relationships`, `history` and `signatures` options are removed; `ports.<Port>` is now either `{ answers }` (that port's fixture data) or `{ layer }` (a layer of its service), and giving both for one port is a type error, so the old rule that a `ports` entry wins over the matching data option is gone. Migration is mechanical: `attributes: x` becomes `ports: { AttributeResolver: { answers: x } }`, `relationships: x` becomes `ports: { RelationshipResolver: { answers: x } }`, `history: x` becomes `ports: { DecisionHistory: { answers: x } }`, `signatures: x` becomes `ports: { SignatureHistory: { answers: x } }`, and a layer previously given as `ports: { P: layer }` becomes `ports: { P: { layer } }`. `CustomPredicate` gains a data form: `ports: { CustomPredicate: { answers: { isOwner: true } } }`. New exports `PortSetup` and `PortSetups`.
+
+  New observation helpers, each written once: `isolatedMetrics(effect)` runs an effect against its own empty `MetricRegistry` (on-fiber updates and reads only; an off-fiber write lands in the default registry), `collectingLogger()` returns `{ lines, layer }` recording every log line's message, level and annotations, and `CapturedLog` types a line. `collectingTracer` is unchanged.
+
+### Patch Changes
+
+- e0365e0: A port states what it serves, and the pass-through port enumerations are gone (ARCH-53, ADR-QD-114).
+
+  **Breaking (`@qadi/core`):** `mapPorts` is removed. `tabulatePorts(f)` takes the same visitor and returns the same `PortLayers`, because it now has a layer form beside its uniform one; replace `mapPorts(f)` with `tabulatePorts(f)`. `PortLayerVisitor` stays. `mapPorts` was published in 0.10.0.
+
+  `fixturePortsLayer` takes one argument, and `PortFixtures` is now per port `{ answers?, layer? }`: a `layer` wins over `answers`, and neither means the port's fail-closed default. Both were added after 0.11.0 (ARCH-42) and are unreleased, so no published consumer is affected. `@qadi/testing` has no API change: `TestLayerOptions.ports` crosses to core as it is. `@qadi/devtools` has no behaviour change.
+
+  `PortDescription` gains a required `serving` (`PortServingFacet`: the allowlist word, the leaf tags the port answers, the asked name, and the admit and declare functions), and `PortWire.asked` moves to `serving.asked`. `PortServing` and `PortServingOf` keep their shape and are now declared in `PortServing.ts`, with the same `@qadi/core` import; `PortServingFacet` and `ServedLeaves` are new. A hand-built description (rare, because the registry is closed) states `serving`. These were added after 0.11.0 by ARCH-31 and are unreleased, so they are not marked breaking: no published release carries the shapes they change.
+
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [e9c7afc]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [e0365e0]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [e0365e0]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [e0365e0]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+  - @qadi/core@0.12.0
+
 ## 0.11.0
 
 ### Patch Changes
@@ -177,7 +222,7 @@
   ```
 
   Every resolver implementation must change, and so must any `if (yield*
-RelationshipResolver.check(...))`. All packages are 0.x, so this rides a `minor`.
+  RelationshipResolver.check(...))`. All packages are 0.x, so this rides a `minor`.
 
   The reason: evaluated with nothing wired, `hasRelationship("owner")` denied with
 
@@ -202,7 +247,7 @@ RelationshipResolver.check(...))`. All packages are 0.x, so this rides a `minor`
 
   Also here: `HasAttribute` and `HasResourceAttribute` distinguish an absent
   attribute from one that compared wrong — `subject attribute 'level' has no
-value` rather than `did not match`. Nothing was false before; the diagnosis was
+  value` rather than `did not match`. Nothing was false before; the diagnosis was
   withheld, and a misconfigured `AttributeResolver` produces the absent case
   exclusively.
 
@@ -248,7 +293,7 @@ value` rather than `did not match`. Nothing was false before; the diagnosis was
   row cannot vouch for agreement it never recorded.
 
   New in `@qadi/testing`: **`TestLayerOptions.clock`**. `qadiTestLayer(subject,
-{ clock: "test" })` wires a `TestClock`, so `durationMillis` is reproducible
+  { clock: "test" })` wires a `TestClock`, so `durationMillis` is reproducible
   outside a test runner that happens to supply one. The ids were already
   deterministic and the clock was not, which is half a determinism claim — and it
   survived unnoticed because `@effect/vitest` hands `it.effect` a `TestClock`
