@@ -21,6 +21,7 @@ export * from "./Explanation.ts";
 export * from "./GuardHealthCheck.ts";
 export * from "./HydrationMetrics.ts";
 export * from "./Identity.ts";
+export * from "./JsonRefusal.ts";
 export * from "./Matcher.ts";
 export * from "./Obligation.ts";
 export * from "./Permission.ts";

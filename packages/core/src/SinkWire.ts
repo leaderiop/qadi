@@ -1,31 +1,20 @@
 /**
- * The record wire's vocabulary: what `encodeSinkRecord` and `decodeSinkRecord`
- * refuse with, and the version they speak.
+ * The record wire's own words: the version `decodeSinkRecord` reads, why it
+ * refuses its input, and the tag of a record.
  *
- * A leaf, so `Errors.ts` (whose `SinkRecordNotEncodable` and
- * `SinkRecordNotDecodable` carry these types) and `SinkCodec.ts` (which raises
- * them) can both import it without a cycle: `Errors.ts` cannot import
- * `SinkCodec.ts` (ADR-QD-037, which counts type-only edges), and this module
- * imports only `effect` and one type from `Decision.ts`, whose import closure
- * does not reach this module. The error classes stay in `Errors.ts` with the rest of
- * `QadiError`; only the vocabulary they name lives here (ADR-QD-095's ARCH-27
- * amendment). Package-private: the barrel re-exports every name, so nothing
- * here is reached by its own path.
+ * A leaf, so `Errors.ts` (whose `SinkRecordNotDecodable` carries these types)
+ * and `SinkCodec.ts` (which raises them) can both import it without a cycle:
+ * `Errors.ts` cannot import `SinkCodec.ts` (ADR-QD-037, which counts type-only
+ * edges), and this module imports only `effect` and one type from `Decision.ts`,
+ * whose import closure does not reach this module. The error classes stay in
+ * `Errors.ts` with the rest of `QadiError`; only the vocabulary they name lives
+ * here (ADR-QD-095's ARCH-27 amendment). The encode-refusal vocabulary, which the
+ * port wire reads too, lives in `JsonRefusal.ts` (ARCH-54, ADR-QD-116, amending
+ * ADR-QD-095's ARCH-27 amendment). Package-private: the barrel re-exports every
+ * name, so nothing here is reached by its own path.
  */
 import * as Data from "effect/Data";
 import type { DecisionDisagreement } from "./Decision.ts";
-export {
-  EncodeRefusal,
-  describeEncodeRefusal,
-  encodeRefusalAnnotations,
-  encodeRefusalPath,
-} from "./JsonRefusal.ts";
-export type {
-  EncodeRefusalAnnotations,
-  OpaqueKind,
-  UnrepresentableKind,
-  WirePath,
-} from "./JsonRefusal.ts";
 
 /**
  * The `_tag` of a `SinkRecord` — `"Decision"` or `"Obligations"`.
