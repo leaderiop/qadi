@@ -4,19 +4,20 @@ import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as TestClock from "effect/testing/TestClock";
 import { attributeResolverPort } from "../src/AttributeResolver.ts";
-import { isAllowed } from "../src/Decision.ts";
+import { Allow, isAllowed } from "../src/Decision.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import { ObligationRecord } from "../src/DecisionRecord.ts";
-import type { DecisionRecord, SinkRecord } from "../src/DecisionRecord.ts";
+import type { DecisionRecord, ObligationOutcome, SinkRecord } from "../src/DecisionRecord.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
 import { evaluate } from "../src/Evaluate.ts";
-import { makeResourceId } from "../src/Identity.ts";
+import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import { obligation } from "../src/Obligation.ts";
 import { decide, enforce } from "../src/Qadi.ts";
 import type { EnforceOptions, ObligationDischarge } from "../src/Qadi.ts";
 import { explain, renderExplanation } from "../src/Explanation.ts";
 import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
+import { questionOf } from "../src/Question.ts";
 import * as P from "../src/Policy.ts";
 import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
@@ -799,6 +800,80 @@ describe("the obligation gate is recorded", () => {
 
       assert.deepStrictEqual(obligationsOf(sink.all), []);
     }).pipe(Effect.provide(testLayer(allowed))));
+});
+
+describe("obligationRecord projects the question (SinkEmit.ts)", () => {
+  const allowWith = (...ids: ReadonlyArray<string>): Allow =>
+    new Allow({
+      evaluationId: "eval-9",
+      subjectId: makeSubjectId("u"),
+      durationMillis: 0,
+      trace: {
+        policyTag: "HasPermission",
+        allowed: true,
+        children: [],
+        obligations: ids.map((id) => obligation(id)),
+      },
+    });
+  const outcomes: ReadonlyArray<ObligationOutcome> = [
+    "Discharged",
+    "HandlerFailed",
+    "Refused",
+    "NotRequired",
+  ];
+  const policy = P.hasPermission(read);
+
+  it("every outcome carries the question's identity and the allow's duties in order", () => {
+    const question = questionOf(allowed, policy, { resource: { id: "doc-1" }, action: "approve" });
+    for (const outcome of outcomes) {
+      const record = obligationRecord(question, allowWith("a", "b"), 5, outcome);
+      assert.strictEqual(record._tag, "Obligations");
+      assert.strictEqual(record.outcome, outcome);
+      assert.strictEqual(record.at, 5);
+      assert.strictEqual(record.evaluationId, "eval-9");
+      assert.deepStrictEqual(record.obligationIds, ["a", "b"]);
+      assert.strictEqual(record.subjectId, allowed.id);
+      assert.strictEqual(record.action, "approve");
+      assert.strictEqual(record.resourceId, "doc-1");
+    }
+  });
+
+  it("a question with neither a resource nor an action leaves those keys absent", () => {
+    const record = obligationRecord(questionOf(allowed, policy), allowWith("a"), 0, "Discharged");
+    assert.deepStrictEqual(Object.keys(record).sort(), [
+      "_tag",
+      "at",
+      "evaluationId",
+      "obligationIds",
+      "outcome",
+      "subjectId",
+    ]);
+  });
+
+  it("a resource whose id is not a string, or that has none, yields no resourceId", () => {
+    for (const resource of [{ id: 7 }, { title: "no id" }]) {
+      const record = obligationRecord(
+        questionOf(allowed, policy, { resource }),
+        allowWith("a"),
+        0,
+        "Discharged",
+      );
+      assert.isFalse(Object.hasOwn(record, "resourceId"));
+    }
+  });
+
+  it("the resource's content never reaches the row, only its id", () => {
+    const record = obligationRecord(
+      questionOf(allowed, policy, { resource: { id: "doc-1", title: "secret" } }),
+      allowWith("a"),
+      0,
+      "Discharged",
+    );
+    assert.strictEqual(record.resourceId, makeResourceId("doc-1"));
+    assert.isFalse(Object.hasOwn(record, "resource"));
+    assert.isFalse(Object.hasOwn(record, "title"));
+    assert.notInclude(JSON.stringify(record), "secret");
+  });
 });
 
 describe("the obligation emit cannot change enforcement either", () => {
