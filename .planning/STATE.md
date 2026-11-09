@@ -1,43 +1,43 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 08
-current_phase_name: Port serving from the registry
-status: verifying
-stopped_at: Completed 08-06-PLAN.md
-last_updated: "2026-11-08T13:46:48.546Z"
-last_activity: 2026-11-08
-last_activity_desc: Phase 08 execution started
-state_head: 2c6c5ca98ab7fb68def6e1fbd60034d0a78e7a70
+current_phase: 09
+current_phase_name: Sink record projection
+status: executing
+stopped_at: Phase 08 complete, ready to execute Phase 09
+last_updated: "2026-11-09T18:15:47.178Z"
+last_activity: 2026-11-09
+last_activity_desc: Phase 08 complete, transitioned to Phase 09
+state_head: 9e20e75e96098a72731bc0fdefac54f60e951833
 progress:
   total_phases: 9
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 33
   completed_plans: 29
-  percent: 78
+  percent: 88
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-08)
+See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 08 — Port serving from the registry
+**Current focus:** Phase 09 — Sink record projection
 
 ## Current Position
 
-Phase: 08 (Port serving from the registry) — EXECUTING
-Plan: 6 of 6
-Status: Phase complete — ready for verification
-Last activity: 2026-11-08 — Phase 08 execution started
+Phase: 09 — Sink record projection
+Plan: Not started
+Status: Ready to execute
+Last activity: 2026-11-09 — Phase 08 complete, transitioned to Phase 09
 
-Progress: [██████████████░░░░░░] 23/33 plans ([████████░░] 78%); 7/9 phases
+Progress: [██████████████████░░] 29/33 plans (88%); 8/9 phases
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23
+- Total plans completed: 31
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -53,6 +53,7 @@ Progress: [██████████████░░░░░░] 23/33 p
 | 06 | 2 | - | - |
 | 06 | 2 | - | - |
 | 07 | 3 | - | - |
+| 08 | 6 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -131,6 +132,7 @@ Progress: [██████████████░░░░░░] 23/33 p
 - [Phase 08]: D-07: tabulatePorts is two overloads over one body; separate layer builder removed. D-08: fixturePortsLayer derived from the registry with no as. D-09: testing passes ports to core unchanged
 - [Phase 08]: 08-03: serving facet on every port description (PortServingFacet, ServedLeaves in PortServing.ts); PortWire.asked removed; overview Rev 1.76
 - [Phase 08]: 08-04: INV-QD-095 amended in place for the serving facet; ADR-QD-114 recorded (amends ADR-QD-094, ADR-QD-107)
+- [Phase 08]: UAT: XC-01 verified by the agent: CI run 42662291585 (workflow_dispatch, full `pnpm check`) passed steps 1-13 on Node 22.12.0 and 26, including `playwright install --with-deps` (e2e 30/30), then hit the 60-min job timeout in mutation; steps 15-17 run locally on c807b64, exit 0. A manual dispatch runs mutation and does not fit in 60 min; use a PR (`check:pr`) or the podman route for future XC-01 checks
 - [Phase 08]: 08-06: mapPorts removal recorded as Breaking (0.10.0); fixture/serving changes unreleased; port-fixture-table changeset and overview left untouched
 
 ### Pending Todos
@@ -142,12 +144,12 @@ Progress: [██████████████░░░░░░] 23/33 p
 - [Phase 01] `pnpm example` cannot finish on this Fedora host without sudo (`playwright install --with-deps`); UAT ran its e2e suite directly (30/30). A single uninterrupted `pnpm check` run still needs CI or a host with sudo. [Phase 03] Workaround used: the check:pr chain run in order with only that one command as `playwright install chromium` (browser and system libs already present) — all steps green, e2e 30/30. [Phase 06] Resolved route: run the literal `pnpm check:pr` in a podman Ubuntu Playwright container (see the Phase 06 UAT decision) — exits 0 with no workaround.
 - [Phase 01] 01-VALIDATION.md is still `draft` (nyquist audit not completed); REQUIREMENTS.md has no Traceability rows for ENF-01..06/XC-01..05 and ENF-03 is unregistered (phase.complete warnings).
 
-- Phase 8 Plan 08-01 is a blocking human checkpoint (SERV-01: amend ADR-QD-094 or not).
 - `.planning/` is gitignored (`.gitignore:43`) even though `commit_docs: true`. Committing planning docs needs `git add -f` or a .gitignore change.
 - Shared spec files (README, traceability, invariants, overview, decisions/index.yaml) are edited by every phase, so parallel worktrees will conflict on revision lines. Use `scripts/spec-revise.mjs`.
 - BEH/INV ids are allocated at execution time with `node scripts/next-id.mjs`.
 - [Phase 02] Pre-existing, out of scope: in devtools replay the other four ports' `none` answers (attribute `undefined`, relationship/history `Unknown`, custom `false`) still grant under `not(...)` on a capture miss — the INV-QD-007 fail-open an unwired deployment also has. Flipping them is one word each in Capture.ts's `UNSEEN_REQUEST_IS_AN_OUTAGE`; needs a decision.
 - Seven info-level review findings for Phase 02 remain open (02-REVIEW-DISPOSITION.md: IN-01..07).
+- [Phase 08] 08-VALIDATION.md is still `draft` (nyquist audit not completed); review disposition in 08-REVIEW-DISPOSITION.md.
 - Three info-level review findings for Phase 07 remain open (07-REVIEW-DISPOSITION.md: IN-01..03).
 - [Phase 05] Three review findings open (05-REVIEW-DISPOSITION.md): WR-01, no route-level test that `decisionStreamRoute` threads `onRefused` to `decisionFrames`; IN-01 (`DecisionLogServeOptions` package-private yet shapes public options); IN-02 (refusal table's SSE cells don't assert `event:`/`id:`).
 - Every other ROADMAP phase still lists `XC-01..05` as a range, which `phase.complete` cannot parse (Phase 05's line was expanded); `XC-01..05` traceability row stays Pending as cross-cutting.
@@ -155,6 +157,6 @@ Progress: [██████████████░░░░░░] 23/33 p
 
 ## Session Continuity
 
-Last session: 2026-11-08T13:46:48.437Z
-Stopped at: Completed 08-06-PLAN.md
+Last session: 2026-11-09T18:20:00Z
+Stopped at: Phase 08 complete, ready to plan/execute Phase 09
 Resume file: None

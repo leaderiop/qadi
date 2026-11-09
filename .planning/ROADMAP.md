@@ -21,7 +21,7 @@ ARCH ticket with its own ADR, CCR and changeset, and each ends with `pnpm check:
 - [x] **Phase 5: Decision log over HTTP** - Use one encoder and one refusal policy for both stream and backlog (ARCH-50) (completed 2026-11-08)
 - [x] **Phase 6: Dehydration in the engine** - Add `dehydrateWith` beside `hydrateWith`; both directions get one owner (ARCH-51) (completed 2026-11-08)
 - [x] **Phase 7: One port route address** - Server and client share one address and one status contract (ARCH-52) (completed 2026-11-08)
-- [ ] **Phase 8: Port serving from the registry** - Derive the serving tables from descriptions behind an ADR-094 checkpoint, and remove pass-through enumerations (ARCH-53)
+- [x] **Phase 8: Port serving from the registry** - Derive the serving tables from descriptions behind an ADR-094 checkpoint, and remove pass-through enumerations (ARCH-53) (completed 2026-11-09)
 - [ ] **Phase 9: Sink record projection** - SinkEmit owns every record projection, and JSON refusal words leave the sink wire (ARCH-54)
 
 ## Phase Details
@@ -152,7 +152,7 @@ Plans:
   2. If approved: `ADMITTED`, `Collector` and `collectNames` are derived from the registry, and the `PortServing` shape is unchanged.
   3. `mapPorts` no longer exists separately from `tabulatePorts`, and `@qadi/testing` has no `answersOf`/`layersOf` split.
   4. `pnpm check:pr` is green, and ADR-QD-114 (or an ADR-094 rejection note), CCR-QD-392 and a changeset are recorded.
-**Plans**: 6/6 plans executed
+**Plans**: 6/6 plans complete
 
 Plans:
 - [x] 08-01 (W1, **human checkpoint**): D-01: approve or reject amending ADR-QD-094 for a `serving` facet; opens CCR-QD-392
@@ -193,5 +193,5 @@ Plans:
 | 5. Decision log over HTTP | 2/2 | Complete    | 2026-11-08 |
 | 6. Dehydration in the engine | 2/2 | Complete    | 2026-11-08 |
 | 7. One port route address | 3/3 | Complete    | 2026-11-08 |
-| 8. Port serving from the registry | 6/6 | In Progress | - |
+| 8. Port serving from the registry | 6/6 | Complete    | 2026-11-09 |
 | 9. Sink record projection | 0/4 | Planned | - |
