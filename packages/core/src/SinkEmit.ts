@@ -8,7 +8,7 @@
  * `scripts/check-house-style.mjs`'s `sink-read-once` rule refuses a second
  * read of the service (ADR-QD-044, ADR-QD-100).
  *
- * `failedRecord`, `decidedRecord` and `obligationRecord` are the three
+ * `failedRecord`, `decidedRecord` and `obligationRecordFor` are the three
  * projections of a {@link Question} into a record, so no record can disagree
  * with the question it reports (ADR-QD-100, ADR-QD-105, ARCH-54).
  */
@@ -93,8 +93,9 @@ export const decidedRecord = (
   });
 
 /**
- * The record of what the obligation gate did with an allow's duties, projected
- * from the question the allow answered.
+ * Projects an allow's question once and returns the function that stamps an
+ * obligation outcome onto it: the record of what the obligation gate did with
+ * the allow's duties.
  *
  * Identity, never content: the resource itself stays on the decision row so
  * customer data is not disclosed twice to every sink (BEH-QD-195). The question
@@ -102,23 +103,31 @@ export const decidedRecord = (
  * the row cannot disagree with what was asked. `at` is the caller's, read after
  * `discharge`'s early return, so an allow with no duties reads no clock.
  *
+ * Everything except the outcome is read here, eagerly, so the caller calls this
+ * before the duty handler runs. The `Question`'s resource is the caller's own
+ * object, not a snapshot: a handler that reassigns its `id`, or a throwing `id`
+ * getter, must neither make the row disagree with the decision row already
+ * emitted nor turn a duty already performed into a defect (INV-QD-035). Only
+ * the outcome is chosen afterwards, and stamping it reads nothing mutable.
+ *
  * An absent `action` or resource id is an absent key, never an `undefined`-valued
  * one, hence the conditional spreads.
  */
-export const obligationRecord = (
+export const obligationRecordFor = (
   question: Question,
   decision: Allow,
   at: number,
-  outcome: ObligationOutcome,
-): ObligationRecord => {
+): ((outcome: ObligationOutcome) => ObligationRecord) => {
   const resourceId = resourceIdOf(question.resource);
-  return new ObligationRecord({
-    evaluationId: decision.evaluationId,
-    at,
-    outcome,
-    obligationIds: decision.obligations.map((o) => o.id),
-    subjectId: question.subject.id,
-    ...(question.action === undefined ? {} : { action: question.action }),
-    ...(resourceId === undefined ? {} : { resourceId }),
-  });
+  const obligationIds = decision.obligations.map((o) => o.id);
+  return (outcome) =>
+    new ObligationRecord({
+      evaluationId: decision.evaluationId,
+      at,
+      outcome,
+      obligationIds,
+      subjectId: question.subject.id,
+      ...(question.action === undefined ? {} : { action: question.action }),
+      ...(resourceId === undefined ? {} : { resourceId }),
+    });
 };
