@@ -96,7 +96,7 @@ ARCH-54, ADR-QD-116 and CCR-QD-393 were consumed as reserved, with no substituti
 
 ## Requirements
 
-`requirements.mark-complete` for XC-01, XC-02, XC-03, XC-05 is reported in the hand-off below; see the "Requirements bookkeeping" section.
+The `[x]` checkboxes for SINK-01..03 and XC-01..05 in `.planning/REQUIREMENTS.md` were already ticked before this plan. `requirements.mark-complete XC-01 XC-02 XC-03 XC-05` flipped nothing: all four returned `table_unmatched`, because the traceability table uses range rows (`SINK-01..03`, `XC-01..05`) the tool cannot match. I edited the `SINK-01..03` row by hand from Pending to Complete; the `XC-01..05` row ("All phases") was left Pending, as it spans phases not yet done and XC-01's single-command `check:pr` result is unconfirmed (see above).
 
 ## Deviations from Plan
 
