@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-102                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted — amends ADR-QD-095; reads ADR-QD-008, ADR-QD-081 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-07): Initial (CCR-QD-194)         |
+> | Change History | 1.1 (2026-11-09): amended — D-27-b's leaf is split: SinkWire.ts keeps the record wire's own words, JsonRefusal.ts the encode-refusal vocabulary; the annotation rule's exemption follows (ARCH-54, ADR-QD-116, CCR-QD-393)<br>1.0 (2026-10-07): Initial (CCR-QD-194)         |
 
 ---
 
@@ -77,3 +77,14 @@ clean).
 - **The classes in the leaf too.** Puts a second `QadiError` member outside `Errors.ts`.
 - **A shared `scripts/lib` class list checked against `PORTS` by a core test.** No test imports
   from `scripts/` today; more machinery than a parse plus a type pin.
+
+## Amendment (2026-11-09, ARCH-54): D-27-b's leaf is split in two
+
+D-27-b's choice holds for both files: a leaf, vocabulary only, importing only `effect`.
+`SinkWire.ts` keeps the record wire's own words (`SinkRecordTag`, `WireVersion`,
+`WIRE_VERSIONS`, `DecodeRefusal`), and the leaf `JsonRefusal.ts` holds the encode-refusal
+vocabulary (`WirePath`, `OpaqueKind`, `UnrepresentableKind`, `EncodeRefusal` with its three
+readings), because the port wire refuses the same JSON and should not import the record
+wire's module to say so. The Consequences' exemption now reads: `no-refusal-annotation-outside-core`
+exempts `JsonRefusal.ts`, where the readings live. The barrel exports both, so no export
+changed (ADR-QD-116, CCR-QD-393).

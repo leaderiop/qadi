@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-100                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted — amends ADR-QD-031, ADR-QD-044, ADR-QD-073 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-08): Amendment, `toPredicate` admits through `Question` (CCR-QD-205)<br>1.0 (2026-10-07): Initial (CCR-QD-189) |
+> | Change History | 1.2 (2026-11-09): amended — obligationRecord joins failedRecord/decidedRecord: SinkEmit.ts projects all three records from the question (ARCH-54, CCR-QD-393)<br>1.1 (2026-10-08): Amendment, `toPredicate` admits through `Question` (CCR-QD-205)<br>1.0 (2026-10-07): Initial (CCR-QD-189) |
 
 ---
 
@@ -79,3 +79,11 @@ translation by type, and `Question.test.ts` classifies every key for translation
 per-node guard stays as defense in depth (ADR-QD-090). `scripts/check-house-style.mjs`'s
 `admission-once` rule enforces the single owner. This closes the "optional polish" ARCH-16
 left in `toPredicate`'s own default.
+
+## Amendment (2026-11-09, ARCH-54): the obligation record is projected here too
+
+`obligationRecord` joins `failedRecord` and `decidedRecord` in `SinkEmit.ts`, so that module
+is the one projection of a `Question` into each of the three records. ADR-QD-105's obligation
+record had been built in `discharge` (`Qadi.ts`) since ARCH-30; it is now projected from the
+same question the allow answered, so a row's identity keys cannot disagree with what was
+asked. The record is unchanged, pinned whole before and after the move (CCR-QD-393).

@@ -374,3 +374,7 @@ entries:
     file: "114-a-port-states-what-it-serves.md"
     title: "A port states what it serves"
     status: "Accepted — amends ADR-QD-094, ADR-QD-107"
+  - id: "ADR-QD-116"
+    file: "116-the-json-refusal-vocabulary-is-a-leaf-of-its-own.md"
+    title: "The JSON refusal vocabulary is a leaf of its own"
+    status: "Accepted — amends ADR-QD-095, ADR-QD-102; reads ADR-QD-037, ADR-QD-107"

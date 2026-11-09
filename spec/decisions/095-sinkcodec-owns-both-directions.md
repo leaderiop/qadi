@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-095                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-10-08): Document ID corrected from `QADI-ADR-902` to `QADI-ADR-095`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.3 (2026-10-07): the refusal vocabulary and the three readings of an `EncodeRefusal` move to the leaf `SinkWire.ts` (ARCH-27, CCR-QD-194)<br>1.2 (2026-10-07): D-09-e gains a third reporter: the audit pipeline logs or calls `onRefused`; core owns the path, the annotations, the sentence and the hook containment (CCR-QD-193)<br>1.1 (2026-10-07): the inbound side refuses a non-finite `at` and a non-integer `sequenceNumber` (CCR-QD-186) |
+> | Change History | 1.5 (2026-11-09): amended — the encode-refusal vocabulary and its three readings move from SinkWire.ts to the leaf JsonRefusal.ts, which the port wire reads too (ARCH-54, ADR-QD-116, CCR-QD-393)<br>1.4 (2026-10-08): Document ID corrected from `QADI-ADR-902` to `QADI-ADR-095`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.3 (2026-10-07): the refusal vocabulary and the three readings of an `EncodeRefusal` move to the leaf `SinkWire.ts` (ARCH-27, CCR-QD-194)<br>1.2 (2026-10-07): D-09-e gains a third reporter: the audit pipeline logs or calls `onRefused`; core owns the path, the annotations, the sentence and the hook containment (CCR-QD-193)<br>1.1 (2026-10-07): the inbound side refuses a non-finite `at` and a non-integer `sequenceNumber` (CCR-QD-186) |
 
 ---
 
@@ -204,3 +204,11 @@ wire; `decodeAuditEntry` is the guarded reader) and
 > `Errors.ts` and `SinkCodec.ts` import it (ADR-QD-037, `pnpm circular` clean).
 > `SinkRecordNotEncodable` and `SinkRecordNotDecodable` stay in `Errors.ts` with
 > the rest of `QadiError`; the barrel exports every moved name, so no export changed.
+
+> **Amended 2026-11-09 (CCR-QD-393, ARCH-54).** The ARCH-27 amendment above named
+> `SinkWire.ts` as the home of the whole vocabulary. The encode-refusal vocabulary
+> (`EncodeRefusal`, `OpaqueKind`, `UnrepresentableKind`, `WirePath`) and its three
+> readings (`encodeRefusalPath`, `encodeRefusalAnnotations`, `describeEncodeRefusal`) now
+> live in the leaf `JsonRefusal.ts` (ADR-QD-116), which imports only `effect` and which
+> the port wire reads too. `SinkWire.ts` keeps `SinkRecordTag`, `WireVersion`,
+> `WIRE_VERSIONS` and `DecodeRefusal`. The barrel exports both, so no export changed.
