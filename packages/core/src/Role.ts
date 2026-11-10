@@ -166,13 +166,14 @@ export const permissionProvenance = (self: Role): ReadonlyArray<PermissionGrant>
   };
 
   const grants: Array<PermissionGrant> = [];
-  // Indexed by step, with a hole at each revisit. A step's `parent` is always a
-  // visit, since only a visit's parents are walked, so its link is set.
-  const links: Array<PathLink> = [];
+  // Keyed by step. A step's `parent` is always a visit, since only a visit's
+  // parents are walked, so its link is set; a root's `parent` is `undefined`,
+  // which no step is, so it reads no link.
+  const links = new Map<number | undefined, PathLink>();
 
   visitRoles([self], (role, index, parent) => {
-    const here: PathLink = { name: role.name, parent: parent === undefined ? undefined : links[parent] };
-    links[index] = here;
+    const here: PathLink = { name: role.name, parent: links.get(parent) };
+    links.set(index, here);
     if (role.permissions.length > 0) {
       const path = toPath(here);
       for (const p of role.permissions) {
