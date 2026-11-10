@@ -16,6 +16,7 @@ import * as Context from "effect/Context";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
+import { vi } from "vitest";
 import { dehydrateWith, hydrateWith, makeSeededQuestion } from "../src/HydrationEngine.ts";
 import type { DecisionEntry, HydrationMismatch, HydrationSeedLookup } from "../src/HydrationEngine.ts";
 import type { SeededDecision } from "../src/SeededDecision.ts";
@@ -264,5 +265,65 @@ describe("a refused payload is always counted (INV-QD-045, ARCH-60)", () => {
     assert.strictEqual(mismatchCount() - before, 1);
     assert.strictEqual(pairs.length, 0);
     assert.deepStrictEqual(drops, [{ reason: "PayloadSubjectMismatch", entries: [], wholePayload: true }]);
+  });
+});
+
+describe("a throwing reporter changes nothing (INT-04, ARCH-60)", () => {
+  const read = hasPermission(permission("doc", "read"));
+  const own: DecisionEntry = { policy: read, decision: serverAllow("u1", "e1") };
+  const foreign: DecisionEntry = { policy: read, decision: serverAllow("u2", "e3") };
+  const alice = makeSubject({ id: "u1" });
+  const boom = (): never => {
+    throw new Error("host boom");
+  };
+  const counts = () => ({
+    dehydrated: hydrationDehydratedTotal.valueUnsafe(registry).count,
+    seeded: hydrationSeededTotal.valueUnsafe(registry).count,
+    foreign: hydrationDroppedTotal.valueUnsafe(registry).occurrences.get("ForeignSubject") ?? 0,
+    undecodable: hydrationDroppedTotal.valueUnsafe(registry).occurrences.get("UndecodablePolicy") ?? 0,
+  });
+  const said = <A,>(act: () => A): { readonly value: A; readonly lines: ReadonlyArray<string> } => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const value = act();
+      return { value, lines: warn.mock.calls.map((call) => String(call[0])) };
+    } finally {
+      warn.mockRestore();
+    }
+  };
+  const threw =
+    "[qadi] the onDropped reporter you supplied threw (Error: host boom). The outcome it was " +
+    "told about stands — nothing was skipped, seeded differently or left uncounted. Fix the reporter.";
+
+  it("a throwing onDropped on hydrate still seeds the good entry and counts both", () => {
+    const shipped = dehydrateWith([own]);
+    const wire: unknown = JSON.parse(
+      JSON.stringify({
+        ...shipped,
+        entries: [...shipped.entries, { ...shipped.entries[0], policy: { _tag: "NotAPolicy" } }],
+      }),
+    );
+    const before = counts();
+    const { value: pairs, lines } = said(() => [
+      ...hydrateWith(() => Atom.make<SeededDecision | undefined>(undefined), wire, alice, { onDropped: boom }),
+    ]);
+    const after = counts();
+
+    assert.strictEqual(pairs.length, 1);
+    assert.strictEqual(after.seeded - before.seeded, 1);
+    assert.strictEqual(after.undecodable - before.undecodable, 1);
+    assert.deepStrictEqual(lines, [threw]);
+  });
+
+  it("a throwing onDropped on dehydrate still returns the payload and counts", () => {
+    const before = counts();
+    const { value: payload, lines } = said(() => dehydrateWith([own, foreign], { onDropped: boom }));
+    const after = counts();
+
+    assert.strictEqual(payload.entries.length, 1);
+    assert.strictEqual(payload.subjectId, "u1");
+    assert.strictEqual(after.foreign - before.foreign, 1);
+    assert.strictEqual(after.dehydrated - before.dehydrated, 1);
+    assert.deepStrictEqual(lines, [threw]);
   });
 });

@@ -6,9 +6,23 @@
  * another signal's words, fails here. Consumers grep these messages, so they are
  * compared whole rather than by substring.
  */
-import { Deny, hasRole, makeSubjectId } from "@qadi/core";
+import {
+  Allow,
+  Deny,
+  EvaluationServicesNone,
+  hasRole,
+  hydrationMismatchesTotal,
+  hydrationRechecksTotal,
+  makeSubject,
+  makeSubjectId,
+} from "@qadi/core";
 import type { Decision } from "@qadi/core";
+import * as Context from "effect/Context";
+import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { currentDecision } from "../src/DecisionOutcome.ts";
+import { dehydrateDecisions, hydrateDecisions } from "../src/Hydration.ts";
+import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import {
   droppedEntriesReporter,
   gateIdCollisionReporter,
@@ -173,11 +187,22 @@ describe("DeveloperSignals", () => {
         expect(droppedEntriesReporter(undefined)).toBeUndefined();
         expect(hydrationDropReporter(undefined)).toBeUndefined();
 
-        const mine = () => {};
-        expect(hydrationMismatchReporter(mine)).toBe(mine);
-        expect(gateIdCollisionReporter(mine)).toBe(mine);
-        expect(droppedEntriesReporter(mine)).toBe(mine);
-        expect(hydrationDropReporter(mine)).toBe(mine);
+        // Contained, so not the same function: what it is handed still reaches it.
+        const heard: Array<unknown> = [];
+        const mine = (value: unknown) => {
+          heard.push(value);
+        };
+        const mismatch = { policy: hasRole("admin"), resource: undefined, seeded, decided };
+        const drop = { reason: "MalformedEntry" as const, entries: [1], wholePayload: false };
+        expect(
+          said(() => {
+            hydrationMismatchReporter(mine)?.(mismatch);
+            gateIdCollisionReporter(mine)?.(":r1:");
+            droppedEntriesReporter(mine)?.([1, 2]);
+            hydrationDropReporter(mine)?.(drop);
+          }),
+        ).toEqual([]);
+        expect(heard).toEqual([mismatch, ":r1:", [1, 2], drop]);
       } finally {
         restore();
       }
@@ -210,4 +235,117 @@ describe("DeveloperSignals", () => {
       expect(seen).toEqual(["InstrumentedInProduction", "AtomsReplaced", "UnwritableGateRegistry"]);
     });
   });
+});
+
+describe("a supplied reporter that throws (ReporterThrew, INT-04)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const threw = (reporter: string, error: string): string =>
+    `[qadi] the ${reporter} reporter you supplied threw (${error}). The outcome it was told ` +
+    "about stands — nothing was skipped, seeded differently or left uncounted. Fix the reporter.";
+
+  const boom = (): never => {
+    throw new TypeError("host boom");
+  };
+
+  /** Each resolver, handed a throwing hook, and called with a value naming another subject. */
+  const resolvers: ReadonlyArray<{ readonly name: string; readonly call: (supplied: () => never) => void }> = [
+    {
+      name: "onHydrationMismatch",
+      call: (supplied) =>
+        hydrationMismatchReporter(supplied)?.({ policy: hasRole("admin"), resource: undefined, seeded, decided }),
+    },
+    { name: "onGateIdCollision", call: (supplied) => gateIdCollisionReporter(supplied)?.(":secret-u2:") },
+    {
+      name: "onDropped",
+      call: (supplied) => droppedEntriesReporter(supplied)?.([{ subjectId: "secret-u2" }]),
+    },
+    {
+      name: "onDropped",
+      call: (supplied) =>
+        hydrationDropReporter(supplied)?.({
+          reason: "PayloadSubjectMismatch",
+          entries: [{ subjectId: "secret-u2" }],
+          wholePayload: true,
+        }),
+    },
+    {
+      name: "onDeveloperSignal",
+      call: (supplied) => providerSignalReporter(supplied)(providerSignals.atomsReplaced()),
+    },
+  ];
+
+  for (const environment of ["development", "production"] as const) {
+    describe(`in ${environment}`, () => {
+      const inEnvironment = <A,>(act: () => A): A => {
+        const previous = process.env.NODE_ENV;
+        process.env.NODE_ENV = environment;
+        try {
+          return act();
+        } finally {
+          process.env.NODE_ENV = previous;
+        }
+      };
+
+      for (const { name, call } of resolvers) {
+        it(`${name}: the throw does not propagate and ReporterThrew names the hook and the error only`, () => {
+          const lines = inEnvironment(() => said(() => call(boom)));
+          expect(lines).toEqual([threw(name, "TypeError: host boom")]);
+          for (const line of lines) {
+            expect(line).not.toContain("secret-u2");
+            expect(line).not.toContain("HasRole");
+          }
+        });
+      }
+
+      it("a thrown non-Error is named by its string form", () => {
+        const lines = inEnvironment(() =>
+          said(() =>
+            gateIdCollisionReporter(() => {
+              // oxlint-disable-next-line no-throw-literal
+              throw "plain string";
+            })?.(":r1:"),
+          ),
+        );
+        expect(lines).toEqual([threw("onGateIdCollision", "plain string")]);
+      });
+
+      it("a throwing onHydrationMismatch on makeQadiAtoms still settles the re-check and counts it", () => {
+        const registry = Context.empty();
+        const alice = makeSubject({ id: "u1" });
+        const isAdmin = hasRole("admin");
+        // The server allowed; this client holds nothing, so it denies: a disagreement.
+        const payload = dehydrateDecisions([
+          {
+            policy: isAdmin,
+            decision: new Allow({
+              evaluationId: "e1",
+              subjectId: makeSubjectId("u1"),
+              durationMillis: 1,
+              trace: { policyTag: "HasRole", allowed: true, children: [], visibleFields: undefined, obligations: [] },
+            }),
+          },
+        ]);
+        const atoms = makeQadiAtoms(EvaluationServicesNone, { onHydrationMismatch: boom });
+        const rechecks = () => hydrationRechecksTotal.valueUnsafe(registry).count;
+        const mismatches = () => hydrationMismatchesTotal.valueUnsafe(registry).count;
+
+        inEnvironment(() => {
+          const before = { rechecks: rechecks(), mismatches: mismatches() };
+          let settled: ReturnType<typeof currentDecision> = undefined;
+          const lines = said(() => {
+            const store = AtomRegistry.make({
+              initialValues: [[atoms.subject, alice] as const, ...hydrateDecisions(atoms, payload, alice)],
+            });
+            settled = currentDecision(store.get(atoms.decision(isAdmin)));
+            store.dispose();
+          });
+          expect(settled).toBeInstanceOf(Deny);
+          expect(rechecks() - before.rechecks).toBe(1);
+          expect(mismatches() - before.mismatches).toBe(1);
+          expect(lines).toEqual([threw("onHydrationMismatch", "TypeError: host boom")]);
+        });
+      });
+    });
+  }
 });
