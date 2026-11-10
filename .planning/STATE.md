@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 16-02-PLAN.md
+stopped_at: Completed 16-03-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "16-02 complete: flattenAll/flattenPermissions/roleNames/permissionProvenance and fromRoles (one pass) are projections of traverseRoles via visitRoles; Role.bench.ts before/after (fromRoles shared 2.3-3.3x, flatten within noise); mutation Role 97.41 (base 92.99), AuthSubject 100, RoleTraversal 100; gate 13 knowingly red until 16-04"
-state_head: 25d2b9b333c0a48759a4baef508b4370b9fd5137
+last_activity_desc: "16-03 complete: RoleSummary.rows (flat, depth-annotated walk) replaces tree/RoleNode; RoleViewer renders sibling rows keyed on step index; 20,000-deep chain renders in ~2.2 s (was RangeError); RoleTree.ts mutation 100 (25/25); gate 13 knowingly red until 16-04"
+state_head: a9e8709993a64f60431c85dd177c1c40fe4995ab
 progress:
   total_phases: 11
   completed_phases: 6
   total_plans: 59
-  completed_plans: 41
-  percent: 69
+  completed_plans: 42
+  percent: 71
 current_phase: 16
 ---
 
@@ -28,14 +28,14 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 16 of 20 (One role-graph walk)
-Plan: 2 of 4 in Phase 16 (16-02 complete); next is 16-03
+Plan: 3 of 4 in Phase 16 (16-03 complete); next is 16-04
 Status: Phase 16 in progress (phase_base 443b45f); gate 13 knowingly red for roleWalk/RoleStep until 16-04
-Last activity: 2026-11-10 -- 16-02 complete: core walkers and `fromRoles` (one walk over all roots) are projections of `traverseRoles`; `Role.bench.ts` before/after; sparse `inherits` tolerated again
+Last activity: 2026-11-10 -- 16-03 complete: the role viewer renders `summary.rows` flat (sibling rows indented by depth, keyed on step index); a 20,000-deep chain renders
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 46
+- Total plans completed: 47
 - Average duration: -
 - Total execution time: 0.0 hours
 
