@@ -181,7 +181,9 @@ the dock takes, and the readings of a timeline.
   simulator's state headlessly: its `snapshot.plan` says what a sweep will cost
   before it runs, `run("Sweep")` produces the `run.report`, a source that cannot
   be honoured is refused rather than answered from fixtures, a Live run captures
-  for `Snapshot`, and a superseded run never lands. The session also holds the
+  for `Snapshot`, and a superseded run never lands. `replay(entry)` seeds the
+  form from a logged row on every call, even the row last replayed, while
+  `seed(entry)` re-run with the same row leaves an edited form alone. The session also holds the
   form: `addChip(field, text)` commits typed text by that field's codec and
   answers with the reason when it is refused, `removeChip(field, index)` removes
   one, and `snapshot.fields` is the form's reading, field by field (the subject
