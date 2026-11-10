@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 11-02-PLAN.md
+stopped_at: Completed 11-03-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "11-02 complete: guardApi builds a closed access plan from its API value; the middleware looks endpoints up by identity"
+last_activity_desc: "11-03 complete: the signature ledger is a keyed store; the exact-pair read rule is derived once in signatureHistoryFromLedger"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 59
-  completed_plans: 5
-  percent: 8
+  completed_plans: 6
+  percent: 10
 current_phase: 11
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 11 of 20 (Lost-wave security)
-Plan: 2 of 7 complete (11-01, 11-02); next is 11-03
+Plan: 3 of 7 complete (11-01, 11-02, 11-03); next is 11-04
 Status: In progress (phase_base 5736c96)
-Last activity: 2026-11-10 -- 11-02 complete: an API value guardApi did not plan is refused with a 500 (SEC-05 live defect closed); undeclared endpoints fail the build
+Last activity: 2026-11-10 -- 11-03 complete: the signature ledger is a keyed store; a foreign or forged row fails the read instead of over-granting
 
 ## Performance Metrics
 
