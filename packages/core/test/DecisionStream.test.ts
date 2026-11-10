@@ -1,7 +1,7 @@
 /**
- * The decision stream's order, written by `encodeDecisionStream` (ARCH-60): the
- * backlog in cursor order whatever a log returned, one `synced` counting the
- * backlog frames kept, then live frames, each record frame carrying its cursor.
+ * The decision stream's words, cursor text and order (ARCH-60). `encodeDecisionStream`
+ * writes the backlog in cursor order whatever a log returned, one `synced` counting
+ * the backlog frames kept, then live frames, each record frame carrying its cursor.
  *
  * Driven over a structural `readEntries` fake and an `encodeRecord` that answers
  * with the evaluation id (or `None` to drop a record), so each rule of the order is
@@ -24,6 +24,7 @@ import * as Fiber from "effect/Fiber";
 import * as Option from "effect/Option";
 import * as Queue from "effect/Queue";
 import * as Result from "effect/Result";
+import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import fc from "fast-check";
@@ -31,14 +32,18 @@ import {
   Allow,
   Decided,
   DecisionRecord,
+  DecisionStreamEvent,
+  DecisionStreamSynced,
   ObligationRecord,
   decodeDecisionStream,
   decodeStoredRecordString,
   encodeDecisionStream,
   encodeStoredRecordString,
+  formatLogCursor,
   hasPermission,
   makeDecisionLog,
   makeSubjectId,
+  parseLogCursor,
   permission,
   stampRecord,
 } from "../src/index.ts";
@@ -86,6 +91,35 @@ const framesOf = (read: DecisionLogEntries, after?: string) =>
     Stream.runCollect(encodeDecisionStream(fakeLog(read).log, { after, encodeRecord: byId })),
     (frames) => Array.from(frames),
   );
+
+describe("the decision stream's protocol words (ARCH-28)", () => {
+  it("formats and parses a cursor, strictly", () => {
+    assert.strictEqual(formatLogCursor({ epoch: 1_700_000_000_000, seq: 42 }), "1700000000000.42");
+    assert.deepStrictEqual(parseLogCursor("1700000000000.42"), Option.some({ epoch: 1_700_000_000_000, seq: 42 }));
+    assert.deepStrictEqual(parseLogCursor("0.0"), Option.some({ epoch: 0, seq: 0 }));
+    for (const malformed of ["", "1", "1.", ".1", "1.2.3", "-1.2", "1.-2", "1e3.4", "1.5e1", " 1.2", "1.2 ", "a.b", "99999999999999999999.1"]) {
+      assert.isTrue(Option.isNone(parseLogCursor(malformed)), JSON.stringify(malformed));
+    }
+  });
+
+  it("DecisionStreamEvent is the three wire names, in protocol order (a golden: changing it is a protocol break)", () => {
+    assert.deepStrictEqual([...DecisionStreamEvent.literals], ["backlog", "synced", "message"]);
+  });
+
+  it("Schema.is(DecisionStreamEvent) holds for the three names and nothing else", () => {
+    const is = Schema.is(DecisionStreamEvent);
+    for (const name of ["backlog", "synced", "message"]) assert.isTrue(is(name), name);
+    for (const name of ["error", "", "Backlog"]) assert.isFalse(is(name), name);
+  });
+
+  it("DecisionStreamSynced accepts a count and refuses what no sender produces", () => {
+    const decode = Schema.decodeUnknownResult(DecisionStreamSynced);
+    for (const backlog of [0, 3]) assert.isTrue(Result.isSuccess(decode({ backlog })), String(backlog));
+    for (const bad of [{ backlog: -1 }, { backlog: 1.5 }, { backlog: Number.NaN }, { backlog: "3" }, {}]) {
+      assert.isTrue(Result.isFailure(decode(bad)), JSON.stringify(bad));
+    }
+  });
+});
 
 describe("encodeDecisionStream", () => {
   it.effect("frames the backlog in cursor order, whatever order the log returned it in", () =>

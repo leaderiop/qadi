@@ -13,6 +13,8 @@ import type * as Stream from "effect/Stream";
 import { decodeDecisionStream, encodeDecisionStream } from "../src/index.ts";
 import type {
   DecisionLog,
+  DecisionRecordEvent,
+  DecisionStreamEvent,
   DecisionStreamFrame,
   DecisionStreamRead,
   ReceivedFrame,
@@ -23,6 +25,11 @@ declare const log: DecisionLog;
 declare const frames: Stream.Stream<ReceivedFrame>;
 declare const encodeRecord: (record: StoredRecord) => Effect.Effect<Option.Option<string>>;
 declare const decodeRecord: (data: string) => Effect.Effect<Option.Option<StoredRecord>>;
+
+test("the stream's events are a closed union, and a record carries all but synced", () => {
+  expect<DecisionStreamEvent>().type.toBe<"backlog" | "synced" | "message">();
+  expect<DecisionRecordEvent>().type.toBe<"backlog" | "message">();
+});
 
 test("a frame is the two-member union: a record frame has an id, synced has none", () => {
   expect<DecisionStreamFrame>().type.toBe<

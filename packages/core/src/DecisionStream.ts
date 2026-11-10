@@ -1,16 +1,22 @@
 /**
- * The decision stream's order, written in one place: a log read as transport-free frames.
+ * The decision stream's order, written and read in one place: a log as transport-free frames, and frames back as a read.
  *
  * A reader of a decision log's stream receives one `backlog` frame per record the
  * log retained, one `synced` frame, then one `message` frame per record made after
- * (ADR-QD-097). {@link encodeDecisionStream} writes that order; a transport carries
- * the frames and states no order of its own.
+ * (ADR-QD-097). {@link encodeDecisionStream} writes that order and
+ * {@link decodeDecisionStream} reads it back; a transport carries the frames and
+ * states no order of its own.
  *
  * ARCH-60 (a port of the lost ARCH-54): `@qadi/http` used to frame the backlog in
  * `storedRecordOrder` (by `at`) while a resume kept `seq > Last-Event-ID`. When `at`
  * order differs from arrival order — overlapping evaluations, any `Edge` ingest —
  * the last id a reader saw was not its highest position, and a connection cut
  * mid-prelude resumed past records it never received, silently.
+ *
+ * The stream's words (`DecisionStreamEvent`, `DecisionStreamSynced`) and its
+ * cursor text (`formatLogCursor`, `parseLogCursor`) are declared here too, beside
+ * the two ends that speak them; `DecisionLog.ts` keeps the cursor itself and
+ * imports nothing from this module.
  *
  * **Backlog frames travel in cursor order.** A frame's `id` is a resume position
  * (`<epoch>.<seq>`) and `Last-Event-ID` resumes after it, so ids rise along a
@@ -34,10 +40,62 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
-import { DecisionStreamSynced, formatLogCursor, parseLogCursor } from "./DecisionLog.ts";
-import type { DecisionLog, DecisionRecordEvent, DecisionStreamEvent, LogEntry } from "./DecisionLog.ts";
+import type { DecisionLog, LogCursor, LogEntry } from "./DecisionLog.ts";
 import { storedRecordOrder } from "./DecisionRecord.ts";
 import type { StoredRecord } from "./DecisionRecord.ts";
+
+/**
+ * The events a decision log is served as: `backlog` frames, one `synced`, then
+ * `message` frames, in protocol order (ADR-QD-097).
+ *
+ * Declared in core because the writer (`@qadi/http`'s `/__decisions` route) and
+ * the reader (`@qadi/devtools`' `sourceFromEventSource`) share only this package
+ * (ADR-QD-047), and in this module because {@link encodeDecisionStream} and
+ * {@link decodeDecisionStream} are the two ends that speak it (ARCH-60). Each side
+ * used to declare its own copy, so a rename compiled on both sides and was caught
+ * only by the acceptance scenarios (ARCH-28). A closed union: a reader registers
+ * one listener per name.
+ */
+export const DecisionStreamEvent = Schema.Literals(["backlog", "synced", "message"]);
+
+export type DecisionStreamEvent = typeof DecisionStreamEvent.Type;
+
+/** The events that carry a stored record: every one but `synced`. */
+export type DecisionRecordEvent = Exclude<DecisionStreamEvent, "synced">;
+
+/**
+ * The `synced` frame's data: how many `backlog` frames preceded it.
+ *
+ * Its own schema so a reader can decode it as untrusted input. The count is a
+ * non-negative integer: it is the backlog frames actually sent, so `-1`, `1.5`
+ * and `NaN` are refused rather than accepted (ARCH-28 D-28-d).
+ */
+export const DecisionStreamSynced = Schema.Struct({
+  backlog: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+});
+
+export type DecisionStreamSynced = typeof DecisionStreamSynced.Type;
+
+/** A cursor as text: `<epoch>.<seq>`, both non-negative integers. */
+export const formatLogCursor = (cursor: LogCursor): string => `${cursor.epoch}.${cursor.seq}`;
+
+const CURSOR = /^(\d+)\.(\d+)$/;
+
+/**
+ * A cursor from text, or `None` when the text is not exactly `<epoch>.<seq>`.
+ *
+ * Strict, because the text is a request header a client controls: anything
+ * else — a sign, an exponent, a fraction, an integer past
+ * `Number.MAX_SAFE_INTEGER`, a third segment — is not a cursor, and a reader
+ * that sent one gets the full backlog rather than a guess.
+ */
+export const parseLogCursor = (text: string): Option.Option<LogCursor> => {
+  const match = CURSOR.exec(text);
+  if (match === null) return Option.none();
+  const epoch = Number(match[1]);
+  const seq = Number(match[2]);
+  return Number.isSafeInteger(epoch) && Number.isSafeInteger(seq) ? Option.some({ epoch, seq }) : Option.none();
+};
 
 /**
  * One frame of the stream, before any transport has written it.
