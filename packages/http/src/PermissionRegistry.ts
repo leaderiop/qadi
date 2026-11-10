@@ -29,6 +29,7 @@ import { permissionKey } from "@qadi/core";
 import { loadNoResource } from "./NoResource.ts";
 import { guardRoute } from "./GuardRoute.ts";
 import type { HttpEnforcementFailure } from "./QadiHttpError.ts";
+import { unguardedRoutes } from "./UnguardedRoute.ts";
 
 /** One route that requires a permission, as recorded in `PermissionRegistry`. */
 export interface EndpointDescriptor {
@@ -176,19 +177,19 @@ export const permissionRegistryRoute = <P extends Permission>(permission: P, pol
  * topology unauthenticated is something a reviewer can see somebody decided —
  * the same role `publicEndpoint(reason)` plays for an endpoint.
  *
- * Logged at warning level on every request, not once at construction: a local
- * development choice that reaches production should be visible in the logs of
- * the environment it is wrong in, not only in the one where it was made.
+ * Logged at warning level on every request (`announce: "every-request"`), not
+ * once at construction as the port routes are: a local development choice that
+ * reaches production should be visible in the logs of the environment it is
+ * wrong in, not only in the one where it was made (BEH-QD-180). The warning text
+ * and the cadence dispatch are `unguardedRoutes`' (`UnguardedRoute.ts`).
  */
 export const permissionRegistryRouteUnguarded = (reason: string) =>
-  HttpRouter.add(
-    "GET",
-    "/__permissions",
-    Effect.gen(function* () {
-      yield* Effect.logWarning(
-        "qadi/http: serving /__permissions unguarded — the full authorization " +
-          `topology is public. Reason given: ${reason}`,
-      );
-      return yield* snapshotResponse;
-    }),
+  unguardedRoutes(
+    {
+      what: "/__permissions",
+      consequence: "the full authorization topology is public",
+      reason,
+      announce: "every-request",
+    },
+    [{ method: "GET", path: "/__permissions", handler: snapshotResponse }],
   );

@@ -18,7 +18,6 @@
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
-import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type {
@@ -35,6 +34,7 @@ import { answerWithResponse, enforceSubject } from "./AuthorizeRequest.ts";
 import { loadNoResource } from "./NoResource.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
 import { portPath } from "./PortRouteAddress.ts";
+import { unguardedRoutes } from "./UnguardedRoute.ts";
 
 /**
  * The status each refusal answers with, closed over the refusals so a new one is
@@ -145,9 +145,11 @@ export const portRoutes = <P extends Permission>(
  * The `reason` is never read. It exists so that an unguarded route is something
  * a reviewer can see somebody decided, the role `publicEndpoint(reason)` plays
  * for an endpoint and `permissionRegistryRouteUnguarded(reason)` for the
- * registry. Unlike that route this logs **once, at construction**: a port route
- * is hit on every client re-check, and a warning per request would bury the log
- * it is meant to appear in.
+ * registry. Unlike that route this logs **once, at construction**
+ * (`announce: "once"`, ADR-QD-107): a port route is hit on every client
+ * re-check, and a warning per request would bury the log it is meant to appear
+ * in. One warning covers every served port, which is why `unguardedRoutes`
+ * (`UnguardedRoute.ts`) takes the family together.
  *
  * An anonymous caller is answered about the anonymous subject, so a store that
  * knows nothing of it answers as it would to any unknown id. Nothing is
@@ -164,26 +166,26 @@ export const portRoutesUnguarded = (
   options?: PortRoutesOptions,
 ) => {
   const answers = answersFor(serving);
-  return Layer.merge(
-    Layer.effectDiscard(
-      Effect.logWarning(
-        "qadi/http: serving port routes unguarded — each answers only about the " +
-          `request's own subject. Reason given: ${reason}`,
-      ),
-    ),
-    merged(
-      PORT_NAMES.map((port) => {
-        const answer = answers[port];
-        if (answer === undefined) return Layer.empty;
-        return HttpRouter.add(
-          "POST",
-          portPath(options?.prefix, port),
-          Effect.flatMap(
+  return unguardedRoutes(
+    {
+      what: "port routes",
+      consequence: "each answers only about the request's own subject",
+      reason,
+      announce: "once",
+    },
+    PORT_NAMES.flatMap((port) => {
+      const answer = answers[port];
+      if (answer === undefined) return [];
+      return [
+        {
+          method: "POST",
+          path: portPath(options?.prefix, port),
+          handler: Effect.flatMap(
             HttpServerRequest.HttpServerRequest,
             enforceSubject(answerWithResponse, () => Effect.map(Effect.flatMap(questionOf, answer), respond)),
           ),
-        );
-      }),
-    ),
+        },
+      ];
+    }),
   );
 };
