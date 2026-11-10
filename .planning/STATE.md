@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 12-05-PLAN.md (Phase 12 complete)
+stopped_at: Completed 13-01-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "12-05 complete: BEH-QD-349, INV-QD-250/251, ADR-QD-097/052/041 amendments, CCR-QD-397/398, gate 13 green, two changesets and 0.12 upgrade notes, mutation at or above base, pnpm check:pr green; Phase 12 complete"
+last_activity_desc: "13-01 complete: enforcePublic, the public mode of the request-enforcement module; a publicEndpoint handler denial is logged once; BEH-QD-359, ADR-QD-108 addendum; phase base 0925c2f and 13-mutation-base.json recorded"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 59
-  completed_plans: 15
-  percent: 25
+  completed_plans: 16
+  percent: 27
 current_phase: 13
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 13 of 20 (Lost-wave gaps)
-Plan: Phase 12 5 of 5 complete (12-01 … 12-05); next is Phase 13 (13-01)
-Status: Phase 12 complete (phase_base f1041fe); Phase 13 not started
-Last activity: 2026-11-10 -- 12-05 complete: the spec records the stream's order and the hydration event (BEH-QD-349, INV-QD-250, INV-QD-251, CCR-QD-397/398, ADR-QD-097/047/052/041/078); `pnpm spec:api` green; changesets `decision-stream-order` and `hydration-one-event` (Breaking http and react) and two 0.12 upgrade entries; every touched file's Stryker score at or above base; `pnpm check:pr` green; ADR-QD-119/120 unused
+Plan: 1 of 13 complete (13-01); next is 13-02
+Status: Phase 13 in progress (phase_base 0925c2f)
+Last activity: 2026-11-10 -- 13-01 complete: a `publicEndpoint` runs through `enforcePublic` (AuthorizeRequest.ts), so its handler-raised denial is logged once as "handler" and its failures are projected by `answerInChannel`; enforcement matrix gains a publicEndpoint row; BEH-QD-359, BEH-QD-321/335 amended, ADR-QD-108 Rev 1.2; pending `request-enforced-once` changeset amended; `spec:verify` red on CCR-QD-399 until 13-11; BEH-QD-360..362 and ADR-QD-121 unused
 
 ## Performance Metrics
 
