@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 17-04-PLAN.md
+stopped_at: Completed 17-05-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "17-04 complete: every key consumer branches on the Result; a request with no key fails closed with the port's typed error; repo green; replay miss policy pending 17-05"
+last_activity_desc: "17-05 complete: a Snapshot replay of a request the capture never saw fails with the port's own typed error on every port (D-04 = A); per-port table under the leaf and not(leaf); docs pending 17-06"
 state_head: 856a092ab1da5af22c7dbf7a6044fa32cf55eeeb
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 59
-  completed_plans: 47
-  percent: 80
+  completed_plans: 48
+  percent: 81
 current_phase: 17
 ---
 
@@ -28,14 +28,14 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 17 of 20 (Injective request key)
-Plan: 4 of 6 in Phase 17 (17-04 complete); next is 17-05
+Plan: 5 of 6 in Phase 17 (17-05 complete); next is 17-06
 Status: In progress (phase_base 1a14899)
-Last activity: 2026-11-10 -- 17-04 complete: replyTable, signatureHistoryFromSignatures and devtools capture/replay branch on the key Result and fail closed on a refusal; typecheck, core/devtools/audit/testing suites and BDD green
+Last activity: 2026-11-10 -- 17-05 complete: UNSEEN_REQUEST_IS_AN_OUTAGE deleted; every port's replay miss is an outage, pinned per port under the leaf and not(leaf); devtools suite, typecheck, lint and BDD green; Capture.ts mutation 1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 51
+- Total plans completed: 52
 - Average duration: -
 - Total execution time: 0.0 hours
 
