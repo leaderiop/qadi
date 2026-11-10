@@ -252,7 +252,13 @@ describe("SharedComputation", () => {
 
   it.effect("reset forgets in-flight claims; the stale compute neither answers nor unclaims the fresh one", () =>
     Effect.gen(function* () {
-      const { shared } = harness();
+      // Remembers nothing, so only `inFlight` decides join or claim (what a stale
+      // answer may write is the adapter's call: `DecisionCache`'s generation).
+      const shared = makeSharedComputation<string, number, never>({
+        cached: () => Option.none(),
+        claim: () => () => {},
+        onOutcome: () => Effect.void,
+      });
       const runs = yield* Ref.make(0);
       const stale = yield* Deferred.make<void>();
       const fresh = yield* Deferred.make<void>();
