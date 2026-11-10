@@ -33,7 +33,10 @@
  * purpose to pin what `outcomeOf` makes of it. The seventh,
  * `PORT_DOUBLE_BUDGET`, is the reverse: test-scope only (`packages/<pkg>/test`,
  * `packages/<pkg>/bench`, `features/step-definitions`), because what it
- * guards is how a test describes a broken port.
+ * guards is how a test describes a broken port. The eighth,
+ * `METRIC_ID_LITERAL_BUDGET`, is test-scope too (`packages/<pkg>/test` and
+ * `bench`); it and its two sibling metric rules are described where they run,
+ * below (ADR-QD-123).
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -1641,6 +1644,225 @@ for (const rel of DEVTOOLS_BARRELS) {
       );
       break;
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ADR-QD-123 — a metric is declared once, where its readers can import it, and
+// listed where its operators can read it. Three rules, none of which is a new
+// gate number (they run inside this script, which `pnpm lint` runs):
+//
+//   [metric-declaration]  every `Metric.<ctor>(` in `packages/*/src` is the
+//     initializer of a module-scope `const` whose first argument is a
+//     `"qadi_…"` literal, and in `@qadi/core` that const is exported (an
+//     untagged base counter re-exported as its tagged series is the one
+//     reviewed exception, METRIC_BASE_UNEXPORTED). No test, feature or example
+//     declares a `qadi_*` metric: a reader that re-declares one reads zero
+//     forever, because the registry key includes the description (ADR-QD-052).
+//   [metric-table]  the `| Metric | Type | Series | Declared in | Reader |`
+//     table under "Every metric Qadi declares" in
+//     `spec/behaviors/25-inspection.md` and the declarations agree in both
+//     directions on id, type and file.
+//   [metric-id-literal]  METRIC_ID_LITERAL_BUDGET: a test reads a metric
+//     through its export, and a literal `"qadi_…"` id belongs in a pin.
+// ---------------------------------------------------------------------------
+
+/**
+ * Untagged base counters `@qadi/core` deliberately does not export, because
+ * reading the base gives zero and registers a phantom untagged series (ADR-QD-123).
+ * Each is exported as its tagged series instead.
+ *
+ * @type {Readonly<Record<string, ReadonlyArray<string>>>}
+ */
+const METRIC_BASE_UNEXPORTED = {
+  "packages/core/src/EvaluationMetrics.ts": ["decisionsBase"],
+};
+
+/**
+ * The exact count of `"qadi_…"` id literals per test file, outside a
+ * `describe(`/`it(`/`test(` title. Each is a pin or a golden row: the one place
+ * a test restates an id (ADR-QD-123). Checked in both directions like
+ * `SWITCH_BUDGET`, so a string-matched read added anywhere fails until it is
+ * written down with its reason.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const METRIC_ID_LITERAL_BUDGET = {
+  // The four audit pins: writes, circuit-breaker transitions, staging, entries lost.
+  "packages/audit/test/Metrics.test.ts": 4,
+  // Seven golden rows (the registry key an exporter sees), six declaration pins and
+  // the `"qadi_port_"` prefix that keeps the port metrics out of the golden.
+  "packages/core/test/EvaluationMetrics.test.ts": 14,
+  // The five hydration pins (ADR-QD-052).
+  "packages/core/test/HydrationMetrics.test.ts": 5,
+  // One declaration pin and one exported-attributes check each.
+  "packages/predicate-prisma/test/Metrics.test.ts": 2,
+  "packages/predicate-sql/test/Metrics.test.ts": 2,
+};
+
+const METRIC_CTOR = /\bMetric\.(counter|frequency|histogram|gauge|summary|timer)\(/;
+const METRIC_DECLARATION = /^(export )?const (\w+)(?::[^=]+)? = Metric\.(counter|frequency|histogram|gauge|summary|timer)\(\s*"(qadi_[a-z_]+)"/;
+const METRIC_ID_LITERAL =
+  /(?<!\b(?:describe|it|test|it\.effect|it\.scoped|it\.live|it\.layer)\(\s*)"qadi_[a-z_]+"/g;
+const isCommentLine = (line) => /^\s*(\/\/|\/\*|\*)/.test(line);
+
+/** @type {Array<{ id: string, type: string, file: string }>} */
+const declaredMetrics = [];
+for (const file of srcSources) {
+  const rel = relative(ROOT, file);
+  if (!rel.startsWith("packages/")) continue;
+  readFileSync(file, "utf8")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .forEach((raw, index) => {
+      if (isCommentLine(raw) || !METRIC_CTOR.test(raw)) return;
+      const m = METRIC_DECLARATION.exec(raw);
+      if (m === null) {
+        failures += 1;
+        console.error(
+          `${rel}:${index + 1}  [metric-declaration] A metric is a module-scope \`const x = Metric.<ctor>("qadi_…", …)\` ` +
+            `with its id on that line (ADR-QD-123).\n    ${raw.trim()}`,
+        );
+        return;
+      }
+      const [, exported, name, ctor, id] = m;
+      if (
+        rel.startsWith("packages/core/src/") &&
+        exported === undefined &&
+        !(METRIC_BASE_UNEXPORTED[rel] ?? []).includes(name)
+      ) {
+        failures += 1;
+        console.error(
+          `${rel}:${index + 1}  [metric-declaration] ${name} is a \`@qadi/core\` metric and must be \`export const\`, ` +
+            `so a reader imports it instead of matching its id (ADR-QD-123).\n    ${raw.trim()}`,
+        );
+      }
+      declaredMetrics.push({ id, type: ctor[0].toUpperCase() + ctor.slice(1), file: rel });
+    });
+}
+
+{
+  const seen = new Set();
+  for (const { id, file } of declaredMetrics) {
+    if (seen.has(id)) {
+      failures += 1;
+      console.error(`${file}  [metric-declaration] ${id} is declared twice; a metric has one declaration (ADR-QD-052, ADR-QD-123).`);
+    }
+    seen.add(id);
+  }
+}
+
+// A reader that re-declares reads zero: nothing outside `packages/*/src` may declare a `qadi_*` metric.
+{
+  const SKIP_DIRS = new Set(["node_modules", ".next", "dist", "lib", ".turbo"]);
+  const walk = (dir) => {
+    /** @type {string[]} */
+    const out = [];
+    let entries;
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      return out;
+    }
+    for (const entry of entries) {
+      if (SKIP_DIRS.has(entry)) continue;
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) out.push(...walk(full));
+      else if (/\.[cm]?[jt]sx?$/.test(full)) out.push(full);
+    }
+    return out;
+  };
+  const redeclaring = /\bMetric\.(counter|frequency|histogram|gauge|summary|timer)\(\s*"qadi_/;
+  const outside = [
+    ...readdirSync(packagesDir).flatMap((pkg) => walk(join(packagesDir, pkg, "test"))),
+    ...walk(join(ROOT, "features")),
+    ...walk(join(ROOT, "examples")),
+  ];
+  for (const file of outside) {
+    const rel = relative(ROOT, file);
+    readFileSync(file, "utf8")
+      .split("\n")
+      .forEach((raw, index) => {
+        if (isCommentLine(raw) || !redeclaring.test(raw)) return;
+        failures += 1;
+        console.error(
+          `${rel}:${index + 1}  [metric-declaration] A reader that re-declares a metric reads zero (ADR-QD-052); ` +
+            `import the one declaration instead.\n    ${raw.trim()}`,
+        );
+      });
+  }
+}
+
+{
+  const spec = readFileSync(join(ROOT, "spec/behaviors/25-inspection.md"), "utf8").replace(/\r\n/g, "\n").split("\n");
+  const heading = spec.findIndex((l) => /^### Every metric Qadi declares\s*$/.test(l));
+  if (heading === -1) {
+    failures += 1;
+    console.error("spec/behaviors/25-inspection.md  [metric-table] the `### Every metric Qadi declares` table was not found.");
+  } else {
+    /** @type {Map<string, { type: string, file: string }>} */
+    const rows = new Map();
+    let i = heading + 1;
+    while (i < spec.length && !spec[i].startsWith("|")) i += 1;
+    for (i += 2; i < spec.length && spec[i].startsWith("|"); i += 1) {
+      const cells = spec[i].split("|").slice(1, -1).map((c) => c.trim().replace(/^`|`$/g, ""));
+      const [id, type, , file] = cells;
+      if (id === undefined || type === undefined || file === undefined) continue;
+      rows.set(id, { type, file });
+    }
+    const byId = new Map(declaredMetrics.map((d) => [d.id, d]));
+    for (const [id, row] of rows) {
+      const d = byId.get(id);
+      if (d === undefined) {
+        failures += 1;
+        console.error(`spec/behaviors/25-inspection.md  [metric-table] lists ${id} but no module-scope metric of that id is declared.`);
+      } else if (d.type !== row.type || d.file !== row.file) {
+        failures += 1;
+        console.error(
+          `spec/behaviors/25-inspection.md  [metric-table] ${id} is a ${d.type} declared in ${d.file}, ` +
+            `but the table says ${row.type} in ${row.file}.`,
+        );
+      }
+    }
+    for (const d of declaredMetrics) {
+      if (rows.has(d.id)) continue;
+      failures += 1;
+      console.error(`${d.file}  [metric-table] ${d.id} is declared with no row in 25-inspection.md's "Every metric Qadi declares" table.`);
+    }
+  }
+}
+
+{
+  /** @type {Map<string, number>} */
+  const literalCounts = new Map();
+  for (const file of testSourceSet) {
+    const rel = relative(ROOT, file);
+    const text = readFileSync(file, "utf8")
+      .replace(/\r\n/g, "\n")
+      .split("\n")
+      .map((l) => (isCommentLine(l) ? "" : l))
+      .join("\n");
+    const n = (text.match(METRIC_ID_LITERAL) ?? []).length;
+    if (n > 0) literalCounts.set(rel, n);
+  }
+  for (const [rel, budget] of Object.entries(METRIC_ID_LITERAL_BUDGET)) {
+    const found = literalCounts.get(rel) ?? 0;
+    if (found !== budget) {
+      failures += 1;
+      console.error(
+        `${rel}  [metric-id-literal] declares ${budget} \`"qadi_…"\` id literal(s), found ${found}.\n` +
+          `    Update METRIC_ID_LITERAL_BUDGET in scripts/check-house-style.mjs so the two agree.`,
+      );
+    }
+  }
+  for (const [rel, found] of literalCounts) {
+    if (rel in METRIC_ID_LITERAL_BUDGET) continue;
+    failures += 1;
+    console.error(
+      `${rel}  [metric-id-literal] ${found} \`"qadi_…"\` id literal(s) outside a test title.\n` +
+        `    A test reads a metric through its export (\`Metric.value(decisionsTotal.Allow)\`); a literal id ` +
+        `belongs in a pin, added to METRIC_ID_LITERAL_BUDGET with its exact count (ADR-QD-123).`,
+    );
   }
 }
 
