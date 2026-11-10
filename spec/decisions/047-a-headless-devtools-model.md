@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-047                                   |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-10-07                                     |
-> | Status         | Accepted; amended 2026-10-07 (sampling is the model's), 2026-10-08 (the feed, a supplied reading, the interface), 2026-11-09 (the explorer's state is model too) |
+> | Status         | Accepted; amended 2026-10-07 (sampling is the model's), 2026-10-08 (the feed, a supplied reading, the interface), 2026-11-09 (the explorer's state is model too), 2026-11-10 (the stream's prelude rules are core's) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.7 (2026-11-09): amendment — the policy explorer's state is `ExplorerSession` and the role viewer's choice a `HeldChoiceStore`, both owned by `DevtoolsDock` and package-private (ARCH-58, BEH-QD-337, INV-QD-107, CCR-QD-394)<br>1.6 (2026-10-08): amendment — the model's interface is its stores, the host wiring and the timeline readings; a screen's mechanics and the panels are package-private (ARCH-40, CCR-QD-321)<br>1.4 (2026-10-08): amendment — a supplied reading is one value, `DiagnosticsReading`, merged by `mergeReading` (ARCH-44, CCR-QD-241)<br>1.3 (2026-10-08): amendment — under a `QadiProvider`, the layer the dock builds is the provider's own, handed by `@qadi/react`'s `useDevtoolsFeed` (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.8 (2026-11-10): cross-reference — the stream's prelude rules are @qadi/core's decodeDecisionStream; sourceFromEventSource is the EventSource adapter over it, signature unchanged (ARCH-60, CCR-QD-397)<br>1.7 (2026-11-09): amendment — the policy explorer's state is `ExplorerSession` and the role viewer's choice a `HeldChoiceStore`, both owned by `DevtoolsDock` and package-private (ARCH-58, BEH-QD-337, INV-QD-107, CCR-QD-394)<br>1.6 (2026-10-08): amendment — the model's interface is its stores, the host wiring and the timeline readings; a screen's mechanics and the panels are package-private (ARCH-40, CCR-QD-321)<br>1.4 (2026-10-08): amendment — a supplied reading is one value, `DiagnosticsReading`, merged by `mergeReading` (ARCH-44, CCR-QD-241)<br>1.3 (2026-10-08): amendment — under a `QadiProvider`, the layer the dock builds is the provider's own, handed by `@qadi/react`'s `useDevtoolsFeed` (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 ---
 
@@ -241,3 +241,13 @@ a prop fed by the host's subscription ([ADR-QD-080](./080-a-gate-registry-belong
 > screen's mechanics: nothing but the dock drives it) and `DevtoolsDock` owns it, as it
 > owns the simulator's. The role viewer's held choice is a `HeldChoiceStore`
 > (`HeldChoice.ts`) the dock owns for the same reason. No exported name changed.
+
+> **Cross-reference 2026-11-10 (CCR-QD-397).** The stream's prelude rules that
+> `sourceFromEventSource` used to state for itself (wait for `synced`, a
+> `message` before it is live, a later `synced` skipped, no prelude within
+> `syncTimeout` leaves the backlog absent) are `@qadi/core`'s
+> `decodeDecisionStream`, the reader half of the order
+> [ADR-QD-097](./097-a-decision-log-is-a-sink-and-its-own-history.md)'s
+> 2026-11-10 amendment gives one owner. The model's interface is unchanged:
+> `sourceFromEventSource` keeps its signature and `SourceRead`, and is now the
+> `EventSource` adapter over that decoder.

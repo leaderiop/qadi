@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-052                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-08                                     |
-> | Status         | Accepted                                       |
+> | Status         | Accepted; amended 2026-11-10 (one hydration event, projected once) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-10-08): amended: at effect 4.0.0 a metric looks its registry up on every update; writer and reader agree because both name the default registry, not because a metric remembers one (ARCH-45 I8, CCR-QD-269)<br>1.1 (2026-10-04): The drop-reason set changes — `UnregisteredAtoms` removed, `UnsupportedPayloadVersion` and `MalformedPayload` added; the five metrics, their ids and descriptions are unchanged (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-24): Initial release (CCR-QD-072) |
+> | Change History | 1.3 (2026-11-10): amended — every hydration outcome is one HydrationEvent projected once by HydrationEvent.ts; a refusal is counted at least once; UnencodablePolicy; the Context.empty() confinement file is HydrationEvent.ts (HydrationCounts.ts deleted) (ARCH-60, INV-QD-045, INV-QD-251, CCR-QD-398)<br>1.2 (2026-10-08): amended: at effect 4.0.0 a metric looks its registry up on every update; writer and reader agree because both name the default registry, not because a metric remembers one (ARCH-45 I8, CCR-QD-269)<br>1.1 (2026-10-04): The drop-reason set changes — `UnregisteredAtoms` removed, `UnsupportedPayloadVersion` and `MalformedPayload` added; the five metrics, their ids and descriptions are unchanged (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-24): Initial release (CCR-QD-072) |
 
 ---
 
@@ -118,6 +118,35 @@ default, replaced outright by a supplied callback which then runs in production.
 A reason rather than a count because the three causes have three different fixes
 — a cache-key bug on the server, a wiring mistake in the call, version skew
 between the ends — and a number cannot tell a developer which they have.
+
+> **Amendment (2026-11-10, one hydration event, projected once — ARCH-60,
+> CCR-QD-398).** The decision stands; how a count is made changes, because two
+> exits broke INV-QD-045 while every call site counted for itself.
+>
+> - **Every hydration outcome is one closed `HydrationEvent`** (`Dehydrated`,
+>   `LeftOut`, `PayloadRefused`, `EntriesDropped`, `Seeded`, `Rechecked`),
+>   planned inside the engine (`dehydrateWith`, `hydrateWith`,
+>   `makeSeededQuestion`) and projected once, by `emitHydration` in
+>   `packages/react/src/HydrationEvent.ts`, to the five metrics and then to the
+>   reporter. It counts before it announces, and it is the only writer of the
+>   five metrics. The engine calls no counter.
+> - **A refusal is counted at least once, whatever its reason.** A zero-entry
+>   `PayloadSubjectMismatch` counted zero; the rule is now the `PayloadRefused`
+>   arm of the projection, not a default each call site may forget.
+> - **`UnencodablePolicy` joins the dehydrate side** (`DehydrationDropReason`,
+>   `hydrationDropReasons`, `hydrationDropMeaning`), a new key on
+>   `qadi_hydration_dropped_total`: `dehydrateDecisions` encoded with
+>   `encodeSync` and threw on a policy the constructors build and the schema
+>   refuses (a non-finite bound, a fractional depth). The entry is now a `LeftOut`
+>   event, so dehydration is total and the entry is counted.
+> - **The `Context.empty()` confinement moved with the writes.**
+>   `HydrationCounts.ts` is deleted; the paragraph above that names it now holds
+>   for `HydrationEvent.ts`, and the default-registry rule of the ARCH-45
+>   amendment below is unchanged.
+> - **A reporter observes; it cannot change an outcome** (INV-QD-251). Both
+>   ends' `onDropped` take one `HydrationDrop` shape (12-03's checkpoint answer,
+>   `option-a`: "One `HydrationDrop` type for both ends (Breaking dehydrate
+>   `onDropped`); `HydrationEvent.ts` joins the react Stryker run").
 
 ## Consequences
 

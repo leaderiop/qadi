@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-041                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-08                                     |
-> | Status         | Accepted                                       |
+> | Status         | Accepted; amended 2026-11-10 (a supplied reporter that throws is contained) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.3 (2026-10-08): The confinement point is `DeveloperSignals.ts` and holds every developer signal `@qadi/react` raises, including `QadiProvider`'s three, each replaceable through `onDeveloperSignal`; the confinement is enforced by `no-ambient-console`; the deferral in Consequences is superseded in a blockquote (CCR-QD-203)<br>1.2 (2026-10-04): `HydrationMismatch.seeded` is a `SeededDecision`, not a `Decision`; the stated reason for naming the policy from `decided.trace` ("a stand-in that names nothing") is corrected in a blockquote, original preserved (ADR-QD-078, CCR-QD-156)<br>1.1 (2026-09-07): The worked-example paraphrase updated to match ADR-QD-040's corrected denial text (issue 45, CCR-QD-114)<br>1.0 (2026-08-23): Initial release (CCR-QD-056) |
+> | Change History | 1.4 (2026-11-10): amended — a supplied reporter that throws is contained and announced as ReporterThrew, in every environment; DehydrationDropped replaces PayloadMixedSubjects (ARCH-60, INV-QD-251, CCR-QD-398)<br>1.3 (2026-10-08): The confinement point is `DeveloperSignals.ts` and holds every developer signal `@qadi/react` raises, including `QadiProvider`'s three, each replaceable through `onDeveloperSignal`; the confinement is enforced by `no-ambient-console`; the deferral in Consequences is superseded in a blockquote (CCR-QD-203)<br>1.2 (2026-10-04): `HydrationMismatch.seeded` is a `SeededDecision`, not a `Decision`; the stated reason for naming the policy from `decided.trace` ("a stand-in that names nothing") is corrected in a blockquote, original preserved (ADR-QD-078, CCR-QD-156)<br>1.1 (2026-09-07): The worked-example paraphrase updated to match ADR-QD-040's corrected denial text (issue 45, CCR-QD-114)<br>1.0 (2026-08-23): Initial release (CCR-QD-056) |
 
 _Follows: [ADR-QD-039](./039-a-seed-is-not-an-authority.md), which made the
 client's answer supersede the seed and said nothing about telling anyone._
@@ -214,3 +214,22 @@ library.
 - **The meaning of each drop reason lives in core**, beside the union that
   defines the reasons (`hydrationDropMeaning`). The console prints its `remedy`;
   the devtools panel shows its `summary`.
+
+## Amendment (2026-11-10, ARCH-60, CCR-QD-398): a supplied reporter that throws is contained
+
+- **A throwing reporter changes nothing.** Every resolver in
+  `DeveloperSignals.ts` wraps a supplied reporter once. One that throws is
+  contained, the outcome it was told about stands (nothing skipped, seeded
+  differently or left uncounted), and the throw is announced by a new signal,
+  `ReporterThrew { reporter, error }`, naming the hook and the error's
+  `name: message` and never an entry, in development and in production: the host
+  replaced the default, so nothing else will say it (INV-QD-251). Before,
+  `onHydrationMismatch` was called unguarded inside the decision atom's read, so
+  a throw reached React's render.
+- **`DehydrationDropped { reason, count }` replaces `PayloadMixedSubjects`.**
+  Dehydration has a second drop reason, `UnencodablePolicy`, so the dehydrate
+  signal carries its reason and prints that reason's `remedy` from
+  `hydrationDropMeaning`, as the hydrate side's does. `DehydrateOptions.onDropped`
+  takes the same `HydrationDrop` as `HydrateOptions.onDropped`.
+- The confinement is unchanged: `DeveloperSignals.ts` is still the only file
+  that writes to `console`.

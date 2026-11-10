@@ -31,8 +31,10 @@ pulling in a UI at all.
 ## The model absorbs a hostile feed
 
 Decision records arrive from several processes at once, and none of them
-promises order, uniqueness, or completeness: a reconnecting `EventSource` reads
-the server's backlog again, so a record may arrive twice; merging two sources interleaves two
+promises order, uniqueness, or completeness: a reconnecting `EventSource`
+resumes after the last record it received and loses none, but one whose cursor
+the server no longer recognises reads the whole backlog again, so a record may
+arrive twice; merging two sources interleaves two
 clocks; and a decision's obligation outcome is emitted after `evaluate`
 already returned, so the two halves of one story can arrive out of sequence.
 `Timeline` absorbs all of that, so everything downstream may assume its
@@ -69,6 +71,14 @@ it:
 | `sourceFromRecords` | a fixed array | — |
 | a `DecisionLog`, passed as is | its backlog | in-process |
 | `sourceFromEventSource` | the server's prelude, when it sends one | across processes, over SSE |
+
+`sourceFromEventSource` is the `EventSource` adapter over `@qadi/core`'s
+`decodeDecisionStream`, which holds the prelude rules: the frames before
+`synced` are the backlog, a `message` before it is live, and no `synced`
+within `syncTimeout` leaves the backlog absent. The server sends the backlog in
+cursor order so a reconnect loses nothing; the backlog is still presented in
+decision order. Against a server older than 0.12 a reconnect during the backlog
+can still lose records, because the order is the server's.
 
 The environment label is stated once, where the log is made; over SSE it
 travels inside each frame, so `sourceFromEventSource` states none. A frame must

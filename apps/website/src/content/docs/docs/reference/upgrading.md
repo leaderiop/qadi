@@ -225,3 +225,87 @@ signature, and it was stored subject-wide, where a `hasSignature` check with
 `id`, or ask the question without a resource if the signature really is
 subject-wide. See
 [ADR-QD-117](https://github.com/leaderiop/qadi/blob/main/spec/decisions/117-a-signature-ledger-is-a-keyed-store.md).
+
+## 0.12: `@qadi/http` no longer exports `frame`, `syncedFrame` or `decisionFrames`
+
+The order of `/__decisions` (the backlog, one `synced`, then live records) is
+now written once, by `@qadi/core`'s `encodeDecisionStream`, and read back by
+`decodeDecisionStream`. `@qadi/http`'s `frame`, `syncedFrame` and
+`decisionFrames` were a second copy of that order and are removed, with no
+aliases. `decisionStreamRoute` and `decisionBacklogRoute` are unchanged, and so
+are the record bytes, the refusal warnings and `onRefused`.
+
+If you built frames yourself, encode the log with core and write each frame in
+your own transport. Before:
+
+```ts
+import { decisionFrames } from "@qadi/http";
+
+const body = decisionFrames(entries, { onRefused }); // Stream<string> of SSE text
+```
+
+After:
+
+```typescript
+import { encodeDecisionStream, encodeStoredRecordString } from "@qadi/core";
+import type { DecisionLog, DecisionStreamFrame } from "@qadi/core";
+import * as Effect from "effect/Effect";
+import * as Result from "effect/Result";
+import type * as Stream from "effect/Stream";
+
+// One frame per record, in cursor order; `after` is the client's Last-Event-ID.
+export const frames = (
+  log: Pick<DecisionLog, "readEntries">,
+  after: string | undefined,
+): Stream.Stream<DecisionStreamFrame> =>
+  encodeDecisionStream(log, {
+    after,
+    // A record the codec refuses answers None and loses only its own frame.
+    encodeRecord: (record) => Effect.succeed(Result.getSuccess(encodeStoredRecordString(record))),
+  });
+```
+
+The backlog now travels in cursor order rather than decision order, so a
+client that reconnects with the last event id it received loses no record and
+receives none twice. A reader built on `decodeDecisionStream` (as
+`@qadi/devtools`' `sourceFromEventSource` is) still presents the backlog in
+decision order. A reader against a server older than 0.12 can still lose
+records on a reconnect during the backlog, because the order is the server's:
+upgrade the server. See
+[ADR-QD-097](https://github.com/leaderiop/qadi/blob/main/spec/decisions/097-a-decision-log-is-a-sink-and-its-own-history.md).
+
+## 0.12: `dehydrateDecisions`' `onDropped` takes a `HydrationDrop`
+
+`DehydrateOptions.onDropped` used to receive a bare array of the entries it
+dropped. It now receives the same record `HydrateOptions.onDropped` does,
+`{ reason, entries, wholePayload }`, once per reason, with `wholePayload`
+always `false`. The reason is `ForeignSubject` (the entry belongs to another
+subject) or the new `UnencodablePolicy` (a policy the policy schema refuses,
+such as `gte(NaN)` or a fractional relationship depth, which used to make
+`dehydrateDecisions` throw). Before:
+
+```ts
+dehydrateDecisions(entries, { onDropped: (dropped) => alert(dropped.length) });
+```
+
+After:
+
+```typescript
+import { dehydrateDecisions } from "@qadi/react";
+import type { DecisionEntry, DehydratedDecisions } from "@qadi/react";
+
+declare const alert: (count: number, reason: string) => void;
+
+export const payload = (entries: ReadonlyArray<DecisionEntry>): DehydratedDecisions =>
+  dehydrateDecisions(entries, {
+    onDropped: (drop) => alert(drop.entries.length, drop.reason),
+  });
+```
+
+`HydrationDrop` and `HydrationDropReporter` take the reason as a second type
+parameter, defaulting to the hydrate side's reasons, so `HydrationDrop<A>` means
+what it meant. `DehydrationDropReason`, and so `HydrationDropReason`, gains
+`UnencodablePolicy`: an exhaustive `switch` or `Match` over either needs one more
+arm, and `qadi_hydration_dropped_total` has one more key. A reporter you supply
+that throws no longer changes the outcome: it is contained and announced. See
+[ADR-QD-052](https://github.com/leaderiop/qadi/blob/main/spec/decisions/052-hydration-is-counted-where-both-ends-can-see-it.md).

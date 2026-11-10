@@ -9,7 +9,7 @@
  * reporter: one table, one arm per tag, so a new exit is one compile error in
  * one place.
  *
- * Why (ARCH-60, a port of the lost ARCH-53): each exit used to write a counter
+ * Why (ARCH-60, a port of the lost commit `f27d049`): each exit used to write a counter
  * through `HydrationCounts.ts` and call a reporter resolved in
  * `DeveloperSignals.ts`, and every pair decided its own count rule and its own
  * order against the work it reported. Two of those pairs had drifted — a payload

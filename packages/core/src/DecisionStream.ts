@@ -7,7 +7,7 @@
  * {@link decodeDecisionStream} reads it back; a transport carries the frames and
  * states no order of its own.
  *
- * ARCH-60 (a port of the lost ARCH-54): `@qadi/http` used to frame the backlog in
+ * ARCH-60 (a port of the lost commit `6c67e44`): `@qadi/http` used to frame the backlog in
  * `storedRecordOrder` (by `at`) while a resume kept `seq > Last-Event-ID`. When `at`
  * order differs from arrival order — overlapping evaluations, any `Edge` ingest —
  * the last id a reader saw was not its highest position, and a connection cut

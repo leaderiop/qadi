@@ -91,7 +91,10 @@ Two implementations, composable through `decisionSinkAll`:
   oldest arrival dropped first) that is the sink, the backlog and the live
   stream at once. A devtools reader takes one scoped `read` — what the log
   already holds, then what it decides next, each record exactly once — and
-  `/__decisions` serves the same `read` over SSE. Publishing to live readers
+  `/__decisions` serves the same `read` over SSE. A reader that reconnects
+  with the last event id it received resumes there and loses nothing: the
+  backlog travels in cursor order, which `@qadi/core`'s `encodeDecisionStream`
+  decides once and `@qadi/http` only writes as SSE. Publishing to live readers
   never blocks: a slow or absent reader costs the evaluation nothing. Bounded
   by default, unlike the cache: a record log is by nature long-lived, so an
   unbounded default would leak.
