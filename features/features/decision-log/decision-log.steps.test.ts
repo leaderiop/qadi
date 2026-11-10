@@ -2,13 +2,15 @@
  * Steps for `decision-log.feature`.
  *
  * End to end through the public interface of three packages: a `@qadi/core`
- * decision log, `@qadi/http`'s `/__decisions` route serving it through a real
+ * decision log, `@qadi/http`'s devtools routes serving it through a real
  * `HttpRouter` web handler, and `@qadi/devtools`' `sourceFromEventSource`
  * reading the route's response bytes through an `EventSource` stand-in that
- * parses them with `effect/encoding/Sse`'s own parser. Nothing between the log
- * and the reader is faked, so the last scenario is the differential ARCH-11
- * asks for: the same log read in the process and over the wire must hold the
- * same records.
+ * parses them with `effect/encoding/Sse`'s own parser. The reader's url and the
+ * routes' prefix both come from `devtoolsPath`, so a reader that asks anywhere
+ * else gets the router's 404. Nothing between the log and the reader is faked,
+ * so "the reader over SSE sees what a reader in the process sees" is the
+ * differential ARCH-11 asks for: the same log read in the process and over the
+ * wire must hold the same records.
  *
  * A dedicated `Context.Service` World, scoped to this Feature only — the same
  * reasoning as `merged-sources.steps.test.ts`. The reader's scope lives in the
@@ -219,7 +221,10 @@ describeFeature(feature, World.layer, ({ After, Before, Given, When, Then }) => 
   When("a devtools reader connects over SSE", function* () {
     const log = yield* theLog();
     const { prefix } = yield* state();
-    const source = sourceFromEventSource({ url: "/__decisions", open: pipedEventSource(serve(log, prefix)) });
+    const source = sourceFromEventSource({
+      url: devtoolsPath("decisions", prefix),
+      open: pipedEventSource(serve(log, prefix)),
+    });
     const scope = yield* Scope.make();
     const sse = yield* source.read.pipe(Scope.provide(scope));
     yield* patch({ scope, sse, seen: sse.backlog ?? [] });
@@ -241,7 +246,10 @@ describeFeature(feature, World.layer, ({ After, Before, Given, When, Then }) => 
     "a devtools reader connects over SSE and the connection drops after {int} backlog frame(s)",
     function* (frames: number) {
       const log = yield* theLog();
-      const source = sourceFromEventSource({ url: "/__decisions", open: pipedEventSource(serve(log), frames) });
+      const source = sourceFromEventSource({
+        url: devtoolsPath("decisions"),
+        open: pipedEventSource(serve(log), frames),
+      });
       const scope = yield* Scope.make();
       const sse = yield* source.read.pipe(Scope.provide(scope));
       yield* patch({ scope, sse, seen: sse.backlog ?? [] });
