@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 13-11-PLAN.md
+stopped_at: Completed 13-13-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "13-11 complete: INV-QD-016 corrected under a cache, INV-QD-243 names the public mode, INV-QD-257/259 written; traceability, overview (spec:api green), ADR index (ADR-QD-123, 047/052/108 amendments); CCR-QD-399..403 with the lost 4b1ed49 triage; spec:verify:strict green"
+last_activity_desc: "13-13 complete: GAP-11 doc defects (PredicatePortName comment, BEH-QD-076 listing, MissingResourceId scope and HasSignature), seven stale test-file citations, why a bad capacity is a defect and a bad permits count is typed (BEH-QD-166); CCR-QD-403 extended; comments and spec text only; spec gates green"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 59
-  completed_plans: 26
-  percent: 44
+  completed_plans: 27
+  percent: 46
 current_phase: 13
 ---
 
@@ -28,14 +28,14 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 13 of 20 (Lost-wave gaps)
-Plan: 11 of 13 complete (13-01 … 13-11); remaining 13-12, 13-13
+Plan: 12 of 13 complete (13-01 … 13-11, 13-13); remaining 13-12 (the phase close)
 Status: Phase 13 in progress (phase_base 0925c2f)
-Last activity: 2026-11-10 -- 13-11 complete: Phase 13's registers written once — `spec/invariants.md` 1.93 (INV-QD-016 true under a decision cache, INV-QD-243's public mode, INV-QD-257, INV-QD-259), `spec/traceability.md` 1.135, `spec/overview.md` 1.80 (`pnpm spec:api` green), `spec/decisions/index.yaml` (ADR-QD-123; ADR-QD-047/052/108 amended), `spec/README.md` 1.135 (CCR-QD-399..403, unused reservations listed, the lost `4b1ed49` triage in CCR-QD-402); `spec:verify:strict`, `spec:examples`, `spec:claims`, `spec:gates` green; 13-13 extends CCR-QD-403
+Last activity: 2026-11-10 -- 13-13 complete: the GAP-11 doc defects other than the placeholders — `PortMetrics.ts`'s `PredicatePortName` comment moved onto it, BEH-QD-076's listing is `MissingAction`'s real `Schema.TaggedError` (`10-actions.md` 1.1), `MissingResourceId`'s comment says `scope: "Resource"` and names `HasSignature`; seven stale test-file citations and two tense fixes (lost `4b1ed49`); BEH-QD-166 (`21-decision-cache.md` 1.7), `decisionCacheLayer` and `InvalidBoundedPermits` say why a bad `capacity` is a defect and a bad `…Bounded(permits)` is typed; CCR-QD-403 extended (`spec/README.md` 1.136); comments and spec text only; GAP-11 ticked; spec gates green
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 40
+- Total plans completed: 41
 - Average duration: -
 - Total execution time: 0.0 hours
 
