@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.14                                           |
+> | Revision       | 1.15                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -873,3 +873,102 @@ Pinned by `packages/devtools/test/model/RoleTree.test.ts` (same-named pair, 10,0
 and 20,000-deep chains, stacked diamonds) and through the viewer by
 `packages/devtools/test/react/RoleViewer.test.tsx` (a 20,000-deep chain renders;
 rows are siblings; the diamond's repeated row points at its first occurrence).
+
+## BEH-QD-429: Every panel shows a verdict through one treatment
+
+> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) ·
+> **Invariant:** [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial)
+
+```ts
+type DisplayState =
+  | "Allow" | "Deny" | "Error" | "Unknown"
+  | "Pending" | "Rechecking" | "NotReached" | "Unrecognised";
+const treatmentOf: (state: DisplayState) => Treatment;
+```
+
+> Package-private: `DisplayState` (`model/Verdict.ts`), `displayOfGateState`
+> (`model/Gates.ts`) and `treatmentOf` (`react/VerdictTreatment.ts`). Specified
+> because every panel relies on them; a host reaches the behaviour through
+> `DevtoolsDock`.
+
+The verdict badge, a live guard's state in the questions panel and a policy
+node's mark in the tree each chose their own colours. The questions panel coloured
+a denied guard and a failed one alike, and the tree drew a denied node in the
+amber the dock reserves for errors.
+
+```
+REQUIREMENT: Every displayable state MUST have exactly one treatment, read from
+             `VerdictTreatment.ts`, and every panel MUST take its verdict colour,
+             weight and label from it.
+```
+
+A verdict, a guard's render state and a node's status each map into the closed
+`DisplayState` through one total table, so a state added to any of them is a
+compile error at its table rather than a guard drawn like some other one.
+
+```
+REQUIREMENT: Deny and Error MUST differ in ink, background, border and label.
+```
+
+A denial is solid red and heavier as text; a failure is outlined amber. The
+difference is in treatment and not only in hue, so it survives a reader who
+cannot tell the two colours apart (INV-QD-006). Pending and Rechecking share one
+muted treatment by choice and differ by their word: neither is an answer.
+
+```
+REQUIREMENT: A guard state this build does not know MUST be shown as itself,
+             muted, never coloured as though it were an answer.
+```
+
+Pinned by `packages/devtools/test/react/VerdictTreatment.test.tsx` (every state
+has a treatment; Deny and Error differ in every channel; the badge, the questions
+panel and the tree read it), `packages/devtools/test/react/QuestionsPanel.gates.test.tsx`
+("SHOWS A DENIAL AND A FAILURE DIFFERENTLY (INV-QD-006)") and
+`packages/devtools/test/model/Gates.test.ts` (`displayOfGateState`, and an
+unknown or inherited-name state read as `Unrecognised`).
+
+## BEH-QD-430: A record's outcome and obligation are read once
+
+> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) ·
+> **Invariants:** [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial),
+> [INV-QD-004](../invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top)
+
+```ts
+type RecordOutcome =
+  | { _tag: "Failed"; error: EvaluationError; obligation: ObligationState }
+  | { _tag: "Denied"; tree: InspectNode; obligation: ObligationState }
+  | { _tag: "Allowed"; tree: InspectNode; fields: Allow["visibleFields"];
+      duties: ReadonlyArray<Obligation>; obligation: ObligationState };
+type ObligationState =
+  | { _tag: "NoneOwed" } | { _tag: "Unreported" }
+  | { _tag: "Reported"; outcome: ObligationOutcome };
+const readOutcome: (
+  policy: Policy,
+  outcome: DecisionOutcome,
+  reported: ObligationRecord | undefined,
+) => RecordOutcome;
+```
+
+> Package-private: `readOutcome`, `RecordOutcome` and `ObligationState`
+> (`packages/devtools/src/model/Inspect.ts`). Specified because the Inspector and
+> the Simulator rely on them; a host reaches the behaviour through `DevtoolsDock`.
+
+The Inspector and the Simulator each re-derived a decision's tree, fields, duties
+and obligation state from its outcome, through their own helpers and a nested
+ternary: two readings of one record, and two places that could disagree.
+
+```
+REQUIREMENT: The Inspector and the Simulator MUST read a decision's outcome and
+             obligation state only through `readOutcome`, and render from what
+             it returns.
+```
+
+A failure carries no tree, because an empty one would read as allowed
+(INV-QD-006). An allow's `fields` of `undefined` means every field (INV-QD-004).
+A report wins over the duty count: an obligation outcome that arrived is shown on
+any row, whatever the decision listed. The Simulator passes no report, because a
+simulation discharges nothing.
+
+Pinned by `packages/devtools/test/model/Inspect.test.ts` ("readOutcome") and,
+through the screen, by `packages/devtools/test/react/Inspector.test.tsx`, whose
+characterisation pins were written before the change and hold unchanged after it.
