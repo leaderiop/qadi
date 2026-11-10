@@ -135,6 +135,34 @@ describe("the role viewer", () => {
   });
 });
 
+/** A chain `depth` roles long, built with a loop so the test itself cannot overflow. */
+const chainOf = (depth: number): Role => {
+  let current: Role = role({ name: "r0", permissions: [read] });
+  for (let i = 1; i < depth; i += 1) current = role({ name: `r${i}`, inherits: [current] });
+  return current;
+};
+
+describe("the role viewer on a deep catalogue", () => {
+  // ROLE-03 on screen: one element nested per level overflowed React's render
+  // and the browser's layout long before the model did.
+  it("a 20,000-deep chain renders", () => {
+    render(<RoleViewer choice={store([chainOf(20_000)])} />);
+
+    const nodes = screen.getAllByTestId("qadi-role-node");
+    assert.strictEqual(nodes.length, 20_000);
+    assert.strictEqual(nodes[0]?.getAttribute("data-role"), "r19999");
+    assert.strictEqual(nodes.at(-1)?.getAttribute("data-role"), "r0");
+  }, 60_000);
+
+  it("rows are siblings", () => {
+    render(<RoleViewer choice={store([editor])} />);
+
+    for (const node of screen.getAllByTestId("qadi-role-node")) {
+      assert.deepStrictEqual(within(node).queryAllByTestId("qadi-role-node"), [], node.getAttribute("data-role") ?? "");
+    }
+  });
+});
+
 const fail = (): never => {
   throw new Error("expected an element");
 };
