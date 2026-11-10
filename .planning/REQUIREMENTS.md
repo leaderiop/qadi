@@ -8,9 +8,9 @@
 ## v1.1 Requirements
 
 ### Planning reconciliation (Phase 10)
-- [ ] **REC-01**: `.planning/architecture/README.md` carries a "superseded 2026-11-10" banner that maps every lost ARCH-46…57 plan to a wave-6 phase or a recorded disposition.
+- [ ] **REC-01**: `.planning/milestones/archive-pre-gsd/architecture/README.md` carries a "superseded 2026-11-10" banner that maps every lost ARCH-46…57 plan to a wave-6 phase or a recorded disposition.
 - [ ] **REC-02**: Every lost plan file's `status:` is one of `superseded-by-phase-NN`, `fixed-on-main (<sha>)`, `obsolete` or `deferred`, with a reason.
-- [ ] **REC-03**: The tracking decision for `.planning/architecture/` (track, ignore or archive) is taken and applied.
+- [ ] **REC-03**: The tracking decision for `.planning/milestones/archive-pre-gsd/architecture/` (track, ignore or archive) is taken and applied.
 - [ ] **REC-04**: No orphan `packages/*/lib/**/*.js` without a `src` counterpart remains after the repo's own clean/build.
 
 ### Lost-wave security (Phase 11)

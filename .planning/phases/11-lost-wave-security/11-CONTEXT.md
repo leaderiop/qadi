@@ -33,7 +33,7 @@ Two security defects that are live on `main`, each fixed by porting the lost wav
   B4 (API-level `RequiredPermission`, public endpoint) anonymous → 204. `A.prefix("/v1")` → `/v1/a` is served,
   but the registry lists `GET /a`.
 - Reference implementations: `git show 8900b7e` (33 files) and `git show 2ea89d6` (22 files, new `AccessPlan.ts`,
-  `RequirePermission.ts` −59). The lost plans `.planning/architecture/ARCH-52-*.md` and `ARCH-49-*.md` hold the
+  `RequirePermission.ts` −59). The lost plans `.planning/milestones/archive-pre-gsd/architecture/ARCH-52-*.md` and `ARCH-49-*.md` hold the
   decisions D-52-a…h and D-49-a…e with their recommendations.
 </evidence>
 
@@ -66,7 +66,7 @@ Two security defects that are live on `main`, each fixed by porting the lost wav
 
 <canonical_refs>
 ## Canonical References
-- `git show 8900b7e`, `git show 2ea89d6`; `.planning/architecture/ARCH-52-signature-ledger-read-seam.md`, `ARCH-49-guardapi-access-plan.md`
+- `git show 8900b7e`, `git show 2ea89d6`; `.planning/milestones/archive-pre-gsd/architecture/ARCH-52-signature-ledger-read-seam.md`, `ARCH-49-guardapi-access-plan.md`
 - `packages/audit/src/SignatureLedger.ts`, `SignatureLedgerTest.ts`, `SignatureCapturePort.ts`; `packages/core/src/Resource.ts`, `SignatureHistory.ts`, `Explanation.ts`
 - `packages/http/src/GuardApi.ts`, `AuthorizeRequest.ts`, `RequirePermission.ts`, `RequirePermissionMiddleware.ts`, `PermissionRegistry.ts`
 - ADR-QD-058, ADR-QD-108 (merged), ADR-QD-036; INV-QD-120; `spec/behaviors/23-http.md`

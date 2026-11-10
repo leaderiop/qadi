@@ -59,10 +59,10 @@ phases hold a package intentionally red between their first and last plan; `use_
 **Depends on**: Nothing (first phase)
 **Requirements**: REC-01, REC-02, REC-03, REC-04, XC-01
 **Success Criteria** (what must be TRUE):
-  1. Every `.planning/architecture/ARCH-46…57-*.md` has a disposition status that names a wave-6 phase, a commit on main, `obsolete` or `deferred`.
-  2. `.planning/architecture/README.md` opens with the superseded banner and links `_SALVAGE.md`.
+  1. Every `.planning/milestones/archive-pre-gsd/architecture/ARCH-46…57-*.md` has a disposition status that names a wave-6 phase, a commit on main, `obsolete` or `deferred`.
+  2. `.planning/milestones/archive-pre-gsd/architecture/README.md` opens with the superseded banner and links `_SALVAGE.md`.
   3. The orphan-`lib` finder loop returns nothing after the repo's clean/build.
-  4. The tracking decision for `.planning/architecture/` is applied and `git status` reflects it.
+  4. The tracking decision for `.planning/milestones/archive-pre-gsd/architecture/` is applied and `git status` reflects it.
 **Plans**: 3 plans
 
 Plans:

@@ -69,7 +69,7 @@
 
 <canonical_refs>
 ## Canonical References
-- `git show 6c67e44`, `git show f27d049`; `.planning/architecture/ARCH-54-decision-stream-order.md`, `ARCH-53-hydration-event.md`
+- `git show 6c67e44`, `git show f27d049`; `.planning/milestones/archive-pre-gsd/architecture/ARCH-54-decision-stream-order.md`, `ARCH-53-hydration-event.md`
 - `packages/core/src/DecisionLog.ts`, `SseFrame*.ts`; `packages/http/src/DecisionStreamRoute.ts`, `DecisionBacklogRoute.ts`, `DecisionLogHttp.ts`; `packages/devtools/src/model/Source.ts`
 - `packages/react/src/HydrationEngine.ts`, `Hydration.ts`, `HydrationCounts.ts`, `DeveloperSignals.ts`; `packages/core/src/HydrationMetrics.ts`
 - `.planning/milestones/v1.0-phases/05-decision-log-over-http/`, `06-dehydration-in-engine/`

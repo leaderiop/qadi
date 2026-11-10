@@ -70,7 +70,7 @@ Every remaining LIVE row of `_SALVAGE.md`, one plan per salvage source:
 
 <canonical_refs>
 ## Canonical References
-- `.planning/architecture/ARCH-46…57-*.md` (lost plans and their §1 probes); `git show <sha>` for each source
+- `.planning/milestones/archive-pre-gsd/architecture/ARCH-46…57-*.md` (lost plans and their §1 probes); `git show <sha>` for each source
 - `packages/http/src/RequirePermissionMiddleware.ts`, `AuthorizeRequest.ts`, `test/RequestEnforcement.test.ts`
 - `packages/devtools/src/model/Simulation*.ts`, `Edits.ts`, `Remedies.ts`, `Replay.ts`, `react/Simulator.tsx`
 - `packages/core/src/Lifecycle.ts`, `PortMetrics.ts`, `DecisionCache.ts`, `Predicate.ts`, `Errors.ts`, `Role.ts`

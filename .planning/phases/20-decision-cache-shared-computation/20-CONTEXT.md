@@ -24,7 +24,7 @@ follow-up gap is pinned and closed. `DecisionCache` keeps its three-method inter
   interrupt; the generation counter for `clear`; FIFO capacity eviction; the metric.
 - The #64 follow-up gap is documented as open at `DecisionCache.ts:326-348`: a fresh joiner can receive an interrupt
   meant for an abandoned compute while that compute is parked in a port's uninterruptible region. The only way to
-  test it today is through `Question` and `Trace` with a real walk. ARCH-45 (`.planning/architecture/ARCH-45-loose-ends.md:~410`)
+  test it today is through `Question` and `Trace` with a real walk. ARCH-45 (`.planning/milestones/archive-pre-gsd/architecture/ARCH-45-loose-ends.md:~410`)
   left it out of scope.
 - One adapter, so the seam is hypothetical. It is justified only by the #64 test it makes possible.
 </evidence>
@@ -50,7 +50,7 @@ follow-up gap is pinned and closed. `DecisionCache` keeps its three-method inter
 <canonical_refs>
 ## Canonical References
 - `packages/core/src/DecisionCache.ts`, `Question.ts`, `PortDoubles.ts`; `packages/core/test/DecisionCache*.test.ts`
-- ADR-QD-031; INV-QD-025; issue #64 (`gh issue view 64` if accessible); `.planning/architecture/ARCH-45-loose-ends.md`
+- ADR-QD-031; INV-QD-025; issue #64 (`gh issue view 64` if accessible); `.planning/milestones/archive-pre-gsd/architecture/ARCH-45-loose-ends.md`
 </canonical_refs>
 
 <deferred>

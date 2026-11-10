@@ -1,0 +1,5 @@
+---
+"@qadi/devtools": minor
+---
+
+Adds `runDiagnostics`, `makeDiagnosticsStore`, `DiagnosticsStore`, `Diagnostics`, `DiagnosticsOptions`, `WiringRead`, `noDiagnostics` and `DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS` to the model, and `useDiagnostics` and `DiagnosticsDockOptions` to `@qadi/devtools/react`, so a host no longer writes the loop that keeps the dock's Services and React panels current. `DevtoolsDock` takes a `diagnostics` prop (`layer`, `collector`, `questions`, `intervalMillis`) and samples on a schedule: a handed layer is built once while the dock is mounted and released on unmount, a reading keeps its identity while unchanged, and a layer that fails to build is stated on the Services panel instead of leaving it blank. The `wiring`, `activity`, `portCalls`, `hydration` and `questions` props are unchanged and take precedence field by field, for a reading taken elsewhere. `ServicesPanelProps.wiring` is now a `WiringRead` (breaking for a host that renders `ServicesPanel` directly: wrap a report in `WiringRead.Read({ report })`), and `AskedQuestionLike` is declared in the model and still re-exported from `@qadi/devtools/react` (ADR-QD-047 amendment).

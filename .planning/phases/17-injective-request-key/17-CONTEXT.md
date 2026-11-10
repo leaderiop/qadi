@@ -75,7 +75,7 @@ The devtools capture miss policy is decided for the four ports still undecided, 
   `DecisionHistory.ts`, `SignatureHistory.ts`, `PortDoubles.ts`, `Question.ts`, `DecisionCache.ts`
 - `packages/core/test/PortConformance.test.ts`
 - `packages/devtools/src/model/Capture.ts`, `Replay.ts`
-- ADR-QD-094; `.planning/architecture/ARCH-45-loose-ends.md` (D-45-b); `.planning/PROJECT.md` Known Issues
+- ADR-QD-094; `.planning/milestones/archive-pre-gsd/architecture/ARCH-45-loose-ends.md` (D-45-b); `.planning/PROJECT.md` Known Issues
 - INV-QD-007, INV-QD-043 (signature key injective over the requirement)
 </canonical_refs>
 

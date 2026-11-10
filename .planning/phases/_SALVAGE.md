@@ -4,7 +4,7 @@
 Two different "wave 5"s exist:
 - **Merged** (PR #153, `e0365e0`): the 2026-11-08 review, ARCH-46…54, recorded in the tracked `.planning/ROADMAP.md`,
   `.planning/PROJECT.md` and `.planning/milestones/`. ARCH-58 (`1721a42`) followed it.
-- **Lost**: the 2026-10-13 review, plans in the untracked `.planning/architecture/ARCH-46…57-*.md`. These were
+- **Lost**: the 2026-10-13 review, plans in `.planning/milestones/archive-pre-gsd/architecture/ARCH-46…57-*.md` (untracked until Phase 10 archived them). These were
   implemented on `wave5/architecture-deepenings` as a linear chain on `b655b3b`, but the branch was never merged and
   then disappeared. On 2026-11-10 the commits were recovered from the reflog and **pinned locally**:
 

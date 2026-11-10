@@ -90,7 +90,7 @@ and the 11 hand-written failing port layers in `packages/audit/test` go away.
 - `packages/audit/src/AuditDecisionSinkLive.ts`, `CircuitBreaker.ts`, `AuditTrailPortTest.ts`, `AuditStagingPortTest.ts`
 - `packages/audit/test/AuditDecisionSinkLive.test.ts`, `Metrics.test.ts`, `driveExit.ts`, `CircuitBreaker.test.ts`
 - `packages/core/src/SinkEmit.ts`, `Lifecycle.ts`, `PortDoubles.ts` (`scriptedPort` — the pattern to follow)
-- `.planning/architecture/ARCH-07-circuit-breaker-protocol.md`, `ARCH-35-audit-write-outcome.md` (prior work on this module)
+- `.planning/milestones/archive-pre-gsd/architecture/ARCH-07-circuit-breaker-protocol.md`, `ARCH-35-audit-write-outcome.md` (prior work on this module)
 </canonical_refs>
 
 <deferred>

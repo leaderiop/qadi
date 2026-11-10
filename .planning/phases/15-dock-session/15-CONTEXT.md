@@ -70,7 +70,7 @@ owns that state and the rules around it:
 - `packages/devtools/src/react/DevtoolsDock.tsx`, `useSimulationSession.ts`, `useExplorerSession.ts` (or wherever ARCH-58 put the owned hook)
 - `packages/devtools/src/model/SimulationSession.ts`, `ExplorerSession.ts`, `HeldChoice.ts`, `Filters.ts`, `Timeline*.ts`
 - `packages/devtools/test/react/DevtoolsDock.test.tsx`, `test/model/*Session*.test.ts`
-- commit `1721a42` (ARCH-58), `.planning/architecture/ARCH-20-simulation-session.md`, `ARCH-50-explorer-session.md`
+- commit `1721a42` (ARCH-58), `.planning/milestones/archive-pre-gsd/architecture/ARCH-20-simulation-session.md`, `ARCH-50-explorer-session.md`
 - `spec/devtools-spec/`, ADR-QD-047, INV-QD-107
 </canonical_refs>
 

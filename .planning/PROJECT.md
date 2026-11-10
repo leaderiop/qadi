@@ -24,7 +24,7 @@ All 9 phases verified `passed` against the final tree; the full `pnpm check` is 
 
 **Goal:** Resolve the nine candidates of the 2026-11-10 architecture review, and recover the lost 2026-10-13 wave.
 
-**The lost wave.** A second set of plans numbered ARCH-46…57 (2026-10-13 review, untracked `.planning/architecture/`)
+**The lost wave.** A second set of plans numbered ARCH-46…57 (2026-10-13 review; untracked until Phase 10 archived it to `.planning/milestones/archive-pre-gsd/architecture/`)
 was implemented on `wave5/architecture-deepenings` and never merged. Its commits were recovered from the reflog on
 2026-11-10 and pinned **locally** as `rescue/wave5-1013` (tip `950977f`), with `rescue/arch50-stash-a`/`-b` (superseded).
 Its ids collide with merged #153, so it is ported under new numbers, never cherry-picked. Live defects and their

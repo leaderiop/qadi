@@ -6,7 +6,7 @@ and continues without stopping.
 
 | Plan · task | Answer | Meaning |
 |---|---|---|
-| 10-03 T1 (D-02) | `archive` | Move `.planning/architecture/` to `.planning/milestones/archive-pre-gsd/architecture/` and track it there; rewrite references in the same commit |
+| 10-03 T1 (D-02) | `archive` | Move the old tracker (`architecture/` at the `.planning/` root) to `.planning/milestones/archive-pre-gsd/architecture/` and track it there; rewrite references in the same commit |
 | 12-01 T1 (D-54-c/e) | `option-a` | Cursor order on the wire, ordered by core's encoder; remove `frame`, `syncedFrame`, `decisionFrames` from `@qadi/http` (Breaking) |
 | 12-03 T1 (D-53-b/g) | `option-a` | One `HydrationDrop` type for both ends (Breaking dehydrate `onDropped`); `HydrationEvent.ts` joins the react Stryker run |
 | 13-04 (D-48-d) | `A` | Chip typing buffer stays in the view; `addChip(field, text): ChipAdded` |
