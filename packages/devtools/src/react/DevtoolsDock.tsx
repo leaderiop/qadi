@@ -13,19 +13,12 @@
  * a backend-only service, a serverless function, a replicated server. Their
  * decisions are reachable at `/__decisions`; what renders them is not this.
  */
-import { useCallback, useMemo, useState, type FC, type ReactNode } from "react";
-import {
-  applyFilters,
-  environmentsOf,
-  noFilters,
-  type Filters,
-} from "../model/Filters.ts";
-import { pairedEntries } from "../model/Pairing.ts";
-import { selectionOf } from "../model/Selection.ts";
+import { useMemo, type FC, type ReactNode } from "react";
 import { sourceFromRecords, type Source } from "../model/Source.ts";
-import { countsOf, type Verdict } from "../model/Verdict.ts";
+import type { Verdict } from "../model/Verdict.ts";
 import { catalogueOf, type Catalogue, type PolicySighting } from "../model/Catalogue.ts";
 import { mergeReading, type DiagnosticsReading, type WiringRead } from "../model/DiagnosticsStore.ts";
+import type { TabId } from "../model/DockSession.ts";
 import type { ExplorerSession } from "../model/ExplorerSession.ts";
 import type { HeldChoiceStore } from "../model/HeldChoice.ts";
 import { sameRole } from "../model/RoleTree.ts";
@@ -47,10 +40,11 @@ import { RoleViewer } from "./RoleViewer.tsx";
 import { ServicesPanel } from "./ServicesPanel.tsx";
 import { Simulator } from "./Simulator.tsx";
 import { useDiagnostics, type DiagnosticsDockOptions } from "./useDiagnostics.ts";
+import { useDockSnapshot, useOwnedDockSession } from "./useDockSession.ts";
 import { useOwnedExplorerSession, useOwnedHeldChoice } from "./useExplorerSession.ts";
 import { useOwnedSimulationSession } from "./useSimulationSession.ts";
 import { useTimeline } from "./useTimeline.ts";
-import { body, button, colors, dock, font, input, muted, toolbar } from "./theme.ts";
+import { body, button, colors, dock as dockStyle, font, input, muted, toolbar } from "./theme.ts";
 
 /**
  * A stable empty source, so a dock mounted without one does not re-subscribe on
@@ -58,13 +52,14 @@ import { body, button, colors, dock, font, input, muted, toolbar } from "./theme
  */
 const nothing: Source = sourceFromRecords([]);
 
-/**
- * Data-driven, which is what made growing from two screens to six an entry in
- * this list rather than a rewrite. A seventh is the same.
- */
 /** A stable empty list, so an absent catalogue does not dispatch `setList` on every render. */
 const NO_ROLES: ReadonlyArray<Role> = [];
 
+/**
+ * Data-driven, which is what made growing from two screens to six an entry in
+ * this list rather than a rewrite. A seventh is the same. Typed against the
+ * session's closed `TabId`, so the list and the union cannot drift apart.
+ */
 const TABS = [
   { id: "log", label: "Log" },
   { id: "inspector", label: "Inspector" },
@@ -73,9 +68,7 @@ const TABS = [
   { id: "services", label: "Services" },
   { id: "simulator", label: "Simulator" },
   { id: "questions", label: "React" },
-] as const;
-
-type TabId = (typeof TABS)[number]["id"];
+] as const satisfies ReadonlyArray<{ readonly id: TabId; readonly label: string }>;
 
 const VERDICTS: ReadonlyArray<Verdict> = ["Allow", "Deny", "Error", "Unknown"];
 
@@ -163,22 +156,6 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   const sampled = useDiagnostics(diagnostics);
   const shown = useMemo(() => mergeReading(sampled, reading), [sampled, reading]);
 
-  const [filters, setFilters] = useState<Filters>(noFilters);
-  const [tab, setTab] = useState<TabId>("log");
-  const [selectedKey, setSelectedKey] = useState<string | undefined>(undefined);
-
-  // Paired against the **whole** timeline and filtered afterwards: pairing a
-  // filtered view would make a row look unpaired because its partner happened
-  // to be in another environment the reader had narrowed away.
-  const rows = useMemo(() => {
-    const visible = new Set(applyFilters(timeline.entries, filters));
-    return pairedEntries(timeline).filter((row) => visible.has(row.entry));
-  }, [timeline, filters]);
-  // Of the whole timeline, never of `rows`. A header reading "0 errors" because
-  // someone typed in the search box hides the thing they most need to see.
-  const counts = useMemo(() => countsOf(timeline.entries), [timeline]);
-  const environments = useMemo(() => environmentsOf(timeline.entries), [timeline]);
-  const selection = useMemo(() => selectionOf(timeline, selectedKey), [timeline, selectedKey]);
   const sightings = useMemo(() => catalogueOf(timeline, catalogue), [timeline, catalogue]);
   /**
    * The simulator's session, owned here rather than by the screen.
@@ -196,26 +173,18 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
    */
   const explorer = useOwnedExplorerSession(sightings);
   const roleChoice = useOwnedHeldChoice(catalogue?.roles ?? NO_ROLES, sameRole);
-
-  const select = useCallback((key: string) => {
-    setSelectedKey(key);
-    setTab("inspector");
-  }, []);
-
-  // E8.1 — switches tab *and* seeds. Doing only the first would leave the
-  // reviewer on a blank form wondering which row they came from. Seeding is an
-  // act rather than a consequence: selecting another row does not re-seed a
-  // half-filled form, and replaying the same row again always does (ARCH-63).
-  const replay = useCallback(
-    (entry: TimelineEntry) => {
-      simulation.replay(entry);
-      setTab("simulator");
-    },
-    [simulation],
-  );
+  /**
+   * The dock's own choices — tab, filters, selected row — and what they derive.
+   *
+   * Rows are the whole timeline paired, then filtered; counts are of the whole
+   * timeline; replay switches tab *and* commands the simulation to re-seed, every
+   * time (E8.1, ARCH-63). Those rules are `DockSession.ts`'s, not this view's.
+   */
+  const dock = useOwnedDockSession(timeline, simulation);
+  const view = useDockSnapshot(dock);
 
   return (
-    <section style={dock} data-testid="qadi-devtools" aria-label="Qadi devtools">
+    <section style={dockStyle} data-testid="qadi-devtools" aria-label="Qadi devtools">
       <div style={toolbar}>
         <strong style={{ color: colors.accent, letterSpacing: 0.6 }}>qadi</strong>
 
@@ -223,38 +192,38 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
           <button
             key={entry.id}
             type="button"
-            style={button(tab === entry.id)}
-            aria-pressed={tab === entry.id}
-            onClick={() => setTab(entry.id)}
+            style={button(view.tab === entry.id)}
+            aria-pressed={view.tab === entry.id}
+            onClick={() => dock.setTab(entry.id)}
           >
             {entry.label}
           </button>
         ))}
 
         <span style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-counts">
-          {counts.decisions} decisions · {counts.denies} denied · {counts.errors} errors
-          {counts.orphans === 0 ? "" : ` · ${counts.orphans} unattached`}
+          {view.counts.decisions} decisions · {view.counts.denies} denied · {view.counts.errors} errors
+          {view.counts.orphans === 0 ? "" : ` · ${view.counts.orphans} unattached`}
         </span>
 
         <input
           style={input}
           placeholder="subject, action, resource…"
           aria-label="Filter decisions"
-          value={filters.text}
-          onChange={(event) => setFilters({ ...filters, text: event.target.value })}
+          value={view.filters.text}
+          onChange={(event) => dock.setFilters({ ...view.filters, text: event.target.value })}
         />
 
         <Segment
           label="All"
-          options={environments}
-          value={filters.environment}
-          onChange={(environment) => setFilters({ ...filters, environment })}
+          options={view.environments}
+          value={view.filters.environment}
+          onChange={(environment) => dock.setFilters({ ...view.filters, environment })}
         />
         <Segment
           label="Any"
           options={VERDICTS}
-          value={filters.verdict}
-          onChange={(verdict) => setFilters({ ...filters, verdict: asVerdict(verdict) })}
+          value={view.filters.verdict}
+          onChange={(verdict) => dock.setFilters({ ...view.filters, verdict: asVerdict(verdict) })}
         />
 
         <button
@@ -275,11 +244,11 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
 
       <div style={body}>
         <Screen
-          tab={tab}
-          rows={rows}
-          selectedKey={selectedKey}
-          onSelect={select}
-          selection={selection}
+          tab={view.tab}
+          rows={view.rows}
+          selectedKey={view.selectedKey}
+          onSelect={dock.select}
+          selection={view.selection}
           sightings={sightings}
           explorer={explorer}
           roleChoice={roleChoice}
@@ -291,7 +260,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
           {...(gates === undefined ? {} : { gates })}
           {...(shown.hydration === undefined ? {} : { hydration: shown.hydration })}
           {...(onInvalidate === undefined ? {} : { onInvalidate })}
-          onReplay={replay}
+          onReplay={dock.replay}
           simulation={simulation}
         />
       </div>
