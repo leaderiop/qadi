@@ -36,7 +36,7 @@ import {
   decodeStoredRecordString,
   DecisionStreamSynced,
 } from "@qadi/core";
-import type { AuthSubject, DecisionLogReader, SinkRecord, SinkRecordNotEncodable, StoredRecord, AllowingTrace } from "@qadi/core";
+import type { AuthSubject, DecisionLog, DecisionLogReader, SinkRecord, SinkRecordNotEncodable, StoredRecord, AllowingTrace } from "@qadi/core";
 import { collectingLogger } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -867,11 +867,16 @@ describe("the backlog travels on the stream", () => {
       const frames = yield* framesOf(log, 4, log.ingest(obligations("live", 3)));
 
       assert.deepStrictEqual(frames.map(eventOf), ["backlog", "backlog", "synced", "message"]);
-      // The backlog is in `storedRecordOrder`, not arrival order.
+      // The backlog is in cursor (arrival) order, not `storedRecordOrder`: cursor
+      // order is the wire's, so the last id a reader saw is its highest position and
+      // `Last-Event-ID` resumes exactly. `storedRecordOrder` is the reader's, for
+      // presentation.
       assert.deepStrictEqual(
         [frames[0], frames[1], frames[3]].map((f) => environmentOf(f ?? "")),
-        ["a@Server", "b@Server", "live@Server"],
+        ["b@Server", "a@Server", "live@Server"],
       );
+      const seqOf = (framed: string) => framed.split("\n").find((line) => line.startsWith("id: "))?.split(".")[1];
+      assert.deepStrictEqual([frames[0], frames[1]].map((f) => seqOf(f ?? "")), ["1", "2"]);
       const synced = Schema.decodeUnknownSync(Schema.fromJsonString(DecisionStreamSynced))(dataOf(frames[2] ?? ""));
       assert.deepStrictEqual(synced, { backlog: 2 });
     }));
@@ -943,8 +948,15 @@ describe("resume with Last-Event-ID", () => {
   const obligations = (evaluationId: string, at = 1) =>
     new ObligationRecord({ evaluationId, at, outcome: "Discharged", obligationIds: ["o"] });
 
-  /** The route's response for one connection, read up to and including `synced`. */
-  const prelude = (handler: (request: Request) => Promise<Response>, lastEventId?: string) =>
+  /**
+   * The route's response for one connection, read until `enough` holds of the
+   * complete frames received so far; then the connection is dropped.
+   */
+  const framesUntil = (
+    handler: (request: Request) => Promise<Response>,
+    enough: (frames: ReadonlyArray<string>) => boolean,
+    lastEventId?: string,
+  ) =>
     Effect.gen(function* () {
       const response = yield* Effect.promise(() =>
         handler(
@@ -958,14 +970,30 @@ describe("resume with Last-Event-ID", () => {
       const reader = body.getReader();
       const decoder = new TextDecoder();
       let text = "";
-      while (!text.includes("event: synced")) {
+      // Only frames whose blank line has arrived: the piece after the last one is partial.
+      const complete = () => text.split("\n\n").slice(0, -1);
+      while (!enough(complete())) {
         const chunk = yield* Effect.promise(() => reader.read());
         if (chunk.done) break;
         text += decoder.decode(chunk.value);
       }
       yield* Effect.promise(() => reader.cancel());
-      return text.split("\n\n").filter((f) => f.length > 0);
+      return complete();
     });
+
+  /** The route's response for one connection, read up to and including `synced`. */
+  const prelude = (handler: (request: Request) => Promise<Response>, lastEventId?: string) =>
+    framesUntil(handler, (frames) => frames.some((f) => eventOf(f) === "synced"), lastEventId);
+
+  /** The first `k` backlog frames of one connection, which is then dropped mid-prelude. */
+  const firstBacklogFrames = (handler: (request: Request) => Promise<Response>, k: number, lastEventId?: string) =>
+    Effect.map(
+      framesUntil(handler, (frames) => frames.filter((f) => eventOf(f) === "backlog").length >= k, lastEventId),
+      (frames) => frames.filter((f) => eventOf(f) === "backlog").slice(0, k),
+    );
+
+  const evaluationIdOf = (framed: string): string | undefined =>
+    Result.getOrUndefined(Result.map(decodeStoredRecordString(dataOf(framed)), (r) => r.evaluationId));
 
   const idOf = (framed: string): string | undefined =>
     framed.split("\n").find((line) => line.startsWith("id: "))?.slice(4);
@@ -1015,5 +1043,50 @@ describe("resume with Last-Event-ID", () => {
         assert.deepStrictEqual(frames.map(eventOf), ["backlog", "backlog", "synced"], header);
       }
     }));
+
+  /**
+   * A frame's id is a resume position and `Last-Event-ID` resumes after it, so the
+   * ids a reader sees must rise along the connection. Records whose `at` order is
+   * the reverse of their arrival order (overlapping evaluations, an `Edge` ingest)
+   * are the case `storedRecordOrder` on the wire got wrong (ARCH-60).
+   */
+  describe("a reconnect loses nothing", () => {
+    /** Four records ingested with `at` = 4, 3, 2, 1: arrival order is the reverse of `at` order. */
+    const reversed = (log: DecisionLog) =>
+      Effect.forEach(["r1", "r2", "r3", "r4"], (id, index) => log.ingest(obligations(id, 4 - index)), {
+        discard: true,
+      });
+
+    it.effect("a reconnect during the backlog loses no retained record", () =>
+      Effect.gen(function* () {
+        const { log, layer } = yield* appLayer;
+        const { handler } = HttpRouter.toWebHandler(layer);
+        yield* reversed(log);
+
+        for (const k of [1, 2, 3, 4]) {
+          const kept = yield* firstBacklogFrames(handler, k);
+          const lastSeen = idOf(kept[k - 1] ?? "");
+          assert.isDefined(lastSeen, `cut after ${k}`);
+          const resumed = yield* prelude(handler, lastSeen);
+          const received = [...kept, ...resumed.filter((f) => eventOf(f) === "backlog")].map(evaluationIdOf);
+          assert.deepStrictEqual(received.toSorted(), ["r1", "r2", "r3", "r4"], `cut after ${k}`);
+        }
+      }));
+
+    it.effect("a reconnect after the backlog re-sends nothing the reader has", () =>
+      Effect.gen(function* () {
+        const { log, layer } = yield* appLayer;
+        const { handler } = HttpRouter.toWebHandler(layer);
+        yield* reversed(log);
+
+        const first = yield* prelude(handler);
+        const backlog = first.filter((f) => eventOf(f) === "backlog");
+        assert.strictEqual(backlog.length, 4);
+        const resumed = yield* prelude(handler, idOf(backlog[backlog.length - 1] ?? ""));
+
+        assert.deepStrictEqual(resumed.map(eventOf), ["synced"]);
+        assert.strictEqual(dataOf(resumed[0] ?? ""), '{"backlog":0}');
+      }));
+  });
 });
 
