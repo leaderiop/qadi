@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 13-04-PLAN.md
+stopped_at: Completed 13-05-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "13-04 complete: SimulationSession gains addChip/removeChip/fields; Simulator renders snapshot.fields through one FieldEditor; the barrel exports ChipAdded, ChipView, FieldView, SimulationField; BEH-QD-222/225/322, ADR-QD-047 amendment, screens, website, changeset"
+last_activity_desc: "13-05 complete: EvaluationMetrics.ts declares the six evaluation metrics once (CacheOutcome moved there); Lifecycle/DecisionCache/Predicate write through it; every core metric test reads by reference; registry-key golden pinned"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 59
-  completed_plans: 19
-  percent: 32
+  completed_plans: 20
+  percent: 34
 current_phase: 13
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 13 of 20 (Lost-wave gaps)
-Plan: 4 of 13 complete (13-01, 13-02, 13-03, 13-04); next is 13-05
+Plan: 5 of 13 complete (13-01 … 13-05); next is 13-06
 Status: Phase 13 in progress (phase_base 0925c2f)
-Last activity: 2026-11-10 -- 13-04 complete: the session commits chips (`addChip(field, text): ChipAdded`, `removeChip`) and reads the form (`snapshot.fields`) from `SimulationFields.ts`; the typing buffer stays in the view (D-48-d `A`); `Simulator.tsx` maps `snapshot.fields` through one `FieldEditor`; four types exported; BEH 29 Rev 1.9, ADR-QD-047 Rev 1.9, 02-screens 0.14, website, `.changeset/simulation-session.md` amended; overview/INV-QD-257/traceability/CCR-QD-400 are 13-11's; `spec:verify` red on CCR-QD-399/400 until 13-11
+Last activity: 2026-11-10 -- 13-05 complete: `packages/core/src/EvaluationMetrics.ts` exports `decisionsTotal` (Allow/Deny), `denialsByPolicyTagTotal`, `evaluationDurationMillis`, `evaluationErrorsTotal`, `decisionCacheLookupsTotal`, `predicatesTranslatedTotal` and `CacheOutcome`; the three writers declare nothing; 36 id-string reads in core tests → 0; Lifecycle.ts mutation 42/42 after a failed-span test; overview rows are 13-11's, ADR-QD-123/changesets 13-07's; `spec:api` and `spec:verify` red until 13-11
 
 ## Performance Metrics
 
