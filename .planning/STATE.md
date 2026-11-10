@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 10-03-PLAN.md
+stopped_at: Completed 11-01-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "10-03 complete: old tracker archived under milestones and tracked; Phase 10 complete, pnpm check:pr green"
+last_activity_desc: "11-01 complete: unkeyable signature discharge refused before capture; explain() says a signature's Any is subject-wide"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 59
-  completed_plans: 3
-  percent: 5
-current_phase: 10
+  completed_plans: 4
+  percent: 7
+current_phase: 11
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 ## Current Position
 
-Phase: 10 of 20 (Planning reconciliation)
-Plan: 3 of 3 complete (10-01, 10-02, 10-03)
-Status: Phase complete; next is Phase 11
-Last activity: 2026-11-10 -- 10-03 complete: old tracker archived under `.planning/milestones/archive-pre-gsd/`, pnpm check:pr green
+Phase: 11 of 20 (Lost-wave security)
+Plan: 1 of 7 complete (11-01); next is 11-02
+Status: In progress (phase_base 5736c96)
+Last activity: 2026-11-10 -- 11-01 complete: a signature discharge on a resource with no string id is refused before capture (SEC-01/02 live defect closed)
 
 ## Performance Metrics
 
@@ -84,6 +84,7 @@ Last activity: 2026-11-10 -- 10-03 complete: old tracker archived under `.planni
 | Phase 09 P02 | 12 min | 3 tasks | 14 files |
 | Phase 09 P03 | 10 min | 3 tasks | 9 files |
 | Phase 09 P04 | 15 min | 2 tasks | 3 files |
+| Phase 11 P01 | 15 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 

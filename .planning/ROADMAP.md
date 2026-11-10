@@ -83,7 +83,7 @@ Plans:
 **Plans**: 7 plans
 
 Plans:
-- [ ] 11-01 (W1): Close the live over-grant: a signature captured while discharging an obligation on a resource whose id is not a string is stored subject-wide today (`resourceIdOf`…
+- [x] 11-01 (W1): Close the live over-grant: a signature captured while discharging an obligation on a resource whose id is not a string is stored subject-wide today (`resourceIdOf`…
 - [ ] 11-02 (W1): Close the live guardApi bypass: the middleware decides membership by the string `group/endpoint` (`endpointMemberKey`, `packages/http/src/AuthorizeRequest.ts:41-56`,…
 - [ ] 11-03 (W2): Make the signature ledger a keyed store, so the read rule that 11-01's fix depends on ("a resource-scoped query sees only its own resource
 - [ ] 11-04 (W2): Finish the guardApi port: make the plan the only reader of access declarations, and make the docs say what the code now does.
@@ -257,7 +257,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 10. Planning reconciliation | 3/3 | Complete | 2026-11-10 |
-| 11. Lost-wave security | 0/7 | Planned | - |
+| 11. Lost-wave security | 1/7 | In progress | - |
 | 12. Lost-wave integrity | 0/5 | Planned | - |
 | 13. Lost-wave gaps | 0/13 | Planned | - |
 | 14. Audit sink deadline | 0/7 | Planned | - |

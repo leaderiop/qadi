@@ -1,0 +1,17 @@
+{
+ "packages/audit/src/CircuitBreaker.ts": 0.8051282051282052,
+ "packages/audit/src/ArchiveFacts.ts": 1,
+ "packages/audit/src/AuditArchive.ts": 0.9807692307692307,
+ "packages/audit/src/AuditDecisionSinkLive.ts": 0.9803921568627451,
+ "packages/audit/src/AuditEntry.ts": 0.8,
+ "packages/audit/src/AuditStagingPort.ts": 1,
+ "packages/audit/src/AuditTrailPort.ts": 1,
+ "packages/audit/src/AuditWriteOutcome.ts": 1,
+ "packages/audit/src/AuditWriteReport.ts": 0.9659090909090909,
+ "packages/audit/src/Retention.ts": 1,
+ "packages/audit/src/SignatureCapturePort.ts": 0.88,
+ "packages/audit/src/SignatureLedger.ts": 1,
+ "packages/audit/src/AuditStagingPortTest.ts": 1,
+ "packages/audit/src/AuditTrailPortTest.ts": 1,
+ "packages/audit/src/SignatureLedgerTest.ts": 1
+}
