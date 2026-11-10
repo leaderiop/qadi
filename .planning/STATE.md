@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 14-03-PLAN.md
+stopped_at: Completed 14-04-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "14-03 complete: storeCallTimeout (default 5 s) bounds stage/write/commit; deadline is a failed attempt; AuditSinkDeadline GREEN; sink mutation 98.04 -> 100"
+last_activity_desc: "14-04 complete: all 11 hand-written audit port layers and driveExit's mode table moved onto AuditPortReply scripts; Never rows added to the exit matrix; mutation unchanged or up"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 4
   total_plans: 59
-  completed_plans: 31
-  percent: 53
+  completed_plans: 32
+  percent: 54
 current_phase: 14
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 14 of 20 (Audit sink deadline)
-Plan: 3 of 7 in Phase 14 (14-03 complete); next is 14-04
+Plan: 4 of 7 in Phase 14 (14-04 complete); next is 14-05
 Status: Phase 14 in progress (phase_base b042e56)
-Last activity: 2026-11-10 -- 14-03 complete: `AuditDecisionSinkOptions.storeCallTimeout?: Duration.Input` (default 5 s, `Duration.infinity` opts out) bounds stage, write and commit via `Effect.timeoutOrElse`; the write is bounded inside `admitted.attempt`, so a deadline trips the breaker; `CircuitBreaker.ts` unchanged; `AuditSinkDeadline.test.ts` 15/15 on scripted doubles; `Duration.zero` pinned (call starts, fails at once)
+Last activity: 2026-11-10 -- 14-04 complete: no audit test builds an `AuditTrailPort`/`AuditStagingPort` layer by hand (11 -> 0, `Interrupt` covers the self-interrupting adapter); `driveExit.ts` scripted by `AuditPortReply` with an explicit 5 s `storeCallTimeout`; `Never` write/stage/commit rows match their `Fail` twins; assertion counts unchanged; Stryker: sink 100, doubles 100, interpreter 100, CircuitBreaker 80.51
 
 ## Performance Metrics
 

@@ -152,7 +152,7 @@ Plans:
 - [x] 14-01 (W1): Settle the phase's one human decision and prove the defect, before any source changes. ⛳ checkpoint
 - [x] 14-02 (W2): Give the shipped audit doubles a per-call script (D-05): each call to `write`, `stage` or `commit` is answered by a reply from a closed union — Ok, Fail, Die,…
 - [x] 14-03 (W3): Bound every audit store call by a deadline the sink owns, and count a deadline as a failed attempt.
-- [ ] 14-04 (W4): Rewrite every hand-built audit port in the audit tests as a scripted double, and delete `driveExit.ts`'s mode table (D-06).
+- [x] 14-04 (W4): Rewrite every hand-built audit port in the audit tests as a scripted double, and delete `driveExit.ts`'s mode table (D-06).
 - [ ] 14-05 (W5): Close the door behind 14-04: refuse a hand-built audit port layer or error in tests, and remove (or demote) the legacy fail options, per the 14-01 decision (D-07).
 - [ ] 14-06 (W6): Write Phase 14's spec records: ADR-QD-126, the ADR-QD-044/056 amendments, the BEH-QD-251 amendment, BEH-QD-379/380, the INV-QD-035 note, traceability and CCR-QD-404.
 - [ ] 14-07 (W7): Close Phase 14: the package-facing docs, the changeset, the PROJECT.md decision row, the per-file mutation comparison and `pnpm check:pr`.
@@ -260,7 +260,7 @@ Plans:
 | 11. Lost-wave security | 7/7 | Complete | 2026-11-10 |
 | 12. Lost-wave integrity | 5/5 | Complete | 2026-11-10 |
 | 13. Lost-wave gaps | 13/13 | Complete | 2026-11-10 |
-| 14. Audit sink deadline | 3/7 | In progress | - |
+| 14. Audit sink deadline | 4/7 | In progress | - |
 | 15. Dock session | 0/4 | Planned | - |
 | 16. One role-graph walk | 0/4 | Planned | - |
 | 17. Injective request key | 0/6 | Planned | - |
