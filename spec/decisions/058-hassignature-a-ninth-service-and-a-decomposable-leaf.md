@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-058                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-08): amendment — the signature query carries the asker's requirement as optional context (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-08-25): Initial release (CCR-QD-089) |
+> | Change History | 1.2 (2026-11-10): amendment — a signature's scope "Any" reads signatures on file subject-wide, unlike HasActed's any resource; "Resource" keeps HasActed's meaning (ARCH-59, ADR-QD-117, CCR-QD-395)<br>1.1 (2026-11-08): amendment — the signature query carries the asker's requirement as optional context (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-08-25): Initial release (CCR-QD-089) |
 
 ---
 
@@ -90,7 +90,9 @@ export const hasSignature: (
 ```
 
 `scope` reuses `HistoryScope` (`"Resource" | "Any"`) verbatim rather than a
-distinct type — same semantics `HasActed`/`HasNotActed` already give it.
+distinct type. `"Resource"` means what it means for `HasActed`/`HasNotActed`; `"Any"`
+does not: for a signature it reads the signatures on file subject-wide (recorded with no
+resource), unlike `HasActed`, where it means any resource ([ADR-QD-117](./117-a-signature-ledger-is-a-keyed-store.md)).
 `meaning`'s wire schema stays an open `Schema.String`, the same
 open-namespace treatment `HasAttribute.attribute` and `HasCustom.name` get;
 the TypeScript parameter narrows to `string | SignatureMeaning` for editor
@@ -240,3 +242,12 @@ whatever the requirement says, and the match rule is stated once (`signatureMatc
 package-private). The requirement is there so a served read can say what was asked and whether the
 records matched; it is never a filter on the store's side. See
 [ADR-QD-109](109-a-ports-span-is-projected-once-and-every-read-is-one-body.md).
+
+## Amendment (2026-11-10, ADR-QD-117, CCR-QD-395)
+
+"Scope reuses `HistoryScope` verbatim" holds for the literal and for `"Resource"` only. For history,
+`"Any"` is "this subject, this event, ever, on any resource" (BEH-QD-092); for a signature it is "on file
+with no resource" (INV-QD-120), because a signature recorded for `doc-1` is wider than the signer
+attested if it satisfies every resource. The literal is unchanged (it is in the persisted `Policy` wire),
+`explain()` says "on file subject-wide, not for a resource", and an adapter author follows INV-QD-120,
+not BEH-QD-092. See [ADR-QD-117](./117-a-signature-ledger-is-a-keyed-store.md).

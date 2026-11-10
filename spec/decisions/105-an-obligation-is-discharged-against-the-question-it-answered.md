@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-105                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — amends ADR-QD-019, ADR-QD-057, ADR-QD-058, ADR-QD-096 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-08): Initial (ARCH-30, CCR-QD-220) |
+> | Change History | 1.1 (2026-11-10): amendment — the ledger is a keyed store, and a discharge on a resource without a string id is refused (ARCH-59, ADR-QD-117, CCR-QD-395)<br>1.0 (2026-10-08): Initial (ARCH-30, CCR-QD-220) |
 
 ---
 
@@ -90,3 +90,13 @@ named only an evaluation id, so an orphan row (whose decision never arrived) cou
   signature, when the history port already carries the scope in its query); a second public
   decision path over an arbitrary subject (ADR-QD-100 rejected exporting `walk` for the same
   reason).
+
+## Amendment (2026-11-10, ADR-QD-117, CCR-QD-395)
+
+"The write key and the read key are one rule" was true of the in-memory double only: the ledger's
+interface handed each adapter the read rule. The ledger is now a keyed store (`append(key, entry)`,
+`entriesAt(key)`), `ledgerKeyOf` is called on both sides, and `signatureHistoryFromLedger` derives the
+exact-pair read and refuses a foreign row. A discharge on a resource without a string id is refused
+(`SignatureCaptureError`, nothing recorded) instead of being recorded subject-wide, which made every
+`scope: "Any"` check with that meaning allow on every resource. See
+[ADR-QD-117](./117-a-signature-ledger-is-a-keyed-store.md).
