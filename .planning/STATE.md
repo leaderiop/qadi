@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 11-03-PLAN.md
+stopped_at: Completed 11-04-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "11-03 complete: the signature ledger is a keyed store; the exact-pair read rule is derived once in signatureHistoryFromLedger"
+last_activity_desc: "11-04 complete: the access-declaration readers are private to AccessPlan.ts; the http docs say guardApi refuses an undeclared endpoint at build"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 59
-  completed_plans: 6
-  percent: 10
+  completed_plans: 7
+  percent: 12
 current_phase: 11
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 11 of 20 (Lost-wave security)
-Plan: 3 of 7 complete (11-01, 11-02, 11-03); next is 11-04
+Plan: 4 of 7 complete (11-01, 11-02, 11-03, 11-04); next is 11-05
 Status: In progress (phase_base 5736c96)
-Last activity: 2026-11-10 -- 11-03 complete: the signature ledger is a keyed store; a foreign or forged row fails the read instead of over-granting
+Last activity: 2026-11-10 -- 11-04 complete: the plan is the one reader of an endpoint's access declaration; README, website and example say guardApi refuses at build
 
 ## Performance Metrics
 
