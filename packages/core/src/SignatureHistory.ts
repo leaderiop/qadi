@@ -37,6 +37,7 @@ import { makeResourceId, makeSubjectId, ResourceIdSchema, SubjectIdSchema } from
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
+import { canonicalKey } from "./PortKey.ts";
 import type { SpanType } from "./PortSpan.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
@@ -218,7 +219,7 @@ const signatureServing: PortServingFacet<"SignatureHistory", [query: SignatureQu
  * The signature-history port, described once (`PortDescription.ts`).
  *
  * A request is keyed by `(subjectId, resourceId, meaning, signerRole)`, with
- * each absent member as `null`. The key is injective over every argument the
+ * each absent member as `undefined`, distinct from every present value. The key is injective over every argument the
  * port receives (ADR-QD-094, INV-QD-043), and the requirement is one. Over-keying
  * does not replay a stale answer, but it is not "only deny" either: a capture
  * keyed per requirement answers a requirement it never saw with the port's
@@ -260,12 +261,7 @@ export const signatureHistoryPort: PortDescription<
       cause: Cause.squash(cause),
     }),
   key: ([query]) =>
-    JSON.stringify([
-      query.subjectId,
-      query.resourceId ?? null,
-      query.meaning ?? null,
-      query.signerRole ?? null,
-    ]),
+    canonicalKey([query.subjectId, query.resourceId, query.meaning, query.signerRole]),
   none: { name: "SignatureHistoryNone", answer: NO_SIGNATURES },
 };
 

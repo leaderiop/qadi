@@ -23,6 +23,7 @@ import * as TestClock from "effect/testing/TestClock";
 import type * as Tracer from "effect/Tracer";
 import type { PortDescription } from "../src/PortDescription.ts";
 import { PortReply } from "../src/PortDescription.ts";
+import { canonicalKey } from "../src/PortKey.ts";
 import {
   boundedPort,
   nonePort,
@@ -96,7 +97,7 @@ const probePort: PortDescription<
   make: (name, call) => ({ name, ask: call }),
   failure: ([, what], cause) => new ProbeError({ what, cause }),
   defect: ([, what], cause) => new ProbeError({ what, cause: Cause.squash(cause) }),
-  key: ([who, what]) => JSON.stringify([who, what]),
+  key: ([who, what]) => canonicalKey([who, what]),
   none: { name: "ProbeNone", answer: undefined },
 };
 

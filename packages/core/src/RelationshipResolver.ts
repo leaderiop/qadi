@@ -24,6 +24,7 @@ import type { ResourceId, SubjectId } from "./Identity.ts";
 import { RelationshipDepth } from "./Policy.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
+import { canonicalKey } from "./PortKey.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, sameAnswer } from "./PortWireEncode.ts";
@@ -214,7 +215,7 @@ const relationshipServing: PortServingFacet<"RelationshipResolver", [request: Re
  * the hop budget it is handed (`RelationshipCheck.depth`), so depth 1 and
  * depth 3 are different questions with different answers, and a capture that
  * collapsed them would replay a depth-3 answer to a depth-1 ask (ARCH-45 I1).
- * An absent `depth` keys as `null`.
+ * An absent `depth` keys as `undefined`, distinct from every present value.
  */
 export const relationshipResolverPort: PortDescription<
   "RelationshipResolver",
@@ -247,12 +248,7 @@ export const relationshipResolverPort: PortDescription<
       cause: Cause.squash(cause),
     }),
   key: ([request]) =>
-    JSON.stringify([
-      request.subjectId,
-      request.relation,
-      request.resourceId,
-      request.depth ?? null,
-    ]),
+    canonicalKey([request.subjectId, request.relation, request.resourceId, request.depth]),
   none: { name: "RelationshipResolverNever", answer: "Unknown" },
 };
 

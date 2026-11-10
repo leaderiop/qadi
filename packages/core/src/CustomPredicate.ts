@@ -186,9 +186,9 @@ const customServing: PortServingFacet<
  * The custom-predicate port, described once (`PortDescription.ts`).
  *
  * A request is keyed by everything the predicate receives: the subject's id,
- * the name, the params, the resource (`null` when absent) and the rest of the
- * subject — its roles, permissions and attributes — through `canonicalKey`
- * (`PortKey.ts`), which writes a `Set` as its sorted members. A what-if that
+ * the name, the params, the resource and the rest of the subject — its roles,
+ * permissions and attributes — through `canonicalKey`, the injective request
+ * key `PortKey.ts` defines and documents. A what-if that
  * drops a role, or a simulation that edits the resource, therefore never
  * replays an answer given to a different question (ARCH-45 I1).
  * `CustomPredicateError`
@@ -222,7 +222,7 @@ export const customPredicatePort: PortDescription<
       subject.id,
       name,
       params,
-      resource ?? null,
+      resource,
       {
         roles: subject.roles,
         permissions: subject.permissions,
