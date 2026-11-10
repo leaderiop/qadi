@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 12-01-PLAN.md
+stopped_at: Completed 12-02-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "12-01 complete: core encodeDecisionStream owns the stream order; mid-backlog reconnect loses nothing; frame/syncedFrame/decisionFrames removed (option-a)"
+last_activity_desc: "12-02 complete: core decodeDecisionStream owns the reader rules; round-trip and resume properties; devtools is the EventSource adapter; vocabulary in DecisionStream.ts"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 59
-  completed_plans: 11
-  percent: 19
+  completed_plans: 12
+  percent: 20
 current_phase: 12
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 12 of 20 (Lost-wave integrity)
-Plan: 1 of 5 complete (12-01); next is 12-02
+Plan: 2 of 5 complete (12-01, 12-02); next is 12-03
 Status: Phase 12 in progress (phase_base f1041fe)
-Last activity: 2026-11-10 -- 12-01 complete: core `encodeDecisionStream` writes the stream in cursor order; P1/P2 reconnect probes RED then green; `@qadi/http` drops `frame`/`syncedFrame`/`decisionFrames`; `spec:api` red (6 drifts) until 12-05
+Last activity: 2026-11-10 -- 12-02 complete: core `decodeDecisionStream` reads the stream back (prelude, sync timeout, live rules moved from devtools); round-trip and resume properties at 100 runs (resume fails without the encoder sort); reconnect acceptance scenario; vocabulary moved to `DecisionStream.ts`; `spec:api` red (9 drifts) until 12-05
 
 ## Performance Metrics
 
