@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 14-04-PLAN.md
+stopped_at: Completed 14-05-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "14-04 complete: all 11 hand-written audit port layers and driveExit's mode table moved onto AuditPortReply scripts; Never rows added to the exit matrix; mutation unchanged or up"
+last_activity_desc: "14-05 complete: failWith/failStageWith/failCommitWith removed from the audit doubles (Breaking); PORT_DOUBLE_BUDGET counts audit port errors; AUDIT_HAND_LAYER_BUDGET (empty) refuses hand-built audit ports in tests; AGENTS.md §6 updated"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 4
   total_plans: 59
-  completed_plans: 32
-  percent: 54
+  completed_plans: 33
+  percent: 56
 current_phase: 14
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 14 of 20 (Audit sink deadline)
-Plan: 4 of 7 in Phase 14 (14-04 complete); next is 14-05
+Plan: 5 of 7 in Phase 14 (14-05 complete); next is 14-06
 Status: Phase 14 in progress (phase_base b042e56)
-Last activity: 2026-11-10 -- 14-04 complete: no audit test builds an `AuditTrailPort`/`AuditStagingPort` layer by hand (11 -> 0, `Interrupt` covers the self-interrupting adapter); `driveExit.ts` scripted by `AuditPortReply` with an explicit 5 s `storeCallTimeout`; `Never` write/stage/commit rows match their `Fail` twins; assertion counts unchanged; Stryker: sink 100, doubles 100, interpreter 100, CircuitBreaker 80.51
+Last activity: 2026-11-10 -- 14-05 complete: the audit doubles' `failWith`/`failStageWith`/`failCommitWith` and the "script wins" branch are removed (Breaking vs 0.11.0); `PORT_DOUBLE_BUDGET` also counts `AuditWriteError`/`AuditStagingError` (names read from the port modules; `AuditWriteOutcome.test.ts`: 1); new empty `AUDIT_HAND_LAYER_BUDGET`; AGENTS.md §6 and overview 1.82 updated; Stryker doubles 100, interpreter 100
 
 ## Performance Metrics
 
