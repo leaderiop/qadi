@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
 import * as Result from "effect/Result";
-import { SignatureHistory, signatureHistoryFromSignatures } from "@qadi/core";
+import { makeResourceId, makeSubjectId, SignatureHistory, signatureHistoryFromSignatures } from "@qadi/core";
 import type { Signature } from "@qadi/core";
 import { signatureHistoryFromLedger, ledgerKeyOf, SignatureLedgerReadError } from "../src/SignatureLedger.ts";
 import type {
@@ -111,6 +111,19 @@ describe("checkSignatureLedger", () => {
       if (!Result.isFailure(result)) return assert.fail("expected the store's error");
       assert.instanceOf(result.failure, SignatureLedgerReadError);
       assert.strictEqual(result.failure.cause, "down");
+    }));
+
+  it.effect("a row already in a shared table, under a fixture key, is not the check's to judge", () =>
+    Effect.gen(function* () {
+      const shared = SignatureLedgerTest().ledger;
+      const entry: SignatureLedgerEntry = {
+        subjectId: makeSubjectId("qadi-conformance/alice"),
+        resourceId: makeResourceId("doc-1"),
+        evaluationId: "ev-prod",
+        signature: { signerId: makeSubjectId("qadi-conformance/alice"), signedAt: 0, meaning: "approved" },
+      };
+      yield* shared.append(ledgerKeyOf(entry), entry);
+      assert.deepStrictEqual(yield* checkSignatureLedger(shared), []);
     }));
 
   it.effect("namespace isolates two runs against one store", () =>
