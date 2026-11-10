@@ -58,11 +58,11 @@
 - [x] **DOCK-05**: The existing `DevtoolsDock.test.tsx` behaviour stays green.
 
 ### Role-graph walk (Phase 16)
-- [ ] **ROLE-01**: One traversal in `Role.ts` (identity-keyed, iterative, pre-order, first path wins, reports revisits) backs `flattenPermissions`, `roleNames`, `permissionProvenance` and `fromRoles`.
-- [ ] **ROLE-02**: `fromRoles` walks the graph once.
-- [ ] **ROLE-03**: The devtools role tree is a projection of core's traversal: distinct same-named roles are not "repeated", depth is stack-safe (20,000+), and the node count is linear in roles.
-- [ ] **ROLE-04**: INV-QD-038 holds by construction, pinned by a property test over random DAGs.
-- [ ] **ROLE-05**: The flatten/fromRoles benchmark shows no regression beyond noise.
+- [x] **ROLE-01**: One traversal in `Role.ts` (identity-keyed, iterative, pre-order, first path wins, reports revisits) backs `flattenPermissions`, `roleNames`, `permissionProvenance` and `fromRoles`.
+- [x] **ROLE-02**: `fromRoles` walks the graph once.
+- [x] **ROLE-03**: The devtools role tree is a projection of core's traversal: distinct same-named roles are not "repeated", depth is stack-safe (20,000+), and the node count is linear in roles.
+- [x] **ROLE-04**: INV-QD-038 holds by construction, pinned by a property test over random DAGs.
+- [x] **ROLE-05**: The flatten/fromRoles benchmark shows no regression beyond noise.
 
 ### Injective request key (Phase 17)
 - [ ] **KEY-01**: `canonicalKey(a) === canonicalKey(b)` if and only if `a` and `b` are equal under the documented equality, as a property test over arbitrary values (Date, NaN, ±Infinity, -0, undefined keys, Set, Map, bigint, nested).
@@ -90,7 +90,7 @@
 - [ ] **CACHE-04**: No hot-path regression (bench row) and UNTRACED_BUDGET is unchanged.
 
 ### Cross-cutting (every phase)
-- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10); Phase 12: green (12-05, 2026-11-10); Phase 13: green (13-12, 2026-11-10); Phase 14: green (14-07, 2026-11-10); Phase 15: green (15-04, 2026-11-10).
+- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10); Phase 12: green (12-05, 2026-11-10); Phase 13: green (13-12, 2026-11-10); Phase 14: green (14-07, 2026-11-10); Phase 15: green (15-04, 2026-11-10); Phase 16: green (16-04, 2026-11-10).
 - [ ] **XC-02**: Each phase records its ADR (or states why none is needed), a CCR row, and the BEH/INV/traceability changes, using only its reserved numbers.
 - [ ] **XC-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
 - [ ] **XC-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock; budgets change only with their AGENTS.md table.
@@ -116,12 +116,12 @@
 | GAP-01..12 | Phase 13 | Complete |
 | AUD-01..05 | Phase 14 | Complete |
 | DOCK-01..05 | Phase 15 | Complete |
-| ROLE-01..05 | Phase 16 | Pending |
+| ROLE-01..05 | Phase 16 | Complete |
 | KEY-01..05 | Phase 17 | Pending |
 | SURF-01..04 | Phase 18 | Pending |
 | VIEW-01..04 | Phase 19 | Pending |
 | CACHE-01..04 | Phase 20 | Pending |
-| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11, 12, 13, 14, 15) |
+| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11, 12, 13, 14, 15, 16) |
 
 **Coverage:** 66 v1.1 requirements (60 + 6 cross-cutting); mapped 66; unmapped 0.
 

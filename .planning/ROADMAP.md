@@ -46,7 +46,7 @@ phases hold a package intentionally red between their first and last plan; `use_
 - [x] **Phase 13: Lost-wave gaps** - Port the public-endpoint denial log, the simulation field table, the evaluation metrics module, test gaps and doc defects (ARCH-61)
 - [x] **Phase 14: Audit sink deadline** - The audit sink bounds every store call and the breaker sees hangs; the audit doubles become scriptable (ARCH-62)
 - [x] **Phase 15: Dock session** - The dock's tab, filters, selection and replay become a headless session; replaying the same row re-seeds (ARCH-63)
-- [ ] **Phase 16: One role-graph walk** - One traversal in core backs every role walk, including the devtools tree (ARCH-64)
+- [x] **Phase 16: One role-graph walk** - One traversal in core backs every role walk, including the devtools tree (ARCH-64)
 - [ ] **Phase 17: Injective request key** - `PortKey` becomes a kind-tagged injective encoding for all five ports; the replay miss policy is decided (ARCH-65)
 - [ ] **Phase 18: Devtools HTTP surface** - The stream, backlog and registry routes share one address rule with the devtools client (ARCH-66)
 - [ ] **Phase 19: Verdict presentation** - One verdict-treatment module and one headless outcome reading in devtools (ARCH-67)
@@ -189,7 +189,7 @@ Plans:
 - [x] 16-01 (W1): Give the role graph one traversal and make the devtools tree its first projection, fixing the devtools defects: the tree keys `seen` on `self.name`… ⛳ checkpoint
 - [x] 16-02 (W2): Turn core's three hand-written walkers into projections of the traversal 16-01 added, and make `fromRoles` walk once.
 - [x] 16-03 (W3): Finish ROLE-03 on screen.
-- [ ] 16-04 (W4): Record Phase 16 and run the full gate.
+- [x] 16-04 (W4): Record Phase 16 and run the full gate.
 
 ### Phase 17: Injective request key
 **Goal**: Two port requests share a key exactly when they are the same request, and devtools replay cannot fail open on a miss.
@@ -262,7 +262,7 @@ Plans:
 | 13. Lost-wave gaps | 13/13 | Complete | 2026-11-10 |
 | 14. Audit sink deadline | 7/7 | Complete | 2026-11-10 |
 | 15. Dock session | 4/4 | Complete | 2026-11-10 |
-| 16. One role-graph walk | 3/4 | In progress | - |
+| 16. One role-graph walk | 4/4 | Complete | 2026-11-10 |
 | 17. Injective request key | 0/6 | Planned | - |
 | 18. Devtools HTTP surface | 0/3 | Planned | - |
 | 19. Verdict presentation | 0/3 | Planned | - |

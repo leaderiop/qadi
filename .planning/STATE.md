@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 16-03-PLAN.md
+stopped_at: Completed 16-04-PLAN.md (Phase 16 complete)
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "16-03 complete: RoleSummary.rows (flat, depth-annotated walk) replaces tree/RoleNode; RoleViewer renders sibling rows keyed on step index; 20,000-deep chain renders in ~2.2 s (was RangeError); RoleTree.ts mutation 100 (25/25); gate 13 knowingly red until 16-04"
-state_head: a9e8709993a64f60431c85dd177c1c40fe4995ab
+last_activity_desc: "16-04 complete: ADR-QD-128, glossary Role walk, INV-QD-038 by construction, BEH-QD-399/400, overview rows for roleWalk/RoleStep (gate 13 green), CCR-QD-406, changesets; check:pr green; Phase 16 complete"
+state_head: 856a092ab1da5af22c7dbf7a6044fa32cf55eeeb
 progress:
   total_phases: 11
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 59
-  completed_plans: 42
-  percent: 71
+  completed_plans: 43
+  percent: 73
 current_phase: 16
 ---
 
@@ -28,14 +28,14 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 16 of 20 (One role-graph walk)
-Plan: 3 of 4 in Phase 16 (16-03 complete); next is 16-04
-Status: Phase 16 in progress (phase_base 443b45f); gate 13 knowingly red for roleWalk/RoleStep until 16-04
-Last activity: 2026-11-10 -- 16-03 complete: the role viewer renders `summary.rows` flat (sibling rows indented by depth, keyed on step index); a 20,000-deep chain renders
+Plan: 4 of 4 in Phase 16 (16-04 complete); next is Phase 17 (17-01)
+Status: Phase 16 complete (phase_base 443b45f); check:pr green
+Last activity: 2026-11-10 -- 16-04 complete: Phase 16 recorded (ADR-QD-128, CCR-QD-406, BEH-QD-399/400, INV-QD-038 by construction); check:pr green
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 47
+- Total plans completed: 48
 - Average duration: -
 - Total execution time: 0.0 hours
 
