@@ -1,6 +1,7 @@
 export * from "./AuditArchive.ts";
 export * from "./AuditDecisionSinkLive.ts";
 export * from "./AuditEntry.ts";
+export * from "./AuditPortReply.ts";
 export * from "./AuditStagingPort.ts";
 export * from "./AuditStagingPortTest.ts";
 export * from "./AuditTrailPort.ts";
