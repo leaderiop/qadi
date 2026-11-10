@@ -19,6 +19,7 @@ import {
   hasPermission,
   hasRelationship,
   hasRole,
+  hasSignature,
   labeled,
   literal,
   obligation,
@@ -345,6 +346,25 @@ describe("whatIf", () => {
       assert.deepStrictEqual(report.rows.map((r) => r.edit.label), ["nothing at all"]);
       assert.deepStrictEqual(report.skipped, []);
       assert.isFalse(isChanged(rowFor(report.rows, "nothing at all").comparison));
+    }));
+});
+
+describe("a signature fixture is a grant a sweep can drop or supply", () => {
+  const signed: SimulationInput = {
+    subject: { id: "alice" },
+    resource: { id: "doc-1" },
+    signatures: [{ subjectId: "alice", meaning: "approved", resourceId: "doc-1" }],
+  };
+
+  it.effect("flips the verdict when the signature the answer turned on is dropped", () =>
+    Effect.gen(function* () {
+      const report = yield* whatIf(hasSignature("approved"), signed);
+      const row = rowFor(report.rows, "without signature approved on doc-1");
+
+      assert.strictEqual(row.edit.kind, "DropSignature");
+      assert.strictEqual(verdictOfOutcome(report.baseline), "Allow");
+      assert.strictEqual(verdictOfOutcome(row.outcome), "Deny");
+      assert.isTrue(isChanged(row.comparison));
     }));
 });
 

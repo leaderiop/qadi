@@ -36,6 +36,7 @@ import {
   hasAttribute,
   hasPermission,
   hasRole,
+  hasSignature,
   makeSubjectId,
   ObligationRecord,
   permission,
@@ -76,6 +77,7 @@ const policies: Record<string, Policy> = {
   "editor role": hasRole("editor"),
   clearance: hasAttribute("clearance", gte(5)),
   "either way": anyOf([hasRole("editor"), hasPermission(read)]),
+  approval: hasSignature("approved"),
 };
 
 /** Ports whose every answer fails, so a run that reaches one cannot decide. */
@@ -282,6 +284,19 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
       },
     }));
   });
+
+  Given(
+    "a simulated subject {string} holding the signature {string} on {string}",
+    function* (id: string, meaning: string, resourceId: string) {
+      yield* patch(() => ({
+        input: {
+          subject: { id },
+          resource: { id: resourceId },
+          signatures: [{ subjectId: id, meaning, resourceId }],
+        },
+      }));
+    },
+  );
 
   Given("a decision sink is recording", function* () {
     const ring = yield* makeDecisionLog({ environment: "Server" });

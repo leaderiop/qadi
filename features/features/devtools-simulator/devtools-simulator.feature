@@ -41,6 +41,11 @@ Feature: Asking what would happen, and checking it against what did
     When a what-if sweep runs against the "editor role" policy
     Then the sweep reports "without role editor" as flipping the verdict
 
+  Scenario: Dropping the signature the answer turned on
+    Given a simulated subject "alice" holding the signature "approved" on "doc-1"
+    When a what-if sweep runs against the "approval" policy
+    Then the sweep reports "without signature approved on doc-1" as flipping the verdict
+
   Scenario: Neither grant is load-bearing until both are gone
     # `anyOf` is satisfied either way, so no single edit turns the verdict —
     # which is the whole reason second-order sweeps exist.

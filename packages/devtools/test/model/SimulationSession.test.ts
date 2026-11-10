@@ -22,6 +22,7 @@ import {
   hasPermission,
   hasRelationship,
   hasRole,
+  hasSignature,
   PortReply,
   portsLayer,
   scriptedPort,
@@ -685,6 +686,23 @@ describe("choosing a policy", () => {
       assert.strictEqual(second._tag, "Ran");
       assert.isTrue(second._tag === "Ran" && Equal.equals(second.question.policy, clearance));
     }));
+});
+
+describe("the sweep the session states", () => {
+  // Through the session, not `singleEdits`: the review reproduced the gap here,
+  // because this is the plan a reviewer reads before running a sweep.
+  it("offers to drop a signature fixture, and counts that row", () => {
+    const session = makeSimulationSession({ sightings: [sighting(hasSignature("approved"))] });
+    session.edit({
+      subject: { id: "alice" },
+      resource: { id: "doc-1" },
+      signatures: [{ subjectId: "alice", meaning: "approved", resourceId: "doc-1" }],
+    });
+
+    const plan = session.getSnapshot().plan;
+    assert.deepStrictEqual(plan?.edits.map((edit) => edit.kind), ["DropSignature"]);
+    assert.strictEqual(plan?.evaluations, 2);
+  });
 });
 
 describe("the form's own commands", () => {
