@@ -6,8 +6,10 @@
  * connection — subscribe, then snapshot — so the two halves cannot lose or
  * repeat a record between them:
  *
- * 1. one `event: backlog` frame per record the log retained, oldest first in
- *    `storedRecordOrder`;
+ * 1. one `event: backlog` frame per record the log retained, in cursor
+ *    (arrival) order — the order is `@qadi/core`'s `encodeDecisionStream`, so ids
+ *    rise along a connection and `Last-Event-ID` is the reader's highest
+ *    position; a reader presents them in `storedRecordOrder` (ARCH-60);
  * 2. one `event: synced` frame whose data is `{"backlog":n}`
  *    (`@qadi/core`'s `DecisionStreamSynced`), `n` the backlog frames actually sent —
  *    sent even when `n` is 0, so a reader can tell "no history" from "an older
@@ -76,7 +78,6 @@
  */
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
-import * as Option from "effect/Option";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
@@ -92,10 +93,10 @@ import type {
   Policy,
   StandingEvaluationServices,
 } from "@qadi/core";
-import { DecisionStreamSynced, parseLogCursor } from "@qadi/core";
+import { DecisionStreamSynced, encodeDecisionStream } from "@qadi/core";
 import { enforceRequest } from "./AuthorizeRequest.ts";
 import type { EnforcementProjection } from "./AuthorizeRequest.ts";
-import { frameEntries, frameEntry } from "./DecisionLogHttp.ts";
+import { recordData, sseText } from "./DecisionLogHttp.ts";
 import type { DecisionLogServeOptions } from "./DecisionLogHttp.ts";
 import { loadNoResource } from "./NoResource.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
@@ -134,11 +135,8 @@ export const decisionFrames = (
   },
   options?: DecisionLogServeOptions,
 ): Stream.Stream<string> =>
-  Stream.unwrap(
-    Effect.map(frameEntries("backlog", read.backlog, options), (frames) =>
-      Stream.fromIterable([...frames, syncedFrame(frames.length)]).pipe(
-        Stream.concat(Stream.filterMapEffect(read.live, frameEntry("message", options))),
-      )),
+  encodeDecisionStream({ readEntries: () => Effect.succeed(read) }, { encodeRecord: recordData(options) }).pipe(
+    Stream.map(sseText),
   );
 
 export interface DecisionStreamOptions extends DecisionLogServeOptions {
@@ -231,19 +229,15 @@ export const decisionStreamRoute = <P extends Permission>(
   )(() =>
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
+      // The order and the resume are core's: a reconnecting `EventSource` names
+      // the last record it received, and the read opens when the body is first
+      // pulled and closes with it. This module writes SSE text, then
       // `Stream.encodeText` — UTF-8 bytes, the same final step
-      // `HttpApiBuilder`'s own `encodeSseStream` ends with — rather than each
-      // frame carrying its own `TextEncoder.encode` call.
-      // A reconnecting `EventSource` names the last record it received; a
-      // header that is not one of this log's cursors is no cursor at all.
-      const after = Option.getOrUndefined(
-        Option.flatMap(Option.fromNullishOr(request.headers["last-event-id"]), parseLogCursor),
-      );
-      // `Stream.unwrap` gives the read the response stream's scope: the
-      // subscription opens when the body is first pulled and closes with it.
-      const frames = Stream.unwrap(
-        Effect.map(log.readEntries(after), (read) => decisionFrames(read, options)),
-      ).pipe(Stream.encodeText);
+      // `HttpApiBuilder`'s own `encodeSseStream` ends with.
+      const frames = encodeDecisionStream(log, {
+        after: request.headers["last-event-id"],
+        encodeRecord: recordData(options),
+      }).pipe(Stream.map(sseText), Stream.encodeText);
       // `Stream.mergeEffect`: the recheck loop runs concurrently for the
       // stream's lifetime, fails the whole stream the moment it fails,
       // and is itself interrupted the moment the stream ends for any

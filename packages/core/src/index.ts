@@ -10,6 +10,7 @@ export * from "./DecisionLog.ts";
 export * from "./DecisionRecord.ts";
 export * from "./DecisionSink.ts";
 export * from "./DecisionSinkForwarding.ts";
+export * from "./DecisionStream.ts";
 export * from "./DecisionWire.ts";
 export * from "./DecodeDepthGuard.ts";
 export * from "./EncodeRefusalReport.ts";

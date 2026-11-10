@@ -13,10 +13,12 @@
  */
 import * as Effect from "effect/Effect";
 import type * as Filter from "effect/Filter";
+import type * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import * as Sse from "effect/encoding/Sse";
 import type {
   DecisionRecordEvent,
+  DecisionStreamFrame,
   LogCursor,
   LogEntry,
   SinkRecordNotEncodable,
@@ -170,3 +172,28 @@ export const frameEntries = (
   entries: ReadonlyArray<LogEntry>,
   options?: DecisionLogServeOptions,
 ): Effect.Effect<ReadonlyArray<string>> => keepEncoded(entries, frameEntry(event, options));
+
+/**
+ * One record as stream frame data, in the stream's own words: `Some` with the
+ * stored-record envelope (`@qadi/core`'s `encodeStoredRecordString`), or `None`
+ * once a refusal has been reported (`onRefused`, else the "could not be framed"
+ * warning). What `@qadi/core`'s `encodeDecisionStream` is given as `encodeRecord`:
+ * the order is core's, the bytes and the refusal words stay here.
+ */
+export const recordData = (
+  options?: DecisionLogServeOptions,
+): ((record: StoredRecord) => Effect.Effect<Option.Option<string>>) => {
+  const filter = encodeOrReport(encodeStoredRecordString, reportRefusedSse, options?.onRefused);
+  return (record) => Effect.map(filter(record), Result.getSuccess);
+};
+
+/**
+ * One stream frame as SSE text, through `effect/encoding/Sse`'s own
+ * `encoder.write`.
+ *
+ * For `message`, `Sse.encoder.write` omits the `event:` line, so a live frame is
+ * `id: <cursor>` / `data: <json>` — what an `EventSource`'s `message` listener
+ * reads. `synced` has no `id:` line.
+ */
+export const sseText = (frame: DecisionStreamFrame): string =>
+  Sse.encoder.write({ _tag: "Event", event: frame.event, id: frame.id, data: frame.data });
