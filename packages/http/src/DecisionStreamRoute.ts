@@ -94,12 +94,15 @@ import { enforceRequest } from "./AuthorizeRequest.ts";
 import type { EnforcementProjection } from "./AuthorizeRequest.ts";
 import { recordData, sseText } from "./DecisionLogHttp.ts";
 import type { DecisionLogServeOptions } from "./DecisionLogHttp.ts";
+import { devtoolsPath } from "./DevtoolsRouteAddress.ts";
+import type { DevtoolsRouteOptions } from "./DevtoolsRouteAddress.ts";
 import { loadNoResource } from "./NoResource.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
 import { classifyHttpEnforcementFailure } from "./QadiHttpError.ts";
 import type { SubjectExtractor } from "./SubjectExtractor.ts";
 
-export interface DecisionStreamOptions extends DecisionLogServeOptions {
+/** How `decisionStreamRoute` serves: where it is mounted, how a refused record is reported, and the recheck. */
+export interface DecisionStreamOptions extends DecisionLogServeOptions, DevtoolsRouteOptions {
   /**
    * Re-authorizes an open connection on an interval, ending it the moment
    * that check no longer passes. See this module's own doc comment for what
@@ -141,7 +144,8 @@ const recheck = (permission: Permission, policy: Policy, request: HttpServerRequ
   );
 
 /**
- * Mounts `/__decisions`, streaming a decision log to callers the policy permits.
+ * Mounts the decision stream at `devtoolsPath("decisions", options.prefix)`,
+ * `/__decisions` by default, streaming a decision log to callers the policy permits.
  *
  * `log` is anything that can `read` — a `DecisionLog`, or a structural fake in
  * a test — so a route cannot write to the log it serves. The log's live half
@@ -180,7 +184,7 @@ export const decisionStreamRoute = <P extends Permission>(
         `${Duration.toMillis(options.reauth.interval)}ms.`,
     );
   }
-  return addGuardedRoute("GET", "/__decisions", permission, policy)(() =>
+  return addGuardedRoute("GET", devtoolsPath("decisions", options?.prefix), permission, policy)(() =>
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
       // The order and the resume are core's: a reconnecting `EventSource` names

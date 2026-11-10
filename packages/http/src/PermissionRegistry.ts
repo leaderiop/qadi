@@ -28,6 +28,8 @@ import type { Authorized, Permission, PermissionKey, Policy, Resource } from "@q
 import { permissionKey } from "@qadi/core";
 import { loadNoResource } from "./NoResource.ts";
 import { guardRoute } from "./GuardRoute.ts";
+import { devtoolsPath } from "./DevtoolsRouteAddress.ts";
+import type { DevtoolsRouteOptions } from "./DevtoolsRouteAddress.ts";
 import type { HttpEnforcementFailure } from "./QadiHttpError.ts";
 import { unguardedRoutes } from "./UnguardedRoute.ts";
 
@@ -167,7 +169,8 @@ const snapshotResponse = Effect.map(PermissionRegistry.snapshot, (data) =>
 );
 
 /**
- * The `/__permissions` introspection route, **behind a policy**.
+ * The `/__permissions` introspection route, **behind a policy**, at
+ * `devtoolsPath("permissions", options.prefix)` (`/__permissions` by default).
  *
  * This route publishes the application's entire authorization topology: every
  * guarded path, and the permission each one requires. That is a map of what to
@@ -197,11 +200,18 @@ const snapshotResponse = Effect.map(PermissionRegistry.snapshot, (data) =>
  * shape again — this route is exactly one more `addGuardedRoute` caller, not
  * a special case.
  */
-export const permissionRegistryRoute = <P extends Permission>(permission: P, policy: Policy) =>
-  addGuardedRoute("GET", "/__permissions", permission, policy)(() => snapshotResponse);
+export const permissionRegistryRoute = <P extends Permission>(
+  permission: P,
+  policy: Policy,
+  options?: DevtoolsRouteOptions,
+) =>
+  addGuardedRoute("GET", devtoolsPath("permissions", options?.prefix), permission, policy)(
+    () => snapshotResponse,
+  );
 
 /**
- * The `/__permissions` route with **no** guard, which must be chosen explicitly.
+ * The `/__permissions` route with **no** guard, which must be chosen explicitly. It
+ * answers at `devtoolsPath("permissions", options.prefix)`, `/__permissions` by default.
  *
  * The `reason` is never read. It exists so that publishing the authorization
  * topology unauthenticated is something a reviewer can see somebody decided —
@@ -211,15 +221,17 @@ export const permissionRegistryRoute = <P extends Permission>(permission: P, pol
  * once at construction as the port routes are: a local development choice that
  * reaches production should be visible in the logs of the environment it is
  * wrong in, not only in the one where it was made (BEH-QD-180). The warning text
- * and the cadence dispatch are `unguardedRoutes`' (`UnguardedRoute.ts`).
+ * and the cadence dispatch are `unguardedRoutes`' (`UnguardedRoute.ts`); the
+ * warning names the route by its unprefixed path whatever the prefix, so its
+ * words do not change with where a host mounts it.
  */
-export const permissionRegistryRouteUnguarded = (reason: string) =>
+export const permissionRegistryRouteUnguarded = (reason: string, options?: DevtoolsRouteOptions) =>
   unguardedRoutes(
     {
-      what: "/__permissions",
+      what: devtoolsPath("permissions"),
       consequence: "the full authorization topology is public",
       reason,
       announce: "every-request",
     },
-    [{ method: "GET", path: "/__permissions", handler: snapshotResponse }],
+    [{ method: "GET", path: devtoolsPath("permissions", options?.prefix), handler: snapshotResponse }],
   );

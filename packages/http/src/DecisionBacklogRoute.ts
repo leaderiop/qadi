@@ -25,10 +25,16 @@ import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type { DecisionLog, Permission, Policy } from "@qadi/core";
 import { jsonElements } from "./DecisionLogHttp.ts";
 import type { DecisionLogServeOptions } from "./DecisionLogHttp.ts";
+import { devtoolsPath } from "./DevtoolsRouteAddress.ts";
+import type { DevtoolsRouteOptions } from "./DevtoolsRouteAddress.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
 
+/** How `decisionBacklogRoute` serves: where it is mounted, and how a refused record is reported. */
+export interface DecisionBacklogOptions extends DecisionLogServeOptions, DevtoolsRouteOptions {}
+
 /**
- * Mounts `/__decisions/backlog`, serving `log`'s retained records to callers
+ * Mounts the backlog at `devtoolsPath("backlog", options.prefix)`,
+ * `/__decisions/backlog` by default, serving `log`'s retained records to callers
  * the policy permits.
  *
  * The body is a JSON array of stored-record envelopes in `storedRecordOrder`,
@@ -44,9 +50,9 @@ export const decisionBacklogRoute = <P extends Permission>(
   permission: P,
   policy: Policy,
   log: Pick<DecisionLog, "snapshot">,
-  options?: DecisionLogServeOptions,
+  options?: DecisionBacklogOptions,
 ) =>
-  addGuardedRoute("GET", "/__decisions/backlog", permission, policy)(() =>
+  addGuardedRoute("GET", devtoolsPath("backlog", options?.prefix), permission, policy)(() =>
     Effect.gen(function* () {
       const body = yield* jsonElements(yield* log.snapshot, options);
       // `JSON.stringify` cannot throw here: every element passed the codec's

@@ -43,7 +43,7 @@ const lookupSubject = (token: string): Effect.Effect<AuthSubject> =>
 
 const PREFIX = "/x/devtools";
 
-/** The three devtools routes under `/x/devtools`, over a log holding one record, as a web handler. */
+/** The three devtools routes under `/x/devtools`, served by one web handler over a log holding one record. */
 const prefixedSurface = Effect.gen(function* () {
   const log = yield* makeDecisionLog({ environment: "Server" });
   yield* log.ingest(new ObligationRecord({ evaluationId: "e-1", at: 1, outcome: "Discharged", obligationIds: [] }));
