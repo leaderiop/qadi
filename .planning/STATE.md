@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 12-03-PLAN.md
+stopped_at: Completed 12-04-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "12-03 complete: HydrationEvent.ts absorbs HydrationCounts.ts; every hydration exit is one event counted and reported once; zero-entry subject mismatch counts 1; every supplied reporter contained (ReporterThrew)"
+last_activity_desc: "12-04 complete: dehydrateDecisions total (encodeOption, UnencodablePolicy); one HydrationDrop shape for both ends' onDropped (Breaking); DehydrationDropped replaces PayloadMixedSubjects; HydrationEvent.ts mutated"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 59
-  completed_plans: 13
-  percent: 22
+  completed_plans: 14
+  percent: 24
 current_phase: 12
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 12 of 20 (Lost-wave integrity)
-Plan: 3 of 5 complete (12-01, 12-02, 12-03); next is 12-04
+Plan: 4 of 5 complete (12-01, 12-02, 12-03, 12-04); next is 12-05
 Status: Phase 12 in progress (phase_base f1041fe)
-Last activity: 2026-11-10 -- 12-03 complete: `HydrationEvent.ts` (closed `HydrationEvent`, `emitHydration`) replaces `HydrationCounts.ts`; engine planners emit events after the work; zero-entry `PayloadSubjectMismatch` counts 1; `ReporterThrew` + `contain` in all five resolvers; DECISION_READ_BUDGET HydrationEngine.ts 3 -> 2; option-a (12-04 implements the `HydrationDrop` dehydrate hook and the Stryker scope); `spec:api` red (9 drifts) until 12-05
+Last activity: 2026-11-10 -- 12-04 complete: `dehydrateDecisions` total via `encodeOption` (`UnencodablePolicy`, 8 reasons); `DehydrateOptions.onDropped` takes `HydrationDrop<DecisionEntry, DehydrationDropReason>` once per reason (Breaking, option-a); `DroppedEntriesReporter` deleted, `PayloadMixedSubjects` -> `DehydrationDropped`; example + 2 acceptance scenarios migrated; `HydrationEvent.ts` in `stryker.react.mjs`; no public export added/removed; `spec:api` red (9 drifts) until 12-05
 
 ## Performance Metrics
 
