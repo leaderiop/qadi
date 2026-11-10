@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 15-04-PLAN.md (Phase 15 complete)
+stopped_at: Completed 16-01-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "15-04 complete: ADR-QD-047 Rev 1.10, BEH-QD-389/390, INV-QD-107 sources, traceability, CCR-QD-405, dock-session changeset; mutation SimulationSession 96.46 (base 96.44), DockSession 100; check:pr green — Phase 15 complete"
+last_activity_desc: "16-01 complete: roleWalk/RoleStep and package-private RoleTraversal.ts in core; devtools role tree built from roleWalk (repeated role is a leaf, decision A); RED then GREEN; mutation Role 93.98 (base 92.99), RoleTraversal 100, RoleTree 100; gate 13 knowingly red until 16-04"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 6
   total_plans: 59
-  completed_plans: 39
-  percent: 66
-current_phase: 15
+  completed_plans: 40
+  percent: 68
+current_phase: 16
 ---
 
 # Project State
@@ -27,15 +27,15 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 ## Current Position
 
-Phase: 15 of 20 (Dock session)
-Plan: 4 of 4 in Phase 15 (15-04 complete); next is Phase 16 (16-01)
-Status: Phase 15 complete (phase_base e9d1104); Phase 16 base is the 15-04 docs commit
-Last activity: 2026-11-10 -- 15-04 complete: Phase 15's records (ADR-QD-047 Rev 1.10, BEH-QD-389/390, INV-QD-107, CCR-QD-405, `.changeset/dock-session.md`); mutation no drop (SimulationSession 96.46 vs 96.44, DockSession 100 new); `pnpm check:pr` green (16/16 steps)
+Phase: 16 of 20 (One role-graph walk)
+Plan: 1 of 4 in Phase 16 (16-01 complete); next is 16-02
+Status: Phase 16 in progress (phase_base 443b45f); gate 13 knowingly red for roleWalk/RoleStep until 16-04
+Last activity: 2026-11-10 -- 16-01 complete: one role walk in core (`roleWalk`/`RoleStep`, `RoleTraversal.ts`); devtools role tree is its projection (identity-keyed, iterative, repeated role is a leaf); RED seen on the base for same-name, 20k-deep and stacked diamonds
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 44
+- Total plans completed: 45
 - Average duration: -
 - Total execution time: 0.0 hours
 
