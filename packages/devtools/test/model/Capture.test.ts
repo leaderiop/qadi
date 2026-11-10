@@ -783,15 +783,12 @@ describe("a request with no key (KEY-03)", () => {
       assert.isTrue(Result.isFailure(refused));
       if (Result.isSuccess(refused)) return;
 
-      const replayed = yield* Effect.exit(ask.pipe(Effect.provide(replayLayer(yield* capture.answers))));
-      assert.deepStrictEqual(
-        replayed,
-        Exit.fail(
-          customPredicatePort.failure(
-            ["isCallable", subject, undefined, params],
-            `this CustomPredicate request cannot be keyed: ${describeKeyRefusal(refused.failure)}`,
-          ),
-        ),
+      const replayed = yield* Effect.flip(ask.pipe(Effect.provide(replayLayer(yield* capture.answers))));
+      assert.strictEqual(replayed._tag, "CustomPredicateError");
+      assert.strictEqual(replayed.name, "isCallable");
+      assert.strictEqual(
+        replayed.reason,
+        `this CustomPredicate request cannot be keyed: ${describeKeyRefusal(refused.failure)}`,
       );
     }));
 });

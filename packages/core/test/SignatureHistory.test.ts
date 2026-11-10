@@ -123,13 +123,33 @@ describe("SignatureHistory", () => {
         assert.strictEqual(signature?.signedAt, 1_700_000_000_000);
       }));
 
+    it.effect("keeps signerRole, algorithm and keyId when given, and leaves each out when omitted", () =>
+      Effect.gen(function* () {
+        const layer = signatureHistoryFromSignatures([
+          { subjectId: "alice", resourceId: "doc-1", meaning: "full", signerRole: "manager", algorithm: "ed25519", keyId: "k1" },
+          { subjectId: "alice", resourceId: "doc-1", meaning: "bare" },
+        ]);
+        const [full, bare] = yield* query(layer, "alice", "doc-1");
+        assert.deepStrictEqual(full, {
+          signerId: makeSubjectId("alice"),
+          meaning: "full",
+          signedAt: 0,
+          signerRole: "manager",
+          algorithm: "ed25519",
+          keyId: "k1",
+        });
+        assert.deepStrictEqual(Object.keys(bare ?? {}), ["signerId", "meaning", "signedAt"]);
+        const name = yield* SignatureHistory.use((history) => Effect.succeed(history.name)).pipe(Effect.provide(layer));
+        assert.strictEqual(name, "signatureHistoryFromSignatures");
+      }));
+
     it.effect(
       "collision-immune: a subject/resource split that would collide under a colon-joined key does not",
       () =>
         Effect.gen(function* () {
           // `signatureHistoryFromSignatures` keys on the requirement-free
-          // projection of `signatureHistoryPort.key` (a `JSON.stringify` of the
-          // pair), not a delimited string — its own doc comment gives `["a:b", "c"]` vs
+          // projection of `signatureHistoryPort.key` (an injective encoding of
+          // the pair), not a delimited string — its own doc comment gives `["a:b", "c"]` vs
           // `["a", "b:c"]` as the pair a naive `${a}:${b}` join would
           // conflate. Proven here directly, the same way
           // `DecisionHistory.test.ts` and `RelationshipResolver.test.ts`

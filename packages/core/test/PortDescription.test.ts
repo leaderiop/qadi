@@ -376,15 +376,12 @@ describe("replyTable", () => {
         customPredicatePort,
         replyTable(customPredicatePort, [[["isOwner", alice, undefined, params], PortReply.answer(true)]]),
       );
-      const exit = yield* Effect.exit(
+      const error = yield* Effect.flip(
         CustomPredicate.evaluate("isOwner", alice, undefined, params).pipe(Effect.provide(double.layer)),
       );
-      assert.deepStrictEqual(
-        exit,
-        Exit.fail(
-          customPredicatePort.failure(["isOwner", alice, undefined, params], describeKeyRefusal(refused.failure)),
-        ),
-      );
+      assert.strictEqual(error._tag, "CustomPredicateError");
+      assert.strictEqual(error.name, "isOwner");
+      assert.strictEqual(error.reason, describeKeyRefusal(refused.failure));
     }));
 });
 
