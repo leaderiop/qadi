@@ -515,22 +515,3 @@ export const addChip = <A>(
 /** The list without the element at `index`. */
 export const removeAt = <A>(list: ReadonlyArray<A>, index: number): ReadonlyArray<A> =>
   list.filter((_, at) => at !== index);
-
-/**
- * Renames the subject, and moves the elements that named the old id with it.
- *
- * Edges, events and signatures attributed to `from` follow; the ones naming
- * somebody else stay where they are, which is what the Fixtures card's caption
- * promises.
- */
-export const renameSubject = (input: SimulationInput, from: string, to: string): SimulationInput => {
-  const follow = <A extends { readonly subjectId: string }>(list: ReadonlyArray<A>): ReadonlyArray<A> =>
-    list.map((one) => (one.subjectId === from ? { ...one, subjectId: to } : one));
-  return {
-    ...input,
-    subject: { ...input.subject, id: to },
-    ...(input.relationships === undefined ? {} : { relationships: follow(input.relationships) }),
-    ...(input.history === undefined ? {} : { history: follow(input.history) }),
-    ...(input.signatures === undefined ? {} : { signatures: follow(input.signatures) }),
-  };
-};

@@ -20,7 +20,6 @@ import {
   eventCodec,
   permissionCodec,
   removeAt,
-  renameSubject,
   roleCodec,
   sameEdge,
   sameSignature,
@@ -410,37 +409,6 @@ describe("list edits", () => {
 
   it("removes exactly the element at an index", () => {
     assert.deepStrictEqual(removeAt(["a", "b", "c"], 1), ["a", "c"]);
-  });
-});
-
-describe("renameSubject", () => {
-  it("moves exactly the elements naming the old id", () => {
-    const input = {
-      subject: { id: "alice", roles: ["r"] },
-      relationships: [
-        { subjectId: "alice", relation: "owner", resourceId: "d" },
-        { subjectId: "bob", relation: "owner", resourceId: "d" },
-      ],
-      history: [{ subjectId: "alice", event: "read", resourceId: "d" }],
-      signatures: [
-        { subjectId: "alice", meaning: "m" },
-        { subjectId: "bob", meaning: "m" },
-      ],
-    };
-    const renamed = renameSubject(input, "alice", "carol");
-    assert.strictEqual(renamed.subject.id, "carol");
-    assert.deepStrictEqual(renamed.subject.roles, ["r"]);
-    assert.deepStrictEqual(
-      renamed.relationships?.map((edge) => edge.subjectId),
-      ["carol", "bob"],
-    );
-    assert.deepStrictEqual(renamed.history?.map((one) => one.subjectId), ["carol"]);
-    assert.deepStrictEqual(renamed.signatures?.map((one) => one.subjectId), ["carol", "bob"]);
-  });
-
-  it("adds no field that was not there", () => {
-    const renamed = renameSubject({ subject: { id: "a" } }, "a", "b");
-    assert.deepStrictEqual(renamed, { subject: { id: "b" } });
   });
 });
 

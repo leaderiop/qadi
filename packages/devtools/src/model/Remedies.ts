@@ -39,8 +39,8 @@ import type {
   PolicyCases,
   ValueRef,
 } from "@qadi/core";
-import { sameEdge, sameEvent } from "./SimulationForm.ts";
 import type { SimulationEdit } from "./SimulationEdit.ts";
+import { fieldOps, grant } from "./SimulationFields.ts";
 import type { SimulationInput } from "./SimulationInput.ts";
 
 /**
@@ -425,6 +425,9 @@ const NO_RESOURCE_ID = "the check names no resource id";
 const CUSTOM_HAS_NO_FIELD =
   "a custom predicate's answer has no form field; run against Snapshot or Live";
 
+/** A built edit, for the arms that take a field's grant from the table. */
+const edit = (self: SimulationEdit): Built => ({ _tag: "Edit", edit: self });
+
 /**
  * `undefined` means *no row at all* — the input already meets this requirement,
  * so there is nothing to propose and nothing to explain. A `Skip` is the other
@@ -434,24 +437,18 @@ const CUSTOM_HAS_NO_FIELD =
  * A `Match` rather than an if-chain, per AGENTS.md §5a: the last arm of the chain
  * this replaced was an implicit fall-through to `Acted`, so a new requirement
  * compiled into someone else's remedy (lost ARCH-48 `950977f`, T2). Built once
- * at module scope; each arm returns a function of the input.
+ * at module scope; each arm returns a function of the input. The held-field arms
+ * take their lens, their presence test and their edit from the field table
+ * (`SimulationFields.ts`); `Action` and `ResourceAttribute` change the
+ * *question*, not a held field, and stay hand-written.
  */
 const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | undefined =
   Match.type<Requirement>().pipe(
     Match.tagsExhaustive({
-      // Optional chaining rather than `?? []`: an empty default is a literal
-      // nothing can distinguish from any other empty default, which leaves a
-      // branch no test can pin.
       Role: (self) => (input: SimulationInput) =>
-        input.subject.roles?.includes(self.role) === true
+        fieldOps("roles").holds(input, self.role)
           ? undefined
-          : strengthen("GrantRole", `with role ${self.role}`, (input_) => ({
-              ...input_,
-              subject: {
-                ...input_.subject,
-                roles: [...(input_.subject.roles ?? []), self.role],
-              },
-            })),
+          : edit(grant("roles", self.role, `with role ${self.role}`)),
 
       // Kept as a `Permission` all the way here rather than as its key, so the
       // key is derived once by the same function the evaluator's lookup uses.
@@ -459,11 +456,9 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
       // predecessor's wire format did, and it mangled any segment containing one.
       Permission: (self) => (input: SimulationInput) => {
         const key = permissionKey(self.permission);
-        if (input.subject.permissions?.some((held) => held === key) === true) return undefined;
-        return strengthen("GrantPermission", `with permission ${key}`, (input_) => ({
-          ...input_,
-          subject: { ...input_.subject, permissions: [...(input_.subject.permissions ?? []), key] },
-        }));
+        return fieldOps("permissions").holds(input, key)
+          ? undefined
+          : edit(grant("permissions", key, `with permission ${key}`));
       },
 
       Action: (self) => (input: SimulationInput) =>
@@ -479,16 +474,12 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
         if (witnessed._tag === "Unsynthesisable") {
           return skip(`subject attribute ${self.attribute}`, witnessed.reason);
         }
-        return strengthen(
-          "SetSubjectAttribute",
-          `with subject attribute ${self.attribute} = ${render(witnessed.value)}`,
-          (input_) => ({
-            ...input_,
-            subject: {
-              ...input_.subject,
-              attributes: { ...input_.subject.attributes, [self.attribute]: witnessed.value },
-            },
-          }),
+        return edit(
+          grant(
+            "subjectAttributes",
+            [self.attribute, witnessed.value],
+            `with subject attribute ${self.attribute} = ${render(witnessed.value)}`,
+          ),
         );
       },
 
@@ -514,12 +505,9 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
         const resourceId = resourceIdOf(input.resource);
         if (resourceId === undefined) return skip(`relationship ${self.relation}`, NO_RESOURCE_ID);
         const edge = { subjectId: input.subject.id, relation: self.relation, resourceId };
-        if (input.relationships?.some((held) => sameEdge(held, edge)) === true) return undefined;
-        return strengthen(
-          "AddRelationship",
-          `with relationship ${self.relation} on ${resourceId}`,
-          (input_) => ({ ...input_, relationships: [...(input_.relationships ?? []), edge] }),
-        );
+        return fieldOps("relationships").holds(input, edge)
+          ? undefined
+          : edit(grant("relationships", edge, `with relationship ${self.relation} on ${resourceId}`));
       },
 
       // Both scopes need a resource id, because that is what an event record
@@ -528,11 +516,9 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
         const resourceId = resourceIdOf(input.resource);
         if (resourceId === undefined) return skip(`event ${self.event}`, NO_RESOURCE_ID);
         const event = { subjectId: input.subject.id, event: self.event, resourceId };
-        if (input.history?.some((held) => sameEvent(held, event)) === true) return undefined;
-        return strengthen("AddEvent", `with event ${self.event} on ${resourceId}`, (input_) => ({
-          ...input_,
-          history: [...(input_.history ?? []), event],
-        }));
+        return fieldOps("history").holds(input, event)
+          ? undefined
+          : edit(grant("history", event, `with event ${self.event} on ${resourceId}`));
       },
 
       // `Resource` scope is answered from a row stored with that resource id; `Any`
@@ -546,26 +532,30 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
         if (self.scope === "Resource" && resourceId === undefined) {
           return skip(`signature ${self.meaning}`, NO_RESOURCE_ID);
         }
-        const met = input.signatures?.some(
-          (held) =>
-            held.subjectId === input.subject.id &&
-            held.resourceId === resourceId &&
-            held.meaning === self.meaning &&
-            (self.signerRole === undefined || held.signerRole === self.signerRole),
-        );
-        if (met === true) return undefined;
+        const met = fieldOps("signatures")
+          .elements(input)
+          .some(
+            (held) =>
+              held.subjectId === input.subject.id &&
+              held.resourceId === resourceId &&
+              held.meaning === self.meaning &&
+              (self.signerRole === undefined || held.signerRole === self.signerRole),
+          );
+        if (met) return undefined;
         const signature = {
           subjectId: input.subject.id,
           meaning: self.meaning,
           ...(self.signerRole === undefined ? {} : { signerRole: self.signerRole }),
           ...(resourceId === undefined ? {} : { resourceId }),
         };
-        return strengthen(
-          "AddSignature",
-          `with signature ${self.meaning}${resourceId === undefined ? "" : ` on ${resourceId}`}${
-            self.signerRole === undefined ? "" : ` as ${self.signerRole}`
-          }`,
-          (input_) => ({ ...input_, signatures: [...(input_.signatures ?? []), signature] }),
+        return edit(
+          grant(
+            "signatures",
+            signature,
+            `with signature ${self.meaning}${resourceId === undefined ? "" : ` on ${resourceId}`}${
+              self.signerRole === undefined ? "" : ` as ${self.signerRole}`
+            }`,
+          ),
         );
       },
 

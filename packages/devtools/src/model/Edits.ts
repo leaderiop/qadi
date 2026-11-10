@@ -17,33 +17,26 @@
  * subject holds, so dropping them would produce `MissingAction` rows that say
  * nothing about the subject's standing.
  */
-import * as Struct from "effect/Struct";
-import type { ActedEventInput, RelationshipEdgeInput, SignatureInput } from "@qadi/core";
 import type { SimulationEdit } from "./SimulationEdit.ts";
 import { composeEdits } from "./SimulationEdit.ts";
-import { sameEdge, sameEvent, sameSignature, signatureCodec } from "./SimulationForm.ts";
+import { FIELD_ORDER, fieldOps } from "./SimulationFields.ts";
 import type { SimulationInput } from "./SimulationInput.ts";
 
 /**
  * Every single-step weakening, in the input's own order.
  *
- * Order is roles, permissions, subject attributes, fixture attributes,
- * relationships, events, then signatures — and within each, the order the input listed
- * them. Determinism is the property that matters (the same input yields the
- * same rows in the same places, so a reviewer comparing two sweeps compares
- * like with like); this particular order is chosen because it runs from what a
- * subject *is* toward what the world around them says.
+ * One fold over {@link FIELD_ORDER}: each field's drops are derived from its
+ * description (`SimulationFields.ts`), so a field cannot be in the form and
+ * missing from the sweep (lost ARCH-48 `950977f` found `signatures` was). Order
+ * is roles, permissions, subject attributes, resolver attributes, relationships,
+ * events, then signatures — and within each, the order the input listed them.
+ * Determinism is the property that matters (the same input yields the same rows
+ * in the same places, so a reviewer comparing two sweeps compares like with
+ * like); this particular order is chosen because it runs from what a subject
+ * *is* toward what the world around them says.
  */
 export const singleEdits = (input: SimulationInput): ReadonlyArray<SimulationEdit> =>
-  dedupeByLabel([
-    ...roleDrops(input),
-    ...permissionDrops(input),
-    ...subjectAttributeDrops(input),
-    ...fixtureAttributeDrops(input),
-    ...relationshipDrops(input),
-    ...eventDrops(input),
-    ...signatureDrops(input),
-  ]);
+  dedupeByLabel(FIELD_ORDER.flatMap((key) => fieldOps(key).drops(input)));
 
 /**
  * How many second-order rows a sweep will run before it stops.
@@ -129,146 +122,3 @@ const dedupeByLabel = (edits: ReadonlyArray<SimulationEdit>): ReadonlyArray<Simu
     return true;
   });
 };
-
-const weaken = (
-  kind: SimulationEdit["kind"],
-  label: string,
-  apply: (self: SimulationInput) => SimulationInput,
-): SimulationEdit => ({ kind, direction: "Weaken", label, apply });
-
-/**
- * Applying an edit to an input that does not list the field at all leaves that
- * input exactly as it was.
- *
- * `apply` is public and composes, so nothing stops an edit derived from one
- * input running against another. Rebuilding the field as an empty one would
- * turn "no roles listed" into "an empty role list" — indistinguishable to the
- * evaluator, but not to a panel diffing the two inputs, and a row claiming to
- * have changed something it did not is the one thing a what-if table must never
- * do.
- */
-const roleDrops = (input: SimulationInput): ReadonlyArray<SimulationEdit> =>
-  (input.subject.roles ?? []).map((role) =>
-    weaken("DropRole", `without role ${role}`, (self) => {
-      const held = self.subject.roles;
-      if (held === undefined) return self;
-      return { ...self, subject: { ...self.subject, roles: held.filter((r) => r !== role) } };
-    }),
-  );
-
-const permissionDrops = (input: SimulationInput): ReadonlyArray<SimulationEdit> =>
-  (input.subject.permissions ?? []).map((key) =>
-    weaken("DropPermission", `without permission ${key}`, (self) => {
-      const held = self.subject.permissions;
-      if (held === undefined) return self;
-      return { ...self, subject: { ...self.subject, permissions: held.filter((p) => p !== key) } };
-    }),
-  );
-
-/**
- * Subject attributes and resolver fixtures are dropped separately, and labelled
- * apart, because they are answered by different ports and a reviewer needs to
- * know which one mattered. An attribute present in both is resolved from the
- * subject ([INV-QD-025]), so dropping only the fixture changes nothing — which
- * is itself the finding, and it is only legible if the two rows are
- * distinguishable.
- */
-const subjectAttributeDrops = (input: SimulationInput): ReadonlyArray<SimulationEdit> =>
-  Object.keys(input.subject.attributes ?? {}).map((key) =>
-    weaken("DropSubjectAttribute", `without subject attribute ${key}`, (self) => {
-      const held = self.subject.attributes;
-      if (held === undefined) return self;
-      return { ...self, subject: { ...self.subject, attributes: omitKey(held, key) } };
-    }),
-  );
-
-const fixtureAttributeDrops = (input: SimulationInput): ReadonlyArray<SimulationEdit> =>
-  Object.keys(input.attributes ?? {}).map((key) =>
-    weaken("DropFixtureAttribute", `without resolver attribute ${key}`, (self) => {
-      const held = self.attributes;
-      if (held === undefined) return self;
-      return { ...self, attributes: omitKey(held, key) };
-    }),
-  );
-
-const relationshipDrops = (input: SimulationInput): ReadonlyArray<SimulationEdit> =>
-  (input.relationships ?? []).map((edge) =>
-    weaken("DropRelationship", `without ${edgeLabel(edge, input.subject.id)}`, (self) => {
-      const held = self.relationships;
-      if (held === undefined) return self;
-      return { ...self, relationships: held.filter((other) => !sameEdge(edge, other)) };
-    }),
-  );
-
-const eventDrops = (input: SimulationInput): ReadonlyArray<SimulationEdit> =>
-  (input.history ?? []).map((event) =>
-    weaken("DropEvent", `without ${eventLabel(event, input.subject.id)}`, (self) => {
-      const held = self.history;
-      if (held === undefined) return self;
-      return { ...self, history: held.filter((other) => !sameEvent(event, other)) };
-    }),
-  );
-
-/**
- * One row per signature fixture, so a `hasSignature` allow is swept like any
- * other grant (lost ARCH-48 `950977f`, T1): without it the sweep reported that
- * nothing the subject held could flip a verdict that turned on a signature.
- */
-const signatureDrops = (input: SimulationInput): ReadonlyArray<SimulationEdit> =>
-  (input.signatures ?? []).map((signature) =>
-    weaken("DropSignature", signatureLabel(signature, input.subject.id), (self) => {
-      const held = self.signatures;
-      if (held === undefined) return self;
-      return { ...self, signatures: held.filter((other) => !sameSignature(signature, other)) };
-    }),
-  );
-
-/**
- * The subject is named only when it is not the one being simulated.
- *
- * A fixture list is usually all about the subject in the form, and repeating
- * their id on every row is noise; an edge belonging to somebody else is the
- * unusual case and is exactly the one worth spelling out.
- */
-const edgeLabel = (edge: RelationshipEdgeInput, subjectId: string): string =>
-  edge.subjectId === subjectId
-    ? `relationship ${edge.relation} on ${edge.resourceId}`
-    : `relationship ${edge.relation} on ${edge.resourceId} for ${edge.subjectId}`;
-
-const eventLabel = (event: ActedEventInput, subjectId: string): string =>
-  event.subjectId === subjectId
-    ? `event ${event.event} on ${event.resourceId}`
-    : `event ${event.event} on ${event.resourceId} by ${event.subjectId}`;
-
-/**
- * A signature's row title: prose for the common case, the chip's own text when
- * a field prose does not carry is present.
- *
- * The label is the row's identity (`dedupeByLabel`), so two signatures that
- * differ only in `signedAt`, `algorithm` or `keyId` must not read alike: one
- * row would then stand for both, and dropping it would leave the other in place
- * while claiming to test it. A signature the form cannot spell at all (a `NaN`
- * time) falls back to prose.
- */
-const signatureLabel = (signature: SignatureInput, subjectId: string): string => {
-  if (
-    signature.signedAt !== undefined ||
-    signature.algorithm !== undefined ||
-    signature.keyId !== undefined
-  ) {
-    const exact = signatureCodec.encode(signature, subjectId);
-    if (exact._tag === "Ok") return `without signature ${exact.value}`;
-  }
-  return [
-    `without signature ${signature.meaning}`,
-    signature.resourceId === undefined ? "" : ` on ${signature.resourceId}`,
-    signature.signerRole === undefined ? "" : ` as ${signature.signerRole}`,
-    signature.subjectId === subjectId ? "" : ` by ${signature.subjectId}`,
-  ].join("");
-};
-
-/** A copy without one key. `delete` on a copy would do, but this stays an expression. */
-const omitKey = (
-  record: Readonly<Record<string, unknown>>,
-  key: string,
-): Readonly<Record<string, unknown>> => Struct.omit(record, [key]);
