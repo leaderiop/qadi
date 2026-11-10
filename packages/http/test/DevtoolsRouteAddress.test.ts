@@ -153,7 +153,7 @@ describe("the devtools routes under a prefix (ARCH-66)", () => {
       }
     }));
 
-  it.effect("the unguarded registry answers at the prefixed path, and its warning still names the route", () =>
+  it.effect("the unguarded registry answers at the prefixed path, and its warning names that path", () =>
     Effect.gen(function* () {
       const { lines, layer: logger } = collectingLogger();
       const app = stack(
@@ -169,7 +169,7 @@ describe("the devtools routes under a prefix (ARCH-66)", () => {
         lines.map((line) => line.message),
         [
           [
-            "qadi/http: serving /__permissions unguarded — the full authorization topology is public. " +
+            "qadi/http: serving /x/devtools/__permissions unguarded — the full authorization topology is public. " +
               "Reason given: test fixture",
           ],
         ],
