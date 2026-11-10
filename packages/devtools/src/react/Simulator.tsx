@@ -21,12 +21,11 @@
  * says which fields those are, and the baseline card says whether the hypothesis
  * reproduces the row.
  */
-import { useState, type CSSProperties, type FC } from "react";
+import { useState, type CSSProperties, type FC, type ReactNode } from "react";
 import * as Match from "effect/Match";
-import { isAllowed } from "@qadi/core";
-import type { Allow, DecisionOutcome } from "@qadi/core";
+import type { DecisionOutcome, EvaluationError } from "@qadi/core";
 import type { PolicySighting } from "../model/Catalogue.ts";
-import { describeTracePath, inspect } from "../model/Inspect.ts";
+import { describeTracePath, readOutcome, type RecordOutcome } from "../model/Inspect.ts";
 import { matchesBaseline } from "../model/Replay.ts";
 import type { Baseline, UnseededField } from "../model/Replay.ts";
 import type { SimulationClock } from "../model/Simulation.ts";
@@ -434,9 +433,8 @@ const ResultCard: FC<{
   readonly stale: boolean;
 }> = ({ result, stale }) => {
   const outcome = result.outcome;
-  const policy = result.question.policy;
-  const allow: Allow | undefined =
-    outcome._tag === "Decided" && isAllowed(outcome.decision) ? outcome.decision : undefined;
+  // A simulation discharges nothing, so no gate report ever arrives for it.
+  const reading = readOutcome(result.question.policy, outcome, undefined);
   return (
     <>
       <section style={panel} data-testid="qadi-simulator-result">
@@ -454,40 +452,62 @@ const ResultCard: FC<{
           <Duration outcome={outcome} clock={result.clock} />
         </div>
 
-        {outcome._tag === "Failed" ? (
-          <div data-testid="qadi-simulator-error">
-            <div>{outcome.error._tag}</div>
-            <p style={{ ...muted, marginBottom: 0 }}>
-              {/* As screen 2: a failure has no trace, so there is no requirement
-                  tree — and an empty one would read as "nothing was required",
-                  which reads as "allowed" (INV-QD-006). */}
-              A lookup this evaluation depended on failed, so nothing was decided.
-              This is not a denial.
-            </p>
-          </div>
-        ) : (
-          <PolicyTree node={inspect(policy, outcome.decision.trace)} showStatus />
-        )}
+        {resultBody(reading)}
       </section>
 
-      {allow === undefined ? null : <FieldsPanel fields={allow.visibleFields} />}
-      {allow === undefined || allow.obligations.length === 0 ? null : (
-        <section style={panel} data-testid="qadi-simulator-obligations">
-          <div style={heading}>obligations</div>
-          <ObligationList duties={allow.obligations} />
-          <p style={{ ...muted, marginBottom: 0, marginTop: 6 }}>
-            {/* E7.6. Not merely unobservable per duty, which is the inspector's case — here
-                no handler ran at all, because a simulation does not discharge
-                anything. Saying "not observable" would imply something tried. */}
-            Owed, and undischarged: a simulation runs no obligation handler, so
-            nothing here was attempted. A binding duty left undischarged turns
-            this allow into a refusal at the enforcement boundary.
-          </p>
-        </section>
-      )}
+      {resultGrant(reading)}
     </>
   );
 };
+
+/** Inside the result card: the error, or the tree. */
+const resultBody: (self: RecordOutcome) => ReactNode = Match.type<RecordOutcome>().pipe(
+  Match.tagsExhaustive({
+    Failed: ({ error }) => <SimulatedFailure error={error} />,
+    Denied: ({ tree }) => <PolicyTree node={tree} showStatus />,
+    Allowed: ({ tree }) => <PolicyTree node={tree} showStatus />,
+  }),
+);
+
+/** Below the result card: what an allow grants and owes. A denial and a failure grant nothing. */
+const resultGrant: (self: RecordOutcome) => ReactNode = Match.type<RecordOutcome>().pipe(
+  Match.tagsExhaustive({
+    Failed: () => null,
+    Denied: () => null,
+    Allowed: ({ fields, duties, obligation }) => (
+      <>
+        <FieldsPanel fields={fields} />
+        {obligation._tag === "NoneOwed" ? null : (
+          <section style={panel} data-testid="qadi-simulator-obligations">
+            <div style={heading}>obligations</div>
+            <ObligationList duties={duties} />
+            <p style={{ ...muted, marginBottom: 0, marginTop: 6 }}>
+              {/* E7.6. Not merely unobservable per duty, which is the inspector's case — here
+                  no handler ran at all, because a simulation does not discharge
+                  anything. Saying "not observable" would imply something tried. */}
+              Owed, and undischarged: a simulation runs no obligation handler, so
+              nothing here was attempted. A binding duty left undischarged turns
+              this allow into a refusal at the enforcement boundary.
+            </p>
+          </section>
+        )}
+      </>
+    ),
+  }),
+);
+
+const SimulatedFailure: FC<{ readonly error: EvaluationError }> = ({ error }) => (
+  <div data-testid="qadi-simulator-error">
+    <div>{error._tag}</div>
+    <p style={{ ...muted, marginBottom: 0 }}>
+      {/* As screen 2: a failure has no trace, so there is no requirement
+          tree — and an empty one would read as "nothing was required",
+          which reads as "allowed" (INV-QD-006). */}
+      A lookup this evaluation depended on failed, so nothing was decided.
+      This is not a denial.
+    </p>
+  </div>
+);
 
 /**
  * The number, and what it measured.
