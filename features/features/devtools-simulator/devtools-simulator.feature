@@ -74,6 +74,14 @@ Feature: Asking what would happen, and checking it against what did
     And the replay names "roles" among the fields it could not seed
     And the replay names "relationships" among the fields it could not seed
 
+  Scenario: Replaying the same row again re-seeds the question
+    Given a logged decision "ev-91" against the "doc:read" policy for "alice"
+    And the log also saw a decision against the "doc:write" policy
+    When that row is replayed
+    And the reviewer chooses the "doc:write" policy from the rail
+    And that row is replayed again
+    Then the replayed policy is the logged one
+
   Scenario: A reconstruction that reproduces the logged decision
     Given a logged decision "ev-91" against the "doc:read" policy for "alice"
     When that row is replayed
