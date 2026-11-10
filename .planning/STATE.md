@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 15-03-PLAN.md
+stopped_at: Completed 15-04-PLAN.md (Phase 15 complete)
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "15-03 complete: DevtoolsDock is a view of an owned DockSession (useDockSession.ts, package-private); no useState in the dock; TABS typed against TabId; setTimeline from a layout effect; BDD scenario replays the same row twice and sees it re-seed (fails with seed)"
+last_activity_desc: "15-04 complete: ADR-QD-047 Rev 1.10, BEH-QD-389/390, INV-QD-107 sources, traceability, CCR-QD-405, dock-session changeset; mutation SimulationSession 96.46 (base 96.44), DockSession 100; check:pr green — Phase 15 complete"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 59
-  completed_plans: 38
-  percent: 64
+  completed_plans: 39
+  percent: 66
 current_phase: 15
 ---
 
@@ -28,14 +28,14 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 15 of 20 (Dock session)
-Plan: 3 of 4 in Phase 15 (15-03 complete); next is 15-04
-Status: Phase 15 in progress (phase_base e9d1104)
-Last activity: 2026-11-10 -- 15-03 complete: `DevtoolsDock` reads and dispatches to an owned `DockSession` (`useOwnedDockSession`/`useDockSnapshot`, package-private); its tab/filters/selectedKey `useState`s and rows/counts/environments/selection memos are gone; BDD "Replaying the same row again re-seeds the question" (red with `seed`); devtools 1110/1110, features 20/20
+Plan: 4 of 4 in Phase 15 (15-04 complete); next is Phase 16 (16-01)
+Status: Phase 15 complete (phase_base e9d1104); Phase 16 base is the 15-04 docs commit
+Last activity: 2026-11-10 -- 15-04 complete: Phase 15's records (ADR-QD-047 Rev 1.10, BEH-QD-389/390, INV-QD-107, CCR-QD-405, `.changeset/dock-session.md`); mutation no drop (SimulationSession 96.46 vs 96.44, DockSession 100 new); `pnpm check:pr` green (16/16 steps)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 43
+- Total plans completed: 44
 - Average duration: -
 - Total execution time: 0.0 hours
 

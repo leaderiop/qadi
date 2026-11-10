@@ -51,11 +51,11 @@
 - [x] **AUD-05**: BEH-QD-251 is amended so that the sink's own deadline is a failure while a caller's interruption is still not one; a new BEH states the bound.
 
 ### Dock session (Phase 15)
-- [ ] **DOCK-01**: Replaying the same timeline row again, after choosing another policy or editing the form, re-seeds the simulator.
-- [ ] **DOCK-02**: The dock's tab, filters, selection and replay are owned by a headless dock session; `DevtoolsDock.tsx` holds no `useState` for them.
-- [ ] **DOCK-03**: "Pair the whole timeline, then filter" and "count the whole timeline" are rules of the session, tested without rendering.
-- [ ] **DOCK-04**: The simulation session tells a deliberate replay command apart from an effect re-run in its interface.
-- [ ] **DOCK-05**: The existing `DevtoolsDock.test.tsx` behaviour stays green.
+- [x] **DOCK-01**: Replaying the same timeline row again, after choosing another policy or editing the form, re-seeds the simulator.
+- [x] **DOCK-02**: The dock's tab, filters, selection and replay are owned by a headless dock session; `DevtoolsDock.tsx` holds no `useState` for them.
+- [x] **DOCK-03**: "Pair the whole timeline, then filter" and "count the whole timeline" are rules of the session, tested without rendering.
+- [x] **DOCK-04**: The simulation session tells a deliberate replay command apart from an effect re-run in its interface.
+- [x] **DOCK-05**: The existing `DevtoolsDock.test.tsx` behaviour stays green.
 
 ### Role-graph walk (Phase 16)
 - [ ] **ROLE-01**: One traversal in `Role.ts` (identity-keyed, iterative, pre-order, first path wins, reports revisits) backs `flattenPermissions`, `roleNames`, `permissionProvenance` and `fromRoles`.
@@ -90,7 +90,7 @@
 - [ ] **CACHE-04**: No hot-path regression (bench row) and UNTRACED_BUDGET is unchanged.
 
 ### Cross-cutting (every phase)
-- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10); Phase 12: green (12-05, 2026-11-10); Phase 13: green (13-12, 2026-11-10); Phase 14: green (14-07, 2026-11-10).
+- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10); Phase 12: green (12-05, 2026-11-10); Phase 13: green (13-12, 2026-11-10); Phase 14: green (14-07, 2026-11-10); Phase 15: green (15-04, 2026-11-10).
 - [ ] **XC-02**: Each phase records its ADR (or states why none is needed), a CCR row, and the BEH/INV/traceability changes, using only its reserved numbers.
 - [ ] **XC-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
 - [ ] **XC-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock; budgets change only with their AGENTS.md table.
@@ -115,13 +115,13 @@
 | INT-01..06 | Phase 12 | Complete |
 | GAP-01..12 | Phase 13 | Complete |
 | AUD-01..05 | Phase 14 | Complete |
-| DOCK-01..05 | Phase 15 | Pending |
+| DOCK-01..05 | Phase 15 | Complete |
 | ROLE-01..05 | Phase 16 | Pending |
 | KEY-01..05 | Phase 17 | Pending |
 | SURF-01..04 | Phase 18 | Pending |
 | VIEW-01..04 | Phase 19 | Pending |
 | CACHE-01..04 | Phase 20 | Pending |
-| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11, 12, 13, 14) |
+| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11, 12, 13, 14, 15) |
 
 **Coverage:** 66 v1.1 requirements (60 + 6 cross-cutting); mapped 66; unmapped 0.
 

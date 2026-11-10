@@ -45,7 +45,7 @@ phases hold a package intentionally red between their first and last plan; `use_
 - [x] **Phase 12: Lost-wave integrity** - Port the decision-stream order owner and the one-value hydration outcome; fix record loss on reconnect and SSR crashes (ARCH-60)
 - [x] **Phase 13: Lost-wave gaps** - Port the public-endpoint denial log, the simulation field table, the evaluation metrics module, test gaps and doc defects (ARCH-61)
 - [x] **Phase 14: Audit sink deadline** - The audit sink bounds every store call and the breaker sees hangs; the audit doubles become scriptable (ARCH-62)
-- [ ] **Phase 15: Dock session** - The dock's tab, filters, selection and replay become a headless session; replaying the same row re-seeds (ARCH-63)
+- [x] **Phase 15: Dock session** - The dock's tab, filters, selection and replay become a headless session; replaying the same row re-seeds (ARCH-63)
 - [ ] **Phase 16: One role-graph walk** - One traversal in core backs every role walk, including the devtools tree (ARCH-64)
 - [ ] **Phase 17: Injective request key** - `PortKey` becomes a kind-tagged injective encoding for all five ports; the replay miss policy is decided (ARCH-65)
 - [ ] **Phase 18: Devtools HTTP surface** - The stream, backlog and registry routes share one address rule with the devtools client (ARCH-66)
@@ -172,7 +172,7 @@ Plans:
 - [x] 15-01 (W1): Fix the replay-same-row defect at its root: replaying is a command on the simulation session, not a prop React may skip.
 - [x] 15-02 (W2): Build the headless dock session: the dock's tab, filters, selection and the readings derived from them, as a store a test can drive without React (D-02).
 - [x] 15-03 (W3): Make `DevtoolsDock` a view of the dock session: no React state for tab, filters, selection or replay
-- [ ] 15-04 (W4): Write Phase 15's records and close the phase green: the ADR-QD-047 amendment, BEH-QD-389/390, INV-QD-107's sources, traceability, CCR-QD-405, the changeset, a…
+- [x] 15-04 (W4): Write Phase 15's records and close the phase green: the ADR-QD-047 amendment, BEH-QD-389/390, INV-QD-107's sources, traceability, CCR-QD-405, the changeset, a…
 
 ### Phase 16: One role-graph walk
 **Goal**: The role-inheritance walk exists once, so identity keying, stack safety and first-path-wins cannot drift again.
@@ -261,7 +261,7 @@ Plans:
 | 12. Lost-wave integrity | 5/5 | Complete | 2026-11-10 |
 | 13. Lost-wave gaps | 13/13 | Complete | 2026-11-10 |
 | 14. Audit sink deadline | 7/7 | Complete | 2026-11-10 |
-| 15. Dock session | 3/4 | In progress | - |
+| 15. Dock session | 4/4 | Complete | 2026-11-10 |
 | 16. One role-graph walk | 0/4 | Planned | - |
 | 17. Injective request key | 0/6 | Planned | - |
 | 18. Devtools HTTP surface | 0/3 | Planned | - |
