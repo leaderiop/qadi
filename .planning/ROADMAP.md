@@ -47,7 +47,7 @@ phases hold a package intentionally red between their first and last plan; `use_
 - [x] **Phase 14: Audit sink deadline** - The audit sink bounds every store call and the breaker sees hangs; the audit doubles become scriptable (ARCH-62)
 - [x] **Phase 15: Dock session** - The dock's tab, filters, selection and replay become a headless session; replaying the same row re-seeds (ARCH-63)
 - [x] **Phase 16: One role-graph walk** - One traversal in core backs every role walk, including the devtools tree (ARCH-64)
-- [ ] **Phase 17: Injective request key** - `PortKey` becomes a kind-tagged injective encoding for all five ports; the replay miss policy is decided (ARCH-65)
+- [x] **Phase 17: Injective request key** - `PortKey` becomes a kind-tagged injective encoding for all five ports; the replay miss policy is decided (ARCH-65)
 - [ ] **Phase 18: Devtools HTTP surface** - The stream, backlog and registry routes share one address rule with the devtools client (ARCH-66)
 - [ ] **Phase 19: Verdict presentation** - One verdict-treatment module and one headless outcome reading in devtools (ARCH-67)
 - [ ] **Phase 20: DecisionCache shared computation** - Reproduce #64; if it reproduces, extract the single-flight regime and fix it (ARCH-68)
@@ -207,7 +207,7 @@ Plans:
 - [x] 17-03 (W2): Make the request key injective and total (D-02, D-03
 - [x] 17-04 (W3): Handle the key's `Result` at every consumer (KEY-01, KEY-03), against the tree as Phases 11 and 13 left it: a refused request fails closed with the port's own typed…
 - [x] 17-05 (W4): Implement the human's D-04 answer (KEY-04): what a devtools Snapshot replay answers for a request its capture never saw, on every port, with one test per port proving…
-- [ ] 17-06 (W5): Record the phase in the normative spec (D-05, KEY-05, XC-02) and prove the merge gate (XC-01): amend ADR-QD-094's key law, write ADR-QD-129 for the replay miss…
+- [x] 17-06 (W5): Record the phase in the normative spec (D-05, KEY-05, XC-02) and prove the merge gate (XC-01): amend ADR-QD-094's key law, write ADR-QD-129 for the replay miss…
 
 ### Phase 18: Devtools HTTP surface
 **Goal**: The devtools routes and their client agree on one address that a host can prefix.
@@ -263,7 +263,7 @@ Plans:
 | 14. Audit sink deadline | 7/7 | Complete | 2026-11-10 |
 | 15. Dock session | 4/4 | Complete | 2026-11-10 |
 | 16. One role-graph walk | 4/4 | Complete | 2026-11-10 |
-| 17. Injective request key | 5/6 | In progress | - |
+| 17. Injective request key | 6/6 | Complete | 2026-11-10 |
 | 18. Devtools HTTP surface | 0/3 | Planned | - |
 | 19. Verdict presentation | 0/3 | Planned | - |
 | 20. DecisionCache shared computation | 0/4 | Planned | - |

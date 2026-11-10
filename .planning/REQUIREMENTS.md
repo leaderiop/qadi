@@ -65,11 +65,11 @@
 - [x] **ROLE-05**: The flatten/fromRoles benchmark shows no regression beyond noise.
 
 ### Injective request key (Phase 17)
-- [ ] **KEY-01**: `canonicalKey(a) === canonicalKey(b)` if and only if `a` and `b` are equal under the documented equality, as a property test over arbitrary values (Date, NaN, ±Infinity, -0, undefined keys, Set, Map, bigint, nested).
-- [ ] **KEY-02**: All five port descriptions derive `key` through `PortKey`.
-- [ ] **KEY-03**: Cyclic or unsupported values get a defined, typed outcome, never a stack overflow or silent collision.
-- [ ] **KEY-04**: Devtools replay of a capture miss on the four undecided ports follows the decided policy (fail closed recommended), with a test per port.
-- [ ] **KEY-05**: ADR-QD-094's key law names the equality `PortKey` implements.
+- [x] **KEY-01**: `canonicalKey(a) === canonicalKey(b)` if and only if `a` and `b` are equal under the documented equality, as a property test over arbitrary values (Date, NaN, ±Infinity, -0, undefined keys, Set, Map, bigint, nested).
+- [x] **KEY-02**: All five port descriptions derive `key` through `PortKey`.
+- [x] **KEY-03**: Cyclic or unsupported values get a defined, typed outcome, never a stack overflow or silent collision.
+- [x] **KEY-04**: Devtools replay of a capture miss on the four undecided ports follows the decided policy (fail closed recommended), with a test per port.
+- [x] **KEY-05**: ADR-QD-094's key law names the equality `PortKey` implements.
 
 ### Devtools HTTP surface (Phase 18)
 - [ ] **SURF-01**: The decision stream, backlog and permission registry routes are served under an optional prefix with one address rule.
@@ -90,7 +90,7 @@
 - [ ] **CACHE-04**: No hot-path regression (bench row) and UNTRACED_BUDGET is unchanged.
 
 ### Cross-cutting (every phase)
-- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10); Phase 12: green (12-05, 2026-11-10); Phase 13: green (13-12, 2026-11-10); Phase 14: green (14-07, 2026-11-10); Phase 15: green (15-04, 2026-11-10); Phase 16: green (16-04, 2026-11-10).
+- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10); Phase 12: green (12-05, 2026-11-10); Phase 13: green (13-12, 2026-11-10); Phase 14: green (14-07, 2026-11-10); Phase 15: green (15-04, 2026-11-10); Phase 16: green (16-04, 2026-11-10); Phase 17: green (17-06, 2026-11-10).
 - [ ] **XC-02**: Each phase records its ADR (or states why none is needed), a CCR row, and the BEH/INV/traceability changes, using only its reserved numbers.
 - [ ] **XC-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
 - [ ] **XC-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock; budgets change only with their AGENTS.md table.
@@ -117,11 +117,11 @@
 | AUD-01..05 | Phase 14 | Complete |
 | DOCK-01..05 | Phase 15 | Complete |
 | ROLE-01..05 | Phase 16 | Complete |
-| KEY-01..05 | Phase 17 | Pending |
+| KEY-01..05 | Phase 17 | Complete |
 | SURF-01..04 | Phase 18 | Pending |
 | VIEW-01..04 | Phase 19 | Pending |
 | CACHE-01..04 | Phase 20 | Pending |
-| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11, 12, 13, 14, 15, 16) |
+| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11, 12, 13, 14, 15, 16, 17) |
 
 **Coverage:** 66 v1.1 requirements (60 + 6 cross-cutting); mapped 66; unmapped 0.
 
