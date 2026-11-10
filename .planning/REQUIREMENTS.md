@@ -30,18 +30,18 @@
 - [x] **INT-06**: A hydration outcome is one closed `HydrationEvent`, projected once to the counter and to the reporter.
 
 ### Lost-wave gaps (Phase 13)
-- [ ] **GAP-01**: A `publicEndpoint` handler's own `guard` denial logs like any handler-site denial; the enforcement matrix covers the public-endpoint caller.
-- [ ] **GAP-02**: Each simulation input field is described once in a closed field table; the sweep, remedies, rename, unseeded list, fixture ports and chips derive from it.
-- [ ] **GAP-03**: `DropSignature` is an `EditKind`; the sweep offers a signature row on `hasSignature` policies.
-- [ ] **GAP-04**: `hasSignature` and `hasCustom` get a remedy or a named skip with its reason (BEH-QD-222).
-- [ ] **GAP-05**: Evaluation metrics are declared once in an exported module; tests read them by typed reference, so a negative "not counted" test cannot pass vacuously.
-- [ ] **GAP-06**: Every `qadi_*` metric is listed once and gated.
-- [ ] **GAP-07**: A test pins that a missing resource wins over a missing action on `HasResourceAttribute`.
-- [ ] **GAP-08**: Both unguarded-route logging cadences are pinned by tests.
-- [ ] **GAP-09**: INV-QD-016 is true under a decision cache, and a batch runs under a cache and a sink in a test.
-- [ ] **GAP-10**: Every remaining lost ARCH-57 item is ported or recorded as obsolete with the commit that made it so.
+- [x] **GAP-01**: A `publicEndpoint` handler's own `guard` denial logs like any handler-site denial; the enforcement matrix covers the public-endpoint caller.
+- [x] **GAP-02**: Each simulation input field is described once in a closed field table; the sweep, remedies, rename, unseeded list, fixture ports and chips derive from it.
+- [x] **GAP-03**: `DropSignature` is an `EditKind`; the sweep offers a signature row on `hasSignature` policies.
+- [x] **GAP-04**: `hasSignature` and `hasCustom` get a remedy or a named skip with its reason (BEH-QD-222).
+- [x] **GAP-05**: Evaluation metrics are declared once in an exported module; tests read them by typed reference, so a negative "not counted" test cannot pass vacuously.
+- [x] **GAP-06**: Every `qadi_*` metric is listed once and gated.
+- [x] **GAP-07**: A test pins that a missing resource wins over a missing action on `HasResourceAttribute`.
+- [x] **GAP-08**: Both unguarded-route logging cadences are pinned by tests.
+- [x] **GAP-09**: INV-QD-016 is true under a decision cache, and a batch runs under a cache and a sink in a test.
+- [x] **GAP-10**: Every remaining lost ARCH-57 item is ported or recorded as obsolete with the commit that made it so.
 - [x] **GAP-11**: The listed doc defects are fixed (PortMetrics block, BEH-QD-076 fence, MissingResourceId doc, 7 stale citations, 14 numbering placeholders: 7 `ADR-QD-NEXT`, 5 `INV-QD-NEXT`, 2 `BEH-QD-NEXT-x`).
-- [ ] **GAP-12**: A house-style gate refuses `ADR-QD-NEXT` (and other `…-NEXT` placeholders) in `packages/*/src` and in test titles.
+- [x] **GAP-12**: A house-style gate refuses `ADR-QD-NEXT` (and other `…-NEXT` placeholders) in `packages/*/src` and in test titles.
 
 ### Audit sink deadline (Phase 14)
 - [ ] **AUD-01**: A store call (stage, write, commit) that never settles cannot stall `evaluate`/`guard`; the sink bounds it with a deadline.
@@ -90,7 +90,7 @@
 - [ ] **CACHE-04**: No hot-path regression (bench row) and UNTRACED_BUDGET is unchanged.
 
 ### Cross-cutting (every phase)
-- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10); Phase 12: green (12-05, 2026-11-10).
+- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10); Phase 12: green (12-05, 2026-11-10); Phase 13: green (13-12, 2026-11-10).
 - [ ] **XC-02**: Each phase records its ADR (or states why none is needed), a CCR row, and the BEH/INV/traceability changes, using only its reserved numbers.
 - [ ] **XC-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
 - [ ] **XC-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock; budgets change only with their AGENTS.md table.
@@ -113,7 +113,7 @@
 | REC-01..04 | Phase 10 | Complete |
 | SEC-01..06 | Phase 11 | Complete |
 | INT-01..06 | Phase 12 | Complete |
-| GAP-01..12 | Phase 13 | Pending |
+| GAP-01..12 | Phase 13 | Complete |
 | AUD-01..05 | Phase 14 | Pending |
 | DOCK-01..05 | Phase 15 | Pending |
 | ROLE-01..05 | Phase 16 | Pending |
@@ -121,7 +121,7 @@
 | SURF-01..04 | Phase 18 | Pending |
 | VIEW-01..04 | Phase 19 | Pending |
 | CACHE-01..04 | Phase 20 | Pending |
-| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11, 12) |
+| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11, 12, 13) |
 
 **Coverage:** 66 v1.1 requirements (60 + 6 cross-cutting); mapped 66; unmapped 0.
 

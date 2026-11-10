@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 13-13-PLAN.md
+stopped_at: Completed 13-12-PLAN.md (Phase 13 complete)
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "13-13 complete: GAP-11 doc defects (PredicatePortName comment, BEH-QD-076 listing, MissingResourceId scope and HasSignature), seven stale test-file citations, why a bad capacity is a defect and a bad permits count is typed (BEH-QD-166); CCR-QD-403 extended; comments and spec text only; spec gates green"
+last_activity_desc: "13-12 complete: pnpm check:pr green (4262 unit, 566 BDD, 190 tstyche, 42+30 example); scoped mutation of 31 based files, none below 0925c2f; rescue/arch50-stash-a/b deleted (keep-wave5), rescue/wave5-1013 kept; Phase 13 complete"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 59
-  completed_plans: 27
-  percent: 46
-current_phase: 13
+  completed_plans: 28
+  percent: 47
+current_phase: 14
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 ## Current Position
 
-Phase: 13 of 20 (Lost-wave gaps)
-Plan: 12 of 13 complete (13-01 … 13-11, 13-13); remaining 13-12 (the phase close)
-Status: Phase 13 in progress (phase_base 0925c2f)
-Last activity: 2026-11-10 -- 13-13 complete: the GAP-11 doc defects other than the placeholders — `PortMetrics.ts`'s `PredicatePortName` comment moved onto it, BEH-QD-076's listing is `MissingAction`'s real `Schema.TaggedError` (`10-actions.md` 1.1), `MissingResourceId`'s comment says `scope: "Resource"` and names `HasSignature`; seven stale test-file citations and two tense fixes (lost `4b1ed49`); BEH-QD-166 (`21-decision-cache.md` 1.7), `decisionCacheLayer` and `InvalidBoundedPermits` say why a bad `capacity` is a defect and a bad `…Bounded(permits)` is typed; CCR-QD-403 extended (`spec/README.md` 1.136); comments and spec text only; GAP-11 ticked; spec gates green
+Phase: 14 of 20 (Audit sink deadline)
+Plan: Phase 13 13 of 13 complete (13-01 … 13-13); next is Phase 14 (14-01)
+Status: Phase 13 complete (phase_base 0925c2f); Phase 14 not started
+Last activity: 2026-11-10 -- 13-12 complete: `pnpm check:pr` green (16 of 17 steps, mutation skipped by design; 4262 unit tests, 566 BDD, 190 tstyche, 42 example unit + 30 e2e, spec:verify:strict 21/21, api-surface 882 exports); scoped Stryker on the final tree for 36 touched files, none of the 31 with a 0925c2f base below it (`13-mutation-after.json`); `keep-wave5`: local `rescue/arch50-stash-a` (4b4c439) and `rescue/arch50-stash-b` (fc35d5e) deleted, `rescue/wave5-1013` (950977f) kept; GAP-01..12 complete
 
 ## Performance Metrics
 
@@ -87,6 +87,7 @@ Last activity: 2026-11-10 -- 13-13 complete: the GAP-11 doc defects other than t
 | Phase 11 P01 | 15 min | 3 tasks | 8 files |
 | Phase 11 P07 | 20 min | 2 tasks | 6 files |
 | Phase 12 P05 | 40 min | 3 tasks | 21 files |
+| Phase 13 P12 | 25 min | 4 tasks | 6 files |
 
 ## Accumulated Context
 
