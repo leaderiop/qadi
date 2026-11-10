@@ -78,10 +78,10 @@
 - [x] **SURF-04**: Both examples use the rule; the Next.js example drops its rewrite if the prefix makes it unnecessary.
 
 ### Verdict presentation (Phase 19)
-- [ ] **VIEW-01**: One treatment module maps every displayable state (a closed union) to its visual treatment; Deny and Error/Failed never share a treatment in any panel.
-- [ ] **VIEW-02**: `VerdictTag`, `QuestionsPanel` and `PolicyTree` read only that module; `stateColour(string)` is gone.
-- [ ] **VIEW-03**: One headless outcome reading in `Inspect.ts` returns the failure, or the tree with the allow's fields, duties and obligation state, as a closed union.
-- [ ] **VIEW-04**: The Inspector and the Simulator consume that reading; the Inspector has tests of its own.
+- [x] **VIEW-01**: One treatment module maps every displayable state (a closed union) to its visual treatment; Deny and Error/Failed never share a treatment in any panel.
+- [x] **VIEW-02**: `VerdictTag`, `QuestionsPanel` and `PolicyTree` read only that module; `stateColour(string)` is gone.
+- [x] **VIEW-03**: One headless outcome reading in `Inspect.ts` returns the failure, or the tree with the allow's fields, duties and obligation state, as a closed union.
+- [x] **VIEW-04**: The Inspector and the Simulator consume that reading; the Inspector has tests of its own.
 
 ### DecisionCache shared computation (Phase 20)
 - [ ] **CACHE-01**: The #64 follow-up gap is reproduced as a RED test, or shown unreachable with written evidence (and the phase stops there).
@@ -90,7 +90,7 @@
 - [ ] **CACHE-04**: No hot-path regression (bench row) and UNTRACED_BUDGET is unchanged.
 
 ### Cross-cutting (every phase)
-- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10); Phase 12: green (12-05, 2026-11-10); Phase 13: green (13-12, 2026-11-10); Phase 14: green (14-07, 2026-11-10); Phase 15: green (15-04, 2026-11-10); Phase 16: green (16-04, 2026-11-10); Phase 17: green (17-06, 2026-11-10); Phase 18: green (18-03, 2026-11-10).
+- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10); Phase 12: green (12-05, 2026-11-10); Phase 13: green (13-12, 2026-11-10); Phase 14: green (14-07, 2026-11-10); Phase 15: green (15-04, 2026-11-10); Phase 16: green (16-04, 2026-11-10); Phase 17: green (17-06, 2026-11-10); Phase 18: green (18-03, 2026-11-10); Phase 19: green (19-03, 2026-11-10).
 - [ ] **XC-02**: Each phase records its ADR (or states why none is needed), a CCR row, and the BEH/INV/traceability changes, using only its reserved numbers.
 - [ ] **XC-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
 - [ ] **XC-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock; budgets change only with their AGENTS.md table.
@@ -119,9 +119,9 @@
 | ROLE-01..05 | Phase 16 | Complete |
 | KEY-01..05 | Phase 17 | Complete |
 | SURF-01..04 | Phase 18 | Complete |
-| VIEW-01..04 | Phase 19 | Pending |
+| VIEW-01..04 | Phase 19 | Complete |
 | CACHE-01..04 | Phase 20 | Pending |
-| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11, 12, 13, 14, 15, 16, 17, 18) |
+| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11, 12, 13, 14, 15, 16, 17, 18, 19) |
 
 **Coverage:** 66 v1.1 requirements (60 + 6 cross-cutting); mapped 66; unmapped 0.
 

@@ -49,7 +49,7 @@ phases hold a package intentionally red between their first and last plan; `use_
 - [x] **Phase 16: One role-graph walk** - One traversal in core backs every role walk, including the devtools tree (ARCH-64)
 - [x] **Phase 17: Injective request key** - `PortKey` becomes a kind-tagged injective encoding for all five ports; the replay miss policy is decided (ARCH-65)
 - [x] **Phase 18: Devtools HTTP surface** - The stream, backlog and registry routes share one address rule with the devtools client (ARCH-66)
-- [ ] **Phase 19: Verdict presentation** - One verdict-treatment module and one headless outcome reading in devtools (ARCH-67)
+- [x] **Phase 19: Verdict presentation** - One verdict-treatment module and one headless outcome reading in devtools (ARCH-67)
 - [ ] **Phase 20: DecisionCache shared computation** - Reproduce #64; if it reproduces, extract the single-flight regime and fix it (ARCH-68)
 
 ### Phase Details
@@ -235,7 +235,7 @@ Plans:
 Plans:
 - [x] 19-01 (W1): Give every verdict on screen one treatment (D-01, D-02
 - [x] 19-02 (W2): Read a decision record's outcome and obligation state once, into a closed union both screens consume (D-03
-- [ ] 19-03 (W3): Record Phase 19 in the normative spec (D-04, XC-02) and prove the merge gate (XC-01): two behaviours, two invariant notes, the devtools-spec statement, the…
+- [x] 19-03 (W3): Record Phase 19 in the normative spec (D-04, XC-02) and prove the merge gate (XC-01): two behaviours, two invariant notes, the devtools-spec statement, the…
 
 ### Phase 20: DecisionCache shared computation
 **Goal**: The #64 regime is either shown unreachable or pinned and fixed at a seam that can test it with plain keys.
@@ -265,5 +265,5 @@ Plans:
 | 16. One role-graph walk | 4/4 | Complete | 2026-11-10 |
 | 17. Injective request key | 6/6 | Complete | 2026-11-10 |
 | 18. Devtools HTTP surface | 3/3 | Complete | 2026-11-10 |
-| 19. Verdict presentation | 2/3 | In progress | - |
+| 19. Verdict presentation | 3/3 | Complete | 2026-11-10 |
 | 20. DecisionCache shared computation | 0/4 | Planned | - |
