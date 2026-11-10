@@ -669,3 +669,52 @@ describe("the unguarded form", () => {
     );
   });
 });
+
+describe("the unguarded form's warning", () => {
+  it.effect("is logged once, at construction, however many requests and ports follow", () => {
+    const reason = "test: answers only about the session's own subject";
+    const { lines, layer: logger } = collectingLogger();
+    return Effect.acquireUseRelease(
+      Effect.sync(() =>
+        HttpRouter.toWebHandler(
+          stack(
+            portRoutesUnguarded(reason, {
+              AttributeResolver: { attributes: ["clearance"] },
+              CustomPredicate: { names: ["isOwner"] },
+            }),
+            subjects,
+            Layer.merge(
+              portsLayer({
+                AttributeResolver: scriptedPort(PORTS.AttributeResolver, () => PortReply.answer("anon")).layer,
+                CustomPredicate: scriptedPort(PORTS.CustomPredicate, () => PortReply.answer(true)).layer,
+              }),
+              EvaluationIdLive,
+            ),
+          ).pipe(Layer.provideMerge(logger)),
+          { disableLogger: true },
+        ),
+      ),
+      ({ handler }) =>
+        Effect.gen(function* () {
+          const ask = JSON.stringify({ subjectId: anonymous.id, attribute: "clearance" });
+          assert.strictEqual((yield* post(handler, "AttributeResolver", ask)).status, 200);
+          assert.strictEqual((yield* post(handler, "AttributeResolver", ask)).status, 200);
+          // A second served port: the warning is the family's, not each route's.
+          yield* post(handler, "CustomPredicate", "{}");
+          // Filtered by text, so no other line a request might log can interfere.
+          assert.deepStrictEqual(
+            lines
+              .map((line) => line.message)
+              .filter((message) => String(message).includes("serving port routes unguarded")),
+            [
+              [
+                "qadi/http: serving port routes unguarded — each answers only about the " +
+                  `request's own subject. Reason given: ${reason}`,
+              ],
+            ],
+          );
+        }),
+      ({ dispose }) => Effect.promise(dispose),
+    );
+  });
+});

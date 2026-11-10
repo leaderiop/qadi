@@ -344,15 +344,17 @@ describe("@qadi/http", () => {
       // registers), not the `addGuardedRoute` write routes too, so only `Api`'s
       // own annotated endpoint is expected here.
       assert.deepStrictEqual(body.map((entry) => entry.permission), ["document:read"]);
+      yield* Effect.promise(() => handler(new Request("http://localhost/__permissions")));
       // Logged on every request, not once at construction (see this route's
-      // own doc comment) — and names the `reason` a caller gave for opting
-      // out, so a reviewer can tell who decided this and why.
-      assert.deepStrictEqual(lines.map((line) => line.message), [
-        [
-          "qadi/http: serving /__permissions unguarded — the full authorization topology is public. " +
-            "Reason given: test fixture",
-        ],
-      ]);
+      // own doc comment), and names the `reason` a caller gave for opting
+      // out, so a reviewer can tell who decided this and why. The second
+      // request is what tells per-request apart from once-at-construction, the
+      // port routes' cadence (GAP-08): a warning moved to construction is one line.
+      const warning = [
+        "qadi/http: serving /__permissions unguarded — the full authorization topology is public. " +
+          "Reason given: test fixture",
+      ];
+      assert.deepStrictEqual(lines.map((line) => line.message), [warning, warning]);
     }));
 
   it("publicEndpoint carries the reason a reviewer reads later", () => {
