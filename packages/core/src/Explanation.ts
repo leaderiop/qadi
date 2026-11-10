@@ -397,7 +397,8 @@ const explainCases: PolicyCases<Explanation> = {
       "signature",
       `the subject has a signature meaning '${p.meaning}'` +
         (p.signerRole === undefined ? "" : ` from a '${p.signerRole}'`) +
-        ` for ${p.scope === "Any" ? "anything" : "this resource"}`,
+        // A signature's "Any" is the subject-wide record, not HasActed's "any resource".
+        (p.scope === "Any" ? " on file subject-wide, not for a resource" : " for this resource"),
       p.fields,
     ),
 

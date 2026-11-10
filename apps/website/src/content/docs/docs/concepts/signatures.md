@@ -48,7 +48,10 @@ for and no other (see [E-Signatures](/docs/packages/audit/signatures/)).
 
 `SignatureHistory` has one method,
 `signaturesFor({ subjectId, resourceId?, meaning?, signerRole? })`,
-mirroring `DecisionHistory`'s shape exactly. The evaluator passes the
+mirroring `DecisionHistory`'s shape exactly. The shape is shared, but the
+meaning of `scope: "Any"` is not: for `hasSignature` it reads only the
+signatures on file subject-wide (recorded for no resource), whereas for
+`hasActed` it means any resource. The evaluator passes the
 `meaning` and `signerRole` a `HasSignature` node requires as context, so the
 port's span says what was asked, locally or when served; a store answers with
 every signature on file whatever they say, and the evaluator does the matching. Its default,
