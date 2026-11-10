@@ -31,6 +31,7 @@ import type {
   RenderRules,
   SafeLiteral,
 } from "@qadi/core";
+import { compiledTotal } from "./CompileMetrics.ts";
 
 export { PredicateNotRenderable } from "@qadi/core";
 
@@ -304,21 +305,6 @@ const renderNode = (
 const NO_RESERVED_COLUMNS: ReadonlySet<string> = new Set();
 
 /**
- * Compile volume and refusal rate, by outcome. Both declared once, module
- * scope — mirrors `Evaluate.ts`'s `decisionsAllowedTotal`/`decisionsDeniedTotal`
- * (`Metric.withAttributes` over one base counter, not a tag applied per call).
- * Effect's `Metric` registry keys on `type:id:description` and memoizes per
- * metric *object*; declaring either inside `compileSql`'s body would either
- * fail to register the way this does, or create an unscoped object per call
- * nothing can aggregate.
- */
-const compiledTotal = Metric.counter("qadi_predicate_sql_compiled_total", {
-  description: "Predicates compiled by @qadi/predicate-sql's compileSql, tagged by outcome.",
-});
-const compiledSucceededTotal = Metric.withAttributes(compiledTotal, { outcome: "compiled" });
-const compiledRefusedTotal = Metric.withAttributes(compiledTotal, { outcome: "refused" });
-
-/**
  * Compiles a `Predicate` into a parameterized SQL fragment.
  *
  * Refuses rather than approximates: an unsafe `Compare`/`MemberOf` value or
@@ -346,13 +332,13 @@ export const compileSql = Effect.fn("qadi.predicateSql.compileSql")(function* (
   };
 
   const node = yield* toRenderable(predicate, rules).pipe(
-    Effect.tapError(() => Metric.update(compiledRefusedTotal, 1)),
+    Effect.tapError(() => Metric.update(compiledTotal.refused, 1)),
   );
 
   const params: Array<SqlSafeValue> = [];
   const text = renderNode(node, SYNTAX[options.dialect], params);
 
-  yield* Metric.update(compiledSucceededTotal, 1);
+  yield* Metric.update(compiledTotal.compiled, 1);
 
   return { text, params };
 });
