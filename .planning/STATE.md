@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 19-01-PLAN.md
+stopped_at: Completed 19-02-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "19-01 complete: DisplayState + react/VerdictTreatment.ts; VerdictTag, QuestionsPanel and PolicyTree read only it; Deny and Error differ in every channel (phase_base 9483aac)"
+last_activity_desc: "19-02 complete: readOutcome + the closed ObligationState/RecordOutcome unions in model/Inspect.ts; Inspector and Simulator read the outcome only through it; Inspector pinned first"
 state_head: 856a092ab1da5af22c7dbf7a6044fa32cf55eeeb
 progress:
   total_phases: 11
   completed_phases: 9
   total_plans: 59
-  completed_plans: 53
-  percent: 90
+  completed_plans: 54
+  percent: 92
 current_phase: 19
 ---
 
@@ -28,14 +28,14 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 19 of 20 (Verdict presentation)
-Plan: 1 of 3 in Phase 19; next is 19-02
+Plan: 2 of 3 in Phase 19; next is 19-03
 Status: Phase 19 in progress (phase_base 9483aac)
-Last activity: 2026-11-10 -- 19-01 complete: one verdict treatment (react/VerdictTreatment.ts over the closed DisplayState union); a Failed guard and a denied node no longer share the error amber with a denial; devtools suite, typecheck, lint, madge green; model mutation 1.0
+Last activity: 2026-11-10 -- 19-02 complete: one outcome reading (readOutcome over closed RecordOutcome/ObligationState unions, package-private); Inspector pinned by 10 characterisation tests first; allowOf, isAllowed and the obligation ternary gone; devtools suite, typecheck, lint, madge green; Inspect.ts mutation 1.0 (97/97)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 54
+- Total plans completed: 55
 - Average duration: -
 - Total execution time: 0.0 hours
 

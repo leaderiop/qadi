@@ -234,7 +234,7 @@ Plans:
 
 Plans:
 - [x] 19-01 (W1): Give every verdict on screen one treatment (D-01, D-02
-- [ ] 19-02 (W2): Read a decision record's outcome and obligation state once, into a closed union both screens consume (D-03
+- [x] 19-02 (W2): Read a decision record's outcome and obligation state once, into a closed union both screens consume (D-03
 - [ ] 19-03 (W3): Record Phase 19 in the normative spec (D-04, XC-02) and prove the merge gate (XC-01): two behaviours, two invariant notes, the devtools-spec statement, the…
 
 ### Phase 20: DecisionCache shared computation
@@ -265,5 +265,5 @@ Plans:
 | 16. One role-graph walk | 4/4 | Complete | 2026-11-10 |
 | 17. Injective request key | 6/6 | Complete | 2026-11-10 |
 | 18. Devtools HTTP surface | 3/3 | Complete | 2026-11-10 |
-| 19. Verdict presentation | 1/3 | In progress | - |
+| 19. Verdict presentation | 2/3 | In progress | - |
 | 20. DecisionCache shared computation | 0/4 | Planned | - |
