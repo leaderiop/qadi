@@ -188,3 +188,40 @@ three more were never released.
 
 The decision is the 2026-10-08 amendment to
 [ADR-QD-047](https://github.com/leaderiop/qadi/blob/main/spec/decisions/047-a-headless-devtools-model.md).
+
+## 0.12: `guardApi` refuses an undeclared endpoint when it is built
+
+An endpoint that declares neither `requiresPermission` nor `publicEndpoint` no
+longer answers 500 on every request. `guardApi`'s layer fails to build with
+`AccessNotDeclared`, naming the group and the endpoint, so the application does
+not start. Annotate every endpoint before you upgrade. A declaration on a group
+or on the API also fails the build, with `MisplacedAccessDeclaration`. An
+exhaustive match over `ApiGuardRefusal` needs an `AccessNotDeclared` arm. See
+[ADR-QD-118](https://github.com/leaderiop/qadi/blob/main/spec/decisions/118-guardapi-plans-access-from-the-api-value.md).
+
+## 0.12: give `guardApi` the `HttpApi` value you serve
+
+`guardApi` plans the `HttpApi` value it is given, and its middleware serves only
+that value's endpoints. An endpoint of any other value answers 500 with one
+error log line, even if its group and endpoint names are the same. That
+includes a `prefix`ed copy. Pass `guardApi` the value `HttpApiBuilder.layer`
+serves, prefix included:
+
+```ts
+const Served = Api.prefix("/v1");
+HttpApiBuilder.layer(Served).pipe(Layer.provide(Handlers), Layer.provide(guardApi(Served)));
+```
+
+`/__permissions` then lists the paths that are served (`GET /v1/…`), not the
+unprefixed ones.
+
+## 0.12: a signature discharge on a resource without a string id is refused
+
+`signatureObligationHandler` now fails the discharge with
+`SignatureCaptureError` when the question's resource has no string `id`
+(absent, numeric, an object), before `capture` runs. 0.11.0 captured such a
+signature, and it was stored subject-wide, where a `hasSignature` check with
+`scope: "Any"` would then find it for every resource. Give the resource a string
+`id`, or ask the question without a resource if the signature really is
+subject-wide. See
+[ADR-QD-117](https://github.com/leaderiop/qadi/blob/main/spec/decisions/117-a-signature-ledger-is-a-keyed-store.md).
