@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 18-02-PLAN.md
+stopped_at: Completed 18-03-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "18-02 complete: acceptance reader under a prefix through devtoolsPath (SURF-02); both examples on the address rule (SURF-04)"
+last_activity_desc: "18-03 complete: BEH-QD-419/420, INV-QD-285, ADR-QD-130, CCR-QD-408, changeset; unguarded registry warning names the prefixed path; check:pr green. Phase 18 complete"
 state_head: 856a092ab1da5af22c7dbf7a6044fa32cf55eeeb
 progress:
   total_phases: 11
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 59
-  completed_plans: 51
-  percent: 86
+  completed_plans: 52
+  percent: 88
 current_phase: 18
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 18 of 20 (Devtools HTTP surface)
-Plan: 2 of 3 in Phase 18 (18-02 complete); next is 18-03
-Status: In progress (phase_base d4d9897)
-Last activity: 2026-11-10 -- 18-02 complete: "A reader follows the host's prefix" acceptance scenario through devtoolsRoutes, the platform SSE parser and sourceFromEventSource; the Dock URL from devtoolsPath; nextjs-newsroom on one devtoolsRoutes call with its /api rewrite kept and re-documented; http-advanced under /devtools
+Plan: 3 of 3 in Phase 18 (Phase 18 complete); next is Phase 19
+Status: Phase 18 complete (phase_base d4d9897); pnpm check:pr green
+Last activity: 2026-11-10 -- 18-03 complete: spec (BEH-QD-419/420, INV-QD-285, ADR-QD-130, CCR-QD-408), @qadi/http minor changeset, website/README; the unguarded registry warning names the served prefixed path (test-first); pnpm check:pr exit 0. Phase 18 complete
 
 ## Performance Metrics
 

@@ -48,7 +48,7 @@ phases hold a package intentionally red between their first and last plan; `use_
 - [x] **Phase 15: Dock session** - The dock's tab, filters, selection and replay become a headless session; replaying the same row re-seeds (ARCH-63)
 - [x] **Phase 16: One role-graph walk** - One traversal in core backs every role walk, including the devtools tree (ARCH-64)
 - [x] **Phase 17: Injective request key** - `PortKey` becomes a kind-tagged injective encoding for all five ports; the replay miss policy is decided (ARCH-65)
-- [ ] **Phase 18: Devtools HTTP surface** - The stream, backlog and registry routes share one address rule with the devtools client (ARCH-66)
+- [x] **Phase 18: Devtools HTTP surface** - The stream, backlog and registry routes share one address rule with the devtools client (ARCH-66)
 - [ ] **Phase 19: Verdict presentation** - One verdict-treatment module and one headless outcome reading in devtools (ARCH-67)
 - [ ] **Phase 20: DecisionCache shared computation** - Reproduce #64; if it reproduces, extract the single-flight regime and fix it (ARCH-68)
 
@@ -221,7 +221,7 @@ Plans:
 Plans:
 - [x] 18-01 (W1): Give the devtools HTTP routes (the decision stream, its JSON backlog and the permission registry) one address rule that a host can prefix, shared with the client that… ⛳ checkpoint
 - [x] 18-02 (W2): Prove the shared address end to end with the real devtools reader, and move both examples onto it (SURF-02, SURF-04).
-- [ ] 18-03 (W3): Record Phase 18 in the spec, the overview, the website and a changeset, then prove the tree with `pnpm check:pr` (XC-01..XC-06
+- [x] 18-03 (W3): Record Phase 18 in the spec, the overview, the website and a changeset, then prove the tree with `pnpm check:pr` (XC-01..XC-06
 
 ### Phase 19: Verdict presentation
 **Goal**: Every devtools panel shows a verdict through one treatment, and each screen's panels come from one outcome reading.
@@ -264,6 +264,6 @@ Plans:
 | 15. Dock session | 4/4 | Complete | 2026-11-10 |
 | 16. One role-graph walk | 4/4 | Complete | 2026-11-10 |
 | 17. Injective request key | 6/6 | Complete | 2026-11-10 |
-| 18. Devtools HTTP surface | 2/3 | In progress | - |
+| 18. Devtools HTTP surface | 3/3 | Complete | 2026-11-10 |
 | 19. Verdict presentation | 0/3 | Planned | - |
 | 20. DecisionCache shared computation | 0/4 | Planned | - |
