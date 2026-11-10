@@ -221,17 +221,19 @@ export const permissionRegistryRoute = <P extends Permission>(
  * once at construction as the port routes are: a local development choice that
  * reaches production should be visible in the logs of the environment it is
  * wrong in, not only in the one where it was made (BEH-QD-180). The warning text
- * and the cadence dispatch are `unguardedRoutes`' (`UnguardedRoute.ts`); the
- * warning names the route by its unprefixed path whatever the prefix, so its
- * words do not change with where a host mounts it.
+ * and the cadence dispatch are `unguardedRoutes`' (`UnguardedRoute.ts`). The
+ * warning names the path actually served, prefix included: a warning about an
+ * unguarded route that names the wrong address cannot be acted on.
  */
-export const permissionRegistryRouteUnguarded = (reason: string, options?: DevtoolsRouteOptions) =>
-  unguardedRoutes(
+export const permissionRegistryRouteUnguarded = (reason: string, options?: DevtoolsRouteOptions) => {
+  const path = devtoolsPath("permissions", options?.prefix);
+  return unguardedRoutes(
     {
-      what: devtoolsPath("permissions"),
+      what: path,
       consequence: "the full authorization topology is public",
       reason,
       announce: "every-request",
     },
-    [{ method: "GET", path: devtoolsPath("permissions", options?.prefix), handler: snapshotResponse }],
+    [{ method: "GET", path, handler: snapshotResponse }],
   );
+};
