@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 13-05-PLAN.md
+stopped_at: Completed 13-06-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "13-05 complete: EvaluationMetrics.ts declares the six evaluation metrics once (CacheOutcome moved there); Lifecycle/DecisionCache/Predicate write through it; every core metric test reads by reference; registry-key golden pinned"
+last_activity_desc: "13-06 complete: audit WRITES_COUNTERS/STAGING_COUNTERS/LOST_COUNTERS/transitionsTotal exported package-privately; each compiler declares compiledTotal once in CompileMetrics.ts; audit and compiler metric tests read by reference"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 59
-  completed_plans: 20
-  percent: 34
+  completed_plans: 21
+  percent: 36
 current_phase: 13
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 13 of 20 (Lost-wave gaps)
-Plan: 5 of 13 complete (13-01 … 13-05); next is 13-06
+Plan: 6 of 13 complete (13-01 … 13-06); next is 13-07
 Status: Phase 13 in progress (phase_base 0925c2f)
-Last activity: 2026-11-10 -- 13-05 complete: `packages/core/src/EvaluationMetrics.ts` exports `decisionsTotal` (Allow/Deny), `denialsByPolicyTagTotal`, `evaluationDurationMillis`, `evaluationErrorsTotal`, `decisionCacheLookupsTotal`, `predicatesTranslatedTotal` and `CacheOutcome`; the three writers declare nothing; 36 id-string reads in core tests → 0; Lifecycle.ts mutation 42/42 after a failed-span test; overview rows are 13-11's, ADR-QD-123/changesets 13-07's; `spec:api` and `spec:verify` red until 13-11
+Last activity: 2026-11-10 -- 13-06 complete: `@qadi/audit` exports its three write-counter records and the breaker frequency package-privately (no barrel line); `predicate-sql`/`predicate-prisma` declare `compiledTotal { compiled, refused }` once in `src/CompileMetrics.ts`; id-string reads in audit/compiler tests → registry-key pins only; predicate-prisma `All`/`Any` lost an equivalent ternary to clear XC-05; changesets, ADR-QD-123 and the spec 31 revision are 13-07's; `spec:api` and `spec:verify` red until 13-11
 
 ## Performance Metrics
 
