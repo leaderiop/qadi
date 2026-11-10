@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 13-09-PLAN.md
+stopped_at: Completed 13-10-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "13-09 complete: core pins for MissingResource-before-MissingAction, decideSubjects under a decision cache and a sink, and LifecycleOptions = EvaluateOptions less QuestionOptions (tests only)"
+last_activity_desc: "13-10 complete: [no-numbering-placeholder] house-style rule (src, test, bench, tst, step-definitions, features); the 14 ADR/INV/BEH-QD-NEXT placeholders resolved to ADR-QD-107/101, INV-QD-241/103, BEH-QD-264/267; AGENTS.md section 11"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 59
-  completed_plans: 24
-  percent: 41
+  completed_plans: 25
+  percent: 42
 current_phase: 13
 ---
 
@@ -28,14 +28,14 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 13 of 20 (Lost-wave gaps)
-Plan: 9 of 13 complete (13-01 … 13-09); next is 13-10
+Plan: 10 of 13 complete (13-01 … 13-10); remaining 13-11, 13-12, 13-13
 Status: Phase 13 in progress (phase_base 0925c2f)
-Last activity: 2026-11-10 -- 13-09 complete: `Evaluate.test.ts` pins that a missing resource wins over a missing action on `HasResourceAttribute`; `SubjectSet.test.ts` `describe("under a decision cache and a sink")` ported from lost `4b1ed49`; new `Lifecycle.tst.ts` pins `LifecycleOptions` against `EvaluateOptions`/`QuestionOptions`; each GREEN on the base and RED against a reverted local mutation; tests only, no src change; `spec:api`/`spec:verify` red until 13-11 (INV-QD-016 text correction is 13-11's)
+Last activity: 2026-11-10 -- 13-10 complete: `scripts/check-house-style.mjs` `[no-numbering-placeholder]` refuses `ADR|CCR|BEH|INV-QD-NEXT` (suffixed forms too) in `packages/*/{src,test,bench}` (`.tst.ts` included), `features/step-definitions` and `features/features` (`.feature` included); RED on 14 sites, then the 14 resolved as lost `4b1ed49` did; insertion probe RED/GREEN; AGENTS.md §11 paragraph (ARCH-61, CCR-QD-403); comments and test titles only, no changeset; `spec:api`/`spec:verify` red until 13-11
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 39
+- Total plans completed: 40
 - Average duration: -
 - Total execution time: 0.0 hours
 
