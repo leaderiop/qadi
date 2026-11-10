@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.13                                           |
+> | Revision       | 1.14                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -168,9 +168,16 @@ A single-element path is own; anything longer reads as *via …*.
 REQUIREMENT: A diamond's second arm MUST be marked as already reached.
 ```
 
-The structure is shown — hiding it would misrepresent the catalogue — but the
+The edge is shown — hiding it would misrepresent the catalogue — but the
 permissions beneath it were counted once, and a reader summing tinted rows would
 otherwise double-count. First path wins, exactly as provenance resolves it.
+
+> **Amended (CCR-QD-406).** The second arm is one leaf row, marked repeated and
+> linked to its first occurrence; its subtree is not drawn again (decision
+> 16-01 T1 = A, [ADR-QD-128](../decisions/128-one-walk-of-the-role-graph.md)).
+> The tree used to re-walk it, which drew about 2^k rows for k stacked diamonds.
+> The subtree appears once, under the first occurrence. See
+> [BEH-QD-399](#beh-qd-399-the-role-tree-is-the-role-walk).
 
 ```
 REQUIREMENT: The screen MUST NOT display an "acyclic" result.
@@ -814,3 +821,55 @@ leaving a screen and coming back, and a new timeline keeps the filters
 
 Pinned by `DockSession.test.ts`, headlessly, and through the dock by
 `DevtoolsDock.test.tsx`.
+
+## BEH-QD-399: The role tree is the role walk
+
+> **Decision:** [ADR-QD-128](../decisions/128-one-walk-of-the-role-graph.md) ·
+> **Behaviour:** [BEH-QD-400](./25-inspection.md#beh-qd-400-the-role-walk-visits-each-reachable-role-once)
+
+```ts
+interface RoleRow {
+  readonly name: string;
+  readonly index: number;
+  readonly depth: number;
+  readonly own: ReadonlyArray<PermissionKey>;
+  readonly repeated: boolean;
+  readonly first: number | undefined;
+}
+```
+
+> Package-private: `RoleRow` and `roleSummary` (`packages/devtools/src/model/RoleTree.ts`).
+> Specified because the role viewer relies on them; a host reaches the behaviour
+> through `DevtoolsDock`.
+
+The role viewer drew its tree from a copy of the role walk of its own. That copy
+keyed roles by name, recursed natively and re-walked every repeated subtree. It is
+`roleWalk` now, read as flat rows: one row per step, in walk order.
+
+```
+REQUIREMENT: Rows MUST be keyed by the role's identity, through its walk step,
+             never by its name. Two distinct roles that share a name MUST be
+             two rows, neither marked repeated.
+```
+
+```
+REQUIREMENT: A 20,000-deep chain MUST be modelled and rendered without a stack
+             overflow.
+```
+
+Rows are siblings indented by `depth`, never nested elements, so neither the
+model nor the render recurses.
+
+```
+REQUIREMENT: A role reached a second time MUST be one leaf row, marked repeated,
+             whose `first` (rendered as `data-first`) is the `index` of its first
+             occurrence. Its subtree MUST NOT be drawn again.
+```
+
+So the row count is the number of reachable roles plus the number of revisits:
+linear in the graph, where re-walking drew about 2^k rows for k stacked diamonds.
+
+Pinned by `packages/devtools/test/model/RoleTree.test.ts` (same-named pair, 10,000-
+and 20,000-deep chains, stacked diamonds) and through the viewer by
+`packages/devtools/test/react/RoleViewer.test.tsx` (a 20,000-deep chain renders;
+rows are siblings; the diamond's repeated row points at its first occurrence).
