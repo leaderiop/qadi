@@ -490,6 +490,22 @@ describe("exact refusals and boundaries", () => {
     assert.strictEqual(attributeCodec.encode(["k", [1, [2, { a: [3] }]]], "")._tag, "Ok");
   });
 
+  it("refuses a value whose hidden toJSON changes its shape, which its own keys would not show", () => {
+    // A non-enumerable `toJSON` is invisible to `Object.keys`, so only comparing
+    // the parsed text's shape - its length, its kind, its key count - catches it.
+    const hidden = <A extends object>(self: A, json: unknown): A =>
+      Object.defineProperty(self, "toJSON", { value: () => json, enumerable: false });
+    const lossy: ReadonlyArray<unknown> = [
+      hidden([1], [1, 2]),
+      hidden([1], { 0: 1, length: 1 }),
+      hidden({ a: 1 }, { a: 1, b: 2 }),
+      hidden({}, []),
+    ];
+    for (const value of lossy) {
+      assert.strictEqual(attributeCodec.encode(["k", value], "")._tag, "Refused");
+    }
+  });
+
   it("encodes a permission", () => {
     assert.strictEqual(okValue(permissionCodec.encode("doc:read", "")), "doc:read");
   });
