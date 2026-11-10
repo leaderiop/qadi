@@ -6,6 +6,8 @@ import * as TestClock from "effect/testing/TestClock";
 import { DecisionSink } from "@qadi/core";
 import { isolatedMetrics } from "@qadi/testing";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
+import { LOST_COUNTERS, STAGING_COUNTERS, WRITES_COUNTERS } from "../src/AuditWriteReport.ts";
+import { transitionsTotal } from "../src/CircuitBreaker.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
 import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
 import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
@@ -13,30 +15,26 @@ import { driveExit } from "./driveExit.ts";
 import type { ExitSpec } from "./driveExit.ts";
 import { decisionRecord } from "./helpers.ts";
 
-type CounterSnapshot = Extract<Metric.Metric.Snapshot, { type: "Counter" }>;
-type FrequencySnapshot = Extract<Metric.Metric.Snapshot, { type: "Frequency" }>;
-const counters = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, id: string): ReadonlyArray<CounterSnapshot> =>
-  snapshots.filter((s): s is CounterSnapshot => s.type === "Counter" && s.id === id);
-const frequencyOf = (
-  snapshots: ReadonlyArray<Metric.Metric.Snapshot>,
-  id: string,
-): FrequencySnapshot | undefined =>
-  snapshots.find((s): s is FrequencySnapshot => s.type === "Frequency" && s.id === id);
-
 describe("qadi_audit_writes_total", () => {
   it.effect("carries its documented description", () =>
     Effect.gen(function* () {
+      // The registry key is `type:id:description:attributes`; each tagged series
+      // carries the base counter's id, type and description (ADR-QD-123).
+      for (const series of Object.values(WRITES_COUNTERS)) {
+        assert.strictEqual(series.id, "qadi_audit_writes_total");
+        assert.strictEqual(series.type, "Counter");
+        assert.strictEqual(series.description, "SinkRecords the audit pipeline received, tagged by outcome.");
+      }
+      // And a record is counted under exactly the series of what became of it.
       const { layer: trail } = AuditTrailPortTest();
-      const snapshots = yield* isolatedMetrics(
+      const written = yield* isolatedMetrics(
         Effect.gen(function* () {
           const sink = yield* DecisionSink;
           yield* sink.record(decisionRecord());
-          return yield* Metric.snapshot;
+          return yield* Metric.value(WRITES_COUNTERS.written);
         }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
-
-      const rows = counters(snapshots, "qadi_audit_writes_total");
-      assert.strictEqual(rows[0]?.description, "SinkRecords the audit pipeline received, tagged by outcome.");
+      assert.strictEqual(written.count, 1);
     }));
 });
 
@@ -55,16 +53,15 @@ describe("qadi_audit_circuit_breaker_transitions_total", () => {
         failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
       });
 
-      const snapshots = yield* isolatedMetrics(
+      const transitions = yield* isolatedMetrics(
         Effect.gen(function* () {
           const sink = yield* DecisionSink;
           for (let i = 0; i < 5; i++) yield* sink.record(decisionRecord({ evaluationId: `e-${i}` }));
-          return yield* Metric.snapshot;
+          return yield* Metric.value(transitionsTotal);
         }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
-      const transitions = frequencyOf(snapshots, "qadi_audit_circuit_breaker_transitions_total");
-      assert.strictEqual(transitions?.state.occurrences.get("Open"), 1);
+      assert.strictEqual(transitions.occurrences.get("Open"), 1);
     }));
 
   it.effect(
@@ -79,16 +76,15 @@ describe("qadi_audit_circuit_breaker_transitions_total", () => {
           write: () => Effect.die(new Error("caller's trail store bug")),
         });
 
-        const snapshots = yield* isolatedMetrics(
+        const transitions = yield* isolatedMetrics(
           Effect.gen(function* () {
             const sink = yield* DecisionSink;
             for (let i = 0; i < 5; i++) yield* sink.record(decisionRecord({ evaluationId: `e-${i}` }));
-            return yield* Metric.snapshot;
+            return yield* Metric.value(transitionsTotal);
           }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), brokenTrail))),
         );
 
-        const transitions = frequencyOf(snapshots, "qadi_audit_circuit_breaker_transitions_total");
-        assert.strictEqual(transitions?.state.occurrences.get("Open"), 1);
+        assert.strictEqual(transitions.occurrences.get("Open"), 1);
       }),
   );
 
@@ -105,21 +101,22 @@ describe("qadi_audit_circuit_breaker_transitions_total", () => {
         failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
       });
 
-      const snapshots = yield* isolatedMetrics(
+      const transitions = yield* isolatedMetrics(
         Effect.gen(function* () {
           const sink = yield* DecisionSink;
           for (let i = 0; i < 5; i++) yield* sink.record(decisionRecord({ evaluationId: `e-${i}` }));
-          return yield* Metric.snapshot;
+          return yield* Metric.value(transitionsTotal);
         }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
-      const transitions = frequencyOf(snapshots, "qadi_audit_circuit_breaker_transitions_total");
+      assert.strictEqual(transitionsTotal.id, "qadi_audit_circuit_breaker_transitions_total");
+      assert.strictEqual(transitionsTotal.type, "Frequency");
       assert.strictEqual(
-        transitions?.description,
+        transitionsTotal.description,
         "Circuit breaker state transitions, by the state transitioned to.",
       );
       assert.deepStrictEqual(
-        [...(transitions?.state.occurrences.entries() ?? [])].sort(([a], [b]) => a.localeCompare(b)),
+        [...transitions.occurrences.entries()].sort(([a], [b]) => a.localeCompare(b)),
         [
           ["Closed", 0],
           ["HalfOpen", 0],
@@ -139,7 +136,7 @@ describe("qadi_audit_circuit_breaker_transitions_total", () => {
             : undefined,
       });
 
-      const snapshots = yield* isolatedMetrics(
+      const transitions = yield* isolatedMetrics(
         Effect.gen(function* () {
           const sink = yield* DecisionSink;
           for (let i = 0; i < 5; i++) yield* sink.record(decisionRecord({ evaluationId: `fail-${i}` }));
@@ -147,33 +144,33 @@ describe("qadi_audit_circuit_breaker_transitions_total", () => {
           // A status read transitions Open -> HalfOpen; the next successful
           // write then closes it.
           yield* sink.record(decisionRecord({ evaluationId: "recovers" }));
-          return yield* Metric.snapshot;
+          return yield* Metric.value(transitionsTotal);
         }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
-      const transitions = frequencyOf(snapshots, "qadi_audit_circuit_breaker_transitions_total");
-      assert.strictEqual(transitions?.state.occurrences.get("HalfOpen"), 1);
-      assert.strictEqual(transitions?.state.occurrences.get("Closed"), 1);
+      assert.strictEqual(transitions.occurrences.get("HalfOpen"), 1);
+      assert.strictEqual(transitions.occurrences.get("Closed"), 1);
     }));
 
   it.effect("a success on an already-closed breaker announces no transition at all", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest();
 
-      const snapshots = yield* isolatedMetrics(
+      const transitions = yield* isolatedMetrics(
         Effect.gen(function* () {
           const sink = yield* DecisionSink;
           yield* sink.record(decisionRecord());
-          return yield* Metric.snapshot;
+          return yield* Metric.value(transitionsTotal);
         }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
-      // `announceTransition` never ran at all — not even once, to record a
-      // zero — so the metric was never touched in this test's isolated
-      // registry and does not appear in the snapshot. See the "documented
-      // description" test above for the case where it does.
-      const transitions = frequencyOf(snapshots, "qadi_audit_circuit_breaker_transitions_total");
-      assert.isUndefined(transitions);
+      // `announceTransition` never ran at all, so every word is still at its
+      // preregistered zero. See the "documented description" test above for the
+      // case where one fired.
+      assert.deepStrictEqual(
+        [...transitions.occurrences.values()].filter((n) => n !== 0),
+        [],
+      );
     }));
 });
 
@@ -182,16 +179,19 @@ describe("qadi_audit_staging_total", () => {
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest();
       const { layer: staging } = AuditStagingPortTest();
-      const snapshots = yield* isolatedMetrics(
+      for (const series of Object.values(STAGING_COUNTERS)) {
+        assert.strictEqual(series.id, "qadi_audit_staging_total");
+        assert.strictEqual(series.type, "Counter");
+        assert.strictEqual(series.description, "AuditStagingPort.stage attempts, tagged by outcome.");
+      }
+      const staged = yield* isolatedMetrics(
         Effect.gen(function* () {
           const sink = yield* DecisionSink;
           yield* sink.record(decisionRecord());
-          return yield* Metric.snapshot;
+          return yield* Metric.value(STAGING_COUNTERS.staged);
         }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, staging)))),
       );
-
-      const rows = counters(snapshots, "qadi_audit_staging_total");
-      assert.strictEqual(rows[0]?.description, "AuditStagingPort.stage attempts, tagged by outcome.");
+      assert.strictEqual(staged.count, 1);
     }));
 });
 
@@ -201,16 +201,24 @@ describe("qadi_audit_entries_lost_total", () => {
       const { layer: trail } = AuditTrailPortTest({
         failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
       });
-      const snapshots = yield* isolatedMetrics(
+      for (const series of [
+        LOST_COUNTERS.write_failed.not_wired,
+        LOST_COUNTERS.write_failed.failed,
+        LOST_COUNTERS.skipped_open.not_wired,
+        LOST_COUNTERS.skipped_open.failed,
+      ]) {
+        assert.strictEqual(series.id, "qadi_audit_entries_lost_total");
+        assert.strictEqual(series.type, "Counter");
+        assert.strictEqual(series.description, "Audit entries in neither the trail nor staging, by what failed.");
+      }
+      const lost = yield* isolatedMetrics(
         Effect.gen(function* () {
           const sink = yield* DecisionSink;
           yield* sink.record(decisionRecord());
-          return yield* Metric.snapshot;
+          return yield* Metric.value(LOST_COUNTERS.write_failed.not_wired);
         }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
-
-      const rows = counters(snapshots, "qadi_audit_entries_lost_total");
-      assert.strictEqual(rows[0]?.description, "Audit entries in neither the trail nor staging, by what failed.");
+      assert.strictEqual(lost.count, 1);
     }));
 
   const base: ExitSpec = { wired: false, open: false, encode: "ok", stage: "ok", write: "ok", commit: "ok" };

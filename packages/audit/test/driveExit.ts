@@ -6,6 +6,7 @@
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
+import * as Record from "effect/Record";
 import { DecisionSink } from "@qadi/core";
 import { collectingLogger, isolatedMetrics } from "@qadi/testing";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
@@ -14,6 +15,7 @@ import type { AuditEntry } from "../src/AuditEntry.ts";
 import { AuditStagingError, AuditStagingPort } from "../src/AuditStagingPort.ts";
 import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
 import type { AuditWriteOutcome } from "../src/AuditWriteOutcome.ts";
+import { LOST_COUNTERS, STAGING_COUNTERS, WRITES_COUNTERS } from "../src/AuditWriteReport.ts";
 import type { StagingLabel, WritesLabel } from "../src/AuditWriteReport.ts";
 import { decisionRecord } from "./helpers.ts";
 
@@ -53,41 +55,38 @@ export interface ExitObservation {
 const failOrDie = <E>(mode: Mode, error: E): Effect.Effect<void, E> =>
   mode === "ok" ? Effect.void : mode === "fail" ? Effect.fail(error) : Effect.die(new Error("port bug"));
 
-const countOf = (
-  snapshots: ReadonlyArray<Metric.Metric.Snapshot>,
-  id: string,
-  outcome: string,
-): number => {
-  for (const s of snapshots) {
-    if (s.type === "Counter" && s.id === id && s.attributes?.outcome === outcome) return Number(s.state.count);
-  }
-  return 0;
-};
+/** Every audit counter series, read through its export (ADR-QD-123). */
+const readCounts = Effect.gen(function* () {
+  const count = (series: Metric.Counter<number>) => Effect.map(Metric.value(series), (v) => v.count);
+  return {
+    writes: {
+      encode_failed: yield* count(WRITES_COUNTERS.encode_failed),
+      written: yield* count(WRITES_COUNTERS.written),
+      write_failed: yield* count(WRITES_COUNTERS.write_failed),
+      skipped_open: yield* count(WRITES_COUNTERS.skipped_open),
+    } satisfies LabelCounts<WritesLabel>,
+    staging: {
+      staged: yield* count(STAGING_COUNTERS.staged),
+      failed: yield* count(STAGING_COUNTERS.failed),
+      skipped_open: yield* count(STAGING_COUNTERS.skipped_open),
+      failed_open: yield* count(STAGING_COUNTERS.failed_open),
+      commit_failed: yield* count(STAGING_COUNTERS.commit_failed),
+    } satisfies LabelCounts<StagingLabel>,
+    lost: {
+      "write_failed/not_wired": yield* count(LOST_COUNTERS.write_failed.not_wired),
+      "write_failed/failed": yield* count(LOST_COUNTERS.write_failed.failed),
+      "skipped_open/not_wired": yield* count(LOST_COUNTERS.skipped_open.not_wired),
+      "skipped_open/failed": yield* count(LOST_COUNTERS.skipped_open.failed),
+    },
+  };
+});
 
-const lostCount = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>): number => {
-  let total = 0;
-  for (const s of snapshots) {
-    if (s.type === "Counter" && s.id === "qadi_audit_entries_lost_total") total += Number(s.state.count);
-  }
-  return total;
-};
+type Counts = Effect.Success<typeof readCounts>;
 
-const lostLabelsMoved = (
-  before: ReadonlyArray<Metric.Metric.Snapshot>,
-  after: ReadonlyArray<Metric.Metric.Snapshot>,
-): ReadonlyArray<string> => {
-  const labels: Array<string> = [];
-  for (const s of after) {
-    if (s.type !== "Counter" || s.id !== "qadi_audit_entries_lost_total") continue;
-    const key = `${s.attributes?.after}/${s.attributes?.staging}`;
-    const prior = before.find(
-      (b) => b.type === "Counter" && b.id === s.id && b.attributes?.after === s.attributes?.after && b.attributes?.staging === s.attributes?.staging,
-    );
-    const priorCount = prior?.type === "Counter" ? Number(prior.state.count) : 0;
-    if (Number(s.state.count) > priorCount) labels.push(key);
-  }
-  return labels;
-};
+const lostTotal = (counts: Counts): number => Object.values(counts.lost).reduce((sum, n) => sum + n, 0);
+
+const lostLabelsMoved = (before: Counts, after: Counts): ReadonlyArray<string> =>
+  Record.keys(after.lost).filter((label) => after.lost[label] > before.lost[label]);
 
 const healthyEntry: AuditEntry = Effect.runSync(encodeAuditEntry(decisionRecord({ evaluationId: "target" })));
 
@@ -128,15 +127,13 @@ export const driveExit = (spec: ExitSpec): Effect.Effect<ExitObservation> =>
       Effect.gen(function* () {
         const sink = yield* DecisionSink;
         if (spec.open) yield* sink.record(decisionRecord({ evaluationId: "trip" }));
-        const before = yield* Metric.snapshot;
+        const before = yield* readCounts;
         const logsBefore = lines.length;
         const outcomesBefore = outcomes.length;
         yield* sink.record(target);
-        const after = yield* Metric.snapshot;
-        const writes = (label: WritesLabel) =>
-          countOf(after, "qadi_audit_writes_total", label) - countOf(before, "qadi_audit_writes_total", label);
-        const stagingOf = (label: StagingLabel) =>
-          countOf(after, "qadi_audit_staging_total", label) - countOf(before, "qadi_audit_staging_total", label);
+        const after = yield* readCounts;
+        const writes = (label: WritesLabel) => after.writes[label] - before.writes[label];
+        const stagingOf = (label: StagingLabel) => after.staging[label] - before.staging[label];
         const outcome = outcomes[outcomes.length - 1];
         if (outcome === undefined) return yield* Effect.die(new Error("onOutcome was never called"));
         const observation: ExitObservation = {
@@ -154,7 +151,7 @@ export const driveExit = (spec: ExitSpec): Effect.Effect<ExitObservation> =>
             failed_open: stagingOf("failed_open"),
             commit_failed: stagingOf("commit_failed"),
           },
-          lost: lostCount(after) - lostCount(before),
+          lost: lostTotal(after) - lostTotal(before),
           lostLabels: lostLabelsMoved(before, after),
           logs: lines.slice(logsBefore).map(
             (line): ObservedLog => ({
