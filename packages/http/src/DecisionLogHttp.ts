@@ -13,17 +13,11 @@
  */
 import * as Effect from "effect/Effect";
 import type * as Filter from "effect/Filter";
+import type * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import * as Sse from "effect/encoding/Sse";
-import type {
-  DecisionRecordEvent,
-  LogCursor,
-  LogEntry,
-  SinkRecordNotEncodable,
-  StoredRecord,
-  StoredRecordJson,
-} from "@qadi/core";
-import { encodeStoredRecord, encodeStoredRecordString, formatLogCursor, reportEncodeRefusal } from "@qadi/core";
+import type { DecisionStreamFrame, SinkRecordNotEncodable, StoredRecord, StoredRecordJson } from "@qadi/core";
+import { encodeStoredRecord, encodeStoredRecordString, reportEncodeRefusal } from "@qadi/core";
 
 /**
  * What a decision-log route is told about serving: the hook for a refused record.
@@ -107,66 +101,29 @@ export const jsonElements = (
   keepEncoded(records, encodeOrReport(encodeStoredRecord, reportRefusedJson, options?.onRefused));
 
 /**
- * One stored record as an SSE frame of the given event — `event: backlog` /
- * `data: <envelope>`, or `data: <envelope>` alone for `message`, with an `id:`
- * line when a cursor is given (ARCH-11 D-11-g) — produced by
- * `effect/encoding/Sse`'s own `encoder.write` rather than a hand-built template
- * string (H6, ADR-QD-072). That is the same encoder `HttpApiBuilder`'s
- * `HttpApiSchema.StreamSse` machinery calls internally; the machinery itself is
- * inseparable from the full `HttpApi` pipeline, and the stream route's `reauth`
- * recheck is a `Stream.mergeEffect` over the response stream with no
- * `HttpApiMiddleware` equivalent, so the encoder is reused directly.
- *
- * For `message`, `Sse.encoder.write` omits the `event:` line, so a live frame
- * is `data: <json>\n\n` — what an `EventSource`'s `message` listener reads.
- *
- * **One call, to `@qadi/core`'s `encodeStoredRecordString`.** The frame's data
- * is the stored-record envelope `{ environment, record }`, whose `record` is the
- * same bytes forwarding sends and an audit row stores; every rule about what can
- * cross lives in the codec, over the whole encoded record (ARCH-09). A refused
- * record drops only its own frame: the refusal is the filter's failure value,
- * reported by {@link frameEntry}, and the stream carries on.
- *
- * A `Filter`: `Result.succeed` keeps a value, `Result.fail` drops it
- * (`effect/Filter`'s own doc comment). Exported so the refusal can be tested
- * directly against a plain record, and public through `DecisionStreamRoute.ts`.
+ * One record as stream frame data, in the stream's own words: `Some` with the
+ * stored-record envelope (`@qadi/core`'s `encodeStoredRecordString`), or `None`
+ * once a refusal has been reported (`onRefused`, else the "could not be framed"
+ * warning). What `@qadi/core`'s `encodeDecisionStream` is given as `encodeRecord`:
+ * the order is core's, the bytes and the refusal words stay here.
  */
-export const frame =
-  (event: DecisionRecordEvent, cursor?: LogCursor): Filter.Filter<StoredRecord, string, SinkRecordNotEncodable> =>
-  (stored) =>
-    Result.map(encodeStoredRecordString(stored), (data) =>
-      Sse.encoder.write({
-        _tag: "Event",
-        event,
-        id: cursor === undefined ? undefined : formatLogCursor(cursor),
-        data,
-      }),
-    );
+export const recordData = (
+  options?: DecisionLogServeOptions,
+): ((record: StoredRecord) => Effect.Effect<Option.Option<string>>) => {
+  const filter = encodeOrReport(encodeStoredRecordString, reportRefusedSse, options?.onRefused);
+  return (record) => Effect.map(filter(record), Result.getSuccess);
+};
 
 /**
- * One log entry as an SSE frame, or its refusal reported and dropped: what a
- * live stream filters through (`Stream.filterMapEffect`).
+ * One stream frame as SSE text, through `effect/encoding/Sse`'s own
+ * `encoder.write` rather than a hand-built template string (H6, ADR-QD-072) —
+ * the encoder `HttpApiBuilder`'s `HttpApiSchema.StreamSse` calls internally,
+ * reused directly because the route's `reauth` recheck has no
+ * `HttpApiMiddleware` equivalent.
  *
- * The frame carries the entry's cursor as its SSE `id`, and a refused record
- * drops only its own frame. This and {@link jsonElements} encode through the same
- * encode-or-report, so both framings keep, drop and report alike (LOGH-01).
+ * For `message`, `Sse.encoder.write` omits the `event:` line, so a live frame is
+ * `id: <cursor>` / `data: <json>` — what an `EventSource`'s `message` listener
+ * reads. `synced` has no `id:` line.
  */
-export const frameEntry = (
-  event: DecisionRecordEvent,
-  options?: DecisionLogServeOptions,
-): Filter.FilterEffect<LogEntry, string, SinkRecordNotEncodable> =>
-  encodeOrReport(
-    (entry: LogEntry) => frame(event, entry.cursor)(entry.record),
-    reportRefusedSse,
-    options?.onRefused,
-  );
-
-/**
- * Log entries as SSE frames, in order, each refused record reported and left
- * out: the stream's backlog prelude. Never fails.
- */
-export const frameEntries = (
-  event: DecisionRecordEvent,
-  entries: ReadonlyArray<LogEntry>,
-  options?: DecisionLogServeOptions,
-): Effect.Effect<ReadonlyArray<string>> => keepEncoded(entries, frameEntry(event, options));
+export const sseText = (frame: DecisionStreamFrame): string =>
+  Sse.encoder.write({ _tag: "Event", event: frame.event, id: frame.id, data: frame.data });

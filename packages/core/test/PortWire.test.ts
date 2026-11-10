@@ -1,5 +1,5 @@
 /**
- * The wire's totality (ARCH-31, INV-QD-NEXT): an attribute value with a JSON
+ * The wire's totality (ARCH-31, INV-QD-241): an attribute value with a JSON
  * form round-trips, one without is refused and never thrown, and the JSON a
  * wire emits is detached from what it was built from.
  */

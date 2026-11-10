@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-094                                   |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.7 (2026-11-08): amendment — one per-port table builder; fixture setups pass through to a registry-derived fixturePortsLayer (ARCH-53, CCR-QD-392)<br>1.6 (2026-11-08): amendment — a description also states what it serves, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.5 (2026-11-08): amendment — a description's span attributes state the question projection, pose, beside disclose; the signature key covers the requirement (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.4 (2026-10-08): amendment — a description also states its wire, `PortDescription.wire`, and the registry makes a missing wire a compile error (ARCH-31, ADR-QD-107, CCR-QD-382)<br>1.3 (2026-10-08): amendment — each port's fixture builder is listed in `PORT_FIXTURES`, closed over `PortName`, beside its description (ARCH-42, CCR-QD-270)<br>1.2 (2026-10-08): amended: a request key is injective over every argument the port receives; the relationship and custom-predicate keys are corrected (ARCH-45 I1, CCR-QD-263)<br>1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
+> | Change History | 1.8 (2026-11-10): amendment — the key law's equality is Equal.equals over PortKey's domain; a value outside it is a typed KeyRefusal and key returns a Result (ARCH-65, CCR-QD-407)<br>1.7 (2026-11-08): amendment — one per-port table builder; fixture setups pass through to a registry-derived fixturePortsLayer (ARCH-53, CCR-QD-392)<br>1.6 (2026-11-08): amendment — a description also states what it serves, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.5 (2026-11-08): amendment — a description's span attributes state the question projection, pose, beside disclose; the signature key covers the requirement (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.4 (2026-10-08): amendment — a description also states its wire, `PortDescription.wire`, and the registry makes a missing wire a compile error (ARCH-31, ADR-QD-107, CCR-QD-382)<br>1.3 (2026-10-08): amendment — each port's fixture builder is listed in `PORT_FIXTURES`, closed over `PortName`, beside its description (ARCH-42, CCR-QD-270)<br>1.2 (2026-10-08): amended: a request key is injective over every argument the port receives; the relationship and custom-predicate keys are corrected (ARCH-45 I1, CCR-QD-263)<br>1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
 
 ---
 
@@ -84,12 +84,12 @@ interface PortDescription<N extends PortName, Self, Shape extends PortShape, Arg
   readonly make: (name: string, call: (...args: Args) => Effect.Effect<A, E>) => Shape;
   readonly failure: (args: Args, cause: unknown) => E;
   readonly defect: (args: Args, cause: Cause.Cause<unknown>) => E;
-  readonly key: (args: Args) => string;
+  readonly key: (args: Args) => Result.Result<string, KeyRefusal>;
   readonly none: { readonly name: string; readonly answer: A };
 }
 ```
 
-`key` is `JSON.stringify` of a tuple that always includes the subject — the axis a
+`key` is `canonicalKey` (`PortKey.ts`) of a tuple that always includes the subject — the axis a
 what-if sweep varies — so a capture taken for one subject never answers a question
 about another ([INV-QD-043](../invariants.md)). `invoke` calls the method through the
 shape, never hands it back unbound.
@@ -230,6 +230,31 @@ reader's label, never an input to a decision. `EvaluationId`, `CurrentSubject`,
 > keys), because `JSON.stringify` writes a `Set` as `{}`. Observable change: two key
 > strings, and `CapturedAnswers` (exported) keys with them; no type changes.
 
+> **Amended (ARCH-65, 2026-11-10, CCR-QD-407): the key law's equality is `Equal.equals`.**
+> "Structurally equal" above was never pinned down, and the JSON text behind it collided
+> requests the evaluator tells apart: a `Date` and its ISO string, `NaN`/`±Infinity` and
+> `null`, `{ a: undefined }` and `{}`, a `Set` and the array of its members, a `Map` and
+> its entry pairs. Bigints and cycles threw. Two requests now share a key **exactly when
+> every argument is `Equal.equals`** (an absent field and an `undefined` one alike), the
+> same identity `Question` and `DecisionCache` already use, over the domain `PortKey.ts`
+> states: primitives, `Date`, `RegExp`, arrays, plain and null-prototype objects, `Set`
+> and `Map`. A subclass of `Date`, `RegExp`, `Array`, `Set` or `Map` keys as its base
+> class, because `Equal.equals` compares it as one. A value outside the domain (a cycle,
+> a function, a symbol or symbol key, a throwing getter, a value that implements `Equal`
+> itself, any other class instance) is refused with a typed `KeyRefusal`, so `key` returns
+> `Result<string, KeyRefusal>` (**Breaking**). Every consumer fails closed on a refusal:
+> `replyTable` and the signature fixture fail the request with the port's typed error, and
+> devtools' capture passes it to the live port unrecorded, so its replay fails. One limit
+> the key cannot see: an object marked `Equal.byReference` keys by its structure, because
+> the mark lives inside `effect` and a replay cannot preserve identity anyway. Two such
+> objects with the same fields share a key although `Equal.equals` tells them apart. The
+> law is tested once, as a property at `PortKey`'s interface (`PortKey.test.ts`), and the
+> per-port rows in `PortConformance.test.ts` test only that every argument reaches the key.
+> This keeps ARCH-45's choice of a text key (D-45-b): the collisions were the "something"
+> the rejected `Equal`-valued key could do that the text could not, and fixing the text in
+> place removes it. See [ADR-QD-129](129-a-replay-miss-is-an-outage-on-every-port.md) for
+> what a replay answers when a key finds nothing.
+
 ## Amendment (2026-10-08, CCR-QD-270)
 
 Each port's fixture builder is listed in `PORT_FIXTURES` (`Ports.ts`), closed over
@@ -267,7 +292,8 @@ projects the question beside `disclose(answer, request)` for the answer, both ty
 description's own request and answer. The ARCH-31 amendment above gave the wire a copy of both
 (`spanQuestion`, `spanAnswer`); that copy is gone, and the wire states only JSON. The signature
 port's request key now covers the asker's requirement, `meaning` and `signerRole`, so it stays
-injective over every argument the port receives (the ARCH-45 I1 law above). See
+injective over every argument the port receives (the ARCH-45 I1 law above, whose equality the
+ARCH-65 amendment fixes as `Equal.equals`). See
 [ADR-QD-109](109-a-ports-span-is-projected-once-and-every-read-is-one-body.md).
 
 ## Amendment (2026-11-08, ADR-QD-114, CCR-QD-392)

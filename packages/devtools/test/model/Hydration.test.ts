@@ -4,7 +4,7 @@
  * `@qadi/react` is deliberately absent from this file, as it is from the
  * package: the two share a metric registry and nothing else. So the writes here
  * go through the metric handles `@qadi/core` exports — the same objects
- * `HydrationCounts.ts` writes through — which is exactly the contract under
+ * `@qadi/react`'s `HydrationEvent.ts` writes through — which is exactly the contract under
  * test. Importing the React package to drive it would prove the reader agrees
  * with itself.
  *
@@ -103,6 +103,11 @@ describe("hydrationActivity", () => {
         read.drops.slice(0, hydrationDropReasons.length).map((drop) => drop.reason),
         [...hydrationDropReasons],
       );
+      // Eight, written out: a reason core adds reaches this panel at zero with no
+      // edit here (BEH-QD-232). `UnencodablePolicy` is the eighth, and nothing in
+      // this suite raises it.
+      assert.strictEqual(hydrationDropReasons.length, 8);
+      assert.strictEqual(read.drops.find((drop) => drop.reason === "UnencodablePolicy")?.count, 0);
     }));
 
   it.effect("explains the two payload-level reasons, rather than calling them unrecognised", () =>

@@ -29,6 +29,7 @@ import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
+import { canonicalKey } from "./PortKey.ts";
 import type { SpanType } from "./PortSpan.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
@@ -162,8 +163,9 @@ const actedServing: PortServingFacet<"DecisionHistory", [query: ActedQuery]> = {
 /**
  * The decision-history port, described once (`PortDescription.ts`).
  *
- * A request is keyed by `(subjectId, event, resourceId)`, with an absent
- * resource as `null`, so an "ever, at all" question stays distinct from any
+ * A request is keyed by `(subjectId, event, resourceId)` through
+ * `canonicalKey`; an absent resource keys as `undefined`, distinct from every
+ * present value, so an "ever, at all" question stays distinct from any
  * resource-scoped one.
  */
 export const decisionHistoryPort: PortDescription<
@@ -187,7 +189,7 @@ export const decisionHistoryPort: PortDescription<
   failure: ([query], cause) => new DecisionHistoryUnavailable({ event: query.event, cause }),
   defect: ([query], cause) =>
     new DecisionHistoryUnavailable({ event: query.event, cause: Cause.squash(cause) }),
-  key: ([query]) => JSON.stringify([query.subjectId, query.event, query.resourceId ?? null]),
+  key: ([query]) => canonicalKey([query.subjectId, query.event, query.resourceId]),
   none: { name: "DecisionHistoryUnknown", answer: "Unknown" },
 };
 

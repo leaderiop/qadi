@@ -6,6 +6,9 @@ import * as Tracer from "effect/Tracer";
 import * as FastCheck from "fast-check";
 import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolver.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
+import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
+import type { SinkRecord } from "../src/DecisionRecord.ts";
+import { DecisionSink } from "../src/DecisionSink.ts";
 import { isAllowed } from "../src/Decision.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
@@ -300,6 +303,75 @@ describe("INV-QD-016: a batch decision is the decision made alone", () => {
         }
       }),
   );
+});
+
+/**
+ * INV-QD-016 under a wired `DecisionCache` and `DecisionSink`: each element is
+ * still its own decision (a cache keys on the whole subject, INV-QD-033), still
+ * has its own evaluation id (INV-QD-025), and the sink hears every element once,
+ * in input order. Ported from lost commit 4b1ed49.
+ */
+describe("under a decision cache and a sink", () => {
+  const admin = P.hasRole("admin");
+
+  // The records array is test scaffolding the sink writes to, not decision state.
+  const environment = () => {
+    const records: Array<SinkRecord> = [];
+    const sink = Layer.succeed(DecisionSink, {
+      record: (record) =>
+        Effect.sync(() => {
+          records.push(record);
+        }),
+    });
+    return { records, layer: Layer.mergeAll(subjectSetLayer(), decisionCacheLayer(), sink) };
+  };
+
+  it.effect("two subjects with one id and different roles each get their own decision", () => {
+    const { layer } = environment();
+    return Effect.gen(function* () {
+      const { decisions } = yield* decideSubjects(admin, [
+        subjectWith({ id: "x", roles: ["admin"] }),
+        subjectWith({ id: "x" }),
+      ]);
+      assert.deepStrictEqual(
+        decisions.map((r) => r.decision._tag),
+        ["Allow", "Deny"],
+      );
+      // Two walks, two entries: the key is the whole subject, not its id.
+      assert.strictEqual(yield* (yield* DecisionCache).size, 2);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.effect("two equal subjects share one walk, and each still has its own evaluation id", () => {
+    const { records, layer } = environment();
+    return Effect.gen(function* () {
+      const twin = subjectWith({ id: "x", roles: ["admin"] });
+      yield* decideSubjects(admin, [twin, twin]);
+      assert.strictEqual(yield* (yield* DecisionCache).size, 1);
+      const decided = records.flatMap((record) => (record._tag === "Decision" ? [record] : []));
+      assert.deepStrictEqual(
+        decided.map((record) => record.cache),
+        ["miss", "hit"],
+      );
+      assert.notStrictEqual(decided[0]?.evaluationId, decided[1]?.evaluationId);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.effect("the sink receives one decided record per element, in input order", () => {
+    const { records, layer } = environment();
+    return Effect.gen(function* () {
+      yield* decideSubjects(admin, [
+        subjectWith({ id: "a" }),
+        subjectWith({ id: "b", roles: ["admin"] }),
+        subjectWith({ id: "c" }),
+      ]);
+      const decided = records.flatMap((record) => (record._tag === "Decision" ? [record] : []));
+      assert.deepStrictEqual(
+        decided.map((record) => record.subjectId),
+        ["a", "b", "c"],
+      );
+    }).pipe(Effect.provide(layer));
+  });
 });
 
 describe("the ambient subject is replaced, not read", () => {

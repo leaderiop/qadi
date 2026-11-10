@@ -32,7 +32,9 @@ import { sameSighting, sightingFor, type PolicySighting } from "./Catalogue.ts";
 import { pinHead, resolveHeld } from "./HeldChoice.ts";
 import { baselineDiff, replayInput, type Baseline, type UnseededField } from "./Replay.ts";
 import { simulate, type SimulationClock } from "./Simulation.ts";
-import { decodeResource, encodeResource, renameSubject, withResource } from "./SimulationForm.ts";
+import type { ChipAdded, FieldView, SimulationField } from "./SimulationFields.ts";
+import { fieldOps, formOf, renameSubject } from "./SimulationFields.ts";
+import { decodeResource, encodeResource, withResource } from "./SimulationForm.ts";
 import type { EvaluationPortsLayer, SimulationInput } from "./SimulationInput.ts";
 import { fixtures, live, snapshot, type SimulationSource } from "./SimulationSource.ts";
 import type { TimelineEntry } from "./Timeline.ts";
@@ -173,6 +175,14 @@ export interface SimulationSnapshot {
   readonly sightings: ReadonlyArray<PolicySighting>;
   readonly policy: PolicyChoice;
   readonly draft: SimulationInput;
+  /**
+   * The form's fields, top to bottom, each with its chips as they are shown.
+   *
+   * The reading is the model's, so what a chip says and whether the form could
+   * show it faithfully is decided under the mutation gate; a view maps rows to
+   * editors and computes nothing (ADR-QD-047).
+   */
+  readonly fields: ReadonlyArray<FieldView>;
   readonly resourceText: ResourceText;
   readonly sourceChoice: SourceChoice;
   readonly options: ReadonlyArray<SourceOption>;
@@ -203,14 +213,40 @@ export interface SimulationSession {
    * as `Evicted` at once.
    */
   readonly choosePolicy: (policy: Policy) => void;
-  /** Re-seeds from a logged row, resets the form to it and drops any run. */
+  /**
+   * Re-seeds from a logged row, resets the form to it and drops any run — unless
+   * the session already holds that entry, which is a no-op.
+   *
+   * For a host keeping a prop in step: an effect re-run carrying the same entry
+   * must not wipe a half-filled form. A reviewer replaying a row is `replay`.
+   */
   readonly seed: (entry: TimelineEntry | undefined) => void;
+  /**
+   * Seeds from `entry` now, even if the session was last seeded from it.
+   *
+   * Replaying is an act the reviewer takes (E8.1), so pressing it again on the
+   * same row after choosing another policy or editing the form re-seeds. `seed`
+   * keeps its same-entry guard for the host's effect re-run; the two are told
+   * apart by which command is called, never by comparing entries (ARCH-63, D-03).
+   */
+  readonly replay: (entry: TimelineEntry) => void;
   /** The host's resolvers. A different layer drops the capture taken from the old one. */
   readonly setPorts: (ports: EvaluationPortsLayer | undefined) => void;
   readonly chooseSource: (choice: SourceChoice) => void;
   readonly setClock: (clock: SimulationClock) => void;
   readonly setPairs: (pairs: boolean) => void;
   readonly edit: (next: SimulationInput) => void;
+  /**
+   * Commits typed text to one field, by that field's codec.
+   *
+   * Answers the refusal rather than holding it: the uncommitted text is the
+   * view's only state (ARCH-20 D-20-f), so the reason goes back to the buffer
+   * that owns the text. A refused chip moves nothing and notifies no one. An
+   * element naming a subject is attributed to the form's current one.
+   */
+  readonly addChip: (field: SimulationField, text: string) => ChipAdded;
+  /** Removes the chip at `index`. A field the form does not list, or an index past its end, is a no-op. */
+  readonly removeChip: (field: SimulationField, index: number) => void;
   /** Types into the resource field; the last resource that parsed is kept while it does not. */
   readonly editResourceText: (text: string) => void;
   readonly renameSubject: (to: string) => void;
@@ -340,6 +376,7 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
       sightings,
       policy,
       draft,
+      fields: formOf(draft),
       resourceText,
       sourceChoice,
       options: sourceOptions(ports, capture),
@@ -473,6 +510,31 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
     yield* reap();
   });
 
+  /** The one path a draft changes by: the same no-op rule and resource text for every command. */
+  const edit = (next: SimulationInput) => {
+    if (next === draft) return;
+    if (next.resource !== draft.resource) resourceText = resourceTextOf(next);
+    draft = next;
+    commit();
+  };
+
+  /** Seeds from `entry` unconditionally: `seed` guards it, `replay` does not. */
+  const reseed = (entry: TimelineEntry | undefined): void => {
+    seedEntry = entry;
+    const replay = entry === undefined ? undefined : replayInput(entry);
+    if (replay?._tag === "Replayable") {
+      seeded = { policy: replay.policy, unseeded: replay.unseeded };
+      draft = replay.input;
+    } else {
+      seeded = undefined;
+    }
+    resourceText = resourceTextOf(draft);
+    pin();
+    retire();
+    run = { _tag: "Idle" };
+    commit();
+  };
+
   const session: SimulationSession = {
     subscribe: store.subscribe,
 
@@ -505,20 +567,10 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
 
     seed: (entry) => {
       if (entry === seedEntry) return;
-      seedEntry = entry;
-      const replay = entry === undefined ? undefined : replayInput(entry);
-      if (replay?._tag === "Replayable") {
-        seeded = { policy: replay.policy, unseeded: replay.unseeded };
-        draft = replay.input;
-      } else {
-        seeded = undefined;
-      }
-      resourceText = resourceTextOf(draft);
-      pin();
-      retire();
-      run = { _tag: "Idle" };
-      commit();
+      reseed(entry);
     },
+
+    replay: reseed,
 
     setPorts: (next) => {
       if (next === ports) return;
@@ -552,11 +604,17 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
       commit();
     },
 
-    edit: (next) => {
-      if (next === draft) return;
-      if (next.resource !== draft.resource) resourceText = resourceTextOf(next);
-      draft = next;
-      commit();
+    edit,
+
+    addChip: (field, text) => {
+      const added = fieldOps(field).addChip(draft, text);
+      if (added._tag === "Refused") return added;
+      edit(added.value);
+      return { _tag: "Ok" };
+    },
+
+    removeChip: (field, index) => {
+      edit(fieldOps(field).removeChip(draft, index));
     },
 
     editResourceText: (text) => {

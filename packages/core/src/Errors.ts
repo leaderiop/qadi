@@ -100,8 +100,8 @@ export class RelationshipResolveError extends Schema.TaggedError<RelationshipRes
 /**
  * A policy needing `resource.id` was evaluated without one.
  *
- * Raised by `HasRelationship`, and by `HasActed`/`HasNotActed` under
- * `scope: "resource"`. One error rather than two: it is the same failure with
+ * Raised by `HasRelationship`, and by `HasActed`/`HasNotActed`/`HasSignature`
+ * under `scope: "Resource"`. One error rather than two: it is the same failure with
  * the same diagnosis, and a second code meaning the same thing would be worse
  * than a field named for the more general case.
  */
@@ -352,6 +352,12 @@ export class PredicateNotRenderable extends Data.TaggedError("PredicateNotRender
  * every wrapped call deadlocks forever rather than failing. Caught here, at
  * layer construction, rather than left to manifest as an unexplained hang the
  * first time a caller reaches the wrapped port.
+ *
+ * Typed, where a bad `decisionCacheLayer({ capacity })` or
+ * `makeDecisionLog({ capacity })` is a defect (BEH-QD-166): the `…Bounded`
+ * wrappers are derived for every port by `PortDerivation.ts`, whose layers
+ * already carry an error channel, so a composition can report this one; those
+ * two check a constant the caller wrote, which no caller recovers from.
  */
 export class InvalidBoundedPermits extends Data.TaggedError("InvalidBoundedPermits")<{
   readonly permits: number;

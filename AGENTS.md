@@ -428,7 +428,36 @@ these errors legitimately (each port's description, `PortAccess.ts`); what it
 guards is how a test describes a broken port. A file on the list needs the
 error as a value (an instance-identity check, a codec round trip, a cause
 matrix with no port) or a double a script cannot express (a latch), with its
-exact line count and reason, checked in both directions.
+exact line count and reason, checked in both directions. The audit ports'
+errors (`AuditWriteError`, `AuditStagingError`) are counted too, their class
+names read from `AuditTrailPort.ts` and `AuditStagingPort.ts`: a broken audit
+store is `AuditTrailPortTest({ write: () => AuditPortReply.Fail({ cause }) }).layer`
+(or `AuditStagingPortTest({ stage, commit })`), and the double builds the
+error. A hand-built audit port layer in a test (`Layer.succeed(AuditTrailPort, …)`,
+`AuditStagingPort.of(…)`) is a separate budget, `AUDIT_HAND_LAYER_BUDGET`, with
+the same scope, checked in both directions and empty today, because the audit
+ports stay out of core's registry and their doubles are scripted by
+`AuditPortReply` rather than `scriptedPort` (ARCH-62, ADR-QD-126).
+
+**A metric is declared once, listed once, and read through its export; a
+literal id in a test is a seventh budget, `METRIC_ID_LITERAL_BUDGET`**
+(ADR-QD-123, which generalises ADR-QD-052's registry-key rule from hydration to
+every `qadi_*` metric). Every `Metric.counter/frequency/histogram(...)` in
+`packages/*/src` is a module-scope `const` with its `"qadi_…"` id on the
+declaration, declared once, and exported when it is `@qadi/core`'s
+(`[metric-declaration]`; an untagged base exported as its tagged series is the
+one reviewed exception, `METRIC_BASE_UNEXPORTED`). A test, feature or example
+never declares one: a reader that re-declares a metric reads zero forever,
+because the registry key includes the description. Each is a row in
+`spec/behaviors/25-inspection.md`'s "Every metric Qadi declares" table, which
+the gate checks against the declarations in both directions on id, type and file
+(`[metric-table]`). A test reads a metric with `Metric.value(decisionsTotal.Deny)`,
+never by finding an id in `Metric.snapshot`; an exact `"qadi_…"` literal outside
+a `describe`/`it` title is a pin or a snapshot-golden row, counted per file in
+`METRIC_ID_LITERAL_BUDGET` and checked in both directions
+(`[metric-id-literal]`). Test-scope, like `PORT_DOUBLE_BUDGET`. A tagged counter
+is exported as its series (a record keyed by the closed label), never as the
+untagged base, which reads zero.
 
 ## 7. Schema
 
@@ -505,6 +534,12 @@ behavior means updating the behavior doc, the invariant, and the traceability
 matrix in the same change. TypeScript blocks in `spec/behaviors/*.md` are
 extracted and type-checked by the merge gate — documentation that does not compile is a
 build failure.
+
+A placeholder id (`ADR-QD-NEXT`, `CCR-QD-NEXT`, `BEH-QD-NEXT`, `INV-QD-NEXT`, suffixed
+forms included) in shipped source, a test, a test title or a BDD scenario is refused by
+`scripts/check-house-style.mjs`'s `[no-numbering-placeholder]` rule (ARCH-61, CCR-QD-403):
+reserve the number with `scripts/next-id.mjs` before writing it. Change history in `spec/`
+that quotes an old placeholder is exempt (§15).
 
 ## 12. Specification code fences
 

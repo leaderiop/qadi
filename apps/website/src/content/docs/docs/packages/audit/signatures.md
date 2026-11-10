@@ -144,7 +144,8 @@ const approve = permission("doc", "approve");
 // A real port runs the signing ceremony. This one returns what it was asked for.
 declare const port: SignatureCapturePortShape;
 
-// SignatureLedgerTest is in-memory; a deployment implements SignatureLedgerShape over its store.
+// SignatureLedgerTest is in-memory; a deployment implements append/entriesAt over its store
+// and checks it with checkSignatureLedger.
 const { ledger } = SignatureLedgerTest();
 
 const services = Layer.mergeAll(
@@ -170,6 +171,60 @@ though the duty were met. A `capture` that normalises `meaning` is therefore
 refused. If your e-signature system is itself your `SignatureHistory`, skip the
 ledger: `capture` then must persist where `SignatureHistory` reads, keyed by the
 request's `signerId` and `resourceId`.
+
+A discharge whose question has a resource with no string `id` (numeric, an object,
+or a resource with no `id` at all) fails with `SignatureCaptureError` before
+`capture` is called, and nothing is recorded: such a signature could only be stored
+subject-wide, where a `scope: "Any"` check would find it for every resource. A
+question with no resource at all still records subject-wide. `scope: "Any"` on a
+signature reads the signatures on file subject-wide, recorded for **no** resource; it
+is not the "ever, on any resource" that `hasActed`'s `"Any"` means.
+
+### Implementing a ledger over your store
+
+A ledger is a keyed store. `SignatureLedgerShape` is `append(key, entry)` and
+`entriesAt(key)`, where `key` is an opaque `SignatureLedgerKey` that only
+`ledgerKeyOf` mints. Your whole obligation is equality on that string: return the
+entries appended under exactly `key`, byte for byte. There is no resource column to
+get wrong and no query to write, so the "optional filter"
+(`resource_id = ? OR ? IS NULL`) and "null is a wildcard" mistakes cannot be
+expressed. `signatureHistoryFromLedger` derives the exact-pair read itself, and fails
+the read as `SignatureHistoryUnavailable` (cause `SignatureLedgerReadError`) if your
+store answers an entry stored under another key.
+
+What a type cannot rule out is your store's collation: case folding, trailing-space
+trimming (`PAD SPACE`) and Unicode normalisation each make two distinct keys equal.
+Store the key in a binary-collated column and run `checkSignatureLedger` against it
+in your own test suite. It appends a fixed table of adversarial pairs, reads each
+back and returns the violations as data: `Foreign` when a key answered a row written
+under another, `Missing` when it lost one. Expect an empty list. A store failure fails
+the check rather than being reported as a violation. Pass a `namespace` to keep its
+rows apart from yours in a shared table; it is a test aid, and nothing runs it for
+you. The key is a persisted format, `[1,"alice","doc-1"]`, and is frozen: do not
+re-derive it yourself.
+
+```typescript
+import * as Effect from "effect/Effect";
+import { checkSignatureLedger } from "@qadi/audit";
+import type { SignatureLedgerEntry, SignatureLedgerKey, SignatureLedgerShape } from "@qadi/audit";
+
+const rows = new Map<SignatureLedgerKey, Array<SignatureLedgerEntry>>();
+const ledger: SignatureLedgerShape = {
+  name: "map-ledger",
+  append: (key, entry) =>
+    Effect.sync(() => {
+      rows.set(key, [...(rows.get(key) ?? []), entry]);
+    }),
+  entriesAt: (key) => Effect.sync(() => [...(rows.get(key) ?? [])]),
+};
+
+// An empty list means the store keeps every key apart.
+export const violations = checkSignatureLedger(ledger, { namespace: "ci-run-1" });
+```
+
+If your e-signature system is itself your `SignatureHistory`, run
+`checkSignatureHistoryScoping` over it instead: it seeds the same table through a
+function you supply and queries every pair.
 
 ## No default ships
 

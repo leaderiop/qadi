@@ -10,10 +10,16 @@
  * a **failed** evaluation has no tree at all, and a **hydrated** decision may
  * carry a reduced one. Both say so in words.
  */
-import type { FC } from "react";
-import { isAllowed } from "@qadi/core";
-import type { Allow } from "@qadi/core";
-import { inspectEntry, isTruncated, type InspectNode } from "../model/Inspect.ts";
+import type { FC, ReactNode } from "react";
+import * as Match from "effect/Match";
+import type { EvaluationError, Obligation } from "@qadi/core";
+import {
+  isTruncated,
+  readOutcome,
+  type InspectNode,
+  type ObligationState,
+  type RecordOutcome,
+} from "../model/Inspect.ts";
 import type { Selection } from "../model/Selection.ts";
 import type { TimelineDecision, TimelineEntry, TimelineOrphan } from "../model/Timeline.ts";
 import { verdictOf } from "../model/Verdict.ts";
@@ -21,20 +27,6 @@ import { button, colors, heading, muted, panel } from "./theme.ts";
 import { FieldsPanel, ObligationList } from "./DecisionPanels.tsx";
 import { PolicyTree } from "./PolicyTree.tsx";
 import { EnvironmentTag, VerdictTag } from "./VerdictTag.tsx";
-
-/**
- * The `Allow` behind a row, when there is one.
- *
- * `Deny` carries neither `visibleFields` nor `obligations` — a denial permits
- * nothing, so it has no field set to narrow and no duty to attach — and a
- * `Failed` outcome carries no decision at all. Narrowing once here keeps three
- * panels from each re-deriving it.
- */
-const allowOf = (entry: TimelineDecision): Allow | undefined => {
-  const outcome = entry.decision.outcome;
-  if (outcome._tag !== "Decided") return undefined;
-  return isAllowed(outcome.decision) ? outcome.decision : undefined;
-};
 
 export interface InspectorProps {
   readonly selection: Selection;
@@ -131,24 +123,44 @@ const OrphanPanel: FC<{ readonly entry: TimelineOrphan }> = ({ entry }) => {
   );
 };
 
-const DecisionPanels: FC<{ readonly entry: TimelineDecision }> = ({ entry }) => {
-  const outcome = entry.decision.outcome;
-  const tree = inspectEntry(entry);
-  const allow = allowOf(entry);
+const DecisionPanels: FC<{ readonly entry: TimelineDecision }> = ({ entry }) => (
+  <>
+    {outcomePanels(readOutcome(entry.decision.policy, entry.decision.outcome, entry.obligations))}
+    <CachePanel entry={entry} />
+  </>
+);
 
-  return (
-    <>
-      {outcome._tag === "Failed" ? <FailurePanel entry={entry} /> : null}
-      {tree === undefined ? null : <ExplanationPanel tree={tree} />}
-      {/* Only an allow has a field set or duties: `Deny` carries neither, and
-          the type says so — a denial permits nothing, so there is nothing for
-          it to narrow and nothing it can oblige. */}
-      {allow === undefined ? null : <FieldsPanel fields={allow.visibleFields} />}
-      <ObligationsPanel entry={entry} />
-      <CachePanel entry={entry} />
-    </>
-  );
-};
+/**
+ * The panels each outcome earns, in order.
+ *
+ * Only an allow has a field set or duties: `Deny` carries neither — a denial
+ * permits nothing, so there is nothing for it to narrow and nothing it can
+ * oblige — and a failure has no tree at all. A gate report is shown whatever
+ * the outcome, because one that arrived is a fact.
+ */
+const outcomePanels: (self: RecordOutcome) => ReactNode = Match.type<RecordOutcome>().pipe(
+  Match.tagsExhaustive({
+    Failed: ({ error, obligation }) => (
+      <>
+        <FailurePanel error={error} />
+        <ObligationsPanel duties={[]} obligation={obligation} />
+      </>
+    ),
+    Denied: ({ tree, obligation }) => (
+      <>
+        <ExplanationPanel tree={tree} />
+        <ObligationsPanel duties={[]} obligation={obligation} />
+      </>
+    ),
+    Allowed: ({ tree, fields, duties, obligation }) => (
+      <>
+        <ExplanationPanel tree={tree} />
+        <FieldsPanel fields={fields} />
+        <ObligationsPanel duties={duties} obligation={obligation} />
+      </>
+    ),
+  }),
+);
 
 /**
  * The error panel, which replaces the requirement tree rather than sitting
@@ -158,21 +170,16 @@ const DecisionPanels: FC<{ readonly entry: TimelineDecision }> = ({ entry }) => 
  * and rendering an empty tree here would be the inversion INV-QD-006 exists to
  * prevent.
  */
-const FailurePanel: FC<{ readonly entry: TimelineDecision }> = ({ entry }) => {
-  const outcome = entry.decision.outcome;
-  if (outcome._tag !== "Failed") return null;
-
-  return (
-    <section style={{ ...panel, borderColor: colors.error }} data-testid="qadi-failure">
-      <div style={{ ...heading, color: colors.error }}>error — no verdict was reached</div>
-      <div data-testid="qadi-failure-tag">{outcome.error._tag}</div>
-      <p style={{ ...muted, marginTop: 6, marginBottom: 0 }}>
-        A lookup this evaluation depended on failed, so nothing was decided. This
-        is not a denial.
-      </p>
-    </section>
-  );
-};
+const FailurePanel: FC<{ readonly error: EvaluationError }> = ({ error }) => (
+  <section style={{ ...panel, borderColor: colors.error }} data-testid="qadi-failure">
+    <div style={{ ...heading, color: colors.error }}>error — no verdict was reached</div>
+    <div data-testid="qadi-failure-tag">{error._tag}</div>
+    <p style={{ ...muted, marginTop: 6, marginBottom: 0 }}>
+      A lookup this evaluation depended on failed, so nothing was decided. This
+      is not a denial.
+    </p>
+  </section>
+);
 
 const ExplanationPanel: FC<{ readonly tree: InspectNode }> = ({ tree }) => (
   <section style={panel} data-testid="qadi-explanation">
@@ -200,24 +207,34 @@ const ExplanationPanel: FC<{ readonly tree: InspectNode }> = ({ tree }) => (
  * duty was met. Showing a per-duty tick would
  * be an invention.
  */
-const ObligationsPanel: FC<{ readonly entry: TimelineDecision }> = ({ entry }) => {
-  const duties = allowOf(entry)?.obligations ?? [];
-  if (duties.length === 0 && entry.obligations === undefined) return null;
+const ObligationsPanel: FC<{
+  readonly duties: ReadonlyArray<Obligation>;
+  readonly obligation: ObligationState;
+}> = ({ duties, obligation }) => {
+  const line = obligationLine(obligation);
+  if (line === undefined) return null;
 
   return (
     <section style={panel} data-testid="qadi-obligations">
       <div style={heading}>obligations</div>
       <ObligationList duties={duties} />
       <p style={{ ...muted, marginBottom: 0, marginTop: 6 }} data-testid="qadi-obligation-state">
-        {entry.obligations === undefined
-          ? duties.length === 0
-            ? "None owed."
-            : "Outcome not yet reported. An undischarged binding duty turns this allow into a refusal at the enforcement boundary."
-          : `Gate outcome: ${entry.obligations.outcome}. Per-duty state is not observable — a handler receives the whole set and reports once.`}
+        {line}
       </p>
     </section>
   );
 };
+
+/** The Inspector's sentence for each obligation state; none owed has no panel to put one in. */
+const obligationLine: (self: ObligationState) => string | undefined = Match.type<ObligationState>().pipe(
+  Match.tagsExhaustive({
+    NoneOwed: () => undefined,
+    Unreported: () =>
+      "Outcome not yet reported. An undischarged binding duty turns this allow into a refusal at the enforcement boundary.",
+    Reported: ({ outcome }) =>
+      `Gate outcome: ${outcome}. Per-duty state is not observable — a handler receives the whole set and reports once.`,
+  }),
+);
 
 /**
  * Absent and `"miss"` are different facts and are worded differently.

@@ -24,6 +24,8 @@
  */
 import type { DecisionOutcome, Policy } from "@qadi/core";
 import { inspect, isTruncated } from "./Inspect.ts";
+import type { SimulationField } from "./SimulationFields.ts";
+import { FIELD_ORDER, SIMULATION_FIELDS, unseededReason } from "./SimulationFields.ts";
 import type { SimulationInput } from "./SimulationInput.ts";
 import type { TimelineEntry } from "./Timeline.ts";
 import type { Comparison } from "./WhatIf.ts";
@@ -31,34 +33,27 @@ import { compareOutcomes, isChanged } from "./WhatIf.ts";
 
 /** A part of the form a replay leaves for the reviewer, and why it had to. */
 export interface UnseededField {
+  /** The field, as a host can key on it without reading prose. */
+  readonly key: SimulationField;
+  /** The caption the form shows that field under. */
   readonly field: string;
   readonly reason: string;
 }
-
-/**
- * Named once and shared, because these two sentences are the whole of what
- * replay cannot do and repeating them per field would let them drift apart.
- */
-const NOTHING_BUT_AN_ID = "a record names the subject by id and carries nothing else about them";
-const ANSWERS_NOT_FIXTURES =
-  "a record carries what the ports answered inside its trace, never as fixtures a rerun could use";
 
 /**
  * Everything a replayed row leaves blank.
  *
  * Per field rather than in two sentences, so a form can badge each section it
  * could not fill rather than printing one paragraph nobody maps back to the
- * inputs in front of them.
+ * inputs in front of them. Derived from the field table (`SimulationFields.ts`):
+ * the name is the label the form shows, the order is the form's, and the reason
+ * is selected by who answers the field.
  */
-export const unseededByReplay: ReadonlyArray<UnseededField> = [
-  { field: "roles", reason: NOTHING_BUT_AN_ID },
-  { field: "permissions", reason: NOTHING_BUT_AN_ID },
-  { field: "subject attributes", reason: NOTHING_BUT_AN_ID },
-  { field: "resolver attributes", reason: ANSWERS_NOT_FIXTURES },
-  { field: "relationships", reason: ANSWERS_NOT_FIXTURES },
-  { field: "history", reason: ANSWERS_NOT_FIXTURES },
-  { field: "signatures", reason: ANSWERS_NOT_FIXTURES },
-];
+export const unseededByReplay: ReadonlyArray<UnseededField> = FIELD_ORDER.map((key) => ({
+  key,
+  field: SIMULATION_FIELDS[key].label,
+  reason: unseededReason(SIMULATION_FIELDS[key].answeredBy),
+}));
 
 export type Replay =
   | {

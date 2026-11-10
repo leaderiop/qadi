@@ -21,8 +21,11 @@ import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import * as TestClock from "effect/testing/TestClock";
 import type * as Tracer from "effect/Tracer";
+import { makeSubject } from "../src/AuthSubject.ts";
+import { CustomPredicate, customPredicatePort } from "../src/CustomPredicate.ts";
 import type { PortDescription } from "../src/PortDescription.ts";
-import { PortReply } from "../src/PortDescription.ts";
+import { describeKeyRefusal, PortReply } from "../src/PortDescription.ts";
+import { canonicalKey } from "../src/PortKey.ts";
 import {
   boundedPort,
   nonePort,
@@ -96,7 +99,7 @@ const probePort: PortDescription<
   make: (name, call) => ({ name, ask: call }),
   failure: ([, what], cause) => new ProbeError({ what, cause }),
   defect: ([, what], cause) => new ProbeError({ what, cause: Cause.squash(cause) }),
-  key: ([who, what]) => JSON.stringify([who, what]),
+  key: ([who, what]) => canonicalKey([who, what]),
   none: { name: "ProbeNone", answer: undefined },
 };
 
@@ -357,6 +360,28 @@ describe("replyTable", () => {
       );
       // Same attribute, another subject: a different key, so the default.
       assert.deepStrictEqual(yield* ask("bob", "level"), Exit.succeed(undefined));
+    }));
+
+  it.effect("fails a request with no key with the port's own error, and never answers it from an entry", () =>
+    Effect.gen(function* () {
+      const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
+      const params = () => true;
+      const refused = customPredicatePort.key(["isOwner", alice, undefined, params]);
+      assert.isTrue(Result.isFailure(refused));
+      if (Result.isSuccess(refused)) return;
+      // The entry is built from the very request that is asked: a table that
+      // keyed it anyway would answer `true`, and an unkeyed request would
+      // otherwise fall through to the `false` default, which `not(...)` grants.
+      const double = scriptedPort(
+        customPredicatePort,
+        replyTable(customPredicatePort, [[["isOwner", alice, undefined, params], PortReply.answer(true)]]),
+      );
+      const error = yield* Effect.flip(
+        CustomPredicate.evaluate("isOwner", alice, undefined, params).pipe(Effect.provide(double.layer)),
+      );
+      assert.strictEqual(error._tag, "CustomPredicateError");
+      assert.strictEqual(error.name, "isOwner");
+      assert.strictEqual(error.reason, describeKeyRefusal(refused.failure));
     }));
 });
 

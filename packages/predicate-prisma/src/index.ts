@@ -29,6 +29,7 @@ import type {
   RenderableNode,
   RenderRules,
 } from "@qadi/core";
+import { compiledTotal } from "./CompileMetrics.ts";
 
 export { PredicateNotRenderable } from "@qadi/core";
 
@@ -384,7 +385,7 @@ const renderNode: (node: RenderableNode) => PrismaWhereInput = Match.type<Render
       const parts = n.parts.map(renderNode);
       if (parts.some(isVacuousFalse)) return { OR: [] };
       const nonVacuousTrue = parts.filter((part) => !isVacuousTrue(part));
-      return nonVacuousTrue.length === 0 ? { AND: [] } : { AND: nonVacuousTrue };
+      return { AND: nonVacuousTrue };
     },
 
     // The `Any` mirror of `All` above: a genuinely-true child forces the whole
@@ -394,7 +395,7 @@ const renderNode: (node: RenderableNode) => PrismaWhereInput = Match.type<Render
       const parts = n.parts.map(renderNode);
       if (parts.some(isVacuousTrue)) return { AND: [] };
       const nonVacuousFalse = parts.filter((part) => !isVacuousFalse(part));
-      return nonVacuousFalse.length === 0 ? { OR: [] } : { OR: nonVacuousFalse };
+      return { OR: nonVacuousFalse };
     },
 
     // No double-negation elimination — `toRenderable` preserves structure and
@@ -413,20 +414,6 @@ const renderNode: (node: RenderableNode) => PrismaWhereInput = Match.type<Render
     },
   }),
 );
-
-/**
- * Compile volume and refusal rate, by outcome. Declared once, module scope —
- * mirrors `@qadi/predicate-sql`'s own precedent, itself mirroring
- * `@qadi/core`'s `Predicate.ts`. Effect's `Metric` registry keys on
- * `type:id:description` and memoizes per metric *object*; declaring either
- * inside `compilePrismaWhere`'s body would either fail to register the way
- * this does, or create an unscoped object per call nothing can aggregate.
- */
-const compiledTotal = Metric.counter("qadi_predicate_prisma_compiled_total", {
-  description: "Predicates compiled by @qadi/predicate-prisma's compilePrismaWhere, tagged by outcome.",
-});
-const compiledSucceededTotal = Metric.withAttributes(compiledTotal, { outcome: "compiled" });
-const compiledRefusedTotal = Metric.withAttributes(compiledTotal, { outcome: "refused" });
 
 /**
  * Compiles a `Predicate` into a Prisma `WhereInput`.
@@ -457,9 +444,9 @@ export const compilePrismaWhere = Effect.fn("qadi.predicatePrisma.compilePrismaW
       finiteExclusion: "Inexpressible",
     };
     const node = yield* toRenderable(predicate, rules).pipe(
-      Effect.tapError(() => Metric.update(compiledRefusedTotal, 1)),
+      Effect.tapError(() => Metric.update(compiledTotal.refused, 1)),
     );
-    yield* Metric.update(compiledSucceededTotal, 1);
+    yield* Metric.update(compiledTotal.compiled, 1);
     return renderNode(node);
   },
 );

@@ -15,30 +15,50 @@
  * [INV-QD-038](../../../../spec/invariants.md#inv-qd-038-provenance-and-flattening-agree) —
  * so a screen built on it cannot show a different set from the one that decides.
  */
-import { flattenPermissions, permissionKey, permissionProvenance } from "@qadi/core";
+import {
+  flattenPermissions,
+  permissionKey,
+  permissionProvenance,
+  RoleStep,
+  roleWalk,
+} from "@qadi/core";
 import type { PermissionGrant, PermissionKey, Role } from "@qadi/core";
 
-export interface RoleNode {
+/** One row of the inheritance tree: one step of the role walk, in walk order. */
+export interface RoleRow {
   readonly name: string;
-  /** Address from the root, so a React key is stable and a diamond's arms differ. */
-  readonly path: string;
+  /**
+   * This row's step in the role walk: unique in the tree and stable for one
+   * role, so it is the React key. An index rather than an address from the root,
+   * whose total size is quadratic in depth.
+   */
+  readonly index: number;
+  /** Edges from the queried role, which is at depth 0: the row's indent. */
+  readonly depth: number;
   /** Permissions this role's own `permissions` list contains. */
   readonly own: ReadonlyArray<PermissionKey>;
-  readonly children: ReadonlyArray<RoleNode>;
   /**
-   * This role was already reached by an earlier path.
+   * This role object was already reached by an earlier path.
    *
-   * A diamond's second arm. The structure is still shown — hiding it would
-   * misrepresent the catalogue — but the permissions beneath it were already
-   * counted once, and a reader adding up the tinted rows would otherwise
-   * double-count. `permissionProvenance` resolves the same way: first path wins.
+   * A diamond's second arm: the edge is shown, as a leaf, but the permissions
+   * beneath it were already counted once, and a reader adding up the tinted rows
+   * would otherwise double-count. Keyed on identity: a distinct role that only
+   * shares a name is not repeated. `permissionProvenance` resolves the same way:
+   * first path wins.
    */
   readonly repeated: boolean;
+  /** For a repeated row, the `index` of the role's first occurrence, where its subtree is shown. */
+  readonly first: number | undefined;
 }
 
 export interface RoleSummary {
   readonly role: Role;
-  readonly tree: RoleNode;
+  /**
+   * The tree as a flat list, a parent before its children, each row carrying its
+   * depth. Flat so that a screen draws siblings rather than one element nested
+   * per level, which a deep catalogue overflowed.
+   */
+  readonly rows: ReadonlyArray<RoleRow>;
   /** Every permission with the role that granted it and the path walked. */
   readonly grants: ReadonlyArray<PermissionGrant>;
   /** Granted by this role's own list rather than inherited. */
@@ -54,7 +74,7 @@ export const roleSummary = (self: Role): RoleSummary => {
 
   return {
     role: self,
-    tree: nodeOf(self, "$", new Set()),
+    rows: rowsOf(self),
     grants,
     ownCount,
     inheritedCount: grants.length - ownCount,
@@ -74,20 +94,28 @@ export const grantPath = (grant: PermissionGrant): string =>
  */
 export const decidingSet = (self: Role): ReadonlySet<PermissionKey> => flattenPermissions(self);
 
-const nodeOf = (self: Role, path: string, seen: Set<string>): RoleNode => {
-  const repeated = seen.has(self.name);
-  seen.add(self.name);
-
-  return {
-    name: self.name,
-    path,
-    own: self.permissions.map(permissionKey),
-    // A repeated role's subtree is still walked: the shape is the catalogue's,
-    // and eliding it would show a reader a graph they do not have.
-    children: self.inherits.map((parent, index) => nodeOf(parent, `${path}.${index}`, seen)),
-    repeated,
-  };
-};
+/**
+ * The tree, one row per step of `roleWalk`, which is already in pre-order with
+ * depths, so no tree is built and nothing recurses.
+ *
+ * A repeated role is a leaf that points at its first occurrence rather than a
+ * second copy of its subtree (decision 16-01 T1 = A). Every edge of the graph is
+ * still drawn, and the subtree is shown once, at the first occurrence, the same
+ * rule `permissionProvenance` follows. Re-walking it instead grew about 2^k
+ * rows for k stacked diamonds.
+ */
+const rowsOf = (self: Role): ReadonlyArray<RoleRow> =>
+  roleWalk(self).map((step) => {
+    const first = RoleStep.$match(step, { Visit: () => undefined, Revisit: (s) => s.first });
+    return {
+      name: step.role.name,
+      index: step.index,
+      depth: step.depth,
+      own: step.role.permissions.map(permissionKey),
+      repeated: first !== undefined,
+      first,
+    };
+  });
 
 /** Whether two roles are the same role: by name, which is what a host rebuilding its list keeps. */
 export const sameRole = (a: Role, b: Role): boolean => a.name === b.name;

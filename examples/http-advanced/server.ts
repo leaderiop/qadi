@@ -17,14 +17,16 @@
  *     `loadResource`, so the policy is evaluated against the *real* resource
  *     and the handler receives the `Authorized` witness. A resource-scoped
  *     re-check inside the handler via `guard` is defense in depth.
- *  4. The `/__decisions` SSE route serving a decision log — its backlog, a
- *     `synced` marker, then live frames, resumable with `Last-Event-ID` — with
- *     `reauth` — the stream re-extracts the subject and re-checks the policy on
- *     an interval, so a revocation mid-stream ends the connection.
- *  5. The `/__permissions` registry route, served **behind a policy**, merging
- *     endpoint annotations and bare routes into one audit topology. Both
- *     register because they guard: `guardApi` when its layer is built,
- *     `addGuardedRoute` when its route is.
+ *  4. The `/devtools/__decisions` SSE route serving a decision log — its
+ *     backlog, a `synced` marker, then live frames, resumable with
+ *     `Last-Event-ID` — with `reauth` — the stream re-extracts the subject and
+ *     re-checks the policy on an interval, so a revocation mid-stream ends the
+ *     connection. Mounted under the `/devtools` prefix, its path built by
+ *     `devtoolsPath`, the same rule a client builds its URL with.
+ *  5. The `/devtools/__permissions` registry route, served **behind a policy**,
+ *     under the same prefix, merging endpoint annotations and bare routes into
+ *     one audit topology. Both register because they guard: `guardApi` when
+ *     its layer is built, `addGuardedRoute` when its route is.
  *  6. The 403/502 split at the wire: an unknown token resolves to `anonymous`
  *     (a denial, 403); a broken credential store fails with
  *     `SubjectExtractionFailed` (an outage, 502 — never a silent lockout).
@@ -67,11 +69,15 @@ import {
   SubjectExtractionFailed,
   addGuardedRoute,
   decisionStreamRoute,
+  devtoolsPath,
   guardApi,
   permissionRegistryRoute,
   subjectExtractorBearer,
 } from "@qadi/http";
 import { Api, readPermission, readPolicy } from "./api.ts";
+
+// Where the devtools routes are mounted; `devtoolsPath` gives the path each answers at.
+const devtoolsPrefix = "/devtools";
 
 // ---------------------------------------------------------------------------
 // Policies and permissions
@@ -132,9 +138,10 @@ const lookupSubject = (token: string): Effect.Effect<AuthSubject, SubjectExtract
 
 // An endpoint annotated with neither a permission requirement nor a public
 // marker — the wiring mistake that used to serve itself unguarded — is
-// refused instead:
+// refused when the layer is built, naming it, instead:
 //
-//   HttpApiEndpoint.get("forgotten", "/documents/forgotten")  → 500 + log
+//   HttpApiEndpoint.get("forgotten", "/documents/forgotten")  → guardApi refuses to build
+//                                                               (AccessNotDeclared)
 
 const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
   handlers
@@ -229,18 +236,20 @@ const EvaluationServices = Layer.merge(
 
 const main = Effect.gen(function* () {
   // One decision log is the whole pipeline: evaluations record into
-  // `log.layer`'s `DecisionSink`, and `/__decisions` serves the log — what it
+  // `log.layer`'s `DecisionSink`, and the stream route serves the log — what it
   // already holds, then what it decides next, each frame labelled "Server".
   const log = yield* makeDecisionLog({ environment: "Server", capacity: 1024 });
 
+  // Two guard pairs, so the per-route constructors rather than `devtoolsRoutes`'s one guard.
   const DecisionStream = decisionStreamRoute(readPermission, readPolicy, log, {
+    prefix: devtoolsPrefix,
     // Mid-stream re-authorization: every 30s the route re-extracts the
     // subject from the same request and re-checks the policy. A revocation
     // ends the stream; a broken credential store ends it too.
     reauth: { interval: "30 seconds" },
   });
 
-  const RegistryRoute = permissionRegistryRoute(adminPermission, adminPolicy);
+  const RegistryRoute = permissionRegistryRoute(adminPermission, adminPolicy, { prefix: devtoolsPrefix });
 
   const RoutesLayer = Layer.mergeAll(
     ApiRoutes,
@@ -252,7 +261,7 @@ const main = Effect.gen(function* () {
 
   // `guardApi(Api)` (in `ApiRoutes`) walks the `HttpApi` once, when it is built,
   // and pushes every `RequiredPermission` annotation into the registry — the
-  // same store `addGuardedRoute` writes to — so `/__permissions` reports both
+  // same store `addGuardedRoute` writes to — so the registry route reports both
   // sources. The registry itself is just the store.
   const WithRegistry = RoutesLayer.pipe(Layer.provideMerge(PermissionRegistryLive));
   const WithSubjects = WithRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
@@ -306,5 +315,7 @@ Effect.runPromise(main).then(({ handler }) => {
     }
   }).listen(port, () => {
     console.log(`listening on http://localhost:${port}`);
+    console.log(`decision stream: http://localhost:${port}${devtoolsPath("decisions", devtoolsPrefix)}`);
+    console.log(`permission registry: http://localhost:${port}${devtoolsPath("permissions", devtoolsPrefix)}`);
   });
 });

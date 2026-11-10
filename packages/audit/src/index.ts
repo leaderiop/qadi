@@ -1,6 +1,7 @@
 export * from "./AuditArchive.ts";
 export * from "./AuditDecisionSinkLive.ts";
 export * from "./AuditEntry.ts";
+export * from "./AuditPortReply.ts";
 export * from "./AuditStagingPort.ts";
 export * from "./AuditStagingPortTest.ts";
 export * from "./AuditTrailPort.ts";
@@ -10,4 +11,5 @@ export * from "./Retention.ts";
 export * from "./SequenceIntegrity.ts";
 export * from "./SignatureCapturePort.ts";
 export * from "./SignatureLedger.ts";
+export * from "./SignatureLedgerConformance.ts";
 export * from "./SignatureLedgerTest.ts";

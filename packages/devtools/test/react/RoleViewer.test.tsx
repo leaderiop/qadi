@@ -89,8 +89,15 @@ describe("the role viewer", () => {
       .filter((n) => n.getAttribute("data-repeated") === "true")
       .map((n) => n.getAttribute("data-role"));
 
-    assert.deepStrictEqual(repeated, ["viewer", "commenter"]);
-    assert.isNotNull(screen.getAllByTestId("qadi-role-repeated")[0]);
+    // A leaf pointing at the first occurrence: its subtree is shown once, there.
+    assert.deepStrictEqual(repeated, ["viewer"]);
+    // The marker names the row where the subtree is shown: the first `viewer`.
+    const first = screen.getByTestId("qadi-role-repeated").getAttribute("data-first");
+    const target = screen
+      .getAllByTestId("qadi-role-node")
+      .find((n) => n.getAttribute("data-index") === first);
+    assert.strictEqual(target?.getAttribute("data-role"), "viewer");
+    assert.strictEqual(target?.getAttribute("data-repeated"), "false");
   });
 
   // E3.9 — dropping is right; doing it silently was not.
@@ -131,6 +138,34 @@ describe("the role viewer", () => {
     assert.deepStrictEqual(screen.queryAllByTestId("qadi-grant"), []);
     const node = screen.getAllByTestId("qadi-role-node")[0] ?? fail();
     assert.strictEqual(within(node).queryByText(/own$/), null);
+  });
+});
+
+/** A chain `depth` roles long, built with a loop so the test itself cannot overflow. */
+const chainOf = (depth: number): Role => {
+  let current: Role = role({ name: "r0", permissions: [read] });
+  for (let i = 1; i < depth; i += 1) current = role({ name: `r${i}`, inherits: [current] });
+  return current;
+};
+
+describe("the role viewer on a deep catalogue", () => {
+  // ROLE-03 on screen: one element nested per level overflowed React's render
+  // and the browser's layout long before the model did.
+  it("a 20,000-deep chain renders", () => {
+    render(<RoleViewer choice={store([chainOf(20_000)])} />);
+
+    const nodes = screen.getAllByTestId("qadi-role-node");
+    assert.strictEqual(nodes.length, 20_000);
+    assert.strictEqual(nodes[0]?.getAttribute("data-role"), "r19999");
+    assert.strictEqual(nodes.at(-1)?.getAttribute("data-role"), "r0");
+  }, 60_000);
+
+  it("rows are siblings", () => {
+    render(<RoleViewer choice={store([editor])} />);
+
+    for (const node of screen.getAllByTestId("qadi-role-node")) {
+      assert.deepStrictEqual(within(node).queryAllByTestId("qadi-role-node"), [], node.getAttribute("data-role") ?? "");
+    }
   });
 });
 

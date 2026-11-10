@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as FastCheck from "fast-check";
 import type { Containment } from "../src/FieldPath.ts";
-import { compareFieldPaths, parseFieldPath, project } from "../src/FieldPath.ts";
+import { compareFieldPaths, parseFieldPath, project, shapeOf } from "../src/FieldPath.ts";
 
 /** Narrows a projected value so a deep assertion can walk into it without `as`. */
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -22,6 +22,22 @@ describe("parseFieldPath", () => {
 
   it("an empty spec is a single empty segment", () => {
     assert.deepStrictEqual(parseFieldPath(""), [""]);
+  });
+});
+
+describe("shapeOf", () => {
+  // Asserted directly: several mutations here survive through
+  // `compareFieldPaths`'s result alone (see the comment above `shapeOf`).
+  it("a trailing * is the path above it, reaching one level", () => {
+    assert.deepStrictEqual(shapeOf("a.b.*"), { path: ["a", "b"], reach: 1 });
+  });
+
+  it("a trailing ** is the path above it, reaching without bound", () => {
+    assert.deepStrictEqual(shapeOf("a.b.**"), { path: ["a", "b"], reach: Number.POSITIVE_INFINITY });
+  });
+
+  it("a literal terminal keeps its whole path, unbounded beneath itself", () => {
+    assert.deepStrictEqual(shapeOf("a.b"), { path: ["a", "b"], reach: Number.POSITIVE_INFINITY });
   });
 });
 

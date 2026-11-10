@@ -1,8 +1,11 @@
-import type { Decision, DenyingTrace, Policy, Resource } from "@qadi/core";
+import type { Decision, DehydrationDropReason, DenyingTrace, Policy, Resource } from "@qadi/core";
 import {
   Allow,
   Deny,
+  gte,
+  hasAttribute,
   hasPermission,
+  hasRelationship,
   hasRole,
   hydrationDehydratedTotal,
   hydrationDroppedTotal,
@@ -16,6 +19,8 @@ import * as Context from "effect/Context";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
+import { vi } from "vitest";
+import type { HydrationDrop } from "../src/DeveloperSignals.ts";
 import { dehydrateWith, hydrateWith, makeSeededQuestion } from "../src/HydrationEngine.ts";
 import type { DecisionEntry, HydrationMismatch, HydrationSeedLookup } from "../src/HydrationEngine.ts";
 import type { SeededDecision } from "../src/SeededDecision.ts";
@@ -178,19 +183,21 @@ describe("dehydrateWith and hydrateWith: both directions through the engine (ARC
   };
 
   it("keeps the first subject's entries, counts and reports the rest, and round-trips", () => {
-    const reported: Array<ReadonlyArray<DecisionEntry>> = [];
+    const reported: Array<HydrationDrop<DecisionEntry, DehydrationDropReason>> = [];
     const foreignBefore = foreignCount();
     const dehydratedBefore = dehydratedCount();
 
     const payload = dehydrateWith([own, ownDeny, foreign], {
-      onDropped: (entries) => reported.push(entries),
+      onDropped: (drop) => reported.push(drop),
     });
 
     assert.strictEqual(foreignCount() - foreignBefore, 1);
     assert.strictEqual(dehydratedCount() - dehydratedBefore, 2);
     assert.strictEqual(reported.length, 1);
-    assert.strictEqual(reported[0]?.length, 1);
-    assert.strictEqual(reported[0]?.[0], foreign);
+    assert.strictEqual(reported[0]?.reason, "ForeignSubject");
+    assert.strictEqual(reported[0]?.wholePayload, false);
+    assert.strictEqual(reported[0]?.entries.length, 1);
+    assert.strictEqual(reported[0]?.entries[0], foreign);
     assert.strictEqual(payload.version, 2);
     assert.strictEqual(payload.subjectId, "u1");
     assert.strictEqual(payload.entries.length, 2);
@@ -243,5 +250,160 @@ describe("dehydrateWith and hydrateWith: both directions through the engine (ARC
     assert.isTrue(seed instanceof SeededAllow);
     if (!(seed instanceof SeededAllow)) return;
     assert.strictEqual(seed.disclosure._tag, "Disclosed");
+  });
+});
+
+describe("a refused payload is always counted (INV-QD-045, ARCH-60)", () => {
+  const mismatchCount = () =>
+    hydrationDroppedTotal.valueUnsafe(registry).occurrences.get("PayloadSubjectMismatch") ?? 0;
+
+  it("a payload naming another subject with no entries adds exactly one PayloadSubjectMismatch", () => {
+    const drops: Array<unknown> = [];
+    const before = mismatchCount();
+    const pairs = [
+      ...hydrateWith(
+        () => Atom.make<SeededDecision | undefined>(undefined),
+        { version: 2, subjectId: "u2", entries: [] },
+        makeSubject({ id: "u1" }),
+        { onDropped: (drop) => drops.push(drop) },
+      ),
+    ];
+    assert.strictEqual(mismatchCount() - before, 1);
+    assert.strictEqual(pairs.length, 0);
+    assert.deepStrictEqual(drops, [{ reason: "PayloadSubjectMismatch", entries: [], wholePayload: true }]);
+  });
+});
+
+describe("a throwing reporter changes nothing (INT-04, ARCH-60)", () => {
+  const read = hasPermission(permission("doc", "read"));
+  const own: DecisionEntry = { policy: read, decision: serverAllow("u1", "e1") };
+  const foreign: DecisionEntry = { policy: read, decision: serverAllow("u2", "e3") };
+  const alice = makeSubject({ id: "u1" });
+  const boom = (): never => {
+    throw new Error("host boom");
+  };
+  const counts = () => ({
+    dehydrated: hydrationDehydratedTotal.valueUnsafe(registry).count,
+    seeded: hydrationSeededTotal.valueUnsafe(registry).count,
+    foreign: hydrationDroppedTotal.valueUnsafe(registry).occurrences.get("ForeignSubject") ?? 0,
+    undecodable: hydrationDroppedTotal.valueUnsafe(registry).occurrences.get("UndecodablePolicy") ?? 0,
+  });
+  const said = <A,>(act: () => A): { readonly value: A; readonly lines: ReadonlyArray<string> } => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const value = act();
+      return { value, lines: warn.mock.calls.map((call) => String(call[0])) };
+    } finally {
+      warn.mockRestore();
+    }
+  };
+  const threw =
+    "[qadi] the onDropped reporter you supplied threw (Error: host boom). The outcome it was " +
+    "told about stands — nothing was skipped, seeded differently or left uncounted. Fix the reporter.";
+
+  it("a throwing onDropped on hydrate still seeds the good entry and counts both", () => {
+    const shipped = dehydrateWith([own]);
+    const wire: unknown = JSON.parse(
+      JSON.stringify({
+        ...shipped,
+        entries: [...shipped.entries, { ...shipped.entries[0], policy: { _tag: "NotAPolicy" } }],
+      }),
+    );
+    const before = counts();
+    const { value: pairs, lines } = said(() => [
+      ...hydrateWith(() => Atom.make<SeededDecision | undefined>(undefined), wire, alice, { onDropped: boom }),
+    ]);
+    const after = counts();
+
+    assert.strictEqual(pairs.length, 1);
+    assert.strictEqual(after.seeded - before.seeded, 1);
+    assert.strictEqual(after.undecodable - before.undecodable, 1);
+    assert.deepStrictEqual(lines, [threw]);
+  });
+
+  it("a throwing onDropped on dehydrate still returns the payload and counts", () => {
+    const before = counts();
+    const { value: payload, lines } = said(() => dehydrateWith([own, foreign], { onDropped: boom }));
+    const after = counts();
+
+    assert.strictEqual(payload.entries.length, 1);
+    assert.strictEqual(payload.subjectId, "u1");
+    assert.strictEqual(after.foreign - before.foreign, 1);
+    assert.strictEqual(after.dehydrated - before.dehydrated, 1);
+    assert.deepStrictEqual(lines, [threw]);
+  });
+});
+
+describe("dehydrate never throws (INT-03)", () => {
+  // Three policies the public constructors accept and the policy schema does not:
+  // a non-finite matcher bound and a fractional relationship depth. Each used to
+  // throw `SchemaError` out of `dehydrateDecisions` on a server's render path.
+  const unencodable: ReadonlyArray<readonly [string, Policy]> = [
+    ["gte(-Infinity)", hasAttribute("age", gte(Number.NEGATIVE_INFINITY))],
+    ["gte(NaN)", hasAttribute("age", gte(Number.NaN))],
+    ["hasRelationship(…, { depth: 1.5 })", hasRelationship("owner", { depth: 1.5 })],
+  ];
+  const read = hasPermission(permission("doc", "read"));
+  const own: DecisionEntry = { policy: read, decision: serverAllow("u1", "e1") };
+  const foreign: DecisionEntry = { policy: read, decision: serverAllow("u2", "e3") };
+  const counts = () => ({
+    dehydrated: hydrationDehydratedTotal.valueUnsafe(registry).count,
+    foreign: hydrationDroppedTotal.valueUnsafe(registry).occurrences.get("ForeignSubject") ?? 0,
+    unencodable: hydrationDroppedTotal.valueUnsafe(registry).occurrences.get("UnencodablePolicy") ?? 0,
+  });
+  const said = <A,>(act: () => A): { readonly value: A; readonly lines: ReadonlyArray<string> } => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const value = act();
+      return { value, lines: warn.mock.calls.map((call) => String(call[0])) };
+    } finally {
+      warn.mockRestore();
+    }
+  };
+
+  for (const [name, policy] of unencodable) {
+    it(`${name} is left out as UnencodablePolicy, counted and reported once; the rest is written`, () => {
+      const expected = dehydrateWith([own]).entries;
+      const bad: DecisionEntry = { policy, decision: serverAllow("u1", "e9") };
+      const drops: Array<HydrationDrop<DecisionEntry, DehydrationDropReason>> = [];
+      const before = counts();
+      const payload = dehydrateWith([own, bad], { onDropped: (drop) => drops.push(drop) });
+      const after = counts();
+
+      assert.deepStrictEqual(payload.entries, expected);
+      assert.strictEqual(payload.subjectId, "u1");
+      assert.strictEqual(after.unencodable - before.unencodable, 1);
+      assert.strictEqual(after.dehydrated - before.dehydrated, 1);
+      assert.strictEqual(after.foreign - before.foreign, 0);
+      assert.deepStrictEqual(drops, [{ reason: "UnencodablePolicy", entries: [bad], wholePayload: false }]);
+    });
+  }
+
+  it("the default names the reason's remedy, never the policy", () => {
+    const bad: DecisionEntry = { policy: hasRelationship("owner", { depth: 1.5 }), decision: serverAllow("u1", "e9") };
+    const { lines } = said(() => dehydrateWith([own, bad]));
+    assert.deepStrictEqual(lines, [
+      "[qadi] dehydrateDecisions dropped 1 decision(s): a policy built in code does not satisfy " +
+        "the policy schema — a matcher bound that is not finite, or a relationship depth that is " +
+        "not an integer — so it cannot cross the network. The entry was left out and the client " +
+        "will ask the question itself; fix the policy.",
+    ]);
+  });
+
+  it("a foreign and an unencodable entry: onDropped is called once per reason", () => {
+    const bad: DecisionEntry = { policy: hasAttribute("age", gte(Number.NaN)), decision: serverAllow("u1", "e9") };
+    const drops: Array<HydrationDrop<DecisionEntry, DehydrationDropReason>> = [];
+    const before = counts();
+    const payload = dehydrateWith([own, foreign, bad], { onDropped: (drop) => drops.push(drop) });
+    const after = counts();
+
+    assert.strictEqual(payload.entries.length, 1);
+    assert.strictEqual(after.foreign - before.foreign, 1);
+    assert.strictEqual(after.unencodable - before.unencodable, 1);
+    assert.strictEqual(after.dehydrated - before.dehydrated, 1);
+    assert.deepStrictEqual(drops, [
+      { reason: "ForeignSubject", entries: [foreign], wholePayload: false },
+      { reason: "UnencodablePolicy", entries: [bad], wholePayload: false },
+    ]);
   });
 });

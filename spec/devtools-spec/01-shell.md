@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-01                                    |
-> | Revision       | 0.5 (draft)                                    |
+> | Revision       | 0.6 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                    |
-> | Change History | 0.5 (2026-08-24): The lens is built; the gap saying it was blocked on a design change to `@qadi/react` closed, and the dock's "apart from the lens" qualifier withdrawn (CCR-QD-074)<br>0.4 (2026-08-24): The dock is built; its normative rules are BEH-QD-210 (CCR-QD-067)<br>0.3 (2026-08-24): The non-page topologies now have a data path, though still no surface (CCR-QD-066)<br>0.2 (2026-08-24): The dock recorded as one surface among several, not the only one (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.6 (2026-11-10): the inspector's "Replay in simulator" re-seeds every time, as a command on the simulation session rather than a prop (ARCH-63, BEH-QD-390, CCR-QD-405)<br>0.5 (2026-08-24): The lens is built; the gap saying it was blocked on a design change to `@qadi/react` closed, and the dock's "apart from the lens" qualifier withdrawn (CCR-QD-074)<br>0.4 (2026-08-24): The dock is built; its normative rules are BEH-QD-210 (CCR-QD-067)<br>0.3 (2026-08-24): The non-page topologies now have a data path, though still no surface (CCR-QD-066)<br>0.2 (2026-08-24): The dock recorded as one surface among several, not the only one (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -99,7 +99,7 @@ exists.
 ## Cross-links (must all be wired)
 
 - log row → inspector (selects that evaluation)
-- inspector → "Replay in simulator" (seeds subject + check)
+- inspector → "Replay in simulator" (re-seeds subject + check, every time: a command on the simulation session, not a prop — BEH-QD-390)
 - lens popover → inspector
 - React panel gate → lens highlight
 - pair badge (⇅) → the paired row, either direction

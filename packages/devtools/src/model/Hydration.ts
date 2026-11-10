@@ -8,7 +8,7 @@
  * two share.
  *
  * Both ends name **the default registry** (`Context.empty()`): `@qadi/react`
- * writes off fiber (`HydrationCounts.ts`) and cannot see any fiber's registry,
+ * writes off fiber (`HydrationEvent.ts`) and cannot see any fiber's registry,
  * and this reader reads the same one explicitly, so the two agree whatever
  * `MetricRegistry` a host wired on the fiber running the panel. At effect 4.0.0 a
  * metric looks its registry up on every update (it no longer remembers the first
@@ -37,7 +37,7 @@ import {
 } from "@qadi/core";
 
 /**
- * The registry the writer (`@qadi/react`'s `HydrationCounts.ts`) updates into,
+ * The registry the writer (`@qadi/react`'s `HydrationEvent.ts`) updates into,
  * and so the one this reader must read: the default one, named explicitly.
  */
 const DEFAULT_REGISTRY = Context.empty();

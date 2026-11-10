@@ -18,19 +18,20 @@ import {
   DecisionRecord,
   decodeStoredRecord,
   decodeStoredRecordString,
+  encodeDecisionStream,
   hasPermission,
   makeSubjectId,
   permission,
   stampRecord,
 } from "@qadi/core";
-import type { LogEntry, SinkRecordNotEncodable, StoredRecord } from "@qadi/core";
+import type { DecisionLogEntries, LogEntry, SinkRecordNotEncodable, StoredRecord } from "@qadi/core";
 import { collectingLogger, collectingTracer } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import type * as Tracer from "effect/Tracer";
-import { frameEntries, frameEntry, jsonElements } from "../src/DecisionLogHttp.ts";
+import { jsonElements, recordData } from "../src/DecisionLogHttp.ts";
 import type { DecisionLogServeOptions } from "../src/DecisionLogHttp.ts";
 
 const policy = hasPermission(permission("devtools", "read"));
@@ -135,11 +136,18 @@ const idsOf = (decoded: ReadonlyArray<Result.Result<StoredRecord, unknown>>): Re
 const entriesOf = (records: ReadonlyArray<StoredRecord>): ReadonlyArray<LogEntry> =>
   records.map((record, seq) => ({ cursor: { epoch: 1, seq }, record }));
 
-/** The envelope an SSE frame carries on its `data:` line, read back through the codec. */
-const decodeFrame = (text: string): Result.Result<StoredRecord, unknown> => {
-  const data = text.split("\n").find((line) => line.startsWith("data: "));
-  return data === undefined ? Result.fail("no data line") : decodeStoredRecordString(data.slice("data: ".length));
-};
+/**
+ * One read through `@qadi/core`'s stream encoder with the stream's `recordData`,
+ * the route's own pairing: the kept record frames' data, read back through the codec.
+ */
+const streamed = (read: DecisionLogEntries, options: DecisionLogServeOptions | undefined) =>
+  Effect.map(
+    Stream.runCollect(
+      encodeDecisionStream({ readEntries: () => Effect.succeed(read) }, { encodeRecord: recordData(options) }),
+    ),
+    (frames) =>
+      idsOf(Array.from(frames).flatMap((f) => (f.event === "synced" ? [] : [decodeStoredRecordString(f.data)]))),
+  );
 
 const SSE_MESSAGE = "qadi/http: a decision record could not be framed";
 const SSE_SPAN = "qadi.http.decisionStream.refused";
@@ -152,17 +160,12 @@ const FRAMINGS = {
     span: "qadi.http.decisionBacklog.refused",
   },
   "sse backlog": {
-    drive: (records, options) =>
-      Effect.map(frameEntries("backlog", entriesOf(records), options), (frames) => idsOf(frames.map(decodeFrame))),
+    drive: (records, options) => streamed({ backlog: entriesOf(records), live: Stream.empty }, options),
     message: SSE_MESSAGE,
     span: SSE_SPAN,
   },
   "sse live": {
-    drive: (records, options) =>
-      Effect.map(
-        Stream.runCollect(Stream.filterMapEffect(Stream.fromIterable(entriesOf(records)), frameEntry("message", options))),
-        (frames) => idsOf(frames.map(decodeFrame)),
-      ),
+    drive: (records, options) => streamed({ backlog: [], live: Stream.fromIterable(entriesOf(records)) }, options),
     message: SSE_MESSAGE,
     span: SSE_SPAN,
   },

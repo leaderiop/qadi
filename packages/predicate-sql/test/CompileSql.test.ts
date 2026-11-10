@@ -545,9 +545,9 @@ describe("compileSql — NULL handling agrees with evaluatePredicate's ===/!==",
   // Fixed by rendering `CASE WHEN (<inner>) THEN FALSE ELSE TRUE END`, which
   // never evaluates to UNKNOWN: an UNKNOWN `WHEN` condition falls to `ELSE`
   // exactly as a `FALSE` one would. This is a golden-text assertion rather
-  // than a property-test one on purpose — `interpretSqlFragment` re-derives
-  // `compare`/`isNull` results straight from `row`, so it (and the property
-  // test in `Agreement.test.ts` that drives it) would silently agree with the
+  // than a property-test one on purpose — the retired `interpretSqlFragment`
+  // (ARCH-03 T7) re-derived `compare`/`isNull` results straight from `row`, so
+  // it (and the property test that drove it) would silently have agreed with the
   // old, wrong "NOT (...)" text too, exactly like `matchesPrismaWhere.ts` did
   // for the sibling Prisma defect (ticket 06) — only the exact rendered SQL
   // shape distinguishes NULL-safe from NULL-unsafe here.

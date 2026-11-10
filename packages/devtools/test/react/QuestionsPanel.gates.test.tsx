@@ -83,6 +83,22 @@ describe("the two views, side by side", () => {
     );
   });
 
+  it("SHOWS A DENIAL AND A FAILURE DIFFERENTLY (INV-QD-006)", () => {
+    // A failed guard never got an answer; drawing it like a denied one tells the
+    // reader their policy refused when it never ran.
+    render(
+      <QuestionsPanel
+        questions={asked}
+        gates={[gate({ id: "a", state: "Denied" }), gate({ id: "b", state: "Failed" })]}
+      />,
+    );
+
+    const [denied, failed] = screen.getAllByTestId("qadi-instance-state");
+    assert.strictEqual(denied?.textContent, "Denied");
+    assert.strictEqual(failed?.textContent, "Failed");
+    assert.notStrictEqual(denied?.style.color, failed?.style.color);
+  });
+
   it("KEEPS ONE ROW PER QUESTION while listing two guards", () => {
     // BEH-QD-217's surviving requirement. Ten gates on one policy are one atom,
     // and the panel must not claim otherwise at the question level.

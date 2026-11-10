@@ -18,7 +18,9 @@ import type * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
 import * as MutableRef from "effect/MutableRef";
-import type { PortDescription, PortReply, PortScript, PortShape } from "./PortDescription.ts";
+import * as Result from "effect/Result";
+import { describeKeyRefusal, PortReply } from "./PortDescription.ts";
+import type { PortDescription, PortScript, PortShape } from "./PortDescription.ts";
 import { wrapPort } from "./PortDerivation.ts";
 import type { PortName } from "./PortMetrics.ts";
 
@@ -93,6 +95,11 @@ export const scriptedPort = <
  * `key` — so two requests share a reply exactly when they share a key, as a
  * capture and its replay do (a key is injective over the request, ADR-QD-094). A request not in the table
  * falls through to the fail-closed default.
+ *
+ * A request with no key (a `KeyRefusal`) fails with the port's own typed
+ * error, the refusal's sentence as its cause, rather than falling through to
+ * `none`: under `not(...)` that default grants. An entry whose own request
+ * has no key can never be asked for, so it is left out.
  */
 export const replyTable = <
   N extends PortName,
@@ -105,8 +112,16 @@ export const replyTable = <
   d: PortDescription<N, Self, Shape, Args, A, E>,
   entries: ReadonlyArray<readonly [NoInfer<Args>, PortReply<NoInfer<A>>]>,
 ): PortScript<Args, A> => {
-  const table = new Map(entries.map(([args, reply]) => [d.key(args), reply] as const));
-  return (...args) => table.get(d.key(args));
+  const table = new Map<string, PortReply<A>>(
+    Arr.getSuccesses(
+      entries.map(([args, reply]) => Result.map(d.key(args), (key): [string, PortReply<A>] => [key, reply])),
+    ),
+  );
+  return (...args) =>
+    Result.match(d.key(args), {
+      onSuccess: (key) => table.get(key),
+      onFailure: (refusal) => PortReply.fail(describeKeyRefusal(refusal)),
+    });
 };
 
 /**

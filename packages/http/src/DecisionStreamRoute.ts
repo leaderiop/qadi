@@ -6,8 +6,10 @@
  * connection — subscribe, then snapshot — so the two halves cannot lose or
  * repeat a record between them:
  *
- * 1. one `event: backlog` frame per record the log retained, oldest first in
- *    `storedRecordOrder`;
+ * 1. one `event: backlog` frame per record the log retained, in cursor
+ *    (arrival) order — the order is `@qadi/core`'s `encodeDecisionStream`, so ids
+ *    rise along a connection and `Last-Event-ID` is the reader's highest
+ *    position; a reader presents them in `storedRecordOrder` (ARCH-60);
  * 2. one `event: synced` frame whose data is `{"backlog":n}`
  *    (`@qadi/core`'s `DecisionStreamSynced`), `n` the backlog frames actually sent —
  *    sent even when `n` is 0, so a reader can tell "no history" from "an older
@@ -76,72 +78,31 @@
  */
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
-import * as Option from "effect/Option";
 import * as Schedule from "effect/Schedule";
-import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
-import * as Sse from "effect/encoding/Sse";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type {
   DecisionLogReader,
-  DecisionStreamEvent,
   EnforcementErrorClass,
-  LogEntry,
   Permission,
   Policy,
   StandingEvaluationServices,
 } from "@qadi/core";
-import { DecisionStreamSynced, parseLogCursor } from "@qadi/core";
+import { encodeDecisionStream } from "@qadi/core";
 import { enforceRequest } from "./AuthorizeRequest.ts";
 import type { EnforcementProjection } from "./AuthorizeRequest.ts";
-import { frameEntries, frameEntry } from "./DecisionLogHttp.ts";
+import { recordData, sseText } from "./DecisionLogHttp.ts";
 import type { DecisionLogServeOptions } from "./DecisionLogHttp.ts";
+import { devtoolsPath } from "./DevtoolsRouteAddress.ts";
+import type { DevtoolsRouteOptions } from "./DevtoolsRouteAddress.ts";
 import { loadNoResource } from "./NoResource.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
 import { classifyHttpEnforcementFailure } from "./QadiHttpError.ts";
 import type { SubjectExtractor } from "./SubjectExtractor.ts";
 
-// The record frame is the decision-log module's, and it is public through this
-// module as `NO_RESOURCE` is public through RequirePermission.ts.
-export { frame } from "./DecisionLogHttp.ts";
-
-/** The `synced` frame: the backlog is over, and how many frames it was. */
-export const syncedFrame = (backlog: number): string =>
-  Sse.encoder.write({
-    _tag: "Event",
-    event: "synced" satisfies DecisionStreamEvent,
-    id: undefined,
-    data: JSON.stringify(Schema.encodeSync(DecisionStreamSynced)({ backlog })),
-  });
-
-/**
- * One read of a decision log as SSE frames: each backlog entry as a `backlog`
- * frame, then {@link syncedFrame}, then each live entry as a `message` frame,
- * every record frame carrying its entry's cursor as its SSE `id`.
- * A refused record is reported (`onRefused`, else a warning) and dropped, so
- * one record never ends the stream; the `synced` count is the backlog frames
- * actually sent.
- *
- * Exported for the same reason `frame` is: the route's body
- * is this stream, UTF-8 encoded, and it is tested directly as well as through
- * the route.
- */
-export const decisionFrames = (
-  read: {
-    readonly backlog: ReadonlyArray<LogEntry>;
-    readonly live: Stream.Stream<LogEntry>;
-  },
-  options?: DecisionLogServeOptions,
-): Stream.Stream<string> =>
-  Stream.unwrap(
-    Effect.map(frameEntries("backlog", read.backlog, options), (frames) =>
-      Stream.fromIterable([...frames, syncedFrame(frames.length)]).pipe(
-        Stream.concat(Stream.filterMapEffect(read.live, frameEntry("message", options))),
-      )),
-  );
-
-export interface DecisionStreamOptions extends DecisionLogServeOptions {
+/** How `decisionStreamRoute` serves: where it is mounted, how a refused record is reported, and the recheck. */
+export interface DecisionStreamOptions extends DecisionLogServeOptions, DevtoolsRouteOptions {
   /**
    * Re-authorizes an open connection on an interval, ending it the moment
    * that check no longer passes. See this module's own doc comment for what
@@ -183,7 +144,8 @@ const recheck = (permission: Permission, policy: Policy, request: HttpServerRequ
   );
 
 /**
- * Mounts `/__decisions`, streaming a decision log to callers the policy permits.
+ * Mounts the decision stream at `devtoolsPath("decisions", options.prefix)`,
+ * `/__decisions` by default, streaming a decision log to callers the policy permits.
  *
  * `log` is anything that can `read` — a `DecisionLog`, or a structural fake in
  * a test — so a route cannot write to the log it serves. The log's live half
@@ -222,28 +184,18 @@ export const decisionStreamRoute = <P extends Permission>(
         `${Duration.toMillis(options.reauth.interval)}ms.`,
     );
   }
-  return addGuardedRoute(
-    "GET",
-    "/__decisions",
-    permission,
-    policy,
-    loadNoResource,
-  )(() =>
+  return addGuardedRoute("GET", devtoolsPath("decisions", options?.prefix), permission, policy)(() =>
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
+      // The order and the resume are core's: a reconnecting `EventSource` names
+      // the last record it received, and the read opens when the body is first
+      // pulled and closes with it. This module writes SSE text, then
       // `Stream.encodeText` — UTF-8 bytes, the same final step
-      // `HttpApiBuilder`'s own `encodeSseStream` ends with — rather than each
-      // frame carrying its own `TextEncoder.encode` call.
-      // A reconnecting `EventSource` names the last record it received; a
-      // header that is not one of this log's cursors is no cursor at all.
-      const after = Option.getOrUndefined(
-        Option.flatMap(Option.fromNullishOr(request.headers["last-event-id"]), parseLogCursor),
-      );
-      // `Stream.unwrap` gives the read the response stream's scope: the
-      // subscription opens when the body is first pulled and closes with it.
-      const frames = Stream.unwrap(
-        Effect.map(log.readEntries(after), (read) => decisionFrames(read, options)),
-      ).pipe(Stream.encodeText);
+      // `HttpApiBuilder`'s own `encodeSseStream` ends with.
+      const frames = encodeDecisionStream(log, {
+        after: request.headers["last-event-id"],
+        encodeRecord: recordData(options),
+      }).pipe(Stream.map(sseText), Stream.encodeText);
       // `Stream.mergeEffect`: the recheck loop runs concurrently for the
       // stream's lifetime, fails the whole stream the moment it fails,
       // and is itself interrupted the moment the stream ends for any

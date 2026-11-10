@@ -12,12 +12,13 @@
  *
  * A leaf/vocabulary module without its own `Verdict.test.ts` — `verdictOf` and
  * `countsOf` are exercised across `Filters.test.ts`, `Pairing.test.ts`,
- * `Replay.test.ts` and `WhatIfTable.test.ts`, wherever a caller needs the
+ * `Replay.test.ts` and `WhatIfTable.test.tsx`, wherever a caller needs the
  * classification rather than owns it.
  */
 import * as Match from "effect/Match";
 import { isAllowed } from "@qadi/core";
 import type { DecisionOutcome } from "@qadi/core";
+import type { NodeStatus } from "./Inspect.ts";
 import type { TimelineEntry } from "./Timeline.ts";
 
 /**
@@ -26,6 +27,38 @@ import type { TimelineEntry } from "./Timeline.ts";
  * rendering it as anything else would invent a fact.
  */
 export type Verdict = "Allow" | "Deny" | "Error" | "Unknown";
+
+/**
+ * Every state a panel can show where a verdict would go.
+ *
+ * The four `Verdict`s, plus the four things a panel shows that are not one:
+ * `Pending` and `Rechecking` are a live guard with no answer in hand,
+ * `NotReached` is a policy node the evaluation never resolved, and
+ * `Unrecognised` is a guard state this build does not know, shown as itself
+ * rather than dropped or coloured as an answer. `react/VerdictTreatment.ts`
+ * gives each one its look.
+ */
+export type DisplayState =
+  | "Allow"
+  | "Deny"
+  | "Error"
+  | "Unknown"
+  | "Pending"
+  | "Rechecking"
+  | "NotReached"
+  | "Unrecognised";
+
+/** A verdict is already a displayable state; this names the widening. */
+export const displayOfVerdict = (verdict: Verdict): DisplayState => verdict;
+
+const NODE_DISPLAY: { readonly [K in NodeStatus]: DisplayState } = {
+  Allowed: "Allow",
+  Denied: "Deny",
+  NeverResolved: "NotReached",
+};
+
+/** How a policy node's status is shown: a node never resolved is not a denial. */
+export const displayOfNodeStatus = (status: NodeStatus): DisplayState => NODE_DISPLAY[status];
 
 /**
  * The verdict of an outcome that is in hand — a simulated one, say, which

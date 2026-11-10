@@ -9,10 +9,8 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as FastCheck from "fast-check";
 import type { SignatureInput } from "@qadi/core";
-import { sameEdge } from "../../src/model/Edits.ts";
 import {
   actionOf,
-  addChip,
   attributeCodec,
   attributeLabel,
   decodeResource,
@@ -20,15 +18,11 @@ import {
   encodeResource,
   eventCodec,
   permissionCodec,
-  removeAt,
-  renameSubject,
   roleCodec,
   sameSignature,
   signatureCodec,
   withAction,
-  withPair,
   withResource,
-  withoutPair,
 } from "../../src/model/SimulationForm.ts";
 import type { Decoded } from "../../src/model/SimulationForm.ts";
 
@@ -141,14 +135,6 @@ describe("attribute pairs", () => {
       assert.strictEqual(attributeCodec.encode(["k", value], "")._tag, "Refused");
       assert.strictEqual(attributeLabel(["k", value])._tag, "Refused");
     }
-  });
-
-  it("sets and removes a pair, and a name like __proto__ is a key, not a prototype", () => {
-    const set = withPair({ a: 1 }, ["__proto__", 2]);
-    assert.isTrue(Object.hasOwn(set, "__proto__"));
-    assert.deepStrictEqual(Object.keys(set), ["a", "__proto__"]);
-    assert.deepStrictEqual(withPair({ a: 1, b: 2 }, ["a", 3]), { b: 2, a: 3 });
-    assert.deepStrictEqual(withoutPair({ a: 1, b: 2 }, "a"), { b: 2 });
   });
 });
 
@@ -381,69 +367,6 @@ describe("the check", () => {
   });
 });
 
-describe("list edits", () => {
-  const edges = [{ subjectId: "alice", relation: "owner", resourceId: "doc-1" }];
-
-  it("adds one element, refuses empty text, and refuses a duplicate by structure", () => {
-    const added = okValue(addChip(edges, "viewer:doc-9", edgeCodec, sameEdge, "alice"));
-    assert.strictEqual(added.length, 2);
-    assert.strictEqual(addChip(edges, "  ", edgeCodec, sameEdge, "alice")._tag, "Refused");
-    assert.deepStrictEqual(addChip(edges, "owner:doc-1", edgeCodec, sameEdge, "alice"), {
-      _tag: "Refused",
-      reason: "already there",
-    });
-    assert.strictEqual(addChip(edges, "nocolon", edgeCodec, sameEdge, "alice")._tag, "Refused");
-  });
-
-  it("keeps two edges that differ only by subject, which display text alone would collapse", () => {
-    const both = okValue(
-      addChip(
-        edges,
-        '{"subjectId":"bob","relation":"owner","resourceId":"doc-1"}',
-        edgeCodec,
-        sameEdge,
-        "alice",
-      ),
-    );
-    assert.strictEqual(both.length, 2);
-  });
-
-  it("removes exactly the element at an index", () => {
-    assert.deepStrictEqual(removeAt(["a", "b", "c"], 1), ["a", "c"]);
-  });
-});
-
-describe("renameSubject", () => {
-  it("moves exactly the elements naming the old id", () => {
-    const input = {
-      subject: { id: "alice", roles: ["r"] },
-      relationships: [
-        { subjectId: "alice", relation: "owner", resourceId: "d" },
-        { subjectId: "bob", relation: "owner", resourceId: "d" },
-      ],
-      history: [{ subjectId: "alice", event: "read", resourceId: "d" }],
-      signatures: [
-        { subjectId: "alice", meaning: "m" },
-        { subjectId: "bob", meaning: "m" },
-      ],
-    };
-    const renamed = renameSubject(input, "alice", "carol");
-    assert.strictEqual(renamed.subject.id, "carol");
-    assert.deepStrictEqual(renamed.subject.roles, ["r"]);
-    assert.deepStrictEqual(
-      renamed.relationships?.map((edge) => edge.subjectId),
-      ["carol", "bob"],
-    );
-    assert.deepStrictEqual(renamed.history?.map((one) => one.subjectId), ["carol"]);
-    assert.deepStrictEqual(renamed.signatures?.map((one) => one.subjectId), ["carol", "bob"]);
-  });
-
-  it("adds no field that was not there", () => {
-    const renamed = renameSubject({ subject: { id: "a" } }, "a", "b");
-    assert.deepStrictEqual(renamed, { subject: { id: "b" } });
-  });
-});
-
 describe("exact refusals and boundaries", () => {
   const reasonOf = <A>(decoded: Decoded<A>): string =>
     decoded._tag === "Refused" ? decoded.reason : "";
@@ -475,7 +398,6 @@ describe("exact refusals and boundaries", () => {
     assert.include(reasonOf(edgeCodec.decode("{oops", "s")), "SyntaxError");
     assert.strictEqual(reasonOf(edgeCodec.decode("[1]", "s")), "expected relation:resourceId");
     assert.strictEqual(reasonOf(edgeCodec.decode("{}", "s")), '"subjectId" must be a string');
-    assert.strictEqual(reasonOf(addChip([], "  ", roleCodec, (a, b) => a === b, "")), "nothing to add");
   });
 
   it("decodes text with surrounding whitespace", () => {
@@ -568,11 +490,23 @@ describe("exact refusals and boundaries", () => {
     assert.strictEqual(attributeCodec.encode(["k", [1, [2, { a: [3] }]]], "")._tag, "Ok");
   });
 
-  it("encodes a permission", () => {
-    assert.strictEqual(okValue(permissionCodec.encode("doc:read", "")), "doc:read");
+  it("refuses a value whose hidden toJSON changes its shape, which its own keys would not show", () => {
+    // A non-enumerable `toJSON` is invisible to `Object.keys`, so only comparing
+    // the parsed text's shape - its length, its kind, its key count - catches it.
+    const hidden = <A extends object>(self: A, json: unknown): A =>
+      Object.defineProperty(self, "toJSON", { value: () => json, enumerable: false });
+    const lossy: ReadonlyArray<unknown> = [
+      hidden([1], [1, 2]),
+      hidden([1], { 0: 1, length: 1 }),
+      hidden({ a: 1 }, { a: 1, b: 2 }),
+      hidden({}, []),
+    ];
+    for (const value of lossy) {
+      assert.strictEqual(attributeCodec.encode(["k", value], "")._tag, "Refused");
+    }
   });
 
-  it("puts a replaced pair last and keeps the others in order", () => {
-    assert.deepStrictEqual(Object.keys(withPair({ a: 1, b: 2 }, ["a", 3])), ["b", "a"]);
+  it("encodes a permission", () => {
+    assert.strictEqual(okValue(permissionCodec.encode("doc:read", "")), "doc:read");
   });
 });

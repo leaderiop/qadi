@@ -46,7 +46,7 @@ import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import { resourceIdOf } from "@qadi/core";
-import { ledgerEntryOf } from "./SignatureLedger.ts";
+import { ledgerEntryOf, ledgerKeyOf } from "./SignatureLedger.ts";
 import type { SignatureLedgerError, SignatureLedgerShape } from "./SignatureLedger.ts";
 import type {
   ObligationDischarge,
@@ -84,7 +84,9 @@ export interface SignatureCaptureRequest {
   /**
    * `resourceIdOf(question.resource)`: the id a resource-scoped `hasSignature`
    * asks `SignatureHistory` with, so the key a capture writes under and the key
-   * it is read under come from one rule.
+   * it is read under come from one rule. `undefined` only when the question has
+   * no resource at all: a discharged resource without a string id is refused
+   * before any request reaches `capture`, never recorded subject-wide.
    */
   readonly resourceId: ResourceId | undefined;
   /** What the signer was doing, when the question said. */
@@ -190,6 +192,12 @@ export class SignatureCapturePort extends Context.Service<
  * `resource`, `evaluationId`), so what `capture` persists can be found again by
  * a resource-scoped `hasSignature`.
  *
+ * **A discharged resource with no string `id`** (absent, numeric, an object)
+ * fails with `SignatureCaptureError` before `capture` is called, and nothing is
+ * recorded: such a signature could only be stored subject-wide, where a
+ * `scope: "Any"` check would find it for every resource. A question with no
+ * resource at all still records subject-wide.
+ *
  * **`options.signerRole` is a static, unverified assertion by whoever wired
  * this handler, not an observation made at signing time.** It is fixed at
  * layer-construction time and spread into every capture this handler makes,
@@ -210,6 +218,15 @@ export const signatureObligationHandler = (
 ) => Effect.Effect<void, SignatureCaptureError | SignatureLedgerError>) =>
   Effect.fn("qadi.audit.signatureObligationHandler")(function* (discharge: ObligationDischarge) {
     const request = captureRequestOf(discharge, meaning, options?.signerRole);
+    // Storing it would file it subject-wide, where a `scope: "Any"` read finds it for every resource.
+    if (request.resource !== undefined && request.resourceId === undefined) {
+      return yield* Effect.fail(
+        new SignatureCaptureError({
+          reason:
+            "the discharged resource has no string id, so a signature for it cannot be keyed to it",
+        }),
+      );
+    }
     const signature = yield* port.capture(request);
     // A capture that attests something other than what was asked must not
     // discharge the duty, nor be recorded as though it had (INV-QD-055).
@@ -223,7 +240,8 @@ export const signatureObligationHandler = (
     // Without a ledger the capture port is the store, and persisting under the
     // request's key is its contract (see `capture`).
     if (options?.ledger === undefined) return;
-    yield* options.ledger.append(ledgerEntryOf(request, signature));
+    const entry = ledgerEntryOf(request, signature);
+    yield* options.ledger.append(ledgerKeyOf(entry), entry);
   });
 
 /**

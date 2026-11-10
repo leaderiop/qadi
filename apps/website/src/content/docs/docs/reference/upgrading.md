@@ -188,3 +188,196 @@ three more were never released.
 
 The decision is the 2026-10-08 amendment to
 [ADR-QD-047](https://github.com/leaderiop/qadi/blob/main/spec/decisions/047-a-headless-devtools-model.md).
+
+## 0.12: `guardApi` refuses an undeclared endpoint when it is built
+
+An endpoint that declares neither `requiresPermission` nor `publicEndpoint` no
+longer answers 500 on every request. `guardApi`'s layer fails to build with
+`AccessNotDeclared`, naming the group and the endpoint, so the application does
+not start. Annotate every endpoint before you upgrade. A declaration on a group
+or on the API also fails the build, with `MisplacedAccessDeclaration`. An
+exhaustive match over `ApiGuardRefusal` needs an `AccessNotDeclared` arm. See
+[ADR-QD-118](https://github.com/leaderiop/qadi/blob/main/spec/decisions/118-guardapi-plans-access-from-the-api-value.md).
+
+## 0.12: give `guardApi` the `HttpApi` value you serve
+
+`guardApi` plans the `HttpApi` value it is given, and its middleware serves only
+that value's endpoints. An endpoint of any other value answers 500 with one
+error log line, even if its group and endpoint names are the same. That
+includes a `prefix`ed copy. Pass `guardApi` the value `HttpApiBuilder.layer`
+serves, prefix included:
+
+```ts
+const Served = Api.prefix("/v1");
+HttpApiBuilder.layer(Served).pipe(Layer.provide(Handlers), Layer.provide(guardApi(Served)));
+```
+
+`/__permissions` then lists the paths that are served (`GET /v1/…`), not the
+unprefixed ones.
+
+## 0.12: a signature discharge on a resource without a string id is refused
+
+`signatureObligationHandler` now fails the discharge with
+`SignatureCaptureError` when the question's resource has no string `id`
+(absent, numeric, an object), before `capture` runs. 0.11.0 captured such a
+signature, and it was stored subject-wide, where a `hasSignature` check with
+`scope: "Any"` would then find it for every resource. Give the resource a string
+`id`, or ask the question without a resource if the signature really is
+subject-wide. See
+[ADR-QD-117](https://github.com/leaderiop/qadi/blob/main/spec/decisions/117-a-signature-ledger-is-a-keyed-store.md).
+
+## 0.12: `@qadi/http` no longer exports `frame`, `syncedFrame` or `decisionFrames`
+
+The order of `/__decisions` (the backlog, one `synced`, then live records) is
+now written once, by `@qadi/core`'s `encodeDecisionStream`, and read back by
+`decodeDecisionStream`. `@qadi/http`'s `frame`, `syncedFrame` and
+`decisionFrames` were a second copy of that order and are removed, with no
+aliases. `decisionStreamRoute` and `decisionBacklogRoute` are unchanged, and so
+are the record bytes, the refusal warnings and `onRefused`.
+
+If you built frames yourself, encode the log with core and write each frame in
+your own transport. Before:
+
+```ts
+import { decisionFrames } from "@qadi/http";
+
+const body = decisionFrames(entries, { onRefused }); // Stream<string> of SSE text
+```
+
+After:
+
+```typescript
+import { encodeDecisionStream, encodeStoredRecordString } from "@qadi/core";
+import type { DecisionLog, DecisionStreamFrame } from "@qadi/core";
+import * as Effect from "effect/Effect";
+import * as Result from "effect/Result";
+import type * as Stream from "effect/Stream";
+
+// One frame per record, in cursor order; `after` is the client's Last-Event-ID.
+export const frames = (
+  log: Pick<DecisionLog, "readEntries">,
+  after: string | undefined,
+): Stream.Stream<DecisionStreamFrame> =>
+  encodeDecisionStream(log, {
+    after,
+    // A record the codec refuses answers None and loses only its own frame.
+    encodeRecord: (record) => Effect.succeed(Result.getSuccess(encodeStoredRecordString(record))),
+  });
+```
+
+The backlog now travels in cursor order rather than decision order, so a
+client that reconnects with the last event id it received loses no record and
+receives none twice. A reader built on `decodeDecisionStream` (as
+`@qadi/devtools`' `sourceFromEventSource` is) still presents the backlog in
+decision order. A reader against a server older than 0.12 can still lose
+records on a reconnect during the backlog, because the order is the server's:
+upgrade the server. See
+[ADR-QD-097](https://github.com/leaderiop/qadi/blob/main/spec/decisions/097-a-decision-log-is-a-sink-and-its-own-history.md).
+
+## 0.12: `dehydrateDecisions`' `onDropped` takes a `HydrationDrop`
+
+`DehydrateOptions.onDropped` used to receive a bare array of the entries it
+dropped. It now receives the same record `HydrateOptions.onDropped` does,
+`{ reason, entries, wholePayload }`, once per reason, with `wholePayload`
+always `false`. The reason is `ForeignSubject` (the entry belongs to another
+subject) or the new `UnencodablePolicy` (a policy the policy schema refuses,
+such as `gte(NaN)` or a fractional relationship depth, which used to make
+`dehydrateDecisions` throw). Before:
+
+```ts
+dehydrateDecisions(entries, { onDropped: (dropped) => alert(dropped.length) });
+```
+
+After:
+
+```typescript
+import { dehydrateDecisions } from "@qadi/react";
+import type { DecisionEntry, DehydratedDecisions } from "@qadi/react";
+
+declare const alert: (count: number, reason: string) => void;
+
+export const payload = (entries: ReadonlyArray<DecisionEntry>): DehydratedDecisions =>
+  dehydrateDecisions(entries, {
+    onDropped: (drop) => alert(drop.entries.length, drop.reason),
+  });
+```
+
+`HydrationDrop` and `HydrationDropReporter` take the reason as a second type
+parameter, defaulting to the hydrate side's reasons, so `HydrationDrop<A>` means
+what it meant. `DehydrationDropReason`, and so `HydrationDropReason`, gains
+`UnencodablePolicy`: an exhaustive `switch` or `Match` over either needs one more
+arm, and `qadi_hydration_dropped_total` has one more key. A reporter you supply
+that throws no longer changes the outcome: it is contained and announced. See
+[ADR-QD-052](https://github.com/leaderiop/qadi/blob/main/spec/decisions/052-hydration-is-counted-where-both-ends-can-see-it.md).
+
+## 0.12: the audit doubles answer from a script, and a store call has a deadline
+
+`AuditTrailPortTestOptions.failWith` and `AuditStagingPortTestOptions.failStageWith`
+and `failCommitWith` are removed. Each double now answers every call from a script
+that returns an `AuditPortReply`, and on `Fail` it builds the port's own error from
+the call, so a test no longer constructs `AuditWriteError` or `AuditStagingError`.
+A commit's `Fail` carries the entry staged under its handle. Before:
+
+```ts
+import { AuditStagingError, AuditStagingPortTest, AuditTrailPortTest, AuditWriteError } from "@qadi/audit";
+
+const trail = AuditTrailPortTest({
+  failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+});
+const staging = AuditStagingPortTest({
+  failCommitWith: () => new AuditStagingError({ entry: someEntry, cause: "offline" }),
+});
+```
+
+After:
+
+```typescript
+import { AuditPortReply, AuditStagingPortTest, AuditTrailPortTest } from "@qadi/audit";
+
+export const trail = AuditTrailPortTest({ write: () => AuditPortReply.Fail({ cause: "offline" }) });
+export const staging = AuditStagingPortTest({ commit: () => AuditPortReply.Fail({ cause: "offline" }) });
+```
+
+A script also receives the entry and the call's 0-based index, and can answer
+`Die`, `Interrupt`, `Never` or `Latch`; `undefined` is `Ok`.
+
+`AuditDecisionSinkLive` now bounds each store call by `storeCallTimeout`,
+5 seconds by default. A store that is healthy but slower than that now fails its
+writes, which count toward the circuit breaker. Raise `storeCallTimeout` for it,
+or pass `Duration.infinity` to keep 0.11's unbounded wait. See
+[ADR-QD-126](https://github.com/leaderiop/qadi/blob/main/spec/decisions/126-an-audit-store-call-has-a-deadline.md).
+
+## 0.12: a port's request key is a `Result`
+
+`PortDescription.key` returns `Result<string, KeyRefusal>` instead of `string`, and every key's text
+changes. Two requests now share a key exactly when every argument is `Equal.equals`. A request holding a
+value the key cannot represent faithfully (a cycle, a function, a symbol, a class instance) gets a typed
+`KeyRefusal`, where it used to throw or collide with another request. No key was ever persisted or sent
+on a wire, so there is nothing to migrate. Only code that calls `key` itself changes. Before:
+
+```ts
+import { attributeResolverPort, makeSubjectId } from "@qadi/core";
+
+const seen = new Map<string, number>();
+seen.set(attributeResolverPort.key([makeSubjectId("alice"), "clearance"]), 5);
+```
+
+After, match the `Result` and key your map by the success text, never by the `Result` itself:
+
+```typescript
+import * as Result from "effect/Result";
+import { attributeResolverPort, describeKeyRefusal, makeSubjectId } from "@qadi/core";
+
+export const seen = new Map<string, number>();
+export const refused: Array<string> = [];
+
+const key = attributeResolverPort.key([makeSubjectId("alice"), "clearance"]);
+if (Result.isSuccess(key)) seen.set(key.success, 5);
+else refused.push(describeKeyRefusal(key.failure));
+```
+
+`replyTable` and `signatureHistoryFromSignatures` fail a request whose key is refused with the port's own
+typed error. In `@qadi/devtools`, a what-if replay of a request its capture never saw now fails with the
+port's typed error on every port. It used to answer the port's default, which `not(...)` turned into an
+allow. See
+[ADR-QD-129](https://github.com/leaderiop/qadi/blob/main/spec/decisions/129-a-replay-miss-is-an-outage-on-every-port.md).

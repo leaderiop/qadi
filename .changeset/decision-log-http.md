@@ -6,5 +6,5 @@ Internal: `/__decisions` and `/__decisions/backlog` now encode records and repor
 
 Nothing a caller sees changes. The frames, the JSON body, both default warnings, both span names and `onRefused`'s contract (called once per refused record, a throwing hook contained) are as before.
 
-- The `options` of `decisionBacklogRoute` and of `decisionFrames` are typed by the shape `DecisionStreamOptions` now extends, and a `Pick<DecisionStreamOptions, "onRefused">` still type-checks.
-- `frame` is unchanged and still exported. No export is added or removed.
+- The `options` of `decisionBacklogRoute` are typed by the shape `DecisionStreamOptions` now extends, and a `Pick<DecisionStreamOptions, "onRefused">` still type-checks.
+- This change adds or removes no export. `frame`, `syncedFrame` and `decisionFrames` are removed in this release by a separate change, `decision-stream-order`.

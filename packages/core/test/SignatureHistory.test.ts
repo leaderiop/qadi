@@ -6,12 +6,15 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import { SignatureHistoryUnavailable } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
+import { describeKeyRefusal, KeyRefusal } from "../src/PortDescription.ts";
 import {
   SignatureHistory,
   SignatureHistoryNone,
   signatureHistoryFromSignatures,
+  signatureHistoryPort,
 } from "../src/SignatureHistory.ts";
 
 const query = (
@@ -120,13 +123,33 @@ describe("SignatureHistory", () => {
         assert.strictEqual(signature?.signedAt, 1_700_000_000_000);
       }));
 
+    it.effect("keeps signerRole, algorithm and keyId when given, and leaves each out when omitted", () =>
+      Effect.gen(function* () {
+        const layer = signatureHistoryFromSignatures([
+          { subjectId: "alice", resourceId: "doc-1", meaning: "full", signerRole: "manager", algorithm: "ed25519", keyId: "k1" },
+          { subjectId: "alice", resourceId: "doc-1", meaning: "bare" },
+        ]);
+        const [full, bare] = yield* query(layer, "alice", "doc-1");
+        assert.deepStrictEqual(full, {
+          signerId: makeSubjectId("alice"),
+          meaning: "full",
+          signedAt: 0,
+          signerRole: "manager",
+          algorithm: "ed25519",
+          keyId: "k1",
+        });
+        assert.deepStrictEqual(Object.keys(bare ?? {}), ["signerId", "meaning", "signedAt"]);
+        const name = yield* SignatureHistory.use((history) => Effect.succeed(history.name)).pipe(Effect.provide(layer));
+        assert.strictEqual(name, "signatureHistoryFromSignatures");
+      }));
+
     it.effect(
       "collision-immune: a subject/resource split that would collide under a colon-joined key does not",
       () =>
         Effect.gen(function* () {
-          // `signatureHistoryFromSignatures` keys on
-          // `JSON.stringify([subjectId, resourceId ?? null])`, not a
-          // delimited string — its own doc comment gives `["a:b", "c"]` vs
+          // `signatureHistoryFromSignatures` keys on the requirement-free
+          // projection of `signatureHistoryPort.key` (an injective encoding of
+          // the pair), not a delimited string — its own doc comment gives `["a:b", "c"]` vs
           // `["a", "b:c"]` as the pair a naive `${a}:${b}` join would
           // conflate. Proven here directly, the same way
           // `DecisionHistory.test.ts` and `RelationshipResolver.test.ts`
@@ -137,6 +160,58 @@ describe("SignatureHistory", () => {
           assert.deepStrictEqual(yield* query(collidable, "a", "b:c"), []);
         }),
     );
+
+    it.effect("each colliding-looking pair answers only its own row", () =>
+      Effect.gen(function* () {
+        const grouped = signatureHistoryFromSignatures([
+          { subjectId: "a:b", resourceId: "c", meaning: "m1" },
+          { subjectId: "a", resourceId: "b:c", meaning: "m2" },
+          { subjectId: "a", resourceId: "null", meaning: "m3" },
+          { subjectId: "a", meaning: "m4" },
+        ]);
+        const meanings = (rows: ReadonlyArray<{ readonly meaning: string }>) =>
+          rows.map((r) => r.meaning);
+        assert.deepStrictEqual(meanings(yield* query(grouped, "a:b", "c")), ["m1"]);
+        assert.deepStrictEqual(meanings(yield* query(grouped, "a", "b:c")), ["m2"]);
+        assert.deepStrictEqual(meanings(yield* query(grouped, "a", "null")), ["m3"]);
+        assert.deepStrictEqual(meanings(yield* query(grouped, "a", undefined)), ["m4"]);
+      }));
+
+    it.effect("a query carrying the asker's requirement reads the pair's rows: the grouping is requirement-free", () =>
+      Effect.gen(function* () {
+        // `signatureHistoryPort.key` also keys `meaning` and `signerRole`
+        // (INV-QD-043); grouping by it whole would split one pair by
+        // requirement and hide rows from a query that carries one.
+        const grouped = signatureHistoryFromSignatures([
+          { subjectId: "alice", resourceId: "doc-1", meaning: "approved" },
+          { subjectId: "alice", resourceId: "doc-1", meaning: "witnessed", signerRole: "manager" },
+        ]);
+        const rows = yield* SignatureHistory.signaturesFor({
+          subjectId: makeSubjectId("alice"),
+          resourceId: makeResourceId("doc-1"),
+          meaning: "approved",
+          signerRole: "manager",
+        }).pipe(Effect.provide(grouped));
+        assert.deepStrictEqual(
+          rows.map((r) => r.meaning),
+          ["approved", "witnessed"],
+        );
+      }));
+
+    it("a request with no key would fail the read with the port's own error, never answer an empty list", () => {
+      // No `SubjectId`/`ResourceId` pair can be refused (both are strings), so
+      // no input reaches the fixture's refusal branch. What it answers is
+      // pinned here instead: the port's typed error carrying the refusal's
+      // sentence. An empty list would deny `hasSignature` and grant `not(...)`.
+      const asked = { subjectId: makeSubjectId("alice"), resourceId: makeResourceId("doc-1") };
+      const refusal = KeyRefusal.Unkeyable({ path: ["0", "subjectId"], kind: "symbol", brand: "Symbol" });
+      const failure = signatureHistoryPort.failure([asked], describeKeyRefusal(refusal));
+      assert.strictEqual(failure._tag, "SignatureHistoryUnavailable");
+      assert.deepStrictEqual(
+        [failure.subjectId, failure.resourceId, failure.cause],
+        [asked.subjectId, asked.resourceId, "0.subjectId: an unkeyable symbol (Symbol) has no request key"],
+      );
+    });
 
     it.effect("returns a fresh array per query, not the layer's own internal reference", () =>
       Effect.gen(function* () {
@@ -152,5 +227,15 @@ describe("SignatureHistory", () => {
         assert.notStrictEqual(first, second);
         assert.deepStrictEqual(first, second);
       }));
+  });
+});
+
+describe("signatureHistoryPort's wire", () => {
+  it("writes a subject-global question with no resourceId key, rather than refusing it", () => {
+    const encoded = signatureHistoryPort.wire.encodeQuestion([
+      { subjectId: makeSubjectId("alice"), resourceId: undefined },
+    ]);
+    if (Result.isFailure(encoded)) return assert.fail(encoded.failure);
+    assert.deepStrictEqual(encoded.success, { subjectId: "alice" });
   });
 });

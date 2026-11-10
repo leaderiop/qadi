@@ -41,6 +41,11 @@ Feature: Asking what would happen, and checking it against what did
     When a what-if sweep runs against the "editor role" policy
     Then the sweep reports "without role editor" as flipping the verdict
 
+  Scenario: Dropping the signature the answer turned on
+    Given a simulated subject "alice" holding the signature "approved" on "doc-1"
+    When a what-if sweep runs against the "approval" policy
+    Then the sweep reports "without signature approved on doc-1" as flipping the verdict
+
   Scenario: Neither grant is load-bearing until both are gone
     # `anyOf` is satisfied either way, so no single edit turns the verdict —
     # which is the whole reason second-order sweeps exist.
@@ -68,6 +73,14 @@ Feature: Asking what would happen, and checking it against what did
     Then the replayed policy is the logged one
     And the replay names "roles" among the fields it could not seed
     And the replay names "relationships" among the fields it could not seed
+
+  Scenario: Replaying the same row again re-seeds the question
+    Given a logged decision "ev-91" against the "doc:read" policy for "alice"
+    And the log also saw a decision against the "doc:write" policy
+    When that row is replayed
+    And the reviewer chooses the "doc:write" policy from the rail
+    And that row is replayed again
+    Then the replayed policy is the logged one
 
   Scenario: A reconstruction that reproduces the logged decision
     Given a logged decision "ev-91" against the "doc:read" policy for "alice"

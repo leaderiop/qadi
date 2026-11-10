@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-GLOSSARY                                  |
-> | Revision       | 1.9                                            |
+> | Revision       | 1.10                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.9 (2026-10-07): Simulation session added (BEH-QD-322, CCR-QD-199)<br>1.8 (2026-10-07): Question added (ADR-QD-100, CCR-QD-189)<br>1.7 (2026-09-06): Policy variant count corrected from fourteen to sixteen (`HasCustom`/`HasSignature` postdate the earlier count); Value reference corrected from three kinds to the actual five (`subjectId`/`action` were missing) (CCR-QD-101)<br>1.6 (2026-09-06): Service count corrected — said four, sixteen exist across three packages; the entry now names the pattern rather than a count that drifts every time a service is added (CCR-QD-093)<br>1.5 (2026-08-22): Witness and Guard added; the Revision field corrected to match the latest entry, which had drifted since CCR-QD-019 (CCR-QD-043)<br>1.4 (2026-07-26): Predicate, translatable subset and reference interpreter added (CCR-QD-020)<br>1.3 (2026-07-26): Rule table, rule effect and combining algorithm added; the variant count corrected (CCR-QD-019)<br>1.2 (2026-07-26): Subject set and review query added (CCR-QD-018)<br>1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.10 (2026-11-10): Role walk added (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.9 (2026-10-07): Simulation session added (BEH-QD-322, CCR-QD-199)<br>1.8 (2026-10-07): Question added (ADR-QD-100, CCR-QD-189)<br>1.7 (2026-09-06): Policy variant count corrected from fourteen to sixteen (`HasCustom`/`HasSignature` postdate the earlier count); Value reference corrected from three kinds to the actual five (`subjectId`/`action` were missing) (CCR-QD-101)<br>1.6 (2026-09-06): Service count corrected — said four, sixteen exist across three packages; the entry now names the pattern rather than a count that drifts every time a service is added (CCR-QD-093)<br>1.5 (2026-08-22): Witness and Guard added; the Revision field corrected to match the latest entry, which had drifted since CCR-QD-019 (CCR-QD-043)<br>1.4 (2026-07-26): Predicate, translatable subset and reference interpreter added (CCR-QD-020)<br>1.3 (2026-07-26): Rule table, rule effect and combining algorithm added; the variant count corrected (CCR-QD-019)<br>1.2 (2026-07-26): Subject set and review query added (CCR-QD-018)<br>1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -61,6 +61,17 @@ Collecting the transitive closure of a role's permissions and role names. Done
 once, when a subject is built, so that evaluation never walks the role graph.
 A diamond — two parents sharing a grandparent — is walked once, not
 exponentially. See [BEH-QD-010](behaviors/02-roles.md).
+
+## Role walk
+
+The one ordered visit of the roles reachable from a role. Roles are told apart
+by object identity, not by name. Parents are visited in `inherits` order, and
+the first path to reach a role wins. An edge into a role already visited is
+reported as a revisit that names the first visit, and is not walked again.
+Flattening, role names, provenance and the devtools role tree are its
+projections. `roleWalk` returns it as `RoleStep`s. See
+[ADR-QD-128](decisions/128-one-walk-of-the-role-graph.md) and
+[BEH-QD-400](behaviors/25-inspection.md).
 
 ## Policy
 

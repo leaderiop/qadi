@@ -6,7 +6,7 @@
  * runs, and that applying one changes exactly the thing it names.
  */
 import { assert, describe, it } from "@effect/vitest";
-import { DEFAULT_MAX_PAIRS, pairEdits, sameEdge, sameEvent, singleEdits } from "../../src/model/Edits.ts";
+import { DEFAULT_MAX_PAIRS, pairEdits, singleEdits } from "../../src/model/Edits.ts";
 import { applyEdits, composeEdits, editParts } from "../../src/model/SimulationEdit.ts";
 import type { SimulationEdit } from "../../src/model/SimulationEdit.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
@@ -36,6 +36,10 @@ const full: SimulationInput = {
     { subjectId: "alice", event: "raised", resourceId: "doc-1" },
     { subjectId: "alice", event: "closed", resourceId: "doc-2" },
   ],
+  signatures: [
+    { subjectId: "alice", meaning: "approved", resourceId: "doc-1" },
+    { subjectId: "alice", meaning: "reviewed" },
+  ],
 };
 
 const labels = (edits: ReadonlyArray<SimulationEdit>) => edits.map((e) => e.label);
@@ -64,6 +68,8 @@ describe("singleEdits", () => {
       "without relationship viewer on doc-2",
       "without event raised on doc-1",
       "without event closed on doc-2",
+      "without signature approved on doc-1",
+      "without signature reviewed",
     ]);
   });
 
@@ -88,6 +94,8 @@ describe("singleEdits", () => {
         "DropRelationship",
         "DropEvent",
         "DropEvent",
+        "DropSignature",
+        "DropSignature",
       ],
     );
     assert.isTrue(singleEdits(full).every((e) => e.direction === "Weaken"));
@@ -129,6 +137,68 @@ describe("singleEdits", () => {
     ]);
   });
 
+  it("names the signer role and another subject on a signature", () => {
+    const shared: SimulationInput = {
+      subject: { id: "alice" },
+      signatures: [
+        { subjectId: "alice", meaning: "approved", resourceId: "doc-1", signerRole: "approver" },
+        { subjectId: "bob", meaning: "approved", resourceId: "doc-1" },
+        { subjectId: "bob", meaning: "reviewed", signerRole: "lead" },
+      ],
+    };
+
+    assert.deepStrictEqual(labels(singleEdits(shared)), [
+      "without signature approved on doc-1 as approver",
+      "without signature approved on doc-1 by bob",
+      "without signature reviewed as lead by bob",
+    ]);
+  });
+
+  // Two signatures differing only in a field prose does not carry would read
+  // alike, and `dedupeByLabel` would then keep one and drop a row that tests a
+  // different element - so those are labelled with the chip's exact text.
+  it("keeps two signatures that differ only in keyId or signedAt apart", () => {
+    const keyed: SimulationInput = {
+      subject: { id: "alice" },
+      signatures: [
+        { subjectId: "alice", meaning: "approved", keyId: "k1" },
+        { subjectId: "alice", meaning: "approved", keyId: "k2" },
+        { subjectId: "alice", meaning: "approved", signedAt: 5, algorithm: "ed25519" },
+      ],
+    };
+
+    assert.deepStrictEqual(labels(singleEdits(keyed)), [
+      'without signature {"subjectId":"alice","meaning":"approved","keyId":"k1"}',
+      'without signature {"subjectId":"alice","meaning":"approved","keyId":"k2"}',
+      'without signature {"subjectId":"alice","meaning":"approved","signedAt":5,"algorithm":"ed25519"}',
+    ]);
+  });
+
+  // Each of the three fields alone is enough to switch to the chip's text.
+  it("labels a signature carrying only signedAt, or only algorithm, with the chip's text", () => {
+    const one: SimulationInput = {
+      subject: { id: "alice" },
+      signatures: [
+        { subjectId: "alice", meaning: "approved", signedAt: 5 },
+        { subjectId: "alice", meaning: "approved", algorithm: "ed25519" },
+      ],
+    };
+
+    assert.deepStrictEqual(labels(singleEdits(one)), [
+      'without signature {"subjectId":"alice","meaning":"approved","signedAt":5}',
+      'without signature {"subjectId":"alice","meaning":"approved","algorithm":"ed25519"}',
+    ]);
+  });
+
+  it("falls back to prose for a signature the form cannot spell", () => {
+    const odd: SimulationInput = {
+      subject: { id: "alice" },
+      signatures: [{ subjectId: "alice", meaning: "approved", signedAt: Number.NaN }],
+    };
+
+    assert.deepStrictEqual(labels(singleEdits(odd)), ["without signature approved"]);
+  });
+
   it("collapses a duplicate grant to one row", () => {
     const twice: SimulationInput = {
       subject: { id: "alice", roles: ["editor", "editor"] },
@@ -157,6 +227,7 @@ describe("singleEdits", () => {
         attributes: {},
         relationships: [],
         history: [],
+        signatures: [],
       }),
       [],
     );
@@ -207,6 +278,15 @@ describe("applying an edit", () => {
     ]);
   });
 
+  it("drops one signature, leaving the others", () => {
+    assert.deepStrictEqual(by("without signature approved on doc-1").apply(full).signatures, [
+      { subjectId: "alice", meaning: "reviewed" },
+    ]);
+    assert.deepStrictEqual(by("without signature reviewed").apply(full).signatures, [
+      { subjectId: "alice", meaning: "approved", resourceId: "doc-1" },
+    ]);
+  });
+
   it("leaves the input it was given untouched", () => {
     by("without role editor").apply(full);
 
@@ -247,23 +327,6 @@ describe("applying an edit", () => {
       applyEdits(twoEdges, [at(derived, 0), at(derived, 1)]).relationships,
       [],
     );
-  });
-});
-
-describe("sameEdge and sameEvent", () => {
-  const edge = { subjectId: "alice", relation: "owner", resourceId: "doc-1" };
-  const event = { subjectId: "alice", event: "raised", resourceId: "doc-1" };
-
-  it("compare every field", () => {
-    assert.isTrue(sameEdge(edge, { ...edge }));
-    assert.isFalse(sameEdge(edge, { ...edge, subjectId: "bob" }));
-    assert.isFalse(sameEdge(edge, { ...edge, relation: "viewer" }));
-    assert.isFalse(sameEdge(edge, { ...edge, resourceId: "doc-2" }));
-
-    assert.isTrue(sameEvent(event, { ...event }));
-    assert.isFalse(sameEvent(event, { ...event, subjectId: "bob" }));
-    assert.isFalse(sameEvent(event, { ...event, event: "closed" }));
-    assert.isFalse(sameEvent(event, { ...event, resourceId: "doc-2" }));
   });
 });
 

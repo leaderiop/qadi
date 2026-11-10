@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-25                                    |
-> | Revision       | 1.19                                           |
+> | Revision       | 1.21                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.19 (2026-11-09): BEH-QD-195 note — the obligation projection is made once before the handler runs (obligationRecordFor; ARCH-54, CCR-QD-393)<br>1.18 (2026-11-09): BEH-QD-195 — an obligation record is projected by obligationRecord (SinkEmit.ts) from the question its allow answered, beside the decision record's projections (ARCH-54, CCR-QD-393)<br>1.17 (2026-10-08): BEH-QD-199 — `decodeSinkRecord` refuses a decision that contradicts its own trace, or a record whose ids or policy tag contradict its decision, as `Inconsistent` naming the first disagreement; BEH-QD-200 unchanged (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.16 (2026-10-08): BEH-QD-195 — the handler receives one `ObligationDischarge` (the question and the allow), and the `ObligationRecord` names `subjectId`, `action` and `resourceId` (ADR-QD-105, CCR-QD-220)<br>1.15 (2026-10-08): BEH-QD-194 — a field change is judged by the lattice (`sameVisibleFields`), not by text (ARCH-45, CCR-QD-264)<br>1.14 (2026-10-07): BEH-QD-198 — `asked` MUST NOT list one question twice, MUST bound itself to `maxTrackedQuestions` cold questions, MUST NOT drop a question any reader holds open (including across a recompute), and a question asked again after eviction reappears; the question book (`QuestionBook.ts`) is its home, and a collection no longer splits one question into two (ADR-QD-103, INV-QD-105, CCR-QD-201)<br>1.13 (2026-10-07): BEH-QD-194 — `diffTraces` is stack-safe, and `tracePathKey` is a path's one text form (ADR-QD-101, CCR-QD-191)<br>1.12 (2026-10-07): BEH-QD-318 added — `foldPolicyCases`, each arm receiving its children in the tag's own shape; BEH-QD-300's closing sentence names which consumers use which form (ADR-QD-090 amendment, CCR-QD-190)<br>1.11 (2026-10-06): BEH-QD-199 — version 2 only: a record with no `version` (version 1) or any other is refused as `UnsupportedVersion`, `SinkRecordJson` is the version-2 encoded type, `WireVersion`/`WIRE_VERSIONS` are `2`/`[2]`; BEH-QD-200 — "both outcomes" is only sayable in refused version-1 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.10 (2026-10-05): BEH-QD-199 — the wire is versioned: version 1 read for good, version 2 carries one tagged `outcome` and is what the encoder writes, any other version refused as `UnsupportedVersion`; the reader ignores an unknown top-level envelope key and still refuses one at any nested position (GH-01, ADR-QD-096); BEH-QD-200 — a decision record naming neither outcome, or both, is refused rather than given an invented `MissingResource` or a silently chosen `decided` (tickets 96, 155, CCR-QD-180)<br>1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-095, CCR-QD-179)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.21 (2026-11-10): BEH-QD-400 added: the role walk (roleWalk, RoleStep) visits each reachable role once, by identity, pre-order, first path wins, revisits reported; BEH-QD-192's diamond sentence names it (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.20 (2026-11-10): BEH-QD-368 added — every `qadi_*` metric is declared once and read through its export, and the metric table lists all 22 (ADR-QD-123, ARCH-61, CCR-QD-401)<br>1.19 (2026-11-09): BEH-QD-195 note — the obligation projection is made once before the handler runs (obligationRecordFor; ARCH-54, CCR-QD-393)<br>1.18 (2026-11-09): BEH-QD-195 — an obligation record is projected by obligationRecord (SinkEmit.ts) from the question its allow answered, beside the decision record's projections (ARCH-54, CCR-QD-393)<br>1.17 (2026-10-08): BEH-QD-199 — `decodeSinkRecord` refuses a decision that contradicts its own trace, or a record whose ids or policy tag contradict its decision, as `Inconsistent` naming the first disagreement; BEH-QD-200 unchanged (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.16 (2026-10-08): BEH-QD-195 — the handler receives one `ObligationDischarge` (the question and the allow), and the `ObligationRecord` names `subjectId`, `action` and `resourceId` (ADR-QD-105, CCR-QD-220)<br>1.15 (2026-10-08): BEH-QD-194 — a field change is judged by the lattice (`sameVisibleFields`), not by text (ARCH-45, CCR-QD-264)<br>1.14 (2026-10-07): BEH-QD-198 — `asked` MUST NOT list one question twice, MUST bound itself to `maxTrackedQuestions` cold questions, MUST NOT drop a question any reader holds open (including across a recompute), and a question asked again after eviction reappears; the question book (`QuestionBook.ts`) is its home, and a collection no longer splits one question into two (ADR-QD-103, INV-QD-105, CCR-QD-201)<br>1.13 (2026-10-07): BEH-QD-194 — `diffTraces` is stack-safe, and `tracePathKey` is a path's one text form (ADR-QD-101, CCR-QD-191)<br>1.12 (2026-10-07): BEH-QD-318 added — `foldPolicyCases`, each arm receiving its children in the tag's own shape; BEH-QD-300's closing sentence names which consumers use which form (ADR-QD-090 amendment, CCR-QD-190)<br>1.11 (2026-10-06): BEH-QD-199 — version 2 only: a record with no `version` (version 1) or any other is refused as `UnsupportedVersion`, `SinkRecordJson` is the version-2 encoded type, `WireVersion`/`WIRE_VERSIONS` are `2`/`[2]`; BEH-QD-200 — "both outcomes" is only sayable in refused version-1 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.10 (2026-10-05): BEH-QD-199 — the wire is versioned: version 1 read for good, version 2 carries one tagged `outcome` and is what the encoder writes, any other version refused as `UnsupportedVersion`; the reader ignores an unknown top-level envelope key and still refuses one at any nested position (GH-01, ADR-QD-096); BEH-QD-200 — a decision record naming neither outcome, or both, is refused rather than given an invented `MissingResource` or a silently chosen `decided` (tickets 96, 155, CCR-QD-180)<br>1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-095, CCR-QD-179)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
@@ -328,8 +328,87 @@ path array per permission there would make every caller pay for what only an
 explorer wants. The two are held in agreement instead, which is the invariant.
 
 A single-element path means the queried role granted it directly. Diamonds
-resolve as they do in the flatten: first path wins, by the shared visited-set
-walk.
+resolve as they do in the flatten: first path wins, because both read the one
+role walk (BEH-QD-400).
+
+## BEH-QD-400: The role walk visits each reachable role once
+
+> **Decision:** [ADR-QD-128](../decisions/128-one-walk-of-the-role-graph.md) ·
+> **Invariant:** [INV-QD-038](../invariants.md#inv-qd-038-provenance-and-flattening-agree)
+
+```ts
+export type RoleStep = Data.TaggedEnum<{
+  Visit: { readonly role: Role; readonly index: number; readonly depth: number; readonly parent: number | undefined };
+  Revisit: {
+    readonly role: Role;
+    readonly index: number;
+    readonly depth: number;
+    readonly parent: number | undefined;
+    readonly first: number;
+  };
+}>;
+export const RoleStep: Data.TaggedEnum.Constructor<RoleStep>;
+export const roleWalk: (self: Role) => ReadonlyArray<RoleStep>;
+```
+
+```
+REQUIREMENT: The walk MUST visit every role reachable from `self` exactly once,
+             in pre-order, with each role's parents in `inherits` order.
+```
+
+So the first path to reach a role wins. It is the same order
+`permissionProvenance` reports.
+
+```
+REQUIREMENT: Roles MUST be told apart by object identity. Two distinct roles
+             that share a `name` MUST be two visits.
+```
+
+```
+REQUIREMENT: Every edge into a role already visited MUST be reported as a
+             `Revisit` whose `first` is the index of that role's `Visit`, and
+             MUST NOT be walked again.
+```
+
+A diamond costs one step for its second arm, not a second subtree.
+
+```
+REQUIREMENT: A step's `index` MUST be its position in the array, and `parent`
+             MUST be the index of the step that reached it (`undefined` for
+             `self`).
+```
+
+```
+REQUIREMENT: The walk MUST NOT overflow the native stack on a deep chain.
+```
+
+A 20,000-deep chain is walked.
+
+```typescript
+import { role, roleWalk, RoleStep } from "@qadi/core";
+
+const viewer = role({ name: "viewer" });
+const commenter = role({ name: "commenter", inherits: [viewer] });
+const editor = role({ name: "editor", inherits: [viewer, commenter] });
+
+// The steps: editor at index 0, viewer at 1, commenter at 2, then commenter's
+// edge to viewer at 3, a Revisit whose `first` is 1.
+export const lines = roleWalk(editor).map(
+  RoleStep.$match({
+    Visit: (step) => `${"  ".repeat(step.depth)}${step.role.name}`,
+    Revisit: (step) => `${"  ".repeat(step.depth)}${step.role.name} (as step ${step.first})`,
+  }),
+);
+```
+
+Flattening, role names, provenance and `fromRoles` read the same walk inside
+`@qadi/core` ([BEH-QD-010](./02-roles.md#beh-qd-010-permission-flattening),
+[BEH-QD-011](./02-roles.md#beh-qd-011-transitive-role-names), BEH-QD-192).
+`roleWalk` is the walk a reader outside core draws: `@qadi/devtools`'s role tree
+([BEH-QD-399](./28-devtools-screens.md#beh-qd-399-the-role-tree-is-the-role-walk)).
+
+Pinned by `packages/core/test/RoleWalk.test.ts`, over hand-built graphs and the
+random graphs of `RoleGraphArbitrary.ts`.
 
 ## BEH-QD-193: An unknown parent role is reported
 
@@ -579,6 +658,103 @@ one Effect signal that can be. Correlating calls to a single evaluation would
 mean threading a collector through `evaluateNode`, risking the short-circuit
 guarantee for a debug view, so the Services screen gets aggregates and the
 decision inspector does without.
+
+## BEH-QD-368: A metric is declared once, and read through its export
+
+> **See:** [BEH-QD-197](#beh-qd-197-port-activity-is-counted), [BEH-QD-189](#beh-qd-189-a-lookup-reports-how-the-cache-answered), [BEH-QD-317](./05-evaluator.md#beh-qd-317-a-readiness-probe-asks-the-ports-every-time), [ADR-QD-123](../decisions/123-a-metric-is-declared-once.md), [INV-QD-259](../invariants.md#inv-qd-259-a-metric-has-one-declaration-and-its-readers-import-it)
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Metric from "effect/Metric";
+import { decisionsTotal } from "@qadi/core";
+
+// Every other evaluation metric is exported the same way: denialsByPolicyTagTotal,
+// evaluationDurationMillis, evaluationErrorsTotal, decisionCacheLookupsTotal,
+// predicatesTranslatedTotal.
+export const denyShare = Effect.gen(function* () {
+  const allow = yield* Metric.value(decisionsTotal.Allow);
+  const deny = yield* Metric.value(decisionsTotal.Deny);
+  const total = allow.count + deny.count;
+  return total === 0 ? undefined : deny.count / total;
+});
+```
+
+```
+REQUIREMENT: `decisionsTotal` MUST hold exactly one series per `Decision` tag, and
+             `decideQuestion` MUST update exactly the series of the decision it
+             returns. The untagged base counter MUST NOT be exported.
+```
+
+```
+REQUIREMENT: A failed evaluation MUST update `evaluationErrorsTotal` under its error
+             tag and MUST NOT update `decisionsTotal`, `evaluationDurationMillis`
+             or `denialsByPolicyTagTotal`.
+```
+
+```
+REQUIREMENT: `decisionCacheLookupsTotal` MUST be updated once per `getOrCompute`,
+             under the path it took.
+```
+
+```
+REQUIREMENT: Every `qadi_*` metric MUST be declared once, at module scope, and MUST
+             appear in the table below. A reader MUST read a metric through its
+             export, never by matching its id.
+```
+
+The six metrics an evaluation, a cache lookup and a translation write used to be private to the
+modules that wrote them, so a test found them by matching an id string in a snapshot — and a "not
+counted" assertion written that way passed whether or not the metric existed (BEH-QD-317's only
+guard was one). They are declared in `EvaluationMetrics.ts` and exported from the root. Their ids,
+types, descriptions and series did not change: a description is part of the registry key
+(ADR-QD-052), so a reworded one would be a different metric to every exporter.
+
+All six are written on the evaluating fiber, so a `MetricRegistry` provided to that fiber receives
+them (`isolatedMetrics`, or a host's own registry). `decisionsTotal` counts a decision the evaluator
+reached, once, whichever route asked: a readiness probe (`createGuardHealthCheck`) updates none of
+them (BEH-QD-317). `predicatesTranslatedTotal` counts successes only and carries no outcome
+attribute; the compilers' counters in `@qadi/predicate-sql` and `@qadi/predicate-prisma` are tagged
+`compiled` or `refused`.
+
+The metrics of `@qadi/audit` and of the two compilers are exported from modules their package's
+`exports` map does not reach (ADR-QD-099), so their own tests read them by reference while an
+operator reads them through an exporter.
+
+`CacheOutcome` is declared in `EvaluationMetrics.ts`, beside the frequency it closes, and is still
+exported from the root. The wire literal in `SinkCodec.ts` restates its three words and is not
+derived from it.
+
+### Every metric Qadi declares
+
+Checked against the declarations in both directions by `scripts/check-house-style.mjs`
+(`[metric-table]`): a metric with no row, or a row with no declaration, fails the gate, and so does a
+row whose type or file disagrees with the declaration. Reader is the value a reader imports; a
+package-private one is reachable only from that package's own tests.
+
+| Metric | Type | Series | Declared in | Reader |
+| ------ | ---- | ------ | ----------- | ------ |
+| `qadi_decisions_total` | Counter | `outcome`: `allow`, `deny` | `packages/core/src/EvaluationMetrics.ts` | `decisionsTotal.Allow`, `decisionsTotal.Deny` |
+| `qadi_denials_by_policy_tag_total` | Frequency | the top-level policy tag | `packages/core/src/EvaluationMetrics.ts` | `denialsByPolicyTagTotal` |
+| `qadi_evaluation_duration_millis` | Histogram | one distribution | `packages/core/src/EvaluationMetrics.ts` | `evaluationDurationMillis` |
+| `qadi_evaluation_errors_total` | Frequency | the `EvaluationError` tag | `packages/core/src/EvaluationMetrics.ts` | `evaluationErrorsTotal` |
+| `qadi_decision_cache_lookups_total` | Frequency | `hit`, `coalesced`, `miss` | `packages/core/src/EvaluationMetrics.ts` | `decisionCacheLookupsTotal` |
+| `qadi_predicates_translated_total` | Counter | successful `toPredicate` calls only | `packages/core/src/EvaluationMetrics.ts` | `predicatesTranslatedTotal` |
+| `qadi_port_calls_total` | Frequency | the port, for the evaluator | `packages/core/src/PortMetrics.ts` | `portCallsTotal` |
+| `qadi_port_retries_total` | Frequency | the port | `packages/core/src/PortMetrics.ts` | `portRetriesTotal` |
+| `qadi_port_timeouts_total` | Frequency | the port | `packages/core/src/PortMetrics.ts` | `portTimeoutsTotal` |
+| `qadi_port_served_calls_total` | Frequency | the port, for a served read | `packages/core/src/PortMetrics.ts` | `servedPortCallsTotal` |
+| `qadi_predicate_port_calls_total` | Frequency | the port, for `toPredicate` | `packages/core/src/PortMetrics.ts` | `predicatePortCallsTotal` |
+| `qadi_hydration_dehydrated_total` | Counter | one series | `packages/core/src/HydrationMetrics.ts` | `hydrationDehydratedTotal` |
+| `qadi_hydration_seeded_total` | Counter | one series | `packages/core/src/HydrationMetrics.ts` | `hydrationSeededTotal` |
+| `qadi_hydration_dropped_total` | Frequency | the `HydrationDropReason` | `packages/core/src/HydrationMetrics.ts` | `hydrationDroppedTotal` |
+| `qadi_hydration_rechecks_total` | Counter | one series | `packages/core/src/HydrationMetrics.ts` | `hydrationRechecksTotal` |
+| `qadi_hydration_mismatches_total` | Counter | one series | `packages/core/src/HydrationMetrics.ts` | `hydrationMismatchesTotal` |
+| `qadi_audit_writes_total` | Counter | `outcome`: what became of a record | `packages/audit/src/AuditWriteReport.ts` | package-private: `WRITES_COUNTERS` |
+| `qadi_audit_staging_total` | Counter | `outcome`: what became of a staging attempt | `packages/audit/src/AuditWriteReport.ts` | package-private: `STAGING_COUNTERS` |
+| `qadi_audit_entries_lost_total` | Counter | `after` and `staging`: what failed | `packages/audit/src/AuditWriteReport.ts` | package-private: `LOST_COUNTERS` |
+| `qadi_audit_circuit_breaker_transitions_total` | Frequency | the state transitioned to | `packages/audit/src/CircuitBreaker.ts` | package-private: `transitionsTotal` |
+| `qadi_predicate_sql_compiled_total` | Counter | `outcome`: `compiled`, `refused` | `packages/predicate-sql/src/CompileMetrics.ts` | package-private: `compiledTotal` |
+| `qadi_predicate_prisma_compiled_total` | Counter | `outcome`: `compiled`, `refused` | `packages/predicate-prisma/src/CompileMetrics.ts` | package-private: `compiledTotal` |
 
 ## BEH-QD-198: An atom set records the questions it was asked
 

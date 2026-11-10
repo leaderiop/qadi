@@ -44,8 +44,8 @@ const Page = async () => {
   // Assembled by hand, the way a batched loader would assemble it by accident.
   let droppedCount = 0;
   const payload = dehydrateDecisions([...mine, ...theirs], {
-    onDropped: (dropped) => {
-      droppedCount = dropped.length;
+    onDropped: (drop) => {
+      droppedCount += drop.entries.length;
     },
   });
 

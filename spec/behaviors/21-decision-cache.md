@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-21                                    |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-10-08): BEH-QD-166 — a completed entry is counted once toward `capacity`; the hit check, the join and the claim are one synchronous step (ARCH-45, CCR-QD-267)<br>1.5 (2026-10-07): BEH-QD-163/168 — `DecisionCacheKey` is replaced by `Question`; the options that are part of the key are the type `QuestionOptions` (ADR-QD-100, CCR-QD-189)<br>1.4 (2026-09-08): BEH-QD-168 corrected twice — `AuthSubject.roles`/`.permissions` are the built-in JS `Set`, not `effect/HashSet` (matching `DecisionCache.ts`'s own corrected doc comment); and the `DecisionCacheKey` listing and BEH-QD-163's requirement gained the `maxDepth` field they omitted, which is in the key for the same reason `action` is (CCR-QD-128)<br>1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
+> | Change History | 1.8 (2026-11-10): BEH-QD-439 — a shared computation answers everyone still waiting, and nobody else: a claim is joinable only while somebody waits on it, an abandoned computation caches nothing, and the last leaver still waits for a computation parked uninterruptibly (ARCH-68, ADR-QD-132, CCR-QD-410)<br>1.7 (2026-11-10): BEH-QD-166 states why a bad `capacity` is a defect where a port's `…Bounded(permits)` is typed; no behaviour change (ARCH-61, CCR-QD-403)<br>1.6 (2026-10-08): BEH-QD-166 — a completed entry is counted once toward `capacity`; the hit check, the join and the claim are one synchronous step (ARCH-45, CCR-QD-267)<br>1.5 (2026-10-07): BEH-QD-163/168 — `DecisionCacheKey` is replaced by `Question`; the options that are part of the key are the type `QuestionOptions` (ADR-QD-100, CCR-QD-189)<br>1.4 (2026-09-08): BEH-QD-168 corrected twice — `AuthSubject.roles`/`.permissions` are the built-in JS `Set`, not `effect/HashSet` (matching `DecisionCache.ts`'s own corrected doc comment); and the `DecisionCacheKey` listing and BEH-QD-163's requirement gained the `maxDepth` field they omitted, which is in the key for the same reason `action` is (CCR-QD-128)<br>1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
 
 _Previous: [20 — Policy Simplification](./20-simplification.md)_
 
@@ -165,7 +165,11 @@ A negative `capacity` would make the eviction loop's own exit condition
 infinite loop, not a small cache. A `NaN` capacity would make that same
 comparison always `false`, silently turning "bounded" into unbounded instead
 of failing loudly. Both are caller misconfiguration, not a runtime condition
-to recover from, so this fails as a defect rather than a typed error.
+to recover from, so this fails as a defect rather than a typed error. That is
+unlike a port's `…Bounded(permits)`, whose `InvalidBoundedPermits` is typed: those
+wrappers are derived for every port by `PortDerivation.ts`, whose layers already
+carry an error channel, so a composition can report it, while the cache's and
+the decision log's `capacity` is a constant the caller wrote.
 
 ```
 REQUIREMENT: Once the number of completed entries exceeds `capacity`, the
@@ -281,6 +285,64 @@ a grant revoked in the **subject** changes the key and is picked up on the next
 request; a grant revoked only in a **store the evaluation consults** is invisible
 to the key and stays cached. Application scope is safe against token downgrade
 and unsafe against backend revocation; per-request scope is safe against both.
+
+## BEH-QD-439: A shared computation answers everyone still waiting, and nobody else
+
+> **Invariant:** [INV-QD-025](../invariants.md#inv-qd-025-a-cache-hit-differs-from-a-miss-only-in-speed-and-identity)
+> **See:** [ADR-QD-132](../decisions/132-a-shared-computation-is-joinable-only-while-awaited.md)
+
+```
+REQUIREMENT: Concurrent asks of one question MUST run its computation once,
+             and every one of them MUST receive that computation's exit,
+             a failure included.
+```
+
+```
+REQUIREMENT: A waiter that leaves MUST NOT interrupt the shared computation
+             while another fiber still waits on it.
+```
+
+```
+REQUIREMENT: When the last waiter leaves, the computation MUST be interrupted
+             and no later ask may join it. An ask that was never interrupted
+             MUST NOT receive an interruption, whether or not a port holds the
+             computation in an uninterruptible region.
+```
+
+```
+REQUIREMENT: A computation every waiter has abandoned MUST write nothing into
+             the cache, whatever its exit.
+```
+
+The regime lives in a package-private module, `SharedComputation.ts`, generic
+over its key; `DecisionCache` is its one adapter and keeps its three methods.
+
+The third requirement was found red (issue #64 follow-up, ARCH-68). A port can
+park the computation in an uninterruptible region: a connection checkout, an
+acquire, a finalizer. There the last leaver's interrupt is only recorded until
+the region ends. The abandoned claim stayed in flight, so a fresh ask for the
+same question joined it and resolved interrupted without ever being cancelled.
+Now the step that sees the last waiter leave also removes the claim, so the
+fresh ask starts its own computation. The abandoned computation's exit is
+dropped rather than cached: a fresh claim may already be computing the same
+key, and writing both would append it to the insertion order twice
+([BEH-QD-166](#beh-qd-166-capacity-bounds-the-cache-validated-at-construction)).
+
+**The stated cost.** `Fiber.interrupt` waits for its target to exit, so the
+last waiter to leave still waits until a computation parked uninterruptibly
+leaves that region, exactly as before. Only the fresh ask no longer waits on
+it. In that window the question may be computed twice; only the fresh
+computation answers or is cached.
+
+**Enforcement**: `packages/core/test/SharedComputation.test.ts` pins the regime
+with plain keys and latched computations: one key coalesces and a join still
+waiting is counted, a failure settles every waiter, one of two waiters leaving
+leaves the computation running, every waiter leaving interrupts it, and the two
+"abandon" tests: a fresh ask never joins a computation every waiter has
+abandoned, and an abandoned computation writes nothing.
+`packages/core/test/DecisionCache.test.ts`'s "issue #64, uninterruptible
+regime" test pins the third requirement through `evaluate`, and its two
+"REGRESSION PIN for issue #64" tests the idle, interruptible case.
 
 ---
 

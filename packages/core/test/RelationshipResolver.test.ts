@@ -7,12 +7,14 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import type { RelatedResult } from "../src/RelationshipResolver.ts";
 import {
   RelationshipResolver,
   RelationshipResolverNever,
   relationshipResolverFromEdges,
+  relationshipResolverPort,
 } from "../src/RelationshipResolver.ts";
 
 /**
@@ -175,5 +177,15 @@ describe("RelationshipResolver", () => {
           );
         }),
     );
+  });
+});
+
+describe("relationshipResolverPort's wire", () => {
+  it("writes a depth when the request has one", () => {
+    const encoded = relationshipResolverPort.wire.encodeQuestion([
+      { subjectId: makeSubjectId("alice"), relation: "owner", resourceId: makeResourceId("doc-1"), depth: 3 },
+    ]);
+    if (Result.isFailure(encoded)) return assert.fail(encoded.failure);
+    assert.deepStrictEqual(encoded.success, { subjectId: "alice", relation: "owner", resourceId: "doc-1", depth: 3 });
   });
 });

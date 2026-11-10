@@ -31,8 +31,10 @@ pulling in a UI at all.
 ## The model absorbs a hostile feed
 
 Decision records arrive from several processes at once, and none of them
-promises order, uniqueness, or completeness: a reconnecting `EventSource` reads
-the server's backlog again, so a record may arrive twice; merging two sources interleaves two
+promises order, uniqueness, or completeness: a reconnecting `EventSource`
+resumes after the last record it received and loses none, but one whose cursor
+the server no longer recognises reads the whole backlog again, so a record may
+arrive twice; merging two sources interleaves two
 clocks; and a decision's obligation outcome is emitted after `evaluate`
 already returned, so the two halves of one story can arrive out of sequence.
 `Timeline` absorbs all of that, so everything downstream may assume its
@@ -69,6 +71,29 @@ it:
 | `sourceFromRecords` | a fixed array | — |
 | a `DecisionLog`, passed as is | its backlog | in-process |
 | `sourceFromEventSource` | the server's prelude, when it sends one | across processes, over SSE |
+
+`sourceFromEventSource` is the `EventSource` adapter over `@qadi/core`'s
+`decodeDecisionStream`, which holds the prelude rules: the frames before
+`synced` are the backlog, a `message` before it is live, and no `synced`
+within `syncTimeout` leaves the backlog absent. The server sends the backlog in
+cursor order so a reconnect loses nothing; the backlog is still presented in
+decision order. Against a server older than 0.12 a reconnect during the backlog
+can still lose records, because the order is the server's.
+
+`sourceFromEventSource` takes the URL from you and builds none. Build it with
+`@qadi/http`'s `devtoolsPath` and the prefix your server mounted the routes
+under, so the reader follows the server when the prefix changes:
+
+```typescript
+import { sourceFromEventSource } from "@qadi/devtools";
+import { devtoolsPath } from "@qadi/http";
+
+// The server mounted devtoolsRoutes(..., { prefix: "/devtools" }).
+export const source = sourceFromEventSource({
+  url: devtoolsPath("decisions", "/devtools"),
+  withCredentials: true,
+});
+```
 
 The environment label is stated once, where the log is made; over SSE it
 travels inside each frame, so `sourceFromEventSource` states none. A frame must
@@ -171,8 +196,18 @@ the dock takes, and the readings of a timeline.
   simulator's state headlessly: its `snapshot.plan` says what a sweep will cost
   before it runs, `run("Sweep")` produces the `run.report`, a source that cannot
   be honoured is refused rather than answered from fixtures, a Live run captures
-  for `Snapshot`, and a superseded run never lands. The sweep, the capture and the
-  replay it is made of are package-private.
+  for `Snapshot`, and a superseded run never lands. `replay(entry)` seeds the
+  form from a logged row on every call, even the row last replayed, while
+  `seed(entry)` re-run with the same row leaves an edited form alone. The session also holds the
+  form: `addChip(field, text)` commits typed text by that field's codec and
+  answers with the reason when it is refused, `removeChip(field, index)` removes
+  one, and `snapshot.fields` is the form's reading, field by field (the subject
+  card's attribute row is captioned "subject attributes", the name a replay's
+  "yours to supply" list gives it). The sweep drops each element of every field
+  the form edits, signatures included, and answers a denied `hasSignature` with
+  the signature its node names; a `hasCustom` requirement is named as one it
+  cannot remedy. The sweep, the capture and the replay it is made of are
+  package-private.
 - **Wiring and hydration reports** (`wiringReport`, `portActivity`,
   `hydrationActivity`) — which ports are in use, and the counters `@qadi/react`
   writes and this package reads, covering drops, mismatches, and rechecks between

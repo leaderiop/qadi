@@ -5,6 +5,8 @@
  */
 export * from "./DecisionBacklogRoute.ts";
 export * from "./DecisionStreamRoute.ts";
+export * from "./DevtoolsRouteAddress.ts";
+export * from "./DevtoolsRoutes.ts";
 export * from "./GuardApi.ts";
 export * from "./HttpApiMiddlewareClient.ts";
 export * from "./PermissionRegistry.ts";

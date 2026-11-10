@@ -131,8 +131,30 @@ describe("replayInput", () => {
         "signatures",
       ],
     );
+    assert.deepStrictEqual(
+      seeded.unseeded.map((one) => one.key),
+      ["roles", "permissions", "subjectAttributes", "attributes", "relationships", "history", "signatures"],
+    );
     assert.isTrue(seeded.unseeded.every((one) => one.reason.length > 0));
     assert.deepStrictEqual(seeded.unseeded, unseededByReplay);
+  });
+
+  // The table's prose is a static literal the mutation gate does not run, so it
+  // is pinned here in full: the field is the label the form shows it under.
+  it("states each blank field with the reason its answerer gives", () => {
+    const subject = "a record names the subject by id and carries nothing else about them";
+    const ports =
+      "a record carries what the ports answered inside its trace, never as fixtures a rerun could use";
+
+    assert.deepStrictEqual(unseededByReplay, [
+      { key: "roles", field: "roles", reason: subject },
+      { key: "permissions", field: "permissions", reason: subject },
+      { key: "subjectAttributes", field: "subject attributes", reason: subject },
+      { key: "attributes", field: "resolver attributes", reason: ports },
+      { key: "relationships", field: "relationships", reason: ports },
+      { key: "history", field: "history", reason: ports },
+      { key: "signatures", field: "signatures", reason: ports },
+    ]);
   });
 
   /**

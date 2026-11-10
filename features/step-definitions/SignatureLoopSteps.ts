@@ -1,5 +1,6 @@
 import { defineSteps } from "@effect-cucumber/vitest";
 import * as Effect from "effect/Effect";
+import * as Result from "effect/Result";
 import { SignatureLedgerTest, signatureHistoryFromLedger, signatureObligationHandler } from "@qadi/audit";
 import type { SignatureCapturePortShape } from "@qadi/audit";
 import {
@@ -52,6 +53,22 @@ export const signatureLoopSteps = defineSteps<World>(({ When, Then }) => {
     yield* guard(approve, obliged(obligation("sig.approve"), hasPermission(approve)), {
       onObligations: signatureObligationHandler(capturingPort, "approved", { ledger }),
     })({ id }, () => Effect.void).pipe(Effect.provide(qadiTestLayer(subjectOf(w))));
+  });
+
+  When("they approve a document with id 7 and a signature is captured", function* () {
+    const w = yield* readState();
+    const { ledger } = SignatureLedgerTest();
+    yield* patch(() => ({ signatureLedger: ledger }));
+    const result = yield* Effect.result(
+      guard(approve, obliged(obligation("sig.approve"), hasPermission(approve)), {
+        onObligations: signatureObligationHandler(capturingPort, "approved", { ledger }),
+      })({ id: 7 }, () => Effect.void).pipe(Effect.provide(qadiTestLayer(subjectOf(w)))),
+    );
+    yield* patch(() => ({ signatureDischargeRefused: Result.isFailure(result) }));
+  });
+
+  Then("the discharge is refused", function* () {
+    assert.equal((yield* readState()).signatureDischargeRefused, true);
   });
 
   Then("the {string} signature is on file for {string}", function* (meaning: string, id: string) {

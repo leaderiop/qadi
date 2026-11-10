@@ -11,10 +11,10 @@ pnpm add @qadi/http @qadi/core effect
 ## Authorization is declared, never inferred
 
 An endpoint annotated with neither a permission requirement nor an explicit
-public marker is **refused**, with a 500 and a log naming it. Absence of a
-requirement never means "unguarded": forgetting one annotation would otherwise
-publish an endpoint with no signal at build time, layer-build time or request
-time.
+public marker is **refused**: `guardApi` fails to build, naming the group and the
+endpoint (`AccessNotDeclared`). Absence of a requirement never means
+"unguarded": forgetting one annotation would otherwise publish an endpoint with
+no signal at build time, layer-build time or request time.
 
 ```ts
 HttpApiEndpoint.get("health", "/health").pipe((e) =>
@@ -26,9 +26,8 @@ The `reason` is required and never read by the middleware. It exists so a
 reviewer can see that someone chose this.
 
 Only an endpoint declares access. A `RequiredPermission` or `PublicEndpoint` on
-a group or on the API is **refused** too, never ignored: the middleware answers
-500 for every endpoint under that group and names the group in its log, and
-`guardApi` fails with `MisplacedAccessDeclaration`. To declare for a whole
+a group or on the API is **refused** too, never ignored: `guardApi` fails with
+`MisplacedAccessDeclaration`, naming the group or the API. To declare for a whole
 group, write it into each endpoint's own annotations:
 
 ```ts
@@ -42,13 +41,17 @@ HttpApiGroup.make("documents")
 `guardApi(Api)` is the one layer that guards an `HttpApi`: it provides the
 `RequirePermission` middleware for that API and, by being built, registers every
 endpoint it enforces with `PermissionRegistry`. It requires `PermissionRegistry`,
-the subject extractor and the standing evaluation services.
+the subject extractor and the standing evaluation services. `guardApi` reads each
+endpoint's declaration once, when it is built, and the middleware looks the endpoint
+up in the result.
 
 An endpoint the middleware is not attached to (`.middleware(RequirePermission)`
 before `.add(group)`, no middleware, or middleware on one group only) is refused
 rather than served to anyone: a compile error where the type is precise, and
-`RequirePermissionNotAttached` at layer build otherwise. The middleware also answers
-500 for an endpoint outside the API it was built for. Bare routes register the same
+`RequirePermissionNotAttached` at layer build otherwise. The middleware answers
+500, with one error log naming it, for an endpoint that is not part of the `HttpApi` value it was built from
+(another API, or a `prefix`ed copy), so pass `guardApi` the same value
+`HttpApiBuilder.layer` serves. Bare routes register the same
 way, because `addGuardedRoute` registers in the layer that adds the route.
 
 ## Building your own surface
@@ -122,6 +125,18 @@ permissionRegistryRoute(adminPermission, isAdmin)
 
 `permissionRegistryRouteUnguarded(reason)` exists for local development and says
 so in the logs on every request.
+
+## The devtools routes
+
+The decision stream (`/__decisions`), its backlog and the permission registry take
+`{ prefix }` and answer at `devtoolsPath(route, prefix)`. `devtoolsRoutes(permission,
+policy, log, { prefix })` mounts all three behind one guard; it has no unguarded form.
+Build your client's URL with the same function and prefix, never by hand:
+
+```ts
+devtoolsRoutes(readDevtools, canReadDevtools, log, { prefix: "/devtools" });
+sourceFromEventSource({ url: devtoolsPath("decisions", "/devtools") }); // @qadi/devtools
+```
 
 ## Answering ports for a remote client
 

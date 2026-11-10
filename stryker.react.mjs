@@ -1,6 +1,6 @@
 /**
- * Mutation testing for `@qadi/react`'s **decision read** and its **question
- * book**, and nothing else in that package.
+ * Mutation testing for `@qadi/react`'s **decision read**, its **question
+ * book** and its **hydration event projection**, and nothing else in that package.
  *
  * `stryker.config.mjs` keeps `@qadi/react` out of the core run because the
  * package is "a thin binding over `effect/reactivity` plus render code" — and
@@ -10,13 +10,15 @@
  * re-check that reads as its old allow (ADR-QD-017), a failure that reads as a
  * denial (INV-QD-006), a seed that reads as pending (BEH-QD-149). The same
  * argument `stryker.devtools.mjs` makes for scoping to `src/model/`: mutate what
- * decides, not what renders (ADR-QD-093).
+ * decides, not what renders (ADR-QD-093). `HydrationEvent.ts` is the one place a
+ * hydration outcome becomes a count and a report, so a surviving mutant there is a
+ * miscounted or unannounced exit (ARCH-60, D-53-g).
  *
  * A separate configuration for the `vitest.dir` reason every per-package config
  * here gives: `stryker.config.mjs` pins `vitest.dir` to `packages/core`, so a
  * mutant in this package would have no covering test there. The covering tests
- * are `packages/react/test/DecisionOutcome.test.ts` and `QuestionBook.test.ts` (no
- * rendering, fast), plus whatever else in the package reaches the module — `perTest` coverage analysis
+ * are `packages/react/test/DecisionOutcome.test.ts`, `QuestionBook.test.ts` and
+ * `HydrationEvent.test.ts` (no rendering, fast), plus whatever else in the package reaches the module — `perTest` coverage analysis
  * runs only those.
  *
  * @type {import('@stryker-mutator/api/core').PartialStrykerOptions}
@@ -46,7 +48,11 @@ export default {
   // suite for each, and they dominated the run time. Set false to examine them by hand.
   ignoreStatic: true,
 
-  mutate: ["packages/react/src/DecisionOutcome.ts", "packages/react/src/QuestionBook.ts"],
+  mutate: [
+    "packages/react/src/DecisionOutcome.ts",
+    "packages/react/src/QuestionBook.ts",
+    "packages/react/src/HydrationEvent.ts",
+  ],
 
   thresholds: { high: 90, low: 80, break: 80 },
 

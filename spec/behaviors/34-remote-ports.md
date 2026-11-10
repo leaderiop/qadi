@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-34                                    |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-11-08): BEH-QD-331 — a required allowlist that is missing or not a list is refused `NotServed` at run time, the store never read (code review WR-01)<br>1.4 (2026-11-08): BEH-QD-331 — the serving facts are stated once on the port's description, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.3 (2026-11-08): BEH-QD-333 points to BEH-QD-338, where the port route address and the reply-body contract are defined once (ARCH-52, CCR-QD-391)<br>1.2 (2026-11-08): BEH-QD-332 — an answer the span's `disclose` cannot read is the port's typed error, answered `Unavailable`, never a defect (code review WR-01)<br>1.1 (2026-11-08): BEH-QD-332 — a served span equals a local one through pose and disclose, carries a signature asker's requirement, and a store that throws is the port's typed error (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
+> | Change History | 1.6 (2026-11-10): The unguarded port routes' once-at-construction warning is stated here, agreeing with ADR-QD-107 (ARCH-61, CCR-QD-402)<br>1.5 (2026-11-08): BEH-QD-331 — a required allowlist that is missing or not a list is refused `NotServed` at run time, the store never read (code review WR-01)<br>1.4 (2026-11-08): BEH-QD-331 — the serving facts are stated once on the port's description, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.3 (2026-11-08): BEH-QD-333 points to BEH-QD-338, where the port route address and the reply-body contract are defined once (ARCH-52, CCR-QD-391)<br>1.2 (2026-11-08): BEH-QD-332 — an answer the span's `disclose` cannot read is the port's typed error, answered `Unavailable`, never a defect (code review WR-01)<br>1.1 (2026-11-08): BEH-QD-332 — a served span equals a local one through pose and disclose, carries a signature asker's requirement, and a store that throws is the port's typed error (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
 
 _Previous: [33 — Audit Pipeline](./33-audit-pipeline.md)_
 
@@ -47,6 +47,11 @@ export const browserPorts = remotePortsLayer({
   ports: ["AttributeResolver", "RelationshipResolver"],
 }).pipe(Layer.provide(FetchHttpClient.layer));
 ```
+
+`portRoutesUnguarded` logs its warning once, when the layer is built, not per request, because a
+port route is hit on every client re-check and a warning per request would bury the log it is meant
+to appear in ([ADR-QD-107](../decisions/107-a-port-is-answered-remotely-through-its-description.md)).
+One warning covers every port it serves.
 
 ## BEH-QD-329: An outage on the answering side reaches the asker as the port's own error
 

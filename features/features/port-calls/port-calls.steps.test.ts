@@ -176,7 +176,7 @@ const runPolicy = Effect.fn("port-calls.run")(function* (
 
   // `compile` runs the same policy through `toPredicate` instead: the second
   // interpreter reads the same ports through the same module, and its reads
-  // should be recorded too — as compilation (BEH-QD-NEXT-d). Its outcome is not
+  // should be recorded too — as compilation (BEH-QD-267). Its outcome is not
   // what these scenarios are about, so only the log is kept.
   const result =
     mode === "evaluate"

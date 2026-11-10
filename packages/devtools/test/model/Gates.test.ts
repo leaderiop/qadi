@@ -11,12 +11,14 @@ import { assert, describe, it } from "@effect/vitest";
 import { hasPermission, hasRole, permission } from "@qadi/core";
 import {
   GATE_STATES,
+  displayOfGateState,
   gateGroups,
   instancesAsking,
   isLocatable,
   locatableIds,
 } from "../../src/model/Gates.ts";
 import type { GateGroup, GateInstanceLike } from "../../src/model/Gates.ts";
+import { displayOfNodeStatus, displayOfVerdict } from "../../src/model/Verdict.ts";
 
 /** AGENTS.md §6 leaves no `!`, and an absent group is a failure worth naming. */
 const only = (groups: ReadonlyArray<GateGroup>): GateGroup => {
@@ -212,5 +214,44 @@ describe("instancesAsking", () => {
     // A real and common state, not an error: a component that asked and then
     // unmounted leaves its question behind in the atom layer.
     assert.deepStrictEqual(instancesAsking(groups, isAdmin, undefined), []);
+  });
+});
+
+describe("displayOfGateState", () => {
+  it("maps each of the five render states, a failure to Error and never to Deny", () => {
+    assert.deepStrictEqual(
+      ["Allowed", "Denied", "Failed", "Pending", "Rechecking"].map(displayOfGateState),
+      ["Allow", "Deny", "Error", "Pending", "Rechecking"],
+    );
+  });
+
+  it("calls a state this build does not know Unrecognised, not an answer", () => {
+    assert.strictEqual(displayOfGateState("Suspended"), "Unrecognised");
+    // A key every object inherits is still not a render state.
+    assert.strictEqual(displayOfGateState("toString"), "Unrecognised");
+    assert.strictEqual(displayOfGateState(""), "Unrecognised");
+  });
+
+  it("GATE_STATES lists exactly the mapped states, worst news first", () => {
+    assert.deepStrictEqual([...GATE_STATES], ["Failed", "Denied", "Rechecking", "Pending", "Allowed"]);
+    for (const state of GATE_STATES) {
+      assert.notStrictEqual(displayOfGateState(state), "Unrecognised");
+    }
+  });
+});
+
+describe("displayOfNodeStatus and displayOfVerdict", () => {
+  it("shows a node never resolved as not reached, never as a denial", () => {
+    assert.deepStrictEqual(
+      (["Allowed", "Denied", "NeverResolved"] as const).map(displayOfNodeStatus),
+      ["Allow", "Deny", "NotReached"],
+    );
+  });
+
+  it("shows each verdict as itself", () => {
+    assert.deepStrictEqual(
+      (["Allow", "Deny", "Error", "Unknown"] as const).map(displayOfVerdict),
+      ["Allow", "Deny", "Error", "Unknown"],
+    );
   });
 });

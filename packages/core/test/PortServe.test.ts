@@ -20,6 +20,7 @@ import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import { servePortRead } from "../src/PortAccess.ts";
 import { PortReply } from "../src/PortDescription.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
+import { portCallsTotal, servedPortCallsTotal } from "../src/PortMetrics.ts";
 import type { PortName } from "../src/PortMetrics.ts";
 import { PORTS } from "../src/Ports.ts";
 import type { AnswerOf, ArgsOf, DescriptionOf, PortTypes } from "../src/Ports.ts";
@@ -115,15 +116,22 @@ const serve = <K extends PortName>(d: DescriptionOf<K>, c: Case<K>) => {
 
     it.effect("counts once in the served metric and not in the evaluator's", () =>
       Effect.gen(function* () {
-        const snapshots = yield* isolatedMetrics(
-          read.pipe(Effect.provide(answering), Effect.flatMap(() => Metric.snapshot)),
+        const { served, evaluator } = yield* isolatedMetrics(
+          read.pipe(
+            Effect.provide(answering),
+            Effect.flatMap(() =>
+              Effect.all({
+                served: Metric.value(servedPortCallsTotal),
+                evaluator: Metric.value(portCallsTotal),
+              }),
+            ),
+          ),
         );
-        const served = snapshots.find((s) => s.id === "qadi_port_served_calls_total");
-        assert.strictEqual(
-          served?.type === "Frequency" ? served.state.occurrences.get(d.port) : undefined,
-          1,
+        assert.strictEqual(served.occurrences.get(d.port), 1);
+        assert.deepStrictEqual(
+          [...evaluator.occurrences].filter(([, count]) => count !== 0),
+          [],
         );
-        assert.isUndefined(snapshots.find((s) => s.id === "qadi_port_calls_total"));
       }));
 
     it.effect("a store that fails surfaces as the port's typed error", () =>
@@ -146,7 +154,7 @@ const serve = <K extends PortName>(d: DescriptionOf<K>, c: Case<K>) => {
   });
 };
 
-describe("a served read (ADR-QD-NEXT)", () => {
+describe("a served read (ADR-QD-107)", () => {
   const RUN: { readonly [K in PortName]: () => void } = {
     AttributeResolver: () => serve(PORTS.AttributeResolver, CASES.AttributeResolver),
     DecisionHistory: () => serve(PORTS.DecisionHistory, CASES.DecisionHistory),

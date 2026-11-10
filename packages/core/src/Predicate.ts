@@ -27,6 +27,7 @@ import type { DecisionHistory } from "./DecisionHistory.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
 import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors.ts";
 import { MissingAction, PolicyNotTranslatable } from "./Errors.ts";
+import { predicatesTranslatedTotal } from "./EvaluationMetrics.ts";
 import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
 import {
   evaluateMatcher,
@@ -635,18 +636,6 @@ const run = (
         }),
     }),
   );
-
-/**
- * Successful policy-to-`Predicate` translations.
- *
- * The complementary case to `PolicyNotTranslatable`, which is already a typed
- * failure a caller can catch and count on its own: this is a metric a
- * deployment can watch for the successful path without wiring a catch clause
- * of its own, the same reason `Evaluate.ts`'s `qadi_decisions_total` exists.
- */
-const predicatesTranslatedTotal = Metric.counter("qadi_predicates_translated_total", {
-  description: "Policies successfully compiled to a Predicate by `toPredicate`.",
-});
 
 /**
  * Compiles a policy into a filter over rows the caller has not loaded.

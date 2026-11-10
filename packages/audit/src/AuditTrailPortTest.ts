@@ -15,10 +15,17 @@ import * as MutableRef from "effect/MutableRef";
 import type { AuditEntry } from "./AuditEntry.ts";
 import { AuditTrailPort } from "./AuditTrailPort.ts";
 import { AuditWriteError } from "./AuditTrailPort.ts";
+import type { AuditTrailScript } from "./AuditPortReply.ts";
+import { AuditPortReply } from "./AuditPortReply.ts";
+import { answerReply } from "./AuditPortReplyInterpreter.ts";
 
 export interface AuditTrailPortTestOptions {
-  /** When present, `write` fails with the returned error instead of recording. */
-  readonly failWith?: (entry: AuditEntry) => AuditWriteError | undefined;
+  /**
+   * Answers each `write` with an `AuditPortReply`; `undefined`, or no script
+   * at all, is `Ok`. A `Fail` reply fails with `AuditWriteError({ entry, cause })`
+   * built here, so a test never constructs the port's error by hand.
+   */
+  readonly write?: AuditTrailScript;
 }
 
 export interface AuditTrailPortTestHandle {
@@ -28,20 +35,29 @@ export interface AuditTrailPortTestHandle {
    * write made so far, not a snapshot taken when the handle was created.
    */
   readonly written: () => ReadonlyArray<AuditEntry>;
+  /** Every entry `write` was called with, in call order, whatever the reply. Live. */
+  readonly calls: () => ReadonlyArray<AuditEntry>;
 }
 
 export const AuditTrailPortTest = (options?: AuditTrailPortTestOptions): AuditTrailPortTestHandle => {
   const store = MutableRef.make<ReadonlyArray<AuditEntry>>(Arr.empty());
+  const log = MutableRef.make<ReadonlyArray<AuditEntry>>(Arr.empty());
 
   return {
     written: () => MutableRef.get(store),
+    calls: () => MutableRef.get(log),
     layer: Layer.succeed(AuditTrailPort, {
       write: (entry) => {
-        const failure = options?.failWith?.(entry);
-        if (failure !== undefined) return Effect.fail(failure);
-        return Effect.sync(() => {
+        const call = MutableRef.get(log).length;
+        MutableRef.update(log, (entries) => Arr.append(entries, entry));
+        const ok = Effect.sync(() => {
           MutableRef.update(store, (entries) => Arr.append(entries, entry));
         });
+        if (options?.write !== undefined) {
+          const reply = options.write(entry, call) ?? AuditPortReply.Ok();
+          return answerReply(reply)(ok, (cause) => new AuditWriteError({ entry, cause }));
+        }
+        return ok;
       },
     }),
   };

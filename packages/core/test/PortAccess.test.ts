@@ -25,6 +25,7 @@ import {
 } from "../src/PortAccess.ts";
 import { PortReply } from "../src/PortDescription.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
+import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "../src/PortMetrics.ts";
 import type { PortName } from "../src/PortMetrics.ts";
 import { PORTS, portsLayer } from "../src/Ports.ts";
 import type {
@@ -38,6 +39,10 @@ import type {
 import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
 import { signatureHistoryPort } from "../src/SignatureHistory.ts";
 import { collectingTracer, isolatedMetrics } from "./helpers.ts";
+
+/** The words a frequency has actually counted; preregistered words sit at zero. */
+const nonZero = (frequency: { readonly occurrences: ReadonlyMap<string, number> }) =>
+  [...frequency.occurrences].filter(([, count]) => count !== 0);
 
 /**
  * `catchPortDefect`'s whole contract is a cause matrix: which shapes of cause it
@@ -403,8 +408,8 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
   };
 
   const METRIC = {
-    evaluate: "qadi_port_calls_total",
-    toPredicate: "qadi_predicate_port_calls_total",
+    evaluate: portCallsTotal,
+    toPredicate: predicatePortCallsTotal,
   } as const;
 
   const attributesIn = (spans: ReadonlyArray<Tracer.Span>, name: string) => {
@@ -415,11 +420,6 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
 
   const withoutInterpreter = (record: Readonly<Record<string, unknown>>) =>
     Object.fromEntries(Object.entries(record).filter(([k]) => k !== "qadi.interpreter"));
-
-  const occurrences = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, id: string, port: string) => {
-    const series = snapshots.find((s) => s.id === id);
-    return series?.type === "Frequency" ? series.state.occurrences.get(port) : undefined;
-  };
 
   /** Both reads of one row over one scripted store, each under its own tracer. */
   const readBoth = <K extends PortName>(
@@ -514,13 +514,22 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
           it.effect("counts once in the asker's own metric and never in the served one", () =>
             Effect.gen(function* () {
               const store = scriptedPort(d, () => PortReply.answer(row.answer)).layer;
-              const snapshots = yield* isolatedMetrics(
-                row.local.pipe(Effect.provide(store), Effect.flatMap(() => Metric.snapshot)),
-              );
-              assert.strictEqual(occurrences(snapshots, METRIC[row.interpreter], d.port), 1);
               const other = row.interpreter === "evaluate" ? METRIC.toPredicate : METRIC.evaluate;
-              assert.isUndefined(snapshots.find((s) => s.id === other));
-              assert.isUndefined(snapshots.find((s) => s.id === "qadi_port_served_calls_total"));
+              const { own, others, served } = yield* isolatedMetrics(
+                row.local.pipe(
+                  Effect.provide(store),
+                  Effect.flatMap(() =>
+                    Effect.all({
+                      own: Metric.value(METRIC[row.interpreter]),
+                      others: Metric.value(other),
+                      served: Metric.value(servedPortCallsTotal),
+                    }),
+                  ),
+                ),
+              );
+              assert.deepStrictEqual(nonZero(own), [[d.port, 1]]);
+              assert.deepStrictEqual(nonZero(others), []);
+              assert.deepStrictEqual(nonZero(served), []);
             }));
         });
       }
@@ -594,7 +603,7 @@ describe("a missing resource id still leaves its question on the span (D-07)", (
       Effect.gen(function* () {
         const spans: Array<Tracer.Span> = [];
         const calls: Array<unknown> = [];
-        const snapshots = yield* isolatedMetrics(
+        const portCalls = yield* isolatedMetrics(
           Effect.gen(function* () {
             const result = yield* Effect.result(
               row.read.pipe(
@@ -623,13 +632,13 @@ describe("a missing resource id still leaves its question on the span (D-07)", (
             if (Result.isFailure(result)) {
               assert.strictEqual(Object.getOwnPropertyDescriptor(result.failure, "_tag")?.value, "MissingResourceId");
             }
-            return yield* Metric.snapshot;
+            return yield* Metric.value(portCallsTotal);
           }),
         );
         const attributes = Object.fromEntries(spans.find((s) => s.name === row.span)?.attributes ?? []);
         assert.deepStrictEqual(attributes, row.question);
         assert.deepStrictEqual(calls, []);
-        assert.isUndefined(snapshots.find((s) => s.id === "qadi_port_calls_total"));
+        assert.deepStrictEqual(nonZero(portCalls), []);
       }));
   }
 });

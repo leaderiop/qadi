@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-23                                    |
-> | Revision       | 1.12                                            |
+> | Revision       | 1.16                                            |
 > | Effective Date | 2026-11-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.12 (2026-11-08): BEH-QD-338: the port routes and their client share one address, and the client reads the reply from the body whatever the status (ARCH-52, CCR-QD-391)<br>1.11 (2026-11-08): BEH-QD-335 and BEH-QD-336 added — every request path enforces and logs through one module, and an unguarded port route logs a subject-extraction failure; BEH-QD-321 amended — the surfaces authorize through the request-enforcement module (`portRoutes` and `portRoutesUnguarded` named), whose handler step logs a handler-raised denial (ARCH-46, ADR-QD-108, CCR-QD-385)<br>1.10 (2026-10-08): BEH-QD-328 — a guarded `HttpApi` is registered by the layer that guards it (`guardApi`); BEH-QD-180 and BEH-QD-320 name `guardApi` in place of `registerApi`; `RequirePermissionLive`, `registerApi` and `guardRoute` leave the surface; `authorizeRequest` registers nothing (ARCH-36, CCR-QD-311)<br>1.9 (2026-10-08): states that an HTTP-guarded route passes no obligation handler (ARCH-30, CCR-QD-220)<br>1.8 (2026-10-08): BEH-QD-321 — a denial is logged once by the step that turned it into a response (the edge, or the surface for a handler's own `guard`), annotated `qadi.denial_site`; `guardRoute`'s handler error channel is `HttpEnforcementFailure` (ARCH-45, CCR-QD-265)<br>1.7 (2026-10-07): BEH-QD-321 — every `@qadi/http` surface authorizes through `authorizeRequest`; `toResponse` answers all twelve tags and `handleEnforcementErrors`/`subjectExtractionFailedResponse` are removed; BEH-QD-177's prose follows (ADR-QD-036 Rev 1.5, CCR-QD-197)<br>1.6 (2026-10-07): BEH-QD-320 — an endpoint's access is read once, from the endpoint, by `RequirePermission` and `registerApi` through `endpointAccess`; a `RequiredPermission` or `PublicEndpoint` on a group or API is refused by both (`MisplacedAccessDeclaration`); BEH-QD-180's `registerApi` signature corrected and it lists an endpoint only if the middleware enforces it (CCR-QD-196)<br>1.5 (2026-10-04): BEH-QD-177 gains a derived-status requirement and `ENFORCEMENT_ERROR_WIRE`, the one table every status, wire schema and `RequirePermission` error list derives from; BEH-QD-260 corrected — the two tag-only bodies were never empty, and the hand-converted arms are one in-channel projection; BEH-QD-263's list is derived (ADR-QD-081, CCR-QD-155)<br>1.4 (2026-09-14): BEH-QD-263 — a generated client's static error type for a `RequirePermission`-guarded endpoint now includes every enforcement outcome automatically, via `requiredForClient`/`clientError` and the new generic `passthroughClientLayer` helper, rather than a per-endpoint hand-declared `error:` subset; the disclosed `PublicEndpoint` over-approximation limitation is recorded alongside it (ADR-QD-075, CCR-QD-151)<br>1.3 (2026-09-08): BEH-QD-260 — the `HttpApiMiddleware` adapter's response body now carries real fields for the nine `EnforcementError` tags that are not a denial, declared through `httpApiStatus`-annotated schemas rather than produced by `toResponse`'s hand table; the bare-`HttpRouter` adapter is unchanged (ADR-QD-072, CCR-QD-141)<br>1.2 (2026-09-07): BEH-QD-177's status table was missing two of the eleven mappings `enforcementErrorTags` actually covers — `CustomPredicateError` and `SignatureHistoryUnavailable`, both 502, added to the row (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-180 — `/__permissions` is guarded by default; the open question closed (CCR-QD-062)<br>1.0 (2026-08-23): Initial release (CCR-QD-059) |
+> | Change History | 1.16 (2026-11-10): BEH-QD-180: both registry routes take a prefix and answer at devtoolsPath("permissions", prefix); the unguarded route's warning names the path it serves, prefix included (ARCH-66, ADR-QD-130, CCR-QD-408)<br>1.15 (2026-11-10): addGuardedRoute's loadResource is optional; the declared-unguarded routes share one constructor with a closed cadence (ARCH-61, lost ARCH-57 L1a/L1b, CCR-QD-402)<br>1.14 (2026-11-10): BEH-QD-321 and BEH-QD-335 name the public mode; BEH-QD-359 added — a public endpoint logs a denial its own handler raises (ARCH-61, ADR-QD-108 addendum, CCR-QD-399)<br>1.13 (2026-11-10): BEH-QD-174, 180, 320, 328 and 335 — `guardApi` reads each endpoint's access once into an access plan the middleware only looks up by endpoint value (`AccessPlan.ts`, package-private); an undeclared endpoint fails the build (`AccessNotDeclared`); `ApiGuardRefusal` has three members; the readers and the endpoint member key are gone; BEH-QD-180 states the ARCH-36 residual (ARCH-59, ADR-QD-118, CCR-QD-396)<br>1.12 (2026-11-08): BEH-QD-338: the port routes and their client share one address, and the client reads the reply from the body whatever the status (ARCH-52, CCR-QD-391)<br>1.11 (2026-11-08): BEH-QD-335 and BEH-QD-336 added — every request path enforces and logs through one module, and an unguarded port route logs a subject-extraction failure; BEH-QD-321 amended — the surfaces authorize through the request-enforcement module (`portRoutes` and `portRoutesUnguarded` named), whose handler step logs a handler-raised denial (ARCH-46, ADR-QD-108, CCR-QD-385)<br>1.10 (2026-10-08): BEH-QD-328 — a guarded `HttpApi` is registered by the layer that guards it (`guardApi`); BEH-QD-180 and BEH-QD-320 name `guardApi` in place of `registerApi`; `RequirePermissionLive`, `registerApi` and `guardRoute` leave the surface; `authorizeRequest` registers nothing (ARCH-36, CCR-QD-311)<br>1.9 (2026-10-08): states that an HTTP-guarded route passes no obligation handler (ARCH-30, CCR-QD-220)<br>1.8 (2026-10-08): BEH-QD-321 — a denial is logged once by the step that turned it into a response (the edge, or the surface for a handler's own `guard`), annotated `qadi.denial_site`; `guardRoute`'s handler error channel is `HttpEnforcementFailure` (ARCH-45, CCR-QD-265)<br>1.7 (2026-10-07): BEH-QD-321 — every `@qadi/http` surface authorizes through `authorizeRequest`; `toResponse` answers all twelve tags and `handleEnforcementErrors`/`subjectExtractionFailedResponse` are removed; BEH-QD-177's prose follows (ADR-QD-036 Rev 1.5, CCR-QD-197)<br>1.6 (2026-10-07): BEH-QD-320 — an endpoint's access is read once, from the endpoint, by `RequirePermission` and `registerApi` through `endpointAccess`; a `RequiredPermission` or `PublicEndpoint` on a group or API is refused by both (`MisplacedAccessDeclaration`); BEH-QD-180's `registerApi` signature corrected and it lists an endpoint only if the middleware enforces it (CCR-QD-196)<br>1.5 (2026-10-04): BEH-QD-177 gains a derived-status requirement and `ENFORCEMENT_ERROR_WIRE`, the one table every status, wire schema and `RequirePermission` error list derives from; BEH-QD-260 corrected — the two tag-only bodies were never empty, and the hand-converted arms are one in-channel projection; BEH-QD-263's list is derived (ADR-QD-081, CCR-QD-155)<br>1.4 (2026-09-14): BEH-QD-263 — a generated client's static error type for a `RequirePermission`-guarded endpoint now includes every enforcement outcome automatically, via `requiredForClient`/`clientError` and the new generic `passthroughClientLayer` helper, rather than a per-endpoint hand-declared `error:` subset; the disclosed `PublicEndpoint` over-approximation limitation is recorded alongside it (ADR-QD-075, CCR-QD-151)<br>1.3 (2026-09-08): BEH-QD-260 — the `HttpApiMiddleware` adapter's response body now carries real fields for the nine `EnforcementError` tags that are not a denial, declared through `httpApiStatus`-annotated schemas rather than produced by `toResponse`'s hand table; the bare-`HttpRouter` adapter is unchanged (ADR-QD-072, CCR-QD-141)<br>1.2 (2026-09-07): BEH-QD-177's status table was missing two of the eleven mappings `enforcementErrorTags` actually covers — `CustomPredicateError` and `SignatureHistoryUnavailable`, both 502, added to the row (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-180 — `/__permissions` is guarded by default; the open question closed (CCR-QD-062)<br>1.0 (2026-08-23): Initial release (CCR-QD-059) |
 
 _Previous: [22 — The Promise Facade](./22-promise-facade.md)_
 
@@ -36,8 +36,10 @@ export class PublicEndpoint extends Context.Service<PublicEndpoint, PublicDeclar
 ```
 
 ```
-REQUIREMENT: An endpoint that itself carries neither `RequiredPermission` nor
-             `PublicEndpoint` MUST be refused, with status 500.
+REQUIREMENT: An endpoint of an API passed to `guardApi` that itself carries
+             neither `RequiredPermission` nor `PublicEndpoint` MUST be refused:
+             `guardApi` MUST fail layer construction with `AccessNotDeclared`,
+             naming its group and identifier, before it registers anything.
 ```
 
 The endpoint's own annotations are the only scope read
@@ -54,11 +56,16 @@ posture … by making the **absence** of a permission requirement mean
 'unguarded'"*. The rejected alternative shipped anyway, and a test asserted it
 was correct. Forgetting one annotation published an endpoint.
 
-**500 rather than 403**, and the distinction is the point: this is a wiring
-mistake in the service, not a decision about the caller. A 403 would send an
+Before CCR-QD-396 the refusal was a **500 on every request**, logged once per
+request, rather than a 403, and the distinction was the point: this is a wiring
+mistake in the service, not a decision about the caller, and a 403 would send an
 operator to audit permissions for a problem that is in their endpoint
-definition. The middleware also logs the endpoint's identifier at error level,
-because a refusal nobody can diagnose is only half a fix.
+definition. The walk sees the mistake when `guardApi` is built, so it now fails
+the build for the reason misplacement and attachment do: nothing is served, so
+neither status arises, and an application that ships one undeclared endpoint
+stops starting instead of logging noise in production. The error names the
+group and the endpoint, because a refusal nobody can diagnose is only half a
+fix.
 
 The `reason` is never read by the middleware. It exists so that being public is
 something a reviewer can see someone chose.
@@ -345,7 +352,8 @@ reporting a caller's request as a server fault. Which of those happens is
 while this package's comment described the former.
 
 A resource-scoped check belongs in the handler, through `addGuardedRoute`'s `loadResource` or `guard`
-directly, as defense in depth.
+directly, as defense in depth. `loadResource` is optional: the four-argument form evaluates against
+`NO_RESOURCE` and hands the handler a plain `Resource`, as `authorizeRequest` does.
 
 ## BEH-QD-179: A duplicate requirement fails at construction
 
@@ -377,8 +385,17 @@ literal cannot bypass `requiresPermission`'s duplicate check" pins it.
 ## BEH-QD-180: The registry answers which permission, not which policy
 
 ```ts
-export const permissionRegistryRoute: (permission: Permission, policy: Policy) => Layer<…>;
-export const permissionRegistryRouteUnguarded: (reason: string) => Layer<…>;
+export function addGuardedRoute<P extends Permission>(
+  method: RouteMethod, path: PathInput, permission: P, policy: Policy, // evaluates against NO_RESOURCE
+): <R>(handler: (authorized: Authorized<P>, resource: Resource) => Effect<HttpServerResponse, HttpEnforcementFailure, R>) => Layer<…>;
+export function addGuardedRoute<P extends Permission, A extends Resource, LR = never>(
+  method: RouteMethod, path: PathInput, permission: P, policy: Policy,
+  loadResource: (request: HttpServerRequest) => Effect<A, never, LR>,
+): <R>(handler: (authorized: Authorized<P>, resource: A) => Effect<HttpServerResponse, HttpEnforcementFailure, R>) => Layer<…>;
+export const permissionRegistryRoute: (
+  permission: Permission, policy: Policy, options?: DevtoolsRouteOptions, // prefix, BEH-QD-419
+) => Layer<…>;
+export const permissionRegistryRouteUnguarded: (reason: string, options?: DevtoolsRouteOptions) => Layer<…>;
 ```
 
 ```
@@ -400,12 +417,28 @@ REQUIREMENT: The registry MUST list an endpoint under a permission P only if
              `RequirePermission` enforces P on it.
 ```
 
-The registry reads an endpoint through `endpointAccess`, over the endpoint's own
-annotations, which is what the middleware reads
-([BEH-QD-320](#beh-qd-320-an-endpoints-access-is-read-once-from-the-endpoint)).
+`guardApi` registers from the access plan the middleware enforces, so the two
+cannot read different things
+([BEH-QD-320](#beh-qd-320-an-endpoints-access-is-read-once-from-the-endpoint),
+[BEH-QD-328](#beh-qd-328-a-guarded-httpapi-is-registered-by-the-layer-that-guards-it)).
 It used to read `HttpApi.reflect`'s merge of API-, group- and endpoint-level
 annotations, so a group requirement over an endpoint-level `publicEndpoint` was
 listed as guarded while the middleware served the endpoint to anyone.
+
+```
+REQUIREMENT: Every path `guardApi`'s middleware serves MUST be listed, under the
+             permission it enforces; an endpoint value outside the plan is not
+             served (BEH-QD-328).
+```
+
+The converse has one accepted limit, ARCH-36's residual, which ARCH-59 leaves as it
+was: a vetted path that is never mounted stays listed. `guardApi(A)` provided to
+`HttpApiBuilder.layer(A.prefix("/v1"))` refuses `/v1/a` with a 500, but the registry
+still lists `GET /a`, which that wiring does not mount. Registration happens when
+`guardApi`'s layer is built, from the value it was given, and `HttpApiBuilder` never
+tells the middleware which API value it serves
+([ADR-QD-118](../decisions/118-guardapi-plans-access-from-the-api-value.md)). Given
+the value it serves, `guardApi(P)` on `layer(P)` lists exactly `GET /v1/a`.
 
 ```
 REQUIREMENT: The registry MUST NOT participate in any authorization decision.
@@ -436,7 +469,27 @@ endpoints, and the `reason` plays the same role as `publicEndpoint`'s.
 
 The unguarded form logs a warning on **every request**, not once at
 construction: a local development choice that reaches production should be
-visible in the logs of the environment it is wrong in.
+visible in the logs of the environment it is wrong in. It shares one
+package-private constructor with `portRoutesUnguarded`, which writes the
+warning text once and takes the cadence as a closed, required argument
+(`"every-request"` here, `"once"` for the port routes, ADR-QD-107), so the two
+cadences are named at their calls rather than implied by how each body is
+written.
+
+```
+REQUIREMENT: Both registry routes MUST answer at
+             `devtoolsPath("permissions", options.prefix)`, `/__permissions`
+             when no prefix is given (BEH-QD-419).
+REQUIREMENT: The unguarded route's warning MUST name the path it serves,
+             prefix included.
+```
+
+Mounted at the root, the warning reads `qadi/http: serving /__permissions
+unguarded — the full authorization topology is public. Reason given: <reason>`,
+unchanged. Under `{ prefix: "/x/devtools" }` it names `/x/devtools/__permissions`
+([BEH-QD-419](./26-decision-stream.md#beh-qd-419-each-devtools-route-answers-at-one-address-and-its-client-derives-it)):
+a warning about an unguarded route that names an address nobody serves sends the
+reader of the log to the wrong place (ARCH-66, CCR-QD-408).
 
 Enforcement runs through `addGuardedRoute`, so a denial is 403 and a broken subject
 store is 502 — the introspection route obeys the same mapping as every other
@@ -450,35 +503,31 @@ permission does not decide anything.
 > **Invariant:** [INV-QD-034](../invariants.md#inv-qd-034-an-endpoints-authorization-is-declared-not-inferred)
 
 ```ts
-export type EndpointAccess = Data.TaggedEnum<{
-  Required: { readonly requirement: RequiredPermissionShape };
-  Public: { readonly declaration: PublicDeclaration };
-  Undeclared: {};
-}>;
-export const endpointAccess: (annotations: Context.Context<never>) => EndpointAccess;
-export const misplacedDeclarations: (
-  annotations: Context.Context<never>,
-) => ReadonlyArray<"RequiredPermission" | "PublicEndpoint">;
-// declared in GuardApi.ts
+export type AccessDeclarationKey = "RequiredPermission" | "PublicEndpoint";
+// declared in AccessPlan.ts (package-private), re-exported by GuardApi.ts
 export class MisplacedAccessDeclaration extends Data.TaggedError("MisplacedAccessDeclaration")<{
   readonly scope: "group" | "api";
   readonly identifier: string;
-  readonly key: "RequiredPermission" | "PublicEndpoint";
+  readonly key: AccessDeclarationKey;
 }> {}
+export class AccessNotDeclared extends Data.TaggedError("AccessNotDeclared")<{
+  readonly group: string;
+  readonly endpoint: string;
+}> {}
+export type ApiGuardRefusal = MisplacedAccessDeclaration | RequirePermissionNotAttached | AccessNotDeclared;
+// The readers of an endpoint's declaration are private to AccessPlan.ts: `planApi` is the one reader.
 ```
 
 ```
-REQUIREMENT: `RequirePermission` and `guardApi` MUST each read an endpoint's
-             access through `endpointAccess`, over that endpoint's own
-             annotations and no other scope. When both keys are present,
-             `RequiredPermission` MUST win.
+REQUIREMENT: `guardApi` MUST read each endpoint's access once, over that
+             endpoint's own annotations and no other scope, into the access plan
+             its middleware enforces; the middleware MUST NOT read annotations.
+             When both keys are present, `RequiredPermission` MUST win.
 ```
 
 ```
 REQUIREMENT: A `RequiredPermission` or `PublicEndpoint` on a group or an API MUST
-             be refused by both readers: `RequirePermission` answers 500 for
-             every endpoint of that group and logs the group's identifier and the
-             key; `guardApi` fails layer construction with
+             be refused: `guardApi` fails layer construction with
              `MisplacedAccessDeclaration` before it registers anything.
 ```
 
@@ -486,8 +535,8 @@ REQUIREMENT: A `RequiredPermission` or `PublicEndpoint` on a group or an API MUS
 REQUIREMENT: `requiresPermission` MUST NOT accept a group or an API.
 ```
 
-Two readers over two scopes was the defect: the middleware read the endpoint,
-and the registry read the merge of API, group and endpoint annotations. A group
+Two readers over two scopes was the defect (ARCH-18): the middleware read the
+endpoint, and the registry read the merge of API, group and endpoint annotations. A group
 requirement over an endpoint-level `publicEndpoint` was listed under its
 permission while the middleware served the endpoint as public. The middleware
 cannot read an API-level annotation at all (Effect hands it `{ endpoint, group }`
@@ -500,10 +549,18 @@ rejects.
 
 A declaration for a whole group is written with
 `HttpApiGroup.annotateEndpoints(RequiredPermission, requiresPermission(endpoint, …))`,
-which Effect writes into each endpoint's own annotations, where both readers see
-it. The refusal reaches the caller as a 500 and a log line, outside
-`ENFORCEMENT_ERROR_WIRE`, like an endpoint that declares neither: it is a wiring
-mistake, not an enforcement outcome.
+which Effect writes into each endpoint's own annotations, where the plan sees it.
+The refusal is a typed layer-build failure, outside `ENFORCEMENT_ERROR_WIRE`,
+like an endpoint that declares neither: it is a wiring mistake, not an
+enforcement outcome.
+
+Until CCR-QD-396 there were still two readers: `guardApi`'s walk and the
+middleware, which re-read the endpoint's annotations (and its group's) when
+Effect built each route. They agreed, but only because a name string
+(`"<group>/<endpoint>"`, built in one place after ARCH-46) joined them, and that
+join was wrong (BEH-QD-328). The plan (`planApi`) is now the only reader; the three
+readers `endpointAccess`, `EndpointAccess` and `misplacedDeclarations` are its
+private implementation, and none was ever released.
 
 ## BEH-QD-321: One authorization step at the HTTP edge
 
@@ -547,9 +604,9 @@ REQUIREMENT: A denial (`AccessDenied`, `UndischargedObligation`) and a
              `SubjectExtractionFailed` MUST each be logged exactly once, by the
              step that turned it into a response: `authorizeRequest` for the
              edge check, through `logDenial` and `logSubjectExtractionFailed`,
-             and the module's handler step (for `RequirePermission`,
-             `addGuardedRoute` and the port routes) for a denial a
-             handler's own `guard` raises,
+             and the module's handler step (for `RequirePermission`, both
+             its guarded and its public endpoints, `addGuardedRoute` and the
+             port routes) for a denial a handler's own `guard` raises,
              through `logDenial`. Each denial line MUST carry the log annotation
              `qadi.denial_site`: `"edge"` or `"handler"`. A denial MUST NOT be
              logged twice. A resolver outage MUST NOT be logged by the edge.
@@ -608,7 +665,11 @@ export const guardApi: <Id extends string, Groups extends HttpApiGroup.Constrain
   ApiGuardRefusal,
   SubjectExtractor | StandingEvaluationServices | PermissionRegistry
 >;
-export type ApiGuardRefusal = MisplacedAccessDeclaration | RequirePermissionNotAttached;
+export type ApiGuardRefusal = MisplacedAccessDeclaration | RequirePermissionNotAttached | AccessNotDeclared;
+export class AccessNotDeclared extends Data.TaggedError("AccessNotDeclared")<{
+  readonly group: string;
+  readonly endpoint: string;
+}> {}
 export class RequirePermissionNotAttached extends Data.TaggedError("RequirePermissionNotAttached")<{
   readonly group: string;
   readonly endpoint: string;
@@ -633,8 +694,16 @@ REQUIREMENT: Every endpoint of `api`, declared or not, MUST have the
 
 ```
 REQUIREMENT: The middleware `guardApi` provides MUST answer 500 with one error log
-             line, and MUST NOT serve the request, for an endpoint that is not
-             part of the API `guardApi` was given.
+             line, and MUST NOT serve the request, for an endpoint value that is
+             not one `guardApi` walked: an endpoint of another API, including one
+             that reuses the same group and endpoint identifiers, or of a
+             `prefix`ed copy of the API.
+```
+
+```
+REQUIREMENT: Precedence: `guardApi` MUST fail with the first misplaced
+             declaration (the API, then groups), else the first unattached
+             endpoint, else the first undeclared one.
 ```
 
 `RequirePermissionLive` enforced and `registerApi` described, composed independently,
@@ -655,13 +724,20 @@ being built, registers what it will enforce, so "listed iff enforced" holds by
 construction. It requires `PermissionRegistry`, which `addGuardedRoute` always has.
 The membership refusal closes the one remaining gap: `guardApi(A)` provided to
 `HttpApiBuilder.layer(B)` would otherwise enforce B's endpoints without registering
-them. One `guardApi` serves one API; compose APIs with `HttpApi.addHttpApi`, or give
+them. Membership is by the endpoint *value* (ARCH-59, [ADR-QD-118](../decisions/118-guardapi-plans-access-from-the-api-value.md)): Effect hands the middleware
+the very group and endpoint objects `HttpApi.reflect` yields for the API it serves,
+so a hit means "this exact endpoint was vetted". It was keyed by identifier strings
+until ARCH-59's probe found that an API reusing a group and endpoint name passed the
+check and was served under another API's vetting (enforcing, say, `document:write`
+on a path the registry listed nothing for, or serving a public endpoint while the
+API-level declaration `guardApi` itself refuses sat ignored). Pass `guardApi` the same
+`HttpApi` value `HttpApiBuilder.layer` serves. One `guardApi` serves one API; compose APIs with `HttpApi.addHttpApi`, or give
 each `HttpApiBuilder.layer` its own `guardApi` with `Layer.provide`, which is local.
 
-Both refusals are wiring mistakes answered outside `ENFORCEMENT_ERROR_WIRE`
+All three refusals are wiring mistakes answered outside `ENFORCEMENT_ERROR_WIRE`
 ([ADR-QD-081](../decisions/081-enforcement-error-classes-live-in-core.md)): a typed layer-build
-failure and a logged 500, like an endpoint that declares neither
-([BEH-QD-320](#beh-qd-320-an-endpoints-access-is-read-once-from-the-endpoint)).
+failure (or, for an endpoint outside the plan, a logged 500), like a declaration on
+a group ([BEH-QD-320](#beh-qd-320-an-endpoints-access-is-read-once-from-the-endpoint)).
 `RequirePermissionLive`, `registerApi` and `guardRoute` are not exported
 ([ADR-QD-099](../decisions/099-entry-points-are-a-closed-list.md)):
 `guardRoute`'s only distinct capability was enforcing without registering, and
@@ -679,14 +755,14 @@ export const answerWithResponse: EnforcementProjection<HttpServerResponse, never
 export const answerInChannel: EnforcementProjection<never, ProjectedHttpEnforcementFailure, never>;
 export function enforceRequest(access, project, handler): (request: HttpServerRequest) => Effect</* … */>;
 export function enforceSubject(project, handler): (request: HttpServerRequest) => Effect</* … */>;
-export const endpointMemberKey: (group: string, endpoint: string) => EndpointMemberKey;
+export function enforcePublic(project, handler): Effect</* … */>;
 ```
 
 ```
 REQUIREMENT: Every `@qadi/http` surface that extracts a subject (`addGuardedRoute`,
              `RequirePermission`, `portRoutes`, `portRoutesUnguarded` and the
-             decision stream's recheck) MUST enforce through the
-             request-enforcement module, and MUST NOT extract the subject, tap a
+             decision stream's recheck), and `RequirePermission`'s public
+             endpoints, MUST enforce through the request-enforcement module, and MUST NOT extract the subject, tap a
              denial into the log or catch an enforcement failure itself.
 ```
 
@@ -706,20 +782,29 @@ REQUIREMENT: The subject-only mode MUST extract the subject, MUST log an
 ```
 
 ```
-REQUIREMENT: The endpoint member key `<group>/<endpoint>` MUST be built by
-             `endpointMemberKey`, the one function both the registrar
-             (`guardApi`) and the middleware's membership check use.
+REQUIREMENT: The public mode MUST run the handler as `anonymous` through the
+             module's handler step, MUST NOT extract a subject or apply a
+             policy, and MUST project every failure through the caller's
+             projection.
+```
+
+```
+REQUIREMENT: Whether an endpoint belongs to the API `guardApi` vetted MUST be
+             decided by the access plan `guardApi` built, by endpoint value
+             (BEH-QD-328, ADR-QD-118), not by this module or by a name string.
 ```
 
 Subject extraction, the edge decision, `CurrentSubject` and the handler-denial step
 were written once per surface, and the copies drifted: `portRoutesUnguarded`
 extracted by hand and logged nothing
 ([BEH-QD-336](#beh-qd-336-an-unguarded-port-route-logs-a-subject-extraction-failure)).
-`AuthorizeRequest.ts` is now the request-enforcement module, with two modes: the
+`AuthorizeRequest.ts` is now the request-enforcement module, with three modes: the
 guarded mode runs `authorizeRequest` (the edge step of
 [BEH-QD-321](#beh-qd-321-one-authorization-step-at-the-http-edge)) and then the
-handler step, and the subject-only mode extracts and runs the handler step with no
-policy. The decision stream's recheck runs the guarded mode and answers with its
+handler step, the subject-only mode extracts and runs the handler step with no
+policy, and the public mode (`enforcePublic`, ARCH-61) runs the handler step as
+`anonymous`, extracting nothing
+([BEH-QD-359](#beh-qd-359-a-public-endpoint-logs-a-denial-its-own-handler-raises)). The decision stream's recheck runs the guarded mode and answers with its
 own projection, which ends the stream; the module knows nothing about streams.
 Which projections exist is the caller's business: `answerWithResponse` is
 `toResponse`, for a bare route and the port routes, and `answerInChannel` is
@@ -729,6 +814,10 @@ The module is package-private (ADR-QD-099); `authorizeRequest` is still the publ
 edge step, so no export is added or removed. Which table answers each failure
 (`ENFORCEMENT_ERROR_WIRE`) is unchanged; only who applies it moved (ARCH-46,
 [ADR-QD-108](../decisions/108-a-request-is-enforced-once-through-one-module.md)).
+The module once also held the endpoint member key (`"<group>/<endpoint>"`), which
+`guardApi` and the middleware's membership check shared; ARCH-59 deleted it, because an API reusing the names passed it, and
+membership is now the access plan's
+([ADR-QD-118](../decisions/118-guardapi-plans-access-from-the-api-value.md)).
 
 ## BEH-QD-336: An unguarded port route logs a subject-extraction failure
 
@@ -792,6 +881,33 @@ client failing, and three canned responses for the status contract. The route
 design itself is [ADR-QD-107](../decisions/107-a-port-is-answered-remotely-through-its-description.md)'s,
 and [BEH-QD-333](./34-remote-ports.md#beh-qd-333-an-answer-with-no-json-form-must-be-refused-never-thrown)
 states the same status rule from the remote-port side.
+
+## BEH-QD-359: A public endpoint logs a denial its own handler raises
+
+> **Invariant:** [INV-QD-243](../invariants.md#inv-qd-243-every-qadihttp-request-path-enforces-and-logs-through-one-module), [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial)
+
+```
+REQUIREMENT: A denial a `publicEndpoint`'s handler `guard` raises MUST be
+             answered 403 and logged exactly once, through `logDenial`,
+             annotated `qadi.denial_site: "handler"`, as on an endpoint with a
+             requirement. Its outage MUST be answered by `answerInChannel`'s
+             projection, so neither `trace` nor a resolver `cause` reaches the
+             body.
+```
+
+A public endpoint has no edge check, so the only denial it can produce is its
+handler's own `guard`'s. `RequirePermission`'s public arm provided `anonymous` to
+the handler itself and did nothing else, so that denial was answered 403 and logged
+nowhere: lost ARCH-47's probe (`b0b9363`) saw `/pub 403 … logs: []`. Its body was
+redacted too, but only because `HttpApiMiddleware`'s encoder drops the properties
+its declared schema does not name, not by the projection
+[ADR-QD-072](../decisions/072-schema-taggederror-for-accessdenied-and-undischargedobligation.md) and
+[ADR-QD-081](../decisions/081-enforcement-error-classes-live-in-core.md) say
+redaction is. ARCH-61 ported the fix through the public mode of
+[BEH-QD-335](#beh-qd-335-a-request-is-enforced-through-one-module), so the arm
+runs the same handler step as `Required`. The regression tests are in
+`packages/http/test/http.test.ts` (written red first), and the caller × failure
+table in `packages/http/test/RequestEnforcement.test.ts` has a `publicEndpoint` row.
 
 ---
 

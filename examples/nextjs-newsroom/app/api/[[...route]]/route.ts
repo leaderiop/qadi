@@ -32,10 +32,11 @@ const { handler } = HttpRouter.toWebHandler(ApiLayer);
 /**
  * Strips the `/api` Next mounts this under.
  *
- * The router inside knows nothing about the prefix — `decisionStreamRoute`
- * mounts `/__decisions` at a fixed path — and a router that had to know where it
- * was mounted could not be lifted out and served directly. So the adapter
- * adapts, which is its job.
+ * Next mounts every route family here (articles, ingest, ports, the devtools
+ * surface) under `/api`, and the router inside knows nothing about it: a router
+ * that had to know where it was mounted could not be lifted out and served
+ * directly. The devtools routes alone could take the prefix, but the other
+ * families would still need it stripped. So the adapter adapts, which is its job.
  */
 const unprefixed = (request: Request): Request => {
   const url = new URL(request.url);

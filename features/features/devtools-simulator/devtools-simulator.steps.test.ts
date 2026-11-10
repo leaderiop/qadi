@@ -36,6 +36,7 @@ import {
   hasAttribute,
   hasPermission,
   hasRole,
+  hasSignature,
   makeSubjectId,
   ObligationRecord,
   permission,
@@ -76,6 +77,7 @@ const policies: Record<string, Policy> = {
   "editor role": hasRole("editor"),
   clearance: hasAttribute("clearance", gte(5)),
   "either way": anyOf([hasRole("editor"), hasPermission(read)]),
+  approval: hasSignature("approved"),
 };
 
 /** Ports whose every answer fails, so a run that reaches one cannot decide. */
@@ -283,6 +285,19 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     }));
   });
 
+  Given(
+    "a simulated subject {string} holding the signature {string} on {string}",
+    function* (id: string, meaning: string, resourceId: string) {
+      yield* patch(() => ({
+        input: {
+          subject: { id },
+          resource: { id: resourceId },
+          signatures: [{ subjectId: id, meaning, resourceId }],
+        },
+      }));
+    },
+  );
+
   Given("a decision sink is recording", function* () {
     const ring = yield* makeDecisionLog({ environment: "Server" });
     yield* patch(() => ({ ring }));
@@ -328,7 +343,11 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     },
   );
 
-  Given("a logged obligation outcome {string} with no decision", function* (evaluationId: string) {
+  Given("the log also saw a decision against the {string} policy", function* (name: string) {
+    yield* patch((s) => ({ timeline: ingest(s.timeline, decisionAt(2, policyNamed(name))) }));
+  });
+
+    Given("a logged obligation outcome {string} with no decision", function* (evaluationId: string) {
     yield* patch(() => ({
       entry: entryOf(
         stampRecord(
@@ -393,10 +412,26 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     const s = yield* readState();
     const { entry } = s;
     if (entry === undefined) throw new Error("no row to replay");
-    // An empty rail: the policy the session runs can only come from the row.
-    const session = makeSimulationSession();
-    session.seed(entry);
+    // The rail is what the log saw beside the row, usually nothing: the policy
+    // the session runs can only come from the row.
+    const session = makeSimulationSession({ sightings: catalogueOf(s.timeline) });
+    session.replay(entry);
     yield* patch(() => ({ session }));
+  });
+
+  When("the reviewer chooses the {string} policy from the rail", function* (name: string) {
+    const session = sessionOf(yield* readState());
+    session.choosePolicy(policyNamed(name));
+    // The row's policy is left behind, so the next replay has something to undo.
+    assert.equal(session.getSnapshot().policy._tag, "Chosen");
+  });
+
+  // A replay is an act (ARCH-63): the same row again re-seeds, where `seed`'s
+  // same-entry guard would keep the policy the reviewer chose since.
+  When("that row is replayed again", function* () {
+    const s = yield* readState();
+    if (s.entry === undefined) throw new Error("no row to replay");
+    sessionOf(s).replay(s.entry);
   });
 
   When("the reviewer supposes the subject held the permission {string}", function* (key: string) {

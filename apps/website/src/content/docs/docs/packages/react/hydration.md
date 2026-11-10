@@ -129,6 +129,32 @@ mistake at the call site. `dehydrateDecisions` likewise reports what it drops:
 an entry belonging to a different subject than the payload's is dropped, and
 silently would have been the wrong choice for the same reason.
 
+`dehydrateDecisions` never throws either. A policy the constructors build but
+the policy schema refuses, such as `gte(NaN)`, `gte(-Infinity)` or a relationship
+depth of `1.5`, cannot cross the network. Its entry is left out as
+`UnencodablePolicy`, counted and reported, and the client asks that question
+itself. The rest of the payload is written.
+
+Both ends' `onDropped` take the same record, `{ reason, entries, wholePayload }`
+(`HydrationDrop`), so one function can watch both:
+
+```ts
+import type { HydrationDrop } from "@qadi/react";
+import type { HydrationDropReason } from "@qadi/core";
+
+// Called once per reason. `wholePayload` is always false on the dehydrate side.
+export const reportDrop = (drop: HydrationDrop<unknown, HydrationDropReason>): void => {
+  // forward drop.reason and drop.entries.length to your telemetry
+};
+```
+
+A reporter you supply observes; it cannot change the outcome. If it throws,
+the entries are still seeded, dropped and counted exactly as they would have
+been, and the throw is announced on the console as the reporter you supplied
+having thrown, naming the hook and the error and no entry. That announcement
+is made in production too, because your reporter replaced the default. The
+same holds for `onHydrationMismatch`.
+
 A dehydrated decision withholds its trace and a denial's reason by default —
 that detail names the policy's internal structure and which branch a specific
 subject failed, which is not safe to ship to a browser unasked. What is rebuilt

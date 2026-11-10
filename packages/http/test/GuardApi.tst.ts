@@ -14,7 +14,12 @@ import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
 import * as HttpApiGroup from "effect/http-api/HttpApiGroup";
 import type { StandingEvaluationServices } from "@qadi/core";
-import type { ApiGuardRefusal } from "../src/GuardApi.ts";
+import type {
+  AccessNotDeclared,
+  ApiGuardRefusal,
+  MisplacedAccessDeclaration,
+  RequirePermissionNotAttached,
+} from "../src/GuardApi.ts";
 import { guardApi } from "../src/GuardApi.ts";
 import type { PermissionRegistry } from "../src/PermissionRegistry.ts";
 import { RequirePermission } from "../src/RequirePermission.ts";
@@ -59,5 +64,11 @@ test("guardApi's layer requires the registry, the subject extractor and the stan
       ApiGuardRefusal,
       SubjectExtractor | StandingEvaluationServices | PermissionRegistry
     >
+  >();
+});
+
+test("ApiGuardRefusal is exactly the three wiring mistakes guardApi can see", () => {
+  expect<ApiGuardRefusal>().type.toBe<
+    MisplacedAccessDeclaration | RequirePermissionNotAttached | AccessNotDeclared
   >();
 });

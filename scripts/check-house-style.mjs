@@ -33,7 +33,12 @@
  * purpose to pin what `outcomeOf` makes of it. The seventh,
  * `PORT_DOUBLE_BUDGET`, is the reverse: test-scope only (`packages/<pkg>/test`,
  * `packages/<pkg>/bench`, `features/step-definitions`), because what it
- * guards is how a test describes a broken port.
+ * guards is how a test describes a broken port. The eighth,
+ * `METRIC_ID_LITERAL_BUDGET`, is test-scope too (`packages/<pkg>/test` and
+ * `bench`); it and its two sibling metric rules are described where they run,
+ * below (ADR-QD-123). The ninth, `AUDIT_HAND_LAYER_BUDGET`, has
+ * `PORT_DOUBLE_BUDGET`'s scope and guards the same thing for the audit ports
+ * (ARCH-62).
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -585,10 +590,11 @@ const DECISION_READ_BUDGET = {
   "packages/react/src/DecisionOutcome.ts": 2,
   // Seed precedence and mismatch reporting (`makeSeededQuestion`'s `read`):
   // one `isInitial` deciding whether the computed result replaces the seed, and
-  // two `isSuccess` deciding whether it disagrees with it. Upstream of what a
-  // consumer reads — it chooses which result the atom holds (ADR-QD-039) — so
-  // not a second reading of one.
-  "packages/react/src/HydrationEngine.ts": 3,
+  // one `isSuccess` deciding whether it disagrees with it (the `Rechecked`
+  // event's `mismatch`, ARCH-60; it was two before the event carried it).
+  // Upstream of what a consumer reads — it chooses which result the atom holds
+  // (ADR-QD-039) — so not a second reading of one.
+  "packages/react/src/HydrationEngine.ts": 2,
 };
 
 /**
@@ -629,6 +635,12 @@ const DECISION_READ_BUDGET_NAMES = {
  * `packages/<pkg>/bench`) plus `features/step-definitions`. The Gherkin
  * step files under `features/features/` are not scanned by this script at all.
  *
+ * The audit ports' errors (`AuditWriteError`, `AuditStagingError`) are counted
+ * too, read from their port modules (ARCH-62, D-07). The audit ports stay out of
+ * core's five-port registry, so their doubles are scripted by `AuditPortReply`
+ * (`AuditTrailPortTest({ write: () => AuditPortReply.Fail({ cause }) })`) rather
+ * than `scriptedPort`, and the double builds the error itself.
+ *
  * @type {Readonly<Record<string, number>>}
  */
 const PORT_DOUBLE_BUDGET = {
@@ -660,6 +672,8 @@ const PORT_DOUBLE_BUDGET = {
   // A `Failed` record carrying a resolver `cause`, as data the audit encoder
   // must persist or refuse (ARCH-09).
   "packages/audit/test/helpers.ts": 1,
+  // A staging error as a value: the `CommitFailed` cause the outcome carries.
+  "packages/audit/test/AuditWriteOutcome.test.ts": 1,
   // A comparison row's error, as data handed to the table.
   "packages/devtools/test/react/WhatIfTable.test.tsx": 1,
   // Every enforcement error's response mapping.
@@ -707,7 +721,52 @@ const readPortErrorClassNames = () => {
   return names;
 };
 
-const PORT_ERROR_CONSTRUCTION = new RegExp(`\\bnew\\s+(${readPortErrorClassNames().join("|")})\\s*\\(`);
+/**
+ * The audit port-error class names, read from the two audit port modules
+ * rather than restated here (ARCH-62, D-07). A module that yields none fails
+ * the gate loudly, as `readPortErrorClassNames` does.
+ *
+ * @returns {ReadonlyArray<string>}
+ */
+const readAuditPortErrorClassNames = () =>
+  ["packages/audit/src/AuditTrailPort.ts", "packages/audit/src/AuditStagingPort.ts"].flatMap((file) => {
+    const text = readFileSync(join(ROOT, file), "utf8");
+    const names = [...text.matchAll(/export class (\w+) extends Data\.TaggedError\(/g)].map((m) => m[1]);
+    if (names.length === 0) {
+      console.error(
+        `${file}  [port-error-list] no \`export class … extends Data.TaggedError(\` found. ` +
+          `PORT_DOUBLE_BUDGET reads the audit port-error class names from there; fix the parse in scripts/check-house-style.mjs.`,
+      );
+      process.exit(1);
+    }
+    return names;
+  });
+
+const PORT_ERROR_CONSTRUCTION = new RegExp(
+  `\\bnew\\s+(${[...readPortErrorClassNames(), ...readAuditPortErrorClassNames()].join("|")})\\s*\\(`,
+);
+
+/**
+ * Test files that build an audit port (`AuditTrailPort`, `AuditStagingPort`)
+ * by hand, by file and exact count of lines doing so (ARCH-62, D-07).
+ *
+ * A broken audit store in a test is a reply script on the shipped double —
+ * `AuditTrailPortTest({ write: () => AuditPortReply.Fail({ cause }) }).layer`,
+ * or `AuditStagingPortTest({ stage, commit })` — which covers Ok, Fail, Die,
+ * Interrupt, Never and Latch. Before 14-04 there were eleven hand-written
+ * audit layers in `packages/audit/test` plus `driveExit.ts`'s own mode table,
+ * and they drifted from the doubles. Every one moved onto a script, so this
+ * starts empty.
+ *
+ * A separate budget, not a RULES entry: RULES with `testScope` also apply to
+ * `src`, where the shipped doubles build these layers legitimately. Same scope
+ * as `PORT_DOUBLE_BUDGET`, checked in both directions.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const AUDIT_HAND_LAYER_BUDGET = {};
+
+const AUDIT_HAND_LAYER = /\bLayer\.(succeed|sync|effect)\(\s*Audit(Trail|Staging)Port\b|\bAudit(Trail|Staging)Port\.of\(/;
 
 // This is not a narrow edge case: `import * as Effect from "effect/Effect"`
 // — AGENTS.md §1's own mandated import style, on line 1 of nearly every file
@@ -871,6 +930,7 @@ const sinkReadLines = new Map();
 const admissionLines = new Map();
 const maxDepthDefaultLines = new Map();
 const portDoubleLines = new Map();
+const auditHandLayerLines = new Map();
 
 for (const file of sources) {
   const rel = relative(ROOT, file);
@@ -1024,6 +1084,11 @@ for (const file of sources) {
       const found = portDoubleLines.get(rel) ?? [];
       found.push(index + 1);
       portDoubleLines.set(rel, found);
+    }
+    if ((isTestFile || rel.startsWith("features/")) && AUDIT_HAND_LAYER.test(line)) {
+      const found = auditHandLayerLines.get(rel) ?? [];
+      found.push(index + 1);
+      auditHandLayerLines.set(rel, found);
     }
 
     for (const rule of RULES) {
@@ -1505,8 +1570,34 @@ for (const [rel, found] of portDoubleLines) {
   console.error(
     `${rel}:${found.join(", ")}  [port-double-budget] A test constructs a port error by hand.\n` +
       `    A broken port is \`scriptedPort(<port>Port, () => PortReply.fail(cause)).layer\` ` +
-      `(@qadi/core); a test that needs the error as a value is added to PORT_DOUBLE_BUDGET ` +
-      `in scripts/check-house-style.mjs with its exact count and reason.`,
+      `(@qadi/core), and a broken audit store is \`AuditTrailPortTest({ write: () => ` +
+      `AuditPortReply.Fail({ cause }) }).layer\` (@qadi/audit); a test that needs the error as a ` +
+      `value is added to PORT_DOUBLE_BUDGET in scripts/check-house-style.mjs with its exact count and reason.`,
+  );
+}
+
+// ARCH-62 — the audit ports' own counterpart: a test scripts the shipped
+// double (`AuditPortReply`) rather than building the port by hand.
+for (const [rel, budget] of Object.entries(AUDIT_HAND_LAYER_BUDGET)) {
+  const found = auditHandLayerLines.get(rel) ?? [];
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [audit-hand-layer-budget] declares ${budget} line(s) building an audit port, found ` +
+        `${found.length}${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+        `    Update AUDIT_HAND_LAYER_BUDGET in scripts/check-house-style.mjs so the two agree.`,
+    );
+  }
+}
+
+for (const [rel, found] of auditHandLayerLines) {
+  if (rel in AUDIT_HAND_LAYER_BUDGET) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [audit-hand-layer-budget] A test builds an audit port by hand. ` +
+      `A broken audit store is \`AuditTrailPortTest({ write: () => AuditPortReply.Fail({ cause }) }).layer\` ` +
+      `(or \`AuditStagingPortTest\`); a test that cannot be scripted is added to AUDIT_HAND_LAYER_BUDGET ` +
+      `with its exact count and reason.`,
   );
 }
 
@@ -1640,6 +1731,273 @@ for (const rel of DEVTOOLS_BARRELS) {
       );
       break;
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ADR-QD-123 — a metric is declared once, where its readers can import it, and
+// listed where its operators can read it. Three rules, none of which is a new
+// gate number (they run inside this script, which `pnpm lint` runs):
+//
+//   [metric-declaration]  every `Metric.<ctor>(` in `packages/*/src` is the
+//     initializer of a module-scope `const` whose first argument is a
+//     `"qadi_…"` literal, and in `@qadi/core` that const is exported (an
+//     untagged base counter re-exported as its tagged series is the one
+//     reviewed exception, METRIC_BASE_UNEXPORTED). No test, feature or example
+//     declares a `qadi_*` metric: a reader that re-declares one reads zero
+//     forever, because the registry key includes the description (ADR-QD-052).
+//   [metric-table]  the `| Metric | Type | Series | Declared in | Reader |`
+//     table under "Every metric Qadi declares" in
+//     `spec/behaviors/25-inspection.md` and the declarations agree in both
+//     directions on id, type and file.
+//   [metric-id-literal]  METRIC_ID_LITERAL_BUDGET: a test reads a metric
+//     through its export, and a literal `"qadi_…"` id belongs in a pin.
+// ---------------------------------------------------------------------------
+
+/**
+ * Untagged base counters `@qadi/core` deliberately does not export, because
+ * reading the base gives zero and registers a phantom untagged series (ADR-QD-123).
+ * Each is exported as its tagged series instead.
+ *
+ * @type {Readonly<Record<string, ReadonlyArray<string>>>}
+ */
+const METRIC_BASE_UNEXPORTED = {
+  "packages/core/src/EvaluationMetrics.ts": ["decisionsBase"],
+};
+
+/**
+ * The exact count of `"qadi_…"` id literals per test file, outside a
+ * `describe(`/`it(`/`test(` title. Each is a pin or a golden row: the one place
+ * a test restates an id (ADR-QD-123). Checked in both directions like
+ * `SWITCH_BUDGET`, so a string-matched read added anywhere fails until it is
+ * written down with its reason.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const METRIC_ID_LITERAL_BUDGET = {
+  // The four audit pins: writes, circuit-breaker transitions, staging, entries lost.
+  "packages/audit/test/Metrics.test.ts": 4,
+  // Seven golden rows (the registry key an exporter sees), six declaration pins and
+  // the `"qadi_port_"` prefix that keeps the port metrics out of the golden.
+  "packages/core/test/EvaluationMetrics.test.ts": 14,
+  // The five hydration pins (ADR-QD-052).
+  "packages/core/test/HydrationMetrics.test.ts": 5,
+  // One declaration pin and one exported-attributes check each.
+  "packages/predicate-prisma/test/Metrics.test.ts": 2,
+  "packages/predicate-sql/test/Metrics.test.ts": 2,
+};
+
+const METRIC_CTOR = /\bMetric\.(counter|frequency|histogram|gauge|summary|timer)\(/;
+const METRIC_DECLARATION = /^(export )?const (\w+)(?::[^=]+)? = Metric\.(counter|frequency|histogram|gauge|summary|timer)\(\s*"(qadi_[a-z_]+)"/;
+const METRIC_ID_LITERAL =
+  /(?<!\b(?:describe|it|test|it\.effect|it\.scoped|it\.live|it\.layer)\(\s*)"qadi_[a-z_]+"/g;
+const isCommentLine = (line) => /^\s*(\/\/|\/\*|\*)/.test(line);
+
+/** @type {Array<{ id: string, type: string, file: string }>} */
+const declaredMetrics = [];
+for (const file of srcSources) {
+  const rel = relative(ROOT, file);
+  if (!rel.startsWith("packages/")) continue;
+  readFileSync(file, "utf8")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .forEach((raw, index) => {
+      if (isCommentLine(raw) || !METRIC_CTOR.test(raw)) return;
+      const m = METRIC_DECLARATION.exec(raw);
+      if (m === null) {
+        failures += 1;
+        console.error(
+          `${rel}:${index + 1}  [metric-declaration] A metric is a module-scope \`const x = Metric.<ctor>("qadi_…", …)\` ` +
+            `with its id on that line (ADR-QD-123).\n    ${raw.trim()}`,
+        );
+        return;
+      }
+      const [, exported, name, ctor, id] = m;
+      if (
+        rel.startsWith("packages/core/src/") &&
+        exported === undefined &&
+        !(METRIC_BASE_UNEXPORTED[rel] ?? []).includes(name)
+      ) {
+        failures += 1;
+        console.error(
+          `${rel}:${index + 1}  [metric-declaration] ${name} is a \`@qadi/core\` metric and must be \`export const\`, ` +
+            `so a reader imports it instead of matching its id (ADR-QD-123).\n    ${raw.trim()}`,
+        );
+      }
+      declaredMetrics.push({ id, type: ctor[0].toUpperCase() + ctor.slice(1), file: rel });
+    });
+}
+
+{
+  const seen = new Set();
+  for (const { id, file } of declaredMetrics) {
+    if (seen.has(id)) {
+      failures += 1;
+      console.error(`${file}  [metric-declaration] ${id} is declared twice; a metric has one declaration (ADR-QD-052, ADR-QD-123).`);
+    }
+    seen.add(id);
+  }
+}
+
+// A reader that re-declares reads zero: nothing outside `packages/*/src` may declare a `qadi_*` metric.
+{
+  const SKIP_DIRS = new Set(["node_modules", ".next", "dist", "lib", ".turbo"]);
+  const walk = (dir) => {
+    /** @type {string[]} */
+    const out = [];
+    let entries;
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      return out;
+    }
+    for (const entry of entries) {
+      if (SKIP_DIRS.has(entry)) continue;
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) out.push(...walk(full));
+      else if (/\.[cm]?[jt]sx?$/.test(full)) out.push(full);
+    }
+    return out;
+  };
+  const redeclaring = /\bMetric\.(counter|frequency|histogram|gauge|summary|timer)\(\s*"qadi_/;
+  const outside = [
+    ...readdirSync(packagesDir).flatMap((pkg) => walk(join(packagesDir, pkg, "test"))),
+    ...walk(join(ROOT, "features")),
+    ...walk(join(ROOT, "examples")),
+  ];
+  for (const file of outside) {
+    const rel = relative(ROOT, file);
+    readFileSync(file, "utf8")
+      .split("\n")
+      .forEach((raw, index) => {
+        if (isCommentLine(raw) || !redeclaring.test(raw)) return;
+        failures += 1;
+        console.error(
+          `${rel}:${index + 1}  [metric-declaration] A reader that re-declares a metric reads zero (ADR-QD-052); ` +
+            `import the one declaration instead.\n    ${raw.trim()}`,
+        );
+      });
+  }
+}
+
+{
+  const spec = readFileSync(join(ROOT, "spec/behaviors/25-inspection.md"), "utf8").replace(/\r\n/g, "\n").split("\n");
+  const heading = spec.findIndex((l) => /^### Every metric Qadi declares\s*$/.test(l));
+  if (heading === -1) {
+    failures += 1;
+    console.error("spec/behaviors/25-inspection.md  [metric-table] the `### Every metric Qadi declares` table was not found.");
+  } else {
+    /** @type {Map<string, { type: string, file: string }>} */
+    const rows = new Map();
+    let i = heading + 1;
+    while (i < spec.length && !spec[i].startsWith("|")) i += 1;
+    for (i += 2; i < spec.length && spec[i].startsWith("|"); i += 1) {
+      const cells = spec[i].split("|").slice(1, -1).map((c) => c.trim().replace(/^`|`$/g, ""));
+      const [id, type, , file] = cells;
+      if (id === undefined || type === undefined || file === undefined) continue;
+      rows.set(id, { type, file });
+    }
+    const byId = new Map(declaredMetrics.map((d) => [d.id, d]));
+    for (const [id, row] of rows) {
+      const d = byId.get(id);
+      if (d === undefined) {
+        failures += 1;
+        console.error(`spec/behaviors/25-inspection.md  [metric-table] lists ${id} but no module-scope metric of that id is declared.`);
+      } else if (d.type !== row.type || d.file !== row.file) {
+        failures += 1;
+        console.error(
+          `spec/behaviors/25-inspection.md  [metric-table] ${id} is a ${d.type} declared in ${d.file}, ` +
+            `but the table says ${row.type} in ${row.file}.`,
+        );
+      }
+    }
+    for (const d of declaredMetrics) {
+      if (rows.has(d.id)) continue;
+      failures += 1;
+      console.error(`${d.file}  [metric-table] ${d.id} is declared with no row in 25-inspection.md's "Every metric Qadi declares" table.`);
+    }
+  }
+}
+
+{
+  /** @type {Map<string, number>} */
+  const literalCounts = new Map();
+  for (const file of testSourceSet) {
+    const rel = relative(ROOT, file);
+    const text = readFileSync(file, "utf8")
+      .replace(/\r\n/g, "\n")
+      .split("\n")
+      .map((l) => (isCommentLine(l) ? "" : l))
+      .join("\n");
+    const n = (text.match(METRIC_ID_LITERAL) ?? []).length;
+    if (n > 0) literalCounts.set(rel, n);
+  }
+  for (const [rel, budget] of Object.entries(METRIC_ID_LITERAL_BUDGET)) {
+    const found = literalCounts.get(rel) ?? 0;
+    if (found !== budget) {
+      failures += 1;
+      console.error(
+        `${rel}  [metric-id-literal] declares ${budget} \`"qadi_…"\` id literal(s), found ${found}.\n` +
+          `    Update METRIC_ID_LITERAL_BUDGET in scripts/check-house-style.mjs so the two agree.`,
+      );
+    }
+  }
+  for (const [rel, found] of literalCounts) {
+    if (rel in METRIC_ID_LITERAL_BUDGET) continue;
+    failures += 1;
+    console.error(
+      `${rel}  [metric-id-literal] ${found} \`"qadi_…"\` id literal(s) outside a test title.\n` +
+        `    A test reads a metric through its export (\`Metric.value(decisionsTotal.Allow)\`); a literal id ` +
+        `belongs in a pin, added to METRIC_ID_LITERAL_BUDGET with its exact count (ADR-QD-123).`,
+    );
+  }
+}
+
+// `[no-numbering-placeholder]`: an id is reserved before it is written
+// (`scripts/next-id.mjs`), so `ADR-QD-NEXT` and its CCR/BEH/INV siblings
+// (suffixed forms like `BEH-QD-NEXT-a` included) never reach shipped source,
+// a test or a BDD scenario. Lost commit 4b1ed49 resolved fourteen of them and
+// was itself lost, which is why this is a rule and not a convention (ARCH-61,
+// CCR-QD-403). Raw lines, not `strip()`ed: the placeholders live in comments
+// and test titles. Its own walk rather than `sources`, because it must also
+// see `.tst.ts` titles and `features/features` (`.feature` files included).
+// `spec/` is out of scope: its change history quotes old placeholders on purpose.
+{
+  const PLACEHOLDER = /\b(?:ADR|CCR|BEH|INV)-QD-NEXT\b/;
+  /** @param {string} dir @returns {string[]} */
+  const walk = (dir) => {
+    let entries;
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      return [];
+    }
+    return entries.flatMap((entry) => {
+      if (entry === "node_modules" || entry === "lib") return [];
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) return walk(full);
+      return /\.(?:tsx?|feature)$/.test(entry) ? [full] : [];
+    });
+  };
+  const roots = [
+    ...readdirSync(packagesDir).flatMap((pkg) =>
+      ["src", "test", "bench"].map((d) => join(packagesDir, pkg, d))
+    ),
+    join(ROOT, "features", "step-definitions"),
+    join(ROOT, "features", "features"),
+  ];
+  for (const file of roots.flatMap(walk)) {
+    const rel = relative(ROOT, file);
+    readFileSync(file, "utf8")
+      .split(/\r?\n/)
+      .forEach((line, i) => {
+        if (!PLACEHOLDER.test(line)) return;
+        failures += 1;
+        console.error(
+          `${rel}:${i + 1}  [no-numbering-placeholder] a placeholder id is not a citation; ` +
+            `reserve a number with scripts/next-id.mjs and write that.`,
+        );
+      });
   }
 }
 

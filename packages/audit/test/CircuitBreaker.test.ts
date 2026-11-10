@@ -9,10 +9,8 @@ import * as Metric from "effect/Metric";
 import * as TestClock from "effect/testing/TestClock";
 import * as FastCheck from "fast-check";
 import { isolatedMetrics } from "@qadi/testing";
-import { makeCircuitBreaker } from "../src/CircuitBreaker.ts";
+import { makeCircuitBreaker, transitionsTotal } from "../src/CircuitBreaker.ts";
 import type { CircuitBreaker } from "../src/CircuitBreaker.ts";
-
-type FrequencySnapshot = Extract<Metric.Metric.Snapshot, { type: "Frequency" }>;
 
 const OPTIONS = { failureThreshold: 3, resetTimeoutMs: 10_000 };
 
@@ -293,7 +291,7 @@ describe("CircuitBreaker — threshold boundary, scripted rather than generated"
 
   it.effect("a released probe announces exactly one more Open transition", () =>
     Effect.gen(function* () {
-      const snapshots = yield* isolatedMetrics(
+      const transitions = yield* isolatedMetrics(
         Effect.gen(function* () {
           const breaker = yield* makeCircuitBreaker(OPTIONS);
           yield* trip(breaker);
@@ -302,17 +300,12 @@ describe("CircuitBreaker — threshold boundary, scripted rather than generated"
           const prober = yield* holdPermit(breaker, held);
           yield* held.await;
           yield* Fiber.interrupt(prober);
-          return yield* Metric.snapshot;
+          return yield* Metric.value(transitionsTotal);
         }),
       );
-      const occurrences = snapshots
-        .find(
-          (s): s is FrequencySnapshot =>
-            s.type === "Frequency" && s.id === "qadi_audit_circuit_breaker_transitions_total",
-        )
-        ?.state.occurrences;
-      assert.strictEqual(occurrences?.get("Open"), 2, "the trip, then the release");
-      assert.strictEqual(occurrences?.get("HalfOpen"), 1);
+      const occurrences = transitions.occurrences;
+      assert.strictEqual(occurrences.get("Open"), 2, "the trip, then the release");
+      assert.strictEqual(occurrences.get("HalfOpen"), 1);
     }));
 
   it.effect("attempt records only the first outcome per permit", () =>
@@ -343,17 +336,9 @@ describe("CircuitBreaker — threshold boundary, scripted rather than generated"
 });
 
 describe("CircuitBreaker — a failure landing on an already-Open breaker is not a transition", () => {
-  const openOccurrences = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>) =>
-    snapshots
-      .find(
-        (s): s is FrequencySnapshot =>
-          s.type === "Frequency" && s.id === "qadi_audit_circuit_breaker_transitions_total",
-      )
-      ?.state.occurrences.get("Open");
-
   it.effect("a late failure neither re-announces Open nor restarts the open window", () =>
     Effect.gen(function* () {
-      const snapshots = yield* isolatedMetrics(
+      const transitions = yield* isolatedMetrics(
         Effect.gen(function* () {
           const breaker = yield* makeCircuitBreaker(OPTIONS);
           // Admitted while Closed, settling only after the trip below.
@@ -377,15 +362,15 @@ describe("CircuitBreaker — a failure landing on an already-Open breaker is not
           yield* Fiber.join(late);
           yield* TestClock.adjust("1 second");
           assert.strictEqual(yield* breaker.status, "HalfOpen", "the window is measured from the trip");
-          return yield* Metric.snapshot;
+          return yield* Metric.value(transitionsTotal);
         }),
       );
-      assert.strictEqual(openOccurrences(snapshots), 1);
+      assert.strictEqual(transitions.occurrences.get("Open"), 1);
     }));
 
   it.effect("failureThreshold + 5 concurrent failures record exactly one Open transition", () =>
     Effect.gen(function* () {
-      const snapshots = yield* isolatedMetrics(
+      const transitions = yield* isolatedMetrics(
         Effect.gen(function* () {
           const breaker = yield* makeCircuitBreaker({ failureThreshold: 25, resetTimeoutMs: 10_000 });
           yield* Effect.all(
@@ -393,10 +378,10 @@ describe("CircuitBreaker — a failure landing on an already-Open breaker is not
             { concurrency: "unbounded" },
           );
           assert.strictEqual(yield* breaker.status, "Open");
-          return yield* Metric.snapshot;
+          return yield* Metric.value(transitionsTotal);
         }),
       );
-      assert.strictEqual(openOccurrences(snapshots), 1);
+      assert.strictEqual(transitions.occurrences.get("Open"), 1);
     }));
 });
 
@@ -512,7 +497,7 @@ describe("CircuitBreaker — concurrent record() calls (Qadi.ts's filter/filterS
     "exactly failureThreshold consecutive failures trips it, even run concurrently — no lost update, no double-count",
     () =>
       Effect.gen(function* () {
-        const snapshots = yield* isolatedMetrics(
+        const transitions = yield* isolatedMetrics(
           Effect.gen(function* () {
             const breaker = yield* makeCircuitBreaker({ failureThreshold: 25, resetTimeoutMs: 10_000 });
 
@@ -524,17 +509,13 @@ describe("CircuitBreaker — concurrent record() calls (Qadi.ts's filter/filterS
             // A lost update (two fibers reading the same stale count) would
             // leave this still Closed.
             assert.strictEqual(yield* breaker.status, "Open");
-            return yield* Metric.snapshot;
+            return yield* Metric.value(transitionsTotal);
           }),
         );
 
         // A double-counted transition — the other failure mode a non-atomic
         // read-compute-write allows — would inflate this past exactly one.
-        const transitions = snapshots.find(
-          (s): s is FrequencySnapshot =>
-            s.type === "Frequency" && s.id === "qadi_audit_circuit_breaker_transitions_total",
-        );
-        assert.strictEqual(transitions?.state.occurrences.get("Open"), 1);
+        assert.strictEqual(transitions.occurrences.get("Open"), 1);
       }),
   ));
 
@@ -727,16 +708,13 @@ describe("PROPERTY: the breaker matches a pure reference model", () => {
               assert.strictEqual(yield* breaker.status, model.tag, JSON.stringify(command));
             }
 
-            return { snapshot: yield* Metric.snapshot, expected: model.transitions };
+            return { frequency: yield* Metric.value(transitionsTotal), expected: model.transitions };
           }),
         );
-        const frequency = outcome.snapshot.find(
-          (s): s is FrequencySnapshot =>
-            s.type === "Frequency" && s.id === "qadi_audit_circuit_breaker_transitions_total",
-        );
+        const frequency = outcome.frequency;
         for (const word of ["Open", "HalfOpen", "Closed"] as const) {
           assert.strictEqual(
-            frequency?.state.occurrences.get(word) ?? 0,
+            frequency.occurrences.get(word) ?? 0,
             outcome.expected[word],
             `${word} transitions for ${JSON.stringify(scenario)}`,
           );

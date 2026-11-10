@@ -10,6 +10,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
 import * as FastCheck from "fast-check";
+import { fromRoles } from "../src/AuthSubject.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
@@ -17,6 +18,7 @@ import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import { toPredicate } from "../src/Predicate.ts";
 import {
+  flattenAll,
   flattenPermissions,
   permissionProvenance,
   resolveRoleGraph,
@@ -25,6 +27,7 @@ import {
 } from "../src/Role.ts";
 import type { Role } from "../src/Role.ts";
 import { collectingLogger, subjectWith, testLayer } from "./helpers.ts";
+import { arbitraryRoleGraph, reachable } from "./RoleGraphArbitrary.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -341,6 +344,50 @@ describe("two distinct Role objects sharing a name are not conflated", () => {
       1,
     );
     assert.deepStrictEqual([...roleNames(top)].sort(), ["base", "left", "right", "top"]);
+  });
+});
+
+describe("INV-QD-038 over random role graphs", () => {
+  // A pin, not a regression: the walkers already agree. It holds them to it over
+  // diamonds and same-named roles while 16-02 rebuilds them on one traversal.
+  it("provenance reports exactly the flattened set, and roleNames the names reached", () => {
+    FastCheck.assert(
+      FastCheck.property(arbitraryRoleGraph, ({ root }) => {
+        assert.deepStrictEqual(
+          new Set(permissionProvenance(root).map((g) => g.permission)),
+          flattenPermissions(root),
+        );
+        assert.deepStrictEqual(
+          roleNames(root),
+          new Set([...reachable(root)].map((r) => r.name)),
+        );
+      }),
+      { seed: 1638, numRuns: 300 },
+    );
+  });
+
+  // fromRoles walks all its roots once (ARCH-64); it must still reach exactly
+  // what walking each root on its own reaches, shared parents and same-named
+  // roles included.
+  it("fromRoles over several roots is the union of roleNames and flattenPermissions per root", () => {
+    const someRoots = arbitraryRoleGraph.chain(({ all }) =>
+      FastCheck.array(FastCheck.constantFrom(...all), { minLength: 1, maxLength: 4 }),
+    );
+    FastCheck.assert(
+      FastCheck.property(someRoots, (roots) => {
+        const subject = fromRoles({ id: "u", roles: roots });
+        assert.deepStrictEqual(
+          new Set<string>(subject.roles),
+          new Set(roots.flatMap((r) => [...roleNames(r)])),
+        );
+        assert.deepStrictEqual(
+          subject.permissions,
+          new Set(roots.flatMap((r) => [...flattenPermissions(r)])),
+        );
+        assert.deepStrictEqual(flattenAll(roots), subject.permissions);
+      }),
+      { seed: 1638, numRuns: 300 },
+    );
   });
 });
 

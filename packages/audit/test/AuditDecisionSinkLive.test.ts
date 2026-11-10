@@ -9,9 +9,8 @@ import { DecisionSink } from "@qadi/core";
 import { collectingLogger } from "@qadi/testing";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
 import type { AuditEntryNotEncodable } from "../src/AuditEntry.ts";
-import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
+import { AuditPortReply } from "../src/AuditPortReply.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
-import { AuditStagingError, AuditStagingPort } from "../src/AuditStagingPort.ts";
 import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
 import { durabilityOf } from "../src/AuditWriteOutcome.ts";
 import type { AuditWriteOutcome } from "../src/AuditWriteOutcome.ts";
@@ -57,7 +56,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
   it.effect("DecisionSink.record never fails, even when the trail port write fails", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
 
       const result = yield* Effect.result(
@@ -73,7 +72,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
   it.effect("without staging wired, a write failure simply isn't recorded, and nothing throws", () =>
     Effect.gen(function* () {
       const { layer: trail, written } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
 
       yield* Effect.gen(function* () {
@@ -103,7 +102,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
   it.effect("with staging wired, a write failure leaves the staged entry un-discarded", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
       const { layer: staging, staged, committed } = AuditStagingPortTest();
 
@@ -120,12 +119,8 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
 
   it.effect("once the breaker trips, write() is never attempted again until reset", () =>
     Effect.gen(function* () {
-      let writeAttempts = 0;
-      const { layer: trail, written } = AuditTrailPortTest({
-        failWith: (entry) => {
-          writeAttempts++;
-          return new AuditWriteError({ entry, cause: "offline" });
-        },
+      const { layer: trail, written, calls } = AuditTrailPortTest({
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
 
       yield* Effect.gen(function* () {
@@ -134,12 +129,12 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
         for (let i = 0; i < 5; i++) {
           yield* sink.record(decisionRecord({ evaluationId: `fail-${i}` }));
         }
-        assert.strictEqual(writeAttempts, 5);
+        assert.strictEqual(calls().length, 5);
 
         // The breaker is now open — further records must not attempt write().
         yield* sink.record(decisionRecord({ evaluationId: "skipped-1" }));
         yield* sink.record(decisionRecord({ evaluationId: "skipped-2" }));
-        assert.strictEqual(writeAttempts, 5);
+        assert.strictEqual(calls().length, 5);
       }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail)));
 
       assert.strictEqual(written().length, 0);
@@ -148,7 +143,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
   it.effect("while open, an unwired deployment genuinely loses the entry", () =>
     Effect.gen(function* () {
       const { layer: trail, written } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
 
       yield* Effect.gen(function* () {
@@ -166,7 +161,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
   it.effect("while open, a staged deployment keeps the entry recoverable", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
       const { layer: staging, staged } = AuditStagingPortTest();
 
@@ -188,13 +183,11 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
   it.effect("while open, a staging failure is a genuine, unrecoverable loss too", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
       const { layer: staging, staged, committed } = AuditStagingPortTest({
-        failStageWith: (entry) =>
-          entry.record.evaluationId === "lost"
-            ? new AuditStagingError({ entry, cause: "staging offline" })
-            : undefined,
+        stage: (entry) =>
+          entry.record.evaluationId === "lost" ? AuditPortReply.Fail({ cause: "staging offline" }) : undefined,
       });
 
       yield* Effect.gen(function* () {
@@ -215,12 +208,8 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
 
   it.effect("a custom failureThreshold is honored", () =>
     Effect.gen(function* () {
-      let writeAttempts = 0;
-      const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) => {
-          writeAttempts++;
-          return new AuditWriteError({ entry, cause: "offline" });
-        },
+      const { layer: trail, calls } = AuditTrailPortTest({
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
 
       yield* Effect.gen(function* () {
@@ -229,7 +218,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
         yield* sink.record(decisionRecord({ evaluationId: "b" }));
         // Breaker should now be open with failureThreshold: 2.
         yield* sink.record(decisionRecord({ evaluationId: "c" }));
-        assert.strictEqual(writeAttempts, 2);
+        assert.strictEqual(calls().length, 2);
       }).pipe(
         Effect.provide(Layer.provideMerge(AuditDecisionSinkLive({ failureThreshold: 2 }), trail)),
       );
@@ -256,15 +245,16 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
         // cyclic resolver cause used to reach it, throw, and count as a store
         // failure; five of them opened the breaker and the healthy record
         // after them was dropped.
-        const rows: Array<string> = [];
-        const trail = Layer.succeed(AuditTrailPort, {
-          write: (entry) =>
-            Effect.try({
-              try: () => {
-                rows.push(JSON.stringify(entry));
-              },
-              catch: (cause) => new AuditWriteError({ entry, cause }),
-            }),
+        // A write the store cannot serialise fails, with the throw as its cause.
+        const { layer: trail, written } = AuditTrailPortTest({
+          write: (entry) => {
+            try {
+              JSON.stringify(entry);
+              return undefined;
+            } catch (cause) {
+              return AuditPortReply.Fail({ cause });
+            }
+          },
         });
 
         yield* Effect.gen(function* () {
@@ -277,6 +267,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
           Effect.provide(Layer.provideMerge(AuditDecisionSinkLive({ failureThreshold: 5 }), trail)),
         );
 
+        const rows = written().map((entry) => JSON.stringify(entry));
         assert.isTrue(rows.some((row) => row.includes('"evaluationId":"healthy"')));
         // Since the codec owns the encode, the poisoned records are not refused
         // either: each is written with its cause normalised, and the store's
@@ -306,24 +297,19 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
       "attempt is still possible, and the breaker doesn't wedge Open forever",
     () =>
       Effect.gen(function* () {
-        let writeAttempts = 0;
         const probeStarted = yield* Latch.make();
         // Only write attempt 6 — the half-open probe, once the breaker has
         // tripped on the default failureThreshold of 5 — hangs, standing in
         // for a client disconnect / `Effect.timeout` cutting the write off
         // mid-flight. `probeStarted` lets the test wait until the probe
         // genuinely holds the claim, not merely forked.
-        const trail = Layer.succeed(AuditTrailPort, {
-          write: (entry) => {
-            writeAttempts++;
-            if (writeAttempts <= 5) {
-              return Effect.fail(new AuditWriteError({ entry, cause: "offline" }));
-            }
-            if (writeAttempts === 6) {
-              return probeStarted.open.pipe(Effect.flatMap(() => Effect.never));
-            }
-            return Effect.void;
-          },
+        const { layer: trail, calls } = AuditTrailPortTest({
+          write: (_entry, call) =>
+            call < 5
+              ? AuditPortReply.Fail({ cause: "offline" })
+              : call === 5
+                ? AuditPortReply.Latch({ latch: probeStarted })
+                : undefined,
         });
         const { layer: staging, staged, committed } = AuditStagingPortTest();
 
@@ -355,17 +341,17 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
           // attempted again, no matter how long the backend has recovered.
           yield* sink.record(decisionRecord({ evaluationId: "still-recovering" }));
           assert.strictEqual(
-            writeAttempts,
+            calls().length,
             6,
             "immediately after the interrupted probe, the reopened breaker still honors resetTimeoutMs",
           );
 
           // Once resetTimeoutMs elapses again, a fresh half-open window — and
           // a fresh probe — must be reachable. Under the bug this call would
-          // never attempt write() at all, and writeAttempts would stay at 6.
+          // never attempt write() at all, and the trail would see only 6 calls.
           yield* TestClock.adjust("30 seconds");
           yield* sink.record(decisionRecord({ evaluationId: "recovered" }));
-          assert.strictEqual(writeAttempts, 7, "a later probe attempt is still possible");
+          assert.strictEqual(calls().length, 7, "a later probe attempt is still possible");
         }).pipe(
           Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, staging))),
         );
@@ -385,22 +371,13 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
       "resetTimeoutMs later, not twice that",
     () =>
       Effect.gen(function* () {
-        let writeAttempts = 0;
         const stageStarted = yield* Latch.make();
-        const trail = Layer.succeed(AuditTrailPort, {
-          write: (entry) => {
-            writeAttempts++;
-            return writeAttempts <= 5
-              ? Effect.fail(new AuditWriteError({ entry, cause: "offline" }))
-              : Effect.void;
-          },
+        const { layer: trail, calls } = AuditTrailPortTest({
+          write: (_entry, call) => (call < 5 ? AuditPortReply.Fail({ cause: "offline" }) : undefined),
         });
-        const staging = Layer.succeed(AuditStagingPort, {
+        const { layer: staging } = AuditStagingPortTest({
           stage: (entry) =>
-            entry.record.evaluationId === "probe"
-              ? stageStarted.open.pipe(Effect.andThen(Effect.never))
-              : Effect.succeed(0),
-          commit: () => Effect.void,
+            entry.record.evaluationId === "probe" ? AuditPortReply.Latch({ latch: stageStarted }) : undefined,
         });
         yield* Effect.gen(function* () {
           const sink = yield* DecisionSink;
@@ -416,7 +393,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
           yield* TestClock.adjust("30 seconds");
           yield* sink.record(decisionRecord({ evaluationId: "recovered" }));
           assert.strictEqual(
-            writeAttempts,
+            calls().length,
             6,
             "a fresh probe is admitted one resetTimeoutMs after the interrupt",
           );
@@ -430,25 +407,19 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
   // held forever. It cannot: `Effect.exit` folds the failure into `recordFailure`, whose
   // `HalfOpen` branch reopens the breaker and clears `probeClaimed` itself. These two
   // tests pin that, for a typed failure and for a defect.
-  for (const [label, failProbe] of [
-    ["a typed AuditWriteError", (entry: Parameters<AuditTrailPort["Service"]["write"]>[0]) =>
-      Effect.fail(new AuditWriteError({ entry, cause: "offline" }))],
-    ["a defect", () => Effect.die(new Error("caller's trail store bug"))],
-  ] as const) {
+  const failedProbes: ReadonlyArray<readonly [string, AuditPortReply]> = [
+    ["a typed AuditWriteError", AuditPortReply.Fail({ cause: "offline" })],
+    ["a defect", AuditPortReply.Die({ defect: new Error("caller's trail store bug") })],
+  ];
+  for (const [label, failProbe] of failedProbes) {
     it.effect(
       `a half-open probe whose write fails with ${label} reopens the breaker and a fresh probe ` +
         "follows one resetTimeoutMs later — no wedge",
       () =>
         Effect.gen(function* () {
-          let writeAttempts = 0;
-          const trail = Layer.succeed(AuditTrailPort, {
-            write: (entry) => {
-              writeAttempts++;
-              if (writeAttempts <= 5) {
-                return Effect.fail(new AuditWriteError({ entry, cause: "offline" }));
-              }
-              return writeAttempts === 6 ? failProbe(entry) : Effect.void;
-            },
+          const { layer: trail, calls } = AuditTrailPortTest({
+            write: (_entry, call) =>
+              call < 5 ? AuditPortReply.Fail({ cause: "offline" }) : call === 5 ? failProbe : undefined,
           });
           yield* Effect.gen(function* () {
             const sink = yield* DecisionSink;
@@ -457,14 +428,14 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
             }
             yield* TestClock.adjust("30 seconds");
             yield* sink.record(decisionRecord({ evaluationId: "probe-fails" }));
-            assert.strictEqual(writeAttempts, 6);
+            assert.strictEqual(calls().length, 6);
             yield* sink.record(decisionRecord({ evaluationId: "still-open" }));
-            assert.strictEqual(writeAttempts, 6, "reopened: no write is attempted");
+            assert.strictEqual(calls().length, 6, "reopened: no write is attempted");
             yield* TestClock.adjust("30 seconds");
             yield* sink.record(decisionRecord({ evaluationId: "probe-2" }));
-            assert.strictEqual(writeAttempts, 7, "a fresh probe is admitted");
+            assert.strictEqual(calls().length, 7, "a fresh probe is admitted");
             yield* sink.record(decisionRecord({ evaluationId: "closed" }));
-            assert.strictEqual(writeAttempts, 8, "the probe succeeded, so the breaker closed");
+            assert.strictEqual(calls().length, 8, "the probe succeeded, so the breaker closed");
           }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail)));
         }),
     );
@@ -472,17 +443,11 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
 
   it.effect("an adapter that interrupts itself is a write failure and trips the breaker", () =>
     Effect.gen(function* () {
-      let writeAttempts = 0;
-      const trail = Layer.succeed(AuditTrailPort, {
-        write: () => {
-          writeAttempts++;
-          return Effect.interrupt;
-        },
-      });
+      const { layer: trail, calls } = AuditTrailPortTest({ write: () => AuditPortReply.Interrupt() });
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
         for (let i = 0; i < 3; i++) yield* sink.record(decisionRecord({ evaluationId: `i-${i}` }));
-        assert.strictEqual(writeAttempts, 2, "the third record is skipped: the breaker is open");
+        assert.strictEqual(calls().length, 2, "the third record is skipped: the breaker is open");
       }).pipe(
         Effect.provide(
           Layer.provideMerge(AuditDecisionSinkLive({ failureThreshold: 2 }), trail),
@@ -492,13 +457,11 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
 
   it.effect("a caller's interruption of a Closed-state write is not a store failure", () =>
     Effect.gen(function* () {
-      let writeAttempts = 0;
       const started = [yield* Latch.make(), yield* Latch.make()];
-      const trail = Layer.succeed(AuditTrailPort, {
-        write: () => {
-          writeAttempts++;
-          const latch = started[writeAttempts - 1];
-          return latch === undefined ? Effect.void : latch.open.pipe(Effect.andThen(Effect.never));
+      const { layer: trail, calls } = AuditTrailPortTest({
+        write: (_entry, call) => {
+          const latch = started[call];
+          return latch === undefined ? undefined : AuditPortReply.Latch({ latch });
         },
       });
       yield* Effect.gen(function* () {
@@ -511,7 +474,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
           yield* Fiber.interrupt(fiber);
         }
         yield* sink.record(decisionRecord({ evaluationId: "third" }));
-        assert.strictEqual(writeAttempts, 3, "two caller interruptions did not trip the breaker");
+        assert.strictEqual(calls().length, 3, "two caller interruptions did not trip the breaker");
       }).pipe(
         Effect.provide(
           Layer.provideMerge(AuditDecisionSinkLive({ failureThreshold: 2 }), trail),
@@ -615,13 +578,13 @@ describe("AuditDecisionSinkLive — an encode refusal is observable", () => {
 
 describe("AuditDecisionSinkLive — an entry lost after a write failure is witnessed", () => {
   const failingStage = AuditStagingPortTest({
-    failStageWith: (entry) => new AuditStagingError({ entry, cause: "staging offline" }),
+    stage: () => AuditPortReply.Fail({ cause: "staging offline" }),
   });
 
   it.effect("unwired, a failed write logs the drop with its evaluationId", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
       const { lines: logs, layer: logger } = collectingLogger();
 
@@ -640,7 +603,9 @@ describe("AuditDecisionSinkLive — an entry lost after a write failure is witne
 
   it.effect("unwired, a write that dies is a loss too and logs the same drop", () =>
     Effect.gen(function* () {
-      const trail = Layer.succeed(AuditTrailPort, { write: () => Effect.die(new Error("trail bug")) });
+      const { layer: trail } = AuditTrailPortTest({
+        write: () => AuditPortReply.Die({ defect: new Error("trail bug") }),
+      });
       const { lines: logs, layer: logger } = collectingLogger();
 
       yield* Effect.gen(function* () {
@@ -659,7 +624,7 @@ describe("AuditDecisionSinkLive — an entry lost after a write failure is witne
   it.effect("wired, a failed stage then a failed write logs the drop", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
       const { lines: logs, layer: logger } = collectingLogger();
 
@@ -683,7 +648,7 @@ describe("AuditDecisionSinkLive — an entry lost after a write failure is witne
   it.effect("wired, a staged entry whose write fails is not reported as dropped", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
       const { layer: staging, staged } = AuditStagingPortTest();
       const { lines: logs, layer: logger } = collectingLogger();
@@ -749,7 +714,7 @@ describe("AuditDecisionSinkLive — onOutcome and the record span", () => {
   it.effect("a lost entry reaches onOutcome as Lost, carrying the entry", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
       const seen: Array<AuditWriteOutcome> = [];
 
@@ -804,7 +769,7 @@ describe("AuditDecisionSinkLive — onOutcome and the record span", () => {
   it.effect("record has a span carrying the outcome path and its durability", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
       const spans: Array<Tracer.Span> = [];
       const tracer = Layer.succeed(

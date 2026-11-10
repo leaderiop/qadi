@@ -9,7 +9,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { fromRoles, makeSubject, subjectEquivalence, withAttributes } from "../src/AuthSubject.ts";
 import { permission } from "../src/Permission.ts";
-import { role } from "../src/Role.ts";
+import { flattenAll, role, roleNames } from "../src/Role.ts";
 
 describe("makeSubject", () => {
   it("copies the attributes record rather than storing it by reference", () => {
@@ -43,6 +43,34 @@ describe("fromRoles", () => {
     attributes["department"] = "oncology";
 
     assert.strictEqual(subject.attributes["department"], "cardiology");
+  });
+
+  // One walk over all roots (ARCH-64): a parent shared by two roots is visited
+  // once, and a distinct role that only shares a name is still walked, so its
+  // own parent's grants are not lost to the shared parent's visit.
+  it("walks every root once: a shared parent once, a same-named distinct role still", () => {
+    const viewer = role({ name: "viewer", permissions: [permission("doc", "read")] });
+    const editor = role({ name: "editor", permissions: [permission("doc", "write")], inherits: [viewer] });
+    const author = role({ name: "author", inherits: [viewer] });
+    const auditor = role({ name: "auditor", permissions: [permission("log", "read")] });
+    const otherViewer = role({ name: "viewer", permissions: [permission("doc", "export")], inherits: [auditor] });
+    const roles = [editor, author, otherViewer];
+
+    const subject = fromRoles({ id: "u1", roles, permissions: [permission("org", "join")] });
+
+    assert.deepStrictEqual(
+      new Set<string>(subject.roles),
+      new Set(["editor", "viewer", "author", "auditor"]),
+    );
+    assert.deepStrictEqual(
+      subject.permissions,
+      new Set<`${string}:${string}`>(["doc:write", "doc:read", "doc:export", "log:read", "org:join"]),
+    );
+    assert.deepStrictEqual(
+      new Set<string>(subject.roles),
+      new Set(roles.flatMap((r) => [...roleNames(r)])),
+    );
+    assert.deepStrictEqual(subject.permissions, new Set([...flattenAll(roles), "org:join"]));
   });
 });
 

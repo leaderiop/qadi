@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-milestone: v1.0
-status: Awaiting next milestone
-stopped_at: Milestone v1.0 complete and archived
-last_updated: "2026-11-09T21:49:46.894Z"
-last_activity: 2026-11-09
-last_activity_desc: "Milestone v1.0 shipped as PR #153"
-state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
+milestone: v1.1
+status: Milestone complete
+stopped_at: Completed 20-04-PLAN.md
+last_updated: "2026-11-10T00:00:00.000Z"
+last_activity: 2026-11-10
+last_activity_desc: "20-04 complete: BEH-QD-439, ADR-QD-132, INV-QD-025 note, CCR-QD-410, @qadi/core patch changeset; check:pr green; Phase 20 and milestone v1.1 (Phases 10-20) complete, not released"
+state_head: 856a092ab1da5af22c7dbf7a6044fa32cf55eeeb
 progress:
-  total_phases: 9
-  completed_phases: 9
-  total_plans: 33
-  completed_plans: 33
+  total_phases: 11
+  completed_phases: 11
+  total_plans: 59
+  completed_plans: 59
   percent: 100
-current_phase: 09
+current_phase: 20
 ---
 
 # Project State
@@ -23,19 +23,19 @@ current_phase: 09
 See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Planning next milestone (v1.0 Arch Wave 5 shipped 2026-11-09)
+**Current focus:** v1.1 Arch Wave 6 — milestone complete (Phases 10-20); not released
 
 ## Current Position
 
-Phase: Milestone v1.0 complete
-Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-11-09 -- Milestone v1.0 shipped as PR #153
+Phase: 20 of 20 (DecisionCache shared computation), complete
+Plan: 4 of 4 in Phase 20; milestone v1.1 complete (all 11 phases, 59 plans)
+Status: Milestone v1.1 complete. Not released: a release happens only on the user's explicit request
+Last activity: 2026-11-10 -- 20-04 complete: BEH-QD-439 (a shared computation answers everyone still waiting, and nobody else), ADR-QD-132, INV-QD-025 Enforcement note, traceability, CCR-QD-410; the #64 paragraph in the pending @qadi/core patch changeset (decision-cache-claim-window.md); mutation DecisionCache.ts 0.9583 vs 0.9479, SharedComputation.ts 0.9857; check:pr exit 0; CACHE-01..04 and XC-01..06 ticked
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 35
+- Total plans completed: 59
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -84,6 +84,12 @@ Last activity: 2026-11-09 -- Milestone v1.0 shipped as PR #153
 | Phase 09 P02 | 12 min | 3 tasks | 14 files |
 | Phase 09 P03 | 10 min | 3 tasks | 9 files |
 | Phase 09 P04 | 15 min | 2 tasks | 3 files |
+| Phase 11 P01 | 15 min | 3 tasks | 8 files |
+| Phase 11 P07 | 20 min | 2 tasks | 6 files |
+| Phase 12 P05 | 40 min | 3 tasks | 21 files |
+| Phase 13 P12 | 25 min | 4 tasks | 6 files |
+| Phase 14 P07 | 40 min | 2 tasks | 9 files |
+| Phase 20 P04 | 40 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -94,15 +100,15 @@ Last activity: 2026-11-09 -- Milestone v1.0 shipped as PR #153
 
 ### Pending Todos
 
-- Confirm reserved ADR/CCR/ARCH numbers are still free before each phase executes. Next free
-  after v1.0: ARCH-55, ADR-QD-117, CCR-QD-394. 112, 113 and 115 were left unused, not freed.
+- Before each phase executes, confirm its reserved numbers against PROJECT.md's wave-6 reservation table
+  (grep `spec/` first). ARCH ids below 59 are never reused; CCR-QD-394 is used by ARCH-58.
 
 ### Blockers/Concerns
 
 - [CI] The Node 26 matrix leg exceeds the 60-min `timeout-minutes` during mutation on a full `pnpm check` (seen at c807b64 and 127d6fa); release PRs will hit it.
 - [Host] `pnpm example` needs sudo on this Fedora host (`playwright install --with-deps`). Route that works: the literal `pnpm check:pr` in a rootless podman Ubuntu Playwright container (`mcr.microsoft.com/playwright:v1.65.0-noble`), or CI.
 - [Host] Run vitest from the repo root with `--project <pkg>`; running inside a package dir fails at collection.
-- `.planning/` is gitignored (`.gitignore:43`) even though `commit_docs: true`. Committing planning docs needs `git add -f` or a .gitignore change.
+- `.planning/` is tracked (no `.gitignore` line). `.planning/architecture/` was archived under `.planning/milestones/archive-pre-gsd/` (tracked) by Phase 10 on 2026-11-10.
 - Shared spec files (README, traceability, invariants, overview, decisions/index.yaml) are edited by every phase, so parallel worktrees will conflict on revision lines. Use `scripts/spec-revise.mjs`. BEH/INV ids are allocated with `node scripts/next-id.mjs`.
 - Devtools replay: the other four ports' `none` answers still grant under `not(...)` on a capture miss (INV-QD-007 fail-open). Flipping each is one word in Capture.ts's `UNSEEN_REQUEST_IS_AN_OUTAGE`; needs a decision.
 - Write requirement lines as explicit ID lists, never ranges like `XC-01..05`: `phase.complete` cannot parse ranges.

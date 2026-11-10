@@ -39,14 +39,21 @@ import * as Metric from "effect/Metric";
 /**
  * Why the **server** left an entry out of a payload.
  *
- * One case today, and it is still a named union rather than a bare string
- * literal: the two sides are reported through different callbacks with different
- * payloads, so a reader of either signature should be able to see which set of
- * reasons it is looking at.
+ * A named union rather than a bare string literal: the two sides report through
+ * the same `HydrationDrop` shape but with different reasons, so a reader of
+ * either hook's signature should be able to see which set of reasons it is
+ * looking at. An entry that is both foreign and unencodable is `ForeignSubject`:
+ * the subject filter runs first and a foreign entry is never encoded.
  */
 export type DehydrationDropReason =
   /** An entry whose decision was made for another subject. */
-  "ForeignSubject";
+  | "ForeignSubject"
+  /**
+   * An entry whose policy, built in code, the policy schema does not accept — a
+   * matcher bound that is not finite, or a relationship depth that is not an
+   * integer — so it cannot cross the network (ARCH-60).
+   */
+  | "UnencodablePolicy";
 
 /**
  * Why the **client** did not seed an entry, or a whole payload.
@@ -111,6 +118,7 @@ export type HydrationDropReason = DehydrationDropReason | ClientHydrationDropRea
 /** Every reason, as values — so a reader need not restate the union. */
 export const hydrationDropReasons: ReadonlyArray<HydrationDropReason> = [
   "ForeignSubject",
+  "UnencodablePolicy",
   "PayloadSubjectMismatch",
   "MalformedEntry",
   "UndecodablePolicy",
@@ -149,6 +157,14 @@ const MEANINGS: { readonly [R in HydrationDropReason]: HydrationDropMeaning } = 
     remedy:
       "a payload mixing subjects has no safe reading, so the others were discarded — " +
       "check what fed this call",
+  },
+  UnencodablePolicy: {
+    summary:
+      "a policy built in code that the policy schema does not accept — a non-finite bound or a fractional depth",
+    remedy:
+      "a policy built in code does not satisfy the policy schema — a matcher bound that is not " +
+      "finite, or a relationship depth that is not an integer — so it cannot cross the network. " +
+      "The entry was left out and the client will ask the question itself; fix the policy",
   },
   PayloadSubjectMismatch: {
     summary: "a payload reached a client it was not rendered for",

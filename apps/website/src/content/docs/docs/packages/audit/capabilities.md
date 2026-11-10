@@ -60,6 +60,35 @@ back in one atomic `Ref.modify`, since `filter`/`filterStream` evaluate items
 concurrently and concurrent `record()` calls reaching the same breaker are
 the ordinary case, not an edge case.
 
+**A deadline on every store call** — `storeCallTimeout`, 5 seconds by default.
+`evaluate` waits for `record()`, so a store call that never answered used to hold
+the decision with it. Now each `stage`, `write` and `commit` call gets its own
+deadline. A call that reaches it is interrupted and fails with the port's own error,
+its cause a `TimeoutError`. A late write is `WriteFailed` and counts toward the
+breaker like any other failed write, and a late stage or commit is a staging
+failure. A store that is healthy but slower than the deadline now loses writes,
+which is reported as above. Raise the deadline for such a store, or pass
+`Duration.infinity` to wait without limit. An adapter that makes itself
+uninterruptible is not bounded by the deadline.
+
+```typescript
+import * as Duration from "effect/Duration";
+import * as Layer from "effect/Layer";
+import { AuditDecisionSinkLive, AuditTrailPortTest } from "@qadi/audit";
+
+const trail = AuditTrailPortTest();
+
+// Each store call fails after 2 seconds instead of holding the decision.
+export const Bounded = AuditDecisionSinkLive({ storeCallTimeout: "2 seconds" }).pipe(
+  Layer.provide(trail.layer),
+);
+
+// No deadline: the wait 0.11 had.
+export const Unbounded = AuditDecisionSinkLive({ storeCallTimeout: Duration.infinity }).pipe(
+  Layer.provide(trail.layer),
+);
+```
+
 ## What the pipeline reports
 
 Every record `record()` receives ends as exactly one outcome, and each outcome is
@@ -145,4 +174,29 @@ if (Result.isSuccess(archive)) {
   const plan = planPurge(entries, { maxAgeMs: 90 * 24 * 60 * 60 * 1000 }, now, archive.success);
   // delete Result.getOrThrow(plan).purge from the trail
 }
+```
+
+## Testing
+
+`AuditTrailPortTest` and `AuditStagingPortTest` are public, in-memory doubles
+for your own tests. Each takes a script that answers every call with an
+`AuditPortReply`: `Ok`, `Fail`, `Die`, `Interrupt`, `Never`, or `Latch` (opens a
+latch, then never settles). The script receives the entry and the call's 0-based
+index, and `undefined` means `Ok`. On `Fail` the double builds the port's own error
+(`AuditWriteError`, `AuditStagingError`) from the call, so a test never constructs
+one. `calls()`, `stageCalls()` and `commitCalls()` record every call, whatever the reply.
+
+```typescript
+import * as Layer from "effect/Layer";
+import { AuditDecisionSinkLive, AuditPortReply, AuditStagingPortTest, AuditTrailPortTest } from "@qadi/audit";
+
+// The first write fails, every later one is recorded, and every commit hangs.
+const trail = AuditTrailPortTest({
+  write: (_entry, call) => (call === 0 ? AuditPortReply.Fail({ cause: "offline" }) : undefined),
+});
+const staging = AuditStagingPortTest({ commit: () => AuditPortReply.Never() });
+
+export const UnderTest = AuditDecisionSinkLive({ storeCallTimeout: "1 second" }).pipe(
+  Layer.provide(Layer.mergeAll(trail.layer, staging.layer)),
+);
 ```

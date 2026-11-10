@@ -23,6 +23,7 @@ import { toJson } from "./JsonHazard.ts";
 import type { EncodeRefusal } from "./JsonRefusal.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
+import { canonicalKey } from "./PortKey.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
@@ -181,7 +182,7 @@ export const attributeResolverPort: PortDescription<
   failure: ([, attribute], cause) => new AttributeResolveError({ attribute, cause }),
   defect: ([, attribute], cause) =>
     new AttributeResolveError({ attribute, cause: Cause.squash(cause) }),
-  key: ([subjectId, attribute]) => JSON.stringify([subjectId, attribute]),
+  key: ([subjectId, attribute]) => canonicalKey([subjectId, attribute]),
   none: { name: "AttributeResolverNone", answer: undefined },
 };
 

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-12                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-016) |
+> | Change History | 1.1 (2026-11-10): BEH-QD-092 — HasSignature reads "Any" narrower than history does: signatures on file subject-wide, and a discharge on a resource without a string id is refused (ARCH-59, ADR-QD-117, CCR-QD-395)<br>1.0 (2026-07-26): Initial release (CCR-QD-016) |
 
 _Previous: [11 — Obligations](./11-obligations.md)_
 
@@ -103,6 +103,12 @@ export const HistoryScope: Schema.Literals<["Resource", "Any"]>;
 | ----- | -------- |
 | `Resource` (default) | this subject, this event, **this resource** |
 | `Any` | this subject, this event, **ever** |
+
+`HasSignature` reuses the literal with a narrower reading: its `"Any"` means
+signatures on file subject-wide, recorded with **no** resource, not "ever, on any
+resource" (BEH-QD-326, INV-QD-120, ADR-QD-117). A signature discharged on a resource
+without a string `id` is refused rather than recorded subject-wide (BEH-QD-256), so
+it never satisfies a signature's `"Any"`.
 
 ```
 REQUIREMENT: `scope` MUST be a required field on the encoded policy, for the

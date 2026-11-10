@@ -25,7 +25,7 @@ consumer gets. `pnpm build` first, therefore.
 | Path | What it is |
 | ---- | ---------- |
 | `app/api/[[...route]]/route.ts` | The whole Effect HTTP surface, in a dozen lines. `HttpRouter.toWebHandler` returns `(Request) => Promise<Response>`; a Route Handler *is* that. |
-| `src/server/api.ts` | Guarded routes, `/__permissions`, `/__decisions` (SSE: the log's backlog, `synced`, then live), `/__decisions/backlog` (the same backlog as JSON), the edge aggregator's ingest, and the three port endpoints. Ordinary Effect that would run unchanged behind `HttpServer.serve`. |
+| `src/server/api.ts` | Guarded routes, the devtools surface mounted by one `devtoolsRoutes` call under one guard (`/__permissions`, `/__decisions` (SSE: the log's backlog, `synced`, then live) and `/__decisions/backlog` (the same backlog as JSON), each path from `devtoolsPath`, which the Dock's URL uses too), the edge aggregator's ingest, and the three port endpoints. Ordinary Effect that would run unchanged behind `HttpServer.serve`. |
 | `src/server/layer.ts` | **One decision log per process** — the sink, the backlog and the live stream in one value, labelled `Server` there and nowhere else. The browser has its own, labelled `Client` in `src/client/atoms.ts`. |
 | `src/server/runtime.ts` | One `ManagedRuntime` per process, pinned to `globalThis`. |
 | `src/server/decide.ts` | Name the questions, decide them in one pass, project the answers. |

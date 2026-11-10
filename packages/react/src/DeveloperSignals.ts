@@ -2,21 +2,27 @@
  * Every developer-facing signal `@qadi/react` can raise, and the one place any
  * of them reaches the console.
  *
- * Seven signals live here, as one closed union ({@link DeveloperSignal}): a
+ * Eight signals live here, as one closed union ({@link DeveloperSignal}): a
  * server seed superseded by this client's own answer, two React roots minting
- * one gate id, a dehydrated payload that mixed subjects, a hydration drop, and
- * the three situations `QadiProvider` detects (instrumentation in a production
+ * one gate id, an entry a dehydration left out, a hydration drop, a
+ * reporter the host supplied that threw, and the three situations
+ * `QadiProvider` detects (instrumentation in a production
  * bundle, an `atoms` prop replaced after mount, a gate registry guards cannot
  * write to). One module-scope `Match` gives each its sentence and one function,
  * `say`, is the only `console` reference in the library. A new signal is a new
  * union member, and the compiler asks for its sentence.
  *
- * **Resolution.** Each resolver below reads `supplied ?? default`. A supplied
- * reporter replaces the default outright and runs in production: a caller
- * routing signals to telemetry does not also want them on the console, and one
- * that does can call `console.warn` itself. The default speaks only under its
+ * **Resolution.** Each resolver below returns the supplied reporter, contained,
+ * or else the default. A supplied reporter replaces the default outright and
+ * runs in production: a caller routing signals to telemetry does not also want
+ * them on the console, and one that does can call `console.warn` itself. The default speaks only under its
  * own condition, which is development for every signal except
  * `InstrumentedInProduction`.
+ *
+ * **A supplied reporter observes; it cannot change the outcome.** Each resolver
+ * wraps what it is handed once, in {@link contain}, so a reporter that throws is
+ * announced as `ReporterThrew` and then ignored: the result, the seeds, the
+ * counts and the render are what they would have been had it returned (ARCH-60).
  *
  * `console` and `process.env` are ambient globals, which AGENTS.md §6 otherwise
  * keeps out of this codebase. They are confined to this file for the reason
@@ -27,7 +33,14 @@
  * `no-ambient-console` rule now fails any other package source file that reaches
  * for either.
  */
-import type { ClientHydrationDropReason, Decision, Policy, Resource } from "@qadi/core";
+import type {
+  ClientHydrationDropReason,
+  Decision,
+  DehydrationDropReason,
+  HydrationDropReason,
+  Policy,
+  Resource,
+} from "@qadi/core";
 import { hydrationDropMeaning } from "@qadi/core";
 import * as Data from "effect/Data";
 import * as Match from "effect/Match";
@@ -72,25 +85,35 @@ type DeveloperSignal = Data.TaggedEnum<{
   /** `HydrationMismatch` is the public interface above; the member is named for the event. */
   SeedSuperseded: { readonly mismatch: HydrationMismatch };
   GateIdCollision: { readonly id: string };
-  /** `dehydrateDecisions` dropped entries decided for another subject. */
-  PayloadMixedSubjects: { readonly count: number };
+  /** `dehydrateDecisions` left entries out of a payload, for one reason. */
+  DehydrationDropped: { readonly reason: DehydrationDropReason; readonly count: number };
   HydrationDropped: {
     readonly reason: ClientHydrationDropReason;
     readonly count: number;
     readonly wholePayload: boolean;
   };
+  /** A reporter the host supplied threw; what it was told about stands. */
+  ReporterThrew: { readonly reporter: ReporterName; readonly error: unknown };
   InstrumentedInProduction: {};
   AtomsReplaced: {};
   UnwritableGateRegistry: {};
 }>;
+
+/** A hook a host can supply, named as the option it is passed through. */
+type ReporterName = "onHydrationMismatch" | "onGateIdCollision" | "onDropped" | "onDeveloperSignal";
 
 const DeveloperSignal = Data.taggedEnum<DeveloperSignal>();
 
 const verdict = (decision: Decision | SeededDecision): string =>
   permits(decision) ? "allowed" : "denied";
 
-/** A sentence that begins mid-clause elsewhere, begun here. */
-const sentence = (clause: string): string => `${clause.charAt(0).toUpperCase()}${clause.slice(1)}`;
+/**
+ * An error as one short line: `name: message` for an `Error`, else its string
+ * form. Only the error: never the value the reporter was handed, which may be
+ * another subject's decision.
+ */
+const errorLine = (error: unknown): string =>
+  error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 
 /**
  * What to say about each signal.
@@ -129,10 +152,8 @@ const describeSignal: (signal: DeveloperSignal) => string = Match.type<Developer
       `Both guards are kept, the second under a disambiguated panel id. Give each ` +
       `root a distinct \`identifierPrefix\` in its hydrateRoot/createRoot options ` +
       `to fix the cause.`,
-    PayloadMixedSubjects: ({ count }) =>
-      `[qadi] dehydrateDecisions dropped ${count} decision(s) belonging to a ` +
-      `different subject than the payload's. ` +
-      `${sentence(hydrationDropMeaning("ForeignSubject").remedy)}.`,
+    DehydrationDropped: ({ reason, count }) =>
+      `[qadi] dehydrateDecisions dropped ${count} decision(s): ${hydrationDropMeaning(reason).remedy}.`,
     HydrationDropped: ({ reason, count, wholePayload }) => {
       // A refusal of the payload whole is not "zero decisions lost" when the
       // payload carried none, so it is announced as a refusal and the count is
@@ -145,6 +166,10 @@ const describeSignal: (signal: DeveloperSignal) => string = Match.type<Developer
         `Those questions will be asked again from scratch.`
       );
     },
+    ReporterThrew: ({ reporter, error }) =>
+      `[qadi] the ${reporter} reporter you supplied threw (${errorLine(error)}). ` +
+      `The outcome it was told about stands — nothing was skipped, seeded ` +
+      `differently or left uncounted. Fix the reporter.`,
     InstrumentedInProduction: () =>
       "[qadi] <QadiProvider instrument> is true outside development. This is a debug " +
       "affordance: it registers every guarded control's policy, resource and verdict " +
@@ -169,6 +194,25 @@ const say = (signal: DeveloperSignal): void => {
 };
 
 /**
+ * A supplied reporter that cannot change the outcome it observes.
+ *
+ * Wrapped once, at resolution: a throw is announced as `ReporterThrew` and
+ * swallowed, so the caller carries on exactly as if the reporter had returned.
+ * Said in **every** environment, because the host replaced the default and
+ * nothing else will ever say it (BEH-QD-230's reason for announcing a drop at
+ * all). The library's own defaults are not wrapped: `say` does not throw.
+ */
+const contain =
+  <A,>(reporter: ReporterName, supplied: (value: A) => void) =>
+  (value: A): void => {
+    try {
+      supplied(value);
+    } catch (error) {
+      say(DeveloperSignal.ReporterThrew({ reporter, error }));
+    }
+  };
+
+/**
  * The reporter an atom set will use, or `undefined` for none.
  *
  * A supplied callback replaces the warning outright rather than adding to it: a
@@ -178,8 +222,11 @@ const say = (signal: DeveloperSignal): void => {
 export const hydrationMismatchReporter = (
   supplied: HydrationMismatchReporter | undefined,
 ): HydrationMismatchReporter | undefined =>
-  supplied ??
-  (isDevelopment() ? (mismatch) => say(DeveloperSignal.SeedSuperseded({ mismatch })) : undefined);
+  supplied === undefined
+    ? isDevelopment()
+      ? (mismatch) => say(DeveloperSignal.SeedSuperseded({ mismatch }))
+      : undefined
+    : contain("onHydrationMismatch", supplied);
 
 /**
  * Told when two live guards registered the same id with one gate registry.
@@ -200,49 +247,31 @@ export type GateIdCollisionReporter = (id: string) => void;
 export const gateIdCollisionReporter = (
   supplied: GateIdCollisionReporter | undefined,
 ): GateIdCollisionReporter | undefined =>
-  supplied ?? (isDevelopment() ? (id) => say(DeveloperSignal.GateIdCollision({ id })) : undefined);
+  supplied === undefined
+    ? isDevelopment()
+      ? (id) => say(DeveloperSignal.GateIdCollision({ id }))
+      : undefined
+    : contain("onGateIdCollision", supplied);
 
 /**
- * Told which entries a payload discarded.
+ * Entries a payload discarded, and why: the one drop shape both ends report.
  *
- * Generic in the element, so this module needs no import from `Hydration.ts` —
- * which would be a cycle, and a needless one: nothing here reads an entry. The
- * default reporter counts them and says nothing about their contents, because a
- * dropped decision belongs to *another subject* and printing it would be the
- * disclosure the drop exists to prevent.
- */
-export type DroppedEntriesReporter<A> = (dropped: ReadonlyArray<A>) => void;
-
-/**
- * The reporter `dehydrateDecisions` will use, or `undefined` for none.
- *
- * The sibling of {@link hydrationMismatchReporter}, deliberately the same shape:
- * a development-mode warning by default, replaced outright by a supplied
- * callback, which then runs in production too. A payload mixing subjects is a
- * cache-key bug on the server, and worth alerting on rather than only logging.
- */
-export const droppedEntriesReporter = <A,>(
-  supplied: DroppedEntriesReporter<A> | undefined,
-): DroppedEntriesReporter<A> | undefined =>
-  supplied ??
-  (isDevelopment()
-    ? (dropped) => say(DeveloperSignal.PayloadMixedSubjects({ count: dropped.length }))
-    : undefined);
-
-/**
- * Entries a client refused to seed, and why.
- *
- * Generic in the element for the reason {@link DroppedEntriesReporter} is: the
- * entry type lives in `Hydration.ts`, which imports this module, and nothing
- * here reads an entry.
+ * Generic in the entry, so this module needs no import from `HydrationEvent.ts`
+ * (a cycle, and a needless one: nothing here reads an entry), and in the reason,
+ * so the dehydrate side's hook says `DehydrationDropReason` and the hydrate
+ * side's says `ClientHydrationDropReason` — the default, so `HydrationDrop<A>`
+ * still means the hydrate side. One function typed over the whole
+ * `HydrationDropReason` union serves both (ARCH-60, D-53-b option-a).
  *
  * The reason is carried because each case has a different cause and a different
  * fix, and a bare count cannot tell them apart. The payload-level ones
  * (`PayloadSubjectMismatch`, `UnsupportedPayloadVersion`, `MalformedPayload`)
- * reject the payload whole, so `entries` is then every entry in it.
+ * reject the payload whole, so `entries` is then every entry in it. The
+ * dehydrate side builds a payload and never refuses one whole, so its
+ * `wholePayload` is always `false`.
  */
-export interface HydrationDrop<A> {
-  readonly reason: ClientHydrationDropReason;
+export interface HydrationDrop<A, R extends HydrationDropReason = ClientHydrationDropReason> {
+  readonly reason: R;
   readonly entries: ReadonlyArray<A>;
   /**
    * Whether the payload was refused whole rather than entry by entry.
@@ -254,30 +283,49 @@ export interface HydrationDrop<A> {
   readonly wholePayload: boolean;
 }
 
-export type HydrationDropReporter<A> = (drop: HydrationDrop<A>) => void;
+export type HydrationDropReporter<A, R extends HydrationDropReason = ClientHydrationDropReason> = (
+  drop: HydrationDrop<A, R>,
+) => void;
 
 /**
- * The reporter `hydrateDecisions` will use, or `undefined` for none.
+ * The development default for entries `dehydrateDecisions` left out.
+ *
+ * Counts them and says nothing about their contents, because a dropped decision
+ * may belong to *another subject* and printing it would be the disclosure the
+ * drop exists to prevent.
+ */
+export const saysDehydrationDropped: HydrationDropReporter<unknown, DehydrationDropReason> = ({
+  reason,
+  entries,
+}) => say(DeveloperSignal.DehydrationDropped({ reason, count: entries.length }));
+
+/** The development default for entries, or a payload, `hydrateDecisions` did not seed. */
+export const saysHydrationDropped: HydrationDropReporter<unknown> = ({ reason, entries, wholePayload }) =>
+  say(DeveloperSignal.HydrationDropped({ reason, count: entries.length, wholePayload }));
+
+/**
+ * The drop reporter one end will use, or `undefined` for none.
  *
  * One of this module's reporters, deliberately the same shape as the others: a
  * development-mode warning by default, replaced outright by a supplied
- * callback, which then runs in production.
+ * callback, which then runs in production too. Generic in the reason so both
+ * ends resolve through it; which sentence the default says is the caller's
+ * `byDefault` — {@link saysDehydrationDropped} for the slot a `LeftOut` event is
+ * announced to, {@link saysHydrationDropped} for the one `PayloadRefused` and
+ * `EntriesDropped` are — so it is chosen by the event's tag, never by testing
+ * the reason string.
  *
- * It exists because hydration had silent exits and this file had closed only
- * the one on the dehydrate side. A payload could name the wrong subject, carry
- * an entry malformed apart from its policy, or carry a policy that would not
- * decode, and in every case `hydrateDecisions` returned and said nothing — so
- * "hydration isn't working" had no signal attached to it at all. The current
- * set of reasons is `ClientHydrationDropReason` in `@qadi/core`.
+ * It exists because hydration had silent exits. An entry left out of a payload
+ * is a bug on the server (a cache key mixing two users' decisions, a policy the
+ * schema cannot carry), and a payload the client cannot verify left "hydration
+ * isn't working" with no signal attached to it at all. The current reasons are
+ * `HydrationDropReason` in `@qadi/core`.
  */
-export const hydrationDropReporter = <A,>(
-  supplied: HydrationDropReporter<A> | undefined,
-): HydrationDropReporter<A> | undefined =>
-  supplied ??
-  (isDevelopment()
-    ? ({ reason, entries, wholePayload }) =>
-        say(DeveloperSignal.HydrationDropped({ reason, count: entries.length, wholePayload }))
-    : undefined);
+export const hydrationDropReporter = <A, R extends HydrationDropReason = ClientHydrationDropReason>(
+  supplied: HydrationDropReporter<A, R> | undefined,
+  byDefault: HydrationDropReporter<A, R>,
+): HydrationDropReporter<A, R> | undefined =>
+  supplied === undefined ? (isDevelopment() ? byDefault : undefined) : contain("onDropped", supplied);
 
 /**
  * What `QadiProvider` can tell a developer.
@@ -357,4 +405,5 @@ const sayProviderSignal: ProviderSignalReporter = Match.type<ProviderSignal>().p
  */
 export const providerSignalReporter = (
   supplied: ProviderSignalReporter | undefined,
-): ProviderSignalReporter => supplied ?? sayProviderSignal;
+): ProviderSignalReporter =>
+  supplied === undefined ? sayProviderSignal : contain("onDeveloperSignal", supplied);

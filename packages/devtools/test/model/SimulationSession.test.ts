@@ -22,6 +22,7 @@ import {
   hasPermission,
   hasRelationship,
   hasRole,
+  hasSignature,
   PortReply,
   portsLayer,
   scriptedPort,
@@ -641,6 +642,102 @@ describe("seeding", () => {
     }));
 });
 
+/**
+ * DOCK-04 — `replay` is the reviewer's act and always re-seeds; `seed` is a host
+ * keeping a prop in step, and an unchanged one must not wipe a half-filled form.
+ */
+describe("replaying a row", () => {
+  const a = entryOf(
+    decisionRecord({
+      evaluationId: "ev-a",
+      // Reads an attribute, so a Live run of it waits on the slow resolver.
+      policy: clearance,
+      subjectId: "carol",
+      action: "read",
+      resource: { id: "doc-1" },
+    }),
+  );
+  const seededFromA = (session: SimulationSession) => {
+    const snapshot = session.getSnapshot();
+    assert.isTrue(snapshot.policy._tag === "Seeded" && snapshot.policy.entry === a);
+    assert.isTrue(snapshot.policy._tag === "Seeded" && Equal.equals(snapshot.policy.policy, clearance));
+    assert.strictEqual(snapshot.draft.subject.id, "carol");
+    assert.strictEqual(snapshot.draft.action, "read");
+    assert.deepStrictEqual(snapshot.draft.resource, { id: "doc-1" });
+    assert.deepStrictEqual(snapshot.resourceText, { text: '{"id":"doc-1"}', error: undefined });
+  };
+
+  it("re-seeds from the row it was last seeded from after another policy was chosen", () => {
+    const session = makeSimulationSession({ sightings: [sighting(hasRole("b"))] });
+    session.seed(a);
+    session.choosePolicy(hasRole("b"));
+    assert.strictEqual(session.getSnapshot().policy._tag, "Chosen");
+    session.replay(a);
+    seededFromA(session);
+  });
+
+  it.effect("re-seeds the form after an edit, and drops the run in flight", () =>
+    Effect.gen(function* () {
+      const { ports, tally } = slow();
+      const session = makeSimulationSession({ sightings: [], ports, seed: a });
+      session.edit({ ...session.getSnapshot().draft, action: "write", attributes: { clearance: 9 } });
+      session.editResourceText("{oops");
+      session.chooseSource("Live");
+      const fiber = yield* startRun(session);
+      assert.strictEqual(session.getSnapshot().run._tag, "Running");
+
+      const seen = counted(session);
+      session.replay(a);
+      assert.strictEqual(seen.notified, 1);
+      seededFromA(session);
+      assert.isUndefined(session.getSnapshot().draft.attributes);
+      assert.strictEqual(session.getSnapshot().run._tag, "Idle");
+      assert.isTrue(session.hasRetired());
+
+      yield* session.reap;
+      assert.strictEqual(tally.interrupted, 1);
+      yield* TestClock.adjust("1 second");
+      yield* Fiber.join(fiber);
+      assert.strictEqual(session.getSnapshot().run._tag, "Idle");
+    }));
+
+  it("seed with the entry it holds is a no-op, so an effect re-run keeps the edited form", () => {
+    const session = makeSimulationSession({ sightings: [] });
+    session.seed(a);
+    session.edit({ ...session.getSnapshot().draft, action: "write" });
+    const seen = counted(session);
+    session.seed(a);
+    assert.strictEqual(seen.notified, 0);
+    assert.strictEqual(session.getSnapshot().draft.action, "write");
+  });
+
+  it("seed after a replay of the same entry keeps the replay's edited form", () => {
+    const session = makeSimulationSession({ sightings: [] });
+    session.replay(a);
+    seededFromA(session);
+    session.edit({ ...session.getSnapshot().draft, action: "write" });
+    session.seed(a);
+    assert.strictEqual(session.getSnapshot().draft.action, "write");
+    assert.strictEqual(session.getSnapshot().policy._tag, "Seeded");
+  });
+
+  it("replaying a row that cannot be replayed leaves the seed as seed does", () => {
+    const orphan = entryOf(obligationRecord({ evaluationId: "ev-orphan" }));
+    const replayed = makeSimulationSession({ sightings: [sighting(hasRole("b"))], seed: a });
+    const seeded = makeSimulationSession({ sightings: [sighting(hasRole("b"))], seed: a });
+    replayed.replay(orphan);
+    seeded.seed(orphan);
+    const left = replayed.getSnapshot();
+    assert.strictEqual(left.policy._tag, "Chosen");
+    assert.deepStrictEqual(left.policy, seeded.getSnapshot().policy);
+    assert.deepStrictEqual(left.draft, seeded.getSnapshot().draft);
+    assert.isTrue(left.policy._tag === "Chosen" && Equal.equals(left.policy.policy, hasRole("b")));
+    // The row it was seeded from is left behind: a replay of it seeds again.
+    replayed.replay(a);
+    seededFromA(replayed);
+  });
+});
+
 describe("choosing a policy", () => {
   it("keeps the chosen policy when a decision reorders the rail", () => {
     const session = makeSimulationSession({
@@ -684,6 +781,127 @@ describe("choosing a policy", () => {
       const second = session.getSnapshot().run;
       assert.strictEqual(second._tag, "Ran");
       assert.isTrue(second._tag === "Ran" && Equal.equals(second.question.policy, clearance));
+    }));
+});
+
+describe("the sweep the session states", () => {
+  // Through the session, not `singleEdits`: the review reproduced the gap here,
+  // because this is the plan a reviewer reads before running a sweep.
+  it("offers to drop a signature fixture, and counts that row", () => {
+    const session = makeSimulationSession({ sightings: [sighting(hasSignature("approved"))] });
+    session.edit({
+      subject: { id: "alice" },
+      resource: { id: "doc-1" },
+      signatures: [{ subjectId: "alice", meaning: "approved", resourceId: "doc-1" }],
+    });
+
+    const plan = session.getSnapshot().plan;
+    assert.deepStrictEqual(plan?.edits.map((edit) => edit.kind), ["DropSignature"]);
+    assert.strictEqual(plan?.evaluations, 2);
+  });
+});
+
+describe("the form's fields, through the session", () => {
+  const session = () => makeSimulationSession({ sightings: [sighting(hasRole("a"))] });
+  const added = (s: SimulationSession, field: Parameters<SimulationSession["addChip"]>[0], text: string) =>
+    s.addChip(field, text);
+
+  it("attributes a short-form element to the current subject, and a rename moves it with the subject", () => {
+    const s = session();
+    s.edit({ subject: { id: "alice" } });
+    assert.deepStrictEqual(added(s, "relationships", "owner:doc-1"), { _tag: "Ok" });
+    s.renameSubject("bob");
+    // An unrelated edit afterwards rewrites nothing: the first edge followed the rename.
+    assert.deepStrictEqual(added(s, "relationships", "viewer:doc-9"), { _tag: "Ok" });
+
+    assert.deepStrictEqual(s.getSnapshot().draft.relationships, [
+      { subjectId: "bob", relation: "owner", resourceId: "doc-1" },
+      { subjectId: "bob", relation: "viewer", resourceId: "doc-9" },
+    ]);
+  });
+
+  it("refuses a structural duplicate with a reason, leaving the draft and the subscribers alone", () => {
+    const s = session();
+    added(s, "relationships", "owner:doc-1");
+    const seen = counted(s);
+    const before = s.getSnapshot();
+
+    assert.deepStrictEqual(added(s, "relationships", "owner:doc-1"), {
+      _tag: "Refused",
+      reason: "already there",
+    });
+    assert.strictEqual(s.getSnapshot(), before);
+    assert.strictEqual(seen.notified, 0);
+  });
+
+  it("keeps two edges that differ only by subject as two chips", () => {
+    const s = session();
+    added(s, "relationships", "owner:doc-1");
+    added(s, "relationships", '{"subjectId":"bob","relation":"owner","resourceId":"doc-1"}');
+
+    assert.strictEqual(s.getSnapshot().draft.relationships?.length, 2);
+  });
+
+  it("refuses empty text and text the field's codec refuses", () => {
+    const s = session();
+
+    assert.deepStrictEqual(added(s, "roles", "  "), { _tag: "Refused", reason: "nothing to add" });
+    assert.deepStrictEqual(added(s, "permissions", "nocolon"), {
+      _tag: "Refused",
+      reason: "expected resource:action",
+    });
+    assert.deepStrictEqual(s.getSnapshot().draft, { subject: { id: "someone" } });
+  });
+
+  it("replaces a pair of the same name on a record field, and puts it last", () => {
+    const s = session();
+    added(s, "attributes", "a:1");
+    added(s, "attributes", "b:2");
+    assert.deepStrictEqual(added(s, "attributes", "a:3"), { _tag: "Ok" });
+
+    assert.deepStrictEqual(Object.entries(s.getSnapshot().draft.attributes ?? {}), [["b", 2], ["a", 3]]);
+  });
+
+  it("removes exactly one chip, and an absent field is a no-op that does not notify", () => {
+    const s = session();
+    added(s, "roles", "a");
+    added(s, "roles", "b");
+    s.removeChip("roles", 0);
+    assert.deepStrictEqual(s.getSnapshot().draft.subject.roles, ["b"]);
+
+    const seen = counted(s);
+    s.removeChip("history", 0);
+    s.removeChip("roles", 5);
+    assert.strictEqual(seen.notified, 0);
+  });
+
+  it("reads the form: seven rows in the form's order, a refused value as its refusal", () => {
+    const s = session();
+    added(s, "signatures", "approved:doc-1");
+    s.edit({ ...s.getSnapshot().draft, subject: { id: "someone", roles: [" padded "] } });
+    const { fields } = s.getSnapshot();
+
+    assert.deepStrictEqual(
+      fields.map((f) => f.key),
+      ["roles", "permissions", "subjectAttributes", "attributes", "relationships", "history", "signatures"],
+    );
+    assert.deepStrictEqual(fields[0]?.chips, [
+      { text: "(not representable in the form)", refused: true, removeLabel: "(not representable in the form)" },
+    ]);
+    assert.deepStrictEqual(fields[6]?.chips, [
+      { text: "approved:doc-1", refused: false, removeLabel: "approved:doc-1" },
+    ]);
+  });
+
+  it.effect("a result goes stale when a chip moves the draft", () =>
+    Effect.gen(function* () {
+      const s = makeSimulationSession({ sightings: [sighting(hasRole("a"))] });
+      yield* s.run("Run");
+      assert.isFalse(s.getSnapshot().stale);
+
+      s.addChip("roles", "a");
+
+      assert.isTrue(s.getSnapshot().stale);
     }));
 });
 
@@ -775,6 +993,9 @@ describe("the form's own commands", () => {
     session.setPairs(false);
     session.edit(before.draft);
     session.renameSubject(before.draft.subject.id);
+    session.removeChip("roles", 0);
+    session.removeChip("signatures", 3);
+    assert.deepStrictEqual(session.addChip("history", "  "), { _tag: "Refused", reason: "nothing to add" });
 
     assert.strictEqual(seen.notified, 0);
     assert.strictEqual(session.getSnapshot(), before);
@@ -790,6 +1011,8 @@ describe("the form's own commands", () => {
       (s) => s.setPairs(true),
       (s) => s.edit({ subject: { id: "x" } }),
       (s) => s.renameSubject("y"),
+      (s) => s.addChip("roles", "editor"),
+      (s) => s.removeChip("roles", 0),
       (s) => s.editResourceText('{"a":1}'),
       (s) => s.setPorts(brokenPorts),
       (s) => s.seed(entryOf(decisionRecord({ evaluationId: "ev-8", policy: hasRole("z") }))),

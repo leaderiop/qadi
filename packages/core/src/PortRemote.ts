@@ -1,6 +1,6 @@
 /**
  * Answering a port's question for another process, and asking one: the two
- * transport-free halves of a remote port (ARCH-31, ADR-QD-NEXT).
+ * transport-free halves of a remote port (ARCH-31, ADR-QD-107).
  *
  * A client that re-checks a seeded decision (BEH-QD-151) needs its ports
  * answered by a server. Both halves are derived from each port's description
@@ -15,7 +15,7 @@
  * - {@link askRemotely} builds a port's Shape from any `send` and turns every
  *   non-answer into the port's **own** typed error, so a remote outage reaches
  *   the evaluator as an outage and denies like one — never as `"Unknown"`
- *   (INV-QD-006, INV-QD-NEXT).
+ *   (INV-QD-006, INV-QD-241).
  *
  * The **seam** is `send` on one side and the reply union on the other. An HTTP
  * route and client (`@qadi/http`) are one adapter at it; a Next server action

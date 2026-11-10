@@ -18,6 +18,7 @@ import {
 import type { Policy, ResourceId, Signature, SubjectId } from "@qadi/core";
 import { signatureObligationHandler } from "../src/SignatureCapturePort.ts";
 import { signatureHistoryFromLedger } from "../src/SignatureLedger.ts";
+import { checkSignatureHistoryScoping } from "../src/SignatureLedgerConformance.ts";
 import { SignatureLedgerTest } from "../src/SignatureLedgerTest.ts";
 import type { SignatureCapturePortShape } from "../src/SignatureCapturePort.ts";
 
@@ -30,6 +31,18 @@ interface Row {
   readonly resourceId: ResourceId | undefined;
   readonly signature: Signature;
 }
+
+/** The reading half of the capture-persists store: an exact `(subject, resource)` match. */
+const historyOver = (rows: ReadonlyArray<Row>) =>
+  Layer.succeed(SignatureHistory, {
+    name: "test-store",
+    signaturesFor: (query) =>
+      Effect.sync(() =>
+        rows
+          .filter((r) => r.subjectId === query.subjectId && r.resourceId === query.resourceId)
+          .map((r) => r.signature),
+      ),
+  });
 
 /**
  * A capture port that persists every signature into a store using the most its
@@ -54,18 +67,7 @@ const storeAndHistory = () => {
       }),
     validate: () => Effect.succeed({ valid: true, validatedAt: 0 }),
   };
-  const history = Layer.succeed(SignatureHistory, {
-    name: "test-store",
-    signaturesFor: (query) =>
-      Effect.sync(() =>
-        rows
-          .filter(
-            (r) =>
-              r.subjectId === query.subjectId && r.resourceId === query.resourceId,
-          )
-          .map((r) => r.signature),
-      ),
-  });
+  const history = historyOver(rows);
   return { port, history, rows };
 };
 
@@ -114,6 +116,36 @@ describe("obligation -> capture -> SignatureHistory -> hasSignature (capture per
       }).pipe(Effect.provide(env));
       assert.strictEqual(decision._tag, "Deny");
     }));
+
+  it.effect("a signature discharged on a non-string id does not grant scope 'Any' on another resource", () =>
+    Effect.gen(function* () {
+      const { port, history } = storeAndHistory();
+      const env = envOf(history);
+      // The discharge is expected to fail; only what it left behind matters here.
+      yield* guard(approve, approval, {
+        onObligations: signatureObligationHandler(port, "approved"),
+      })({ id: 7 }, () => Effect.succeed("approved")).pipe(Effect.provide(env), Effect.exit);
+      const decision = yield* decide(hasSignature("approved", { scope: "Any" }), {
+        resource: { id: "doc-99" },
+      }).pipe(Effect.provide(env));
+      assert.strictEqual(decision._tag, "Deny");
+    }));
+
+  it.effect("the store passes checkSignatureHistoryScoping, the check a deployment would run", () =>
+    Effect.gen(function* () {
+      const violations = yield* checkSignatureHistoryScoping((seeded) =>
+        Effect.succeed(
+          historyOver(
+            seeded.map((r) => ({
+              subjectId: r.pair.subjectId,
+              resourceId: r.pair.resourceId,
+              signature: r.signature,
+            })),
+          ),
+        ),
+      );
+      assert.deepStrictEqual(violations, []);
+    }));
 });
 
 describe("obligation -> capture -> SignatureLedger -> hasSignature (ledger)", () => {
@@ -158,6 +190,20 @@ describe("obligation -> capture -> SignatureLedger -> hasSignature (ledger)", ()
         hasSignature("approved", { scope: "Any" }),
         "doc-1",
       );
+      assert.strictEqual(decision._tag, "Deny");
+    }));
+
+  it.effect("a signature discharged on a non-string id does not grant scope 'Any' on another resource", () =>
+    Effect.gen(function* () {
+      const { ledger } = SignatureLedgerTest();
+      const env = envOf(signatureHistoryFromLedger(ledger));
+      // The discharge is expected to fail; only what it left behind matters here.
+      yield* guard(approve, approval, {
+        onObligations: signatureObligationHandler(returningPort, "approved", { ledger }),
+      })({ id: 7 }, () => Effect.succeed("approved")).pipe(Effect.provide(env), Effect.exit);
+      const decision = yield* decide(hasSignature("approved", { scope: "Any" }), {
+        resource: { id: "doc-99" },
+      }).pipe(Effect.provide(env));
       assert.strictEqual(decision._tag, "Deny");
     }));
 });

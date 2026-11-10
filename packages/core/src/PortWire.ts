@@ -29,7 +29,7 @@ import type { SubjectId } from "./Identity.ts";
  * Why a served question was not answered at all — not a failure of the store.
  *
  * Closed, so a status table or a reporter over it is a compile error away from
- * a new reason (ADR-QD-NEXT).
+ * a new reason (ADR-QD-107).
  *
  * - `SubjectMismatch`: the question names a subject other than the session's.
  * - `Malformed`: the question does not decode, or nests past the decode bound.
@@ -140,7 +140,7 @@ export interface DecodedQuestion<Args extends ReadonlyArray<unknown>> {
  * the question type so generic code never names it.
  *
  * Every operation returns a `Result` with a message and never throws, whatever
- * it is given (INV-QD-NEXT). Encoding refuses a value with no JSON form with
+ * it is given (INV-QD-241). Encoding refuses a value with no JSON form with
  * the same walk `SinkCodec` uses, and decoding runs the depth bound and a
  * strict, excess-property-rejecting decode, because a question arriving at a
  * server crosses a trust boundary (ADR-QD-002).

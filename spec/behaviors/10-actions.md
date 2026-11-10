@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-10                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-012) |
+> | Change History | 1.1 (2026-11-10): BEH-QD-076's listing shows MissingAction as the Schema.TaggedError it is (ARCH-61, CCR-QD-403)<br>1.0 (2026-07-26): Initial release (CCR-QD-012) |
 
 _Previous: [09 — React Integration](./09-react.md)_
 
@@ -81,9 +81,10 @@ REQUIREMENT: `action()` MUST resolve to the supplied action within any matcher
 > **Invariant:** [INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one)
 
 ```ts
-export class MissingAction extends Data.TaggedError("MissingAction")<{
-  readonly expected: string | undefined;
-}> {}
+export class MissingAction extends Schema.TaggedError<MissingAction>()("MissingAction", {
+  // `optional`, not `UndefinedOr`: a JSON round-trip drops an `undefined` key.
+  expected: Schema.optional(Schema.String),
+}) {}
 ```
 
 ```

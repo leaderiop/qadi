@@ -34,7 +34,7 @@
  *    credential itself is attached by decorating the underlying `HttpClient`
  *    below (a real app reads its session store here), not by that layer.
  *
- * What does not transfer: `/__decisions` and the other bare-`HttpRouter`
+ * What does not transfer: the decision stream and the other bare-`HttpRouter`
  * routes are enforced by `addGuardedRoute`, not annotations on this `HttpApi`,
  * so they are not client methods — a browser consumes the SSE feed with
  * `EventSource` and passes its credential the way it already does.

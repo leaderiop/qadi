@@ -37,6 +37,7 @@ import { permissionKey, resolveRoleGraph } from "@qadi/core";
 import type { Role } from "@qadi/core";
 import { mergeSources, sourceFromEventSource } from "@qadi/devtools";
 import { DevtoolsDock } from "@qadi/devtools/react";
+import { devtoolsPath } from "@qadi/http";
 import { useDevtoolsFeed, useSubject } from "@qadi/react";
 import { catalogue } from "../domain/policies.ts";
 import { readDevtools } from "../domain/permissions.ts";
@@ -64,7 +65,8 @@ import { useDrops } from "./Providers.tsx";
 const makeSource = () =>
   mergeSources([
     sourceFromEventSource({
-      url: "/api/__decisions",
+      // "/api" is where Next mounts the router, the same base the ports client uses.
+      url: "/api" + devtoolsPath("decisions"),
       withCredentials: true,
       // A frame that does not decode is one row lost, never the stream. The
       // panel is what you are looking at when something is already wrong.

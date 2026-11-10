@@ -6,7 +6,7 @@
  * `policyTag`, a string. Neither alone can render the inspector's central
  * panel, which is the requirement tree with a verdict on every node.
  *
- * **The alignment is core's** (`foldAligned`, INV-QD-NEXT): which trace node
+ * **The alignment is core's** (`foldAligned`, INV-QD-103): which trace node
  * belongs to which part of the explanation, and what a part with no trace node
  * means, is a fact `evaluateNode` and `explain` produce, so core states it and
  * this module only presents it. Where the trace has **fewer** children than the
@@ -25,12 +25,18 @@
  * mean writing that phrasing a second time, and a second implementation of
  * anything is what this library exists to remove.
  */
+import * as Data from "effect/Data";
 import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import { Combining, explain, FieldStrategy, foldAligned, tracePathKey } from "@qadi/core";
 import type {
+  Allow,
+  DecisionOutcome,
+  EvaluationError,
   Explanation,
   Obligation,
+  ObligationOutcome,
+  ObligationRecord,
   Policy,
   RuleEffect,
   Trace,
@@ -141,6 +147,91 @@ export const inspectEntry = (entry: TimelineEntry): InspectNode | undefined => {
   if (outcome._tag !== "Decided") return undefined;
   return inspect(entry.decision.policy, outcome.decision.trace);
 };
+
+/**
+ * Where a decision's obligations stand: none owed, owed and not yet reported,
+ * or reported with the gate's outcome.
+ *
+ * A closed union rather than the nested ternary each screen used to write over
+ * "is there a report, and were there duties?" (ARCH-67, D-03). A report wins
+ * over the duty count: an outcome that arrived is shown whatever the decision
+ * listed.
+ */
+export type ObligationState = Data.TaggedEnum<{
+  NoneOwed: {};
+  Unreported: {};
+  Reported: { readonly outcome: ObligationOutcome };
+}>;
+
+export const ObligationState = Data.taggedEnum<ObligationState>();
+
+/**
+ * What a decision came to, read once: a failure, a denial with its tree, or an
+ * allow with its tree, fields and duties, each with its obligation state.
+ *
+ * The Inspector and the Simulator each re-derived this from the outcome, and two
+ * readings of one record are two places that can disagree (ARCH-67, D-03). A
+ * failure carries no tree, because an empty one would read as "allowed"
+ * (INV-QD-006); an allow's `fields` of `undefined` means every field
+ * (INV-QD-004).
+ */
+export type RecordOutcome = Data.TaggedEnum<{
+  Failed: { readonly error: EvaluationError; readonly obligation: ObligationState };
+  Denied: { readonly tree: InspectNode; readonly obligation: ObligationState };
+  Allowed: {
+    readonly tree: InspectNode;
+    readonly fields: Allow["visibleFields"];
+    readonly duties: ReadonlyArray<Obligation>;
+    readonly obligation: ObligationState;
+  };
+}>;
+
+export const RecordOutcome = Data.taggedEnum<RecordOutcome>();
+
+const obligationState = (
+  duties: ReadonlyArray<Obligation>,
+  reported: ObligationRecord | undefined,
+): ObligationState => {
+  if (reported !== undefined) return ObligationState.Reported({ outcome: reported.outcome });
+  return duties.length === 0 ? ObligationState.NoneOwed() : ObligationState.Unreported();
+};
+
+/**
+ * The one read of an outcome against its policy and, when one arrived, the
+ * obligation gate's report.
+ *
+ * Package-private, like `ObligationState` and `RecordOutcome`: the screens
+ * consume it and choose their own sentences; `inspectEntry` stays the public
+ * read of a row's tree.
+ */
+export const readOutcome = (
+  policy: Policy,
+  outcome: DecisionOutcome,
+  reported: ObligationRecord | undefined,
+): RecordOutcome =>
+  Match.value(outcome).pipe(
+    Match.tagsExhaustive({
+      Failed: ({ error }) =>
+        RecordOutcome.Failed({ error, obligation: obligationState([], reported) }),
+      Decided: ({ decision }) =>
+        Match.value(decision).pipe(
+          Match.tagsExhaustive({
+            Deny: (deny) =>
+              RecordOutcome.Denied({
+                tree: inspect(policy, deny.trace),
+                obligation: obligationState([], reported),
+              }),
+            Allow: (allow) =>
+              RecordOutcome.Allowed({
+                tree: inspect(policy, allow.trace),
+                fields: allow.visibleFields,
+                duties: allow.obligations,
+                obligation: obligationState(allow.obligations, reported),
+              }),
+          }),
+        ),
+    }),
+  );
 
 /** True when nothing in this subtree was evaluated. */
 export const isNeverResolved = (node: InspectNode): boolean => node.status === "NeverResolved";

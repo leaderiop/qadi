@@ -14,11 +14,11 @@
  */
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
-import type { CacheOutcome } from "./DecisionCache.ts";
 import type { Allow } from "./Decision.ts";
 import { DecisionRecord, ObligationRecord } from "./DecisionRecord.ts";
 import type { Decided, Failed, ObligationOutcome, SinkRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
+import type { CacheOutcome } from "./EvaluationMetrics.ts";
 import type { Question } from "./Question.ts";
 import { resourceIdOf } from "./Resource.ts";
 

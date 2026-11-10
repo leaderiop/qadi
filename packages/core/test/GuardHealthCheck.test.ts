@@ -7,6 +7,7 @@ import * as TestClock from "effect/testing/TestClock";
 import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolver.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
+import { decisionsTotal } from "../src/EvaluationMetrics.ts";
 import { createGuardHealthCheck } from "../src/GuardHealthCheck.ts";
 import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
@@ -143,8 +144,8 @@ describe("createGuardHealthCheck", () => {
         Effect.gen(function* () {
           yield* createGuardHealthCheck(canRead);
           yield* createGuardHealthCheck(canRead);
-          const snapshots = yield* Metric.snapshot;
-          assert.isUndefined(snapshots.find((m) => m.id === "qadi_decisions_total"));
+          assert.strictEqual((yield* Metric.value(decisionsTotal.Allow)).count, 0);
+          assert.strictEqual((yield* Metric.value(decisionsTotal.Deny)).count, 0);
         }),
       ).pipe(Effect.provide(testLayer(subjectWith({})))));
   });

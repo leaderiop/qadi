@@ -1,6 +1,6 @@
 /**
- * Predicate generators shared by this package's agreement properties
- * (`Agreement.test.ts`, `EngineAgreement.test.ts`).
+ * Predicate generators shared by this package's agreement property
+ * (`EngineAgreement.test.ts`).
  *
  * Every leaf is type-consistent with the fixture table (`tenantId` and `tag` are
  * text, `level` an integer, `sealed` a boolean, `score` a float that may hold
@@ -42,8 +42,8 @@ export const leaf: FastCheck.Arbitrary<Predicate> = FastCheck.oneof(
   ),
   FastCheck.constant<Predicate>({ _tag: "MemberOf", column: "tag", values: [] }),
   // `level` can be `null` in a generated row (above) — these leaves are what
-  // caught INV-QD-048's original NULL-handling defect. Neither `matchesPrismaWhere`
-  // nor the reference interpreter can find that class of bug without a
+  // caught INV-QD-048's original NULL-handling defect. Neither the retired `matchesPrismaWhere`
+  // reader nor the reference interpreter could find that class of bug without a
   // predicate whose OWN value is null, or whose column can be, compared with
   // Eq/Neq/MemberOf specifically.
   FastCheck.constant<Predicate>({ _tag: "Compare", column: "level", op: "Eq", value: null }),

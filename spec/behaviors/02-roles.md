@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-02                                    |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-09-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-09-08): BEH-QD-012 — `resolveRoleGraph` signature was missing the `onUnknownParent` options parameter and `DuplicateRoleDefinition` from the error channel; added the duplicate-name REQUIREMENT (CCR-QD-124)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.2 (2026-11-10): BEH-QD-010 and BEH-QD-011 note that flattening, role names and fromRoles are projections of the role walk; no behaviour change (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.1 (2026-09-08): BEH-QD-012 — `resolveRoleGraph` signature was missing the `onUnknownParent` options parameter and `DuplicateRoleDefinition` from the error channel; added the duplicate-name REQUIREMENT (CCR-QD-124)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 _Previous: [01 — Permission Tokens](./01-permissions.md)_
 
@@ -51,6 +51,11 @@ REQUIREMENT: Flattening MUST include permissions inherited transitively, and
              a grandparent — MUST be walked once, not exponentially.
 ```
 
+Both are projections of the role walk
+([BEH-QD-400](./25-inspection.md#beh-qd-400-the-role-walk-visits-each-reachable-role-once),
+[ADR-QD-128](../decisions/128-one-walk-of-the-role-graph.md)); `flattenAll` walks
+all its roles in one pass.
+
 ## BEH-QD-011: Transitive role names
 
 ```ts
@@ -62,6 +67,11 @@ REQUIREMENT: A subject holding a role MUST satisfy `hasRole` for every ancestor
              of that role. A subject holding `admin`, which inherits `editor`,
              MUST satisfy `hasRole("editor")`.
 ```
+
+`roleNames` is a projection of the role walk
+([BEH-QD-400](./25-inspection.md#beh-qd-400-the-role-walk-visits-each-reachable-role-once),
+[ADR-QD-128](../decisions/128-one-walk-of-the-role-graph.md)), and so is
+`fromRoles`, which walks all a subject's roles in one pass.
 
 ## BEH-QD-012: Resolving a serialized role graph
 

@@ -22,13 +22,13 @@
  */
 import type { AuthSubject } from "@qadi/core";
 import type {
-  DecisionEntry,
   DehydrateOptions,
   DehydratedDecisions,
   HydrateOptions,
   InitialValues,
 } from "./HydrationEngine.ts";
 import { dehydrateWith } from "./HydrationEngine.ts";
+import type { DecisionEntry } from "./HydrationEvent.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
 
 // Named explicitly rather than reached through the barrel: `DeveloperSignals.ts`
@@ -36,7 +36,8 @@ import type { QadiAtoms } from "./QadiAtoms.ts";
 // to be able to name what `HydrateOptions` refers to (TS2883). The same re-export
 // `QadiAtoms.ts` makes for `HydrationMismatch`, for the same reason.
 export type { HydrationDrop, HydrationDropReporter } from "./DeveloperSignals.ts";
-export type { DecisionEntry, DehydratedDecisions, DehydratedEntry } from "./HydrationEngine.ts";
+export type { DehydratedDecisions, DehydratedEntry } from "./HydrationEngine.ts";
+export type { DecisionEntry } from "./HydrationEvent.ts";
 export type { DehydrateOptions, HydrateOptions } from "./HydrationEngine.ts";
 export type { AllowDisclosure, ClientDecision, DenyDisclosure } from "./SeededDecision.ts";
 export type { SeededDecision } from "./SeededDecision.ts";
@@ -48,6 +49,9 @@ export { SeededAllow, SeededDeny, isSeeded, permits } from "./SeededDecision.ts"
  * Every entry must belong to the same subject; the first one's `subjectId` names
  * the payload and any entry disagreeing with it is **dropped**, because a payload
  * mixing subjects is a bug whose only safe reading is to trust none of it.
+ * Every entry left out — for another subject, or for a policy the schema cannot
+ * carry — is counted and reported to `onDropped` as a `HydrationDrop`, once per
+ * reason.
  */
 export const dehydrateDecisions = (
   entries: ReadonlyArray<DecisionEntry>,

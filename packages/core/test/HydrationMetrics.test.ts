@@ -159,6 +159,7 @@ describe("HydrationMetrics", () => {
     // one mistake. A test may not use the thing it is verifying as its oracle.
     const REASONS = [
       "ForeignSubject",
+      "UnencodablePolicy",
       "PayloadSubjectMismatch",
       "MalformedEntry",
       "UndecodablePolicy",
@@ -219,6 +220,11 @@ describe("HydrationMetrics", () => {
     // derived from the thing under test cannot notice that thing losing a row.
     const pinned: ReadonlyArray<readonly [HydrationDropReason, string, string]> = [
       ["ForeignSubject", "two subjects' decisions", "no safe reading"],
+      [
+        "UnencodablePolicy",
+        "a non-finite bound or a fractional depth",
+        "cannot cross the network. The entry was left out and the client will ask the question itself; fix the policy",
+      ],
       ["PayloadSubjectMismatch", "not rendered for", "serving one user's page to another"],
       ["MalformedEntry", "apart from its policy", "hand-built payload"],
       ["UndecodablePolicy", "version skew", "did not decode"],
@@ -235,6 +241,7 @@ describe("HydrationMetrics", () => {
     }
 
     it("covers every reason, with a distinct non-empty sentence of each kind", () => {
+      assert.strictEqual(pinned.length, 8);
       assert.strictEqual(pinned.length, hydrationDropReasons.length);
       const summaries = hydrationDropReasons.map((reason) => hydrationDropMeaning(reason).summary);
       const remedies = hydrationDropReasons.map((reason) => hydrationDropMeaning(reason).remedy);

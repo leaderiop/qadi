@@ -71,7 +71,7 @@ export type ShapeOf<D> = D extends {
 
 /** A description's request, as the tuple of its method's parameters. */
 export type ArgsOf<D> = D extends {
-  readonly key: (args: infer Args extends ReadonlyArray<unknown>) => string;
+  readonly key: (args: infer Args extends ReadonlyArray<unknown>) => unknown;
 }
   ? Args
   : never;

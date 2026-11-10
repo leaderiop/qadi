@@ -22,3 +22,10 @@ Feature: A captured signature answers the question it was captured for
     And the subject has permission "doc:approve"
     When they approve "doc-1" and a signature is captured
     Then the "approved" signature is not on file for the subject at large
+
+  Scenario: A signature cannot be captured for a document with no string id
+    Given a subject "alice"
+    And the subject has permission "doc:approve"
+    When they approve a document with id 7 and a signature is captured
+    Then the discharge is refused
+    And the "approved" signature is not on file for the subject at large

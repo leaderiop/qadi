@@ -21,33 +21,16 @@
  * says which fields those are, and the baseline card says whether the hypothesis
  * reproduces the row.
  */
-import { useState, type CSSProperties, type FC } from "react";
+import { useState, type CSSProperties, type FC, type ReactNode } from "react";
 import * as Match from "effect/Match";
-import { isAllowed } from "@qadi/core";
-import type { Allow, DecisionOutcome, PermissionKey } from "@qadi/core";
+import type { DecisionOutcome, EvaluationError } from "@qadi/core";
 import type { PolicySighting } from "../model/Catalogue.ts";
-import { sameEdge, sameEvent } from "../model/Edits.ts";
-import { describeTracePath, inspect } from "../model/Inspect.ts";
+import { describeTracePath, readOutcome, type RecordOutcome } from "../model/Inspect.ts";
 import { matchesBaseline } from "../model/Replay.ts";
 import type { Baseline, UnseededField } from "../model/Replay.ts";
 import type { SimulationClock } from "../model/Simulation.ts";
-import {
-  actionOf,
-  addChip,
-  attributeCodec,
-  attributeLabel,
-  edgeCodec,
-  eventCodec,
-  permissionCodec,
-  removeAt,
-  roleCodec,
-  sameSignature,
-  signatureCodec,
-  withAction,
-  withPair,
-  withoutPair,
-} from "../model/SimulationForm.ts";
-import type { ChipCodec } from "../model/SimulationForm.ts";
+import { actionOf, withAction } from "../model/SimulationForm.ts";
+import type { FieldView, SimulationField } from "../model/SimulationFields.ts";
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
 import type {
   RunState,
@@ -326,8 +309,7 @@ interface CardProps {
 }
 
 const SubjectCard: FC<CardProps> = ({ snapshot, session }) => {
-  const draft = snapshot.draft;
-  const subjectId = draft.subject.id;
+  const subjectId = snapshot.draft.subject.id;
   return (
     <section style={panel} data-testid="qadi-subject-card">
       <div style={heading}>subject</div>
@@ -343,35 +325,7 @@ const SubjectCard: FC<CardProps> = ({ snapshot, session }) => {
           onChange={(event) => session.renameSubject(event.target.value)}
         />
       </div>
-      <Chips<string>
-        label="roles"
-        testId="qadi-roles"
-        values={draft.subject.roles ?? []}
-        codec={roleCodec}
-        same={(a, b) => a === b}
-        subjectId={subjectId}
-        onChange={(roles) => session.edit({ ...draft, subject: { ...draft.subject, roles } })}
-      />
-      <Chips<PermissionKey>
-        label="permissions"
-        testId="qadi-permissions"
-        placeholder="resource:action"
-        values={draft.subject.permissions ?? []}
-        codec={permissionCodec}
-        same={(a, b) => a === b}
-        subjectId={subjectId}
-        onChange={(permissions) =>
-          session.edit({ ...draft, subject: { ...draft.subject, permissions } })
-        }
-      />
-      <Pairs
-        label="attributes"
-        testId="qadi-subject-attributes"
-        values={draft.subject.attributes ?? {}}
-        onChange={(attributes) =>
-          session.edit({ ...draft, subject: { ...draft.subject, attributes } })
-        }
-      />
+      <Fields fields={snapshot.fields} holder="Subject" session={session} />
     </section>
   );
 };
@@ -420,47 +374,10 @@ const CheckCard: FC<CardProps> = ({ snapshot, session }) => {
 };
 
 const FixturesCard: FC<CardProps> = ({ snapshot, session }) => {
-  const draft = snapshot.draft;
-  const subjectId = draft.subject.id;
   return (
     <section style={panel} data-testid="qadi-fixtures-card">
       <div style={heading}>fixtures — what the ports would answer</div>
-      <Pairs
-        label="resolver attributes"
-        testId="qadi-fixture-attributes"
-        values={draft.attributes ?? {}}
-        onChange={(attributes) => session.edit({ ...draft, attributes })}
-      />
-      <Chips
-        label="relationships"
-        testId="qadi-relationships"
-        placeholder="relation:resourceId"
-        values={draft.relationships ?? []}
-        codec={edgeCodec}
-        same={sameEdge}
-        subjectId={subjectId}
-        onChange={(relationships) => session.edit({ ...draft, relationships })}
-      />
-      <Chips
-        label="history"
-        testId="qadi-history"
-        placeholder="event:resourceId"
-        values={draft.history ?? []}
-        codec={eventCodec}
-        same={sameEvent}
-        subjectId={subjectId}
-        onChange={(history) => session.edit({ ...draft, history })}
-      />
-      <Chips
-        label="signatures"
-        testId="qadi-signatures"
-        placeholder="meaning:resourceId"
-        values={draft.signatures ?? []}
-        codec={signatureCodec}
-        same={sameSignature}
-        subjectId={subjectId}
-        onChange={(signatures) => session.edit({ ...draft, signatures })}
-      />
+      <Fields fields={snapshot.fields} holder="Port" session={session} />
       <p style={{ ...muted, fontSize: font.sizeSmall, margin: "6px 0 0" }}>
         Edges, events and signatures are attributed to the subject above, and the
         ones naming it follow a rename; one naming somebody else is shown in full
@@ -516,9 +433,8 @@ const ResultCard: FC<{
   readonly stale: boolean;
 }> = ({ result, stale }) => {
   const outcome = result.outcome;
-  const policy = result.question.policy;
-  const allow: Allow | undefined =
-    outcome._tag === "Decided" && isAllowed(outcome.decision) ? outcome.decision : undefined;
+  // A simulation discharges nothing, so no gate report ever arrives for it.
+  const reading = readOutcome(result.question.policy, outcome, undefined);
   return (
     <>
       <section style={panel} data-testid="qadi-simulator-result">
@@ -536,40 +452,62 @@ const ResultCard: FC<{
           <Duration outcome={outcome} clock={result.clock} />
         </div>
 
-        {outcome._tag === "Failed" ? (
-          <div data-testid="qadi-simulator-error">
-            <div>{outcome.error._tag}</div>
-            <p style={{ ...muted, marginBottom: 0 }}>
-              {/* As screen 2: a failure has no trace, so there is no requirement
-                  tree — and an empty one would read as "nothing was required",
-                  which reads as "allowed" (INV-QD-006). */}
-              A lookup this evaluation depended on failed, so nothing was decided.
-              This is not a denial.
-            </p>
-          </div>
-        ) : (
-          <PolicyTree node={inspect(policy, outcome.decision.trace)} showStatus />
-        )}
+        {resultBody(reading)}
       </section>
 
-      {allow === undefined ? null : <FieldsPanel fields={allow.visibleFields} />}
-      {allow === undefined || allow.obligations.length === 0 ? null : (
-        <section style={panel} data-testid="qadi-simulator-obligations">
-          <div style={heading}>obligations</div>
-          <ObligationList duties={allow.obligations} />
-          <p style={{ ...muted, marginBottom: 0, marginTop: 6 }}>
-            {/* E7.6. Not merely unobservable per duty, which is the inspector's case — here
-                no handler ran at all, because a simulation does not discharge
-                anything. Saying "not observable" would imply something tried. */}
-            Owed, and undischarged: a simulation runs no obligation handler, so
-            nothing here was attempted. A binding duty left undischarged turns
-            this allow into a refusal at the enforcement boundary.
-          </p>
-        </section>
-      )}
+      {resultGrant(reading)}
     </>
   );
 };
+
+/** Inside the result card: the error, or the tree. */
+const resultBody: (self: RecordOutcome) => ReactNode = Match.type<RecordOutcome>().pipe(
+  Match.tagsExhaustive({
+    Failed: ({ error }) => <SimulatedFailure error={error} />,
+    Denied: ({ tree }) => <PolicyTree node={tree} showStatus />,
+    Allowed: ({ tree }) => <PolicyTree node={tree} showStatus />,
+  }),
+);
+
+/** Below the result card: what an allow grants and owes. A denial and a failure grant nothing. */
+const resultGrant: (self: RecordOutcome) => ReactNode = Match.type<RecordOutcome>().pipe(
+  Match.tagsExhaustive({
+    Failed: () => null,
+    Denied: () => null,
+    Allowed: ({ fields, duties, obligation }) => (
+      <>
+        <FieldsPanel fields={fields} />
+        {obligation._tag === "NoneOwed" ? null : (
+          <section style={panel} data-testid="qadi-simulator-obligations">
+            <div style={heading}>obligations</div>
+            <ObligationList duties={duties} />
+            <p style={{ ...muted, marginBottom: 0, marginTop: 6 }}>
+              {/* E7.6. Not merely unobservable per duty, which is the inspector's case — here
+                  no handler ran at all, because a simulation does not discharge
+                  anything. Saying "not observable" would imply something tried. */}
+              Owed, and undischarged: a simulation runs no obligation handler, so
+              nothing here was attempted. A binding duty left undischarged turns
+              this allow into a refusal at the enforcement boundary.
+            </p>
+          </section>
+        )}
+      </>
+    ),
+  }),
+);
+
+const SimulatedFailure: FC<{ readonly error: EvaluationError }> = ({ error }) => (
+  <div data-testid="qadi-simulator-error">
+    <div>{error._tag}</div>
+    <p style={{ ...muted, marginBottom: 0 }}>
+      {/* As screen 2: a failure has no trace, so there is no requirement
+          tree — and an empty one would read as "nothing was required",
+          which reads as "allowed" (INV-QD-006). */}
+      A lookup this evaluation depended on failed, so nothing was decided.
+      This is not a denial.
+    </p>
+  </div>
+);
 
 /**
  * The number, and what it measured.
@@ -706,104 +644,65 @@ const Draft: FC<{
   </>
 );
 
-/**
- * One list field. A chip is shown as its codec's text, so what is on screen is
- * what decodes back to the element behind it; a refused value is shown as the
- * refusal, never as a lossy rendering.
- */
-const Chips = <A,>({
-  label,
-  testId,
-  placeholder,
-  values,
-  codec,
-  same,
-  subjectId,
-  onChange,
-}: {
-  readonly label: string;
-  readonly testId: string;
-  readonly placeholder?: string;
-  readonly values: ReadonlyArray<A>;
-  readonly codec: ChipCodec<A>;
-  readonly same: (a: A, b: A) => boolean;
-  readonly subjectId: string;
-  readonly onChange: (values: ReadonlyArray<A>) => void;
-}) => {
-  const [buffer, setBuffer] = useState<Buffer>(emptyBuffer);
-
-  const add = () => {
-    if (buffer.text.trim() === "") return;
-    const added = addChip(values, buffer.text, codec, same, subjectId);
-    if (added._tag === "Refused") {
-      setBuffer({ text: buffer.text, error: added.reason });
-      return;
-    }
-    setBuffer(emptyBuffer);
-    onChange(added.value);
-  };
-
-  return (
-    <div style={{ ...row, marginBottom: 4 }} data-testid={testId}>
-      <span style={{ ...muted, fontSize: font.sizeSmall, minWidth: 130 }}>{label}</span>
-      {values.map((value, index) => {
-        const text = codec.encode(value, subjectId);
-        const shown = text._tag === "Ok" ? text.value : `(${text.reason})`;
-        return (
-          <span key={`${index}-${shown}`} style={chip}>
-            {shown}
-            <Remove label={shown} onClick={() => onChange(removeAt(values, index))} />
-          </span>
-        );
-      })}
-      <Draft
-        label={label}
-        testId={testId}
-        placeholder={placeholder ?? label}
-        buffer={buffer}
-        onType={(text) => setBuffer({ text, error: undefined })}
-        onCommit={add}
-      />
-    </div>
-  );
+/** Each field's test id, closed over the fields: a field added without one is TS2741. */
+const testIdOf: { readonly [K in SimulationField]: string } = {
+  roles: "qadi-roles",
+  permissions: "qadi-permissions",
+  subjectAttributes: "qadi-subject-attributes",
+  attributes: "qadi-fixture-attributes",
+  relationships: "qadi-relationships",
+  history: "qadi-history",
+  signatures: "qadi-signatures",
 };
 
-const Pairs: FC<{
-  readonly label: string;
-  readonly testId: string;
-  readonly values: Readonly<Record<string, unknown>>;
-  readonly onChange: (values: Readonly<Record<string, unknown>>) => void;
-}> = ({ label, testId, values, onChange }) => {
+/** The form's fields held by `holder`, each as an editor. The session reads and writes them; this lays them out. */
+const Fields: FC<{
+  readonly fields: ReadonlyArray<FieldView>;
+  readonly holder: FieldView["holder"];
+  readonly session: SimulationSession;
+}> = ({ fields, holder, session }) => (
+  <>
+    {fields
+      .filter((field) => field.holder === holder)
+      .map((field) => (
+        <FieldEditor key={field.key} field={field} session={session} />
+      ))}
+  </>
+);
+
+/**
+ * One field: its chips as the session read them, and a typing buffer.
+ *
+ * A chip is the codec's text, so what is on screen is what decodes back to the
+ * element behind it; a refused value is shown as the refusal, never as a lossy
+ * rendering. Committing goes through the session, whose answer - the draft moved,
+ * or the reason it did not - is all this holds on to.
+ */
+const FieldEditor: FC<{ readonly field: FieldView; readonly session: SimulationSession }> = ({
+  field,
+  session,
+}) => {
   const [buffer, setBuffer] = useState<Buffer>(emptyBuffer);
+  const testId = testIdOf[field.key];
 
   const add = () => {
-    if (buffer.text.trim() === "") return;
-    const pair = attributeCodec.decode(buffer.text, "");
-    if (pair._tag === "Refused") {
-      setBuffer({ text: buffer.text, error: pair.reason });
-      return;
-    }
-    setBuffer(emptyBuffer);
-    onChange(withPair(values, pair.value));
+    const added = session.addChip(field.key, buffer.text);
+    setBuffer(added._tag === "Ok" ? emptyBuffer : { text: buffer.text, error: added.reason });
   };
 
   return (
     <div style={{ ...row, marginBottom: 4 }} data-testid={testId}>
-      <span style={{ ...muted, fontSize: font.sizeSmall, minWidth: 130 }}>{label}</span>
-      {Object.entries(values).map((pair) => {
-        const text = attributeLabel(pair);
-        const shown = text._tag === "Ok" ? text.value : `${pair[0]} (${text.reason})`;
-        return (
-          <span key={pair[0]} style={chip}>
-            {shown}
-            <Remove label={pair[0]} onClick={() => onChange(withoutPair(values, pair[0]))} />
-          </span>
-        );
-      })}
+      <span style={{ ...muted, fontSize: font.sizeSmall, minWidth: 130 }}>{field.label}</span>
+      {field.chips.map((one, index) => (
+        <span key={`${index}-${one.text}`} style={chip}>
+          {one.text}
+          <Remove label={one.removeLabel} onClick={() => session.removeChip(field.key, index)} />
+        </span>
+      ))}
       <Draft
-        label={label}
+        label={field.label}
         testId={testId}
-        placeholder="name:value"
+        placeholder={field.placeholder}
         buffer={buffer}
         onType={(text) => setBuffer({ text, error: undefined })}
         onCommit={add}

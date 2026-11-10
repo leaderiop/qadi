@@ -5,14 +5,48 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-097                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-08                                     |
-> | Status         | Accepted — amends ADR-QD-045, ADR-QD-046, ADR-QD-047, ADR-QD-050; amended 2026-10-06 (bare frames refused); amended 2026-10-07 (the protocol words are core's) |
+> | Status         | Accepted — amends ADR-QD-045, ADR-QD-046, ADR-QD-047, ADR-QD-050; amended 2026-10-06 (bare frames refused); amended 2026-10-07 (the protocol words are core's); amended 2026-11-10 (the stream's order and cursor are core's) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-10-08): Document ID corrected from `QADI-ADR-904` to `QADI-ADR-097`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.2 (2026-10-07): amended — the protocol words D-11-f names are declared in `@qadi/core` (ARCH-28, CCR-QD-195)<br>1.1 (2026-10-06): amended — 0.11.0 reads only `{ environment, record }` envelopes: `legacyEnvironment` and `DecodeStoredRecordOptions` removed as D-11-e scheduled, and `sourceFromEventSource` no longer treats a `message` before `synced` as an older server (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-11, CCR-QD-181) |
+> | Change History | 1.4 (2026-11-10): amended — the stream's order and cursor are @qadi/core's codec-free DecisionStream.ts (encodeDecisionStream, decodeDecisionStream); backlog frames travel in cursor order; @qadi/http's frame, syncedFrame and decisionFrames removed (ARCH-60, BEH-QD-349, INV-QD-250, CCR-QD-397)<br>1.3 (2026-10-08): Document ID corrected from `QADI-ADR-904` to `QADI-ADR-097`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.2 (2026-10-07): amended — the protocol words D-11-f names are declared in `@qadi/core` (ARCH-28, CCR-QD-195)<br>1.1 (2026-10-06): amended — 0.11.0 reads only `{ environment, record }` envelopes: `legacyEnvironment` and `DecodeStoredRecordOptions` removed as D-11-e scheduled, and `sourceFromEventSource` no longer treats a `message` before `synced` as an older server (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-11, CCR-QD-181) |
 
 ---
+
+> **Amendment (2026-11-10, the stream's order and cursor are core's — ARCH-60,
+> CCR-QD-397):** the order D-11-f gives the stream — `backlog` frames, one
+> `synced`, then `message` frames, each record frame's `id` its cursor — is
+> written and read in one place, `@qadi/core`'s `DecisionStream.ts`:
+> `encodeDecisionStream` turns one `readEntries` into transport-free frames
+> (`{ event, id?, data }`) and `decodeDecisionStream` reads frames back into a
+> backlog, or none, and a live stream. The stream's words and cursor text
+> (`DecisionStreamEvent`, `DecisionRecordEvent`, `DecisionStreamSynced`,
+> `formatLogCursor`, `parseLogCursor`) move there from `DecisionLog.ts` under
+> the same barrel names; `DecisionLog.ts` keeps `LogCursor` and imports nothing
+> from the new module.
+>
+> - **Backlog frames travel in cursor order**, not `storedRecordOrder`. A frame's
+>   `id` is a resume position; sent in `at` order, the last `id` a reader saw was
+>   not its highest position, and a connection cut during the prelude resumed past
+>   records it never received, silently (BEH-QD-349, INV-QD-250). A reader still
+>   presents the backlog in `storedRecordOrder`, so the timeline does not change
+>   (INV-QD-039). This is the 12-01 checkpoint's answer, `option-a`: "Cursor order
+>   on the wire, ordered by core's encoder; remove `frame`, `syncedFrame`,
+>   `decisionFrames` from `@qadi/http` (Breaking)".
+> - **The module is codec-free.** It imports no codec and no transport: the
+>   record's bytes and the words a refusal is reported in are the caller's
+>   (`encodeRecord`, `decodeRecord`). `@qadi/http` keeps its stored-record
+>   encoder, its refusal warnings and spans (`DecisionLogHttp.ts`, BEH-QD-337) and
+>   writes each frame as SSE bytes; `@qadi/devtools` keeps `EventSource` and its
+>   `onMalformed`. Nothing either prints changes.
+> - **Removed from `@qadi/http`, without aliases:** `frame`, `syncedFrame`,
+>   `decisionFrames`. They were the order's second owner.
+> - **Not done.** `synced`'s count is still not read by the reader (ARCH-28
+>   D-28-e): the loss this ends arrived with a correct per-connection count. The
+>   stream's framing is still unversioned; only the record inside each envelope is
+>   (ADR-QD-096). A fixed reader against a server older than this still loses on a
+>   reconnect during the prelude, because the order is the server's.
 
 > **Amendment (2026-10-07, the protocol words are core's — ARCH-28, CCR-QD-195):**
 > the words D-11-f names — `backlog`, `synced`, `message` and the `{"backlog":n}`
@@ -198,7 +232,8 @@ timeline both read.
 [ADR-QD-095](./095-sinkcodec-owns-both-directions.md),
 [ADR-QD-096](./096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md);
 [BEH-QD-185](../behaviors/24-decision-sink.md), BEH-QD-188, BEH-QD-313,
-[BEH-QD-201](../behaviors/26-decision-stream.md), BEH-QD-202, BEH-QD-314–316,
+[BEH-QD-201](../behaviors/26-decision-stream.md), BEH-QD-202, BEH-QD-314–316, BEH-QD-349,
 [BEH-QD-203](../behaviors/27-devtools-timeline.md), BEH-QD-235;
 [INV-QD-039](../invariants.md#inv-qd-039-the-timeline-is-ordered-unique-and-independent-of-arrival),
-[INV-QD-100](../invariants.md#inv-qd-100-a-log-reader-sees-every-retained-record-exactly-once).
+[INV-QD-100](../invariants.md#inv-qd-100-a-log-reader-sees-every-retained-record-exactly-once),
+[INV-QD-250](../invariants.md#inv-qd-250-a-resumed-read-loses-nothing).

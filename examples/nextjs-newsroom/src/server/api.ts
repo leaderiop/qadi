@@ -14,10 +14,10 @@ import "server-only";
  * reproduce on `effect@4.0.0` (ARCH-36), so the naming is a readability choice.
  *
  * **Paths have no `/api` prefix here.** Next mounts this at `/api/[[...route]]`
- * and the route handler strips the prefix before calling in, because
- * `decisionStreamRoute` mounts `/__decisions` at a fixed path and a router that
- * had to know it was behind a prefix would be a router that could not be lifted
- * out and served directly.
+ * and the route handler strips the prefix before calling in, so this router can
+ * be lifted out and served directly. The devtools routes could take a prefix
+ * (`devtoolsRoutes`' `prefix`, the same `devtoolsPath` rule the Dock builds its
+ * URL with), but this router does not need one.
  */
 import * as Effect from "effect/Effect";
 import * as Headers from "effect/http/Headers";
@@ -33,9 +33,7 @@ import { decodeSinkRecordString, servingFor } from "@qadi/core";
 import type { DecodeRefusal } from "@qadi/core";
 import {
   addGuardedRoute,
-  decisionBacklogRoute,
-  decisionStreamRoute,
-  permissionRegistryRoute,
+  devtoolsRoutes,
   PermissionRegistryLive,
   portRoutesUnguarded,
   SubjectExtractor,
@@ -187,9 +185,7 @@ const Routes = Layer.mergeAll(
   PortRoutes,
   ArticleRoute,
   IngestRoute,
-  decisionStreamRoute(readDevtools, canReadDevtools, log),
-  decisionBacklogRoute(readDevtools, canReadDevtools, log),
-  permissionRegistryRoute(readDevtools, canReadDevtools),
+  devtoolsRoutes(readDevtools, canReadDevtools, log),
 );
 
 const WithRegistry = Routes.pipe(Layer.provideMerge(PermissionRegistryLive));

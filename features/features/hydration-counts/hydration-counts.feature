@@ -27,6 +27,22 @@ Feature: Hydration accounts for every entry, and says when it seeds nothing
     Then 2 entries are counted as dehydrated
     And 1 entry is counted as dropped for "ForeignSubject"
 
+  Scenario: A policy that cannot cross the network is left out and counted
+    Given a server that decided 2 questions for "alice"
+    And one more decided for "alice" whose policy the schema cannot encode
+    When the payload is built and hydrated by "alice"
+    Then 2 entries are counted as dehydrated
+    And 1 entry is counted as dropped for "UnencodablePolicy"
+    And the server reported "UnencodablePolicy" once
+    And 2 entries are counted as seeded
+
+  Scenario: A payload refused for another subject counts even with no entries
+    Given an empty payload built for "bob"
+    When the payload is hydrated by "alice"
+    Then nothing is seeded
+    And the refusal is counted once as "PayloadSubjectMismatch"
+    And the reported reason is "PayloadSubjectMismatch"
+
   Scenario: A payload reaching the wrong client seeds nothing and names the reason
     Given a server that decided 2 questions for "alice"
     When the payload is built and hydrated by "bob"
@@ -102,7 +118,7 @@ Feature: Hydration accounts for every entry, and says when it seeds nothing
 
   Scenario: Every reason is reported, including the ones that never fired
     When the hydration counts are read
-    Then all 7 drop reasons appear
+    Then all 8 drop reasons appear
     And each reason carries a distinct explanation
 
   Scenario: The panel refuses a subtraction that would go negative

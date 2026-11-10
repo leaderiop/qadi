@@ -16,10 +16,10 @@ pnpm add @qadi/http @qadi/core effect
 ## Authorization is declared, never inferred
 
 An endpoint annotated with neither a permission requirement nor an explicit
-public marker is **refused**, with a 500 and a log naming it. Absence of a
-requirement never means "unguarded" — forgetting one annotation would
-otherwise publish an endpoint with no signal at build time, layer-build time,
-or request time.
+public marker is **refused**: `guardApi` fails to build, naming the group and the
+endpoint (`AccessNotDeclared`). Absence of a requirement never means
+"unguarded" — forgetting one annotation would otherwise publish an endpoint
+with no signal at build time, layer-build time, or request time.
 
 ```ts
 HttpApiEndpoint.get("health", "/health").pipe((e) =>
@@ -32,9 +32,8 @@ exists purely so a reviewer can see that being public was a decision someone
 made, not an oversight.
 
 Only an endpoint declares access. A `RequiredPermission` or `PublicEndpoint` on
-a group or on the API is **refused** too, never ignored: the middleware answers
-500 for every endpoint under that group and names the group in its log, and
-`guardApi` fails with `MisplacedAccessDeclaration`. To declare for a whole
+a group or on the API is **refused** too, never ignored: `guardApi` fails with
+`MisplacedAccessDeclaration`, naming the group or the API. To declare for a whole
 group, write it into each endpoint's own annotations:
 
 ```ts
@@ -66,8 +65,9 @@ requirement with a weaker one) and never automatic `allOf` composition (which
 would make the combinator's meaning depend on how many times it was called). A
 second permission on one endpoint is written as one `allOf([...])` policy.
 
-One `RequirePermission` middleware handles every annotated endpoint, reading
-the annotation back off at request time. `guardApi(Api)` provides it for that
+One `RequirePermission` middleware handles every annotated endpoint. `guardApi(Api)`
+reads each endpoint's declaration once, when it is built, and the middleware looks
+the endpoint up. `guardApi(Api)` provides it for that
 API, and by being built it registers every endpoint it enforces with
 `PermissionRegistry`, so `/__permissions` lists exactly what is enforced.
 
@@ -75,7 +75,9 @@ It refuses what it cannot enforce: an endpoint the middleware is not attached to
 (`.middleware(RequirePermission)` before `.add(group)`, no middleware, or
 middleware on one group only) is a compile error where the type is precise and
 `RequirePermissionNotAttached` at layer build otherwise, and the middleware
-answers 500 for an endpoint outside the API it was built for.
+answers 500, with one error log naming it, for an endpoint that is not part of the `HttpApi` value it was built
+from (another API, or a `prefix`ed copy): pass `guardApi` the same value
+`HttpApiBuilder.layer` serves.
 
 ```typescript
 import * as Effect from "effect/Effect";
@@ -118,7 +120,8 @@ export const Routes = HttpApiBuilder.layer(Api).pipe(
 `addGuardedRoute` enforces a plain `(request) => Effect<Response, E, R>`
 handler and registers the bare route with the permission registry in the same
 layer — use it in place of a bare `HttpRouter.add` for any route that should be
-guarded and registered.
+guarded and registered. `loadResource` is optional: leave it out and the route
+evaluates against `NO_RESOURCE` and the handler receives a plain `Resource`.
 
 ```ts
 const WriteRoute = addGuardedRoute(
@@ -217,9 +220,9 @@ export const guardApi: <Id extends string, Groups extends HttpApiGroup.Constrain
   MisplacedAccessDeclaration | RequirePermissionNotAttached,
   SubjectExtractor | StandingEvaluationServices | PermissionRegistry
 >;
-export const addGuardedRoute: (...) => ...;
-export const permissionRegistryRoute: (permission: Permission, policy: Policy) => Layer<...>;
-export const permissionRegistryRouteUnguarded: (reason: string) => Layer<...>;
+export const addGuardedRoute: (method, path, permission, policy, loadResource?) => (handler) => Layer<...>; // no loader: NO_RESOURCE
+export const permissionRegistryRoute: (permission: Permission, policy: Policy, options?: DevtoolsRouteOptions) => Layer<...>;
+export const permissionRegistryRouteUnguarded: (reason: string, options?: DevtoolsRouteOptions) => Layer<...>;
 ```
 
 `PermissionRegistry` answers "which permission does which endpoint require,"
@@ -237,7 +240,44 @@ permission may enforce entirely unrelated rules, and it cannot answer what is
 what to attack and where, so it is guarded by default.
 `permissionRegistryRouteUnguarded(reason)` is the explicit opt-out for local
 development, and it logs a warning on every request rather than once, so a
-choice that reaches production stays visible in that environment's logs.
+choice that reaches production stays visible in that environment's logs. Both
+take `{ prefix }` like the other devtools routes below; under a prefix the
+warning names the prefixed path, the one actually served.
+
+## The devtools routes
+
+The decision stream (`/__decisions`), its backlog (`/__decisions/backlog`) and
+the permission registry (`/__permissions`) answer at
+`devtoolsPath(route, prefix)`, at the root when no prefix is given. Every
+constructor takes `{ prefix }`, and `devtoolsRoutes` mounts all three behind one
+guard and one prefix. It has no unguarded form: the stream publishes decisions,
+so it is always guarded.
+
+Your client builds its URL from the same function with the same prefix,
+instead of writing the path again. `devtoolsPath` imports nothing, so a browser
+bundle can import it from `@qadi/http` without pulling in a router.
+
+```typescript
+import * as Effect from "effect/Effect";
+import { hasPermission, makeDecisionLog, permission } from "@qadi/core";
+import { devtoolsPath, devtoolsRoutes } from "@qadi/http";
+
+const readDevtools = permission("devtools", "read");
+
+// The server: the stream, the backlog and the registry under /devtools, one guard for all three.
+export const DevtoolsRoutes = Effect.map(makeDecisionLog({ environment: "Server" }), (log) =>
+  devtoolsRoutes(readDevtools, hasPermission(readDevtools), log, { prefix: "/devtools" }),
+);
+
+// The client: the same rule and the same prefix. This is "/devtools/__decisions".
+export const streamUrl = devtoolsPath("decisions", "/devtools");
+```
+
+Under a prefix the default paths are not served, and a subject the policy
+denies still gets 403 at every prefixed path: a prefix moves a route, it never
+unguards one. Mount the routes one by one (`decisionStreamRoute`,
+`decisionBacklogRoute`, `permissionRegistryRoute`) when they need different
+guards.
 
 See [ADR-QD-036](https://github.com/leaderiop/qadi/blob/main/spec/decisions/036-qadi-http-package-shape.md)
 and [behavior 23](https://github.com/leaderiop/qadi/blob/main/spec/behaviors/23-http.md)

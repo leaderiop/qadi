@@ -20,6 +20,7 @@ import {
   PolicyNotTranslatable,
 } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { predicatesTranslatedTotal } from "../src/EvaluationMetrics.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
@@ -1312,32 +1313,28 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
 describe("qadi_predicates_translated_total", () => {
   it.effect("counts a successful translation", () =>
     Effect.gen(function* () {
-      const snapshots = yield* isolatedMetrics(
-        translate(P.hasRole("editor")).pipe(Effect.flatMap(() => Metric.snapshot)),
+      const counter = yield* isolatedMetrics(
+        translate(P.hasRole("editor")).pipe(
+          Effect.flatMap(() => Metric.value(predicatesTranslatedTotal)),
+        ),
       );
 
-      const counter = snapshots.find(
-        (s): s is Extract<Metric.Metric.Snapshot, { type: "Counter" }> =>
-          s.type === "Counter" && s.id === "qadi_predicates_translated_total",
-      );
-      assert.isDefined(counter);
-      assert.strictEqual(counter?.state.count, 1);
+      assert.strictEqual(counter.count, 1);
     }));
 
   it.effect("does not count a translation that fails", () =>
     Effect.gen(function* () {
-      const snapshots = yield* isolatedMetrics(
+      const counter = yield* isolatedMetrics(
         Effect.gen(function* () {
-          yield* Effect.result(translate(P.hasPermission(permission("doc", "read"), { fields: ["id"] })));
-          return yield* Metric.snapshot;
+          const failed = yield* Effect.result(
+            translate(P.hasPermission(permission("doc", "read"), { fields: ["id"] })),
+          );
+          assert.isTrue(failed._tag === "Failure");
+          return yield* Metric.value(predicatesTranslatedTotal);
         }),
       );
 
-      const counter = snapshots.find(
-        (s): s is Extract<Metric.Metric.Snapshot, { type: "Counter" }> =>
-          s.type === "Counter" && s.id === "qadi_predicates_translated_total",
-      );
-      assert.isUndefined(counter);
+      assert.strictEqual(counter.count, 0);
     }));
 });
 

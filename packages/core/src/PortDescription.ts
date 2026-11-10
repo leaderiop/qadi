@@ -24,7 +24,11 @@
  */
 import type * as Cause from "effect/Cause";
 import type * as Context from "effect/Context";
+import * as Data from "effect/Data";
 import type * as Effect from "effect/Effect";
+import * as Match from "effect/Match";
+import type * as Result from "effect/Result";
+import type { WirePath } from "./JsonRefusal.ts";
 import type { PortName, PortSpanName } from "./PortMetrics.ts";
 import type { PortSpanAttributesLike, SpanFields, SpanStruct, SpanType } from "./PortSpan.ts";
 import type { PortServingFacet } from "./PortServing.ts";
@@ -40,6 +44,65 @@ import type { PortWire } from "./PortWire.ts";
 export interface PortShape {
   readonly name?: string | undefined;
 }
+
+/**
+ * Which kind of value a request key cannot represent.
+ *
+ * `Equal.equals` compares each of these by identity, or by a rule no text can
+ * reproduce, so a key either collides two requests the evaluator tells apart
+ * or splits two it treats as one (`PortKey.ts` says which, case by case):
+ *
+ * - `function`: a function, compared by identity.
+ * - `symbol`: a symbol value, compared by identity.
+ * - `symbol-key`: an object with a symbol-keyed property, which `Equal`
+ *   reads and text cannot name.
+ * - `instance`: an object that is neither plain (`Object.prototype` or `null`
+ *   prototype) nor a `Date`, `RegExp`, array, `Set` or `Map`, or one that
+ *   implements `Equal` itself — a class instance, a boxed primitive, binary
+ *   data, an `Error`, a `Promise`, an Effect data type.
+ */
+export type UnkeyableKind = "function" | "symbol" | "symbol-key" | "instance";
+
+/**
+ * Why a request has no key: a value inside it lies outside the key's domain.
+ *
+ * A closed union, mirroring `EncodeRefusal` (`JsonRefusal.ts`), so a reporter
+ * matching on it with `Match.tagsExhaustive` is a compile error away from a
+ * new reason.
+ *
+ * - `Circular`: an object is its own ancestor at `path`.
+ * - `Unkeyable`: the value at `path` is of a {@link UnkeyableKind}; `brand`
+ *   is its constructor's name (`"Uint8Array"`, `"Point"`), or `"Function"`,
+ *   `"Symbol"`.
+ * - `Unreadable`: reading the value at `path` threw (a getter, a proxy trap);
+ *   `message` is what it threw.
+ */
+export type KeyRefusal = Data.TaggedEnum<{
+  Circular: { readonly path: WirePath };
+  Unkeyable: { readonly path: WirePath; readonly kind: UnkeyableKind; readonly brand: string };
+  Unreadable: { readonly path: WirePath; readonly message: string };
+}>;
+
+/** Constructors and guards for {@link KeyRefusal}. */
+export const KeyRefusal = Data.taggedEnum<KeyRefusal>();
+
+/** `params.when`, or `the request` for a refusal found at the root. */
+const where = (path: WirePath): string => (path.length === 0 ? "the request" : path.join("."));
+
+/**
+ * One sentence per {@link KeyRefusal}: where in the request, and what kind of
+ * value — never the value itself.
+ *
+ * `Unreadable`'s sentence carries the thrown message, which can be text a host
+ * wrote, so a sentence is never a span annotation (INV-QD-044).
+ */
+export const describeKeyRefusal: (self: KeyRefusal) => string = Match.type<KeyRefusal>().pipe(
+  Match.tagsExhaustive({
+    Circular: (refusal) => `${where(refusal.path)}: a circular reference has no request key`,
+    Unkeyable: (refusal) => `${where(refusal.path)}: an unkeyable ${refusal.kind} (${refusal.brand}) has no request key`,
+    Unreadable: (refusal) => `${where(refusal.path)}: reading it threw: ${refusal.message}`,
+  }),
+);
 
 /**
  * One port's description.
@@ -96,7 +159,7 @@ export interface PortDescription<
   };
   /**
    * What the port's question and answer look like on a wire: the only
-   * statement of them off-process (ARCH-31, ADR-QD-NEXT). `answerRemotely`
+   * statement of them off-process (ARCH-31, ADR-QD-107). `answerRemotely`
    * serves a port through it and `askRemotely` asks one through it, so a host
    * writes neither half by hand and a sixth port is a compile error until it
    * states its wire.
@@ -143,21 +206,22 @@ export interface PortDescription<
    */
   readonly defect: (args: Args, cause: Cause.Cause<unknown>) => E;
   /**
-   * A collision-safe key for one request, **injective over every argument the
-   * port receives**: two requests share a key only if every argument is
-   * structurally equal (ADR-QD-094). A capture taken for one subject, resource
-   * or depth therefore never answers a question about another. A key that
-   * drops an argument is a stale answer waiting for a what-if sweep to find
-   * it. `PortConformance.test.ts` checks the law for every port in the
-   * registry.
+   * The text that identifies one request, or why it has none: two requests
+   * share a key exactly when every argument is `Equal.equals`.
    *
-   * `JSON.stringify` of a tuple, or `canonicalKey` (`PortKey.ts`) when an
-   * argument holds a `Set` or an object whose key order is not meaningful.
-   * Both throw on a circular or `BigInt` value; a double or replay keyed by it
-   * then dies, which `PortAccess.ts` turns into this port's typed error like
-   * any other defect.
+   * Every port writes it as `canonicalKey` (`PortKey.ts`) over a tuple of
+   * every argument it receives (ADR-QD-094, ARCH-65), so a capture taken for
+   * one subject, resource, depth or param never answers a question about
+   * another, and two equal requests built in another order still share one.
+   * A request holding a value outside the key's domain (a cycle, a function,
+   * a class instance) is refused with a {@link KeyRefusal} rather than
+   * collided with another or thrown. A consumer branches on the `Result`;
+   * the `Result` itself is never a map key.
+   *
+   * `PortKey.test.ts` checks the law once; the per-port rows of
+   * `PortConformance.test.ts` check only that each argument reaches the key.
    */
-  readonly key: (args: Args) => string;
+  readonly key: (args: Args) => Result.Result<string, KeyRefusal>;
   /**
    * The fail-closed default: its name and the answer it gives to every
    * request (INV-QD-007, ADR-QD-040). The only statement of that answer — the

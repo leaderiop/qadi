@@ -15,8 +15,12 @@
  * exactly the value that was encoded, so the choice between the two is made by
  * the encoder, never by the reader.
  *
+ * This module is the element codecs and their equalities. *Which* field uses
+ * which, and everything derived from that (the chip commands, the weakenings,
+ * the grants, the rename), is `SimulationFields.ts`.
+ *
  * Pure, and importing nothing but the input vocabulary: it is a leaf above
- * `SimulationInput.ts`, like `Edits.ts`.
+ * `SimulationInput.ts`.
  */
 import type {
   ActedEventInput,
@@ -32,8 +36,8 @@ export type Decoded<A> =
   | { readonly _tag: "Ok"; readonly value: A }
   | { readonly _tag: "Refused"; readonly reason: string };
 
-const ok = <A>(value: A): Decoded<A> => ({ _tag: "Ok", value });
-const refused = <A = never>(reason: string): Decoded<A> => ({ _tag: "Refused", reason });
+export const ok = <A>(value: A): Decoded<A> => ({ _tag: "Ok", value });
+export const refused = <A = never>(reason: string): Decoded<A> => ({ _tag: "Refused", reason });
 
 /**
  * One chip's text in and out.
@@ -237,22 +241,6 @@ const closingQuote = (text: string): number | undefined => {
   return undefined;
 };
 
-/**
- * The record with one pair set. Built with `Object.fromEntries`, which defines
- * own properties — a name like `__proto__` becomes a key, not a prototype.
- */
-export const withPair = (
-  record: Readonly<Record<string, unknown>>,
-  pair: AttributePair,
-): Readonly<Record<string, unknown>> =>
-  Object.fromEntries([...Object.entries(record).filter(([name]) => name !== pair[0]), pair]);
-
-export const withoutPair = (
-  record: Readonly<Record<string, unknown>>,
-  name: string,
-): Readonly<Record<string, unknown>> =>
-  Object.fromEntries(Object.entries(record).filter(([other]) => other !== name));
-
 // ---------------------------------------------------------------------------
 // Edges, events, signatures
 // ---------------------------------------------------------------------------
@@ -399,6 +387,21 @@ const signatureOf = (record: Readonly<Record<string, unknown>>): Decoded<Signatu
   });
 };
 
+/**
+ * Field by field rather than by reference or by `Equal.equals`.
+ *
+ * By reference would be enough for edits the sweep derives — they are built
+ * from the very array they filter — but `apply` is public and composes, so a
+ * pair edit runs the second filter over an array the first one rebuilt. Those
+ * elements are the same objects today; relying on it would make the correctness
+ * of a sweep depend on an implementation detail of the shallow copy above it.
+ */
+export const sameEdge = (a: RelationshipEdgeInput, b: RelationshipEdgeInput): boolean =>
+  a.subjectId === b.subjectId && a.relation === b.relation && a.resourceId === b.resourceId;
+
+export const sameEvent = (a: ActedEventInput, b: ActedEventInput): boolean =>
+  a.subjectId === b.subjectId && a.event === b.event && a.resourceId === b.resourceId;
+
 /** Structural equality, for the duplicate check — never the display text. */
 export const sameSignature = (a: SignatureInput, b: SignatureInput): boolean =>
   a.subjectId === b.subjectId &&
@@ -466,52 +469,4 @@ export const withResource = (
 ): SimulationInput => {
   const { resource: _resource, ...rest } = self;
   return resource === undefined ? rest : { ...rest, resource };
-};
-
-// ---------------------------------------------------------------------------
-// List edits
-// ---------------------------------------------------------------------------
-
-/**
- * The list with one element added, decoded from `text`.
- *
- * A duplicate is refused by **structural** equality, not by display text, so
- * two edges that differ only by subject are two elements.
- */
-export const addChip = <A>(
-  list: ReadonlyArray<A>,
-  text: string,
-  codec: ChipCodec<A>,
-  same: (a: A, b: A) => boolean,
-  subjectId: string,
-): Decoded<ReadonlyArray<A>> => {
-  if (text.trim() === "") return refused("nothing to add");
-  const decoded = codec.decode(text, subjectId);
-  if (decoded._tag === "Refused") return decoded;
-  return list.some((other) => same(other, decoded.value))
-    ? refused("already there")
-    : ok([...list, decoded.value]);
-};
-
-/** The list without the element at `index`. */
-export const removeAt = <A>(list: ReadonlyArray<A>, index: number): ReadonlyArray<A> =>
-  list.filter((_, at) => at !== index);
-
-/**
- * Renames the subject, and moves the elements that named the old id with it.
- *
- * Edges, events and signatures attributed to `from` follow; the ones naming
- * somebody else stay where they are, which is what the Fixtures card's caption
- * promises.
- */
-export const renameSubject = (input: SimulationInput, from: string, to: string): SimulationInput => {
-  const follow = <A extends { readonly subjectId: string }>(list: ReadonlyArray<A>): ReadonlyArray<A> =>
-    list.map((one) => (one.subjectId === from ? { ...one, subjectId: to } : one));
-  return {
-    ...input,
-    subject: { ...input.subject, id: to },
-    ...(input.relationships === undefined ? {} : { relationships: follow(input.relationships) }),
-    ...(input.history === undefined ? {} : { history: follow(input.history) }),
-    ...(input.signatures === undefined ? {} : { signatures: follow(input.signatures) }),
-  };
 };

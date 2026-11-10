@@ -3,8 +3,8 @@
  * as the `/__permissions` introspection route.
  *
  * Populated from two mechanisms feeding one model, per ADR-QD-036 Rev 1.6:
- * `guardApi` (`GuardApi.ts`) walks an `HttpApi`'s `RequiredPermission`
- * annotations when the layer that provides `RequirePermission` is built, and
+ * `guardApi` (`GuardApi.ts`) registers its access plan's `Required`
+ * endpoints (`AccessPlan.ts`) when the layer that provides `RequirePermission` is built, and
  * `addGuardedRoute` pushes a descriptor at the point a bare `HttpRouter`
  * route registers — forced apart only because `HttpApiEndpoint` carries an
  * annotation slot and a bare `HttpRouter.Route` does not. Each registers as a
@@ -28,7 +28,10 @@ import type { Authorized, Permission, PermissionKey, Policy, Resource } from "@q
 import { permissionKey } from "@qadi/core";
 import { loadNoResource } from "./NoResource.ts";
 import { guardRoute } from "./GuardRoute.ts";
+import { devtoolsPath } from "./DevtoolsRouteAddress.ts";
+import type { DevtoolsRouteOptions } from "./DevtoolsRouteAddress.ts";
 import type { HttpEnforcementFailure } from "./QadiHttpError.ts";
+import { unguardedRoutes } from "./UnguardedRoute.ts";
 
 /** One route that requires a permission, as recorded in `PermissionRegistry`. */
 export interface EndpointDescriptor {
@@ -68,7 +71,7 @@ export class PermissionRegistry extends Context.Service<PermissionRegistry, Perm
 
 /**
  * The registry's base layer: an empty `Ref`-backed store. Sufficient on its
- * own: `guardApi` registers an `HttpApi`'s endpoints into it and
+ * own: `guardApi` registers the endpoints it planned from an `HttpApi` into it and
  * `addGuardedRoute` a bare route, so every stack that guards anything provides
  * this layer.
  */
@@ -84,6 +87,26 @@ export const PermissionRegistryLive: Layer.Layer<PermissionRegistry> = Layer.eff
   }),
 );
 
+type RouteMethod = "*" | "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS";
+
+type GuardedHandler<P extends Permission, A, R> = (
+  authorized: Authorized<P>,
+  resource: A,
+) => Effect.Effect<HttpServerResponse.HttpServerResponse, HttpEnforcementFailure, R>;
+
+const buildGuardedRoute = <P extends Permission, A extends Resource, LR, R>(
+  method: RouteMethod,
+  path: PathInput,
+  permission: P,
+  policy: Policy,
+  loadResource: (request: HttpServerRequest.HttpServerRequest) => Effect.Effect<A, never, LR>,
+  handler: GuardedHandler<P, A, R>,
+) =>
+  Layer.merge(
+    HttpRouter.add(method, path, guardRoute(permission, policy, loadResource)(handler)),
+    Layer.effectDiscard(PermissionRegistry.register(permission, { method, path, group: undefined })),
+  );
+
 /**
  * `HttpRouter.add`, plus the registration-time push into `PermissionRegistry`
  * that gives a bare-`HttpRouter` route the same audit visibility an
@@ -92,25 +115,41 @@ export const PermissionRegistryLive: Layer.Layer<PermissionRegistry> = Layer.eff
  * Wraps `guardRoute` rather than duplicating its enforcement, so
  * `loadResource` and `handler` carry the same `never`-error-channel
  * constraint `GuardRoute.ts` documents.
+ *
+ * Omit `loadResource` to evaluate against `NO_RESOURCE` (BEH-QD-178), as
+ * `authorizeRequest` does: the handler then receives a plain `Resource`.
+ *
+ * Two overloads rather than a default parameter, because a default cannot keep
+ * the loader's own resource type `A` for the five-argument form. ARCH-19's
+ * progress log recorded "no cast-free way" to make the loader optional; lost
+ * ARCH-57's probe (`4b1ed49`) refuted that with these overloads, which need no
+ * cast (ARCH-61).
  */
-export const addGuardedRoute =
-  <P extends Permission, A extends Resource, LR = never>(
-    method: "*" | "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS",
-    path: PathInput,
-    permission: P,
-    policy: Policy,
-    loadResource: (request: HttpServerRequest.HttpServerRequest) => Effect.Effect<A, never, LR>,
-  ) =>
-  <R>(
-    handler: (
-      authorized: Authorized<P>,
-      resource: A,
-    ) => Effect.Effect<HttpServerResponse.HttpServerResponse, HttpEnforcementFailure, R>,
-  ) =>
-    Layer.merge(
-      HttpRouter.add(method, path, guardRoute(permission, policy, loadResource)(handler)),
-      Layer.effectDiscard(PermissionRegistry.register(permission, { method, path, group: undefined })),
-    );
+export function addGuardedRoute<P extends Permission>(
+  method: RouteMethod,
+  path: PathInput,
+  permission: P,
+  policy: Policy,
+): <R>(handler: GuardedHandler<P, Resource, R>) => ReturnType<typeof buildGuardedRoute<P, Resource, never, R>>;
+export function addGuardedRoute<P extends Permission, A extends Resource, LR = never>(
+  method: RouteMethod,
+  path: PathInput,
+  permission: P,
+  policy: Policy,
+  loadResource: (request: HttpServerRequest.HttpServerRequest) => Effect.Effect<A, never, LR>,
+): <R>(handler: GuardedHandler<P, A, R>) => ReturnType<typeof buildGuardedRoute<P, A, LR, R>>;
+export function addGuardedRoute<P extends Permission, LR>(
+  method: RouteMethod,
+  path: PathInput,
+  permission: P,
+  policy: Policy,
+  loadResource: (
+    request: HttpServerRequest.HttpServerRequest,
+  ) => Effect.Effect<Resource, never, LR> = loadNoResource,
+) {
+  return <R>(handler: GuardedHandler<P, Resource, R>) =>
+    buildGuardedRoute(method, path, permission, policy, loadResource, handler);
+}
 
 /**
  * The introspection payload: every permission registered with `PermissionRegistry`
@@ -130,7 +169,8 @@ const snapshotResponse = Effect.map(PermissionRegistry.snapshot, (data) =>
 );
 
 /**
- * The `/__permissions` introspection route, **behind a policy**.
+ * The `/__permissions` introspection route, **behind a policy**, at
+ * `devtoolsPath("permissions", options.prefix)` (`/__permissions` by default).
  *
  * This route publishes the application's entire authorization topology: every
  * guarded path, and the permission each one requires. That is a map of what to
@@ -160,35 +200,40 @@ const snapshotResponse = Effect.map(PermissionRegistry.snapshot, (data) =>
  * shape again — this route is exactly one more `addGuardedRoute` caller, not
  * a special case.
  */
-export const permissionRegistryRoute = <P extends Permission>(permission: P, policy: Policy) =>
-  addGuardedRoute(
-    "GET",
-    "/__permissions",
-    permission,
-    policy,
-    loadNoResource,
-  )(() => snapshotResponse);
+export const permissionRegistryRoute = <P extends Permission>(
+  permission: P,
+  policy: Policy,
+  options?: DevtoolsRouteOptions,
+) =>
+  addGuardedRoute("GET", devtoolsPath("permissions", options?.prefix), permission, policy)(
+    () => snapshotResponse,
+  );
 
 /**
- * The `/__permissions` route with **no** guard, which must be chosen explicitly.
+ * The `/__permissions` route with **no** guard, which must be chosen explicitly. It
+ * answers at `devtoolsPath("permissions", options.prefix)`, `/__permissions` by default.
  *
  * The `reason` is never read. It exists so that publishing the authorization
  * topology unauthenticated is something a reviewer can see somebody decided —
  * the same role `publicEndpoint(reason)` plays for an endpoint.
  *
- * Logged at warning level on every request, not once at construction: a local
- * development choice that reaches production should be visible in the logs of
- * the environment it is wrong in, not only in the one where it was made.
+ * Logged at warning level on every request (`announce: "every-request"`), not
+ * once at construction as the port routes are: a local development choice that
+ * reaches production should be visible in the logs of the environment it is
+ * wrong in, not only in the one where it was made (BEH-QD-180). The warning text
+ * and the cadence dispatch are `unguardedRoutes`' (`UnguardedRoute.ts`). The
+ * warning names the path actually served, prefix included: a warning about an
+ * unguarded route that names the wrong address cannot be acted on.
  */
-export const permissionRegistryRouteUnguarded = (reason: string) =>
-  HttpRouter.add(
-    "GET",
-    "/__permissions",
-    Effect.gen(function* () {
-      yield* Effect.logWarning(
-        "qadi/http: serving /__permissions unguarded — the full authorization " +
-          `topology is public. Reason given: ${reason}`,
-      );
-      return yield* snapshotResponse;
-    }),
+export const permissionRegistryRouteUnguarded = (reason: string, options?: DevtoolsRouteOptions) => {
+  const path = devtoolsPath("permissions", options?.prefix);
+  return unguardedRoutes(
+    {
+      what: path,
+      consequence: "the full authorization topology is public",
+      reason,
+      announce: "every-request",
+    },
+    [{ method: "GET", path, handler: snapshotResponse }],
   );
+};

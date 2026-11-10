@@ -6,7 +6,7 @@
  * has not changed and is still asserted here.
  *
  * What changed is the conclusion drawn from it. A second view lists the guards
- * asking each question, and it lives in `GatesPanel.test.tsx` — kept apart
+ * asking each question, and it lives in `QuestionsPanel.gates.test.tsx` — kept apart
  * deliberately, because the failure worth catching is one view silently
  * replacing the other.
  */

@@ -147,14 +147,15 @@ export const outcomePath = (self: AuditWriteOutcome): string =>
 /**
  * Records received, by what became of them. Every record `record()` is handed
  * is counted exactly once, including those the breaker refused (`skipped_open`)
- * — module scope, mirroring `@qadi/predicate-sql`'s
- * `qadi_predicate_sql_compiled_total`.
+ * — module scope, like every `qadi_*` metric (ADR-QD-123). Read it through
+ * {@link WRITES_COUNTERS}: the untagged base reads zero and registers a
+ * phantom series, so it is deliberately not exported.
  */
 const writesTotal = Metric.counter("qadi_audit_writes_total", {
   description: "SinkRecords the audit pipeline received, tagged by outcome.",
 });
 
-const WRITES_COUNTERS: Record<WritesLabel, Metric.Counter<number>> = {
+export const WRITES_COUNTERS: Record<WritesLabel, Metric.Counter<number>> = {
   encode_failed: Metric.withAttributes(writesTotal, { outcome: "encode_failed" }),
   written: Metric.withAttributes(writesTotal, { outcome: "written" }),
   write_failed: Metric.withAttributes(writesTotal, { outcome: "write_failed" }),
@@ -180,7 +181,7 @@ const stagingTotal = Metric.counter("qadi_audit_staging_total", {
  *   failure, not a compliance-record loss: `commit` only runs after the trail
  *   write succeeded, so the entry is already durable.
  */
-const STAGING_COUNTERS: Record<StagingLabel, Metric.Counter<number>> = {
+export const STAGING_COUNTERS: Record<StagingLabel, Metric.Counter<number>> = {
   staged: Metric.withAttributes(stagingTotal, { outcome: "staged" }),
   failed: Metric.withAttributes(stagingTotal, { outcome: "failed" }),
   skipped_open: Metric.withAttributes(stagingTotal, { outcome: "skipped_open" }),
@@ -192,7 +193,7 @@ const entriesLostTotal = Metric.counter("qadi_audit_entries_lost_total", {
   description: "Audit entries in neither the trail nor staging, by what failed.",
 });
 
-const LOST_COUNTERS: Record<LostLabel["after"], Record<LostLabel["staging"], Metric.Counter<number>>> = {
+export const LOST_COUNTERS: Record<LostLabel["after"], Record<LostLabel["staging"], Metric.Counter<number>>> = {
   write_failed: {
     not_wired: Metric.withAttributes(entriesLostTotal, { after: "write_failed", staging: "not_wired" }),
     failed: Metric.withAttributes(entriesLostTotal, { after: "write_failed", staging: "failed" }),
