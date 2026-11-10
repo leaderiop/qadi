@@ -428,7 +428,16 @@ these errors legitimately (each port's description, `PortAccess.ts`); what it
 guards is how a test describes a broken port. A file on the list needs the
 error as a value (an instance-identity check, a codec round trip, a cause
 matrix with no port) or a double a script cannot express (a latch), with its
-exact line count and reason, checked in both directions.
+exact line count and reason, checked in both directions. The audit ports'
+errors (`AuditWriteError`, `AuditStagingError`) are counted too, their class
+names read from `AuditTrailPort.ts` and `AuditStagingPort.ts`: a broken audit
+store is `AuditTrailPortTest({ write: () => AuditPortReply.Fail({ cause }) }).layer`
+(or `AuditStagingPortTest({ stage, commit })`), and the double builds the
+error. A hand-built audit port layer in a test (`Layer.succeed(AuditTrailPort, …)`,
+`AuditStagingPort.of(…)`) is a separate budget, `AUDIT_HAND_LAYER_BUDGET`, with
+the same scope, checked in both directions and empty today, because the audit
+ports stay out of core's registry and their doubles are scripted by
+`AuditPortReply` rather than `scriptedPort` (ARCH-62, ADR-QD-126).
 
 **A metric is declared once, listed once, and read through its export; a
 literal id in a test is a seventh budget, `METRIC_ID_LITERAL_BUDGET`**

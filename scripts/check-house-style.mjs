@@ -36,7 +36,9 @@
  * guards is how a test describes a broken port. The eighth,
  * `METRIC_ID_LITERAL_BUDGET`, is test-scope too (`packages/<pkg>/test` and
  * `bench`); it and its two sibling metric rules are described where they run,
- * below (ADR-QD-123).
+ * below (ADR-QD-123). The ninth, `AUDIT_HAND_LAYER_BUDGET`, has
+ * `PORT_DOUBLE_BUDGET`'s scope and guards the same thing for the audit ports
+ * (ARCH-62).
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -633,6 +635,12 @@ const DECISION_READ_BUDGET_NAMES = {
  * `packages/<pkg>/bench`) plus `features/step-definitions`. The Gherkin
  * step files under `features/features/` are not scanned by this script at all.
  *
+ * The audit ports' errors (`AuditWriteError`, `AuditStagingError`) are counted
+ * too, read from their port modules (ARCH-62, D-07). The audit ports stay out of
+ * core's five-port registry, so their doubles are scripted by `AuditPortReply`
+ * (`AuditTrailPortTest({ write: () => AuditPortReply.Fail({ cause }) })`) rather
+ * than `scriptedPort`, and the double builds the error itself.
+ *
  * @type {Readonly<Record<string, number>>}
  */
 const PORT_DOUBLE_BUDGET = {
@@ -664,6 +672,8 @@ const PORT_DOUBLE_BUDGET = {
   // A `Failed` record carrying a resolver `cause`, as data the audit encoder
   // must persist or refuse (ARCH-09).
   "packages/audit/test/helpers.ts": 1,
+  // A staging error as a value: the `CommitFailed` cause the outcome carries.
+  "packages/audit/test/AuditWriteOutcome.test.ts": 1,
   // A comparison row's error, as data handed to the table.
   "packages/devtools/test/react/WhatIfTable.test.tsx": 1,
   // Every enforcement error's response mapping.
@@ -711,7 +721,52 @@ const readPortErrorClassNames = () => {
   return names;
 };
 
-const PORT_ERROR_CONSTRUCTION = new RegExp(`\\bnew\\s+(${readPortErrorClassNames().join("|")})\\s*\\(`);
+/**
+ * The audit port-error class names, read from the two audit port modules
+ * rather than restated here (ARCH-62, D-07). A module that yields none fails
+ * the gate loudly, as `readPortErrorClassNames` does.
+ *
+ * @returns {ReadonlyArray<string>}
+ */
+const readAuditPortErrorClassNames = () =>
+  ["packages/audit/src/AuditTrailPort.ts", "packages/audit/src/AuditStagingPort.ts"].flatMap((file) => {
+    const text = readFileSync(join(ROOT, file), "utf8");
+    const names = [...text.matchAll(/export class (\w+) extends Data\.TaggedError\(/g)].map((m) => m[1]);
+    if (names.length === 0) {
+      console.error(
+        `${file}  [port-error-list] no \`export class … extends Data.TaggedError(\` found. ` +
+          `PORT_DOUBLE_BUDGET reads the audit port-error class names from there; fix the parse in scripts/check-house-style.mjs.`,
+      );
+      process.exit(1);
+    }
+    return names;
+  });
+
+const PORT_ERROR_CONSTRUCTION = new RegExp(
+  `\\bnew\\s+(${[...readPortErrorClassNames(), ...readAuditPortErrorClassNames()].join("|")})\\s*\\(`,
+);
+
+/**
+ * Test files that build an audit port (`AuditTrailPort`, `AuditStagingPort`)
+ * by hand, by file and exact count of lines doing so (ARCH-62, D-07).
+ *
+ * A broken audit store in a test is a reply script on the shipped double —
+ * `AuditTrailPortTest({ write: () => AuditPortReply.Fail({ cause }) }).layer`,
+ * or `AuditStagingPortTest({ stage, commit })` — which covers Ok, Fail, Die,
+ * Interrupt, Never and Latch. Before 14-04 there were eleven hand-written
+ * audit layers in `packages/audit/test` plus `driveExit.ts`'s own mode table,
+ * and they drifted from the doubles. Every one moved onto a script, so this
+ * starts empty.
+ *
+ * A separate budget, not a RULES entry: RULES with `testScope` also apply to
+ * `src`, where the shipped doubles build these layers legitimately. Same scope
+ * as `PORT_DOUBLE_BUDGET`, checked in both directions.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const AUDIT_HAND_LAYER_BUDGET = {};
+
+const AUDIT_HAND_LAYER = /\bLayer\.(succeed|sync|effect)\(\s*Audit(Trail|Staging)Port\b|\bAudit(Trail|Staging)Port\.of\(/;
 
 // This is not a narrow edge case: `import * as Effect from "effect/Effect"`
 // — AGENTS.md §1's own mandated import style, on line 1 of nearly every file
@@ -875,6 +930,7 @@ const sinkReadLines = new Map();
 const admissionLines = new Map();
 const maxDepthDefaultLines = new Map();
 const portDoubleLines = new Map();
+const auditHandLayerLines = new Map();
 
 for (const file of sources) {
   const rel = relative(ROOT, file);
@@ -1028,6 +1084,11 @@ for (const file of sources) {
       const found = portDoubleLines.get(rel) ?? [];
       found.push(index + 1);
       portDoubleLines.set(rel, found);
+    }
+    if ((isTestFile || rel.startsWith("features/")) && AUDIT_HAND_LAYER.test(line)) {
+      const found = auditHandLayerLines.get(rel) ?? [];
+      found.push(index + 1);
+      auditHandLayerLines.set(rel, found);
     }
 
     for (const rule of RULES) {
@@ -1509,8 +1570,34 @@ for (const [rel, found] of portDoubleLines) {
   console.error(
     `${rel}:${found.join(", ")}  [port-double-budget] A test constructs a port error by hand.\n` +
       `    A broken port is \`scriptedPort(<port>Port, () => PortReply.fail(cause)).layer\` ` +
-      `(@qadi/core); a test that needs the error as a value is added to PORT_DOUBLE_BUDGET ` +
-      `in scripts/check-house-style.mjs with its exact count and reason.`,
+      `(@qadi/core), and a broken audit store is \`AuditTrailPortTest({ write: () => ` +
+      `AuditPortReply.Fail({ cause }) }).layer\` (@qadi/audit); a test that needs the error as a ` +
+      `value is added to PORT_DOUBLE_BUDGET in scripts/check-house-style.mjs with its exact count and reason.`,
+  );
+}
+
+// ARCH-62 — the audit ports' own counterpart: a test scripts the shipped
+// double (`AuditPortReply`) rather than building the port by hand.
+for (const [rel, budget] of Object.entries(AUDIT_HAND_LAYER_BUDGET)) {
+  const found = auditHandLayerLines.get(rel) ?? [];
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [audit-hand-layer-budget] declares ${budget} line(s) building an audit port, found ` +
+        `${found.length}${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+        `    Update AUDIT_HAND_LAYER_BUDGET in scripts/check-house-style.mjs so the two agree.`,
+    );
+  }
+}
+
+for (const [rel, found] of auditHandLayerLines) {
+  if (rel in AUDIT_HAND_LAYER_BUDGET) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [audit-hand-layer-budget] A test builds an audit port by hand. ` +
+      `A broken audit store is \`AuditTrailPortTest({ write: () => AuditPortReply.Fail({ cause }) }).layer\` ` +
+      `(or \`AuditStagingPortTest\`); a test that cannot be scripted is added to AUDIT_HAND_LAYER_BUDGET ` +
+      `with its exact count and reason.`,
   );
 }
 
