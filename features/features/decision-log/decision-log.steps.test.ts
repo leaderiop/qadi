@@ -44,7 +44,7 @@ import {
 import type { AuthSubject, DecisionLog, StoredRecord } from "@qadi/core";
 import { sourceFromEventSource } from "@qadi/devtools";
 import type { DecisionEventSource, SourceRead } from "@qadi/devtools";
-import { decisionStreamRoute, PermissionRegistryLive, subjectExtractorBearer } from "@qadi/http";
+import { devtoolsPath, devtoolsRoutes, PermissionRegistryLive, subjectExtractorBearer } from "@qadi/http";
 
 const feature = await loadFeature(fileURLToPath(new URL("./decision-log.feature", import.meta.url)));
 
@@ -56,9 +56,12 @@ const author = makeSubject({ id: "author", permissions: [permissionKey(asked)] }
 
 const isDecisionEvent = Schema.is(DecisionStreamEvent);
 
-/** `/__decisions` over `log`, as a web handler a `fetch`-shaped caller can drive. */
-const serve = (log: DecisionLog) => {
-  const route = decisionStreamRoute(readDevtools, canReadDevtools, log);
+/**
+ * The devtools routes over `log`, mounted under `prefix`, as a web handler a `fetch`-shaped caller
+ * can drive: the real router, so a request at any other path is its 404.
+ */
+const serve = (log: DecisionLog, prefix?: `/${string}`) => {
+  const route = devtoolsRoutes(readDevtools, canReadDevtools, log, { prefix });
   const withRegistry = route.pipe(Layer.provideMerge(PermissionRegistryLive));
   const withSubjects = withRegistry.pipe(
     Layer.provideMerge(subjectExtractorBearer((): Effect.Effect<AuthSubject> => Effect.succeed(reader))),
@@ -129,12 +132,14 @@ const pipedEventSource =
 
 interface DecisionLogWorldState {
   readonly log: DecisionLog | undefined;
+  /** Where the host mounted the devtools routes; absent, at the root. */
+  readonly prefix: `/${string}` | undefined;
   readonly scope: Scope.Closeable | undefined;
   readonly sse: SourceRead | undefined;
   readonly seen: ReadonlyArray<StoredRecord>;
 }
 
-const initialState: DecisionLogWorldState = { log: undefined, scope: undefined, sse: undefined, seen: [] };
+const initialState: DecisionLogWorldState = { log: undefined, prefix: undefined, scope: undefined, sse: undefined, seen: [] };
 
 export interface WorldShape {
   readonly state: Ref.Ref<DecisionLogWorldState>;
@@ -206,9 +211,15 @@ describeFeature(feature, World.layer, ({ After, Before, Given, When, Then }) => 
     yield* patch({ log });
   });
 
+  Given("the devtools routes are mounted under {string}", function* (prefix: string) {
+    assert.ok(prefix.startsWith("/"), "a prefix starts with a slash");
+    yield* patch({ prefix: `/${prefix.slice(1)}` });
+  });
+
   When("a devtools reader connects over SSE", function* () {
     const log = yield* theLog();
-    const source = sourceFromEventSource({ url: "/__decisions", open: pipedEventSource(serve(log)) });
+    const { prefix } = yield* state();
+    const source = sourceFromEventSource({ url: "/__decisions", open: pipedEventSource(serve(log, prefix)) });
     const scope = yield* Scope.make();
     const sse = yield* source.read.pipe(Scope.provide(scope));
     yield* patch({ scope, sse, seen: sse.backlog ?? [] });
@@ -286,6 +297,17 @@ describeFeature(feature, World.layer, ({ After, Before, Given, When, Then }) => 
       .filter((id) => id !== "sentinel")
       .sort();
     assert.deepEqual(held, Array.from({ length: count }, (_, i) => `back-${i}`));
+  });
+
+  Then("a reader at the unprefixed path gets no stream", function* () {
+    const log = yield* theLog();
+    const { prefix } = yield* state();
+    const handler = serve(log, prefix);
+    const request = new Request(`http://localhost${devtoolsPath("decisions")}`, {
+      headers: { authorization: "Bearer reader" },
+    });
+    const response = yield* Effect.promise(() => handler(request));
+    assert.equal(response.status, 404);
   });
 
   Then("the reader over SSE and a reader in the process hold the same records", function* () {

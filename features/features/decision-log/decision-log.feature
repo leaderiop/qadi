@@ -41,3 +41,12 @@ Feature: One decision log is a process's sink, its history and its live stream
     Given a server decision log holding 3 records whose times run backwards
     When a devtools reader connects over SSE and the connection drops after 1 backlog frame
     Then the reader holds each of the 3 records once
+
+  Scenario: A reader follows the host's prefix
+    Given a server decision log holding 2 decisions
+    And the devtools routes are mounted under "/x/devtools"
+    When a devtools reader connects over SSE
+    And the log ingests a record from "Edge"
+    Then its backlog holds 2 records labelled "Server"
+    And the reader receives 1 live record labelled "Edge"
+    And a reader at the unprefixed path gets no stream
