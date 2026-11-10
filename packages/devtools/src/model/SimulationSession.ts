@@ -32,7 +32,8 @@ import { sameSighting, sightingFor, type PolicySighting } from "./Catalogue.ts";
 import { pinHead, resolveHeld } from "./HeldChoice.ts";
 import { baselineDiff, replayInput, type Baseline, type UnseededField } from "./Replay.ts";
 import { simulate, type SimulationClock } from "./Simulation.ts";
-import { renameSubject } from "./SimulationFields.ts";
+import type { ChipAdded, FieldView, SimulationField } from "./SimulationFields.ts";
+import { fieldOps, formOf, renameSubject } from "./SimulationFields.ts";
 import { decodeResource, encodeResource, withResource } from "./SimulationForm.ts";
 import type { EvaluationPortsLayer, SimulationInput } from "./SimulationInput.ts";
 import { fixtures, live, snapshot, type SimulationSource } from "./SimulationSource.ts";
@@ -174,6 +175,14 @@ export interface SimulationSnapshot {
   readonly sightings: ReadonlyArray<PolicySighting>;
   readonly policy: PolicyChoice;
   readonly draft: SimulationInput;
+  /**
+   * The form's fields, top to bottom, each with its chips as they are shown.
+   *
+   * The reading is the model's, so what a chip says and whether the form could
+   * show it faithfully is decided under the mutation gate; a view maps rows to
+   * editors and computes nothing (ADR-QD-047).
+   */
+  readonly fields: ReadonlyArray<FieldView>;
   readonly resourceText: ResourceText;
   readonly sourceChoice: SourceChoice;
   readonly options: ReadonlyArray<SourceOption>;
@@ -212,6 +221,17 @@ export interface SimulationSession {
   readonly setClock: (clock: SimulationClock) => void;
   readonly setPairs: (pairs: boolean) => void;
   readonly edit: (next: SimulationInput) => void;
+  /**
+   * Commits typed text to one field, by that field's codec.
+   *
+   * Answers the refusal rather than holding it: the uncommitted text is the
+   * view's only state (ARCH-20 D-20-f), so the reason goes back to the buffer
+   * that owns the text. A refused chip moves nothing and notifies no one. An
+   * element naming a subject is attributed to the form's current one.
+   */
+  readonly addChip: (field: SimulationField, text: string) => ChipAdded;
+  /** Removes the chip at `index`. A field the form does not list, or an index past its end, is a no-op. */
+  readonly removeChip: (field: SimulationField, index: number) => void;
   /** Types into the resource field; the last resource that parsed is kept while it does not. */
   readonly editResourceText: (text: string) => void;
   readonly renameSubject: (to: string) => void;
@@ -341,6 +361,7 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
       sightings,
       policy,
       draft,
+      fields: formOf(draft),
       resourceText,
       sourceChoice,
       options: sourceOptions(ports, capture),
@@ -474,6 +495,14 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
     yield* reap();
   });
 
+  /** The one path a draft changes by: the same no-op rule and resource text for every command. */
+  const edit = (next: SimulationInput) => {
+    if (next === draft) return;
+    if (next.resource !== draft.resource) resourceText = resourceTextOf(next);
+    draft = next;
+    commit();
+  };
+
   const session: SimulationSession = {
     subscribe: store.subscribe,
 
@@ -553,11 +582,17 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
       commit();
     },
 
-    edit: (next) => {
-      if (next === draft) return;
-      if (next.resource !== draft.resource) resourceText = resourceTextOf(next);
-      draft = next;
-      commit();
+    edit,
+
+    addChip: (field, text) => {
+      const added = fieldOps(field).addChip(draft, text);
+      if (added._tag === "Refused") return added;
+      edit(added.value);
+      return { _tag: "Ok" };
+    },
+
+    removeChip: (field, index) => {
+      edit(fieldOps(field).removeChip(draft, index));
     },
 
     editResourceText: (text) => {

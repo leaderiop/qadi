@@ -21,6 +21,8 @@ export type {
   CacheReport,
   CapturedAnswers,
   Catalogue,
+  ChipAdded,
+  ChipView,
   Compared,
   Comparison,
   Counts,
@@ -34,6 +36,7 @@ export type {
   EditKind,
   EvaluationPorts,
   EvaluationPortsLayer,
+  FieldView,
   Filters,
   GateInstanceLike,
   HydrationActivity,
@@ -64,6 +67,7 @@ export type {
   SimulatedSubject,
   SimulationClock,
   SimulationEdit,
+  SimulationField,
   SimulationInput,
   SimulationQuestion,
   SimulationSession,
@@ -143,6 +147,24 @@ export { applyEdits } from "../src/index.ts";
 
 // @ts-expect-error no exported member
 export { subjectOf } from "../src/index.ts";
+
+// The field table and what is derived from it are package-private (ARCH-61,
+// porting lost ARCH-48 `950977f`); only the types the session's interface names
+// are exported.
+// @ts-expect-error no exported member
+export { SIMULATION_FIELDS } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { fieldOps } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { formOf } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { FIELD_ORDER } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { FIXTURE_DATA } from "../src/index.ts";
 
 // @ts-expect-error no exported member
 export { Simulator } from "../src/react/index.ts";

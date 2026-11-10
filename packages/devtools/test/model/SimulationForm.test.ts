@@ -11,7 +11,6 @@ import * as FastCheck from "fast-check";
 import type { SignatureInput } from "@qadi/core";
 import {
   actionOf,
-  addChip,
   attributeCodec,
   attributeLabel,
   decodeResource,
@@ -19,15 +18,11 @@ import {
   encodeResource,
   eventCodec,
   permissionCodec,
-  removeAt,
   roleCodec,
-  sameEdge,
   sameSignature,
   signatureCodec,
   withAction,
-  withPair,
   withResource,
-  withoutPair,
 } from "../../src/model/SimulationForm.ts";
 import type { Decoded } from "../../src/model/SimulationForm.ts";
 
@@ -140,14 +135,6 @@ describe("attribute pairs", () => {
       assert.strictEqual(attributeCodec.encode(["k", value], "")._tag, "Refused");
       assert.strictEqual(attributeLabel(["k", value])._tag, "Refused");
     }
-  });
-
-  it("sets and removes a pair, and a name like __proto__ is a key, not a prototype", () => {
-    const set = withPair({ a: 1 }, ["__proto__", 2]);
-    assert.isTrue(Object.hasOwn(set, "__proto__"));
-    assert.deepStrictEqual(Object.keys(set), ["a", "__proto__"]);
-    assert.deepStrictEqual(withPair({ a: 1, b: 2 }, ["a", 3]), { b: 2, a: 3 });
-    assert.deepStrictEqual(withoutPair({ a: 1, b: 2 }, "a"), { b: 2 });
   });
 });
 
@@ -380,38 +367,6 @@ describe("the check", () => {
   });
 });
 
-describe("list edits", () => {
-  const edges = [{ subjectId: "alice", relation: "owner", resourceId: "doc-1" }];
-
-  it("adds one element, refuses empty text, and refuses a duplicate by structure", () => {
-    const added = okValue(addChip(edges, "viewer:doc-9", edgeCodec, sameEdge, "alice"));
-    assert.strictEqual(added.length, 2);
-    assert.strictEqual(addChip(edges, "  ", edgeCodec, sameEdge, "alice")._tag, "Refused");
-    assert.deepStrictEqual(addChip(edges, "owner:doc-1", edgeCodec, sameEdge, "alice"), {
-      _tag: "Refused",
-      reason: "already there",
-    });
-    assert.strictEqual(addChip(edges, "nocolon", edgeCodec, sameEdge, "alice")._tag, "Refused");
-  });
-
-  it("keeps two edges that differ only by subject, which display text alone would collapse", () => {
-    const both = okValue(
-      addChip(
-        edges,
-        '{"subjectId":"bob","relation":"owner","resourceId":"doc-1"}',
-        edgeCodec,
-        sameEdge,
-        "alice",
-      ),
-    );
-    assert.strictEqual(both.length, 2);
-  });
-
-  it("removes exactly the element at an index", () => {
-    assert.deepStrictEqual(removeAt(["a", "b", "c"], 1), ["a", "c"]);
-  });
-});
-
 describe("exact refusals and boundaries", () => {
   const reasonOf = <A>(decoded: Decoded<A>): string =>
     decoded._tag === "Refused" ? decoded.reason : "";
@@ -443,7 +398,6 @@ describe("exact refusals and boundaries", () => {
     assert.include(reasonOf(edgeCodec.decode("{oops", "s")), "SyntaxError");
     assert.strictEqual(reasonOf(edgeCodec.decode("[1]", "s")), "expected relation:resourceId");
     assert.strictEqual(reasonOf(edgeCodec.decode("{}", "s")), '"subjectId" must be a string');
-    assert.strictEqual(reasonOf(addChip([], "  ", roleCodec, (a, b) => a === b, "")), "nothing to add");
   });
 
   it("decodes text with surrounding whitespace", () => {
@@ -538,9 +492,5 @@ describe("exact refusals and boundaries", () => {
 
   it("encodes a permission", () => {
     assert.strictEqual(okValue(permissionCodec.encode("doc:read", "")), "doc:read");
-  });
-
-  it("puts a replaced pair last and keeps the others in order", () => {
-    assert.deepStrictEqual(Object.keys(withPair({ a: 1, b: 2 }, ["a", 3])), ["b", "a"]);
   });
 });

@@ -16,8 +16,8 @@
  * the encoder, never by the reader.
  *
  * This module is the element codecs and their equalities. *Which* field uses
- * which, and everything derived from that (the weakenings, the grants, the
- * rename), is `SimulationFields.ts`.
+ * which, and everything derived from that (the chip commands, the weakenings,
+ * the grants, the rename), is `SimulationFields.ts`.
  *
  * Pure, and importing nothing but the input vocabulary: it is a leaf above
  * `SimulationInput.ts`.
@@ -240,22 +240,6 @@ const closingQuote = (text: string): number | undefined => {
   }
   return undefined;
 };
-
-/**
- * The record with one pair set. Built with `Object.fromEntries`, which defines
- * own properties — a name like `__proto__` becomes a key, not a prototype.
- */
-export const withPair = (
-  record: Readonly<Record<string, unknown>>,
-  pair: AttributePair,
-): Readonly<Record<string, unknown>> =>
-  Object.fromEntries([...Object.entries(record).filter(([name]) => name !== pair[0]), pair]);
-
-export const withoutPair = (
-  record: Readonly<Record<string, unknown>>,
-  name: string,
-): Readonly<Record<string, unknown>> =>
-  Object.fromEntries(Object.entries(record).filter(([other]) => other !== name));
 
 // ---------------------------------------------------------------------------
 // Edges, events, signatures
@@ -486,32 +470,3 @@ export const withResource = (
   const { resource: _resource, ...rest } = self;
   return resource === undefined ? rest : { ...rest, resource };
 };
-
-// ---------------------------------------------------------------------------
-// List edits
-// ---------------------------------------------------------------------------
-
-/**
- * The list with one element added, decoded from `text`.
- *
- * A duplicate is refused by **structural** equality, not by display text, so
- * two edges that differ only by subject are two elements.
- */
-export const addChip = <A>(
-  list: ReadonlyArray<A>,
-  text: string,
-  codec: ChipCodec<A>,
-  same: (a: A, b: A) => boolean,
-  subjectId: string,
-): Decoded<ReadonlyArray<A>> => {
-  if (text.trim() === "") return refused("nothing to add");
-  const decoded = codec.decode(text, subjectId);
-  if (decoded._tag === "Refused") return decoded;
-  return list.some((other) => same(other, decoded.value))
-    ? refused("already there")
-    : ok([...list, decoded.value]);
-};
-
-/** The list without the element at `index`. */
-export const removeAt = <A>(list: ReadonlyArray<A>, index: number): ReadonlyArray<A> =>
-  list.filter((_, at) => at !== index);
