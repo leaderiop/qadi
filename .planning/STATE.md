@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 15-02-PLAN.md
+stopped_at: Completed 15-03-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "15-02 complete: package-private DockSession.ts (tab, filters, selectedKey; rows paired-whole-then-filtered, counts/environments of the whole timeline, selection; select/replay/setTab/setFilters/setTimeline, no-op commands publish nothing); 21 model tests; Stryker DockSession 100 (53/53)"
+last_activity_desc: "15-03 complete: DevtoolsDock is a view of an owned DockSession (useDockSession.ts, package-private); no useState in the dock; TABS typed against TabId; setTimeline from a layout effect; BDD scenario replays the same row twice and sees it re-seed (fails with seed)"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 5
   total_plans: 59
-  completed_plans: 37
-  percent: 63
+  completed_plans: 38
+  percent: 64
 current_phase: 15
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 15 of 20 (Dock session)
-Plan: 2 of 4 in Phase 15 (15-02 complete); next is 15-03
+Plan: 3 of 4 in Phase 15 (15-03 complete); next is 15-04
 Status: Phase 15 in progress (phase_base e9d1104)
-Last activity: 2026-11-10 -- 15-02 complete: headless `DockSession.ts` (package-private) owns the dock's tab, filters and selected key and derives rows (whole timeline paired, then filtered), counts and environments (whole timeline) and selection; `replay` commands an injected `{ replay }` every call; 21 model tests, no rendering; Stryker DockSession 100 (53/53, 0 NoCoverage); devtools 1110/1110
+Last activity: 2026-11-10 -- 15-03 complete: `DevtoolsDock` reads and dispatches to an owned `DockSession` (`useOwnedDockSession`/`useDockSnapshot`, package-private); its tab/filters/selectedKey `useState`s and rows/counts/environments/selection memos are gone; BDD "Replaying the same row again re-seeds the question" (red with `seed`); devtools 1110/1110, features 20/20
 
 ## Performance Metrics
 

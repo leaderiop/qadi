@@ -171,7 +171,7 @@ Plans:
 Plans:
 - [x] 15-01 (W1): Fix the replay-same-row defect at its root: replaying is a command on the simulation session, not a prop React may skip.
 - [x] 15-02 (W2): Build the headless dock session: the dock's tab, filters, selection and the readings derived from them, as a store a test can drive without React (D-02).
-- [ ] 15-03 (W3): Make `DevtoolsDock` a view of the dock session: no React state for tab, filters, selection or replay
+- [x] 15-03 (W3): Make `DevtoolsDock` a view of the dock session: no React state for tab, filters, selection or replay
 - [ ] 15-04 (W4): Write Phase 15's records and close the phase green: the ADR-QD-047 amendment, BEH-QD-389/390, INV-QD-107's sources, traceability, CCR-QD-405, the changeset, a…
 
 ### Phase 16: One role-graph walk
@@ -261,7 +261,7 @@ Plans:
 | 12. Lost-wave integrity | 5/5 | Complete | 2026-11-10 |
 | 13. Lost-wave gaps | 13/13 | Complete | 2026-11-10 |
 | 14. Audit sink deadline | 7/7 | Complete | 2026-11-10 |
-| 15. Dock session | 2/4 | In progress | - |
+| 15. Dock session | 3/4 | In progress | - |
 | 16. One role-graph walk | 0/4 | Planned | - |
 | 17. Injective request key | 0/6 | Planned | - |
 | 18. Devtools HTTP surface | 0/3 | Planned | - |
