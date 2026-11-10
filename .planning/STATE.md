@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 18-01-PLAN.md
+stopped_at: Completed 18-02-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "18-01 complete: devtoolsPath address rule, prefix on every devtools route constructor, devtoolsRoutes (D-02 option-b)"
+last_activity_desc: "18-02 complete: acceptance reader under a prefix through devtoolsPath (SURF-02); both examples on the address rule (SURF-04)"
 state_head: 856a092ab1da5af22c7dbf7a6044fa32cf55eeeb
 progress:
   total_phases: 11
   completed_phases: 8
   total_plans: 59
-  completed_plans: 50
-  percent: 85
+  completed_plans: 51
+  percent: 86
 current_phase: 18
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 18 of 20 (Devtools HTTP surface)
-Plan: 1 of 3 in Phase 18 (18-01 complete); next is 18-02
+Plan: 2 of 3 in Phase 18 (18-02 complete); next is 18-03
 Status: In progress (phase_base d4d9897)
-Last activity: 2026-11-10 -- 18-01 complete: DevtoolsRouteAddress.ts (devtoolsPath, DevtoolsRoute, DevtoolsRouteOptions), DecisionBacklogOptions, a prefix on the stream, backlog and both registry constructors, devtoolsRoutes/DevtoolsRoutesOptions; overview 1.88; touched files at 100% mutation
+Last activity: 2026-11-10 -- 18-02 complete: "A reader follows the host's prefix" acceptance scenario through devtoolsRoutes, the platform SSE parser and sourceFromEventSource; the Dock URL from devtoolsPath; nextjs-newsroom on one devtoolsRoutes call with its /api rewrite kept and re-documented; http-advanced under /devtools
 
 ## Performance Metrics
 
