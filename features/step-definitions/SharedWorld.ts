@@ -101,6 +101,8 @@ export interface WorldState {
    * scenario captures a signature.
    */
   readonly signatureLedger: SignatureLedgerShape | undefined;
+  /** Whether the last signature discharge was refused by the handler. */
+  readonly signatureDischargeRefused: boolean;
   /** Whether the effect behind `enforce` was started. */
   readonly workRan: boolean;
   /** Past events. Undefined means unwired. */
@@ -174,6 +176,7 @@ export const initialWorldState: WorldState = {
   discharged: [],
   dischargedFor: [],
   signatureLedger: undefined,
+  signatureDischargeRefused: false,
   workRan: false,
   events: undefined,
   customPredicates: undefined,
