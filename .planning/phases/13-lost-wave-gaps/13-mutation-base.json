@@ -15,5 +15,19 @@
  "packages/audit/src/CircuitBreaker.ts": 0.8051282051282052,
  "packages/audit/src/AuditWriteReport.ts": 0.9659090909090909,
  "packages/predicate-sql/src/index.ts": 0.9558823529411765,
- "packages/predicate-prisma/src/index.ts": 0.9236641221374046
+ "packages/predicate-prisma/src/index.ts": 0.9236641221374046,
+ "packages/core/src/DecisionRecord.ts": 1,
+ "packages/core/src/SinkEmit.ts": 1,
+ "packages/core/src/PortMetrics.ts": 1,
+ "packages/core/src/Errors.ts": 1,
+ "packages/core/src/Role.ts": 0.9299363057324841,
+ "packages/core/src/PortRemote.ts": 0.8241758241758241,
+ "packages/core/src/PortDescription.ts": 1,
+ "packages/core/src/PortWire.ts": 0.8,
+ "packages/core/src/TreeFold.ts": 1,
+ "packages/http/src/DecisionStreamRoute.ts": 1,
+ "packages/http/src/DecisionBacklogRoute.ts": 1,
+ "packages/devtools/src/model/SimulationForm.ts": 0.9743150684931506,
+ "packages/devtools/src/model/Inspect.ts": 1,
+ "packages/devtools/src/model/Verdict.ts": 1
 }
