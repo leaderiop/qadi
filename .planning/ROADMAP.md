@@ -124,7 +124,7 @@ Plans:
 
 Plans:
 - [x] 13-01 (W1): Port the one live part of lost ARCH-47 (`b0b9363`, its C3 defect, tasks T3/T4) onto current `main`: a `publicEndpoint` handler's own `guard` denial is logged exactly…
-- [ ] 13-02 (W1): Fix the two live defects of lost ARCH-48 (`950977f`, its T1 and T2), test-first, on current `main`: the simulation sweep cannot drop a signature (`DropSignature` is…
+- [x] 13-02 (W1): Fix the two live defects of lost ARCH-48 (`950977f`, its T1 and T2), test-first, on current `main`: the simulation sweep cannot drop a signature (`DropSignature` is…
 - [ ] 13-03 (W2): Port the deepening of lost ARCH-48 (`950977f`, its T3–T8) onto current `main`: one closed field table from which the sweep, the remedies' grants, the rename, the…
 - [ ] 13-04 (W3): Finish the lost ARCH-48 port (`950977f`, T9–T12) on current `main`: the session gains chip commands and a `fields` view derived from the table, the Simulator renders… ⛳ checkpoint
 - [ ] 13-05 (W1): Port the core half of lost ARCH-56 (`d089c1d`, T2–T4 and T7) onto current `main`: one exported `EvaluationMetrics` module the core writers write through, and typed…
@@ -259,7 +259,7 @@ Plans:
 | 10. Planning reconciliation | 3/3 | Complete | 2026-11-10 |
 | 11. Lost-wave security | 7/7 | Complete | 2026-11-10 |
 | 12. Lost-wave integrity | 5/5 | Complete | 2026-11-10 |
-| 13. Lost-wave gaps | 1/13 | In progress | - |
+| 13. Lost-wave gaps | 2/13 | In progress | - |
 | 14. Audit sink deadline | 0/7 | Planned | - |
 | 15. Dock session | 0/4 | Planned | - |
 | 16. One role-graph walk | 0/4 | Planned | - |

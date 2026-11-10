@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 13-01-PLAN.md
+stopped_at: Completed 13-02-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "13-01 complete: enforcePublic, the public mode of the request-enforcement module; a publicEndpoint handler denial is logged once; BEH-QD-359, ADR-QD-108 addendum; phase base 0925c2f and 13-mutation-base.json recorded"
+last_activity_desc: "13-02 complete: EditKind gains DropSignature/AddSignature; the sweep drops signatures; remedyFor is a Match.type matcher with an AddSignature remedy and a named hasCustom skip; core resourceIdOf (O5)"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 59
-  completed_plans: 16
-  percent: 27
+  completed_plans: 17
+  percent: 29
 current_phase: 13
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 13 of 20 (Lost-wave gaps)
-Plan: 1 of 13 complete (13-01); next is 13-02
+Plan: 2 of 13 complete (13-01, 13-02); next is 13-03
 Status: Phase 13 in progress (phase_base 0925c2f)
-Last activity: 2026-11-10 -- 13-01 complete: a `publicEndpoint` runs through `enforcePublic` (AuthorizeRequest.ts), so its handler-raised denial is logged once as "handler" and its failures are projected by `answerInChannel`; enforcement matrix gains a publicEndpoint row; BEH-QD-359, BEH-QD-321/335 amended, ADR-QD-108 Rev 1.2; pending `request-enforced-once` changeset amended; `spec:verify` red on CCR-QD-399 until 13-11; BEH-QD-360..362 and ADR-QD-121 unused
+Last activity: 2026-11-10 -- 13-02 complete: `EditKind` gains `DropSignature`/`AddSignature`; `singleEdits` drops each signature fixture; `remedyFor` is a module-scope `Match.type` matcher (AddSignature from the node; named `hasCustom` skip, BEH-QD-222); `Remedies.ts` uses core `resourceIdOf` (O5); Edits/Remedies/SimulationEdit mutation 1.0; spec/changeset left to 13-04, registers to 13-11; `spec:verify` still red on CCR-QD-399 until 13-11
 
 ## Performance Metrics
 
