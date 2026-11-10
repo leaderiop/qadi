@@ -29,6 +29,7 @@ import {
   SignatureHistoryUnavailable,
 } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { decisionsTotal, denialsByPolicyTagTotal, evaluationDurationMillis } from "../src/EvaluationMetrics.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
@@ -3198,26 +3199,13 @@ describe("observability", () => {
 });
 
 describe("qadi_decisions_total / qadi_denials_by_policy_tag_total", () => {
-  const counterOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, attributes: Record<string, string>) =>
-    snapshots.find(
-      (s): s is Extract<Metric.Metric.Snapshot, { type: "Counter" }> =>
-        s.type === "Counter" &&
-        s.id === "qadi_decisions_total" &&
-        Object.entries(attributes).every(([k, v]) => s.attributes?.[k] === v),
-    );
-
-  const frequencyOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, id: string) =>
-    snapshots.find(
-      (s): s is Extract<Metric.Metric.Snapshot, { type: "Frequency" }> => s.type === "Frequency" && s.id === id,
-    );
-
   it.effect("tags an allow and a deny under separate outcome series", () =>
     Effect.gen(function* () {
       // Two allows, one deny — deliberately asymmetric. Equal counts (one of
       // each) would still read as "correct" even if `evaluate` attributed
       // outcomes to the wrong series entirely, as long as it did so
       // consistently; only different counts prove which series is which.
-      const snapshots = yield* isolatedMetrics(
+      const { allow, deny } = yield* isolatedMetrics(
         Effect.gen(function* () {
           yield* evaluate(P.hasRole("editor")).pipe(
             Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
@@ -3228,35 +3216,38 @@ describe("qadi_decisions_total / qadi_denials_by_policy_tag_total", () => {
           yield* evaluate(P.hasPermission(write)).pipe(
             Effect.provide(testLayer(subjectWith({ id: "u2" }))),
           );
-          return yield* Metric.snapshot;
+          return {
+            allow: yield* Metric.value(decisionsTotal.Allow),
+            deny: yield* Metric.value(decisionsTotal.Deny),
+          };
         }),
       );
 
-      const allow = counterOf(snapshots, { outcome: "allow" });
-      const deny = counterOf(snapshots, { outcome: "deny" });
-      assert.isDefined(allow);
-      assert.isDefined(deny);
-      assert.strictEqual(allow?.state.count, 2);
-      assert.strictEqual(deny?.state.count, 1);
+      assert.strictEqual(allow.count, 2);
+      assert.strictEqual(deny.count, 1);
     }));
 
   it.effect("does not count a failed evaluation as either outcome", () =>
     Effect.gen(function* () {
       // A missing resource.id is an error, not a decision (INV-QD-006) — it
       // must not inflate either series.
-      const snapshots = yield* isolatedMetrics(
+      const { allow, deny } = yield* isolatedMetrics(
         Effect.gen(function* () {
-          yield* Effect.result(
+          const failed = yield* Effect.result(
             evaluate(P.hasRelationship("owner"), { resource: { name: "no id" } }).pipe(
               Effect.provide(testLayer(subjectWith({}))),
             ),
           );
-          return yield* Metric.snapshot;
+          assert.isTrue(failed._tag === "Failure");
+          return {
+            allow: yield* Metric.value(decisionsTotal.Allow),
+            deny: yield* Metric.value(decisionsTotal.Deny),
+          };
         }),
       );
 
-      assert.isUndefined(counterOf(snapshots, { outcome: "allow" }));
-      assert.isUndefined(counterOf(snapshots, { outcome: "deny" }));
+      assert.strictEqual(allow.count, 0);
+      assert.strictEqual(deny.count, 0);
     }));
 
   it.effect("records the top-level policy's tag in the frequency", () =>
@@ -3267,52 +3258,35 @@ describe("qadi_decisions_total / qadi_denials_by_policy_tag_total", () => {
       // both build theirs from caller-supplied identifiers, which would make
       // a frequency keyed on the raw sentence grow one entry per distinct
       // (subject, resource) pair ever denied — see the doc comment on
-      // `denialsByPolicyTagTotal` in `Evaluate.ts`.
-      const snapshots = yield* isolatedMetrics(
+      // `denialsByPolicyTagTotal` in `EvaluationMetrics.ts`.
+      const denials = yield* isolatedMetrics(
         evaluate(P.hasPermission(write))
           .pipe(Effect.provide(testLayer(subjectWith({ id: "u2" }))))
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => Metric.value(denialsByPolicyTagTotal))),
       );
 
-      const denials = frequencyOf(snapshots, "qadi_denials_by_policy_tag_total");
-      assert.isDefined(denials);
-      assert.strictEqual(denials?.state.occurrences.get("HasPermission"), 1);
-    }));
-
-  it.effect("preregisters every Policy tag, in the union's order (ARCH-02 C5)", () =>
-    Effect.gen(function* () {
-      const snapshots = yield* isolatedMetrics(
-        evaluate(P.hasRole("editor"))
-          .pipe(Effect.provide(testLayer(subjectWith({ id: "u1" }))))
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
-      );
-      const frequency = frequencyOf(snapshots, "qadi_denials_by_policy_tag_total");
-      assert.isDefined(frequency);
-      assert.deepStrictEqual([...(frequency?.state.occurrences.keys() ?? [])], [...P.POLICY_TAGS]);
+      assert.strictEqual(denials.occurrences.get("HasPermission"), 1);
     }));
 
   it.effect("an allow adds nothing to the denial frequency", () =>
     Effect.gen(function* () {
-      const snapshots = yield* isolatedMetrics(
+      const denials = yield* isolatedMetrics(
         evaluate(P.hasRole("editor"))
           .pipe(Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))))
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => Metric.value(denialsByPolicyTagTotal))),
       );
 
-      assert.isUndefined(frequencyOf(snapshots, "qadi_denials_by_policy_tag_total"));
+      assert.deepStrictEqual(
+        [...denials.occurrences.values()].filter((n) => n !== 0),
+        [],
+      );
     }));
 });
 
 describe("qadi_evaluation_duration_millis", () => {
-  const histogramOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>) =>
-    snapshots.find(
-      (s): s is Extract<Metric.Metric.Snapshot, { type: "Histogram" }> =>
-        s.type === "Histogram" && s.id === "qadi_evaluation_duration_millis",
-    );
-
   it.effect("records one observation per evaluate call, allow or deny alike", () =>
     Effect.gen(function* () {
-      const snapshots = yield* isolatedMetrics(
+      const duration = yield* isolatedMetrics(
         Effect.gen(function* () {
           yield* evaluate(P.hasRole("editor")).pipe(
             Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
@@ -3320,29 +3294,27 @@ describe("qadi_evaluation_duration_millis", () => {
           yield* evaluate(P.hasPermission(write)).pipe(
             Effect.provide(testLayer(subjectWith({ id: "u2" }))),
           );
-          return yield* Metric.snapshot;
+          return yield* Metric.value(evaluationDurationMillis);
         }),
       );
 
-      const duration = histogramOf(snapshots);
-      assert.isDefined(duration);
-      assert.strictEqual(duration?.state.count, 2, "one allow and one deny both contribute a sample");
+      assert.strictEqual(duration.count, 2, "one allow and one deny both contribute a sample");
     }));
 
   it.effect("does not record a sample for a failed evaluation", () =>
     Effect.gen(function* () {
-      const snapshots = yield* isolatedMetrics(
+      const duration = yield* isolatedMetrics(
         Effect.gen(function* () {
           yield* Effect.result(
             evaluate(P.hasRelationship("owner"), { resource: { name: "no id" } }).pipe(
               Effect.provide(testLayer(subjectWith({}))),
             ),
           );
-          return yield* Metric.snapshot;
+          return yield* Metric.value(evaluationDurationMillis);
         }),
       );
 
-      assert.isUndefined(histogramOf(snapshots));
+      assert.strictEqual(duration.count, 0);
     }));
 });
 

@@ -15,6 +15,7 @@ import type { Trace } from "../src/Decision.ts";
 import { questionOf } from "../src/Question.ts";
 import { AttributeResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { decisionCacheLookupsTotal } from "../src/EvaluationMetrics.ts";
 import { makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
@@ -1168,19 +1169,13 @@ describe("DecisionCache", () => {
   });
 
   describe("qadi_decision_cache_lookups_total", () => {
-    const frequencyOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>) =>
-      snapshots.find(
-        (s): s is Extract<Metric.Metric.Snapshot, { type: "Frequency" }> =>
-          s.type === "Frequency" && s.id === "qadi_decision_cache_lookups_total",
-      );
-
     it.effect("counts a miss, then a hit, under separate outcomes", () =>
       Effect.gen(function* () {
-        const snapshots = yield* isolatedMetrics(
+        const lookups = yield* isolatedMetrics(
           Effect.gen(function* () {
             yield* evaluate(needsLookup);
             yield* evaluate(needsLookup);
-            return yield* Metric.snapshot;
+            return yield* Metric.value(decisionCacheLookupsTotal);
           }).pipe(
             Effect.provide(
               Layer.mergeAll(
@@ -1191,14 +1186,12 @@ describe("DecisionCache", () => {
           ),
         );
 
-        const lookups = frequencyOf(snapshots);
-        assert.isDefined(lookups);
-        assert.strictEqual(lookups?.state.occurrences.get("miss"), 1);
-        assert.strictEqual(lookups?.state.occurrences.get("hit"), 1);
+        assert.strictEqual(lookups.occurrences.get("miss"), 1);
+        assert.strictEqual(lookups.occurrences.get("hit"), 1);
         // Not "undefined" — `preregisteredWords` puts every outcome in the
         // snapshot at zero once the metric is touched at all, `coalesced`
         // included, rather than letting it stay a silently missing word.
-        assert.strictEqual(lookups?.state.occurrences.get("coalesced"), 0);
+        assert.strictEqual(lookups.occurrences.get("coalesced"), 0);
       }));
 
     it.effect("counts a coalesced join separately from the claiming miss", () =>
@@ -1213,14 +1206,14 @@ describe("DecisionCache", () => {
             ),
         });
 
-        const snapshots = yield* isolatedMetrics(
+        const lookups = yield* isolatedMetrics(
           Effect.gen(function* () {
             const fibers = yield* forkAllAndSettle(
               Array.from({ length: 2 }, () => evaluate(needsLookup)),
             );
             yield* Deferred.succeed(gate, undefined);
             yield* Effect.forEach(fibers, Fiber.join);
-            return yield* Metric.snapshot;
+            return yield* Metric.value(decisionCacheLookupsTotal);
           }).pipe(
             Effect.provide(
               Layer.mergeAll(
@@ -1231,10 +1224,8 @@ describe("DecisionCache", () => {
           ),
         );
 
-        const lookups = frequencyOf(snapshots);
-        assert.isDefined(lookups);
-        assert.strictEqual(lookups?.state.occurrences.get("miss"), 1);
-        assert.strictEqual(lookups?.state.occurrences.get("coalesced"), 1);
+        assert.strictEqual(lookups.occurrences.get("miss"), 1);
+        assert.strictEqual(lookups.occurrences.get("coalesced"), 1);
       }));
   });
 

@@ -10,6 +10,7 @@ import { ObligationRecord } from "../src/DecisionRecord.ts";
 import type { DecisionRecord, ObligationOutcome, SinkRecord } from "../src/DecisionRecord.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { decisionsTotal, evaluationErrorsTotal } from "../src/EvaluationMetrics.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import { obligation } from "../src/Obligation.ts";
 import { decide, enforce } from "../src/Qadi.ts";
@@ -162,38 +163,33 @@ describe("DecisionSink — failures are observable", () => {
       Effect.provide(testLayer(subjectWith({}), { AttributeResolver: brokenAttributes })),
     ));
 
-  const frequencyOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, id: string) =>
-    snapshots.find(
-      (s): s is Extract<Metric.Metric.Snapshot, { type: "Frequency" }> =>
-        s.type === "Frequency" && s.id === id,
-    );
-
   it.effect("a failure increments qadi_evaluation_errors_total by tag", () =>
     Effect.gen(function* () {
-      const snapshots = yield* isolatedMetrics(
+      const errors = yield* isolatedMetrics(
         Effect.result(evaluate(P.hasAttribute("clearance", M.gte(3))))
           .pipe(
             Effect.provide(
               testLayer(subjectWith({}), { AttributeResolver: brokenAttributes }),
             ),
           )
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => Metric.value(evaluationErrorsTotal))),
       );
 
-      const errors = frequencyOf(snapshots, "qadi_evaluation_errors_total");
-      assert.isDefined(errors);
-      assert.strictEqual(errors?.state.occurrences.get("AttributeResolveError"), 1);
+      assert.strictEqual(errors.occurrences.get("AttributeResolveError"), 1);
     }));
 
   it.effect("a successful evaluation adds nothing to the error frequency", () =>
     Effect.gen(function* () {
-      const snapshots = yield* isolatedMetrics(
+      const errors = yield* isolatedMetrics(
         evaluate(P.hasPermission(read))
           .pipe(Effect.provide(testLayer(allowed)))
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => Metric.value(evaluationErrorsTotal))),
       );
 
-      assert.isUndefined(frequencyOf(snapshots, "qadi_evaluation_errors_total"));
+      assert.deepStrictEqual(
+        [...errors.occurrences.values()].filter((n) => n !== 0),
+        [],
+      );
     }));
 });
 
@@ -205,34 +201,19 @@ describe("DecisionSink — record ordering", () => {
   // correct one in every other test in this file, since none of them read a
   // metric from inside the sink itself.
   //
-  // Proven by reading `Metric.snapshot` *from inside the sink's own `record`
-  // effect*: both run in the same fiber, under the same `isolatedMetrics`
-  // registry, so a snapshot taken there sees exactly the counter state that
+  // Proven by reading the counter (`Metric.value`) *from inside the sink's own
+  // `record` effect*: both run in the same fiber, under the same `isolatedMetrics`
+  // registry, so a read taken there sees exactly the counter state that
   // existed at the moment the sink was invoked — a direct read of "did the
   // metric update happen-before this", not an inference from timing.
-  const counterOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, attributes: Record<string, string>) =>
-    snapshots.find(
-      (s): s is Extract<Metric.Metric.Snapshot, { type: "Counter" }> =>
-        s.type === "Counter" &&
-        s.id === "qadi_decisions_total" &&
-        Object.entries(attributes).every(([k, v]) => s.attributes?.[k] === v),
-    );
-
-  const errorFrequencyOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>) =>
-    snapshots.find(
-      (s): s is Extract<Metric.Metric.Snapshot, { type: "Frequency" }> =>
-        s.type === "Frequency" && s.id === "qadi_evaluation_errors_total",
-    );
-
   it.effect("an allow's own counter is already incremented by the time the sink observes it", () =>
     Effect.gen(function* () {
       const countsAtRecordTime: Array<number | undefined> = [];
       const sink = Layer.succeed(DecisionSink, {
         record: (record) =>
           record._tag === "Decision" && record.outcome._tag === "Decided"
-            ? Effect.map(Metric.snapshot, (snapshots) => {
-                const count = counterOf(snapshots, { outcome: "allow" })?.state.count;
-                countsAtRecordTime.push(count === undefined ? undefined : Number(count));
+            ? Effect.map(Metric.value(decisionsTotal.Allow), (allow) => {
+                countsAtRecordTime.push(allow.count);
               })
             : Effect.void,
       });
@@ -253,9 +234,8 @@ describe("DecisionSink — record ordering", () => {
       const sink = Layer.succeed(DecisionSink, {
         record: (record) =>
           record._tag === "Decision" && record.outcome._tag === "Decided"
-            ? Effect.map(Metric.snapshot, (snapshots) => {
-                const count = counterOf(snapshots, { outcome: "deny" })?.state.count;
-                countsAtRecordTime.push(count === undefined ? undefined : Number(count));
+            ? Effect.map(Metric.value(decisionsTotal.Deny), (deny) => {
+                countsAtRecordTime.push(deny.count);
               })
             : Effect.void,
       });
@@ -277,10 +257,8 @@ describe("DecisionSink — record ordering", () => {
         const sink = Layer.succeed(DecisionSink, {
           record: (record) =>
             record._tag === "Decision" && record.outcome._tag === "Failed"
-              ? Effect.map(Metric.snapshot, (snapshots) => {
-                  countsAtRecordTime.push(
-                    errorFrequencyOf(snapshots)?.state.occurrences.get("AttributeResolveError"),
-                  );
+              ? Effect.map(Metric.value(evaluationErrorsTotal), (errors) => {
+                  countsAtRecordTime.push(errors.occurrences.get("AttributeResolveError"));
                 })
               : Effect.void,
         });
@@ -304,11 +282,13 @@ describe("DecisionSink — record ordering", () => {
           record: (record) => {
             if (record._tag !== "Decision" || record.outcome._tag !== "Decided") return Effect.void;
             const { decision } = record.outcome;
-            return Effect.map(Metric.snapshot, (snapshots) => {
-              const outcome = isAllowed(decision) ? "allow" : "deny";
-              const count = counterOf(snapshots, { outcome })?.state.count ?? 0;
-              seen.push({ outcome, counted: count >= 1 });
-            });
+            const outcome = isAllowed(decision) ? "allow" : "deny";
+            return Effect.map(
+              Metric.value(isAllowed(decision) ? decisionsTotal.Allow : decisionsTotal.Deny),
+              ({ count }) => {
+                seen.push({ outcome, counted: count >= 1 });
+              },
+            );
           },
         });
 

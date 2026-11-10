@@ -92,13 +92,22 @@ describe("a port says which implementation it is", () => {
     ));
 });
 
-describe("port activity is counted", () => {
-  const frequencyOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, id: string) =>
-    snapshots.find(
-      (s): s is Extract<Metric.Metric.Snapshot, { type: "Frequency" }> =>
-        s.type === "Frequency" && s.id === id,
-    );
+/**
+ * The four port frequencies a test reads after a run, read through their exports
+ * (ADR-QD-123) rather than matched by id in a snapshot.
+ */
+const portMetrics = Effect.all({
+  calls: Metric.value(portCallsTotal),
+  retries: Metric.value(portRetriesTotal),
+  timeouts: Metric.value(portTimeoutsTotal),
+  predicateCalls: Metric.value(predicatePortCallsTotal),
+});
 
+/** The words a frequency has actually counted; preregistered words sit at zero. */
+const nonZero = (frequency: { readonly occurrences: ReadonlyMap<string, number> }) =>
+  [...frequency.occurrences].filter(([, count]) => count !== 0);
+
+describe("port activity is counted", () => {
   it.effect("an attribute lookup counts against AttributeResolver", () =>
     Effect.gen(function* () {
       const snapshots = yield* isolatedMetrics(
@@ -110,11 +119,11 @@ describe("port activity is counted", () => {
               }),
             ),
           )
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => portMetrics)),
       );
 
-      const calls = frequencyOf(snapshots, "qadi_port_calls_total");
-      assert.strictEqual(calls?.state.occurrences.get("AttributeResolver"), 1);
+      const calls = snapshots.calls;
+      assert.strictEqual(calls.occurrences.get("AttributeResolver"), 1);
     }));
 
   it.effect("an attribute already on the subject counts nothing", () =>
@@ -126,10 +135,10 @@ describe("port activity is counted", () => {
       const snapshots = yield* isolatedMetrics(
         evaluate(P.hasAttribute("clearance", M.gte(1)))
           .pipe(Effect.provide(testLayer(subjectWith({ attributes: { clearance: 5 } }))))
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => portMetrics)),
       );
 
-      assert.isUndefined(frequencyOf(snapshots, "qadi_port_calls_total"));
+      assert.deepStrictEqual(nonZero(snapshots.calls), []);
     }));
 
   it.effect("a relationship check counts against RelationshipResolver", () =>
@@ -137,11 +146,11 @@ describe("port activity is counted", () => {
       const snapshots = yield* isolatedMetrics(
         evaluate(P.hasRelationship("owner"), { resource: { id: "doc-1" } })
           .pipe(Effect.provide(testLayer(subjectWith({}))))
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => portMetrics)),
       );
 
-      const calls = frequencyOf(snapshots, "qadi_port_calls_total");
-      assert.strictEqual(calls?.state.occurrences.get("RelationshipResolver"), 1);
+      const calls = snapshots.calls;
+      assert.strictEqual(calls.occurrences.get("RelationshipResolver"), 1);
     }));
 
   it.effect("a history query counts against DecisionHistory", () =>
@@ -151,11 +160,11 @@ describe("port activity is counted", () => {
           resource: { id: "doc-1" },
         })
           .pipe(Effect.provide(testLayer(subjectWith({}))))
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => portMetrics)),
       );
 
-      const calls = frequencyOf(snapshots, "qadi_port_calls_total");
-      assert.strictEqual(calls?.state.occurrences.get("DecisionHistory"), 1);
+      const calls = snapshots.calls;
+      assert.strictEqual(calls.occurrences.get("DecisionHistory"), 1);
     }));
 
   it.effect("a custom predicate counts against CustomPredicate", () =>
@@ -171,11 +180,11 @@ describe("port activity is counted", () => {
               }),
             ),
           )
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => portMetrics)),
       );
 
-      const calls = frequencyOf(snapshots, "qadi_port_calls_total");
-      assert.strictEqual(calls?.state.occurrences.get("CustomPredicate"), 1);
+      const calls = snapshots.calls;
+      assert.strictEqual(calls.occurrences.get("CustomPredicate"), 1);
     }));
 
   it.effect("a signature lookup counts against SignatureHistory", () =>
@@ -183,11 +192,11 @@ describe("port activity is counted", () => {
       const snapshots = yield* isolatedMetrics(
         evaluate(P.hasSignature("approved"), { resource: { id: "doc-1" } })
           .pipe(Effect.provide(testLayer(subjectWith({}))))
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => portMetrics)),
       );
 
-      const calls = frequencyOf(snapshots, "qadi_port_calls_total");
-      assert.strictEqual(calls?.state.occurrences.get("SignatureHistory"), 1);
+      const calls = snapshots.calls;
+      assert.strictEqual(calls.occurrences.get("SignatureHistory"), 1);
     }));
 
   it.effect("a retried relationship check counts under its own port key", () =>
@@ -210,11 +219,11 @@ describe("port activity is counted", () => {
               }),
             ),
           )
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => portMetrics)),
       );
 
-      const retries = frequencyOf(snapshots, "qadi_port_retries_total");
-      assert.strictEqual(retries?.state.occurrences.get("RelationshipResolver"), 1);
+      const retries = snapshots.retries;
+      assert.strictEqual(retries.occurrences.get("RelationshipResolver"), 1);
       // Not "undefined" — `preregisteredWords` puts every port in the
       // snapshot at zero once the metric is touched at all, rather than
       // letting an untouched one stay a silently missing word. All five, now
@@ -225,7 +234,7 @@ describe("port activity is counted", () => {
         "CustomPredicate",
         "SignatureHistory",
       ]) {
-        assert.strictEqual(retries?.state.occurrences.get(port), 0, port);
+        assert.strictEqual(retries.occurrences.get(port), 0, port);
       }
     }));
 
@@ -233,18 +242,18 @@ describe("port activity is counted", () => {
     Effect.gen(function* () {
       const snapshots = yield* isolatedMetrics(
         Metric.update(portTimeoutsTotal, "SignatureHistory").pipe(
-          Effect.flatMap(() => Metric.snapshot),
+          Effect.flatMap(() => portMetrics),
         ),
       );
-      const timeouts = frequencyOf(snapshots, "qadi_port_timeouts_total");
-      assert.strictEqual(timeouts?.state.occurrences.get("SignatureHistory"), 1);
+      const timeouts = snapshots.timeouts;
+      assert.strictEqual(timeouts.occurrences.get("SignatureHistory"), 1);
       for (const port of [
         "AttributeResolver",
         "DecisionHistory",
         "RelationshipResolver",
         "CustomPredicate",
       ]) {
-        assert.strictEqual(timeouts?.state.occurrences.get(port), 0, port);
+        assert.strictEqual(timeouts.occurrences.get(port), 0, port);
       }
     }));
 
@@ -268,16 +277,16 @@ describe("port activity is counted", () => {
               }),
             ),
           )
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => portMetrics)),
       );
 
       // Two attempts failed before the third succeeded. Paired with one entry in
       // `qadi_port_calls_total`, that is a store degrading rather than failing —
       // the reading neither number gives alone.
-      const retries = frequencyOf(snapshots, "qadi_port_retries_total");
-      assert.strictEqual(retries?.state.occurrences.get("AttributeResolver"), 2);
-      const calls = frequencyOf(snapshots, "qadi_port_calls_total");
-      assert.strictEqual(calls?.state.occurrences.get("AttributeResolver"), 1);
+      const retries = snapshots.retries;
+      assert.strictEqual(retries.occurrences.get("AttributeResolver"), 2);
+      const calls = snapshots.calls;
+      assert.strictEqual(calls.occurrences.get("AttributeResolver"), 1);
     }));
 });
 
@@ -287,12 +296,6 @@ describe("port activity is counted", () => {
  * meaning and its registry key (ADR-QD-052).
  */
 describe("translation's port activity is counted separately", () => {
-  const frequencyOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, id: string) =>
-    snapshots.find(
-      (s): s is Extract<Metric.Metric.Snapshot, { type: "Frequency" }> =>
-        s.type === "Frequency" && s.id === id,
-    );
-
   it.effect("an attribute lookup and a history query count against their ports", () =>
     Effect.gen(function* () {
       const snapshots = yield* isolatedMetrics(
@@ -306,14 +309,14 @@ describe("translation's port activity is counted separately", () => {
               }),
             ),
           )
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => portMetrics)),
       );
 
-      const calls = frequencyOf(snapshots, "qadi_predicate_port_calls_total");
-      assert.strictEqual(calls?.state.occurrences.get("AttributeResolver"), 1);
-      assert.strictEqual(calls?.state.occurrences.get("DecisionHistory"), 1);
+      const calls = snapshots.predicateCalls;
+      assert.strictEqual(calls.occurrences.get("AttributeResolver"), 1);
+      assert.strictEqual(calls.occurrences.get("DecisionHistory"), 1);
       // The evaluator's series is not touched by a translation.
-      assert.isUndefined(frequencyOf(snapshots, "qadi_port_calls_total"));
+      assert.deepStrictEqual(nonZero(snapshots.calls), []);
     }));
 
   it.effect("both ports are preregistered, so an untouched one reads zero", () =>
@@ -327,12 +330,12 @@ describe("translation's port activity is counted separately", () => {
               }),
             ),
           )
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => portMetrics)),
       );
 
-      const calls = frequencyOf(snapshots, "qadi_predicate_port_calls_total");
-      assert.strictEqual(calls?.state.occurrences.get("AttributeResolver"), 1);
-      assert.strictEqual(calls?.state.occurrences.get("DecisionHistory"), 0);
+      const calls = snapshots.predicateCalls;
+      assert.strictEqual(calls.occurrences.get("AttributeResolver"), 1);
+      assert.strictEqual(calls.occurrences.get("DecisionHistory"), 0);
     }));
 
   it.effect("an attribute already on the subject counts nothing in either series", () =>
@@ -340,11 +343,11 @@ describe("translation's port activity is counted separately", () => {
       const snapshots = yield* isolatedMetrics(
         toPredicate(P.hasAttribute("clearance", M.gte(1)))
           .pipe(Effect.provide(testLayer(subjectWith({ attributes: { clearance: 5 } }))))
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => portMetrics)),
       );
 
-      assert.isUndefined(frequencyOf(snapshots, "qadi_predicate_port_calls_total"));
-      assert.isUndefined(frequencyOf(snapshots, "qadi_port_calls_total"));
+      assert.deepStrictEqual(nonZero(snapshots.predicateCalls), []);
+      assert.deepStrictEqual(nonZero(snapshots.calls), []);
     }));
 
   it.effect("an evaluation does not count in the translation series", () =>
@@ -358,12 +361,12 @@ describe("translation's port activity is counted separately", () => {
               }),
             ),
           )
-          .pipe(Effect.flatMap(() => Metric.snapshot)),
+          .pipe(Effect.flatMap(() => portMetrics)),
       );
 
-      assert.isUndefined(frequencyOf(snapshots, "qadi_predicate_port_calls_total"));
+      assert.deepStrictEqual(nonZero(snapshots.predicateCalls), []);
       assert.strictEqual(
-        frequencyOf(snapshots, "qadi_port_calls_total")?.state.occurrences.get("AttributeResolver"),
+        snapshots.calls.occurrences.get("AttributeResolver"),
         1,
       );
     }));
