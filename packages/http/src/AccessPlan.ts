@@ -2,7 +2,7 @@
  * What each endpoint of one `HttpApi` value gets, decided once when `guardApi` is built.
  *
  * `planApi` walks the API, refuses every wiring mistake it can see, and returns a closed plan:
- * for each endpoint value it walked, `Required(requirement)` or `Public(declaration)`, plus the
+ * for each endpoint value it walked, `Required(requirement)` or `Public`, plus the
  * registrations that follow from the `Required` ones. `guardApi` registers from the plan and the
  * `RequirePermission` middleware enforces from the same plan, so "listed iff enforced"
  * (INV-QD-180) holds because there is one reading, not because two readers were kept in step.
@@ -30,7 +30,7 @@ import type * as HttpApiGroup from "effect/http-api/HttpApiGroup";
 import type { Permission } from "@qadi/core";
 import type { EndpointDescriptor } from "./PermissionRegistry.ts";
 import { PublicEndpoint, RequiredPermission, RequirePermission } from "./RequirePermission.ts";
-import type { PublicDeclaration, RequiredPermissionShape } from "./RequirePermission.ts";
+import type { RequiredPermissionShape } from "./RequirePermission.ts";
 
 /**
  * An endpoint of a guarded API has no `RequirePermission` middleware attached, so nothing would
@@ -115,7 +115,8 @@ export type ApiGuardRefusal = MisplacedAccessDeclaration | RequirePermissionNotA
  */
 type EndpointAccess = Data.TaggedEnum<{
   Required: { readonly requirement: RequiredPermissionShape };
-  Public: { readonly declaration: PublicDeclaration };
+  // The `reason` is for a reviewer and nothing reads it, so the plan does not carry it.
+  Public: {};
   Undeclared: {};
 }>;
 
@@ -129,8 +130,7 @@ const EndpointAccess = Data.taggedEnum<EndpointAccess>();
 const endpointAccess = (annotations: Context.Context<never>): EndpointAccess => {
   const required = Context.getOption(annotations, RequiredPermission);
   if (Option.isSome(required)) return EndpointAccess.Required({ requirement: required.value });
-  const declared = Context.getOption(annotations, PublicEndpoint);
-  if (Option.isSome(declared)) return EndpointAccess.Public({ declaration: declared.value });
+  if (Option.isSome(Context.getOption(annotations, PublicEndpoint))) return EndpointAccess.Public();
   return EndpointAccess.Undeclared();
 };
 

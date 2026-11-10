@@ -132,9 +132,10 @@ const lookupSubject = (token: string): Effect.Effect<AuthSubject, SubjectExtract
 
 // An endpoint annotated with neither a permission requirement nor a public
 // marker — the wiring mistake that used to serve itself unguarded — is
-// refused instead:
+// refused when the layer is built, naming it, instead:
 //
-//   HttpApiEndpoint.get("forgotten", "/documents/forgotten")  → 500 + log
+//   HttpApiEndpoint.get("forgotten", "/documents/forgotten")  → guardApi refuses to build
+//                                                               (AccessNotDeclared)
 
 const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
   handlers
