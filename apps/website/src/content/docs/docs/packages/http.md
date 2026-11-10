@@ -120,7 +120,8 @@ export const Routes = HttpApiBuilder.layer(Api).pipe(
 `addGuardedRoute` enforces a plain `(request) => Effect<Response, E, R>`
 handler and registers the bare route with the permission registry in the same
 layer — use it in place of a bare `HttpRouter.add` for any route that should be
-guarded and registered.
+guarded and registered. `loadResource` is optional: leave it out and the route
+evaluates against `NO_RESOURCE` and the handler receives a plain `Resource`.
 
 ```ts
 const WriteRoute = addGuardedRoute(
@@ -219,7 +220,7 @@ export const guardApi: <Id extends string, Groups extends HttpApiGroup.Constrain
   MisplacedAccessDeclaration | RequirePermissionNotAttached,
   SubjectExtractor | StandingEvaluationServices | PermissionRegistry
 >;
-export const addGuardedRoute: (...) => ...;
+export const addGuardedRoute: (method, path, permission, policy, loadResource?) => (handler) => Layer<...>; // no loader: NO_RESOURCE
 export const permissionRegistryRoute: (permission: Permission, policy: Policy) => Layer<...>;
 export const permissionRegistryRouteUnguarded: (reason: string) => Layer<...>;
 ```

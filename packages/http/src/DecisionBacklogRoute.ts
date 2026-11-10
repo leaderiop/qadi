@@ -25,7 +25,6 @@ import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type { DecisionLog, Permission, Policy } from "@qadi/core";
 import { jsonElements } from "./DecisionLogHttp.ts";
 import type { DecisionLogServeOptions } from "./DecisionLogHttp.ts";
-import { loadNoResource } from "./NoResource.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
 
 /**
@@ -47,13 +46,7 @@ export const decisionBacklogRoute = <P extends Permission>(
   log: Pick<DecisionLog, "snapshot">,
   options?: DecisionLogServeOptions,
 ) =>
-  addGuardedRoute(
-    "GET",
-    "/__decisions/backlog",
-    permission,
-    policy,
-    loadNoResource,
-  )(() =>
+  addGuardedRoute("GET", "/__decisions/backlog", permission, policy)(() =>
     Effect.gen(function* () {
       const body = yield* jsonElements(yield* log.snapshot, options);
       // `JSON.stringify` cannot throw here: every element passed the codec's

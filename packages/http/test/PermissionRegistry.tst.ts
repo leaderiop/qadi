@@ -43,9 +43,12 @@ test("the five-argument form keeps the loader's resource type", () => {
 });
 
 test("a four-argument handler cannot claim a narrower resource", () => {
-  addGuardedRoute("GET", "/x", readPermission, readPolicy)(
-    // @ts-expect-error — no loader ran, so there is no `Doc` to hand the handler
+  // No loader ran, so there is no `Doc` to hand the handler.
+  expect(addGuardedRoute("GET", "/x", readPermission, readPolicy)).type.not.toBeCallableWith(
     (_authorized: Authorized<typeof readPermission>, _resource: Doc) => ok(),
+  );
+  expect(addGuardedRoute("GET", "/x", readPermission, readPolicy)).type.toBeCallableWith(
+    (_authorized: Authorized<typeof readPermission>, _resource: Resource) => ok(),
   );
 });
 
@@ -54,6 +57,8 @@ test("both forms require the registry, the standing services and the extractor, 
   const named = addGuardedRoute("GET", "/x", readPermission, readPolicy, loadNoResource)(ok);
   expect<Layer.Services<typeof omitted>>().type.toBe<Layer.Services<typeof named>>();
   expect<Layer.Services<typeof named>>().type.toBe<
-    HttpRouter.HttpRouter | PermissionRegistry | StandingEvaluationServices | SubjectExtractor
+    | HttpRouter.HttpRouter
+    | PermissionRegistry
+    | HttpRouter.Request.From<"Requires", StandingEvaluationServices | SubjectExtractor>
   >();
 });

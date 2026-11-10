@@ -85,6 +85,26 @@ export const PermissionRegistryLive: Layer.Layer<PermissionRegistry> = Layer.eff
   }),
 );
 
+type RouteMethod = "*" | "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS";
+
+type GuardedHandler<P extends Permission, A, R> = (
+  authorized: Authorized<P>,
+  resource: A,
+) => Effect.Effect<HttpServerResponse.HttpServerResponse, HttpEnforcementFailure, R>;
+
+const buildGuardedRoute = <P extends Permission, A extends Resource, LR, R>(
+  method: RouteMethod,
+  path: PathInput,
+  permission: P,
+  policy: Policy,
+  loadResource: (request: HttpServerRequest.HttpServerRequest) => Effect.Effect<A, never, LR>,
+  handler: GuardedHandler<P, A, R>,
+) =>
+  Layer.merge(
+    HttpRouter.add(method, path, guardRoute(permission, policy, loadResource)(handler)),
+    Layer.effectDiscard(PermissionRegistry.register(permission, { method, path, group: undefined })),
+  );
+
 /**
  * `HttpRouter.add`, plus the registration-time push into `PermissionRegistry`
  * that gives a bare-`HttpRouter` route the same audit visibility an
@@ -93,25 +113,41 @@ export const PermissionRegistryLive: Layer.Layer<PermissionRegistry> = Layer.eff
  * Wraps `guardRoute` rather than duplicating its enforcement, so
  * `loadResource` and `handler` carry the same `never`-error-channel
  * constraint `GuardRoute.ts` documents.
+ *
+ * Omit `loadResource` to evaluate against `NO_RESOURCE` (BEH-QD-178), as
+ * `authorizeRequest` does: the handler then receives a plain `Resource`.
+ *
+ * Two overloads rather than a default parameter, because a default cannot keep
+ * the loader's own resource type `A` for the five-argument form. ARCH-19's
+ * progress log recorded "no cast-free way" to make the loader optional; lost
+ * ARCH-57's probe (`4b1ed49`) refuted that with these overloads, which need no
+ * cast (ARCH-61).
  */
-export const addGuardedRoute =
-  <P extends Permission, A extends Resource, LR = never>(
-    method: "*" | "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS",
-    path: PathInput,
-    permission: P,
-    policy: Policy,
-    loadResource: (request: HttpServerRequest.HttpServerRequest) => Effect.Effect<A, never, LR>,
-  ) =>
-  <R>(
-    handler: (
-      authorized: Authorized<P>,
-      resource: A,
-    ) => Effect.Effect<HttpServerResponse.HttpServerResponse, HttpEnforcementFailure, R>,
-  ) =>
-    Layer.merge(
-      HttpRouter.add(method, path, guardRoute(permission, policy, loadResource)(handler)),
-      Layer.effectDiscard(PermissionRegistry.register(permission, { method, path, group: undefined })),
-    );
+export function addGuardedRoute<P extends Permission>(
+  method: RouteMethod,
+  path: PathInput,
+  permission: P,
+  policy: Policy,
+): <R>(handler: GuardedHandler<P, Resource, R>) => ReturnType<typeof buildGuardedRoute<P, Resource, never, R>>;
+export function addGuardedRoute<P extends Permission, A extends Resource, LR = never>(
+  method: RouteMethod,
+  path: PathInput,
+  permission: P,
+  policy: Policy,
+  loadResource: (request: HttpServerRequest.HttpServerRequest) => Effect.Effect<A, never, LR>,
+): <R>(handler: GuardedHandler<P, A, R>) => ReturnType<typeof buildGuardedRoute<P, A, LR, R>>;
+export function addGuardedRoute<P extends Permission, LR>(
+  method: RouteMethod,
+  path: PathInput,
+  permission: P,
+  policy: Policy,
+  loadResource: (
+    request: HttpServerRequest.HttpServerRequest,
+  ) => Effect.Effect<Resource, never, LR> = loadNoResource,
+) {
+  return <R>(handler: GuardedHandler<P, Resource, R>) =>
+    buildGuardedRoute(method, path, permission, policy, loadResource, handler);
+}
 
 /**
  * The introspection payload: every permission registered with `PermissionRegistry`
@@ -162,13 +198,7 @@ const snapshotResponse = Effect.map(PermissionRegistry.snapshot, (data) =>
  * a special case.
  */
 export const permissionRegistryRoute = <P extends Permission>(permission: P, policy: Policy) =>
-  addGuardedRoute(
-    "GET",
-    "/__permissions",
-    permission,
-    policy,
-    loadNoResource,
-  )(() => snapshotResponse);
+  addGuardedRoute("GET", "/__permissions", permission, policy)(() => snapshotResponse);
 
 /**
  * The `/__permissions` route with **no** guard, which must be chosen explicitly.

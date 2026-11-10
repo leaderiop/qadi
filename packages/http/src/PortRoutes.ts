@@ -31,7 +31,6 @@ import type {
 } from "@qadi/core";
 import { answerRemotely, CurrentSubject, forEveryPort, tabulatePorts } from "@qadi/core";
 import { answerWithResponse, enforceSubject } from "./AuthorizeRequest.ts";
-import { loadNoResource } from "./NoResource.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
 import { portPath } from "./PortRouteAddress.ts";
 import { unguardedRoutes } from "./UnguardedRoute.ts";
@@ -132,7 +131,6 @@ export const portRoutes = <P extends Permission>(
         portPath(options?.prefix, port),
         permission,
         policy,
-        loadNoResource,
       )(() => Effect.map(Effect.flatMap(questionOf, answer), respond));
     }),
   );

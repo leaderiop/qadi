@@ -180,13 +180,7 @@ export const decisionStreamRoute = <P extends Permission>(
         `${Duration.toMillis(options.reauth.interval)}ms.`,
     );
   }
-  return addGuardedRoute(
-    "GET",
-    "/__decisions",
-    permission,
-    policy,
-    loadNoResource,
-  )(() =>
+  return addGuardedRoute("GET", "/__decisions", permission, policy)(() =>
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
       // The order and the resume are core's: a reconnecting `EventSource` names
