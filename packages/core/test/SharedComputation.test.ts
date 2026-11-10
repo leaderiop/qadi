@@ -254,6 +254,66 @@ describe("SharedComputation", () => {
       yield* Deferred.await(interrupted);
     }));
 
+  /**
+   * Issue #64, uninterruptible regime, at the seam: A's compute is parked in an
+   * uninterruptible region when A leaves, so the interrupt that leave sends is
+   * only recorded, not delivered. B asks for the same key in that window.
+   * Every settle is recorded with the claim it belongs to (1 = A's, 2 = B's).
+   */
+  const abandonWhileParked = Effect.gen(function* () {
+    const settles: Array<{ readonly claim: number; readonly exit: Exit.Exit<number> }> = [];
+    let claims = 0;
+    const shared = makeSharedComputation<string, number, never>({
+      cached: () => Option.none(),
+      claim: () => {
+        claims += 1;
+        const claim = claims;
+        return (exit) => {
+          settles.push({ claim, exit });
+        };
+      },
+      onOutcome: () => Effect.void,
+    });
+    const runs = yield* Ref.make(0);
+    const started = yield* Deferred.make<void>();
+    const gate = yield* Deferred.make<void>();
+    const compute = Ref.updateAndGet(runs, (n) => n + 1).pipe(
+      Effect.flatMap((n) =>
+        Effect.uninterruptible(Deferred.succeed(started, undefined).pipe(Effect.andThen(Deferred.await(gate)))).pipe(
+          Effect.as(n),
+        ),
+      ),
+    );
+
+    const a = yield* Effect.forkChild(shared.run("k", compute));
+    yield* Deferred.await(started);
+    // Forked, not awaited: A's leave waits for the parked compute to exit.
+    const interrupter = yield* Effect.forkChild(Fiber.interrupt(a));
+    yield* settleTurns;
+    const b = yield* Effect.forkChild(shared.run("k", compute));
+    yield* settleTurns;
+    yield* Deferred.succeed(gate, undefined);
+    const exitB = yield* Fiber.await(b);
+    // A's leave returns only once the abandoned compute has exited.
+    yield* Fiber.join(interrupter);
+    return { exitB, settles, runs: yield* Ref.get(runs) };
+  });
+
+  it.effect("a fresh ask never joins a computation every waiter has abandoned (#64)", () =>
+    Effect.gen(function* () {
+      const { exitB, runs } = yield* abandonWhileParked;
+
+      assert.deepStrictEqual(exitB, Exit.succeed({ value: 2, outcome: "miss" }));
+      assert.strictEqual(runs, 2);
+    }));
+
+  it.effect("an abandoned computation writes nothing: only the fresh claim settles", () =>
+    Effect.gen(function* () {
+      const { settles } = yield* abandonWhileParked;
+
+      assert.deepStrictEqual(settles, [{ claim: 2, exit: Exit.succeed(2) }]);
+    }));
+
   it.effect("reset forgets in-flight claims; the stale compute neither answers nor unclaims the fresh one", () =>
     Effect.gen(function* () {
       // Remembers nothing, so only `inFlight` decides join or claim (what a stale
