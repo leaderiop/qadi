@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 11-07-PLAN.md (Phase 11 complete)
+stopped_at: Completed 12-01-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "11-07 complete: changesets and 0.12 upgrade notes, lost-id sweep clean, pnpm check:pr green; Phase 11 complete"
+last_activity_desc: "12-01 complete: core encodeDecisionStream owns the stream order; mid-backlog reconnect loses nothing; frame/syncedFrame/decisionFrames removed (option-a)"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 59
-  completed_plans: 10
-  percent: 17
+  completed_plans: 11
+  percent: 19
 current_phase: 12
 ---
 
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 ## Current Position
 
-Phase: 11 of 20 (Lost-wave security)
-Plan: 7 of 7 complete (11-01 … 11-07); Phase 11 complete, next is Phase 12 (12-01)
-Status: Phase 11 complete (phase_base 5736c96); Phase 12 not started
-Last activity: 2026-11-10 -- 11-07 complete: four changesets and three 0.12 upgrade entries; lost-id sweep finds only merged meanings; `pnpm check:pr` green (16/16)
+Phase: 12 of 20 (Lost-wave integrity)
+Plan: 1 of 5 complete (12-01); next is 12-02
+Status: Phase 12 in progress (phase_base f1041fe)
+Last activity: 2026-11-10 -- 12-01 complete: core `encodeDecisionStream` writes the stream in cursor order; P1/P2 reconnect probes RED then green; `@qadi/http` drops `frame`/`syncedFrame`/`decisionFrames`; `spec:api` red (6 drifts) until 12-05
 
 ## Performance Metrics
 
