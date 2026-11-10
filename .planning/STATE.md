@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 19-03-PLAN.md
+stopped_at: Completed 20-01-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "19-03 complete: BEH-QD-429/430, INV-QD-006/004 notes, devtools-spec statements, CCR-QD-409, @qadi/devtools patch changeset; check:pr green; Phase 19 complete"
+last_activity_desc: "20-01 complete: issue #64 follow-up gap reproduced (20/20 RED, uninterruptible regime); phase_base a7a5a8cb; DecisionCache.ts mutation base 0.9479"
 state_head: 856a092ab1da5af22c7dbf7a6044fa32cf55eeeb
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 59
-  completed_plans: 55
-  percent: 93
-current_phase: 19
+  completed_plans: 56
+  percent: 95
+current_phase: 20
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 ## Current Position
 
-Phase: 19 of 20 (Verdict presentation)
-Plan: 3 of 3 in Phase 19; next is Phase 20
-Status: Phase 19 complete (phase_base 9483aac); check:pr green
-Last activity: 2026-11-10 -- 19-03 complete: Phase 19 recorded in the spec (BEH-QD-429/430, INV-QD-006 devtools Enforcement, INV-QD-004 note, devtools-spec 02 statements, traceability rows, CCR-QD-409; ADR-QD-131 unused); @qadi/devtools patch changeset; pnpm check:pr exit 0; model mutation 1.0 on Verdict/Gates/Inspect (no drop)
+Phase: 20 of 20 (DecisionCache shared computation)
+Plan: 1 of 4 in Phase 20; next is 20-02
+Status: Phase 20 in progress (phase_base a7a5a8cb); 20-01's #64 test is RED until 20-03
+Last activity: 2026-11-10 -- 20-01 complete: the issue-#64 follow-up gap reproduces through DecisionCache's interface (a fresh ask joins a compute abandoned inside a port's uninterruptible region and inherits its interrupt; 20/20 runs RED, one resolver invocation); decision 20-01 T2 = A not applied (its condition, no repro, is not met); 20-mutation-base.json DecisionCache.ts 0.9479
 
 ## Performance Metrics
 
