@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-milestone: v1.0
-status: Awaiting next milestone
-stopped_at: Milestone v1.0 complete and archived
+milestone: v1.1
+status: Planning
+stopped_at: v1.1 roadmap and phase contexts written; phase plans in progress
 last_updated: "2026-11-09T21:49:46.894Z"
-last_activity: 2026-11-09
-last_activity_desc: "Milestone v1.0 shipped as PR #153"
+last_activity: 2026-11-10
+last_activity_desc: "v1.1 Arch Wave 6 defined: 11 phases (10-20), 66 requirements"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
-  total_phases: 9
-  completed_phases: 9
-  total_plans: 33
-  completed_plans: 33
-  percent: 100
-current_phase: 09
+  total_phases: 11
+  completed_phases: 0
+  total_plans: 59
+  completed_plans: 0
+  percent: 0
+current_phase: 10
 ---
 
 # Project State
@@ -23,14 +23,14 @@ current_phase: 09
 See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Planning next milestone (v1.0 Arch Wave 5 shipped 2026-11-09)
+**Current focus:** v1.1 Arch Wave 6 — planning Phases 10-20
 
 ## Current Position
 
-Phase: Milestone v1.0 complete
+Phase: 10 of 20 (Planning reconciliation)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-11-09 -- Milestone v1.0 shipped as PR #153
+Status: Planning (contexts written, plans being generated)
+Last activity: 2026-11-10 -- v1.1 milestone defined; lost 2026-10-13 wave pinned as rescue/wave5-1013
 
 ## Performance Metrics
 

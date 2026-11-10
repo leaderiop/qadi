@@ -1,4 +1,4 @@
-# Qadi — Architecture Wave 5 (ARCH-46 to ARCH-54)
+# Qadi — Architecture Waves (current: v1.1 Arch Wave 6, ARCH-59 to ARCH-68)
 
 ## What This Is
 
@@ -20,8 +20,19 @@ outside `.planning`): ARCH-46 to ARCH-54, ADR-QD-108..116 (112, 113 and 115 left
 All 9 phases verified `passed` against the final tree; the full `pnpm check` is green on Node 22.12.0
 (CI run 42676403473 at 127d6fa). Archive: `.planning/milestones/v1.0-ROADMAP.md`.
 
-**Next milestone goals:** not yet defined. Start with `/gsd-new-milestone`. Candidates carried
-forward are in Known Issues below.
+## Current Milestone: v1.1 Arch Wave 6
+
+**Goal:** Resolve the nine candidates of the 2026-11-10 architecture review, and recover the lost 2026-10-13 wave.
+
+**The lost wave.** A second set of plans numbered ARCH-46…57 (2026-10-13 review, untracked `.planning/architecture/`)
+was implemented on `wave5/architecture-deepenings` and never merged. Its commits were recovered from the reflog on
+2026-11-10 and pinned **locally** as `rescue/wave5-1013` (tip `950977f`), with `rescue/arch50-stash-a`/`-b` (superseded).
+Its ids collide with merged #153, so it is ported under new numbers, never cherry-picked. Live defects and their
+salvage sources: `.planning/phases/_SALVAGE.md`.
+
+**Target features:** see `.planning/REQUIREMENTS.md` (REC, SEC, INT, GAP, AUD, DOCK, ROLE, KEY, SURF, VIEW, CACHE, XC).
+
+**Review report (local, outside the repo):** `/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/architecture-review-20261110-004912.html`.
 
 ## Core Value
 
@@ -64,6 +75,23 @@ logged, counted or spanned.
   hand-written.
 
 ## Context
+
+- **Numbering reserved for v1.1 (Wave 6).** Next free on `1721a42`: ADR-QD-117, CCR-QD-395, BEH-QD-339, INV-QD-245.
+  Executors grep `spec/` before using a number; an unused reservation is stated in the phase SUMMARY.
+
+  | Phase | ARCH | ADR-QD | CCR-QD | BEH-QD | INV-QD |
+  |---|---|---|---|---|---|
+  | 10 | — | — | — | — | — |
+  | 11 | 59 | 117–118 | 395–396 | 339–348 | 246–249 (245 is a lost-wave id; never use) |
+  | 12 | 60 | 119–120 | 397–398 | 349–358 | 250–254 |
+  | 13 | 61 | 121–125 | 399–403 | 359–378 | 255–264 |
+  | 14 | 62 | 126 | 404 | 379–388 | 265–269 |
+  | 15 | 63 | 127 | 405 | 389–398 | 270–274 |
+  | 16 | 64 | 128 | 406 | 399–408 | 275–279 |
+  | 17 | 65 | 129 | 407 | 409–418 | 280–284 |
+  | 18 | 66 | 130 | 408 | 419–428 | 285–289 |
+  | 19 | 67 | 131 | 409 | 429–438 | 290–294 |
+  | 20 | 68 | 132 | 410 | 439–448 | 295–299 |
 
 - **House rules:** `AGENTS.md` is authoritative. That means submodule namespace imports from
   `effect/*`, `.ts` relative imports, `Context.Service` with a separate `…Shape`, top-level
@@ -133,4 +161,4 @@ logged, counted or spanned.
 | The obligation record is projected before the handler runs | A handler reassigning `resource.id` must not change the record it is logged under (WR-01) | Accepted (Phase 9, dafe9e1) |
 
 ---
-*Last updated: 2026-11-09 after v1.0 milestone*
+*Last updated: 2026-11-10 — v1.1 Arch Wave 6 started*
