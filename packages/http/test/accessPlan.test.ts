@@ -419,7 +419,11 @@ describe("every placement is decided once, by the access plan", () => {
 
   it("names the scope, identifier and key in a MisplacedAccessDeclaration's message", () => {
     const error = new MisplacedAccessDeclaration({ scope: "group", identifier: "g", key: "PublicEndpoint" });
-    assert.include(error.message, 'group "g" carries PublicEndpoint');
+    assert.strictEqual(
+      error.message,
+      'group "g" carries PublicEndpoint, which only an endpoint may declare. Declare it on each endpoint, ' +
+        "or use HttpApiGroup.annotateEndpoints.",
+    );
   });
 });
 

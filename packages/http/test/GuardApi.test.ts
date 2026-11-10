@@ -9,15 +9,17 @@ import * as Effect from "effect/Effect";
 import * as HashMap from "effect/HashMap";
 import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
+import type * as Tracer from "effect/Tracer";
 import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
 import * as HttpApiGroup from "effect/http-api/HttpApiGroup";
+import * as HttpApiMiddleware from "effect/http-api/HttpApiMiddleware";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServer from "effect/http/HttpServer";
 import type { AuthSubject, Permission, StandingEvaluationServices } from "@qadi/core";
 import { EvaluationIdLive, hasPermission, makeSubject, permission, permissionKey, portsLayer } from "@qadi/core";
-import { collectingLogger } from "@qadi/testing";
+import { collectingLogger, collectingTracer } from "@qadi/testing";
 import { assert, describe, it } from "@effect/vitest";
 import type { SubjectExtractor } from "../src/index.ts";
 import { stack } from "./fixtures/stack.ts";
@@ -153,8 +155,36 @@ describe("guardApi", () => {
       assert.isTrue(Result.isFailure(built));
       if (Result.isFailure(built)) {
         assert.strictEqual(built.failure._tag, "RequirePermissionNotAttached");
-        assert.include(built.failure.message, 'endpoint "read" of group "a"');
+        assert.strictEqual(
+          built.failure.message,
+          'endpoint "read" of group "a" is part of a guarded API, but the RequirePermission middleware is not ' +
+            "attached to it, so nothing would enforce it. Call .middleware(RequirePermission) after the group is " +
+            "added (HttpApi.middleware applies only to endpoints already added).",
+        );
       }
+    }));
+
+  it.effect("refuses an endpoint carrying only some other middleware: it is not RequirePermission", () =>
+    Effect.gen(function* () {
+      class Other extends HttpApiMiddleware.Service<Other>()("test/Other") {}
+      const other = HttpApi.make("other").add(A.group).middleware(Other);
+      // @ts-expect-error — the type already refuses this API; the runtime refusal is what this exercises.
+      const built = yield* snapshotOf(guardApi(other)).pipe(Effect.result);
+      assert.isTrue(Result.isFailure(built));
+      if (Result.isFailure(built)) assert.strictEqual(built.failure._tag, "RequirePermissionNotAttached");
+    }));
+
+  it.effect("a guarded request runs under the qadi.http.enforceRequest span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const routes = HttpApiBuilder.layer(A.api).pipe(Layer.provide(A.handlers), Layer.provide(guardApi(A.api)));
+      const { handler, dispose } = serve(routes, collectingTracer(spans));
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/a", { headers: bearer("read-token") })),
+      );
+      assert.strictEqual(response.status, 204);
+      assert.isTrue(spans.some((span) => span.name === "qadi.http.enforceRequest"));
+      yield* Effect.promise(() => dispose());
     }));
 
   it.effect("a refusal registers nothing: a prior registration is the only entry left", () =>

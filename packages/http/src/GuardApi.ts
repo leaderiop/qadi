@@ -93,9 +93,7 @@ export const guardApi = <Id extends string, Groups extends HttpApiGroup.Constrai
       if (Result.isFailure(planned)) return yield* Effect.fail(planned.failure);
       const plan = planned.success;
       const registry = yield* PermissionRegistry;
-      yield* Effect.forEach(plan.registrations, ([permission, descriptor]) => registry.register(permission, descriptor), {
-        discard: true,
-      });
+      for (const [permission, descriptor] of plan.registrations) yield* registry.register(permission, descriptor);
       return yield* makeRequirePermission(plan);
     }),
   );
