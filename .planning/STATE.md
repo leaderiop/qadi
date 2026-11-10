@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 11-04-PLAN.md
+stopped_at: Completed 11-05-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "11-04 complete: the access-declaration readers are private to AccessPlan.ts; the http docs say guardApi refuses an undeclared endpoint at build"
+last_activity_desc: "11-05 complete: @qadi/audit ships checkSignatureLedger/checkSignatureHistoryScoping; BDD and docs for ledger adapters"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 59
-  completed_plans: 7
-  percent: 12
+  completed_plans: 8
+  percent: 14
 current_phase: 11
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 11 of 20 (Lost-wave security)
-Plan: 4 of 7 complete (11-01, 11-02, 11-03, 11-04); next is 11-05
+Plan: 5 of 7 complete (11-01 … 11-05); next is 11-06
 Status: In progress (phase_base 5736c96)
-Last activity: 2026-11-10 -- 11-04 complete: the plan is the one reader of an endpoint's access declaration; README, website and example say guardApi refuses at build
+Last activity: 2026-11-10 -- 11-05 complete: ledger adapters have a shipped conformance suite; README and website say how to run it
 
 ## Performance Metrics
 
