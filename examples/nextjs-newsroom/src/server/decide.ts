@@ -18,9 +18,9 @@ import "server-only";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import { decide } from "@qadi/core";
-import type { Decision, Policy, Resource } from "@qadi/core";
+import type { Decision, DehydrationDropReason, Policy, Resource } from "@qadi/core";
 import { dehydrateDecisions } from "@qadi/react";
-import type { DecisionEntry, DehydratedDecisions } from "@qadi/react";
+import type { DecisionEntry, DehydratedDecisions, HydrationDropReporter } from "@qadi/react";
 import type { Article } from "../domain/articles.ts";
 import { policyResource } from "../domain/resource.ts";
 import type { ArticleResource } from "../domain/resource.ts";
@@ -60,8 +60,8 @@ export interface DecideOptions {
    * asserted.
    */
   readonly includeTrace?: boolean;
-  /** Called with entries dropped for belonging to another subject. */
-  readonly onDropped?: (dropped: ReadonlyArray<DecisionEntry>) => void;
+  /** Called once per reason with the entries left out of the payload. */
+  readonly onDropped?: HydrationDropReporter<DecisionEntry, DehydrationDropReason>;
 }
 
 /**

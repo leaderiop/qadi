@@ -23,7 +23,7 @@ import {
   project,
   relationshipResolverFromEdges,
 } from "@qadi/core";
-import type { AuthSubject } from "@qadi/core";
+import type { AuthSubject, DehydrationDropReason } from "@qadi/core";
 import { dehydrateDecisions, hydrateDecisions, makeQadiAtoms } from "@qadi/react";
 import type { DecisionEntry, DehydratedDecisions, HydrationDrop } from "@qadi/react";
 import { articles } from "../src/domain/articles.ts";
@@ -120,16 +120,14 @@ describe("the payload the server builds", () => {
     const mine = await decideAs(yasmine, [{ policy: readSourceContact }]);
     const theirs = await decideAs(omar, [{ policy: readSourceContact }]);
 
-    let dropped = 0;
+    const drops: Array<HydrationDrop<DecisionEntry, DehydrationDropReason>> = [];
     const payload = dehydrateDecisions([...mine, ...theirs], {
-      onDropped: (entries) => {
-        dropped = entries.length;
-      },
+      onDropped: (drop) => drops.push(drop),
     });
 
     expect(payload.subjectId).toBe("yasmine");
     expect(payload.entries).toHaveLength(1);
-    expect(dropped).toBe(1);
+    expect(drops).toEqual([{ reason: "ForeignSubject", entries: theirs, wholePayload: false }]);
   });
 });
 

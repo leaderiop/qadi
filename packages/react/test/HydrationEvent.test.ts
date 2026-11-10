@@ -146,6 +146,24 @@ describe("HydrationEvent", () => {
         leftOut: [{ reason: "ForeignSubject", entries, wholePayload: false }],
       });
     });
+
+    it("counts an unencodable policy against its own key and announces it to the same hook", () => {
+      const entries = [entry("u1")];
+      const { heard, hooks } = recording();
+      expect(
+        moved(() => emitHydration(HydrationEvent.LeftOut({ reason: "UnencodablePolicy", entries }), hooks)),
+      ).toEqual(only({ dropped: [["UnencodablePolicy", 1]] }));
+      expect(heard).toEqual({
+        ...silent,
+        leftOut: [{ reason: "UnencodablePolicy", entries, wholePayload: false }],
+      });
+    });
+
+    it("counts nothing for no entries: leaving nothing out is not a refusal", () => {
+      expect(
+        moved(() => emitHydration(HydrationEvent.LeftOut({ reason: "ForeignSubject", entries: [] }), {})),
+      ).toEqual(only({}));
+    });
   });
 
   describe("PayloadRefused", () => {

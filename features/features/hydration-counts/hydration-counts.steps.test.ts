@@ -26,11 +26,12 @@ import {
   Allow,
   EvaluationServicesNone,
   hasPermission,
+  hasRelationship,
   makeSubject,
   makeSubjectId,
   permission,
 } from "@qadi/core";
-import type { Decision, Policy } from "@qadi/core";
+import type { Decision, HydrationDropReason, Policy } from "@qadi/core";
 import { dehydrateDecisions, hydrateDecisions, makeQadiAtoms } from "@qadi/react";
 import type { DehydratedDecisions, DehydratedEntry, HydrationDrop } from "@qadi/react";
 import { hydrationActivity, unaccountedEntries } from "@qadi/devtools";
@@ -126,6 +127,8 @@ interface HydrationCountsWorldState {
   // is the materialised pairs rather than the return value itself.
   readonly seeded: ReadonlyArray<unknown>;
   readonly drops: ReadonlyArray<HydrationDrop<unknown>>;
+  /** What the server's `onDropped` heard — one function type serves both ends. */
+  readonly leftOut: ReadonlyArray<HydrationDrop<unknown, HydrationDropReason>>;
   readonly before: HydrationActivity | undefined;
   readonly after: HydrationActivity | undefined;
   readonly fabricated: HydrationActivity | undefined;
@@ -137,6 +140,7 @@ const initialState: HydrationCountsWorldState = {
   payload: undefined,
   seeded: [],
   drops: [],
+  leftOut: [],
   before: undefined,
   after: undefined,
   fabricated: undefined,
@@ -185,7 +189,8 @@ const hydrateWith = Effect.fn("hydration-counts.hydrateWith")(function* (
   id: string,
 ) {
   const s = yield* readState();
-  const built = s.payload ?? dehydrateDecisions(s.decided, { onDropped: () => {} });
+  const leftOut: Array<HydrationDrop<unknown, HydrationDropReason>> = [];
+  const built = s.payload ?? dehydrateDecisions(s.decided, { onDropped: (drop) => leftOut.push(drop) });
   const whole: DehydratedDecisions =
     s.extraEntries.length === 0
       ? built
@@ -198,7 +203,7 @@ const hydrateWith = Effect.fn("hydration-counts.hydrateWith")(function* (
     }),
   ];
   const after = yield* hydrationActivity;
-  yield* patch(() => ({ seeded, drops, after }));
+  yield* patch(() => ({ seeded, drops, leftOut, after }));
 });
 
 describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
@@ -241,6 +246,22 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
         { policy: policyFor(s.decided.length), decision: decisionFor(id, s.decided.length) },
       ],
     }));
+  });
+
+  Given("one more decided for {string} whose policy the schema cannot encode", function* (id: string) {
+    // The public constructor accepts a fractional depth; the policy schema does
+    // not, so this entry cannot cross the network.
+    const s = yield* readState();
+    yield* patch(() => ({
+      decided: [
+        ...s.decided,
+        { policy: hasRelationship("owner", { depth: 1.5 }), decision: decisionFor(id, s.decided.length) },
+      ],
+    }));
+  });
+
+  Given("an empty payload built for {string}", function* (id: string) {
+    yield* patch(() => ({ payload: { version: 2, subjectId: id, entries: [] } }));
   });
 
   Given(
@@ -411,6 +432,19 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
       reason,
       `reported ${JSON.stringify(s.drops.map((d) => d.reason))}`,
     );
+  });
+
+  Then("the server reported {string} once", function* (reason: string) {
+    const s = yield* readState();
+    assert.deepEqual(
+      s.leftOut.map((drop) => [drop.reason, drop.entries.length, drop.wholePayload]),
+      [[reason, 1, false]],
+    );
+  });
+
+  Then("the refusal is counted once as {string}", function* (reason: string) {
+    // At least one, though the payload carried nothing (INV-QD-045).
+    assert.equal(yield* droppedFor(reason), 1);
   });
 
   Then("exactly {int} refusal is reported", function* (count: number) {
