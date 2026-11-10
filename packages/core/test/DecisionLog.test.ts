@@ -149,7 +149,10 @@ describe("makeDecisionLog — stores, stamps, bounds", () => {
         `capacity ${capacity}`,
       );
     }
-    assert.throws(() => makeDecisionLog({ environment: "Server", capacity: 0 }), /zero is refused/);
+    assert.throws(
+      () => makeDecisionLog({ environment: "Server", capacity: 0 }),
+      /zero is refused .* would silently keep and stream nothing$/s,
+    );
   });
 
   it.effect("defaults to DEFAULT_LOG_CAPACITY, and says what it was built with", () =>

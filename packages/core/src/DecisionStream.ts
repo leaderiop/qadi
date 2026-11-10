@@ -281,7 +281,7 @@ export const decodeDecisionStream = Effect.fn("qadi.decisionStream.decode")(func
 
   // No prelude in time — a server not yet reachable, or buffered: the backlog
   // is absent, and whatever arrived while waiting is the start of the live half.
-  if (!Option.getOrElse(synced, () => false)) return { live: liveAfter(early) };
+  if (!Option.exists(synced, (preluded) => preluded)) return { live: liveAfter(early) };
 
   // The prelude completed: its `backlog` frames are the backlog, and a `message`
   // frame that arrived before `synced` is live, not history.

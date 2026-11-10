@@ -208,6 +208,13 @@ describe("decodeDecisionStream — the prelude (ADR-QD-097)", () => {
 
   const ids = (records: ReadonlyArray<StoredRecord> | undefined) => (records ?? []).map((r) => r.evaluationId);
 
+  /** A `decodeRecord` over the codec that also remembers every data it was offered. */
+  const recording = () => {
+    const offered: Array<string> = [];
+    const decodeRecord = (data: string) => Effect.flatMap(Effect.sync(() => offered.push(data)), () => fromCodec(data));
+    return { offered, decodeRecord };
+  };
+
   /** One read of a finite frame list: its backlog (absent stays absent) and every live record. */
   const readAll = (
     frames: ReadonlyArray<ReceivedFrame>,
@@ -270,24 +277,24 @@ describe("decodeDecisionStream — the prelude (ADR-QD-097)", () => {
 
   it.effect("frames in the same chunk as synced start the live half in order; a later synced is skipped", () =>
     Effect.gen(function* () {
-      const got = yield* readAll([
-        backlog("b1"),
-        synced(1),
-        message("m1"),
-        message("m2"),
-        synced(0),
-        backlog("again"),
-        message("m3"),
-      ]);
+      const { offered, decodeRecord } = recording();
+      const frames = [backlog("b1"), synced(1), message("m1"), message("m2"), synced(0), backlog("again"), message("m3")];
+      const got = yield* readAll(frames, decodeRecord);
       assert.deepStrictEqual(ids(got.backlog), ["b1"]);
       assert.deepStrictEqual(ids(got.live), ["m1", "m2", "again", "m3"]);
+      // Skipped, not offered and refused: no `synced` reaches decodeRecord.
+      assert.deepStrictEqual(offered, frames.filter((f) => f.event !== "synced").map((f) => f.data));
     }));
 
   it.effect("a stream that ends before a prelude leaves the backlog absent and delivers its frames live", () =>
     Effect.gen(function* () {
-      const got = yield* readAll([backlog("partial"), message("first")]);
+      const { offered, decodeRecord } = recording();
+      const frames = [backlog("partial"), message("first")];
+      const got = yield* readAll(frames, decodeRecord);
       assert.isFalse(got.hasBacklog);
       assert.deepStrictEqual(ids(got.live), ["partial", "first"]);
+      // Exactly the frames that arrived, each once: the live half starts with nothing else.
+      assert.deepStrictEqual(offered, frames.map((f) => f.data));
     }));
 
   it.effect("synced's count is not read: a count that disagrees changes nothing (ARCH-28 D-28-e)", () =>
