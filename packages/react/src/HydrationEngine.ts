@@ -155,8 +155,15 @@ const Envelope = DehydratedDecisionsWire.mapFields(
   Struct.assign({ entries: Schema.Array(Schema.Unknown) }),
 );
 
-/** Encoding a typed policy cannot fail, so this side is sync and total. */
-const encodePolicy = Schema.encodeSync(PolicySchema);
+/**
+ * Encoding a typed policy **can** fail, so this side returns an `Option` too.
+ *
+ * The public constructors accept policies the schema refuses — `gte(NaN)`,
+ * `gte(-Infinity)`, `hasRelationship(…, { depth: 1.5 })` — and an encode that
+ * threw would crash a server's render. An entry whose policy does not encode is
+ * left out as `UnencodablePolicy` instead (ARCH-60).
+ */
+const encodePolicy = Schema.encodeOption(PolicySchema);
 
 /**
  * Decoding is the untrusted side, so every decoder here returns an `Option` and
@@ -226,17 +233,18 @@ const dehydrateDecision = (decision: Decision, includeTrace: boolean): Dehydrate
 };
 
 /**
- * One decision as a payload entry.
+ * One decision as a payload entry, or `None` when its policy does not encode.
  *
  * Derived from `encodeDecision`, so the fields a decision ships are the ones
  * `@qadi/core` says it has. The trace, and a denial's reason, ship only under
  * `includeTrace`. Reached only through {@link dehydrateWith}.
  */
-const dehydrateEntry = (entry: DecisionEntry, includeTrace: boolean): DehydratedEntry => ({
-  policy: encodePolicy(entry.policy),
-  resource: entry.resource,
-  decision: dehydrateDecision(entry.decision, includeTrace),
-});
+const dehydrateEntry = (entry: DecisionEntry, includeTrace: boolean): Option.Option<DehydratedEntry> =>
+  Option.map(encodePolicy(entry.policy), (policy) => ({
+    policy,
+    resource: entry.resource,
+    decision: dehydrateDecision(entry.decision, includeTrace),
+  }));
 
 /** Emits a call's events in order. */
 const emitAll = (events: ReadonlyArray<HydrationEvent>, hooks: HydrationHooks): void => {
@@ -252,7 +260,9 @@ const emitAll = (events: ReadonlyArray<HydrationEvent>, hooks: HydrationHooks): 
  *
  * The first entry's `subjectId` names the payload and any entry disagreeing with
  * it is **dropped**, because a payload mixing subjects is a bug whose only safe
- * reading is to trust none of it.
+ * reading is to trust none of it. Of the rest, an entry whose policy does not
+ * encode is left out as `UnencodablePolicy`, so the call is total: one
+ * `LeftOut` per non-empty reason, then `Dehydrated` for what was written.
  */
 const planDehydration = (
   entries: ReadonlyArray<DecisionEntry>,
@@ -265,8 +275,18 @@ const planDehydration = (
   // in that case with no special-casing needed.
   const subjectId = entries[0]?.decision.subjectId;
 
-  const kept = entries.filter((e) => e.decision.subjectId === subjectId);
+  const own = entries.filter((e) => e.decision.subjectId === subjectId);
   const foreign = entries.filter((e) => e.decision.subjectId !== subjectId);
+
+  // The subject filter first, so a foreign entry is never encoded and an entry
+  // both foreign and unencodable is `ForeignSubject`.
+  const written: Array<DehydratedEntry> = [];
+  const unencodable: Array<DecisionEntry> = [];
+  for (const entry of own) {
+    const encoded = dehydrateEntry(entry, includeTrace);
+    if (Option.isSome(encoded)) written.push(encoded.value);
+    else unencodable.push(entry);
+  }
 
   // Said, not merely done. Dropping is correct and specified; doing it in
   // silence is what let a server ship one row where it meant to ship a thousand
@@ -275,21 +295,18 @@ const planDehydration = (
   // ran and did nothing".
   const events: Array<HydrationEvent> = [];
   if (foreign.length > 0) events.push(HydrationEvent.LeftOut({ reason: "ForeignSubject", entries: foreign }));
-  events.push(HydrationEvent.Dehydrated({ count: kept.length }));
+  if (unencodable.length > 0) {
+    events.push(HydrationEvent.LeftOut({ reason: "UnencodablePolicy", entries: unencodable }));
+  }
+  events.push(HydrationEvent.Dehydrated({ count: written.length }));
 
-  return {
-    payload: {
-      version: PAYLOAD_VERSION,
-      subjectId,
-      entries: kept.map((entry) => dehydrateEntry(entry, includeTrace)),
-    },
-    events,
-  };
+  return { payload: { version: PAYLOAD_VERSION, subjectId, entries: written }, events };
 };
 
 /**
  * Projects decisions into a version-2 payload bound to one subject, dropping,
- * counting and reporting every entry decided for another.
+ * counting and reporting every entry decided for another or whose policy does
+ * not encode. Never throws.
  *
  * The mirror of {@link hydrateWith}. It owns both the subject filter and the
  * envelope, so a payload cannot be built from unfiltered entries (ARCH-51,

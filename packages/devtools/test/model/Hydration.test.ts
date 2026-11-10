@@ -103,6 +103,11 @@ describe("hydrationActivity", () => {
         read.drops.slice(0, hydrationDropReasons.length).map((drop) => drop.reason),
         [...hydrationDropReasons],
       );
+      // Eight, written out: a reason core adds reaches this panel at zero with no
+      // edit here (BEH-QD-232). `UnencodablePolicy` is the eighth, and nothing in
+      // this suite raises it.
+      assert.strictEqual(hydrationDropReasons.length, 8);
+      assert.strictEqual(read.drops.find((drop) => drop.reason === "UnencodablePolicy")?.count, 0);
     }));
 
   it.effect("explains the two payload-level reasons, rather than calling them unrecognised", () =>
