@@ -23,19 +23,22 @@ import {
   denyWhen,
   evaluate,
   EvaluationServicesNone,
+  Failed,
   fromRoles,
   hasPermission,
   hasRole,
   labeled,
+  MissingResource,
   not,
   obligation,
   obliged,
+  ObligationRecord,
   permission,
   permitWhen,
   role,
   rules,
 } from "@qadi/core";
-import type { Combining, Decision, FieldStrategy, Policy, Trace } from "@qadi/core";
+import type { Combining, Decision, FieldStrategy, ObligationOutcome, Policy, Trace } from "@qadi/core";
 import {
   describeTracePath,
   flattenTree,
@@ -43,6 +46,9 @@ import {
   inspectEntry,
   isNeverResolved,
   isTruncated,
+  ObligationState,
+  readOutcome,
+  RecordOutcome,
 } from "../../src/model/Inspect.ts";
 import type { InspectNode } from "../../src/model/Inspect.ts";
 import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
@@ -413,6 +419,98 @@ describe("inspectEntry", () => {
   it("an orphaned outcome has no tree", () => {
     const timeline = fold([obligationRecord({ evaluationId: "ghost", at: 100 })]);
     assert.isUndefined(inspectEntry(timeline.entries[0] ?? fail()));
+  });
+});
+
+describe("readOutcome (ARCH-67, D-03)", () => {
+  const report = (outcome: ObligationOutcome) =>
+    new ObligationRecord({ evaluationId: "a", at: 2, outcome, obligationIds: ["audit"] });
+  const error = new MissingResource({ attribute: "doc.owner" });
+  const failed = new Failed({ error });
+
+  it("a failed evaluation reads as Failed, carrying its error, and owes nothing", () => {
+    assert.deepStrictEqual(
+      readOutcome(hasPermission(read), failed, undefined),
+      RecordOutcome.Failed({ error, obligation: ObligationState.NoneOwed() }),
+    );
+  });
+
+  it("a report on a failed evaluation is carried, not dropped", () => {
+    assert.deepStrictEqual(
+      readOutcome(hasPermission(read), failed, report("HandlerFailed")),
+      RecordOutcome.Failed({ error, obligation: ObligationState.Reported({ outcome: "HandlerFailed" }) }),
+    );
+  });
+
+  it("a denial reads as Denied, carrying the inspected tree, and owes nothing", async () => {
+    const policy = hasPermission(write);
+    const decision = await decide(policy);
+
+    assert.deepStrictEqual(
+      readOutcome(policy, new Decided({ decision }), undefined),
+      RecordOutcome.Denied({ tree: inspect(policy, decision.trace), obligation: ObligationState.NoneOwed() }),
+    );
+  });
+
+  it("a report on a denial is carried", async () => {
+    const policy = hasPermission(write);
+    const decision = await decide(policy);
+
+    assert.deepStrictEqual(
+      readOutcome(policy, new Decided({ decision }), report("Discharged")).obligation,
+      ObligationState.Reported({ outcome: "Discharged" }),
+    );
+  });
+
+  it("an allow reads as Allowed, carrying the tree, its fields and its duties", async () => {
+    const audit = obligation("audit");
+    const policy = obliged(audit, hasPermission(read, { fields: ["id", "title"] }));
+    const decision = await decide(policy);
+
+    assert.deepStrictEqual(
+      readOutcome(policy, new Decided({ decision }), undefined),
+      RecordOutcome.Allowed({
+        tree: inspect(policy, decision.trace),
+        fields: ["id", "title"],
+        duties: [audit],
+        obligation: ObligationState.Unreported(),
+      }),
+    );
+  });
+
+  it("an allow's undefined fields stay undefined: every field, not none (INV-QD-004)", async () => {
+    const policy = hasPermission(read);
+    const decision = await decide(policy);
+
+    assert.deepStrictEqual(
+      readOutcome(policy, new Decided({ decision }), undefined),
+      RecordOutcome.Allowed({
+        tree: inspect(policy, decision.trace),
+        fields: undefined,
+        duties: [],
+        obligation: ObligationState.NoneOwed(),
+      }),
+    );
+  });
+
+  it("an allow whose duties were reported reads Reported with the gate's outcome", async () => {
+    const policy = obliged(obligation("audit"), hasPermission(read));
+    const decision = await decide(policy);
+
+    assert.deepStrictEqual(
+      readOutcome(policy, new Decided({ decision }), report("Refused")).obligation,
+      ObligationState.Reported({ outcome: "Refused" }),
+    );
+  });
+
+  it("a report on an allow that listed no duties is still Reported", async () => {
+    const policy = hasPermission(read);
+    const decision = await decide(policy);
+
+    assert.deepStrictEqual(
+      readOutcome(policy, new Decided({ decision }), report("NotRequired")).obligation,
+      ObligationState.Reported({ outcome: "NotRequired" }),
+    );
   });
 });
 
