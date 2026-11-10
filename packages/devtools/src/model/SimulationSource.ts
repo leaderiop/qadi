@@ -23,8 +23,11 @@
 import type * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
 import { fixturePortsLayer } from "@qadi/core";
+import type { PortFixtureData, PortName } from "@qadi/core";
 import type { CapturedAnswers } from "./Capture.ts";
 import { replayLayer } from "./Capture.ts";
+import type { FixtureCell } from "./SimulationFields.ts";
+import { FIXTURE_DATA, fixtureData } from "./SimulationFields.ts";
 import type { EvaluationPorts, SimulationInput } from "./SimulationInput.ts";
 
 /** Answers typed by the reviewer. The default, and the only one that needs nothing. */
@@ -115,20 +118,32 @@ const dispatch: (self: SimulationSource) => (input: SimulationInput) => Layer.La
  * the reason a real evaluation would.
  */
 const fixtureLayer = (input: SimulationInput): Layer.Layer<EvaluationPorts> =>
-  fixturePortsLayer({
-    AttributeResolver: { answers: input.attributes },
-    RelationshipResolver: { answers: input.relationships },
-    DecisionHistory: { answers: input.history },
-    // `SimulationInput` has no form vocabulary for a custom predicate's
-    // answer — unlike an attribute or an edge, there is no small typed value a
-    // reviewer could type in that stands for arbitrary registered logic — so
-    // Fixtures mode leaves `CustomPredicate` at its default and always denies
-    // a `HasCustom` node, the same fail-closed default a real deployment gets
-    // from an unwired registry. Core's fixture table does have a vocabulary for
-    // it (`PortFixtureData.CustomPredicate`: fixed answers by name); building
-    // the form that feeds it is devtools UI work, not a gap in the table.
-    // Supplying a real answer today needs `Snapshot` or `Live`. Unlike
-    // HasCustom, SignatureHistory is data-fetching, so it earns the same
-    // declarative form attributes/edges/events get.
-    SignatureHistory: { answers: input.signatures },
-  });
+  fixturePortsLayer(setupsOf(input));
+
+/**
+ * One port's setup from the table: its fixture data as `answers`, or nothing
+ * when the input holds none or the form has no vocabulary for the port.
+ */
+const setupOf = <K extends PortName>(
+  cell: FixtureCell<K>,
+  input: SimulationInput,
+): { readonly answers: PortFixtureData[K] } | undefined => {
+  const data = fixtureData(cell, input);
+  return data === undefined ? undefined : { answers: data };
+};
+
+/**
+ * Every port named, so a port added to core's registry is a missing key here and
+ * in `FIXTURE_DATA` (TS2741) rather than a port the simulator silently leaves at
+ * its default. Closed over `PortName`, which core's `PortFixtures` (every key
+ * optional) is not. `CustomPredicate` stays unfed, and the table says why.
+ */
+const setupsOf = (
+  input: SimulationInput,
+): { readonly [K in PortName]: { readonly answers: PortFixtureData[K] } | undefined } => ({
+  AttributeResolver: setupOf(FIXTURE_DATA.AttributeResolver, input),
+  RelationshipResolver: setupOf(FIXTURE_DATA.RelationshipResolver, input),
+  DecisionHistory: setupOf(FIXTURE_DATA.DecisionHistory, input),
+  SignatureHistory: setupOf(FIXTURE_DATA.SignatureHistory, input),
+  CustomPredicate: setupOf(FIXTURE_DATA.CustomPredicate, input),
+});
