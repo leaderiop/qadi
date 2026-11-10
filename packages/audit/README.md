@@ -173,6 +173,36 @@ decided for, and the capture request carries `resourceId`, `action`, `resource` 
 fails the discharge. Without a `ledger`, `capture` itself must persist where your
 `SignatureHistory` reads, keyed by the request's `signerId` and `resourceId`.
 
+A discharge whose resource has no string `id` (numeric, an object, or no `id` at all)
+fails with `SignatureCaptureError` before `capture` is called, and nothing is
+recorded: a signature for it could only be stored subject-wide. A signature check
+with `scope: "Any"` reads the signatures on file subject-wide, recorded for **no**
+resource; it does not mean "on any resource" as `hasActed`'s `"Any"` does.
+
+### Implementing a ledger
+
+A ledger adapter is a keyed store: `append(key, entry)` and `entriesAt(key)` over the
+opaque `SignatureLedgerKey` that `ledgerKeyOf` mints. Its one obligation is to answer
+exactly the entries appended under `key`, compared byte for byte.
+`signatureHistoryFromLedger` is the one read rule: it computes the key from the
+question and fails the read (`SignatureHistoryUnavailable`, cause
+`SignatureLedgerReadError`) if the adapter answers a row stored under another key.
+
+A type cannot rule out a store whose collation folds case, trims trailing spaces or
+normalises Unicode, so check your real store in your own test suite:
+
+```ts
+import { checkSignatureLedger } from "@qadi/audit";
+
+// [] means every key is kept apart; otherwise each `Foreign` or `Missing` names the pair.
+const violations = yield* checkSignatureLedger(myLedger, { namespace: "ci-run-1" });
+```
+
+For a deployment whose e-signature system is itself its `SignatureHistory`, run
+`checkSignatureHistoryScoping` over that history instead. Both are test aids: there
+is no default instance, nothing runs them for you, and they prove neither durability,
+concurrency nor the signer's identity or intent.
+
 ## Testing
 
 `AuditTrailPortTest`/`AuditStagingPortTest` ship as public, deterministic,
