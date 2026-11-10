@@ -9,6 +9,7 @@ import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import { SignatureHistoryUnavailable } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
+import { describeKeyRefusal, KeyRefusal } from "../src/PortDescription.ts";
 import {
   SignatureHistory,
   SignatureHistoryNone,
@@ -176,6 +177,23 @@ describe("SignatureHistory", () => {
           ["approved", "witnessed"],
         );
       }));
+
+    it("a request with no key would fail the read with the port's own error, never answer an empty list", () => {
+      // No `SubjectId`/`ResourceId` pair can be refused (both are strings), so
+      // no input reaches the fixture's refusal branch. What it answers is
+      // pinned here instead: the port's typed error carrying the refusal's
+      // sentence. An empty list would deny `hasSignature` and grant `not(...)`.
+      const asked = { subjectId: makeSubjectId("alice"), resourceId: makeResourceId("doc-1") };
+      const refusal = KeyRefusal.Unkeyable({ path: ["0", "subjectId"], kind: "symbol", brand: "Symbol" });
+      assert.deepStrictEqual(
+        signatureHistoryPort.failure([asked], describeKeyRefusal(refusal)),
+        new SignatureHistoryUnavailable({
+          subjectId: asked.subjectId,
+          resourceId: asked.resourceId,
+          cause: "0.subjectId: an unkeyable symbol (Symbol) has no request key",
+        }),
+      );
+    });
 
     it.effect("returns a fresh array per query, not the layer's own internal reference", () =>
       Effect.gen(function* () {

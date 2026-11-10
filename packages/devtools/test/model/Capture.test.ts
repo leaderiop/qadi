@@ -10,13 +10,17 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import {
   allOf,
   AttributeResolver,
   attributeResolverFromRecord,
   CustomPredicate,
   customPredicateFromRecord,
+  CustomPredicateError,
+  describeKeyRefusal,
   DecisionHistory,
   decisionHistoryFromEvents,
   diffTraces,
@@ -46,7 +50,7 @@ import {
   mergePorts,
   tabulatePorts,
 } from "@qadi/core";
-import type { Decision, DecisionOutcome } from "@qadi/core";
+import type { Decision, DecisionOutcome, KeyRefusal } from "@qadi/core";
 import {
   answerCount,
   capturing,
@@ -56,6 +60,12 @@ import {
 import { simulate } from "../../src/model/Simulation.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { live, snapshot } from "../../src/model/SimulationSource.ts";
+
+/** A request key's text; a refusal fails the test, since these requests are all keyable. */
+const keyText = (key: Result.Result<string, KeyRefusal>): string => {
+  if (Result.isFailure(key)) return assert.fail(`refused: ${describeKeyRefusal(key.failure)}`);
+  return key.success;
+};
 
 const decisionOf = (outcome: DecisionOutcome): Decision => {
   if (outcome._tag !== "Decided") throw new Error("expected a decision");
@@ -135,7 +145,7 @@ describe("capture fidelity — INV-QD-043", () => {
       assert.strictEqual(replayed._tag, "Failed");
 
       // Recorded as a failure with its message, not as an absent value.
-      const recorded = answers.AttributeResolver.get(attributeResolverPort.key([makeSubjectId("alice"), "clearance"]));
+      const recorded = answers.AttributeResolver.get(keyText(attributeResolverPort.key([makeSubjectId("alice"), "clearance"])));
       assert.strictEqual(recorded?._tag, "Broke");
       assert.include(recorded?._tag === "Broke" ? recorded.message : "", "store down");
     }));
@@ -262,7 +272,7 @@ describe("what a capture records", () => {
       yield* simulate(hasAttribute("clearance", gte(2)), alice, { source: live(capture.layer) });
 
       const answers = yield* capture.answers;
-      const recorded = answers.AttributeResolver.get(attributeResolverPort.key([makeSubjectId("alice"), "clearance"]));
+      const recorded = answers.AttributeResolver.get(keyText(attributeResolverPort.key([makeSubjectId("alice"), "clearance"])));
 
       assert.deepStrictEqual(recorded, { _tag: "Answered", value: 4 });
     }));
@@ -515,7 +525,7 @@ describe("what a replayed failure carries", () => {
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
 
       const recorded = (yield* capture.answers).AttributeResolver.get(
-        attributeResolverPort.key([makeSubjectId("alice"), "clearance"]),
+        keyText(attributeResolverPort.key([makeSubjectId("alice"), "clearance"])),
       );
       assert.strictEqual(recorded?._tag, "Broke");
       assert.include(
@@ -547,7 +557,7 @@ describe("what a replayed failure carries", () => {
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
 
       const recorded = (yield* capture.answers).AttributeResolver.get(
-        attributeResolverPort.key([makeSubjectId("alice"), "clearance"]),
+        keyText(attributeResolverPort.key([makeSubjectId("alice"), "clearance"])),
       );
       // The message, not `[object Error]` — it is the part a reviewer reads.
       assert.strictEqual(recorded?._tag === "Broke" ? recorded.message : "", "connection refused");
@@ -563,7 +573,7 @@ describe("what a replayed failure carries", () => {
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
 
       const recorded = (yield* capture.answers).AttributeResolver.get(
-        attributeResolverPort.key([makeSubjectId("alice"), "clearance"]),
+        keyText(attributeResolverPort.key([makeSubjectId("alice"), "clearance"])),
       );
       assert.strictEqual(
         recorded?._tag === "Broke" ? recorded.message : "",
@@ -663,12 +673,12 @@ describe("custom predicate capture", () => {
       const answers = yield* capture.answers;
       assert.strictEqual(answers.CustomPredicate.size, 1);
       assert.deepStrictEqual(
-        answers.CustomPredicate.get(customPredicatePort.key([
+        answers.CustomPredicate.get(keyText(customPredicatePort.key([
           "isOwner",
           makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} }),
           { id: "doc-1" },
           undefined,
-        ])),
+        ]))),
         { _tag: "Answered", value: true },
       );
     }));
@@ -738,6 +748,55 @@ describe("a key does not collapse two questions the evaluator tells apart (ARCH-
     }));
 });
 
+/**
+ * A request holding a value outside the key's domain (here a function param) has no key.
+ * Capturing must not change what the live port answers, and a replay cannot know what was
+ * answered, so it fails with the port's own error rather than answering `false`, which
+ * `not(...)` would grant.
+ */
+describe("a request with no key (KEY-03)", () => {
+  const withParams = portsLayer({
+    AttributeResolver: attributeResolverFromRecord({}),
+    CustomPredicate: customPredicateFromRecord({
+      isCallable: (_subject, _resource, params) => Effect.succeed(typeof params === "function"),
+    }),
+  });
+  const subject = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
+  const params = () => true;
+  const ask = CustomPredicate.evaluate("isCallable", subject, undefined, params);
+
+  it.effect("is passed through to the live port unrecorded, answering as an uncaptured run does", () =>
+    Effect.gen(function* () {
+      const capture = capturing(withParams);
+      const uncaptured = yield* Effect.exit(ask.pipe(Effect.provide(withParams)));
+      const captured = yield* Effect.exit(ask.pipe(Effect.provide(capture.layer)));
+
+      assert.deepStrictEqual(uncaptured, Exit.succeed(true));
+      assert.deepStrictEqual(captured, uncaptured);
+      assert.strictEqual((yield* capture.answers).CustomPredicate.size, 0);
+    }));
+
+  it.effect("fails on replay with the port's own error, naming why it has no key", () =>
+    Effect.gen(function* () {
+      const capture = capturing(withParams);
+      yield* ask.pipe(Effect.provide(capture.layer));
+      const refused = customPredicatePort.key(["isCallable", subject, undefined, params]);
+      assert.isTrue(Result.isFailure(refused));
+      if (Result.isSuccess(refused)) return;
+
+      const replayed = yield* Effect.exit(ask.pipe(Effect.provide(replayLayer(yield* capture.answers))));
+      assert.deepStrictEqual(
+        replayed,
+        Exit.fail(
+          new CustomPredicateError({
+            name: "isCallable",
+            reason: `this CustomPredicate request cannot be keyed: ${describeKeyRefusal(refused.failure)}`,
+          }),
+        ),
+      );
+    }));
+});
+
 describe("replaying a signature request the capture never saw (code review WR-04)", () => {
   /**
    * `SignatureHistory`'s key carries the asker's `meaning` and `signerRole`, which a
@@ -773,9 +832,9 @@ describe("replaying a signature request the capture never saw (code review WR-04
       assert.deepStrictEqual(diffTraces(liveRun.trace, replayed.trace), []);
 
       const recorded = answers.SignatureHistory.get(
-        signatureHistoryPort.key([
+        keyText(signatureHistoryPort.key([
           { subjectId: makeSubjectId("alice"), resourceId: makeResourceId("doc-1"), meaning: "approve" },
-        ]),
+        ])),
       );
       assert.strictEqual(recorded?._tag, "Answered");
     }));

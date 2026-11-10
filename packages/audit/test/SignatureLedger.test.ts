@@ -1,12 +1,14 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import * as FastCheck from "fast-check";
 import {
   assert as qadiAssert,
   currentSubjectLayer,
   decide,
   DecisionSink,
+  describeKeyRefusal,
   enforce,
   EvaluationIdLive,
   hasSignature,
@@ -23,7 +25,7 @@ import {
   permission,
   SignatureHistory,
 } from "@qadi/core";
-import type { ObligationRecord, Signature, SignatureQuery } from "@qadi/core";
+import type { KeyRefusal, ObligationRecord, Signature, SignatureQuery } from "@qadi/core";
 import { SignatureCaptureError, signatureObligationHandler } from "../src/SignatureCapturePort.ts";
 import type { SignatureCapturePortShape } from "../src/SignatureCapturePort.ts";
 import {
@@ -36,6 +38,12 @@ import {
 } from "../src/SignatureLedger.ts";
 import type { SignatureLedgerEntry, SignatureLedgerShape } from "../src/SignatureLedger.ts";
 import { SignatureLedgerTest } from "../src/SignatureLedgerTest.ts";
+
+/** A request key's text; a refusal fails the test, since a subject/resource pair always keys. */
+const keyText = (key: Result.Result<string, KeyRefusal>): string => {
+  if (Result.isFailure(key)) return assert.fail(`refused: ${describeKeyRefusal(key.failure)}`);
+  return key.success;
+};
 
 const alice = makeSubject({ id: "alice", permissions: ["doc:approve"] });
 const approve = permission("doc", "approve");
@@ -345,7 +353,7 @@ describe("properties", () => {
         const lq = pairOf(q);
         assert.strictEqual(
           ledgerKeyOf(lp) === ledgerKeyOf(lq),
-          signatureHistoryPort.key([lp]) === signatureHistoryPort.key([lq]),
+          keyText(signatureHistoryPort.key([lp])) === keyText(signatureHistoryPort.key([lq])),
         );
       }),
       { numRuns: 500 },
