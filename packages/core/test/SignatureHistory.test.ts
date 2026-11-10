@@ -124,9 +124,9 @@ describe("SignatureHistory", () => {
       "collision-immune: a subject/resource split that would collide under a colon-joined key does not",
       () =>
         Effect.gen(function* () {
-          // `signatureHistoryFromSignatures` keys on
-          // `JSON.stringify([subjectId, resourceId ?? null])`, not a
-          // delimited string — its own doc comment gives `["a:b", "c"]` vs
+          // `signatureHistoryFromSignatures` keys on the requirement-free
+          // projection of `signatureHistoryPort.key` (a `JSON.stringify` of the
+          // pair), not a delimited string — its own doc comment gives `["a:b", "c"]` vs
           // `["a", "b:c"]` as the pair a naive `${a}:${b}` join would
           // conflate. Proven here directly, the same way
           // `DecisionHistory.test.ts` and `RelationshipResolver.test.ts`
@@ -137,6 +137,43 @@ describe("SignatureHistory", () => {
           assert.deepStrictEqual(yield* query(collidable, "a", "b:c"), []);
         }),
     );
+
+    it.effect("each colliding-looking pair answers only its own row", () =>
+      Effect.gen(function* () {
+        const grouped = signatureHistoryFromSignatures([
+          { subjectId: "a:b", resourceId: "c", meaning: "m1" },
+          { subjectId: "a", resourceId: "b:c", meaning: "m2" },
+          { subjectId: "a", resourceId: "null", meaning: "m3" },
+          { subjectId: "a", meaning: "m4" },
+        ]);
+        const meanings = (rows: ReadonlyArray<{ readonly meaning: string }>) =>
+          rows.map((r) => r.meaning);
+        assert.deepStrictEqual(meanings(yield* query(grouped, "a:b", "c")), ["m1"]);
+        assert.deepStrictEqual(meanings(yield* query(grouped, "a", "b:c")), ["m2"]);
+        assert.deepStrictEqual(meanings(yield* query(grouped, "a", "null")), ["m3"]);
+        assert.deepStrictEqual(meanings(yield* query(grouped, "a", undefined)), ["m4"]);
+      }));
+
+    it.effect("a query carrying the asker's requirement reads the pair's rows: the grouping is requirement-free", () =>
+      Effect.gen(function* () {
+        // `signatureHistoryPort.key` also keys `meaning` and `signerRole`
+        // (INV-QD-043); grouping by it whole would split one pair by
+        // requirement and hide rows from a query that carries one.
+        const grouped = signatureHistoryFromSignatures([
+          { subjectId: "alice", resourceId: "doc-1", meaning: "approved" },
+          { subjectId: "alice", resourceId: "doc-1", meaning: "witnessed", signerRole: "manager" },
+        ]);
+        const rows = yield* SignatureHistory.signaturesFor({
+          subjectId: makeSubjectId("alice"),
+          resourceId: makeResourceId("doc-1"),
+          meaning: "approved",
+          signerRole: "manager",
+        }).pipe(Effect.provide(grouped));
+        assert.deepStrictEqual(
+          rows.map((r) => r.meaning),
+          ["approved", "witnessed"],
+        );
+      }));
 
     it.effect("returns a fresh array per query, not the layer's own internal reference", () =>
       Effect.gen(function* () {
