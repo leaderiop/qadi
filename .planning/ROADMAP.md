@@ -219,7 +219,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 18-01 (W1): Give the devtools HTTP routes (the decision stream, its JSON backlog and the permission registry) one address rule that a host can prefix, shared with the client that… ⛳ checkpoint
+- [x] 18-01 (W1): Give the devtools HTTP routes (the decision stream, its JSON backlog and the permission registry) one address rule that a host can prefix, shared with the client that… ⛳ checkpoint
 - [ ] 18-02 (W2): Prove the shared address end to end with the real devtools reader, and move both examples onto it (SURF-02, SURF-04).
 - [ ] 18-03 (W3): Record Phase 18 in the spec, the overview, the website and a changeset, then prove the tree with `pnpm check:pr` (XC-01..XC-06
 
@@ -264,6 +264,6 @@ Plans:
 | 15. Dock session | 4/4 | Complete | 2026-11-10 |
 | 16. One role-graph walk | 4/4 | Complete | 2026-11-10 |
 | 17. Injective request key | 6/6 | Complete | 2026-11-10 |
-| 18. Devtools HTTP surface | 0/3 | Planned | - |
+| 18. Devtools HTTP surface | 1/3 | In progress | - |
 | 19. Verdict presentation | 0/3 | Planned | - |
 | 20. DecisionCache shared computation | 0/4 | Planned | - |

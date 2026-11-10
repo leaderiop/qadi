@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 17-06-PLAN.md
+stopped_at: Completed 18-01-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "17-06 complete: Phase 17 closed; ADR-QD-094 amended, ADR-QD-129, BEH-QD-409..411, INV-QD-280, CCR-QD-407, changesets, upgrading note; check:pr green"
+last_activity_desc: "18-01 complete: devtoolsPath address rule, prefix on every devtools route constructor, devtoolsRoutes (D-02 option-b)"
 state_head: 856a092ab1da5af22c7dbf7a6044fa32cf55eeeb
 progress:
   total_phases: 11
   completed_phases: 8
   total_plans: 59
-  completed_plans: 49
-  percent: 83
-current_phase: 17
+  completed_plans: 50
+  percent: 85
+current_phase: 18
 ---
 
 # Project State
@@ -27,15 +27,15 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 ## Current Position
 
-Phase: 17 of 20 (Injective request key)
-Plan: 6 of 6 in Phase 17 (17-06 complete); Phase 17 complete, next is Phase 18
-Status: Phase complete (phase_base 1a14899)
-Last activity: 2026-11-10 -- 17-06 complete: spec records (ADR-QD-094 amendment, ADR-QD-129, BEH-QD-409..411, INV-QD-280, CCR-QD-407), changesets amended in place, 0.12 upgrading note; pnpm check:pr green; per-file mutation at or above base
+Phase: 18 of 20 (Devtools HTTP surface)
+Plan: 1 of 3 in Phase 18 (18-01 complete); next is 18-02
+Status: In progress (phase_base d4d9897)
+Last activity: 2026-11-10 -- 18-01 complete: DevtoolsRouteAddress.ts (devtoolsPath, DevtoolsRoute, DevtoolsRouteOptions), DecisionBacklogOptions, a prefix on the stream, backlog and both registry constructors, devtoolsRoutes/DevtoolsRoutesOptions; overview 1.88; touched files at 100% mutation
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 52
+- Total plans completed: 53
 - Average duration: -
 - Total execution time: 0.0 hours
 
