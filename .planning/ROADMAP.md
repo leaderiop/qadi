@@ -42,7 +42,7 @@ phases hold a package intentionally red between their first and last plan; `use_
 
 - [x] **Phase 10: Planning reconciliation** - Make `.planning/` match `main`: supersede the lost tracker, decide its tracking, and clear the orphan build output (no ARCH id)
 - [x] **Phase 11: Lost-wave security** - Port the signature-ledger keyed store and the guardApi closed access plan; both fix live privilege defects (ARCH-59)
-- [ ] **Phase 12: Lost-wave integrity** - Port the decision-stream order owner and the one-value hydration outcome; fix record loss on reconnect and SSR crashes (ARCH-60)
+- [x] **Phase 12: Lost-wave integrity** - Port the decision-stream order owner and the one-value hydration outcome; fix record loss on reconnect and SSR crashes (ARCH-60)
 - [ ] **Phase 13: Lost-wave gaps** - Port the public-endpoint denial log, the simulation field table, the evaluation metrics module, test gaps and doc defects (ARCH-61)
 - [ ] **Phase 14: Audit sink deadline** - The audit sink bounds every store call and the breaker sees hangs; the audit doubles become scriptable (ARCH-62)
 - [ ] **Phase 15: Dock session** - The dock's tab, filters, selection and replay become a headless session; replaying the same row re-seeds (ARCH-63)
@@ -108,7 +108,7 @@ Plans:
 - [x] 12-02 (W2): The decision stream's READER: move the prelude/timeout/live rules from `@qadi/devtools` into core's `decodeDecisionStream`, prove writer and reader agree with two…
 - [x] 12-03 (W1): Make a hydration outcome one value, counted once and reported once, and make every host reporter unable to change it (INT-04, INT-05, INT-06). ⛳ checkpoint
 - [x] 12-04 (W2): Make dehydration total and give its drop hook the shape 12-03's checkpoint chose
-- [ ] 12-05 (W3): Record Phase 12 in the normative spec, the public overview, the website and the changesets
+- [x] 12-05 (W3): Record Phase 12 in the normative spec, the public overview, the website and the changesets
 
 ### Phase 13: Lost-wave gaps
 **Goal**: Every remaining live row of the lost wave is fixed, ported or recorded obsolete, and placeholders can no longer ship.
@@ -258,7 +258,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 10. Planning reconciliation | 3/3 | Complete | 2026-11-10 |
 | 11. Lost-wave security | 7/7 | Complete | 2026-11-10 |
-| 12. Lost-wave integrity | 4/5 | In progress | - |
+| 12. Lost-wave integrity | 5/5 | Complete | 2026-11-10 |
 | 13. Lost-wave gaps | 0/13 | Planned | - |
 | 14. Audit sink deadline | 0/7 | Planned | - |
 | 15. Dock session | 0/4 | Planned | - |

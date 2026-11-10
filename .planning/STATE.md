@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 12-04-PLAN.md
+stopped_at: Completed 12-05-PLAN.md (Phase 12 complete)
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "12-04 complete: dehydrateDecisions total (encodeOption, UnencodablePolicy); one HydrationDrop shape for both ends' onDropped (Breaking); DehydrationDropped replaces PayloadMixedSubjects; HydrationEvent.ts mutated"
+last_activity_desc: "12-05 complete: BEH-QD-349, INV-QD-250/251, ADR-QD-097/052/041 amendments, CCR-QD-397/398, gate 13 green, two changesets and 0.12 upgrade notes, mutation at or above base, pnpm check:pr green; Phase 12 complete"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 59
-  completed_plans: 14
-  percent: 24
-current_phase: 12
+  completed_plans: 15
+  percent: 25
+current_phase: 13
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 ## Current Position
 
-Phase: 12 of 20 (Lost-wave integrity)
-Plan: 4 of 5 complete (12-01, 12-02, 12-03, 12-04); next is 12-05
-Status: Phase 12 in progress (phase_base f1041fe)
-Last activity: 2026-11-10 -- 12-04 complete: `dehydrateDecisions` total via `encodeOption` (`UnencodablePolicy`, 8 reasons); `DehydrateOptions.onDropped` takes `HydrationDrop<DecisionEntry, DehydrationDropReason>` once per reason (Breaking, option-a); `DroppedEntriesReporter` deleted, `PayloadMixedSubjects` -> `DehydrationDropped`; example + 2 acceptance scenarios migrated; `HydrationEvent.ts` in `stryker.react.mjs`; no public export added/removed; `spec:api` red (9 drifts) until 12-05
+Phase: 13 of 20 (Lost-wave gaps)
+Plan: Phase 12 5 of 5 complete (12-01 … 12-05); next is Phase 13 (13-01)
+Status: Phase 12 complete (phase_base f1041fe); Phase 13 not started
+Last activity: 2026-11-10 -- 12-05 complete: the spec records the stream's order and the hydration event (BEH-QD-349, INV-QD-250, INV-QD-251, CCR-QD-397/398, ADR-QD-097/047/052/041/078); `pnpm spec:api` green; changesets `decision-stream-order` and `hydration-one-event` (Breaking http and react) and two 0.12 upgrade entries; every touched file's Stryker score at or above base; `pnpm check:pr` green; ADR-QD-119/120 unused
 
 ## Performance Metrics
 
@@ -86,6 +86,7 @@ Last activity: 2026-11-10 -- 12-04 complete: `dehydrateDecisions` total via `enc
 | Phase 09 P04 | 15 min | 2 tasks | 3 files |
 | Phase 11 P01 | 15 min | 3 tasks | 8 files |
 | Phase 11 P07 | 20 min | 2 tasks | 6 files |
+| Phase 12 P05 | 40 min | 3 tasks | 21 files |
 
 ## Accumulated Context
 

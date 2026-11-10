@@ -22,12 +22,12 @@
 - [x] **SEC-06**: Every path that is served is listed in `/__permissions` and enforced. With `guardApi(P)` wired to the API it serves (including a prefixed one), the registry lists exactly the served paths. A mis-wired prefix (`guardApi(A)` on `layer(A.prefix(…))`) fails closed with a 500 on the served path. *(Amended 2026-11-10: the registry registers at layer build and cannot see the builder's mount prefix, per `HttpApiBuilder` per-request middleware.)*
 
 ### Lost-wave integrity (Phase 12)
-- [ ] **INT-01**: A decision-stream reconnect during or after the backlog never loses or skips a record; the cursor and the send order have one owner in core.
-- [ ] **INT-02**: SSE bytes stay in `@qadi/http` and `EventSource` stays in `@qadi/devtools`; both use core's stream order.
-- [ ] **INT-03**: `dehydrateDecisions` never throws on a policy the public constructors accept; an unencodable entry is dropped and counted.
-- [ ] **INT-04**: A throwing `onDropped` or `onHydrationMismatch` cannot change what is seeded, dehydrated or counted, and cannot throw into render.
-- [ ] **INT-05**: A refused payload is counted at least once (INV-QD-045), including a zero-entry subject mismatch.
-- [ ] **INT-06**: A hydration outcome is one closed `HydrationEvent`, projected once to the counter and to the reporter.
+- [x] **INT-01**: A decision-stream reconnect during or after the backlog never loses or skips a record; the cursor and the send order have one owner in core.
+- [x] **INT-02**: SSE bytes stay in `@qadi/http` and `EventSource` stays in `@qadi/devtools`; both use core's stream order.
+- [x] **INT-03**: `dehydrateDecisions` never throws on a policy the public constructors accept; an unencodable entry is dropped and counted.
+- [x] **INT-04**: A throwing `onDropped` or `onHydrationMismatch` cannot change what is seeded, dehydrated or counted, and cannot throw into render.
+- [x] **INT-05**: A refused payload is counted at least once (INV-QD-045), including a zero-entry subject mismatch.
+- [x] **INT-06**: A hydration outcome is one closed `HydrationEvent`, projected once to the counter and to the reporter.
 
 ### Lost-wave gaps (Phase 13)
 - [ ] **GAP-01**: A `publicEndpoint` handler's own `guard` denial logs like any handler-site denial; the enforcement matrix covers the public-endpoint caller.
@@ -90,7 +90,7 @@
 - [ ] **CACHE-04**: No hot-path regression (bench row) and UNTRACED_BUDGET is unchanged.
 
 ### Cross-cutting (every phase)
-- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10).
+- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10); Phase 12: green (12-05, 2026-11-10).
 - [ ] **XC-02**: Each phase records its ADR (or states why none is needed), a CCR row, and the BEH/INV/traceability changes, using only its reserved numbers.
 - [ ] **XC-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
 - [ ] **XC-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock; budgets change only with their AGENTS.md table.
@@ -112,7 +112,7 @@
 |---|---|---|
 | REC-01..04 | Phase 10 | Complete |
 | SEC-01..06 | Phase 11 | Complete |
-| INT-01..06 | Phase 12 | Pending |
+| INT-01..06 | Phase 12 | Complete |
 | GAP-01..12 | Phase 13 | Pending |
 | AUD-01..05 | Phase 14 | Pending |
 | DOCK-01..05 | Phase 15 | Pending |
@@ -121,7 +121,7 @@
 | SURF-01..04 | Phase 18 | Pending |
 | VIEW-01..04 | Phase 19 | Pending |
 | CACHE-01..04 | Phase 20 | Pending |
-| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11) |
+| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11, 12) |
 
 **Coverage:** 66 v1.1 requirements (60 + 6 cross-cutting); mapped 66; unmapped 0.
 
