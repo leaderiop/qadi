@@ -193,9 +193,10 @@ describe("AuditStagingPortTest", () => {
     Effect.gen(function* () {
       const first = yield* encodeAuditEntry(decisionRecord({ evaluationId: "first" }));
       const second = yield* encodeAuditEntry(decisionRecord({ evaluationId: "second" }));
+      const third = yield* encodeAuditEntry(decisionRecord({ evaluationId: "third" }));
       const seen: Array<readonly [unknown, string]> = [];
       const { layer, committed, commitCalls } = AuditStagingPortTest({
-        stage: (entry) => (entry === second ? AuditPortReply.Fail({ cause: "x" }) : undefined),
+        stage: (entry) => (entry === third ? AuditPortReply.Fail({ cause: "x" }) : undefined),
         commit: (handle, entry) => {
           seen.push([handle, entry.record.evaluationId]);
           return undefined;
@@ -204,10 +205,11 @@ describe("AuditStagingPortTest", () => {
 
       yield* Effect.gen(function* () {
         yield* AuditStagingPort.stage(first);
-        yield* Effect.result(AuditStagingPort.stage(second));
+        yield* AuditStagingPort.stage(second);
+        yield* Effect.result(AuditStagingPort.stage(third));
         yield* AuditStagingPort.commit("forged");
       }).pipe(Effect.provide(layer));
-      assert.deepStrictEqual(seen, [["forged", "second"]]);
+      assert.deepStrictEqual(seen, [["forged", "third"]]);
       assert.deepStrictEqual(committed(), ["forged"]);
       assert.deepStrictEqual(commitCalls(), ["forged"]);
     }));
@@ -224,7 +226,11 @@ describe("AuditStagingPortTest", () => {
 
       const exit = yield* Effect.exit(AuditStagingPort.commit(7)).pipe(Effect.provide(layer));
       assert.isTrue(Exit.isFailure(exit));
-      if (Exit.isFailure(exit)) assert.isTrue(Cause.hasDies(exit.cause));
+      if (Exit.isFailure(exit)) {
+        const defect = Cause.findDefect(exit.cause);
+        assert.isTrue(Result.isSuccess(defect));
+        if (Result.isSuccess(defect)) assert.include(String(defect.success), "no entry to answer with");
+      }
       assert.isFalse(consulted);
       assert.deepStrictEqual(committed(), []);
       assert.deepStrictEqual(commitCalls(), [7]);

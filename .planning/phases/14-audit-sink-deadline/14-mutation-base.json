@@ -14,5 +14,9 @@
   "packages/audit/src/AuditTrailPortTest.ts": {
     "score": 100,
     "noCoverage": 0
+  },
+  "packages/audit/src/AuditPortReplyInterpreter.ts": {
+    "score": 100,
+    "noCoverage": 0
   }
 }
