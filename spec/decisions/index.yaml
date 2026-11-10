@@ -390,3 +390,7 @@ entries:
     file: "123-a-metric-is-declared-once.md"
     title: "A metric is declared once, where its readers can import it, and listed where its operators can read it"
     status: "Accepted — amends ADR-QD-052"
+  - id: "ADR-QD-126"
+    file: "126-an-audit-store-call-has-a-deadline.md"
+    title: "An audit store call has a deadline, and the audit doubles answer from a script"
+    status: "Accepted — amends ADR-QD-044, ADR-QD-056"
