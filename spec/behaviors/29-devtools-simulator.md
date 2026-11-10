@@ -209,7 +209,7 @@ weakening-only sweep produces a table of rows that all say the same nothing.
 
 The weakenings drop each element of every held field - roles, permissions,
 subject attributes, resolver attributes, relationships, events and signatures
-([INV-QD-257](../invariants.md)). A signature fixture is a grant like any other: a
+([INV-QD-257](../invariants.md#inv-qd-257-each-simulation-input-field-is-described-once)). A signature fixture is a grant like any other: a
 `hasSignature` allow is asked *was it the signature?* (`DropSignature`), and a row
 for two signatures that differ only in a field the title does not carry
 (`signedAt`, `algorithm`, `keyId`) is titled with the chip's own text, so one row

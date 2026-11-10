@@ -582,7 +582,7 @@ decision inspector does without.
 
 ## BEH-QD-368: A metric is declared once, and read through its export
 
-> **See:** [BEH-QD-197](#beh-qd-197-port-activity-is-counted), [BEH-QD-189](#beh-qd-189-a-lookup-reports-how-the-cache-answered), [BEH-QD-317](./05-evaluator.md#beh-qd-317-a-readiness-probe-asks-the-ports-every-time), [ADR-QD-123](../decisions/123-a-metric-is-declared-once.md), [INV-QD-259](../invariants.md)
+> **See:** [BEH-QD-197](#beh-qd-197-port-activity-is-counted), [BEH-QD-189](#beh-qd-189-a-lookup-reports-how-the-cache-answered), [BEH-QD-317](./05-evaluator.md#beh-qd-317-a-readiness-probe-asks-the-ports-every-time), [ADR-QD-123](../decisions/123-a-metric-is-declared-once.md), [INV-QD-259](../invariants.md#inv-qd-259-a-metric-has-one-declaration-and-its-readers-import-it)
 
 ```typescript
 import * as Effect from "effect/Effect";

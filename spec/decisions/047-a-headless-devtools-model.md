@@ -264,7 +264,7 @@ a prop fed by the host's subscription ([ADR-QD-080](./080-a-gate-registry-belong
 > the replay's unseeded list, the fixture ports (keyed by core's `PortName`, so a port
 > added to the registry is a compile error here) and the session's chip commands are
 > derived from it, and a missing row or column is a compile error
-> ([INV-QD-257](../invariants.md)).
+> ([INV-QD-257](../invariants.md#inv-qd-257-each-simulation-input-field-is-described-once)).
 >
 > "Renders that model and computes nothing" now holds of the chip text too: the session
 > gains `addChip`, `removeChip` and `snapshot.fields` (the form's reading), so the rules
