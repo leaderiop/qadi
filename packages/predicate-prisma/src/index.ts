@@ -385,7 +385,7 @@ const renderNode: (node: RenderableNode) => PrismaWhereInput = Match.type<Render
       const parts = n.parts.map(renderNode);
       if (parts.some(isVacuousFalse)) return { OR: [] };
       const nonVacuousTrue = parts.filter((part) => !isVacuousTrue(part));
-      return nonVacuousTrue.length === 0 ? { AND: [] } : { AND: nonVacuousTrue };
+      return { AND: nonVacuousTrue };
     },
 
     // The `Any` mirror of `All` above: a genuinely-true child forces the whole
@@ -395,7 +395,7 @@ const renderNode: (node: RenderableNode) => PrismaWhereInput = Match.type<Render
       const parts = n.parts.map(renderNode);
       if (parts.some(isVacuousTrue)) return { AND: [] };
       const nonVacuousFalse = parts.filter((part) => !isVacuousFalse(part));
-      return nonVacuousFalse.length === 0 ? { OR: [] } : { OR: nonVacuousFalse };
+      return { OR: nonVacuousFalse };
     },
 
     // No double-negation elimination — `toRenderable` preserves structure and
