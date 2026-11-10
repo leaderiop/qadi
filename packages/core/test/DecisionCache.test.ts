@@ -2,6 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
@@ -1427,5 +1428,68 @@ describe("DecisionCache", () => {
       }
     },
     30000,
+  );
+
+  /**
+   * The uninterruptible-regime companion to the two REGRESSION PIN tests above.
+   *
+   * Those park their resolver in a bare `Deferred.await`, so the compute fiber is
+   * idle and interruptible when the last waiter leaves and the whole
+   * interrupt-and-settle cascade runs synchronously. Here the resolver parks inside
+   * `Effect.uninterruptible`, the state a connection checkout or an
+   * `acquireUseRelease` acquire leaves a real port in: the last leaver's
+   * `Fiber.interrupt` can only record the interrupt, so the entry stays in flight
+   * and a fresh ask can join it. That fresh ask was never interrupted, so it must
+   * get a real answer (issue #64 follow-up, ARCH-68).
+   */
+  it.effect(
+    "a fresh ask joining a compute abandoned inside a port's uninterruptible region gets a " +
+      "real answer — issue #64, uninterruptible regime",
+    () =>
+      Effect.gen(function* () {
+        const gate = yield* Deferred.make<void>();
+        const started = yield* Deferred.make<void>();
+        const invocations = yield* Ref.make(0);
+        const parkedResolver = Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Ref.update(invocations, (n) => n + 1).pipe(
+              Effect.andThen(
+                Effect.uninterruptible(Deferred.succeed(started, undefined).pipe(Effect.andThen(Deferred.await(gate)))),
+              ),
+              Effect.as(5),
+            ),
+        });
+
+        const { exitB, invocationsBeforeGate } = yield* Effect.gen(function* () {
+          const fiberA = yield* Effect.forkChild(evaluate(needsLookup));
+          // The compute is now parked inside the port's uninterruptible region.
+          yield* Deferred.await(started);
+
+          // Forked, not awaited: `Fiber.interrupt` waits for A's exit, and A's
+          // `onInterrupt` waits on the parked compute, so awaiting it here would
+          // deadlock until the gate opens.
+          const interrupter = yield* Effect.forkChild(Fiber.interrupt(fiberA));
+          for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+
+          const fiberB = yield* Effect.forkChild(evaluate(needsLookup));
+          for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+          const invocationsBeforeGate = yield* Ref.get(invocations);
+
+          yield* Deferred.succeed(gate, undefined);
+          const exitB = yield* Fiber.await(fiberB);
+          yield* Fiber.join(interrupter);
+          return { exitB, invocationsBeforeGate };
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(testLayer(alice, { AttributeResolver: parkedResolver }), decisionCacheLayer()),
+          ),
+        );
+
+        assert.isTrue(
+          Exit.isSuccess(exitB) && isAllowed(exitB.value),
+          `fresh ask B got ${Exit.isSuccess(exitB) ? "a non-allow" : `a failure (interrupts only: ${Cause.hasInterruptsOnly(exitB.cause)})`}; ` +
+            `resolver invocations before the gate opened: ${invocationsBeforeGate}`,
+        );
+      }),
   );
 });
