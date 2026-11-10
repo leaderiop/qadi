@@ -159,23 +159,6 @@ describe("AuditPortReply through AuditTrailPortTest", () => {
       assert.deepStrictEqual(written(), [b]);
     }));
 
-  it.effect("the script wins over failWith, which is then never consulted", () =>
-    Effect.gen(function* () {
-      const entry = yield* encodeAuditEntry(decisionRecord());
-      let consulted = false;
-      const { layer, written } = AuditTrailPortTest({
-        write: () => undefined,
-        failWith: () => {
-          consulted = true;
-          return undefined;
-        },
-      });
-
-      yield* AuditTrailPort.write(entry).pipe(Effect.provide(layer));
-      assert.deepStrictEqual(written(), [entry]);
-      assert.isFalse(consulted);
-    }));
-
   it.effect("without a script, every call is still logged", () =>
     Effect.gen(function* () {
       const entry = yield* encodeAuditEntry(decisionRecord());

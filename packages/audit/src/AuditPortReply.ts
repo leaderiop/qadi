@@ -2,8 +2,8 @@
  * A per-call answer for the shipped audit doubles: Ok, Fail, Die, Interrupt,
  * Never or Latch.
  *
- * `AuditTrailPortTest` and `AuditStagingPortTest` once took only a
- * `failWith`-style callback, so every other way a store can misbehave — a
+ * `AuditTrailPortTest` and `AuditStagingPortTest` once took only a callback
+ * returning a hand-built error, so every other way a store can misbehave — a
  * defect, an interruption, a call that never settles, one a test watches
  * arrive and then hang — was a hand-written `Layer.succeed(AuditTrailPort, …)`
  * in the test that needed it (eleven of them in `packages/audit/test`), and

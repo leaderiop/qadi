@@ -9,7 +9,7 @@ import * as Result from "effect/Result";
 import * as TestClock from "effect/testing/TestClock";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import { AuditPortReply } from "../src/AuditPortReply.ts";
-import { AuditStagingPort, AuditStagingError } from "../src/AuditStagingPort.ts";
+import { AuditStagingPort } from "../src/AuditStagingPort.ts";
 import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
 import { decisionRecord } from "./helpers.ts";
 
@@ -60,51 +60,19 @@ describe("AuditStagingPortTest", () => {
       }).pipe(Effect.provide(layer));
     }));
 
-  it.effect("options present without failCommitWith still commits normally", () =>
+  it.effect("options present without stage or commit scripts still stage and commit normally", () =>
     Effect.gen(function* () {
       const entry = yield* encodeAuditEntry(decisionRecord());
       // `options` itself is truthy here, unlike AuditStagingPortTest() with
-      // no arguments at all — exercises the "options defined, failCommitWith
-      // absent" path `options?.failCommitWith?.(handle)` specifically guards.
-      const { layer, staged, committed } = AuditStagingPortTest({ failStageWith: () => undefined });
+      // no arguments at all — exercises the "options defined, script absent"
+      // paths `options?.stage` and `options?.commit` specifically guard.
+      const { layer, staged, committed } = AuditStagingPortTest({});
 
       yield* Effect.gen(function* () {
         const handle = yield* AuditStagingPort.stage(entry);
         yield* AuditStagingPort.commit(handle);
         assert.deepStrictEqual(staged(), []);
         assert.deepStrictEqual(committed(), [handle]);
-      }).pipe(Effect.provide(layer));
-    }));
-
-  it.effect("failStageWith fails stage without minting a handle", () =>
-    Effect.gen(function* () {
-      const entry = yield* encodeAuditEntry(decisionRecord());
-      const failure = new AuditStagingError({ entry, cause: "staging store offline" });
-      const { layer, staged } = AuditStagingPortTest({ failStageWith: () => failure });
-
-      const result = yield* Effect.result(AuditStagingPort.stage(entry)).pipe(Effect.provide(layer));
-      assert.strictEqual(result._tag, "Failure");
-      if (result._tag === "Failure") {
-        assert.strictEqual(result.failure, failure);
-        assert.strictEqual(result.failure._tag, "AuditStagingError");
-        assert.strictEqual(result.failure.cause, "staging store offline");
-      }
-      assert.strictEqual(staged().length, 0);
-    }));
-
-  it.effect("failCommitWith fails commit, leaving the handle staged", () =>
-    Effect.gen(function* () {
-      const entry = yield* encodeAuditEntry(decisionRecord());
-      const { layer, staged, committed } = AuditStagingPortTest({
-        failCommitWith: (handle) => new AuditStagingError({ entry, cause: `commit ${String(handle)} failed` }),
-      });
-
-      yield* Effect.gen(function* () {
-        const handle = yield* AuditStagingPort.stage(entry);
-        const result = yield* Effect.result(AuditStagingPort.commit(handle));
-        assert.strictEqual(result._tag, "Failure");
-        assert.deepStrictEqual(staged(), [handle]);
-        assert.deepStrictEqual(committed(), []);
       }).pipe(Effect.provide(layer));
     }));
 
@@ -296,30 +264,5 @@ describe("AuditStagingPortTest", () => {
         assert.deepStrictEqual(staged(), [handle]);
         assert.deepStrictEqual(committed(), []);
       }).pipe(Effect.provide(layer));
-    }));
-
-  it.effect("the scripts win over failStageWith and failCommitWith, which are then never consulted", () =>
-    Effect.gen(function* () {
-      const entry = yield* encodeAuditEntry(decisionRecord());
-      let consulted = 0;
-      const { layer, committed } = AuditStagingPortTest({
-        stage: () => undefined,
-        commit: () => undefined,
-        failStageWith: () => {
-          consulted++;
-          return undefined;
-        },
-        failCommitWith: () => {
-          consulted++;
-          return undefined;
-        },
-      });
-
-      yield* Effect.gen(function* () {
-        const handle = yield* AuditStagingPort.stage(entry);
-        yield* AuditStagingPort.commit(handle);
-        assert.deepStrictEqual(committed(), [handle]);
-      }).pipe(Effect.provide(layer));
-      assert.strictEqual(consulted, 0);
     }));
 });

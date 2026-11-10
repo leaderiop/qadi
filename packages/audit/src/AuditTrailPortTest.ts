@@ -21,13 +21,11 @@ import { answerReply } from "./AuditPortReplyInterpreter.ts";
 
 export interface AuditTrailPortTestOptions {
   /**
-   * Answers each `write` with an `AuditPortReply`; `undefined` is `Ok`. A
-   * `Fail` reply fails with `AuditWriteError({ entry, cause })` built here.
-   * When given, it wins over `failWith`, which is then never consulted.
+   * Answers each `write` with an `AuditPortReply`; `undefined`, or no script
+   * at all, is `Ok`. A `Fail` reply fails with `AuditWriteError({ entry, cause })`
+   * built here, so a test never constructs the port's error by hand.
    */
   readonly write?: AuditTrailScript;
-  /** When present, `write` fails with the returned error instead of recording. */
-  readonly failWith?: (entry: AuditEntry) => AuditWriteError | undefined;
 }
 
 export interface AuditTrailPortTestHandle {
@@ -59,8 +57,6 @@ export const AuditTrailPortTest = (options?: AuditTrailPortTestOptions): AuditTr
           const reply = options.write(entry, call) ?? AuditPortReply.Ok();
           return answerReply(reply)(ok, (cause) => new AuditWriteError({ entry, cause }));
         }
-        const failure = options?.failWith?.(entry);
-        if (failure !== undefined) return Effect.fail(failure);
         return ok;
       },
     }),

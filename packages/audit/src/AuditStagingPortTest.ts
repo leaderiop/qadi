@@ -21,24 +21,21 @@ import { answerReply } from "./AuditPortReplyInterpreter.ts";
 
 export interface AuditStagingPortTestOptions {
   /**
-   * Answers each `stage` with an `AuditPortReply`; `undefined` is `Ok`, which
-   * issues the next handle. A `Fail` reply fails with
+   * Answers each `stage` with an `AuditPortReply`; `undefined`, or no script
+   * at all, is `Ok`, which issues the next handle. A `Fail` reply fails with
    * `AuditStagingError({ entry, cause })` built here and issues no handle.
-   * When given, it wins over `failStageWith`, which is then never consulted.
    */
   readonly stage?: AuditStageScript;
   /**
-   * Answers each `commit` with an `AuditPortReply`; `undefined` is `Ok`. The
-   * script and a `Fail` reply's `AuditStagingError` get the entry staged under
-   * the handle. A handle this double never issued gets the entry of the most
-   * recent `stage` call instead, whatever its reply — a test committing a
-   * forged handle exercises the sink's opacity, not the entry — and a commit
-   * before any `stage` call dies, since there is no entry to answer with.
-   * When given, it wins over `failCommitWith`, which is then never consulted.
+   * Answers each `commit` with an `AuditPortReply`; `undefined`, or no script
+   * at all, is `Ok`. The script and a `Fail` reply's `AuditStagingError` get
+   * the entry staged under the handle. A handle this double never issued gets
+   * the entry of the most recent `stage` call instead, whatever its reply — a
+   * test committing a forged handle exercises the sink's opacity, not the
+   * entry — and a scripted commit before any `stage` call dies, since there is
+   * no entry to answer with.
    */
   readonly commit?: AuditCommitScript;
-  readonly failStageWith?: (entry: AuditEntry) => AuditStagingError | undefined;
-  readonly failCommitWith?: (handle: AuditStagingHandle) => AuditStagingError | undefined;
 }
 
 export interface AuditStagingPortTestHandle {
@@ -82,8 +79,6 @@ export const AuditStagingPortTest = (
           const reply = options.stage(entry, call) ?? AuditPortReply.Ok();
           return answerReply(reply)(ok, (cause) => new AuditStagingError({ entry, cause }));
         }
-        const failure = options?.failStageWith?.(entry);
-        if (failure !== undefined) return Effect.fail(failure);
         return ok;
       },
       commit: (handle) => {
@@ -101,8 +96,6 @@ export const AuditStagingPortTest = (
           const reply = options.commit(handle, entry, call) ?? AuditPortReply.Ok();
           return answerReply(reply)(ok, (cause) => new AuditStagingError({ entry, cause }));
         }
-        const failure = options?.failCommitWith?.(handle);
-        if (failure !== undefined) return Effect.fail(failure);
         return ok;
       },
     }),
