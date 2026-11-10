@@ -16,7 +16,7 @@ import * as Effect from "effect/Effect";
 import { CircularRoleInheritance, DuplicateRoleDefinition } from "./Errors.ts";
 import type { Permission, PermissionKey } from "./Permission.ts";
 import { permissionKey } from "./Permission.ts";
-import { traverseRoles } from "./RoleTraversal.ts";
+import { traverseRoles, visitRoles } from "./RoleTraversal.ts";
 
 export interface Role<TName extends string = string> {
   readonly name: TName;
@@ -89,43 +89,32 @@ export const roleWalk = (self: Role): ReadonlyArray<RoleStep> => {
 };
 
 /**
- * All permission keys granted by a role, including inherited ones.
+ * All permission keys granted by any of the given roles, including inherited
+ * ones: a projection of the role walk over every root at once.
  *
- * Depth-first with a visited set, so a diamond (two parents sharing a
- * grandparent) is walked once rather than exponentially.
- *
- * **The visited set is keyed on identity, not on `name`.** Two distinct `Role`
- * objects that happen to share a `name` are not the same role — a by-value
- * graph has no registry forbidding it, unlike the name-indexed catalogues
- * {@link resolveRoleGraph} resolves. Keying on `name` treated the second one as
- * already visited and silently dropped its permissions from the result; keying
- * on the object itself still collapses a true diamond (the same reference
- * reached by two paths) while visiting two same-named-but-distinct roles
- * separately, as their differing permissions require.
- *
- * **Iterative, with an explicit stack.** The result is a `Set`, so the order
- * roles are visited in is not observable — only which ones are, which the
- * identity-keyed `seen` set still governs exactly as a recursive walk would.
- * A direct recursion here overflows the native call stack on a long
- * inheritance chain; an explicit array does not, since it lives on the heap
- * rather than growing a call frame per level. (Ticket 86.)
+ * One walk with one visited set, so a role shared by two of `roles` is visited
+ * once rather than once per root, and contributes its permissions once. The
+ * walk keys on identity and is iterative (`RoleTraversal.ts`), so two
+ * same-named roles are both read and a long chain does not overflow the stack.
  */
-export const flattenPermissions = (self: Role): ReadonlySet<PermissionKey> => {
+export const flattenAll = (roles: ReadonlyArray<Role>): ReadonlySet<PermissionKey> => {
   const keys = new Set<PermissionKey>();
-  const seen = new Set<Role>();
-  const stack: Array<Role> = [self];
-
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (current === undefined) continue;
-    if (seen.has(current)) continue;
-    seen.add(current);
-    for (const p of current.permissions) keys.add(permissionKey(p));
-    for (const parent of current.inherits) stack.push(parent);
-  }
-
+  visitRoles(roles, (role) => {
+    for (const p of role.permissions) keys.add(permissionKey(p));
+  });
   return keys;
 };
+
+/**
+ * All permission keys granted by a role, including inherited ones.
+ *
+ * A projection of the role walk ({@link flattenAll} over the one root): each
+ * visit adds the role's own keys, and no path is built, because this runs once
+ * per subject on every request. It reads the same visits
+ * {@link permissionProvenance} does, so the two report the same set by
+ * construction (INV-QD-038).
+ */
+export const flattenPermissions = (self: Role): ReadonlySet<PermissionKey> => flattenAll([self]);
 
 /** One permission, and the inheritance path that granted it. */
 export interface PermissionGrant {
@@ -144,52 +133,24 @@ export interface PermissionGrant {
 /**
  * Every permission a role grants, with the path that granted it.
  *
- * {@link flattenPermissions} computes exactly this and discards all of it — its
- * `visit` closure holds the granting role's name and calls `keys.add` without
- * it. So "own permissions tinted, inherited ones gray, with the path" could not
- * be answered by anything except a caller re-walking the graph and re-deriving a
- * traversal order that might not match.
+ * A projection of the role walk, as {@link flattenPermissions} is: the same
+ * visits in the same order, so the permissions reported here are exactly the
+ * set `flattenPermissions` returns, by construction rather than by a test
+ * (INV-QD-038). A screen built on this cannot show a different set from the one
+ * that decides. The walk's order is observable here: grants come in walk order,
+ * and a role reached twice is reported once, by the path the walk reached first.
  *
- * **Kept separate from `flattenPermissions` rather than replacing it.** That one
- * runs inside `fromRoles`, once per subject — per request, on a server — and
- * allocating a path array per permission there would make every caller pay for
- * what only an explorer wants. Two functions, one traversal shape.
+ * **Only this projection builds paths.** `flattenPermissions` runs inside
+ * `fromRoles`, once per subject, and allocating a path per permission there
+ * would make every request pay for what only an explorer wants.
  *
- * The two are held in agreement instead: the permissions reported here are
- * exactly the set `flattenPermissions` returns, asserted in `RolesAndDepth.test.ts`, so a
- * screen built on this cannot show a different set from the one that decides.
- *
- * Diamonds resolve the same way they do there — first path wins, by the shared
- * visited-set walk. A role reachable twice is reported once, by the route
- * depth-first order reached first — "reachable twice" meaning the same object
- * reached by two paths, not merely two roles sharing a `name`; the visited set
- * is keyed on identity for the same reason `flattenPermissions`'s is.
- *
- * **Iterative, with an explicit stack of frames.** Unlike `flattenPermissions`,
- * the *order* of `grants` is observable (it is what makes "first path wins"
- * meaningful), so this cannot just push work onto a stack and pop in whatever
- * order comes out — it has to reproduce the exact pre-order, depth-first,
- * parents-in-array-order traversal a direct recursion would do. Each frame
- * tracks the role it is visiting and which of its parents to descend into
- * next; a parent is only pushed as a new frame — and only then are its own
- * grants recorded — the first time it is reached, so an already-`seen` parent
- * is skipped without disturbing the current frame's position. That reproduces
- * the recursive call stack without using one, which a very deep chain would
- * overflow. (Ticket 86.)
- *
- * **The path itself is a linked list while walking, not a copied array.** The
- * recursive version's `here = [...path, current.name]` copies the whole
- * path-so-far at every node; on a chain of depth *n* that is *n* copies whose
- * lengths sum to O(n²) — invisible at any depth the native call stack could
- * reach, but the first thing this rewrite would hit once the stack limit was
- * no longer the thing stopping it. `PathLink` instead conses in O(1), and a
- * path is only flattened to the `ReadonlyArray<string>` `PermissionGrant.path`
- * wants — once — for a role that actually has permissions to report.
+ * **The path is a linked list while walking, not a copied array.** Each visit
+ * conses one `PathLink` onto its parent step's link, in O(1); copying the path
+ * so far at every step would total O(n²) on a chain of depth *n*. A path is
+ * flattened to the `ReadonlyArray<string>` `PermissionGrant.path` wants once,
+ * and only for a role that has permissions to report.
  */
 export const permissionProvenance = (self: Role): ReadonlyArray<PermissionGrant> => {
-  const grants: Array<PermissionGrant> = [];
-  const seen = new Set<Role>();
-
   interface PathLink {
     readonly name: string;
     readonly parent: PathLink | undefined;
@@ -204,86 +165,37 @@ export const permissionProvenance = (self: Role): ReadonlyArray<PermissionGrant>
     return names;
   };
 
-  interface Frame {
-    readonly role: Role;
-    readonly here: PathLink;
-    nextParentIndex: number;
-  }
+  const grants: Array<PermissionGrant> = [];
+  // Indexed by step, with a hole at each revisit. A step's `parent` is always a
+  // visit, since only a visit's parents are walked, so its link is set.
+  const links: Array<PathLink> = [];
 
-  // Marks `role` visited, records its own grants under `path`, and returns the
-  // frame to push — or `undefined` if it was already visited, mirroring the
-  // recursive `visit`'s early `if (seen.has(current)) return`.
-  const enter = (role: Role, parentLink: PathLink | undefined): Frame | undefined => {
-    if (seen.has(role)) return undefined;
-    seen.add(role);
-    const here: PathLink = { name: role.name, parent: parentLink };
+  visitRoles([self], (role, index, parent) => {
+    const here: PathLink = { name: role.name, parent: parent === undefined ? undefined : links[parent] };
+    links[index] = here;
     if (role.permissions.length > 0) {
       const path = toPath(here);
       for (const p of role.permissions) {
         grants.push({ permission: permissionKey(p), grantedBy: role.name, path });
       }
     }
-    return { role, here, nextParentIndex: 0 };
-  };
-
-  const stack: Array<Frame> = [];
-  const rootFrame = enter(self, undefined);
-  if (rootFrame !== undefined) stack.push(rootFrame);
-
-  while (stack.length > 0) {
-    const frame = stack[stack.length - 1];
-    if (frame === undefined) break;
-
-    if (frame.nextParentIndex >= frame.role.inherits.length) {
-      stack.pop();
-      continue;
-    }
-
-    const parent = frame.role.inherits[frame.nextParentIndex];
-    frame.nextParentIndex += 1;
-    if (parent === undefined) continue;
-
-    const parentFrame = enter(parent, frame.here);
-    if (parentFrame !== undefined) stack.push(parentFrame);
-  }
+  });
 
   return grants;
-};
-
-/** All permission keys granted by any of the given roles. */
-export const flattenAll = (roles: ReadonlyArray<Role>): ReadonlySet<PermissionKey> => {
-  const keys = new Set<PermissionKey>();
-  for (const r of roles) for (const k of flattenPermissions(r)) keys.add(k);
-  return keys;
 };
 
 /**
  * The transitive set of role names a role stands for, including its own.
  *
- * Walked with an identity-keyed visited set, like {@link flattenPermissions} —
- * two distinct `Role` objects sharing a `name` are still two roles to walk, so
- * a role reachable only through the second one is not skipped just because its
- * name was already added to the result.
- *
- * Iterative for the same reason as {@link flattenPermissions}: the result is a
- * `Set`, so traversal order is not observable and an explicit stack can pop in
- * whatever order it likes, but a direct recursion would still overflow the
- * native call stack on a very deep chain. (Ticket 86.)
+ * A projection of the role walk: each visit adds its role's name. The walk keys
+ * on identity, so two distinct roles sharing a `name` are both walked and a role
+ * reachable only through the second one is still reached.
  */
 export const roleNames = (self: Role): ReadonlySet<string> => {
   const names = new Set<string>();
-  const seen = new Set<Role>();
-  const stack: Array<Role> = [self];
-
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (current === undefined) continue;
-    if (seen.has(current)) continue;
-    seen.add(current);
-    names.add(current.name);
-    for (const parent of current.inherits) stack.push(parent);
-  }
-
+  visitRoles([self], (role) => {
+    names.add(role.name);
+  });
   return names;
 };
 
@@ -353,8 +265,8 @@ export const resolveRoleGraph = Effect.fn("qadi.resolveRoleGraph")(function* (
   // instead of O(depth) per call, which made the walk O(depth²) on a long
   // inheritance chain. This is stack *content*, not the native call stack —
   // `resolveRoleGraph`'s own recursion through `Effect.gen`/`yield*` is
-  // already trampolined and does not grow the JS stack, unlike the three
-  // walkers above. (Ticket 86.)
+  // already trampolined and does not grow the JS stack, unlike a direct
+  // recursion over `inherits` would (see `RoleTraversal.ts`). (Ticket 86.)
   const visit = (
     name: string,
     ancestors: Set<string>,

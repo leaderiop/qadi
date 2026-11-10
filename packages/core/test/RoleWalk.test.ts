@@ -8,7 +8,7 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as FastCheck from "fast-check";
-import { permission, role, roleWalk } from "../src/index.ts";
+import { flattenPermissions, permission, role, roleWalk } from "../src/index.ts";
 import type { Role, RoleStep } from "../src/index.ts";
 import { traverseRoles } from "../src/RoleTraversal.ts";
 import { arbitraryRoleGraph, chain, reachable } from "./RoleGraphArbitrary.ts";
@@ -131,5 +131,22 @@ describe("traverseRoles, the package-private walk under roleWalk", () => {
       ["shared", 3, 1, 2, 1],
       ["a", 4, 0, undefined, 0],
     ]);
+  });
+
+  // A sparse `inherits` (an index assigned past the end) type-checks as `Array<Role>`.
+  // The walkers this replaced skipped its holes; reading a hole as a role would
+  // throw on `undefined.inherits` instead.
+  it("skips the holes of a sparse inherits array, and of sparse roots", () => {
+    const parent = role({ name: "parent", permissions: [permission("doc", "read")] });
+    const inherits: Array<Role> = [];
+    inherits[1] = parent;
+    const child = role({ name: "child", inherits });
+    const roots: Array<Role> = [];
+    roots[1] = child;
+    const names: Array<string> = [];
+    traverseRoles(roots, (r) => names.push(r.name));
+
+    assert.deepStrictEqual(names, ["child", "parent"]);
+    assert.deepStrictEqual(flattenPermissions(child), new Set(["doc:read"]));
   });
 });

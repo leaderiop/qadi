@@ -15,7 +15,7 @@ import type { Permission } from "./Permission.ts";
 import { makeRoleName } from "./Policy.ts";
 import type { RoleName } from "./Policy.ts";
 import type { Role } from "./Role.ts";
-import { flattenAll, roleNames } from "./Role.ts";
+import { visitRoles } from "./RoleTraversal.ts";
 
 // `subject.roles.has(policy.role)` (`Evaluate.ts`) compares against
 // `policy.role`, which is branded `RoleName` and validated at `Policy`'s
@@ -84,7 +84,13 @@ export const makeSubject = (config: {
  * Both the role set and the permission set are transitive, so a subject holding
  * `Admin` (which inherits `Editor`) satisfies `hasRole("Editor")` as well.
  *
- * Every name `roleNames` yields is branded with `makeRoleName` the same way
+ * A projection of the role walk, over every role in `config.roles` at once:
+ * one walk with one visited set collects names and permission keys together,
+ * so a role shared by two roots is walked once, not once per root and again
+ * per set. The result is the union of `roleNames` and `flattenAll` over the
+ * same roots, from the same visits.
+ *
+ * Every reached role's name is branded with `makeRoleName` the same way
  * `makeSubject` brands `config.roles` — a total conversion, not a validated
  * one. See `makeSubject`'s doc comment for what that means for a role name
  * that is not segment-shaped.
@@ -96,9 +102,11 @@ export const fromRoles = (config: {
   readonly attributes?: Readonly<Record<string, unknown>>;
 }): AuthSubject => {
   const names = new Set<RoleName>();
-  for (const r of config.roles) for (const n of roleNames(r)) names.add(makeRoleName(n));
-
-  const keys = new Set<PermissionKey>(flattenAll(config.roles));
+  const keys = new Set<PermissionKey>();
+  visitRoles(config.roles, (role) => {
+    names.add(makeRoleName(role.name));
+    for (const p of role.permissions) keys.add(permissionKey(p));
+  });
   for (const p of config.permissions ?? []) keys.add(permissionKey(p));
 
   return {
