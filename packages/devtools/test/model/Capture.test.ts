@@ -708,6 +708,36 @@ describe("custom predicate capture", () => {
     }));
 });
 
+/**
+ * A Date and its ISO string are different questions to the evaluator (`Equal.equals`), and
+ * were one question to the capture's key, so a replay handed one the other's captured answer.
+ */
+describe("a key does not collapse two questions the evaluator tells apart (ARCH-65)", () => {
+  const withDated = portsLayer({
+    AttributeResolver: attributeResolverFromRecord({}),
+    CustomPredicate: customPredicateFromRecord({
+      isDated: (_subject, _resource, params) => Effect.succeed(params instanceof Date),
+    }),
+  });
+
+  it.effect("a Date param's captured allow does not answer its ISO string's question", () =>
+    Effect.gen(function* () {
+      const capture = capturing(withDated);
+      const liveRun = decisionOf(
+        yield* simulate(hasCustom("isDated", new Date(0)), alice, { source: live(capture.layer) }),
+      );
+      assert.strictEqual(liveRun._tag, "Allow");
+
+      const answers = yield* capture.answers;
+      const replayed = yield* simulate(hasCustom("isDated", "1970-01-01T00:00:00.000Z"), alice, {
+        source: snapshot(answers),
+      });
+      // A miss may deny or fail, whichever the replay miss policy says; it may never allow.
+      if (replayed._tag === "Decided") assert.notStrictEqual(replayed.decision._tag, "Allow");
+      else assert.strictEqual(replayed._tag, "Failed");
+    }));
+});
+
 describe("replaying a signature request the capture never saw (code review WR-04)", () => {
   /**
    * `SignatureHistory`'s key carries the asker's `meaning` and `signerRole`, which a
