@@ -391,8 +391,8 @@ const viewer = role({ name: "viewer" });
 const commenter = role({ name: "commenter", inherits: [viewer] });
 const editor = role({ name: "editor", inherits: [viewer, commenter] });
 
-// editor (step 0), viewer (1), commenter (2), then commenter's edge to viewer
-// (3): a Revisit whose `first` is 1.
+// The steps: editor at index 0, viewer at 1, commenter at 2, then commenter's
+// edge to viewer at 3, a Revisit whose `first` is 1.
 export const lines = roleWalk(editor).map(
   RoleStep.$match({
     Visit: (step) => `${"  ".repeat(step.depth)}${step.role.name}`,
