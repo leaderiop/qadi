@@ -1,0 +1,19 @@
+{
+ "packages/http/src/AuthorizeRequest.ts": 0.8421052631578947,
+ "packages/http/src/DecisionBacklogRoute.ts": 1,
+ "packages/http/src/DecisionLogHttp.ts": 1,
+ "packages/http/src/DecisionStreamRoute.ts": 0.9743589743589743,
+ "packages/http/src/DenialLog.ts": 1,
+ "packages/http/src/GuardApi.ts": 0.8478260869565217,
+ "packages/http/src/GuardRoute.ts": 1,
+ "packages/http/src/HttpApiMiddlewareClient.ts": 1,
+ "packages/http/src/NoResource.ts": 1,
+ "packages/http/src/PermissionRegistry.ts": 1,
+ "packages/http/src/PortRouteAddress.ts": 1,
+ "packages/http/src/PortRoutes.ts": 0.8928571428571429,
+ "packages/http/src/QadiHttpError.ts": 1,
+ "packages/http/src/RemotePorts.ts": 0.8333333333333334,
+ "packages/http/src/RequirePermission.ts": 1,
+ "packages/http/src/RequirePermissionMiddleware.ts": 0.967741935483871,
+ "packages/http/src/SubjectExtractor.ts": 1
+}
