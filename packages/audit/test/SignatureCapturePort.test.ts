@@ -162,13 +162,14 @@ describe("signatureObligationHandler — unit", () => {
         );
 
         assert.isTrue(Result.isFailure(result), "the handler must refuse the discharge");
-        if (Result.isFailure(result)) {
-          assert.strictEqual(result.failure._tag, "SignatureCaptureError");
-          assert.strictEqual(
-            result.failure.reason,
-            "the discharged resource has no string id, so a signature for it cannot be keyed to it",
-          );
-        }
+        const reason =
+          Result.isFailure(result) && result.failure._tag === "SignatureCaptureError"
+            ? result.failure.reason
+            : undefined;
+        assert.strictEqual(
+          reason,
+          "the discharged resource has no string id, so a signature for it cannot be keyed to it",
+        );
         assert.strictEqual(calls, 0);
       }));
   }

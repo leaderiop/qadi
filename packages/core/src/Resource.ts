@@ -21,7 +21,10 @@ export type Resource = Readonly<Record<string, unknown>>;
  * read with: a string `id` is the resource's id, anything else (absent, a
  * number, a nested object) is "no id". A capture flow that stores a signature
  * for a resource keys it with this, so a resource-scoped `hasSignature` asks
- * the store the question it was written under. `Walk.ts`'s own reads stay raw
+ * the store the question it was written under. A caller that keys a stored fact
+ * on this result must refuse `undefined` for a present resource rather than
+ * store the fact subject-wide (`signatureObligationHandler` in `@qadi/audit`
+ * does). `Walk.ts`'s own reads stay raw
  * (`resource?.["id"]`) because they must tell "no id" from "a non-string id"
  * (`MissingResourceId`); this function deliberately cannot.
  */
