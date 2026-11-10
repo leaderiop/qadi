@@ -49,7 +49,7 @@ import {
   mergePorts,
   tabulatePorts,
 } from "@qadi/core";
-import type { Decision, DecisionOutcome, KeyRefusal } from "@qadi/core";
+import type { Decision, DecisionOutcome, KeyRefusal, Policy, PortName } from "@qadi/core";
 import {
   answerCount,
   capturing,
@@ -231,10 +231,11 @@ describe("capture fidelity — a key covers every argument the port received (AR
       const liveRun = yield* simulate(policy, other, { source: live(ports) });
       const replayed = yield* simulate(policy, other, { source: snapshot(answers) });
       assert.strictEqual(tagOf(liveRun), "Deny");
-      assert.strictEqual(tagOf(replayed), tagOf(liveRun));
+      // Not doc-1's allow: a question the capture never saw is an outage (D-04).
+      assert.strictEqual(tagOf(replayed), "Failed");
     }));
 
-  it.effect("a capture does not answer a what-if that changed the subject's roles", () =>
+  it.effect("a what-if that changed the subject's roles is an outage, not the captured answer", () =>
     Effect.gen(function* () {
       const byRole = Layer.succeed(CustomPredicate, {
         name: "byRole",
@@ -260,7 +261,7 @@ describe("capture fidelity — a key covers every argument the port received (AR
       const liveRun = yield* simulate(policy, dropped, { source: live(ports) });
       const replayed = yield* simulate(policy, dropped, { source: snapshot(answers) });
       assert.strictEqual(tagOf(liveRun), "Deny");
-      assert.strictEqual(tagOf(replayed), "Deny");
+      assert.strictEqual(tagOf(replayed), "Failed");
     }));
 });
 
@@ -583,11 +584,14 @@ describe("what a replayed failure carries", () => {
 
 describe("replaying outside the captured set", () => {
   /**
-   * E2.2 — a what-if that wanders past what was captured must deny for the
-   * reason a misconfigured deployment would, not for one peculiar to this
-   * panel.
+   * E2.2 — a what-if that wanders past what was captured is an outage, with the
+   * port's own error: the port's `none` would deny the leaf and so grant
+   * `not(leaf)`, an allow the capture cannot back (D-04, INV-QD-007).
    */
-  it.effect("an unseen attribute answers as an unwired port does", () =>
+  const failedWith = (outcome: DecisionOutcome): string =>
+    outcome._tag === "Failed" ? outcome.error._tag : `decided ${decisionOf(outcome)._tag}`;
+
+  it.effect("an unseen attribute is an outage, as an unwired port is not", () =>
     Effect.gen(function* () {
       const outcome = yield* simulate(
         hasAttribute("clearance", gte(1)),
@@ -595,11 +599,10 @@ describe("replaying outside the captured set", () => {
         { source: snapshot(emptyAnswers) },
       );
 
-      // `undefined`, which fails the matcher — a denial, not an error.
-      assert.strictEqual(decisionOf(outcome)._tag, "Deny");
+      assert.strictEqual(failedWith(outcome), "AttributeResolveError");
     }));
 
-  it.effect("an unseen relationship is Unknown, which denies", () =>
+  it.effect("an unseen relationship is an outage, not Unknown", () =>
     Effect.gen(function* () {
       const outcome = yield* simulate(
         hasRelationship("owner"),
@@ -607,35 +610,23 @@ describe("replaying outside the captured set", () => {
         { source: snapshot(emptyAnswers) },
       );
 
-      assert.strictEqual(decisionOf(outcome)._tag, "Deny");
+      assert.strictEqual(failedWith(outcome), "RelationshipResolveError");
     }));
 
-  it.effect("an unseen history query is Unknown, which denies both directions", () =>
+  it.effect("an unseen history query is an outage in both directions, not Unknown", () =>
     Effect.gen(function* () {
-      const outcome = yield* simulate(
-        hasActed("raised"),
-        { subject: { id: "alice" }, resource: { id: "doc-1" } },
-        { source: snapshot(emptyAnswers) },
-      );
-
-      // ADR-QD-020's three-valued default: `Unknown` denies `hasActed` and
-      // `hasNotActed` alike, which is the property a two-valued default could
-      // not have — so both directions are asserted.
-      assert.strictEqual(decisionOf(outcome)._tag, "Deny");
-
-      // The *reason* is what distinguishes `Unknown` from any other answer:
-      // an unrecognised value denies too, but reads as "the subject has not
-      // performed" — which would tell a reviewer the history was consulted and
-      // came back empty, when in fact nothing answered at all.
-      assert.include(decisionOf(outcome).trace.reason ?? "", "no history is available");
-
-      const negated = yield* simulate(
-        hasNotActed("raised"),
-        { subject: { id: "alice" }, resource: { id: "doc-1" } },
-        { source: snapshot(emptyAnswers) },
-      );
-      assert.strictEqual(decisionOf(negated)._tag, "Deny");
-      assert.include(decisionOf(negated).trace.reason ?? "", "no history is available");
+      // `hasActed` and `hasNotActed` alike: neither may read the miss as an
+      // answer, whichever way that answer would go.
+      for (const policy of [hasActed("raised"), hasNotActed("raised")]) {
+        const outcome = yield* simulate(
+          policy,
+          { subject: { id: "alice" }, resource: { id: "doc-1" } },
+          { source: snapshot(emptyAnswers) },
+        );
+        assert.strictEqual(failedWith(outcome), "DecisionHistoryUnavailable");
+        if (outcome._tag !== "Failed") return;
+        assert.include(String(outcome.error.cause), "not captured");
+      }
     }));
 });
 
@@ -708,12 +699,14 @@ describe("custom predicate capture", () => {
       );
     }));
 
-  it.effect("an unseen custom predicate answers false, which denies", () =>
+  it.effect("an unseen custom predicate is an outage, not false", () =>
     Effect.gen(function* () {
       const outcome = yield* simulate(hasCustom("isOwner"), alice, {
         source: snapshot(emptyAnswers),
       });
-      assert.strictEqual(decisionOf(outcome)._tag, "Deny");
+      assert.strictEqual(outcome._tag, "Failed");
+      if (outcome._tag !== "Failed") return;
+      assert.strictEqual(outcome.error._tag, "CustomPredicateError");
     }));
 });
 
@@ -873,9 +866,9 @@ describe("replaying a signature request the capture never saw (code review WR-04
       assert.strictEqual(outcome._tag, "Failed");
     }));
 
-  it.effect("another port's unseen request still answers its own default", () =>
+  it.effect("another port's unseen request is an outage too, never its own default", () =>
     Effect.gen(function* () {
-      // Each decides (a denial), none fails: only SignatureHistory's miss is an outage.
+      // None decides: every port's miss is an outage, as SignatureHistory's is (D-04).
       for (const policy of [
         hasAttribute("clearance", gte(1)),
         hasRelationship("owner"),
@@ -883,7 +876,40 @@ describe("replaying a signature request the capture never saw (code review WR-04
         hasCustom("isOwner"),
       ]) {
         const outcome = yield* simulate(policy, alice, { source: snapshot(emptyAnswers) });
-        assert.strictEqual(decisionOf(outcome)._tag, "Deny");
+        assert.strictEqual(outcome._tag, "Failed");
       }
     }));
+});
+
+describe("a replay miss follows one policy per port (ARCH-65, D-04)", () => {
+  /**
+   * One row per port, typed over `PortName`, so a port added to the registry is a
+   * compile error here until it has a row. Every row is an outage with the port's
+   * own error: the port's `none` would deny the leaf and grant `not(leaf)`.
+   */
+  const MISSES: { readonly [K in PortName]: { readonly leaf: Policy; readonly error: string } } = {
+    AttributeResolver: { leaf: hasAttribute("clearance", gte(1)), error: "AttributeResolveError" },
+    RelationshipResolver: { leaf: hasRelationship("owner"), error: "RelationshipResolveError" },
+    DecisionHistory: { leaf: hasActed("raised"), error: "DecisionHistoryUnavailable" },
+    CustomPredicate: { leaf: hasCustom("isOwner"), error: "CustomPredicateError" },
+    SignatureHistory: { leaf: hasSignature("approve"), error: "SignatureHistoryUnavailable" },
+  };
+
+  for (const port of forEveryPort((d) => d.port)) {
+    const { leaf, error } = MISSES[port];
+    const shapes: ReadonlyArray<readonly [string, Policy]> = [["the leaf", leaf], ["not(leaf)", not(leaf)]];
+    for (const [shape, policy] of shapes) {
+      it.effect(`${port}: a miss under ${shape} fails with ${error}`, () =>
+        Effect.gen(function* () {
+          const outcome = yield* simulate(policy, alice, { source: snapshot(emptyAnswers) });
+          assert.strictEqual(outcome._tag, "Failed");
+          if (outcome._tag !== "Failed") return;
+          assert.strictEqual(outcome.error._tag, error);
+          // `CustomPredicateError` carries its reason as `reason`, the others as `cause`.
+          const said =
+            outcome.error._tag === "CustomPredicateError" ? outcome.error.reason : String(outcome.error.cause);
+          assert.include(said, "not captured");
+        }));
+    }
+  }
 });
