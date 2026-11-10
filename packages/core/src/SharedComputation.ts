@@ -16,9 +16,11 @@
  * `clear` and FIFO eviction all stay there, behind the `cached` and `claim`
  * hooks below.
  *
- * One gap in this regime is still open (issue #64 follow-up): a fresh ask can
- * join a compute that was abandoned while parked in an uninterruptible region,
- * and inherit its interrupt. See the paragraph on it above `awaitShared`.
+ * **A claim is joinable only while somebody waits on it** (issue #64): the
+ * last waiter to leave removes it in the same step that abandons it, so a fresh
+ * ask never joins a compute nobody wants and never inherits its interrupt, and
+ * an abandoned compute's exit is dropped. See the paragraph on it above
+ * `awaitShared`.
  */
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -72,12 +74,14 @@ export interface SharedComputation<K, A, E> {
  * be interrupted. `waiters` is how many fibers (the claimant included) are
  * currently attached to `claim`; it is what tells the last one to leave
  * whether interrupting `fiber` would abandon someone else's answer or just
- * its own.
+ * its own. `abandoned` is set by that last leaver, in the step that removes
+ * the claim from `inFlight`; it tells the compute's `onExit` to drop its exit.
  */
 interface InFlightClaim<A, E> {
   readonly claim: Deferred.Deferred<A, E>;
   fiber: Fiber.Fiber<A, E> | undefined;
   waiters: number;
+  abandoned: boolean;
 }
 
 /** A fresh single-flight table, empty, over the adapter's hooks. */
@@ -93,6 +97,16 @@ export const makeSharedComputation = <K, A, E>(
   // so a direct reassignment inside `Effect.sync` is exactly as atomic as
   // `Ref.modify` would be here.
   let inFlight = HashMap.empty<K, InFlightClaim<A, E>>();
+
+  // Removes `entry` only if it is still the claim at `key`: a `reset`, or an
+  // abandonment, may already have let a fresh claim take the slot, and that
+  // claim is not this one's to remove.
+  const forget = (key: K, entry: InFlightClaim<A, E>): void => {
+    const current = HashMap.get(inFlight, key);
+    if (Option.isSome(current) && current.value === entry) {
+      inFlight = HashMap.remove(inFlight, key);
+    }
+  };
 
   /**
    * Attaches this fiber's interest in `entry`'s shared computation and
@@ -141,28 +155,54 @@ export const makeSharedComputation = <K, A, E>(
    * `CustomPredicate` implementations, this cache's primary extension
    * points. There, `Fiber.interrupt(entry.fiber)` only *records* the
    * interrupt cause; delivery is deferred until `entry.fiber` next
-   * becomes interruptible. A fresh `getOrCompute` for the same key can
-   * join in that deferral window (the entry is still in `inFlight`), and
-   * when delivery eventually lands, `compute`'s `onExit` finalizer
-   * completes `claim` with the interrupted `Exit` — so that fresh
-   * joiner's `awaitShared` resolves interrupted despite never having
-   * been cancelled itself. This is an open gap (issue #64 follow-up),
-   * not one the two REGRESSION PIN tests above exercise: both pin the
-   * idle-and-interruptible regime, since their blocking resolvers park
-   * in bare `Deferred.await`. Closing it structurally — rather than
-   * further narrowing this comment — needs one of: falling through to a
+   * becomes interruptible, and `compute` then exits interrupted. Before
+   * this regime, a fresh ask for the same key could join in that
+   * deferral window and resolve interrupted without ever having been
+   * cancelled itself (issue #64 follow-up).
+   *
+   * **So a claim is joinable only while somebody waits on it.** The same
+   * synchronous step that sees `waiters` reach 0 marks the claim
+   * `abandoned` and removes it from `inFlight` (by identity, through
+   * `forget`), before `Fiber.interrupt` is called at all. A fresh ask
+   * for the same key after that claims afresh and runs its own `compute`,
+   * so a joiner can only ever reach a claim somebody still waits on, and
+   * never inherits an interrupt it did not receive. An abandoned claim's
+   * exit is dropped: its settle is not called, so nothing is cached from
+   * it — nobody asked for it any more, and a fresh claim may already be
+   * computing the same key, so writing both would be the double
+   * insertion-order append the claim-window fix in `run` exists to
+   * prevent — and its `Deferred.done` reaches no waiter, because none is
+   * left. In the idle-and-interruptible cascade above the claim is
+   * abandoned the same way, so that cascade's `onExit` settles nothing
+   * either, where it used to settle an interrupted exit the adapter then
+   * ignored.
+   *
+   * The comment this replaces listed three ways out: fall through to a
    * fresh compute when a join lands on a claim whose fiber already
-   * carries a pending interrupt; delivering the last-leaver signal as a
-   * typed abandon failure instead of raw interruption; or an explicit
-   * uninterruptible-regime regression pin once a decision is made on
-   * which of those to take. Left open rather than guessed at here.
+   * carries a pending interrupt; deliver the last-leaver signal as a
+   * typed abandon failure instead of raw interruption; or pin the regime
+   * as it stood. This is the first, taken at the moment of abandonment
+   * rather than at the moment of joining: it needs no new error type,
+   * changes no public type, and the join needs no knowledge of the
+   * compute fiber's interrupt state. `SharedComputation.test.ts`'s two
+   * "abandon" tests pin it with a plain key and a compute parked in
+   * `Effect.uninterruptible`, and `DecisionCache.test.ts`'s "issue #64,
+   * uninterruptible regime" test pins it through `evaluate`.
+   *
+   * One cost is unchanged: `Fiber.interrupt` awaits its target's exit, so
+   * the last leaver itself still waits until a compute parked
+   * uninterruptibly leaves that region.
    */
-  const awaitShared = (entry: InFlightClaim<A, E>): Effect.Effect<A, E> =>
+  const awaitShared = (key: K, entry: InFlightClaim<A, E>): Effect.Effect<A, E> =>
     Deferred.await(entry.claim).pipe(
       Effect.onInterrupt(() =>
         Effect.sync(() => {
           entry.waiters -= 1;
-          return entry.waiters === 0 ? entry.fiber : undefined;
+          if (entry.waiters > 0) return undefined;
+          // The last one out: nobody can join this claim from here on.
+          entry.abandoned = true;
+          forget(key, entry);
+          return entry.fiber;
         }).pipe(Effect.flatMap((fiber) => (fiber === undefined ? Effect.void : Fiber.interrupt(fiber)))),
       ),
     );
@@ -234,6 +274,7 @@ export const makeSharedComputation = <K, A, E>(
             claim: Deferred.makeUnsafe<A, E>(),
             fiber: undefined,
             waiters: 1,
+            abandoned: false,
           };
           inFlight = HashMap.set(inFlight, key, entry);
           // The adapter's own claim-time reads (`DecisionCache`'s
@@ -250,7 +291,7 @@ export const makeSharedComputation = <K, A, E>(
         // success or failure, rather than compute a second time.
         if (claimed._tag === "Joined") {
           yield* hooks.onOutcome("coalesced");
-          const joined: Shared<A> = { value: yield* restore(awaitShared(claimed.entry)), outcome: "coalesced" };
+          const joined: Shared<A> = { value: yield* restore(awaitShared(key, claimed.entry)), outcome: "coalesced" };
           return joined;
         }
         yield* hooks.onOutcome("miss");
@@ -307,16 +348,10 @@ export const makeSharedComputation = <K, A, E>(
             Effect.sync(() => {
               // The adapter's settle first, so what it remembers is in place
               // before any waiter — or a fresh ask — can observe the answer.
-              settle(exit);
-              // Removes this claim only if it is still the one at
-              // `key` — a `reset` between this compute's claim and now
-              // may have emptied `inFlight` and let a fresh compute claim
-              // the same key already; that claim is not this one's to
-              // remove.
-              const current = HashMap.get(inFlight, key);
-              if (Option.isSome(current) && current.value === entry) {
-                inFlight = HashMap.remove(inFlight, key);
-              }
+              // An abandoned claim's exit is dropped (see `awaitShared`).
+              if (!entry.abandoned) settle(exit);
+              // A no-op when `reset` or the abandoning leave already did it.
+              forget(key, entry);
             }).pipe(Effect.flatMap(() => Deferred.done(entry.claim, exit))),
           ),
           Effect.forkDetach,
@@ -327,7 +362,7 @@ export const makeSharedComputation = <K, A, E>(
           entry.fiber = fiber;
         });
 
-        const missed: Shared<A> = { value: yield* restore(awaitShared(entry)), outcome: "miss" };
+        const missed: Shared<A> = { value: yield* restore(awaitShared(key, entry)), outcome: "miss" };
         return missed;
       }),
     );

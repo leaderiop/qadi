@@ -178,7 +178,8 @@ describe("SharedComputation", () => {
       yield* Deferred.await(interrupted);
       yield* settleTurns;
 
-      assert.deepStrictEqual(settled, ["k:Failure"]);
+      // Abandoned, so its interrupted exit is dropped rather than settled (#64).
+      assert.deepStrictEqual(settled, []);
     }));
 
   it.effect("the settle runs exactly once per claim, before any waiter observes the result", () =>
