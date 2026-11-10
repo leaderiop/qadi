@@ -18,16 +18,17 @@
  * nothing about the subject's standing.
  */
 import * as Struct from "effect/Struct";
-import type { ActedEventInput, RelationshipEdgeInput } from "@qadi/core";
+import type { ActedEventInput, RelationshipEdgeInput, SignatureInput } from "@qadi/core";
 import type { SimulationEdit } from "./SimulationEdit.ts";
 import { composeEdits } from "./SimulationEdit.ts";
+import { sameSignature, signatureCodec } from "./SimulationForm.ts";
 import type { SimulationInput } from "./SimulationInput.ts";
 
 /**
  * Every single-step weakening, in the input's own order.
  *
  * Order is roles, permissions, subject attributes, fixture attributes,
- * relationships, then events — and within each, the order the input listed
+ * relationships, events, then signatures — and within each, the order the input listed
  * them. Determinism is the property that matters (the same input yields the
  * same rows in the same places, so a reviewer comparing two sweeps compares
  * like with like); this particular order is chosen because it runs from what a
@@ -41,6 +42,7 @@ export const singleEdits = (input: SimulationInput): ReadonlyArray<SimulationEdi
     ...fixtureAttributeDrops(input),
     ...relationshipDrops(input),
     ...eventDrops(input),
+    ...signatureDrops(input),
   ]);
 
 /**
@@ -208,6 +210,20 @@ const eventDrops = (input: SimulationInput): ReadonlyArray<SimulationEdit> =>
   );
 
 /**
+ * One row per signature fixture, so a `hasSignature` allow is swept like any
+ * other grant (lost ARCH-48 `950977f`, T1): without it the sweep reported that
+ * nothing the subject held could flip a verdict that turned on a signature.
+ */
+const signatureDrops = (input: SimulationInput): ReadonlyArray<SimulationEdit> =>
+  (input.signatures ?? []).map((signature) =>
+    weaken("DropSignature", signatureLabel(signature, input.subject.id), (self) => {
+      const held = self.signatures;
+      if (held === undefined) return self;
+      return { ...self, signatures: held.filter((other) => !sameSignature(signature, other)) };
+    }),
+  );
+
+/**
  * Field by field rather than by reference or by `Equal.equals`.
  *
  * By reference would be enough for edits this module derives — they are built
@@ -238,6 +254,33 @@ const eventLabel = (event: ActedEventInput, subjectId: string): string =>
   event.subjectId === subjectId
     ? `event ${event.event} on ${event.resourceId}`
     : `event ${event.event} on ${event.resourceId} by ${event.subjectId}`;
+
+/**
+ * A signature's row title: prose for the common case, the chip's own text when
+ * a field prose does not carry is present.
+ *
+ * The label is the row's identity (`dedupeByLabel`), so two signatures that
+ * differ only in `signedAt`, `algorithm` or `keyId` must not read alike: one
+ * row would then stand for both, and dropping it would leave the other in place
+ * while claiming to test it. A signature the form cannot spell at all (a `NaN`
+ * time) falls back to prose.
+ */
+const signatureLabel = (signature: SignatureInput, subjectId: string): string => {
+  if (
+    signature.signedAt !== undefined ||
+    signature.algorithm !== undefined ||
+    signature.keyId !== undefined
+  ) {
+    const exact = signatureCodec.encode(signature, subjectId);
+    if (exact._tag === "Ok") return `without signature ${exact.value}`;
+  }
+  return [
+    `without signature ${signature.meaning}`,
+    signature.resourceId === undefined ? "" : ` on ${signature.resourceId}`,
+    signature.signerRole === undefined ? "" : ` as ${signature.signerRole}`,
+    signature.subjectId === subjectId ? "" : ` by ${signature.subjectId}`,
+  ].join("");
+};
 
 /** A copy without one key. `delete` on a copy would do, but this stays an expression. */
 const omitKey = (

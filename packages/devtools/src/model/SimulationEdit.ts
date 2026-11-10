@@ -45,6 +45,7 @@ export type EditKind =
   | "DropFixtureAttribute"
   | "DropRelationship"
   | "DropEvent"
+  | "DropSignature"
   // ── strengthenings: something the policy asks for, supplied ──
   | "GrantRole"
   | "GrantPermission"
@@ -52,6 +53,7 @@ export type EditKind =
   | "SetResourceAttribute"
   | "AddRelationship"
   | "AddEvent"
+  | "AddSignature"
   | "SetAction"
   // ── two of the above at once ──
   | "Pair";
