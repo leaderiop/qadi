@@ -12,8 +12,10 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as TestClock from "effect/testing/TestClock";
@@ -213,3 +215,112 @@ describe("AuditDecisionSinkLive — a store call that never settles", () => {
     }));
 });
 
+describe("AuditDecisionSinkLive — the deadline's boundaries", () => {
+  it.effect("a caller interrupting a write before the deadline is not a store failure (BEH-QD-251)", () =>
+    Effect.gen(function* () {
+      const arrived = yield* Latch.make();
+      const trail = trailBy((_entry, call) => (call === 0 ? AuditPortReply.Latch({ latch: arrived }) : undefined));
+      const sink = sinkOver(trail.layer, { failureThreshold: 1 });
+
+      yield* Effect.gen(function* () {
+        const fiber = yield* forkRecord(decisionRecord({ evaluationId: "interrupted" }));
+        yield* arrived.await;
+        yield* TestClock.adjust("4 seconds"); // inside the 5 s deadline
+        yield* Fiber.interrupt(fiber);
+        yield* DecisionSink.use((s) => s.record(decisionRecord({ evaluationId: "next" })));
+        assert.deepStrictEqual(sink.outcomes(), ["Written/NotWired"], "the breaker is still Closed");
+        assert.strictEqual(trail.attempts(), 2);
+      }).pipe(Effect.provide(sink.layer));
+    }));
+
+  it.effect("a caller interrupting a half-open probe releases the claim: a later record is the probe", () =>
+    Effect.gen(function* () {
+      const arrived = yield* Latch.make();
+      const trail = trailBy((_entry, call) =>
+        call === 0
+          ? AuditPortReply.Fail({ cause: "offline" })
+          : call === 1
+            ? AuditPortReply.Latch({ latch: arrived })
+            : undefined,
+      );
+      const sink = sinkOver(trail.layer, { failureThreshold: 1 });
+
+      yield* Effect.gen(function* () {
+        const record = (evaluationId: string) =>
+          DecisionSink.use((s) => s.record(decisionRecord({ evaluationId })));
+        yield* record("opens");
+        yield* TestClock.adjust("30 seconds");
+        const probe = yield* forkRecord(decisionRecord({ evaluationId: "probe" }));
+        yield* arrived.await;
+        yield* Fiber.interrupt(probe);
+        yield* record("reopened");
+        yield* TestClock.adjust("30 seconds");
+        yield* record("second-probe");
+        assert.deepStrictEqual(sink.outcomes(), ["WriteFailed/NotWired", "Skipped/NotWired", "Written/NotWired"]);
+        assert.strictEqual(trail.attempts(), 3, "the interrupted probe and the second probe both reached the store");
+      }).pipe(Effect.provide(sink.layer));
+    }));
+
+  it.effect("a write that interrupts itself is a failed attempt: WriteFailed, then Skipped", () =>
+    Effect.gen(function* () {
+      const trail = trailBy(() => AuditPortReply.Interrupt());
+      const sink = sinkOver(trail.layer, { failureThreshold: 1 });
+
+      yield* Effect.gen(function* () {
+        yield* DecisionSink.use((s) => s.record(decisionRecord({ evaluationId: "self-interrupts" })));
+        yield* DecisionSink.use((s) => s.record(decisionRecord({ evaluationId: "after" })));
+        assert.deepStrictEqual(sink.outcomes(), ["WriteFailed/NotWired", "Skipped/NotWired"]);
+        assert.strictEqual(trail.attempts(), 1);
+      }).pipe(Effect.provide(sink.layer));
+    }));
+
+  it.effect("storeCallTimeout: Duration.infinity opts out: a hung write is still pending after an hour", () =>
+    Effect.gen(function* () {
+      const trail = trailBy(() => AuditPortReply.Never());
+      const sink = sinkOver(trail.layer, { storeCallTimeout: Duration.infinity });
+
+      yield* Effect.gen(function* () {
+        const fiber = yield* forkRecord(decisionRecord());
+        yield* TestClock.adjust(OBSERVE);
+        const settled = yield* Fiber.join(fiber);
+        assert.isTrue(Option.isNone(settled), "only the test's own one-hour bound ended it");
+        assert.deepStrictEqual(sink.outcomes(), []);
+        assert.strictEqual(trail.attempts(), 1);
+      }).pipe(Effect.provide(sink.layer));
+    }));
+
+  it.effect("storeCallTimeout: Duration.zero (pinned, not chosen): the call starts, then fails at once", () =>
+    Effect.gen(function* () {
+      const arrived = yield* Latch.make();
+      const trail = trailBy(() => AuditPortReply.Latch({ latch: arrived }));
+      const sink = sinkOver(trail.layer, { storeCallTimeout: Duration.zero });
+
+      yield* Effect.gen(function* () {
+        const fiber = yield* forkRecord(decisionRecord());
+        const settled = yield* Fiber.join(fiber); // no clock adjust: it settled without time passing
+        assert.isTrue(Option.isSome(settled));
+        assert.isTrue(yield* arrived.close, "the store call started: its latch was open");
+        assert.deepStrictEqual(sink.outcomes(), ["WriteFailed/NotWired"]);
+      }).pipe(Effect.provide(sink.layer));
+    }));
+
+  for (const [label, script, outcome] of [
+    ["stage", { stage: (_entry: unknown, call: number) => (call === 0 ? AuditPortReply.Never() : undefined) }, "Written/StageFailed"],
+    ["commit", { commit: (_h: unknown, _e: unknown, call: number) => (call === 0 ? AuditPortReply.Never() : undefined) }, "Written/CommitFailed"],
+  ] as const) {
+    it.effect(`a ${label} past the deadline changes only the staging status and does not move the breaker`, () =>
+      Effect.gen(function* () {
+        const trail = AuditTrailPortTest();
+        const sink = sinkOver(Layer.merge(trail.layer, AuditStagingPortTest(script).layer), { failureThreshold: 1 });
+
+        yield* Effect.gen(function* () {
+          const fiber = yield* forkRecord(decisionRecord({ evaluationId: "hung" }));
+          yield* TestClock.adjust(PAST_DEADLINE);
+          yield* Fiber.join(fiber);
+          yield* DecisionSink.use((s) => s.record(decisionRecord({ evaluationId: "next" })));
+          assert.deepStrictEqual(sink.outcomes(), [outcome, "Written/Committed"]);
+          assert.strictEqual(trail.written().length, 2, "the breaker stayed Closed");
+        }).pipe(Effect.provide(sink.layer));
+      }));
+  }
+});
