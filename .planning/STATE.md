@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 13-02-PLAN.md
+stopped_at: Completed 13-03-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "13-02 complete: EditKind gains DropSignature/AddSignature; the sweep drops signatures; remedyFor is a Match.type matcher with an AddSignature remedy and a named hasCustom skip; core resourceIdOf (O5)"
+last_activity_desc: "13-03 complete: SimulationFields.ts (one closed field table); singleEdits, the remedies' grants, renameSubject, unseededByReplay (UnseededField.key) and the fixture ports derive from it"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 59
-  completed_plans: 17
-  percent: 29
+  completed_plans: 18
+  percent: 31
 current_phase: 13
 ---
 
@@ -28,14 +28,14 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 13 of 20 (Lost-wave gaps)
-Plan: 2 of 13 complete (13-01, 13-02); next is 13-03
+Plan: 3 of 13 complete (13-01, 13-02, 13-03); next is 13-04
 Status: Phase 13 in progress (phase_base 0925c2f)
-Last activity: 2026-11-10 -- 13-02 complete: `EditKind` gains `DropSignature`/`AddSignature`; `singleEdits` drops each signature fixture; `remedyFor` is a module-scope `Match.type` matcher (AddSignature from the node; named `hasCustom` skip, BEH-QD-222); `Remedies.ts` uses core `resourceIdOf` (O5); Edits/Remedies/SimulationEdit mutation 1.0; spec/changeset left to 13-04, registers to 13-11; `spec:verify` still red on CCR-QD-399 until 13-11
+Last activity: 2026-11-10 -- 13-03 complete: `SimulationFields.ts` describes each simulation input field once (`SIMULATION_FIELDS`, `FIELD_ORDER`, `fieldOps`, `grant`, `renameSubject`, `formOf`, `FIXTURE_DATA`); `singleEdits` folds over it, `remedyFor`'s held-field arms grant through it, `UnseededField` gains `key`, `SimulationSource` builds a closed per-port setup from `FIXTURE_DATA`; `sameEdge`/`sameEvent` now in `SimulationForm.ts`; session commands/view/spec/changeset are 13-04's; `spec:verify` still red on CCR-QD-399 until 13-11
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 35
+- Total plans completed: 36
 - Average duration: -
 - Total execution time: 0.0 hours
 
