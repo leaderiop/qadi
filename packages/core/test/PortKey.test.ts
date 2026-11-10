@@ -11,7 +11,7 @@ import * as Equal from "effect/Equal";
 import * as Hash from "effect/Hash";
 import * as Result from "effect/Result";
 import * as FastCheck from "fast-check";
-import { KeyRefusal } from "../src/PortDescription.ts";
+import { describeKeyRefusal, KeyRefusal } from "../src/PortDescription.ts";
 import { canonicalKey } from "../src/PortKey.ts";
 
 /** Why the key refused `v`, asserting it did. */
@@ -261,6 +261,23 @@ describe("canonicalKey — the refusals (ARCH-65)", () => {
     const hidden = Object.defineProperty({}, "h", { value: 1 });
     assert.isFalse(Equal.equals(hidden, {}));
     assert.strictEqual(keyText(hidden), '{"h":d1;}');
+  });
+});
+
+describe("describeKeyRefusal", () => {
+  it("names where and what kind, never the value", () => {
+    assert.deepStrictEqual(
+      [
+        KeyRefusal.Circular({ path: ["params", 0] }),
+        KeyRefusal.Unkeyable({ path: [], kind: "instance", brand: "Point" }),
+        KeyRefusal.Unreadable({ path: ["x"], message: "boom" }),
+      ].map(describeKeyRefusal),
+      [
+        "params.0: a circular reference has no request key",
+        "the request: an unkeyable instance (Point) has no request key",
+        "x: reading it threw: boom",
+      ],
+    );
   });
 });
 

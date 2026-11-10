@@ -99,7 +99,7 @@ const where = (path: WirePath): string => (path.length === 0 ? "the request" : p
 export const describeKeyRefusal: (self: KeyRefusal) => string = Match.type<KeyRefusal>().pipe(
   Match.tagsExhaustive({
     Circular: (refusal) => `${where(refusal.path)}: a circular reference has no request key`,
-    Unkeyable: (refusal) => `${where(refusal.path)}: a ${refusal.kind} (${refusal.brand}) has no request key`,
+    Unkeyable: (refusal) => `${where(refusal.path)}: an unkeyable ${refusal.kind} (${refusal.brand}) has no request key`,
     Unreadable: (refusal) => `${where(refusal.path)}: reading it threw: ${refusal.message}`,
   }),
 );

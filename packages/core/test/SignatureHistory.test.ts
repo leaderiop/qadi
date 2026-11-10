@@ -6,12 +6,14 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import { SignatureHistoryUnavailable } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import {
   SignatureHistory,
   SignatureHistoryNone,
   signatureHistoryFromSignatures,
+  signatureHistoryPort,
 } from "../src/SignatureHistory.ts";
 
 const query = (
@@ -189,5 +191,15 @@ describe("SignatureHistory", () => {
         assert.notStrictEqual(first, second);
         assert.deepStrictEqual(first, second);
       }));
+  });
+});
+
+describe("signatureHistoryPort's wire", () => {
+  it("writes a subject-global question with no resourceId key, rather than refusing it", () => {
+    const encoded = signatureHistoryPort.wire.encodeQuestion([
+      { subjectId: makeSubjectId("alice"), resourceId: undefined },
+    ]);
+    if (Result.isFailure(encoded)) return assert.fail(encoded.failure);
+    assert.deepStrictEqual(encoded.success, { subjectId: "alice" });
   });
 });

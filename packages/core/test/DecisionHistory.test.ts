@@ -6,7 +6,13 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import { DecisionHistory, DecisionHistoryUnknown, decisionHistoryFromEvents } from "../src/DecisionHistory.ts";
+import * as Result from "effect/Result";
+import {
+  DecisionHistory,
+  DecisionHistoryUnknown,
+  decisionHistoryFromEvents,
+  decisionHistoryPort,
+} from "../src/DecisionHistory.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 
 const query = (
@@ -74,5 +80,15 @@ describe("DecisionHistory", () => {
           );
         }),
     );
+  });
+});
+
+describe("decisionHistoryPort's wire", () => {
+  it("writes an Any-scoped question with no resourceId key, rather than refusing it", () => {
+    const encoded = decisionHistoryPort.wire.encodeQuestion([
+      { subjectId: makeSubjectId("alice"), event: "approved", resourceId: undefined },
+    ]);
+    if (Result.isFailure(encoded)) return assert.fail(encoded.failure);
+    assert.deepStrictEqual(encoded.success, { subjectId: "alice", event: "approved" });
   });
 });

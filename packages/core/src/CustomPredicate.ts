@@ -82,7 +82,6 @@ export class CustomPredicate extends Context.Service<
  * turning a typed failure into a defect.
  */
 const renderReason = (cause: unknown): string => {
-  if (typeof cause === "string") return cause;
   if (cause instanceof Error) return cause.message;
   try {
     return String(cause);
