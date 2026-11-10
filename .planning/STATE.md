@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 20-02-PLAN.md
+stopped_at: Completed 20-03-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "20-02 complete: single-flight extracted to package-private SharedComputation.ts (plain-key tests); DecisionCache delegates; #64 test still RED; mutation DecisionCache.ts 0.9583 (base 0.9479), SharedComputation.ts 0.9836"
+last_activity_desc: "20-03 complete: #64 fixed in SharedComputation.ts (a claim is joinable only while somebody waits on it; abandoned exits dropped); 20-01 test GREEN; mutation DecisionCache.ts 0.9583 (base 0.9479), SharedComputation.ts 0.9857"
 state_head: 856a092ab1da5af22c7dbf7a6044fa32cf55eeeb
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 59
-  completed_plans: 57
-  percent: 97
+  completed_plans: 58
+  percent: 98
 current_phase: 20
 ---
 
@@ -28,14 +28,14 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 20 of 20 (DecisionCache shared computation)
-Plan: 2 of 4 in Phase 20; next is 20-03
-Status: Phase 20 in progress (phase_base a7a5a8cb); 20-01's #64 test is RED until 20-03, which fixes it in SharedComputation.ts
-Last activity: 2026-11-10 -- 20-02 complete: DecisionCache's single-flight protocol extracted, behaviour-preserving, into package-private SharedComputation.ts (makeSharedComputation over cached/claim/onOutcome hooks, plus reset for clear); 11 plain-key tests; every DecisionCache test unchanged and green, the #64 uninterruptible-regime test still RED with the same message; bench within noise (interleaved); mutation DecisionCache.ts 0.9583 vs 0.9479, SharedComputation.ts 0.9836
+Plan: 3 of 4 in Phase 20; next is 20-04
+Status: Phase 20 in progress (phase_base a7a5a8cb); #64 fixed in 20-03, 20-04 records the spec, changeset and check:pr
+Last activity: 2026-11-10 -- 20-03 complete: #64 fixed in SharedComputation.ts. The last waiter to leave marks the claim abandoned and removes it from inFlight in the same sync step, so a fresh ask claims afresh; an abandoned compute's exit is never settled (not cached). 2 plain-key seam tests RED then GREEN; 20-01's test GREEN (2 invocations), DecisionCache.test.ts unedited; whole core green with no exclusion; BDD green; bench within noise (interleaved); mutation DecisionCache.ts 0.9583 vs 0.9479, SharedComputation.ts 0.9857
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 57
+- Total plans completed: 58
 - Average duration: -
 - Total execution time: 0.0 hours
 

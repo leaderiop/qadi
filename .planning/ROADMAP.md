@@ -249,7 +249,7 @@ Plans:
 Plans:
 - [x] 20-01 (W1): Reproduce the issue-#64 follow-up gap as a RED test through `DecisionCache`'s current interface, before any extraction (D-01, CACHE-01). ⛳ checkpoint
 - [x] 20-02 (W2): Extract `DecisionCache`'s single-flight protocol into a package-private module with its own seam (D-02, CACHE-02), behaviour-preserving, so the #64 gap can be pinned…
-- [ ] 20-03 (W3): Pin the #64 follow-up gap at the new seam and close it (CACHE-03): an abandoned shared computation leaves the in-flight table in the same step that abandons it, so…
+- [x] 20-03 (W3): Pin the #64 follow-up gap at the new seam and close it (CACHE-03): an abandoned shared computation leaves the in-flight table in the same step that abandons it, so…
 - [ ] 20-04 (W4): Record Phase 20 in the normative spec (D-04, XC-02) on whichever branch D-01 took, and prove the merge gate (XC-01).
 
 ### Progress (v1.1)
@@ -266,4 +266,4 @@ Plans:
 | 17. Injective request key | 6/6 | Complete | 2026-11-10 |
 | 18. Devtools HTTP surface | 3/3 | Complete | 2026-11-10 |
 | 19. Verdict presentation | 3/3 | Complete | 2026-11-10 |
-| 20. DecisionCache shared computation | 2/4 | In progress | - |
+| 20. DecisionCache shared computation | 3/4 | In progress | - |
