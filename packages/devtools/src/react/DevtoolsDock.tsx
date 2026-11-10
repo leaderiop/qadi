@@ -166,14 +166,6 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   const [filters, setFilters] = useState<Filters>(noFilters);
   const [tab, setTab] = useState<TabId>("log");
   const [selectedKey, setSelectedKey] = useState<string | undefined>(undefined);
-  /**
-   * The row the simulator is seeded from.
-   *
-   * Separate from `selectedKey` on purpose: moving on in the log should not
-   * silently re-seed a form the reviewer is halfway through filling in, so
-   * seeding is an act rather than a consequence.
-   */
-  const [seed, setSeed] = useState<TimelineEntry | undefined>(undefined);
 
   // Paired against the **whole** timeline and filtered afterwards: pairing a
   // filtered view would make a row look unpaired because its partner happened
@@ -196,7 +188,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
    * Held by the dock it survives a round trip, and the seed and ports arrive
    * as commands rather than being re-derived on each render.
    */
-  const simulation = useOwnedSimulationSession({ sightings, seed, ports });
+  const simulation = useOwnedSimulationSession({ sightings, ports });
   /**
    * The explorer's session and the role viewer's choice, owned here for the
    * simulator's reason: what a screen shows is not a choice the reviewer made by
@@ -211,11 +203,16 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   }, []);
 
   // E8.1 — switches tab *and* seeds. Doing only the first would leave the
-  // reviewer on a blank form wondering which row they came from.
-  const replay = useCallback((entry: TimelineEntry) => {
-    setSeed(entry);
-    setTab("simulator");
-  }, []);
+  // reviewer on a blank form wondering which row they came from. Seeding is an
+  // act rather than a consequence: selecting another row does not re-seed a
+  // half-filled form, and replaying the same row again always does (ARCH-63).
+  const replay = useCallback(
+    (entry: TimelineEntry) => {
+      simulation.replay(entry);
+      setTab("simulator");
+    },
+    [simulation],
+  );
 
   return (
     <section style={dock} data-testid="qadi-devtools" aria-label="Qadi devtools">

@@ -1054,6 +1054,34 @@ describe("screen 5 — the simulator, and the dock around it", () => {
       await replayRow(a);
       assert.strictEqual(screen.getByTestId("qadi-action").getAttribute("value"), "read");
     });
+
+    // The replay is a command, not a prop: a later timeline change must not
+    // dispatch an unchanged (empty) seed and clear what the reviewer replayed.
+    it("a timeline change after a replay keeps the replayed form", async () => {
+      const a = decisionRecord({ evaluationId: "a", at: 100, policy: hasPermission(read), action: "read" });
+      const view = await mount([a]);
+      await replayRow(0);
+      act(() => {
+        fireEvent.change(screen.getByTestId("qadi-action"), { target: { value: "write" } });
+      });
+
+      view.rerender(
+        <DevtoolsDock
+          source={sourceFromRecords([
+            a,
+            decisionRecord({ evaluationId: "b", at: 200, policy: hasPermission(write), action: "write" }),
+          ])}
+        />,
+      );
+      await act(async () => {});
+      assert.isTrue(
+        Array.from(policySelect().options).some((option) => option.text.includes("write")),
+        "the new row reached the simulator's rail",
+      );
+
+      assert.strictEqual(policySelect().value, "seeded");
+      assert.strictEqual(screen.getByTestId("qadi-action").getAttribute("value"), "write");
+    });
   });
 
   // C8 — a tab is unmounted when it is left; the session is the dock's, so the

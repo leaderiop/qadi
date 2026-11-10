@@ -65,8 +65,10 @@ export const useSimulationSnapshot = (session: SimulationSession): SimulationSes
  * The first values are the session's initial state, so a simulator mounted with
  * a seed seeds on its first render. Later changes are dispatched from a layout
  * effect, which runs before the browser paints — no frame of the previous row's
- * form is ever shown under the new row's heading. Unmounting disposes the
- * session, interrupting any run in flight.
+ * form is ever shown under the new row's heading. Each prop is dispatched only
+ * when it changes, so a host that replays through `session.replay` is never
+ * overridden by an unchanged `seed` prop. Unmounting disposes the session,
+ * interrupting any run in flight.
  */
 export const useOwnedSimulationSession = (input: UseSimulationSessionInput): SimulationSession => {
   const [session] = useState(() =>
@@ -79,9 +81,13 @@ export const useOwnedSimulationSession = (input: UseSimulationSessionInput): Sim
 
   useLayoutEffect(() => {
     session.setSightings(input.sightings);
+  }, [session, input.sightings]);
+  useLayoutEffect(() => {
     session.seed(input.seed);
+  }, [session, input.seed]);
+  useLayoutEffect(() => {
     session.setPorts(input.ports);
-  }, [session, input.sightings, input.seed, input.ports]);
+  }, [session, input.ports]);
 
   useEffect(
     () => () => {
