@@ -1002,6 +1002,60 @@ describe("screen 5 — the simulator, and the dock around it", () => {
     assert.strictEqual(screen.getByTestId("qadi-action").getAttribute("value"), "read");
   });
 
+  // DOCK-01 / ARCH-63 — replaying is an act. Pressing it again on the same row
+  // re-seeds, whatever the reviewer did to the simulator since.
+  describe("replays the same row again", () => {
+    const replayRow = async (index: number) => {
+      await click(screen.getByRole("button", { name: "Log" }));
+      await click(rows()[index] ?? fail());
+      await click(screen.getByTestId("qadi-replay"));
+    };
+    const policySelect = (): HTMLSelectElement => {
+      const element = screen.getByTestId("qadi-simulator-policy");
+      if (!(element instanceof HTMLSelectElement)) throw new Error("expected a <select>");
+      return element;
+    };
+    const twoRows = () =>
+      mount([
+        decisionRecord({ evaluationId: "a", at: 100, policy: hasPermission(read), action: "read" }),
+        decisionRecord({ evaluationId: "b", at: 200, policy: hasPermission(write), action: "write" }),
+      ]);
+    const rowOf = (evaluationId: string) =>
+      rows().findIndex((row) => (row.textContent ?? "").includes(evaluationId));
+
+    it("replays the same row again after another policy was chosen", async () => {
+      await twoRows();
+      const a = rowOf("a");
+      await replayRow(a);
+      assert.strictEqual(policySelect().value, "seeded");
+
+      const other = Array.from(policySelect().options).find((option) =>
+        option.text.includes("write"),
+      );
+      act(() => {
+        fireEvent.change(policySelect(), { target: { value: other?.value ?? fail() } });
+      });
+      assert.notStrictEqual(policySelect().value, "seeded");
+
+      await replayRow(a);
+      assert.strictEqual(policySelect().value, "seeded");
+      assert.strictEqual(screen.getByTestId("qadi-action").getAttribute("value"), "read");
+    });
+
+    it("replays the same row again after the form was edited", async () => {
+      await twoRows();
+      const a = rowOf("a");
+      await replayRow(a);
+      act(() => {
+        fireEvent.change(screen.getByTestId("qadi-action"), { target: { value: "write" } });
+      });
+      assert.strictEqual(screen.getByTestId("qadi-action").getAttribute("value"), "write");
+
+      await replayRow(a);
+      assert.strictEqual(screen.getByTestId("qadi-action").getAttribute("value"), "read");
+    });
+  });
+
   // C8 — a tab is unmounted when it is left; the session is the dock's, so the
   // form, the capture and the result are not.
   it("keeps the simulator's form, capture and result across a tab round trip", async () => {
