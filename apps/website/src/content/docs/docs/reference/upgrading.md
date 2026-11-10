@@ -346,3 +346,38 @@ A script also receives the entry and the call's 0-based index, and can answer
 writes, which count toward the circuit breaker. Raise `storeCallTimeout` for it,
 or pass `Duration.infinity` to keep 0.11's unbounded wait. See
 [ADR-QD-126](https://github.com/leaderiop/qadi/blob/main/spec/decisions/126-an-audit-store-call-has-a-deadline.md).
+
+## 0.12: a port's request key is a `Result`
+
+`PortDescription.key` returns `Result<string, KeyRefusal>` instead of `string`, and every key's text
+changes. Two requests now share a key exactly when every argument is `Equal.equals`. A request holding a
+value the key cannot represent faithfully (a cycle, a function, a symbol, a class instance) gets a typed
+`KeyRefusal`, where it used to throw or collide with another request. No key was ever persisted or sent
+on a wire, so there is nothing to migrate. Only code that calls `key` itself changes. Before:
+
+```ts
+import { attributeResolverPort, makeSubjectId } from "@qadi/core";
+
+const seen = new Map<string, number>();
+seen.set(attributeResolverPort.key([makeSubjectId("alice"), "clearance"]), 5);
+```
+
+After, match the `Result` and key your map by the success text, never by the `Result` itself:
+
+```typescript
+import * as Result from "effect/Result";
+import { attributeResolverPort, describeKeyRefusal, makeSubjectId } from "@qadi/core";
+
+export const seen = new Map<string, number>();
+export const refused: Array<string> = [];
+
+const key = attributeResolverPort.key([makeSubjectId("alice"), "clearance"]);
+if (Result.isSuccess(key)) seen.set(key.success, 5);
+else refused.push(describeKeyRefusal(key.failure));
+```
+
+`replyTable` and `signatureHistoryFromSignatures` fail a request whose key is refused with the port's own
+typed error. In `@qadi/devtools`, a what-if replay of a request its capture never saw now fails with the
+port's typed error on every port. It used to answer the port's default, which `not(...)` turned into an
+allow. See
+[ADR-QD-129](https://github.com/leaderiop/qadi/blob/main/spec/decisions/129-a-replay-miss-is-an-outage-on-every-port.md).
