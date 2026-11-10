@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-108                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-08                                     |
 > | Status         | Accepted — amends ADR-QD-036; reads ADR-QD-081, ADR-QD-102 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-10): D-46-e superseded: membership is the access plan's, by endpoint value; `endpointMemberKey` is deleted (ARCH-59, ADR-QD-118, CCR-QD-396)<br>1.0 (2026-11-08): Initial (CCR-QD-385)         |
+> | Change History | 1.2 (2026-11-10): Addendum — a third mode, `enforcePublic`, serves `RequirePermission`'s public endpoints through the one handler step (ARCH-61, BEH-QD-359, CCR-QD-399)<br>1.1 (2026-11-10): D-46-e superseded: membership is the access plan's, by endpoint value; `endpointMemberKey` is deleted (ARCH-59, ADR-QD-118, CCR-QD-396)<br>1.0 (2026-11-08): Initial (CCR-QD-385)         |
 
 ---
 
@@ -77,3 +77,22 @@ ADR-QD-102's tables are untouched. `ENFORCEMENT_ERROR_WIRE`, `HTTP_ENFORCEMENT_T
   ship can already call `authorizeRequest`. ADR-QD-099 prefers internal until a consumer asks.
 - **Folding `GuardRoute.ts` into `addGuardedRoute`.** Possible, but the contract in its doc
   comment would lose its home (D-46-j).
+
+> **Addendum 2026-11-10 (CCR-QD-399) — a third mode, for a public endpoint.**
+>
+> **What changed.** `AuthorizeRequest.ts` gains `enforcePublic(project, handler)`: it runs the
+> handler as `anonymous` through `enforced`, the one handler step (D-46-d), extracting no subject
+> and applying no policy. `RequirePermission`'s public arm is now
+> `enforcePublic(answerInChannel, () => httpEffect)`, and the middleware's refusal no longer
+> provides a `CurrentSubject` to an effect that never needed one. The module has three modes.
+>
+> **Why.** The public arm provided `anonymous` to the handler itself and did nothing else, so a
+> denial the handler's own `guard` raised was answered 403 and logged nowhere, and its outage body
+> was redacted only by the encoder's excess-property strip, not by `answerInChannel`'s projection.
+> Lost ARCH-47 (`b0b9363`) found it and fixed it with a `serveRequest` step; this module supersedes
+> that step, so the fix is ported as a mode here rather than as a tap in the middleware. A tap in
+> the middleware would be a second copy of the handler step, the duplication D-46-d removed.
+>
+> **Records.** BEH-QD-359; BEH-QD-321 and BEH-QD-335 amended (`23-http.md` Rev 1.14); a
+> `publicEndpoint` row in `RequestEnforcement.test.ts` (D-46-g's table, now six callers); a patch
+> changeset for `@qadi/http`. No export is added or removed: the module is package-private.
