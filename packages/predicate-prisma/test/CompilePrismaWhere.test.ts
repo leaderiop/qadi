@@ -232,9 +232,9 @@ describe("compilePrismaWhere — NULL handling agrees with evaluatePredicate's =
 // bare `{NOT: {AND: []}}`/`{NOT: {OR: []}}` folds to "no WHERE restriction" —
 // every row — inverting `evaluatePredicate(Negate(True/False), row)`, which
 // is `false`/`true` for every row. This is a golden-shape assertion, not a
-// `matchesPrismaWhere`-driven property one, on purpose: that reader computes
-// `!matchesPrismaWhere({AND: []}, row)` as plain JS (`.every([])` is `true`,
-// negated `false`), which already agrees with the *reference* semantics —
+// `matchesPrismaWhere`-driven property one, on purpose: the retired reader
+// computed `!matchesPrismaWhere({AND: []}, row)` as plain JS (`.every([])` is
+// `true`, negated `false`), which already agrees with the *reference* semantics —
 // exactly why it was structurally blind to the real engine's folding bug in
 // the first place (ticket 06's own finding). Only the exact rendered
 // `WhereInput` shape distinguishes the fix from the defect.

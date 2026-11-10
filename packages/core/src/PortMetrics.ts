@@ -142,15 +142,6 @@ export const portTimeoutsTotal = Metric.frequency("qadi_port_timeouts_total", {
 });
 
 /**
- * The two ports `toPredicate` reads — {@link predicatePortCallsTotal}'s closed
- * domain, and a proper subset of {@link PortName}: translation refuses
- * `HasRelationship`, `HasCustom` and `HasSignature` before it would ask
- * (BEH-QD-123), so only `AttributeResolver` and `DecisionHistory` are ever
- * called. A translation read of any other port is a compile error through
- * `PortAccess.ts`'s signatures, rather than a word silently missing from this
- * metric.
- */
-/**
  * Reads a host made into a port to answer another process's question
  * (`servePortRead`, ARCH-31), by port.
  *
@@ -168,6 +159,15 @@ export const servedPortCallsTotal = Metric.frequency("qadi_port_served_calls_tot
   preregisteredWords: PORT_NAMES,
 });
 
+/**
+ * The two ports `toPredicate` reads — {@link predicatePortCallsTotal}'s closed
+ * domain, and a proper subset of {@link PortName}: translation refuses
+ * `HasRelationship`, `HasCustom` and `HasSignature` before it would ask
+ * (BEH-QD-123), so only `AttributeResolver` and `DecisionHistory` are ever
+ * called. A translation read of any other port is a compile error through
+ * `PortAccess.ts`'s signatures, rather than a word silently missing from this
+ * metric.
+ */
 export type PredicatePortName = "AttributeResolver" | "DecisionHistory";
 
 const PREDICATE_PORT_NAMES_BY_NAME: Record<PredicatePortName, true> = {

@@ -12,7 +12,7 @@
  *
  * A leaf/vocabulary module without its own `Verdict.test.ts` — `verdictOf` and
  * `countsOf` are exercised across `Filters.test.ts`, `Pairing.test.ts`,
- * `Replay.test.ts` and `WhatIfTable.test.ts`, wherever a caller needs the
+ * `Replay.test.ts` and `WhatIfTable.test.tsx`, wherever a caller needs the
  * classification rather than owns it.
  */
 import * as Match from "effect/Match";

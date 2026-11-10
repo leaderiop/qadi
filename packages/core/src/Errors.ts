@@ -100,8 +100,8 @@ export class RelationshipResolveError extends Schema.TaggedError<RelationshipRes
 /**
  * A policy needing `resource.id` was evaluated without one.
  *
- * Raised by `HasRelationship`, and by `HasActed`/`HasNotActed` under
- * `scope: "resource"`. One error rather than two: it is the same failure with
+ * Raised by `HasRelationship`, and by `HasActed`/`HasNotActed`/`HasSignature`
+ * under `scope: "Resource"`. One error rather than two: it is the same failure with
  * the same diagnosis, and a second code meaning the same thing would be worse
  * than a field named for the more general case.
  */

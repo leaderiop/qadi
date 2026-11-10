@@ -149,8 +149,8 @@ export const collectingLogger = (): {
  * before assuming every forked fiber has reached whatever it is blocked on.
  *
  * A magic number in name only: it is the one place this test suite's
- * blocking-resolver tests (`AttributeResolver.test.ts`, `CustomPredicate.test.ts`,
- * `Qadi.test.ts`, and this file's own callers) tune it, rather than each
+ * blocking-resolver tests (`CustomPredicate.test.ts`, `Qadi.test.ts`, and
+ * this file's own callers) tune it, rather than each
  * inlining its own copy of the loop and its own guess at how many turns are
  * enough.
  */

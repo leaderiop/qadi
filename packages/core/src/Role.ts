@@ -101,7 +101,7 @@ export interface PermissionGrant {
  * what only an explorer wants. Two functions, one traversal shape.
  *
  * The two are held in agreement instead: the permissions reported here are
- * exactly the set `flattenPermissions` returns, asserted in `Role.test.ts`, so a
+ * exactly the set `flattenPermissions` returns, asserted in `RolesAndDepth.test.ts`, so a
  * screen built on this cannot show a different set from the one that decides.
  *
  * Diamonds resolve the same way they do there — first path wins, by the shared

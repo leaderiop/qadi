@@ -7,7 +7,7 @@
  * atom set. Every atom set below is built from an un-hoisted
  * `decisionCacheLayer`, which is the shape that read "0 entries" before the feed
  * existed (CCR-QD-200). `@qadi/devtools` is deliberately not imported: the
- * cross-package proof lives in the example (`dock-wiring.test.ts`), because
+ * cross-package proof lives in the example (`examples/nextjs-newsroom/test/dock-wiring.test.tsx`), because
  * neither package depends on the other (ADR-QD-053).
  */
 import {
