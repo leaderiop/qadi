@@ -66,7 +66,7 @@ phases hold a package intentionally red between their first and last plan; `use_
 **Plans**: 3 plans
 
 Plans:
-- [ ] 10-01 (W1): Make the untracked 2026-10-13 tracker stop claiming work is on `main`.
+- [x] 10-01 (W1): Make the untracked 2026-10-13 tracker stop claiming work is on `main`.
 - [ ] 10-02 (W1): Remove the stale build output the lost wave left in `packages/*/lib/`, through the repo's own clean and build scripts (D-03), so nobody grepping `lib/` finds modules…
 - [ ] 10-03 (W2): Take the one human decision this phase has (D-02: track, ignore or archive the old tracker), apply it so `git status` shows it, confirm the milestone's lost-wave note… ⛳ checkpoint
 
@@ -256,7 +256,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 10. Planning reconciliation | 0/3 | Planned | - |
+| 10. Planning reconciliation | 1/3 | In progress | - |
 | 11. Lost-wave security | 0/7 | Planned | - |
 | 12. Lost-wave integrity | 0/5 | Planned | - |
 | 13. Lost-wave gaps | 0/13 | Planned | - |
