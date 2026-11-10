@@ -40,7 +40,7 @@ phases hold a package intentionally red between their first and last plan; `use_
 
 ### Phases
 
-- [ ] **Phase 10: Planning reconciliation** - Make `.planning/` match `main`: supersede the lost tracker, decide its tracking, and clear the orphan build output (no ARCH id)
+- [x] **Phase 10: Planning reconciliation** - Make `.planning/` match `main`: supersede the lost tracker, decide its tracking, and clear the orphan build output (no ARCH id)
 - [ ] **Phase 11: Lost-wave security** - Port the signature-ledger keyed store and the guardApi closed access plan; both fix live privilege defects (ARCH-59)
 - [ ] **Phase 12: Lost-wave integrity** - Port the decision-stream order owner and the one-value hydration outcome; fix record loss on reconnect and SSR crashes (ARCH-60)
 - [ ] **Phase 13: Lost-wave gaps** - Port the public-endpoint denial log, the simulation field table, the evaluation metrics module, test gaps and doc defects (ARCH-61)
@@ -68,7 +68,7 @@ phases hold a package intentionally red between their first and last plan; `use_
 Plans:
 - [x] 10-01 (W1): Make the untracked 2026-10-13 tracker stop claiming work is on `main`.
 - [x] 10-02 (W1): Remove the stale build output the lost wave left in `packages/*/lib/`, through the repo's own clean and build scripts (D-03), so nobody grepping `lib/` finds modules…
-- [ ] 10-03 (W2): Take the one human decision this phase has (D-02: track, ignore or archive the old tracker), apply it so `git status` shows it, confirm the milestone's lost-wave note… ⛳ checkpoint
+- [x] 10-03 (W2): Take the one human decision this phase has (D-02: track, ignore or archive the old tracker), apply it so `git status` shows it, confirm the milestone's lost-wave note… ⛳ checkpoint
 
 ### Phase 11: Lost-wave security
 **Goal**: A signature never grants beyond the resource it was captured for, and `guardApi` never serves an endpoint it didn't vet.
@@ -256,7 +256,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 10. Planning reconciliation | 2/3 | In progress | - |
+| 10. Planning reconciliation | 3/3 | Complete | 2026-11-10 |
 | 11. Lost-wave security | 0/7 | Planned | - |
 | 12. Lost-wave integrity | 0/5 | Planned | - |
 | 13. Lost-wave gaps | 0/13 | Planned | - |

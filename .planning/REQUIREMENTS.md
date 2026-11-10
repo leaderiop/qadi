@@ -8,10 +8,10 @@
 ## v1.1 Requirements
 
 ### Planning reconciliation (Phase 10)
-- [ ] **REC-01**: `.planning/milestones/archive-pre-gsd/architecture/README.md` carries a "superseded 2026-11-10" banner that maps every lost ARCH-46…57 plan to a wave-6 phase or a recorded disposition.
-- [ ] **REC-02**: Every lost plan file's `status:` is one of `superseded-by-phase-NN`, `fixed-on-main (<sha>)`, `obsolete` or `deferred`, with a reason.
-- [ ] **REC-03**: The tracking decision for `.planning/milestones/archive-pre-gsd/architecture/` (track, ignore or archive) is taken and applied.
-- [ ] **REC-04**: No orphan `packages/*/lib/**/*.js` without a `src` counterpart remains after the repo's own clean/build.
+- [x] **REC-01**: `.planning/milestones/archive-pre-gsd/architecture/README.md` carries a "superseded 2026-11-10" banner that maps every lost ARCH-46…57 plan to a wave-6 phase or a recorded disposition.
+- [x] **REC-02**: Every lost plan file's `status:` is one of `superseded-by-phase-NN`, `fixed-on-main (<sha>)`, `obsolete` or `deferred`, with a reason.
+- [x] **REC-03**: The tracking decision for `.planning/milestones/archive-pre-gsd/architecture/` (track, ignore or archive) is taken and applied.
+- [x] **REC-04**: No orphan `packages/*/lib/**/*.js` without a `src` counterpart remains after the repo's own clean/build.
 
 ### Lost-wave security (Phase 11)
 - [ ] **SEC-01**: A signature obligation discharged on a resource whose id is not a string is refused (`SignatureCaptureError`); `capture` is not called and nothing is stored.
@@ -90,7 +90,7 @@
 - [ ] **CACHE-04**: No hot-path regression (bench row) and UNTRACED_BUDGET is unchanged.
 
 ### Cross-cutting (every phase)
-- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase.
+- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10).
 - [ ] **XC-02**: Each phase records its ADR (or states why none is needed), a CCR row, and the BEH/INV/traceability changes, using only its reserved numbers.
 - [ ] **XC-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
 - [ ] **XC-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock; budgets change only with their AGENTS.md table.
@@ -110,7 +110,7 @@
 ## Traceability
 | Requirement | Phase | Status |
 |---|---|---|
-| REC-01..04 | Phase 10 | Pending |
+| REC-01..04 | Phase 10 | Complete |
 | SEC-01..06 | Phase 11 | Pending |
 | INT-01..06 | Phase 12 | Pending |
 | GAP-01..12 | Phase 13 | Pending |
@@ -121,7 +121,7 @@
 | SURF-01..04 | Phase 18 | Pending |
 | VIEW-01..04 | Phase 19 | Pending |
 | CACHE-01..04 | Phase 20 | Pending |
-| XC-01..06 | All phases | Pending |
+| XC-01..06 | All phases | Pending (XC-01 green for Phase 10) |
 
 **Coverage:** 66 v1.1 requirements (60 + 6 cross-cutting); mapped 66; unmapped 0.
 
