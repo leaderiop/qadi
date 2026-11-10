@@ -123,6 +123,41 @@ const recordTwo = Effect.gen(function* () {
 });
 ```
 
+## Counting decisions
+
+Every evaluation also updates a few process-wide metrics, with no wiring beyond a
+`Metric.MetricRegistry` (or an exporter built on one). They are exported from
+`@qadi/core`, so a test or a host reads them by value rather than by matching an id
+string in a snapshot
+([ADR-QD-123](https://github.com/leaderiop/qadi/blob/main/spec/decisions/123-a-metric-is-declared-once.md)):
+
+- **`decisionsTotal`** — one counter series per decision, `.Allow` and `.Deny`.
+- **`denialsByPolicyTagTotal`** — denials, by the top-level policy tag asked.
+- **`evaluationDurationMillis`** — the distribution of an evaluation's duration.
+- **`evaluationErrorsTotal`** — evaluations that raised instead of deciding, by error tag.
+- **`decisionCacheLookupsTotal`** — cache lookups, by `hit`, `coalesced` or `miss`.
+- **`predicatesTranslatedTotal`** — successful `toPredicate` calls.
+
+They are written on the evaluating fiber, so a registry provided to that fiber receives
+them, and they are aggregates: they say how many, never which decision (that is the
+sink's job). A failed evaluation counts in `evaluationErrorsTotal` and in none of the
+others; a readiness probe counts in none. Every metric Qadi declares, with its type and
+series, is listed in
+[25 — Inspection](https://github.com/leaderiop/qadi/blob/main/spec/behaviors/25-inspection.md#every-metric-qadi-declares).
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Metric from "effect/Metric";
+import { decisionsTotal } from "@qadi/core";
+
+export const allowShare = Effect.gen(function* () {
+  const allow = yield* Metric.value(decisionsTotal.Allow);
+  const deny = yield* Metric.value(decisionsTotal.Deny);
+  const total = allow.count + deny.count;
+  return total === 0 ? undefined : allow.count / total;
+});
+```
+
 For the cache's concurrency-coalescing guarantees, the sink's exhaustive
 `Decision | Obligations` record shape, and the streaming route that serves a
 decision log, see

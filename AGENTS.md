@@ -430,6 +430,26 @@ error as a value (an instance-identity check, a codec round trip, a cause
 matrix with no port) or a double a script cannot express (a latch), with its
 exact line count and reason, checked in both directions.
 
+**A metric is declared once, listed once, and read through its export; a
+literal id in a test is a seventh budget, `METRIC_ID_LITERAL_BUDGET`**
+(ADR-QD-123, which generalises ADR-QD-052's registry-key rule from hydration to
+every `qadi_*` metric). Every `Metric.counter/frequency/histogram(...)` in
+`packages/*/src` is a module-scope `const` with its `"qadi_…"` id on the
+declaration, declared once, and exported when it is `@qadi/core`'s
+(`[metric-declaration]`; an untagged base exported as its tagged series is the
+one reviewed exception, `METRIC_BASE_UNEXPORTED`). A test, feature or example
+never declares one: a reader that re-declares a metric reads zero forever,
+because the registry key includes the description. Each is a row in
+`spec/behaviors/25-inspection.md`'s "Every metric Qadi declares" table, which
+the gate checks against the declarations in both directions on id, type and file
+(`[metric-table]`). A test reads a metric with `Metric.value(decisionsTotal.Deny)`,
+never by finding an id in `Metric.snapshot`; an exact `"qadi_…"` literal outside
+a `describe`/`it` title is a pin or a snapshot-golden row, counted per file in
+`METRIC_ID_LITERAL_BUDGET` and checked in both directions
+(`[metric-id-literal]`). Test-scope, like `PORT_DOUBLE_BUDGET`. A tagged counter
+is exported as its series (a record keyed by the closed label), never as the
+untagged base, which reads zero.
+
 ## 7. Schema
 
 Domain types are ordinarily **hand-written interfaces** with template-literal
