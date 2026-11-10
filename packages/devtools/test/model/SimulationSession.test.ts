@@ -705,6 +705,110 @@ describe("the sweep the session states", () => {
   });
 });
 
+describe("the form's fields, through the session", () => {
+  const session = () => makeSimulationSession({ sightings: [sighting(hasRole("a"))] });
+  const added = (s: SimulationSession, field: Parameters<SimulationSession["addChip"]>[0], text: string) =>
+    s.addChip(field, text);
+
+  it("attributes a short-form element to the current subject, and a rename moves it with the subject", () => {
+    const s = session();
+    s.edit({ subject: { id: "alice" } });
+    assert.deepStrictEqual(added(s, "relationships", "owner:doc-1"), { _tag: "Ok" });
+    s.renameSubject("bob");
+    // An unrelated edit afterwards rewrites nothing: the first edge followed the rename.
+    assert.deepStrictEqual(added(s, "relationships", "viewer:doc-9"), { _tag: "Ok" });
+
+    assert.deepStrictEqual(s.getSnapshot().draft.relationships, [
+      { subjectId: "bob", relation: "owner", resourceId: "doc-1" },
+      { subjectId: "bob", relation: "viewer", resourceId: "doc-9" },
+    ]);
+  });
+
+  it("refuses a structural duplicate with a reason, leaving the draft and the subscribers alone", () => {
+    const s = session();
+    added(s, "relationships", "owner:doc-1");
+    const seen = counted(s);
+    const before = s.getSnapshot();
+
+    assert.deepStrictEqual(added(s, "relationships", "owner:doc-1"), {
+      _tag: "Refused",
+      reason: "already there",
+    });
+    assert.strictEqual(s.getSnapshot(), before);
+    assert.strictEqual(seen.notified, 0);
+  });
+
+  it("keeps two edges that differ only by subject as two chips", () => {
+    const s = session();
+    added(s, "relationships", "owner:doc-1");
+    added(s, "relationships", '{"subjectId":"bob","relation":"owner","resourceId":"doc-1"}');
+
+    assert.strictEqual(s.getSnapshot().draft.relationships?.length, 2);
+  });
+
+  it("refuses empty text and text the field's codec refuses", () => {
+    const s = session();
+
+    assert.deepStrictEqual(added(s, "roles", "  "), { _tag: "Refused", reason: "nothing to add" });
+    assert.deepStrictEqual(added(s, "permissions", "nocolon"), {
+      _tag: "Refused",
+      reason: "expected resource:action",
+    });
+    assert.deepStrictEqual(s.getSnapshot().draft, { subject: { id: "someone" } });
+  });
+
+  it("replaces a pair of the same name on a record field, and puts it last", () => {
+    const s = session();
+    added(s, "attributes", "a:1");
+    added(s, "attributes", "b:2");
+    assert.deepStrictEqual(added(s, "attributes", "a:3"), { _tag: "Ok" });
+
+    assert.deepStrictEqual(Object.entries(s.getSnapshot().draft.attributes ?? {}), [["b", 2], ["a", 3]]);
+  });
+
+  it("removes exactly one chip, and an absent field is a no-op that does not notify", () => {
+    const s = session();
+    added(s, "roles", "a");
+    added(s, "roles", "b");
+    s.removeChip("roles", 0);
+    assert.deepStrictEqual(s.getSnapshot().draft.subject.roles, ["b"]);
+
+    const seen = counted(s);
+    s.removeChip("history", 0);
+    s.removeChip("roles", 5);
+    assert.strictEqual(seen.notified, 0);
+  });
+
+  it("reads the form: seven rows in the form's order, a refused value as its refusal", () => {
+    const s = session();
+    added(s, "signatures", "approved:doc-1");
+    s.edit({ ...s.getSnapshot().draft, subject: { id: "someone", roles: [" padded "] } });
+    const { fields } = s.getSnapshot();
+
+    assert.deepStrictEqual(
+      fields.map((f) => f.key),
+      ["roles", "permissions", "subjectAttributes", "attributes", "relationships", "history", "signatures"],
+    );
+    assert.deepStrictEqual(fields[0]?.chips, [
+      { text: "(not representable in the form)", refused: true, removeLabel: "(not representable in the form)" },
+    ]);
+    assert.deepStrictEqual(fields[6]?.chips, [
+      { text: "approved:doc-1", refused: false, removeLabel: "approved:doc-1" },
+    ]);
+  });
+
+  it.effect("a result goes stale when a chip moves the draft", () =>
+    Effect.gen(function* () {
+      const s = makeSimulationSession({ sightings: [sighting(hasRole("a"))] });
+      yield* s.run("Run");
+      assert.isFalse(s.getSnapshot().stale);
+
+      s.addChip("roles", "a");
+
+      assert.isTrue(s.getSnapshot().stale);
+    }));
+});
+
 describe("the form's own commands", () => {
   it("keeps the last resource that parsed while the text does not", () => {
     const session = makeSimulationSession({ sightings: [sighting(hasRole("a"))] });
@@ -793,6 +897,9 @@ describe("the form's own commands", () => {
     session.setPairs(false);
     session.edit(before.draft);
     session.renameSubject(before.draft.subject.id);
+    session.removeChip("roles", 0);
+    session.removeChip("signatures", 3);
+    assert.deepStrictEqual(session.addChip("history", "  "), { _tag: "Refused", reason: "nothing to add" });
 
     assert.strictEqual(seen.notified, 0);
     assert.strictEqual(session.getSnapshot(), before);
@@ -808,6 +915,8 @@ describe("the form's own commands", () => {
       (s) => s.setPairs(true),
       (s) => s.edit({ subject: { id: "x" } }),
       (s) => s.renameSubject("y"),
+      (s) => s.addChip("roles", "editor"),
+      (s) => s.removeChip("roles", 0),
       (s) => s.editResourceText('{"a":1}'),
       (s) => s.setPorts(brokenPorts),
       (s) => s.seed(entryOf(decisionRecord({ evaluationId: "ev-8", policy: hasRole("z") }))),

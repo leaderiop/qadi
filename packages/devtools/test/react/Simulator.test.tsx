@@ -316,29 +316,28 @@ describe("a run left behind — C4", () => {
   });
 });
 
+// The chip rules - attribution, duplicates, refusals, replacement - are the
+// session's, and are proved there (SimulationSession.test.ts). What only a
+// render can show is the wiring: one chip per card reaches the session, and its
+// refusal comes back to the buffer that typed it.
 describe("the fixtures as the codec writes them — C5, C6", () => {
-  it("keeps a renamed subject's edges, shows a colon and a string value faithfully, and edits signatures", async () => {
+  it("adds a chip to each card, shows a string value faithfully, and shows a refusal", () => {
     render(<Simulator sightings={[sighting(hasRelationship("org:admin"))]} />);
-    act(() => {
-      fireEvent.change(screen.getByTestId("qadi-resource"), { target: { value: '{"id":"doc-1"}' } });
-    });
-    chip("relationships", '{"subjectId":"someone","relation":"org:admin","resourceId":"doc-1"}');
-    act(() => {
-      fireEvent.change(screen.getByTestId("qadi-subject-id"), { target: { value: "bob" } });
-    });
-    // An unrelated edit rewrites nothing, and the edge followed the rename.
-    chip("relationships", "viewer:doc-9");
-    await run();
-    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
 
-    chip("attributes", 'level:"7"');
+    chip("subject attributes", 'level:"7"');
     assert.include(screen.getByTestId("qadi-subject-attributes").textContent ?? "", 'level="7"');
 
     // `signatures` has a control, which a replay's "yours to supply" points at.
     chip("signatures", "approved:doc-1");
     assert.include(screen.getByTestId("qadi-signatures").textContent ?? "", "approved:doc-1");
     chip("signatures", "approved:doc-1");
-    assert.isNotNull(screen.queryByTestId("qadi-signatures-error"));
+    assert.include(screen.getByTestId("qadi-signatures-error").textContent ?? "", "already there");
+  });
+
+  it("shows why a blank commit adds nothing, rather than ignoring it", () => {
+    render(<Simulator sightings={[sighting(hasRole("a"))]} />);
+    chip("roles", "   ");
+    assert.include(screen.getByTestId("qadi-roles-error").textContent ?? "", "nothing to add");
   });
 });
 
@@ -418,7 +417,7 @@ describe("unmounting mid-run — E7.8", () => {
 describe("the fixtures card", () => {
   it("removes a chip and a pair again", async () => {
     render(<Simulator sightings={[sighting(hasAttribute("clearance", gte(5)))]} />);
-    chip("attributes", "clearance:9");
+    chip("subject attributes", "clearance:9");
     await run();
     assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
 
