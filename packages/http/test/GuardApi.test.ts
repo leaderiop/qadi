@@ -2,7 +2,7 @@
  * `guardApi` is the one layer that guards an `HttpApi`: building it registers what it enforces,
  * refuses what it cannot enforce, and the middleware it provides refuses what it did not register
  * (ARCH-36, INV-QD-180). The differential over every declaration placement is
- * `endpointAccess.test.ts`'s; this file is the layer's own contract.
+ * `accessPlan.test.ts`'s; this file is the layer's own contract.
  */
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";

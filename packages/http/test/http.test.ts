@@ -12,6 +12,7 @@
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
@@ -44,6 +45,7 @@ import type { AuthSubject } from "@qadi/core";
 import { collectingLogger } from "@qadi/testing";
 import { assert, describe, it } from "@effect/vitest";
 import {
+  AccessNotDeclared,
   PermissionRegistryLive,
   permissionRegistryRoute,
   permissionRegistryRouteUnguarded,
@@ -93,9 +95,6 @@ const DocumentsGroup = HttpApiGroup.make("documents").add(
   HttpApiEndpoint.get("list", "/documents/public").pipe((endpoint) =>
     endpoint.annotate(PublicEndpoint, publicEndpoint("the public document index")),
   ),
-  // Annotated with NEITHER, which is the wiring mistake that used to serve the
-  // endpoint unguarded.
-  HttpApiEndpoint.get("forgotten", "/documents/forgotten"),
 );
 
 const Api = HttpApi.make("test").add(DocumentsGroup).middleware(RequirePermission);
@@ -103,8 +102,7 @@ const Api = HttpApi.make("test").add(DocumentsGroup).middleware(RequirePermissio
 const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
   handlers
     .handle("read", () => Effect.void)
-    .handle("list", () => Effect.void)
-    .handle("forgotten", () => Effect.void),
+    .handle("list", () => Effect.void),
 );
 
 const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
@@ -210,20 +208,40 @@ describe("@qadi/http", () => {
       assert.strictEqual(response.status, 204);
     }));
 
-  it.effect("AN ENDPOINT DECLARING NEITHER IS REFUSED, not served", () =>
+  it.effect("AN ENDPOINT DECLARING NEITHER IS REFUSED: the application is not built, nothing is served", () =>
     Effect.gen(function* () {
-      // This used to be a 204. ADR-QD-036 rejected "annotate-and-forget" in as
-      // many words — "it inverts this library's fail-closed posture ... by
-      // making the *absence* of a permission requirement mean 'unguarded'" —
-      // and the code shipped it anyway, with a test asserting it was correct.
-      // Absence is now refusal; being public has to be said out loud.
-      const { handler } = HttpRouter.toWebHandler(AppLayer);
-      const response = yield* Effect.promise(() =>
-        handler(new Request("http://localhost/documents/forgotten", { headers: bearer(ALICE_TOKEN) })),
+      // This used to be a 204, then a 500 per request. ADR-QD-036 rejected "annotate-and-forget"
+      // in as many words — "it inverts this library's fail-closed posture ... by making the
+      // *absence* of a permission requirement mean 'unguarded'". Absence is refusal; being public
+      // has to be said out loud, and guardApi now refuses to build an API that does not.
+      const Unbuildable = HttpApi.make("test")
+        .add(DocumentsGroup.add(HttpApiEndpoint.get("forgotten", "/documents/forgotten")))
+        .middleware(RequirePermission);
+      const routes = HttpApiBuilder.layer(Unbuildable).pipe(
+        Layer.provide(
+          HttpApiBuilder.group(Unbuildable, "documents", (handlers) =>
+            handlers
+              .handle("read", () => Effect.void)
+              .handle("list", () => Effect.void)
+              .handle("forgotten", () => Effect.void),
+          ),
+        ),
+        Layer.provide(guardApi(Unbuildable)),
       );
-      // 500, not 403: this is a wiring mistake in the service, and reporting it
-      // as a permissions problem would send someone to audit the wrong thing.
-      assert.strictEqual(response.status, 500);
+      const built = yield* Effect.scoped(
+        Layer.build(
+          stack(routes, subjectExtractorBearer(lookupSubject), EvaluationServicesTest).pipe(
+            Layer.provide(HttpRouter.layer),
+          ),
+        ),
+      ).pipe(Effect.result);
+      assert.isTrue(Result.isFailure(built));
+      if (Result.isFailure(built)) {
+        assert.isTrue(built.failure instanceof AccessNotDeclared);
+        if (built.failure instanceof AccessNotDeclared) {
+          assert.deepStrictEqual([built.failure.group, built.failure.endpoint], ["documents", "forgotten"]);
+        }
+      }
     }));
 
   it.effect("a denied request never reaches the handler, and gets 403", () =>
@@ -800,26 +818,6 @@ describe("@qadi/http", () => {
         assert.strictEqual(response.status, 403);
         assert.deepStrictEqual(lines.map((line) => line.message), [
           [`qadi/http: request denied (ACL001) — subject "bob": subject lacks permission 'document:read'`],
-        ]);
-      }),
-  );
-
-  it.effect(
-    "an endpoint declaring neither logs the wiring mistake it refuses for, exactly",
-    () =>
-      Effect.gen(function* () {
-        const { lines, layer: logger } = collectingLogger();
-        const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logger), { disableLogger: true });
-        const response = yield* Effect.promise(() =>
-          handler(new Request("http://localhost/documents/forgotten", { headers: bearer(ALICE_TOKEN) })),
-        );
-        assert.strictEqual(response.status, 500);
-        assert.deepStrictEqual(lines.map((line) => line.message), [
-          [
-            'qadi/http: endpoint "forgotten" declares neither a permission requirement nor `publicEndpoint(...)`, ' +
-              "so it is refused. Annotate it with RequiredPermission, or with PublicEndpoint if it is meant to be " +
-              "reachable without authorization.",
-          ],
         ]);
       }),
   );
