@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.12                                           |
+> | Revision       | 1.13                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -738,3 +738,79 @@ REQUIREMENT: A paste MUST decode through `fromJson`, in the model.
 The refusal sentence (path-relative issues, the decode-limit sentence, and a stated
 refusal for a defect inside the decoder rather than a throw from a click handler) is
 the model's, so it is under the model's coverage bar and the mutation gate.
+
+## BEH-QD-389: The dock's choices are a session
+
+> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) (amended, CCR-QD-405)
+
+```ts
+export type TabId = "log" | "inspector" | "policies" | "roles" | "services" | "simulator" | "questions";
+export const makeDockSession: (init: DockSessionInit) => DockSession;
+export interface DockSessionInit {
+  readonly timeline: Timeline;
+  readonly simulation: { readonly replay: (entry: TimelineEntry) => void };
+}
+export interface DockSession {
+  readonly subscribe: (listener: () => void) => () => void;
+  readonly getSnapshot: () => DockSnapshot;
+  readonly setTimeline: (timeline: Timeline) => void;
+  readonly setTab: (tab: TabId) => void;
+  readonly setFilters: (filters: Filters) => void;
+  readonly select: (key: string) => void;
+  readonly replay: (entry: TimelineEntry) => void;
+}
+```
+
+> Package-private since [CCR-QD-405](../README.md#document-history): `DockSession` and
+> `useOwnedDockSession`. Specified because the dock relies on them; a host reaches the
+> behaviour through `DevtoolsDock`, not through these names (ADR-QD-047).
+
+The dock's tab, the log's filters and the selected row used to be `useState`s, and the
+rows, counts and selection memos over them: rules a reviewer acts on, reachable only
+by rendering the whole dock. They are `DockSession` now, which the dock owns and is a
+view of, as it is of the explorer's and the simulator's sessions.
+
+```
+REQUIREMENT: Rows MUST be paired against the whole timeline and filtered afterwards.
+```
+
+A row never looks unpaired because its partner sat in an environment the reader
+filtered away: the `Client` half of a Server/Client pair, filtered to `Client`, keeps
+its partner.
+
+```
+REQUIREMENT: The counts and the environments MUST be of the whole timeline, never
+             of the rows shown.
+```
+
+A header cannot read "0 errors" because someone typed in the search box.
+
+```
+REQUIREMENT: `select` MUST hold the row's key and open the inspector, and a
+             selection MUST survive a filter that hides its row.
+```
+
+A key the timeline later drops reads as evicted, not as nothing selected.
+
+```
+REQUIREMENT: `replay` MUST open the simulator and command the simulation to
+             re-seed from the entry on every call.
+```
+
+Replaying is an act, not a consequence of state
+([BEH-QD-390](./29-devtools-simulator.md#beh-qd-390-replay-is-an-act)). The session
+reaches the simulation through the `{ replay }` it was built with and imports neither
+React nor `SimulationSession`. Replaying leaves the selection alone.
+
+```
+REQUIREMENT: A command that changes nothing MUST notify no one.
+```
+
+The same tab, filters equal field by field, the same key while already on the
+inspector, the same timeline object, and a replay while already on the simulator
+each publish nothing (the replay still reaches the simulation). The tab survives
+leaving a screen and coming back, and a new timeline keeps the filters
+([INV-QD-107](../invariants.md)).
+
+Pinned by `DockSession.test.ts`, headlessly, and through the dock by
+`DevtoolsDock.test.tsx`.

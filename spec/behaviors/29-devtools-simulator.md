@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-29                                    |
-> | Revision       | 1.9                                            |
+> | Revision       | 1.10                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.9 (2026-11-10): BEH-QD-222/225/322: signature rows, the hasCustom named skip, the field table and chip commands (ARCH-61, lost ARCH-48, ADR-QD-047 amendment, CCR-QD-400)<br>1.8 (2026-11-08): BEH-QD-221 — a signature request the capture never saw MUST fail as `SignatureHistoryUnavailable` (code review WR-04, INV-QD-043)<br>1.7 (2026-10-08): the simulator's mechanics (`simulate`, `whatIf`, `sweepPlan`, `capturing`, `replayLayer`, `remedyEdits`, `replayInput`, `baselineDiff`, the form codecs) are package-private; specified here because the simulator screen relies on them, and a host drives `makeSimulationSession` (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.6 (2026-10-08): BEH-QD-221 — a capture keys by the whole question the port received, not by a projection of it (ARCH-45, CCR-QD-263)<br>1.5 (2026-10-08): BEH-QD-322 — a chosen policy is held by value, not by its position in the rail; `choosePolicy` takes the policy, `PolicyChoice` gains `Evicted`, and the first policy shown is held (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.4 (2026-10-07): BEH-QD-220 — a source that cannot be honoured is refused, and a sweep runs the evaluations it stated; BEH-QD-225 — every field a replay names has a control; BEH-QD-322 — a simulation is a session (ADR-QD-047 and ADR-QD-050 amended, CCR-QD-199)<br>1.3 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.10 (2026-11-10): BEH-QD-390 — replay is an act: replaying a row always re-seeds, even the row last replayed; seed keeps its same-entry guard; BEH-QD-322's fence lists seed and replay (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.9 (2026-11-10): BEH-QD-222/225/322: signature rows, the hasCustom named skip, the field table and chip commands (ARCH-61, lost ARCH-48, ADR-QD-047 amendment, CCR-QD-400)<br>1.8 (2026-11-08): BEH-QD-221 — a signature request the capture never saw MUST fail as `SignatureHistoryUnavailable` (code review WR-04, INV-QD-043)<br>1.7 (2026-10-08): the simulator's mechanics (`simulate`, `whatIf`, `sweepPlan`, `capturing`, `replayLayer`, `remedyEdits`, `replayInput`, `baselineDiff`, the form codecs) are package-private; specified here because the simulator screen relies on them, and a host drives `makeSimulationSession` (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.6 (2026-10-08): BEH-QD-221 — a capture keys by the whole question the port received, not by a projection of it (ARCH-45, CCR-QD-263)<br>1.5 (2026-10-08): BEH-QD-322 — a chosen policy is held by value, not by its position in the rail; `choosePolicy` takes the policy, `PolicyChoice` gains `Evicted`, and the first policy shown is held (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.4 (2026-10-07): BEH-QD-220 — a source that cannot be honoured is refused, and a sweep runs the evaluations it stated; BEH-QD-225 — every field a replay names has a control; BEH-QD-322 — a simulation is a session (ADR-QD-047 and ADR-QD-050 amended, CCR-QD-199)<br>1.3 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 _Previous: [28 — The Devtools Screens](./28-devtools-screens.md)_
 
@@ -392,6 +392,47 @@ find* is the whole value of the check.
 `Trace`, so checking a reconstruction against reality needs no live resolvers and
 no capture — which is why replay runs nothing.
 
+## BEH-QD-390: Replay is an act
+
+> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) (amended, CCR-QD-405)
+
+```ts
+export interface SimulationSession {
+  // …
+  readonly seed: (entry: TimelineEntry | undefined) => void;
+  readonly replay: (entry: TimelineEntry) => void;
+}
+```
+
+```
+REQUIREMENT: Replaying a row MUST re-seed the simulator, even when it is the row
+             last replayed, after another policy was chosen, and after the form
+             was edited.
+```
+
+The button promises a re-seed, so a second press on the same row must keep it.
+Replaying row A, choosing another policy from the rail and replaying A again used to
+do nothing: the dock replayed by setting a `seed` prop, React skipped the identical
+value, and the session's same-entry guard would have skipped it anyway. `replay` is a
+command, not a prop the session reads from an effect, so it re-seeds on every call:
+a replay re-seeds the policy and the form from the row, retires a run in flight, and states what it could not seed exactly as a first seed does
+([BEH-QD-225](#beh-qd-225-a-replay-says-what-it-could-not-seed)). The dock's `replay`
+calls it ([BEH-QD-389](./28-devtools-screens.md#beh-qd-389-the-docks-choices-are-a-session)).
+
+```
+REQUIREMENT: `seed` re-run with the entry it last seeded MUST leave the form as it is.
+```
+
+`seed` is the host's prop-driven path, and an effect re-run must not wipe a
+half-filled form, so it keeps its same-entry guard. The two are told apart by method,
+not by comparing identities, and both run one re-seed, so they cannot drift. This
+reverses ARCH-20's "seed flows in as a prop" for replay only (ADR-QD-047, amended
+2026-11-10).
+
+Pinned by `SimulationSession.test.ts` ("replaying a row"), `DevtoolsDock.test.tsx`
+("replays the same row again") and the acceptance scenario *Replaying the same row
+again re-seeds the question* (`devtools-simulator.feature`).
+
 ## BEH-QD-226: The clock is chosen, and the duration is labelled
 
 ```ts
@@ -433,6 +474,8 @@ export interface SimulationSession {
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => SimulationSnapshot;
   readonly choosePolicy: (policy: Policy) => void;
+  readonly seed: (entry: TimelineEntry | undefined) => void;
+  readonly replay: (entry: TimelineEntry) => void;
   readonly run: (kind: "Run" | "Sweep") => Effect.Effect<void>;
   readonly reap: Effect.Effect<void>;
   readonly dispose: Effect.Effect<void>;
