@@ -4,7 +4,7 @@
  * `@qadi/react` is deliberately absent from this file, as it is from the
  * package: the two share a metric registry and nothing else. So the writes here
  * go through the metric handles `@qadi/core` exports — the same objects
- * `HydrationCounts.ts` writes through — which is exactly the contract under
+ * `@qadi/react`'s `HydrationEvent.ts` writes through — which is exactly the contract under
  * test. Importing the React package to drive it would prove the reader agrees
  * with itself.
  *

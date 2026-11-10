@@ -5,7 +5,9 @@
  * `hydrateWith`), the seed atom a server-rendered decision is written to, the
  * rule that the client's own answer wins
  * ([INV-QD-028](../../../spec/invariants.md)), the once-per-registry
- * announcement of a disagreement, and the re-check count. It used to be spread
+ * announcement of a disagreement. Each codec direction is a module-private
+ * planner returning the `HydrationEvent`s a call implies, and `HydrationEvent.ts`
+ * is the one place those become counts and reports (ARCH-60). It used to be spread
  * over `Hydration.ts`, a module-scope side table keyed on the atom set, and
  * `QadiAtoms.ts`'s `seededDecision`, tangled there with the liveness bookkeeping
  * the eviction sweep needs, which is not hydration at all.
@@ -27,7 +29,6 @@
  */
 import type {
   AuthSubject,
-  ClientHydrationDropReason,
   Decision,
   Policy,
   Resource,
@@ -51,15 +52,17 @@ import * as Struct from "effect/Struct";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
-import { countDehydrated, countDropped, countRecheck, countSeeded } from "./HydrationCounts.ts";
 import type { HydrationDropReporter, HydrationMismatchReporter } from "./DeveloperSignals.ts";
 import { droppedEntriesReporter, hydrationDropReporter } from "./DeveloperSignals.ts";
+import type { DecisionEntry, HydrationHooks, PayloadRefusalReason } from "./HydrationEvent.ts";
+import { HydrationEvent, emitHydration } from "./HydrationEvent.ts";
 import type { ClientDecision, SeededDecision } from "./SeededDecision.ts";
 import { AllowDisclosure, DenyDisclosure, SeededAllow, SeededDeny, permits } from "./SeededDecision.ts";
 
 // Named here rather than reached through the barrel: `DeveloperSignals.ts` stays
 // out of it (AGENTS.md §9), and `.d.ts` emission has to be able to name them.
 export type { HydrationMismatch, HydrationMismatchReporter } from "./DeveloperSignals.ts";
+export type { DecisionEntry } from "./HydrationEvent.ts";
 
 /** Seed values applied when the provider creates its registry. */
 export type InitialValues = Iterable<readonly [Atom.Atom<unknown>, unknown]>;
@@ -176,14 +179,6 @@ const decodePolicy = Schema.decodeUnknownOption(PolicySchema, UNTRUSTED_DECODE_O
 const decodeEnvelope = Schema.decodeUnknownOption(Envelope, UNTRUSTED_DECODE_OPTIONS);
 const decodeEntry = Schema.decodeUnknownOption(DehydratedEntryWire, UNTRUSTED_DECODE_OPTIONS);
 
-/** One decision the server made, ready to be dehydrated. */
-export interface DecisionEntry {
-  readonly policy: Policy;
-  /** Present when the decision was made against a resource. */
-  readonly resource?: Resource | undefined;
-  readonly decision: Decision;
-}
-
 export interface DehydrateOptions {
   /**
    * Ship the full trace, and a denial's reason.
@@ -238,20 +233,53 @@ const dehydrateEntry = (entry: DecisionEntry, includeTrace: boolean): Dehydrated
   decision: dehydrateDecision(entry.decision, includeTrace),
 });
 
+/** Emits a call's events in order. */
+const emitAll = (events: ReadonlyArray<HydrationEvent>, hooks: HydrationHooks): void => {
+  for (const event of events) emitHydration(event, hooks);
+};
+
 /**
- * The envelope for entries {@link dehydrateWith} has already filtered to one subject.
+ * What {@link dehydrateWith} produces, and the events it implies.
  *
- * Private on purpose: were it exported, a second caller could build a payload
- * that skipped the subject filter, its count or its report (ARCH-51,
- * ADR-QD-078). That the entries are already filtered is a fact of this module,
- * not a precondition a caller is trusted to meet.
+ * Pure: writes no metric and calls no reporter. Private on purpose: were it
+ * exported, a second caller could build a payload that skipped the subject
+ * filter, its count or its report (ARCH-51, ADR-QD-078).
+ *
+ * The first entry's `subjectId` names the payload and any entry disagreeing with
+ * it is **dropped**, because a payload mixing subjects is a bug whose only safe
+ * reading is to trust none of it.
  */
-const dehydratedPayload = (
-  subjectId: string | undefined,
-  entries: ReadonlyArray<DehydratedEntry>,
-): DehydratedDecisions => {
-  countDehydrated(entries.length);
-  return { version: PAYLOAD_VERSION, subjectId, entries };
+const planDehydration = (
+  entries: ReadonlyArray<DecisionEntry>,
+  includeTrace: boolean,
+): { readonly payload: DehydratedDecisions; readonly events: ReadonlyArray<HydrationEvent> } => {
+  // `undefined`, not `""` (EC-06): an empty `entries` names no subject at
+  // all, and `""` is not a value `SubjectId` can actually hold, so it read as
+  // data rather than as "nothing here." `subjectId` is `undefined` only when
+  // `entries` is already empty, so the filter below still reduces to `[]`
+  // in that case with no special-casing needed.
+  const subjectId = entries[0]?.decision.subjectId;
+
+  const kept = entries.filter((e) => e.decision.subjectId === subjectId);
+  const foreign = entries.filter((e) => e.decision.subjectId !== subjectId);
+
+  // Said, not merely done. Dropping is correct and specified; doing it in
+  // silence is what let a server ship one row where it meant to ship a thousand
+  // and see nothing wrong. And counted: `qadi_hydration_seeded_total` next to the
+  // dehydrated count is the difference between "hydration ran" and "hydration
+  // ran and did nothing".
+  const events: Array<HydrationEvent> = [];
+  if (foreign.length > 0) events.push(HydrationEvent.LeftOut({ reason: "ForeignSubject", entries: foreign }));
+  events.push(HydrationEvent.Dehydrated({ count: kept.length }));
+
+  return {
+    payload: {
+      version: PAYLOAD_VERSION,
+      subjectId,
+      entries: kept.map((entry) => dehydrateEntry(entry, includeTrace)),
+    },
+    events,
+  };
 };
 
 /**
@@ -260,46 +288,17 @@ const dehydratedPayload = (
  *
  * The mirror of {@link hydrateWith}. It owns both the subject filter and the
  * envelope, so a payload cannot be built from unfiltered entries (ARCH-51,
- * ADR-QD-078). Counts go to the default registry through `HydrationCounts.ts`
- * (ADR-QD-052) and the default warning through `DeveloperSignals.ts`
- * (ADR-QD-041).
- *
- * Every entry must belong to the same subject; the first one's `subjectId` names
- * the payload and any entry disagreeing with it is **dropped**, because a payload
- * mixing subjects is a bug whose only safe reading is to trust none of it.
+ * ADR-QD-078). Counts go to the default registry and the default warning to the
+ * console, both through `HydrationEvent.ts` (ADR-QD-052, ADR-QD-041), after the
+ * payload is built.
  */
 export const dehydrateWith = (
   entries: ReadonlyArray<DecisionEntry>,
   options?: DehydrateOptions,
 ): DehydratedDecisions => {
-  // `undefined`, not `""` (EC-06): an empty `entries` names no subject at
-  // all, and `""` is not a value `SubjectId` can actually hold, so it read as
-  // data rather than as "nothing here." `subjectId` is `undefined` only when
-  // `entries` is already empty, so the filter below still reduces to `[]`
-  // in that case with no special-casing needed.
-  const subjectId = entries[0]?.decision.subjectId;
-  const includeTrace = options?.includeTrace ?? false;
-
-  const kept = entries.filter((e) => e.decision.subjectId === subjectId);
-
-  // Said, not merely done. Dropping is correct and specified; doing it in
-  // silence is what let a server ship one row where it meant to ship a thousand
-  // and see nothing wrong.
-  if (kept.length !== entries.length) {
-    countDropped("ForeignSubject", entries.length - kept.length);
-    const report = droppedEntriesReporter(options?.onDropped);
-    if (report !== undefined) {
-      report(entries.filter((e) => e.decision.subjectId !== subjectId));
-    }
-  }
-
-  // Counted here rather than left to the caller. A count is what makes the
-  // *other* end legible: `qadi_hydration_seeded_total` next to this one is the
-  // difference between "hydration ran" and "hydration ran and did nothing".
-  return dehydratedPayload(
-    subjectId,
-    kept.map((entry) => dehydrateEntry(entry, includeTrace)),
-  );
+  const plan = planDehydration(entries, options?.includeTrace ?? false);
+  emitAll(plan.events, { leftOut: droppedEntriesReporter(options?.onDropped) });
+  return plan.payload;
 };
 
 const rebuild = (entry: DehydratedEntry, subjectId: SubjectId): SeededDecision => {
@@ -378,59 +377,33 @@ export interface HydrateOptions {
   readonly onDropped?: HydrationDropReporter<unknown>;
 }
 
+/** What a hydration seeds, and the events it implies. */
+interface HydrationPlan {
+  readonly initialValues: InitialValues;
+  readonly events: ReadonlyArray<HydrationEvent>;
+}
+
 /**
- * Turns a payload into `initialValues`, seeding what it can verify.
+ * What {@link hydrateWith} seeds, and the events it implies.
  *
- * `payload` is `unknown` on purpose: it arrives as JSON in a page, and
- * `JSON.parse` yields `any`, so a type on the parameter protects nothing. This
- * **never throws** — every exit is a drop that is counted and announced
- * (BEH-QD-230, INV-QD-045), including a payload that is not an object, has no
- * `entries` array, or names a version this client does not read — or none.
- *
- * Drops every entry whose shape or policy this client cannot verify, and the
- * whole payload when it names another subject. A dropped entry leaves its atom
- * `Initial`, so the client asks the question properly — the page flashes, which
- * is exactly what would have happened without hydration and is the correct
- * outcome for a payload that cannot be verified. Not throwing is deliberate: a
- * cache serving one user's page to another is a misconfiguration, and turning it
- * into a blank page would be a worse outcome than re-deciding. Trusting it would
- * be a breach.
- *
- * Written to the seed atom, never to the decision atom. See
- * {@link makeSeededQuestion}.
- *
- * `seedFor` is the atom set's own closure over its families
- * (`QadiAtoms.hydrate`), so the seed atoms stay unreachable from outside it
- * (ADR-QD-039) without a module-scope side table keyed on the atom set.
+ * Pure: writes no metric and calls no reporter, so nothing a reporter does can
+ * stop an entry being seeded or counted. Private, like {@link planDehydration}.
  */
-export const hydrateWith = (
-  seedFor: HydrationSeedLookup,
-  payload: unknown,
-  subject: AuthSubject,
-  options?: HydrateOptions,
-): InitialValues => {
-  const report = hydrationDropReporter(options?.onDropped);
-  const refuse = (
-    reason: ClientHydrationDropReason,
-    entries: ReadonlyArray<unknown>,
-    wholePayload: boolean,
-    count: number = entries.length,
-  ): InitialValues => {
-    countDropped(reason, count);
-    report?.({ reason, entries, wholePayload });
-    return [];
-  };
+const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: AuthSubject): HydrationPlan => {
+  // The count rule — a refused payload is at least one drop — is the
+  // `PayloadRefused` arm's, not this function's (INV-QD-045).
+  const refuse = (reason: PayloadRefusalReason, entries: ReadonlyArray<unknown>): HydrationPlan => ({
+    initialValues: [],
+    events: [HydrationEvent.PayloadRefused({ reason, entries })],
+  });
 
   const visible: ReadonlyArray<unknown> =
     Predicate.isObject(payload) && Array.isArray(payload["entries"]) ? payload["entries"] : [];
-  // A refused payload is at least one drop, so a counter moves even when there
-  // are no entries to count and a dashboard sees the refusal at all.
-  const atLeastOne = Math.max(1, visible.length);
 
   // Entries are guarded one by one below; this covers everything else, which the
   // envelope decode would otherwise recurse into on its way to refusing it.
   if (!Predicate.isObject(payload) || exceedsJsonDepth({ ...payload, entries: [] }, MAX_DECODE_DEPTH)) {
-    return refuse("MalformedPayload", visible, true, atLeastOne);
+    return refuse("MalformedPayload", visible);
   }
 
   // Only `version: 2` is read. Any other value — or none, the format 0.9 and
@@ -438,11 +411,11 @@ export const hydrateWith = (
   // amendment) — is a format this client does not read, which is not the same
   // as a malformed one and is the signature of mismatched releases.
   if (!Object.hasOwn(payload, "version") || payload["version"] !== PAYLOAD_VERSION) {
-    return refuse("UnsupportedPayloadVersion", visible, true, atLeastOne);
+    return refuse("UnsupportedPayloadVersion", visible);
   }
 
   const envelope = decodeEnvelope(payload);
-  if (Option.isNone(envelope)) return refuse("MalformedPayload", visible, true, atLeastOne);
+  if (Option.isNone(envelope)) return refuse("MalformedPayload", visible);
   const { subjectId, entries } = envelope.value;
 
   // `undefined` names an empty payload (EC-06), not a subject that failed to
@@ -453,8 +426,7 @@ export const hydrateWith = (
   // way a real mismatch drops them, just without asserting a wrong id that was
   // never named.
   if (subjectId === undefined) {
-    if (entries.length > 0) refuse("PayloadSubjectMismatch", entries, true);
-    return [];
+    return entries.length > 0 ? refuse("PayloadSubjectMismatch", entries) : { initialValues: [], events: [] };
   }
 
   // The whole payload is rejected on a subject mismatch, not entry by entry: the
@@ -462,7 +434,7 @@ export const hydrateWith = (
   // entries are handed back whole; unlike the dehydrate side this discloses
   // nothing new — they are the caller's own argument, returned to them — so only
   // the *default* reporter withholds them.
-  if (subjectId !== subject.id) return refuse("PayloadSubjectMismatch", entries, true);
+  if (subjectId !== subject.id) return refuse("PayloadSubjectMismatch", entries);
 
   const seeded: Array<readonly [Atom.Atom<unknown>, unknown]> = [];
   const tooDeep: Array<unknown> = [];
@@ -502,13 +474,54 @@ export const hydrateWith = (
     seeded.push([seedFor(decoded.value, fields.value.resource), rebuild(fields.value, subject.id)]);
   }
 
-  if (tooDeep.length > 0) refuse("EntryTooDeep", tooDeep, false);
-  if (malformed.length > 0) refuse("MalformedEntry", malformed, false);
-  if (undecodable.length > 0) refuse("UndecodablePolicy", undecodable, false);
+  const events: Array<HydrationEvent> = [];
+  if (tooDeep.length > 0) events.push(HydrationEvent.EntriesDropped({ reason: "EntryTooDeep", entries: tooDeep }));
+  if (malformed.length > 0) {
+    events.push(HydrationEvent.EntriesDropped({ reason: "MalformedEntry", entries: malformed }));
+  }
+  if (undecodable.length > 0) {
+    events.push(HydrationEvent.EntriesDropped({ reason: "UndecodablePolicy", entries: undecodable }));
+  }
+  events.push(HydrationEvent.Seeded({ count: seeded.length }));
 
-  countSeeded(seeded.length);
+  return { initialValues: seeded, events };
+};
 
-  return seeded;
+/**
+ * Turns a payload into `initialValues`, seeding what it can verify.
+ *
+ * `payload` is `unknown` on purpose: it arrives as JSON in a page, and
+ * `JSON.parse` yields `any`, so a type on the parameter protects nothing. This
+ * **never throws** — every exit is a drop that is counted and announced
+ * (BEH-QD-230, INV-QD-045), including a payload that is not an object, has no
+ * `entries` array, or names a version this client does not read — or none.
+ *
+ * Drops every entry whose shape or policy this client cannot verify, and the
+ * whole payload when it names another subject. A dropped entry leaves its atom
+ * `Initial`, so the client asks the question properly — the page flashes, which
+ * is exactly what would have happened without hydration and is the correct
+ * outcome for a payload that cannot be verified. Not throwing is deliberate: a
+ * cache serving one user's page to another is a misconfiguration, and turning it
+ * into a blank page would be a worse outcome than re-deciding. Trusting it would
+ * be a breach.
+ *
+ * Written to the seed atom, never to the decision atom. See
+ * {@link makeSeededQuestion}.
+ *
+ * `seedFor` is the atom set's own closure over its families
+ * (`QadiAtoms.hydrate`), so the seed atoms stay unreachable from outside it
+ * (ADR-QD-039) without a module-scope side table keyed on the atom set.
+ */
+export const hydrateWith = (
+  seedFor: HydrationSeedLookup,
+  payload: unknown,
+  subject: AuthSubject,
+  options?: HydrateOptions,
+): InitialValues => {
+  const plan = planHydration(seedFor, payload, subject);
+  // Emitted after the whole plan, never interleaved with it.
+  emitAll(plan.events, { dropped: hydrationDropReporter(options?.onDropped) });
+  return plan.initialValues;
 };
 
 // ---------------------------------------------------------------------------
@@ -646,11 +659,11 @@ export const makeSeededQuestion = <E,>(input: {
           // there is nothing for the server's answer to disagree with, and
           // reporting one would be INV-QD-006 in reverse. It is still a
           // re-check: the question was seeded and has now been asked again.
-          const mismatched = AsyncResult.isSuccess(result) && isMismatch(seeded, result.value);
-          countRecheck(mismatched);
-          if (mismatched && report !== undefined && AsyncResult.isSuccess(result)) {
-            report({ policy, resource, seeded, decided: result.value });
-          }
+          const mismatch =
+            AsyncResult.isSuccess(result) && isMismatch(seeded, result.value)
+              ? { policy, resource, seeded, decided: result.value }
+              : undefined;
+          emitHydration(HydrationEvent.Rechecked({ mismatch }), { mismatch: report });
         }
       }
       return result;

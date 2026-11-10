@@ -585,10 +585,11 @@ const DECISION_READ_BUDGET = {
   "packages/react/src/DecisionOutcome.ts": 2,
   // Seed precedence and mismatch reporting (`makeSeededQuestion`'s `read`):
   // one `isInitial` deciding whether the computed result replaces the seed, and
-  // two `isSuccess` deciding whether it disagrees with it. Upstream of what a
-  // consumer reads — it chooses which result the atom holds (ADR-QD-039) — so
-  // not a second reading of one.
-  "packages/react/src/HydrationEngine.ts": 3,
+  // one `isSuccess` deciding whether it disagrees with it (the `Rechecked`
+  // event's `mismatch`, ARCH-60; it was two before the event carried it).
+  // Upstream of what a consumer reads — it chooses which result the atom holds
+  // (ADR-QD-039) — so not a second reading of one.
+  "packages/react/src/HydrationEngine.ts": 2,
 };
 
 /**

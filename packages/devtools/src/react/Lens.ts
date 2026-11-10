@@ -6,7 +6,7 @@
  * file.** The guard package holds a ref React filled in and calls nothing;
  * this measures it, draws over it, and hit-tests it. Keeping that boundary in
  * one named module is the discipline `DeveloperSignals.ts` applies to
- * `console` and `HydrationCounts.ts` to `Context.empty()` — a boundary with a
+ * `console` and `HydrationEvent.ts` to `Context.empty()` — a boundary with a
  * file name stays visible where one spread across a component tree dissolves.
  *
  * It is not the *only* file that touches `document`, though: `useLens.ts`
