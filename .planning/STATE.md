@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 13-08-PLAN.md
+stopped_at: Completed 13-09-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "13-08 complete: both unguarded-route warning cadences pinned; UnguardedRoute.ts (one constructor, closed announce); addGuardedRoute loader optional (overloads); spec 23/34; http minor changeset"
+last_activity_desc: "13-09 complete: core pins for MissingResource-before-MissingAction, decideSubjects under a decision cache and a sink, and LifecycleOptions = EvaluateOptions less QuestionOptions (tests only)"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 59
-  completed_plans: 23
-  percent: 39
+  completed_plans: 24
+  percent: 41
 current_phase: 13
 ---
 
@@ -28,14 +28,14 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 13 of 20 (Lost-wave gaps)
-Plan: 8 of 13 complete (13-01 … 13-08); next is 13-09
+Plan: 9 of 13 complete (13-01 … 13-09); next is 13-10
 Status: Phase 13 in progress (phase_base 0925c2f)
-Last activity: 2026-11-10 -- 13-08 complete: `http.test.ts`/`PortRoutes.test.ts` pin the per-request and once-at-construction unguarded warnings (each shown to discriminate); package-private `UnguardedRoute.ts` (`unguardedRoutes`, closed `announce`) builds both unguarded routes; `addGuardedRoute` four-argument overload evaluates against `NO_RESOURCE` (tst pinned), four routes drop `loadNoResource`; spec 34 Rev 1.6, spec 23 Rev 1.15, website http.md; `.changeset/guarded-route-default-loader.md` (http minor); `spec:api`/`spec:verify` red until 13-11 (CCR-QD-402 now cited)
+Last activity: 2026-11-10 -- 13-09 complete: `Evaluate.test.ts` pins that a missing resource wins over a missing action on `HasResourceAttribute`; `SubjectSet.test.ts` `describe("under a decision cache and a sink")` ported from lost `4b1ed49`; new `Lifecycle.tst.ts` pins `LifecycleOptions` against `EvaluateOptions`/`QuestionOptions`; each GREEN on the base and RED against a reverted local mutation; tests only, no src change; `spec:api`/`spec:verify` red until 13-11 (INV-QD-016 text correction is 13-11's)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 38
+- Total plans completed: 39
 - Average duration: -
 - Total execution time: 0.0 hours
 
