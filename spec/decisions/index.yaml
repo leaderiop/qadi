@@ -402,3 +402,7 @@ entries:
     file: "129-a-replay-miss-is-an-outage-on-every-port.md"
     title: "A replay miss is an outage on every port"
     status: "Accepted — reads ADR-QD-094, ADR-QD-109"
+  - id: "ADR-QD-130"
+    file: "130-the-devtools-surface-is-one-guarded-mount.md"
+    title: "The devtools surface has one address rule and one guarded mount"
+    status: "Accepted — reads ADR-QD-107, ADR-QD-099, ADR-QD-046"

@@ -126,6 +126,18 @@ permissionRegistryRoute(adminPermission, isAdmin)
 `permissionRegistryRouteUnguarded(reason)` exists for local development and says
 so in the logs on every request.
 
+## The devtools routes
+
+The decision stream (`/__decisions`), its backlog and the permission registry take
+`{ prefix }` and answer at `devtoolsPath(route, prefix)`. `devtoolsRoutes(permission,
+policy, log, { prefix })` mounts all three behind one guard; it has no unguarded form.
+Build your client's URL with the same function and prefix, never by hand:
+
+```ts
+devtoolsRoutes(readDevtools, canReadDevtools, log, { prefix: "/devtools" });
+sourceFromEventSource({ url: devtoolsPath("decisions", "/devtools") }); // @qadi/devtools
+```
+
 ## Answering ports for a remote client
 
 A browser that re-checks a seeded decision asks a server for each port's answer.

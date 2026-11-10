@@ -221,8 +221,8 @@ export const guardApi: <Id extends string, Groups extends HttpApiGroup.Constrain
   SubjectExtractor | StandingEvaluationServices | PermissionRegistry
 >;
 export const addGuardedRoute: (method, path, permission, policy, loadResource?) => (handler) => Layer<...>; // no loader: NO_RESOURCE
-export const permissionRegistryRoute: (permission: Permission, policy: Policy) => Layer<...>;
-export const permissionRegistryRouteUnguarded: (reason: string) => Layer<...>;
+export const permissionRegistryRoute: (permission: Permission, policy: Policy, options?: DevtoolsRouteOptions) => Layer<...>;
+export const permissionRegistryRouteUnguarded: (reason: string, options?: DevtoolsRouteOptions) => Layer<...>;
 ```
 
 `PermissionRegistry` answers "which permission does which endpoint require,"
@@ -240,7 +240,44 @@ permission may enforce entirely unrelated rules, and it cannot answer what is
 what to attack and where, so it is guarded by default.
 `permissionRegistryRouteUnguarded(reason)` is the explicit opt-out for local
 development, and it logs a warning on every request rather than once, so a
-choice that reaches production stays visible in that environment's logs.
+choice that reaches production stays visible in that environment's logs. Both
+take `{ prefix }` like the other devtools routes below; under a prefix the
+warning names the prefixed path, the one actually served.
+
+## The devtools routes
+
+The decision stream (`/__decisions`), its backlog (`/__decisions/backlog`) and
+the permission registry (`/__permissions`) answer at
+`devtoolsPath(route, prefix)`, at the root when no prefix is given. Every
+constructor takes `{ prefix }`, and `devtoolsRoutes` mounts all three behind one
+guard and one prefix. It has no unguarded form: the stream publishes decisions,
+so it is always guarded.
+
+Your client builds its URL from the same function with the same prefix,
+instead of writing the path again. `devtoolsPath` imports nothing, so a browser
+bundle can import it from `@qadi/http` without pulling in a router.
+
+```typescript
+import * as Effect from "effect/Effect";
+import { hasPermission, makeDecisionLog, permission } from "@qadi/core";
+import { devtoolsPath, devtoolsRoutes } from "@qadi/http";
+
+const readDevtools = permission("devtools", "read");
+
+// The server: the stream, the backlog and the registry under /devtools, one guard for all three.
+export const DevtoolsRoutes = Effect.map(makeDecisionLog({ environment: "Server" }), (log) =>
+  devtoolsRoutes(readDevtools, hasPermission(readDevtools), log, { prefix: "/devtools" }),
+);
+
+// The client: the same rule and the same prefix. This is "/devtools/__decisions".
+export const streamUrl = devtoolsPath("decisions", "/devtools");
+```
+
+Under a prefix the default paths are not served, and a subject the policy
+denies still gets 403 at every prefixed path: a prefix moves a route, it never
+unguards one. Mount the routes one by one (`decisionStreamRoute`,
+`decisionBacklogRoute`, `permissionRegistryRoute`) when they need different
+guards.
 
 See [ADR-QD-036](https://github.com/leaderiop/qadi/blob/main/spec/decisions/036-qadi-http-package-shape.md)
 and [behavior 23](https://github.com/leaderiop/qadi/blob/main/spec/behaviors/23-http.md)

@@ -80,6 +80,21 @@ cursor order so a reconnect loses nothing; the backlog is still presented in
 decision order. Against a server older than 0.12 a reconnect during the backlog
 can still lose records, because the order is the server's.
 
+`sourceFromEventSource` takes the URL from you and builds none. Build it with
+`@qadi/http`'s `devtoolsPath` and the prefix your server mounted the routes
+under, so the reader follows the server when the prefix changes:
+
+```typescript
+import { sourceFromEventSource } from "@qadi/devtools";
+import { devtoolsPath } from "@qadi/http";
+
+// The server mounted devtoolsRoutes(..., { prefix: "/devtools" }).
+export const source = sourceFromEventSource({
+  url: devtoolsPath("decisions", "/devtools"),
+  withCredentials: true,
+});
+```
+
 The environment label is stated once, where the log is made; over SSE it
 travels inside each frame, so `sourceFromEventSource` states none. A frame must
 be a `{ environment, record }` envelope whose record is wire version 2. A bare
