@@ -213,8 +213,23 @@ export interface SimulationSession {
    * as `Evicted` at once.
    */
   readonly choosePolicy: (policy: Policy) => void;
-  /** Re-seeds from a logged row, resets the form to it and drops any run. */
+  /**
+   * Re-seeds from a logged row, resets the form to it and drops any run — unless
+   * the session already holds that entry, which is a no-op.
+   *
+   * For a host keeping a prop in step: an effect re-run carrying the same entry
+   * must not wipe a half-filled form. A reviewer replaying a row is `replay`.
+   */
   readonly seed: (entry: TimelineEntry | undefined) => void;
+  /**
+   * Seeds from `entry` now, even if the session was last seeded from it.
+   *
+   * Replaying is an act the reviewer takes (E8.1), so pressing it again on the
+   * same row after choosing another policy or editing the form re-seeds. `seed`
+   * keeps its same-entry guard for the host's effect re-run; the two are told
+   * apart by which command is called, never by comparing entries (ARCH-63, D-03).
+   */
+  readonly replay: (entry: TimelineEntry) => void;
   /** The host's resolvers. A different layer drops the capture taken from the old one. */
   readonly setPorts: (ports: EvaluationPortsLayer | undefined) => void;
   readonly chooseSource: (choice: SourceChoice) => void;
@@ -503,6 +518,23 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
     commit();
   };
 
+  /** Seeds from `entry` unconditionally: `seed` guards it, `replay` does not. */
+  const reseed = (entry: TimelineEntry | undefined): void => {
+    seedEntry = entry;
+    const replay = entry === undefined ? undefined : replayInput(entry);
+    if (replay?._tag === "Replayable") {
+      seeded = { policy: replay.policy, unseeded: replay.unseeded };
+      draft = replay.input;
+    } else {
+      seeded = undefined;
+    }
+    resourceText = resourceTextOf(draft);
+    pin();
+    retire();
+    run = { _tag: "Idle" };
+    commit();
+  };
+
   const session: SimulationSession = {
     subscribe: store.subscribe,
 
@@ -535,20 +567,10 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
 
     seed: (entry) => {
       if (entry === seedEntry) return;
-      seedEntry = entry;
-      const replay = entry === undefined ? undefined : replayInput(entry);
-      if (replay?._tag === "Replayable") {
-        seeded = { policy: replay.policy, unseeded: replay.unseeded };
-        draft = replay.input;
-      } else {
-        seeded = undefined;
-      }
-      resourceText = resourceTextOf(draft);
-      pin();
-      retire();
-      run = { _tag: "Idle" };
-      commit();
+      reseed(entry);
     },
+
+    replay: reseed,
 
     setPorts: (next) => {
       if (next === ports) return;

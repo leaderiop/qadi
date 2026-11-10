@@ -642,6 +642,102 @@ describe("seeding", () => {
     }));
 });
 
+/**
+ * DOCK-04 — `replay` is the reviewer's act and always re-seeds; `seed` is a host
+ * keeping a prop in step, and an unchanged one must not wipe a half-filled form.
+ */
+describe("replaying a row", () => {
+  const a = entryOf(
+    decisionRecord({
+      evaluationId: "ev-a",
+      // Reads an attribute, so a Live run of it waits on the slow resolver.
+      policy: clearance,
+      subjectId: "carol",
+      action: "read",
+      resource: { id: "doc-1" },
+    }),
+  );
+  const seededFromA = (session: SimulationSession) => {
+    const snapshot = session.getSnapshot();
+    assert.isTrue(snapshot.policy._tag === "Seeded" && snapshot.policy.entry === a);
+    assert.isTrue(snapshot.policy._tag === "Seeded" && Equal.equals(snapshot.policy.policy, clearance));
+    assert.strictEqual(snapshot.draft.subject.id, "carol");
+    assert.strictEqual(snapshot.draft.action, "read");
+    assert.deepStrictEqual(snapshot.draft.resource, { id: "doc-1" });
+    assert.deepStrictEqual(snapshot.resourceText, { text: '{"id":"doc-1"}', error: undefined });
+  };
+
+  it("re-seeds from the row it was last seeded from after another policy was chosen", () => {
+    const session = makeSimulationSession({ sightings: [sighting(hasRole("b"))] });
+    session.seed(a);
+    session.choosePolicy(hasRole("b"));
+    assert.strictEqual(session.getSnapshot().policy._tag, "Chosen");
+    session.replay(a);
+    seededFromA(session);
+  });
+
+  it.effect("re-seeds the form after an edit, and drops the run in flight", () =>
+    Effect.gen(function* () {
+      const { ports, tally } = slow();
+      const session = makeSimulationSession({ sightings: [], ports, seed: a });
+      session.edit({ ...session.getSnapshot().draft, action: "write", attributes: { clearance: 9 } });
+      session.editResourceText("{oops");
+      session.chooseSource("Live");
+      const fiber = yield* startRun(session);
+      assert.strictEqual(session.getSnapshot().run._tag, "Running");
+
+      const seen = counted(session);
+      session.replay(a);
+      assert.strictEqual(seen.notified, 1);
+      seededFromA(session);
+      assert.isUndefined(session.getSnapshot().draft.attributes);
+      assert.strictEqual(session.getSnapshot().run._tag, "Idle");
+      assert.isTrue(session.hasRetired());
+
+      yield* session.reap;
+      assert.strictEqual(tally.interrupted, 1);
+      yield* TestClock.adjust("1 second");
+      yield* Fiber.join(fiber);
+      assert.strictEqual(session.getSnapshot().run._tag, "Idle");
+    }));
+
+  it("seed with the entry it holds is a no-op, so an effect re-run keeps the edited form", () => {
+    const session = makeSimulationSession({ sightings: [] });
+    session.seed(a);
+    session.edit({ ...session.getSnapshot().draft, action: "write" });
+    const seen = counted(session);
+    session.seed(a);
+    assert.strictEqual(seen.notified, 0);
+    assert.strictEqual(session.getSnapshot().draft.action, "write");
+  });
+
+  it("seed after a replay of the same entry keeps the replay's edited form", () => {
+    const session = makeSimulationSession({ sightings: [] });
+    session.replay(a);
+    seededFromA(session);
+    session.edit({ ...session.getSnapshot().draft, action: "write" });
+    session.seed(a);
+    assert.strictEqual(session.getSnapshot().draft.action, "write");
+    assert.strictEqual(session.getSnapshot().policy._tag, "Seeded");
+  });
+
+  it("replaying a row that cannot be replayed leaves the seed as seed does", () => {
+    const orphan = entryOf(obligationRecord({ evaluationId: "ev-orphan" }));
+    const replayed = makeSimulationSession({ sightings: [sighting(hasRole("b"))], seed: a });
+    const seeded = makeSimulationSession({ sightings: [sighting(hasRole("b"))], seed: a });
+    replayed.replay(orphan);
+    seeded.seed(orphan);
+    const left = replayed.getSnapshot();
+    assert.strictEqual(left.policy._tag, "Chosen");
+    assert.deepStrictEqual(left.policy, seeded.getSnapshot().policy);
+    assert.deepStrictEqual(left.draft, seeded.getSnapshot().draft);
+    assert.isTrue(left.policy._tag === "Chosen" && Equal.equals(left.policy.policy, hasRole("b")));
+    // The row it was seeded from is left behind: a replay of it seeds again.
+    replayed.replay(a);
+    seededFromA(replayed);
+  });
+});
+
 describe("choosing a policy", () => {
   it("keeps the chosen policy when a decision reorders the rail", () => {
     const session = makeSimulationSession({
