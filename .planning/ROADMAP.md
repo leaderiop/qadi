@@ -130,7 +130,7 @@ Plans:
 - [x] 13-05 (W1): Port the core half of lost ARCH-56 (`d089c1d`, T2–T4 and T7) onto current `main`: one exported `EvaluationMetrics` module the core writers write through, and typed…
 - [x] 13-06 (W2): Port the audit and compiler half of lost ARCH-56 (`d089c1d`, T5–T6): their metrics become typed, package-private reads, so the same vacuous-negative defect 13-05…
 - [x] 13-07 (W3): Port the gate and record half of lost ARCH-56 (`d089c1d`, T1/T8/T9): three house-style rules that keep metrics declared once and read by reference, the…
-- [ ] 13-08 (W2): Close the http half of lost ARCH-57 (`4b1ed49`) on current `main`: pin both unguarded-route logging cadences with tests (GAP-08, lost T3), then port the two ARCH-57…
+- [x] 13-08 (W2): Close the http half of lost ARCH-57 (`4b1ed49`) on current `main`: pin both unguarded-route logging cadences with tests (GAP-08, lost T3), then port the two ARCH-57…
 - [ ] 13-09 (W2): The 13-D core tests: the precedence pin (GAP-07), the batch-under-cache-and-sink tests from lost ARCH-57 `4b1ed49` (GAP-09, test half
 - [ ] 13-10 (W4): 13-E, part 1: resolve every numbering placeholder (the placeholder row of GAP-11) and make the class un-reintroducible (GAP-12).
 - [ ] 13-11 (W5): Write Phase 13's shared registers once, after every content plan has landed: invariants, traceability, overview, ADR index, and the CCR register.
@@ -259,7 +259,7 @@ Plans:
 | 10. Planning reconciliation | 3/3 | Complete | 2026-11-10 |
 | 11. Lost-wave security | 7/7 | Complete | 2026-11-10 |
 | 12. Lost-wave integrity | 5/5 | Complete | 2026-11-10 |
-| 13. Lost-wave gaps | 7/13 | In progress | - |
+| 13. Lost-wave gaps | 8/13 | In progress | - |
 | 14. Audit sink deadline | 0/7 | Planned | - |
 | 15. Dock session | 0/4 | Planned | - |
 | 16. One role-graph walk | 0/4 | Planned | - |
