@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 17-02-PLAN.md
+stopped_at: Completed 17-03-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "17-02 complete: 17-mutation-base.json taken at 1a14899; PortKey.test.ts (key law, collisions, totality) and the Capture ARCH-65 replay test committed RED"
+last_activity_desc: "17-03 complete: canonicalKey is injective, total and stack-safe; PortDescription.key returns Result<string, KeyRefusal>; key consumers pending 17-04"
 state_head: 856a092ab1da5af22c7dbf7a6044fa32cf55eeeb
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 59
-  completed_plans: 45
-  percent: 76
+  completed_plans: 46
+  percent: 78
 current_phase: 17
 ---
 
@@ -28,14 +28,14 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 17 of 20 (Injective request key)
-Plan: 2 of 6 in Phase 17 (17-02 complete); next is 17-03
+Plan: 3 of 6 in Phase 17 (17-03 complete); next is 17-04
 Status: In progress (phase_base 1a14899)
-Last activity: 2026-11-10 -- 17-02 complete: mutation base taken; the key law, the four collisions, totality and the Date-vs-ISO replay committed RED (green in 17-03 and 17-04)
+Last activity: 2026-11-10 -- 17-03 complete: the Result-typed injective, total key and its public refusal vocabulary; PortKey.test.ts green; consumers (replyTable, signatureHistoryFromSignatures, Capture) red until 17-04
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 50
+- Total plans completed: 51
 - Average duration: -
 - Total execution time: 0.0 hours
 
