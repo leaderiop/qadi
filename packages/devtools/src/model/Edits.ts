@@ -21,7 +21,7 @@ import * as Struct from "effect/Struct";
 import type { ActedEventInput, RelationshipEdgeInput, SignatureInput } from "@qadi/core";
 import type { SimulationEdit } from "./SimulationEdit.ts";
 import { composeEdits } from "./SimulationEdit.ts";
-import { sameSignature, signatureCodec } from "./SimulationForm.ts";
+import { sameEdge, sameEvent, sameSignature, signatureCodec } from "./SimulationForm.ts";
 import type { SimulationInput } from "./SimulationInput.ts";
 
 /**
@@ -222,21 +222,6 @@ const signatureDrops = (input: SimulationInput): ReadonlyArray<SimulationEdit> =
       return { ...self, signatures: held.filter((other) => !sameSignature(signature, other)) };
     }),
   );
-
-/**
- * Field by field rather than by reference or by `Equal.equals`.
- *
- * By reference would be enough for edits this module derives — they are built
- * from the very array they filter — but `apply` is public and composes, so a
- * pair edit runs the second filter over an array the first one rebuilt. Those
- * elements are the same objects today; relying on it would make the correctness
- * of a sweep depend on an implementation detail of the shallow copy above it.
- */
-export const sameEdge = (a: RelationshipEdgeInput, b: RelationshipEdgeInput): boolean =>
-  a.subjectId === b.subjectId && a.relation === b.relation && a.resourceId === b.resourceId;
-
-export const sameEvent = (a: ActedEventInput, b: ActedEventInput): boolean =>
-  a.subjectId === b.subjectId && a.event === b.event && a.resourceId === b.resourceId;
 
 /**
  * The subject is named only when it is not the one being simulated.

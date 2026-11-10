@@ -26,7 +26,7 @@ import * as Match from "effect/Match";
 import { isAllowed } from "@qadi/core";
 import type { Allow, DecisionOutcome, PermissionKey } from "@qadi/core";
 import type { PolicySighting } from "../model/Catalogue.ts";
-import { sameEdge, sameEvent } from "../model/Edits.ts";
+import { sameEdge, sameEvent } from "../model/SimulationForm.ts";
 import { describeTracePath, inspect } from "../model/Inspect.ts";
 import { matchesBaseline } from "../model/Replay.ts";
 import type { Baseline, UnseededField } from "../model/Replay.ts";

@@ -9,7 +9,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as FastCheck from "fast-check";
 import type { SignatureInput } from "@qadi/core";
-import { sameEdge } from "../../src/model/Edits.ts";
 import {
   actionOf,
   addChip,
@@ -23,6 +22,7 @@ import {
   removeAt,
   renameSubject,
   roleCodec,
+  sameEdge,
   sameSignature,
   signatureCodec,
   withAction,

@@ -6,7 +6,7 @@
  * runs, and that applying one changes exactly the thing it names.
  */
 import { assert, describe, it } from "@effect/vitest";
-import { DEFAULT_MAX_PAIRS, pairEdits, sameEdge, sameEvent, singleEdits } from "../../src/model/Edits.ts";
+import { DEFAULT_MAX_PAIRS, pairEdits, singleEdits } from "../../src/model/Edits.ts";
 import { applyEdits, composeEdits, editParts } from "../../src/model/SimulationEdit.ts";
 import type { SimulationEdit } from "../../src/model/SimulationEdit.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
@@ -327,23 +327,6 @@ describe("applying an edit", () => {
       applyEdits(twoEdges, [at(derived, 0), at(derived, 1)]).relationships,
       [],
     );
-  });
-});
-
-describe("sameEdge and sameEvent", () => {
-  const edge = { subjectId: "alice", relation: "owner", resourceId: "doc-1" };
-  const event = { subjectId: "alice", event: "raised", resourceId: "doc-1" };
-
-  it("compare every field", () => {
-    assert.isTrue(sameEdge(edge, { ...edge }));
-    assert.isFalse(sameEdge(edge, { ...edge, subjectId: "bob" }));
-    assert.isFalse(sameEdge(edge, { ...edge, relation: "viewer" }));
-    assert.isFalse(sameEdge(edge, { ...edge, resourceId: "doc-2" }));
-
-    assert.isTrue(sameEvent(event, { ...event }));
-    assert.isFalse(sameEvent(event, { ...event, subjectId: "bob" }));
-    assert.isFalse(sameEvent(event, { ...event, event: "closed" }));
-    assert.isFalse(sameEvent(event, { ...event, resourceId: "doc-2" }));
   });
 });
 

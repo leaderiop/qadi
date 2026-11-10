@@ -39,7 +39,7 @@ import type {
   PolicyCases,
   ValueRef,
 } from "@qadi/core";
-import { sameEdge, sameEvent } from "./Edits.ts";
+import { sameEdge, sameEvent } from "./SimulationForm.ts";
 import type { SimulationEdit } from "./SimulationEdit.ts";
 import type { SimulationInput } from "./SimulationInput.ts";
 
