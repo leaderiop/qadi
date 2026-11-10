@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 13-12-PLAN.md (Phase 13 complete)
+stopped_at: Completed 14-01-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "13-12 complete: pnpm check:pr green (4262 unit, 566 BDD, 190 tstyche, 42+30 example); scoped mutation of 31 based files, none below 0925c2f; rescue/arch50-stash-a/b deleted (keep-wave5), rescue/wave5-1013 kept; Phase 13 complete"
+last_activity_desc: "14-01 complete: decision A interrupt remove recorded; phase_base b042e56; scoped audit mutation base (4 files); AuditSinkDeadline.test.ts RED 5/5"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 4
   total_plans: 59
-  completed_plans: 28
-  percent: 47
+  completed_plans: 29
+  percent: 49
 current_phase: 14
 ---
 
@@ -28,14 +28,14 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 14 of 20 (Audit sink deadline)
-Plan: Phase 13 13 of 13 complete (13-01 … 13-13); next is Phase 14 (14-01)
-Status: Phase 13 complete (phase_base 0925c2f); Phase 14 not started
-Last activity: 2026-11-10 -- 13-12 complete: `pnpm check:pr` green (16 of 17 steps, mutation skipped by design; 4262 unit tests, 566 BDD, 190 tstyche, 42 example unit + 30 e2e, spec:verify:strict 21/21, api-surface 882 exports); scoped Stryker on the final tree for 36 touched files, none of the 31 with a 0925c2f base below it (`13-mutation-after.json`); `keep-wave5`: local `rescue/arch50-stash-a` (4b4c439) and `rescue/arch50-stash-b` (fc35d5e) deleted, `rescue/wave5-1013` (950977f) kept; GAP-01..12 complete
+Plan: 1 of 7 in Phase 14 (14-01 complete); next is 14-02
+Status: Phase 14 in progress (phase_base b042e56)
+Last activity: 2026-11-10 -- 14-01 complete: `_DECISIONS.md` answer `A interrupt remove` recorded (5 s `storeCallTimeout`, six-mode script with `Interrupt`, legacy fail options removed); `14-base.txt` b042e56; `14-mutation-base.json` (AuditDecisionSinkLive 98.04, AuditStagingPortTest 100, AuditTrailPortTest 100, CircuitBreaker 80.51); `AuditSinkDeadline.test.ts` RED, 5 failed (5)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 41
+- Total plans completed: 42
 - Average duration: -
 - Total execution time: 0.0 hours
 
