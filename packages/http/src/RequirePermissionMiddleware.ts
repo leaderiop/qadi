@@ -1,10 +1,11 @@
 /**
- * The `RequirePermission` middleware's implementation: who is asking, what the endpoint
- * declares, and the answer.
+ * The `RequirePermission` middleware's implementation: look the served endpoint up in the access
+ * plan `guardApi` built, and answer.
  *
  * Package-private (not in the barrel, ADR-QD-099). The only way to obtain it is `guardApi`
  * (`GuardApi.ts`), which registers every endpoint of the API this middleware serves before it
- * hands the middleware back, so what is enforced is always what `/__permissions` lists.
+ * hands the middleware back, so what is enforced is always what `/__permissions` lists. The
+ * middleware reads no annotations: the plan (`AccessPlan.ts`) already decided every endpoint.
  *
  * Moved here from `RequirePermission.ts`'s `RequirePermissionLive` (ARCH-36 T5), so the class stays
  * the declaration and this module is the behavior. Its enforcement half, including the
@@ -20,23 +21,20 @@ import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type { unhandled } from "effect/Types";
 import type { StandingEvaluationServices } from "@qadi/core";
 import { anonymous, CurrentSubject } from "@qadi/core";
-import { answerInChannel, endpointMemberKey, enforceRequest } from "./AuthorizeRequest.ts";
-import type { EndpointMemberKey } from "./AuthorizeRequest.ts";
+import type { AccessPlan } from "./AccessPlan.ts";
+import { answerInChannel, enforceRequest } from "./AuthorizeRequest.ts";
 import { loadNoResource } from "./NoResource.ts";
 import type { HttpEnforcementFailure } from "./QadiHttpError.ts";
-import { endpointAccess, misplacedDeclarations } from "./RequirePermission.ts";
 import type { RequirePermission, RequiredPermissionShape } from "./RequirePermission.ts";
 import type { SubjectExtractor } from "./SubjectExtractor.ts";
 
 /**
- * Builds the middleware for the endpoints named by `members` (their `endpointMemberKey`s).
+ * Builds the middleware that enforces `plan`.
  *
- * An endpoint outside `members` is refused with a 500 and one error log, never served: it was not
- * part of the API `guardApi` registered.
+ * An endpoint value outside the plan is refused with a 500 and one error log, never served: it was
+ * not part of the API `guardApi` planned and registered, even when it reuses that API's names.
  */
-export const makeRequirePermission = Effect.fn("qadi.http.makeRequirePermission")(function* (
-  members: ReadonlySet<EndpointMemberKey>,
-) {
+export const makeRequirePermission = Effect.fn("qadi.http.makeRequirePermission")(function* (plan: AccessPlan) {
   // Resolved once, here, at layer-build time — see `RequirePermission`'s
   // own doc comment for why this replaces a `requires` declaration on the
   // middleware class itself. Re-provided per request below, inside the
@@ -83,42 +81,19 @@ export const makeRequirePermission = Effect.fn("qadi.http.makeRequirePermission"
     );
 
   const middleware: Context.Service.Shape<typeof RequirePermission> = (httpEffect, { endpoint, group }) => {
-    // Only an endpoint of the API this middleware was built for was registered, checked for
-    // misplaced declarations and found to carry the middleware. Anything else was never
-    // vetted by `guardApi`, so serving it would reopen the omission `guardApi` exists to close
-    // (ARCH-36, D-36-e).
-    if (!members.has(endpointMemberKey(group, endpoint))) {
+    // Only an endpoint value of the API this middleware was planned from was registered, checked
+    // for misplaced declarations, found to carry the middleware and to declare its access. Anything
+    // else was never vetted by `guardApi`, so serving it would reopen the omission `guardApi`
+    // exists to close (ARCH-36, D-36-e); that includes an API value reusing the planned names.
+    const access = plan.accessOf(group, endpoint);
+    if (access === undefined) {
       return refuse(
         `qadi/http: endpoint "${endpoint.identifier}" of group "${group.identifier}" is not part of the ` +
           "HttpApi this RequirePermission was built for, so it was never registered and is refused. " +
           "Provide guardApi(<that api>) to the HttpApiBuilder.layer that serves it.",
       );
     }
-
-    // Only an endpoint declares access (`endpointAccess`'s doc comment). A
-    // group carrying a declaration is a wiring mistake the middleware can
-    // see, so it refuses every endpoint under it rather than ignore it.
-    const misplaced = misplacedDeclarations(group.annotations);
-    if (misplaced.length > 0) {
-      return refuse(
-        `qadi/http: group "${group.identifier}" carries ${misplaced.join(" and ")}, which only an ` +
-          `endpoint may declare, so endpoint "${endpoint.identifier}" is refused. Declare it on each ` +
-          "endpoint, or use HttpApiGroup.annotateEndpoints.",
-      );
-    }
-
-    // Absence is refusal, not permission. An endpoint reachable without
-    // authorization says so with `publicEndpoint`; one that says nothing is
-    // a wiring mistake, and a wiring mistake on an authorization path must
-    // not resolve to "allowed" (ADR-QD-036, INV-QD-034).
-    return Match.valueTags(endpointAccess(endpoint.annotations), {
-      Undeclared: () =>
-        refuse(
-          `qadi/http: endpoint "${endpoint.identifier}" declares neither a permission ` +
-            "requirement nor `publicEndpoint(...)`, so it is refused. Annotate it with " +
-            "RequiredPermission, or with PublicEndpoint if it is meant to be reachable " +
-            "without authorization.",
-        ),
+    return Match.valueTags(access, {
       Public: () => Effect.provideService(httpEffect, CurrentSubject, anonymous),
       Required: ({ requirement }) => enforce(requirement, httpEffect),
     });

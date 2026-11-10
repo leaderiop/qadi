@@ -3,8 +3,8 @@
  * as the `/__permissions` introspection route.
  *
  * Populated from two mechanisms feeding one model, per ADR-QD-036 Rev 1.6:
- * `guardApi` (`GuardApi.ts`) walks an `HttpApi`'s `RequiredPermission`
- * annotations when the layer that provides `RequirePermission` is built, and
+ * `guardApi` (`GuardApi.ts`) registers its access plan's `Required`
+ * endpoints (`AccessPlan.ts`) when the layer that provides `RequirePermission` is built, and
  * `addGuardedRoute` pushes a descriptor at the point a bare `HttpRouter`
  * route registers — forced apart only because `HttpApiEndpoint` carries an
  * annotation slot and a bare `HttpRouter.Route` does not. Each registers as a
@@ -68,7 +68,7 @@ export class PermissionRegistry extends Context.Service<PermissionRegistry, Perm
 
 /**
  * The registry's base layer: an empty `Ref`-backed store. Sufficient on its
- * own: `guardApi` registers an `HttpApi`'s endpoints into it and
+ * own: `guardApi` registers the endpoints it planned from an `HttpApi` into it and
  * `addGuardedRoute` a bare route, so every stack that guards anything provides
  * this layer.
  */
