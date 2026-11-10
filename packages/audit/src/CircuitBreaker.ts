@@ -201,7 +201,7 @@ const CIRCUIT_BREAKER_STATUSES: ReadonlyArray<CircuitBreakerStatus> = Record.key
  * second time series to diff against, is churn: how many times has this
  * breaker gone `Open`, not just whether it is `Open` at this instant.
  */
-const transitionsTotal = Metric.frequency("qadi_audit_circuit_breaker_transitions_total", {
+export const transitionsTotal = Metric.frequency("qadi_audit_circuit_breaker_transitions_total", {
   description: "Circuit breaker state transitions, by the state transitioned to.",
   preregisteredWords: CIRCUIT_BREAKER_STATUSES,
 });
