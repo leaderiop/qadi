@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-21                                    |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-10-08): BEH-QD-166 — a completed entry is counted once toward `capacity`; the hit check, the join and the claim are one synchronous step (ARCH-45, CCR-QD-267)<br>1.5 (2026-10-07): BEH-QD-163/168 — `DecisionCacheKey` is replaced by `Question`; the options that are part of the key are the type `QuestionOptions` (ADR-QD-100, CCR-QD-189)<br>1.4 (2026-09-08): BEH-QD-168 corrected twice — `AuthSubject.roles`/`.permissions` are the built-in JS `Set`, not `effect/HashSet` (matching `DecisionCache.ts`'s own corrected doc comment); and the `DecisionCacheKey` listing and BEH-QD-163's requirement gained the `maxDepth` field they omitted, which is in the key for the same reason `action` is (CCR-QD-128)<br>1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
+> | Change History | 1.7 (2026-11-10): BEH-QD-166 states why a bad `capacity` is a defect where a port's `…Bounded(permits)` is typed; no behaviour change (ARCH-61, CCR-QD-403)<br>1.6 (2026-10-08): BEH-QD-166 — a completed entry is counted once toward `capacity`; the hit check, the join and the claim are one synchronous step (ARCH-45, CCR-QD-267)<br>1.5 (2026-10-07): BEH-QD-163/168 — `DecisionCacheKey` is replaced by `Question`; the options that are part of the key are the type `QuestionOptions` (ADR-QD-100, CCR-QD-189)<br>1.4 (2026-09-08): BEH-QD-168 corrected twice — `AuthSubject.roles`/`.permissions` are the built-in JS `Set`, not `effect/HashSet` (matching `DecisionCache.ts`'s own corrected doc comment); and the `DecisionCacheKey` listing and BEH-QD-163's requirement gained the `maxDepth` field they omitted, which is in the key for the same reason `action` is (CCR-QD-128)<br>1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
 
 _Previous: [20 — Policy Simplification](./20-simplification.md)_
 
@@ -165,7 +165,11 @@ A negative `capacity` would make the eviction loop's own exit condition
 infinite loop, not a small cache. A `NaN` capacity would make that same
 comparison always `false`, silently turning "bounded" into unbounded instead
 of failing loudly. Both are caller misconfiguration, not a runtime condition
-to recover from, so this fails as a defect rather than a typed error.
+to recover from, so this fails as a defect rather than a typed error. That is
+unlike a port's `…Bounded(permits)`, whose `InvalidBoundedPermits` is typed: those
+wrappers are derived for every port by `PortDerivation.ts`, whose layers already
+carry an error channel, so a composition can report it, while the cache's and
+the decision log's `capacity` is a constant the caller wrote.
 
 ```
 REQUIREMENT: Once the number of completed entries exceeds `capacity`, the

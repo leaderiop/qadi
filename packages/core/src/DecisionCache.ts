@@ -200,6 +200,12 @@ interface InFlightClaim {
  * silently turning "bounded" into unbounded instead of failing loudly. This
  * is checked here, at construction, rather than left to fail in whichever of
  * those two ways at the first eviction.
+ *
+ * A bad `capacity` is a defect and not a typed error, unlike a port's
+ * `…Bounded(permits)` (`InvalidBoundedPermits`): the `…Bounded` wrappers are
+ * derived for every port by `PortDerivation.ts`, whose layers already carry an
+ * error channel, whereas this checks a constant the caller wrote, which no
+ * caller recovers from (BEH-QD-166). `makeDecisionLog` does the same.
  */
 export const decisionCacheLayer = (options?: {
   /**
