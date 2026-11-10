@@ -26,11 +26,18 @@ import { useEffect, useMemo, useRef } from "react";
 import type { Resource } from "@qadi/core";
 import { policyLabel } from "../model/Catalogue.ts";
 import type { AskedQuestionLike, GateGroup, GateInstanceLike } from "../model/Gates.ts";
-import { gateGroups, instancesAsking, isLocatable, locatableIds } from "../model/Gates.ts";
+import {
+  displayOfGateState,
+  gateGroups,
+  instancesAsking,
+  isLocatable,
+  locatableIds,
+} from "../model/Gates.ts";
 import type { HydrationActivity } from "../model/Hydration.ts";
 import { unaccountedEntries } from "../model/Hydration.ts";
 import { button, colors, font, muted } from "./theme.ts";
 import { useLens } from "./useLens.ts";
+import { treatmentOf } from "./VerdictTreatment.ts";
 
 export type { AskedQuestionLike } from "../model/Gates.ts";
 
@@ -191,6 +198,8 @@ const InstanceRow: FC<{
   readonly picked: boolean;
 }> = ({ instance, picked }) => {
   const node = useRef<HTMLDivElement | null>(null);
+  const state = displayOfGateState(instance.state);
+  const treatment = treatmentOf(state);
 
   useEffect(() => {
     // The row reveals itself, from its own ref. The panel looking its rows up
@@ -212,7 +221,12 @@ const InstanceRow: FC<{
       }}
     >
       <span style={{ ...muted, fontSize: font.sizeSmall }}>{instance.kind}</span>
-      <span style={{ color: stateColour(instance.state) }} data-testid="qadi-instance-state">
+      <span
+        style={{ color: treatment.ink, fontWeight: treatment.weight }}
+        data-testid="qadi-instance-state"
+        data-treatment={state}
+      >
+        {/* Its own name, even when unrecognised: a wrong label is visible. */}
         {instance.state}
       </span>
       {isLocatable(instance) ? null : (
@@ -224,19 +238,6 @@ const InstanceRow: FC<{
       )}
     </div>
   );
-};
-
-/**
- * `Rechecking` and `Pending` share the muted colour deliberately.
- *
- * Neither is an answer, and giving them different weights would suggest one is
- * closer to being one. What separates them is the word, which is on screen.
- */
-const stateColour = (state: string): string => {
-  if (state === "Allowed") return colors.allow;
-  if (state === "Denied") return colors.error;
-  if (state === "Failed") return colors.error;
-  return colors.textMuted;
 };
 
 const PickButton: FC<{ readonly lens: ReturnType<typeof useLens> }> = ({ lens }) => (

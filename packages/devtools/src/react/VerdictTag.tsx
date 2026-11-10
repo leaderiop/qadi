@@ -1,48 +1,23 @@
 "use client";
 /**
- * The verdict badge — **three visually distinct classes, never two**.
- *
- * `ALLOW` is a tint, `DENY` is solid, and `ERROR` is outlined. They differ in
- * *treatment* and not only in colour, so the distinction survives a reader who
- * cannot tell the two hues apart — which matters more here than usually,
- * because collapsing ERROR into DENY is the misreading this whole tool exists
- * to prevent (INV-QD-006).
+ * The verdict badge. Its look comes from `VerdictTreatment.ts`, which says why
+ * Allow, Deny and Error are three visually distinct classes, never two.
  */
-import type { CSSProperties, FC } from "react";
+import type { FC } from "react";
 import type { Verdict } from "../model/Verdict.ts";
-import { colors, font } from "./theme.ts";
+import { displayOfVerdict } from "../model/Verdict.ts";
+import { badge, colors } from "./theme.ts";
+import { tagStyle, treatmentOf } from "./VerdictTreatment.ts";
 
-const base: CSSProperties = {
-  display: "inline-block",
-  padding: "0 6px",
-  borderRadius: 3,
-  fontSize: font.sizeSmall,
-  fontWeight: 600,
-  letterSpacing: 0.4,
-  border: "1px solid transparent",
+export const VerdictTag: FC<{ readonly verdict: Verdict }> = ({ verdict }) => {
+  const state = displayOfVerdict(verdict);
+  const treatment = treatmentOf(state);
+  return (
+    <span style={tagStyle(treatment)} data-verdict={verdict} data-treatment={state}>
+      {treatment.label}
+    </span>
+  );
 };
-
-const styles: Record<Verdict, CSSProperties> = {
-  Allow: { ...base, background: colors.allowTint, color: colors.allow },
-  Deny: { ...base, background: colors.denySolid, color: colors.deny },
-  Error: { ...base, color: colors.error, borderColor: colors.error },
-  Unknown: { ...base, color: colors.textMuted, borderColor: colors.border },
-};
-
-const labels: Record<Verdict, string> = {
-  Allow: "ALLOW",
-  Deny: "DENY",
-  Error: "ERROR",
-  // Not "UNKNOWN": the row is an obligation outcome whose decision never
-  // arrived, and naming what it *is* beats naming what is missing.
-  Unknown: "NO DECISION",
-};
-
-export const VerdictTag: FC<{ readonly verdict: Verdict }> = ({ verdict }) => (
-  <span style={styles[verdict]} data-verdict={verdict}>
-    {labels[verdict]}
-  </span>
-);
 
 /**
  * Where a decision was made.
@@ -55,7 +30,7 @@ export const VerdictTag: FC<{ readonly verdict: Verdict }> = ({ verdict }) => (
 export const EnvironmentTag: FC<{ readonly environment: string }> = ({ environment }) => (
   <span
     style={{
-      ...base,
+      ...badge,
       color: colors.textMuted,
       borderColor: colors.border,
       fontWeight: 500,

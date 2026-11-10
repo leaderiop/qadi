@@ -17,18 +17,14 @@
  */
 import type { FC } from "react";
 import type { InspectNode } from "../model/Inspect.ts";
-import { colors, muted } from "./theme.ts";
+import { displayOfNodeStatus } from "../model/Verdict.ts";
+import { muted } from "./theme.ts";
+import { treatmentOf } from "./VerdictTreatment.ts";
 
 const statusMark: Record<InspectNode["status"], string> = {
   Allowed: "✓",
   Denied: "✗",
   NeverResolved: "·",
-};
-
-const statusColor: Record<InspectNode["status"], string> = {
-  Allowed: colors.allow,
-  Denied: colors.error,
-  NeverResolved: colors.textMuted,
 };
 
 export interface PolicyTreeProps {
@@ -59,7 +55,10 @@ export const PolicyTree: FC<PolicyTreeProps> = ({ node, showStatus, depth = 0 })
       }}
     >
       {showStatus ? (
-        <span style={{ color: statusColor[node.status], marginRight: 6 }}>
+        <span
+          style={{ color: treatmentOf(displayOfNodeStatus(node.status)).ink, marginRight: 6 }}
+          data-treatment={displayOfNodeStatus(node.status)}
+        >
           {statusMark[node.status]}
         </span>
       ) : null}

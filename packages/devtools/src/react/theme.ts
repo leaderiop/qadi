@@ -35,6 +35,8 @@ export const colors = {
   /** DENY — solid, because a refusal is what a reader is usually hunting. */
   deny: "#f0f3f6",
   denySolid: "#8b1a1a",
+  /** DENY as inline text on the surface; `denySolid` is a background. */
+  denyInk: "#f47067",
   /** ERROR — outlined, so it cannot be mistaken for either of the other two. */
   error: "#e3a008",
   /** A row whose partners disagree. */
@@ -122,6 +124,17 @@ export const input: CSSProperties = {
 };
 
 export const muted: CSSProperties = { color: colors.textMuted };
+
+/** A small labelled badge: the verdict tag and the environment tag share it. */
+export const badge: CSSProperties = {
+  display: "inline-block",
+  padding: "0 6px",
+  borderRadius: 3,
+  fontSize: font.sizeSmall,
+  fontWeight: 600,
+  letterSpacing: 0.4,
+  border: "1px solid transparent",
+};
 
 /** A bordered card. Every screen that groups related facts uses this one. */
 export const panel: CSSProperties = {
