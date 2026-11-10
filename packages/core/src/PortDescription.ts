@@ -96,7 +96,7 @@ export interface PortDescription<
   };
   /**
    * What the port's question and answer look like on a wire: the only
-   * statement of them off-process (ARCH-31, ADR-QD-NEXT). `answerRemotely`
+   * statement of them off-process (ARCH-31, ADR-QD-107). `answerRemotely`
    * serves a port through it and `askRemotely` asks one through it, so a host
    * writes neither half by hand and a sixth port is a compile error until it
    * states its wire.

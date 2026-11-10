@@ -154,7 +154,7 @@ const serve = <K extends PortName>(d: DescriptionOf<K>, c: Case<K>) => {
   });
 };
 
-describe("a served read (ADR-QD-NEXT)", () => {
+describe("a served read (ADR-QD-107)", () => {
   const RUN: { readonly [K in PortName]: () => void } = {
     AttributeResolver: () => serve(PORTS.AttributeResolver, CASES.AttributeResolver),
     DecisionHistory: () => serve(PORTS.DecisionHistory, CASES.DecisionHistory),

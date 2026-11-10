@@ -453,7 +453,7 @@ const conform: CaseVisitor = (c) => {
       });
     });
 
-    describe("wire (ADR-QD-NEXT)", () => {
+    describe("wire (ADR-QD-107)", () => {
       /** Through JSON text, the way a transport carries it. */
       const overTheWire = (json: unknown): unknown => JSON.parse(JSON.stringify(json));
       const subject = c.args.length === 4 ? alice : makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });

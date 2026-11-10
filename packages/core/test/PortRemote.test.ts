@@ -1,6 +1,6 @@
 /**
  * `answerRemotely` and `askRemotely` round-trip every port in memory, and a
- * remote outage fails where the store fails (ARCH-31 T5, INV-QD-NEXT).
+ * remote outage fails where the store fails (ARCH-31 T5, INV-QD-241).
  *
  * `send` is wired straight to `answerRemotely` with `JSON.stringify`/`parse`
  * between, so what crosses is exactly what a transport carries. `CASES` is a
@@ -220,7 +220,7 @@ const remoteCase = <K extends PortName>(d: DescriptionOf<K>, c: Case<K>) => {
   });
 };
 
-describe("a remote port (ADR-QD-NEXT)", () => {
+describe("a remote port (ADR-QD-107)", () => {
   const RUN: { readonly [K in PortName]: () => void } = {
     AttributeResolver: () => remoteCase(PORTS.AttributeResolver, CASES.AttributeResolver),
     DecisionHistory: () => remoteCase(PORTS.DecisionHistory, CASES.DecisionHistory),

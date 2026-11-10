@@ -73,7 +73,7 @@ export interface WorldState {
    * `"none"` is the record-backed service every other scenario uses. A closed
    * union rather than a flag, because the two faults are different answers to
    * the same question: a service that fails *typed* and one that *dies* must both
-   * come out of `toPredicate` as the same error (BEH-QD-NEXT-a).
+   * come out of `toPredicate` as the same error (BEH-QD-264).
    */
   readonly attributeFault: "none" | "down" | "dies";
   /** How many times a faulted attribute service was asked while compiling. */

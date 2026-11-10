@@ -6,7 +6,7 @@
  * `policyTag`, a string. Neither alone can render the inspector's central
  * panel, which is the requirement tree with a verdict on every node.
  *
- * **The alignment is core's** (`foldAligned`, INV-QD-NEXT): which trace node
+ * **The alignment is core's** (`foldAligned`, INV-QD-103): which trace node
  * belongs to which part of the explanation, and what a part with no trace node
  * means, is a fact `evaluateNode` and `explain` produce, so core states it and
  * this module only presents it. Where the trace has **fewer** children than the

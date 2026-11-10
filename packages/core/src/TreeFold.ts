@@ -27,7 +27,7 @@
  * Package-private (AGENTS.md §9, ADR-QD-099): shared scaffolding, not exported
  * from the barrel or any entry point. There is one copy: `@qadi/devtools`'s
  * former twin went when core took over the explanation-with-trace alignment it
- * existed for (ARCH-22, ADR-QD-NEXT).
+ * existed for (ARCH-22, ADR-QD-101).
  *
  * @param root - The tree to fold.
  * @param childrenOf - A node's children, in the order `combine` should see their results.
