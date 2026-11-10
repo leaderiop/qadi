@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-33                                    |
-> | Revision       | 1.16                                           |
+> | Revision       | 1.17                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.16 (2026-11-08): BEH-QD-254 — the writer and the reader compute an archive's order, claim and sequence break once, and the reader accepts every bundle the writer writes; a sequence number outside the safe integers fails `SequenceNumberInvalid` at the writer (code review WR-01) (ARCH-48, ADR-QD-110, CCR-QD-387)<br>1.15 (2026-10-08): BEH-QD-312 — a stored row whose record contradicts its own trace is refused as `Inconsistent` (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.14 (2026-10-08): BEH-QD-256 — the capture request is derived from the discharged question (signer, `resourceId`, `action`, `resource`, `evaluationId`), not the ambient subject, and a capture that returns a signature for a different signer or meaning fails the discharge. BEH-QD-255 — a ledger is a store, not a capture. BEH-QD-326 — a signature captured for a discharged question answers that question's `hasSignature`, and no other (`SignatureLedger`; INV-QD-120, ADR-QD-105, CCR-QD-220)<br>1.13 (2026-10-08): BEH-QD-253 — a purge selects only rows a `VerifiedArchive` holds (`planPurge`); `planRetention` reports `expired`; `getPurgeableEntries` and `enforceRetention` removed. BEH-QD-254 — `readAuditArchive` reads a stored bundle back, each failure its own `ArchiveRefusal` (ARCH-38, CCR-QD-230)<br>1.12 (2026-10-08): BEH-QD-249 gains `AuditDecisionSinkOptions.onOutcome`. BEH-QD-251 — an entry neither written nor staged is reported by a warning naming its evaluation id, including after a failed trail write; `qadi_audit_writes_total` counts every record received exactly once, breaker-refused ones as `skipped_open`. BEH-QD-252 — a staged entry that was not written is reported at info; the eleven outcomes are tabled; `qadi_audit_entries_lost_total` (INV-QD-106, ADR-QD-056, CCR-QD-204)<br>1.11 (2026-10-07): BEH-QD-250 — a refused record is reported (`AuditDecisionSinkOptions.onRefused`, else a warning naming the refusal, its path and the evaluation id), never dropped silently, and a hook that throws never fails the record; `AuditEntryNotEncodable` carries `evaluationId` and its `reason` is core's `describeEncodeRefusal`. BEH-QD-249's signature fence gains `onRefused` and its `resetTimeoutMs` is `Duration.Input` as the code has it (CCR-QD-193)<br>1.10 (2026-10-07): BEH-QD-253 — retention is `planRetention`, which purges only with a finite age past a valid limit and refuses an impossible `now` or `maxAgeMs`; a non-finite `at` is retained and reported `undated`. BEH-QD-312 — a non-finite `at` and a non-integer `sequenceNumber` are `Malformed` (INV-QD-101, ADR-QD-095 amendment, CCR-QD-186)<br>1.9 (2026-10-07): BEH-QD-254 — entries carrying no `sequenceNumber` follow every sequenced entry in the order given, and are never ordered by `at` (pins what `archiveAuditTrail` already did; CCR-QD-185)<br>1.8 (2026-10-06): BEH-QD-312 — `decodeAuditEntry` reads wire version 2 only: a pre-0.10 row is refused as `UnsupportedVersion`, reported, never upgraded, and migrated with 0.10.x; `AuditEntry.record` is version-2 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): BEH-QD-312 — `decodeAuditEntry` applies every check `decodeSinkRecord` applies, and reads rows of both wire versions; the row schema alone is not a reader. BEH-QD-250 — rows are written as wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.6 (2026-10-05): BEH-QD-250 restated — a row's `record` is `encodeSinkRecord`'s encoded wire, byte-identical to the stream and forwarding; the refusal carries core's `EncodeRefusal`; a `cause` is never a reason to refuse. BEH-QD-312 — `decodeAuditEntry`, the guarded reader (ADR-QD-095, CCR-QD-179)<br>1.5 (2026-10-05): BEH-QD-250 widened — the guard walks the outcome as well: a resolver error's `cause` carrying a reference cycle or a `BigInt` used to pass it and then throw at the store's `JSON.stringify`, which counted as a write failure and could trip the breaker; `Map`/`Set`/`RegExp`/binary data are refused rather than persisted as `{}` (CCR-QD-178)<br>1.4 (2026-10-04): BEH-QD-251 — the half-open probe claim is released on every exit including interruption during staging; a failure settling on an already-`Open` breaker is a no-op; outcomes count only toward the window that admitted them; the interruption prose corrected (`Effect.exit` folds a typed failure, a defect and an adapter's self-interruption, not a caller's interruption) (CCR-QD-154)<br>1.3 (2026-09-09): BEH-QD-250 widened — `encodeAuditEntry` guarded only `resource` via `isJsonSafe`, not the whole record; `policy`'s `HasCustom.params` (ADR-QD-055's escape hatch) is a second caller-supplied `unknown` a `SinkRecord` can carry, and a circular or `BigInt`-valued one sailed past the narrow guard uncaught. Now guarded via `isRecordJsonSafe` (`SinkCodec.ts`), which walks `resource` **and** `policy` (issue #104)<br>1.2 (2026-09-07): BEH-QD-250 and BEH-QD-251 widened — `isJsonSafe` walks iteratively so a merely-deep (non-cyclic) value no longer risks the same stack exhaustion the circular-reference case was already guarded against; `stage()`/`write()` now run under `Effect.exit` rather than `Effect.result`, so a defect or interruption from either — not just a typed `AuditWriteError`/`AuditStagingError` — reaches the breaker and the metrics the same way a typed failure already did (CCR-QD-113)<br>1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
+> | Change History | 1.17 (2026-11-10): BEH-QD-256 — a resource with no string id refuses the discharge before capture. BEH-QD-326 — the ledger is a keyed store read through ledgerKeyOf; a foreign row fails the read; scope "Any" reads subject-wide rows. BEH-QD-339 added — a ledger adapter can be checked (ARCH-59, ADR-QD-117, INV-QD-120, CCR-QD-395)<br>1.16 (2026-11-08): BEH-QD-254 — the writer and the reader compute an archive's order, claim and sequence break once, and the reader accepts every bundle the writer writes; a sequence number outside the safe integers fails `SequenceNumberInvalid` at the writer (code review WR-01) (ARCH-48, ADR-QD-110, CCR-QD-387)<br>1.15 (2026-10-08): BEH-QD-312 — a stored row whose record contradicts its own trace is refused as `Inconsistent` (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.14 (2026-10-08): BEH-QD-256 — the capture request is derived from the discharged question (signer, `resourceId`, `action`, `resource`, `evaluationId`), not the ambient subject, and a capture that returns a signature for a different signer or meaning fails the discharge. BEH-QD-255 — a ledger is a store, not a capture. BEH-QD-326 — a signature captured for a discharged question answers that question's `hasSignature`, and no other (`SignatureLedger`; INV-QD-120, ADR-QD-105, CCR-QD-220)<br>1.13 (2026-10-08): BEH-QD-253 — a purge selects only rows a `VerifiedArchive` holds (`planPurge`); `planRetention` reports `expired`; `getPurgeableEntries` and `enforceRetention` removed. BEH-QD-254 — `readAuditArchive` reads a stored bundle back, each failure its own `ArchiveRefusal` (ARCH-38, CCR-QD-230)<br>1.12 (2026-10-08): BEH-QD-249 gains `AuditDecisionSinkOptions.onOutcome`. BEH-QD-251 — an entry neither written nor staged is reported by a warning naming its evaluation id, including after a failed trail write; `qadi_audit_writes_total` counts every record received exactly once, breaker-refused ones as `skipped_open`. BEH-QD-252 — a staged entry that was not written is reported at info; the eleven outcomes are tabled; `qadi_audit_entries_lost_total` (INV-QD-106, ADR-QD-056, CCR-QD-204)<br>1.11 (2026-10-07): BEH-QD-250 — a refused record is reported (`AuditDecisionSinkOptions.onRefused`, else a warning naming the refusal, its path and the evaluation id), never dropped silently, and a hook that throws never fails the record; `AuditEntryNotEncodable` carries `evaluationId` and its `reason` is core's `describeEncodeRefusal`. BEH-QD-249's signature fence gains `onRefused` and its `resetTimeoutMs` is `Duration.Input` as the code has it (CCR-QD-193)<br>1.10 (2026-10-07): BEH-QD-253 — retention is `planRetention`, which purges only with a finite age past a valid limit and refuses an impossible `now` or `maxAgeMs`; a non-finite `at` is retained and reported `undated`. BEH-QD-312 — a non-finite `at` and a non-integer `sequenceNumber` are `Malformed` (INV-QD-101, ADR-QD-095 amendment, CCR-QD-186)<br>1.9 (2026-10-07): BEH-QD-254 — entries carrying no `sequenceNumber` follow every sequenced entry in the order given, and are never ordered by `at` (pins what `archiveAuditTrail` already did; CCR-QD-185)<br>1.8 (2026-10-06): BEH-QD-312 — `decodeAuditEntry` reads wire version 2 only: a pre-0.10 row is refused as `UnsupportedVersion`, reported, never upgraded, and migrated with 0.10.x; `AuditEntry.record` is version-2 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): BEH-QD-312 — `decodeAuditEntry` applies every check `decodeSinkRecord` applies, and reads rows of both wire versions; the row schema alone is not a reader. BEH-QD-250 — rows are written as wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.6 (2026-10-05): BEH-QD-250 restated — a row's `record` is `encodeSinkRecord`'s encoded wire, byte-identical to the stream and forwarding; the refusal carries core's `EncodeRefusal`; a `cause` is never a reason to refuse. BEH-QD-312 — `decodeAuditEntry`, the guarded reader (ADR-QD-095, CCR-QD-179)<br>1.5 (2026-10-05): BEH-QD-250 widened — the guard walks the outcome as well: a resolver error's `cause` carrying a reference cycle or a `BigInt` used to pass it and then throw at the store's `JSON.stringify`, which counted as a write failure and could trip the breaker; `Map`/`Set`/`RegExp`/binary data are refused rather than persisted as `{}` (CCR-QD-178)<br>1.4 (2026-10-04): BEH-QD-251 — the half-open probe claim is released on every exit including interruption during staging; a failure settling on an already-`Open` breaker is a no-op; outcomes count only toward the window that admitted them; the interruption prose corrected (`Effect.exit` folds a typed failure, a defect and an adapter's self-interruption, not a caller's interruption) (CCR-QD-154)<br>1.3 (2026-09-09): BEH-QD-250 widened — `encodeAuditEntry` guarded only `resource` via `isJsonSafe`, not the whole record; `policy`'s `HasCustom.params` (ADR-QD-055's escape hatch) is a second caller-supplied `unknown` a `SinkRecord` can carry, and a circular or `BigInt`-valued one sailed past the narrow guard uncaught. Now guarded via `isRecordJsonSafe` (`SinkCodec.ts`), which walks `resource` **and** `policy` (issue #104)<br>1.2 (2026-09-07): BEH-QD-250 and BEH-QD-251 widened — `isJsonSafe` walks iteratively so a merely-deep (non-cyclic) value no longer risks the same stack exhaustion the circular-reference case was already guarded against; `stage()`/`write()` now run under `Effect.exit` rather than `Effect.result`, so a defect or interruption from either — not just a typed `AuditWriteError`/`AuditStagingError` — reaches the breaker and the metrics the same way a typed failure already did (CCR-QD-113)<br>1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
 
 _Previous: [32 — Custom Predicates](./32-custom-predicates.md)_
 
@@ -490,6 +490,11 @@ REQUIREMENT: signatureObligationHandler(port, meaning) MUST call port.capture
              lookup, and the request MUST carry `resourceId`
              (`resourceIdOf(question.resource)`), `action`, `resource` and
              `evaluationId`.
+REQUIREMENT: A discharge whose question has a resource with no string `id`
+             (absent, numeric, an object) MUST fail with
+             `SignatureCaptureError` before `capture` is called, and MUST NOT
+             record anything (`HandlerFailed`). A question with no resource at
+             all MAY still record subject-global.
 REQUIREMENT: A capture that returns a signature for a different signer or a
              different meaning than the request asked for MUST fail the
              discharge with `SignatureCaptureError`; it MUST NOT discharge the
@@ -511,7 +516,7 @@ path.
 ## BEH-QD-326: A signature captured for a discharged question answers that question, and no other
 
 > **Invariant:** [INV-QD-120](../invariants.md#inv-qd-120-a-signature-recorded-for-a-discharge-is-keyed-by-the-question-it-discharged)
-> **See:** [ADR-QD-105](../decisions/105-an-obligation-is-discharged-against-the-question-it-answered.md)
+> **See:** [ADR-QD-105](../decisions/105-an-obligation-is-discharged-against-the-question-it-answered.md), [ADR-QD-117](../decisions/117-a-signature-ledger-is-a-keyed-store.md)
 
 Obligation, capture, `SignatureHistory` and `hasSignature` used to be four
 pieces that did not meet: the capture request carried no resource, so a flow that
@@ -521,15 +526,34 @@ for every resource, wider than the signer attested.
 
 ```
 REQUIREMENT: A signature the handler records through a `SignatureLedger` MUST
-             be keyed by the signature's signer and the request's `resourceId`,
-             the pair `SignatureHistory` is asked with. A resource-scoped
-             `hasSignature` on the discharged resource MUST then find it; on
-             any other resource MUST NOT; and a subject-global (`scope: "Any"`)
-             one MUST NOT find a signature recorded for a resource.
+             be appended under `ledgerKeyOf(entry)`, the key of the signature's
+             signer and the request's `resourceId`, the pair `SignatureHistory`
+             is asked with; `signatureHistoryFromLedger` MUST read under
+             `ledgerKeyOf(query)`. A resource-scoped `hasSignature` on the
+             discharged resource MUST then find it; on any other resource MUST
+             NOT; and a subject-global (`scope: "Any"`) one MUST NOT find a
+             signature recorded for a resource.
+REQUIREMENT: An adapter MUST answer `entriesAt(key)` with exactly the entries
+             appended under `key`, compared byte for byte (no case folding,
+             trimming or normalisation).
+REQUIREMENT: `signatureHistoryFromLedger` MUST fail the read as
+             `SignatureHistoryUnavailable` (cause `SignatureLedgerReadError`)
+             when the ledger answers an entry stored under another key, or one
+             whose signature's `signerId` is not the entry's `subjectId`; and
+             when the ledger itself fails.
 REQUIREMENT: A ledger that fails to record MUST fail the discharge
              (`HandlerFailed`), so enforcement is refused rather than proceeding
              as though the duty were met.
 ```
+
+The ledger is a keyed store: `append(key, entry)` and `entriesAt(key)` over an
+opaque `SignatureLedgerKey` only `ledgerKeyOf` mints, so an adapter has no query and
+no nullable resource column to get wrong. `scope: "Any"` on a signature reads the
+rows stored subject-wide, with **no** resource, never "ever, on any resource" as it
+does for `hasActed` (BEH-QD-092); `explain()` says so. `ledgerKeyOf` is a persisted
+format, `[1,"alice","doc-1"]`, frozen by a golden test (a resource-less pair is
+`[1,"alice",null]`); it reads only the pair, so a query carrying the asker's
+`meaning` or `signerRole` reads the same rows as one without.
 
 A deployment whose e-signature system is itself its `SignatureHistory` needs no
 ledger: `capture` persists where it reads, keyed from the request's `resourceId`
@@ -586,6 +610,61 @@ const program = Effect.gen(function* () {
   const onDoc2 = yield* decide(hasSignature("approved"), { resource: { id: "doc-2" } });
   return [onDoc1._tag, onDoc2._tag]; // → ["Allow", "Deny"]
 }).pipe(Effect.provide(services));
+
+void program;
+```
+
+## BEH-QD-339: A ledger adapter can be checked
+
+> **Invariant:** [INV-QD-120](../invariants.md#inv-qd-120-a-signature-recorded-for-a-discharge-is-keyed-by-the-question-it-discharged)
+> **See:** [ADR-QD-117](../decisions/117-a-signature-ledger-is-a-keyed-store.md)
+
+A keyed store has one obligation, equality on an opaque key, and a type cannot
+rule out a store whose collation folds case, trims trailing spaces or normalises
+Unicode. A deployment runs a check against its real store.
+
+```
+REQUIREMENT: `checkSignatureLedger(ledger, options?)` MUST append a fixed table
+             of adversarial pairs through `ledgerKeyOf` and read each back,
+             and MUST return `[]` for a conformant store, a `Foreign` violation
+             for each row answered under a pair it was not written under, and
+             a `Missing` violation for each row not answered under its own. A
+             store failure MUST be the effect's error, not a violation.
+REQUIREMENT: `checkSignatureHistoryScoping(seed, options?)` MUST seed rows
+             through the caller's `seed`, query every pair of the table, and
+             report the same two violations, for any `SignatureHistory`
+             including one with no ledger behind it.
+REQUIREMENT: A row the store answers that the fixture did not write (another
+             tenant's row in a shared table) MUST NOT be reported as a
+             violation.
+REQUIREMENT: Neither check is a default: nothing runs them automatically, and
+             they prove neither durability, concurrency nor the signer's
+             identity or intent (BEH-QD-255).
+```
+
+`options.namespace` prefixes the fixture subjects so the check can run against a
+shared, non-empty table.
+
+```typescript
+import * as Effect from "effect/Effect";
+import { checkSignatureLedger } from "@qadi/audit";
+import type { SignatureLedgerEntry, SignatureLedgerKey, SignatureLedgerShape } from "@qadi/audit";
+
+// An adapter over a Map: the whole contract is equality on an opaque key.
+const rows = new Map<SignatureLedgerKey, Array<SignatureLedgerEntry>>();
+const ledger: SignatureLedgerShape = {
+  name: "map-ledger",
+  append: (key, entry) =>
+    Effect.sync(() => {
+      rows.set(key, [...(rows.get(key) ?? []), entry]);
+    }),
+  entriesAt: (key) => Effect.sync(() => [...(rows.get(key) ?? [])]),
+};
+
+const program = Effect.gen(function* () {
+  const violations = yield* checkSignatureLedger(ledger, { namespace: "ci-run-1" });
+  return violations.length; // → 0 for a conformant store
+});
 
 void program;
 ```
