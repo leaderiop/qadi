@@ -20,7 +20,7 @@
  * for a panel. The Services screen gets aggregates; the inspector does without.
  *
  * Keyed on the port name — a closed set of values — for the cardinality reason
- * `Evaluate.ts` gives for keying denials on the policy tag. `portCallsTotal`,
+ * `EvaluationMetrics.ts` gives for keying denials on the policy tag. `portCallsTotal`,
  * `portRetriesTotal` and `portTimeoutsTotal` all carry the same five:
  * `AttributeResolver`, `DecisionHistory`, `RelationshipResolver`,
  * `CustomPredicate` and `SignatureHistory` — one per port `Evaluate.ts` can
@@ -39,10 +39,10 @@
  * traffic as the sum of the two, and neither metric's meaning or registry key
  * moved (ADR-QD-052).
  *
- * The `description` strings below survive mutation testing, as `DecisionCache`'s
- * do: nothing reads them back, so no test can distinguish a metric carrying one
- * from a metric carrying none. They are for whoever reads the exported metric,
- * and they stay.
+ * The `description` strings below are pinned by `Ports.test.ts`, because the
+ * description is part of the registry key (ADR-QD-052). Stryker never mutates a
+ * module-scope declaration (`ignoreStatic`, ADR-QD-076), so the pin is their
+ * only guard. Every `qadi_*` metric is declared once (ADR-QD-123).
  */
 import * as Metric from "effect/Metric";
 import * as Record from "effect/Record";

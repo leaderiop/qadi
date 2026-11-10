@@ -9,6 +9,9 @@
  * (ADR-QD-100: a question is built once; this change: an obligation is
  * discharged against the question it answered).
  *
+ * The metrics it writes are declared in `EvaluationMetrics.ts` (ADR-QD-123),
+ * which every reader imports; this module only updates them.
+ *
  * Package-private: out of the barrel (ADR-QD-099). It declares its own
  * `LifecycleOptions` rather than importing `EvaluateOptions`, because
  * `Evaluate.ts` imports this module and madge counts a type-only edge too
@@ -18,17 +21,21 @@ import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
-import * as Record from "effect/Record";
 import type { Concurrency } from "effect/Types";
 import { CurrentSubject } from "./CurrentSubject.ts";
-import type { CacheOutcome } from "./DecisionCache.ts";
 import { DecisionCache } from "./DecisionCache.ts";
 import type { Decision, Trace } from "./Decision.ts";
 import { makeDecision } from "./Decision.ts";
 import { Decided, Failed } from "./DecisionRecord.ts";
 import type { EvaluationError } from "./Errors.ts";
 import { EvaluationId } from "./EvaluationId.ts";
-import { POLICY_TAGS } from "./Policy.ts";
+import {
+  decisionsTotal,
+  denialsByPolicyTagTotal,
+  evaluationDurationMillis,
+  evaluationErrorsTotal,
+} from "./EvaluationMetrics.ts";
+import type { CacheOutcome } from "./EvaluationMetrics.ts";
 import type { Policy } from "./Policy.ts";
 import type { PortServices } from "./Ports.ts";
 import { questionOf } from "./Question.ts";
@@ -36,104 +43,6 @@ import type { Question, QuestionOptions } from "./Question.ts";
 import { decidedRecord, failedRecord, sinkEmitter } from "./SinkEmit.ts";
 import type { Stamp } from "./SinkEmit.ts";
 import { walk } from "./Walk.ts";
-
-/**
- * Every decision `evaluate` reaches, tagged by outcome.
- *
- * The one metric every deployment of this library can use unconditionally:
- * no wiring beyond providing a `Metric.MetricRegistry` (or an exporter built
- * on one) is needed to see the allow/deny rate ADR-QD-009 asks observability
- * to answer.
- *
- * Two fixed, module-scope taggings — `Metric.withAttributes(decisionsTotal,
- * {...})` built fresh per call, the shape Effect's own docs show — rather
- * than one, deliberately: `Metric`'s untagged fast path memoises a metric's
- * resolved key on the metric object itself, the first time it is touched
- * (`Object.keys(extraAttributes).length === 0` in `effect/Metric`'s `hook`) —
- * cheap for a singleton reused across every call, defeated by rebuilding the
- * tagged wrapper on every `evaluate`, which recomputes the key each time.
- */
-const decisionsTotal = Metric.counter("qadi_decisions_total", {
-  description: "Authorization decisions reached by `evaluate`, tagged by outcome.",
-});
-const decisionsAllowedTotal = Metric.withAttributes(decisionsTotal, { outcome: "allow" });
-const decisionsDeniedTotal = Metric.withAttributes(decisionsTotal, { outcome: "deny" });
-
-/**
- * Denials, by the top-level policy tag `evaluate` was asked to decide.
- *
- * Keyed on `policy._tag` — a closed, small union — rather than `decision.reason`,
- * which was tried first and reverted: `evaluateActed` and `evaluateHasRelationship`
- * both build their denial reason from caller-supplied identifiers (`subject.id`, a
- * resource id), so a frequency keyed on the raw sentence would grow one permanent
- * entry per distinct (subject, resource) pair ever denied — unbounded, in a
- * structure this cache-free service holds in memory for the life of the registry.
- * `policy._tag` answers a coarser but still useful question ("which *kind* of
- * policy is denying") with a cardinality bounded by the ADT itself. The full,
- * caller-specific reason is still available — on the `Effect.logDebug` line below,
- * which a log pipeline retains and rotates rather than accumulating in-process.
- */
-const denialsByPolicyTagTotal = Metric.frequency("qadi_denials_by_policy_tag_total", {
-  description: "Denials, keyed by the top-level policy tag evaluate was asked to decide.",
-  preregisteredWords: POLICY_TAGS,
-});
-
-/**
- * The distribution of `evaluate`'s own duration, in milliseconds.
- *
- * `durationMillis` was already computed for every `Decision` — this exports it
- * as an aggregate a deployment can alert or graph on without instrumenting its
- * own call site. Exponential boundaries because evaluation latency is the
- * usual case for one: sub-millisecond for an uncached, resolver-free policy,
- * seconds for one waiting on a slow attribute or relationship store, with
- * nothing meaningful in between to resolve at linear width.
- */
-const evaluationDurationMillis = Metric.histogram("qadi_evaluation_duration_millis", {
-  description: "Distribution of evaluate's wall-clock duration, in milliseconds.",
-  boundaries: Metric.exponentialBoundaries({ start: 1, factor: 2, count: 15 }),
-});
-
-/**
- * Every `EvaluationError` tag — {@link evaluationErrorsTotal}'s closed domain,
- * by the `Record<Tag, true>` exhaustiveness idiom: a tenth error added to the
- * union without a matching entry here is a compile error rather than a
- * silently-missing word. (The policy tag list used the same idiom until
- * `Policy.ts` derived it from the schema union.)
- */
-const EVALUATION_ERROR_TAGS_BY_TAG: Record<EvaluationError["_tag"], true> = {
-  AttributeResolveError: true,
-  RelationshipResolveError: true,
-  DecisionHistoryUnavailable: true,
-  CustomPredicateError: true,
-  SignatureHistoryUnavailable: true,
-  MissingAction: true,
-  MissingResource: true,
-  MissingResourceId: true,
-  PolicyTooDeep: true,
-};
-
-/** `EVALUATION_ERROR_TAGS_BY_TAG`'s keys, in the array form `preregisteredWords` takes. */
-const EVALUATION_ERROR_TAGS: ReadonlyArray<EvaluationError["_tag"]> = Record.keys(
-  EVALUATION_ERROR_TAGS_BY_TAG,
-);
-
-/**
- * Evaluations that raised instead of deciding, by error tag.
- *
- * An `EvaluationError` reached **no** observer before this: it left through the
- * error channel with no span attribute, no metric and no log. So a deployment
- * watching `qadi_decisions_total` saw an attribute-store outage as a *drop in
- * traffic* rather than as a fault — the one reading that sends an operator
- * somewhere other than the broken dependency.
- *
- * Keyed on `_tag` for the cardinality reason `denialsByPolicyTagTotal` gives:
- * the tag union is closed and small, while the errors themselves carry
- * caller-supplied identifiers.
- */
-const evaluationErrorsTotal = Metric.frequency("qadi_evaluation_errors_total", {
-  description: "Evaluations that failed instead of deciding, keyed by error tag.",
-  preregisteredWords: EVALUATION_ERROR_TAGS,
-});
 
 /** A trace plus how it was obtained — `undefined` when no cache was consulted. */
 interface EvaluationLookup {
@@ -259,7 +168,7 @@ export const decideQuestion = Effect.fn("qadi.evaluate")(function* (
       : {}),
   });
 
-  yield* Metric.update(decision._tag === "Allow" ? decisionsAllowedTotal : decisionsDeniedTotal, 1);
+  yield* Metric.update(decisionsTotal[decision._tag], 1);
   yield* Metric.update(evaluationDurationMillis, durationMillis);
 
   if (decision._tag === "Deny") {

@@ -22,19 +22,12 @@ import * as HashMap from "effect/HashMap";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
-import * as Record from "effect/Record";
 import type { Trace } from "./Decision.ts";
 import type { EvaluationError } from "./Errors.ts";
+import { decisionCacheLookupsTotal } from "./EvaluationMetrics.ts";
+import type { CacheOutcome } from "./EvaluationMetrics.ts";
 import type { PortServices } from "./Ports.ts";
 import type { Question } from "./Question.ts";
-
-/**
- * Which of the cache's three documented paths a lookup took.
- *
- * `hit` — an already-completed entry. `coalesced` — joined another fiber's
- * in-flight `compute`. `miss` — this fiber ran `compute` itself.
- */
-export type CacheOutcome = "hit" | "coalesced" | "miss";
 
 /** A trace, and how the cache came by it. */
 export interface CacheLookup {
@@ -123,30 +116,6 @@ export class DecisionCache extends Context.Service<
   DecisionCache,
   DecisionCacheShape
 >()("qadi/DecisionCache") {}
-
-const CACHE_OUTCOMES_BY_OUTCOME: Record<CacheOutcome, true> = {
-  hit: true,
-  coalesced: true,
-  miss: true,
-};
-
-/** `CACHE_OUTCOMES_BY_OUTCOME`'s keys, in the array form `preregisteredWords` takes. */
-const CACHE_OUTCOMES: ReadonlyArray<CacheOutcome> = Record.keys(CACHE_OUTCOMES_BY_OUTCOME);
-
-/**
- * Every `getOrCompute` lookup, by which of the cache's three documented paths
- * it took: `hit` (an already-completed entry), `coalesced` (joined another
- * fiber's in-flight `compute`), or `miss` (this fiber ran `compute` itself).
- *
- * The metric a caller needs to answer "is this cache earning its keep" —
- * `hit / (hit + coalesced + miss)` — without instrumenting their own call
- * sites, and the closest thing to the "production cache hit rate" this
- * library could not previously report at all.
- */
-const cacheLookupsTotal = Metric.frequency("qadi_decision_cache_lookups_total", {
-  description: "DecisionCache.getOrCompute lookups, by outcome (hit / coalesced / miss).",
-  preregisteredWords: CACHE_OUTCOMES,
-});
 
 /**
  * One key's shared, in-flight `compute` — the claiming fiber's own ask, and
@@ -426,16 +395,16 @@ export const decisionCacheLayer = (options?: {
               });
 
               if (claimed._tag === "Hit") {
-                yield* Metric.update(cacheLookupsTotal, "hit");
+                yield* Metric.update(decisionCacheLookupsTotal, "hit");
                 return { trace: claimed.trace, outcome: "hit" as const };
               }
               // Someone else already claimed this key — share their result,
               // success or failure, rather than compute a second time.
               if (claimed._tag === "Joined") {
-                yield* Metric.update(cacheLookupsTotal, "coalesced");
+                yield* Metric.update(decisionCacheLookupsTotal, "coalesced");
                 return { trace: yield* restore(awaitShared(claimed.entry)), outcome: "coalesced" as const };
               }
-              yield* Metric.update(cacheLookupsTotal, "miss");
+              yield* Metric.update(decisionCacheLookupsTotal, "miss");
               const entry = claimed.entry;
               const myGeneration = claimed.generation;
 
