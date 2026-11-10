@@ -20,13 +20,12 @@ import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import type * as Filter from "effect/Filter";
 import * as Match from "effect/Match";
-import * as Option from "effect/Option";
 import * as Queue from "effect/Queue";
 import * as Result from "effect/Result";
 import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
-import type { DecodeRefusal, StoredRecord } from "@qadi/core";
-import { DecisionStreamEvent, decodeStoredRecordString, storedRecordOrder } from "@qadi/core";
+import type { DecodeRefusal, ReceivedFrame, StoredRecord } from "@qadi/core";
+import { decodeDecisionStream, DecisionStreamEvent, decodeStoredRecordString, storedRecordOrder } from "@qadi/core";
 
 /** What one `read` of a source hands its reader. */
 export interface SourceRead {
@@ -85,34 +84,18 @@ export interface DecisionEventSource {
   readonly close: () => void;
 }
 
-/** One frame as it arrived, before anything decided what it is. */
-interface Frame {
-  readonly event: DecisionStreamEvent;
-  readonly data: string;
-}
-
-/** How long `read` waits for a prelude before deciding the server sends none. */
-const DEFAULT_SYNC_TIMEOUT: Duration.Input = "2 seconds";
-
 /**
  * `/__decisions` as a source: one connection, whose prelude is the backlog and
  * whose remainder is the live stream.
  *
- * `read` opens the connection in its scope and waits for one of two things:
- * `synced`, after which the `backlog` frames received so far are the backlog
- * (an empty one when the server held nothing — not an absent one); or
- * `syncTimeout` passing first — a server that has not delivered its prelude
- * yet, being unreachable, or buffered by a proxy — so the backlog is **absent**
- * and the stream still runs, with every frame taken while waiting at its
- * start. Waiting is on `Effect.sleep`, so `TestClock` drives it.
- *
- * Every server since 0.10 sends the prelude (ADR-QD-097), so a `message` frame
- * before `synced` is not a signal of anything: it is a live record, kept in
- * arrival order on the live half, and the wait continues. Until 0.11.0 it was
- * taken to mean a server older than the prelude, and ended the wait with no
- * backlog; such a server's frames are bare records, which 0.11.0 refuses
- * (ADR-QD-097's 2026-10-06 amendment), so there is no older server left to
- * detect.
+ * This is the `EventSource` adapter and nothing more: `read` opens the
+ * connection in its scope, queues every frame its listeners receive, and hands
+ * them to `@qadi/core`'s `decodeDecisionStream`, which owns the stream's order in
+ * this direction as `encodeDecisionStream` does in the other (ARCH-60). The
+ * prelude, the `syncTimeout` wait (two seconds unless given), a `message` before
+ * `synced`, a reconnect's repeated `synced`, and the order the backlog is
+ * presented in are all its rules, tested there; ADR-QD-047 still holds,
+ * because the shared vocabulary is core's and the transport is this package's.
  *
  * **The environment comes off the wire.** Every frame is a stored-record
  * envelope decoded by `@qadi/core`'s `decodeStoredRecordString`, which stamps
@@ -127,10 +110,10 @@ const DEFAULT_SYNC_TIMEOUT: Duration.Input = "2 seconds";
  * the precedent of `onDropped`, `onUnknownParent` and `onFailure`: silently
  * dropping every frame while looking healthy is the defect, not the drop.
  *
- * `EventSource` reconnects by itself and the server sends its backlog again on
- * the new connection, so the same record can arrive twice — its `backlog`
- * frames then arrive on the live half, and a repeated `synced` is ignored.
- * Deduplication is the timeline's job, not this module's.
+ * `EventSource` reconnects by itself, sending the last id it saw, and the server
+ * resumes after it. A connection dropped after its prelude can still deliver a
+ * record twice — its `backlog` frames then arrive on the live half — and
+ * deduplication is the timeline's job, not this module's.
  */
 export const sourceFromEventSource = (options: {
   readonly url: string;
@@ -157,10 +140,11 @@ export const sourceFromEventSource = (options: {
   const open = options.open ?? openEventSource;
   const withCredentials = options.withCredentials ?? false;
   const decode = decodeFrame(options.onMalformed);
+  const decodeRecord = (data: string) => Effect.map(decode(data), Result.getSuccess);
 
   return {
     read: Effect.gen(function* () {
-      const frames = yield* Queue.unbounded<Frame>();
+      const frames = yield* Queue.unbounded<ReceivedFrame>();
       // The connection lives exactly as long as the read's scope, so closing
       // the panel closes it rather than leaving a browser retrying a stream
       // nobody reads.
@@ -179,42 +163,10 @@ export const sourceFromEventSource = (options: {
         }),
         (source) => Effect.sync(() => source.close()),
       );
-
-      // Frames taken while waiting for the prelude, in arrival order. Kept
-      // outside the timed wait, so a timeout loses none of them: they go to
-      // the live half.
-      const early: Array<Frame> = [];
-      const awaitPrelude = (): Effect.Effect<void> =>
-        Effect.flatMap(Queue.take(frames), (next) => {
-          if (next.event === "synced") return Effect.void;
-          early.push(next);
-          return awaitPrelude();
-        });
-      const synced = yield* Effect.timeoutOption(awaitPrelude(), options.syncTimeout ?? DEFAULT_SYNC_TIMEOUT);
-
-      const liveAfter = (first: ReadonlyArray<Frame>): Stream.Stream<StoredRecord> =>
-        Stream.concat(Stream.fromIterable(first), Stream.fromQueue(frames)).pipe(
-          // A `synced` on the live half is a reconnect's: nothing to decode.
-          Stream.filter((frame) => frame.event !== "synced"),
-          Stream.map((frame) => frame.data),
-          Stream.filterMapEffect(decode),
-        );
-
-      // No prelude in time — a server not yet reachable, or buffered: the
-      // backlog is absent, and whatever arrived while waiting is the start of
-      // the live half.
-      if (Option.isNone(synced)) return { live: liveAfter([...early]) };
-
-      // The prelude completed: its `backlog` frames are the backlog, and a
-      // `message` frame that arrived before `synced` is live, not history.
-      const backlog: Array<StoredRecord> = [];
-      for (const frame of early) {
-        if (frame.event !== "backlog") continue;
-        const decoded = yield* decode(frame.data);
-        if (Result.isSuccess(decoded)) backlog.push(decoded.success);
-      }
-      const liveEarly = early.filter((frame) => frame.event === "message");
-      return { backlog: backlog.sort(storedRecordOrder), live: liveAfter(liveEarly) };
+      return yield* decodeDecisionStream(Stream.fromQueue(frames), {
+        syncTimeout: options.syncTimeout,
+        decodeRecord,
+      });
     }),
   };
 };

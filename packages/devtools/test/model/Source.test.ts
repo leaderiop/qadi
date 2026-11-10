@@ -219,73 +219,18 @@ describe("sourceFromEventSource", () => {
   const ids = (records: ReadonlyArray<StoredRecord> | undefined) => (records ?? []).map((r) => r.evaluationId);
 
   describe("the prelude (ADR-QD-097)", () => {
-    it.effect("a prelude becomes the backlog, in storedRecordOrder", () =>
-      Effect.gen(function* () {
-        const fake = fakeEventSource();
-        fake.queueEvent("backlog", frameOf(decisionRecord({ evaluationId: "late", at: 300 })));
-        fake.queueEvent("backlog", frameOf(decisionRecord({ evaluationId: "early", at: 100 })));
-        fake.queueEvent("synced", '{"backlog":2}');
-        fake.queue([frameOf(decisionRecord({ evaluationId: "live", at: 400 }))]);
+    // The prelude's rules are `@qadi/core`'s `decodeDecisionStream` now (ARCH-60), and
+    // tested in core's `DecisionStream.test.ts`, "decodeDecisionStream — the prelude":
+    // - a prelude becomes the backlog in storedRecordOrder → "a prelude becomes the backlog, presented in …"
+    // - synced with zero frames is an empty backlog → "synced with no backlog frames is an empty backlog, …"
+    // - a message before synced is live → "a message before synced is live, not backlog, …"
+    // - no prelude within syncTimeout, frames live → "no synced within syncTimeout: the backlog is absent …"
+    // - a timeout keeps the backlog frames that arrived → the same test (its first frame is a backlog one)
+    // - a reconnect's synced is ignored → "frames in the same chunk as synced start the live half …"
+    // What stays here is the adapter's: it opens the connection, forwards `syncTimeout`, and
+    // reports an undecodable frame through `onMalformed`.
 
-        const got = yield* readOnce(fake, 1);
-        assert.deepStrictEqual(ids(got.backlog), ["early", "late"]);
-        assert.deepStrictEqual(ids(got.live), ["live"]);
-      }));
-
-    it.effect("synced with zero backlog frames is an empty backlog, not an absent one (BEH-QD-203)", () =>
-      Effect.gen(function* () {
-        const fake = fakeEventSource();
-        fake.queueEvent("synced", '{"backlog":0}');
-        fake.queue([frameOf(decisionRecord({ evaluationId: "live" }))]);
-
-        const got = yield* readOnce(fake, 1);
-        assert.isTrue(got.hasBacklog);
-        assert.deepStrictEqual(got.backlog, []);
-        assert.deepStrictEqual(ids(got.live), ["live"]);
-      }));
-
-    it.effect("a message before synced is live, not backlog, and does not end the wait for the prelude", () =>
-      Effect.gen(function* () {
-        // Every server since 0.10 sends its prelude first (ADR-QD-097), so this
-        // order is not a signal of an older server any more (0.11.0): the frame
-        // is kept, in arrival order, on the live half, and the backlog is still
-        // the prelude's.
-        const fake = fakeEventSource();
-        fake.queue([frameOf(decisionRecord({ evaluationId: "early" }))]);
-        fake.queueEvent("backlog", frameOf(decisionRecord({ evaluationId: "past" })));
-        fake.queueEvent("synced", '{"backlog":1}');
-        fake.queue([frameOf(decisionRecord({ evaluationId: "late" }))]);
-
-        const got = yield* readOnce(fake, 2);
-        assert.deepStrictEqual(ids(got.backlog), ["past"]);
-        assert.deepStrictEqual(ids(got.live), ["early", "late"]);
-      }));
-
-    it.effect("message frames with no prelude wait out syncTimeout, then arrive live with the backlog absent", () =>
-      Effect.gen(function* () {
-        const fake = fakeEventSource();
-        fake.queue([frameOf(decisionRecord({ evaluationId: "first" })), frameOf(decisionRecord({ evaluationId: "second" }))]);
-        const source = sourceFromEventSource({ url: "/__decisions", syncTimeout: "1 second", open: fake.open });
-
-        const reading = yield* Effect.forkChild(
-          Effect.scoped(
-            Effect.flatMap(source.read, (read) =>
-              Effect.map(Stream.runCollect(Stream.take(read.live, 2)), (live) => ({
-                hasBacklog: "backlog" in read,
-                live: Array.from(live),
-              }))),
-          ),
-          { startImmediately: true },
-        );
-        yield* TestClock.adjust("999 millis");
-        assert.isUndefined(reading.pollUnsafe());
-        yield* TestClock.adjust("1 millis");
-        const got = yield* Fiber.join(reading);
-        assert.isFalse(got.hasBacklog);
-        assert.deepStrictEqual(ids(got.live), ["first", "second"]);
-      }));
-
-    it.effect("a silent server: after syncTimeout the backlog is absent and the stream still runs", () =>
+    it.effect("opens the connection at once and hands syncTimeout to the decoder: a silent server's backlog is absent", () =>
       Effect.gen(function* () {
         const fake = fakeEventSource();
         let opened = false;
@@ -307,43 +252,6 @@ describe("sourceFromEventSource", () => {
         assert.isUndefined(reading.pollUnsafe());
         yield* TestClock.adjust("1 millis");
         assert.isFalse(yield* Fiber.join(reading));
-      }));
-
-    it.effect("a timeout keeps the backlog frames that did arrive, and delivers them live", () =>
-      Effect.gen(function* () {
-        const fake = fakeEventSource();
-        fake.queueEvent("backlog", frameOf(decisionRecord({ evaluationId: "partial" })));
-        const source = sourceFromEventSource({ url: "/__decisions", syncTimeout: "1 second", open: fake.open });
-
-        const reading = yield* Effect.forkChild(
-          Effect.scoped(
-            Effect.flatMap(source.read, (read) =>
-              Effect.map(Stream.runCollect(Stream.take(read.live, 1)), (live) => ({
-                hasBacklog: "backlog" in read,
-                live: Array.from(live),
-              }))),
-          ),
-          { startImmediately: true },
-        );
-        yield* TestClock.adjust("1 second");
-        const got = yield* Fiber.join(reading);
-        assert.isFalse(got.hasBacklog);
-        assert.deepStrictEqual(ids(got.live), ["partial"]);
-      }));
-
-    it.effect("a reconnect's backlog frames arrive live, and its synced is ignored", () =>
-      Effect.gen(function* () {
-        const fake = fakeEventSource();
-        fake.queueEvent("synced", '{"backlog":0}');
-        // The connection dropped and `EventSource` reconnected: the server
-        // sends its prelude again on the same `EventSource`.
-        fake.queueEvent("backlog", frameOf(decisionRecord({ evaluationId: "again" })));
-        fake.queueEvent("synced", '{"backlog":1}');
-        fake.queue([frameOf(decisionRecord({ evaluationId: "next" }))]);
-
-        const got = yield* readOnce(fake, 2);
-        assert.deepStrictEqual(got.backlog, []);
-        assert.deepStrictEqual(ids(got.live), ["again", "next"]);
       }));
 
     it.effect("a backlog frame that does not decode is reported and left out of the backlog", () =>
