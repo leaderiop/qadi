@@ -1375,6 +1375,19 @@ describe("the action dimension", () => {
       assert.isUndefined(r.failure.expected);
     }).pipe(Effect.provide(testLayer(anyone))));
 
+  it.effect("a missing resource wins over a missing action on HasResourceAttribute", () =>
+    Effect.gen(function* () {
+      // Without a resource the attribute is unreadable whatever the action, so
+      // the resource guard runs first and the caller's first omission is reported.
+      const policy = P.hasResourceAttribute("owner", M.eq(M.action()));
+      const r = yield* Effect.result(evaluate(policy));
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "MissingResource");
+      if (r.failure._tag !== "MissingResource") return;
+      assert.strictEqual(r.failure.attribute, "owner");
+    }).pipe(Effect.provide(testLayer(anyone))));
+
   it.effect("the same rule holds for a subject attribute matcher", () =>
     Effect.gen(function* () {
       const r = yield* Effect.result(
