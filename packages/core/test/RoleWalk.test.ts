@@ -10,6 +10,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as FastCheck from "fast-check";
 import { permission, role, roleWalk } from "../src/index.ts";
 import type { Role, RoleStep } from "../src/index.ts";
+import { traverseRoles } from "../src/RoleTraversal.ts";
 import { arbitraryRoleGraph, chain, reachable } from "./RoleGraphArbitrary.ts";
 
 interface Step {
@@ -109,4 +110,26 @@ describe("roleWalk", () => {
     assert.strictEqual(steps[19_999]?.depth, 19_999);
     assert.strictEqual(steps[19_999]?.role.name, "role-0");
   }, 60_000);
+});
+
+describe("traverseRoles, the package-private walk under roleWalk", () => {
+  // `roleWalk` has one root; `fromRoles` will walk several (16-02). Roots are walked
+  // in array order, and a role reached from an earlier root is a revisit later.
+  it("walks several roots in order, sharing one visited set", () => {
+    const shared = role({ name: "shared" });
+    const a = role({ name: "a", inherits: [shared] });
+    const b = role({ name: "b", inherits: [shared] });
+    const steps: Array<[string, number, number, number | undefined, number | undefined]> = [];
+    traverseRoles<Role>([a, b, a], (r, index, depth, parent, first) =>
+      steps.push([r.name, index, depth, parent, first]),
+    );
+
+    assert.deepStrictEqual(steps, [
+      ["a", 0, 0, undefined, undefined],
+      ["shared", 1, 1, 0, undefined],
+      ["b", 2, 0, undefined, undefined],
+      ["shared", 3, 1, 2, 1],
+      ["a", 4, 0, undefined, 0],
+    ]);
+  });
 });

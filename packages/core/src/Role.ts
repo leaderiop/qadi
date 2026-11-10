@@ -11,10 +11,12 @@
  * graph is reconstructed from serialized form, where parents are named rather
  * than referenced. That path lives in {@link resolveRoleGraph}.
  */
+import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import { CircularRoleInheritance, DuplicateRoleDefinition } from "./Errors.ts";
 import type { Permission, PermissionKey } from "./Permission.ts";
 import { permissionKey } from "./Permission.ts";
+import { traverseRoles } from "./RoleTraversal.ts";
 
 export interface Role<TName extends string = string> {
   readonly name: TName;
@@ -32,6 +34,59 @@ export const role = <const TName extends string>(config: {
   permissions: config.permissions ?? [],
   inherits: config.inherits ?? [],
 });
+
+/**
+ * One step of a {@link roleWalk}: a role reached for the first time, or an edge
+ * into a role already reached.
+ *
+ * `index` is the step's position in the walk, `depth` its distance from the
+ * queried role, and `parent` the index of the step that reached it (`undefined`
+ * for the queried role itself). A `Revisit` names the index of the role's
+ * `Visit` in `first` instead of walking its parents again. Links are indices,
+ * not address strings: an address per step totals quadratic size on a deep chain.
+ */
+export type RoleStep = Data.TaggedEnum<{
+  Visit: {
+    readonly role: Role;
+    readonly index: number;
+    readonly depth: number;
+    readonly parent: number | undefined;
+  };
+  Revisit: {
+    readonly role: Role;
+    readonly index: number;
+    readonly depth: number;
+    readonly parent: number | undefined;
+    readonly first: number;
+  };
+}>;
+
+/** Constructors and `$is`/`$match` for {@link RoleStep}. */
+export const RoleStep = Data.taggedEnum<RoleStep>();
+
+/**
+ * The role walk: every role reachable from `self`, once, in the order that decides
+ * which inheritance path is reported, with every second route to a role marked.
+ *
+ * The walk is pre-order with parents in `inherits` order, so the first path to
+ * reach a role wins, as {@link permissionProvenance} reports it (INV-QD-038). It
+ * keys on object identity, so two distinct roles sharing a `name` are two visits,
+ * and it is iterative, so a chain tens of thousands deep does not overflow the
+ * stack. It is public because a reader of the graph (`@qadi/devtools`'s role
+ * tree) must draw the same walk that grants, not a fifth copy of it: the copies
+ * this replaces drifted twice (ticket 86, and the name-to-identity keying fix).
+ */
+export const roleWalk = (self: Role): ReadonlyArray<RoleStep> => {
+  const steps: Array<RoleStep> = [];
+  traverseRoles([self], (role, index, depth, parent, first) => {
+    steps.push(
+      first === undefined
+        ? RoleStep.Visit({ role, index, depth, parent })
+        : RoleStep.Revisit({ role, index, depth, parent, first }),
+    );
+  });
+  return steps;
+};
 
 /**
  * All permission keys granted by a role, including inherited ones.

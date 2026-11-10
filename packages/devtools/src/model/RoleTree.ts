@@ -15,25 +15,38 @@
  * [INV-QD-038](../../../../spec/invariants.md#inv-qd-038-provenance-and-flattening-agree) —
  * so a screen built on it cannot show a different set from the one that decides.
  */
-import { flattenPermissions, permissionKey, permissionProvenance } from "@qadi/core";
+import {
+  flattenPermissions,
+  permissionKey,
+  permissionProvenance,
+  RoleStep,
+  roleWalk,
+} from "@qadi/core";
 import type { PermissionGrant, PermissionKey, Role } from "@qadi/core";
 
 export interface RoleNode {
   readonly name: string;
-  /** Address from the root, so a React key is stable and a diamond's arms differ. */
-  readonly path: string;
+  /**
+   * This node's step in the role walk: unique in the tree and stable for one
+   * role, so it is the React key. An index rather than an address from the root,
+   * whose total size is quadratic in depth.
+   */
+  readonly index: number;
   /** Permissions this role's own `permissions` list contains. */
   readonly own: ReadonlyArray<PermissionKey>;
   readonly children: ReadonlyArray<RoleNode>;
   /**
-   * This role was already reached by an earlier path.
+   * This role object was already reached by an earlier path.
    *
-   * A diamond's second arm. The structure is still shown — hiding it would
-   * misrepresent the catalogue — but the permissions beneath it were already
-   * counted once, and a reader adding up the tinted rows would otherwise
-   * double-count. `permissionProvenance` resolves the same way: first path wins.
+   * A diamond's second arm: the edge is shown, as a leaf, but the permissions
+   * beneath it were already counted once, and a reader adding up the tinted rows
+   * would otherwise double-count. Keyed on identity: a distinct role that only
+   * shares a name is not repeated. `permissionProvenance` resolves the same way:
+   * first path wins.
    */
   readonly repeated: boolean;
+  /** For a repeated node, the `index` of the role's first occurrence, where its subtree is shown. */
+  readonly first: number | undefined;
 }
 
 export interface RoleSummary {
@@ -54,7 +67,7 @@ export const roleSummary = (self: Role): RoleSummary => {
 
   return {
     role: self,
-    tree: nodeOf(self, "$", new Set()),
+    tree: treeOf(self),
     grants,
     ownCount,
     inheritedCount: grants.length - ownCount,
@@ -74,19 +87,37 @@ export const grantPath = (grant: PermissionGrant): string =>
  */
 export const decidingSet = (self: Role): ReadonlySet<PermissionKey> => flattenPermissions(self);
 
-const nodeOf = (self: Role, path: string, seen: Set<string>): RoleNode => {
-  const repeated = seen.has(self.name);
-  seen.add(self.name);
+/**
+ * The tree, one node per step of `roleWalk`, built without recursion.
+ *
+ * A repeated role is a leaf that points at its first occurrence rather than a
+ * second copy of its subtree (decision 16-01 T1 = A). Every edge of the graph is
+ * still drawn, and the subtree is shown once, at the first occurrence, the same
+ * rule `permissionProvenance` follows. Re-walking it instead grew about 2^k
+ * nodes for k stacked diamonds.
+ */
+const treeOf = (self: Role): RoleNode => {
+  // Built from the last step back, so a node's children all exist before it does.
+  const childrenOf = new Map<number | undefined, Array<RoleNode>>();
+  const nodeOf = (role: Role, index: number, first: number | undefined): RoleNode => ({
+    name: role.name,
+    index,
+    own: role.permissions.map(permissionKey),
+    children: (childrenOf.get(index) ?? []).toReversed(),
+    repeated: first !== undefined,
+    first,
+  });
 
-  return {
-    name: self.name,
-    path,
-    own: self.permissions.map(permissionKey),
-    // A repeated role's subtree is still walked: the shape is the catalogue's,
-    // and eliding it would show a reader a graph they do not have.
-    children: self.inherits.map((parent, index) => nodeOf(parent, `${path}.${index}`, seen)),
-    repeated,
-  };
+  for (const step of roleWalk(self).toReversed()) {
+    const first = RoleStep.$match(step, { Visit: () => undefined, Revisit: (s) => s.first });
+    const node = nodeOf(step.role, step.index, first);
+    const siblings = childrenOf.get(step.parent);
+    if (siblings === undefined) childrenOf.set(step.parent, [node]);
+    else siblings.push(node);
+  }
+  // The root is step 0, always a visit of `self`; rebuilding it here, rather than
+  // reading it back from the map, keeps the result a `RoleNode`, not `| undefined`.
+  return nodeOf(self, 0, undefined);
 };
 
 /** Whether two roles are the same role: by name, which is what a host rebuilding its list keeps. */

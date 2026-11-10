@@ -89,7 +89,8 @@ describe("the role viewer", () => {
       .filter((n) => n.getAttribute("data-repeated") === "true")
       .map((n) => n.getAttribute("data-role"));
 
-    assert.deepStrictEqual(repeated, ["viewer", "commenter"]);
+    // A leaf pointing at the first occurrence: its subtree is shown once, there.
+    assert.deepStrictEqual(repeated, ["viewer"]);
     assert.isNotNull(screen.getAllByTestId("qadi-role-repeated")[0]);
   });
 

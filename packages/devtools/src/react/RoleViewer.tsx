@@ -158,7 +158,7 @@ const Branch: FC<{ readonly node: RoleNode; readonly depth: number }> = ({ node,
       ) : null}
     </div>
     {node.children.map((child) => (
-      <Branch key={child.path} node={child} depth={depth + 1} />
+      <Branch key={child.index} node={child} depth={depth + 1} />
     ))}
   </div>
 );

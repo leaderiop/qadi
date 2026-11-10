@@ -36,12 +36,12 @@ describe("the inheritance tree", () => {
     ]);
   });
 
-  it("addresses every node, so a diamond's two arms differ", () => {
-    const paths = (node: RoleNode): ReadonlyArray<string> => [
-      node.path,
-      ...node.children.flatMap(paths),
+  it("numbers every node by its walk step, so a diamond's two arms differ", () => {
+    const indices = (node: RoleNode): ReadonlyArray<number> => [
+      node.index,
+      ...node.children.flatMap(indices),
     ];
-    assert.deepStrictEqual(paths(roleSummary(editor).tree), ["$", "$.0", "$.0.0"]);
+    assert.deepStrictEqual(indices(roleSummary(editor).tree), [0, 1, 2]);
   });
 
   it("names each role's own permissions", () => {
@@ -73,27 +73,28 @@ describe("the inheritance tree", () => {
    * E3.3 — a diamond, from the tree's side.
    *
    * The second arm is shown, because the catalogue really has that edge and
-   * hiding it would misrepresent the graph — but it is marked, because the
-   * permissions beneath it were already counted once and a reader summing the
-   * rows would otherwise double-count.
+   * hiding it would misrepresent the graph — but as a leaf pointing at the first
+   * occurrence, because the subtree beneath it is already shown there and a
+   * reader summing the rows would otherwise double-count (decision 16-01 T1 = A).
    */
-  it("marks the second arm of a diamond as already reached", () => {
+  it("shows the second arm of a diamond as a leaf pointing at the first", () => {
     const both = role({ name: "both", inherits: [viewer, editor] });
     const tree = roleSummary(both).tree;
 
-    const marked = (node: RoleNode): ReadonlyArray<[string, boolean]> => [
-      [node.name, node.repeated],
+    const marked = (
+      node: RoleNode,
+    ): ReadonlyArray<[string, number, boolean, number | undefined, number]> => [
+      [node.name, node.index, node.repeated, node.first, node.children.length],
       ...node.children.flatMap(marked),
     ];
 
     assert.deepStrictEqual(marked(tree), [
-      ["both", false],
-      ["viewer", false],
-      ["commenter", false],
-      ["editor", false],
-      // Reached through `viewer` first.
-      ["viewer", true],
-      ["commenter", true],
+      ["both", 0, false, undefined, 2],
+      ["viewer", 1, false, undefined, 1],
+      ["commenter", 2, false, undefined, 0],
+      ["editor", 3, false, undefined, 1],
+      // Reached through `viewer` first: a leaf naming step 1.
+      ["viewer", 4, true, 1, 0],
     ]);
   });
 });
