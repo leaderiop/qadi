@@ -14,12 +14,12 @@
 - [x] **REC-04**: No orphan `packages/*/lib/**/*.js` without a `src` counterpart remains after the repo's own clean/build.
 
 ### Lost-wave security (Phase 11)
-- [ ] **SEC-01**: A signature obligation discharged on a resource whose id is not a string is refused (`SignatureCaptureError`); `capture` is not called and nothing is stored.
-- [ ] **SEC-02**: `hasSignature(…, { scope: "Any" })` never allows on a resource from a signature recorded for another resource. The ledger is a keyed store and the exact-pair read rule is derived once.
-- [ ] **SEC-03**: Signature ledger adapters have a shipped conformance suite.
-- [ ] **SEC-04**: ADR-058, `explain()` and the website docs describe signature `scope: "Any"` correctly (not "for anything" / "same semantics as HasActed").
-- [ ] **SEC-05**: `guardApi` builds a closed access plan from its API value. An endpoint served by a different API value (reused names, an API-level requirement, a prefix) fails closed with a 500 and one log line.
-- [ ] **SEC-06**: Every path that is served is listed in `/__permissions` and enforced. With `guardApi(P)` wired to the API it serves (including a prefixed one), the registry lists exactly the served paths. A mis-wired prefix (`guardApi(A)` on `layer(A.prefix(…))`) fails closed with a 500 on the served path. *(Amended 2026-11-10: the registry registers at layer build and cannot see the builder's mount prefix, per `HttpApiBuilder` per-request middleware.)*
+- [x] **SEC-01**: A signature obligation discharged on a resource whose id is not a string is refused (`SignatureCaptureError`); `capture` is not called and nothing is stored.
+- [x] **SEC-02**: `hasSignature(…, { scope: "Any" })` never allows on a resource from a signature recorded for another resource. The ledger is a keyed store and the exact-pair read rule is derived once.
+- [x] **SEC-03**: Signature ledger adapters have a shipped conformance suite.
+- [x] **SEC-04**: ADR-058, `explain()` and the website docs describe signature `scope: "Any"` correctly (not "for anything" / "same semantics as HasActed").
+- [x] **SEC-05**: `guardApi` builds a closed access plan from its API value. An endpoint served by a different API value (reused names, an API-level requirement, a prefix) fails closed with a 500 and one log line.
+- [x] **SEC-06**: Every path that is served is listed in `/__permissions` and enforced. With `guardApi(P)` wired to the API it serves (including a prefixed one), the registry lists exactly the served paths. A mis-wired prefix (`guardApi(A)` on `layer(A.prefix(…))`) fails closed with a 500 on the served path. *(Amended 2026-11-10: the registry registers at layer build and cannot see the builder's mount prefix, per `HttpApiBuilder` per-request middleware.)*
 
 ### Lost-wave integrity (Phase 12)
 - [ ] **INT-01**: A decision-stream reconnect during or after the backlog never loses or skips a record; the cursor and the send order have one owner in core.
@@ -90,7 +90,7 @@
 - [ ] **CACHE-04**: No hot-path regression (bench row) and UNTRACED_BUDGET is unchanged.
 
 ### Cross-cutting (every phase)
-- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10).
+- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10).
 - [ ] **XC-02**: Each phase records its ADR (or states why none is needed), a CCR row, and the BEH/INV/traceability changes, using only its reserved numbers.
 - [ ] **XC-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
 - [ ] **XC-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock; budgets change only with their AGENTS.md table.
@@ -111,7 +111,7 @@
 | Requirement | Phase | Status |
 |---|---|---|
 | REC-01..04 | Phase 10 | Complete |
-| SEC-01..06 | Phase 11 | Pending |
+| SEC-01..06 | Phase 11 | Complete |
 | INT-01..06 | Phase 12 | Pending |
 | GAP-01..12 | Phase 13 | Pending |
 | AUD-01..05 | Phase 14 | Pending |
@@ -121,7 +121,7 @@
 | SURF-01..04 | Phase 18 | Pending |
 | VIEW-01..04 | Phase 19 | Pending |
 | CACHE-01..04 | Phase 20 | Pending |
-| XC-01..06 | All phases | Pending (XC-01 green for Phase 10) |
+| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11) |
 
 **Coverage:** 66 v1.1 requirements (60 + 6 cross-cutting); mapped 66; unmapped 0.
 

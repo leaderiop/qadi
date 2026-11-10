@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 11-06-PLAN.md
+stopped_at: Completed 11-07-PLAN.md (Phase 11 complete)
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "11-06 complete: ADR-QD-117/-118, spec corrections, BEH-QD-339, CCR-QD-395/396; gate 13 green"
+last_activity_desc: "11-07 complete: changesets and 0.12 upgrade notes, lost-id sweep clean, pnpm check:pr green; Phase 11 complete"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 59
-  completed_plans: 9
-  percent: 15
-current_phase: 11
+  completed_plans: 10
+  percent: 17
+current_phase: 12
 ---
 
 # Project State
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 11 of 20 (Lost-wave security)
-Plan: 6 of 7 complete (11-01 … 11-06); next is 11-07
-Status: In progress (phase_base 5736c96)
-Last activity: 2026-11-10 -- 11-06 complete: the spec records the keyed ledger and the access plan (ADR-QD-117, ADR-QD-118); `pnpm spec:api` green
+Plan: 7 of 7 complete (11-01 … 11-07); Phase 11 complete, next is Phase 12 (12-01)
+Status: Phase 11 complete (phase_base 5736c96); Phase 12 not started
+Last activity: 2026-11-10 -- 11-07 complete: four changesets and three 0.12 upgrade entries; lost-id sweep finds only merged meanings; `pnpm check:pr` green (16/16)
 
 ## Performance Metrics
 
@@ -85,6 +85,7 @@ Last activity: 2026-11-10 -- 11-06 complete: the spec records the keyed ledger a
 | Phase 09 P03 | 10 min | 3 tasks | 9 files |
 | Phase 09 P04 | 15 min | 2 tasks | 3 files |
 | Phase 11 P01 | 15 min | 3 tasks | 8 files |
+| Phase 11 P07 | 20 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
