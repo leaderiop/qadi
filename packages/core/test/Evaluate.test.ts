@@ -2432,6 +2432,31 @@ describe("observability", () => {
       });
     }));
 
+  it.effect("a failed evaluation annotates qadi.evaluate as Failed, with its error tag", () =>
+    Effect.gen(function* () {
+      // Before this, a store outage left the span with no attribute at all, so a
+      // trace could not tell a failed evaluation from one still running.
+      const spans: Array<Tracer.Span> = [];
+      const down = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
+
+      yield* Effect.result(evaluate(P.hasAttribute("clearance", M.gte(1)))).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u3" }), { AttributeResolver: down }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      const span = named(spans, "qadi.evaluate");
+      assert.isDefined(span);
+      if (span === undefined) return;
+      assert.deepStrictEqual(Object.fromEntries(span.attributes), {
+        "qadi.outcome": "Failed",
+        "qadi.error_tag": "AttributeResolveError",
+      });
+    }));
+
   it.effect("the action appears on the span only when one was supplied", () =>
     Effect.gen(function* () {
       // Two evaluations of the same policy differing only in what the caller
