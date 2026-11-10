@@ -187,7 +187,7 @@ Plans:
 
 Plans:
 - [x] 16-01 (W1): Give the role graph one traversal and make the devtools tree its first projection, fixing the devtools defects: the tree keys `seen` on `self.name`… ⛳ checkpoint
-- [ ] 16-02 (W2): Turn core's three hand-written walkers into projections of the traversal 16-01 added, and make `fromRoles` walk once.
+- [x] 16-02 (W2): Turn core's three hand-written walkers into projections of the traversal 16-01 added, and make `fromRoles` walk once.
 - [ ] 16-03 (W3): Finish ROLE-03 on screen.
 - [ ] 16-04 (W4): Record Phase 16 and run the full gate.
 
@@ -262,7 +262,7 @@ Plans:
 | 13. Lost-wave gaps | 13/13 | Complete | 2026-11-10 |
 | 14. Audit sink deadline | 7/7 | Complete | 2026-11-10 |
 | 15. Dock session | 4/4 | Complete | 2026-11-10 |
-| 16. One role-graph walk | 1/4 | In progress | - |
+| 16. One role-graph walk | 2/4 | In progress | - |
 | 17. Injective request key | 0/6 | Planned | - |
 | 18. Devtools HTTP surface | 0/3 | Planned | - |
 | 19. Verdict presentation | 0/3 | Planned | - |

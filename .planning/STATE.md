@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 16-01-PLAN.md
+stopped_at: Completed 16-02-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "16-01 complete: roleWalk/RoleStep and package-private RoleTraversal.ts in core; devtools role tree built from roleWalk (repeated role is a leaf, decision A); RED then GREEN; mutation Role 93.98 (base 92.99), RoleTraversal 100, RoleTree 100; gate 13 knowingly red until 16-04"
-state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
+last_activity_desc: "16-02 complete: flattenAll/flattenPermissions/roleNames/permissionProvenance and fromRoles (one pass) are projections of traverseRoles via visitRoles; Role.bench.ts before/after (fromRoles shared 2.3-3.3x, flatten within noise); mutation Role 97.41 (base 92.99), AuthSubject 100, RoleTraversal 100; gate 13 knowingly red until 16-04"
+state_head: 25d2b9b333c0a48759a4baef508b4370b9fd5137
 progress:
   total_phases: 11
   completed_phases: 6
   total_plans: 59
-  completed_plans: 40
-  percent: 68
+  completed_plans: 41
+  percent: 69
 current_phase: 16
 ---
 
@@ -28,14 +28,14 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 16 of 20 (One role-graph walk)
-Plan: 1 of 4 in Phase 16 (16-01 complete); next is 16-02
+Plan: 2 of 4 in Phase 16 (16-02 complete); next is 16-03
 Status: Phase 16 in progress (phase_base 443b45f); gate 13 knowingly red for roleWalk/RoleStep until 16-04
-Last activity: 2026-11-10 -- 16-01 complete: one role walk in core (`roleWalk`/`RoleStep`, `RoleTraversal.ts`); devtools role tree is its projection (identity-keyed, iterative, repeated role is a leaf); RED seen on the base for same-name, 20k-deep and stacked diamonds
+Last activity: 2026-11-10 -- 16-02 complete: core walkers and `fromRoles` (one walk over all roots) are projections of `traverseRoles`; `Role.bench.ts` before/after; sparse `inherits` tolerated again
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 45
+- Total plans completed: 46
 - Average duration: -
 - Total execution time: 0.0 hours
 
