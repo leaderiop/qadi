@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import { AuditPortReply } from "../src/AuditPortReply.ts";
 import { durabilityOf } from "../src/AuditWriteOutcome.ts";
 import { describeAuditWriteOutcome, outcomePath } from "../src/AuditWriteReport.ts";
 import type { StagingLabel, WritesLabel } from "../src/AuditWriteReport.ts";
@@ -22,13 +23,21 @@ const STAGING_LABELS: ReadonlyArray<StagingLabel> = [
   "commit_failed",
 ];
 
+// The causes are the ones the harness's hand-written ports used to carry.
+const ok = AuditPortReply.Ok();
+const writeFails = AuditPortReply.Fail({ cause: "offline" });
+const stageFails = AuditPortReply.Fail({ cause: "stage offline" });
+const commitFails = AuditPortReply.Fail({ cause: "commit offline" });
+const dies = AuditPortReply.Die({ defect: new Error("port bug") });
+const hangs = AuditPortReply.Never();
+
 const base: ExitSpec = {
   wired: false,
   open: false,
   encode: "ok",
-  stage: "ok",
-  write: "ok",
-  commit: "ok",
+  stage: ok,
+  write: ok,
+  commit: ok,
 };
 
 /**
@@ -41,55 +50,73 @@ const EXITS: ReadonlyArray<ExitRow> = [
   { name: "encode refused, unwired", spec: { ...base, encode: "refused" }, path: "Refused", rows: 0 },
   { name: "encode refused, wired", spec: { ...base, wired: true, encode: "refused" }, path: "Refused", rows: 0 },
   { name: "unwired, write ok", spec: base, path: "Written.NotWired", rows: 1 },
-  { name: "unwired, write fails", spec: { ...base, write: "fail" }, path: "WriteFailed.NotWired", rows: 0 },
-  { name: "unwired, write dies", spec: { ...base, write: "die" }, path: "WriteFailed.NotWired", rows: 0 },
+  { name: "unwired, write fails", spec: { ...base, write: writeFails }, path: "WriteFailed.NotWired", rows: 0 },
+  { name: "unwired, write dies", spec: { ...base, write: dies }, path: "WriteFailed.NotWired", rows: 0 },
+  {
+    name: "unwired, write never settles",
+    spec: { ...base, write: hangs },
+    path: "WriteFailed.NotWired",
+    rows: 0,
+  },
   { name: "unwired, breaker open", spec: { ...base, open: true }, path: "Skipped.NotWired", rows: 0 },
   { name: "wired, all ok", spec: { ...base, wired: true }, path: "Written.Committed", rows: 1 },
   {
     name: "wired, commit fails",
-    spec: { ...base, wired: true, commit: "fail" },
+    spec: { ...base, wired: true, commit: commitFails },
     path: "Written.CommitFailed",
     rows: 1,
   },
   {
     name: "wired, commit dies",
-    spec: { ...base, wired: true, commit: "die" },
+    spec: { ...base, wired: true, commit: dies },
+    path: "Written.CommitFailed",
+    rows: 1,
+  },
+  {
+    name: "wired, commit never settles",
+    spec: { ...base, wired: true, commit: hangs },
     path: "Written.CommitFailed",
     rows: 1,
   },
   {
     name: "wired, stage fails, write ok",
-    spec: { ...base, wired: true, stage: "fail" },
+    spec: { ...base, wired: true, stage: stageFails },
     path: "Written.StageFailed",
     rows: 1,
   },
   {
     name: "wired, stage dies, write ok",
-    spec: { ...base, wired: true, stage: "die" },
+    spec: { ...base, wired: true, stage: dies },
+    path: "Written.StageFailed",
+    rows: 1,
+  },
+  {
+    name: "wired, stage never settles, write ok",
+    spec: { ...base, wired: true, stage: hangs },
     path: "Written.StageFailed",
     rows: 1,
   },
   {
     name: "wired, staged, write fails",
-    spec: { ...base, wired: true, write: "fail" },
+    spec: { ...base, wired: true, write: writeFails },
     path: "WriteFailed.Staged",
     rows: 0,
   },
   {
     name: "wired, staged, write dies",
-    spec: { ...base, wired: true, write: "die" },
+    spec: { ...base, wired: true, write: dies },
     path: "WriteFailed.Staged",
     rows: 0,
   },
   {
     name: "wired, stage fails, write fails",
-    spec: { ...base, wired: true, stage: "fail", write: "fail" },
+    spec: { ...base, wired: true, stage: stageFails, write: writeFails },
     path: "WriteFailed.StageFailed",
     rows: 0,
   },
   {
     name: "wired, stage dies, write dies",
-    spec: { ...base, wired: true, stage: "die", write: "die" },
+    spec: { ...base, wired: true, stage: dies, write: dies },
     path: "WriteFailed.StageFailed",
     rows: 0,
   },
@@ -101,13 +128,13 @@ const EXITS: ReadonlyArray<ExitRow> = [
   },
   {
     name: "wired, breaker open, stage fails",
-    spec: { ...base, wired: true, open: true, stage: "fail" },
+    spec: { ...base, wired: true, open: true, stage: stageFails },
     path: "Skipped.StageFailed",
     rows: 0,
   },
   {
     name: "wired, breaker open, stage dies",
-    spec: { ...base, wired: true, open: true, stage: "die" },
+    spec: { ...base, wired: true, open: true, stage: dies },
     path: "Skipped.StageFailed",
     rows: 0,
   },

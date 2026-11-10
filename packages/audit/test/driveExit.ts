@@ -4,33 +4,40 @@
  * what the pipeline emits to what `describeAuditWriteOutcome` says it should.
  */
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as Record from "effect/Record";
+import * as TestClock from "effect/testing/TestClock";
 import { DecisionSink } from "@qadi/core";
 import { collectingLogger, isolatedMetrics } from "@qadi/testing";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
-import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
-import { AuditStagingError, AuditStagingPort } from "../src/AuditStagingPort.ts";
-import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
+import { AuditPortReply } from "../src/AuditPortReply.ts";
+import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
+import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
 import type { AuditWriteOutcome } from "../src/AuditWriteOutcome.ts";
 import { LOST_COUNTERS, STAGING_COUNTERS, WRITES_COUNTERS } from "../src/AuditWriteReport.ts";
 import type { StagingLabel, WritesLabel } from "../src/AuditWriteReport.ts";
 import { decisionRecord } from "./helpers.ts";
 
-export type Mode = "ok" | "fail" | "die";
-
-/** One exit of `record`, described by what each port does for the target record. */
+/** One exit of `record`, described by how each port answers the target record. */
 export interface ExitSpec {
   readonly wired: boolean;
   /** The breaker is Open when the target arrives: a first record has already tripped it. */
   readonly open: boolean;
   readonly encode: "ok" | "refused";
-  readonly stage: Mode;
-  readonly write: Mode;
-  readonly commit: Mode;
+  readonly stage: AuditPortReply;
+  readonly write: AuditPortReply;
+  readonly commit: AuditPortReply;
 }
+
+/** The harness's own deadline, explicit so a hung row's clock adjustment is read off it. */
+const STORE_CALL_TIMEOUT = "5 seconds";
+/** Past one deadline, well inside the 30 s reset timeout. */
+const PAST_DEADLINE = "6 seconds";
+
+const hangs = (reply: AuditPortReply): boolean => reply._tag === "Never" || reply._tag === "Latch";
 
 export type LabelCounts<K extends string> = { readonly [P in K]: number };
 
@@ -51,9 +58,6 @@ export interface ExitObservation {
   readonly rows: number;
   readonly hookCalls: number;
 }
-
-const failOrDie = <E>(mode: Mode, error: E): Effect.Effect<void, E> =>
-  mode === "ok" ? Effect.void : mode === "fail" ? Effect.fail(error) : Effect.die(new Error("port bug"));
 
 /** Every audit counter series, read through its export (ADR-QD-123). */
 const readCounts = Effect.gen(function* () {
@@ -88,35 +92,27 @@ const lostTotal = (counts: Counts): number => Object.values(counts.lost).reduce(
 const lostLabelsMoved = (before: Counts, after: Counts): ReadonlyArray<string> =>
   Record.keys(after.lost).filter((label) => after.lost[label] > before.lost[label]);
 
-const healthyEntry: AuditEntry = Effect.runSync(encodeAuditEntry(decisionRecord({ evaluationId: "target" })));
-
 export const driveExit = (spec: ExitSpec): Effect.Effect<ExitObservation> =>
   Effect.gen(function* () {
-    const rows: Array<AuditEntry> = [];
     const outcomes: Array<AuditWriteOutcome> = [];
     const isTarget = (entry: AuditEntry) => entry.record.evaluationId === "target";
 
-    const trail = Layer.succeed(AuditTrailPort, {
-      write: (entry) =>
-        isTarget(entry)
-          ? failOrDie(spec.write, new AuditWriteError({ entry, cause: "offline" })).pipe(
-              Effect.tap(() => Effect.sync(() => void rows.push(entry))),
-            )
-          : Effect.fail(new AuditWriteError({ entry, cause: "trip" })),
+    // Any other entry is the `open` row's tripping record: its write fails.
+    const trail = AuditTrailPortTest({
+      write: (entry) => (isTarget(entry) ? spec.write : AuditPortReply.Fail({ cause: "trip" })),
     });
-    const staging = Layer.succeed(AuditStagingPort, {
-      stage: (entry) =>
-        isTarget(entry)
-          ? failOrDie(spec.stage, new AuditStagingError({ entry, cause: "stage offline" })).pipe(
-              Effect.as("handle"),
-            )
-          : Effect.succeed("handle"),
-      commit: () => failOrDie(spec.commit, new AuditStagingError({ entry: healthyEntry, cause: "commit offline" })),
+    const staging = AuditStagingPortTest({
+      stage: (entry) => (isTarget(entry) ? spec.stage : undefined),
+      commit: () => spec.commit,
     });
     const { lines, layer: logger } = collectingLogger();
     const sinkLayer = Layer.provideMerge(
-      AuditDecisionSinkLive({ failureThreshold: 1, onOutcome: (o) => void outcomes.push(o) }),
-      Layer.mergeAll(trail, spec.wired ? staging : Layer.empty, logger),
+      AuditDecisionSinkLive({
+        failureThreshold: 1,
+        storeCallTimeout: STORE_CALL_TIMEOUT,
+        onOutcome: (o) => void outcomes.push(o),
+      }),
+      Layer.mergeAll(trail.layer, spec.wired ? staging.layer : Layer.empty, logger),
     );
     const target =
       spec.encode === "ok"
@@ -130,7 +126,14 @@ export const driveExit = (spec: ExitSpec): Effect.Effect<ExitObservation> =>
         const before = yield* readCounts;
         const logsBefore = lines.length;
         const outcomesBefore = outcomes.length;
-        yield* sink.record(target);
+        // A hung reply settles only at the sink's deadline, so the clock is moved past it.
+        if (hangs(spec.stage) || hangs(spec.write) || hangs(spec.commit)) {
+          const fiber = yield* Effect.forkChild(sink.record(target));
+          yield* TestClock.adjust(PAST_DEADLINE);
+          yield* Fiber.join(fiber);
+        } else {
+          yield* sink.record(target);
+        }
         const after = yield* readCounts;
         const writes = (label: WritesLabel) => after.writes[label] - before.writes[label];
         const stagingOf = (label: StagingLabel) => after.staging[label] - before.staging[label];
@@ -160,7 +163,7 @@ export const driveExit = (spec: ExitSpec): Effect.Effect<ExitObservation> =>
               evaluationId: line.annotations["evaluationId"],
             }),
           ),
-          rows: rows.length,
+          rows: trail.written().filter(isTarget).length,
           hookCalls: outcomes.length - outcomesBefore,
         };
         return observation;

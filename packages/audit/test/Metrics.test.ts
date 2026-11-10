@@ -9,7 +9,7 @@ import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
 import { LOST_COUNTERS, STAGING_COUNTERS, WRITES_COUNTERS } from "../src/AuditWriteReport.ts";
 import { transitionsTotal } from "../src/CircuitBreaker.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
-import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
+import { AuditPortReply } from "../src/AuditPortReply.ts";
 import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
 import { driveExit } from "./driveExit.ts";
 import type { ExitSpec } from "./driveExit.ts";
@@ -50,7 +50,7 @@ describe("qadi_audit_circuit_breaker_transitions_total", () => {
   it.effect("tripping to Open counts exactly one transition to 'Open'", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
 
       const transitions = yield* isolatedMetrics(
@@ -72,8 +72,8 @@ describe("qadi_audit_circuit_breaker_transitions_total", () => {
         // error — before ticket #47, `Effect.result` around `trailPort.write`
         // let this unwind past `breaker.recordFailure` entirely, so the
         // breaker would never trip no matter how unhealthy the store was.
-        const brokenTrail = Layer.succeed(AuditTrailPort, {
-          write: () => Effect.die(new Error("caller's trail store bug")),
+        const { layer: brokenTrail } = AuditTrailPortTest({
+          write: () => AuditPortReply.Die({ defect: new Error("caller's trail store bug") }),
         });
 
         const transitions = yield* isolatedMetrics(
@@ -98,7 +98,7 @@ describe("qadi_audit_circuit_breaker_transitions_total", () => {
       // `preregisteredWords` is what puts `Closed`/`HalfOpen` in the snapshot
       // at zero alongside the one word that actually fired.
       const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
 
       const transitions = yield* isolatedMetrics(
@@ -130,10 +130,8 @@ describe("qadi_audit_circuit_breaker_transitions_total", () => {
       // Only the first five writes fail — the recovery write must succeed,
       // or the breaker reopens instead of closing.
       const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) =>
-          entry.record.evaluationId.startsWith("fail-")
-            ? new AuditWriteError({ entry, cause: "offline" })
-            : undefined,
+        write: (entry) =>
+          entry.record.evaluationId.startsWith("fail-") ? AuditPortReply.Fail({ cause: "offline" }) : undefined,
       });
 
       const transitions = yield* isolatedMetrics(
@@ -199,7 +197,7 @@ describe("qadi_audit_entries_lost_total", () => {
   it.effect("carries its documented description", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest({
-        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+        write: () => AuditPortReply.Fail({ cause: "offline" }),
       });
       for (const series of [
         LOST_COUNTERS.write_failed.not_wired,
@@ -221,23 +219,35 @@ describe("qadi_audit_entries_lost_total", () => {
       assert.strictEqual(lost.count, 1);
     }));
 
-  const base: ExitSpec = { wired: false, open: false, encode: "ok", stage: "ok", write: "ok", commit: "ok" };
+  const ok = AuditPortReply.Ok();
+  const writeFails = AuditPortReply.Fail({ cause: "offline" });
+  const stageFails = AuditPortReply.Fail({ cause: "stage offline" });
+  const hangs = AuditPortReply.Never();
+  const base: ExitSpec = { wired: false, open: false, encode: "ok", stage: ok, write: ok, commit: ok };
   const cases: ReadonlyArray<{ readonly name: string; readonly spec: ExitSpec; readonly labels: ReadonlyArray<string> }> = [
-    { name: "unwired, write failed", spec: { ...base, write: "fail" }, labels: ["write_failed/not_wired"] },
+    { name: "unwired, write failed", spec: { ...base, write: writeFails }, labels: ["write_failed/not_wired"] },
+    { name: "unwired, write never settled", spec: { ...base, write: hangs }, labels: ["write_failed/not_wired"] },
     { name: "unwired, breaker open", spec: { ...base, open: true }, labels: ["skipped_open/not_wired"] },
     {
       name: "wired, stage and write failed",
-      spec: { ...base, wired: true, stage: "fail", write: "fail" },
+      spec: { ...base, wired: true, stage: stageFails, write: writeFails },
+      labels: ["write_failed/failed"],
+    },
+    {
+      name: "wired, stage never settled and write failed",
+      spec: { ...base, wired: true, stage: hangs, write: writeFails },
       labels: ["write_failed/failed"],
     },
     {
       name: "wired, breaker open, stage failed",
-      spec: { ...base, wired: true, open: true, stage: "fail" },
+      spec: { ...base, wired: true, open: true, stage: stageFails },
       labels: ["skipped_open/failed"],
     },
-    { name: "wired, staged, write failed (recoverable)", spec: { ...base, wired: true, write: "fail" }, labels: [] },
+    { name: "wired, staged, write failed (recoverable)", spec: { ...base, wired: true, write: writeFails }, labels: [] },
+    { name: "wired, staged, write never settled (recoverable)", spec: { ...base, wired: true, write: hangs }, labels: [] },
     { name: "wired, breaker open, staged (recoverable)", spec: { ...base, wired: true, open: true }, labels: [] },
     { name: "written (never lost)", spec: base, labels: [] },
+    { name: "written, commit never settled (never lost)", spec: { ...base, wired: true, commit: hangs }, labels: [] },
   ];
   for (const c of cases) {
     it.effect(`${c.name}: moves ${c.labels.length === 0 ? "nothing" : c.labels.join(", ")}`, () =>
