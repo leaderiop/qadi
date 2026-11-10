@@ -188,20 +188,26 @@ describe("signatureObligationHandler with a ledger — wired through Qadi.assert
       assert.strictEqual(entries()[0]?.evaluationId, records[0]?.evaluationId);
     }));
 
-  it.effect("a resource with no string id is recorded subject-wide (resourceId undefined)", () =>
+  it.effect("a resource with no string id is refused: the discharge fails and the ledger stays empty", () =>
     Effect.gen(function* () {
       const records: Array<ObligationRecord> = [];
       const { ledger, entries } = SignatureLedgerTest();
+      const calls = { n: 0 };
 
-      yield* qadiAssert(policy, {
-        resource: { id: 7 },
-        onObligations: signatureObligationHandler(portReturning(signed(), { n: 0 }), "approved", {
-          ledger,
-        }),
-      }).pipe(Effect.provide(testEnv(records)));
+      const result = yield* Effect.result(
+        qadiAssert(policy, {
+          resource: { id: 7 },
+          onObligations: signatureObligationHandler(portReturning(signed(), calls), "approved", {
+            ledger,
+          }),
+        }).pipe(Effect.provide(testEnv(records))),
+      );
 
-      assert.strictEqual(entries().length, 1);
-      assert.isUndefined(entries()[0]?.resourceId);
+      assert.strictEqual(result._tag, "Failure");
+      assert.strictEqual(records.length, 1);
+      assert.strictEqual(records[0]?.outcome, "HandlerFailed");
+      assert.strictEqual(calls.n, 0);
+      assert.strictEqual(entries().length, 0);
     }));
 
   it.effect("a signature for a different signer fails the discharge and appends nothing", () =>

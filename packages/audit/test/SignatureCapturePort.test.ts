@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import {
   Allow,
@@ -133,25 +134,44 @@ describe("signatureObligationHandler — unit", () => {
       }
     }));
 
-  it.effect("a resource whose id is not a string gives no resourceId, but still carries the resource", () =>
-    Effect.gen(function* () {
-      let seenRequest: SignatureCaptureRequest | undefined;
-      const port: SignatureCapturePortShape = {
-        capture: (request) =>
-          Effect.sync(() => {
-            seenRequest = request;
-            return signature;
-          }),
-        validate: () => Effect.succeed({ valid: true, validatedAt: 0 }),
-      };
+  // Storing any of these would file the signature subject-wide, where a
+  // `scope: "Any"` check finds it for every resource.
+  const unkeyable: ReadonlyArray<readonly [string, Resource]> = [
+    ["a numeric id", { id: 7 }],
+    ["an object id", { id: {} }],
+    ["no id at all", { title: "draft" }],
+  ];
+  for (const [label, resource] of unkeyable) {
+    const title = `a resource whose id is not a string is refused before capture: capture is never called (${label})`;
+    it.effect(title, () =>
+      Effect.gen(function* () {
+        let calls = 0;
+        const port: SignatureCapturePortShape = {
+          capture: () =>
+            Effect.sync(() => {
+              calls++;
+              return signature;
+            }),
+          validate: () => Effect.succeed({ valid: true, validatedAt: 0 }),
+        };
 
-      yield* signatureObligationHandler(port, "approved")(
-        dischargeFor(alice, [obligation("s")], { resource: { id: 7 } }),
-      );
+        const result = yield* Effect.result(
+          signatureObligationHandler(port, "approved")(
+            dischargeFor(alice, [obligation("s")], { resource }),
+          ),
+        );
 
-      assert.isUndefined(seenRequest?.resourceId);
-      assert.deepStrictEqual(seenRequest?.resource, { id: 7 });
-    }));
+        assert.isTrue(Result.isFailure(result), "the handler must refuse the discharge");
+        if (Result.isFailure(result)) {
+          assert.strictEqual(result.failure._tag, "SignatureCaptureError");
+          assert.strictEqual(
+            result.failure.reason,
+            "the discharged resource has no string id, so a signature for it cannot be keyed to it",
+          );
+        }
+        assert.strictEqual(calls, 0);
+      }));
+  }
 
   it.effect("the signer is the question's subject, even when a different CurrentSubject is provided", () =>
     Effect.gen(function* () {

@@ -114,6 +114,20 @@ describe("obligation -> capture -> SignatureHistory -> hasSignature (capture per
       }).pipe(Effect.provide(env));
       assert.strictEqual(decision._tag, "Deny");
     }));
+
+  it.effect("a signature discharged on a non-string id does not grant scope 'Any' on another resource", () =>
+    Effect.gen(function* () {
+      const { port, history } = storeAndHistory();
+      const env = envOf(history);
+      // The discharge is expected to fail; only what it left behind matters here.
+      yield* guard(approve, approval, {
+        onObligations: signatureObligationHandler(port, "approved"),
+      })({ id: 7 }, () => Effect.succeed("approved")).pipe(Effect.provide(env), Effect.exit);
+      const decision = yield* decide(hasSignature("approved", { scope: "Any" }), {
+        resource: { id: "doc-99" },
+      }).pipe(Effect.provide(env));
+      assert.strictEqual(decision._tag, "Deny");
+    }));
 });
 
 describe("obligation -> capture -> SignatureLedger -> hasSignature (ledger)", () => {
@@ -158,6 +172,20 @@ describe("obligation -> capture -> SignatureLedger -> hasSignature (ledger)", ()
         hasSignature("approved", { scope: "Any" }),
         "doc-1",
       );
+      assert.strictEqual(decision._tag, "Deny");
+    }));
+
+  it.effect("a signature discharged on a non-string id does not grant scope 'Any' on another resource", () =>
+    Effect.gen(function* () {
+      const { ledger } = SignatureLedgerTest();
+      const env = envOf(signatureHistoryFromLedger(ledger));
+      // The discharge is expected to fail; only what it left behind matters here.
+      yield* guard(approve, approval, {
+        onObligations: signatureObligationHandler(returningPort, "approved", { ledger }),
+      })({ id: 7 }, () => Effect.succeed("approved")).pipe(Effect.provide(env), Effect.exit);
+      const decision = yield* decide(hasSignature("approved", { scope: "Any" }), {
+        resource: { id: "doc-99" },
+      }).pipe(Effect.provide(env));
       assert.strictEqual(decision._tag, "Deny");
     }));
 });

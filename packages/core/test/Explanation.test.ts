@@ -207,13 +207,13 @@ describe("explain", () => {
     );
   });
 
-  it("HasSignature's detail names the signer role and the 'Any' scope when given", () => {
+  it("HasSignature's detail names the signer role and says a 'Any' scope is subject-wide", () => {
     const requirement = asRequirement(
       explain(P.hasSignature("approved", { signerRole: "manager", scope: "Any" })),
     );
     assert.strictEqual(
       requirement.detail,
-      "the subject has a signature meaning 'approved' from a 'manager' for anything",
+      "the subject has a signature meaning 'approved' from a 'manager' on file subject-wide, not for a resource",
     );
   });
 
