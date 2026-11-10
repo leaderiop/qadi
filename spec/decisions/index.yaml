@@ -406,3 +406,7 @@ entries:
     file: "130-the-devtools-surface-is-one-guarded-mount.md"
     title: "The devtools surface has one address rule and one guarded mount"
     status: "Accepted — reads ADR-QD-107, ADR-QD-099, ADR-QD-046"
+  - id: "ADR-QD-132"
+    file: "132-a-shared-computation-is-joinable-only-while-awaited.md"
+    title: "A shared computation is joinable only while somebody waits on it"
+    status: "Accepted — reads ADR-QD-031"
