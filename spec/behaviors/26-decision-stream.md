@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-26                                    |
-> | Revision       | 1.13                                           |
+> | Revision       | 1.14                                           |
 > | Effective Date | 2026-11-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.13 (2026-11-08): BEH-QD-337 added (the stream and the backlog encode, and refuse, alike, through one `@qadi/http` module); BEH-QD-311 and BEH-QD-315 listings show the options shape both routes share (ARCH-50, CCR-QD-389)<br>1.12 (2026-11-08): BEH-QD-202 — the recheck runs the request-enforcement module's guarded mode (edge step `authorizeRequest`) answered by its own projection, and the line closing a stream is beyond the one the module writes; no requirement changes meaning (ARCH-46, ADR-QD-108, CCR-QD-385)<br>1.11 (2026-10-08): present-tense `guardRoute` becomes `addGuardedRoute` / the route's guard, `guardRoute` having left the surface (ARCH-36, CCR-QD-311)<br>1.10 (2026-10-07): BEH-QD-202 — the recheck is `authorizeRequest` ([BEH-QD-321](./23-http.md)) and `reauthCheck` is removed; a recheck failure is labelled by `classifyHttpEnforcementFailure`, so a broken credential store is an `outage`, not `"extraction-failed"`; a recheck that ends a stream logs one line (ADR-QD-046 Rev 1.4, CCR-QD-197)<br>1.9 (2026-10-07): BEH-QD-311 and BEH-QD-314 — the event names and the `synced` payload are `@qadi/core`'s `DecisionStreamEvent`, `DecisionRecordEvent` and `DecisionStreamSynced`, and `DecisionStreamSynced` refuses a non-count (CCR-QD-195)<br>1.8 (2026-10-07): BEH-QD-311 and BEH-QD-315 — an `onRefused` that throws is reported and ends neither the feed nor the backlog response; the report is core's `reportEncodeRefusal` (CCR-QD-193)<br>1.7 (2026-10-06): BEH-QD-314 — only an envelope is read: `decodeStoredRecord` takes no options (`legacyEnvironment` removed, as scheduled), a bare record is refused as `Malformed`, and an absent backlog no longer means an older server (ADR-QD-097 amendment, CCR-QD-182)<br>1.6 (2026-10-05): ARCH-11 — BEH-QD-201 rewritten for the decision log's live half; BEH-QD-202 takes a `DecisionLogReader`; BEH-QD-311's frame carries the stored-record envelope; BEH-QD-314 (the backlog travels on the stream, every frame names its producer), BEH-QD-315 (`decisionBacklogRoute`) and BEH-QD-316 (resume on reconnect) added (ADR-QD-097, CCR-QD-181)<br>1.5 (2026-10-05): BEH-QD-201 — the stale `publishUnsafe` sentence corrected to what the code does (`publish`, and why) (CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-311 — a frame's data is wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-311 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.14 (2026-11-10): BEH-QD-349 added (a resumed stream loses and repeats nothing: backlog frames travel in cursor order, written by @qadi/core's encodeDecisionStream and read back by decodeDecisionStream); BEH-QD-314's first requirement says cursor order; BEH-QD-311, BEH-QD-314 and BEH-QD-337 drop @qadi/http's removed frame, syncedFrame and decisionFrames (ARCH-60, ADR-QD-097 2026-11-10 amendment, CCR-QD-397)<br>1.13 (2026-11-08): BEH-QD-337 added (the stream and the backlog encode, and refuse, alike, through one `@qadi/http` module); BEH-QD-311 and BEH-QD-315 listings show the options shape both routes share (ARCH-50, CCR-QD-389)<br>1.12 (2026-11-08): BEH-QD-202 — the recheck runs the request-enforcement module's guarded mode (edge step `authorizeRequest`) answered by its own projection, and the line closing a stream is beyond the one the module writes; no requirement changes meaning (ARCH-46, ADR-QD-108, CCR-QD-385)<br>1.11 (2026-10-08): present-tense `guardRoute` becomes `addGuardedRoute` / the route's guard, `guardRoute` having left the surface (ARCH-36, CCR-QD-311)<br>1.10 (2026-10-07): BEH-QD-202 — the recheck is `authorizeRequest` ([BEH-QD-321](./23-http.md)) and `reauthCheck` is removed; a recheck failure is labelled by `classifyHttpEnforcementFailure`, so a broken credential store is an `outage`, not `"extraction-failed"`; a recheck that ends a stream logs one line (ADR-QD-046 Rev 1.4, CCR-QD-197)<br>1.9 (2026-10-07): BEH-QD-311 and BEH-QD-314 — the event names and the `synced` payload are `@qadi/core`'s `DecisionStreamEvent`, `DecisionRecordEvent` and `DecisionStreamSynced`, and `DecisionStreamSynced` refuses a non-count (CCR-QD-195)<br>1.8 (2026-10-07): BEH-QD-311 and BEH-QD-315 — an `onRefused` that throws is reported and ends neither the feed nor the backlog response; the report is core's `reportEncodeRefusal` (CCR-QD-193)<br>1.7 (2026-10-06): BEH-QD-314 — only an envelope is read: `decodeStoredRecord` takes no options (`legacyEnvironment` removed, as scheduled), a bare record is refused as `Malformed`, and an absent backlog no longer means an older server (ADR-QD-097 amendment, CCR-QD-182)<br>1.6 (2026-10-05): ARCH-11 — BEH-QD-201 rewritten for the decision log's live half; BEH-QD-202 takes a `DecisionLogReader`; BEH-QD-311's frame carries the stored-record envelope; BEH-QD-314 (the backlog travels on the stream, every frame names its producer), BEH-QD-315 (`decisionBacklogRoute`) and BEH-QD-316 (resume on reconnect) added (ADR-QD-097, CCR-QD-181)<br>1.5 (2026-10-05): BEH-QD-201 — the stale `publishUnsafe` sentence corrected to what the code does (`publish`, and why) (CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-311 — a frame's data is wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-311 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 _Previous: [25 — Inspection](./25-inspection.md)_
 
@@ -263,20 +263,27 @@ load for a deployment with no revocation source to notice. See
 > **Invariant:** [INV-QD-097](../invariants.md#inv-qd-097-the-record-codec-is-total)
 
 ```ts
-export const frame: (
-  event: DecisionRecordEvent,
-  cursor?: LogCursor,
-) => Filter<StoredRecord, string, SinkRecordNotEncodable>;
-export const decisionFrames: (
-  read: DecisionLogEntries,
-  // The decision-log options `DecisionStreamOptions` extends (package-private),
-  // so `Pick<DecisionStreamOptions, "onRefused">` still type-checks.
-  options?: { readonly onRefused?: (refusal: SinkRecordNotEncodable) => void },
-) => Stream<string>;
-
-// @qadi/core
+// @qadi/core (DecisionStream.ts)
+export const encodeDecisionStream: (
+  log: Pick<DecisionLog, "readEntries">,
+  options: EncodeDecisionStreamOptions, // { after?: string; encodeRecord }
+) => Stream<DecisionStreamFrame>;
 export type DecisionRecordEvent = "backlog" | "message";
+
+// @qadi/http, package-private (DecisionLogHttp.ts): the `encodeRecord` the route hands it
+export const recordData: (
+  options?: { readonly onRefused?: (refusal: SinkRecordNotEncodable) => void },
+) => (record: StoredRecord) => Effect<Option<string>>;
 ```
+
+> **Amended in CCR-QD-397 (ARCH-60).** The listing showed `@qadi/http`'s
+> `frame` (one record as an SSE frame, or its refusal as a filter failure) and
+> `decisionFrames` (the route's body as SSE text). Both are removed: the order
+> of the frames is `@qadi/core`'s `encodeDecisionStream`
+> ([BEH-QD-349](#beh-qd-349-a-resumed-stream-loses-and-repeats-nothing)), which
+> drops a record's frame when the `encodeRecord` it is given answers `None`. The
+> record's bytes and the refusal report stay `@qadi/http`'s (`recordData`), so
+> the four requirements below hold unchanged, word for word and byte for byte.
 
 ```
 REQUIREMENT: No record MAY end the feed for any subscriber. A record that
@@ -320,9 +327,10 @@ while looking healthy is the defect, not the drop.
 > **Invariant:** [INV-QD-100](../invariants.md#inv-qd-100-a-log-reader-sees-every-retained-record-exactly-once)
 
 ```ts
-export const syncedFrame: (backlog: number) => string;
-
 // @qadi/core
+export type DecisionStreamFrame =
+  | { readonly event: DecisionRecordEvent; readonly id: string; readonly data: string }
+  | { readonly event: "synced"; readonly id?: undefined; readonly data: string };
 export const DecisionStreamEvent: Schema.Literals<readonly ["backlog", "synced", "message"]>;
 export const DecisionStreamSynced: Schema.Struct<{ backlog: Schema.Int }>; // a non-negative integer
 export const StoredRecordJson: Schema.Struct<{ environment: Schema.String; record: typeof SinkRecordJson }>;
@@ -332,8 +340,8 @@ export const decodeStoredRecord: (input: unknown) => Result<StoredRecord, SinkRe
 
 ```
 REQUIREMENT: Each connection MUST make one read of the log and send, in order:
-             one `event: backlog` frame per retained record, in
-             `storedRecordOrder`; one `event: synced` frame whose data is
+             one `event: backlog` frame per retained record, in cursor order
+             (the order of their ids); one `event: synced` frame whose data is
              `{"backlog":n}`, n the backlog frames actually sent — even when
              n is 0; then one default (`message`) frame per record made after.
 REQUIREMENT: No record the log retained when the read was taken, or made
@@ -343,6 +351,17 @@ REQUIREMENT: The event names and the `synced` payload MUST be `@qadi/core`'s
              reader MUST NOT declare its own. `DecisionStreamSynced` MUST
              refuse a `backlog` that is not a non-negative integer.
 ```
+
+> **Amended in CCR-QD-397 (ARCH-60).** The first requirement read "one
+> `event: backlog` frame per retained record, in `storedRecordOrder`", and the
+> listing showed `@qadi/http`'s `syncedFrame`, now removed with `frame` and
+> `decisionFrames`. The backlog travels in cursor order, written once by
+> `@qadi/core`'s `encodeDecisionStream`: a frame's `id` is a resume position, and
+> sent in `at` order the last `id` a reader saw was not its highest position, so a
+> reconnect during the prelude skipped records it never received
+> ([BEH-QD-349](#beh-qd-349-a-resumed-stream-loses-and-repeats-nothing)). A reader
+> still presents the backlog in `storedRecordOrder`: `decodeDecisionStream` sorts
+> it ([BEH-QD-203](./27-devtools-timeline.md)), so the timeline is unchanged.
 
 Before this, a reader got the past from one place (a ring, over a separate
 request nobody consumed) and the future from another (a feed), and the
@@ -500,11 +519,100 @@ annotation) had to be made twice, and nothing checked that it was.
 Both now go through the package-private `packages/http/src/DecisionLogHttp.ts`.
 The policy itself (hook or warning, containment, annotations) stays core's
 `reportEncodeRefusal` ([ADR-QD-095](../decisions/095-sinkcodec-owns-both-directions.md)
-D-09-e), and each route keeps its own words and span. `frame` is declared in
-that module and stays public through `DecisionStreamRoute.ts`. The table that
-pins it is `packages/http/test/DecisionLogHttp.test.ts`: every framing (the
-stream's backlog, the stream's live half, the backlog's JSON) against every
-refusal scenario.
+D-09-e), and each route keeps its own words and span. The table that pins it is
+`packages/http/test/DecisionLogHttp.test.ts`: every framing (the stream's
+backlog, the stream's live half, the backlog's JSON) against every refusal
+scenario.
+
+> **Amended in CCR-QD-397 (ARCH-60).** This paragraph said "`frame` is declared
+> in that module and stays public through `DecisionStreamRoute.ts`". `frame` is
+> removed. The module's stream half is `recordData`, the `encodeRecord`
+> `@qadi/core`'s `encodeDecisionStream` is given, and `sseText`, which writes one
+> frame as SSE bytes; both are package-private. The order of the frames is
+> core's ([BEH-QD-349](#beh-qd-349-a-resumed-stream-loses-and-repeats-nothing)).
+
+## BEH-QD-349: A resumed stream loses and repeats nothing
+
+> **Invariant:** [INV-QD-250](../invariants.md#inv-qd-250-a-resumed-read-loses-nothing)
+
+```ts
+// @qadi/core (DecisionStream.ts)
+export const encodeDecisionStream: (
+  log: Pick<DecisionLog, "readEntries">,
+  options: EncodeDecisionStreamOptions,
+) => Stream<DecisionStreamFrame>;
+export const decodeDecisionStream: (
+  frames: Stream<ReceivedFrame>,
+  options: {
+    readonly syncTimeout?: Duration.Input; // two seconds
+    readonly decodeRecord: (data: string) => Effect<Option<StoredRecord>>;
+  },
+) => Effect<DecisionStreamRead, never, Scope>;
+export interface ReceivedFrame { readonly event: DecisionStreamEvent; readonly data: string }
+export interface DecisionStreamRead {
+  readonly backlog?: ReadonlyArray<StoredRecord>;
+  readonly live: Stream<StoredRecord>;
+}
+```
+
+```
+REQUIREMENT: A client that reconnects with the `Last-Event-ID` of any record
+             frame it received MUST then receive every retained record it has
+             not received, exactly once, and none it has.
+REQUIREMENT: Backlog frames MUST travel in cursor order, written by `@qadi/core`'s
+             `encodeDecisionStream`, whatever order the log's read returned
+             them in. A transport MUST carry frames and MUST NOT state an order
+             of its own: `@qadi/http` writes each frame as SSE bytes and
+             `@qadi/devtools` hands `decodeDecisionStream` what its
+             `EventSource` received.
+REQUIREMENT: `decodeDecisionStream(encodeDecisionStream(log))` MUST hold the
+             log's retained, encodable records: the backlog in
+             `storedRecordOrder`, then the live records in arrival order.
+REQUIREMENT: `decodeDecisionStream` MUST NOT fail. A `message` frame before
+             `synced` MUST be live; a later `synced` MUST be skipped and its
+             `backlog` frames delivered live; no `synced` within `syncTimeout`
+             MUST leave the backlog absent.
+```
+
+A frame's `id` is a position, so the order frames travel in is part of what a
+resume means. The backlog used to travel in `storedRecordOrder` (`at`), and `at`
+is an evaluation's *start* time while a record is appended at its *end*: two
+overlapping evaluations that finish out of start order, and every `Edge` record an
+aggregator ingests (another process's clock), put `at` order and arrival order
+apart. A connection cut after a backlog frame then resumed after a *later*
+position than records not yet sent, and those were skipped, silently: no error, no
+`onMalformed`, a backlog that was simply short. A resume after the whole prelude
+also re-sent records the reader had. Cursor order makes the last `id` seen the
+reader's highest position, which ends both.
+
+The writer and the reader were two state machines over one order, `@qadi/http`'s
+`decisionFrames` and `@qadi/devtools`' `sourceFromEventSource`, joined by no unit
+test: only an acceptance scenario noticed a rename (ARCH-28), and nothing noticed
+the loss. Both now live in `DecisionStream.ts` with the stream's words and cursor
+text, so the round trip and the resume are properties of that module's own tests.
+It is codec-free: the record's bytes and the words a refusal is reported in stay
+each caller's (`encodeRecord`, `decodeRecord`), so `@qadi/http`'s refusal warnings
+and spans ([BEH-QD-337](#beh-qd-337-the-stream-and-the-backlog-encode-and-refuse-alike))
+and `@qadi/devtools`' `onMalformed` ([BEH-QD-204](./27-devtools-timeline.md)) are
+unchanged.
+
+The decoder does not read `synced`'s count (ARCH-28 D-28-e): inside one connection
+it cannot differ from the frames sent, and across connections a reader cannot tell
+which frames came on which connection. The loss this ends arrived with a correct
+per-connection count, so checking the count would not have caught it. The writer's law, that the count is the backlog frames
+sent, is pinned by the round-trip property instead.
+
+**What it does not cover.** A record evicted while the reader was away is still
+gone without a signal: the log is a display buffer
+([BEH-QD-201](#beh-qd-201-a-decision-logs-live-half-never-blocks-and-every-reader-gets-its-own-copy)),
+not a retention policy. And the order is the server's: a fixed reader connected to
+a server older than this change still loses on a reconnect during the prelude,
+because the server still sends the backlog in `at` order.
+
+ARCH-60 (CCR-QD-397), a port of the lost decision-stream commit `6c67e44` onto
+the merged `DecisionLogHttp.ts`
+([ADR-QD-097](../decisions/097-a-decision-log-is-a-sink-and-its-own-history.md),
+2026-11-10 amendment).
 
 ---
 

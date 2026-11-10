@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-19                                    |
-> | Revision       | 1.15                                           |
+> | Revision       | 1.16                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.15 (2026-11-08): BEH-QD-146 — the subject filter, its count, its report and the envelope are one engine function, dehydrateWith, which dehydrateDecisions delegates to; the payload builders are reachable by no other path (ARCH-51, ADR-QD-078 amendment, CCR-QD-390)<br>1.14 (2026-10-08): BEH-QD-151 — a re-check's ports may be remote; links behaviour 34 (ARCH-31, CCR-QD-382)<br>1.13 (2026-10-08): BEH-QD-148 — a `Disclosed` seed that contradicts its own trace (verdict, `visibleFields`, `obligations` or a denial's `reason`) is dropped as `MalformedEntry`, by `@qadi/core's` `decisionDisagreement` (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.12 (2026-10-08): BEH-QD-231 — hydration counts are written to and read from the default registry, by construction (ARCH-45, CCR-QD-269)<br>1.11 (2026-10-08): BEH-QD-230 — a refusal of the whole payload is announced as a refusal (`HydrationDrop.wholePayload`), the "two whole-payload refusals" count is corrected to the three it names, and each reason's meaning is `hydrationDropMeaning(reason)`; BEH-QD-231/232 name the panel's sentence as its `summary` (ADR-QD-041 amendment, CCR-QD-203)<br>1.10 (2026-10-06): BEH-QD-268 — the version-1 payload reader is removed as scheduled: only `version: 2` is read, and a payload with no `version` is dropped whole as `UnsupportedPayloadVersion`; `DehydratedDecisionsV1`, `DehydratedEntryV1` and `DehydratedPayload` removed, so BEH-QD-145's `hydrateDecisions` takes `DehydratedDecisions` (ADR-QD-078 amendment, CCR-QD-182)<br>1.9 (2026-10-05): references to `SinkCodec.ts`'s retired `decodeRecordWire`/`decodeSinkRecordWireUnknown` now name `decodeSinkRecord` (ADR-QD-095, CCR-QD-179)<br>1.8 (2026-10-04): ARCH-05 — hydration is one module. BEH-QD-147: withholding is a tagged `Withheld` disclosure on the wire, not a reduced trace and a stand-in "hydrated" reason. BEH-QD-148/149: a hydrated decision is a `SeededAllow`/`SeededDeny`, a type of its own, and a seed reads as a non-`waiting` success holding a `SeededDecision`. BEH-QD-152: `HydrationMismatch.seeded` is a `SeededDecision`; the "stand-in naming nothing" reason for naming the policy from `decided.trace` was wrong (a default payload named the real root) and is replaced by the true one. BEH-QD-230: `UnregisteredAtoms` removed (the atom set owns the capability, so the situation cannot arise), `UnsupportedPayloadVersion` and `MalformedPayload` added, and `hydrateDecisions` never throws. New BEH-QD-268 (the payload is versioned) and BEH-QD-269 (a malformed envelope is dropped, never thrown on). `BEH-QD-145`'s `hydrateDecisions` takes `DehydratedPayload` (CCR-QD-156)<br>1.7 (2026-09-09): BEH-QD-230 gains an explicit requirement that `decodeEntryFields`/`decodePolicy` reject an excess property in an entry or its embedded `Policy` — both called `Schema.decodeUnknownOption` with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points and `SinkCodec.ts`'s `decodeSinkRecordWireUnknown` (CCR-QD-139); an excess-carrying entry now decodes with `UNTRUSTED_DECODE_OPTIONS` and is refused rather than silently accepted with the extra key dropped (issue #105, CCR-QD-144)<br>1.6 (2026-09-08): BEH-QD-259 — a fifth hydrate-side drop reason, `EntryTooDeep`: `hydrateDecisions` now runs `exceedsJsonDepth` ahead of any recursive `Schema` decode, closing the one recursive decode boundary left unguarded; the total across both ends is six, not five (issue #78, CCR-QD-139)<br>1.5 (2026-09-08): BEH-QD-230 corrected — a fourth hydrate-side silent exit, `MalformedEntry` (a field other than `policy` failing `DehydratedEntry`'s shape check, before `decodePolicy` runs), was missing from the enumeration and the "three" count; the total across both ends is five, not four (CCR-QD-129)<br>1.4 (2026-08-24): BEH-QD-230–232 — hydration's three remaining silent exits announced and every entry counted; INV-QD-045, ADR-QD-052. BEH-QD-146's claim to have closed "the last quiet failure" corrected (CCR-QD-072)<br>1.3 (2026-08-23): BEH-QD-146 — `dehydrateDecisions` reports what it dropped (ADR-QD-041 shape, CCR-QD-057)<br>1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
+> | Change History | 1.16 (2026-11-10): BEH-QD-146 — dehydrateDecisions never throws: an unencodable policy is left out as UnencodablePolicy; DehydrateOptions.onDropped takes the one HydrationDrop shape; BEH-QD-152 — a throwing onHydrationMismatch is contained; BEH-QD-230 — HydrationDrop gains its reason parameter, eight reasons, a supplied reporter cannot change the outcome (ReporterThrew, every environment); BEH-QD-231 — a refused payload is counted at least once, including with no entries (ARCH-60, CCR-QD-398)<br>1.15 (2026-11-08): BEH-QD-146 — the subject filter, its count, its report and the envelope are one engine function, dehydrateWith, which dehydrateDecisions delegates to; the payload builders are reachable by no other path (ARCH-51, ADR-QD-078 amendment, CCR-QD-390)<br>1.14 (2026-10-08): BEH-QD-151 — a re-check's ports may be remote; links behaviour 34 (ARCH-31, CCR-QD-382)<br>1.13 (2026-10-08): BEH-QD-148 — a `Disclosed` seed that contradicts its own trace (verdict, `visibleFields`, `obligations` or a denial's `reason`) is dropped as `MalformedEntry`, by `@qadi/core's` `decisionDisagreement` (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.12 (2026-10-08): BEH-QD-231 — hydration counts are written to and read from the default registry, by construction (ARCH-45, CCR-QD-269)<br>1.11 (2026-10-08): BEH-QD-230 — a refusal of the whole payload is announced as a refusal (`HydrationDrop.wholePayload`), the "two whole-payload refusals" count is corrected to the three it names, and each reason's meaning is `hydrationDropMeaning(reason)`; BEH-QD-231/232 name the panel's sentence as its `summary` (ADR-QD-041 amendment, CCR-QD-203)<br>1.10 (2026-10-06): BEH-QD-268 — the version-1 payload reader is removed as scheduled: only `version: 2` is read, and a payload with no `version` is dropped whole as `UnsupportedPayloadVersion`; `DehydratedDecisionsV1`, `DehydratedEntryV1` and `DehydratedPayload` removed, so BEH-QD-145's `hydrateDecisions` takes `DehydratedDecisions` (ADR-QD-078 amendment, CCR-QD-182)<br>1.9 (2026-10-05): references to `SinkCodec.ts`'s retired `decodeRecordWire`/`decodeSinkRecordWireUnknown` now name `decodeSinkRecord` (ADR-QD-095, CCR-QD-179)<br>1.8 (2026-10-04): ARCH-05 — hydration is one module. BEH-QD-147: withholding is a tagged `Withheld` disclosure on the wire, not a reduced trace and a stand-in "hydrated" reason. BEH-QD-148/149: a hydrated decision is a `SeededAllow`/`SeededDeny`, a type of its own, and a seed reads as a non-`waiting` success holding a `SeededDecision`. BEH-QD-152: `HydrationMismatch.seeded` is a `SeededDecision`; the "stand-in naming nothing" reason for naming the policy from `decided.trace` was wrong (a default payload named the real root) and is replaced by the true one. BEH-QD-230: `UnregisteredAtoms` removed (the atom set owns the capability, so the situation cannot arise), `UnsupportedPayloadVersion` and `MalformedPayload` added, and `hydrateDecisions` never throws. New BEH-QD-268 (the payload is versioned) and BEH-QD-269 (a malformed envelope is dropped, never thrown on). `BEH-QD-145`'s `hydrateDecisions` takes `DehydratedPayload` (CCR-QD-156)<br>1.7 (2026-09-09): BEH-QD-230 gains an explicit requirement that `decodeEntryFields`/`decodePolicy` reject an excess property in an entry or its embedded `Policy` — both called `Schema.decodeUnknownOption` with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points and `SinkCodec.ts`'s `decodeSinkRecordWireUnknown` (CCR-QD-139); an excess-carrying entry now decodes with `UNTRUSTED_DECODE_OPTIONS` and is refused rather than silently accepted with the extra key dropped (issue #105, CCR-QD-144)<br>1.6 (2026-09-08): BEH-QD-259 — a fifth hydrate-side drop reason, `EntryTooDeep`: `hydrateDecisions` now runs `exceedsJsonDepth` ahead of any recursive `Schema` decode, closing the one recursive decode boundary left unguarded; the total across both ends is six, not five (issue #78, CCR-QD-139)<br>1.5 (2026-09-08): BEH-QD-230 corrected — a fourth hydrate-side silent exit, `MalformedEntry` (a field other than `policy` failing `DehydratedEntry`'s shape check, before `decodePolicy` runs), was missing from the enumeration and the "three" count; the total across both ends is five, not four (CCR-QD-129)<br>1.4 (2026-08-24): BEH-QD-230–232 — hydration's three remaining silent exits announced and every entry counted; INV-QD-045, ADR-QD-052. BEH-QD-146's claim to have closed "the last quiet failure" corrected (CCR-QD-072)<br>1.3 (2026-08-23): BEH-QD-146 — `dehydrateDecisions` reports what it dropped (ADR-QD-041 shape, CCR-QD-057)<br>1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
 
 _Previous: [18 — Policy Explanation](./18-explanation.md)_
 
@@ -80,6 +80,28 @@ The payload is untrusted input on the client, so a malformed entry gets the same
 treatment as a mismatched subject.
 
 ```
+REQUIREMENT: `dehydrateDecisions` MUST NOT throw on an entry the public
+             constructors build. An entry whose policy the policy schema does
+             not accept MUST be left out as `UnencodablePolicy`, counted and
+             reported once, and the rest of the payload MUST still be written.
+```
+
+The constructors accept what the schema refuses: `gte(NaN)`, `gte(-Infinity)` and
+`hasRelationship(…, { depth: 1.5 })` all build, and the evaluator decides them,
+but the schema's finite and integer checks reject them on the way out. Such an
+entry is left out and the client asks the question itself, as it does for any
+entry that did not cross; the payload stays JSON-safe. An entry that is both
+foreign and unencodable is `ForeignSubject`: the subject filter runs first, and a
+foreign entry is never encoded.
+
+> **Corrected in CCR-QD-398 (ARCH-60).** The engine encoded each policy with
+> `encodeSync`, on the stated ground that encoding a typed policy cannot fail. It
+> could: `dehydrateDecisions` threw a `SchemaError` on a server's render path out
+> of a function documented as total, and the entry was counted nowhere. It now
+> encodes with `Schema.encodeOption` and an entry that does not encode is a
+> `LeftOut` event like a foreign one.
+
+```
 REQUIREMENT: `dehydrateDecisions` MUST report what it dropped.
 ```
 
@@ -95,17 +117,39 @@ wrong with it.
 > made after closing the drop that had been *looked for*, and nothing had
 > enumerated the exits (CCR-QD-072).
 
-`DehydrateOptions.onDropped` takes the same shape and for the same reasons: a
-development-mode `console.warn` by default, replaced outright by a supplied
-callback which then runs in production too, because a payload mixing subjects is
-a server-side bug worth alerting on rather than only logging.
+```ts
+export interface DehydrateOptions {
+  readonly includeTrace?: boolean;
+  readonly onDropped?: HydrationDropReporter<DecisionEntry, DehydrationDropReason>;
+}
+```
+
+`DehydrateOptions.onDropped` takes the same `HydrationDrop` record as
+`HydrateOptions.onDropped` ([BEH-QD-230](#beh-qd-230-a-payload-that-seeds-nothing-says-why)),
+`{ reason, entries, wholePayload }`, called once per reason with `wholePayload`
+always `false`, because this side builds a payload and never refuses one. The
+reasons here are `ForeignSubject` and `UnencodablePolicy`, so one function over
+the whole `HydrationDropReason` serves both ends. The default is a
+development-mode `console.warn`, replaced outright by a supplied callback which
+then runs in production too, because a payload mixing subjects is a server-side
+bug worth alerting on rather than only logging.
+
+> **Amended in CCR-QD-398 (ARCH-60).** This paragraph read "`DehydrateOptions.onDropped`
+> takes the same shape and for the same reasons", where "the same shape" meant
+> only the resolution rule (a development default replaced by a supplied hook):
+> the hook was handed a bare array of entries. With a second reason a bare array
+> cannot say which one it is looking at, so the hook now takes the same
+> `HydrationDrop`. Migrate `(entries) => …` to `(drop) => …drop.entries…`.
 
 The default message **names no subject and no policy**, only a count. A dropped
 decision belongs to another user, so printing it would be precisely the
 disclosure the drop exists to prevent. A caller who supplies `onDropped` receives
 the entries and decides for themselves.
 
-It observes; it cannot change the outcome. The entries are dropped either way.
+It observes; it cannot change the outcome. The entries are dropped either way,
+and a supplied hook that throws is contained and announced as such
+([BEH-QD-230](#beh-qd-230-a-payload-that-seeds-nothing-says-why),
+[INV-QD-251](../invariants.md#inv-qd-251-a-supplied-reporter-cannot-change-a-hydration-outcome)).
 
 ```
 REQUIREMENT: `dehydrateDecisions` MUST build its payload only from entries it has
@@ -357,6 +401,16 @@ server and a client disagreeing about an authorization question is signal worth
 reporting in production — it can indicate a page cached and served to the wrong
 user as readily as a wiring error.
 
+A supplied `onHydrationMismatch` that throws is contained: the decision's read
+returns as if it had not, the re-check and the mismatch are still counted, and
+the throw is announced as `ReporterThrew`, in every environment
+([INV-QD-251](../invariants.md#inv-qd-251-a-supplied-reporter-cannot-change-a-hydration-outcome)).
+
+> **Amended in CCR-QD-398 (ARCH-60).** The first requirement's "MUST NOT change
+> the outcome" held for a reporter that returned. One that threw was called
+> unguarded, so the throw left the decision atom's read and reached React's
+> render, where an error boundary caught what a guard should have rendered.
+
 The message names the policy from **`decided.trace`**, never from the seed: a seed
 carries no trace unless the server disclosed one
 ([BEH-QD-147](#beh-qd-147-the-trace-is-withheld-by-default)), and even a disclosed
@@ -381,12 +435,20 @@ export interface HydrateOptions {
   readonly onDropped?: HydrationDropReporter<unknown>;
 }
 
-export interface HydrationDrop<A> {
-  readonly reason: ClientHydrationDropReason;
+export interface HydrationDrop<A, R extends HydrationDropReason = ClientHydrationDropReason> {
+  readonly reason: R;
   readonly entries: ReadonlyArray<A>;
   readonly wholePayload: boolean;
 }
+export type HydrationDropReporter<A, R extends HydrationDropReason = ClientHydrationDropReason> =
+  (drop: HydrationDrop<A, R>) => void;
 ```
+
+> **Amended in CCR-QD-398 (ARCH-60).** `HydrationDrop` and
+> `HydrationDropReporter` gain the reason as a second type parameter, defaulting to
+> the hydrate side's, so the one-argument spellings mean what they meant and
+> `DehydrateOptions.onDropped` is `HydrationDropReporter<DecisionEntry,
+> DehydrationDropReason>` ([BEH-QD-146](#beh-qd-146-a-payload-is-bound-to-one-subject-and-fails-closed)).
 
 ```
 REQUIREMENT: A refusal of the whole payload MUST be announced as a refusal of
@@ -417,7 +479,7 @@ REQUIREMENT: Every exit by which `hydrateDecisions` declines to seed an entry
              MUST be announced.
 ```
 
-There are **seven** (see the amendment below), and until now only the one — the one on the dehydrate
+There are **eight** reasons across both ends (see the amendments below), and until now only the one — the one on the dehydrate
 side ([BEH-QD-146](#beh-qd-146-a-payload-is-bound-to-one-subject-and-fails-closed))
 — had ever been closed. A payload could name the wrong subject, reach an atom set
 `makeQadiAtoms` did not build (a case that has since been made unreachable),
@@ -458,6 +520,13 @@ nothing to hydrate.
 > `MalformedPayload`, `MalformedEntry`, `UndecodablePolicy` and `EntryTooDeep`;
 > with the dehydrate-side `ForeignSubject`, **seven** across both ends — the
 > count `hydrationDropReasons` holds.
+
+> **Amended in CCR-QD-398 (ARCH-60).** The dehydrate side gained `UnencodablePolicy`
+> ([BEH-QD-146](#beh-qd-146-a-payload-is-bound-to-one-subject-and-fails-closed)). The
+> reasons across both ends are `ForeignSubject` and `UnencodablePolicy`
+> (dehydrate), then `PayloadSubjectMismatch`, `UnsupportedPayloadVersion`,
+> `MalformedPayload`, `MalformedEntry`, `UndecodablePolicy` and `EntryTooDeep`
+> (hydrate): eight, the values `hydrationDropReasons` holds.
 
 ```
 REQUIREMENT: `decodeEntryFields` and `decodePolicy` MUST reject an excess
@@ -533,6 +602,22 @@ The shape [BEH-QD-152](#beh-qd-152-a-superseded-seed-is-announced) and
 [BEH-QD-146](#beh-qd-146-a-payload-is-bound-to-one-subject-and-fails-closed)
 already use, for the third time and the same reasons.
 
+```
+REQUIREMENT: A supplied reporter MUST NOT be able to change what is seeded,
+             counted or returned. A supplied reporter that throws MUST be
+             contained and announced as `ReporterThrew`, naming the hook and the
+             error and no entry, in every environment.
+```
+
+[INV-QD-251](../invariants.md#inv-qd-251-a-supplied-reporter-cannot-change-a-hydration-outcome).
+A throwing `onDropped` threw out of `hydrateDecisions`, which must not throw,
+and left the entries that did decode unseeded; on the other end it threw out of
+`dehydrateDecisions` after the foreign entries had been counted. Every resolver
+in `DeveloperSignals.ts` now wraps a supplied hook once, and every hydration
+outcome is counted before it is announced, so a throw has nothing left to stop.
+The announcement is made in production too: the host replaced the default, so
+nothing else will say it.
+
 The **supplied** reporter receives the entries, and for `PayloadSubjectMismatch`
 that is not a disclosure: they are the caller's own argument handed back. The
 default withholds them anyway, because the console is read by whoever is looking
@@ -543,7 +628,8 @@ at the page rather than by whoever called the function.
 > **Invariant:** [INV-QD-045](../invariants.md#inv-qd-045-no-entry-leaves-hydration-unaccounted-for)
 
 ```ts
-// packages/core/src/HydrationMetrics.ts
+// packages/core/src/HydrationMetrics.ts — written only by
+// packages/react/src/HydrationEvent.ts's `emitHydration`
 hydrationDehydratedTotal   // counter
 hydrationSeededTotal       // counter
 hydrationDroppedTotal      // frequency, keyed on HydrationDropReason
@@ -565,6 +651,18 @@ REQUIREMENT: Every entry a payload gains or loses MUST be counted.
 them, so the only hydration number a panel could show was the mismatch count —
 and even that was accumulated by the **host**, through a callback, because
 `@qadi/react` had no counter of its own.
+
+```
+REQUIREMENT: A refusal of the whole payload MUST be counted at least once,
+             whatever its reason and however many entries it carried.
+```
+
+A payload naming another subject with no entries was announced as refused and
+counted zero times, beside a warning that said it had been: the disagreement
+CCR-QD-203 closed for the other two whole-payload reasons. Every exit is now one
+closed `HydrationEvent`, projected once to the counters and the hook
+(`HydrationEvent.ts`), and the rule lives in the projection's `PayloadRefused`
+arm rather than at each call site (CCR-QD-398, ARCH-60).
 
 ```
 REQUIREMENT: The counts MUST be readable with no wiring.
