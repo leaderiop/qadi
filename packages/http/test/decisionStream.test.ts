@@ -35,13 +35,15 @@ import {
   stampRecord,
   decodeStoredRecordString,
   DecisionStreamSynced,
+  encodeDecisionStream,
 } from "@qadi/core";
-import type { AuthSubject, DecisionLog, DecisionLogReader, SinkRecord, SinkRecordNotEncodable, StoredRecord, AllowingTrace } from "@qadi/core";
+import type { AuthSubject, DecisionLog, DecisionLogEntries, DecisionLogReader, SinkRecord, SinkRecordNotEncodable, StoredRecord, AllowingTrace } from "@qadi/core";
 import { collectingLogger } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
@@ -50,12 +52,9 @@ import * as Sse from "effect/encoding/Sse";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServer from "effect/http/HttpServer";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
-import {
-  decisionFrames,
-  decisionStreamRoute,
-  frame,
-  syncedFrame,
-} from "../src/DecisionStreamRoute.ts";
+import { decisionStreamRoute } from "../src/DecisionStreamRoute.ts";
+import { recordData, sseText } from "../src/DecisionLogHttp.ts";
+import type { DecisionLogServeOptions } from "../src/DecisionLogHttp.ts";
 import { authorizeRequest } from "../src/AuthorizeRequest.ts";
 import { classifyHttpEnforcementFailure } from "../src/QadiHttpError.ts";
 import type { HttpEnforcementTag } from "../src/QadiHttpError.ts";
@@ -153,6 +152,36 @@ const dataOf = (framed: string): string => framed.split("\n").find((line) => lin
 const eventOf = (framed: string): string =>
   framed.split("\n").find((line) => line.startsWith("event: "))?.slice(7) ?? "message";
 
+/**
+ * One read as the route writes it: core's `encodeDecisionStream` over a structural
+ * log that answers with `read`, each frame through the route's SSE writer — the
+ * route's body, before UTF-8.
+ */
+const sseOf = (read: DecisionLogEntries, options?: DecisionLogServeOptions) =>
+  encodeDecisionStream({ readEntries: () => Effect.succeed(read) }, { encodeRecord: recordData(options) }).pipe(
+    Stream.map(sseText),
+  );
+
+/** The `synced` frame after `n` backlog frames, as SSE text. */
+const syncedText = (n: number): string => `event: synced\ndata: {"backlog":${n}}\n\n`;
+
+/** The cursor a single-record read in this file gives its record. */
+const CURSOR = { epoch: 1, seq: 1 };
+
+/** One record as the route frames it in the given position, or `undefined` once it is refused. */
+const frameOf = (event: "backlog" | "message", record: StoredRecord, options?: DecisionLogServeOptions) =>
+  Effect.map(
+    Stream.runCollect(
+      sseOf(
+        event === "backlog"
+          ? { backlog: [{ cursor: CURSOR, record }], live: Stream.empty }
+          : { backlog: [], live: Stream.make({ cursor: CURSOR, record }) },
+        options,
+      ),
+    ),
+    (frames) => Array.from(frames).find((f) => !f.startsWith("event: synced")),
+  );
+
 const appLayer = Effect.gen(function* () {
   const log = yield* makeDecisionLog({ environment: "Server" });
   const route = decisionStreamRoute(readPermission, readPolicy, log);
@@ -242,6 +271,41 @@ describe("/__decisions", () => {
         yield* Effect.promise(() => response.body?.cancel() ?? Promise.resolve());
       }),
   );
+
+  it.effect("a recheck that passes leaves the stream open: the reader still receives the next record", () =>
+    Effect.gen(function* () {
+      // `Effect.repeat` runs its first iteration at once, so the recheck has run,
+      // and passed, before the live record is made; a passing recheck must be the
+      // stream carrying on, not something that ends it.
+      const log = yield* makeDecisionLog({ environment: "Server" });
+      const route = decisionStreamRoute(readPermission, readPolicy, log, { reauth: { interval: "1 hour" } });
+      const layer = stack(route, subjectExtractorBearer(lookupSubject), EvaluationServicesTest);
+      const { handler } = HttpRouter.toWebHandler(layer);
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/__decisions", { headers: bearer(ALICE) })),
+      );
+      const body = response.body;
+      if (body === null) return assert.fail("no body");
+      const reader = body.getReader();
+      const decoder = new TextDecoder();
+      let text = "";
+      const readUntil = (marker: string) =>
+        Effect.gen(function* () {
+          while (!text.includes(marker)) {
+            const chunk = yield* Effect.promise(() => reader.read());
+            if (chunk.done) break;
+            text += decoder.decode(chunk.value);
+          }
+        });
+
+      yield* readUntil("event: synced");
+      yield* log.ingest(
+        new ObligationRecord({ evaluationId: "after-recheck", at: 1, outcome: "Discharged", obligationIds: ["o"] }),
+      );
+      yield* readUntil('"evaluationId":"after-recheck"');
+      yield* Effect.promise(() => reader.cancel());
+      assert.include(text, '"evaluationId":"after-recheck"');
+    }));
 
   it.effect("a recheck that fails logs one closure line naming the tag and the class", () =>
     Effect.gen(function* () {
@@ -357,7 +421,7 @@ describe("/__decisions", () => {
  * `classifyHttpEnforcementFailure`: the check itself is tested in
  * `AuthorizeRequest.test.ts`, so this block holds only the labels and the
  * merged-stream mechanism `decisionStreamRoute` builds from them — directly,
- * for the same reason `frame` is tested directly below rather than through a
+ * for the same reason one record's frame is tested directly below rather than through a
  * live SSE connection.
  */
 describe("reauth", () => {
@@ -456,122 +520,132 @@ describe("reauth", () => {
 });
 
 /**
- * `frame` directly, rather than through a live SSE connection: it is a plain,
- * exported, synchronous function, so its refusal behavior is fully covered
- * without a transport. (A response body *can* be read here — "the backlog
- * travels on the stream" below reads the route's prelude through
- * `toWebHandler` — but a refusal is a property of one record, not of a
- * connection.)
+ * One record's frame: what core's encoder and the route's SSE writer make of it,
+ * read through `sseOf` without a transport, and its refusal through `recordData`
+ * directly — a refusal is a property of one record, not of a connection.
  */
-describe("frame", () => {
-  it("encodes a Decision record with a JSON-safe resource", () => {
-    const encoded = frame("message")(stored(decisionRecord("good", { a: 1 })));
-    assert.isTrue(Result.isSuccess(encoded));
-    const text = Result.isSuccess(encoded) ? encoded.success : "";
-    assert.include(text, '"evaluationId":"good"');
-    assert.include(text, '{"environment":"Server","record":{');
-    assert.match(text, /^data: .*\n\n$/);
-  });
-
-  it("a backlog frame names its event; a live frame leaves it to SSE's default", () => {
-    const record = stored(decisionRecord("named"));
-    const backlog = Result.getOrUndefined(frame("backlog")(record)) ?? "";
-    const live = Result.getOrUndefined(frame("message")(record)) ?? "";
-    assert.match(backlog, /^event: backlog\ndata: /);
-    assert.strictEqual(eventOf(live), "message");
-    assert.notInclude(live, "event:");
-    assert.strictEqual(dataOf(backlog), dataOf(live));
-  });
-
-  it("frames through the platform's own SSE encoder (Sse.encoder.write), not a hand-built template", () => {
-    // H6 / ADR-QD-072: the `data: ${json}\n\n` template string is gone.
-    // `frame` now builds an `Sse.Event` and hands it to `Sse.encoder.write` —
-    // the same function `HttpApiBuilder`'s own SSE stream encoder calls
-    // internally. Proven by construction: this asserts `frame`'s output is
-    // *exactly* what calling the real encoder on the equivalent event
-    // produces, not merely a string that happens to look similar.
-    const record = stored(decisionRecord("matches-real-encoder", { a: 1 }));
-    const encoded = frame("message")(record);
-    assert.isTrue(Result.isSuccess(encoded));
-    const expected = Sse.encoder.write({
-      _tag: "Event",
-      event: "message",
-      id: undefined,
-      data: Result.match(encodeStoredRecordString(record), {
-        onSuccess: (data) => data,
-        onFailure: () => assert.fail("refused"),
-      }),
+describe("one record's frame", () => {
+  /** `recordData` over one record, with every refusal it reports. */
+  const dataOrRefusal = (record: StoredRecord) =>
+    Effect.gen(function* () {
+      const refused: Array<SinkRecordNotEncodable> = [];
+      const data = yield* recordData({ onRefused: (refusal) => void refused.push(refusal) })(record);
+      return { data, refused };
     });
-    assert.strictEqual(Result.isSuccess(encoded) ? encoded.success : undefined, expected);
-  });
 
-  it("drops a Decision record whose resource is not JSON-safe, rather than throwing", () => {
-    const circular: Record<string, unknown> = { a: 1 };
-    circular.self = circular;
-    assert.doesNotThrow(() => frame("message")(stored(decisionRecord("bad", circular))));
-    const framed = frame("message")(stored(decisionRecord("bad", circular)));
-    assert.isTrue(Result.isFailure(framed));
-    if (Result.isFailure(framed)) {
-      assert.strictEqual(framed.failure._tag, "SinkRecordNotEncodable");
-      assert.strictEqual(framed.failure.refusal._tag, "Circular");
-    }
-  });
+  it.effect("encodes a Decision record with a JSON-safe resource", () =>
+    Effect.gen(function* () {
+      const text = (yield* frameOf("message", stored(decisionRecord("good", { a: 1 })))) ?? "";
+      assert.include(text, '"evaluationId":"good"');
+      assert.include(text, '{"environment":"Server","record":{');
+      assert.match(text, /^id: 1\.1\ndata: .*\n\n$/);
+    }));
 
-  it("encodes a Decision record with no resource at all", () => {
-    assert.isTrue(Result.isSuccess(frame("message")(stored(decisionRecord("no-resource")))));
-  });
+  it.effect("a backlog frame names its event; a live frame leaves it to SSE's default", () =>
+    Effect.gen(function* () {
+      const record = stored(decisionRecord("named"));
+      const backlog = (yield* frameOf("backlog", record)) ?? "";
+      const live = (yield* frameOf("message", record)) ?? "";
+      assert.match(backlog, /^id: 1\.1\nevent: backlog\ndata: /);
+      assert.strictEqual(eventOf(live), "message");
+      assert.notInclude(live, "event:");
+      assert.strictEqual(dataOf(backlog), dataOf(live));
+    }));
 
-  it(
-    "drops a Decision record whose POLICY carries a JSON-unsafe HasCustom.params, " +
-      "even when the resource itself is safe",
-    () => {
-      // The defect three separate audit tickets (148, 154, 159) found: the old
-      // guard checked only `record.resource`, but the frame's stringify also
-      // serialized the raw `policy` — and `HasCustom.params` is
-      // `Schema.Unknown`, so a circular value there threw the same raw
-      // `TypeError` out of `Stream.filterMap` a bad resource used to, killing
-      // the shared feed for every subscriber. `frame` now makes one
-      // `encodeSinkRecordString` call, whose walk covers the whole record.
-      const circular: Record<string, unknown> = { a: 1 };
-      circular.self = circular;
-      const record = new DecisionRecord({
-        evaluationId: "bad-policy",
-        at: 1_000,
-        subjectId: makeSubjectId("alice"),
-        policy: hasCustom("weird-check", circular),
-        resource: { a: 1 }, // JSON-safe on its own — the old guard would have passed this through
-        outcome: new Decided({
-          decision: new Allow({
-            evaluationId: "bad-policy",
-            subjectId: makeSubjectId("alice"),
-            durationMillis: 1,
-            trace: allowTrace,
-          }),
+  it.effect("frames through the platform's own SSE encoder (Sse.encoder.write), not a hand-built template", () =>
+    Effect.gen(function* () {
+      // H6 / ADR-QD-072: the `data: ${json}\n\n` template string is gone. The
+      // route's writer builds an `Sse.Event` and hands it to `Sse.encoder.write` —
+      // the same function `HttpApiBuilder`'s own SSE stream encoder calls
+      // internally. Proven by construction: the frame is *exactly* what calling
+      // the real encoder on the equivalent event produces.
+      const record = stored(decisionRecord("matches-real-encoder", { a: 1 }));
+      const expected = Sse.encoder.write({
+        _tag: "Event",
+        event: "message",
+        id: "1.1",
+        data: Result.match(encodeStoredRecordString(record), {
+          onSuccess: (data) => data,
+          onFailure: () => assert.fail("refused"),
         }),
       });
+      assert.strictEqual(yield* frameOf("message", record), expected);
+    }));
 
-      assert.doesNotThrow(() => frame("message")(stored(record)));
-      const framed = frame("message")(stored(record));
-      assert.isTrue(Result.isFailure(framed));
-      if (Result.isFailure(framed)) assert.strictEqual(framed.failure.refusal._tag, "Circular");
-    },
+  it.effect("drops a Decision record whose resource is not JSON-safe, rather than throwing", () =>
+    Effect.gen(function* () {
+      const circular: Record<string, unknown> = { a: 1 };
+      circular.self = circular;
+      const { data, refused } = yield* dataOrRefusal(stored(decisionRecord("bad", circular)));
+      assert.isTrue(Option.isNone(data));
+      assert.strictEqual(refused.length, 1);
+      assert.strictEqual(refused[0]?._tag, "SinkRecordNotEncodable");
+      assert.strictEqual(refused[0]?.refusal._tag, "Circular");
+      // And the stream carries on without it: only `synced` is left.
+      assert.isUndefined(
+        yield* frameOf("message", stored(decisionRecord("bad", circular)), { onRefused: () => undefined }),
+      );
+    }));
+
+  it.effect("encodes a Decision record with no resource at all", () =>
+    Effect.gen(function* () {
+      const { data, refused } = yield* dataOrRefusal(stored(decisionRecord("no-resource")));
+      assert.isTrue(Option.isSome(data));
+      assert.strictEqual(refused.length, 0);
+    }));
+
+  it.effect(
+    "drops a Decision record whose POLICY carries a JSON-unsafe HasCustom.params, " +
+      "even when the resource itself is safe",
+    () =>
+      Effect.gen(function* () {
+        // The defect three separate audit tickets (148, 154, 159) found: the old
+        // guard checked only `record.resource`, but the frame's stringify also
+        // serialized the raw `policy` — and `HasCustom.params` is
+        // `Schema.Unknown`, so a circular value there threw the same raw
+        // `TypeError` out of `Stream.filterMap` a bad resource used to, killing
+        // the shared feed for every subscriber. The frame's data is one
+        // `encodeStoredRecordString` call, whose walk covers the whole record.
+        const circular: Record<string, unknown> = { a: 1 };
+        circular.self = circular;
+        const record = new DecisionRecord({
+          evaluationId: "bad-policy",
+          at: 1_000,
+          subjectId: makeSubjectId("alice"),
+          policy: hasCustom("weird-check", circular),
+          resource: { a: 1 }, // JSON-safe on its own — the old guard would have passed this through
+          outcome: new Decided({
+            decision: new Allow({
+              evaluationId: "bad-policy",
+              subjectId: makeSubjectId("alice"),
+              durationMillis: 1,
+              trace: allowTrace,
+            }),
+          }),
+        });
+
+        const { data, refused } = yield* dataOrRefusal(stored(record));
+        assert.isTrue(Option.isNone(data));
+        assert.strictEqual(refused[0]?.refusal._tag, "Circular");
+      }),
   );
 
-  it("encodes a non-Decision SinkRecord (Obligations)", () => {
-    const obligations = new ObligationRecord({
-      evaluationId: "obl-1",
-      at: 1_000,
-      outcome: "Discharged",
-      obligationIds: ["o1"],
-    });
-
-    assert.isTrue(Result.isSuccess(frame("message")(stored(obligations, "Edge"))));
-  });
+  it.effect("encodes a non-Decision SinkRecord (Obligations)", () =>
+    Effect.gen(function* () {
+      const obligations = new ObligationRecord({
+        evaluationId: "obl-1",
+        at: 1_000,
+        outcome: "Discharged",
+        obligationIds: ["o1"],
+      });
+      const { data } = yield* dataOrRefusal(stored(obligations, "Edge"));
+      assert.isTrue(Option.isSome(data));
+    }));
 });
 
 /**
- * One record can never end the stream (ARCH-09 T1). A record `frame` cannot
- * render must drop only its own frame: every subscriber reads the same log, so
+ * One record can never end the stream (ARCH-09 T1). A record the codec cannot
+ * encode must drop only its own frame: every subscriber reads the same log, so
  * a throw inside the frame filter would end every open `/__decisions`
  * connection at once.
  */
@@ -593,8 +667,8 @@ describe("one record cannot end the feed", () => {
     Effect.gen(function* () {
       const log = yield* logWith(poisoned);
       const subscriber = Effect.scoped(
-        Effect.flatMap(log.read, ({ backlog }) =>
-          Stream.runCollect(Stream.filterMap(Stream.fromIterable(backlog), frame("backlog")))),
+        Effect.flatMap(log.readEntries(), (read) =>
+          Stream.runCollect(Stream.take(sseOf({ backlog: read.backlog, live: Stream.empty }), 3))),
       );
       return yield* Effect.all([Effect.exit(subscriber), Effect.exit(subscriber)], { concurrency: 2 });
     });
@@ -652,15 +726,14 @@ describe("one record cannot end the feed", () => {
       );
       assert.strictEqual(sent.length, 1);
 
-      const framed = frame("message")(stored(record));
-      assert.isTrue(Result.isSuccess(framed));
+      const framed = yield* frameOf("message", stored(record));
       const expected = Sse.encoder.write({
         _tag: "Event",
         event: "message",
-        id: undefined,
+        id: "1.1",
         data: JSON.stringify({ environment: "Server", record: sent[0] }),
       });
-      assert.strictEqual(Result.isSuccess(framed) ? framed.success : undefined, expected);
+      assert.strictEqual(framed, expected);
       assert.include(expected, '"cause":{"name":"Error","message":"db down"}');
     }));
 
@@ -671,7 +744,7 @@ describe("one record cannot end the feed", () => {
       const subscriber = Effect.scoped(
         Effect.flatMap(log.readEntries(), (read) =>
           Stream.runCollect(
-            Stream.take(decisionFrames(read, onRefused === undefined ? undefined : { onRefused }), 3),
+            Stream.take(sseOf(read, onRefused === undefined ? undefined : { onRefused }), 3),
           )),
       );
       return yield* Effect.all([Effect.exit(subscriber), Effect.exit(subscriber)], { concurrency: 2 });
@@ -704,13 +777,13 @@ describe("one record cannot end the feed", () => {
       const frames = yield* Effect.scoped(
         Effect.flatMap(log.readEntries(), (read) =>
           Stream.runCollect(
-            Stream.take(decisionFrames(read, { onRefused: (refusal) => void refused.push(refusal) }), 3),
+            Stream.take(sseOf(read, { onRefused: (refusal) => void refused.push(refusal) }), 3),
           )),
       );
       assert.strictEqual(frames.length, 3);
       assert.include(frames[1] ?? "", '"evaluationId":"after"');
       // The count is the backlog frames actually sent, after the refusal.
-      assert.strictEqual(frames[2], syncedFrame(2));
+      assert.strictEqual(frames[2], syncedText(2));
       assert.strictEqual(refused.length, 1);
       assert.strictEqual(refused[0]?.evaluationId, "refused");
       assert.strictEqual(refused[0]?.refusal._tag, "Circular");
@@ -730,7 +803,7 @@ describe("one record cannot end the feed", () => {
         Effect.flatMap(log.readEntries(), (read) =>
           Stream.runCollect(
             Stream.take(
-              decisionFrames(read, {
+              sseOf(read, {
                 onRefused: () => {
                   throw new Error("hook bug");
                 },
@@ -745,7 +818,7 @@ describe("one record cannot end the feed", () => {
       );
       assert.strictEqual(frames.length, 2);
       assert.include(frames[0] ?? "", '"evaluationId":"after"');
-      assert.strictEqual(frames[1], syncedFrame(1));
+      assert.strictEqual(frames[1], syncedText(1));
       assert.strictEqual(logs.length, 1);
       assert.include(String(logs[0]?.message), "hook threw");
       assert.strictEqual(logs[0]?.annotations["qadi.refusal"], "Opaque");
@@ -763,7 +836,7 @@ describe("one record cannot end the feed", () => {
       }).pipe(Effect.provide(log.layer));
 
       const frames = yield* Effect.scoped(
-        Effect.flatMap(log.readEntries(), (read) => Stream.runCollect(Stream.take(decisionFrames(read), 1))),
+        Effect.flatMap(log.readEntries(), (read) => Stream.runCollect(Stream.take(sseOf(read), 1))),
       ).pipe(
         Effect.provide(
           logger,
@@ -795,7 +868,7 @@ describe("one record cannot end the feed", () => {
       }).pipe(Effect.provide(log.layer));
 
       const frames = yield* Effect.scoped(
-        Effect.flatMap(log.readEntries(), (read) => Stream.runCollect(Stream.take(decisionFrames(read), 1))),
+        Effect.flatMap(log.readEntries(), (read) => Stream.runCollect(Stream.take(sseOf(read), 1))),
       ).pipe(
         Effect.provide(
           logger,
@@ -812,30 +885,29 @@ describe("one record cannot end the feed", () => {
  * Each frame is written as wire version 2 (ADR-QD-096). The obligation
  * record's bytes are short enough to pin whole.
  */
-describe("decisionFrames writes wire version 2", () => {
+describe("a frame is written as wire version 2", () => {
   const record = new ObligationRecord({ evaluationId: "g", at: 1, outcome: "Discharged", obligationIds: ["audit.log"] });
   const V2 = '{"_tag":"Obligations","version":2,"evaluationId":"g","at":1,"outcome":"Discharged","obligationIds":["audit.log"]}';
 
-  it.effect("a frame's data is the record's version-2 bytes in the envelope, the same frame as `frame`", () =>
+  it.effect("a frame's data is the record's version-2 bytes in the envelope", () =>
     Effect.gen(function* () {
       const cursor = { epoch: 1_700, seq: 4 };
       const framed = Array.from(
         yield* Stream.runCollect(
-          decisionFrames({ backlog: [], live: Stream.make({ cursor, record: stored(record, "Edge") }) }),
+          sseOf({ backlog: [], live: Stream.make({ cursor, record: stored(record, "Edge") }) }),
         ),
       );
       assert.deepStrictEqual(framed, [
         `event: synced\ndata: {"backlog":0}\n\n`,
         `id: 1700.4\ndata: {"environment":"Edge","record":${V2}}\n\n`,
       ]);
-      assert.deepStrictEqual(framed[1], Result.getOrUndefined(frame("message", cursor)(stored(record, "Edge"))));
     }));
 });
 
 /**
  * What a reader receives, in order (ADR-QD-097): the backlog as `backlog`
  * frames, one `synced`, then live `message` frames — each an envelope naming
- * its producer. Read through `decisionFrames` over a real log's `read`, which
+ * its producer. Read through `sseOf` over a real log's `read`, which
  * is exactly the route's body; the last case reads the route's own response.
  */
 describe("the backlog travels on the stream", () => {
@@ -848,7 +920,7 @@ describe("the backlog travels on the stream", () => {
       Effect.gen(function* () {
         const read = yield* log.readEntries();
         if (after !== undefined) yield* after;
-        return Array.from(yield* Stream.runCollect(Stream.take(decisionFrames(read), count)));
+        return Array.from(yield* Stream.runCollect(Stream.take(sseOf(read), count)));
       }),
     );
 
@@ -885,7 +957,7 @@ describe("the backlog travels on the stream", () => {
     Effect.gen(function* () {
       const log = yield* makeDecisionLog({ environment: "Server" });
       const frames = yield* framesOf(log, 1);
-      assert.deepStrictEqual(frames, [syncedFrame(0)]);
+      assert.deepStrictEqual(frames, [syncedText(0)]);
       assert.strictEqual(dataOf(frames[0] ?? ""), '{"backlog":0}');
     }));
 

@@ -100,7 +100,7 @@ export const encodeDecisionStream = (
             return Stream.fromIterable([...kept, synced]).pipe(
               Stream.concat(
                 Stream.filterMapEffect(read.live, (entry) =>
-                  Effect.map(framed("message")(entry), (frame) => Result.fromOption(frame, () => entry))),
+                  Effect.map(framed("message")(entry), (frame) => Result.fromOption(frame, () => undefined))),
               ),
             );
           },

@@ -79,21 +79,17 @@
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Schedule from "effect/Schedule";
-import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
-import * as Sse from "effect/encoding/Sse";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type {
   DecisionLogReader,
-  DecisionStreamEvent,
   EnforcementErrorClass,
-  LogEntry,
   Permission,
   Policy,
   StandingEvaluationServices,
 } from "@qadi/core";
-import { DecisionStreamSynced, encodeDecisionStream } from "@qadi/core";
+import { encodeDecisionStream } from "@qadi/core";
 import { enforceRequest } from "./AuthorizeRequest.ts";
 import type { EnforcementProjection } from "./AuthorizeRequest.ts";
 import { recordData, sseText } from "./DecisionLogHttp.ts";
@@ -102,42 +98,6 @@ import { loadNoResource } from "./NoResource.ts";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
 import { classifyHttpEnforcementFailure } from "./QadiHttpError.ts";
 import type { SubjectExtractor } from "./SubjectExtractor.ts";
-
-// The record frame is the decision-log module's, and it is public through this
-// module as `NO_RESOURCE` is public through RequirePermission.ts.
-export { frame } from "./DecisionLogHttp.ts";
-
-/** The `synced` frame: the backlog is over, and how many frames it was. */
-export const syncedFrame = (backlog: number): string =>
-  Sse.encoder.write({
-    _tag: "Event",
-    event: "synced" satisfies DecisionStreamEvent,
-    id: undefined,
-    data: JSON.stringify(Schema.encodeSync(DecisionStreamSynced)({ backlog })),
-  });
-
-/**
- * One read of a decision log as SSE frames: each backlog entry as a `backlog`
- * frame, then {@link syncedFrame}, then each live entry as a `message` frame,
- * every record frame carrying its entry's cursor as its SSE `id`.
- * A refused record is reported (`onRefused`, else a warning) and dropped, so
- * one record never ends the stream; the `synced` count is the backlog frames
- * actually sent.
- *
- * Exported for the same reason `frame` is: the route's body
- * is this stream, UTF-8 encoded, and it is tested directly as well as through
- * the route.
- */
-export const decisionFrames = (
-  read: {
-    readonly backlog: ReadonlyArray<LogEntry>;
-    readonly live: Stream.Stream<LogEntry>;
-  },
-  options?: DecisionLogServeOptions,
-): Stream.Stream<string> =>
-  encodeDecisionStream({ readEntries: () => Effect.succeed(read) }, { encodeRecord: recordData(options) }).pipe(
-    Stream.map(sseText),
-  );
 
 export interface DecisionStreamOptions extends DecisionLogServeOptions {
   /**
