@@ -630,6 +630,22 @@ describe("the unguarded form", () => {
       ({ dispose }) => Effect.promise(dispose),
     ));
 
+  it.effect("routes no port it does not serve", () =>
+    Effect.acquireUseRelease(
+      Effect.sync(() =>
+        serve(
+          portsLayer({
+            AttributeResolver: scriptedPort(PORTS.AttributeResolver, () => PortReply.answer("anon")).layer,
+          }),
+          { AttributeResolver: { attributes: ["clearance"] } },
+          "unguarded",
+        ),
+      ),
+      ({ handler }) =>
+        Effect.map(post(handler, "DecisionHistory", "{}"), (response) => assert.strictEqual(response.status, 404)),
+      ({ dispose }) => Effect.promise(dispose),
+    ));
+
   it.effect("logs a subject extraction failure once, as a guarded route does (ENF-03)", () => {
     const { lines, layer: logger } = collectingLogger();
     const double = scriptedPort(PORTS.AttributeResolver, () => PortReply.answer(1));
