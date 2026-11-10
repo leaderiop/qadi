@@ -11,6 +11,22 @@
  * values below, and a host's tests, an exporter wiring or a future devtools
  * reading import the same values and read them typed.
  *
+ * | Export                      | Id                                  | Type      | Written by       |
+ * | --------------------------- | ----------------------------------- | --------- | ---------------- |
+ * | `decisionsTotal`            | `qadi_decisions_total`              | Counter   | `decideQuestion` |
+ * | `denialsByPolicyTagTotal`   | `qadi_denials_by_policy_tag_total`  | Frequency | `decideQuestion` |
+ * | `evaluationDurationMillis`  | `qadi_evaluation_duration_millis`   | Histogram | `decideQuestion` |
+ * | `evaluationErrorsTotal`     | `qadi_evaluation_errors_total`      | Frequency | `decideQuestion` |
+ * | `decisionCacheLookupsTotal` | `qadi_decision_cache_lookups_total` | Frequency | `getOrCompute`   |
+ * | `predicatesTranslatedTotal` | `qadi_predicates_translated_total`  | Counter   | `toPredicate`    |
+ *
+ * These six are rows of the table every `qadi_*` metric has in
+ * `spec/behaviors/25-inspection.md` (BEH-QD-368), which `scripts/check-house-style.mjs`
+ * checks against the declarations in both directions on id, type and file
+ * (`[metric-table]`); the same script refuses a core metric that is not exported
+ * (`[metric-declaration]`) and a test that matches an id outside its budgeted pins
+ * (`METRIC_ID_LITERAL_BUDGET`).
+ *
  * All six are written on the evaluating fiber, so a `MetricRegistry` provided to
  * that fiber (`isolatedMetrics`, a host's own registry) receives them. The
  * hydration counters are the off-fiber exception (`HydrationMetrics.ts`).

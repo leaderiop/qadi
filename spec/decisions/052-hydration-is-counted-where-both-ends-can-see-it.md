@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-052                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted; amended 2026-11-10 (one hydration event, projected once) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-10): amended — every hydration outcome is one HydrationEvent projected once by HydrationEvent.ts; a refusal is counted at least once; UnencodablePolicy; the Context.empty() confinement file is HydrationEvent.ts (HydrationCounts.ts deleted) (ARCH-60, INV-QD-045, INV-QD-251, CCR-QD-398)<br>1.2 (2026-10-08): amended: at effect 4.0.0 a metric looks its registry up on every update; writer and reader agree because both name the default registry, not because a metric remembers one (ARCH-45 I8, CCR-QD-269)<br>1.1 (2026-10-04): The drop-reason set changes — `UnregisteredAtoms` removed, `UnsupportedPayloadVersion` and `MalformedPayload` added; the five metrics, their ids and descriptions are unchanged (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-24): Initial release (CCR-QD-072) |
+> | Change History | 1.4 (2026-11-10): generalised by ADR-QD-123 — the rule written here for the hydration metrics is the rule for every `qadi_*` metric (ARCH-61, CCR-QD-401)<br>1.3 (2026-11-10): amended — every hydration outcome is one HydrationEvent projected once by HydrationEvent.ts; a refusal is counted at least once; UnencodablePolicy; the Context.empty() confinement file is HydrationEvent.ts (HydrationCounts.ts deleted) (ARCH-60, INV-QD-045, INV-QD-251, CCR-QD-398)<br>1.2 (2026-10-08): amended: at effect 4.0.0 a metric looks its registry up on every update; writer and reader agree because both name the default registry, not because a metric remembers one (ARCH-45 I8, CCR-QD-269)<br>1.1 (2026-10-04): The drop-reason set changes — `UnregisteredAtoms` removed, `UnsupportedPayloadVersion` and `MalformedPayload` added; the five metrics, their ids and descriptions are unchanged (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-24): Initial release (CCR-QD-072) |
 
 ---
 
@@ -46,6 +46,11 @@ property as a conservation law ([INV-QD-045](../invariants.md)) rather than as a
 list of the cases known today.
 
 ## Decision
+
+> **Generalised by [ADR-QD-123](./123-a-metric-is-declared-once.md).** The rule drawn below from the
+> registry key — a contract whose key includes a prose string has to be declared once and imported —
+> is not specific to hydration. It is the rule for every `qadi_*` metric, with a table that lists
+> them all and a gate that checks it.
 
 **Every entry hydration gains or loses is counted, and every exit is announced.**
 
