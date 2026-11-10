@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 14-02-PLAN.md
+stopped_at: Completed 14-03-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "14-02 complete: AuditPortReply (six modes) scripts both audit doubles; overview 1.81; mutation 100/100/100"
+last_activity_desc: "14-03 complete: storeCallTimeout (default 5 s) bounds stage/write/commit; deadline is a failed attempt; AuditSinkDeadline GREEN; sink mutation 98.04 -> 100"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 4
   total_plans: 59
-  completed_plans: 30
-  percent: 51
+  completed_plans: 31
+  percent: 53
 current_phase: 14
 ---
 
@@ -28,14 +28,14 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 14 of 20 (Audit sink deadline)
-Plan: 2 of 7 in Phase 14 (14-02 complete); next is 14-03
+Plan: 3 of 7 in Phase 14 (14-03 complete); next is 14-04
 Status: Phase 14 in progress (phase_base b042e56)
-Last activity: 2026-11-10 -- 14-02 complete: `AuditPortReply` (Ok | Fail | Die | Interrupt | Never | Latch) and `AuditTrailScript`/`AuditStageScript`/`AuditCommitScript` exported; both doubles scripted per call with call logs; interpreter package-private in `AuditPortReplyInterpreter.ts`; legacy fail options kept until 14-05; vitest exclusion of the RED file must be `--exclude '**/AuditSinkDeadline.test.ts'`
+Last activity: 2026-11-10 -- 14-03 complete: `AuditDecisionSinkOptions.storeCallTimeout?: Duration.Input` (default 5 s, `Duration.infinity` opts out) bounds stage, write and commit via `Effect.timeoutOrElse`; the write is bounded inside `admitted.attempt`, so a deadline trips the breaker; `CircuitBreaker.ts` unchanged; `AuditSinkDeadline.test.ts` 15/15 on scripted doubles; `Duration.zero` pinned (call starts, fails at once)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 42
+- Total plans completed: 43
 - Average duration: -
 - Total execution time: 0.0 hours
 
