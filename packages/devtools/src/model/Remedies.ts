@@ -27,6 +27,7 @@ import {
   judgeMatcher,
   makeSubjectId,
   permissionKey,
+  resourceIdOf,
 } from "@qadi/core";
 import type {
   HistoryScope,
@@ -36,7 +37,6 @@ import type {
   Permission,
   Policy,
   PolicyCases,
-  Resource,
   ValueRef,
 } from "@qadi/core";
 import { sameEdge, sameEvent } from "./Edits.ts";
@@ -85,7 +85,7 @@ export interface RemedySweep {
  */
 export const remedyEdits = (policy: Policy, input: SimulationInput): RemedySweep => {
   const built = requirementsOf(policy)
-    .map((requirement) => remedyFor(requirement, input))
+    .map((requirement) => remedyFor(requirement)(input))
     .filter((one): one is Built => one !== undefined);
 
   return {
@@ -312,7 +312,14 @@ type Requirement =
   | { readonly _tag: "ResourceAttribute"; readonly attribute: string; readonly matcher: Matcher }
   | { readonly _tag: "Relationship"; readonly relation: string }
   | { readonly _tag: "Action"; readonly action: string }
-  | { readonly _tag: "Acted"; readonly event: string; readonly scope: HistoryScope };
+  | { readonly _tag: "Acted"; readonly event: string; readonly scope: HistoryScope }
+  | {
+      readonly _tag: "Signature";
+      readonly meaning: string;
+      readonly signerRole: string | undefined;
+      readonly scope: HistoryScope;
+    }
+  | { readonly _tag: "Custom"; readonly name: string };
 
 /** Joins requirement lists in order, with a loop so a very wide node is never spread into arguments. */
 const concat = (
@@ -348,15 +355,18 @@ const requirementCases: PolicyCases<ReadonlyArray<Requirement>> = {
   // The remedy for "has not acted" is to remove the event, which `singleEdits`
   // already offers for every event the fixtures list.
   HasNotActed: () => [],
-  // Opaque, externally-registered logic — there is no matcher to read a
-  // witness out of, and no set membership to strengthen either, so this
-  // sweep has nothing to offer for it (ADR-QD-055).
-  HasCustom: () => [],
-  // Unlike HasCustom this isn't opaque, but synthesizing a remedy would mean
-  // building a plausible on-file signature (meaning, role) out of nothing —
-  // a different kind of guess than strengthening an existing subject
-  // attribute or fixture edge, so this sweep offers nothing here either.
-  HasSignature: () => [],
+  // Opaque, externally-registered logic: there is no matcher to read a witness
+  // out of, no set membership to strengthen, and `SimulationInput` has no form
+  // vocabulary for its answer (ADR-QD-055). It is *named* as skipped rather
+  // than passed over, because a requirement no remedy could be built for must
+  // be said so (BEH-QD-222).
+  HasCustom: (p) => [{ _tag: "Custom" as const, name: p.name }],
+  // The node carries everything `askSignature` matches on - the meaning, the
+  // signer role when it names one, and the scope - so the remedy is built from
+  // it exactly as `AddEvent` is built from `HasActed`.
+  HasSignature: (p) => [
+    { _tag: "Signature" as const, meaning: p.meaning, signerRole: p.signerRole, scope: p.scope },
+  ],
   AllOf: (_p, children) => concat(children),
   AnyOf: (_p, children) => concat(children),
   // Only `Permit` rows: a rule's `condition` is evaluated for applicability,
@@ -411,115 +421,157 @@ const skip = (requirement: string, reason: string): Built => ({
   reason,
 });
 
+const NO_RESOURCE_ID = "the check names no resource id";
+const CUSTOM_HAS_NO_FIELD =
+  "a custom predicate's answer has no form field; run against Snapshot or Live";
+
 /**
  * `undefined` means *no row at all* — the input already meets this requirement,
  * so there is nothing to propose and nothing to explain. A `Skip` is the other
  * case: a remedy that ought to exist and could not be built, which the panel
  * shows.
+ *
+ * A `Match` rather than an if-chain, per AGENTS.md §5a: the last arm of the chain
+ * this replaced was an implicit fall-through to `Acted`, so a new requirement
+ * compiled into someone else's remedy (lost ARCH-48 `950977f`, T2). Built once
+ * at module scope; each arm returns a function of the input.
  */
-const remedyFor = (self: Requirement, input: SimulationInput): Built | undefined => {
-  if (self._tag === "Role") {
-    // Optional chaining rather than `?? []`: an empty default is a literal
-    // nothing can distinguish from any other empty default, which leaves a
-    // branch no test can pin.
-    if (input.subject.roles?.includes(self.role) === true) return undefined;
-    return strengthen("GrantRole", `with role ${self.role}`, (input_) => ({
-      ...input_,
-      subject: {
-        ...input_.subject,
-        roles: [...(input_.subject.roles ?? []), self.role],
+const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | undefined =
+  Match.type<Requirement>().pipe(
+    Match.tagsExhaustive({
+      // Optional chaining rather than `?? []`: an empty default is a literal
+      // nothing can distinguish from any other empty default, which leaves a
+      // branch no test can pin.
+      Role: (self) => (input: SimulationInput) =>
+        input.subject.roles?.includes(self.role) === true
+          ? undefined
+          : strengthen("GrantRole", `with role ${self.role}`, (input_) => ({
+              ...input_,
+              subject: {
+                ...input_.subject,
+                roles: [...(input_.subject.roles ?? []), self.role],
+              },
+            })),
+
+      // Kept as a `Permission` all the way here rather than as its key, so the
+      // key is derived once by the same function the evaluator's lookup uses.
+      // Carrying the string and re-splitting it on a colon is exactly what the
+      // predecessor's wire format did, and it mangled any segment containing one.
+      Permission: (self) => (input: SimulationInput) => {
+        const key = permissionKey(self.permission);
+        if (input.subject.permissions?.some((held) => held === key) === true) return undefined;
+        return strengthen("GrantPermission", `with permission ${key}`, (input_) => ({
+          ...input_,
+          subject: { ...input_.subject, permissions: [...(input_.subject.permissions ?? []), key] },
+        }));
       },
-    }));
-  }
 
-  if (self._tag === "Permission") {
-    // Kept as a `Permission` all the way here rather than as its key, so the
-    // key is derived once by the same function the evaluator's lookup uses.
-    // Carrying the string and re-splitting it on a colon is exactly what the
-    // predecessor's wire format did, and it mangled any segment containing one.
-    const key = permissionKey(self.permission);
-    if (input.subject.permissions?.some((held) => held === key) === true) return undefined;
-    return strengthen("GrantPermission", `with permission ${key}`, (input_) => ({
-      ...input_,
-      subject: { ...input_.subject, permissions: [...(input_.subject.permissions ?? []), key] },
-    }));
-  }
+      Action: (self) => (input: SimulationInput) =>
+        input.action === self.action
+          ? undefined
+          : strengthen("SetAction", `with action ${self.action}`, (input_) => ({
+              ...input_,
+              action: self.action,
+            })),
 
-  if (self._tag === "Action") {
-    if (input.action === self.action) return undefined;
-    return strengthen("SetAction", `with action ${self.action}`, (input_) => ({
-      ...input_,
-      action: self.action,
-    }));
-  }
+      SubjectAttribute: (self) => (input: SimulationInput) => {
+        const witnessed = satisfyingValue(self.matcher, input);
+        if (witnessed._tag === "Unsynthesisable") {
+          return skip(`subject attribute ${self.attribute}`, witnessed.reason);
+        }
+        return strengthen(
+          "SetSubjectAttribute",
+          `with subject attribute ${self.attribute} = ${render(witnessed.value)}`,
+          (input_) => ({
+            ...input_,
+            subject: {
+              ...input_.subject,
+              attributes: { ...input_.subject.attributes, [self.attribute]: witnessed.value },
+            },
+          }),
+        );
+      },
 
-  if (self._tag === "SubjectAttribute") {
-    const witnessed = satisfyingValue(self.matcher, input);
-    if (witnessed._tag === "Unsynthesisable") {
-      return skip(`subject attribute ${self.attribute}`, witnessed.reason);
-    }
-    return strengthen(
-      "SetSubjectAttribute",
-      `with subject attribute ${self.attribute} = ${render(witnessed.value)}`,
-      (input_) => ({
-        ...input_,
-        subject: {
-          ...input_.subject,
-          attributes: { ...input_.subject.attributes, [self.attribute]: witnessed.value },
-        },
-      }),
-    );
-  }
+      ResourceAttribute: (self) => (input: SimulationInput) => {
+        if (input.resource === undefined) {
+          return skip(`resource attribute ${self.attribute}`, "the check names no resource");
+        }
+        const witnessed = satisfyingValue(self.matcher, input);
+        if (witnessed._tag === "Unsynthesisable") {
+          return skip(`resource attribute ${self.attribute}`, witnessed.reason);
+        }
+        return strengthen(
+          "SetResourceAttribute",
+          `with resource attribute ${self.attribute} = ${render(witnessed.value)}`,
+          (input_) => ({
+            ...input_,
+            resource: { ...input_.resource, [self.attribute]: witnessed.value },
+          }),
+        );
+      },
 
-  if (self._tag === "ResourceAttribute") {
-    if (input.resource === undefined) {
-      return skip(`resource attribute ${self.attribute}`, "the check names no resource");
-    }
-    const witnessed = satisfyingValue(self.matcher, input);
-    if (witnessed._tag === "Unsynthesisable") {
-      return skip(`resource attribute ${self.attribute}`, witnessed.reason);
-    }
-    return strengthen(
-      "SetResourceAttribute",
-      `with resource attribute ${self.attribute} = ${render(witnessed.value)}`,
-      (input_) => ({
-        ...input_,
-        resource: { ...input_.resource, [self.attribute]: witnessed.value },
-      }),
-    );
-  }
+      Relationship: (self) => (input: SimulationInput) => {
+        const resourceId = resourceIdOf(input.resource);
+        if (resourceId === undefined) return skip(`relationship ${self.relation}`, NO_RESOURCE_ID);
+        const edge = { subjectId: input.subject.id, relation: self.relation, resourceId };
+        if (input.relationships?.some((held) => sameEdge(held, edge)) === true) return undefined;
+        return strengthen(
+          "AddRelationship",
+          `with relationship ${self.relation} on ${resourceId}`,
+          (input_) => ({ ...input_, relationships: [...(input_.relationships ?? []), edge] }),
+        );
+      },
 
-  const resourceId = resourceIdOf(input.resource);
-  if (self._tag === "Relationship") {
-    if (resourceId === undefined) {
-      return skip(`relationship ${self.relation}`, "the check names no resource id");
-    }
-    const edge = { subjectId: input.subject.id, relation: self.relation, resourceId };
-    if (input.relationships?.some((held) => sameEdge(held, edge)) === true) return undefined;
-    return strengthen(
-      "AddRelationship",
-      `with relationship ${self.relation} on ${resourceId}`,
-      (input_) => ({ ...input_, relationships: [...(input_.relationships ?? []), edge] }),
-    );
-  }
+      // Both scopes need a resource id, because that is what an event record
+      // carries — `Any` widens the *question*, not the fixture.
+      Acted: (self) => (input: SimulationInput) => {
+        const resourceId = resourceIdOf(input.resource);
+        if (resourceId === undefined) return skip(`event ${self.event}`, NO_RESOURCE_ID);
+        const event = { subjectId: input.subject.id, event: self.event, resourceId };
+        if (input.history?.some((held) => sameEvent(held, event)) === true) return undefined;
+        return strengthen("AddEvent", `with event ${self.event} on ${resourceId}`, (input_) => ({
+          ...input_,
+          history: [...(input_.history ?? []), event],
+        }));
+      },
 
-  // `Acted`. Both scopes need a resource id, because that is what an event
-  // record carries — `Any` widens the *question*, not the fixture.
-  if (resourceId === undefined) {
-    return skip(`event ${self.event}`, "the check names no resource id");
-  }
-  const event = { subjectId: input.subject.id, event: self.event, resourceId };
-  if (input.history?.some((held) => sameEvent(held, event)) === true) return undefined;
-  return strengthen("AddEvent", `with event ${self.event} on ${resourceId}`, (input_) => ({
-    ...input_,
-    history: [...(input_.history ?? []), event],
-  }));
-};
+      // `Resource` scope is answered from a row stored with that resource id; `Any`
+      // only from a subject-global row, which has none (`askSignature`,
+      // INV-QD-120). So the remedy's row carries the resource id exactly when the
+      // question does, and is "already met" only by a row that would answer it —
+      // a node naming no signer role is met by a row with any role, so this is
+      // the port's match rather than `sameSignature`'s equality.
+      Signature: (self) => (input: SimulationInput) => {
+        const resourceId = self.scope === "Resource" ? resourceIdOf(input.resource) : undefined;
+        if (self.scope === "Resource" && resourceId === undefined) {
+          return skip(`signature ${self.meaning}`, NO_RESOURCE_ID);
+        }
+        const met = input.signatures?.some(
+          (held) =>
+            held.subjectId === input.subject.id &&
+            held.resourceId === resourceId &&
+            held.meaning === self.meaning &&
+            (self.signerRole === undefined || held.signerRole === self.signerRole),
+        );
+        if (met === true) return undefined;
+        const signature = {
+          subjectId: input.subject.id,
+          meaning: self.meaning,
+          ...(self.signerRole === undefined ? {} : { signerRole: self.signerRole }),
+          ...(resourceId === undefined ? {} : { resourceId }),
+        };
+        return strengthen(
+          "AddSignature",
+          `with signature ${self.meaning}${resourceId === undefined ? "" : ` on ${resourceId}`}${
+            self.signerRole === undefined ? "" : ` as ${self.signerRole}`
+          }`,
+          (input_) => ({ ...input_, signatures: [...(input_.signatures ?? []), signature] }),
+        );
+      },
 
-const resourceIdOf = (resource: Resource | undefined): string | undefined => {
-  const id = resource?.["id"];
-  return typeof id === "string" ? id : undefined;
-};
+      Custom: (self) => () => skip(`custom predicate ${self.name}`, CUSTOM_HAS_NO_FIELD),
+    }),
+  );
 
 /**
  * Short enough for a row label.
