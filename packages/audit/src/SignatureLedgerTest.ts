@@ -4,20 +4,19 @@
  * Mirrors `AuditTrailPortTest`: a factory returning the ledger beside a live
  * read of what it holds, so a consumer can wire `signatureObligationHandler`'s
  * `ledger` option and `signatureHistoryFromLedger` in their own tests without
- * writing a store. Entries are grouped by `signatureHistoryPort.key`, the very
- * key `hasSignature` reads with, so the write and the read cannot disagree.
- *
- * The key a read is grouped by leaves out the asker's requirement (`meaning`,
- * `signerRole`): the request key is injective over it, but a store answers every
- * signature on file for the subject and resource, and the asker matches the
- * requirement against that answer (`SignatureQuery`).
+ * writing a store. It is an opaque-key multimap like any adapter: the exact-pair
+ * rule lives in `signatureHistoryFromLedger`, not here.
  */
-import * as Effect from "effect/Effect";
-import * as MutableRef from "effect/MutableRef";
 import * as Arr from "effect/Array";
-import { signatureHistoryPort } from "@qadi/core";
-import type { Signature } from "@qadi/core";
-import type { SignatureLedgerEntry, SignatureLedgerShape } from "./SignatureLedger.ts";
+import * as Effect from "effect/Effect";
+import * as MutableHashMap from "effect/MutableHashMap";
+import * as MutableRef from "effect/MutableRef";
+import * as Option from "effect/Option";
+import type {
+  SignatureLedgerEntry,
+  SignatureLedgerKey,
+  SignatureLedgerShape,
+} from "./SignatureLedger.ts";
 
 export interface SignatureLedgerTestHandle {
   readonly ledger: SignatureLedgerShape;
@@ -29,32 +28,24 @@ export interface SignatureLedgerTestHandle {
 }
 
 export const SignatureLedgerTest = (): SignatureLedgerTestHandle => {
-  const store = MutableRef.make<ReadonlyArray<SignatureLedgerEntry>>(Arr.empty());
+  const log = MutableRef.make<ReadonlyArray<SignatureLedgerEntry>>(Arr.empty());
+  const byKey = MutableHashMap.empty<SignatureLedgerKey, ReadonlyArray<SignatureLedgerEntry>>();
 
   return {
-    entries: () => MutableRef.get(store),
+    entries: () => MutableRef.get(log),
     ledger: {
       name: "SignatureLedgerTest",
-      append: (entry) =>
+      append: (key, entry) =>
         Effect.sync(() => {
-          MutableRef.update(store, (entries) => Arr.append(entries, entry));
+          MutableHashMap.modifyAt(byKey, key, (existing) =>
+            Option.some(Arr.append(Option.getOrElse(existing, Arr.empty), entry)),
+          );
+          MutableRef.update(log, (entries) => Arr.append(entries, entry));
         }),
-      // A fresh array per read, as `signatureHistoryFromSignatures` returns:
-      // a caller mutating the answer must not change the next one.
-      signaturesFor: (query) =>
-        Effect.sync((): ReadonlyArray<Signature> => {
-          const key = signatureHistoryPort.key([
-            { subjectId: query.subjectId, resourceId: query.resourceId },
-          ]);
-          return MutableRef.get(store)
-            .filter(
-              (entry) =>
-                signatureHistoryPort.key([
-                  { subjectId: entry.subjectId, resourceId: entry.resourceId },
-                ]) === key,
-            )
-            .map((entry) => entry.signature);
-        }),
+      // A fresh array per read: a caller mutating the answer must not change
+      // the next one.
+      entriesAt: (key) =>
+        Effect.sync(() => [...Option.getOrElse(MutableHashMap.get(byKey, key), Arr.empty)]),
     },
   };
 };

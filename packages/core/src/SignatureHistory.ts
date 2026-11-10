@@ -33,7 +33,7 @@ import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import { SignatureHistoryUnavailable } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
-import { makeSubjectId, ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
+import { makeResourceId, makeSubjectId, ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
@@ -225,8 +225,9 @@ const signatureServing: PortServingFacet<"SignatureHistory", [query: SignatureQu
  * `none` value, an empty list, which `hasSignature` denies and `not(hasSignature)`
  * grants, so a what-if that edits a policy's `meaning` or `signerRole` can read a
  * miss as an allow the real store would not give (devtools' replay only).
- * `signatureHistoryFromSignatures` still groups by the first two, because the
- * store answers every signature on file whatever the requirement says.
+ * `signatureHistoryFromSignatures` groups by this key's requirement-free
+ * projection (`key([{ subjectId, resourceId }])`), because the store answers
+ * every signature on file whatever the requirement says.
  */
 export const signatureHistoryPort: PortDescription<
   "SignatureHistory",
@@ -314,22 +315,29 @@ export interface SignatureInput {
  * `decisionHistoryFromEvents` draws. A resource-scoped query only ever sees
  * rows stored with that same `resourceId`, and a subject-global query
  * (`resourceId` absent) only ever sees rows stored with none — the same
- * separation `ActedEvent`/`ActedAnywhere` keep, expressed here as a
- * `JSON.stringify`-keyed group rather than a `HashSet`, since the answer to
- * one key is a *list* of signatures rather than one membership bit.
+ * separation `ActedEvent`/`ActedAnywhere` keep, expressed here as a keyed
+ * group rather than a `HashSet`, since the answer to one key is a *list* of
+ * signatures rather than one membership bit.
  *
- * `JSON.stringify` on the pair, not a template-string join: unlike
- * `${a} ${b}`, which is exactly the collision `ActedEvent`'s own doc comment
- * warns about, `JSON.stringify` escapes each element, so `["a:b", "c"]` and
- * `["a", "b:c"]` serialize to different strings — the same collision-safety
- * `@qadi/devtools`'s `Capture.ts` already relies on for its own compound keys.
+ * Grouped by {@link signatureHistoryPort}'s own `key` over the pair alone, the
+ * requirement-free projection: a query's `meaning` and `signerRole` are context,
+ * not a filter, so they must not split one pair's rows. That key is a
+ * `JSON.stringify`, not a template-string join: unlike `${a} ${b}`, which is
+ * exactly the collision `ActedEvent`'s own doc comment warns about, it escapes
+ * each element, so `["a:b", "c"]` and `["a", "b:c"]` serialize to different
+ * strings. The fixture and the port spell the pair once.
  */
 export const signatureHistoryFromSignatures = (
   signatures: ReadonlyArray<SignatureInput>,
 ): Layer.Layer<SignatureHistory> => {
   const grouped = new Map<string, Array<Signature>>();
   for (const input of signatures) {
-    const key = JSON.stringify([input.subjectId, input.resourceId ?? null]);
+    const key = signatureHistoryPort.key([
+      {
+        subjectId: makeSubjectId(input.subjectId),
+        resourceId: input.resourceId === undefined ? undefined : makeResourceId(input.resourceId),
+      },
+    ]);
     const signature: Signature = {
       signerId: makeSubjectId(input.subjectId),
       meaning: input.meaning,
@@ -350,7 +358,9 @@ export const signatureHistoryFromSignatures = (
     // list corrupt every future answer for that same key.
     signaturesFor: (query) =>
       Effect.succeed([
-        ...(grouped.get(JSON.stringify([query.subjectId, query.resourceId ?? null])) ?? []),
+        ...(grouped.get(
+          signatureHistoryPort.key([{ subjectId: query.subjectId, resourceId: query.resourceId }]),
+        ) ?? []),
       ]),
   });
 };

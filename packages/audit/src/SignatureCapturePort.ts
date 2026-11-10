@@ -46,7 +46,7 @@ import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import { resourceIdOf } from "@qadi/core";
-import { ledgerEntryOf } from "./SignatureLedger.ts";
+import { ledgerEntryOf, ledgerKeyOf } from "./SignatureLedger.ts";
 import type { SignatureLedgerError, SignatureLedgerShape } from "./SignatureLedger.ts";
 import type {
   ObligationDischarge,
@@ -240,7 +240,8 @@ export const signatureObligationHandler = (
     // Without a ledger the capture port is the store, and persisting under the
     // request's key is its contract (see `capture`).
     if (options?.ledger === undefined) return;
-    yield* options.ledger.append(ledgerEntryOf(request, signature));
+    const entry = ledgerEntryOf(request, signature);
+    yield* options.ledger.append(ledgerKeyOf(entry), entry);
   });
 
 /**
