@@ -84,18 +84,18 @@
 - [x] **VIEW-04**: The Inspector and the Simulator consume that reading; the Inspector has tests of its own.
 
 ### DecisionCache shared computation (Phase 20)
-- [ ] **CACHE-01**: The #64 follow-up gap is reproduced as a RED test, or shown unreachable with written evidence (and the phase stops there).
-- [ ] **CACHE-02**: (if reproduced) The single-flight regime is an internal module tested with plain keys and latches.
-- [ ] **CACHE-03**: (if reproduced) #64 is fixed; `DecisionCache`'s interface and its existing tests are unchanged.
-- [ ] **CACHE-04**: No hot-path regression (bench row) and UNTRACED_BUDGET is unchanged.
+- [x] **CACHE-01**: The #64 follow-up gap is reproduced as a RED test, or shown unreachable with written evidence (and the phase stops there).
+- [x] **CACHE-02**: (if reproduced) The single-flight regime is an internal module tested with plain keys and latches.
+- [x] **CACHE-03**: (if reproduced) #64 is fixed; `DecisionCache`'s interface and its existing tests are unchanged.
+- [x] **CACHE-04**: No hot-path regression (bench row) and UNTRACED_BUDGET is unchanged.
 
 ### Cross-cutting (every phase)
-- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10); Phase 12: green (12-05, 2026-11-10); Phase 13: green (13-12, 2026-11-10); Phase 14: green (14-07, 2026-11-10); Phase 15: green (15-04, 2026-11-10); Phase 16: green (16-04, 2026-11-10); Phase 17: green (17-06, 2026-11-10); Phase 18: green (18-03, 2026-11-10); Phase 19: green (19-03, 2026-11-10).
-- [ ] **XC-02**: Each phase records its ADR (or states why none is needed), a CCR row, and the BEH/INV/traceability changes, using only its reserved numbers.
-- [ ] **XC-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
-- [ ] **XC-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock; budgets change only with their AGENTS.md table.
-- [ ] **XC-05**: Coverage thresholds hold (core at least 95%, others at least 90%); the Stryker score of touched files doesn't fall.
-- [ ] **XC-06**: Every defect fix is preceded by a regression test seen RED on `1721a42` (or on the phase's base).
+- [x] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10); Phase 12: green (12-05, 2026-11-10); Phase 13: green (13-12, 2026-11-10); Phase 14: green (14-07, 2026-11-10); Phase 15: green (15-04, 2026-11-10); Phase 16: green (16-04, 2026-11-10); Phase 17: green (17-06, 2026-11-10); Phase 18: green (18-03, 2026-11-10); Phase 19: green (19-03, 2026-11-10); Phase 20: green (20-04, 2026-11-10).
+- [x] **XC-02**: Each phase records its ADR (or states why none is needed), a CCR row, and the BEH/INV/traceability changes, using only its reserved numbers.
+- [x] **XC-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
+- [x] **XC-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock; budgets change only with their AGENTS.md table.
+- [x] **XC-05**: Coverage thresholds hold (core at least 95%, others at least 90%); the Stryker score of touched files doesn't fall.
+- [x] **XC-06**: Every defect fix is preceded by a regression test seen RED on `1721a42` (or on the phase's base).
 
 ## Out of Scope
 | Item | Reason |
@@ -120,8 +120,8 @@
 | KEY-01..05 | Phase 17 | Complete |
 | SURF-01..04 | Phase 18 | Complete |
 | VIEW-01..04 | Phase 19 | Complete |
-| CACHE-01..04 | Phase 20 | Pending |
-| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11, 12, 13, 14, 15, 16, 17, 18, 19) |
+| CACHE-01..04 | Phase 20 | Complete |
+| XC-01..06 | All phases | Complete (XC-01 green for Phases 10–20; evidence for XC-01..06 in 20-04-SUMMARY.md) |
 
 **Coverage:** 66 v1.1 requirements (60 + 6 cross-cutting); mapped 66; unmapped 0.
 

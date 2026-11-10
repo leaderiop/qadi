@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
 milestone: v1.1
-status: Executing
-stopped_at: Completed 20-03-PLAN.md
+status: Milestone complete
+stopped_at: Completed 20-04-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "20-03 complete: #64 fixed in SharedComputation.ts (a claim is joinable only while somebody waits on it; abandoned exits dropped); 20-01 test GREEN; mutation DecisionCache.ts 0.9583 (base 0.9479), SharedComputation.ts 0.9857"
+last_activity_desc: "20-04 complete: BEH-QD-439, ADR-QD-132, INV-QD-025 note, CCR-QD-410, @qadi/core patch changeset; check:pr green; Phase 20 and milestone v1.1 (Phases 10-20) complete, not released"
 state_head: 856a092ab1da5af22c7dbf7a6044fa32cf55eeeb
 progress:
   total_phases: 11
-  completed_phases: 10
+  completed_phases: 11
   total_plans: 59
-  completed_plans: 58
-  percent: 98
+  completed_plans: 59
+  percent: 100
 current_phase: 20
 ---
 
@@ -23,19 +23,19 @@ current_phase: 20
 See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** v1.1 Arch Wave 6 — planning Phases 10-20
+**Current focus:** v1.1 Arch Wave 6 — milestone complete (Phases 10-20); not released
 
 ## Current Position
 
-Phase: 20 of 20 (DecisionCache shared computation)
-Plan: 3 of 4 in Phase 20; next is 20-04
-Status: Phase 20 in progress (phase_base a7a5a8cb); #64 fixed in 20-03, 20-04 records the spec, changeset and check:pr
-Last activity: 2026-11-10 -- 20-03 complete: #64 fixed in SharedComputation.ts. The last waiter to leave marks the claim abandoned and removes it from inFlight in the same sync step, so a fresh ask claims afresh; an abandoned compute's exit is never settled (not cached). 2 plain-key seam tests RED then GREEN; 20-01's test GREEN (2 invocations), DecisionCache.test.ts unedited; whole core green with no exclusion; BDD green; bench within noise (interleaved); mutation DecisionCache.ts 0.9583 vs 0.9479, SharedComputation.ts 0.9857
+Phase: 20 of 20 (DecisionCache shared computation), complete
+Plan: 4 of 4 in Phase 20; milestone v1.1 complete (all 11 phases, 59 plans)
+Status: Milestone v1.1 complete. Not released: a release happens only on the user's explicit request
+Last activity: 2026-11-10 -- 20-04 complete: BEH-QD-439 (a shared computation answers everyone still waiting, and nobody else), ADR-QD-132, INV-QD-025 Enforcement note, traceability, CCR-QD-410; the #64 paragraph in the pending @qadi/core patch changeset (decision-cache-claim-window.md); mutation DecisionCache.ts 0.9583 vs 0.9479, SharedComputation.ts 0.9857; check:pr exit 0; CACHE-01..04 and XC-01..06 ticked
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 58
+- Total plans completed: 59
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -89,6 +89,7 @@ Last activity: 2026-11-10 -- 20-03 complete: #64 fixed in SharedComputation.ts. 
 | Phase 12 P05 | 40 min | 3 tasks | 21 files |
 | Phase 13 P12 | 25 min | 4 tasks | 6 files |
 | Phase 14 P07 | 40 min | 2 tasks | 9 files |
+| Phase 20 P04 | 40 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
