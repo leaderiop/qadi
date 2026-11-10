@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 14-07-PLAN.md (Phase 14 complete)
+stopped_at: Completed 15-01-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "14-07 complete, Phase 14 complete: storeCallTimeout and the doubles' scripts in overview/README/website/upgrading, changeset audit-sink-deadline (minor + Breaking), PROJECT.md D-05 row; mutation compare ok; check:pr green"
+last_activity_desc: "15-01 complete: SimulationSession.replay always re-seeds; owned hook split into three layout effects; dock replays through the session (seed useState gone); RED-then-GREEN dock tests; phase_base e9d1104, mutation base SimulationSession 96.44 (now 96.46)"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 5
   total_plans: 59
-  completed_plans: 35
-  percent: 59
-current_phase: 14
+  completed_plans: 36
+  percent: 61
+current_phase: 15
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 ## Current Position
 
-Phase: 14 of 20 (Audit sink deadline)
-Plan: 7 of 7 in Phase 14 (14-07 complete); next is Phase 15
-Status: Phase 14 complete (phase_base b042e56); Phase 15 not started
-Last activity: 2026-11-10 -- 14-07 complete, Phase 14 complete: overview 1.83 (`storeCallTimeout`), audit README and website capabilities/upgrading (0.12 entry), `.changeset/audit-sink-deadline.md`, PROJECT.md D-05 row, CCR-QD-404 extended (README 1.138); mutation compare ok (sink 100 vs 98.04, doubles/interpreter 100, CircuitBreaker 80.51 = base); `pnpm check:pr` exit 0
+Phase: 15 of 20 (Dock session)
+Plan: 1 of 4 in Phase 15 (15-01 complete); next is 15-02
+Status: Phase 15 in progress (phase_base e9d1104)
+Last activity: 2026-11-10 -- 15-01 complete: `SimulationSession.replay` (always re-seeds; `seed` keeps its same-entry guard), `useOwnedSimulationSession` dispatches each prop from its own layout effect, `DevtoolsDock` replays through the session and drops its `seed` `useState`; dock RED tests seen failing on e9d1104 then GREEN; devtools 1089/1089; mutation SimulationSession 96.46 vs base 96.44
 
 ## Performance Metrics
 
