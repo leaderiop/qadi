@@ -10,4 +10,5 @@ export * from "./Retention.ts";
 export * from "./SequenceIntegrity.ts";
 export * from "./SignatureCapturePort.ts";
 export * from "./SignatureLedger.ts";
+export * from "./SignatureLedgerConformance.ts";
 export * from "./SignatureLedgerTest.ts";

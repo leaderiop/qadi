@@ -15,7 +15,9 @@
  * spells the pair `(subjectId, resourceId)`, called on the write side and on the
  * read side alike, and {@link signatureHistoryFromLedger} derives the exact-pair
  * read rule from it and refuses any row the store answers from another key. An
- * adapter therefore has no nullable resource column and no query to get wrong.
+ * adapter therefore has no nullable resource column and no query to get wrong;
+ * what a type cannot rule out (a collation that folds case, trims or
+ * normalises the key) `checkSignatureLedger` checks against the real store.
  *
  * A **store, not a capture** (BEH-QD-255): nothing here obtains or validates a
  * signature, and there is no default instance, not even a no-op. The ledger
