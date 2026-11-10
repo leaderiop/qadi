@@ -30,6 +30,7 @@
 import type {
   AuthSubject,
   Decision,
+  DehydrationDropReason,
   Policy,
   Resource,
   SubjectId,
@@ -53,7 +54,7 @@ import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import type { HydrationDropReporter, HydrationMismatchReporter } from "./DeveloperSignals.ts";
-import { droppedEntriesReporter, hydrationDropReporter } from "./DeveloperSignals.ts";
+import { hydrationDropReporter, saysDehydrationDropped, saysHydrationDropped } from "./DeveloperSignals.ts";
 import type { DecisionEntry, HydrationHooks, PayloadRefusalReason } from "./HydrationEvent.ts";
 import { HydrationEvent, emitHydration } from "./HydrationEvent.ts";
 import type { ClientDecision, SeededDecision } from "./SeededDecision.ts";
@@ -191,18 +192,22 @@ export interface DehydrateOptions {
    */
   readonly includeTrace?: boolean;
   /**
-   * Called with the entries discarded for belonging to another subject.
+   * Called with the entries left out of the payload, and why — once per reason,
+   * with `wholePayload` always `false` (a server builds a payload; it never
+   * refuses one whole).
    *
-   * Supplying this replaces the development-mode console warning and runs in
-   * production, exactly as `onHydrationMismatch` does — a payload mixing
-   * subjects means something upstream fed this call two users' decisions, which
-   * is a bug worth alerting on rather than only logging.
+   * The same `HydrationDrop` shape `HydrateOptions.onDropped` receives, so one
+   * function over `HydrationDropReason` serves both ends. Supplying this replaces
+   * the development-mode console warning and runs in production, exactly as
+   * `onHydrationMismatch` does — an entry left out means something upstream fed
+   * this call another user's decision or built a policy the schema cannot carry,
+   * which is a bug worth alerting on rather than only logging.
    *
-   * It observes; it cannot change the outcome. The entries are dropped either
+   * It observes; it cannot change the outcome. The entries are left out either
    * way ([BEH-QD-146](../../../spec/behaviors/19-hydration.md)) — the only safe
    * reading of a mixed payload is to trust none of it.
    */
-  readonly onDropped?: (dropped: ReadonlyArray<DecisionEntry>) => void;
+  readonly onDropped?: HydrationDropReporter<DecisionEntry, DehydrationDropReason>;
 }
 
 const dehydrateDecision = (decision: Decision, includeTrace: boolean): DehydratedEntry["decision"] => {
@@ -297,7 +302,7 @@ export const dehydrateWith = (
   options?: DehydrateOptions,
 ): DehydratedDecisions => {
   const plan = planDehydration(entries, options?.includeTrace ?? false);
-  emitAll(plan.events, { leftOut: droppedEntriesReporter(options?.onDropped) });
+  emitAll(plan.events, { leftOut: hydrationDropReporter(options?.onDropped, saysDehydrationDropped) });
   return plan.payload;
 };
 
@@ -353,7 +358,8 @@ export interface HydrateOptions {
   /**
    * Called with the entries this client refused to seed, and why.
    *
-   * The sibling of `DehydrateOptions.onDropped`, and it carries a reason because
+   * The sibling of `DehydrateOptions.onDropped`, in the same `HydrationDrop`
+   * shape, and it carries a reason because
    * the ways a payload fails to seed have different causes: the payload naming
    * another subject is a cache-key bug, an entry malformed apart from its policy is usually version skew, an
    * undecodable policy is version skew of the policy shape specifically, a payload
@@ -520,7 +526,7 @@ export const hydrateWith = (
 ): InitialValues => {
   const plan = planHydration(seedFor, payload, subject);
   // Emitted after the whole plan, never interleaved with it.
-  emitAll(plan.events, { dropped: hydrationDropReporter(options?.onDropped) });
+  emitAll(plan.events, { dropped: hydrationDropReporter(options?.onDropped, saysHydrationDropped) });
   return plan.initialValues;
 };
 

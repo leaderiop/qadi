@@ -24,12 +24,13 @@ import { currentDecision } from "../src/DecisionOutcome.ts";
 import { dehydrateDecisions, hydrateDecisions } from "../src/Hydration.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import {
-  droppedEntriesReporter,
   gateIdCollisionReporter,
   hydrationDropReporter,
   hydrationMismatchReporter,
   providerSignalReporter,
   providerSignals,
+  saysDehydrationDropped,
+  saysHydrationDropped,
 } from "../src/DeveloperSignals.ts";
 import { SeededAllow } from "../src/SeededDecision.ts";
 
@@ -95,18 +96,25 @@ describe("DeveloperSignals", () => {
       ]);
     });
 
-    it("PayloadMixedSubjects", () => {
-      expect(said(() => droppedEntriesReporter(undefined)?.([1, 2]))).toEqual([
-        "[qadi] dehydrateDecisions dropped 2 decision(s) belonging to a different subject " +
-          "than the payload's. A payload mixing subjects has no safe reading, so the " +
-          "others were discarded — check what fed this call.",
+    it("DehydrationDropped", () => {
+      expect(
+        said(() =>
+          hydrationDropReporter(undefined, saysDehydrationDropped)?.({
+            reason: "ForeignSubject",
+            entries: [1, 2],
+            wholePayload: false,
+          }),
+        ),
+      ).toEqual([
+        "[qadi] dehydrateDecisions dropped 2 decision(s): a payload mixing subjects has no " +
+          "safe reading, so the others were discarded — check what fed this call.",
       ]);
     });
 
     it("HydrationDropped, entry by entry", () => {
       expect(
         said(() =>
-          hydrationDropReporter(undefined)?.({
+          hydrationDropReporter(undefined, saysHydrationDropped)?.({
             reason: "UndecodablePolicy",
             entries: [1],
             wholePayload: false,
@@ -122,7 +130,7 @@ describe("DeveloperSignals", () => {
     it("HydrationDropped, the payload whole", () => {
       expect(
         said(() =>
-          hydrationDropReporter(undefined)?.({
+          hydrationDropReporter(undefined, saysHydrationDropped)?.({
             reason: "UnsupportedPayloadVersion",
             entries: [],
             wholePayload: true,
@@ -184,8 +192,8 @@ describe("DeveloperSignals", () => {
       try {
         expect(hydrationMismatchReporter(undefined)).toBeUndefined();
         expect(gateIdCollisionReporter(undefined)).toBeUndefined();
-        expect(droppedEntriesReporter(undefined)).toBeUndefined();
-        expect(hydrationDropReporter(undefined)).toBeUndefined();
+        expect(hydrationDropReporter(undefined, saysDehydrationDropped)).toBeUndefined();
+        expect(hydrationDropReporter(undefined, saysHydrationDropped)).toBeUndefined();
 
         // Contained, so not the same function: what it is handed still reaches it.
         const heard: Array<unknown> = [];
@@ -194,15 +202,16 @@ describe("DeveloperSignals", () => {
         };
         const mismatch = { policy: hasRole("admin"), resource: undefined, seeded, decided };
         const drop = { reason: "MalformedEntry" as const, entries: [1], wholePayload: false };
+        const leftOut = { reason: "ForeignSubject" as const, entries: [1, 2], wholePayload: false };
         expect(
           said(() => {
             hydrationMismatchReporter(mine)?.(mismatch);
             gateIdCollisionReporter(mine)?.(":r1:");
-            droppedEntriesReporter(mine)?.([1, 2]);
-            hydrationDropReporter(mine)?.(drop);
+            hydrationDropReporter(mine, saysDehydrationDropped)?.(leftOut);
+            hydrationDropReporter(mine, saysHydrationDropped)?.(drop);
           }),
         ).toEqual([]);
-        expect(heard).toEqual([mismatch, ":r1:", [1, 2], drop]);
+        expect(heard).toEqual([mismatch, ":r1:", leftOut, drop]);
       } finally {
         restore();
       }
@@ -258,12 +267,17 @@ describe("a supplied reporter that throws (ReporterThrew, INT-04)", () => {
     { name: "onGateIdCollision", call: (supplied) => gateIdCollisionReporter(supplied)?.(":secret-u2:") },
     {
       name: "onDropped",
-      call: (supplied) => droppedEntriesReporter(supplied)?.([{ subjectId: "secret-u2" }]),
+      call: (supplied) =>
+        hydrationDropReporter(supplied, saysDehydrationDropped)?.({
+          reason: "ForeignSubject",
+          entries: [{ subjectId: "secret-u2" }],
+          wholePayload: false,
+        }),
     },
     {
       name: "onDropped",
       call: (supplied) =>
-        hydrationDropReporter(supplied)?.({
+        hydrationDropReporter(supplied, saysHydrationDropped)?.({
           reason: "PayloadSubjectMismatch",
           entries: [{ subjectId: "secret-u2" }],
           wholePayload: true,

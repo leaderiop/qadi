@@ -61,7 +61,6 @@ import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as Match from "effect/Match";
 import type {
-  DroppedEntriesReporter,
   HydrationDropReporter,
   HydrationMismatch,
   HydrationMismatchReporter,
@@ -124,9 +123,14 @@ export const HydrationEvent = Data.taggedEnum<HydrationEvent>();
 /**
  * The reporters an event is announced to, already resolved by `DeveloperSignals.ts`:
  * the development default, the host's own reporter, or `undefined` for none.
+ *
+ * One slot per side, chosen by the event's tag: `LeftOut` is announced to
+ * `leftOut`, whose default says `DehydrationDropped`, and `PayloadRefused` and
+ * `EntriesDropped` to `dropped`, whose default says `HydrationDropped`. Both take
+ * the one `HydrationDrop` shape.
  */
 export interface HydrationHooks {
-  readonly leftOut?: DroppedEntriesReporter<DecisionEntry> | undefined;
+  readonly leftOut?: HydrationDropReporter<DecisionEntry, DehydrationDropReason> | undefined;
   readonly dropped?: HydrationDropReporter<unknown> | undefined;
   readonly mismatch?: HydrationMismatchReporter | undefined;
 }
@@ -171,7 +175,7 @@ const project: (event: HydrationEvent) => (hooks: HydrationHooks) => void = Matc
       ({ reason, entries }) =>
       (hooks: HydrationHooks) => {
         drop(reason, entries.length);
-        hooks.leftOut?.(entries);
+        hooks.leftOut?.({ reason, entries, wholePayload: false });
       },
     PayloadRefused:
       ({ reason, entries }) =>

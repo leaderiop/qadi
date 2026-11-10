@@ -180,7 +180,7 @@ describe("dehydrateDecisions", () => {
         { policy: isAdmin, decision: serverDeny("u2") },
         { policy: canRead, decision: serverAllow("u3") },
       ],
-      { onDropped: (d) => dropped.push(d) },
+      { onDropped: (d) => dropped.push(d.entries) },
     );
 
     expect(payload.entries).toHaveLength(1);
@@ -191,7 +191,7 @@ describe("dehydrateDecisions", () => {
   it("says nothing when nothing was dropped", () => {
     const dropped: Array<ReadonlyArray<unknown>> = [];
     dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }], {
-      onDropped: (d) => dropped.push(d),
+      onDropped: (d) => dropped.push(d.entries),
     });
     expect(dropped).toEqual([]);
   });
@@ -205,7 +205,10 @@ describe("dehydrateDecisions", () => {
       ]);
       expect(warn).toHaveBeenCalledTimes(1);
       const message = String(warn.mock.calls[0]?.[0]);
-      expect(message).toContain("dropped 1 decision(s)");
+      expect(message).toBe(
+        "[qadi] dehydrateDecisions dropped 1 decision(s): a payload mixing subjects has no " +
+          "safe reading, so the others were discarded — check what fed this call.",
+      );
       // NAMES NO SUBJECT AND NO POLICY. A dropped decision belongs to another
       // user, so printing it would be the disclosure the drop exists to prevent.
       expect(message).not.toContain("u2");
@@ -230,7 +233,7 @@ describe("dehydrateDecisions", () => {
       // But an explicit reporter still runs — a payload mixing subjects is a
       // server-side bug worth alerting on in production.
       const dropped: Array<ReadonlyArray<unknown>> = [];
-      dehydrateDecisions(mixed, { onDropped: (d) => dropped.push(d) });
+      dehydrateDecisions(mixed, { onDropped: (d) => dropped.push(d.entries) });
       expect(dropped).toHaveLength(1);
     } finally {
       process.env.NODE_ENV = previous;

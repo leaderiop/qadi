@@ -1,4 +1,4 @@
-import type { Decision, DenyingTrace, Policy, Resource } from "@qadi/core";
+import type { Decision, DehydrationDropReason, DenyingTrace, Policy, Resource } from "@qadi/core";
 import {
   Allow,
   Deny,
@@ -17,6 +17,7 @@ import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { vi } from "vitest";
+import type { HydrationDrop } from "../src/DeveloperSignals.ts";
 import { dehydrateWith, hydrateWith, makeSeededQuestion } from "../src/HydrationEngine.ts";
 import type { DecisionEntry, HydrationMismatch, HydrationSeedLookup } from "../src/HydrationEngine.ts";
 import type { SeededDecision } from "../src/SeededDecision.ts";
@@ -179,19 +180,21 @@ describe("dehydrateWith and hydrateWith: both directions through the engine (ARC
   };
 
   it("keeps the first subject's entries, counts and reports the rest, and round-trips", () => {
-    const reported: Array<ReadonlyArray<DecisionEntry>> = [];
+    const reported: Array<HydrationDrop<DecisionEntry, DehydrationDropReason>> = [];
     const foreignBefore = foreignCount();
     const dehydratedBefore = dehydratedCount();
 
     const payload = dehydrateWith([own, ownDeny, foreign], {
-      onDropped: (entries) => reported.push(entries),
+      onDropped: (drop) => reported.push(drop),
     });
 
     assert.strictEqual(foreignCount() - foreignBefore, 1);
     assert.strictEqual(dehydratedCount() - dehydratedBefore, 2);
     assert.strictEqual(reported.length, 1);
-    assert.strictEqual(reported[0]?.length, 1);
-    assert.strictEqual(reported[0]?.[0], foreign);
+    assert.strictEqual(reported[0]?.reason, "ForeignSubject");
+    assert.strictEqual(reported[0]?.wholePayload, false);
+    assert.strictEqual(reported[0]?.entries.length, 1);
+    assert.strictEqual(reported[0]?.entries[0], foreign);
     assert.strictEqual(payload.version, 2);
     assert.strictEqual(payload.subjectId, "u1");
     assert.strictEqual(payload.entries.length, 2);

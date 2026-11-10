@@ -49,6 +49,9 @@ export { SeededAllow, SeededDeny, isSeeded, permits } from "./SeededDecision.ts"
  * Every entry must belong to the same subject; the first one's `subjectId` names
  * the payload and any entry disagreeing with it is **dropped**, because a payload
  * mixing subjects is a bug whose only safe reading is to trust none of it.
+ * Every entry left out — for another subject, or for a policy the schema cannot
+ * carry — is counted and reported to `onDropped` as a `HydrationDrop`, once per
+ * reason.
  */
 export const dehydrateDecisions = (
   entries: ReadonlyArray<DecisionEntry>,

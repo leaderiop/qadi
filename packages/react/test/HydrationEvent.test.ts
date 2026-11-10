@@ -20,7 +20,7 @@ import {
   hydrationSeededTotal,
   makeSubjectId,
 } from "@qadi/core";
-import type { HydrationDropReason } from "@qadi/core";
+import type { DehydrationDropReason, HydrationDropReason } from "@qadi/core";
 import * as Context from "effect/Context";
 import { describe, expect, it } from "vitest";
 import type { HydrationDrop, HydrationMismatch } from "../src/DeveloperSignals.ts";
@@ -108,13 +108,13 @@ const mismatch: HydrationMismatch = {
 
 /** Hooks that record everything they hear, by kind. */
 const recording = () => {
-  const leftOut: Array<ReadonlyArray<DecisionEntry>> = [];
+  const leftOut: Array<HydrationDrop<DecisionEntry, DehydrationDropReason>> = [];
   const dropped: Array<HydrationDrop<unknown>> = [];
   const mismatches: Array<HydrationMismatch> = [];
   return {
     heard: { leftOut, dropped, mismatches },
     hooks: {
-      leftOut: (entries: ReadonlyArray<DecisionEntry>) => leftOut.push(entries),
+      leftOut: (drop: HydrationDrop<DecisionEntry, DehydrationDropReason>) => leftOut.push(drop),
       dropped: (drop: HydrationDrop<unknown>) => dropped.push(drop),
       mismatch: (m: HydrationMismatch) => mismatches.push(m),
     },
@@ -135,13 +135,16 @@ describe("HydrationEvent", () => {
   });
 
   describe("LeftOut", () => {
-    it("counts each entry against its reason and hands the leftOut hook the entries", () => {
+    it("counts each entry against its reason and hands the leftOut hook one partial drop", () => {
       const entries = [entry("u2"), entry("u3")];
       const { heard, hooks } = recording();
       expect(
         moved(() => emitHydration(HydrationEvent.LeftOut({ reason: "ForeignSubject", entries }), hooks)),
       ).toEqual(only({ dropped: [["ForeignSubject", 2]] }));
-      expect(heard).toEqual({ ...silent, leftOut: [entries] });
+      expect(heard).toEqual({
+        ...silent,
+        leftOut: [{ reason: "ForeignSubject", entries, wholePayload: false }],
+      });
     });
   });
 

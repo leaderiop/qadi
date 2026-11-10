@@ -454,7 +454,7 @@ describe("dehydrateDecisions' output is pinned byte for byte (ARCH-51)", () => {
 
   it("withholds the trace and the reason by default", () => {
     const dropped: Array<ReadonlyArray<DecisionEntry>> = [];
-    const payload = dehydrateDecisions(fixture, { onDropped: (entries) => dropped.push(entries) });
+    const payload = dehydrateDecisions(fixture, { onDropped: (drop) => dropped.push(drop.entries) });
     expect(JSON.stringify(payload)).toBe(
       `{"version":2,"subjectId":"u1","entries":[{"policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"decision":{"_tag":"Allow","evaluationId":"e1","durationMillis":3,"obligations":[],"disclosure":{"_tag":"Withheld"}}},{"policy":{"_tag":"HasRole","role":"admin"},"resource":{"id":"doc-1","owner":"u1"},"decision":{"_tag":"Deny","evaluationId":"e2","durationMillis":4,"disclosure":{"_tag":"Withheld"}}}]}`,
     );
@@ -467,7 +467,7 @@ describe("dehydrateDecisions' output is pinned byte for byte (ARCH-51)", () => {
     const dropped: Array<ReadonlyArray<DecisionEntry>> = [];
     const payload = dehydrateDecisions(fixture, {
       includeTrace: true,
-      onDropped: (entries) => dropped.push(entries),
+      onDropped: (drop) => dropped.push(drop.entries),
     });
     expect(JSON.stringify(payload)).toBe(
       `{"version":2,"subjectId":"u1","entries":[{"policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"decision":{"_tag":"Allow","evaluationId":"e1","durationMillis":3,"obligations":[],"disclosure":{"_tag":"Disclosed","trace":{"policyTag":"HasPermission","allowed":true,"children":[],"obligations":[]}}}},{"policy":{"_tag":"HasRole","role":"admin"},"resource":{"id":"doc-1","owner":"u1"},"decision":{"_tag":"Deny","evaluationId":"e2","durationMillis":4,"disclosure":{"_tag":"Disclosed","trace":{"policyTag":"HasRole","allowed":false,"reason":"no","children":[],"obligations":[]},"reason":"no"}}}]}`,
