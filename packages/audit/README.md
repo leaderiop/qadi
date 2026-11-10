@@ -85,6 +85,25 @@ or record a gap marker yourself; `durabilityOf(outcome)` says whether it was
 
 `qadi_audit_entries_lost_total{after, staging}` counts the four **lost** rows.
 
+## A deadline on every store call
+
+`evaluate` waits for `record()`, so a store call that never answered used to hold
+the decision with it. `AuditDecisionSinkOptions.storeCallTimeout` (5 seconds by
+default) gives each `stage`, `write` and `commit` call its own deadline. A call
+that reaches it is interrupted and fails with the port's own error, its cause a
+`TimeoutError`: a late write is `WriteFailed` and counts toward the breaker, and a
+late stage or commit is a staging failure, reported as in the table above. Raise it
+for a store that is healthy but slow, or pass `Duration.infinity` for no deadline.
+An adapter that makes itself uninterruptible is not bounded by it.
+
+```typescript
+import * as Duration from "effect/Duration";
+import { AuditDecisionSinkLive } from "@qadi/audit";
+
+export const Bounded = AuditDecisionSinkLive({ storeCallTimeout: "2 seconds" });
+export const Unbounded = AuditDecisionSinkLive({ storeCallTimeout: Duration.infinity });
+```
+
 ## Not tamper-evident (WD-07)
 
 **The audit trail this package produces is not cryptographically
@@ -208,6 +227,21 @@ concurrency nor the signer's identity or intent.
 `AuditTrailPortTest`/`AuditStagingPortTest` ship as public, deterministic,
 in-memory `Layer` factories for any consumer's own tests, and `SignatureLedgerTest`
 is the in-memory `SignatureLedger` (with `signatureHistoryFromLedger` to read it back).
+
+Each double answers every call from a script returning an `AuditPortReply` (`Ok`,
+`Fail`, `Die`, `Interrupt`, `Never`, `Latch`); the script gets the entry and the
+call's 0-based index, and `undefined` is `Ok`. On `Fail` the double builds the
+port's own error, so a test never constructs `AuditWriteError` or `AuditStagingError`.
+
+```typescript
+import { AuditPortReply, AuditStagingPortTest, AuditTrailPortTest } from "@qadi/audit";
+
+// The first write fails and later ones are recorded; every commit hangs.
+export const trail = AuditTrailPortTest({
+  write: (_entry, call) => (call === 0 ? AuditPortReply.Fail({ cause: "offline" }) : undefined),
+});
+export const staging = AuditStagingPortTest({ commit: () => AuditPortReply.Never() });
+```
 
 See [ADR-QD-056](https://github.com/leaderiop/qadi/blob/main/spec/decisions/056-audit-companion-package.md).
 

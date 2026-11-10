@@ -72,7 +72,7 @@ logged, counted or spanned.
 - Splitting the Port* family files that exist to break madge import cycles (ADR-QD-037), i.e.
   PortInterpreter, PortSpanDecode, PortSpanEncode and PortKey.
 - The audit `*PortTest` doubles. Core's PortDoubles registry is closed, so they stay
-  hand-written.
+  hand-written. (Revisited in v1.1 Phase 14: scripted, still not registry ports.)
 
 ## Context
 
@@ -159,6 +159,7 @@ logged, counted or spanned.
 | `PortRouteAddress.ts` is a leaf module, not part of `PortRoutes.ts`; no ADR for ARCH-52 (ADR-QD-114 stays reserved for ARCH-53) | The browser-bundled client must not import server route code; no export changes and ADR-QD-107's route design is unchanged | Accepted (Phase 7, CCR-QD-391) |
 | The refusal vocabulary lives in a new public leaf `JsonRefusal.ts`, not in `JsonHazard.ts` | The moved names are public and `JsonHazard.ts` is package-private (ADR-QD-099); a leaf keeps the port wire off the sink wire | Accepted (Phase 9, ADR-QD-116) |
 | The obligation record is projected before the handler runs | A handler reassigning `resource.id` must not change the record it is logged under (WR-01) | Accepted (Phase 9, dafe9e1) |
+| Audit doubles are scripted per call, outside core's port registry (D-05, ADR-QD-126); each audit store call gets a 5 s overridable `storeCallTimeout` (route A, `A interrupt remove`) | A store call that never settled held the decision and kept the breaker `Closed`; eleven hand-written failing layers restated the ports' error shapes, and core's closed registry is for the five evaluation ports | Accepted (Phase 14, ARCH-62, CCR-QD-404); removing `failWith`/`failStageWith`/`failCommitWith` is Breaking; the buffered sink (route C) is deferred |
 
 ---
 *Last updated: 2026-11-10 — v1.1 Arch Wave 6 started*

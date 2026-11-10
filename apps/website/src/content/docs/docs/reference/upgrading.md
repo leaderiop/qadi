@@ -309,3 +309,40 @@ what it meant. `DehydrationDropReason`, and so `HydrationDropReason`, gains
 arm, and `qadi_hydration_dropped_total` has one more key. A reporter you supply
 that throws no longer changes the outcome: it is contained and announced. See
 [ADR-QD-052](https://github.com/leaderiop/qadi/blob/main/spec/decisions/052-hydration-is-counted-where-both-ends-can-see-it.md).
+
+## 0.12: the audit doubles answer from a script, and a store call has a deadline
+
+`AuditTrailPortTestOptions.failWith` and `AuditStagingPortTestOptions.failStageWith`
+and `failCommitWith` are removed. Each double now answers every call from a script
+that returns an `AuditPortReply`, and on `Fail` it builds the port's own error from
+the call, so a test no longer constructs `AuditWriteError` or `AuditStagingError`.
+A commit's `Fail` carries the entry staged under its handle. Before:
+
+```ts
+import { AuditStagingError, AuditStagingPortTest, AuditTrailPortTest, AuditWriteError } from "@qadi/audit";
+
+const trail = AuditTrailPortTest({
+  failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+});
+const staging = AuditStagingPortTest({
+  failCommitWith: () => new AuditStagingError({ entry: someEntry, cause: "offline" }),
+});
+```
+
+After:
+
+```typescript
+import { AuditPortReply, AuditStagingPortTest, AuditTrailPortTest } from "@qadi/audit";
+
+export const trail = AuditTrailPortTest({ write: () => AuditPortReply.Fail({ cause: "offline" }) });
+export const staging = AuditStagingPortTest({ commit: () => AuditPortReply.Fail({ cause: "offline" }) });
+```
+
+A script also receives the entry and the call's 0-based index, and can answer
+`Die`, `Interrupt`, `Never` or `Latch`; `undefined` is `Ok`.
+
+`AuditDecisionSinkLive` now bounds each store call by `storeCallTimeout`,
+5 seconds by default. A store that is healthy but slower than that now fails its
+writes, which count toward the circuit breaker. Raise `storeCallTimeout` for it,
+or pass `Duration.infinity` to keep 0.11's unbounded wait. See
+[ADR-QD-126](https://github.com/leaderiop/qadi/blob/main/spec/decisions/126-an-audit-store-call-has-a-deadline.md).
