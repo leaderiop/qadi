@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 14-01-PLAN.md
+stopped_at: Completed 14-02-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "14-01 complete: decision A interrupt remove recorded; phase_base b042e56; scoped audit mutation base (4 files); AuditSinkDeadline.test.ts RED 5/5"
+last_activity_desc: "14-02 complete: AuditPortReply (six modes) scripts both audit doubles; overview 1.81; mutation 100/100/100"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 4
   total_plans: 59
-  completed_plans: 29
-  percent: 49
+  completed_plans: 30
+  percent: 51
 current_phase: 14
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 14 of 20 (Audit sink deadline)
-Plan: 1 of 7 in Phase 14 (14-01 complete); next is 14-02
+Plan: 2 of 7 in Phase 14 (14-02 complete); next is 14-03
 Status: Phase 14 in progress (phase_base b042e56)
-Last activity: 2026-11-10 -- 14-01 complete: `_DECISIONS.md` answer `A interrupt remove` recorded (5 s `storeCallTimeout`, six-mode script with `Interrupt`, legacy fail options removed); `14-base.txt` b042e56; `14-mutation-base.json` (AuditDecisionSinkLive 98.04, AuditStagingPortTest 100, AuditTrailPortTest 100, CircuitBreaker 80.51); `AuditSinkDeadline.test.ts` RED, 5 failed (5)
+Last activity: 2026-11-10 -- 14-02 complete: `AuditPortReply` (Ok | Fail | Die | Interrupt | Never | Latch) and `AuditTrailScript`/`AuditStageScript`/`AuditCommitScript` exported; both doubles scripted per call with call logs; interpreter package-private in `AuditPortReplyInterpreter.ts`; legacy fail options kept until 14-05; vitest exclusion of the RED file must be `--exclude '**/AuditSinkDeadline.test.ts'`
 
 ## Performance Metrics
 
