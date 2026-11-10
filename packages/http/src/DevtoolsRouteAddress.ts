@@ -42,6 +42,6 @@ const SEGMENT: { readonly [R in DevtoolsRoute]: string } = {
  * so no route needs a cast.
  */
 export const devtoolsPath = (route: DevtoolsRoute, prefix?: `/${string}`): `/${string}` => {
-  const rest = (prefix ?? "/").slice(1).replace(/\/+$/, "");
+  const rest = prefix?.slice(1).replace(/\/+$/, "") ?? "";
   return rest === "" ? `/${SEGMENT[route]}` : `/${rest}/${SEGMENT[route]}`;
 };
