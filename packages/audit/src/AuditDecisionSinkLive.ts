@@ -19,6 +19,7 @@
  * caller-invoked, caller-scheduled batch surface, the latter is wired through
  * `Qadi.ts`'s `ObligationHandler`, not `DecisionSink`.
  */
+import * as Cause from "effect/Cause";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -30,9 +31,9 @@ import type { SinkRecord } from "@qadi/core";
 import { DecisionSink } from "@qadi/core";
 import { encodeAuditEntry } from "./AuditEntry.ts";
 import type { AuditEntry, AuditEntryNotEncodable } from "./AuditEntry.ts";
-import { AuditTrailPort } from "./AuditTrailPort.ts";
+import { AuditTrailPort, AuditWriteError } from "./AuditTrailPort.ts";
 import { AuditStagingPort } from "./AuditStagingPort.ts";
-import type { AuditStagingError } from "./AuditStagingPort.ts";
+import { AuditStagingError } from "./AuditStagingPort.ts";
 import { AuditWriteOutcome, durabilityOf, UnwrittenStaging, WrittenStaging } from "./AuditWriteOutcome.ts";
 import { emitWriteOutcome, outcomePath } from "./AuditWriteReport.ts";
 import { makeCircuitBreaker } from "./CircuitBreaker.ts";
@@ -50,6 +51,24 @@ export interface AuditDecisionSinkOptions {
    * millisecond number, as every existing caller passes, is unaffected.
    */
   readonly resetTimeoutMs?: Duration.Input;
+  /**
+   * How long one call to the audit store may take before the sink counts it
+   * as failed. Defaults to 5 seconds; `Duration.infinity` opts out.
+   *
+   * `evaluate` awaits `DecisionSink.record`, so a store call that never
+   * settled held the decision with it, and the breaker — which only counts
+   * calls that end — stayed `Closed` (ARCH-62, ADR-QD-126). Each of `stage`,
+   * `write` and `commit` gets its own deadline. A write past it fails with
+   * `AuditWriteError` whose `cause` is a `Cause.TimeoutError`, and counts on
+   * the breaker as a failed attempt; a stage or commit past it is
+   * `StageFailed`/`CommitFailed`. A caller interrupting `record` is still not
+   * a store failure (BEH-QD-251).
+   *
+   * The limit is `Effect.timeoutOrElse`'s, shared with core's `…TimingOut`
+   * ports: the store call is interrupted at the deadline and waited for, so an
+   * adapter that makes itself uninterruptible is not bounded by it.
+   */
+  readonly storeCallTimeout?: Duration.Input;
   /**
    * Called with the refusal when a record cannot be encoded for the trail.
    * Replaces the warning the pipeline logs otherwise; the
@@ -74,6 +93,7 @@ export interface AuditDecisionSinkOptions {
 
 const DEFAULT_FAILURE_THRESHOLD = 5;
 const DEFAULT_RESET_TIMEOUT_MS: Duration.Input = Duration.millis(30_000);
+const DEFAULT_STORE_CALL_TIMEOUT: Duration.Input = Duration.seconds(5);
 
 /**
  * How a stage attempt went and — only when it succeeded — how to commit it.
@@ -110,6 +130,29 @@ export const AuditDecisionSinkLive = (
       const emitOptions = { onRefused: options?.onRefused, onOutcome: options?.onOutcome };
       const emit = (outcome: AuditWriteOutcome) => emitWriteOutcome(outcome, emitOptions);
 
+      // One store call under `storeCallTimeout`: past it the call is
+      // interrupted and fails with the port's own error for `entry`, its
+      // cause a `TimeoutError`. Both ports' errors share the `{ entry, cause }`
+      // shape, so the one constructor call here serves all three call sites.
+      const storeCallTimeout = Duration.fromInputUnsafe(options?.storeCallTimeout ?? DEFAULT_STORE_CALL_TIMEOUT);
+      const bounded = <A, E>(
+        call: Effect.Effect<A, E>,
+        entry: AuditEntry,
+        StoreError: new (fields: { readonly entry: AuditEntry; readonly cause: unknown }) => E,
+      ): Effect.Effect<A, E> =>
+        Effect.timeoutOrElse(call, {
+          duration: storeCallTimeout,
+          orElse: () =>
+            Effect.fail(
+              new StoreError({
+                entry,
+                cause: new Cause.TimeoutError(
+                  `audit store call did not settle within ${Duration.format(storeCallTimeout)}`,
+                ),
+              }),
+            ),
+        });
+
       // Stages the entry, identically whether or not the breaker admitted it —
       // only whether write() is attempted differs. `Effect.exit`, not
       // `Effect.result`: a `stage()` that defects (a misbehaving adapter
@@ -121,12 +164,17 @@ export const AuditDecisionSinkLive = (
           if (stagingPort === undefined) {
             return { staging: UnwrittenStaging.NotWired(), commit: undefined };
           }
-          const staged = yield* Effect.exit(stagingPort.stage(entry));
+          const staged = yield* Effect.exit(
+            bounded(stagingPort.stage(entry), entry, AuditStagingError),
+          );
           if (Exit.isFailure(staged)) {
             return { staging: UnwrittenStaging.StageFailed(), commit: undefined };
           }
           const handle = staged.value;
-          return { staging: UnwrittenStaging.Staged(), commit: () => stagingPort.commit(handle) };
+          return {
+            staging: UnwrittenStaging.Staged(),
+            commit: () => bounded(stagingPort.commit(handle), entry, AuditStagingError),
+          };
         });
 
       // A staged copy is committed only once the trail write succeeded; a
@@ -147,8 +195,11 @@ export const AuditDecisionSinkLive = (
       // the result on the breaker (ticket #47: a defecting adapter must reach
       // the breaker the same as a typed `AuditWriteError`). A *caller's*
       // interruption is not folded, so `withPermit` releases a probe claim
-      // itself. A staged entry whose write failed is left alone — ticket #5's
-      // reconciliation contract, not this pipeline's to discard.
+      // itself. The write is bounded by `storeCallTimeout` inside `attempt`'s
+      // argument, so a deadline is the attempt's own failure and is recorded;
+      // a caller's interruption still is not. A staged entry whose write
+      // failed is left alone — ticket #5's reconciliation contract, not this
+      // pipeline's to discard.
       const attemptWrite = (entry: AuditEntry, permit: Permit): Effect.Effect<AuditWriteOutcome> =>
         Effect.gen(function* () {
           const staged = yield* stageEntry(entry);
@@ -157,7 +208,7 @@ export const AuditDecisionSinkLive = (
               Refused: () => Effect.succeed(AuditWriteOutcome.Skipped({ entry, staging: staged.staging })),
               Admitted: (admitted) =>
                 Effect.gen(function* () {
-                  const written = yield* admitted.attempt(trailPort.write(entry));
+                  const written = yield* admitted.attempt(bounded(trailPort.write(entry), entry, AuditWriteError));
                   if (Exit.isFailure(written)) {
                     return AuditWriteOutcome.WriteFailed({ entry, staging: staged.staging });
                   }
