@@ -36,6 +36,7 @@ import type { InvalidBoundedPermits } from "./Errors.ts";
 import { makeResourceId, makeSubjectId, ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
+import { describeKeyRefusal } from "./PortDescription.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import { canonicalKey } from "./PortKey.ts";
 import type { SpanType } from "./PortSpan.ts";
@@ -317,47 +318,66 @@ export interface SignatureInput {
  *
  * Grouped by {@link signatureHistoryPort}'s own `key` over the pair alone, the
  * requirement-free projection: a query's `meaning` and `signerRole` are context,
- * not a filter, so they must not split one pair's rows. That key is a
- * `JSON.stringify`, not a template-string join: unlike `${a} ${b}`, which is
- * exactly the collision `ActedEvent`'s own doc comment warns about, it escapes
- * each element, so `["a:b", "c"]` and `["a", "b:c"]` serialize to different
- * strings. The fixture and the port spell the pair once.
+ * not a filter, so they must not split one pair's rows. The group is the key's
+ * text, which is injective over the pair (`PortKey.ts`), so `["a:b", "c"]` and
+ * `["a", "b:c"]` never share one. The fixture and the port spell the pair once.
+ *
+ * A pair with no key fails closed: a refused fixture entry fails every read,
+ * and a refused query fails its own, with `SignatureHistoryUnavailable` carrying
+ * the refusal's sentence, never an empty list, which would grant under
+ * `not(hasSignature(...))`. No typed `SubjectId`/`ResourceId` pair is refused
+ * (both are strings), so that branch is reached only by an untyped caller.
  */
 export const signatureHistoryFromSignatures = (
   signatures: ReadonlyArray<SignatureInput>,
 ): Layer.Layer<SignatureHistory> => {
-  const grouped = new Map<string, Array<Signature>>();
-  for (const input of signatures) {
-    const key = signatureHistoryPort.key([
-      {
-        subjectId: makeSubjectId(input.subjectId),
-        resourceId: input.resourceId === undefined ? undefined : makeResourceId(input.resourceId),
-      },
-    ]);
-    const signature: Signature = {
-      signerId: makeSubjectId(input.subjectId),
-      meaning: input.meaning,
-      signedAt: input.signedAt ?? 0,
-      ...(input.signerRole === undefined ? {} : { signerRole: input.signerRole }),
-      ...(input.algorithm === undefined ? {} : { algorithm: input.algorithm }),
-      ...(input.keyId === undefined ? {} : { keyId: input.keyId }),
-    };
-    const existing = grouped.get(key);
-    if (existing === undefined) grouped.set(key, [signature]);
-    else existing.push(signature);
-  }
+  const pairKey = (subjectId: SubjectId, resourceId?: ResourceId) => signatureHistoryPort.key([{ subjectId, resourceId }]);
+  const keyed = Result.all(
+    signatures.map((input) =>
+      Result.map(
+        pairKey(
+          makeSubjectId(input.subjectId),
+          input.resourceId === undefined ? undefined : makeResourceId(input.resourceId),
+        ),
+        (key): [string, Signature] => [
+          key,
+          {
+            signerId: makeSubjectId(input.subjectId),
+            meaning: input.meaning,
+            signedAt: input.signedAt ?? 0,
+            ...(input.signerRole === undefined ? {} : { signerRole: input.signerRole }),
+            ...(input.algorithm === undefined ? {} : { algorithm: input.algorithm }),
+            ...(input.keyId === undefined ? {} : { keyId: input.keyId }),
+          },
+        ],
+      ),
+    ),
+  );
+  const grouped = Result.map(keyed, (entries) => {
+    const groups = new Map<string, Array<Signature>>();
+    for (const [key, signature] of entries) {
+      const existing = groups.get(key);
+      if (existing === undefined) groups.set(key, [signature]);
+      else existing.push(signature);
+    }
+    return groups;
+  });
 
   return Layer.succeed(SignatureHistory, {
     name: "signatureHistoryFromSignatures",
-    // A copy per query, not the live array `grouped` holds: handing out the
+    // A copy per query, not the live array `groups` holds: handing out the
     // internal reference would let a caller's push/splice on the returned
     // list corrupt every future answer for that same key.
     signaturesFor: (query) =>
-      Effect.succeed([
-        ...(grouped.get(
-          signatureHistoryPort.key([{ subjectId: query.subjectId, resourceId: query.resourceId }]),
-        ) ?? []),
-      ]),
+      Result.match(
+        Result.flatMap(grouped, (groups) =>
+          Result.map(pairKey(query.subjectId, query.resourceId), (key) => [...(groups.get(key) ?? [])]),
+        ),
+        {
+          onSuccess: Effect.succeed,
+          onFailure: (refusal) => Effect.fail(signatureHistoryPort.failure([query], describeKeyRefusal(refusal))),
+        },
+      ),
   });
 };
 

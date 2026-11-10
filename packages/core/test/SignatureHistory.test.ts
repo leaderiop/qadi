@@ -185,13 +185,11 @@ describe("SignatureHistory", () => {
       // sentence. An empty list would deny `hasSignature` and grant `not(...)`.
       const asked = { subjectId: makeSubjectId("alice"), resourceId: makeResourceId("doc-1") };
       const refusal = KeyRefusal.Unkeyable({ path: ["0", "subjectId"], kind: "symbol", brand: "Symbol" });
+      const failure = signatureHistoryPort.failure([asked], describeKeyRefusal(refusal));
+      assert.strictEqual(failure._tag, "SignatureHistoryUnavailable");
       assert.deepStrictEqual(
-        signatureHistoryPort.failure([asked], describeKeyRefusal(refusal)),
-        new SignatureHistoryUnavailable({
-          subjectId: asked.subjectId,
-          resourceId: asked.resourceId,
-          cause: "0.subjectId: an unkeyable symbol (Symbol) has no request key",
-        }),
+        [failure.subjectId, failure.resourceId, failure.cause],
+        [asked.subjectId, asked.resourceId, "0.subjectId: an unkeyable symbol (Symbol) has no request key"],
       );
     });
 

@@ -23,7 +23,6 @@ import * as TestClock from "effect/testing/TestClock";
 import type * as Tracer from "effect/Tracer";
 import { makeSubject } from "../src/AuthSubject.ts";
 import { CustomPredicate, customPredicatePort } from "../src/CustomPredicate.ts";
-import { CustomPredicateError } from "../src/Errors.ts";
 import type { PortDescription } from "../src/PortDescription.ts";
 import { describeKeyRefusal, PortReply } from "../src/PortDescription.ts";
 import { canonicalKey } from "../src/PortKey.ts";
@@ -382,7 +381,9 @@ describe("replyTable", () => {
       );
       assert.deepStrictEqual(
         exit,
-        Exit.fail(new CustomPredicateError({ name: "isOwner", reason: describeKeyRefusal(refused.failure) })),
+        Exit.fail(
+          customPredicatePort.failure(["isOwner", alice, undefined, params], describeKeyRefusal(refused.failure)),
+        ),
       );
     }));
 });

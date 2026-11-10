@@ -21,9 +21,11 @@ import * as Effect from "effect/Effect";
 import type * as Layer from "effect/Layer";
 import * as Predicate from "effect/Predicate";
 import * as Record from "effect/Record";
+import * as Result from "effect/Result";
 import {
   PortReply,
   decoratePorts,
+  describeKeyRefusal,
   forEveryPort,
   mergePorts,
   scriptedPort,
@@ -45,6 +47,10 @@ export type Answer<A> =
 
 /**
  * Every answer a capture saw, per port, keyed by that port's request key.
+ *
+ * The keys are the text of each description's `key`. A request with no key
+ * (a `KeyRefusal`: a cycle, a function, a class instance among its arguments)
+ * is never captured, and always fails on replay.
  *
  * Keyed by **port name** and by each port's own description's `key`
  * (`@qadi/core`'s `PortDescription`), so the capture and the replay agree
@@ -94,8 +100,13 @@ export const capturing = (
 
   const layer = decoratePorts(ports, (d, inner) => {
     const call = d.invoke(inner);
+    // A request with no key is passed through unrecorded: capturing never
+    // changes what the live port answers, and a replay fails it on its own.
     return d.make(`${inner.name ?? "?"} (capturing)`, (...args) =>
-      record(maps[d.port], d.key(args), call(...args)),
+      Result.match(d.key(args), {
+        onSuccess: (key) => record(maps[d.port], key, call(...args)),
+        onFailure: () => call(...args),
+      }),
     );
   });
 
@@ -212,6 +223,10 @@ const unseenReply = (port: PortName): PortReply<never> | undefined =>
  * here by hand, with a comment asking that they never diverge from the real
  * ones (ARCH-10 E14); they are now the same value.
  *
+ * **A request with no key fails** with the port's own typed error, naming why
+ * it has none: the capture could not have recorded it, so the replay cannot
+ * know what was answered.
+ *
  * **One port is the exception: `SignatureHistory`'s unseen request fails** with
  * `SignatureHistoryUnavailable` (see {@link UNSEEN_REQUEST_IS_AN_OUTAGE}), so
  * a what-if that edits a `hasSignature` node's `meaning` or `signerRole`
@@ -226,7 +241,12 @@ export const replayLayer = (answers: CapturedAnswers): Layer.Layer<EvaluationPor
       (d) =>
         scriptedPort(
           d,
-          (...args) => replyOf(answers[d.port].get(d.key(args))) ?? unseenReply(d.port),
+          (...args) =>
+            Result.match(d.key(args), {
+              onSuccess: (key) => replyOf(answers[d.port].get(key)) ?? unseenReply(d.port),
+              onFailure: (refusal) =>
+                PortReply.fail(`this ${d.port} request cannot be keyed: ${describeKeyRefusal(refusal)}`),
+            }),
           "snapshot",
         ).layer,
     ),

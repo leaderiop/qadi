@@ -19,7 +19,6 @@ import {
   attributeResolverFromRecord,
   CustomPredicate,
   customPredicateFromRecord,
-  CustomPredicateError,
   describeKeyRefusal,
   DecisionHistory,
   decisionHistoryFromEvents,
@@ -788,10 +787,10 @@ describe("a request with no key (KEY-03)", () => {
       assert.deepStrictEqual(
         replayed,
         Exit.fail(
-          new CustomPredicateError({
-            name: "isCallable",
-            reason: `this CustomPredicate request cannot be keyed: ${describeKeyRefusal(refused.failure)}`,
-          }),
+          customPredicatePort.failure(
+            ["isCallable", subject, undefined, params],
+            `this CustomPredicate request cannot be keyed: ${describeKeyRefusal(refused.failure)}`,
+          ),
         ),
       );
     }));
