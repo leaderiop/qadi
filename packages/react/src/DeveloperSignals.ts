@@ -2,21 +2,27 @@
  * Every developer-facing signal `@qadi/react` can raise, and the one place any
  * of them reaches the console.
  *
- * Seven signals live here, as one closed union ({@link DeveloperSignal}): a
+ * Eight signals live here, as one closed union ({@link DeveloperSignal}): a
  * server seed superseded by this client's own answer, two React roots minting
- * one gate id, a dehydrated payload that mixed subjects, a hydration drop, and
- * the three situations `QadiProvider` detects (instrumentation in a production
+ * one gate id, a dehydrated payload that mixed subjects, a hydration drop, a
+ * reporter the host supplied that threw, and the three situations
+ * `QadiProvider` detects (instrumentation in a production
  * bundle, an `atoms` prop replaced after mount, a gate registry guards cannot
  * write to). One module-scope `Match` gives each its sentence and one function,
  * `say`, is the only `console` reference in the library. A new signal is a new
  * union member, and the compiler asks for its sentence.
  *
- * **Resolution.** Each resolver below reads `supplied ?? default`. A supplied
- * reporter replaces the default outright and runs in production: a caller
- * routing signals to telemetry does not also want them on the console, and one
- * that does can call `console.warn` itself. The default speaks only under its
+ * **Resolution.** Each resolver below returns the supplied reporter, contained,
+ * or else the default. A supplied reporter replaces the default outright and
+ * runs in production: a caller routing signals to telemetry does not also want
+ * them on the console, and one that does can call `console.warn` itself. The default speaks only under its
  * own condition, which is development for every signal except
  * `InstrumentedInProduction`.
+ *
+ * **A supplied reporter observes; it cannot change the outcome.** Each resolver
+ * wraps what it is handed once, in {@link contain}, so a reporter that throws is
+ * announced as `ReporterThrew` and then ignored: the result, the seeds, the
+ * counts and the render are what they would have been had it returned (ARCH-60).
  *
  * `console` and `process.env` are ambient globals, which AGENTS.md §6 otherwise
  * keeps out of this codebase. They are confined to this file for the reason
@@ -79,15 +85,28 @@ type DeveloperSignal = Data.TaggedEnum<{
     readonly count: number;
     readonly wholePayload: boolean;
   };
+  /** A reporter the host supplied threw; what it was told about stands. */
+  ReporterThrew: { readonly reporter: ReporterName; readonly error: unknown };
   InstrumentedInProduction: {};
   AtomsReplaced: {};
   UnwritableGateRegistry: {};
 }>;
 
+/** A hook a host can supply, named as the option it is passed through. */
+type ReporterName = "onHydrationMismatch" | "onGateIdCollision" | "onDropped" | "onDeveloperSignal";
+
 const DeveloperSignal = Data.taggedEnum<DeveloperSignal>();
 
 const verdict = (decision: Decision | SeededDecision): string =>
   permits(decision) ? "allowed" : "denied";
+
+/**
+ * An error as one short line: `name: message` for an `Error`, else its string
+ * form. Only the error: never the value the reporter was handed, which may be
+ * another subject's decision.
+ */
+const errorLine = (error: unknown): string =>
+  error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 
 /** A sentence that begins mid-clause elsewhere, begun here. */
 const sentence = (clause: string): string => `${clause.charAt(0).toUpperCase()}${clause.slice(1)}`;
@@ -145,6 +164,10 @@ const describeSignal: (signal: DeveloperSignal) => string = Match.type<Developer
         `Those questions will be asked again from scratch.`
       );
     },
+    ReporterThrew: ({ reporter, error }) =>
+      `[qadi] the ${reporter} reporter you supplied threw (${errorLine(error)}). ` +
+      `The outcome it was told about stands — nothing was skipped, seeded ` +
+      `differently or left uncounted. Fix the reporter.`,
     InstrumentedInProduction: () =>
       "[qadi] <QadiProvider instrument> is true outside development. This is a debug " +
       "affordance: it registers every guarded control's policy, resource and verdict " +
@@ -169,6 +192,25 @@ const say = (signal: DeveloperSignal): void => {
 };
 
 /**
+ * A supplied reporter that cannot change the outcome it observes.
+ *
+ * Wrapped once, at resolution: a throw is announced as `ReporterThrew` and
+ * swallowed, so the caller carries on exactly as if the reporter had returned.
+ * Said in **every** environment, because the host replaced the default and
+ * nothing else will ever say it (BEH-QD-230's reason for announcing a drop at
+ * all). The library's own defaults are not wrapped: `say` does not throw.
+ */
+const contain =
+  <A,>(reporter: ReporterName, supplied: (value: A) => void) =>
+  (value: A): void => {
+    try {
+      supplied(value);
+    } catch (error) {
+      say(DeveloperSignal.ReporterThrew({ reporter, error }));
+    }
+  };
+
+/**
  * The reporter an atom set will use, or `undefined` for none.
  *
  * A supplied callback replaces the warning outright rather than adding to it: a
@@ -178,8 +220,11 @@ const say = (signal: DeveloperSignal): void => {
 export const hydrationMismatchReporter = (
   supplied: HydrationMismatchReporter | undefined,
 ): HydrationMismatchReporter | undefined =>
-  supplied ??
-  (isDevelopment() ? (mismatch) => say(DeveloperSignal.SeedSuperseded({ mismatch })) : undefined);
+  supplied === undefined
+    ? isDevelopment()
+      ? (mismatch) => say(DeveloperSignal.SeedSuperseded({ mismatch }))
+      : undefined
+    : contain("onHydrationMismatch", supplied);
 
 /**
  * Told when two live guards registered the same id with one gate registry.
@@ -200,7 +245,11 @@ export type GateIdCollisionReporter = (id: string) => void;
 export const gateIdCollisionReporter = (
   supplied: GateIdCollisionReporter | undefined,
 ): GateIdCollisionReporter | undefined =>
-  supplied ?? (isDevelopment() ? (id) => say(DeveloperSignal.GateIdCollision({ id })) : undefined);
+  supplied === undefined
+    ? isDevelopment()
+      ? (id) => say(DeveloperSignal.GateIdCollision({ id }))
+      : undefined
+    : contain("onGateIdCollision", supplied);
 
 /**
  * Told which entries a payload discarded.
@@ -224,10 +273,11 @@ export type DroppedEntriesReporter<A> = (dropped: ReadonlyArray<A>) => void;
 export const droppedEntriesReporter = <A,>(
   supplied: DroppedEntriesReporter<A> | undefined,
 ): DroppedEntriesReporter<A> | undefined =>
-  supplied ??
-  (isDevelopment()
-    ? (dropped) => say(DeveloperSignal.PayloadMixedSubjects({ count: dropped.length }))
-    : undefined);
+  supplied === undefined
+    ? isDevelopment()
+      ? (dropped) => say(DeveloperSignal.PayloadMixedSubjects({ count: dropped.length }))
+      : undefined
+    : contain("onDropped", supplied);
 
 /**
  * Entries a client refused to seed, and why.
@@ -273,11 +323,12 @@ export type HydrationDropReporter<A> = (drop: HydrationDrop<A>) => void;
 export const hydrationDropReporter = <A,>(
   supplied: HydrationDropReporter<A> | undefined,
 ): HydrationDropReporter<A> | undefined =>
-  supplied ??
-  (isDevelopment()
-    ? ({ reason, entries, wholePayload }) =>
-        say(DeveloperSignal.HydrationDropped({ reason, count: entries.length, wholePayload }))
-    : undefined);
+  supplied === undefined
+    ? isDevelopment()
+      ? ({ reason, entries, wholePayload }) =>
+          say(DeveloperSignal.HydrationDropped({ reason, count: entries.length, wholePayload }))
+      : undefined
+    : contain("onDropped", supplied);
 
 /**
  * What `QadiProvider` can tell a developer.
@@ -357,4 +408,5 @@ const sayProviderSignal: ProviderSignalReporter = Match.type<ProviderSignal>().p
  */
 export const providerSignalReporter = (
   supplied: ProviderSignalReporter | undefined,
-): ProviderSignalReporter => supplied ?? sayProviderSignal;
+): ProviderSignalReporter =>
+  supplied === undefined ? sayProviderSignal : contain("onDeveloperSignal", supplied);

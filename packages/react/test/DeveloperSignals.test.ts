@@ -302,7 +302,6 @@ describe("a supplied reporter that throws (ReporterThrew, INT-04)", () => {
         const lines = inEnvironment(() =>
           said(() =>
             gateIdCollisionReporter(() => {
-              // oxlint-disable-next-line no-throw-literal
               throw "plain string";
             })?.(":r1:"),
           ),
