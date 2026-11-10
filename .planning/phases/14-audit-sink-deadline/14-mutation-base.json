@@ -1,0 +1,18 @@
+{
+  "packages/audit/src/CircuitBreaker.ts": {
+    "score": 80.51282051282051,
+    "noCoverage": 4
+  },
+  "packages/audit/src/AuditDecisionSinkLive.ts": {
+    "score": 98.03921568627452,
+    "noCoverage": 0
+  },
+  "packages/audit/src/AuditStagingPortTest.ts": {
+    "score": 100,
+    "noCoverage": 0
+  },
+  "packages/audit/src/AuditTrailPortTest.ts": {
+    "score": 100,
+    "noCoverage": 0
+  }
+}
