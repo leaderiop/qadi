@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-26                                    |
-> | Revision       | 1.14                                           |
+> | Revision       | 1.15                                           |
 > | Effective Date | 2026-11-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.14 (2026-11-10): BEH-QD-349 added (a resumed stream loses and repeats nothing: backlog frames travel in cursor order, written by @qadi/core's encodeDecisionStream and read back by decodeDecisionStream); BEH-QD-314's first requirement says cursor order; BEH-QD-311, BEH-QD-314 and BEH-QD-337 drop @qadi/http's removed frame, syncedFrame and decisionFrames (ARCH-60, ADR-QD-097 2026-11-10 amendment, CCR-QD-397)<br>1.13 (2026-11-08): BEH-QD-337 added (the stream and the backlog encode, and refuse, alike, through one `@qadi/http` module); BEH-QD-311 and BEH-QD-315 listings show the options shape both routes share (ARCH-50, CCR-QD-389)<br>1.12 (2026-11-08): BEH-QD-202 — the recheck runs the request-enforcement module's guarded mode (edge step `authorizeRequest`) answered by its own projection, and the line closing a stream is beyond the one the module writes; no requirement changes meaning (ARCH-46, ADR-QD-108, CCR-QD-385)<br>1.11 (2026-10-08): present-tense `guardRoute` becomes `addGuardedRoute` / the route's guard, `guardRoute` having left the surface (ARCH-36, CCR-QD-311)<br>1.10 (2026-10-07): BEH-QD-202 — the recheck is `authorizeRequest` ([BEH-QD-321](./23-http.md)) and `reauthCheck` is removed; a recheck failure is labelled by `classifyHttpEnforcementFailure`, so a broken credential store is an `outage`, not `"extraction-failed"`; a recheck that ends a stream logs one line (ADR-QD-046 Rev 1.4, CCR-QD-197)<br>1.9 (2026-10-07): BEH-QD-311 and BEH-QD-314 — the event names and the `synced` payload are `@qadi/core`'s `DecisionStreamEvent`, `DecisionRecordEvent` and `DecisionStreamSynced`, and `DecisionStreamSynced` refuses a non-count (CCR-QD-195)<br>1.8 (2026-10-07): BEH-QD-311 and BEH-QD-315 — an `onRefused` that throws is reported and ends neither the feed nor the backlog response; the report is core's `reportEncodeRefusal` (CCR-QD-193)<br>1.7 (2026-10-06): BEH-QD-314 — only an envelope is read: `decodeStoredRecord` takes no options (`legacyEnvironment` removed, as scheduled), a bare record is refused as `Malformed`, and an absent backlog no longer means an older server (ADR-QD-097 amendment, CCR-QD-182)<br>1.6 (2026-10-05): ARCH-11 — BEH-QD-201 rewritten for the decision log's live half; BEH-QD-202 takes a `DecisionLogReader`; BEH-QD-311's frame carries the stored-record envelope; BEH-QD-314 (the backlog travels on the stream, every frame names its producer), BEH-QD-315 (`decisionBacklogRoute`) and BEH-QD-316 (resume on reconnect) added (ADR-QD-097, CCR-QD-181)<br>1.5 (2026-10-05): BEH-QD-201 — the stale `publishUnsafe` sentence corrected to what the code does (`publish`, and why) (CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-311 — a frame's data is wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-311 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.15 (2026-11-10): BEH-QD-419 (each devtools route answers at devtoolsPath(route, prefix), the root by default; a client derives its URL from the same rule) and BEH-QD-420 (devtoolsRoutes mounts all three under one guard and one prefix, with no unguarded form) added; BEH-QD-202 and BEH-QD-315 listings take the prefix (ARCH-66, ADR-QD-130, CCR-QD-408)<br>1.14 (2026-11-10): BEH-QD-349 added (a resumed stream loses and repeats nothing: backlog frames travel in cursor order, written by @qadi/core's encodeDecisionStream and read back by decodeDecisionStream); BEH-QD-314's first requirement says cursor order; BEH-QD-311, BEH-QD-314 and BEH-QD-337 drop @qadi/http's removed frame, syncedFrame and decisionFrames (ARCH-60, ADR-QD-097 2026-11-10 amendment, CCR-QD-397)<br>1.13 (2026-11-08): BEH-QD-337 added (the stream and the backlog encode, and refuse, alike, through one `@qadi/http` module); BEH-QD-311 and BEH-QD-315 listings show the options shape both routes share (ARCH-50, CCR-QD-389)<br>1.12 (2026-11-08): BEH-QD-202 — the recheck runs the request-enforcement module's guarded mode (edge step `authorizeRequest`) answered by its own projection, and the line closing a stream is beyond the one the module writes; no requirement changes meaning (ARCH-46, ADR-QD-108, CCR-QD-385)<br>1.11 (2026-10-08): present-tense `guardRoute` becomes `addGuardedRoute` / the route's guard, `guardRoute` having left the surface (ARCH-36, CCR-QD-311)<br>1.10 (2026-10-07): BEH-QD-202 — the recheck is `authorizeRequest` ([BEH-QD-321](./23-http.md)) and `reauthCheck` is removed; a recheck failure is labelled by `classifyHttpEnforcementFailure`, so a broken credential store is an `outage`, not `"extraction-failed"`; a recheck that ends a stream logs one line (ADR-QD-046 Rev 1.4, CCR-QD-197)<br>1.9 (2026-10-07): BEH-QD-311 and BEH-QD-314 — the event names and the `synced` payload are `@qadi/core`'s `DecisionStreamEvent`, `DecisionRecordEvent` and `DecisionStreamSynced`, and `DecisionStreamSynced` refuses a non-count (CCR-QD-195)<br>1.8 (2026-10-07): BEH-QD-311 and BEH-QD-315 — an `onRefused` that throws is reported and ends neither the feed nor the backlog response; the report is core's `reportEncodeRefusal` (CCR-QD-193)<br>1.7 (2026-10-06): BEH-QD-314 — only an envelope is read: `decodeStoredRecord` takes no options (`legacyEnvironment` removed, as scheduled), a bare record is refused as `Malformed`, and an absent backlog no longer means an older server (ADR-QD-097 amendment, CCR-QD-182)<br>1.6 (2026-10-05): ARCH-11 — BEH-QD-201 rewritten for the decision log's live half; BEH-QD-202 takes a `DecisionLogReader`; BEH-QD-311's frame carries the stored-record envelope; BEH-QD-314 (the backlog travels on the stream, every frame names its producer), BEH-QD-315 (`decisionBacklogRoute`) and BEH-QD-316 (resume on reconnect) added (ADR-QD-097, CCR-QD-181)<br>1.5 (2026-10-05): BEH-QD-201 — the stale `publishUnsafe` sentence corrected to what the code does (`publish`, and why) (CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-311 — a frame's data is wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-311 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 _Previous: [25 — Inspection](./25-inspection.md)_
 
@@ -142,6 +142,7 @@ export interface DecisionStreamOptions {
     readonly interval: Duration.Input;
   };
   readonly onRefused?: (refusal: SinkRecordNotEncodable) => void;
+  readonly prefix?: `/${string}`; // DevtoolsRouteOptions, BEH-QD-419
 }
 
 export const decisionStreamRoute: (
@@ -425,9 +426,9 @@ export const decisionBacklogRoute: (
   permission: Permission,
   policy: Policy,
   log: Pick<DecisionLog, "snapshot">,
-  // The decision-log options `DecisionStreamOptions` extends (package-private),
-  // so `Pick<DecisionStreamOptions, "onRefused">` still type-checks.
-  options?: { readonly onRefused?: (refusal: SinkRecordNotEncodable) => void },
+  // `onRefused` and `prefix` (BEH-QD-419), the options `DecisionStreamOptions`
+  // also extends, so a stream's options object still type-checks here.
+  options?: DecisionBacklogOptions,
 ) => Layer<…>;
 ```
 
@@ -613,6 +614,87 @@ ARCH-60 (CCR-QD-397), a port of the lost decision-stream commit `6c67e44` onto
 the merged `DecisionLogHttp.ts`
 ([ADR-QD-097](../decisions/097-a-decision-log-is-a-sink-and-its-own-history.md),
 2026-11-10 amendment).
+
+
+## BEH-QD-419: Each devtools route answers at one address, and its client derives it
+
+> **Invariant:** [INV-QD-285](../invariants.md#inv-qd-285-a-devtools-route-and-its-client-agree-on-one-address)
+
+```ts
+export type DevtoolsRoute = "decisions" | "backlog" | "permissions";
+export interface DevtoolsRouteOptions {
+  readonly prefix?: `/${string}` | undefined;
+}
+export const devtoolsPath: (route: DevtoolsRoute, prefix?: `/${string}`) => `/${string}`;
+```
+
+```
+REQUIREMENT: The decision stream, its backlog and the permission registry
+             (guarded and unguarded) MUST answer at
+             `devtoolsPath(route, options.prefix)`: `/__decisions`,
+             `/__decisions/backlog` and `/__permissions` when no prefix is
+             given, `<prefix>/__decisions` and its siblings when one is.
+REQUIREMENT: A trailing slash on the prefix MUST be ignored, and `"/"` MUST
+             mean no prefix.
+REQUIREMENT: Under a prefix, each route MUST be mounted once: the default
+             path MUST answer 404 on that router.
+REQUIREMENT: A prefix MUST NOT change a route's guard: a subject the policy
+             denies, or none, MUST get 403 at every prefixed path.
+REQUIREMENT: A client MUST derive a devtools URL from `devtoolsPath` with the
+             prefix the host mounted under, never restate the path.
+```
+
+Before ARCH-66 each route mounted at a path literal of its own, no constructor took
+a prefix, and a host's client spelled the path again by hand (`"/api/__decisions"`
+in the Next.js example's dock). A host that mounted the routes anywhere else broke
+its own client with no error. One function now owns the rule for the route and for
+the client, the shape [ADR-QD-107](../decisions/107-a-port-is-answered-remotely-through-its-description.md)
+gives port routes (`portPath`).
+
+`devtoolsPath` is public from `@qadi/http`'s root, unlike `portPath`, because the
+client half is the host's own code: `@qadi/devtools` takes a URL from its caller and
+has no `@qadi/http` dependency, and a host can import only the root
+([ADR-QD-099](../decisions/099-entry-points-are-a-closed-list.md)). Its module
+imports nothing, so a browser bundle that imports it pulls in no router.
+
+The unguarded registry's warning names the path it serves, prefix included
+([BEH-QD-180](./23-http.md#beh-qd-180-the-registry-answers-which-permission-not-which-policy)):
+a warning that names the wrong address cannot be acted on.
+
+ARCH-66 (CCR-QD-408).
+
+## BEH-QD-420: One guarded call mounts the devtools surface
+
+```ts
+export interface DevtoolsRoutesOptions extends DecisionStreamOptions {}
+
+export const devtoolsRoutes: <P extends Permission>(
+  permission: P,
+  policy: Policy,
+  log: Pick<DecisionLog, "read" | "readEntries" | "snapshot">,
+  options?: DevtoolsRoutesOptions,
+) => Layer<…>;
+```
+
+```
+REQUIREMENT: `devtoolsRoutes` MUST mount the decision stream, its backlog and
+             the permission registry behind one permission and policy, at
+             `devtoolsPath(route, options.prefix)` (BEH-QD-419).
+REQUIREMENT: It MUST have no unguarded form. Serving the registry open stays
+             the separate, named `permissionRegistryRouteUnguarded`, and the
+             stream and the backlog have none (BEH-QD-202, BEH-QD-315).
+REQUIREMENT: `onRefused` MUST reach the stream and the backlog, and `reauth`
+             the stream, exactly as their own constructors read them.
+```
+
+A host that served all three wrote three calls and repeated the guard pair and the
+prefix in each, and a mismatch between them was not a compile error. One call
+cannot mount the three at different prefixes, and none of them unguarded by
+accident. The per-route constructors remain for a host that guards the routes
+differently: `examples/http-advanced` serves the stream and the registry under two
+guard pairs. See [ADR-QD-130](../decisions/130-the-devtools-surface-is-one-guarded-mount.md).
+
+ARCH-66 (CCR-QD-408).
 
 ---
 
