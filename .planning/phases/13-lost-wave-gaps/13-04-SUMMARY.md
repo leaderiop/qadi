@@ -122,7 +122,7 @@ taken (new design beyond the port; can be added later without breaking `addChip`
    13-03 in a temporary worktree (569/584 = 0.9743) with the same config, so it was reused rather than re-measured.
 4. Spec text says "(ARCH-61 found both were)" where the lost text said "ARCH-48 found both were"; no bare `ARCH-48`
    was added (the negative gate passes).
-5. **[Mutation] `SimulationForm.ts` ratio .9743 → .9729** with the same 15 un-killed mutants (see Mutation).
+5. **[Mutation] `SimulationForm.ts` ratio fell to .9729, then rose to .9819 with one test that kills five reachable survivors** (see Mutation).
 
 ## Mutation (XC-05)
 
@@ -148,6 +148,14 @@ has no `value`), `closingQuote` `:236` (`<=` reads `undefined`, neither branch),
 (`typeof !== "number"` is redundant with `!Number.isFinite`, kept for narrowing), and `explicit` `:151` no coverage
 (text starting `{` that parses is always a plain record). The repo has no `// Stryker disable` convention, so
 none was added. The caller decides whether XC-05 is read per mutant (holds) or per ratio (fails by 0.0014).
+
+**Resolved (coordinator: XC-05 is per file, by ratio).** Five of the 15 above were *not* equivalent: `sameJson`
+`:81` ×3, `:85`, `:88` are reachable through a value with a non-enumerable `toJSON` that changes its shape (an
+array that grows or becomes an object, a record that gains a key or becomes an array), which `Object.keys` cannot
+see. One test, "refuses a value whose hidden toJSON changes its shape…" in `SimulationForm.test.ts`, kills all
+five. No source changed. `SimulationForm.ts` **.9729 → .9819** (544/554, base .9743). The remaining 10 (`:100`,
+`:114`, `:116`, `:222` ×4, `:236`, `:376`, `:151` no-coverage) are as described above. Devtools 40 files / 1081
+tests, `pnpm typecheck` and `pnpm lint` green after it.
 
 ## Gate results
 
