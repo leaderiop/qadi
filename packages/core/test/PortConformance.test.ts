@@ -52,8 +52,8 @@ import {
 } from "../src/DecisionHistory.ts";
 import { InvalidBoundedPermits } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
-import type { PortDescription, PortShape } from "../src/PortDescription.ts";
-import { PortReply } from "../src/PortDescription.ts";
+import type { KeyRefusal, PortDescription, PortShape } from "../src/PortDescription.ts";
+import { describeKeyRefusal, PortReply } from "../src/PortDescription.ts";
 import { nonePort } from "../src/PortDerivation.ts";
 import { recordingPort, replyTable, scriptedPort } from "../src/PortDoubles.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "../src/PortMetrics.ts";
@@ -510,46 +510,54 @@ const conform: CaseVisitor = (c) => {
 
 for (const run of Record.values(RUN)) run(conform);
 
+/** A request key's text, asserting the port could key the request. */
+const keyText = (key: Result.Result<string, KeyRefusal>): string => {
+  if (Result.isFailure(key)) return assert.fail(`refused: ${describeKeyRefusal(key.failure)}`);
+  return key.success;
+};
+
 /**
- * The request keys, pinned exactly: `@qadi/devtools`' capture and replay key
- * by them (INV-QD-043), so a key that changed shape would orphan every saved
- * capture. Each includes the subject, and an absent resource is `null` so an
- * "ever, at all" question never collides with a resource-scoped one.
+ * The request keys, pinned exactly, so a change to any port's field order or
+ * token is caught. Each includes the subject, and an absent resource keys as
+ * `u`, so an "ever, at all" question never collides with a resource-scoped
+ * one. The law itself is `PortKey.test.ts`'s.
  */
 describe("request keys", () => {
-  it("are the collision-safe JSON of the question each port is asked", () => {
-    assert.strictEqual(attributeResolverPort.key([aliceId, "level"]), '["alice","level"]');
+  it("are canonicalKey over the question each port is asked", () => {
+    assert.strictEqual(keyText(attributeResolverPort.key([aliceId, "level"])), '[s"alice",s"level"]');
     assert.strictEqual(
-      decisionHistoryPort.key([{ subjectId: aliceId, event: "approved", resourceId: undefined }]),
-      '["alice","approved",null]',
+      keyText(decisionHistoryPort.key([{ subjectId: aliceId, event: "approved", resourceId: undefined }])),
+      '[s"alice",s"approved",u]',
     );
     assert.strictEqual(
-      decisionHistoryPort.key([{ subjectId: aliceId, event: "approved", resourceId: doc }]),
-      '["alice","approved","doc-1"]',
+      keyText(decisionHistoryPort.key([{ subjectId: aliceId, event: "approved", resourceId: doc }])),
+      '[s"alice",s"approved",s"doc-1"]',
     );
     assert.strictEqual(
-      relationshipResolverPort.key([
-        { subjectId: aliceId, relation: "owner", resourceId: doc, depth: 3 },
-      ]),
-      '["alice","owner","doc-1",3]',
+      keyText(
+        relationshipResolverPort.key([{ subjectId: aliceId, relation: "owner", resourceId: doc, depth: 3 }]),
+      ),
+      '[s"alice",s"owner",s"doc-1",d3;]',
     );
     assert.strictEqual(
-      customPredicatePort.key(["isOwner", alice, { id: "doc-1" }, { strict: true }]),
-      '["alice","isOwner",{"strict":true},{"id":"doc-1"},{"attributes":{},"permissions":[],"roles":[]}]',
+      keyText(customPredicatePort.key(["isOwner", alice, { id: "doc-1" }, { strict: true }])),
+      '[s"alice",s"isOwner",{"strict":t},{"id":s"doc-1"},{"attributes":{},"permissions":S{},"roles":S{}}]',
     );
     assert.strictEqual(
-      signatureHistoryPort.key([{ subjectId: aliceId, resourceId: undefined }]),
-      '["alice",null,null,null]',
+      keyText(signatureHistoryPort.key([{ subjectId: aliceId, resourceId: undefined }])),
+      '[s"alice",u,u,u]',
     );
     assert.strictEqual(
-      signatureHistoryPort.key([{ subjectId: aliceId, resourceId: doc }]),
-      '["alice","doc-1",null,null]',
+      keyText(signatureHistoryPort.key([{ subjectId: aliceId, resourceId: doc }])),
+      '[s"alice",s"doc-1",u,u]',
     );
     assert.strictEqual(
-      signatureHistoryPort.key([
-        { subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" },
-      ]),
-      '["alice","doc-1","approved","manager"]',
+      keyText(
+        signatureHistoryPort.key([
+          { subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" },
+        ]),
+      ),
+      '[s"alice",s"doc-1",s"approved",s"manager"]',
     );
   });
 });
@@ -568,28 +576,28 @@ describe("request keys tell apart the questions a capture must not confuse", () 
     // The axis a what-if sweep varies: a capture taken for alice must not
     // answer a question asked about bob (INV-QD-043).
     assert.notStrictEqual(
-      attributeResolverPort.key([aliceId, "clearance"]),
-      attributeResolverPort.key([bobId, "clearance"]),
+      keyText(attributeResolverPort.key([aliceId, "clearance"])),
+      keyText(attributeResolverPort.key([bobId, "clearance"])),
     );
     assert.notStrictEqual(
-      customPredicatePort.key(["isOwner", alice, undefined, undefined]),
-      customPredicatePort.key(["isOwner", bob, undefined, undefined]),
+      keyText(customPredicatePort.key(["isOwner", alice, undefined, undefined])),
+      keyText(customPredicatePort.key(["isOwner", bob, undefined, undefined])),
     );
   });
 
   it("a relationship is keyed by relation and resource together, never relation alone", () => {
     const ask = (resourceId: typeof doc) =>
-      relationshipResolverPort.key([
+      keyText(relationshipResolverPort.key([
         { subjectId: aliceId, relation: "owner", resourceId, depth: undefined },
-      ]);
+      ]));
     assert.notStrictEqual(ask(doc), ask(other));
   });
 
   it("a relationship is keyed by depth too", () => {
     const ask = (depth: number | undefined) =>
-      relationshipResolverPort.key([
+      keyText(relationshipResolverPort.key([
         { subjectId: aliceId, relation: "owner", resourceId: doc, depth },
-      ]);
+      ]));
     // A traversing resolver must honour `depth` (RelationshipResolver.ts), so
     // depth 1 and depth 3 are different questions with different answers.
     assert.notStrictEqual(ask(1), ask(3));
@@ -599,30 +607,30 @@ describe("request keys tell apart the questions a capture must not confuse", () 
 
   it("a custom predicate is keyed by its resource", () => {
     assert.notStrictEqual(
-      customPredicatePort.key(["isOwner", alice, { id: "doc-1" }, undefined]),
-      customPredicatePort.key(["isOwner", alice, { id: "doc-2" }, undefined]),
+      keyText(customPredicatePort.key(["isOwner", alice, { id: "doc-1" }, undefined])),
+      keyText(customPredicatePort.key(["isOwner", alice, { id: "doc-2" }, undefined])),
     );
     assert.notStrictEqual(
-      customPredicatePort.key(["isOwner", alice, undefined, undefined]),
-      customPredicatePort.key(["isOwner", alice, { id: "doc-1" }, undefined]),
+      keyText(customPredicatePort.key(["isOwner", alice, undefined, undefined])),
+      keyText(customPredicatePort.key(["isOwner", alice, { id: "doc-1" }, undefined])),
     );
   });
 
   it("a custom predicate is keyed by the whole subject, not its id", () => {
     const editor = makeSubject({ id: "alice", roles: ["editor"], permissions: [], attributes: {} });
     assert.notStrictEqual(
-      customPredicatePort.key(["isOwner", alice, undefined, undefined]),
-      customPredicatePort.key(["isOwner", editor, undefined, undefined]),
+      keyText(customPredicatePort.key(["isOwner", alice, undefined, undefined])),
+      keyText(customPredicatePort.key(["isOwner", editor, undefined, undefined])),
     );
     const withAttr = makeSubject({ id: "alice", attributes: { dept: "eng" } });
     assert.notStrictEqual(
-      customPredicatePort.key(["isOwner", alice, undefined, undefined]),
-      customPredicatePort.key(["isOwner", withAttr, undefined, undefined]),
+      keyText(customPredicatePort.key(["isOwner", alice, undefined, undefined])),
+      keyText(customPredicatePort.key(["isOwner", withAttr, undefined, undefined])),
     );
     const granted = makeSubject({ id: "alice", permissions: ["doc:read"] });
     assert.notStrictEqual(
-      customPredicatePort.key(["isOwner", alice, undefined, undefined]),
-      customPredicatePort.key(["isOwner", granted, undefined, undefined]),
+      keyText(customPredicatePort.key(["isOwner", alice, undefined, undefined])),
+      keyText(customPredicatePort.key(["isOwner", granted, undefined, undefined])),
     );
   });
 
@@ -630,42 +638,42 @@ describe("request keys tell apart the questions a capture must not confuse", () 
     const ab = makeSubject({ id: "alice", roles: ["a", "b"], attributes: { x: 1, y: 2 } });
     const ba = makeSubject({ id: "alice", roles: ["b", "a"], attributes: { y: 2, x: 1 } });
     assert.strictEqual(
-      customPredicatePort.key(["isOwner", ab, undefined, undefined]),
-      customPredicatePort.key(["isOwner", ba, undefined, undefined]),
+      keyText(customPredicatePort.key(["isOwner", ab, undefined, undefined])),
+      keyText(customPredicatePort.key(["isOwner", ba, undefined, undefined])),
     );
   });
 
   it("an anywhere-history question is keyed apart from a resource-scoped one", () => {
     assert.notStrictEqual(
-      decisionHistoryPort.key([{ subjectId: aliceId, event: "raised", resourceId: doc }]),
-      decisionHistoryPort.key([{ subjectId: aliceId, event: "raised", resourceId: undefined }]),
+      keyText(decisionHistoryPort.key([{ subjectId: aliceId, event: "raised", resourceId: doc }])),
+      keyText(decisionHistoryPort.key([{ subjectId: aliceId, event: "raised", resourceId: undefined }])),
     );
   });
 
   it("a custom predicate is keyed by its name and its params", () => {
     assert.notStrictEqual(
-      customPredicatePort.key(["isOwner", alice, undefined, undefined]),
-      customPredicatePort.key(["isEditor", alice, undefined, undefined]),
+      keyText(customPredicatePort.key(["isOwner", alice, undefined, undefined])),
+      keyText(customPredicatePort.key(["isEditor", alice, undefined, undefined])),
     );
     assert.notStrictEqual(
-      customPredicatePort.key(["isOwner", alice, undefined, "doc-1"]),
-      customPredicatePort.key(["isOwner", alice, undefined, "doc-2"]),
+      keyText(customPredicatePort.key(["isOwner", alice, undefined, "doc-1"])),
+      keyText(customPredicatePort.key(["isOwner", alice, undefined, "doc-2"])),
     );
   });
 });
 
 /**
- * The key law (ADR-QD-094): a request key is injective over every argument the
- * port receives. Per port, `base` is a representative request, `rebuilt` an
- * independently built structurally equal one, and `variants` are requests that
- * differ from `base` in exactly one field. `LAWS` is a mapped type over `PortName`,
- * so a port added to the registry without a row is a compile error.
+ * Every argument a port receives reaches its key (ADR-QD-094). Per port, `base`
+ * is a representative request and `variants` are requests that differ from
+ * `base` in exactly one field. That the key is `Equal.equals` (an equal request
+ * built in another order keys alike) is `PortKey.test.ts`'s law, tested once
+ * there. `LAWS` is a mapped type over `PortName`, so a port added to the
+ * registry without a row is a compile error.
  */
-describe("a request key is injective over the request", () => {
+describe("every argument reaches the key", () => {
   interface Law<Args extends ReadonlyArray<unknown>> {
-    readonly description: { readonly key: (args: Args) => string };
+    readonly description: { readonly key: (args: Args) => Result.Result<string, KeyRefusal> };
     readonly base: Args;
-    readonly rebuilt: Args;
     readonly variants: ReadonlyArray<readonly [field: string, args: Args]>;
   }
   const bobId = makeSubjectId("bob");
@@ -677,7 +685,6 @@ describe("a request key is injective over the request", () => {
     AttributeResolver: {
       description: attributeResolverPort,
       base: [aliceId, "level"],
-      rebuilt: [makeSubjectId("alice"), "level"],
       variants: [
         ["subjectId", [bobId, "level"]],
         ["attribute", [aliceId, "clearance"]],
@@ -686,7 +693,6 @@ describe("a request key is injective over the request", () => {
     DecisionHistory: {
       description: decisionHistoryPort,
       base: [{ subjectId: aliceId, event: "approved", resourceId: doc }],
-      rebuilt: [{ resourceId: makeResourceId("doc-1"), event: "approved", subjectId: aliceId }],
       variants: [
         ["subjectId", [{ subjectId: bobId, event: "approved", resourceId: doc }]],
         ["event", [{ subjectId: aliceId, event: "raised", resourceId: doc }]],
@@ -697,7 +703,6 @@ describe("a request key is injective over the request", () => {
     RelationshipResolver: {
       description: relationshipResolverPort,
       base: [{ subjectId: aliceId, relation: "owner", resourceId: doc, depth: 3 }],
-      rebuilt: [{ depth: 3, resourceId: makeResourceId("doc-1"), relation: "owner", subjectId: aliceId }],
       variants: [
         ["subjectId", [{ subjectId: bobId, relation: "owner", resourceId: doc, depth: 3 }]],
         ["relation", [{ subjectId: aliceId, relation: "editor", resourceId: doc, depth: 3 }]],
@@ -709,7 +714,6 @@ describe("a request key is injective over the request", () => {
     CustomPredicate: {
       description: customPredicatePort,
       base: ["isOwner", rich(["a", "b"]), { id: "doc-1", tags: ["x"] }, { strict: true, n: 1 }],
-      rebuilt: ["isOwner", rich(["b", "a"]), { tags: ["x"], id: "doc-1" }, { n: 1, strict: true }],
       variants: [
         ["name", ["isEditor", rich(["a", "b"]), { id: "doc-1", tags: ["x"] }, { strict: true, n: 1 }]],
         ["subject.id", ["isOwner", makeSubject({ id: "bob", roles: ["a", "b"], permissions: ["p:read"], attributes: { dept: "eng", n: 1 } }), { id: "doc-1", tags: ["x"] }, { strict: true, n: 1 }]],
@@ -724,9 +728,6 @@ describe("a request key is injective over the request", () => {
     SignatureHistory: {
       description: signatureHistoryPort,
       base: [{ subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" }],
-      rebuilt: [
-        { signerRole: "manager", meaning: "approved", resourceId: makeResourceId("doc-1"), subjectId: aliceId },
-      ],
       variants: [
         ["subjectId", [{ subjectId: bobId, resourceId: doc, meaning: "approved", signerRole: "manager" }]],
         ["resourceId", [{ subjectId: aliceId, resourceId: other, meaning: "approved", signerRole: "manager" }]],
@@ -743,11 +744,10 @@ describe("a request key is injective over the request", () => {
   };
 
   const check = <Args extends ReadonlyArray<unknown>>(law: Law<Args>) => {
-    assert.strictEqual(law.description.key(law.base), law.description.key(law.rebuilt));
     for (const [field, args] of law.variants) {
       assert.notStrictEqual(
-        law.description.key(law.base),
-        law.description.key(args),
+        keyText(law.description.key(law.base)),
+        keyText(law.description.key(args)),
         `a request differing only in ${field} must key differently`,
       );
     }
@@ -761,10 +761,20 @@ describe("a request key is injective over the request", () => {
     check(LAWS.SignatureHistory);
   });
 
-  it("a circular resource makes the custom-predicate key throw, as JSON.stringify does", () => {
+  it("a custom predicate's params tell apart what JSON merged: undefined and null, a Date and its ISO string", () => {
+    const ask = (params: unknown) => keyText(customPredicatePort.key(["isOwner", alice, undefined, params]));
+    assert.notStrictEqual(ask(undefined), ask(null));
+    assert.notStrictEqual(ask(new Date(0)), ask("1970-01-01T00:00:00.000Z"));
+  });
+
+  // The four other ports take only strings, branded ids and a number, so no
+  // request outside the key's domain can be built from their types; only
+  // CustomPredicate's params and resource can carry one.
+  it("a custom-predicate request carrying a value outside the key's domain is refused, not thrown", () => {
     const circular: Record<string, unknown> = {};
     circular.self = circular;
-    assert.throws(() => customPredicatePort.key(["isOwner", alice, circular, undefined]));
+    assert.isTrue(Result.isFailure(customPredicatePort.key(["isOwner", alice, circular, undefined])));
+    assert.isTrue(Result.isFailure(customPredicatePort.key(["isOwner", alice, undefined, () => true])));
   });
 });
 
