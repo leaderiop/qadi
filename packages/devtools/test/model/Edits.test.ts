@@ -174,6 +174,22 @@ describe("singleEdits", () => {
     ]);
   });
 
+  // Each of the three fields alone is enough to switch to the chip's text.
+  it("labels a signature carrying only signedAt, or only algorithm, with the chip's text", () => {
+    const one: SimulationInput = {
+      subject: { id: "alice" },
+      signatures: [
+        { subjectId: "alice", meaning: "approved", signedAt: 5 },
+        { subjectId: "alice", meaning: "approved", algorithm: "ed25519" },
+      ],
+    };
+
+    assert.deepStrictEqual(labels(singleEdits(one)), [
+      'without signature {"subjectId":"alice","meaning":"approved","signedAt":5}',
+      'without signature {"subjectId":"alice","meaning":"approved","algorithm":"ed25519"}',
+    ]);
+  });
+
   it("falls back to prose for a signature the form cannot spell", () => {
     const odd: SimulationInput = {
       subject: { id: "alice" },
