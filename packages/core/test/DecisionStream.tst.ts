@@ -5,6 +5,7 @@
  * end can fall back on a codec of core's choosing.
  */
 import { expect, test } from "tstyche";
+import type * as Duration from "effect/Duration";
 import type * as Effect from "effect/Effect";
 import type * as Option from "effect/Option";
 import type * as Scope from "effect/Scope";
@@ -38,18 +39,28 @@ test("a frame a writer sends is a frame a reader receives, so the round trip nee
 });
 
 test("encodeRecord is required, and the frames cannot fail and need nothing", () => {
-  expect(encodeDecisionStream).type.toBeCallableWith(log, { encodeRecord });
-  expect(encodeDecisionStream).type.not.toBeCallableWith(log, {});
-  expect(encodeDecisionStream).type.not.toBeCallableWith(log);
+  // Through the parameter type, not `toBeCallableWith`: a call that makes an Effect
+  // and discards it draws the Effect language service's floating-Effect diagnostic,
+  // which a negative `toBeCallableWith` would take for a refusal of the arguments.
+  type Options = Parameters<typeof encodeDecisionStream>[1];
+  expect({ encodeRecord }).type.toBeAssignableTo<Options>();
+  expect<{ readonly after: string }>().type.not.toBeAssignableTo<Options>();
+  expect<{ readonly after: string; readonly encodeRecord: typeof encodeRecord }>().type.toBeAssignableTo<Options>();
+  expect<undefined>().type.not.toBeAssignableTo<Options>();
   expect(encodeDecisionStream(log, { encodeRecord })).type.toBe<Stream.Stream<DecisionStreamFrame>>();
 });
 
 test("decodeRecord is required, and decoding needs a Scope and cannot fail", () => {
-  expect(decodeDecisionStream).type.toBeCallableWith(frames, { decodeRecord });
-  expect(decodeDecisionStream).type.toBeCallableWith(frames, { decodeRecord, syncTimeout: "1 second" });
-  expect(decodeDecisionStream).type.not.toBeCallableWith(frames, { syncTimeout: "1 second" });
-  expect(decodeDecisionStream).type.not.toBeCallableWith(frames);
+  type Options = Parameters<typeof decodeDecisionStream>[1];
+  expect({ decodeRecord }).type.toBeAssignableTo<Options>();
+  expect<{ readonly syncTimeout: Duration.Input }>().type.not.toBeAssignableTo<Options>();
+  expect<{ readonly syncTimeout: Duration.Input; readonly decodeRecord: typeof decodeRecord }>()
+    .type.toBeAssignableTo<Options>();
+  expect<undefined>().type.not.toBeAssignableTo<Options>();
   expect(decodeDecisionStream(frames, { decodeRecord })).type.toBe<
+    Effect.Effect<DecisionStreamRead, never, Scope.Scope>
+  >();
+  expect(decodeDecisionStream(frames, { decodeRecord, syncTimeout: "1 second" })).type.toBe<
     Effect.Effect<DecisionStreamRead, never, Scope.Scope>
   >();
 });

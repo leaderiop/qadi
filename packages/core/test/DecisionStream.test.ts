@@ -414,8 +414,6 @@ const decodeAll = (frames: ReadonlyArray<ReceivedFrame>) =>
     }),
   );
 
-const PROPERTY = { numRuns: 100, seed: 1260 } as const;
-
 describe("the order, written and read back (ARCH-60)", () => {
   it.effect("round trip: decode(encode(log)) is the log's retained, encodable records in storedRecordOrder", () =>
     Effect.promise(() =>
@@ -436,7 +434,7 @@ describe("the order, written and read back (ARCH-60)", () => {
               assert.deepStrictEqual(read.live, []);
             }),
           )),
-        PROPERTY,
+        { numRuns: 100, seed: 12_021 },
       )));
 
   it.effect("resume: a reconnect after any record frame loses no retained record and repeats none", () =>
@@ -461,6 +459,6 @@ describe("the order, written and read back (ARCH-60)", () => {
               }
             }),
           )),
-        PROPERTY,
+        { numRuns: 100, seed: 12_022 },
       )));
 });
