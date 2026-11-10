@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 11-01-PLAN.md
+stopped_at: Completed 11-02-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "11-01 complete: unkeyable signature discharge refused before capture; explain() says a signature's Any is subject-wide"
+last_activity_desc: "11-02 complete: guardApi builds a closed access plan from its API value; the middleware looks endpoints up by identity"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 59
-  completed_plans: 4
-  percent: 7
+  completed_plans: 5
+  percent: 8
 current_phase: 11
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 11 of 20 (Lost-wave security)
-Plan: 1 of 7 complete (11-01); next is 11-02
+Plan: 2 of 7 complete (11-01, 11-02); next is 11-03
 Status: In progress (phase_base 5736c96)
-Last activity: 2026-11-10 -- 11-01 complete: a signature discharge on a resource with no string id is refused before capture (SEC-01/02 live defect closed)
+Last activity: 2026-11-10 -- 11-02 complete: an API value guardApi did not plan is refused with a 500 (SEC-05 live defect closed); undeclared endpoints fail the build
 
 ## Performance Metrics
 
