@@ -1,4 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -147,8 +148,11 @@ describe("SharedComputation", () => {
       const b = yield* Effect.forkChild(shared.run("k", compute));
       yield* settleTurns;
       yield* Fiber.interrupt(a);
+      const leftExit = yield* Fiber.await(a);
       yield* settleTurns;
 
+      // Leaving cleanly: an interrupt and nothing else, no defect from the leave itself.
+      assert.isTrue(Exit.isFailure(leftExit) && Cause.hasInterruptsOnly(leftExit.cause));
       assert.isFalse(yield* Deferred.isDone(interrupted), "compute was interrupted while b still waits");
       yield* Deferred.succeed(gate, undefined);
       assert.deepStrictEqual(yield* Fiber.join(b), { value: 5, outcome: "coalesced" });
