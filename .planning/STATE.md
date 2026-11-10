@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 13-10-PLAN.md
+stopped_at: Completed 13-11-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "13-10 complete: [no-numbering-placeholder] house-style rule (src, test, bench, tst, step-definitions, features); the 14 ADR/INV/BEH-QD-NEXT placeholders resolved to ADR-QD-107/101, INV-QD-241/103, BEH-QD-264/267; AGENTS.md section 11"
+last_activity_desc: "13-11 complete: INV-QD-016 corrected under a cache, INV-QD-243 names the public mode, INV-QD-257/259 written; traceability, overview (spec:api green), ADR index (ADR-QD-123, 047/052/108 amendments); CCR-QD-399..403 with the lost 4b1ed49 triage; spec:verify:strict green"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 59
-  completed_plans: 25
-  percent: 42
+  completed_plans: 26
+  percent: 44
 current_phase: 13
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 13 of 20 (Lost-wave gaps)
-Plan: 10 of 13 complete (13-01 … 13-10); remaining 13-11, 13-12, 13-13
+Plan: 11 of 13 complete (13-01 … 13-11); remaining 13-12, 13-13
 Status: Phase 13 in progress (phase_base 0925c2f)
-Last activity: 2026-11-10 -- 13-10 complete: `scripts/check-house-style.mjs` `[no-numbering-placeholder]` refuses `ADR|CCR|BEH|INV-QD-NEXT` (suffixed forms too) in `packages/*/{src,test,bench}` (`.tst.ts` included), `features/step-definitions` and `features/features` (`.feature` included); RED on 14 sites, then the 14 resolved as lost `4b1ed49` did; insertion probe RED/GREEN; AGENTS.md §11 paragraph (ARCH-61, CCR-QD-403); comments and test titles only, no changeset; `spec:api`/`spec:verify` red until 13-11
+Last activity: 2026-11-10 -- 13-11 complete: Phase 13's registers written once — `spec/invariants.md` 1.93 (INV-QD-016 true under a decision cache, INV-QD-243's public mode, INV-QD-257, INV-QD-259), `spec/traceability.md` 1.135, `spec/overview.md` 1.80 (`pnpm spec:api` green), `spec/decisions/index.yaml` (ADR-QD-123; ADR-QD-047/052/108 amended), `spec/README.md` 1.135 (CCR-QD-399..403, unused reservations listed, the lost `4b1ed49` triage in CCR-QD-402); `spec:verify:strict`, `spec:examples`, `spec:claims`, `spec:gates` green; 13-13 extends CCR-QD-403
 
 ## Performance Metrics
 

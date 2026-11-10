@@ -40,7 +40,7 @@
 - [ ] **GAP-08**: Both unguarded-route logging cadences are pinned by tests.
 - [ ] **GAP-09**: INV-QD-016 is true under a decision cache, and a batch runs under a cache and a sink in a test.
 - [ ] **GAP-10**: Every remaining lost ARCH-57 item is ported or recorded as obsolete with the commit that made it so.
-- [ ] **GAP-11**: The listed doc defects are fixed (PortMetrics block, BEH-QD-076 fence, MissingResourceId doc, 7 stale citations, 7 `ADR-QD-NEXT`).
+- [ ] **GAP-11**: The listed doc defects are fixed (PortMetrics block, BEH-QD-076 fence, MissingResourceId doc, 7 stale citations, 14 numbering placeholders: 7 `ADR-QD-NEXT`, 5 `INV-QD-NEXT`, 2 `BEH-QD-NEXT-x`).
 - [ ] **GAP-12**: A house-style gate refuses `ADR-QD-NEXT` (and other `…-NEXT` placeholders) in `packages/*/src` and in test titles.
 
 ### Audit sink deadline (Phase 14)
