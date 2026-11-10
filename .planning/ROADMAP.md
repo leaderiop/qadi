@@ -205,7 +205,7 @@ Plans:
 - [x] 17-01 (W1): Ask the phase's one human question (D-04, KEY-04) and record the answer where the later plans read it: what does `@qadi/devtools`' replay answer for a request the… ⛳ checkpoint
 - [x] 17-02 (W1): Write the phase's regression tests first and see them fail on the phase base (D-01, XC-06): the key law as a property over values chosen to collide, the totality of…
 - [x] 17-03 (W2): Make the request key injective and total (D-02, D-03
-- [ ] 17-04 (W3): Handle the key's `Result` at every consumer (KEY-01, KEY-03), against the tree as Phases 11 and 13 left it: a refused request fails closed with the port's own typed…
+- [x] 17-04 (W3): Handle the key's `Result` at every consumer (KEY-01, KEY-03), against the tree as Phases 11 and 13 left it: a refused request fails closed with the port's own typed…
 - [ ] 17-05 (W4): Implement the human's D-04 answer (KEY-04): what a devtools Snapshot replay answers for a request its capture never saw, on every port, with one test per port proving…
 - [ ] 17-06 (W5): Record the phase in the normative spec (D-05, KEY-05, XC-02) and prove the merge gate (XC-01): amend ADR-QD-094's key law, write ADR-QD-129 for the replay miss…
 
@@ -263,7 +263,7 @@ Plans:
 | 14. Audit sink deadline | 7/7 | Complete | 2026-11-10 |
 | 15. Dock session | 4/4 | Complete | 2026-11-10 |
 | 16. One role-graph walk | 4/4 | Complete | 2026-11-10 |
-| 17. Injective request key | 3/6 | In progress | - |
+| 17. Injective request key | 4/6 | In progress | - |
 | 18. Devtools HTTP surface | 0/3 | Planned | - |
 | 19. Verdict presentation | 0/3 | Planned | - |
 | 20. DecisionCache shared computation | 0/4 | Planned | - |
