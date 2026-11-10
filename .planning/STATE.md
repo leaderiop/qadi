@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 13-06-PLAN.md
+stopped_at: Completed 13-07-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "13-06 complete: audit WRITES_COUNTERS/STAGING_COUNTERS/LOST_COUNTERS/transitionsTotal exported package-privately; each compiler declares compiledTotal once in CompileMetrics.ts; audit and compiler metric tests read by reference"
+last_activity_desc: "13-07 complete: three house-style metric rules ([metric-declaration], [metric-table], METRIC_ID_LITERAL_BUDGET); BEH-QD-368 and the 22-row metric table; ADR-QD-123; AGENTS.md seventh budget; metrics changesets"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 59
-  completed_plans: 21
-  percent: 36
+  completed_plans: 22
+  percent: 37
 current_phase: 13
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 13 of 20 (Lost-wave gaps)
-Plan: 6 of 13 complete (13-01 … 13-06); next is 13-07
+Plan: 7 of 13 complete (13-01 … 13-07); next is 13-08
 Status: Phase 13 in progress (phase_base 0925c2f)
-Last activity: 2026-11-10 -- 13-06 complete: `@qadi/audit` exports its three write-counter records and the breaker frequency package-privately (no barrel line); `predicate-sql`/`predicate-prisma` declare `compiledTotal { compiled, refused }` once in `src/CompileMetrics.ts`; id-string reads in audit/compiler tests → registry-key pins only; predicate-prisma `All`/`Any` lost an equivalent ternary to clear XC-05; changesets, ADR-QD-123 and the spec 31 revision are 13-07's; `spec:api` and `spec:verify` red until 13-11
+Last activity: 2026-11-10 -- 13-07 complete: `check-house-style.mjs` gains `[metric-declaration]`, `[metric-table]` and `METRIC_ID_LITERAL_BUDGET` (each shown RED by an injected violation); `25-inspection.md` BEH-QD-368 + the 22-row metric table; ADR-QD-123 (from lost `d089c1d`) amends ADR-QD-052; spec 31 revised; AGENTS.md §6 seventh budget; website metric section; changesets `evaluation-metrics-exported.md` (core minor) and `metrics-read-by-reference.md` (audit/sql/prisma patch); `spec:api` and `spec:verify` red until 13-11 (now also ADR-QD-123 index/traceability)
 
 ## Performance Metrics
 
