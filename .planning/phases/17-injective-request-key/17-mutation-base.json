@@ -1,0 +1,11 @@
+{
+ "packages/core/src/PortKey.ts": 0.5,
+ "packages/core/src/SignatureHistory.ts": 0.8452380952380952,
+ "packages/core/src/AttributeResolver.ts": 1,
+ "packages/core/src/CustomPredicate.ts": 0.8979591836734694,
+ "packages/core/src/DecisionHistory.ts": 0.972972972972973,
+ "packages/core/src/PortDescription.ts": 1,
+ "packages/core/src/RelationshipResolver.ts": 0.9230769230769231,
+ "packages/core/src/PortDoubles.ts": 1,
+ "packages/devtools/src/model/Capture.ts": 1
+}
