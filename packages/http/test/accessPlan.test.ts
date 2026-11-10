@@ -24,17 +24,14 @@ import { assert, describe, it } from "@effect/vitest";
 import type { AnnotatedEndpoint, ApiGuardRefusal, SubjectExtractor } from "../src/index.ts";
 import { stack } from "./fixtures/stack.ts";
 import {
-  EndpointAccess,
   MisplacedAccessDeclaration,
   PermissionRegistry,
   PermissionRegistryLive,
   PublicEndpoint,
   RequiredPermission,
   RequirePermission,
-  endpointAccess,
   guardApi,
   permissionRegistryRouteUnguarded,
-  misplacedDeclarations,
   publicEndpoint,
   requiresPermission,
   subjectExtractorBearer,
@@ -424,48 +421,5 @@ describe("every placement is decided once, by the access plan", () => {
       'group "g" carries PublicEndpoint, which only an endpoint may declare. Declare it on each endpoint, ' +
         "or use HttpApiGroup.annotateEndpoints.",
     );
-  });
-});
-
-describe("endpointAccess: the reader", () => {
-  const requirement = required(decoy);
-  const declaration = publicEndpoint("probe");
-  const scopes = {
-    none: Context.empty(),
-    Required: Context.make(RequiredPermission, requirement),
-    Public: Context.make(PublicEndpoint, declaration),
-    both: Context.add(Context.make(RequiredPermission, requirement), PublicEndpoint, declaration),
-  } as const;
-
-  it("reads an endpoint's own annotations as one of three cases", () => {
-    assert.strictEqual(endpointAccess(scopes.none)._tag, "Undeclared");
-    assert.strictEqual(endpointAccess(scopes.Required)._tag, "Required");
-    assert.strictEqual(endpointAccess(scopes.Public)._tag, "Public");
-    // The stricter declaration wins when both are present.
-    assert.strictEqual(endpointAccess(scopes.both)._tag, "Required");
-  });
-
-  it("carries the declaration it read", () => {
-    const access = endpointAccess(scopes.Required);
-    assert.isTrue(EndpointAccess.$is("Required")(access));
-    assert.strictEqual(access._tag === "Required" ? access.requirement : undefined, requirement);
-    const open = endpointAccess(scopes.Public);
-    assert.strictEqual(open._tag === "Public" ? open.declaration : undefined, declaration);
-  });
-
-  it("reports a declaration on a scope that may not carry one, in key order", () => {
-    assert.deepStrictEqual(misplacedDeclarations(scopes.none), []);
-    assert.deepStrictEqual(misplacedDeclarations(scopes.Required), ["RequiredPermission"]);
-    assert.deepStrictEqual(misplacedDeclarations(scopes.Public), ["PublicEndpoint"]);
-    assert.deepStrictEqual(misplacedDeclarations(scopes.both), ["RequiredPermission", "PublicEndpoint"]);
-  });
-
-  it("is blind to a group or API: only the endpoint's own annotations are read", () => {
-    const group = HttpApiGroup.make("g").add(ep("a")).annotate(RequiredPermission, requirement);
-    const api = HttpApi.make("t").add(group).annotate(PublicEndpoint, declaration);
-    const endpoint = group.endpoints["a"];
-    assert.strictEqual(endpointAccess(endpoint.annotations)._tag, "Undeclared");
-    assert.deepStrictEqual(misplacedDeclarations(group.annotations), ["RequiredPermission"]);
-    assert.deepStrictEqual(misplacedDeclarations(api.annotations), ["PublicEndpoint"]);
   });
 });

@@ -14,19 +14,23 @@
  * endpoint names be served with its own, unvetted declarations; an identity cannot be reused.
  *
  * Package-private (not in the barrel, ADR-QD-099); `GuardApi.ts` re-exports the names that are
- * public. The refusal classes live here, not in `GuardApi.ts`, because `GuardApi.ts` imports this
- * module and a class declared there would close an import cycle.
+ * public. The readers of an endpoint's declaration are private to this module, so `planApi` is
+ * the only reader of an API's access annotations. The refusal classes live here, not in
+ * `GuardApi.ts`, because `GuardApi.ts` imports this module and a class declared there would close
+ * an import cycle.
  */
+import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as Match from "effect/Match";
+import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import * as HttpApi from "effect/http-api/HttpApi";
 import type * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
 import type * as HttpApiGroup from "effect/http-api/HttpApiGroup";
 import type { Permission } from "@qadi/core";
 import type { EndpointDescriptor } from "./PermissionRegistry.ts";
-import { endpointAccess, misplacedDeclarations, RequirePermission } from "./RequirePermission.ts";
-import type { AccessDeclarationKey, EndpointAccess } from "./RequirePermission.ts";
+import { PublicEndpoint, RequiredPermission, RequirePermission } from "./RequirePermission.ts";
+import type { PublicDeclaration, RequiredPermissionShape } from "./RequirePermission.ts";
 
 /**
  * An endpoint of a guarded API has no `RequirePermission` middleware attached, so nothing would
@@ -51,6 +55,9 @@ export class RequirePermissionNotAttached extends Data.TaggedError("RequirePermi
     );
   }
 }
+
+/** The declaration keys {@link MisplacedAccessDeclaration} names. */
+export type AccessDeclarationKey = "RequiredPermission" | "PublicEndpoint";
 
 /**
  * A `RequiredPermission` or `PublicEndpoint` sits on a group or an API, where
@@ -97,6 +104,49 @@ export class AccessNotDeclared extends Data.TaggedError("AccessNotDeclared")<{
 
 /** Why `guardApi` refused to build: a closed union of the wiring mistakes it can see. */
 export type ApiGuardRefusal = MisplacedAccessDeclaration | RequirePermissionNotAttached | AccessNotDeclared;
+
+/**
+ * What an endpoint's own annotations declare about who may call it: a requirement, a public
+ * marker, or nothing.
+ *
+ * Closed on purpose: `Undeclared` is a case, not an absence, so the plan has a branch to refuse
+ * in (ADR-QD-036, INV-QD-034). Private to this module: the plan is the one reading of an
+ * endpoint's declaration, so no second reader can drift from it (ARCH-18).
+ */
+type EndpointAccess = Data.TaggedEnum<{
+  Required: { readonly requirement: RequiredPermissionShape };
+  Public: { readonly declaration: PublicDeclaration };
+  Undeclared: {};
+}>;
+
+const EndpointAccess = Data.taggedEnum<EndpointAccess>();
+
+/**
+ * Reads an endpoint's access declaration from its own annotations, never from a merge with its
+ * group's or API's: the merge listed an endpoint that enforcement served as public or refused
+ * (ARCH-18, CCR-QD-196). When both keys are present `RequiredPermission` wins, the stricter one.
+ */
+const endpointAccess = (annotations: Context.Context<never>): EndpointAccess => {
+  const required = Context.getOption(annotations, RequiredPermission);
+  if (Option.isSome(required)) return EndpointAccess.Required({ requirement: required.value });
+  const declared = Context.getOption(annotations, PublicEndpoint);
+  if (Option.isSome(declared)) return EndpointAccess.Public({ declaration: declared.value });
+  return EndpointAccess.Undeclared();
+};
+
+/**
+ * The access-declaration keys present on `annotations`, for a scope that may not carry one.
+ *
+ * Only an endpoint declares access. A group or API carrying a key is a declaration that does
+ * nothing the author expected, so it is refused instead of ignored. The way to declare for a whole
+ * group is `HttpApiGroup.annotateEndpoints`, which writes into each endpoint's own scope.
+ */
+const misplacedDeclarations = (annotations: Context.Context<never>): ReadonlyArray<AccessDeclarationKey> => {
+  const keys: Array<AccessDeclarationKey> = [];
+  if (Option.isSome(Context.getOption(annotations, RequiredPermission))) keys.push("RequiredPermission");
+  if (Option.isSome(Context.getOption(annotations, PublicEndpoint))) keys.push("PublicEndpoint");
+  return keys;
+};
 
 /** What the plan holds for one endpoint: an endpoint that declares nothing never enters it. */
 export type PlannedAccess = Exclude<EndpointAccess, { readonly _tag: "Undeclared" }>;

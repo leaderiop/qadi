@@ -10,7 +10,6 @@
  */
 import * as Brand from "effect/Brand";
 import * as Context from "effect/Context";
-import * as Data from "effect/Data";
 import * as Option from "effect/Option";
 import * as HttpApiMiddleware from "effect/http-api/HttpApiMiddleware";
 import type { Permission, Policy } from "@qadi/core";
@@ -69,64 +68,6 @@ export interface PublicDeclaration {
 export class PublicEndpoint extends Context.Service<PublicEndpoint, PublicDeclaration>()(
   "qadi/http/PublicEndpoint",
 ) {}
-
-/**
- * What an endpoint's own annotations declare about who may call it: a
- * requirement, a public marker, or nothing.
- *
- * Closed on purpose: `Undeclared` is a case, not an absence, so a reader that
- * must refuse it has a branch to refuse in (ADR-QD-036, INV-QD-034).
- */
-export type EndpointAccess = Data.TaggedEnum<{
-  Required: { readonly requirement: RequiredPermissionShape };
-  Public: { readonly declaration: PublicDeclaration };
-  Undeclared: {};
-}>;
-
-export const EndpointAccess = Data.taggedEnum<EndpointAccess>();
-
-/**
- * Reads an endpoint's access declaration from its own annotations.
- *
- * `RequirePermission` enforces it and `guardApi` lists it, and both go
- * through this one function so they cannot read different things. They used to:
- * the middleware read the endpoint's annotations while the registry read
- * `HttpApi.reflect`'s merge of API, group and endpoint annotations, so a group
- * requirement over an endpoint-level `publicEndpoint` was listed as guarded
- * while the middleware served it to anyone (ARCH-18, CCR-QD-196).
- *
- * Pass an endpoint's `annotations`, never a merge. When both keys are present
- * `RequiredPermission` wins: the stricter declaration is the one enforced.
- */
-export const endpointAccess = (annotations: Context.Context<never>): EndpointAccess => {
-  const required = Context.getOption(annotations, RequiredPermission);
-  if (Option.isSome(required)) return EndpointAccess.Required({ requirement: required.value });
-  const declared = Context.getOption(annotations, PublicEndpoint);
-  if (Option.isSome(declared)) return EndpointAccess.Public({ declaration: declared.value });
-  return EndpointAccess.Undeclared();
-};
-
-/** The declaration keys {@link misplacedDeclarations} reports. */
-export type AccessDeclarationKey = "RequiredPermission" | "PublicEndpoint";
-
-/**
- * The access-declaration keys present on `annotations`, for a scope that may not
- * carry one.
- *
- * Only an endpoint declares access. A group or API carrying a key is a
- * declaration that does nothing the author expected, so both readers refuse it
- * instead of ignoring it: the middleware by answering 500 and `guardApi` by
- * failing layer construction. The way to declare for a whole group is
- * `HttpApiGroup.annotateEndpoints`, which writes into each endpoint's own scope.
- */
-export const misplacedDeclarations = (
-  annotations: Context.Context<never>,
-): ReadonlyArray<AccessDeclarationKey> => {
-  const keys: Array<AccessDeclarationKey> = [];
-  if (Option.isSome(Context.getOption(annotations, RequiredPermission))) keys.push("RequiredPermission");
-  if (Option.isSome(Context.getOption(annotations, PublicEndpoint))) keys.push("PublicEndpoint");
-  return keys;
-};
 
 /**
  * Declares an endpoint deliberately reachable without authorization.

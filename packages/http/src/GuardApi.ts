@@ -31,7 +31,7 @@ export type { AuthorizedRequest } from "./AuthorizeRequest.ts";
 
 // Public through this module; the rest of `AccessPlan.ts` (the plan itself) is package-private.
 export { AccessNotDeclared, MisplacedAccessDeclaration, RequirePermissionNotAttached } from "./AccessPlan.ts";
-export type { ApiGuardRefusal } from "./AccessPlan.ts";
+export type { AccessDeclarationKey, ApiGuardRefusal } from "./AccessPlan.ts";
 
 /**
  * The identifiers of the endpoints in `Groups` that `RequirePermission` is not attached to, or
