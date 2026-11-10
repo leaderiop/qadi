@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 16-04-PLAN.md (Phase 16 complete)
+stopped_at: Completed 17-01-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "16-04 complete: ADR-QD-128, glossary Role walk, INV-QD-038 by construction, BEH-QD-399/400, overview rows for roleWalk/RoleStep (gate 13 green), CCR-QD-406, changesets; check:pr green; Phase 16 complete"
+last_activity_desc: "17-01 complete: D-04 = A (every unseen replay request fails closed) and the Result-typed PortDescription.key confirmed; phase_base 1a14899; reserved Phase 17 ids free"
 state_head: 856a092ab1da5af22c7dbf7a6044fa32cf55eeeb
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 59
-  completed_plans: 43
-  percent: 73
-current_phase: 16
+  completed_plans: 44
+  percent: 75
+current_phase: 17
 ---
 
 # Project State
@@ -27,15 +27,15 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 ## Current Position
 
-Phase: 16 of 20 (One role-graph walk)
-Plan: 4 of 4 in Phase 16 (16-04 complete); next is Phase 17 (17-01)
-Status: Phase 16 complete (phase_base 443b45f); check:pr green
-Last activity: 2026-11-10 -- 16-04 complete: Phase 16 recorded (ADR-QD-128, CCR-QD-406, BEH-QD-399/400, INV-QD-038 by construction); check:pr green
+Phase: 17 of 20 (Injective request key)
+Plan: 1 of 6 in Phase 17 (17-01 complete); next is 17-02
+Status: In progress (phase_base 1a14899)
+Last activity: 2026-11-10 -- 17-01 complete: D-04 = A (every port's unseen replay request is an outage) and the Result-typed key confirmed; reserved ids free
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 48
+- Total plans completed: 49
 - Average duration: -
 - Total execution time: 0.0 hours
 
