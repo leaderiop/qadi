@@ -91,7 +91,13 @@ describe("the role viewer", () => {
 
     // A leaf pointing at the first occurrence: its subtree is shown once, there.
     assert.deepStrictEqual(repeated, ["viewer"]);
-    assert.isNotNull(screen.getAllByTestId("qadi-role-repeated")[0]);
+    // The marker names the row where the subtree is shown: the first `viewer`.
+    const first = screen.getByTestId("qadi-role-repeated").getAttribute("data-first");
+    const target = screen
+      .getAllByTestId("qadi-role-node")
+      .find((n) => n.getAttribute("data-index") === first);
+    assert.strictEqual(target?.getAttribute("data-role"), "viewer");
+    assert.strictEqual(target?.getAttribute("data-repeated"), "false");
   });
 
   // E3.9 — dropping is right; doing it silently was not.

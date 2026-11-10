@@ -11,7 +11,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { flattenPermissions, permission, role } from "@qadi/core";
 import type { Role } from "@qadi/core";
 import { decidingSet, grantPath, roleSummary } from "../../src/model/RoleTree.ts";
-import type { RoleNode } from "../../src/model/RoleTree.ts";
+import type { RoleRow } from "../../src/model/RoleTree.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -22,32 +22,33 @@ const commenter = role({ name: "commenter", permissions: [comment] });
 const viewer = role({ name: "viewer", permissions: [read], inherits: [commenter] });
 const editor = role({ name: "editor", permissions: [write, archive], inherits: [viewer] });
 
-const names = (node: RoleNode): ReadonlyArray<string> => [
-  node.name,
-  ...node.children.flatMap(names),
-];
+const names = (rows: ReadonlyArray<RoleRow>): ReadonlyArray<string> => rows.map((row) => row.name);
 
 describe("the inheritance tree", () => {
   it("is the role, then what it inherits, in order", () => {
-    assert.deepStrictEqual(names(roleSummary(editor).tree), [
+    assert.deepStrictEqual(names(roleSummary(editor).rows), [
       "editor",
       "viewer",
       "commenter",
     ]);
   });
 
-  it("numbers every node by its walk step, so a diamond's two arms differ", () => {
-    const indices = (node: RoleNode): ReadonlyArray<number> => [
-      node.index,
-      ...node.children.flatMap(indices),
-    ];
-    assert.deepStrictEqual(indices(roleSummary(editor).tree), [0, 1, 2]);
+  it("numbers every row by its walk step, and indents it by its depth", () => {
+    assert.deepStrictEqual(
+      roleSummary(editor).rows.map((row) => [row.index, row.depth]),
+      [
+        [0, 0],
+        [1, 1],
+        [2, 2],
+      ],
+    );
   });
 
   it("names each role's own permissions", () => {
-    const tree = roleSummary(editor).tree;
-    assert.deepStrictEqual([...tree.own], ["doc:write", "doc:archive"]);
-    assert.deepStrictEqual([...(tree.children[0]?.own ?? [])], ["doc:read"]);
+    assert.deepStrictEqual(
+      roleSummary(editor).rows.map((row) => [...row.own]),
+      [["doc:write", "doc:archive"], ["doc:read"], ["doc:comment"]],
+    );
   });
 
   // E3.5
@@ -55,7 +56,7 @@ describe("the inheritance tree", () => {
     const bare = role({ name: "bare" });
     const summary = roleSummary(bare);
 
-    assert.deepStrictEqual(names(summary.tree), ["bare"]);
+    assert.deepStrictEqual(names(summary.rows), ["bare"]);
     assert.deepStrictEqual(summary.grants, []);
     assert.strictEqual(summary.ownCount, 0);
     assert.strictEqual(summary.inheritedCount, 0);
@@ -66,7 +67,7 @@ describe("the inheritance tree", () => {
     let deep: Role = role({ name: "r0", permissions: [read] });
     for (let i = 1; i < 200; i += 1) deep = role({ name: `r${i}`, inherits: [deep] });
 
-    assert.strictEqual(names(roleSummary(deep).tree).length, 200);
+    assert.strictEqual(roleSummary(deep).rows.length, 200);
   });
 
   /**
@@ -79,36 +80,19 @@ describe("the inheritance tree", () => {
    */
   it("shows the second arm of a diamond as a leaf pointing at the first", () => {
     const both = role({ name: "both", inherits: [viewer, editor] });
-    const tree = roleSummary(both).tree;
-
-    const marked = (
-      node: RoleNode,
-    ): ReadonlyArray<[string, number, boolean, number | undefined, number]> => [
-      [node.name, node.index, node.repeated, node.first, node.children.length],
-      ...node.children.flatMap(marked),
-    ];
-
-    assert.deepStrictEqual(marked(tree), [
-      ["both", 0, false, undefined, 2],
-      ["viewer", 1, false, undefined, 1],
-      ["commenter", 2, false, undefined, 0],
-      ["editor", 3, false, undefined, 1],
-      // Reached through `viewer` first: a leaf naming step 1.
-      ["viewer", 4, true, 1, 0],
-    ]);
+    assert.deepStrictEqual(
+      roleSummary(both).rows.map((row) => [row.name, row.index, row.depth, row.repeated, row.first]),
+      [
+        ["both", 0, 0, false, undefined],
+        ["viewer", 1, 1, false, undefined],
+        ["commenter", 2, 2, false, undefined],
+        ["editor", 3, 1, false, undefined],
+        // Reached through `viewer` first: a leaf naming step 1, with no rows beneath it.
+        ["viewer", 4, 2, true, 1],
+      ],
+    );
   });
 });
-
-/** Every node in the tree, counted with an explicit stack so a deep tree cannot overflow the test. */
-const nodeCount = (tree: RoleNode): number => {
-  let count = 0;
-  const stack: Array<RoleNode> = [tree];
-  for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
-    count += 1;
-    stack.push(...node.children);
-  }
-  return count;
-};
 
 const chainOf = (depth: number): Role => {
   let current: Role = role({ name: "r0", permissions: [read] });
@@ -131,10 +115,10 @@ describe("the inheritance tree on hostile shapes", () => {
   it("does not mark a distinct role repeated because it shares a name", () => {
     const editorA = role({ name: "editor", permissions: [write] });
     const editorB = role({ name: "editor", permissions: [archive] });
-    const tree = roleSummary(role({ name: "top", inherits: [editorA, editorB] })).tree;
+    const rows = roleSummary(role({ name: "top", inherits: [editorA, editorB] })).rows;
 
     assert.deepStrictEqual(
-      tree.children.map((child) => [child.name, child.repeated, [...child.own]]),
+      rows.slice(1).map((row) => [row.name, row.repeated, [...row.own]]),
       [
         ["editor", false, ["doc:write"]],
         ["editor", false, ["doc:archive"]],
@@ -144,17 +128,17 @@ describe("the inheritance tree on hostile shapes", () => {
 
   it("builds a 10,000-deep and a 20,000-deep chain without a RangeError", () => {
     for (const depth of [10_000, 20_000]) {
-      assert.strictEqual(nodeCount(roleSummary(chainOf(depth)).tree), depth, `depth ${depth}`);
+      assert.strictEqual(roleSummary(chainOf(depth)).rows.length, depth, `depth ${depth}`);
     }
   }, 60_000);
 
-  // Linear: one node per reachable role plus one leaf per edge into a role
+  // Linear: one row per reachable role plus one leaf per edge into a role
   // already shown. k = 16 is asserted first, so a tree that re-walks shared
-  // subtrees (about 2^k nodes) fails there, fast, before k = 30 (about 2^30) is
+  // subtrees (about 2^k rows) fails there, fast, before k = 30 (about 2^30) is
   // ever built.
-  it("builds stacked diamonds in nodes linear in the roles", () => {
+  it("builds stacked diamonds in rows linear in the roles", () => {
     for (const k of [16, 30]) {
-      assert.strictEqual(nodeCount(roleSummary(diamondStack(k)).tree), 3 * k + 1 + k, `k = ${k}`);
+      assert.strictEqual(roleSummary(diamondStack(k)).rows.length, 3 * k + 1 + k, `k = ${k}`);
     }
   });
 });

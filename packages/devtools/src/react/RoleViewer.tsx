@@ -18,7 +18,7 @@ import type { CSSProperties, FC } from "react";
 import * as Match from "effect/Match";
 import type { Role } from "@qadi/core";
 import type { HeldChoiceStore } from "../model/HeldChoice.ts";
-import { grantPath, roleSummary, type RoleNode } from "../model/RoleTree.ts";
+import { grantPath, roleSummary } from "../model/RoleTree.ts";
 import { useHeldChoiceSnapshot } from "./useExplorerSession.ts";
 import { button, colors, font, muted } from "./theme.ts";
 
@@ -105,7 +105,32 @@ export const RoleViewer: FC<RoleViewerProps> = ({ choice, unknownParents }) => {
         </p>
       )}
 
-      <Branch node={summary.tree} depth={0} />
+      {/* Siblings, indented by depth: nesting one element per level overflowed on a deep catalogue. */}
+      {summary.rows.map((row) => (
+        <div
+          key={row.index}
+          data-testid="qadi-role-node"
+          data-role={row.name}
+          data-repeated={row.repeated}
+          data-index={row.index}
+          style={{ paddingLeft: row.depth * 14 }}
+        >
+          <span>{row.name}</span>
+          {row.own.length === 0 ? null : (
+            <span style={{ ...muted, marginLeft: 6, fontSize: font.sizeSmall }}>
+              {row.own.length} own
+            </span>
+          )}
+          {row.repeated ? (
+            // A diamond's second arm. The structure is real; the permissions under
+            // it were already counted once, and a reader summing the rows would
+            // otherwise double-count. `data-first` is the row where they were.
+            <span style={{ ...muted, marginLeft: 6 }} data-testid="qadi-role-repeated" data-first={row.first}>
+              already reached above
+            </span>
+          ) : null}
+        </div>
+      ))}
 
       <div style={{ marginTop: 10 }}>
         <div
@@ -138,27 +163,3 @@ export const RoleViewer: FC<RoleViewerProps> = ({ choice, unknownParents }) => {
     </div>
   );
 };
-
-const Branch: FC<{ readonly node: RoleNode; readonly depth: number }> = ({ node, depth }) => (
-  <div data-testid="qadi-role-node" data-role={node.name} data-repeated={node.repeated}>
-    <div style={{ paddingLeft: depth * 14 }}>
-      <span>{node.name}</span>
-      {node.own.length === 0 ? null : (
-        <span style={{ ...muted, marginLeft: 6, fontSize: font.sizeSmall }}>
-          {node.own.length} own
-        </span>
-      )}
-      {node.repeated ? (
-        // A diamond's second arm. The structure is real; the permissions under
-        // it were already counted once, and a reader summing the rows would
-        // otherwise double-count.
-        <span style={{ ...muted, marginLeft: 6 }} data-testid="qadi-role-repeated">
-          already reached above
-        </span>
-      ) : null}
-    </div>
-    {node.children.map((child) => (
-      <Branch key={child.index} node={child} depth={depth + 1} />
-    ))}
-  </div>
-);
