@@ -317,8 +317,8 @@ a prop fed by the host's subscription ([ADR-QD-080](./080-a-gate-registry-belong
 >   method.
 >
 > **This reverses ARCH-20's D-20-g for replay only.** D-20-g gave the dock the simulation
-> session and let `seed` flow into it as a prop the session reads from an effect (its T9
-> step 2: "the session re-seeds through its effect, once"). That stays true of a host's
+> session and let `seed` flow into it as a prop the session reads from an effect (ARCH-20's
+> task T9: "the session re-seeds through its effect, once"). That stays true of a host's
 > `seed` prop; it is no longer how the dock replays
 > ([BEH-QD-390](../behaviors/29-devtools-simulator.md#beh-qd-390-replay-is-an-act)).
 > No new ADR: ARCH-20 had none of its own, its decisions are amendments to this record,
