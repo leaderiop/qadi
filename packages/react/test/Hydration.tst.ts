@@ -9,7 +9,13 @@
  * (ARCH-05, ADR-QD-028).
  */
 import { expect, test } from "tstyche";
-import type { Allow, Deny } from "@qadi/core";
+import type {
+  Allow,
+  ClientHydrationDropReason,
+  DehydrationDropReason,
+  Deny,
+  HydrationDropReason,
+} from "@qadi/core";
 import { isAllowed } from "@qadi/core";
 import type { DeniedNode } from "../src/components.tsx";
 import type {
@@ -17,11 +23,14 @@ import type {
   DecisionEntry,
   DehydrateOptions,
   DehydratedDecisions,
+  HydrateOptions,
+  HydrationDrop,
   SeededAllow,
   SeededDecision,
   SeededDeny,
 } from "../src/Hydration.ts";
 import { dehydrateDecisions } from "../src/Hydration.ts";
+import type { EntryDropReason, PayloadRefusalReason } from "../src/HydrationEvent.ts";
 import { permits } from "../src/SeededDecision.ts";
 
 declare const anyDecision: ClientDecision;
@@ -58,6 +67,26 @@ test("dehydrateDecisions' signature and options are pinned (ARCH-51)", () => {
   expect<keyof DehydrateOptions>().type.toBe<"includeTrace" | "onDropped">();
   expect<DehydrateOptions["includeTrace"]>().type.toBe<boolean | undefined>();
   expect<DehydrateOptions["onDropped"]>().type.toBe<
-    ((dropped: ReadonlyArray<DecisionEntry>) => void) | undefined
+    ((drop: HydrationDrop<DecisionEntry, DehydrationDropReason>) => void) | undefined
   >();
+});
+
+test("one HydrationDrop shape for both ends' onDropped (ARCH-60, D-53-b option-a)", () => {
+  // The hydrate side's spelling is unchanged: one type argument still means the
+  // client's reasons.
+  expect<HydrationDrop<unknown>>().type.toBe<HydrationDrop<unknown, ClientHydrationDropReason>>();
+  // One function over every reason serves both ends.
+  type Either = (drop: HydrationDrop<unknown, HydrationDropReason>) => void;
+  expect<Either>().type.toBeAssignableTo<NonNullable<DehydrateOptions["onDropped"]>>();
+  expect<Either>().type.toBeAssignableTo<NonNullable<HydrateOptions["onDropped"]>>();
+  // The bare-array hook is gone, so an old caller fails to compile rather than
+  // reading a drop record as an array.
+  expect<(dropped: ReadonlyArray<DecisionEntry>) => void>().type.not.toBeAssignableTo<
+    NonNullable<DehydrateOptions["onDropped"]>
+  >();
+});
+
+test("the client's reasons are partitioned into whole-payload and per-entry", () => {
+  expect<PayloadRefusalReason | EntryDropReason>().type.toBe<ClientHydrationDropReason>();
+  expect<Extract<PayloadRefusalReason, EntryDropReason>>().type.toBe<never>();
 });
