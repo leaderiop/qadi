@@ -1866,6 +1866,54 @@ for (const file of srcSources) {
   }
 }
 
+// `[no-numbering-placeholder]`: an id is reserved before it is written
+// (`scripts/next-id.mjs`), so `ADR-QD-NEXT` and its CCR/BEH/INV siblings
+// (suffixed forms like `BEH-QD-NEXT-a` included) never reach shipped source,
+// a test or a BDD scenario. Lost commit 4b1ed49 resolved fourteen of them and
+// was itself lost, which is why this is a rule and not a convention (ARCH-61,
+// CCR-QD-403). Raw lines, not `strip()`ed: the placeholders live in comments
+// and test titles. Its own walk rather than `sources`, because it must also
+// see `.tst.ts` titles and `features/features` (`.feature` files included).
+// `spec/` is out of scope: its change history quotes old placeholders on purpose.
+{
+  const PLACEHOLDER = /\b(?:ADR|CCR|BEH|INV)-QD-NEXT\b/;
+  /** @param {string} dir @returns {string[]} */
+  const walk = (dir) => {
+    let entries;
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      return [];
+    }
+    return entries.flatMap((entry) => {
+      if (entry === "node_modules" || entry === "lib") return [];
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) return walk(full);
+      return /\.(?:tsx?|feature)$/.test(entry) ? [full] : [];
+    });
+  };
+  const roots = [
+    ...readdirSync(packagesDir).flatMap((pkg) =>
+      ["src", "test", "bench"].map((d) => join(packagesDir, pkg, d))
+    ),
+    join(ROOT, "features", "step-definitions"),
+    join(ROOT, "features", "features"),
+  ];
+  for (const file of roots.flatMap(walk)) {
+    const rel = relative(ROOT, file);
+    readFileSync(file, "utf8")
+      .split(/\r?\n/)
+      .forEach((line, i) => {
+        if (!PLACEHOLDER.test(line)) return;
+        failures += 1;
+        console.error(
+          `${rel}:${i + 1}  [no-numbering-placeholder] a placeholder id is not a citation; ` +
+            `reserve a number with scripts/next-id.mjs and write that.`,
+        );
+      });
+  }
+}
+
 // An exemption is a path, and a path outlives the file it named: renaming or
 // deleting the exempted module leaves a dead entry that silently ungates
 // whatever takes its place (an orphan `settled.ts` entry sat here for exactly

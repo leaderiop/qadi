@@ -526,6 +526,12 @@ matrix in the same change. TypeScript blocks in `spec/behaviors/*.md` are
 extracted and type-checked by the merge gate — documentation that does not compile is a
 build failure.
 
+A placeholder id (`ADR-QD-NEXT`, `CCR-QD-NEXT`, `BEH-QD-NEXT`, `INV-QD-NEXT`, suffixed
+forms included) in shipped source, a test, a test title or a BDD scenario is refused by
+`scripts/check-house-style.mjs`'s `[no-numbering-placeholder]` rule (ARCH-61, CCR-QD-403):
+reserve the number with `scripts/next-id.mjs` before writing it. Change history in `spec/`
+that quotes an old placeholder is exempt (§15).
+
 ## 12. Specification code fences
 
 `spec/` uses three TypeScript fence languages, and the distinction is load-bearing:
