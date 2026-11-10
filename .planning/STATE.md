@@ -94,15 +94,15 @@ Last activity: 2026-11-10 -- 10-02 complete: orphan lib output removed through p
 
 ### Pending Todos
 
-- Confirm reserved ADR/CCR/ARCH numbers are still free before each phase executes. Next free
-  after v1.0: ARCH-55, ADR-QD-117, CCR-QD-394. 112, 113 and 115 were left unused, not freed.
+- Before each phase executes, confirm its reserved numbers against PROJECT.md's wave-6 reservation table
+  (grep `spec/` first). ARCH ids below 59 are never reused; CCR-QD-394 is used by ARCH-58.
 
 ### Blockers/Concerns
 
 - [CI] The Node 26 matrix leg exceeds the 60-min `timeout-minutes` during mutation on a full `pnpm check` (seen at c807b64 and 127d6fa); release PRs will hit it.
 - [Host] `pnpm example` needs sudo on this Fedora host (`playwright install --with-deps`). Route that works: the literal `pnpm check:pr` in a rootless podman Ubuntu Playwright container (`mcr.microsoft.com/playwright:v1.65.0-noble`), or CI.
 - [Host] Run vitest from the repo root with `--project <pkg>`; running inside a package dir fails at collection.
-- `.planning/` is gitignored (`.gitignore:43`) even though `commit_docs: true`. Committing planning docs needs `git add -f` or a .gitignore change.
+- `.planning/` is tracked (no `.gitignore` line). `.planning/architecture/` was archived under `.planning/milestones/archive-pre-gsd/` (tracked) by Phase 10 on 2026-11-10.
 - Shared spec files (README, traceability, invariants, overview, decisions/index.yaml) are edited by every phase, so parallel worktrees will conflict on revision lines. Use `scripts/spec-revise.mjs`. BEH/INV ids are allocated with `node scripts/next-id.mjs`.
 - Devtools replay: the other four ports' `none` answers still grant under `not(...)` on a capture miss (INV-QD-007 fail-open). Flipping each is one word in Capture.ts's `UNSEEN_REQUEST_IS_AN_OUTAGE`; needs a decision.
 - Write requirement lines as explicit ID lists, never ranges like `XC-01..05`: `phase.complete` cannot parse ranges.
