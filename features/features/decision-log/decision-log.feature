@@ -36,3 +36,8 @@ Feature: One decision log is a process's sink, its history and its live stream
     When a devtools reader connects over SSE
     And the log ingests a record from "Edge"
     Then the reader over SSE and a reader in the process hold the same records
+
+  Scenario: A reconnect during the backlog loses nothing
+    Given a server decision log holding 3 records whose times run backwards
+    When a devtools reader connects over SSE and the connection drops after 1 backlog frame
+    Then the reader holds each of the 3 records once
