@@ -171,69 +171,39 @@ const renderError = (error: unknown): string => {
 };
 
 /**
- * Ports whose unseen request is an outage rather than the `none` answer.
+ * The reply for a request the capture never saw: the port's own typed error,
+ * on every port.
  *
- * A closed table over {@link PortName}, so a port added to `@qadi/core`'s
- * registry is a compile error here until someone decides which it is. `true`
- * is the decision that a miss is **not safe to answer with the port's empty
- * answer**: the request key carries something the capture cannot recover from
- * what it holds. `SignatureHistory` is that port. Its key includes the asker's
- * `meaning` and `signerRole`, which a store receives and answers whatever they
- * say (ADR-QD-109), so a what-if that edits either asks a request the capture
- * never saw while the real store would have answered it. Answering `none` there
- * would claim the subject has no signatures on file, a claim nobody made, and
- * `not(hasSignature(...))` grants on it.
+ * A port's `none` would deny the leaf that asked, and so allow `not(leaf)`: a
+ * replay must never show an allow the capture cannot back (INV-QD-007,
+ * ADR-QD-129). It is not one port's exception either: a request key may carry
+ * something the capture cannot recover from what it holds (`SignatureHistory`'s
+ * `meaning` and `signerRole`, a custom predicate's subject roles), so a miss
+ * says nothing about what the real store would answer. A port added to
+ * `@qadi/core`'s registry fails closed here with no edit.
  *
- * Not re-keyed by `(subject, resource)` instead: a store may filter on the
- * requirement, and a capture that dropped it from the key would replay one
- * requirement's answer for another, in the direction that allows.
+ * Not re-keyed by fewer arguments instead: a store may answer on any of them,
+ * and a capture that dropped one from the key would replay one request's answer
+ * for another, in the direction that allows.
  */
-const UNSEEN_REQUEST_IS_AN_OUTAGE: { readonly [K in PortName]: boolean } = {
-  AttributeResolver: false,
-  RelationshipResolver: false,
-  CustomPredicate: false,
-  DecisionHistory: false,
-  SignatureHistory: true,
-};
-
-/**
- * The reply for a request the capture never saw: the port's own typed error for
- * a port in {@link UNSEEN_REQUEST_IS_AN_OUTAGE}, and `undefined` otherwise, which
- * `scriptedPort` answers with the description's `none`.
- */
-const unseenReply = (port: PortName): PortReply<never> | undefined =>
-  UNSEEN_REQUEST_IS_AN_OUTAGE[port]
-    ? PortReply.fail(`the capture holds no answer for this ${port} request (not captured)`)
-    : undefined;
+const unseenReply = (port: PortName): PortReply<never> =>
+  PortReply.fail(`the capture holds no answer for this ${port} request (not captured)`);
 
 /**
  * Ports that answer from a capture.
  *
  * Each port is `@qadi/core`'s `scriptedPort` over its own description, named
- * `"snapshot"`: a captured answer is replayed as an answer, a captured outage
- * as the port's own typed error (built by the description's `failure` from the
- * captured message), and **a query the capture never saw answers the
- * fail-closed default** — the description's `none` answer, not an invented
- * value: `undefined` for an attribute, `Unknown` for a relationship and for
- * history, `false` for a custom predicate. That is exactly what a real
- * deployment gets from an unwired port
- * ([INV-QD-007](../../../../spec/invariants.md)), so a what-if that wanders
- * outside the captured set answers as a misconfigured deployment would, rather
- * than for a reason peculiar to this panel. The defaults used to be re-declared
- * here by hand, with a comment asking that they never diverge from the real
- * ones (ARCH-10 E14); they are now the same value.
+ * `"snapshot"`: a captured answer is replayed as an answer, and a captured
+ * outage as the port's own typed error (built by the description's `failure`
+ * from the captured message).
  *
- * **A request with no key fails** with the port's own typed error, naming why
- * it has none: the capture could not have recorded it, so the replay cannot
- * know what was answered.
+ * **A request the capture never saw fails** with the port's own typed error
+ * ({@link unseenReply}), so a what-if that wanders outside the captured set
+ * reports a failure rather than a verdict, under a node and under `not(...)` of
+ * it alike, on every port.
  *
- * **One port is the exception: `SignatureHistory`'s unseen request fails** with
- * `SignatureHistoryUnavailable` (see {@link UNSEEN_REQUEST_IS_AN_OUTAGE}), so
- * a what-if that edits a `hasSignature` node's `meaning` or `signerRole`
- * reports a failure rather than a verdict, under the node and under `not(...)`
- * of it alike. Note what the default's "deny" does and does not buy: a leaf that
- * denies makes `not(leaf)` allow, so the other four ports' misses are safe only
- * for an un-negated leaf (INV-QD-043).
+ * **A request with no key fails** too, naming why it has none: the capture
+ * could not have recorded it, so the replay cannot know what was answered.
  */
 export const replayLayer = (answers: CapturedAnswers): Layer.Layer<EvaluationPorts> =>
   mergePorts(

@@ -91,7 +91,7 @@ describe("portsOf", () => {
       assert.strictEqual(decisionOf(outcome)._tag, "Allow");
     }));
 
-  it.effect("a Snapshot source answers from its capture, not from the fixtures", () =>
+  it.effect("a Snapshot source answers from its capture, not from the fixtures: an empty one is an outage", () =>
     Effect.gen(function* () {
       const outcome = yield* simulate(
         hasAttribute("clearance", gte(5)),
@@ -99,9 +99,9 @@ describe("portsOf", () => {
         { source: snapshot(emptyAnswers) },
       );
 
-      // The fixture would have allowed; an empty capture answers as an unwired
-      // port does, and denies.
-      assert.strictEqual(decisionOf(outcome)._tag, "Deny");
+      // The fixture would have allowed; an empty capture never saw the
+      // question, so the replay fails with the port's own error (D-04).
+      assert.strictEqual(outcome._tag === "Failed" ? outcome.error._tag : outcome._tag, "AttributeResolveError");
     }));
 
   // Each fixture kind has to actually answer — an untested one silently falls
