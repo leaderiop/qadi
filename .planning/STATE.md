@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 18-03-PLAN.md
+stopped_at: Completed 19-01-PLAN.md
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "18-03 complete: BEH-QD-419/420, INV-QD-285, ADR-QD-130, CCR-QD-408, changeset; unguarded registry warning names the prefixed path; check:pr green. Phase 18 complete"
+last_activity_desc: "19-01 complete: DisplayState + react/VerdictTreatment.ts; VerdictTag, QuestionsPanel and PolicyTree read only it; Deny and Error differ in every channel (phase_base 9483aac)"
 state_head: 856a092ab1da5af22c7dbf7a6044fa32cf55eeeb
 progress:
   total_phases: 11
   completed_phases: 9
   total_plans: 59
-  completed_plans: 52
-  percent: 88
-current_phase: 18
+  completed_plans: 53
+  percent: 90
+current_phase: 19
 ---
 
 # Project State
@@ -27,15 +27,15 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 ## Current Position
 
-Phase: 18 of 20 (Devtools HTTP surface)
-Plan: 3 of 3 in Phase 18 (Phase 18 complete); next is Phase 19
-Status: Phase 18 complete (phase_base d4d9897); pnpm check:pr green
-Last activity: 2026-11-10 -- 18-03 complete: spec (BEH-QD-419/420, INV-QD-285, ADR-QD-130, CCR-QD-408), @qadi/http minor changeset, website/README; the unguarded registry warning names the served prefixed path (test-first); pnpm check:pr exit 0. Phase 18 complete
+Phase: 19 of 20 (Verdict presentation)
+Plan: 1 of 3 in Phase 19; next is 19-02
+Status: Phase 19 in progress (phase_base 9483aac)
+Last activity: 2026-11-10 -- 19-01 complete: one verdict treatment (react/VerdictTreatment.ts over the closed DisplayState union); a Failed guard and a denied node no longer share the error amber with a denial; devtools suite, typecheck, lint, madge green; model mutation 1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 53
+- Total plans completed: 54
 - Average duration: -
 - Total execution time: 0.0 hours
 
