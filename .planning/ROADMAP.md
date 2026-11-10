@@ -44,7 +44,7 @@ phases hold a package intentionally red between their first and last plan; `use_
 - [x] **Phase 11: Lost-wave security** - Port the signature-ledger keyed store and the guardApi closed access plan; both fix live privilege defects (ARCH-59)
 - [x] **Phase 12: Lost-wave integrity** - Port the decision-stream order owner and the one-value hydration outcome; fix record loss on reconnect and SSR crashes (ARCH-60)
 - [x] **Phase 13: Lost-wave gaps** - Port the public-endpoint denial log, the simulation field table, the evaluation metrics module, test gaps and doc defects (ARCH-61)
-- [ ] **Phase 14: Audit sink deadline** - The audit sink bounds every store call and the breaker sees hangs; the audit doubles become scriptable (ARCH-62)
+- [x] **Phase 14: Audit sink deadline** - The audit sink bounds every store call and the breaker sees hangs; the audit doubles become scriptable (ARCH-62)
 - [ ] **Phase 15: Dock session** - The dock's tab, filters, selection and replay become a headless session; replaying the same row re-seeds (ARCH-63)
 - [ ] **Phase 16: One role-graph walk** - One traversal in core backs every role walk, including the devtools tree (ARCH-64)
 - [ ] **Phase 17: Injective request key** - `PortKey` becomes a kind-tagged injective encoding for all five ports; the replay miss policy is decided (ARCH-65)
@@ -155,7 +155,7 @@ Plans:
 - [x] 14-04 (W4): Rewrite every hand-built audit port in the audit tests as a scripted double, and delete `driveExit.ts`'s mode table (D-06).
 - [x] 14-05 (W5): Close the door behind 14-04: refuse a hand-built audit port layer or error in tests, and remove (or demote) the legacy fail options, per the 14-01 decision (D-07).
 - [x] 14-06 (W6): Write Phase 14's spec records: ADR-QD-126, the ADR-QD-044/056 amendments, the BEH-QD-251 amendment, BEH-QD-379/380, the INV-QD-035 note, traceability and CCR-QD-404.
-- [ ] 14-07 (W7): Close Phase 14: the package-facing docs, the changeset, the PROJECT.md decision row, the per-file mutation comparison and `pnpm check:pr`.
+- [x] 14-07 (W7): Close Phase 14: the package-facing docs, the changeset, the PROJECT.md decision row, the per-file mutation comparison and `pnpm check:pr`.
 
 ### Phase 15: Dock session
 **Goal**: The dock's navigation is a headless session, and replay is an act that always re-seeds.
@@ -260,7 +260,7 @@ Plans:
 | 11. Lost-wave security | 7/7 | Complete | 2026-11-10 |
 | 12. Lost-wave integrity | 5/5 | Complete | 2026-11-10 |
 | 13. Lost-wave gaps | 13/13 | Complete | 2026-11-10 |
-| 14. Audit sink deadline | 6/7 | In progress | - |
+| 14. Audit sink deadline | 7/7 | Complete | 2026-11-10 |
 | 15. Dock session | 0/4 | Planned | - |
 | 16. One role-graph walk | 0/4 | Planned | - |
 | 17. Injective request key | 0/6 | Planned | - |

@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 status: Executing
-stopped_at: Completed 14-06-PLAN.md
+stopped_at: Completed 14-07-PLAN.md (Phase 14 complete)
 last_updated: "2026-11-10T00:00:00.000Z"
 last_activity: 2026-11-10
-last_activity_desc: "14-06 complete: ADR-QD-126 (amends ADR-QD-044/056), BEH-QD-379/380, BEH-QD-249/251 amended, INV-QD-035 note, traceability, CCR-QD-404; spec:verify:strict green"
+last_activity_desc: "14-07 complete, Phase 14 complete: storeCallTimeout and the doubles' scripts in overview/README/website/upgrading, changeset audit-sink-deadline (minor + Breaking), PROJECT.md D-05 row; mutation compare ok; check:pr green"
 state_head: 84a64d2b8a4416dc4af2244c0f4c0e0e5d0a796e
 progress:
   total_phases: 11
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 59
-  completed_plans: 34
-  percent: 58
+  completed_plans: 35
+  percent: 59
 current_phase: 14
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 14 of 20 (Audit sink deadline)
-Plan: 6 of 7 in Phase 14 (14-06 complete); next is 14-07
-Status: Phase 14 in progress (phase_base b042e56)
-Last activity: 2026-11-10 -- 14-06 complete: ADR-QD-126 (route A quoted; C deferred), ADR-QD-044 1.2 / ADR-QD-056 1.13 amendments, BEH-QD-379 (store-call deadline, `Duration.zero` pin, uninterruptible-adapter limit) and BEH-QD-380 (doubles' script), BEH-QD-249 fence + BEH-QD-251 D-04 sentence, INV-QD-035 note, traceability 1.136, CCR-QD-404 (unused: BEH-QD-381–388, INV-QD-265–269); spec:verify:strict 21/21
+Plan: 7 of 7 in Phase 14 (14-07 complete); next is Phase 15
+Status: Phase 14 complete (phase_base b042e56); Phase 15 not started
+Last activity: 2026-11-10 -- 14-07 complete, Phase 14 complete: overview 1.83 (`storeCallTimeout`), audit README and website capabilities/upgrading (0.12 entry), `.changeset/audit-sink-deadline.md`, PROJECT.md D-05 row, CCR-QD-404 extended (README 1.138); mutation compare ok (sink 100 vs 98.04, doubles/interpreter 100, CircuitBreaker 80.51 = base); `pnpm check:pr` exit 0
 
 ## Performance Metrics
 
@@ -88,6 +88,7 @@ Last activity: 2026-11-10 -- 14-06 complete: ADR-QD-126 (route A quoted; C defer
 | Phase 11 P07 | 20 min | 2 tasks | 6 files |
 | Phase 12 P05 | 40 min | 3 tasks | 21 files |
 | Phase 13 P12 | 25 min | 4 tasks | 6 files |
+| Phase 14 P07 | 40 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 

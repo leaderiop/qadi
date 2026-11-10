@@ -44,11 +44,11 @@
 - [x] **GAP-12**: A house-style gate refuses `ADR-QD-NEXT` (and other `…-NEXT` placeholders) in `packages/*/src` and in test titles.
 
 ### Audit sink deadline (Phase 14)
-- [ ] **AUD-01**: A store call (stage, write, commit) that never settles cannot stall `evaluate`/`guard`; the sink bounds it with a deadline.
-- [ ] **AUD-02**: A timed-out call is a failed attempt the circuit breaker counts; enough of them open the breaker, and a hung half-open probe releases its claim.
-- [ ] **AUD-03**: The deadline is configurable, with a documented default (or the route the checkpoint picks).
-- [ ] **AUD-04**: `AuditTrailPortTest`/`AuditStagingPortTest` take a per-call script (`Ok | Fail | Die | Never | Latch`); the hand-written failing audit port layers and `driveExit`'s mode table are gone.
-- [ ] **AUD-05**: BEH-QD-251 is amended so that the sink's own deadline is a failure while a caller's interruption is still not one; a new BEH states the bound.
+- [x] **AUD-01**: A store call (stage, write, commit) that never settles cannot stall `evaluate`/`guard`; the sink bounds it with a deadline.
+- [x] **AUD-02**: A timed-out call is a failed attempt the circuit breaker counts; enough of them open the breaker, and a hung half-open probe releases its claim.
+- [x] **AUD-03**: The deadline is configurable, with a documented default (or the route the checkpoint picks).
+- [x] **AUD-04**: `AuditTrailPortTest`/`AuditStagingPortTest` take a per-call script (`Ok | Fail | Die | Never | Latch`); the hand-written failing audit port layers and `driveExit`'s mode table are gone.
+- [x] **AUD-05**: BEH-QD-251 is amended so that the sink's own deadline is a failure while a caller's interruption is still not one; a new BEH states the bound.
 
 ### Dock session (Phase 15)
 - [ ] **DOCK-01**: Replaying the same timeline row again, after choosing another policy or editing the form, re-seeds the simulator.
@@ -90,7 +90,7 @@
 - [ ] **CACHE-04**: No hot-path regression (bench row) and UNTRACED_BUDGET is unchanged.
 
 ### Cross-cutting (every phase)
-- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10); Phase 12: green (12-05, 2026-11-10); Phase 13: green (13-12, 2026-11-10).
+- [ ] **XC-01**: `pnpm check:pr` is green at the end of each phase. Phase 10: green (10-03, 2026-11-10); Phase 11: green (11-07, 2026-11-10); Phase 12: green (12-05, 2026-11-10); Phase 13: green (13-12, 2026-11-10); Phase 14: green (14-07, 2026-11-10).
 - [ ] **XC-02**: Each phase records its ADR (or states why none is needed), a CCR row, and the BEH/INV/traceability changes, using only its reserved numbers.
 - [ ] **XC-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
 - [ ] **XC-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock; budgets change only with their AGENTS.md table.
@@ -114,14 +114,14 @@
 | SEC-01..06 | Phase 11 | Complete |
 | INT-01..06 | Phase 12 | Complete |
 | GAP-01..12 | Phase 13 | Complete |
-| AUD-01..05 | Phase 14 | Pending |
+| AUD-01..05 | Phase 14 | Complete |
 | DOCK-01..05 | Phase 15 | Pending |
 | ROLE-01..05 | Phase 16 | Pending |
 | KEY-01..05 | Phase 17 | Pending |
 | SURF-01..04 | Phase 18 | Pending |
 | VIEW-01..04 | Phase 19 | Pending |
 | CACHE-01..04 | Phase 20 | Pending |
-| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11, 12, 13) |
+| XC-01..06 | All phases | Pending (XC-01 green for Phases 10, 11, 12, 13, 14) |
 
 **Coverage:** 66 v1.1 requirements (60 + 6 cross-cutting); mapped 66; unmapped 0.
 

@@ -162,4 +162,4 @@ logged, counted or spanned.
 | Audit doubles are scripted per call, outside core's port registry (D-05, ADR-QD-126); each audit store call gets a 5 s overridable `storeCallTimeout` (route A, `A interrupt remove`) | A store call that never settled held the decision and kept the breaker `Closed`; eleven hand-written failing layers restated the ports' error shapes, and core's closed registry is for the five evaluation ports | Accepted (Phase 14, ARCH-62, CCR-QD-404); removing `failWith`/`failStageWith`/`failCommitWith` is Breaking; the buffered sink (route C) is deferred |
 
 ---
-*Last updated: 2026-11-10 — v1.1 Arch Wave 6 started*
+*Last updated: 2026-11-10 — v1.1 Phase 14 complete*
