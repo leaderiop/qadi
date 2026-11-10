@@ -196,6 +196,10 @@ describe("signatureHistoryFromLedger — derives the read rule and refuses forei
           assert.instanceOf(failure.cause, SignatureLedgerReadError);
           if (failure.cause instanceof SignatureLedgerReadError) {
             assert.strictEqual(failure.cause.key, '[1,"alice",null]');
+            assert.strictEqual(
+              failure.cause.cause,
+              "the ledger answered an entry stored under another key",
+            );
           }
         }
       }
@@ -218,6 +222,12 @@ describe("signatureHistoryFromLedger — derives the read rule and refuses forei
         assert.strictEqual(failure._tag, "SignatureHistoryUnavailable");
         if (failure._tag === "SignatureHistoryUnavailable") {
           assert.instanceOf(failure.cause, SignatureLedgerReadError);
+          if (failure.cause instanceof SignatureLedgerReadError) {
+            assert.strictEqual(
+              failure.cause.cause,
+              "the ledger answered an entry whose signer is not its subject",
+            );
+          }
         }
       }
     }));

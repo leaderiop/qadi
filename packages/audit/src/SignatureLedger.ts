@@ -161,15 +161,15 @@ export const signatureHistoryFromLedger = (
         .entriesAt(key)
         .pipe(Effect.mapError((cause) => signatureHistoryPort.failure([query], cause)));
       for (const entry of entries) {
-        if (ledgerKeyOf(entry) !== key || entry.signature.signerId !== entry.subjectId) {
+        const refused =
+          ledgerKeyOf(entry) !== key
+            ? "the ledger answered an entry stored under another key"
+            : entry.signature.signerId !== entry.subjectId
+              ? "the ledger answered an entry whose signer is not its subject"
+              : undefined;
+        if (refused !== undefined) {
           return yield* Effect.fail(
-            signatureHistoryPort.failure(
-              [query],
-              new SignatureLedgerReadError({
-                key,
-                cause: "the ledger answered an entry stored under another key",
-              }),
-            ),
+            signatureHistoryPort.failure([query], new SignatureLedgerReadError({ key, cause: refused })),
           );
         }
       }
