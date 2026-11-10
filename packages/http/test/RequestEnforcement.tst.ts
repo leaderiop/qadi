@@ -1,7 +1,7 @@
 /**
- * Pins the request-enforcement module's two modes (ARCH-46, ADR-QD-108):
- * `enforceRequest`'s two handler-error overloads and `enforceSubject`'s
- * requirement and error channels.
+ * Pins the request-enforcement module's three modes (ARCH-46, ADR-QD-108):
+ * `enforceRequest`'s two handler-error overloads, `enforceSubject`'s
+ * requirement and error channels, and `enforcePublic`'s (ARCH-61).
  *
  * What a mode asks of its caller is a type-level fact the HTTP round trips never
  * see: a closed handler error leaves the projection's error alone, an `unhandled`
@@ -16,8 +16,14 @@ import type { unhandled } from "effect/Types";
 import type { AuthSubject, CurrentSubject, StandingEvaluationServices } from "@qadi/core";
 import { hasPermission, permission } from "@qadi/core";
 import type { AuthorizedRequest, EnforcementProjection } from "../src/AuthorizeRequest.ts";
-import { answerWithResponse, enforceRequest, enforceSubject } from "../src/AuthorizeRequest.ts";
-import type { HttpEnforcementFailure } from "../src/QadiHttpError.ts";
+import {
+  answerInChannel,
+  answerWithResponse,
+  enforcePublic,
+  enforceRequest,
+  enforceSubject,
+} from "../src/AuthorizeRequest.ts";
+import type { HttpEnforcementFailure, projectHttpEnforcementFailure } from "../src/QadiHttpError.ts";
 import type { SubjectExtractor } from "../src/SubjectExtractor.ts";
 
 type RequirementsOf<T> = T extends Effect.Effect<infer _A, infer _E, infer R> ? R : never;
@@ -50,6 +56,11 @@ declare const handlerOpen: (
 declare const handlerSubjectOnly: (
   allowed: { readonly subject: AuthSubject },
 ) => Effect.Effect<HttpServerResponse.HttpServerResponse, HttpEnforcementFailure, CurrentSubject | Needs>;
+declare const handlerPublic: () => Effect.Effect<
+  HttpServerResponse.HttpServerResponse,
+  HttpEnforcementFailure | unhandled,
+  CurrentSubject
+>;
 declare const projectToWire: EnforcementProjection<Wire, Unreachable, never>;
 
 test("a closed handler error leaves the bare-route projection's error channel at never", () => {
@@ -91,4 +102,10 @@ test("the subject-only mode needs an extractor and the handler's own requirement
   const route = enforceSubject(answerWithResponse, handlerSubjectOnly)(request);
   expect<RequirementsOf<typeof route>>().type.toBe<SubjectExtractor | Needs>();
   expect<ErrorOf<typeof route>>().type.toBe<never>();
+});
+
+test("the public mode discharges CurrentSubject itself and answers in-channel plus unhandled", () => {
+  const route = enforcePublic(answerInChannel, handlerPublic);
+  expect<RequirementsOf<typeof route>>().type.toBe<never>();
+  expect<ErrorOf<typeof route>>().type.toBe<ReturnType<typeof projectHttpEnforcementFailure> | unhandled>();
 });

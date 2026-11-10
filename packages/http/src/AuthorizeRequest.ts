@@ -9,6 +9,8 @@
  * the handler-denial tap and the projection catch by hand, and one surface, the
  * unguarded port route, dropped the extraction log. A caller now supplies only
  * what differs, its projection (`EnforcementProjection`), and the rest is here.
+ * Three modes share the one handler step: guarded (`enforceRequest`),
+ * subject-only (`enforceSubject`) and public (`enforcePublic`, ARCH-61).
  *
  * Package-private since ADR-QD-099: `authorizeRequest` and `AuthorizedRequest`
  * are public through `GuardApi.ts`, and every other export is for this package.
@@ -25,7 +27,7 @@ import type {
   Resource,
   StandingEvaluationServices,
 } from "@qadi/core";
-import { CurrentSubject, ENFORCEMENT_DENIAL_TAGS, guard } from "@qadi/core";
+import { anonymous, CurrentSubject, ENFORCEMENT_DENIAL_TAGS, guard } from "@qadi/core";
 import type { HttpEnforcementFailure } from "./QadiHttpError.ts";
 import {
   HTTP_ENFORCEMENT_TAGS,
@@ -105,8 +107,9 @@ const extractSubject = (request: HttpServerRequest.HttpServerRequest) =>
  * The log taps for the edge check sit here: a denial logs through `logDenial`
  * (annotated `qadi.denial_site: "edge"`) and an extraction failure through
  * `logSubjectExtractionFailed`, one line each. A denial a *handler's own*
- * `guard` raises is not this step's: the surface that turns it into a response
- * logs it, annotated `"handler"` (BEH-QD-321). A resolver outage logs nothing
+ * `guard` raises is not this step's: the module's handler step logs it,
+ * annotated `"handler"`, for every mode — guarded, subject-only and the public
+ * mode a `publicEndpoint` runs through (BEH-QD-321). A resolver outage logs nothing
  * at the edge. Omit `loadResource` to evaluate
  * against `NO_RESOURCE`.
  *
@@ -217,6 +220,24 @@ export function enforceSubject<H, R, B, EP, RP>(
       handler,
     );
   });
+}
+
+/**
+ * The public mode: runs `handler` as `anonymous` through the one handler step,
+ * applying no policy and extracting no subject.
+ *
+ * A public endpoint has no edge check, so the only denial it can produce is its
+ * handler's own `guard`'s. Before this mode the middleware's public arm provided
+ * `anonymous` itself, so nothing logged that denial (found by b0b9363's probe,
+ * ported in ARCH-61, BEH-QD-359), and its body was redacted only because the
+ * encoder drops excess properties, not by the projection ADR-QD-072/081 say
+ * redaction is. It takes no request: there is nothing to extract.
+ */
+export function enforcePublic<H, R, B, EP, RP>(
+  project: EnforcementProjection<B, EP, RP>,
+  handler: (allowed: { readonly subject: AuthSubject }) => Effect.Effect<H, HttpEnforcementFailure | unhandled, R>,
+): Effect.Effect<H | B, EP | unhandled, Exclude<R, CurrentSubject> | RP> {
+  return enforced(Effect.succeed({ subject: anonymous }), project, handler);
 }
 
 /**

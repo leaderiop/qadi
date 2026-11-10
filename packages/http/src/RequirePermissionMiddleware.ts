@@ -19,10 +19,9 @@ import * as Match from "effect/Match";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type { unhandled } from "effect/Types";
-import type { StandingEvaluationServices } from "@qadi/core";
-import { anonymous, CurrentSubject } from "@qadi/core";
+import type { CurrentSubject, StandingEvaluationServices } from "@qadi/core";
 import type { AccessPlan } from "./AccessPlan.ts";
-import { answerInChannel, enforceRequest } from "./AuthorizeRequest.ts";
+import { answerInChannel, enforcePublic, enforceRequest } from "./AuthorizeRequest.ts";
 import { loadNoResource } from "./NoResource.ts";
 import type { HttpEnforcementFailure } from "./QadiHttpError.ts";
 import type { RequirePermission, RequiredPermissionShape } from "./RequirePermission.ts";
@@ -68,17 +67,13 @@ export const makeRequirePermission = Effect.fn("qadi.http.makeRequirePermission"
       enforceRequest({ permission, policy, loadResource: loadNoResource }, answerInChannel, () => httpEffect),
     ).pipe(Effect.provide(evaluationServices));
 
-  // The refusal and the public pass-through both provide `CurrentSubject`
-  // explicitly (as `anonymous`) even though neither ever extracted a real
-  // one — this middleware declares `provides: CurrentSubject`, so every
-  // endpoint it guards, public or not, must actually receive one for that
-  // declaration to stay honest. `anonymous` is exactly the right value for
-  // "no subject was authenticated": every policy denies against it.
+  // This middleware declares `provides: CurrentSubject`, so a public endpoint's handler must
+  // receive one: the module's public mode serves it as `anonymous` ("no subject was
+  // authenticated", which every policy denies) through the same handler step as `Required`, so a
+  // denial its own `guard` raises is logged and projected (ARCH-61, BEH-QD-359). A refusal runs no
+  // handler, so it provides nothing.
   const refuse = (message: string) =>
-    Effect.logError(message).pipe(
-      Effect.as(HttpServerResponse.empty({ status: 500 })),
-      Effect.provideService(CurrentSubject, anonymous),
-    );
+    Effect.logError(message).pipe(Effect.as(HttpServerResponse.empty({ status: 500 })));
 
   const middleware: Context.Service.Shape<typeof RequirePermission> = (httpEffect, { endpoint, group }) => {
     // Only an endpoint value of the API this middleware was planned from was registered, checked
@@ -94,7 +89,7 @@ export const makeRequirePermission = Effect.fn("qadi.http.makeRequirePermission"
       );
     }
     return Match.valueTags(access, {
-      Public: () => Effect.provideService(httpEffect, CurrentSubject, anonymous),
+      Public: () => enforcePublic(answerInChannel, () => httpEffect),
       Required: ({ requirement }) => enforce(requirement, httpEffect),
     });
   };
