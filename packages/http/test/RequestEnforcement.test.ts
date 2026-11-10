@@ -4,7 +4,7 @@
  *
  * One table instead of a log assertion per route (ARCH-46, D-07). BEH-QD-321's rule, that a
  * failure is "logged exactly once, by the step that turned it into a response", is a property of
- * the module and not of any one route, so it is pinned once for all five callers: a sixth caller,
+ * the module and not of any one route, so it is pinned once for all six callers: a seventh caller,
  * a regressed log or a doubled line fails here without anyone remembering which per-route test to
  * copy. Each cell drives the caller's real route over `HttpRouter.toWebHandler`.
  *
@@ -44,11 +44,13 @@ import type { AuthSubject, Policy } from "@qadi/core";
 import { collectingLogger } from "@qadi/testing";
 import type { CapturedLog } from "@qadi/testing";
 import {
+  PublicEndpoint,
   RequiredPermission,
   RequirePermission,
   SubjectExtractionFailed,
   addGuardedRoute,
   guardApi,
+  publicEndpoint,
   requiresPermission,
   subjectExtractorBearer,
 } from "../src/index.ts";
@@ -71,7 +73,14 @@ const bearer = { authorization: `Bearer ${TOKEN}` };
 // The table
 // ---------------------------------------------------------------------------
 
-const CALLERS = ["guard", "middleware", "streamRecheck", "guardedPort", "unguardedPort"] as const;
+const CALLERS = [
+  "guard",
+  "middleware",
+  "publicEndpoint",
+  "streamRecheck",
+  "guardedPort",
+  "unguardedPort",
+] as const;
 type Caller = (typeof CALLERS)[number];
 
 const COLUMNS = [
@@ -126,12 +135,19 @@ const aliceDeniedWrite: ExpectedLine = {
   message: `qadi/http: request denied (ACL001) — subject "alice": subject lacks permission 'devtools:write'`,
   site: "handler",
 };
+const anonymousDeniedWrite: ExpectedLine = {
+  level: "Warn",
+  message: `qadi/http: request denied (ACL001) — subject "anonymous": subject lacks permission 'devtools:write'`,
+  site: "handler",
+};
 const closure = (tag: string, cls: string): ExpectedLine => ({
   level: "Warn",
   message: `qadi/http: /__decisions recheck ended the stream (${tag}, ${cls})`,
 });
 
 const UNGUARDED_APPLIES_NO_POLICY = "the subject-only mode applies no policy, so there is no edge decision to fail";
+const PUBLIC_HAS_NO_EDGE =
+  "a public endpoint has no edge decision: the public mode extracts no subject and applies no policy";
 const PORT_HANDLER_NEVER_FAILS =
   "the port handler, `answerRemotely`, has error channel `never`: it answers a failure as a reply, never as a denial";
 
@@ -150,6 +166,15 @@ const TABLE: { readonly [C in Caller]: { readonly [K in Column]: Cell } } = {
     edgeObligation: expectCell(403, obligationRefused),
     edgeOutage: expectCell(502),
     handlerDenial: expectCell(403, aliceDeniedWrite),
+    success: expectCell(204),
+  },
+  publicEndpoint: {
+    // A public endpoint never extracts, so a broken credential store does not refuse it.
+    extractionFailure: expectCell(204),
+    edgeDenial: notApplicable(PUBLIC_HAS_NO_EDGE),
+    edgeObligation: notApplicable(PUBLIC_HAS_NO_EDGE),
+    edgeOutage: notApplicable(PUBLIC_HAS_NO_EDGE),
+    handlerDenial: expectCell(403, anonymousDeniedWrite),
     success: expectCell(204),
   },
   streamRecheck: {
@@ -361,6 +386,30 @@ const middlewareDriver: Driver = (scenario) =>
     statusOf(getRequest("/probe")),
   );
 
+const publicEndpointDriver: Driver = (scenario) =>
+  observing(
+    (logger) => {
+      const Group = HttpApiGroup.make("probe").add(
+        HttpApiEndpoint.get("probe", "/probe").pipe((endpoint) =>
+          endpoint.annotate(PublicEndpoint, publicEndpoint("test: the public mode's caller")),
+        ),
+      );
+      const Api = HttpApi.make("probe").add(Group).middleware(RequirePermission);
+      // Not `nestedGuard`: anonymous holds no permission, so its passing read `guard` would deny too.
+      const Handlers = HttpApiBuilder.group(Api, "probe", (handlers) =>
+        handlers.handle("probe", () =>
+          scenario.handlerRaises ? guard(writePermission, writePolicy)({}, () => Effect.void) : Effect.void,
+        ),
+      );
+      const routes = HttpApiBuilder.layer(Api).pipe(Layer.provide(Handlers), Layer.provide(guardApi(Api)));
+      return HttpRouter.toWebHandler(
+        stack(routes, extractorFor(scenario.who, false), servicesFor(scenario, 0)).pipe(Layer.provideMerge(logger)),
+        { disableLogger: true },
+      );
+    },
+    statusOf(getRequest("/probe")),
+  );
+
 const PORT_SERVING = { AttributeResolver: { attributes: ["clearance"] } };
 
 const portRequest = () =>
@@ -453,6 +502,7 @@ const streamRecheckDriver: Driver = (scenario) =>
 const DRIVERS: { readonly [C in Caller]: Driver } = {
   guard: guardDriver,
   middleware: middlewareDriver,
+  publicEndpoint: publicEndpointDriver,
   streamRecheck: streamRecheckDriver,
   guardedPort: guardedPortDriver,
   unguardedPort: unguardedPortDriver,
@@ -492,8 +542,11 @@ describe("the request-enforcement module, every caller × every failure", () => 
     }
   }
 
-  it("the cells that cannot occur are exactly these seven, each with its reason", () => {
+  it("the cells that cannot occur are exactly these ten, each with its reason", () => {
     assert.deepStrictEqual(notApplicableCells(), [
+      "publicEndpoint × edgeDenial",
+      "publicEndpoint × edgeObligation",
+      "publicEndpoint × edgeOutage",
       "streamRecheck × edgeObligation",
       "streamRecheck × handlerDenial",
       "guardedPort × handlerDenial",

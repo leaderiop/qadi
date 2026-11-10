@@ -836,6 +836,13 @@ const ProbeGroup = HttpApiGroup.make("probe").add(
       requiresPermission(endpoint, { permission: readPermission, policy: readPolicy }),
     ),
   ),
+  // Public, with a handler that re-checks: the one denial a public endpoint can produce is its own.
+  HttpApiEndpoint.get("publicRaise", "/probe/public-raise").pipe((endpoint) =>
+    endpoint.annotate(PublicEndpoint, publicEndpoint("probe: a public handler that re-checks")),
+  ),
+  HttpApiEndpoint.get("publicOutage", "/probe/public-outage").pipe((endpoint) =>
+    endpoint.annotate(PublicEndpoint, publicEndpoint("probe: a public handler whose re-check hits an outage")),
+  ),
 );
 const ProbeApi = HttpApi.make("probe").add(ProbeGroup).middleware(RequirePermission);
 const ProbeHandlers = HttpApiBuilder.group(ProbeApi, "probe", (handlers) =>
@@ -843,12 +850,27 @@ const ProbeHandlers = HttpApiBuilder.group(ProbeApi, "probe", (handlers) =>
     // Alice holds `document:read` only, so this nested `guard` denies her.
     .handle("raise", () => guard(writePermission, hasPermission(writePermission))({}, () => Effect.void))
     // A second check for the same subject and policy the middleware just made.
-    .handle("again", () => guard(readPermission, readPolicy)({}, () => Effect.void)),
+    .handle("again", () => guard(readPermission, readPolicy)({}, () => Effect.void))
+    // Anonymous holds nothing, so this nested `guard` denies it.
+    .handle("publicRaise", () => guard(writePermission, hasPermission(writePermission))({}, () => Effect.void))
+    // A resolver outage inside a public handler's own `guard`: `writePolicy` reads `clearance`.
+    .handle("publicOutage", () => guard(writePermission, writePolicy)({}, () => Effect.void)),
 );
 const ProbeLayer = stackWithCache(
   HttpApiBuilder.layer(ProbeApi).pipe(Layer.provide(ProbeHandlers), Layer.provide(guardApi(ProbeApi))),
   subjectExtractorBearer(lookupSubject),
   EvaluationServicesTest,
+);
+
+const OutageLayer = stackWithCache(
+  HttpApiBuilder.layer(ProbeApi).pipe(Layer.provide(ProbeHandlers), Layer.provide(guardApi(ProbeApi))),
+  subjectExtractorBearer(lookupSubject),
+  Layer.mergeAll(
+    portsLayer({
+      AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("SECRET-conn-string")).layer,
+    }),
+    EvaluationIdLive,
+  ),
 );
 
 describe("RequirePermission's scopes around the handler (characterization)", () => {
@@ -875,5 +897,32 @@ describe("RequirePermission's scopes around the handler (characterization)", () 
       // `readPolicy` reads no attribute, so the cache shows as zero resolver
       // calls and, more to the point, the handler's `guard` found the services.
       assert.deepStrictEqual(attributeResolverCalls, []);
+    }));
+
+  it.effect("a public endpoint's handler-raised denial is logged once, as the handler's", () =>
+    Effect.gen(function* () {
+      const { lines, layer: logger } = collectingLogger();
+      const { handler } = HttpRouter.toWebHandler(ProbeLayer.pipe(Layer.provideMerge(logger)), {
+        disableLogger: true,
+      });
+      const response = yield* Effect.promise(() => handler(new Request("http://localhost/probe/public-raise")));
+      assert.strictEqual(response.status, 403);
+      const body: Record<string, unknown> = yield* Effect.promise(() => response.json());
+      assert.strictEqual(body._tag, "AccessDenied");
+      assert.strictEqual("trace" in body, false);
+      assert.deepStrictEqual(lines.map((line) => line.message), [
+        [`qadi/http: request denied (ACL001) — subject "anonymous": subject lacks permission 'document:write'`],
+      ]);
+      assert.strictEqual(lines[0]?.annotations["qadi.denial_site"], "handler");
+    }));
+
+  it.effect("a public endpoint's handler-raised outage is answered redacted", () =>
+    Effect.gen(function* () {
+      const { handler } = HttpRouter.toWebHandler(OutageLayer, { disableLogger: true });
+      const response = yield* Effect.promise(() => handler(new Request("http://localhost/probe/public-outage")));
+      assert.strictEqual(response.status, 502);
+      const text = yield* Effect.promise(() => response.text());
+      assert.deepStrictEqual(JSON.parse(text), { _tag: "AttributeResolveError", attribute: "clearance" });
+      assert.notInclude(text, "SECRET");
     }));
 });
