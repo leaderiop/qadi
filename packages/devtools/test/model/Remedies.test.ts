@@ -575,18 +575,108 @@ describe("remedyEdits — walking the tree", () => {
     assert.deepStrictEqual(labels(hasNotActed("closed")), []);
   });
 
-  it("proposes nothing for hasCustom — there is no matcher to read a witness from", () => {
+  it("names a custom predicate it cannot remedy, rather than staying silent", () => {
+    const reason = "a custom predicate's answer has no form field; run against Snapshot or Live";
+
     assert.deepStrictEqual(labels(hasCustom("isOwner")), []);
-    assert.deepStrictEqual(labels(allOf([hasRole("editor"), hasCustom("isOwner")])), [
-      "with role editor",
+    assert.deepStrictEqual(remedyEdits(hasCustom("isOwner"), alice).skipped, [
+      { requirement: "custom predicate isOwner", reason },
+    ]);
+    const mixed = remedyEdits(allOf([hasRole("editor"), hasCustom("isOwner")]), alice);
+    assert.deepStrictEqual(mixed.edits.map((e) => e.label), ["with role editor"]);
+    assert.deepStrictEqual(mixed.skipped, [{ requirement: "custom predicate isOwner", reason }]);
+  });
+
+  it("offers the signature the policy names, built from its node", () => {
+    assert.deepStrictEqual(labels(hasSignature("approved")), ["with signature approved on doc-1"]);
+    assert.deepStrictEqual(labels(hasSignature("approved", { signerRole: "approver" })), [
+      "with signature approved on doc-1 as approver",
+    ]);
+    assert.deepStrictEqual(labels(hasSignature("approved", { scope: "Any" })), [
+      "with signature approved",
     ]);
   });
 
-  it("proposes nothing for hasSignature — a signature is not built out of nothing", () => {
-    assert.deepStrictEqual(labels(hasSignature("approved")), []);
-    assert.deepStrictEqual(labels(allOf([hasRole("editor"), hasSignature("approved")])), [
-      "with role editor",
+  it("applies a signature remedy as the row the port answers from", () => {
+    const apply = (policy: Parameters<typeof remedyEdits>[0], input = alice) => {
+      const [edit] = remedyEdits(policy, input).edits;
+      if (edit === undefined) throw new Error("expected a remedy");
+      assert.strictEqual(edit.kind, "AddSignature");
+      assert.strictEqual(edit.direction, "Strengthen");
+      return edit.apply(input).signatures;
+    };
+
+    assert.deepStrictEqual(apply(hasSignature("approved")), [
+      { subjectId: "alice", meaning: "approved", resourceId: "doc-1" },
     ]);
+    assert.deepStrictEqual(apply(hasSignature("approved", { signerRole: "approver" })), [
+      { subjectId: "alice", meaning: "approved", resourceId: "doc-1", signerRole: "approver" },
+    ]);
+    // A subject-global row has no resource id: that is the only row an `Any`
+    // question is answered from.
+    assert.deepStrictEqual(apply(hasSignature("approved", { scope: "Any" })), [
+      { subjectId: "alice", meaning: "approved" },
+    ]);
+    const other = { subjectId: "alice", meaning: "reviewed" };
+    assert.deepStrictEqual(apply(hasSignature("approved"), { ...alice, signatures: [other] }), [
+      other,
+      { subjectId: "alice", meaning: "approved", resourceId: "doc-1" },
+    ]);
+  });
+
+  it("stays silent about a signature the fixtures already hold", () => {
+    const held = (...signatures: NonNullable<SimulationInput["signatures"]>): SimulationInput => ({
+      ...alice,
+      signatures,
+    });
+    const mine = { subjectId: "alice", meaning: "approved", resourceId: "doc-1" };
+
+    assert.deepStrictEqual(labels(hasSignature("approved"), held(mine)), []);
+    assert.deepStrictEqual(
+      labels(hasSignature("approved", { signerRole: "approver" }), held({ ...mine, signerRole: "approver" })),
+      [],
+    );
+    assert.deepStrictEqual(
+      labels(hasSignature("approved", { scope: "Any" }), held({ subjectId: "alice", meaning: "approved" })),
+      [],
+    );
+    // A node that names no signer role is met by a signature with any role.
+    assert.deepStrictEqual(labels(hasSignature("approved"), held({ ...mine, signerRole: "x" })), []);
+  });
+
+  it("offers a signature when the fixtures hold a different one", () => {
+    const held = (signature: NonNullable<SimulationInput["signatures"]>[number]): SimulationInput => ({
+      ...alice,
+      signatures: [signature],
+    });
+    const mine = { subjectId: "alice", meaning: "approved", resourceId: "doc-1" };
+    const want = ["with signature approved on doc-1"];
+
+    assert.deepStrictEqual(labels(hasSignature("approved"), held({ ...mine, subjectId: "bob" })), want);
+    assert.deepStrictEqual(labels(hasSignature("approved"), held({ ...mine, meaning: "reviewed" })), want);
+    assert.deepStrictEqual(labels(hasSignature("approved"), held({ ...mine, resourceId: "doc-2" })), want);
+    assert.deepStrictEqual(labels(hasSignature("approved"), held({ subjectId: "alice", meaning: "approved" })), want);
+    assert.deepStrictEqual(
+      labels(hasSignature("approved", { signerRole: "approver" }), held({ ...mine, signerRole: "other" })),
+      ["with signature approved on doc-1 as approver"],
+    );
+    // An `Any` question is answered only from a subject-global row.
+    assert.deepStrictEqual(labels(hasSignature("approved", { scope: "Any" }), held(mine)), [
+      "with signature approved",
+    ]);
+  });
+
+  it("declines a resource-scoped signature when the check names no resource id", () => {
+    const noResource: SimulationInput = { subject: { id: "alice" } };
+
+    assert.deepStrictEqual(remedyEdits(hasSignature("approved"), noResource).skipped, [
+      { requirement: "signature approved", reason: "the check names no resource id" },
+    ]);
+    // `Any` widens the question to every resource, so it needs none.
+    assert.deepStrictEqual(
+      remedyEdits(hasSignature("approved", { scope: "Any" }), noResource).skipped,
+      [],
+    );
   });
 
   it("collapses two nodes asking for the same thing into one row", () => {

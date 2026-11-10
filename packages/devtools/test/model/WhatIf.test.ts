@@ -366,6 +366,16 @@ describe("a signature fixture is a grant a sweep can drop or supply", () => {
       assert.strictEqual(verdictOfOutcome(row.outcome), "Deny");
       assert.isTrue(isChanged(row.comparison));
     }));
+
+  it.effect("answers a denial with the signature that would allow it", () =>
+    Effect.gen(function* () {
+      const report = yield* whatIf(hasSignature("approved"), { ...signed, signatures: [] });
+      const row = rowFor(report.rows, "with signature approved on doc-1");
+
+      assert.strictEqual(row.edit.kind, "AddSignature");
+      assert.strictEqual(verdictOfOutcome(report.baseline), "Deny");
+      assert.strictEqual(verdictOfOutcome(row.outcome), "Allow");
+    }));
 });
 
 describe("sweepPlan — what a sweep would cost, before it costs it", () => {
