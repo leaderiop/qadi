@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-047                                   |
-> | Revision       | 1.8                                            |
+> | Revision       | 1.9                                            |
 > | Effective Date | 2026-10-07                                     |
-> | Status         | Accepted; amended 2026-10-07 (sampling is the model's), 2026-10-08 (the feed, a supplied reading, the interface), 2026-11-09 (the explorer's state is model too), 2026-11-10 (the stream's prelude rules are core's) |
+> | Status         | Accepted; amended 2026-10-07 (sampling is the model's), 2026-10-08 (the feed, a supplied reading, the interface), 2026-11-09 (the explorer's state is model too), 2026-11-10 (the stream's prelude rules are core's), 2026-11-10 (the simulator's fields are described once) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.8 (2026-11-10): cross-reference — the stream's prelude rules are @qadi/core's decodeDecisionStream; sourceFromEventSource is the EventSource adapter over it, signature unchanged (ARCH-60, CCR-QD-397)<br>1.7 (2026-11-09): amendment — the policy explorer's state is `ExplorerSession` and the role viewer's choice a `HeldChoiceStore`, both owned by `DevtoolsDock` and package-private (ARCH-58, BEH-QD-337, INV-QD-107, CCR-QD-394)<br>1.6 (2026-10-08): amendment — the model's interface is its stores, the host wiring and the timeline readings; a screen's mechanics and the panels are package-private (ARCH-40, CCR-QD-321)<br>1.4 (2026-10-08): amendment — a supplied reading is one value, `DiagnosticsReading`, merged by `mergeReading` (ARCH-44, CCR-QD-241)<br>1.3 (2026-10-08): amendment — under a `QadiProvider`, the layer the dock builds is the provider's own, handed by `@qadi/react`'s `useDevtoolsFeed` (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.9 (2026-11-10): amendment — the simulator's input fields are described once in SimulationFields.ts, and the session's chip commands and form reading are derived from it; the chip typing buffer stays in the view (ARCH-61, lost ARCH-48, INV-QD-257, CCR-QD-400)<br>1.8 (2026-11-10): cross-reference — the stream's prelude rules are @qadi/core's decodeDecisionStream; sourceFromEventSource is the EventSource adapter over it, signature unchanged (ARCH-60, CCR-QD-397)<br>1.7 (2026-11-09): amendment — the policy explorer's state is `ExplorerSession` and the role viewer's choice a `HeldChoiceStore`, both owned by `DevtoolsDock` and package-private (ARCH-58, BEH-QD-337, INV-QD-107, CCR-QD-394)<br>1.6 (2026-10-08): amendment — the model's interface is its stores, the host wiring and the timeline readings; a screen's mechanics and the panels are package-private (ARCH-40, CCR-QD-321)<br>1.4 (2026-10-08): amendment — a supplied reading is one value, `DiagnosticsReading`, merged by `mergeReading` (ARCH-44, CCR-QD-241)<br>1.3 (2026-10-08): amendment — under a `QadiProvider`, the layer the dock builds is the provider's own, handed by `@qadi/react`'s `useDevtoolsFeed` (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 ---
 
@@ -251,3 +251,36 @@ a prop fed by the host's subscription ([ADR-QD-080](./080-a-gate-registry-belong
 > 2026-11-10 amendment gives one owner. The model's interface is unchanged:
 > `sourceFromEventSource` keeps its signature and `SourceRead`, and is now the
 > `EventSource` adapter over that decoder.
+
+> **Amended 2026-11-10 (CCR-QD-400): the simulator's input fields are described once.**
+> `SimulationInput` holds seven list-or-record fields, and six modules used to restate
+> each (where it lives in the input, its codec, its equality, who an element names, what
+> dropping it is called); when `signatures` gained its form field, five were told and the
+> weakening sweep was not, so a `hasSignature` allow swept to a table that never asked
+> *was it the signature?* The model now holds the description in `SimulationFields.ts`:
+> one closed row per field, after
+> [ADR-QD-094](./094-a-port-is-described-once.md)'s pattern of stating a port's facts
+> once and deriving the rest. The weakenings, the remedies' grants, the subject rename,
+> the replay's unseeded list, the fixture ports (keyed by core's `PortName`, so a port
+> added to the registry is a compile error here) and the session's chip commands are
+> derived from it, and a missing row or column is a compile error
+> ([INV-QD-257](../invariants.md)).
+>
+> "Renders that model and computes nothing" now holds of the chip text too: the session
+> gains `addChip`, `removeChip` and `snapshot.fields` (the form's reading), so the rules
+> for a chip - attribution to the current subject, a structural duplicate refused, a
+> record pair replaced - are tested headlessly, inside the mutation gate, and
+> `Simulator.tsx` maps rows to editors. The table and its operations are
+> package-private ([ADR-QD-099](./099-entry-points-are-a-closed-list.md)); the types the
+> session's interface names (`SimulationField`, `FieldView`, `ChipView`, `ChipAdded`)
+> are exported.
+>
+> Where the typing buffer lives was decided on 2026-11-10 as option A: *"Chip typing
+> buffer stays in the view; `addChip(field, text): ChipAdded`"*. The uncommitted text
+> is the view's only state and a refused chip's reason is the command's answer. The
+> 2026-11-09 amendment moved the explorer's typed JSON text into `ExplorerSession`, so
+> holding each chip buffer in the session too (a `typeChip(field, text)` command and a
+> `FieldView.pending`) would be the consistent choice; it was not taken here because it
+> is new design beyond the ported one, and it can be added later without breaking
+> `addChip`'s shape. No new ADR: this amends the model's boundary, which this record
+> owns (ARCH-61, porting lost ARCH-48 `950977f`).

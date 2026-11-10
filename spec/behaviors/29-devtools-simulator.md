@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-29                                    |
-> | Revision       | 1.8                                            |
+> | Revision       | 1.9                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.8 (2026-11-08): BEH-QD-221 — a signature request the capture never saw MUST fail as `SignatureHistoryUnavailable` (code review WR-04, INV-QD-043)<br>1.7 (2026-10-08): the simulator's mechanics (`simulate`, `whatIf`, `sweepPlan`, `capturing`, `replayLayer`, `remedyEdits`, `replayInput`, `baselineDiff`, the form codecs) are package-private; specified here because the simulator screen relies on them, and a host drives `makeSimulationSession` (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.6 (2026-10-08): BEH-QD-221 — a capture keys by the whole question the port received, not by a projection of it (ARCH-45, CCR-QD-263)<br>1.5 (2026-10-08): BEH-QD-322 — a chosen policy is held by value, not by its position in the rail; `choosePolicy` takes the policy, `PolicyChoice` gains `Evicted`, and the first policy shown is held (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.4 (2026-10-07): BEH-QD-220 — a source that cannot be honoured is refused, and a sweep runs the evaluations it stated; BEH-QD-225 — every field a replay names has a control; BEH-QD-322 — a simulation is a session (ADR-QD-047 and ADR-QD-050 amended, CCR-QD-199)<br>1.3 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.9 (2026-11-10): BEH-QD-222/225/322: signature rows, the hasCustom named skip, the field table and chip commands (ARCH-61, lost ARCH-48, ADR-QD-047 amendment, CCR-QD-400)<br>1.8 (2026-11-08): BEH-QD-221 — a signature request the capture never saw MUST fail as `SignatureHistoryUnavailable` (code review WR-04, INV-QD-043)<br>1.7 (2026-10-08): the simulator's mechanics (`simulate`, `whatIf`, `sweepPlan`, `capturing`, `replayLayer`, `remedyEdits`, `replayInput`, `baselineDiff`, the form codecs) are package-private; specified here because the simulator screen relies on them, and a host drives `makeSimulationSession` (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.6 (2026-10-08): BEH-QD-221 — a capture keys by the whole question the port received, not by a projection of it (ARCH-45, CCR-QD-263)<br>1.5 (2026-10-08): BEH-QD-322 — a chosen policy is held by value, not by its position in the rail; `choosePolicy` takes the policy, `PolicyChoice` gains `Evicted`, and the first policy shown is held (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.4 (2026-10-07): BEH-QD-220 — a source that cannot be honoured is refused, and a sweep runs the evaluations it stated; BEH-QD-225 — every field a replay names has a control; BEH-QD-322 — a simulation is a session (ADR-QD-047 and ADR-QD-050 amended, CCR-QD-199)<br>1.3 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 _Previous: [28 — The Devtools Screens](./28-devtools-screens.md)_
 
@@ -207,6 +207,19 @@ Dropping a grant can never turn a denial into an allow, so on the screen where i
 matters most — a reviewer holding a denial, asking *what would fix it* — a
 weakening-only sweep produces a table of rows that all say the same nothing.
 
+The weakenings drop each element of every held field - roles, permissions,
+subject attributes, resolver attributes, relationships, events and signatures
+([INV-QD-257](../invariants.md)). A signature fixture is a grant like any other: a
+`hasSignature` allow is asked *was it the signature?* (`DropSignature`), and a row
+for two signatures that differ only in a field the title does not carry
+(`signedAt`, `algorithm`, `keyId`) is titled with the chip's own text, so one row
+never stands for two. The strengthenings supply what the policy names: a
+`hasSignature` requirement is answered with the signature its node describes
+(`AddSignature`) - its meaning, its signer role when it names one, and a row
+carrying the resource id exactly when the node's scope asks about a resource -
+and an opaque `hasCustom` requirement is named as skipped, with the reason that
+its answer has no field in the form: it comes from Snapshot or Live.
+
 ```
 REQUIREMENT: Sweep ordering MUST be deterministic.
 ```
@@ -227,7 +240,9 @@ REQUIREMENT: A requirement no remedy could be built for MUST be named, with the 
 ```
 
 A remedy row that does not remedy is worse than an absent one, because the reader
-takes it as *and even that would not help*.
+takes it as *and even that would not help*. `hasCustom` and a resource-scoped
+`hasSignature` with no resource id are therefore reported in `skipped`, not passed
+over in silence (ARCH-61 found both were).
 
 ```
 REQUIREMENT: A sweep's remedy derivation and a matcher witness MUST NOT exhaust the
@@ -351,7 +366,11 @@ filled itself in silently would present that hypothesis as a reproduction of wha
 happened.
 
 Every field named has a control to supply it: the Fixtures card edits resolver
-attributes, relationships, history and signatures alike.
+attributes, relationships, history and signatures alike. Each `UnseededField`
+carries the field's `key` as well as its `field` text, and the text is the label
+the form shows that field under - both come from the one table that describes the
+form's fields (`SimulationFields.ts`, ADR-QD-047), so the list and the form cannot
+name one field two ways.
 
 ```
 REQUIREMENT: An orphan MUST be refused.
@@ -417,7 +436,15 @@ export interface SimulationSession {
   readonly run: (kind: "Run" | "Sweep") => Effect.Effect<void>;
   readonly reap: Effect.Effect<void>;
   readonly dispose: Effect.Effect<void>;
-  // …and one synchronous command per field of the form
+  readonly edit: (next: SimulationInput) => void;
+  readonly editResourceText: (text: string) => void;
+  readonly renameSubject: (to: string) => void;
+  readonly addChip: (field: SimulationField, text: string) => ChipAdded;
+  readonly removeChip: (field: SimulationField, index: number) => void;
+}
+export interface SimulationSnapshot {
+  // …
+  readonly fields: ReadonlyArray<FieldView>;
 }
 export const resolveSource: (
   choice: SourceChoice,
@@ -484,6 +511,29 @@ follow the head either. Choosing a policy the rail does not list holds it as
 `Evicted` at once.
 
 ```
+REQUIREMENT: A chip MUST be committed to the draft only through a session
+             command, which answers with the refusal when there is one. A chip
+             MUST be added to a field by its codec and refused, with the reason,
+             when the text is empty, does not decode, or duplicates an element by
+             structure. A record field MUST replace a pair of the same name.
+```
+
+The session holds the form, not just the draft. `addChip(field, text)` decodes the
+text with that field's codec against the form's current subject (so a short-form
+edge, event or signature is attributed to the subject in the form), refuses empty
+text (`nothing to add`), text the codec refuses, and an element the field already
+holds *by structure* (`already there`) - two edges that differ only by subject are
+two elements - and otherwise moves the draft. A refusal moves nothing and notifies
+no one; the reason is the command's answer (`ChipAdded`), because the uncommitted
+text is the view's only state. A record field (attributes) has no duplicate to
+refuse: a pair of the same name replaces the held one and is listed last.
+`removeChip(field, index)` removes exactly that chip, and is a no-op for a field
+the draft does not list or an index past its end. `snapshot.fields` is the form's
+reading, in the form's order: each field's label, hint, who answers it, and each
+chip as the codec writes it, a value the form cannot show faithfully as its
+refusal. A view maps these rows to editors and computes none of it (ADR-QD-047).
+
+```
 REQUIREMENT: The form's text MUST round-trip every input it can display.
 ```
 
@@ -508,13 +558,20 @@ session.editResourceText("{ not json");
 const typing = session.getSnapshot();
 
 session.editResourceText(shown.text);
+
+// A chip is committed by its field's codec; a refusal comes back as the answer.
+const added = session.addChip("roles", "editor");
+const again = session.addChip("roles", "editor");
 console.log(shown.error, typing.resourceText.error !== undefined, typing.draft.resource);
+console.log(added._tag, again._tag, session.getSnapshot().fields[0]?.chips.length);
 ```
 
 Everything this section names other than `makeSimulationSession` and the types it
-returns (the form codecs, `sweepPlan`, `whatIf`, `simulate`) is package-private
-since [CCR-QD-321](../README.md#document-history): a host drives the session, and the codecs are
-specified here because the simulator screen relies on them.
+returns (the form codecs, the field table in `SimulationFields.ts` and the
+operations derived from it, `sweepPlan`, `whatIf`, `simulate`) is package-private
+since [CCR-QD-321](../README.md#document-history) and [CCR-QD-400](../README.md#document-history): a host drives the session, and the
+codecs and the field table are specified here because the simulator screen relies
+on them.
 
 ---
 

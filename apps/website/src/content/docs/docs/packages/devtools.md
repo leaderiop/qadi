@@ -181,8 +181,16 @@ the dock takes, and the readings of a timeline.
   simulator's state headlessly: its `snapshot.plan` says what a sweep will cost
   before it runs, `run("Sweep")` produces the `run.report`, a source that cannot
   be honoured is refused rather than answered from fixtures, a Live run captures
-  for `Snapshot`, and a superseded run never lands. The sweep, the capture and the
-  replay it is made of are package-private.
+  for `Snapshot`, and a superseded run never lands. The session also holds the
+  form: `addChip(field, text)` commits typed text by that field's codec and
+  answers with the reason when it is refused, `removeChip(field, index)` removes
+  one, and `snapshot.fields` is the form's reading, field by field (the subject
+  card's attribute row is captioned "subject attributes", the name a replay's
+  "yours to supply" list gives it). The sweep drops each element of every field
+  the form edits, signatures included, and answers a denied `hasSignature` with
+  the signature its node names; a `hasCustom` requirement is named as one it
+  cannot remedy. The sweep, the capture and the replay it is made of are
+  package-private.
 - **Wiring and hydration reports** (`wiringReport`, `portActivity`,
   `hydrationActivity`) — which ports are in use, and the counters `@qadi/react`
   writes and this package reads, covering drops, mismatches, and rechecks between
