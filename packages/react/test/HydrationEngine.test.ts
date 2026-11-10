@@ -245,3 +245,24 @@ describe("dehydrateWith and hydrateWith: both directions through the engine (ARC
     assert.strictEqual(seed.disclosure._tag, "Disclosed");
   });
 });
+
+describe("a refused payload is always counted (INV-QD-045, ARCH-60)", () => {
+  const mismatchCount = () =>
+    hydrationDroppedTotal.valueUnsafe(registry).occurrences.get("PayloadSubjectMismatch") ?? 0;
+
+  it("a payload naming another subject with no entries adds exactly one PayloadSubjectMismatch", () => {
+    const drops: Array<unknown> = [];
+    const before = mismatchCount();
+    const pairs = [
+      ...hydrateWith(
+        () => Atom.make<SeededDecision | undefined>(undefined),
+        { version: 2, subjectId: "u2", entries: [] },
+        makeSubject({ id: "u1" }),
+        { onDropped: (drop) => drops.push(drop) },
+      ),
+    ];
+    assert.strictEqual(mismatchCount() - before, 1);
+    assert.strictEqual(pairs.length, 0);
+    assert.deepStrictEqual(drops, [{ reason: "PayloadSubjectMismatch", entries: [], wholePayload: true }]);
+  });
+});
