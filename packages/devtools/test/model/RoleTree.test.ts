@@ -98,6 +98,66 @@ describe("the inheritance tree", () => {
   });
 });
 
+/** Every node in the tree, counted with an explicit stack so a deep tree cannot overflow the test. */
+const nodeCount = (tree: RoleNode): number => {
+  let count = 0;
+  const stack: Array<RoleNode> = [tree];
+  for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
+    count += 1;
+    stack.push(...node.children);
+  }
+  return count;
+};
+
+const chainOf = (depth: number): Role => {
+  let current: Role = role({ name: "r0", permissions: [read] });
+  for (let i = 1; i < depth; i += 1) current = role({ name: `r${i}`, inherits: [current] });
+  return current;
+};
+
+/** `k` diamonds stacked: 3k + 1 roles, 4k edges, so k edges reach a role already shown. */
+const diamondStack = (k: number): Role => {
+  let current: Role = role({ name: "d0", permissions: [read] });
+  for (let i = 1; i <= k; i += 1) {
+    const left = role({ name: `l${i}`, inherits: [current] });
+    const right = role({ name: `r${i}`, inherits: [current] });
+    current = role({ name: `d${i}`, inherits: [left, right] });
+  }
+  return current;
+};
+
+describe("the inheritance tree on hostile shapes", () => {
+  it("does not mark a distinct role repeated because it shares a name", () => {
+    const editorA = role({ name: "editor", permissions: [write] });
+    const editorB = role({ name: "editor", permissions: [archive] });
+    const tree = roleSummary(role({ name: "top", inherits: [editorA, editorB] })).tree;
+
+    assert.deepStrictEqual(
+      tree.children.map((child) => [child.name, child.repeated, [...child.own]]),
+      [
+        ["editor", false, ["doc:write"]],
+        ["editor", false, ["doc:archive"]],
+      ],
+    );
+  });
+
+  it("builds a 10,000-deep and a 20,000-deep chain without a RangeError", () => {
+    for (const depth of [10_000, 20_000]) {
+      assert.strictEqual(nodeCount(roleSummary(chainOf(depth)).tree), depth, `depth ${depth}`);
+    }
+  }, 60_000);
+
+  // Linear: one node per reachable role plus one leaf per edge into a role
+  // already shown. k = 16 is asserted first, so a tree that re-walks shared
+  // subtrees (about 2^k nodes) fails there, fast, before k = 30 (about 2^30) is
+  // ever built.
+  it("builds stacked diamonds in nodes linear in the roles", () => {
+    for (const k of [16, 30]) {
+      assert.strictEqual(nodeCount(roleSummary(diamondStack(k)).tree), 3 * k + 1 + k, `k = ${k}`);
+    }
+  });
+});
+
 describe("provenance", () => {
   // E3.1
   it("a role's own permission has a single-element path", () => {
