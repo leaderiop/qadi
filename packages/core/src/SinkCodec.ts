@@ -261,9 +261,11 @@ const rebuildOutcome: (
  *
  * **Not a validating step, and module-private for that reason.** It
  * `Match`-matches an already-typed `SinkRecordWire` into the record classes:
- * strips `_tag` and `version`, runs {@link rebuildOutcome} on a decision's
- * outcome, and constructs with every other field as the schema decoded it, so it
- * names no envelope field (ARCH-71, ADR-QD-135). {@link decodeSinkRecord} runs the
+ * strips `version`, runs {@link rebuildOutcome} on a decision's outcome, and
+ * constructs with every other field as the schema decoded it, so it names no
+ * envelope field (ARCH-71, ADR-QD-135). It does not strip `_tag` (the class
+ * sets its own after its arguments) or the wire's `outcome` (the rebuilt one
+ * replaces it): stripping either changes no record, only the order of its keys. {@link decodeSinkRecord} runs the
  * depth guard and the untrusted schema decode first. It used to be exported as
  * `fromWireUnsafe`, where a caller who called it on a `JSON.parse` result skipped
  * validation entirely with nothing at the type level to stop it (PH-05).
@@ -276,9 +278,9 @@ const rebuild: (wire: SinkRecordWire) => Result.Result<SinkRecord, DecisionDisag
   Match.type<SinkRecordWire>().pipe(
     Match.tagsExhaustive({
       Obligations: (wire) =>
-        Result.succeed(new ObligationRecord(Struct.omit(wire, ["_tag", "version"]))),
+        Result.succeed(new ObligationRecord(Struct.omit(wire, ["version"]))),
       Decision: (wire) => {
-        const fields = Struct.omit(wire, ["_tag", "version", "outcome"]);
+        const fields = Struct.omit(wire, ["version"]);
         return Result.map(
           rebuildOutcome(wire.outcome)({
             evaluationId: wire.evaluationId,
