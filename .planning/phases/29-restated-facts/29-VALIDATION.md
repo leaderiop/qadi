@@ -29,8 +29,9 @@ created: "2026-11-11"
 ## Sampling Rate
 
 - **After every task commit:** the task's `<automated>` commands.
-- **Wave 1 (29-01):** baseline JSON check; then per item its project, typecheck and lint (plus tstyche, madge and gate 13 for TIDY-01).
-- **Wave 2 (29-02):** spec gates after the records; `pnpm check:pr` and the per-file mutation comparison last.
+- **Wave 1 (29-01):** baseline JSON check (all twelve files the phase changes); then TIDY-01's core project, tstyche, typecheck, lint, madge and gate 13.
+- **Wave 2 (29-02):** per item (TIDY-02, TIDY-03) its project, typecheck and lint.
+- **Wave 3 (29-03):** spec gates after the records; `pnpm check:pr` and the per-file mutation comparison last.
 - **Max feedback latency:** under 60 s per task command; mutation runs are slower by nature.
 
 ---
@@ -39,13 +40,13 @@ created: "2026-11-11"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 29-01-01 | 01 | 1 | WX-05 | — | Baseline recorded before any src change; reserved numbers free | mutation | baseline JSON names PortMetrics.ts, PortDescription.ts, HydrationEngine.ts, Verdict.ts | ✅ | ⬜ pending |
-| 29-01-02 | 01 | 1 | TIDY-01, WX-03 | T-29-01, T-29-03 | Identity in an import-free leaf; metrics byte-identical; a description cannot claim another port's span | unit + type + gates | `pnpm vitest run --project core && pnpm exec tstyche …PortName.tst.ts … && pnpm typecheck && pnpm lint && pnpm circular && pnpm spec:api`; import-site grep 16 → 0 | ❌ W0 → `PortName.tst.ts` created in-task | ⬜ pending |
-| 29-01-03 | 01 | 1 | TIDY-02 | T-29-02 | Withheld lists stated once; a decode guard under the untrusted options passes before and after | unit | `pnpm vitest run --project react && pnpm typecheck && pnpm lint`; deny-list literal count 2 → 1 | ✅ (guard added if missing) | ⬜ pending |
-| 29-01-04 | 01 | 1 | TIDY-03 | T-29-04 | One sentence constant; literal assertions unedited | component | `pnpm vitest run --project devtools && pnpm typecheck && pnpm lint`; sentence in one src file; no devtools test diff | ✅ | ⬜ pending |
-| 29-02-01 | 02 | 2 | WX-02 | T-29-05 | ADR-094 amended; ADR-QD-141 not created; traceability names the new pin | doc gate | `spec-revise --check && pnpm spec:verify:strict && pnpm spec:examples` | ✅ | ⬜ pending |
-| 29-02-02 | 02 | 2 | WX-02, WX-03 | T-29-05 | CCR-QD-419; changeset bumps match the export | doc gate | CCR row count; changeset greps; bump vs `d02_fallback` check | ✅ | ⬜ pending |
-| 29-02-03 | 02 | 2 | WX-01, WX-04, WX-05 | T-29-06 | Gate green and unweakened; mutation not lower | full gate | `pnpm check:pr`; no `scripts/`/config/Stryker edit since base; per-file Stryker comparison | ✅ | ⬜ pending |
+| 29-01-01 | 01 | 1 | WX-05 | — | Baseline recorded from fresh reports before any src change, for every src file the phase changes; reserved numbers free | mutation | baseline JSON holds exactly the twelve (8 core, HydrationEngine.ts, Verdict.ts, Inspector.tsx, Simulator.tsx); the `chore(29-01)` commit is the phase's first and carries the JSON alone | ✅ | ⬜ pending |
+| 29-01-02 | 01 | 1 | TIDY-01, WX-03 | T-29-01, T-29-03 | Identity in an import-free leaf; metrics byte-identical; a description cannot claim another port's span | unit + type + gates | `test -f …PortName.tst.ts && pnpm vitest run --project core && pnpm exec tstyche …PortName.tst.ts … && pnpm typecheck && pnpm lint && pnpm circular && pnpm spec:api`; multi-line-aware import check 18 lines → 0 | ❌ W0 → `PortName.tst.ts` created in-task | ⬜ pending |
+| 29-02-01 | 02 | 2 | TIDY-02 | T-29-02 | Withheld lists stated once; a decode guard under the untrusted options passes before and after | unit | `pnpm vitest run --project react && pnpm typecheck && pnpm lint`; deny-list literal count 2 → 1 | ✅ (guard added if missing) | ⬜ pending |
+| 29-02-02 | 02 | 2 | TIDY-03 | T-29-04 | One sentence constant; literal assertions unedited | component | `pnpm vitest run --project devtools && pnpm typecheck && pnpm lint`; "depended on failed" only in `model/Verdict.ts`, both panels render the constant; no devtools test diff from the guarded baseline commit | ✅ | ⬜ pending |
+| 29-03-01 | 03 | 3 | WX-02 | T-29-05 | ADR-094 amended; ADR-QD-141 not created; traceability names the new pin | doc gate | `spec-revise --check && pnpm spec:verify:strict && pnpm spec:examples` | ✅ | ⬜ pending |
+| 29-03-02 | 03 | 3 | WX-02, WX-03 | T-29-05 | CCR-QD-419; changeset bumps match the export | doc gate | CCR row count; changeset greps; bump vs `d02_fallback` check | ✅ | ⬜ pending |
+| 29-03-03 | 03 | 3 | WX-01, WX-04, WX-05 | T-29-06 | Gate green and unweakened; mutation not lower | full gate | `pnpm check:pr`; no `scripts/`/config/Stryker edit since a guarded `phase_base`; per-file comparison over core, react and devtools (fresh reports, `missing`, `DROP`, `unbaselined`, `base missing/extra`, `no phase base`, the type-only leaf and the export-star barrel checked) | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -53,7 +54,7 @@ created: "2026-11-11"
 
 ## Wave 0 Requirements
 
-None blocking. `packages/core/test/PortName.tst.ts` is created by the task that needs it (29-01-02); the TIDY-02 decode guard is added in 29-01-03 only if no existing test covers it. Nothing to install. Shell checks run under `bash -c` or call `/usr/bin/grep`.
+None blocking. `packages/core/test/PortName.tst.ts` is created by the task that needs it (29-01-02); the TIDY-02 decode guard is added in 29-02-01 only if no existing test covers it. Nothing to install. Shell checks run under `bash -c` or call `/usr/bin/grep`.
 
 ---
 
