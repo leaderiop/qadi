@@ -5,16 +5,16 @@ milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 22
 current_phase_name: One scoped port read
 status: executing
-stopped_at: Completed 22-01-PLAN.md
-last_updated: "2026-11-11T02:35:41.739Z"
+stopped_at: Completed 22-02-PLAN.md
+last_updated: "2026-11-11T02:40:22.628Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 22 execution started
-state_head: bbe20f408718d7b57a098cccd419f904c5d3ae9b
+state_head: 06c1f8d3028ed7c321b265df7bb69505ae8e5641
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 37
-  completed_plans: 6
+  completed_plans: 7
   percent: 11
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 22 (One scoped port read) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 22 execution started
 
@@ -99,6 +99,7 @@ Last activity: 2026-11-11 — Phase 22 execution started
 | Phase 21 P04 | 12 min | 2 tasks | 7 files |
 | Phase 21 P05 | 25 min | 3 tasks | 11 files |
 | Phase 22 P01 | 3 min | 1 tasks | 2 files |
+| Phase 22 P02 | 3 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,7 @@ Last activity: 2026-11-11 — Phase 22 execution started
 - [Phase 21]: Pending key changeset amended in place for ARCH-69; ADR-QD-107 pointer is a dated amendment section
 - [Phase 22]: D-02 = A: missing resource id leaves only the port span; requireResourceId deleted
 - [Phase 22]: D-05 = state once: leaf->request mapping stated once on each port description (asks); reads and servingFor derive from it; ADR-QD-134 records the override
+- [Phase 22]: 22-02: negative tstyche call pins over Effect-returning reads use a result-dropping Params<F> alias (a bare call is a floating-effect diagnostic, so it reads as not callable and could never be RED)
 
 ### Pending Todos
 
@@ -135,8 +137,8 @@ Last activity: 2026-11-11 — Phase 22 execution started
 
 ## Session Continuity
 
-Last session: 2026-11-11T02:35:41.708Z
-Stopped at: Completed 22-01-PLAN.md
+Last session: 2026-11-11T02:40:22.596Z
+Stopped at: Completed 22-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
