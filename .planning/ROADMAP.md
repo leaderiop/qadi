@@ -291,7 +291,7 @@ shape from benchmark numbers, plus the absent-vs-undefined key convention), 25-0
 - [x] **Phase 21: Port request derived from its description** - Derived `key`/`defect` for four ports, exhaustive wire and span questions by type; CustomPredicate overrides (ARCH-69) (completed 2026-11-11)
 - [x] **Phase 22: One scoped port read** - `readScoped` owns the id check and one trace shape; one leaf→request function per port drives reads and serving (ARCH-70) (completed 2026-11-11)
 - [x] **Phase 23: Sink record fields stated once** - Benchmark first; one field statement per record drives the class type and the v2 wire; one record projection (ARCH-71) (completed 2026-11-11)
-- [ ] **Phase 24: Simulation source preparation** - `prepareSource` in `SimulationSource.ts` owns availability, refusal and capture (ARCH-72)
+- [x] **Phase 24: Simulation source preparation** - `prepareSource` in `SimulationSource.ts` owns availability, refusal and capture (ARCH-72) (completed 2026-11-11)
 - [ ] **Phase 25: Session-only Simulator** - The view renders a session; commands and readings move into the session; runs live in the session's FiberHandle and Scope (ARCH-73)
 - [ ] **Phase 26: Headless dock model** - `makeDockModel` owns the six stores and the cross-store rules; one hook; one held-choice cell (ARCH-74)
 - [ ] **Phase 27: Bare-route module** - `addGuardedRoute` absorbs `guardRoute`; one route-method union; the registry route moves out (ARCH-75)
@@ -357,7 +357,7 @@ Plans:
   1. A 12-row table test covers every (choice × ports × capture) combination.
   2. The session no longer inspects a source variant's `_tag`; `resolveSource`/`sourceOptions` are gone.
   3. Each Live run captures with its own recorder (pinned).
-**Plans**: 3/3 plans executed
+**Plans**: 3/3 plans complete
 
 Plans:
 - [x] 24-01 (W1): Mutation baseline; pin the per-run recorder; RED 12-row `prepareSource` table in its own file
@@ -452,7 +452,7 @@ Plans:
 | 21. Port request derivation | 5/5 | Complete    | 2026-11-11 |
 | 22. One scoped port read | 4/4 | Complete    | 2026-11-11 |
 | 23. Sink record fields | 4/4 | Complete    | 2026-11-11 |
-| 24. Simulation source preparation | 0/3 | Planned | - |
+| 24. Simulation source preparation | 3/3 | Complete    | 2026-11-11 |
 | 25. Session-only Simulator | 0/5 | Planned | - |
 | 26. Headless dock model | 0/6 | Planned | - |
 | 27. Bare-route module | 0/3 | Planned | - |
