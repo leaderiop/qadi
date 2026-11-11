@@ -27,7 +27,12 @@ import { toJson, toJsonRecord } from "./JsonHazard.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import { canonicalKey } from "./PortKey.ts";
-import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import {
+  portSpan,
+  sharedQuestionFields,
+  sharedQuestionKeys,
+  spanStruct,
+} from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, sameAnswer, WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
 import type { Resource } from "./Resource.ts";
@@ -101,7 +106,7 @@ type CustomArgs = [
  * What the custom-predicate span says (BEH-QD-227). The registered name is
  * recorded; `params` never are, since they are arbitrary caller data.
  */
-const customSpan = {
+const customSpan = portSpan({
   question: spanStruct(
     { name: Schema.optionalKey(Schema.String), ...sharedQuestionFields },
     { name: "qadi.custom_predicate", ...sharedQuestionKeys },
@@ -109,7 +114,7 @@ const customSpan = {
   answer: spanStruct({ answer: Schema.optionalKey(Schema.Boolean) }, { answer: "qadi.answer" }),
   pose: ([name, subject]: CustomArgs) => ({ name, subjectId: subject.id }),
   disclose: (answer: boolean) => ({ answer }),
-};
+});
 
 /**
  * What the custom-predicate question and answer look like on a wire (ARCH-31).

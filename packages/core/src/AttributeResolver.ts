@@ -28,7 +28,12 @@ import {
   timingOutPort,
 } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
-import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import {
+  portSpan,
+  sharedQuestionFields,
+  sharedQuestionKeys,
+  spanStruct,
+} from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
 
@@ -101,7 +106,7 @@ export class AttributeResolver extends Context.Service<
  * fail-closed default answers with; `null` is a value a store genuinely
  * returned.
  */
-const attributeSpan = {
+const attributeSpan = portSpan({
   question: spanStruct(
     { attribute: Schema.optionalKey(Schema.String), ...sharedQuestionFields },
     { attribute: "qadi.attribute", ...sharedQuestionKeys },
@@ -112,7 +117,7 @@ const attributeSpan = {
     attribute,
   }),
   disclose: (value: unknown) => ({ resolved: value !== undefined }),
-};
+});
 
 /**
  * A host serves attributes only from a required allowlist.

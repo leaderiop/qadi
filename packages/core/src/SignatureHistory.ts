@@ -43,8 +43,12 @@ import {
 } from "./PortDerivation.ts";
 import { describeKeyRefusal } from "./PortDescription.ts";
 import type { PortDescription } from "./PortDescription.ts";
-import type { SpanType } from "./PortSpan.ts";
-import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import {
+  portSpan,
+  sharedQuestionFields,
+  sharedQuestionKeys,
+  spanStruct,
+} from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { sameAnswer } from "./PortWireEncode.ts";
 import { Signature } from "./Signature.ts";
@@ -141,10 +145,10 @@ const signatureQuestion = spanStruct(
   },
 );
 
-const signatureSpan = {
+const signatureSpan = portSpan({
   question: signatureQuestion,
   answer: spanStruct({ matched: Schema.optionalKey(Schema.Boolean) }, { matched: "qadi.matched" }),
-  pose: ([query]: [query: SignatureQuery]): SpanType<typeof signatureQuestion> => ({
+  pose: ([query]: [query: SignatureQuery]) => ({
     subjectId: query.subjectId,
     scope: query.resourceId === undefined ? "Any" : "Resource",
     resourceId: query.resourceId,
@@ -158,7 +162,7 @@ const signatureSpan = {
     query.meaning === undefined
       ? {}
       : { matched: signatureMatches(signatures, query.meaning, query.signerRole) },
-};
+});
 
 /**
  * A host serves signature records only when it opts in.

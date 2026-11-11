@@ -33,8 +33,12 @@ import {
   timingOutPort,
 } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
-import type { SpanType } from "./PortSpan.ts";
-import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import {
+  portSpan,
+  sharedQuestionFields,
+  sharedQuestionKeys,
+  spanStruct,
+} from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { sameAnswer } from "./PortWireEncode.ts";
 
@@ -111,17 +115,17 @@ const actedQuestion = spanStruct(
   },
 );
 
-const actedSpan = {
+const actedSpan = portSpan({
   question: actedQuestion,
   answer: spanStruct({ answer: Schema.optionalKey(ActedResult) }, { answer: "qadi.answer" }),
-  pose: ([query]: [query: ActedQuery]): SpanType<typeof actedQuestion> => ({
+  pose: ([query]: [query: ActedQuery]) => ({
     subjectId: query.subjectId,
     event: query.event,
     scope: query.resourceId === undefined ? "Any" : "Resource",
     resourceId: query.resourceId,
   }),
   disclose: (answer: ActedResult) => ({ answer }),
-};
+});
 
 /**
  * A host may serve events from an allowlist or leave the port open.

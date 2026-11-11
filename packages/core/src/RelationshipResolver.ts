@@ -28,7 +28,12 @@ import {
   timingOutPort,
 } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
-import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import {
+  portSpan,
+  sharedQuestionFields,
+  sharedQuestionKeys,
+  spanStruct,
+} from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { sameAnswer } from "./PortWireEncode.ts";
 
@@ -130,7 +135,7 @@ export class RelationshipResolver extends Context.Service<
  * What the relationship span says (BEH-QD-227). `depth` is the clamped value
  * actually asked of the resolver, and the answer a closed three-valued enum.
  */
-const relationshipSpan = {
+const relationshipSpan = portSpan({
   question: spanStruct(
     {
       relation: Schema.optionalKey(Schema.String),
@@ -157,7 +162,7 @@ const relationshipSpan = {
     depth: request.depth,
   }),
   disclose: (answer: RelatedResult) => ({ answer }),
-};
+});
 
 /**
  * A host may serve relations from an allowlist or leave the port open.
