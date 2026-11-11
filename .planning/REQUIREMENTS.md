@@ -127,3 +127,104 @@
 
 ---
 *Requirements defined: 2026-11-10*
+
+---
+
+# Requirements: Qadi — v1.2 Architecture Wave 7
+
+**Defined:** 2026-11-11
+**Core Value:** An authorization decision is never wrong and never silent.
+**Source:** 2026-11-11 architecture review (8 candidates + 3 footnotes). Evidence and numbering: `.planning/phases/_WAVE7-CONTEXT.md`.
+**Base commit:** `965ff14c`.
+
+## v1.2 Requirements
+
+### Port request derived from its description (Phase 21)
+- [ ] **PREQ-01**: A port description derives `key` from its wire question by default; no derived port lists its request fields for the key by hand.
+- [ ] **PREQ-02**: A port description derives `defect` from `failure` and `Cause.squash` by default; CustomPredicate keeps an explicit, documented override for `key` and `defect`.
+- [ ] **PREQ-03**: One law test at `PortDescription`'s interface states "a derived key equals `canonicalKey` of the wire question" as a property over every derived port; the per-port key and defect pins it replaces are deleted only after it is green.
+- [ ] **PREQ-04**: A field missing from a derived port's question cannot compile silently (RED first: drop a field from a hand key on the phase base and show only conformance catches it).
+- [ ] **PREQ-05**: Wherever a request field is still restated inside a port module (span struct, `pose`, `toQuestion`/`fromQuestion`), it is derived from one struct, or the plan records why it cannot be.
+
+### One resource-scoped port read (Phase 22)
+- [ ] **SCOPE-01**: `PortAccess.ts` has one scoped read that owns the early `pose` annotation, the resource-id check, `MissingResourceId` and `readPort`; `askActedForResource`, `askRelationship` and `askSignature` go through it.
+- [ ] **SCOPE-02**: A missing resource id produces the same trace shape on every scoped port (the shape chosen at the phase's checkpoint), pinned by one parameterised test over the three descriptions.
+- [ ] **SCOPE-03**: No scoped read takes two adjacent positional `string`s that can be swapped; `askSignature`'s meaning and signer role cannot be transposed and still typecheck.
+- [ ] **SCOPE-04**: The leaf→request mapping is stated once: each port description's `asks` drives both the evaluation reads and `servingFor` (`LeafRequests` replaces `ServedLeaves`); the `servingFor` property test stays as a guard (decision 2026-11-11, overrides the planner's D-05).
+- [ ] **SCOPE-05**: The span change is recorded as public behaviour (ADR-QD-051): BEH and traceability updated, and no `UNTRACED_BUDGET` change.
+
+### Sink record fields stated once (Phase 23)
+- [ ] **SREC-01**: A benchmark at the phase base measures record construction (and one `Evaluate.bench.ts` workload) for the candidate record shapes; the GO/NO-GO is a `checkpoint:decision` with the numbers.
+- [ ] **SREC-02**: The decision and obligation records' fields are stated once; the record class's field type and the v2 wire struct derive from that one statement.
+- [ ] **SREC-03**: Leaving an optional field out of `project`/`rebuild` is a compile error or a failing generated round trip (RED first on the phase base).
+- [ ] **SREC-04**: `failedRecord` and `decidedRecord` are one projection; `SinkWire.ts`'s restated `SinkRecordTag` is gone, or the plan records why the cycle still forces it.
+- [ ] **SREC-05**: Wire goldens in `SinkCodec.test.ts` are unchanged; the v2 wire is byte-identical.
+
+### Simulation source preparation (Phase 24)
+- [ ] **SRC-01**: `SimulationSource.ts` owns `prepareSource(choice, { ports, capture })`, returning the options and a `Ready`/`Refused` result; availability is written once.
+- [ ] **SRC-02**: "A Live run captures so Snapshot unlocks" is implemented in `SimulationSource.ts` alone; the session no longer inspects a source variant's `_tag`.
+- [ ] **SRC-03**: One table test covers every (choice × ports × capture) combination; the session tests only check that a `Refused` becomes the run state.
+
+### Session-only Simulator (Phase 25)
+- [ ] **SIM-01**: `Simulator` renders from a session only; `OwnedSimulator` and the ignored `sightings` prop are gone, and tests build a session directly.
+- [ ] **SIM-02**: The session gains `setAction(text)` and `choosePolicyAt(index)` commands; the view composes no form codec and parses no select value.
+- [ ] **SIM-03**: The run's reading, the sweep-cost sentence and the baseline summary/match are in the session snapshot and under the devtools mutation gate.
+- [ ] **SIM-04**: The session is constructed in a `Scope` and owns its runs through an `effect/FiberHandle`: a new run or a superseding command interrupts the previous run promptly, closing the scope interrupts the run in flight, and `reap`/`hasRetired`/`dispose` leave the interface (decision 2026-11-11; supersedes ARCH-20 D-20-b via ADR-QD-137).
+- [ ] **SIM-05**: Any public interface change of `@qadi/devtools` is in `spec/overview.md` and a changeset.
+
+### Headless dock model (Phase 26)
+- [ ] **DMOD-01**: The scoped `makeDockModel` owns the timeline, sightings, simulation, explorer, held choice, dock session and the source read (through its own FiberHandle), and pushes sightings itself; React has one owned-model hook that forks nothing.
+- [ ] **DMOD-02**: Every cross-store rule now tested through `DevtoolsDock.test.tsx` has a model test that renders nothing; the DOM duplicates are removed only after the model tests are green.
+- [ ] **DMOD-03**: The three `useOwnedX` hooks and their per-input `useLayoutEffect`s are deleted; `Screen`'s pass-through props shrink to the model.
+- [ ] **DMOD-04**: The sessions embed one held-choice store; `HeldChoice` is no longer re-mapped in `SimulationSession`, `ExplorerSession` and `RoleViewer`.
+- [ ] **DMOD-05**: AGENTS.md §13 holds: no React state for decisions, decisions read through `outcomeOf`.
+
+### Bare-route module (Phase 27)
+- [ ] **ROUTE-01**: One module owns `addGuardedRoute` (absorbing `guardRoute`), `unguardedRoutes` and one route-method union.
+- [ ] **ROUTE-02**: The `CurrentSubject` exclusion rule is pinned by type tests on the public `addGuardedRoute`.
+- [ ] **ROUTE-03**: `PermissionRegistry.ts` keeps only the registry and `/__permissions`; the public surface of `@qadi/http` is unchanged (or the change is in `spec/overview.md` and a changeset).
+
+### Gate registry dependency (Phase 28)
+- [ ] **GATE-01**: The checkpoint records the human's answer on reopening ADR-QD-111 (invert, extract-only, or keep with a recorded reason).
+- [ ] **GATE-02**: (if not "keep") A pure `reconcile(live, wanted)` is tested against a fake writer without `renderHook`.
+- [ ] **GATE-03**: (if "invert") The registry's types live in `GateRegistry.ts`, `GateAtoms` is derived from `QadiAtoms`, and `pnpm circular` is green.
+- [ ] **GATE-04**: `useGateRegistration` either gains a production reason or is removed with its test.
+
+### Small restated facts (Phase 29)
+- [ ] **TIDY-01**: `PortName`/`PortSpanName` live in a leaf module with no metrics; `PortSpanName` derives from the descriptions' span literals if the compiler allows.
+- [ ] **TIDY-02**: `HydrationEngine.ts`'s entry `omit` lists are stated once and used by both the schemas and `dehydrateDecision`.
+- [ ] **TIDY-03**: The "This is not a denial" sentence is one constant used by the Inspector and the Simulator.
+
+### Cross-cutting (every v1.2 phase)
+- [ ] **WX-01**: `pnpm check:pr` is green at the end of each phase.
+- [ ] **WX-02**: Each phase records its ADR (or states why none is needed), a CCR row, and the BEH/INV/traceability changes, using only its reserved numbers.
+- [ ] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
+- [ ] **WX-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock; budgets change only with their AGENTS.md table.
+- [ ] **WX-05**: Coverage thresholds hold (core at least 95%, others at least 90%); the Stryker score of touched files does not fall (per-phase `NN-mutation-base.json`).
+- [ ] **WX-06**: Every defect fix is preceded by a regression test seen RED on the phase base.
+
+## v1.2 Out of Scope
+| Item | Reason |
+|------|--------|
+| Merging `PortInterpreter.ts`/`PortSpanDecode.ts`/`SinkWire.ts` leaves | Barrel-policy change (AGENTS.md §9, ADR-099), not a deepening |
+| Re-planning modules listed "Already deep" in `_WAVE7-CONTEXT.md` | Reviewed 2026-11-11 |
+| Releasing or merging a version-packages PR | Only on the user's explicit request |
+
+## v1.2 Traceability
+| Requirement | Phase | Status |
+|---|---|---|
+| PREQ-01, PREQ-02, PREQ-03, PREQ-04, PREQ-05 | Phase 21 | Pending |
+| SCOPE-01, SCOPE-02, SCOPE-03, SCOPE-04, SCOPE-05 | Phase 22 | Pending |
+| SREC-01, SREC-02, SREC-03, SREC-04, SREC-05 | Phase 23 | Pending |
+| SRC-01, SRC-02, SRC-03 | Phase 24 | Pending |
+| SIM-01, SIM-02, SIM-03, SIM-04, SIM-05 | Phase 25 | Pending |
+| DMOD-01, DMOD-02, DMOD-03, DMOD-04, DMOD-05 | Phase 26 | Pending |
+| ROUTE-01, ROUTE-02, ROUTE-03 | Phase 27 | Pending |
+| GATE-01, GATE-02, GATE-03, GATE-04 | Phase 28 | Pending |
+| TIDY-01, TIDY-02, TIDY-03 | Phase 29 | Pending |
+| WX-01, WX-02, WX-03, WX-04, WX-05, WX-06 | All v1.2 phases | Pending |
+
+**Coverage:** 44 v1.2 requirements (38 + 6 cross-cutting); mapped 44; unmapped 0.
+
+---
+*v1.2 requirements defined: 2026-11-11*

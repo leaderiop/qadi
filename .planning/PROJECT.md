@@ -20,7 +20,22 @@ outside `.planning`): ARCH-46 to ARCH-54, ADR-QD-108..116 (112, 113 and 115 left
 All 9 phases verified `passed` against the final tree; the full `pnpm check` is green on Node 22.12.0
 (CI run 42676403473 at 127d6fa). Archive: `.planning/milestones/v1.0-ROADMAP.md`.
 
-## Current Milestone: v1.1 Arch Wave 6
+## Current Milestone: v1.2 Arch Wave 7
+
+**Goal:** Resolve the eight candidates and three footnotes of the 2026-11-11 architecture review (Phases 21–29, ARCH-69…77).
+
+**Base commit:** `965ff14c` (v1.1 merged as #155). **Shared rules:** `.planning/phases/_SHARED-CONTEXT.md`, overridden where
+stated by `.planning/phases/_WAVE7-CONTEXT.md` (base, numbering, evidence, and the correction to the review's candidate 1: port
+keys are read by devtools replay and test doubles, not by evaluation).
+
+**Target features:** see `.planning/REQUIREMENTS.md`, "v1.2" (PREQ, SCOPE, SREC, SRC, SIM, DMOD, ROUTE, GATE, TIDY, WX).
+
+**Numbering reserved for v1.2:** the table in `.planning/phases/_WAVE7-CONTEXT.md` (ADR-QD-133–141, CCR-QD-411–419,
+BEH-QD-440–484, INV-QD-286–303, ARCH-69–77).
+
+**Review report (local, outside the repo):** `/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/architecture-review-20261111-011702.html`.
+
+## Previous Milestone: v1.1 Arch Wave 6 (all phases complete 2026-11-10; not released)
 
 **Goal:** Resolve the nine candidates of the 2026-11-10 architecture review, and recover the lost 2026-10-13 wave.
 
