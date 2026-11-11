@@ -24,7 +24,6 @@ import { CustomPredicateError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import { SubjectIdSchema } from "./Identity.ts";
 import { toJson, toJsonRecord } from "./JsonHazard.ts";
-import type { EncodeRefusal } from "./JsonRefusal.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import { canonicalKey } from "./PortKey.ts";
@@ -119,7 +118,8 @@ const customSpan = {
  * request with the *session's* `AuthSubject`, so a predicate is handed the
  * session's roles and attributes and never a client's description of them.
  * `resource` and `params` are JSON, refused (never thrown) where they hold a
- * `Set`, a function or a cycle; an absent `params` is absent on the wire too.
+ * `Set`, a function or a cycle; an absent `params` is absent on the wire too, because
+ * `portWire` drops a member `toQuestion` states as `undefined`.
  */
 const customWire = portWire({
   question: Schema.Struct({
@@ -135,23 +135,13 @@ const customWire = portWire({
         ? Result.succeed(undefined)
         : toJsonRecord(resource, WIRE_MAX_DEPTH);
     const wireParams = params === undefined ? Result.succeed(undefined) : toJson(params, WIRE_MAX_DEPTH);
-    return Result.flatMap(
-      wireResource,
-      (resourceJson): Result.Result<
-        {
-          readonly subjectId: typeof subject.id;
-          readonly name: string;
-          readonly resource?: { readonly [key: string]: Schema.Json };
-          readonly params?: Schema.Json;
-        },
-        EncodeRefusal
-      > =>
-        Result.map(wireParams, (paramsJson) => ({
-          subjectId: subject.id,
-          name,
-          ...(resourceJson === undefined ? {} : { resource: resourceJson }),
-          ...(paramsJson === undefined ? {} : { params: paramsJson }),
-        })),
+    return Result.flatMap(wireResource, (resourceJson) =>
+      Result.map(wireParams, (paramsJson) => ({
+        subjectId: subject.id,
+        name,
+        resource: resourceJson,
+        params: paramsJson,
+      })),
     );
   },
   fromQuestion: (question, subject): CustomArgs => [

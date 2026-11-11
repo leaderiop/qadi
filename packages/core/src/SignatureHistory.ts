@@ -183,9 +183,9 @@ const signatureWire = portWire({
   toQuestion: ([query]: [query: SignatureQuery]) =>
     Result.succeed({
       subjectId: query.subjectId,
-      ...(query.resourceId === undefined ? {} : { resourceId: query.resourceId }),
-      ...(query.meaning === undefined ? {} : { meaning: query.meaning }),
-      ...(query.signerRole === undefined ? {} : { signerRole: query.signerRole }),
+      resourceId: query.resourceId,
+      meaning: query.meaning,
+      signerRole: query.signerRole,
     }),
   fromQuestion: (question, subject): [query: SignatureQuery] => [
     {

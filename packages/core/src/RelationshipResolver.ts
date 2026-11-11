@@ -179,7 +179,7 @@ const relationshipWire = portWire({
       subjectId: request.subjectId,
       relation: request.relation,
       resourceId: request.resourceId,
-      ...(request.depth === undefined ? {} : { depth: request.depth }),
+      depth: request.depth,
     }),
   fromQuestion: (question, subject): [request: RelationshipCheck] => [
     {

@@ -137,7 +137,7 @@ const actedWire = portWire({
     Result.succeed({
       subjectId: query.subjectId,
       event: query.event,
-      ...(query.resourceId === undefined ? {} : { resourceId: query.resourceId }),
+      resourceId: query.resourceId,
     }),
   fromQuestion: (question, subject): [query: ActedQuery] => [
     { subjectId: subject.id, event: question.event, resourceId: question.resourceId },
