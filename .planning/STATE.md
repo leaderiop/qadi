@@ -5,16 +5,16 @@ milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 23
 current_phase_name: Sink record fields stated once
 status: executing
-stopped_at: Completed 23-02-PLAN.md
-last_updated: "2026-11-11T04:52:20.193Z"
+stopped_at: Completed 23-03-PLAN.md
+last_updated: "2026-11-11T04:56:47.183Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 23 execution started
-state_head: 54603ecd7e05430c0dbc26c2ca822e93785b0a38
+state_head: 70ca6bfa773d532970642a195634512157f1a774
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 37
-  completed_plans: 11
+  completed_plans: 12
   percent: 22
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 ## Current Position
 
 Phase: 23 (Sink record fields stated once) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 23 execution started
 
@@ -105,6 +105,7 @@ Last activity: 2026-11-11 — Phase 23 execution started
 | Phase 22 P04 | 17 min | 3 tasks | 20 files |
 | Phase 23 P01 | 26 min | 4 tasks | 5 files |
 | Phase 23 P02 | 31 min | 3 tasks | 7 files |
+| Phase 23 P03 | 8 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -127,6 +128,7 @@ Last activity: 2026-11-11 — Phase 23 execution started
 - [Phase 23]: 23-02: cache-outcome literals live in the package-private leaf SinkRecordFields.ts; CacheOutcome stays exported from EvaluationMetrics.ts as the schema's Type
 - [Phase 23]: 23-02: undefined-valued optional keys are dropped by one generic in-place omitUndefined in project, not a per-field encode transformation (0.2 to 0.3 us per field measured)
 - [Phase 23]: 23-02: SinkRecordTag is derived from the record tags (type-only import of the leaf); pnpm circular green. Small-record encode costs 5 to 10 percent more, inherent to the spread projection
+- [Phase 23]: 23-03: decisionRecordFor takes cache as an optional last parameter and builds resource, action and cache with conditional spreads, so absent stays absent (no shared keyed helper: a computed key needs a cast)
 
 ### Pending Todos
 
@@ -151,8 +153,8 @@ Last activity: 2026-11-11 — Phase 23 execution started
 
 ## Session Continuity
 
-Last session: 2026-11-11T04:52:20.085Z
-Stopped at: Completed 23-02-PLAN.md
+Last session: 2026-11-11T04:56:46.907Z
+Stopped at: Completed 23-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
