@@ -1,19 +1,21 @@
 ---
 gsd_state_version: "1.0"
 milestone: v1.2
-status: Planned
-stopped_at: Phases 21-29 planned; none executed
-last_updated: "2026-11-11T00:00:00.000Z"
+milestone_name: Arch Wave 7 (Phases 21-29)
+current_phase: 21
+current_phase_name: Port request derived from its description
+status: executing
+stopped_at: Completed 21-01-PLAN.md
+last_updated: "2026-11-11T01:48:27.509Z"
 last_activity: 2026-11-11
-last_activity_desc: "v1.2 Arch Wave 7 planned from the 2026-11-11 architecture review: Phases 21-29 (ARCH-69..77), CONTEXT, PLAN and VALIDATION files written; nothing executed"
-state_head: 965ff14c
+last_activity_desc: Phase 21 execution started
+state_head: 464544e3fb78fac507619db90cd604d02d6ce9ee
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 37
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
-current_phase: 21
 ---
 
 # Project State
@@ -23,14 +25,14 @@ current_phase: 21
 See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** v1.2 Arch Wave 7 — planned (Phases 21-29), not started. v1.1 (Phases 10-20) complete, not released
+**Current focus:** Phase 21 — Port request derived from its description
 
 ## Current Position
 
-Phase: 21 of 29 (Port request derived from its description), not started
-Plan: 0 of 5 in Phase 21
-Status: v1.2 planned. Phases run strictly one at a time in numeric order (21 → 29); every plan's precondition checks the prior phase's closing SUMMARY.
-Last activity: 2026-11-11 -- v1.2 planned from the 2026-11-11 architecture review; shared context in `.planning/phases/_WAVE7-CONTEXT.md`
+Phase: 21 (Port request derived from its description) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-11-11 — Phase 21 execution started
 
 ## Performance Metrics
 
@@ -90,6 +92,7 @@ Last activity: 2026-11-11 -- v1.2 planned from the 2026-11-11 architecture revie
 | Phase 13 P12 | 25 min | 4 tasks | 6 files |
 | Phase 14 P07 | 40 min | 2 tasks | 9 files |
 | Phase 20 P04 | 40 min | 3 tasks | 8 files |
+| Phase 21 P01 | 8 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -97,6 +100,7 @@ Last activity: 2026-11-11 -- v1.2 planned from the 2026-11-11 architecture revie
 
 - v1.0 Arch Wave 5 decisions are logged in PROJECT.md (Key Decisions) and in full in
   `.planning/milestones/v1.0-phases/*/` (CONTEXT, SUMMARY, REVIEW-DISPOSITION files).
+- [Phase 21]: 21-01: phase base is ba38f367; PREQ-04 shown by hand (dropped signerRole compiles, caught only by PortConformance); ARCH-69 key law red on the four derived ports, wire bytes pinned green
 
 ### Pending Todos
 
@@ -119,8 +123,8 @@ Last activity: 2026-11-11 -- v1.2 planned from the 2026-11-11 architecture revie
 
 ## Session Continuity
 
-Last session: 2026-11-09T21:45:00Z
-Stopped at: Milestone v1.0 complete and archived
+Last session: 2026-11-11T01:48:27.442Z
+Stopped at: Completed 21-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
