@@ -4,18 +4,18 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 27
 current_phase_name: Bare-route module
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 26 complete, ready to execute Phase 27
-last_updated: "2026-11-11T13:58:14.900Z"
+stopped_at: Completed 27-01-PLAN.md
+last_updated: "2026-11-11T14:03:12.390Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 26 complete, transitioned to Phase 27
-state_head: a329dec00fd228ad64a02c274cd16b8bc1dd162a
+state_head: 287a23a450d099aca92766f386930e396129b61f
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 37
-  completed_plans: 27
+  completed_plans: 28
   percent: 67
 ---
 
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 
 ## Current Position
 
-Phase: 27 (Bare-route module) — READY TO EXECUTE
-Current Plan: Not started
+Phase: 27 (Bare-route module) — EXECUTING
+Current Plan: 2
 Total Plans in Phase: 3
-Status: Ready to execute
-Last activity: 2026-11-11 — Phase 26 complete, transitioned to Phase 27
+Status: Ready to execute 27-02
+Last activity: 2026-11-11 — 27-01 complete (mutation baseline, addGuardedRoute type pins)
 
 ## Performance Metrics
 
@@ -127,6 +127,7 @@ Last activity: 2026-11-11 — Phase 26 complete, transitioned to Phase 27
 | Phase 26 P04 | 3 min | 2 tasks | 14 files |
 | Phase 26 P05 | 4 min | 1 tasks | 1 files |
 | Phase 26 P06 | 8 min | 3 tasks | 10 files |
+| Phase 27 P01 | 11 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -171,6 +172,7 @@ Last activity: 2026-11-11 — Phase 26 complete, transitioned to Phase 27
 - [Phase 26]: 26-04: Activity hide/show rebuilds the whole dock model (paused returns to live, backlog re-read from the source); accepted per D-04/D-05/D-13, not fixed
 - [Phase 26]: 26-05: no model test had to be written to delete the 13 dock duplicates; every rule already had a green headless test
 - [Phase 26]: ADR-QD-138 left unused: the dock-model change amends ADR-QD-047 (Rev 1.12, CCR-QD-416); the plan's whole-file useOwnedSimulationSession grep on spec/overview.md cannot pass because change history names it and history is exempt
+- [Phase 27]: 27-01: no defect (D-01), new type pins and ordering test are green on the phase base; dropped unused guardRoute import from http.test.ts because noUnusedLocals fails typecheck
 
 ### Pending Todos
 
@@ -199,8 +201,8 @@ Last activity: 2026-11-11 — Phase 26 complete, transitioned to Phase 27
 
 ## Session Continuity
 
-Last session: 2026-11-11T13:12:47.645Z
-Stopped at: Phase 26 complete, ready to execute Phase 27
+Last session: 2026-11-11T14:03:12.097Z
+Stopped at: Completed 27-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

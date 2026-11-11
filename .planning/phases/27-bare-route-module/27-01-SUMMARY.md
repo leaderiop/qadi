@@ -150,3 +150,7 @@ Ready for 27-02. It can now delete `guardRoute` with the `addGuardedRoute` pins 
 ---
 *Phase: 27-bare-route-module*
 *Completed: 2026-11-11*
+
+## Self-Check: PASSED
+
+Created files exist (27-mutation-base.json, GuardRoute.tst.ts, http.test.ts, this file); commits d28c2841 and 49c2b064 are ancestors of HEAD.
