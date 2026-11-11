@@ -1,0 +1,14 @@
+{
+ "packages/core/src/PortMetrics.ts": 1,
+ "packages/core/src/PortDescription.ts": 1,
+ "packages/core/src/PortServing.ts": 1,
+ "packages/core/src/Ports.ts": 1,
+ "packages/core/src/PortDerivation.ts": 0.98,
+ "packages/core/src/PortAccess.ts": 1,
+ "packages/core/src/PortDoubles.ts": 1,
+ "packages/core/src/PortRemote.ts": 0.8365384615384616,
+ "packages/react/src/HydrationEngine.ts": 0.9692982456140351,
+ "packages/devtools/src/model/Verdict.ts": 1,
+ "packages/devtools/src/react/Inspector.tsx": 0.6811594202898551,
+ "packages/devtools/src/react/Simulator.tsx": 0.5449438202247191
+}
