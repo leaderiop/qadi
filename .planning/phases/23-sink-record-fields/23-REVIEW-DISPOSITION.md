@@ -5,19 +5,19 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The \"undeclared field is refused\" type test proves nothing about the shared struct"
   - id: IN-01
     severity: info
-    disposition: open
+    disposition: fixed
     title: "`SinkRecord.tst.ts` header contradicts the file's own content and is stale"
   - id: IN-02
     severity: info
-    disposition: open
+    disposition: fixed
     title: "`SinkRecord.bench.ts` restates the field list the phase exists to state once, and its \"today\" label is now the winning option"
   - id: IN-03
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Cosmetic wrapping and whitespace left in `SinkWire.ts` and `SinkCodec.ts`"
 ---
 
@@ -29,3 +29,14 @@ defect in source (0 critical): WR-01 is a vacuous `@ts-expect-error` excess-prop
 `SinkRecord.tst.ts` that INV-QD-290's Enforcement text cites as proof, so either the test or the
 claim must change. IN-01..IN-03 are a stale test-file header, the bench restating the field list
 it predates, and wrapping/whitespace drift.
+
+## Fixes (2026-11-11, `23-REVIEW-FIX.md`, iteration 1)
+
+- **WR-01 → fixed** (`4b86203d`). The vacuous `bogus` `@ts-expect-error` block is deleted, and the
+  "an undeclared field is refused" claim is removed from INV-QD-290's Enforcement text and the
+  `SinkRecord.tst.ts` traceability row; the mutual-assignability and `keyof` pins carry the derivation.
+- **IN-01 → fixed** (`08bed3ff`). The `SinkRecord.tst.ts` header describes the file as it now is.
+- **IN-02 → fixed** (`db98ce9e`). `SinkRecord.bench.ts` states it is the frozen measurement behind
+  ADR-QD-135, its field copies independent of the leaf on purpose.
+- **IN-03 → fixed** (`9232d0b8`). `SinkWire.ts` header re-wrapped; `SinkCodec.ts` doubled blank line removed
+  and the long `SinkRecordWire` union line wrapped.
