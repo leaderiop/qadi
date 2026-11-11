@@ -39,6 +39,7 @@ import { permissionKey } from "./Permission.ts";
 import { fieldsOf, foldPolicy, foldPolicyCases } from "./Policy.ts";
 import { askActed, isAnyActedLeaf, readAttribute } from "./PortAccess.ts";
 import type { AnyActedLeaf } from "./PortAccess.ts";
+import type { LeafOf } from "./PortDescription.ts";
 import { questionOf } from "./Question.ts";
 import type { Question, QuestionOptions } from "./Question.ts";
 import type { Combining, Policy, PolicyCases, RuleEffect } from "./Policy.ts";
@@ -302,7 +303,7 @@ type RunError = AttributeResolveError | DecisionHistoryUnavailable | MissingActi
 type Plan =
   | { readonly _tag: "Constant"; readonly value: boolean }
   | { readonly _tag: "Column"; readonly predicate: Predicate }
-  | { readonly _tag: "AskAttribute"; readonly leaf: Extract<Policy, { readonly _tag: "HasAttribute" }> }
+  | { readonly _tag: "AskAttribute"; readonly leaf: LeafOf["HasAttribute"] }
   | {
       readonly _tag: "AskActed";
       readonly wanted: ActedResult;
@@ -376,7 +377,7 @@ const compileTree = (admitted: Admitted): Compiled => {
    * subject and folds; `"Resource"` asks once per row, which is the cost a
    * predicate exists to avoid.
    */
-  const history = (leaf: Extract<Policy, { readonly _tag: "HasActed" | "HasNotActed" }>): Compiled =>
+  const history = (leaf: LeafOf["HasActed"] | LeafOf["HasNotActed"]): Compiled =>
     isAnyActedLeaf(leaf)
       ? planned({
           _tag: "AskActed",
