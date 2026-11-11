@@ -272,6 +272,26 @@ describe("a refused payload is always counted (INV-QD-045, ARCH-60)", () => {
     assert.strictEqual(pairs.length, 0);
     assert.deepStrictEqual(drops, [{ reason: "PayloadSubjectMismatch", entries: [], wholePayload: true }]);
   });
+
+  it("a payload naming no subject yet carrying entries is refused whole, its entries handed back", () => {
+    const own: DecisionEntry = {
+      policy: hasPermission(permission("doc", "read")),
+      decision: serverAllow("u1", "e1"),
+    };
+    const { subjectId: _named, ...nameless } = JSON.parse(JSON.stringify(dehydrateWith([own])));
+    const drops: Array<unknown> = [];
+    const before = mismatchCount();
+    const pairs = [
+      ...hydrateWith(() => Atom.make<SeededDecision | undefined>(undefined), nameless, makeSubject({ id: "u1" }), {
+        onDropped: (drop) => drops.push(drop),
+      }),
+    ];
+    assert.strictEqual(mismatchCount() - before, 1);
+    assert.strictEqual(pairs.length, 0);
+    assert.deepStrictEqual(drops, [
+      { reason: "PayloadSubjectMismatch", entries: nameless.entries, wholePayload: true },
+    ]);
+  });
 });
 
 describe("a throwing reporter changes nothing (INT-04, ARCH-60)", () => {
