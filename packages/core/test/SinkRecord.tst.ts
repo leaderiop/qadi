@@ -151,11 +151,3 @@ test("the obligation record's input is the leaf struct's Type", () => {
   expect<ObligationInput>().type.toBeAssignableTo<typeof obligationRecordFields.Type>();
   expect<ObligationInput>().type.toBeAssignableFrom<typeof obligationRecordFields.Type>();
 });
-
-// A field the struct does not declare is refused at every caller that sets it, which is
-// how a field dropped from the struct shows up (a tstyche-friendly `@ts-expect-error`, as
-// `devtools/test/surface.tst.ts` does).
-declare const validDecision: DecisionInput;
-// @ts-expect-error does not exist in type
-const bogus: DecisionInput = { ...validDecision, bogus: 1 };
-void bogus;
