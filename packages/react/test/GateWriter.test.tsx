@@ -1,5 +1,5 @@
 /**
- * `useGateRegistration` driven directly, with no provider and no `<Can>`.
+ * `useGateRegistrations` driven directly, with no provider and no `<Can>`.
  *
  * The lifecycle wiring `useGate` delegates to, tested against a bare registry:
  * the narrower surface the old module-scope design could not offer.
@@ -10,7 +10,7 @@ import { createRef } from "react";
 import { describe, expect, it } from "vitest";
 import { makeGateRegistry } from "../src/GateRegistry.ts";
 import type { GateRenderState } from "../src/GateRegistry.ts";
-import { gateWriterFor, useGateRegistration } from "../src/GateWriter.ts";
+import { gateWriterFor, useGateRegistrations } from "../src/GateWriter.ts";
 import type { GateIdentity, GateWriter } from "../src/GateWriter.ts";
 
 const canRead = () => hasPermission(permission("doc", "read"));
@@ -48,11 +48,11 @@ interface Props {
 }
 
 const run = (props: Props) =>
-  renderHook((p: Props) => useGateRegistration(p.writer, p.identity, p.state), {
+  renderHook((p: Props) => useGateRegistrations(p.writer, [p.identity], [p.state]), {
     initialProps: props,
   });
 
-describe("useGateRegistration", () => {
+describe("useGateRegistrations (one identity)", () => {
   it("registers on mount", () => {
     const { registry, writer } = setup();
     run({ writer, identity: identityFor({}), state: "Pending" });
