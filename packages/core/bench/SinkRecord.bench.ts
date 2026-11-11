@@ -17,6 +17,11 @@
  * A and B is made with numbers (SREC-01) rather than by taste.
  *
  * The classes below are bench-local and never exported: nothing in `packages/*` imports them.
+ *
+ * This is the frozen record of ADR-QD-135's measurement. Option A won, so "today" and A now
+ * measure the same shape, and `decisionFields` / `obligationFields` below are copies of
+ * `SinkRecordFields.ts` kept independent on purpose: re-deriving them from the leaf would change
+ * what the comparison measured. They are not kept in step with the leaf.
  */
 import * as Data from "effect/Data";
 import * as Schema from "effect/Schema";
