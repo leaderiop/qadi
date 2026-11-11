@@ -41,6 +41,7 @@ import { recordingPort, replyTable, scriptedPort } from "../src/PortDoubles.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "../src/PortSpanEncode.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "../src/PortMetrics.ts";
 import { portWire } from "../src/PortWireEncode.ts";
+import type { ResourceId } from "../src/Identity.ts";
 import { makeResourceId, makeSubjectId, SubjectIdSchema } from "../src/Identity.ts";
 import type { ArgsOf, PortTypes } from "../src/Ports.ts";
 import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
@@ -549,6 +550,23 @@ describe("a derived port's key is its wire question's key, and its defect is its
       key({ subjectId, resourceId: undefined }),
       key({ subjectId, resourceId: undefined, meaning: "approve" }),
     );
+  });
+
+  it("a request whose member throws when read is refused, never thrown", () => {
+    const hostile = {
+      subjectId: makeSubjectId("alice"),
+      relation: "owner",
+      get resourceId(): ResourceId {
+        throw new Error("boom");
+      },
+    };
+    const refused = relationshipResolverPort.key([hostile]);
+    assert.isTrue(Result.isFailure(refused));
+    assert.deepStrictEqual(Result.isFailure(refused) ? refused.failure : undefined, {
+      _tag: "Unreadable",
+      path: [],
+      message: "boom",
+    });
   });
 
   it("CustomPredicate states its own key: it covers the subject's roles, permissions and attributes, which its wire question does not carry", () => {

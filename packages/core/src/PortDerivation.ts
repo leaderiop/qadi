@@ -31,6 +31,7 @@ import type * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
 import { InvalidBoundedPermits } from "./Errors.ts";
 import type { SubjectId } from "./Identity.ts";
+import { KeyRefusal } from "./PortDescription.ts";
 import type { LeafRequests, PortDescription, PortShape } from "./PortDescription.ts";
 import { canonicalKey } from "./PortKey.ts";
 import { attemptsStruct, encodeSpan } from "./PortSpanEncode.ts";
@@ -104,7 +105,17 @@ export const makePortDescription = <
       ...wire,
       toQuestion: (args) => Result.succeed(wire.toQuestion(args)),
     }),
-    key: (args) => canonicalKey(presentMembers(wire.toQuestion(args))),
+    // Reading the question can throw (a getter on a request, an untyped caller),
+    // and a key is refused, never thrown (`PortDescription.key`).
+    key: (args) =>
+      Result.try({
+        try: () => presentMembers(wire.toQuestion(args)),
+        catch: (error) =>
+          KeyRefusal.Unreadable({
+            path: [],
+            message: error instanceof Error ? error.message : String(error),
+          }),
+      }).pipe(Result.flatMap(canonicalKey)),
     defect: (args, cause) => spec.failure(args, Cause.squash(cause)),
   };
 };
