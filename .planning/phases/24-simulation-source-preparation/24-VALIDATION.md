@@ -2,7 +2,7 @@
 phase: "24"
 slug: "simulation-source-preparation"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-status: draft
+status: validated
 nyquist_compliant: true
 wave_0_complete: true
 created: "2026-11-11"
@@ -40,13 +40,13 @@ created: "2026-11-11"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 24-01-01 | 01 | 1 | WX-02, WX-05 | T-24-01 | Numbers free; mutation base; one recorder per Live run pinned | characterisation (green) | `pnpm vitest run --project devtools …/SimulationSession.test.ts`; base JSON names both files | ✅ | ⬜ pending |
-| 24-01-02 | 01 | 1 | SRC-03, WX-06 | T-24-02, T-24-03 | The 12-row table and the capture test exist, red by absence | table (RED) | `! pnpm vitest run --project devtools …/SimulationSource.prepare.test.ts`; failure names `prepareSource` | ❌ W0 → created in-task | ⬜ pending |
-| 24-02-01 | 02 | 2 | SRC-01, SRC-02 | T-24-04, T-24-05, T-24-06 | Availability written once; session inspects no source variant | table + unit (GREEN) | the two source suites; region greps (11→0, 3→0, 2→0, 2→0) | ✅ | ⬜ pending |
-| 24-02-02 | 02 | 2 | SRC-03, WX-03, WX-04 | T-24-04 | Session tests stop restating availability; refusal and capture lifetime still pinned | unit + BDD + static | `pnpm vitest run --project devtools && pnpm test:bdd`; `pnpm typecheck && pnpm lint && pnpm test:tstyche && pnpm circular` | ✅ | ⬜ pending |
-| 24-03-01 | 03 | 3 | SRC-01..03, WX-02, WX-03 | T-24-07 | Records name only what exists | doc gate | BEH/CCR greps; `spec-revise --check && pnpm spec:verify:strict && pnpm spec:examples && pnpm spec:claims && pnpm spec:api` | ✅ | ⬜ pending |
-| 24-03-02 | 03 | 3 | WX-02 | T-24-07 | CCR row and changeset | doc gate | CCR row count; changeset grep | ✅ | ⬜ pending |
-| 24-03-03 | 03 | 3 | WX-01, WX-04, WX-05 | T-24-08, T-24-09 | Gate unmodified and green; mutation per file not lower | full gate | per-file Stryker comparison; `pnpm check:pr` (background); no `scripts/`/threshold edit since the phase base | ✅ | ⬜ pending |
+| 24-01-01 | 01 | 1 | WX-02, WX-05 | T-24-01 | Numbers free; mutation base; one recorder per Live run pinned | characterisation (green) | `pnpm vitest run --project devtools …/SimulationSession.test.ts`; base JSON names both files | ✅ | ✅ green |
+| 24-01-02 | 01 | 1 | SRC-03, WX-06 | T-24-02, T-24-03 | The 12-row table and the capture test exist, red by absence | table (RED) | `! pnpm vitest run --project devtools …/SimulationSource.prepare.test.ts`; failure names `prepareSource` | ❌ W0 → created in-task | ✅ green |
+| 24-02-01 | 02 | 2 | SRC-01, SRC-02 | T-24-04, T-24-05, T-24-06 | Availability written once; session inspects no source variant | table + unit (GREEN) | the two source suites; region greps (11→0, 3→0, 2→0, 2→0) | ✅ | ✅ green |
+| 24-02-02 | 02 | 2 | SRC-03, WX-03, WX-04 | T-24-04 | Session tests stop restating availability; refusal and capture lifetime still pinned | unit + BDD + static | `pnpm vitest run --project devtools && pnpm test:bdd`; `pnpm typecheck && pnpm lint && pnpm test:tstyche && pnpm circular` | ✅ | ✅ green |
+| 24-03-01 | 03 | 3 | SRC-01..03, WX-02, WX-03 | T-24-07 | Records name only what exists | doc gate | BEH/CCR greps; `spec-revise --check && pnpm spec:verify:strict && pnpm spec:examples && pnpm spec:claims && pnpm spec:api` | ✅ | ✅ green |
+| 24-03-02 | 03 | 3 | WX-02 | T-24-07 | CCR row and changeset | doc gate | CCR row count; changeset grep | ✅ | ✅ green |
+| 24-03-03 | 03 | 3 | WX-01, WX-04, WX-05 | T-24-08, T-24-09 | Gate unmodified and green; mutation per file not lower | full gate | per-file Stryker comparison; `pnpm check:pr` (background); no `scripts/`/threshold edit since the phase base | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -73,4 +73,12 @@ None. The phase has no `checkpoint:decision`: 24-CONTEXT D-01..D-07 settle every
 - [x] Feedback latency < 60 s per task (the full gate runs once, at the end)
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-11-11 — every task's automated command ran green on the final HEAD (devtools 1162, full suite 4519, `pnpm check:pr` exit 0); per-file mutation SimulationSession.ts 0.9644 ≥ 0.9619, SimulationSource.ts 0.9841 ≥ 0.9444 (24-mutation-after.json)
+
+## Validation Audit 2026-11-11
+
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
