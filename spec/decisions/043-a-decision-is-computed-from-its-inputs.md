@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-043                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.1 (2026-10-08): amendment — `enforceProjected`'s `options.resource` is the third instance (ADR-QD-104, CCR-QD-207)<br>1.0 (2026-08-23): Initial release (CCR-QD-058) |
+> | Change History | 1.2 (2026-11-11): Prose names `addGuardedRoute`, the one bare-route seam, where it named the removed `guardRoute` (ARCH-75, CCR-QD-417; phase 27 review WR-03)<br>1.1 (2026-10-08): amendment — `enforceProjected`'s `options.resource` is the third instance (ADR-QD-104, CCR-QD-207)<br>1.0 (2026-08-23): Initial release (CCR-QD-058) |
 
 ---
 
@@ -32,7 +32,7 @@ with `options.resource`, which no caller set:
 enforce(policy, options)(handler(witness, resource))
 ```
 
-`guardRoute` in `@qadi/http` loads a resource per request and passes it here,
+`addGuardedRoute` in `@qadi/http` loads a resource per request and passes it here,
 so its central parameter was authorization-inert. The failure is not a denial —
 **an absent resource does not deny.** `resolveRef` returns `undefined` for a
 `ResourceRef` with no resource, and a matcher comparing against it can succeed:
@@ -123,7 +123,7 @@ property is not evidence of one.
 
 **Positive**:
 
-- `guardRoute`'s resource parameter does what its name says, so resource-scoped
+- `addGuardedRoute`'s resource parameter does what its name says, so resource-scoped
   HTTP authorization is possible at all.
 - Token downgrade cannot be defeated by a shared cache.
 - `@qadi/http`'s `RequirePermission` returns 403 rather than 500 for a

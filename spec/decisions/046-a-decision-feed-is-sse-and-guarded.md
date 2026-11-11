@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-046                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-10-07): the recheck is `authorizeRequest`, the same step the connect path runs, and its failure is classified through `@qadi/http`'s class table: a broken credential store on recheck is an `outage`, not a fifth `"extraction-failed"` label; `reauthCheck` leaves the public surface (ADR-QD-036 Rev 1.5, CCR-QD-197)<br>1.3 (2026-10-05): the stream serves a decision log: a backlog prelude, a `synced` marker, an environment-carrying envelope and an optional `Last-Event-ID` resume (ADR-QD-097) (CCR-QD-181)<br>1.2 (2026-10-05): one record can never end the feed; a refused record is reported (ADR-QD-095) (CCR-QD-179)<br>1.1 (2026-09-07): `decisionStreamRoute` gains an optional `reauth` — periodic re-extraction of the subject and re-evaluation of the policy against an open connection, closing the window a connect-time-only check leaves for a principal revoked after connecting; documented here and in BEH-QD-202, having shipped in code (`DecisionStreamOptions`, `reauthCheck`) without either being updated (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.5 (2026-11-11): Prose names `addGuardedRoute`, the one bare-route seam, where it named the removed `guardRoute` (ARCH-75, CCR-QD-417; phase 27 review WR-03)<br>1.4 (2026-10-07): the recheck is `authorizeRequest`, the same step the connect path runs, and its failure is classified through `@qadi/http`'s class table: a broken credential store on recheck is an `outage`, not a fifth `"extraction-failed"` label; `reauthCheck` leaves the public surface (ADR-QD-036 Rev 1.5, CCR-QD-197)<br>1.3 (2026-10-05): the stream serves a decision log: a backlog prelude, a `synced` marker, an environment-carrying envelope and an optional `Last-Event-ID` resume (ADR-QD-097) (CCR-QD-181)<br>1.2 (2026-10-05): one record can never end the feed; a refused record is reported (ADR-QD-095) (CCR-QD-179)<br>1.1 (2026-09-07): `decisionStreamRoute` gains an optional `reauth` — periodic re-extraction of the subject and re-evaluation of the policy against an open connection, closing the window a connect-time-only check leaves for a principal revoked after connecting; documented here and in BEH-QD-202, having shipped in code (`DecisionStreamOptions`, `reauthCheck`) without either being updated (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 ---
 
@@ -45,13 +45,13 @@ which is a decision visible in its wiring rather than in its environment.
 
 **Server-Sent Events**, decided by the traffic. Records flow one way; a reader
 never sends a decision back. SSE is plain HTTP, so the route passes through the
-same `HttpRouter`, the same middleware, and the same `guardRoute` as every other
+same `HttpRouter`, the same middleware, and the same `addGuardedRoute` as every other
 route in the package — which is what makes the paragraph above cheap to honour
 rather than something to reimplement. `EventSource` reconnects on its own, and
 that pairs with the feed's `replay` to recover a dropped connection with no
 protocol of ours.
 
-**`guardRoute` at connect is not enough on its own, for a connection that
+**`addGuardedRoute` at connect is not enough on its own, for a connection that
 outlives the principal's authorization.** SSE connections are long-lived by
 design — that is the whole point of a feed over polling — and a check that
 runs once, at connect, cannot see a revocation that happens afterward: nothing
@@ -90,7 +90,7 @@ that can change.
 
 - (+) The feed reuses the package's enforcement, status mapping and subject
   extraction rather than restating them; a denial is 403 and a broken subject
-  store is 502 because `guardRoute` already says so.
+  store is 502 because `addGuardedRoute` already says so.
 - (+) A reader reconnects without any protocol of ours.
 - (−) SSE is one-way, so a future devtools that wants to *send* something — a
   replay request, a filter — needs a second channel. That is the right trade
