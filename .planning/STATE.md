@@ -4,18 +4,18 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 26
 current_phase_name: Headless dock model
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 26 UI-SPEC approved
-last_updated: "2026-11-11T12:22:50.238Z"
+stopped_at: Completed 26-01-PLAN.md
+last_updated: "2026-11-11T12:33:29.789Z"
 last_activity: 2026-11-11
-last_activity_desc: Phase 25 complete, transitioned to Phase 26
-state_head: 9b6063c71d7b3cd3caea5599ac3732fd98e930c5
+last_activity_desc: Phase 26 execution started
+state_head: 8785c80f3c76a7d4beea7263687da22b95af16e2
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 37
-  completed_plans: 21
+  completed_plans: 22
   percent: 56
 ---
 
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 
 ## Current Position
 
-Phase: 26 (Headless dock model) — READY TO EXECUTE
-Current Plan: Not started
+Phase: 26 (Headless dock model) — EXECUTING
+Current Plan: 2
 Total Plans in Phase: 6
 Status: Ready to execute
-Last activity: 2026-11-11 — Phase 25 complete, transitioned to Phase 26
+Last activity: 2026-11-11 — Phase 26 execution started
 
 ## Performance Metrics
 
@@ -120,6 +120,7 @@ Last activity: 2026-11-11 — Phase 25 complete, transitioned to Phase 26
 | Phase 25 P03 | 13 min | 3 tasks | 12 files |
 | Phase 25 P04 | 12 min | 2 tasks | 4 files |
 | Phase 25 P05 | 9 min | 3 tasks | 11 files |
+| Phase 26 P01 | 5 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -155,6 +156,8 @@ Last activity: 2026-11-11 — Phase 25 complete, transitioned to Phase 26
 - [Phase 25]: 25-04: no DOM test deleted; each keeps wiring proof beside its 25-02 model counterpart
 - [Phase 25]: 25-04: BaselineCard reads snapshot.baselineReading as BaselineReading | undefined with optional chaining (session defines it whenever the baseline is Checked)
 - [Phase 25]: ADR-QD-137 (own number): a devtools session owns its runs through a scope; supersedes ARCH-20 D-20-b; no new invariant (BEH-QD-461 carries the lifecycle)
+- [Phase 26]: 26-01: M8's simulation half is read through policyMenu (selected option label), not policy._tag, so DockModel.test.ts survives 26-03's Chosen to Listed rename
+- [Phase 26]: 26-01: configure calls in DockModel.test.ts repeat any field set earlier, so the tests hold whether 26-02 reads an omitted field as unchanged or undefined
 
 ### Pending Todos
 
@@ -182,9 +185,9 @@ Last activity: 2026-11-11 — Phase 25 complete, transitioned to Phase 26
 
 ## Session Continuity
 
-Last session: 2026-11-11T12:01:52.228Z
-Stopped at: Phase 26 UI-SPEC approved
-Resume file: .planning/phases/26-headless-dock-model/26-UI-SPEC.md
+Last session: 2026-11-11T12:33:29.605Z
+Stopped at: Completed 26-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
