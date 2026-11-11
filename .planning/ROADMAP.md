@@ -289,7 +289,7 @@ shape from benchmark numbers, plus the absent-vs-undefined key convention), 25-0
 ### Phases
 
 - [x] **Phase 21: Port request derived from its description** - Derived `key`/`defect` for four ports, exhaustive wire and span questions by type; CustomPredicate overrides (ARCH-69) (completed 2026-11-11)
-- [ ] **Phase 22: One scoped port read** - `readScoped` owns the id check and one trace shape; one leaf→request function per port drives reads and serving (ARCH-70)
+- [x] **Phase 22: One scoped port read** - `readScoped` owns the id check and one trace shape; one leaf→request function per port drives reads and serving (ARCH-70) (completed 2026-11-11)
 - [ ] **Phase 23: Sink record fields stated once** - Benchmark first; one field statement per record drives the class type and the v2 wire; one record projection (ARCH-71)
 - [ ] **Phase 24: Simulation source preparation** - `prepareSource` in `SimulationSource.ts` owns availability, refusal and capture (ARCH-72)
 - [ ] **Phase 25: Session-only Simulator** - The view renders a session; commands and readings move into the session; runs live in the session's FiberHandle and Scope (ARCH-73)
@@ -325,7 +325,7 @@ Plans:
   1. One parameterised test over the three descriptions pins the chosen trace shape for a missing id, and `MissingResourceId`'s `relation`.
   2. `UNTRACED_BUDGET` and `SWITCH_BUDGET` are unchanged.
   3. The span change is recorded as public behaviour (BEH-QD-227 amended, BEH-QD-445).
-**Plans**: 4/4 plans executed
+**Plans**: 4/4 plans complete
 
 Plans:
 - [x] 22-01 (W1): Record the two answers from `_DECISIONS-v1.2.md` (D-02 = A; D-05 overridden: the leaf→request mapping stated once)
@@ -450,7 +450,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 21. Port request derivation | 5/5 | Complete    | 2026-11-11 |
-| 22. One scoped port read | 0/4 | Planned | - |
+| 22. One scoped port read | 4/4 | Complete    | 2026-11-11 |
 | 23. Sink record fields | 0/4 | Planned | - |
 | 24. Simulation source preparation | 0/3 | Planned | - |
 | 25. Session-only Simulator | 0/5 | Planned | - |
