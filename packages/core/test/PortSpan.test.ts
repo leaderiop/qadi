@@ -293,7 +293,7 @@ describe("every port's span question, as encoded (PREQ-05)", () => {
   type Row = readonly [encoded: () => Readonly<Record<string, unknown>>, expected: Readonly<Record<string, unknown>>];
 
   // The attribute and custom-predicate requests have no optional member, so
-  // their sparse row is their full one.
+  // they state no sparse row.
   const attribute: Row = [
     () => questionOf(attributeResolverPort, [aliceId, "tier"]),
     { "qadi.subject_id": "alice", "qadi.attribute": "tier", "qadi.interpreter": "evaluate" },
@@ -303,9 +303,9 @@ describe("every port's span question, as encoded (PREQ-05)", () => {
     { "qadi.subject_id": "alice", "qadi.custom_predicate": "isOwner", "qadi.interpreter": "evaluate" },
   ];
 
-  const CASES: { readonly [K in PortName]: { readonly full: Row; readonly sparse: Row } } = {
-    AttributeResolver: { full: attribute, sparse: attribute },
-    CustomPredicate: { full: custom, sparse: custom },
+  const CASES: { readonly [K in PortName]: { readonly full: Row; readonly sparse?: Row } } = {
+    AttributeResolver: { full: attribute },
+    CustomPredicate: { full: custom },
     DecisionHistory: {
       full: [
         () =>
@@ -387,6 +387,7 @@ describe("every port's span question, as encoded (PREQ-05)", () => {
     it(`${port}: every member set`, () => {
       assert.deepStrictEqual(full[0](), full[1]);
     });
+    if (sparse === undefined) continue;
     it(`${port}: optional members absent`, () => {
       assert.deepStrictEqual(sparse[0](), sparse[1]);
     });
