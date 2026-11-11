@@ -5,16 +5,16 @@ milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 21
 current_phase_name: Port request derived from its description
 status: executing
-stopped_at: Completed 21-01-PLAN.md
-last_updated: "2026-11-11T01:48:27.509Z"
+stopped_at: Completed 21-02-PLAN.md
+last_updated: "2026-11-11T01:53:43.406Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 21 execution started
-state_head: 464544e3fb78fac507619db90cd604d02d6ce9ee
+state_head: a5ccd9f9b6192c9fa8b01b6707667d11ccec3d9e
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 37
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 21 (Port request derived from its description) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 21 execution started
 
@@ -93,6 +93,7 @@ Last activity: 2026-11-11 — Phase 21 execution started
 | Phase 14 P07 | 40 min | 2 tasks | 9 files |
 | Phase 20 P04 | 40 min | 3 tasks | 8 files |
 | Phase 21 P01 | 8 min | 3 tasks | 5 files |
+| Phase 21 P02 | 10 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,7 @@ Last activity: 2026-11-11 — Phase 21 execution started
 - v1.0 Arch Wave 5 decisions are logged in PROJECT.md (Key Decisions) and in full in
   `.planning/milestones/v1.0-phases/*/` (CONTEXT, SUMMARY, REVIEW-DISPOSITION files).
 - [Phase 21]: 21-01: phase base is ba38f367; PREQ-04 shown by hand (dropped signerRole compiles, caught only by PortConformance); ARCH-69 key law red on the four derived ports, wire bytes pinned green
+- [Phase 21]: 21-02: QuestionOf<Q> types toQuestion; portWire drops undefined members (presentMembers) before encodeUnknownResult; wire bytes unchanged
 
 ### Pending Todos
 
@@ -123,8 +125,8 @@ Last activity: 2026-11-11 — Phase 21 execution started
 
 ## Session Continuity
 
-Last session: 2026-11-11T01:48:27.442Z
-Stopped at: Completed 21-01-PLAN.md
+Last session: 2026-11-11T01:53:43.383Z
+Stopped at: Completed 21-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
