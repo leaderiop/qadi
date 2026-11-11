@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: IN-04
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Stale \"today's\" wording in `SinkRecord.tst.ts` test titles"
   - id: IN-05
     severity: info
@@ -27,16 +27,16 @@ findings:
     severity: info
     disposition: fixed
     title: "`SinkRecord.bench.ts` restates the field list the phase exists to state once"
-open: 2
+open: 1
 total: 6
-recorded: 2026-11-11T05:39:49.836Z
+recorded: 2026-11-11T05:46:23.298Z
 ---
 
 # Phase 23: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| IN-04 | info | open | - |
+| IN-04 | info | fixed | 23-REVIEW-FIX.md |
 | IN-05 | info | open | - |
 | WR-01 | warning | fixed | 23-REVIEW-FIX.md (not in the current review) |
 | IN-01 | info | fixed | 23-REVIEW-FIX.md (not in the current review) |
