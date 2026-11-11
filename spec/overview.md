@@ -890,7 +890,7 @@ checked exactly as the first one's is (CCR-QD-067).
 | `unaccountedEntries`, `hasHydrated` | function | `model/Hydration.ts` |
 | `useTimeline`, `useTimelineStore`, `UseTimeline` | hook + type | `react/useTimeline.ts` |
 | `useDiagnostics`, `DiagnosticsDockOptions` | hook + type | `react/useDiagnostics.ts` — mounts `runDiagnostics` and reads its store; `DevtoolsDock`'s `diagnostics` prop is this options type |
-| `useSimulationSession`, `useOwnedSimulationSession`, `useSimulationSnapshot`, `UseSimulationSessionInput`, `SimulationSessionView` | hook + type | `react/useSimulationSession.ts` — the owned hooks build the session in a scope the component owns and return `undefined` until it exists; unmounting closes the scope. `SimulationSessionView` is `{ session, snapshot }`: a view dispatches `session.run(kind)` itself (ADR-QD-137) |
+| `useSimulationSession`, `useSimulationSnapshot`, `UseSimulationSessionInput`, `SimulationSessionView` | hook + type | `react/useSimulationSession.ts` — `useSimulationSession` builds the session in a scope the component owns and returns `undefined` until it exists; unmounting closes the scope. `SimulationSessionView` is `{ session, snapshot }`: a view dispatches `session.run(kind)` itself (ADR-QD-137) |
 | `DevtoolsDock`, `DevtoolsDockProps` | component + type | `react/DevtoolsDock.tsx` — nine optional props; a reading taken elsewhere is the one `reading` prop (formerly `wiring`, `activity`, `portCalls`, `questions`, `hydration`), and `hydrationMismatches` is gone. The panels it composes are package-private (ARCH-40) |
 
 ## Not listed above

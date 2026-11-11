@@ -20,11 +20,7 @@ export { DevtoolsDock } from "./DevtoolsDock.tsx";
 export type { DevtoolsDockProps } from "./DevtoolsDock.tsx";
 export { useDiagnostics } from "./useDiagnostics.ts";
 export type { DiagnosticsDockOptions } from "./useDiagnostics.ts";
-export {
-  useOwnedSimulationSession,
-  useSimulationSession,
-  useSimulationSnapshot,
-} from "./useSimulationSession.ts";
+export { useSimulationSession, useSimulationSnapshot } from "./useSimulationSession.ts";
 export type {
   SimulationSessionView,
   UseSimulationSessionInput,

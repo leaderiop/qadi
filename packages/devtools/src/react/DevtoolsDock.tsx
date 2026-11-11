@@ -16,27 +16,16 @@
 import { useMemo, type FC, type ReactNode } from "react";
 import { sourceFromRecords, type Source } from "../model/Source.ts";
 import type { Verdict } from "../model/Verdict.ts";
-import { catalogueOf, type Catalogue, type PolicySighting } from "../model/Catalogue.ts";
+import type { Catalogue } from "../model/Catalogue.ts";
 import {
   mergeReading,
   type Diagnostics,
   type DiagnosticsReading,
-  type WiringRead,
 } from "../model/DiagnosticsStore.ts";
-import type { TabId } from "../model/DockSession.ts";
-import type { ExplorerSession } from "../model/ExplorerSession.ts";
-import type { HeldChoiceStore } from "../model/HeldChoice.ts";
-import { sameRole } from "../model/RoleTree.ts";
-import type { PortCallLog } from "../model/PortCalls.ts";
-import type { AskedQuestionLike, GateInstanceLike } from "../model/Gates.ts";
-import type { HydrationActivity } from "../model/Hydration.ts";
-import type { PortActivity } from "../model/Wiring.ts";
-import type { PairedEntry } from "../model/Pairing.ts";
-import type { Selection } from "../model/Selection.ts";
+import type { DockModel } from "../model/DockModel.ts";
+import type { DockSnapshot, TabId } from "../model/DockSession.ts";
+import type { GateInstanceLike } from "../model/Gates.ts";
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
-import type { SimulationSession } from "../model/SimulationSession.ts";
-import type { TimelineEntry } from "../model/Timeline.ts";
-import type { Role } from "@qadi/core";
 import { DecisionLog } from "./DecisionLog.tsx";
 import { Inspector } from "./Inspector.tsx";
 import { PolicyExplorer } from "./PolicyExplorer.tsx";
@@ -45,10 +34,8 @@ import { RoleViewer } from "./RoleViewer.tsx";
 import { ServicesPanel } from "./ServicesPanel.tsx";
 import { Simulator } from "./Simulator.tsx";
 import { useDiagnostics, type DiagnosticsDockOptions } from "./useDiagnostics.ts";
-import { useDockSnapshot, useOwnedDockSession } from "./useDockSession.ts";
-import { useOwnedExplorerSession, useOwnedHeldChoice } from "./useExplorerSession.ts";
-import { useOwnedSimulationSession } from "./useSimulationSession.ts";
-import { useTimeline, type UseTimeline } from "./useTimeline.ts";
+import { useDockModel, usePaused } from "./useDockModel.ts";
+import { useDockSnapshot } from "./useDockSession.ts";
 import { body, button, colors, dock as dockStyle, font, input, muted, toolbar } from "./theme.ts";
 
 /**
@@ -56,9 +43,6 @@ import { body, button, colors, dock as dockStyle, font, input, muted, toolbar } 
  * every render. `useTimeline` holds its source by identity.
  */
 const nothing: Source = sourceFromRecords([]);
-
-/** A stable empty list, so an absent catalogue does not dispatch `setList` on every render. */
-const NO_ROLES: ReadonlyArray<Role> = [];
 
 /**
  * Data-driven, which is what made growing from two screens to six an entry in
@@ -139,18 +123,29 @@ export interface DevtoolsDockProps {
   readonly ports?: EvaluationPortsLayer;
 }
 
+/** What the dock hands its screens untouched: the host's own, not the model's. */
+type HostProps = Pick<DevtoolsDockProps, "gates" | "unknownParents" | "onInvalidate">;
+
 export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   source = nothing,
   capacity,
   catalogue,
   diagnostics,
   reading,
-  unknownParents,
-  gates,
-  onInvalidate,
   ports,
+  ...host
 }) => {
-  const timeline = useTimeline(source, capacity === undefined ? undefined : { capacity });
+  /**
+   * The model owns every store a screen reads, so leaving a tab is not a choice
+   * the reviewer made by looking elsewhere and coming back (INV-QD-107), and the
+   * rules between the stores (a new timeline reaches every screen, a replay
+   * commands the simulation, an unchanged prop dispatches nothing) are its, not
+   * this view's (ARCH-74).
+   *
+   * It is built in a scope this component owns, so it does not exist on the first
+   * pass, and the frame below, whose hooks read it once, is not rendered until it does.
+   */
+  const model = useDockModel({ source, capacity, catalogue, ports });
 
   // Each field is the supplied reading's when it carries one, and the sampled
   // reading's otherwise: a supplied reading answers "what another process or a
@@ -158,78 +153,23 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   const sampled = useDiagnostics(diagnostics);
   const shown = useMemo(() => mergeReading(sampled, reading), [sampled, reading]);
 
-  const sightings = useMemo(
-    () => catalogueOf(timeline.timeline, catalogue),
-    [timeline.timeline, catalogue],
-  );
-  /**
-   * The simulator's session, owned here rather than by the screen.
-   *
-   * A screen is unmounted when its tab is left, and a session held by it would
-   * take the form, the capture (one round of live I/O) and the result with it.
-   * Held by the dock it survives a round trip, and the seed and ports arrive
-   * as commands rather than being re-derived on each render.
-   *
-   * It is built in a scope this component owns, so it does not exist on the first
-   * pass, and the frame below, whose hooks read it once, is not rendered until it does.
-   */
-  const simulation = useOwnedSimulationSession({ sightings, ports });
-
-  return simulation === undefined ? null : (
-    <DockFrame
-      timeline={timeline}
-      sightings={sightings}
-      shown={shown}
-      catalogue={catalogue}
-      unknownParents={unknownParents}
-      gates={gates}
-      onInvalidate={onInvalidate}
-      simulation={simulation}
-    />
-  );
+  return model === undefined ? null : <DockFrame model={model} shown={shown} host={host} />;
 };
 
 /**
- * The dock once its simulation exists: its own choices, the other screens' sessions, and the page.
+ * The dock once its model exists: the toolbar over the one screen the reviewer chose.
  *
- * Split from the owner because `useOwnedDockSession` reads its replay target once,
- * at construction, and so must never be handed a session that is not there yet.
+ * Split from the owner because every reader below reads the model once, and so must
+ * never be handed one that is not there yet, or one a hidden `Activity` has closed.
  */
 const DockFrame: FC<{
-  readonly timeline: UseTimeline;
-  readonly sightings: ReadonlyArray<PolicySighting>;
+  readonly model: DockModel;
   readonly shown: Diagnostics;
-  readonly catalogue: Catalogue | undefined;
-  readonly unknownParents: ReadonlyArray<string> | undefined;
-  readonly gates: ReadonlyArray<GateInstanceLike> | undefined;
-  readonly onInvalidate: (() => void) | undefined;
-  readonly simulation: SimulationSession;
-}> = ({
-  timeline: { timeline, paused, setPaused, clear },
-  sightings,
-  shown,
-  catalogue,
-  unknownParents,
-  gates,
-  onInvalidate,
-  simulation,
-}) => {
-  /**
-   * The explorer's session and the role viewer's choice, owned here for the
-   * simulator's reason: what a screen shows is not a choice the reviewer made by
-   * looking elsewhere and coming back (INV-QD-107).
-   */
-  const explorer = useOwnedExplorerSession(sightings);
-  const roleChoice = useOwnedHeldChoice(catalogue?.roles ?? NO_ROLES, sameRole);
-  /**
-   * The dock's own choices — tab, filters, selected row — and what they derive.
-   *
-   * Rows are the whole timeline paired, then filtered; counts are of the whole
-   * timeline; replay switches tab *and* commands the simulation to re-seed, every
-   * time (E8.1, ARCH-63). Those rules are `DockSession.ts`'s, not this view's.
-   */
-  const dock = useOwnedDockSession(timeline, simulation);
+  readonly host: HostProps;
+}> = ({ model, shown, host }) => {
+  const { dock, timeline } = model;
   const view = useDockSnapshot(dock);
+  const paused = usePaused(timeline);
 
   return (
     <section style={dockStyle} data-testid="qadi-devtools" aria-label="Qadi devtools">
@@ -278,39 +218,20 @@ const DockFrame: FC<{
           type="button"
           style={button(paused)}
           aria-pressed={paused}
-          onClick={() => setPaused(!paused)}
+          onClick={() => timeline.setPaused(!paused)}
         >
           {paused ? "paused" : "live"}
         </button>
         {/* Clears the view. It deliberately does not reach back to any sink's
             own log — a devtools panel emptying a server's record buffer would
             be a surprising amount of authority for a button. */}
-        <button type="button" style={button(false)} onClick={clear}>
+        <button type="button" style={button(false)} onClick={() => timeline.clear()}>
           clear view
         </button>
       </div>
 
       <div style={body}>
-        <Screen
-          tab={view.tab}
-          rows={view.rows}
-          selectedKey={view.selectedKey}
-          onSelect={dock.select}
-          selection={view.selection}
-          sightings={sightings}
-          explorer={explorer}
-          roleChoice={roleChoice}
-          {...(unknownParents === undefined ? {} : { unknownParents })}
-          wiring={shown.wiring}
-          activity={shown.activity}
-          {...(shown.portCalls === undefined ? {} : { portCalls: shown.portCalls })}
-          questions={shown.questions}
-          {...(gates === undefined ? {} : { gates })}
-          {...(shown.hydration === undefined ? {} : { hydration: shown.hydration })}
-          {...(onInvalidate === undefined ? {} : { onInvalidate })}
-          onReplay={dock.replay}
-          simulation={simulation}
-        />
+        <Screen model={model} view={view} shown={shown} host={host} />
       </div>
     </section>
   );
@@ -352,54 +273,43 @@ const asVerdict = (value: string | undefined): Verdict | undefined =>
  * `TABS` already is.
  */
 const Screen: FC<{
-  readonly tab: TabId;
-  readonly rows: ReadonlyArray<PairedEntry>;
-  readonly selectedKey: string | undefined;
-  readonly onSelect: (key: string) => void;
-  readonly selection: Selection;
-  readonly sightings: ReadonlyArray<PolicySighting>;
-  readonly explorer: ExplorerSession;
-  readonly roleChoice: HeldChoiceStore<Role>;
-  readonly unknownParents?: ReadonlyArray<string>;
-  readonly wiring: WiringRead;
-  readonly activity: ReadonlyArray<PortActivity>;
-  readonly portCalls?: PortCallLog;
-  readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
-  readonly gates?: ReadonlyArray<GateInstanceLike>;
-  readonly hydration?: HydrationActivity;
-  readonly onInvalidate?: () => void;
-  readonly onReplay: (entry: TimelineEntry) => void;
-  readonly simulation: SimulationSession;
+  readonly model: DockModel;
+  readonly view: DockSnapshot;
+  readonly shown: Diagnostics;
+  readonly host: HostProps;
 }> = (props) => {
   const screens: Record<TabId, () => ReactNode> = {
     log: () => (
-      <DecisionLog rows={props.rows} selectedKey={props.selectedKey} onSelect={props.onSelect} />
-    ),
-    inspector: () => <Inspector selection={props.selection} onReplay={props.onReplay} />,
-    policies: () => <PolicyExplorer session={props.explorer} />,
-    roles: () => (
-      <RoleViewer
-        choice={props.roleChoice}
-        {...(props.unknownParents === undefined ? {} : { unknownParents: props.unknownParents })}
+      <DecisionLog
+        rows={props.view.rows}
+        selectedKey={props.view.selectedKey}
+        onSelect={props.model.dock.select}
       />
+    ),
+    inspector: () => (
+      <Inspector selection={props.view.selection} onReplay={props.model.dock.replay} />
+    ),
+    policies: () => <PolicyExplorer session={props.model.explorer} />,
+    roles: () => (
+      <RoleViewer choice={props.model.roles} unknownParents={props.host.unknownParents} />
     ),
     services: () => (
       <ServicesPanel
-        wiring={props.wiring}
-        activity={props.activity}
-        {...(props.portCalls === undefined ? {} : { portCalls: props.portCalls })}
+        wiring={props.shown.wiring}
+        activity={props.shown.activity}
+        portCalls={props.shown.portCalls}
       />
     ),
-    simulator: () => <Simulator session={props.simulation} />,
+    simulator: () => <Simulator session={props.model.simulation} />,
     questions: () => (
       <QuestionsPanel
-        questions={props.questions}
-        {...(props.gates === undefined ? {} : { gates: props.gates })}
-        {...(props.hydration === undefined ? {} : { hydration: props.hydration })}
-        {...(props.onInvalidate === undefined ? {} : { onInvalidate: props.onInvalidate })}
+        questions={props.shown.questions}
+        gates={props.host.gates}
+        hydration={props.shown.hydration}
+        onInvalidate={props.host.onInvalidate}
       />
     ),
   };
 
-  return <>{screens[props.tab]()}</>;
+  return <>{screens[props.view.tab]()}</>;
 };

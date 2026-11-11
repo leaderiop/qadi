@@ -49,8 +49,8 @@ export interface SimulatorProps {
    * and the result outlive this component, and a run outlives a tab switch.
    *
    * Which policies are listed, which row seeds the form and which ports are
-   * honoured are the session's to be told (`useOwnedSimulationSession`), not
-   * read from here.
+   * honoured are the session's to be told (the dock model's `configure`, through
+   * `useDockModel`), not read from here.
    */
   readonly session: SimulationSession;
 }

@@ -35,17 +35,25 @@ export const useSimulationSnapshot = (session: SimulationSession): SimulationSes
   return { session, snapshot };
 };
 
+const noSubscription = (): (() => void) => () => undefined;
+
+/** A snapshot read that waits for the session: it subscribes to nothing until one exists. */
+const useSnapshotOf = (session: SimulationSession | undefined): SimulationSnapshot | undefined => {
+  const read = () => session?.getSnapshot();
+  return useSyncExternalStore(session?.subscribe ?? noSubscription, read, read);
+};
+
 /**
- * Creates a session from props and keeps it in step with them, without
- * subscribing to it.
+ * Creates a session from props and keeps it in step with them, and is the view of it.
  *
- * For a host that owns the session and passes it down (`DevtoolsDock`): reading
- * the snapshot here would re-render the owner on every keystroke in a form it
- * does not display.
+ * For a host that builds a session from props and reads it here. A dock-style owner
+ * uses the dock model instead (`useDockModel`): that holds the session, and reading
+ * the snapshot in an owner would re-render it on every keystroke in a form it does
+ * not display.
  *
  * The first values are the session's initial state, so a simulator mounted with
  * a seed seeds on its first render after the session exists. Later changes are
- * dispatched from a layout effect, which runs before the browser paints — no
+ * dispatched from a layout effect, which runs before the browser paints: no
  * frame of the previous row's form is ever shown under the new row's heading.
  * Each prop is dispatched only when it changes, so a host that replays through
  * `session.replay` is never overridden by an unchanged `seed` prop.
@@ -54,9 +62,9 @@ export const useSimulationSnapshot = (session: SimulationSession): SimulationSes
  * the first pass: `undefined` until it does. Unmounting closes the scope, which
  * interrupts any run in flight.
  */
-export const useOwnedSimulationSession = (
+export const useSimulationSession = (
   input: UseSimulationSessionInput,
-): SimulationSession | undefined => {
+): SimulationSessionView | undefined => {
   const session = useScoped(() =>
     makeSimulationSession({
       sightings: input.sightings,
@@ -75,22 +83,6 @@ export const useOwnedSimulationSession = (
     if (session !== undefined) session.setPorts(input.ports);
   }, [session, input.ports]);
 
-  return session;
-};
-
-const noSubscription = (): (() => void) => () => undefined;
-
-/** A snapshot read that waits for the session: it subscribes to nothing until one exists. */
-const useSnapshotOf = (session: SimulationSession | undefined): SimulationSnapshot | undefined => {
-  const read = () => session?.getSnapshot();
-  return useSyncExternalStore(session?.subscribe ?? noSubscription, read, read);
-};
-
-/** `useOwnedSimulationSession`, and the view of it; `undefined` until the session exists. */
-export const useSimulationSession = (
-  input: UseSimulationSessionInput,
-): SimulationSessionView | undefined => {
-  const session = useOwnedSimulationSession(input);
   const snapshot = useSnapshotOf(session);
   return session === undefined || snapshot === undefined ? undefined : { session, snapshot };
 };

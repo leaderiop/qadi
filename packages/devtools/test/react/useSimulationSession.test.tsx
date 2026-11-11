@@ -5,23 +5,24 @@
  * The rules a session keeps are proved without a DOM in
  * `test/model/SimulationSession.test.ts`; `Simulator.test.tsx` renders a session
  * its own test built. With `Simulator` a view of its session, these are the only
- * tests of the owner hooks (ARCH-73, ADR-QD-137).
+ * tests of the scope's owners (ARCH-73, ADR-QD-137). The dock's simulation session
+ * lives in `useDockModel`'s scope (ARCH-74, D-13), so the two cases that need a
+ * session's owner drive that hook.
  */
 import { assert, describe, it, vi } from "@effect/vitest";
 import { act, renderHook, render, waitFor } from "@testing-library/react";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { Activity, StrictMode, useState } from "react";
+import { useDockModel } from "../../src/react/useDockModel.ts";
 import { useScoped } from "../../src/react/useScoped.ts";
 import { AttributeResolver, gte, hasAttribute, portsLayer } from "@qadi/core";
 import { policyLabel } from "../../src/model/Catalogue.ts";
 import type { PolicySighting } from "../../src/model/Catalogue.ts";
-import type { SimulationSession } from "../../src/model/SimulationSession.ts";
+import type { DockModel } from "../../src/model/DockModel.ts";
+import { sourceFromRecords } from "../../src/model/Source.ts";
 import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
-import {
-  useOwnedSimulationSession,
-  useSimulationSession,
-} from "../../src/react/useSimulationSession.ts";
+import { useSimulationSession } from "../../src/react/useSimulationSession.ts";
 import type { UseSimulationSessionInput } from "../../src/react/useSimulationSession.ts";
 import { decisionRecord } from "../helpers.ts";
 
@@ -37,6 +38,9 @@ const sighting: PolicySighting = {
   lastAt: 100,
 };
 const sightings = [sighting];
+
+/** One empty source, so `configure` sees one identity per field however often a case renders. */
+const source = sourceFromRecords([]);
 
 /** A resolver that takes a second, and counts how it ended. */
 const slow = () => {
@@ -69,10 +73,10 @@ const slow = () => {
 describe("the component that owns a session's scope", () => {
   it("keeps a run alive through StrictMode's double mount, and stops it on unmount", async () => {
     const { tally, ports } = slow();
-    const input: UseSimulationSessionInput = { sightings, ports };
-    let owned: SimulationSession | undefined;
+    const catalogue = { policies: { clearance } };
+    let owned: DockModel | undefined;
     const Probe = () => {
-      owned = useOwnedSimulationSession(input);
+      owned = useDockModel({ source, catalogue, ports });
       return null;
     };
 
@@ -81,19 +85,19 @@ describe("the component that owns a session's scope", () => {
         <Probe />
       </StrictMode>,
     );
-    const session = owned;
-    assert.isDefined(session);
-    if (session === undefined) return;
+    const model = owned;
+    assert.isDefined(model);
+    if (model === undefined) return;
 
     act(() => {
-      session.chooseSource("Live");
-      session.run("Run");
+      model.simulation.chooseSource("Live");
+      model.simulation.run("Run");
     });
     await waitFor(() => assert.strictEqual(tally.started, 1));
 
     // The first mount's scope was closed by StrictMode before this one was built,
     // so nothing of it can reach this run.
-    assert.strictEqual(session.getSnapshot().run._tag, "Running");
+    assert.strictEqual(model.simulation.getSnapshot().run._tag, "Running");
     assert.strictEqual(tally.interrupted, 0);
 
     view.unmount();
@@ -132,17 +136,17 @@ describe("the scope a build that threw had already filled", () => {
 
 describe("a hidden-then-shown tree (React's Activity)", () => {
   it("never leaves a child holding the closed session its owner replaced", () => {
-    let owned: SimulationSession | undefined;
-    let held: SimulationSession | undefined;
-    // Reads the session once, as `DockFrame`'s `useOwnedDockSession` does.
-    const Child = ({ session }: { readonly session: SimulationSession }) => {
-      const [once] = useState(() => session);
+    let owned: DockModel | undefined;
+    let held: DockModel | undefined;
+    // Reads the model once, as `DockFrame`'s readers do.
+    const Child = ({ model }: { readonly model: DockModel }) => {
+      const [once] = useState(() => model);
       held = once;
       return null;
     };
     const Owner = () => {
-      owned = useOwnedSimulationSession({ sightings });
-      return owned === undefined ? null : <Child session={owned} />;
+      owned = useDockModel({ source });
+      return owned === undefined ? null : <Child model={owned} />;
     };
     const App = ({ mode }: { readonly mode: "visible" | "hidden" }) => (
       <Activity mode={mode}>
