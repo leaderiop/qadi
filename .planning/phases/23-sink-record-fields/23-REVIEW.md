@@ -1,36 +1,21 @@
 ---
 phase: 23-sink-record-fields
-reviewed: 2026-11-11T06:30:00Z
+reviewed: 2026-11-11T08:00:00Z
 depth: standard
-files_reviewed: 22
+iteration: 2
+files_reviewed: 6
 files_reviewed_list:
-  - .changeset/sink-record-fields.md
-  - AGENTS.md
   - packages/core/bench/SinkRecord.bench.ts
-  - packages/core/src/DecisionRecord.ts
-  - packages/core/src/EvaluationMetrics.ts
-  - packages/core/src/Lifecycle.ts
   - packages/core/src/SinkCodec.ts
-  - packages/core/src/SinkEmit.ts
-  - packages/core/src/SinkRecordFields.ts
   - packages/core/src/SinkWire.ts
-  - packages/core/test/DecisionSink.test.ts
-  - packages/core/test/Errors.tst.ts
-  - packages/core/test/SinkCodec.test.ts
   - packages/core/test/SinkRecord.tst.ts
-  - spec/behaviors/24-decision-sink.md
-  - spec/behaviors/25-inspection.md
-  - spec/decisions/095-sinkcodec-owns-both-directions.md
-  - spec/decisions/135-sink-record-fields-stated-once.md
-  - spec/decisions/index.yaml
   - spec/invariants.md
-  - spec/README.md
   - spec/traceability.md
 findings:
   critical: 0
-  warning: 1
-  info: 3
-  total: 4
+  warning: 0
+  info: 2
+  total: 2
   necessity: 0
 status: issues_found
 ---
@@ -39,58 +24,36 @@ status: issues_found
 
 **Reviewed:** 2026-11-11
 **Depth:** standard
-**Files Reviewed:** 22
+**Iteration:** 2 (incremental re-review after the fix iteration; scope is `git diff be06f495..HEAD` over the six files above)
+**Files Reviewed:** 6
 **Status:** issues_found
 
 ## Summary
 
-Reviewed this phase's diff (`git diff f40bbfb2`) of the core sources, tests, bench, changeset and spec text. Checks run:
+This is iteration 2, a re-review after the fix iteration. All four iteration-1 findings (WR-01, IN-01, IN-02, IN-03) are fixed, and the fixes introduce no regression, bug or security issue. Two new Info-level documentation defects remain in the changed regions: stale "today's" wording in test titles (IN-04) and a bench header bullet that contradicts the paragraph added to it (IN-05). I did not run tsc or tstyche; the checks were a diff read, `git diff -w` and grep.
 
-- `tsc -p packages/core/tsconfig.src.json --noEmit` is clean.
-- `node scripts/check-house-style.mjs` is clean.
-- `SinkCodec.test.ts` and `DecisionSink.test.ts` pass (199 tests).
-- A scratch probe (deleted afterwards) confirmed the points that looked risky once `project` spreads the whole record.
-  - A `StoredRecord`'s extra `environment` key does not reach the wire. The struct encode ignores excess properties, and the output is the same 6 keys as before.
-  - A record with an `undefined` required key is refused with `EncodeFailed`, not thrown.
-  - A decoded `ObligationRecord` carries only declared keys.
+## Prior findings status
 
-I found no correctness, security or wire-compatibility defect in the source. The spread projection and the `Struct.omit` rebuild preserve the previous bytes and the ADR-QD-106 `Inconsistent` path. The `decisionRecordFor` conditional spreads leave absent keys absent, and the old `failedRecord`/`decidedRecord` names have no remaining source callers (the audit test's `failedRecord` is its own helper in `./helpers.ts`).
-
-What remains is one weak test and three documentation or consistency defects, listed below.
-
-## Warnings
-
-### WR-01: The "undeclared field is refused" type test proves nothing about the shared struct
-
-**File:** `packages/core/test/SinkRecord.tst.ts:155-160`
-**Issue:** INV-QD-290's Enforcement line cites this as pinning that an undeclared field is refused. The test is `{ ...validDecision, bogus: 1 }` assigned to `DecisionInput`, with a `@ts-expect-error`. Every object type rejects an excess property in a literal, whether or not it derives from `decisionRecordFields`. The test therefore passes for a hand-written `DecisionRecord` too, and it would keep passing if the derivation were reverted. The comment above it ("which is how a field dropped from the struct shows up") does not describe what the assertion checks. The real derivation pins are the mutual-assignability and `keyof` tests above it. This one adds only false assurance, and the invariant text overstates it. It also sits as a module-scope `const bogus` plus `void bogus` in a `.tst.ts` file.
-**Fix:** Delete the `bogus` block. Drop "an undeclared field is refused" from INV-QD-290's Enforcement line in `spec/invariants.md`, and the matching `traceability.md` row text if it repeats it. If a refusal pin is wanted, assert it on a type that depends on the struct:
-```ts
-test("a key added to the leaf struct is a key of the record's input", () => {
-  expect<keyof DecisionInput>().type.toBe<keyof typeof decisionRecordFields.Type | "outcome">();
-});
-```
-That test already exists, so deletion is enough.
+| ID | Status | Evidence |
+| -- | ------ | -------- |
+| WR-01 | Fixed | The `bogus` / `@ts-expect-error` block and `declare const validDecision` are gone from `SinkRecord.tst.ts`. The INV-QD-290 Enforcement text (`spec/invariants.md:3519`) and the `SinkRecord.tst.ts` row (`spec/traceability.md:304`) no longer claim "an undeclared field is refused". What they still claim is proven by the remaining tests: constructor input equals the leaf struct's `Type` plus `outcome` (`SinkRecord.tst.ts:143-152`), and the `ObligationOutcome`, `CacheOutcome` and `SinkRecordJson` per-tag key pins. The `Errors.tst.ts` and `SinkCodec.test.ts` clauses are untouched. |
+| IN-01 | Fixed | The header at `SinkRecord.tst.ts:1-15` is in present tense and describes the file: hand-written interfaces as the independent expectation, derivation from `SinkRecordFields.ts`, mutual assignability plus `keyof` pinning. The "no deliberate compile error" sentence is removed and no deliberate error remains. The two `Input` interface doc comments are corrected. Leftover test-title wording is tracked as IN-04. |
+| IN-02 | Fixed | The new paragraph at `SinkRecord.bench.ts:20-24` states the file is the frozen record of ADR-QD-135's measurement and that the field copies are intentionally independent of `SinkRecordFields.ts`. This matches the file: `decisionFields` and `obligationFields` are still bench-local. One contradiction with the older first bullet remains, tracked as IN-05. |
+| IN-03 | Fixed | `git diff -w` shows `SinkWire.ts` changed only in comment re-wrapping; its "two from `SinkRecordFields.ts`" claim matches the imports (`DECISION_RECORD_TAG`, `OBLIGATION_RECORD_TAG`, plus `DecisionDisagreement` from `Decision.ts`). `SinkCodec.ts` changed by one removed blank line and the `SinkRecordWire` union split across lines with the same expression. Both are behavior-neutral. Other over-100-column lines in `SinkCodec.ts` (for example 38, 250, 271, 371) pre-date this phase and are out of scope. |
 
 ## Info
 
-### IN-01: `SinkRecord.tst.ts` header contradicts the file's own content and is stale
+### IN-04: Stale "today's" wording in `SinkRecord.tst.ts` test titles
 
-**File:** `packages/core/test/SinkRecord.tst.ts:1-15`
-**Issue:** The header says the file pins the types "as they stand before their fields are stated once" and that the derived types "are about to derive from one shared statement". They already do. The `Input` interfaces are labelled "today's input, written out from `DecisionRecord.ts`", but `DecisionRecord.ts` no longer writes them. The header also says the file "contains no deliberate compile error", while the last test ends in a deliberate `@ts-expect-error`. Future readers will take the pins for a pre-refactor snapshot instead of the standing contract.
-**Fix:** Reword in the present tense: the hand-written interfaces are the independent expectation the leaf-derived types must equal. Remove the "no deliberate compile error" sentence, or delete the `bogus` block per WR-01.
+**File:** `packages/core/test/SinkRecord.tst.ts:52, 77, 115, 124`
+**Issue:** Four test titles still say "today's": "DecisionRecord's constructor takes exactly today's input" (52), "ObligationRecord's constructor takes exactly today's input" (77), "the Decision member of SinkRecordJson has exactly today's keys" (115) and "the Obligations member of SinkRecordJson has exactly today's keys" (124). IN-01 rewrote the header to drop the pre-refactor framing, but these titles kept it, and "today" no longer has a referent. This is wording only.
+**Fix:** Reword to "takes exactly the documented input" / "has exactly the documented keys", or drop "today's".
 
-### IN-02: `SinkRecord.bench.ts` restates the field list the phase exists to state once, and its "today" label is now the winning option
+### IN-05: Bench header's first bullet contradicts the paragraph added in IN-02
 
-**File:** `packages/core/bench/SinkRecord.bench.ts:31-62`
-**Issue:** `decisionFields` and `obligationFields` copy `SinkRecordFields.ts` by hand, and they will drift on the next field change. The rows are labelled "today: DecisionRecord" against "A: Data.TaggedClass over a shared struct". After this phase "today" is A, so the two rows measure the same shape, and the file's leading doc describes a decision already taken. The bench is decision evidence for ADR-QD-135, so freezing it is defensible. Nothing in the file says so, and it is not guarded against drift.
-**Fix:** Either build the B candidates from the real leaf (`import { decisionRecordFields, obligationRecordFields } from "../src/SinkRecordFields.ts"`) and drop the A rows, or add a header line that this is the frozen record of ADR-QD-135's measurement and its field copies are intentionally independent.
-
-### IN-03: Cosmetic wrapping and whitespace left in `SinkWire.ts` and `SinkCodec.ts`
-
-**File:** `packages/core/src/SinkWire.ts:8-9`, `packages/core/src/SinkCodec.ts:292-293`
-**Issue:** The `SinkWire.ts` header comment was edited in place, leaving a long unwrapped line ("two from `SinkRecordFields.ts`, whose import closures do not reach this module. The error classes stay…") in a file that otherwise hand-wraps at about 90 columns (AGENTS.md §17). `SinkCodec.ts` has a doubled blank line before `encodeWire`'s doc comment. The `SinkRecordWire` and `omitUndefined` call lines also run past the file's usual width.
-**Fix:** Re-wrap the `SinkWire.ts` comment and delete the extra blank line. No behaviour change.
+**File:** `packages/core/bench/SinkRecord.bench.ts:6` against `:20-24`
+**Issue:** Line 6 still describes "today's `DecisionRecord` / `ObligationRecord`" as a `Data.TaggedClass` "whose field type is written by hand". After this phase the real classes derive from `SinkRecordFields.ts`, and the paragraph added at lines 20-24 says "today" and A now measure the same shape. The two passages disagree, and the bench's `TodayDecision = DecisionRecord` binding now measures the leaf-derived class.
+**Fix:** Edit the bullet to say "(pre-ARCH-71) `DecisionRecord` / `ObligationRecord` with a hand-written field type", or mark it as describing the baseline as it stood when measured.
 
 ---
 
