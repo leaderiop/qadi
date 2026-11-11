@@ -9,8 +9,11 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
+import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Scope from "effect/Scope";
 import * as Tracer from "effect/Tracer";
 import * as TestClock from "effect/testing/TestClock";
 import {
@@ -120,6 +123,40 @@ const startRun = (session: SimulationSession, kind: "Run" | "Sweep" = "Run") =>
     const fiber = yield* Effect.forkChild(session.run(kind), { startImmediately: true });
     yield* TestClock.adjust("10 millis");
     return fiber;
+  });
+
+// The helpers below drive the scoped interface (ARCH-73, ADR-QD-137): `run` is a
+// command that forks into the session's own handle, so a test starts one and then
+// waits on the snapshot rather than joining a fiber it was handed.
+
+/** Starts a run, and lets its program reach the sleeping port. */
+const begin = (session: SimulationSession, kind: "Run" | "Sweep" = "Run") =>
+  Effect.gen(function* () {
+    session.run(kind);
+    yield* TestClock.adjust("10 millis");
+  });
+
+/** Resumes once no run is in flight: at once when none is, else on the notification that ends it. */
+const settled = (session: SimulationSession) =>
+  Effect.callback<void>((resume) => {
+    const idle = () => session.getSnapshot().run._tag !== "Running";
+    if (idle()) {
+      resume(Effect.void);
+      return;
+    }
+    const off = session.subscribe(() => {
+      if (!idle()) return;
+      off();
+      resume(Effect.void);
+    });
+    return Effect.sync(off);
+  });
+
+/** One run or sweep, waited for. */
+const ran = (session: SimulationSession, kind: "Run" | "Sweep" = "Run") =>
+  Effect.suspend(() => {
+    session.run(kind);
+    return settled(session);
   });
 
 describe("choosing a source that cannot be honoured — C2", () => {
@@ -359,6 +396,104 @@ describe("a superseded run never lands — C4", () => {
       const fiber = yield* startRun(session);
       yield* Fiber.interrupt(fiber);
       assert.strictEqual(tally.interrupted, 1);
+    }));
+});
+
+describe("a superseded run stops at once (ARCH-73)", () => {
+  /**
+   * The same three commands as C4's `supersededBy`, against the scoped interface:
+   * the run is interrupted inside the command, through the session's own handle.
+   * Nothing is reaped, because nothing waits for a reap.
+   */
+  const stopsAtOnce = (name: string, supersede: (session: SimulationSession) => void) =>
+    it.effect(`${name} interrupts the run in flight before the next step`, () =>
+      Effect.gen(function* () {
+        const { ports, tally } = slow();
+        const session = yield* makeSimulationSession({
+          sightings: [sighting(clearance), sighting(hasRole("x"))],
+          ports,
+        });
+        session.chooseSource("Live");
+        session.edit(withClearance);
+
+        yield* begin(session, "Run");
+        assert.strictEqual(session.getSnapshot().run._tag, "Running");
+        assert.strictEqual(tally.started, 1);
+
+        supersede(session);
+        yield* Effect.yieldNow;
+        assert.strictEqual(tally.interrupted, 1);
+        assert.strictEqual(session.getSnapshot().run._tag, "Idle");
+
+        yield* TestClock.adjust("1 second");
+        assert.strictEqual(tally.finished, 0);
+        assert.strictEqual(session.getSnapshot().run._tag, "Idle");
+      }));
+
+  stopsAtOnce("choosing another policy", (session) => session.choosePolicy(hasRole("x")));
+  stopsAtOnce("a replay", (session) =>
+    session.replay(entryOf(decisionRecord({ evaluationId: "ev-5", policy: hasRole("x") }))),
+  );
+  stopsAtOnce("changing the ports", (session) => session.setPorts(otherBrokenPorts));
+});
+
+describe("closing the session's scope stops its run (ARCH-73)", () => {
+  it.effect("interrupts the run in flight, which never lands, and leaves the session inert", () =>
+    Effect.gen(function* () {
+      const { ports, tally } = slow();
+      const scope = yield* Scope.make();
+      const session = yield* Scope.provide(
+        makeSimulationSession({ sightings: [sighting(clearance)], ports }),
+        scope,
+      );
+      session.chooseSource("Live");
+      session.edit(withClearance);
+      yield* begin(session, "Run");
+      assert.strictEqual(session.getSnapshot().run._tag, "Running");
+
+      yield* Scope.close(scope, Exit.void);
+      assert.strictEqual(tally.interrupted, 1);
+
+      yield* TestClock.adjust("1 second");
+      assert.strictEqual(tally.finished, 0);
+      assert.notStrictEqual(session.getSnapshot().run._tag, "Ran");
+
+      // A closed session answers no command: the snapshot is the very one it had.
+      const before = session.getSnapshot();
+      const started = tally.started;
+      session.run("Run");
+      yield* TestClock.adjust("1 second");
+      assert.strictEqual(session.getSnapshot(), before);
+      assert.strictEqual(tally.started, started);
+    }));
+});
+
+describe("the interface keeps the lifecycle to itself (ARCH-73)", () => {
+  it.effect("a session has no reap, hasRetired or dispose: its scope is how a host ends it", () =>
+    Effect.gen(function* () {
+      const session = yield* makeSimulationSession();
+      assert.isFalse("reap" in session);
+      assert.isFalse("hasRetired" in session);
+      assert.isFalse("dispose" in session);
+    }));
+});
+
+describe("a run is its own trace (ARCH-73)", () => {
+  it.effect("is a root span, under the services the session was built with, and nothing reaps or disposes", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const session = yield* makeSimulationSession({ sightings: [sighting(hasRole("a"))] }).pipe(
+        Effect.provide(collectingTracer(spans)),
+      );
+      yield* ran(session, "Run");
+
+      const run = spans.find((s) => s.name === "qadi.devtools.simulationSession.run");
+      assert.isDefined(run);
+      assert.isTrue(run !== undefined && Option.isNone(run.parent));
+      assert.isDefined(spans.find((s) => s.name === "qadi.devtools.makeSimulationSession"));
+      const names = spans.map((s) => s.name);
+      assert.notInclude(names, "qadi.devtools.simulationSession.reap");
+      assert.notInclude(names, "qadi.devtools.simulationSession.dispose");
     }));
 });
 
