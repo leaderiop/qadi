@@ -72,9 +72,11 @@ logged, counted or spanned.
 
 - ✓ ARCH-54 Sink record projection (SINK-01..03): `SinkEmit.ts` owns all three record projections (failed, decided, obligation), and `new ObligationRecord` is built only there and in the codec's decoder; the obligation record is projected once, before the handler runs (WR-01); the refusal vocabulary moved to the public leaf `JsonRefusal.ts`, and `SinkWire.ts` keeps only record-side words, so no port module imports the sink wire — Phase 9 (ADR-QD-116, ADR-QD-115 unused, CCR-QD-393)
 
+- ✓ ARCH-70 One scoped port read (SCOPE-01..05): each port description states once, as `asks`, the request every policy leaf puts to it; the reads and `servingFor` derive from it (`ServedLeaves` and the facet's `leaves` removed, `LeafRequests`/`ReadSite`/`LeafOf`/`AskedOf` added); the three resource-scoped reads go through one `readScoped`, and a missing resource id leaves only the port span (`requireResourceId` deleted); every read takes its policy leaf — Phase 22 (ADR-QD-134, CCR-QD-412, BEH-QD-445/446, INV-QD-288/289; `@qadi/core` minor, `PortDescription` change marked Breaking)
+
 ### Active
 
-(None. Every v1.0 requirement shipped. The next milestone defines new ones.)
+(v1.2 requirements live in `.planning/REQUIREMENTS.md`, "v1.2"; this list records them as their phases ship.)
 
 ### Out of Scope
 
@@ -175,6 +177,8 @@ logged, counted or spanned.
 | The refusal vocabulary lives in a new public leaf `JsonRefusal.ts`, not in `JsonHazard.ts` | The moved names are public and `JsonHazard.ts` is package-private (ADR-QD-099); a leaf keeps the port wire off the sink wire | Accepted (Phase 9, ADR-QD-116) |
 | The obligation record is projected before the handler runs | A handler reassigning `resource.id` must not change the record it is logged under (WR-01) | Accepted (Phase 9, dafe9e1) |
 | Audit doubles are scripted per call, outside core's port registry (D-05, ADR-QD-126); each audit store call gets a 5 s overridable `storeCallTimeout` (route A, `A interrupt remove`) | A store call that never settled held the decision and kept the breaker `Closed`; eleven hand-written failing layers restated the ports' error shapes, and core's closed registry is for the five evaluation ports | Accepted (Phase 14, ARCH-62, CCR-QD-404); removing `failWith`/`failStageWith`/`failCommitWith` is Breaking; the buffered sink (route C) is deferred |
+| The leaf→request mapping is stated once, on each port description (`asks`), not in the reads and the serving facet separately (D-05, `state once`) | The human overrode the planner's decision: "the recommendation should be the cleanest solution, not the simplest one"; two statements could disagree | Accepted (Phase 22, ADR-QD-134); `ServedLeaves` removed (public); review WR-01 (INV-QD-288 wording vs. two ports' type-level enforcement) open |
+| A missing resource id leaves only the port span on every scoped port (D-02 = `A`) | One trace shape, whichever copy of the check ran; the nested `qadi.requireScopedResourceId` span is gone | Accepted (Phase 22, ADR-QD-134) |
 
 ---
-*Last updated: 2026-11-10 — v1.1 Phase 14 complete*
+*Last updated: 2026-11-11 — v1.2 Phase 22 complete*
