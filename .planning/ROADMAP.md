@@ -389,7 +389,7 @@ Plans:
   1. `DockModel.test.ts` covers rules M1–M16 and P1 without rendering (including: a source change or closing the scope interrupts a read); 13 DOM duplicates are deleted only after it is green.
   2. One `useDockModel` hook; the four `useOwnedX` hooks are gone; `Screen` takes 4 props, with no conditional spreads.
   3. Both sessions embed one held-choice cell; `RoleViewer` no longer re-maps.
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans executed
 
 Plans:
 - [x] 26-01 (W1): Preconditions, phase base, mutation baseline; RED `DockModel.test.ts` (M1–M16, P1), run in scopes the tests own
@@ -397,7 +397,7 @@ Plans:
 - [x] 26-03 (W3): One held-choice cell shared by both sessions; `PolicyChoice` reshaped; `RoleViewer` stops re-mapping
 - [x] 26-04 (W4): One `useDockModel` over `useScoped` that forks nothing; the owned hooks deleted; `Screen` reduced; `DevtoolsDock.test.tsx` passes unedited
 - [x] 26-05 (W5): Delete the 13 DOM duplicates of model rules; `pnpm coverage`
-- [ ] 26-06 (W6): Records (ADR-047 amendment, ADR-QD-138 unused, BEH-QD-465/466, INV-QD-296, CCR-QD-416, changesets), `pnpm check:pr`
+- [x] 26-06 (W6): Records (ADR-047 amendment, ADR-QD-138 unused, BEH-QD-465/466, INV-QD-296, CCR-QD-416, changesets), `pnpm check:pr`
 
 ### Phase 27: Bare-route module
 **Goal**: `addGuardedRoute` is the one bare-route seam: its typing rule is pinned on the public function, and the route-method union is stated once.
