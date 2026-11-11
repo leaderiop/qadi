@@ -4,18 +4,18 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 26
 current_phase_name: Headless dock model
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 26-02-PLAN.md
-last_updated: "2026-11-11T12:43:12.621Z"
+stopped_at: Completed 26-03-PLAN.md
+last_updated: "2026-11-11T12:54:01.742Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 26 execution started
-state_head: a566d2a0acbfe92469c7ae188842eab5fb74a6aa
+state_head: 960a4d131cd09190fb8b6984526e48abbfed8e24
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 37
-  completed_plans: 23
+  completed_plans: 24
   percent: 56
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 ## Current Position
 
 Phase: 26 (Headless dock model) — EXECUTING
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 6
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 26 execution started
@@ -122,6 +122,7 @@ Last activity: 2026-11-11 — Phase 26 execution started
 | Phase 25 P05 | 9 min | 3 tasks | 11 files |
 | Phase 26 P01 | 5 min | 2 tasks | 3 files |
 | Phase 26 P02 | 7 min | 2 tasks | 2 files |
+| Phase 26 P03 | 9 min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -160,6 +161,8 @@ Last activity: 2026-11-11 — Phase 26 execution started
 - [Phase 26]: 26-01: M8's simulation half is read through policyMenu (selected option label), not policy._tag, so DockModel.test.ts survives 26-03's Chosen to Listed rename
 - [Phase 26]: 26-01: configure calls in DockModel.test.ts repeat any field set earlier, so the tests hold whether 26-02 reads an omitted field as unchanged or undefined
 - [Phase 26]: 26-02: configure stores new inputs first and calls simulation.setPorts unguarded (the session guards identity); an absent source reads as an empty Source; a replaced inner TimelineStore is dropped, not unsubscribed
+- [Phase 26]: 26-03: the session's held-choice cell is named chosen (not choice) to avoid shadowing; ExplorerShown is derived from HeldChoice (Exclude Empty | Draft); PolicyChoice is written out and kept equal by use (policyChoice returns resolve(), policyOf reads heldValue)
+- [Phase 26]: 26-03: HeldChoice overview row added in 26-03 (gate 13); 26-06 must not add a second
 
 ### Pending Todos
 
@@ -187,8 +190,8 @@ Last activity: 2026-11-11 — Phase 26 execution started
 
 ## Session Continuity
 
-Last session: 2026-11-11T12:43:12.431Z
-Stopped at: Completed 26-02-PLAN.md
+Last session: 2026-11-11T12:54:01.510Z
+Stopped at: Completed 26-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
