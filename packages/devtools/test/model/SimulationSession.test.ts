@@ -48,7 +48,7 @@ import { makeSimulationSession } from "../../src/model/SimulationSession.ts";
 import type { SimulationSession } from "../../src/model/SimulationSession.ts";
 import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
-import { allow, decisionRecord, failedRecord, obligationRecord, read } from "../helpers.ts";
+import { allow, decisionRecord, deny, failedRecord, obligationRecord, read } from "../helpers.ts";
 
 const sighting = (policy: Policy): PolicySighting => ({
   policy,
@@ -396,6 +396,56 @@ describe("closing the session's scope stops its run (ARCH-73)", () => {
     }));
 });
 
+// `commit()` announces `Running` before the run is forked, and a subscriber is
+// host code: it may move the session in that very notification.
+describe("a subscriber that moves the session while a run is announced (ARCH-73)", () => {
+  const a = hasAttribute("clearance", gte(5));
+  const b = hasAttribute("clearance", gte(1));
+
+  const liveSession = () =>
+    Effect.gen(function* () {
+      const { ports, tally } = slow();
+      const session = yield* makeSimulationSession({ sightings: [sighting(a), sighting(b)], ports });
+      session.chooseSource("Live");
+      session.edit(withClearance);
+      return { session, tally };
+    });
+
+  it.effect("a run it superseded is never started", () =>
+    Effect.gen(function* () {
+      const { session, tally } = yield* liveSession();
+      session.subscribe(() => {
+        if (session.getSnapshot().run._tag === "Running") session.choosePolicy(b);
+      });
+
+      session.run("Run");
+      yield* TestClock.adjust("2 seconds");
+
+      assert.strictEqual(tally.started, 0);
+      assert.strictEqual(session.getSnapshot().run._tag, "Idle");
+    }));
+
+  it.effect("a run it replaced leaves only the replacement, which is the one that lands", () =>
+    Effect.gen(function* () {
+      const { session, tally } = yield* liveSession();
+      let replaced = false;
+      session.subscribe(() => {
+        if (replaced || session.getSnapshot().run._tag !== "Running") return;
+        replaced = true;
+        session.choosePolicy(b);
+        session.run("Run");
+      });
+
+      session.run("Run");
+      yield* TestClock.adjust("2 seconds");
+
+      assert.strictEqual(tally.started, 1);
+      assert.strictEqual(tally.finished, 1);
+      const run = finishedRun(session);
+      assert.isTrue(Equal.equals(run.question.policy, b));
+    }));
+});
+
 describe("the interface keeps the lifecycle to itself (ARCH-73)", () => {
   it.effect("a session has no reap, hasRetired or dispose: its scope is how a host ends it", () =>
     Effect.gen(function* () {
@@ -712,6 +762,24 @@ describe("what the view shows is read by the session (ARCH-73)", () => {
         assert.deepStrictEqual(reading(session), {
           matches: false,
           sentence: "differs — HasPermission at the root was allowed and is now denied",
+        });
+      }));
+
+    it.effect("a flip the other way names the node that turned to allowed", () =>
+      Effect.gen(function* () {
+        const session = yield* seededWith(
+          decisionRecord({
+            evaluationId: "ev-92",
+            policy: hasPermission(read),
+            action: "read",
+            outcome: new Decided({ decision: deny({ evaluationId: "ev-92" }) }),
+          }),
+        );
+        session.addChip("permissions", "doc:read");
+        yield* ran(session);
+        assert.deepStrictEqual(reading(session), {
+          matches: false,
+          sentence: "differs — HasPermission at the root was denied and is now allowed",
         });
       }));
 
