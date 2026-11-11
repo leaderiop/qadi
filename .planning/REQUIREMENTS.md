@@ -147,11 +147,11 @@
 - [x] **PREQ-05**: Wherever a request field is still restated inside a port module (span struct, `pose`, `toQuestion`/`fromQuestion`), it is derived from one struct, or the plan records why it cannot be.
 
 ### One resource-scoped port read (Phase 22)
-- [ ] **SCOPE-01**: `PortAccess.ts` has one scoped read that owns the early `pose` annotation, the resource-id check, `MissingResourceId` and `readPort`; `askActedForResource`, `askRelationship` and `askSignature` go through it.
-- [ ] **SCOPE-02**: A missing resource id produces the same trace shape on every scoped port (the shape chosen at the phase's checkpoint), pinned by one parameterised test over the three descriptions.
-- [ ] **SCOPE-03**: No scoped read takes two adjacent positional `string`s that can be swapped; `askSignature`'s meaning and signer role cannot be transposed and still typecheck.
-- [ ] **SCOPE-04**: The leaf→request mapping is stated once: each port description's `asks` drives both the evaluation reads and `servingFor` (`LeafRequests` replaces `ServedLeaves`); the `servingFor` property test stays as a guard (decision 2026-11-11, overrides the planner's D-05).
-- [ ] **SCOPE-05**: The span change is recorded as public behaviour (ADR-QD-051): BEH and traceability updated, and no `UNTRACED_BUDGET` change.
+- [x] **SCOPE-01**: `PortAccess.ts` has one scoped read that owns the early `pose` annotation, the resource-id check, `MissingResourceId` and `readPort`; `askActedForResource`, `askRelationship` and `askSignature` go through it.
+- [x] **SCOPE-02**: A missing resource id produces the same trace shape on every scoped port (the shape chosen at the phase's checkpoint), pinned by one parameterised test over the three descriptions.
+- [x] **SCOPE-03**: No scoped read takes two adjacent positional `string`s that can be swapped; `askSignature`'s meaning and signer role cannot be transposed and still typecheck.
+- [x] **SCOPE-04**: The leaf→request mapping is stated once: each port description's `asks` drives both the evaluation reads and `servingFor` (`LeafRequests` replaces `ServedLeaves`); the `servingFor` property test stays as a guard (decision 2026-11-11, overrides the planner's D-05).
+- [x] **SCOPE-05**: The span change is recorded as public behaviour (ADR-QD-051): BEH and traceability updated, and no `UNTRACED_BUDGET` change.
 
 ### Sink record fields stated once (Phase 23)
 - [ ] **SREC-01**: A benchmark at the phase base measures record construction (and one `Evaluate.bench.ts` workload) for the candidate record shapes; the GO/NO-GO is a `checkpoint:decision` with the numbers.
