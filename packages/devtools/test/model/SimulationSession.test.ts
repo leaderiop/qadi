@@ -435,6 +435,39 @@ describe("a result belongs to the question it answered", () => {
       assert.strictEqual(session.getSnapshot().baseline?._tag, "Unavailable");
     }));
 
+  it.effect("never shows a result as answering a row replayed while that run was starting", () =>
+    Effect.gen(function* () {
+      // A live resolver whose cancellation takes time, as an aborted request's does:
+      // the second run waits on it, and the reviewer replays an orphan meanwhile.
+      const ports = portsLayer({
+        AttributeResolver: Layer.succeed(AttributeResolver, {
+          name: "slow to cancel",
+          resolve: () =>
+            Effect.sleep("1 second").pipe(
+              Effect.onInterrupt(() => Effect.sleep("100 millis")),
+              Effect.as(9),
+            ),
+        }),
+      });
+      const orphan = entryOf(obligationRecord({ evaluationId: "ev-late" }));
+      const session = sessionWith(clearance);
+      session.setPorts(ports);
+      session.chooseSource("Live");
+      const first = yield* startRun(session);
+
+      session.chooseSource("Fixtures");
+      const second = yield* startRun(session);
+      session.replay(orphan);
+
+      yield* TestClock.adjust("1 second");
+      yield* Fiber.join(second);
+      yield* Fiber.join(first);
+      const after = session.getSnapshot();
+      // Either the run was dropped, or it is shown as answering another question.
+      assert.isTrue(after.run._tag === "Idle" || after.stale);
+      assert.isUndefined(after.baseline);
+    }));
+
   it.effect("labels the clock the run measured under", () =>
     Effect.gen(function* () {
       const session = sessionWith(hasRole("a"));
