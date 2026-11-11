@@ -1,7 +1,9 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Equal from "effect/Equal";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
+import * as Result from "effect/Result";
 import * as TestClock from "effect/testing/TestClock";
 import { attributeResolverPort } from "../src/AttributeResolver.ts";
 import { Allow, isAllowed } from "../src/Decision.ts";
@@ -20,6 +22,7 @@ import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
 import { questionOf } from "../src/Question.ts";
 import * as P from "../src/Policy.ts";
+import { decodeSinkRecord, encodeSinkRecord } from "../src/SinkCodec.ts";
 import { obligationRecordFor } from "../src/SinkEmit.ts";
 import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
@@ -515,6 +518,67 @@ describe("the cache is visible per decision, and flushable", () => {
         ["miss", "hit", "miss"],
       );
     }).pipe(Effect.provide(testLayer(allowed))));
+});
+
+/**
+ * A record `evaluate` emits is its own round trip: an absent `resource`, `action`
+ * or `cache` is an absent key on it, as `obligationRecordFor` already leaves one.
+ *
+ * Until ARCH-71 the decision projections passed all three through as possibly
+ * `undefined`-valued own keys, so the record a sink received was not `Equal` to
+ * the record decoded from its own encoding (the wire omits an undefined key, and
+ * `Equal.equals` tells a present-undefined key from an absent one).
+ */
+describe("a record evaluate emits is its own round trip (ARCH-71)", () => {
+  const roundTrip = (record: DecisionRecord): DecisionRecord => {
+    const encoded = encodeSinkRecord(record);
+    assert.isTrue(Result.isSuccess(encoded), "the record encodes");
+    if (Result.isFailure(encoded)) return record;
+    const decoded = decodeSinkRecord(encoded.success);
+    assert.isTrue(Result.isSuccess(decoded), "the encoding decodes");
+    if (Result.isFailure(decoded) || decoded.success._tag !== "Decision") return record;
+    return decoded.success;
+  };
+
+  it.effect("a bare decided record has no resource, action or cache key", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+
+      yield* evaluate(P.hasPermission(read)).pipe(Effect.provide(sink.layer));
+
+      const record = sink.seen[0];
+      assert.isDefined(record);
+      if (record === undefined) return;
+      assert.strictEqual(record.outcome._tag, "Decided");
+      for (const key of ["resource", "action", "cache"]) {
+        assert.isFalse(Object.hasOwn(record, key), key);
+      }
+      assert.isTrue(Equal.equals(roundTrip(record), record));
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("a bare failed record has no resource, action or cache key", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+
+      yield* Effect.result(evaluate(P.hasAttribute("clearance", M.gte(3)))).pipe(
+        Effect.provide(sink.layer),
+      );
+
+      const record = sink.seen[0];
+      assert.isDefined(record);
+      if (record === undefined) return;
+      assert.strictEqual(record.outcome._tag, "Failed");
+      for (const key of ["resource", "action", "cache"]) {
+        assert.isFalse(Object.hasOwn(record, key), key);
+      }
+      // A `Failed` cause crosses the wire as a defect, so the outcome is compared
+      // by tag and the rest of the record by its keys and values.
+      const back = roundTrip(record);
+      assert.deepStrictEqual(Object.keys(back).sort(), Object.keys(record).sort());
+      assert.strictEqual(back.outcome._tag, "Failed");
+    }).pipe(
+      Effect.provide(testLayer(subjectWith({}), { AttributeResolver: brokenAttributes })),
+    ));
 });
 
 describe("the obligation gate is recorded", () => {
