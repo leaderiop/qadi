@@ -2,21 +2,21 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
-current_phase: 27
-current_phase_name: Bare-route module
-current_plan: 3
+current_phase: 28
+current_phase_name: Gate registry dependency
+current_plan: Not started
 status: executing
-stopped_at: Completed 27-03-PLAN.md
-last_updated: "2026-11-11T14:28:04.310Z"
+stopped_at: Phase 27 complete, ready to execute Phase 28
+last_updated: "2026-11-11T14:41:33.927Z"
 last_activity: 2026-11-11
-last_activity_desc: Phase 26 complete, transitioned to Phase 27
-state_head: d9da0236dc8f8f636d48fa89591f2392cc22cd5d
+last_activity_desc: Phase 27 complete, transitioned to Phase 28
+state_head: 783e15249f4b5301e47b362fed86d3af1b5bb3de
 progress:
   total_phases: 9
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 37
   completed_plans: 30
-  percent: 67
+  percent: 78
 ---
 
 # Project State
@@ -30,16 +30,16 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 
 ## Current Position
 
-Phase: 27 (Bare-route module) — EXECUTING
-Current Plan: 3
+Phase: 28 — Gate registry dependency
+Current Plan: Not started
 Total Plans in Phase: 3
-Status: Ready to execute 27-02
-Last activity: 2026-11-11 — 27-01 complete (mutation baseline, addGuardedRoute type pins)
+Status: Ready to execute
+Last activity: 2026-11-11 — Phase 27 complete, transitioned to Phase 28
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 62
+- Total plans completed: 65
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -63,6 +63,7 @@ Last activity: 2026-11-11 — 27-01 complete (mutation baseline, addGuardedRoute
 | 24 | 3 | - | - |
 | 25 | 5 | - | - |
 | 26 | 6 | - | - |
+| 27 | 3 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -207,7 +208,7 @@ Last activity: 2026-11-11 — 27-01 complete (mutation baseline, addGuardedRoute
 ## Session Continuity
 
 Last session: 2026-11-11T14:28:04.054Z
-Stopped at: Completed 27-03-PLAN.md
+Stopped at: Phase 27 complete, ready to execute Phase 28
 Resume file: None
 
 ## Operator Next Steps

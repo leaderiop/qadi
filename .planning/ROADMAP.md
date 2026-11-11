@@ -294,7 +294,7 @@ shape from benchmark numbers, plus the absent-vs-undefined key convention), 25-0
 - [x] **Phase 24: Simulation source preparation** - `prepareSource` in `SimulationSource.ts` owns availability, refusal and capture (ARCH-72) (completed 2026-11-11)
 - [x] **Phase 25: Session-only Simulator** - The view renders a session; commands and readings move into the session; runs live in the session's FiberHandle and Scope (ARCH-73) (completed 2026-11-11)
 - [x] **Phase 26: Headless dock model** - `makeDockModel` owns the six stores and the cross-store rules; one hook; one held-choice cell (ARCH-74) (completed 2026-11-11)
-- [ ] **Phase 27: Bare-route module** - `addGuardedRoute` absorbs `guardRoute`; one route-method union; the registry route moves out (ARCH-75)
+- [x] **Phase 27: Bare-route module** - `addGuardedRoute` absorbs `guardRoute`; one route-method union; the registry route moves out (ARCH-75) (completed 2026-11-11)
 - [ ] **Phase 28: Gate registry dependency** - Checkpoint on ADR-QD-111; React-free `reconcile`; `useGateRegistration` deleted (ARCH-76)
 - [ ] **Phase 29: Small restated facts** - Port identity in a metric-free leaf; hydration withheld fields once; one "not a denial" sentence (ARCH-77)
 
@@ -407,7 +407,7 @@ Plans:
   1. `GuardRoute.tst.ts` pins `CurrentSubject` exclusion, the error channel and the method union on `addGuardedRoute`.
   2. `guardRoute` is gone; `@qadi/http`'s public surface is unchanged.
   3. `pnpm circular` is green with `/__permissions` in `PermissionRegistryRoute.ts`.
-**Plans**: 3/3 plans executed
+**Plans**: 3/3 plans complete
 
 Plans:
 - [x] 27-01 (W1): Mutation baseline; pins on `addGuardedRoute`; ordering test retargeted (all green on the base)
@@ -455,6 +455,6 @@ Plans:
 | 24. Simulation source preparation | 3/3 | Complete    | 2026-11-11 |
 | 25. Session-only Simulator | 5/5 | Complete    | 2026-11-11 |
 | 26. Headless dock model | 6/6 | Complete    | 2026-11-11 |
-| 27. Bare-route module | 0/3 | Planned | - |
+| 27. Bare-route module | 3/3 | Complete    | 2026-11-11 |
 | 28. Gate registry dependency | 0/5 | Planned | - |
 | 29. Small restated facts | 0/2 | Planned | - |

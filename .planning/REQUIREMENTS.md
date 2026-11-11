@@ -180,9 +180,9 @@
 - [x] **DMOD-05**: AGENTS.md §13 holds: no React state for decisions, decisions read through `outcomeOf`.
 
 ### Bare-route module (Phase 27)
-- [ ] **ROUTE-01**: One module owns `addGuardedRoute` (absorbing `guardRoute`), `unguardedRoutes` and one route-method union.
-- [ ] **ROUTE-02**: The `CurrentSubject` exclusion rule is pinned by type tests on the public `addGuardedRoute`.
-- [ ] **ROUTE-03**: `PermissionRegistry.ts` keeps only the registry and `/__permissions`; the public surface of `@qadi/http` is unchanged (or the change is in `spec/overview.md` and a changeset).
+- [x] **ROUTE-01**: One module owns `addGuardedRoute` (absorbing `guardRoute`), `unguardedRoutes` and one route-method union. *Delivered (Phase 27): `addGuardedRoute` is written once in `GuardRoute.ts`; `unguardedRoutes` and the one `RouteMethod` union stay in the package-private sibling `UnguardedRoute.ts` so the barrel never exposes them (27-CONTEXT D-02, CCR-QD-417, ADR-QD-036 Rev 1.10).*
+- [x] **ROUTE-02**: The `CurrentSubject` exclusion rule is pinned by type tests on the public `addGuardedRoute`.
+- [x] **ROUTE-03**: `PermissionRegistry.ts` keeps only the registry and `/__permissions`; the public surface of `@qadi/http` is unchanged (or the change is in `spec/overview.md` and a changeset). *Delivered (Phase 27): `PermissionRegistry.ts` keeps only the registry; `/__permissions` moved to `PermissionRegistryRoute.ts` to break the import cycle that keeping it would cause (27-CONTEXT D-03, ADR-QD-037, CCR-QD-417, ADR-QD-036 Rev 1.10); export names unchanged (`pnpm spec:api`).*
 
 ### Gate registry dependency (Phase 28)
 - [ ] **GATE-01**: The checkpoint records the human's answer on reopening ADR-QD-111 (invert, extract-only, or keep with a recorded reason).
@@ -219,7 +219,7 @@
 | SRC-01, SRC-02, SRC-03 | Phase 24 | Complete (2026-11-11) |
 | SIM-01, SIM-02, SIM-03, SIM-04, SIM-05 | Phase 25 | Complete (2026-11-11) |
 | DMOD-01, DMOD-02, DMOD-03, DMOD-04, DMOD-05 | Phase 26 | Complete (2026-11-11) |
-| ROUTE-01, ROUTE-02, ROUTE-03 | Phase 27 | Pending |
+| ROUTE-01, ROUTE-02, ROUTE-03 | Phase 27 | Complete (2026-11-11) |
 | GATE-01, GATE-02, GATE-03, GATE-04 | Phase 28 | Pending |
 | TIDY-01, TIDY-02, TIDY-03 | Phase 29 | Pending |
 | WX-01, WX-02, WX-03, WX-04, WX-05, WX-06 | All v1.2 phases | Pending |
