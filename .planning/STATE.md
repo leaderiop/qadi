@@ -4,18 +4,18 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 26
 current_phase_name: Headless dock model
-current_plan: 5
+current_plan: 6
 status: executing
-stopped_at: Completed 26-04-PLAN.md
-last_updated: "2026-11-11T13:00:19.189Z"
+stopped_at: Completed 26-05-PLAN.md
+last_updated: "2026-11-11T13:03:56.259Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 26 execution started
-state_head: 7812541a4c6f1ca32a918b0bef6032127c7a6fe8
+state_head: 3a1976bb7c2ebf6961892b54e6125524919a3044
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 37
-  completed_plans: 25
+  completed_plans: 26
   percent: 56
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 ## Current Position
 
 Phase: 26 (Headless dock model) — EXECUTING
-Current Plan: 5
+Current Plan: 6
 Total Plans in Phase: 6
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 26 execution started
@@ -124,6 +124,7 @@ Last activity: 2026-11-11 — Phase 26 execution started
 | Phase 26 P02 | 7 min | 2 tasks | 2 files |
 | Phase 26 P03 | 9 min | 3 tasks | 14 files |
 | Phase 26 P04 | 3 min | 2 tasks | 14 files |
+| Phase 26 P05 | 4 min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -166,6 +167,7 @@ Last activity: 2026-11-11 — Phase 26 execution started
 - [Phase 26]: 26-03: HeldChoice overview row added in 26-03 (gate 13); 26-06 must not add a second
 - [Phase 26]: 26-04: host props the dock only passes through (gates, unknownParents, onInvalidate) travel as the rest of its own props typed Pick<DevtoolsDockProps, ...>, avoiding conditional spreads without widening the public props
 - [Phase 26]: 26-04: Activity hide/show rebuilds the whole dock model (paused returns to live, backlog re-read from the source); accepted per D-04/D-05/D-13, not fixed
+- [Phase 26]: 26-05: no model test had to be written to delete the 13 dock duplicates; every rule already had a green headless test
 
 ### Pending Todos
 
@@ -193,8 +195,8 @@ Last activity: 2026-11-11 — Phase 26 execution started
 
 ## Session Continuity
 
-Last session: 2026-11-11T13:00:18.947Z
-Stopped at: Completed 26-04-PLAN.md
+Last session: 2026-11-11T13:03:55.904Z
+Stopped at: Completed 26-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
