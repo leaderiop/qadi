@@ -173,8 +173,8 @@
 - [x] **SIM-05**: Any public interface change of `@qadi/devtools` is in `spec/overview.md` and a changeset.
 
 ### Headless dock model (Phase 26)
-- [x] **DMOD-01**: The scoped `makeDockModel` owns the timeline, sightings, simulation, explorer, held choice, dock session and the source read (through its own FiberHandle), and pushes sightings itself; React has one owned-model hook that forks nothing.
-- [x] **DMOD-02**: Every cross-store rule now tested through `DevtoolsDock.test.tsx` has a model test that renders nothing; the DOM duplicates are removed only after the model tests are green.
+- [ ] **DMOD-01**: The scoped `makeDockModel` owns the timeline, sightings, simulation, explorer, held choice, dock session and the source read (through its own FiberHandle), and pushes sightings itself; React has one owned-model hook that forks nothing.
+- [ ] **DMOD-02**: Every cross-store rule now tested through `DevtoolsDock.test.tsx` has a model test that renders nothing; the DOM duplicates are removed only after the model tests are green.
 - [ ] **DMOD-03**: The three `useOwnedX` hooks and their per-input `useLayoutEffect`s are deleted; `Screen`'s pass-through props shrink to the model.
 - [ ] **DMOD-04**: The sessions embed one held-choice store; `HeldChoice` is no longer re-mapped in `SimulationSession`, `ExplorerSession` and `RoleViewer`.
 - [ ] **DMOD-05**: AGENTS.md §13 holds: no React state for decisions, decisions read through `outcomeOf`.
