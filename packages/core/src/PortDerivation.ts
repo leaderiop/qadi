@@ -1,6 +1,7 @@
 /**
- * The standard layers every port derives from its description: the retrying,
- * bounded and timing-out wrappers, and the fail-closed default.
+ * What a port's description derives: its request key and its defect
+ * ({@link makePortDescription}), and the standard layers built from it, the
+ * retrying, bounded and timing-out wrappers and the fail-closed default.
  *
  * Each port module declares one line per wrapper —
  * `export const attributeResolverRetrying = retryingPort(attributeResolverPort)`
@@ -18,19 +19,93 @@
  * these derivations, and there is no sixth port they could be applied to.
  * Package-private (ADR-QD-099): not exported from the barrel or any entry point.
  */
+import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as Ref from "effect/Ref";
+import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
 import { InvalidBoundedPermits } from "./Errors.ts";
+import type { SubjectId } from "./Identity.ts";
 import type { PortDescription, PortShape } from "./PortDescription.ts";
+import { canonicalKey } from "./PortKey.ts";
 import { attemptsStruct, encodeSpan } from "./PortSpanEncode.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "./PortMetrics.ts";
 import type { PortName } from "./PortMetrics.ts";
+import type { PortSpanAttributesLike } from "./PortSpan.ts";
+import { portWire, presentMembers } from "./PortWireEncode.ts";
+import type { PortWireSpec, QuestionOf } from "./PortWireEncode.ts";
+
+/**
+ * What a derived port states about its wire: a {@link PortWireSpec} whose
+ * `toQuestion` returns the question itself, every member written out
+ * ({@link QuestionOf}), not a `Result`.
+ *
+ * The question of a port that uses {@link makePortDescription} is total: the
+ * encode that can be refused is the strict schema's, not the conversion's.
+ */
+export type DerivedWireSpec<
+  Args extends ReadonlyArray<unknown>,
+  A,
+  Q extends { readonly subjectId: SubjectId },
+  QE,
+  W,
+  WE,
+> = Omit<PortWireSpec<Args, A, Q, QE, W, WE>, "toQuestion"> & {
+  readonly toQuestion: (args: Args) => QuestionOf<Q>;
+};
+
+/**
+ * Builds a port's description, deriving its request key from its wire question
+ * and its defect from its failure.
+ *
+ * The four ports whose question is total (`AttributeResolver`,
+ * `RelationshipResolver`, `DecisionHistory`, `SignatureHistory`) each listed a
+ * tuple of their arguments by hand for `key`, and a tuple a forgotten field
+ * compiled through (ARCH-69, ADR-QD-133). The key law is the wire question's
+ * (BEH-QD-440, INV-QD-286): two requests share a key exactly when they ask the
+ * same question, so the key is `canonicalKey` over the question the spec's
+ * `wire.toQuestion` writes, and the defect is the squashed cause through
+ * `failure`, the same line each of the four restated.
+ *
+ * The spec has no `key` or `defect` field on purpose: a derived port cannot
+ * state one. It is derived from `PortDescription`, so a member the description
+ * gains reaches every port built here without editing this type.
+ * `CustomPredicate` does not use it: its key must cover the whole subject and
+ * its defect renders with `Cause.pretty`, and it says so where it is declared.
+ */
+export const makePortDescription = <
+  N extends PortName,
+  Self,
+  Shape extends PortShape,
+  Args extends ReadonlyArray<unknown>,
+  A,
+  E,
+  Span extends PortSpanAttributesLike,
+  Q extends { readonly subjectId: SubjectId },
+  QE,
+  W,
+  WE,
+>(
+  spec: Omit<PortDescription<N, Self, Shape, Args, A, E, Span>, "wire" | "key" | "defect"> & {
+    readonly wire: DerivedWireSpec<Args, A, Q, QE, W, WE>;
+  },
+): PortDescription<N, Self, Shape, Args, A, E, Span> => {
+  const { wire, ...rest } = spec;
+  return {
+    ...rest,
+    wire: portWire({
+      ...wire,
+      toQuestion: (args) => Result.succeed(wire.toQuestion(args)),
+    }),
+    key: (args) => canonicalKey(presentMembers(wire.toQuestion(args))),
+    defect: (args, cause) => spec.failure(args, Cause.squash(cause)),
+  };
+};
 
 /** Rebuilds `layer`'s service through `wrap`, once, when the returned layer itself builds. */
 export const wrapService = <Self, Shape>(

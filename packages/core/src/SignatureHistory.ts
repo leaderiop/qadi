@@ -23,7 +23,6 @@
  * `scope: "resource" | "subject"` split, mirrored from `HasActed`/
  * `HasNotActed` rather than inventing a second concept.
  */
-import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -35,14 +34,19 @@ import { SignatureHistoryUnavailable } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import { makeResourceId, makeSubjectId, ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
-import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
+import {
+  boundedPort,
+  makePortDescription,
+  nonePort,
+  retryingPort,
+  timingOutPort,
+} from "./PortDerivation.ts";
 import { describeKeyRefusal } from "./PortDescription.ts";
 import type { PortDescription } from "./PortDescription.ts";
-import { canonicalKey } from "./PortKey.ts";
 import type { SpanType } from "./PortSpan.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
-import { portWire, sameAnswer } from "./PortWireEncode.ts";
+import { sameAnswer } from "./PortWireEncode.ts";
 import { Signature } from "./Signature.ts";
 import { signatureMatches } from "./SignatureMatch.ts";
 
@@ -157,48 +161,6 @@ const signatureSpan = {
 };
 
 /**
- * What the signature question and answer look like on a wire (ARCH-31).
- *
- * The answer is the **full `Signature` records** — more than `askSignature`
- * reads (`meaning`, `signerRole`) — because redacting them would fabricate a
- * `signerId` and `signedAt` the client would then read as real (D-31-e). The
- * query is scoped to the asking subject, so these are the subject's own
- * records; a host opts in to serving them (`signatureServing`, below).
- *
- * The question carries the asker's requirement, `meaning` and `signerRole`, as
- * optional keys, so the served span can say what was asked and whether the
- * records matched it, as the local span does (ADR-QD-109). They are strings the
- * span records and no store filters by, and a question without them still
- * decodes, so an older client's question is read as before. The decode stays
- * strict: any other key is refused.
- */
-const signatureWire = portWire({
-  question: Schema.Struct({
-    subjectId: SubjectIdSchema,
-    resourceId: Schema.optionalKey(ResourceIdSchema),
-    meaning: Schema.optionalKey(Schema.String),
-    signerRole: Schema.optionalKey(Schema.String),
-  }),
-  answer: Schema.Array(Signature),
-  toQuestion: ([query]: [query: SignatureQuery]) =>
-    Result.succeed({
-      subjectId: query.subjectId,
-      resourceId: query.resourceId,
-      meaning: query.meaning,
-      signerRole: query.signerRole,
-    }),
-  fromQuestion: (question, subject): [query: SignatureQuery] => [
-    {
-      subjectId: subject.id,
-      resourceId: question.resourceId,
-      ...(question.meaning === undefined ? {} : { meaning: question.meaning }),
-      ...(question.signerRole === undefined ? {} : { signerRole: question.signerRole }),
-    },
-  ],
-  ...sameAnswer<ReadonlyArray<Signature>>(),
-});
-
-/**
  * A host serves signature records only when it opts in.
  *
  * The port answers full `Signature` records, more than evaluation reads, so
@@ -219,17 +181,19 @@ const signatureServing: PortServingFacet<"SignatureHistory", [query: SignatureQu
 /**
  * The signature-history port, described once (`PortDescription.ts`).
  *
- * A request is keyed by `(subjectId, resourceId, meaning, signerRole)`, with
- * each absent member as `undefined`, distinct from every present value. The key is injective over every argument the
- * port receives (ADR-QD-094, INV-QD-043), and the requirement is one. Over-keying
+ * A request is keyed as its wire question, `{ subjectId, resourceId, meaning,
+ * signerRole }`, each absent member absent from it and so distinct from every
+ * present value (`makePortDescription`, ADR-QD-133). The key is injective over
+ * every argument the port receives (ADR-QD-094, INV-QD-043), and the requirement is one. Over-keying
  * does not replay a stale answer, but it is not "only deny" either: a capture
  * keyed per requirement answers a requirement it never saw with the port's
  * `none` value, an empty list, which `hasSignature` denies and `not(hasSignature)`
  * grants, so a what-if that edits a policy's `meaning` or `signerRole` can read a
  * miss as an allow the real store would not give (devtools' replay only).
  * `signatureHistoryFromSignatures` groups by this key's requirement-free
- * projection (`key([{ subjectId, resourceId }])`), because the store answers
- * every signature on file whatever the requirement says.
+ * projection: a query with no requirement, keyed as its wire question
+ * (`key([{ subjectId, resourceId }])`), because the store answers every
+ * signature on file whatever the requirement says.
  */
 export const signatureHistoryPort: PortDescription<
   "SignatureHistory",
@@ -239,12 +203,51 @@ export const signatureHistoryPort: PortDescription<
   ReadonlyArray<Signature>,
   SignatureHistoryUnavailable,
   typeof signatureSpan
-> = {
+> = makePortDescription({
   port: "SignatureHistory",
   method: "signaturesFor",
   span: "qadi.hasSignature",
   attributes: signatureSpan,
-  wire: signatureWire,
+  /**
+   * What the signature question and answer look like on a wire (ARCH-31).
+   *
+   * The answer is the **full `Signature` records** — more than `askSignature`
+   * reads (`meaning`, `signerRole`) — because redacting them would fabricate a
+   * `signerId` and `signedAt` the client would then read as real (D-31-e). The
+   * query is scoped to the asking subject, so these are the subject's own
+   * records; a host opts in to serving them (`signatureServing`, below).
+   *
+   * The question carries the asker's requirement, `meaning` and `signerRole`,
+   * as optional keys, so the served span can say what was asked and whether the
+   * records matched it, as the local span does (ADR-QD-109). They are strings
+   * the span records and no store filters by, and a question without them
+   * still decodes, so an older client's question is read as before. The decode
+   * stays strict: any other key is refused.
+   */
+  wire: {
+    question: Schema.Struct({
+      subjectId: SubjectIdSchema,
+      resourceId: Schema.optionalKey(ResourceIdSchema),
+      meaning: Schema.optionalKey(Schema.String),
+      signerRole: Schema.optionalKey(Schema.String),
+    }),
+    answer: Schema.Array(Signature),
+    toQuestion: ([query]) => ({
+      subjectId: query.subjectId,
+      resourceId: query.resourceId,
+      meaning: query.meaning,
+      signerRole: query.signerRole,
+    }),
+    fromQuestion: (question, subject): [query: SignatureQuery] => [
+      {
+        subjectId: subject.id,
+        resourceId: question.resourceId,
+        ...(question.meaning === undefined ? {} : { meaning: question.meaning }),
+        ...(question.signerRole === undefined ? {} : { signerRole: question.signerRole }),
+      },
+    ],
+    ...sameAnswer<ReadonlyArray<Signature>>(),
+  },
   serving: signatureServing,
   service: SignatureHistory,
   invoke: (shape) => (query) => shape.signaturesFor(query),
@@ -255,16 +258,8 @@ export const signatureHistoryPort: PortDescription<
       resourceId: query.resourceId,
       cause,
     }),
-  defect: ([query], cause) =>
-    new SignatureHistoryUnavailable({
-      subjectId: query.subjectId,
-      resourceId: query.resourceId,
-      cause: Cause.squash(cause),
-    }),
-  key: ([query]) =>
-    canonicalKey([query.subjectId, query.resourceId, query.meaning, query.signerRole]),
   none: { name: "SignatureHistoryNone", answer: NO_SIGNATURES },
-};
+});
 
 /**
  * Knows of no signatures, so every `hasSignature` policy denies.

@@ -7,14 +7,12 @@
  * synchronous `check` plus an async `checkAsync` that nothing ever called —
  * the async path was unreachable because evaluation was synchronous.
  */
-import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
-import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import { RelationshipResolveError } from "./Errors.ts";
@@ -22,12 +20,17 @@ import type { InvalidBoundedPermits } from "./Errors.ts";
 import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { RelationshipDepth } from "./Policy.ts";
-import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
+import {
+  boundedPort,
+  makePortDescription,
+  nonePort,
+  retryingPort,
+  timingOutPort,
+} from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
-import { canonicalKey } from "./PortKey.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
-import { portWire, sameAnswer } from "./PortWireEncode.ts";
+import { sameAnswer } from "./PortWireEncode.ts";
 
 export interface RelationshipCheck {
   readonly subjectId: SubjectId;
@@ -157,42 +160,6 @@ const relationshipSpan = {
 };
 
 /**
- * What the relationship question and answer look like on a wire (ARCH-31).
- *
- * `depth` is the same bounded integer a decoded policy holds
- * (`RelationshipDepth`), so a question the serving side receives is held to the
- * bound the traversal resolver spends it against; a non-integer `depth` is a
- * malformed question, never `NaN` fuel. The answer is core's own three-valued
- * `RelatedResult`, so `"Unknown"` crosses only as an answer the serving port
- * gave and an outage is never written as one.
- */
-const relationshipWire = portWire({
-  question: Schema.Struct({
-    subjectId: SubjectIdSchema,
-    relation: Schema.String,
-    resourceId: ResourceIdSchema,
-    depth: Schema.optionalKey(RelationshipDepth),
-  }),
-  answer: RelatedResult,
-  toQuestion: ([request]: [request: RelationshipCheck]) =>
-    Result.succeed({
-      subjectId: request.subjectId,
-      relation: request.relation,
-      resourceId: request.resourceId,
-      depth: request.depth,
-    }),
-  fromQuestion: (question, subject): [request: RelationshipCheck] => [
-    {
-      subjectId: subject.id,
-      relation: question.relation,
-      resourceId: question.resourceId,
-      depth: question.depth,
-    },
-  ],
-  ...sameAnswer<RelatedResult>(),
-});
-
-/**
  * A host may serve relations from an allowlist or leave the port open.
  *
  * The answer is a closed three-valued word, so a relation name discloses no
@@ -210,12 +177,13 @@ const relationshipServing: PortServingFacet<"RelationshipResolver", [request: Re
 /**
  * The relationship port, described once (`PortDescription.ts`).
  *
- * A request is keyed by `(subjectId, relation, resourceId, depth)` — never by
- * the relation alone, and by `depth` too: a resolver that traverses must honour
- * the hop budget it is handed (`RelationshipCheck.depth`), so depth 1 and
- * depth 3 are different questions with different answers, and a capture that
- * collapsed them would replay a depth-3 answer to a depth-1 ask (ARCH-45 I1).
- * An absent `depth` keys as `undefined`, distinct from every present value.
+ * A request is keyed as its wire question, `{ subjectId, relation, resourceId,
+ * depth }` (`makePortDescription`, ADR-QD-133) — never by the relation alone,
+ * and by `depth` too: a resolver that traverses must honour the hop budget it
+ * is handed (`RelationshipCheck.depth`), so depth 1 and depth 3 are different
+ * questions with different answers, and a capture that collapsed them would
+ * replay a depth-3 answer to a depth-1 ask (ARCH-45 I1). An absent `depth` is
+ * absent from the question, distinct from every present value.
  */
 export const relationshipResolverPort: PortDescription<
   "RelationshipResolver",
@@ -225,12 +193,45 @@ export const relationshipResolverPort: PortDescription<
   RelatedResult,
   RelationshipResolveError,
   typeof relationshipSpan
-> = {
+> = makePortDescription({
   port: "RelationshipResolver",
   method: "check",
   span: "qadi.hasRelationship",
   attributes: relationshipSpan,
-  wire: relationshipWire,
+  /**
+   * What the relationship question and answer look like on a wire (ARCH-31).
+   *
+   * `depth` is the same bounded integer a decoded policy holds
+   * (`RelationshipDepth`), so a question the serving side receives is held to
+   * the bound the traversal resolver spends it against; a non-integer `depth`
+   * is a malformed question, never `NaN` fuel. The answer is core's own
+   * three-valued `RelatedResult`, so `"Unknown"` crosses only as an answer the
+   * serving port gave and an outage is never written as one.
+   */
+  wire: {
+    question: Schema.Struct({
+      subjectId: SubjectIdSchema,
+      relation: Schema.String,
+      resourceId: ResourceIdSchema,
+      depth: Schema.optionalKey(RelationshipDepth),
+    }),
+    answer: RelatedResult,
+    toQuestion: ([request]) => ({
+      subjectId: request.subjectId,
+      relation: request.relation,
+      resourceId: request.resourceId,
+      depth: request.depth,
+    }),
+    fromQuestion: (question, subject): [request: RelationshipCheck] => [
+      {
+        subjectId: subject.id,
+        relation: question.relation,
+        resourceId: question.resourceId,
+        depth: question.depth,
+      },
+    ],
+    ...sameAnswer<RelatedResult>(),
+  },
   serving: relationshipServing,
   service: RelationshipResolver,
   invoke: (shape) => (request) => shape.check(request),
@@ -241,16 +242,8 @@ export const relationshipResolverPort: PortDescription<
       resourceId: request.resourceId,
       cause,
     }),
-  defect: ([request], cause) =>
-    new RelationshipResolveError({
-      relation: request.relation,
-      resourceId: request.resourceId,
-      cause: Cause.squash(cause),
-    }),
-  key: ([request]) =>
-    canonicalKey([request.subjectId, request.relation, request.resourceId, request.depth]),
   none: { name: "RelationshipResolverNever", answer: "Unknown" },
-};
+});
 
 /**
  * Knows nothing, so every relationship policy denies.

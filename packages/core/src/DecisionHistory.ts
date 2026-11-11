@@ -13,27 +13,30 @@
  * list, and React's `Can` re-evaluates on render, so a component mounting would
  * record accesses that never happened.
  */
-import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
-import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import { DecisionHistoryUnavailable } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
-import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
+import {
+  boundedPort,
+  makePortDescription,
+  nonePort,
+  retryingPort,
+  timingOutPort,
+} from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
-import { canonicalKey } from "./PortKey.ts";
 import type { SpanType } from "./PortSpan.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
-import { portWire, sameAnswer } from "./PortWireEncode.ts";
+import { sameAnswer } from "./PortWireEncode.ts";
 
 /**
  * What the port can say about a past event.
@@ -121,31 +124,6 @@ const actedSpan = {
 };
 
 /**
- * What the history question and answer look like on a wire (ARCH-31).
- *
- * An absent `resourceId` is an "ever, at all" question (`scope: "Any"`); the
- * span says which it was.
- */
-const actedWire = portWire({
-  question: Schema.Struct({
-    subjectId: SubjectIdSchema,
-    event: Schema.String,
-    resourceId: Schema.optionalKey(ResourceIdSchema),
-  }),
-  answer: ActedResult,
-  toQuestion: ([query]: [query: ActedQuery]) =>
-    Result.succeed({
-      subjectId: query.subjectId,
-      event: query.event,
-      resourceId: query.resourceId,
-    }),
-  fromQuestion: (question, subject): [query: ActedQuery] => [
-    { subjectId: subject.id, event: question.event, resourceId: question.resourceId },
-  ],
-  ...sameAnswer<ActedResult>(),
-});
-
-/**
  * A host may serve events from an allowlist or leave the port open.
  *
  * The answer is a closed three-valued word, so an event name discloses no more
@@ -163,10 +141,10 @@ const actedServing: PortServingFacet<"DecisionHistory", [query: ActedQuery]> = {
 /**
  * The decision-history port, described once (`PortDescription.ts`).
  *
- * A request is keyed by `(subjectId, event, resourceId)` through
- * `canonicalKey`; an absent resource keys as `undefined`, distinct from every
- * present value, so an "ever, at all" question stays distinct from any
- * resource-scoped one.
+ * A request is keyed as its wire question, `{ subjectId, event, resourceId }`
+ * (`makePortDescription`, ADR-QD-133); an absent resource is absent from the
+ * question, distinct from every present value, so an "ever, at all" question
+ * stays distinct from any resource-scoped one.
  */
 export const decisionHistoryPort: PortDescription<
   "DecisionHistory",
@@ -176,22 +154,41 @@ export const decisionHistoryPort: PortDescription<
   ActedResult,
   DecisionHistoryUnavailable,
   typeof actedSpan
-> = {
+> = makePortDescription({
   port: "DecisionHistory",
   method: "hasActed",
   span: "qadi.acted",
   attributes: actedSpan,
-  wire: actedWire,
+  /**
+   * What the history question and answer look like on a wire (ARCH-31).
+   *
+   * An absent `resourceId` is an "ever, at all" question (`scope: "Any"`); the
+   * span says which it was.
+   */
+  wire: {
+    question: Schema.Struct({
+      subjectId: SubjectIdSchema,
+      event: Schema.String,
+      resourceId: Schema.optionalKey(ResourceIdSchema),
+    }),
+    answer: ActedResult,
+    toQuestion: ([query]) => ({
+      subjectId: query.subjectId,
+      event: query.event,
+      resourceId: query.resourceId,
+    }),
+    fromQuestion: (question, subject): [query: ActedQuery] => [
+      { subjectId: subject.id, event: question.event, resourceId: question.resourceId },
+    ],
+    ...sameAnswer<ActedResult>(),
+  },
   serving: actedServing,
   service: DecisionHistory,
   invoke: (shape) => (query) => shape.hasActed(query),
   make: (name, call) => ({ name, hasActed: call }),
   failure: ([query], cause) => new DecisionHistoryUnavailable({ event: query.event, cause }),
-  defect: ([query], cause) =>
-    new DecisionHistoryUnavailable({ event: query.event, cause: Cause.squash(cause) }),
-  key: ([query]) => canonicalKey([query.subjectId, query.event, query.resourceId]),
   none: { name: "DecisionHistoryUnknown", answer: "Unknown" },
-};
+});
 
 /**
  * Knows nothing, so every history policy denies.
