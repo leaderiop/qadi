@@ -36,10 +36,8 @@ import type {
   RunState,
   SimulationSession,
   SimulationSnapshot,
-  SourceChoice,
-  SourceOption,
-  SourceRefusal,
 } from "../model/SimulationSession.ts";
+import type { SourceChoice, SourceOption, SourceRefusal } from "../model/SimulationSource.ts";
 import type { TimelineEntry } from "../model/Timeline.ts";
 import { verdictOfOutcome } from "../model/Verdict.ts";
 import { FieldsPanel, ObligationList } from "./DecisionPanels.tsx";

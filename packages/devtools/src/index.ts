@@ -94,10 +94,8 @@ export type {
   SimulationSession,
   SimulationSessionInit,
   SimulationSnapshot,
-  SourceChoice,
-  SourceOption,
-  SourceRefusal,
 } from "./model/SimulationSession.ts";
+export type { SourceChoice, SourceOption, SourceRefusal } from "./model/SimulationSource.ts";
 export { mergeSources, sourceFromEventSource, sourceFromRecords } from "./model/Source.ts";
 export type {
   DecisionEventSource,

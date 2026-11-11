@@ -10,11 +10,12 @@
  * hook is an adapter that forks `run` and subscribes; it decides nothing.
  *
  * **Four rules each live in one function.** A source that cannot be honoured is
- * *refused*, as a state, and nothing is evaluated (`resolveSource`) — the
- * `portsOf` rule, one layer up, where a chosen `Live` with no `ports` used to
- * answer from fixtures. A Live run *captures*, which is what makes `Snapshot`
- * available (`run`). A run that was superseded never lands (`generation`). And a
- * result is shown only for the question it answered (`stale`, `baseline`).
+ * *refused*, as a state, and nothing is evaluated (`prepareSource`, in
+ * `SimulationSource.ts`) — the `portsOf` rule, one layer up, where a chosen `Live`
+ * with no `ports` used to answer from fixtures. A Live run *captures*, which is
+ * what makes `Snapshot` available (`prepareSource` again). A run that was
+ * superseded never lands (`generation`). And a result is shown only for the
+ * question it answered (`stale`, `baseline`).
  *
  * The store is a closure over `makeExternalStore`, the mechanics
  * `TimelineStore.ts` shares; commands are synchronous and notify once. `run` is an Effect the caller
@@ -27,7 +28,7 @@ import * as Fiber from "effect/Fiber";
 import * as Match from "effect/Match";
 import type { DecisionOutcome, Policy } from "@qadi/core";
 import { makeExternalStore, sameElements } from "./ExternalStore.ts";
-import { capturing, type CapturedAnswers } from "./Capture.ts";
+import type { CapturedAnswers } from "./Capture.ts";
 import { sameSighting, sightingFor, type PolicySighting } from "./Catalogue.ts";
 import { pinHead, resolveHeld } from "./HeldChoice.ts";
 import { baselineDiff, replayInput, type Baseline, type UnseededField } from "./Replay.ts";
@@ -36,91 +37,15 @@ import type { ChipAdded, FieldView, SimulationField } from "./SimulationFields.t
 import { fieldOps, formOf, renameSubject } from "./SimulationFields.ts";
 import { decodeResource, encodeResource, withResource } from "./SimulationForm.ts";
 import type { EvaluationPortsLayer, SimulationInput } from "./SimulationInput.ts";
-import { fixtures, live, snapshot, type SimulationSource } from "./SimulationSource.ts";
+import {
+  prepareSource,
+  type PreparedSource,
+  type SourceChoice,
+  type SourceOption,
+  type SourceRefusal,
+} from "./SimulationSource.ts";
 import type { TimelineEntry } from "./Timeline.ts";
 import { sweepPlan, whatIf, type SweepPlan, type WhatIfReport } from "./WhatIf.ts";
-
-/** Which of the three answer sources the reviewer picked. */
-export type SourceChoice = SimulationSource["_tag"];
-
-/** One source button: whether it can be used, and the sentence that says why (or why not). */
-export interface SourceOption {
-  readonly id: SourceChoice;
-  readonly enabled: boolean;
-  readonly why: string;
-}
-
-/** Why a chosen source cannot be honoured. A data state: nothing failed, the run was declined. */
-export type SourceRefusal =
-  | { readonly _tag: "LiveWithoutPorts"; readonly reason: string }
-  | { readonly _tag: "SnapshotWithoutCapture"; readonly reason: string };
-
-export type ResolvedSource =
-  | { readonly _tag: "Available"; readonly source: SimulationSource }
-  | { readonly _tag: "Unavailable"; readonly refusal: SourceRefusal };
-
-const LIVE_WITHOUT_PORTS =
-  "the host did not pass a `ports` layer, so this panel cannot reach any resolver";
-const SNAPSHOT_WITHOUT_CAPTURE = "run once against Live first; this replays what that run learned";
-
-/**
- * The source a choice names, or the reason it cannot be had.
- *
- * Never a fall back to fixtures: `portsOf` treats an absent source as fixtures,
- * which is the right default for a caller who never chose and the wrong answer
- * for one who chose `Live` and is entitled to know it did not happen.
- */
-export const resolveSource = (
-  choice: SourceChoice,
-  ports: EvaluationPortsLayer | undefined,
-  capture: CapturedAnswers | undefined,
-): ResolvedSource =>
-  Match.value(choice).pipe(
-    Match.when("Fixtures", (): ResolvedSource => ({ _tag: "Available", source: fixtures })),
-    Match.when("Snapshot", (): ResolvedSource =>
-      capture === undefined
-        ? {
-            _tag: "Unavailable",
-            refusal: { _tag: "SnapshotWithoutCapture", reason: SNAPSHOT_WITHOUT_CAPTURE },
-          }
-        : { _tag: "Available", source: snapshot(capture) },
-    ),
-    Match.when("Live", (): ResolvedSource =>
-      ports === undefined
-        ? { _tag: "Unavailable", refusal: { _tag: "LiveWithoutPorts", reason: LIVE_WITHOUT_PORTS } }
-        : { _tag: "Available", source: live(ports) },
-    ),
-    Match.exhaustive,
-  );
-
-/**
- * The three options and whether each is available.
- *
- * Offered and disabled with a reason, never removed: a control that disappears
- * teaches nobody it exists, which matters most for `Snapshot`.
- */
-export const sourceOptions = (
-  ports: EvaluationPortsLayer | undefined,
-  capture: CapturedAnswers | undefined,
-): ReadonlyArray<SourceOption> => [
-  { id: "Fixtures", enabled: true, why: "answers you typed below" },
-  {
-    id: "Snapshot",
-    enabled: capture !== undefined,
-    why:
-      capture === undefined
-        ? SNAPSHOT_WITHOUT_CAPTURE
-        : "real answers, captured once and replayed — one round of I/O for a whole sweep",
-  },
-  {
-    id: "Live",
-    enabled: ports !== undefined,
-    why:
-      ports === undefined
-        ? LIVE_WITHOUT_PORTS
-        : "the application's own resolvers — every row is real I/O",
-  },
-];
 
 /**
  * The policy being simulated, and where it came from.
@@ -348,14 +273,14 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
 
   const build = (): SimulationSnapshot => {
     const policy = policyChoice();
-    const resolved = resolveSource(sourceChoice, ports, capture);
+    const { options, prepared } = prepareSource(sourceChoice, { ports, capture });
     const policyNow = policyOf(policy);
     const plan =
       policyNow === undefined
         ? undefined
         : sweepPlan(policyNow, draft, {
             pairs,
-            ...(resolved._tag === "Available" ? { source: resolved.source } : {}),
+            ...(prepared._tag === "Ready" ? { source: prepared.source } : {}),
           });
 
     const question = run._tag === "Idle" ? undefined : run.question;
@@ -379,8 +304,8 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
       fields: formOf(draft),
       resourceText,
       sourceChoice,
-      options: sourceOptions(ports, capture),
-      refusal: resolved._tag === "Unavailable" ? resolved.refusal : undefined,
+      options,
+      refusal: prepared._tag === "Refused" ? prepared.refusal : undefined,
       clock,
       pairs,
       capture,
@@ -419,19 +344,18 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
   const program = (
     question: SimulationQuestion,
     kind: RunKind,
-    source: SimulationSource,
-    recorder: ReturnType<typeof capturing> | undefined,
+    ready: Extract<PreparedSource, { readonly _tag: "Ready" }>,
     runClock: SimulationClock,
     runPairs: boolean,
   ) =>
     Effect.gen(function* () {
-      const options = { clock: runClock, source };
+      const options = { clock: runClock, source: ready.source };
       const report =
         kind === "Sweep"
           ? yield* whatIf(question.policy, question.input, { ...options, pairs: runPairs })
           : undefined;
       const outcome = report?.baseline ?? (yield* simulate(question.policy, question.input, options));
-      const answers = recorder === undefined ? undefined : yield* recorder.answers;
+      const answers = ready.captured === undefined ? undefined : yield* ready.captured;
       return { outcome, report, answers };
     });
 
@@ -448,22 +372,15 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
       source: sourceChoice,
     };
 
-    const resolved = resolveSource(sourceChoice, ports, capture);
-    if (resolved._tag === "Unavailable") {
+    const { prepared } = prepareSource(sourceChoice, { ports, capture });
+    if (prepared._tag === "Refused") {
       // Declined, not replaced: nothing is evaluated.
       retire();
       yield* reap();
-      run = { _tag: "Refused", question, refusal: resolved.refusal };
+      run = { _tag: "Refused", question, refusal: prepared.refusal };
       commit();
       return;
     }
-
-    // A Live run always captures: the answers cost nothing extra to record and
-    // they are what makes `Snapshot` reachable — the mode a sweep should use,
-    // one round of I/O instead of one per edit.
-    const recorder =
-      resolved.source._tag === "Live" && ports !== undefined ? capturing(ports) : undefined;
-    const source = recorder === undefined ? resolved.source : live(recorder.layer);
 
     retire();
     yield* reap();
@@ -473,7 +390,7 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
     commit();
 
     const fiber = yield* Effect.forkDetach(
-      program(question, kind, source, recorder, runClock, pairs),
+      program(question, kind, prepared, runClock, pairs),
     );
     current = fiber;
 

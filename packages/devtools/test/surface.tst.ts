@@ -140,7 +140,7 @@ export { replayInput } from "../src/index.ts";
 export { policyLabel } from "../src/index.ts";
 
 // @ts-expect-error no exported member
-export { resolveSource } from "../src/index.ts";
+export { prepareSource } from "../src/index.ts";
 
 // @ts-expect-error no exported member
 export { applyEdits } from "../src/index.ts";
