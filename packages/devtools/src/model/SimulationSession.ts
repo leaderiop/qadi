@@ -7,7 +7,7 @@
  * under the model's tests or its mutation gate. It is here now, behind the
  * interface `useSyncExternalStore` already wants (`subscribe`, `getSnapshot`)
  * and a handful of commands, the way `TimelineStore` holds the log. The React
- * hook is an adapter that forks `run` and subscribes; it decides nothing.
+ * hook is an adapter that subscribes and dispatches; it decides nothing.
  *
  * **Four rules each live in one function.** A source that cannot be honoured is
  * *refused*, as a state, and nothing is evaluated (`prepareSource`, in
@@ -18,24 +18,40 @@
  * question it answered (`stale`, `baseline`).
  *
  * The store is a closure over `makeExternalStore`, the mechanics
- * `TimelineStore.ts` shares; commands are synchronous and notify once. `run` is an Effect the caller
- * forks: model code never forks on its own behalf.
+ * `TimelineStore.ts` shares; commands are synchronous and notify once.
+ *
+ * **The session owns its runs.** It is built in a `Scope` and keeps one
+ * `FiberHandle`: every run forks into it, so a newer run or a superseding
+ * command interrupts the run in flight, and closing the scope interrupts it too.
+ * A host ends a session by closing its scope; nothing is reaped or disposed
+ * (ADR-QD-137, which overrides ARCH-20 D-20-b, "the hook forks; model code
+ * never does").
  */
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
-import * as Fiber from "effect/Fiber";
+import * as FiberHandle from "effect/FiberHandle";
 import * as Match from "effect/Match";
+import * as Option from "effect/Option";
+import type * as Scope from "effect/Scope";
 import type { DecisionOutcome, Policy } from "@qadi/core";
 import { makeExternalStore, sameElements } from "./ExternalStore.ts";
 import type { CapturedAnswers } from "./Capture.ts";
 import { sameSighting, sightingFor, type PolicySighting } from "./Catalogue.ts";
 import { pinHead, resolveHeld } from "./HeldChoice.ts";
-import { baselineDiff, replayInput, type Baseline, type UnseededField } from "./Replay.ts";
+import { readOutcome, type RecordOutcome } from "./Inspect.ts";
+import {
+  baselineDiff,
+  readBaseline,
+  replayInput,
+  type Baseline,
+  type BaselineReading,
+  type UnseededField,
+} from "./Replay.ts";
 import { simulate, type SimulationClock } from "./Simulation.ts";
 import type { ChipAdded, FieldView, SimulationField } from "./SimulationFields.ts";
 import { fieldOps, formOf, renameSubject } from "./SimulationFields.ts";
-import { decodeResource, encodeResource, withResource } from "./SimulationForm.ts";
+import { actionOf, decodeResource, encodeResource, withAction, withResource } from "./SimulationForm.ts";
 import type { EvaluationPortsLayer, SimulationInput } from "./SimulationInput.ts";
 import {
   prepareSource,
@@ -83,11 +99,43 @@ export type RunState =
       readonly _tag: "Ran";
       readonly question: SimulationQuestion;
       readonly outcome: DecisionOutcome;
+      /**
+       * The outcome, read once when the run lands: the failure, denial or allow a
+       * view shows, with its fields and duties. A simulation discharges nothing, so
+       * there is never a gate report to fold in.
+       */
+      readonly reading: RecordOutcome;
       readonly report: WhatIfReport | undefined;
       readonly clock: SimulationClock;
     }
   | { readonly _tag: "Broke"; readonly question: SimulationQuestion; readonly message: string }
   | { readonly _tag: "Refused"; readonly question: SimulationQuestion; readonly refusal: SourceRefusal };
+
+/** One entry of the policy dropdown: what it submits and what it says. */
+export interface PolicyMenuOption {
+  readonly value: string;
+  readonly label: string;
+}
+
+/**
+ * What the policy dropdown lists, in order, and which entry it shows.
+ *
+ * A reading of the policy the session holds, never the other way round: the
+ * replayed row or an evicted choice leads the list while there is one, then each
+ * sighting under its position as `String(index)`. `choosePolicyAt` takes a
+ * position of `options`, so a view parses nothing.
+ */
+export interface PolicyMenu {
+  readonly options: ReadonlyArray<PolicyMenuOption>;
+  readonly selected: string;
+}
+
+/** What a sweep would cost, said before it runs, and whether that cost is the host's own I/O. */
+export interface SweepCost {
+  readonly sentence: string;
+  /** True when the sweep reaches the host's live resolvers. */
+  readonly warns: boolean;
+}
 
 /** The resource field's text, which may not parse yet, and why it does not. */
 export interface ResourceText {
@@ -109,6 +157,7 @@ export interface SimulationSnapshot {
    */
   readonly fields: ReadonlyArray<FieldView>;
   readonly resourceText: ResourceText;
+  readonly policyMenu: PolicyMenu;
   readonly sourceChoice: SourceChoice;
   readonly options: ReadonlyArray<SourceOption>;
   /** Why the chosen source cannot be honoured, when it cannot. */
@@ -118,11 +167,14 @@ export interface SimulationSnapshot {
   readonly capture: CapturedAnswers | undefined;
   /** What a sweep would run now; absent while there is no policy. */
   readonly plan: SweepPlan | undefined;
+  readonly cost: SweepCost;
   readonly run: RunState;
   /** True when the form, the policy or the seed moved since the shown result ran. */
   readonly stale: boolean;
   /** Present only for a result that ran against the current seed. */
   readonly baseline: Baseline | undefined;
+  /** The baseline in one line; present exactly when `baseline` is `Checked`. */
+  readonly baselineReading: BaselineReading | undefined;
 }
 
 export type RunKind = "Run" | "Sweep";
@@ -138,6 +190,14 @@ export interface SimulationSession {
    * as `Evicted` at once.
    */
   readonly choosePolicy: (policy: Policy) => void;
+  /**
+   * Chooses the sighting listed at `position` of `snapshot.policyMenu.options`.
+   *
+   * A position naming the replayed row or an evicted choice, a position past the
+   * list and a number that is not a position are no-ops that notify no one.
+   * For a view that hands over the select's `selectedIndex` and parses nothing.
+   */
+  readonly choosePolicyAt: (position: number) => void;
   /**
    * Re-seeds from a logged row, resets the form to it and drops any run — unless
    * the session already holds that entry, which is a no-op.
@@ -175,15 +235,22 @@ export interface SimulationSession {
   /** Types into the resource field; the last resource that parsed is kept while it does not. */
   readonly editResourceText: (text: string) => void;
   readonly renameSubject: (to: string) => void;
+  /**
+   * Commits typed text as the action; an empty text removes it.
+   *
+   * Removed, not set to `""`: `hasAction` fails with `MissingAction` when none was
+   * supplied, and an empty string is a different question. The text the draft
+   * already has is a no-op.
+   */
+  readonly setAction: (text: string) => void;
 
-  /** One run or sweep. Fork it; interrupting it interrupts the evaluation. */
-  readonly run: (kind: RunKind) => Effect.Effect<void>;
-  /** Interrupts the runs a command superseded. A no-op when there are none. */
-  readonly reap: Effect.Effect<void>;
-  /** Whether a superseded run is waiting for `reap`. */
-  readonly hasRetired: () => boolean;
-  /** Supersedes and interrupts every run. The session stays usable afterwards. */
-  readonly dispose: Effect.Effect<void>;
+  /**
+   * Starts one run or sweep in the session's scope.
+   *
+   * A newer run or a superseding command interrupts it, and so does closing the
+   * scope. Read the answer from the snapshot.
+   */
+  readonly run: (kind: RunKind) => void;
 }
 
 export interface SimulationSessionInit {
@@ -201,7 +268,63 @@ const resourceTextOf = (input: SimulationInput): ResourceText => {
     : { text: "", error: text.reason };
 };
 
-export const makeSimulationSession = (init?: SimulationSessionInit): SimulationSession => {
+/** The dropdown's entry for a choice: the value a select holds, never a position. */
+const selectedOf: (choice: PolicyChoice) => string = Match.type<PolicyChoice>().pipe(
+  Match.tagsExhaustive({
+    None: () => "",
+    Chosen: (chosen) => String(chosen.index),
+    Evicted: () => "evicted",
+    Seeded: () => "seeded",
+  }),
+);
+
+/** How many entries lead the rail in the menu: the replayed row, or an evicted choice. */
+const leading = (choice: PolicyChoice): number =>
+  choice._tag === "Seeded" || choice._tag === "Evicted" ? 1 : 0;
+
+const policyMenuOf = (
+  choice: PolicyChoice,
+  sightings: ReadonlyArray<PolicySighting>,
+): PolicyMenu => ({
+  options: [
+    ...(choice._tag === "Seeded" ? [{ value: "seeded", label: "from the replayed row" }] : []),
+    ...(choice._tag === "Evicted"
+      ? [{ value: "evicted", label: `${choice.label} — no longer in the log` }]
+      : []),
+    ...sightings.map((sighting, index) => ({ value: String(index), label: sighting.label })),
+  ],
+  selected: selectedOf(choice),
+});
+
+/**
+ * The sentence above the run buttons: said before the sweep, never after it, and
+ * with the count the sweep runs.
+ */
+const costOf = (refusal: SourceRefusal | undefined, plan: SweepPlan | undefined): SweepCost => {
+  const warns = plan?.causesIO === true;
+  const sentence =
+    refusal !== undefined
+      ? `a run would be refused: ${refusal.reason}`
+      : plan === undefined
+        ? ""
+        : warns
+          ? `a sweep runs ${plan.evaluations} evaluations against your live resolvers`
+          : `a sweep runs ${plan.evaluations} evaluations, all in this process`;
+  return { sentence, warns };
+};
+
+/**
+ * Builds a session in the caller's scope.
+ *
+ * The scope is the session's lifetime: closing it interrupts the run in flight
+ * and leaves the session inert, which is how a host ends one. The constructor
+ * is an `Effect` so that the handle its runs fork into is acquired and released
+ * with that scope, and `run` captures the context it was built under, so a run
+ * sees the clock, tracer and sink the session was built with (ADR-QD-137).
+ */
+export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSession")(function* (
+  init?: SimulationSessionInit,
+): Effect.fn.Return<SimulationSession, never, Scope.Scope> {
   let sightings: ReadonlyArray<PolicySighting> = init?.sightings ?? [];
   /** The chosen policy and the sighting it was chosen from. A value, never an index. */
   let held: PolicySighting | undefined = init?.seed === undefined ? pinHead(sightings, undefined) : undefined;
@@ -221,8 +344,18 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
 
   /** Which run's result is still wanted. Bumped synchronously, before any fiber is touched. */
   let generation = 0;
-  let current: Fiber.Fiber<unknown, unknown> | undefined;
-  const retired: Array<Fiber.Fiber<unknown, unknown>> = [];
+  /** Every run forks into this handle, so a newer fiber interrupts the one it replaces. */
+  const runs = yield* FiberHandle.make<void>();
+  const fork = yield* FiberHandle.runtime(runs)<never>();
+  let closed = false;
+  // Registered after the handle, so it runs first when the scope closes: a run the
+  // close interrupts can never land, and a closed session answers no `run`.
+  yield* Effect.addFinalizer(() =>
+    Effect.sync(() => {
+      generation += 1;
+      closed = true;
+    }),
+  );
 
   const policyChoice = (): PolicyChoice => {
     if (seeded !== undefined) {
@@ -299,6 +432,7 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
       run._tag === "Ran" && !stale && seed !== undefined
         ? baselineDiff(seed, run.outcome)
         : undefined;
+    const refusal = prepared._tag === "Refused" ? prepared.refusal : undefined;
 
     return {
       sightings,
@@ -306,16 +440,19 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
       draft,
       fields: formOf(draft),
       resourceText,
+      policyMenu: policyMenuOf(policy, sightings),
       sourceChoice,
       options,
-      refusal: prepared._tag === "Refused" ? prepared.refusal : undefined,
+      refusal,
       clock,
       pairs,
       capture,
       plan,
+      cost: costOf(refusal, plan),
       run,
       stale,
       baseline,
+      baselineReading: baseline?._tag === "Checked" ? readBaseline(baseline) : undefined,
     };
   };
 
@@ -327,22 +464,18 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
   };
 
   /**
-   * Makes the run in flight stale, synchronously.
+   * Makes the run in flight stale and stops it, before the command returns.
    *
-   * The generation alone guarantees the abandoned run's exit is never applied;
-   * the fiber is parked for `reap` to interrupt, so a sync command (which a view
-   * may dispatch while rendering) never has to run an Effect.
+   * Correctness is the generation's: the abandoned run's exit is never applied.
+   * Installing a fiber in the handle interrupts the one it replaces at once, so a
+   * superseded Live run stops asking the application's resolvers with no host
+   * code (BEH-QD-322, ADR-QD-137). The replaced run's finalizers run inside the
+   * command, and none of them writes session state.
    */
-  const retire = () => {
+  const supersede = () => {
     generation += 1;
-    if (current !== undefined) retired.push(current);
-    current = undefined;
+    if (Option.isSome(FiberHandle.getUnsafe(runs))) fork(Effect.void);
   };
-
-  const reap = Effect.fn("qadi.devtools.simulationSession.reap")(function* () {
-    const parked = retired.splice(0);
-    yield* Effect.forEach(parked, (fiber) => Fiber.interrupt(fiber), { discard: true });
-  });
 
   const program = (
     question: SimulationQuestion,
@@ -362,49 +495,19 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
       return { outcome, report, answers };
     });
 
-  const runEffect = Effect.fn("qadi.devtools.simulationSession.run")(function* (kind: RunKind) {
-    yield* reap();
-    const choice = policyChoice();
-    const policy = policyOf(choice);
-    if (policy === undefined) return;
-
-    retire();
-    const mine = generation;
-    yield* reap();
-    // A command that moved the session while teardown ran owns what happens next.
-    // Past this guard nothing moved since `choice` was read, and the source, ports,
-    // capture and clock are read after the last yield, so a ports layer swapped
-    // during teardown can never contribute a recorder or a capture.
+  // `root`: a run is the reviewer's own act, and the context the session captured
+  // has the constructor's span as its parent.
+  const land = Effect.fn("qadi.devtools.simulationSession.run", { root: true })(function* (
+    mine: number,
+    question: SimulationQuestion,
+    kind: RunKind,
+    ready: Extract<PreparedSource, { readonly _tag: "Ready" }>,
+    runClock: SimulationClock,
+    runPairs: boolean,
+  ) {
+    const exit = yield* Effect.exit(program(question, kind, ready, runClock, runPairs));
+    // Superseded, or its scope closed: there is nothing to report to.
     if (mine !== generation) return;
-
-    const question: SimulationQuestion = {
-      policy,
-      input: draft,
-      seed: seedOf(choice),
-      source: sourceChoice,
-    };
-
-    const { prepared } = prepareSource(sourceChoice, { ports, capture });
-    if (prepared._tag === "Refused") {
-      // Declined, not replaced: nothing is evaluated.
-      run = { _tag: "Refused", question, refusal: prepared.refusal };
-      commit();
-      return;
-    }
-
-    const runClock = clock;
-    run = { _tag: "Running", question };
-    commit();
-
-    const fiber = yield* Effect.forkDetach(
-      program(question, kind, prepared, runClock, pairs),
-    );
-    current = fiber;
-
-    const exit = yield* Fiber.await(fiber).pipe(Effect.onInterrupt(() => Fiber.interrupt(fiber)));
-    // Superseded, or disposed: there is nothing to report to.
-    if (mine !== generation) return;
-    current = undefined;
 
     if (Exit.isSuccess(exit)) {
       if (exit.value.answers !== undefined) capture = exit.value.answers;
@@ -412,6 +515,7 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
         _tag: "Ran",
         question,
         outcome: exit.value.outcome,
+        reading: readOutcome(question.policy, exit.value.outcome, undefined),
         report: exit.value.report,
         clock: runClock,
       };
@@ -424,15 +528,36 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
     commit();
   });
 
-  const dispose = Effect.fn("qadi.devtools.simulationSession.dispose")(function* () {
-    const wasRunning = run._tag === "Running";
-    retire();
-    if (wasRunning) {
-      run = { _tag: "Idle" };
+  const start = (kind: RunKind): void => {
+    if (closed) return;
+    const choice = policyChoice();
+    const policy = policyOf(choice);
+    if (policy === undefined) return;
+
+    const question: SimulationQuestion = {
+      policy,
+      input: draft,
+      seed: seedOf(choice),
+      source: sourceChoice,
+    };
+
+    const { prepared } = prepareSource(sourceChoice, { ports, capture });
+    if (prepared._tag === "Refused") {
+      // Declined, not replaced: nothing is evaluated, and the run in flight stops.
+      supersede();
+      run = { _tag: "Refused", question, refusal: prepared.refusal };
       commit();
+      return;
     }
-    yield* reap();
-  });
+
+    generation += 1;
+    const mine = generation;
+    const runClock = clock;
+    run = { _tag: "Running", question };
+    commit();
+    // A subscriber notified by that commit may already have superseded this run.
+    if (mine === generation) fork(land(mine, question, kind, prepared, runClock, pairs));
+  };
 
   /** The one path a draft changes by: the same no-op rule and resource text for every command. */
   const edit = (next: SimulationInput) => {
@@ -455,7 +580,25 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
     }
     resourceText = resourceTextOf(draft);
     pin();
-    retire();
+    supersede();
+    run = { _tag: "Idle" };
+    commit();
+  };
+
+  const choosePolicy = (policy: Policy): void => {
+    // A seeded policy belongs to the row it came from; choosing another from
+    // the rail is leaving that row behind.
+    if (
+      seeded === undefined &&
+      held !== undefined &&
+      Equal.equals(held.policy, policy) &&
+      run._tag === "Idle"
+    ) {
+      return;
+    }
+    held = sightingFor(sightings, policy);
+    seeded = undefined;
+    supersede();
     run = { _tag: "Idle" };
     commit();
   };
@@ -472,22 +615,14 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
       commit();
     },
 
-    choosePolicy: (policy) => {
-      // A seeded policy belongs to the row it came from; choosing another from
-      // the rail is leaving that row behind.
-      if (
-        seeded === undefined &&
-        held !== undefined &&
-        Equal.equals(held.policy, policy) &&
-        run._tag === "Idle"
-      ) {
-        return;
-      }
-      held = sightingFor(sightings, policy);
-      seeded = undefined;
-      retire();
-      run = { _tag: "Idle" };
-      commit();
+    choosePolicy,
+
+    choosePolicyAt: (position) => {
+      // The menu's leading entries (the replayed row, an evicted choice) name no sighting.
+      const picked = Number.isInteger(position)
+        ? sightings[position - leading(policyChoice())]
+        : undefined;
+      if (picked !== undefined) choosePolicy(picked.policy);
     },
 
     seed: (entry) => {
@@ -503,7 +638,7 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
       // A capture is the answers of the environment it came from.
       capture = undefined;
       if (run._tag === "Running") {
-        retire();
+        supersede();
         run = { _tag: "Idle" };
       }
       commit();
@@ -562,14 +697,18 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
       commit();
     },
 
-    run: runEffect,
-    reap: reap(),
-    hasRetired: () => retired.length > 0,
-    dispose: dispose(),
+    setAction: (text) => {
+      // `withAction` always returns a new object, so an unchanged action is told apart here.
+      const action = actionOf(text);
+      if (action === draft.action) return;
+      edit(withAction(draft, action));
+    },
+
+    run: start,
   };
 
   // A session made with a seed is seeded before anyone reads it, so a screen
   // mounted with one shows its first render seeded.
   if (init?.seed !== undefined) session.seed(init.seed);
   return session;
-};
+});
