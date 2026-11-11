@@ -16,6 +16,7 @@ import * as TestClock from "effect/testing/TestClock";
 import {
   allOf,
   AttributeResolver,
+  attributeResolverFromRecord,
   attributeResolverPort,
   gte,
   hasAttribute,
@@ -29,7 +30,7 @@ import {
 } from "@qadi/core";
 import type { Policy } from "@qadi/core";
 import { collectingTracer } from "@qadi/testing";
-import { emptyAnswers } from "../../src/model/Capture.ts";
+import { answerCount, emptyAnswers } from "../../src/model/Capture.ts";
 import { policyLabel } from "../../src/model/Catalogue.ts";
 import type { PolicySighting } from "../../src/model/Catalogue.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
@@ -267,6 +268,32 @@ describe("a Live run captures — C3", () => {
       yield* session.run("Run");
       session.setPorts(brokenPorts);
       assert.isDefined(session.getSnapshot().capture);
+    }));
+});
+
+describe("each Live run captures with its own recorder (ARCH-72)", () => {
+  it.effect("a second Live run's capture holds only what that run asked", () =>
+    Effect.gen(function* () {
+      const a = hasAttribute("a", gte(1));
+      const b = hasAttribute("b", gte(1));
+      const session = makeSimulationSession({
+        sightings: [sighting(a), sighting(b)],
+        ports: portsLayer({ AttributeResolver: attributeResolverFromRecord({ a: 1, b: 1 }) }),
+      });
+      session.edit(withClearance);
+      session.chooseSource("Live");
+
+      session.choosePolicy(a);
+      yield* session.run("Run");
+      const first = session.getSnapshot().capture;
+      if (first === undefined) throw new Error("expected a capture after the first Live run");
+      assert.strictEqual(answerCount(first), 1);
+
+      session.choosePolicy(b);
+      yield* session.run("Run");
+      const second = session.getSnapshot().capture;
+      if (second === undefined) throw new Error("expected a capture after the second Live run");
+      assert.strictEqual(answerCount(second), 1);
     }));
 });
 
