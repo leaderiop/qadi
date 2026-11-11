@@ -6,16 +6,16 @@ current_phase: 27
 current_phase_name: Bare-route module
 current_plan: 3
 status: executing
-stopped_at: Completed 27-02-PLAN.md
-last_updated: "2026-11-11T14:12:15.471Z"
+stopped_at: Completed 27-03-PLAN.md
+last_updated: "2026-11-11T14:28:04.310Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 26 complete, transitioned to Phase 27
-state_head: 496f7dd685827989e877ae0ec97bacc781edd2d8
+state_head: d9da0236dc8f8f636d48fa89591f2392cc22cd5d
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 37
-  completed_plans: 29
+  completed_plans: 30
   percent: 67
 ---
 
@@ -129,6 +129,7 @@ Last activity: 2026-11-11 — 27-01 complete (mutation baseline, addGuardedRoute
 | Phase 26 P06 | 8 min | 3 tasks | 10 files |
 | Phase 27 P01 | 11 min | 2 tasks | 3 files |
 | Phase 27 P02 | 7 min | 3 tasks | 21 files |
+| Phase 27 P03 | 14 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -175,6 +176,8 @@ Last activity: 2026-11-11 — 27-01 complete (mutation baseline, addGuardedRoute
 - [Phase 26]: ADR-QD-138 left unused: the dock-model change amends ADR-QD-047 (Rev 1.12, CCR-QD-416); the plan's whole-file useOwnedSimulationSession grep on spec/overview.md cannot pass because change history names it and history is exempt
 - [Phase 27]: 27-01: no defect (D-01), new type pins and ordering test are green on the phase base; dropped unused guardRoute import from http.test.ts because noUnusedLocals fails typecheck
 - [Phase 27]: 27-02: addGuardedRoute's overload layer type is a private GuardedRoute<R, LR> alias over typeof HttpRouter.add, no builder kept; PermissionRegistry.tst.ts pins moved into GuardRoute.tst.ts
+- [Phase 27]: 27-03: both departures from ROUTE-01/ROUTE-03 wording (unguardedRoutes private sibling because of the barrel; /__permissions routes in PermissionRegistryRoute.ts because of the cycle) recorded in CCR-QD-417 and ADR-QD-036 Rev 1.10
+- [Phase 27]: 27-03: aggregate mutation drop closed by pinning the two AuthorizeRequest span names with tests, not by touching the baseline
 
 ### Pending Todos
 
@@ -203,8 +206,8 @@ Last activity: 2026-11-11 — 27-01 complete (mutation baseline, addGuardedRoute
 
 ## Session Continuity
 
-Last session: 2026-11-11T14:12:15.016Z
-Stopped at: Completed 27-02-PLAN.md
+Last session: 2026-11-11T14:28:04.054Z
+Stopped at: Completed 27-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
