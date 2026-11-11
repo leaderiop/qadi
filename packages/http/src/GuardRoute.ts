@@ -14,8 +14,8 @@
  * Extraction, the edge decision, the handler-denial log and the projection are the
  * request-enforcement module's (`AuthorizeRequest.ts`, ADR-QD-108); this file keeps
  * the bare-`HttpRouter` shape, and the typing contract on `addGuardedRoute` that
- * `GuardRoute.tst.ts` pins. It was two functions, `guardRoute` here and
- * `addGuardedRoute` in `PermissionRegistry.ts`, until ARCH-75: `guardRoute` had
+ * `GuardRoute.tst.ts` pins. Until ARCH-75 this was two functions, a `guardRoute`
+ * here (since removed) and `addGuardedRoute` in `PermissionRegistry.ts`: `guardRoute` had
  * one caller, and its doc comment and type tests guarded a function nobody
  * imported.
  */

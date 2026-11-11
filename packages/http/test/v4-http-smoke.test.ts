@@ -13,7 +13,7 @@
  * before this.
  *
  * Every API exercised here is one `GuardRoute.ts`, `PermissionRegistry.ts`,
- * `RequirePermission.ts` or `DecisionStreamRoute.ts` actually calls. Pinning
+ * `PermissionRegistryRoute.ts`, `RequirePermission.ts` or `DecisionStreamRoute.ts` actually calls. Pinning
  * more than that would make the canary noisy, and a noisy canary gets
  * skipped.
  */
@@ -35,7 +35,7 @@ import * as HttpServerResponse from "effect/http/HttpServerResponse";
 describe("effect/http API canary", () => {
   // -------------------------------------------------------------------------
   // HttpRouter.add / HttpRouter.toWebHandler — the bare-route mechanism
-  // GuardRoute.ts and PermissionRegistry.ts's `addGuardedRoute` build on.
+  // GuardRoute.ts's `addGuardedRoute` and PermissionRegistryRoute.ts build on.
   // -------------------------------------------------------------------------
 
   it.effect("HttpRouter.add mounts a handler toWebHandler can drive", () =>

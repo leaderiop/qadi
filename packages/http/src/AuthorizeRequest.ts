@@ -56,7 +56,7 @@ export interface AuthorizedRequest<P extends Permission, A extends Resource> {
  */
 export type EnforcementProjection<B, E, R> = (error: HttpEnforcementFailure) => Effect.Effect<B, E, R>;
 
-/** The bare-route projection: the failure's `toResponse`, shared by `guardRoute` and both port-route forms. */
+/** The bare-route projection: the failure's `toResponse`, shared by `addGuardedRoute` and both port-route forms. */
 export const answerWithResponse: EnforcementProjection<HttpServerResponse.HttpServerResponse, never, never> = (
   error,
 ) => Effect.succeed(toResponse(error));
@@ -91,7 +91,7 @@ const extractSubject = (request: HttpServerRequest.HttpServerRequest) =>
  * guards it, logging a denial or an extraction failure once.
  *
  * It exists because three surfaces wrote this by hand — the `HttpApi`
- * middleware, `guardRoute` and the decision stream's recheck — and the third
+ * middleware, `addGuardedRoute` and the decision stream's recheck — and the third
  * copy drifted: it labelled a broken credential store with a class no table
  * contains and logged at other levels with other words (CCR-QD-197). Now the
  * order, the scope of `CurrentSubject` and the log text live here, and a surface

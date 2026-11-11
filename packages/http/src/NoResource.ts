@@ -38,7 +38,7 @@ import type { Resource } from "@qadi/core";
  * real, not merely defense in depth against a hazard that no longer exists.
  *
  * Exported, and the value `authorizeRequest`'s default loader returns, so
- * `RequirePermission`, `DecisionStreamRoute.ts` and `PermissionRegistry.ts`'s
+ * `RequirePermission`, `DecisionStreamRoute.ts` and `PermissionRegistryRoute.ts`'s
  * `permissionRegistryRoute` share this exact placeholder rather than each
  * reimplementing `() => Effect.succeed({})` as their own `loadResource` — all
  * of them evaluate before any real resource exists, for the same
