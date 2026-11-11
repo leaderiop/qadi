@@ -9,6 +9,7 @@ import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import { SignatureHistoryUnavailable } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
+import { hasSignature } from "../src/Policy.ts";
 import { describeKeyRefusal, KeyRefusal } from "../src/PortDescription.ts";
 import {
   SignatureHistory,
@@ -28,6 +29,14 @@ const query = (
   }).pipe(Effect.provide(layer));
 
 describe("SignatureHistory", () => {
+  it("a HasSignature leaf asks the signature port for its own records (ADR-QD-114)", () => {
+    const leaf = hasSignature("approved");
+    assert.strictEqual(leaf._tag, "HasSignature");
+    if (leaf._tag === "HasSignature") {
+      assert.strictEqual(signatureHistoryPort.serving.leaves.HasSignature?.(leaf), "own-records");
+    }
+  });
+
   describe("SignatureHistoryNone", () => {
     it.effect("returns no signatures regardless of what's asked — fail-closed default", () =>
       Effect.gen(function* () {
