@@ -26,7 +26,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-11)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 26 — Headless dock model
+**Current focus:** Phase 27 — Bare route module
 
 ## Current Position
 
@@ -193,6 +193,7 @@ Last activity: 2026-11-11 — Phase 26 complete, transitioned to Phase 27
 - [Phase 22] Review findings (22-REVIEW-DISPOSITION.md): all seven fixed (WR-01 23e54421, WR-02 d4d62133, IN-01..05 3371400e..9e2b90bc). Phase 21's six findings also fixed (f0977945..7144dfba; 21-REVIEW-DISPOSITION.md).
 - [Phase 24] Review (24-REVIEW-DISPOSITION.md): WR-01/WR-02 fixed (1ad24867, 5977264c); IN-04/05/06 fixed (6c198da1, 12a6631c); IN-01 (build() makes and drops a recorder per commit while Live is chosen) and IN-03 (`Ready` spelled twice) open, info. Both still open after Phase 25 (re-checked 2026-11-11: `prepareSource` is called from build and run; `Ready` still spelled in the union and the `Extract`).
 - [Phase 25] Review (25-REVIEW-DISPOSITION.md): WR-02/WR-03/WR-04 fixed (0a6872c6, df588d1a, bb1dddb8); WR-01 skipped (synchronous-settle race unreachable while `simulate` goes through `DecisionCache`; reopens if a fixture run becomes synchronous); IN-01 (`BaselineCard` blank sentence if `reading` undefined) and IN-02 (stale comments in `Simulator.test.tsx`) open, info. Visual preserve check confirmed by the user ("All good, continue").
+- [Phase 26] Review (26-REVIEW-DISPOSITION.md): WR-01 fixed (0e340791, comments cited planning-only IDs); IN-01 (`useDockSnapshot`/`useExplorerSnapshot`/`useHeldChoiceSnapshot` pass a constant `undefined` run to `useRunningStore`), IN-02 (`DevtoolsDock`'s `nothing` source duplicates the model default; comment names `useTimeline`) and IN-03 (stale "was DevtoolsDock l.N" titles and a 26-05 to-do in `DockModel.test.ts`) open, info. UI review 22/24; the `Activity` remount and pixels are a human check in a real browser.
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table.
 
@@ -204,4 +205,4 @@ Resume file: None
 
 ## Operator Next Steps
 
-- Execute Phase 26: /gsd-execute-phase 26 (plans in `.planning/phases/26-headless-dock-model/`); then 27..29, re-verify 21..23, audit the milestone
+- Plan and execute Phase 27 (Bare route module): /gsd-plan-phase 27 then /gsd-execute-phase 27; then 28..29, re-verify 21..23, audit the milestone
