@@ -534,4 +534,23 @@ describe("a derived port's key is its wire question's key, and its defect is its
     SignatureHistory: () => lawOf("SignatureHistory", signatureHistoryPort, ARBITRARIES.SignatureHistory),
   };
   for (const law of Object.values(LAWS)) law();
+
+  it("CustomPredicate states its own key: it covers the subject's roles, permissions and attributes, which its wire question does not carry", () => {
+    const asEditor = makeSubject({ id: "alice", roles: ["editor"], permissions: [], attributes: {} });
+    const asViewer = makeSubject({ id: "alice", roles: ["viewer"], permissions: [], attributes: {} });
+    const ask = (subject: typeof asEditor): [string, typeof asEditor, undefined, undefined] => [
+      "isOwner",
+      subject,
+      undefined,
+      undefined,
+    ];
+    assert.deepStrictEqual(
+      customPredicatePort.wire.encodeQuestion(ask(asEditor)),
+      customPredicatePort.wire.encodeQuestion(ask(asViewer)),
+    );
+    assert.notStrictEqual(
+      Result.getOrThrow(customPredicatePort.key(ask(asEditor))),
+      Result.getOrThrow(customPredicatePort.key(ask(asViewer))),
+    );
+  });
 });

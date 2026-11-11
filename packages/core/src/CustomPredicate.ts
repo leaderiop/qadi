@@ -174,16 +174,20 @@ const customServing: PortServingFacet<
 /**
  * The custom-predicate port, described once (`PortDescription.ts`).
  *
- * A request is keyed by everything the predicate receives: the subject's id,
- * the name, the params, the resource and the rest of the subject — its roles,
- * permissions and attributes — through `canonicalKey`, the injective request
- * key `PortKey.ts` defines and documents. A what-if that
- * drops a role, or a simulation that edits the resource, therefore never
- * replays an answer given to a different question (ARCH-45 I1).
- * `CustomPredicateError`
- * has no `cause` field, so `failure` renders the cause into `reason`, and
- * `defect` renders a defect with `Cause.pretty` — what `PortAccess.ts` always
- * did (D-10-e).
+ * **The one port that states its own `key` and `defect`.** The other four are
+ * built with `makePortDescription`, which derives both (ADR-QD-133); this one
+ * is not, for two reasons. A request is keyed by everything the predicate
+ * receives — the subject's id, the name, the params, the resource and the rest
+ * of the subject, its roles, permissions and attributes — through
+ * `canonicalKey`, the injective request key `PortKey.ts` defines and
+ * documents, whereas the wire question carries only the subject's id and JSON
+ * `resource` and `params`; so a what-if that drops a role, or a simulation
+ * that edits the resource, never replays an answer given to a different
+ * question (ARCH-45 I1), and a key derived from the question could not say so.
+ * And `CustomPredicateError` has no `cause` field, so `failure` renders the
+ * cause into `reason` and `defect` renders a defect with `Cause.pretty` — what
+ * `PortAccess.ts` always did (D-10-e) — where the derived defect is the
+ * failure of the squashed cause.
  */
 export const customPredicatePort: PortDescription<
   "CustomPredicate",

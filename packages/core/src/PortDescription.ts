@@ -202,24 +202,31 @@ export interface PortDescription<
    * The port's own typed error for a call that **died** — what
    * `PortAccess.ts`'s `catchPortDefect` turns a defect into (ADR-QD-077).
    * Separate from `failure` because `CustomPredicateError` renders a defect
-   * with `Cause.pretty`, not as the squashed value (D-10-e).
+   * with `Cause.pretty`, not as the squashed value (D-10-e). A port built with
+   * `makePortDescription` derives it as `failure(args, Cause.squash(cause))`
+   * (ADR-QD-133); `CustomPredicate` states its own.
    */
   readonly defect: (args: Args, cause: Cause.Cause<unknown>) => E;
   /**
    * The text that identifies one request, or why it has none: two requests
    * share a key exactly when every argument is `Equal.equals`.
    *
-   * Every port writes it as `canonicalKey` (`PortKey.ts`) over a tuple of
-   * every argument it receives (ADR-QD-094, ARCH-65), so a capture taken for
-   * one subject, resource, depth or param never answers a question about
-   * another, and two equal requests built in another order still share one.
+   * A derived port's key is `canonicalKey` (`PortKey.ts`) over its wire
+   * question (`makePortDescription`, ADR-QD-133), so a member the question
+   * names cannot be left out of the key; `CustomPredicate` states its own,
+   * over everything it receives (ADR-QD-094, ARCH-65). A capture taken for
+   * one subject, resource, depth or param therefore never answers a question
+   * about another, and two equal requests built in another order still share
+   * one.
    * A request holding a value outside the key's domain (a cycle, a function,
    * a class instance) is refused with a {@link KeyRefusal} rather than
    * collided with another or thrown. A consumer branches on the `Result`;
    * the `Result` itself is never a map key.
    *
-   * `PortKey.test.ts` checks the law once; the per-port rows of
-   * `PortConformance.test.ts` check only that each argument reaches the key.
+   * `PortKey.test.ts` checks the key's law once, the ARCH-69 describe of
+   * `PortDescription.test.ts` checks that a derived key is its question's, and
+   * the per-port rows of `PortConformance.test.ts` check only that each
+   * argument reaches the key.
    */
   readonly key: (args: Args) => Result.Result<string, KeyRefusal>;
   /**
