@@ -25,7 +25,7 @@ import type { InvalidBoundedPermits } from "./Errors.ts";
 import { SubjectIdSchema } from "./Identity.ts";
 import { toJson, toJsonRecord } from "./JsonHazard.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
-import type { PortDescription } from "./PortDescription.ts";
+import type { LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
 import { canonicalKey } from "./PortKey.ts";
 import {
   portSpan,
@@ -159,6 +159,25 @@ const customWire = portWire({
 });
 
 /**
+ * The request `HasCustom` puts to this port: the name the leaf names, handed
+ * the subject and the resource of the site and the leaf's params exactly as
+ * decoded.
+ *
+ * The only place this leaf becomes a request (ARCH-70, ADR-QD-134).
+ */
+const customAsks = {
+  HasCustom: (
+    leaf: LeafOf["HasCustom"],
+    site: ReadSite,
+  ): [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown] => [
+    leaf.name,
+    site.subject,
+    site.resource,
+    leaf.params,
+  ],
+};
+
+/**
  * A host serves predicates only from a required allowlist.
  *
  * A predicate name is a client-chosen resource, and what it runs is the host's
@@ -170,10 +189,9 @@ const customServing: PortServingFacet<
   [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown]
 > = {
   allowlist: "required",
-  leaves: { HasCustom: (leaf) => leaf.name },
   asked: ([name]) => name,
   admitted: (declaration) => declaration.names,
-  declare: (names) => ({ CustomPredicate: { names } }),
+  declare: ({ names }) => ({ CustomPredicate: { names } }),
 };
 
 /**
@@ -201,12 +219,15 @@ export const customPredicatePort: PortDescription<
   [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown],
   boolean,
   CustomPredicateError,
-  typeof customSpan
+  [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown],
+  typeof customSpan,
+  typeof customAsks
 > = {
   port: "CustomPredicate",
   method: "evaluate",
   span: "qadi.hasCustom",
   attributes: customSpan,
+  asks: customAsks,
   wire: customWire,
   serving: customServing,
   service: CustomPredicate,

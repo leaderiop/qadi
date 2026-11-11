@@ -19,7 +19,7 @@ import { RelationshipResolveError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
-import { RelationshipDepth } from "./Policy.ts";
+import { DEFAULT_MAX_DEPTH, RelationshipDepth } from "./Policy.ts";
 import {
   boundedPort,
   makePortDescription,
@@ -27,7 +27,7 @@ import {
   retryingPort,
   timingOutPort,
 } from "./PortDerivation.ts";
-import type { PortDescription } from "./PortDescription.ts";
+import type { LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
 import {
   portSpan,
   sharedQuestionFields,
@@ -36,6 +36,7 @@ import {
 } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { sameAnswer } from "./PortWireEncode.ts";
+import { resourceIdOf } from "./Resource.ts";
 
 export interface RelationshipCheck {
   readonly subjectId: SubjectId;
@@ -132,6 +133,17 @@ export class RelationshipResolver extends Context.Service<
 }
 
 /**
+ * A relationship request whose resource id the site may not have supplied.
+ *
+ * What `HasRelationship` asks at a site with no usable resource id, and what the
+ * span's `pose` accepts so that a read can state its question before it fails
+ * (D-07). Every real `RelationshipCheck` is assignable to it.
+ */
+type PendingRelationshipCheck = Omit<RelationshipCheck, "resourceId"> & {
+  readonly resourceId: ResourceId | undefined;
+};
+
+/**
  * What the relationship span says (BEH-QD-227). `depth` is the clamped value
  * actually asked of the resolver, and the answer a closed three-valued enum.
  */
@@ -153,9 +165,7 @@ const relationshipSpan = portSpan({
   answer: spanStruct({ answer: Schema.optionalKey(RelatedResult) }, { answer: "qadi.answer" }),
   // Takes a `resourceId` that may be absent so a read can state its question
   // before the id is validated (D-07); every real request is assignable to it.
-  pose: ([request]: [
-    request: Omit<RelationshipCheck, "resourceId"> & { readonly resourceId: ResourceId | undefined },
-  ]) => ({
+  pose: ([request]: [request: PendingRelationshipCheck]) => ({
     subjectId: request.subjectId,
     relation: request.relation,
     resourceId: request.resourceId,
@@ -165,18 +175,86 @@ const relationshipSpan = portSpan({
 });
 
 /**
+ * Bounds `HasRelationship.depth` before it reaches `RelationshipResolver` as
+ * traversal fuel.
+ *
+ * Every other untrusted numeric at this trust boundary is bounded: the policy
+ * tree itself by `DEFAULT_MAX_DEPTH`, a raw decoded JSON value by
+ * `MAX_DECODE_DEPTH`. `Policy.ts`'s wire schema now rejects a non-integer,
+ * negative, or out-of-`[0, DEFAULT_MAX_DEPTH]` `depth` at decode — the same
+ * boundary-not-runtime treatment `Matcher.ts`'s `Gte`/`Lt` give their bound —
+ * so `fromJson`/`fromJsonValue` are no longer where `1e308`, a negative
+ * number, or `NaN`/`Infinity` gets through. This clamp stays anyway: the
+ * smart constructors (`hasRelationship`, …) are deliberately total and never
+ * cross the schema (`Policy.ts`'s `makeRoleName` comment explains why), so a
+ * policy built in memory with `hasRelationship("owner", { depth: -5 })` still
+ * reaches `RelationshipResolver.check` unclamped without this. Reusing
+ * `DEFAULT_MAX_DEPTH`'s value rather than inventing a second bound: nothing
+ * here argues a relationship graph should be walked deeper than a policy tree
+ * is ever allowed to be.
+ *
+ * Moved here from `PortAccess.ts` with the request it bounds (ARCH-70).
+ */
+const MAX_RELATIONSHIP_DEPTH = DEFAULT_MAX_DEPTH;
+
+/**
+ * Clamps an in-memory `HasRelationship.depth` to `[0, MAX_RELATIONSHIP_DEPTH]`
+ * — defense-in-depth for policies built through the smart constructors, which
+ * never cross `Policy.ts`'s decode-time bound (see the comment above).
+ *
+ * `undefined` passes through unchanged — "the resolver decides" is a real,
+ * distinct meaning `RelationshipCheck.depth`'s own doc comment names, not an
+ * absent value to default. `NaN` fails every comparison and
+ * `Math.min`/`Math.max` propagate it, so it is called out explicitly rather than
+ * silently falling through the clamp below with no bound applied at all; a
+ * fractional depth is truncated, since fuel is spent in whole hops.
+ */
+const clampRelationshipDepth = (depth: number | undefined): number | undefined => {
+  if (depth === undefined) return undefined;
+  if (Number.isNaN(depth)) return 0;
+  return Math.min(Math.max(Math.trunc(depth), 0), MAX_RELATIONSHIP_DEPTH);
+};
+
+/**
+ * The request `HasRelationship` puts to this port: the subject's id, the
+ * relation the leaf names, the site's resource id if it has a usable one, and
+ * the leaf's depth, clamped.
+ *
+ * The span says the clamped value, which is what is actually asked of the
+ * resolver. A site with no usable resource id yields a request with none, which
+ * the read refuses (`readScoped`, `PortAccess.ts`). The only place this leaf
+ * becomes a request (ARCH-70, ADR-QD-134).
+ */
+const relationshipAsks = {
+  HasRelationship: (
+    leaf: LeafOf["HasRelationship"],
+    site: ReadSite,
+  ): [request: PendingRelationshipCheck] => [
+    {
+      subjectId: site.subject.id,
+      relation: leaf.relation,
+      resourceId: resourceIdOf(site.resource),
+      depth: clampRelationshipDepth(leaf.depth),
+    },
+  ],
+};
+
+/**
  * A host may serve relations from an allowlist or leave the port open.
  *
  * The answer is a closed three-valued word, so a relation name discloses no
  * more than a policy tag does (INV-QD-044). Only `HasRelationship` reads this
  * port.
  */
-const relationshipServing: PortServingFacet<"RelationshipResolver", [request: RelationshipCheck]> = {
+const relationshipServing: PortServingFacet<
+  "RelationshipResolver",
+  [request: RelationshipCheck],
+  [request: PendingRelationshipCheck]
+> = {
   allowlist: "open",
-  leaves: { HasRelationship: (leaf) => leaf.relation },
   asked: ([request]) => request.relation,
   admitted: (declaration) => declaration.relations,
-  declare: (names) => ({ RelationshipResolver: { relations: names } }),
+  declare: ({ names }) => ({ RelationshipResolver: { relations: names } }),
 };
 
 /**
@@ -197,12 +275,15 @@ export const relationshipResolverPort: PortDescription<
   [request: RelationshipCheck],
   RelatedResult,
   RelationshipResolveError,
-  typeof relationshipSpan
+  [request: PendingRelationshipCheck],
+  typeof relationshipSpan,
+  typeof relationshipAsks
 > = makePortDescription({
   port: "RelationshipResolver",
   method: "check",
   span: "qadi.hasRelationship",
   attributes: relationshipSpan,
+  asks: relationshipAsks,
   /**
    * What the relationship question and answer look like on a wire (ARCH-31).
    *

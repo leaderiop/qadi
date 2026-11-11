@@ -79,6 +79,7 @@ const probePort: PortDescription<
   [who: string, what: string],
   number | undefined,
   ProbeError,
+  [who: string, what: string],
   typeof probeSpan
 > = {
   port: "AttributeResolver",
@@ -94,12 +95,13 @@ const probePort: PortDescription<
     toAnswer: (n: number | undefined) => Result.succeed(n === undefined ? {} : { n }),
     fromAnswer: (wire) => wire.n,
   }),
+  // The probe reads no policy leaf, so it asks nothing.
+  asks: {},
   serving: {
     allowlist: "required",
-    leaves: {},
     asked: ([, what]) => what,
     admitted: (declaration) => declaration.attributes,
-    declare: (names) => ({ AttributeResolver: { attributes: names } }),
+    declare: ({ names }) => ({ AttributeResolver: { attributes: names } }),
   },
   service: ProbePort,
   invoke: (shape) => (who, what) => shape.ask(who, what),

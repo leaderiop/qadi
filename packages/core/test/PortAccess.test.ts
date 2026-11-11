@@ -14,8 +14,7 @@ import { decisionHistoryPort } from "../src/DecisionHistory.ts";
 import { AttributeResolveError, MissingResourceId } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import {
-  askActedAny,
-  askActedForResource,
+  askActed,
   askCustom,
   askRelationship,
   askSignature,
@@ -23,6 +22,8 @@ import {
   readAttribute,
   servePortRead,
 } from "../src/PortAccess.ts";
+import * as M from "../src/Matcher.ts";
+import * as P from "../src/Policy.ts";
 import { PortReply } from "../src/PortDescription.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "../src/PortMetrics.ts";
@@ -38,7 +39,21 @@ import type {
 } from "../src/Ports.ts";
 import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
 import { signatureHistoryPort } from "../src/SignatureHistory.ts";
-import { collectingTracer, isolatedMetrics } from "./helpers.ts";
+import { collectingTracer, isolatedMetrics, leafOf } from "./helpers.ts";
+
+/** Each read takes the leaf it answers (ARCH-70); these build one, narrowed to its node type. */
+const attributeLeaf = (attribute: string) => leafOf("HasAttribute", P.hasAttribute(attribute, M.exists()));
+const actedLeaf = (event: string, scope: "Resource" | "Any") =>
+  leafOf("HasActed", P.hasActed(event, { scope }));
+const relationshipLeaf = (relation: string, depth: number) =>
+  leafOf("HasRelationship", P.hasRelationship(relation, { depth }));
+const customLeaf = (name: string, params: unknown) => leafOf("HasCustom", P.hasCustom(name, params));
+const signatureLeaf = (meaning: string, signerRole: string | undefined, scope: "Resource" | "Any") =>
+  leafOf(
+    "HasSignature",
+    P.hasSignature(meaning, signerRole === undefined ? { scope } : { scope, signerRole }),
+  );
+const DOC = { id: "doc-1" };
 
 /** The words a frequency has actually counted; preregistered words sit at zero. */
 const nonZero = (frequency: { readonly occurrences: ReadonlyMap<string, number> }) =>
@@ -140,7 +155,7 @@ describe("a read's defect error is its port description's", () => {
     Effect.gen(function* () {
       const port = scriptedPort(attributeResolverPort, () => PortReply.die("dead"));
       const error = yield* failureOf(
-        readAttribute("evaluate", alice, "level").pipe(
+        readAttribute("evaluate", alice, attributeLeaf("level")).pipe(
           Effect.provide(portsLayer({ AttributeResolver: port.layer })),
         ),
       );
@@ -151,7 +166,7 @@ describe("a read's defect error is its port description's", () => {
     Effect.gen(function* () {
       const port = scriptedPort(decisionHistoryPort, () => PortReply.throw("dead"));
       const error = yield* failureOf(
-        askActedAny("toPredicate", alice, "approved").pipe(
+        askActed("toPredicate", alice, actedLeaf("approved", "Any"), undefined).pipe(
           Effect.provide(portsLayer({ DecisionHistory: port.layer })),
         ),
       );
@@ -168,7 +183,7 @@ describe("a read's defect error is its port description's", () => {
     Effect.gen(function* () {
       const port = scriptedPort(relationshipResolverPort, () => PortReply.die("dead"));
       const error = yield* failureOf(
-        askRelationship(alice, "owner", "doc-1", 3).pipe(
+        askRelationship(alice, relationshipLeaf("owner", 3), DOC).pipe(
           Effect.provide(portsLayer({ RelationshipResolver: port.layer })),
         ),
       );
@@ -188,7 +203,7 @@ describe("a read's defect error is its port description's", () => {
     Effect.gen(function* () {
       const port = scriptedPort(customPredicatePort, () => PortReply.die("dead"));
       const error = yield* failureOf(
-        askCustom(alice, { id: "doc-1" }, "isOwner", { strict: true }).pipe(
+        askCustom(alice, customLeaf("isOwner", { strict: true }), DOC).pipe(
           Effect.provide(portsLayer({ CustomPredicate: port.layer })),
         ),
       );
@@ -209,7 +224,7 @@ describe("a read's defect error is its port description's", () => {
     Effect.gen(function* () {
       const port = scriptedPort(signatureHistoryPort, () => PortReply.die("dead"));
       const error = yield* failureOf(
-        askSignature(alice, "approved", undefined, "Resource", "doc-1").pipe(
+        askSignature(alice, signatureLeaf("approved", undefined, "Resource"), DOC).pipe(
           Effect.provide(portsLayer({ SignatureHistory: port.layer })),
         ),
       );
@@ -244,7 +259,7 @@ describe("a read is one body, locally and served (ARCH-47)", () => {
   const spansOfSignature = Effect.gen(function* () {
     const store = scriptedPort(signatureHistoryPort, () => PortReply.answer(signed)).layer;
     const localSpans: Array<Tracer.Span> = [];
-    yield* askSignature(alice, "approved", "manager", "Resource", "doc-1").pipe(
+    yield* askSignature(alice, signatureLeaf("approved", "manager", "Resource"), DOC).pipe(
       Effect.provide(Layer.mergeAll(portsLayer({ SignatureHistory: store }), collectingTracer(localSpans))),
     );
     const servedSpans: Array<Tracer.Span> = [];
@@ -334,37 +349,37 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
       {
         name: "readAttribute under evaluate",
         interpreter: "evaluate",
-        local: readAttribute("evaluate", alice, "clearance"),
+        local: readAttribute("evaluate", alice, attributeLeaf("clearance")),
         served: [aliceId, "clearance"],
         answer: SECRET,
       },
       {
         name: "readAttribute under toPredicate",
         interpreter: "toPredicate",
-        local: readAttribute("toPredicate", alice, "clearance"),
+        local: readAttribute("toPredicate", alice, attributeLeaf("clearance")),
         served: [aliceId, "clearance"],
         answer: SECRET,
       },
     ],
     DecisionHistory: [
       {
-        name: "askActedAny under evaluate",
+        name: "askActed, scope Any, under evaluate",
         interpreter: "evaluate",
-        local: askActedAny("evaluate", alice, "approved"),
+        local: askActed("evaluate", alice, actedLeaf("approved", "Any"), undefined),
         served: [{ subjectId: aliceId, event: "approved", resourceId: undefined }],
         answer: "Acted",
       },
       {
-        name: "askActedAny under toPredicate",
+        name: "askActed, scope Any, under toPredicate",
         interpreter: "toPredicate",
-        local: askActedAny("toPredicate", alice, "approved"),
+        local: askActed("toPredicate", alice, actedLeaf("approved", "Any"), undefined),
         served: [{ subjectId: aliceId, event: "approved", resourceId: undefined }],
         answer: "Acted",
       },
       {
-        name: "askActedForResource",
+        name: "askActed, scope Resource",
         interpreter: "evaluate",
-        local: askActedForResource("evaluate", alice, "approved", "doc-1"),
+        local: askActed("evaluate", alice, actedLeaf("approved", "Resource"), DOC),
         served: [{ subjectId: aliceId, event: "approved", resourceId: doc }],
         answer: "Acted",
       },
@@ -373,7 +388,7 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
       {
         name: "askRelationship",
         interpreter: "evaluate",
-        local: askRelationship(alice, "owner", "doc-1", 2),
+        local: askRelationship(alice, relationshipLeaf("owner", 2), DOC),
         served: [{ subjectId: aliceId, relation: "owner", resourceId: doc, depth: 2 }],
         answer: "Related",
       },
@@ -382,7 +397,7 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
       {
         name: "askCustom",
         interpreter: "evaluate",
-        local: askCustom(alice, { id: "doc-1" }, "isOwner", { strict: true }),
+        local: askCustom(alice, customLeaf("isOwner", { strict: true }), DOC),
         served: ["isOwner", alice, { id: "doc-1" }, { strict: true }],
         answer: true,
       },
@@ -391,7 +406,7 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
       {
         name: "askSignature, scope Any",
         interpreter: "evaluate",
-        local: askSignature(alice, "approved", "manager", "Any", undefined),
+        local: askSignature(alice, signatureLeaf("approved", "manager", "Any"), undefined),
         served: [
           { subjectId: aliceId, resourceId: undefined, meaning: "approved", signerRole: "manager" },
         ],
@@ -400,7 +415,7 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
       {
         name: "askSignature, scope Resource",
         interpreter: "evaluate",
-        local: askSignature(alice, "approved", "manager", "Resource", "doc-1"),
+        local: askSignature(alice, signatureLeaf("approved", "manager", "Resource"), DOC),
         served: [{ subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" }],
         answer: signed,
       },
@@ -570,10 +585,10 @@ describe("a missing resource id still leaves its question on the span (D-07)", (
 
   const MISSING: { readonly [K in ScopedPort]: Missing } = {
     DecisionHistory: {
-      name: "askActedForResource",
+      name: "askActed",
       span: decisionHistoryPort.span,
       asked: "approved",
-      read: askActedForResource("evaluate", alice, "approved", undefined),
+      read: askActed("evaluate", alice, actedLeaf("approved", "Resource"), undefined),
       question: {
         "qadi.subject_id": "alice",
         "qadi.event": "approved",
@@ -585,7 +600,7 @@ describe("a missing resource id still leaves its question on the span (D-07)", (
       name: "askRelationship",
       span: relationshipResolverPort.span,
       asked: "owner",
-      read: askRelationship(alice, "owner", undefined, 2),
+      read: askRelationship(alice, relationshipLeaf("owner", 2), undefined),
       question: {
         "qadi.subject_id": "alice",
         "qadi.relation": "owner",
@@ -597,7 +612,7 @@ describe("a missing resource id still leaves its question on the span (D-07)", (
       name: "askSignature",
       span: signatureHistoryPort.span,
       asked: "approved",
-      read: askSignature(alice, "approved", "manager", "Resource", undefined),
+      read: askSignature(alice, signatureLeaf("approved", "manager", "Resource"), undefined),
       question: {
         "qadi.subject_id": "alice",
         "qadi.meaning": "approved",

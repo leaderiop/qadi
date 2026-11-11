@@ -28,11 +28,14 @@ import * as Data from "effect/Data";
 import type * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import type * as Result from "effect/Result";
+import type { AuthSubject } from "./AuthSubject.ts";
 import type { WirePath } from "./JsonRefusal.ts";
+import type { Policy } from "./Policy.ts";
 import type { PortName, PortSpanName } from "./PortMetrics.ts";
 import type { PortSpanAttributesLike, SpanFields, SpanStruct, SpanType } from "./PortSpan.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import type { PortWire } from "./PortWire.ts";
+import type { Resource } from "./Resource.ts";
 
 /**
  * What every port Shape has in common: an optional implementation label.
@@ -105,6 +108,43 @@ export const describeKeyRefusal: (self: KeyRefusal) => string = Match.type<KeyRe
 );
 
 /**
+ * Each policy tag mapped to its own node type, so a handler stored under a tag
+ * receives exactly that tag's node.
+ *
+ * Stated once, here: the serving facet's leaf map and `servingFor` each kept a
+ * copy of this index before ARCH-70 (ADR-QD-134). The mapped form, and not
+ * `Extract<Policy, …>` at each use, is what lets a function generic in the tag
+ * apply the handler stored under it (TS #47109).
+ */
+export type LeafOf = { readonly [T in Policy["_tag"]]: Extract<Policy, { readonly _tag: T }> };
+
+/**
+ * Where a read is made: the subject asking and the resource asked about, if
+ * there is one.
+ *
+ * What a policy leaf cannot say for itself and a request needs. A leaf names
+ * the question (`hasActed("approved")`); the site names who is asking and about
+ * what, so the same leaf makes a different request at each.
+ */
+export interface ReadSite {
+  readonly subject: AuthSubject;
+  readonly resource: Resource | undefined;
+}
+
+/**
+ * The request each policy leaf puts to one port, keyed by the leaf's tag, and
+ * only for the tags that port reads.
+ *
+ * `P` is the request **as far as the site supplies it**: the port method's own
+ * `Args` for four ports, and for `RelationshipResolver` the request whose
+ * `resourceId` may still be absent, which is what a read with no resource id
+ * annotates before it fails (ARCH-70, ADR-QD-134).
+ */
+export type LeafRequests<P extends ReadonlyArray<unknown>> = {
+  readonly [T in Policy["_tag"]]?: (leaf: LeafOf[T], site: ReadSite) => P;
+};
+
+/**
  * One port's description.
  *
  * - `N` — the port's name, a member of the closed `PortName`.
@@ -114,9 +154,16 @@ export const describeKeyRefusal: (self: KeyRefusal) => string = Match.type<KeyRe
  *   a script or observer written with positional parameters,
  *   `(subjectId, attribute) => …`, is then assignable to `(...args: Args)`.
  * - `A`/`E` — the method's answer and typed error.
+ * - `P` — the request as far as a read site supplies it: what `asks` build,
+ *   and what `serving.asked` and the span's `pose` accept beside `Args`.
+ *   Defaulted to `Args`, which is what it is for every port whose request has
+ *   no part a site can leave out.
  * - `Span` — the span's attributes, exactly typed per port. Defaulted to the
  *   structural bound, so the generic derivations (`PortDerivation.ts`,
  *   `PortDoubles.ts`) need not name a port's fields.
+ * - `Asks` — the leaves that read the port, exactly typed per port, so a read
+ *   can call the entry for its own tag without asking whether there is one.
+ *   Defaulted to the structural bound at `P`, which is all generic code needs.
  */
 export interface PortDescription<
   N extends PortName,
@@ -125,7 +172,9 @@ export interface PortDescription<
   Args extends ReadonlyArray<unknown>,
   A,
   E,
+  P extends ReadonlyArray<unknown> = Args,
   Span extends PortSpanAttributesLike = PortSpanAttributesLike,
+  Asks extends LeafRequests<P> = LeafRequests<P>,
 > {
   /** The port's name — the word its metrics are keyed by. */
   readonly port: N;
@@ -146,6 +195,9 @@ export interface PortDescription<
    * `@qadi/devtools` reads through it, so a key and a projection are spelled
    * once, here. Every field is a `SpanValue`, which is INV-QD-044 as a type.
    *
+   * `pose` also takes the request as far as the site supplies it (`P`), so a read that has no resource id can state its question
+   * before it fails (ARCH-70).
+   *
    * Typed `Span` for the exact per-port fields, intersected with the two
    * functions typed by *this description's* request and answer: a function
    * generic in the port (`readPort`) cannot call `Span`'s own `pose`, whose
@@ -154,7 +206,7 @@ export interface PortDescription<
    * `Span`'s `question` and `answer` structs stay exact for `PortSpanRowOf`.
    */
   readonly attributes: Span & {
-    readonly pose: (args: Args) => SpanType<SpanStruct<SpanFields>>;
+    readonly pose: (args: Args | P) => SpanType<SpanStruct<SpanFields>>;
     readonly disclose: (answer: A, args: Args) => SpanType<SpanStruct<SpanFields>>;
   };
   /**
@@ -170,17 +222,29 @@ export interface PortDescription<
    */
   readonly wire: PortWire<Args, A>;
   /**
-   * What a host may answer about this port, and which policy leaves ask it
-   * (ADR-QD-114). `answerRemotely` admits a request through it and
-   * `servingFor` collects and declares through it, so "which leaf asks which
-   * port, under what name" is stated here and nowhere else.
+   * The request each policy leaf puts to this port, as far as the read site
+   * supplies it. The only place a leaf becomes a request: every read in
+   * `PortAccess.ts` builds its request through it, and `servingFor` reads the
+   * name each leaf asks from the same request (ARCH-70, ADR-QD-134), so a
+   * served name and a read cannot disagree.
+   *
+   * A port lists only the tags it reads, and the entry's tag is the leaf's:
+   * `asks.HasActed` receives a `HasActed` node. Building a request is cheap and
+   * allocates nothing a read would not; serving work never runs here.
+   */
+  readonly asks: Asks;
+  /**
+   * What a host may answer about this port (ADR-QD-114). `answerRemotely`
+   * admits a request through it and `servingFor` declares through it; which
+   * name a leaf asks is `asked` of the request `asks` builds, not a statement
+   * of its own.
    *
    * Typed by the description's own name `N`, so generic code reading
    * `d.serving.admitted(serving)` stays correlated with the port's
    * `PortServing` slot, the same way {@link wire} stays correlated with
    * `Args`.
    */
-  readonly serving: PortServingFacet<N, Args>;
+  readonly serving: PortServingFacet<N, Args, P>;
   /** The service key. */
   readonly service: Context.Key<Self, Shape>;
   /**

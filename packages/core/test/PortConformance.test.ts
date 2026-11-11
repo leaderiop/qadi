@@ -84,8 +84,9 @@ interface PortCase<
   Args extends ReadonlyArray<unknown>,
   A,
   E,
+  P extends ReadonlyArray<unknown>,
 > {
-  readonly description: PortDescription<N, Self, Shape, Args, A, E>;
+  readonly description: PortDescription<N, Self, Shape, Args, A, E, P>;
   /** A representative request. */
   readonly args: Args;
   /** A non-default answer to it. */
@@ -108,14 +109,23 @@ type CaseOf<D> =
     infer Shape extends PortShape,
     infer Args extends ReadonlyArray<unknown>,
     infer A,
-    infer E
+    infer E,
+    infer P extends ReadonlyArray<unknown>
   >
-    ? PortCase<N, Self, Shape, Args, A, E>
+    ? PortCase<N, Self, Shape, Args, A, E, P>
     : never;
 
 interface CaseVisitor {
-  <N extends PortName, Self, Shape extends PortShape, Args extends ReadonlyArray<unknown>, A, E>(
-    c: PortCase<N, Self, Shape, Args, A, E>,
+  <
+    N extends PortName,
+    Self,
+    Shape extends PortShape,
+    Args extends ReadonlyArray<unknown>,
+    A,
+    E,
+    P extends ReadonlyArray<unknown>,
+  >(
+    c: PortCase<N, Self, Shape, Args, A, E, P>,
   ): void;
 }
 

@@ -7,6 +7,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
+import { makeSubject } from "../src/AuthSubject.ts";
 import { SignatureHistoryUnavailable } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import { hasSignature } from "../src/Policy.ts";
@@ -17,6 +18,7 @@ import {
   signatureHistoryFromSignatures,
   signatureHistoryPort,
 } from "../src/SignatureHistory.ts";
+import { leafOf } from "./helpers.ts";
 
 const query = (
   layer: Layer.Layer<SignatureHistory>,
@@ -29,12 +31,19 @@ const query = (
   }).pipe(Effect.provide(layer));
 
 describe("SignatureHistory", () => {
-  it("a HasSignature leaf asks the signature port for its own records (ADR-QD-114)", () => {
-    const leaf = hasSignature("approved");
-    assert.strictEqual(leaf._tag, "HasSignature");
-    if (leaf._tag === "HasSignature") {
-      assert.strictEqual(signatureHistoryPort.serving.leaves.HasSignature?.(leaf), "own-records");
-    }
+  it("a HasSignature leaf asks the signature port for its own records, naming no one (ADR-QD-114, ARCH-70)", () => {
+    const leaf = leafOf("HasSignature", hasSignature("approved", { signerRole: "manager" }));
+    const [request] = signatureHistoryPort.asks.HasSignature(leaf, {
+      subject: makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} }),
+      resource: { id: "doc-1" },
+    });
+    assert.deepStrictEqual(request, {
+      subjectId: makeSubjectId("alice"),
+      resourceId: makeResourceId("doc-1"),
+      meaning: "approved",
+      signerRole: "manager",
+    });
+    assert.isUndefined(signatureHistoryPort.serving.asked([request]));
   });
 
   describe("SignatureHistoryNone", () => {

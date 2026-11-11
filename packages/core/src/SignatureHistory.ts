@@ -42,7 +42,7 @@ import {
   timingOutPort,
 } from "./PortDerivation.ts";
 import { describeKeyRefusal } from "./PortDescription.ts";
-import type { PortDescription } from "./PortDescription.ts";
+import type { LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
 import {
   portSpan,
   sharedQuestionFields,
@@ -51,6 +51,7 @@ import {
 } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { sameAnswer } from "./PortWireEncode.ts";
+import { resourceIdOf } from "./Resource.ts";
 import { Signature } from "./Signature.ts";
 import { signatureMatches } from "./SignatureMatch.ts";
 
@@ -165,6 +166,28 @@ const signatureSpan = portSpan({
 });
 
 /**
+ * The request `HasSignature` puts to this port: the subject's id, the
+ * requirement the leaf states (`meaning`, `signerRole`), and the site's
+ * resource when the leaf is `Resource`-scoped, none when it is `Any`.
+ *
+ * The requirement is context, not a filter (`SignatureQuery`): the store answers
+ * with every signature on file and the read matches them. A `Resource`-scoped
+ * leaf at a site with no usable resource id is a request with no `resourceId`,
+ * which the read refuses (`readScoped`, `PortAccess.ts`). The only place this
+ * leaf becomes a request (ARCH-70, ADR-QD-134).
+ */
+const signatureAsks = {
+  HasSignature: (leaf: LeafOf["HasSignature"], site: ReadSite): [query: SignatureQuery] => [
+    {
+      subjectId: site.subject.id,
+      resourceId: leaf.scope === "Resource" ? resourceIdOf(site.resource) : undefined,
+      meaning: leaf.meaning,
+      signerRole: leaf.signerRole,
+    },
+  ],
+};
+
+/**
  * A host serves signature records only when it opts in.
  *
  * The port answers full `Signature` records, more than evaluation reads, so
@@ -175,11 +198,9 @@ const signatureSpan = portSpan({
  */
 const signatureServing: PortServingFacet<"SignatureHistory", [query: SignatureQuery]> = {
   allowlist: "opt-in",
-  leaves: { HasSignature: () => "own-records" },
   asked: () => undefined,
   admitted: () => undefined,
-  declare: (names) =>
-    names.length > 0 ? { SignatureHistory: { signatures: "own-records" } } : {},
+  declare: ({ asked }) => (asked ? { SignatureHistory: { signatures: "own-records" } } : {}),
 };
 
 /**
@@ -206,12 +227,15 @@ export const signatureHistoryPort: PortDescription<
   [query: SignatureQuery],
   ReadonlyArray<Signature>,
   SignatureHistoryUnavailable,
-  typeof signatureSpan
+  [query: SignatureQuery],
+  typeof signatureSpan,
+  typeof signatureAsks
 > = makePortDescription({
   port: "SignatureHistory",
   method: "signaturesFor",
   span: "qadi.hasSignature",
   attributes: signatureSpan,
+  asks: signatureAsks,
   /**
    * What the signature question and answer look like on a wire (ARCH-31).
    *

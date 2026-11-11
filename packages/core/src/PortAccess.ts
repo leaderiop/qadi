@@ -11,9 +11,11 @@
  * ARCH-01's E4/E6). Each read lives here once, and each interpreter keeps only
  * what is genuinely its own: what to do with the answer.
  *
- * Every read is a named `Effect.fn` that owns its span and does only its own
- * argument shaping and validation, then runs `readPort` (ADR-QD-109), a plain
- * function that opens no span of its own. A host answering another process
+ * Every read is a named `Effect.fn` that owns its span. It takes the policy leaf
+ * it answers and builds its request through the port's description (`asks`, the
+ * one statement of what a leaf asks, ARCH-70), then runs `readPort`
+ * (ADR-QD-109), a plain function that opens no span of its own, or `readScoped`
+ * where the question is about one resource. A host answering another process
  * (`servePortRead`) runs the same body under the port's span, so a served span
  * is a local one of the same request apart from `qadi.interpreter`.
  *
@@ -35,17 +37,25 @@ import type { AttributeResolver } from "./AttributeResolver.ts";
 import { attributeResolverPort } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
 import { customPredicatePort } from "./CustomPredicate.ts";
+import type { ActedResult, DecisionHistory } from "./DecisionHistory.ts";
 import { decisionHistoryPort } from "./DecisionHistory.ts";
-import type { AttributeResolveError } from "./Errors.ts";
+import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors.ts";
 import { MissingResourceId } from "./Errors.ts";
 import type { ResourceId } from "./Identity.ts";
-import { makeResourceId } from "./Identity.ts";
-import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
+import type { LeafOf } from "./PortDescription.ts";
 import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "./PortMetrics.ts";
 import type { PortName } from "./PortMetrics.ts";
 import { relationshipResolverPort } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
-import type { AnswerOf, ArgsOf, DescriptionOf, ErrorOf, PortTypes, ServiceOf } from "./Ports.ts";
+import type {
+  AnswerOf,
+  ArgsOf,
+  AskedOf,
+  DescriptionOf,
+  ErrorOf,
+  PortTypes,
+  ServiceOf,
+} from "./Ports.ts";
 import type { PortInterpreter, SpanFields, SpanStruct, SpanType } from "./PortSpan.ts";
 import { encodeSpan } from "./PortSpanEncode.ts";
 import type { SignatureAnswer } from "./SignatureHistory.ts";
@@ -72,8 +82,9 @@ type Interpreter = Exclude<PortInterpreter, "remote">;
  * A plain function, not an `Effect.fn`: it annotates the span the read already
  * opened and must not open one of its own (ADR-QD-073). Called before the port
  * is asked, so a call that fails still leaves a span saying what it was asked.
- * The `ask*` reads call it themselves for the one thing `readPort` cannot do
- * for them, annotating *before* a resource id is validated (ADR-QD-077).
+ * `readScoped` calls it itself for the one thing `readPort` cannot do for it,
+ * annotating a question whose resource id is missing, where there is no port
+ * call to annotate for (ADR-QD-077, ADR-QD-134).
  */
 const annotateQuestion = <Q extends SpanFields>(
   d: { readonly attributes: { readonly question: SpanStruct<Q> } },
@@ -200,14 +211,93 @@ const readPort = <K extends PortName>(
     );
   });
 
+/**
+ * The ports whose question is about one resource, written out so a fourth is a
+ * decision and not a side effect.
+ */
+type ScopedPort = "DecisionHistory" | "RelationshipResolver" | "SignatureHistory";
+
+/**
+ * A scoped port's request, as far as the site supplied it: what its `asks`
+ * build, which every scoped port's states a `resourceId` in, possibly absent.
+ */
+type ScopedRequest<K extends ScopedPort> = AskedOf<PortTypes[K]> &
+  readonly [{ readonly resourceId: ResourceId | undefined }];
+
+/**
+ * How a scoped port's request, once it is known to have a resource id, becomes
+ * the call: for two ports it already is the call, and for the relationship port,
+ * whose call cannot hold a missing id, it is the same request with the id the
+ * read just checked.
+ */
+const completeRequest: {
+  readonly [K in ScopedPort]: (
+    request: AskedOf<PortTypes[K]>,
+    resourceId: ResourceId,
+  ) => ArgsOf<PortTypes[K]>;
+} = {
+  DecisionHistory: (request) => request,
+  RelationshipResolver: ([request], resourceId) => [{ ...request, resourceId }],
+  SignatureHistory: (request) => request,
+};
+
+/**
+ * The one read of a port whose question is about one resource: a request with
+ * no resource id fails with `MissingResourceId` on the port's own span.
+ *
+ * Before it the check was written three times and the failure's trace depended
+ * on the copy: two reads opened a nested helper span and the third inlined the
+ * check to avoid it (ARCH-70, ADR-QD-134). Now a missing id leaves the port's
+ * span, its question and the failure, and nothing else: no other span opens,
+ * the port is not called and no call is counted. Annotate-before-validate is still ADR-QD-077's rule, so a span that records a
+ * wiring error names what it was asked: the question is the description's `pose`
+ * of the request as far as it is known, with `scope` the read's own fact (an
+ * absent id still makes this a `Resource` question, and `pose` would say `Any`;
+ * a span with no `scope` drops it). A present id is `readPort` alone, which
+ * annotates the question once; ADR-QD-109's second, agreeing annotation is
+ * retired with the early one.
+ *
+ * `relation` is what `MissingResourceId` names: the event, the relation or the
+ * meaning the leaf asks. A plain function, like `readPort`: it runs under the
+ * calling read's span and opens none, so it is not an `Effect.fn` and not in
+ * `UNTRACED_BUDGET`. The one id test is over the request `asks` built, whose
+ * `resourceId` is `resourceIdOf` (`Resource.ts`), the writer's rule and the
+ * reader's.
+ */
+const readScoped = <K extends ScopedPort>(
+  d: DescriptionOf<K>,
+  interpreter: Interpreter,
+  request: ScopedRequest<K>,
+  relation: string,
+): Effect.Effect<
+  AnswerOf<PortTypes[K]>,
+  ErrorOf<PortTypes[K]> | MissingResourceId,
+  ServiceOf<PortTypes[K]>
+> =>
+  Effect.gen(function* () {
+    const [{ resourceId }] = request;
+    if (resourceId === undefined) {
+      yield* annotateQuestion<SpanFields>(d, {
+        ...d.attributes.pose(request),
+        scope: "Resource",
+        interpreter,
+      });
+      return yield* Effect.fail(new MissingResourceId({ relation }));
+    }
+    return yield* readPort(d, interpreter, completeRequest[d.port](request, resourceId));
+  });
+
 // ---------------------------------------------------------------------------
 // The reads. Each is a named `Effect.fn`, because each owns a span (ADR-QD-051:
 // a span says what was asked, and a tracer is what reads it back). That is why
 // none is in `UNTRACED_BUDGET` — none runs once per policy *node* the way
 // `evaluateAllOf`/`evaluateAnyOf`/`evaluateRules` do, and the port call under
-// them is the expensive part. Each does only what is its own — argument
-// shaping, the resource-id check, the depth clamp, the signature match — and
-// hands the rest to `readPort`, the one body (ADR-QD-109), which opens no span.
+// them is the expensive part. Each takes the leaf it answers, builds its request
+// through the port's description, `<port>Port.asks.<Tag>(leaf, { subject,
+// resource })`, and hands the rest to `readPort`, the one body (ADR-QD-109), or
+// to `readScoped` for a question about one resource; the signature match is the
+// one thing a read does after. That call is all a read does with a description's
+// statement of what is served: serving work never runs on the evaluation path.
 // ---------------------------------------------------------------------------
 
 /**
@@ -229,10 +319,9 @@ const readPort = <K extends PortName>(
  */
 const resolveAttribute = Effect.fn(attributeResolverPort.span)(function* (
   interpreter: Interpreter,
-  subject: AuthSubject,
-  attribute: string,
+  request: ArgsOf<PortTypes["AttributeResolver"]>,
 ) {
-  return yield* readPort(attributeResolverPort, interpreter, [subject.id, attribute]);
+  return yield* readPort(attributeResolverPort, interpreter, request);
 });
 
 /**
@@ -240,170 +329,103 @@ const resolveAttribute = Effect.fn(attributeResolverPort.span)(function* (
  *
  * The miss-only call to the resolver is what preserves short-circuiting: a
  * branch that is never evaluated never triggers a lookup. The subject-first
- * lookup is stated here once — both interpreters used to carry their own copy.
+ * lookup is stated here once — both interpreters used to carry their own copy —
+ * and it reads the attribute from the request `asks` built, so the subject
+ * lookup and the port request cannot name different attributes.
  */
 export const readAttribute = (
   interpreter: Interpreter,
   subject: AuthSubject,
-  attribute: string,
-): Effect.Effect<unknown, AttributeResolveError, AttributeResolver> =>
-  Object.hasOwn(subject.attributes, attribute)
+  leaf: LeafOf["HasAttribute"],
+): Effect.Effect<unknown, AttributeResolveError, AttributeResolver> => {
+  const request = attributeResolverPort.asks.HasAttribute(leaf, { subject, resource: undefined });
+  const [, attribute] = request;
+  return Object.hasOwn(subject.attributes, attribute)
     ? Effect.succeed(subject.attributes[attribute])
-    : resolveAttribute(interpreter, subject, attribute);
+    : resolveAttribute(interpreter, request);
+};
+
+/** A `HasActed` or `HasNotActed` leaf, of either scope. */
+type ActedLeaf = LeafOf["HasActed"] | LeafOf["HasNotActed"];
 
 /**
- * Requires a Resource-scoped question to carry a usable resource id, and hands
- * it back as the string it was checked to be.
+ * An acted leaf that asks about the subject alone (`scope: "Any"`): the only
+ * kind `toPredicate` plans, because a resource-scoped history question is keyed
+ * by the row.
  *
- * Returns the id rather than a bare success so the caller has no second
- * `typeof` test to write — one whose false branch would be unreachable.
- * Called with the *raw* `resource.id`, which is `unknown` until this runs; the
- * callers annotate their span with it first, so the span that records a wiring
- * error still names the question it was asked (BEH-QD-227).
+ * Its own type so the read can say what it cannot do: an `Any`-scoped question
+ * has no resource id to miss, so it never fails with `MissingResourceId`, and
+ * `toPredicate`'s errors stay what they were.
  */
-const requireResourceId = Effect.fn("qadi.requireScopedResourceId")(function* (
-  rawResourceId: unknown,
-  relation: string,
+export type AnyActedLeaf = ActedLeaf & { readonly scope: "Any" };
+
+/** Whether an acted leaf asks about the subject alone, as the type {@link AnyActedLeaf}. */
+export const isAnyActedLeaf = (leaf: ActedLeaf): leaf is AnyActedLeaf => leaf.scope === "Any";
+
+const readActed = Effect.fn(decisionHistoryPort.span)(function* (
+  interpreter: Interpreter,
+  subject: AuthSubject,
+  leaf: ActedLeaf,
+  resource: Resource | undefined,
 ) {
-  if (typeof rawResourceId !== "string") {
-    return yield* Effect.fail(new MissingResourceId({ relation }));
-  }
-  return rawResourceId;
+  const request = decisionHistoryPort.asks[leaf._tag](leaf, { subject, resource });
+  return leaf.scope === "Resource"
+    ? yield* readScoped(decisionHistoryPort, interpreter, request, leaf.event)
+    : yield* readPort(decisionHistoryPort, interpreter, request);
 });
 
 /**
- * Asks whether the subject has ever performed `event`, about no resource in
- * particular (`scope: "Any"`).
+ * Asks whether the subject has ever performed `leaf`'s event: about no resource
+ * in particular for an `Any`-scoped leaf, and about the one `resource` for a
+ * `Resource`-scoped one.
  *
  * The answer is three-valued (`"Unknown"` matches neither polarity, so both deny
  * under an unwired port, ADR-QD-020); what to do with it is the caller's. An
- * `Any`-scoped question asks about no resource even where the request has one,
- * and the span says what was asked rather than what was available.
+ * `Any`-scoped question asks about no resource even where the site has one, and
+ * the span says what was asked rather than what was available. A
+ * `Resource`-scoped one with no usable resource id fails with
+ * `MissingResourceId` (`readScoped`), which an {@link AnyActedLeaf} cannot, and
+ * the first signature says so. The two scopes were two reads before, told apart
+ * by what the caller passed; the leaf's own `scope` decides now, as
+ * `askSignature`'s always did, under the one span.
+ *
+ * `toPredicate` refuses a resource-scoped history question because it is keyed
+ * by the row, but the parameter is `Interpreter` all the same, because nothing
+ * about the read itself is evaluator-specific.
  */
-export const askActedAny = Effect.fn(decisionHistoryPort.span)(function* (
+export function askActed(
   interpreter: Interpreter,
   subject: AuthSubject,
-  event: string,
-) {
-  return yield* readPort(decisionHistoryPort, interpreter, [
-    { subjectId: subject.id, event, resourceId: undefined },
-  ]);
-});
-
-/**
- * Asks whether the subject has performed `event` on one resource
- * (`scope: "Resource"`).
- *
- * Evaluator-only in practice — `toPredicate` refuses a resource-scoped history
- * question because it is keyed by the row — but the parameter is `Interpreter`
- * all the same, because nothing about the read itself is evaluator-specific.
- * Takes the raw `resource.id` and fails with `MissingResourceId` when it is not a
- * string, after annotating the span with the question: annotated before the
- * check, so the span that records a wiring error still names the event it was
- * asked about. The early question is the description's `pose` of the request,
- * not a second statement of it (WR-02); `readPort` annotates it again on the
- * success path, from the same request, so the two cannot disagree (ADR-QD-109).
- */
-export const askActedForResource = Effect.fn(decisionHistoryPort.span)(function* (
+  leaf: AnyActedLeaf,
+  resource: Resource | undefined,
+): Effect.Effect<ActedResult, DecisionHistoryUnavailable, DecisionHistory>;
+export function askActed(
   interpreter: Interpreter,
   subject: AuthSubject,
-  event: string,
-  rawResourceId: unknown,
-) {
-  const request = {
-    subjectId: subject.id,
-    event,
-    resourceId: typeof rawResourceId === "string" ? makeResourceId(rawResourceId) : undefined,
-  };
-  // The question is the description's, from the request as far as it is known;
-  // `scope` is the read's own fact, not the request's (an id that is missing
-  // still makes this a Resource question, and `pose` would say `Any`).
-  yield* annotateQuestion(decisionHistoryPort, {
-    ...decisionHistoryPort.attributes.pose([request]),
-    scope: "Resource",
-    interpreter,
-  });
-  yield* requireResourceId(rawResourceId, event);
-  return yield* readPort(decisionHistoryPort, interpreter, [request]);
-});
+  leaf: ActedLeaf,
+  resource: Resource | undefined,
+): ReturnType<typeof readActed>;
+export function askActed(...args: Parameters<typeof readActed>): ReturnType<typeof readActed> {
+  return readActed(...args);
+}
 
 /**
- * Bounds `HasRelationship.depth` before it reaches `RelationshipResolver` as
- * traversal fuel.
- *
- * Every other untrusted numeric at this trust boundary is bounded: the policy
- * tree itself by `DEFAULT_MAX_DEPTH`, a raw decoded JSON value by
- * `MAX_DECODE_DEPTH`. `Policy.ts`'s wire schema now rejects a non-integer,
- * negative, or out-of-`[0, DEFAULT_MAX_DEPTH]` `depth` at decode — the same
- * boundary-not-runtime treatment `Matcher.ts`'s `Gte`/`Lt` give their bound —
- * so `fromJson`/`fromJsonValue` are no longer where `1e308`, a negative
- * number, or `NaN`/`Infinity` gets through. This clamp stays anyway: the
- * smart constructors (`hasRelationship`, …) are deliberately total and never
- * cross the schema (`Policy.ts`'s `makeRoleName` comment explains why), so a
- * policy built in memory with `hasRelationship("owner", { depth: -5 })` still
- * reaches `RelationshipResolver.check` unclamped without this. Reusing
- * `DEFAULT_MAX_DEPTH`'s value rather than inventing a second bound: nothing
- * here argues a relationship graph should be walked deeper than a policy tree
- * is ever allowed to be.
- */
-const MAX_RELATIONSHIP_DEPTH = DEFAULT_MAX_DEPTH;
-
-/**
- * Clamps an in-memory `HasRelationship.depth` to `[0, MAX_RELATIONSHIP_DEPTH]`
- * — defense-in-depth for policies built through the smart constructors, which
- * never cross `Policy.ts`'s decode-time bound (see the comment above).
- *
- * `undefined` passes through unchanged — "the resolver decides" is a real,
- * distinct meaning `RelationshipResolverShape.check`'s own doc comment names,
- * not an absent value to default. `NaN` fails every comparison and
- * `Math.min`/`Math.max` propagate it, so it is called out explicitly rather than
- * silently falling through the clamp below with no bound applied at all; a
- * fractional depth is truncated, since fuel is spent in whole hops.
- */
-const clampRelationshipDepth = (depth: number | undefined): number | undefined => {
-  if (depth === undefined) return undefined;
-  if (Number.isNaN(depth)) return 0;
-  return Math.min(Math.max(Math.trunc(depth), 0), MAX_RELATIONSHIP_DEPTH);
-};
-
-/**
- * Asks the relationship resolver whether the subject holds `relation` to the
- * resource.
+ * Asks the relationship resolver whether the subject holds `leaf`'s relation to
+ * the resource.
  *
  * Evaluator-only: `toPredicate` refuses `HasRelationship` before it would ask
  * (a relationship is keyed by the row's id and cannot fold), so the span's
  * `qadi.interpreter` is the constant `"evaluate"` and no parameter admits
- * `"toPredicate"`. Takes the raw `resource.id` and fails with `MissingResourceId`
- * when it is not a string, after annotating the span with the question.
+ * `"toPredicate"`. Fails with `MissingResourceId` when the resource has no usable
+ * id (`readScoped`). The request's `depth` is the clamped one `asks` built.
  */
 export const askRelationship = Effect.fn(relationshipResolverPort.span)(function* (
   subject: AuthSubject,
-  relation: string,
-  rawResourceId: unknown,
-  depth: number | undefined,
+  leaf: LeafOf["HasRelationship"],
+  resource: Resource | undefined,
 ) {
-  const clamped = clampRelationshipDepth(depth);
-  // Before the check: the span that records a missing resource id should still
-  // name the relation it wanted one for. Annotated with the clamped value, not
-  // the raw decoded one: the span should say what was actually asked of the
-  // resolver. The check is inline rather than `requireResourceId`, which would
-  // add a nested `qadi.requireScopedResourceId` span to this read's trace.
-  const request = {
-    subjectId: subject.id,
-    relation,
-    resourceId: typeof rawResourceId === "string" ? makeResourceId(rawResourceId) : undefined,
-    depth: clamped,
-  };
-  yield* annotateQuestion(relationshipResolverPort, {
-    ...relationshipResolverPort.attributes.pose([request]),
-    interpreter: "evaluate",
-  });
-  if (request.resourceId === undefined) {
-    return yield* Effect.fail(new MissingResourceId({ relation }));
-  }
-  return yield* readPort(relationshipResolverPort, "evaluate", [
-    { ...request, resourceId: request.resourceId },
-  ]);
+  const request = relationshipResolverPort.asks.HasRelationship(leaf, { subject, resource });
+  return yield* readScoped(relationshipResolverPort, "evaluate", request, leaf.relation);
 });
 
 /**
@@ -415,15 +437,18 @@ export const askRelationship = Effect.fn(relationshipResolverPort.span)(function
  */
 export const askCustom = Effect.fn(customPredicatePort.span)(function* (
   subject: AuthSubject,
+  leaf: LeafOf["HasCustom"],
   resource: Resource | undefined,
-  name: string,
-  params: unknown,
 ) {
-  return yield* readPort(customPredicatePort, "evaluate", [name, subject, resource, params]);
+  return yield* readPort(
+    customPredicatePort,
+    "evaluate",
+    customPredicatePort.asks.HasCustom(leaf, { subject, resource }),
+  );
 });
 
 /**
- * Asks the signature history and matches the requirement against what it
+ * Asks the signature history and matches `leaf`'s requirement against what it
  * returns. Evaluator-only (translation refuses `HasSignature`, INV-QD-056).
  *
  * The match is made here too, from the same `signatureMatches` the span's
@@ -431,40 +456,22 @@ export const askCustom = Effect.fn(customPredicatePort.span)(function* (
  * built elsewhere. `qadi.matched` rather than a three-valued `qadi.answer`: a
  * signature either matches or it doesn't, with no analogous middle state.
  *
- * A Resource-scoped question is annotated *before* its resource id is
- * validated, so the span that records a wiring error still names the question
- * it was asked (BEH-QD-227, ADR-QD-077). That early question is the description's
- * `pose` of the request as far as it is known, not a second statement of it
- * (WR-02); `readPort` then annotates it again, with agreeing values (ADR-QD-109).
+ * A `Resource`-scoped leaf with no usable resource id fails with
+ * `MissingResourceId` on the port's own span (`readScoped`, BEH-QD-227,
+ * ADR-QD-077); an `Any`-scoped one asks about the subject alone.
  */
 export const askSignature = Effect.fn(signatureHistoryPort.span)(function* (
   subject: AuthSubject,
-  meaning: string,
-  signerRole: string | undefined,
-  scope: "Resource" | "Any",
-  rawResourceId: unknown,
+  leaf: LeafOf["HasSignature"],
+  resource: Resource | undefined,
 ) {
-  let resourceId: ResourceId | undefined;
-  if (scope === "Resource") {
-    yield* annotateQuestion(signatureHistoryPort, {
-      ...signatureHistoryPort.attributes.pose([
-        {
-          subjectId: subject.id,
-          resourceId: typeof rawResourceId === "string" ? makeResourceId(rawResourceId) : undefined,
-          meaning,
-          signerRole,
-        },
-      ]),
-      scope,
-      interpreter: "evaluate",
-    });
-    resourceId = makeResourceId(yield* requireResourceId(rawResourceId, meaning));
-  }
-  const signatures = yield* readPort(signatureHistoryPort, "evaluate", [
-    { subjectId: subject.id, resourceId, meaning, signerRole },
-  ]);
+  const request = signatureHistoryPort.asks.HasSignature(leaf, { subject, resource });
+  const signatures =
+    leaf.scope === "Resource"
+      ? yield* readScoped(signatureHistoryPort, "evaluate", request, leaf.meaning)
+      : yield* readPort(signatureHistoryPort, "evaluate", request);
   const answer: SignatureAnswer = {
-    matched: signatureMatches(signatures, meaning, signerRole),
+    matched: signatureMatches(signatures, leaf.meaning, leaf.signerRole),
     onFile: signatures.length,
   };
   return answer;

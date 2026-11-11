@@ -31,7 +31,7 @@ import type * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
 import { InvalidBoundedPermits } from "./Errors.ts";
 import type { SubjectId } from "./Identity.ts";
-import type { PortDescription, PortShape } from "./PortDescription.ts";
+import type { LeafRequests, PortDescription, PortShape } from "./PortDescription.ts";
 import { canonicalKey } from "./PortKey.ts";
 import { attemptsStruct, encodeSpan } from "./PortSpanEncode.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "./PortMetrics.ts";
@@ -85,16 +85,18 @@ export const makePortDescription = <
   Args extends ReadonlyArray<unknown>,
   A,
   E,
+  P extends ReadonlyArray<unknown>,
   Span extends PortSpanAttributesLike,
+  Asks extends LeafRequests<P>,
   Q extends { readonly subjectId: SubjectId },
   QE,
   W,
   WE,
 >(
-  spec: Omit<PortDescription<N, Self, Shape, Args, A, E, Span>, "wire" | "key" | "defect"> & {
+  spec: Omit<PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks>, "wire" | "key" | "defect"> & {
     readonly wire: DerivedWireSpec<Args, A, Q, QE, W, WE>;
   },
-): PortDescription<N, Self, Shape, Args, A, E, Span> => {
+): PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks> => {
   const { wire, ...rest } = spec;
   return {
     ...rest,
@@ -213,8 +215,9 @@ export const wrapPort = <
   Args extends ReadonlyArray<unknown>,
   A,
   E,
+  P extends ReadonlyArray<unknown>,
 >(
-  d: PortDescription<N, Self, Shape, Args, A, E>,
+  d: PortDescription<N, Self, Shape, Args, A, E, P>,
   layer: Layer.Layer<Self>,
   suffix: string,
   around: (call: (...args: Args) => Effect.Effect<A, E>) => (...args: Args) => Effect.Effect<A, E>,
@@ -242,8 +245,9 @@ export const retryingPort =
     Args extends ReadonlyArray<unknown>,
     A,
     E,
+    P extends ReadonlyArray<unknown>,
   >(
-    d: PortDescription<N, Self, Shape, Args, A, E>,
+    d: PortDescription<N, Self, Shape, Args, A, E, P>,
   ) =>
   (schedule: Schedule.Schedule<unknown, E>) =>
   (layer: Layer.Layer<Self>): Layer.Layer<Self> =>
@@ -268,8 +272,16 @@ export const retryingPort =
  * `InvalidBoundedPermits` ({@link boundedPermits}).
  */
 export const boundedPort =
-  <N extends PortName, Self, Shape extends PortShape, Args extends ReadonlyArray<unknown>, A, E>(
-    d: PortDescription<N, Self, Shape, Args, A, E>,
+  <
+    N extends PortName,
+    Self,
+    Shape extends PortShape,
+    Args extends ReadonlyArray<unknown>,
+    A,
+    E,
+    P extends ReadonlyArray<unknown>,
+  >(
+    d: PortDescription<N, Self, Shape, Args, A, E, P>,
   ) =>
   (permits: number) =>
   (layer: Layer.Layer<Self>): Layer.Layer<Self, InvalidBoundedPermits> =>
@@ -305,8 +317,9 @@ export const timingOutPort =
     Args extends ReadonlyArray<unknown>,
     A,
     E,
+    P extends ReadonlyArray<unknown>,
   >(
-    d: PortDescription<N, Self, Shape, Args, A, E>,
+    d: PortDescription<N, Self, Shape, Args, A, E, P>,
   ) =>
   (duration: Duration.Input) =>
   (layer: Layer.Layer<Self>): Layer.Layer<Self> =>
@@ -343,8 +356,9 @@ export const nonePort = <
   Args extends ReadonlyArray<unknown>,
   A,
   E,
+  P extends ReadonlyArray<unknown>,
 >(
-  d: PortDescription<N, Self, Shape, Args, A, E>,
+  d: PortDescription<N, Self, Shape, Args, A, E, P>,
 ): Layer.Layer<Self> => {
   const answered: Effect.Effect<A, E> = Effect.succeed(d.none.answer);
   return Layer.succeed(d.service, d.make(d.none.name, () => answered));

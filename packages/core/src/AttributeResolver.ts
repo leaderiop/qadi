@@ -27,7 +27,7 @@ import {
   retryingPort,
   timingOutPort,
 } from "./PortDerivation.ts";
-import type { PortDescription } from "./PortDescription.ts";
+import type { LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
 import {
   portSpan,
   sharedQuestionFields,
@@ -120,6 +120,21 @@ const attributeSpan = portSpan({
 });
 
 /**
+ * The request `HasAttribute` puts to this port: the subject's id and the
+ * attribute the leaf names.
+ *
+ * The only place that leaf becomes a request (ARCH-70, ADR-QD-134): the
+ * evaluator's and the translator's reads build theirs through it, and
+ * `servingFor` reads the name a host must serve from it.
+ */
+const attributeAsks = {
+  HasAttribute: (
+    leaf: LeafOf["HasAttribute"],
+    site: ReadSite,
+  ): [subjectId: SubjectId, attribute: string] => [site.subject.id, leaf.attribute],
+};
+
+/**
  * A host serves attributes only from a required allowlist.
  *
  * An attribute's answer is a value, and the name is chosen by the client: a
@@ -132,10 +147,9 @@ const attributeServing: PortServingFacet<
   [subjectId: SubjectId, attribute: string]
 > = {
   allowlist: "required",
-  leaves: { HasAttribute: (leaf) => leaf.attribute },
   asked: ([, attribute]) => attribute,
   admitted: (declaration) => declaration.attributes,
-  declare: (names) => ({ AttributeResolver: { attributes: names } }),
+  declare: ({ names }) => ({ AttributeResolver: { attributes: names } }),
 };
 
 /**
@@ -153,12 +167,15 @@ export const attributeResolverPort: PortDescription<
   [subjectId: SubjectId, attribute: string],
   unknown,
   AttributeResolveError,
-  typeof attributeSpan
+  [subjectId: SubjectId, attribute: string],
+  typeof attributeSpan,
+  typeof attributeAsks
 > = makePortDescription({
   port: "AttributeResolver",
   method: "resolve",
   span: "qadi.attribute",
   attributes: attributeSpan,
+  asks: attributeAsks,
   /**
    * What the attribute question and answer look like on a wire (ARCH-31).
    *

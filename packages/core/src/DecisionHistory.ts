@@ -32,7 +32,7 @@ import {
   retryingPort,
   timingOutPort,
 } from "./PortDerivation.ts";
-import type { PortDescription } from "./PortDescription.ts";
+import type { LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
 import {
   portSpan,
   sharedQuestionFields,
@@ -41,6 +41,7 @@ import {
 } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { sameAnswer } from "./PortWireEncode.ts";
+import { resourceIdOf } from "./Resource.ts";
 
 /**
  * What the port can say about a past event.
@@ -79,9 +80,9 @@ export interface DecisionHistoryShape {
    * Answers `hasActed`/`hasNotActed`.
    *
    * An implementation is not required to fail cleanly. `PortAccess.ts`'s
-   * `askActedAny`/`askActedForResource` catch a defect from this call and
-   * convert it into this same `DecisionHistoryUnavailable`, matching `AttributeResolverShape.resolve`'s
-   * own contract — see its doc comment for why (issue #100).
+   * `askActed` catches a defect from this call and converts it into this same
+   * `DecisionHistoryUnavailable`, matching `AttributeResolverShape.resolve`'s own
+   * contract — see its doc comment for why (issue #100).
    */
   readonly hasActed: (
     query: ActedQuery,
@@ -128,6 +129,30 @@ const actedSpan = portSpan({
 });
 
 /**
+ * The request `HasActed` and `HasNotActed` put to this port, the same one: the
+ * subject's id and the event the leaf names, about the site's resource when the
+ * leaf is `Resource`-scoped and about none when it is `Any`.
+ *
+ * A `Resource`-scoped leaf at a site with no usable resource id is a request
+ * with no `resourceId`, which the read refuses (`readScoped`, `PortAccess.ts`):
+ * the request is stated as far as the site allows, and what to do about the
+ * rest is the read's. The only place these leaves become a request (ARCH-70,
+ * ADR-QD-134).
+ */
+const askedActed = (
+  leaf: LeafOf["HasActed"] | LeafOf["HasNotActed"],
+  site: ReadSite,
+): [query: ActedQuery] => [
+  {
+    subjectId: site.subject.id,
+    event: leaf.event,
+    resourceId: leaf.scope === "Resource" ? resourceIdOf(site.resource) : undefined,
+  },
+];
+
+const actedAsks = { HasActed: askedActed, HasNotActed: askedActed };
+
+/**
  * A host may serve events from an allowlist or leave the port open.
  *
  * The answer is a closed three-valued word, so an event name discloses no more
@@ -136,10 +161,9 @@ const actedSpan = portSpan({
  */
 const actedServing: PortServingFacet<"DecisionHistory", [query: ActedQuery]> = {
   allowlist: "open",
-  leaves: { HasActed: (leaf) => leaf.event, HasNotActed: (leaf) => leaf.event },
   asked: ([query]) => query.event,
   admitted: (declaration) => declaration.events,
-  declare: (names) => ({ DecisionHistory: { events: names } }),
+  declare: ({ names }) => ({ DecisionHistory: { events: names } }),
 };
 
 /**
@@ -157,12 +181,15 @@ export const decisionHistoryPort: PortDescription<
   [query: ActedQuery],
   ActedResult,
   DecisionHistoryUnavailable,
-  typeof actedSpan
+  [query: ActedQuery],
+  typeof actedSpan,
+  typeof actedAsks
 > = makePortDescription({
   port: "DecisionHistory",
   method: "hasActed",
   span: "qadi.acted",
   attributes: actedSpan,
+  asks: actedAsks,
   /**
    * What the history question and answer look like on a wire (ARCH-31).
    *
