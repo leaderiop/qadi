@@ -47,6 +47,7 @@ import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from ".
 import type { PortName } from "./PortMetrics.ts";
 import { relationshipResolverPort } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
+import { isResourceScoped } from "./ScopedLeaf.ts";
 import type {
   AnswerOf,
   ArgsOf,
@@ -369,7 +370,7 @@ const readActed = Effect.fn(decisionHistoryPort.span)(function* (
   resource: Resource | undefined,
 ) {
   const request = decisionHistoryPort.asks[leaf._tag](leaf, { subject, resource });
-  return leaf.scope === "Resource"
+  return isResourceScoped(leaf)
     ? yield* readScoped(decisionHistoryPort, interpreter, request, leaf.event)
     : yield* readPort(decisionHistoryPort, interpreter, request);
 });
@@ -467,7 +468,7 @@ export const askSignature = Effect.fn(signatureHistoryPort.span)(function* (
 ) {
   const request = signatureHistoryPort.asks.HasSignature(leaf, { subject, resource });
   const signatures =
-    leaf.scope === "Resource"
+    isResourceScoped(leaf)
       ? yield* readScoped(signatureHistoryPort, "evaluate", request, leaf.meaning)
       : yield* readPort(signatureHistoryPort, "evaluate", request);
   const answer: SignatureAnswer = {

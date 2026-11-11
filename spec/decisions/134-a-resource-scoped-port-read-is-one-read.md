@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-134                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-11                                     |
 > | Status         | Accepted — amends ADR-QD-077, ADR-QD-094, ADR-QD-109, ADR-QD-114; reads ADR-QD-051, ADR-QD-073 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-11): Initial (ARCH-70, CCR-QD-412) |
+> | Change History | 1.1 (2026-11-11): D-01 names the one scope test the acted and signature reads share with their asks (ARCH-70, CCR-QD-412)<br>1.0 (2026-11-11): Initial (ARCH-70, CCR-QD-412) |
 
 ---
 
@@ -88,6 +88,11 @@ followed by `MissingResourceId({ relation })`; on a present id, completing the r
 (`Resource.ts`), the writer's rule and now the reader's, called by the scoped ports' `asks`. A resource
 that is absent, one with no `id` and one whose `id` is not a string all raise `MissingResourceId`, as
 they did.
+
+For `DecisionHistory` and `SignatureHistory`, whose request type leaves `resourceId` optional, a
+`Resource`-scoped leaf is kept from reaching the port without an id by one test, not two: `asks` reads the id
+through `scopedResourceIdOf` and the read routes on `isResourceScoped`, both in `ScopedLeaf.ts` and the second
+the first's own test, so the request and the route cannot disagree on the leaf's `scope`.
 
 ### D-02. No nested span
 

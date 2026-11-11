@@ -51,7 +51,7 @@ import {
 } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { sameAnswer } from "./PortWireEncode.ts";
-import { resourceIdOf } from "./Resource.ts";
+import { scopedResourceIdOf } from "./ScopedLeaf.ts";
 import { Signature } from "./Signature.ts";
 import { signatureMatches } from "./SignatureMatch.ts";
 
@@ -180,7 +180,7 @@ const signatureAsks = {
   HasSignature: (leaf: LeafOf["HasSignature"], site: ReadSite): [query: SignatureQuery] => [
     {
       subjectId: site.subject.id,
-      resourceId: leaf.scope === "Resource" ? resourceIdOf(site.resource) : undefined,
+      resourceId: scopedResourceIdOf(leaf, site.resource),
       meaning: leaf.meaning,
       signerRole: leaf.signerRole,
     },

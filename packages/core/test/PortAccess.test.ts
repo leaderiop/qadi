@@ -673,3 +673,61 @@ describe("a missing resource id still leaves its question on the span (D-07)", (
       }));
   }
 });
+
+/**
+ * INV-QD-288 holds for the two ports whose request type cannot refuse a missing
+ * id (`ActedQuery.resourceId` and `SignatureQuery.resourceId` are optional): a
+ * `Resource`-scoped leaf reaches its port only with the id the site's resource
+ * holds, and an `Any`-scoped one only without one. The leaf's `scope` decides
+ * both what `asks` puts in the request and which read answers it, so this fails
+ * if the two ever disagree (a `Resource` leaf asked subject-wide would allow on
+ * any resource's history).
+ */
+describe("a scoped read reaches its port only with the id its leaf's scope calls for (INV-QD-288)", () => {
+  const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
+
+  /** Every shape a site's resource can take: absent, id-less, a non-string id, a usable id. */
+  const SITES: ReadonlyArray<{ readonly resource: Record<string, unknown> | undefined; readonly id: string | undefined }> = [
+    { resource: undefined, id: undefined },
+    { resource: {}, id: undefined },
+    { resource: { id: 7 }, id: undefined },
+    { resource: { id: { nested: "doc-1" } }, id: undefined },
+    { resource: { id: "doc-1" }, id: "doc-1" },
+  ];
+
+  for (const scope of ["Resource", "Any"] as const) {
+    const reads: ReadonlyArray<
+      readonly [string, (resource: Record<string, unknown> | undefined) => Effect.Effect<unknown, unknown, PortServices>]
+    > = [
+      ["askActed", (resource) => askActed("evaluate", alice, actedLeaf("approved", scope), resource)],
+      ["askSignature", (resource) => askSignature(alice, signatureLeaf("approved", "manager", scope), resource)],
+    ];
+    for (const [name, ask] of reads) {
+      it.effect(`${name} at ${scope} scope`, () =>
+        Effect.gen(function* () {
+          for (const site of SITES) {
+            const history = scriptedPort(decisionHistoryPort, () => undefined);
+            const signatures = scriptedPort(signatureHistoryPort, () => undefined);
+            const result = yield* Effect.result(
+              ask(site.resource).pipe(
+                Effect.provide(
+                  portsLayer({ DecisionHistory: history.layer, SignatureHistory: signatures.layer }),
+                ),
+              ),
+            );
+            const calls = [...history.calls, ...signatures.calls].map(([query]) => query.resourceId);
+            if (scope === "Any") {
+              assert.isTrue(Result.isSuccess(result));
+              assert.deepStrictEqual(calls, [undefined]);
+            } else if (site.id === undefined) {
+              assert.isTrue(Result.isFailure(result));
+              assert.deepStrictEqual(calls, []);
+            } else {
+              assert.isTrue(Result.isSuccess(result));
+              assert.deepStrictEqual(calls, [makeResourceId(site.id)]);
+            }
+          }
+        }));
+    }
+  }
+});

@@ -41,7 +41,7 @@ import {
 } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { sameAnswer } from "./PortWireEncode.ts";
-import { resourceIdOf } from "./Resource.ts";
+import { scopedResourceIdOf } from "./ScopedLeaf.ts";
 
 /**
  * What the port can say about a past event.
@@ -146,7 +146,7 @@ const askedActed = (
   {
     subjectId: site.subject.id,
     event: leaf.event,
-    resourceId: leaf.scope === "Resource" ? resourceIdOf(site.resource) : undefined,
+    resourceId: scopedResourceIdOf(leaf, site.resource),
   },
 ];
 
