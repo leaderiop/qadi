@@ -274,7 +274,12 @@ export interface PortDescription<
   readonly defect: (args: Args, cause: Cause.Cause<unknown>) => E;
   /**
    * The text that identifies one request, or why it has none: two requests
-   * share a key exactly when every argument is `Equal.equals`.
+   * share a key exactly when they ask the same wire question.
+   *
+   * For `CustomPredicate` that is every argument being `Equal.equals`. For a
+   * derived port the question drops an `undefined` member, so an absent
+   * optional member and one stated `undefined` are the same question and share
+   * a key (they are two requests to `Equal`, one question on the wire).
    *
    * A derived port's key is `canonicalKey` (`PortKey.ts`) over its wire
    * question (`makePortDescription`, ADR-QD-133), so a member the question

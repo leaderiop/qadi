@@ -207,9 +207,11 @@ const signatureServing: PortServingFacet<"SignatureHistory", [query: SignatureQu
  * The signature-history port, described once (`PortDescription.ts`).
  *
  * A request is keyed as its wire question, `{ subjectId, resourceId, meaning,
- * signerRole }`, each absent member absent from it and so distinct from every
- * present value (`makePortDescription`, ADR-QD-133). The key is injective over
- * every argument the port receives (ADR-QD-094, INV-QD-043), and the requirement is one. Over-keying
+ * signerRole }`; an absent member is dropped from it, so it is distinct from
+ * every present value and equal to a member stated `undefined`
+ * (`makePortDescription`, ADR-QD-133). The key is injective over the question,
+ * so two requests share one exactly when they ask the same question
+ * (ADR-QD-094, INV-QD-043), and the requirement is part of the question. Over-keying
  * does not replay a stale answer, but it is not "only deny" either: a capture
  * keyed per requirement answers a requirement it never saw with the port's
  * `none` value, an empty list, which `hasSignature` denies and `not(hasSignature)`

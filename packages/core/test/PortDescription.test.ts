@@ -453,8 +453,8 @@ const optionalWords = FastCheck.option(words, { nil: undefined });
 /**
  * One arbitrary per derived port. `meaning` and `signerRole` are optional
  * *keys* on `SignatureQuery`, so each is generated absent, `undefined` or a
- * string: the three are different requests to `Equal`, and the key must tell
- * them apart exactly as the wire question does.
+ * string. Absent and `undefined` are different requests to `Equal` but one wire
+ * question, so they share a key; a string is a different question and does not.
  */
 const ARBITRARIES: { readonly [K in DerivedPort]: FastCheck.Arbitrary<ArgsOf<PortTypes[K]>> } = {
   AttributeResolver: FastCheck.tuple(subjectIds, words),
@@ -536,6 +536,20 @@ describe("a derived port's key is its wire question's key, and its defect is its
     SignatureHistory: () => lawOf("SignatureHistory", signatureHistoryPort, ARBITRARIES.SignatureHistory),
   };
   for (const law of Object.values(LAWS)) law();
+
+  it("an absent optional member and one stated undefined are one question, so they share a key", () => {
+    const subjectId = makeSubjectId("alice");
+    const key = (query: Parameters<typeof signatureHistoryPort.key>[0][0]) =>
+      Result.getOrThrow(signatureHistoryPort.key([query]));
+    assert.strictEqual(
+      key({ subjectId, resourceId: undefined }),
+      key({ subjectId, resourceId: undefined, meaning: undefined }),
+    );
+    assert.notStrictEqual(
+      key({ subjectId, resourceId: undefined }),
+      key({ subjectId, resourceId: undefined, meaning: "approve" }),
+    );
+  });
 
   it("CustomPredicate states its own key: it covers the subject's roles, permissions and attributes, which its wire question does not carry", () => {
     const asEditor = makeSubject({ id: "alice", roles: ["editor"], permissions: [], attributes: {} });
