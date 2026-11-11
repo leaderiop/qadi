@@ -288,7 +288,7 @@ shape from benchmark numbers, plus the absent-vs-undefined key convention), 25-0
 
 ### Phases
 
-- [ ] **Phase 21: Port request derived from its description** - Derived `key`/`defect` for four ports, exhaustive wire and span questions by type; CustomPredicate overrides (ARCH-69)
+- [x] **Phase 21: Port request derived from its description** - Derived `key`/`defect` for four ports, exhaustive wire and span questions by type; CustomPredicate overrides (ARCH-69) (completed 2026-11-11)
 - [ ] **Phase 22: One scoped port read** - `readScoped` owns the id check and one trace shape; one leaf→request function per port drives reads and serving (ARCH-70)
 - [ ] **Phase 23: Sink record fields stated once** - Benchmark first; one field statement per record drives the class type and the v2 wire; one record projection (ARCH-71)
 - [ ] **Phase 24: Simulation source preparation** - `prepareSource` in `SimulationSource.ts` owns availability, refusal and capture (ARCH-72)
@@ -308,7 +308,7 @@ shape from benchmark numbers, plus the absent-vs-undefined key convention), 25-0
   1. The key law ("derived key = `canonicalKey` of the wire question") passes as a property over the four derived ports; CustomPredicate's override is documented and tested.
   2. A type test fails when a wire or span question omits a member (RED on the phase base).
   3. Wire-byte goldens are unchanged.
-**Plans**: 5/5 plans executed
+**Plans**: 5/5 plans complete
 
 Plans:
 - [x] 21-01 (W1): Record the phase base and mutation baseline; demonstrate PREQ-04 by hand; commit the RED type test, key law and wire-byte goldens
@@ -449,7 +449,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 21. Port request derivation | 0/5 | Planned | - |
+| 21. Port request derivation | 5/5 | Complete    | 2026-11-11 |
 | 22. One scoped port read | 0/4 | Planned | - |
 | 23. Sink record fields | 0/4 | Planned | - |
 | 24. Simulation source preparation | 0/3 | Planned | - |
