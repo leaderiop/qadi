@@ -218,6 +218,65 @@ const sameIdentity = (a: GateIdentity, b: GateIdentity): boolean =>
   a.wraps === b.wraps &&
   a.marker === b.marker;
 
+/** One live registration: the identity it was made for, and the handle that ends it. */
+export interface Registered {
+  readonly identity: GateIdentity;
+  readonly handle: GateHandle;
+}
+
+/** What a guard asks right now, index-aligned with the identities being reconciled. */
+export interface GateCurrent {
+  readonly policy: Policy;
+  readonly resource: Resource | undefined;
+  readonly state: GateRenderState;
+}
+
+/**
+ * Brings `live` in line with `wanted` and returns the next live registrations.
+ *
+ * An id that is gone, or whose identity changed, unregisters; an id that is new,
+ * or was just unregistered, registers with `current`'s policy, resource and
+ * state; an unchanged id is left alone and keeps its entry. It calls only
+ * `writer.register` and `handle.unregister`, and returns a new `Map` rather than
+ * mutating `live`.
+ *
+ * ARCH-76: the rules are model logic and imports nothing from React, so they are
+ * tested against a fake writer without rendering. An unchanged identity is left
+ * alone because re-registering on every answer cost two notifications per
+ * transition; only a changed question earns a new registration.
+ */
+export const reconcile = (
+  writer: GateWriter,
+  live: ReadonlyMap<string, Registered>,
+  wanted: ReadonlyArray<GateIdentity>,
+  current: ReadonlyArray<GateCurrent | undefined>,
+): Map<string, Registered> => {
+  const next = new Map<string, Registered>();
+  for (const [id, entry] of live) {
+    const identity = wanted.find((one) => one.id === id);
+    if (identity !== undefined && sameIdentity(identity, entry.identity)) next.set(id, entry);
+    else entry.handle.unregister();
+  }
+  wanted.forEach((identity, i) => {
+    if (next.has(identity.id)) return;
+    const now = current[i];
+    next.set(identity.id, {
+      identity,
+      handle: writer.register({
+        id: identity.id,
+        kind: identity.kind,
+        policy: now?.policy ?? identity.policy,
+        resource: now === undefined ? identity.resource : now.resource,
+        state: now?.state ?? "Pending",
+        // Read when React has attached it. `?? undefined` because a ref holds
+        // `null` and the registry's type says absent.
+        element: identity.wraps ? (identity.marker.current ?? undefined) : undefined,
+      }),
+    });
+  });
+  return next;
+};
+
 /**
  * Registers a set of guards with `writer` for as long as they are mounted.
  *
@@ -260,15 +319,16 @@ export const useGateRegistrations = (
   latest.current = identities;
   const statesRef = useRef(states);
   statesRef.current = states;
-  const registered = useRef(new Map<string, { identity: GateIdentity; handle: GateHandle }>());
+  const registered = useRef<ReadonlyMap<string, Registered>>(new Map());
 
   // The writer going away, or the hook unmounting, ends every registration.
   useEffect(() => {
     if (writer === undefined) return;
-    const live = registered.current;
+    // Read when the cleanup runs, not when the effect does: `reconcile` replaces
+    // the map in the ref, so one captured here would never hold a handle.
     return () => {
-      for (const { handle } of live.values()) handle.unregister();
-      live.clear();
+      for (const { handle } of registered.current.values()) handle.unregister();
+      registered.current = new Map();
     };
   }, [writer]);
 
@@ -279,33 +339,17 @@ export const useGateRegistrations = (
   // answer to the same question.
   useEffect(() => {
     if (writer === undefined) return;
-    const live = registered.current;
-    const wanted = new Set(stable.map((identity) => identity.id));
-    for (const [id, entry] of live) {
-      const current = stable.find((identity) => identity.id === id);
-      if (!wanted.has(id) || current === undefined || !sameIdentity(current, entry.identity)) {
-        entry.handle.unregister();
-        live.delete(id);
-      }
-    }
-    stable.forEach((identity, i) => {
-      if (live.has(identity.id)) return;
-      const now = latest.current[i] ?? identity;
-      live.set(identity.id, {
-        identity,
-        handle: writer.register({
-          id: identity.id,
-          kind: identity.kind,
-          policy: now.policy,
-          resource: now.resource,
-          state: statesRef.current[i] ?? "Pending",
-          // Read inside the effect, which is the first moment React has attached
-          // it. `?? undefined` because a ref holds `null` and the registry's type
-          // says absent.
-          element: identity.wraps ? (identity.marker.current ?? undefined) : undefined,
-        }),
-      });
-    });
+    registered.current = reconcile(
+      writer,
+      registered.current,
+      stable,
+      stable.map((_, i) => {
+        const now = latest.current[i];
+        return now === undefined
+          ? undefined
+          : { policy: now.policy, resource: now.resource, state: statesRef.current[i] ?? "Pending" };
+      }),
+    );
   }, [writer, stable]);
 
   // The per-render state update, split from the effect above (AGENTS.md §13
