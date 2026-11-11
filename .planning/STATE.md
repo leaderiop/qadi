@@ -5,17 +5,17 @@ milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 28
 current_phase_name: Gate registry dependency
 current_plan: 5
-status: executing
-stopped_at: Completed 28-04-PLAN.md
-last_updated: "2026-11-11T22:16:46.163Z"
+status: verifying
+stopped_at: Completed 28-05-PLAN.md
+last_updated: "2026-11-11T22:31:14.153Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 27 complete, transitioned to Phase 28
-state_head: 585707b53b1dc71bd9c10f09f7d61a4063b1dfc7
+state_head: f58d1d76a4471b7ee5c2ef9a610752c830760d3c
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 37
-  completed_plans: 34
+  completed_plans: 35
   percent: 78
 ---
 
@@ -33,7 +33,7 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 Phase: 28 (Gate registry dependency) — READY TO EXECUTE
 Current Plan: 5
 Total Plans in Phase: 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-11 — Phase 27 complete, transitioned to Phase 28
 
 ## Performance Metrics
@@ -135,6 +135,7 @@ Last activity: 2026-11-11 — Phase 27 complete, transitioned to Phase 28
 | Phase 28 P02 | 6 min | 2 tasks | 4 files |
 | Phase 28 P03 | 25 min | 2 tasks | 2 files |
 | Phase 28 P04 | 8 min | 2 tasks | 6 files |
+| Phase 28 P05 | 25 min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -188,6 +189,7 @@ Last activity: 2026-11-11 — Phase 27 complete, transitioned to Phase 28
 - [Phase 28]: 28-02: useGateRegistration deleted after its seven lifecycle tests moved to useGateRegistrations; mutation baseline recorded (aggregate 0.8239 over six files)
 - [Phase 28]: 28-03: reconcile returns a new Map; teardown reads registered.current at cleanup time and resets it; GREEN commit typed feat so the TDD gate sees it
 - [Phase 28]: 28-04: GateWriter.ts is the React-free write side (reconcile, sameIdentity exported but out of barrel); useGate.ts holds the hooks and GateAtoms = Pick<QadiAtoms, decision | decisions>
+- [Phase 28]: 28-05: ADR-QD-140 records outcome A (write side a leaf below the atom set, hooks above it), quoting the human's answer and the correction to the review's option A; ADR-QD-111 and ADR-QD-080 carry dated amendments
 
 ### Pending Todos
 
@@ -217,8 +219,8 @@ Last activity: 2026-11-11 — Phase 27 complete, transitioned to Phase 28
 
 ## Session Continuity
 
-Last session: 2026-11-11T22:16:45.887Z
-Stopped at: Completed 28-04-PLAN.md
+Last session: 2026-11-11T22:31:13.847Z
+Stopped at: Completed 28-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
