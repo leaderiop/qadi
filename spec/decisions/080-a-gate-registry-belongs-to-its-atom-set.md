@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-080                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-08                                     |
-> | Status         | Accepted — amends ADR-QD-053; amended by ADR-QD-111 |
+> | Status         | Accepted — amends ADR-QD-053; amended by ADR-QD-111, ADR-QD-140 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-08): Amendment (ARCH-49, CCR-QD-388): the writer is resolved once, by QadiProvider, and reaches gates through an internal context (ADR-QD-111)<br>1.2 (2026-10-08): Amendment (ARCH-43, CCR-QD-250): a registry from `makeGateRegistry()` reports collisions by default, the writer is a private slot of the registry object, and the override is kept<br>1.1 (2026-10-08): The default gate-id collision reporter now lives in `DeveloperSignals.ts`, which `HydrationWarning.ts` became; the body is history and stays (ADR-QD-041 amendment, CCR-QD-203)<br>1.0 (2026-10-04): Initial release (CCR-QD-160) |
+> | Change History | 1.4 (2026-11-11): Amendment (ARCH-76, CCR-QD-418): GateScopeContext is declared in useGate.ts (ADR-QD-140)<br>1.3 (2026-11-08): Amendment (ARCH-49, CCR-QD-388): the writer is resolved once, by QadiProvider, and reaches gates through an internal context (ADR-QD-111)<br>1.2 (2026-10-08): Amendment (ARCH-43, CCR-QD-250): a registry from `makeGateRegistry()` reports collisions by default, the writer is a private slot of the registry object, and the override is kept<br>1.1 (2026-10-08): The default gate-id collision reporter now lives in `DeveloperSignals.ts`, which `HydrationWarning.ts` became; the body is history and stays (ADR-QD-041 amendment, CCR-QD-203)<br>1.0 (2026-10-04): Initial release (CCR-QD-160) |
 
 ---
 
@@ -152,3 +152,11 @@ as "serves the provider, which serves every guard". The private slot, the overri
 every semantic in this ADR are unchanged. A hand-built or spread registry still yields
 no writer, so its guards register nothing and render no marker. See
 [ADR-QD-111](111-a-gate-writer-is-resolved-once-by-its-provider.md).
+
+## Amendment (2026-11-11, CCR-QD-418, ARCH-76)
+
+`GateScopeContext`, which the 2026-11-08 amendment places in `GateWriter.ts`, is declared
+in `useGate.ts` since [ADR-QD-140](140-a-gates-write-side-is-a-leaf-below-the-atom-set.md),
+still kept out of the barrel. The private slot, `gateWriterFor` and `makeOwnedGateRegistry`
+stay in `GateWriter.ts`, now a React-free leaf below `GateRegistry.ts`, and every semantic
+of this ADR is unchanged.
