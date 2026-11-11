@@ -579,6 +579,7 @@ describe("a derived port's key is its wire question's key, and its defect is its
     const hostile = {
       subjectId: makeSubjectId("alice"),
       relation: "owner",
+      depth: undefined,
       get resourceId(): ResourceId {
         throw new Error("boom");
       },
