@@ -185,10 +185,10 @@
 - [x] **ROUTE-03**: `PermissionRegistry.ts` keeps only the registry and `/__permissions`; the public surface of `@qadi/http` is unchanged (or the change is in `spec/overview.md` and a changeset). *Delivered (Phase 27): `PermissionRegistry.ts` keeps only the registry; `/__permissions` moved to `PermissionRegistryRoute.ts` to break the import cycle that keeping it would cause (27-CONTEXT D-03, ADR-QD-037, CCR-QD-417, ADR-QD-036 Rev 1.10); export names unchanged (`pnpm spec:api`).*
 
 ### Gate registry dependency (Phase 28)
-- [ ] **GATE-01**: The checkpoint records the human's answer on reopening ADR-QD-111 (invert, extract-only, or keep with a recorded reason).
-- [ ] **GATE-02**: (if not "keep") A pure `reconcile(live, wanted)` is tested against a fake writer without `renderHook`.
-- [ ] **GATE-03**: (if "invert") The registry's types live in `GateRegistry.ts`, `GateAtoms` is derived from `QadiAtoms`, and `pnpm circular` is green.
-- [ ] **GATE-04**: `useGateRegistration` either gains a production reason or is removed with its test.
+- [x] **GATE-01**: The checkpoint records the human's answer on reopening ADR-QD-111 (invert, extract-only, or keep with a recorded reason).
+- [x] **GATE-02**: (if not "keep") A pure `reconcile(live, wanted)` is tested against a fake writer without `renderHook`.
+- [x] **GATE-03**: (if "invert") The registry's types live in `GateRegistry.ts`, `GateAtoms` is derived from `QadiAtoms`, and `pnpm circular` is green. *Delivered (Phase 28, outcome A from `_DECISIONS-v1.2.md`): the types live in the React-free leaf `GateWriter.ts` below the registry and `GateRegistry.ts` re-exports the public ones (placing them in `GateRegistry.ts` would publish `gateWriterFor` or close a cycle, ADR-QD-140); `GateAtoms` = `Pick<QadiAtoms, "decision" | "decisions">`; `pnpm circular` green.*
+- [x] **GATE-04**: `useGateRegistration` either gains a production reason or is removed with its test.
 
 ### Small restated facts (Phase 29)
 - [ ] **TIDY-01**: `PortName`/`PortSpanName` live in a leaf module with no metrics; `PortSpanName` derives from the descriptions' span literals if the compiler allows.
@@ -220,7 +220,7 @@
 | SIM-01, SIM-02, SIM-03, SIM-04, SIM-05 | Phase 25 | Complete (2026-11-11) |
 | DMOD-01, DMOD-02, DMOD-03, DMOD-04, DMOD-05 | Phase 26 | Complete (2026-11-11) |
 | ROUTE-01, ROUTE-02, ROUTE-03 | Phase 27 | Complete (2026-11-11) |
-| GATE-01, GATE-02, GATE-03, GATE-04 | Phase 28 | Pending |
+| GATE-01, GATE-02, GATE-03, GATE-04 | Phase 28 | Complete (2026-11-11) |
 | TIDY-01, TIDY-02, TIDY-03 | Phase 29 | Pending |
 | WX-01, WX-02, WX-03, WX-04, WX-05, WX-06 | All v1.2 phases | Pending |
 
