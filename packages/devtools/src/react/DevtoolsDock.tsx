@@ -17,7 +17,12 @@ import { useMemo, type FC, type ReactNode } from "react";
 import { sourceFromRecords, type Source } from "../model/Source.ts";
 import type { Verdict } from "../model/Verdict.ts";
 import { catalogueOf, type Catalogue, type PolicySighting } from "../model/Catalogue.ts";
-import { mergeReading, type DiagnosticsReading, type WiringRead } from "../model/DiagnosticsStore.ts";
+import {
+  mergeReading,
+  type Diagnostics,
+  type DiagnosticsReading,
+  type WiringRead,
+} from "../model/DiagnosticsStore.ts";
 import type { TabId } from "../model/DockSession.ts";
 import type { ExplorerSession } from "../model/ExplorerSession.ts";
 import type { HeldChoiceStore } from "../model/HeldChoice.ts";
@@ -43,7 +48,7 @@ import { useDiagnostics, type DiagnosticsDockOptions } from "./useDiagnostics.ts
 import { useDockSnapshot, useOwnedDockSession } from "./useDockSession.ts";
 import { useOwnedExplorerSession, useOwnedHeldChoice } from "./useExplorerSession.ts";
 import { useOwnedSimulationSession } from "./useSimulationSession.ts";
-import { useTimeline } from "./useTimeline.ts";
+import { useTimeline, type UseTimeline } from "./useTimeline.ts";
 import { body, button, colors, dock as dockStyle, font, input, muted, toolbar } from "./theme.ts";
 
 /**
@@ -145,10 +150,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   onInvalidate,
   ports,
 }) => {
-  const { timeline, paused, setPaused, clear } = useTimeline(
-    source,
-    capacity === undefined ? undefined : { capacity },
-  );
+  const timeline = useTimeline(source, capacity === undefined ? undefined : { capacity });
 
   // Each field is the supplied reading's when it carries one, and the sampled
   // reading's otherwise: a supplied reading answers "what another process or a
@@ -156,7 +158,10 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   const sampled = useDiagnostics(diagnostics);
   const shown = useMemo(() => mergeReading(sampled, reading), [sampled, reading]);
 
-  const sightings = useMemo(() => catalogueOf(timeline, catalogue), [timeline, catalogue]);
+  const sightings = useMemo(
+    () => catalogueOf(timeline.timeline, catalogue),
+    [timeline.timeline, catalogue],
+  );
   /**
    * The simulator's session, owned here rather than by the screen.
    *
@@ -164,8 +169,51 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
    * take the form, the capture (one round of live I/O) and the result with it.
    * Held by the dock it survives a round trip, and the seed and ports arrive
    * as commands rather than being re-derived on each render.
+   *
+   * It is built in a scope this component owns, so it does not exist on the first
+   * pass, and the frame below, whose hooks read it once, is not rendered until it does.
    */
   const simulation = useOwnedSimulationSession({ sightings, ports });
+
+  return simulation === undefined ? null : (
+    <DockFrame
+      timeline={timeline}
+      sightings={sightings}
+      shown={shown}
+      catalogue={catalogue}
+      unknownParents={unknownParents}
+      gates={gates}
+      onInvalidate={onInvalidate}
+      simulation={simulation}
+    />
+  );
+};
+
+/**
+ * The dock once its simulation exists: its own choices, the other screens' sessions, and the page.
+ *
+ * Split from the owner because `useOwnedDockSession` reads its replay target once,
+ * at construction, and so must never be handed a session that is not there yet.
+ */
+const DockFrame: FC<{
+  readonly timeline: UseTimeline;
+  readonly sightings: ReadonlyArray<PolicySighting>;
+  readonly shown: Diagnostics;
+  readonly catalogue: Catalogue | undefined;
+  readonly unknownParents: ReadonlyArray<string> | undefined;
+  readonly gates: ReadonlyArray<GateInstanceLike> | undefined;
+  readonly onInvalidate: (() => void) | undefined;
+  readonly simulation: SimulationSession;
+}> = ({
+  timeline: { timeline, paused, setPaused, clear },
+  sightings,
+  shown,
+  catalogue,
+  unknownParents,
+  gates,
+  onInvalidate,
+  simulation,
+}) => {
   /**
    * The explorer's session and the role viewer's choice, owned here for the
    * simulator's reason: what a screen shows is not a choice the reviewer made by

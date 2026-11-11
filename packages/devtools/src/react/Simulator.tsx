@@ -80,16 +80,17 @@ export interface SimulatorProps {
 export const Simulator: FC<SimulatorProps> = ({ session, ...own }) =>
   session === undefined ? <OwnedSimulator {...own} /> : <SharedSimulator session={session} />;
 
-const OwnedSimulator: FC<Omit<SimulatorProps, "session">> = (props) => (
-  <SimulatorView view={useSimulationSession(props)} />
-);
+const OwnedSimulator: FC<Omit<SimulatorProps, "session">> = (props) => {
+  const view = useSimulationSession(props);
+  return view === undefined ? null : <SimulatorView view={view} />;
+};
 
 const SharedSimulator: FC<{ readonly session: SimulationSession }> = ({ session }) => (
   <SimulatorView view={useSimulationSnapshot(session)} />
 );
 
 const SimulatorView: FC<{ readonly view: SimulationSessionView }> = ({ view }) => {
-  const { session, snapshot, run } = view;
+  const { session, snapshot } = view;
   const { policy } = snapshot;
 
   if (policy._tag === "None") {
@@ -108,7 +109,7 @@ const SimulatorView: FC<{ readonly view: SimulationSessionView }> = ({ view }) =
 
   return (
     <div style={{ padding: 12 }} data-testid="qadi-simulator">
-      <Controls snapshot={snapshot} session={session} onRun={run} />
+      <Controls snapshot={snapshot} session={session} />
 
       <SubjectCard snapshot={snapshot} session={session} />
       <CheckCard snapshot={snapshot} session={session} />
@@ -150,8 +151,7 @@ const row: CSSProperties = { display: "flex", gap: 8, alignItems: "center", flex
 const Controls: FC<{
   readonly snapshot: SimulationSnapshot;
   readonly session: SimulationSession;
-  readonly onRun: (kind: "Run" | "Sweep") => void;
-}> = ({ snapshot, session, onRun }) => {
+}> = ({ snapshot, session }) => {
   const running = snapshot.run._tag === "Running";
   const { policy } = snapshot;
   // The option the dropdown shows is a reading of the policy the session holds,
@@ -232,7 +232,7 @@ const Controls: FC<{
         style={button(false)}
         disabled={running}
         data-testid="qadi-simulator-run"
-        onClick={() => onRun("Run")}
+        onClick={() => session.run("Run")}
       >
         run
       </button>
@@ -241,7 +241,7 @@ const Controls: FC<{
         style={button(false)}
         disabled={running}
         data-testid="qadi-simulator-sweep"
-        onClick={() => onRun("Sweep")}
+        onClick={() => session.run("Sweep")}
       >
         what if
       </button>
