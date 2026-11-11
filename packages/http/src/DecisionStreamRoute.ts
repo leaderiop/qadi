@@ -97,7 +97,7 @@ import type { DecisionLogServeOptions } from "./DecisionLogHttp.ts";
 import { devtoolsPath } from "./DevtoolsRouteAddress.ts";
 import type { DevtoolsRouteOptions } from "./DevtoolsRouteAddress.ts";
 import { loadNoResource } from "./NoResource.ts";
-import { addGuardedRoute } from "./PermissionRegistry.ts";
+import { addGuardedRoute } from "./GuardRoute.ts";
 import { classifyHttpEnforcementFailure } from "./QadiHttpError.ts";
 import type { SubjectExtractor } from "./SubjectExtractor.ts";
 

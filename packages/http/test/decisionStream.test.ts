@@ -58,7 +58,8 @@ import type { DecisionLogServeOptions } from "../src/DecisionLogHttp.ts";
 import { authorizeRequest } from "../src/AuthorizeRequest.ts";
 import { classifyHttpEnforcementFailure } from "../src/QadiHttpError.ts";
 import type { HttpEnforcementTag } from "../src/QadiHttpError.ts";
-import { PermissionRegistryLive, permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
+import { PermissionRegistryLive } from "../src/PermissionRegistry.ts";
+import { permissionRegistryRouteUnguarded } from "../src/PermissionRegistryRoute.ts";
 import { SubjectExtractionFailed, subjectExtractorBearer } from "../src/SubjectExtractor.ts";
 import { stack } from "./fixtures/stack.ts";
 

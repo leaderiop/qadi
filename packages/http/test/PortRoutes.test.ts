@@ -45,7 +45,7 @@ import type {
   PortTypes,
 } from "@qadi/core";
 import { collectingLogger } from "@qadi/testing";
-import { permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
+import { permissionRegistryRouteUnguarded } from "../src/PermissionRegistryRoute.ts";
 import { PORT_REPLY_STATUS, portRoutes, portRoutesUnguarded } from "../src/PortRoutes.ts";
 import type { PortRoutesOptions } from "../src/PortRoutes.ts";
 import { PORT_ROUTE_PREFIX, portPath } from "../src/PortRouteAddress.ts";
