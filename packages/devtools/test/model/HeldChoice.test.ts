@@ -194,6 +194,23 @@ describe("heldValue and heldIndex", () => {
   });
 });
 
+describe("heldValue and heldIndex read the tag, not the shape", () => {
+  // A choice whose tag says one thing and whose fields say another: only a reader
+  // that dispatches on `_tag` answers the way the tag does.
+  const empty: "Empty" = "Empty";
+  const evicted: "Evicted" = "Evicted";
+
+  it("reads nothing from an Empty choice that carries a value", () => {
+    const odd = { _tag: empty, value: item("v"), index: 2 };
+    assert.isUndefined(heldValue(odd));
+  });
+
+  it("reads no index from an Evicted choice that carries one", () => {
+    const odd = { _tag: evicted, value: item("v"), index: 2 };
+    assert.isUndefined(heldIndex(odd));
+  });
+});
+
 describe("makeHeldChoiceStore", () => {
   const listed = (store: HeldChoiceStore<Item>) => store.getSnapshot().choice;
 
