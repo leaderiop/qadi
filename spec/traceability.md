@@ -444,7 +444,7 @@ is still a contract for readability, even where nothing enforces it.
 | `packages/devtools/test/model/Hydration.test.ts` | BEH-QD-231, BEH-QD-232, ADR-QD-052 |
 | `packages/react/test/GateRegistry.test.tsx` | BEH-QD-068, BEH-QD-233, INV-QD-046, INV-QD-064, ADR-QD-053, ADR-QD-080, ADR-QD-103 |
 | `packages/react/test/GateRegistry.store.test.ts` | BEH-QD-233, INV-QD-064, ADR-QD-080 — the store contract, headless, with a reference-model property test |
-| `packages/react/test/GateWriter.test.tsx` | BEH-QD-233, INV-QD-064, ADR-QD-080 — `useGateRegistration` driven by `renderHook`, no provider |
+| `packages/react/test/GateWriter.test.tsx` | BEH-QD-233, INV-QD-064, ADR-QD-080 — `useGateRegistrations` driven by `renderHook`, no provider |
 | `packages/react/test/GateWriter.useGates.test.tsx` | BEH-QD-068, BEH-QD-233, INV-QD-046, ADR-QD-111 — one hook over the provider's writer, no marker uninstrumented, the missing-provider error, the group-of-one read, and `useDecisionSuspense` opening its atom once |
 | `packages/react/test/GateWriter.kinds.test.tsx` | BEH-QD-068, BEH-QD-233, ADR-QD-111 — one table over the eight gate kinds, and per-entry precision |
 | `packages/react/test/hooks.rerender.test.tsx` | BEH-QD-068, BEH-QD-071, ADR-QD-103, ADR-QD-111 — `usePolicies` across equal re-renders |

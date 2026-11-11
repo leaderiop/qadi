@@ -222,9 +222,8 @@ const sameIdentity = (a: GateIdentity, b: GateIdentity): boolean =>
  * Registers a set of guards with `writer` for as long as they are mounted.
  *
  * One hook asking several questions (`usePolicies`, `useQuestions`) registers one
- * instance per question, each under its own `id`; a single-question guard is the
- * one-element case ({@link useGateRegistration}), so there is one lifecycle
- * implementation and not two.
+ * instance per question, each under its own `id`; a single-question guard passes
+ * one identity, so there is one lifecycle implementation and not two.
  *
  * `writer` is `undefined` when instrumentation is off, and then every effect
  * returns immediately: the hooks run unconditionally because the rules of hooks
@@ -322,19 +321,6 @@ export const useGateRegistrations = (
       if (state !== undefined) registered.current.get(identity.id)?.handle.update(state);
     });
   }, [writer, stable, stateKey]);
-};
-
-/**
- * Registers one guard with `writer` for as long as it is mounted.
- *
- * The one-element case of {@link useGateRegistrations}.
- */
-export const useGateRegistration = (
-  writer: GateWriter | undefined,
-  identity: GateIdentity,
-  state: GateRenderState,
-): void => {
-  useGateRegistrations(writer, [identity], [state]);
 };
 
 /**
