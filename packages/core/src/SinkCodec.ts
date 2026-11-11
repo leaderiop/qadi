@@ -161,7 +161,10 @@ const obligationsV2Fields = {
  * (ADR-QD-096's 2026-10-06 amendment): the version-1 reader, which upgraded
  * pre-0.10 bytes into this type, was removed in 0.11.0.
  */
-const SinkRecordWire = Schema.Union([Schema.Struct(decisionV2Fields), Schema.Struct(obligationsV2Fields)]);
+const SinkRecordWire = Schema.Union([
+  Schema.Struct(decisionV2Fields),
+  Schema.Struct(obligationsV2Fields),
+]);
 
 type SinkRecordWire = typeof SinkRecordWire.Type;
 
@@ -354,7 +357,6 @@ const preEncodeHazard: (record: SinkRecord) => EncodeRefusal | undefined = Match
     },
   }),
 );
-
 
 /** The wire schema's encoder, built once. It writes version 2, the one version there is. */
 const encodeWire = Schema.encodeResult(SinkRecordWire);

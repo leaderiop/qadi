@@ -6,12 +6,13 @@
  * and `SinkCodec.ts` (which raises them) can both import it without a cycle:
  * `Errors.ts` cannot import `SinkCodec.ts` (ADR-QD-037, which counts type-only
  * edges), and this module imports only `effect`, one type from `Decision.ts` and
- * two from `SinkRecordFields.ts`, whose import closures do not reach this module. The error classes stay in
- * `Errors.ts` with the rest of `QadiError`; only the vocabulary they name lives
- * here (ADR-QD-095's ARCH-27 amendment). The encode-refusal vocabulary, which the
- * port wire reads too, lives in `JsonRefusal.ts` (ARCH-54, ADR-QD-116, amending
- * ADR-QD-095's ARCH-27 amendment). Package-private: the barrel re-exports every
- * name, so nothing here is reached by its own path.
+ * two from `SinkRecordFields.ts`, whose import closures do not reach this module.
+ * The error classes stay in `Errors.ts` with the rest of `QadiError`; only the
+ * vocabulary they name lives here (ADR-QD-095's ARCH-27 amendment). The
+ * encode-refusal vocabulary, which the port wire reads too, lives in
+ * `JsonRefusal.ts` (ARCH-54, ADR-QD-116, amending ADR-QD-095's ARCH-27
+ * amendment). Package-private: the barrel re-exports every name, so nothing here
+ * is reached by its own path.
  */
 import * as Data from "effect/Data";
 import type { DecisionDisagreement } from "./Decision.ts";
