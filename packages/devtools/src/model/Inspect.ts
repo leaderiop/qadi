@@ -200,9 +200,11 @@ const obligationState = (
  * The one read of an outcome against its policy and, when one arrived, the
  * obligation gate's report.
  *
- * Package-private, like `ObligationState` and `RecordOutcome`: the screens
- * consume it and choose their own sentences; `inspectEntry` stays the public
- * read of a row's tree.
+ * Package-private: the screens consume it and choose their own sentences, and
+ * `inspectEntry` stays the public read of a row's tree. `ObligationState` and
+ * `RecordOutcome` are exported as types only, because a finished run in the
+ * simulator's snapshot carries its reading (BEH-QD-430); their constructors
+ * stay private too.
  */
 export const readOutcome = (
   policy: Policy,

@@ -17,6 +17,7 @@ export type {
   AttributeCall,
   Baseline,
   BaselineCaveat,
+  BaselineReading,
   BecameError,
   CacheReport,
   CapturedAnswers,
@@ -45,9 +46,12 @@ export type {
   InspectNode,
   MalformedReason,
   NodeStatus,
+  ObligationState,
   PairRole,
   PairedEntry,
   PolicyChoice,
+  PolicyMenu,
+  PolicyMenuOption,
   PolicySighting,
   PortActivity,
   PortCall,
@@ -57,6 +61,7 @@ export type {
   PortCallOf,
   PortCallPort,
   PortReport,
+  RecordOutcome,
   Recovered,
   RelationshipCall,
   ResourceText,
@@ -80,6 +85,7 @@ export type {
   SourceRead,
   SourceRefusal,
   StillFailed,
+  SweepCost,
   SweepPlan,
   Timeline,
   TimelineEntry,
@@ -159,6 +165,10 @@ export { fieldOps } from "../src/index.ts";
 
 // @ts-expect-error no exported member
 export { formOf } from "../src/index.ts";
+
+// `RecordOutcome` and `ObligationState` are public types; the read that builds them is not.
+// @ts-expect-error no exported member
+export { readOutcome } from "../src/index.ts";
 
 // @ts-expect-error no exported member
 export { FIELD_ORDER } from "../src/index.ts";

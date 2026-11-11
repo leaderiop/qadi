@@ -54,7 +54,13 @@ export {
   isNeverResolved,
   isTruncated,
 } from "./model/Inspect.ts";
-export type { InspectKind, InspectNode, NodeStatus } from "./model/Inspect.ts";
+export type {
+  InspectKind,
+  InspectNode,
+  NodeStatus,
+  ObligationState,
+  RecordOutcome,
+} from "./model/Inspect.ts";
 export { pairedEntries, pairsOf } from "./model/Pairing.ts";
 export type { PairRole, PairedEntry } from "./model/Pairing.ts";
 export { DEFAULT_PORT_CALL_CAPACITY, collectPortCalls } from "./model/PortCalls.ts";
@@ -72,7 +78,12 @@ export type {
   SignatureHistoryCall,
 } from "./model/PortCalls.ts";
 export type { SkippedRemedy } from "./model/Remedies.ts";
-export type { Baseline, BaselineCaveat, UnseededField } from "./model/Replay.ts";
+export type {
+  Baseline,
+  BaselineCaveat,
+  BaselineReading,
+  UnseededField,
+} from "./model/Replay.ts";
 export { Evicted, NoSelection, Selected, selectionOf } from "./model/Selection.ts";
 export type { Selection } from "./model/Selection.ts";
 export type { SimulationClock } from "./model/Simulation.ts";
@@ -87,6 +98,8 @@ export type {
 export { makeSimulationSession } from "./model/SimulationSession.ts";
 export type {
   PolicyChoice,
+  PolicyMenu,
+  PolicyMenuOption,
   ResourceText,
   RunKind,
   RunState,
@@ -94,6 +107,7 @@ export type {
   SimulationSession,
   SimulationSessionInit,
   SimulationSnapshot,
+  SweepCost,
 } from "./model/SimulationSession.ts";
 export type { SourceChoice, SourceOption, SourceRefusal } from "./model/SimulationSource.ts";
 export { mergeSources, sourceFromEventSource, sourceFromRecords } from "./model/Source.ts";
