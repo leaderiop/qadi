@@ -422,12 +422,12 @@ Plans:
   1. 28-01's SUMMARY records A, B or C.
   2. Under A or B: `reconcile` is tested against a fake writer. Under A: `GateAtoms` is a `Pick<QadiAtoms>` and `pnpm circular` is green.
   3. `useGateRegistration` is deleted, and its tests are moved onto `useGateRegistrations`.
-**Plans**: 2/5 plans executed
+**Plans**: 3/5 plans executed
 
 Plans:
 - [x] 28-01 (W1): Checkpoint: how far ARCH-76 reopens ADR-QD-111 — answered A: split write side from hooks ⛳ checkpoint (answered)
 - [x] 28-02 (W2): Mutation baseline; move tests onto `useGateRegistrations`; delete `useGateRegistration`
-- [ ] 28-03 (W3): (A/B) RED reconcile test against a fake writer, then extract the React-free `reconcile`
+- [x] 28-03 (W3): (A/B) RED reconcile test against a fake writer, then extract the React-free `reconcile`
 - [ ] 28-04 (W4): (A) Split `GateWriter.ts` (write side) from `useGate.ts` (hooks); `GateAtoms` = `Pick<QadiAtoms>`
 - [ ] 28-05 (W5): Records per outcome (ADR-QD-140 or an ADR-111 amendment, CCR-QD-418, patch changeset), `pnpm check:pr`
 
