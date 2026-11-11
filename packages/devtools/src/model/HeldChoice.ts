@@ -25,7 +25,7 @@
  * `makeHeldChoice` is the cell underneath it, and what a session embeds: it
  * holds the list and the choice and publishes nothing. A session that
  * embedded the store instead would publish twice per command, once from the
- * store and once from its own snapshot (DMOD-04, D-08), so the store is the
+ * store and once from its own snapshot (ARCH-74, BEH-QD-466), so the store is the
  * cell for a screen with nothing else to remember, and a session owns its
  * own publish around the cell.
  */

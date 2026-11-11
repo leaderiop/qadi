@@ -66,7 +66,7 @@ import { sweepPlan, whatIf, type SweepPlan, type WhatIfReport } from "./WhatIf.t
 /**
  * The policy being simulated, and where it came from.
  *
- * The first three arms are `HeldChoice`'s (ARCH-74, D-09), written out here so
+ * The first three arms are `HeldChoice`'s (ARCH-74, BEH-QD-466), written out here so
  * the type a host reads is complete, and not re-mapped from it. `Listed.index`
  * is a reading of the rail as it is now, never an input: the choice itself is the
  * policy, held by value (`choosePolicy`). `Evicted` is a chosen policy the rail

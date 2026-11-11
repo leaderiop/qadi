@@ -40,7 +40,7 @@ export type DraftOrigin = "Pasted" | "Simplified";
 /**
  * What the main pane shows. A draft hides the rail highlight and the eviction note.
  *
- * The first two arms are `HeldChoice`'s own (D-09), not a re-mapping of them.
+ * The first two arms are `HeldChoice`'s own (ARCH-74, BEH-QD-466), not a re-mapping of them.
  */
 export type ExplorerShown =
   | Exclude<HeldChoice<PolicySighting>, { readonly _tag: "Empty" }>
