@@ -1,7 +1,7 @@
 ---
 phase: "26"
 slug: headless-dock-model
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: "2026-11-11"
@@ -179,20 +179,40 @@ What must hold across the refactor. All of it is observable in the DOM; the mech
 
 ## UI Considerations
 
-Applicable state considerations resolved: 8 covered, 1 backstop, 1 flagged assumption. Carried from `25-UI-SPEC.md`'s probe run (the surfaces are the same dock; this phase adds none) and extended for the shared held choice and the render-timing rule. The probe was not re-run, because it is autonomous and no surface was added.
+Probe run 2026-11-11 after the checker approved this contract (`ui-consideration-probe.cjs`, 8 elements, `--auto`). The results: 54 applicable, 0 unclassified, 0 unresolved, 31 resolved as explicit, 23 resolved as backstop. The last row, hidden / remounted, sits outside the probe's eight categories; it is a contract addition carried from the researcher's table.
 
-| Category | Element(s) | Status | Resolution / Reason |
-|----------|------------|--------|---------------------|
-| empty | held choice with an empty list (roles, policies, simulator) | ✅ covered | `Empty` renders each screen's own documented empty paragraph (Copywriting table above); no control is rendered |
-| empty | dock mounted with no source | ✅ covered | The dock renders an empty log and header counts of 0, as today (DOM case #1); `nothing` is the stable empty source |
-| loading | the first pass before the model exists | ✅ covered | Renders `null` for one pass; a layout effect lands before paint; no skeleton or spinner is added (Interaction 9) |
-| error | failed run, failed wiring read, dropped role parents | ✅ covered | Rendered by the unchanged panels; a failure is never styled as Allow or Deny |
-| populated | held value listed, then the list reshuffles | ✅ covered | The held value is shown by identity, not position; a new head does not move it (Interaction 7; Held choice table) |
-| partial | held value evicted | ✅ covered | The value stays shown, run and labelled by each screen's own wording ("log" in Simulator and Explorer, "list" in the Role viewer) (Held choice table) |
-| zero-one-many | one role listed | ✅ covered | The chip row is omitted for a single, non-evicted role and shown for a single evicted one |
-| zero-one-many | header counts, `unattached` clause | ✅ covered | The clause appears only when orphans is not 0; `1 decisions` is not pluralised today and is not changed here |
-| hidden / remounted | `<Activity>` hide and show, StrictMode double mount | ✅ covered | `useScoped` clears its value; a fresh model is built and every reader remounts against it (Interaction 10); the existing `Activity` and StrictMode tests are re-pointed, not removed |
-| overflow / long-text | long role names, policy labels, resource paths | 🧪 backstop | Existing layout (`flexWrap: wrap` chip row; `minWidth: 0` explorer pane; native select width); no truncation is added. Verified by the DOM suite plus a human visual check against a running dock |
+Kinds were authored under `--auto` rather than asked: E7 (the dock body's first pass and its `Activity` remount) matched no cue, so it was given `static-content` + `nav`. Empty-state and error copy lives in the Copywriting Contract and the Held choice table; this section references those rows instead of restating them.
+
+The elements:
+
+- E1: the toolbar tabs and the counts.
+- E2: the filter input and the segments.
+- E3: `live`/`paused` and `clear view`.
+- E4: the Simulator policy select.
+- E5: the explorer rail and its evicted notice.
+- E6: the role chips and their evicted notice.
+- E7: the dock body's first pass and its `Activity` remount.
+- E8: the Inspector's replay.
+
+| Category | Element(s) | Status | Verification | Resolution |
+|----------|------------|--------|--------------|------------|
+| empty | E4, E5, E6 | resolved | explicit | `Empty` renders each screen's own empty paragraph (`qadi-simulator-empty`, `qadi-policies-empty`, `qadi-roles-empty`) and no control (Held choice table, row Empty) |
+| empty | E2, E3 | resolved | explicit | With no source, the log is empty and the counts are 0; the segments list only the environments present, so the environment segment is `All` alone (DOM case #1; Interaction 3) |
+| empty | E8 | resolved | explicit | Replay exists only on a selected row; with no selection the Inspector shows its existing empty wording, untouched |
+| loading | E7 | resolved | explicit | The dock renders `null` for one pass until the model exists; a layout-effect update lands before paint; no skeleton, spinner or fallback is added (Interaction 9) |
+| loading | E1, E2, E3, E4, E5, E6, E8 | resolved | explicit | No control renders before the model exists, so none has an in-flight state of its own. The Simulator's `run`/`what if` disabled-while-running rule is unchanged (`25-UI-SPEC.md`) |
+| error | E4, E8 | resolved | explicit | A failed run renders the unchanged failure panel with "This is not a denial"; a failure is never styled as Allow or Deny (INV-QD-006) |
+| error | E1, E2, E3, E5, E6, E7 | resolved | backstop | {statement: "No new failure path reaches these controls: the model's construction cannot fail (`Effect<…, never, Scope>`), and a failed source read is surfaced as today", verification: backstop} |
+| populated | E2, E4, E5, E6, E8 | resolved | explicit | A held value is shown by identity, not position; a new head does not move it (Interaction 7; Held choice table, row Listed) |
+| populated | E3 | resolved | explicit | `live`/`paused` toggles through the model's timeline; the label, `aria-pressed` and style are unchanged (Interaction 4) |
+| partial | E4, E5, E6 | resolved | explicit | An evicted value stays shown, run and labelled by each screen's own wording ("log" for the Simulator and Explorer, "list" for the Role viewer) (Held choice table, row Evicted) |
+| partial | E2, E3, E8 | resolved | explicit | A selection survives a filter that hides it; a selection dropped by capacity says the buffer moved on; replay seeds what the row has and lists unseeded fields (Interaction 3, 6) |
+| zero-one-many | E6 | resolved | explicit | The chip row is omitted for a single non-evicted role and shown for a single evicted one (Held choice table) |
+| zero-one-many | E2, E3 | resolved | explicit | The `unattached` clause appears only when orphans is not 0; `1 decisions` is not pluralised today and is not changed here |
+| zero-one-many | E4, E5, E8 | resolved | backstop | {statement: "Rails and the select render one entry per sighting at zero, one and many, exactly as the surviving DOM cases pin", verification: backstop} |
+| overflow | E1, E2, E3, E4, E5, E6, E7, E8 | resolved | backstop | {statement: "Existing layout unchanged: `flexWrap: wrap` chip row and toolbar, `minWidth: 0` explorer pane, native select width; no truncation added", verification: backstop} |
+| long-text | E1, E2, E3, E4, E7, E8 | resolved | backstop | {statement: "Long policy labels, role names and resource paths wrap or overflow exactly as at the phase base; checked by the DOM suite and a human visual check against a running dock", verification: backstop} |
+| hidden / remounted (addition) | E7 | resolved | explicit | `useScoped` clears its value on cleanup; a fresh model is built and every reader remounts against it; the `Activity` and StrictMode tests are re-pointed at `useDockModel` or `useScoped`, not removed (Interaction 10) |
 
 **One assumption (not a visual change, recorded so it is a decision rather than a surprise).** Today the timeline's `paused` flag, its buffer and its source read live in the **owner** (`useTimeline`), so they survive a hidden `<Activity>`; the stores below the frame do not. After this phase the timeline is inside the model, whose scope `useScoped` closes on cleanup, so a hide/show cycle rebuilds the whole model: `paused` returns to `live` and the backlog is re-read from the source. This follows D-04 and D-13 (one scope per mounted dock) and D-05, and a host that never wraps the dock in `Activity` (the documented case) never sees it. Not a contract violation to fix here; if a human wants the timeline to survive a hidden `Activity`, that is a design change for a later phase, not something to add in 26-04. The executor records the behaviour in 26-04's SUMMARY.
 
