@@ -1,10 +1,10 @@
 ---
-phase: 23-sink-record-fields
-fixed_at: 2026-11-11T07:00:00Z
+phase: 23
+fixed_at: 2026-11-11T00:00:00Z
 review_path: .planning/phases/23-sink-record-fields/23-REVIEW.md
-iteration: 1
-findings_in_scope: 4
-fixed: 4
+iteration: 2
+findings_in_scope: 2
+fixed: 2
 skipped: 0
 status: all_fixed
 ---
@@ -13,43 +13,37 @@ status: all_fixed
 
 **Fixed at:** 2026-11-11
 **Source review:** .planning/phases/23-sink-record-fields/23-REVIEW.md
-**Iteration:** 1
+**Iteration:** 2
 
 **Summary:**
-- Findings in scope: 4
-- Fixed: 4
+- Findings in scope: 2 (IN-04, IN-05; WR-01, IN-01, IN-02, IN-03 were fixed in iteration 1 and not touched)
+- Fixed: 2
 - Skipped: 0
-
-Verification ran in the main checkout (`workflow.use_worktrees` is `false`, so no worktree was created). After the last commit, `pnpm spec:verify:strict` (21 pass, 0 fail), `pnpm test:tstyche` (229 tests pass), `pnpm lint` (no errors, only pre-existing warnings) and `node scripts/check-house-style.mjs` (448 files clean) were green. `tsc -p packages/core/tsconfig.src.json --noEmit` and `SinkCodec.test.ts` (147 tests) passed after the IN-03 edit.
 
 ## Fixed Issues
 
-### WR-01: The "undeclared field is refused" type test proves nothing about the shared struct
-
-**Files modified:** `packages/core/test/SinkRecord.tst.ts`, `spec/invariants.md`, `spec/traceability.md`
-**Commit:** 4b86203d
-**Applied fix:** Deleted the vacuous `bogus` `@ts-expect-error` block. Removed "an undeclared field is refused" from INV-QD-290's Enforcement line and from the `SinkRecord.tst.ts` row in `traceability.md`, per the verifier's note that the claim was cited in normative text too. The `keyof` and mutual-assignability tests remain the real derivation pins.
-
-### IN-01: `SinkRecord.tst.ts` header contradicts the file's own content and is stale
+### IN-04: Stale "today's" wording in `SinkRecord.tst.ts` test titles
 
 **Files modified:** `packages/core/test/SinkRecord.tst.ts`
-**Commit:** 08bed3ff
-**Applied fix:** Rewrote the header in the present tense, so the hand-written interfaces read as the independent expectation the leaf-derived types must equal. Dropped the "no deliberate compile error" sentence and the "today's input, written out from `DecisionRecord.ts`" labels. The `today's` wording in test titles is left as is.
+**Commit:** cec815ae
+**Applied fix:** Reworded the four titles (lines 52, 77, 115, 124) from "exactly today's input/keys" to "exactly the documented input/keys". A repo-wide grep (excluding `.planning`, `node_modules`, `lib`) found no other quotation of the old titles, so `spec/traceability.md` needed no change.
 
-### IN-03: Cosmetic wrapping and whitespace left in `SinkWire.ts` and `SinkCodec.ts`
-
-**Files modified:** `packages/core/src/SinkWire.ts`, `packages/core/src/SinkCodec.ts`
-**Commit:** 9232d0b8
-**Applied fix:** Re-wrapped the `SinkWire.ts` header comment. In `SinkCodec.ts`, removed the doubled blank line before `encodeWire`'s doc comment (the one at 358, not the 292-293 the review cited) and wrapped the long `SinkRecordWire` union line. The `omitUndefined` line was within width, so it is unchanged.
-
-### IN-02: `SinkRecord.bench.ts` restates the field list the phase exists to state once
+### IN-05: Bench header's first bullet contradicts the IN-02 paragraph
 
 **Files modified:** `packages/core/bench/SinkRecord.bench.ts`
-**Commit:** db98ce9e
-**Applied fix:** Took the review's second option: added a header paragraph saying the file is the frozen record of ADR-QD-135's measurement, that "today" and A now measure the same shape, and that the field copies are intentionally independent of `SinkRecordFields.ts`.
+**Commit:** 964d9d2c
+**Applied fix:** The first bullet now reads `"today" (the baseline as measured, pre-ARCH-71): DecisionRecord / ObligationRecord, a Data.TaggedClass whose field type was written by hand`. The measurement and the frozen-record paragraph are unchanged.
+
+## Verification
+
+Run in the main checkout (`workflow.use_worktrees` is `false`; no worktree was created).
+
+- `pnpm test:tstyche packages/core/test/SinkRecord.tst.ts`: 1 test file passed, 11 tests passed, 42 assertions passed.
+- `node scripts/check-house-style.mjs`: 448 files clean (3 declared switches).
+- `pnpm spec:verify:strict`: PASS 21, FAIL 0, SKIP 0.
 
 ---
 
 _Fixed: 2026-11-11_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 1_
+_Iteration: 2_
