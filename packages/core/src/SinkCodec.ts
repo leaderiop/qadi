@@ -181,14 +181,32 @@ const outcomeOf: (outcome: DecisionOutcome) => OutcomeWire = Match.type<Decision
 );
 
 /**
+ * `value` shallow-copied without its own keys whose value is `undefined`.
+ *
+ * The wire never carried such a key (a property whose value is `undefined`
+ * crosses as absent), and a `Schema.Struct` encode writes one it is handed, so
+ * {@link project} drops them here instead of listing the optional fields: the
+ * list is `SinkRecordFields.ts`'s, and this names none of it (ARCH-71, ADR-QD-135).
+ * Top level only; a nested `undefined` (inside `resource`) is not touched, as
+ * before. Written with `Reflect` so no key is read or deleted through a cast.
+ */
+const withoutUndefined = <A extends object>(value: A): A => {
+  const copy = { ...value };
+  for (const key of Reflect.ownKeys(copy)) {
+    if (Reflect.get(copy, key) === undefined) Reflect.deleteProperty(copy, key);
+  }
+  return copy;
+};
+
+/**
  * The wire projection of a record, ready for the schema encode.
  *
  * Adds `version` and, for a decision, the outcome as the wire carries it; every
  * other field is the record's own, spread whole, so this names no envelope field
  * and a field added to `SinkRecordFields.ts` crosses with no edit here (ARCH-71,
- * ADR-QD-135). The struct's encode writes the keys in its own order, drops any
- * key it does not declare, and leaves out an optional key whose value is
- * `undefined`.
+ * ADR-QD-135). The struct's encode writes the keys in its own order and drops any
+ * key it does not declare; {@link withoutUndefined} leaves out an optional key
+ * whose value is `undefined`.
  *
  * `Match.tagsExhaustive` over `SinkRecord`, not a ternary on `record._tag`
  * (issue #109): `SinkRecord` has exactly two tags today, so a ternary reads as
@@ -197,8 +215,9 @@ const outcomeOf: (outcome: DecisionOutcome) => OutcomeWire = Match.type<Decision
  */
 const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>().pipe(
   Match.tagsExhaustive({
-    Obligations: (record) => ({ ...record, version: 2 as const }),
-    Decision: (record) => ({ ...record, version: 2 as const, outcome: outcomeOf(record.outcome) }),
+    Obligations: (record) => withoutUndefined({ ...record, version: 2 as const }),
+    Decision: (record) =>
+      withoutUndefined({ ...record, version: 2 as const, outcome: outcomeOf(record.outcome) }),
   }),
 );
 

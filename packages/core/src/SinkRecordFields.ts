@@ -18,32 +18,9 @@
  * reaches `Errors.ts`. Not in the barrel; the record classes and `CacheOutcome`
  * are the public names for what is stated here (ADR-QD-099).
  */
-import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
-import * as SchemaTransformation from "effect/SchemaTransformation";
 import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import { Policy } from "./Policy.ts";
-
-/**
- * An optional field that is absent on the wire when its value is `undefined`.
- *
- * The same `Type` and `Encoded` as `Schema.optional(schema)` (`?: T | undefined`,
- * which is what a record's constructor accepts), but the encode leaves the key
- * out instead of writing it as an own `undefined`-valued key: the wire never
- * carried one (a property whose value is `undefined` crosses as absent), so a
- * projection that spreads the record whole needs no per-field conditional
- * (ARCH-71, ADR-QD-135). Decoding is unchanged.
- */
-const optionalAbsent = <S extends Schema.Top>(schema: S) =>
-  Schema.optional(schema).pipe(
-    Schema.decodeTo(
-      Schema.optional(schema),
-      SchemaTransformation.transformOptional({
-        decode: (input) => input,
-        encode: Option.filter((value) => value !== undefined),
-      }),
-    ),
-  );
 
 /** The `_tag` of a `DecisionRecord`. */
 export const DECISION_RECORD_TAG = "Decision";
@@ -118,9 +95,9 @@ export const decisionRecordFields = Schema.Struct({
    * as controlled as the enforcement path itself is the caller's own
    * projection to add — nothing here does it for them.
    */
-  resource: optionalAbsent(Schema.Record(Schema.String, Schema.Unknown)),
+  resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
   /** What the caller was doing, if it said. */
-  action: optionalAbsent(Schema.String),
+  action: Schema.optional(Schema.String),
   /**
    * How the decision cache answered, when one was wired.
    *
@@ -132,7 +109,7 @@ export const decisionRecordFields = Schema.Struct({
    * as a miss ([INV-QD-025](../../../spec/invariants.md)); this reports how the
    * answer was reached, in the same category as `durationMillis`.
    */
-  cache: optionalAbsent(CacheOutcomeSchema),
+  cache: Schema.optional(CacheOutcomeSchema),
 });
 
 /**
@@ -158,9 +135,9 @@ export const obligationRecordFields = Schema.Struct({
    * a row written before these keys existed lacks them; `discharge` always sets
    * `subjectId`.
    */
-  subjectId: optionalAbsent(SubjectIdSchema),
+  subjectId: Schema.optional(SubjectIdSchema),
   /** What the caller was doing, when the question said. */
-  action: optionalAbsent(Schema.String),
+  action: Schema.optional(Schema.String),
   /** The question's resource id, when its resource had a string `id`. */
-  resourceId: optionalAbsent(ResourceIdSchema),
+  resourceId: Schema.optional(ResourceIdSchema),
 });
