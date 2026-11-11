@@ -98,6 +98,8 @@ export const portWire = <
 >(
   spec: PortWireSpec<Args, A, Q, QE, W, WE>,
 ): PortWire<Args, A> => {
+  // Unknown, not `Q`: `presentMembers` is a generic filter, so the strict question
+  // schema is what checks the member set it returns.
   const encodeQ = Schema.encodeUnknownResult(spec.question);
   const decodeQ = Schema.decodeUnknownResult(spec.question, UNTRUSTED_DECODE_OPTIONS);
   const encodeA = Schema.encodeResult(spec.answer);
