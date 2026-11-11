@@ -4,18 +4,18 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 29
 current_phase_name: Small restated facts
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 28 complete, ready to execute Phase 29
-last_updated: "2026-11-11T23:12:06.541Z"
+stopped_at: Completed 29-01-PLAN.md
+last_updated: "2026-11-11T23:18:30.334Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 28 complete, transitioned to Phase 29
-state_head: 30efe00c25a7737abe07ba1d1986f5f2b900bb46
+state_head: 2bfc6cc1a28fd9433ae6b2cae50edc92d47845db
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 38
-  completed_plans: 35
+  completed_plans: 36
   percent: 89
 ---
 
@@ -31,9 +31,9 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 ## Current Position
 
 Phase: 29 (Small restated facts) — READY TO EXECUTE
-Current Plan: Not started
+Current Plan: 2
 Total Plans in Phase: 3
-Status: Ready to execute
+Status: Executing (29-01 complete)
 Last activity: 2026-11-11 — Phase 28 complete, transitioned to Phase 29
 
 ## Performance Metrics
@@ -137,6 +137,7 @@ Last activity: 2026-11-11 — Phase 28 complete, transitioned to Phase 29
 | Phase 28 P03 | 25 min | 2 tasks | 2 files |
 | Phase 28 P04 | 8 min | 2 tasks | 6 files |
 | Phase 28 P05 | 25 min | 3 tasks | 12 files |
+| Phase 29 P01 | 5 min | 2 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -191,6 +192,7 @@ Last activity: 2026-11-11 — Phase 28 complete, transitioned to Phase 29
 - [Phase 28]: 28-03: reconcile returns a new Map; teardown reads registered.current at cleanup time and resets it; GREEN commit typed feat so the TDD gate sees it
 - [Phase 28]: 28-04: GateWriter.ts is the React-free write side (reconcile, sameIdentity exported but out of barrel); useGate.ts holds the hooks and GateAtoms = Pick<QadiAtoms, decision | decisions>
 - [Phase 28]: 28-05: ADR-QD-140 records outcome A (write side a leaf below the atom set, hooks above it), quoting the human's answer and the correction to the review's option A; ADR-QD-111 and ADR-QD-080 carry dated amendments
+- [Phase 29]: 29-01: D-02 taken in full (PortDescription.span is PortSpanOf<N>, no cast needed, fallback not used); mutation baseline of twelve files committed first (dd158b25 over phase_base 50c7292d)
 
 ### Pending Todos
 
@@ -221,8 +223,8 @@ Last activity: 2026-11-11 — Phase 28 complete, transitioned to Phase 29
 
 ## Session Continuity
 
-Last session: 2026-11-11T22:31:13.847Z
-Stopped at: Phase 28 complete, ready to execute Phase 29
+Last session: 2026-11-11T23:18:30.036Z
+Stopped at: Completed 29-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
