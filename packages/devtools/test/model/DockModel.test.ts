@@ -512,6 +512,106 @@ describe("the model's scope ends what the model started (M13, M15, M16)", () => 
     }));
 });
 
+describe("what configure and the stores hold back (M2 b, M10 d, M15 b-d, M17)", () => {
+  it.effect("M2 (b): a catalogue given at construction fills both rails and the role list at once", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel({ catalogue: { policies: { canRead: readPolicy }, roles: [editor] } });
+
+      for (const rail of [model.explorer.getSnapshot().sightings, model.simulation.getSnapshot().sightings]) {
+        assert.strictEqual(rail.length, 1);
+        assert.strictEqual(rail[0]?.label, "canRead");
+        assert.strictEqual(rail[0]?.count, 0);
+      }
+      assert.deepStrictEqual(model.roles.getSnapshot().list, [editor]);
+    }));
+
+  it.effect("M10 (d): configuring with no catalogue empties the declared policies and the roles", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel();
+      model.configure({ catalogue: { policies: { canWrite: writePolicy }, roles: [editor] } });
+      assert.strictEqual(model.explorer.getSnapshot().sightings.length, 1);
+
+      model.configure({});
+
+      assert.deepStrictEqual(model.explorer.getSnapshot().sightings, []);
+      assert.deepStrictEqual(model.simulation.getSnapshot().sightings, []);
+      assert.deepStrictEqual(model.roles.getSnapshot().list, []);
+    }));
+
+  it.effect("M17: pausing freezes what the timeline shows and tells its listeners, and moves no other store", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel();
+      model.timeline.accept(decided("a", 100, readPolicy, "read"));
+      const heard = { timeline: 0, others: 0 };
+      model.timeline.subscribe(() => {
+        heard.timeline += 1;
+      });
+      for (const store of [model.dock, model.explorer, model.simulation]) {
+        store.subscribe(() => {
+          heard.others += 1;
+        });
+      }
+
+      model.timeline.setPaused(true);
+
+      assert.isTrue(model.timeline.isPaused());
+      assert.deepStrictEqual(heard, { timeline: 1, others: 0 });
+      const frozen = model.timeline.getSnapshot();
+
+      model.timeline.accept(decided("b", 200, writePolicy, "write"));
+      assert.strictEqual(model.timeline.getSnapshot(), frozen);
+      assert.strictEqual(model.dock.getSnapshot().rows.length, 1);
+
+      model.timeline.setPaused(false);
+      assert.isFalse(model.timeline.isPaused());
+      assert.strictEqual(model.timeline.getSnapshot().entries.length, 2);
+      assert.strictEqual(model.dock.getSnapshot().rows.length, 2);
+      assert.strictEqual(model.explorer.getSnapshot().sightings.length, 2);
+    }));
+
+  it.effect("M15 (b): a configure that leaves the source alone does not read it again", () =>
+    Effect.gen(function* () {
+      const a = watched([], Stream.never);
+      const model = yield* makeDockModel({ source: a.source });
+      yield* flush;
+
+      model.configure({ source: a.source, catalogue: { policies: { canRead: readPolicy } } });
+      yield* flush;
+
+      assert.deepStrictEqual(a.tally, { started: 1, finalized: 0 });
+    }));
+
+  it.effect("M15 (c): a new bound reads the same source again, into the new buffer", () =>
+    Effect.gen(function* () {
+      const a = watched([decided("x", 100, readPolicy, "read")], Stream.never);
+      const model = yield* makeDockModel({ source: a.source, capacity: 5 });
+      yield* flush;
+      assert.strictEqual(model.timeline.getSnapshot().entries.length, 1);
+
+      model.configure({ source: a.source, capacity: 10 });
+      yield* flush;
+
+      assert.deepStrictEqual(a.tally, { started: 2, finalized: 1 });
+      assert.deepStrictEqual(
+        model.timeline.getSnapshot().entries.map((entry) => entry.evaluationId),
+        ["x"],
+      );
+    }));
+
+  it.effect("M15 (d): configuring with no source releases the read and keeps what it delivered", () =>
+    Effect.gen(function* () {
+      const a = watched([decided("x", 100, readPolicy, "read")], Stream.never);
+      const model = yield* makeDockModel({ source: a.source });
+      yield* flush;
+
+      model.configure({});
+      yield* flush;
+
+      assert.deepStrictEqual(a.tally, { started: 1, finalized: 1 });
+      assert.strictEqual(model.timeline.getSnapshot().entries.length, 1);
+    }));
+});
+
 describe("two docks share nothing (M14)", () => {
   it.effect("M14 (was DevtoolsDock l.162): a record accepted by one model is absent from the other", () =>
     Effect.gen(function* () {
