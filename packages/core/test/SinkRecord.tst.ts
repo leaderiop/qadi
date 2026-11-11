@@ -49,7 +49,7 @@ interface ObligationRecordInput {
 type DecisionInput = ConstructorParameters<typeof DecisionRecord>[0];
 type ObligationInput = ConstructorParameters<typeof ObligationRecord>[0];
 
-test("DecisionRecord's constructor takes exactly today's input", () => {
+test("DecisionRecord's constructor takes exactly the documented input", () => {
   expect<DecisionInput>().type.toBeAssignableTo<DecisionRecordInput>();
   expect<DecisionInput>().type.toBeAssignableFrom<DecisionRecordInput>();
   expect<keyof DecisionInput>().type.toBe<keyof DecisionRecordInput>();
@@ -74,7 +74,7 @@ test("DecisionRecord's optional keys are optional, and the required ones are not
   expect<{ readonly evaluationId: string }>().type.not.toBeAssignableTo<DecisionInput>();
 });
 
-test("ObligationRecord's constructor takes exactly today's input", () => {
+test("ObligationRecord's constructor takes exactly the documented input", () => {
   expect<ObligationInput>().type.toBeAssignableTo<ObligationRecordInput>();
   expect<ObligationInput>().type.toBeAssignableFrom<ObligationRecordInput>();
   expect<keyof ObligationInput>().type.toBe<keyof ObligationRecordInput>();
@@ -112,7 +112,7 @@ test("SinkRecordJson has exactly the two tags", () => {
   expect<SinkRecordJson["_tag"]>().type.toBe<"Decision" | "Obligations">();
 });
 
-test("the Decision member of SinkRecordJson has exactly today's keys", () => {
+test("the Decision member of SinkRecordJson has exactly the documented keys", () => {
   expect<keyof DecisionJson>().type.toBe<
     "_tag" | "version" | "evaluationId" | "at" | "subjectId" | "policy" | "resource" | "action" | "cache" | "outcome"
   >();
@@ -121,7 +121,7 @@ test("the Decision member of SinkRecordJson has exactly today's keys", () => {
   expect<DecisionJson["cache"]>().type.toBe<"hit" | "coalesced" | "miss" | undefined>();
 });
 
-test("the Obligations member of SinkRecordJson has exactly today's keys", () => {
+test("the Obligations member of SinkRecordJson has exactly the documented keys", () => {
   expect<keyof ObligationsJson>().type.toBe<
     | "_tag"
     | "version"
