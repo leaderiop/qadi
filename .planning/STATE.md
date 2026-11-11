@@ -4,17 +4,17 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 24
 current_phase_name: Simulation source preparation
-status: executing
-stopped_at: Completed 24-02-PLAN.md
-last_updated: "2026-11-11T06:05:23.770Z"
+status: verifying
+stopped_at: Completed 24-03-PLAN.md
+last_updated: "2026-11-11T06:17:31.021Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 23 complete, transitioned to Phase 24
-state_head: 167aaf7db96c1ea144da215b3cb6a08e2162a098
+state_head: 8bca7c2f7b8bc515fb32979d2871184e37889443
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 37
-  completed_plans: 15
+  completed_plans: 16
   percent: 33
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 
 Phase: 24 — Simulation source preparation
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-11 — Phase 23 complete, transitioned to Phase 24
 
 ## Performance Metrics
@@ -110,6 +110,7 @@ Last activity: 2026-11-11 — Phase 23 complete, transitioned to Phase 24
 | Phase 23 P04 | 35 min | 3 tasks | 11 files |
 | Phase 24 P01 | 8 min | 2 tasks | 3 files |
 | Phase 24 P02 | 10 min | 2 tasks | 6 files |
+| Phase 24 P03 | 12 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,8 @@ Last activity: 2026-11-11 — Phase 23 complete, transitioned to Phase 24
 - [Phase 23]: 23-04: ADR-QD-135 file is 135-sink-record-fields-stated-once.md (the leaf already links that path); rebuild strips only version because the _tag and outcome strips were no-ops that left surviving mutants
 - [Phase 24]: 24-01: prepareSource table test is red by absence in its own file; no defect to pin (D-01)
 - [Phase 24]: prepareSource's table builds a Ready lazily (thunk), so build() makes a recorder only for the chosen Live row
+- [Phase 24]: ADR-QD-136 unused: the source-choice rule moved, so ADR-QD-050 is amended (CCR-QD-414)
+- [Phase 24]: SimulationSession.ts mutation score 0.9612 vs base 0.9619; all 12 survivors equivalent, left for human acceptance
 
 ### Pending Todos
 
@@ -160,8 +163,8 @@ Last activity: 2026-11-11 — Phase 23 complete, transitioned to Phase 24
 
 ## Session Continuity
 
-Last session: 2026-11-11T06:05:23.643Z
-Stopped at: Completed 24-02-PLAN.md
+Last session: 2026-11-11T06:17:30.626Z
+Stopped at: Completed 24-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

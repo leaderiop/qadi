@@ -161,9 +161,9 @@
 - [x] **SREC-05**: Wire goldens in `SinkCodec.test.ts` are unchanged; the v2 wire is byte-identical.
 
 ### Simulation source preparation (Phase 24)
-- [ ] **SRC-01**: `SimulationSource.ts` owns `prepareSource(choice, { ports, capture })`, returning the options and a `Ready`/`Refused` result; availability is written once.
-- [ ] **SRC-02**: "A Live run captures so Snapshot unlocks" is implemented in `SimulationSource.ts` alone; the session no longer inspects a source variant's `_tag`.
-- [ ] **SRC-03**: One table test covers every (choice × ports × capture) combination; the session tests only check that a `Refused` becomes the run state.
+- [x] **SRC-01**: `SimulationSource.ts` owns `prepareSource(choice, { ports, capture })`, returning the options and a `Ready`/`Refused` result; availability is written once.
+- [x] **SRC-02**: "A Live run captures so Snapshot unlocks" is implemented in `SimulationSource.ts` alone; the session no longer inspects a source variant's `_tag`.
+- [x] **SRC-03**: One table test covers every (choice × ports × capture) combination; the session tests only check that a `Refused` becomes the run state.
 
 ### Session-only Simulator (Phase 25)
 - [ ] **SIM-01**: `Simulator` renders from a session only; `OwnedSimulator` and the ignored `sightings` prop are gone, and tests build a session directly.
