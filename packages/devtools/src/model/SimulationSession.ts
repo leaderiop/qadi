@@ -35,10 +35,10 @@ import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import type * as Scope from "effect/Scope";
 import type { DecisionOutcome, Policy } from "@qadi/core";
-import { makeExternalStore, sameElements } from "./ExternalStore.ts";
+import { makeExternalStore } from "./ExternalStore.ts";
 import type { CapturedAnswers } from "./Capture.ts";
 import { sameSighting, sightingFor, type PolicySighting } from "./Catalogue.ts";
-import { pinHead, resolveHeld } from "./HeldChoice.ts";
+import { heldValue, makeHeldChoice } from "./HeldChoice.ts";
 import { readOutcome, type RecordOutcome } from "./Inspect.ts";
 import {
   baselineDiff,
@@ -66,16 +66,22 @@ import { sweepPlan, whatIf, type SweepPlan, type WhatIfReport } from "./WhatIf.t
 /**
  * The policy being simulated, and where it came from.
  *
- * `Chosen.index` is a reading of the rail as it is now, never an input: the
- * choice itself is the policy, held by value (`choosePolicy`). `Evicted` is a
- * chosen policy the rail no longer lists. It is still the one a run evaluates,
- * and a view says it has left the log; it is neither dropped nor swapped for a
- * neighbour.
+ * The first three arms are `HeldChoice`'s (ARCH-74, D-09), written out here so
+ * the type a host reads is complete, and not re-mapped from it. `Listed.index`
+ * is a reading of the rail as it is now, never an input: the choice itself is the
+ * policy, held by value (`choosePolicy`). `Evicted` is a chosen policy the rail
+ * no longer lists. It is still the one a run evaluates, and a view says it has
+ * left the log; it is neither dropped nor swapped for a neighbour.
+ *
+ * Nothing but the compiler keeps the three arms equal to `HeldChoice<PolicySighting>`,
+ * and it does: `policyChoice` returns the cell's own `resolve()` as a
+ * `PolicyChoice`, and `policyOf` reads the held arms through `heldValue`, so an
+ * arm added to either side, or a field renamed on one, stops compiling there.
  */
 export type PolicyChoice =
-  | { readonly _tag: "None" }
-  | { readonly _tag: "Chosen"; readonly index: number; readonly policy: Policy }
-  | { readonly _tag: "Evicted"; readonly policy: Policy; readonly label: string }
+  | { readonly _tag: "Empty" }
+  | { readonly _tag: "Listed"; readonly value: PolicySighting; readonly index: number }
+  | { readonly _tag: "Evicted"; readonly value: PolicySighting }
   | {
       readonly _tag: "Seeded";
       readonly entry: TimelineEntry;
@@ -271,8 +277,8 @@ const resourceTextOf = (input: SimulationInput): ResourceText => {
 /** The dropdown's entry for a choice: the value a select holds, never a position. */
 const selectedOf: (choice: PolicyChoice) => string = Match.type<PolicyChoice>().pipe(
   Match.tagsExhaustive({
-    None: () => "",
-    Chosen: (chosen) => String(chosen.index),
+    Empty: () => "",
+    Listed: (listed) => String(listed.index),
     Evicted: () => "evicted",
     Seeded: () => "seeded",
   }),
@@ -289,7 +295,7 @@ const policyMenuOf = (
   options: [
     ...(choice._tag === "Seeded" ? [{ value: "seeded", label: "from the replayed row" }] : []),
     ...(choice._tag === "Evicted"
-      ? [{ value: "evicted", label: `${choice.label} — no longer in the log` }]
+      ? [{ value: "evicted", label: `${choice.value.label} — no longer in the log` }]
       : []),
     ...sightings.map((sighting, index) => ({ value: String(index), label: sighting.label })),
   ],
@@ -325,9 +331,9 @@ const costOf = (refusal: SourceRefusal | undefined, plan: SweepPlan | undefined)
 export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSession")(function* (
   init?: SimulationSessionInit,
 ): Effect.fn.Return<SimulationSession, never, Scope.Scope> {
-  let sightings: ReadonlyArray<PolicySighting> = init?.sightings ?? [];
   /** The chosen policy and the sighting it was chosen from. A value, never an index. */
-  let held: PolicySighting | undefined = init?.seed === undefined ? pinHead(sightings, undefined) : undefined;
+  const chosen = makeHeldChoice(init?.sightings ?? [], sameSighting);
+  if (init?.seed === undefined) chosen.pin();
   let seedEntry: TimelineEntry | undefined;
   /** The replayed row's policy, held with the row it came from so neither exists without the other. */
   let seeded:
@@ -357,27 +363,10 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     }),
   );
 
-  const policyChoice = (): PolicyChoice => {
-    if (seeded !== undefined) {
-      return { _tag: "Seeded", entry: seeded.entry, policy: seeded.policy, unseeded: seeded.unseeded };
-    }
-    const resolved = resolveHeld(sightings, held, sameSighting);
-    return Match.value(resolved).pipe(
-      Match.tagsExhaustive({
-        Empty: (): PolicyChoice => ({ _tag: "None" }),
-        Listed: (listed): PolicyChoice => ({
-          _tag: "Chosen",
-          index: listed.index,
-          policy: listed.value.policy,
-        }),
-        Evicted: (gone): PolicyChoice => ({
-          _tag: "Evicted",
-          policy: gone.value.policy,
-          label: gone.value.label,
-        }),
-      }),
-    );
-  };
+  const policyChoice = (): PolicyChoice =>
+    seeded === undefined
+      ? chosen.resolve()
+      : { _tag: "Seeded", entry: seeded.entry, policy: seeded.policy, unseeded: seeded.unseeded };
 
   /**
    * Holds the head of the rail once there is one and nothing is chosen or seeded.
@@ -386,11 +375,11 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
    * touched the dropdown would run a different policy after a decision arrived.
    */
   const pin = () => {
-    if (seeded === undefined) held = pinHead(sightings, held);
+    if (seeded === undefined) chosen.pin();
   };
 
-  const policyOf = (choice: PolicyChoice): Policy | undefined =>
-    choice._tag === "None" ? undefined : choice.policy;
+  const policyOf = (picked: PolicyChoice): Policy | undefined =>
+    picked._tag === "Seeded" ? picked.policy : heldValue(picked)?.policy;
 
   /**
    * The row a result is compared against, when there is one to compare with.
@@ -435,12 +424,12 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     const refusal = prepared._tag === "Refused" ? prepared.refusal : undefined;
 
     return {
-      sightings,
+      sightings: chosen.list(),
       policy,
       draft,
       fields: formOf(draft),
       resourceText,
-      policyMenu: policyMenuOf(policy, sightings),
+      policyMenu: policyMenuOf(policy, chosen.list()),
       sourceChoice,
       options,
       refusal,
@@ -588,6 +577,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
   const choosePolicy = (policy: Policy): void => {
     // A seeded policy belongs to the row it came from; choosing another from
     // the rail is leaving that row behind.
+    const held = chosen.held();
     if (
       seeded === undefined &&
       held !== undefined &&
@@ -596,7 +586,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     ) {
       return;
     }
-    held = sightingFor(sightings, policy);
+    chosen.choose(sightingFor(chosen.list(), policy));
     seeded = undefined;
     supersede();
     run = { _tag: "Idle" };
@@ -609,8 +599,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     getSnapshot: store.getSnapshot,
 
     setSightings: (next) => {
-      if (sameElements(next, sightings)) return;
-      sightings = next;
+      if (!chosen.setList(next)) return;
       pin();
       commit();
     },
@@ -620,7 +609,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     choosePolicyAt: (position) => {
       // The menu's leading entries (the replayed row, an evicted choice) name no sighting.
       const picked = Number.isInteger(position)
-        ? sightings[position - leading(policyChoice())]
+        ? chosen.list()[position - leading(policyChoice())]
         : undefined;
       if (picked !== undefined) choosePolicy(picked.policy);
     },

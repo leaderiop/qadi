@@ -44,6 +44,7 @@ export {
 } from "./model/Filters.ts";
 export type { Filters } from "./model/Filters.ts";
 export type { AskedQuestionLike, GateInstanceLike } from "./model/Gates.ts";
+export type { HeldChoice } from "./model/HeldChoice.ts";
 export { hasHydrated, hydrationActivity, unaccountedEntries } from "./model/Hydration.ts";
 export type { HydrationActivity, HydrationDrops } from "./model/Hydration.ts";
 export {

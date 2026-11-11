@@ -63,7 +63,7 @@ const SimulatorView: FC<{ readonly view: SimulationSessionView }> = ({ view }) =
   const { session, snapshot } = view;
   const { policy } = snapshot;
 
-  if (policy._tag === "None") {
+  if (policy._tag === "Empty") {
     return (
       <p style={{ ...muted, padding: 16 }} data-testid="qadi-simulator-empty">
         {/* E7.1 — an empty form with a dead run button teaches nobody why it is

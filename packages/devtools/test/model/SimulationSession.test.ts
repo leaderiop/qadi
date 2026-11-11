@@ -552,7 +552,7 @@ describe("the view's commands are the session's (ARCH-73)", () => {
       assert.strictEqual(evictedSeen.notified, 0);
       evicted.choosePolicyAt(1);
       const back = evicted.getSnapshot().policy;
-      assert.isTrue(back._tag === "Listed" && Equal.equals(back.policy, hasRole("a")));
+      assert.isTrue(back._tag === "Listed" && Equal.equals(back.value.policy, hasRole("a")));
     }));
 
   it.effect("choosePolicyAt a position that lists nothing, or not a whole position, changes nothing", () =>
