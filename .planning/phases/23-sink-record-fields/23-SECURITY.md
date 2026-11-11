@@ -75,3 +75,11 @@ created: "2026-11-11"
 - [x] `status: verified` set in frontmatter
 
 **Approval:** verified 2026-11-11
+
+## Security Audit 2026-11-11
+
+| Metric | Count |
+|---|---|
+| Threats found | 15 |
+| Closed | 15 |
+| Open | 0 |
