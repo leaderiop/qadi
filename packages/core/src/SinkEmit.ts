@@ -16,7 +16,7 @@ import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import type { Allow } from "./Decision.ts";
 import { DecisionRecord, ObligationRecord } from "./DecisionRecord.ts";
-import type { Decided, Failed, ObligationOutcome, SinkRecord } from "./DecisionRecord.ts";
+import type { Decided, DecisionOutcome, Failed, ObligationOutcome, SinkRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 import type { CacheOutcome } from "./EvaluationMetrics.ts";
 import type { Question } from "./Question.ts";
@@ -89,6 +89,37 @@ export const decidedRecord = (
     resource: question.resource,
     action: question.action,
     cache,
+    outcome,
+  });
+
+/**
+ * Projects a {@link Question}, a {@link Stamp} and an outcome into the decision
+ * record: the one projection of a question into a `Decision` row.
+ *
+ * `failedRecord` and `decidedRecord` differed only in `cache`, so they are one
+ * function (ARCH-71, ADR-QD-135); a `Failed` outcome passes no cache, because it
+ * says nothing about it. `maxDepth` is deliberately not on the wire (ADR-QD-096).
+ *
+ * An absent `resource`, `action` or `cache` is an absent key, never an
+ * `undefined`-valued one, as in {@link obligationRecordFor}: the wire omits an
+ * undefined key, so a record that carried one was not `Equal` to its own round
+ * trip. `cache` is `undefined` when no cache is wired at all, which is a
+ * different statement from `"miss"` and stays distinct by being absent.
+ */
+export const decisionRecordFor = (
+  question: Question,
+  stamp: Stamp,
+  outcome: DecisionOutcome,
+  cache?: CacheOutcome,
+): DecisionRecord =>
+  new DecisionRecord({
+    evaluationId: stamp.evaluationId,
+    at: stamp.at,
+    subjectId: question.subject.id,
+    policy: question.policy,
+    ...(question.resource === undefined ? {} : { resource: question.resource }),
+    ...(question.action === undefined ? {} : { action: question.action }),
+    ...(cache === undefined ? {} : { cache }),
     outcome,
   });
 

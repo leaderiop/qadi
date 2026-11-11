@@ -40,7 +40,7 @@ import type { Policy } from "./Policy.ts";
 import type { PortServices } from "./Ports.ts";
 import { questionOf } from "./Question.ts";
 import type { Question, QuestionOptions } from "./Question.ts";
-import { decidedRecord, failedRecord, sinkEmitter } from "./SinkEmit.ts";
+import { decisionRecordFor, sinkEmitter } from "./SinkEmit.ts";
 import type { Stamp } from "./SinkEmit.ts";
 import { walk } from "./Walk.ts";
 
@@ -139,7 +139,7 @@ export const decideQuestion = Effect.fn("qadi.evaluate")(function* (
           "qadi.outcome": "Failed",
           "qadi.error_tag": error._tag,
         });
-        yield* emit(failedRecord(question, stamp, new Failed({ error })));
+        yield* emit(decisionRecordFor(question, stamp, new Failed({ error })));
       }),
     ),
   );
@@ -185,7 +185,7 @@ export const decideQuestion = Effect.fn("qadi.evaluate")(function* (
   // Last, after every other emission, so a sink cannot observe a decision the
   // metrics and span have not yet recorded — and so that nothing below it could
   // be skipped were the sink to misbehave.
-  yield* emit(decidedRecord(question, stamp, new Decided({ decision }), lookup.outcome));
+  yield* emit(decisionRecordFor(question, stamp, new Decided({ decision }), lookup.outcome));
 
   return decision;
 });
