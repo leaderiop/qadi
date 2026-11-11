@@ -12,11 +12,10 @@ import { useAtomSuspense } from "@effect/atom-react/Hooks";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import type { GateInstance } from "./GateRegistry.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
-import { useGates } from "./GateWriter.ts";
 import type { AskedQuestion } from "./QuestionBook.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
 import type { ClientDecision } from "./SeededDecision.ts";
-import { useGate } from "./useGate.ts";
+import { useGate, useGates } from "./useGate.ts";
 
 /** The subject under authorization, or `undefined` while it is still loading. */
 export const useSubject = (): AuthSubject | undefined => {

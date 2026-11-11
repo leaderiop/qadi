@@ -10,7 +10,8 @@ import { createRef } from "react";
 import { describe, expect, it } from "vitest";
 import { makeGateRegistry } from "../src/GateRegistry.ts";
 import type { GateRenderState } from "../src/GateRegistry.ts";
-import { gateWriterFor, useGateRegistrations } from "../src/GateWriter.ts";
+import { gateWriterFor } from "../src/GateWriter.ts";
+import { useGateRegistrations } from "../src/useGate.ts";
 import type { GateIdentity, GateWriter } from "../src/GateWriter.ts";
 
 const canRead = () => hasPermission(permission("doc", "read"));

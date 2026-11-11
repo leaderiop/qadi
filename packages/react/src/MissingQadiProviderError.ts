@@ -1,9 +1,9 @@
 /**
  * The error every hook throws when it is used outside a `QadiProvider`.
  *
- * Declared in a leaf module of its own because `GateWriter.ts` throws it from
- * `useGates`, and importing it from `QadiProvider.tsx` would close an import
- * cycle through `GateRegistry.ts` (ADR-QD-037). Its public home is unchanged:
+ * Declared in a leaf module of its own because `useGate.ts` throws it from
+ * `useGates`, and importing it from `QadiProvider.tsx` would close the import
+ * cycle `useGate.ts` → `QadiProvider.tsx` → `useGate.ts` (ADR-QD-037). Its public home is unchanged:
  * `QadiProvider.tsx` re-exports it by name, so the class a consumer imports is
  * the very class thrown here.
  */
