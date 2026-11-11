@@ -58,7 +58,7 @@ import { describeKeyRefusal, PortReply } from "../src/PortDescription.ts";
 import { nonePort } from "../src/PortDerivation.ts";
 import { recordingPort, replyTable, scriptedPort } from "../src/PortDoubles.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "../src/PortMetrics.ts";
-import type { PortName } from "../src/PortMetrics.ts";
+import type { PortName } from "../src/PortName.ts";
 import type { ArgsOf, PortTypes } from "../src/Ports.ts";
 import {
   RelationshipResolverNever,

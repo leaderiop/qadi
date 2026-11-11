@@ -28,7 +28,7 @@ import { decisionHistoryFromEvents, decisionHistoryPort } from "./DecisionHistor
 import type { ActedEventInput } from "./DecisionHistory.ts";
 import { nonePort } from "./PortDerivation.ts";
 import type { LeafRequests, PortDescription, PortShape } from "./PortDescription.ts";
-import type { PortName } from "./PortMetrics.ts";
+import type { PortName } from "./PortName.ts";
 import type { PortSpanAttributesLike } from "./PortSpan.ts";
 import { relationshipResolverFromEdges, relationshipResolverPort } from "./RelationshipResolver.ts";
 import type { RelationshipEdgeInput } from "./RelationshipResolver.ts";

@@ -22,7 +22,7 @@ import * as Result from "effect/Result";
 import { describeKeyRefusal, PortReply } from "./PortDescription.ts";
 import type { PortDescription, PortScript, PortShape } from "./PortDescription.ts";
 import { wrapPort } from "./PortDerivation.ts";
-import type { PortName } from "./PortMetrics.ts";
+import type { PortName } from "./PortName.ts";
 
 /** A double's layer and the requests it has received. */
 export interface PortDouble<Self, Args extends ReadonlyArray<unknown>> {

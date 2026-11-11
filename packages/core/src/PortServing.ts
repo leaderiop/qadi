@@ -20,13 +20,13 @@
  * declaration a host writes by hand, and each facet is typed against its slot,
  * so a facet whose allowlist word disagrees with the slot does not compile.
  *
- * This module is a **leaf**: it imports only `PortMetrics.ts` as a type.
+ * This module is a **leaf**: it imports only `PortName.ts` as a type.
  * `PortDescription.ts` must name these types, and `PortRemote.ts`
  * imports `Ports.ts`, which imports every port module, which imports
  * `PortDescription.ts`; the declaration living in `PortRemote.ts` closed that
  * cycle.
  */
-import type { PortName } from "./PortMetrics.ts";
+import type { PortName } from "./PortName.ts";
 
 /**
  * What a host agrees to answer, port by port.

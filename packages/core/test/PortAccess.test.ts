@@ -27,7 +27,7 @@ import * as P from "../src/Policy.ts";
 import { PortReply } from "../src/PortDescription.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "../src/PortMetrics.ts";
-import type { PortName } from "../src/PortMetrics.ts";
+import type { PortName } from "../src/PortName.ts";
 import { PORTS, portsLayer } from "../src/Ports.ts";
 import type {
   AnswerOf,

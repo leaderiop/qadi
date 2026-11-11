@@ -36,7 +36,7 @@ import type { LeafRequests, PortDescription, PortShape } from "./PortDescription
 import { canonicalKey } from "./PortKey.ts";
 import { attemptsStruct, encodeSpan } from "./PortSpanEncode.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "./PortMetrics.ts";
-import type { PortName } from "./PortMetrics.ts";
+import type { PortName } from "./PortName.ts";
 import type { PortSpanAttributesLike } from "./PortSpan.ts";
 import { portWire, presentMembers } from "./PortWireEncode.ts";
 import type { PortWireSpec, QuestionOf } from "./PortWireEncode.ts";

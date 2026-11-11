@@ -31,7 +31,7 @@ import * as P from "../src/Policy.ts";
 import { PortReply } from "../src/PortDescription.ts";
 import type { ReadSite } from "../src/PortDescription.ts";
 import { recordingPort, scriptedPort } from "../src/PortDoubles.ts";
-import type { PortName } from "../src/PortMetrics.ts";
+import type { PortName } from "../src/PortName.ts";
 import { answerRemotely, askRemotely, remotePorts, servingFor } from "../src/PortRemote.ts";
 import type { PortServing, PortServingOf } from "../src/PortServing.ts";
 import { RemotePortFailure } from "../src/PortWire.ts";

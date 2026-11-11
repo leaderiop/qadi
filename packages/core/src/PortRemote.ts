@@ -34,7 +34,7 @@ import type { Policy } from "./Policy.ts";
 import { servePortRead } from "./PortAccess.ts";
 import { nonePort } from "./PortDerivation.ts";
 import type { LeafOf, ReadSite } from "./PortDescription.ts";
-import type { PortName } from "./PortMetrics.ts";
+import type { PortName } from "./PortName.ts";
 import type { PortServing, PortServingOf } from "./PortServing.ts";
 import { PortWireReply, RemotePortError, RemotePortFailure } from "./PortWire.ts";
 import { WIRE_MAX_DEPTH } from "./PortWireEncode.ts";

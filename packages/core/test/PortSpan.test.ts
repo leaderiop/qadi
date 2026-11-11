@@ -25,7 +25,7 @@ import {
   sharedQuestionKeys,
   spanStruct,
 } from "../src/PortSpanEncode.ts";
-import type { PortName } from "../src/PortMetrics.ts";
+import type { PortName } from "../src/PortName.ts";
 import { PORTS } from "../src/Ports.ts";
 import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
 import { signatureHistoryPort } from "../src/SignatureHistory.ts";

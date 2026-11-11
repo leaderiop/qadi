@@ -45,7 +45,7 @@ import { MissingResourceId } from "./Errors.ts";
 import type { ResourceId } from "./Identity.ts";
 import type { LeafOf } from "./PortDescription.ts";
 import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "./PortMetrics.ts";
-import type { PortName } from "./PortMetrics.ts";
+import type { PortName } from "./PortName.ts";
 import { relationshipResolverPort } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
 import { isResourceScoped } from "./ScopedLeaf.ts";

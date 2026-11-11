@@ -31,7 +31,7 @@ import type * as Result from "effect/Result";
 import type { AuthSubject } from "./AuthSubject.ts";
 import type { WirePath } from "./JsonRefusal.ts";
 import type { Policy } from "./Policy.ts";
-import type { PortName, PortSpanName } from "./PortMetrics.ts";
+import type { PortName, PortSpanOf } from "./PortName.ts";
 import type { PortSpanAttributesLike, SpanFields, SpanStruct, SpanType } from "./PortSpan.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import type { PortWire } from "./PortWire.ts";
@@ -185,7 +185,7 @@ export interface PortDescription<
    */
   readonly method: string;
   /** The span `PortAccess.ts` opens around a read of this port (BEH-QD-227). */
-  readonly span: PortSpanName;
+  readonly span: PortSpanOf<N>;
   /**
    * What that span says: the question annotated before the call, the answer
    * annotated after it, and the two projections that fill them, `pose` from a

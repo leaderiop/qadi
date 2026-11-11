@@ -7,7 +7,7 @@
 import { expect, test } from "tstyche";
 import * as Schema from "effect/Schema";
 import type { PortSpanRowOf, SpanType, SpanValue } from "../src/PortSpan.ts";
-import type { PortName } from "../src/PortMetrics.ts";
+import type { PortName } from "../src/PortName.ts";
 import { spanStruct } from "../src/PortSpanEncode.ts";
 import type { DescriptionOf, PortTypes } from "../src/Ports.ts";
 
