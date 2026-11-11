@@ -1,7 +1,7 @@
 ---
 phase: 25-session-only-simulator
 verified: 2026-11-11T09:00:00Z
-status: human_needed
+status: passed
 score: 3/3 roadmap success criteria verified (all 11 requirements satisfied in code)
 covered_files:
   - ".planning/phases/25-session-only-simulator/25-01-PLAN.md"
@@ -34,7 +34,7 @@ human_verification:
 # Phase 25: Session-only Simulator Verification Report
 
 **Phase Goal:** The Simulator is a view of its session: no owned mode, no form codecs or readings in the view, and the session owns its runs' lifetime through a FiberHandle in a Scope.
-**Status:** human_needed (one visual item; no gaps)
+**Status:** passed (human validation of the one visual item: "All good, continue", 2026-11-11)
 **Re-verification:** No, initial verification
 
 ## Observable Truths (roadmap contract)

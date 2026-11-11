@@ -217,7 +217,7 @@
 | SCOPE-01, SCOPE-02, SCOPE-03, SCOPE-04, SCOPE-05 | Phase 22 | Pending |
 | SREC-01, SREC-02, SREC-03, SREC-04, SREC-05 | Phase 23 | Pending |
 | SRC-01, SRC-02, SRC-03 | Phase 24 | Complete (2026-11-11) |
-| SIM-01, SIM-02, SIM-03, SIM-04, SIM-05 | Phase 25 | Pending |
+| SIM-01, SIM-02, SIM-03, SIM-04, SIM-05 | Phase 25 | Complete (2026-11-11) |
 | DMOD-01, DMOD-02, DMOD-03, DMOD-04, DMOD-05 | Phase 26 | Pending |
 | ROUTE-01, ROUTE-02, ROUTE-03 | Phase 27 | Pending |
 | GATE-01, GATE-02, GATE-03, GATE-04 | Phase 28 | Pending |

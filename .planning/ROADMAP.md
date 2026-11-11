@@ -292,7 +292,7 @@ shape from benchmark numbers, plus the absent-vs-undefined key convention), 25-0
 - [x] **Phase 22: One scoped port read** - `readScoped` owns the id check and one trace shape; one leaf→request function per port drives reads and serving (ARCH-70) (completed 2026-11-11)
 - [x] **Phase 23: Sink record fields stated once** - Benchmark first; one field statement per record drives the class type and the v2 wire; one record projection (ARCH-71) (completed 2026-11-11)
 - [x] **Phase 24: Simulation source preparation** - `prepareSource` in `SimulationSource.ts` owns availability, refusal and capture (ARCH-72) (completed 2026-11-11)
-- [ ] **Phase 25: Session-only Simulator** - The view renders a session; commands and readings move into the session; runs live in the session's FiberHandle and Scope (ARCH-73)
+- [x] **Phase 25: Session-only Simulator** - The view renders a session; commands and readings move into the session; runs live in the session's FiberHandle and Scope (ARCH-73) (completed 2026-11-11)
 - [ ] **Phase 26: Headless dock model** - `makeDockModel` owns the six stores and the cross-store rules; one hook; one held-choice cell (ARCH-74)
 - [ ] **Phase 27: Bare-route module** - `addGuardedRoute` absorbs `guardRoute`; one route-method union; the registry route moves out (ARCH-75)
 - [ ] **Phase 28: Gate registry dependency** - Checkpoint on ADR-QD-111; React-free `reconcile`; `useGateRegistration` deleted (ARCH-76)
@@ -372,7 +372,7 @@ Plans:
   1. `OwnedSimulator` is gone; all 32 `<Simulator>` renders in its test build a session.
   2. `setAction`, `choosePolicyAt`, the run reading, cost and baseline reading are session-level and model-tested.
   3. `reap`, `hasRetired` and `dispose` are gone; a superseded run is interrupted before the command returns; closing the session's scope interrupts the run in flight.
-**Plans**: 5/5 plans executed
+**Plans**: 5/5 plans complete
 
 Plans:
 - [x] 25-01 (W1): Record the answer from `_DECISIONS-v1.2.md` (D: the session owns a FiberHandle in a Scope; overrides ARCH-20 D-20-b)
@@ -453,7 +453,7 @@ Plans:
 | 22. One scoped port read | 4/4 | Complete    | 2026-11-11 |
 | 23. Sink record fields | 4/4 | Complete    | 2026-11-11 |
 | 24. Simulation source preparation | 3/3 | Complete    | 2026-11-11 |
-| 25. Session-only Simulator | 0/5 | Planned | - |
+| 25. Session-only Simulator | 5/5 | Complete    | 2026-11-11 |
 | 26. Headless dock model | 0/6 | Planned | - |
 | 27. Bare-route module | 0/3 | Planned | - |
 | 28. Gate registry dependency | 0/5 | Planned | - |
