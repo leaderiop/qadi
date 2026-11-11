@@ -4,18 +4,18 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 28
 current_phase_name: Gate registry dependency
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 27 complete, ready to execute Phase 28
-last_updated: "2026-11-11T15:08:43.229Z"
+stopped_at: Completed 28-01-PLAN.md
+last_updated: "2026-11-11T15:11:32.568Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 27 complete, transitioned to Phase 28
-state_head: f4d57f894e3ebd9d214e464e76b8445f3e7982b9
+state_head: "0b367505878c8b21f818ebbdb7b13469318459ef"
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 37
-  completed_plans: 30
+  completed_plans: 31
   percent: 78
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 ## Current Position
 
 Phase: 28 (Gate registry dependency) — READY TO EXECUTE
-Current Plan: Not started
+Current Plan: 2
 Total Plans in Phase: 5
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 27 complete, transitioned to Phase 28
@@ -131,6 +131,7 @@ Last activity: 2026-11-11 — Phase 27 complete, transitioned to Phase 28
 | Phase 27 P01 | 11 min | 2 tasks | 3 files |
 | Phase 27 P02 | 7 min | 3 tasks | 21 files |
 | Phase 27 P03 | 14 min | 3 tasks | 9 files |
+| Phase 28 P01 | 5 min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -179,6 +180,8 @@ Last activity: 2026-11-11 — Phase 27 complete, transitioned to Phase 28
 - [Phase 27]: 27-02: addGuardedRoute's overload layer type is a private GuardedRoute<R, LR> alias over typeof HttpRouter.add, no builder kept; PermissionRegistry.tst.ts pins moved into GuardRoute.tst.ts
 - [Phase 27]: 27-03: both departures from ROUTE-01/ROUTE-03 wording (unguardedRoutes private sibling because of the barrel; /__permissions routes in PermissionRegistryRoute.ts because of the cycle) recorded in CCR-QD-417 and ADR-QD-036 Rev 1.10
 - [Phase 27]: 27-03: aggregate mutation drop closed by pinning the two AuthorizeRequest span names with tests, not by touching the baseline
+- [Phase 28]: 28-01 D-01 = A: split GateWriter.ts write side from hooks (useGate.ts), pure reconcile, derive GateAtoms; ADR-QD-140 amends ADR-QD-111 — Pre-recorded answer in _DECISIONS-v1.2.md (2026-11-11)
+- [Phase 28]: 28-01 D-02: useGateRegistration is deleted after its tests are retargeted to useGateRegistrations — Confirmed by the same pre-recorded D-01 row
 
 ### Pending Todos
 
@@ -208,8 +211,8 @@ Last activity: 2026-11-11 — Phase 27 complete, transitioned to Phase 28
 
 ## Session Continuity
 
-Last session: 2026-11-11T14:28:04.054Z
-Stopped at: Phase 27 complete, ready to execute Phase 28
+Last session: 2026-11-11T15:11:22.912Z
+Stopped at: Completed 28-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
