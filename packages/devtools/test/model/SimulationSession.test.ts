@@ -21,12 +21,19 @@ import {
   AttributeResolver,
   attributeResolverFromRecord,
   attributeResolverPort,
+  Decided,
+  Failed,
   gte,
+  hasAction,
   hasAttribute,
   hasPermission,
   hasRelationship,
   hasRole,
   hasSignature,
+  MissingAction,
+  MissingResource,
+  obligation,
+  obliged,
   PortReply,
   portsLayer,
   scriptedPort,
@@ -36,12 +43,13 @@ import { collectingTracer } from "@qadi/testing";
 import { answerCount } from "../../src/model/Capture.ts";
 import { policyLabel } from "../../src/model/Catalogue.ts";
 import type { PolicySighting } from "../../src/model/Catalogue.ts";
+import { readOutcome } from "../../src/model/Inspect.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { makeSimulationSession } from "../../src/model/SimulationSession.ts";
 import type { SimulationSession } from "../../src/model/SimulationSession.ts";
 import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
-import { decisionRecord, obligationRecord, read } from "../helpers.ts";
+import { allow, decisionRecord, failedRecord, obligationRecord, read } from "../helpers.ts";
 
 const sighting = (policy: Policy): PolicySighting => ({
   policy,
@@ -495,6 +503,423 @@ describe("a run is its own trace (ARCH-73)", () => {
       assert.notInclude(names, "qadi.devtools.simulationSession.reap");
       assert.notInclude(names, "qadi.devtools.simulationSession.dispose");
     }));
+});
+
+/** `sessionWith`, built in the test's scope. */
+const scopedSessionWith = (policy: Policy, input: SimulationInput = withClearance) =>
+  Effect.gen(function* () {
+    const session = yield* makeSimulationSession({ sightings: [sighting(policy)] });
+    session.edit(input);
+    return session;
+  });
+
+/** The run that finished, narrowed by an `if` rather than asserted. */
+const finishedRun = (session: SimulationSession) => {
+  const run = session.getSnapshot().run;
+  if (run._tag !== "Ran") throw new Error("expected a finished run");
+  return run;
+};
+
+describe("the view's commands are the session's (ARCH-73)", () => {
+  it.effect("setAction commits the text as the action, and an empty text removes it", () =>
+    Effect.gen(function* () {
+      const session = yield* makeSimulationSession({ sightings: [sighting(hasRole("a"))] });
+      const seen = counted(session);
+
+      session.setAction("read");
+      assert.strictEqual(session.getSnapshot().draft.action, "read");
+      assert.strictEqual(seen.notified, 1);
+
+      session.setAction("");
+      // Removed, not set to "": `hasAction` fails with `MissingAction` when none was supplied.
+      assert.isFalse("action" in session.getSnapshot().draft);
+      assert.strictEqual(seen.notified, 2);
+    }));
+
+  it.effect("setAction with the text the draft already has notifies no one", () =>
+    Effect.gen(function* () {
+      const session = yield* makeSimulationSession({ sightings: [sighting(hasRole("a"))] });
+      const seen = counted(session);
+
+      session.setAction("");
+      assert.strictEqual(seen.notified, 0);
+
+      session.setAction("read");
+      session.setAction("read");
+      assert.strictEqual(seen.notified, 1);
+    }));
+
+  it.effect("choosePolicyAt(position) chooses the sighting listed at that position", () =>
+    Effect.gen(function* () {
+      const session = yield* makeSimulationSession({
+        sightings: [sighting(clearance), sighting(hasRole("x"))],
+      });
+      const seen = counted(session);
+
+      session.choosePolicyAt(1);
+      const policy = session.getSnapshot().policy;
+      assert.strictEqual(policy._tag, "Chosen");
+      assert.strictEqual(policy._tag === "Chosen" && policy.index, 1);
+      assert.isTrue(policy._tag === "Chosen" && Equal.equals(policy.policy, hasRole("x")));
+      assert.strictEqual(seen.notified, 1);
+    }));
+
+  it.effect("choosePolicyAt names a position of the menu, which a seeded or evicted entry shifts by one", () =>
+    Effect.gen(function* () {
+      const seeded = yield* makeSimulationSession({
+        sightings: [sighting(hasRole("a"))],
+        seed: entryOf(decisionRecord({ evaluationId: "ev-s", policy: hasRole("s") })),
+      });
+      const seededSeen = counted(seeded);
+      // Position 0 is "from the replayed row": choosing it is not choosing a policy.
+      seeded.choosePolicyAt(0);
+      assert.strictEqual(seeded.getSnapshot().policy._tag, "Seeded");
+      assert.strictEqual(seededSeen.notified, 0);
+      seeded.choosePolicyAt(1);
+      const left = seeded.getSnapshot().policy;
+      assert.isTrue(left._tag === "Chosen" && left.index === 0 && Equal.equals(left.policy, hasRole("a")));
+
+      const evicted = yield* makeSimulationSession({
+        sightings: [sighting(hasRole("a")), sighting(hasRole("b"))],
+      });
+      evicted.choosePolicy(hasRole("b"));
+      evicted.setSightings([sighting(hasRole("a"))]);
+      const evictedSeen = counted(evicted);
+      evicted.choosePolicyAt(0);
+      assert.strictEqual(evicted.getSnapshot().policy._tag, "Evicted");
+      assert.strictEqual(evictedSeen.notified, 0);
+      evicted.choosePolicyAt(1);
+      const back = evicted.getSnapshot().policy;
+      assert.isTrue(back._tag === "Chosen" && Equal.equals(back.policy, hasRole("a")));
+    }));
+
+  it.effect("choosePolicyAt a position that lists nothing, or not a whole position, changes nothing", () =>
+    Effect.gen(function* () {
+      const session = yield* makeSimulationSession({
+        sightings: [sighting(clearance), sighting(hasRole("x"))],
+      });
+      const before = session.getSnapshot();
+      const seen = counted(session);
+      for (const position of [2, 5, -1, 0.5, Number.NaN]) session.choosePolicyAt(position);
+      assert.strictEqual(seen.notified, 0);
+      assert.strictEqual(session.getSnapshot(), before);
+    }));
+
+  describe("policyMenu is what the dropdown lists, in order, with the option it shows selected", () => {
+    const named: PolicySighting = { ...sighting(hasRole("a")), label: "canArchive" };
+    const other = sighting(hasRole("b"));
+
+    it.effect("is empty and selects nothing while there is no policy", () =>
+      Effect.gen(function* () {
+        const session = yield* makeSimulationSession();
+        assert.deepStrictEqual(session.getSnapshot().policyMenu, { options: [], selected: "" });
+      }));
+
+    it.effect("lists each sighting by its label and value `String(index)`, and selects the chosen one", () =>
+      Effect.gen(function* () {
+        const session = yield* makeSimulationSession({ sightings: [named, other] });
+        const options = [
+          { value: "0", label: "canArchive" },
+          { value: "1", label: other.label },
+        ];
+        assert.deepStrictEqual(session.getSnapshot().policyMenu, { options, selected: "0" });
+
+        session.choosePolicy(hasRole("b"));
+        assert.deepStrictEqual(session.getSnapshot().policyMenu, { options, selected: "1" });
+      }));
+
+    it.effect("leads with the evicted choice, labelled as no longer in the log", () =>
+      Effect.gen(function* () {
+        const session = yield* makeSimulationSession({ sightings: [named, other] });
+        session.choosePolicy(hasRole("b"));
+        session.setSightings([named]);
+        assert.deepStrictEqual(session.getSnapshot().policyMenu, {
+          options: [
+            { value: "evicted", label: `${other.label} — no longer in the log` },
+            { value: "0", label: "canArchive" },
+          ],
+          selected: "evicted",
+        });
+      }));
+
+    it.effect("leads with the replayed row while seeded", () =>
+      Effect.gen(function* () {
+        const session = yield* makeSimulationSession({
+          sightings: [named],
+          seed: entryOf(decisionRecord({ evaluationId: "ev-s", policy: hasRole("s") })),
+        });
+        assert.deepStrictEqual(session.getSnapshot().policyMenu, {
+          options: [
+            { value: "seeded", label: "from the replayed row" },
+            { value: "0", label: "canArchive" },
+          ],
+          selected: "seeded",
+        });
+      }));
+  });
+});
+
+// These readings are asserted here, at the session, and not only through the DOM:
+// the session is under the devtools mutation gate (`stryker.devtools.mjs` mutates
+// `src/model/**`) and the view is not, so a sentence that moves into the model is
+// held by this suite or by nothing.
+describe("what the view shows is read by the session (ARCH-73)", () => {
+  describe("a finished run carries its reading", () => {
+    it.effect("Allowed, with the fields and duties readOutcome gives, when the grant is there", () =>
+      Effect.gen(function* () {
+        const session = yield* scopedSessionWith(
+          hasPermission(read, { fields: ["title"] }),
+          { subject: { id: "alice" } },
+        );
+        session.addChip("permissions", "doc:read");
+        yield* ran(session);
+
+        const run = finishedRun(session);
+        assert.deepStrictEqual(run.reading, readOutcome(run.question.policy, run.outcome, undefined));
+        assert.strictEqual(run.reading._tag, "Allowed");
+        assert.deepStrictEqual(run.reading._tag === "Allowed" && run.reading.fields, ["title"]);
+      }));
+
+    it.effect("Allowed with the duty owed and unreported: a simulation discharges nothing", () =>
+      Effect.gen(function* () {
+        const session = yield* scopedSessionWith(
+          obliged(obligation("audit"), hasPermission(read)),
+          { subject: { id: "alice" } },
+        );
+        session.addChip("permissions", "doc:read");
+        yield* ran(session);
+
+        const { reading } = finishedRun(session);
+        assert.strictEqual(reading._tag === "Allowed" && reading.duties.length, 1);
+        assert.strictEqual(reading._tag === "Allowed" && reading.obligation._tag, "Unreported");
+      }));
+
+    it.effect("Denied without the grant", () =>
+      Effect.gen(function* () {
+        const session = yield* scopedSessionWith(hasPermission(read), { subject: { id: "alice" } });
+        yield* ran(session);
+        assert.strictEqual(finishedRun(session).reading._tag, "Denied");
+      }));
+
+    it.effect("Failed, with the error, when a resolver was down", () =>
+      Effect.gen(function* () {
+        const session = yield* makeSimulationSession({
+          sightings: [sighting(clearance)],
+          ports: brokenPorts,
+        });
+        session.edit(withClearance);
+        session.chooseSource("Live");
+        yield* ran(session);
+
+        const { reading } = finishedRun(session);
+        assert.strictEqual(reading._tag, "Failed");
+        assert.strictEqual(reading._tag === "Failed" && reading.error._tag, "AttributeResolveError");
+      }));
+  });
+
+  describe("cost is the sentence above the buttons, and warns exactly when the plan does I/O", () => {
+    const holdsBoth: SimulationInput = { subject: { id: "alice", roles: ["a", "b"] } };
+    const costOf = (session: SimulationSession) => {
+      const snapshot = session.getSnapshot();
+      assert.strictEqual(snapshot.cost.warns, snapshot.plan?.causesIO === true);
+      return snapshot.cost;
+    };
+
+    it.effect("is empty while there is no policy", () =>
+      Effect.gen(function* () {
+        const session = yield* makeSimulationSession();
+        assert.deepStrictEqual(costOf(session), { sentence: "", warns: false });
+      }));
+
+    it.effect("states the evaluations a sweep runs, all in this process, with pairs off and on", () =>
+      Effect.gen(function* () {
+        const session = yield* scopedSessionWith(allOf([hasRole("a"), hasRole("b")]), holdsBoth);
+        for (const pairs of [false, true]) {
+          session.setPairs(pairs);
+          const stated = session.getSnapshot().plan?.evaluations;
+          assert.isDefined(stated);
+          assert.deepStrictEqual(costOf(session), {
+            sentence: `a sweep runs ${stated} evaluations, all in this process`,
+            warns: false,
+          });
+        }
+      }));
+
+    it.effect("warns before a sweep that reaches the host's live resolvers", () =>
+      Effect.gen(function* () {
+        const session = yield* scopedSessionWith(allOf([hasRole("a"), hasRole("b")]), holdsBoth);
+        session.setPorts(brokenPorts);
+        session.chooseSource("Live");
+        const stated = session.getSnapshot().plan?.evaluations;
+        assert.deepStrictEqual(costOf(session), {
+          sentence: `a sweep runs ${stated} evaluations against your live resolvers`,
+          warns: true,
+        });
+      }));
+
+    it.effect("says a run would be refused, and does not warn, once Live loses its ports", () =>
+      Effect.gen(function* () {
+        const session = yield* scopedSessionWith(hasRole("a"), holdsBoth);
+        session.setPorts(brokenPorts);
+        session.chooseSource("Live");
+        session.setPorts(undefined);
+        assert.isDefined(session.getSnapshot().plan);
+        assert.deepStrictEqual(costOf(session), {
+          sentence:
+            "a run would be refused: the host did not pass a `ports` layer, so this panel cannot reach any resolver",
+          warns: false,
+        });
+      }));
+  });
+
+  describe("baselineReading is whether the reconstruction reproduces the replayed row, in one line", () => {
+    const seededWith = (record: Parameters<typeof entryOf>[0]) =>
+      makeSimulationSession({ sightings: [], seed: entryOf(record) });
+
+    const reading = (session: SimulationSession) => session.getSnapshot().baselineReading;
+
+    it.effect("a match claims it, and only a match", () =>
+      Effect.gen(function* () {
+        const session = yield* seededWith(
+          decisionRecord({ evaluationId: "ev-91", policy: hasPermission(read), action: "read" }),
+        );
+        session.addChip("permissions", "doc:read");
+        yield* ran(session);
+        assert.deepStrictEqual(reading(session), {
+          matches: true,
+          sentence: "matches — this reconstruction reproduces the logged decision",
+        });
+      }));
+
+    it.effect("a flipped verdict names the node that turned", () =>
+      Effect.gen(function* () {
+        const session = yield* seededWith(
+          decisionRecord({ evaluationId: "ev-91", policy: hasPermission(read), action: "read" }),
+        );
+        yield* ran(session);
+        assert.deepStrictEqual(reading(session), {
+          matches: false,
+          sentence: "differs — HasPermission at the root was allowed and is now denied",
+        });
+      }));
+
+    it.effect("a difference that leaves the verdict alone counts its differences, one or more", () =>
+      Effect.gen(function* () {
+        const narrowed = yield* seededWith(
+          decisionRecord({
+            evaluationId: "ev-12",
+            policy: hasPermission(read),
+            outcome: new Decided({ decision: allow({ evaluationId: "ev-12", visibleFields: ["title"] }) }),
+          }),
+        );
+        narrowed.addChip("permissions", "doc:read");
+        yield* ran(narrowed);
+        assert.deepStrictEqual(reading(narrowed), {
+          matches: false,
+          sentence: "differs at 1 node, with the same verdict",
+        });
+
+        const owed = yield* seededWith(
+          decisionRecord({
+            evaluationId: "ev-13",
+            policy: hasPermission(read),
+            outcome: new Decided({
+              decision: allow({
+                evaluationId: "ev-13",
+                visibleFields: ["title"],
+                obligations: [obligation("audit")],
+              }),
+            }),
+          }),
+        );
+        owed.addChip("permissions", "doc:read");
+        yield* ran(owed);
+        assert.deepStrictEqual(reading(owed), {
+          matches: false,
+          sentence: "differs at 2 nodes, with the same verdict",
+        });
+      }));
+
+    it.effect("a logged failure the reconstruction decided is said so, and claims no match", () =>
+      Effect.gen(function* () {
+        const session = yield* seededWith(failedRecord({ evaluationId: "ev-7" }));
+        yield* ran(session);
+        assert.deepStrictEqual(reading(session), {
+          matches: false,
+          sentence: "this reconstruction decided where the logged one failed",
+        });
+      }));
+
+    it.effect("the same failure twice is not a match", () =>
+      Effect.gen(function* () {
+        const session = yield* seededWith(
+          decisionRecord({
+            evaluationId: "ev-7",
+            policy: hasAction("publish"),
+            outcome: new Failed({ error: new MissingAction({ expected: "publish" }) }),
+          }),
+        );
+        yield* ran(session);
+        assert.deepStrictEqual(reading(session), {
+          matches: false,
+          sentence: "the same failure, MissingAction",
+        });
+      }));
+
+    it.effect("a different failure names both", () =>
+      Effect.gen(function* () {
+        const session = yield* seededWith(
+          decisionRecord({
+            evaluationId: "ev-14",
+            policy: hasAction("publish"),
+            outcome: new Failed({ error: new MissingResource({ attribute: "x" }) }),
+          }),
+        );
+        yield* ran(session);
+        assert.deepStrictEqual(reading(session), {
+          matches: false,
+          sentence: "a different failure: MissingResource then, MissingAction now",
+        });
+      }));
+
+    it.effect("a reconstruction that broke where the logged row decided names the failure", () =>
+      Effect.gen(function* () {
+        const session = yield* makeSimulationSession({
+          sightings: [sighting(clearance)],
+          seed: entryOf(decisionRecord({ evaluationId: "ev-91", policy: clearance })),
+          ports: brokenPorts,
+        });
+        session.chooseSource("Live");
+        yield* ran(session);
+        assert.deepStrictEqual(reading(session), {
+          matches: false,
+          sentence: "this reconstruction failed with AttributeResolveError where the logged one decided",
+        });
+      }));
+
+    it.effect("is absent for an orphan, for a stale result, and before any run", () =>
+      Effect.gen(function* () {
+        const orphan = yield* makeSimulationSession({
+          sightings: [sighting(hasRole("a"))],
+          seed: entryOf(obligationRecord({ evaluationId: "ev-9" })),
+        });
+        assert.isUndefined(reading(orphan));
+        yield* ran(orphan);
+        assert.strictEqual(orphan.getSnapshot().baseline?._tag, "Unavailable");
+        assert.isUndefined(reading(orphan));
+
+        const decided = yield* seededWith(
+          decisionRecord({ evaluationId: "ev-91", policy: hasPermission(read), action: "read" }),
+        );
+        assert.isUndefined(reading(decided));
+        decided.addChip("permissions", "doc:read");
+        yield* ran(decided);
+        assert.isDefined(reading(decided));
+        decided.setAction("write");
+        assert.isTrue(decided.getSnapshot().stale);
+        assert.isUndefined(reading(decided));
+      }));
+  });
 });
 
 describe("a result belongs to the question it answered", () => {
