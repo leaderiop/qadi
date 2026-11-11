@@ -341,10 +341,10 @@ Plans:
   1. Bench numbers for both record shapes are recorded and the human's GO/NO-GO is in 23-01's SUMMARY.
   2. The round trip covers both record types and every optional field.
   3. `SinkCodec.test.ts`'s wire goldens are unchanged and the encoded value has no `undefined`-valued keys.
-**Plans**: 4 plans
+**Plans**: 1/4 plans executed
 
 Plans:
-- [ ] 23-01 (W1): Phase base and mutation scores; show a dropped field compiles; a full round-trip test and pins; a bench of both record shapes; checkpoint — answered A + keys absent ⛳ checkpoint (answered)
+- [x] 23-01 (W1): Phase base and mutation scores; show a dropped field compiles; a full round-trip test and pins; a bench of both record shapes; checkpoint — answered A + keys absent ⛳ checkpoint (answered)
 - [ ] 23-02 (W2): One field statement per record; the class type and the v2 wire derive from it; `project`/`rebuild` only add or strip `version`; derive `SinkRecordTag` (skipped under C)
 - [ ] 23-03 (W3): Merge `failedRecord` and `decidedRecord` into one projection, test first
 - [ ] 23-04 (W4): Records (ADR-QD-135, ADR-095 amendment, AGENTS.md §7, BEH-QD-450/451, INV-QD-290, CCR-QD-413, changeset), mutation comparison, `pnpm check:pr`

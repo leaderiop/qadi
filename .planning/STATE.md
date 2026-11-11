@@ -5,16 +5,16 @@ milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 23
 current_phase_name: Sink record fields stated once
 status: executing
-stopped_at: Phase 22 complete, ready to execute Phase 23
-last_updated: "2026-11-11T03:31:52.361Z"
+stopped_at: Completed 23-01-PLAN.md
+last_updated: "2026-11-11T04:19:24.928Z"
 last_activity: 2026-11-11
-last_activity_desc: Phase 22 complete, transitioned to Phase 23
-state_head: 4a75f6e07a363f47aa719125865f9666dedd4970
+last_activity_desc: Phase 23 execution started
+state_head: 4802af6258b6503234158893b745f40f0fdd3d30
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 37
-  completed_plans: 9
+  completed_plans: 10
   percent: 22
 ---
 
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 
 ## Current Position
 
-Phase: 23 — Sink record fields stated once
-Plan: Not started
+Phase: 23 (Sink record fields stated once) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-11-11 — Phase 22 complete, transitioned to Phase 23
+Last activity: 2026-11-11 — Phase 23 execution started
 
 ## Performance Metrics
 
@@ -103,6 +103,7 @@ Last activity: 2026-11-11 — Phase 22 complete, transitioned to Phase 23
 | Phase 22 P02 | 3 min | 3 tasks | 4 files |
 | Phase 22 P03 | 70min | 3 tasks | 23 files |
 | Phase 22 P04 | 17 min | 3 tasks | 20 files |
+| Phase 23 P01 | 26 min | 4 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,7 @@ Last activity: 2026-11-11 — Phase 22 complete, transitioned to Phase 23
 - [Phase 22]: PortDescription carries exact per-port Asks (LeafRequests<P>) so d.asks[tag] correlates without a cast; askActed overloaded on AnyActedLeaf to keep toPredicate's error type unchanged
 - [Phase 22]: ADR-QD-134 records D-02 = A and D-05 = state once, quoted from _DECISIONS-v1.2.md with the standing instruction; D-05 overrides the planner's earlier choice
 - [Phase 22]: Predicate.ts Folded is { value } | undefined, removing its one equivalent mutant so the file's mutation score holds at its phase base
+- [Phase 23]: 23-01: record shape A (one Schema.Struct per record, Data.TaggedClass typed by it) with keys absent, from _DECISIONS-v1.2.md; the bench shows Schema.TaggedClass costs 5.3x to 140x per record on the evaluation path
 
 ### Pending Todos
 
@@ -145,8 +147,8 @@ Last activity: 2026-11-11 — Phase 22 complete, transitioned to Phase 23
 
 ## Session Continuity
 
-Last session: 2026-11-11T03:19:08.090Z
-Stopped at: Phase 22 complete, ready to execute Phase 23
+Last session: 2026-11-11T04:19:24.817Z
+Stopped at: Completed 23-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
