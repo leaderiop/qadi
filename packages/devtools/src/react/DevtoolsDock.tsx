@@ -390,7 +390,7 @@ const Screen: FC<{
         {...(props.portCalls === undefined ? {} : { portCalls: props.portCalls })}
       />
     ),
-    simulator: () => <Simulator sightings={props.sightings} session={props.simulation} />,
+    simulator: () => <Simulator session={props.simulation} />,
     questions: () => (
       <QuestionsPanel
         questions={props.questions}
