@@ -73,14 +73,14 @@ coverage:
         status: pass
     human_judgment: false
   - id: D4
-    description: "Per-file mutation score of SimulationSession.ts is 0.0007 below the base"
+    description: "No touched model file's mutation score is below the base (SimulationSession.ts 0.9644 >= 0.9619)"
     requirement: WX-05
     verification:
       - kind: other
         ref: ".planning/phases/24-simulation-source-preparation/24-mutation-after.json"
-        status: fail
-    human_judgment: true
-    rationale: "Arithmetic of moving well-killed mutants out of the file; all 12 survivors read as equivalent. A human should accept or overrule."
+        status: pass
+    human_judgment: false
+    rationale: "The first comparison was 0.0007 under; a follow-up re-ran Stryker and killed one survivor (the seed clause of stale) with a session test, commit 1ba535aa."
 
 duration: 12min
 completed: 2026-11-11
@@ -89,7 +89,7 @@ status: complete
 
 # Phase 24 Plan 03: Spec, CCR-QD-414 and the merge gate Summary
 
-**ADR-QD-050 now says the source-choice rule is `prepareSource`'s, BEH-QD-455 specifies it, CCR-QD-414 registers the phase, and `pnpm check:pr` is green; one per-file mutation score (`SimulationSession.ts`) is 0.0007 under the base.**
+**ADR-QD-050 now says the source-choice rule is `prepareSource`'s, BEH-QD-455 specifies it, CCR-QD-414 registers the phase, and `pnpm check:pr` is green; both touched model files hold their mutation base (`SimulationSession.ts` after a follow-up test killed one survivor).**
 
 ## Performance
 
@@ -122,9 +122,9 @@ status: complete
 | File | Base (24-01) | After | Killed / survived base | Killed / survived after |
 | ---- | ------------ | ----- | ---------------------- | ----------------------- |
 | `SimulationSource.ts` | 0.9444 | 0.9841 | 17 / 1 | 62 / 1 |
-| `SimulationSession.ts` | 0.9619 | 0.9612 | 353 / 14 | 297 / 12 |
+| `SimulationSession.ts` | 0.9619 | 0.9644 | 353 / 14 | 298 / 11 |
 
-`SimulationSession.ts` is 0.0007 below the base, so the plan's per-file verify one-liner exits 1 for that file. Survivors fell from 14 to 12; the score falls because about 56 killed mutants left the file with the code that moved to `SimulationSource.ts`. I read all 12 survivors: none can be killed by a test. Two are in code this phase wrote (`SimulationSession.ts:283`, spreading `source` for a `Refused`, and `:308`, `refusal` for a `Ready`); their mutated forms read the same value (`source: undefined` falls through `options?.source ?? fixtures`; `Ready` has no `refusal`). The other ten are earlier equivalents or defensive clauses (`policyNow === undefined ||`, `question.seed !== seedOf(policy)`, which `reseed` and `choosePolicy` already clear by resetting the run, `generation -= 1`, `{ discard }` on an unused result, and similar). No threshold, disable comment or Stryker config was touched. This is recorded as a deviation for a human to accept; the new rule's lines in `SimulationSource.ts` are covered (62 killed, 1 survivor, a pre-existing one in `fixtureLayer`).
+The first comparison left `SimulationSession.ts` 0.0007 below the base (297 / 12): about 56 killed mutants left the file with the code that moved to `SimulationSource.ts`. All 12 survivors were first judged unkillable by reading; a follow-up re-ran Stryker and found one killable. `question.seed !== seedOf(policy)` (`:292`) is observable when a replay lands while a new run waits in `reap` for a superseded live run's teardown: that run then starts with the old question, and only the seed clause keeps it from showing as current, with a false baseline, against the replayed row. The test "never shows a result as answering a row replayed while that run was starting" (`1ba535aa`) kills it, and the plan's per-file verify one-liner now exits 0. The rest of this paragraph is the original reading of the survivors; the seed clause in it has since been killed. Two are in code this phase wrote (`SimulationSession.ts:283`, spreading `source` for a `Refused`, and `:308`, `refusal` for a `Ready`); their mutated forms read the same value (`source: undefined` falls through `options?.source ?? fixtures`; `Ready` has no `refusal`). The other ten are earlier equivalents or defensive clauses (`policyNow === undefined ||`, `question.seed !== seedOf(policy)`, which `reseed` and `choosePolicy` already clear by resetting the run, `generation -= 1`, `{ discard }` on an unused result, and similar). No threshold, disable comment or Stryker config was touched. This is recorded as a deviation for a human to accept; the new rule's lines in `SimulationSource.ts` are covered (62 killed, 1 survivor, a pre-existing one in `fixtureLayer`).
 
 ## pnpm check:pr
 
@@ -145,11 +145,11 @@ Exit 0, 16 of 17 steps (`pnpm mutation` is skipped by `check:pr` by design; the 
 - **Fix:** reworded the Rev 1.12 history entry.
 - **Committed in:** `2046f19c`
 
-**3. [Mutation, not a Rule] `SimulationSession.ts` 0.0007 below the base** - see above; not fixable by a test, left for a human.
+**3. [Mutation, not a Rule] `SimulationSession.ts` 0.0007 below the base** - see above; fixed in a follow-up by a session test that kills the seed-clause survivor (`1ba535aa`), not by a threshold or disable comment.
 
 `devtools-spec/02-screens.md` has a draft-style `Revision 0.15 (draft)` header that `spec-revise` does not parse ("no Revision / Change History rows"), so it got the sentence and no revision bump; the plan said to revise it only if it has a revision table.
 
-**Total deviations:** 2 auto-fixed, 1 mutation shortfall reported. **Impact:** none on behaviour.
+**Total deviations:** 2 auto-fixed, 1 mutation shortfall reported and then fixed by a test. **Impact:** none on behaviour.
 
 ## Issues Encountered
 
@@ -165,7 +165,7 @@ None.
 
 ## Next Phase Readiness
 
-Phase 24 is complete. Open for a human: accept the 0.0007 session score gap, and decide on the two deferred spec items.
+Phase 24 is complete. Open for a human: decide on the two deferred spec items.
 
 ## Self-Check: PASSED
 
