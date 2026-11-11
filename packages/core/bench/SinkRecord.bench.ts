@@ -3,7 +3,8 @@
  *
  * Three constructors build the same record from the same fields:
  *
- * - today's `DecisionRecord` / `ObligationRecord`, a `Data.TaggedClass` whose field type is written by hand;
+ * - "today" (the baseline as measured, pre-ARCH-71): `DecisionRecord` / `ObligationRecord`, a
+ *   `Data.TaggedClass` whose field type was written by hand;
  * - (A) a `Data.TaggedClass` whose field type is a shared `Schema.Struct`'s `Type`, so the class
  *   and the wire struct can state their fields once and `new` stays a plain assignment;
  * - (B) a `Schema.TaggedClass` over the same fields, the way ADR-QD-060 made an error class its own
