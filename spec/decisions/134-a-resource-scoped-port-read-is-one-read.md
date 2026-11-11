@@ -206,7 +206,7 @@ the depth clamp, moved from `PortAccess.ts` as a module-private constant; histor
   `@qadi/core`, because `PortDescription` shipped in 0.10.0; the registry is closed, so this is rare,
   and the release is a pre-1.0 minor. `PortServingFacet` and `ServedLeaves` were added after 0.11.0 and
   never released, so removing `leaves` and `ServedLeaves` is not a published break. `LeafOf`, `ReadSite`
-  and `LeafRequests` are new public types (`spec/overview.md`, gate 13).
+  and `LeafRequests` are new public types (`spec/overview.md`, gate 13, `node scripts/check-api-surface.mjs`).
 - **A new port-reading policy leaf is one `asks` entry** on the port that answers it. The reads and
   `servingFor` both derive from it, so they cannot disagree on which leaf asks which name
   ([BEH-QD-446](../behaviors/34-remote-ports.md#beh-qd-446-the-request-a-policy-leaf-asks-a-port-is-stated-once-and-servingfor-serves-exactly-the-names-those-requests-ask),

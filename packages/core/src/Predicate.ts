@@ -205,7 +205,7 @@ const untranslatable = (
 ): Effect.Effect<never, PolicyNotTranslatable> =>
   Effect.fail(new PolicyNotTranslatable({ policyTag, reason }));
 
-type Folded = { readonly ok: true; readonly value: unknown } | { readonly ok: false };
+type Folded = { readonly value: unknown } | undefined;
 
 /**
  * Resolves the constant side of a comparison, or reports that there is none.
@@ -219,13 +219,13 @@ type Folded = { readonly ok: true; readonly value: unknown } | { readonly ok: fa
 const constantRef = (ref: ValueRef, context: MatcherContext): Folded =>
   Match.value(ref).pipe(
     Match.tagsExhaustive({
-      SubjectRef: (r): Folded => ({ ok: true, value: getByPath(context.subject, r.path) }),
-      SubjectIdRef: (): Folded => ({ ok: true, value: context.subjectId }),
-      ActionRef: (): Folded => ({ ok: true, value: context.action }),
-      LiteralRef: (r): Folded => ({ ok: true, value: r.value }),
+      SubjectRef: (r): Folded => ({ value: getByPath(context.subject, r.path) }),
+      SubjectIdRef: (): Folded => ({ value: context.subjectId }),
+      ActionRef: (): Folded => ({ value: context.action }),
+      LiteralRef: (r): Folded => ({ value: r.value }),
       // A second column. `column op column` is the one comparison `Predicate`
       // cannot express, and a dotted path names a column no schema has.
-      ResourceRef: (): Folded => ({ ok: false }),
+      ResourceRef: (): Folded => undefined,
     }),
   );
 
@@ -244,7 +244,7 @@ const columnPredicate = (
   /** `Eq` and `Neq` are the only matchers whose other side may be a column. */
   const comparison = (op: "Eq" | "Neq", ref: ValueRef): Predicate | undefined => {
     const other = constantRef(ref, context);
-    return other.ok ? { _tag: "Compare", column, op, value: other.value } : undefined;
+    return other === undefined ? undefined : { _tag: "Compare", column, op, value: other.value };
   };
   return Match.value(matcher).pipe(
     Match.tagsExhaustive({

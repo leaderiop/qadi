@@ -1,0 +1,11 @@
+{
+ "packages/core/src/PortRemote.ts": 0.8365384615384616,
+ "packages/core/src/SignatureHistory.ts": 0.9605263157894737,
+ "packages/core/src/Walk.ts": 0.9507692307692308,
+ "packages/core/src/AttributeResolver.ts": 1,
+ "packages/core/src/CustomPredicate.ts": 0.9459459459459459,
+ "packages/core/src/DecisionHistory.ts": 1,
+ "packages/core/src/PortAccess.ts": 1,
+ "packages/core/src/Predicate.ts": 1,
+ "packages/core/src/RelationshipResolver.ts": 1
+}
