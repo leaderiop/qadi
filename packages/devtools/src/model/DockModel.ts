@@ -34,8 +34,8 @@ import { makeHeldChoiceStore, type HeldChoiceStore } from "./HeldChoice.ts";
 import { sameRole } from "./RoleTree.ts";
 import { makeSimulationSession, type SimulationSession } from "./SimulationSession.ts";
 import type { EvaluationPortsLayer } from "./SimulationInput.ts";
-import type { Source } from "./Source.ts";
-import type { Timeline } from "./Timeline.ts";
+import { sourceFromRecords, type Source } from "./Source.ts";
+import { DEFAULT_TIMELINE_CAPACITY, type Timeline } from "./Timeline.ts";
 import { makeTimelineStore, runSource, type TimelineStore } from "./TimelineStore.ts";
 
 /** What a host hands the dock. Each field is compared by identity when it is configured again. */
@@ -63,8 +63,11 @@ export interface DockModel {
 /** One list for every absent catalogue, so the role store keeps one identity. */
 const NO_ROLES: ReadonlyArray<Role> = [];
 
+/** What a host that gave no source reads: nothing, which ends at once. */
+const NO_SOURCE: Source = sourceFromRecords([]);
+
 const bounded = (capacity: number | undefined): TimelineStore =>
-  makeTimelineStore(capacity === undefined ? undefined : { capacity });
+  makeTimelineStore({ capacity: capacity ?? DEFAULT_TIMELINE_CAPACITY });
 
 /** Builds the model in the caller's scope; closing it interrupts the source read and any run in flight. */
 export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* (
@@ -100,7 +103,7 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
     }
     view.publish(shown);
   };
-  let unhook = inner.subscribe(push);
+  inner.subscribe(push);
 
   const timeline: TimelineStore = {
     subscribe: view.subscribe,
@@ -113,9 +116,8 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
 
   const reads = yield* FiberHandle.make<void>();
   const forkRead = yield* FiberHandle.runtime(reads)<never>();
-  // A replacement interrupts the read before it; a source that went away is replaced by nothing.
-  const readSource = (source: Source | undefined) =>
-    forkRead(source === undefined ? Effect.void : runSource(timeline, source));
+  // A replacement interrupts the read before it; a source that went away is replaced by an empty one.
+  const readSource = (source: Source | undefined) => forkRead(runSource(timeline, source ?? NO_SOURCE));
   readSource(inputs.source);
 
   return {
@@ -131,9 +133,9 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
       inputs = next;
       const resized = next.capacity !== before.capacity;
       if (resized) {
-        unhook();
+        // The old store is dropped, not unsubscribed from: nothing can reach it again.
         inner = bounded(next.capacity);
-        unhook = inner.subscribe(push);
+        inner.subscribe(push);
         push();
       }
       if (next.catalogue !== before.catalogue) {
