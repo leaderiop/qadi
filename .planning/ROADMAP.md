@@ -372,10 +372,10 @@ Plans:
   1. `OwnedSimulator` is gone; all 32 `<Simulator>` renders in its test build a session.
   2. `setAction`, `choosePolicyAt`, the run reading, cost and baseline reading are session-level and model-tested.
   3. `reap`, `hasRetired` and `dispose` are gone; a superseded run is interrupted before the command returns; closing the session's scope interrupts the run in flight.
-**Plans**: 5 plans
+**Plans**: 1/5 plans executed
 
 Plans:
-- [ ] 25-01 (W1): Record the answer from `_DECISIONS-v1.2.md` (D: the session owns a FiberHandle in a Scope; overrides ARCH-20 D-20-b)
+- [x] 25-01 (W1): Record the answer from `_DECISIONS-v1.2.md` (D: the session owns a FiberHandle in a Scope; overrides ARCH-20 D-20-b)
 - [ ] 25-02 (W2): Mutation baseline; RED model tests (a superseded run is interrupted through the handle with no `reap`; closing the scope interrupts the run in flight; commands and readings)
 - [ ] 25-03 (W3): Scoped `makeSimulationSession` (an `Effect.fn` over `FiberHandle`), with `supersede()` for synchronous cancels; `reap`/`hasRetired`/`dispose` deleted; package-private `useScoped`; owner/frame split in the dock; commands and readings
 - [ ] 25-04 (W4): DOM tests own their scopes; the view becomes session-only; a new hook test

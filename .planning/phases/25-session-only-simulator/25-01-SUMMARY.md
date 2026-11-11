@@ -23,6 +23,7 @@ actuals:
   tasks: 1
   commits: 1
 plan_head_before: 17fa67382910a03203d6765bf4fce1aebdde162e
+plan_head_after: eab2ead59574da1a2650c336033105e2f053227f
 tech-stack:
   added: []
   patterns: ["a session owns its runs' lifetime through a Scope and an effect/FiberHandle"]
@@ -108,3 +109,8 @@ None - no external service configuration required.
 ---
 *Phase: 25-session-only-simulator*
 *Completed: 2026-11-11*
+
+## Self-Check: PASSED
+
+- FOUND: .planning/phases/25-session-only-simulator/25-01-SUMMARY.md
+- FOUND: commit eab2ead5 (`git merge-base --is-ancestor` ok)

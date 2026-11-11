@@ -4,18 +4,19 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 25
 current_phase_name: Session-only Simulator
+current_plan: 2
 status: executing
-stopped_at: Phase 24 complete, ready to execute Phase 25
-last_updated: "2026-11-11T06:50:53.485Z"
+stopped_at: Completed 25-01-PLAN.md
+last_updated: "2026-11-11T06:59:22.713Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 24 complete, transitioned to Phase 25
-state_head: 12a6631c354e714fbd20d56e02a7920e7bf4bb5c
+state_head: eab2ead59574da1a2650c336033105e2f053227f
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 37
-  completed_plans: 16
-  percent: 43
+  completed_plans: 17
+  percent: 44
 ---
 
 # Project State
@@ -30,7 +31,8 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 ## Current Position
 
 Phase: 25 — Session-only Simulator
-Plan: Not started
+Current Plan: 2
+Total Plans in Phase: 5
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 
@@ -112,6 +114,7 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 | Phase 24 P01 | 8 min | 2 tasks | 3 files |
 | Phase 24 P02 | 10 min | 2 tasks | 6 files |
 | Phase 24 P03 | 12 min | 3 tasks | 10 files |
+| Phase 25 P01 | 6 min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -140,6 +143,7 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 - [Phase 24]: prepareSource's table builds a Ready lazily (thunk), so build() makes a recorder only for the chosen Live row
 - [Phase 24]: ADR-QD-136 unused: the source-choice rule moved, so ADR-QD-050 is amended (CCR-QD-414)
 - [Phase 24]: SimulationSession.ts mutation 0.9641 over its 0.9619 base after review: WR-01 (generation read before the last teardown yield) and the seeded policy held with its row (6c198da1); no human acceptance needed
+- [Phase 25]: 25-01: D-01 option D (FiberHandle) recorded; session owns its runs through a Scope; overrides ARCH-20 D-20-b
 
 ### Pending Todos
 
@@ -166,8 +170,8 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 
 ## Session Continuity
 
-Last session: 2026-11-11T06:52:11Z
-Stopped at: Phase 24 complete, ready to execute Phase 25
+Last session: 2026-11-11T06:59:15.610Z
+Stopped at: Completed 25-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
