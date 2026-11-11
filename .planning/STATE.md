@@ -4,17 +4,17 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 21
 current_phase_name: Port request derived from its description
-status: executing
-stopped_at: Completed 21-04-PLAN.md
-last_updated: "2026-11-11T02:03:12.389Z"
+status: verifying
+stopped_at: Completed 21-05-PLAN.md
+last_updated: "2026-11-11T02:18:14.620Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 21 execution started
-state_head: 8e93800b39b814f70d61252f445969d2aa526e91
+state_head: fc96605ae1abbcf094a3ad7be5f2e4399c781435
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 37
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 Phase: 21 (Port request derived from its description) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-11 — Phase 21 execution started
 
 ## Performance Metrics
@@ -96,6 +96,7 @@ Last activity: 2026-11-11 — Phase 21 execution started
 | Phase 21 P02 | 10 min | 2 tasks | 5 files |
 | Phase 21 P03 | 18 min | 3 tasks | 9 files |
 | Phase 21 P04 | 12 min | 2 tasks | 7 files |
+| Phase 21 P05 | 25 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,7 @@ Last activity: 2026-11-11 — Phase 21 execution started
 - [Phase 21]: 21-02: QuestionOf<Q> types toQuestion; portWire drops undefined members (presentMembers) before encodeUnknownResult; wire bytes unchanged
 - [Phase 21]: 21-03: makePortDescription derives key (canonicalKey of the wire question) and defect (failure of the squashed cause) for four ports; CustomPredicate states its own, documented; the ARCH-69 law replaced their key and defect pins
 - [Phase 21]: 21-04: portSpan (typed identity) holds each pose to PoseOf its span question: every member but interpreter, required key | undefined; an omitted member is a compile error, span attributes unchanged
+- [Phase 21]: Pending key changeset amended in place for ARCH-69; ADR-QD-107 pointer is a dated amendment section
 
 ### Pending Todos
 
@@ -129,8 +131,8 @@ Last activity: 2026-11-11 — Phase 21 execution started
 
 ## Session Continuity
 
-Last session: 2026-11-11T02:03:12.365Z
-Stopped at: Completed 21-04-PLAN.md
+Last session: 2026-11-11T02:18:14.574Z
+Stopped at: Completed 21-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

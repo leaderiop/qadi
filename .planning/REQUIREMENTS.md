@@ -140,11 +140,11 @@
 ## v1.2 Requirements
 
 ### Port request derived from its description (Phase 21)
-- [ ] **PREQ-01**: A port description derives `key` from its wire question by default; no derived port lists its request fields for the key by hand.
-- [ ] **PREQ-02**: A port description derives `defect` from `failure` and `Cause.squash` by default; CustomPredicate keeps an explicit, documented override for `key` and `defect`.
-- [ ] **PREQ-03**: One law test at `PortDescription`'s interface states "a derived key equals `canonicalKey` of the wire question" as a property over every derived port; the per-port key and defect pins it replaces are deleted only after it is green.
-- [ ] **PREQ-04**: A field missing from a derived port's question cannot compile silently (RED first: drop a field from a hand key on the phase base and show only conformance catches it).
-- [ ] **PREQ-05**: Wherever a request field is still restated inside a port module (span struct, `pose`, `toQuestion`/`fromQuestion`), it is derived from one struct, or the plan records why it cannot be.
+- [x] **PREQ-01**: A port description derives `key` from its wire question by default; no derived port lists its request fields for the key by hand.
+- [x] **PREQ-02**: A port description derives `defect` from `failure` and `Cause.squash` by default; CustomPredicate keeps an explicit, documented override for `key` and `defect`.
+- [x] **PREQ-03**: One law test at `PortDescription`'s interface states "a derived key equals `canonicalKey` of the wire question" as a property over every derived port; the per-port key and defect pins it replaces are deleted only after it is green.
+- [x] **PREQ-04**: A field missing from a derived port's question cannot compile silently (RED first: drop a field from a hand key on the phase base and show only conformance catches it).
+- [x] **PREQ-05**: Wherever a request field is still restated inside a port module (span struct, `pose`, `toQuestion`/`fromQuestion`), it is derived from one struct, or the plan records why it cannot be.
 
 ### One resource-scoped port read (Phase 22)
 - [ ] **SCOPE-01**: `PortAccess.ts` has one scoped read that owns the early `pose` annotation, the resource-id check, `MissingResourceId` and `readPort`; `askActedForResource`, `askRelationship` and `askSignature` go through it.
@@ -196,12 +196,12 @@
 - [ ] **TIDY-03**: The "This is not a denial" sentence is one constant used by the Inspector and the Simulator.
 
 ### Cross-cutting (every v1.2 phase)
-- [ ] **WX-01**: `pnpm check:pr` is green at the end of each phase.
-- [ ] **WX-02**: Each phase records its ADR (or states why none is needed), a CCR row, and the BEH/INV/traceability changes, using only its reserved numbers.
-- [ ] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
-- [ ] **WX-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock; budgets change only with their AGENTS.md table.
-- [ ] **WX-05**: Coverage thresholds hold (core at least 95%, others at least 90%); the Stryker score of touched files does not fall (per-phase `NN-mutation-base.json`).
-- [ ] **WX-06**: Every defect fix is preceded by a regression test seen RED on the phase base.
+- [x] **WX-01**: `pnpm check:pr` is green at the end of each phase.
+- [x] **WX-02**: Each phase records its ADR (or states why none is needed), a CCR row, and the BEH/INV/traceability changes, using only its reserved numbers.
+- [x] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
+- [x] **WX-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock; budgets change only with their AGENTS.md table.
+- [x] **WX-05**: Coverage thresholds hold (core at least 95%, others at least 90%); the Stryker score of touched files does not fall (per-phase `NN-mutation-base.json`).
+- [x] **WX-06**: Every defect fix is preceded by a regression test seen RED on the phase base.
 
 ## v1.2 Out of Scope
 | Item | Reason |
