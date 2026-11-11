@@ -243,6 +243,13 @@ the result are still there on return. The Fixtures card has a fourth row,
 a chip is the text its codec writes, which decodes back to the same value, and an
 element naming a subject other than the form's is shown in full.
 
+**Which sources are offered comes from one preparation** (ARCH-72). The three
+source options, why each is or is not usable, and whether a chosen source runs or
+is refused are all read from `prepareSource` in the model
+([BEH-QD-455](../behaviors/29-devtools-simulator.md#beh-qd-455-a-source-choice-is-prepared-in-one-place)),
+so the selector and the run cannot disagree. A Live preparation is also what
+captures, which is what makes Snapshot usable.
+
 **Each input field is one description** (CCR-QD-400). The three subject rows and
 the four fixture rows are rows of one table in the model
 (`SimulationFields.ts`): the chips, the weakening sweep, the remedies' grants,
