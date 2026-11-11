@@ -166,7 +166,7 @@
 - [x] **SRC-03**: One table test covers every (choice × ports × capture) combination; the session tests only check that a `Refused` becomes the run state.
 
 ### Session-only Simulator (Phase 25)
-- [ ] **SIM-01**: `Simulator` renders from a session only; `OwnedSimulator` and the ignored `sightings` prop are gone, and tests build a session directly.
+- [x] **SIM-01**: `Simulator` renders from a session only; `OwnedSimulator` and the ignored `sightings` prop are gone, and tests build a session directly.
 - [x] **SIM-02**: The session gains `setAction(text)` and `choosePolicyAt(index)` commands; the view composes no form codec and parses no select value.
 - [x] **SIM-03**: The run's reading, the sweep-cost sentence and the baseline summary/match are in the session snapshot and under the devtools mutation gate.
 - [x] **SIM-04**: The session is constructed in a `Scope` and owns its runs through an `effect/FiberHandle`: a new run or a superseding command interrupts the previous run promptly, closing the scope interrupts the run in flight, and `reap`/`hasRetired`/`dispose` leave the interface (decision 2026-11-11; supersedes ARCH-20 D-20-b via ADR-QD-137).

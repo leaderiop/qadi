@@ -5,17 +5,17 @@ milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 25
 current_phase_name: Session-only Simulator
 current_plan: 5
-status: executing
-stopped_at: Completed 25-04-PLAN.md
-last_updated: "2026-11-11T07:27:30.353Z"
+status: verifying
+stopped_at: Completed 25-05-PLAN.md
+last_updated: "2026-11-11T07:38:21.338Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 24 complete, transitioned to Phase 25
-state_head: 0db2be102df78303bc10fbcb0ab9029c6e4c0948
+state_head: 77a47f8017f5b4bc4778f921eca2cf84996fb8d3
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 37
-  completed_plans: 20
+  completed_plans: 21
   percent: 44
 ---
 
@@ -33,7 +33,7 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 Phase: 25 — Session-only Simulator
 Current Plan: 5
 Total Plans in Phase: 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 
 ## Performance Metrics
@@ -118,6 +118,7 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 | Phase 25 P02 | 7 min | 2 tasks | 2 files |
 | Phase 25 P03 | 13 min | 3 tasks | 12 files |
 | Phase 25 P04 | 12 min | 2 tasks | 4 files |
+| Phase 25 P05 | 9 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -152,6 +153,7 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 - [Phase 25]: 25-03: choosePolicyAt and the policy menu share one leading-entry rule; cost.warns is the plan's causesIO alone (what the view coloured by)
 - [Phase 25]: 25-04: no DOM test deleted; each keeps wiring proof beside its 25-02 model counterpart
 - [Phase 25]: 25-04: BaselineCard reads snapshot.baselineReading as BaselineReading | undefined with optional chaining (session defines it whenever the baseline is Checked)
+- [Phase 25]: ADR-QD-137 (own number): a devtools session owns its runs through a scope; supersedes ARCH-20 D-20-b; no new invariant (BEH-QD-461 carries the lifecycle)
 
 ### Pending Todos
 
@@ -178,8 +180,8 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 
 ## Session Continuity
 
-Last session: 2026-11-11T07:27:30.176Z
-Stopped at: Completed 25-04-PLAN.md
+Last session: 2026-11-11T07:38:21.158Z
+Stopped at: Completed 25-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
