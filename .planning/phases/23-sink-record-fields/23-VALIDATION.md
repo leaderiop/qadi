@@ -93,3 +93,11 @@ None blocking. `packages/core/test/SinkRecord.tst.ts` and `packages/core/bench/S
 | Resolved | 0 |
 | Escalated | 0 |
 | Manual-only added | 1 |
+
+## Validation Audit 2026-11-11
+
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
