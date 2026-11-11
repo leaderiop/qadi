@@ -5,8 +5,8 @@
  * A leaf, so `Errors.ts` (whose `SinkRecordNotDecodable` carries these types)
  * and `SinkCodec.ts` (which raises them) can both import it without a cycle:
  * `Errors.ts` cannot import `SinkCodec.ts` (ADR-QD-037, which counts type-only
- * edges), and this module imports only `effect` and one type from `Decision.ts`,
- * whose import closure does not reach this module. The error classes stay in
+ * edges), and this module imports only `effect`, one type from `Decision.ts` and
+ * two from `SinkRecordFields.ts`, whose import closures do not reach this module. The error classes stay in
  * `Errors.ts` with the rest of `QadiError`; only the vocabulary they name lives
  * here (ADR-QD-095's ARCH-27 amendment). The encode-refusal vocabulary, which the
  * port wire reads too, lives in `JsonRefusal.ts` (ARCH-54, ADR-QD-116, amending
@@ -15,18 +15,19 @@
  */
 import * as Data from "effect/Data";
 import type { DecisionDisagreement } from "./Decision.ts";
+import type { DECISION_RECORD_TAG, OBLIGATION_RECORD_TAG } from "./SinkRecordFields.ts";
 
 /**
  * The `_tag` of a `SinkRecord` — `"Decision"` or `"Obligations"`.
  *
- * Restated as a literal union rather than imported: `DecisionRecord.ts`
- * imports `EvaluationError` from `Errors.ts`, which imports this module, so
- * importing `SinkRecord` back — even as a type, which madge counts
- * (ADR-QD-037) — would be a cycle.
- * `Errors.tst.ts` pins it equal to `SinkRecord["_tag"]`, so the two cannot
- * drift.
+ * Derived from the record tags' one statement in `SinkRecordFields.ts`, a leaf
+ * that imports only `effect`, `Policy.ts` and `Identity.ts`, so importing it here
+ * is no cycle: `DecisionRecord.ts` imports `EvaluationError` from `Errors.ts`,
+ * which imports this module, so importing `SinkRecord` back — even as a type,
+ * which madge counts (ADR-QD-037) — would be one. `Errors.tst.ts` still pins it
+ * equal to `SinkRecord["_tag"]`.
  */
-export type SinkRecordTag = "Decision" | "Obligations";
+export type SinkRecordTag = typeof DECISION_RECORD_TAG | typeof OBLIGATION_RECORD_TAG;
 
 /**
  * A version of the record wire that `decodeSinkRecord` reads (ADR-QD-096).
