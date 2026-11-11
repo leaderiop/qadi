@@ -407,11 +407,11 @@ Plans:
   1. `GuardRoute.tst.ts` pins `CurrentSubject` exclusion, the error channel and the method union on `addGuardedRoute`.
   2. `guardRoute` is gone; `@qadi/http`'s public surface is unchanged.
   3. `pnpm circular` is green with `/__permissions` in `PermissionRegistryRoute.ts`.
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 Plans:
 - [x] 27-01 (W1): Mutation baseline; pins on `addGuardedRoute`; ordering test retargeted (all green on the base)
-- [ ] 27-02 (W2): `addGuardedRoute` absorbs `guardRoute`; `RouteMethod` stated once; `/__permissions` moves out; old tests deleted
+- [x] 27-02 (W2): `addGuardedRoute` absorbs `guardRoute`; `RouteMethod` stated once; `/__permissions` moves out; old tests deleted
 - [ ] 27-03 (W3): Records (BEH-QD-470, ADR-036 amendment, ADR-QD-139 unused, CCR-QD-417, patch changeset), `pnpm check:pr`
 
 ### Phase 28: Gate registry dependency

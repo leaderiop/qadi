@@ -4,18 +4,18 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 27
 current_phase_name: Bare-route module
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 27-01-PLAN.md
-last_updated: "2026-11-11T14:03:12.390Z"
+stopped_at: Completed 27-02-PLAN.md
+last_updated: "2026-11-11T14:12:15.471Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 26 complete, transitioned to Phase 27
-state_head: 287a23a450d099aca92766f386930e396129b61f
+state_head: 496f7dd685827989e877ae0ec97bacc781edd2d8
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 37
-  completed_plans: 28
+  completed_plans: 29
   percent: 67
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 ## Current Position
 
 Phase: 27 (Bare-route module) — EXECUTING
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 3
 Status: Ready to execute 27-02
 Last activity: 2026-11-11 — 27-01 complete (mutation baseline, addGuardedRoute type pins)
@@ -128,6 +128,7 @@ Last activity: 2026-11-11 — 27-01 complete (mutation baseline, addGuardedRoute
 | Phase 26 P05 | 4 min | 1 tasks | 1 files |
 | Phase 26 P06 | 8 min | 3 tasks | 10 files |
 | Phase 27 P01 | 11 min | 2 tasks | 3 files |
+| Phase 27 P02 | 7 min | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -173,6 +174,7 @@ Last activity: 2026-11-11 — 27-01 complete (mutation baseline, addGuardedRoute
 - [Phase 26]: 26-05: no model test had to be written to delete the 13 dock duplicates; every rule already had a green headless test
 - [Phase 26]: ADR-QD-138 left unused: the dock-model change amends ADR-QD-047 (Rev 1.12, CCR-QD-416); the plan's whole-file useOwnedSimulationSession grep on spec/overview.md cannot pass because change history names it and history is exempt
 - [Phase 27]: 27-01: no defect (D-01), new type pins and ordering test are green on the phase base; dropped unused guardRoute import from http.test.ts because noUnusedLocals fails typecheck
+- [Phase 27]: 27-02: addGuardedRoute's overload layer type is a private GuardedRoute<R, LR> alias over typeof HttpRouter.add, no builder kept; PermissionRegistry.tst.ts pins moved into GuardRoute.tst.ts
 
 ### Pending Todos
 
@@ -201,8 +203,8 @@ Last activity: 2026-11-11 — 27-01 complete (mutation baseline, addGuardedRoute
 
 ## Session Continuity
 
-Last session: 2026-11-11T14:03:12.097Z
-Stopped at: Completed 27-01-PLAN.md
+Last session: 2026-11-11T14:12:15.016Z
+Stopped at: Completed 27-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
