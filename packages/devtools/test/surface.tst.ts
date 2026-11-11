@@ -40,6 +40,7 @@ export type {
   FieldView,
   Filters,
   GateInstanceLike,
+  HeldChoice,
   HydrationActivity,
   HydrationDrops,
   InspectKind,

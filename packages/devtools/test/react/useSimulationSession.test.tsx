@@ -188,7 +188,7 @@ describe("useSimulationSession", () => {
       (props: UseSimulationSessionInput) => useSimulationSession(props),
       { initialProps: first },
     );
-    assert.strictEqual(result.current?.snapshot.policy._tag, "Chosen");
+    assert.strictEqual(result.current?.snapshot.policy._tag, "Listed");
 
     rerender({ sightings, seed: entry });
 

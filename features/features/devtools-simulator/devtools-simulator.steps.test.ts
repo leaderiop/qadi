@@ -449,7 +449,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     const session = sessionOf(yield* readState());
     session.choosePolicy(policyNamed(name));
     // The row's policy is left behind, so the next replay has something to undo.
-    assert.equal(session.getSnapshot().policy._tag, "Chosen");
+    assert.equal(session.getSnapshot().policy._tag, "Listed");
   });
 
   // A replay is an act (ARCH-63): the same row again re-seeds, where `seed`'s
@@ -613,7 +613,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     // An orphan carries no policy, so the session stays on its empty rail
     // instead of seeding from it.
     const { policy } = sessionOf(yield* readState()).getSnapshot();
-    assert.equal(policy._tag, "None");
+    assert.equal(policy._tag, "Empty");
   });
 
   Then("the reconstruction matches the baseline", function* () {
@@ -736,10 +736,10 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
 
   Then("the chosen policy is still {string}", function* (name: string) {
     const policy = sessionOf(yield* readState()).getSnapshot().policy;
-    assert.equal(policy._tag, "Chosen");
-    assert.ok(policy._tag === "Chosen" && Equal.equals(policy.policy, policyNamed(name)));
+    assert.equal(policy._tag, "Listed");
+    assert.ok(policy._tag === "Listed" && Equal.equals(policy.value.policy, policyNamed(name)));
     // The rail now lists it first, which is the reorder the scenario is about.
-    assert.equal(policy._tag === "Chosen" && policy.index, 0);
+    assert.equal(policy._tag === "Listed" && policy.index, 0);
   });
 
   Then("a run evaluates {string}", function* (name: string) {
