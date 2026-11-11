@@ -167,10 +167,10 @@
 
 ### Session-only Simulator (Phase 25)
 - [ ] **SIM-01**: `Simulator` renders from a session only; `OwnedSimulator` and the ignored `sightings` prop are gone, and tests build a session directly.
-- [ ] **SIM-02**: The session gains `setAction(text)` and `choosePolicyAt(index)` commands; the view composes no form codec and parses no select value.
-- [ ] **SIM-03**: The run's reading, the sweep-cost sentence and the baseline summary/match are in the session snapshot and under the devtools mutation gate.
-- [ ] **SIM-04**: The session is constructed in a `Scope` and owns its runs through an `effect/FiberHandle`: a new run or a superseding command interrupts the previous run promptly, closing the scope interrupts the run in flight, and `reap`/`hasRetired`/`dispose` leave the interface (decision 2026-11-11; supersedes ARCH-20 D-20-b via ADR-QD-137).
-- [ ] **SIM-05**: Any public interface change of `@qadi/devtools` is in `spec/overview.md` and a changeset.
+- [x] **SIM-02**: The session gains `setAction(text)` and `choosePolicyAt(index)` commands; the view composes no form codec and parses no select value.
+- [x] **SIM-03**: The run's reading, the sweep-cost sentence and the baseline summary/match are in the session snapshot and under the devtools mutation gate.
+- [x] **SIM-04**: The session is constructed in a `Scope` and owns its runs through an `effect/FiberHandle`: a new run or a superseding command interrupts the previous run promptly, closing the scope interrupts the run in flight, and `reap`/`hasRetired`/`dispose` leave the interface (decision 2026-11-11; supersedes ARCH-20 D-20-b via ADR-QD-137).
+- [x] **SIM-05**: Any public interface change of `@qadi/devtools` is in `spec/overview.md` and a changeset.
 
 ### Headless dock model (Phase 26)
 - [ ] **DMOD-01**: The scoped `makeDockModel` owns the timeline, sightings, simulation, explorer, held choice, dock session and the source read (through its own FiberHandle), and pushes sightings itself; React has one owned-model hook that forks nothing.

@@ -4,18 +4,18 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 25
 current_phase_name: Session-only Simulator
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 25-02-PLAN.md
-last_updated: "2026-11-11T07:07:36.899Z"
+stopped_at: Completed 25-03-PLAN.md
+last_updated: "2026-11-11T07:22:34.235Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 24 complete, transitioned to Phase 25
-state_head: 4f89fbcbec6547871541cfb77cb037dd3e468d52
+state_head: 9d28930148c0a2d089db6088754d6b6039ec14ab
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 37
-  completed_plans: 18
+  completed_plans: 19
   percent: 44
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 ## Current Position
 
 Phase: 25 — Session-only Simulator
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 5
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
@@ -116,6 +116,7 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 | Phase 24 P03 | 12 min | 3 tasks | 10 files |
 | Phase 25 P01 | 6 min | 1 tasks | 1 files |
 | Phase 25 P02 | 7 min | 2 tasks | 2 files |
+| Phase 25 P03 | 13 min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -146,6 +147,8 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 - [Phase 24]: SimulationSession.ts mutation 0.9641 over its 0.9619 base after review: WR-01 (generation read before the last teardown yield) and the seeded policy held with its row (6c198da1); no human acceptance needed
 - [Phase 25]: 25-01: D-01 option D (FiberHandle) recorded; session owns its runs through a Scope; overrides ARCH-20 D-20-b
 - [Phase 25]: 25-02: every baseline sentence the view computes today is pinned at the session, including the same-verdict (1 and 2 nodes) and different-failure branches of summarise, so moving it into Replay.ts cannot lose a branch under the mutation gate
+- [Phase 25]: 25-03: three lifecycle mutants (finalizer generation bump, empty-fiber guard in supersede, land's generation check) are equivalent and left in place; SimulationSession.ts scores 0.9694 against a 0.9641 base
+- [Phase 25]: 25-03: choosePolicyAt and the policy menu share one leading-entry rule; cost.warns is the plan's causesIO alone (what the view coloured by)
 
 ### Pending Todos
 
@@ -172,8 +175,8 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 
 ## Session Continuity
 
-Last session: 2026-11-11T07:07:36.723Z
-Stopped at: Completed 25-02-PLAN.md
+Last session: 2026-11-11T07:22:34.053Z
+Stopped at: Completed 25-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
