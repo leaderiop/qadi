@@ -28,7 +28,7 @@ status: all_fixed
 **Commit:** cec815ae
 **Applied fix:** Reworded the four titles (lines 52, 77, 115, 124) from "exactly today's input/keys" to "exactly the documented input/keys". A repo-wide grep (excluding `.planning`, `node_modules`, `lib`) found no other quotation of the old titles, so `spec/traceability.md` needed no change.
 
-### IN-05: Bench header's first bullet contradicts the IN-02 paragraph
+### IN-05: Bench header's first bullet contradicts the paragraph added in IN-02
 
 **Files modified:** `packages/core/bench/SinkRecord.bench.ts`
 **Commit:** 964d9d2c
