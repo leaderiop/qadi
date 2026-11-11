@@ -414,3 +414,7 @@ entries:
     file: "133-a-port-request-is-derived-from-its-wire-question.md"
     title: "A port's request is derived from its wire question"
     status: "Accepted — amends ADR-QD-094; reads ADR-QD-107, ADR-QD-109"
+  - id: "ADR-QD-134"
+    file: "134-a-resource-scoped-port-read-is-one-read.md"
+    title: "A resource-scoped port read is one read, and a leaf's request is stated once"
+    status: "Accepted — amends ADR-QD-077, ADR-QD-094, ADR-QD-109, ADR-QD-114; reads ADR-QD-051, ADR-QD-073"

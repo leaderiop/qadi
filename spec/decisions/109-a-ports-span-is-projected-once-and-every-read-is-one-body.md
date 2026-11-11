@@ -5,12 +5,12 @@
 > | Property       | Value                                                                    |
 > | -------------- | ------------------------------------------------------------------------ |
 > | Document ID    | QADI-ADR-109                                                             |
-> | Revision       | 1.4                                                                      |
+> | Revision       | 1.5                                                                      |
 > | Effective Date | 2026-11-08                                                               |
 > | Status         | Accepted — amends ADR-QD-077, ADR-QD-094, ADR-QD-107, ADR-QD-058         |
 > | Author         | Qadi Engineering                                                         |
 > | Classification | Architecture Decision Record                                             |
-> | Change History | 1.4 (2026-11-08): Consequences — an unseen signature requirement replays as `SignatureHistoryUnavailable`, not an empty list; the replay fails closed rather than accepting the regression (code review WR-04)<br>1.3 (2026-11-08): Consequences — correct the claim that over-keying can only deny: an unseen requirement replays as an empty list, which `not(hasSignature)` grants, in devtools' what-if (code review WR-03)<br>1.2 (2026-11-08): Alternatives — the annotate-before-validate question is derived from the description's `pose`, not hand-written in the three resource-scoped reads (code review WR-02)<br>1.1 (2026-11-08): Decision 3 — `disclose` runs under the defect mapping, so a malformed store answer is the port's typed error, never a defect (code review WR-01)<br>1.0 (2026-11-08): Initial (ARCH-47, CCR-QD-386)                          |
+> | Change History | 1.5 (2026-11-11): amendment — ARCH-70: the accepted duplicate early annotation is retired; readScoped annotates early only when the id is missing (ADR-QD-134, CCR-QD-412)<br>1.4 (2026-11-08): Consequences — an unseen signature requirement replays as `SignatureHistoryUnavailable`, not an empty list; the replay fails closed rather than accepting the regression (code review WR-04)<br>1.3 (2026-11-08): Consequences — correct the claim that over-keying can only deny: an unseen requirement replays as an empty list, which `not(hasSignature)` grants, in devtools' what-if (code review WR-03)<br>1.2 (2026-11-08): Alternatives — the annotate-before-validate question is derived from the description's `pose`, not hand-written in the three resource-scoped reads (code review WR-02)<br>1.1 (2026-11-08): Decision 3 — `disclose` runs under the defect mapping, so a malformed store answer is the port's typed error, never a defect (code review WR-01)<br>1.0 (2026-11-08): Initial (ARCH-47, CCR-QD-386)                          |
 
 ---
 
@@ -151,3 +151,13 @@ own).
 [BEH-QD-227](../behaviors/30-port-calls.md), [BEH-QD-332](../behaviors/34-remote-ports.md);
 [INV-QD-244](../invariants.md#inv-qd-244-a-ports-span-says-the-same-thing-whoever-asked),
 [INV-QD-043](../invariants.md), [INV-QD-044](../invariants.md).
+
+> **Amended (ARCH-70, 2026-11-11, CCR-QD-412): the accepted duplicate early annotation is retired.**
+> Decision 3 says each `ask*` keeps `requireResourceId`, and the alternative "Validate the resource id,
+> then annotate only on failure" accepts one extra, agreeing annotation on the success path of the three
+> resource-scoped reads to keep annotate-before-validate. Both are superseded. `requireResourceId` is
+> deleted and the check is `readScoped`'s; its early annotation runs **only when the id is missing**, so
+> on a present id the question is annotated once, by `readPort`, and the final span attributes are
+> unchanged. The cost this ADR accepted is gone, and the rule it protected (a span recording a
+> `MissingResourceId` says what the id was wanted for) is kept. See
+> [ADR-QD-134](134-a-resource-scoped-port-read-is-one-read.md).
