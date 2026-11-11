@@ -21,8 +21,8 @@ files_reviewed_list:
   - spec/traceability.md
 findings:
   critical: 0
-  warning: 2
-  info: 4
+  warning: 0
+  info: 6
   total: 6
   necessity: 0
 status: issues_found
@@ -37,64 +37,64 @@ status: issues_found
 
 ## Summary
 
-Phase 24 moves the source-availability table and the "a Live run captures" rule out of `SimulationSession.ts` into `prepareSource` (`SimulationSource.ts`). I diffed the moved logic against the base (`2c24f19d`) and found no behaviour change in the session beyond what the phase claims. The moved code is correct: the `Refused`/`Ready` handling, the recorder-per-preparation, and the `Snapshot`/`Fixtures` `captured: undefined` all match the old `resolveSource`/`sourceOptions`/inline-recorder logic. The barrel re-export and `surface.tst.ts` pin are consistent (`prepareSource` stays out of `index.ts`). I traced the spec edits (BEH-QD-455, ADR-QD-050 amendment, overview, traceability, README) against the code and they agree, apart from the items below.
+Re-review after iteration 1. Both warnings from the previous review are fixed correctly and I found no regression.
 
-Known and logged in `deferred-items.md`, not re-reported: duplicated BEH-QD-219..221 blocks, the nonexistent `Sources` module in traceability, and the replay/seed-during-`reap` window.
+**WR-01 (commit 1ad24867) is fixed.** `runEffect` now does `retire(); const mine = generation; yield* reap(); if (mine !== generation) return;`. Everything that matters is read after that last yield: `draft`, `sourceChoice`, `ports`, `capture`, `clock` and `pairs`. `prepareSource` is called after the yield too. A command that bumps `generation` during teardown (`setPorts` while `Running`, `choosePolicy`, `seed`/`replay`, `dispose`, or a newer `run`) now makes the older `runEffect` return instead of starting.
+
+I checked each superseding command for a run left stuck in `Running`. `choosePolicy`, `reseed` and `setPorts` (when `Running`) set `Idle`. `dispose` sets `Idle` only if it was `Running`, otherwise the old `Ran`/`Broke` result stays, which is correct. A newer `run` owns the state itself. Commands that do not bump the generation (`setPorts` when not `Running`, `chooseSource`, `setClock`, `edit`) are read fresh after the yield, so the run uses the new values. That is what we want.
+
+The new TestClock test passes. On the pre-fix ordering the second run would continue with the old recorder and write `capture`, so the test discriminates. The two test files pass (75 tests) and `tsc --noEmit -p packages/devtools` is clean.
+
+The fix also closes the logged "replay/seed during `reap`" window. A replay now yields `Idle` deterministically. That leaves two stale artifacts, IN-04 and IN-06 below.
+
+**WR-02 (commit 5977264c) is fixed.** `SOURCE_ORDER = Object.values<SourceChoice>({...} satisfies { readonly [K in SourceChoice]: K })`. I checked it with a scratch compile. A missing key gives TS2741, an extra or duplicate key gives TS2353, and a wrong value gives TS2322. So the doc comment's "TS2741" is accurate. Display order is property insertion order, which is guaranteed for non-integer string keys. `prepareSource` behaviour is unchanged.
+
+IN-01 to IN-04 from the previous review still hold, with IN-04 changed (see below). Two new Info items follow.
 
 No necessity findings. I did not load `necessity-review.md`, since none of the findings rest on that category.
-
-## Warnings
-
-### WR-01: A Live run's preparation is built before the teardown yield, so `setPorts` during teardown lets the old environment's capture overwrite the cleared one
-
-**File:** `packages/devtools/src/model/SimulationSession.ts:375-399`
-**Issue:** `prepareSource(sourceChoice, { ports, capture })` is called at line 375. Then `retire(); yield* reap();` (385-386) suspends while a superseded fiber is interrupted, and `const mine = generation` is read only after that (387). If the host calls `setPorts(B)` during that suspension, `setPorts` clears `capture` and, since `run` is still the old `Running`, calls `retire()`. That bumps `generation`, which `mine` then reads. The run goes on with the recorder built from the old ports `A`. When it finishes, `mine === generation`, so line 403 runs `capture = exit.value.answers` and stores environment A's answers while `ports === B`. `Snapshot` is then enabled and replays A's answers under B's name, which is the mismatch the `setPorts` comment says it prevents ("A capture is the answers of the environment it came from").
-
-This is the same root cause as the logged replay-during-`reap` window (`mine` read after `reap`). It is not the same symptom: a `stale` clause cannot mask this one, because `capture` is written unconditionally. Moving `prepareSource` into `SimulationSource.ts` was the natural moment to put the read and the preparation on the correct side of the yield; the phase kept the base ordering.
-
-**Fix:** Read `mine` and prepare after the last yield, and refuse to start if something superseded the run during it.
-```ts
-retire();
-const mine = generation;
-const { prepared } = prepareSource(sourceChoice, { ports, capture });
-yield* reap();
-if (mine !== generation) return; // a command moved the session while teardown ran
-if (prepared._tag === "Refused") { run = { _tag: "Refused", question, refusal: prepared.refusal }; commit(); return; }
-```
-(`question` must also be built after the last yield, or be discarded by the same `mine` check.) Phase 25's FiberHandle rewrite may remove the window. If so, close this finding there, and add a test that calls `setPorts` while a second run waits on a slow-to-cancel first run.
-
-### WR-02: `SOURCE_ORDER` is a second, unclosed list of sources, which the "fourth source is a compile error" claim does not cover
-
-**File:** `packages/devtools/src/model/SimulationSource.ts:244`
-**Issue:** `rowsOf` is closed over `SourceChoice` (TS2741 on a missing key), but the order the options are shown in comes from `const SOURCE_ORDER: ReadonlyArray<SourceChoice> = ["Fixtures", "Snapshot", "Live"]`. A fourth `SimulationSource` variant forces a new row in `rowsOf` and compiles cleanly with `SOURCE_ORDER` untouched. The new source then silently never appears in `options`, so the dock cannot offer it, while it still prepares if chosen programmatically. A duplicate entry would likewise show a button twice. BEH-QD-455, ADR-QD-050 and the doc comment on `rowsOf` all state that a fourth source is a compile error "rather than a missing case in two places". It is two places.
-
-**Fix:** Derive the order from a record closed over `SourceChoice`, e.g. `const POSITION: { readonly [K in SourceChoice]: number } = { Fixtures: 0, Snapshot: 1, Live: 2 }` and sort by it. Or make the options a field of each row and build the array with `Record.keys`, so one table is the only list. Alternatively, weaken the spec wording to say the order is hand-kept.
 
 ## Info
 
 ### IN-01: `build()` constructs and discards a recorder on every commit while Live is chosen
 
 **File:** `packages/devtools/src/model/SimulationSession.ts:276` (with `SimulationSource.ts:236-239`)
-**Issue:** `build()` runs on every `commit()` and calls `prepareSource`, which for a chosen `Live` calls `ready()` and so `capturing(ports)` (five fresh maps plus a `decoratePorts` layer). Of the result, `build()` uses only `options`, the `Refused` refusal and `prepared.source`'s tag (through `sweepPlan` and `causesIO`). The recorder and `captured` are thrown away. Nothing leaks or runs I/O, since layers are lazy, so this is wasted work rather than a bug. It does mean the "each preparation builds its own recorder" property is exercised on every keystroke, not once per run.
-**Fix:** Split `prepareSource` into a cheap `describeSources(have)` that returns `options` and the refusal, and a `prepareRun` that calls `ready()`. `build()` then calls only the first. Alternatively, leave it and accept the cost.
+**Issue:** `build()` runs on every `commit()` and calls `prepareSource`. For a chosen `Live` that calls `ready()` and so `capturing(ports)` (five fresh maps plus a `decoratePorts` layer). `build()` uses only `options`, the refusal and `prepared.source`'s tag. The recorder and `captured` are thrown away. Nothing leaks or does I/O because layers are lazy, so this is wasted work, not a bug.
+**Fix:** Split out a cheap `describeSources(have)` for `options` and the refusal, and keep `ready()` for the run path. Or accept the cost.
 
 ### IN-02: The CCR-QD-414 register row cites a stale revision for `spec/README.md`
 
 **File:** `spec/README.md:352`
-**Issue:** The row lists `spec/README.md` Rev 1.148, but the same file's header is now Rev 1.149 (the second commit corrected the mutation comparison and bumped it). The register is the document-history record that the repo's gates exist to keep accurate.
-**Fix:** Change the row to "Rev 1.149", or word it as the revision the row was added at.
+**Issue:** The row says `spec/README.md` Rev 1.148, but the header is Rev 1.149 (the second commit corrected the mutation comparison and bumped it).
+**Fix:** Change the row to Rev 1.149, or word it as "added at Rev 1.148".
 
-### IN-03: `Ready` is re-derived by hand in the session
+### IN-03: `Ready` is spelled twice
 
 **File:** `packages/devtools/src/model/SimulationSession.ts:347` (and `SimulationSource.ts:186`)
-**Issue:** `SimulationSource.ts` defines a private `type Ready = Extract<PreparedSource, { readonly _tag: "Ready" }>`, and `program` in the session spells out the same `Extract<...>` inline. Two definitions of one type.
-**Fix:** Export `type Ready` (or `ReadySource`) from `SimulationSource.ts` and use it in `program`'s parameter. It stays out of `index.ts` and the API-surface gate.
+**Issue:** `SimulationSource.ts` has a private `type Ready = Extract<PreparedSource, { readonly _tag: "Ready" }>`. `program`'s parameter in the session spells the same `Extract<...>` inline.
+**Fix:** Export the type from `SimulationSource.ts` (not from `index.ts`) and use it in `program`.
 
-### IN-04: The new "replayed while that run was starting" test accepts either outcome
+### IN-04: The "replayed while that run was starting" test still accepts either outcome, but only one can now occur
 
-**File:** `packages/devtools/test/model/SimulationSession.test.ts` (test added near line 438)
-**Issue:** The assertion is `after.run._tag === "Idle" || after.stale`. It passes whether the old run was dropped or ran against the old question. That is the point, because the logged window makes the behaviour either one. The disjunction does pin the invariant that matters (no baseline against the replayed row). The test also relies on `TestClock.adjust("1 second")` interleaving with a 100 ms interrupt sleep, which is ordering-sensitive. If Phase 25 changes the window, this test will not tell you which branch you took.
-**Fix:** When Phase 25 settles the behaviour, tighten this to the one expected branch. For now, add a comment that the disjunction is deliberate and tied to `deferred-items.md`.
+**File:** `packages/devtools/test/model/SimulationSession.test.ts:466-467`
+**Issue:** The assertion `after.run._tag === "Idle" || after.stale` and the comment "Either the run was dropped, or it is shown as answering another question" were written for the old window. After WR-01, `replay` during `reap` bumps `generation` and `runEffect` returns early, so the outcome is always `Idle`. The disjunction would also let a regression back to the old behaviour pass, because the `stale` branch is the old behaviour.
+**Fix:**
+```ts
+assert.strictEqual(after.run._tag, "Idle");
+assert.isUndefined(after.baseline);
+```
+and replace the "Either..." comment with "A replay during teardown supersedes the pending run."
+
+### IN-05: The new comment overstates what is read after the last yield
+
+**File:** `packages/devtools/src/model/SimulationSession.ts:371-373` (reads at 363-364)
+**Issue:** The comment says "Everything below reads the session after this last yield". But `choice = policyChoice()` and `policy` are computed at 363-364, before `retire()` and the second `reap()`, and `seedOf(choice)` uses that stale `choice`. `setSightings` calls `pin()` and `commit()` without bumping `generation`, so the pinned policy can change during teardown and the run would then evaluate the old policy against the new `draft`. This is harmless in effect, because `stale` flags a result whose question no longer matches the current policy, and it predates the phase. But the comment is wrong as written.
+**Fix:** Either move `policyChoice()` and `policyOf(choice)` below the `mine !== generation` check (keep the early `undefined` return for the no-run case), or narrow the comment to "the ports, capture, source, clock and draft are read after this last yield".
+
+### IN-06: `deferred-items.md` still lists the run-start window as open
+
+**File:** `.planning/phases/24-simulation-source-preparation/deferred-items.md:8-10`
+**Issue:** The entry says a `replay`/`seed` during `reap` "does not drop the pending run" because `mine` is read after `reap()`. WR-01 reads `mine` before `reap()` and drops the run, so this item is resolved. The entry also steers a later reader (Phase 25's FiberHandle rewrite) toward a problem that no longer exists.
+**Fix:** Mark it resolved by commit 1ad24867, or remove it, together with the IN-04 test tightening.
 
 ---
 
