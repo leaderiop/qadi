@@ -25,7 +25,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-11)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 23 — Sink record fields stated once
+**Current focus:** Phase 25 — Session-only Simulator
 
 ## Current Position
 
@@ -139,7 +139,7 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 - [Phase 24]: 24-01: prepareSource table test is red by absence in its own file; no defect to pin (D-01)
 - [Phase 24]: prepareSource's table builds a Ready lazily (thunk), so build() makes a recorder only for the chosen Live row
 - [Phase 24]: ADR-QD-136 unused: the source-choice rule moved, so ADR-QD-050 is amended (CCR-QD-414)
-- [Phase 24]: SimulationSession.ts mutation score 0.9612 vs base 0.9619; all 12 survivors equivalent, left for human acceptance
+- [Phase 24]: SimulationSession.ts mutation 0.9641 over its 0.9619 base after review: WR-01 (generation read before the last teardown yield) and the seeded policy held with its row (6c198da1); no human acceptance needed
 
 ### Pending Todos
 
@@ -160,14 +160,16 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 - Write requirement lines as explicit ID lists, never ranges like `XC-01..05`: `phase.complete` cannot parse ranges.
 - Open review findings carried from v1.0 (warning/info): 01 WR-02/WR-03/IN-03; 02 IN-01..07; 04 IN-01..03; 05 WR-01/IN-01/IN-02; 07 IN-01..03; 09 IN-01. 01 and 08 VALIDATION.md files are still `draft`.
 - [Phase 22] Review findings (22-REVIEW-DISPOSITION.md): all seven fixed (WR-01 23e54421, WR-02 d4d62133, IN-01..05 3371400e..9e2b90bc). Phase 21's six findings also fixed (f0977945..7144dfba; 21-REVIEW-DISPOSITION.md).
+- [Phase 24] Review (24-REVIEW-DISPOSITION.md): WR-01/WR-02 fixed (1ad24867, 5977264c); IN-04/05/06 fixed (6c198da1, 12a6631c); IN-01 (build() makes and drops a recorder per commit while Live is chosen) and IN-03 (`Ready` spelled twice) open, info. Phase 25 replaces the run machinery and should keep the run-start test green.
+- [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table.
 
 ## Session Continuity
 
-Last session: 2026-11-11T06:17:30.626Z
+Last session: 2026-11-11T06:52:11Z
 Stopped at: Phase 24 complete, ready to execute Phase 25
 Resume file: None
 
 ## Operator Next Steps
 
-- Execute Phase 21: /gsd-execute-phase 21 (plans in `.planning/phases/21-port-request-derivation/`)
+- Execute Phase 25: /gsd-execute-phase 25 (plans in `.planning/phases/25-session-only-simulator/`); then 26..29, re-verify 21..23, audit the milestone
