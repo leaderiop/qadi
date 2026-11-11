@@ -22,6 +22,8 @@ d05_date: 2026-11-11
 d05_reason: "The leaf->request mapping is stated once, in each port description (built through Phase 21's `makePortDescription`); the scoped reads and `servingFor` both derive from it, so the two can no longer disagree. `ServedLeaves` changes (public, `@qadi/core` minor). The `servingFor` property test stays as a guard. ADR-QD-134 records the override"
 standing_instruction: "the recommendation should be the cleanest solution, not the simplest one; we can override any ADR if it causes us problems"
 reserved_numbers_free: true
+plan_head_before: 7f64db9a1fe1c490568b5f04add0ab587a64c15a
+plan_head_after: bbe20f408718d7b57a098cccd419f904c5d3ae9b
 
 actuals:
   tokens: 1500
@@ -91,7 +93,7 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1: Take the recorded answers; record them, the phase base and the free numbers** - see `plan_head_after` below (docs)
+1. **Task 1: Take the recorded answers; record them, the phase base and the free numbers** - `bbe20f40` (docs)
 
 **Plan metadata:** the STATE/ROADMAP close-out commit follows.
 

@@ -5,16 +5,16 @@ milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 22
 current_phase_name: One scoped port read
 status: executing
-stopped_at: Phase 21 complete, ready to execute Phase 22
-last_updated: "2026-11-11T02:26:50.357Z"
+stopped_at: Completed 22-01-PLAN.md
+last_updated: "2026-11-11T02:35:41.739Z"
 last_activity: 2026-11-11
-last_activity_desc: Phase 21 complete, transitioned to Phase 22
-state_head: 53ce146d88656e89fc928e1603ab448cd5021a64
+last_activity_desc: Phase 22 execution started
+state_head: bbe20f408718d7b57a098cccd419f904c5d3ae9b
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 37
-  completed_plans: 5
+  completed_plans: 6
   percent: 11
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 21 — Port request derived from its description
+**Current focus:** Phase 22 — One scoped port read
 
 ## Current Position
 
-Phase: 22 — One scoped port read
-Plan: Not started
+Phase: 22 (One scoped port read) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-11-11 — Phase 21 complete, transitioned to Phase 22
+Last activity: 2026-11-11 — Phase 22 execution started
 
 ## Performance Metrics
 
@@ -98,6 +98,7 @@ Last activity: 2026-11-11 — Phase 21 complete, transitioned to Phase 22
 | Phase 21 P03 | 18 min | 3 tasks | 9 files |
 | Phase 21 P04 | 12 min | 2 tasks | 7 files |
 | Phase 21 P05 | 25 min | 3 tasks | 11 files |
+| Phase 22 P01 | 3 min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,8 @@ Last activity: 2026-11-11 — Phase 21 complete, transitioned to Phase 22
 - [Phase 21]: 21-03: makePortDescription derives key (canonicalKey of the wire question) and defect (failure of the squashed cause) for four ports; CustomPredicate states its own, documented; the ARCH-69 law replaced their key and defect pins
 - [Phase 21]: 21-04: portSpan (typed identity) holds each pose to PoseOf its span question: every member but interpreter, required key | undefined; an omitted member is a compile error, span attributes unchanged
 - [Phase 21]: Pending key changeset amended in place for ARCH-69; ADR-QD-107 pointer is a dated amendment section
+- [Phase 22]: D-02 = A: missing resource id leaves only the port span; requireResourceId deleted
+- [Phase 22]: D-05 = state once: leaf->request mapping stated once on each port description (asks); reads and servingFor derive from it; ADR-QD-134 records the override
 
 ### Pending Todos
 
@@ -132,8 +135,8 @@ Last activity: 2026-11-11 — Phase 21 complete, transitioned to Phase 22
 
 ## Session Continuity
 
-Last session: 2026-11-11T02:18:14.574Z
-Stopped at: Phase 21 complete, ready to execute Phase 22
+Last session: 2026-11-11T02:35:41.708Z
+Stopped at: Completed 22-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
