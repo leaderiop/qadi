@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-24                                    |
-> | Revision       | 1.12                                           |
+> | Revision       | 1.13                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.12 (2026-10-08): BEH-QD-187 — a receiver that reads the sent record can refuse it as `Inconsistent` when its decision contradicts its trace; the sender never writes one (ADR-QD-106, CCR-QD-301)<br>1.11 (2026-10-08): the `ObligationRecord` shape note — it names `subjectId`, `action` and `resourceId` (optional, identity not content) (BEH-QD-195, ADR-QD-105, CCR-QD-220)<br>1.10 (2026-10-07): BEH-QD-187 — the default refusal log's annotations come from `encodeRefusalAnnotations`, and an `onFailure` that throws on a refusal is contained (CCR-QD-193)<br>1.9 (2026-10-07): BEH-QD-182 names the single emitter (`SinkEmit.ts`); BEH-QD-183 — a record's request half is projected from the `Question` (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-06): BEH-QD-187 — forwarding's `send` receives wire version 2, the one version a 0.11 receiver reads; a 0.9 sender must upgrade (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): ARCH-11 — BEH-QD-185 rewritten for `makeDecisionLog` (one positive-integer bound; `decisionSinkRing` removed); BEH-QD-187's example is a log and a forwarder; BEH-QD-188 requires an ingested record to reach live readers; BEH-QD-313 (a reader sees each retained record once, across backlog and live) added (ADR-QD-097, CCR-QD-181)<br>1.6 (2026-10-05): BEH-QD-187 — `send` receives wire version 2; receivers upgrade before senders (ADR-QD-096, CCR-QD-180)<br>1.5 (2026-10-05): BEH-QD-187 — `send` receives a `SinkRecordJson` from `encodeSinkRecord`; an encode refusal never reaches `send` and is reported through `onFailure` as a `SinkRecordNotEncodable` (ADR-QD-095, CCR-QD-179)<br>1.4 (2026-09-08): BEH-QD-183's `DecisionRecord` ts-fence gained the two fields it omitted, `subjectId` and `cache`, matching the real class in `DecisionRecord.ts` (CCR-QD-132)<br>1.3 (2026-09-08): BEH-QD-187 — `onFailure` MUST receive the plain value `send` failed or died with, not an Effect `Cause` wrapping it; `decisionSinkForwarding` was handing the callback the raw `Cause` from `catchCause`, which does not match `error: unknown`'s documented meaning or the sibling `onDropped`/`onUnknownParent` convention (CCR-QD-122)<br>1.2 (2026-09-07): BEH-QD-181's `DecisionSinkShape.record` corrected from `DecisionRecord` to the actual `SinkRecord` (`DecisionRecord \| ObligationRecord`) (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
+> | Change History | 1.13 (2026-11-11): BEH-QD-451 added: an absent optional is an absent key on every record core emits; BEH-QD-183's note names decisionRecordFor (ARCH-71, ADR-QD-135, CCR-QD-413)<br>1.12 (2026-10-08): BEH-QD-187 — a receiver that reads the sent record can refuse it as `Inconsistent` when its decision contradicts its trace; the sender never writes one (ADR-QD-106, CCR-QD-301)<br>1.11 (2026-10-08): the `ObligationRecord` shape note — it names `subjectId`, `action` and `resourceId` (optional, identity not content) (BEH-QD-195, ADR-QD-105, CCR-QD-220)<br>1.10 (2026-10-07): BEH-QD-187 — the default refusal log's annotations come from `encodeRefusalAnnotations`, and an `onFailure` that throws on a refusal is contained (CCR-QD-193)<br>1.9 (2026-10-07): BEH-QD-182 names the single emitter (`SinkEmit.ts`); BEH-QD-183 — a record's request half is projected from the `Question` (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-06): BEH-QD-187 — forwarding's `send` receives wire version 2, the one version a 0.11 receiver reads; a 0.9 sender must upgrade (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): ARCH-11 — BEH-QD-185 rewritten for `makeDecisionLog` (one positive-integer bound; `decisionSinkRing` removed); BEH-QD-187's example is a log and a forwarder; BEH-QD-188 requires an ingested record to reach live readers; BEH-QD-313 (a reader sees each retained record once, across backlog and live) added (ADR-QD-097, CCR-QD-181)<br>1.6 (2026-10-05): BEH-QD-187 — `send` receives wire version 2; receivers upgrade before senders (ADR-QD-096, CCR-QD-180)<br>1.5 (2026-10-05): BEH-QD-187 — `send` receives a `SinkRecordJson` from `encodeSinkRecord`; an encode refusal never reaches `send` and is reported through `onFailure` as a `SinkRecordNotEncodable` (ADR-QD-095, CCR-QD-179)<br>1.4 (2026-09-08): BEH-QD-183's `DecisionRecord` ts-fence gained the two fields it omitted, `subjectId` and `cache`, matching the real class in `DecisionRecord.ts` (CCR-QD-132)<br>1.3 (2026-09-08): BEH-QD-187 — `onFailure` MUST receive the plain value `send` failed or died with, not an Effect `Cause` wrapping it; `decisionSinkForwarding` was handing the callback the raw `Cause` from `catchCause`, which does not match `error: unknown`'s documented meaning or the sibling `onDropped`/`onUnknownParent` convention (CCR-QD-122)<br>1.2 (2026-09-07): BEH-QD-181's `DecisionSinkShape.record` corrected from `DecisionRecord` to the actual `SinkRecord` (`DecisionRecord \| ObligationRecord`) (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
 
 _Previous: [23 — HTTP Enforcement](./23-http.md)_
 
@@ -103,7 +103,7 @@ observer must never be able to deny.**
 
 ## BEH-QD-183: A record is complete
 
-> **Note (CCR-QD-189).** A record's request half (`subjectId`, `policy`, `resource`, `action`) is projected from the `Question` by `failedRecord`/`decidedRecord` (`SinkEmit.ts`), so it cannot disagree with what was asked. `maxDepth` is deliberately not on the wire (ADR-QD-096).
+> **Note (CCR-QD-189).** A record's request half (`subjectId`, `policy`, `resource`, `action`) is projected from the `Question` by `decisionRecordFor` (`SinkEmit.ts`, which replaced `failedRecord` and `decidedRecord`, ARCH-71), so it cannot disagree with what was asked; an optional the question did not have is an absent key, never an `undefined`-valued one ([BEH-QD-451](#beh-qd-451-an-absent-optional-is-an-absent-key-on-every-record-core-emits)). `maxDepth` is deliberately not on the wire (ADR-QD-096).
 
 > **Invariant:** [INV-QD-036](../invariants.md#inv-qd-036-a-decision-record-is-complete)
 
@@ -156,6 +156,37 @@ REQUIREMENT: A record MUST NOT claim an environment.
 Core cannot know whether it runs in a browser, on a server, or at an edge, and a
 field it must guess at is a field that is wrong somewhere. The environment is
 stamped by the sink implementation, which does know — see BEH-QD-185.
+
+## BEH-QD-451: An absent optional is an absent key on every record core emits
+
+> **See:** [ADR-QD-135](../decisions/135-sink-record-fields-stated-once.md),
+> [BEH-QD-183](#beh-qd-183-a-record-is-complete)
+>
+> **Invariant:** [INV-QD-096](../invariants.md#inv-qd-096-whatever-the-record-codec-emits-it-accepts)
+
+```
+REQUIREMENT: A record `evaluate` or an enforcing entry point emits MUST omit an
+             optional field the question did not have: a `DecisionRecord` has no
+             own `resource`, `action` or `cache` key when the question carried no
+             resource, no action, or when no cache was consulted (or the outcome is
+             `Failed`), and an `ObligationRecord` has no own `action` or `resourceId`
+             key when the question had none. No emitted record carries an
+             `undefined`-valued own key.
+REQUIREMENT: A record so emitted MUST be `Equal` to the record its own wire
+             form decodes to.
+```
+
+`obligationRecordFor` always omitted an absent identity key; the two decision
+projections it sat beside passed `resource`, `action` and `cache` through as
+possibly-`undefined` values, so a decision record carried `undefined`-valued own keys
+and `Equal.equals` told it from its own round trip (`{ b: undefined }` is not `{}`).
+`decisionRecordFor` (`SinkEmit.ts`) is the one projection of a question into a decision
+record now, and leaves each absent one absent. A sink that reads `record.action` sees
+`undefined` either way; one that tests `Object.hasOwn`, enumerates keys or compares
+with `Equal.equals` sees the difference. The wire is unchanged: it never carried an
+`undefined`-valued key, and the encoded value and the JSON text are the same
+(INV-QD-096's named normalisation of an `undefined`-valued property as absent stays for
+records a caller builds by hand).
 
 ## BEH-QD-184: A failure is recorded as a failure, never as a denial
 

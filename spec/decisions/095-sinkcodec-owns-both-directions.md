@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-095                                   |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.5 (2026-11-09): amended — the encode-refusal vocabulary and its three readings move from SinkWire.ts to the leaf JsonRefusal.ts, which the port wire reads too (ARCH-54, ADR-QD-116, CCR-QD-393)<br>1.4 (2026-10-08): Document ID corrected from `QADI-ADR-902` to `QADI-ADR-095`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.3 (2026-10-07): the refusal vocabulary and the three readings of an `EncodeRefusal` move to the leaf `SinkWire.ts` (ARCH-27, CCR-QD-194)<br>1.2 (2026-10-07): D-09-e gains a third reporter: the audit pipeline logs or calls `onRefused`; core owns the path, the annotations, the sentence and the hook containment (CCR-QD-193)<br>1.1 (2026-10-07): the inbound side refuses a non-finite `at` and a non-integer `sequenceNumber` (CCR-QD-186) |
+> | Change History | 1.6 (2026-11-11): amended — the projection is the wire schema's encode over the record spread whole, the record's fields are one struct in SinkRecordFields.ts, and SinkRecordTag is derived (ARCH-71, ADR-QD-135, CCR-QD-413)<br>1.5 (2026-11-09): amended — the encode-refusal vocabulary and its three readings move from SinkWire.ts to the leaf JsonRefusal.ts, which the port wire reads too (ARCH-54, ADR-QD-116, CCR-QD-393)<br>1.4 (2026-10-08): Document ID corrected from `QADI-ADR-902` to `QADI-ADR-095`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.3 (2026-10-07): the refusal vocabulary and the three readings of an `EncodeRefusal` move to the leaf `SinkWire.ts` (ARCH-27, CCR-QD-194)<br>1.2 (2026-10-07): D-09-e gains a third reporter: the audit pipeline logs or calls `onRefused`; core owns the path, the annotations, the sentence and the hook containment (CCR-QD-193)<br>1.1 (2026-10-07): the inbound side refuses a non-finite `at` and a non-integer `sequenceNumber` (CCR-QD-186) |
 
 ---
 
@@ -212,3 +212,15 @@ wire; `decodeAuditEntry` is the guarded reader) and
 > live in the leaf `JsonRefusal.ts` (ADR-QD-116), which imports only `effect` and which
 > the port wire reads too. `SinkWire.ts` keeps `SinkRecordTag`, `WireVersion`,
 > `WIRE_VERSIONS` and `DecodeRefusal`. The barrel exports both, so no export changed.
+
+> **Amended 2026-11-11 (CCR-QD-413, ARCH-71).** The projection and its inverse no longer
+> list a record's fields. `project` is the wire schema's encode over the record spread whole
+> plus `version` (and, for a decision, the encoded outcome), with one generic filter that
+> drops an `undefined`-valued optional; `rebuild` strips `version`, runs `rebuildOutcome`'s
+> checks (ADR-QD-106) unchanged and constructs. Each record's fields are one `Schema.Struct`
+> in the package-private leaf `SinkRecordFields.ts`, from which the record class's type and
+> the version-2 wire struct both derive ([ADR-QD-135](./135-sink-record-fields-stated-once.md)),
+> so a field cannot be on one and not the other. D-09-b's "`SinkRecordTag` restates
+> `SinkRecord["_tag"]`, pinned equal by a type test" no longer holds: `SinkWire.ts` derives
+> the tag from the leaf's two record tags, which reach no import cycle, and `Errors.tst.ts`
+> keeps the pin. The wire is byte-identical and no version moved.

@@ -484,6 +484,17 @@ type is hand-written first — `Schema.suspend` needs a named type to close the
 loop — and the `Schema.TaggedStruct` variants are then built and type-asserted
 against it. See `Policy.ts` and `Matcher.ts`.
 
+**The sink record envelope is the second** (ADR-QD-135), for the same
+trust-boundary reason: a record is encoded for a socket, a store and a devtools
+page and read back from untrusted JSON, and a field list written once in the class,
+once in the wire struct and twice more in the projection and its inverse is the
+shape of the defect above. Each record's fields are one `Schema.Struct` in
+`SinkRecordFields.ts`; the record class is a `Data.TaggedClass` typed by that
+struct's `Type` (a `Schema.TaggedClass` was measured and rejected: its constructor
+parses the whole policy on every evaluation), and the wire struct spreads it. The
+decision's `outcome` stays outside the struct, because ADR-QD-106's checks sit
+between its in-memory and wire forms.
+
 v4 API notes: `Schema.Union([...])` takes an **array**; the type is
 `Schema.Codec<T>` (not `Schema.Schema<T>`); recursion factors into a single
 shared `Schema.suspend` ref; `parseJson(s)` → `fromJsonString(s)`;
