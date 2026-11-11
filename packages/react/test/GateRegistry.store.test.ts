@@ -132,6 +132,19 @@ describe("interleaving: applied in firing order, eventually consistent", () => {
     second.unregister();
   });
 
+  it("a stale handle's update after a same-id re-registration does not touch the new entry", () => {
+    // The key is free again after an unregister, so the new registration reuses it:
+    // the old handle's own `live` flag is the only thing keeping its update out.
+    const registry = makeGateRegistry();
+    const first = writerOf(registry).register(instance("a", "Pending"));
+    first.unregister();
+    writerOf(registry).register(instance("a", "Pending"));
+
+    first.update("Allowed");
+
+    expect(registry.instances()).toEqual([instance("a", "Pending")]);
+  });
+
   it("re-registering an id after an unregister resurrects it cleanly", () => {
     const registry = makeGateRegistry();
     writerOf(registry).register(instance("a", "Pending")).unregister();
