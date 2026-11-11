@@ -503,7 +503,7 @@ const lawOf = <Args extends ReadonlyArray<unknown>>(
   d: DerivedLike<Args>,
   arbitrary: FastCheck.Arbitrary<Args>,
 ): void => {
-  it(`${name}: its key is canonicalKey of the wire question it encodes`, () => {
+  it(`${name}: its key is canonicalKey of the wire question it encodes (the schema encode adds nothing)`, () => {
     FastCheck.assert(
       FastCheck.property(arbitrary, (args) => {
         const question = Result.getOrThrow(d.wire.encodeQuestion(args));
@@ -537,6 +537,29 @@ describe("a derived port's key is its wire question's key, and its defect is its
     SignatureHistory: () => lawOf("SignatureHistory", signatureHistoryPort, ARBITRARIES.SignatureHistory),
   };
   for (const law of Object.values(LAWS)) law();
+
+  it("each derived port's key is its hand-written question's key, whatever toQuestion lists", () => {
+    const subjectId = makeSubjectId("alice");
+    const resourceId = makeResourceId("doc-1");
+    const oracle = (key: Result.Result<string, unknown>, question: unknown) =>
+      assert.strictEqual(Result.getOrThrow(key), Result.getOrThrow(canonicalKey(question)));
+    oracle(attributeResolverPort.key([subjectId, "dept"]), { subjectId: "alice", attribute: "dept" });
+    oracle(decisionHistoryPort.key([{ subjectId, event: "login", resourceId }]), {
+      subjectId: "alice",
+      event: "login",
+      resourceId: "doc-1",
+    });
+    oracle(relationshipResolverPort.key([{ subjectId, relation: "owner", resourceId, depth: 2 }]), {
+      subjectId: "alice",
+      relation: "owner",
+      resourceId: "doc-1",
+      depth: 2,
+    });
+    oracle(
+      signatureHistoryPort.key([{ subjectId, resourceId, meaning: "approve", signerRole: "lead" }]),
+      { subjectId: "alice", resourceId: "doc-1", meaning: "approve", signerRole: "lead" },
+    );
+  });
 
   it("an absent optional member and one stated undefined are one question, so they share a key", () => {
     const subjectId = makeSubjectId("alice");
