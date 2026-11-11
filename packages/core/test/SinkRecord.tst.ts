@@ -15,6 +15,7 @@
  * `tsconfig.test.json` also compiles every `*.tst.ts` under `tsc`.
  */
 import { expect, test } from "tstyche";
+import type { obligationRecordFields, decisionRecordFields } from "../src/SinkRecordFields.ts";
 import type { CacheOutcome } from "../src/EvaluationMetrics.ts";
 import type { DecisionOutcome, ObligationOutcome } from "../src/DecisionRecord.ts";
 import type { DecisionRecord, ObligationRecord } from "../src/DecisionRecord.ts";
@@ -138,3 +139,23 @@ test("the Obligations member of SinkRecordJson has exactly today's keys", () => 
   expect<ObligationsJson["subjectId"]>().type.toBe<string | undefined>();
   expect<ObligationsJson["resourceId"]>().type.toBe<string | undefined>();
 });
+
+// ARCH-71: the leaf's structs are the record classes' field types, so the two cannot differ.
+test("the decision record's input minus outcome is the leaf struct's Type", () => {
+  expect<Omit<DecisionInput, "outcome">>().type.toBeAssignableTo<typeof decisionRecordFields.Type>();
+  expect<Omit<DecisionInput, "outcome">>().type.toBeAssignableFrom<typeof decisionRecordFields.Type>();
+  expect<keyof DecisionInput>().type.toBe<keyof typeof decisionRecordFields.Type | "outcome">();
+});
+
+test("the obligation record's input is the leaf struct's Type", () => {
+  expect<ObligationInput>().type.toBeAssignableTo<typeof obligationRecordFields.Type>();
+  expect<ObligationInput>().type.toBeAssignableFrom<typeof obligationRecordFields.Type>();
+});
+
+// A field the struct does not declare is refused at every caller that sets it, which is
+// how a field dropped from the struct shows up (a tstyche-friendly `@ts-expect-error`, as
+// `devtools/test/surface.tst.ts` does).
+declare const validDecision: DecisionInput;
+// @ts-expect-error does not exist in type
+const bogus: DecisionInput = { ...validDecision, bogus: 1 };
+void bogus;
