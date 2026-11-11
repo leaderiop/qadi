@@ -10,15 +10,25 @@
  * silently promising a discharge `loadResource` never gets. Both directions
  * are pinned here so a future change to `GuardRoute.ts` fails a type test
  * instead of only surfacing in a real HTTP round trip, as it did originally.
+ *
+ * The same rule is pinned a second time on `addGuardedRoute`, because that is
+ * what callers use (ARCH-75). It is read from the returned layer's services:
+ * `HttpRouter.add` reports requirements and errors as `Request.From<kind, T>`
+ * markers, which distribute over a union, so an extract by kind says exactly
+ * which requirement or error survived.
  */
 import { expect, test } from "tstyche";
 import * as Effect from "effect/Effect";
+import type * as HttpRouter from "effect/http/HttpRouter";
 import type * as HttpServerRequest from "effect/http/HttpServerRequest";
 import type * as HttpServerResponse from "effect/http/HttpServerResponse";
+import type * as Layer from "effect/Layer";
 import type { Authorized, CurrentSubject } from "@qadi/core";
 import { hasPermission, permission } from "@qadi/core";
 import { guardRoute } from "../src/GuardRoute.ts";
+import { addGuardedRoute } from "../src/PermissionRegistry.ts";
 import type { HttpEnforcementFailure } from "../src/QadiHttpError.ts";
+import type { UnguardedRouteSpec } from "../src/UnguardedRoute.ts";
 
 type RequirementsOf<T> = T extends Effect.Effect<infer _A, infer _E, infer R> ? R : never;
 type ErrorOf<T> = T extends Effect.Effect<infer _A, infer E, infer _R> ? E : never;
@@ -72,4 +82,46 @@ test("guardRoute does NOT discharge CurrentSubject from loadResource's own LR", 
   // caller whose resource loader genuinely depends on `CurrentSubject` must
   // still see it as a real, undischarged requirement.
   expect<Extract<R, CurrentSubject>>().type.toBe<CurrentSubject>();
+});
+
+type Requires<L extends Layer.Any> = Extract<Layer.Services<L>, HttpRouter.Request.From<"Requires", CurrentSubject>>;
+type ErrorMarkers<L extends Layer.Any> = Extract<Layer.Services<L>, HttpRouter.Request.From<"Error", unknown>>;
+
+test("addGuardedRoute discharges CurrentSubject from the handler's own R", () => {
+  const route = addGuardedRoute("GET", "/x", readPermission, readPolicy, loadResourceClean)(
+    handlerNeedingSubject,
+  );
+  const routeNoLoader = addGuardedRoute("GET", "/x", readPermission, readPolicy)(handlerNeedingSubject);
+
+  expect<Requires<typeof route>>().type.toBe<never>();
+  expect<Requires<typeof routeNoLoader>>().type.toBe<never>();
+});
+
+test("addGuardedRoute does NOT discharge CurrentSubject from the loader's own LR", () => {
+  const route = addGuardedRoute("GET", "/x", readPermission, readPolicy, loadResourceNeedingSubject)(
+    handlerNeedingSubject,
+  );
+
+  expect<Requires<typeof route>>().type.toBe<HttpRouter.Request.From<"Requires", CurrentSubject>>();
+});
+
+test("addGuardedRoute accepts a handler whose own guard may deny, and answers every enforcement failure", () => {
+  const route = addGuardedRoute("GET", "/x", readPermission, readPolicy, loadResourceClean)(
+    handlerThatMayDeny,
+  );
+
+  expect<ErrorMarkers<typeof route>>().type.toBe<never>();
+
+  // Positive control, same extract: it does find an `"Error"` marker when one
+  // is present, so the `never` above is not an extract that matches nothing.
+  type Declared =
+    | HttpRouter.Request.From<"Error", HttpEnforcementFailure>
+    | HttpRouter.Request.From<"Requires", CurrentSubject>;
+  expect<Extract<Declared, HttpRouter.Request.From<"Error", unknown>>>().type.toBe<
+    HttpRouter.Request.From<"Error", HttpEnforcementFailure>
+  >();
+});
+
+test("the guarded and the unguarded bare routes take the same methods", () => {
+  expect<Parameters<typeof addGuardedRoute>[0]>().type.toBe<UnguardedRouteSpec<never, never>["method"]>();
 });
