@@ -8,7 +8,7 @@
  *
  * MP-03 (100-lens audit): the four `.tst.ts` files in this workspace pinned
  * `Authorized<P>`'s distinctness, `RequirePermission`'s genericity and its
- * `ClientError` union, and `guardRoute`'s `CurrentSubject` discharge — but
+ * `ClientError` union, and `addGuardedRoute`'s `CurrentSubject` discharge — but
  * nothing pinned `enforce`'s own inferred `E`/`R` channels or `guard`'s `P`
  * inference from its literal `permission` argument, the two generic-heavy
  * entry points every other guarded surface in this workspace is built from. A

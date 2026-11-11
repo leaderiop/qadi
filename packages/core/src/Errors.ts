@@ -536,7 +536,7 @@ export const ENFORCEMENT_ERROR_CLASSES = {
   MissingResourceId: "wiringMistake",
   // Also a wiring mistake in this service. No path in `@qadi/http` lets a
   // *request* supply a policy — the middleware reads it from a compile-time
-  // endpoint annotation, and `guardRoute` takes it as a layer-construction
+  // endpoint annotation, and `addGuardedRoute` takes it as a layer-construction
   // argument — so "malformed or hostile input", which a 400 would assert,
   // cannot reach it there. A 400 is classified non-retryable client error by
   // SDKs and dashboards, so an operator whose own policy tree is too deep
