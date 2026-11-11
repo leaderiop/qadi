@@ -4,18 +4,18 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 29
 current_phase_name: Small restated facts
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 29-01-PLAN.md
-last_updated: "2026-11-11T23:18:30.334Z"
+stopped_at: Completed 29-02-PLAN.md
+last_updated: "2026-11-11T23:21:00.550Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 28 complete, transitioned to Phase 29
-state_head: 2bfc6cc1a28fd9433ae6b2cae50edc92d47845db
+state_head: d4813a1564345f95f86b84491a2d3af176d52ad9
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 38
-  completed_plans: 36
+  completed_plans: 37
   percent: 89
 ---
 
@@ -31,9 +31,9 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 ## Current Position
 
 Phase: 29 (Small restated facts) — READY TO EXECUTE
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 3
-Status: Executing (29-01 complete)
+Status: Executing (29-01, 29-02 complete)
 Last activity: 2026-11-11 — Phase 28 complete, transitioned to Phase 29
 
 ## Performance Metrics
@@ -138,6 +138,7 @@ Last activity: 2026-11-11 — Phase 28 complete, transitioned to Phase 29
 | Phase 28 P04 | 8 min | 2 tasks | 6 files |
 | Phase 28 P05 | 25 min | 3 tasks | 12 files |
 | Phase 29 P01 | 5 min | 2 tasks | 22 files |
+| Phase 29 P02 | 2 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -193,6 +194,8 @@ Last activity: 2026-11-11 — Phase 28 complete, transitioned to Phase 29
 - [Phase 28]: 28-04: GateWriter.ts is the React-free write side (reconcile, sameIdentity exported but out of barrel); useGate.ts holds the hooks and GateAtoms = Pick<QadiAtoms, decision | decisions>
 - [Phase 28]: 28-05: ADR-QD-140 records outcome A (write side a leaf below the atom set, hooks above it), quoting the human's answer and the correction to the review's option A; ADR-QD-111 and ADR-QD-080 carry dated amendments
 - [Phase 29]: 29-01: D-02 taken in full (PortDescription.span is PortSpanOf<N>, no cast needed, fallback not used); mutation baseline of twelve files committed first (dd158b25 over phase_base 50c7292d)
+- [Phase 29]: TIDY-02 needed no new test: HydrationPayload.test.ts already decodes allow and deny under the untrusted options, with and without includeTrace
+- [Phase 29]: FAILURE_IS_NOT_A_DENIAL lives in devtools model/Verdict.ts and stays out of both barrels (D-05)
 
 ### Pending Todos
 
@@ -223,8 +226,8 @@ Last activity: 2026-11-11 — Phase 28 complete, transitioned to Phase 29
 
 ## Session Continuity
 
-Last session: 2026-11-11T23:18:30.036Z
-Stopped at: Completed 29-01-PLAN.md
+Last session: 2026-11-11T23:21:00.258Z
+Stopped at: Completed 29-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
