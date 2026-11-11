@@ -5,16 +5,16 @@ milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 23
 current_phase_name: Sink record fields stated once
 status: executing
-stopped_at: Completed 23-01-PLAN.md
-last_updated: "2026-11-11T04:19:24.928Z"
+stopped_at: Completed 23-02-PLAN.md
+last_updated: "2026-11-11T04:52:20.193Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 23 execution started
-state_head: 4802af6258b6503234158893b745f40f0fdd3d30
+state_head: 54603ecd7e05430c0dbc26c2ca822e93785b0a38
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 37
-  completed_plans: 10
+  completed_plans: 11
   percent: 22
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 ## Current Position
 
 Phase: 23 (Sink record fields stated once) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 23 execution started
 
@@ -104,6 +104,7 @@ Last activity: 2026-11-11 — Phase 23 execution started
 | Phase 22 P03 | 70min | 3 tasks | 23 files |
 | Phase 22 P04 | 17 min | 3 tasks | 20 files |
 | Phase 23 P01 | 26 min | 4 tasks | 5 files |
+| Phase 23 P02 | 31 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,9 @@ Last activity: 2026-11-11 — Phase 23 execution started
 - [Phase 22]: ADR-QD-134 records D-02 = A and D-05 = state once, quoted from _DECISIONS-v1.2.md with the standing instruction; D-05 overrides the planner's earlier choice
 - [Phase 22]: Predicate.ts Folded is { value } | undefined, removing its one equivalent mutant so the file's mutation score holds at its phase base
 - [Phase 23]: 23-01: record shape A (one Schema.Struct per record, Data.TaggedClass typed by it) with keys absent, from _DECISIONS-v1.2.md; the bench shows Schema.TaggedClass costs 5.3x to 140x per record on the evaluation path
+- [Phase 23]: 23-02: cache-outcome literals live in the package-private leaf SinkRecordFields.ts; CacheOutcome stays exported from EvaluationMetrics.ts as the schema's Type
+- [Phase 23]: 23-02: undefined-valued optional keys are dropped by one generic in-place omitUndefined in project, not a per-field encode transformation (0.2 to 0.3 us per field measured)
+- [Phase 23]: 23-02: SinkRecordTag is derived from the record tags (type-only import of the leaf); pnpm circular green. Small-record encode costs 5 to 10 percent more, inherent to the spread projection
 
 ### Pending Todos
 
@@ -147,8 +151,8 @@ Last activity: 2026-11-11 — Phase 23 execution started
 
 ## Session Continuity
 
-Last session: 2026-11-11T04:19:24.817Z
-Stopped at: Completed 23-01-PLAN.md
+Last session: 2026-11-11T04:52:20.085Z
+Stopped at: Completed 23-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
