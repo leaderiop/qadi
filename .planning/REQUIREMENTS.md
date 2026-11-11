@@ -154,11 +154,11 @@
 - [x] **SCOPE-05**: The span change is recorded as public behaviour (ADR-QD-051): BEH and traceability updated, and no `UNTRACED_BUDGET` change.
 
 ### Sink record fields stated once (Phase 23)
-- [ ] **SREC-01**: A benchmark at the phase base measures record construction (and one `Evaluate.bench.ts` workload) for the candidate record shapes; the GO/NO-GO is a `checkpoint:decision` with the numbers.
-- [ ] **SREC-02**: The decision and obligation records' fields are stated once; the record class's field type and the v2 wire struct derive from that one statement.
-- [ ] **SREC-03**: Leaving an optional field out of `project`/`rebuild` is a compile error or a failing generated round trip (RED first on the phase base).
-- [ ] **SREC-04**: `failedRecord` and `decidedRecord` are one projection; `SinkWire.ts`'s restated `SinkRecordTag` is gone, or the plan records why the cycle still forces it.
-- [ ] **SREC-05**: Wire goldens in `SinkCodec.test.ts` are unchanged; the v2 wire is byte-identical.
+- [x] **SREC-01**: A benchmark at the phase base measures record construction (and one `Evaluate.bench.ts` workload) for the candidate record shapes; the GO/NO-GO is a `checkpoint:decision` with the numbers.
+- [x] **SREC-02**: The decision and obligation records' fields are stated once; the record class's field type and the v2 wire struct derive from that one statement.
+- [x] **SREC-03**: Leaving an optional field out of `project`/`rebuild` is a compile error or a failing generated round trip (RED first on the phase base).
+- [x] **SREC-04**: `failedRecord` and `decidedRecord` are one projection; `SinkWire.ts`'s restated `SinkRecordTag` is gone, or the plan records why the cycle still forces it.
+- [x] **SREC-05**: Wire goldens in `SinkCodec.test.ts` are unchanged; the v2 wire is byte-identical.
 
 ### Simulation source preparation (Phase 24)
 - [ ] **SRC-01**: `SimulationSource.ts` owns `prepareSource(choice, { ports, capture })`, returning the options and a `Ready`/`Refused` result; availability is written once.
