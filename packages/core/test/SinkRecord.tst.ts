@@ -1,18 +1,17 @@
 /**
- * Pins the public types of the two sink records as they stand before their
- * fields are stated once (ARCH-71).
+ * Pins the public types of the two sink records (ARCH-71).
  *
- * The record class's field type and the wire struct are about to derive from one
- * shared statement; this file is what proves the derived types are the types a
- * consumer already compiles against. Each literal list below is written out in
- * full on purpose, not read from the source: a pin that imports its own
+ * The record class's field type and the wire struct derive from one shared
+ * statement (`SinkRecordFields.ts`); this file is what proves the derived types
+ * are the types a consumer already compiles against. Each hand-written interface
+ * below is the independent expectation the leaf-derived types must equal, written
+ * out in full on purpose and not read from the source: a pin that imports its own
  * expectation cannot disagree with it.
  *
  * The constructor parameters are pinned by mutual assignability plus a `keyof`
  * check and per-key reads, not by `toBe` on the whole object: `ConstructorParameters`
  * of a `Data.TaggedClass` is a mapped type that `toBe` would call different from
- * an identical literal. This file contains no deliberate compile error, because
- * `tsconfig.test.json` also compiles every `*.tst.ts` under `tsc`.
+ * an identical literal.
  */
 import { expect, test } from "tstyche";
 import type { obligationRecordFields, decisionRecordFields } from "../src/SinkRecordFields.ts";
@@ -24,7 +23,7 @@ import type { Policy } from "../src/Policy.ts";
 import type { Resource } from "../src/Resource.ts";
 import type { SinkRecordJson } from "../src/SinkCodec.ts";
 
-/** What `new DecisionRecord(...)` accepts today, written out from `DecisionRecord.ts`. */
+/** What `new DecisionRecord(...)` accepts, written out by hand. */
 interface DecisionRecordInput {
   readonly evaluationId: string;
   readonly at: number;
@@ -36,7 +35,7 @@ interface DecisionRecordInput {
   readonly outcome: DecisionOutcome;
 }
 
-/** What `new ObligationRecord(...)` accepts today, written out from `DecisionRecord.ts`. */
+/** What `new ObligationRecord(...)` accepts, written out by hand. */
 interface ObligationRecordInput {
   readonly evaluationId: string;
   readonly at: number;
