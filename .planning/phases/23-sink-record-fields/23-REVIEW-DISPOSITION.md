@@ -9,7 +9,7 @@ findings:
     title: "Stale \"today's\" wording in `SinkRecord.tst.ts` test titles"
   - id: IN-05
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Bench header's first bullet contradicts the paragraph added in IN-02"
   - id: WR-01
     severity: warning
@@ -27,9 +27,9 @@ findings:
     severity: info
     disposition: fixed
     title: "`SinkRecord.bench.ts` restates the field list the phase exists to state once"
-open: 1
+open: 0
 total: 6
-recorded: 2026-11-11T05:46:23.298Z
+recorded: 2026-11-11T05:46:38.461Z
 ---
 
 # Phase 23: Code Review Disposition
@@ -37,7 +37,7 @@ recorded: 2026-11-11T05:46:23.298Z
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
 | IN-04 | info | fixed | 23-REVIEW-FIX.md |
-| IN-05 | info | open | - |
+| IN-05 | info | fixed | 23-REVIEW-FIX.md |
 | WR-01 | warning | fixed | 23-REVIEW-FIX.md (not in the current review) |
 | IN-01 | info | fixed | 23-REVIEW-FIX.md (not in the current review) |
 | IN-03 | info | fixed | 23-REVIEW-FIX.md (not in the current review) |
