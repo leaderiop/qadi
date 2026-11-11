@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-108                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-08                                     |
 > | Status         | Accepted — amends ADR-QD-036; reads ADR-QD-081, ADR-QD-102 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-10): Addendum — a third mode, `enforcePublic`, serves `RequirePermission`'s public endpoints through the one handler step (ARCH-61, BEH-QD-359, CCR-QD-399)<br>1.1 (2026-11-10): D-46-e superseded: membership is the access plan's, by endpoint value; `endpointMemberKey` is deleted (ARCH-59, ADR-QD-118, CCR-QD-396)<br>1.0 (2026-11-08): Initial (CCR-QD-385)         |
+> | Change History | 1.3 (2026-11-11): noted: guardRoute is gone and GuardRoute.ts holds addGuardedRoute alone (ARCH-75, CCR-QD-417)<br>1.2 (2026-11-10): Addendum — a third mode, `enforcePublic`, serves `RequirePermission`'s public endpoints through the one handler step (ARCH-61, BEH-QD-359, CCR-QD-399)<br>1.1 (2026-11-10): D-46-e superseded: membership is the access plan's, by endpoint value; `endpointMemberKey` is deleted (ARCH-59, ADR-QD-118, CCR-QD-396)<br>1.0 (2026-11-08): Initial (CCR-QD-385)         |
 
 ---
 
@@ -47,6 +47,12 @@ meant the edge step; the surrounding work was still written five times.
 
 ADR-QD-102's tables are untouched. `ENFORCEMENT_ERROR_WIRE`, `HTTP_ENFORCEMENT_TAGS` and
 `projectHttpEnforcementFailure` keep their contents; only the place that applies them moved.
+
+> **Note (ARCH-75, 2026-11-11, CCR-QD-417):** `guardRoute` is gone, and D-46-j's file survives
+> as the one home of the bare-route path: `addGuardedRoute` in `GuardRoute.ts` calls
+> `enforceRequest(..., answerWithResponse, ...)` directly and carries the typing contract
+> (BEH-QD-470). The alternative "Folding `GuardRoute.ts`" below is answered
+> the other way round: the contract moved onto the exported function instead of losing its home.
 
 ## Consequences
 
