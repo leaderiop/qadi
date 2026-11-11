@@ -4,18 +4,18 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 28
 current_phase_name: Gate registry dependency
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 28-01-PLAN.md
-last_updated: "2026-11-11T15:11:32.568Z"
+stopped_at: Completed 28-02-PLAN.md
+last_updated: "2026-11-11T15:17:00.287Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 27 complete, transitioned to Phase 28
-state_head: "0b367505878c8b21f818ebbdb7b13469318459ef"
+state_head: 0ccfe996fb9c0ed5fa8f316f638a3297b5d5e3e1
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 37
-  completed_plans: 31
+  completed_plans: 32
   percent: 78
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 ## Current Position
 
 Phase: 28 (Gate registry dependency) — READY TO EXECUTE
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 5
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 27 complete, transitioned to Phase 28
@@ -132,6 +132,7 @@ Last activity: 2026-11-11 — Phase 27 complete, transitioned to Phase 28
 | Phase 27 P02 | 7 min | 3 tasks | 21 files |
 | Phase 27 P03 | 14 min | 3 tasks | 9 files |
 | Phase 28 P01 | 5 min | 2 tasks | 1 files |
+| Phase 28 P02 | 6 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -182,6 +183,7 @@ Last activity: 2026-11-11 — Phase 27 complete, transitioned to Phase 28
 - [Phase 27]: 27-03: aggregate mutation drop closed by pinning the two AuthorizeRequest span names with tests, not by touching the baseline
 - [Phase 28]: 28-01 D-01 = A: split GateWriter.ts write side from hooks (useGate.ts), pure reconcile, derive GateAtoms; ADR-QD-140 amends ADR-QD-111 — Pre-recorded answer in _DECISIONS-v1.2.md (2026-11-11)
 - [Phase 28]: 28-01 D-02: useGateRegistration is deleted after its tests are retargeted to useGateRegistrations — Confirmed by the same pre-recorded D-01 row
+- [Phase 28]: 28-02: useGateRegistration deleted after its seven lifecycle tests moved to useGateRegistrations; mutation baseline recorded (aggregate 0.8239 over six files)
 
 ### Pending Todos
 
@@ -211,8 +213,8 @@ Last activity: 2026-11-11 — Phase 27 complete, transitioned to Phase 28
 
 ## Session Continuity
 
-Last session: 2026-11-11T15:11:22.912Z
-Stopped at: Completed 28-01-PLAN.md
+Last session: 2026-11-11T15:17:00.009Z
+Stopped at: Completed 28-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
