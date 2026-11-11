@@ -20,7 +20,17 @@ export const useScoped = <A>(make: () => Effect.Effect<A, never, Scope.Scope>): 
 
   useLayoutEffect(() => {
     const scope = Effect.runSync(Scope.make());
-    const built = Effect.runSync(Scope.provide(make(), scope));
+    const close = () => {
+      Effect.runFork(Scope.close(scope, Exit.void));
+    };
+    let built: A;
+    try {
+      built = Effect.runSync(Scope.provide(make(), scope));
+    } catch (error) {
+      // The cleanup below is never returned, so release what the build acquired first.
+      close();
+      throw error;
+    }
     // A function value would be taken for an updater.
     setValue(() => built);
     return () => {
@@ -28,7 +38,7 @@ export const useScoped = <A>(make: () => Effect.Effect<A, never, Scope.Scope>): 
       // state: without clearing it, a child that read the value once would keep the
       // closed one. Clearing unmounts that child, and the next value remounts it.
       setValue(undefined);
-      Effect.runFork(Scope.close(scope, Exit.void));
+      close();
     };
     // `make` is read once per mount: later inputs arrive as commands, as
     // `useRunningStore.ts` says of its `run`.

@@ -7,11 +7,12 @@
  * its own test built. With `Simulator` a view of its session, these are the only
  * tests of the owner hooks (ARCH-73, ADR-QD-137).
  */
-import { assert, describe, it } from "@effect/vitest";
+import { assert, describe, it, vi } from "@effect/vitest";
 import { act, renderHook, render, waitFor } from "@testing-library/react";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { Activity, StrictMode, useState } from "react";
+import { useScoped } from "../../src/react/useScoped.ts";
 import { AttributeResolver, gte, hasAttribute, portsLayer } from "@qadi/core";
 import { policyLabel } from "../../src/model/Catalogue.ts";
 import type { PolicySighting } from "../../src/model/Catalogue.ts";
@@ -98,6 +99,34 @@ describe("the component that owns a session's scope", () => {
     view.unmount();
     await waitFor(() => assert.strictEqual(tally.interrupted, 1));
     assert.strictEqual(tally.finished, 0);
+  });
+});
+
+describe("the scope a build that threw had already filled", () => {
+  it("is closed, not left open behind the error", () => {
+    const released = { count: 0 };
+    const Probe = () => {
+      useScoped(() =>
+        Effect.gen(function* () {
+          yield* Effect.addFinalizer(() =>
+            Effect.sync(() => {
+              released.count += 1;
+            }),
+          );
+          return yield* Effect.die("the build threw");
+        }),
+      );
+      return null;
+    };
+
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      assert.throws(() => render(<Probe />));
+    } finally {
+      quiet.mockRestore();
+    }
+
+    assert.strictEqual(released.count, 1);
   });
 });
 
