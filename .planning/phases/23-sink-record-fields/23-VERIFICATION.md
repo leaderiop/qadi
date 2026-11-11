@@ -1,6 +1,6 @@
 ---
 phase: 23-sink-record-fields
-verified: 2026-11-11T08:00:00Z
+verified: 2026-11-11T09:00:00Z
 status: passed
 score: 12/12 must-haves verified
 covered_files:
@@ -25,14 +25,15 @@ covered_files:
   - packages/core/test/SinkRecord.tst.ts
   - spec/invariants.md
   - spec/traceability.md
-covered_digest: "v4:sha256:80969e9185b916387678d911899337770c67fc9b2af838b01e7429495961e376"
+covered_digest: "v4:sha256:44c97bee0153e304f85a928ca0e5f0290280a9ec5390f19d2fc1b1ef3e7cc532"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
   previous_status: passed
   previous_score: 12/12
   gaps_closed:
-    - "WR-01 (the vacuous undeclared-field type test and its spec claim) removed"
+    - "IN-04 (stale \"today's\" wording in SinkRecord.tst.ts test titles) fixed in cec815ae"
+    - "IN-05 (bench header's first bullet contradicting the IN-02 paragraph) fixed in 964d9d2c"
   gaps_remaining: []
   regressions: []
 ---
@@ -40,30 +41,27 @@ re_verification:
 # Phase 23: Sink record fields stated once Verification Report
 
 **Phase Goal:** Each sink record's fields are stated once, and a field dropped from projection or rebuild cannot compile or pass the round trip silently.
-**Verified:** 2026-11-11
+**Verified:** 2026-11-11T09:00:00Z
 **Status:** passed
-**Re-verification:** Yes. The previous report (passed, 12/12) went stale when the code-review fix commits (4b86203d, 08bed3ff, 9232d0b8, db98ce9e) edited covered files. This report was regenerated from scratch against the current tree.
+**Re-verification:** Yes. The previous report (passed, 12/12, written at 0881e681) went stale when the second code-review fix pass edited two covered files (cec815ae, 964d9d2c). This report was regenerated against the current tree.
 
 ## Goal Achievement
 
 ### What changed since the last report, and whether any must-have depended on it
 
-`git diff 4b86203d~1 HEAD` over `packages spec` touches six files:
+`git diff 0881e681 HEAD --stat -- packages spec .changeset scripts` touches exactly two files:
 
-- `SinkCodec.ts`: one `Schema.Union([...])` line re-wrapped, one stray blank line removed. No behavior change.
-- `SinkWire.ts`: header comment re-wrapped. No code change.
-- `SinkRecord.tst.ts`: header rewritten in the present tense, and the trailing `bogus` excess-property `@ts-expect-error` block deleted.
-- `SinkRecord.bench.ts`: five lines of header text.
-- `spec/invariants.md` and `spec/traceability.md`: the clause "an undeclared field is refused" removed from INV-QD-290's Enforcement and the traceability row.
+- `packages/core/test/SinkRecord.tst.ts`: four test titles renamed ("today's input/keys" to "the documented input/keys"). The diff shows no assertion line changed.
+- `packages/core/bench/SinkRecord.bench.ts`: the first header bullet reworded to say the "today" baseline is the pre-ARCH-71 measurement. Comment only.
 
-No must-have depended on the deleted block. The "a dropped field cannot compile" guarantee is carried by other pins that are still in the file. `expect<keyof DecisionInput>().type.toBe<keyof typeof decisionRecordFields.Type | "outcome">()` fails if a key is dropped from the struct, and so do the `keyof` pins on `SinkRecordJson`. Mutual assignability alone would not catch a dropped optional key, but the `keyof` equality does. `grep` for the removed claim ("undeclared field", `bogus`) in `spec/`, `AGENTS.md`, `.changeset/` and `packages/core/test` finds no remaining reference. The 20 tstyche tests still pass.
+No must-have depended on a test title or a bench header comment. Truth 1 (bench recorded) rests on `23-01-SUMMARY.md` and the bench file's existence; the file still exists and labels itself the frozen measurement. The wire-key pin in `SinkCodec.test.ts` ("ARCH-71: the encoded value keeps today's keys") is a different file and untouched. `grep today` over `SinkRecord.tst.ts` now finds nothing. The tstyche file still passes (11 tests, 42 assertions). Since the last report the orchestrator reports the full suite green again (173 files, 4518 tests), and the iteration-3 review (`23-REVIEW.md`) is clean; `23-REVIEW-DISPOSITION.md` records all 6 findings (IN-01 to IN-05, WR-01) as `fixed`, `open: 0`.
 
 ### Observable Truths (ROADMAP success criteria first, then plan must-haves)
 
 | #  | Truth | Status | Evidence |
 | -- | ----- | ------ | -------- |
 | 1 | SC1: bench numbers for both record shapes recorded, human GO/NO-GO in 23-01's SUMMARY | VERIFIED | `23-01-SUMMARY.md` frontmatter: `d01_outcome: A`, `d01_date`, `d01_reason`, `d02_keys: absent`, `phase_base: f40bbfb2…`, four `bench_verdict` rows (one node, allOf x8, allOf x64, obligation record; B is 5.3x to 140x slower than A and not within noise). `packages/core/bench/SinkRecord.bench.ts` exists. Caveat carried from the first report: the choice was read from the pre-recorded `_DECISIONS-v1.2.md`, not asked with the numbers on screen. The numbers confirm it and ADR-QD-135 records both. |
-| 2 | SC2: round trip covers both record types and every optional field | VERIFIED | `SinkCodec.test.ts:1570` "every record shape round-trips (ARCH-71)". Re-ran `SinkCodec.test.ts` and `DecisionSink.test.ts`: 2 files, 199 tests passed. |
+| 2 | SC2: round trip covers both record types and every optional field | VERIFIED | `SinkCodec.test.ts:1570` "every record shape round-trips (ARCH-71)". Re-ran `SinkCodec.test.ts` and `DecisionSink.test.ts` on the current tree: 2 files, 199 tests passed. |
 | 3 | SC3: wire goldens unchanged, encoded value has no `undefined`-valued keys | VERIFIED | `git diff f40bbfb2 HEAD --stat -- packages/core/test/fixtures` is empty. `SinkCodec.test.ts:2200` "ARCH-71: the encoded value keeps today's keys" pins ordered keys. `project` in `SinkCodec.ts` is `omitUndefined({ ...record, version: 2 })`. |
 | 4 | SREC-02: fields stated once; class type and v2 wire derive from it | VERIFIED | `SinkRecordFields.ts` holds `decisionRecordFields` and `obligationRecordFields` as `Schema.Struct`. `DecisionRecord.ts:71,98` types both classes by `typeof …Fields.Type`. `SinkCodec.ts` `decisionV2Fields` and `obligationsV2Fields` are `{ _tag, version, ...leaf.fields }`. `CacheOutcome` and `ObligationOutcome` derive from `CacheOutcomeSchema` and `ObligationOutcomeSchema` in the leaf (`EvaluationMetrics.ts:49` type-imports it). |
 | 5 | SREC-03: leaving an optional field out of project/rebuild is a compile error or a failing round trip | VERIFIED | `project` and `rebuild` name no envelope field: `project` spreads the record plus `version`/`outcome`, `rebuild` is `Struct.omit(wire, ["version"])` and `{ ...fields, outcome }`. `grep -c '? {}' SinkCodec.ts` is 0. Dropping a field from the struct is caught by the `keyof` pins in `SinkRecord.tst.ts` and by the generated round trip. 23-01 recorded the round trip failing under scratch mutations m1, m2 and m3 on the base. |
@@ -84,7 +82,7 @@ No must-have depended on the deleted block. The "a dropped field cannot compile"
 | `packages/core/src/SinkRecordFields.ts` | one statement of each record's fields | VERIFIED | two `Schema.Struct`s, the two tags, two literal schemas; imported by `DecisionRecord.ts`, `SinkCodec.ts`, `SinkWire.ts` (type-only), `EvaluationMetrics.ts` (type-only) |
 | `packages/core/src/SinkCodec.ts` | v2 structs spread the leaf; no field lists | VERIFIED | `...decisionRecordFields.fields`, `...obligationRecordFields.fields` |
 | `packages/core/src/SinkEmit.ts` | `decisionRecordFor` | VERIFIED | one function, called at both emit sites |
-| `packages/core/test/SinkRecord.tst.ts`, `SinkCodec.test.ts`, `DecisionSink.test.ts` | pins and round trip | VERIFIED | tstyche 20 tests / 60 assertions; vitest 199 |
+| `packages/core/test/SinkRecord.tst.ts`, `SinkCodec.test.ts`, `DecisionSink.test.ts` | pins and round trip | VERIFIED | tstyche 11 tests / 42 assertions (SinkRecord.tst.ts); vitest 199 |
 | `packages/core/bench/SinkRecord.bench.ts` | A vs B construction bench | VERIFIED | exists, labelled as the frozen record of ADR-QD-135's measurement |
 | spec, ADR, changeset set | records | VERIFIED | truth 9 |
 
@@ -107,13 +105,10 @@ No must-have depended on the deleted block. The "a dropped field cannot compile"
 | Behavior | Command | Result | Status |
 | -------- | ------- | ------ | ------ |
 | Codec and sink behavior | `pnpm vitest run --project core packages/core/test/SinkCodec.test.ts packages/core/test/DecisionSink.test.ts` | 2 files, 199 passed | PASS |
-| Type pins | `pnpm test:tstyche packages/core/test/SinkRecord.tst.ts packages/core/test/Errors.tst.ts` | 20 tests, 60 assertions passed | PASS |
+| Type pins | `pnpm test:tstyche packages/core/test/SinkRecord.tst.ts` | 11 tests, 42 assertions passed | PASS |
 | Whole-repo typecheck | `pnpm typecheck` | no errors | PASS |
 | No cycle | `pnpm circular` | no circular dependency | PASS |
 | House style / budgets | `node scripts/check-house-style.mjs` | 448 files clean | PASS |
-| Public API doc gate | `pnpm spec:api` | 900 exports documented | PASS |
-| Traceability | `pnpm spec:verify:strict` | 21 PASS, 0 FAIL | PASS |
-| DoD table / devtools claims | `pnpm spec:gates`, `pnpm spec:claims` | 25 steps match, 8 claims registered | PASS |
 
 ### Probe Execution
 
@@ -141,10 +136,7 @@ Requirement-ID accounting: the union of the four plans' `requirements:` frontmat
 
 | File | Line | Pattern | Severity | Impact |
 | ---- | ---- | ------- | -------- | ------ |
-| `packages/core/test/SinkRecord.tst.ts` | test titles | stale "today's" wording (IN-04) | Info | wording only, open in `23-REVIEW-DISPOSITION.md` |
-| `packages/core/bench/SinkRecord.bench.ts` | header | first bullet contradicts the IN-02 paragraph (IN-05) | Info | wording only, open in `23-REVIEW-DISPOSITION.md` |
-
-No `TBD`/`FIXME`/`XXX` marker in a phase-modified source file. The former WR-01 warning (vacuous type test plus spec overclaim) is gone: the block and both spec clauses are deleted. IN-01, IN-02 and IN-03 are fixed. Iteration-2 review: 0 critical, 0 warning, 2 info.
+None. IN-04 and IN-05, open in the previous report, are fixed (cec815ae, 964d9d2c) and recorded `fixed` in `23-REVIEW-DISPOSITION.md`. A `grep` for `TBD|FIXME|XXX` over the phase's modified source, bench and tst files finds nothing. Iteration-3 review: clean.
 
 ### Human Verification Required
 
@@ -157,7 +149,7 @@ No gaps. Each record's fields have one statement (`SinkRecordFields.ts`). The cl
 Notes carried from the first report, still true:
 - The "old suite misses at least one scratch mutation" half of 23-01's SREC-03 criterion was not met (the old suite caught all three). 23-01 and INV-QD-290 say so honestly. The roadmap criterion that matters (round trip covers every optional field) is met.
 - The by-hand optional-key lists in the round trip (`DECISION_OPTIONAL`, `OBLIGATION_OPTIONAL`) do not auto-extend to a newly added field. The single struct and the `keyof` pins are what catch that.
-- I did not re-run `pnpm check:pr` or the full suite myself; I relied on the orchestrator's report of the full regression run (173 files, 4518 tests) and re-ran the targeted checks above.
+- I did not re-run `pnpm check:pr` or the full suite myself; I relied on the orchestrator's report of the full regression run (173 files, 4518 tests). On this pass I re-ran only the targeted checks above (tstyche, codec and sink vitest, typecheck, house style). Spec gates (`spec:api`, `spec:verify:strict`) were not re-run: no spec, script or src file changed since the previous report, which recorded them passing.
 
 ---
 
