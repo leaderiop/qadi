@@ -36,6 +36,7 @@ import {
 } from "./PortAccess.ts";
 import type { Policy, Rule, RuleEffect } from "./Policy.ts";
 import type { Resource } from "./Resource.ts";
+import { resourceIdOf } from "./Resource.ts";
 import { anyOfStopsAtAllow, rulesDecisiveEffect } from "./ShortCircuit.ts";
 import type { Question } from "./Question.ts";
 
@@ -195,18 +196,18 @@ const evaluateHasRelationship = (
   subject: AuthSubject,
   resource: Resource | undefined,
 ) => {
-  const rawId = resource?.["id"];
+  const resourceId = resourceIdOf(resource);
   return Effect.map(askRelationship(subject, policy, resource), (related) =>
     // `Match.value` rather than a hoisted `Match.type` (§5a's preferred form):
-    // the arms close over `policy`, `subject` and `rawId`, so there is nothing to
-    // hoist. The rebuild is also noise against the service call, which may be a
-    // graph traversal or a network round trip.
+    // the arms close over `policy`, `subject` and `resourceId`, so there is
+    // nothing to hoist. The rebuild is also noise against the service call, which
+    // may be a graph traversal or a network round trip.
     Match.value(related).pipe(
       Match.when("Related", () => allow("HasRelationship", policy.fields)),
       Match.when("Unrelated", () =>
         deny(
           "HasRelationship",
-          `subject '${subject.id}' has no '${policy.relation}' relation to '${rawId}'`,
+          `subject '${subject.id}' has no '${policy.relation}' relation to '${resourceId}'`,
         ),
       ),
       // Not "has no relation": nothing confirmed one. `"Unknown"` does not mean
@@ -220,7 +221,7 @@ const evaluateHasRelationship = (
       Match.when("Unknown", () =>
         deny(
           "HasRelationship",
-          `no relationship resolver could confirm the '${policy.relation}' relation to '${rawId}'`,
+          `no relationship resolver could confirm the '${policy.relation}' relation to '${resourceId}'`,
         ),
       ),
       Match.exhaustive,
