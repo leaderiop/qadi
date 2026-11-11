@@ -4,18 +4,18 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 25
 current_phase_name: Session-only Simulator
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 25-01-PLAN.md
-last_updated: "2026-11-11T06:59:22.713Z"
+stopped_at: Completed 25-02-PLAN.md
+last_updated: "2026-11-11T07:07:36.899Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 24 complete, transitioned to Phase 25
-state_head: eab2ead59574da1a2650c336033105e2f053227f
+state_head: 4f89fbcbec6547871541cfb77cb037dd3e468d52
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 37
-  completed_plans: 17
+  completed_plans: 18
   percent: 44
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 ## Current Position
 
 Phase: 25 — Session-only Simulator
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 5
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
@@ -115,6 +115,7 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 | Phase 24 P02 | 10 min | 2 tasks | 6 files |
 | Phase 24 P03 | 12 min | 3 tasks | 10 files |
 | Phase 25 P01 | 6 min | 1 tasks | 1 files |
+| Phase 25 P02 | 7 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -144,6 +145,7 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 - [Phase 24]: ADR-QD-136 unused: the source-choice rule moved, so ADR-QD-050 is amended (CCR-QD-414)
 - [Phase 24]: SimulationSession.ts mutation 0.9641 over its 0.9619 base after review: WR-01 (generation read before the last teardown yield) and the seeded policy held with its row (6c198da1); no human acceptance needed
 - [Phase 25]: 25-01: D-01 option D (FiberHandle) recorded; session owns its runs through a Scope; overrides ARCH-20 D-20-b
+- [Phase 25]: 25-02: every baseline sentence the view computes today is pinned at the session, including the same-verdict (1 and 2 nodes) and different-failure branches of summarise, so moving it into Replay.ts cannot lose a branch under the mutation gate
 
 ### Pending Todos
 
@@ -170,8 +172,8 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 
 ## Session Continuity
 
-Last session: 2026-11-11T06:59:15.610Z
-Stopped at: Completed 25-01-PLAN.md
+Last session: 2026-11-11T07:07:36.723Z
+Stopped at: Completed 25-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
