@@ -389,11 +389,11 @@ Plans:
   1. `DockModel.test.ts` covers rules M1–M16 and P1 without rendering (including: a source change or closing the scope interrupts a read); 13 DOM duplicates are deleted only after it is green.
   2. One `useDockModel` hook; the four `useOwnedX` hooks are gone; `Screen` takes 4 props, with no conditional spreads.
   3. Both sessions embed one held-choice cell; `RoleViewer` no longer re-maps.
-**Plans**: 1/6 plans executed
+**Plans**: 2/6 plans executed
 
 Plans:
 - [x] 26-01 (W1): Preconditions, phase base, mutation baseline; RED `DockModel.test.ts` (M1–M16, P1), run in scopes the tests own
-- [ ] 26-02 (W2): Build the scoped `makeDockModel` (six stores, one `configure`; the session in the model's scope; `read(source)` through the model's own FiberHandle), GREEN
+- [x] 26-02 (W2): Build the scoped `makeDockModel` (six stores, one `configure`; the session in the model's scope; `read(source)` through the model's own FiberHandle), GREEN
 - [ ] 26-03 (W3): One held-choice cell shared by both sessions; `PolicyChoice` reshaped; `RoleViewer` stops re-mapping
 - [ ] 26-04 (W4): One `useDockModel` over `useScoped` that forks nothing; the owned hooks deleted; `Screen` reduced; `DevtoolsDock.test.tsx` passes unedited
 - [ ] 26-05 (W5): Delete the 13 DOM duplicates of model rules; `pnpm coverage`

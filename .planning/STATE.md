@@ -4,18 +4,18 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 26
 current_phase_name: Headless dock model
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 26-01-PLAN.md
-last_updated: "2026-11-11T12:33:29.789Z"
+stopped_at: Completed 26-02-PLAN.md
+last_updated: "2026-11-11T12:43:12.621Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 26 execution started
-state_head: 8785c80f3c76a7d4beea7263687da22b95af16e2
+state_head: a566d2a0acbfe92469c7ae188842eab5fb74a6aa
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 37
-  completed_plans: 22
+  completed_plans: 23
   percent: 56
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 ## Current Position
 
 Phase: 26 (Headless dock model) — EXECUTING
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 6
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 26 execution started
@@ -121,6 +121,7 @@ Last activity: 2026-11-11 — Phase 26 execution started
 | Phase 25 P04 | 12 min | 2 tasks | 4 files |
 | Phase 25 P05 | 9 min | 3 tasks | 11 files |
 | Phase 26 P01 | 5 min | 2 tasks | 3 files |
+| Phase 26 P02 | 7 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -158,6 +159,7 @@ Last activity: 2026-11-11 — Phase 26 execution started
 - [Phase 25]: ADR-QD-137 (own number): a devtools session owns its runs through a scope; supersedes ARCH-20 D-20-b; no new invariant (BEH-QD-461 carries the lifecycle)
 - [Phase 26]: 26-01: M8's simulation half is read through policyMenu (selected option label), not policy._tag, so DockModel.test.ts survives 26-03's Chosen to Listed rename
 - [Phase 26]: 26-01: configure calls in DockModel.test.ts repeat any field set earlier, so the tests hold whether 26-02 reads an omitted field as unchanged or undefined
+- [Phase 26]: 26-02: configure stores new inputs first and calls simulation.setPorts unguarded (the session guards identity); an absent source reads as an empty Source; a replaced inner TimelineStore is dropped, not unsubscribed
 
 ### Pending Todos
 
@@ -185,8 +187,8 @@ Last activity: 2026-11-11 — Phase 26 execution started
 
 ## Session Continuity
 
-Last session: 2026-11-11T12:33:29.605Z
-Stopped at: Completed 26-01-PLAN.md
+Last session: 2026-11-11T12:43:12.431Z
+Stopped at: Completed 26-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
