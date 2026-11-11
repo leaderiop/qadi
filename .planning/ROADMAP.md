@@ -308,12 +308,12 @@ shape from benchmark numbers, plus the absent-vs-undefined key convention), 25-0
   1. The key law ("derived key = `canonicalKey` of the wire question") passes as a property over the four derived ports; CustomPredicate's override is documented and tested.
   2. A type test fails when a wire or span question omits a member (RED on the phase base).
   3. Wire-byte goldens are unchanged.
-**Plans**: 2/5 plans executed
+**Plans**: 3/5 plans executed
 
 Plans:
 - [x] 21-01 (W1): Record the phase base and mutation baseline; demonstrate PREQ-04 by hand; commit the RED type test, key law and wire-byte goldens
 - [x] 21-02 (W2): Make a port's wire question exhaustive by type (`QuestionOf<Q>`, `presentMembers`); remove the conditional spreads
-- [ ] 21-03 (W3): Derive `key` and `defect` for the four total-question ports; CustomPredicate overrides; delete the exact pins once the law is green
+- [x] 21-03 (W3): Derive `key` and `defect` for the four total-question ports; CustomPredicate overrides; delete the exact pins once the law is green
 - [ ] 21-04 (W4): Make a port's span question exhaustive by type (`portSpan`/`PoseOf`)
 - [ ] 21-05 (W5): Records (ADR-QD-133, ADR-094/107 amendments, BEH-QD-440/441, INV-QD-286, CCR-QD-411, changeset), mutation comparison, `pnpm check:pr`
 
