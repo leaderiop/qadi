@@ -7,6 +7,9 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as FastCheck from "fast-check";
 import {
+  heldIndex,
+  heldValue,
+  makeHeldChoice,
   makeHeldChoiceStore,
   pinHead,
   resolveHeld,
@@ -103,6 +106,91 @@ describe("pinHead", () => {
 
   it("holds nothing from an empty list", () => {
     assert.isUndefined(pinHead([], undefined));
+  });
+});
+
+describe("makeHeldChoice", () => {
+  it("holds nothing at construction, and reads the head as Listed at 0", () => {
+    const cell = makeHeldChoice([item("a"), item("b")], sameKey);
+    assert.isUndefined(cell.held());
+    assert.deepStrictEqual(cell.resolve(), { _tag: "Listed", value: item("a"), index: 0 });
+  });
+
+  it("is Empty over an empty list", () => {
+    assert.deepStrictEqual(makeHeldChoice<Item>([], sameKey).resolve(), { _tag: "Empty" });
+  });
+
+  it("pins the head once: a later new head does not move the choice", () => {
+    const cell = makeHeldChoice([item("a")], sameKey);
+    cell.pin();
+    assert.strictEqual(cell.held()?.key, "a");
+    cell.setList([item("z"), item("a")]);
+    cell.pin();
+    assert.deepStrictEqual(cell.resolve(), { _tag: "Listed", value: item("a"), index: 1 });
+  });
+
+  it("does not pin by itself: setList alone leaves the default on the head", () => {
+    const cell = makeHeldChoice([item("a")], sameKey);
+    assert.isTrue(cell.setList([item("z"), item("a")]));
+    assert.isUndefined(cell.held());
+    assert.deepStrictEqual(cell.resolve(), { _tag: "Listed", value: item("z"), index: 0 });
+  });
+
+  it("pins nothing from an empty list", () => {
+    const cell = makeHeldChoice<Item>([], sameKey);
+    cell.pin();
+    assert.isUndefined(cell.held());
+  });
+
+  it("answers false and changes nothing for a list of the same elements", () => {
+    const list = [item("a"), item("b")];
+    const cell = makeHeldChoice(list, sameKey);
+    assert.isFalse(cell.setList([...list]));
+    assert.strictEqual(cell.list(), list);
+  });
+
+  it("answers true and keeps the new list for a different one", () => {
+    const next = [item("a"), item("c")];
+    const cell = makeHeldChoice([item("a")], sameKey);
+    assert.isTrue(cell.setList(next));
+    assert.strictEqual(cell.list(), next);
+  });
+
+  it("answers false for a value already held under `same`, true otherwise", () => {
+    const cell = makeHeldChoice([item("a"), item("b")], sameKey);
+    cell.pin();
+    assert.isFalse(cell.choose(item("a", 9)));
+    assert.strictEqual(cell.held()?.n, 0);
+    assert.isTrue(cell.choose(item("b")));
+    assert.strictEqual(cell.held()?.key, "b");
+  });
+
+  it("holds a chosen value absent from the list as Evicted", () => {
+    const cell = makeHeldChoice([item("a")], sameKey);
+    assert.isTrue(cell.choose(item("q")));
+    assert.deepStrictEqual(cell.resolve(), { _tag: "Evicted", value: item("q") });
+  });
+
+  it("holds a value chosen before anything was pinned", () => {
+    const cell = makeHeldChoice<Item>([], sameKey);
+    assert.isTrue(cell.choose(item("a")));
+    assert.isFalse(cell.choose(item("a")));
+  });
+});
+
+describe("heldValue and heldIndex", () => {
+  const gone = item("g");
+  const here = item("h");
+  it("read the value of a Listed or Evicted choice, and nothing from Empty", () => {
+    assert.isUndefined(heldValue({ _tag: "Empty" }));
+    assert.strictEqual(heldValue({ _tag: "Listed", value: here, index: 3 }), here);
+    assert.strictEqual(heldValue({ _tag: "Evicted", value: gone }), gone);
+  });
+
+  it("read an index only from a Listed choice", () => {
+    assert.isUndefined(heldIndex({ _tag: "Empty" }));
+    assert.strictEqual(heldIndex({ _tag: "Listed", value: here, index: 3 }), 3);
+    assert.isUndefined(heldIndex({ _tag: "Evicted", value: gone }));
   });
 });
 
