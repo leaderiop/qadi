@@ -1,0 +1,9 @@
+{
+ "packages/react/src/GateWriter.ts": 0.8260869565217391,
+ "packages/react/src/GateRegistry.ts": 0.9642857142857143,
+ "packages/react/src/useGate.ts": 0.8,
+ "packages/react/src/QadiProvider.tsx": 0.75,
+ "packages/react/src/hooks.ts": 0.8064516129032258,
+ "packages/react/src/MissingQadiProviderError.ts": 0.4,
+ "__aggregate__": 0.823943661971831
+}
