@@ -173,11 +173,11 @@
 - [x] **SIM-05**: Any public interface change of `@qadi/devtools` is in `spec/overview.md` and a changeset.
 
 ### Headless dock model (Phase 26)
-- [ ] **DMOD-01**: The scoped `makeDockModel` owns the timeline, sightings, simulation, explorer, held choice, dock session and the source read (through its own FiberHandle), and pushes sightings itself; React has one owned-model hook that forks nothing.
-- [ ] **DMOD-02**: Every cross-store rule now tested through `DevtoolsDock.test.tsx` has a model test that renders nothing; the DOM duplicates are removed only after the model tests are green.
-- [ ] **DMOD-03**: The three `useOwnedX` hooks and their per-input `useLayoutEffect`s are deleted; `Screen`'s pass-through props shrink to the model.
-- [ ] **DMOD-04**: The sessions embed one held-choice store; `HeldChoice` is no longer re-mapped in `SimulationSession`, `ExplorerSession` and `RoleViewer`.
-- [ ] **DMOD-05**: AGENTS.md §13 holds: no React state for decisions, decisions read through `outcomeOf`.
+- [x] **DMOD-01**: The scoped `makeDockModel` owns the timeline, sightings, simulation, explorer, held choice, dock session and the source read (through its own FiberHandle), and pushes sightings itself; React has one owned-model hook that forks nothing.
+- [x] **DMOD-02**: Every cross-store rule now tested through `DevtoolsDock.test.tsx` has a model test that renders nothing; the DOM duplicates are removed only after the model tests are green.
+- [x] **DMOD-03**: The three `useOwnedX` hooks and their per-input `useLayoutEffect`s are deleted; `Screen`'s pass-through props shrink to the model.
+- [x] **DMOD-04**: The sessions embed one held-choice store; `HeldChoice` is no longer re-mapped in `SimulationSession`, `ExplorerSession` and `RoleViewer`.
+- [x] **DMOD-05**: AGENTS.md §13 holds: no React state for decisions, decisions read through `outcomeOf`.
 
 ### Bare-route module (Phase 27)
 - [ ] **ROUTE-01**: One module owns `addGuardedRoute` (absorbing `guardRoute`), `unguardedRoutes` and one route-method union.
@@ -218,7 +218,7 @@
 | SREC-01, SREC-02, SREC-03, SREC-04, SREC-05 | Phase 23 | Pending |
 | SRC-01, SRC-02, SRC-03 | Phase 24 | Complete (2026-11-11) |
 | SIM-01, SIM-02, SIM-03, SIM-04, SIM-05 | Phase 25 | Complete (2026-11-11) |
-| DMOD-01, DMOD-02, DMOD-03, DMOD-04, DMOD-05 | Phase 26 | Pending |
+| DMOD-01, DMOD-02, DMOD-03, DMOD-04, DMOD-05 | Phase 26 | Complete (2026-11-11) |
 | ROUTE-01, ROUTE-02, ROUTE-03 | Phase 27 | Pending |
 | GATE-01, GATE-02, GATE-03, GATE-04 | Phase 28 | Pending |
 | TIDY-01, TIDY-02, TIDY-03 | Phase 29 | Pending |
