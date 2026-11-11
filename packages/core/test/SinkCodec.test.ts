@@ -1,11 +1,12 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Equal from "effect/Equal";
 import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as FastCheck from "fast-check";
 import { Allow, Deny, makeDecision } from "../src/Decision.ts";
 import type { AllowingTrace, DenyingTrace } from "../src/Decision.ts";
-import type { SinkRecord } from "../src/DecisionRecord.ts";
+import type { ObligationOutcome, SinkRecord } from "../src/DecisionRecord.ts";
 import {
   Decided,
   DecisionRecord,
@@ -17,6 +18,7 @@ import {
 } from "../src/DecisionRecord.ts";
 import { makeDecisionLog } from "../src/DecisionLog.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import type { CacheOutcome } from "../src/EvaluationMetrics.ts";
 import { subjectWith, testLayer } from "./helpers.ts";
 import { exceedsJsonDepth } from "../src/DecodeDepthGuard.ts";
 import {
@@ -1554,6 +1556,134 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
       );
     });
 
+    /**
+     * Every shape a sink record takes, both tags, every optional key (ARCH-71).
+     *
+     * The round trip above builds only `DecisionRecord`s and varies only
+     * `resource`, so a field dropped from the projection or the rebuild of
+     * `action`, `cache`, or any obligation key passed through it. Here each
+     * optional key is independently absent, present, or present with the value
+     * `undefined` (what `evaluate` hands a sink for a bare question), and a key
+     * the original did not hold a value for must be absent after the trip, not
+     * an `undefined`-valued one: `Equal.equals` tells the two apart.
+     */
+    describe("every record shape round-trips (ARCH-71)", () => {
+      interface Slot<A> {
+        readonly present: boolean;
+        readonly value: A | undefined;
+      }
+      const slot = <A>(values: FastCheck.Arbitrary<A>): FastCheck.Arbitrary<Slot<A>> =>
+        FastCheck.oneof(
+          FastCheck.constant<Slot<A>>({ present: false, value: undefined }),
+          FastCheck.constant<Slot<A>>({ present: true, value: undefined }),
+          values.map((value): Slot<A> => ({ present: true, value })),
+        );
+
+      // `""` is a real action: an empty string is a value, not an absence.
+      const actions = FastCheck.constantFrom("", "read", "approve", "a b");
+      const resources = FastCheck.dictionary(
+        FastCheck.constantFrom("id", "owner", "tags"),
+        FastCheck.jsonValue({ maxDepth: 2 }),
+      );
+      const caches = FastCheck.constantFrom<CacheOutcome>("hit", "coalesced", "miss");
+      const obligationOutcomes = FastCheck.constantFrom<ObligationOutcome>(
+        "Discharged",
+        "HandlerFailed",
+        "Refused",
+        "NotRequired",
+      );
+
+      const decisionRecords = FastCheck.tuple(
+        tree(loose),
+        outcome,
+        slot(resources),
+        slot(actions),
+        slot(caches),
+      ).map(
+        ([policy, result, resource, action, cache]) =>
+          new DecisionRecord({
+            evaluationId: "e",
+            at: 0,
+            subjectId: makeSubjectId("u1"),
+            policy,
+            ...(resource.present ? { resource: resource.value } : {}),
+            ...(action.present ? { action: action.value } : {}),
+            ...(cache.present ? { cache: cache.value } : {}),
+            outcome: retagged(result, policy._tag),
+          }),
+      );
+
+      const obligationRecords = FastCheck.tuple(
+        obligationOutcomes,
+        FastCheck.array(FastCheck.constantFrom("audit.log", "notify.owner", "x"), { maxLength: 3 }),
+        slot(FastCheck.constantFrom("u1", "u2").map(makeSubjectId)),
+        slot(actions),
+        slot(FastCheck.constantFrom("doc-1", "doc-2").map(makeResourceId)),
+      ).map(
+        ([how, obligationIds, subjectId, action, resourceId]) =>
+          new ObligationRecord({
+            evaluationId: "e",
+            at: 0,
+            outcome: how,
+            obligationIds,
+            ...(subjectId.present ? { subjectId: subjectId.value } : {}),
+            ...(action.present ? { action: action.value } : {}),
+            ...(resourceId.present ? { resourceId: resourceId.value } : {}),
+          }),
+      );
+
+      const DECISION_OPTIONAL = ["resource", "action", "cache"] as const;
+      const OBLIGATION_OPTIONAL = ["subjectId", "action", "resourceId"] as const;
+      const asJson = (input: unknown): unknown => (input === undefined ? undefined : JSON.parse(JSON.stringify(input)));
+
+      it("an optional key is present after the trip exactly when it held a value, and every envelope key survives", () => {
+        let encodedCount = 0;
+        const holds = (record: SinkRecord): boolean => {
+          const encoded = encodeSinkRecordString(record);
+          if (Result.isFailure(encoded)) return true;
+          encodedCount += 1;
+          const decoded = decodeSinkRecordString(encoded.success);
+          if (Result.isFailure(decoded)) return false;
+          const back = decoded.success;
+          const again = Result.match(encodeSinkRecordString(back), {
+            onSuccess: (text) => text === encoded.success,
+            onFailure: () => false,
+          });
+          if (record._tag === "Decision") {
+            if (back._tag !== "Decision") return false;
+            assert.deepStrictEqual(back.resource, asJson(record.resource));
+            return (
+              DECISION_OPTIONAL.every((key) => Object.hasOwn(back, key) === (record[key] !== undefined)) &&
+              Equal.equals(back.evaluationId, record.evaluationId) &&
+              Equal.equals(back.at, record.at) &&
+              Equal.equals(back.subjectId, record.subjectId) &&
+              Equal.equals(back.action, record.action) &&
+              Equal.equals(back.cache, record.cache) &&
+              back.outcome._tag === record.outcome._tag &&
+              again
+            );
+          }
+          if (back._tag !== "Obligations") return false;
+          assert.deepStrictEqual(back.obligationIds, record.obligationIds);
+          return (
+            OBLIGATION_OPTIONAL.every((key) => Object.hasOwn(back, key) === (record[key] !== undefined)) &&
+            Equal.equals(back.evaluationId, record.evaluationId) &&
+            Equal.equals(back.at, record.at) &&
+            Equal.equals(back.outcome, record.outcome) &&
+            Equal.equals(back.subjectId, record.subjectId) &&
+            Equal.equals(back.action, record.action) &&
+            Equal.equals(back.resourceId, record.resourceId) &&
+            again
+          );
+        };
+        FastCheck.assert(FastCheck.property(FastCheck.oneof(decisionRecords, obligationRecords), holds), {
+          numRuns: 600,
+          seed: 7101,
+        });
+        assert.isAtLeast(encodedCount, 300);
+      });
+    });
+
     it("one version: any record's pre-0.10 bytes are UnsupportedVersion, never upgraded into a record", () => {
       let checked = 0;
       FastCheck.assert(
@@ -2054,4 +2184,87 @@ describe("the stored-record envelope (ARCH-11 D-11-e)", () => {
         ["Edge", "Server"],
       );
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+});
+
+/**
+ * The value `encodeSinkRecord` hands forwarding's `send`, the audit row and
+ * `StoredRecordJson` keeps today's keys, in today's order, with no
+ * `undefined`-valued own key (ARCH-71).
+ *
+ * The goldens above pin the text, where `JSON.stringify` drops an `undefined`
+ * value; the value itself is what other code reads, and a schema-driven
+ * projection would add the key back unless something removes it. The bare
+ * question's records are what `evaluate` builds: every optional key passed, as
+ * `undefined`.
+ */
+describe("ARCH-71: the encoded value keeps today's keys", () => {
+  const DECISION_REQUIRED = ["_tag", "version", "evaluationId", "at", "subjectId", "policy"] as const;
+  const bareFailed: SinkRecord = new DecisionRecord({
+    evaluationId: "g",
+    at: 1,
+    subjectId: makeSubjectId("u1"),
+    policy: P.hasPermission(read),
+    resource: undefined,
+    action: undefined,
+    cache: undefined,
+    outcome: new Failed({ error: new MissingResource({ attribute: "owner" }) }),
+  });
+  const bareDecided: SinkRecord = new DecisionRecord({
+    evaluationId: "g",
+    at: 1,
+    subjectId: makeSubjectId("u1"),
+    policy: P.hasPermission(read),
+    resource: undefined,
+    action: undefined,
+    cache: undefined,
+    outcome: new Decided({
+      decision: new Allow({
+        evaluationId: "g",
+        subjectId: makeSubjectId("u1"),
+        durationMillis: 2,
+        trace: allowTrace(undefined),
+      }),
+    }),
+  });
+  const bareObligations: SinkRecord = new ObligationRecord({
+    evaluationId: "g",
+    at: 1,
+    outcome: "Discharged",
+    obligationIds: ["audit.log"],
+    subjectId: undefined,
+    action: undefined,
+    resourceId: undefined,
+  });
+  const cases: ReadonlyArray<readonly [string, SinkRecord, ReadonlyArray<string>]> = [
+    ["a Failed decision", goldenFailed(new MissingResource({ attribute: "owner" })), [...DECISION_REQUIRED, "outcome"]],
+    ["a Failed decision with an Error cause", goldenFailedCause, [...DECISION_REQUIRED, "outcome"]],
+    ["a bare question's Failed decision, every optional key passed as undefined", bareFailed, [...DECISION_REQUIRED, "outcome"]],
+    ["a bare question's Decided decision, every optional key passed as undefined", bareDecided, [...DECISION_REQUIRED, "outcome"]],
+    [
+      "a decision with resource, action and cache",
+      goldenFullEnvelope,
+      [...DECISION_REQUIRED, "resource", "action", "cache", "outcome"],
+    ],
+    ["an obligation record", goldenObligations, ["_tag", "version", "evaluationId", "at", "outcome", "obligationIds"]],
+    [
+      "an obligation record with its identity keys passed as undefined",
+      bareObligations,
+      ["_tag", "version", "evaluationId", "at", "outcome", "obligationIds"],
+    ],
+    [
+      "an obligation record with subjectId, action and resourceId",
+      goldenObligationsFull,
+      ["_tag", "version", "evaluationId", "at", "outcome", "obligationIds", "subjectId", "action", "resourceId"],
+    ],
+  ];
+  for (const [name, record, keys] of cases) {
+    it(`${name}: today's ordered keys, none undefined`, () => {
+      const value = jsonOf(record);
+      assert.deepStrictEqual(Object.keys(value), keys);
+      assert.deepStrictEqual(
+        Object.entries(value).filter(([, v]) => v === undefined),
+        [],
+      );
+    });
+  }
 });
