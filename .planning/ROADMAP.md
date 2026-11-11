@@ -357,11 +357,11 @@ Plans:
   1. A 12-row table test covers every (choice × ports × capture) combination.
   2. The session no longer inspects a source variant's `_tag`; `resolveSource`/`sourceOptions` are gone.
   3. Each Live run captures with its own recorder (pinned).
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 Plans:
 - [x] 24-01 (W1): Mutation baseline; pin the per-run recorder; RED 12-row `prepareSource` table in its own file
-- [ ] 24-02 (W2): `prepareSource` with a closed availability table; the session stores what it returns; availability tests move
+- [x] 24-02 (W2): `prepareSource` with a closed availability table; the session stores what it returns; availability tests move
 - [ ] 24-03 (W3): Records (ADR-050 amendment, ADR-QD-136 unused, BEH-QD-455, BEH-QD-220/322 corrected, CCR-QD-414, changeset), `pnpm check:pr`
 
 ### Phase 25: Session-only Simulator
