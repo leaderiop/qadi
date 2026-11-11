@@ -8,15 +8,15 @@
  * `scripts/check-house-style.mjs`'s `sink-read-once` rule refuses a second
  * read of the service (ADR-QD-044, ADR-QD-100).
  *
- * `failedRecord`, `decidedRecord` and `obligationRecordFor` are the three
- * projections of a {@link Question} into a record, so no record can disagree
- * with the question it reports (ADR-QD-100, ADR-QD-105, ARCH-54).
+ * `decisionRecordFor` and `obligationRecordFor` are the two projections of a
+ * {@link Question} into a record, so no record can disagree with the question
+ * it reports (ADR-QD-100, ADR-QD-105, ARCH-54, ARCH-71).
  */
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import type { Allow } from "./Decision.ts";
 import { DecisionRecord, ObligationRecord } from "./DecisionRecord.ts";
-import type { Decided, DecisionOutcome, Failed, ObligationOutcome, SinkRecord } from "./DecisionRecord.ts";
+import type { DecisionOutcome, ObligationOutcome, SinkRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 import type { CacheOutcome } from "./EvaluationMetrics.ts";
 import type { Question } from "./Question.ts";
@@ -53,44 +53,6 @@ export const sinkEmitter: Effect.Effect<(record: SinkRecord) => Effect.Effect<vo
       ? (record) => Effect.catchCause(sink.value.record(record), () => Effect.void)
       : () => Effect.void,
 );
-
-/**
- * Projects a {@link Question} and a {@link Stamp} into a decision record's
- * request half, so the record cannot disagree with what was asked.
- *
- * `maxDepth` is deliberately not on the wire (ADR-QD-096). Two arities rather
- * than an options bag: this runs once per evaluation, and a `Failed` record
- * must leave `cache` absent (not `undefined`-valued) — it says nothing about
- * the cache — which an explicit pair of constructors states without a spread.
- */
-export const failedRecord = (question: Question, stamp: Stamp, outcome: Failed): DecisionRecord =>
-  new DecisionRecord({
-    evaluationId: stamp.evaluationId,
-    at: stamp.at,
-    subjectId: question.subject.id,
-    policy: question.policy,
-    resource: question.resource,
-    action: question.action,
-    outcome,
-  });
-
-/** The record of a decided evaluation: `failedRecord`'s request half plus how the cache answered. */
-export const decidedRecord = (
-  question: Question,
-  stamp: Stamp,
-  outcome: Decided,
-  cache: CacheOutcome | undefined,
-): DecisionRecord =>
-  new DecisionRecord({
-    evaluationId: stamp.evaluationId,
-    at: stamp.at,
-    subjectId: question.subject.id,
-    policy: question.policy,
-    resource: question.resource,
-    action: question.action,
-    cache,
-    outcome,
-  });
 
 /**
  * Projects a {@link Question}, a {@link Stamp} and an outcome into the decision
