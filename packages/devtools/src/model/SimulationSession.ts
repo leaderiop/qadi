@@ -206,7 +206,10 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
   /** The chosen policy and the sighting it was chosen from. A value, never an index. */
   let held: PolicySighting | undefined = init?.seed === undefined ? pinHead(sightings, undefined) : undefined;
   let seedEntry: TimelineEntry | undefined;
-  let seeded: { readonly policy: Policy; readonly unseeded: ReadonlyArray<UnseededField> } | undefined;
+  /** The replayed row's policy, held with the row it came from so neither exists without the other. */
+  let seeded:
+    | { readonly entry: TimelineEntry; readonly policy: Policy; readonly unseeded: ReadonlyArray<UnseededField> }
+    | undefined;
   let draft: SimulationInput = blank;
   let resourceText: ResourceText = { text: "", error: undefined };
   let sourceChoice: SourceChoice = "Fixtures";
@@ -222,8 +225,8 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
   const retired: Array<Fiber.Fiber<unknown, unknown>> = [];
 
   const policyChoice = (): PolicyChoice => {
-    if (seeded !== undefined && seedEntry !== undefined) {
-      return { _tag: "Seeded", entry: seedEntry, policy: seeded.policy, unseeded: seeded.unseeded };
+    if (seeded !== undefined) {
+      return { _tag: "Seeded", entry: seeded.entry, policy: seeded.policy, unseeded: seeded.unseeded };
     }
     const resolved = resolveHeld(sightings, held, sameSighting);
     return Match.value(resolved).pipe(
@@ -369,8 +372,9 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
     const mine = generation;
     yield* reap();
     // A command that moved the session while teardown ran owns what happens next.
-    // Everything below reads the session after this last yield, so a ports layer
-    // swapped during teardown can never contribute a recorder or a capture.
+    // Past this guard nothing moved since `choice` was read, and the source, ports,
+    // capture and clock are read after the last yield, so a ports layer swapped
+    // during teardown can never contribute a recorder or a capture.
     if (mine !== generation) return;
 
     const question: SimulationQuestion = {
@@ -441,12 +445,13 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
   /** Seeds from `entry` unconditionally: `seed` guards it, `replay` does not. */
   const reseed = (entry: TimelineEntry | undefined): void => {
     seedEntry = entry;
-    const replay = entry === undefined ? undefined : replayInput(entry);
-    if (replay?._tag === "Replayable") {
-      seeded = { policy: replay.policy, unseeded: replay.unseeded };
-      draft = replay.input;
-    } else {
-      seeded = undefined;
+    seeded = undefined;
+    if (entry !== undefined) {
+      const replay = replayInput(entry);
+      if (replay._tag === "Replayable") {
+        seeded = { entry, policy: replay.policy, unseeded: replay.unseeded };
+        draft = replay.input;
+      }
     }
     resourceText = resourceTextOf(draft);
     pin();

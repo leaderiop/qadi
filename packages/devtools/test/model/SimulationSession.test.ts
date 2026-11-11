@@ -463,8 +463,8 @@ describe("a result belongs to the question it answered", () => {
       yield* Fiber.join(second);
       yield* Fiber.join(first);
       const after = session.getSnapshot();
-      // Either the run was dropped, or it is shown as answering another question.
-      assert.isTrue(after.run._tag === "Idle" || after.stale);
+      // The replay moved the generation before the waiting run read it, so the run never started.
+      assert.strictEqual(after.run._tag, "Idle");
       assert.isUndefined(after.baseline);
     }));
 
