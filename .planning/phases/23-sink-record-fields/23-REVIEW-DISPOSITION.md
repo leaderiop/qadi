@@ -29,15 +29,15 @@ findings:
     title: "`SinkRecord.bench.ts` restates the field list the phase exists to state once"
 open: 0
 total: 6
-recorded: 2026-11-11T05:46:38.461Z
+recorded: 2026-11-11T05:49:28.738Z
 ---
 
 # Phase 23: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| IN-04 | info | fixed | 23-REVIEW-FIX.md |
-| IN-05 | info | fixed | 23-REVIEW-FIX.md |
+| IN-04 | info | fixed | 23-REVIEW-FIX.md (not in the current review) |
+| IN-05 | info | fixed | 23-REVIEW-FIX.md (not in the current review) |
 | WR-01 | warning | fixed | 23-REVIEW-FIX.md (not in the current review) |
 | IN-01 | info | fixed | 23-REVIEW-FIX.md (not in the current review) |
 | IN-03 | info | fixed | 23-REVIEW-FIX.md (not in the current review) |
