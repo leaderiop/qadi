@@ -208,7 +208,9 @@ export const retryCountingAttempts = <A, E>(
       Effect.tapError(() => Metric.update(portRetriesTotal, port)),
       Effect.retry(schedule),
       Effect.ensuring(
-        Effect.flatMap(Ref.get(attempts), (n) => Effect.annotateCurrentSpan(encodeSpan(attemptsStruct, { attempts: n }))),
+        Effect.flatMap(Ref.get(attempts), (n) =>
+          Effect.annotateCurrentSpan(encodeSpan(attemptsStruct, { attempts: n })),
+        ),
       ),
     );
   });

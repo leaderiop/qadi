@@ -356,7 +356,8 @@ export interface SignatureInput {
 export const signatureHistoryFromSignatures = (
   signatures: ReadonlyArray<SignatureInput>,
 ): Layer.Layer<SignatureHistory> => {
-  const pairKey = (subjectId: SubjectId, resourceId?: ResourceId) => signatureHistoryPort.key([{ subjectId, resourceId }]);
+  const pairKey = (subjectId: SubjectId, resourceId?: ResourceId) =>
+    signatureHistoryPort.key([{ subjectId, resourceId }]);
   const keyed = Result.all(
     signatures.map((input) =>
       Result.map(
@@ -400,7 +401,8 @@ export const signatureHistoryFromSignatures = (
         ),
         {
           onSuccess: Effect.succeed,
-          onFailure: (refusal) => Effect.fail(signatureHistoryPort.failure([query], describeKeyRefusal(refusal))),
+          onFailure: (refusal) =>
+            Effect.fail(signatureHistoryPort.failure([query], describeKeyRefusal(refusal))),
         },
       ),
   });
