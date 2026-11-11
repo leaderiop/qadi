@@ -11,7 +11,7 @@ import { attributeResolverPort } from "../src/AttributeResolver.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
 import { customPredicatePort } from "../src/CustomPredicate.ts";
 import { decisionHistoryPort } from "../src/DecisionHistory.ts";
-import { AttributeResolveError } from "../src/Errors.ts";
+import { AttributeResolveError, MissingResourceId } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import {
   askActedAny,
@@ -550,21 +550,29 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
  * "Annotate the question, then validate" (D-07, ADR-QD-077): a resource-scoped
  * read with no usable resource id still leaves a span saying what it was asked,
  * fails with `MissingResourceId`, never reaches the port and counts no call.
+ * A missing id leaves only the port span (ADR-QD-134): no nested helper span
+ * joins it, on any of the three scoped ports.
  */
 describe("a missing resource id still leaves its question on the span (D-07)", () => {
   const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
 
+  /** The ports whose reads are resource-scoped; a fourth is a compile error in `MISSING`. */
+  type ScopedPort = "DecisionHistory" | "RelationshipResolver" | "SignatureHistory";
+
   interface Missing {
     readonly name: string;
     readonly span: string;
+    /** The leaf's own name (event, relation, meaning): what `MissingResourceId.relation` carries. */
+    readonly asked: string;
     readonly read: Effect.Effect<unknown, unknown, PortServices>;
     readonly question: Readonly<Record<string, string | number | boolean>>;
   }
 
-  const MISSING: ReadonlyArray<Missing> = [
-    {
+  const MISSING: { readonly [K in ScopedPort]: Missing } = {
+    DecisionHistory: {
       name: "askActedForResource",
       span: decisionHistoryPort.span,
+      asked: "approved",
       read: askActedForResource("evaluate", alice, "approved", undefined),
       question: {
         "qadi.subject_id": "alice",
@@ -573,9 +581,10 @@ describe("a missing resource id still leaves its question on the span (D-07)", (
         "qadi.interpreter": "evaluate",
       },
     },
-    {
+    RelationshipResolver: {
       name: "askRelationship",
       span: relationshipResolverPort.span,
+      asked: "owner",
       read: askRelationship(alice, "owner", undefined, 2),
       question: {
         "qadi.subject_id": "alice",
@@ -584,9 +593,10 @@ describe("a missing resource id still leaves its question on the span (D-07)", (
         "qadi.interpreter": "evaluate",
       },
     },
-    {
+    SignatureHistory: {
       name: "askSignature",
       span: signatureHistoryPort.span,
+      asked: "approved",
       read: askSignature(alice, "approved", "manager", "Resource", undefined),
       question: {
         "qadi.subject_id": "alice",
@@ -596,9 +606,9 @@ describe("a missing resource id still leaves its question on the span (D-07)", (
         "qadi.interpreter": "evaluate",
       },
     },
-  ];
+  };
 
-  for (const row of MISSING) {
+  for (const row of Record.values(MISSING)) {
     it.effect(row.name, () =>
       Effect.gen(function* () {
         const spans: Array<Tracer.Span> = [];
@@ -631,12 +641,18 @@ describe("a missing resource id still leaves its question on the span (D-07)", (
             assert.isTrue(Result.isFailure(result));
             if (Result.isFailure(result)) {
               assert.strictEqual(Object.getOwnPropertyDescriptor(result.failure, "_tag")?.value, "MissingResourceId");
+              if (result.failure instanceof MissingResourceId) {
+                assert.strictEqual(result.failure.relation, row.asked);
+              } else {
+                assert.fail("the failure is not a MissingResourceId");
+              }
             }
             return yield* Metric.value(portCallsTotal);
           }),
         );
         const attributes = Object.fromEntries(spans.find((s) => s.name === row.span)?.attributes ?? []);
         assert.deepStrictEqual(attributes, row.question);
+        assert.deepStrictEqual(spans.map((s) => s.name).sort(), [row.span]);
         assert.deepStrictEqual(calls, []);
         assert.deepStrictEqual(nonZero(portCalls), []);
       }));
