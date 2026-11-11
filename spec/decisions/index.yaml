@@ -410,3 +410,7 @@ entries:
     file: "132-a-shared-computation-is-joinable-only-while-awaited.md"
     title: "A shared computation is joinable only while somebody waits on it"
     status: "Accepted — reads ADR-QD-031"
+  - id: "ADR-QD-133"
+    file: "133-a-port-request-is-derived-from-its-wire-question.md"
+    title: "A port's request is derived from its wire question"
+    status: "Accepted — amends ADR-QD-094; reads ADR-QD-107, ADR-QD-109"

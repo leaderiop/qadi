@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-107                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — amends ADR-QD-094, ADR-QD-051       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-08): amendment — asked leaves PortWire for the description's serving facet; admission and servingFor derive from it (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.1 (2026-11-08): amendment — the span projections leave PortWire; a served span equals a local one; a throwing store is Unavailable (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
+> | Change History | 1.3 (2026-11-11): amendment — toQuestion names every member and an absent one is dropped before encoding (ARCH-69, ADR-QD-133, CCR-QD-411)<br>1.2 (2026-11-08): amendment — asked leaves PortWire for the description's serving facet; admission and servingFor derive from it (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.1 (2026-11-08): amendment — the span projections leave PortWire; a served span equals a local one; a throwing store is Unavailable (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
 
 ---
 
@@ -150,3 +150,10 @@ the wire. See [ADR-QD-109](109-a-ports-span-is-projected-once-and-every-read-is-
 which policy leaf asks which port, under what name, is stated once on the port. `PortServing`'s shape
 is unchanged (it moved to `PortServing.ts`). See
 [ADR-QD-114](114-a-port-states-what-it-serves.md).
+
+## Amendment (2026-11-11, ADR-QD-133, CCR-QD-411)
+
+`toQuestion` names every member of the question (an absent optional one is `undefined`, dropped by
+`portWire` before the strict encode), so a question that leaves a member out does not compile and the
+wire bytes are unchanged. A derived port's request key is `canonicalKey` over that question. See
+[ADR-QD-133](133-a-port-request-is-derived-from-its-wire-question.md).
