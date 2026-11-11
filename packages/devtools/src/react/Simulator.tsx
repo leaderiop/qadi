@@ -34,7 +34,7 @@ import type {
   SimulationSnapshot,
 } from "../model/SimulationSession.ts";
 import type { SourceChoice, SourceOption, SourceRefusal } from "../model/SimulationSource.ts";
-import { verdictOfOutcome } from "../model/Verdict.ts";
+import { FAILURE_IS_NOT_A_DENIAL, verdictOfOutcome } from "../model/Verdict.ts";
 import { FieldsPanel, ObligationList } from "./DecisionPanels.tsx";
 import { PolicyTree } from "./PolicyTree.tsx";
 import { useSimulationSnapshot } from "./useSimulationSession.ts";
@@ -441,8 +441,7 @@ const SimulatedFailure: FC<{ readonly error: EvaluationError }> = ({ error }) =>
       {/* As screen 2: a failure has no trace, so there is no requirement
           tree — and an empty one would read as "nothing was required",
           which reads as "allowed" (INV-QD-006). */}
-      A lookup this evaluation depended on failed, so nothing was decided.
-      This is not a denial.
+      {FAILURE_IS_NOT_A_DENIAL}
     </p>
   </div>
 );

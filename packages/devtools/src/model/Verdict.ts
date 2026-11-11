@@ -22,6 +22,16 @@ import type { NodeStatus } from "./Inspect.ts";
 import type { TimelineEntry } from "./Timeline.ts";
 
 /**
+ * What a panel says where a failed evaluation has no verdict to show.
+ *
+ * An `EvaluationError` is not a denial ([INV-QD-006](../../../../spec/invariants.md)),
+ * and both the inspector and the simulator show this sentence, so the wording
+ * lives here and cannot drift between screens (ARCH-77).
+ */
+export const FAILURE_IS_NOT_A_DENIAL =
+  "A lookup this evaluation depended on failed, so nothing was decided. This is not a denial.";
+
+/**
  * `Unknown` is not a fourth verdict so much as the absence of one: an
  * obligation outcome whose decision never arrived has no verdict to show, and
  * rendering it as anything else would invent a fact.

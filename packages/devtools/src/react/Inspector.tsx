@@ -22,7 +22,7 @@ import {
 } from "../model/Inspect.ts";
 import type { Selection } from "../model/Selection.ts";
 import type { TimelineDecision, TimelineEntry, TimelineOrphan } from "../model/Timeline.ts";
-import { verdictOf } from "../model/Verdict.ts";
+import { FAILURE_IS_NOT_A_DENIAL, verdictOf } from "../model/Verdict.ts";
 import { button, colors, heading, muted, panel } from "./theme.ts";
 import { FieldsPanel, ObligationList } from "./DecisionPanels.tsx";
 import { PolicyTree } from "./PolicyTree.tsx";
@@ -174,10 +174,7 @@ const FailurePanel: FC<{ readonly error: EvaluationError }> = ({ error }) => (
   <section style={{ ...panel, borderColor: colors.error }} data-testid="qadi-failure">
     <div style={{ ...heading, color: colors.error }}>error — no verdict was reached</div>
     <div data-testid="qadi-failure-tag">{error._tag}</div>
-    <p style={{ ...muted, marginTop: 6, marginBottom: 0 }}>
-      A lookup this evaluation depended on failed, so nothing was decided. This
-      is not a denial.
-    </p>
+    <p style={{ ...muted, marginTop: 6, marginBottom: 0 }}>{FAILURE_IS_NOT_A_DENIAL}</p>
   </section>
 );
 
