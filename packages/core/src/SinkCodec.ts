@@ -181,21 +181,22 @@ const outcomeOf: (outcome: DecisionOutcome) => OutcomeWire = Match.type<Decision
 );
 
 /**
- * `value` shallow-copied without its own keys whose value is `undefined`.
+ * Deletes from `fresh` its own keys whose value is `undefined`, and returns it.
  *
  * The wire never carried such a key (a property whose value is `undefined`
  * crosses as absent), and a `Schema.Struct` encode writes one it is handed, so
  * {@link project} drops them here instead of listing the optional fields: the
  * list is `SinkRecordFields.ts`'s, and this names none of it (ARCH-71, ADR-QD-135).
- * Top level only; a nested `undefined` (inside `resource`) is not touched, as
- * before. Written with `Reflect` so no key is read or deleted through a cast.
+ * **Mutates its argument, so call it only on an object just built** (a spread
+ * literal, as {@link project} does): that saves a second copy on a path every
+ * sink runs per record. Top level only; a nested `undefined` (inside `resource`)
+ * is not touched, as before.
  */
-const withoutUndefined = <A extends object>(value: A): A => {
-  const copy = { ...value };
-  for (const key of Reflect.ownKeys(copy)) {
-    if (Reflect.get(copy, key) === undefined) Reflect.deleteProperty(copy, key);
+const omitUndefined = <A extends object>(fresh: A): A => {
+  for (const key in fresh) {
+    if (fresh[key] === undefined) delete fresh[key];
   }
-  return copy;
+  return fresh;
 };
 
 /**
@@ -205,7 +206,7 @@ const withoutUndefined = <A extends object>(value: A): A => {
  * other field is the record's own, spread whole, so this names no envelope field
  * and a field added to `SinkRecordFields.ts` crosses with no edit here (ARCH-71,
  * ADR-QD-135). The struct's encode writes the keys in its own order and drops any
- * key it does not declare; {@link withoutUndefined} leaves out an optional key
+ * key it does not declare; {@link omitUndefined} leaves out an optional key
  * whose value is `undefined`.
  *
  * `Match.tagsExhaustive` over `SinkRecord`, not a ternary on `record._tag`
@@ -215,9 +216,9 @@ const withoutUndefined = <A extends object>(value: A): A => {
  */
 const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>().pipe(
   Match.tagsExhaustive({
-    Obligations: (record) => withoutUndefined({ ...record, version: 2 as const }),
+    Obligations: (record) => omitUndefined({ ...record, version: 2 as const }),
     Decision: (record) =>
-      withoutUndefined({ ...record, version: 2 as const, outcome: outcomeOf(record.outcome) }),
+      omitUndefined({ ...record, version: 2 as const, outcome: outcomeOf(record.outcome) }),
   }),
 );
 
