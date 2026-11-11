@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-047                                   |
-> | Revision       | 1.10                                            |
+> | Revision       | 1.11                                            |
 > | Effective Date | 2026-10-07                                     |
-> | Status         | Accepted; amended 2026-10-07 (sampling is the model's), 2026-10-08 (the feed, a supplied reading, the interface), 2026-11-09 (the explorer's state is model too), 2026-11-10 (the stream's prelude rules are core's), 2026-11-10 (the simulator's fields are described once), 2026-11-10 (the dock's state is model too; replay is a command) |
+> | Status         | Accepted; amended 2026-10-07 (sampling is the model's), 2026-10-08 (the feed, a supplied reading, the interface), 2026-11-09 (the explorer's state is model too), 2026-11-10 (the stream's prelude rules are core's), 2026-11-10 (the simulator's fields are described once), 2026-11-10 (the dock's state is model too; replay is a command), 2026-11-11 (the simulator is a view of its session; ARCH-20 D-20-b superseded by ADR-QD-137) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.10 (2026-11-10): amendment — the dock's tab, filters, selection and replay are DockSession; replay is a SimulationSession command that always re-seeds, reversing ARCH-20 D-20-g for replay (ARCH-63, BEH-QD-389, BEH-QD-390, INV-QD-107, CCR-QD-405)<br>1.9 (2026-11-10): amendment — the simulator's input fields are described once in SimulationFields.ts, and the session's chip commands and form reading are derived from it; the chip typing buffer stays in the view (ARCH-61, lost ARCH-48, INV-QD-257, CCR-QD-400)<br>1.8 (2026-11-10): cross-reference — the stream's prelude rules are @qadi/core's decodeDecisionStream; sourceFromEventSource is the EventSource adapter over it, signature unchanged (ARCH-60, CCR-QD-397)<br>1.7 (2026-11-09): amendment — the policy explorer's state is `ExplorerSession` and the role viewer's choice a `HeldChoiceStore`, both owned by `DevtoolsDock` and package-private (ARCH-58, BEH-QD-337, INV-QD-107, CCR-QD-394)<br>1.6 (2026-10-08): amendment — the model's interface is its stores, the host wiring and the timeline readings; a screen's mechanics and the panels are package-private (ARCH-40, CCR-QD-321)<br>1.4 (2026-10-08): amendment — a supplied reading is one value, `DiagnosticsReading`, merged by `mergeReading` (ARCH-44, CCR-QD-241)<br>1.3 (2026-10-08): amendment — under a `QadiProvider`, the layer the dock builds is the provider's own, handed by `@qadi/react`'s `useDevtoolsFeed` (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.11 (2026-11-11): amendment — the simulator is a view of its session (setAction, choosePolicyAt, policyMenu, cost, baselineReading and a run's reading are the session's); the run lifecycle is ADR-QD-137's, which supersedes ARCH-20 D-20-b (ARCH-73, BEH-QD-460, CCR-QD-415)<br>1.10 (2026-11-10): amendment — the dock's tab, filters, selection and replay are DockSession; replay is a SimulationSession command that always re-seeds, reversing ARCH-20 D-20-g for replay (ARCH-63, BEH-QD-389, BEH-QD-390, INV-QD-107, CCR-QD-405)<br>1.9 (2026-11-10): amendment — the simulator's input fields are described once in SimulationFields.ts, and the session's chip commands and form reading are derived from it; the chip typing buffer stays in the view (ARCH-61, lost ARCH-48, INV-QD-257, CCR-QD-400)<br>1.8 (2026-11-10): cross-reference — the stream's prelude rules are @qadi/core's decodeDecisionStream; sourceFromEventSource is the EventSource adapter over it, signature unchanged (ARCH-60, CCR-QD-397)<br>1.7 (2026-11-09): amendment — the policy explorer's state is `ExplorerSession` and the role viewer's choice a `HeldChoiceStore`, both owned by `DevtoolsDock` and package-private (ARCH-58, BEH-QD-337, INV-QD-107, CCR-QD-394)<br>1.6 (2026-10-08): amendment — the model's interface is its stores, the host wiring and the timeline readings; a screen's mechanics and the panels are package-private (ARCH-40, CCR-QD-321)<br>1.4 (2026-10-08): amendment — a supplied reading is one value, `DiagnosticsReading`, merged by `mergeReading` (ARCH-44, CCR-QD-241)<br>1.3 (2026-10-08): amendment — under a `QadiProvider`, the layer the dock builds is the provider's own, handed by `@qadi/react`'s `useDevtoolsFeed` (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 ---
 
@@ -133,7 +133,9 @@ chosen source, its capture, its run and the supersede token in component state,
 and four defects sat there where no model test and no mutation run could see
 them. That state is `SimulationSession`, a store of the shape `TimelineStore`
 already is (`subscribe`, `getSnapshot`, synchronous commands) with `run`, `reap`
-and `dispose` as Effects the hook forks; the form's text is `SimulationForm`'s
+and `dispose` as Effects the hook forks (superseded: the run lifecycle is
+[ADR-QD-137](./137-a-devtools-session-owns-its-runs-through-a-scope.md)'s, and `run`
+is a command with no `reap` or `dispose`); the form's text is `SimulationForm`'s
 codec. `useSimulationSession` is the adapter, as `useTimeline` is for the
 timeline, and `DevtoolsDock` owns the session so it outlives a tab. The two
 stores each kept their own small listener closure at the time; extracting the
@@ -323,3 +325,20 @@ a prop fed by the host's subscription ([ADR-QD-080](./080-a-gate-registry-belong
 > ([BEH-QD-390](../behaviors/29-devtools-simulator.md#beh-qd-390-replay-is-an-act)).
 > No new ADR: ARCH-20 had none of its own, its decisions are amendments to this record,
 > and this amends the same boundary (ARCH-63).
+
+> **Amended 2026-11-11 (CCR-QD-415): the simulator is a view of its session.** The Simulator
+> had two session paths (`OwnedSimulator` built its own, `SharedSimulator` took the dock's)
+> and, beside them, computed in the view what the dropdown selects, a parse of the
+> select's value, the action's codec, the run's reading, the cost sentence and the
+> baseline summary, none of it under the model's mutation gate (ARCH-73). It now takes
+> `{ session }` and nothing else, and the session owns those readings (`policyMenu`,
+> `cost`, `baselineReading` and a finished run's `reading`) and the commands the view
+> dispatches (`setAction`, `choosePolicyAt`). The screen renders them and computes none of
+> it ([BEH-QD-460](../behaviors/29-devtools-simulator.md#beh-qd-460-the-simulator-renders-its-session-and-computes-nothing)).
+>
+> **The run lifecycle is not decided here.** It is
+> [ADR-QD-137](./137-a-devtools-session-owns-its-runs-through-a-scope.md)'s, which
+> **supersedes ARCH-20 D-20-b** ("`session.run` is an Effect, the hook forks"): the session
+> is built in a scope, owns its runs through a `FiberHandle`, and has no `reap`, `hasRetired`
+> or `dispose`. `useOwnedSimulationSession` and `useSimulationSession` therefore build the
+> session in a scope a component owns and return `undefined` until it exists.
