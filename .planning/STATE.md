@@ -4,17 +4,17 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 22
 current_phase_name: One scoped port read
-status: executing
-stopped_at: Completed 22-03-PLAN.md
-last_updated: "2026-11-11T02:59:14.135Z"
+status: verifying
+stopped_at: Completed 22-04-PLAN.md
+last_updated: "2026-11-11T03:19:08.159Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 22 execution started
-state_head: d1f67df9267fe479db4f8def22f4548a483c1810
+state_head: 33b5427084ab9f209055b10176d76b367ddc00cd
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 37
-  completed_plans: 8
+  completed_plans: 9
   percent: 11
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 Phase: 22 (One scoped port read) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-11 — Phase 22 execution started
 
 ## Performance Metrics
@@ -101,6 +101,7 @@ Last activity: 2026-11-11 — Phase 22 execution started
 | Phase 22 P01 | 3 min | 1 tasks | 2 files |
 | Phase 22 P02 | 3 min | 3 tasks | 4 files |
 | Phase 22 P03 | 70min | 3 tasks | 23 files |
+| Phase 22 P04 | 17 min | 3 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -117,6 +118,8 @@ Last activity: 2026-11-11 — Phase 22 execution started
 - [Phase 22]: D-05 = state once: leaf->request mapping stated once on each port description (asks); reads and servingFor derive from it; ADR-QD-134 records the override
 - [Phase 22]: 22-02: negative tstyche call pins over Effect-returning reads use a result-dropping Params<F> alias (a bare call is a floating-effect diagnostic, so it reads as not callable and could never be RED)
 - [Phase 22]: PortDescription carries exact per-port Asks (LeafRequests<P>) so d.asks[tag] correlates without a cast; askActed overloaded on AnyActedLeaf to keep toPredicate's error type unchanged
+- [Phase 22]: ADR-QD-134 records D-02 = A and D-05 = state once, quoted from _DECISIONS-v1.2.md with the standing instruction; D-05 overrides the planner's earlier choice
+- [Phase 22]: Predicate.ts Folded is { value } | undefined, removing its one equivalent mutant so the file's mutation score holds at its phase base
 
 ### Pending Todos
 
@@ -139,8 +142,8 @@ Last activity: 2026-11-11 — Phase 22 execution started
 
 ## Session Continuity
 
-Last session: 2026-11-11T02:59:14.066Z
-Stopped at: Completed 22-03-PLAN.md
+Last session: 2026-11-11T03:19:08.090Z
+Stopped at: Completed 22-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

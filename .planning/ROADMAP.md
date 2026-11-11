@@ -325,13 +325,13 @@ Plans:
   1. One parameterised test over the three descriptions pins the chosen trace shape for a missing id, and `MissingResourceId`'s `relation`.
   2. `UNTRACED_BUDGET` and `SWITCH_BUDGET` are unchanged.
   3. The span change is recorded as public behaviour (BEH-QD-227 amended, BEH-QD-445).
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans executed
 
 Plans:
 - [x] 22-01 (W1): Record the two answers from `_DECISIONS-v1.2.md` (D-02 = A; D-05 overridden: the leaf→request mapping stated once)
 - [x] 22-02 (W2): Mutation baseline; RED missing-id table, `PortAccess.tst.ts` and `PortAsks.tst.ts`
 - [x] 22-03 (W3): `asks` on every description (one leaf→request function per tag) drives both the reads and `servingFor`; `LeafRequests` replaces `ServedLeaves`; `readScoped` and reads that take their leaf
-- [ ] 22-04 (W4): Records (ADR-QD-134 overriding D-05 and amending ADR-077/094/109/114, BEH-QD-227/331/445/446, INV-QD-288/289, CCR-QD-412, overview, AGENTS.md §3/§5, core minor changeset), `pnpm check:pr`
+- [x] 22-04 (W4): Records (ADR-QD-134 overriding D-05 and amending ADR-077/094/109/114, BEH-QD-227/331/445/446, INV-QD-288/289, CCR-QD-412, overview, AGENTS.md §3/§5, core minor changeset), `pnpm check:pr`
 
 ### Phase 23: Sink record fields stated once
 **Goal**: Each sink record's fields are stated once, and a field dropped from projection or rebuild cannot compile or pass the round trip silently.
