@@ -28,6 +28,7 @@ import { explain, renderExplanation } from "../src/Explanation.ts";
 import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
 import { questionOf } from "../src/Question.ts";
+import type { QuestionOptions } from "../src/Question.ts";
 import * as P from "../src/Policy.ts";
 import { decodeSinkRecord, encodeSinkRecord } from "../src/SinkCodec.ts";
 import { decisionRecordFor, obligationRecordFor } from "../src/SinkEmit.ts";
@@ -1044,7 +1045,7 @@ describe("decisionRecordFor projects the question (SinkEmit.ts)", () => {
       evaluationId: "eval-7",
       subjectId: makeSubjectId("u"),
       durationMillis: 0,
-      trace: { policyTag: "HasPermission", allowed: true, children: [] },
+      trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
     }),
   });
   const denyOutcome = new Decided({
@@ -1052,15 +1053,18 @@ describe("decisionRecordFor projects the question (SinkEmit.ts)", () => {
       evaluationId: "eval-7",
       subjectId: makeSubjectId("u"),
       durationMillis: 0,
-      trace: { policyTag: "HasPermission", allowed: false, children: [], reason: "no" },
+      trace: {
+        policyTag: "HasPermission",
+        allowed: false,
+        children: [],
+        obligations: [],
+        reason: "no",
+      },
     }),
   });
   const decidedOutcomes: ReadonlyArray<DecisionOutcome> = [allowOutcome, denyOutcome];
   const failed = new Failed({ error: new MissingResource({ attribute: "owner" }) });
-  const shapes: ReadonlyArray<{
-    readonly name: string;
-    readonly options: { readonly resource?: unknown; readonly action?: string };
-  }> = [
+  const shapes: ReadonlyArray<{ readonly name: string; readonly options: QuestionOptions }> = [
     { name: "bare", options: {} },
     { name: "resource only", options: { resource: { id: "doc-1" } } },
     { name: "action only", options: { action: "approve" } },
@@ -1070,7 +1074,7 @@ describe("decisionRecordFor projects the question (SinkEmit.ts)", () => {
 
   const check = (
     outcome: DecisionOutcome,
-    options: { readonly resource?: unknown; readonly action?: string },
+    options: QuestionOptions,
     cache: CacheOutcome | undefined,
   ) => {
     const question = questionOf(allowed, policy, options);
