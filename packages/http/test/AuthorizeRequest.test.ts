@@ -28,10 +28,13 @@ import {
   scriptedPort,
 } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
-import { collectingLogger } from "@qadi/testing";
+import { collectingLogger, collectingTracer } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
+import type * as Tracer from "effect/Tracer";
+import { answerWithResponse, enforceSubject } from "../src/AuthorizeRequest.ts";
 import { authorizeRequest, SubjectExtractionFailed, subjectExtractorBearer } from "../src/index.ts";
 
 const readPermission = permission("devtools", "read");
@@ -177,5 +180,32 @@ describe("authorizeRequest", () => {
       assert.strictEqual((yield* Effect.result(check))._tag, "Success");
       revoked = true;
       assert.strictEqual((yield* Effect.result(check))._tag, "Failure");
+    }));
+});
+
+/**
+ * A span says what was asked and a tracer reads it back (ADR-QD-051), so the
+ * names the edge step and the subject-only mode open are product observability,
+ * not incidental strings: a tracer a deployment wires up filters on them.
+ */
+describe("the request-enforcement spans", () => {
+  it.effect("authorizeRequest runs under the qadi.http.authorizeRequest span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      yield* authorizeRequest(readPermission, readPolicy)(requestAs(ALICE)).pipe(
+        Effect.provide(Layer.merge(standing, collectingTracer(spans))),
+      );
+      assert.deepStrictEqual(spans.map((span) => span.name).filter((name) => name.startsWith("qadi.http.")), [
+        "qadi.http.authorizeRequest",
+      ]);
+    }));
+
+  it.effect("enforceSubject runs under the qadi.http.enforceSubject span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      yield* enforceSubject(answerWithResponse, () => Effect.succeed(HttpServerResponse.empty()))(
+        requestAs(ALICE),
+      ).pipe(Effect.provide(Layer.merge(subjectExtractorBearer(lookupSubject), collectingTracer(spans))));
+      assert.isTrue(spans.some((span) => span.name === "qadi.http.enforceSubject"));
     }));
 });
