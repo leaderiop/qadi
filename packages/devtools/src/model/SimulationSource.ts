@@ -241,7 +241,16 @@ const rowsOf = (have: {
   };
 };
 
-const SOURCE_ORDER: ReadonlyArray<SourceChoice> = ["Fixtures", "Snapshot", "Live"];
+/**
+ * The order the buttons are shown in, closed over `SourceChoice` like `rowsOf`: a
+ * fourth source is a missing key here too (TS2741), and a source cannot appear twice.
+ * Property order is the display order.
+ */
+const SOURCE_ORDER: ReadonlyArray<SourceChoice> = Object.values<SourceChoice>({
+  Fixtures: "Fixtures",
+  Snapshot: "Snapshot",
+  Live: "Live",
+} satisfies { readonly [K in SourceChoice]: K });
 
 /**
  * Turns a source choice into what a run evaluates against, or the reason it cannot.
