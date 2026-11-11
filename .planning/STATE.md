@@ -26,7 +26,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-11)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 27 — Bare route module
+**Current focus:** Phase 28 — Gate registry dependency
 
 ## Current Position
 
@@ -202,6 +202,7 @@ Last activity: 2026-11-11 — Phase 27 complete, transitioned to Phase 28
 - [Phase 24] Review (24-REVIEW-DISPOSITION.md): WR-01/WR-02 fixed (1ad24867, 5977264c); IN-04/05/06 fixed (6c198da1, 12a6631c); IN-01 (build() makes and drops a recorder per commit while Live is chosen) and IN-03 (`Ready` spelled twice) open, info. Both still open after Phase 25 (re-checked 2026-11-11: `prepareSource` is called from build and run; `Ready` still spelled in the union and the `Extract`).
 - [Phase 25] Review (25-REVIEW-DISPOSITION.md): WR-02/WR-03/WR-04 fixed (0a6872c6, df588d1a, bb1dddb8); WR-01 skipped (synchronous-settle race unreachable while `simulate` goes through `DecisionCache`; reopens if a fixture run becomes synchronous); IN-01 (`BaselineCard` blank sentence if `reading` undefined) and IN-02 (stale comments in `Simulator.test.tsx`) open, info. Visual preserve check confirmed by the user ("All good, continue").
 - [Phase 26] Review (26-REVIEW-DISPOSITION.md): WR-01 fixed (0e340791, comments cited planning-only IDs); IN-01 (`useDockSnapshot`/`useExplorerSnapshot`/`useHeldChoiceSnapshot` pass a constant `undefined` run to `useRunningStore`), IN-02 (`DevtoolsDock`'s `nothing` source duplicates the model default; comment names `useTimeline`) and IN-03 (stale "was DevtoolsDock l.N" titles and a 26-05 to-do in `DockModel.test.ts`) open, info. UI review 22/24; the `Activity` remount and pixels are a human check in a real browser.
+- [Phase 27] Review (27-REVIEW-DISPOSITION.md): WR-01..03 fixed (82895714, f304bbc0, a4be4995: ADR-037/043/046 and three `@qadi/core` comments still named `guardRoute` as live); IN-01 (`GuardRoute.ts` "the one the module accepts" now ambiguous) and IN-02 ("lost ARCH-57's probe" typo, moved verbatim) open, info. ROUTE-01/ROUTE-03 delivered by intent (CCR-QD-417). `scripts/spec-revise.mjs` drops its document argument when `--date` is omitted (always pass `--date`; script untouched). Pre-existing stale citation `v4-http-smoke.test.ts:106` (`registerApi`) and a `stryker.http.mjs` comment still place code in `PermissionRegistry.ts`.
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table.
 
@@ -213,4 +214,4 @@ Resume file: None
 
 ## Operator Next Steps
 
-- Plan and execute Phase 27 (Bare route module): /gsd-plan-phase 27 then /gsd-execute-phase 27; then 28..29, re-verify 21..23, audit the milestone
+- Plan and execute Phase 28 (Gate registry dependency): /gsd-plan-phase 28 then /gsd-execute-phase 28 (28-01's decision checkpoint is answered in `_DECISIONS-v1.2.md`); then 29, re-verify 21..23, audit the milestone
