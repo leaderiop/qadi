@@ -468,6 +468,37 @@ describe("a result belongs to the question it answered", () => {
       assert.isUndefined(after.baseline);
     }));
 
+  it.effect("keeps no capture from an environment that was replaced while a run was starting", () =>
+    Effect.gen(function* () {
+      // Same slow-to-cancel resolver: the second Live run waits on the first one's
+      // teardown, and the host swaps the ports layer during that wait.
+      const ports = portsLayer({
+        AttributeResolver: Layer.succeed(AttributeResolver, {
+          name: "slow to cancel",
+          resolve: () =>
+            Effect.sleep("1 second").pipe(
+              Effect.onInterrupt(() => Effect.sleep("100 millis")),
+              Effect.as(9),
+            ),
+        }),
+      });
+      const session = sessionWith(clearance);
+      session.setPorts(ports);
+      session.chooseSource("Live");
+      const first = yield* startRun(session);
+      const second = yield* startRun(session);
+
+      session.setPorts(brokenPorts);
+
+      yield* TestClock.adjust("2 seconds");
+      yield* Fiber.join(second);
+      yield* Fiber.join(first);
+      const after = session.getSnapshot();
+      assert.isUndefined(after.capture);
+      assert.strictEqual(after.run._tag, "Idle");
+      assert.isFalse(after.options.find((option) => option.id === "Snapshot")?.enabled);
+    }));
+
   it.effect("labels the clock the run measured under", () =>
     Effect.gen(function* () {
       const session = sessionWith(hasRole("a"));

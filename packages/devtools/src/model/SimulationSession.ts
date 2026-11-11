@@ -365,6 +365,14 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
     const policy = policyOf(choice);
     if (policy === undefined) return;
 
+    retire();
+    const mine = generation;
+    yield* reap();
+    // A command that moved the session while teardown ran owns what happens next.
+    // Everything below reads the session after this last yield, so a ports layer
+    // swapped during teardown can never contribute a recorder or a capture.
+    if (mine !== generation) return;
+
     const question: SimulationQuestion = {
       policy,
       input: draft,
@@ -375,16 +383,11 @@ export const makeSimulationSession = (init?: SimulationSessionInit): SimulationS
     const { prepared } = prepareSource(sourceChoice, { ports, capture });
     if (prepared._tag === "Refused") {
       // Declined, not replaced: nothing is evaluated.
-      retire();
-      yield* reap();
       run = { _tag: "Refused", question, refusal: prepared.refusal };
       commit();
       return;
     }
 
-    retire();
-    yield* reap();
-    const mine = generation;
     const runClock = clock;
     run = { _tag: "Running", question };
     commit();
