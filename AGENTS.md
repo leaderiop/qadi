@@ -126,7 +126,9 @@ same shape repeats in each of the five port modules (`RelationshipResolver.ts`,
 **A port's wrappers and default are derived from its description, not written
 by hand** (ADR-QD-094). The description states the port's facts once — name,
 method, span, the attributes that span carries, a lens onto its one method, its
-typed-error constructors, its request key and its fail-closed answer — and each
+typed-error constructors and its fail-closed answer; four of the five derive
+their request key and defect from their wire question and failure
+(`makePortDescription`, ADR-QD-133), and `CustomPredicate` states its own — and each
 exported layer is a one-line derivation: `export const decisionHistoryRetrying = retryingPort(decisionHistoryPort)`,
 `export const DecisionHistoryUnknown = nonePort(decisionHistoryPort)`. The
 derivations live in `PortDerivation.ts` (package-private; it absorbed the old
