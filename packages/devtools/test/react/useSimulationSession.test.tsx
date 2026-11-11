@@ -11,7 +11,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { act, renderHook, render, waitFor } from "@testing-library/react";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import { StrictMode } from "react";
+import { Activity, StrictMode, useState } from "react";
 import { AttributeResolver, gte, hasAttribute, portsLayer } from "@qadi/core";
 import { policyLabel } from "../../src/model/Catalogue.ts";
 import type { PolicySighting } from "../../src/model/Catalogue.ts";
@@ -98,6 +98,40 @@ describe("the component that owns a session's scope", () => {
     view.unmount();
     await waitFor(() => assert.strictEqual(tally.interrupted, 1));
     assert.strictEqual(tally.finished, 0);
+  });
+});
+
+describe("a hidden-then-shown tree (React's Activity)", () => {
+  it("never leaves a child holding the closed session its owner replaced", () => {
+    let owned: SimulationSession | undefined;
+    let held: SimulationSession | undefined;
+    // Reads the session once, as `DockFrame`'s `useOwnedDockSession` does.
+    const Child = ({ session }: { readonly session: SimulationSession }) => {
+      const [once] = useState(() => session);
+      held = once;
+      return null;
+    };
+    const Owner = () => {
+      owned = useOwnedSimulationSession({ sightings });
+      return owned === undefined ? null : <Child session={owned} />;
+    };
+    const App = ({ mode }: { readonly mode: "visible" | "hidden" }) => (
+      <Activity mode={mode}>
+        <Owner />
+      </Activity>
+    );
+
+    const view = render(<App mode="visible" />);
+    const first = owned;
+    assert.isDefined(first);
+    assert.strictEqual(held, first);
+
+    view.rerender(<App mode="hidden" />);
+    view.rerender(<App mode="visible" />);
+
+    assert.isDefined(owned);
+    assert.notStrictEqual(owned, first);
+    assert.strictEqual(held, owned);
   });
 });
 

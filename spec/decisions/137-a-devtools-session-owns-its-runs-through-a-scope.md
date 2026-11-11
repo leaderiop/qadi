@@ -5,12 +5,12 @@
 > | Property       | Value                                                                  |
 > | -------------- | ---------------------------------------------------------------------- |
 > | Document ID    | QADI-ADR-137                                                           |
-> | Revision       | 1.0                                                                    |
+> | Revision       | 1.1                                                                    |
 > | Effective Date | 2026-11-11                                                             |
 > | Status         | Accepted — supersedes ARCH-20 D-20-b (an amendment to ADR-QD-047)     |
 > | Author         | Qadi Engineering                                                       |
 > | Classification | Architecture Decision Record                                           |
-> | Change History | 1.0 (2026-11-11): Initial (ARCH-73, CCR-QD-415)                        |
+> | Change History | 1.1 (2026-11-11): useScoped clears its value on cleanup, so a hidden Activity never leaves a child on a closed session (WR-02)<br>1.0 (2026-11-11): Initial (ARCH-73, CCR-QD-415)                        |
 
 ---
 
@@ -79,7 +79,9 @@ number rather than an amendment's paragraph.
    builds the one the screen shows, so a screen never renders a closed session and nothing
    is built during render. The cost is one render with no session: the owning hooks
    (`useOwnedSimulationSession`, `useSimulationSession`) return `undefined` until it exists,
-   and `DevtoolsDock` renders nothing for that pass.
+   and `DevtoolsDock` renders nothing for that pass. The cleanup also clears the value, so
+   a hidden `<Activity>` (which runs the cleanup and later the effect, keeping state)
+   unmounts whatever read the closed session once, and the next session remounts it.
 7. **The rule is general for the package.** A devtools store that owns fibers is built in a
    scope its owner holds. Phase 26's dock model follows it; the timeline's `useRunningStore`
    is the other shape (a source it reads, not a run it owns) and is unchanged.

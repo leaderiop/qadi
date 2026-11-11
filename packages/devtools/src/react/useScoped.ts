@@ -7,7 +7,7 @@
  * cleanup, so StrictMode's simulated unmount closes the first scope and the remount
  * builds a fresh value, and nothing is built during render, where a discarded
  * render would leave a scope open. It is a layout effect so the value exists before
- * the first paint; the one pass before it does sees `undefined`, and a caller
+ * the first paint; a pass with no live value sees `undefined`, and a caller
  * renders nothing for that pass (ADR-QD-137).
  */
 import * as Effect from "effect/Effect";
@@ -24,6 +24,10 @@ export const useScoped = <A>(make: () => Effect.Effect<A, never, Scope.Scope>): 
     // A function value would be taken for an updater.
     setValue(() => built);
     return () => {
+      // A hidden `Activity` runs this cleanup and later the effect again, keeping
+      // state: without clearing it, a child that read the value once would keep the
+      // closed one. Clearing unmounts that child, and the next value remounts it.
+      setValue(undefined);
       Effect.runFork(Scope.close(scope, Exit.void));
     };
     // `make` is read once per mount: later inputs arrive as commands, as
