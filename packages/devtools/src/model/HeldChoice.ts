@@ -21,6 +21,13 @@
  * `makeHeldChoiceStore` is the same rule as a store, for a screen that has
  * nothing else to remember (the role viewer): owned by the dock, so a choice
  * outlives the tab it is shown on (INV-QD-107).
+ *
+ * `makeHeldChoice` is the cell underneath it, and what a session embeds: it
+ * holds the list and the choice and publishes nothing. A session that
+ * embedded the store instead would publish twice per command, once from the
+ * store and once from its own snapshot (DMOD-04, D-08), so the store is the
+ * cell for a screen with nothing else to remember, and a session owns its
+ * own publish around the cell.
  */
 import { makeExternalStore, sameElements } from "./ExternalStore.ts";
 
@@ -79,28 +86,82 @@ export interface HeldChoiceStore<A> {
   readonly choose: (value: A) => void;
 }
 
+/** The value a choice holds, or nothing for `Empty`. */
+export const heldValue = <A>(choice: HeldChoice<A>): A | undefined =>
+  choice._tag === "Empty" ? undefined : choice.value;
+
+/** Where a choice is in the list, or nothing for one that is not listed now. */
+export const heldIndex = <A>(choice: HeldChoice<A>): number | undefined =>
+  choice._tag === "Listed" ? choice.index : undefined;
+
+/**
+ * A list and a choice held from it, with no store around them.
+ *
+ * Each command answers whether it changed anything, so the owner publishes
+ * exactly once per effective command. Nothing is pinned at construction: an
+ * owner that wants the head held calls `pin`, and one that must not (a
+ * simulation seeded from a replayed row) simply does not.
+ */
+export interface HeldChoiceCell<A> {
+  /** The list as it is now. */
+  readonly list: () => ReadonlyArray<A>;
+  /** The value held, or nothing while the default still follows the head. */
+  readonly held: () => A | undefined;
+  /** Where the choice is in the list as it is now. */
+  readonly resolve: () => HeldChoice<A>;
+  /** Replaces the list. False, and nothing changes, for a list of the same elements. Never pins. */
+  readonly setList: (list: ReadonlyArray<A>) => boolean;
+  /** Holds the head once, so the first value shown stays shown. */
+  readonly pin: () => void;
+  /** Holds a value by identity-under-`same`, not by position. False when it is already held. */
+  readonly choose: (value: A) => boolean;
+}
+
+export const makeHeldChoice = <A>(
+  initial: ReadonlyArray<A>,
+  same: (a: A, b: A) => boolean,
+): HeldChoiceCell<A> => {
+  let list = initial;
+  let held: A | undefined;
+  return {
+    list: () => list,
+    held: () => held,
+    resolve: () => resolveHeld(list, held, same),
+    setList: (next) => {
+      if (sameElements(next, list)) return false;
+      list = next;
+      return true;
+    },
+    pin: () => {
+      held = pinHead(list, held);
+    },
+    choose: (value) => {
+      if (held !== undefined && same(held, value)) return false;
+      held = value;
+      return true;
+    },
+  };
+};
+
 export const makeHeldChoiceStore = <A>(
   initial: ReadonlyArray<A>,
   same: (a: A, b: A) => boolean,
 ): HeldChoiceStore<A> => {
-  let list = initial;
-  let held: A | undefined = pinHead(list, undefined);
-  const build = (): HeldChoiceSnapshot<A> => ({ list, choice: resolveHeld(list, held, same) });
+  const cell = makeHeldChoice(initial, same);
+  cell.pin();
+  const build = (): HeldChoiceSnapshot<A> => ({ list: cell.list(), choice: cell.resolve() });
   const store = makeExternalStore(build());
 
   return {
     subscribe: store.subscribe,
     getSnapshot: store.getSnapshot,
     setList: (next) => {
-      if (sameElements(next, list)) return;
-      list = next;
-      held = pinHead(list, held);
+      if (!cell.setList(next)) return;
+      cell.pin();
       store.publish(build());
     },
     choose: (value) => {
-      if (held !== undefined && same(held, value)) return;
-      held = value;
-      store.publish(build());
+      if (cell.choose(value)) store.publish(build());
     },
   };
 };
