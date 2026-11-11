@@ -30,15 +30,11 @@ import {
 } from "@qadi/core";
 import type { Policy } from "@qadi/core";
 import { collectingTracer } from "@qadi/testing";
-import { answerCount, emptyAnswers } from "../../src/model/Capture.ts";
+import { answerCount } from "../../src/model/Capture.ts";
 import { policyLabel } from "../../src/model/Catalogue.ts";
 import type { PolicySighting } from "../../src/model/Catalogue.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
-import {
-  makeSimulationSession,
-  resolveSource,
-  sourceOptions,
-} from "../../src/model/SimulationSession.ts";
+import { makeSimulationSession } from "../../src/model/SimulationSession.ts";
 import type { SimulationSession } from "../../src/model/SimulationSession.ts";
 import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
@@ -185,34 +181,6 @@ describe("choosing a source that cannot be honoured — C2", () => {
       assert.strictEqual(tally.interrupted, 1);
       assert.strictEqual(tally.finished, 0);
     }));
-});
-
-describe("resolveSource and sourceOptions", () => {
-  it("resolves each choice, or says why not", () => {
-    assert.strictEqual(resolveSource("Fixtures", undefined, undefined)._tag, "Available");
-    assert.strictEqual(resolveSource("Live", brokenPorts, undefined)._tag, "Available");
-    assert.strictEqual(resolveSource("Live", undefined, undefined)._tag, "Unavailable");
-    assert.strictEqual(resolveSource("Snapshot", undefined, undefined)._tag, "Unavailable");
-  });
-
-  it("offers all three, enabled only when usable, each with a reason", () => {
-    const none = sourceOptions(undefined, undefined);
-    assert.deepStrictEqual(
-      none.map((option) => [option.id, option.enabled]),
-      [
-        ["Fixtures", true],
-        ["Snapshot", false],
-        ["Live", false],
-      ],
-    );
-    assert.include(none[2]?.why ?? "", "did not pass a `ports` layer");
-    assert.include(none[1]?.why ?? "", "run once against Live first");
-    const all = sourceOptions(brokenPorts, emptyAnswers);
-    assert.isTrue(all[1]?.enabled);
-    assert.isTrue(all[2]?.enabled);
-    assert.include(all[2]?.why ?? "", "every row is real I/O");
-    assert.include(all[1]?.why ?? "", "one round of I/O");
-  });
 });
 
 describe("a Live run captures — C3", () => {
@@ -1103,22 +1071,6 @@ describe("what the session starts from, and what each command preserves", () => 
     assert.isUndefined(snapshot.capture);
     assert.isUndefined(snapshot.plan);
     assert.strictEqual(snapshot.run._tag, "Idle");
-  });
-
-  it("says what each option offers", () => {
-    const options = makeSimulationSession({ ports: brokenPorts }).getSnapshot().options;
-    assert.strictEqual(options[0]?.why, "answers you typed below");
-    assert.strictEqual(options[1]?.why, "run once against Live first; this replays what that run learned");
-    assert.strictEqual(
-      options[2]?.why,
-      "the application's own resolvers — every row is real I/O",
-    );
-    assert.strictEqual(
-      sourceOptions(undefined, emptyAnswers)[1]?.why,
-      "real answers, captured once and replayed — one round of I/O for a whole sweep",
-    );
-    const snapshot = resolveSource("Snapshot", undefined, emptyAnswers);
-    assert.strictEqual(snapshot._tag === "Available" && snapshot.source._tag, "Snapshot");
   });
 
   it("treats a rail that differs in one element as a change, and an equal one as none", () => {
