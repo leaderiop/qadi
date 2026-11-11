@@ -34,7 +34,7 @@ export interface RoleViewerProps {
    * one parent name produces a role granting fewer permissions than its author
    * wrote.
    */
-  readonly unknownParents?: ReadonlyArray<string>;
+  readonly unknownParents?: ReadonlyArray<string> | undefined;
 }
 
 const chip = (own: boolean): CSSProperties => ({

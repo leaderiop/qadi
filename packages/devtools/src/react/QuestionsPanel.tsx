@@ -51,7 +51,7 @@ export interface QuestionsPanelProps {
    * `@qadi/react` counted: the metric is written whether or not a reporter is
    * supplied.
    */
-  readonly hydration?: HydrationActivity;
+  readonly hydration?: HydrationActivity | undefined;
   /**
    * The live guards, usually `useGateInstances()` or `atoms.gates.instances()` from `@qadi/react`.
    *
@@ -60,9 +60,9 @@ export interface QuestionsPanelProps {
    * states are distinguished, because one is a missing prop and the other is a
    * missing prop **on the provider** and they have different fixes.
    */
-  readonly gates?: ReadonlyArray<GateInstanceLike>;
+  readonly gates?: ReadonlyArray<GateInstanceLike> | undefined;
   /** Wired to `useInvalidate`. Absent means the button is not shown. */
-  readonly onInvalidate?: () => void;
+  readonly onInvalidate?: (() => void) | undefined;
 }
 
 const row: CSSProperties = {
