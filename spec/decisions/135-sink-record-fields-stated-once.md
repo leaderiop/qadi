@@ -183,7 +183,7 @@ call and is not taken here. A wide policy's encode, where the walk dominates, do
 ## Consequences
 
 - **The wire is byte-identical, no version moved, and no public name was added or removed.**
-  `SinkRecordFields.ts` is not in the barrel; `spec/overview.md` is unchanged and gate 13 passes.
+  `SinkRecordFields.ts` is not in the barrel; `spec/overview.md` is unchanged and gate 13 (`pnpm spec:api`) passes.
 - **A sink now receives a `DecisionRecord` with no own `resource`, `action` or `cache` key where it used to
   receive `undefined`-valued ones.** A sink that reads `record.action` sees `undefined` either way; one that
   tests `Object.hasOwn(record, "action")`, enumerates keys, or compares with `Equal.equals` against a record
