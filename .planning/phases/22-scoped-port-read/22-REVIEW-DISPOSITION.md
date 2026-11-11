@@ -13,23 +13,23 @@ findings:
     title: "Traceability row claims a test file pins something it does not"
   - id: IN-01
     severity: info
-    disposition: open
+    disposition: fixed
     title: "`readAttribute`/`servingFor` and `Walk.evaluateHasRelationship` read the resource id two different ways"
   - id: IN-02
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Stale comment in `scripts/check-house-style.mjs` names removed reads and a deleted helper"
   - id: IN-03
     severity: info
-    disposition: open
+    disposition: fixed
     title: "`Predicate.ts` re-spells `Extract<Policy, …>` where this phase introduced `LeafOf`"
   - id: IN-04
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Doc-comment shape and wrapping drift"
   - id: IN-05
     severity: info
-    disposition: open
+    disposition: fixed
     title: "`one-port-read.md` changeset appends a user-visible span removal under a \"Not marked Breaking\" paragraph"
 ---
 
@@ -51,4 +51,4 @@ WR-02 is a one-row correction in `spec/traceability.md`.
   usable resource sites for Resource- and Any-scoped leaves (mutation-checked). INV-QD-288 now says
   which port is structural and which rest on the shared scope test.
 - **WR-02 → fixed** (`d4d62133`). The `PortServing.tst.ts` traceability row says what it pins.
-- IN-01..IN-05 stay open (out of `critical_warning` scope).
+- IN-01..IN-05 → fixed in a second pass (`--fix --all`): IN-01 `3371400e`, IN-02 `c76c3595`, IN-03 `2e4afe54`, IN-04 `93f93cff`, IN-05 `9e2b90bc`.
