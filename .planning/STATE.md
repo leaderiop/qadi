@@ -140,7 +140,7 @@ Last activity: 2026-11-11 — Phase 22 complete, transitioned to Phase 23
 - Devtools replay: the other four ports' `none` answers still grant under `not(...)` on a capture miss (INV-QD-007 fail-open). Flipping each is one word in Capture.ts's `UNSEEN_REQUEST_IS_AN_OUTAGE`; needs a decision.
 - Write requirement lines as explicit ID lists, never ranges like `XC-01..05`: `phase.complete` cannot parse ranges.
 - Open review findings carried from v1.0 (warning/info): 01 WR-02/WR-03/IN-03; 02 IN-01..07; 04 IN-01..03; 05 WR-01/IN-01/IN-02; 07 IN-01..03; 09 IN-01. 01 and 08 VALIDATION.md files are still `draft`.
-- [Phase 22] Review findings (22-REVIEW-DISPOSITION.md): all seven fixed (WR-01 23e54421, WR-02 d4d62133, IN-01..05 3371400e..9e2b90bc). Phase 21's WR-01/WR-02/IN-01..04 also still open.
+- [Phase 22] Review findings (22-REVIEW-DISPOSITION.md): all seven fixed (WR-01 23e54421, WR-02 d4d62133, IN-01..05 3371400e..9e2b90bc). Phase 21's six findings also fixed (f0977945..7144dfba; 21-REVIEW-DISPOSITION.md).
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table.
 
 ## Session Continuity
