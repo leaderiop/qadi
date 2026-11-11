@@ -4,18 +4,18 @@ milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
 current_phase: 25
 current_phase_name: Session-only Simulator
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 25-03-PLAN.md
-last_updated: "2026-11-11T07:22:34.235Z"
+stopped_at: Completed 25-04-PLAN.md
+last_updated: "2026-11-11T07:27:30.353Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 24 complete, transitioned to Phase 25
-state_head: 9d28930148c0a2d089db6088754d6b6039ec14ab
+state_head: 0db2be102df78303bc10fbcb0ab9029c6e4c0948
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 37
-  completed_plans: 19
+  completed_plans: 20
   percent: 44
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-11)
 ## Current Position
 
 Phase: 25 — Session-only Simulator
-Current Plan: 4
+Current Plan: 5
 Total Plans in Phase: 5
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
@@ -117,6 +117,7 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 | Phase 25 P01 | 6 min | 1 tasks | 1 files |
 | Phase 25 P02 | 7 min | 2 tasks | 2 files |
 | Phase 25 P03 | 13 min | 3 tasks | 12 files |
+| Phase 25 P04 | 12 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -149,6 +150,8 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 - [Phase 25]: 25-02: every baseline sentence the view computes today is pinned at the session, including the same-verdict (1 and 2 nodes) and different-failure branches of summarise, so moving it into Replay.ts cannot lose a branch under the mutation gate
 - [Phase 25]: 25-03: three lifecycle mutants (finalizer generation bump, empty-fiber guard in supersede, land's generation check) are equivalent and left in place; SimulationSession.ts scores 0.9694 against a 0.9641 base
 - [Phase 25]: 25-03: choosePolicyAt and the policy menu share one leading-entry rule; cost.warns is the plan's causesIO alone (what the view coloured by)
+- [Phase 25]: 25-04: no DOM test deleted; each keeps wiring proof beside its 25-02 model counterpart
+- [Phase 25]: 25-04: BaselineCard reads snapshot.baselineReading as BaselineReading | undefined with optional chaining (session defines it whenever the baseline is Checked)
 
 ### Pending Todos
 
@@ -175,8 +178,8 @@ Last activity: 2026-11-11 — Phase 24 complete, transitioned to Phase 25
 
 ## Session Continuity
 
-Last session: 2026-11-11T07:22:34.053Z
-Stopped at: Completed 25-03-PLAN.md
+Last session: 2026-11-11T07:27:30.176Z
+Stopped at: Completed 25-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
