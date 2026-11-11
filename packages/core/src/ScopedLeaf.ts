@@ -1,6 +1,8 @@
 /**
- * The one test of whether a policy leaf asks about one resource, shared by what
- * a port's `asks` puts in the request and the read that answers it.
+ * The one test of whether a policy leaf asks about one resource.
+ *
+ * It is shared by what a port's `asks` puts in the request and the read that
+ * answers it.
  *
  * `DecisionHistory` and `SignatureHistory` leave `resourceId` optional in their
  * request (an `Any`-scoped question has none), so nothing in the types stops a

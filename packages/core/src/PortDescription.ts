@@ -195,8 +195,9 @@ export interface PortDescription<
    * `@qadi/devtools` reads through it, so a key and a projection are spelled
    * once, here. Every field is a `SpanValue`, which is INV-QD-044 as a type.
    *
-   * `pose` also takes the request as far as the site supplies it (`P`), so a read that has no resource id can state its question
-   * before it fails (ARCH-70).
+   * `pose` also takes the request as far as the site supplies it (`P`), so a
+   * read that has no resource id can state its question before it fails
+   * (ARCH-70).
    *
    * Typed `Span` for the exact per-port fields, intersected with the two
    * functions typed by *this description's* request and answer: a function

@@ -150,6 +150,11 @@ const askedActed = (
   },
 ];
 
+/**
+ * The `DecisionHistory` port's `asks`: both acted tags build their request with
+ * {@link askedActed}, since only the polarity the caller applies to the answer
+ * differs between them.
+ */
 const actedAsks = { HasActed: askedActed, HasNotActed: askedActed };
 
 /**

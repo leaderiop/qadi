@@ -11,9 +11,10 @@
  * ARCH-01's E4/E6). Each read lives here once, and each interpreter keeps only
  * what is genuinely its own: what to do with the answer.
  *
- * Every read is a named `Effect.fn` that owns its span. It takes the policy leaf
- * it answers and builds its request through the port's description (`asks`, the
- * one statement of what a leaf asks, ARCH-70), then runs `readPort`
+ * Every read is, or wraps, a named `Effect.fn` that owns its span (`askActed`
+ * wraps `readActed`, `readAttribute` calls `resolveAttribute`). It takes the
+ * policy leaf it answers and builds its request through the port's description
+ * (`asks`, the one statement of what a leaf asks, ARCH-70), then runs `readPort`
  * (ADR-QD-109), a plain function that opens no span of its own, or `readScoped`
  * where the question is about one resource. A host answering another process
  * (`servePortRead`) runs the same body under the port's span, so a served span
@@ -220,7 +221,8 @@ type ScopedPort = "DecisionHistory" | "RelationshipResolver" | "SignatureHistory
 
 /**
  * A scoped port's request, as far as the site supplied it: what its `asks`
- * build, which every scoped port's states a `resourceId` in, possibly absent.
+ * build, whose first member every scoped port states a `resourceId` in, possibly
+ * absent.
  */
 type ScopedRequest<K extends ScopedPort> = AskedOf<PortTypes[K]> &
   readonly [{ readonly resourceId: ResourceId | undefined }];
@@ -250,8 +252,9 @@ const completeRequest: {
  * on the copy: two reads opened a nested helper span and the third inlined the
  * check to avoid it (ARCH-70, ADR-QD-134). Now a missing id leaves the port's
  * span, its question and the failure, and nothing else: no other span opens,
- * the port is not called and no call is counted. Annotate-before-validate is still ADR-QD-077's rule, so a span that records a
- * wiring error names what it was asked: the question is the description's `pose`
+ * the port is not called and no call is counted. Annotate-before-validate is
+ * still ADR-QD-077's rule, so a span that records a wiring error names what it
+ * was asked: the question is the description's `pose`
  * of the request as far as it is known, with `scope` the read's own fact (an
  * absent id still makes this a `Resource` question, and `pose` would say `Any`;
  * a span with no `scope` drops it). A present id is `readPort` alone, which
@@ -363,6 +366,16 @@ export type AnyActedLeaf = ActedLeaf & { readonly scope: "Any" };
 /** Whether an acted leaf asks about the subject alone, as the type {@link AnyActedLeaf}. */
 export const isAnyActedLeaf = (leaf: ActedLeaf): leaf is AnyActedLeaf => leaf.scope === "Any";
 
+/**
+ * Reads the decision history for an acted leaf, of either scope, under the
+ * `qadi.acted` span.
+ *
+ * The one body behind {@link askActed}, which only narrows its type. A
+ * `Resource`-scoped leaf goes through `readScoped`, so a missing resource id is
+ * the port's own span and a `MissingResourceId`; an `Any`-scoped one asks about
+ * the subject alone. The leaf's scope decides both the request and the route
+ * through the one shared test (`isResourceScoped`, INV-QD-288).
+ */
 const readActed = Effect.fn(decisionHistoryPort.span)(function* (
   interpreter: Interpreter,
   subject: AuthSubject,
