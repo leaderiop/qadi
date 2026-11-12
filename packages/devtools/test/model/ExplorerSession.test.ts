@@ -353,7 +353,7 @@ describe("the JSON pane", () => {
     session.load();
     const refusal = showing(session).json.refusal ?? "";
     assert.isTrue(refusal.startsWith("The text is not JSON"));
-    assert.include(refusal, "SyntaxError");
+    assert.notInclude(refusal, "SyntaxError");
   });
 
   it("an unloaded edit is dropped when another policy is chosen", () => {

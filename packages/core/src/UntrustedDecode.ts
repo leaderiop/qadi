@@ -196,7 +196,8 @@ export const untrustedDecoder = <
     Result.flatMap(
       Result.try({
         try: (): unknown => JSON.parse(text),
-        catch: (error) => UntrustedRefusal.NotJson({ message: String(error) }),
+        catch: (error) =>
+          UntrustedRefusal.NotJson({ message: error instanceof Error ? error.message : String(error) }),
       }),
       decode,
     );

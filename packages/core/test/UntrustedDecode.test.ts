@@ -209,8 +209,8 @@ describe("untrustedDecoder", () => {
         assert.isTrue(Result.isFailure(refused));
         if (Result.isFailure(refused) && refused.failure._tag === "NotJson") {
           assert.isTrue(parserMessage.length > 0);
-          // the leaf reports String(error), so the parser's text arrives with its `SyntaxError: ` prefix
-          assert.include(refused.failure.message, parserMessage);
+          // the parser's own text, without the `SyntaxError: ` prefix `String(error)` would add
+          assert.strictEqual(refused.failure.message, parserMessage);
         } else assert.fail(`${JSON.stringify(text)} was not NotJson`);
       }
     });

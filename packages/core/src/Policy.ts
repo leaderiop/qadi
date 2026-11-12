@@ -947,7 +947,7 @@ export class PolicyDecodeTooDeep extends Data.TaggedError("PolicyDecodeTooDeep")
 /**
  * The text handed to {@link fromJson} is not JSON.
  *
- * `message` is the parser's own text (`String` of its `SyntaxError`), so a paste
+ * `message` is the parser's own text (its `SyntaxError`'s `message`), so a paste
  * box can show where the text broke; it echoes part of the caller's own input
  * back to the caller. Before ADR-QD-143 this was reported as a `Schema.SchemaError`
  * though nothing about the schema was wrong.

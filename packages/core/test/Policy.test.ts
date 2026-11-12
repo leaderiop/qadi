@@ -445,7 +445,8 @@ describe("Policy serialization", () => {
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") assert.strictEqual(result.failure._tag, "PolicyNotJson");
       if (result._tag === "Failure" && result.failure._tag === "PolicyNotJson") {
-        assert.include(result.failure.message, "SyntaxError");
+        assert.notInclude(result.failure.message, "SyntaxError");
+        assert.isAbove(result.failure.message.length, 0);
       }
     }));
 
