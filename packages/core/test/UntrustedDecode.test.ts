@@ -220,6 +220,12 @@ describe("untrustedDecoder", () => {
       assert.strictEqual(tagOf(anything.decodeText(nestedText(60_000, false))), "NotJson");
     });
 
+    it("a decoder built inside the test reads text: valid is Success, broken is NotJson", () => {
+      const fresh = untrustedDecoder(Needs);
+      assert.strictEqual(tagOf(fresh.decodeText('{"a":1}')), "Success");
+      assert.strictEqual(tagOf(fresh.decodeText("{")), "NotJson");
+    });
+
     it("refuses a 60,000-deep value without overflowing the stack", () => {
       assert.strictEqual(tagOf(anything.decode(nest(null, 60_000, [true]))), "TooDeep");
     });
@@ -237,6 +243,12 @@ describe("untrustedDecoder", () => {
         assert.instanceOf(refused.failure.error, Schema.SchemaError);
         assert.strictEqual(refused.failure.message, refused.failure.error.message);
       } else assert.fail("an excess key was not Malformed");
+    });
+
+    it("a root that is not a plain object is never filtered: null, undefined, primitives and arrays", () => {
+      for (const input of [null, undefined, 5, "text", true]) assert.strictEqual(tagOf(slots.decode(input)), "Malformed");
+      assert.strictEqual(tagOf(slots.decode([])), "Malformed");
+      assert.strictEqual(tagOf(slots.decode(nest(null, 257, [true]))), "TooDeep");
     });
 
     it("decodes a 60,000-deep value held in an unwalked slot", () => {

@@ -444,6 +444,9 @@ describe("Policy serialization", () => {
       const result = yield* Effect.result(P.fromJson("{not json"));
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") assert.strictEqual(result.failure._tag, "PolicyNotJson");
+      if (result._tag === "Failure" && result.failure._tag === "PolicyNotJson") {
+        assert.include(result.failure.message, "SyntaxError");
+      }
     }));
 
   it.effect("rejects an unknown fieldStrategy value, rather than silently widening (MH-01)", () =>

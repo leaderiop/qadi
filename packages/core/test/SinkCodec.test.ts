@@ -2125,6 +2125,24 @@ describe("the stored-record envelope (ARCH-11 D-11-e)", () => {
     }
   });
 
+  it("each envelope refusal names its own reason", () => {
+    const record = JSON.parse(V2.V2_OBLIGATIONS);
+    const reasonOf = (input: unknown): string | undefined => {
+      const back = decodeStoredRecord(input);
+      return Result.isFailure(back) && back.failure.refusal._tag === "Malformed" ? back.failure.refusal.message : undefined;
+    };
+    for (const input of ["text", [1], null]) {
+      assert.strictEqual(reasonOf(input), "a stored record is a JSON object { environment, record }");
+    }
+    for (const input of [{}, { cursor: "x" }]) {
+      assert.strictEqual(reasonOf(input), "a bare record, not a stored-record envelope { environment, record }");
+    }
+    for (const input of [{ environment: 1, record }, { record }]) {
+      assert.strictEqual(reasonOf(input), "a stored record's environment is not a string");
+    }
+    assert.strictEqual(reasonOf({ environment: "Edge" }), "a stored record names no record");
+  });
+
   it("a record the envelope carries is decoded by decodeSinkRecord's rules", () => {
     const unsupported = decodeStoredRecord({ environment: "E", record: { ...JSON.parse(V2.V2_OBLIGATIONS), version: 3 } });
     assert.isTrue(Result.isFailure(unsupported) && unsupported.failure.refusal._tag === "UnsupportedVersion");
