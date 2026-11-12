@@ -1,0 +1,12 @@
+{
+ "measured": {
+  "packages/react/src/QuestionBook.ts": 0.9444444444444444,
+  "packages/react/src/QadiAtoms.ts": 0.8947368421052632,
+  "packages/react/src/QadiProvider.tsx": 0.75
+ },
+ "unmeasured": {},
+ "new": [
+  "packages/react/src/SweepScheduler.ts"
+ ],
+ "deleted": {}
+}
