@@ -28,7 +28,6 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import { anonymous } from "./AuthSubject.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
-import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
 import { foldPolicy } from "./Policy.ts";
 import type { Policy } from "./Policy.ts";
 import { servePortRead } from "./PortAccess.ts";
@@ -37,8 +36,8 @@ import type { LeafOf, ReadSite } from "./PortDescription.ts";
 import type { PortName } from "./PortName.ts";
 import type { PortServing, PortServingOf } from "./PortServing.ts";
 import { PortWireReply, RemotePortError, RemotePortFailure } from "./PortWire.ts";
-import { WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
-import { UNTRUSTED_DECODE_OPTIONS } from "./UntrustedDecode.ts";
+import { undecodableMessage } from "./PortWireEncode.ts";
+import { untrustedDecoder } from "./UntrustedDecode.ts";
 import { forEveryPort, mergePorts, tabulatePorts } from "./Ports.ts";
 import type { ArgsOf, DescriptionOf, ErrorOf, PortServices, PortTypes, ServiceOf, ShapeOf } from "./Ports.ts";
 
@@ -121,7 +120,7 @@ const remoteFailure = <K extends PortName>(
   failure: RemotePortFailure,
 ): ErrorOf<PortTypes[K]> => d.failure(args, new RemotePortError({ failure }));
 
-const decodeReply = Schema.decodeUnknownResult(PortWireReply, UNTRUSTED_DECODE_OPTIONS);
+const replyDecoder = untrustedDecoder(PortWireReply);
 
 /**
  * Builds the port's Shape from any `send`.
@@ -149,9 +148,9 @@ export const askRemotely = <K extends PortName>(
       const raw = yield* send(question.success).pipe(
         Effect.mapError((failure) => remoteFailure(d, args, failure)),
       );
-      const reply = exceedsJsonDepth(raw, WIRE_MAX_DEPTH)
-        ? Result.fail("the reply nests deeper than the decode bound")
-        : Result.mapError(decodeReply(raw), (error) => error.message);
+      const reply = Result.mapError(replyDecoder.decode(raw), (refused) =>
+        undecodableMessage(refused)("reply"),
+      );
       if (Result.isFailure(reply)) {
         return yield* Effect.fail(
           remoteFailure(d, args, RemotePortFailure.Undecodable({ message: reply.failure })),
