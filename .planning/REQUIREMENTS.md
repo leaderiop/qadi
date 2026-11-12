@@ -222,7 +222,7 @@
 | ROUTE-01, ROUTE-02, ROUTE-03 | Phase 27 | Complete (2026-11-11) |
 | GATE-01, GATE-02, GATE-03, GATE-04 | Phase 28 | Complete (2026-11-11) |
 | TIDY-01, TIDY-02, TIDY-03 | Phase 29 | Complete (2026-11-12) |
-| WX-01, WX-02, WX-03, WX-04, WX-05, WX-06 | All v1.2 phases | Pending |
+| WX-01, WX-02, WX-03, WX-04, WX-05, WX-06 | All v1.2 phases | Complete (milestone audit 2026-11-12) |
 
 **Coverage:** 44 v1.2 requirements (38 + 6 cross-cutting); mapped 44; unmapped 0.
 
