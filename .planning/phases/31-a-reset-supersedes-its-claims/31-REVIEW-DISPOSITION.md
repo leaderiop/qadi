@@ -5,38 +5,38 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
-    title: "Property test can only ever pick the first two candidates, so most waiters and computes are never targeted by Leave or Settle"
+    disposition: fixed
+    title: "Property test can only ever pick the first two candidates"
   - id: IN-01
     severity: info
-    disposition: open
-    title: "Superseded and Abandoned are never observably different; the lookup tables carry rows that cannot be reached"
+    disposition: skipped
+    title: "Superseded and Abandoned are never observably different; the lookup tables carry unreachable rows"
   - id: IN-02
     severity: info
-    disposition: open
-    title: "Property runner dispatches on `_tag` with an if/else chain whose final `else` silently absorbs any new command"
+    disposition: fixed
+    title: "Property runner dispatched on `_tag` with an if/else chain"
   - id: IN-03
     severity: info
-    disposition: open
-    title: "File header says an abandoned or superseded exit \"is dropped\" and attributes the superseded rule to issue #64"
+    disposition: fixed
+    title: "File header misstated what a superseded exit does and misattached issue #64"
   - id: IN-04
     severity: info
-    disposition: open
-    title: "Stale `generation` comment remains in `DecisionCache.test.ts` (known debt)"
-open: 5
+    disposition: skipped
+    title: "Stale `generation` comment in `DecisionCache.test.ts`"
+open: 0
 total: 5
-recorded: 2026-11-12T08:18:27.527Z
+recorded: 2026-11-12T08:21:41.942Z
 ---
 
 # Phase 31: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| IN-01 | info | open | - |
-| IN-02 | info | open | - |
-| IN-03 | info | open | - |
-| IN-04 | info | open | - |
+| WR-01 | warning | fixed | 31-REVIEW-FIX.md (not in the current review) |
+| IN-01 | info | skipped | 31-REVIEW-FIX.md (not in the current review) |
+| IN-02 | info | fixed | 31-REVIEW-FIX.md (not in the current review) |
+| IN-03 | info | fixed | 31-REVIEW-FIX.md (not in the current review) |
+| IN-04 | info | skipped | 31-REVIEW-FIX.md (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
