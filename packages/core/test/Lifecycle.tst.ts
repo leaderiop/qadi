@@ -9,6 +9,7 @@
  * restated in `Lifecycle.ts` (ADR-QD-037, ADR-QD-105).
  */
 import type * as Effect from "effect/Effect";
+import type { Concurrency } from "effect/Types";
 import { expect, test } from "tstyche";
 import type { EvaluationError } from "../src/Errors.ts";
 import type { EvaluationServices } from "../src/EvaluationServices.ts";
@@ -25,6 +26,11 @@ test("EvaluateOptions is QuestionOptions plus exactly concurrency and evaluation
 test("decideQuestion takes exactly the options a built question leaves out", () => {
   expect<Parameters<typeof decideQuestion>[1]>().type.toBe<
     Omit<EvaluateOptions, keyof QuestionOptions> | undefined
+  >();
+  // The remainder spelled out, so a source that stopped deriving or widened
+  // fails here independently of `Omit`.
+  expect<Parameters<typeof decideQuestion>[1]>().type.toBe<
+    { readonly concurrency?: Concurrency; readonly evaluationId?: string } | undefined
   >();
 });
 
