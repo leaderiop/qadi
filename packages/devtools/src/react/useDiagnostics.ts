@@ -9,7 +9,6 @@
  * the three things only React can get wrong: starting on mount, stopping on
  * unmount, and not restarting on a re-render that changed nothing.
  */
-import type * as Layer from "effect/Layer";
 import * as Schedule from "effect/Schedule";
 import { useState } from "react";
 import {
@@ -19,39 +18,10 @@ import {
   runDiagnostics,
   type Diagnostics,
 } from "../model/DiagnosticsStore.ts";
-import type { AskedQuestionLike } from "../model/Gates.ts";
-import type { PortCallCollector } from "../model/PortCalls.ts";
+import type { DiagnosticsDockOptions } from "../model/DiagnosticsFeed.ts";
 import { useRunningStore } from "./useRunningStore.ts";
 
-/**
- * What a host hands over to have its diagnostics sampled: things it already
- * owns, and no Effects.
- *
- * Gates are not here. They are pushed by the host's subscription to
- * `@qadi/react`'s registry and stay a plain prop (AGENTS.md §13).
- */
-export interface DiagnosticsDockOptions {
-  /**
-   * The application's layer, read for the wiring report.
-   *
-   * Built once while the dock is mounted, and released on unmount. It is its
-   * own build, so a service that keeps state in its constructor is shared with
-   * the application only if the host shares it by value: build its context once
-   * and pass that context here and to the atoms as one value. Under a
-   * `QadiProvider`, hand `useDevtoolsFeed()`'s `diagnostics` from `@qadi/react`
-   * instead: its layer is the provider's own build, so nothing needs sharing.
-   *
-   * Typed `Layer<never, unknown>` because `Layer` is contravariant in what it
-   * provides: that is the one type every layer is assignable to.
-   */
-  readonly layer?: Layer.Layer<never, unknown>;
-  /** The collector whose `layer` is wired where evaluations run, for the recent port calls. */
-  readonly collector?: PortCallCollector;
-  /** Where the questions asked so far come from, usually `() => atoms.asked()`. */
-  readonly questions?: () => ReadonlyArray<AskedQuestionLike>;
-  /** How often to sample, in milliseconds. Defaults to `DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS`. */
-  readonly intervalMillis?: number;
-}
+export type { DiagnosticsDockOptions } from "../model/DiagnosticsFeed.ts";
 
 /**
  * Samples the diagnostics while mounted, and returns the latest reading.

@@ -1,5 +1,5 @@
 /**
- * The dock's six stores and the rules between them, as one model a test can drive without rendering.
+ * The dock's seven stores and the rules between them, as one model a test can drive without rendering.
  *
  * The dock built the timeline, the policy rail, the explorer, the role choice, the
  * simulation and its own session in React and connected them with layout effects,
@@ -16,8 +16,10 @@
  * class: an unchanged prop must not wipe a capture or a half-filled form).
  *
  * **The model owns its lifetime.** It is built in a `Scope` and keeps one
- * `FiberHandle` for the source it reads, beside the one the simulation session
- * keeps for its runs; closing the scope ends both (ADR-QD-137). There is no
+ * `FiberHandle` for the source it reads, one for the diagnostics poll, and the
+ * one the simulation session keeps for its runs; closing the scope ends all
+ * three (ADR-QD-137). The seventh store is the diagnostics reading: the poll's
+ * status and the sampled reading with a supplied one laid over it. There is no
  * `dispose` and no `read` command.
  *
  * Package-private (ADR-QD-099): the dock is the one thing that drives it.
@@ -27,6 +29,13 @@ import * as FiberHandle from "effect/FiberHandle";
 import type * as Scope from "effect/Scope";
 import type { Role } from "@qadi/core";
 import { catalogueOf, type Catalogue, type PolicySighting } from "./Catalogue.ts";
+import {
+  makeDiagnosticsFeed,
+  type DiagnosticsDockOptions,
+  type DiagnosticsReadout,
+  type DiagnosticsSnapshot,
+} from "./DiagnosticsFeed.ts";
+import { mergeReading, type DiagnosticsReading } from "./DiagnosticsStore.ts";
 import { makeDockSession, type DockSession } from "./DockSession.ts";
 import { makeExplorerSession, type ExplorerSession } from "./ExplorerSession.ts";
 import { makeExternalStore } from "./ExternalStore.ts";
@@ -42,6 +51,10 @@ import { makeTimelineStore, runSource, type TimelineStore } from "./TimelineStor
 export interface DockModelInputs {
   readonly capacity?: number | undefined;
   readonly catalogue?: Catalogue | undefined;
+  /** What to sample; compared per field, so an inline literal restarts nothing. */
+  readonly diagnostics?: DiagnosticsDockOptions | undefined;
+  /** A reading taken elsewhere: each field it carries wins; a change recomputes the merge and never restarts the poll. */
+  readonly reading?: DiagnosticsReading | undefined;
   readonly ports?: EvaluationPortsLayer | undefined;
   /** Read in the model's own scope; a new source (or capacity) supersedes the previous read. */
   readonly source?: Source | undefined;
@@ -54,6 +67,8 @@ export interface DockModel {
   readonly explorer: ExplorerSession;
   readonly roles: HeldChoiceStore<Role>;
   readonly simulation: SimulationSession;
+  /** The merged reading and the poll's status, recomputed when either side changes, never on read. */
+  readonly diagnostics: DiagnosticsReadout;
   /** `catalogueOf` of the shown timeline and the current catalogue, computed once per change. */
   readonly sightings: () => ReadonlyArray<PolicySighting>;
   /** Dispatches only the inputs whose identity changed. An omitted input reads as `undefined`. */
@@ -120,12 +135,35 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   const readSource = (source: Source | undefined) => forkRead(runSource(timeline, source ?? NO_SOURCE));
   readSource(inputs.source);
 
+  // Forks the poll and never waits on it, so an asynchronous layer leaves it `Starting` after the build.
+  const feed = yield* makeDiagnosticsFeed(inputs.diagnostics);
+  let fed = feed.getSnapshot();
+  let supplied = inputs.reading;
+  const mergedOf = (snapshot: DiagnosticsSnapshot, reading: DiagnosticsReading | undefined): DiagnosticsSnapshot => {
+    const merged = mergeReading(snapshot.reading, reading);
+    return merged === snapshot.reading ? snapshot : { status: snapshot.status, reading: merged };
+  };
+  const shownReading = makeExternalStore<DiagnosticsSnapshot>(mergedOf(fed, supplied));
+  const remerge = () => {
+    const next = feed.getSnapshot();
+    if (next === fed && inputs.reading === supplied) return;
+    fed = next;
+    supplied = inputs.reading;
+    shownReading.set(mergedOf(fed, supplied));
+  };
+  feed.subscribe(remerge);
+
   return {
     timeline,
     dock,
     explorer,
     roles,
     simulation,
+    diagnostics: {
+      subscribe: shownReading.subscribe,
+      getSnapshot: shownReading.getSnapshot,
+      restart: feed.restart,
+    },
     sightings: () => rail,
 
     configure: (next) => {
@@ -145,6 +183,8 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
       // The session guards an identical layer itself, so this is not guarded again.
       simulation.setPorts(next.ports);
       if (resized || next.source !== before.source) readSource(next.source);
+      feed.configure(next.diagnostics);
+      remerge();
     },
   };
 });

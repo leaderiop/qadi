@@ -42,6 +42,7 @@ import {
 import type { Policy, StoredRecord } from "@qadi/core";
 import { catalogueOf, policyLabel } from "../../src/model/Catalogue.ts";
 import type { Catalogue } from "../../src/model/Catalogue.ts";
+import { DiagnosticsStatus } from "../../src/model/DiagnosticsFeed.ts";
 import { makeDockModel } from "../../src/model/DockModel.ts";
 import type { DockModel } from "../../src/model/DockModel.ts";
 import type { TabId } from "../../src/model/DockSession.ts";
@@ -708,4 +709,33 @@ describe("the stores never disagree about the timeline (P1, INV-QD-296)", () => 
       }),
     );
   });
+});
+
+describe("the diagnostics store (M18..M27)", () => {
+  it.effect("M18: a throwing questions source stops the diagnostics store visibly, keeps the last reading, and restart() resumes it", () =>
+    Effect.gen(function* () {
+      let fail = false;
+      const questions = () => {
+        if (fail) throw new Error("questions blew up");
+        return [];
+      };
+      const model = yield* makeDockModel({ diagnostics: { questions } });
+      const live = model.diagnostics.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Live")(live.status));
+      assert.deepStrictEqual(live.reading.questions, []);
+      const kept = live.reading;
+
+      fail = true;
+      yield* TestClock.adjust("2 seconds");
+
+      const stopped = model.diagnostics.getSnapshot();
+      if (!DiagnosticsStatus.$is("Stopped")(stopped.status)) return assert.fail("expected Stopped");
+      assert.isTrue(stopped.status.sampled);
+      assert.include(stopped.status.reason, "questions blew up");
+      assert.strictEqual(stopped.reading, kept);
+
+      fail = false;
+      model.diagnostics.restart();
+      assert.isTrue(DiagnosticsStatus.$is("Live")(model.diagnostics.getSnapshot().status));
+    }));
 });
