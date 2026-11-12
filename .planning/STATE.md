@@ -4,18 +4,18 @@ milestone: v1.3
 milestone_name: Arch Wave 8
 current_phase: 36
 current_phase_name: Carried spec debt and stale records
-status: planning
-stopped_at: Phase 36 UI-SPEC approved
-last_updated: "2026-11-12T22:08:22.162Z"
-last_activity: 2026-11-12
-last_activity_desc: Phase 35 complete, transitioned to Phase 36
-state_head: 56c47bfd95b386517f21931369b5c6aafa5c0599
+status: executing
+stopped_at: Completed 36-01-PLAN.md
+last_updated: "2026-11-12T23:58:37.469Z"
+last_activity: 2026-11-13
+last_activity_desc: Phase 36 execution started
+state_head: 90ad54264d3df678043371fc992bbea2f3841217
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 40
-  completed_plans: 40
-  percent: 86
+  total_plans: 54
+  completed_plans: 41
+  percent: 76
 ---
 
 # Project State
@@ -25,16 +25,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 35 — The atom set owns its eviction sweep
+**Current focus:** Phase 36 — Carried spec debt and stale records
 
 ## Current Position
 
-Phase: 36 — Carried spec debt and stale records
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-11-12 — Phase 35 complete, transitioned to Phase 36
+Phase: 36 (Carried spec debt and stale records) — EXECUTING
+Plan: 2 of 14
+Status: Ready to execute
+Last activity: 2026-11-13 — Phase 36 execution started
 
-Progress: [█████████░] 86% (v1.3: 0 of 7 phases)
+Progress: [████████░░] 76% (v1.3: 0 of 7 phases)
 
 
 ## Performance Metrics
@@ -188,6 +188,7 @@ Progress: [█████████░] 86% (v1.3: 0 of 7 phases)
 | Phase 35 P05 | 20 min | 3 tasks | 8 files |
 | Phase 35 P06 | 8 min | 3 tasks | 11 files |
 | Phase 35 P07 | 5 min | 3 tasks | 1 files |
+| Phase 36 P01 | 25 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -289,6 +290,7 @@ Progress: [█████████░] 86% (v1.3: 0 of 7 phases)
 - [Phase 35]: 35-05: candidate-1 executed as written; sweepIntervalMillis and QadiAtoms.sweepEvictions removed (Breaking), no inert prop kept
 - [Phase 35]: 35-06: BEH-QD-514 words the removed manual sweep as 'no member a caller can use to run a sweep' (the plan's verify forbids naming sweepEvictions in 09); ADR-QD-148 written for candidate-1
 - [Phase 35]: 35-07: closing checks green; no mutation survivor needed naming, 35-mutation-survivors.json not created
+- [Phase 36]: react/index.ts is recorded unmeasured (absent from the Stryker report, export-only barrel); devtools react files measured through the --mutate override with no config edit
 
 ### Pending Todos
 
@@ -330,9 +332,9 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T22:08:21.954Z
-Stopped at: Phase 36 UI-SPEC approved
-Resume file: .planning/phases/36-carried-spec-debt-and-stale-records/36-UI-SPEC.md
+Last session: 2026-11-12T23:58:37.178Z
+Stopped at: Completed 36-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
