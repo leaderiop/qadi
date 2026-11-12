@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 34
 current_phase_name: Diagnostics as the dock model's seventh store
 status: executing
-stopped_at: Phase 34 UI-SPEC approved
-last_updated: "2026-11-12T17:09:23.288Z"
+stopped_at: Completed 34-01-PLAN.md
+last_updated: "2026-11-12T17:14:45.636Z"
 last_activity: 2026-11-12
-last_activity_desc: Phase 33 complete, transitioned to Phase 34
-state_head: e84885685ba8cca2f3598f2d5c0239e9db264773
+last_activity_desc: Phase 34 execution started
+state_head: 5410eceaca3f71c02e9ee32727989bdc307c885c
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 33
-  completed_plans: 24
+  completed_plans: 25
   percent: 57
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 33 — One sealed evaluation layer
+**Current focus:** Phase 34 — Diagnostics as the dock model's seventh store
 
 ## Current Position
 
-Phase: 34 (Diagnostics as the dock model's seventh store) — READY TO EXECUTE
-Plan: Not started
+Phase: 34 (Diagnostics as the dock model's seventh store) — EXECUTING
+Plan: 2 of 9
 Status: Ready to execute
-Last activity: 2026-11-12 — Phase 33 complete, transitioned to Phase 34
+Last activity: 2026-11-12 — Phase 34 execution started
 
 Progress: [██████░░░░] 57% (v1.3: 0 of 7 phases)
 
@@ -170,6 +170,7 @@ Progress: [██████░░░░] 57% (v1.3: 0 of 7 phases)
 | Phase 33 P04 | 20 min | 2 tasks | 8 files |
 | Phase 33 P05 | 15 min | 2 tasks | 8 files |
 | Phase 33 P06 | 12 min | 3 tasks | 1 files |
+| Phase 34 P01 | 8 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -253,6 +254,7 @@ Progress: [██████░░░░] 57% (v1.3: 0 of 7 phases)
 - [Phase 33]: 33-04: ADR-QD-050 body untouched; the testing clock literal is corrected by a new 2026-11-12 amendment (Rev 1.5) pointing at ADR-QD-146
 - [Phase 33]: 33-05: one 0.12 upgrade section covers both breaks; core changeset carries no Breaking word
 - [Phase 33]: 33-06: Phase 33 closed with no surviving mutant in EvaluationEnvironment.ts (6/6 detected) and check:pr green on 5ae5de9a
+- [Phase 34]: 34-01: devtools mutation baseline measured (DockModel.ts and DiagnosticsStore.ts both 1, no survivors); async-layer pins use a real 30 ms sleep
 
 ### Pending Todos
 
@@ -294,9 +296,9 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T15:27:18.515Z
-Stopped at: Phase 34 UI-SPEC approved
-Resume file: .planning/phases/34-diagnostics-as-the-dock-model-s-seventh-store/34-UI-SPEC.md
+Last session: 2026-11-12T17:14:45.408Z
+Stopped at: Completed 34-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
