@@ -76,8 +76,8 @@ marked **Breaking**, `apps/website/.../reference/upgrading.md`). Releasing is st
 ### Cross-cutting (every v1.3 phase)
 
 - [ ] **WX-01**: `pnpm check:pr < /dev/null` is green at the end of each phase.
-- [ ] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
-- [ ] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13), and its module column is corrected by hand for every moved declaration.
+- [x] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
+- [x] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13), and its module column is corrected by hand for every moved declaration.
 - [x] **WX-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock. Budgets change only together with their AGENTS.md table.
 - [ ] **WX-05**: Coverage thresholds hold (core at least 95%, others at least 90%). The Stryker score of touched files does not fall (per-phase `NN-mutation-base.json`), and a drop is closed with a test, never re-baselined.
 - [x] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base (RED for a defect, green for preserved behaviour).
@@ -146,8 +146,8 @@ The seven WX rows apply to every phase 30 to 36, so each phase's Requirements li
 | DEBT-04 | Phase 36 | Pending |
 | DEBT-05 | Phase 36 | Pending |
 | WX-01 | All v1.3 phases | Pending |
-| WX-02 | All v1.3 phases | Pending |
-| WX-03 | All v1.3 phases | Pending |
+| WX-02 | All v1.3 phases | Complete |
+| WX-03 | All v1.3 phases | Complete |
 | WX-04 | All v1.3 phases | Complete |
 | WX-05 | All v1.3 phases | Pending |
 | WX-06 | All v1.3 phases | Complete |
