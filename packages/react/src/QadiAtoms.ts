@@ -88,8 +88,8 @@ export interface QadiAtoms {
    *
    * The same atom for an equal question for as long as this atom set tracks it,
    * regardless of garbage collection (BEH-QD-065): the atom set's question book
-   * holds it strongly, and forgets it only when `sweepEvictions` drops the
-   * question while no reader holds it open.
+   * holds it strongly, and forgets it only when the atom set's own sweep drops
+   * the question while no reader holds it open.
    *
    * **A `resource` is a key, and a key must not be mutated after its first use
    * (BL-05).** Equality is structural and its comparison is cached per object
@@ -129,9 +129,9 @@ export interface QadiAtoms {
    * stale entry rendering as re-checking rather than as its old answer
    * ([ADR-QD-017](../../../spec/decisions/017-stale-decisions-are-not-decisions.md)).
    *
-   * Bounded: `sweepEvictions` drops the oldest questions no reader is holding
-   * once `maxTrackedQuestions` is exceeded, and never one a mounted gate still has
-   * open — see `QuestionBook.ts`.
+   * Bounded: the atom set's own sweep drops the oldest questions no reader is
+   * holding once `maxTrackedQuestions` is exceeded, and never one a mounted gate
+   * still has open — see `QuestionBook.ts`.
    */
   readonly asked: () => ReadonlyArray<AskedQuestion>;
   /**
@@ -144,27 +144,6 @@ export interface QadiAtoms {
    * the atom set's life when nothing is instrumented.
    */
   readonly gates: GateRegistry;
-  /**
-   * Evicts tracked questions with no reader currently holding them, until at
-   * most `maxTrackedQuestions` remain — or until every question left over
-   * that bound is still live, in which case it stops there rather than
-   * dropping something in use.
-   *
-   * A plain `Effect.sync` over this atom set's own closure state, requiring
-   * no service and touching nothing in `AtomRegistry` — deliberately, so it
-   * cannot go anywhere near the `scheduleTask`/`defaultIdleTTL` knob AGENTS.md
-   * §13 documents as off-limits (it also governs the registry's core
-   * value-dispatch/notify batching, and wiring it for idle-atom GC once
-   * already silently coalesced away a required intermediate render). Meant
-   * to be run periodically by whatever owns this atom set's lifecycle —
-   * `QadiProvider` forks it on `Schedule.spaced` at mount and interrupts that
-   * fiber at unmount — rather than invoked once. Eviction order among
-   * eligible (non-live) entries is oldest-first, the same FIFO choice
-   * `DecisionCache.ts`'s own bounded mode makes and for the same reason:
-   * nothing here claims "recently used" predicts "will be asked again"
-   * better than "recently added" does.
-   */
-  readonly sweepEvictions: Effect.Effect<void>;
   /**
    * Seeds this atom set from a server's dehydrated payload.
    *
@@ -314,7 +293,7 @@ export const makeQadiAtoms = (
       // Marks this question live for as long as this computation stays cached.
       // The count goes up first, inside the reader, and the release is the
       // reader's finalizer: a recompute (dispose, then a synchronous re-read) is
-      // never seen by `sweepEvictions` as a drop to zero — see `QuestionBook.ts`.
+      // never seen by the sweep as a drop to zero — see `QuestionBook.ts`.
       track: (get) => {
         get.addFinalizer(live());
       },
@@ -361,8 +340,6 @@ export const makeQadiAtoms = (
     }),
   );
 
-  const sweepEvictions: Effect.Effect<void> = Effect.sync(book.sweep);
-
   /**
    * Discards every decision, and every cached answer behind one.
    *
@@ -401,7 +378,6 @@ export const makeQadiAtoms = (
     // which is not part of the public `AskedQuestion` shape).
     asked: book.asked,
     gates,
-    sweepEvictions,
     // The one place a seed atom is looked up, and it never leaves this closure:
     // `hydrateWith` is handed the lookup, not the atoms.
     hydrate: (dehydrated, hydrateSubject, hydrateOptions) =>

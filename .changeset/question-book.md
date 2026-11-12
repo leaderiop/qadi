@@ -2,7 +2,7 @@
 "@qadi/react": minor
 ---
 
-**Breaking.** One question path. A question's decision atom, its `asked()` row and its hydrated seed now survive garbage collection: `Atom.family` holds its values weakly and nothing held a question's atom, so after a collection the same question got a second atom (a second evaluation and sink record), was listed twice and lost a seed written before its first read. An atom set now keeps each tracked question's handle in an internal question book (`QuestionBook.ts`), and `sweepEvictions` forgets a swept question's handle as well as its row.
+**Breaking.** One question path. A question's decision atom, its `asked()` row and its hydrated seed now survive garbage collection: `Atom.family` holds its values weakly and nothing held a question's atom, so after a collection the same question got a second atom (a second evaluation and sink record), was listed twice and lost a seed written before its first read. An atom set now keeps each tracked question's handle in an internal question book (`QuestionBook.ts`), and the atom set's own sweep forgets a swept question's handle as well as its row.
 
 - `QadiAtoms.decisionFor` is removed. Replace `atoms.decisionFor(policy, resource)` with `atoms.decision(policy, resource)`; `decision` now takes `(policy, resource?)`.
 - `QadiAtoms` gains a required member, `decisions(questions)`, the grouped read `usePolicies` and `useQuestions` use. A hand-written `QadiAtoms` double must add it. The module-scope cache `usePolicies` kept is gone.

@@ -26,6 +26,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import { permits } from "../src/SeededDecision.ts";
 import { collect } from "./support/collect.ts";
+import { settleTurns } from "./support/settle.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
@@ -376,7 +377,7 @@ describe("decisions", () => {
   });
 });
 
-describe("sweepEvictions", () => {
+describe("the atom set's sweep", () => {
   // Distinct, structurally-unequal policies — `Atom.family` keys structurally
   // (BEH-QD-071), so these need to differ in more than object identity to
   // count as distinct tracked questions.
@@ -395,13 +396,13 @@ describe("sweepEvictions", () => {
     set.decision(permissionPolicy("filler"));
 
     registry.set(set.invalidate, undefined);
-    Effect.runSync(set.sweepEvictions);
+    await Effect.runPromise(settleTurns);
 
     expect(set.asked().map((q) => q.policy)).toEqual([canRead]);
     await vi.waitFor(() => {
       expect(registry.get(set.decision(canRead))._tag).not.toBe("Initial");
     });
-    Effect.runSync(set.sweepEvictions);
+    await Effect.runPromise(settleTurns);
     expect(set.asked().map((q) => q.policy)).toEqual([canRead]);
     unmount();
   });
@@ -434,14 +435,14 @@ describe("sweepEvictions", () => {
     parked.release = undefined;
     registry.set(set.invalidate, undefined);
     await vi.waitFor(() => expect(pending()).toBeDefined());
-    Effect.runSync(set.sweepEvictions);
+    await Effect.runPromise(settleTurns);
 
     expect(set.asked().map((q) => q.policy)).toEqual([needsLookup]);
     pending()?.(2);
     unmount();
   });
 
-  it("never evicts a question a mounted gate still has open", () => {
+  it("never evicts a question a mounted gate still has open", async () => {
     const set = makeQadiAtoms(baseLayer, { maxTrackedQuestions: 1 });
     const registry = makeRegistry();
 
@@ -452,7 +453,7 @@ describe("sweepEvictions", () => {
     set.decision(permissionPolicy("c"));
     expect(set.asked().length).toBe(3);
 
-    Effect.runSync(set.sweepEvictions);
+    await Effect.runPromise(settleTurns);
 
     // Both unmounted entries are eligible and evicted first, reaching the
     // bound of 1 — but the survivor is the mounted one, never dropped even
@@ -471,7 +472,7 @@ describe("sweepEvictions", () => {
     const decision = set.decision(canRead);
     const unmount = registry.mount(decision);
     set.decision(permissionPolicy("b"));
-    Effect.runSync(set.sweepEvictions);
+    await Effect.runPromise(settleTurns);
     expect(set.asked().length).toBe(1);
     expect(set.asked()[0]?.policy).toBe(canRead);
 
@@ -480,8 +481,8 @@ describe("sweepEvictions", () => {
     // `MixedSchedulerDispatcher`, a real macrotask), not synchronously — so
     // `liveCount` does not drop to zero the instant this call returns.
     // `canRead`'s finalizer only runs once that scheduled removal actually
-    // fires; waiting on the registry's own node map (rather than retrying the
-    // sweep, which would race a fresh cold entry into being evicted first and
+    // fires; waiting on the registry's own node map (rather than settling the
+    // atom set's own sweep first, which would race a fresh cold entry into being evicted first and
     // permanently satisfy the bound without `canRead` ever having to give up
     // its slot) is what makes this assertion about `canRead` specifically.
     unmount();
@@ -490,7 +491,7 @@ describe("sweepEvictions", () => {
     });
 
     set.decision(permissionPolicy("d"));
-    Effect.runSync(set.sweepEvictions);
+    await Effect.runPromise(settleTurns);
 
     // `canRead` was the oldest tracked entry and is now cold, so it — not the
     // newly-added "d" — is the one the FIFO-among-cold sweep drops.
@@ -513,7 +514,7 @@ describe("sweepEvictions", () => {
     // A second, unrelated question pushes the book over the bound of 1, so
     // the now-cold `canRead` entry — the oldest — is the one evicted.
     set.decision(permissionPolicy("filler"));
-    Effect.runSync(set.sweepEvictions);
+    await Effect.runPromise(settleTurns);
     expect(set.asked().map((q) => q.policy)).not.toContainEqual(canRead);
 
     // Re-mounting the identical policy: the swept question's old atom may still
