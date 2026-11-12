@@ -226,7 +226,7 @@ export const decisionCacheLayer = (options?: {
       // stays here is what a settled answer does to this cache.
       const shared = makeSharedComputation<Question, Trace, EvaluationError>({
         cached: (key) => HashMap.get(entries, key),
-        claim: (key) => (exit) => {
+        settle: (key, exit) => {
           if (exit._tag === "Success") {
             entries = HashMap.set(entries, key, exit.value);
             // Recorded, and evicted from, only when `capacity` was given —

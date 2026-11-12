@@ -26,7 +26,7 @@ describe("SharedComputation", () => {
     const outcomes: Array<CacheOutcome> = [];
     const shared = makeSharedComputation<string, number, string>({
       cached: (key) => Option.fromUndefinedOr(cache.get(key)),
-      claim: (key) => (exit) => {
+      settle: (key, exit) => {
         settled.push(`${key}:${exit._tag}`);
         if (Exit.isSuccess(exit)) cache.set(key, exit.value);
       },
@@ -187,7 +187,7 @@ describe("SharedComputation", () => {
       const log: Array<string> = [];
       const shared = makeSharedComputation<string, number, never>({
         cached: () => Option.none(),
-        claim: (key) => () => {
+        settle: (key) => {
           log.push(`settle:${key}`);
         },
         onOutcome: () => Effect.void,
@@ -259,19 +259,15 @@ describe("SharedComputation", () => {
    * Issue #64, uninterruptible regime, at the seam: A's compute is parked in an
    * uninterruptible region when A leaves, so the interrupt that leave sends is
    * only recorded, not delivered. B asks for the same key in that window.
-   * Every settle is recorded with the claim it belongs to (1 = A's, 2 = B's).
+   * Every settle's exit is recorded; the compute's value is its run count, so
+   * a value of 2 names B's claim.
    */
   const abandonWhileParked = Effect.gen(function* () {
-    const settles: Array<{ readonly claim: number; readonly exit: Exit.Exit<number> }> = [];
-    let claims = 0;
+    const settles: Array<Exit.Exit<number>> = [];
     const shared = makeSharedComputation<string, number, never>({
       cached: () => Option.none(),
-      claim: () => {
-        claims += 1;
-        const claim = claims;
-        return (exit) => {
-          settles.push({ claim, exit });
-        };
+      settle: (_key, exit) => {
+        settles.push(exit);
       },
       onOutcome: () => Effect.void,
     });
@@ -312,7 +308,7 @@ describe("SharedComputation", () => {
     Effect.gen(function* () {
       const { settles } = yield* abandonWhileParked;
 
-      assert.deepStrictEqual(settles, [{ claim: 2, exit: Exit.succeed(2) }]);
+      assert.deepStrictEqual(settles, [Exit.succeed(2)]);
     }));
 
   it.effect("reset supersedes in-flight claims: the stale compute settles nothing and neither answers nor unclaims the fresh one", () =>
@@ -323,7 +319,7 @@ describe("SharedComputation", () => {
       const settled: Array<Exit.Exit<number>> = [];
       const shared = makeSharedComputation<string, number, never>({
         cached: () => Option.none(),
-        claim: () => (exit) => {
+        settle: (_key, exit) => {
           settled.push(exit);
         },
         onOutcome: () => Effect.void,

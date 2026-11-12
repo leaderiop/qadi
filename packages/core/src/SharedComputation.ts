@@ -13,7 +13,7 @@
  * semantics), so the regime is testable with plain keys and latched effects and
  * no walk (`SharedComputation.test.ts`). `DecisionCache.ts` is its one adapter:
  * what is remembered after a claim settles, and FIFO eviction, stay there,
- * behind the `cached` and `claim` hooks below. The staleness rule does not: a
+ * behind the `cached` and `settle` hooks below. The staleness rule does not: a
  * `reset` supersedes every in-flight claim, so no answer computed before it is
  * ever handed to the adapter.
  *
@@ -42,11 +42,13 @@ export interface SharedComputationHooks<K, A, E> {
   /** Read inside the claim step; `Some` answers `hit` without computing. */
   readonly cached: (key: K) => Option.Option<A>;
   /**
-   * Called inside the claim step for a new claim; returns that claim's settle,
-   * which runs synchronously in the compute's `onExit` before any waiter is
-   * settled.
+   * Records a Live claim's exit, called synchronously in the compute's `onExit`
+   * before any waiter is answered.
+   *
+   * It receives the full `Exit`, so the adapter keeps its own failure policy. A
+   * superseded or abandoned claim's exit never reaches it.
    */
-  readonly claim: (key: K) => (exit: Exit.Exit<A, E>) => void;
+  readonly settle: (key: K, exit: Exit.Exit<A, E>) => void;
   /** Runs once the path is known and before any waiting, so a join still waiting is counted. */
   readonly onOutcome: (outcome: CacheOutcome) => Effect.Effect<void>;
 }
@@ -293,11 +295,7 @@ export const makeSharedComputation = <K, A, E>(
         // it up front on every ask.
         const claimed = yield* Effect.sync(():
           | { readonly _tag: "Hit"; readonly value: A }
-          | {
-              readonly _tag: "Claimed";
-              readonly entry: InFlightClaim<A, E>;
-              readonly settle: (exit: Exit.Exit<A, E>) => void;
-            }
+          | { readonly _tag: "Claimed"; readonly entry: InFlightClaim<A, E> }
           | { readonly _tag: "Joined"; readonly entry: InFlightClaim<A, E> } => {
           // First, in the same step as the join and the claim: see the
           // comment at the top of `run`.
@@ -317,9 +315,7 @@ export const makeSharedComputation = <K, A, E>(
             standing: "Live",
           };
           inFlight = HashMap.set(inFlight, key, entry);
-          // The adapter's own claim-time reads (`DecisionCache`'s
-          // generation) happen here, in the same synchronous step.
-          return { _tag: "Claimed", entry, settle: hooks.claim(key) };
+          return { _tag: "Claimed", entry };
         });
 
         if (claimed._tag === "Hit") {
@@ -335,7 +331,7 @@ export const makeSharedComputation = <K, A, E>(
           return joined;
         }
         yield* hooks.onOutcome("miss");
-        const { entry, settle } = claimed;
+        const { entry } = claimed;
 
         // `Effect.forkDetach`, not run directly on this fiber: `compute`
         // now belongs to every fiber that coalesces onto `entry.claim`,
@@ -391,7 +387,7 @@ export const makeSharedComputation = <K, A, E>(
               // Only a Live claim's exit reaches the adapter; a superseded or
               // abandoned claim's exit still answers every waiter through
               // `Deferred.done` below (see `awaitShared`).
-              if (entry.standing === "Live") settle(exit);
+              if (entry.standing === "Live") hooks.settle(key, exit);
               // A no-op when `reset` or the abandoning leave already did it.
               forget(key, entry);
             }).pipe(Effect.flatMap(() => Deferred.done(entry.claim, exit))),
