@@ -403,14 +403,14 @@ Plans:
   2. `DecisionCache` has no `generation` or `myGeneration`, no stale-write check, and `clear` is only the steps the adapter still owns; the seam tests land before `generation` is deleted, and the existing `DecisionCache.test.ts` race pins pass unchanged.
   3. A property test over generated `run`, `reset`, settle and leave interleavings holds: no superseded exit is ever settled, every waiter is answered exactly once, a post-reset ask claims afresh.
   4. The staleness rule is a stated behaviour (a stale answer never re-enters a cleared cache; an ask after `clear` computes afresh): a new BEH under the decision-cache behaviour, BEH-QD-439 and INV-QD-025's Enforcement restated, ADR-QD-132 amended.
-**Plans**: 4/5 plans executed
+**Plans**: 5/5 plans executed
 
 Plans:
 - [x] 31-01 (W1): Reserved-number check and the mutation baseline of `SharedComputation.ts` and `DecisionCache.ts` (alone, first); the four clear-mid-compute races and the amended reset test at the seam, RED on the phase base.
 - [x] 31-02 (W2): Tracer: a closed `standing` (Live, Superseded, Abandoned) and a `reset` that supersedes, turning the races green; then, in its own commit, `DecisionCache` loses its generation counter with `DecisionCache.test.ts` byte-identical.
 - [x] 31-03 (W3): The `settle(key, exit)` hook replaces the claim-time hook in the module, its adapter and every harness; the model-based property (seed 3101, 300 runs).
 - [x] 31-04 (W4): ADR-QD-132 amendment, BEH-QD-491, BEH-QD-439 and INV-QD-025 restated, INV-QD-307, traceability, CCR-QD-422 and the `@qadi/core` patch changeset.
-- [ ] 31-05 (W5): Gate integrity, WX-04 scan and D-09 commit-order check, mutation comparison, `pnpm check:pr` on the final tree.
+- [x] 31-05 (W5): Gate integrity, WX-04 scan and D-09 commit-order check, mutation comparison, `pnpm check:pr` on the final tree.
 
 ### Phase 32: Evaluation options and services stated once
 **Goal**: `EvaluateOptions` and the evaluation services are each declared once, and reading the pipeline `Qadi.ts` → `Evaluate.ts` → `Lifecycle.ts` → `Walk.ts` meets no duplicated type.

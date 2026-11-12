@@ -4,17 +4,17 @@ milestone: v1.3
 milestone_name: Arch Wave 8
 current_phase: 31
 current_phase_name: A reset supersedes its claims
-status: executing
-stopped_at: Completed 31-04-PLAN.md
-last_updated: "2026-11-12T08:08:10.373Z"
+status: verifying
+stopped_at: Completed 31-05-PLAN.md
+last_updated: "2026-11-12T08:13:28.258Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 31 execution started
-state_head: 7b97968ca3636e1da15663eea2ea4161db8f5271
+state_head: acd47892751a767fe7ea0e3e0c2ba23fcb4297f2
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 14
-  completed_plans: 13
+  completed_plans: 14
   percent: 14
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 
 Phase: 31 (A reset supersedes its claims) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-12 — Phase 31 execution started
 
 Progress: [█░░░░░░░░░] 14% (v1.3: 0 of 7 phases)
@@ -156,6 +156,7 @@ Progress: [█░░░░░░░░░] 14% (v1.3: 0 of 7 phases)
 | Phase 31 P02 | 15 min | 2 tasks | 2 files |
 | Phase 31 P03 | 20 min | 2 tasks | 3 files |
 | Phase 31 P04 | 15 min | 2 tasks | 6 files |
+| Phase 31 P05 | 10 min | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -270,8 +271,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T08:08:10.344Z
-Stopped at: Completed 31-04-PLAN.md
+Last session: 2026-11-12T08:13:28.230Z
+Stopped at: Completed 31-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
