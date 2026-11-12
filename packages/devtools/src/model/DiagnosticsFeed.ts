@@ -170,6 +170,12 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
   let generation = 0;
   const view = makeExternalStore<DiagnosticsSnapshot>(diagnosticsOff);
   const handle = yield* FiberHandle.make<void>();
+  // Added after the handle, so it runs first on close: the run it interrupts is then a replaced one.
+  yield* Effect.addFinalizer(() =>
+    Effect.sync(() => {
+      generation += 1;
+    }),
+  );
   const fork = yield* FiberHandle.runtime(handle)<never>();
 
   // One publish per transition, carrying status and reading together.

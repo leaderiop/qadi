@@ -393,6 +393,24 @@ describe("the diagnostics feed", () => {
     }),
   );
 
+  it.effect("F24 closing the scope over a layer whose release dies records no Stopped", () =>
+    Effect.gen(function* () {
+      const dying = Layer.effectDiscard(
+        Effect.acquireRelease(Effect.void, () => Effect.die(new Error("release blew up"))),
+      );
+      const scope = yield* Scope.make();
+      const feed = yield* Scope.provide(makeDiagnosticsFeed({ layer: dying }), scope);
+      const before = feed.getSnapshot();
+      const seen = recording(feed);
+
+      yield* Scope.close(scope, Exit.void);
+      yield* settleTurns;
+
+      assert.deepStrictEqual(seen, []);
+      assert.strictEqual(feed.getSnapshot(), before);
+    }),
+  );
+
   it.effect("F18 a layer that fails to build reads wiring Failed in a Live feed, which samples again", () =>
     Effect.gen(function* () {
       const { state, questions } = source(() => []);
