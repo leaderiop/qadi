@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 32
 current_phase_name: Evaluation options and services stated once
 status: executing
-stopped_at: Phase 31 complete, ready to plan Phase 32
-last_updated: "2026-11-12T13:08:53.829Z"
+stopped_at: Completed 32-01-PLAN.md
+last_updated: "2026-11-12T13:12:34.491Z"
 last_activity: 2026-11-12
-last_activity_desc: Phase 31 complete, transitioned to Phase 32
-state_head: 749158d7ba25c18eaa9910c884d86fa985e49c1e
+last_activity_desc: Phase 32 execution started
+state_head: 459ad540ae8d6d290889fa1d650658deb57eed7c
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 18
-  completed_plans: 14
+  completed_plans: 15
   percent: 29
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 31 — A reset supersedes its claims
+**Current focus:** Phase 32 — Evaluation options and services stated once
 
 ## Current Position
 
-Phase: 32 (Evaluation options and services stated once) — READY TO EXECUTE
-Plan: Not started
+Phase: 32 (Evaluation options and services stated once) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-11-12 — Phase 31 complete, transitioned to Phase 32
+Last activity: 2026-11-12 — Phase 32 execution started
 
 Progress: [███░░░░░░░] 29% (v1.3: 0 of 7 phases)
 
@@ -158,6 +158,7 @@ Progress: [███░░░░░░░] 29% (v1.3: 0 of 7 phases)
 | Phase 31 P03 | 20 min | 2 tasks | 3 files |
 | Phase 31 P04 | 15 min | 2 tasks | 6 files |
 | Phase 31 P05 | 10 min | 3 tasks | 1 files |
+| Phase 32 P01 | 10 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -231,6 +232,7 @@ Progress: [███░░░░░░░] 29% (v1.3: 0 of 7 phases)
 - [Phase 31]: settle(key, exit) receives the full Exit so DecisionCache keeps its own successes-only policy
 - [Phase 31]: Property non-vacuity floors met by weighting the command generator, never by lowering a floor
 - [Phase 31]: ADR-QD-144 unused: a reset is a second cause of ADR-QD-132's decision, so it is amended rather than superseded
+- [Phase 32]: 32-01: the shape pin reads only the @qadi/core barrel and spells each service union out to the five ports, so it stays byte-identical through the move
 
 ### Pending Todos
 
@@ -272,8 +274,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T08:13:28.230Z
-Stopped at: Phase 31 complete, ready to plan Phase 32
+Last session: 2026-11-12T13:12:34.458Z
+Stopped at: Completed 32-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
