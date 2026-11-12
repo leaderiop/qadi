@@ -31,11 +31,13 @@ const layer = qadiTestLayer(subjectWith({ permissions: ["doc:read"] }), {
 });
 ```
 
-`TestLayerOptions` takes `ports` (below), an `idPrefix`, and a `clock` of `"live"` (the default) or `"test"` — set `"test"`
-outside `it.effect`, where no ambient `TestClock` exists, to make
+`TestLayerOptions` takes `ports` (below), an `idPrefix`, and a `clock` of `"live"` (the default) or `"deterministic"` — set
+`"deterministic"` outside `it.effect`, where no ambient `TestClock` exists, to make
 `durationMillis` reproducibly zero when two decisions are compared field by
-field. `qadiReviewLayer` is the subject-less half, for wiring the same
-determinism into a layer that supplies its own `CurrentSubject`.
+field. The choice is `@qadi/core`'s `EvaluationClock`, the same word the devtools simulator uses.
+`qadiReviewLayer` is the subject-less half, for wiring the same
+determinism into a layer that supplies its own `CurrentSubject`. It does not
+shadow the decision sink or the cache, so a test's recording sink sees every record.
 
 ## Defaults fail closed
 

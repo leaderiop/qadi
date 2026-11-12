@@ -457,3 +457,28 @@ import type { ArchiveRefusal } from "@qadi/audit";
 export const isBadBundle = (refusal: ArchiveRefusal): boolean =>
   refusal._tag === "Malformed" || refusal._tag === "TooDeep";
 ```
+
+## 0.12: one clock vocabulary, `EvaluationClock`
+
+`@qadi/testing` and `@qadi/devtools` now take one clock word, `@qadi/core`'s `EvaluationClock`
+(`"live" | "deterministic"`). `@qadi/testing`'s deterministic clock is `"deterministic"`, where it was
+`"test"`, and `@qadi/devtools` no longer exports a clock type of its own: `SimulationClock` is removed.
+`"live"` is still the default in both. Before:
+
+```ts
+import { qadiTestLayer, subjectWith } from "@qadi/testing";
+import type { SimulationClock } from "@qadi/devtools";
+
+const simulation: SimulationClock = "deterministic";
+const layer = qadiTestLayer(subjectWith({ permissions: ["doc:read"] }), { clock: "test" });
+```
+
+After:
+
+```typescript
+import { qadiTestLayer, subjectWith } from "@qadi/testing";
+import type { EvaluationClock } from "@qadi/core";
+
+export const clock: EvaluationClock = "deterministic";
+export const layer = qadiTestLayer(subjectWith({ permissions: ["doc:read"] }), { clock });
+```
