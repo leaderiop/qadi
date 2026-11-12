@@ -43,7 +43,7 @@ export interface ServicesPanelProps {
    * the host provides. Without it the cards still show counts, and say what the
    * detail would need.
    */
-  readonly portCalls?: PortCallLog;
+  readonly portCalls?: PortCallLog | undefined;
 }
 
 const card: CSSProperties = {

@@ -13,27 +13,35 @@
  * list, and React's `Can` re-evaluates on render, so a component mounting would
  * record accesses that never happened.
  */
-import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
-import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import { DecisionHistoryUnavailable } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
-import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
-import type { PortDescription } from "./PortDescription.ts";
-import { canonicalKey } from "./PortKey.ts";
-import type { SpanType } from "./PortSpan.ts";
-import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import {
+  boundedPort,
+  makePortDescription,
+  nonePort,
+  retryingPort,
+  timingOutPort,
+} from "./PortDerivation.ts";
+import type { LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
+import {
+  portSpan,
+  sharedQuestionFields,
+  sharedQuestionKeys,
+  spanStruct,
+} from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
-import { portWire, sameAnswer } from "./PortWireEncode.ts";
+import { sameAnswer } from "./PortWireEncode.ts";
+import { scopedResourceIdOf } from "./ScopedLeaf.ts";
 
 /**
  * What the port can say about a past event.
@@ -72,9 +80,9 @@ export interface DecisionHistoryShape {
    * Answers `hasActed`/`hasNotActed`.
    *
    * An implementation is not required to fail cleanly. `PortAccess.ts`'s
-   * `askActedAny`/`askActedForResource` catch a defect from this call and
-   * convert it into this same `DecisionHistoryUnavailable`, matching `AttributeResolverShape.resolve`'s
-   * own contract — see its doc comment for why (issue #100).
+   * `askActed` catches a defect from this call and converts it into this same
+   * `DecisionHistoryUnavailable`, matching `AttributeResolverShape.resolve`'s own
+   * contract — see its doc comment for why (issue #100).
    */
   readonly hasActed: (
     query: ActedQuery,
@@ -108,42 +116,46 @@ const actedQuestion = spanStruct(
   },
 );
 
-const actedSpan = {
+const actedSpan = portSpan({
   question: actedQuestion,
   answer: spanStruct({ answer: Schema.optionalKey(ActedResult) }, { answer: "qadi.answer" }),
-  pose: ([query]: [query: ActedQuery]): SpanType<typeof actedQuestion> => ({
+  pose: ([query]: [query: ActedQuery]) => ({
     subjectId: query.subjectId,
     event: query.event,
     scope: query.resourceId === undefined ? "Any" : "Resource",
     resourceId: query.resourceId,
   }),
   disclose: (answer: ActedResult) => ({ answer }),
-};
+});
 
 /**
- * What the history question and answer look like on a wire (ARCH-31).
+ * The request `HasActed` and `HasNotActed` put to this port, the same one: the
+ * subject's id and the event the leaf names, about the site's resource when the
+ * leaf is `Resource`-scoped and about none when it is `Any`.
  *
- * An absent `resourceId` is an "ever, at all" question (`scope: "Any"`); the
- * span says which it was.
+ * A `Resource`-scoped leaf at a site with no usable resource id is a request
+ * with no `resourceId`, which the read refuses (`readScoped`, `PortAccess.ts`):
+ * the request is stated as far as the site allows, and what to do about the
+ * rest is the read's. The only place these leaves become a request (ARCH-70,
+ * ADR-QD-134).
  */
-const actedWire = portWire({
-  question: Schema.Struct({
-    subjectId: SubjectIdSchema,
-    event: Schema.String,
-    resourceId: Schema.optionalKey(ResourceIdSchema),
-  }),
-  answer: ActedResult,
-  toQuestion: ([query]: [query: ActedQuery]) =>
-    Result.succeed({
-      subjectId: query.subjectId,
-      event: query.event,
-      ...(query.resourceId === undefined ? {} : { resourceId: query.resourceId }),
-    }),
-  fromQuestion: (question, subject): [query: ActedQuery] => [
-    { subjectId: subject.id, event: question.event, resourceId: question.resourceId },
-  ],
-  ...sameAnswer<ActedResult>(),
-});
+const askedActed = (
+  leaf: LeafOf["HasActed"] | LeafOf["HasNotActed"],
+  site: ReadSite,
+): [query: ActedQuery] => [
+  {
+    subjectId: site.subject.id,
+    event: leaf.event,
+    resourceId: scopedResourceIdOf(leaf, site.resource),
+  },
+];
+
+/**
+ * The `DecisionHistory` port's `asks`: both acted tags build their request with
+ * {@link askedActed}, since only the polarity the caller applies to the answer
+ * differs between them.
+ */
+const actedAsks = { HasActed: askedActed, HasNotActed: askedActed };
 
 /**
  * A host may serve events from an allowlist or leave the port open.
@@ -154,19 +166,18 @@ const actedWire = portWire({
  */
 const actedServing: PortServingFacet<"DecisionHistory", [query: ActedQuery]> = {
   allowlist: "open",
-  leaves: { HasActed: (leaf) => leaf.event, HasNotActed: (leaf) => leaf.event },
   asked: ([query]) => query.event,
   admitted: (declaration) => declaration.events,
-  declare: (names) => ({ DecisionHistory: { events: names } }),
+  declare: ({ names }) => ({ DecisionHistory: { events: names } }),
 };
 
 /**
  * The decision-history port, described once (`PortDescription.ts`).
  *
- * A request is keyed by `(subjectId, event, resourceId)` through
- * `canonicalKey`; an absent resource keys as `undefined`, distinct from every
- * present value, so an "ever, at all" question stays distinct from any
- * resource-scoped one.
+ * A request is keyed as its wire question, `{ subjectId, event, resourceId }`
+ * (`makePortDescription`, ADR-QD-133); an absent resource is absent from the
+ * question, distinct from every present value, so an "ever, at all" question
+ * stays distinct from any resource-scoped one.
  */
 export const decisionHistoryPort: PortDescription<
   "DecisionHistory",
@@ -175,23 +186,45 @@ export const decisionHistoryPort: PortDescription<
   [query: ActedQuery],
   ActedResult,
   DecisionHistoryUnavailable,
-  typeof actedSpan
-> = {
+  [query: ActedQuery],
+  typeof actedSpan,
+  typeof actedAsks
+> = makePortDescription({
   port: "DecisionHistory",
   method: "hasActed",
   span: "qadi.acted",
   attributes: actedSpan,
-  wire: actedWire,
+  asks: actedAsks,
+  /**
+   * What the history question and answer look like on a wire (ARCH-31).
+   *
+   * An absent `resourceId` is an "ever, at all" question (`scope: "Any"`); the
+   * span says which it was.
+   */
+  wire: {
+    question: Schema.Struct({
+      subjectId: SubjectIdSchema,
+      event: Schema.String,
+      resourceId: Schema.optionalKey(ResourceIdSchema),
+    }),
+    answer: ActedResult,
+    toQuestion: ([query]) => ({
+      subjectId: query.subjectId,
+      event: query.event,
+      resourceId: query.resourceId,
+    }),
+    fromQuestion: (question, subject): [query: ActedQuery] => [
+      { subjectId: subject.id, event: question.event, resourceId: question.resourceId },
+    ],
+    ...sameAnswer<ActedResult>(),
+  },
   serving: actedServing,
   service: DecisionHistory,
   invoke: (shape) => (query) => shape.hasActed(query),
   make: (name, call) => ({ name, hasActed: call }),
   failure: ([query], cause) => new DecisionHistoryUnavailable({ event: query.event, cause }),
-  defect: ([query], cause) =>
-    new DecisionHistoryUnavailable({ event: query.event, cause: Cause.squash(cause) }),
-  key: ([query]) => canonicalKey([query.subjectId, query.event, query.resourceId]),
   none: { name: "DecisionHistoryUnknown", answer: "Unknown" },
-};
+});
 
 /**
  * Knows nothing, so every history policy denies.

@@ -126,7 +126,10 @@ same shape repeats in each of the five port modules (`RelationshipResolver.ts`,
 **A port's wrappers and default are derived from its description, not written
 by hand** (ADR-QD-094). The description states the port's facts once — name,
 method, span, the attributes that span carries, a lens onto its one method, its
-typed-error constructors, its request key and its fail-closed answer — and each
+typed-error constructors, the request each policy leaf asks it (`asks`, ADR-QD-134)
+and its fail-closed answer; four of the five derive
+their request key and defect from their wire question and failure
+(`makePortDescription`, ADR-QD-133), and `CustomPredicate` states its own — and each
 exported layer is a one-line derivation: `export const decisionHistoryRetrying = retryingPort(decisionHistoryPort)`,
 `export const DecisionHistoryUnknown = nonePort(decisionHistoryPort)`. The
 derivations live in `PortDerivation.ts` (package-private; it absorbed the old
@@ -264,18 +267,19 @@ Ticket #101 measured a named `Effect.fn(name)` at about **2.7–2.9 µs** per ca
 `walk` (`Walk.ts`) is a plain function returning `Effect.suspend`, neither traced nor in the budget: it runs once per evaluation and the root span is `evaluate`'s.
 
 The boundary stops exactly at these three. The port reads in `PortAccess.ts` —
-`readAttribute` (and the `resolveAttribute` span under it), `askActedAny`,
-`askActedForResource`, `askRelationship`, `askCustom`, `askSignature` — and the
+`readAttribute` (and the `resolveAttribute` span under it), `askActed`,
+`askRelationship`, `askCustom`, `askSignature` — and the
 root `evaluate` stay `Effect.fn` and traced: ADR-QD-051 ("a span says what was
 asked, and a tracer is what reads it back") treats those spans as product
 observability a deployment wires a real tracer to consume, not incidental cost,
 and none of them runs once per policy *node* the way the three above do. (They
 moved there from `Evaluate.ts` in ADR-QD-077 so that `toPredicate` reads its
 ports the same way; `Walk.ts`'s `evaluateActed` family are now plain
-functions that turn an answer into a verdict.) `requireScopedResourceId`, now
-`requireResourceId` in `PortAccess.ts`, is a small helper called from inside the
-acted and signature reads, not a per-node dispatch point, and was considered and
-rejected for conversion on the same grounds (issue #102).
+functions that turn an answer into a verdict.) `requireScopedResourceId`, the
+small helper that used to sit under the acted and signature reads, was removed by
+ARCH-70 (ADR-QD-134): its check is now `readScoped` in `PortAccess.ts`, a plain
+function that opens no span of its own, so a missing resource id leaves the
+port's span and nothing else.
 
 Converting anything not in the table above needs a benchmark first, the same
 qualifier §5a's `SWITCH_BUDGET` carries — `scripts/check-house-style.mjs`'s
@@ -479,6 +483,17 @@ export type ValueRef = typeof ValueRef.Type;
 type is hand-written first — `Schema.suspend` needs a named type to close the
 loop — and the `Schema.TaggedStruct` variants are then built and type-asserted
 against it. See `Policy.ts` and `Matcher.ts`.
+
+**The sink record envelope is the second** (ADR-QD-135), for the same
+trust-boundary reason: a record is encoded for a socket, a store and a devtools
+page and read back from untrusted JSON, and a field list written once in the class,
+once in the wire struct and twice more in the projection and its inverse is the
+shape of the defect above. Each record's fields are one `Schema.Struct` in
+`SinkRecordFields.ts`; the record class is a `Data.TaggedClass` typed by that
+struct's `Type` (a `Schema.TaggedClass` was measured and rejected: its constructor
+parses the whole policy on every evaluation), and the wire struct spreads it. The
+decision's `outcome` stays outside the struct, because ADR-QD-106's checks sit
+between its in-memory and wire forms.
 
 v4 API notes: `Schema.Union([...])` takes an **array**; the type is
 `Schema.Codec<T>` (not `Schema.Schema<T>`); recursion factors into a single

@@ -615,6 +615,42 @@ describe("leaf policies", () => {
       ),
   );
 
+  it.effect("HasSignature's denial names the signer role it required and says it was a HasSignature one", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasSignature("approved", { signerRole: "director" }), {
+        resource: { id: "doc-1" },
+      });
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(
+        d.reason,
+        "subject 'u1' has no signature matching meaning 'approved' and signer role 'director'",
+      );
+      assert.strictEqual(d.trace.policyTag, "HasSignature");
+    }).pipe(
+      Effect.provide(
+        testLayer(subjectWith({ id: "u1" }), {
+          SignatureHistory: signatureHistoryFromSignatures([
+            { subjectId: "u1", resourceId: "doc-1", meaning: "approved", signerRole: "manager" },
+          ]),
+        }),
+      ),
+    ));
+
+  it.effect("HasCustom's denial is a HasCustom one in the trace", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasCustom("isOwner")).pipe(
+        Effect.provide(
+          testLayer(subjectWith({}), {
+            CustomPredicate: customPredicateFromRecord({ isOwner: () => Effect.succeed(false) }),
+          }),
+        ),
+      );
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.trace.policyTag, "HasCustom");
+    }));
+
   it.effect("HasSignature scope: 'Any' matches a subject-global signature with no resource", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(P.hasSignature("approved", { scope: "Any" }));

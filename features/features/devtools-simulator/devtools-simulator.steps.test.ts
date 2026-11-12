@@ -110,7 +110,8 @@ const policyNamed = (name: string): Policy => {
 
 /**
  * A session over one policy, the way a host builds one: the interface a host
- * crosses (`makeSimulationSession`), not the mechanics under it.
+ * crosses (`makeSimulationSession`), not the mechanics under it. It is built in
+ * the scenario's scope, so it lives as long as the steps that read it.
  *
  * Every scenario here drives the session and reads its snapshot. The sweep
  * planner, the capture decorator and the replay reconstruction are
@@ -120,14 +121,38 @@ const sessionFor = (
   policy: Policy,
   input: SimulationInput,
   ports?: EvaluationPortsLayer,
-): SimulationSession => {
-  const session = makeSimulationSession({
-    sightings: [{ policy, label: "the policy", count: 1, allows: 1, denies: 0, errors: 0, lastAt: 1 }],
-    ...(ports === undefined ? {} : { ports }),
+) =>
+  Effect.gen(function* () {
+    const session = yield* makeSimulationSession({
+      sightings: [{ policy, label: "the policy", count: 1, allows: 1, denies: 0, errors: 0, lastAt: 1 }],
+      ...(ports === undefined ? {} : { ports }),
+    });
+    session.edit(input);
+    return session;
   });
-  session.edit(input);
-  return session;
-};
+
+/** Resumes once no run is in flight: at once when none is, else on the notification that ends it. */
+const settled = (session: SimulationSession) =>
+  Effect.callback<void>((resume) => {
+    const idle = () => session.getSnapshot().run._tag !== "Running";
+    if (idle()) {
+      resume(Effect.void);
+      return;
+    }
+    const off = session.subscribe(() => {
+      if (!idle()) return;
+      off();
+      resume(Effect.void);
+    });
+    return Effect.sync(off);
+  });
+
+/** One run or sweep, waited for: `run` is a command, and the answer is in the snapshot. */
+const ran = (session: SimulationSession, kind: "Run" | "Sweep") =>
+  Effect.suspend(() => {
+    session.run(kind);
+    return settled(session);
+  });
 
 type Ran = Extract<RunState, { readonly _tag: "Ran" }>;
 
@@ -374,37 +399,38 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
 
   When("the {string} policy is simulated", function* (name: string) {
     const s = yield* readState();
-    const session = sessionFor(policyNamed(name), s.input, s.ports);
+    // A run sees the services its session was built under, so the ring goes in here.
+    const built = sessionFor(policyNamed(name), s.input, s.ports);
+    const session = yield* s.ring === undefined ? built : built.pipe(Effect.provide(s.ring.layer));
     chooseHostSource(session, s.ports);
-    const program = session.run("Run");
-    yield* s.ring === undefined ? program : program.pipe(Effect.provide(s.ring.layer));
+    yield* ran(session, "Run");
     yield* patch(() => ({ session, outcome: ranOf(session).outcome }));
   });
 
   When("the {string} policy is simulated against the live resolvers", function* (name: string) {
     const s = yield* readState();
     if (s.ports === undefined) throw new Error("no live resolvers were given");
-    const session = sessionFor(policyNamed(name), s.input, s.ports);
+    const session = yield* sessionFor(policyNamed(name), s.input, s.ports);
     session.chooseSource("Live");
-    yield* session.run("Run");
+    yield* ran(session, "Run");
     yield* patch(() => ({ session, outcome: ranOf(session).outcome }));
   });
 
   When("a what-if sweep runs against the {string} policy", function* (name: string) {
     const s = yield* readState();
-    const session = sessionFor(policyNamed(name), s.input, s.ports);
+    const built = sessionFor(policyNamed(name), s.input, s.ports);
+    const session = yield* s.ring === undefined ? built : built.pipe(Effect.provide(s.ring.layer));
     chooseHostSource(session, s.ports);
-    const program = session.run("Sweep");
-    yield* s.ring === undefined ? program : program.pipe(Effect.provide(s.ring.layer));
+    yield* ran(session, "Sweep");
     yield* patch(() => ({ session, report: ranOf(session).report }));
   });
 
   When("a paired what-if sweep runs against the {string} policy", function* (name: string) {
     const s = yield* readState();
-    const session = sessionFor(policyNamed(name), s.input, s.ports);
+    const session = yield* sessionFor(policyNamed(name), s.input, s.ports);
     chooseHostSource(session, s.ports);
     session.setPairs(true);
-    yield* session.run("Sweep");
+    yield* ran(session, "Sweep");
     yield* patch(() => ({ session, report: ranOf(session).report }));
   });
 
@@ -414,7 +440,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     if (entry === undefined) throw new Error("no row to replay");
     // The rail is what the log saw beside the row, usually nothing: the policy
     // the session runs can only come from the row.
-    const session = makeSimulationSession({ sightings: catalogueOf(s.timeline) });
+    const session = yield* makeSimulationSession({ sightings: catalogueOf(s.timeline) });
     session.replay(entry);
     yield* patch(() => ({ session }));
   });
@@ -423,7 +449,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     const session = sessionOf(yield* readState());
     session.choosePolicy(policyNamed(name));
     // The row's policy is left behind, so the next replay has something to undo.
-    assert.equal(session.getSnapshot().policy._tag, "Chosen");
+    assert.equal(session.getSnapshot().policy._tag, "Listed");
   });
 
   // A replay is an act (ARCH-63): the same row again re-seeds, where `seed`'s
@@ -443,7 +469,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
       ...draft,
       subject: { ...draft.subject, permissions: [`${resource}:${action}`] },
     });
-    yield* session.run("Run");
+    yield* ran(session, "Run");
     yield* patch(() => ({ outcome: ranOf(session).outcome }));
   });
 
@@ -452,9 +478,9 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     if (s.ports === undefined) throw new Error("no live resolvers were given");
     // A Live run records what the resolvers answered; that capture is what the
     // Snapshot source replays.
-    const session = sessionFor(policyNamed(name), s.input, s.ports);
+    const session = yield* sessionFor(policyNamed(name), s.input, s.ports);
     session.chooseSource("Live");
-    yield* session.run("Run");
+    yield* ran(session, "Run");
     yield* patch(() => ({ session, outcome: ranOf(session).outcome }));
   });
 
@@ -463,18 +489,18 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     // Through the Snapshot source, the one a panel offers once a Live run has
     // captured — which is why choosing it is refused before that run.
     session.chooseSource("Snapshot");
-    yield* session.run("Run");
+    yield* ran(session, "Run");
     yield* patch(() => ({ replayed: ranOf(session).outcome }));
   });
 
   When("the {string} policy is simulated under each clock", function* (name: string) {
     const s = yield* readState();
-    const session = sessionFor(policyNamed(name), s.input);
+    const session = yield* sessionFor(policyNamed(name), s.input);
     session.setClock("live");
-    yield* session.run("Run");
+    yield* ran(session, "Run");
     const outcome = ranOf(session).outcome;
     session.setClock("deterministic");
-    yield* session.run("Run");
+    yield* ran(session, "Run");
     const secondOutcome = ranOf(session).outcome;
     yield* patch(() => ({ session, outcome, secondOutcome }));
   });
@@ -552,7 +578,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   Then("a sweep against the live resolvers is reported as performing lookups", function* () {
     const s = yield* readState();
     if (s.ports === undefined) throw new Error("no live resolvers were given");
-    const session = sessionFor(policyNamed("editor role"), s.input, s.ports);
+    const session = yield* sessionFor(policyNamed("editor role"), s.input, s.ports);
     session.chooseSource("Live");
     const { plan } = session.getSnapshot();
     assert.ok(plan !== undefined, "no plan");
@@ -562,7 +588,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
 
   Then("a sweep against fixtures is reported as performing none", function* () {
     const s = yield* readState();
-    const { plan } = sessionFor(policyNamed("editor role"), s.input).getSnapshot();
+    const { plan } = (yield* sessionFor(policyNamed("editor role"), s.input)).getSnapshot();
     assert.ok(plan !== undefined, "no plan");
     assert.equal(plan.causesIO, false);
   });
@@ -587,7 +613,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     // An orphan carries no policy, so the session stays on its empty rail
     // instead of seeding from it.
     const { policy } = sessionOf(yield* readState()).getSnapshot();
-    assert.equal(policy._tag, "None");
+    assert.equal(policy._tag, "Empty");
   });
 
   Then("the reconstruction matches the baseline", function* () {
@@ -630,7 +656,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   Given(
     "a simulation session for the {string} policy, whose fixtures would allow",
     function* (name: string) {
-      const session = sessionFor(policyNamed(name), {
+      const session = yield* sessionFor(policyNamed(name), {
         subject: { id: "alice" },
         attributes: { clearance: 9 },
       });
@@ -641,7 +667,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   Given(
     "a simulation session for the {string} policy with a subject holding the role {string}",
     function* (name: string, role: string) {
-      const session = sessionFor(policyNamed(name), { subject: { id: "alice", roles: [role] } });
+      const session = yield* sessionFor(policyNamed(name), { subject: { id: "alice", roles: [role] } });
       yield* patch(() => ({ session }));
     },
   );
@@ -649,13 +675,13 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   When("the reviewer chooses the Live source and runs", function* () {
     const session = sessionOf(yield* readState());
     session.chooseSource("Live");
-    yield* session.run("Run");
+    yield* ran(session, "Run");
   });
 
   When("the reviewer turns the pair sweep on and runs a sweep", function* () {
     const session = sessionOf(yield* readState());
     session.setPairs(true);
-    yield* session.run("Sweep");
+    yield* ran(session, "Sweep");
   });
 
   Then("the run is refused because the host supplied no resolvers", function* () {
@@ -691,7 +717,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
         ingest(emptyTimeline(), decisionAt(1, policyNamed(first))),
         decisionAt(2, policyNamed(second)),
       );
-      const session = makeSimulationSession({ sightings: catalogueOf(timeline) });
+      const session = yield* makeSimulationSession({ sightings: catalogueOf(timeline) });
       session.edit({ subject: { id: "alice" }, attributes: { clearance: 9 } });
       session.choosePolicy(policyNamed(chosen));
       yield* patch(() => ({ session, timeline }));
@@ -710,15 +736,15 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
 
   Then("the chosen policy is still {string}", function* (name: string) {
     const policy = sessionOf(yield* readState()).getSnapshot().policy;
-    assert.equal(policy._tag, "Chosen");
-    assert.ok(policy._tag === "Chosen" && Equal.equals(policy.policy, policyNamed(name)));
+    assert.equal(policy._tag, "Listed");
+    assert.ok(policy._tag === "Listed" && Equal.equals(policy.value.policy, policyNamed(name)));
     // The rail now lists it first, which is the reorder the scenario is about.
-    assert.equal(policy._tag === "Chosen" && policy.index, 0);
+    assert.equal(policy._tag === "Listed" && policy.index, 0);
   });
 
   Then("a run evaluates {string}", function* (name: string) {
     const session = sessionOf(yield* readState());
-    yield* session.run("Run");
+    yield* ran(session, "Run");
     const run = session.getSnapshot().run;
     assert.equal(run._tag, "Ran");
     assert.ok(run._tag === "Ran" && Equal.equals(run.question.policy, policyNamed(name)));

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-094                                   |
-> | Revision       | 1.8                                            |
+> | Revision       | 1.11                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.8 (2026-11-10): amendment — the key law's equality is Equal.equals over PortKey's domain; a value outside it is a typed KeyRefusal and key returns a Result (ARCH-65, CCR-QD-407)<br>1.7 (2026-11-08): amendment — one per-port table builder; fixture setups pass through to a registry-derived fixturePortsLayer (ARCH-53, CCR-QD-392)<br>1.6 (2026-11-08): amendment — a description also states what it serves, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.5 (2026-11-08): amendment — a description's span attributes state the question projection, pose, beside disclose; the signature key covers the requirement (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.4 (2026-10-08): amendment — a description also states its wire, `PortDescription.wire`, and the registry makes a missing wire a compile error (ARCH-31, ADR-QD-107, CCR-QD-382)<br>1.3 (2026-10-08): amendment — each port's fixture builder is listed in `PORT_FIXTURES`, closed over `PortName`, beside its description (ARCH-42, CCR-QD-270)<br>1.2 (2026-10-08): amended: a request key is injective over every argument the port receives; the relationship and custom-predicate keys are corrected (ARCH-45 I1, CCR-QD-263)<br>1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
+> | Change History | 1.11 (2026-11-12): amendment — a port's name and span are stated once, in PortName.ts; a description's span is its own port's (ARCH-77, CCR-QD-419)<br>1.10 (2026-11-11): amendment — ARCH-70: a description also states the request each policy leaf asks (asks), and the facet loses leaves (ADR-QD-134, CCR-QD-412)<br>1.9 (2026-11-11): amendment — a derived port's key is canonicalKey over its wire question and its defect is failure of the squashed cause, built by makePortDescription; CustomPredicate states its own (ARCH-69, ADR-QD-133, CCR-QD-411)<br>1.8 (2026-11-10): amendment — the key law's equality is Equal.equals over PortKey's domain; a value outside it is a typed KeyRefusal and key returns a Result (ARCH-65, CCR-QD-407)<br>1.7 (2026-11-08): amendment — one per-port table builder; fixture setups pass through to a registry-derived fixturePortsLayer (ARCH-53, CCR-QD-392)<br>1.6 (2026-11-08): amendment — a description also states what it serves, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.5 (2026-11-08): amendment — a description's span attributes state the question projection, pose, beside disclose; the signature key covers the requirement (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.4 (2026-10-08): amendment — a description also states its wire, `PortDescription.wire`, and the registry makes a missing wire a compile error (ARCH-31, ADR-QD-107, CCR-QD-382)<br>1.3 (2026-10-08): amendment — each port's fixture builder is listed in `PORT_FIXTURES`, closed over `PortName`, beside its description (ARCH-42, CCR-QD-270)<br>1.2 (2026-10-08): amended: a request key is injective over every argument the port receives; the relationship and custom-predicate keys are corrected (ARCH-45 I1, CCR-QD-263)<br>1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
 
 ---
 
@@ -83,15 +83,16 @@ interface PortDescription<N extends PortName, Self, Shape extends PortShape, Arg
   readonly invoke: (shape: Shape) => (...args: Args) => Effect.Effect<A, E>;
   readonly make: (name: string, call: (...args: Args) => Effect.Effect<A, E>) => Shape;
   readonly failure: (args: Args, cause: unknown) => E;
-  readonly defect: (args: Args, cause: Cause.Cause<unknown>) => E;
-  readonly key: (args: Args) => Result.Result<string, KeyRefusal>;
+  readonly defect: (args: Args, cause: Cause.Cause<unknown>) => E; // derived: failure(args, Cause.squash(cause))
+  readonly key: (args: Args) => Result.Result<string, KeyRefusal>;  // derived: canonicalKey over the wire question
   readonly none: { readonly name: string; readonly answer: A };
 }
 ```
 
-`key` is `canonicalKey` (`PortKey.ts`) of a tuple that always includes the subject — the axis a
-what-if sweep varies — so a capture taken for one subject never answers a question
-about another ([INV-QD-043](../invariants.md)). `invoke` calls the method through the
+`key` is `canonicalKey` (`PortKey.ts`) of the request's wire question, which always includes
+the subject — the axis a what-if sweep varies — so a capture taken for one subject never
+answers a question about another ([INV-QD-043](../invariants.md)). A derived port does not
+state it (see the ARCH-69 amendment below). `invoke` calls the method through the
 shape, never hands it back unbound.
 
 ### The registry and correlated visitors
@@ -255,6 +256,19 @@ reader's label, never an input to a decision. `EvaluationId`, `CurrentSubject`,
 > place removes it. See [ADR-QD-129](129-a-replay-miss-is-an-outage-on-every-port.md) for
 > what a replay answers when a key finds nothing.
 
+> **Amended (ARCH-69, 2026-11-11, CCR-QD-411): a derived port's key is `canonicalKey` over its
+> wire question.** `AttributeResolver`, `RelationshipResolver`, `DecisionHistory` and
+> `SignatureHistory` each listed their request's fields as a tuple for `key` and restated
+> `failure(args, Cause.squash(cause))` for `defect`; a tuple that forgot a field compiled.
+> `makePortDescription` (`PortDerivation.ts`, package-private) now builds both from the facts the
+> description states: `key` is `canonicalKey` over the value `wire.toQuestion` builds with its
+> `undefined` members dropped, and `defect` is `failure(args, Cause.squash(cause))`. Its spec has no
+> `key` or `defect` field, so a derived port cannot state one; `CustomPredicate` states its own
+> (its key covers the whole subject, which its question does not carry, and its defect renders with
+> `Cause.pretty`). The interface above is unchanged. Evaluation never read the key, so the defect this
+> closes was a wrong replay or test-double answer, not a production grant. Observable change: four
+> ports' key texts, in-process only. See [ADR-QD-133](133-a-port-request-is-derived-from-its-wire-question.md).
+
 ## Amendment (2026-10-08, CCR-QD-270)
 
 Each port's fixture builder is listed in `PORT_FIXTURES` (`Ports.ts`), closed over
@@ -340,3 +354,30 @@ devtools' Fixtures simulation calls the same function.
 A new port is therefore a description (including its wire and its serving facet), a `PortName`
 member, its registry lines and one `PORT_FIXTURES` row; there is no layer-builder line left to
 write. See [ADR-QD-114](114-a-port-states-what-it-serves.md) for the serving facet.
+
+> **Amended (ARCH-70, 2026-11-11, CCR-QD-412): a description also states the request each policy leaf
+> asks.** `PortDescription.asks` (`LeafRequests<P>`) is one `(leaf, site) => request` per policy tag the
+> port reads, where `site` is the subject asking and the resource asked about (`ReadSite`). Every read in
+> `PortAccess.ts` builds its request through it and `servingFor` reads the served name from the same
+> request, so the facet keeps no leaf map of its own: `PortServingFacet.leaves` and `ServedLeaves`,
+> listed in the CCR-QD-392 amendment above, are gone. `PortDescription` takes the request as far as a
+> site supplies it, `P`, and an exact `Asks`, as type parameters. **Breaking** for anything that builds a
+> `PortDescription` by hand, because the interface shipped in 0.10.0. See
+> [ADR-QD-134](134-a-resource-scoped-port-read-is-one-read.md).
+
+## Amendment (2026-11-12, CCR-QD-419)
+
+A port's name and the span its read opens are stated once, in `packages/core/src/PortName.ts`, a leaf
+with no imports. They were declared in `PortMetrics.ts`, so every port module took what a port *is*
+from the module that counts what it *did* (ARCH-77). `PortName` is the key set of one module-private
+table, and `PortSpanName` is that table's value union; a sixth port is one row there, and its name and
+its span cannot be added separately and drift apart. The leaf declares no metric, so a metric's registry
+key (ADR-QD-052) cannot move with a port's identity.
+
+`PortDescription.span` is `PortSpanOf<N>`, so a description can name only its own port's span:
+`attributeResolverPort` claiming `"qadi.acted"` is a compile error, and `PortName.tst.ts` pins it. Before
+this the field was the whole `PortSpanName` union. Deriving the span union from the five descriptions
+instead was weighed and rejected: each description is annotated, so its `span` type is the whole union,
+and the only module that sees every description (`Ports.ts`) sits above `PortDescription.ts`. `PortSpanOf`
+is a new type export of `@qadi/core`; nothing at runtime changed. No new ADR: this moves where a fact is
+stated and narrows what a description may state, which is this decision's own subject.

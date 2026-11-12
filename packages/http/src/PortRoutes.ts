@@ -31,7 +31,7 @@ import type {
 } from "@qadi/core";
 import { answerRemotely, CurrentSubject, forEveryPort, tabulatePorts } from "@qadi/core";
 import { answerWithResponse, enforceSubject } from "./AuthorizeRequest.ts";
-import { addGuardedRoute } from "./PermissionRegistry.ts";
+import { addGuardedRoute } from "./GuardRoute.ts";
 import { portPath } from "./PortRouteAddress.ts";
 import { unguardedRoutes } from "./UnguardedRoute.ts";
 

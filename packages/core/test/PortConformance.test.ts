@@ -1,8 +1,9 @@
 /**
  * One conformance suite, run over every port in the registry (ARCH-10,
  * INV-QD-095): each port's named default, its three exported wrappers, its
- * scripted and recording doubles and its defect constructor must agree with
- * its description.
+ * scripted and recording doubles must agree with its description. The defect
+ * constructor of the four derived ports is `PortDescription.test.ts`'s law;
+ * `CustomPredicate`'s own is pinned below.
  *
  * `CASES` is a mapped type over `PortName`, so a port added to the registry
  * without a case here is a compile error rather than a port the suite silently
@@ -57,7 +58,7 @@ import { describeKeyRefusal, PortReply } from "../src/PortDescription.ts";
 import { nonePort } from "../src/PortDerivation.ts";
 import { recordingPort, replyTable, scriptedPort } from "../src/PortDoubles.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "../src/PortMetrics.ts";
-import type { PortName } from "../src/PortMetrics.ts";
+import type { PortName } from "../src/PortName.ts";
 import type { ArgsOf, PortTypes } from "../src/Ports.ts";
 import {
   RelationshipResolverNever,
@@ -83,8 +84,9 @@ interface PortCase<
   Args extends ReadonlyArray<unknown>,
   A,
   E,
+  P extends ReadonlyArray<unknown>,
 > {
-  readonly description: PortDescription<N, Self, Shape, Args, A, E>;
+  readonly description: PortDescription<N, Self, Shape, Args, A, E, P>;
   /** A representative request. */
   readonly args: Args;
   /** A non-default answer to it. */
@@ -98,11 +100,6 @@ interface PortCase<
     permits: number,
   ) => (layer: Layer.Layer<Self>) => Layer.Layer<Self, InvalidBoundedPermits>;
   readonly timingOut: (duration: Duration.Input) => (layer: Layer.Layer<Self>) => Layer.Layer<Self>;
-  /**
-   * `true` for the one port whose error has no `cause` field and renders a
-   * defect with `Cause.pretty` into `reason` instead (`CustomPredicateError`).
-   */
-  readonly defectRendersCause: boolean;
 }
 
 type CaseOf<D> =
@@ -112,14 +109,23 @@ type CaseOf<D> =
     infer Shape extends PortShape,
     infer Args extends ReadonlyArray<unknown>,
     infer A,
-    infer E
+    infer E,
+    infer P extends ReadonlyArray<unknown>
   >
-    ? PortCase<N, Self, Shape, Args, A, E>
+    ? PortCase<N, Self, Shape, Args, A, E, P>
     : never;
 
 interface CaseVisitor {
-  <N extends PortName, Self, Shape extends PortShape, Args extends ReadonlyArray<unknown>, A, E>(
-    c: PortCase<N, Self, Shape, Args, A, E>,
+  <
+    N extends PortName,
+    Self,
+    Shape extends PortShape,
+    Args extends ReadonlyArray<unknown>,
+    A,
+    E,
+    P extends ReadonlyArray<unknown>,
+  >(
+    c: PortCase<N, Self, Shape, Args, A, E, P>,
   ): void;
 }
 
@@ -136,7 +142,6 @@ const CASES: { readonly [K in PortName]: CaseOf<PortTypes[K]> } = {
     retrying: attributeResolverRetrying,
     bounded: attributeResolverBounded,
     timingOut: attributeResolverTimingOut,
-    defectRendersCause: false,
   },
   DecisionHistory: {
     description: decisionHistoryPort,
@@ -146,7 +151,6 @@ const CASES: { readonly [K in PortName]: CaseOf<PortTypes[K]> } = {
     retrying: decisionHistoryRetrying,
     bounded: decisionHistoryBounded,
     timingOut: decisionHistoryTimingOut,
-    defectRendersCause: false,
   },
   RelationshipResolver: {
     description: relationshipResolverPort,
@@ -156,7 +160,6 @@ const CASES: { readonly [K in PortName]: CaseOf<PortTypes[K]> } = {
     retrying: relationshipResolverRetrying,
     bounded: relationshipResolverBounded,
     timingOut: relationshipResolverTimingOut,
-    defectRendersCause: false,
   },
   CustomPredicate: {
     description: customPredicatePort,
@@ -166,7 +169,6 @@ const CASES: { readonly [K in PortName]: CaseOf<PortTypes[K]> } = {
     retrying: customPredicateRetrying,
     bounded: customPredicateBounded,
     timingOut: customPredicateTimingOut,
-    defectRendersCause: true,
   },
   SignatureHistory: {
     description: signatureHistoryPort,
@@ -176,7 +178,6 @@ const CASES: { readonly [K in PortName]: CaseOf<PortTypes[K]> } = {
     retrying: signatureHistoryRetrying,
     bounded: signatureHistoryBounded,
     timingOut: signatureHistoryTimingOut,
-    defectRendersCause: false,
   },
 };
 
@@ -202,9 +203,6 @@ const fieldsOf = (error: unknown): ReadonlyArray<readonly [string, unknown]> => 
     ],
   ),
 ];
-
-const reasonOf = (error: unknown): unknown =>
-  Predicate.hasProperty(error, "reason") ? error.reason : undefined;
 
 const conform: CaseVisitor = (c) => {
   const d = c.description;
@@ -436,23 +434,6 @@ const conform: CaseVisitor = (c) => {
         }));
     });
 
-    describe("defect constructor (ADR-QD-077)", () => {
-      it("names the same request as a failure would", () => {
-        const defect = new Error("boom");
-        const cause = Cause.die(defect);
-        const fromDefect = d.defect(c.args, cause);
-        if (c.defectRendersCause) {
-          assert.strictEqual(reasonOf(fromDefect), Cause.pretty(cause));
-          assert.deepStrictEqual(
-            fieldsOf(fromDefect).filter(([key]) => key !== "reason"),
-            fieldsOf(d.failure(c.args, defect)).filter(([key]) => key !== "reason"),
-          );
-        } else {
-          assert.deepStrictEqual(fieldsOf(fromDefect), fieldsOf(d.failure(c.args, defect)));
-        }
-      });
-    });
-
     describe("wire (ADR-QD-107)", () => {
       /** Through JSON text, the way a transport carries it. */
       const overTheWire = (json: unknown): unknown => JSON.parse(JSON.stringify(json));
@@ -517,47 +498,16 @@ const keyText = (key: Result.Result<string, KeyRefusal>): string => {
 };
 
 /**
- * The request keys, pinned exactly, so a change to any port's field order or
- * token is caught. Each includes the subject, and an absent resource keys as
- * `u`, so an "ever, at all" question never collides with a resource-scoped
- * one. The law itself is `PortKey.test.ts`'s.
+ * The one request key that is pinned exactly: `CustomPredicate` states its own,
+ * over the whole subject (`CustomPredicate.ts`). The other four ports' keys are
+ * their wire question's, and the exact text of each is the law's
+ * (`PortDescription.test.ts`, ARCH-69). The law itself is `PortKey.test.ts`'s.
  */
 describe("request keys", () => {
   it("are canonicalKey over the question each port is asked", () => {
-    assert.strictEqual(keyText(attributeResolverPort.key([aliceId, "level"])), '[s"alice",s"level"]');
-    assert.strictEqual(
-      keyText(decisionHistoryPort.key([{ subjectId: aliceId, event: "approved", resourceId: undefined }])),
-      '[s"alice",s"approved",u]',
-    );
-    assert.strictEqual(
-      keyText(decisionHistoryPort.key([{ subjectId: aliceId, event: "approved", resourceId: doc }])),
-      '[s"alice",s"approved",s"doc-1"]',
-    );
-    assert.strictEqual(
-      keyText(
-        relationshipResolverPort.key([{ subjectId: aliceId, relation: "owner", resourceId: doc, depth: 3 }]),
-      ),
-      '[s"alice",s"owner",s"doc-1",d3;]',
-    );
     assert.strictEqual(
       keyText(customPredicatePort.key(["isOwner", alice, { id: "doc-1" }, { strict: true }])),
       '[s"alice",s"isOwner",{"strict":t},{"id":s"doc-1"},{"attributes":{},"permissions":S{},"roles":S{}}]',
-    );
-    assert.strictEqual(
-      keyText(signatureHistoryPort.key([{ subjectId: aliceId, resourceId: undefined }])),
-      '[s"alice",u,u,u]',
-    );
-    assert.strictEqual(
-      keyText(signatureHistoryPort.key([{ subjectId: aliceId, resourceId: doc }])),
-      '[s"alice",s"doc-1",u,u]',
-    );
-    assert.strictEqual(
-      keyText(
-        signatureHistoryPort.key([
-          { subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" },
-        ]),
-      ),
-      '[s"alice",s"doc-1",s"approved",s"manager"]',
     );
   });
 });
@@ -795,5 +745,13 @@ describe("customPredicatePort's failure reason", () => {
       },
     };
     assert.strictEqual(reasonFor(unrenderable), "<unrenderable cause>");
+  });
+
+  it("a defect is rendered with Cause.pretty and names the same predicate", () => {
+    const args: [string, typeof alice, undefined, undefined] = ["isOwner", alice, undefined, undefined];
+    const cause = Cause.die(new Error("boom"));
+    const defect = customPredicatePort.defect(args, cause);
+    assert.strictEqual(defect.reason, Cause.pretty(cause));
+    assert.strictEqual(defect.name, customPredicatePort.failure(args, new Error("boom")).name);
   });
 });

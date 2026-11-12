@@ -22,7 +22,7 @@ import * as Result from "effect/Result";
 import { describeKeyRefusal, PortReply } from "./PortDescription.ts";
 import type { PortDescription, PortScript, PortShape } from "./PortDescription.ts";
 import { wrapPort } from "./PortDerivation.ts";
-import type { PortName } from "./PortMetrics.ts";
+import type { PortName } from "./PortName.ts";
 
 /** A double's layer and the requests it has received. */
 export interface PortDouble<Self, Args extends ReadonlyArray<unknown>> {
@@ -48,9 +48,10 @@ export const scriptedPort = <
   Args extends ReadonlyArray<unknown>,
   A,
   E,
+  P extends ReadonlyArray<unknown>,
   S extends PortScript<Args, A>,
 >(
-  d: PortDescription<N, Self, Shape, Args, A, E>,
+  d: PortDescription<N, Self, Shape, Args, A, E, P>,
   script: S,
   name: string = `scripted ${d.port}`,
 ): PortDouble<Self, Args> => {
@@ -108,8 +109,9 @@ export const replyTable = <
   Args extends ReadonlyArray<unknown>,
   A,
   E,
+  P extends ReadonlyArray<unknown>,
 >(
-  d: PortDescription<N, Self, Shape, Args, A, E>,
+  d: PortDescription<N, Self, Shape, Args, A, E, P>,
   entries: ReadonlyArray<readonly [NoInfer<Args>, PortReply<NoInfer<A>>]>,
 ): PortScript<Args, A> => {
   const table = new Map<string, PortReply<A>>(
@@ -137,8 +139,9 @@ export const recordingPort = <
   Args extends ReadonlyArray<unknown>,
   A,
   E,
+  P extends ReadonlyArray<unknown>,
 >(
-  d: PortDescription<N, Self, Shape, Args, A, E>,
+  d: PortDescription<N, Self, Shape, Args, A, E, P>,
   layer: Layer.Layer<Self>,
   observe: (args: NoInfer<Args>, exit: Exit.Exit<NoInfer<A>, NoInfer<E>>) => void = () => {},
 ): PortDouble<Self, Args> => {

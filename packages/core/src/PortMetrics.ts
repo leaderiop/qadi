@@ -46,39 +46,15 @@
  */
 import * as Metric from "effect/Metric";
 import * as Record from "effect/Record";
+import type { PortName } from "./PortName.ts";
 
 /**
- * Every port `Evaluate.ts` can call into — {@link portCallsTotal}'s closed
- * domain.
- *
- * Written as a `Record<PortName, true>` rather than an array literal, the
- * idiom the policy tag list used before it was derived: TypeScript requires every key of
- * `PortName` to be present (TS2741 otherwise), so a sixth port added to the
- * evaluator without a matching entry here is a compile error rather than an
+ * Every port's name, as the `Record<PortName, true>` idiom the policy tag list
+ * used before it was derived: TypeScript requires every key of `PortName`
+ * (`PortName.ts`) to be present (TS2741 otherwise), so a sixth port added to
+ * the evaluator without a matching entry here is a compile error rather than an
  * unregistered word silently missing from a snapshot.
  */
-export type PortName =
-  | "AttributeResolver"
-  | "DecisionHistory"
-  | "RelationshipResolver"
-  | "CustomPredicate"
-  | "SignatureHistory";
-
-/**
- * The span each port's read opens — one per port, closed.
- *
- * `PortAccess.ts` opens these spans and `@qadi/devtools` decodes them
- * (BEH-QD-227), so the set is a closed union rather than five string literals
- * kept in step by hand. Each port's description (`PortDescription.ts`) names
- * its own, and both readers take it from there.
- */
-export type PortSpanName =
-  | "qadi.attribute"
-  | "qadi.acted"
-  | "qadi.hasRelationship"
-  | "qadi.hasCustom"
-  | "qadi.hasSignature";
-
 const PORT_NAMES_BY_NAME: Record<PortName, true> = {
   AttributeResolver: true,
   DecisionHistory: true,

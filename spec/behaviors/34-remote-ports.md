@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-34                                    |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-11-10): The unguarded port routes' once-at-construction warning is stated here, agreeing with ADR-QD-107 (ARCH-61, CCR-QD-402)<br>1.5 (2026-11-08): BEH-QD-331 — a required allowlist that is missing or not a list is refused `NotServed` at run time, the store never read (code review WR-01)<br>1.4 (2026-11-08): BEH-QD-331 — the serving facts are stated once on the port's description, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.3 (2026-11-08): BEH-QD-333 points to BEH-QD-338, where the port route address and the reply-body contract are defined once (ARCH-52, CCR-QD-391)<br>1.2 (2026-11-08): BEH-QD-332 — an answer the span's `disclose` cannot read is the port's typed error, answered `Unavailable`, never a defect (code review WR-01)<br>1.1 (2026-11-08): BEH-QD-332 — a served span equals a local one through pose and disclose, carries a signature asker's requirement, and a store that throws is the port's typed error (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
+> | Change History | 1.7 (2026-11-11): BEH-QD-331 — which leaves ask a port, and the request each asks, are the description's asks; BEH-QD-446 (the request a policy leaf asks a port is stated once, and servingFor serves exactly the names those requests ask) (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.6 (2026-11-10): The unguarded port routes' once-at-construction warning is stated here, agreeing with ADR-QD-107 (ARCH-61, CCR-QD-402)<br>1.5 (2026-11-08): BEH-QD-331 — a required allowlist that is missing or not a list is refused `NotServed` at run time, the store never read (code review WR-01)<br>1.4 (2026-11-08): BEH-QD-331 — the serving facts are stated once on the port's description, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.3 (2026-11-08): BEH-QD-333 points to BEH-QD-338, where the port route address and the reply-body contract are defined once (ARCH-52, CCR-QD-391)<br>1.2 (2026-11-08): BEH-QD-332 — an answer the span's `disclose` cannot read is the port's typed error, answered `Unavailable`, never a defect (code review WR-01)<br>1.1 (2026-11-08): BEH-QD-332 — a served span equals a local one through pose and disclose, carries a signature asker's requirement, and a store that throws is the port's typed error (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
 
 _Previous: [33 — Audit Pipeline](./33-audit-pipeline.md)_
 
@@ -85,11 +85,45 @@ explicit opt-in `signatures: "own-records"`. `servingFor(policies)` derives the 
 client may ask about, and every question `evaluate` asks of a port for those policies is admitted
 by it.
 
-Which policy leaves ask a port, the name a served request asks, and whether the port's allowlist is
-required, open or an opt-in are stated once, on the port's description (`PortDescription.serving`,
-[ADR-QD-114](../decisions/114-a-port-states-what-it-serves.md)). `answerRemotely` admits through it and
-`servingFor` collects through it, so a new port-reading leaf changes one description. The declaration's
-shape (`PortServing`) is unchanged.
+Which policy leaves ask a port, and the request each one asks, are the description's `asks`
+(`PortDescription.asks`, [BEH-QD-446](#beh-qd-446-the-request-a-policy-leaf-asks-a-port-is-stated-once-and-servingfor-serves-exactly-the-names-those-requests-ask)).
+The facet (`PortDescription.serving`, [ADR-QD-114](../decisions/114-a-port-states-what-it-serves.md))
+states the name a request asks, whether the port's allowlist is required, open or an opt-in, how a
+declaration admits a name and how one is declared. `answerRemotely` admits through the facet and
+`servingFor` derives each name as the facet's `asked` of the request a leaf's `asks` builds, so a new
+port-reading leaf is one `asks` entry in one description. The declaration's shape (`PortServing`) is
+unchanged.
+
+## BEH-QD-446: The request a policy leaf asks a port is stated once, and `servingFor` serves exactly the names those requests ask
+
+> **See:** [ADR-QD-134](../decisions/134-a-resource-scoped-port-read-is-one-read.md),
+> [ADR-QD-114](../decisions/114-a-port-states-what-it-serves.md)
+>
+> **Invariant:** [INV-QD-289](../invariants.md#inv-qd-289-the-name-servingfor-serves-for-a-leaf-is-asked-of-the-request-that-leafs-read-builds-at-any-site)
+
+```
+REQUIREMENT: Each port's description MUST state, in `asks`, the request each policy
+             leaf puts to it, as a function of the leaf and the read site (the
+             subject asking and the resource asked about). Every read of the port,
+             by `evaluate` and by `toPredicate`, MUST build its request through
+             that entry, and the facet MUST keep no second map from a leaf to a
+             name.
+
+REQUIREMENT: For every port and every policy tag its `asks` states, the name the
+             facet's `asked` reads from the request MUST NOT depend on the read
+             site, and `servingFor` of a policy holding the leaf MUST admit it.
+```
+
+`servingFor` reads each request at one site, an anonymous subject asking about no
+resource, which for a Resource-scoped leaf is the request a read with a missing id
+annotates; it exercises no request shape evaluation does not. The second requirement is
+what makes one site enough: a name that depended on the site would make the declaration
+wrong, so it is a law, checked per port and tag over generated leaves and sites
+(`PortRemote.test.ts`), beside the property that every question `evaluate` asks of a
+port for a generated policy is admitted by `servingFor([policy])`. The opt-in signature
+port is declared exactly when a leaf asks it. `PortAsks.tst.ts` pins that every
+description has `asks`, that the facet has no `leaves`, and that an entry's result is
+assignable to its port's `serving.asked`.
 
 ## BEH-QD-332: A served read MUST open the port's span with `qadi.interpreter = "remote"`
 

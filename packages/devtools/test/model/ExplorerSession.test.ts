@@ -149,7 +149,7 @@ describe("the held choice", () => {
     const newer = sighting(hasPermission(read), 5);
     session.setSightings([newer]);
     const shown = showing(session).shown;
-    assert.strictEqual(shown._tag === "Listed" ? shown.sighting : undefined, newer);
+    assert.strictEqual(shown._tag === "Listed" ? shown.value : undefined, newer);
   });
 });
 

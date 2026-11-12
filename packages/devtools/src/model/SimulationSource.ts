@@ -20,15 +20,16 @@
  * there in every mode, so no source — `Live` included — can reach the subject a
  * request would use, write a record, or touch the application's cache.
  */
+import type * as Effect from "effect/Effect";
 import type * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
 import { fixturePortsLayer } from "@qadi/core";
 import type { PortFixtureData, PortName } from "@qadi/core";
 import type { CapturedAnswers } from "./Capture.ts";
-import { replayLayer } from "./Capture.ts";
+import { capturing, replayLayer } from "./Capture.ts";
 import type { FixtureCell } from "./SimulationFields.ts";
 import { FIXTURE_DATA, fixtureData } from "./SimulationFields.ts";
-import type { EvaluationPorts, SimulationInput } from "./SimulationInput.ts";
+import type { EvaluationPorts, EvaluationPortsLayer, SimulationInput } from "./SimulationInput.ts";
 
 /** Answers typed by the reviewer. The default, and the only one that needs nothing. */
 export interface FixtureSource {
@@ -147,3 +148,141 @@ const setupsOf = (
   SignatureHistory: setupOf(FIXTURE_DATA.SignatureHistory, input),
   CustomPredicate: setupOf(FIXTURE_DATA.CustomPredicate, input),
 });
+
+/** Which of the three answer sources the reviewer picked. */
+export type SourceChoice = SimulationSource["_tag"];
+
+/** One source button: whether it can be used, and the sentence that says why (or why not). */
+export interface SourceOption {
+  readonly id: SourceChoice;
+  readonly enabled: boolean;
+  readonly why: string;
+}
+
+/** Why a chosen source cannot be honoured. A data state: nothing failed, the run was declined. */
+export type SourceRefusal =
+  | { readonly _tag: "LiveWithoutPorts"; readonly reason: string }
+  | { readonly _tag: "SnapshotWithoutCapture"; readonly reason: string };
+
+/**
+ * What a run evaluates against, or the reason it cannot.
+ *
+ * `captured` reads what a `Live` source's own recorder saw; it is `undefined` for
+ * the two sources that record nothing.
+ */
+export type PreparedSource =
+  | {
+      readonly _tag: "Ready";
+      readonly source: SimulationSource;
+      readonly captured: Effect.Effect<CapturedAnswers> | undefined;
+    }
+  | { readonly _tag: "Refused"; readonly refusal: SourceRefusal };
+
+export interface SourcePreparation {
+  readonly options: ReadonlyArray<SourceOption>;
+  readonly prepared: PreparedSource;
+}
+
+type Ready = Extract<PreparedSource, { readonly _tag: "Ready" }>;
+
+/** A source the host can have: the sentence for its button, and how to build its run. */
+type SourceRow =
+  | { readonly usable: true; readonly why: string; readonly ready: () => Ready }
+  | { readonly usable: false; readonly refusal: SourceRefusal };
+
+/**
+ * Every source's availability and sentence, written once.
+ *
+ * Closed over `SourceChoice`, so a fourth source is a missing key here (TS2741)
+ * rather than a button the dock offers and nothing answers.
+ */
+const rowsOf = (have: {
+  readonly ports: EvaluationPortsLayer | undefined;
+  readonly capture: CapturedAnswers | undefined;
+}): { readonly [K in SourceChoice]: SourceRow } => {
+  const { ports, capture } = have;
+  return {
+    Fixtures: {
+      usable: true,
+      why: "answers you typed below",
+      ready: () => ({ _tag: "Ready", source: fixtures, captured: undefined }),
+    },
+    Snapshot:
+      capture === undefined
+        ? {
+            usable: false,
+            refusal: {
+              _tag: "SnapshotWithoutCapture",
+              reason: "run once against Live first; this replays what that run learned",
+            },
+          }
+        : {
+            usable: true,
+            why: "real answers, captured once and replayed — one round of I/O for a whole sweep",
+            ready: () => ({ _tag: "Ready", source: snapshot(capture), captured: undefined }),
+          },
+    Live:
+      ports === undefined
+        ? {
+            usable: false,
+            refusal: {
+              _tag: "LiveWithoutPorts",
+              reason: "the host did not pass a `ports` layer, so this panel cannot reach any resolver",
+            },
+          }
+        : {
+            usable: true,
+            why: "the application's own resolvers — every row is real I/O",
+            ready: () => {
+              const recorder = capturing(ports);
+              return { _tag: "Ready", source: live(recorder.layer), captured: recorder.answers };
+            },
+          },
+  };
+};
+
+/**
+ * The order the buttons are shown in, closed over `SourceChoice` like `rowsOf`: a
+ * fourth source is a missing key here too (TS2741), and a source cannot appear twice.
+ * Property order is the display order.
+ */
+const SOURCE_ORDER: ReadonlyArray<SourceChoice> = Object.values<SourceChoice>({
+  Fixtures: "Fixtures",
+  Snapshot: "Snapshot",
+  Live: "Live",
+} satisfies { readonly [K in SourceChoice]: K });
+
+/**
+ * Turns a source choice into what a run evaluates against, or the reason it cannot.
+ *
+ * Never a fall back to fixtures: `portsOf` treats an absent source as fixtures,
+ * which is the right default for a caller who never chose and the wrong answer
+ * for one who chose `Live` and is entitled to know it did not happen. And the
+ * three options are offered and disabled with a reason, never removed: a control
+ * that disappears teaches nobody it exists, which matters most for `Snapshot`.
+ *
+ * A `Live` run captures, which is what makes `Snapshot` available: the answers
+ * cost nothing extra to record and they are what makes `Snapshot` reachable, the
+ * mode a sweep should use, one round of I/O instead of one per edit. So a `Ready`
+ * `Live` source is the application's ports wrapped in a fresh recorder, and each
+ * call makes its own: a run never reuses a preparation.
+ */
+export const prepareSource = (
+  choice: SourceChoice,
+  have: {
+    readonly ports: EvaluationPortsLayer | undefined;
+    readonly capture: CapturedAnswers | undefined;
+  },
+): SourcePreparation => {
+  const rows = rowsOf(have);
+  const chosen = rows[choice];
+  return {
+    options: SOURCE_ORDER.map((id) => {
+      const row = rows[id];
+      return row.usable
+        ? { id, enabled: true, why: row.why }
+        : { id, enabled: false, why: row.refusal.reason };
+    }),
+    prepared: chosen.usable ? chosen.ready() : { _tag: "Refused", refusal: chosen.refusal },
+  };
+};

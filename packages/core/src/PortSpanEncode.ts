@@ -81,6 +81,42 @@ export const encodeSpan = <Fields extends SpanFields>(
   return out;
 };
 
+/**
+ * What a port's `pose` must return: every member of its span question but
+ * `interpreter`, each a required key that may be `undefined`.
+ *
+ * `SpanType` makes every member optional, so a `pose` that forgot one compiled
+ * and the span said less than was asked — the shape of the ADR-QD-109 defect,
+ * where a served signature span lacked the requirement (ARCH-69, ADR-QD-133).
+ * `interpreter` is excluded because `readPort` adds it (`PortAccess.ts`): who is
+ * asking is not a fact about the request. Member types come from the struct's
+ * own leaves, which are {@link SpanValue}s by type, so INV-QD-044 is unchanged.
+ */
+export type PoseOf<S> =
+  S extends SpanStruct<infer Fields>
+    ? { readonly [K in Exclude<keyof Fields, "interpreter">]-?: Fields[K]["Type"] | undefined }
+    : never;
+
+/**
+ * A port's span attributes, with `pose` held to {@link PoseOf} its question.
+ *
+ * A typed identity: it returns its argument, so nothing changes at runtime and
+ * the span's attributes are exactly what the literal said. Its one job is to
+ * make a `pose` that leaves a member out fail to compile where it is written.
+ */
+export const portSpan = <
+  const Q extends SpanFields,
+  const Ans extends SpanFields,
+  Args extends ReadonlyArray<unknown>,
+  O,
+  D extends SpanType<SpanStruct<Ans>>,
+>(span: {
+  readonly question: SpanStruct<Q>;
+  readonly answer: SpanStruct<Ans>;
+  readonly pose: (args: Args) => PoseOf<SpanStruct<Q>>;
+  readonly disclose: (outcome: O, args: Args) => D;
+}) => span;
+
 /** Reads one struct out of a span's attributes; a wrong-typed field is absent. */
 export const decodeSpan = <Fields extends SpanFields>(
   struct: SpanStruct<Fields>,

@@ -37,7 +37,9 @@ import {
 } from "./Matcher.ts";
 import { permissionKey } from "./Permission.ts";
 import { fieldsOf, foldPolicy, foldPolicyCases } from "./Policy.ts";
-import { askActedAny, readAttribute } from "./PortAccess.ts";
+import { askActed, isAnyActedLeaf, readAttribute } from "./PortAccess.ts";
+import type { AnyActedLeaf } from "./PortAccess.ts";
+import type { LeafOf } from "./PortDescription.ts";
 import { questionOf } from "./Question.ts";
 import type { Question, QuestionOptions } from "./Question.ts";
 import type { Combining, Policy, PolicyCases, RuleEffect } from "./Policy.ts";
@@ -204,7 +206,7 @@ const untranslatable = (
 ): Effect.Effect<never, PolicyNotTranslatable> =>
   Effect.fail(new PolicyNotTranslatable({ policyTag, reason }));
 
-type Folded = { readonly ok: true; readonly value: unknown } | { readonly ok: false };
+type Folded = { readonly value: unknown } | undefined;
 
 /**
  * Resolves the constant side of a comparison, or reports that there is none.
@@ -218,13 +220,13 @@ type Folded = { readonly ok: true; readonly value: unknown } | { readonly ok: fa
 const constantRef = (ref: ValueRef, context: MatcherContext): Folded =>
   Match.value(ref).pipe(
     Match.tagsExhaustive({
-      SubjectRef: (r): Folded => ({ ok: true, value: getByPath(context.subject, r.path) }),
-      SubjectIdRef: (): Folded => ({ ok: true, value: context.subjectId }),
-      ActionRef: (): Folded => ({ ok: true, value: context.action }),
-      LiteralRef: (r): Folded => ({ ok: true, value: r.value }),
+      SubjectRef: (r): Folded => ({ value: getByPath(context.subject, r.path) }),
+      SubjectIdRef: (): Folded => ({ value: context.subjectId }),
+      ActionRef: (): Folded => ({ value: context.action }),
+      LiteralRef: (r): Folded => ({ value: r.value }),
       // A second column. `column op column` is the one comparison `Predicate`
       // cannot express, and a dotted path names a column no schema has.
-      ResourceRef: (): Folded => ({ ok: false }),
+      ResourceRef: (): Folded => undefined,
     }),
   );
 
@@ -243,7 +245,7 @@ const columnPredicate = (
   /** `Eq` and `Neq` are the only matchers whose other side may be a column. */
   const comparison = (op: "Eq" | "Neq", ref: ValueRef): Predicate | undefined => {
     const other = constantRef(ref, context);
-    return other.ok ? { _tag: "Compare", column, op, value: other.value } : undefined;
+    return other === undefined ? undefined : { _tag: "Compare", column, op, value: other.value };
   };
   return Match.value(matcher).pipe(
     Match.tagsExhaustive({
@@ -301,8 +303,12 @@ type RunError = AttributeResolveError | DecisionHistoryUnavailable | MissingActi
 type Plan =
   | { readonly _tag: "Constant"; readonly value: boolean }
   | { readonly _tag: "Column"; readonly predicate: Predicate }
-  | { readonly _tag: "AskAttribute"; readonly attribute: string; readonly matcher: Matcher }
-  | { readonly _tag: "AskActed"; readonly wanted: ActedResult; readonly event: string }
+  | { readonly _tag: "AskAttribute"; readonly leaf: LeafOf["HasAttribute"] }
+  | {
+      readonly _tag: "AskActed";
+      readonly wanted: ActedResult;
+      readonly leaf: AnyActedLeaf;
+    }
   | { readonly _tag: "NeedAction"; readonly expected: string | undefined }
   | { readonly _tag: "Conjunction"; readonly plans: ReadonlyArray<Plan> }
   | {
@@ -371,18 +377,14 @@ const compileTree = (admitted: Admitted): Compiled => {
    * subject and folds; `"Resource"` asks once per row, which is the cost a
    * predicate exists to avoid.
    */
-  const history = (
-    tag: "HasActed" | "HasNotActed",
-    event: string,
-    scope: "Resource" | "Any",
-  ): Compiled =>
-    scope === "Resource"
-      ? refused(tag, "a resource-scoped history question is keyed by the row")
-      : planned({
+  const history = (leaf: LeafOf["HasActed"] | LeafOf["HasNotActed"]): Compiled =>
+    isAnyActedLeaf(leaf)
+      ? planned({
           _tag: "AskActed",
-          wanted: tag === "HasActed" ? "Acted" : "NotActed",
-          event,
-        });
+          wanted: leaf._tag === "HasActed" ? "Acted" : "NotActed",
+          leaf,
+        })
+      : refused(leaf._tag, "a resource-scoped history question is keyed by the row");
 
   /**
    * One node's plan, from its already-compiled children, each arm receiving
@@ -413,7 +415,7 @@ const compileTree = (admitted: Admitted): Compiled => {
       if (action === undefined && referencesAction(p.matcher)) {
         return planned({ _tag: "NeedAction", expected: undefined });
       }
-      return planned({ _tag: "AskAttribute", attribute: p.attribute, matcher: p.matcher });
+      return planned({ _tag: "AskAttribute", leaf: p });
     },
 
     HasResourceAttribute: (p) => {
@@ -429,8 +431,8 @@ const compileTree = (admitted: Admitted): Compiled => {
         : planned({ _tag: "Column", predicate: column });
     },
 
-    HasActed: (p) => history("HasActed", p.event, p.scope),
-    HasNotActed: (p) => history("HasNotActed", p.event, p.scope),
+    HasActed: history,
+    HasNotActed: history,
 
     HasRelationship: () =>
       refused("HasRelationship", "a relationship is keyed by the row's id and cannot fold"),
@@ -585,11 +587,11 @@ const run = (
       Constant: (p) => Effect.succeed(constant(p.value)),
       Column: (p) => Effect.succeed(p.predicate),
       AskAttribute: (p) =>
-        Effect.map(readAttribute("toPredicate", subject, p.attribute), (value) =>
-          constant(evaluateMatcher(p.matcher, value, context)),
+        Effect.map(readAttribute("toPredicate", subject, p.leaf), (value) =>
+          constant(evaluateMatcher(p.leaf.matcher, value, context)),
         ),
       AskActed: (p) =>
-        Effect.map(askActedAny("toPredicate", subject, p.event), (answer) =>
+        Effect.map(askActed("toPredicate", subject, p.leaf, undefined), (answer) =>
           constant(answer === p.wanted),
         ),
       NeedAction: (p) => Effect.fail(new MissingAction({ expected: p.expected })),

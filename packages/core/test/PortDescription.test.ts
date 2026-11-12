@@ -12,6 +12,7 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
+import * as Predicate from "effect/Predicate";
 import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
@@ -21,8 +22,11 @@ import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import * as TestClock from "effect/testing/TestClock";
 import type * as Tracer from "effect/Tracer";
+import * as FastCheck from "fast-check";
+import { attributeResolverPort } from "../src/AttributeResolver.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
 import { CustomPredicate, customPredicatePort } from "../src/CustomPredicate.ts";
+import { decisionHistoryPort } from "../src/DecisionHistory.ts";
 import type { PortDescription } from "../src/PortDescription.ts";
 import { describeKeyRefusal, PortReply } from "../src/PortDescription.ts";
 import { canonicalKey } from "../src/PortKey.ts";
@@ -37,7 +41,11 @@ import { recordingPort, replyTable, scriptedPort } from "../src/PortDoubles.ts";
 import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "../src/PortSpanEncode.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "../src/PortMetrics.ts";
 import { portWire } from "../src/PortWireEncode.ts";
-import { makeSubjectId, SubjectIdSchema } from "../src/Identity.ts";
+import type { ResourceId } from "../src/Identity.ts";
+import { makeResourceId, makeSubjectId, SubjectIdSchema } from "../src/Identity.ts";
+import type { ArgsOf, PortTypes } from "../src/Ports.ts";
+import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
+import { signatureHistoryPort } from "../src/SignatureHistory.ts";
 import { collectingTracer, forkAllAndSettle, isolatedMetrics } from "./helpers.ts";
 
 class ProbeError extends Data.TaggedError("ProbeError")<{
@@ -72,6 +80,7 @@ const probePort: PortDescription<
   [who: string, what: string],
   number | undefined,
   ProbeError,
+  [who: string, what: string],
   typeof probeSpan
 > = {
   port: "AttributeResolver",
@@ -87,12 +96,13 @@ const probePort: PortDescription<
     toAnswer: (n: number | undefined) => Result.succeed(n === undefined ? {} : { n }),
     fromAnswer: (wire) => wire.n,
   }),
+  // The probe reads no policy leaf, so it asks nothing.
+  asks: {},
   serving: {
     allowlist: "required",
-    leaves: {},
     asked: ([, what]) => what,
     admitted: (declaration) => declaration.attributes,
-    declare: (names) => ({ AttributeResolver: { attributes: names } }),
+    declare: ({ names }) => ({ AttributeResolver: { attributes: names } }),
   },
   service: ProbePort,
   invoke: (shape) => (who, what) => shape.ask(who, what),
@@ -430,4 +440,175 @@ describe("recordingPort", () => {
       );
       assert.deepStrictEqual(recording.calls, [["a", "b"]]);
     }));
+});
+
+/** The four ports whose key and defect are derived, written out (ARCH-69, ADR-QD-133). */
+type DerivedPort = "AttributeResolver" | "DecisionHistory" | "RelationshipResolver" | "SignatureHistory";
+
+const subjectIds = FastCheck.string({ minLength: 1, maxLength: 6 }).map(makeSubjectId);
+const resourceIds = FastCheck.string({ minLength: 1, maxLength: 6 }).map(makeResourceId);
+const optionalResourceIds = FastCheck.option(resourceIds, { nil: undefined });
+const words = FastCheck.string({ maxLength: 8 });
+const optionalWords = FastCheck.option(words, { nil: undefined });
+
+/**
+ * One arbitrary per derived port. `meaning` and `signerRole` are optional
+ * *keys* on `SignatureQuery`, so each is generated absent, `undefined` or a
+ * string. Absent and `undefined` are different requests to `Equal` but one wire
+ * question, so they share a key; a string is a different question and does not.
+ */
+const ARBITRARIES: { readonly [K in DerivedPort]: FastCheck.Arbitrary<ArgsOf<PortTypes[K]>> } = {
+  AttributeResolver: FastCheck.tuple(subjectIds, words),
+  DecisionHistory: FastCheck.tuple(
+    FastCheck.record({ subjectId: subjectIds, event: words, resourceId: optionalResourceIds }),
+  ),
+  RelationshipResolver: FastCheck.tuple(
+    FastCheck.record({
+      subjectId: subjectIds,
+      relation: words,
+      resourceId: resourceIds,
+      depth: FastCheck.option(FastCheck.integer({ min: 0, max: 64 }), { nil: undefined }),
+    }),
+  ),
+  SignatureHistory: FastCheck.tuple(
+    FastCheck.record(
+      {
+        subjectId: subjectIds,
+        resourceId: optionalResourceIds,
+        meaning: optionalWords,
+        signerRole: optionalWords,
+      },
+      { requiredKeys: ["subjectId", "resourceId"] },
+    ),
+  ),
+};
+
+interface DerivedLike<Args extends ReadonlyArray<unknown>> {
+  readonly wire: {
+    readonly encodeQuestion: (args: Args) => Result.Result<unknown, string>;
+  };
+  readonly key: (args: Args) => Result.Result<string, unknown>;
+  readonly failure: (args: Args, cause: unknown) => unknown;
+  readonly defect: (args: Args, cause: Cause.Cause<unknown>) => unknown;
+}
+
+/** An error's tag and own enumerable fields, for a field-for-field comparison. */
+const fieldsOf = (error: unknown): ReadonlyArray<readonly [string, unknown]> => [
+  ["_tag", Predicate.hasProperty(error, "_tag") ? error._tag : undefined],
+  ...Object.entries(Predicate.isObject(error) ? error : {}),
+];
+
+const lawOf = <Args extends ReadonlyArray<unknown>>(
+  name: DerivedPort,
+  d: DerivedLike<Args>,
+  arbitrary: FastCheck.Arbitrary<Args>,
+): void => {
+  it(`${name}: its key is canonicalKey of the wire question it encodes (the schema encode adds nothing)`, () => {
+    FastCheck.assert(
+      FastCheck.property(arbitrary, (args) => {
+        const question = Result.getOrThrow(d.wire.encodeQuestion(args));
+        const expected = Result.getOrThrow(canonicalKey(JSON.parse(JSON.stringify(question))));
+        assert.strictEqual(Result.getOrThrow(d.key(args)), expected);
+      }),
+      { numRuns: 200 },
+    );
+  });
+
+  it(`${name}: a defect is the failure of the squashed cause`, () => {
+    const boom = new Error("boom");
+    FastCheck.assert(
+      FastCheck.property(arbitrary, (args) => {
+        assert.deepStrictEqual(
+          fieldsOf(d.defect(args, Cause.die(boom))),
+          fieldsOf(d.failure(args, boom)),
+        );
+      }),
+      { numRuns: 200 },
+    );
+  });
+};
+
+describe("a derived port's key is its wire question's key, and its defect is its failure (ARCH-69)", () => {
+  const LAWS: { readonly [K in DerivedPort]: () => void } = {
+    AttributeResolver: () => lawOf("AttributeResolver", attributeResolverPort, ARBITRARIES.AttributeResolver),
+    DecisionHistory: () => lawOf("DecisionHistory", decisionHistoryPort, ARBITRARIES.DecisionHistory),
+    RelationshipResolver: () =>
+      lawOf("RelationshipResolver", relationshipResolverPort, ARBITRARIES.RelationshipResolver),
+    SignatureHistory: () => lawOf("SignatureHistory", signatureHistoryPort, ARBITRARIES.SignatureHistory),
+  };
+  for (const law of Object.values(LAWS)) law();
+
+  it("each derived port's key is its hand-written question's key, whatever toQuestion lists", () => {
+    const subjectId = makeSubjectId("alice");
+    const resourceId = makeResourceId("doc-1");
+    const oracle = (key: Result.Result<string, unknown>, question: unknown) =>
+      assert.strictEqual(Result.getOrThrow(key), Result.getOrThrow(canonicalKey(question)));
+    oracle(attributeResolverPort.key([subjectId, "dept"]), { subjectId: "alice", attribute: "dept" });
+    oracle(decisionHistoryPort.key([{ subjectId, event: "login", resourceId }]), {
+      subjectId: "alice",
+      event: "login",
+      resourceId: "doc-1",
+    });
+    oracle(relationshipResolverPort.key([{ subjectId, relation: "owner", resourceId, depth: 2 }]), {
+      subjectId: "alice",
+      relation: "owner",
+      resourceId: "doc-1",
+      depth: 2,
+    });
+    oracle(
+      signatureHistoryPort.key([{ subjectId, resourceId, meaning: "approve", signerRole: "lead" }]),
+      { subjectId: "alice", resourceId: "doc-1", meaning: "approve", signerRole: "lead" },
+    );
+  });
+
+  it("an absent optional member and one stated undefined are one question, so they share a key", () => {
+    const subjectId = makeSubjectId("alice");
+    const key = (query: Parameters<typeof signatureHistoryPort.key>[0][0]) =>
+      Result.getOrThrow(signatureHistoryPort.key([query]));
+    assert.strictEqual(
+      key({ subjectId, resourceId: undefined }),
+      key({ subjectId, resourceId: undefined, meaning: undefined }),
+    );
+    assert.notStrictEqual(
+      key({ subjectId, resourceId: undefined }),
+      key({ subjectId, resourceId: undefined, meaning: "approve" }),
+    );
+  });
+
+  it("a request whose member throws when read is refused, never thrown", () => {
+    const hostile = {
+      subjectId: makeSubjectId("alice"),
+      relation: "owner",
+      depth: undefined,
+      get resourceId(): ResourceId {
+        throw new Error("boom");
+      },
+    };
+    const refused = relationshipResolverPort.key([hostile]);
+    assert.isTrue(Result.isFailure(refused));
+    assert.deepStrictEqual(Result.isFailure(refused) ? refused.failure : undefined, {
+      _tag: "Unreadable",
+      path: [],
+      message: "boom",
+    });
+  });
+
+  it("CustomPredicate states its own key: it covers the subject's roles, permissions and attributes, which its wire question does not carry", () => {
+    const asEditor = makeSubject({ id: "alice", roles: ["editor"], permissions: [], attributes: {} });
+    const asViewer = makeSubject({ id: "alice", roles: ["viewer"], permissions: [], attributes: {} });
+    const ask = (subject: typeof asEditor): [string, typeof asEditor, undefined, undefined] => [
+      "isOwner",
+      subject,
+      undefined,
+      undefined,
+    ];
+    assert.deepStrictEqual(
+      customPredicatePort.wire.encodeQuestion(ask(asEditor)),
+      customPredicatePort.wire.encodeQuestion(ask(asViewer)),
+    );
+    assert.notStrictEqual(
+      Result.getOrThrow(customPredicatePort.key(ask(asEditor))),
+      Result.getOrThrow(customPredicatePort.key(ask(asViewer))),
+    );
+  });
 });

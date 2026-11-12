@@ -5,7 +5,7 @@
  *
  * TC-06 (100-lens audit): `spec/decisions/037-circular-imports-and-type-level-tests-are-gates.md`'s
  * table of permanent `.tst.ts` files pinned `Authorized<P>`'s distinctness,
- * `guardRoute`'s `CurrentSubject` discharge, and `RequirePermission`'s
+ * `addGuardedRoute`'s `CurrentSubject` discharge, and `RequirePermission`'s
  * genericity — four assertions, all valuable, none touching the recursive
  * types where this repo's trickiest assignability questions live. The pair's
  * guarantees are covered at runtime (a roundtrip property test, decode

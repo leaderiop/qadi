@@ -3,7 +3,8 @@
 ## Milestones
 
 - ✅ **v1.0 Arch Wave 5** — Phases 1-9 (shipped 2026-11-09) — [archive](milestones/v1.0-ROADMAP.md)
-- 🚧 **v1.1 Arch Wave 6** — Phases 10-20 (all phases complete 2026-11-10; not released)
+- 🚧 **v1.1 Arch Wave 6** — Phases 10-20 (all phases complete 2026-11-10; merged to `main` in #155; not archived as a GSD milestone; not released)
+- ✅ **v1.2 Arch Wave 7** — Phases 21-29 (completed 2026-11-12; not released) — [archive](milestones/v1.2-ROADMAP.md)
 
 ## Phases
 
@@ -267,3 +268,22 @@ Plans:
 | 18. Devtools HTTP surface | 3/3 | Complete | 2026-11-10 |
 | 19. Verdict presentation | 3/3 | Complete | 2026-11-10 |
 | 20. DecisionCache shared computation | 4/4 | Complete | 2026-11-10 |
+
+<details>
+<summary>✅ v1.2 Arch Wave 7 (Phases 21-29) — COMPLETED 2026-11-12 (not released)</summary>
+
+- [x] Phase 21: Port request derived from its description, ARCH-69 (5/5 plans) — completed 2026-11-11
+- [x] Phase 22: One scoped port read, ARCH-70 (4/4 plans) — completed 2026-11-11
+- [x] Phase 23: Sink record fields stated once, ARCH-71 (4/4 plans) — completed 2026-11-11
+- [x] Phase 24: Simulation source preparation, ARCH-72 (3/3 plans) — completed 2026-11-11
+- [x] Phase 25: Session-only Simulator, ARCH-73 (5/5 plans) — completed 2026-11-11
+- [x] Phase 26: Headless dock model, ARCH-74 (6/6 plans) — completed 2026-11-11
+- [x] Phase 27: Bare-route module, ARCH-75 (3/3 plans) — completed 2026-11-11
+- [x] Phase 28: Gate registry dependency, ARCH-76 (5/5 plans) — completed 2026-11-11
+- [x] Phase 29: Small restated facts, ARCH-77 (3/3 plans) — completed 2026-11-12
+
+Full details: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · requirements:
+[milestones/v1.2-REQUIREMENTS.md](milestones/v1.2-REQUIREMENTS.md) · audit:
+[milestones/v1.2-MILESTONE-AUDIT.md](milestones/v1.2-MILESTONE-AUDIT.md)
+
+</details>

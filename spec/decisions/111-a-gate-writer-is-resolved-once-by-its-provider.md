@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-111                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-08                                     |
-> | Status         | Accepted — amends ADR-QD-053, ADR-QD-080       |
+> | Status         | Accepted — amends ADR-QD-053, ADR-QD-080; amended by ADR-QD-140 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-08): Initial (ARCH-49, CCR-QD-388) |
+> | Change History | 1.1 (2026-11-11): Amendment (ARCH-76, CCR-QD-418): the hooks moved to useGate.ts; amended by ADR-QD-140<br>1.0 (2026-11-08): Initial (ARCH-49, CCR-QD-388) |
 
 ---
 
@@ -119,3 +119,31 @@ Related: [ADR-QD-053](053-a-gate-can-be-found.md),
 [ADR-QD-103](103-a-question-is-opened-once.md),
 [INV-QD-046](../invariants.md#inv-qd-046-instrumentation-never-changes-what-a-guard-renders),
 [INV-QD-064](../invariants.md#inv-qd-064-a-guard-is-listed-only-by-the-registry-its-provider-writes-to).
+
+## Amendment (2026-11-11, CCR-QD-418, ARCH-76)
+
+[ADR-QD-140](140-a-gates-write-side-is-a-leaf-below-the-atom-set.md) moved the hooks out
+of `GateWriter.ts` into `useGate.ts`, so that `GateWriter.ts` is the React-free write
+side and a leaf below `GateRegistry.ts`. The text above is history and stays as written;
+each place it puts a hook in `GateWriter.ts` reads as follows now.
+
+- **The provider-resolves-once bullet and row D-49-a:** `GateScopeContext` is declared in
+  `useGate.ts`, not `GateWriter.ts`, and is still kept out of the barrel.
+  `QadiProvider.tsx` imports it from there and `gateWriterFor` from `GateWriter.ts`.
+- **The `useGates` bullet and row D-49-b:** `useGates`, `KIND_FACTS` and
+  `useGateRegistrations` live in `useGate.ts`. The identity-lifecycle rules inside
+  `useGateRegistrations` are a plain function, `reconcile`, in `GateWriter.ts`, tested
+  without rendering.
+- **Row D-49-c:** the one per-entry `decision` lookup, memoised on the group, moved with
+  `useGates` into `useGate.ts`; `useQuestionsAs` still looks up no atom.
+- **The import-rule bullet:** the structural `GateAtoms` is replaced by
+  `Pick<QadiAtoms, "decision" | "decisions">`. That is legal because the hooks now sit
+  above `QadiAtoms.ts`, and nothing in `QadiAtoms.ts`'s import closure reaches `useGate.ts`.
+  `GateWriter.ts` is still below `GateRegistry.ts` and imports neither it nor
+  `QadiAtoms.ts`; `MissingQadiProviderError.ts` stays a leaf module.
+- **The first alternative** (the hook in `useGate.ts`, reading `useQadiContext`) stays
+  rejected: the hook in `useGate.ts` reads `GateScopeContext`, never `useQadiContext`, so
+  the writer is still not on the public context value.
+
+`useGateRegistration`, the one-element wrapper, is removed; a single-question guard
+passes one identity to `useGateRegistrations`.

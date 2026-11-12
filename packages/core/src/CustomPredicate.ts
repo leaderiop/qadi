@@ -24,11 +24,15 @@ import { CustomPredicateError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import { SubjectIdSchema } from "./Identity.ts";
 import { toJson, toJsonRecord } from "./JsonHazard.ts";
-import type { EncodeRefusal } from "./JsonRefusal.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
-import type { PortDescription } from "./PortDescription.ts";
+import type { LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
 import { canonicalKey } from "./PortKey.ts";
-import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import {
+  portSpan,
+  sharedQuestionFields,
+  sharedQuestionKeys,
+  spanStruct,
+} from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, sameAnswer, WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
 import type { Resource } from "./Resource.ts";
@@ -102,7 +106,7 @@ type CustomArgs = [
  * What the custom-predicate span says (BEH-QD-227). The registered name is
  * recorded; `params` never are, since they are arbitrary caller data.
  */
-const customSpan = {
+const customSpan = portSpan({
   question: spanStruct(
     { name: Schema.optionalKey(Schema.String), ...sharedQuestionFields },
     { name: "qadi.custom_predicate", ...sharedQuestionKeys },
@@ -110,7 +114,7 @@ const customSpan = {
   answer: spanStruct({ answer: Schema.optionalKey(Schema.Boolean) }, { answer: "qadi.answer" }),
   pose: ([name, subject]: CustomArgs) => ({ name, subjectId: subject.id }),
   disclose: (answer: boolean) => ({ answer }),
-};
+});
 
 /**
  * What the custom-predicate question and answer look like on a wire (ARCH-31).
@@ -119,7 +123,8 @@ const customSpan = {
  * request with the *session's* `AuthSubject`, so a predicate is handed the
  * session's roles and attributes and never a client's description of them.
  * `resource` and `params` are JSON, refused (never thrown) where they hold a
- * `Set`, a function or a cycle; an absent `params` is absent on the wire too.
+ * `Set`, a function or a cycle; an absent `params` is absent on the wire too, because
+ * `portWire` drops a member `toQuestion` states as `undefined`.
  */
 const customWire = portWire({
   question: Schema.Struct({
@@ -135,23 +140,13 @@ const customWire = portWire({
         ? Result.succeed(undefined)
         : toJsonRecord(resource, WIRE_MAX_DEPTH);
     const wireParams = params === undefined ? Result.succeed(undefined) : toJson(params, WIRE_MAX_DEPTH);
-    return Result.flatMap(
-      wireResource,
-      (resourceJson): Result.Result<
-        {
-          readonly subjectId: typeof subject.id;
-          readonly name: string;
-          readonly resource?: { readonly [key: string]: Schema.Json };
-          readonly params?: Schema.Json;
-        },
-        EncodeRefusal
-      > =>
-        Result.map(wireParams, (paramsJson) => ({
-          subjectId: subject.id,
-          name,
-          ...(resourceJson === undefined ? {} : { resource: resourceJson }),
-          ...(paramsJson === undefined ? {} : { params: paramsJson }),
-        })),
+    return Result.flatMap(wireResource, (resourceJson) =>
+      Result.map(wireParams, (paramsJson) => ({
+        subjectId: subject.id,
+        name,
+        resource: resourceJson,
+        params: paramsJson,
+      })),
     );
   },
   fromQuestion: (question, subject): CustomArgs => [
@@ -162,6 +157,25 @@ const customWire = portWire({
   ],
   ...sameAnswer<boolean>(),
 });
+
+/**
+ * The request `HasCustom` puts to this port: the name the leaf names, handed
+ * the subject and the resource of the site and the leaf's params exactly as
+ * decoded.
+ *
+ * The only place this leaf becomes a request (ARCH-70, ADR-QD-134).
+ */
+const customAsks = {
+  HasCustom: (
+    leaf: LeafOf["HasCustom"],
+    site: ReadSite,
+  ): [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown] => [
+    leaf.name,
+    site.subject,
+    site.resource,
+    leaf.params,
+  ],
+};
 
 /**
  * A host serves predicates only from a required allowlist.
@@ -175,25 +189,28 @@ const customServing: PortServingFacet<
   [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown]
 > = {
   allowlist: "required",
-  leaves: { HasCustom: (leaf) => leaf.name },
   asked: ([name]) => name,
   admitted: (declaration) => declaration.names,
-  declare: (names) => ({ CustomPredicate: { names } }),
+  declare: ({ names }) => ({ CustomPredicate: { names } }),
 };
 
 /**
  * The custom-predicate port, described once (`PortDescription.ts`).
  *
- * A request is keyed by everything the predicate receives: the subject's id,
- * the name, the params, the resource and the rest of the subject — its roles,
- * permissions and attributes — through `canonicalKey`, the injective request
- * key `PortKey.ts` defines and documents. A what-if that
- * drops a role, or a simulation that edits the resource, therefore never
- * replays an answer given to a different question (ARCH-45 I1).
- * `CustomPredicateError`
- * has no `cause` field, so `failure` renders the cause into `reason`, and
- * `defect` renders a defect with `Cause.pretty` — what `PortAccess.ts` always
- * did (D-10-e).
+ * **The one port that states its own `key` and `defect`.** The other four are
+ * built with `makePortDescription`, which derives both (ADR-QD-133); this one
+ * is not, for two reasons. A request is keyed by everything the predicate
+ * receives — the subject's id, the name, the params, the resource and the rest
+ * of the subject, its roles, permissions and attributes — through
+ * `canonicalKey`, the injective request key `PortKey.ts` defines and
+ * documents, whereas the wire question carries only the subject's id and JSON
+ * `resource` and `params`; so a what-if that drops a role, or a simulation
+ * that edits the resource, never replays an answer given to a different
+ * question (ARCH-45 I1), and a key derived from the question could not say so.
+ * And `CustomPredicateError` has no `cause` field, so `failure` renders the
+ * cause into `reason` and `defect` renders a defect with `Cause.pretty` — what
+ * `PortAccess.ts` always did (D-10-e) — where the derived defect is the
+ * failure of the squashed cause.
  */
 export const customPredicatePort: PortDescription<
   "CustomPredicate",
@@ -202,12 +219,15 @@ export const customPredicatePort: PortDescription<
   [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown],
   boolean,
   CustomPredicateError,
-  typeof customSpan
+  [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown],
+  typeof customSpan,
+  typeof customAsks
 > = {
   port: "CustomPredicate",
   method: "evaluate",
   span: "qadi.hasCustom",
   attributes: customSpan,
+  asks: customAsks,
   wire: customWire,
   serving: customServing,
   service: CustomPredicate,

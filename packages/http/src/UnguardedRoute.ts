@@ -43,9 +43,18 @@ export interface DeclaredUnguarded {
   readonly announce: Announce;
 }
 
+/**
+ * The methods a bare route mounts under, guarded or not.
+ *
+ * Written once for both bare-route constructors, `addGuardedRoute` (`GuardRoute.ts`)
+ * and `unguardedRoutes` below (ARCH-75). Closed, so `effect`'s `"QUERY"` is not
+ * accepted until someone decides it is.
+ */
+export type RouteMethod = "*" | "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS";
+
 /** One route of an unguarded family. */
 export interface UnguardedRouteSpec<E, R> {
-  readonly method: "*" | "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS";
+  readonly method: RouteMethod;
   readonly path: PathInput;
   readonly handler: Effect.Effect<HttpServerResponse.HttpServerResponse, E, R>;
 }

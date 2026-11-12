@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-114                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-08                                     |
 > | Status         | Accepted — amends ADR-QD-094, ADR-QD-107       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-08): Initial (ARCH-53, CCR-QD-392) |
+> | Change History | 1.1 (2026-11-11): amendment — ARCH-70: leaves leaves the facet for the description asks; servingFor derives through asks and asked; the own-records pseudo-name is gone (ADR-QD-134, CCR-QD-412)<br>1.0 (2026-11-08): Initial (ARCH-53, CCR-QD-392) |
 
 ---
 
@@ -105,3 +105,17 @@ recorded with the approval).
 [BEH-QD-331](../behaviors/34-remote-ports.md#beh-qd-331-a-served-question-outside-the-hosts-serving-declaration-must-be-refused),
 [INV-QD-095](../invariants.md#inv-qd-095-every-port-is-described-once-and-every-derived-layer-agrees-with-its-description),
 [INV-QD-241](../invariants.md#inv-qd-241-a-remote-port-fails-where-its-store-fails).
+
+> **Amended (ARCH-70, 2026-11-11, CCR-QD-412): `leaves` leaves the facet for the description's `asks`.**
+> The Decision above gives the facet a `leaves` member, a `ServedLeaves` that states, for each policy leaf
+> tag that reads the port, the one name the leaf asks. That is a second statement of the request each
+> leaf's read builds, and it is removed: `ServedLeaves` and `PortServingFacet.leaves` are gone, and the
+> description states `asks` (`LeafRequests<P>`) instead, which the reads and `servingFor` both use. The
+> facet keeps `allowlist`, `asked`, `admitted` and `declare`. `servingFor` derives each name as `asked`
+> of the request a leaf's `asks` entry builds at an anonymous, resource-less site, and records whether
+> any leaf asked the port; `declare` receives `{ names, asked }`, so the opt-in signature port is
+> declared exactly when a leaf asks it and the `"own-records"` pseudo-name `leaves` carried for it is
+> gone. A new port-reading leaf is one `asks` entry; the leaf-coverage test remains as the guard. This
+> amendment is the human's override of the earlier choice to leave the agreement to a test
+> (`_DECISIONS-v1.2.md`, 2026-11-11). See
+> [ADR-QD-134](134-a-resource-scoped-port-read-is-one-read.md).

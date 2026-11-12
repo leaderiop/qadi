@@ -67,7 +67,7 @@ test("StandingEvaluationServices is EvaluationServices without CurrentSubject", 
   expect<CurrentSubject>().type.not.toBeAssignableTo<StandingEvaluationServices>();
 });
 
-test("SinkRecordTag is exactly SinkRecord's tag, though Errors.ts cannot import it (ARCH-09)", () => {
+test("SinkRecordTag is derived from the record tags and is exactly SinkRecord's tag (ARCH-09, ARCH-71)", () => {
   expect<SinkRecordTag>().type.toBe<SinkRecord["_tag"]>();
 });
 

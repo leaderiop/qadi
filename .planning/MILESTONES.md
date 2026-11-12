@@ -1,5 +1,45 @@
 # Milestones
 
+## v1.2 Arch Wave 7 (Phases 21-29) (Completed: 2026-11-12; not released)
+
+**Phases completed:** 9 phases, 38 plans, 75 tasks
+**Closeout:** override_closeout. All 9 phases `passed`. Phases 21–23 were re-verified at HEAD on
+2026-11-12 because later phases edited files their reports covered. Milestone audit: `tech_debt`
+(44/44 requirements, 9/9 phases, 5/5 integration seams, 5/5 flows, Nyquist 9/9), with the debt
+accepted by the user. Archived as `milestones/v1.2-MILESTONE-AUDIT.md`.
+**Known verification overrides:** 2 newly acknowledged, 0 carried forward. Both are pre-existing Phase 24
+deferred spec items: the duplicate BEH-QD-219..221 blocks in `spec/behaviors/29-devtools-simulator.md`,
+and `spec/traceability.md` behaviour 29 naming `model/Sources.ts`, which should be `Source.ts`.
+**Git range:** `965ff14c` → `250dbca0` on `arch-wave-7` (272 commits, 2026-11-11 → 2026-11-12);
+170 files changed outside `.planning`, +9,900 / −3,457.
+**Merge gate:** `pnpm check:pr` exit 0 at the end of every phase (16 of 17 steps; mutation runs
+per touched file under WX-05, never re-baselined).
+**Records:** ARCH-69..77, ADR-QD-133..140 (136, 138, 139 and 141 unused), CCR-QD-411..419.
+**Release:** none. The branch is not merged and nothing was published.
+
+**Key accomplishments:**
+- **ARCH-69/70 (Phases 21–22):** each port's request key is derived from its wire question, and the
+  request every policy leaf asks is stated once on its description (`asks`). One `readScoped`, with
+  a single span, serves the three resource-scoped ports, and `requireScopedResourceId` is gone
+  (ADR-QD-133, ADR-QD-134).
+- **ARCH-71 (Phase 23):** each sink record's fields are one `Schema.Struct`. Records, v2 wire structs,
+  `project` and `rebuild` derive from it with byte-identical wire, and an emitted record equals its
+  own round trip (ADR-QD-135).
+- **ARCH-72/73/74 (Phases 24–26):** `prepareSource` owns the simulation source rule. The Simulator is
+  a scoped session that owns its runs through a `FiberHandle`, and takes `{ session }` only. The
+  dock is one headless `makeDockModel` over six stores (ADR-QD-137, ADR-QD-047 amended).
+- **ARCH-75 (Phase 27):** `guardRoute` is deleted, so `addGuardedRoute` is the one bare guarded route
+  constructor. The `/__permissions` routes moved to `PermissionRegistryRoute.ts`, with no export,
+  path, status or log line changed.
+- **ARCH-76 (Phase 28):** `GateWriter.ts` is a React-free leaf with a pure `reconcile`, the hooks moved
+  into `useGate.ts`, and the test-only `useGateRegistration` is deleted (ADR-QD-140).
+- **ARCH-77 (Phase 29):** three facts are each stated once now:
+  - the port name and span live in the `PortName.ts` leaf, and `span` is `PortSpanOf<N>`;
+  - hydration's withheld fields are `ALLOW_WITHHELD`/`DENY_WITHHELD`;
+  - devtools' failure sentence is `FAILURE_IS_NOT_A_DENIAL`.
+
+---
+
 ## v1.0 Arch Wave 5 (Shipped: 2026-11-09)
 
 **Phases completed:** 9 phases, 33 plans, 40 tasks

@@ -23,10 +23,12 @@ import * as Match from "effect/Match";
 import * as Order from "effect/Order";
 import type { Decision } from "./Decision.ts";
 import type { EvaluationError } from "./Errors.ts";
-import type { CacheOutcome } from "./EvaluationMetrics.ts";
-import type { ResourceId, SubjectId } from "./Identity.ts";
-import type { Policy } from "./Policy.ts";
-import type { Resource } from "./Resource.ts";
+import type {
+  decisionRecordFields,
+  obligationRecordFields,
+  ObligationOutcomeSchema,
+} from "./SinkRecordFields.ts";
+import { DECISION_RECORD_TAG, OBLIGATION_RECORD_TAG } from "./SinkRecordFields.ts";
 
 /** The evaluation produced a verdict. */
 export class Decided extends Data.TaggedClass("Decided")<{
@@ -56,62 +58,18 @@ export class Failed extends Data.TaggedClass("Failed")<{
  */
 export type DecisionOutcome = Decided | Failed;
 
-export class DecisionRecord extends Data.TaggedClass("Decision")<{
-  readonly evaluationId: string;
-  /**
-   * When evaluation started, in epoch millis, from `Clock`.
-   *
-   * `Clock` rather than `Date.now()` so records are reproducible under
-   * `TestClock` — the same reason durations are (see [Decision.ts](./Decision.ts)).
-   * The start rather than the end, so a record's order matches the order the
-   * questions were asked; the end is `at + durationMillis` for a `Decided` one.
-   */
-  readonly at: number;
-  /**
-   * Who was asking, for both outcomes.
-   *
-   * `Decided`'s payload already names it on the `Decision` itself, but a
-   * `Failed` record previously carried no actor at all — not here, not on any
-   * `EvaluationError` member — even though `evaluate` resolves `CurrentSubject`
-   * before the code that can fail. A sink watching for who a broken attribute
-   * lookup was for had nothing to read. Top-level rather than duplicated onto
-   * `Failed` specifically, so a consumer reads one field regardless of outcome.
-   */
-  readonly subjectId: SubjectId;
-  readonly policy: Policy;
-  /**
-   * The resource under consideration, if any.
-   *
-   * **Carried whole, to every sink, with no projection or redaction** —
-   * unlike `Decision`'s own `visibleFields` lattice, which exists precisely
-   * to gate what a *caller* sees. A sink is a different audience: "a socket
-   * to a devtools page, a replica forwarding to a shared store" (`SinkCodec.ts`),
-   * and whatever this resource carries — potentially customer data — travels
-   * to whatever that sink forwards to, in full. `policy` above discloses
-   * every other rule in the deployment for the same reason. Denial reasons
-   * (`Walk.ts`'s `attributeReason`) deliberately withhold attribute
-   * values by contrast; this field does not have an equivalent restraint.
-   * A `DecisionSink` implementation that forwards outside a trust boundary
-   * as controlled as the enforcement path itself is the caller's own
-   * projection to add — nothing here does it for them.
-   */
-  readonly resource?: Resource | undefined;
-  /** What the caller was doing, if it said. */
-  readonly action?: string | undefined;
-  /**
-   * How the decision cache answered, when one was wired.
-   *
-   * **Absent means no cache was consulted at all**, which is a different fact
-   * from `"miss"` — that one says the cache was asked and did not have it. A
-   * single optional field keeps the two apart without a third tag.
-   *
-   * Observability only. A hit still produces the same verdict, trace and fields
-   * as a miss ([INV-QD-025](../../../spec/invariants.md)); this reports how the
-   * answer was reached, in the same category as `durationMillis`.
-   */
-  readonly cache?: CacheOutcome | undefined;
-  readonly outcome: DecisionOutcome;
-}> {}
+/**
+ * One evaluation, as a sink receives it.
+ *
+ * The fields are {@link decisionRecordFields}'s `Type` plus `outcome`, so the
+ * record's field list and the version-2 wire's are one statement and cannot
+ * differ (ARCH-71, ADR-QD-135). Their documentation is on that struct's entries.
+ * `outcome` is added here because in memory it is `Decided | Failed`, which the
+ * wire carries as its own tagged value.
+ */
+export class DecisionRecord extends Data.TaggedClass(DECISION_RECORD_TAG)<
+  typeof decisionRecordFields.Type & { readonly outcome: DecisionOutcome }
+> {}
 
 /**
  * What happened at the obligation gate, for an allow that carried duties.
@@ -131,29 +89,14 @@ export class DecisionRecord extends Data.TaggedClass("Decision")<{
  * obligation nobody discharges turns an **allow** into a refusal at the
  * enforcement boundary, and until this the log showed such a request as `ALLOW`
  * while the caller received an error.
+ *
+ * Its fields are {@link obligationRecordFields}'s `Type`, stated once and shared
+ * with the wire (ARCH-71, ADR-QD-135); their documentation is on that struct's
+ * entries.
  */
-export class ObligationRecord extends Data.TaggedClass("Obligations")<{
-  /** The decision these duties came from, so the two rows pair. */
-  readonly evaluationId: string;
-  readonly at: number;
-  readonly outcome: ObligationOutcome;
-  readonly obligationIds: ReadonlyArray<string>;
-  /**
-   * Who the allow was decided for, so an obligation row can say whom it
-   * concerns without its decision row (an orphan, whose decision never arrived).
-   *
-   * Identity, not content: the question's subject, action and resource id are
-   * here, never the resource itself, which stays on the {@link DecisionRecord}
-   * so customer data is not disclosed twice to every sink. Optional only because
-   * a row written before these keys existed lacks them; `discharge` always sets
-   * `subjectId`.
-   */
-  readonly subjectId?: SubjectId | undefined;
-  /** What the caller was doing, when the question said. */
-  readonly action?: string | undefined;
-  /** The question's resource id, when its resource had a string `id`. */
-  readonly resourceId?: ResourceId | undefined;
-}> {}
+export class ObligationRecord extends Data.TaggedClass(OBLIGATION_RECORD_TAG)<
+  typeof obligationRecordFields.Type
+> {}
 
 /**
  * `Discharged` — a handler ran and succeeded.
@@ -162,12 +105,11 @@ export class ObligationRecord extends Data.TaggedClass("Obligations")<{
  * refused with `UndischargedObligation`.
  * `NotRequired` — no handler, and every obligation was advisory, so nothing
  * blocked.
+ *
+ * The literals are stated once, in `SinkRecordFields.ts`, where the wire checks
+ * them too.
  */
-export type ObligationOutcome =
-  | "Discharged"
-  | "HandlerFailed"
-  | "Refused"
-  | "NotRequired";
+export type ObligationOutcome = typeof ObligationOutcomeSchema.Type;
 
 /** Anything `evaluate` or an enforcing entry point hands a sink. */
 export type SinkRecord = DecisionRecord | ObligationRecord;

@@ -23,7 +23,7 @@
  * for captures).
  */
 import type { DecisionOutcome, Policy } from "@qadi/core";
-import { inspect, isTruncated } from "./Inspect.ts";
+import { describeTracePath, inspect, isTruncated } from "./Inspect.ts";
 import type { SimulationField } from "./SimulationFields.ts";
 import { FIELD_ORDER, SIMULATION_FIELDS, unseededReason } from "./SimulationFields.ts";
 import type { SimulationInput } from "./SimulationInput.ts";
@@ -166,3 +166,56 @@ const caveatOf = (policy: Policy, outcome: DecisionOutcome): BaselineCaveat | un
  */
 export const matchesBaseline = (self: Baseline): boolean =>
   self._tag === "Checked" && self.caveat === undefined && !isChanged(self.comparison);
+
+/** A baseline in one line, with the one bit a view colours it by. */
+export interface BaselineReading {
+  readonly matches: boolean;
+  readonly sentence: string;
+}
+
+/**
+ * What differed, in one line.
+ *
+ * The `Compared` arm names the outermost node whose verdict turned when one did,
+ * because "the verdict flipped" is a boolean the reader already has and "at
+ * which node" is the thing they came for.
+ */
+const summarise = (baseline: Extract<Baseline, { _tag: "Checked" }>): string => {
+  const comparison = baseline.comparison;
+  if (comparison._tag === "BecameError") {
+    return `this reconstruction failed with ${comparison.error._tag} where the logged one decided`;
+  }
+  if (comparison._tag === "Recovered") {
+    return "this reconstruction decided where the logged one failed";
+  }
+  if (comparison._tag === "StillFailed") {
+    return comparison.same
+      ? `the same failure, ${comparison.after._tag}`
+      : `a different failure: ${comparison.before._tag} then, ${comparison.after._tag} now`;
+  }
+  const flipped = comparison.flipped;
+  if (flipped !== undefined) {
+    return `differs — ${flipped.policyTag} at ${describeTracePath(flipped.path)} was ${
+      flipped.before ? "allowed" : "denied"
+    } and is now ${flipped.after ? "allowed" : "denied"}`;
+  }
+  return `differs at ${String(comparison.differences.length)} node${
+    comparison.differences.length === 1 ? "" : "s"
+  }, with the same verdict`;
+};
+
+/**
+ * Reads a checked baseline: whether the reconstruction reproduces the row, and
+ * the sentence that says so.
+ *
+ * The sentence was the Simulator's, computed on every render outside the
+ * mutation gate (ARCH-73); it is here so that what a reviewer is told about a
+ * reconstruction is decided once, under test.
+ */
+export const readBaseline = (self: Extract<Baseline, { _tag: "Checked" }>): BaselineReading => {
+  const matches = matchesBaseline(self);
+  return {
+    matches,
+    sentence: matches ? "matches — this reconstruction reproduces the logged decision" : summarise(self),
+  };
+};

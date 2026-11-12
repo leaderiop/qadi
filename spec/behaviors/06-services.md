@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-06                                    |
-> | Revision       | 1.9                                            |
+> | Revision       | 1.11                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.9 (2026-11-10): BEH-QD-409 (a request key agrees with Equal over its domain) and BEH-QD-410 (a request the key refuses fails closed); BEH-QD-310's replyTable requirement matches by key text and fails a refused request with the port's typed error (ARCH-65, CCR-QD-407)<br>1.8 (2026-10-05): BEH-QD-043's listing gains `CustomPredicateNone` and `SignatureHistoryNone`, which it had omitted since both ports shipped, and states that each port's default is derived from its description's `none`; BEH-QD-308 (every port has the standard wrapper set), BEH-QD-309 (an environment names only what it overrides) and BEH-QD-310 (a port can be scripted) added (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-05): BEH-QD-045's reason table is built from the matcher's `Verdict` — an `Eq` or `Dominates` against an unresolved reference reads "has no reference value to compare against" (only `Neq` did), and a value the matcher cannot compare reads "is not a value this matcher can compare" (ADR-QD-091, CCR-QD-173)<br>1.6 (2026-09-19): BEH-QD-044 gained a normative "Trust model" paragraph — `CurrentSubject`'s provenance and what the evaluator does and does not re-verify had no single stated answer anywhere in `spec/` (WD-05)<br>1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.11 (2026-11-11): the PortDescription listing gains asks and its request and asks type parameters (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.10 (2026-11-11): BEH-QD-409's key law reads over a derived port's wire question; BEH-QD-440 (a derived port states no key and no defect) and BEH-QD-441 (a port's question and span question name every member) (ARCH-69, CCR-QD-411)<br>1.9 (2026-11-10): BEH-QD-409 (a request key agrees with Equal over its domain) and BEH-QD-410 (a request the key refuses fails closed); BEH-QD-310's replyTable requirement matches by key text and fails a refused request with the port's typed error (ARCH-65, CCR-QD-407)<br>1.8 (2026-10-05): BEH-QD-043's listing gains `CustomPredicateNone` and `SignatureHistoryNone`, which it had omitted since both ports shipped, and states that each port's default is derived from its description's `none`; BEH-QD-308 (every port has the standard wrapper set), BEH-QD-309 (an environment names only what it overrides) and BEH-QD-310 (a port can be scripted) added (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-05): BEH-QD-045's reason table is built from the matcher's `Verdict` — an `Eq` or `Dominates` against an unresolved reference reads "has no reference value to compare against" (only `Neq` did), and a value the matcher cannot compare reads "is not a value this matcher can compare" (ADR-QD-091, CCR-QD-173)<br>1.6 (2026-09-19): BEH-QD-044 gained a normative "Trust model" paragraph — `CurrentSubject`'s provenance and what the evaluator does and does not re-verify had no single stated answer anywhere in `spec/` (WD-05)<br>1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -386,8 +386,10 @@ export { flaky, table };
 > **Invariant:** [INV-QD-280](../invariants.md#inv-qd-280-a-request-key-is-equals-text)
 
 ```ts
-export interface PortDescription<N, Self, Shape, Args, A, E> {
+export interface PortDescription<N, Self, Shape, Args, A, E, P = Args, Span = …, Asks = LeafRequests<P>> {
   readonly key: (args: Args) => Result.Result<string, KeyRefusal>;
+  // The request each policy leaf puts to this port, as far as a read site supplies it (BEH-QD-446).
+  readonly asks: Asks;
   // …
 }
 ```
@@ -399,7 +401,11 @@ REQUIREMENT: For every port, two requests MUST share a key exactly when every
              numbers (`-0` as `0`, `NaN` as itself), strings, bigints, `Date`,
              `RegExp`, arrays, plain and null-prototype objects, `Set` and `Map`.
              A subclass of `Date`, `RegExp`, `Array`, `Set` or `Map` MUST key as
-             its base class, as `Equal.equals` compares it.
+             its base class, as `Equal.equals` compares it. For a port whose
+             description is derived (`AttributeResolver`, `RelationshipResolver`,
+             `DecisionHistory`, `SignatureHistory`), "every argument" is the
+             members of its wire question (BEH-QD-440); `CustomPredicate` states
+             its own key over every argument.
 
 REQUIREMENT: A key MUST be deterministic text: the same request keys to the same
              string in every process, whatever the order its objects', `Set`s'
@@ -407,7 +413,7 @@ REQUIREMENT: A key MUST be deterministic text: the same request keys to the same
              deep MUST key without a stack overflow.
 ```
 
-Every port description derives its `key` from one package-private encoding
+Every port description keys through one package-private encoding
 (`PortKey.ts`), so a request has one identity across `Question`, `DecisionCache`,
 devtools capture and replay, and `replyTable`. The JSON text this replaced keyed a
 `Date` like its ISO string, `NaN` like `null`, `{ a: undefined }` like `{}` and a
@@ -448,6 +454,84 @@ it from a table or a capture would hand one request another's answer, and a
 `none` would grant under `not(...)` ([INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed)).
 From typed input the signature fixture never sees a refusal, since its key is two
 strings and a requirement; its branch is kept for an untyped caller.
+
+## BEH-QD-440: A derived port states no key and no defect
+
+> **Invariant:** [INV-QD-286](../invariants.md#inv-qd-286-a-derived-ports-key-names-exactly-its-wire-questions-members)
+
+```ts
+// PortDerivation.ts, package-private: the spec has no `key` or `defect` member.
+export const makePortDescription: <N, Self, Shape, Args, A, E, P, Span, Asks, Q, QE, W, WE>(
+  spec: Omit<PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks>, "wire" | "key" | "defect"> & {
+    readonly wire: DerivedWireSpec<Args, A, Q, QE, W, WE>;
+  },
+) => PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks>;
+```
+
+```
+REQUIREMENT: For `AttributeResolver`, `RelationshipResolver`, `DecisionHistory`
+             and `SignatureHistory`, `key(args)` MUST succeed with `canonicalKey`
+             of the wire question `wire.toQuestion(args)` builds, its `undefined`
+             members dropped, and MUST equal `canonicalKey` of the question
+             `wire.encodeQuestion(args)` encodes, for every request the wire
+             encodes.
+
+REQUIREMENT: `defect(args, cause)` MUST be `failure(args, Cause.squash(cause))`
+             for those four ports, so a defect and a failure of the same
+             squashed cause carry the same tag and fields.
+
+REQUIREMENT: `CustomPredicate` MUST state its own `key` and `defect`: its key
+             covers the whole subject (roles, permissions, attributes), the
+             resource and its `params`, which its wire question does not carry,
+             and its defect renders the cause with `Cause.pretty`.
+```
+
+Before ARCH-69 each of the four listed its request fields as a tuple for `key` and
+restated `failure(args, Cause.squash(cause))` for `defect`; a tuple that forgot a field
+compiled, and only `PortConformance.test.ts`'s rows saw it. Evaluation never reads a
+port key, so a dropped field was a wrong devtools replay or a wrong `replyTable`
+answer, not a production grant ([ADR-QD-133](../decisions/133-a-port-request-is-derived-from-its-wire-question.md)).
+The law is checked once, as a property at `PortDescription`'s interface
+(`PortDescription.test.ts`); the per-port rows in `PortConformance.test.ts` keep only
+that every argument reaches the key (BEH-QD-409).
+
+---
+
+## BEH-QD-441: A port's question and span question name every member
+
+> **Invariant:** [INV-QD-286](../invariants.md#inv-qd-286-a-derived-ports-key-names-exactly-its-wire-questions-members)
+
+```ts
+// PortWireEncode.ts, package-private: an optional member is a required key typed `| undefined`.
+export type QuestionOf<Q> = { readonly [K in keyof Q]-?: /* Q[K], or Q[K] | undefined when optional */ unknown };
+// PortSpanEncode.ts, package-private: every question member but `interpreter`.
+export type PoseOf<S> = { readonly [K in Exclude<keyof S, "interpreter">]: /* the member's SpanValue | undefined */ unknown };
+```
+
+```
+REQUIREMENT: A port's `toQuestion` MUST state every member of its wire question
+             (an absent optional member as `undefined`), and its span's `pose`
+             MUST state every member of its span question but `interpreter`.
+             Leaving a member out MUST be a compile error where it is written.
+
+REQUIREMENT: `portWire` MUST drop an `undefined` member before encoding, so the
+             wire bytes of a question are those of a question that never
+             stated it.
+
+REQUIREMENT: `fromQuestion` is not made total by type: a forgotten required member
+             is TS2741, and `SignatureQuery`'s two optional members, `meaning`
+             and `signerRole`, are covered by the wire round-trip row in
+             `PortConformance.test.ts`.
+```
+
+The question and the span question are not one struct and are not derived from one:
+a span field is a `SpanValue` under a `qadi.*` key and never the value a wire must
+carry ([INV-QD-044](../invariants.md#inv-qd-044-a-span-never-carries-a-resolved-attributes-value)),
+and deriving the Shape request types from the wire struct would turn
+`resourceId: ResourceId | undefined` into an optional key, which is Breaking under
+`exactOptionalPropertyTypes` ([ADR-QD-133](../decisions/133-a-port-request-is-derived-from-its-wire-question.md)).
+`PortRequest.tst.ts` pins both slots; `PortSpan.test.ts` pins every port's encoded span
+attributes for a full and a sparse request.
 
 ---
 

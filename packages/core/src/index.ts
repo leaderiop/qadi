@@ -31,6 +31,7 @@ export * from "./Policy.ts";
 export * from "./PortDescription.ts";
 export * from "./PortDoubles.ts";
 export * from "./PortMetrics.ts";
+export * from "./PortName.ts";
 export * from "./PortRemote.ts";
 export * from "./PortServing.ts";
 export * from "./PortSpan.ts";

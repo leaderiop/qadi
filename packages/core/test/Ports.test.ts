@@ -44,7 +44,7 @@ import {
 import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
-import type { PortName } from "../src/PortMetrics.ts";
+import type { PortName } from "../src/PortName.ts";
 import { PORT_FIXTURES, PORTS, fixturePortsLayer } from "../src/Ports.ts";
 import type { PortFixtureData } from "../src/Ports.ts";
 

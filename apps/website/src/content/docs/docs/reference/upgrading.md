@@ -145,9 +145,18 @@ closed) states both. See
 [ADR-QD-109](https://github.com/leaderiop/qadi/blob/main/spec/decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md).
 
 A hand-built description also states `serving` (`PortServingFacet`): the allowlist word for the port, the
-policy leaves that read it, the one name it asks, and what a declaration admits. `PortWire` no longer has
-`asked`; it is `serving.asked`. See
+one name a request asks, and what a declaration admits and declares. `PortWire` no longer has `asked`; it is
+`serving.asked`. See
 [ADR-QD-114](https://github.com/leaderiop/qadi/blob/main/spec/decisions/114-a-port-states-what-it-serves.md).
+
+It also states `asks` (`LeafRequests`): one `(leaf, site) => request` for each policy tag the port reads,
+where `site` is a `ReadSite`, the subject asking and the resource asked about. Every read builds its
+request through it, and `servingFor` reads the name a leaf asks from the same request, so the facet has no
+`leaves`: the unreleased `ServedLeaves` is replaced by `LeafRequests`. `PortDescription` takes the request as
+far as a site supplies it as a type parameter. A resource-scoped read whose resource has no string id now
+leaves only the port's own span, on every scoped port, instead of a nested `qadi.requireScopedResourceId`
+span on two of them. See
+[ADR-QD-134](https://github.com/leaderiop/qadi/blob/main/spec/decisions/134-a-resource-scoped-port-read-is-one-read.md).
 
 ## 0.12: one per-port table builder
 

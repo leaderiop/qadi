@@ -29,7 +29,7 @@ import {
   portsLayer,
   tabulatePorts,
 } from "../src/Ports.ts";
-import type { PortName } from "../src/PortMetrics.ts";
+import type { PortName } from "../src/PortName.ts";
 import type { PortServices } from "../src/Ports.ts";
 import { RelationshipResolver } from "../src/RelationshipResolver.ts";
 import { SignatureHistory } from "../src/SignatureHistory.ts";

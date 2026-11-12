@@ -27,8 +27,8 @@ import { customPredicateFromRecord, customPredicatePort } from "./CustomPredicat
 import { decisionHistoryFromEvents, decisionHistoryPort } from "./DecisionHistory.ts";
 import type { ActedEventInput } from "./DecisionHistory.ts";
 import { nonePort } from "./PortDerivation.ts";
-import type { PortDescription, PortShape } from "./PortDescription.ts";
-import type { PortName } from "./PortMetrics.ts";
+import type { LeafRequests, PortDescription, PortShape } from "./PortDescription.ts";
+import type { PortName } from "./PortName.ts";
 import type { PortSpanAttributesLike } from "./PortSpan.ts";
 import { relationshipResolverFromEdges, relationshipResolverPort } from "./RelationshipResolver.ts";
 import type { RelationshipEdgeInput } from "./RelationshipResolver.ts";
@@ -79,6 +79,13 @@ export type ArgsOf<D> = D extends {
 /** A description's answer. */
 export type AnswerOf<D> = D extends { readonly none: { readonly answer: infer A } } ? A : never;
 
+/**
+ * A description's request as far as a read site supplies it: what its `asks`
+ * build. The method's own `Args` for four ports; for the relationship port the
+ * request whose resource id may still be absent.
+ */
+export type AskedOf<D> = D extends { readonly asks: LeafRequests<infer P> } ? P : never;
+
 /** A description's span attributes (`PortSpan.ts`). */
 export type SpanOf<D> = D extends { readonly attributes: infer Span extends PortSpanAttributesLike }
   ? Span
@@ -96,7 +103,7 @@ export type ErrorOf<D> = D extends { readonly failure: (args: never, cause: unkn
  * generic `K` it is what lets a function over "any port" keep the port's name
  * and its answer, service and request **correlated**: `answers[d.port]` and
  * `d.none.answer` then have types the compiler knows agree, which a function
- * generic in the description's six parameters separately cannot express.
+ * generic in the description's parameters separately cannot express.
  */
 export type DescriptionOf<K extends PortName> = PortDescription<
   K,
@@ -105,6 +112,7 @@ export type DescriptionOf<K extends PortName> = PortDescription<
   ArgsOf<PortTypes[K]>,
   AnswerOf<PortTypes[K]>,
   ErrorOf<PortTypes[K]>,
+  AskedOf<PortTypes[K]>,
   SpanOf<PortTypes[K]>
 >;
 

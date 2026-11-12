@@ -8,15 +8,15 @@
  * `scripts/check-house-style.mjs`'s `sink-read-once` rule refuses a second
  * read of the service (ADR-QD-044, ADR-QD-100).
  *
- * `failedRecord`, `decidedRecord` and `obligationRecordFor` are the three
- * projections of a {@link Question} into a record, so no record can disagree
- * with the question it reports (ADR-QD-100, ADR-QD-105, ARCH-54).
+ * `decisionRecordFor` and `obligationRecordFor` are the two projections of a
+ * {@link Question} into a record, so no record can disagree with the question
+ * it reports (ADR-QD-100, ADR-QD-105, ARCH-54, ARCH-71).
  */
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import type { Allow } from "./Decision.ts";
 import { DecisionRecord, ObligationRecord } from "./DecisionRecord.ts";
-import type { Decided, Failed, ObligationOutcome, SinkRecord } from "./DecisionRecord.ts";
+import type { DecisionOutcome, ObligationOutcome, SinkRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 import type { CacheOutcome } from "./EvaluationMetrics.ts";
 import type { Question } from "./Question.ts";
@@ -55,40 +55,33 @@ export const sinkEmitter: Effect.Effect<(record: SinkRecord) => Effect.Effect<vo
 );
 
 /**
- * Projects a {@link Question} and a {@link Stamp} into a decision record's
- * request half, so the record cannot disagree with what was asked.
+ * Projects a {@link Question}, a {@link Stamp} and an outcome into the decision
+ * record: the one projection of a question into a `Decision` row.
  *
- * `maxDepth` is deliberately not on the wire (ADR-QD-096). Two arities rather
- * than an options bag: this runs once per evaluation, and a `Failed` record
- * must leave `cache` absent (not `undefined`-valued) — it says nothing about
- * the cache — which an explicit pair of constructors states without a spread.
+ * `failedRecord` and `decidedRecord` differed only in `cache`, so they are one
+ * function (ARCH-71, ADR-QD-135); a `Failed` outcome passes no cache, because it
+ * says nothing about it. `maxDepth` is deliberately not on the wire (ADR-QD-096).
+ *
+ * An absent `resource`, `action` or `cache` is an absent key, never an
+ * `undefined`-valued one, as in {@link obligationRecordFor}: the wire omits an
+ * undefined key, so a record that carried one was not `Equal` to its own round
+ * trip. `cache` is `undefined` when no cache is wired at all, which is a
+ * different statement from `"miss"` and stays distinct by being absent.
  */
-export const failedRecord = (question: Question, stamp: Stamp, outcome: Failed): DecisionRecord =>
-  new DecisionRecord({
-    evaluationId: stamp.evaluationId,
-    at: stamp.at,
-    subjectId: question.subject.id,
-    policy: question.policy,
-    resource: question.resource,
-    action: question.action,
-    outcome,
-  });
-
-/** The record of a decided evaluation: `failedRecord`'s request half plus how the cache answered. */
-export const decidedRecord = (
+export const decisionRecordFor = (
   question: Question,
   stamp: Stamp,
-  outcome: Decided,
-  cache: CacheOutcome | undefined,
+  outcome: DecisionOutcome,
+  cache?: CacheOutcome,
 ): DecisionRecord =>
   new DecisionRecord({
     evaluationId: stamp.evaluationId,
     at: stamp.at,
     subjectId: question.subject.id,
     policy: question.policy,
-    resource: question.resource,
-    action: question.action,
-    cache,
+    ...(question.resource === undefined ? {} : { resource: question.resource }),
+    ...(question.action === undefined ? {} : { action: question.action }),
+    ...(cache === undefined ? {} : { cache }),
     outcome,
   });
 

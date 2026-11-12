@@ -11,11 +11,10 @@ import { attributeResolverPort } from "../src/AttributeResolver.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
 import { customPredicatePort } from "../src/CustomPredicate.ts";
 import { decisionHistoryPort } from "../src/DecisionHistory.ts";
-import { AttributeResolveError } from "../src/Errors.ts";
+import { AttributeResolveError, MissingResourceId } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import {
-  askActedAny,
-  askActedForResource,
+  askActed,
   askCustom,
   askRelationship,
   askSignature,
@@ -23,10 +22,12 @@ import {
   readAttribute,
   servePortRead,
 } from "../src/PortAccess.ts";
+import * as M from "../src/Matcher.ts";
+import * as P from "../src/Policy.ts";
 import { PortReply } from "../src/PortDescription.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "../src/PortMetrics.ts";
-import type { PortName } from "../src/PortMetrics.ts";
+import type { PortName } from "../src/PortName.ts";
 import { PORTS, portsLayer } from "../src/Ports.ts";
 import type {
   AnswerOf,
@@ -38,7 +39,21 @@ import type {
 } from "../src/Ports.ts";
 import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
 import { signatureHistoryPort } from "../src/SignatureHistory.ts";
-import { collectingTracer, isolatedMetrics } from "./helpers.ts";
+import { collectingTracer, isolatedMetrics, leafOf } from "./helpers.ts";
+
+/** Each read takes the leaf it answers (ARCH-70); these build one, narrowed to its node type. */
+const attributeLeaf = (attribute: string) => leafOf("HasAttribute", P.hasAttribute(attribute, M.exists()));
+const actedLeaf = (event: string, scope: "Resource" | "Any") =>
+  leafOf("HasActed", P.hasActed(event, { scope }));
+const relationshipLeaf = (relation: string, depth: number) =>
+  leafOf("HasRelationship", P.hasRelationship(relation, { depth }));
+const customLeaf = (name: string, params: unknown) => leafOf("HasCustom", P.hasCustom(name, params));
+const signatureLeaf = (meaning: string, signerRole: string | undefined, scope: "Resource" | "Any") =>
+  leafOf(
+    "HasSignature",
+    P.hasSignature(meaning, signerRole === undefined ? { scope } : { scope, signerRole }),
+  );
+const DOC = { id: "doc-1" };
 
 /** The words a frequency has actually counted; preregistered words sit at zero. */
 const nonZero = (frequency: { readonly occurrences: ReadonlyMap<string, number> }) =>
@@ -140,7 +155,7 @@ describe("a read's defect error is its port description's", () => {
     Effect.gen(function* () {
       const port = scriptedPort(attributeResolverPort, () => PortReply.die("dead"));
       const error = yield* failureOf(
-        readAttribute("evaluate", alice, "level").pipe(
+        readAttribute("evaluate", alice, attributeLeaf("level")).pipe(
           Effect.provide(portsLayer({ AttributeResolver: port.layer })),
         ),
       );
@@ -151,7 +166,7 @@ describe("a read's defect error is its port description's", () => {
     Effect.gen(function* () {
       const port = scriptedPort(decisionHistoryPort, () => PortReply.throw("dead"));
       const error = yield* failureOf(
-        askActedAny("toPredicate", alice, "approved").pipe(
+        askActed("toPredicate", alice, actedLeaf("approved", "Any"), undefined).pipe(
           Effect.provide(portsLayer({ DecisionHistory: port.layer })),
         ),
       );
@@ -168,7 +183,7 @@ describe("a read's defect error is its port description's", () => {
     Effect.gen(function* () {
       const port = scriptedPort(relationshipResolverPort, () => PortReply.die("dead"));
       const error = yield* failureOf(
-        askRelationship(alice, "owner", "doc-1", 3).pipe(
+        askRelationship(alice, relationshipLeaf("owner", 3), DOC).pipe(
           Effect.provide(portsLayer({ RelationshipResolver: port.layer })),
         ),
       );
@@ -188,7 +203,7 @@ describe("a read's defect error is its port description's", () => {
     Effect.gen(function* () {
       const port = scriptedPort(customPredicatePort, () => PortReply.die("dead"));
       const error = yield* failureOf(
-        askCustom(alice, { id: "doc-1" }, "isOwner", { strict: true }).pipe(
+        askCustom(alice, customLeaf("isOwner", { strict: true }), DOC).pipe(
           Effect.provide(portsLayer({ CustomPredicate: port.layer })),
         ),
       );
@@ -209,7 +224,7 @@ describe("a read's defect error is its port description's", () => {
     Effect.gen(function* () {
       const port = scriptedPort(signatureHistoryPort, () => PortReply.die("dead"));
       const error = yield* failureOf(
-        askSignature(alice, "approved", undefined, "Resource", "doc-1").pipe(
+        askSignature(alice, signatureLeaf("approved", undefined, "Resource"), DOC).pipe(
           Effect.provide(portsLayer({ SignatureHistory: port.layer })),
         ),
       );
@@ -244,7 +259,7 @@ describe("a read is one body, locally and served (ARCH-47)", () => {
   const spansOfSignature = Effect.gen(function* () {
     const store = scriptedPort(signatureHistoryPort, () => PortReply.answer(signed)).layer;
     const localSpans: Array<Tracer.Span> = [];
-    yield* askSignature(alice, "approved", "manager", "Resource", "doc-1").pipe(
+    yield* askSignature(alice, signatureLeaf("approved", "manager", "Resource"), DOC).pipe(
       Effect.provide(Layer.mergeAll(portsLayer({ SignatureHistory: store }), collectingTracer(localSpans))),
     );
     const servedSpans: Array<Tracer.Span> = [];
@@ -334,37 +349,37 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
       {
         name: "readAttribute under evaluate",
         interpreter: "evaluate",
-        local: readAttribute("evaluate", alice, "clearance"),
+        local: readAttribute("evaluate", alice, attributeLeaf("clearance")),
         served: [aliceId, "clearance"],
         answer: SECRET,
       },
       {
         name: "readAttribute under toPredicate",
         interpreter: "toPredicate",
-        local: readAttribute("toPredicate", alice, "clearance"),
+        local: readAttribute("toPredicate", alice, attributeLeaf("clearance")),
         served: [aliceId, "clearance"],
         answer: SECRET,
       },
     ],
     DecisionHistory: [
       {
-        name: "askActedAny under evaluate",
+        name: "askActed, scope Any, under evaluate",
         interpreter: "evaluate",
-        local: askActedAny("evaluate", alice, "approved"),
+        local: askActed("evaluate", alice, actedLeaf("approved", "Any"), undefined),
         served: [{ subjectId: aliceId, event: "approved", resourceId: undefined }],
         answer: "Acted",
       },
       {
-        name: "askActedAny under toPredicate",
+        name: "askActed, scope Any, under toPredicate",
         interpreter: "toPredicate",
-        local: askActedAny("toPredicate", alice, "approved"),
+        local: askActed("toPredicate", alice, actedLeaf("approved", "Any"), undefined),
         served: [{ subjectId: aliceId, event: "approved", resourceId: undefined }],
         answer: "Acted",
       },
       {
-        name: "askActedForResource",
+        name: "askActed, scope Resource",
         interpreter: "evaluate",
-        local: askActedForResource("evaluate", alice, "approved", "doc-1"),
+        local: askActed("evaluate", alice, actedLeaf("approved", "Resource"), DOC),
         served: [{ subjectId: aliceId, event: "approved", resourceId: doc }],
         answer: "Acted",
       },
@@ -373,7 +388,7 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
       {
         name: "askRelationship",
         interpreter: "evaluate",
-        local: askRelationship(alice, "owner", "doc-1", 2),
+        local: askRelationship(alice, relationshipLeaf("owner", 2), DOC),
         served: [{ subjectId: aliceId, relation: "owner", resourceId: doc, depth: 2 }],
         answer: "Related",
       },
@@ -382,7 +397,7 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
       {
         name: "askCustom",
         interpreter: "evaluate",
-        local: askCustom(alice, { id: "doc-1" }, "isOwner", { strict: true }),
+        local: askCustom(alice, customLeaf("isOwner", { strict: true }), DOC),
         served: ["isOwner", alice, { id: "doc-1" }, { strict: true }],
         answer: true,
       },
@@ -391,7 +406,7 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
       {
         name: "askSignature, scope Any",
         interpreter: "evaluate",
-        local: askSignature(alice, "approved", "manager", "Any", undefined),
+        local: askSignature(alice, signatureLeaf("approved", "manager", "Any"), undefined),
         served: [
           { subjectId: aliceId, resourceId: undefined, meaning: "approved", signerRole: "manager" },
         ],
@@ -400,7 +415,7 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
       {
         name: "askSignature, scope Resource",
         interpreter: "evaluate",
-        local: askSignature(alice, "approved", "manager", "Resource", "doc-1"),
+        local: askSignature(alice, signatureLeaf("approved", "manager", "Resource"), DOC),
         served: [{ subjectId: aliceId, resourceId: doc, meaning: "approved", signerRole: "manager" }],
         answer: signed,
       },
@@ -550,22 +565,30 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
  * "Annotate the question, then validate" (D-07, ADR-QD-077): a resource-scoped
  * read with no usable resource id still leaves a span saying what it was asked,
  * fails with `MissingResourceId`, never reaches the port and counts no call.
+ * A missing id leaves only the port span (ADR-QD-134): no nested helper span
+ * joins it, on any of the three scoped ports.
  */
 describe("a missing resource id still leaves its question on the span (D-07)", () => {
   const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
 
+  /** The ports whose reads are resource-scoped; a fourth is a compile error in `MISSING`. */
+  type ScopedPort = "DecisionHistory" | "RelationshipResolver" | "SignatureHistory";
+
   interface Missing {
     readonly name: string;
     readonly span: string;
+    /** The leaf's own name (event, relation, meaning): what `MissingResourceId.relation` carries. */
+    readonly asked: string;
     readonly read: Effect.Effect<unknown, unknown, PortServices>;
     readonly question: Readonly<Record<string, string | number | boolean>>;
   }
 
-  const MISSING: ReadonlyArray<Missing> = [
-    {
-      name: "askActedForResource",
+  const MISSING: { readonly [K in ScopedPort]: Missing } = {
+    DecisionHistory: {
+      name: "askActed",
       span: decisionHistoryPort.span,
-      read: askActedForResource("evaluate", alice, "approved", undefined),
+      asked: "approved",
+      read: askActed("evaluate", alice, actedLeaf("approved", "Resource"), undefined),
       question: {
         "qadi.subject_id": "alice",
         "qadi.event": "approved",
@@ -573,10 +596,11 @@ describe("a missing resource id still leaves its question on the span (D-07)", (
         "qadi.interpreter": "evaluate",
       },
     },
-    {
+    RelationshipResolver: {
       name: "askRelationship",
       span: relationshipResolverPort.span,
-      read: askRelationship(alice, "owner", undefined, 2),
+      asked: "owner",
+      read: askRelationship(alice, relationshipLeaf("owner", 2), undefined),
       question: {
         "qadi.subject_id": "alice",
         "qadi.relation": "owner",
@@ -584,10 +608,11 @@ describe("a missing resource id still leaves its question on the span (D-07)", (
         "qadi.interpreter": "evaluate",
       },
     },
-    {
+    SignatureHistory: {
       name: "askSignature",
       span: signatureHistoryPort.span,
-      read: askSignature(alice, "approved", "manager", "Resource", undefined),
+      asked: "approved",
+      read: askSignature(alice, signatureLeaf("approved", "manager", "Resource"), undefined),
       question: {
         "qadi.subject_id": "alice",
         "qadi.meaning": "approved",
@@ -596,9 +621,9 @@ describe("a missing resource id still leaves its question on the span (D-07)", (
         "qadi.interpreter": "evaluate",
       },
     },
-  ];
+  };
 
-  for (const row of MISSING) {
+  for (const row of Record.values(MISSING)) {
     it.effect(row.name, () =>
       Effect.gen(function* () {
         const spans: Array<Tracer.Span> = [];
@@ -631,14 +656,78 @@ describe("a missing resource id still leaves its question on the span (D-07)", (
             assert.isTrue(Result.isFailure(result));
             if (Result.isFailure(result)) {
               assert.strictEqual(Object.getOwnPropertyDescriptor(result.failure, "_tag")?.value, "MissingResourceId");
+              if (result.failure instanceof MissingResourceId) {
+                assert.strictEqual(result.failure.relation, row.asked);
+              } else {
+                assert.fail("the failure is not a MissingResourceId");
+              }
             }
             return yield* Metric.value(portCallsTotal);
           }),
         );
         const attributes = Object.fromEntries(spans.find((s) => s.name === row.span)?.attributes ?? []);
         assert.deepStrictEqual(attributes, row.question);
+        assert.deepStrictEqual(spans.map((s) => s.name).sort(), [row.span]);
         assert.deepStrictEqual(calls, []);
         assert.deepStrictEqual(nonZero(portCalls), []);
       }));
+  }
+});
+
+/**
+ * INV-QD-288 holds for the two ports whose request type cannot refuse a missing
+ * id (`ActedQuery.resourceId` and `SignatureQuery.resourceId` are optional): a
+ * `Resource`-scoped leaf reaches its port only with the id the site's resource
+ * holds, and an `Any`-scoped one only without one. The leaf's `scope` decides
+ * both what `asks` puts in the request and which read answers it, so this fails
+ * if the two ever disagree (a `Resource` leaf asked subject-wide would allow on
+ * any resource's history).
+ */
+describe("a scoped read reaches its port only with the id its leaf's scope calls for (INV-QD-288)", () => {
+  const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
+
+  /** Every shape a site's resource can take: absent, id-less, a non-string id, a usable id. */
+  const SITES: ReadonlyArray<{ readonly resource: Record<string, unknown> | undefined; readonly id: string | undefined }> = [
+    { resource: undefined, id: undefined },
+    { resource: {}, id: undefined },
+    { resource: { id: 7 }, id: undefined },
+    { resource: { id: { nested: "doc-1" } }, id: undefined },
+    { resource: { id: "doc-1" }, id: "doc-1" },
+  ];
+
+  for (const scope of ["Resource", "Any"] as const) {
+    const reads: ReadonlyArray<
+      readonly [string, (resource: Record<string, unknown> | undefined) => Effect.Effect<unknown, unknown, PortServices>]
+    > = [
+      ["askActed", (resource) => askActed("evaluate", alice, actedLeaf("approved", scope), resource)],
+      ["askSignature", (resource) => askSignature(alice, signatureLeaf("approved", "manager", scope), resource)],
+    ];
+    for (const [name, ask] of reads) {
+      it.effect(`${name} at ${scope} scope`, () =>
+        Effect.gen(function* () {
+          for (const site of SITES) {
+            const history = scriptedPort(decisionHistoryPort, () => undefined);
+            const signatures = scriptedPort(signatureHistoryPort, () => undefined);
+            const result = yield* Effect.result(
+              ask(site.resource).pipe(
+                Effect.provide(
+                  portsLayer({ DecisionHistory: history.layer, SignatureHistory: signatures.layer }),
+                ),
+              ),
+            );
+            const calls = [...history.calls, ...signatures.calls].map(([query]) => query.resourceId);
+            if (scope === "Any") {
+              assert.isTrue(Result.isSuccess(result));
+              assert.deepStrictEqual(calls, [undefined]);
+            } else if (site.id === undefined) {
+              assert.isTrue(Result.isFailure(result));
+              assert.deepStrictEqual(calls, []);
+            } else {
+              assert.isTrue(Result.isSuccess(result));
+              assert.deepStrictEqual(calls, [makeResourceId(site.id)]);
+            }
+          }
+        }));
+    }
   }
 });

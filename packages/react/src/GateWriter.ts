@@ -1,12 +1,11 @@
-"use client";
 /**
- * The write side of a gate registry, the types a registry holds, and the one
- * hook every gate kind reads, identifies and registers through.
+ * The write side of a gate registry: the types a registry holds, the private
+ * writer slot, and how a set of registrations is reconciled.
  *
- * Out of the barrel (AGENTS.md §9) for the reason `useGate.ts` is: the kind is
- * not a caller's to choose, and a consumer able to register an instance could
- * list a `<Can>` that does not exist. `GateRegistry.ts` re-exports the three
- * public types by name; nothing else here is reachable from outside the package.
+ * Out of the barrel (AGENTS.md §9): the writer is not a consumer's, and one able
+ * to register an instance could list a `<Can>` that does not exist (ADR-QD-080).
+ * `GateRegistry.ts` re-exports the three public types by name; nothing else here
+ * is reachable from outside the package.
  *
  * A registry the package built owns its writer as a private slot of the registry
  * object, set once at construction, so the binding cannot be forgotten or made
@@ -16,27 +15,12 @@
  * is the `UnregisteredAtoms` defect ADR-QD-078 removed for hydration. See
  * [ADR-QD-080](../../../spec/decisions/080-a-gate-registry-belongs-to-its-atom-set.md).
  *
- * `QadiProvider` resolves the writer once and hands it to gates through
- * {@link GateScopeContext}, which this module declares so the writer never
- * reaches the public `QadiContextValue` (ARCH-49). This module imports only
- * external modules and the leaves `DecisionOutcome.ts`, `QuestionBook.ts` and
- * `MissingQadiProviderError.ts`, never `QadiProvider.tsx`, `QadiAtoms.ts` or
- * `GateRegistry.ts`: `QadiAtoms.ts` imports `GateRegistry.ts`, which imports this
- * module, so any of the three would close a cycle (ADR-QD-037). That is why the
- * provider's atoms reach {@link useGates} typed structurally by {@link GateAtoms}
- * and not through `useQadiContext`.
+ * Below `GateRegistry.ts`, which builds its owned registry from here, and
+ * React-free, so {@link reconcile} is tested without rendering. The hooks that
+ * read and register through it are in `useGate.ts` (ARCH-76, ADR-QD-140).
  */
 import type { Policy, Resource } from "@qadi/core";
-import { useAtomValue } from "@effect/atom-react/Hooks";
-import * as Record from "effect/Record";
-import * as AsyncResult from "effect/reactivity/AsyncResult";
-import type * as Atom from "effect/reactivity/Atom";
-import { createContext, useContext, useEffect, useId, useMemo, useRef } from "react";
-import type { RefObject } from "react";
-import type { DecisionOutcome, DecisionResult } from "./DecisionOutcome.ts";
-import { outcomeOf } from "./DecisionOutcome.ts";
-import { MissingQadiProviderError } from "./MissingQadiProviderError.ts";
-import type { AskedQuestion } from "./QuestionBook.ts";
+import type { DecisionOutcome } from "./DecisionOutcome.ts";
 
 /** Which surface the instance is. */
 export type GateKind =
@@ -49,28 +33,6 @@ export type GateKind =
   | "useProjected"
   | "useQuestions";
 
-/**
- * What each kind is, stated once.
- *
- * `wraps`: whether the surface has a node to point at. `Can` and `Cannot` wrap
- * children; a hook returns a value to a component that may render nothing, so it
- * is enumerable and not locatable. `grouped`: whether one hook instance asks
- * several questions and so mints one id per entry name (`usePolicies`,
- * `useQuestions`). A `Record` over {@link GateKind}, so a ninth kind fails to
- * compile until both are decided.
- */
-const KIND_FACTS: Readonly<
-  Record<GateKind, { readonly wraps: boolean; readonly grouped: boolean }>
-> = {
-  Can: { wraps: true, grouped: false },
-  Cannot: { wraps: true, grouped: false },
-  useCan: { wraps: false, grouped: false },
-  useDecision: { wraps: false, grouped: false },
-  useDecisionSuspense: { wraps: false, grouped: false },
-  usePolicies: { wraps: false, grouped: true },
-  useProjected: { wraps: false, grouped: false },
-  useQuestions: { wraps: false, grouped: true },
-};
 
 /**
  * What the instance rendered, at the moment it last rendered.
@@ -207,290 +169,72 @@ export interface GateIdentity {
   readonly wraps: boolean;
   readonly policy: Policy;
   readonly resource: Resource | undefined;
-  readonly marker: RefObject<HTMLSpanElement | null>;
+  readonly marker: { readonly current: HTMLSpanElement | null };
 }
 
 /** Whether two identities register as the same instance: everything but policy and resource. */
-const sameIdentity = (a: GateIdentity, b: GateIdentity): boolean =>
+export const sameIdentity = (a: GateIdentity, b: GateIdentity): boolean =>
   a.id === b.id &&
   a.kind === b.kind &&
   a.atom === b.atom &&
   a.wraps === b.wraps &&
   a.marker === b.marker;
 
+/** One live registration: the identity it was made for, and the handle that ends it. */
+export interface Registered {
+  readonly identity: GateIdentity;
+  readonly handle: GateHandle;
+}
+
+/** What a guard asks right now, index-aligned with the identities being reconciled. */
+export interface GateCurrent {
+  readonly policy: Policy;
+  readonly resource: Resource | undefined;
+  readonly state: GateRenderState;
+}
+
 /**
- * Registers a set of guards with `writer` for as long as they are mounted.
+ * Brings `live` in line with `wanted` and returns the next live registrations.
  *
- * One hook asking several questions (`usePolicies`, `useQuestions`) registers one
- * instance per question, each under its own `id`; a single-question guard is the
- * one-element case ({@link useGateRegistration}), so there is one lifecycle
- * implementation and not two.
+ * An id that is gone, or whose identity changed, unregisters; an id that is new,
+ * or was just unregistered, registers with `current`'s policy, resource and
+ * state; an unchanged id is left alone and keeps its entry. It calls only
+ * `writer.register` and `handle.unregister`, and returns a new `Map` rather than
+ * mutating `live`.
  *
- * `writer` is `undefined` when instrumentation is off, and then every effect
- * returns immediately: the hooks run unconditionally because the rules of hooks
- * do not bend for a debug feature, and what the flag changes is what they do.
- * `identities` and `states` are index-aligned, and `id`s are unique within a call.
+ * ARCH-76: the rules are model logic and imports nothing from React, so they are
+ * tested against a fake writer without rendering. An unchanged identity is left
+ * alone because re-registering on every answer cost two notifications per
+ * transition; only a changed question earns a new registration.
  */
-export const useGateRegistrations = (
-  writer: GateWriter | undefined,
-  identities: ReadonlyArray<GateIdentity>,
-  states: ReadonlyArray<GateRenderState>,
-): void => {
-  // The identities as they last *changed*, so the effect below keys on "did the
-  // set of questions this hook asks actually change" and not on "did the caller
-  // build a new array or a new policy object this render". `policy` and `resource`
-  // compare by reference, and AGENTS.md §13 blesses passing them inline in render;
-  // depending on them directly would unregister and re-register every instance on
-  // every render of a caller doing exactly that. `atom` is what makes that safe:
-  // the book keys it structurally, so it is the same reference across renders for
-  // an equal policy and resource. `latest` still lets the effect body report the
-  // current policy and resource.
-  const stableRef = useRef(identities);
-  const previous = stableRef.current;
-  if (
-    previous.length !== identities.length ||
-    !identities.every((identity, i) => {
-      const before = previous[i];
-      return before !== undefined && sameIdentity(identity, before);
-    })
-  ) {
-    stableRef.current = identities;
+export const reconcile = (
+  writer: GateWriter,
+  live: ReadonlyMap<string, Registered>,
+  wanted: ReadonlyArray<GateIdentity>,
+  current: ReadonlyArray<GateCurrent | undefined>,
+): Map<string, Registered> => {
+  const next = new Map<string, Registered>();
+  for (const [id, entry] of live) {
+    const identity = wanted.find((one) => one.id === id);
+    if (identity !== undefined && sameIdentity(identity, entry.identity)) next.set(id, entry);
+    else entry.handle.unregister();
   }
-  const stable = stableRef.current;
-  const latest = useRef(identities);
-  latest.current = identities;
-  const statesRef = useRef(states);
-  statesRef.current = states;
-  const registered = useRef(new Map<string, { identity: GateIdentity; handle: GateHandle }>());
-
-  // The writer going away, or the hook unmounting, ends every registration.
-  useEffect(() => {
-    if (writer === undefined) return;
-    const live = registered.current;
-    return () => {
-      for (const { handle } of live.values()) handle.unregister();
-      live.clear();
-    };
-  }, [writer]);
-
-  // Identity lifecycle only: an instance that is new, or whose question changed,
-  // registers; one that is gone unregisters; one that is unchanged is left alone.
-  // `state` is deliberately not here — see the effect below. Re-registering is the
-  // right cost only when what is being asked has actually changed, not on every
-  // answer to the same question.
-  useEffect(() => {
-    if (writer === undefined) return;
-    const live = registered.current;
-    const wanted = new Set(stable.map((identity) => identity.id));
-    for (const [id, entry] of live) {
-      const current = stable.find((identity) => identity.id === id);
-      if (!wanted.has(id) || current === undefined || !sameIdentity(current, entry.identity)) {
-        entry.handle.unregister();
-        live.delete(id);
-      }
-    }
-    stable.forEach((identity, i) => {
-      if (live.has(identity.id)) return;
-      const now = latest.current[i] ?? identity;
-      live.set(identity.id, {
-        identity,
-        handle: writer.register({
-          id: identity.id,
-          kind: identity.kind,
-          policy: now.policy,
-          resource: now.resource,
-          state: statesRef.current[i] ?? "Pending",
-          // Read inside the effect, which is the first moment React has attached
-          // it. `?? undefined` because a ref holds `null` and the registry's type
-          // says absent.
-          element: identity.wraps ? (identity.marker.current ?? undefined) : undefined,
-        }),
-      });
+  wanted.forEach((identity, i) => {
+    if (next.has(identity.id)) return;
+    const now = current[i];
+    next.set(identity.id, {
+      identity,
+      handle: writer.register({
+        id: identity.id,
+        kind: identity.kind,
+        policy: now?.policy ?? identity.policy,
+        resource: now === undefined ? identity.resource : now.resource,
+        state: now?.state ?? "Pending",
+        // Read when React has attached it. `?? undefined` because a ref holds
+        // `null` and the registry's type says absent.
+        element: identity.wraps ? (identity.marker.current ?? undefined) : undefined,
+      }),
     });
-  }, [writer, stable]);
-
-  // The per-render state update, split from the effect above (AGENTS.md §13
-  // still holds: this mutates the registered instance's `state` field and
-  // notifies at most once, it does not decide what anything renders). Without
-  // this split every decision state transition tore the instance down and
-  // rebuilt it — two notifications where one update is enough.
-  const stateKey = states.join("|");
-  useEffect(() => {
-    if (writer === undefined) return;
-    stable.forEach((identity, i) => {
-      const state = statesRef.current[i];
-      if (state !== undefined) registered.current.get(identity.id)?.handle.update(state);
-    });
-  }, [writer, stable, stateKey]);
-};
-
-/**
- * Registers one guard with `writer` for as long as it is mounted.
- *
- * The one-element case of {@link useGateRegistrations}.
- */
-export const useGateRegistration = (
-  writer: GateWriter | undefined,
-  identity: GateIdentity,
-  state: GateRenderState,
-): void => {
-  useGateRegistrations(writer, [identity], [state]);
-};
-
-/**
- * The two openers a gate reads through, declared structurally.
- *
- * This module cannot import `QadiAtoms.ts` for its type (ADR-QD-037, see the
- * header), so it states the two members it uses; `QadiAtoms` satisfies it as is.
- */
-export interface GateAtoms {
-  /** The decision atom for one question, the very one the atom set's question book holds. */
-  readonly decision: (policy: Policy, resource?: Resource) => Atom.Atom<DecisionResult>;
-  /** Several questions read as one record, each value a question's own decision result. */
-  readonly decisions: (
-    questions: Readonly<Record<string, AskedQuestion>>,
-  ) => Atom.Atom<Readonly<Record<string, DecisionResult>>>;
-}
-
-/**
- * What a gate needs from its provider: the atoms to read through and the writer
- * to register with.
- *
- * `writer` is `undefined` whenever the provider is not instrumented, or when its
- * registry was not built by `makeGateRegistry`; either way nothing registers and
- * no marker renders (D-01, D-06).
- */
-export interface GateScope {
-  readonly atoms: GateAtoms;
-  readonly writer: GateWriter | undefined;
-}
-
-/**
- * The context `QadiProvider` provides a {@link GateScope} through.
- *
- * Only `QadiProvider` provides it, and it is internal: the writer must never
- * reach `QadiContextValue`, which is public through `useQadiContext`, because a
- * consumer able to reach the writer could register a `<Can>` that does not exist
- * (ADR-QD-080, ADR-QD-099).
- */
-export const GateScopeContext = createContext<GateScope | null>(null);
-
-/** What one question's gate gives the surface that asked it. */
-export interface GateRead {
-  /**
-   * This question's decision atom. A surface that must suspend on it
-   * (`useDecisionSuspense`) suspends on this one and opens none of its own.
-   */
-  readonly atom: Atom.Atom<DecisionResult>;
-  /** The raw result, for `useDecision`, which hands it on unread (ADR-QD-017's opt-in). */
-  readonly result: DecisionResult;
-  /** What the result means: the one read every other surface renders from. */
-  readonly outcome: DecisionOutcome;
-  /** React's own id for this instance, so a marker can be labelled with it. */
-  readonly id: string;
-  /**
-   * Attached to the marker element, or `undefined` when uninstrumented.
-   *
-   * `undefined` rather than an unused ref, so a component can tell whether to
-   * render a marker at all by asking one question, and so an uninstrumented
-   * tree renders byte for byte what it rendered before.
-   */
-  readonly ref: RefObject<HTMLSpanElement | null> | undefined;
-}
-
-/** What {@link useGates} returns: the group's raw record, and one read per question. */
-export interface Gates<K extends string> {
-  /** The group's raw results, which the grouped hooks hand back unread (ADR-QD-093(d)). */
-  readonly results: Readonly<Record<string, DecisionResult>>;
-  readonly entries: Readonly<Record<K, GateRead>>;
-}
-
-/**
- * A result not yet in the group.
- *
- * Fail-closed: `outcomeOf` reads an `Initial` as `Pending`, never `Allowed`, so
- * a question the group does not yet hold is treated as not known yet.
- */
-const NOT_YET: DecisionResult = AsyncResult.initial();
-
-/** The enclosing scope, or `MissingQadiProviderError` naming `kind` outside a provider. */
-const useGateScope = (kind: GateKind): GateScope => {
-  const scope = useContext(GateScopeContext);
-  if (scope === null) throw new MissingQadiProviderError(kind);
-  return scope;
-};
-
-/**
- * Reads a set of questions, identifies each as a gate, and registers them while
- * instrumentation is on.
- *
- * The one hook every gate kind goes through: the grouped read, the per-entry
- * atom lookup, {@link GateIdentity} construction, the rule that only `Can` and
- * `Cannot` wrap a marker, the marker ref, and registration. A one-question
- * surface passes a record of one. Every hook runs unconditionally, because the
- * rules of hooks do not bend for a debug feature; what the flag changes is what
- * the registration effects *do*, which is nothing when the writer is `undefined`.
- *
- * Each entry's result is read once, with `outcomeOf`, and that one object is both
- * what the registry records (`outcome._tag`) and what the surface renders from,
- * so the panel and the guard cannot disagree about what is on screen.
- */
-export const useGates = <K extends string>(
-  kind: GateKind,
-  questions: Readonly<Record<K, AskedQuestion>>,
-): Gates<K> => {
-  const scope = useGateScope(kind);
-  const { wraps, grouped } = KIND_FACTS[kind];
-  // A performance hoist, not the source of correctness: the atom set's `decisions`
-  // family keys structurally, so a fresh call every render returns the same atom.
-  const group = useMemo(() => scope.atoms.decisions(questions), [scope.atoms, questions]);
-  const results = useAtomValue(group);
-  // `id` stays React's raw `useId`: it is hydration-stable and is what
-  // `data-qadi-gate` renders. Only the registry rewrites an id, and only on a
-  // collision (ADR-QD-080).
-  const base = useId();
-  const marker = useRef<HTMLSpanElement | null>(null);
-  // Keyed on `group`, not `questions`, so an equal re-render, which yields the
-  // same group, looks nothing up. This is the identity `sameIdentity` compares,
-  // and the group atom stands for the structural question set.
-  const atomOf = useMemo(
-    () =>
-      Record.map(questions, (question) =>
-        scope.atoms.decision(question.policy, question.resource),
-      ),
-    [scope.atoms, group],
-  );
-
-  const entries = Record.map(
-    questions,
-    (_question, name): GateRead => {
-      const result = results[name] ?? NOT_YET;
-      return {
-        atom: atomOf[name],
-        result,
-        outcome: outcomeOf(result),
-        id: grouped ? `${base}/${name}` : base,
-        ref: scope.writer !== undefined && wraps ? marker : undefined,
-      };
-    },
-  );
-  const identities = Record.map(
-    questions,
-    (question, name): GateIdentity => ({
-      id: entries[name].id,
-      kind,
-      atom: atomOf[name],
-      wraps,
-      policy: question.policy,
-      resource: question.resource,
-      marker,
-    }),
-  );
-  useGateRegistrations(
-    scope.writer,
-    Record.values(identities),
-    Record.values(entries).map((entry) => entry.outcome._tag),
-  );
-
-  return { results, entries };
+  });
+  return next;
 };

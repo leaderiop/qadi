@@ -7,7 +7,6 @@
  * short-circuiting: an `anyOf` whose first branch allowed still paid for every
  * lookup in every other branch.
  */
-import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -21,12 +20,22 @@ import { SubjectIdSchema } from "./Identity.ts";
 import type { SubjectId } from "./Identity.ts";
 import { toJson } from "./JsonHazard.ts";
 import type { EncodeRefusal } from "./JsonRefusal.ts";
-import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
-import type { PortDescription } from "./PortDescription.ts";
-import { canonicalKey } from "./PortKey.ts";
-import { sharedQuestionFields, sharedQuestionKeys, spanStruct } from "./PortSpanEncode.ts";
+import {
+  boundedPort,
+  makePortDescription,
+  nonePort,
+  retryingPort,
+  timingOutPort,
+} from "./PortDerivation.ts";
+import type { LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
+import {
+  portSpan,
+  sharedQuestionFields,
+  sharedQuestionKeys,
+  spanStruct,
+} from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
-import { portWire, WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
+import { WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
 
 export interface AttributeResolverShape {
   /**
@@ -97,7 +106,7 @@ export class AttributeResolver extends Context.Service<
  * fail-closed default answers with; `null` is a value a store genuinely
  * returned.
  */
-const attributeSpan = {
+const attributeSpan = portSpan({
   question: spanStruct(
     { attribute: Schema.optionalKey(Schema.String), ...sharedQuestionFields },
     { attribute: "qadi.attribute", ...sharedQuestionKeys },
@@ -108,32 +117,22 @@ const attributeSpan = {
     attribute,
   }),
   disclose: (value: unknown) => ({ resolved: value !== undefined }),
-};
+});
 
 /**
- * What the attribute question and answer look like on a wire (ARCH-31).
+ * The request `HasAttribute` puts to this port: the subject's id and the
+ * attribute the leaf names.
  *
- * The answer is `{ value?: Json }`: absent is `undefined`, the fail-closed
- * sentinel every default answers with, and `null` is a value a store genuinely
- * returned. **This is the one wire that carries an attribute's value**, to the
- * session's own subject, which is why it is not the span (INV-QD-044): a value
- * with no JSON form (a `Set`, a `bigint`, a cycle) is refused, never thrown.
+ * The only place that leaf becomes a request (ARCH-70, ADR-QD-134): the
+ * evaluator's and the translator's reads build theirs through it, and
+ * `servingFor` reads the name a host must serve from it.
  */
-const attributeWire = portWire({
-  question: Schema.Struct({ subjectId: SubjectIdSchema, attribute: Schema.String }),
-  answer: Schema.Struct({ value: Schema.optionalKey(Schema.Json) }),
-  toQuestion: ([subjectId, attribute]: [subjectId: SubjectId, attribute: string]) =>
-    Result.succeed({ subjectId, attribute }),
-  fromQuestion: (question, subject): [subjectId: SubjectId, attribute: string] => [
-    subject.id,
-    question.attribute,
-  ],
-  toAnswer: (value: unknown): Result.Result<{ readonly value?: Schema.Json }, EncodeRefusal> =>
-    value === undefined
-      ? Result.succeed({})
-      : Result.map(toJson(value, WIRE_MAX_DEPTH), (json) => ({ value: json })),
-  fromAnswer: (wire): unknown => wire.value,
-});
+const attributeAsks = {
+  HasAttribute: (
+    leaf: LeafOf["HasAttribute"],
+    site: ReadSite,
+  ): [subjectId: SubjectId, attribute: string] => [site.subject.id, leaf.attribute],
+};
 
 /**
  * A host serves attributes only from a required allowlist.
@@ -148,10 +147,9 @@ const attributeServing: PortServingFacet<
   [subjectId: SubjectId, attribute: string]
 > = {
   allowlist: "required",
-  leaves: { HasAttribute: (leaf) => leaf.attribute },
   asked: ([, attribute]) => attribute,
   admitted: (declaration) => declaration.attributes,
-  declare: (names) => ({ AttributeResolver: { attributes: names } }),
+  declare: ({ names }) => ({ AttributeResolver: { attributes: names } }),
 };
 
 /**
@@ -159,7 +157,8 @@ const attributeServing: PortServingFacet<
  * the default below, `PortAccess.ts`'s defect mapping and span, the doubles
  * (`PortDoubles.ts`) and `@qadi/devtools`' capture/replay all read it.
  *
- * A request is keyed by `(subjectId, attribute)`.
+ * The wire question is `{ subjectId, attribute }`, and a request is keyed as
+ * that question (`makePortDescription`, ADR-QD-133), so the two cannot drift.
  */
 export const attributeResolverPort: PortDescription<
   "AttributeResolver",
@@ -168,23 +167,46 @@ export const attributeResolverPort: PortDescription<
   [subjectId: SubjectId, attribute: string],
   unknown,
   AttributeResolveError,
-  typeof attributeSpan
-> = {
+  [subjectId: SubjectId, attribute: string],
+  typeof attributeSpan,
+  typeof attributeAsks
+> = makePortDescription({
   port: "AttributeResolver",
   method: "resolve",
   span: "qadi.attribute",
   attributes: attributeSpan,
-  wire: attributeWire,
+  asks: attributeAsks,
+  /**
+   * What the attribute question and answer look like on a wire (ARCH-31).
+   *
+   * The answer is `{ value?: Json }`: absent is `undefined`, the fail-closed
+   * sentinel every default answers with, and `null` is a value a store
+   * genuinely returned. **This is the one wire that carries an attribute's
+   * value**, to the session's own subject, which is why it is not the span
+   * (INV-QD-044): a value with no JSON form (a `Set`, a `bigint`, a cycle) is
+   * refused, never thrown.
+   */
+  wire: {
+    question: Schema.Struct({ subjectId: SubjectIdSchema, attribute: Schema.String }),
+    answer: Schema.Struct({ value: Schema.optionalKey(Schema.Json) }),
+    toQuestion: ([subjectId, attribute]) => ({ subjectId, attribute }),
+    fromQuestion: (question, subject): [subjectId: SubjectId, attribute: string] => [
+      subject.id,
+      question.attribute,
+    ],
+    toAnswer: (value: unknown): Result.Result<{ readonly value?: Schema.Json }, EncodeRefusal> =>
+      value === undefined
+        ? Result.succeed({})
+        : Result.map(toJson(value, WIRE_MAX_DEPTH), (json) => ({ value: json })),
+    fromAnswer: (wire): unknown => wire.value,
+  },
   serving: attributeServing,
   service: AttributeResolver,
   invoke: (shape) => (subjectId, attribute) => shape.resolve(subjectId, attribute),
   make: (name, call) => ({ name, resolve: call }),
   failure: ([, attribute], cause) => new AttributeResolveError({ attribute, cause }),
-  defect: ([, attribute], cause) =>
-    new AttributeResolveError({ attribute, cause: Cause.squash(cause) }),
-  key: ([subjectId, attribute]) => canonicalKey([subjectId, attribute]),
   none: { name: "AttributeResolverNone", answer: undefined },
-};
+});
 
 /**
  * Resolves nothing.

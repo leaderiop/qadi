@@ -26,10 +26,12 @@ import { DecisionHistoryUnknown } from "../src/DecisionHistory.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { evaluationIdSequential } from "../src/EvaluationId.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
+import * as M from "../src/Matcher.ts";
 import * as P from "../src/Policy.ts";
 import { PortReply } from "../src/PortDescription.ts";
+import type { ReadSite } from "../src/PortDescription.ts";
 import { recordingPort, scriptedPort } from "../src/PortDoubles.ts";
-import type { PortName } from "../src/PortMetrics.ts";
+import type { PortName } from "../src/PortName.ts";
 import { answerRemotely, askRemotely, remotePorts, servingFor } from "../src/PortRemote.ts";
 import type { PortServing, PortServingOf } from "../src/PortServing.ts";
 import { RemotePortFailure } from "../src/PortWire.ts";
@@ -39,7 +41,7 @@ import { forEveryPort, PORTS, portsLayer, tabulatePorts } from "../src/Ports.ts"
 import type { AnswerOf, ArgsOf, DescriptionOf, PortServices, PortTypes, ServiceOf } from "../src/Ports.ts";
 import { RelationshipResolverNever } from "../src/RelationshipResolver.ts";
 import { SignatureHistory, SignatureHistoryNone } from "../src/SignatureHistory.ts";
-import { collectingTracer, policyArbitrary } from "./helpers.ts";
+import { collectingTracer, leafOf, policyArbitrary } from "./helpers.ts";
 
 const aliceId = makeSubjectId("alice");
 const bobId = makeSubjectId("bob");
@@ -378,7 +380,11 @@ describe("a signature question asked remotely (PORT-04)", () => {
       Effect.map(overTheWire),
     );
   const signed = (spans: Array<Tracer.Span>, meaning: string, signerRole: string | undefined) =>
-    askSignature(alice, meaning, signerRole, "Resource", "doc-1").pipe(
+    askSignature(
+      alice,
+      leafOf("HasSignature", P.hasSignature(meaning, signerRole === undefined ? {} : { signerRole })),
+      { id: "doc-1" },
+    ).pipe(
       Effect.provide(
         Layer.mergeAll(
           Layer.succeed(SignatureHistory, askRemotely(PORTS.SignatureHistory, send)),
@@ -444,7 +450,11 @@ describe("a malformed signature answer from a store is never a defect (WR-01)", 
   it.effect("a local read fails with the port's typed error", () =>
     Effect.gen(function* () {
       const result = yield* Effect.result(
-        askSignature(alice, "approved", "manager", "Resource", "doc-1").pipe(Effect.provide(store)),
+        askSignature(
+          alice,
+          leafOf("HasSignature", P.hasSignature("approved", { signerRole: "manager" })),
+          { id: "doc-1" },
+        ).pipe(Effect.provide(store)),
       );
       assert.isTrue(Result.isFailure(result));
       if (Result.isFailure(result)) assert.strictEqual(result.failure._tag, "SignatureHistoryUnavailable");
@@ -605,6 +615,78 @@ describe("servingFor", () => {
     }));
 });
 
+/**
+ * The name `servingFor` serves for a leaf is `asked` of the request that leaf's
+ * read builds, at any site (ARCH-70, ADR-QD-134): one statement of leaf to
+ * request, read two ways. `servingFor` reads it at one site, an anonymous
+ * subject asking about no resource, so a name that depended on the site would
+ * make it wrong; this rules that out, per port and per tag its `asks` states.
+ */
+describe("a served name is what a leaf's request asks (ARCH-70)", () => {
+  const name = FastCheck.string({ minLength: 1 });
+  const scope = FastCheck.constantFrom("Resource" as const, "Any" as const);
+
+  /** Where a read is made: any subject, and a resource that is absent, has a string id or another kind of id. */
+  const sites: FastCheck.Arbitrary<ReadSite> = FastCheck.record({
+    subject: name.map((id) => makeSubject({ id, roles: [], permissions: [], attributes: {} })),
+    resource: FastCheck.oneof(
+      FastCheck.constant(undefined),
+      FastCheck.record({ id: FastCheck.string() }),
+      FastCheck.record({ id: FastCheck.oneof(FastCheck.integer(), FastCheck.constant(undefined)) }),
+    ),
+  });
+
+  const covered: Array<string> = [];
+
+  /** The law for one tag, over every port whose `asks` states it. */
+  const lawOf = <T extends P.Policy["_tag"]>(tag: T, leaves: FastCheck.Arbitrary<P.Policy>) => {
+    covered.push(tag);
+    forEveryPort((d) => {
+      const ask = d.asks[tag];
+      if (ask === undefined) return;
+      it(`${d.port}: ${tag} asks the same name at every site, and servingFor serves it`, () => {
+        FastCheck.assert(
+          FastCheck.property(leaves, sites, sites, (policy, here, there) => {
+            const leaf = leafOf(tag, policy);
+            const asked = d.serving.asked(ask(leaf, here));
+            assert.strictEqual(asked, d.serving.asked(ask(leaf, there)));
+            const slot = servingFor([leaf])[d.port];
+            assert.isDefined(slot);
+            if (slot !== undefined && asked !== undefined) {
+              assert.include(d.serving.admitted(slot) ?? [], asked);
+            }
+          }),
+          { numRuns: 200 },
+        );
+      });
+    });
+  };
+
+  lawOf("HasAttribute", name.map((attribute) => P.hasAttribute(attribute, M.exists())));
+  lawOf("HasActed", FastCheck.tuple(name, scope).map(([event, scoped]) => P.hasActed(event, { scope: scoped })));
+  lawOf("HasNotActed", FastCheck.tuple(name, scope).map(([event, scoped]) => P.hasNotActed(event, { scope: scoped })));
+  lawOf(
+    "HasRelationship",
+    FastCheck.tuple(name, FastCheck.integer({ min: -3, max: 70 })).map(([relation, depth]) =>
+      P.hasRelationship(relation, { depth }),
+    ),
+  );
+  lawOf("HasCustom", FastCheck.tuple(name, FastCheck.jsonValue()).map(([custom, params]) => P.hasCustom(custom, params)));
+  lawOf(
+    "HasSignature",
+    FastCheck.tuple(name, scope, name).map(([meaning, scoped, signerRole]) =>
+      P.hasSignature(meaning, { scope: scoped, signerRole }),
+    ),
+  );
+
+  it("is stated for every tag a port reads", () => {
+    assert.deepStrictEqual(
+      covered.toSorted(),
+      forEveryPort((d) => Object.keys(d.asks)).flat().toSorted(),
+    );
+  });
+});
+
 describe("serving facets (SERV-02)", () => {
   /** The leaf tags that read a port; every other policy tag asks none. */
   const PORT_LEAVES: { readonly [K in PortName]: ReadonlyArray<P.Policy["_tag"]> } = {
@@ -626,9 +708,9 @@ describe("serving facets (SERV-02)", () => {
 
   it("names each port-reading leaf under exactly one port, and no other policy tag", () => {
     for (const d of Record.values(PORTS)) {
-      assert.deepStrictEqual(Object.keys(d.serving.leaves).toSorted(), PORT_LEAVES[d.port].toSorted(), d.port);
+      assert.deepStrictEqual(Object.keys(d.asks).toSorted(), PORT_LEAVES[d.port].toSorted(), d.port);
     }
-    const named = forEveryPort((d) => Object.keys(d.serving.leaves)).flat();
+    const named = forEveryPort((d) => Object.keys(d.asks)).flat();
     assert.deepStrictEqual(
       named.toSorted(),
       ["HasActed", "HasAttribute", "HasCustom", "HasNotActed", "HasRelationship", "HasSignature"],
@@ -643,14 +725,16 @@ describe("serving facets (SERV-02)", () => {
   it("declares what it admits: declare and admitted agree, per port", () => {
     forEveryPort((d) => {
       const optIn = WORDS[d.port] === "opt-in";
-      const slot = d.serving.declare(["a", "b"])[d.port];
+      const slot = d.serving.declare({ names: ["a", "b"], asked: true })[d.port];
       assert.isDefined(slot, d.port);
       if (slot !== undefined) {
         assert.deepStrictEqual(d.serving.admitted(slot), optIn ? undefined : ["a", "b"], d.port);
       }
-      const nothing = d.serving.declare([]);
+      const nothing = d.serving.declare({ names: [], asked: false });
       if (optIn) {
+        // An opt-in port has no names, so it is declared exactly when a leaf asked it.
         assert.notProperty(nothing, d.port);
+        assert.property(d.serving.declare({ names: [], asked: true }), d.port);
         return;
       }
       const empty = nothing[d.port];

@@ -9,10 +9,12 @@
  * Runs are forked, and a fixture run settles synchronously inside `runFork` —
  * so `act` around the click is enough and nothing here waits on a timer.
  */
-import { assert, describe, it } from "@effect/vitest";
+import { afterEach, assert, describe, it } from "@effect/vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
+import * as Scope from "effect/Scope";
 import {
   allOf,
   AttributeResolver,
@@ -35,6 +37,8 @@ import {
 import type { Policy } from "@qadi/core";
 import { policyLabel } from "../../src/model/Catalogue.ts";
 import type { PolicySighting } from "../../src/model/Catalogue.ts";
+import { makeSimulationSession } from "../../src/model/SimulationSession.ts";
+import type { SimulationSessionInit } from "../../src/model/SimulationSession.ts";
 import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { Simulator } from "../../src/react/Simulator.tsx";
@@ -60,6 +64,24 @@ const entryOf = (record: Parameters<typeof ingestAll>[1][number]): TimelineEntry
   const [entry] = ingestAll(emptyTimeline(), [record]).entries;
   if (entry === undefined) throw new Error("expected an entry");
   return entry;
+};
+
+/**
+ * Every session a test builds lives in a scope the test owns (ARCH-73): the
+ * `Simulator` only renders its session, so closing the scope, not unmounting the
+ * view, is what stops a run. `afterEach` closes whatever a test left open.
+ */
+const scopes: Array<Scope.Closeable> = [];
+
+afterEach(() => {
+  for (const scope of scopes.splice(0)) Effect.runSync(Scope.close(scope, Exit.void));
+});
+
+const mount = (init: SimulationSessionInit) => {
+  const scope = Effect.runSync(Scope.make());
+  scopes.push(scope);
+  const session = Effect.runSync(Scope.provide(makeSimulationSession(init), scope));
+  return { session, scope, view: render(<Simulator session={session} />) };
 };
 
 /** The policy dropdown, narrowed rather than asserted. */
@@ -106,7 +128,7 @@ const run = async (testId = "qadi-simulator-run") => {
 
 describe("the empty state — E7.1", () => {
   it("explains rather than showing a form nothing can run", async () => {
-    render(<Simulator sightings={[]} />);
+    mount({ sightings: [] });
 
     assert.isNotNull(screen.queryByTestId("qadi-simulator-empty"));
     assert.isNull(screen.queryByTestId("qadi-simulator-run"));
@@ -119,7 +141,7 @@ describe("the empty state — E7.1", () => {
 
 describe("running one simulation", () => {
   it("allows once the reviewer grants what the policy asks for", async () => {
-    render(<Simulator sightings={[sighting(hasPermission(read))]} />);
+    mount({ sightings: [sighting(hasPermission(read))] });
     chip("permissions", "doc:read");
     await run();
 
@@ -131,7 +153,7 @@ describe("running one simulation", () => {
 describe("the check card", () => {
   // E7.3
   it("reports malformed resource JSON inline and keeps running", async () => {
-    render(<Simulator sightings={[sighting(hasPermission(read))]} />);
+    mount({ sightings: [sighting(hasPermission(read))] });
 
     act(() => {
       fireEvent.change(screen.getByTestId("qadi-resource"), { target: { value: "{oops" } });
@@ -148,7 +170,7 @@ describe("the check card", () => {
 describe("the result", () => {
   // E7.4
   it("marks a result stale once the form has moved", async () => {
-    render(<Simulator sightings={[sighting(hasPermission(read))]} />);
+    mount({ sightings: [sighting(hasPermission(read))] });
     await run();
     assert.isNull(screen.queryByTestId("qadi-simulator-stale"));
 
@@ -161,7 +183,7 @@ describe("the result", () => {
 
   // E7.5
   it("shows an error panel and no requirement tree when the evaluation broke", async () => {
-    render(<Simulator sightings={[sighting(hasAttribute("clearance", gte(5)))]} ports={brokenPorts} />);
+    mount({ sightings: [sighting(hasAttribute("clearance", gte(5)))], ports: brokenPorts });
 
     act(() => {
       fireEvent.click(screen.getByTestId("qadi-source-Live"));
@@ -176,9 +198,7 @@ describe("the result", () => {
 
   // E7.6
   it("lists duties and says no handler ran", async () => {
-    render(
-      <Simulator sightings={[sighting(obliged(obligation("audit"), hasPermission(read)))]} />,
-    );
+    mount({ sightings: [sighting(obliged(obligation("audit"), hasPermission(read)))] });
     chip("permissions", "doc:read");
     await run();
 
@@ -191,7 +211,7 @@ describe("the result", () => {
   // E7.7 — `undefined` is the top of the lattice, and rendering it as an empty
   // list would understate a full grant into a grant of nothing.
   it("renders absent visible fields as every field, and a narrowed set as the fields", async () => {
-    const view = render(<Simulator sightings={[sighting(hasPermission(read))]} />);
+    const { view } = mount({ sightings: [sighting(hasPermission(read))] });
     chip("permissions", "doc:read");
     await run();
 
@@ -199,7 +219,7 @@ describe("the result", () => {
     assert.isNull(screen.queryByTestId("qadi-fields-none"));
     view.unmount();
 
-    render(<Simulator sightings={[sighting(hasPermission(read, { fields: ["title"] }))]} />);
+    mount({ sightings: [sighting(hasPermission(read, { fields: ["title"] }))] });
     chip("permissions", "doc:read");
     await run();
 
@@ -208,7 +228,7 @@ describe("the result", () => {
 
   // E6.1 / E6.2 — labelled, never inferred from the number.
   it("says which clock measured the duration", async () => {
-    render(<Simulator sightings={[sighting(hasPermission(read))]} />);
+    mount({ sightings: [sighting(hasPermission(read))] });
     await run();
     assert.include(
       screen.getByTestId("qadi-simulator-duration").textContent ?? "",
@@ -226,17 +246,17 @@ describe("the result", () => {
 describe("a source that cannot be honoured — C2", () => {
   it("shows Live disabled with its reason, then refuses a run once the host drops the ports", async () => {
     const policy = sighting(hasAttribute("clearance", gte(5)));
-    const view = render(<Simulator sightings={[policy]} />);
+    const { session } = mount({ sightings: [policy] });
     const live = screen.getByTestId("qadi-source-Live");
     assert.isTrue(live.hasAttribute("disabled"));
     assert.include(live.getAttribute("title") ?? "", "did not pass a `ports` layer");
 
-    view.rerender(<Simulator sightings={[policy]} ports={brokenPorts} />);
+    act(() => session.setPorts(brokenPorts));
     chip("resolver attributes", "clearance:9");
     act(() => {
       fireEvent.click(screen.getByTestId("qadi-source-Live"));
     });
-    view.rerender(<Simulator sightings={[policy]} />);
+    act(() => session.setPorts(undefined));
     await run();
 
     // Fixtures would have answered ALLOW; nothing was evaluated instead.
@@ -250,7 +270,7 @@ describe("a source that cannot be honoured — C2", () => {
 
 describe("the cost line is the cost — C7", () => {
   it("states what it runs, with pairs off and on, and warns before a live sweep", async () => {
-    const view = render(<Simulator sightings={[sighting(allOf([hasRole("a"), hasRole("b")]))]} ports={brokenPorts} />);
+    mount({ sightings: [sighting(allOf([hasRole("a"), hasRole("b")]))], ports: brokenPorts });
     chip("roles", "a");
     chip("roles", "b");
     const stated = (): number =>
@@ -279,7 +299,6 @@ describe("the cost line is the cost — C7", () => {
       screen.getByTestId("qadi-simulator-cost").textContent ?? "",
       "against your live resolvers",
     );
-    view.unmount();
   });
 });
 
@@ -291,12 +310,10 @@ describe("a run left behind — C4", () => {
         resolve: () => Effect.sleep("40 millis").pipe(Effect.as(9)),
       }),
     });
-    render(
-      <Simulator
-        sightings={[sighting(hasAttribute("clearance", gte(5))), sighting(hasRole("x"))]}
-        ports={slowPorts}
-      />,
-    );
+    mount({
+      sightings: [sighting(hasAttribute("clearance", gte(5))), sighting(hasRole("x"))],
+      ports: slowPorts,
+    });
     act(() => {
       fireEvent.click(screen.getByTestId("qadi-source-Live"));
     });
@@ -322,7 +339,7 @@ describe("a run left behind — C4", () => {
 // refusal comes back to the buffer that typed it.
 describe("the fixtures as the codec writes them — C5, C6", () => {
   it("adds a chip to each card, shows a string value faithfully, and shows a refusal", () => {
-    render(<Simulator sightings={[sighting(hasRelationship("org:admin"))]} />);
+    mount({ sightings: [sighting(hasRelationship("org:admin"))] });
 
     chip("subject attributes", 'level:"7"');
     assert.include(screen.getByTestId("qadi-subject-attributes").textContent ?? "", 'level="7"');
@@ -335,7 +352,7 @@ describe("the fixtures as the codec writes them — C5, C6", () => {
   });
 
   it("shows why a blank commit adds nothing, rather than ignoring it", () => {
-    render(<Simulator sightings={[sighting(hasRole("a"))]} />);
+    mount({ sightings: [sighting(hasRole("a"))] });
     chip("roles", "   ");
     assert.include(screen.getByTestId("qadi-roles-error").textContent ?? "", "nothing to add");
   });
@@ -343,7 +360,7 @@ describe("the fixtures as the codec writes them — C5, C6", () => {
 
 describe("the what-if table", () => {
   it("runs a sweep and names the node that flipped", async () => {
-    render(<Simulator sightings={[sighting(allOf([hasRole("a"), hasRole("b")]))]} />);
+    mount({ sightings: [sighting(allOf([hasRole("a"), hasRole("b")]))] });
     chip("roles", "a");
     chip("roles", "b");
     // The sweep honours the toggle: pairs are off by default, so a pair row
@@ -366,7 +383,7 @@ describe("seeding from a logged row — JOB 5 on screen", () => {
   );
 
   it("fills the policy, the action and the fields it could not fill", async () => {
-    render(<Simulator sightings={[]} seed={decided} />);
+    mount({ sightings: [], seed: decided });
 
     assert.strictEqual(screen.getByTestId("qadi-action").getAttribute("value"), "read");
     const unseeded = screen.getByTestId("qadi-unseeded");
@@ -376,7 +393,7 @@ describe("seeding from a logged row — JOB 5 on screen", () => {
   });
 
   it("reports a reconstruction that reproduces the row, and one that does not", async () => {
-    const view = render(<Simulator sightings={[]} seed={decided} />);
+    const { view } = mount({ sightings: [], seed: decided });
     chip("permissions", "doc:read");
     await run();
 
@@ -385,7 +402,7 @@ describe("seeding from a logged row — JOB 5 on screen", () => {
     assert.include(baseline.textContent ?? "", "reproduces the logged decision");
     view.unmount();
 
-    render(<Simulator sightings={[]} seed={decided} />);
+    mount({ sightings: [], seed: decided });
     await run();
 
     assert.include(screen.getByTestId("qadi-baseline-state").textContent ?? "", "differs");
@@ -402,12 +419,15 @@ describe("unmounting mid-run — E7.8", () => {
    * and it is the reason this is a fiber rather than a promise.
    */
   it("unmounts cleanly while a result is on screen", async () => {
-    const view = render(<Simulator sightings={[sighting(hasPermission(read))]} />);
+    const { view, scope } = mount({ sightings: [sighting(hasPermission(read))] });
     await run();
     assert.isNotNull(screen.queryByTestId("qadi-simulator-result"));
 
+    // The view never owned the session, so unmounting it alone stops nothing:
+    // closing the scope is what the host does to stop a run.
     act(() => {
       view.unmount();
+      Effect.runSync(Scope.close(scope, Exit.void));
     });
 
     assert.isNull(screen.queryByTestId("qadi-simulator-result"));
@@ -416,7 +436,7 @@ describe("unmounting mid-run — E7.8", () => {
 
 describe("the fixtures card", () => {
   it("removes a chip and a pair again", async () => {
-    render(<Simulator sightings={[sighting(hasAttribute("clearance", gte(5)))]} />);
+    mount({ sightings: [sighting(hasAttribute("clearance", gte(5)))] });
     chip("subject attributes", "clearance:9");
     await run();
     assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
@@ -432,9 +452,7 @@ describe("the fixtures card", () => {
 
 describe("choosing a policy", () => {
   it("runs whichever one the rail names", async () => {
-    render(
-      <Simulator sightings={[sighting(hasRole("a")), sighting(hasPermission(read))]} />,
-    );
+    mount({ sightings: [sighting(hasRole("a")), sighting(hasPermission(read))] });
     chip("permissions", "doc:read");
     await run();
     assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "DENY");
@@ -449,14 +467,14 @@ describe("choosing a policy", () => {
   it("keeps the dropdown on the chosen policy when the rail reverses", () => {
     const a = sighting(hasRole("a"));
     const b = sighting(hasPermission(read));
-    const view = render(<Simulator sightings={[a, b]} />);
+    const { session } = mount({ sightings: [a, b] });
     act(() => {
       fireEvent.change(screen.getByTestId("qadi-simulator-policy"), { target: { value: "1" } });
     });
     const dropdown = () => policySelect();
     assert.strictEqual(dropdown().value, "1");
 
-    view.rerender(<Simulator sightings={[b, a]} />);
+    act(() => session.setSightings([b, a]));
 
     assert.strictEqual(dropdown().value, "0");
     assert.include(dropdown().options[0]?.textContent ?? "", "doc:read");
@@ -465,12 +483,12 @@ describe("choosing a policy", () => {
   it("says when the chosen policy is no longer in the log, and still runs it", async () => {
     const a = sighting(hasRole("a"));
     const b = sighting(hasPermission(read));
-    const view = render(<Simulator sightings={[a, b]} />);
+    const { session } = mount({ sightings: [a, b] });
     act(() => {
       fireEvent.change(screen.getByTestId("qadi-simulator-policy"), { target: { value: "1" } });
     });
 
-    view.rerender(<Simulator sightings={[a]} />);
+    act(() => session.setSightings([a]));
 
     const dropdown = policySelect();
     assert.strictEqual(dropdown.value, "evicted");
@@ -490,7 +508,10 @@ describe("the baseline card, in each of its states", () => {
     );
 
   it("caveats a row whose evaluation failed, and claims no match", async () => {
-    render(<Simulator sightings={[sighting(hasPermission(read))]} seed={seedOf(hasPermission(read), { failed: true })} />);
+    mount({
+      sightings: [sighting(hasPermission(read))],
+      seed: seedOf(hasPermission(read), { failed: true }),
+    });
     await run();
 
     assert.include(
@@ -504,13 +525,11 @@ describe("the baseline card, in each of its states", () => {
   });
 
   it("reports a reconstruction that broke where the logged row decided", async () => {
-    render(
-      <Simulator
-        sightings={[sighting(hasAttribute("clearance", gte(5)))]}
-        seed={seedOf(hasAttribute("clearance", gte(5)))}
-        ports={brokenPorts}
-      />,
-    );
+    mount({
+      sightings: [sighting(hasAttribute("clearance", gte(5)))],
+      seed: seedOf(hasAttribute("clearance", gte(5))),
+      ports: brokenPorts,
+    });
 
     act(() => {
       fireEvent.click(screen.getByTestId("qadi-source-Live"));
@@ -538,7 +557,7 @@ describe("the baseline card, in each of its states", () => {
         outcome: new Failed({ error: new MissingAction({ expected: "publish" }) }),
       }),
     );
-    render(<Simulator sightings={[]} seed={failedOnAction} />);
+    mount({ sightings: [], seed: failedOnAction });
     await run();
 
     assert.include(screen.getByTestId("qadi-baseline-state").textContent ?? "", "the same failure");
@@ -547,12 +566,10 @@ describe("the baseline card, in each of its states", () => {
   });
 
   it("says a comparison is unavailable for a row that carries no decision", async () => {
-    render(
-      <Simulator
-        sightings={[sighting(hasPermission(read))]}
-        seed={entryOf(obligationRecord({ evaluationId: "ev-9" }))}
-      />,
-    );
+    mount({
+      sightings: [sighting(hasPermission(read))],
+      seed: entryOf(obligationRecord({ evaluationId: "ev-9" })),
+    });
     await run();
 
     assert.include(
@@ -573,7 +590,7 @@ describe("a defect in the layer the host supplied", () => {
     const dying = portsLayer({
       AttributeResolver: Layer.effect(AttributeResolver, Effect.die(new Error("the layer exploded"))),
     });
-    render(<Simulator sightings={[sighting(hasAttribute("clearance", gte(5)))]} ports={dying} />);
+    mount({ sightings: [sighting(hasAttribute("clearance", gte(5)))], ports: dying });
 
     act(() => {
       fireEvent.click(screen.getByTestId("qadi-source-Live"));

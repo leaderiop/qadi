@@ -1,0 +1,12 @@
+{
+ "packages/http/src/GuardRoute.ts": 1,
+ "packages/http/src/PermissionRegistry.ts": 1,
+ "packages/http/src/UnguardedRoute.ts": 1,
+ "packages/http/src/PortRoutes.ts": 1,
+ "packages/http/src/DecisionStreamRoute.ts": 1,
+ "packages/http/src/DecisionBacklogRoute.ts": 1,
+ "packages/http/src/DevtoolsRoutes.ts": 1,
+ "packages/http/src/AuthorizeRequest.ts": 0.9,
+ "packages/http/src/NoResource.ts": 1,
+ "__aggregate__": 0.9856115107913669
+}

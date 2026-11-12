@@ -27,7 +27,7 @@ import { jsonElements } from "./DecisionLogHttp.ts";
 import type { DecisionLogServeOptions } from "./DecisionLogHttp.ts";
 import { devtoolsPath } from "./DevtoolsRouteAddress.ts";
 import type { DevtoolsRouteOptions } from "./DevtoolsRouteAddress.ts";
-import { addGuardedRoute } from "./PermissionRegistry.ts";
+import { addGuardedRoute } from "./GuardRoute.ts";
 
 /** How `decisionBacklogRoute` serves: where it is mounted, and how a refused record is reported. */
 export interface DecisionBacklogOptions extends DecisionLogServeOptions, DevtoolsRouteOptions {}

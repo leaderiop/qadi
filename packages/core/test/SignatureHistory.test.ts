@@ -7,8 +7,10 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
+import { makeSubject } from "../src/AuthSubject.ts";
 import { SignatureHistoryUnavailable } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
+import { hasSignature } from "../src/Policy.ts";
 import { describeKeyRefusal, KeyRefusal } from "../src/PortDescription.ts";
 import {
   SignatureHistory,
@@ -16,6 +18,7 @@ import {
   signatureHistoryFromSignatures,
   signatureHistoryPort,
 } from "../src/SignatureHistory.ts";
+import { leafOf } from "./helpers.ts";
 
 const query = (
   layer: Layer.Layer<SignatureHistory>,
@@ -28,6 +31,21 @@ const query = (
   }).pipe(Effect.provide(layer));
 
 describe("SignatureHistory", () => {
+  it("a HasSignature leaf asks the signature port for its own records, naming no one (ADR-QD-114, ARCH-70)", () => {
+    const leaf = leafOf("HasSignature", hasSignature("approved", { signerRole: "manager" }));
+    const [request] = signatureHistoryPort.asks.HasSignature(leaf, {
+      subject: makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} }),
+      resource: { id: "doc-1" },
+    });
+    assert.deepStrictEqual(request, {
+      subjectId: makeSubjectId("alice"),
+      resourceId: makeResourceId("doc-1"),
+      meaning: "approved",
+      signerRole: "manager",
+    });
+    assert.isUndefined(signatureHistoryPort.serving.asked([request]));
+  });
+
   describe("SignatureHistoryNone", () => {
     it.effect("returns no signatures regardless of what's asked — fail-closed default", () =>
       Effect.gen(function* () {
@@ -199,10 +217,11 @@ describe("SignatureHistory", () => {
       }));
 
     it("a request with no key would fail the read with the port's own error, never answer an empty list", () => {
-      // No `SubjectId`/`ResourceId` pair can be refused (both are strings), so
-      // no input reaches the fixture's refusal branch. What it answers is
-      // pinned here instead: the port's typed error carrying the refusal's
-      // sentence. An empty list would deny `hasSignature` and grant `not(...)`.
+      // No typed `SubjectId`/`ResourceId` pair can be refused (both are
+      // strings), so only an untyped caller reaches the fixture's refusal
+      // branch (the fixture-entry test below). What it answers is pinned here: the port's
+      // typed error carrying the refusal's sentence. An empty list would deny
+      // `hasSignature` and grant `not(...)`.
       const asked = { subjectId: makeSubjectId("alice"), resourceId: makeResourceId("doc-1") };
       const refusal = KeyRefusal.Unkeyable({ path: ["0", "subjectId"], kind: "symbol", brand: "Symbol" });
       const failure = signatureHistoryPort.failure([asked], describeKeyRefusal(refusal));
@@ -212,6 +231,29 @@ describe("SignatureHistory", () => {
         [asked.subjectId, asked.resourceId, "0.subjectId: an unkeyable symbol (Symbol) has no request key"],
       );
     });
+
+    // `JSON.parse` returns `any`, which is what an untyped JavaScript caller
+    // hands over (no `as`, AGENTS.md §6); a symbol is the one value it cannot
+    // carry, so it is set on the parsed object afterwards.
+    const unkeyable = (json: string) => {
+      const untyped = JSON.parse(json);
+      untyped.subjectId = Symbol("alice");
+      return untyped;
+    };
+
+    it.effect("an untyped fixture entry with an unkeyable subject fails every read, never an empty list", () =>
+      Effect.gen(function* () {
+        const fixture = signatureHistoryFromSignatures([
+          { subjectId: "bob", resourceId: "doc-2", meaning: "witnessed" },
+          unkeyable('{"resourceId":"doc-1","meaning":"approved"}'),
+        ]);
+        const result = yield* Effect.result(query(fixture, "bob", "doc-2"));
+        assert.isTrue(Result.isFailure(result));
+        if (Result.isFailure(result)) {
+          assert.instanceOf(result.failure, SignatureHistoryUnavailable);
+          assert.strictEqual(result.failure.cause, "subjectId: an unkeyable symbol (Symbol) has no request key");
+        }
+      }));
 
     it.effect("returns a fresh array per query, not the layer's own internal reference", () =>
       Effect.gen(function* () {

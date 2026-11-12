@@ -28,8 +28,7 @@ import { unionObligations } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
 import type { PortServices } from "./Ports.ts";
 import {
-  askActedAny,
-  askActedForResource,
+  askActed,
   askCustom,
   askRelationship,
   askSignature,
@@ -37,6 +36,7 @@ import {
 } from "./PortAccess.ts";
 import type { Policy, Rule, RuleEffect } from "./Policy.ts";
 import type { Resource } from "./Resource.ts";
+import { resourceIdOf } from "./Resource.ts";
 import { anyOfStopsAtAllow, rulesDecisiveEffect } from "./ShortCircuit.ts";
 import type { Question } from "./Question.ts";
 
@@ -173,10 +173,7 @@ const evaluateActed = (
   subject: AuthSubject,
   resource: Resource | undefined,
 ) => {
-  const asked =
-    policy.scope === "Resource"
-      ? askActedForResource("evaluate", subject, policy.event, resource?.["id"])
-      : askActedAny("evaluate", subject, policy.event);
+  const asked = askActed("evaluate", subject, policy, resource);
   const wanted: ActedResult = policy._tag === "HasActed" ? "Acted" : "NotActed";
   // `"Unknown"` matches neither, so both polarities deny under an unwired
   // port. That is the whole reason the port is three-valued rather than
@@ -199,18 +196,18 @@ const evaluateHasRelationship = (
   subject: AuthSubject,
   resource: Resource | undefined,
 ) => {
-  const rawId = resource?.["id"];
-  return Effect.map(askRelationship(subject, policy.relation, rawId, policy.depth), (related) =>
+  const resourceId = resourceIdOf(resource);
+  return Effect.map(askRelationship(subject, policy, resource), (related) =>
     // `Match.value` rather than a hoisted `Match.type` (§5a's preferred form):
-    // the arms close over `policy`, `subject` and `rawId`, so there is nothing to
-    // hoist. The rebuild is also noise against the service call, which may be a
-    // graph traversal or a network round trip.
+    // the arms close over `policy`, `subject` and `resourceId`, so there is
+    // nothing to hoist. The rebuild is also noise against the service call, which
+    // may be a graph traversal or a network round trip.
     Match.value(related).pipe(
       Match.when("Related", () => allow("HasRelationship", policy.fields)),
       Match.when("Unrelated", () =>
         deny(
           "HasRelationship",
-          `subject '${subject.id}' has no '${policy.relation}' relation to '${rawId}'`,
+          `subject '${subject.id}' has no '${policy.relation}' relation to '${resourceId}'`,
         ),
       ),
       // Not "has no relation": nothing confirmed one. `"Unknown"` does not mean
@@ -224,7 +221,7 @@ const evaluateHasRelationship = (
       Match.when("Unknown", () =>
         deny(
           "HasRelationship",
-          `no relationship resolver could confirm the '${policy.relation}' relation to '${rawId}'`,
+          `no relationship resolver could confirm the '${policy.relation}' relation to '${resourceId}'`,
         ),
       ),
       Match.exhaustive,
@@ -241,7 +238,7 @@ const evaluateHasCustom = (
   subject: AuthSubject,
   resource: Resource | undefined,
 ) =>
-  Effect.map(askCustom(subject, resource, policy.name, policy.params), (allowed) =>
+  Effect.map(askCustom(subject, policy, resource), (allowed) =>
     allowed
       ? allow("HasCustom", policy.fields)
       : deny("HasCustom", `custom predicate '${policy.name}' returned false`),
@@ -261,7 +258,7 @@ const evaluateHasSignature = (
   resource: Resource | undefined,
 ) =>
   Effect.map(
-    askSignature(subject, policy.meaning, policy.signerRole, policy.scope, resource?.["id"]),
+    askSignature(subject, policy, resource),
     ({ matched, onFile }) =>
       matched
         ? allow("HasSignature", policy.fields)
@@ -342,7 +339,7 @@ const evaluateNode = (
       if (resource === undefined && referencesResource(policy.matcher)) {
         return Effect.fail(new MissingResource({ attribute: policy.attribute }));
       }
-      return Effect.map(readAttribute("evaluate", subject, policy.attribute), (value) => {
+      return Effect.map(readAttribute("evaluate", subject, policy), (value) => {
         // One judgement gives both the decision and, on a denial, its reason.
         const verdict = judgeMatcher(policy.matcher, value, matcherContext);
         return holds(verdict)
@@ -540,9 +537,10 @@ const finishAllOf = (
  * and a tracer is what reads it back") is product observability a caller
  * wires a real tracer to consume, not incidental cost, and none of those six
  * run once per policy *node* the way these three do. `requireScopedResourceId`
- * is a small helper called from inside `evaluateActed`, not a per-node
- * dispatch point, and stays traced too — converting it was considered and
- * rejected as out of scope (issue #102).
+ * was a small helper called from inside `evaluateActed`, not a per-node dispatch
+ * point, and stayed traced — converting it was considered and rejected as out of
+ * scope (issue #102). ARCH-70 removed it: the check is `PortAccess.ts`'s
+ * `readScoped`, which opens no span of its own (ADR-QD-134).
  *
  * The behavior this does **not** change: `Trace.children`/`policyTag`/
  * `reason`/`visibleFields`/`obligations` are built by `allow`/`deny`/

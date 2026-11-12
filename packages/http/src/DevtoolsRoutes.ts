@@ -14,7 +14,7 @@ import type { DecisionLog, Permission, Policy } from "@qadi/core";
 import { decisionBacklogRoute } from "./DecisionBacklogRoute.ts";
 import { decisionStreamRoute } from "./DecisionStreamRoute.ts";
 import type { DecisionStreamOptions } from "./DecisionStreamRoute.ts";
-import { permissionRegistryRoute } from "./PermissionRegistry.ts";
+import { permissionRegistryRoute } from "./PermissionRegistryRoute.ts";
 
 /**
  * How `devtoolsRoutes` serves: `prefix` for all three routes, `onRefused` for the stream and the

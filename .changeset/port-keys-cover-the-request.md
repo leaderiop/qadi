@@ -12,3 +12,5 @@ The key is no longer JSON text. JSON keyed a `Date` like its ISO string, `NaN` a
 New: `KeyRefusal`, `UnkeyableKind` and `describeKeyRefusal` (one sentence per refusal).
 
 `replyTable` matches a request by its key's text; a request whose key is refused fails with the port's own typed error (cause: `describeKeyRefusal`) and is never answered from the table, and an entry whose key is refused is left out. `signatureHistoryFromSignatures` fails a refused query with `SignatureHistoryUnavailable` instead of answering an empty list.
+
+The key text changed again for four ports (ARCH-69, ADR-QD-133): `attributeResolverPort`, `relationshipResolverPort`, `decisionHistoryPort` and `signatureHistoryPort` now key as `canonicalKey` over their wire question, derived by `makePortDescription` rather than listed by hand, so a field the question carries can no longer be left out of the key. `customPredicatePort`'s key is unchanged. The text is in-process only, so nothing needs migrating; `PortDescription`'s type is unchanged.

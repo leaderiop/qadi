@@ -21,7 +21,7 @@ import { servePortRead } from "../src/PortAccess.ts";
 import { PortReply } from "../src/PortDescription.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { portCallsTotal, servedPortCallsTotal } from "../src/PortMetrics.ts";
-import type { PortName } from "../src/PortMetrics.ts";
+import type { PortName } from "../src/PortName.ts";
 import { PORTS } from "../src/Ports.ts";
 import type { AnswerOf, ArgsOf, DescriptionOf, PortTypes } from "../src/Ports.ts";
 import { collectingTracer, isolatedMetrics } from "./helpers.ts";

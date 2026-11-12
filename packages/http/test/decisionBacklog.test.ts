@@ -26,7 +26,7 @@ import * as Result from "effect/Result";
 import * as HttpRouter from "effect/http/HttpRouter";
 import { decisionBacklogRoute } from "../src/DecisionBacklogRoute.ts";
 import { stack } from "./fixtures/stack.ts";
-import { permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
+import { permissionRegistryRouteUnguarded } from "../src/PermissionRegistryRoute.ts";
 import { subjectExtractorBearer } from "../src/SubjectExtractor.ts";
 
 const readPermission = permission("devtools", "read");

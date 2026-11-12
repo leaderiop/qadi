@@ -37,12 +37,13 @@ import {
   type ReactNode,
 } from "react";
 import type { GateRegistry } from "./GateRegistry.ts";
-import { GateScopeContext, gateWriterFor } from "./GateWriter.ts";
+import { gateWriterFor } from "./GateWriter.ts";
 import type { InitialValues } from "./HydrationEngine.ts";
 import { isDevelopment, providerSignalReporter, providerSignals } from "./DeveloperSignals.ts";
 import type { ProviderSignal, ProviderSignalReporter } from "./DeveloperSignals.ts";
 import { MissingQadiProviderError } from "./MissingQadiProviderError.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
+import { GateScopeContext } from "./useGate.ts";
 
 export interface QadiContextValue {
   readonly atoms: QadiAtoms;
@@ -109,7 +110,7 @@ export const useAtomValue: <A>(atom: Atom.Atom<A>) => A = useLibraryAtomValue;
 // public home is unchanged.
 export type { InitialValues } from "./HydrationEngine.ts";
 
-// Declared in `MissingQadiProviderError.ts` so `GateWriter.ts` can throw it
+// Declared in `MissingQadiProviderError.ts` so `useGate.ts` can throw it
 // without importing this file (ADR-QD-037); its public home is unchanged.
 export { MissingQadiProviderError } from "./MissingQadiProviderError.ts";
 

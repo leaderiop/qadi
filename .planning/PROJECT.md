@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (current: v1.1 Arch Wave 6, ARCH-59 to ARCH-68)
+# Qadi — Architecture Waves (latest: v1.2 Arch Wave 7, ARCH-69 to ARCH-77)
 
 ## What This Is
 
@@ -15,12 +15,43 @@ The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local
 
 ## Current State
 
+v1.2 Arch Wave 7 completed 2026-11-12 on branch `arch-wave-7` (272 commits, 170 files, +9,900 / −3,457
+outside `.planning`): ARCH-69 to ARCH-77, ADR-QD-133..140 (136, 138, 139 and 141 unused), CCR-QD-411..419.
+All 9 phases `passed`. The milestone audit is `tech_debt`, accepted by the user: 44/44 requirements, 25 open
+info-level review findings and one skipped warning. `pnpm check:pr` exited 0 at the end of every phase. **Not
+merged and not released.** Archive: `.planning/milestones/v1.2-ROADMAP.md`, `v1.2-REQUIREMENTS.md`,
+`v1.2-MILESTONE-AUDIT.md`.
+
+v1.1 Arch Wave 6 (ARCH-59 to ARCH-68) is merged to `main` as #155. It was never archived as a GSD milestone,
+so its phases 10–20 are still in `.planning/phases/`, and its requirements are in git at `965ff14c:.planning/REQUIREMENTS.md`.
+
 v1.0 Arch Wave 5 shipped 2026-11-09 on branch `arch-wave-5` (240 commits, 134 files, +7,660 / −1,815
 outside `.planning`): ARCH-46 to ARCH-54, ADR-QD-108..116 (112, 113 and 115 left unused), CCR-QD-385..393.
 All 9 phases verified `passed` against the final tree; the full `pnpm check` is green on Node 22.12.0
 (CI run 42676403473 at 127d6fa). Archive: `.planning/milestones/v1.0-ROADMAP.md`.
 
-## Current Milestone: v1.1 Arch Wave 6
+## Next Milestone
+
+Not defined yet. Start it with `/gsd-new-milestone`, which writes a fresh `.planning/REQUIREMENTS.md`.
+
+## Previous Milestone: v1.2 Arch Wave 7 (completed 2026-11-12; not released)
+
+**Goal:** Resolve the eight candidates and three footnotes of the 2026-11-11 architecture review (Phases 21–29, ARCH-69…77).
+
+**Base commit:** `965ff14c` (v1.1 merged as #155). **Shared rules:** `.planning/phases/_SHARED-CONTEXT.md`, overridden where
+stated by `.planning/phases/_WAVE7-CONTEXT.md` (base, numbering, evidence, and the correction to the review's candidate 1: port
+keys are read by devtools replay and test doubles, not by evaluation).
+
+**Target features:** see `.planning/milestones/v1.2-REQUIREMENTS.md` (PREQ, SCOPE, SREC, SRC, SIM, DMOD, ROUTE, GATE, TIDY, WX).
+
+**Numbering reserved for v1.2:** the table in `.planning/phases/_WAVE7-CONTEXT.md` (ADR-QD-133–141, CCR-QD-411–419,
+BEH-QD-440–484, INV-QD-286–303, ARCH-69–77).
+
+**Review report (local, outside the repo):** `/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/architecture-review-20261111-011702.html`.
+
+<details>
+<summary>v1.1 Arch Wave 6 (all phases complete 2026-11-10; merged as #155; not released)</summary>
+
 
 **Goal:** Resolve the nine candidates of the 2026-11-10 architecture review, and recover the lost 2026-10-13 wave.
 
@@ -30,9 +61,11 @@ was implemented on `wave5/architecture-deepenings` and never merged. Its commits
 Its ids collide with merged #153, so it is ported under new numbers, never cherry-picked. Live defects and their
 salvage sources: `.planning/phases/_SALVAGE.md`.
 
-**Target features:** see `.planning/REQUIREMENTS.md` (REC, SEC, INT, GAP, AUD, DOCK, ROLE, KEY, SURF, VIEW, CACHE, XC).
+**Target features:** see `965ff14c:.planning/REQUIREMENTS.md` in git (REC, SEC, INT, GAP, AUD, DOCK, ROLE, KEY, SURF, VIEW, CACHE, XC).
 
 **Review report (local, outside the repo):** `/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/architecture-review-20261110-004912.html`.
+
+</details>
 
 ## Core Value
 
@@ -57,9 +90,19 @@ logged, counted or spanned.
 
 - ✓ ARCH-54 Sink record projection (SINK-01..03): `SinkEmit.ts` owns all three record projections (failed, decided, obligation), and `new ObligationRecord` is built only there and in the codec's decoder; the obligation record is projected once, before the handler runs (WR-01); the refusal vocabulary moved to the public leaf `JsonRefusal.ts`, and `SinkWire.ts` keeps only record-side words, so no port module imports the sink wire — Phase 9 (ADR-QD-116, ADR-QD-115 unused, CCR-QD-393)
 
+- ✓ ARCH-69 Port request derived from its description (PREQ-01..05): four ports derive their request `key` and `defect` from the wire question (`makePortDescription`); the wire and span questions are exhaustive by type, so a dropped member is a compile error; CustomPredicate keeps its own `key`/`defect`; a property law ties each derived key to `canonicalKey` of its wire question — Phase 21 (ADR-QD-133, ADR-QD-094 and ADR-QD-107 amended, CCR-QD-411, BEH-QD-440/441, INV-QD-286)
+- ✓ ARCH-70 One scoped port read (SCOPE-01..05): each port description states once, as `asks`, the request every policy leaf puts to it; the reads and `servingFor` derive from it (`ServedLeaves` and the facet's `leaves` removed, `LeafRequests`/`ReadSite`/`LeafOf`/`AskedOf` added); the three resource-scoped reads go through one `readScoped`, and a missing resource id leaves only the port span (`requireResourceId` deleted); every read takes its policy leaf — Phase 22 (ADR-QD-134, CCR-QD-412, BEH-QD-445/446, INV-QD-288/289; `@qadi/core` minor, `PortDescription` change marked Breaking)
+- ✓ ARCH-71 Sink record fields stated once (SREC-01..05): each record's fields are one `Schema.Struct` in the package-private `SinkRecordFields.ts`; the record class is a `Data.TaggedClass` typed by it and the v2 wire struct spreads it; absent keys stay absent, wire byte-identical — Phase 23 (ADR-QD-135, ADR-QD-095 amended, CCR-QD-413, BEH-QD-450/451, INV-QD-290; `@qadi/core` patch)
+- ✓ ARCH-72 Simulation source preparation (SRC-01..03): `prepareSource(choice, { ports, capture })` in `SimulationSource.ts` owns availability, refusal and the Live capture from one table closed over `SourceChoice`; the session branches only on `Ready`/`Refused` (`resolveSource`, `sourceOptions`, `ResolvedSource` removed, package-private) — Phase 24 (ADR-QD-050 Rev 1.4 amended, CCR-QD-414, BEH-QD-455; `@qadi/devtools` patch)
+- ✓ ARCH-73 Session-only Simulator (SIM-01..05): `Simulator` is a view of its session (`OwnedSimulator` and the `sightings` prop removed); `setAction`, `choosePolicyAt`, `policyMenu`, `cost`, `baselineReading` and `Ran.reading` live in the session; `makeSimulationSession` is an `Effect.fn` in a `Scope` that owns its runs through a `FiberHandle`, `supersede()` interrupts a replaced run, and `reap`/`hasRetired`/`dispose` are gone; React owns the scope through the package-private `useScoped` — Phase 25 (ADR-QD-137 supersedes ARCH-20 D-20-b, ADR-QD-047 Rev 1.11, CCR-QD-415, BEH-QD-460/461; `@qadi/devtools` minor)
+- ✓ ARCH-74 Headless dock model (DMOD-01..05): the dock's six stores and the rules between them live in the package-private scoped `makeDockModel` (one rail push per timeline or catalogue change, per-field identity `configure`, the source read through its own `FiberHandle`); React owns one model through `useDockModel` and the four owned hooks are gone; both sessions embed one `makeHeldChoice` cell, `PolicyChoice` is `Empty | Listed | Evicted | Seeded` and `HeldChoice` is public; 13 DOM duplicates moved to headless model tests — Phase 26 (ADR-QD-047 Rev 1.12, CCR-QD-416, BEH-QD-465/466, INV-QD-296; `@qadi/devtools` patch)
+- ✓ ARCH-75 Bare-route module (ROUTE-01..03): `addGuardedRoute` is written once in `GuardRoute.ts` (`guardRoute`/`buildGuardedRoute` removed); its typing rule (the handler's `CurrentSubject` discharged, the loader's not, no "Error" marker) and method agreement are pinned on the public function in `GuardRoute.tst.ts`; `RouteMethod` is stated once in the package-private `UnguardedRoute.ts`; `PermissionRegistry.ts` holds only the registry and `/__permissions` moved to `PermissionRegistryRoute.ts`; export names unchanged, no import cycle — Phase 27 (ADR-QD-036 Rev 1.10 amended, CCR-QD-417, BEH-QD-470; `@qadi/http` patch)
+- ✓ ARCH-76 Gate registry dependency (GATE-01..04): outcome A (the human's, from `_DECISIONS-v1.2.md`): `GateWriter.ts` is the React-free write side, a leaf below the registry with type-only imports, holding a pure `reconcile` tested against a fake writer without rendering; the hooks moved to `useGate.ts` above `QadiAtoms` and `GateAtoms` is `Pick<QadiAtoms, "decision" | "decisions">`; the test-only `useGateRegistration` is gone (its seven cases run on `useGateRegistrations`); public surface unchanged, no cycle — Phase 28 (ADR-QD-140 amends ADR-QD-111 and ADR-QD-080, CCR-QD-418; `@qadi/react` patch)
+- ✓ ARCH-77 Small restated facts (TIDY-01..03): a port's name and span are stated once in the import-free `PortName.ts` (one five-row table; `PortName`, `PortSpanName` and the new `PortSpanOf<N>` read from it; metrics untouched), and `PortDescription.span` is `PortSpanOf<N>`, so a description can name only its own port's span; `HydrationEngine.ts` states each entry's withheld fields once (`ALLOW_WITHHELD`/`DENY_WITHHELD`); `FAILURE_IS_NOT_A_DENIAL` in devtools' `model/Verdict.ts` serves the Inspector and the Simulator — Phase 29 (ADR-QD-094 and ADR-QD-123 amended, CCR-QD-419, ADR-QD-141 unused; `@qadi/core` minor, `@qadi/react` and `@qadi/devtools` patch)
+
 ### Active
 
-(None. Every v1.0 requirement shipped. The next milestone defines new ones.)
+(None. v1.2's requirements all moved to Validated; the next milestone defines new ones.)
 
 ### Out of Scope
 
@@ -117,6 +160,19 @@ logged, counted or spanned.
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
 
+### Known Issues (carried forward from v1.2)
+
+- The tech debt the v1.2 audit accepted is listed in `.planning/milestones/v1.2-MILESTONE-AUDIT.md`. Its main items:
+  - 25 open info-level review findings across Phases 24–29;
+  - Phase 25 WR-01 skipped (unreachable while `simulate` goes through `DecisionCache`);
+  - `signatureHistoryFromSignatures` dies, rather than failing typed, on an untyped query with an unkeyable subject;
+  - devtools `Inspector.tsx` (0.68) and `Simulator.tsx` (0.54) mutation scores are below the 80 break threshold;
+  - `useSimulationSession` stays a public second entry point (design to confirm);
+  - two Phase 24 spec items were acknowledged at close (the duplicate BEH-QD-219..221 blocks, and `Sources.ts` in traceability).
+- `astro check` (gate 15, `pnpm website`) shows an interactive `@astrojs/check` install prompt, so `pnpm check:pr` must run with
+  stdin closed (`< /dev/null`), which makes the website typecheck effectively skipped.
+- `scripts/spec-revise.mjs` drops its document argument when `--date` is omitted; always pass `--date`.
+
 ### Known Issues (carried forward from v1.0)
 
 - CI: the Node 26 matrix leg exceeds the 60-minute `timeout-minutes` during mutation on a full
@@ -160,6 +216,21 @@ logged, counted or spanned.
 | The refusal vocabulary lives in a new public leaf `JsonRefusal.ts`, not in `JsonHazard.ts` | The moved names are public and `JsonHazard.ts` is package-private (ADR-QD-099); a leaf keeps the port wire off the sink wire | Accepted (Phase 9, ADR-QD-116) |
 | The obligation record is projected before the handler runs | A handler reassigning `resource.id` must not change the record it is logged under (WR-01) | Accepted (Phase 9, dafe9e1) |
 | Audit doubles are scripted per call, outside core's port registry (D-05, ADR-QD-126); each audit store call gets a 5 s overridable `storeCallTimeout` (route A, `A interrupt remove`) | A store call that never settled held the decision and kept the breaker `Closed`; eleven hand-written failing layers restated the ports' error shapes, and core's closed registry is for the five evaluation ports | Accepted (Phase 14, ARCH-62, CCR-QD-404); removing `failWith`/`failStageWith`/`failCommitWith` is Breaking; the buffered sink (route C) is deferred |
+| The leaf→request mapping is stated once, on each port description (`asks`), not in the reads and the serving facet separately (D-05, `state once`) | The human overrode the planner's decision: "the recommendation should be the cleanest solution, not the simplest one"; two statements could disagree | Accepted (Phase 22, ADR-QD-134); `ServedLeaves` removed (public); review WR-01 fixed: one shared scope test (`ScopedLeaf.ts`) plus a law test (23e54421) |
+| A missing resource id leaves only the port span on every scoped port (D-02 = `A`) | One trace shape, whichever copy of the check ran; the nested `qadi.requireScopedResourceId` span is gone | Accepted (Phase 22, ADR-QD-134) |
+| A sink record's fields are one `Schema.Struct`; the class is a `Data.TaggedClass` typed by it, keys absent (23-01 = A/absent) | One field list instead of four; `Schema.TaggedClass` measured 5.3x to 140x per record on the evaluation path | Accepted (Phase 23, ADR-QD-135); small-record encode 5 to 10 percent slower, inherent to the spread |
+| Source availability moved into `SimulationSource.ts` as an amendment to ADR-QD-050, not a new ADR (ADR-QD-136 unused) | The rule moved; no new decision was made | Accepted (Phase 24, CCR-QD-414) |
+| A run reads its generation before its last teardown yield and returns if a command moved the session (review WR-01) | A ports change or replay during a superseded Live run's teardown must not start the waiting run with the old environment's capture | Accepted (Phase 24, 1ad24867); the replayed policy is held with its row (6c198da1) so `SimulationSession.ts` stays above its mutation base |
+| A devtools session owns its runs through a `FiberHandle` in a `Scope` (25-01 = D, from `_DECISIONS-v1.2.md`) | A host that never forked `reap` left runs querying live resolvers; the scope's close and `supersede()` interrupt through one handle | Accepted (Phase 25, ADR-QD-137, supersedes ARCH-20 D-20-b); `SimulationSession.ts` mutation 0.9641 to 0.9694 |
+| `useScoped` clears its value on cleanup and closes the scope when the build throws (review WR-02, WR-03) | A hidden `<Activity>` kept a child reading a closed session; a throwing build leaked its scope | Accepted (Phase 25, 0a6872c6, df588d1a); WR-01 (synchronous-settle race) skipped: no run lands synchronously while `simulate` goes through `DecisionCache` |
+| The dock is one headless model (`makeDockModel` in a `Scope`), owned by React through one hook (Phase 26, ARCH-74) | Cross-store rules were reachable only by rendering six hooks and their layout effects; the model states them once, under the model's coverage and mutation bar | Accepted (Phase 26, ADR-QD-047 Rev 1.12); `DockModel.ts` mutation 100; a hidden `<Activity>` rebuilds the model (pause returns to live, backlog re-read), accepted per 26-UI-SPEC |
+| `PolicyChoice` keeps `HeldChoice`'s arms by use, not a standalone type assertion (26-03) | `noUnusedLocals` rejects an unused assertion constant; `policyChoice` returning `chosen.resolve()` as a `PolicyChoice` already makes a new arm a compile error | Accepted (Phase 26, verifier and code review concurred) |
+| `unguardedRoutes` and `RouteMethod` stay in a package-private sibling; `/__permissions` moves to `PermissionRegistryRoute.ts` (27-CONTEXT D-02, D-03) | One module holding all three would export the unguarded internals through the barrel (ADR-QD-099); keeping `/__permissions` in `PermissionRegistry.ts` closes an import cycle (ADR-QD-037) | Accepted (Phase 27, CCR-QD-417, ADR-QD-036 Rev 1.10); ROUTE-01/ROUTE-03 annotated in REQUIREMENTS.md as delivered by intent |
+| A phase that deletes duplicated code keeps the aggregate mutation bar by killing the survivors the baseline already had (27-03) | Removing code shrank the mutant total by one while two known survivors stayed, so the aggregate dipped below base with every file at or above its own | Accepted (Phase 27, 010d9f1e: two span-name tests); `AuthorizeRequest.ts` 0.9 to 1.0, aggregate 137/139 to 138/138 |
+| The gate write side is a React-free leaf below the registry; the hooks sit above the atom set (28-01 = A, from `_DECISIONS-v1.2.md`) | The reconcile rules were reachable only through `renderHook`; the review's uncorrected A (types into `GateRegistry.ts`) would publish `gateWriterFor` or close a cycle | Accepted (Phase 28, ADR-QD-140); GATE-03 annotated (types in the leaf, re-exported by the registry); mutation aggregate 0.8239 → 0.8502 |
+| A survivor that surfaces in an untouched file after a split is killed with a test, not re-baselined (28-05) | Moving tests between `GateWriter.ts` and `useGate.ts` exposed a real `GateRegistry.ts` survivor (a stale handle's `update` after a same-id re-registration) | Accepted (Phase 28, 8fbd9f58) |
+| A port's span union is derived from a leaf table, not from the descriptions (29-CONTEXT D-02) | Each annotated description's `span` type is the whole union, and the leaf cannot import descriptions without a cycle; the inverse derivation also narrows `span` to `PortSpanOf<N>` | Accepted (Phase 29, ADR-QD-094 amendment, CCR-QD-419); TIDY-01 annotated as delivered by the inverse derivation |
+| Moving per-call literals to module-scope constants can lower a file's mutation score with nothing worse; close it with a test (29-03) | `ignoreStatic` drops the moved lists' killed mutants while survivors stay (`HydrationEngine.ts` 0.9619 → 0.9605) | Accepted (Phase 29, 94841eb0: a nameless payload with entries is refused whole); 0.9619 → 0.9693 |
 
 ---
-*Last updated: 2026-11-10 — v1.1 Phase 14 complete*
+*Last updated: 2026-11-12 after v1.2 milestone*

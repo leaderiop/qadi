@@ -99,35 +99,8 @@ describe("the dock", () => {
     assert.include(counts, "1 unattached");
   });
 
-  // E5.1 through the UI: the header must not follow the filter.
-  it("the counts do not narrow when the filter does", async () => {
-    await mount([
-      decisionRecord({ evaluationId: "a", at: 100 }),
-      decisionRecord({
-        evaluationId: "e",
-        at: 200,
-        outcome: new Failed({ error: new MissingResource({ attribute: "doc.owner" }) }),
-      }),
-    ]);
-
-    await click(screen.getByRole("button", { name: "Allow" }));
-
-    assert.strictEqual(rows().length, 1);
-    // A header reading "0 errors" because someone clicked a chip hides the one
-    // thing they most need to see.
-    assert.include(screen.getByTestId("qadi-counts").textContent ?? "", "1 errors");
-  });
-
-  it("offers exactly the environments present, not a fixed pair", async () => {
-    await mount([
-      decisionRecord({ evaluationId: "a", at: 100, environment: "eu-west" }),
-      decisionRecord({ evaluationId: "b", at: 200, environment: "us-east" }),
-    ]);
-
-    assert.isNotNull(screen.getByRole("button", { name: "eu-west" }));
-    assert.isNotNull(screen.getByRole("button", { name: "us-east" }));
-    assert.isNull(screen.queryByRole("button", { name: "Client" }));
-  });
+  // The counts not narrowing with the filter, and the environment chips offering
+  // exactly the environments present, are DockSession.test.ts.
 
   // E6.2
   it("pauses and resumes", async () => {
@@ -431,16 +404,8 @@ describe("screen 1 — the decision log", () => {
     assert.include(style, "max-width");
   });
 
-  // E7.6 — bounded by the timeline, so the DOM is bounded too.
-  it("renders no more rows than the capacity allows", async () => {
-    const records = Array.from({ length: 20 }, (_, index) =>
-      decisionRecord({ evaluationId: `ev-${index}`, at: 100 + index }),
-    );
-    render(<DevtoolsDock source={sourceFromRecords(records)} capacity={5} />);
-    await screen.findAllByTestId("qadi-log-row");
-
-    assert.strictEqual(rows().length, 5);
-  });
+  // E7.6 — the bound reaching the timeline is DockModel.test.ts M11; the capacity
+  // prop's wiring is "a selection dropped by capacity" below.
 });
 
 describe("screen 2 — the inspector", () => {
@@ -450,13 +415,6 @@ describe("screen 2 — the inspector", () => {
     await click(screen.getByRole("button", { name: "Inspector" }));
 
     assert.isNotNull(screen.getByTestId("qadi-inspector-empty"));
-  });
-
-  it("a row click opens it on that evaluation", async () => {
-    await mount([decisionRecord({ evaluationId: "chosen", at: 100 })]);
-    await click(rows()[0] ?? fail());
-
-    assert.strictEqual(screen.getByTestId("qadi-inspector-id").textContent, "chosen");
   });
 
   it("renders the explanation tree, marked node by node", async () => {
@@ -706,27 +664,8 @@ describe("screen 2 — the inspector", () => {
     assert.isNull(screen.queryByTestId("qadi-orphan-question"));
   });
 
-  /**
-   * E5.7 — the partner of a filtered-out row stays reachable.
-   *
-   * The filter narrows the *table*; it does not narrow pairing, which is
-   * computed over the whole timeline, and it does not narrow the selection. So
-   * a reader filtered to one environment can still follow a pair badge into the
-   * other one — which is the whole point of the badge.
-   */
-  it("a pair badge reaches a partner the filter has hidden", async () => {
-    await mount([
-      decisionRecord({ evaluationId: "ev-7", at: 100, environment: "Server" }),
-      decisionRecord({ evaluationId: "ev-7", at: 200, environment: "Client" }),
-    ]);
-
-    await click(screen.getByRole("button", { name: "Server" }));
-    assert.strictEqual(rows().length, 1);
-
-    // The badge is still there, and still points at the hidden partner.
-    await click(screen.getAllByTestId("qadi-pair")[0] ?? fail());
-    assert.include(screen.getByTestId("qadi-inspector").textContent ?? "", "Client");
-  });
+  // E5.7 — a pair badge reaching a partner the filter has hidden is DockSession.test.ts
+  // "a row filtered to one environment still carries its partner from the other".
 
   // E5.6
   it("a selection dropped by capacity says the buffer moved on", async () => {
@@ -845,48 +784,10 @@ describe("the six screens", () => {
     assert.isNotNull(screen.getByTestId("qadi-questions-absent"));
   });
 
-  /**
-   * The catalogue needs no prop at all — every record carries its policy, so
-   * the rail fills itself from the log. That is the whole reason this screen
-   * did not need a registry in core.
-   */
-  it("the policy rail fills from the log alone", async () => {
-    await mount([
-      decisionRecord({ evaluationId: "a", at: 100, policy: hasPermission(read) }),
-      decisionRecord({ evaluationId: "b", at: 200, policy: hasPermission(read) }),
-    ]);
-    await click(screen.getByRole("button", { name: "Policies" }));
-
-    const items = screen.getAllByTestId("qadi-policy-rail-item");
-    assert.strictEqual(items.length, 1);
-    assert.include(items[0]?.textContent ?? "", "2 decisions");
-  });
-
-  it("a declared catalogue adds names and unrun policies", async () => {
-    render(
-      <DevtoolsDock
-        source={sourceFromRecords([
-          decisionRecord({ evaluationId: "a", at: 100, policy: hasPermission(read) }),
-        ])}
-        catalogue={{ policies: { canRead: hasPermission(read), canWrite: hasPermission(write) } }}
-      />,
-    );
-    await screen.findAllByTestId("qadi-log-row");
-    await click(screen.getByRole("button", { name: "Policies" }));
-
-    const items = screen.getAllByTestId("qadi-policy-rail-item").map((i) => i.textContent ?? "");
-    assert.strictEqual(items.length, 2);
-    assert.include(items[0] ?? "", "canRead");
-    assert.include(items[1] ?? "", "never evaluated");
-  });
-
-  it("roles come only from the catalogue, because the log cannot observe them", async () => {
-    render(<DevtoolsDock catalogue={{ roles: [role({ name: "editor", permissions: [read] })] }} />);
-    await act(async () => {});
-    await click(screen.getByRole("button", { name: "Roles" }));
-
-    assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "editor");
-  });
+  // What fills the policy rail and the role list (the log alone; a declared catalogue
+  // adding names and unrun policies; roles only from the catalogue) is
+  // DockModel.test.ts M1–M3. The catalogue prop's wiring is the explorer and role
+  // round-trip cases below.
 
   it("threads wiring, activity, questions and the invalidate handler", async () => {
     let invalidated = 0;
@@ -1002,87 +903,8 @@ describe("screen 5 — the simulator, and the dock around it", () => {
     assert.strictEqual(screen.getByTestId("qadi-action").getAttribute("value"), "read");
   });
 
-  // DOCK-01 / ARCH-63 — replaying is an act. Pressing it again on the same row
-  // re-seeds, whatever the reviewer did to the simulator since.
-  describe("replays the same row again", () => {
-    const replayRow = async (index: number) => {
-      await click(screen.getByRole("button", { name: "Log" }));
-      await click(rows()[index] ?? fail());
-      await click(screen.getByTestId("qadi-replay"));
-    };
-    const policySelect = (): HTMLSelectElement => {
-      const element = screen.getByTestId("qadi-simulator-policy");
-      if (!(element instanceof HTMLSelectElement)) throw new Error("expected a <select>");
-      return element;
-    };
-    const twoRows = () =>
-      mount([
-        decisionRecord({ evaluationId: "a", at: 100, policy: hasPermission(read), action: "read" }),
-        decisionRecord({ evaluationId: "b", at: 200, policy: hasPermission(write), action: "write" }),
-      ]);
-    const rowOf = (evaluationId: string) =>
-      rows().findIndex((row) => (row.textContent ?? "").includes(evaluationId));
-
-    it("replays the same row again after another policy was chosen", async () => {
-      await twoRows();
-      const a = rowOf("a");
-      await replayRow(a);
-      assert.strictEqual(policySelect().value, "seeded");
-
-      const other = Array.from(policySelect().options).find((option) =>
-        option.text.includes("write"),
-      );
-      act(() => {
-        fireEvent.change(policySelect(), { target: { value: other?.value ?? fail() } });
-      });
-      assert.notStrictEqual(policySelect().value, "seeded");
-
-      await replayRow(a);
-      assert.strictEqual(policySelect().value, "seeded");
-      assert.strictEqual(screen.getByTestId("qadi-action").getAttribute("value"), "read");
-    });
-
-    it("replays the same row again after the form was edited", async () => {
-      await twoRows();
-      const a = rowOf("a");
-      await replayRow(a);
-      act(() => {
-        fireEvent.change(screen.getByTestId("qadi-action"), { target: { value: "write" } });
-      });
-      assert.strictEqual(screen.getByTestId("qadi-action").getAttribute("value"), "write");
-
-      await replayRow(a);
-      assert.strictEqual(screen.getByTestId("qadi-action").getAttribute("value"), "read");
-    });
-
-    // The replay is a command, not a prop: a later timeline change must not
-    // dispatch an unchanged (empty) seed and clear what the reviewer replayed.
-    it("a timeline change after a replay keeps the replayed form", async () => {
-      const a = decisionRecord({ evaluationId: "a", at: 100, policy: hasPermission(read), action: "read" });
-      const view = await mount([a]);
-      await replayRow(0);
-      act(() => {
-        fireEvent.change(screen.getByTestId("qadi-action"), { target: { value: "write" } });
-      });
-
-      view.rerender(
-        <DevtoolsDock
-          source={sourceFromRecords([
-            a,
-            decisionRecord({ evaluationId: "b", at: 200, policy: hasPermission(write), action: "write" }),
-          ])}
-        />,
-      );
-      await act(async () => {});
-      assert.isTrue(
-        Array.from(policySelect().options).some((option) => option.text.includes("write")),
-        "the new row reached the simulator's rail",
-      );
-
-      assert.strictEqual(policySelect().value, "seeded");
-      assert.strictEqual(screen.getByTestId("qadi-action").getAttribute("value"), "write");
-    });
-  });
+  // The replay rules (a second replay re-seeds, a later timeline change keeps the
+  // replayed form) are DockModel.test.ts M5–M7; the button's wiring is the case above.
 
   // C8 — a tab is unmounted when it is left; the session is the dock's, so the
   // form, the capture and the result are not.
@@ -1149,28 +971,7 @@ describe("screen 5 — the simulator, and the dock around it", () => {
       assert.include(tree(), "editor");
     });
 
-    it("a new head during the visit does not change what the explorer shows", async () => {
-      const view = render(
-        <DevtoolsDock
-          source={sourceFromRecords([decisionRecord({ evaluationId: "a", at: 100, policy: hasPermission(read) })])}
-        />,
-      );
-      await screen.findAllByTestId("qadi-log-row");
-      await click(screen.getByRole("button", { name: "Policies" }));
-      assert.include(tree(), "doc:read");
-      await click(screen.getByRole("button", { name: "Log" }));
-      view.rerender(
-        <DevtoolsDock
-          source={sourceFromRecords([
-            decisionRecord({ evaluationId: "a", at: 100, policy: hasPermission(read) }),
-            decisionRecord({ evaluationId: "b", at: 200, policy: hasPermission(write) }),
-          ])}
-        />,
-      );
-      await act(async () => {});
-      await click(screen.getByRole("button", { name: "Policies" }));
-      assert.include(tree(), "doc:read");
-    });
+    // A new head during the visit not changing what the explorer shows is DockModel.test.ts M8.
 
     it("the role viewer keeps its chosen role", async () => {
       const a = role({ name: "a", permissions: [read] });
@@ -1193,17 +994,7 @@ describe("screen 5 — the simulator, and the dock around it", () => {
     assert.isNull(screen.queryByTestId("qadi-replay"));
   });
 
-  // E8.4 — the other six screens are untouched.
-  it("leaves the log, the inspector and the explorer where they were", async () => {
-    await mount([decisionRecord({ evaluationId: "a", policy: hasPermission(read) })]);
-
-    for (const tab of ["Log", "Inspector", "Policies", "Roles", "Services", "React"]) {
-      await click(screen.getByRole("button", { name: tab }));
-    }
-    await click(screen.getByRole("button", { name: "Log" }));
-
-    assert.strictEqual(rows().length, 1);
-  });
+  // E8.4 (visiting every tab leaves every store as it was) is DockModel.test.ts M9.
 });
 
 describe("screen 6 — the port calls the dock threads through", () => {

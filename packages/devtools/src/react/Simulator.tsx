@@ -9,10 +9,10 @@
  * log or cache.
  *
  * **This file renders and dispatches.** What the screen knows — which source is
- * honoured, what a Live run captured, which run is current, what is stale —
- * lives in `SimulationSession` (model), and the form's text is
- * `SimulationForm`'s codec. The only state held here is a chip editor's
- * uncommitted typing buffer.
+ * honoured, what a Live run captured, which run is current, what is stale — and
+ * what it says about it, the dropdown's entries, the cost line, the run's
+ * reading and the baseline's sentence, is `SimulationSession`'s (model). The
+ * only state held here is a chip editor's uncommitted typing buffer.
  *
  * **The form's job is to be honest about what it does not know.** Seeded from a
  * logged row it can fill in the policy, the action and the resource, and nothing
@@ -24,77 +24,46 @@
 import { useState, type CSSProperties, type FC, type ReactNode } from "react";
 import * as Match from "effect/Match";
 import type { DecisionOutcome, EvaluationError } from "@qadi/core";
-import type { PolicySighting } from "../model/Catalogue.ts";
-import { describeTracePath, readOutcome, type RecordOutcome } from "../model/Inspect.ts";
-import { matchesBaseline } from "../model/Replay.ts";
-import type { Baseline, UnseededField } from "../model/Replay.ts";
+import type { RecordOutcome } from "../model/Inspect.ts";
+import type { Baseline, BaselineReading, UnseededField } from "../model/Replay.ts";
 import type { SimulationClock } from "../model/Simulation.ts";
-import { actionOf, withAction } from "../model/SimulationForm.ts";
 import type { FieldView, SimulationField } from "../model/SimulationFields.ts";
-import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
 import type {
   RunState,
   SimulationSession,
   SimulationSnapshot,
-  SourceChoice,
-  SourceOption,
-  SourceRefusal,
 } from "../model/SimulationSession.ts";
-import type { TimelineEntry } from "../model/Timeline.ts";
-import { verdictOfOutcome } from "../model/Verdict.ts";
+import type { SourceChoice, SourceOption, SourceRefusal } from "../model/SimulationSource.ts";
+import { FAILURE_IS_NOT_A_DENIAL, verdictOfOutcome } from "../model/Verdict.ts";
 import { FieldsPanel, ObligationList } from "./DecisionPanels.tsx";
 import { PolicyTree } from "./PolicyTree.tsx";
-import { useSimulationSession, useSimulationSnapshot } from "./useSimulationSession.ts";
+import { useSimulationSnapshot } from "./useSimulationSession.ts";
 import type { SimulationSessionView } from "./useSimulationSession.ts";
 import { VerdictTag } from "./VerdictTag.tsx";
 import { WhatIfTable } from "./WhatIfTable.tsx";
 import { button, chip, colors, font, heading, input, muted, panel } from "./theme.ts";
 
 export interface SimulatorProps {
-  /** Policies to run. Usually the log's sightings, so the rail fills as decisions arrive. */
-  readonly sightings: ReadonlyArray<PolicySighting>;
   /**
-   * A logged row to seed from, set when the reviewer chose *replay in simulator*.
+   * The host's session: the dock owns it in its scope, so the form, the capture
+   * and the result outlive this component, and a run outlives a tab switch.
    *
-   * Changing it re-seeds the form and clears any result, because a result
-   * belonging to one row shown under another's baseline would be worse than no
-   * result at all.
+   * Which policies are listed, which row seeds the form and which ports are
+   * honoured are the session's to be told (the dock model's `configure`, through
+   * `useDockModel`), not read from here.
    */
-  readonly seed?: TimelineEntry;
-  /**
-   * The application's own resolvers.
-   *
-   * Absent by default and absent in most deployments: it is the only way a
-   * devtools panel can cause I/O, so an application author supplies it
-   * deliberately or not at all. Without it the `Live` option is offered and
-   * disabled, with the reason — a control that vanishes teaches nobody why.
-   */
-  readonly ports?: EvaluationPortsLayer;
-  /**
-   * A session the host owns, so the form, the capture and the result outlive
-   * this component — `DevtoolsDock` passes one, which is what keeps them across
-   * a tab switch. When given, `sightings`, `seed` and `ports` are the session's
-   * to be told (`useSimulationSession`), not read from here.
-   */
-  readonly session?: SimulationSession;
+  readonly session: SimulationSession;
 }
 
-export const Simulator: FC<SimulatorProps> = ({ session, ...own }) =>
-  session === undefined ? <OwnedSimulator {...own} /> : <SharedSimulator session={session} />;
-
-const OwnedSimulator: FC<Omit<SimulatorProps, "session">> = (props) => (
-  <SimulatorView view={useSimulationSession(props)} />
-);
-
-const SharedSimulator: FC<{ readonly session: SimulationSession }> = ({ session }) => (
+export const Simulator: FC<SimulatorProps> = ({ session }) => (
   <SimulatorView view={useSimulationSnapshot(session)} />
 );
 
 const SimulatorView: FC<{ readonly view: SimulationSessionView }> = ({ view }) => {
-  const { session, snapshot, run } = view;
+  const { session, snapshot } = view;
   const { policy } = snapshot;
 
-  if (policy._tag === "None") {
+  if (policy._tag === "Empty") {
     return (
       <p style={{ ...muted, padding: 16 }} data-testid="qadi-simulator-empty">
         {/* E7.1 — an empty form with a dead run button teaches nobody why it is
@@ -110,7 +79,7 @@ const SimulatorView: FC<{ readonly view: SimulationSessionView }> = ({ view }) =
 
   return (
     <div style={{ padding: 12 }} data-testid="qadi-simulator">
-      <Controls snapshot={snapshot} session={session} onRun={run} />
+      <Controls snapshot={snapshot} session={session} />
 
       <SubjectCard snapshot={snapshot} session={session} />
       <CheckCard snapshot={snapshot} session={session} />
@@ -118,7 +87,9 @@ const SimulatorView: FC<{ readonly view: SimulationSessionView }> = ({ view }) =
       {policy._tag === "Seeded" ? <UnseededCard unseeded={policy.unseeded} /> : null}
 
       <RunView state={snapshot.run} stale={snapshot.stale} />
-      {snapshot.baseline === undefined ? null : <BaselineCard baseline={snapshot.baseline} />}
+      {snapshot.baseline === undefined ? null : (
+        <BaselineCard baseline={snapshot.baseline} reading={snapshot.baselineReading} />
+      )}
       {snapshot.run._tag === "Ran" && snapshot.run.report !== undefined ? (
         <WhatIfTable report={snapshot.run.report} />
       ) : null}
@@ -152,23 +123,9 @@ const row: CSSProperties = { display: "flex", gap: 8, alignItems: "center", flex
 const Controls: FC<{
   readonly snapshot: SimulationSnapshot;
   readonly session: SimulationSession;
-  readonly onRun: (kind: "Run" | "Sweep") => void;
-}> = ({ snapshot, session, onRun }) => {
+}> = ({ snapshot, session }) => {
   const running = snapshot.run._tag === "Running";
-  const { policy } = snapshot;
-  // The option the dropdown shows is a reading of the policy the session holds,
-  // never the other way round: the session is told which policy was picked, by
-  // value, from the very list this render drew.
-  const selected = Match.value(policy).pipe(
-    Match.tagsExhaustive({
-      None: () => "",
-      Chosen: (chosen) => String(chosen.index),
-      Evicted: () => "evicted",
-      Seeded: () => "seeded",
-    }),
-  );
-  const plan = snapshot.plan;
-  const causesIO = plan?.causesIO === true;
+  const { policyMenu, cost } = snapshot;
 
   return (
     <div style={{ ...row, marginBottom: 10 }}>
@@ -176,23 +133,14 @@ const Controls: FC<{
         aria-label="Policy"
         data-testid="qadi-simulator-policy"
         style={input}
-        value={selected}
-        onChange={(event) => {
-          // "seeded" and "evicted" are already selected when they exist, so they
-          // cannot fire; anything that is not a listed position names no policy.
-          const picked = /^\d+$/.test(event.target.value)
-            ? snapshot.sightings[Number(event.target.value)]
-            : undefined;
-          if (picked !== undefined) session.choosePolicy(picked.policy);
-        }}
+        value={policyMenu.selected}
+        // A position of the list this render drew, which the session maps to the
+        // policy it names; this parses nothing.
+        onChange={(event) => session.choosePolicyAt(event.target.selectedIndex)}
       >
-        {policy._tag === "Seeded" ? <option value="seeded">from the replayed row</option> : null}
-        {policy._tag === "Evicted" ? (
-          <option value="evicted">{policy.label} — no longer in the log</option>
-        ) : null}
-        {snapshot.sightings.map((sighting, index) => (
-          <option key={`${sighting.label}-${index}`} value={index}>
-            {sighting.label}
+        {policyMenu.options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
           </option>
         ))}
       </select>
@@ -234,7 +182,7 @@ const Controls: FC<{
         style={button(false)}
         disabled={running}
         data-testid="qadi-simulator-run"
-        onClick={() => onRun("Run")}
+        onClick={() => session.run("Run")}
       >
         run
       </button>
@@ -243,7 +191,7 @@ const Controls: FC<{
         style={button(false)}
         disabled={running}
         data-testid="qadi-simulator-sweep"
-        onClick={() => onRun("Sweep")}
+        onClick={() => session.run("Sweep")}
       >
         what if
       </button>
@@ -251,16 +199,10 @@ const Controls: FC<{
       {/* Before the sweep, never after it: a count discovered afterwards is not a
           warning (E3.2). And the count is the count the sweep runs. */}
       <span
-        style={{ ...muted, fontSize: font.sizeSmall, ...(causesIO ? { color: colors.error } : {}) }}
+        style={{ ...muted, fontSize: font.sizeSmall, ...(cost.warns ? { color: colors.error } : {}) }}
         data-testid="qadi-simulator-cost"
       >
-        {snapshot.refusal !== undefined
-          ? `a run would be refused: ${snapshot.refusal.reason}`
-          : plan === undefined
-            ? ""
-            : causesIO
-              ? `a sweep runs ${plan.evaluations} evaluations against your live resolvers`
-              : `a sweep runs ${plan.evaluations} evaluations, all in this process`}
+        {cost.sentence}
       </span>
     </div>
   );
@@ -346,9 +288,7 @@ const CheckCard: FC<CardProps> = ({ snapshot, session }) => {
           style={input}
           value={draft.action ?? ""}
           data-testid="qadi-action"
-          // Absent, not empty. `hasAction` fails with `MissingAction` when no
-          // action was supplied, and an empty string is a different question.
-          onChange={(event) => session.edit(withAction(draft, actionOf(event.target.value)))}
+          onChange={(event) => session.setAction(event.target.value)}
         />
       </div>
       <div style={row}>
@@ -432,9 +372,7 @@ const ResultCard: FC<{
   readonly result: Extract<RunState, { _tag: "Ran" }>;
   readonly stale: boolean;
 }> = ({ result, stale }) => {
-  const outcome = result.outcome;
-  // A simulation discharges nothing, so no gate report ever arrives for it.
-  const reading = readOutcome(result.question.policy, outcome, undefined);
+  const { outcome, reading } = result;
   return (
     <>
       <section style={panel} data-testid="qadi-simulator-result">
@@ -503,8 +441,7 @@ const SimulatedFailure: FC<{ readonly error: EvaluationError }> = ({ error }) =>
       {/* As screen 2: a failure has no trace, so there is no requirement
           tree — and an empty one would read as "nothing was required",
           which reads as "allowed" (INV-QD-006). */}
-      A lookup this evaluation depended on failed, so nothing was decided.
-      This is not a denial.
+      {FAILURE_IS_NOT_A_DENIAL}
     </p>
   </div>
 );
@@ -531,7 +468,10 @@ const Duration: FC<{
 };
 
 /** Whether the reconstruction reproduces the row it was seeded from. */
-const BaselineCard: FC<{ readonly baseline: Baseline }> = ({ baseline }) => {
+const BaselineCard: FC<{
+  readonly baseline: Baseline;
+  readonly reading: BaselineReading | undefined;
+}> = ({ baseline, reading }) => {
   if (baseline._tag === "Unavailable") {
     return (
       <section style={panel} data-testid="qadi-baseline">
@@ -541,16 +481,13 @@ const BaselineCard: FC<{ readonly baseline: Baseline }> = ({ baseline }) => {
     );
   }
 
-  const matches = matchesBaseline(baseline);
   return (
     <section
-      style={{ ...panel, borderColor: matches ? colors.allow : colors.border }}
+      style={{ ...panel, borderColor: reading?.matches === true ? colors.allow : colors.border }}
       data-testid="qadi-baseline"
     >
       <div style={heading}>baseline {baseline.evaluationId}</div>
-      <div data-testid="qadi-baseline-state">
-        {matches ? "matches — this reconstruction reproduces the logged decision" : summarise(baseline)}
-      </div>
+      <div data-testid="qadi-baseline-state">{reading?.sentence}</div>
       {baseline.caveat === undefined ? null : (
         <p
           style={{ ...muted, marginBottom: 0, marginTop: 6, color: colors.error }}
@@ -561,37 +498,6 @@ const BaselineCard: FC<{ readonly baseline: Baseline }> = ({ baseline }) => {
       )}
     </section>
   );
-};
-
-/**
- * What differed, in one line.
- *
- * The `Compared` arm names the outermost node whose verdict turned when one did,
- * because "the verdict flipped" is a boolean the reader already has and "at
- * which node" is the thing they came for.
- */
-const summarise = (baseline: Extract<Baseline, { _tag: "Checked" }>): string => {
-  const comparison = baseline.comparison;
-  if (comparison._tag === "BecameError") {
-    return `this reconstruction failed with ${comparison.error._tag} where the logged one decided`;
-  }
-  if (comparison._tag === "Recovered") {
-    return "this reconstruction decided where the logged one failed";
-  }
-  if (comparison._tag === "StillFailed") {
-    return comparison.same
-      ? `the same failure, ${comparison.after._tag}`
-      : `a different failure: ${comparison.before._tag} then, ${comparison.after._tag} now`;
-  }
-  const flipped = comparison.flipped;
-  if (flipped !== undefined) {
-    return `differs — ${flipped.policyTag} at ${describeTracePath(flipped.path)} was ${
-      flipped.before ? "allowed" : "denied"
-    } and is now ${flipped.after ? "allowed" : "denied"}`;
-  }
-  return `differs at ${String(comparison.differences.length)} node${
-    comparison.differences.length === 1 ? "" : "s"
-  }, with the same verdict`;
 };
 
 // ---------------------------------------------------------------------------

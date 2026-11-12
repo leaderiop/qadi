@@ -1,16 +1,25 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Equal from "effect/Equal";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
+import * as Result from "effect/Result";
 import * as TestClock from "effect/testing/TestClock";
 import { attributeResolverPort } from "../src/AttributeResolver.ts";
-import { Allow, isAllowed } from "../src/Decision.ts";
+import { Allow, Deny, isAllowed } from "../src/Decision.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
-import { ObligationRecord } from "../src/DecisionRecord.ts";
-import type { DecisionRecord, ObligationOutcome, SinkRecord } from "../src/DecisionRecord.ts";
+import { Decided, Failed, ObligationRecord } from "../src/DecisionRecord.ts";
+import type {
+  DecisionOutcome,
+  DecisionRecord,
+  ObligationOutcome,
+  SinkRecord,
+} from "../src/DecisionRecord.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import type { CacheOutcome } from "../src/EvaluationMetrics.ts";
 import { decisionsTotal, evaluationErrorsTotal } from "../src/EvaluationMetrics.ts";
+import { MissingResource } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import { obligation } from "../src/Obligation.ts";
 import { decide, enforce } from "../src/Qadi.ts";
@@ -19,8 +28,10 @@ import { explain, renderExplanation } from "../src/Explanation.ts";
 import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
 import { questionOf } from "../src/Question.ts";
+import type { QuestionOptions } from "../src/Question.ts";
 import * as P from "../src/Policy.ts";
-import { obligationRecordFor } from "../src/SinkEmit.ts";
+import { decodeSinkRecord, encodeSinkRecord } from "../src/SinkCodec.ts";
+import { decisionRecordFor, obligationRecordFor } from "../src/SinkEmit.ts";
 import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
@@ -517,6 +528,67 @@ describe("the cache is visible per decision, and flushable", () => {
     }).pipe(Effect.provide(testLayer(allowed))));
 });
 
+/**
+ * A record `evaluate` emits is its own round trip: an absent `resource`, `action`
+ * or `cache` is an absent key on it, as `obligationRecordFor` already leaves one.
+ *
+ * Until ARCH-71 the decision projections passed all three through as possibly
+ * `undefined`-valued own keys, so the record a sink received was not `Equal` to
+ * the record decoded from its own encoding (the wire omits an undefined key, and
+ * `Equal.equals` tells a present-undefined key from an absent one).
+ */
+describe("a record evaluate emits is its own round trip (ARCH-71)", () => {
+  const roundTrip = (record: DecisionRecord): DecisionRecord => {
+    const encoded = encodeSinkRecord(record);
+    assert.isTrue(Result.isSuccess(encoded), "the record encodes");
+    if (Result.isFailure(encoded)) return record;
+    const decoded = decodeSinkRecord(encoded.success);
+    assert.isTrue(Result.isSuccess(decoded), "the encoding decodes");
+    if (Result.isFailure(decoded) || decoded.success._tag !== "Decision") return record;
+    return decoded.success;
+  };
+
+  it.effect("a bare decided record has no resource, action or cache key", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+
+      yield* evaluate(P.hasPermission(read)).pipe(Effect.provide(sink.layer));
+
+      const record = sink.seen[0];
+      assert.isDefined(record);
+      if (record === undefined) return;
+      assert.strictEqual(record.outcome._tag, "Decided");
+      for (const key of ["resource", "action", "cache"]) {
+        assert.isFalse(Object.hasOwn(record, key), key);
+      }
+      assert.isTrue(Equal.equals(roundTrip(record), record));
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("a bare failed record has no resource, action or cache key", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+
+      yield* Effect.result(evaluate(P.hasAttribute("clearance", M.gte(3)))).pipe(
+        Effect.provide(sink.layer),
+      );
+
+      const record = sink.seen[0];
+      assert.isDefined(record);
+      if (record === undefined) return;
+      assert.strictEqual(record.outcome._tag, "Failed");
+      for (const key of ["resource", "action", "cache"]) {
+        assert.isFalse(Object.hasOwn(record, key), key);
+      }
+      // A `Failed` cause crosses the wire as a defect, so the outcome is compared
+      // by tag and the rest of the record by its keys and values.
+      const back = roundTrip(record);
+      assert.deepStrictEqual(Object.keys(back).sort(), Object.keys(record).sort());
+      assert.strictEqual(back.outcome._tag, "Failed");
+    }).pipe(
+      Effect.provide(testLayer(subjectWith({}), { AttributeResolver: brokenAttributes })),
+    ));
+});
+
 describe("the obligation gate is recorded", () => {
   const audited = P.obliged(obligation("audit.log"), P.hasPermission(read));
   const advised = P.obliged(
@@ -962,6 +1034,88 @@ describe("obligationRecordFor projects the question (SinkEmit.ts)", () => {
     assert.isFalse(Object.hasOwn(record, "resource"));
     assert.isFalse(Object.hasOwn(record, "title"));
     assert.notInclude(JSON.stringify(record), "secret");
+  });
+});
+
+describe("decisionRecordFor projects the question (SinkEmit.ts)", () => {
+  const policy = P.hasPermission(read);
+  const stamp = { evaluationId: "eval-7", at: 42 };
+  const allowOutcome = new Decided({
+    decision: new Allow({
+      evaluationId: "eval-7",
+      subjectId: makeSubjectId("u"),
+      durationMillis: 0,
+      trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
+    }),
+  });
+  const denyOutcome = new Decided({
+    decision: new Deny({
+      evaluationId: "eval-7",
+      subjectId: makeSubjectId("u"),
+      durationMillis: 0,
+      trace: {
+        policyTag: "HasPermission",
+        allowed: false,
+        children: [],
+        obligations: [],
+        reason: "no",
+      },
+    }),
+  });
+  const decidedOutcomes: ReadonlyArray<DecisionOutcome> = [allowOutcome, denyOutcome];
+  const failed = new Failed({ error: new MissingResource({ attribute: "owner" }) });
+  const shapes: ReadonlyArray<{ readonly name: string; readonly options: QuestionOptions }> = [
+    { name: "bare", options: {} },
+    { name: "resource only", options: { resource: { id: "doc-1" } } },
+    { name: "action only", options: { action: "approve" } },
+    { name: "resource and action", options: { resource: { id: "doc-1" }, action: "approve" } },
+  ];
+  const caches: ReadonlyArray<CacheOutcome | undefined> = [undefined, "hit", "coalesced", "miss"];
+
+  const check = (
+    outcome: DecisionOutcome,
+    options: QuestionOptions,
+    cache: CacheOutcome | undefined,
+  ) => {
+    const question = questionOf(allowed, policy, options);
+    const record = decisionRecordFor(question, stamp, outcome, cache);
+    assert.strictEqual(record._tag, "Decision");
+    assert.strictEqual(record.evaluationId, "eval-7");
+    assert.strictEqual(record.at, 42);
+    assert.strictEqual(record.subjectId, allowed.id);
+    assert.strictEqual(record.policy, policy);
+    assert.strictEqual(record.outcome, outcome);
+    assert.strictEqual(record.resource, options.resource);
+    assert.strictEqual(record.action, options.action);
+    assert.strictEqual(record.cache, cache);
+    // Own exactly when defined: an `undefined`-valued key is not the same record.
+    assert.strictEqual(Object.hasOwn(record, "resource"), options.resource !== undefined);
+    assert.strictEqual(Object.hasOwn(record, "action"), options.action !== undefined);
+    assert.strictEqual(Object.hasOwn(record, "cache"), cache !== undefined);
+  };
+
+  it("a decided record reads the stamp and the question across every shape and cache answer", () => {
+    for (const outcome of decidedOutcomes) {
+      for (const { options } of shapes) {
+        for (const cache of caches) check(outcome, options, cache);
+      }
+    }
+  });
+
+  it("a failed record reads the stamp and the question across every shape, with no cache", () => {
+    for (const { options } of shapes) check(failed, options, undefined);
+  });
+
+  it("an undefined cache argument is an absent key, not an undefined-valued one", () => {
+    const record = decisionRecordFor(questionOf(allowed, policy), stamp, allowOutcome, undefined);
+    assert.deepStrictEqual(Object.keys(record).sort(), [
+      "_tag",
+      "at",
+      "evaluationId",
+      "outcome",
+      "policy",
+      "subjectId",
+    ]);
   });
 });
 

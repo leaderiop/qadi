@@ -9,9 +9,14 @@ import * as Schema from "effect/Schema";
 import fc from "fast-check";
 import { attributeResolverPort } from "../src/AttributeResolver.ts";
 import { customPredicatePort } from "../src/CustomPredicate.ts";
+import { decisionHistoryPort } from "../src/DecisionHistory.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
+import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import { toJson, toJsonRecord } from "../src/JsonHazard.ts";
 import { PortWireReply, RemotePortFailure } from "../src/PortWire.ts";
+import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
+import { signatureHistoryPort } from "../src/SignatureHistory.ts";
+import type { SignatureQuery } from "../src/SignatureHistory.ts";
 
 const wire = attributeResolverPort.wire;
 
@@ -130,5 +135,75 @@ describe("the reply union", () => {
 
   it("carries no cause: an Unavailable reply has nothing but its tag", () => {
     assert.deepStrictEqual(Object.keys(RemotePortFailure.Unavailable()), ["_tag"]);
+  });
+});
+
+/**
+ * The exact JSON each port's question puts on a wire (ARCH-69, D-01): pinned so
+ * that making `toQuestion` state every member changes no byte. An absent
+ * optional member is absent from the JSON, never an `undefined` key.
+ */
+describe("the wire bytes of a question", () => {
+  const alice = makeSubjectId("alice");
+  const doc = makeResourceId("doc-1");
+  const aliceSubject = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
+  const encoded = (result: Result.Result<unknown, string>) => Result.getOrThrow(result);
+
+  it("an attribute question is its subject and attribute", () => {
+    assert.deepStrictEqual(encoded(attributeResolverPort.wire.encodeQuestion([alice, "level"])), {
+      subjectId: "alice",
+      attribute: "level",
+    });
+  });
+
+  it("a relationship question carries depth only when it has one", () => {
+    const ask = (depth: number | undefined) =>
+      encoded(
+        relationshipResolverPort.wire.encodeQuestion([
+          { subjectId: alice, relation: "owner", resourceId: doc, depth },
+        ]),
+      );
+    assert.deepStrictEqual(ask(undefined), { subjectId: "alice", relation: "owner", resourceId: "doc-1" });
+    assert.deepStrictEqual(ask(3), {
+      subjectId: "alice",
+      relation: "owner",
+      resourceId: "doc-1",
+      depth: 3,
+    });
+  });
+
+  it("a history question carries its resource only when it has one", () => {
+    const ask = (resourceId: typeof doc | undefined) =>
+      encoded(
+        decisionHistoryPort.wire.encodeQuestion([{ subjectId: alice, event: "approved", resourceId }]),
+      );
+    assert.deepStrictEqual(ask(undefined), { subjectId: "alice", event: "approved" });
+    assert.deepStrictEqual(ask(doc), { subjectId: "alice", event: "approved", resourceId: "doc-1" });
+  });
+
+  it("a signature question carries each optional member only when present", () => {
+    const ask = (query: SignatureQuery) =>
+      encoded(signatureHistoryPort.wire.encodeQuestion([query]));
+    assert.deepStrictEqual(ask({ subjectId: alice, resourceId: undefined }), { subjectId: "alice" });
+    assert.deepStrictEqual(
+      ask({ subjectId: alice, resourceId: undefined, meaning: undefined, signerRole: undefined }),
+      { subjectId: "alice" },
+    );
+    assert.deepStrictEqual(
+      ask({ subjectId: alice, resourceId: doc, meaning: "approved", signerRole: "manager" }),
+      { subjectId: "alice", resourceId: "doc-1", meaning: "approved", signerRole: "manager" },
+    );
+  });
+
+  it("a custom-predicate question carries its resource and params only when present", () => {
+    const ask = (resource: { readonly id: string } | undefined, params: unknown) =>
+      encoded(customPredicatePort.wire.encodeQuestion(["isOwner", aliceSubject, resource, params]));
+    assert.deepStrictEqual(ask(undefined, undefined), { subjectId: "alice", name: "isOwner" });
+    assert.deepStrictEqual(ask({ id: "doc-1" }, { strict: true }), {
+      subjectId: "alice",
+      name: "isOwner",
+      resource: { id: "doc-1" },
+      params: { strict: true },
+    });
   });
 });

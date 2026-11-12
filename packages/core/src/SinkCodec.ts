@@ -55,6 +55,7 @@
 import * as Match from "effect/Match";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
+import * as Struct from "effect/Struct";
 import type { DecisionDisagreement, Trace } from "./Decision.ts";
 import type { DecisionOutcome, SinkRecord, StoredRecord } from "./DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord, stampRecord } from "./DecisionRecord.ts";
@@ -73,10 +74,15 @@ import {
   SinkRecordNotDecodable,
   SinkRecordNotEncodable,
 } from "./Errors.ts";
-import { makeResourceId, makeSubjectId } from "./Identity.ts";
 import { MAX_DECODE_DEPTH, Policy, policyDepth, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
 import { wireHazard } from "./JsonHazard.ts";
 import { EncodeRefusal } from "./JsonRefusal.ts";
+import {
+  DECISION_RECORD_TAG,
+  decisionRecordFields,
+  OBLIGATION_RECORD_TAG,
+  obligationRecordFields,
+} from "./SinkRecordFields.ts";
 import { DecodeRefusal, WIRE_VERSIONS } from "./SinkWire.ts";
 import type { WireVersion } from "./SinkWire.ts";
 
@@ -129,39 +135,22 @@ const OutcomeWire = Schema.Union([
 type OutcomeWire = typeof OutcomeWire.Type;
 
 /**
- * A version-2 decision's fields, in the order they are written.
- *
- * `at` is `Schema.Finite`: the inbound twin of `wireHazard`'s `NonFinite`
- * refusal, so a stored `1e400` (which `JSON.parse` reads as `Infinity`) or a
- * `NaN` is `Malformed` rather than a timestamp every reader must distrust.
+ * A version-2 decision's fields, in the order they are written: the envelope
+ * `_tag` and `version`, the record's own fields (`SinkRecordFields.ts`, which also
+ * documents `at`'s finiteness) and the outcome as the wire carries it.
  */
 const decisionV2Fields = {
-  _tag: Schema.Literal("Decision"),
+  _tag: Schema.Literal(DECISION_RECORD_TAG),
   version: Schema.Literal(2),
-  evaluationId: Schema.String,
-  at: Schema.Finite,
-  subjectId: Schema.String,
-  policy: Policy,
-  resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
-  action: Schema.optional(Schema.String),
-  cache: Schema.optional(Schema.Literals(["hit", "coalesced", "miss"])),
+  ...decisionRecordFields.fields,
   outcome: OutcomeWire,
 };
 
-/** A version-2 obligation record's fields. */
+/** A version-2 obligation record's fields, in the order they are written. */
 const obligationsV2Fields = {
-  _tag: Schema.Literal("Obligations"),
+  _tag: Schema.Literal(OBLIGATION_RECORD_TAG),
   version: Schema.Literal(2),
-  evaluationId: Schema.String,
-  at: Schema.Finite,
-  outcome: Schema.Literals(["Discharged", "HandlerFailed", "Refused", "NotRequired"]),
-  obligationIds: Schema.Array(Schema.String),
-  // Optional envelope keys, the first use of ADR-QD-096's rule for the future:
-  // a record written before they existed lacks them, and a reader that does not
-  // declare them drops them silently.
-  subjectId: Schema.optional(Schema.String),
-  action: Schema.optional(Schema.String),
-  resourceId: Schema.optional(Schema.String),
+  ...obligationRecordFields.fields,
 };
 
 /**
@@ -172,7 +161,10 @@ const obligationsV2Fields = {
  * (ADR-QD-096's 2026-10-06 amendment): the version-1 reader, which upgraded
  * pre-0.10 bytes into this type, was removed in 0.11.0.
  */
-const SinkRecordWire = Schema.Union([Schema.Struct(decisionV2Fields), Schema.Struct(obligationsV2Fields)]);
+const SinkRecordWire = Schema.Union([
+  Schema.Struct(decisionV2Fields),
+  Schema.Struct(obligationsV2Fields),
+]);
 
 type SinkRecordWire = typeof SinkRecordWire.Type;
 
@@ -192,7 +184,33 @@ const outcomeOf: (outcome: DecisionOutcome) => OutcomeWire = Match.type<Decision
 );
 
 /**
+ * Deletes from `fresh` its own keys whose value is `undefined`, and returns it.
+ *
+ * The wire never carried such a key (a property whose value is `undefined`
+ * crosses as absent), and a `Schema.Struct` encode writes one it is handed, so
+ * {@link project} drops them here instead of listing the optional fields: the
+ * list is `SinkRecordFields.ts`'s, and this names none of it (ARCH-71, ADR-QD-135).
+ * **Mutates its argument, so call it only on an object just built** (a spread
+ * literal, as {@link project} does): that saves a second copy on a path every
+ * sink runs per record. Top level only; a nested `undefined` (inside `resource`)
+ * is not touched, as before.
+ */
+const omitUndefined = <A extends object>(fresh: A): A => {
+  for (const key in fresh) {
+    if (fresh[key] === undefined) delete fresh[key];
+  }
+  return fresh;
+};
+
+/**
  * The wire projection of a record, ready for the schema encode.
+ *
+ * Adds `version` and, for a decision, the outcome as the wire carries it; every
+ * other field is the record's own, spread whole, so this names no envelope field
+ * and a field added to `SinkRecordFields.ts` crosses with no edit here (ARCH-71,
+ * ADR-QD-135). The struct's encode writes the keys in its own order and drops any
+ * key it does not declare; {@link omitUndefined} leaves out an optional key
+ * whose value is `undefined`.
  *
  * `Match.tagsExhaustive` over `SinkRecord`, not a ternary on `record._tag`
  * (issue #109): `SinkRecord` has exactly two tags today, so a ternary reads as
@@ -201,29 +219,9 @@ const outcomeOf: (outcome: DecisionOutcome) => OutcomeWire = Match.type<Decision
  */
 const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>().pipe(
   Match.tagsExhaustive({
-    Obligations: (record) => ({
-      _tag: "Obligations" as const,
-      version: 2 as const,
-      evaluationId: record.evaluationId,
-      at: record.at,
-      outcome: record.outcome,
-      obligationIds: record.obligationIds,
-      ...(record.subjectId === undefined ? {} : { subjectId: record.subjectId }),
-      ...(record.action === undefined ? {} : { action: record.action }),
-      ...(record.resourceId === undefined ? {} : { resourceId: record.resourceId }),
-    }),
-    Decision: (record) => ({
-      _tag: "Decision" as const,
-      version: 2 as const,
-      evaluationId: record.evaluationId,
-      at: record.at,
-      subjectId: record.subjectId,
-      policy: record.policy,
-      ...(record.resource === undefined ? {} : { resource: record.resource }),
-      ...(record.action === undefined ? {} : { action: record.action }),
-      ...(record.cache === undefined ? {} : { cache: record.cache }),
-      outcome: outcomeOf(record.outcome),
-    }),
+    Obligations: (record) => omitUndefined({ ...record, version: 2 as const }),
+    Decision: (record) =>
+      omitUndefined({ ...record, version: 2 as const, outcome: outcomeOf(record.outcome) }),
   }),
 );
 
@@ -265,11 +263,15 @@ const rebuildOutcome: (
  * Rebuilds a record from an already-validated version-2 wire value.
  *
  * **Not a validating step, and module-private for that reason.** It
- * `Match`-matches an already-typed `SinkRecordWire` into the record classes,
- * nothing more; {@link decodeSinkRecord} runs the depth guard and the
- * untrusted schema decode first. It used to be exported as `fromWireUnsafe`,
- * where a caller who called it on a `JSON.parse` result skipped validation
- * entirely with nothing at the type level to stop it (PH-05).
+ * `Match`-matches an already-typed `SinkRecordWire` into the record classes:
+ * strips `version`, runs {@link rebuildOutcome} on a decision's outcome, and
+ * constructs with every other field as the schema decoded it, so it names no
+ * envelope field (ARCH-71, ADR-QD-135). It does not strip `_tag` (the class
+ * sets its own after its arguments) or the wire's `outcome` (the rebuilt one
+ * replaces it): stripping either changes no record, only the order of its keys. {@link decodeSinkRecord} runs the
+ * depth guard and the untrusted schema decode first. It used to be exported as
+ * `fromWireUnsafe`, where a caller who called it on a `JSON.parse` result skipped
+ * validation entirely with nothing at the type level to stop it (PH-05).
  *
  * `Match.tagsExhaustive` over `SinkRecordWire`, not an `if (wire._tag === …)`,
  * for the reason {@link project} gives. The outcome is one tagged value and
@@ -279,38 +281,18 @@ const rebuild: (wire: SinkRecordWire) => Result.Result<SinkRecord, DecisionDisag
   Match.type<SinkRecordWire>().pipe(
     Match.tagsExhaustive({
       Obligations: (wire) =>
-        Result.succeed(
-          new ObligationRecord({
-            evaluationId: wire.evaluationId,
-            at: wire.at,
-            outcome: wire.outcome,
-            obligationIds: wire.obligationIds,
-            ...(wire.subjectId === undefined ? {} : { subjectId: makeSubjectId(wire.subjectId) }),
-            ...(wire.action === undefined ? {} : { action: wire.action }),
-            ...(wire.resourceId === undefined
-              ? {}
-              : { resourceId: makeResourceId(wire.resourceId) }),
-          }),
-        ),
-      Decision: (wire) =>
-        Result.map(
+        Result.succeed(new ObligationRecord(Struct.omit(wire, ["version"]))),
+      Decision: (wire) => {
+        const fields = Struct.omit(wire, ["version"]);
+        return Result.map(
           rebuildOutcome(wire.outcome)({
             evaluationId: wire.evaluationId,
             subjectId: wire.subjectId,
             policyTag: wire.policy._tag,
           }),
-          (outcome) =>
-            new DecisionRecord({
-              evaluationId: wire.evaluationId,
-              at: wire.at,
-              subjectId: makeSubjectId(wire.subjectId),
-              policy: wire.policy,
-              ...(wire.resource === undefined ? {} : { resource: wire.resource }),
-              ...(wire.action === undefined ? {} : { action: wire.action }),
-              ...(wire.cache === undefined ? {} : { cache: wire.cache }),
-              outcome,
-            }),
-        ),
+          (outcome) => new DecisionRecord({ ...fields, outcome }),
+        );
+      },
     }),
   );
 
@@ -375,7 +357,6 @@ const preEncodeHazard: (record: SinkRecord) => EncodeRefusal | undefined = Match
     },
   }),
 );
-
 
 /** The wire schema's encoder, built once. It writes version 2, the one version there is. */
 const encodeWire = Schema.encodeResult(SinkRecordWire);

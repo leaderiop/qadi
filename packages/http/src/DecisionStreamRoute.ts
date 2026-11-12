@@ -35,7 +35,7 @@
  * **SSE rather than a WebSocket**, and the reasoning is the traffic, not taste.
  * Records flow one way; a reader never sends a decision back. SSE is plain HTTP,
  * so it goes through the same `HttpRouter`, the same middleware and the same
- * `guardRoute` as every other route here — a socket would need an upgrade path
+ * `addGuardedRoute` as every other route here — a socket would need an upgrade path
  * outside all three, and would have to re-answer authorization on its own terms.
  * `EventSource` also reconnects by itself, and a reconnect reads the backlog
  * again, so a dropped connection recovers with the minimal protocol above and
@@ -57,7 +57,7 @@
  * unset must never be what opens a route. A deployment that wants this off in
  * production does not mount it.
  *
- * **`guardRoute` runs once, at connect — and again, periodically, for as long
+ * **`addGuardedRoute` runs once, at connect — and again, periodically, for as long
  * as the connection stays open, when `reauth` is given.** Without it, a
  * revoked or logged-out principal whose connection is still open keeps
  * receiving every decision this process makes for as long as the stream
@@ -69,7 +69,7 @@
  * reusing whatever it answered at connect — and re-evaluates the policy
  * against the fresh subject. A failed lookup or a denial ends the stream;
  * `EventSource`'s own automatic reconnect is what recovers, going through
- * `guardRoute`'s full check again on the new connection, with no protocol of
+ * `addGuardedRoute`'s full check again on the new connection, with no protocol of
  * ours. Off by default: it is meaningless without a `SubjectExtractor` whose
  * `lookup` actually consults something that can change (a real deployment's
  * does; an in-memory lookup test double, like `decisionStream.test.ts`'s
@@ -97,7 +97,7 @@ import type { DecisionLogServeOptions } from "./DecisionLogHttp.ts";
 import { devtoolsPath } from "./DevtoolsRouteAddress.ts";
 import type { DevtoolsRouteOptions } from "./DevtoolsRouteAddress.ts";
 import { loadNoResource } from "./NoResource.ts";
-import { addGuardedRoute } from "./PermissionRegistry.ts";
+import { addGuardedRoute } from "./GuardRoute.ts";
 import { classifyHttpEnforcementFailure } from "./QadiHttpError.ts";
 import type { SubjectExtractor } from "./SubjectExtractor.ts";
 
@@ -216,8 +216,8 @@ export const decisionStreamRoute = <P extends Permission>(
       // all — it needs a fully discharged `Stream`, unlike
       // `Effect.Effect`, which threads `R` through. The reauth loop's
       // services are already in this handler's own ambient context
-      // (that is what `guardRoute`/`HttpRouter.add` provide them for,
-      // via `addGuardedRoute`), so capturing and re-providing that
+      // (that is what `addGuardedRoute` and `HttpRouter.add`
+      // provide them for), so capturing and re-providing that
       // context is what discharges them here rather than leaving them
       // for a caller who cannot see this route's internals to supply.
       const context = yield* Effect.context<StandingEvaluationServices | SubjectExtractor>();

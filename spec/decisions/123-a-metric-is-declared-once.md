@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-123                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-10                                     |
 > | Status         | Accepted — amends ADR-QD-052                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-10): Initial (ARCH-61, CCR-QD-401) |
+> | Change History | 1.1 (2026-11-12): amendment — PortName and PortSpanName live in PortName.ts, not PortMetrics.ts (ARCH-77, CCR-QD-419)<br>1.0 (2026-11-10): Initial (ARCH-61, CCR-QD-401) |
 
 ---
 
@@ -69,7 +69,8 @@ Five rules, generalising ADR-QD-052 from hydration to every `qadi_*` metric.
 The evaluation metrics live in a new `EvaluationMetrics.ts`, beside `PortMetrics.ts` and
 `HydrationMetrics.ts` — one module per population. `CacheOutcome` moved into it: the frequency's closed
 domain sits beside it, and `DecisionCache.ts` imports this module, so the other direction would be a
-type-only cycle `madge` counts (ADR-QD-037); `PortMetrics.ts` owns `PortName` for the same reason.
+type-only cycle `madge` counts (ADR-QD-037); `PortMetrics.ts` owned `PortName` for the same reason
+(since moved to `PortName.ts`; see the amendment below).
 `CacheOutcome` is still exported from the root under the same name.
 
 No id, description, type, boundary, preregistered word or attribute value changed. The registry key an
@@ -118,3 +119,12 @@ new gate number, no devtools reader, and this record amending ADR-QD-052.
 Amends [ADR-QD-052](./052-hydration-is-counted-where-both-ends-can-see-it.md). Reads ADR-QD-009
 (observability comes from Effect), ADR-QD-037 (`madge` counts type-only edges), ADR-QD-051 (no span
 changes), ADR-QD-076 (`ignoreStatic`), ADR-QD-099 (a closed entry-point list). BEH-QD-368, INV-QD-259.
+
+## Amendment (2026-11-12, CCR-QD-419)
+
+`PortName` and `PortSpanName` no longer live in `PortMetrics.ts`. They are declared in
+`packages/core/src/PortName.ts`, an import-free leaf, so a port module takes what a port *is* from a
+module that counts nothing (ARCH-77, [ADR-QD-094](./094-a-port-is-described-once.md)). The Decision's
+sentence that `PortMetrics.ts` owns `PortName` is therefore corrected above to past tense. Its reason
+stands: `PortMetrics.ts` still imports the leaf, not the other way round, so the type-only cycle
+ADR-QD-037 counts cannot form. No metric id, description, type or registry key changed.

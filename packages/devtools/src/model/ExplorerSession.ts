@@ -26,22 +26,24 @@ import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
-import * as Match from "effect/Match";
 import type * as Schema from "effect/Schema";
 import * as SchemaIssue from "effect/SchemaIssue";
 import { DEFAULT_MAX_DEPTH, fromJson, policyDepth, simplify, toJson } from "@qadi/core";
 import type { Policy, PolicyDecodeTooDeep } from "@qadi/core";
 import { sameSighting, sightingFor, type PolicySighting } from "./Catalogue.ts";
-import { makeExternalStore, sameElements } from "./ExternalStore.ts";
-import { pinHead, resolveHeld } from "./HeldChoice.ts";
+import { makeExternalStore } from "./ExternalStore.ts";
+import { makeHeldChoice, type HeldChoice } from "./HeldChoice.ts";
 
 export type ExplorerView = "Tree" | "Json";
 export type DraftOrigin = "Pasted" | "Simplified";
 
-/** What the main pane shows. A draft hides the rail highlight and the eviction note. */
+/**
+ * What the main pane shows. A draft hides the rail highlight and the eviction note.
+ *
+ * The first two arms are `HeldChoice`'s own (ARCH-74, BEH-QD-466), not a re-mapping of them.
+ */
 export type ExplorerShown =
-  | { readonly _tag: "Listed"; readonly sighting: PolicySighting; readonly index: number }
-  | { readonly _tag: "Evicted"; readonly sighting: PolicySighting }
+  | Exclude<HeldChoice<PolicySighting>, { readonly _tag: "Empty" }>
   | { readonly _tag: "Draft"; readonly policy: Policy; readonly origin: DraftOrigin };
 
 export interface JsonPane {
@@ -177,9 +179,9 @@ interface Draft {
 }
 
 export const makeExplorerSession = (init?: ExplorerSessionInit): ExplorerSession => {
-  let sightings: ReadonlyArray<PolicySighting> = init?.sightings ?? [];
   /** The sighting the reviewer chose, held by value: the rail reorders as decisions arrive. */
-  let held: PolicySighting | undefined = pinHead(sightings, undefined);
+  const choice = makeHeldChoice(init?.sightings ?? [], sameSighting);
+  choice.pin();
   let draft: Draft | undefined;
   let view: ExplorerView = "Tree";
   let previewing = false;
@@ -201,29 +203,17 @@ export const makeExplorerSession = (init?: ExplorerSessionInit): ExplorerSession
   });
 
   const build = (): ExplorerSnapshot => {
+    const sightings = choice.list();
+    const resolved = choice.resolve();
     const shown: ExplorerShown | undefined =
       draft !== undefined
         ? { _tag: "Draft", policy: draft.policy, origin: draft.origin }
-        : Match.value(resolveHeld(sightings, held, sameSighting)).pipe(
-            Match.tagsExhaustive({
-              Empty: (): ExplorerShown | undefined => undefined,
-              Listed: (listed): ExplorerShown => ({
-                _tag: "Listed",
-                sighting: listed.value,
-                index: listed.index,
-              }),
-              Evicted: (gone): ExplorerShown => ({ _tag: "Evicted", sighting: gone.value }),
-            }),
-          );
+        : resolved._tag === "Empty"
+          ? undefined
+          : resolved;
     if (shown === undefined) return { _tag: "Empty", sightings };
 
-    const policy = Match.value(shown).pipe(
-      Match.tagsExhaustive({
-        Listed: (one) => one.sighting.policy,
-        Evicted: (one) => one.sighting.policy,
-        Draft: (one) => one.policy,
-      }),
-    );
+    const policy = shown._tag === "Draft" ? shown.policy : shown.value.policy;
     const simple = simplified(policy);
     return {
       _tag: "Showing",
@@ -253,13 +243,13 @@ export const makeExplorerSession = (init?: ExplorerSessionInit): ExplorerSession
     getSnapshot: store.getSnapshot,
 
     setSightings: (next) => {
-      if (sameElements(next, sightings)) return;
-      sightings = next;
-      held = pinHead(sightings, held);
+      if (!choice.setList(next)) return;
+      choice.pin();
       commit();
     },
 
     choose: (policy) => {
+      const held = choice.held();
       if (
         held !== undefined &&
         Equal.equals(held.policy, policy) &&
@@ -270,7 +260,7 @@ export const makeExplorerSession = (init?: ExplorerSessionInit): ExplorerSession
       ) {
         return;
       }
-      held = sightingFor(sightings, policy);
+      choice.choose(sightingFor(choice.list(), policy));
       draft = undefined;
       previewing = false;
       pending = undefined;

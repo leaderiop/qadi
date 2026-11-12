@@ -46,6 +46,7 @@ import * as Record from "effect/Record";
 import type { Decision } from "./Decision.ts";
 import type { EvaluationError } from "./Errors.ts";
 import { POLICY_TAGS } from "./Policy.ts";
+import type { CacheOutcomeSchema } from "./SinkRecordFields.ts";
 
 /**
  * Which of the cache's three documented paths a lookup took.
@@ -53,7 +54,7 @@ import { POLICY_TAGS } from "./Policy.ts";
  * `hit` — an already-completed entry. `coalesced` — joined another fiber's
  * in-flight `compute`. `miss` — this fiber ran `compute` itself.
  */
-export type CacheOutcome = "hit" | "coalesced" | "miss";
+export type CacheOutcome = typeof CacheOutcomeSchema.Type;
 
 /**
  * The untagged `qadi_decisions_total` counter, deliberately not exported.

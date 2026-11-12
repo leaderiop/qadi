@@ -15,9 +15,8 @@
  * nothing.
  */
 import type { CSSProperties, FC } from "react";
-import * as Match from "effect/Match";
 import type { Role } from "@qadi/core";
-import type { HeldChoiceStore } from "../model/HeldChoice.ts";
+import { heldIndex, heldValue, type HeldChoiceStore } from "../model/HeldChoice.ts";
 import { grantPath, roleSummary } from "../model/RoleTree.ts";
 import { useHeldChoiceSnapshot } from "./useExplorerSession.ts";
 import { button, colors, font, muted } from "./theme.ts";
@@ -35,7 +34,7 @@ export interface RoleViewerProps {
    * one parent name produces a role granting fewer permissions than its author
    * wrote.
    */
-  readonly unknownParents?: ReadonlyArray<string>;
+  readonly unknownParents?: ReadonlyArray<string> | undefined;
 }
 
 const chip = (own: boolean): CSSProperties => ({
@@ -47,14 +46,9 @@ export const RoleViewer: FC<RoleViewerProps> = ({ choice, unknownParents }) => {
   // Position is a reading of the current list, never the selection (see
   // `HeldChoice`). A role that left the list stays shown, and says so.
   const { list: roles, choice: resolved } = useHeldChoiceSnapshot(choice);
-  const shown = Match.value(resolved).pipe(
-    Match.tagsExhaustive({
-      Empty: () => ({ role: undefined, index: undefined, evicted: false }),
-      Listed: (listed) => ({ role: listed.value, index: listed.index, evicted: false }),
-      Evicted: (gone) => ({ role: gone.value, index: undefined, evicted: true }),
-    }),
-  );
-  const role = shown.role;
+  const role = heldValue(resolved);
+  const index = heldIndex(resolved);
+  const evicted = resolved._tag === "Evicted";
 
   if (role === undefined) {
     return (
@@ -69,14 +63,14 @@ export const RoleViewer: FC<RoleViewerProps> = ({ choice, unknownParents }) => {
 
   return (
     <div style={{ padding: 12 }} data-testid="qadi-roles">
-      {roles.length === 1 && !shown.evicted ? null : (
+      {roles.length === 1 && !evicted ? null : (
         <div style={{ display: "flex", gap: 4, marginBottom: 10, flexWrap: "wrap" }}>
-          {roles.map((candidate, index) => (
+          {roles.map((candidate, position) => (
             <button
               key={candidate.name}
               type="button"
               data-testid="qadi-role-chip"
-              style={button(index === shown.index)}
+              style={button(position === index)}
               onClick={() => choice.choose(candidate)}
             >
               {candidate.name}
@@ -85,7 +79,7 @@ export const RoleViewer: FC<RoleViewerProps> = ({ choice, unknownParents }) => {
         </div>
       )}
 
-      {shown.evicted ? (
+      {evicted ? (
         <p style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-role-evicted">
           {role.name} is no longer in the list
         </p>

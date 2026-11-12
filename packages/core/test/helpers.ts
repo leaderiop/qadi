@@ -14,6 +14,7 @@ import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
+import type { LeafOf } from "../src/PortDescription.ts";
 import { portsLayer } from "../src/Ports.ts";
 import type { PortOverrides } from "../src/Ports.ts";
 
@@ -297,3 +298,16 @@ export const chain = <T>(wrap: (inner: T) => T, n: number, leaf: T): T => {
   return current;
 };
 
+/**
+ * A policy leaf, narrowed to its own node type.
+ *
+ * The smart constructors (`P.hasActed`, …) return `Policy`, the whole union, and
+ * a port read takes the one node it answers (`LeafOf`, ARCH-70), so a test that
+ * builds a leaf with a constructor narrows it here, with a guard and without a
+ * cast. A leaf built as another tag is a test-writing mistake and throws.
+ */
+export const leafOf = <T extends P.Policy["_tag"]>(tag: T, policy: P.Policy): LeafOf[T] => {
+  const isTag = (candidate: P.Policy): candidate is LeafOf[T] => candidate._tag === tag;
+  if (isTag(policy)) return policy;
+  throw new Error(`expected a ${tag} leaf, built a ${policy._tag}`);
+};

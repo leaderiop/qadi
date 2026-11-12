@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-103                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted — amends ADR-QD-053, ADR-QD-080, ADR-QD-025 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-07): Initial (ARCH-23, CCR-QD-201) |
+> | Change History | 1.1 (2026-11-11): Note (ARCH-76, CCR-QD-418): useGateRegistration was removed (ADR-QD-140)<br>1.0 (2026-10-07): Initial (ARCH-23, CCR-QD-201) |
 
 ---
 
@@ -51,7 +51,9 @@ Nothing in the suite could see it, because nothing forced a collection.
   useQuestions`; a hook asking several questions registers one `GateInstance` per entry
   (`<useId>/<name>`), through `useGateRegistrations`, of which `useGateRegistration` is the
   one-element case. `useQuestions` is new: a policy and optionally a resource per entry.
-  `usePolicies` is its policy-only case.
+  `usePolicies` is its policy-only case. *(2026-11-11, ARCH-76: `useGateRegistration` was
+  removed, a single-question guard passes one identity to `useGateRegistrations`, which now
+  lives in `useGate.ts`; see [ADR-QD-140](140-a-gates-write-side-is-a-leaf-below-the-atom-set.md).)*
 - **Mutation scope.** `stryker.react.mjs` also mutates `QuestionBook.ts`, break threshold unchanged.
 
 ### Decisions taken (ARCH-23)

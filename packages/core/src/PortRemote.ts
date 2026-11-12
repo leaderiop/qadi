@@ -26,14 +26,16 @@ import * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
+import { anonymous } from "./AuthSubject.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
 import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
 import { foldPolicy, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
 import type { Policy } from "./Policy.ts";
 import { servePortRead } from "./PortAccess.ts";
 import { nonePort } from "./PortDerivation.ts";
-import type { PortName } from "./PortMetrics.ts";
-import type { PortServing, PortServingOf, ServedLeaves } from "./PortServing.ts";
+import type { LeafOf, ReadSite } from "./PortDescription.ts";
+import type { PortName } from "./PortName.ts";
+import type { PortServing, PortServingOf } from "./PortServing.ts";
 import { PortWireReply, RemotePortError, RemotePortFailure } from "./PortWire.ts";
 import { WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
 import { forEveryPort, mergePorts, tabulatePorts } from "./Ports.ts";
@@ -166,21 +168,37 @@ export const askRemotely = <K extends PortName>(
     }),
   );
 
-/** Each policy tag mapped to its own node type: the index that correlates a tag with its node (TS #47109). */
-type NodeOf = { readonly [T in Policy["_tag"]]: Extract<Policy, { readonly _tag: T }> };
+/**
+ * The site `servingFor` reads each leaf's request at: the library's own
+ * "no particular subject" (`anonymous`) asking about no resource.
+ *
+ * A `Resource`-scoped leaf at it yields exactly the request a read with no
+ * resource id annotates before it fails, so `servingFor` builds no request
+ * shape evaluation does not. The name a leaf asks cannot depend on the site (the
+ * law in `PortRemote.test.ts`), which is what makes one site enough.
+ */
+const SERVING_SITE: ReadSite = { subject: anonymous, resource: undefined };
 
 /**
- * The name `leaf` asks the port whose `leaves` these are, if that port reads
- * this tag at all.
+ * The name `leaf` asks the port `d` describes, when the port reads this tag at
+ * all, and whether it does.
  *
- * Typed through {@link NodeOf} rather than `Extract<Policy, …>` so the handler
- * stored under `tag` is applied to a node of exactly that tag.
+ * The name is `asked` of the request `d.asks` builds at {@link SERVING_SITE}: the
+ * same request a read of the leaf puts to the port, so what is served and what
+ * is read are one statement (ARCH-70, ADR-QD-134). Typed through {@link LeafOf}
+ * rather than `Extract<Policy, …>` so the entry stored under `tag` is applied to
+ * a node of exactly that tag.
  */
-const leafName = <T extends Policy["_tag"]>(
-  leaves: ServedLeaves,
+const askedOf = <K extends PortName, T extends Policy["_tag"]>(
+  d: DescriptionOf<K>,
   tag: T,
-  leaf: NodeOf[T],
-): string | undefined => leaves[tag]?.(leaf);
+  leaf: LeafOf[T],
+): { readonly asked: boolean; readonly name: string | undefined } => {
+  const ask = d.asks[tag];
+  return ask === undefined
+    ? { asked: false, name: undefined }
+    : { asked: true, name: d.serving.asked(ask(leaf, SERVING_SITE)) };
+};
 
 /**
  * The serving declaration a set of policies needs: every attribute, relation,
@@ -188,32 +206,37 @@ const leafName = <T extends Policy["_tag"]>(
  * any of them asks it.
  *
  * What a host that serves "the questions this application's policies can ask"
- * wants, derived rather than listed by hand. It reads each port's
- * `serving.leaves`, so a new port-reading leaf is one entry in one description
- * and nothing here changes. A property test pins it: every question `evaluate`
- * puts to a port for a generated policy is admitted by `servingFor([policy])`.
- * A matcher's `subject(...)` ref reads the subject the request already
- * carries, never a port, so only a node's own names are collected. Every port
- * a policy can reach is named, with an empty allowlist where it has no name to
- * give; an opt-in port with nothing asked contributes no member at all.
+ * wants, derived rather than listed by hand. The name a leaf asks is `asked` of
+ * the request each port's `asks` builds for it (the one statement of leaf to
+ * request, ARCH-70), read as an anonymous subject asking about no resource, so a
+ * new port-reading leaf is one entry in one description and nothing here
+ * changes. A property test pins it: every question `evaluate` puts to a port for
+ * a generated policy is admitted by `servingFor([policy])`, and a law test pins
+ * that a leaf's name is the same at every site. A matcher's `subject(...)` ref
+ * reads the subject the request already carries, never a port, so only a node's
+ * own names are collected. Every port a policy can reach is named, with an empty
+ * allowlist where it has no name to give; an opt-in port with nothing asked
+ * contributes no member at all.
  *
  * Runs once per node at start-up, never per request, which is why folding every
- * node past every port's facet is fine.
+ * node past every port is fine.
  */
 export const servingFor = (policies: Iterable<Policy>): PortServing => {
-  const heard = tabulatePorts<{ readonly [K in PortName]: Set<string> }>(() => new Set());
+  const heard = tabulatePorts<{
+    readonly [K in PortName]: { readonly names: Set<string>; asked: boolean };
+  }>(() => ({ names: new Set(), asked: false }));
   for (const policy of policies) {
     foldPolicy<void>(policy, (node) => {
       forEveryPort((d) => {
-        const name = leafName(d.serving.leaves, node._tag, node);
-        if (name !== undefined) heard[d.port].add(name);
+        const { asked, name } = askedOf(d, node._tag, node);
+        if (asked) heard[d.port].asked = true;
+        if (name !== undefined) heard[d.port].names.add(name);
       });
     });
   }
-  return forEveryPort((d): PortServing => d.serving.declare([...heard[d.port]].toSorted())).reduce<PortServing>(
-    (all, part) => ({ ...all, ...part }),
-    {},
-  );
+  return forEveryPort((d): PortServing =>
+    d.serving.declare({ names: [...heard[d.port].names].toSorted(), asked: heard[d.port].asked }),
+  ).reduce<PortServing>((all, part) => ({ ...all, ...part }), {});
 };
 
 /**

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-050                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-10-07): amendment — a chosen source that cannot be honoured is refused as a state, never replaced; a Live run captures, and the capture lives as long as the ports it came from (CCR-QD-199)<br>1.2 (2026-10-05): the sealed-sweep consequence names a decision log in place of the removed `decisionSinkRing` (ADR-QD-097) (CCR-QD-181)<br>1.1 (2026-09-19): Deployment requirement added for `Live` — it is a cross-subject attribute/relationship/history/signature read capability, not merely a data-source choice, and sealing (this ADR's own decision) does not restrict who may ask about whom; the host must gate the page or the `ports` prop to callers already authorized for that capability (.issues/medium/jessie-frazelle-JF-02.md)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.4 (2026-11-11): amendment — the source-choice rule (each source's availability, and that a Live run captures) is `prepareSource` in `model/SimulationSource.ts`, stated once; the session stores what it returns; corrects the 2026-10-07 amendment's "the session's rule" (ARCH-72, CCR-QD-414)<br>1.3 (2026-10-07): amendment — a chosen source that cannot be honoured is refused as a state, never replaced; a Live run captures, and the capture lives as long as the ports it came from (CCR-QD-199)<br>1.2 (2026-10-05): the sealed-sweep consequence names a decision log in place of the removed `decisionSinkRing` (ADR-QD-097) (CCR-QD-181)<br>1.1 (2026-09-19): Deployment requirement added for `Live` — it is a cross-subject attribute/relationship/history/signature read capability, not merely a data-source choice, and sealing (this ADR's own decision) does not restrict who may ask about whom; the host must gate the page or the `ports` prop to callers already authorized for that capability (.issues/medium/jessie-frazelle-JF-02.md)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 ---
 
@@ -163,3 +163,21 @@ stays fixtures for a caller who never chose.
 records its answers, making `Snapshot` available, is the session's rule rather
 than the component's. A capture is dropped when the `ports` it came from change,
 and kept across edits and re-seeds.
+
+## Amendment (2026-11-11, CCR-QD-414)
+
+**The source-choice rule is one function, `prepareSource`, in `model/SimulationSource.ts`** (ARCH-72). The
+2026-10-07 amendment (CCR-QD-199) says the Live-captures rule "is the session's rule rather than the component's",
+and the session did hold it: availability was written twice in `SimulationSession.ts` (`resolveSource`,
+`sourceOptions`), read a third time by `build()`, and the Live-captures rule sat in the run behind a
+`_tag === "Live"` check and a re-wrap. That sentence is corrected, not rewritten: what the rule says has not
+changed, and only where it lives has.
+
+- Each source's availability and its sentence are one table closed over `SourceChoice`, so a fourth source is a
+  compile error at that table; the options the screen shows and the choice a run prepares are both read from it.
+- "A Live run captures, which is what makes `Snapshot` available" is stated there and nowhere else. A Live
+  preparation builds the recorder and wraps it, and each run prepares its own, so a second run's capture holds only
+  what that run asked.
+- The session stores the options and the `Ready`/`Refused` result and inspects no source variant. A refusal is
+  still a state, never a replacement (the 2026-10-07 amendment's first paragraph), and `resolveSource` and
+  `sourceOptions` are gone.

@@ -84,6 +84,18 @@ export const isMismatch = (seeded: SeededDecision, decided: Decision): boolean =
 // ---------------------------------------------------------------------------
 
 /**
+ * The `DecisionWire` fields an allow entry does not carry: the subject lives on
+ * the envelope and the trace is replaced by a `disclosure`.
+ */
+const ALLOW_WITHHELD = ["subjectId", "trace"] as const;
+
+/**
+ * A deny entry withholds what an allow does, plus the two fields a denial
+ * discloses only under `includeTrace`, inside its `disclosure`.
+ */
+const DENY_WITHHELD = ["subjectId", "trace", "obligations", "reason"] as const;
+
+/**
  * One decision's wire form inside a payload, derived from `DecisionWire`.
  *
  * The subject lives on the envelope instead of each entry, and the trace (and,
@@ -92,12 +104,12 @@ export const isMismatch = (seeded: SeededDecision, decided: Decision): boolean =
  * twice.
  */
 const AllowEntry = DecisionWireAllow.mapFields((fields) => ({
-  ...Struct.omit(fields, ["subjectId", "trace"]),
+  ...Struct.omit(fields, ALLOW_WITHHELD),
   disclosure: AllowDisclosure,
 }));
 
 const DenyEntry = DecisionWireDeny.mapFields((fields) => ({
-  ...Struct.omit(fields, ["subjectId", "trace", "obligations", "reason"]),
+  ...Struct.omit(fields, DENY_WITHHELD),
   disclosure: DenyDisclosure,
 }));
 
@@ -221,11 +233,11 @@ const dehydrateDecision = (decision: Decision, includeTrace: boolean): Dehydrate
   const wire = encodeDecision(decision);
   return wire._tag === "Allow"
     ? {
-        ...Struct.omit(wire, ["subjectId", "trace"]),
+        ...Struct.omit(wire, ALLOW_WITHHELD),
         disclosure: includeTrace ? { _tag: "Disclosed", trace: wire.trace } : { _tag: "Withheld" },
       }
     : {
-        ...Struct.omit(wire, ["subjectId", "trace", "obligations", "reason"]),
+        ...Struct.omit(wire, DENY_WITHHELD),
         disclosure: includeTrace
           ? { _tag: "Disclosed", trace: wire.trace, reason: wire.reason }
           : { _tag: "Withheld" },

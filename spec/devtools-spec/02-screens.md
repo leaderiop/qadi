@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-02                                    |
-> | Revision       | 0.15 (draft)                                   |
+> | Revision       | 0.16 (draft)                                   |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.15 (2026-11-10): §1 says every panel's verdict colour comes from one treatment, and §2 that the Inspector and the Simulator read the outcome once, through readOutcome (ARCH-67, BEH-QD-429, BEH-QD-430, CCR-QD-409)<br>0.14 (2026-11-10): §5 says the three subject rows and four fixture rows are one description each in the model, and the what-if table drops and remedies a signature (ARCH-61, lost ARCH-48, ADR-QD-047, CCR-QD-400)<br>0.13 (2026-11-09): §3 and §4 say what the explorer and the role viewer show is kept across a tab switch, in a session the dock owns (ARCH-58, BEH-QD-337, CCR-QD-394)<br>0.12 (2026-10-07): §6 and §7 say the dock samples the diagnostics when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>0.11 (2026-10-07): §5 states the session, the signatures row and the refused run (ARCH-20, CCR-QD-199)<br>0.10 (2026-10-07): §2 and §6 say five port spans and four other ports; §6 names the registry's card order and says what a defaulted card shows (`PortReport.defaulted`), and its counts of `name?` shapes and required services are corrected (ARCH-21, CCR-QD-198)<br>0.9 (2026-10-05): §6 names a decision log's `clear` in place of the removed `decisionSinkRing`'s (CCR-QD-181)<br>0.8 (2026-08-24): §7's gap notes closed against what was built — hydration counts (CCR-QD-072) and the instance registry and lens (CCR-QD-073); recorded in CCR-QD-074<br>0.7 (2026-08-24): The resolver-call gap closed, and the note corrected — annotating the spans was half of it, and a reader was the other half (CCR-QD-071)<br>0.6 (2026-08-24): Screen 5 built, and §5 corrected on two counts it had asserted since the first draft — it runs on `@qadi/core`'s own layers rather than `@qadi/testing`'s, and "never against live resolvers" was the wrong rule (CCR-QD-070)<br>0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.16 (2026-11-11): §5 says the screen is a view of the dock's session: the dropdown, the cost line, the baseline sentence and the result's reading are the session's, and the session owns its runs through a scope (ARCH-73, BEH-QD-460, BEH-QD-461, CCR-QD-415)<br>0.15 (2026-11-10): §1 says every panel's verdict colour comes from one treatment, and §2 that the Inspector and the Simulator read the outcome once, through readOutcome (ARCH-67, BEH-QD-429, BEH-QD-430, CCR-QD-409)<br>0.14 (2026-11-10): §5 says the three subject rows and four fixture rows are one description each in the model, and the what-if table drops and remedies a signature (ARCH-61, lost ARCH-48, ADR-QD-047, CCR-QD-400)<br>0.13 (2026-11-09): §3 and §4 say what the explorer and the role viewer show is kept across a tab switch, in a session the dock owns (ARCH-58, BEH-QD-337, CCR-QD-394)<br>0.12 (2026-10-07): §6 and §7 say the dock samples the diagnostics when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>0.11 (2026-10-07): §5 states the session, the signatures row and the refused run (ARCH-20, CCR-QD-199)<br>0.10 (2026-10-07): §2 and §6 say five port spans and four other ports; §6 names the registry's card order and says what a defaulted card shows (`PortReport.defaulted`), and its counts of `name?` shapes and required services are corrected (ARCH-21, CCR-QD-198)<br>0.9 (2026-10-05): §6 names a decision log's `clear` in place of the removed `decisionSinkRing`'s (CCR-QD-181)<br>0.8 (2026-08-24): §7's gap notes closed against what was built — hydration counts (CCR-QD-072) and the instance registry and lens (CCR-QD-073); recorded in CCR-QD-074<br>0.7 (2026-08-24): The resolver-call gap closed, and the note corrected — annotating the spans was half of it, and a reader was the other half (CCR-QD-071)<br>0.6 (2026-08-24): Screen 5 built, and §5 corrected on two counts it had asserted since the first draft — it runs on `@qadi/core`'s own layers rather than `@qadi/testing`'s, and "never against live resolvers" was the wrong rule (CCR-QD-070)<br>0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -243,6 +243,13 @@ the result are still there on return. The Fixtures card has a fourth row,
 a chip is the text its codec writes, which decodes back to the same value, and an
 element naming a subject other than the form's is shown in full.
 
+**Which sources are offered comes from one preparation** (ARCH-72). The three
+source options, why each is or is not usable, and whether a chosen source runs or
+is refused are all read from `prepareSource` in the model
+([BEH-QD-455](../behaviors/29-devtools-simulator.md#beh-qd-455-a-source-choice-is-prepared-in-one-place)),
+so the selector and the run cannot disagree. A Live preparation is also what
+captures, which is what makes Snapshot usable.
+
 **Each input field is one description** (CCR-QD-400). The three subject rows and
 the four fixture rows are rows of one table in the model
 (`SimulationFields.ts`): the chips, the weakening sweep, the remedies' grants,
@@ -255,6 +262,15 @@ maps the session's reading of the form to editors (`addChip`, `removeChip`,
 `snapshot.fields`) and computes none of it; a blank or duplicate chip shows the
 session's reason beside the field it was typed into. The subject card's attribute
 editor is captioned "subject attributes", the name the replay's list gives it.
+
+**The screen is a view of the dock's session** (CCR-QD-415). It takes that session and
+nothing else: the policy dropdown's options and selection, the cost line, the baseline
+card's sentence and a finished result's reading are the session's, and the screen renders
+them and dispatches positions and text (`choosePolicyAt`, `setAction`) rather than
+values it parsed ([BEH-QD-460](../behaviors/29-devtools-simulator.md#beh-qd-460-the-simulator-renders-its-session-and-computes-nothing)).
+The session owns its runs through a scope the dock's owner holds, so leaving the screen
+or the dock ends a run in flight
+([BEH-QD-461](../behaviors/29-devtools-simulator.md#beh-qd-461-a-session-owns-its-runs)).
 
 Two corrections to this section, both found by re-deriving it from the code
 ([ADR-QD-050](../decisions/050-a-simulation-is-sealed.md)):

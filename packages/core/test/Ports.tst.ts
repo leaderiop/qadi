@@ -15,7 +15,7 @@ import type { ActedQuery, DecisionHistory } from "../src/DecisionHistory.ts";
 import type { CustomPredicateError, EnforcementErrorTagOf } from "../src/Errors.ts";
 import type { EvaluationServices, StandingEvaluationServices } from "../src/Evaluate.ts";
 import type { EvaluationId } from "../src/EvaluationId.ts";
-import type { PortName } from "../src/PortMetrics.ts";
+import type { PortName } from "../src/PortName.ts";
 import { forEveryPort, portsLayer, tabulatePorts } from "../src/Ports.ts";
 import { nonePort } from "../src/PortDerivation.ts";
 import type {

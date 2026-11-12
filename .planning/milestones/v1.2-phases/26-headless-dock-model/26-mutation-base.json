@@ -1,0 +1,18 @@
+{
+  "packages/devtools/src/model/DockSession.ts": {
+    "score": 100,
+    "noCoverage": 0
+  },
+  "packages/devtools/src/model/ExplorerSession.ts": {
+    "score": 91.57303370786516,
+    "noCoverage": 0
+  },
+  "packages/devtools/src/model/HeldChoice.ts": {
+    "score": 97.22222222222223,
+    "noCoverage": 0
+  },
+  "packages/devtools/src/model/SimulationSession.ts": {
+    "score": 96.93593314763231,
+    "noCoverage": 0
+  }
+}

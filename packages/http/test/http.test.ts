@@ -61,7 +61,6 @@ import {
   subjectExtractorBearer,
   toResponse,
 } from "../src/index.ts";
-import { guardRoute } from "../src/GuardRoute.ts";
 import { stack, stackWithCache } from "./fixtures/stack.ts";
 
 const readPermission = permission("document", "read");
@@ -371,7 +370,7 @@ describe("@qadi/http", () => {
     }));
 
   it.effect(
-    "guardRoute extracts the subject BEFORE loading the resource, so a broken credential " +
+    "addGuardedRoute extracts the subject BEFORE loading the resource, so a broken credential " +
       "store never pays loadResource's cost",
     () =>
       Effect.gen(function* () {
@@ -384,17 +383,14 @@ describe("@qadi/http", () => {
         const brokenStore = subjectExtractorBearer(() =>
           Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
         );
-        const route = HttpRouter.add(
-          "GET",
-          "/order-check",
-          guardRoute(readPermission, readPolicy, () =>
-            Effect.sync(() => {
-              resourceLoads += 1;
-              return {};
-            }),
-          )(() => Effect.succeed(HttpServerResponse.text("ok"))),
-        );
+        const route = addGuardedRoute("GET", "/order-check", readPermission, readPolicy, () =>
+          Effect.sync(() => {
+            resourceLoads += 1;
+            return {};
+          }),
+        )(() => Effect.succeed(HttpServerResponse.text("ok")));
         const app = route.pipe(
+          Layer.provideMerge(PermissionRegistryLive),
           Layer.provideMerge(brokenStore),
           Layer.provideMerge(EvaluationServicesTest),
           Layer.provideMerge(HttpServer.layerServices),

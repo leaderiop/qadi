@@ -25,7 +25,7 @@ import {
   sharedQuestionKeys,
   spanStruct,
 } from "../src/PortSpanEncode.ts";
-import type { PortName } from "../src/PortMetrics.ts";
+import type { PortName } from "../src/PortName.ts";
 import { PORTS } from "../src/Ports.ts";
 import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
 import { signatureHistoryPort } from "../src/SignatureHistory.ts";
@@ -266,6 +266,135 @@ describe("every port's description round-trips its span (ARCH-21)", () => {
       attributesOf({ "qadi.scope": "Elsewhere", "qadi.answer": "Maybe", "qadi.event": "raised" }),
     );
     assert.deepStrictEqual(row, { event: "raised" });
+  });
+});
+
+/**
+ * What each port's span question encodes to as written on the wire of a tracer:
+ * the description's own `pose`, plus the `interpreter` the read adds, through the
+ * question's keys. One exact `qadi.*` record per port for a request with every
+ * member set and one for a request with every optional member absent, so a pose
+ * that grew, lost or renamed a member moves a row (ARCH-69, PREQ-05).
+ */
+describe("every port's span question, as encoded (PREQ-05)", () => {
+  const aliceId = makeSubjectId("alice");
+  const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
+  const doc = makeResourceId("doc-1");
+
+  const questionOf = <Q extends SpanFields, Ans extends SpanFields, O, Args extends ReadonlyArray<unknown>>(
+    d: { readonly attributes: PortSpanAttributes<Q, Ans, O, Args> },
+    request: Args,
+  ) =>
+    encodeSpan(d.attributes.question, {
+      ...d.attributes.pose(request),
+      interpreter: "evaluate",
+    });
+
+  type Row = readonly [encoded: () => Readonly<Record<string, unknown>>, expected: Readonly<Record<string, unknown>>];
+
+  // The attribute and custom-predicate requests have no optional member, so
+  // they state no sparse row.
+  const attribute: Row = [
+    () => questionOf(attributeResolverPort, [aliceId, "tier"]),
+    { "qadi.subject_id": "alice", "qadi.attribute": "tier", "qadi.interpreter": "evaluate" },
+  ];
+  const custom: Row = [
+    () => questionOf(customPredicatePort, ["isOwner", alice, undefined, undefined]),
+    { "qadi.subject_id": "alice", "qadi.custom_predicate": "isOwner", "qadi.interpreter": "evaluate" },
+  ];
+
+  const CASES: { readonly [K in PortName]: { readonly full: Row; readonly sparse?: Row } } = {
+    AttributeResolver: { full: attribute },
+    CustomPredicate: { full: custom },
+    DecisionHistory: {
+      full: [
+        () =>
+          questionOf(decisionHistoryPort, [{ subjectId: aliceId, event: "raised", resourceId: doc }]),
+        {
+          "qadi.subject_id": "alice",
+          "qadi.event": "raised",
+          "qadi.scope": "Resource",
+          "qadi.resource_id": "doc-1",
+          "qadi.interpreter": "evaluate",
+        },
+      ],
+      sparse: [
+        () =>
+          questionOf(decisionHistoryPort, [
+            { subjectId: aliceId, event: "raised", resourceId: undefined },
+          ]),
+        {
+          "qadi.subject_id": "alice",
+          "qadi.event": "raised",
+          "qadi.scope": "Any",
+          "qadi.interpreter": "evaluate",
+        },
+      ],
+    },
+    RelationshipResolver: {
+      full: [
+        () =>
+          questionOf(relationshipResolverPort, [
+            { subjectId: aliceId, relation: "owner", resourceId: doc, depth: 3 },
+          ]),
+        {
+          "qadi.subject_id": "alice",
+          "qadi.relation": "owner",
+          "qadi.resource_id": "doc-1",
+          "qadi.depth": 3,
+          "qadi.interpreter": "evaluate",
+        },
+      ],
+      sparse: [
+        () =>
+          questionOf(relationshipResolverPort, [
+            { subjectId: aliceId, relation: "owner", resourceId: doc, depth: undefined },
+          ]),
+        {
+          "qadi.subject_id": "alice",
+          "qadi.relation": "owner",
+          "qadi.resource_id": "doc-1",
+          "qadi.interpreter": "evaluate",
+        },
+      ],
+    },
+    SignatureHistory: {
+      full: [
+        () =>
+          questionOf(signatureHistoryPort, [
+            { subjectId: aliceId, resourceId: doc, meaning: "approve", signerRole: "lead" },
+          ]),
+        {
+          "qadi.subject_id": "alice",
+          "qadi.meaning": "approve",
+          "qadi.scope": "Resource",
+          "qadi.signer_role": "lead",
+          "qadi.resource_id": "doc-1",
+          "qadi.interpreter": "evaluate",
+        },
+      ],
+      sparse: [
+        () =>
+          questionOf(signatureHistoryPort, [
+            { subjectId: aliceId, resourceId: undefined, meaning: undefined, signerRole: undefined },
+          ]),
+        { "qadi.subject_id": "alice", "qadi.scope": "Any", "qadi.interpreter": "evaluate" },
+      ],
+    },
+  };
+
+  for (const [port, { full, sparse }] of Object.entries(CASES)) {
+    it(`${port}: every member set`, () => {
+      assert.deepStrictEqual(full[0](), full[1]);
+    });
+    if (sparse === undefined) continue;
+    it(`${port}: optional members absent`, () => {
+      assert.deepStrictEqual(sparse[0](), sparse[1]);
+    });
+  }
+
+  it("the cases are exactly the registry's ports", () => {
+    assert.deepStrictEqual(Object.keys(CASES).sort(), Object.keys(PORTS).sort());
   });
 });
 

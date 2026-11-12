@@ -1,41 +1,42 @@
 ---
 gsd_state_version: "1.0"
-milestone: v1.1
-status: Milestone complete
-stopped_at: Completed 20-04-PLAN.md
-last_updated: "2026-11-10T00:00:00.000Z"
-last_activity: 2026-11-10
-last_activity_desc: "20-04 complete: BEH-QD-439, ADR-QD-132, INV-QD-025 note, CCR-QD-410, @qadi/core patch changeset; check:pr green; Phase 20 and milestone v1.1 (Phases 10-20) complete, not released"
-state_head: 856a092ab1da5af22c7dbf7a6044fa32cf55eeeb
+milestone: v1.2
+status: Awaiting next milestone
+stopped_at: Phase 29 complete — all phases complete
+last_updated: "2026-11-12T01:28:23.163Z"
+last_activity: 2026-11-12
+last_activity_desc: "Milestone v1.2 shipped as PR #156"
+state_head: eaf3b1fca18c2acddf74ce161533363d1b08625c
 progress:
-  total_phases: 11
-  completed_phases: 11
-  total_plans: 59
-  completed_plans: 59
+  total_phases: 9
+  completed_phases: 9
+  total_plans: 38
+  completed_plans: 38
   percent: 100
-current_phase: 20
+milestone_name: Arch Wave 7 (Phases 21-29)
+current_phase: 29
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-09)
+See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** v1.1 Arch Wave 6 — milestone complete (Phases 10-20); not released
+**Current focus:** Milestone v1.2 complete and archived (override_closeout, not released); next: /gsd-new-milestone
 
 ## Current Position
 
-Phase: 20 of 20 (DecisionCache shared computation), complete
-Plan: 4 of 4 in Phase 20; milestone v1.1 complete (all 11 phases, 59 plans)
-Status: Milestone v1.1 complete. Not released: a release happens only on the user's explicit request
-Last activity: 2026-11-10 -- 20-04 complete: BEH-QD-439 (a shared computation answers everyone still waiting, and nobody else), ADR-QD-132, INV-QD-025 Enforcement note, traceability, CCR-QD-410; the #64 paragraph in the pending @qadi/core patch changeset (decision-cache-claim-window.md); mutation DecisionCache.ts 0.9583 vs 0.9479, SharedComputation.ts 0.9857; check:pr exit 0; CACHE-01..04 and XC-01..06 ticked
+Phase: Milestone v1.2 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-11-12 -- Milestone v1.2 shipped as PR #156
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 59
+- Total plans completed: 73
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -53,6 +54,15 @@ Last activity: 2026-11-10 -- 20-04 complete: BEH-QD-439 (a shared computation an
 | 07 | 3 | - | - |
 | 08 | 6 | - | - |
 | 09 | 4 | - | - |
+| 21 | 5 | - | - |
+| 22 | 4 | - | - |
+| 23 | 4 | - | - |
+| 24 | 3 | - | - |
+| 25 | 5 | - | - |
+| 26 | 6 | - | - |
+| 27 | 3 | - | - |
+| 28 | 5 | - | - |
+| 29 | 3 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -90,6 +100,44 @@ Last activity: 2026-11-10 -- 20-04 complete: BEH-QD-439 (a shared computation an
 | Phase 13 P12 | 25 min | 4 tasks | 6 files |
 | Phase 14 P07 | 40 min | 2 tasks | 9 files |
 | Phase 20 P04 | 40 min | 3 tasks | 8 files |
+| Phase 21 P01 | 8 min | 3 tasks | 5 files |
+| Phase 21 P02 | 10 min | 2 tasks | 5 files |
+| Phase 21 P03 | 18 min | 3 tasks | 9 files |
+| Phase 21 P04 | 12 min | 2 tasks | 7 files |
+| Phase 21 P05 | 25 min | 3 tasks | 11 files |
+| Phase 22 P01 | 3 min | 1 tasks | 2 files |
+| Phase 22 P02 | 3 min | 3 tasks | 4 files |
+| Phase 22 P03 | 70min | 3 tasks | 23 files |
+| Phase 22 P04 | 17 min | 3 tasks | 20 files |
+| Phase 23 P01 | 26 min | 4 tasks | 5 files |
+| Phase 23 P02 | 31 min | 3 tasks | 7 files |
+| Phase 23 P03 | 8 min | 2 tasks | 3 files |
+| Phase 23 P04 | 35 min | 3 tasks | 11 files |
+| Phase 24 P01 | 8 min | 2 tasks | 3 files |
+| Phase 24 P02 | 10 min | 2 tasks | 6 files |
+| Phase 24 P03 | 12 min | 3 tasks | 10 files |
+| Phase 25 P01 | 6 min | 1 tasks | 1 files |
+| Phase 25 P02 | 7 min | 2 tasks | 2 files |
+| Phase 25 P03 | 13 min | 3 tasks | 12 files |
+| Phase 25 P04 | 12 min | 2 tasks | 4 files |
+| Phase 25 P05 | 9 min | 3 tasks | 11 files |
+| Phase 26 P01 | 5 min | 2 tasks | 3 files |
+| Phase 26 P02 | 7 min | 2 tasks | 2 files |
+| Phase 26 P03 | 9 min | 3 tasks | 14 files |
+| Phase 26 P04 | 3 min | 2 tasks | 14 files |
+| Phase 26 P05 | 4 min | 1 tasks | 1 files |
+| Phase 26 P06 | 8 min | 3 tasks | 10 files |
+| Phase 27 P01 | 11 min | 2 tasks | 3 files |
+| Phase 27 P02 | 7 min | 3 tasks | 21 files |
+| Phase 27 P03 | 14 min | 3 tasks | 9 files |
+| Phase 28 P01 | 5 min | 2 tasks | 1 files |
+| Phase 28 P02 | 6 min | 2 tasks | 4 files |
+| Phase 28 P03 | 25 min | 2 tasks | 2 files |
+| Phase 28 P04 | 8 min | 2 tasks | 6 files |
+| Phase 28 P05 | 25 min | 3 tasks | 12 files |
+| Phase 29 P01 | 5 min | 2 tasks | 22 files |
+| Phase 29 P02 | 2 min | 2 tasks | 4 files |
+| Phase 29 P03 | 25 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -97,8 +145,62 @@ Last activity: 2026-11-10 -- 20-04 complete: BEH-QD-439 (a shared computation an
 
 - v1.0 Arch Wave 5 decisions are logged in PROJECT.md (Key Decisions) and in full in
   `.planning/milestones/v1.0-phases/*/` (CONTEXT, SUMMARY, REVIEW-DISPOSITION files).
+- [Phase 21]: 21-01: phase base is ba38f367; PREQ-04 shown by hand (dropped signerRole compiles, caught only by PortConformance); ARCH-69 key law red on the four derived ports, wire bytes pinned green
+- [Phase 21]: 21-02: QuestionOf<Q> types toQuestion; portWire drops undefined members (presentMembers) before encodeUnknownResult; wire bytes unchanged
+- [Phase 21]: 21-03: makePortDescription derives key (canonicalKey of the wire question) and defect (failure of the squashed cause) for four ports; CustomPredicate states its own, documented; the ARCH-69 law replaced their key and defect pins
+- [Phase 21]: 21-04: portSpan (typed identity) holds each pose to PoseOf its span question: every member but interpreter, required key | undefined; an omitted member is a compile error, span attributes unchanged
+- [Phase 21]: Pending key changeset amended in place for ARCH-69; ADR-QD-107 pointer is a dated amendment section
+- [Phase 22]: D-02 = A: missing resource id leaves only the port span; requireResourceId deleted
+- [Phase 22]: D-05 = state once: leaf->request mapping stated once on each port description (asks); reads and servingFor derive from it; ADR-QD-134 records the override
+- [Phase 22]: 22-02: negative tstyche call pins over Effect-returning reads use a result-dropping Params<F> alias (a bare call is a floating-effect diagnostic, so it reads as not callable and could never be RED)
+- [Phase 22]: PortDescription carries exact per-port Asks (LeafRequests<P>) so d.asks[tag] correlates without a cast; askActed overloaded on AnyActedLeaf to keep toPredicate's error type unchanged
+- [Phase 22]: ADR-QD-134 records D-02 = A and D-05 = state once, quoted from _DECISIONS-v1.2.md with the standing instruction; D-05 overrides the planner's earlier choice
+- [Phase 22]: Predicate.ts Folded is { value } | undefined, removing its one equivalent mutant so the file's mutation score holds at its phase base
+- [Phase 23]: 23-01: record shape A (one Schema.Struct per record, Data.TaggedClass typed by it) with keys absent, from _DECISIONS-v1.2.md; the bench shows Schema.TaggedClass costs 5.3x to 140x per record on the evaluation path
+- [Phase 23]: 23-02: cache-outcome literals live in the package-private leaf SinkRecordFields.ts; CacheOutcome stays exported from EvaluationMetrics.ts as the schema's Type
+- [Phase 23]: 23-02: undefined-valued optional keys are dropped by one generic in-place omitUndefined in project, not a per-field encode transformation (0.2 to 0.3 us per field measured)
+- [Phase 23]: 23-02: SinkRecordTag is derived from the record tags (type-only import of the leaf); pnpm circular green. Small-record encode costs 5 to 10 percent more, inherent to the spread projection
+- [Phase 23]: 23-03: decisionRecordFor takes cache as an optional last parameter and builds resource, action and cache with conditional spreads, so absent stays absent (no shared keyed helper: a computed key needs a cast)
+- [Phase 23]: 23-04: ADR-QD-135 file is 135-sink-record-fields-stated-once.md (the leaf already links that path); rebuild strips only version because the _tag and outcome strips were no-ops that left surviving mutants
+- [Phase 24]: 24-01: prepareSource table test is red by absence in its own file; no defect to pin (D-01)
+- [Phase 24]: prepareSource's table builds a Ready lazily (thunk), so build() makes a recorder only for the chosen Live row
+- [Phase 24]: ADR-QD-136 unused: the source-choice rule moved, so ADR-QD-050 is amended (CCR-QD-414)
+- [Phase 24]: SimulationSession.ts mutation 0.9641 over its 0.9619 base after review: WR-01 (generation read before the last teardown yield) and the seeded policy held with its row (6c198da1); no human acceptance needed
+- [Phase 25]: 25-01: D-01 option D (FiberHandle) recorded; session owns its runs through a Scope; overrides ARCH-20 D-20-b
+- [Phase 25]: 25-02: every baseline sentence the view computes today is pinned at the session, including the same-verdict (1 and 2 nodes) and different-failure branches of summarise, so moving it into Replay.ts cannot lose a branch under the mutation gate
+- [Phase 25]: 25-03: three lifecycle mutants (finalizer generation bump, empty-fiber guard in supersede, land's generation check) are equivalent and left in place; SimulationSession.ts scores 0.9694 against a 0.9641 base
+- [Phase 25]: 25-03: choosePolicyAt and the policy menu share one leading-entry rule; cost.warns is the plan's causesIO alone (what the view coloured by)
+- [Phase 25]: 25-04: no DOM test deleted; each keeps wiring proof beside its 25-02 model counterpart
+- [Phase 25]: 25-04: BaselineCard reads snapshot.baselineReading as BaselineReading | undefined with optional chaining (session defines it whenever the baseline is Checked)
+- [Phase 25]: ADR-QD-137 (own number): a devtools session owns its runs through a scope; supersedes ARCH-20 D-20-b; no new invariant (BEH-QD-461 carries the lifecycle)
+- [Phase 26]: 26-01: M8's simulation half is read through policyMenu (selected option label), not policy._tag, so DockModel.test.ts survives 26-03's Chosen to Listed rename
+- [Phase 26]: 26-01: configure calls in DockModel.test.ts repeat any field set earlier, so the tests hold whether 26-02 reads an omitted field as unchanged or undefined
+- [Phase 26]: 26-02: configure stores new inputs first and calls simulation.setPorts unguarded (the session guards identity); an absent source reads as an empty Source; a replaced inner TimelineStore is dropped, not unsubscribed
+- [Phase 26]: 26-03: the session's held-choice cell is named chosen (not choice) to avoid shadowing; ExplorerShown is derived from HeldChoice (Exclude Empty | Draft); PolicyChoice is written out and kept equal by use (policyChoice returns resolve(), policyOf reads heldValue)
+- [Phase 26]: 26-03: HeldChoice overview row added in 26-03 (gate 13); 26-06 must not add a second
+- [Phase 26]: 26-04: host props the dock only passes through (gates, unknownParents, onInvalidate) travel as the rest of its own props typed Pick<DevtoolsDockProps, ...>, avoiding conditional spreads without widening the public props
+- [Phase 26]: 26-04: Activity hide/show rebuilds the whole dock model (paused returns to live, backlog re-read from the source); accepted per D-04/D-05/D-13, not fixed
+- [Phase 26]: 26-05: no model test had to be written to delete the 13 dock duplicates; every rule already had a green headless test
+- [Phase 26]: ADR-QD-138 left unused: the dock-model change amends ADR-QD-047 (Rev 1.12, CCR-QD-416); the plan's whole-file useOwnedSimulationSession grep on spec/overview.md cannot pass because change history names it and history is exempt
+- [Phase 27]: 27-01: no defect (D-01), new type pins and ordering test are green on the phase base; dropped unused guardRoute import from http.test.ts because noUnusedLocals fails typecheck
+- [Phase 27]: 27-02: addGuardedRoute's overload layer type is a private GuardedRoute<R, LR> alias over typeof HttpRouter.add, no builder kept; PermissionRegistry.tst.ts pins moved into GuardRoute.tst.ts
+- [Phase 27]: 27-03: both departures from ROUTE-01/ROUTE-03 wording (unguardedRoutes private sibling because of the barrel; /__permissions routes in PermissionRegistryRoute.ts because of the cycle) recorded in CCR-QD-417 and ADR-QD-036 Rev 1.10
+- [Phase 27]: 27-03: aggregate mutation drop closed by pinning the two AuthorizeRequest span names with tests, not by touching the baseline
+- [Phase 28]: 28-01 D-01 = A: split GateWriter.ts write side from hooks (useGate.ts), pure reconcile, derive GateAtoms; ADR-QD-140 amends ADR-QD-111 — Pre-recorded answer in _DECISIONS-v1.2.md (2026-11-11)
+- [Phase 28]: 28-01 D-02: useGateRegistration is deleted after its tests are retargeted to useGateRegistrations — Confirmed by the same pre-recorded D-01 row
+- [Phase 28]: 28-02: useGateRegistration deleted after its seven lifecycle tests moved to useGateRegistrations; mutation baseline recorded (aggregate 0.8239 over six files)
+- [Phase 28]: 28-03: reconcile returns a new Map; teardown reads registered.current at cleanup time and resets it; GREEN commit typed feat so the TDD gate sees it
+- [Phase 28]: 28-04: GateWriter.ts is the React-free write side (reconcile, sameIdentity exported but out of barrel); useGate.ts holds the hooks and GateAtoms = Pick<QadiAtoms, decision | decisions>
+- [Phase 28]: 28-05: ADR-QD-140 records outcome A (write side a leaf below the atom set, hooks above it), quoting the human's answer and the correction to the review's option A; ADR-QD-111 and ADR-QD-080 carry dated amendments
+- [Phase 29]: 29-01: D-02 taken in full (PortDescription.span is PortSpanOf<N>, no cast needed, fallback not used); mutation baseline of twelve files committed first (dd158b25 over phase_base 50c7292d)
+- [Phase 29]: TIDY-02 needed no new test: HydrationPayload.test.ts already decodes allow and deny under the untrusted options, with and without includeTrace
+- [Phase 29]: FAILURE_IS_NOT_A_DENIAL lives in devtools model/Verdict.ts and stays out of both barrels (D-05)
+- [Phase 29]: 29-03: no new ADR; ADR-QD-141 unused, narrowing recorded as an ADR-QD-094 amendment (CCR-QD-419)
 
 ### Pending Todos
+
+- v1.2: phases open on a `checkpoint:decision` (23-01, 25-01, 28-01; see ROADMAP); answer each once when its phase starts. 22-01's two were already answered in `_DECISIONS-v1.2.md` (done 2026-11-11).
+- v1.2: v1.1's phase dirs (10-20) are not yet archived to `.planning/milestones/v1.1-phases/`; do it with /gsd-complete-milestone when v1.1 is released or explicitly closed.
 
 - Before each phase executes, confirm its reserved numbers against PROJECT.md's wave-6 reservation table
   (grep `spec/` first). ARCH ids below 59 are never reused; CCR-QD-394 is used by ARCH-58.
@@ -113,13 +215,32 @@ Last activity: 2026-11-10 -- 20-04 complete: BEH-QD-439 (a shared computation an
 - Devtools replay: the other four ports' `none` answers still grant under `not(...)` on a capture miss (INV-QD-007 fail-open). Flipping each is one word in Capture.ts's `UNSEEN_REQUEST_IS_AN_OUTAGE`; needs a decision.
 - Write requirement lines as explicit ID lists, never ranges like `XC-01..05`: `phase.complete` cannot parse ranges.
 - Open review findings carried from v1.0 (warning/info): 01 WR-02/WR-03/IN-03; 02 IN-01..07; 04 IN-01..03; 05 WR-01/IN-01/IN-02; 07 IN-01..03; 09 IN-01. 01 and 08 VALIDATION.md files are still `draft`.
+- [Phase 22] Review findings (22-REVIEW-DISPOSITION.md): all seven fixed (WR-01 23e54421, WR-02 d4d62133, IN-01..05 3371400e..9e2b90bc). Phase 21's six findings also fixed (f0977945..7144dfba; 21-REVIEW-DISPOSITION.md).
+- [Phase 24] Review (24-REVIEW-DISPOSITION.md): WR-01/WR-02 fixed (1ad24867, 5977264c); IN-04/05/06 fixed (6c198da1, 12a6631c); IN-01 (build() makes and drops a recorder per commit while Live is chosen) and IN-03 (`Ready` spelled twice) open, info. Both still open after Phase 25 (re-checked 2026-11-11: `prepareSource` is called from build and run; `Ready` still spelled in the union and the `Extract`).
+- [Phase 25] Review (25-REVIEW-DISPOSITION.md): WR-02/WR-03/WR-04 fixed (0a6872c6, df588d1a, bb1dddb8); WR-01 skipped (synchronous-settle race unreachable while `simulate` goes through `DecisionCache`; reopens if a fixture run becomes synchronous); IN-01 (`BaselineCard` blank sentence if `reading` undefined) and IN-02 (stale comments in `Simulator.test.tsx`) open, info. Visual preserve check confirmed by the user ("All good, continue").
+- [Phase 26] Review (26-REVIEW-DISPOSITION.md): WR-01 fixed (0e340791, comments cited planning-only IDs); IN-01 (`useDockSnapshot`/`useExplorerSnapshot`/`useHeldChoiceSnapshot` pass a constant `undefined` run to `useRunningStore`), IN-02 (`DevtoolsDock`'s `nothing` source duplicates the model default; comment names `useTimeline`) and IN-03 (stale "was DevtoolsDock l.N" titles and a 26-05 to-do in `DockModel.test.ts`) open, info. UI review 22/24; the `Activity` remount and pixels are a human check in a real browser.
+- [Phase 27] Review (27-REVIEW-DISPOSITION.md): WR-01..03 fixed (82895714, f304bbc0, a4be4995: ADR-037/043/046 and three `@qadi/core` comments still named `guardRoute` as live); IN-01 (`GuardRoute.ts` "the one the module accepts" now ambiguous) and IN-02 ("lost ARCH-57's probe" typo, moved verbatim) open, info. ROUTE-01/ROUTE-03 delivered by intent (CCR-QD-417). `scripts/spec-revise.mjs` drops its document argument when `--date` is omitted (always pass `--date`; script untouched). Pre-existing stale citation `v4-http-smoke.test.ts:106` (`registerApi`) and a `stryker.http.mjs` comment still place code in `PermissionRegistry.ts`.
+- [Phase 28] Review (28-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01..IN-06 open, info ("three" re-exported types is four; stale `{@link useGates}` in `GateWriter.ts`; INV-QD-064 Source credits `GateWriter.ts` with `GateRegistry.ts`'s key logic; ADR-QD-140's "only test edit is one import" overstated; ADR-QD-053's amendment blockquote lacks a pointer to ADR-QD-140; no StrictMode lifecycle test — reviewer's probe showed correct). D-01 = A taken from `_DECISIONS-v1.2.md`. 28-03's executor died on a network error once and was resumed.
+- [Phase 29] Review (29-REVIEW-DISPOSITION.md): WR-01 fixed (7bddf8fb: ADR-QD-123's live line still placed `PortName` in `PortMetrics.ts`); IN-01 (`DENY_WITHHELD` restates `ALLOW_WITHHELD`'s fields), IN-02 (CCR-QD-419 says six and seven re-pointed modules; cites README Rev 1.155, now 1.156) and IN-03 (ADR-QD-123 amendment "still imports" should read "now imports") open, info. `astro check` (gate 15) shows an interactive `@astrojs/check` install prompt in this environment and only proceeds with stdin closed, so the website typecheck is effectively skipped (pre-existing; the final `pnpm check:pr` ran with `< /dev/null`).
+- [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
+- [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
+
+## Deferred Items
+
+Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_type: override_closeout):
+
+| Category | Phase | Item | Acknowledged |
+|----------|-------|------|--------------|
+| deferred_items | 24 | `spec/behaviors/29-devtools-simulator.md` carries BEH-QD-219..221 twice (pre-existing) | v1.2, 2026-11-12 |
+| deferred_items | 24 | `spec/traceability.md` behaviour 29 names `model/Sources.ts`; the module is `Source.ts` (pre-existing) | v1.2, 2026-11-12 |
 
 ## Session Continuity
 
-Last session: 2026-11-09T21:45:00Z
-Stopped at: Milestone v1.0 complete and archived
+Last session: 2026-11-12T00:06:29.782Z
+Stopped at: Phase 29 complete — all phases complete
 Resume file: None
 
 ## Operator Next Steps
+
 
 - Start the next milestone with /gsd-new-milestone

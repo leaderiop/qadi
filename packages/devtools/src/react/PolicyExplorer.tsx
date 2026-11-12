@@ -94,7 +94,7 @@ export const PolicyExplorer: FC<PolicyExplorerProps> = ({ session }) => {
             style={{ ...muted, fontSize: font.sizeSmall, marginBottom: 8 }}
             data-testid="qadi-policies-evicted"
           >
-            {snapshot.shown.sighting.label} is no longer in the log
+            {snapshot.shown.value.label} is no longer in the log
           </div>
         ) : null}
         <Toolbar snapshot={snapshot} session={session} />

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.15                                           |
+> | Revision       | 1.17                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.17 (2026-11-11): The one internal hook, useGates, is in useGate.ts (ARCH-76, CCR-QD-418, ADR-QD-140)<br>1.16 (2026-11-11): BEH-QD-465 — the dock is one model (makeDockModel owns the six stores and pushes the rail, one configure, the model reads its source in its own scope); BEH-QD-466 — a choice from a list has one shape (HeldChoice's three arms, one cell in both sessions); BEH-QD-389's note names the dock model, not the owned hook (ARCH-74, ADR-QD-047 amendment, CCR-QD-416)<br>1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -430,7 +430,7 @@ REQUIREMENT: One instance MUST register exactly once, under the surface its
 ```
 
 The five surfaces nest: `Can` reads a decision the way `useDecision` does. Every
-surface goes through one internal hook, `useGates` (`GateWriter.ts`, ADR-QD-111),
+surface goes through one internal hook, `useGates` (`useGate.ts`, ADR-QD-111, ADR-QD-140),
 naming itself, because registering in the primitive *and* in its callers reports
 one component as two instances with the inner one labelled a hook nobody called.
 The provider resolves its registry's writer once and hands it, absent unless
@@ -768,9 +768,11 @@ export interface DockSession {
 }
 ```
 
-> Package-private since [CCR-QD-405](../README.md#document-history): `DockSession` and
-> `useOwnedDockSession`. Specified because the dock relies on them; a host reaches the
-> behaviour through `DevtoolsDock`, not through these names (ADR-QD-047).
+> Package-private since [CCR-QD-405](../README.md#document-history): `DockSession`, and the
+> hook that owned it, now owned by the dock model
+> ([BEH-QD-465](#beh-qd-465-the-dock-is-one-model)). Specified because the dock relies on
+> it; a host reaches the behaviour through `DevtoolsDock`, not through this name
+> (ADR-QD-047).
 
 The dock's tab, the log's filters and the selected row used to be `useState`s, and the
 rows, counts and selection memos over them: rules a reviewer acts on, reachable only
@@ -821,6 +823,142 @@ leaving a screen and coming back, and a new timeline keeps the filters
 
 Pinned by `DockSession.test.ts`, headlessly, and through the dock by
 `DevtoolsDock.test.tsx`.
+
+## BEH-QD-465: The dock is one model
+
+> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) (amended, CCR-QD-416) ·
+> **Scope:** [ADR-QD-137](../decisions/137-a-devtools-session-owns-its-runs-through-a-scope.md)
+
+```ts
+export interface DockModelInputs {
+  readonly capacity?: number | undefined;
+  readonly catalogue?: Catalogue | undefined;
+  readonly ports?: EvaluationPortsLayer | undefined;
+  readonly source?: Source | undefined;
+}
+export interface DockModel {
+  readonly timeline: TimelineStore;
+  readonly dock: DockSession;
+  readonly explorer: ExplorerSession;
+  readonly roles: HeldChoiceStore<Role>;
+  readonly simulation: SimulationSession;
+  readonly sightings: () => ReadonlyArray<PolicySighting>;
+  readonly configure: (inputs: DockModelInputs) => void;
+}
+export const makeDockModel: (
+  init?: DockModelInputs,
+) => Effect.Effect<DockModel, never, Scope.Scope>;
+```
+
+> Package-private (ADR-QD-099), like `DockSession`: a host reaches the behaviour
+> through `DevtoolsDock`. Specified because the dock relies on it.
+
+The dock built the timeline, the policy rail, the explorer, the role choice, the
+simulation and its own session in React and joined them with layout effects, so the
+rules between them were reachable only by rendering. `makeDockModel` owns them, and
+`DevtoolsDock` is a view of it, through the one hook that builds it in a scope
+(`useDockModel`).
+
+```
+REQUIREMENT: Every screen's store MUST be the model's, and it MUST outlive its tab.
+```
+
+Leaving a screen and coming back finds the explorer's choice, the role choice, the
+simulation's form and the dock's tab where they were left.
+
+```
+REQUIREMENT: Each shown timeline, and each catalogue, MUST reach the dock session and
+             both rails before any reader sees it.
+```
+
+`catalogueOf` is computed once per change and handed to every store, so no two screens
+read different timelines ([INV-QD-296](../invariants.md)). A pause toggle moves the
+reading but not the shown timeline, and so reaches the host and not the rail.
+
+```
+REQUIREMENT: `configure` MUST dispatch only an input whose identity changed.
+```
+
+An unchanged prop resets nothing: not a capture, not a half-filled form, not a held
+choice. An omitted input reads as `undefined`.
+
+```
+REQUIREMENT: A tab change MUST change no other store.
+```
+
+```
+REQUIREMENT: A capacity change MUST empty the timeline and keep every choice.
+```
+
+A different bound is a different buffer, not a different review session: the timeline
+store the host holds is the same object, and the explorer's, the roles' and the
+simulation's choices stay held.
+
+```
+REQUIREMENT: The model MUST read its source in its own scope, and a new source MUST
+             supersede the previous read.
+```
+
+A source that goes away is replaced by an empty one.
+
+```
+REQUIREMENT: Closing the model's scope MUST interrupt the source read and a simulation
+             run in flight.
+```
+
+The model has no `dispose` and no `read` command; the scope is the lifetime
+(ADR-QD-137).
+
+Pinned by `DockModel.test.ts`, headlessly (M1 to M17 and the property P1), and through
+the dock by `DevtoolsDock.test.tsx`, which keeps the layout and the wiring only. A hide
+and a show of the dock in a React `Activity` rebuilds the model, so a paused dock
+returns to live and the backlog is read again; this is accepted
+(ADR-QD-047, CCR-QD-416).
+
+## BEH-QD-466: A choice from a list has one shape
+
+> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) (amended, CCR-QD-416)
+
+```ts
+export type HeldChoice<A> =
+  | { readonly _tag: "Empty" }
+  | { readonly _tag: "Listed"; readonly value: A; readonly index: number }
+  | { readonly _tag: "Evicted"; readonly value: A };
+export const heldValue: <A>(choice: HeldChoice<A>) => A | undefined;
+export const heldIndex: <A>(choice: HeldChoice<A>) => number | undefined;
+```
+
+A choice from a list is held by value, and where it is, against the list as it is now,
+is one of three arms. The simulation session, the explorer session and the role
+viewer's store each re-implemented that and each mapped it into a local union; they now
+embed one cell (`makeHeldChoice`), or use the store around it
+(`makeHeldChoiceStore`), and their own types carry its arms: `PolicyChoice` adds
+`Seeded`, `ExplorerShown` adds `Draft`.
+
+```
+REQUIREMENT: A held choice MUST read `Empty` when nothing is held and the list is
+             empty, `Listed` with its current index when the list holds it, and
+             `Evicted` when it does not.
+```
+
+A choice that leaves the list stays chosen; it is neither dropped nor replaced by a
+neighbour ([INV-QD-107](../invariants.md)). A listed choice resolves to the list's own
+element, the newest object, so a label or a tally read from it is current.
+
+```
+REQUIREMENT: Nothing held MUST read as the head, and a caller that wants the default not
+             to follow the head MUST pin it.
+```
+
+```
+REQUIREMENT: A listed choice's `index` MUST be a reading of the list as it is now, never
+             an input.
+```
+
+`heldValue` and `heldIndex` are the two readers; a view that wants the value or the
+position does not match on the arm to get them.
+
+Pinned by `HeldChoice.test.ts`, `SimulationSession.test.ts` and `ExplorerSession.test.ts`.
 
 ## BEH-QD-399: The role tree is the role walk
 
