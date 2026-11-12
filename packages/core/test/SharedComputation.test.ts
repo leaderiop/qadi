@@ -315,13 +315,17 @@ describe("SharedComputation", () => {
       assert.deepStrictEqual(settles, [{ claim: 2, exit: Exit.succeed(2) }]);
     }));
 
-  it.effect("reset forgets in-flight claims; the stale compute neither answers nor unclaims the fresh one", () =>
+  it.effect("reset supersedes in-flight claims: the stale compute settles nothing and neither answers nor unclaims the fresh one", () =>
     Effect.gen(function* () {
-      // Remembers nothing, so only `inFlight` decides join or claim (what a stale
-      // answer may write is the adapter's call: `DecisionCache`'s generation).
+      // Remembers nothing, so only `inFlight` decides join or claim; it records what
+      // is settled, because what a stale answer may write is the module's rule: a
+      // reset supersedes the claims in flight, and a superseded exit is never settled.
+      const settled: Array<Exit.Exit<number>> = [];
       const shared = makeSharedComputation<string, number, never>({
         cached: () => Option.none(),
-        claim: () => () => {},
+        claim: () => (exit) => {
+          settled.push(exit);
+        },
         onOutcome: () => Effect.void,
       });
       const runs = yield* Ref.make(0);
@@ -343,6 +347,7 @@ describe("SharedComputation", () => {
       // The stale compute settles first; its exit must not remove the fresh claim.
       yield* Deferred.succeed(stale, undefined);
       assert.deepStrictEqual(yield* Fiber.join(first), { value: 1, outcome: "miss" });
+      assert.deepStrictEqual(settled, [], "the superseded exit is never settled");
       const third = yield* Effect.forkChild(shared.run("k", compute));
       yield* settleTurns;
       assert.strictEqual(yield* Ref.get(runs), 2, "a third ask joins the fresh claim");
@@ -350,5 +355,200 @@ describe("SharedComputation", () => {
       yield* Deferred.succeed(fresh, undefined);
       assert.deepStrictEqual(yield* Fiber.join(second), { value: 2, outcome: "miss" });
       assert.deepStrictEqual(yield* Fiber.join(third), { value: 2, outcome: "coalesced" });
+      assert.deepStrictEqual(settled, [Exit.succeed(2)]);
+    }));
+
+  /** What each named compute did: started, and was cut short by an interrupt. */
+  interface Recording {
+    readonly started: Array<string>;
+    readonly interrupted: Array<string>;
+  }
+  const recorder = (): Recording => ({ started: [], interrupted: [] });
+
+  /** A compute that records its start, waits on `latch` interruptibly, and records an interrupt. */
+  const latched = (
+    record: Recording,
+    name: string,
+    value: number,
+    latch: Deferred.Deferred<void>,
+  ) =>
+    Effect.sync(() => record.started.push(name)).pipe(
+      Effect.andThen(Deferred.await(latch)),
+      Effect.as(value),
+      Effect.onInterrupt(() => Effect.sync(() => record.interrupted.push(name))),
+    );
+
+  /** As `latched`, but parked in an uninterruptible region (a port's checkout window) until `gate`. */
+  const parked = (
+    record: Recording,
+    name: string,
+    value: number,
+    started: Deferred.Deferred<void>,
+    gate: Deferred.Deferred<void>,
+  ) =>
+    Effect.sync(() => record.started.push(name)).pipe(
+      Effect.andThen(
+        Effect.uninterruptible(Deferred.succeed(started, undefined).pipe(Effect.andThen(Deferred.await(gate)))),
+      ),
+      Effect.as(value),
+      Effect.onInterrupt(() => Effect.sync(() => record.interrupted.push(name))),
+    );
+
+  it.effect("stale-last race: a superseded compute that settles after the fresh one answers its own waiter and writes nothing", () =>
+    Effect.gen(function* () {
+      const { cache, settled, shared } = harness();
+      const record = recorder();
+      const stale = yield* Deferred.make<void>();
+      const fresh = yield* Deferred.make<void>();
+
+      const first = yield* Effect.forkChild(shared.run("k", latched(record, "stale", 1, stale)));
+      yield* settleTurns;
+      shared.reset();
+      const second = yield* Effect.forkChild(shared.run("k", latched(record, "fresh", 2, fresh)));
+      yield* settleTurns;
+      assert.deepStrictEqual(record.started, ["stale", "fresh"], "an ask after reset claims afresh");
+
+      yield* Deferred.succeed(fresh, undefined);
+      assert.deepStrictEqual(yield* Fiber.join(second), { value: 2, outcome: "miss" });
+      assert.deepStrictEqual(settled, ["k:Success"]);
+      assert.strictEqual(cache.get("k"), 2);
+
+      yield* Deferred.succeed(stale, undefined);
+      assert.deepStrictEqual(yield* Fiber.join(first), { value: 1, outcome: "miss" });
+      yield* settleTurns;
+      assert.deepStrictEqual(settled, ["k:Success"], "the superseded exit is never settled");
+      assert.strictEqual(cache.get("k"), 2, "the stale answer does not overwrite the fresh one");
+
+      const later = yield* shared.run("k", latched(record, "later", 3, stale));
+      assert.deepStrictEqual(later, { value: 2, outcome: "hit" });
+      assert.deepStrictEqual(record.started, ["stale", "fresh"]);
+      assert.deepStrictEqual(record.interrupted, []);
+    }));
+
+  it.effect("stale-first race: a superseded compute that settles first writes nothing, and a third ask coalesces onto the fresh claim", () =>
+    Effect.gen(function* () {
+      const { cache, outcomes, settled, shared } = harness();
+      const record = recorder();
+      const stale = yield* Deferred.make<void>();
+      const fresh = yield* Deferred.make<void>();
+
+      const first = yield* Effect.forkChild(shared.run("k", latched(record, "stale", 1, stale)));
+      yield* settleTurns;
+      shared.reset();
+      const second = yield* Effect.forkChild(shared.run("k", latched(record, "fresh", 2, fresh)));
+      yield* settleTurns;
+      assert.deepStrictEqual(record.started, ["stale", "fresh"], "an ask after reset claims afresh");
+
+      yield* Deferred.succeed(stale, undefined);
+      assert.deepStrictEqual(yield* Fiber.join(first), { value: 1, outcome: "miss" });
+      yield* settleTurns;
+      assert.deepStrictEqual(settled, [], "the superseded exit is never settled");
+      assert.isFalse(cache.has("k"));
+
+      const third = yield* Effect.forkChild(shared.run("k", latched(record, "third", 3, fresh)));
+      yield* settleTurns;
+      assert.deepStrictEqual(record.started, ["stale", "fresh"], "the third ask starts no compute");
+      assert.deepStrictEqual(outcomes, ["miss", "miss", "coalesced"]);
+
+      yield* Deferred.succeed(fresh, undefined);
+      assert.deepStrictEqual(yield* Fiber.join(second), { value: 2, outcome: "miss" });
+      assert.deepStrictEqual(yield* Fiber.join(third), { value: 2, outcome: "coalesced" });
+      assert.deepStrictEqual(settled, ["k:Success"]);
+      assert.strictEqual(cache.get("k"), 2);
+      assert.deepStrictEqual(record.interrupted, []);
+    }));
+
+  it.effect("two-key race: one reset supersedes the claims of both keys; a superseded waiter is answered, a superseded compute whose last waiter leaves is interrupted, and neither writes", () =>
+    Effect.gen(function* () {
+      const { cache, settled, shared } = harness();
+      const record = recorder();
+      const staleA = yield* Deferred.make<void>();
+      const staleB = yield* Deferred.make<void>();
+      const freshA = yield* Deferred.make<void>();
+      const freshB = yield* Deferred.make<void>();
+
+      const waiterA = yield* Effect.forkChild(shared.run("a", latched(record, "stale a", 1, staleA)));
+      const waiterB = yield* Effect.forkChild(shared.run("b", latched(record, "stale b", 2, staleB)));
+      yield* settleTurns;
+      shared.reset();
+      const nextA = yield* Effect.forkChild(shared.run("a", latched(record, "fresh a", 3, freshA)));
+      const nextB = yield* Effect.forkChild(shared.run("b", latched(record, "fresh b", 4, freshB)));
+      yield* settleTurns;
+      assert.deepStrictEqual(
+        [...record.started].sort(),
+        ["fresh a", "fresh b", "stale a", "stale b"],
+        "an ask after reset claims afresh, for each key",
+      );
+
+      yield* Deferred.succeed(staleA, undefined);
+      assert.deepStrictEqual(yield* Fiber.join(waiterA), { value: 1, outcome: "miss" });
+      yield* settleTurns;
+      assert.deepStrictEqual(settled, [], "the superseded exit is never settled");
+
+      // Returns once the superseded compute is interrupted: its last waiter was the one leaving.
+      yield* Fiber.interrupt(waiterB);
+      assert.deepStrictEqual(record.interrupted, ["stale b"]);
+      assert.deepStrictEqual(settled, []);
+
+      yield* Deferred.succeed(freshA, undefined);
+      yield* Deferred.succeed(freshB, undefined);
+      assert.deepStrictEqual(yield* Fiber.join(nextA), { value: 3, outcome: "miss" });
+      assert.deepStrictEqual(yield* Fiber.join(nextB), { value: 4, outcome: "miss" });
+      assert.deepStrictEqual([...settled].sort(), ["a:Success", "b:Success"]);
+      assert.strictEqual(cache.get("a"), 3);
+      assert.strictEqual(cache.get("b"), 4);
+      assert.deepStrictEqual(record.interrupted, ["stale b"], "no fresh compute was interrupted");
+    }));
+
+  it.effect("parked-uninterruptible race: of two superseded computes parked uninterruptibly, the awaited one answers its waiter, the one its last waiter left is interrupted when its region ends, and neither writes", () =>
+    Effect.gen(function* () {
+      const { cache, settled, shared } = harness();
+      const record = recorder();
+      const keptParked = yield* Deferred.make<void>();
+      const leftParked = yield* Deferred.make<void>();
+      const gate = yield* Deferred.make<void>();
+      const fresh = yield* Deferred.make<void>();
+
+      const keptWaiter = yield* Effect.forkChild(
+        shared.run("kept", parked(record, "stale kept", 1, keptParked, gate)),
+      );
+      const leftWaiter = yield* Effect.forkChild(
+        shared.run("left", parked(record, "stale left", 2, leftParked, gate)),
+      );
+      yield* Deferred.await(keptParked);
+      yield* Deferred.await(leftParked);
+      shared.reset();
+      const nextKept = yield* Effect.forkChild(shared.run("kept", latched(record, "fresh kept", 3, fresh)));
+      const nextLeft = yield* Effect.forkChild(shared.run("left", latched(record, "fresh left", 4, fresh)));
+      yield* settleTurns;
+      assert.deepStrictEqual(
+        [...record.started].sort(),
+        ["fresh kept", "fresh left", "stale kept", "stale left"],
+        "an ask after reset claims afresh, for each key",
+      );
+
+      // The last leaver waits for the parked compute to leave its region: the stated cost.
+      const leaveReturned = yield* Deferred.make<void>();
+      yield* Effect.forkChild(
+        Fiber.interrupt(leftWaiter).pipe(Effect.andThen(Deferred.succeed(leaveReturned, undefined))),
+      );
+      yield* settleTurns;
+      assert.isFalse(yield* Deferred.isDone(leaveReturned), "the leave waits while the compute is parked");
+      assert.deepStrictEqual(record.interrupted, []);
+
+      yield* Deferred.succeed(gate, undefined);
+      assert.deepStrictEqual(yield* Fiber.join(keptWaiter), { value: 1, outcome: "miss" });
+      yield* Deferred.await(leaveReturned);
+      assert.deepStrictEqual(record.interrupted, ["stale left"]);
+      yield* settleTurns;
+      assert.deepStrictEqual(settled, [], "the superseded exits are never settled");
+      assert.isFalse(cache.has("kept"));
+      assert.isFalse(cache.has("left"));
+
+      yield* Deferred.succeed(fresh, undefined);
+      assert.deepStrictEqual(yield* Fiber.join(nextKept), { value: 3, outcome: "miss" });
+      assert.deepStrictEqual(yield* Fiber.join(nextLeft), { value: 4, outcome: "miss" });
+      assert.deepStrictEqual([...settled].sort(), ["kept:Success", "left:Success"]);
+      assert.deepStrictEqual(record.interrupted, ["stale left"], "no fresh compute was interrupted");
     }));
 });
