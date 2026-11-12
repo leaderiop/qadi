@@ -5,12 +5,12 @@
 > | Property       | Value                                                                  |
 > | -------------- | ---------------------------------------------------------------------- |
 > | Document ID    | QADI-ADR-137                                                           |
-> | Revision       | 1.1                                                                    |
+> | Revision       | 1.2                                                                    |
 > | Effective Date | 2026-11-11                                                             |
 > | Status         | Accepted — supersedes ARCH-20 D-20-b (an amendment to ADR-QD-047)     |
 > | Author         | Qadi Engineering                                                       |
 > | Classification | Architecture Decision Record                                           |
-> | Change History | 1.1 (2026-11-11): useScoped clears its value on cleanup, so a hidden Activity never leaves a child on a closed session (WR-02)<br>1.0 (2026-11-11): Initial (ARCH-73, CCR-QD-415)                        |
+> | Change History | 1.2 (2026-11-12): amendment — the timeline's read is scoped too; useRunningStore deleted (ARCH-82, CCR-QD-425)<br>1.1 (2026-11-11): useScoped clears its value on cleanup, so a hidden Activity never leaves a child on a closed session (WR-02)<br>1.0 (2026-11-11): Initial (ARCH-73, CCR-QD-415)                        |
 
 ---
 
@@ -124,3 +124,11 @@ number rather than an amendment's paragraph.
   `setTimeout(0)` and cancelled on remount). Rejected. It has the session on the first
   render, but it closes a tick late through a timer outside Effect (tests must wait), and a
   StrictMode double render builds a second, never-closed session.
+
+> **Amended 2026-11-12 (CCR-QD-425): the timeline follows the rule too.** Point 7's
+> exception no longer holds. `useTimeline` reads its source through a timeline feed built
+> in a scope `useScoped` holds, the dock model reads its source through the same feed, and
+> `useRunningStore` is deleted, so every devtools store that reads or runs anything is
+> built in a scope its owner holds. A hidden-then-shown tree therefore starts a fresh
+> timeline
+> ([BEH-QD-508](../behaviors/28-devtools-screens.md#beh-qd-508-the-diagnostics-and-the-timeline-live-as-long-as-their-owners-scope)).
