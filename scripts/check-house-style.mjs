@@ -620,8 +620,8 @@ const DECISION_READ_BUDGET_NAMES = {
  * `untrustedDecoder` (`packages/core/src/UntrustedDecode.ts`) is the one way
  * untrusted JSON is decoded: depth guard, preparation, strict decode. Eight
  * seams used to assemble that by hand and one of them skipped the guard, so a
- * strict `onExcessProperty`, a call to `exceedsJsonDepth` or a `Schema.decode*`
- * call anywhere else in `packages/*\/src` fails, and so does a budgeted file's
+ * strict `onExcessProperty`, a call to `exceedsJsonDepth`, a `Schema.decode*`
+ * call or a `JSON.parse` anywhere else in `packages/*\/src` fails, and so does a budgeted file's
  * count moving without this table changing. Checked in both directions, with a
  * names guard and a check that AGENTS.md section 7a's table lists exactly these
  * files, like `SCHEMA_ERROR_BUDGET` and `DECISION_READ_BUDGET`.
@@ -629,14 +629,18 @@ const DECISION_READ_BUDGET_NAMES = {
  * @type {Readonly<Record<string, number>>}
  */
 const UNTRUSTED_DECODE_BUDGET = {
-  // The decoder: the depth-guard import and its call, the strict option, the one `Schema.decodeUnknownResult`.
-  "packages/core/src/UntrustedDecode.ts": 4,
+  // The decoder: the depth-guard import and its call, the strict option, the one `Schema.decodeUnknownResult`, and `decodeText`'s `JSON.parse`.
+  "packages/core/src/UntrustedDecode.ts": 5,
   // The depth walk's declaration: package-private, reached only from the untrusted decoder.
   "packages/core/src/DecodeDepthGuard.ts": 1,
   // `recordJsonOf`, the deliberately lenient read of a row's record once the strict, untrusted read accepted it.
   "packages/audit/src/AuditEntry.ts": 1,
-  // `spanStruct` reads span attributes this process wrote, not an untrusted seam: a lenient read per field, then one decode.
+  // `spanStruct` reads only its own named keys, and every leaf is a SpanValue primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map.
   "packages/core/src/PortSpanEncode.ts": 2,
+  // `decodeStoredRecordString` parses the stored envelope itself and must not walk it: an unknown envelope key is ignored, however deep (ADR-QD-096 D-15-c). `record` reaches the guarded `decodeSinkRecord` from its own root.
+  "packages/core/src/SinkCodec.ts": 1,
+  // `parseJson` parses the simulation form's own typed text for the form's own validation; nothing crosses a trust boundary.
+  "packages/devtools/src/model/SimulationForm.ts": 1,
 };
 
 /**
@@ -650,10 +654,12 @@ const UNTRUSTED_DECODE_BUDGET_NAMES = {
   "packages/core/src/DecodeDepthGuard.ts": ["exceedsJsonDepth"],
   "packages/audit/src/AuditEntry.ts": ["recordJsonOf"],
   "packages/core/src/PortSpanEncode.ts": ["spanStruct"],
+  "packages/core/src/SinkCodec.ts": ["decodeStoredRecordString"],
+  "packages/devtools/src/model/SimulationForm.ts": ["parseJson"],
 };
 
 /** What counts as an untrusted strict decode: global, so a line with two tokens counts two. */
-const UNTRUSTED_DECODE_TOKEN = /\bonExcessProperty\b|\bexceedsJsonDepth\b|\bSchema\.decode\w*/g;
+const UNTRUSTED_DECODE_TOKEN = /\bonExcessProperty\b|\bexceedsJsonDepth\b|\bSchema\.decode\w*|\bJSON\.parse\b/g;
 
 /** @type {Map<string, number[]>} */
 const UNTRUSTED_DECODE_LINES = new Map();
@@ -1555,7 +1561,7 @@ for (const [rel, found] of UNTRUSTED_DECODE_LINES) {
   if (rel in UNTRUSTED_DECODE_BUDGET) continue;
   failures += 1;
   console.error(
-    `${rel}:${found.join(", ")}  [untrusted-decode] Strict decode options, a depth-guard call or a Schema decode outside UntrustedDecode.ts.\n` +
+    `${rel}:${found.join(", ")}  [untrusted-decode] Strict decode options, a depth-guard call, a Schema decode or a JSON.parse outside UntrustedDecode.ts.\n` +
       `    Decode untrusted input with untrustedDecoder (ADR-QD-143, AGENTS.md section 7a).`,
   );
 }

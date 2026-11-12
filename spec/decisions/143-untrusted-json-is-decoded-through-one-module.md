@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-143                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-12                                     |
 > | Status         | Accepted — amends ADR-QD-096, ADR-QD-107       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-12): Initial (ARCH-78, CCR-QD-421) |
+> | Change History | 1.1 (2026-11-12): Budget exceptions: PortSpanEncode.ts reason states the property that holds (named keys, SpanValue leaves); JSON.parse is counted, adding SinkCodec.ts and SimulationForm.ts rows.<br>1.0 (2026-11-12): Initial (ARCH-78, CCR-QD-421) |
 
 ---
 
@@ -96,17 +96,19 @@ error.** (ARCH-78, D-01 to D-12 of the phase.)
   its edge to `Policy.ts`. The leaf imports `effect` and `DecodeDepthGuard.ts` only (ADR-QD-037
   counts type-only edges), so `Policy.ts` can import it and never the reverse.
 - **The rule is enforced, not remembered.** `[untrusted-decode]` in `scripts/check-house-style.mjs`
-  counts `onExcessProperty`, `exceedsJsonDepth` and `Schema.decode*` tokens (comments and strings
+  counts `onExcessProperty`, `exceedsJsonDepth`, `Schema.decode*` and `JSON.parse` tokens (comments and strings
   stripped) per file in `packages/*/src`, and AGENTS.md §7a states the table. It is
-  `UNTRUSTED_DECODE_BUDGET`, checked in both directions like the other budgets. Four files carry a
+  `UNTRUSTED_DECODE_BUDGET`, checked in both directions like the other budgets. Six files carry a
   count, and each is an exception for a stated reason:
 
   | File | Count | Why it is allowed |
   | ---- | ----- | ----------------- |
-  | `UntrustedDecode.ts` | 4 | the decoder: the guard's import and call, the strict option, one `Schema.decodeUnknownResult` |
+  | `UntrustedDecode.ts` | 5 | the decoder: the guard's import and call, the strict option, one `Schema.decodeUnknownResult`, `decodeText`'s `JSON.parse` |
   | `DecodeDepthGuard.ts` | 1 | the walk's own declaration, package-private |
   | `AuditEntry.ts` | 1 | `recordJsonOf`, a *lenient* decode that runs only after the strict read accepted the record, so the entry is the row as this version describes it and not a copy of whatever extra a newer writer added (ADR-QD-096 D-15-c) |
-  | `PortSpanEncode.ts` | 2 | `spanStruct` reads span attributes this process wrote, not input from outside it |
+  | `PortSpanEncode.ts` | 2 | `spanStruct` reads only its own named keys, and every leaf is a `SpanValue` primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map |
+  | `SinkCodec.ts` | 1 | `decodeStoredRecordString` parses the stored envelope itself and must not walk it (an unknown envelope key is ignored, however deep); `record` reaches the guarded `decodeSinkRecord` from its own root |
+  | `SimulationForm.ts` | 1 | `parseJson`, the form's own typed text parsed for the form's own validation |
 
 ### Where each seam now stands
 
@@ -153,7 +155,7 @@ stated where it lives:
   would refuse a deep unknown envelope key that ADR-QD-096 D-15-c says is ignored.
 - **`recordJsonOf`** (`AuditEntry.ts`). Lenient on purpose, and run only after the strict read
   accepted the record.
-- **`PortSpanEncode.ts`.** Span attributes this process wrote, not untrusted JSON.
+- **`PortSpanEncode.ts`.** Reads only its own named keys, and every leaf is a `SpanValue` primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound, whoever supplies the attribute map.
 - **`SimulationForm.ts`** (`@qadi/devtools`). The form's own typed text, parsed for the form's own
   validation; nothing crosses a trust boundary.
 

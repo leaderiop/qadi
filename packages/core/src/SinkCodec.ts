@@ -611,6 +611,8 @@ export const decodeStoredRecord = (input: unknown): Result.Result<StoredRecord, 
  * the text does not parse, otherwise whatever {@link decodeStoredRecord} says.
  */
 export const decodeStoredRecordString = (text: string): Result.Result<StoredRecord, SinkRecordNotDecodable> => {
+  // Not `decodeText`: the envelope must not be walked, since an unknown envelope key is
+  // ignored however deep (ADR-QD-096 D-15-c). `record` is guarded from its own root.
   const parsed = Result.try((): unknown => JSON.parse(text));
   return Result.isFailure(parsed) ? notDecodable(DecodeRefusal.NotJson()) : decodeStoredRecord(parsed.success);
 };

@@ -521,17 +521,19 @@ barrel), so a decoder cannot be built without the guard. `MAX_DECODE_DEPTH`, the
 bound, stays public.
 
 **The rule is enforced, not remembered**: in `packages/*/src`, every
-`onExcessProperty`, `exceedsJsonDepth` or `Schema.decode*` token (comments and
+`onExcessProperty`, `exceedsJsonDepth`, `Schema.decode*` or `JSON.parse` token (comments and
 strings stripped) is counted per file, and only the files below may have any.
 Test scope is exempt, because a test decodes on purpose to pin what the decoder
 makes of an input.
 
 | Location | Count | Why |
 | -------- | ----- | --- |
-| `packages/core/src/UntrustedDecode.ts` | 4 | The decoder itself: the depth-guard import and call, the strict option, and its one `Schema.decodeUnknownResult`. |
+| `packages/core/src/UntrustedDecode.ts` | 5 | The decoder itself: the depth-guard import and call, the strict option, its one `Schema.decodeUnknownResult`, and `decodeText`'s `JSON.parse`. |
 | `packages/core/src/DecodeDepthGuard.ts` | 1 | The depth walk's declaration, package-private and reached only from the decoder. |
 | `packages/audit/src/AuditEntry.ts` | 1 | `recordJsonOf`, a deliberately lenient decode of a row's record after the strict read accepted it, so an envelope key this version does not declare is dropped. |
-| `packages/core/src/PortSpanEncode.ts` | 2 | `spanStruct` reads span attributes this process wrote, not an untrusted seam: a lenient decode per field, then one strict-by-schema decode. |
+| `packages/core/src/PortSpanEncode.ts` | 2 | `spanStruct` reads only its own named keys, and every leaf is a `SpanValue` primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map. |
+| `packages/core/src/SinkCodec.ts` | 1 | `decodeStoredRecordString` parses the stored envelope itself and must not walk it: an unknown envelope key is ignored, however deep (ADR-QD-096 D-15-c). `record` reaches the guarded `decodeSinkRecord` from its own root. |
+| `packages/devtools/src/model/SimulationForm.ts` | 1 | `parseJson` parses the simulation form's own typed text for the form's own validation; nothing crosses a trust boundary. |
 
 Enforced by `UNTRUSTED_DECODE_BUDGET` in `scripts/check-house-style.mjs`, checked
 in both directions like the budgets above: a token in any other file fails
