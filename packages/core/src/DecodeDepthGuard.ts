@@ -19,9 +19,9 @@ export const exceedsJsonDepth = (root: unknown, maxDepth: number): boolean => {
   const stack: Array<{ readonly value: unknown; readonly depth: number }> = [
     { value: root, depth: 0 },
   ];
-  while (stack.length > 0) {
-    const frame = stack.pop();
-    if (frame === undefined) break;
+  // `pop()` is `undefined` exactly when the stack is empty, so the head is both the loop test and the
+  // narrowing `noUncheckedIndexedAccess` wants — no separate length test and no unreachable guard.
+  for (let frame = stack.pop(); frame !== undefined; frame = stack.pop()) {
     if (frame.depth > maxDepth) return true;
     if (Array.isArray(frame.value)) {
       for (const item of frame.value) stack.push({ value: item, depth: frame.depth + 1 });
