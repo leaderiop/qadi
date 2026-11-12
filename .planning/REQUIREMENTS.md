@@ -23,7 +23,7 @@ marked **Breaking**, `apps/website/.../reference/upgrading.md`). Releasing is st
 - [x] **DEC-05**: The strict decode options and the decode-depth constant live in the leaf. `Policy.ts` no longer declares or re-exports them. `UNTRUSTED_DECODE_OPTIONS` leaves the public surface (Breaking) unless discuss-phase finds a consumer that cannot use the decoder. Whether `exceedsJsonDepth`/`MAX_DECODE_DEPTH` stay public is decided toward the narrowest surface, and the hydration spec requirement that names them is restated to match.
 - [x] **DEC-06**: The workarounds for seams that walk only part of a payload (hydration's `{ ...payload, entries: [] }`, the audit envelope's `entries` and the row's `record`) are module options, not hand-built copies at the seams. Per-entry attribution (`EntryNotDecodable{ index, refusal }`, hydration's per-entry drop reasons) is preserved.
 - [x] **DEC-07**: Every guarded seam has a test deeper than the bound, closing today's gaps: the port-wire decoders, the hydration envelope, and `PolicyFromJson` or its replacement. The module has one property test (the guard always precedes decode; the refusal kind is a function of the input). `wireHazard`'s outbound depth count still equals `exceedsJsonDepth` (INV-QD-096).
-- [ ] **DEC-08**: A `scripts/check-house-style.mjs` rule refuses strict decode options or a hand-assembled guard-then-decode outside the leaf, checked in both directions like the other budgets, and AGENTS.md states the rule.
+- [x] **DEC-08**: A `scripts/check-house-style.mjs` rule refuses strict decode options or a hand-assembled guard-then-decode outside the leaf, checked in both directions like the other budgets, and AGENTS.md states the rule.
 
 ### A shared computation's reset supersedes its claims (Phase 31)
 
@@ -114,7 +114,7 @@ The seven WX rows apply to every phase 30 to 36, so each phase's Requirements li
 | DEC-05 | Phase 30 | Complete |
 | DEC-06 | Phase 30 | Complete |
 | DEC-07 | Phase 30 | Complete |
-| DEC-08 | Phase 30 | Pending |
+| DEC-08 | Phase 30 | Complete |
 | SUPR-01 | Phase 31 | Pending |
 | SUPR-02 | Phase 31 | Pending |
 | SUPR-03 | Phase 31 | Pending |

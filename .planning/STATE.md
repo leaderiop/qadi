@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 30
 current_phase_name: One strict-decode module
 status: executing
-stopped_at: Completed 30-05-PLAN.md
-last_updated: "2026-11-12T04:19:20.585Z"
+stopped_at: Completed 30-06-PLAN.md
+last_updated: "2026-11-12T04:24:04.996Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 30 execution started
-state_head: 9fe74fe954e83e26d037ccf069cc00d0d1a04cd6
+state_head: c68c8452d5de6269463e967f166f4634c4e8b680
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 9
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 30 (One strict-decode module) — EXECUTING
-Plan: 6 of 9
+Plan: 7 of 9
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 30 execution started
 
@@ -147,6 +147,7 @@ Progress: [░░░░░░░░░░] 0% (v1.3: 0 of 7 phases)
 | Phase 30 P03 | 14 min | 3 tasks | 5 files |
 | Phase 30 P04 | 6 min | 2 tasks | 3 files |
 | Phase 30 P05 | 7 min | 2 tasks | 8 files |
+| Phase 30 P06 | 12 min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -210,6 +211,7 @@ Progress: [░░░░░░░░░░] 0% (v1.3: 0 of 7 phases)
 - [Phase 30]: 30-03: decodeStoredRecord stays outside the untrusted decoder; it hands record to the guarded decodeSinkRecord
 - [Phase 30]: 30-04: the audit row's too-deep maps to the existing DecodeRefusal.TooDeep (no new member); ArchiveRefusal gains TooDeep first (Breaking)
 - [Phase 30]: 30-05: an array payload nested past the bound is PayloadTooDeep (guard runs before prepare); a shallow array stays MalformedPayload
+- [Phase 30]: 30-06: UNTRUSTED_DECODE_BUDGET counts Schema.decode* too; [untrusted-decode-table] checks counts as well as files; options private and DecodeDepthGuard out of the barrel
 
 ### Pending Todos
 
@@ -250,8 +252,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T04:19:20.565Z
-Stopped at: Completed 30-05-PLAN.md
+Last session: 2026-11-12T04:24:04.977Z
+Stopped at: Completed 30-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
