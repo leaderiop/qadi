@@ -44,10 +44,17 @@ const slowCounted = () => counting(Effect.sleep("30 millis"));
 
 const Probe = ({ options }: { readonly options: DiagnosticsDockOptions | undefined }) => {
   const diagnostics = useDiagnostics(options);
-  return <span data-testid="wiring">{diagnostics.wiring._tag}</span>;
+  return (
+    <>
+      <span data-testid="wiring">{diagnostics.reading.wiring._tag}</span>
+      <span data-testid="status">{diagnostics.status._tag}</span>
+    </>
+  );
 };
 
 const wiring = () => screen.getByTestId("wiring").textContent;
+
+const status = () => screen.getByTestId("status").textContent;
 
 const services = () => {
   act(() => {
@@ -82,7 +89,7 @@ describe("useDiagnostics across React's lifecycle", () => {
     });
   });
 
-  it("H2 a hidden-then-shown hook shows the reading it held at once", async () => {
+  it("H2 a hidden-then-shown hook samples afresh: Starting and no reading until the first sample", async () => {
     const { counts, layer } = slowCounted();
     const options: DiagnosticsDockOptions = { layer };
     const App = ({ mode }: { readonly mode: "visible" | "hidden" }) => (
@@ -99,9 +106,12 @@ describe("useDiagnostics across React's lifecycle", () => {
     view.rerender(<App mode="hidden" />);
     view.rerender(<App mode="visible" />);
 
-    // Before the layer has rebuilt: what is on screen is what the hook held.
-    assert.strictEqual(wiring(), "Read");
-    assert.strictEqual(counts.builds, 1);
+    // The feed was rebuilt with the show: nothing is held over until its first sample.
+    assert.strictEqual(wiring(), "NotHanded");
+    assert.strictEqual(status(), "Starting");
+    await vi.waitFor(() => {
+      assert.strictEqual(wiring(), "Read");
+    });
     await vi.waitFor(() => {
       assert.strictEqual(counts.builds, 2);
     });

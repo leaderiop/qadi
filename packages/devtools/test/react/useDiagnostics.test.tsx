@@ -33,8 +33,9 @@ const Probe = ({ options }: { readonly options: DiagnosticsDockOptions | undefin
   const diagnostics = useDiagnostics(options);
   return (
     <div>
-      <span data-testid="hydration">{diagnostics.hydration === undefined ? "none" : "read"}</span>
-      <span data-testid="wiring">{diagnostics.wiring._tag}</span>
+      <span data-testid="hydration">{diagnostics.reading.hydration === undefined ? "none" : "read"}</span>
+      <span data-testid="wiring">{diagnostics.reading.wiring._tag}</span>
+      <span data-testid="status">{diagnostics.status._tag}</span>
     </div>
   );
 };
@@ -118,5 +119,40 @@ describe("useDiagnostics", () => {
       assert.strictEqual(second.counts.builds, 1);
       assert.strictEqual(first.counts.releases, 1);
     });
+  });
+
+  it("states Off when no options were handed over", () => {
+    render(<Probe options={undefined} />);
+    assert.strictEqual(screen.getByTestId("status").textContent, "Off");
+    assert.strictEqual(screen.getByTestId("hydration").textContent, "none");
+  });
+
+  it("states Starting until an asynchronous layer's first sample, then Live", async () => {
+    const layer = Layer.effectDiscard(Effect.sleep("30 millis"));
+    const options: DiagnosticsDockOptions = { layer };
+    render(<Probe options={options} />);
+    assert.strictEqual(screen.getByTestId("status").textContent, "Starting");
+    assert.strictEqual(screen.getByTestId("wiring").textContent, "NotHanded");
+    await vi.waitFor(() => {
+      assert.strictEqual(screen.getByTestId("status").textContent, "Live");
+      assert.strictEqual(screen.getByTestId("wiring").textContent, "Read");
+    });
+  });
+
+  it("reports a sampler that died as Stopped and keeps the last reading", async () => {
+    let calls = 0;
+    const options: DiagnosticsDockOptions = {
+      intervalMillis: 10,
+      questions: () => {
+        calls += 1;
+        if (calls > 1) throw new Error("the sampler died");
+        return [];
+      },
+    };
+    render(<Probe options={options} />);
+    await vi.waitFor(() => {
+      assert.strictEqual(screen.getByTestId("status").textContent, "Stopped");
+    });
+    assert.strictEqual(screen.getByTestId("hydration").textContent, "read");
   });
 });

@@ -1,30 +1,25 @@
 "use client";
 /**
- * Keeps the diagnostics current for as long as a component is mounted.
+ * The React adapter for the diagnostics feed.
  *
- * `runDiagnostics` forked on mount and interrupted on unmount, read through
- * `useSyncExternalStore`, and nothing else: the cadence, the identity rule and
- * the layer's lifetime are the model's (`model/DiagnosticsStore.ts`), the way
- * `useTimeline` leaves the timeline to `TimelineStore`. This file is tested for
- * the three things only React can get wrong: starting on mount, stopping on
- * unmount, and not restarting on a re-render that changed nothing.
+ * It decides nothing: the feed is the one the dock model builds, so there is one
+ * poll. The feed lives in a scope the component holds, so unmounting closes it
+ * (ADR-QD-137).
  */
-import * as Schedule from "effect/Schedule";
-import { useState } from "react";
+import { useLayoutEffect } from "react";
 import {
-  DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS,
-  makeDiagnosticsStore,
-  noDiagnostics,
-  runDiagnostics,
-  type Diagnostics,
-} from "../model/DiagnosticsStore.ts";
-import type { DiagnosticsDockOptions } from "../model/DiagnosticsFeed.ts";
-import { useRunningStore } from "./useRunningStore.ts";
+  idleDiagnostics,
+  makeDiagnosticsFeed,
+  type DiagnosticsDockOptions,
+  type DiagnosticsSnapshot,
+} from "../model/DiagnosticsFeed.ts";
+import { useScoped } from "./useScoped.ts";
+import { useStoreSnapshot } from "./useStoreSnapshot.ts";
 
 export type { DiagnosticsDockOptions } from "../model/DiagnosticsFeed.ts";
 
 /**
- * Samples the diagnostics while mounted, and returns the latest reading.
+ * Samples the diagnostics while mounted, and returns the poll's status and its latest reading.
  *
  * With `options` absent nothing runs and the reading is `noDiagnostics`: a hook
  * that sampled by default would give every mounted dock a fiber it never asked
@@ -34,30 +29,21 @@ export type { DiagnosticsDockOptions } from "../model/DiagnosticsFeed.ts";
  * the `options` object does**, so an inline literal does not tear the layer
  * down on every render. Hold the fields at module scope, or in a `useMemo`, as
  * `useTimeline` asks of a source.
+ *
+ * The status is `Off` with no options, `Starting` until the first sample (also on
+ * the pass before the feed exists), `Live`, or `Stopped` with the reason and
+ * whether a sample was taken, keeping the last reading. Changing a field restarts
+ * a stopped sampler. A StrictMode remount or a hidden-then-shown tree starts a
+ * fresh run.
  */
-export const useDiagnostics = (options?: DiagnosticsDockOptions): Diagnostics => {
-  const [store] = useState(makeDiagnosticsStore);
-  const layer = options?.layer;
-  const collector = options?.collector;
-  const questions = options?.questions;
-  const intervalMillis = options?.intervalMillis;
+export const useDiagnostics = (options?: DiagnosticsDockOptions): DiagnosticsSnapshot => {
+  const feed = useScoped(() => makeDiagnosticsFeed(options));
 
-  const run =
-    options === undefined
-      ? undefined
-      : runDiagnostics(store, {
-          ...(layer === undefined ? {} : { layer }),
-          ...(collector === undefined ? {} : { collector }),
-          ...(questions === undefined ? {} : { questions }),
-          schedule: Schedule.spaced(intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS),
-        });
+  // The feed compares each field by identity. It runs again on the render the feed
+  // appears, so an input changed in between still lands.
+  useLayoutEffect(() => {
+    if (feed !== undefined) feed.configure(options);
+  }, [feed, options]);
 
-  const reading = useRunningStore(store, run, [
-    options === undefined,
-    layer,
-    collector,
-    questions,
-    intervalMillis,
-  ]);
-  return options === undefined ? noDiagnostics : reading;
+  return useStoreSnapshot(feed ?? idleDiagnostics(options));
 };
