@@ -4,17 +4,17 @@ milestone: v1.3
 milestone_name: Arch Wave 8
 current_phase: 30
 current_phase_name: One strict-decode module
-status: executing
-stopped_at: Completed 30-08-PLAN.md
-last_updated: "2026-11-12T04:37:25.164Z"
+status: verifying
+stopped_at: Completed 30-09-PLAN.md
+last_updated: "2026-11-12T04:48:13.739Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 30 execution started
-state_head: 6b0c2cec1e268b12eff3067fc9ac5d5c654df780
+state_head: "0b5f2ab38b957cc77846688d237a85fa1818d01c"
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 9
-  completed_plans: 8
+  completed_plans: 9
   percent: 0
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 
 Phase: 30 (One strict-decode module) — EXECUTING
 Plan: 9 of 9
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-12 — Phase 30 execution started
 
 Progress: [░░░░░░░░░░] 0% (v1.3: 0 of 7 phases)
@@ -150,6 +150,7 @@ Progress: [░░░░░░░░░░] 0% (v1.3: 0 of 7 phases)
 | Phase 30 P06 | 12 min | 2 tasks | 11 files |
 | Phase 30 P07 | 40 min | 2 tasks | 13 files |
 | Phase 30 P08 | 8 min | 2 tasks | 8 files |
+| Phase 30 P09 | 25 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -216,6 +217,7 @@ Progress: [░░░░░░░░░░] 0% (v1.3: 0 of 7 phases)
 - [Phase 30]: 30-06: UNTRUSTED_DECODE_BUDGET counts Schema.decode* too; [untrusted-decode-table] checks counts as well as files; options private and DecodeDepthGuard out of the barrel
 - [Phase 30]: ADR-QD-143: untrusted JSON is decoded through one module; BEH-QD-259 restated so it describes the decoder; BEH-QD-490 left Unused
 - [Phase 30]: 30-08: MAX_DECODE_DEPTH unchanged vs 0.11.0 (256); UNTRUSTED_DECODE_OPTIONS and exceedsJsonDepth treated as released names
+- [Phase 30]: 30-09: drop-closing tests for ExplorerSession.ts live in ExplorerSessionRefusal.test.ts, since ExplorerSession.test.ts hosts the paste-box characterisation pin
 
 ### Pending Todos
 
@@ -256,8 +258,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T04:37:25.143Z
-Stopped at: Completed 30-08-PLAN.md
+Last session: 2026-11-12T04:48:13.719Z
+Stopped at: Completed 30-09-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

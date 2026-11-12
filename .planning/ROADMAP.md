@@ -377,7 +377,7 @@ recorded in the phase CONTEXT and its ADR or CCR row.
   4. Every guarded seam has a test deeper than the bound (the port-wire decoders, the hydration envelope, and `PolicyFromJson` or its replacement); the module has one property test (the guard always precedes decode, the refusal kind is a function of the input); `wireHazard`'s outbound depth count still equals `exceedsJsonDepth` (INV-QD-096).
   5. Hydration's `{ ...payload, entries: [] }` workaround and the audit envelope's `entries` and row's `record` partial walks are module options, not hand-built copies, and per-entry attribution (`EntryNotDecodable{ index, refusal }`, hydration's per-entry drop reasons) is preserved.
 **Planning notes**: plan order is the characterisation table (green on the base) first, then the leaf and its property test, then core seams, then audit, then hydration (needs the core export), then records. Small research items: the exact `prepare` typing for `SinkCodec`, and the double-walk cost (hydration entry then policy, sink record then row), measured once and never traded for dropping the guard.
-**Plans**: 8/9 plans executed
+**Plans**: 9/9 plans executed
 
 Plans:
 - [x] 30-01 (W1): Mutation baseline of the 13 seam files, the seam inventory, and the refusal characterisation tables (core, react, audit, the devtools paste-box pin) written green on the phase base.
@@ -388,7 +388,7 @@ Plans:
 - [x] 30-06 (W5): Narrow `@qadi/core`'s surface (private options, depth walk out of the barrel, after an importer scan proves no in-repo user is left); the `[untrusted-decode]` rule, its budget and AGENTS.md §7a.
 - [x] 30-07 (W6): The double-check bench, ADR-QD-143 and the ADR-096/107 amendments, behaviours, invariants, traceability, overview, CCR-QD-421.
 - [x] 30-08 (W6): Changesets for core, react, audit and devtools, the `upgrading.md` entries and the hydration and audit package docs.
-- [ ] 30-09 (W7): Gate integrity and WX-04 scan, characterisation-first check, mutation comparison, `pnpm check:pr` on the final tree.
+- [x] 30-09 (W7): Gate integrity and WX-04 scan, characterisation-first check, mutation comparison, `pnpm check:pr` on the final tree.
 
 ### Phase 31: A reset supersedes its claims
 **Goal**: `SharedComputation` owns its own staleness rule: a reset supersedes every in-flight claim, so the decision cache keeps no generation counter and a stale answer cannot re-enter a cleared cache.
