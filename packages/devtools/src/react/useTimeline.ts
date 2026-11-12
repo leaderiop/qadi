@@ -1,11 +1,11 @@
 "use client";
 /**
- * The one subscription in this package.
+ * The public timeline hooks: a source read in a scope the hook holds, and a store fed by hand.
  *
- * `useSyncExternalStore` and nothing else — the store owns the timeline, folds
- * records into it and hands back the same reference until something actually
- * changed, which is exactly the contract that hook wants. Every other file
- * under `react/` renders what this returns.
+ * The store owns the timeline, folds records into it and hands back the same
+ * reference until something actually changed, which is the contract
+ * `useStoreSnapshot` reads it through. The read itself lives in the model's
+ * timeline feed, so nothing here forks a fiber (ADR-QD-137).
  *
  * Written this way for the reason AGENTS.md §13 gives for `@qadi/react`: the
  * interesting properties — merging, ordering, pairing, pausing — are properties
@@ -13,11 +13,13 @@
  * and vaguer. They are tested in `test/model/`; this is tested for the two
  * things only React can get wrong, which are subscribing and unsubscribing.
  */
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useLayoutEffect, useState } from "react";
 import type { Source } from "../model/Source.ts";
-import { makeTimelineStore, runSource, type TimelineStore } from "../model/TimelineStore.ts";
+import { idleTimeline, makeTimelineFeed } from "../model/TimelineFeed.ts";
+import { makeTimelineStore, type TimelineStore } from "../model/TimelineStore.ts";
 import type { Timeline } from "../model/Timeline.ts";
-import { useRunningStore } from "./useRunningStore.ts";
+import { useScoped } from "./useScoped.ts";
+import { useStoreSnapshot } from "./useStoreSnapshot.ts";
 
 export interface UseTimeline {
   readonly timeline: Timeline;
@@ -31,31 +33,37 @@ export interface UseTimeline {
 /**
  * Subscribes to a source and returns the timeline it produces.
  *
- * `source` is held by identity: a new one tears the subscription down and opens
- * a fresh one, which is right for a changed URL and wasteful for an object
- * rebuilt every render. Build it at module scope or in a `useMemo` — the same
- * advice `@qadi/react` gives about policies, and for the same reason.
+ * The read lives in a scope the hook holds, so unmounting closes it, and with an
+ * SSE source closes the connection rather than leaving a browser retrying a feed
+ * nobody is watching. A hidden-then-shown tree, or StrictMode's simulated remount,
+ * builds a fresh timeline: `paused` returns to `false` and the source is read
+ * again. A capacity change keeps `store` and empties and re-reads it. On the pass
+ * before the scope exists the hook returns an inert store that ignores what it is
+ * given.
+ *
+ * `source` is held by identity: a new one supersedes the read, which is right for
+ * a changed URL and wasteful for an object rebuilt every render. Build it at
+ * module scope or in a `useMemo`, the same advice `@qadi/react` gives about
+ * policies, and for the same reason.
  */
 export const useTimeline = (
   source: Source,
   options?: { readonly capacity?: number },
 ): UseTimeline => {
   const capacity = options?.capacity;
-  const store = useMemo(
-    () => makeTimelineStore(capacity === undefined ? undefined : { capacity }),
-    [capacity],
-  );
+  const feed = useScoped(() => makeTimelineFeed({ source, capacity }));
 
-  // Interrupted on unmount, so a panel that is closed stops reading — and,
-  // with an SSE source, closes the connection through the read's scope
-  // rather than leaving a browser retrying a feed nobody is watching.
-  const timeline = useRunningStore(store, runSource(store, source), [store, source]);
-  const paused = useSyncExternalStore(store.subscribe, store.isPaused, store.isPaused);
+  // The feed diffs each field by identity. It runs again on the render the feed
+  // appears, so an input changed in between still lands.
+  useLayoutEffect(() => {
+    if (feed !== undefined) feed.configure({ source, capacity });
+  }, [feed, source, capacity]);
 
-  const setPaused = useCallback((next: boolean) => store.setPaused(next), [store]);
-  const clear = useCallback(() => store.clear(), [store]);
+  const store = feed?.timeline ?? idleTimeline;
+  const timeline = useStoreSnapshot(store);
+  const paused = useStoreSnapshot({ subscribe: store.subscribe, getSnapshot: store.isPaused });
 
-  return { timeline, paused, setPaused, clear, store };
+  return { timeline, paused, setPaused: store.setPaused, clear: store.clear, store };
 };
 
 /**
@@ -68,8 +76,8 @@ export const useTimeline = (
 export const useTimelineStore = (options?: { readonly capacity?: number }): UseTimeline => {
   const [store] = useState(() => makeTimelineStore(options));
 
-  const timeline = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
-  const paused = useSyncExternalStore(store.subscribe, store.isPaused, store.isPaused);
+  const timeline = useStoreSnapshot(store);
+  const paused = useStoreSnapshot({ subscribe: store.subscribe, getSnapshot: store.isPaused });
 
   const setPaused = useCallback((next: boolean) => store.setPaused(next), [store]);
   const clear = useCallback(() => store.clear(), [store]);

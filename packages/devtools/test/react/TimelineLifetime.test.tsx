@@ -116,7 +116,7 @@ describe("useTimeline across React's lifecycle", () => {
     assert.strictEqual(counts.closed, 0);
   });
 
-  it("L3 a capacity change hands back a new store", async () => {
+  it("L3 a capacity change keeps the store and reads the source again into the new bound", async () => {
     const source = sourceFromRecords([
       decisionRecord({ evaluationId: "a", at: 100 }),
       decisionRecord({ evaluationId: "b", at: 200 }),
@@ -137,10 +137,10 @@ describe("useTimeline across React's lifecycle", () => {
     await screen.findByText("a,b");
     const after = stores.at(-1);
     assert.isDefined(after);
-    assert.notStrictEqual(after, before);
+    assert.strictEqual(after, before);
   });
 
-  it("L4 a paused timeline stays paused across a hidden-then-shown tree", async () => {
+  it("L4 a hidden-then-shown tree rebuilds the timeline: it is live again", async () => {
     const source = sourceFromRecords([decisionRecord({ evaluationId: "a", at: 100 })]);
     const Pausable = () => {
       const { paused, setPaused } = useTimeline(source);
@@ -167,6 +167,6 @@ describe("useTimeline across React's lifecycle", () => {
 
     view.rerender(<App mode="hidden" />);
     view.rerender(<App mode="visible" />);
-    assert.strictEqual(screen.getByTestId("paused").textContent, "true");
+    assert.strictEqual(screen.getByTestId("paused").textContent, "false");
   });
 });
