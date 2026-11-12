@@ -549,3 +549,43 @@ export const useStopReason = (): string | undefined => {
   return DiagnosticsStatus.$is("Stopped")(status) ? status.reason : undefined;
 };
 ```
+
+## 0.12: the atom set holds its own bound
+
+The atom set now sweeps its own question book back to `maxTrackedQuestions` one macrotask after the book passes it, so a
+provider is no longer what enforces the bound. `QadiProvider`'s `sweepIntervalMillis` and `QadiAtoms.sweepEvictions` are
+gone: delete the prop, and delete any timer that ran `sweepEvictions` yourself. The bound now holds with no provider, on
+a bare registry, and after a provider unmounts. Before:
+
+```ts
+import * as Effect from "effect/Effect";
+import { QadiProvider } from "@qadi/react";
+import { atoms, canRead, reader } from "./qadi";
+
+export const App = () => (
+  <QadiProvider atoms={atoms} subject={reader} sweepIntervalMillis={10_000}>
+    <Can policy={canRead}>allowed</Can>
+  </QadiProvider>
+);
+
+// A host without React ran the sweep itself on a timer.
+setInterval(() => Effect.runSync(atoms.sweepEvictions), 10_000);
+```
+
+After:
+
+```tsx
+import { EvaluationServicesNone, hasPermission, makeSubject, permission } from "@qadi/core";
+import { Can, QadiProvider, makeQadiAtoms } from "@qadi/react";
+
+// The bound is the atom set's own: nothing else sweeps for it.
+const atoms = makeQadiAtoms(EvaluationServicesNone, { maxTrackedQuestions: 200 });
+const reader = makeSubject({ id: "u1", permissions: ["doc:read"] });
+const canRead = hasPermission(permission("doc", "read"));
+
+export const App = () => (
+  <QadiProvider atoms={atoms} subject={reader}>
+    <Can policy={canRead}>allowed</Can>
+  </QadiProvider>
+);
+```
