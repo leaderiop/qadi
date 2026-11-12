@@ -530,4 +530,29 @@ describe("effect/reactivity API canary", () => {
     await settle();
     expect(registry.getNodes().has(atom)).toBe(false);
   });
+
+  it("a fork raised by the removal is begun, and not finished, when one yield after the unmount resumes", async () => {
+    // The dispatcher's bucket order `QadiAtoms.sweep.test.ts`'s S9 relies on: the
+    // removal, and the fork it raises, run in the first drained bucket, the episode
+    // yields into the next, and a continuation that yielded once resumes between them.
+    const events: Array<string> = [];
+    const atom = Atom.readable((get) => {
+      get.addFinalizer(() => {
+        events.push("forked");
+        Effect.runFork(Effect.yieldNow.pipe(Effect.andThen(Effect.sync(() => events.push("swept")))));
+      });
+      return 1;
+    });
+    const registry = makeRegistry();
+    const unmount = registry.mount(atom);
+
+    unmount();
+    expect(events).toEqual([]);
+
+    await Effect.runPromise(Effect.yieldNow);
+    expect(events).toEqual(["forked"]);
+
+    await settle();
+    expect(events).toEqual(["forked", "swept"]);
+  });
 });

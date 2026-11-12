@@ -180,6 +180,8 @@ describe("the atom set's own sweep", () => {
     expect(counter.counts.sweeps).toBe(0);
     expect(atoms.asked().length).toBe(6);
 
+    // One yield resumes between the removal's bucket and the episode's; pinned by
+    // `v4-reactivity-smoke.test.ts`.
     await Effect.runPromise(Effect.yieldNow);
     expect(counter.counts.forks).toBe(1);
     expect(counter.counts.sweeps).toBe(0);
