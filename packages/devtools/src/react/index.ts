@@ -10,16 +10,18 @@
  *
  * **The list below is the interface** (ADR-QD-047's amendment, ARCH-40): the
  * dock, and the React half of the three stores (`useTimeline` and
- * `useTimelineStore`, `useDiagnostics`, the simulation session's hooks). The
+ * `useTimelineStore`, `useDiagnostics` and the status and snapshot it returns, the
+ * simulation session's hooks). The
  * panels the dock composes and the pick-gesture lens are package-private, and
  * `theme.ts` is internal scaffolding as before (AGENTS.md §9). Adding a name is a
  * line here, a row in `spec/overview.md` and a line in `test/surface.test.ts`.
  */
+export { DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
+export type { DiagnosticsDockOptions, DiagnosticsSnapshot } from "../model/DiagnosticsFeed.ts";
 export type { AskedQuestionLike } from "../model/Gates.ts";
 export { DevtoolsDock } from "./DevtoolsDock.tsx";
 export type { DevtoolsDockProps } from "./DevtoolsDock.tsx";
 export { useDiagnostics } from "./useDiagnostics.ts";
-export type { DiagnosticsDockOptions } from "./useDiagnostics.ts";
 export { useSimulationSession, useSimulationSnapshot } from "./useSimulationSession.ts";
 export type {
   SimulationSessionView,

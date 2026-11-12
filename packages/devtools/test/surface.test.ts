@@ -68,6 +68,7 @@ const ROOT_VALUES: ReadonlyArray<string> = [
 
 const REACT_VALUES: ReadonlyArray<string> = [
   "DevtoolsDock",
+  "DiagnosticsStatus",
   "useDiagnostics",
   "useSimulationSession",
   "useSimulationSnapshot",
