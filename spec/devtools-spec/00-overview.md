@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-00                                    |
-> | Revision       | 0.8 (draft)                                    |
+> | Revision       | 0.9 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.8 (2026-10-07): the gap table's screen 2 row says `collectPortCalls` keeps five port spans, not three (ARCH-21, CCR-QD-198)<br>0.7 (2026-10-05): the data plane is one decision log per process — the ring and the feed are gone, `ingest` reaches live readers, and `/__decisions` sends the backlog as a prelude (ADR-QD-097, CCR-QD-181)<br>0.6 (2026-08-24): Screens 3, 6 and 7 re-marked **Built** and four stale data claims corrected — resolver calls, port counts, wired implementations and hydration counts are all obtainable now (CCR-QD-074)<br>0.5 (2026-08-24): The surface exists for three of the six topologies; screens 1 and 2 built (CCR-QD-067)<br>0.4 (2026-08-24): The transport now exists; the topology table and the transport prose corrected against it (CCR-QD-066)<br>0.3 (2026-08-24): Six gaps closed in code; the feature table re-marked against what now exists (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.9 (2026-11-12): the clock choice is @qadi/core's EvaluationClock in both packages (ARCH-81, CCR-QD-424)<br>0.8 (2026-10-07): the gap table's screen 2 row says `collectPortCalls` keeps five port spans, not three (ARCH-21, CCR-QD-198)<br>0.7 (2026-10-05): the data plane is one decision log per process — the ring and the feed are gone, `ingest` reaches live readers, and `/__decisions` sends the backlog as a prelude (ADR-QD-097, CCR-QD-181)<br>0.6 (2026-08-24): Screens 3, 6 and 7 re-marked **Built** and four stale data claims corrected — resolver calls, port counts, wired implementations and hydration counts are all obtainable now (CCR-QD-074)<br>0.5 (2026-08-24): The surface exists for three of the six topologies; screens 1 and 2 built (CCR-QD-067)<br>0.4 (2026-08-24): The transport now exists; the topology table and the transport prose corrected against it (CCR-QD-066)<br>0.3 (2026-08-24): Six gaps closed in code; the feature table re-marked against what now exists (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -138,8 +138,9 @@ simulator running in a browser has no such ambient help. One half of a
 determinism claim is worse than neither, because it is believed, and it survived
 precisely because every test suite already had the half that was missing.
 
-**Closed** (CCR-QD-069): `TestLayerOptions.clock` takes `"live" | "test"`, and
-`simulate` takes the same choice as `"live" | "deterministic"`. Neither changes
+**Closed** (CCR-QD-069): `TestLayerOptions.clock` and `simulate` both take
+`@qadi/core`'s `EvaluationClock`, `"live" | "deterministic"` (`@qadi/testing` took
+`"live" | "test"` until CCR-QD-424). Neither changes
 a `Trace`, which carries no time — see [screen 5](./02-screens.md#5-subject-simulator--what-if)
 for why that made this a presentation gap rather than a correctness one.
 

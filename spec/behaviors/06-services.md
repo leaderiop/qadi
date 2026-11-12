@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-06                                    |
-> | Revision       | 1.12                                            |
+> | Revision       | 1.13                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.12 (2026-11-12): EvaluationServices is declared in EvaluationServices.ts (ARCH-80, CCR-QD-423)<br>1.11 (2026-11-11): the PortDescription listing gains asks and its request and asks type parameters (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.10 (2026-11-11): BEH-QD-409's key law reads over a derived port's wire question; BEH-QD-440 (a derived port states no key and no defect) and BEH-QD-441 (a port's question and span question name every member) (ARCH-69, CCR-QD-411)<br>1.9 (2026-11-10): BEH-QD-409 (a request key agrees with Equal over its domain) and BEH-QD-410 (a request the key refuses fails closed); BEH-QD-310's replyTable requirement matches by key text and fails a refused request with the port's typed error (ARCH-65, CCR-QD-407)<br>1.8 (2026-10-05): BEH-QD-043's listing gains `CustomPredicateNone` and `SignatureHistoryNone`, which it had omitted since both ports shipped, and states that each port's default is derived from its description's `none`; BEH-QD-308 (every port has the standard wrapper set), BEH-QD-309 (an environment names only what it overrides) and BEH-QD-310 (a port can be scripted) added (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-05): BEH-QD-045's reason table is built from the matcher's `Verdict` — an `Eq` or `Dominates` against an unresolved reference reads "has no reference value to compare against" (only `Neq` did), and a value the matcher cannot compare reads "is not a value this matcher can compare" (ADR-QD-091, CCR-QD-173)<br>1.6 (2026-09-19): BEH-QD-044 gained a normative "Trust model" paragraph — `CurrentSubject`'s provenance and what the evaluator does and does not re-verify had no single stated answer anywhere in `spec/` (WD-05)<br>1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.13 (2026-11-12): BEH-QD-501..503: one evaluation environment that states its shadowing (ARCH-81, ADR-QD-146, CCR-QD-424)<br>1.12 (2026-11-12): EvaluationServices is declared in EvaluationServices.ts (ARCH-80, CCR-QD-423)<br>1.11 (2026-11-11): the PortDescription listing gains asks and its request and asks type parameters (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.10 (2026-11-11): BEH-QD-409's key law reads over a derived port's wire question; BEH-QD-440 (a derived port states no key and no defect) and BEH-QD-441 (a port's question and span question name every member) (ARCH-69, CCR-QD-411)<br>1.9 (2026-11-10): BEH-QD-409 (a request key agrees with Equal over its domain) and BEH-QD-410 (a request the key refuses fails closed); BEH-QD-310's replyTable requirement matches by key text and fails a refused request with the port's typed error (ARCH-65, CCR-QD-407)<br>1.8 (2026-10-05): BEH-QD-043's listing gains `CustomPredicateNone` and `SignatureHistoryNone`, which it had omitted since both ports shipped, and states that each port's default is derived from its description's `none`; BEH-QD-308 (every port has the standard wrapper set), BEH-QD-309 (an environment names only what it overrides) and BEH-QD-310 (a port can be scripted) added (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-05): BEH-QD-045's reason table is built from the matcher's `Verdict` — an `Eq` or `Dominates` against an unresolved reference reads "has no reference value to compare against" (only `Neq` did), and a value the matcher cannot compare reads "is not a value this matcher can compare" (ADR-QD-091, CCR-QD-173)<br>1.6 (2026-09-19): BEH-QD-044 gained a normative "Trust model" paragraph — `CurrentSubject`'s provenance and what the evaluator does and does not re-verify had no single stated answer anywhere in `spec/` (WD-05)<br>1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -532,6 +532,103 @@ and deriving the Shape request types from the wire struct would turn
 `exactOptionalPropertyTypes` ([ADR-QD-133](../decisions/133-a-port-request-is-derived-from-its-wire-question.md)).
 `PortRequest.tst.ts` pins both slots; `PortSpan.test.ts` pins every port's encoded span
 attributes for a full and a sparse request.
+
+## BEH-QD-501: An evaluation environment is built in one place and states its shadowing
+
+> **Invariant:** [INV-QD-312](../invariants.md#inv-qd-312-every-evaluation-environment-states-its-shadowing-and-the-choice-is-one-of-two)
+
+```ts
+export type EvaluationShadowing = "none" | "sinkAndCache";
+export type EvaluationClock = "live" | "deterministic";
+export interface EvaluationEnvironmentOptions {
+  readonly ports: Layer.Layer<PortServices>;
+  readonly idPrefix: string;
+  readonly clock: Layer.Layer<never>;
+  readonly shadow: EvaluationShadowing;
+}
+export const evaluationEnvironment: (
+  options: EvaluationEnvironmentOptions,
+) => Layer.Layer<StandingEvaluationServices>;
+```
+
+```
+REQUIREMENT: Every option of `evaluationEnvironment` MUST be required. A call
+             that leaves out `shadow`, or passes anything but "none" or
+             "sinkAndCache", MUST be a compile error.
+
+REQUIREMENT: `ports` MUST arrive built, as a `Layer<PortServices>`, so that no
+             package's fixture vocabulary crosses into `@qadi/core`.
+
+REQUIREMENT: The clock MUST arrive as a layer, and `@qadi/core` MUST import no
+             Effect testing module. `EvaluationClock` is the type-only word each
+             package maps to a layer in one place.
+```
+
+The review layer and a simulation are the same environment, a ports layer, a
+sequential id layer and a clock, and they used to assemble it twice, one sealing
+and one not, with nothing saying the difference was chosen. `shadow` has no
+default, because either default would make one of the two choices silent
+([ADR-QD-146](../decisions/146-one-evaluation-environment-states-its-shadowing.md)).
+
+```typescript
+import { evaluationEnvironment, portsLayer } from "@qadi/core";
+import * as Layer from "effect/Layer";
+
+// Every port at its fail-closed default, ids `run-1`, `run-2`, …, the runtime's
+// own clock, and no shadowing: an outer sink and cache stay in effect.
+export const environment = evaluationEnvironment({
+  ports: portsLayer(),
+  idPrefix: "run",
+  clock: Layer.empty,
+  shadow: "none",
+});
+```
+
+## BEH-QD-502: An unshadowed environment leaves an outer sink and cache in effect
+
+> **Invariant:** [INV-QD-311](../invariants.md#inv-qd-311-the-review-layer-never-shadows-the-decision-sink-or-the-decision-cache)
+
+```
+REQUIREMENT: Under `shadow: "none"` an outer `DecisionSink` MUST receive every
+             record an evaluation makes, and an outer `DecisionCache` MUST be
+             the one that is filled and read.
+```
+
+`qadiReviewLayer` and core's own test helpers are built this way. A test that
+asserts on the records an evaluation made, or on what a cache holds, would pass
+vacuously under an environment that swallowed them.
+
+## BEH-QD-503: A shadowed environment records nothing outward and caches privately, per build
+
+> **Invariant:** [INV-QD-042](../invariants.md#inv-qd-042-a-simulation-reaches-no-port-it-was-not-given-and-records-nothing)
+
+```
+REQUIREMENT: Under `shadow: "sinkAndCache"` no outer `DecisionSink` MUST receive
+             a record and no outer `DecisionCache` MUST be read or written.
+
+REQUIREMENT: The sink the environment installs MUST discard what it is handed.
+
+REQUIREMENT: Each build of the environment MUST get a cache of its own, so two
+             builds do not share an entry.
+```
+
+The shadowing is a sink that discards and a cache that is private, not an absence:
+`Effect.provide` adds to a context and cannot remove from one, so there is no way
+to guarantee a simulation writes nothing except to put something in the way.
+
+```typescript
+import { evaluationEnvironment, portsLayer } from "@qadi/core";
+import * as Layer from "effect/Layer";
+
+// The simulator's choice: imagined decisions reach neither the application's
+// sink nor its cache.
+export const sealed = evaluationEnvironment({
+  ports: portsLayer(),
+  idPrefix: "sim",
+  clock: Layer.empty,
+  shadow: "sinkAndCache",
+});
+```
 
 ---
 
