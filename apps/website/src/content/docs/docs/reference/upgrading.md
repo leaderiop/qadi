@@ -482,3 +482,36 @@ import type { EvaluationClock } from "@qadi/core";
 export const clock: EvaluationClock = "deterministic";
 export const layer = qadiTestLayer(subjectWith({ permissions: ["doc:read"] }), { clock });
 ```
+
+## 0.12: `useTimeline` follows its component's lifetime
+
+`useTimeline` now reads its source in a scope the hook holds, as the dock does. A remount, or a tree that is
+hidden and shown again, starts a fresh timeline, unpaused, and reads the source again; a capacity change keeps
+the returned `store` and empties and re-reads it. Keep pause state and rows that must survive a hide above the
+hook, for example in the dock's own model, or accept the fresh read, and stop comparing `store` across a
+capacity change. Before:
+
+```ts
+import { useEffect } from "react";
+import { useTimeline } from "@qadi/devtools/react";
+import { source } from "./source";
+
+export const useRows = (capacity: number) => {
+  const { timeline, store } = useTimeline(source, { capacity });
+  // A new store per capacity was the signal to reset.
+  useEffect(() => resetSelection(), [store]);
+  return timeline;
+};
+```
+
+After:
+
+```typescript
+import { sourceFromRecords } from "@qadi/devtools";
+import { useTimeline } from "@qadi/devtools/react";
+
+const source = sourceFromRecords([]);
+
+// The returned `store` is the same across capacities.
+export const useRows = (capacity: number) => useTimeline(source, { capacity }).timeline;
+```
