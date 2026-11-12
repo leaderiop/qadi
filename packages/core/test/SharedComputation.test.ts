@@ -597,7 +597,8 @@ describe("PROPERTY: a reset supersedes its claims", () => {
     { weight: 3, arbitrary: FastCheck.constant("a") },
     { weight: 1, arbitrary: FastCheck.constant("b") },
   );
-  const pick = FastCheck.nat(1);
+  // At least the longest command list, so every waiter or compute is reachable.
+  const pick = FastCheck.nat(15);
   const commands = FastCheck.array(
     FastCheck.oneof(
       { weight: 7, arbitrary: key.map((k): Command => ({ _tag: "Run", key: k })) },
@@ -772,7 +773,7 @@ describe("PROPERTY: a reset supersedes its claims", () => {
             const settleCommand = (cmd: Extract<Command, { readonly _tag: "Settle" }>) =>
               Effect.gen(function* () {
                 const running = computes.filter((c) => c.key === cmd.key && c.running);
-                const chosen = running[cmd.pick % running.length];
+                const chosen = running.length === 0 ? undefined : running[cmd.pick % running.length];
                 if (chosen === undefined) {
                   // Nothing running for this key: a settle changes nothing.
                   yield* settleTurns;
@@ -785,7 +786,7 @@ describe("PROPERTY: a reset supersedes its claims", () => {
             const leaveStep = (cmd: Extract<Command, { readonly _tag: "Leave" }>) =>
               Effect.gen(function* () {
                 const waiting = waiters.filter((w) => w.state === "waiting");
-                const chosen = waiting[cmd.pick % waiting.length];
+                const chosen = waiting.length === 0 ? undefined : waiting[cmd.pick % waiting.length];
                 const fiber = chosen === undefined ? undefined : fibers[chosen.id];
                 if (chosen === undefined || fiber === undefined) {
                   // Nobody waiting: a leave changes nothing.
