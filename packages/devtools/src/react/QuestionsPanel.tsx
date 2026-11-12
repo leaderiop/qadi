@@ -25,6 +25,7 @@ import type { CSSProperties, FC } from "react";
 import { useEffect, useMemo, useRef } from "react";
 import type { Resource } from "@qadi/core";
 import { policyLabel } from "../model/Catalogue.ts";
+import { isUnsampled } from "../model/DiagnosticsFeed.ts";
 import type { AskedQuestionLike, GateGroup, GateInstanceLike } from "../model/Gates.ts";
 import {
   displayOfGateState,
@@ -35,6 +36,8 @@ import {
 } from "../model/Gates.ts";
 import type { HydrationActivity } from "../model/Hydration.ts";
 import { unaccountedEntries } from "../model/Hydration.ts";
+import { DiagnosticsNotice, diagnosticsRootProps } from "./DiagnosticsNotice.tsx";
+import type { DiagnosticsNoticeProps } from "./DiagnosticsNotice.tsx";
 import { button, colors, font, muted } from "./theme.ts";
 import { useLens } from "./useLens.ts";
 import { treatmentOf } from "./VerdictTreatment.ts";
@@ -63,7 +66,16 @@ export interface QuestionsPanelProps {
   readonly gates?: ReadonlyArray<GateInstanceLike> | undefined;
   /** Wired to `useInvalidate`. Absent means the button is not shown. */
   readonly onInvalidate?: (() => void) | undefined;
+  /**
+   * The dock's diagnostics status and restart, stated by the shared notice.
+   *
+   * Required, so a screen cannot forget it.
+   */
+  readonly diagnostics: DiagnosticsNoticeProps;
 }
+
+/** What the hydration block reads before any sample was taken. */
+const NO_COUNTS_YET = "no counts read yet.";
 
 const row: CSSProperties = {
   display: "flex",
@@ -78,14 +90,17 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
   hydration,
   gates,
   onInvalidate,
+  diagnostics,
 }) => {
+  const unsampled = isUnsampled(diagnostics.status);
   const instances = useMemo(() => gates ?? [], [gates]);
   const groups = useMemo(() => gateGroups(instances), [instances]);
 
   const lens = useLens(instances);
 
   return (
-    <div style={{ padding: 12 }} data-testid="qadi-questions">
+    <div {...diagnosticsRootProps(diagnostics.status)} data-testid="qadi-questions">
+      <DiagnosticsNotice {...diagnostics} />
       <p style={{ ...muted, fontSize: font.sizeSmall, marginTop: 0 }} data-testid="qadi-keying-note">
         {/* Said up front, because a reader counting rows against components in
             their tree would otherwise conclude the panel is broken. Both halves
@@ -107,10 +122,12 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
       )}
 
       {questions === undefined ? (
-        <p style={muted} data-testid="qadi-questions-absent">
-          No atom set was handed to the dock. Pass <code>questions</code> — usually{" "}
-          <code>atoms.asked()</code> — to list what has been asked.
-        </p>
+        unsampled ? null : (
+          <p style={muted} data-testid="qadi-questions-absent">
+            No atom set was handed to the dock. Pass <code>questions</code> — usually{" "}
+            <code>atoms.asked()</code> — to list what has been asked.
+          </p>
+        )
       ) : questions.length === 0 ? (
         <p style={muted} data-testid="qadi-questions-empty">
           Nothing has been asked yet. A question appears here the first time a
@@ -127,7 +144,7 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
         ))
       )}
 
-      <Hydration activity={hydration} />
+      <Hydration activity={hydration} unsampled={unsampled} />
 
       {onInvalidate === undefined ? null : (
         <button
@@ -274,15 +291,25 @@ const heading: CSSProperties = {
  * is a comparison a reader will attempt unprompted, so `unaccountedEntries`
  * refuses it where it would not mean anything.
  */
-const Hydration: FC<{ readonly activity: HydrationActivity | undefined }> = ({ activity }) => (
+const Hydration: FC<{
+  readonly activity: HydrationActivity | undefined;
+  readonly unsampled: boolean;
+}> = ({ activity, unsampled }) => (
   <div style={{ marginTop: 10 }} data-testid="qadi-hydration">
     <div style={heading}>hydration</div>
     {activity === undefined ? (
-      <span style={muted} data-testid="qadi-hydration-unwired">
-        no counts read. Pass <code>{"diagnostics={{}}"}</code> to sample them, or{" "}
-        <code>hydration</code> — the result of <code>hydrationActivity</code>,
-        which needs no wiring — to fill this in.
-      </span>
+      unsampled ? (
+        // Advice to pass `diagnostics` would be wrong: it was passed, and nothing has been read yet.
+        <span style={muted} data-testid="qadi-hydration-pending">
+          {NO_COUNTS_YET}
+        </span>
+      ) : (
+        <span style={muted} data-testid="qadi-hydration-unwired">
+          no counts read. Pass <code>{"diagnostics={{}}"}</code> to sample them, or{" "}
+          <code>hydration</code> — the result of <code>hydrationActivity</code>,
+          which needs no wiring — to fill this in.
+        </span>
+      )
     ) : (
       <Counts activity={activity} />
     )}

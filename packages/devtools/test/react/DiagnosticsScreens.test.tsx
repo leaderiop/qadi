@@ -47,6 +47,23 @@ const services = () => {
   });
 };
 
+const reactTab = () => {
+  act(() => {
+    fireEvent.click(screen.getByRole("button", { name: "React" }));
+  });
+};
+
+/** A question source that throws on its first call and answers nothing after. */
+const throwsFirst = () => {
+  const state = { calls: 0 };
+  const questions = (): ReadonlyArray<never> => {
+    state.calls += 1;
+    if (state.calls === 1) throw new Error("questions blew up");
+    return [];
+  };
+  return { state, questions };
+};
+
 const activityOf = (calls: number): ReadonlyArray<PortActivity> => [
   { port: "AttributeResolver", calls, retries: 0, timeouts: 0, translationCalls: 0 },
 ];
@@ -150,12 +167,7 @@ describe("the dock's diagnostics screens", () => {
   });
 
   it("D4 a stopped poll is stated on Services with its reason, and a restart brings the screen back", async () => {
-    let calls = 0;
-    const questions = (): ReadonlyArray<never> => {
-      calls += 1;
-      if (calls === 1) throw new Error("questions blew up");
-      return [];
-    };
+    const { questions } = throwsFirst();
     const held: DiagnosticsDockOptions = { questions };
     render(<DevtoolsDock diagnostics={held} />);
     services();
@@ -187,5 +199,76 @@ describe("the dock's diagnostics screens", () => {
     assert.isNull(screen.queryByTestId("qadi-diagnostics-starting"));
     assert.isNotNull(screen.getByTestId("qadi-wiring-absent"));
     assert.strictEqual(document.activeElement, screen.getByTestId("qadi-services"));
+  });
+
+  it("D5 on the React tab a poll stopped before any sample states the stop and withholds the not-handed copy", async () => {
+    const { questions } = throwsFirst();
+    const held: DiagnosticsDockOptions = { questions };
+    render(<DevtoolsDock diagnostics={held} />);
+    reactTab();
+
+    await vi.waitFor(() => {
+      assert.strictEqual(
+        screen.getByTestId("qadi-questions").getAttribute("data-diagnostics-status"),
+        "Stopped",
+      );
+    });
+    assert.strictEqual(screen.getByTestId("qadi-diagnostics-stopped").getAttribute("data-sampled"), "false");
+    assert.isNull(screen.queryByTestId("qadi-questions-absent"));
+    assert.isNull(screen.queryByTestId("qadi-hydration-unwired"));
+    assert.strictEqual(screen.getByTestId("qadi-hydration-pending").textContent, "no counts read yet.");
+  });
+
+  it("D6 a poll stopped after a sample restores the messages the sample makes true", async () => {
+    let calls = 0;
+    const questions = (): ReadonlyArray<never> => {
+      calls += 1;
+      if (calls > 1) throw new Error("questions blew up later");
+      return [];
+    };
+    const held: DiagnosticsDockOptions = { questions, intervalMillis: 10 };
+    render(<DevtoolsDock diagnostics={held} />);
+    services();
+
+    await vi.waitFor(() => {
+      assert.strictEqual(screen.getByTestId("qadi-diagnostics-stopped").getAttribute("data-sampled"), "true");
+    });
+    assert.isNotNull(screen.getByTestId("qadi-wiring-absent"));
+
+    reactTab();
+    assert.isNotNull(screen.getByTestId("qadi-questions-empty"));
+    assert.isNull(screen.queryByTestId("qadi-hydration-pending"));
+  });
+
+  it("D7 a stop is alerted on the first screen that shows it and silent on every revisit", async () => {
+    const { questions } = throwsFirst();
+    const held: DiagnosticsDockOptions = { questions };
+    render(<DevtoolsDock diagnostics={held} />);
+    services();
+    await vi.waitFor(() => {
+      assert.strictEqual(screen.getByTestId("qadi-diagnostics-stopped").getAttribute("data-announce"), "alert");
+    });
+    const reason = screen.getByTestId("qadi-diagnostics-reason").textContent;
+
+    reactTab();
+    assert.strictEqual(screen.getByTestId("qadi-diagnostics-stopped").getAttribute("data-announce"), "none");
+    assert.isNull(screen.getByTestId("qadi-diagnostics-stopped").getAttribute("role"));
+    assert.strictEqual(screen.getByTestId("qadi-diagnostics-reason").textContent, reason);
+
+    services();
+    assert.strictEqual(screen.getByTestId("qadi-diagnostics-stopped").getAttribute("data-announce"), "none");
+  });
+
+  it("D8 a stop that happened on a screen with no notice alerts on the first visit to one", async () => {
+    const { state, questions } = throwsFirst();
+    const held: DiagnosticsDockOptions = { questions };
+    render(<DevtoolsDock diagnostics={held} />);
+    await vi.waitFor(() => {
+      assert.strictEqual(state.calls, 1);
+    });
+    await act(async () => {});
+
+    reactTab();
+    assert.strictEqual(screen.getByTestId("qadi-diagnostics-stopped").getAttribute("data-announce"), "alert");
   });
 });

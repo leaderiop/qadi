@@ -310,6 +310,7 @@ const Screen: FC<{
         gates={props.host.gates}
         hydration={props.shown.hydration}
         onInvalidate={props.host.onInvalidate}
+        diagnostics={notice}
       />
     ),
   };

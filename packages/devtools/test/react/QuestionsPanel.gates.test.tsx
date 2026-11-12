@@ -17,6 +17,7 @@ import { hasPermission, hasRole, permission } from "@qadi/core";
 import type { GateInstanceLike } from "../../src/model/Gates.ts";
 import { QuestionsPanel } from "../../src/react/QuestionsPanel.tsx";
 import type { AskedQuestionLike } from "../../src/react/QuestionsPanel.tsx";
+import { liveNotice } from "../helpers.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
@@ -40,7 +41,7 @@ const gate = (
 
 describe("the two views, side by side", () => {
   it("says where live guards come from when none were handed in", () => {
-    render(<QuestionsPanel questions={asked} />);
+    render(<QuestionsPanel diagnostics={liveNotice} questions={asked} />);
     assert.include(
       screen.getByTestId("qadi-gates-absent").textContent ?? "",
       "useGateInstances()",
@@ -50,14 +51,14 @@ describe("the two views, side by side", () => {
   it("names the OTHER fix when the prop is present but empty", () => {
     // Two different missing props with two different fixes. A single message
     // would send half its readers to the wrong file.
-    render(<QuestionsPanel questions={asked} gates={[]} />);
+    render(<QuestionsPanel diagnostics={liveNotice} questions={asked} gates={[]} />);
     assert.include(screen.getByTestId("qadi-gates-absent").textContent ?? "", "instrument");
   });
 
   it("no longer claims a per-instance count would be invented", () => {
     // The sentence this screen used to end on. It was scoped on that belief and
     // the belief was narrower than it read.
-    render(<QuestionsPanel questions={asked} gates={[gate({ id: "a" })]} />);
+    render(<QuestionsPanel diagnostics={liveNotice} questions={asked} gates={[gate({ id: "a" })]} />);
     const note = screen.getByTestId("qadi-keying-note").textContent ?? "";
 
     assert.include(note, "per question");
@@ -69,7 +70,7 @@ describe("the two views, side by side", () => {
 
   it("lists each guard asking a question, with what it rendered", () => {
     render(
-      <QuestionsPanel
+      <QuestionsPanel diagnostics={liveNotice}
         questions={asked}
         gates={[gate({ id: "a" }), gate({ id: "b", state: "Denied" })]}
       />,
@@ -87,7 +88,7 @@ describe("the two views, side by side", () => {
     // A failed guard never got an answer; drawing it like a denied one tells the
     // reader their policy refused when it never ran.
     render(
-      <QuestionsPanel
+      <QuestionsPanel diagnostics={liveNotice}
         questions={asked}
         gates={[gate({ id: "a", state: "Denied" }), gate({ id: "b", state: "Failed" })]}
       />,
@@ -103,7 +104,7 @@ describe("the two views, side by side", () => {
     // BEH-QD-217's surviving requirement. Ten gates on one policy are one atom,
     // and the panel must not claim otherwise at the question level.
     render(
-      <QuestionsPanel questions={asked} gates={[gate({ id: "a" }), gate({ id: "b" })]} />,
+      <QuestionsPanel diagnostics={liveNotice} questions={asked} gates={[gate({ id: "a" }), gate({ id: "b" })]} />,
     );
     assert.strictEqual(screen.getAllByTestId("qadi-question").length, 1);
     assert.strictEqual(screen.getAllByTestId("qadi-instance").length, 2);
@@ -112,7 +113,7 @@ describe("the two views, side by side", () => {
   it("says a question is asked with nothing mounted, rather than looking broken", () => {
     // A component that asked and unmounted leaves its question behind in the
     // atom layer. Real and common, not an error.
-    render(<QuestionsPanel questions={asked} gates={[gate({ id: "a", policy: isAdmin })]} />);
+    render(<QuestionsPanel diagnostics={liveNotice} questions={asked} gates={[gate({ id: "a", policy: isAdmin })]} />);
     assert.include(
       screen.getByTestId("qadi-question-unmounted").textContent ?? "",
       "nothing mounted",
@@ -123,7 +124,7 @@ describe("the two views, side by side", () => {
 describe("highlight — the panel points at the page", () => {
   it("offers a highlight naming how many it can point at", () => {
     render(
-      <QuestionsPanel
+      <QuestionsPanel diagnostics={liveNotice}
         questions={asked}
         gates={[gate({ id: "a", element: marker() }), gate({ id: "b", element: marker() })]}
       />,
@@ -133,7 +134,7 @@ describe("highlight — the panel points at the page", () => {
 
   it("draws an overlay per locatable guard", () => {
     render(
-      <QuestionsPanel
+      <QuestionsPanel diagnostics={liveNotice}
         questions={asked}
         gates={[gate({ id: "a", element: marker() }), gate({ id: "b", element: marker() })]}
       />,
@@ -149,7 +150,7 @@ describe("highlight — the panel points at the page", () => {
     // A hook is enumerable and not locatable. Counting it would promise a
     // highlight that cannot happen.
     render(
-      <QuestionsPanel
+      <QuestionsPanel diagnostics={liveNotice}
         questions={asked}
         gates={[gate({ id: "a", element: marker() }), gate({ id: "b", kind: "useCan" })]}
       />,
@@ -158,7 +159,7 @@ describe("highlight — the panel points at the page", () => {
   });
 
   it("REFUSES THE HIGHLIGHT where only hooks are asking, and says why", () => {
-    render(<QuestionsPanel questions={asked} gates={[gate({ id: "a", kind: "useCan" })]} />);
+    render(<QuestionsPanel diagnostics={liveNotice} questions={asked} gates={[gate({ id: "a", kind: "useCan" })]} />);
     const control = screen.getByTestId<HTMLButtonElement>("qadi-highlight");
 
     // Disabled rather than absent, and with the reason on it: a button that
@@ -168,13 +169,13 @@ describe("highlight — the panel points at the page", () => {
   });
 
   it("says beside each hook that it has no element", () => {
-    render(<QuestionsPanel questions={asked} gates={[gate({ id: "a", kind: "useCan" })]} />);
+    render(<QuestionsPanel diagnostics={liveNotice} questions={asked} gates={[gate({ id: "a", kind: "useCan" })]} />);
     assert.isDefined(screen.getByTestId("qadi-instance-unlocatable"));
   });
 
   it("removes its overlays when the panel unmounts", () => {
     const view = render(
-      <QuestionsPanel questions={asked} gates={[gate({ id: "a", element: marker() })]} />,
+      <QuestionsPanel diagnostics={liveNotice} questions={asked} gates={[gate({ id: "a", element: marker() })]} />,
     );
     act(() => {
       screen.getByTestId("qadi-highlight").click();
@@ -197,12 +198,12 @@ describe("pick — the page points at the panel", () => {
   };
 
   it("offers picking only when there are guards to pick", () => {
-    render(<QuestionsPanel questions={asked} gates={[]} />);
+    render(<QuestionsPanel diagnostics={liveNotice} questions={asked} gates={[]} />);
     assert.isNull(screen.queryByTestId("qadi-pick"));
   });
 
   it("enters and announces the mode", () => {
-    render(<QuestionsPanel questions={asked} gates={[gate({ id: "a", element: marker() })]} />);
+    render(<QuestionsPanel diagnostics={liveNotice} questions={asked} gates={[gate({ id: "a", element: marker() })]} />);
 
     act(() => {
       screen.getByTestId("qadi-pick").click();
@@ -214,7 +215,7 @@ describe("pick — the page points at the panel", () => {
 
   it("highlights whatever the pointer is over", () => {
     const element = marker();
-    render(<QuestionsPanel questions={asked} gates={[gate({ id: "a", element })]} />);
+    render(<QuestionsPanel diagnostics={liveNotice} questions={asked} gates={[gate({ id: "a", element })]} />);
     const restore = pointingAt(element);
 
     try {
@@ -232,7 +233,7 @@ describe("pick — the page points at the panel", () => {
 
   it("SELECTS THE ROW and leaves the mode on a pick", () => {
     const element = marker();
-    render(<QuestionsPanel questions={asked} gates={[gate({ id: "a", element })]} />);
+    render(<QuestionsPanel diagnostics={liveNotice} questions={asked} gates={[gate({ id: "a", element })]} />);
     const restore = pointingAt(element);
 
     try {
@@ -262,7 +263,7 @@ describe("pick — the page points at the panel", () => {
       pressed += 1;
     });
 
-    render(<QuestionsPanel questions={asked} gates={[gate({ id: "a", element })]} />);
+    render(<QuestionsPanel diagnostics={liveNotice} questions={asked} gates={[gate({ id: "a", element })]} />);
     const restore = pointingAt(element);
 
     try {
@@ -286,7 +287,7 @@ describe("pick — the page points at the panel", () => {
       pressed += 1;
     });
 
-    render(<QuestionsPanel questions={asked} gates={[gate({ id: "a", element: marker() })]} />);
+    render(<QuestionsPanel diagnostics={liveNotice} questions={asked} gates={[gate({ id: "a", element: marker() })]} />);
     const restore = pointingAt(stray);
 
     try {
@@ -303,7 +304,7 @@ describe("pick — the page points at the panel", () => {
   });
 
   it("leaves the mode on Escape", () => {
-    render(<QuestionsPanel questions={asked} gates={[gate({ id: "a", element: marker() })]} />);
+    render(<QuestionsPanel diagnostics={liveNotice} questions={asked} gates={[gate({ id: "a", element: marker() })]} />);
 
     act(() => {
       screen.getByTestId("qadi-pick").click();
@@ -322,7 +323,7 @@ describe("pick — the page points at the panel", () => {
     });
 
     const view = render(
-      <QuestionsPanel questions={asked} gates={[gate({ id: "a", element })]} />,
+      <QuestionsPanel diagnostics={liveNotice} questions={asked} gates={[gate({ id: "a", element })]} />,
     );
     const restore = pointingAt(element);
 
