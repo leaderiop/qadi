@@ -2,52 +2,37 @@
 phase: 30-one-strict-decode-module
 reviewed: 2026-11-12T00:00:00Z
 depth: standard
-files_reviewed: 38
+files_reviewed: 23
 files_reviewed_list:
-  - features/features/hydration-counts/hydration-counts.feature
-  - features/features/hydration-counts/hydration-counts.steps.test.ts
-  - packages/audit/src/AuditArchive.ts
-  - packages/audit/src/AuditEntry.ts
-  - packages/audit/test/UntrustedSeams.test.ts
-  - packages/core/bench/UntrustedDecode.bench.ts
+  - packages/core/src/JsonShape.ts
   - packages/core/src/DecodeDepthGuard.ts
-  - packages/core/src/Errors.ts
-  - packages/core/src/HydrationMetrics.ts
-  - packages/core/src/Policy.ts
-  - packages/core/src/PortRemote.ts
-  - packages/core/src/PortWireEncode.ts
-  - packages/core/src/SinkCodec.ts
   - packages/core/src/UntrustedDecode.ts
+  - packages/core/src/SinkCodec.ts
+  - packages/core/src/FieldPath.ts
+  - packages/core/src/Policy.ts
+  - packages/core/src/PortWireEncode.ts
+  - packages/core/src/PortRemote.ts
+  - packages/core/src/HydrationMetrics.ts
+  - packages/core/src/Errors.ts
   - packages/core/src/index.ts
-  - packages/core/test/DecisionWire.test.ts
-  - packages/core/test/Errors.tst.ts
-  - packages/core/test/HydrationMetrics.test.ts
-  - packages/core/test/Policy.test.ts
-  - packages/core/test/SinkCodec.test.ts
   - packages/core/test/UntrustedDecode.test.ts
   - packages/core/test/UntrustedDecode.tst.ts
   - packages/core/test/UntrustedSeams.test.ts
-  - packages/core/test/v4-api-smoke.test.ts
-  - packages/devtools/src/model/ExplorerSession.ts
-  - packages/devtools/test/model/ExplorerSession.test.ts
-  - packages/devtools/test/model/ExplorerSessionRefusal.test.ts
-  - packages/devtools/test/model/Hydration.test.ts
-  - packages/react/src/DeveloperSignals.ts
+  - packages/core/test/DecodeDepthGuard.test.ts
+  - packages/audit/src/AuditArchive.ts
+  - packages/audit/src/AuditEntry.ts
   - packages/react/src/HydrationEngine.ts
   - packages/react/src/HydrationEvent.ts
-  - packages/react/test/Hydration.test.ts
-  - packages/react/test/UntrustedSeams.test.ts
+  - packages/react/src/DeveloperSignals.ts
+  - packages/devtools/src/model/ExplorerSession.ts
+  - packages/devtools/src/model/SimulationForm.ts
   - scripts/check-house-style.mjs
-  - .changeset/untrusted-decode-core.md
-  - .changeset/untrusted-decode-react.md
-  - .changeset/untrusted-decode-audit.md
-  - .changeset/untrusted-decode-devtools.md
 findings:
   critical: 0
-  warning: 3
-  info: 4
-  total: 7
-  necessity: 0
+  warning: 1
+  info: 1
+  total: 2
+  necessity: 1
 status: issues_found
 ---
 
@@ -55,71 +40,80 @@ status: issues_found
 
 **Reviewed:** 2026-11-12
 **Depth:** standard
-**Files Reviewed:** 38
+**Files Reviewed:** 23
 **Status:** issues_found
 
 ## Summary
 
-The decoder is sound on the trust boundary: no depth-guard bypass, no non-total mapping, no precedence regression beyond the documented `PayloadTooDeep` flip.
+Iteration 3 (the last of the auto fix loop). Scope: the two iteration-2 fix commits (`1358a661`, `4aa9b56d`) on top of the already-reviewed phase diff.
 
-- **Totality.** Every seam maps `UntrustedRefusal` with `Match.tagsExhaustive` (`Policy.ts`, `SinkCodec.ts`, `AuditArchive.ts`, `AuditEntry.ts`, `HydrationEngine.ts`, `PortWireEncode.ts`, `ExplorerSession.ts`).
-- **Precedence.** The order guard → prepare → decode is preserved; the version check is still after the guard in `SinkCodec` and now after it in hydration.
-- **`walked()` bypass.** None found. Non-plain roots (arrays, `null`) are never filtered; `unwalked` removes only own top-level keys of the raw input, and `prepare` runs after the guard on that same raw input; every consumer reads the unwalked slot from the same key the second decoder uses. A 1,000,000-deep non-array `entries` value reaches strict decode unwalked and fails `Malformed` with a short message, no throw.
-- **`unwalked` keys** are decoded again from their own root: each hydration entry and its policy, each archive entry through `decodeAuditEntry`, the audit row's `record` through `decodeSinkRecord`.
+**Both iteration-2 findings are resolved in source.**
 
-Checks run by the reviewer: `node scripts/check-house-style.mjs` clean (464 files); `oxlint` on the four packages' src shows one unrelated pre-existing warning (`packages/react/src/QadiAtoms.ts:381`); 1282 tests pass across the seam tests, `Policy.test.ts`, `SinkCodec.test.ts` and the devtools model tests; two hostile probes (1,000,000-deep non-array `entries`, 60,000-deep `entries` array) neither threw.
+- **IN-02 (duplicate `isPlainObject`) resolved.** `JsonShape.ts` is an import-free leaf holding the one predicate. `DecodeDepthGuard.ts:15`, `UntrustedDecode.ts:28`, `SinkCodec.ts:79` and `FieldPath.ts:40` import it. `FieldPath.ts`'s copy and `DecodeDepthGuard.ts`'s export are deleted. The only remaining same-named predicate is `JsonHazard.ts:68`, which is a different check (a prototype test). `JsonShape.ts` is not in the barrel. ADR-QD-143 (rev 1.2) and the `UntrustedDecode.ts` header match the real import list. `DecodeDepthGuard.ts` is again the depth walk only, so its header and the AGENTS.md budget row are accurate. No cycle: the leaf has no imports.
+- **IN-01 (unreachable `String(error)`) resolved.** `UntrustedDecode.ts:199-202` now falls back to a constant, so the `SyntaxError: ` prefix can no longer reappear. The comment states why the arm exists.
+
+Checks run by the reviewer: `node scripts/check-house-style.mjs` is clean (465 files). Vitest over `UntrustedDecode`, `UntrustedSeams`, `SinkCodec` and `FieldPath` (core) passed, 253 tests. Stryker was run on both touched files (commands in the findings). No source was modified.
+
+The fixes introduce no behavioural defect. The one real finding is the WX-05 mutation-score drop the orchestrator observed, which I reproduced and traced to equivalent mutants.
 
 ## Warnings
 
-### WR-01: `NotJson` text carries a `SyntaxError:` prefix; docs and the changeset call it the parser's own message
+### WR-01: `DecodeDepthGuard.ts` mutation score fell from 94.74 to 92.59 (WX-05)
 
-**File:** `packages/core/src/UntrustedDecode.ts:199` (also `:88`, `packages/core/src/Policy.ts` `PolicyNotJson` doc, `.changeset/untrusted-decode-devtools.md:5`)
-**Issue:** `decodeText` builds `NotJson({ message: String(error) })`. `String(new SyntaxError(m))` is `"SyntaxError: m"`, so the message is not the parser's own text. `Policy.fromJson` copies it into `PolicyNotJson`; `ExplorerSession.formatDecodeFailure` renders `The text is not JSON: ${message}`, so the paste box shows `The text is not JSON: SyntaxError: Expected property name or '}' in JSON at position 1 ...`. The `UntrustedRefusal` doc says "`message` is the parser's own text" and the devtools changeset says "with the parser's message". Tests pin the wart: `ExplorerSession.test.ts` asserts `include(refusal, "SyntaxError")`, `Policy.test.ts` (~447) asserts the same on `PolicyNotJson.message`, and `UntrustedDecode.test.ts` comments that the prefix is expected. `JSON.parse` only throws `SyntaxError`, so `error.message` is always available.
-**Fix:**
+**File:** `packages/core/src/DecodeDepthGuard.ts:22-24`
+**Issue:** Reproduced with `pnpm exec stryker run --mutate packages/core/src/DecodeDepthGuard.ts --reporters clear-text` (the root `stryker.config.mjs` is `@qadi/core`'s). The result is 24 killed, 1 timeout, 2 survived, 0 no-coverage, so 25/27 = 92.59. The baseline in `30-mutation-base.json` is 0.9473684 (= 18/19).
+
+The two survivors are both in the loop head, and both are **equivalent mutants**. No test can kill them:
+
+1. `22:10 EqualityOperator`: `while (stack.length > 0)` to `while (stack.length >= 0)`. On an empty stack `stack.pop()` returns `undefined`, and the very next line (`if (frame === undefined) break;`) exits the loop. The observable result is identical, which is why all 312 covering tests pass.
+2. `24:9 ConditionalExpression`: `if (frame === undefined) break;` to `if (false) break;`. The line is only reachable while `stack.length > 0`, so `frame` is never `undefined`. The line exists only to narrow `Array.prototype.pop()`'s `T | undefined` under `noUncheckedIndexedAccess`. The `if` is dead at runtime, so removing it changes nothing.
+
+Why the score dropped: the commit that moved `isPlainObject` out (`1358a661`, and `22d2f24d` before it) took about eight well-killed predicate mutants out of this file. The two equivalent survivors, which were already there, now weigh more of the total. `JsonShape.ts` scores 100.00 on its own, so the combined score across the two files did not fall. The per-file rule does, though. WX-05 says close a drop with a test, and no test is possible here. The honest close is to delete the equivalent mutants by restructuring the loop. Re-baselining is not allowed.
+
+**Test that would kill them:** none exists. Both are equivalent. The existing property and boundary tests in `UntrustedDecode.test.ts` ("is TooDeep exactly when exceedsJsonDepth..." and the 255/256/257/258 draws) already kill every non-equivalent mutant in the file.
+
+**Fix:** Fold the `undefined` narrowing into the loop head, so there is no separate length test and no unreachable guard. No `as` or `!` is needed.
+
 ```ts
-catch: (error) =>
-  UntrustedRefusal.NotJson({ message: error instanceof Error ? error.message : String(error) }),
+for (let frame = stack.pop(); frame !== undefined; frame = stack.pop()) {
+  if (frame.depth > maxDepth) return true;
+  if (Array.isArray(frame.value)) {
+    for (const item of frame.value) stack.push({ value: item, depth: frame.depth + 1 });
+  } else if (isPlainObject(frame.value)) {
+    for (const key of Object.keys(frame.value)) {
+      stack.push({ value: frame.value[key], depth: frame.depth + 1 });
+    }
+  }
+}
+return false;
 ```
-Then drop the `"SyntaxError"` assertions in the three tests. (If the prefix is kept deliberately, correct the `NotJson`/`PolicyNotJson` docs and the devtools changeset instead.)
 
-### WR-02: Plan-local decision and plan numbers are baked into shipped doc comments and test titles
-
-**File:** `packages/audit/src/AuditEntry.ts:158` ("(D-07)"), `packages/devtools/src/model/ExplorerSession.ts:123` ("(D-06)"), `packages/react/src/HydrationEngine.ts:224` ("(D-04, D-07)"), `packages/core/bench/UntrustedDecode.bench.ts:3` ("D-15"); ~23 occurrences in test files.
-**Issue:** `D-04`, `D-06`, `D-07`, `D-15` are ids from `30-CONTEXT.md`, a planning artifact outside the spec and the repo's id space (`D-15-c` references that point at ADR-QD-096 are fine). The house rule is that a doc comment must not name a plan number or describe a transient state; these do both, and resolve to nothing once the phase directory is archived. Test titles read `(flipped in 30-02 (D-06))`, `(flipped in 30-04 (D-07))`, `(flipped in 30-05 (D-07))`; headers say "Phase 30's refusal-precedence tables ... written green on the phase base (D-13) ... A row marked `flips in 30-0N`"; one comment says "The plan expected UnsupportedPayloadVersion here ... the base refuses an array". Affected tests: `packages/audit/test/UntrustedSeams.test.ts` (6), `packages/core/test/UntrustedSeams.test.ts` (5), `packages/react/test/UntrustedSeams.test.ts` (7), `packages/devtools/test/model/ExplorerSession.test.ts` (4), `packages/devtools/test/model/ExplorerSessionRefusal.test.ts` (1). Test titles also feed the traceability and mutation reports.
-**Fix:** Cite the ADR/BEH instead (ADR-QD-143, BEH-QD-486..489) or drop the parenthetical; in tests state the invariant ("a payload nested past the bound is `PayloadTooDeep`: the guard runs before the version check") and remove the "flipped in" / "phase base" language.
-
-### WR-03: The `PortSpanEncode.ts` budget exemption rests on a provenance claim that does not hold; its real reason is unstated
-
-**File:** `scripts/check-house-style.mjs:638`, `AGENTS.md:534`
-**Issue:** The exemption says `spanStruct` "reads span attributes this process wrote, not an untrusted seam". Nothing enforces that: `spanStruct`'s `decode` is reached through `decodePortSpan`, exported from the `@qadi/core` barrel, taking any `ReadonlyMap<string, unknown>`. A caller feeding it attributes parsed from another process's OTLP export is on a trust boundary. The exemption is still safe, for a different reason: it reads only its named keys through `.get` (no excess-key surface), and every leaf is a `SpanValue` primitive (INV-QD-044), so there is nothing to recurse into and no depth hazard.
-Related (outside this diff): `decode` does a lenient per-field decode, then `Schema.decodeUnknownSync(schema)(lenient)` — a throwing decode in a path meant never to fail the row (BEH-QD-228). Redundant today (leaf schemas are literals/primitives), but it would throw for a leaf with a transformation, which `SpanFields` permits since it constrains only `Type`.
-**Fix:** Reword both reasons to the property that holds: "reads only its own named keys, and every leaf is a SpanValue primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map." Optionally replace the final `decodeUnknownSync` with assembly from the already-decoded fields, dropping the budget count to 1.
+Every mutant this form creates is killable by the existing suite. `frame !== undefined` to `true` makes `frame.depth` throw a `TypeError` once the stack drains, which any non-too-deep decode hits. To `false` skips the walk, so every TooDeep test fails. The operator and block mutants fail the same tests. I did not run Stryker on this form, because the review is read-only. The fixer should re-run the single-file Stryker command above and confirm the file is at or above 94.74.
 
 ## Info
 
-### IN-01: `unwalked` is documented as "must be `Schema.Unknown`", but two of three seams use `Schema.Array(Schema.Unknown)`; the check is compile-time over the decoded type
+### IN-01: `UntrustedDecode.ts`'s constant `"not JSON"` arm, and a thin mutation margin
 
-**File:** `packages/core/src/UntrustedDecode.ts:111-125`, `:132`
-**Issue:** Hydration's `Envelope.entries` and the audit `ArchiveEnvelope.entries` are `Schema.Array(Schema.Unknown)`; only the audit row's `record` is `Schema.Unknown`. INV-QD-306 correctly says "typed `unknown` (or `ReadonlyArray<unknown>`)"; the code doc is the inaccurate one. `UnwalkedKey<A>` keys on `S["Type"]` while the guard filters raw wire keys, so a schema that renames keys on decode would put the compile-time check and the runtime filter in different key spaces; it also admits an `any`-typed slot. None of the three present uses is affected.
-**Fix:** Correct the doc to "`unknown` or `ReadonlyArray<unknown>`"; consider deriving the key from `S["Encoded"]`.
+**File:** `packages/core/src/UntrustedDecode.ts:199-202`
+**Category:** necessity
+**Issue:** Reproduced with `pnpm exec stryker run --mutate packages/core/src/UntrustedDecode.ts --reporters clear-text`: 90.32 (28 killed, 2 survived, 1 no-coverage). The floor for a new file is 0.9, since the file has no baseline entry. The margin is under a third of a point, so any one further survivor in this file breaches the floor.
 
-### IN-02: `decodeStoredRecordString` is still a hand-assembled `JSON.parse` seam, invisible to `[untrusted-decode]`
+The three non-killed mutants:
 
-**File:** `packages/core/src/SinkCodec.ts:613-616`
-**Issue:** It parses with its own `Result.try(JSON.parse)` and delegates to `decodeStoredRecord`, which hands `record` to the guarded `decodeSinkRecord`. Safe by delegation (the envelope's other key is a string), but INV-QD-305's "guarded by construction" holds here only by delegation, and `UNTRUSTED_DECODE_TOKEN` does not count `JSON.parse`, so a copy of this pattern elsewhere would pass the gate.
-**Fix:** Either count `JSON.parse` in the token with budget rows for this file and `SimulationForm.ts`, or add a one-line comment on `decodeStoredRecordString` stating why it is not a `decodeText` call (the envelope must not be walked: an unknown envelope key is ignored, ADR-QD-096 D-15-c).
+- `202:90 NoCoverage` is the `"not JSON"` literal turned into `""`. This is the arm the fixer added.
+- `179:5` has two survivors, `true && isPlainObject(input)` and `unwalked.size >= 0 && ...`. Both are equivalent. `unwalked.size > 0` is only a fast path, and with an empty set `Object.fromEntries(Object.entries(input).filter(...))` produces a copy that behaves identically. These existed before the iteration-2 commits.
 
-### IN-03: Closure-returning `Match` arms in `HydrationEngine.ts` are harder to read than what they replace
+Is the constant arm the cleanest cast-free option? Yes among the forms that stay on `Result.try({ try, catch })`, but it is not the only form and it has a known cost. A `catch` binding is `unknown`, so any message read needs a narrowing, and a narrowing is a branch. I checked the alternatives:
 
-**File:** `packages/react/src/HydrationEngine.ts:~242-257` (`tooDeepEntry`, `asMalformed`, `entryDropReason`), used at `~536`, `~548`
-**Issue:** `Match.type<UntrustedValueRefusal>()` returns a function taking the malformed reason, called as `entryDropReason(failure)("MalformedEntry")` — two named helpers and a curried call to say "`TooDeep` is `EntryTooDeep`, `Malformed` is the caller's reason".
-**Fix:** A plain two-argument function, or keep `Match` and close over the reason at the two call sites.
+- `Result.try(() => JSON.parse(text))` (the single-argument overload) has error type `unknown`, so it needs the same narrowing downstream.
+- `String(error)` is arm-free but brings the `SyntaxError: ` prefix back (WR-01 of iteration 1).
+- Routing through `Schema.fromJsonString(Schema.Unknown)` is arm-free and cast-free. It changes the `NotJson` message to the schema issue's text, which breaks the three pins that assert the exact `JSON.parse` message. It is also a second parse path in a module whose point is one. Rejected.
 
-### IN-04: Three copies of the plain-object predicate; a long history comment on the guard
+So no form has zero branches. Keeping the arm is acceptable. If the 0.9 margin matters, the arm can be made killable instead of unkillable: a test that stubs the parser to throw a non-`Error` and asserts the constant message. For example, in `UntrustedDecode.test.ts`, spy `JSON.parse` to `throw "boom"` and assert `decodeText("{}")` fails with `NotJson` and `message === "not JSON"`, then restore the spy. That covers line 202 and kills the literal mutant. It does assert on an arm the comment calls unreachable, which is why this is Info and judgment-based, not a requirement. The `UntrustedDecode.ts` comment ("cannot be reached") and a covering test would then disagree, so reword it to "a defensive arm" if the test is added.
 
-**File:** `packages/core/src/UntrustedDecode.ts:157`, `packages/core/src/DecodeDepthGuard.ts:24`, `packages/core/src/SinkCodec.ts` (`isJsonObject`, ~418)
-**Issue:** The same predicate is written three times in the leaf family with slightly different return types; `DecodeDepthGuard.ts` carries a 9-line NS-01 history comment and now has a second `/** */` block right after its header.
-**Fix:** Export one `isPlainObject` package-privately from `DecodeDepthGuard.ts` and import it in `UntrustedDecode.ts`; trim the NS-01 comment to one line.
+Separately, `packages/devtools/src/model/SimulationForm.ts:64-70` (`parseJson`) still uses `String(error)` and says in its doc comment that only a `SyntaxError` is thrown. That is a different seam. It builds a `refused(...)` string, not the decoder's `NotJson`, so the prefix behaviour is not pinned the way WR-01 pinned it. Noted for consistency only, not a defect.
+
+**Fix:** Keep as is, or add the stubbed-parser test above. No source change is required.
 
 ---
 
