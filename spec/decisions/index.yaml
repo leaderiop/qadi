@@ -434,3 +434,7 @@ entries:
     file: "143-untrusted-json-is-decoded-through-one-module.md"
     title: "Untrusted JSON is decoded through one module"
     status: "Accepted — amends ADR-QD-096, ADR-QD-107"
+  - id: "ADR-QD-146"
+    file: "146-one-evaluation-environment-states-its-shadowing.md"
+    title: "One evaluation environment states its shadowing"
+    status: "Accepted — amends ADR-QD-050"
