@@ -23,10 +23,9 @@
  */
 import { useState, type CSSProperties, type FC, type ReactNode } from "react";
 import * as Match from "effect/Match";
-import type { DecisionOutcome, EvaluationError } from "@qadi/core";
+import type { DecisionOutcome, EvaluationClock, EvaluationError } from "@qadi/core";
 import type { RecordOutcome } from "../model/Inspect.ts";
 import type { Baseline, BaselineReading, UnseededField } from "../model/Replay.ts";
-import type { SimulationClock } from "../model/Simulation.ts";
 import type { FieldView, SimulationField } from "../model/SimulationFields.ts";
 import type {
   RunState,
@@ -208,7 +207,7 @@ const Controls: FC<{
   );
 };
 
-const clocks: ReadonlyArray<SimulationClock> = ["live", "deterministic"];
+const clocks: ReadonlyArray<EvaluationClock> = ["live", "deterministic"];
 
 /**
  * Three options, two of which are usually unavailable — and both say why.
@@ -455,7 +454,7 @@ const SimulatedFailure: FC<{ readonly error: EvaluationError }> = ({ error }) =>
  */
 const Duration: FC<{
   readonly outcome: DecisionOutcome;
-  readonly clock: SimulationClock;
+  readonly clock: EvaluationClock;
 }> = ({ outcome, clock }) => {
   if (outcome._tag !== "Decided") return null;
   return (

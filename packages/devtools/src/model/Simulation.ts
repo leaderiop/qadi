@@ -23,27 +23,13 @@ import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import * as TestClock from "effect/testing/TestClock";
 import { currentSubjectLayer, Decided, evaluate, evaluationEnvironment, Failed } from "@qadi/core";
-import type { DecisionOutcome, EvaluationServices, Policy } from "@qadi/core";
+import type { DecisionOutcome, EvaluationClock, EvaluationServices, Policy } from "@qadi/core";
 import { evaluationOptionsOf, subjectOf, type SimulationInput } from "./SimulationInput.ts";
 import { portsOf, type SimulationSource } from "./SimulationSource.ts";
 
-/**
- * Which clock a simulated evaluation runs under.
- *
- * `live` measures the browser and the screen says so; `deterministic` makes
- * `durationMillis` reproducibly zero, which is worth having when two runs are
- * being compared field by field.
- *
- * Neither changes the **trace**: a `Trace` carries no time at all, which is why
- * `diffTraces` is already deterministic under either — and why the gap
- * `02-screens.md` recorded here ("a simulator must wire `TestClock` itself")
- * turned out to be about display rather than about correctness.
- */
-export type SimulationClock = "live" | "deterministic";
-
 export interface SimulationOptions {
   readonly source?: SimulationSource;
-  readonly clock?: SimulationClock;
+  readonly clock?: EvaluationClock;
 }
 
 /**
@@ -94,8 +80,12 @@ export const simulationLayer = (
   );
 
 /**
- * `Layer.empty` under a live clock: the runtime's own `Clock` is already
- * correct, and providing a second one would only be a way to get it wrong.
+ * The one place this package turns the shared clock word into a layer.
+ *
+ * `Layer.empty` under `live`: the runtime's own `Clock` is already correct, and
+ * providing a second one would only be a way to get it wrong. Annotated with what
+ * the evaluation environment asks of a clock, which provides nothing the
+ * evaluation requires by type.
  */
-const clockLayer = (clock: SimulationClock) =>
-  clock === "live" ? Layer.empty : TestClock.layer();
+const clockLayer = (clock: EvaluationClock): Layer.Layer<never> =>
+  clock === "deterministic" ? TestClock.layer() : Layer.empty;

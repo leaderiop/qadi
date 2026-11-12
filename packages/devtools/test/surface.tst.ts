@@ -71,7 +71,6 @@ export type {
   Selection,
   SignatureHistoryCall,
   SimulatedSubject,
-  SimulationClock,
   SimulationEdit,
   SimulationField,
   SimulationInput,

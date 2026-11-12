@@ -34,7 +34,7 @@ import * as FiberHandle from "effect/FiberHandle";
 import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import type * as Scope from "effect/Scope";
-import type { DecisionOutcome, Policy } from "@qadi/core";
+import type { DecisionOutcome, EvaluationClock, Policy } from "@qadi/core";
 import { makeExternalStore } from "./ExternalStore.ts";
 import type { CapturedAnswers } from "./Capture.ts";
 import { sameSighting, sightingFor, type PolicySighting } from "./Catalogue.ts";
@@ -48,7 +48,7 @@ import {
   type BaselineReading,
   type UnseededField,
 } from "./Replay.ts";
-import { simulate, type SimulationClock } from "./Simulation.ts";
+import { simulate } from "./Simulation.ts";
 import type { ChipAdded, FieldView, SimulationField } from "./SimulationFields.ts";
 import { fieldOps, formOf, renameSubject } from "./SimulationFields.ts";
 import { actionOf, decodeResource, encodeResource, withAction, withResource } from "./SimulationForm.ts";
@@ -112,7 +112,7 @@ export type RunState =
        */
       readonly reading: RecordOutcome;
       readonly report: WhatIfReport | undefined;
-      readonly clock: SimulationClock;
+      readonly clock: EvaluationClock;
     }
   | { readonly _tag: "Broke"; readonly question: SimulationQuestion; readonly message: string }
   | { readonly _tag: "Refused"; readonly question: SimulationQuestion; readonly refusal: SourceRefusal };
@@ -168,7 +168,7 @@ export interface SimulationSnapshot {
   readonly options: ReadonlyArray<SourceOption>;
   /** Why the chosen source cannot be honoured, when it cannot. */
   readonly refusal: SourceRefusal | undefined;
-  readonly clock: SimulationClock;
+  readonly clock: EvaluationClock;
   readonly pairs: boolean;
   readonly capture: CapturedAnswers | undefined;
   /** What a sweep would run now; absent while there is no policy. */
@@ -224,7 +224,7 @@ export interface SimulationSession {
   /** The host's resolvers. A different layer drops the capture taken from the old one. */
   readonly setPorts: (ports: EvaluationPortsLayer | undefined) => void;
   readonly chooseSource: (choice: SourceChoice) => void;
-  readonly setClock: (clock: SimulationClock) => void;
+  readonly setClock: (clock: EvaluationClock) => void;
   readonly setPairs: (pairs: boolean) => void;
   readonly edit: (next: SimulationInput) => void;
   /**
@@ -342,7 +342,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
   let draft: SimulationInput = blank;
   let resourceText: ResourceText = { text: "", error: undefined };
   let sourceChoice: SourceChoice = "Fixtures";
-  let clock: SimulationClock = "live";
+  let clock: EvaluationClock = "live";
   let pairs = false;
   let ports: EvaluationPortsLayer | undefined = init?.ports;
   let capture: CapturedAnswers | undefined;
@@ -470,7 +470,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     question: SimulationQuestion,
     kind: RunKind,
     ready: Extract<PreparedSource, { readonly _tag: "Ready" }>,
-    runClock: SimulationClock,
+    runClock: EvaluationClock,
     runPairs: boolean,
   ) =>
     Effect.gen(function* () {
@@ -491,7 +491,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     question: SimulationQuestion,
     kind: RunKind,
     ready: Extract<PreparedSource, { readonly _tag: "Ready" }>,
-    runClock: SimulationClock,
+    runClock: EvaluationClock,
     runPairs: boolean,
   ) {
     const exit = yield* Effect.exit(program(question, kind, ready, runClock, runPairs));

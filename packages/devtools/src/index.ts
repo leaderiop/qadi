@@ -87,7 +87,6 @@ export type {
 } from "./model/Replay.ts";
 export { Evicted, NoSelection, Selected, selectionOf } from "./model/Selection.ts";
 export type { Selection } from "./model/Selection.ts";
-export type { SimulationClock } from "./model/Simulation.ts";
 export type { EditDirection, EditKind, SimulationEdit } from "./model/SimulationEdit.ts";
 export type { ChipAdded, ChipView, FieldView, SimulationField } from "./model/SimulationFields.ts";
 export type {
