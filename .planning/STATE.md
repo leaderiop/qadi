@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 34
 current_phase_name: Diagnostics as the dock model's seventh store
 status: executing
-stopped_at: Completed 34-03-PLAN.md
-last_updated: "2026-11-12T17:29:39.828Z"
+stopped_at: Completed 34-04-PLAN.md
+last_updated: "2026-11-12T17:32:37.844Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 34 execution started
-state_head: 79f3609bb139adb19d308984b26f533e09582bc2
+state_head: 2086026dadb2e4ed2e3a06576a8f5e7aed160079
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 33
-  completed_plans: 27
+  completed_plans: 28
   percent: 57
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 34 (Diagnostics as the dock model's seventh store) — EXECUTING
-Plan: 4 of 9
+Plan: 5 of 9
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 34 execution started
 
@@ -173,6 +173,7 @@ Progress: [██████░░░░] 57% (v1.3: 0 of 7 phases)
 | Phase 34 P01 | 8 min | 3 tasks | 3 files |
 | Phase 34 P02 | 10min | 3 tasks | 7 files |
 | Phase 34 P03 | 4 min | 3 tasks | 8 files |
+| Phase 34 P04 | 8 min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -260,6 +261,7 @@ Progress: [██████░░░░] 57% (v1.3: 0 of 7 phases)
 - [Phase 34]: 34-02: sampled resets only on Off, so a stop after a restart from Live reports sampled true
 - [Phase 34]: 34-02: run token in the marking accept kept and named as an unreachable Stryker survivor
 - [Phase 34]: idleTimeline is inert so a first-pass caller cannot feed a store shared across components; useTimeline's lifetime change is Breaking
+- [Phase 34]: usePaused reads through useStoreSnapshot (one subscription); simulation reads moved to the same hook
 
 ### Pending Todos
 
@@ -301,8 +303,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T17:29:39.698Z
-Stopped at: Completed 34-03-PLAN.md
+Last session: 2026-11-12T17:32:37.716Z
+Stopped at: Completed 34-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
