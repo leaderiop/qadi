@@ -192,4 +192,30 @@ describe("makeSweepScheduler", () => {
     expect(sweepForkOf({ maxTrackedQuestions: 2 })).toBeUndefined();
     expect(sweepForkOf(undefined)).toBeUndefined();
   });
+
+  it("C11 a fork that throws clears the flag and rethrows, so the next request forks again", async () => {
+    let sweeps = 0;
+    let attempts = 0;
+    const { fibers, fork: recording } = recorder();
+    const refusing: SweepFork = (effect) => {
+      attempts += 1;
+      if (attempts === 1) throw new Error("fork refused");
+      return recording(effect);
+    };
+    const scheduler = makeSweepScheduler(() => {
+      sweeps += 1;
+    }, sweepForkOf(withSweepFork({}, refusing)));
+
+    expect(() => scheduler.request()).toThrow("fork refused");
+    expect(scheduler.pending()).toBe(false);
+
+    scheduler.request();
+    expect(attempts).toBe(2);
+    expect(scheduler.pending()).toBe(true);
+
+    await settle();
+    expect(fibers.length).toBe(1);
+    expect(sweeps).toBe(1);
+    expect(scheduler.pending()).toBe(false);
+  });
 });

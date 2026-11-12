@@ -32,7 +32,12 @@ export interface SweepScheduler {
  * Builds a scheduler over `sweep`.
  *
  * The flag clears before the sweep runs, so a request raised by the sweep starts
- * the next episode and a throwing sweep cannot wedge the scheduler.
+ * the next episode and a throwing sweep cannot wedge the scheduler. A fork that
+ * throws clears it too and rethrows, so the next request forks again.
+ *
+ * A runtime that discards the default fork's timer leaves its episode suspended,
+ * and nothing here can tell: the flag stays set and the bound stops holding for
+ * that atom set. Node and browsers do not do this.
  */
 export const makeSweepScheduler = (
   sweep: () => void,
@@ -51,7 +56,12 @@ export const makeSweepScheduler = (
     request: () => {
       if (pending) return;
       pending = true;
-      fork(episode);
+      try {
+        fork(episode);
+      } catch (cause) {
+        pending = false;
+        throw cause;
+      }
     },
     pending: () => pending,
   };
