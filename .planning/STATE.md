@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.3
 milestone_name: Arch Wave 8
-current_phase: 30
-current_phase_name: One strict-decode module
-status: verifying
-stopped_at: Completed 30-09-PLAN.md
-last_updated: "2026-11-12T04:48:13.739Z"
+current_phase: 31
+current_phase_name: A reset supersedes its claims
+status: planning
+stopped_at: Phase 30 complete, ready to plan Phase 31
+last_updated: "2026-11-12T05:48:03.065Z"
 last_activity: 2026-11-12
-last_activity_desc: Phase 30 execution started
-state_head: "0b5f2ab38b957cc77846688d237a85fa1818d01c"
+last_activity_desc: Phase 30 complete, transitioned to Phase 31
+state_head: f0a5aa31945ed553356ed5c779ab94c88b165dfd
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 9
   completed_plans: 9
-  percent: 0
+  percent: 14
 ---
 
 # Project State
@@ -29,18 +29,18 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 
 ## Current Position
 
-Phase: 30 (One strict-decode module) — EXECUTING
-Plan: 9 of 9
-Status: Phase complete — ready for verification
-Last activity: 2026-11-12 — Phase 30 execution started
+Phase: 31 — A reset supersedes its claims
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-12 — Phase 30 complete, transitioned to Phase 31
 
-Progress: [░░░░░░░░░░] 0% (v1.3: 0 of 7 phases)
+Progress: [█░░░░░░░░░] 14% (v1.3: 0 of 7 phases)
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 73
+- Total plans completed: 82
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -67,6 +67,7 @@ Progress: [░░░░░░░░░░] 0% (v1.3: 0 of 7 phases)
 | 27 | 3 | - | - |
 | 28 | 5 | - | - |
 | 29 | 3 | - | - |
+| 30 | 9 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -259,7 +260,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-12T04:48:13.719Z
-Stopped at: Completed 30-09-PLAN.md
+Stopped at: Phase 30 complete, ready to plan Phase 31
 Resume file: None
 
 ## Operator Next Steps

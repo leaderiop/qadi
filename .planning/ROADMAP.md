@@ -350,7 +350,7 @@ recorded in the phase CONTEXT and its ADR or CCR row.
 
 ### Phases
 
-- [ ] **Phase 30: One strict-decode module** - Every untrusted JSON seam decodes through one core leaf (parse, depth guard, strict decode, closed refusal); each seam keeps only its error mapping (ARCH-78)
+- [x] **Phase 30: One strict-decode module** - Every untrusted JSON seam decodes through one core leaf (parse, depth guard, strict decode, closed refusal); each seam keeps only its error mapping (ARCH-78) (completed 2026-11-12)
 - [ ] **Phase 31: A reset supersedes its claims** - `SharedComputation.reset` supersedes in-flight claims, so `DecisionCache`'s generation counter goes (ARCH-79)
 - [ ] **Phase 32: Evaluation options and services stated once** - `EvaluateOptions` beside `QuestionOptions`, `EvaluationServices` in a type-only leaf, `LifecycleOptions` deleted (ARCH-80)
 - [ ] **Phase 33: One sealed evaluation layer** - One core builder for `@qadi/testing` and devtools' Simulation, with the sink and cache shadowing rule stated and required (ARCH-81)
@@ -377,7 +377,7 @@ recorded in the phase CONTEXT and its ADR or CCR row.
   4. Every guarded seam has a test deeper than the bound (the port-wire decoders, the hydration envelope, and `PolicyFromJson` or its replacement); the module has one property test (the guard always precedes decode, the refusal kind is a function of the input); `wireHazard`'s outbound depth count still equals `exceedsJsonDepth` (INV-QD-096).
   5. Hydration's `{ ...payload, entries: [] }` workaround and the audit envelope's `entries` and row's `record` partial walks are module options, not hand-built copies, and per-entry attribution (`EntryNotDecodable{ index, refusal }`, hydration's per-entry drop reasons) is preserved.
 **Planning notes**: plan order is the characterisation table (green on the base) first, then the leaf and its property test, then core seams, then audit, then hydration (needs the core export), then records. Small research items: the exact `prepare` typing for `SinkCodec`, and the double-walk cost (hydration entry then policy, sink record then row), measured once and never traded for dropping the guard.
-**Plans**: 9/9 plans executed
+**Plans**: 9/9 plans complete
 
 Plans:
 - [x] 30-01 (W1): Mutation baseline of the 13 seam files, the seam inventory, and the refusal characterisation tables (core, react, audit, the devtools paste-box pin) written green on the phase base.
@@ -502,7 +502,7 @@ Phases execute in numeric order: 30 → 31 → 32 → 33 → 34 → 35 → 36
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 30. One strict-decode module | 0/0 | Not started | - |
+| 30. One strict-decode module | 9/9 | Complete    | 2026-11-12 |
 | 31. A reset supersedes its claims | 0/0 | Not started | - |
 | 32. Evaluation options and services stated once | 0/0 | Not started | - |
 | 33. One sealed evaluation layer | 0/0 | Not started | - |
