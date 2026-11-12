@@ -1,0 +1,8 @@
+{
+ "packages/core/src/Lifecycle.ts": 1,
+ "packages/core/src/Evaluate.ts": 1,
+ "packages/core/src/Question.ts": 1,
+ "packages/core/src/Qadi.ts": 0.972972972972973,
+ "packages/core/src/SubjectSet.ts": 1,
+ "packages/core/src/GuardHealthCheck.ts": 0.7777777777777778
+}
