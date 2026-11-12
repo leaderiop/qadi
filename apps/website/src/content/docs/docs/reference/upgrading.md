@@ -552,7 +552,7 @@ export const useStopReason = (): string | undefined => {
 
 ## 0.12: the atom set holds its own bound
 
-The atom set now sweeps its own question book back to `maxTrackedQuestions` one macrotask after the book passes it, so a
+The atom set now sweeps its own question book back to `maxTrackedQuestions` within a few macrotasks of the book passing it, so a
 provider is no longer what enforces the bound. `QadiProvider`'s `sweepIntervalMillis` and `QadiAtoms.sweepEvictions` are
 gone: delete the prop, and delete any timer that ran `sweepEvictions` yourself. The bound now holds with no provider, on
 a bare registry, and after a provider unmounts. Before:

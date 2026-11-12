@@ -207,10 +207,10 @@ export interface QadiAtomsOptions {
    * The most distinct questions this atom set keeps in `asked()` and its own
    * question book at once.
    *
-   * Once exceeded, the atom set sweeps itself back to the bound one macrotask
-   * later, dropping the oldest questions with no reader currently holding them —
-   * never one a mounted gate still has open. No provider is needed. Must be a
-   * positive integer; defaults to `DEFAULT_MAX_TRACKED_QUESTIONS`.
+   * Once exceeded, the atom set sweeps itself back to the bound within a few
+   * macrotasks, dropping the oldest questions with no reader currently holding
+   * them — never one a mounted gate still has open. No provider is needed. Must
+   * be a positive integer; defaults to `DEFAULT_MAX_TRACKED_QUESTIONS`.
    */
   readonly maxTrackedQuestions?: number;
 }
@@ -299,6 +299,9 @@ export const makeQadiAtoms = (
       },
     });
 
+  // One pending sweep per atom set; the book signals it and the sweep reads the book.
+  const scheduler = makeSweepScheduler(() => book.sweep(), sweepForkOf(options));
+
   // **What this closure owns, and who may reach it.** Everything per-atom-set
   // lives here and nowhere at module scope: the question book (one
   // `SeededQuestion` per question, from `HydrationEngine.ts`, holding its private
@@ -317,7 +320,6 @@ export const makeQadiAtoms = (
   // object, so a fresh object each render re-walks the whole policy tree.
   // `v4-reactivity-smoke.test.ts` pins this; a bump to reference keying would
   // silently stop inline policies sharing.
-  const scheduler = makeSweepScheduler(() => book.sweep(), sweepForkOf(options));
   const book = makeQuestionBook<SeededQuestion<EvaluationError>>({
     signal: scheduler.request,
     capacity: options?.maxTrackedQuestions ?? DEFAULT_MAX_TRACKED_QUESTIONS,
