@@ -173,6 +173,28 @@ sample, so a dock can sample this process's activity and show another process's
 wiring. Its `wiring` is a `WiringRead`, so it can state a failed read as well as a
 report.
 
+**A host reading the diagnostics itself** takes the same options with
+`useDiagnostics`, which returns `{ status, reading }` from the same feed the dock
+runs, so a page can show hydration counts and know when sampling stopped:
+
+```tsx
+import { useDiagnostics } from "@qadi/devtools/react";
+
+// Held at module scope: the run restarts when one of these changes identity.
+const sampling = { intervalMillis: 1_000 };
+
+export const HydrationLine = () => {
+  const { status, reading } = useDiagnostics(sampling);
+  return (
+    <p>
+      {status._tag === "Stopped"
+        ? `stopped: ${status.reason}`
+        : `seeded: ${reading.hydration?.seeded ?? 0}`}
+    </p>
+  );
+};
+```
+
 ## What it renders
 
 `DevtoolsDock` is a dock the host mounts explicitly; nothing in the package
@@ -187,7 +209,8 @@ the dock takes, and the readings of a timeline.
 - **Stores.** `makeTimelineStore` and `runSource` hold the timeline;
   `makeSimulationSession` holds the simulator; `makeDiagnosticsStore` and
   `runDiagnostics` hold what the dock samples. `@qadi/devtools/react` has the
-  React half of each (`useTimeline`, `useSimulationSession`, `useDiagnostics`).
+  React half of each (`useTimeline`, `useSimulationSession`, `useDiagnostics`). `useDiagnostics` and the dock
+  share one feed.
 - **Inspection** (`inspect`, `flattenTree`) — walking a decision's evaluation
   tree, including nodes that never resolved or were truncated; with verdict
   classification (`verdictOf`), pairing, filters and selection.

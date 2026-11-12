@@ -515,3 +515,37 @@ const source = sourceFromRecords([]);
 // The returned `store` is the same across capacities.
 export const useRows = (capacity: number) => useTimeline(source, { capacity }).timeline;
 ```
+
+## 0.12: `useDiagnostics` returns `{ status, reading }`
+
+`useDiagnostics` now returns the diagnostics feed's snapshot, the same one the dock reads: the reading moved to
+`reading`, and `status` says whether the sampler is off, starting, live or stopped, with the reason when it stopped.
+A sampler that died used to leave a reading that never changed again; now the status says so. Read
+`reading.hydration` and the other fields from `reading`. Before:
+
+```ts
+import { useDiagnostics } from "@qadi/devtools/react";
+
+export const useHydration = () => {
+  const { hydration } = useDiagnostics({ intervalMillis: 1_000 });
+  return hydration;
+};
+```
+
+After:
+
+```typescript
+import type { HydrationActivity } from "@qadi/devtools";
+import { DiagnosticsStatus, useDiagnostics } from "@qadi/devtools/react";
+import type { DiagnosticsDockOptions } from "@qadi/devtools/react";
+
+const sampling: DiagnosticsDockOptions = { intervalMillis: 1_000 };
+
+export const useHydration = (): HydrationActivity | undefined =>
+  useDiagnostics(sampling).reading.hydration;
+
+export const useStopReason = (): string | undefined => {
+  const { status } = useDiagnostics(sampling);
+  return DiagnosticsStatus.$is("Stopped")(status) ? status.reason : undefined;
+};
+```
