@@ -15,22 +15,15 @@
  * fabricated decisions into the real log and eight entries into the real cache,
  * indistinguishable on screen from decisions someone actually asked for.
  * Fabricating audit rows from a debug panel is a defect, not a trade-off, so
- * both are shadowed here in every source mode.
+ * both are shadowed in every source mode, by the one choice `simulationLayer`
+ * states to core's evaluation environment.
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import * as TestClock from "effect/testing/TestClock";
-import {
-  currentSubjectLayer,
-  Decided,
-  decisionCacheLayer,
-  DecisionSink,
-  evaluate,
-  evaluationIdSequential,
-  Failed,
-} from "@qadi/core";
-import type { DecisionOutcome, Policy } from "@qadi/core";
+import { currentSubjectLayer, Decided, evaluate, evaluationEnvironment, Failed } from "@qadi/core";
+import type { DecisionOutcome, EvaluationServices, Policy } from "@qadi/core";
 import { evaluationOptionsOf, subjectOf, type SimulationInput } from "./SimulationInput.ts";
 import { portsOf, type SimulationSource } from "./SimulationSource.ts";
 
@@ -81,27 +74,23 @@ export const simulate = (
  *
  * Exported so a test can prove the seal rather than trust it, and so a caller
  * running several simulations under one scope can see exactly what they get.
+ * It asks core's environment for `shadow: "sinkAndCache"`, because a simulated
+ * decision must never reach a real sink or cache (INV-QD-042, ADR-QD-146).
  */
-export const simulationLayer = (input: SimulationInput, options?: SimulationOptions) =>
-  Layer.mergeAll(
+export const simulationLayer = (
+  input: SimulationInput,
+  options?: SimulationOptions,
+): Layer.Layer<EvaluationServices> =>
+  Layer.merge(
     // Always the panel's subject, never a live one — the subject is the thing
     // being simulated, so taking it from anywhere else would defeat the screen.
     currentSubjectLayer(subjectOf(input.subject)),
-    portsOf(options?.source, input),
-    evaluationIdSequential("sim"),
-    clockLayer(options?.clock ?? "live"),
-
-    // ── shadowed on purpose, in every source mode ──
-    //
-    // A no-op sink rather than no sink: there is no way to *remove* a service
-    // from a context, so the only way to guarantee a simulation writes nothing
-    // is to put a sink here that discards. Without it, a sweep run anywhere a
-    // real sink is in scope fabricates audit rows.
-    Layer.succeed(DecisionSink, { record: () => Effect.void }),
-    // A private cache rather than none, for the same reason: this shadows the
-    // application's, so a simulation neither reads a real entry nor inserts a
-    // fabricated one that a real request would later hit.
-    decisionCacheLayer(),
+    evaluationEnvironment({
+      ports: portsOf(options?.source, input),
+      idPrefix: "sim",
+      clock: clockLayer(options?.clock ?? "live"),
+      shadow: "sinkAndCache",
+    }),
   );
 
 /**

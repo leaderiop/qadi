@@ -15,6 +15,7 @@ export * from "./DecisionWire.ts";
 export * from "./EncodeRefusalReport.ts";
 export * from "./Errors.ts";
 export * from "./Evaluate.ts";
+export * from "./EvaluationEnvironment.ts";
 export * from "./EvaluationId.ts";
 export * from "./EvaluationMetrics.ts";
 export * from "./EvaluationServices.ts";
