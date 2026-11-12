@@ -81,7 +81,7 @@ marked **Breaking**, `apps/website/.../reference/upgrading.md`). Releasing is st
 - [x] **WX-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock. Budgets change only together with their AGENTS.md table.
 - [ ] **WX-05**: Coverage thresholds hold (core at least 95%, others at least 90%). The Stryker score of touched files does not fall (per-phase `NN-mutation-base.json`), and a drop is closed with a test, never re-baselined.
 - [x] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base (RED for a defect, green for preserved behaviour).
-- [ ] **WX-07**: Every public break is recorded in its package's changeset as **Breaking** and in `upgrading.md`. Nothing is released or published, and no version-packages PR is merged.
+- [x] **WX-07**: Every public break is recorded in its package's changeset as **Breaking** and in `upgrading.md`. Nothing is released or published, and no version-packages PR is merged.
 
 ## v2 Requirements
 
@@ -151,7 +151,7 @@ The seven WX rows apply to every phase 30 to 36, so each phase's Requirements li
 | WX-04 | All v1.3 phases | Complete |
 | WX-05 | All v1.3 phases | Pending |
 | WX-06 | All v1.3 phases | Complete |
-| WX-07 | All v1.3 phases | Pending |
+| WX-07 | All v1.3 phases | Complete |
 
 **Coverage:**
 - v1.3 requirements: 45 total (38 phase-specific, 7 cross-cutting)
