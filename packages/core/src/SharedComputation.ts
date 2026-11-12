@@ -12,15 +12,16 @@
  * Package-private, and generic over its key (a `HashMap`, so `Equal`
  * semantics), so the regime is testable with plain keys and latched effects and
  * no walk (`SharedComputation.test.ts`). `DecisionCache.ts` is its one adapter:
- * what is remembered after a claim settles, the generation counter behind
- * `clear` and FIFO eviction all stay there, behind the `cached` and `claim`
- * hooks below.
+ * what is remembered after a claim settles, and FIFO eviction, stay there,
+ * behind the `cached` and `claim` hooks below. The staleness rule does not: a
+ * `reset` supersedes every in-flight claim, so no answer computed before it is
+ * ever handed to the adapter.
  *
- * **A claim is joinable only while somebody waits on it** (issue #64): the
- * last waiter to leave removes it in the same step that abandons it, so a fresh
- * ask never joins a compute nobody wants and never inherits its interrupt, and
- * an abandoned compute's exit is dropped. See the paragraph on it above
- * `awaitShared`.
+ * **A claim is joinable only while somebody waits on it, and until a reset
+ * supersedes it** (issue #64): the last waiter to leave removes it in the same
+ * step that abandons it, so a fresh ask never joins a compute nobody wants and
+ * never inherits its interrupt. An abandoned or superseded compute's exit is
+ * dropped. See the paragraph on it above `awaitShared`.
  */
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -54,14 +55,46 @@ export interface SharedComputation<K, A, E> {
   /** The value for `key`: cached, joined from a compute in flight, or computed here. */
   readonly run: <R>(key: K, compute: Effect.Effect<A, E, R>) => Effect.Effect<Shared<A>, E, R>;
   /**
-   * Forgets every in-flight claim, so the next ask for any key claims afresh.
-   * Claims already running still settle the fibers awaiting them.
+   * Supersedes every in-flight claim, so the next ask for any key claims afresh.
    *
-   * A plain synchronous function, not an `Effect`, so an adapter can call it
-   * inside the same `Effect.sync` step as the rest of its own flush.
+   * A superseded claim's compute keeps running, answers every fiber already
+   * awaiting it exactly once and is interrupted when its last waiter leaves,
+   * but its exit never reaches the adapter, so nothing it computed is
+   * remembered. A plain synchronous function, not an `Effect`, so an adapter
+   * can call it inside the same `Effect.sync` step as the rest of its own flush.
    */
   readonly reset: () => void;
 }
+
+/**
+ * Where an in-flight claim stands: current, made stale by a reset, or left by
+ * every waiter.
+ *
+ * Only a Live claim's exit reaches the adapter. Superseded and Abandoned stay
+ * distinct because they have different causes (a reset made the answer stale;
+ * nobody is left waiting), and one closed field leaves no combination of two
+ * flags that means nothing.
+ */
+type Standing = "Live" | "Superseded" | "Abandoned";
+
+// The two moves a claim makes. Nothing ever returns to Live, which the value
+// type enforces. They are tables, not assignments, because the one reader of
+// `standing` (the compute's `onExit`) cannot tell Superseded from Abandoned, so
+// a literal assignment of either would be a mutant no test can kill.
+
+/** A reset: Live becomes Superseded; the other two stand. */
+const afterReset: { readonly [S in Standing]: Exclude<Standing, "Live"> } = {
+  Live: "Superseded",
+  Superseded: "Superseded",
+  Abandoned: "Abandoned",
+};
+
+/** The last waiter leaving: Live becomes Abandoned; Superseded stays Superseded. */
+const afterLastLeave: { readonly [S in Standing]: Exclude<Standing, "Live"> } = {
+  Live: "Abandoned",
+  Superseded: "Superseded",
+  Abandoned: "Abandoned",
+};
 
 /**
  * One key's shared, in-flight `compute` — the claiming fiber's own ask, and
@@ -74,14 +107,18 @@ export interface SharedComputation<K, A, E> {
  * be interrupted. `waiters` is how many fibers (the claimant included) are
  * currently attached to `claim`; it is what tells the last one to leave
  * whether interrupting `fiber` would abandon someone else's answer or just
- * its own. `abandoned` is set by that last leaver, in the step that removes
- * the claim from `inFlight`; it tells the compute's `onExit` to drop its exit.
+ * its own. `standing` is Live while the claim is current; `reset` moves it to
+ * Superseded, and the claim's compute still answers every waiter and is still
+ * interrupted when its last waiter leaves, but its exit never reaches the
+ * adapter. The last waiter to leave moves a Live claim to Abandoned, in the
+ * step that removes it from `inFlight`; a Superseded claim stays Superseded.
+ * The compute's `onExit` settles only a Live claim.
  */
 interface InFlightClaim<A, E> {
   readonly claim: Deferred.Deferred<A, E>;
   fiber: Fiber.Fiber<A, E> | undefined;
   waiters: number;
-  abandoned: boolean;
+  standing: Standing;
 }
 
 /** A fresh single-flight table, empty, over the adapter's hooks. */
@@ -161,19 +198,22 @@ export const makeSharedComputation = <K, A, E>(
    * cancelled itself (issue #64 follow-up).
    *
    * **So a claim is joinable only while somebody waits on it.** The same
-   * synchronous step that sees `waiters` reach 0 marks the claim
-   * `abandoned` and removes it from `inFlight` (by identity, through
-   * `forget`), before `Fiber.interrupt` is called at all. A fresh ask
-   * for the same key after that claims afresh and runs its own `compute`,
-   * so a joiner can only ever reach a claim somebody still waits on, and
-   * never inherits an interrupt it did not receive. An abandoned claim's
-   * exit is dropped: its settle is not called, so nothing is cached from
-   * it — nobody asked for it any more, and a fresh claim may already be
+   * synchronous step that sees `waiters` reach 0 marks a Live claim
+   * Abandoned and removes it from `inFlight` (by identity, through
+   * `forget`), before `Fiber.interrupt` is called at all; a claim a
+   * `reset` already superseded stays Superseded and is out of `inFlight`
+   * already. A fresh ask for the same key after that claims afresh and
+   * runs its own `compute`, so a joiner can only ever reach a claim
+   * somebody still waits on, and never inherits an interrupt it did not
+   * receive. Either way the compute is interrupted and its exit settles
+   * nothing: its settle is not called, so nothing is cached from it —
+   * nobody asked for it any more, and a fresh claim may already be
    * computing the same key, so writing both would be the double
    * insertion-order append the claim-window fix in `run` exists to
-   * prevent — and its `Deferred.done` reaches no waiter, because none is
-   * left. In the idle-and-interruptible cascade above the claim is
-   * abandoned the same way, so that cascade's `onExit` settles nothing
+   * prevent. Its `Deferred.done` reaches no waiter when the claim was
+   * abandoned, because none is left; a superseded claim's waiters are
+   * still answered. In the idle-and-interruptible cascade above the claim
+   * is abandoned the same way, so that cascade's `onExit` settles nothing
    * either, where it used to settle an interrupted exit the adapter then
    * ignored.
    *
@@ -200,7 +240,7 @@ export const makeSharedComputation = <K, A, E>(
           entry.waiters -= 1;
           if (entry.waiters > 0) return undefined;
           // The last one out: nobody can join this claim from here on.
-          entry.abandoned = true;
+          entry.standing = afterLastLeave[entry.standing];
           forget(key, entry);
           return entry.fiber;
         }).pipe(Effect.flatMap((fiber) => (fiber === undefined ? Effect.void : Fiber.interrupt(fiber)))),
@@ -274,7 +314,7 @@ export const makeSharedComputation = <K, A, E>(
             claim: Deferred.makeUnsafe<A, E>(),
             fiber: undefined,
             waiters: 1,
-            abandoned: false,
+            standing: "Live",
           };
           inFlight = HashMap.set(inFlight, key, entry);
           // The adapter's own claim-time reads (`DecisionCache`'s
@@ -348,8 +388,10 @@ export const makeSharedComputation = <K, A, E>(
             Effect.sync(() => {
               // The adapter's settle first, so what it remembers is in place
               // before any waiter — or a fresh ask — can observe the answer.
-              // An abandoned claim's exit is dropped (see `awaitShared`).
-              if (!entry.abandoned) settle(exit);
+              // Only a Live claim's exit reaches the adapter; a superseded or
+              // abandoned claim's exit still answers every waiter through
+              // `Deferred.done` below (see `awaitShared`).
+              if (entry.standing === "Live") settle(exit);
               // A no-op when `reset` or the abandoning leave already did it.
               forget(key, entry);
             }).pipe(Effect.flatMap(() => Deferred.done(entry.claim, exit))),
@@ -370,6 +412,9 @@ export const makeSharedComputation = <K, A, E>(
   return {
     run,
     reset: () => {
+      HashMap.forEach(inFlight, (entry) => {
+        entry.standing = afterReset[entry.standing];
+      });
       inFlight = HashMap.empty<K, InFlightClaim<A, E>>();
     },
   };
