@@ -191,9 +191,9 @@
 - [x] **GATE-04**: `useGateRegistration` either gains a production reason or is removed with its test.
 
 ### Small restated facts (Phase 29)
-- [ ] **TIDY-01**: `PortName`/`PortSpanName` live in a leaf module with no metrics; `PortSpanName` derives from the descriptions' span literals if the compiler allows.
-- [ ] **TIDY-02**: `HydrationEngine.ts`'s entry `omit` lists are stated once and used by both the schemas and `dehydrateDecision`.
-- [ ] **TIDY-03**: The "This is not a denial" sentence is one constant used by the Inspector and the Simulator.
+- [x] **TIDY-01**: `PortName`/`PortSpanName` live in a leaf module with no metrics; `PortSpanName` derives from the descriptions' span literals if the compiler allows. *Delivered (Phase 29) by the inverse derivation (29-CONTEXT D-02): one five-row table in the import-free `PortName.ts` states each port's name and span, and `PortDescription.span` is narrowed to `PortSpanOf<N>`; deriving from the descriptions is not possible (each annotated description's `span` type is the whole union, and the leaf cannot import descriptions without a cycle), recorded in the ADR-QD-094 amendment and CCR-QD-419.*
+- [x] **TIDY-02**: `HydrationEngine.ts`'s entry `omit` lists are stated once and used by both the schemas and `dehydrateDecision`. *Delivered (Phase 29): `ALLOW_WITHHELD`/`DENY_WITHHELD`; the D-04 decode guard already existed (`HydrationPayload.test.ts`), so none was added.*
+- [x] **TIDY-03**: The "This is not a denial" sentence is one constant used by the Inspector and the Simulator.
 
 ### Cross-cutting (every v1.2 phase)
 - [x] **WX-01**: `pnpm check:pr` is green at the end of each phase.
@@ -221,7 +221,7 @@
 | DMOD-01, DMOD-02, DMOD-03, DMOD-04, DMOD-05 | Phase 26 | Complete (2026-11-11) |
 | ROUTE-01, ROUTE-02, ROUTE-03 | Phase 27 | Complete (2026-11-11) |
 | GATE-01, GATE-02, GATE-03, GATE-04 | Phase 28 | Complete (2026-11-11) |
-| TIDY-01, TIDY-02, TIDY-03 | Phase 29 | Pending |
+| TIDY-01, TIDY-02, TIDY-03 | Phase 29 | Complete (2026-11-12) |
 | WX-01, WX-02, WX-03, WX-04, WX-05, WX-06 | All v1.2 phases | Pending |
 
 **Coverage:** 44 v1.2 requirements (38 + 6 cross-cutting); mapped 44; unmapped 0.

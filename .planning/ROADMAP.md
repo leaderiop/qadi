@@ -296,7 +296,7 @@ shape from benchmark numbers, plus the absent-vs-undefined key convention), 25-0
 - [x] **Phase 26: Headless dock model** - `makeDockModel` owns the six stores and the cross-store rules; one hook; one held-choice cell (ARCH-74) (completed 2026-11-11)
 - [x] **Phase 27: Bare-route module** - `addGuardedRoute` absorbs `guardRoute`; one route-method union; the registry route moves out (ARCH-75) (completed 2026-11-11)
 - [x] **Phase 28: Gate registry dependency** - Checkpoint on ADR-QD-111; React-free `reconcile`; `useGateRegistration` deleted (ARCH-76) (completed 2026-11-11)
-- [ ] **Phase 29: Small restated facts** - Port identity in a metric-free leaf; hydration withheld fields once; one "not a denial" sentence (ARCH-77)
+- [x] **Phase 29: Small restated facts** - Port identity in a metric-free leaf; hydration withheld fields once; one "not a denial" sentence (ARCH-77) (completed 2026-11-12)
 
 ### Phase Details
 
@@ -439,7 +439,7 @@ Plans:
   1. `PortName.ts` holds one five-row table; `PortDescription.span` is `PortSpanOf<N>` (or the recorded fallback).
   2. `HydrationEngine.ts`'s withheld fields are one constant per entry kind.
   3. One `FAILURE_IS_NOT_A_DENIAL` constant serves the Inspector and the Simulator; literal test assertions are unedited.
-**Plans**: 3/3 plans executed
+**Plans**: 3/3 plans complete
 
 Plans:
 - [x] 29-01 (W1): Preconditions and the 12-file mutation baseline; TIDY-01 port identity leaf (`PortName.ts`, `span: PortSpanOf<N>`)
@@ -458,4 +458,4 @@ Plans:
 | 26. Headless dock model | 6/6 | Complete    | 2026-11-11 |
 | 27. Bare-route module | 3/3 | Complete    | 2026-11-11 |
 | 28. Gate registry dependency | 5/5 | Complete    | 2026-11-11 |
-| 29. Small restated facts | 0/2 | Planned | - |
+| 29. Small restated facts | 3/3 | Complete    | 2026-11-12 |
