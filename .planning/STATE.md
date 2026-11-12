@@ -25,7 +25,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 30 — One strict-decode module
+**Current focus:** Phase 31 — A reset supersedes its claims
 
 ## Current Position
 
@@ -219,6 +219,7 @@ Progress: [█░░░░░░░░░] 14% (v1.3: 0 of 7 phases)
 - [Phase 30]: ADR-QD-143: untrusted JSON is decoded through one module; BEH-QD-259 restated so it describes the decoder; BEH-QD-490 left Unused
 - [Phase 30]: 30-08: MAX_DECODE_DEPTH unchanged vs 0.11.0 (256); UNTRUSTED_DECODE_OPTIONS and exceedsJsonDepth treated as released names
 - [Phase 30]: 30-09: drop-closing tests for ExplorerSession.ts live in ExplorerSessionRefusal.test.ts, since ExplorerSession.test.ts hosts the paste-box characterisation pin
+- [Phase 30]: review (3 auto-fix rounds, 11 findings, all fixed): NotJson carries the parser's own message; JSON.parse counted by [untrusted-decode]; one package-private isPlainObject in JsonShape.ts; ADR-QD-002 amended; 30-mutation-after.json refreshed at HEAD
 
 ### Pending Todos
 
@@ -245,6 +246,7 @@ Progress: [█░░░░░░░░░] 14% (v1.3: 0 of 7 phases)
 - [Phase 27] Review (27-REVIEW-DISPOSITION.md): WR-01..03 fixed (82895714, f304bbc0, a4be4995: ADR-037/043/046 and three `@qadi/core` comments still named `guardRoute` as live); IN-01 (`GuardRoute.ts` "the one the module accepts" now ambiguous) and IN-02 ("lost ARCH-57's probe" typo, moved verbatim) open, info. ROUTE-01/ROUTE-03 delivered by intent (CCR-QD-417). `scripts/spec-revise.mjs` drops its document argument when `--date` is omitted (always pass `--date`; script untouched). Pre-existing stale citation `v4-http-smoke.test.ts:106` (`registerApi`) and a `stryker.http.mjs` comment still place code in `PermissionRegistry.ts`.
 - [Phase 28] Review (28-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01..IN-06 open, info ("three" re-exported types is four; stale `{@link useGates}` in `GateWriter.ts`; INV-QD-064 Source credits `GateWriter.ts` with `GateRegistry.ts`'s key logic; ADR-QD-140's "only test edit is one import" overstated; ADR-QD-053's amendment blockquote lacks a pointer to ADR-QD-140; no StrictMode lifecycle test — reviewer's probe showed correct). D-01 = A taken from `_DECISIONS-v1.2.md`. 28-03's executor died on a network error once and was resumed.
 - [Phase 29] Review (29-REVIEW-DISPOSITION.md): WR-01 fixed (7bddf8fb: ADR-QD-123's live line still placed `PortName` in `PortMetrics.ts`); IN-01 (`DENY_WITHHELD` restates `ALLOW_WITHHELD`'s fields), IN-02 (CCR-QD-419 says six and seven re-pointed modules; cites README Rev 1.155, now 1.156) and IN-03 (ADR-QD-123 amendment "still imports" should read "now imports") open, info. `astro check` (gate 15) shows an interactive `@astrojs/check` install prompt in this environment and only proceeds with stdin closed, so the website typecheck is effectively skipped (pre-existing; the final `pnpm check:pr` ran with `< /dev/null`).
+- [Phase 30] Review (30-REVIEW-DISPOSITION.md): all 11 findings fixed over three auto-fix rounds (WR-01..03 and IN-01..04, then IN-01/IN-02, then WR-01/IN-01; b1299653..a460ebae). The loop hit its 3-round cap with the last fixer pass closing everything, so the final 30-REVIEW.md reads issues_found with nothing open; iteration backups kept. 30-09's flip-marker scan reports three false positives (56214374, b3435e58, d42e8de4: added rows, oracle swap, title renames), confirmed by the verifier.
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
@@ -259,12 +261,11 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T04:48:13.719Z
+Last session: 2026-11-12T07:30:00Z
 Stopped at: Phase 30 complete, ready to plan Phase 31
 Resume file: None
 
 ## Operator Next Steps
 
-
-- Discuss Phase 30 with /gsd-discuss-phase 30 (it opens on four checkpoint:decision items), then /gsd-plan-phase 30
-- Phases 30-36 run strictly one at a time; Phase 35 opens on a spike and may conclude "keep the sweep in the provider"
+- Phase 31 (a reset supersedes its claims) is next: smart discuss, then /gsd-plan-phase 31
+- Phases 31-36 run strictly one at a time; Phase 35 opens on a spike and may conclude "keep the sweep in the provider"
