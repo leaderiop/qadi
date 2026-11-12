@@ -173,11 +173,11 @@ describe("the clock", () => {
       // The point of the option: two decisions compared field by field agree on
       // this one, where under a live clock they agree only by luck.
       assert.strictEqual(decision.durationMillis, 0);
-    }).pipe(Effect.provide(qadiTestLayer(administrator, { clock: "test" }))));
+    }).pipe(Effect.provide(qadiTestLayer(administrator, { clock: "deterministic" }))));
 
   it.live("is the same option on the review layer, which has no subject", () =>
     Effect.gen(function* () {
-      const test = yield* Layer.build(qadiReviewLayer({ clock: "test" }));
+      const test = yield* Layer.build(qadiReviewLayer({ clock: "deterministic" }));
       const live = yield* Layer.build(qadiReviewLayer());
 
       assert.strictEqual(Context.get(test, Clock.Clock).currentTimeMillisUnsafe(), 0);
@@ -189,7 +189,7 @@ describe("the clock", () => {
       const decision = yield* evaluate(policies.canRead);
 
       assert.strictEqual(decision.evaluationId, "eval-1");
-    }).pipe(Effect.provide(qadiTestLayer(administrator, { clock: "test" }))));
+    }).pipe(Effect.provide(qadiTestLayer(administrator, { clock: "deterministic" }))));
 
   /**
    * `QadiReviewLayer.ts`'s `clock` option previously documented that driving
@@ -210,7 +210,7 @@ describe("the clock", () => {
       assert.isTrue(isAllowed(decision));
       assert.strictEqual(yield* Clock.currentTimeMillis, 2 * 60 * 60 * 1000);
       assert.strictEqual(decision.durationMillis, 0);
-    }).pipe(Effect.provide(qadiTestLayer(administrator, { clock: "test" }))));
+    }).pipe(Effect.provide(qadiTestLayer(administrator, { clock: "deterministic" }))));
 });
 
 describe("ports", () => {

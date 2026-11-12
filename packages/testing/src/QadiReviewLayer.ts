@@ -6,6 +6,7 @@
  */
 import { evaluationEnvironment, fixturePortsLayer } from "@qadi/core";
 import type {
+  EvaluationClock,
   EvaluationServices,
   PortFixtureData,
   PortName,
@@ -51,7 +52,10 @@ export interface TestLayerOptions {
   /**
    * Which clock the evaluation runs under. Defaults to `live`.
    *
-   * `test` makes `durationMillis` reproducibly zero, which matters when two
+   * The vocabulary is `@qadi/core`'s `EvaluationClock`, the same one the
+   * devtools simulator takes.
+   *
+   * `deterministic` makes `durationMillis` reproducibly zero, which matters when two
    * decisions are being compared field by field.
    *
    * **This option exists because the ids were reproducible and the clock was
@@ -65,9 +69,9 @@ export interface TestLayerOptions {
    * is already correct, and layering another over it would only be a way to get
    * it wrong.
    *
-   * **`test` under `it.effect` shadows the ambient `TestClock`.**
+   * **`deterministic` under `it.effect` shadows the ambient `TestClock`.**
    * `@effect/vitest`'s `it.effect` already provides a `TestClock` to the test
-   * effect. `clock: "test"` builds a *second* `TestClock.layer()` inside this
+   * effect. `clock: "deterministic"` builds a *second* `TestClock.layer()` inside this
    * fixture and provides it alongside the rest of the environment — Effect's
    * "innermost provide wins" rule means the evaluation this layer feeds runs
    * against *this* clock, not the ambient one.
@@ -86,7 +90,7 @@ export interface TestLayerOptions {
    * `TestClock.setTime` are both built on `testClockWith`, so they read
    * whichever `Clock` is current at the point they are *called* — the same
    * fiber ref `Clock.currentTimeMillis` already reads correctly under
-   * `clock: "test"` (see "makes durations reproducible when asked for" in
+   * `clock: "deterministic"` (see "makes durations reproducible when asked for" in
    * `TestLayers.test.ts`). Calling them from *inside* the same effect this
    * option's layer is provided to — before `evaluate`, in the same `pipe` —
    * reaches the inner clock, not the ambient one, because "innermost provide
@@ -102,7 +106,7 @@ export interface TestLayerOptions {
    * fiber executing inside the `Effect.provide`, and a call outside it is a
    * different fiber's current context.
    */
-  readonly clock?: "live" | "test";
+  readonly clock?: EvaluationClock;
   /**
    * Sets up any port, keyed by port name: `{ AttributeResolver: { answers: ... } }`
    * or `{ AttributeResolver: { layer: ... } }`. A port left out stays at its
@@ -158,14 +162,14 @@ export const qadiReviewLayer = (
   });
 
 /**
+ * The one place this package turns the shared clock word into a layer:
  * `Layer.empty` for `live`, so nothing shadows the runtime's own clock.
  *
- * Deliberately unannotated. `TestClock.layer()` provides a `TestClock`, which is
- * a *wider* service than `Clock` — it adds `adjust`, `setTime` and `withLive` —
- * so no single annotation covers both branches without either lying about the
- * live one or narrowing away the test one. The inferred union is the truth, and
- * it costs a caller nothing: `Clock` is a default service, so neither branch can
- * leave an unmet requirement behind.
+ * Annotated `Layer.Layer<never>` because that is what the evaluation environment
+ * asks of a clock: it provides nothing the evaluation requires by type, `Clock`
+ * being a default service. The `TestClock` it installs for `deterministic` is
+ * still the clock an evaluation reads and the one `TestClock.adjust` reaches
+ * inside the provided effect.
  */
-const clockLayer = (clock: TestLayerOptions["clock"]) =>
-  clock === "test" ? TestClock.layer() : Layer.empty;
+const clockLayer = (clock: EvaluationClock | undefined): Layer.Layer<never> =>
+  clock === "deterministic" ? TestClock.layer() : Layer.empty;

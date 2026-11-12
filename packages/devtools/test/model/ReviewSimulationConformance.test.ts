@@ -122,7 +122,7 @@ describe("the review layer and a simulation agree", () => {
     Effect.gen(function* () {
       const policy = hasAttribute("clearance", gte(1));
       const review = qadiReviewLayer({
-        clock: "test",
+        clock: "deterministic",
         ports: { AttributeResolver: { answers: { clearance: 3 } } },
       });
       const simulation = simulationLayer(alice, { clock: "deterministic" });
