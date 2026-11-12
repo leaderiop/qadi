@@ -8,6 +8,7 @@
  * `evaluate` and let a sink produce the record, which is a different and
  * deliberately smaller set.
  */
+import * as Effect from "effect/Effect";
 import {
   Allow,
   Decided,
@@ -166,3 +167,8 @@ export const chain = <T>(wrap: (inner: T) => T, n: number, leaf: T): T => {
   for (let i = 0; i < n; i++) current = wrap(current);
   return current;
 };
+
+/** Lets every fiber forked so far run to its next suspension before a clock step. */
+export const settleTurns = Effect.gen(function* () {
+  for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+});
