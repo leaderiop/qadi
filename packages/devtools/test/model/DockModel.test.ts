@@ -16,6 +16,7 @@
  * once this one is green (26-05).
  */
 import { assert, describe, it } from "@effect/vitest";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
@@ -42,7 +43,8 @@ import {
 import type { Policy, StoredRecord } from "@qadi/core";
 import { catalogueOf, policyLabel } from "../../src/model/Catalogue.ts";
 import type { Catalogue } from "../../src/model/Catalogue.ts";
-import { DiagnosticsStatus } from "../../src/model/DiagnosticsFeed.ts";
+import { DiagnosticsStatus, diagnosticsOff } from "../../src/model/DiagnosticsFeed.ts";
+import { noDiagnostics } from "../../src/model/DiagnosticsStore.ts";
 import { makeDockModel } from "../../src/model/DockModel.ts";
 import type { DockModel } from "../../src/model/DockModel.ts";
 import type { TabId } from "../../src/model/DockSession.ts";
@@ -51,6 +53,7 @@ import type { Source } from "../../src/model/Source.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { countsOf } from "../../src/model/Verdict.ts";
 import { allow, decisionRecord, deny, failedRecord, obligationRecord, read, readPolicy } from "../helpers.ts";
+import { settleTurns } from "../helpers.ts";
 
 const write = permission("doc", "write");
 const writePolicy: Policy = hasPermission(write);
@@ -737,5 +740,210 @@ describe("the diagnostics store (M18..M27)", () => {
       fail = false;
       model.diagnostics.restart();
       assert.isTrue(DiagnosticsStatus.$is("Live")(model.diagnostics.getSnapshot().status));
+    }));
+
+  /** A layer that counts its builds and releases, taking `acquire` to build. */
+  const countedLayer = (acquire: Effect.Effect<void> = Effect.void) => {
+    const counts = { builds: 0, releases: 0 };
+    const layer = Layer.effectDiscard(
+      Effect.acquireRelease(
+        Effect.andThen(
+          acquire,
+          Effect.sync(() => {
+            counts.builds += 1;
+          }),
+        ),
+        () =>
+          Effect.sync(() => {
+            counts.releases += 1;
+          }),
+      ),
+    );
+    return { counts, layer };
+  };
+
+  /** Settles every fiber, then steps the clock. */
+  const step = (duration: Duration.Input) =>
+    Effect.gen(function* () {
+      yield* settleTurns;
+      yield* TestClock.adjust(duration);
+      yield* settleTurns;
+    });
+
+  /** The status tag and the activity list of every notification of the seventh store, in order. */
+  const recordingOf = (model: DockModel) => {
+    const seen: Array<{ readonly tag: string; readonly activity: ReadonlyArray<unknown> }> = [];
+    model.diagnostics.subscribe(() => {
+      const { status, reading } = model.diagnostics.getSnapshot();
+      seen.push({ tag: status._tag, activity: reading.activity });
+    });
+    return seen;
+  };
+
+  const suppliedActivity = [
+    { port: "AttributeResolver", calls: 1, translationCalls: 0, retries: 0, timeouts: 0 },
+  ];
+
+  it.effect("M19: an empty options object is Live at once with hydration read, and no options is Off", () =>
+    Effect.gen(function* () {
+      const live = yield* makeDockModel({ diagnostics: {} });
+      const { status, reading } = live.diagnostics.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Live")(status));
+      assert.isDefined(reading.hydration);
+
+      const off = yield* makeDockModel();
+      assert.isTrue(DiagnosticsStatus.$is("Off")(off.diagnostics.getSnapshot().status));
+      assert.strictEqual(off.diagnostics.getSnapshot().reading, noDiagnostics);
+    }));
+
+  it.effect("M20: an asynchronous layer leaves the store Starting after the build, then Live with the wiring read", () =>
+    Effect.gen(function* () {
+      const { layer } = countedLayer(Effect.sleep("1 second"));
+      const model = yield* makeDockModel({ diagnostics: { layer } });
+      const early = model.diagnostics.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Starting")(early.status));
+      assert.strictEqual(early.reading, noDiagnostics);
+
+      yield* step("1 second");
+
+      const late = model.diagnostics.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Live")(late.status));
+      assert.strictEqual(late.reading.wiring._tag, "Read");
+    }));
+
+  it.effect("M21: with no reading supplied the store keeps one snapshot, and a sample that changed nothing notifies nothing", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel({ diagnostics: {} });
+      const first = model.diagnostics.getSnapshot();
+      assert.strictEqual(model.diagnostics.getSnapshot(), first);
+      const heard = { calls: 0 };
+      model.diagnostics.subscribe(() => {
+        heard.calls += 1;
+      });
+
+      yield* step("10 seconds");
+
+      assert.strictEqual(heard.calls, 0);
+      assert.strictEqual(model.diagnostics.getSnapshot(), first);
+    }));
+
+  it.effect("M22: a supplied field wins over the sampled one, the rest are sampled, and the merge is one reference", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel({ diagnostics: {}, reading: { activity: suppliedActivity } });
+
+      const { reading } = model.diagnostics.getSnapshot();
+      assert.strictEqual(reading.activity, suppliedActivity);
+      assert.isDefined(reading.hydration);
+      assert.strictEqual(model.diagnostics.getSnapshot(), model.diagnostics.getSnapshot());
+    }));
+
+  it.effect("M23: a reading-only configure notifies once and never restarts the poll", () =>
+    Effect.gen(function* () {
+      const { counts, layer } = countedLayer();
+      const diagnostics = { layer };
+      const reading = { activity: suppliedActivity };
+      const model = yield* makeDockModel({ diagnostics });
+      const heard = { calls: 0 };
+      model.diagnostics.subscribe(() => {
+        heard.calls += 1;
+      });
+
+      model.configure({ diagnostics, reading });
+      assert.strictEqual(heard.calls, 1);
+      assert.strictEqual(counts.builds, 1);
+
+      model.configure({ diagnostics, reading });
+      assert.strictEqual(heard.calls, 1);
+      assert.strictEqual(counts.builds, 1);
+      assert.strictEqual(counts.releases, 0);
+    }));
+
+  it.effect("M24: a fresh diagnostics literal holding the same field references notifies no store and builds nothing", () =>
+    Effect.gen(function* () {
+      const { counts, layer } = countedLayer();
+      const questions = () => [];
+      const model = yield* makeDockModel({ diagnostics: { layer, questions, intervalMillis: 5_000 } });
+      const seen = listen(model);
+      model.diagnostics.subscribe(() => {
+        seen.calls += 1;
+      });
+
+      model.configure({ diagnostics: { layer, questions, intervalMillis: 5_000 } });
+      yield* step("1 second");
+
+      assert.strictEqual(seen.calls, 0);
+      assert.strictEqual(counts.builds, 1);
+    }));
+
+  it.effect("M25: configuring diagnostics away reads Off and releases the layer, and defined again goes Starting then Live", () =>
+    Effect.gen(function* () {
+      const { counts, layer } = countedLayer();
+      const model = yield* makeDockModel({ diagnostics: { layer } });
+
+      model.configure({});
+
+      const off = model.diagnostics.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Off")(off.status));
+      assert.strictEqual(off.reading, noDiagnostics);
+      assert.strictEqual(counts.releases, 1);
+
+      const seen = recordingOf(model);
+      model.configure({ diagnostics: { layer } });
+
+      assert.deepStrictEqual(
+        seen.map((one) => one.tag),
+        ["Starting", "Live"],
+      );
+    }));
+
+  it.effect("M26: closing the scope records no Stopped and releases the layer, and a rebuilt model starts at Starting", () =>
+    Effect.gen(function* () {
+      const first = countedLayer();
+      const scope = yield* Scope.make();
+      const model = yield* Scope.provide(makeDockModel({ diagnostics: { layer: first.layer } }), scope);
+      const seen = recordingOf(model);
+
+      yield* Scope.close(scope, Exit.void);
+
+      assert.deepStrictEqual(seen, []);
+      assert.strictEqual(first.counts.releases, 1);
+
+      const slow = countedLayer(Effect.sleep("1 second"));
+      const rebuilt = yield* makeDockModel({ diagnostics: { layer: slow.layer } });
+      const early = rebuilt.diagnostics.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Starting")(early.status));
+      assert.strictEqual(early.reading, noDiagnostics);
+
+      yield* step("1 second");
+      assert.isTrue(DiagnosticsStatus.$is("Live")(rebuilt.diagnostics.getSnapshot().status));
+    }));
+
+  it.effect("M27: replacing a poll field and the reading together never pairs the new reading with the old run's status", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel({ diagnostics: { questions: () => [] } });
+      const seen = recordingOf(model);
+      const answer = [{ policy: readPolicy }];
+
+      model.configure({ diagnostics: { questions: () => answer }, reading: { activity: suppliedActivity } });
+
+      const { status, reading } = model.diagnostics.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Live")(status));
+      assert.strictEqual(reading.activity, suppliedActivity);
+      assert.deepStrictEqual(reading.questions, answer);
+      assert.deepStrictEqual(
+        seen.map((one) => one.tag),
+        ["Starting", "Live"],
+      );
+      for (const one of seen) assert.strictEqual(one.activity, suppliedActivity);
+    }));
+
+  it.effect("M28: with no reading supplied the store's snapshot is the feed's own, even after one was supplied", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel({ reading: { activity: suppliedActivity } });
+      assert.notStrictEqual(model.diagnostics.getSnapshot(), diagnosticsOff);
+
+      model.configure({});
+
+      assert.strictEqual(model.diagnostics.getSnapshot(), diagnosticsOff);
     }));
 });

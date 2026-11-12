@@ -451,4 +451,46 @@ describe("the diagnostics feed", () => {
       }
     }),
   );
+
+  it.effect("F21 a Live feed whose sample changed the reading notifies once, still Live", () =>
+    Effect.gen(function* () {
+      const answer = asking("a");
+      const { questions } = source((call) => (call === 1 ? [] : answer));
+      const feed = yield* makeDiagnosticsFeed({ questions });
+      const seen = recording(feed);
+      const before = feed.getSnapshot();
+
+      yield* step("2 seconds");
+
+      assert.deepStrictEqual(seen, ["Live"]);
+      const after = feed.getSnapshot();
+      assert.strictEqual(after.status, before.status);
+      assert.deepStrictEqual(after.reading.questions, answer);
+    }),
+  );
+
+  it.effect("F22 a handed collector is read into portCalls", () =>
+    Effect.gen(function* () {
+      const feed = yield* makeDiagnosticsFeed({ collector: collectorOf() });
+      assert.deepStrictEqual(feed.getSnapshot().reading.portCalls, { calls: [], dropped: 0, capacity: 10 });
+    }),
+  );
+
+  it.effect("F23 a stop after Off and a new start is unsampled, whatever the run before had sampled", () =>
+    Effect.gen(function* () {
+      const feed = yield* makeDiagnosticsFeed({});
+      feed.configure(undefined);
+
+      feed.configure({
+        questions: () => {
+          throw new Error("blew up again");
+        },
+      });
+
+      const { status, reading } = feed.getSnapshot();
+      if (!DiagnosticsStatus.$is("Stopped")(status)) return assert.fail("expected Stopped");
+      assert.isFalse(status.sampled);
+      assert.strictEqual(reading, noDiagnostics);
+    }),
+  );
 });
