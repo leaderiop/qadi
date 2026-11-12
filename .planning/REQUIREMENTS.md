@@ -31,7 +31,7 @@ marked **Breaking**, `apps/website/.../reference/upgrading.md`). Releasing is st
 - [x] **SUPR-02**: `DecisionCache` keeps no generation counter. `generation`/`myGeneration` and the stale-write check are deleted, and `clear` is reduced to the steps the adapter still owns.
 - [x] **SUPR-03**: Clear-mid-compute races are tested at the `SharedComputation` seam without `evaluate`, and these tests land before `generation` is deleted: stale-last, stale-first then a third ask coalescing, two keys, and a parked uninterruptible compute. The existing `DecisionCache.test.ts` race pins stay green unchanged.
 - [x] **SUPR-04**: A property test over generated `run`/`reset`/settle/leave interleavings holds: no superseded exit is ever settled, every waiter is answered exactly once, and a post-reset ask claims afresh.
-- [ ] **SUPR-05**: The staleness rule is written down: a stale answer never re-enters a cleared cache, and an ask after `clear` computes afresh (a new BEH under the decision-cache behaviour). BEH-QD-439 and INV-QD-025's Enforcement are restated, and ADR-QD-132 is amended.
+- [x] **SUPR-05**: The staleness rule is written down: a stale answer never re-enters a cleared cache, and an ask after `clear` computes afresh (a new BEH under the decision-cache behaviour). BEH-QD-439 and INV-QD-025's Enforcement are restated, and ADR-QD-132 is amended.
 
 ### Evaluation options and services stated once (Phase 32)
 
@@ -119,7 +119,7 @@ The seven WX rows apply to every phase 30 to 36, so each phase's Requirements li
 | SUPR-02 | Phase 31 | Complete |
 | SUPR-03 | Phase 31 | Complete |
 | SUPR-04 | Phase 31 | Complete |
-| SUPR-05 | Phase 31 | Pending |
+| SUPR-05 | Phase 31 | Complete |
 | EOPT-01 | Phase 32 | Pending |
 | EOPT-02 | Phase 32 | Pending |
 | EOPT-03 | Phase 32 | Pending |

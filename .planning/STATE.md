@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 31
 current_phase_name: A reset supersedes its claims
 status: executing
-stopped_at: Completed 31-03-PLAN.md
-last_updated: "2026-11-12T08:02:30.522Z"
+stopped_at: Completed 31-04-PLAN.md
+last_updated: "2026-11-12T08:08:10.373Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 31 execution started
-state_head: 1d862f30c477e71894133138b19eb6e9f624f060
+state_head: 7b97968ca3636e1da15663eea2ea4161db8f5271
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 14
-  completed_plans: 12
+  completed_plans: 13
   percent: 14
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 31 (A reset supersedes its claims) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 31 execution started
 
@@ -155,6 +155,7 @@ Progress: [█░░░░░░░░░] 14% (v1.3: 0 of 7 phases)
 | Phase 31 P01 | 20 min | 2 tasks | 2 files |
 | Phase 31 P02 | 15 min | 2 tasks | 2 files |
 | Phase 31 P03 | 20 min | 2 tasks | 3 files |
+| Phase 31 P04 | 15 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -227,6 +228,7 @@ Progress: [█░░░░░░░░░] 14% (v1.3: 0 of 7 phases)
 - [Phase 31]: 31-02: claim transitions are module-scope tables typed Exclude<Standing, 'Live'>, so nothing can return to Live and no unkillable equivalent mutant is added
 - [Phase 31]: settle(key, exit) receives the full Exit so DecisionCache keeps its own successes-only policy
 - [Phase 31]: Property non-vacuity floors met by weighting the command generator, never by lowering a floor
+- [Phase 31]: ADR-QD-144 unused: a reset is a second cause of ADR-QD-132's decision, so it is amended rather than superseded
 
 ### Pending Todos
 
@@ -268,8 +270,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T08:02:30.492Z
-Stopped at: Completed 31-03-PLAN.md
+Last session: 2026-11-12T08:08:10.344Z
+Stopped at: Completed 31-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
