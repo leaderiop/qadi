@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (current: v1.1 Arch Wave 6, ARCH-59 to ARCH-68)
+# Qadi — Architecture Waves (latest: v1.2 Arch Wave 7, ARCH-69 to ARCH-77)
 
 ## What This Is
 
@@ -15,12 +15,26 @@ The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local
 
 ## Current State
 
+v1.2 Arch Wave 7 completed 2026-11-12 on branch `arch-wave-7` (272 commits, 170 files, +9,900 / −3,457
+outside `.planning`): ARCH-69 to ARCH-77, ADR-QD-133..140 (136, 138, 139 and 141 unused), CCR-QD-411..419.
+All 9 phases `passed`. The milestone audit is `tech_debt`, accepted by the user: 44/44 requirements, 25 open
+info-level review findings and one skipped warning. `pnpm check:pr` exited 0 at the end of every phase. **Not
+merged and not released.** Archive: `.planning/milestones/v1.2-ROADMAP.md`, `v1.2-REQUIREMENTS.md`,
+`v1.2-MILESTONE-AUDIT.md`.
+
+v1.1 Arch Wave 6 (ARCH-59 to ARCH-68) is merged to `main` as #155. It was never archived as a GSD milestone,
+so its phases 10–20 are still in `.planning/phases/`, and its requirements are in git at `965ff14c:.planning/REQUIREMENTS.md`.
+
 v1.0 Arch Wave 5 shipped 2026-11-09 on branch `arch-wave-5` (240 commits, 134 files, +7,660 / −1,815
 outside `.planning`): ARCH-46 to ARCH-54, ADR-QD-108..116 (112, 113 and 115 left unused), CCR-QD-385..393.
 All 9 phases verified `passed` against the final tree; the full `pnpm check` is green on Node 22.12.0
 (CI run 42676403473 at 127d6fa). Archive: `.planning/milestones/v1.0-ROADMAP.md`.
 
-## Current Milestone: v1.2 Arch Wave 7
+## Next Milestone
+
+Not defined yet. Start it with `/gsd-new-milestone`, which writes a fresh `.planning/REQUIREMENTS.md`.
+
+## Previous Milestone: v1.2 Arch Wave 7 (completed 2026-11-12; not released)
 
 **Goal:** Resolve the eight candidates and three footnotes of the 2026-11-11 architecture review (Phases 21–29, ARCH-69…77).
 
@@ -28,14 +42,16 @@ All 9 phases verified `passed` against the final tree; the full `pnpm check` is 
 stated by `.planning/phases/_WAVE7-CONTEXT.md` (base, numbering, evidence, and the correction to the review's candidate 1: port
 keys are read by devtools replay and test doubles, not by evaluation).
 
-**Target features:** see `.planning/REQUIREMENTS.md`, "v1.2" (PREQ, SCOPE, SREC, SRC, SIM, DMOD, ROUTE, GATE, TIDY, WX).
+**Target features:** see `.planning/milestones/v1.2-REQUIREMENTS.md` (PREQ, SCOPE, SREC, SRC, SIM, DMOD, ROUTE, GATE, TIDY, WX).
 
 **Numbering reserved for v1.2:** the table in `.planning/phases/_WAVE7-CONTEXT.md` (ADR-QD-133–141, CCR-QD-411–419,
 BEH-QD-440–484, INV-QD-286–303, ARCH-69–77).
 
 **Review report (local, outside the repo):** `/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/architecture-review-20261111-011702.html`.
 
-## Previous Milestone: v1.1 Arch Wave 6 (all phases complete 2026-11-10; not released)
+<details>
+<summary>v1.1 Arch Wave 6 (all phases complete 2026-11-10; merged as #155; not released)</summary>
+
 
 **Goal:** Resolve the nine candidates of the 2026-11-10 architecture review, and recover the lost 2026-10-13 wave.
 
@@ -45,9 +61,11 @@ was implemented on `wave5/architecture-deepenings` and never merged. Its commits
 Its ids collide with merged #153, so it is ported under new numbers, never cherry-picked. Live defects and their
 salvage sources: `.planning/phases/_SALVAGE.md`.
 
-**Target features:** see `.planning/REQUIREMENTS.md` (REC, SEC, INT, GAP, AUD, DOCK, ROLE, KEY, SURF, VIEW, CACHE, XC).
+**Target features:** see `965ff14c:.planning/REQUIREMENTS.md` in git (REC, SEC, INT, GAP, AUD, DOCK, ROLE, KEY, SURF, VIEW, CACHE, XC).
 
 **Review report (local, outside the repo):** `/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/architecture-review-20261110-004912.html`.
+
+</details>
 
 ## Core Value
 
@@ -72,6 +90,7 @@ logged, counted or spanned.
 
 - ✓ ARCH-54 Sink record projection (SINK-01..03): `SinkEmit.ts` owns all three record projections (failed, decided, obligation), and `new ObligationRecord` is built only there and in the codec's decoder; the obligation record is projected once, before the handler runs (WR-01); the refusal vocabulary moved to the public leaf `JsonRefusal.ts`, and `SinkWire.ts` keeps only record-side words, so no port module imports the sink wire — Phase 9 (ADR-QD-116, ADR-QD-115 unused, CCR-QD-393)
 
+- ✓ ARCH-69 Port request derived from its description (PREQ-01..05): four ports derive their request `key` and `defect` from the wire question (`makePortDescription`); the wire and span questions are exhaustive by type, so a dropped member is a compile error; CustomPredicate keeps its own `key`/`defect`; a property law ties each derived key to `canonicalKey` of its wire question — Phase 21 (ADR-QD-133, ADR-QD-094 and ADR-QD-107 amended, CCR-QD-411, BEH-QD-440/441, INV-QD-286)
 - ✓ ARCH-70 One scoped port read (SCOPE-01..05): each port description states once, as `asks`, the request every policy leaf puts to it; the reads and `servingFor` derive from it (`ServedLeaves` and the facet's `leaves` removed, `LeafRequests`/`ReadSite`/`LeafOf`/`AskedOf` added); the three resource-scoped reads go through one `readScoped`, and a missing resource id leaves only the port span (`requireResourceId` deleted); every read takes its policy leaf — Phase 22 (ADR-QD-134, CCR-QD-412, BEH-QD-445/446, INV-QD-288/289; `@qadi/core` minor, `PortDescription` change marked Breaking)
 - ✓ ARCH-71 Sink record fields stated once (SREC-01..05): each record's fields are one `Schema.Struct` in the package-private `SinkRecordFields.ts`; the record class is a `Data.TaggedClass` typed by it and the v2 wire struct spreads it; absent keys stay absent, wire byte-identical — Phase 23 (ADR-QD-135, ADR-QD-095 amended, CCR-QD-413, BEH-QD-450/451, INV-QD-290; `@qadi/core` patch)
 - ✓ ARCH-72 Simulation source preparation (SRC-01..03): `prepareSource(choice, { ports, capture })` in `SimulationSource.ts` owns availability, refusal and the Live capture from one table closed over `SourceChoice`; the session branches only on `Ready`/`Refused` (`resolveSource`, `sourceOptions`, `ResolvedSource` removed, package-private) — Phase 24 (ADR-QD-050 Rev 1.4 amended, CCR-QD-414, BEH-QD-455; `@qadi/devtools` patch)
@@ -83,7 +102,7 @@ logged, counted or spanned.
 
 ### Active
 
-(v1.2 requirements live in `.planning/REQUIREMENTS.md`, "v1.2"; this list records them as their phases ship.)
+(None. v1.2's requirements all moved to Validated; the next milestone defines new ones.)
 
 ### Out of Scope
 
@@ -140,6 +159,19 @@ logged, counted or spanned.
   - ADR Document IDs must equal the file number (`verify-traceability.sh`, gate 10).
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
+
+### Known Issues (carried forward from v1.2)
+
+- The tech debt the v1.2 audit accepted is listed in `.planning/milestones/v1.2-MILESTONE-AUDIT.md`. Its main items:
+  - 25 open info-level review findings across Phases 24–29;
+  - Phase 25 WR-01 skipped (unreachable while `simulate` goes through `DecisionCache`);
+  - `signatureHistoryFromSignatures` dies, rather than failing typed, on an untyped query with an unkeyable subject;
+  - devtools `Inspector.tsx` (0.68) and `Simulator.tsx` (0.54) mutation scores are below the 80 break threshold;
+  - `useSimulationSession` stays a public second entry point (design to confirm);
+  - two Phase 24 spec items were acknowledged at close (the duplicate BEH-QD-219..221 blocks, and `Sources.ts` in traceability).
+- `astro check` (gate 15, `pnpm website`) shows an interactive `@astrojs/check` install prompt, so `pnpm check:pr` must run with
+  stdin closed (`< /dev/null`), which makes the website typecheck effectively skipped.
+- `scripts/spec-revise.mjs` drops its document argument when `--date` is omitted; always pass `--date`.
 
 ### Known Issues (carried forward from v1.0)
 
@@ -201,4 +233,4 @@ logged, counted or spanned.
 | Moving per-call literals to module-scope constants can lower a file's mutation score with nothing worse; close it with a test (29-03) | `ignoreStatic` drops the moved lists' killed mutants while survivors stay (`HydrationEngine.ts` 0.9619 → 0.9605) | Accepted (Phase 29, 94841eb0: a nameless payload with entries is refused whole); 0.9619 → 0.9693 |
 
 ---
-*Last updated: 2026-11-12 — v1.2 Phase 29 complete*
+*Last updated: 2026-11-12 after v1.2 milestone*

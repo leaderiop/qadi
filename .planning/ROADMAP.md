@@ -3,8 +3,8 @@
 ## Milestones
 
 - ✅ **v1.0 Arch Wave 5** — Phases 1-9 (shipped 2026-11-09) — [archive](milestones/v1.0-ROADMAP.md)
-- 🚧 **v1.1 Arch Wave 6** — Phases 10-20 (all phases complete 2026-11-10; not released)
-- 📋 **v1.2 Arch Wave 7** — Phases 21-29 (planned 2026-11-11; not started)
+- 🚧 **v1.1 Arch Wave 6** — Phases 10-20 (all phases complete 2026-11-10; merged to `main` in #155; not archived as a GSD milestone; not released)
+- ✅ **v1.2 Arch Wave 7** — Phases 21-29 (completed 2026-11-12; not released) — [archive](milestones/v1.2-ROADMAP.md)
 
 ## Phases
 
@@ -269,193 +269,21 @@ Plans:
 | 19. Verdict presentation | 3/3 | Complete | 2026-11-10 |
 | 20. DecisionCache shared computation | 4/4 | Complete | 2026-11-10 |
 
-## 📋 v1.2 Arch Wave 7 (Phases 21-29)
+<details>
+<summary>✅ v1.2 Arch Wave 7 (Phases 21-29) — COMPLETED 2026-11-12 (not released)</summary>
 
-### Overview
+- [x] Phase 21: Port request derived from its description, ARCH-69 (5/5 plans) — completed 2026-11-11
+- [x] Phase 22: One scoped port read, ARCH-70 (4/4 plans) — completed 2026-11-11
+- [x] Phase 23: Sink record fields stated once, ARCH-71 (4/4 plans) — completed 2026-11-11
+- [x] Phase 24: Simulation source preparation, ARCH-72 (3/3 plans) — completed 2026-11-11
+- [x] Phase 25: Session-only Simulator, ARCH-73 (5/5 plans) — completed 2026-11-11
+- [x] Phase 26: Headless dock model, ARCH-74 (6/6 plans) — completed 2026-11-11
+- [x] Phase 27: Bare-route module, ARCH-75 (3/3 plans) — completed 2026-11-11
+- [x] Phase 28: Gate registry dependency, ARCH-76 (5/5 plans) — completed 2026-11-11
+- [x] Phase 29: Small restated facts, ARCH-77 (3/3 plans) — completed 2026-11-12
 
-Wave 7 resolves the eight candidates and three footnotes of the 2026-11-11 architecture review. That review covered the files
-that changed in each of the last five waves (#148–#155). Base commit `965ff14c`. Read `.planning/phases/_SHARED-CONTEXT.md`, then
-`.planning/phases/_WAVE7-CONTEXT.md` (base, numbering, per-phase evidence, and the correction that port keys are read by devtools
-replay and test doubles, not by evaluation). Order: core first (21–23), then devtools (24–26), then `@qadi/http` (27), `@qadi/react` (28),
-and the footnotes last (29).
+Full details: [milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) · requirements:
+[milestones/v1.2-REQUIREMENTS.md](milestones/v1.2-REQUIREMENTS.md) · audit:
+[milestones/v1.2-MILESTONE-AUDIT.md](milestones/v1.2-MILESTONE-AUDIT.md)
 
-**Execution order: phases run strictly one at a time, in numeric order (21 → 29)**, for the same reasons as wave 6: shared spec
-registers, packages held red between a phase's first and last plan, and `use_worktrees` false.
-
-**Human checkpoints, all answered 2026-11-11 in `.planning/phases/_DECISIONS-v1.2.md` (cleanest option, ADRs overridable):** 22-01 (the trace a missing resource id leaves), 23-01 (record
-shape from benchmark numbers, plus the absent-vs-undefined key convention), 25-01 (how a superseded simulation run is stopped once
-`reap` leaves the interface), 28-01 (how far ARCH-76 reopens ADR-QD-111).
-
-### Phases
-
-- [x] **Phase 21: Port request derived from its description** - Derived `key`/`defect` for four ports, exhaustive wire and span questions by type; CustomPredicate overrides (ARCH-69) (completed 2026-11-11)
-- [x] **Phase 22: One scoped port read** - `readScoped` owns the id check and one trace shape; one leaf→request function per port drives reads and serving (ARCH-70) (completed 2026-11-11)
-- [x] **Phase 23: Sink record fields stated once** - Benchmark first; one field statement per record drives the class type and the v2 wire; one record projection (ARCH-71) (completed 2026-11-11)
-- [x] **Phase 24: Simulation source preparation** - `prepareSource` in `SimulationSource.ts` owns availability, refusal and capture (ARCH-72) (completed 2026-11-11)
-- [x] **Phase 25: Session-only Simulator** - The view renders a session; commands and readings move into the session; runs live in the session's FiberHandle and Scope (ARCH-73) (completed 2026-11-11)
-- [x] **Phase 26: Headless dock model** - `makeDockModel` owns the six stores and the cross-store rules; one hook; one held-choice cell (ARCH-74) (completed 2026-11-11)
-- [x] **Phase 27: Bare-route module** - `addGuardedRoute` absorbs `guardRoute`; one route-method union; the registry route moves out (ARCH-75) (completed 2026-11-11)
-- [x] **Phase 28: Gate registry dependency** - Checkpoint on ADR-QD-111; React-free `reconcile`; `useGateRegistration` deleted (ARCH-76) (completed 2026-11-11)
-- [x] **Phase 29: Small restated facts** - Port identity in a metric-free leaf; hydration withheld fields once; one "not a denial" sentence (ARCH-77) (completed 2026-11-12)
-
-### Phase Details
-
-### Phase 21: Port request derived from its description
-**Goal**: No port module lists its request fields by hand for its key, and a field left out of a wire or span question is a compile error.
-**Depends on**: Nothing in v1.2 (first phase; builds on Phase 17's `PortKey`)
-**Requirements**: PREQ-01, PREQ-02, PREQ-03, PREQ-04, PREQ-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06
-**Success Criteria** (what must be TRUE):
-  1. The key law ("derived key = `canonicalKey` of the wire question") passes as a property over the four derived ports; CustomPredicate's override is documented and tested.
-  2. A type test fails when a wire or span question omits a member (RED on the phase base).
-  3. Wire-byte goldens are unchanged.
-**Plans**: 5/5 plans complete
-
-Plans:
-- [x] 21-01 (W1): Record the phase base and mutation baseline; demonstrate PREQ-04 by hand; commit the RED type test, key law and wire-byte goldens
-- [x] 21-02 (W2): Make a port's wire question exhaustive by type (`QuestionOf<Q>`, `presentMembers`); remove the conditional spreads
-- [x] 21-03 (W3): Derive `key` and `defect` for the four total-question ports; CustomPredicate overrides; delete the exact pins once the law is green
-- [x] 21-04 (W4): Make a port's span question exhaustive by type (`portSpan`/`PoseOf`)
-- [x] 21-05 (W5): Records (ADR-QD-133, ADR-094/107 amendments, BEH-QD-440/441, INV-QD-286, CCR-QD-411, changeset), mutation comparison, `pnpm check:pr`
-
-### Phase 22: One scoped port read
-**Goal**: The three resource-scoped port reads are one read with one trace shape, every read takes its policy leaf, and the leaf→request mapping is stated once for evaluation and serving.
-**Depends on**: Phase 21 (both edit the port modules and `PortAccess.ts`)
-**Requirements**: SCOPE-01, SCOPE-02, SCOPE-03, SCOPE-04, SCOPE-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06
-**Success Criteria** (what must be TRUE):
-  1. One parameterised test over the three descriptions pins the chosen trace shape for a missing id, and `MissingResourceId`'s `relation`.
-  2. `UNTRACED_BUDGET` and `SWITCH_BUDGET` are unchanged.
-  3. The span change is recorded as public behaviour (BEH-QD-227 amended, BEH-QD-445).
-**Plans**: 4/4 plans complete
-
-Plans:
-- [x] 22-01 (W1): Record the two answers from `_DECISIONS-v1.2.md` (D-02 = A; D-05 overridden: the leaf→request mapping stated once)
-- [x] 22-02 (W2): Mutation baseline; RED missing-id table, `PortAccess.tst.ts` and `PortAsks.tst.ts`
-- [x] 22-03 (W3): `asks` on every description (one leaf→request function per tag) drives both the reads and `servingFor`; `LeafRequests` replaces `ServedLeaves`; `readScoped` and reads that take their leaf
-- [x] 22-04 (W4): Records (ADR-QD-134 overriding D-05 and amending ADR-077/094/109/114, BEH-QD-227/331/445/446, INV-QD-288/289, CCR-QD-412, overview, AGENTS.md §3/§5, core minor changeset), `pnpm check:pr`
-
-### Phase 23: Sink record fields stated once
-**Goal**: Each sink record's fields are stated once, and a field dropped from projection or rebuild cannot compile or pass the round trip silently.
-**Depends on**: Phase 21 (serial order only; no shared files)
-**Requirements**: SREC-01, SREC-02, SREC-03, SREC-04, SREC-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06
-**Success Criteria** (what must be TRUE):
-  1. Bench numbers for both record shapes are recorded and the human's GO/NO-GO is in 23-01's SUMMARY.
-  2. The round trip covers both record types and every optional field.
-  3. `SinkCodec.test.ts`'s wire goldens are unchanged and the encoded value has no `undefined`-valued keys.
-**Plans**: 4/4 plans complete
-
-Plans:
-- [x] 23-01 (W1): Phase base and mutation scores; show a dropped field compiles; a full round-trip test and pins; a bench of both record shapes; checkpoint — answered A + keys absent ⛳ checkpoint (answered)
-- [x] 23-02 (W2): One field statement per record; the class type and the v2 wire derive from it; `project`/`rebuild` only add or strip `version`; derive `SinkRecordTag` (skipped under C)
-- [x] 23-03 (W3): Merge `failedRecord` and `decidedRecord` into one projection, test first
-- [x] 23-04 (W4): Records (ADR-QD-135, ADR-095 amendment, AGENTS.md §7, BEH-QD-450/451, INV-QD-290, CCR-QD-413, changeset), mutation comparison, `pnpm check:pr`
-
-### Phase 24: Simulation source preparation
-**Goal**: The rule for which simulation source is available, and that a Live run captures so Snapshot unlocks, lives in `SimulationSource.ts` alone.
-**Depends on**: Nothing in v1.2 (serial order only)
-**Requirements**: SRC-01, SRC-02, SRC-03, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06
-**Success Criteria** (what must be TRUE):
-  1. A 12-row table test covers every (choice × ports × capture) combination.
-  2. The session no longer inspects a source variant's `_tag`; `resolveSource`/`sourceOptions` are gone.
-  3. Each Live run captures with its own recorder (pinned).
-**Plans**: 3/3 plans complete
-
-Plans:
-- [x] 24-01 (W1): Mutation baseline; pin the per-run recorder; RED 12-row `prepareSource` table in its own file
-- [x] 24-02 (W2): `prepareSource` with a closed availability table; the session stores what it returns; availability tests move
-- [x] 24-03 (W3): Records (ADR-050 amendment, ADR-QD-136 unused, BEH-QD-455, BEH-QD-220/322 corrected, CCR-QD-414, changeset), `pnpm check:pr`
-
-### Phase 25: Session-only Simulator
-**Goal**: The Simulator is a view of its session: no owned mode, no form codecs or readings in the view, and the session owns its runs' lifetime through a FiberHandle in a Scope.
-**Depends on**: Phase 24 (both edit `SimulationSession.ts`)
-**Requirements**: SIM-01, SIM-02, SIM-03, SIM-04, SIM-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06
-**Success Criteria** (what must be TRUE):
-  1. `OwnedSimulator` is gone; all 32 `<Simulator>` renders in its test build a session.
-  2. `setAction`, `choosePolicyAt`, the run reading, cost and baseline reading are session-level and model-tested.
-  3. `reap`, `hasRetired` and `dispose` are gone; a superseded run is interrupted before the command returns; closing the session's scope interrupts the run in flight.
-**Plans**: 5/5 plans complete
-
-Plans:
-- [x] 25-01 (W1): Record the answer from `_DECISIONS-v1.2.md` (D: the session owns a FiberHandle in a Scope; overrides ARCH-20 D-20-b)
-- [x] 25-02 (W2): Mutation baseline; RED model tests (a superseded run is interrupted through the handle with no `reap`; closing the scope interrupts the run in flight; commands and readings)
-- [x] 25-03 (W3): Scoped `makeSimulationSession` (an `Effect.fn` over `FiberHandle`), with `supersede()` for synchronous cancels; `reap`/`hasRetired`/`dispose` deleted; package-private `useScoped`; owner/frame split in the dock; commands and readings
-- [x] 25-04 (W4): DOM tests own their scopes; the view becomes session-only; a new hook test
-- [x] 25-05 (W5): Records (ADR-QD-137 supersedes ARCH-20 D-20-b, ADR-047 amendment, BEH-QD-460/461, BEH-QD-322 fence in a scope, CCR-QD-415, minor changeset), `pnpm check:pr`
-
-### Phase 26: Headless dock model
-**Goal**: The dock's cross-store rules live in one headless model and are tested without rendering.
-**Depends on**: Phase 25 (the model constructs the session Phase 25 shapes)
-**Requirements**: DMOD-01, DMOD-02, DMOD-03, DMOD-04, DMOD-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06
-**Success Criteria** (what must be TRUE):
-  1. `DockModel.test.ts` covers rules M1–M16 and P1 without rendering (including: a source change or closing the scope interrupts a read); 13 DOM duplicates are deleted only after it is green.
-  2. One `useDockModel` hook; the four `useOwnedX` hooks are gone; `Screen` takes 4 props, with no conditional spreads.
-  3. Both sessions embed one held-choice cell; `RoleViewer` no longer re-maps.
-**Plans**: 6/6 plans complete
-
-Plans:
-- [x] 26-01 (W1): Preconditions, phase base, mutation baseline; RED `DockModel.test.ts` (M1–M16, P1), run in scopes the tests own
-- [x] 26-02 (W2): Build the scoped `makeDockModel` (six stores, one `configure`; the session in the model's scope; `read(source)` through the model's own FiberHandle), GREEN
-- [x] 26-03 (W3): One held-choice cell shared by both sessions; `PolicyChoice` reshaped; `RoleViewer` stops re-mapping
-- [x] 26-04 (W4): One `useDockModel` over `useScoped` that forks nothing; the owned hooks deleted; `Screen` reduced; `DevtoolsDock.test.tsx` passes unedited
-- [x] 26-05 (W5): Delete the 13 DOM duplicates of model rules; `pnpm coverage`
-- [x] 26-06 (W6): Records (ADR-047 amendment, ADR-QD-138 unused, BEH-QD-465/466, INV-QD-296, CCR-QD-416, changesets), `pnpm check:pr`
-
-### Phase 27: Bare-route module
-**Goal**: `addGuardedRoute` is the one bare-route seam: its typing rule is pinned on the public function, and the route-method union is stated once.
-**Depends on**: Nothing in v1.2 (serial order only)
-**Requirements**: ROUTE-01, ROUTE-02, ROUTE-03, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06
-**Success Criteria** (what must be TRUE):
-  1. `GuardRoute.tst.ts` pins `CurrentSubject` exclusion, the error channel and the method union on `addGuardedRoute`.
-  2. `guardRoute` is gone; `@qadi/http`'s public surface is unchanged.
-  3. `pnpm circular` is green with `/__permissions` in `PermissionRegistryRoute.ts`.
-**Plans**: 3/3 plans complete
-
-Plans:
-- [x] 27-01 (W1): Mutation baseline; pins on `addGuardedRoute`; ordering test retargeted (all green on the base)
-- [x] 27-02 (W2): `addGuardedRoute` absorbs `guardRoute`; `RouteMethod` stated once; `/__permissions` moves out; old tests deleted
-- [x] 27-03 (W3): Records (BEH-QD-470, ADR-036 amendment, ADR-QD-139 unused, CCR-QD-417, patch changeset), `pnpm check:pr`
-
-### Phase 28: Gate registry dependency
-**Goal**: The gate reconcile is testable without React, and the human has decided how far ADR-QD-111 reopens.
-**Depends on**: Nothing in v1.2 (serial order only)
-**Requirements**: GATE-01, GATE-02, GATE-03, GATE-04, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06
-**Success Criteria** (what must be TRUE):
-  1. 28-01's SUMMARY records A, B or C.
-  2. Under A or B: `reconcile` is tested against a fake writer. Under A: `GateAtoms` is a `Pick<QadiAtoms>` and `pnpm circular` is green.
-  3. `useGateRegistration` is deleted, and its tests are moved onto `useGateRegistrations`.
-**Plans**: 5/5 plans complete
-
-Plans:
-- [x] 28-01 (W1): Checkpoint: how far ARCH-76 reopens ADR-QD-111 — answered A: split write side from hooks ⛳ checkpoint (answered)
-- [x] 28-02 (W2): Mutation baseline; move tests onto `useGateRegistrations`; delete `useGateRegistration`
-- [x] 28-03 (W3): (A/B) RED reconcile test against a fake writer, then extract the React-free `reconcile`
-- [x] 28-04 (W4): (A) Split `GateWriter.ts` (write side) from `useGate.ts` (hooks); `GateAtoms` = `Pick<QadiAtoms>`
-- [x] 28-05 (W5): Records per outcome (ADR-QD-140 or an ADR-111 amendment, CCR-QD-418, patch changeset), `pnpm check:pr`
-
-### Phase 29: Small restated facts
-**Goal**: The three footnoted facts are each stated once.
-**Depends on**: Phases 21, 22, 25 and 28 (each edits files this phase touches)
-**Requirements**: TIDY-01, TIDY-02, TIDY-03, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06
-**Success Criteria** (what must be TRUE):
-  1. `PortName.ts` holds one five-row table; `PortDescription.span` is `PortSpanOf<N>` (or the recorded fallback).
-  2. `HydrationEngine.ts`'s withheld fields are one constant per entry kind.
-  3. One `FAILURE_IS_NOT_A_DENIAL` constant serves the Inspector and the Simulator; literal test assertions are unedited.
-**Plans**: 3/3 plans complete
-
-Plans:
-- [x] 29-01 (W1): Preconditions and the 12-file mutation baseline; TIDY-01 port identity leaf (`PortName.ts`, `span: PortSpanOf<N>`)
-- [x] 29-02 (W2): TIDY-02 withheld-field constants; TIDY-03 the shared `FAILURE_IS_NOT_A_DENIAL` sentence
-- [x] 29-03 (W3): Records (ADR-094 note, CCR-QD-419, changesets), `pnpm check:pr`, per-file mutation comparison
-
-### Progress (v1.2)
-
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 21. Port request derivation | 5/5 | Complete    | 2026-11-11 |
-| 22. One scoped port read | 4/4 | Complete    | 2026-11-11 |
-| 23. Sink record fields | 4/4 | Complete    | 2026-11-11 |
-| 24. Simulation source preparation | 3/3 | Complete    | 2026-11-11 |
-| 25. Session-only Simulator | 5/5 | Complete    | 2026-11-11 |
-| 26. Headless dock model | 6/6 | Complete    | 2026-11-11 |
-| 27. Bare-route module | 3/3 | Complete    | 2026-11-11 |
-| 28. Gate registry dependency | 5/5 | Complete    | 2026-11-11 |
-| 29. Small restated facts | 3/3 | Complete    | 2026-11-12 |
+</details>

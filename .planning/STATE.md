@@ -2,38 +2,36 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Arch Wave 7 (Phases 21-29)
-current_phase: 29
-current_plan: Not started
-status: completed
+status: Awaiting next milestone
 stopped_at: Phase 29 complete — all phases complete
-last_updated: "2026-11-12T00:18:33.187Z"
+last_updated: "2026-11-12T00:51:26.360Z"
 last_activity: 2026-11-12
-last_activity_desc: Phase 29 complete
-state_head: 8e95b51f9b1a7056c2ccd592b0b9dfb1c653af85
+last_activity_desc: Milestone v1.2 completed and archived
+state_head: 250dbca0a72eae9df34df40f7fa2f0f1b56332f6
 progress:
   total_phases: 9
   completed_phases: 9
   total_plans: 38
   completed_plans: 38
   percent: 100
+current_phase: 29
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-11)
+See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Milestone v1.2 — re-verify Phases 21–23, then audit
+**Current focus:** Milestone v1.2 complete and archived (override_closeout, not released); next: /gsd-new-milestone
 
 ## Current Position
 
-Phase: 29
-Current Plan: Not started
-Total Plans in Phase: 3
-Status: All phases complete
-Last activity: 2026-11-12 — Phase 29 complete
+Phase: Milestone v1.2 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-11-12 — Milestone v1.2 completed and archived
 
 ## Performance Metrics
 
@@ -224,8 +222,17 @@ Last activity: 2026-11-12 — Phase 29 complete
 - [Phase 27] Review (27-REVIEW-DISPOSITION.md): WR-01..03 fixed (82895714, f304bbc0, a4be4995: ADR-037/043/046 and three `@qadi/core` comments still named `guardRoute` as live); IN-01 (`GuardRoute.ts` "the one the module accepts" now ambiguous) and IN-02 ("lost ARCH-57's probe" typo, moved verbatim) open, info. ROUTE-01/ROUTE-03 delivered by intent (CCR-QD-417). `scripts/spec-revise.mjs` drops its document argument when `--date` is omitted (always pass `--date`; script untouched). Pre-existing stale citation `v4-http-smoke.test.ts:106` (`registerApi`) and a `stryker.http.mjs` comment still place code in `PermissionRegistry.ts`.
 - [Phase 28] Review (28-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01..IN-06 open, info ("three" re-exported types is four; stale `{@link useGates}` in `GateWriter.ts`; INV-QD-064 Source credits `GateWriter.ts` with `GateRegistry.ts`'s key logic; ADR-QD-140's "only test edit is one import" overstated; ADR-QD-053's amendment blockquote lacks a pointer to ADR-QD-140; no StrictMode lifecycle test — reviewer's probe showed correct). D-01 = A taken from `_DECISIONS-v1.2.md`. 28-03's executor died on a network error once and was resumed.
 - [Phase 29] Review (29-REVIEW-DISPOSITION.md): WR-01 fixed (7bddf8fb: ADR-QD-123's live line still placed `PortName` in `PortMetrics.ts`); IN-01 (`DENY_WITHHELD` restates `ALLOW_WITHHELD`'s fields), IN-02 (CCR-QD-419 says six and seven re-pointed modules; cites README Rev 1.155, now 1.156) and IN-03 (ADR-QD-123 amendment "still imports" should read "now imports") open, info. `astro check` (gate 15) shows an interactive `@astrojs/check` install prompt in this environment and only proceeds with stdin closed, so the website typecheck is effectively skipped (pre-existing; the final `pnpm check:pr` ran with `< /dev/null`).
-- [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit.
-- [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table.
+- [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
+- [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
+
+## Deferred Items
+
+Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_type: override_closeout):
+
+| Category | Phase | Item | Acknowledged |
+|----------|-------|------|--------------|
+| deferred_items | 24 | `spec/behaviors/29-devtools-simulator.md` carries BEH-QD-219..221 twice (pre-existing) | v1.2, 2026-11-12 |
+| deferred_items | 24 | `spec/traceability.md` behaviour 29 names `model/Sources.ts`; the module is `Source.ts` (pre-existing) | v1.2, 2026-11-12 |
 
 ## Session Continuity
 
@@ -235,4 +242,5 @@ Resume file: None
 
 ## Operator Next Steps
 
-- Re-verify Phases 21, 22 and 23 (/gsd-execute-phase 21|22|23 resumes at the gates), update their REQUIREMENTS traceability rows, then audit, complete and clean up milestone v1.2 (no release)
+
+- Start the next milestone with /gsd-new-milestone
