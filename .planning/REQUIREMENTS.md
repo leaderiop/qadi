@@ -52,8 +52,8 @@ marked **Breaking**, `apps/website/.../reference/upgrading.md`). Releasing is st
 
 - [x] **DIAG-01**: `makeDockModel` takes `diagnostics` and `reading` as host inputs through `configure` (compared per field, so an inline literal does not restart the poll). It runs the diagnostics poll on its own `FiberHandle` in the model's scope. The dock forks nothing from a React effect, and the hand-written deps list and its `eslint-disable` are deleted.
 - [x] **DIAG-02**: The "supplied reading wins per field" merge is computed in the model, when an input changes, and exposed as a store. `DevtoolsDock` renders it and merges nothing.
-- [ ] **DIAG-03**: Public `useDiagnostics` is a thin adapter over the same scoped diagnostics feed, so there is one poll implementation. `DiagnosticsDockOptions` is declared in the model.
-- [ ] **DIAG-04**: The dock's snapshot hooks collapse into one store-snapshot hook, which removes the constant-`undefined` run passed to `useRunningStore` (v1.2 Phase 26 IN-01).
+- [x] **DIAG-03**: Public `useDiagnostics` is a thin adapter over the same scoped diagnostics feed, so there is one poll implementation. `DiagnosticsDockOptions` is declared in the model.
+- [x] **DIAG-04**: The dock's snapshot hooks collapse into one store-snapshot hook, which removes the constant-`undefined` run passed to `useRunningStore` (v1.2 Phase 26 IN-01).
 - [ ] **DIAG-05**: A poll defect is visible as a failed state, not a silently stopped panel, and is tested with a throwing source. The behaviour across a hidden `<Activity>` and across `diagnostics` going `undefined` and back is decided, stated and pinned.
 - [ ] **DIAG-06**: Model tests cover the poll's start, restart, stop and merge under `TestClock` with no render. ADR-QD-047 is amended, BEH-QD-465 (seven stores) and BEH-QD-323 are restated, and `DockModel.ts` keeps its mutation score.
 
@@ -131,8 +131,8 @@ The seven WX rows apply to every phase 30 to 36, so each phase's Requirements li
 | SEAL-05 | Phase 33 | Complete |
 | DIAG-01 | Phase 34 | Complete |
 | DIAG-02 | Phase 34 | Complete |
-| DIAG-03 | Phase 34 | Pending |
-| DIAG-04 | Phase 34 | Pending |
+| DIAG-03 | Phase 34 | Complete |
+| DIAG-04 | Phase 34 | Complete |
 | DIAG-05 | Phase 34 | Pending |
 | DIAG-06 | Phase 34 | Pending |
 | SWEEP-01 | Phase 35 | Pending |

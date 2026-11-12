@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 34
 current_phase_name: Diagnostics as the dock model's seventh store
 status: executing
-stopped_at: Completed 34-05-PLAN.md
-last_updated: "2026-11-12T17:36:14.296Z"
+stopped_at: Completed 34-06-PLAN.md
+last_updated: "2026-11-12T17:40:26.613Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 34 execution started
-state_head: d0a9e99eea574cf332befac9ec04ed61df300ff8
+state_head: d598c15ab6f1f343c6cb8884870873d3a3fe3c86
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 33
-  completed_plans: 29
+  completed_plans: 30
   percent: 57
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 34 (Diagnostics as the dock model's seventh store) — EXECUTING
-Plan: 6 of 9
+Plan: 7 of 9
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 34 execution started
 
@@ -175,6 +175,7 @@ Progress: [██████░░░░] 57% (v1.3: 0 of 7 phases)
 | Phase 34 P03 | 4 min | 3 tasks | 8 files |
 | Phase 34 P04 | 8 min | 2 tasks | 10 files |
 | Phase 34 P05 | 20min | 2 tasks | 4 files |
+| Phase 34 P06 | 12min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -263,6 +264,7 @@ Progress: [██████░░░░] 57% (v1.3: 0 of 7 phases)
 - [Phase 34]: 34-02: run token in the marking accept kept and named as an unreachable Stryker survivor
 - [Phase 34]: idleTimeline is inert so a first-pass caller cannot feed a store shared across components; useTimeline's lifetime change is Breaking
 - [Phase 34]: usePaused reads through useStoreSnapshot (one subscription); simulation reads moved to the same hook
+- [Phase 34]: 34-06: DiagnosticsStatus is exported once as a value export (value and type merged); the duplicate type-line name is TS2300
 
 ### Pending Todos
 
@@ -304,8 +306,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T17:36:14.184Z
-Stopped at: Completed 34-05-PLAN.md
+Last session: 2026-11-12T17:40:23.286Z
+Stopped at: Completed 34-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
