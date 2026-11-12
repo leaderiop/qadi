@@ -1194,7 +1194,7 @@ when nothing is supplied means a dock with no `reading` re-renders exactly when 
 publishes.
 
 Pinned by `packages/devtools/test/model/DiagnosticsFeed.test.ts` under `TestClock` (F1 to
-F25), `packages/devtools/test/model/DockModel.test.ts` (M18 to M28), and through the dock
+F26), `packages/devtools/test/model/DockModel.test.ts` (M18 to M28), and through the dock
 by `packages/devtools/test/react/DiagnosticsScreens.test.tsx`. Specified in
 ADR-QD-047 (CCR-QD-425).
 
@@ -1242,7 +1242,8 @@ REQUIREMENT: A restart, by a changed field or by `restart()`, MUST pass through 
              and keep no stop from the run it replaces.
 ```
 
-`restart()` with no options held does nothing.
+`restart()` with no options held does nothing, and so does `configure(undefined)` on a
+feed that already holds none: it is not an `Off` over an `Off`.
 
 ```
 REQUIREMENT: A closed feed MUST ignore `restart()` and `configure`, and publish nothing.
@@ -1252,7 +1253,7 @@ A command held across a rebuild (a stale `restart` captured before a hidden `Act
 closed the scope) would otherwise publish `Starting` on a feed whose run is interrupted at
 once, and nothing would ever follow it.
 
-Pinned by `packages/devtools/test/model/DiagnosticsFeed.test.ts` (F1 to F25) and, through
+Pinned by `packages/devtools/test/model/DiagnosticsFeed.test.ts` (F1 to F26) and, through
 the screens, by `packages/devtools/test/react/DiagnosticsScreens.test.tsx` (D4 to D11).
 Specified in ADR-QD-047 (CCR-QD-425).
 

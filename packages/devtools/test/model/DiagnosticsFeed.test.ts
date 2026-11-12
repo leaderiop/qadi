@@ -432,6 +432,25 @@ describe("the diagnostics feed", () => {
     }),
   );
 
+  it.effect("F26 configure(undefined) over a feed that is already off changes and notifies nothing", () =>
+    Effect.gen(function* () {
+      const never = yield* makeDiagnosticsFeed();
+      const live = yield* makeDiagnosticsFeed({});
+      live.configure(undefined);
+      for (const feed of [never, live]) {
+        const seen = recording(feed);
+
+        feed.configure(undefined);
+        feed.configure(undefined);
+
+        assert.deepStrictEqual(seen, []);
+        assert.strictEqual(feed.getSnapshot(), diagnosticsOff);
+      }
+      live.configure({});
+      assert.isTrue(DiagnosticsStatus.$is("Live")(live.getSnapshot().status));
+    }),
+  );
+
   it.effect("F18 a layer that fails to build reads wiring Failed in a Live feed, which samples again", () =>
     Effect.gen(function* () {
       const { state, questions } = source(() => []);

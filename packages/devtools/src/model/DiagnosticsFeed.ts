@@ -241,7 +241,8 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
     const before = options;
     options = next;
     if (next === undefined) {
-      off();
+      // Already off: a second `undefined` must not bump the token, fork or build a store.
+      if (before !== undefined) off();
       return;
     }
     if (
