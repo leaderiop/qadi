@@ -18,10 +18,11 @@
  * ever handed to the adapter.
  *
  * **A claim is joinable only while somebody waits on it, and until a reset
- * supersedes it** (issue #64): the last waiter to leave removes it in the same
- * step that abandons it, so a fresh ask never joins a compute nobody wants and
- * never inherits its interrupt. An abandoned or superseded compute's exit is
- * dropped. See the paragraph on it above `awaitShared`.
+ * supersedes it**: the last waiter to leave removes it in the same step that
+ * abandons it (issue #64), so a fresh ask never joins a compute nobody wants and
+ * never inherits its interrupt. An abandoned or superseded compute's exit never
+ * reaches the adapter; a superseded one still answers its waiters. See the
+ * paragraph on it above `awaitShared`.
  */
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
