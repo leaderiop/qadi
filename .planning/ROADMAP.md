@@ -477,9 +477,9 @@ Plans:
   4. A poll defect shows as a failed state, not a silently stopped panel, and is tested with a throwing source; the behaviour across a hidden `<Activity>` and across `diagnostics` going `undefined` and back is stated and pinned.
   5. Model tests cover the poll's start, restart, stop and merge under `TestClock` with no render; ADR-QD-047 is amended, BEH-QD-465 (seven stores) and BEH-QD-323 are restated, and `DockModel.ts` keeps its mutation score (base 100).
 **Planning notes**: `/gsd-plan-phase --research-phase` only for how a poll defect behaves inside `FiberHandle` and for the Activity decision; model tests run inside `it.effect` with `settleTurns` before each `adjust`. The merged reading is never computed inside `getSnapshot`.
-**Plans**: 1/9 plans executed
+**Plans**: 2/9 plans executed
 - [x] 34-01-PLAN.md
-- [ ] 34-02-PLAN.md
+- [x] 34-02-PLAN.md
 - [ ] 34-03-PLAN.md
 - [ ] 34-04-PLAN.md
 - [ ] 34-05-PLAN.md
