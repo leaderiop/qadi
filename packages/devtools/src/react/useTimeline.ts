@@ -19,7 +19,7 @@ import { idleTimeline, makeTimelineFeed } from "../model/TimelineFeed.ts";
 import { makeTimelineStore, type TimelineStore } from "../model/TimelineStore.ts";
 import type { Timeline } from "../model/Timeline.ts";
 import { useScoped } from "./useScoped.ts";
-import { useStoreSnapshot } from "./useStoreSnapshot.ts";
+import { usePaused, useStoreSnapshot } from "./useStoreSnapshot.ts";
 
 export interface UseTimeline {
   readonly timeline: Timeline;
@@ -61,7 +61,7 @@ export const useTimeline = (
 
   const store = feed?.timeline ?? idleTimeline;
   const timeline = useStoreSnapshot(store);
-  const paused = useStoreSnapshot({ subscribe: store.subscribe, getSnapshot: store.isPaused });
+  const paused = usePaused(store);
 
   return { timeline, paused, setPaused: store.setPaused, clear: store.clear, store };
 };
@@ -77,7 +77,7 @@ export const useTimelineStore = (options?: { readonly capacity?: number }): UseT
   const [store] = useState(() => makeTimelineStore(options));
 
   const timeline = useStoreSnapshot(store);
-  const paused = useStoreSnapshot({ subscribe: store.subscribe, getSnapshot: store.isPaused });
+  const paused = usePaused(store);
 
   const setPaused = useCallback((next: boolean) => store.setPaused(next), [store]);
   const clear = useCallback(() => store.clear(), [store]);

@@ -13,12 +13,11 @@
  * that branch, which is what keeps a hidden `Activity` from leaving one on a closed
  * model (ADR-QD-137).
  */
-import { useLayoutEffect, useSyncExternalStore } from "react";
+import { useLayoutEffect } from "react";
 import type { Catalogue } from "../model/Catalogue.ts";
 import { makeDockModel, type DockModel } from "../model/DockModel.ts";
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
 import type { Source } from "../model/Source.ts";
-import type { TimelineStore } from "../model/TimelineStore.ts";
 import { useScoped } from "./useScoped.ts";
 
 export interface UseDockModelInput {
@@ -46,7 +45,3 @@ export const useDockModel = ({
 
   return model;
 };
-
-/** Whether the model's timeline is paused; the buffer itself is read through the dock's snapshot. */
-export const usePaused = (timeline: TimelineStore): boolean =>
-  useSyncExternalStore(timeline.subscribe, timeline.isPaused, timeline.isPaused);

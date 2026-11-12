@@ -8,6 +8,18 @@
  */
 import { useSyncExternalStore } from "react";
 import type { ExternalStore } from "../model/ExternalStore.ts";
+import type { TimelineStore } from "../model/TimelineStore.ts";
 
 export const useStoreSnapshot = <A>(store: Pick<ExternalStore<A>, "subscribe" | "getSnapshot">): A =>
   useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+
+/**
+ * Whether a timeline is paused.
+ *
+ * It reads through `useStoreSnapshot` rather than a second `useSyncExternalStore`: pausing
+ * publishes the same timeline, so the timeline's own subscription carries the change, and
+ * `isPaused` returns a boolean React compares exactly. One subscription, the one a direct
+ * call would make. The buffer itself is read through the dock's snapshot.
+ */
+export const usePaused = (timeline: TimelineStore): boolean =>
+  useStoreSnapshot({ subscribe: timeline.subscribe, getSnapshot: timeline.isPaused });

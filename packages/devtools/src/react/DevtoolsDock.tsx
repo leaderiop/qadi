@@ -34,8 +34,8 @@ import { RoleViewer } from "./RoleViewer.tsx";
 import { ServicesPanel } from "./ServicesPanel.tsx";
 import { Simulator } from "./Simulator.tsx";
 import { useDiagnostics, type DiagnosticsDockOptions } from "./useDiagnostics.ts";
-import { useDockModel, usePaused } from "./useDockModel.ts";
-import { useDockSnapshot } from "./useDockSession.ts";
+import { useDockModel } from "./useDockModel.ts";
+import { usePaused, useStoreSnapshot } from "./useStoreSnapshot.ts";
 import { body, button, colors, dock as dockStyle, font, input, muted, toolbar } from "./theme.ts";
 
 /**
@@ -168,7 +168,7 @@ const DockFrame: FC<{
   readonly host: HostProps;
 }> = ({ model, shown, host }) => {
   const { dock, timeline } = model;
-  const view = useDockSnapshot(dock);
+  const view = useStoreSnapshot(dock);
   const paused = usePaused(timeline);
 
   return (
