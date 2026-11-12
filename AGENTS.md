@@ -500,6 +500,46 @@ v4 API notes: `Schema.Union([...])` takes an **array**; the type is
 shared `Schema.suspend` ref; `parseJson(s)` → `fromJsonString(s)`;
 `decodeUnknown` → `decodeUnknownEffect`; `ParseResult` → `SchemaIssue`.
 
+## 7a. Untrusted decode — `untrustedDecoder`
+
+Untrusted JSON is decoded only through `@qadi/core`'s `untrustedDecoder`
+(`UntrustedDecode.ts`).
+
+It runs one fixed recipe: `JSON.parse` for text, the depth guard, an optional
+seam-supplied `prepare`, then a strict decode (`onExcessProperty: "error"`), and it
+answers with a `Result` whose refusal is a closed `UntrustedRefusal` (`NotJson`,
+`TooDeep`, `Malformed`) that the seam maps into its own error with
+`Match.tagsExhaustive`. A top-level key a second decoder guards from its own root
+is named in `unwalked` (INV-QD-306) and the guard leaves it out.
+
+Eight seams used to assemble that recipe by hand, and one of them,
+`PolicyFromJson`, skipped the guard: a payload nested tens of thousands of levels
+deep raised a raw `RangeError` from `Schema`'s recursive descent instead of a typed
+failure (INV-QD-305, ADR-QD-143). The strict options and the depth walk are now
+private to `@qadi/core` (the options to `UntrustedDecode.ts`, the walk out of the
+barrel), so a decoder cannot be built without the guard. `MAX_DECODE_DEPTH`, the
+bound, stays public.
+
+**The rule is enforced, not remembered**: in `packages/*/src`, every
+`onExcessProperty`, `exceedsJsonDepth` or `Schema.decode*` token (comments and
+strings stripped) is counted per file, and only the files below may have any.
+Test scope is exempt, because a test decodes on purpose to pin what the decoder
+makes of an input.
+
+| Location | Count | Why |
+| -------- | ----- | --- |
+| `packages/core/src/UntrustedDecode.ts` | 4 | The decoder itself: the depth-guard import and call, the strict option, and its one `Schema.decodeUnknownResult`. |
+| `packages/core/src/DecodeDepthGuard.ts` | 1 | The depth walk's declaration, package-private and reached only from the decoder. |
+| `packages/audit/src/AuditEntry.ts` | 1 | `recordJsonOf`, a deliberately lenient decode of a row's record after the strict read accepted it, so an envelope key this version does not declare is dropped. |
+| `packages/core/src/PortSpanEncode.ts` | 2 | `spanStruct` reads span attributes this process wrote, not an untrusted seam: a lenient decode per field, then one strict-by-schema decode. |
+
+Enforced by `UNTRUSTED_DECODE_BUDGET` in `scripts/check-house-style.mjs`, checked
+in both directions like the budgets above: a token in any other file fails
+(`[untrusted-decode]`), and so does a count silently moving. The declaration each
+file's tokens belong to is checked to exist (`[untrusted-decode-names]`), and this
+table is checked against the budget (`[untrusted-decode-table]`), so a row cannot
+name the wrong file or count.
+
 ## 8. Naming
 
 | Pattern | Meaning |
