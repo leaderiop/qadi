@@ -25,7 +25,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-11)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 29 — Small restated facts
+**Current focus:** Milestone v1.2 — re-verify Phases 21–23, then audit
 
 ## Current Position
 
@@ -223,6 +223,7 @@ Last activity: 2026-11-12 — Phase 29 complete
 - [Phase 26] Review (26-REVIEW-DISPOSITION.md): WR-01 fixed (0e340791, comments cited planning-only IDs); IN-01 (`useDockSnapshot`/`useExplorerSnapshot`/`useHeldChoiceSnapshot` pass a constant `undefined` run to `useRunningStore`), IN-02 (`DevtoolsDock`'s `nothing` source duplicates the model default; comment names `useTimeline`) and IN-03 (stale "was DevtoolsDock l.N" titles and a 26-05 to-do in `DockModel.test.ts`) open, info. UI review 22/24; the `Activity` remount and pixels are a human check in a real browser.
 - [Phase 27] Review (27-REVIEW-DISPOSITION.md): WR-01..03 fixed (82895714, f304bbc0, a4be4995: ADR-037/043/046 and three `@qadi/core` comments still named `guardRoute` as live); IN-01 (`GuardRoute.ts` "the one the module accepts" now ambiguous) and IN-02 ("lost ARCH-57's probe" typo, moved verbatim) open, info. ROUTE-01/ROUTE-03 delivered by intent (CCR-QD-417). `scripts/spec-revise.mjs` drops its document argument when `--date` is omitted (always pass `--date`; script untouched). Pre-existing stale citation `v4-http-smoke.test.ts:106` (`registerApi`) and a `stryker.http.mjs` comment still place code in `PermissionRegistry.ts`.
 - [Phase 28] Review (28-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01..IN-06 open, info ("three" re-exported types is four; stale `{@link useGates}` in `GateWriter.ts`; INV-QD-064 Source credits `GateWriter.ts` with `GateRegistry.ts`'s key logic; ADR-QD-140's "only test edit is one import" overstated; ADR-QD-053's amendment blockquote lacks a pointer to ADR-QD-140; no StrictMode lifecycle test — reviewer's probe showed correct). D-01 = A taken from `_DECISIONS-v1.2.md`. 28-03's executor died on a network error once and was resumed.
+- [Phase 29] Review (29-REVIEW-DISPOSITION.md): WR-01 fixed (7bddf8fb: ADR-QD-123's live line still placed `PortName` in `PortMetrics.ts`); IN-01 (`DENY_WITHHELD` restates `ALLOW_WITHHELD`'s fields), IN-02 (CCR-QD-419 says six and seven re-pointed modules; cites README Rev 1.155, now 1.156) and IN-03 (ADR-QD-123 amendment "still imports" should read "now imports") open, info. `astro check` (gate 15) shows an interactive `@astrojs/check` install prompt in this environment and only proceeds with stdin closed, so the website typecheck is effectively skipped (pre-existing; the final `pnpm check:pr` ran with `< /dev/null`).
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table.
 
@@ -234,4 +235,4 @@ Resume file: None
 
 ## Operator Next Steps
 
-- Plan and execute Phase 29 (Small restated facts): /gsd-plan-phase 29 then /gsd-execute-phase 29; then re-verify 21..23, audit the milestone
+- Re-verify Phases 21, 22 and 23 (/gsd-execute-phase 21|22|23 resumes at the gates), update their REQUIREMENTS traceability rows, then audit, complete and clean up milestone v1.2 (no release)
