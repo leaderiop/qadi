@@ -89,15 +89,13 @@ export interface DecisionCacheShape {
    * invalidates *atoms*, and an invalidated atom that re-evaluates through a
    * warm cache gets the same cached trace back.
    *
-   * A `compute` already in flight keeps its claim and still settles for the
-   * fibers already awaiting it — cancelling those would turn a housekeeping
-   * action into a source of failures, and they are answering questions asked
-   * before the flush. But that stale answer never re-enters the cache this
-   * call just emptied, and a *new* ask for the same key arriving after this
-   * call starts its own fresh compute rather than coalescing onto the old
-   * one — both closed by an internal generation counter this call advances,
-   * so a compute racing the flush can tell whether it is still current when
-   * it finishes.
+   * A `compute` already in flight keeps answering the fibers already
+   * awaiting it — cancelling those would turn a housekeeping action into a
+   * source of failures, and they are answering questions asked before the
+   * flush. This call supersedes it, so its answer never re-enters the cache
+   * this call just emptied, and a *new* ask for the same key arriving after
+   * this call computes afresh rather than joining it. That rule lives in
+   * `SharedComputation`'s `reset`.
    */
   readonly clear: Effect.Effect<void>;
 }
@@ -222,63 +220,46 @@ export const decisionCacheLayer = (options?: {
       // sustained pressure stays proportional to how much was evicted, not to
       // how large the cache is.
       let insertionOrder: Chunk.Chunk<Question> = Chunk.empty();
-      // Advanced by `clear` alone. A compute captures this at claim time and
-      // compares again in its `onExit` finalizer — unequal means a `clear`
-      // happened while it was running, so its result answers the fibers
-      // already awaiting it but must not repopulate
-      // `entries` on top of a flush that already happened, nor answer a
-      // caller who asks for the same key after that flush.
-      let generation = 0;
-
       // Single-flight (claim, join, hit, every waiter settled, last-leaver
-      // interrupt) lives in `SharedComputation.ts`, with its own comments.
-      // What stays here is what a settled answer does to this cache.
+      // interrupt) and its staleness rule (a reset supersedes every in-flight
+      // claim) live in `SharedComputation.ts`, with their own comments. What
+      // stays here is what a settled answer does to this cache.
       const shared = makeSharedComputation<Question, Trace, EvaluationError>({
         cached: (key) => HashMap.get(entries, key),
-        claim: (key) => {
-          // Read in the same synchronous step the claim itself is made in —
-          // see `clear`'s own doc comment for what this closes.
-          const myGeneration = generation;
-          return (exit) => {
-            // `myGeneration === generation`: no `clear` ran while this
-            // compute was in flight. One did — `clear`'s doc comment
-            // explains why this result must not repopulate the cache it
-            // flushed, even though it still settles every fiber already
-            // awaiting it.
-            if (exit._tag === "Success" && myGeneration === generation) {
-              entries = HashMap.set(entries, key, exit.value);
-              // Recorded, and evicted from, only when `capacity` was given —
-              // the unbounded default (the common case, per this file's own
-              // doc comment) has nothing that will ever read this array, so
-              // it stays empty rather than growing in lockstep with `entries`
-              // for the life of the cache.
-              if (options?.capacity === undefined) return;
-              insertionOrder = Chunk.append(insertionOrder, key);
-              // FIFO eviction: a `while` rather than an `if` because a caller
-              // who lowers `capacity` between two `decisionCacheLayer()`
-              // calls is not a case this loop should special-case to "evict
-              // one" and leave still over budget. Always terminates:
-              // `capacity` is validated non-negative-integer at construction,
-              // so `size(entries)` — a non-negative integer that strictly
-              // decreases each iteration — reaches it in finitely many steps.
-              while (HashMap.size(entries) > options.capacity) {
-                // `Chunk.size(insertionOrder) === HashMap.size(entries)`
-                // always — every append here has exactly one corresponding
-                // `entries` insert (a key is claimed by one fiber at a time,
-                // and a hit never claims, so it is appended once per
-                // completed compute nobody else answered), and eviction
-                // always removes one of each —
-                // so this loop's own condition (`size(entries) > capacity >=
-                // 0`) guarantees `insertionOrder` is non-empty. The `Option`
-                // check exists for that same reason `noUncheckedIndexedAccess`
-                // forced a guard on the old `Array` version, not because this
-                // can happen.
-                const oldest = Chunk.head(insertionOrder);
-                insertionOrder = Chunk.drop(insertionOrder, 1);
-                if (Option.isSome(oldest)) entries = HashMap.remove(entries, oldest.value);
-              }
+        claim: (key) => (exit) => {
+          if (exit._tag === "Success") {
+            entries = HashMap.set(entries, key, exit.value);
+            // Recorded, and evicted from, only when `capacity` was given —
+            // the unbounded default (the common case, per this file's own
+            // doc comment) has nothing that will ever read this array, so
+            // it stays empty rather than growing in lockstep with `entries`
+            // for the life of the cache.
+            if (options?.capacity === undefined) return;
+            insertionOrder = Chunk.append(insertionOrder, key);
+            // FIFO eviction: a `while` rather than an `if` because a caller
+            // who lowers `capacity` between two `decisionCacheLayer()`
+            // calls is not a case this loop should special-case to "evict
+            // one" and leave still over budget. Always terminates:
+            // `capacity` is validated non-negative-integer at construction,
+            // so `size(entries)` — a non-negative integer that strictly
+            // decreases each iteration — reaches it in finitely many steps.
+            while (HashMap.size(entries) > options.capacity) {
+              // `Chunk.size(insertionOrder) === HashMap.size(entries)`
+              // always — every append here has exactly one corresponding
+              // `entries` insert (a key is claimed by one fiber at a time,
+              // and a hit never claims, so it is appended once per
+              // completed compute nobody else answered), and eviction
+              // always removes one of each —
+              // so this loop's own condition (`size(entries) > capacity >=
+              // 0`) guarantees `insertionOrder` is non-empty. The `Option`
+              // check exists for that same reason `noUncheckedIndexedAccess`
+              // forced a guard on the old `Array` version, not because this
+              // can happen.
+              const oldest = Chunk.head(insertionOrder);
+              insertionOrder = Chunk.drop(insertionOrder, 1);
+              if (Option.isSome(oldest)) entries = HashMap.remove(entries, oldest.value);
             }
-          };
+          }
         },
         onOutcome: (outcome) => Metric.update(decisionCacheLookupsTotal, outcome),
       });
@@ -292,12 +273,11 @@ export const decisionCacheLayer = (options?: {
         clear: Effect.sync(() => {
           entries = HashMap.empty<Question, Trace>();
           insertionOrder = Chunk.empty();
-          // Resetting the in-flight claims here, not just `entries`, is what
-          // stops a caller asking for the same key right after this from
-          // coalescing onto a compute that started before the flush and would
-          // hand them back the exact staleness they just asked to discard.
+          // Resetting the in-flight claims supersedes every compute already
+          // running, so none of them writes into the emptied cache and an ask
+          // after this claims afresh instead of coalescing onto a compute that
+          // started before the flush. That rule is `SharedComputation`'s.
           shared.reset();
-          generation += 1;
         }),
       };
     }),
