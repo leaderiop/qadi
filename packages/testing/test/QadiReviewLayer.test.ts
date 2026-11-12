@@ -76,7 +76,8 @@ describe("qadiReviewLayer", () => {
       assert.strictEqual(first.evaluationId, "review-1");
     }));
 
-  // `it.live`: `it.effect` supplies a `TestClock`, under which this would prove nothing.
+  // `it.live` buys nothing here: a built `Layer.empty` context has no `Clock` entry, so the real
+  // default answers whichever clock the test fiber runs under.
   it.live("leaves the runtime's own clock alone by default", () =>
     Effect.gen(function* () {
       const context = yield* Layer.build(qadiReviewLayer());

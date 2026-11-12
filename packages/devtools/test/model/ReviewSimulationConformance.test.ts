@@ -108,7 +108,8 @@ describe("the review layer and a simulation agree", () => {
       }
     }));
 
-  // `it.live`: `it.effect`'s ambient `TestClock` would make a live clock read zero too.
+  // `it.live` buys nothing here: a built `Layer.empty` context has no `Clock` entry, so the real
+  // default answers whichever clock the test fiber runs under.
   it.live("both leave the runtime's own clock alone under a live clock", () =>
     Effect.gen(function* () {
       const review = yield* Layer.build(qadiReviewLayer({ clock: "live" }));
@@ -118,6 +119,10 @@ describe("the review layer and a simulation agree", () => {
       assert.isAbove(Context.get(simulation, Clock.Clock).currentTimeMillisUnsafe(), 0);
     }).pipe(Effect.scoped));
 
+  // The `Context.get` clock assertions carry the proof of determinism. The `durationMillis` ones
+  // are its consequence and do not discriminate on their own: a trivial in-memory evaluation also
+  // measures 0 ms under a live clock. Proving more would need a port that takes real time, which
+  // blocks forever under a frozen `TestClock`.
   it.live("both make durations reproducibly zero under a deterministic clock", () =>
     Effect.gen(function* () {
       const policy = hasAttribute("clearance", gte(1));

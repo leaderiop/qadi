@@ -139,7 +139,9 @@ describe("evaluationEnvironment", () => {
       assert.deepStrictEqual(yield* idsOf, ["x-1", "x-2"]);
     }));
 
-  // `it.live`: `it.effect` supplies a `TestClock`, under which a live clock would read zero too.
+  // `it.live` buys nothing for the `Context.get` reads: a built `Layer.empty` context has no `Clock`
+  // entry, so the real default answers whichever clock the test fiber runs under. Those reads are
+  // the layer's own contribution and carry the proof of determinism.
   it.live("the clock layer decides which clock an evaluation reads", () =>
     Effect.gen(function* () {
       const environment = (clock: Layer.Layer<never>) =>
@@ -156,6 +158,8 @@ describe("evaluationEnvironment", () => {
           Layer.merge(currentSubjectLayer(admin), environment(TestClock.layer())),
         ),
       );
+      // A consequence of the clock asserted above, not a proof: a trivial in-memory evaluation also
+      // measures 0 ms under a live clock, so this does not discriminate on its own.
       assert.strictEqual(decision.durationMillis, 0);
     }).pipe(Effect.scoped));
 
