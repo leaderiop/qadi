@@ -23,7 +23,7 @@ import * as Data from "effect/Data";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type * as SchemaAST from "effect/SchemaAST";
-import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
+import { exceedsJsonDepth, isPlainObject } from "./DecodeDepthGuard.ts";
 
 /**
  * A generous structural ceiling on the raw JSON an untrusted seam decodes from,
@@ -154,9 +154,6 @@ export interface UntrustedDecoder<A, R extends { readonly _tag: string }> {
   /** Decodes text: `JSON.parse`, then {@link UntrustedDecoder.decode}. */
   readonly decodeText: (text: string) => Result.Result<A, UntrustedRefusal | R>;
 }
-
-const isPlainObject = (input: unknown): input is object =>
-  typeof input === "object" && input !== null && !Array.isArray(input);
 
 /**
  * Builds the untrusted decoder for `schema`.

@@ -60,6 +60,7 @@ import type { DecisionDisagreement, Trace } from "./Decision.ts";
 import type { DecisionOutcome, SinkRecord, StoredRecord } from "./DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord, stampRecord } from "./DecisionRecord.ts";
 import { DecisionWire, decodeDecision, encodeDecision } from "./DecisionWire.ts";
+import { isPlainObject } from "./DecodeDepthGuard.ts";
 import {
   AttributeResolveError,
   CustomPredicateError,
@@ -414,10 +415,6 @@ export const encodeSinkRecordString = (record: SinkRecord): Result.Result<string
 
 const notDecodable = (refusal: DecodeRefusal) => Result.fail(new SinkRecordNotDecodable({ refusal }));
 
-/** A JSON object: what an envelope is, and what an array or a primitive is not. */
-const isJsonObject = (input: unknown): input is object =>
-  typeof input === "object" && input !== null && !Array.isArray(input);
-
 /** An own property's value, or `undefined`: never one inherited from a prototype. */
 const ownValue = (input: object, key: string): unknown => Object.getOwnPropertyDescriptor(input, key)?.value;
 
@@ -468,7 +465,7 @@ type UnsupportedVersion = Extract<DecodeRefusal, { readonly _tag: "UnsupportedVe
  * `Malformed`: it is not a record of any version.
  */
 const versionThenEnvelope = (input: unknown): Result.Result<unknown, UnsupportedVersion> => {
-  if (!isJsonObject(input)) return Result.succeed(input);
+  if (!isPlainObject(input)) return Result.succeed(input);
   const version = ownValue(input, "version");
   return version === WIRE_VERSION
     ? Result.succeed(envelopeOf(input))
@@ -596,7 +593,7 @@ const notAnEnvelope = (message: string) => notDecodable(DecodeRefusal.Malformed(
  * environment is the producer's, never the reader's. Never throws.
  */
 export const decodeStoredRecord = (input: unknown): Result.Result<StoredRecord, SinkRecordNotDecodable> => {
-  if (!isJsonObject(input)) return notAnEnvelope("a stored record is a JSON object { environment, record }");
+  if (!isPlainObject(input)) return notAnEnvelope("a stored record is a JSON object { environment, record }");
   if (!Object.hasOwn(input, "environment") && !Object.hasOwn(input, "record")) {
     return notAnEnvelope("a bare record, not a stored-record envelope { environment, record }");
   }

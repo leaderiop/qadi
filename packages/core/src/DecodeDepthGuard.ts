@@ -12,16 +12,9 @@
  * the decoder is the only way to run it ahead of a decode, and a seam cannot
  * assemble guard-then-decode by hand.
  */
-/**
- * True for a plain object — arrays excluded, matching `FieldPath.ts`'s
- * identically-named predicate. `exceedsJsonDepth` below dispatches arrays
- * first (via `Array.isArray`) before ever reaching this check, so the
- * missing exclusion was never reachable from here — but the predicate's own
- * type claim (`value is Record<string, unknown>`) was false for the arrays
- * it admitted, and a future caller reusing this name without that call-order
- * discipline would have inherited a lying narrowing (NS-01).
- */
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+
+/** True for a non-null, non-array object; package-private, shared with the decoder and `SinkCodec.ts`. */
+export const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** `true` once any value in `root` is nested deeper than `maxDepth`. */
