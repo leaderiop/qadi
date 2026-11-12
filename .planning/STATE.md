@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 30
 current_phase_name: One strict-decode module
 status: executing
-stopped_at: Completed 30-03-PLAN.md
-last_updated: "2026-11-12T04:12:59.915Z"
+stopped_at: Completed 30-04-PLAN.md
+last_updated: "2026-11-12T04:15:23.031Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 30 execution started
-state_head: 903351b25737b2a4b281065defe01a5066652dc5
+state_head: f6624f3b18b8fc8712f11dbca388cbddccfd6666
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 9
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 30 (One strict-decode module) — EXECUTING
-Plan: 4 of 9
+Plan: 5 of 9
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 30 execution started
 
@@ -145,6 +145,7 @@ Progress: [░░░░░░░░░░] 0% (v1.3: 0 of 7 phases)
 | Phase 30 P01 | 6 min | 3 tasks | 5 files |
 | Phase 30 P02 | 12 min | 1 tasks | 14 files |
 | Phase 30 P03 | 14 min | 3 tasks | 5 files |
+| Phase 30 P04 | 6 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -206,6 +207,7 @@ Progress: [░░░░░░░░░░] 0% (v1.3: 0 of 7 phases)
 - [Phase 30]: 30-01: characterisation tables pin what the base returns (hydration [] is MalformedPayload, not UnsupportedPayloadVersion); the array-payload-nested row flips in 30-05 only if the guard runs before the object check
 - [Phase 30]: 30-02: PolicyNotJson carries the parser message and lives in Policy.ts; UNTRUSTED_DECODE_OPTIONS stays exported from the leaf until 30-06
 - [Phase 30]: 30-03: decodeStoredRecord stays outside the untrusted decoder; it hands record to the guarded decodeSinkRecord
+- [Phase 30]: 30-04: the audit row's too-deep maps to the existing DecodeRefusal.TooDeep (no new member); ArchiveRefusal gains TooDeep first (Breaking)
 
 ### Pending Todos
 
@@ -246,8 +248,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T04:12:59.895Z
-Stopped at: Completed 30-03-PLAN.md
+Last session: 2026-11-12T04:15:23.011Z
+Stopped at: Completed 30-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

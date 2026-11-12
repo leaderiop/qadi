@@ -377,13 +377,13 @@ recorded in the phase CONTEXT and its ADR or CCR row.
   4. Every guarded seam has a test deeper than the bound (the port-wire decoders, the hydration envelope, and `PolicyFromJson` or its replacement); the module has one property test (the guard always precedes decode, the refusal kind is a function of the input); `wireHazard`'s outbound depth count still equals `exceedsJsonDepth` (INV-QD-096).
   5. Hydration's `{ ...payload, entries: [] }` workaround and the audit envelope's `entries` and row's `record` partial walks are module options, not hand-built copies, and per-entry attribution (`EntryNotDecodable{ index, refusal }`, hydration's per-entry drop reasons) is preserved.
 **Planning notes**: plan order is the characterisation table (green on the base) first, then the leaf and its property test, then core seams, then audit, then hydration (needs the core export), then records. Small research items: the exact `prepare` typing for `SinkCodec`, and the double-walk cost (hydration entry then policy, sink record then row), measured once and never traded for dropping the guard.
-**Plans**: 3/9 plans executed
+**Plans**: 4/9 plans executed
 
 Plans:
 - [x] 30-01 (W1): Mutation baseline of the 13 seam files, the seam inventory, and the refusal characterisation tables (core, react, audit, the devtools paste-box pin) written green on the phase base.
 - [x] 30-02 (W2): The `UntrustedDecode.ts` leaf (tracer through `Policy.fromJson`), `PolicyNotJson`, `PolicyFromJson` removed.
 - [x] 30-03 (W3): The leaf's property test and type pins first, then `SinkCodec` (version and envelope as `prepare`) and the port wire / `PortRemote` decode through the leaf; the too-deep sentence written once.
-- [ ] 30-04 (W4): The audit archive envelope and row decode through the leaf; `ArchiveRefusal.TooDeep` and the row's too-deep.
+- [x] 30-04 (W4): The audit archive envelope and row decode through the leaf; `ArchiveRefusal.TooDeep` and the row's too-deep.
 - [ ] 30-05 (W4): Hydration's payload, entry and policy decoders on the leaf; `PayloadTooDeep` across core, react and devtools.
 - [ ] 30-06 (W5): Narrow `@qadi/core`'s surface (private options, depth walk out of the barrel, after an importer scan proves no in-repo user is left); the `[untrusted-decode]` rule, its budget and AGENTS.md §7a.
 - [ ] 30-07 (W6): The double-check bench, ADR-QD-143 and the ADR-096/107 amendments, behaviours, invariants, traceability, overview, CCR-QD-421.

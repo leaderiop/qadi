@@ -21,7 +21,7 @@ marked **Breaking**, `apps/website/.../reference/upgrading.md`). Releasing is st
 - [x] **DEC-03**: The public `PolicyFromJson` codec no longer decodes untrusted JSON without the depth guard. It is removed, or it is routed through the module; discuss-phase picks whichever is cleaner, and either way it is Breaking and recorded.
 - [x] **DEC-04**: No refusal is reported as a different kind. A too-deep input surfaces as too-deep at every seam, including audit (no `TooDeep` folded into `Malformed`). A public refusal union that needs a new arm is written out as the full closed union, and the break is recorded.
 - [x] **DEC-05**: The strict decode options and the decode-depth constant live in the leaf. `Policy.ts` no longer declares or re-exports them. `UNTRUSTED_DECODE_OPTIONS` leaves the public surface (Breaking) unless discuss-phase finds a consumer that cannot use the decoder. Whether `exceedsJsonDepth`/`MAX_DECODE_DEPTH` stay public is decided toward the narrowest surface, and the hydration spec requirement that names them is restated to match.
-- [ ] **DEC-06**: The workarounds for seams that walk only part of a payload (hydration's `{ ...payload, entries: [] }`, the audit envelope's `entries` and the row's `record`) are module options, not hand-built copies at the seams. Per-entry attribution (`EntryNotDecodable{ index, refusal }`, hydration's per-entry drop reasons) is preserved.
+- [x] **DEC-06**: The workarounds for seams that walk only part of a payload (hydration's `{ ...payload, entries: [] }`, the audit envelope's `entries` and the row's `record`) are module options, not hand-built copies at the seams. Per-entry attribution (`EntryNotDecodable{ index, refusal }`, hydration's per-entry drop reasons) is preserved.
 - [x] **DEC-07**: Every guarded seam has a test deeper than the bound, closing today's gaps: the port-wire decoders, the hydration envelope, and `PolicyFromJson` or its replacement. The module has one property test (the guard always precedes decode; the refusal kind is a function of the input). `wireHazard`'s outbound depth count still equals `exceedsJsonDepth` (INV-QD-096).
 - [ ] **DEC-08**: A `scripts/check-house-style.mjs` rule refuses strict decode options or a hand-assembled guard-then-decode outside the leaf, checked in both directions like the other budgets, and AGENTS.md states the rule.
 
@@ -112,7 +112,7 @@ The seven WX rows apply to every phase 30 to 36, so each phase's Requirements li
 | DEC-03 | Phase 30 | Complete |
 | DEC-04 | Phase 30 | Complete |
 | DEC-05 | Phase 30 | Complete |
-| DEC-06 | Phase 30 | Pending |
+| DEC-06 | Phase 30 | Complete |
 | DEC-07 | Phase 30 | Complete |
 | DEC-08 | Phase 30 | Pending |
 | SUPR-01 | Phase 31 | Pending |
