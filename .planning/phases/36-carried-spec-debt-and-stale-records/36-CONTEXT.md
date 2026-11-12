@@ -69,6 +69,30 @@ The user's standing direction: "the most clean solution, the most complete, not 
   - a public break, if any, is recorded as **Breaking** in the changeset and in `upgrading.md`;
   - nothing is released or published.
 
+### Decisions after research (the user chose each on 2026-11-12)
+- **D-13 The timeline stop reaches the dock.**
+  - A closed `TimelineStatus` (`Reading` | `Stopped { reason }`) is built on `DiagnosticsFeed`'s generation-token pattern, using `Effect.onExit` and `Cause.hasInterruptsOnly`. It is returned by `useTimeline` and exported from `@qadi/devtools`.
+  - `DockModel` gains `timelineStatus` as an eighth readout, and BEH-QD-465 is restated.
+  - The dock shows a timeline notice modelled on the Diagnostics notice.
+  - A UI-SPEC for that notice comes before planning.
+  - The status type lands as its own skeleton commit first, so the status tests fail on behaviour, not on shape.
+- **D-14 Hydration seeds lost on a late mount are designed and fixed, not recorded as a limit.**
+  - The research reproduced it: a seed whose gate mounts after one macrotask with no reader reads `pending` instead of the seeded answer.
+  - `keepAlive` is rejected, because it pins every seed forever.
+  - A design step finds the cleanest mechanism; one candidate is the atom set holding a seed until its question is first read or evicted, bounded by `maxTrackedQuestions`.
+  - It is fixed test-first, with reserved BEH/INV numbers, and ADR-QD-149 if the mechanism is a design decision (D-12).
+- **D-15 25 IN-01 takes the Breaking fold.**
+  - `reading` moves into `Baseline.Checked`, and `SimulationSnapshot.baselineReading` is removed, so the impossible state cannot be represented.
+  - This is a `@qadi/devtools` minor changeset with a **Breaking** lead, plus an `upgrading.md` section.
+- **D-16 The restart button is hardened.**
+  - Its text uses `colors.text` and it gets an amber border of at least 3:1, using existing tokens only.
+  - A token contrast test pins it beside the focus-ring ratio.
+  - The screen root's missing focus ring is fixed regardless.
+- **D-17 Record dispositions.**
+  - **Refuted.** A finding shown wrong at the base, for example 27 IN-02, where "lost ARCH-57" is house terminology, gets this third disposition beside fixed and resolved, with its evidence.
+  - **Comment-only edits.** These src edits stay out of the mutation base; a comment-stripped transpile comparison proves them.
+  - **The DEBT-02 premise.** `Sources.ts` was renamed `SimulationSource.ts`, which the row already lists, so the fix deletes the stale token. CCR-QD-427 records the departure from the requirement wording.
+
 ### Claude's Discretion
 - Plan count and wave split, within this fixed order: mutation baseline first, then the ledger and RED/characterisation tests, then the fixes, then the spec and record edits, then the closing gate.
 - Whether the timeline feed's "observable death" reuses `DiagnosticsStatus`'s shape or a smaller, closed status of its own. The cleaner, more consistent option wins.
