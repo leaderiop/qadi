@@ -59,7 +59,7 @@ marked **Breaking**, `apps/website/.../reference/upgrading.md`). Releasing is st
 
 ### The atom set owns its eviction sweep (Phase 35)
 
-- [ ] **SWEEP-01**: The phase opens on a spike that tries candidate mechanisms in the research order (edge-triggered deferred sweep; self-terminating book-level fiber; layer-scoped periodic fork). It never uses `scheduleTask`/`defaultIdleTTL`, never sweeps from the render path or inside the registry's dispose-reread window, and uses no module-scope timer. The spike's evidence and conclusion are recorded.
+- [x] **SWEEP-01**: The phase opens on a spike that tries candidate mechanisms in the research order (edge-triggered deferred sweep; self-terminating book-level fiber; layer-scoped periodic fork). It never uses `scheduleTask`/`defaultIdleTTL`, never sweeps from the render path or inside the registry's dispose-reread window, and uses no module-scope timer. The spike's evidence and conclusion are recorded.
 - [ ] **SWEEP-02**: A mechanism is accepted only if it passes every criterion: the dispose-reread smoke, the existing sweep pins, the `examples/nextjs-newsroom` e2e unchanged (CI or the container route if the host cannot run it), one sweep per atom set however many providers or registries, no second sweeper under StrictMode or a hidden `<Activity>`, and no leaked fibers across many atom sets.
 - [ ] **SWEEP-03**: If a mechanism passes, `maxTrackedQuestions` holds wherever the atom set runs, including with no provider, as shown by a bare-registry graph test. The provider no longer forks a sweep, and a superseded `sweepIntervalMillis` is removed (Breaking, recorded) or moved to the atom set's options if the mechanism still needs an interval.
 - [ ] **SWEEP-04**: If no mechanism passes, the sweep stays in the provider, but the rule is stated (in the spec and the atom set's docs) and tested: what happens without a provider, and under several providers. `QadiProvider.test.tsx`'s "stays over the bound after unmount" pin is reconciled either way.
@@ -135,7 +135,7 @@ The seven WX rows apply to every phase 30 to 36, so each phase's Requirements li
 | DIAG-04 | Phase 34 | Complete |
 | DIAG-05 | Phase 34 | Complete |
 | DIAG-06 | Phase 34 | Complete |
-| SWEEP-01 | Phase 35 | Pending |
+| SWEEP-01 | Phase 35 | Complete |
 | SWEEP-02 | Phase 35 | Pending |
 | SWEEP-03 | Phase 35 | Pending |
 | SWEEP-04 | Phase 35 | Pending |

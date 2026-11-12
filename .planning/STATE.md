@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 35
 current_phase_name: The atom set owns its eviction sweep
 status: executing
-stopped_at: Completed 35-02-PLAN.md
-last_updated: "2026-11-12T20:37:02.851Z"
+stopped_at: Completed 35-03-PLAN.md
+last_updated: "2026-11-12T20:44:19.426Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 35 execution started
-state_head: d8306507880de540b1ceaecd60c5f02397492ece
+state_head: 0a8f57b2530db521897b0b2b7ba1c49c3d5821dd
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 40
-  completed_plans: 35
+  completed_plans: 36
   percent: 71
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 35 (The atom set owns its eviction sweep) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 35 execution started
 
@@ -182,6 +182,7 @@ Progress: [███████░░░] 71% (v1.3: 0 of 7 phases)
 | Phase 34 P09 | 4 min | 3 tasks | 1 files |
 | Phase 35 P01 | 3 min | 3 tasks | 3 files |
 | Phase 35 P02 | 10 min | 3 tasks | 1 files |
+| Phase 35 P03 | 30min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -278,6 +279,7 @@ Progress: [███████░░░] 71% (v1.3: 0 of 7 phases)
 - [Phase 35]: P3 StrictMode sweeper count measured at 2 on the base; Stryker instrumented QadiAtoms.ts and QadiProvider.tsx via the --mutate override so the baseline has no unmeasured files
 - [Phase 35]: 35-02: spike candidate 1 keeps the admission trigger; release-only fails (b), (d), (e) because it does not bound a question opened and never read
 - [Phase 35]: 35-02: release guard entry.inBook kept (orphan release without it sends 1 spurious signal and sweep); cold-count guard not added (200 live over bound 5: 195 coalesced sweeps, 82 ms, e2e 30 passed)
+- [Phase 35]: Spike conclusion: candidate-1 wins by D-02 rule 1 (no timer); candidate 2 passes all but carries Schedule.spaced, candidate 3 fails (d); admission trigger and entry.inBook guard kept
 
 ### Pending Todos
 
@@ -319,8 +321,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T20:37:02.564Z
-Stopped at: Completed 35-02-PLAN.md
+Last session: 2026-11-12T20:44:19.297Z
+Stopped at: Completed 35-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
