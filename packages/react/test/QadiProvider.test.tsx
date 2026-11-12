@@ -324,9 +324,9 @@ describe("sweepIntervalMillis", () => {
     unmount();
   });
 
-  it("stops sweeping once the provider unmounts", async () => {
-    // The interrupt half: a sweep fiber left running after unmount would keep
-    // touching an atom set whose registry may already be disposed.
+  it("returns to the bound after the provider unmounts", async () => {
+    // After the provider unmounts, the atom set still holds its own bound, so the
+    // released gate's question becomes cold and a sweep drops it.
     const bounded = makeQadiAtoms(EvaluationServicesNone, { maxTrackedQuestions: 1 });
 
     const { unmount } = render(
@@ -341,9 +341,8 @@ describe("sweepIntervalMillis", () => {
     bounded.decision(afterUnmount);
     expect(bounded.asked().length).toBe(2);
 
-    // No provider is mounted any more to fork a sweep fiber, so this stays
-    // over the bound rather than quietly shrinking back to it.
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(bounded.asked().length).toBe(2);
+    // Only the count: which cold question survives depends on whether the gate's
+    // release or the sweep's turn runs first.
+    await waitFor(() => expect(bounded.asked().length).toBe(1));
   });
 });

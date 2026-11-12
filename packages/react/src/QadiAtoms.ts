@@ -43,6 +43,7 @@ import { makeGateRegistry } from "./GateRegistry.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
 import type { AskedQuestion } from "./QuestionBook.ts";
 import { makeQuestionBook } from "./QuestionBook.ts";
+import { makeSweepScheduler, sweepForkOf } from "./SweepScheduler.ts";
 
 // `DeveloperSignals.ts` is out of the barrel — its ambient-global boundary is
 // not a public surface — so the two types callers name are re-exported here.
@@ -227,9 +228,10 @@ export interface QadiAtomsOptions {
    * The most distinct questions this atom set keeps in `asked()` and its own
    * question book at once.
    *
-   * Once exceeded, `sweepEvictions` drops the oldest questions with no reader
-   * currently holding them — never one a mounted gate still has open. Must be
-   * a positive integer; defaults to `DEFAULT_MAX_TRACKED_QUESTIONS`.
+   * Once exceeded, the atom set sweeps itself back to the bound one macrotask
+   * later, dropping the oldest questions with no reader currently holding them —
+   * never one a mounted gate still has open. No provider is needed. Must be a
+   * positive integer; defaults to `DEFAULT_MAX_TRACKED_QUESTIONS`.
    */
   readonly maxTrackedQuestions?: number;
 }
@@ -336,7 +338,9 @@ export const makeQadiAtoms = (
   // object, so a fresh object each render re-walks the whole policy tree.
   // `v4-reactivity-smoke.test.ts` pins this; a bump to reference keying would
   // silently stop inline policies sharing.
+  const scheduler = makeSweepScheduler(() => book.sweep(), sweepForkOf(options));
   const book = makeQuestionBook<SeededQuestion<EvaluationError>>({
+    signal: scheduler.request,
     capacity: options?.maxTrackedQuestions ?? DEFAULT_MAX_TRACKED_QUESTIONS,
     build: (question, live) => seededDecision(question.policy, question.resource, live),
   });

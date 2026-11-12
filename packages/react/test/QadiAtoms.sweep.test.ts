@@ -1,11 +1,10 @@
 /**
  * How an atom set's bound behaves with no provider.
  *
- * The bound is enforced by whatever sweeps the question book. A bare registry (a
- * test, a non-React host) has no provider, and today a provider is the only thing
- * that sweeps, so released readers leave the book over its bound. This case states
- * that shipped behaviour so the change that moves enforcement into the atom set
- * flips it visibly.
+ * The atom set sweeps itself: the book signals when it goes over its bound and a
+ * deferred sweep brings it back, so a bare registry (a test, a non-React host)
+ * holds the bound without a provider. This case states that, and was the pin of
+ * the opposite while a provider was the only thing that swept.
  */
 import { EvaluationServicesNone, hasPermission, permission } from "@qadi/core";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
@@ -26,7 +25,7 @@ afterEach(() => {
 const question = (name: string) => hasPermission(permission("doc", name));
 
 describe("the bound without a provider", () => {
-  it("S1 with no provider nothing sweeps: released readers leave the book over the bound", async () => {
+  it("S1 holds the bound with no provider: released readers are swept back to it", async () => {
     const atoms = makeQadiAtoms(EvaluationServicesNone, { maxTrackedQuestions: 2 });
     const registry = makeRegistry();
     const policies = ["q1", "q2", "q3", "q4", "q5"].map(question);
@@ -36,12 +35,8 @@ describe("the bound without a provider", () => {
     expect(atoms.asked().length).toBe(5);
 
     for (const unmount of unmounts) unmount();
-    await vi.waitFor(() => {
-      for (const atom of questions) expect(registry.getNodes().has(atom)).toBe(false);
-    });
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await vi.waitFor(() => expect(atoms.asked().length).toBe(2));
 
-    expect(atoms.asked().length).toBe(5);
-    expect(atoms.asked().map((q) => q.policy)).toEqual(policies);
+    expect(atoms.asked().map((q) => q.policy)).toEqual(policies.slice(3));
   });
 });
