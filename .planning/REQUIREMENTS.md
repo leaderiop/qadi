@@ -38,7 +38,7 @@ marked **Breaking**, `apps/website/.../reference/upgrading.md`). Releasing is st
 - [x] **EOPT-01**: `EvaluateOptions` is declared once, beside `QuestionOptions` in `Question.ts`. `LifecycleOptions` is deleted and every use reads `EvaluateOptions`.
 - [x] **EOPT-02**: `EvaluationServices` and `StandingEvaluationServices` are declared once, in a new type-only leaf (`EvaluationServices.ts`). The hand-spelled services union in `Lifecycle.ts` is deleted.
 - [x] **EOPT-03**: `Evaluate.ts` declares only `evaluate`. It holds no option or service type and no restatement of one, and the pipeline reads `Qadi.ts` → `Evaluate.ts` → `Lifecycle.ts` → `Walk.ts` with no duplicated type.
-- [ ] **EOPT-04**: `pnpm circular` stays green, and declaration emit stays clean (no TS2883). `Lifecycle.tst.ts` pins the option key set once. `spec/overview.md`'s module column and `spec/traceability.md` name the new declaring modules.
+- [x] **EOPT-04**: `pnpm circular` stays green, and declaration emit stays clean (no TS2883). `Lifecycle.tst.ts` pins the option key set once. `spec/overview.md`'s module column and `spec/traceability.md` name the new declaring modules.
 
 ### One sealed evaluation layer (Phase 33)
 
@@ -123,7 +123,7 @@ The seven WX rows apply to every phase 30 to 36, so each phase's Requirements li
 | EOPT-01 | Phase 32 | Complete |
 | EOPT-02 | Phase 32 | Complete |
 | EOPT-03 | Phase 32 | Complete |
-| EOPT-04 | Phase 32 | Pending |
+| EOPT-04 | Phase 32 | Complete |
 | SEAL-01 | Phase 33 | Pending |
 | SEAL-02 | Phase 33 | Pending |
 | SEAL-03 | Phase 33 | Pending |
