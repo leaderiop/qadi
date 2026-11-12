@@ -109,9 +109,10 @@ export const UntrustedRefusal = Data.taggedEnum<UntrustedRefusal>();
 export type UntrustedValueRefusal = Exclude<UntrustedRefusal, { readonly _tag: "NotJson" }>;
 
 /**
- * The top-level keys of `A` whose decoded type is `unknown` or
- * `ReadonlyArray<unknown>`: the only slots {@link UntrustedDecoderOptions.unwalked}
- * may name, so naming a key the schema does decode is a compile error.
+ * The top-level keys of `A` whose type is `unknown` or `ReadonlyArray<unknown>`:
+ * the only slots {@link UntrustedDecoderOptions.unwalked} may name, so naming a key
+ * the schema does decode is a compile error. `A` is the schema's `Encoded` side,
+ * because the guard filters the raw input's own keys, not decoded ones.
  */
 export type UnwalkedKey<A> = {
   [K in keyof A]-?: unknown extends A[K]
@@ -129,8 +130,8 @@ export type UnwalkedKey<A> = {
  *
  * `unwalked` names top-level keys the depth guard leaves out because a second
  * decoder guards them from its own root (hydration's `entries`, the audit
- * envelope's `entries`, the audit row's `record`); each must be `Schema.Unknown`
- * in the schema (INV-QD-306). `prepare` runs after the guard and before the
+ * envelope's `entries`, the audit row's `record`); each must be typed `unknown` or
+ * `ReadonlyArray<unknown>` in the schema (INV-QD-306). `prepare` runs after the guard and before the
  * strict decode, and what it returns is what the decode reads; its failure is
  * returned as it is. The order is fixed: guard, prepare, decode.
  */
@@ -169,7 +170,7 @@ export const untrustedDecoder = <
   R extends { readonly _tag: string } = never,
 >(
   schema: S,
-  options?: UntrustedDecoderOptions<S["Type"], R> & FreeRefusalTag<R>,
+  options?: UntrustedDecoderOptions<S["Encoded"], R> & FreeRefusalTag<R>,
 ): UntrustedDecoder<S["Type"], R> => {
   const strict = Schema.decodeUnknownResult(schema, UNTRUSTED_DECODE_OPTIONS);
   const unwalked: ReadonlySet<string> = new Set(options?.unwalked);

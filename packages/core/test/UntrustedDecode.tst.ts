@@ -59,6 +59,16 @@ test("unwalked takes only keys typed unknown or ReadonlyArray<unknown>", () => {
   expect(untrustedDecoder).type.not.toBeCallableWith(Plain, { unwalked: ["a"] });
 });
 
+declare const EncodedSlots: Schema.Struct<{
+  readonly slot: Schema.decodeTo<Schema.Number, Schema.Unknown>;
+  readonly shown: Schema.decodeTo<Schema.Unknown, Schema.String>;
+}>;
+
+test("unwalked keys are read from the encoded side, the side the guard filters", () => {
+  expect(untrustedDecoder).type.toBeCallableWith(EncodedSlots, { unwalked: ["slot"] });
+  expect(untrustedDecoder).type.not.toBeCallableWith(EncodedSlots, { unwalked: ["shown"] });
+});
+
 test("a prepare refusal tagged with one of the module's tags is rejected", () => {
   expect(untrustedDecoder).type.toBeCallableWith(Plain, { prepare: badPrepare });
   expect(untrustedDecoder).type.not.toBeCallableWith(Plain, { prepare: clashingPrepare });
