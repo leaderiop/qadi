@@ -153,8 +153,11 @@ describe("decodeAuditEntry", () => {
     assert.strictEqual(rowRefusalOf({ ...row(0), sneaky: true })?._tag, "Malformed");
   });
 
-  it("an excess row key holding a value nested past the bound -> Malformed (flips in 30-04: TooDeep)", () => {
-    assert.strictEqual(rowRefusalOf({ ...row(0), sneaky: nested(OVER) })?._tag, "Malformed");
+  it("an excess row key holding a value nested past the bound -> TooDeep (flipped in 30-04 (D-07))", () => {
+    assert.deepStrictEqual(
+      rowRefusalOf({ ...row(0), sneaky: nested(OVER) }),
+      DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }),
+    );
   });
 
   it("a record with a shallow unknown envelope key -> success", () => {
