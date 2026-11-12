@@ -1,8 +1,8 @@
 ---
 phase: 34-diagnostics-as-the-dock-model-s-seventh-store
-reviewed: 2026-11-12T19:30:00Z
+reviewed: 2026-11-12T20:30:00Z
 depth: standard
-files_reviewed: 28
+files_reviewed: 27
 files_reviewed_list:
   - packages/devtools/src/model/DiagnosticsFeed.ts
   - packages/devtools/src/model/TimelineFeed.ts
@@ -34,99 +34,65 @@ files_reviewed_list:
   - .changeset/dock-diagnostics-feed.md
 findings:
   critical: 0
-  warning: 3
-  info: 5
-  total: 8
-  necessity: 1
-status: issues_found
+  warning: 0
+  info: 0
+  total: 0
+  necessity: 0
+status: clean
 ---
 
 # Phase 34: Code Review Report
 
-**Reviewed:** 2026-11-12
+**Reviewed:** 2026-11-12T20:30:00Z
 **Depth:** standard
-**Files Reviewed:** 28
-**Status:** issues_found
+**Files Reviewed:** 27
+**Status:** clean
 
 ## Summary
 
-The feed's run-token design holds up. A replaced run's exit cannot write (F9 proves the `mine === generation` guard in `onExit` is load-bearing: a dying layer release leaves a non-interrupt cause). `Starting` is published before the fork, `Live` is marked from `accept` and not from the store's notify, and the dock model merges on change with identity kept when nothing is supplied. No `as`, `!`, `any`, `switch`, `fnUntraced`, `async`/`await` or `console` in the reviewed src. No stale references to `useRunningStore`, `useDockSession` or `useExplorerSession` in `packages/devtools/src`, `packages/react/src` or `examples/`. The notice copy matches UI-SPEC word for word. `pnpm vitest run --project devtools` passes (55 files, 1313 tests).
+Iteration 2 re-review. The files changed since iteration 1 (`DiagnosticsFeed.ts`, `DiagnosticsNotice.tsx`, `DevtoolsDock.tsx`, `test/helpers.ts` and the three notice/feed/screen tests) were read in full. The rest of the scope is unchanged since iteration 1 and was not re-found faulty. `pnpm vitest run --project devtools` passes: 55 files, 1320 tests.
 
-There are two real gaps, both at the scope-close boundary, and both reproduced against an instrumented copy of `DiagnosticsFeed.ts` (outside the repo). The `mine !== generation` guard in the marking `accept` is unreachable on effect 4.1.2, and the mutation record's evidence for that is wrong (see WR-03 and IN-01).
+Each iteration-1 fix was checked against the code and holds.
 
-No critical issues.
+**WR-01, finalizer ordering.** `FiberHandle.make` registers its interrupt through `Effect.acquireRelease`, and `Effect.addFinalizer` is called after it. Scope finalizers run in reverse order of registration, so the generation bump runs before the handle interrupts the run. The interrupted run's `onExit` then sees `mine !== generation`, and a release that dies during interruption is no longer reported as `Stopped`. `accept` is guarded by the same token. F24 and F25 would fail without the finalizer: F24 observes a published `Stopped`, and F25 observes a published `Starting` after close.
 
-## Warnings
+**WR-02, closed flag.** `configure` and `restart` return before touching `options`, the token or the store. No path reaches `start` or `off` once `closed` is set.
 
-### WR-01: A defect while the scope closes is reported as `Stopped` after the feed is closed
+**IN-02, IN-03.**
+- `off()` runs only when `before !== undefined`.
+- `start` publishes the single module-scope `diagnosticsStarting.status`, and `show` drops a repeat on identity of status and reading, so F27's `seen` stays empty.
+- F26 is a regression pin and cannot fail without the change, because `ExternalStore.set` already dedups. The fix report says so, and the test title does not claim more.
 
-**File:** `packages/devtools/src/model/DiagnosticsFeed.ts:176-181, 210-216`
-**Issue:** `generation` is bumped by `start` and `off`, but not when the scope closes. Closing the scope interrupts the run through `FiberHandle`, so `onExit` runs with `mine === generation`. If the run's cause is not interrupts-only, `show(Stopped)` publishes on a feed that no longer exists. A layer whose release dies is enough, and F9 covers only the replace path, not the close path. Reproduced: `makeDiagnosticsFeed({ layer: dyingRelease })` in a scope, `Scope.close`; the subscriber is notified `Stopped` and `getSnapshot().status` reads `Stopped` after the close. In the dock this lands in `DockModel`'s `remerge` (never unsubscribed) and in whatever React listener has not yet been removed during unmount. It contradicts the file's own rule, "closing it interrupts the run, without a `Stopped`", and F17 only proves the non-dying case.
-**Fix:** Bump the token when the scope closes. Register the finalizer after `FiberHandle.make` so it runs before the handle interrupts the fiber (finalizers run in reverse order):
-```ts
-const handle = yield* FiberHandle.make<void>();
-yield* Effect.addFinalizer(() =>
-  Effect.sync(() => {
-    generation += 1;
-    closed = true;
-  }),
-);
-```
-Add a case beside F17 with a dying release and assert no notification.
+**IN-04, StopLedger.**
+- The ledger is a React ref that holds the last stop's identity and a count. It holds no decision, so AGENTS.md §13 is intact.
+- `status` keeps its identity through `DockModel.mergedOf`, which wraps the same `status` object, so a supplied-reading change cannot re-announce.
+- Stop to Stop remounts: the render keys `count + 1`, then the layout effect commits `{ stop, count + 1 }`, so later renders of the same stop keep the same key.
+- StrictMode: the `useState` initializer runs twice before any effect and gives the same answer. The doubled layout effect is a no-op the second time, because the stop already equals the status. N9 checks the alert after a StrictMode mount.
+- Remount and tab switch: a revisit with the same stop is silent (D7). A stop first seen while no notice was mounted alerts on the first visit (D8). A rebuilt dock starts from `noStops`, so it announces again.
+- N12 asserts that the node is replaced and that the role is present on the second mount. It does not pass vacuously.
 
-### WR-02: `restart()` or `configure` on a closed feed publishes `Starting` and never leaves it
+**UI-1, UI-2, UI-3.**
+- The persistent `role="status"` div has no style and sits first in the fragment, so it is the same node across `Off`, `Starting`, `Live`, `Stopped` and the restart. N13 pins this.
+- Content appears only for `Starting`. `Live` and `Off` clear it, which is a removal and not an announcement.
+- The alert wraps only the lead and body. The reason `<pre>` is a sibling, which N11 pins.
+- The root drops `outline: none`.
+- Changed assertions (N1-N4, N10, D9, D10) still test what their titles say.
 
-**File:** `packages/devtools/src/model/DiagnosticsFeed.ts:190-195, 248-250`
-**Issue:** `start` publishes `Starting` before `fork`, and `fork` on a closed handle interrupts the new fiber at once, so nothing ever follows. Reproduced: after `Scope.close`, `feed.restart()` leaves `getSnapshot().status` at `Starting` and notifies. A closed feed's commands should do nothing, like `idleDiagnostics`' `restart`. The reachable route is a stale `model.diagnostics.restart` captured by a consumer across a `useScoped` rebuild (Activity hide/show, StrictMode). The notice's `onRestart` is `model.diagnostics.restart`, memoised on `[status, model]`; a click handler held across the rebuild would drive the closed model, and that screen would show a permanent "Waiting for the first sample.".
-**Fix:** Share the `closed` flag from WR-01 and have `start` and `off` return at once when it is set:
-```ts
-const start = (next: DiagnosticsDockOptions) => {
-  if (closed) return;
-  ...
-};
-```
+**House rules.** No `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await` or `console` in the changed source or tests. The notice dispatches with `Match.type` built at module scope. Doc comments lead with a one-line summary and cite only ADR ids, as AGENTS.md prescribes. No plan, wave or finding ids appear in the changed source.
 
-### WR-03: F16 does not exercise the accept guard, and the survivor argument leans on it
+All reviewed files meet quality standards. No new issues found.
 
-**File:** `.planning/phases/34-diagnostics-as-the-dock-model-s-seventh-store/34-mutation-survivors.json:6`, `packages/devtools/test/model/DiagnosticsFeed.test.ts:356-377`
-**Issue:** The record says "F16 ... shows the interrupted run never reaches its accept". F16 shows nothing of the kind. The mutant that disables the guard survived, which is the evidence that F16 passes either way: with `restart()` called inside sample 2, the final reading is `b` and the status `Live` whether or not the stale `a` was accepted first, because the new run's `b` lands after it. I confirmed the actual claim separately, by running an instrumented copy of the feed with a log on the dropped-accept branch: with `restart()` inside the question thunk the branch is never taken, so the interrupted run does not reach `accept` on effect 4.1.2. So the conclusion (equivalent mutant) is right on this runtime, but the cited evidence cannot show it, and nothing in the repo would notice if a future effect version changed when an interrupt is observed. See IN-01 for whether the guard should stay.
-**Fix:** Either correct the survivor note to say "unreachable on effect 4.1.2; F16 does not distinguish it", or make F16 able to: have the source record the order of acceptance (a `subscribe` log that includes the reading) and assert that `a` is never published as a reading.
+## Accepted / carried
 
-## Info
+Neither item alone prevents `clean`.
 
-### IN-01: The `mine !== generation` guard in the marking `accept` is unreachable, and should stay (necessity)
+- **IN-01:** the marking-accept token guard in `DiagnosticsFeed.ts` is unreachable on effect 4.1.2, and `TimelineFeed`'s accept has no token. The survivor record was corrected (WR-03). Carried to the milestone's carried-debt phase.
+- **IN-05:** `TimelineFeed` ends its fiber silently on a throwing source. This predates the phase. Carried to the same phase.
 
-**File:** `packages/devtools/src/model/DiagnosticsFeed.ts:200`
-**Category:** necessity
-**Issue:** Verdict on the guard asked about: unreachable on effect 4.1.2. The only way an old run can reach `accept` after `generation` moved is by running a step after the replacement interrupted it. `restart()` from inside the sample (the one re-entrant route there is) shows the fiber is interrupted before its `accept`, and an old fiber suspended on a sleep, a layer build or an async collector is interrupted where it stands. A stale accept would also need the `off()` route to matter, and `off` has the same interruption. Evidence: the instrumented run described in WR-03. If it were reached, the cost would be real and not cosmetic: after `off()` it would set `sampled = true` and publish `Live` over a fresh `diagnosticsOff` store, so the dock would say "Live" with nothing running.
-**Fix:** Keep it. It is one line, it costs nothing on the hot path, and the failure it blocks (a panel stating `Live` after `Off`) is the exact class of defect this phase exists to remove. Say plainly in the survivor note that it is defence against a scheduler that does not interrupt before the next step, not a reachable path. Remove it only if the project prefers no untested lines over a one-line safeguard; that is a judgement call, not a defect either way. The same applies to the unguarded `timeline.accept -> inner.accept` route in `TimelineFeed.ts:73`: it relies on the same interruption ordering without a token.
-
-### IN-02: `configure(undefined)` redoes the whole `off()` on every call, even when already off
-
-**File:** `packages/devtools/src/model/DiagnosticsFeed.ts:221-236`, `packages/devtools/src/model/DockModel.ts:155`
-**Issue:** `DockModel.configure` calls `diagnosticsFeed.configure(next.diagnostics)` on every dispatch. With no diagnostics, each call bumps `generation`, forks `Effect.void` into the handle, allocates a new `DiagnosticsStore` and does a no-op `view.set`. Harmless, but it is churn on a path that runs on every host render where an input changed, and it makes the "an unchanged prop dispatches nothing" claim only true for observable effects.
-**Fix:** `if (next === undefined) { if (before !== undefined) off(); return; }`. Initial `init === undefined` already leaves the feed in its `Off` state.
-
-### IN-03: A restart while `Starting` publishes `Starting` again
-
-**File:** `packages/devtools/src/model/DiagnosticsFeed.ts:176-181, 195`
-**Issue:** `show`'s dedup compares `current.status === status`. `DiagnosticsStatus.Starting()` builds a new object each call, so the comparison can never hold for `Starting`, and a `restart()` or an equal-reading re-`start` while already `Starting` notifies listeners with an identical state. `Live` is deduplicated because `accept` reuses the existing object; `Starting` is not.
-**Fix:** In `start`, skip the publish when the current status is already `Starting` and the reading is unchanged: `if (!DiagnosticsStatus.$is("Starting")(view.getSnapshot().status)) show(DiagnosticsStatus.Starting());`.
-
-### IN-04: A second stop on a mounted notice flips `role` rather than remounting, against the spec's stated mechanism
-
-**File:** `packages/devtools/src/react/DiagnosticsNotice.tsx:105-111`
-**Issue:** UI-SPEC fixes the mode at mount, so that "a new stop (`Stopped`, `Starting`, `Stopped`) is a remounted notice". The implementation instead re-decides on a new status while mounted (`setAlert(announced.current !== status)`). The two agree when `Starting` was rendered in between, since `noticeOf` swaps the component. They diverge when a restart's run fails synchronously and React renders only `Stopped(old)` then `Stopped(new)`: the same `<section>` stays mounted and gains `role="alert"` after the fact. Assistive technology generally does not announce a role added to an element already in the tree, so that second stop can be silent. N9 asserts the attribute flips (`getAttribute("role") === "alert"`) and not that anything would be announced.
-**Fix:** Key the notice by the status value so a new stop always remounts and the mount-time decision stays the only one: `<StoppedNotice key={...} />`, using a counter held by the notice owner, or `status` identity through a `WeakMap<Stopped, number>`. Then the `seen`/`setSeen` block can go.
-
-### IN-05: `TimelineFeed` repeats the silent-death the diagnostics feed was built to fix
-
-**File:** `packages/devtools/src/model/TimelineFeed.ts:79-83`
-**Issue:** `forkRead(runSource(...))` goes into a `FiberHandle`, and a source whose `read` or stream dies ends the fiber with nothing said (the research finding for diagnostics applies identically). The timeline then freezes on its last records with no status. This is how the code behaved before this phase, so it is not a regression, and a status for the timeline is outside this phase's scope; it is listed so it is not mistaken for covered.
-**Fix:** Out of scope here. If wanted later, give `TimelineFeed` the same `onExit` plus run-token shape and a closed status.
+Not verified by this review: the focus ring and the screen-reader behaviour of the persistent region and the per-stop remount in a real browser. This is the fix report's own open item.
 
 ---
 
-_Reviewed: 2026-11-12T19:30:00Z_
+_Reviewed: 2026-11-12T20:30:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
