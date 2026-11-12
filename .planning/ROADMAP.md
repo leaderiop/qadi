@@ -354,7 +354,7 @@ recorded in the phase CONTEXT and its ADR or CCR row.
 - [x] **Phase 31: A reset supersedes its claims** - `SharedComputation.reset` supersedes in-flight claims, so `DecisionCache`'s generation counter goes (ARCH-79) (completed 2026-11-12)
 - [x] **Phase 32: Evaluation options and services stated once** - `EvaluateOptions` beside `QuestionOptions`, `EvaluationServices` in a type-only leaf, `LifecycleOptions` deleted (ARCH-80) (completed 2026-11-12)
 - [x] **Phase 33: One sealed evaluation layer** - One core builder for `@qadi/testing` and devtools' Simulation, with the sink and cache shadowing rule stated and required (ARCH-81) (completed 2026-11-12)
-- [ ] **Phase 34: Diagnostics as the dock model's seventh store** - The poll runs in the model's scope and the reading merge leaves the view (ARCH-82)
+- [x] **Phase 34: Diagnostics as the dock model's seventh store** - The poll runs in the model's scope and the reading merge leaves the view (ARCH-82) (completed 2026-11-12)
 - [ ] **Phase 35: The atom set owns its eviction sweep** - Opens on a spike: either a mechanism lands, or the sweep stays in the provider with the rule stated and tested (ARCH-83)
 - [ ] **Phase 36: Carried spec debt and stale records** - Duplicate BEH-QD-219..221, `Sources.ts`, the stale replay line, selected v1.2 info findings (CCR-QD-427, no ARCH)
 
@@ -477,7 +477,7 @@ Plans:
   4. A poll defect shows as a failed state, not a silently stopped panel, and is tested with a throwing source; the behaviour across a hidden `<Activity>` and across `diagnostics` going `undefined` and back is stated and pinned.
   5. Model tests cover the poll's start, restart, stop and merge under `TestClock` with no render; ADR-QD-047 is amended, BEH-QD-465 (seven stores) and BEH-QD-323 are restated, and `DockModel.ts` keeps its mutation score (base 100).
 **Planning notes**: `/gsd-plan-phase --research-phase` only for how a poll defect behaves inside `FiberHandle` and for the Activity decision; model tests run inside `it.effect` with `settleTurns` before each `adjust`. The merged reading is never computed inside `getSnapshot`.
-**Plans**: 9/9 plans executed
+**Plans**: 9/9 plans complete
 - [x] 34-01-PLAN.md
 - [x] 34-02-PLAN.md
 - [x] 34-03-PLAN.md
@@ -536,6 +536,6 @@ Phases execute in numeric order: 30 → 31 → 32 → 33 → 34 → 35 → 36
 | 31. A reset supersedes its claims | 5/5 | Complete    | 2026-11-12 |
 | 32. Evaluation options and services stated once | 4/4 | Complete    | 2026-11-12 |
 | 33. One sealed evaluation layer | 6/6 | Complete    | 2026-11-12 |
-| 34. Diagnostics as the dock model's seventh store | 0/0 | Not started | - |
+| 34. Diagnostics as the dock model's seventh store | 9/9 | Complete    | 2026-11-12 |
 | 35. The atom set owns its eviction sweep | 0/0 | Not started | - |
 | 36. Carried spec debt and stale records | 0/0 | Not started | - |

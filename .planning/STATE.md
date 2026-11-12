@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.3
 milestone_name: Arch Wave 8
-current_phase: 34
-current_phase_name: Diagnostics as the dock model's seventh store
-status: verifying
-stopped_at: Completed 34-09-PLAN.md
-last_updated: "2026-11-12T17:59:44.395Z"
+current_phase: 35
+current_phase_name: The atom set owns its eviction sweep
+status: planning
+stopped_at: Phase 34 complete, ready to plan Phase 35
+last_updated: "2026-11-12T18:35:24.631Z"
 last_activity: 2026-11-12
-last_activity_desc: Phase 34 execution started
-state_head: 380f8a918b28d35047e1bccb1f4850babcd76250
+last_activity_desc: Phase 34 complete, transitioned to Phase 35
+state_head: 3b262ac87edac4c519a51b8711589cc7a62dba6b
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 33
   completed_plans: 33
-  percent: 57
+  percent: 71
 ---
 
 # Project State
@@ -29,18 +29,18 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 
 ## Current Position
 
-Phase: 34 (Diagnostics as the dock model's seventh store) — EXECUTING
-Plan: 9 of 9
-Status: Phase complete — ready for verification
-Last activity: 2026-11-12 — Phase 34 execution started
+Phase: 35 — The atom set owns its eviction sweep
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-12 — Phase 34 complete, transitioned to Phase 35
 
-Progress: [██████░░░░] 57% (v1.3: 0 of 7 phases)
+Progress: [███████░░░] 71% (v1.3: 0 of 7 phases)
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 97
+- Total plans completed: 106
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -71,6 +71,7 @@ Progress: [██████░░░░] 57% (v1.3: 0 of 7 phases)
 | 31 | 5 | - | - |
 | 32 | 4 | - | - |
 | 33 | 6 | - | - |
+| 34 | 9 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -314,7 +315,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-12T17:59:44.122Z
-Stopped at: Completed 34-09-PLAN.md
+Stopped at: Phase 34 complete, ready to plan Phase 35
 Resume file: None
 
 ## Operator Next Steps
