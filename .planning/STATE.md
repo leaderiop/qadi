@@ -4,17 +4,17 @@ milestone: v1.3
 milestone_name: Arch Wave 8
 current_phase: 32
 current_phase_name: Evaluation options and services stated once
-status: executing
-stopped_at: Completed 32-03-PLAN.md
-last_updated: "2026-11-12T13:19:21.397Z"
+status: verifying
+stopped_at: Completed 32-04-PLAN.md
+last_updated: "2026-11-12T13:24:17.640Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 32 execution started
-state_head: 6d7d6a9f4d6d4075a72a1745010beb0ee43dc087
+state_head: 209bb0fcaf17acfc7379ce6fae8d20a709f81f5a
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 18
-  completed_plans: 17
+  completed_plans: 18
   percent: 29
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 
 Phase: 32 (Evaluation options and services stated once) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-12 — Phase 32 execution started
 
 Progress: [███░░░░░░░] 29% (v1.3: 0 of 7 phases)
@@ -161,6 +161,7 @@ Progress: [███░░░░░░░] 29% (v1.3: 0 of 7 phases)
 | Phase 32 P01 | 10 min | 2 tasks | 2 files |
 | Phase 32 P02 | 12 min | 2 tasks | 16 files |
 | Phase 32 P03 | 10 min | 2 tasks | 7 files |
+| Phase 32 P04 | 12 min | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -237,6 +238,7 @@ Progress: [███░░░░░░░] 29% (v1.3: 0 of 7 phases)
 - [Phase 32]: 32-01: the shape pin reads only the @qadi/core barrel and spells each service union out to the five ports, so it stays byte-identical through the move
 - [Phase 32]: 32-02: evaluationId doc now points at decideQuestion in Lifecycle.ts; no TS2883, no re-export in Evaluate.ts
 - [Phase 32]: ADR-QD-081's Evaluate.ts paragraph is history; left for Phase 36 and named in CCR-QD-423
+- [Phase 32]: 32-04: no drop in the six baselined files; check:pr green on the final tree (89 s, core 99.84% lines)
 
 ### Pending Todos
 
@@ -278,8 +280,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T13:19:21.364Z
-Stopped at: Completed 32-03-PLAN.md
+Last session: 2026-11-12T13:24:17.607Z
+Stopped at: Completed 32-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

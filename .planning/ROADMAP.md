@@ -426,13 +426,13 @@ Plans:
   2. `EvaluationServices` and `StandingEvaluationServices` have one declaration, in the type-only `EvaluationServices.ts`; the hand-spelled services union in `Lifecycle.ts` is deleted.
   3. `Evaluate.ts` declares only `evaluate`, with no option or service type and no restatement of one.
   4. `pnpm circular` and `pnpm typecheck` stay green (no TS2883); `Lifecycle.tst.ts` pins the option key set once; `spec/overview.md`'s module column and `spec/traceability.md` (the row near line 470) name the new declaring modules.
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans executed
 
 Plans:
 - [x] 32-01 (W1): Reserved-number check and the mutation baseline of the six touched files that carry mutants (alone, first); `EvaluationShapes.tst.ts`, five tests through the `@qadi/core` barrel, green on the phase base and left unchanged through the move.
 - [x] 32-02 (W2): Tracer: `EvaluateOptions` moves to `Question.ts` and the services to the new type-only `EvaluationServices.ts`, in one commit with every importer and the barrel re-pointed; then `Lifecycle.ts` drops its restated options for `Omit<EvaluateOptions, keyof QuestionOptions>`, `ask` requires `EvaluationServices`, and `Lifecycle.tst.ts` is rewritten.
 - [x] 32-03 (W3): ADR-QD-105 and ADR-QD-037 revision notes, `06-services.md`, the overview's module column, traceability rows, CCR-QD-423 and the `@qadi/core` patch changeset.
-- [ ] 32-04 (W4): Gate integrity, WX-04 scan and D-10 commit-order check, mutation comparison, `pnpm check:pr` on the final tree.
+- [x] 32-04 (W4): Gate integrity, WX-04 scan and D-10 commit-order check, mutation comparison, `pnpm check:pr` on the final tree.
 
 ### Phase 33: One sealed evaluation layer
 **Goal**: Review and simulation are built from one evaluation-environment builder in `@qadi/core`, and whether the sink and the decision cache are shadowed is stated, required and tested instead of decided silently by each copy.
