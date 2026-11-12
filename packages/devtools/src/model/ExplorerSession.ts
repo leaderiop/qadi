@@ -120,7 +120,7 @@ export interface ExplorerSessionInit {
  * adds the `at <path>:` prefix per entry. {@link PolicyDecodeTooDeep} and
  * {@link PolicyNotJson} are not `Schema.SchemaError`s and have no issue tree,
  * so each gets a sentence of its own. One exhaustive table over the three
- * errors `fromJson` can fail with, so a fourth is a compile error here (D-06).
+ * errors `fromJson` can fail with, so a fourth is a compile error here.
  */
 const formatDecodeFailure = Match.type<PolicyDecodeTooDeep | PolicyNotJson | Schema.SchemaError>().pipe(
   Match.tagsExhaustive({

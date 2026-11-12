@@ -1,9 +1,9 @@
 /**
  * The paste box's refusal sentences and the empty-rail commands, pinned exactly.
  *
- * Kept apart from `ExplorerSession.test.ts`, which also holds Phase 30's
- * paste-box characterisation pin: these assertions kill the mutants the decoder's
- * move left behind in `ExplorerSession.ts` and take nothing from that table.
+ * Kept apart from `ExplorerSession.test.ts`, which also pins the not-JSON
+ * sentence: these assertions kill the mutants the decoder's move left behind in
+ * `ExplorerSession.ts` and take nothing from that one.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";

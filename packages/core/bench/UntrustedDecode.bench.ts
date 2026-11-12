@@ -1,6 +1,6 @@
 /**
  * What the untrusted decoder's depth guard costs, and what the two seams that
- * guard twice cost (ADR-QD-143, D-15).
+ * guard twice cost (ADR-QD-143).
  *
  * Hydration walks an entry (its `policy` unwalked), then the policy from its
  * own root; the audit path reads a row (its `record` unwalked), then the record

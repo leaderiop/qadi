@@ -344,10 +344,9 @@ describe("the JSON pane", () => {
     assert.isDefined(showing(session).json.refusal);
   });
 
-  // Phase 30's refusal-precedence pin (D-13): not-JSON text was a schema failure
-  // ("Expected a valid JSON string") on the phase base; `PolicyNotJson` has its own
-  // sentence now. flipped in 30-02 (D-06).
-  it("text that is not JSON is refused with its own sentence carrying the parser's message (flipped in 30-02 (D-06))", () => {
+  // Text that is not JSON is `PolicyNotJson` (BEH-QD-487), not a schema failure, so the
+  // paste box has its own sentence for it.
+  it("text that is not JSON is refused with its own sentence carrying the parser's message", () => {
     const session = makeExplorerSession({ sightings: [sighting(hasPermission(read))] });
     session.editJson("}{");
     session.load();

@@ -1,8 +1,8 @@
 /**
- * Phase 30's refusal-precedence tables for the audit archive and its rows, written
- * green on the phase base (D-13). A row marked `flips in 30-04` changes kind in
- * that plan's commit, which names it; every other row must stay green through the
- * phase. Characterisation, not intent: a row says what the base reports.
+ * Refusal-precedence tables for the audit archive and its rows (ADR-QD-143,
+ * BEH-QD-489): each row is one input and the kind it is refused as. The depth
+ * guard runs before anything else reads the input, so a value nested past the
+ * bound is `TooDeep` whatever else is wrong with it.
  */
 import { assert, describe, it } from "@effect/vitest";
 import { DecodeRefusal, MAX_DECODE_DEPTH } from "@qadi/core";
@@ -81,14 +81,14 @@ describe("readAuditArchive", () => {
     assert.strictEqual(archiveRefusalOf({ ...archive(), sneaky: true })?._tag, "Malformed");
   });
 
-  it("an excess envelope key holding a value nested past the bound -> TooDeep (flipped in 30-04 (D-07))", () => {
+  it("an excess envelope key holding a value nested past the bound -> TooDeep", () => {
     assert.deepStrictEqual(
       archiveRefusalOf({ ...archive(), sneaky: nested(OVER) }),
       ArchiveRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }),
     );
   });
 
-  it("a metadata field holding a value nested past the bound -> TooDeep (flipped in 30-04 (D-07))", () => {
+  it("a metadata field holding a value nested past the bound -> TooDeep", () => {
     const metadata = { ...written().metadata, note: nested(OVER) };
     assert.deepStrictEqual(
       archiveRefusalOf({ ...archive(), metadata }),
@@ -96,7 +96,7 @@ describe("readAuditArchive", () => {
     );
   });
 
-  it('nested past the bound and archiveVersion "2" -> TooDeep, the depth guard first (flipped in 30-04 (D-07))', () => {
+  it('nested past the bound and archiveVersion "2" -> TooDeep, the depth guard first', () => {
     assert.deepStrictEqual(
       archiveRefusalOf({ ...archive(), archiveVersion: "2", sneaky: nested(OVER) }),
       ArchiveRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }),
@@ -153,7 +153,7 @@ describe("decodeAuditEntry", () => {
     assert.strictEqual(rowRefusalOf({ ...row(0), sneaky: true })?._tag, "Malformed");
   });
 
-  it("an excess row key holding a value nested past the bound -> TooDeep (flipped in 30-04 (D-07))", () => {
+  it("an excess row key holding a value nested past the bound -> TooDeep", () => {
     assert.deepStrictEqual(
       rowRefusalOf({ ...row(0), sneaky: nested(OVER) }),
       DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }),

@@ -1,9 +1,8 @@
 /**
- * Phase 30's refusal-precedence table for the hydration seam, written green on the
- * phase base (D-13): each row hydrates one payload and pins the seeded count and the
- * drop reasons, in the order they arrive. A row marked `flips in 30-05` changes kind
- * in that plan's commit, which names it; every other row must stay green through the
- * phase. Characterisation, not intent: a row says what the base reports.
+ * Refusal-precedence table for the hydration seam (ADR-QD-143, BEH-QD-488): each row
+ * hydrates one payload and pins the seeded count and the drop reasons, in the order
+ * they arrive. The depth guard runs before the version check, so a payload nested
+ * past the bound is `PayloadTooDeep` whatever its version.
  */
 import { EvaluationServicesNone, MAX_DECODE_DEPTH, makeSubject } from "@qadi/core";
 import { describe, expect, it } from "vitest";
@@ -79,9 +78,8 @@ describe("hydrateDecisions", () => {
     expect(hydrate({})).toEqual({ seeded: 0, reasons: ["UnsupportedPayloadVersion"] });
   });
 
-  // The plan expected UnsupportedPayloadVersion here (an array passing `Predicate.isObject`
-  // and having no own version); the base refuses an array as not an object, first.
-  it("[] -> MalformedPayload (an array is not an object to the base, so it never reaches the version check)", () => {
+  // An array is not an object payload, so it is refused before the version check reads it.
+  it("[] -> MalformedPayload (an array is not an object, so it never reaches the version check)", () => {
     expect(hydrate([])).toEqual({ seeded: 0, reasons: ["MalformedPayload"] });
   });
 
@@ -96,7 +94,7 @@ describe("hydrateDecisions", () => {
     expect(hydrate(payloadOf([], { sneaky: true }))).toEqual({ seeded: 0, reasons: ["MalformedPayload"] });
   });
 
-  it("an excess envelope key holding a value nested past the bound -> PayloadTooDeep (flipped in 30-05 (D-07))", () => {
+  it("an excess envelope key holding a value nested past the bound -> PayloadTooDeep", () => {
     expect(hydrate(payloadOf([], { sneaky: nested(OVER) }))).toEqual({
       seeded: 0,
       reasons: ["PayloadTooDeep"],
@@ -105,18 +103,18 @@ describe("hydrateDecisions", () => {
 
   // An array is not an object to the version check, but the module's guard runs ahead of it
   // (guard, prepare, decode), so an array nested past the bound is refused as too deep.
-  it("an array payload nested past the bound -> PayloadTooDeep (flipped in 30-05 (D-07): the guard runs first)", () => {
+  it("an array payload nested past the bound -> PayloadTooDeep (the guard runs first)", () => {
     expect(hydrate([nested(OVER)])).toEqual({ seeded: 0, reasons: ["PayloadTooDeep"] });
   });
 
-  it("nested past the bound and version 3 -> PayloadTooDeep, the guard first (flipped in 30-05 (D-07))", () => {
+  it("nested past the bound and version 3 -> PayloadTooDeep, the guard first", () => {
     expect(hydrate({ ...payloadOf([], { sneaky: nested(OVER) }), version: 3 })).toEqual({
       seeded: 0,
       reasons: ["PayloadTooDeep"],
     });
   });
 
-  it("a subjectId value nested past the bound -> PayloadTooDeep (flipped in 30-05 (D-07))", () => {
+  it("a subjectId value nested past the bound -> PayloadTooDeep", () => {
     expect(hydrate({ ...payloadOf([]), subjectId: nested(OVER) })).toEqual({
       seeded: 0,
       reasons: ["PayloadTooDeep"],
@@ -183,7 +181,7 @@ describe("hydrateDecisions", () => {
     });
   });
 
-  it("one entry of each of the three entry reasons -> the three reasons in the order the base reports them", () => {
+  it("one entry of each of the three entry reasons -> the three reasons in the order they arrive", () => {
     const entries = [
       { policy: { _tag: "NotAPolicy" }, decision },
       { ...entry, sneaky: true },

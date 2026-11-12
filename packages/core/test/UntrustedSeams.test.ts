@@ -1,11 +1,8 @@
 /**
- * Phase 30's refusal-precedence tables for core's untrusted seams, written green
- * on the phase base (D-13): one `describe` per seam, each row the kind that seam
- * reports for one input today. A row marked `flips in 30-0N` changes kind in that
- * plan's commit, which names it; every other row must stay green through the phase.
- *
- * Characterisation, not intent: where a row's first draft disagreed with the base,
- * the row says what the base returns (the plan's SUMMARY records each such row).
+ * Refusal-precedence tables for core's untrusted seams (ADR-QD-143, BEH-QD-486,
+ * BEH-QD-487): one `describe` per seam, each row the kind that seam refuses one
+ * input as. The depth guard runs before anything else reads the input, and text
+ * that does not parse is `NotJson`, never a schema failure.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -27,7 +24,7 @@ import * as V2 from "./fixtures/sinkWireV2.ts";
 
 const OVER = MAX_DECODE_DEPTH + 10;
 
-/** What the strict decode says for an excess key `rloe`, as the base prints it. */
+/** What the strict decode says for an excess key `rloe`, as the strict decode prints it. */
 const EXCESS_RLOE = 'Expected no excess property\n  at ["rloe"]';
 
 /** `n` levels of `Not` around a leaf, as JSON text. */
@@ -67,14 +64,14 @@ describe("Policy.fromJson", () => {
       assert.strictEqual(policy._tag, "HasRole");
     }));
 
-  it.effect("`}{` -> PolicyNotJson (flipped in 30-02 (D-06))", () =>
+  it.effect("`}{` -> PolicyNotJson", () =>
     Effect.gen(function* () {
       const failure = yield* failureOf(P.fromJson("}{"));
       assert.strictEqual(failure?._tag, "PolicyNotJson");
     }));
 
   it.effect(
-    "a 60,000-deep text missing its final brace -> PolicyNotJson, no throw on construction or run (flipped in 30-02 (D-06))",
+    "a 60,000-deep text missing its final brace -> PolicyNotJson, no throw on construction or run",
     () =>
       Effect.gen(function* () {
         const malformed = deeplyNestedNot(60_000).slice(0, -1);

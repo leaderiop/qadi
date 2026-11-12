@@ -67,7 +67,7 @@ const flatRoots = FastCheck.oneof(
 
 describe("untrustedDecoder", () => {
   describe("the bound", () => {
-    it("is DEFAULT_MAX_DEPTH * 4, stated as the literal 256 (D-11)", () => {
+    it("is DEFAULT_MAX_DEPTH * 4, stated as the literal 256", () => {
       assert.strictEqual(MAX_DECODE_DEPTH, DEFAULT_MAX_DEPTH * 4);
       assert.strictEqual(MAX_DECODE_DEPTH, 256);
     });

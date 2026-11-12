@@ -155,7 +155,7 @@ const decodeRow = untrustedDecoder(
   { unwalked: ["record"] },
 ).decode;
 
-/** The row decoder's refusal in `@qadi/core`'s decode vocabulary; no member is added (D-07). */
+/** The row decoder's refusal in `@qadi/core`'s decode vocabulary; no member is added (ADR-QD-143). */
 const asDecodeRefusal: (refusal: UntrustedValueRefusal) => DecodeRefusal = Match.type<UntrustedValueRefusal>().pipe(
   Match.tagsExhaustive({
     TooDeep: ({ maxDepth }) => DecodeRefusal.TooDeep({ maxDepth }),
