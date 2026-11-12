@@ -344,6 +344,16 @@ describe("the JSON pane", () => {
     assert.isDefined(showing(session).json.refusal);
   });
 
+  // Phase 30's refusal-precedence pin (D-13), written green on the phase base:
+  // not-JSON text reads as a schema failure today. flips in 30-02: `PolicyNotJson`
+  // gets its own sentence, and this row changes with it.
+  it("text that is not JSON is refused with the schema's own sentence (flips in 30-02)", () => {
+    const session = makeExplorerSession({ sightings: [sighting(hasPermission(read))] });
+    session.editJson("}{");
+    session.load();
+    assert.strictEqual(showing(session).json.refusal, "Expected a valid JSON string");
+  });
+
   it("an unloaded edit is dropped when another policy is chosen", () => {
     const session = makeExplorerSession({
       sightings: [sighting(hasPermission(read)), sighting(hasPermission(write))],
