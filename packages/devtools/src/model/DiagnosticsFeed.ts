@@ -200,8 +200,8 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
     generation += 1;
     const mine = generation;
     const target = store;
-    // Before the fork: its synchronous prefix may already reach `Live` or `Stopped`.
-    show(DiagnosticsStatus.Starting());
+    // Before the fork: its synchronous prefix may already reach `Live` or `Stopped`. The one `Starting` value, so `show` drops a repeat.
+    show(diagnosticsStarting.status);
     const marking: DiagnosticsStore = {
       subscribe: target.subscribe,
       getSnapshot: target.getSnapshot,

@@ -451,6 +451,24 @@ describe("the diagnostics feed", () => {
     }),
   );
 
+  it.effect("F27 restarting a feed that is still Starting publishes nothing, and the run's first sample is still Live", () =>
+    Effect.gen(function* () {
+      const { layer } = slowLayer();
+      const feed = yield* makeDiagnosticsFeed({ layer });
+      const early = feed.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Starting")(early.status));
+      const seen = recording(feed);
+
+      feed.restart();
+      feed.configure({ layer, intervalMillis: 5_000 });
+
+      assert.deepStrictEqual(seen, []);
+      assert.strictEqual(feed.getSnapshot(), early);
+      yield* step("1 second");
+      assert.deepStrictEqual(seen, ["Live"]);
+    }),
+  );
+
   it.effect("F18 a layer that fails to build reads wiring Failed in a Live feed, which samples again", () =>
     Effect.gen(function* () {
       const { state, questions } = source(() => []);
