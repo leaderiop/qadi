@@ -3635,7 +3635,7 @@ Under `qadiReviewLayer`, and under core's `testLayer` and `subjectSetLayer`, an 
 
 ## INV-QD-313: A poll defect is stated, an interruption never is, and a replaced run never writes
 
-A diagnostics poll that ends on a defect reads `Stopped` with its reason, and a poll that was interrupted (a restart, absent options, the scope closing, even when a layer's release dies as it closes) never does. A run that has been replaced, and every run once its scope has closed, writes neither a sample nor a stop. `sampled` is true exactly when the reading shown holds an accepted sample since the build or the last `Off`.
+A diagnostics poll that ends on a defect reads `Stopped` with its reason, and a poll that was interrupted (a restart, absent options, the scope closing, even when a layer's release dies as it closes) never does. A run that has been replaced, and every run once its scope has closed, writes neither a sample nor a stop, and a closed feed publishes nothing for `restart()` or `configure`. `sampled` is true exactly when the reading shown holds an accepted sample since the build or the last `Off`.
 
 **Source**: `packages/devtools/src/model/DiagnosticsFeed.ts` — the per-start token each run closes over (the scope's own finalizer retires it, so a run that fails while the scope closes is a replaced one), the `onExit` handler that separates a defect from an interruption with `Cause.hasInterruptsOnly`, and the marking `accept` that sets `sampled` and moves the status to `Live`.
 

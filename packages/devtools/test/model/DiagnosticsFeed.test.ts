@@ -411,6 +411,27 @@ describe("the diagnostics feed", () => {
     }),
   );
 
+  it.effect("F25 a closed feed ignores restart() and configure(), which publish nothing", () =>
+    Effect.gen(function* () {
+      const { state, questions } = source(() => []);
+      const scope = yield* Scope.make();
+      const feed = yield* Scope.provide(makeDiagnosticsFeed({ questions }), scope);
+      const before = feed.getSnapshot();
+      const seen = recording(feed);
+      yield* Scope.close(scope, Exit.void);
+
+      feed.restart();
+      feed.configure({ questions: source(() => []).questions });
+      feed.configure(undefined);
+      feed.restart();
+      yield* step("6 seconds");
+
+      assert.deepStrictEqual(seen, []);
+      assert.strictEqual(feed.getSnapshot(), before);
+      assert.strictEqual(state.calls, 1);
+    }),
+  );
+
   it.effect("F18 a layer that fails to build reads wiring Failed in a Live feed, which samples again", () =>
     Effect.gen(function* () {
       const { state, questions } = source(() => []);

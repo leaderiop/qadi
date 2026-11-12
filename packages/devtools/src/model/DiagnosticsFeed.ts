@@ -168,12 +168,15 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
   let sampled = false;
   // Names the current run, so a replaced run's late exit or accept changes nothing.
   let generation = 0;
+  // Set when the scope closes: a command on a closed feed would publish a state nothing follows.
+  let closed = false;
   const view = makeExternalStore<DiagnosticsSnapshot>(diagnosticsOff);
   const handle = yield* FiberHandle.make<void>();
   // Added after the handle, so it runs first on close: the run it interrupts is then a replaced one.
   yield* Effect.addFinalizer(() =>
     Effect.sync(() => {
       generation += 1;
+      closed = true;
     }),
   );
   const fork = yield* FiberHandle.runtime(handle)<never>();
@@ -234,6 +237,7 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
   };
 
   const configure = (next: DiagnosticsDockOptions | undefined) => {
+    if (closed) return;
     const before = options;
     options = next;
     if (next === undefined) {
@@ -252,7 +256,7 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
   };
 
   const restart = () => {
-    if (options !== undefined) start(options);
+    if (!closed && options !== undefined) start(options);
   };
 
   if (init !== undefined) start(init);
