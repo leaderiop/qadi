@@ -5,48 +5,48 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
-    title: "`NotJson` text carries a `SyntaxError:` prefix; docs and the changeset call it the parser's own message"
-  - id: WR-02
-    severity: warning
-    disposition: open
-    title: "Plan-local decision and plan numbers are baked into shipped doc comments and test titles"
-  - id: WR-03
-    severity: warning
-    disposition: open
-    title: "The `PortSpanEncode.ts` budget exemption rests on a provenance claim that does not hold; its real reason is unstated"
+    disposition: fixed
+    title: "`DecodeDepthGuard.ts` mutation score fell from 94.74 to 92.59 (WX-05)"
   - id: IN-01
     severity: info
-    disposition: open
-    title: "`unwalked` is documented as \"must be `Schema.Unknown`\", but two of three seams use `Schema.Array(Schema.Unknown)`; the check is compile-time over the decoded type"
+    disposition: fixed
+    title: "`UntrustedDecode.ts`'s constant `\"not JSON\"` arm, and a thin mutation margin"
+  - id: WR-02
+    severity: warning
+    disposition: fixed
+    title: "Plan-local decision and plan numbers in shipped comments and test titles"
+  - id: WR-03
+    severity: warning
+    disposition: fixed
+    title: "`PortSpanEncode.ts` budget exemption rests on a false provenance claim"
   - id: IN-02
     severity: info
-    disposition: open
-    title: "`decodeStoredRecordString` is still a hand-assembled `JSON.parse` seam, invisible to `[untrusted-decode]`"
+    disposition: fixed
+    title: "Byte-identical `isPlainObject` still lives in `FieldPath.ts`"
   - id: IN-03
     severity: info
-    disposition: open
-    title: "Closure-returning `Match` arms in `HydrationEngine.ts` are harder to read than what they replace"
+    disposition: fixed
+    title: "Closure-returning `Match` arms in `HydrationEngine.ts`"
   - id: IN-04
     severity: info
-    disposition: open
-    title: "Three copies of the plain-object predicate; a long history comment on the guard"
-open: 7
+    disposition: fixed
+    title: "Three copies of the plain-object predicate; long NS-01 comment"
+open: 0
 total: 7
-recorded: 2026-11-12T05:00:31.490Z
+recorded: 2026-11-12T05:41:07.834Z
 ---
 
 # Phase 30: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
-| WR-03 | warning | open | - |
-| IN-01 | info | open | - |
-| IN-02 | info | open | - |
-| IN-03 | info | open | - |
-| IN-04 | info | open | - |
+| WR-01 | warning | fixed | 30-REVIEW-FIX.md |
+| IN-01 | info | fixed | 30-REVIEW-FIX.md |
+| WR-02 | warning | fixed | 30-REVIEW-FIX.iter2.md (not in the current review) |
+| WR-03 | warning | fixed | 30-REVIEW-FIX.iter2.md (not in the current review) |
+| IN-02 | info | fixed | 30-REVIEW-FIX.iter3.md (not in the current review) |
+| IN-03 | info | fixed | 30-REVIEW-FIX.iter2.md (not in the current review) |
+| IN-04 | info | fixed | 30-REVIEW-FIX.iter2.md (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
