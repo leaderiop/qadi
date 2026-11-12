@@ -7,6 +7,11 @@
  * moment and stays quiet. Both screens that read the diagnostics render this one
  * component first and write no notice markup, copy or styles of their own.
  *
+ * **The polite status region is always rendered**, empty unless the poll is `Starting`.
+ * A live region announces reliably only when it already exists as its text arrives, so
+ * it is not mounted with its content. The alert is the opposite: it is mounted with
+ * its content, and only for the lead and body, never the stack-trace reason after it.
+ *
  * Package-private: it is in no barrel and so not importable (AGENTS.md §9, ADR-QD-099).
  */
 import type { CSSProperties, FC, MouseEvent, ReactNode, RefObject } from "react";
@@ -33,25 +38,36 @@ export interface DiagnosticsNoticeProps {
   /** Starts the poll again; the poll goes through `Starting`, so the notice is replaced. */
   readonly onRestart: () => void;
   /**
-   * The last stop whose alert was delivered, owned by the dock so it outlives every screen.
+   * The stops notices have shown, owned by the dock so it outlives every screen.
    *
-   * It records only whether a stop was announced, never what the reading says (AGENTS.md §13).
+   * It records only which stop was announced and how many there have been, never what
+   * the reading says (AGENTS.md §13).
    */
-  readonly announced: RefObject<DiagnosticsStatus | undefined>;
+  readonly announced: RefObject<StopLedger>;
 }
+
+/** The last stop a notice showed, and how many distinct stops notices have shown. */
+export interface StopLedger {
+  readonly stop: DiagnosticsStatus | undefined;
+  readonly count: number;
+}
+
+/** A ledger with no stop in it: what a dock starts from. */
+export const noStops: StopLedger = { stop: undefined, count: 0 };
 
 type Stopped = Extract<DiagnosticsStatus, { readonly _tag: "Stopped" }>;
 
 /**
  * The props a screen's root carries, so restart has a focus target and a test a hook.
  *
- * The root is focused programmatically and is not a tab stop. One helper means the
- * two screens cannot drift.
+ * The root is focused programmatically and is not a tab stop, and it keeps the
+ * browser's own focus ring so a keyboard user can see where restart left them. One
+ * helper means the two screens cannot drift.
  */
 export const diagnosticsRootProps = (status: DiagnosticsStatus) => ({
   "data-diagnostics-status": status._tag,
   tabIndex: -1,
-  style: { padding: 12, outline: "none" },
+  style: { padding: 12 },
 });
 
 const startingStyle: CSSProperties = {
@@ -85,7 +101,7 @@ const reasonStyle: CSSProperties = {
 };
 
 const StartingNotice: FC = () => (
-  <div role="status" data-testid="qadi-diagnostics-starting" style={startingStyle}>
+  <div data-testid="qadi-diagnostics-starting" style={startingStyle}>
     <strong style={{ fontWeight: 600 }}>{STARTING_LEAD}</strong> {STARTING_BODY}
   </div>
 );
@@ -100,29 +116,26 @@ const restart = (onRestart: () => void) => (event: MouseEvent<HTMLButtonElement>
 const StoppedNotice: FC<{
   readonly status: Stopped;
   readonly onRestart: () => void;
-  readonly announced: RefObject<DiagnosticsStatus | undefined>;
+  readonly announced: RefObject<StopLedger>;
 }> = ({ status, onRestart, announced }) => {
-  // Decided per mount and per new stop, so an unrelated re-render cannot flip the role.
-  const [seen, setSeen] = useState(status);
-  const [alert, setAlert] = useState(() => announced.current !== status);
-  if (seen !== status) {
-    setSeen(status);
-    setAlert(announced.current !== status);
-  }
+  // Decided at mount: a new stop is a new mount (see `keyOf`), so a role is never added to a mounted element.
+  const [alert] = useState(() => announced.current.stop !== status);
   useLayoutEffect(() => {
-    announced.current = status;
+    const { stop, count } = announced.current;
+    if (stop !== status) announced.current = { stop: status, count: count + 1 };
   }, [announced, status]);
 
   return (
-    <section
-      role={alert ? "alert" : undefined}
-      data-testid="qadi-diagnostics-stopped"
-      data-announce={alert ? "alert" : "none"}
-      data-sampled={String(status.sampled)}
-      style={stoppedStyle}
-    >
-      <strong style={{ fontWeight: 600, color: colors.error }}>{STOPPED_LEAD}</strong>{" "}
-      {status.sampled ? STOPPED_BODY_SAMPLED : STOPPED_BODY_UNSAMPLED}
+    <section data-testid="qadi-diagnostics-notice" style={stoppedStyle}>
+      <div
+        role={alert ? "alert" : undefined}
+        data-testid="qadi-diagnostics-stopped"
+        data-announce={alert ? "alert" : "none"}
+        data-sampled={String(status.sampled)}
+      >
+        <strong style={{ fontWeight: 600, color: colors.error }}>{STOPPED_LEAD}</strong>{" "}
+        {status.sampled ? STOPPED_BODY_SAMPLED : STOPPED_BODY_UNSAMPLED}
+      </div>
       {status.reason === "" ? null : (
         <pre
           data-testid="qadi-diagnostics-reason"
@@ -146,18 +159,47 @@ const StoppedNotice: FC<{
   );
 };
 
+/** One key per stop, so a second stop remounts the notice and its alert is announced as it arrives. */
+const keyOf = (ledger: StopLedger, status: Stopped): number =>
+  ledger.stop === status ? ledger.count : ledger.count + 1;
+
 type Binding = Pick<DiagnosticsNoticeProps, "onRestart" | "announced">;
 
-const noticeOf: (self: DiagnosticsStatus) => (binding: Binding) => ReactNode = Match.type<DiagnosticsStatus>().pipe(
+/** What a status puts in the always-present polite region, and what it puts beside it. */
+interface Parts {
+  readonly region: ReactNode;
+  readonly stopped: ReactNode;
+}
+
+const NOTHING: Parts = { region: null, stopped: null };
+
+const noticeOf: (self: DiagnosticsStatus) => (binding: Binding) => Parts = Match.type<DiagnosticsStatus>().pipe(
   Match.tagsExhaustive({
-    Off: () => () => null,
-    Starting: () => () => <StartingNotice />,
-    Live: () => () => null,
-    Stopped: (status) => ({ onRestart, announced }: Binding) => (
-      <StoppedNotice status={status} onRestart={onRestart} announced={announced} />
-    ),
+    Off: () => () => NOTHING,
+    Starting: () => () => ({ region: <StartingNotice />, stopped: null }),
+    Live: () => () => NOTHING,
+    Stopped: (status) => ({ onRestart, announced }: Binding) => ({
+      region: null,
+      stopped: (
+        <StoppedNotice
+          key={keyOf(announced.current, status)}
+          status={status}
+          onRestart={onRestart}
+          announced={announced}
+        />
+      ),
+    }),
   }),
 );
 
-export const DiagnosticsNotice: FC<DiagnosticsNoticeProps> = ({ status, onRestart, announced }) =>
-  noticeOf(status)({ onRestart, announced });
+export const DiagnosticsNotice: FC<DiagnosticsNoticeProps> = ({ status, onRestart, announced }) => {
+  const { region, stopped } = noticeOf(status)({ onRestart, announced });
+  return (
+    <>
+      <div role="status" data-testid="qadi-diagnostics-region">
+        {region}
+      </div>
+      {stopped}
+    </>
+  );
+};

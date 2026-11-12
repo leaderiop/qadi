@@ -436,8 +436,9 @@ a prop fed by the host's subscription ([ADR-QD-080](./080-a-gate-registry-belong
 >   the shared mechanics are `model/ExternalStore.ts` and the store-snapshot hook
 >   ([BEH-QD-510](../behaviors/28-devtools-screens.md#beh-qd-510-the-public-hooks-are-adapters-over-scoped-feeds-read-through-one-store-snapshot-hook)).
 > - **Every screen that reads the diagnostics states the status the same way.** One shared
->   notice: `Starting` is polite, `Stopped` is announced once per stop with the reason and
->   a restart
+>   notice: `Starting` fills a polite region that is always mounted, `Stopped` is announced
+>   once per stop (the alert holds the lead and body, and the reason follows it) with a
+>   restart
 >   ([BEH-QD-509](../behaviors/28-devtools-screens.md#beh-qd-509-every-screen-that-reads-the-diagnostics-states-its-status-the-same-way)).
 > - **Three questions the research left open, answered.** (1) The timeline's placeholder
 >   before its feed exists is an inert module-scope store, `idleTimeline`: a shared live

@@ -1303,14 +1303,39 @@ The Services and React screens read the diagnostics. Both render one shared noti
 and write no notice markup of their own, so they cannot disagree about a stop.
 
 ```
-REQUIREMENT: `Starting` MUST render a polite status, and `Stopped` an alert the first
-             time a stop is shown, with the verbatim reason and a restart that moves
-             focus to the screen root.
+REQUIREMENT: `Starting` MUST fill a polite status region, and `Stopped` MUST render an
+             alert the first time a stop is shown, with the verbatim reason after it and
+             a restart that moves focus to the screen root.
 ```
 
 A stop that is already announced stays visible without a second alert, however many
 screens the reviewer visits. `Starting` is the expected first moment and stays quiet.
 The reason is a height-bounded block of text, not markup.
+
+```
+REQUIREMENT: The alert MUST hold the lead and the body only, and a second stop MUST
+             remount it.
+```
+
+The reason is a stack trace, so it follows the alert inside the notice and a screen reader
+does not read it aloud. A role added to an element already in the tree is generally not
+announced, so every new stop is a new mount and its alert is decided as it mounts.
+
+```
+REQUIREMENT: The polite status region MUST exist before its text arrives, and MUST stay
+             mounted while the status changes.
+```
+
+A live region announces reliably only when it is in the tree before its content is. It is
+rendered empty for `Off`, `Live` and `Stopped`, so it adds no visible space, and holds the
+`Starting` copy while the poll is starting.
+
+```
+REQUIREMENT: The screen root a restart moves focus to MUST keep a visible focus indication.
+```
+
+The root is a programmatic focus target and not a tab stop, and it sets no `outline`, so the
+browser's own focus ring shows where a keyboard user's focus went when the button left.
 
 ```
 REQUIREMENT: While no sample is accepted, the messages that read an absent field as "not
@@ -1321,10 +1346,10 @@ Before the first sample, and after a stop that preceded it, a missing field mean
 not been read yet, not that the host never supplied it.
 
 ```
-REQUIREMENT: `Off` and `Live` MUST add nothing to a screen.
+REQUIREMENT: `Off` and `Live` MUST add nothing visible to a screen.
 ```
 
-Pinned by `packages/devtools/test/react/DiagnosticsNotice.test.tsx` (N1 to N10) and
+Pinned by `packages/devtools/test/react/DiagnosticsNotice.test.tsx` (N1 to N13) and
 `packages/devtools/test/react/DiagnosticsScreens.test.tsx` (D1 to D11). Specified in
 ADR-QD-047 (CCR-QD-425).
 

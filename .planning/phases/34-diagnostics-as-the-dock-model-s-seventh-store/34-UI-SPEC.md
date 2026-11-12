@@ -121,13 +121,15 @@ notice markup, copy or styles; each renders `<DiagnosticsNotice {...diagnostics}
 child of its root element**, above all other content.
 
 ```
-<screen root> (padding 12, tabIndex -1, outline none, data-diagnostics-status="<Off|Starting|Live|Stopped>")
-  <DiagnosticsNotice />            renders nothing for Off and Live
-    [Starting]  qadi-diagnostics-starting   role="status"
-    [Stopped]   qadi-diagnostics-stopped    role="alert" the first time this stop is shown, none after
-                  lead + body
-                  qadi-diagnostics-reason   <pre>, only when reason is non-empty
-                  qadi-diagnostics-restart  <button type="button">
+<screen root> (padding 12, tabIndex -1, no outline override, data-diagnostics-status="<Off|Starting|Live|Stopped>")
+  <DiagnosticsNotice />
+    qadi-diagnostics-region                 role="status", always rendered, empty unless Starting
+      [Starting]  qadi-diagnostics-starting   the Starting box (no role of its own)
+    [Stopped]   qadi-diagnostics-notice     the amber box, keyed per stop
+                  qadi-diagnostics-stopped    role="alert" the first time this stop is shown, none after
+                                              (holds the lead + body only)
+                  qadi-diagnostics-reason     <pre>, only when reason is non-empty, OUTSIDE the alert
+                  qadi-diagnostics-restart    <button type="button">
   ...the screen's own content, as today (see "Suppressed copy" for the exceptions)
 ```
 
@@ -140,7 +142,7 @@ DiagnosticsNoticeProps` (the panels decide nothing; `DockFrame` builds it once):
 |-------|------|---------|
 | `status` | `DiagnosticsStatus` | The diagnostics store snapshot's closed status (`Off`, `Starting`, `Live`, `Stopped { reason, sampled }`), read once in `DockFrame` |
 | `onRestart` | `() => void` | The feed's `restart()`, as the dock model exposes it |
-| `announced` | `MutableRefObject<DiagnosticsStatus \| undefined>` | `DockFrame`'s record of the last stop whose alert has been delivered (see Accessibility) |
+| `announced` | `RefObject<StopLedger>` | `DockFrame`'s record of the last stop a notice showed and how many distinct stops there have been (see Accessibility) |
 
 Dispatch on `status` uses `Match.type<DiagnosticsStatus>().pipe(Match.tagsExhaustive(...))`, built once
 at module scope, in the same shape as `wiringView` (AGENTS.md §5a). `DockFrame` holds the `announced`
@@ -150,10 +152,11 @@ ref (it outlives every screen, which is what makes "once per stop" possible) and
 ### Screen root helper
 
 `diagnosticsRootProps(status)` returns `{ "data-diagnostics-status": status._tag, tabIndex: -1, style: {
-padding: 12, outline: "none" } }`, spread onto each screen's existing root `<div>` (`qadi-services`,
-`qadi-questions`) beside its own `data-testid`. `tabIndex -1` and `outline: "none"` make the root a
-programmatic focus target for the restart handler, not a tab stop. One helper means the two screens
-cannot drift.
+padding: 12 } }`, spread onto each screen's existing root `<div>` (`qadi-services`,
+`qadi-questions`) beside its own `data-testid`. `tabIndex -1` makes the root a programmatic focus target
+for the restart handler, not a tab stop. It sets **no `outline`**: the dock has no focus token of its own
+(its buttons use the browser default), so the root keeps the browser's focus ring, and a keyboard user who
+restarts sees where focus went. One helper means the two screens cannot drift.
 
 ### State table (identical on every screen)
 
@@ -214,19 +217,26 @@ the presence of a button, as well as in words, so the difference is never colour
 
 ### Starting notice
 
-- Element: `<div role="status" data-testid="qadi-diagnostics-starting" style={startingNotice}>`.
+- Region: `<div role="status" data-testid="qadi-diagnostics-region">`, **always rendered** by
+  `DiagnosticsNotice`, with no style of its own, so an empty one adds no visible space. It holds the
+  Starting box while the status is `Starting` and is empty otherwise (a live region announces reliably only
+  when it exists before its text arrives, so it is never mounted together with its content).
+- Element: `<div data-testid="qadi-diagnostics-starting" style={startingNotice}>`, inside the region and
+  with no role of its own.
 - Style: `panel` spread, `padding: "8px 12px"`, `...muted`, `fontSize: font.size`, no tint, border
   `colors.border`. Deliberately quiet: this is the expected first moment, not a problem.
 - Content: lead phrase, then one body sentence (copy below). No button.
 
 ### Stopped notice
 
-- Element: `<section data-testid="qadi-diagnostics-stopped" data-announce="alert|none"
-  data-sampled="true|false" ...>` with `role="alert"` only in the alert mode (see Accessibility);
-  `data-sampled` is `String(status.sampled)`. Style: `panel` spread, `padding: "8px 12px"`,
-  `border: 1px solid colors.error`, `background: withAlpha(colors.error, 0.12)`, text `colors.text`, lead
-  phrase `colors.error`.
-- Content order: lead phrase, body sentence (one of two variants chosen by `status.sampled`, see
+- Box: `<section data-testid="qadi-diagnostics-notice">`, keyed per stop. Style: `panel` spread,
+  `padding: "8px 12px"`, `border: 1px solid colors.error`, `background: withAlpha(colors.error, 0.12)`,
+  text `colors.text`, lead phrase `colors.error`.
+- Alert: `<div data-testid="qadi-diagnostics-stopped" data-announce="alert|none" data-sampled="true|false">`
+  as the box's first child, with `role="alert"` only in the alert mode (see Accessibility); `data-sampled` is
+  `String(status.sampled)`. It holds **the lead phrase and the body only**: the reason is a stack trace and
+  follows it, outside the alert.
+- Content order: alert (lead phrase, body sentence, one of two variants chosen by `status.sampled`, see
   Copywriting Contract), reason block, restart button.
 - Reason block, `data-testid="qadi-diagnostics-reason"`, a `<pre>`: `margin: "8px 0 0"`, `padding: 8`,
   `background: colors.surface`, `border: 1px solid colors.border`, `borderRadius: 4`,
@@ -265,8 +275,9 @@ the presence of a button, as well as in words, so the difference is never colour
 
 ### Accessibility decision: `role="status"` vs `role="alert"`, and once per stop
 
-- **Starting: `role="status"`** (polite). It is the expected first state and the reviewer's own action or
-  mount caused it. Interrupting speech for it would be noise. It is not made once-only: it is brief and polite.
+- **Starting: `role="status"`** (polite), on the always-rendered region. It is the expected first state and
+  the reviewer's own action or mount caused it. Interrupting speech for it would be noise. It is not made
+  once-only: it is brief and polite. The region is rendered empty for `Off`, `Live` and `Stopped`.
 - **Stopped: `role="alert"` the first time a given stop is shown, a plain non-live element after.** A stop
   is a fault that turns a live-looking screen into a stale one with no action by the reviewer, and a
   screen-reader user cannot see the amber, so the first presentation of a stop is assertive. Re-announcing
@@ -275,25 +286,32 @@ the presence of a button, as well as in words, so the difference is never colour
   there to read in browse mode, just not pushed.
 - **Mechanism.** "This stop" is the `Stopped` status value itself: each stop produces a new
   `Data.TaggedEnum` value, and the store snapshot keeps its identity until the status changes.
-  `DockFrame` owns `announced = useRef<DiagnosticsStatus | undefined>(undefined)`, because it outlives every
-  screen (a screen unmounts on tab change, which is exactly the case to survive). `DiagnosticsNotice`
-  decides the mode once per mount with `useState(() => announced.current !== status)` (true means
-  `role="alert"`, `data-announce="alert"`; false means no role, `data-announce="none"`), and records the stop
-  in a `useLayoutEffect(() => { announced.current = status; }, [status])`. Fixing the mode at mount, not on
-  every render, keeps the role stable while the notice stays mounted, so an unrelated re-render cannot flip
-  `alert` to none and back. Strict Mode's double render and double effect are harmless: the initializer sees
-  the same ref, and the effect is idempotent. A new stop (`Stopped`, then `Starting`, then `Stopped`) is a
-  new status value and a remounted notice, so it alerts again.
+  `DockFrame` owns `announced = useRef(noStops)`, a `StopLedger` (`{ stop, count }`: the last stop a notice
+  showed, and how many distinct stops there have been), because it outlives every screen (a screen unmounts
+  on tab change, which is exactly the case to survive). The stopped notice decides the mode once per mount
+  with `useState(() => announced.current.stop !== status)` (true means `role="alert"`, `data-announce="alert"`;
+  false means no role, `data-announce="none"`), and records the stop in a `useLayoutEffect` that writes
+  `{ stop: status, count: count + 1 }` when `stop` is not already this status. The notice is **keyed per stop**,
+  by `count` when the ledger already holds this stop and `count + 1` when it does not, so a new stop is always
+  a new mount and its role is present as the element mounts: a role added to an element already in the tree is
+  generally not announced, which is why a second stop that follows a first with no `Starting` render between
+  them must remount rather than flip. Fixing the mode at mount keeps the role stable while the notice stays
+  mounted, so an unrelated re-render cannot flip `alert` to none and back. Strict Mode's double render and
+  double effect are harmless: the initializer sees the same ref, and the effect is idempotent. A new stop
+  (`Stopped`, then `Starting`, then `Stopped`, or `Stopped` then `Stopped`) is a new status value and a
+  remounted notice, so it alerts again.
 - A stop that happens while the reviewer is on a screen with no notice (Log, Inspector, Policies, Roles,
   Simulator) has never been announced, so the first time they open Services or Questions it presents as
   `role="alert"`, which is the correct first announcement. That state is local and is not "React state for
   decisions" (AGENTS.md §13): it records only whether a notice was delivered, never what the reading says.
-- Do not put `role="alert"` on the `<pre>` or the button. The Stopped notice sets no `aria-live` of its own.
+- Do not put `role="alert"` on the `<pre>` or the button, and do not nest the `<pre>` inside the alert: the
+  alert reads the lead and body, not a stack trace. The Stopped notice sets no `aria-live` of its own.
 - Contrast: `colors.error` `#e3a008` on `colors.surface` `#14161a` is 8.0:1, and on the amber tint
   background (about `#2d2718`) 6.6:1; `colors.text` on that tint is 12.1:1. `colors.textMuted` `#8b93a3` on
   `#14161a` is 5.9:1 for the Starting notice. All meet 4.5:1 (computed 2026-11-12).
-- Focus ring: the dock's existing buttons set no custom outline, so the browser default applies; the new
-  button must not set `outline: none`. (Only the screen root, which is not a tab stop, does.)
+- Focus ring: the dock's existing buttons set no custom outline, so the browser default applies; neither the new
+  button nor the screen root sets `outline: none`. The root is focused after a restart, and the browser's own
+  ring shows it to a keyboard user.
 
 ---
 
@@ -340,15 +358,17 @@ to know which screen it is on queries the screen root (`qadi-services` or `qadi-
 |---------------|---------|--------------|
 | `qadi-services` | Services root (existing); gains `data-diagnostics-status`, `tabIndex -1` | always on that screen |
 | `qadi-questions` | Questions root (existing); gains `data-diagnostics-status`, `tabIndex -1` | always on that screen |
-| `qadi-diagnostics-starting` | Starting notice, `role="status"` | status is `Starting` |
-| `qadi-diagnostics-stopped` | Stopped notice; `data-announce` is `alert` (with `role="alert"`) or `none` (no role); `data-sampled` is `true` (last-reading body) or `false` (no-reading body) | status is `Stopped` |
-| `qadi-diagnostics-reason` | `<pre>` with the `Cause.pretty` text | status is `Stopped` and reason non-empty |
+| `qadi-diagnostics-region` | The polite status region, `role="status"`; empty unless `Starting` | always, on a screen that renders the notice |
+| `qadi-diagnostics-starting` | Starting box, inside the region | status is `Starting` |
+| `qadi-diagnostics-notice` | The Stopped notice's amber box | status is `Stopped` |
+| `qadi-diagnostics-stopped` | The alert element (lead and body only); `data-announce` is `alert` (with `role="alert"`) or `none` (no role); `data-sampled` is `true` (last-reading body) or `false` (no-reading body) | status is `Stopped` |
+| `qadi-diagnostics-reason` | `<pre>` with the `Cause.pretty` text, a sibling of the alert inside the box | status is `Stopped` and reason non-empty |
 | `qadi-diagnostics-restart` | Restart `<button type="button">` | status is `Stopped` |
 | `qadi-hydration-pending` | "no counts read yet." (replaces `qadi-hydration-unwired`) | `Starting` or `Stopped`, `hydration` undefined |
 
 `data-diagnostics-status` takes exactly `Off`, `Starting`, `Live` or `Stopped` (the status `_tag`) on both
-roots, so a test can assert `Off` and `Live` render no notice by checking the attribute and the absence of
-the notice testids. Tests also query roles: `getByRole("status")`, `getByRole("alert")` (present only on a
+roots, so a test can assert `Off` and `Live` render no notice by checking the attribute, the empty region and
+the absence of the other notice testids. Tests also query roles: `getByRole("status")`, `getByRole("alert")` (present only on a
 first presentation of a stop), `getByRole("button", { name: "Restart diagnostics" })`.
 
 ---

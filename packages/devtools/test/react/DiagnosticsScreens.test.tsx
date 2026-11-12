@@ -53,6 +53,16 @@ const reactTab = () => {
   });
 };
 
+/** The one diagnostics element a quiet screen carries: the polite status region, with nothing in it. */
+const assertOnlyEmptyRegion = (container: HTMLElement) => {
+  const found = container.querySelectorAll("[data-testid^='qadi-diagnostics-']");
+  assert.deepStrictEqual(
+    Array.from(found, (element) => element.getAttribute("data-testid")),
+    ["qadi-diagnostics-region"],
+  );
+  assert.strictEqual(found[0]?.textContent, "");
+};
+
 /** A question source that throws on its first call and answers nothing after. */
 const throwsFirst = () => {
   const state = { calls: 0 };
@@ -278,7 +288,7 @@ describe("the dock's diagnostics screens", () => {
     render(<DevtoolsDock diagnostics={held} />);
     services();
 
-    assert.strictEqual(screen.getByTestId("qadi-diagnostics-starting").getAttribute("role"), "status");
+    assert.strictEqual(screen.getByTestId("qadi-diagnostics-starting").parentElement?.getAttribute("role"), "status");
     assert.isNull(screen.queryByTestId("qadi-wiring-absent"));
 
     await vi.waitFor(() => {
@@ -287,15 +297,15 @@ describe("the dock's diagnostics screens", () => {
     assert.isNull(screen.queryByTestId("qadi-diagnostics-starting"));
   });
 
-  it("D10 with nothing handed over, or a live poll, no notice renders and the not-handed copy stays", async () => {
+  it("D10 with nothing handed over, or a live poll, only the empty status region renders and the not-handed copy stays", async () => {
     const off = render(<DevtoolsDock />);
     services();
     assert.strictEqual(screen.getByTestId("qadi-services").getAttribute("data-diagnostics-status"), "Off");
-    assert.isNull(off.container.querySelector("[data-testid^='qadi-diagnostics-']"));
+    assertOnlyEmptyRegion(off.container);
     assert.isNotNull(screen.getByTestId("qadi-wiring-absent"));
     reactTab();
     assert.strictEqual(screen.getByTestId("qadi-questions").getAttribute("data-diagnostics-status"), "Off");
-    assert.isNull(off.container.querySelector("[data-testid^='qadi-diagnostics-']"));
+    assertOnlyEmptyRegion(off.container);
     assert.isNotNull(screen.getByTestId("qadi-questions-absent"));
     off.unmount();
 
@@ -306,7 +316,7 @@ describe("the dock's diagnostics screens", () => {
     await vi.waitFor(() => {
       assert.strictEqual(screen.getByTestId("qadi-services").getAttribute("data-diagnostics-status"), "Live");
     });
-    assert.isNull(live.container.querySelector("[data-testid^='qadi-diagnostics-']"));
+    assertOnlyEmptyRegion(live.container);
   });
 
   it("D11 a rebuilt dock shows the Starting notice, not the stop it held before it was hidden", async () => {

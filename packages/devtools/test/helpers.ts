@@ -10,6 +10,7 @@
  */
 import * as Effect from "effect/Effect";
 import { DiagnosticsStatus } from "../src/model/DiagnosticsFeed.ts";
+import { noStops } from "../src/react/DiagnosticsNotice.tsx";
 import type { DiagnosticsNoticeProps } from "../src/react/DiagnosticsNotice.tsx";
 import {
   Allow,
@@ -179,5 +180,5 @@ export const settleTurns = Effect.gen(function* () {
 export const liveNotice: DiagnosticsNoticeProps = {
   status: DiagnosticsStatus.Live(),
   onRestart: () => undefined,
-  announced: { current: undefined },
+  announced: { current: noStops },
 };

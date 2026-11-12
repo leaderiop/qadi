@@ -18,13 +18,14 @@ import { useMemo, useRef } from "react";
 import { sourceFromRecords, type Source } from "../model/Source.ts";
 import type { Verdict } from "../model/Verdict.ts";
 import type { Catalogue } from "../model/Catalogue.ts";
-import type { DiagnosticsDockOptions, DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
+import type { DiagnosticsDockOptions } from "../model/DiagnosticsFeed.ts";
 import type { Diagnostics, DiagnosticsReading } from "../model/DiagnosticsStore.ts";
 import type { DockModel } from "../model/DockModel.ts";
 import type { DockSnapshot, TabId } from "../model/DockSession.ts";
 import type { GateInstanceLike } from "../model/Gates.ts";
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
 import { DecisionLog } from "./DecisionLog.tsx";
+import { noStops } from "./DiagnosticsNotice.tsx";
 import type { DiagnosticsNoticeProps } from "./DiagnosticsNotice.tsx";
 import { Inspector } from "./Inspector.tsx";
 import { PolicyExplorer } from "./PolicyExplorer.tsx";
@@ -163,8 +164,8 @@ const DockFrame: FC<{
   const view = useStoreSnapshot(dock);
   // Each field is the supplied reading's when it carries one, and the sample's otherwise: the model merges.
   const { status, reading: shown } = useStoreSnapshot(model.diagnostics);
-  // Records only whether a stop's alert was delivered, never what the reading says (AGENTS.md §13).
-  const announced = useRef<DiagnosticsStatus | undefined>(undefined);
+  // Records only which stops were announced, never what the reading says (AGENTS.md §13).
+  const announced = useRef(noStops);
   const notice = useMemo(
     () => ({ status, onRestart: model.diagnostics.restart, announced }),
     [status, model],
