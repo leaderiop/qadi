@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (latest: v1.2 Arch Wave 7, ARCH-69 to ARCH-77)
+# Qadi — Architecture Waves (current: v1.3 Arch Wave 8, from ARCH-78)
 
 ## What This Is
 
@@ -30,9 +30,25 @@ outside `.planning`): ARCH-46 to ARCH-54, ADR-QD-108..116 (112, 113 and 115 left
 All 9 phases verified `passed` against the final tree; the full `pnpm check` is green on Node 22.12.0
 (CI run 42676403473 at 127d6fa). Archive: `.planning/milestones/v1.0-ROADMAP.md`.
 
-## Next Milestone
+## Current Milestone: v1.3 Arch Wave 8
 
-Not defined yet. Start it with `/gsd-new-milestone`, which writes a fresh `.planning/REQUIREMENTS.md`.
+**Goal:** Resolve all six candidates of the 2026-11-12 architecture review, close the devtools replay fail-open, and clear
+the v1.2 spec debt (Phases 30–37, from ARCH-78).
+
+**Base commit:** `aab87576` (v1.2 merged as #156). **Shared rules:** `.planning/phases/_SHARED-CONTEXT.md`, overridden where
+stated by `.planning/phases/_WAVE8-CONTEXT.md` (base, numbering, per-phase evidence from the review).
+
+**Target features:**
+- One strict-decode module (parse → depth guard → strict decode → closed refusal) for every untrusted JSON seam; each seam keeps only its error mapping (review 1)
+- Diagnostics as the dock model's seventh store: the poll runs in the model's scope, the reading merge leaves the view (review 2, completes ARCH-74)
+- `SharedComputation.reset` supersedes its claims; `DecisionCache`'s generation counter goes (review 3, extends ADR-QD-132)
+- `EvaluateOptions`/`EvaluationServices` declared once in a leaf; `LifecycleOptions` deleted (review 4)
+- The atom set owns its eviction sweep, so the limit holds without a provider (review 5, speculative: opens on a mechanism spike)
+- One sealed evaluation layer in core shared by `@qadi/testing` and devtools' Simulation (review 6)
+- Devtools replay fails closed on the four remaining ports' unseen requests (INV-QD-007; undecided since v1.0, decided 2026-11-12: flip all four)
+- Carried spec debt: duplicate BEH-QD-219..221, `Sources.ts` in traceability, selected open info findings
+
+**Review report (local, outside the repo):** `/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/architecture-review-20261112-022336.html`.
 
 ## Previous Milestone: v1.2 Arch Wave 7 (completed 2026-11-12; not released)
 
@@ -102,7 +118,7 @@ logged, counted or spanned.
 
 ### Active
 
-(None. v1.2's requirements all moved to Validated; the next milestone defines new ones.)
+v1.3 Arch Wave 8: see `.planning/REQUIREMENTS.md` (one category per phase, 30–37).
 
 ### Out of Scope
 
@@ -232,5 +248,22 @@ logged, counted or spanned.
 | A port's span union is derived from a leaf table, not from the descriptions (29-CONTEXT D-02) | Each annotated description's `span` type is the whole union, and the leaf cannot import descriptions without a cycle; the inverse derivation also narrows `span` to `PortSpanOf<N>` | Accepted (Phase 29, ADR-QD-094 amendment, CCR-QD-419); TIDY-01 annotated as delivered by the inverse derivation |
 | Moving per-call literals to module-scope constants can lower a file's mutation score with nothing worse; close it with a test (29-03) | `ignoreStatic` drops the moved lists' killed mutants while survivors stay (`HydrationEngine.ts` 0.9619 → 0.9605) | Accepted (Phase 29, 94841eb0: a nameless payload with entries is refused whole); 0.9619 → 0.9693 |
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-11-12 after v1.2 milestone*
+*Last updated: 2026-11-12 after starting v1.3 milestone*
