@@ -355,7 +355,7 @@ recorded in the phase CONTEXT and its ADR or CCR row.
 - [x] **Phase 32: Evaluation options and services stated once** - `EvaluateOptions` beside `QuestionOptions`, `EvaluationServices` in a type-only leaf, `LifecycleOptions` deleted (ARCH-80) (completed 2026-11-12)
 - [x] **Phase 33: One sealed evaluation layer** - One core builder for `@qadi/testing` and devtools' Simulation, with the sink and cache shadowing rule stated and required (ARCH-81) (completed 2026-11-12)
 - [x] **Phase 34: Diagnostics as the dock model's seventh store** - The poll runs in the model's scope and the reading merge leaves the view (ARCH-82) (completed 2026-11-12)
-- [ ] **Phase 35: The atom set owns its eviction sweep** - Opens on a spike: either a mechanism lands, or the sweep stays in the provider with the rule stated and tested (ARCH-83)
+- [x] **Phase 35: The atom set owns its eviction sweep** - Opens on a spike: either a mechanism lands, or the sweep stays in the provider with the rule stated and tested (ARCH-83) (completed 2026-11-12)
 - [ ] **Phase 36: Carried spec debt and stale records** - Duplicate BEH-QD-219..221, `Sources.ts`, the stale replay line, selected v1.2 info findings (CCR-QD-427, no ARCH)
 
 ### Phase Details
@@ -505,7 +505,7 @@ Plans:
   3. If none passes: the sweep stays in the provider, and what happens without a provider and under several providers is stated in the spec and the atom set's docs and pinned by tests.
   4. Either way, `QadiProvider.test.tsx`'s "stays over the bound after unmount" pin is reconciled, AGENTS.md §13 and `house-rules-evidence.md` §4 describe the outcome, and any new reliance on an `@stability unstable` atom API is pinned in `v4-reactivity-smoke.test.ts`.
 **Planning notes**: the mechanism is unproven, so a spike is mandatory and the e2e (`pnpm example`, about 30 tests) is an exit criterion; it needs Playwright, so use CI or the rootless podman container route if the host cannot run it. `runFork` runs synchronously to its first yield, so a sweep started from `live()` or `release` must begin with `yieldNow`. Only the e2e catches a dropped render (CCR-QD-150).
-**Plans**: 7/7 plans executed
+**Plans**: 7/7 plans complete
 - [x] 35-01-PLAN.md
 - [x] 35-02-PLAN.md
 - [x] 35-03-PLAN.md
@@ -544,5 +544,5 @@ Phases execute in numeric order: 30 → 31 → 32 → 33 → 34 → 35 → 36
 | 32. Evaluation options and services stated once | 4/4 | Complete    | 2026-11-12 |
 | 33. One sealed evaluation layer | 6/6 | Complete    | 2026-11-12 |
 | 34. Diagnostics as the dock model's seventh store | 9/9 | Complete    | 2026-11-12 |
-| 35. The atom set owns its eviction sweep | 0/0 | Not started | - |
+| 35. The atom set owns its eviction sweep | 7/7 | Complete    | 2026-11-12 |
 | 36. Carried spec debt and stale records | 0/0 | Not started | - |

@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.3
 milestone_name: Arch Wave 8
-current_phase: 35
-current_phase_name: The atom set owns its eviction sweep
-status: verifying
-stopped_at: Completed 35-07-PLAN.md
-last_updated: "2026-11-12T21:14:15.241Z"
+current_phase: 36
+current_phase_name: Carried spec debt and stale records
+status: planning
+stopped_at: Phase 35 complete, ready to plan Phase 36
+last_updated: "2026-11-12T21:31:32.390Z"
 last_activity: 2026-11-12
-last_activity_desc: Phase 35 execution started
-state_head: 8e86102960bd9e65df88d3489a9d6c71424d80f8
+last_activity_desc: Phase 35 complete, transitioned to Phase 36
+state_head: a9cfe0c191ba5b785325dd5469f49d5a25aaeab1
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 40
   completed_plans: 40
-  percent: 71
+  percent: 86
 ---
 
 # Project State
@@ -29,18 +29,18 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 
 ## Current Position
 
-Phase: 35 (The atom set owns its eviction sweep) — EXECUTING
-Plan: 7 of 7
-Status: Phase complete — ready for verification
-Last activity: 2026-11-12 — Phase 35 execution started
+Phase: 36 — Carried spec debt and stale records
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-12 — Phase 35 complete, transitioned to Phase 36
 
-Progress: [███████░░░] 71% (v1.3: 0 of 7 phases)
+Progress: [█████████░] 86% (v1.3: 0 of 7 phases)
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 106
+- Total plans completed: 113
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -72,6 +72,7 @@ Progress: [███████░░░] 71% (v1.3: 0 of 7 phases)
 | 32 | 4 | - | - |
 | 33 | 6 | - | - |
 | 34 | 9 | - | - |
+| 35 | 7 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -330,7 +331,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-12T21:14:14.782Z
-Stopped at: Completed 35-07-PLAN.md
+Stopped at: Phase 35 complete, ready to plan Phase 36
 Resume file: None
 
 ## Operator Next Steps
