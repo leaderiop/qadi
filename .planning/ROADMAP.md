@@ -351,7 +351,7 @@ recorded in the phase CONTEXT and its ADR or CCR row.
 ### Phases
 
 - [x] **Phase 30: One strict-decode module** - Every untrusted JSON seam decodes through one core leaf (parse, depth guard, strict decode, closed refusal); each seam keeps only its error mapping (ARCH-78) (completed 2026-11-12)
-- [ ] **Phase 31: A reset supersedes its claims** - `SharedComputation.reset` supersedes in-flight claims, so `DecisionCache`'s generation counter goes (ARCH-79)
+- [x] **Phase 31: A reset supersedes its claims** - `SharedComputation.reset` supersedes in-flight claims, so `DecisionCache`'s generation counter goes (ARCH-79) (completed 2026-11-12)
 - [ ] **Phase 32: Evaluation options and services stated once** - `EvaluateOptions` beside `QuestionOptions`, `EvaluationServices` in a type-only leaf, `LifecycleOptions` deleted (ARCH-80)
 - [ ] **Phase 33: One sealed evaluation layer** - One core builder for `@qadi/testing` and devtools' Simulation, with the sink and cache shadowing rule stated and required (ARCH-81)
 - [ ] **Phase 34: Diagnostics as the dock model's seventh store** - The poll runs in the model's scope and the reading merge leaves the view (ARCH-82)
@@ -403,7 +403,7 @@ Plans:
   2. `DecisionCache` has no `generation` or `myGeneration`, no stale-write check, and `clear` is only the steps the adapter still owns; the seam tests land before `generation` is deleted, and the existing `DecisionCache.test.ts` race pins pass unchanged.
   3. A property test over generated `run`, `reset`, settle and leave interleavings holds: no superseded exit is ever settled, every waiter is answered exactly once, a post-reset ask claims afresh.
   4. The staleness rule is a stated behaviour (a stale answer never re-enters a cleared cache; an ask after `clear` computes afresh): a new BEH under the decision-cache behaviour, BEH-QD-439 and INV-QD-025's Enforcement restated, ADR-QD-132 amended.
-**Plans**: 5/5 plans executed
+**Plans**: 5/5 plans complete
 
 Plans:
 - [x] 31-01 (W1): Reserved-number check and the mutation baseline of `SharedComputation.ts` and `DecisionCache.ts` (alone, first); the four clear-mid-compute races and the amended reset test at the seam, RED on the phase base.
@@ -510,7 +510,7 @@ Phases execute in numeric order: 30 → 31 → 32 → 33 → 34 → 35 → 36
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 30. One strict-decode module | 9/9 | Complete    | 2026-11-12 |
-| 31. A reset supersedes its claims | 0/0 | Not started | - |
+| 31. A reset supersedes its claims | 5/5 | Complete    | 2026-11-12 |
 | 32. Evaluation options and services stated once | 0/0 | Not started | - |
 | 33. One sealed evaluation layer | 0/0 | Not started | - |
 | 34. Diagnostics as the dock model's seventh store | 0/0 | Not started | - |

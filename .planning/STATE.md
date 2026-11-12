@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.3
 milestone_name: Arch Wave 8
-current_phase: 31
-current_phase_name: A reset supersedes its claims
-status: verifying
-stopped_at: Completed 31-05-PLAN.md
-last_updated: "2026-11-12T08:13:28.258Z"
+current_phase: 32
+current_phase_name: Evaluation options and services stated once
+status: planning
+stopped_at: Phase 31 complete, ready to plan Phase 32
+last_updated: "2026-11-12T08:25:38.550Z"
 last_activity: 2026-11-12
-last_activity_desc: Phase 31 execution started
-state_head: acd47892751a767fe7ea0e3e0c2ba23fcb4297f2
+last_activity_desc: Phase 31 complete, transitioned to Phase 32
+state_head: bd7691504ee319831499e22c9d982ad65bdeee67
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 14
   completed_plans: 14
-  percent: 14
+  percent: 29
 ---
 
 # Project State
@@ -29,18 +29,18 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 
 ## Current Position
 
-Phase: 31 (A reset supersedes its claims) — EXECUTING
-Plan: 5 of 5
-Status: Phase complete — ready for verification
-Last activity: 2026-11-12 — Phase 31 execution started
+Phase: 32 — Evaluation options and services stated once
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-12 — Phase 31 complete, transitioned to Phase 32
 
-Progress: [█░░░░░░░░░] 14% (v1.3: 0 of 7 phases)
+Progress: [███░░░░░░░] 29% (v1.3: 0 of 7 phases)
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 82
+- Total plans completed: 87
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -68,6 +68,7 @@ Progress: [█░░░░░░░░░] 14% (v1.3: 0 of 7 phases)
 | 28 | 5 | - | - |
 | 29 | 3 | - | - |
 | 30 | 9 | - | - |
+| 31 | 5 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -272,7 +273,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-12T08:13:28.230Z
-Stopped at: Completed 31-05-PLAN.md
+Stopped at: Phase 31 complete, ready to plan Phase 32
 Resume file: None
 
 ## Operator Next Steps
