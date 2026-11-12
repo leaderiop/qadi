@@ -7,7 +7,7 @@
  * `TimelineStore`. Nothing here forks a run: the session owns its runs in the
  * scope `useScoped` opens for it, and unmounting closes that scope (ADR-QD-137).
  */
-import { useLayoutEffect, useSyncExternalStore } from "react";
+import { useLayoutEffect } from "react";
 import type { PolicySighting } from "../model/Catalogue.ts";
 import {
   makeSimulationSession,
@@ -17,6 +17,7 @@ import {
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
 import type { TimelineEntry } from "../model/Timeline.ts";
 import { useScoped } from "./useScoped.ts";
+import { useStoreSnapshot } from "./useStoreSnapshot.ts";
 
 export interface UseSimulationSessionInput {
   readonly sightings: ReadonlyArray<PolicySighting>;
@@ -31,7 +32,7 @@ export interface SimulationSessionView {
 
 /** Reads a session the caller owns: the session, and its snapshot as it changes. */
 export const useSimulationSnapshot = (session: SimulationSession): SimulationSessionView => {
-  const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
+  const snapshot = useStoreSnapshot(session);
   return { session, snapshot };
 };
 
@@ -40,7 +41,7 @@ const noSubscription = (): (() => void) => () => undefined;
 /** A snapshot read that waits for the session: it subscribes to nothing until one exists. */
 const useSnapshotOf = (session: SimulationSession | undefined): SimulationSnapshot | undefined => {
   const read = () => session?.getSnapshot();
-  return useSyncExternalStore(session?.subscribe ?? noSubscription, read, read);
+  return useStoreSnapshot({ subscribe: session?.subscribe ?? noSubscription, getSnapshot: read });
 };
 
 /**
