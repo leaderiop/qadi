@@ -8,7 +8,7 @@ import * as FastCheck from "fast-check";
 import type { AuthSubject } from "../src/AuthSubject.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
-import type { EvaluationServices, StandingEvaluationServices } from "../src/Evaluate.ts";
+import type { EvaluationServices, StandingEvaluationServices } from "../src/EvaluationServices.ts";
 import { evaluationIdSequential } from "../src/EvaluationId.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";

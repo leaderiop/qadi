@@ -5,7 +5,11 @@
  * that builds one goes through {@link questionOf}, so the defaults live in
  * one place. Sits below `Evaluate.ts` and `Walk.ts` in the import graph
  * (ADR-QD-037): it imports no evaluation code.
+ *
+ * Also declares {@link EvaluateOptions} beside {@link QuestionOptions}, so
+ * `Evaluate.ts` and `Lifecycle.ts` both read the options from below them.
  */
+import type { Concurrency } from "effect/Types";
 import type { AuthSubject } from "./AuthSubject.ts";
 import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
 import type { Policy } from "./Policy.ts";
@@ -15,7 +19,7 @@ import type { Resource } from "./Resource.ts";
  * The options that are part of the {@link Question}.
  *
  * Every field here can change the answer, and so is part of the `Question`; a
- * field that cannot belongs on `EvaluateOptions` instead (`concurrency`,
+ * field that cannot belongs on {@link EvaluateOptions} instead (`concurrency`,
  * `evaluationId`). `Question.test.ts` holds that classification as a type and
  * a differential test.
  */
@@ -33,6 +37,55 @@ export interface QuestionOptions {
    * Defaults to 64.
    */
   readonly maxDepth?: number;
+}
+
+/**
+ * What `evaluate` is asked with: the {@link QuestionOptions} that can change
+ * the answer, plus two fields that cannot.
+ */
+export interface EvaluateOptions extends QuestionOptions {
+  /**
+   * Evaluate the children of `allOf`, `anyOf` and `rules` concurrently.
+   *
+   * Absent — the default — evaluation is sequential and short-circuits, so a
+   * branch that is never reached performs no lookup
+   * ([INV-QD-005](../../../spec/invariants.md#inv-qd-005-short-circuit-preservation)).
+   * Supplying this **forfeits that** in exchange for latency: every child of a
+   * composite is evaluated, so a caller pays for speculative attribute,
+   * relationship, decision-history and custom-predicate lookups against their
+   * own stores — this option changes what a caller's resolvers get asked, not
+   * only how long the call takes.
+   *
+   * What it does *not* change is the answer. The decision and its trace are
+   * identical either way, because both paths drive the same fold over children in
+   * declaration order — including discarding the trace of a child evaluated after
+   * the decisive one ([ADR-QD-026](../../../spec/decisions/026-concurrent-evaluation.md)).
+   *
+   * Not part of the `Question`: it does not change the answer (ADR-QD-026).
+   */
+  readonly concurrency?: Concurrency;
+  /**
+   * Correlate this evaluation with one already made elsewhere.
+   *
+   * Absent — the default, and unchanged — every call mints a fresh id, hit or
+   * miss, for the reason stated where `decideQuestion` reads the cache
+   * (`Lifecycle.ts`): two log lines claiming to be the same event would break
+   * the one thing the identifier exists for.
+   *
+   * That default is right for a *repeat* of a question and wrong for a
+   * *continuation* of one. A decision made on the server, dehydrated, and
+   * re-checked on the client is one story told in two places; with a fresh id
+   * at each end there is nothing to join them by, and the re-check appears as
+   * an unrelated evaluation. Supplying the server's id makes the pair
+   * expressible without any new correlation protocol.
+   *
+   * Opt-in, so it can only ever be a caller stating a relationship it knows
+   * about. Qadi cannot infer one — see
+   * [ADR-QD-012](../../../spec/decisions/012-deterministic-time-and-ids.md).
+   *
+   * Not part of the `Question`: it does not change the answer (ADR-QD-012).
+   */
+  readonly evaluationId?: string;
 }
 
 /**

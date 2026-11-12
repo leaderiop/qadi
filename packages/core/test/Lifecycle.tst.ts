@@ -10,9 +10,8 @@
  * ARCH-61; ports orphan O3 of lost commit 4b1ed49.
  */
 import { expect, test } from "tstyche";
-import type { EvaluateOptions } from "../src/Evaluate.ts";
 import type { LifecycleOptions } from "../src/Lifecycle.ts";
-import type { QuestionOptions } from "../src/Question.ts";
+import type { EvaluateOptions, QuestionOptions } from "../src/Question.ts";
 
 test("EvaluateOptions is QuestionOptions plus LifecycleOptions", () => {
   expect<EvaluateOptions>().type.toBeAssignableTo<QuestionOptions & LifecycleOptions>();

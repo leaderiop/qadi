@@ -12,7 +12,7 @@
  */
 import { expect, test } from "tstyche";
 import type * as Effect from "effect/Effect";
-import type { EvaluationServices } from "../src/Evaluate.ts";
+import type { EvaluationServices } from "../src/EvaluationServices.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import type { DecisionSink, DecisionSinkShape } from "../src/DecisionSink.ts";
 import * as P from "../src/Policy.ts";

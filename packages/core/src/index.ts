@@ -17,6 +17,7 @@ export * from "./Errors.ts";
 export * from "./Evaluate.ts";
 export * from "./EvaluationId.ts";
 export * from "./EvaluationMetrics.ts";
+export * from "./EvaluationServices.ts";
 export * from "./EvaluationServicesNone.ts";
 export * from "./Explanation.ts";
 export * from "./GuardHealthCheck.ts";

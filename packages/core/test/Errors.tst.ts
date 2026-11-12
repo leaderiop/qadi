@@ -32,7 +32,7 @@ import type {
 } from "../src/Errors.ts";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { ENFORCEMENT_DENIAL_TAGS, ENFORCEMENT_ERROR_CLASSES, ENFORCEMENT_ERROR_TAGS } from "../src/Errors.ts";
-import type { EvaluationServices, StandingEvaluationServices } from "../src/Evaluate.ts";
+import type { EvaluationServices, StandingEvaluationServices } from "../src/EvaluationServices.ts";
 
 declare class HypotheticalNewError {
   readonly _tag: "HypotheticalNewError";

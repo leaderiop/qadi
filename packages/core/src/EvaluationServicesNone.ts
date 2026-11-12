@@ -37,7 +37,7 @@
  */
 import * as Layer from "effect/Layer";
 import { EvaluationIdLive } from "./EvaluationId.ts";
-import type { StandingEvaluationServices } from "./Evaluate.ts";
+import type { StandingEvaluationServices } from "./EvaluationServices.ts";
 import { portsLayer } from "./Ports.ts";
 
 /**
