@@ -1,0 +1,15 @@
+{
+ "packages/core/src/Policy.ts": 0.9801324503311258,
+ "packages/core/src/Errors.ts": 1,
+ "packages/core/src/SinkCodec.ts": 0.9277777777777778,
+ "packages/core/src/PortWireEncode.ts": 0.6923076923076923,
+ "packages/core/src/PortRemote.ts": 0.8365384615384616,
+ "packages/core/src/HydrationMetrics.ts": 1,
+ "packages/core/src/DecodeDepthGuard.ts": 0.9473684210526315,
+ "packages/react/src/HydrationEngine.ts": 0.9692982456140351,
+ "packages/react/src/HydrationEvent.ts": 1,
+ "packages/react/src/DeveloperSignals.ts": 0.9662921348314607,
+ "packages/audit/src/AuditArchive.ts": 0.9807692307692307,
+ "packages/audit/src/AuditEntry.ts": 0.8,
+ "packages/devtools/src/model/ExplorerSession.ts": 0.9162011173184358
+}
