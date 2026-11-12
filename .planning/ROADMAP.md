@@ -352,7 +352,7 @@ recorded in the phase CONTEXT and its ADR or CCR row.
 
 - [x] **Phase 30: One strict-decode module** - Every untrusted JSON seam decodes through one core leaf (parse, depth guard, strict decode, closed refusal); each seam keeps only its error mapping (ARCH-78) (completed 2026-11-12)
 - [x] **Phase 31: A reset supersedes its claims** - `SharedComputation.reset` supersedes in-flight claims, so `DecisionCache`'s generation counter goes (ARCH-79) (completed 2026-11-12)
-- [ ] **Phase 32: Evaluation options and services stated once** - `EvaluateOptions` beside `QuestionOptions`, `EvaluationServices` in a type-only leaf, `LifecycleOptions` deleted (ARCH-80)
+- [x] **Phase 32: Evaluation options and services stated once** - `EvaluateOptions` beside `QuestionOptions`, `EvaluationServices` in a type-only leaf, `LifecycleOptions` deleted (ARCH-80) (completed 2026-11-12)
 - [ ] **Phase 33: One sealed evaluation layer** - One core builder for `@qadi/testing` and devtools' Simulation, with the sink and cache shadowing rule stated and required (ARCH-81)
 - [ ] **Phase 34: Diagnostics as the dock model's seventh store** - The poll runs in the model's scope and the reading merge leaves the view (ARCH-82)
 - [ ] **Phase 35: The atom set owns its eviction sweep** - Opens on a spike: either a mechanism lands, or the sweep stays in the provider with the rule stated and tested (ARCH-83)
@@ -426,7 +426,7 @@ Plans:
   2. `EvaluationServices` and `StandingEvaluationServices` have one declaration, in the type-only `EvaluationServices.ts`; the hand-spelled services union in `Lifecycle.ts` is deleted.
   3. `Evaluate.ts` declares only `evaluate`, with no option or service type and no restatement of one.
   4. `pnpm circular` and `pnpm typecheck` stay green (no TS2883); `Lifecycle.tst.ts` pins the option key set once; `spec/overview.md`'s module column and `spec/traceability.md` (the row near line 470) name the new declaring modules.
-**Plans**: 4/4 plans executed
+**Plans**: 4/4 plans complete
 
 Plans:
 - [x] 32-01 (W1): Reserved-number check and the mutation baseline of the six touched files that carry mutants (alone, first); `EvaluationShapes.tst.ts`, five tests through the `@qadi/core` barrel, green on the phase base and left unchanged through the move.
@@ -517,7 +517,7 @@ Phases execute in numeric order: 30 → 31 → 32 → 33 → 34 → 35 → 36
 |-------|----------------|--------|-----------|
 | 30. One strict-decode module | 9/9 | Complete    | 2026-11-12 |
 | 31. A reset supersedes its claims | 5/5 | Complete    | 2026-11-12 |
-| 32. Evaluation options and services stated once | 0/0 | Not started | - |
+| 32. Evaluation options and services stated once | 4/4 | Complete    | 2026-11-12 |
 | 33. One sealed evaluation layer | 0/0 | Not started | - |
 | 34. Diagnostics as the dock model's seventh store | 0/0 | Not started | - |
 | 35. The atom set owns its eviction sweep | 0/0 | Not started | - |
