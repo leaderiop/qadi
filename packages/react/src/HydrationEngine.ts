@@ -221,7 +221,7 @@ const checkVersion = (input: unknown): Result.Result<unknown, PayloadVersionRefu
  * The payload decoder. `entries` is unwalked, since each entry is guarded from its
  * own root below (INV-QD-306), and the version is checked after the guard and
  * before the strict decode, so a version-3 payload nested past the bound is
- * `PayloadTooDeep`, not `UnsupportedPayloadVersion` (D-04, D-07).
+ * `PayloadTooDeep`, not `UnsupportedPayloadVersion` (BEH-QD-488).
  */
 const decodeEnvelope = untrustedDecoder(Envelope, { unwalked: ["entries"], prepare: checkVersion }).decode;
 
@@ -237,19 +237,17 @@ const payloadRefusalReason: (refusal: UntrustedValueRefusal | PayloadVersionRefu
 
 const decodeEntry = untrustedDecoder(DehydratedEntryWire).decode;
 
-const tooDeepEntry = (): EntryDropReason => "EntryTooDeep";
-const asMalformed = (malformed: EntryDropReason): EntryDropReason => malformed;
-
 /**
  * Where a refused entry read lands: `TooDeep` is `EntryTooDeep` whichever read
- * raised it, `Malformed` is the reason of the read that did (`MalformedEntry`
- * for the entry, `UndecodablePolicy` for the policy). Shared by both reads.
+ * raised it, `Malformed` is `malformed`, the reason of the read that did
+ * (`MalformedEntry` for the entry, `UndecodablePolicy` for the policy). Shared by
+ * both reads.
  */
-const entryDropReason: (refusal: UntrustedValueRefusal) => (malformed: EntryDropReason) => EntryDropReason =
-  Match.type<UntrustedValueRefusal>().pipe(
+const entryDropReason = (refusal: UntrustedValueRefusal, malformed: EntryDropReason): EntryDropReason =>
+  Match.value(refusal).pipe(
     Match.tagsExhaustive({
-      TooDeep: () => tooDeepEntry,
-      Malformed: () => asMalformed,
+      TooDeep: (): EntryDropReason => "EntryTooDeep",
+      Malformed: (): EntryDropReason => malformed,
     }),
   );
 
@@ -529,7 +527,7 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
     // disclosure of the wrong shape — is a different failure than a policy shape
     // this schema doesn't know, and warrants its own reason.
     if (Result.isFailure(fields)) {
-      bucketOf[entryDropReason(fields.failure)("MalformedEntry")].push(entry);
+      bucketOf[entryDropReason(fields.failure, "MalformedEntry")].push(entry);
       continue;
     }
 
@@ -538,7 +536,7 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
     // entry of a shape undecodable, and one warning per entry would bury the
     // page's other output under a payload's worth of identical lines.
     if (Result.isFailure(decoded)) {
-      bucketOf[entryDropReason(decoded.failure)("UndecodablePolicy")].push(entry);
+      bucketOf[entryDropReason(decoded.failure, "UndecodablePolicy")].push(entry);
       continue;
     }
 
