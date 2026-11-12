@@ -1,7 +1,7 @@
 ---
 phase: 34-diagnostics-as-the-dock-model-s-seventh-store
 verified: 2026-11-12T19:40:00Z
-status: human_needed
+status: passed
 score: 5/5 must-haves verified
 covered_files:
   - ".planning/phases/34-diagnostics-as-the-dock-model-s-seventh-store/34-01-PLAN.md"
@@ -49,7 +49,7 @@ human_verification:
 
 **Phase Goal:** The dock forks nothing from a React effect: the diagnostics poll runs in the model's scope, the "supplied reading wins per field" merge is a model store, and ARCH-74's rule ("one owned-model hook, and it forks nothing") finally holds.
 **Verified:** 2026-11-12
-**Status:** human_needed (all automated truths verified; three browser checks remain)
+**Status:** passed (all automated truths verified; the three browser checks passed in headless Chromium and the user accepted them on 2026-11-12)
 **Re-verification:** No, initial verification
 
 ## Goal Achievement
@@ -114,3 +114,13 @@ No gaps. The goal is achieved in code: no fork or poll lives in a React effect, 
 
 _Verified: 2026-11-12_
 _Verifier: Claude (gsd-verifier)_
+
+## Human Verification Outcome
+
+The three browser checks ran in headless Chromium 1.65 against the built `packages/devtools/lib`, and the user accepted them on 2026-11-12.
+
+1. The Activity hide/show rebuild renders `Starting` inside the `role="status"` region, then `Live`. No old reading appeared in between. **PASS.**
+2. The Stopped notice on the dark-only dock: body text is 12.10:1 against the notice box and the amber lead is 6.57:1. **PASS.**
+3. After a keyboard Restart, focus lands on the screen root (`tabIndex=-1`, `:focus-visible`) and stays there through `Live`. On a second stop the notice node is replaced. The reason `<pre>` sits outside `role="alert"`. **PASS.**
+
+Carried to Phase 36 as polish: the screen root's focus ring is the browser's default 1px outline, which is subtle on the dark background, and the "Restart diagnostics" button's text contrast was not measured.
