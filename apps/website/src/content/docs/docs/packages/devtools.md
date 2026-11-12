@@ -160,6 +160,12 @@ on every tick, and a layer that fails to build is stated on the Services panel,
 with the other reads carrying on. Gates are not sampled: they come from the
 provider's registry and the feed reads them for you.
 
+While the first sample is pending, the Services and React screens say so. If the
+sampler fails with an unexpected error it stops: the screens say so with the reason,
+keep the last reading and offer **Restart diagnostics**. A hidden-then-shown dock
+samples afresh from its first sample, and removing `diagnostics` stops sampling and
+clears the reading.
+
 **A host with no `QadiProvider`** (a shell running `runDiagnostics`) hands the
 dock a layer of its own, and the dock's build of it is its own: a service that
 keeps state in its constructor is two instances if the dock and the application
