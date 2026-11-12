@@ -15,17 +15,16 @@
  * `configure` dispatches only the inputs whose identity moved (ARCH-63's defect
  * class: an unchanged prop must not wipe a capture or a half-filled form).
  *
- * **The model owns its lifetime.** It is built in a `Scope` and keeps one
- * `FiberHandle` for the source it reads, one for the diagnostics poll, and the
- * one the simulation session keeps for its runs; closing the scope ends all
- * three (ADR-QD-137). The seventh store is the diagnostics reading: the poll's
- * status and the sampled reading with a supplied one laid over it. There is no
- * `dispose` and no `read` command.
+ * **The model owns its lifetime.** It is built in a `Scope`. It reads its source
+ * through a timeline feed and its diagnostics through a diagnostics feed, each
+ * with its own handle in the model's scope; closing the scope ends both and any
+ * simulation run (ADR-QD-137). The seventh store is the diagnostics reading: the
+ * poll's status and the sampled reading with a supplied one laid over it. There
+ * is no `dispose` and no `read` command.
  *
  * Package-private (ADR-QD-099): the dock is the one thing that drives it.
  */
 import * as Effect from "effect/Effect";
-import * as FiberHandle from "effect/FiberHandle";
 import type * as Scope from "effect/Scope";
 import type { Role } from "@qadi/core";
 import { catalogueOf, type Catalogue, type PolicySighting } from "./Catalogue.ts";
@@ -43,9 +42,10 @@ import { makeHeldChoiceStore, type HeldChoiceStore } from "./HeldChoice.ts";
 import { sameRole } from "./RoleTree.ts";
 import { makeSimulationSession, type SimulationSession } from "./SimulationSession.ts";
 import type { EvaluationPortsLayer } from "./SimulationInput.ts";
-import { sourceFromRecords, type Source } from "./Source.ts";
-import { DEFAULT_TIMELINE_CAPACITY, type Timeline } from "./Timeline.ts";
-import { makeTimelineStore, runSource, type TimelineStore } from "./TimelineStore.ts";
+import type { Source } from "./Source.ts";
+import type { Timeline } from "./Timeline.ts";
+import { makeTimelineFeed } from "./TimelineFeed.ts";
+import type { TimelineStore } from "./TimelineStore.ts";
 
 /** What a host hands the dock. Each field is compared by identity when it is configured again. */
 export interface DockModelInputs {
@@ -78,22 +78,16 @@ export interface DockModel {
 /** One list for every absent catalogue, so the role store keeps one identity. */
 const NO_ROLES: ReadonlyArray<Role> = [];
 
-/** What a host that gave no source reads: nothing, which ends at once. */
-const NO_SOURCE: Source = sourceFromRecords([]);
-
-const bounded = (capacity: number | undefined): TimelineStore =>
-  makeTimelineStore({ capacity: capacity ?? DEFAULT_TIMELINE_CAPACITY });
-
 /** Builds the model in the caller's scope; closing it interrupts the source read and any run in flight. */
 export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* (
   init?: DockModelInputs,
 ): Effect.fn.Return<DockModel, never, Scope.Scope> {
   let inputs: DockModelInputs = init ?? {};
-  let inner = bounded(inputs.capacity);
-  let shown: Timeline = inner.getSnapshot();
+  // Reads the source in this scope; the store it hands back outlives a capacity change.
+  const timelineFeed = yield* makeTimelineFeed({ capacity: inputs.capacity, source: inputs.source });
+  const timeline = timelineFeed.timeline;
+  let shown: Timeline = timeline.getSnapshot();
   let rail = catalogueOf(shown, inputs.catalogue);
-  // What the host subscribes to. It outlives every `inner`, so a capacity change is a new value, not a new store.
-  const view = makeExternalStore<Timeline>(shown);
 
   const simulation = yield* makeSimulationSession({ sightings: rail });
   simulation.setPorts(inputs.ports);
@@ -108,36 +102,18 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
     dock.setTimeline(shown);
   };
 
-  // Heard from the current `inner` only. A pause toggle changes the store's reading
-  // without moving the shown timeline, so it reaches the host but not the rail.
-  const push = () => {
-    const next = inner.getSnapshot();
-    if (next !== shown) {
-      shown = next;
-      spread();
-    }
-    view.publish(shown);
-  };
-  inner.subscribe(push);
-
-  const timeline: TimelineStore = {
-    subscribe: view.subscribe,
-    getSnapshot: view.getSnapshot,
-    accept: (record) => inner.accept(record),
-    clear: () => inner.clear(),
-    setPaused: (paused) => inner.setPaused(paused),
-    isPaused: () => inner.isPaused(),
-  };
-
-  const reads = yield* FiberHandle.make<void>();
-  const forkRead = yield* FiberHandle.runtime(reads)<never>();
-  // A replacement interrupts the read before it; a source that went away is replaced by an empty one.
-  const readSource = (source: Source | undefined) => forkRead(runSource(timeline, source ?? NO_SOURCE));
-  readSource(inputs.source);
+  // Subscribed here, before any host listener, so the rail moves first. A pause toggle
+  // publishes the same timeline, which reaches the host but not the rail.
+  timeline.subscribe(() => {
+    const next = timeline.getSnapshot();
+    if (next === shown) return;
+    shown = next;
+    spread();
+  });
 
   // Forks the poll and never waits on it, so an asynchronous layer leaves it `Starting` after the build.
-  const feed = yield* makeDiagnosticsFeed(inputs.diagnostics);
-  let fed = feed.getSnapshot();
+  const diagnosticsFeed = yield* makeDiagnosticsFeed(inputs.diagnostics);
+  let fed = diagnosticsFeed.getSnapshot();
   let supplied = inputs.reading;
   const mergedOf = (snapshot: DiagnosticsSnapshot, reading: DiagnosticsReading | undefined): DiagnosticsSnapshot => {
     const merged = mergeReading(snapshot.reading, reading);
@@ -145,13 +121,13 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   };
   const shownReading = makeExternalStore<DiagnosticsSnapshot>(mergedOf(fed, supplied));
   const remerge = () => {
-    const next = feed.getSnapshot();
+    const next = diagnosticsFeed.getSnapshot();
     if (next === fed && inputs.reading === supplied) return;
     fed = next;
     supplied = inputs.reading;
     shownReading.set(mergedOf(fed, supplied));
   };
-  feed.subscribe(remerge);
+  diagnosticsFeed.subscribe(remerge);
 
   return {
     timeline,
@@ -162,28 +138,21 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
     diagnostics: {
       subscribe: shownReading.subscribe,
       getSnapshot: shownReading.getSnapshot,
-      restart: feed.restart,
+      restart: diagnosticsFeed.restart,
     },
     sightings: () => rail,
 
     configure: (next) => {
       const before = inputs;
       inputs = next;
-      const resized = next.capacity !== before.capacity;
-      if (resized) {
-        // The old store is dropped, not unsubscribed from: nothing can reach it again.
-        inner = bounded(next.capacity);
-        inner.subscribe(push);
-        push();
-      }
+      timelineFeed.configure({ capacity: next.capacity, source: next.source });
       if (next.catalogue !== before.catalogue) {
         spread();
         roles.setList(next.catalogue?.roles ?? NO_ROLES);
       }
       // The session guards an identical layer itself, so this is not guarded again.
       simulation.setPorts(next.ports);
-      if (resized || next.source !== before.source) readSource(next.source);
-      feed.configure(next.diagnostics);
+      diagnosticsFeed.configure(next.diagnostics);
       remerge();
     },
   };
