@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-132                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-10                                     |
 > | Status         | Accepted — reads ADR-QD-031                    |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-10): Initial (ARCH-68, CCR-QD-410) |
+> | Change History | 1.1 (2026-11-12): Amendment: a reset supersedes its claims; the staleness rule moves into SharedComputation (ARCH-79, CCR-QD-422)<br>1.0 (2026-11-10): Initial (ARCH-68, CCR-QD-410) |
 
 ---
 
@@ -91,3 +91,28 @@ The old doc comment above `awaitShared` listed three ways out:
 - **Cache the abandoned computation's exit unless a fresher claim exists.** Rejected. It
   needs the adapter to compare claims, and in the window where both settle it would still
   append the key twice.
+
+## Amendment (2026-11-12, CCR-QD-422, ARCH-79)
+
+A reset is a second way a claim stops being current. Before, `reset` only forgot the
+in-flight table, so a forgotten claim that somebody still awaited settled into the adapter
+anyway, and `DecisionCache` closed that with a counter of its own, read when a claim was
+made and compared when it settled. The staleness rule was a second mechanism for a fact the
+module already holds, which claims are in flight.
+
+A claim now has one closed standing: Live, Superseded or Abandoned. `reset` supersedes every
+in-flight claim in the same synchronous step that empties the table, and only a Live claim's
+exit reaches the adapter, through a `settle(key, exit)` hook that replaces the hook that
+returned a closure when the claim was made. A superseded claim is treated as decisions 1 and
+2 treat an abandoned one: it is not joinable, its exit is dropped, it still answers every
+waiter, and it is interrupted when its last waiter leaves. `DecisionCache` keeps no counter;
+`clear` empties its entries and insertion order and calls `reset`.
+
+Decision 3 still holds: the interface, the metric order and `DecisionCache.test.ts` are
+unchanged. The rule is stated as
+[BEH-QD-491](../behaviors/21-decision-cache.md#beh-qd-491-a-stale-answer-never-re-enters-a-cleared-cache)
+and
+[INV-QD-307](../invariants.md#inv-qd-307-a-superseded-claims-exit-never-settles-and-its-waiters-are-still-answered-exactly-once).
+A separate record, ADR-QD-144, was reserved for this and is unused: a claim stops being
+joinable and its exit stops reaching the adapter when it stops being current, and a reset is
+a second cause of that, so an amendment keeps one record.
