@@ -4,17 +4,17 @@ milestone: v1.3
 milestone_name: Arch Wave 8
 current_phase: 35
 current_phase_name: The atom set owns its eviction sweep
-status: executing
-stopped_at: Completed 35-06-PLAN.md
-last_updated: "2026-11-12T21:06:23.007Z"
+status: verifying
+stopped_at: Completed 35-07-PLAN.md
+last_updated: "2026-11-12T21:14:15.241Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 35 execution started
-state_head: c06215ff919266bc6d190e0a548a03cac0436069
+state_head: 8e86102960bd9e65df88d3489a9d6c71424d80f8
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 40
-  completed_plans: 39
+  completed_plans: 40
   percent: 71
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 
 Phase: 35 (The atom set owns its eviction sweep) — EXECUTING
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-12 — Phase 35 execution started
 
 Progress: [███████░░░] 71% (v1.3: 0 of 7 phases)
@@ -186,6 +186,7 @@ Progress: [███████░░░] 71% (v1.3: 0 of 7 phases)
 | Phase 35 P04 | 5 min | 3 tasks | 11 files |
 | Phase 35 P05 | 20 min | 3 tasks | 8 files |
 | Phase 35 P06 | 8 min | 3 tasks | 11 files |
+| Phase 35 P07 | 5 min | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -286,6 +287,7 @@ Progress: [███████░░░] 71% (v1.3: 0 of 7 phases)
 - [Phase 35]: 35-04: candidate 1 landed as the spike concluded (admission trigger kept, entry.inBook release guard kept); SweepScheduler.ts holds the coalescer and withSweepFork/sweepForkOf, the fork travels in a class-private slot, nothing exported from the barrel
 - [Phase 35]: 35-05: candidate-1 executed as written; sweepIntervalMillis and QadiAtoms.sweepEvictions removed (Breaking), no inert prop kept
 - [Phase 35]: 35-06: BEH-QD-514 words the removed manual sweep as 'no member a caller can use to run a sweep' (the plan's verify forbids naming sweepEvictions in 09); ADR-QD-148 written for candidate-1
+- [Phase 35]: 35-07: closing checks green; no mutation survivor needed naming, 35-mutation-survivors.json not created
 
 ### Pending Todos
 
@@ -327,8 +329,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T21:06:22.590Z
-Stopped at: Completed 35-06-PLAN.md
+Last session: 2026-11-12T21:14:14.782Z
+Stopped at: Completed 35-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
