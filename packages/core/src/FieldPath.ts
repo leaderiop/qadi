@@ -37,6 +37,7 @@
  * `FieldPath.test.ts`'s "a non-terminal '*'/'**' is a literal segment, not a
  * wildcard" pins the behavior.
  */
+import { isPlainObject } from "./JsonShape.ts";
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -161,10 +162,6 @@ export const compareShapes = (a: SpecShape, b: SpecShape): Containment => {
 
 /** Distinguishes "nothing to show here" from a legitimately empty object. */
 const OMIT: unique symbol = Symbol("FieldPath.project.omit");
-
-/** True for a plain object — arrays excluded, a spec never indexes into one. */
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** Groups path tails by their first remaining segment, consuming it. */
 const groupByHead = (

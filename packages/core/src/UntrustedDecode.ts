@@ -15,7 +15,7 @@
  * from {@link UntrustedRefusal} into its own error. Build each decoder once, at
  * module scope.
  *
- * A leaf: it imports `effect` and `DecodeDepthGuard.ts` only, never
+ * A leaf: it imports `effect`, `DecodeDepthGuard.ts` and `JsonShape.ts` only, never
  * `Policy.ts` (ADR-QD-037, which counts type-only edges), so `Policy.ts` and
  * every other seam can import it.
  */
@@ -23,7 +23,8 @@ import * as Data from "effect/Data";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type * as SchemaAST from "effect/SchemaAST";
-import { exceedsJsonDepth, isPlainObject } from "./DecodeDepthGuard.ts";
+import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
+import { isPlainObject } from "./JsonShape.ts";
 
 /**
  * A generous structural ceiling on the raw JSON an untrusted seam decodes from,

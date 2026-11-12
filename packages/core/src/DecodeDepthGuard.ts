@@ -12,10 +12,7 @@
  * the decoder is the only way to run it ahead of a decode, and a seam cannot
  * assemble guard-then-decode by hand.
  */
-
-/** True for a non-null, non-array object; package-private, shared with the decoder and `SinkCodec.ts`. */
-export const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+import { isPlainObject } from "./JsonShape.ts";
 
 /** `true` once any value in `root` is nested deeper than `maxDepth`. */
 export const exceedsJsonDepth = (root: unknown, maxDepth: number): boolean => {

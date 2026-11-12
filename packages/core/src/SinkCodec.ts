@@ -60,7 +60,6 @@ import type { DecisionDisagreement, Trace } from "./Decision.ts";
 import type { DecisionOutcome, SinkRecord, StoredRecord } from "./DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord, stampRecord } from "./DecisionRecord.ts";
 import { DecisionWire, decodeDecision, encodeDecision } from "./DecisionWire.ts";
-import { isPlainObject } from "./DecodeDepthGuard.ts";
 import {
   AttributeResolveError,
   CustomPredicateError,
@@ -77,6 +76,7 @@ import {
 import { Policy, policyDepth } from "./Policy.ts";
 import { wireHazard } from "./JsonHazard.ts";
 import { EncodeRefusal } from "./JsonRefusal.ts";
+import { isPlainObject } from "./JsonShape.ts";
 import {
   DECISION_RECORD_TAG,
   decisionRecordFields,

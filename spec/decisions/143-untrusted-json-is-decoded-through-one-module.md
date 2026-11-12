@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-143                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-12                                     |
 > | Status         | Accepted — amends ADR-QD-096, ADR-QD-107       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-12): Budget exceptions: PortSpanEncode.ts reason states the property that holds (named keys, SpanValue leaves); JSON.parse is counted, adding SinkCodec.ts and SimulationForm.ts rows.<br>1.0 (2026-11-12): Initial (ARCH-78, CCR-QD-421) |
+> | Change History | 1.2 (2026-11-12): the one package-private isPlainObject lives in JsonShape.ts, shared by the decoder family and FieldPath.ts (ARCH-78, CCR-QD-421)<br>1.1 (2026-11-12): Budget exceptions: PortSpanEncode.ts reason states the property that holds (named keys, SpanValue leaves); JSON.parse is counted, adding SinkCodec.ts and SimulationForm.ts rows.<br>1.0 (2026-11-12): Initial (ARCH-78, CCR-QD-421) |
 
 ---
 
@@ -93,8 +93,10 @@ error.** (ARCH-78, D-01 to D-12 of the phase.)
   `Policy.ts` neither declares nor re-exports `MAX_DECODE_DEPTH`; its importers (`SinkCodec.ts`,
   `FieldPath.ts`, `Explanation.ts`, `PortWireEncode.ts`, `TreeFold.ts`, `RelationshipResolver.ts`,
   `Simplify.ts`, react's `HydrationEngine.ts`) import it from the leaf, and `PortWireEncode.ts` lost
-  its edge to `Policy.ts`. The leaf imports `effect` and `DecodeDepthGuard.ts` only (ADR-QD-037
-  counts type-only edges), so `Policy.ts` can import it and never the reverse.
+  its edge to `Policy.ts`. The leaf imports `effect`, `DecodeDepthGuard.ts` and `JsonShape.ts` only (ADR-QD-037
+  counts type-only edges), so `Policy.ts` can import it and never the reverse. `JsonShape.ts` is the
+  one package-private plain-object predicate that `DecodeDepthGuard.ts`, the decoder, `SinkCodec.ts`
+  and `FieldPath.ts` share; it holds no depth logic and no budget row.
 - **The rule is enforced, not remembered.** `[untrusted-decode]` in `scripts/check-house-style.mjs`
   counts `onExcessProperty`, `exceedsJsonDepth`, `Schema.decode*` and `JSON.parse` tokens (comments and strings
   stripped) per file in `packages/*/src`, and AGENTS.md §7a states the table. It is
