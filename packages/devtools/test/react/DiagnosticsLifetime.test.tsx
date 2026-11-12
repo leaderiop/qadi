@@ -216,7 +216,7 @@ describe("the dock's diagnostics across React's lifecycle", () => {
     });
   });
 
-  it("K5 a hidden-then-shown dock shows the report it held at once", async () => {
+  it("K5 a hidden-then-shown dock samples afresh: no report until the first sample after the show", async () => {
     const { counts, layer } = slowCounted();
     const diagnostics: DiagnosticsDockOptions = { layer };
     const App = ({ mode }: { readonly mode: "visible" | "hidden" }) => (
@@ -233,9 +233,9 @@ describe("the dock's diagnostics across React's lifecycle", () => {
     view.rerender(<App mode="visible" />);
     services();
 
-    // Before the layer has rebuilt: the report on screen is the one the dock held.
-    assert.isNotNull(screen.getByTestId("qadi-cache-card"));
-    assert.strictEqual(counts.builds, 1);
+    // The model was rebuilt with the show: nothing is held over, so there is no report yet.
+    assert.isNull(screen.queryByTestId("qadi-cache-card"));
+    await vi.waitFor(() => screen.getByTestId("qadi-cache-card"));
     await vi.waitFor(() => {
       assert.strictEqual(counts.builds, 2);
     });

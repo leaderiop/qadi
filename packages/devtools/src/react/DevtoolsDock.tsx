@@ -13,15 +13,12 @@
  * a backend-only service, a serverless function, a replicated server. Their
  * decisions are reachable at `/__decisions`; what renders them is not this.
  */
-import { useMemo, type FC, type ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 import { sourceFromRecords, type Source } from "../model/Source.ts";
 import type { Verdict } from "../model/Verdict.ts";
 import type { Catalogue } from "../model/Catalogue.ts";
-import {
-  mergeReading,
-  type Diagnostics,
-  type DiagnosticsReading,
-} from "../model/DiagnosticsStore.ts";
+import type { DiagnosticsDockOptions } from "../model/DiagnosticsFeed.ts";
+import type { Diagnostics, DiagnosticsReading } from "../model/DiagnosticsStore.ts";
 import type { DockModel } from "../model/DockModel.ts";
 import type { DockSnapshot, TabId } from "../model/DockSession.ts";
 import type { GateInstanceLike } from "../model/Gates.ts";
@@ -33,7 +30,6 @@ import { QuestionsPanel } from "./QuestionsPanel.tsx";
 import { RoleViewer } from "./RoleViewer.tsx";
 import { ServicesPanel } from "./ServicesPanel.tsx";
 import { Simulator } from "./Simulator.tsx";
-import { useDiagnostics, type DiagnosticsDockOptions } from "./useDiagnostics.ts";
 import { useDockModel } from "./useDockModel.ts";
 import { usePaused, useStoreSnapshot } from "./useStoreSnapshot.ts";
 import { body, button, colors, dock as dockStyle, font, input, muted, toolbar } from "./theme.ts";
@@ -83,7 +79,8 @@ export interface DevtoolsDockProps {
    * unchanged, and releases the layer on unmount. Absent, nothing is sampled and
    * the panels explain what they would need; `{}` samples the metric reads
    * alone. Hold the fields at module scope, since the run restarts when one of
-   * them changes identity.
+   * them changes identity. The dock's model polls in its own scope, so a
+   * hidden-then-shown dock samples afresh, from its first sample.
    *
    * Gates are not in it: they are pushed by `@qadi/react`'s registry through the
    * host's subscription, and stay the plain `gates` prop below.
@@ -145,15 +142,9 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
    * It is built in a scope this component owns, so it does not exist on the first
    * pass, and the frame below, whose hooks read it once, is not rendered until it does.
    */
-  const model = useDockModel({ source, capacity, catalogue, ports });
+  const model = useDockModel({ source, capacity, catalogue, ports, diagnostics, reading });
 
-  // Each field is the supplied reading's when it carries one, and the sampled
-  // reading's otherwise: a supplied reading answers "what another process or a
-  // fixture saw", which a sample of this one cannot.
-  const sampled = useDiagnostics(diagnostics);
-  const shown = useMemo(() => mergeReading(sampled, reading), [sampled, reading]);
-
-  return model === undefined ? null : <DockFrame model={model} shown={shown} host={host} />;
+  return model === undefined ? null : <DockFrame model={model} host={host} />;
 };
 
 /**
@@ -164,11 +155,12 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
  */
 const DockFrame: FC<{
   readonly model: DockModel;
-  readonly shown: Diagnostics;
   readonly host: HostProps;
-}> = ({ model, shown, host }) => {
+}> = ({ model, host }) => {
   const { dock, timeline } = model;
   const view = useStoreSnapshot(dock);
+  // Each field is the supplied reading's when it carries one, and the sample's otherwise: the model merges.
+  const shown = useStoreSnapshot(model.diagnostics).reading;
   const paused = usePaused(timeline);
 
   return (
