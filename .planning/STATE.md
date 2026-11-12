@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 32
 current_phase_name: Evaluation options and services stated once
 status: executing
-stopped_at: Completed 32-01-PLAN.md
-last_updated: "2026-11-12T13:12:34.491Z"
+stopped_at: Completed 32-02-PLAN.md
+last_updated: "2026-11-12T13:15:34.220Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 32 execution started
-state_head: 459ad540ae8d6d290889fa1d650658deb57eed7c
+state_head: a7323863cdb56e741c787d363a358d9ea3e76efc
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 18
-  completed_plans: 15
+  completed_plans: 16
   percent: 29
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 32 (Evaluation options and services stated once) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 32 execution started
 
@@ -159,6 +159,7 @@ Progress: [███░░░░░░░] 29% (v1.3: 0 of 7 phases)
 | Phase 31 P04 | 15 min | 2 tasks | 6 files |
 | Phase 31 P05 | 10 min | 3 tasks | 1 files |
 | Phase 32 P01 | 10 min | 2 tasks | 2 files |
+| Phase 32 P02 | 12 min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -233,6 +234,7 @@ Progress: [███░░░░░░░] 29% (v1.3: 0 of 7 phases)
 - [Phase 31]: Property non-vacuity floors met by weighting the command generator, never by lowering a floor
 - [Phase 31]: ADR-QD-144 unused: a reset is a second cause of ADR-QD-132's decision, so it is amended rather than superseded
 - [Phase 32]: 32-01: the shape pin reads only the @qadi/core barrel and spells each service union out to the five ports, so it stays byte-identical through the move
+- [Phase 32]: 32-02: evaluationId doc now points at decideQuestion in Lifecycle.ts; no TS2883, no re-export in Evaluate.ts
 
 ### Pending Todos
 
@@ -274,8 +276,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T13:12:34.458Z
-Stopped at: Completed 32-01-PLAN.md
+Last session: 2026-11-12T13:15:34.188Z
+Stopped at: Completed 32-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
