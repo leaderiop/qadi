@@ -93,6 +93,11 @@ The user's standing direction: "the most clean solution, the most complete, not 
   - **Comment-only edits.** These src edits stay out of the mutation base; a comment-stripped transpile comparison proves them.
   - **The DEBT-02 premise.** `Sources.ts` was renamed `SimulationSource.ts`, which the row already lists, so the fix deletes the stale token. CCR-QD-427 records the departure from the requirement wording.
 
+- **D-18 The UI contract's three additions are accepted by the orchestrator** under D-13 ("modelled on the Diagnostics notice") and the standing direction:
+  - **A restart on the timeline readout.** The feed gains `restart`; `DockModel.timelineStatus` and `useTimeline` expose it, and BEH-QD-465's restatement names it.
+  - **The dock body as a focusable region.** It gets `tabIndex={-1}` and `data-testid="qadi-dock-body"`, and is the timeline notice's focus-return target.
+  - **One shared stopped box,** extracted from `DiagnosticsNotice.tsx` and used by both notices. `36-UI-SPEC.md` is the contract.
+
 ### Claude's Discretion
 - Plan count and wave split, within this fixed order: mutation baseline first, then the ledger and RED/characterisation tests, then the fixes, then the spec and record edits, then the closing gate.
 - Whether the timeline feed's "observable death" reuses `DiagnosticsStatus`'s shape or a smaller, closed status of its own. The cleaner, more consistent option wins.
