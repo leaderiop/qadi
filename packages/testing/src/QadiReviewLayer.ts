@@ -4,7 +4,7 @@
  * Every default fails closed, so a test that forgets to grant something sees a
  * denial rather than an accidental allow.
  */
-import { evaluationIdSequential, fixturePortsLayer } from "@qadi/core";
+import { evaluationEnvironment, fixturePortsLayer } from "@qadi/core";
 import type {
   EvaluationServices,
   PortFixtureData,
@@ -141,15 +141,21 @@ export type PortSetups = {
  * lists the ports or zips per-port records: a port added to the registry is
  * here, at its fail-closed default, without an edit, and its fixture is one row
  * in core's `PORT_FIXTURES`.
+ *
+ * It does not shadow the decision sink or the decision cache, so a test that
+ * wraps it in a recording sink or a cache sees every record and every lookup. That
+ * is a choice stated to core's evaluation environment, the opposite of the
+ * simulator's, and not a missing seal (INV-QD-311, ADR-QD-146).
  */
 export const qadiReviewLayer = (
   options?: TestLayerOptions,
 ): Layer.Layer<StandingEvaluationServices> =>
-  Layer.mergeAll(
-    fixturePortsLayer(options?.ports),
-    evaluationIdSequential(options?.idPrefix ?? "eval"),
-    clockLayer(options?.clock),
-  );
+  evaluationEnvironment({
+    ports: fixturePortsLayer(options?.ports),
+    idPrefix: options?.idPrefix ?? "eval",
+    clock: clockLayer(options?.clock),
+    shadow: "none",
+  });
 
 /**
  * `Layer.empty` for `live`, so nothing shadows the runtime's own clock.

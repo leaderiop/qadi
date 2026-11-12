@@ -9,7 +9,7 @@ import type { AuthSubject } from "../src/AuthSubject.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
 import type { EvaluationServices, StandingEvaluationServices } from "../src/EvaluationServices.ts";
-import { evaluationIdSequential } from "../src/EvaluationId.ts";
+import { evaluationEnvironment } from "../src/EvaluationEnvironment.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
@@ -30,13 +30,14 @@ export type QadiServices = EvaluationServices;
  * `qadiReviewLayer` is: this helper used to hand-copy that package's body —
  * `@qadi/core` cannot depend on `@qadi/testing`, which depends on it — and
  * nothing caught one copy going stale without the other. Now neither lists
- * the ports, so a port added to the registry reaches both without an edit.
+ * the ports, and both are the same core builder (`evaluationEnvironment`), so a
+ * port added to the registry reaches both without an edit.
  */
 export const testLayer = (
   subject: AuthSubject,
   overrides?: PortOverrides,
 ): Layer.Layer<QadiServices> =>
-  Layer.mergeAll(currentSubjectLayer(subject), portsLayer(overrides), evaluationIdSequential());
+  Layer.merge(currentSubjectLayer(subject), subjectSetLayer(overrides));
 
 /**
  * The same environment with **no** current subject.
@@ -48,7 +49,12 @@ export const testLayer = (
 export const subjectSetLayer = (
   overrides?: PortOverrides,
 ): Layer.Layer<StandingEvaluationServices> =>
-  Layer.merge(portsLayer(overrides), evaluationIdSequential());
+  evaluationEnvironment({
+    ports: portsLayer(overrides),
+    idPrefix: "eval",
+    clock: Layer.empty,
+    shadow: "none",
+  });
 
 /**
  * Same shape as `@qadi/testing`'s `Fixtures.ts` `subjectWith`, and for the
