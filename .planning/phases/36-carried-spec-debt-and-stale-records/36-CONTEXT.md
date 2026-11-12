@@ -98,6 +98,15 @@ The user's standing direction: "the most clean solution, the most complete, not 
   - **The dock body as a focusable region.** It gets `tabIndex={-1}` and `data-testid="qadi-dock-body"`, and is the timeline notice's focus-return target.
   - **One shared stopped box,** extracted from `DiagnosticsNotice.tsx` and used by both notices. `36-UI-SPEC.md` is the contract.
 
+- **D-19 The seed mechanism is candidate A2 (`36-RESEARCH-SEEDS.md`), accepted by the orchestrator under D-14.**
+  - **Mechanism.** Each question's handle keeps a `WeakMap<SeedGrant, SeededDecision>`. `hydrate` returns `[grantAtom, grant]` for each verified entry, and the grant atom is keepAlive. `read` finds a seed only through `registry.getNodes().get(grantAtom)`, which never creates a node, and never after `state.announced`. Only `HydrationEngine.ts` and `QadiAtoms.ts` change: no `QuestionBook.ts`, provider or public API change, and no timer.
+  - **Why it stays within D-14.** D-14 rejected keepAlive on the seed atoms because it pins a node for every question read (51 against 1, measured) and lets a spent seed return. A2 pins one tiny grant node per hydrated entry until the registry is disposed. That is bounded by the hydration payload, and it is the smallest pin any registry-resident design can hold. The mechanism rejected as unsafe was candidate A, holding the seed in the shared book entry: a registry that was never given a seed reads another registry's seed, which would leak across server requests.
+  - **Cleanup.** `AnnounceState.observedSeed` is deleted in the same change; it becomes dead under A2.
+  - **Ordering, which is load-bearing.** The `subject` keepAlive fix lands before the seed fix. With the seed fix alone, a late gate whose subject node was lost shows the server's allow forever. SD5 is the ordering pin.
+  - **Records.** ADR-QD-149, reserved by hand by the orchestrator on 2026-11-12 (the reservation file's ADR high-water is now 149). BEH-QD-516 for the subject, BEH-QD-517..518 for the seed, and INV-QD-317..318. BEH-QD-519..520 are available for the timeline status if it needs a new requirement, and are otherwise named Unused.
+  - **Mutation.** `HydrationEngine.ts` and `QadiAtoms.ts` are outside `stryker.react.mjs`'s `mutate` list. They are measured with the CLI override `--mutate packages/react/src/<file>` (the way Phase 35 measured `QadiAtoms.ts`), and the config is not edited.
+  - **Example check.** The example resolves `@qadi/react` through the built `lib/`, so a change is checked there only after `pnpm typecheck` (or `pnpm build`) has rebuilt it. `pnpm check:pr` builds first.
+
 ### Claude's Discretion
 - Plan count and wave split, within this fixed order: mutation baseline first, then the ledger and RED/characterisation tests, then the fixes, then the spec and record edits, then the closing gate.
 - Whether the timeline feed's "observable death" reuses `DiagnosticsStatus`'s shape or a smaller, closed status of its own. The cleaner, more consistent option wins.
