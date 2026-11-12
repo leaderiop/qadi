@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 31
 current_phase_name: A reset supersedes its claims
 status: executing
-stopped_at: Completed 31-01-PLAN.md
-last_updated: "2026-11-12T07:53:51.495Z"
+stopped_at: Completed 31-02-PLAN.md
+last_updated: "2026-11-12T07:57:31.373Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 31 execution started
-state_head: f3cdf7a376ecf32225353cdc5a07cdd267808969
+state_head: 5ba04675ddfc3d2bad00d62787a7d05890321ebd
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 14
-  completed_plans: 10
+  completed_plans: 11
   percent: 14
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 31 (A reset supersedes its claims) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 31 execution started
 
@@ -153,6 +153,7 @@ Progress: [█░░░░░░░░░] 14% (v1.3: 0 of 7 phases)
 | Phase 30 P08 | 8 min | 2 tasks | 8 files |
 | Phase 30 P09 | 25 min | 3 tasks | 5 files |
 | Phase 31 P01 | 20 min | 2 tasks | 2 files |
+| Phase 31 P02 | 15 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -222,6 +223,7 @@ Progress: [█░░░░░░░░░] 14% (v1.3: 0 of 7 phases)
 - [Phase 30]: 30-09: drop-closing tests for ExplorerSession.ts live in ExplorerSessionRefusal.test.ts, since ExplorerSession.test.ts hosts the paste-box characterisation pin
 - [Phase 30]: review (3 auto-fix rounds, 11 findings, all fixed): NotJson carries the parser's own message; JSON.parse counted by [untrusted-decode]; one package-private isPlainObject in JsonShape.ts; ADR-QD-002 amended; 30-mutation-after.json refreshed at HEAD
 - [Phase 31]: 31-01: RED races written against the base's claim hook; harness migration to settle stays in 31-03 Task 1
+- [Phase 31]: 31-02: claim transitions are module-scope tables typed Exclude<Standing, 'Live'>, so nothing can return to Live and no unkillable equivalent mutant is added
 
 ### Pending Todos
 
@@ -263,8 +265,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T07:53:51.450Z
-Stopped at: Completed 31-01-PLAN.md
+Last session: 2026-11-12T07:57:31.343Z
+Stopped at: Completed 31-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
