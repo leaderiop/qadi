@@ -1,7 +1,7 @@
 ---
 gsd_state_version: "1.0"
 milestone: v1.3
-milestone_name: Arch Wave 8 (Phases 30-37)
+milestone_name: Arch Wave 8 (Phases 30-36)
 status: planning
 last_updated: "2026-11-12T01:39:19.769Z"
 last_activity: 2026-11-12
@@ -209,7 +209,7 @@ Last activity: 2026-11-12 — Milestone v1.3 started
 - [Host] Run vitest from the repo root with `--project <pkg>`; running inside a package dir fails at collection.
 - `.planning/` is tracked (no `.gitignore` line). `.planning/architecture/` was archived under `.planning/milestones/archive-pre-gsd/` (tracked) by Phase 10 on 2026-11-10.
 - Shared spec files (README, traceability, invariants, overview, decisions/index.yaml) are edited by every phase, so parallel worktrees will conflict on revision lines. Use `scripts/spec-revise.mjs`. BEH/INV ids are allocated with `node scripts/next-id.mjs`.
-- Devtools replay: the other four ports' `none` answers still grant under `not(...)` on a capture miss (INV-QD-007 fail-open). Flipping each is one word in Capture.ts's `UNSEEN_REQUEST_IS_AN_OUTAGE`; needs a decision.
+- ~~Devtools replay fail-open~~: stale. Closed in v1.1 by ADR-QD-129 / CCR-QD-407 (`Capture.ts` `unseenReply` fails on every port); found 2026-11-12.
 - Write requirement lines as explicit ID lists, never ranges like `XC-01..05`: `phase.complete` cannot parse ranges.
 - Open review findings carried from v1.0 (warning/info): 01 WR-02/WR-03/IN-03; 02 IN-01..07; 04 IN-01..03; 05 WR-01/IN-01/IN-02; 07 IN-01..03; 09 IN-01. 01 and 08 VALIDATION.md files are still `draft`.
 - [Phase 22] Review findings (22-REVIEW-DISPOSITION.md): all seven fixed (WR-01 23e54421, WR-02 d4d62133, IN-01..05 3371400e..9e2b90bc). Phase 21's six findings also fixed (f0977945..7144dfba; 21-REVIEW-DISPOSITION.md).

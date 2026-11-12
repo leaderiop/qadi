@@ -32,8 +32,8 @@ All 9 phases verified `passed` against the final tree; the full `pnpm check` is 
 
 ## Current Milestone: v1.3 Arch Wave 8
 
-**Goal:** Resolve all six candidates of the 2026-11-12 architecture review, close the devtools replay fail-open, and clear
-the v1.2 spec debt (Phases 30–37, from ARCH-78).
+**Goal:** Resolve all six candidates of the 2026-11-12 architecture review and clear
+the v1.2 spec debt (Phases 30–36, from ARCH-78).
 
 **Base commit:** `aab87576` (v1.2 merged as #156). **Shared rules:** `.planning/phases/_SHARED-CONTEXT.md`, overridden where
 stated by `.planning/phases/_WAVE8-CONTEXT.md` (base, numbering, per-phase evidence from the review).
@@ -45,8 +45,8 @@ stated by `.planning/phases/_WAVE8-CONTEXT.md` (base, numbering, per-phase evide
 - `EvaluateOptions`/`EvaluationServices` declared once in a leaf; `LifecycleOptions` deleted (review 4)
 - The atom set owns its eviction sweep, so the limit holds without a provider (review 5, speculative: opens on a mechanism spike)
 - One sealed evaluation layer in core shared by `@qadi/testing` and devtools' Simulation (review 6)
-- Devtools replay fails closed on the four remaining ports' unseen requests (INV-QD-007; undecided since v1.0, decided 2026-11-12: flip all four)
-- Carried spec debt: duplicate BEH-QD-219..221, `Sources.ts` in traceability, selected open info findings
+- Carried spec debt: duplicate BEH-QD-219..221, `Sources.ts` in traceability, selected open info findings, and the stale
+  "replay fail-open undecided" known issue (already closed in v1.1 by ADR-QD-129 / CCR-QD-407: a replay miss is an outage on every port)
 
 **Review report (local, outside the repo):** `/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/architecture-review-20261112-022336.html`.
 
@@ -118,7 +118,7 @@ logged, counted or spanned.
 
 ### Active
 
-v1.3 Arch Wave 8: see `.planning/REQUIREMENTS.md` (one category per phase, 30–37).
+v1.3 Arch Wave 8: see `.planning/REQUIREMENTS.md` (one category per phase, 30–36).
 
 ### Out of Scope
 
@@ -193,8 +193,7 @@ v1.3 Arch Wave 8: see `.planning/REQUIREMENTS.md` (one category per phase, 30–
 
 - CI: the Node 26 matrix leg exceeds the 60-minute `timeout-minutes` during mutation on a full
   `pnpm check` (seen at c807b64 and 127d6fa); release PRs will hit it.
-- Devtools replay: the other four ports' `none` answers still grant under `not(...)` on a
-  capture miss (INV-QD-007 fail-open); flipping each is one word in `Capture.ts`. Needs a decision.
+- ~~Devtools replay fail-open on four ports~~: closed in v1.1 (ADR-QD-129, CCR-QD-407); this line was stale until 2026-11-12.
 - Open review findings, all warning or info: Phase 01 WR-02/WR-03/IN-03, Phase 02 IN-01..07,
   Phase 04 IN-01..03, Phase 05 WR-01/IN-01/IN-02, Phase 07 IN-01..03, Phase 09 IN-01
   (see each phase's `*-REVIEW-DISPOSITION.md` in the archive).
@@ -223,7 +222,7 @@ v1.3 Arch Wave 8: see `.planning/REQUIREMENTS.md` (one category per phase, 30–
 | Phase 8 amends ADR-QD-094 behind a human checkpoint | Serving facts belong to the port, but ADR-094 kept non-behavioral data out of descriptions | Accepted (Phase 8, D-01 approved, ADR-QD-114); 08-05 skipped |
 | `AuthorizeRequest.ts` leaves the barrel; `authorizeRequest`/`AuthorizedRequest` re-exported by name from `GuardApi.ts` | Keeps the module package-private (ADR-QD-099) with no export added or removed | Accepted (Phase 1, ADR-QD-108) |
 | Signature request key includes the requirement (meaning, signerRole) | A store receives the requirement and may filter on it, so the key must be injective over it (INV-QD-043) | Accepted (Phase 2) |
-| Devtools replay fails closed on an unseen signature request | An empty list would let `not(hasSignature)` show an allow the real store might not give | Accepted (Phase 2, WR-04); the other four ports undecided |
+| Devtools replay fails closed on an unseen signature request | An empty list would let `not(hasSignature)` show an allow the real store might not give | Accepted (Phase 2, WR-04); the other four ports closed in v1.1 (ADR-QD-129, CCR-QD-407) |
 | The archive writer refuses a sequence number the reader cannot decode (`SequenceNumberInvalid`), rather than scoping BEH-QD-254's agreement to safe integers | Scoping would have written writer/reader drift into the spec; refusing at the writer keeps the agreement true and closes the gap check's `2 ** 53` blind spot | Accepted (Phase 3, WR-01, D-48-g); widens the failure union, so `@qadi/audit` takes a minor |
 | The per-entry decision lookup lives in `useGates`, memoised on the group atom, rather than using the group atom as each entry's identity | No `QadiAtoms` member returns entry atoms (widening it would break), and group-atom identity would re-register every sibling when one entry changes (BEH-QD-068) | Accepted (Phase 4, D-03, ADR-QD-111); D-07 pin found no re-creation, so no `Equal`-keyed memo was added |
 | No ADR for ARCH-50; reserved ADR-QD-112 left unused | The refusal policy's documented owner is still core's `reportEncodeRefusal` (ADR-QD-095 D-09-e); the http module only frames and applies it per route | Accepted (Phase 5, CCR-QD-389) |
