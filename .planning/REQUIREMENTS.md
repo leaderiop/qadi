@@ -63,7 +63,7 @@ marked **Breaking**, `apps/website/.../reference/upgrading.md`). Releasing is st
 - [x] **SWEEP-02**: A mechanism is accepted only if it passes every criterion: the dispose-reread smoke, the existing sweep pins, the `examples/nextjs-newsroom` e2e unchanged (CI or the container route if the host cannot run it), one sweep per atom set however many providers or registries, no second sweeper under StrictMode or a hidden `<Activity>`, and no leaked fibers across many atom sets.
 - [x] **SWEEP-03**: If a mechanism passes, `maxTrackedQuestions` holds wherever the atom set runs, including with no provider, as shown by a bare-registry graph test. The provider no longer forks a sweep, and a superseded `sweepIntervalMillis` is removed (Breaking, recorded) or moved to the atom set's options if the mechanism still needs an interval.
 - [x] **SWEEP-04**: If no mechanism passes, the sweep stays in the provider, but the rule is stated (in the spec and the atom set's docs) and tested: what happens without a provider, and under several providers. `QadiProvider.test.tsx`'s "stays over the bound after unmount" pin is reconciled either way.
-- [ ] **SWEEP-05**: AGENTS.md §13 and `spec/process/house-rules-evidence.md` §4 describe the outcome. Any new reliance on an `@stability unstable` atom API is pinned in `v4-reactivity-smoke.test.ts`.
+- [x] **SWEEP-05**: AGENTS.md §13 and `spec/process/house-rules-evidence.md` §4 describe the outcome. Any new reliance on an `@stability unstable` atom API is pinned in `v4-reactivity-smoke.test.ts`.
 
 ### Carried spec debt and stale records (Phase 36)
 
@@ -139,7 +139,7 @@ The seven WX rows apply to every phase 30 to 36, so each phase's Requirements li
 | SWEEP-02 | Phase 35 | Complete |
 | SWEEP-03 | Phase 35 | Complete |
 | SWEEP-04 | Phase 35 | Complete |
-| SWEEP-05 | Phase 35 | Pending |
+| SWEEP-05 | Phase 35 | Complete |
 | DEBT-01 | Phase 36 | Pending |
 | DEBT-02 | Phase 36 | Pending |
 | DEBT-03 | Phase 36 | Pending |
