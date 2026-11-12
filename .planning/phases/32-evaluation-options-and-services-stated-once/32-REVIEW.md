@@ -1,6 +1,6 @@
 ---
 phase: 32-evaluation-options-and-services-stated-once
-reviewed: 2026-11-12T14:30:00Z
+reviewed: 2026-11-12T14:35:00Z
 depth: standard
 files_reviewed: 18
 files_reviewed_list:
@@ -24,82 +24,50 @@ files_reviewed_list:
   - packages/core/test/helpers.ts
 findings:
   critical: 0
-  warning: 2
-  info: 4
-  total: 6
+  warning: 0
+  info: 0
+  total: 0
   necessity: 0
-status: issues_found
+status: clean
 ---
 
 # Phase 32: Code Review Report
 
-**Reviewed:** 2026-11-12T14:30:00Z
-**Depth:** standard
+**Reviewed:** 2026-11-12T14:35:00Z
+**Depth:** standard (iteration 2 re-review of the iteration 1 fixes)
 **Files Reviewed:** 18
-**Status:** issues_found
+**Status:** clean
 
 ## Summary
 
-The move is faithful. I diffed every changed file against the base (4a534545).
+Both iteration 1 fixes verified; no new defect introduced.
 
-- **Shapes:** `EvaluateOptions` keeps `extends QuestionOptions`, `concurrency?: Concurrency` and `evaluationId?: string`, both readonly and optional. The doc text is verbatim except one deliberate edit (see IN-04).
-- **Service sets:** `EvaluationServices` and `StandingEvaluationServices` are character-identical to the base.
-- **Imports:** every moved-type import is `import type` with a `.ts` extension, and no importer still reads these types from `Evaluate.ts`.
-- **Barrel:** the `EvaluationServices.ts` line sits correctly between `EvaluationMetrics.ts` and `EvaluationServicesNone.ts`.
-- **House rules:** no `as`, `!`, `any`, `switch`, `fnUntraced` or async.
+**WR-01 (commit 36972599), `EvaluationServices.ts` header.** Every claim checks against the import graph:
+- `Evaluate.ts` imports `Lifecycle.ts` (`Evaluate.ts:15`), so declaring the types in `Evaluate.ts` would make `Lifecycle.ts` import back. A cycle, which madge counts even when type-only (ADR-QD-037).
+- `Lifecycle.ts` is not re-exported from `index.ts`, so public types declared there would need a barrel re-export (ADR-QD-099).
+- `Question.ts` imports only `Policy`, `Resource`, `AuthSubject` and `effect/Types` (`Question.ts:12-16`) and states "imports no evaluation code", so it cannot take `Ports.ts`-reading types.
 
-Gates run from the repo root, all green:
+The header keeps a one-line summary first, with the ADR citations in the paragraph after it. The module is still `import type` only. The earlier false "back edge" claim is gone.
 
+**IN-01 (commit 4d5d9258), `Lifecycle.tst.ts` literal-remainder pin.** `{ readonly concurrency?: Concurrency; readonly evaluationId?: string }` matches `EvaluateOptions` in `Question.ts:46-92` exactly. `concurrency?: Concurrency` and `evaluationId?: string` both carry the same `readonly` and optional modifiers. The `Concurrency` import is `import type { Concurrency } from "effect/Types"`, the same specifier `Question.ts` uses. It sits in alphabetical position and is type-only, as `verbatimModuleSyntax` requires. The new test uses `.toBe`, which is strict, and does not duplicate the `Omit` assertion.
+
+House rules hold for both commits: no `as`, `!`, `any`, `switch`, `Effect.fnUntraced` or async/await. `scripts/check-house-style.mjs` reports 466 files clean (3 declared switches).
+
+Checks, run from the repo root with no source modified:
+- `pnpm typecheck`: pass.
 - `pnpm circular`: no circular dependency.
-- `pnpm lint`: house-style clean, with only warnings in files outside this phase.
-- `pnpm test:tstyche`: 49 files and 501 assertions pass.
-- `pnpm typecheck`: passes.
-- vitest `--project core` on `Question.test.ts`: 10 tests pass.
+- `pnpm test:tstyche`: 49 files, 246 tests, 502 assertions, all passed.
+- `vitest run --project core`: 64 files, 2155 tests, all passed.
 
-No pin is vacuous in a way that lets a shape change through. `EvaluationShapes.tst.ts` imports only from the barrel and spells out literal shapes. The remaining findings are one inaccurate new comment, a decision-id convention question and weaker-than-claimed Lifecycle pins.
+## Accepted / carried (not counted in findings)
 
-## Warnings
-
-### WR-01: `EvaluationServices.ts` header gives a cycle reason that is false for `Lifecycle.ts`
-
-**File:** `packages/core/src/EvaluationServices.ts:3-5`
-**Issue:** The header says "`Evaluate.ts` and `Lifecycle.ts` both name these, and `Evaluate.ts` imports `Lifecycle.ts`, so declaring them in either would make the other import back". That holds only for `Evaluate.ts`. `Evaluate.ts` already imports `Lifecycle.ts`, so declaring the types in `Lifecycle.ts` adds no back edge. The real reason `Lifecycle.ts` cannot host them is that it is package-private and out of the barrel (ADR-QD-099), while these types are public. The comment is new in this phase, so it misdirects the next reader, who will find the stated cycle argument does not reproduce.
-**Fix:** State the accurate reason, for example: "Declaring them in `Evaluate.ts` would make `Lifecycle.ts` import back (madge counts a type-only edge); `Lifecycle.ts` is out of the barrel, so it cannot host public types."
-
-### WR-02: New doc comments cite decision ids, against the phase's own rule
-
-**File:** `packages/core/src/EvaluationServices.ts:6`, `packages/core/src/Lifecycle.ts:15-18`, `packages/core/test/Lifecycle.tst.ts:8`
-**Issue:** The phase rule (CONTEXT, Claude's Discretion) is "no plan or decision ids in doc comments". Newly written text names ADR-QD-037 in `EvaluationServices.ts`'s header and ADR-QD-099 plus ADR-QD-037 in `Lifecycle.ts`'s header. It names ADR-QD-037 and ADR-QD-105 in `Lifecycle.tst.ts`'s header. The base text it replaced already cited ADR-QD-037, and the surrounding code cites ids widely. If the rule applies to rewritten comments, they now violate it. If the codebase convention is that ids are acceptable, the phase rule is wrong and should be dropped. Either way the two disagree.
-**Fix:** Either drop the ids from these three new or rewritten headers and keep the one-line "why", or record that ids are allowed when they explain a structural constraint.
-
-## Info
-
-### IN-01: `decideQuestion` options pin compares the type to its own derivation
-
-**File:** `packages/core/test/Lifecycle.tst.ts:25-29`
-**Issue:** The test asserts `Parameters<typeof decideQuestion>[1]` equals `Omit<EvaluateOptions, keyof QuestionOptions> | undefined`, the same expression the source uses. It does fail if the source stops deriving or widens, so it is not vacuous. It never states the remainder, so D-11's "exactly that remainder" rests on the neighbouring `keyof` test plus `EvaluationShapes.tst.ts`.
-**Fix:** Compare against the literal remainder: `{ readonly concurrency?: Concurrency; readonly evaluationId?: string } | undefined`.
-
-### IN-02: First `Lifecycle.tst.ts` test reads `QuestionOptions` from the module under check
-
-**File:** `packages/core/test/Lifecycle.tst.ts:17-21`
-**Issue:** `keyof EvaluateOptions` is checked against `keyof QuestionOptions | ...`, both from `Question.ts`. A key added to `QuestionOptions` leaves it green. `EvaluationShapes.tst.ts` closes the gap by pinning the literal five-key set, so the result is covered, only redundantly and not independently.
-**Fix:** None required. Optionally note in the header that the full key set is pinned in `EvaluationShapes.tst.ts`.
-
-### IN-03: Carried debt, not a defect of this phase
-
-**File:** `packages/core/src/DecisionSink.ts:15`
-**Issue:** The comment "`Evaluate.ts` already documents a deliberate cardinality objection" is unrelated to these three types and was left alone. ADR-QD-081's historical wording is also carried. Both are already recorded for Phase 36.
-**Fix:** None here.
-
-### IN-04: `evaluationId` doc was reworded, not moved verbatim
-
-**File:** `packages/core/src/Question.ts:65-70`
-**Issue:** D-01 says the comments move verbatim. The base text said "where the cache is read below", which no longer resolves in `Question.ts`. It now reads "where `decideQuestion` reads the cache (`Lifecycle.ts`)". The edit is correct and necessary, and the comment it points at exists in `Lifecycle.ts`. The one-line summary rule still holds, and I am recording only the deviation from "verbatim".
-**Fix:** None. Mention it in the SUMMARY if not already there.
+- WR-02: AGENTS.md's "Doc-comment shape" places ADR citations after the summary line, and no ADR id sits on a summary line.
+- IN-02: covered by `EvaluationShapes.tst.ts` through the barrel.
+- IN-03: carried debt for Phase 36.
+- IN-04: correct as written.
 
 ---
 
-_Reviewed: 2026-11-12T14:30:00Z_
+_Reviewed: 2026-11-12T14:35:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
