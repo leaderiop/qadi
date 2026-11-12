@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 33
 current_phase_name: One sealed evaluation layer
 status: executing
-stopped_at: Completed 33-02-PLAN.md
-last_updated: "2026-11-12T14:44:32.439Z"
+stopped_at: Completed 33-03-PLAN.md
+last_updated: "2026-11-12T14:47:30.363Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 33 execution started
-state_head: ba8212594f61cffdb1a75606c2d42435109d0eb7
+state_head: f8c9c10f819c9659c1f96ce4154f09bdb4ad71d9
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 24
-  completed_plans: 20
+  completed_plans: 21
   percent: 43
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 33 (One sealed evaluation layer) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 33 execution started
 
@@ -165,6 +165,7 @@ Progress: [████░░░░░░] 43% (v1.3: 0 of 7 phases)
 | Phase 32 P04 | 12 min | 3 tasks | 1 files |
 | Phase 33 P01 | 12 min | 3 tasks | 3 files |
 | Phase 33 P02 | 20 min | 2 tasks | 7 files |
+| Phase 33 P03 | 12 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -244,6 +245,7 @@ Progress: [████░░░░░░] 43% (v1.3: 0 of 7 phases)
 - [Phase 32]: 32-04: no drop in the six baselined files; check:pr green on the final tree (89 s, core 99.84% lines)
 - [Phase 33]: 33-01: baseline records absence of measured mutants from stryker.config.mjs globs, not a score
 - [Phase 33]: 33-02: simulationLayer typed Layer<EvaluationServices>; no Layer.fresh, freshness proven per build by test
+- [Phase 33]: 33-03: both clock maps (testing, devtools) annotated Layer.Layer<never>; EvaluationClock not re-exported from devtools
 
 ### Pending Todos
 
@@ -285,8 +287,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T14:44:32.357Z
-Stopped at: Completed 33-02-PLAN.md
+Last session: 2026-11-12T14:47:30.283Z
+Stopped at: Completed 33-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

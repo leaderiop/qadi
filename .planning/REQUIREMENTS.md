@@ -42,11 +42,11 @@ marked **Breaking**, `apps/website/.../reference/upgrading.md`). Releasing is st
 
 ### One sealed evaluation layer (Phase 33)
 
-- [ ] **SEAL-01**: `@qadi/core` exports one evaluation-environment builder (ports, evaluation-id prefix, an injected clock layer). Both `@qadi/testing`'s `qadiReviewLayer` and devtools' `simulationLayer` are built from it, and the copied lines are gone. Devtools still does not depend on testing (ADR-QD-050).
+- [x] **SEAL-01**: `@qadi/core` exports one evaluation-environment builder (ports, evaluation-id prefix, an injected clock layer). Both `@qadi/testing`'s `qadiReviewLayer` and devtools' `simulationLayer` are built from it, and the copied lines are gone. Devtools still does not depend on testing (ADR-QD-050).
 - [ ] **SEAL-02**: Whether the sink and the decision cache are shadowed is a **required** closed-union argument of the builder, never a default and never a boolean pair. The rule is stated in INV-QD-042 and in both layers' docs.
 - [x] **SEAL-03**: The review layer does not shadow: a test's outer sink still receives records and an outer cache is still used, both pinned by new tests. The simulation layer shadows both (INV-QD-042's existing tests stay green). The `"sim"` id prefix is asserted.
 - [x] **SEAL-04**: A conformance test shows that the review and simulation layers agree on ids, clock determinism and fail-closed ports, and `packages/core/test/helpers.ts` is built from the same builder.
-- [ ] **SEAL-05**: The clock vocabulary is settled cleanly. Core gains no `effect/testing` import (the clock arrives as a layer). Whether the two public clock literals (`"test"`, `"deterministic"`) are unified is decided in discuss-phase on cleanliness, not compatibility.
+- [x] **SEAL-05**: The clock vocabulary is settled cleanly. Core gains no `effect/testing` import (the clock arrives as a layer). Whether the two public clock literals (`"test"`, `"deterministic"`) are unified is decided in discuss-phase on cleanliness, not compatibility.
 
 ### Diagnostics as the dock model's seventh store (Phase 34)
 
@@ -124,11 +124,11 @@ The seven WX rows apply to every phase 30 to 36, so each phase's Requirements li
 | EOPT-02 | Phase 32 | Complete |
 | EOPT-03 | Phase 32 | Complete |
 | EOPT-04 | Phase 32 | Complete |
-| SEAL-01 | Phase 33 | Pending |
+| SEAL-01 | Phase 33 | Complete |
 | SEAL-02 | Phase 33 | Pending |
 | SEAL-03 | Phase 33 | Complete |
 | SEAL-04 | Phase 33 | Complete |
-| SEAL-05 | Phase 33 | Pending |
+| SEAL-05 | Phase 33 | Complete |
 | DIAG-01 | Phase 34 | Pending |
 | DIAG-02 | Phase 34 | Pending |
 | DIAG-03 | Phase 34 | Pending |
