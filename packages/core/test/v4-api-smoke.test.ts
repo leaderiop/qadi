@@ -163,8 +163,8 @@ describe("effect v4 API canary", () => {
       assert.isTrue(result._tag === "Failure");
     }));
 
-  // Pins the `ParseOptions` contract `UNTRUSTED_DECODE_OPTIONS` (Policy.ts)
-  // depends on: v4's *default* is `onExcessProperty: "ignore"` (Policy.test.ts
+  // Pins the `ParseOptions` contract `untrustedDecoder`'s private strict options
+  // (UntrustedDecode.ts) depend on: v4's *default* is `onExcessProperty: "ignore"` (Policy.test.ts
   // documents the same fact where the untrusted-decode path actually lives).
   // Left unpinned here, an rc bump that changed excess-property handling would
   // be caught one layer down by the policy suite, not by the canary whose job

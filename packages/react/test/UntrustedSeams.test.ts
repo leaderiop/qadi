@@ -5,7 +5,7 @@
  * in that plan's commit, which names it; every other row must stay green through the
  * phase. Characterisation, not intent: a row says what the base reports.
  */
-import { EvaluationServicesNone, MAX_DECODE_DEPTH, exceedsJsonDepth, makeSubject } from "@qadi/core";
+import { EvaluationServicesNone, MAX_DECODE_DEPTH, makeSubject } from "@qadi/core";
 import { describe, expect, it } from "vitest";
 import { hydrateDecisions } from "../src/Hydration.ts";
 import type { HydrationDrop } from "../src/Hydration.ts";
@@ -162,9 +162,9 @@ describe("hydrateDecisions", () => {
 
   it("an entry the guard admits by exactly one frame -> seeded; one frame deeper -> EntryTooDeep", () => {
     const entryOf = (levels: number) => ({ policy: deepPolicy(levels), decision });
-    let admitted = 0;
-    while (!exceedsJsonDepth(entryOf(admitted + 1), MAX_DECODE_DEPTH)) admitted++;
-    expect(admitted).toBeGreaterThan(0);
+    // The entry is the root (depth 0), its policy sits at 1, each `Not` adds one and the leaf's
+    // string fields sit at `levels + 2`: the guard refuses once that exceeds the bound.
+    const admitted = MAX_DECODE_DEPTH - 2;
     expect(hydrate(payloadOf([entryOf(admitted)]))).toEqual({ seeded: 1, reasons: [] });
     expect(hydrate(payloadOf([entryOf(admitted + 1)]))).toEqual({ seeded: 0, reasons: ["EntryTooDeep"] });
   });

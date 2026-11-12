@@ -76,11 +76,11 @@ export const MAX_DECODE_DEPTH: number = 256;
  * struct a decode recurses into — `Matcher`, `Obligation`, `RuleStruct` — so
  * setting it once when the decoder is built covers the whole tree.
  *
- * Exported only until 30-06 moves `@qadi/react` and `@qadi/audit` onto the
- * decoder; it is then private to this module (D-09), and no decode call can
- * pass options of its own.
+ * Private to this module: {@link untrustedDecoder} is the only way to use it, so
+ * no decode call can pass options of its own, and nothing can decode strictly
+ * without the depth guard first (INV-QD-305).
  */
-export const UNTRUSTED_DECODE_OPTIONS: SchemaAST.ParseOptions = { onExcessProperty: "error" };
+const UNTRUSTED_DECODE_OPTIONS: SchemaAST.ParseOptions = { onExcessProperty: "error" };
 
 /**
  * Why an untrusted input was refused.

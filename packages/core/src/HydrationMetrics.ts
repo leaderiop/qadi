@@ -76,10 +76,10 @@ export type ClientHydrationDropReason =
   /** The entry's policy did not decode. */
   | "UndecodablePolicy"
   /**
-   * The entry nested deeper than {@link exceedsJsonDepth} (`DecodeDepthGuard.ts`)
-   * allows, checked before `decodeEntryFields`/`decodePolicy` ever recurse into
-   * it — the same guard-then-decode order `SinkCodec.ts`'s `decodeSinkRecord`
-   * uses for the identical trust boundary. Distinct from `MalformedEntry`: a
+   * The entry nested deeper than `untrustedDecoder`'s depth bound allows
+   * (`MAX_DECODE_DEPTH`), refused by the entry's own guard before
+   * anything recurses into it — the same guard-then-decode order every other
+   * untrusted seam gets from the decoder. Distinct from `MalformedEntry`: a
    * shape this schema cannot describe is a version-skew signal, while this one
    * is what an adversarial payload would try, and the two want different
    * follow-up.
