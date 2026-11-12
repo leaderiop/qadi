@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 33
 current_phase_name: One sealed evaluation layer
 status: executing
-stopped_at: Phase 32 complete, ready to plan Phase 33
-last_updated: "2026-11-12T14:36:55.153Z"
+stopped_at: Completed 33-01-PLAN.md
+last_updated: "2026-11-12T14:40:27.422Z"
 last_activity: 2026-11-12
-last_activity_desc: Phase 32 complete, transitioned to Phase 33
-state_head: 3dabce042583a6a4d92368fc426b4233bfaf786a
+last_activity_desc: Phase 33 execution started
+state_head: 646ad991f0422adee4130bfaa17ff6a6cde4be76
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 24
-  completed_plans: 18
+  completed_plans: 19
   percent: 43
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 32 — Evaluation options and services stated once
+**Current focus:** Phase 33 — One sealed evaluation layer
 
 ## Current Position
 
-Phase: 33 (One sealed evaluation layer) — READY TO EXECUTE
-Plan: Not started
+Phase: 33 (One sealed evaluation layer) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-11-12 — Phase 32 complete, transitioned to Phase 33
+Last activity: 2026-11-12 — Phase 33 execution started
 
 Progress: [████░░░░░░] 43% (v1.3: 0 of 7 phases)
 
@@ -163,6 +163,7 @@ Progress: [████░░░░░░] 43% (v1.3: 0 of 7 phases)
 | Phase 32 P02 | 12 min | 2 tasks | 16 files |
 | Phase 32 P03 | 10 min | 2 tasks | 7 files |
 | Phase 32 P04 | 12 min | 3 tasks | 1 files |
+| Phase 33 P01 | 12 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -240,6 +241,7 @@ Progress: [████░░░░░░] 43% (v1.3: 0 of 7 phases)
 - [Phase 32]: 32-02: evaluationId doc now points at decideQuestion in Lifecycle.ts; no TS2883, no re-export in Evaluate.ts
 - [Phase 32]: ADR-QD-081's Evaluate.ts paragraph is history; left for Phase 36 and named in CCR-QD-423
 - [Phase 32]: 32-04: no drop in the six baselined files; check:pr green on the final tree (89 s, core 99.84% lines)
+- [Phase 33]: 33-01: baseline records absence of measured mutants from stryker.config.mjs globs, not a score
 
 ### Pending Todos
 
@@ -281,8 +283,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T13:24:17.607Z
-Stopped at: Phase 32 complete, ready to plan Phase 33
+Last session: 2026-11-12T14:40:27.387Z
+Stopped at: Completed 33-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
