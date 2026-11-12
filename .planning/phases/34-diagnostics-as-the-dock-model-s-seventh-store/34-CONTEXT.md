@@ -34,14 +34,14 @@ The user's direction for every area: "the most clean solution, the most complete
   - `Off`: no diagnostics options were given, so nothing runs.
   - `Starting`: the poll is forked and no sample has been accepted yet.
   - `Live`: at least one sample has been accepted.
-  - `Stopped { reason }`: the poll ended on a defect. The reason is `Cause.pretty` of the defect.
+  - `Stopped { reason, sampled }`: the poll ended on a defect. The reason is `Cause.pretty` of the defect. `sampled` says whether any sample was accepted before the stop (a stop from `Live` is `true`, a stop from `Starting` is `false`), so the panel's copy is never false: after a sample it says the reading shown is the last one taken; before one it says nothing was read.
 
   It is a `Data.TaggedEnum` and is dispatched with `Match.tagsExhaustive`. The status belongs to the feed and not to a reading, so `Diagnostics` and `mergeReading` keep their shapes.
 - **D-03 A defect stops the poll visibly and keeps the last good reading.**
-  - A sample that dies (for example a throwing `questions`) ends the poll fiber. The feed observes the fiber's exit and sets `Stopped { reason }`. The last accepted reading stays on screen.
+  - A sample that dies (for example a throwing `questions`) ends the poll fiber. The feed observes the fiber's exit and sets `Stopped { reason, sampled }`. The last accepted reading stays on screen; with `sampled: false` it is still `noDiagnostics`.
   - An interruption (a restart, an input going `undefined`, or the scope closing) is not a defect and never produces `Stopped`.
   - A layer that fails to build stays `WiringRead.Failed` while the other reads continue (BEH-QD-218). That case is not a stop.
-- **D-04 Restart.** A stopped poll restarts when an options field changes identity, and through an explicit `restart()` command on the feed. The Services panel's stopped notice offers that command as a button, so a reviewer can resume without editing props. Every restart passes through `Starting` again.
+- **D-04 Restart.** A stopped poll restarts when an options field changes identity, and through an explicit `restart()` command on the feed. The stopped notice, shared by every screen that reads the diagnostics (Services and Questions), offers that command as a button, so a reviewer can resume without editing props. Every restart passes through `Starting` again.
 - **D-05 Tested with a throwing source under `TestClock`, with no render.** The tests cover:
   - the transition to `Stopped`;
   - the kept reading;
