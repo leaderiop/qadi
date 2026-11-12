@@ -196,8 +196,8 @@ export const untrustedDecoder = <
     Result.flatMap(
       Result.try({
         try: (): unknown => JSON.parse(text),
-        // A `catch` binding is `unknown`, so reading `.message` needs a narrowing; `JSON.parse` throws
-        // only a `SyntaxError`, so the constant arm exists for typing and cannot be reached.
+        // A `catch` binding is `unknown`, so reading `.message` needs a narrowing. `JSON.parse` throws only a
+        // `SyntaxError`; the constant arm is defensive, keeping any other thrown value free of a `String(error)` prefix.
         catch: (error) =>
           UntrustedRefusal.NotJson({ message: Predicate.isError(error) ? error.message : "not JSON" }),
       }),

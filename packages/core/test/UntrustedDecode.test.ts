@@ -3,7 +3,7 @@
  * the refusal kind is a function of the input, `TooDeep` exactly when the depth
  * guard says so over the part it walks, and decoding never throws.
  */
-import { assert, describe, it } from "@effect/vitest";
+import { assert, describe, it, vi } from "@effect/vitest";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import * as FastCheck from "fast-check";
@@ -212,6 +212,22 @@ describe("untrustedDecoder", () => {
           // the parser's own text, without the `SyntaxError: ` prefix `String(error)` would add
           assert.strictEqual(refused.failure.message, parserMessage);
         } else assert.fail(`${JSON.stringify(text)} was not NotJson`);
+      }
+    });
+
+    it("a parser that throws a non-Error is still NotJson, with the constant message", () => {
+      // `JSON.parse` throws only a `SyntaxError`; this pins the defensive arm that keeps the message free of a `String(error)` prefix.
+      const parse = vi.spyOn(JSON, "parse").mockImplementationOnce(() => {
+        throw "boom";
+      });
+      try {
+        const refused = anything.decodeText("{}");
+        assert.isTrue(Result.isFailure(refused));
+        if (Result.isFailure(refused) && refused.failure._tag === "NotJson") {
+          assert.strictEqual(refused.failure.message, "not JSON");
+        } else assert.fail("a non-Error throw was not NotJson");
+      } finally {
+        parse.mockRestore();
       }
     });
 
