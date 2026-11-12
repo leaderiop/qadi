@@ -15,9 +15,10 @@
  * over what that run learned. `Snapshot` is therefore the mode a sweep should
  * use, and building it is what makes offering `Live` at all defensible.
  *
- * **All three are sealed the same way.** The seal lives in `simulationLayer`,
- * not here: `CurrentSubject`, `DecisionSink` and `DecisionCache` are supplied
- * there in every mode, so no source — `Live` included — can reach the subject a
+ * **All three are sealed the same way.** The seal is stated in `simulationLayer`,
+ * not here: it supplies `CurrentSubject` and asks core's `evaluationEnvironment`
+ * for `shadow: "sinkAndCache"`, which installs the discarding sink and a private
+ * cache in every mode, so no source — `Live` included — can reach the subject a
  * request would use, write a record, or touch the application's cache.
  */
 import type * as Effect from "effect/Effect";
