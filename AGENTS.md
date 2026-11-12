@@ -628,7 +628,7 @@ state-management layer of its own. The rules that keep it that way:
 - **No additional dependencies, with one deliberate exception.** The React glue
   was one hand-rolled `useSyncExternalStore` call in `QadiProvider.tsx`.
 
-  `@effect/atom-react` is a dependency of `@qadi/react` (ADR-QD-014, reversed in CCR-QD-150). `maxTrackedQuestions` bounds the question book through a qadi-owned `sweepEvictions` fork, never through `AtomRegistry`'s `scheduleTask`/`defaultIdleTTL`, which reroutes dispatch and dropped a required render. The reversal's evidence: `spec/process/house-rules-evidence.md` §4.
+  `@effect/atom-react` is a dependency of `@qadi/react` (ADR-QD-014, reversed in CCR-QD-150). `maxTrackedQuestions` is enforced by the atom set itself: the question book signals when it goes over the bound and the atom set forks one deferred, one-shot sweep per pressure episode (ADR-QD-148), chosen after the dispose-reread smoke, the eviction pins, the e2e, one sweeper per atom set, StrictMode and `<Activity>`, and no leaked fibers all held; `AtomRegistry`'s `scheduleTask`/`defaultIdleTTL` stay off limits, because they reroute dispatch and dropped a required render. The reversal's evidence: `spec/process/house-rules-evidence.md` §4.
 - **Submodule imports, as everywhere else:**
   `import * as Atom from "effect/reactivity/Atom"`.
 - **Read decisions through `outcomeOf`.** It is the single place the rule
