@@ -353,7 +353,7 @@ recorded in the phase CONTEXT and its ADR or CCR row.
 - [x] **Phase 30: One strict-decode module** - Every untrusted JSON seam decodes through one core leaf (parse, depth guard, strict decode, closed refusal); each seam keeps only its error mapping (ARCH-78) (completed 2026-11-12)
 - [x] **Phase 31: A reset supersedes its claims** - `SharedComputation.reset` supersedes in-flight claims, so `DecisionCache`'s generation counter goes (ARCH-79) (completed 2026-11-12)
 - [x] **Phase 32: Evaluation options and services stated once** - `EvaluateOptions` beside `QuestionOptions`, `EvaluationServices` in a type-only leaf, `LifecycleOptions` deleted (ARCH-80) (completed 2026-11-12)
-- [ ] **Phase 33: One sealed evaluation layer** - One core builder for `@qadi/testing` and devtools' Simulation, with the sink and cache shadowing rule stated and required (ARCH-81)
+- [x] **Phase 33: One sealed evaluation layer** - One core builder for `@qadi/testing` and devtools' Simulation, with the sink and cache shadowing rule stated and required (ARCH-81) (completed 2026-11-12)
 - [ ] **Phase 34: Diagnostics as the dock model's seventh store** - The poll runs in the model's scope and the reading merge leaves the view (ARCH-82)
 - [ ] **Phase 35: The atom set owns its eviction sweep** - Opens on a spike: either a mechanism lands, or the sweep stays in the provider with the rule stated and tested (ARCH-83)
 - [ ] **Phase 36: Carried spec debt and stale records** - Duplicate BEH-QD-219..221, `Sources.ts`, the stale replay line, selected v1.2 info findings (CCR-QD-427, no ARCH)
@@ -450,7 +450,7 @@ Plans:
   4. A conformance test shows the review and simulation layers agree on ids, clock determinism and fail-closed ports, and `packages/core/test/helpers.ts` is built from the same builder.
   5. The clock vocabulary is settled and recorded (unified literals, or kept apart by a stated reason), with no `effect/testing` import added to core.
 **Planning notes**: test-scope budgets apply: read metrics by their export, never by a `qadi_*` literal, and script a broken port with `scriptedPort`.
-**Plans**: 6/6 plans executed
+**Plans**: 6/6 plans complete
 
 Plans:
 - [x] 33-01 (W1): Reserved-number check and the mutation baseline (nothing touched is measured at the base; the new module will be), committed alone, first; the review-layer pin (`QadiReviewLayer.test.ts`: outer sink, outer cache, ids, default clock) and the review/simulation conformance pin, both green on the phase base.
@@ -526,7 +526,7 @@ Phases execute in numeric order: 30 → 31 → 32 → 33 → 34 → 35 → 36
 | 30. One strict-decode module | 9/9 | Complete    | 2026-11-12 |
 | 31. A reset supersedes its claims | 5/5 | Complete    | 2026-11-12 |
 | 32. Evaluation options and services stated once | 4/4 | Complete    | 2026-11-12 |
-| 33. One sealed evaluation layer | 0/0 | Not started | - |
+| 33. One sealed evaluation layer | 6/6 | Complete    | 2026-11-12 |
 | 34. Diagnostics as the dock model's seventh store | 0/0 | Not started | - |
 | 35. The atom set owns its eviction sweep | 0/0 | Not started | - |
 | 36. Carried spec debt and stale records | 0/0 | Not started | - |
