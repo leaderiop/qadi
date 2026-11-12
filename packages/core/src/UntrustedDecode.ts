@@ -20,6 +20,7 @@
  * every other seam can import it.
  */
 import * as Data from "effect/Data";
+import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type * as SchemaAST from "effect/SchemaAST";
@@ -195,8 +196,10 @@ export const untrustedDecoder = <
     Result.flatMap(
       Result.try({
         try: (): unknown => JSON.parse(text),
+        // A `catch` binding is `unknown`, so reading `.message` needs a narrowing; `JSON.parse` throws
+        // only a `SyntaxError`, so the constant arm exists for typing and cannot be reached.
         catch: (error) =>
-          UntrustedRefusal.NotJson({ message: error instanceof Error ? error.message : String(error) }),
+          UntrustedRefusal.NotJson({ message: Predicate.isError(error) ? error.message : "not JSON" }),
       }),
       decode,
     );
