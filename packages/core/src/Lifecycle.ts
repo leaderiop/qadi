@@ -12,16 +12,15 @@
  * The metrics it writes are declared in `EvaluationMetrics.ts` (ADR-QD-123),
  * which every reader imports; this module only updates them.
  *
- * Package-private: out of the barrel (ADR-QD-099). It declares its own
- * `LifecycleOptions` rather than importing `EvaluateOptions`, because
- * `Evaluate.ts` imports this module and madge counts a type-only edge too
- * (ADR-QD-037).
+ * Package-private: out of the barrel (ADR-QD-099). It reads `EvaluateOptions`
+ * (`Question.ts`) and `EvaluationServices` (`EvaluationServices.ts`) from leaves
+ * below both it and `Evaluate.ts`, so the import `Evaluate.ts` → `Lifecycle.ts`
+ * stays one-way while madge counts type-only edges (ADR-QD-037).
  */
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
-import type { Concurrency } from "effect/Types";
 import { CurrentSubject } from "./CurrentSubject.ts";
 import { DecisionCache } from "./DecisionCache.ts";
 import type { Decision, Trace } from "./Decision.ts";
@@ -36,10 +35,11 @@ import {
   evaluationErrorsTotal,
 } from "./EvaluationMetrics.ts";
 import type { CacheOutcome } from "./EvaluationMetrics.ts";
+import type { EvaluationServices } from "./EvaluationServices.ts";
 import type { Policy } from "./Policy.ts";
 import type { PortServices } from "./Ports.ts";
 import { questionOf } from "./Question.ts";
-import type { Question, QuestionOptions } from "./Question.ts";
+import type { EvaluateOptions, Question, QuestionOptions } from "./Question.ts";
 import { decisionRecordFor, sinkEmitter } from "./SinkEmit.ts";
 import type { Stamp } from "./SinkEmit.ts";
 import { walk } from "./Walk.ts";
@@ -51,30 +51,19 @@ interface EvaluationLookup {
 }
 
 /**
- * The two options that are not part of the {@link Question}: they change how an
- * evaluation runs and is correlated, never its answer.
- *
- * `EvaluateOptions` (`Evaluate.ts`) is `QuestionOptions` plus these two, and
- * carries their documentation.
- */
-export interface LifecycleOptions {
-  /** See `EvaluateOptions.concurrency`. */
-  readonly concurrency?: Concurrency;
-  /** See `EvaluateOptions.evaluationId`. */
-  readonly evaluationId?: string;
-}
-
-/**
  * Decides a question: the lifecycle around `walk`.
  *
  * Mints the id, reads the clock and the optional cache and sink, and wraps the
  * walk's answer in metrics, a span, a log line and the records. The subject is
  * `question.subject`; this reads no `CurrentSubject`. Emits the `qadi.evaluate`
  * span carrying the decision (ADR-QD-051: the root, under its old name).
+ *
+ * Its options are `EvaluateOptions` less the question options, derived, so a
+ * built question's resource, action and depth cannot be passed a second time.
  */
 export const decideQuestion = Effect.fn("qadi.evaluate")(function* (
   question: Question,
-  options?: LifecycleOptions,
+  options?: Omit<EvaluateOptions, keyof QuestionOptions>,
 ) {
   // A caller-supplied id names a continuation of an evaluation made elsewhere;
   // its absence — the default — mints a fresh one. `EvaluationId.next` is still
@@ -205,8 +194,8 @@ export interface Asked {
  */
 export const ask = (
   policy: Policy,
-  options?: QuestionOptions & LifecycleOptions,
-): Effect.Effect<Asked, EvaluationError, CurrentSubject | EvaluationId | PortServices> =>
+  options?: EvaluateOptions,
+): Effect.Effect<Asked, EvaluationError, EvaluationServices> =>
   CurrentSubject.use((subject) => {
     const question = questionOf(subject, policy, options);
     return Effect.map(decideQuestion(question, options), (decision) => ({ question, decision }));
