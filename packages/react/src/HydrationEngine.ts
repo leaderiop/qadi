@@ -38,12 +38,9 @@ import type {
 import {
   DecisionWireAllow,
   DecisionWireDeny,
-  MAX_DECODE_DEPTH,
   decisionDisagreement,
   Policy as PolicySchema,
-  UNTRUSTED_DECODE_OPTIONS,
   encodeDecision,
-  exceedsJsonDepth,
   isAllowed,
   untrustedDecoder,
 } from "@qadi/core";
@@ -60,7 +57,7 @@ import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import type { HydrationDropReporter, HydrationMismatchReporter } from "./DeveloperSignals.ts";
 import { hydrationDropReporter, saysDehydrationDropped, saysHydrationDropped } from "./DeveloperSignals.ts";
-import type { DecisionEntry, HydrationHooks, PayloadRefusalReason } from "./HydrationEvent.ts";
+import type { DecisionEntry, EntryDropReason, HydrationHooks, PayloadRefusalReason } from "./HydrationEvent.ts";
 import { HydrationEvent, emitHydration } from "./HydrationEvent.ts";
 import type { ClientDecision, SeededDecision } from "./SeededDecision.ts";
 import { AllowDisclosure, DenyDisclosure, SeededAllow, SeededDeny, permits } from "./SeededDecision.ts";
@@ -122,9 +119,9 @@ const DenyEntry = DecisionWireDeny.mapFields((fields) => ({
  * One entry of a version-2 payload.
  *
  * `policy` is declared as `Schema.Unknown` rather than left off so decoding with
- * {@link UNTRUSTED_DECODE_OPTIONS} — `onExcessProperty: "error"` — flags a
+ * the module's strict decode — `onExcessProperty: "error"` — flags a
  * genuinely unrecognized key without also flagging `policy` itself. It has its
- * own decode path ({@link decodePolicy}) because it needs a type transformation
+ * own decode path (`decodePolicy`) because it needs a type transformation
  * this struct does not perform, and folding it in would run `PolicySchema` a
  * second time.
  */
@@ -183,24 +180,21 @@ const Envelope = DehydratedDecisionsWire.mapFields(
 const encodePolicy = Schema.encodeOption(PolicySchema);
 
 /**
- * Decoding is the untrusted side, so every decoder here returns an `Option` and
- * a malformed value is dropped rather than thrown on — the same fail-closed
- * treatment a mismatched subject gets.
+ * Every untrusted read in this module goes through `UntrustedDecode.ts`'s
+ * decoder: the depth guard, then the strict decode, in that order, so a payload
+ * nested past the call stack's limit is a typed refusal rather than a raw
+ * `RangeError` defect. Decoding is the untrusted side, so a malformed value is
+ * dropped rather than thrown on — the same fail-closed treatment a mismatched
+ * subject gets.
  *
- * `Schema`'s own recursive descent through `PolicySchema`'s `Schema.suspend` has
- * no depth cap of its own, so {@link hydrateWith} runs {@link exceedsJsonDepth}
- * over each entry before any of these, mirroring the guard-then-decode order
- * `SinkCodec.ts`'s `decodeSinkRecord` uses for the identical trust boundary: a
- * payload nested past the call stack's limit is dropped as a typed reason rather
- * than raising a raw `RangeError` defect.
- *
- * Every decode uses {@link UNTRUSTED_DECODE_OPTIONS}. Without it `Schema`'s
- * default `onExcessProperty: "ignore"` would silently strip an unrecognized key
- * from an otherwise-valid value instead of refusing it, the silent-data-loss
- * shape `UNTRUSTED_DECODE_OPTIONS`'s own doc comment in `Policy.ts` exists to
- * rule out.
+ * The envelope decoder leaves `entries` unwalked and each entry is guarded from
+ * its own root by the entry decoder (INV-QD-306), which is what keeps one
+ * hostile entry from refusing the payload or its siblings. The entry's `policy`
+ * is then decoded again from its own root: that entry-then-policy double check
+ * is deliberate and measured (ADR-QD-143), and it is why the policy decoder's
+ * `TooDeep` arm is the same code the entry decoder's is.
  */
-const decodePolicy = Schema.decodeUnknownOption(PolicySchema, UNTRUSTED_DECODE_OPTIONS);
+const decodePolicy = untrustedDecoder(PolicySchema).decode;
 
 /**
  * A payload whose `version` is not {@link PAYLOAD_VERSION}, raised by the
@@ -240,7 +234,24 @@ const payloadRefusalReason: (refusal: UntrustedValueRefusal | PayloadVersionRefu
       UnsupportedPayloadVersion: (): PayloadRefusalReason => "UnsupportedPayloadVersion",
     }),
   );
-const decodeEntry = Schema.decodeUnknownOption(DehydratedEntryWire, UNTRUSTED_DECODE_OPTIONS);
+
+const decodeEntry = untrustedDecoder(DehydratedEntryWire).decode;
+
+const tooDeepEntry = (): EntryDropReason => "EntryTooDeep";
+const asMalformed = (malformed: EntryDropReason): EntryDropReason => malformed;
+
+/**
+ * Where a refused entry read lands: `TooDeep` is `EntryTooDeep` whichever read
+ * raised it, `Malformed` is the reason of the read that did (`MalformedEntry`
+ * for the entry, `UndecodablePolicy` for the policy). Shared by both reads.
+ */
+const entryDropReason: (refusal: UntrustedValueRefusal) => (malformed: EntryDropReason) => EntryDropReason =
+  Match.type<UntrustedValueRefusal>().pipe(
+    Match.tagsExhaustive({
+      TooDeep: () => tooDeepEntry,
+      Malformed: () => asMalformed,
+    }),
+  );
 
 export interface DehydrateOptions {
   /**
@@ -505,37 +516,38 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
   const malformed: Array<unknown> = [];
   const undecodable: Array<unknown> = [];
 
-  for (const entry of entries) {
-    if (exceedsJsonDepth(entry, MAX_DECODE_DEPTH)) {
-      tooDeep.push(entry);
-      continue;
-    }
+  const bucketOf: Record<EntryDropReason, Array<unknown>> = {
+    EntryTooDeep: tooDeep,
+    MalformedEntry: malformed,
+    UndecodablePolicy: undecodable,
+  };
 
+  for (const entry of entries) {
     const fields = decodeEntry(entry);
     // Checked before the policy: an entry malformed at this level — a string
     // where durationMillis belongs, an obligations value that isn't an array, a
     // disclosure of the wrong shape — is a different failure than a policy shape
     // this schema doesn't know, and warrants its own reason.
-    if (Option.isNone(fields)) {
-      malformed.push(entry);
+    if (Result.isFailure(fields)) {
+      bucketOf[entryDropReason(fields.failure)("MalformedEntry")].push(entry);
       continue;
     }
 
-    const decoded = decodePolicy(fields.value.policy);
+    const decoded = decodePolicy(fields.success.policy);
     // Collected rather than reported one at a time: a version skew makes *every*
     // entry of a shape undecodable, and one warning per entry would bury the
     // page's other output under a payload's worth of identical lines.
-    if (Option.isNone(decoded)) {
-      undecodable.push(entry);
+    if (Result.isFailure(decoded)) {
+      bucketOf[entryDropReason(decoded.failure)("UndecodablePolicy")].push(entry);
       continue;
     }
 
-    if (!entryAgrees(fields.value, decoded.value)) {
+    if (!entryAgrees(fields.success, decoded.success)) {
       malformed.push(entry);
       continue;
     }
 
-    seeded.push([seedFor(decoded.value, fields.value.resource), rebuild(fields.value, subject.id)]);
+    seeded.push([seedFor(decoded.success, fields.success.resource), rebuild(fields.success, subject.id)]);
   }
 
   const events: Array<HydrationEvent> = [];
