@@ -16,16 +16,14 @@
  * low-priority scheduler, and doing so silently coalesced away a required
  * intermediate render under real network timing in
  * `examples/nextjs-newsroom`'s e2e suite (ADR-QD-014, AGENTS.md §13). That
- * gap is not closed. Idle-atom growth is instead bounded by
- * `sweepIntervalMillis`'s own background sweep below, which never touches
- * dispatch, notification or the scheduler at all.
+ * gap is not closed. Idle-atom growth is instead bounded by the atom set's own
+ * sweep (`QadiAtoms.ts`, [ADR-QD-148](../../../spec/decisions/148-the-atom-set-owns-its-eviction-sweep.md)),
+ * which never touches dispatch, notification or the scheduler at all, and this
+ * provider forks none.
  */
 import type { AuthSubject } from "@qadi/core";
 import { useAtomValue as useLibraryAtomValue } from "@effect/atom-react/Hooks";
 import { RegistryContext } from "@effect/atom-react/RegistryContext";
-import * as Effect from "effect/Effect";
-import * as Fiber from "effect/Fiber";
-import * as Schedule from "effect/Schedule";
 import type * as Atom from "effect/reactivity/Atom";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import {
@@ -118,17 +116,6 @@ export { MissingQadiProviderError } from "./MissingQadiProviderError.ts";
 // its public types are named here, which is the form gate 13 reads.
 export type { ProviderSignal, ProviderSignalReporter } from "./DeveloperSignals.ts";
 
-/**
- * The default for {@link QadiProviderProps.sweepIntervalMillis}.
- *
- * Thirty seconds: frequent enough that `maxTrackedQuestions` (`QadiAtoms.ts`)
- * is a real bound rather than a theoretical one on a long-lived session, and
- * infrequent enough that the sweep — an `O(tracked.length)` scan in the
- * common case where nothing is over the bound — is not itself a cost worth
- * noticing.
- */
-const DEFAULT_SWEEP_INTERVAL_MILLIS = 30_000;
-
 export interface QadiProviderProps {
   /** The atom set for this authorization context, from `makeQadiAtoms`. */
   readonly atoms: QadiAtoms;
@@ -170,28 +157,6 @@ export interface QadiProviderProps {
    */
   readonly gates?: GateRegistry;
   /**
-   * How often, in milliseconds, this provider sweeps `atoms` for tracked
-   * questions to evict.
-   *
-   * `QadiAtoms.ts`'s `asked()` and its underlying `Atom.family` tracking have
-   * nothing else bounding their growth over a long-lived session that asks
-   * many distinct (policy, resource) combinations — a confirmed leak. This
-   * runs `atoms.sweepEvictions` on its own fiber, forked at mount and
-   * interrupted at unmount, entirely independent of `AtomRegistry`'s own
-   * `scheduleTask`/`defaultIdleTTL` knob (AGENTS.md §13): that knob was tried
-   * for this once already and reverted, because it also governs the
-   * registry's core value-dispatch/notify batching, and routing that through
-   * React's scheduler silently coalesced away a required intermediate render.
-   * This sweep never touches dispatch, notification or the registry's
-   * scheduler at all — it only decides which entries `QadiAtoms`' own
-   * bookkeeping keeps.
-   *
-   * Defaults to `DEFAULT_SWEEP_INTERVAL_MILLIS`. Several providers sharing one
-   * `atoms` each fork their own sweep fiber against the same bookkeeping,
-   * which is redundant but harmless — `sweepEvictions` is idempotent.
-   */
-  readonly sweepIntervalMillis?: number;
-  /**
    * Told what this provider detects, in place of its console warnings.
    *
    * Three situations: `InstrumentedInProduction` (`instrument` is `true`
@@ -225,7 +190,6 @@ export const QadiProvider = ({
   initialValues,
   instrument = false,
   gates: gatesProp,
-  sweepIntervalMillis = DEFAULT_SWEEP_INTERVAL_MILLIS,
   onDeveloperSignal,
   children,
 }: QadiProviderProps): ReactNode => {
@@ -326,27 +290,6 @@ export const QadiProvider = ({
       }, 0);
     };
   }, [registry]);
-
-  // A separate effect from the registry's own dispose timer above, and
-  // deliberately not built on `AtomRegistry`'s `scheduleTask`/`defaultIdleTTL`
-  // — see `sweepIntervalMillis`'s own doc comment for why that knob is off
-  // limits for this. `atoms.sweepEvictions` is plain `Effect.sync` over
-  // `QadiAtoms`' own closure state, so this fiber never touches how values are
-  // dispatched or notified through the atom graph; it only prunes which
-  // questions `QadiAtoms` keeps tracking. Forked and torn down the same way
-  // `@qadi/devtools`'s `useTimeline` runs and stops its background
-  // subscription: `Effect.runFork` to start, `Effect.runFork(Fiber.interrupt(...))`
-  // on cleanup, not `interruptUnsafe` — see `Simulator.tsx`'s own doc comment
-  // on that distinction (`Fiber.interrupt` waits for the fiber's finalizers to
-  // actually finish; `interruptUnsafe` only signals).
-  useEffect(() => {
-    const fiber = Effect.runFork(
-      Effect.repeat(atoms.sweepEvictions, Schedule.spaced(sweepIntervalMillis)),
-    );
-    return () => {
-      Effect.runFork(Fiber.interrupt(fiber));
-    };
-  }, [atoms, sweepIntervalMillis]);
 
   // Memoised, or every render of the provider gives every consumer a new
   // context value and re-renders the whole guarded subtree.
