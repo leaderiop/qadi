@@ -148,4 +148,44 @@ describe("the dock's diagnostics screens", () => {
     });
     assert.include(portActivityText(), "7 calls");
   });
+
+  it("D4 a stopped poll is stated on Services with its reason, and a restart brings the screen back", async () => {
+    let calls = 0;
+    const questions = (): ReadonlyArray<never> => {
+      calls += 1;
+      if (calls === 1) throw new Error("questions blew up");
+      return [];
+    };
+    const held: DiagnosticsDockOptions = { questions };
+    render(<DevtoolsDock diagnostics={held} />);
+    services();
+
+    await vi.waitFor(() => {
+      assert.strictEqual(
+        screen.getByTestId("qadi-services").getAttribute("data-diagnostics-status"),
+        "Stopped",
+      );
+    });
+    const notice = screen.getByTestId("qadi-diagnostics-stopped");
+    assert.strictEqual(notice.getAttribute("data-sampled"), "false");
+    assert.strictEqual(notice.getAttribute("data-announce"), "alert");
+    assert.strictEqual(notice.getAttribute("role"), "alert");
+    assert.include(screen.getByTestId("qadi-diagnostics-reason").textContent ?? "", "questions blew up");
+    assert.isNull(screen.queryByTestId("qadi-wiring-absent"));
+
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Restart diagnostics" }));
+    });
+    assert.isNull(screen.queryByTestId("qadi-diagnostics-restart"));
+    await vi.waitFor(() => {
+      assert.strictEqual(
+        screen.getByTestId("qadi-services").getAttribute("data-diagnostics-status"),
+        "Live",
+      );
+    });
+    assert.isNull(screen.queryByTestId("qadi-diagnostics-stopped"));
+    assert.isNull(screen.queryByTestId("qadi-diagnostics-starting"));
+    assert.isNotNull(screen.getByTestId("qadi-wiring-absent"));
+    assert.strictEqual(document.activeElement, screen.getByTestId("qadi-services"));
+  });
 });

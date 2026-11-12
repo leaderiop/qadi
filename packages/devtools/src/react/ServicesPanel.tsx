@@ -15,10 +15,16 @@
  */
 import type { CSSProperties, FC, ReactNode } from "react";
 import * as Match from "effect/Match";
+import { isUnsampled } from "../model/DiagnosticsFeed.ts";
 import type { WiringRead } from "../model/DiagnosticsStore.ts";
 import type { PortCall, PortCallLog } from "../model/PortCalls.ts";
 import type { CacheReport, PortActivity, PortReport } from "../model/Wiring.ts";
+import { DiagnosticsNotice, diagnosticsRootProps } from "./DiagnosticsNotice.tsx";
+import type { DiagnosticsNoticeProps } from "./DiagnosticsNotice.tsx";
 import { colors, font, muted } from "./theme.ts";
+
+/** What a port's activity reads before any sample was taken: not "never called", which would be a claim. */
+const NO_ACTIVITY_READING = "no activity reading";
 
 /**
  * How many recent calls a card shows.
@@ -44,6 +50,12 @@ export interface ServicesPanelProps {
    * detail would need.
    */
   readonly portCalls?: PortCallLog | undefined;
+  /**
+   * The dock's diagnostics status and restart, stated by the shared notice.
+   *
+   * Required, so a screen cannot forget it.
+   */
+  readonly diagnostics: DiagnosticsNoticeProps;
 }
 
 const card: CSSProperties = {
@@ -61,17 +73,20 @@ const card: CSSProperties = {
 interface Shown {
   readonly activity: ReadonlyArray<PortActivity>;
   readonly portCalls: PortCallLog | undefined;
+  /** No sample has been taken, so a missing field is not yet a statement about the host. */
+  readonly unsampled: boolean;
 }
 
 const wiringView: (self: WiringRead) => (shown: Shown) => ReactNode = Match.type<WiringRead>().pipe(
   Match.tagsExhaustive({
-    NotHanded: () => () => (
-      <p style={muted} data-testid="qadi-wiring-absent">
-        No layer was handed to the dock, so which implementation is behind each
-        port cannot be shown. Pass <code>{"diagnostics={{ layer }}"}</code>, or a{" "}
-        <code>wiring</code> report read elsewhere.
-      </p>
-    ),
+    NotHanded: () => ({ unsampled }: Shown) =>
+      unsampled ? null : (
+        <p style={muted} data-testid="qadi-wiring-absent">
+          No layer was handed to the dock, so which implementation is behind each
+          port cannot be shown. Pass <code>{"diagnostics={{ layer }}"}</code>, or a{" "}
+          <code>wiring</code> report read elsewhere.
+        </p>
+      ),
     Failed: ({ reason }) => () => (
       <p style={{ ...muted, color: colors.error }} data-testid="qadi-wiring-failed">
         The layer handed to the dock failed to build, so which implementation is
@@ -79,7 +94,7 @@ const wiringView: (self: WiringRead) => (shown: Shown) => ReactNode = Match.type
       </p>
     ),
     Read: ({ report }) =>
-      ({ activity, portCalls }: Shown) => (
+      ({ activity, portCalls, unsampled }: Shown) => (
         <>
           {report.ports.map((port) => (
             <PortCard
@@ -88,6 +103,8 @@ const wiringView: (self: WiringRead) => (shown: Shown) => ReactNode = Match.type
               activity={activityFor(activity, port.port)}
               calls={callsFor(portCalls, port.port)}
               collecting={portCalls !== undefined}
+              unsampled={unsampled}
+              noActivityReading={unsampled && activity.length === 0}
             />
           ))}
           <CacheCard cache={report.cache} />
@@ -96,9 +113,15 @@ const wiringView: (self: WiringRead) => (shown: Shown) => ReactNode = Match.type
   }),
 );
 
-export const ServicesPanel: FC<ServicesPanelProps> = ({ wiring, activity, portCalls }) => (
-  <div style={{ padding: 12 }} data-testid="qadi-services">
-    {wiringView(wiring)({ activity, portCalls })}
+export const ServicesPanel: FC<ServicesPanelProps> = ({
+  wiring,
+  activity,
+  portCalls,
+  diagnostics,
+}) => (
+  <div {...diagnosticsRootProps(diagnostics.status)} data-testid="qadi-services">
+    <DiagnosticsNotice {...diagnostics} />
+    {wiringView(wiring)({ activity, portCalls, unsampled: isUnsampled(diagnostics.status) })}
 
     <p
       style={{ ...muted, fontSize: font.sizeSmall, marginBottom: 0 }}
@@ -121,7 +144,9 @@ const PortCard: FC<{
   readonly activity: PortActivity | undefined;
   readonly calls: ReadonlyArray<PortCall>;
   readonly collecting: boolean;
-}> = ({ port, activity, calls, collecting }) => (
+  readonly unsampled: boolean;
+  readonly noActivityReading: boolean;
+}> = ({ port, activity, calls, collecting, unsampled, noActivityReading }) => (
   <section
     style={card}
     data-testid="qadi-port"
@@ -136,7 +161,9 @@ const PortCard: FC<{
       <span style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-port-activity">
         {activity === undefined
           // Distinct from absent: this port is wired, and nothing has reached it.
-          ? "never called"
+          ? noActivityReading
+            ? NO_ACTIVITY_READING
+            : "never called"
           : `${activity.calls} call${activity.calls === 1 ? "" : "s"}${
             activity.translationCalls === 0
               ? ""
@@ -160,7 +187,7 @@ const PortCard: FC<{
           this cost now, and a wired one is only exposed to it. */}
       {port.defaulted === false ? `if defaulted: ${port.consequence}` : port.consequence}
     </div>
-    <RecentCalls calls={calls} collecting={collecting} />
+    <RecentCalls calls={calls} collecting={collecting} unsampled={unsampled} />
   </section>
 );
 
@@ -174,8 +201,11 @@ const PortCard: FC<{
 const RecentCalls: FC<{
   readonly calls: ReadonlyArray<PortCall>;
   readonly collecting: boolean;
-}> = ({ calls, collecting }) => {
+  readonly unsampled: boolean;
+}> = ({ calls, collecting, unsampled }) => {
   if (!collecting) {
+    // A collector may be configured and not yet sampled, and the dock cannot tell which.
+    if (unsampled) return null;
     return (
       <div
         style={{ ...muted, fontSize: font.sizeSmall, marginTop: 4 }}

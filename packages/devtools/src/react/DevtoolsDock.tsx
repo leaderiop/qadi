@@ -14,16 +14,18 @@
  * decisions are reachable at `/__decisions`; what renders them is not this.
  */
 import type { FC, ReactNode } from "react";
+import { useMemo, useRef } from "react";
 import { sourceFromRecords, type Source } from "../model/Source.ts";
 import type { Verdict } from "../model/Verdict.ts";
 import type { Catalogue } from "../model/Catalogue.ts";
-import type { DiagnosticsDockOptions } from "../model/DiagnosticsFeed.ts";
+import type { DiagnosticsDockOptions, DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
 import type { Diagnostics, DiagnosticsReading } from "../model/DiagnosticsStore.ts";
 import type { DockModel } from "../model/DockModel.ts";
 import type { DockSnapshot, TabId } from "../model/DockSession.ts";
 import type { GateInstanceLike } from "../model/Gates.ts";
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
 import { DecisionLog } from "./DecisionLog.tsx";
+import type { DiagnosticsNoticeProps } from "./DiagnosticsNotice.tsx";
 import { Inspector } from "./Inspector.tsx";
 import { PolicyExplorer } from "./PolicyExplorer.tsx";
 import { QuestionsPanel } from "./QuestionsPanel.tsx";
@@ -160,7 +162,13 @@ const DockFrame: FC<{
   const { dock, timeline } = model;
   const view = useStoreSnapshot(dock);
   // Each field is the supplied reading's when it carries one, and the sample's otherwise: the model merges.
-  const shown = useStoreSnapshot(model.diagnostics).reading;
+  const { status, reading: shown } = useStoreSnapshot(model.diagnostics);
+  // Records only whether a stop's alert was delivered, never what the reading says (AGENTS.md §13).
+  const announced = useRef<DiagnosticsStatus | undefined>(undefined);
+  const notice = useMemo(
+    () => ({ status, onRestart: model.diagnostics.restart, announced }),
+    [status, model],
+  );
   const paused = usePaused(timeline);
 
   return (
@@ -223,7 +231,7 @@ const DockFrame: FC<{
       </div>
 
       <div style={body}>
-        <Screen model={model} view={view} shown={shown} host={host} />
+        <Screen model={model} view={view} shown={shown} notice={notice} host={host} />
       </div>
     </section>
   );
@@ -268,8 +276,10 @@ const Screen: FC<{
   readonly model: DockModel;
   readonly view: DockSnapshot;
   readonly shown: Diagnostics;
+  readonly notice: DiagnosticsNoticeProps;
   readonly host: HostProps;
 }> = (props) => {
+  const { notice } = props;
   const screens: Record<TabId, () => ReactNode> = {
     log: () => (
       <DecisionLog
@@ -290,6 +300,7 @@ const Screen: FC<{
         wiring={props.shown.wiring}
         activity={props.shown.activity}
         portCalls={props.shown.portCalls}
+        diagnostics={notice}
       />
     ),
     simulator: () => <Simulator session={props.model.simulation} />,

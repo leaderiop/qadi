@@ -9,6 +9,8 @@
  * deliberately smaller set.
  */
 import * as Effect from "effect/Effect";
+import { DiagnosticsStatus } from "../src/model/DiagnosticsFeed.ts";
+import type { DiagnosticsNoticeProps } from "../src/react/DiagnosticsNotice.tsx";
 import {
   Allow,
   Decided,
@@ -172,3 +174,10 @@ export const chain = <T>(wrap: (inner: T) => T, n: number, leaf: T): T => {
 export const settleTurns = Effect.gen(function* () {
   for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
 });
+
+/** The binding for a panel rendered on its own, in a live poll. */
+export const liveNotice: DiagnosticsNoticeProps = {
+  status: DiagnosticsStatus.Live(),
+  onRestart: () => undefined,
+  announced: { current: undefined },
+};
