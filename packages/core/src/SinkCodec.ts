@@ -74,7 +74,7 @@ import {
   SinkRecordNotDecodable,
   SinkRecordNotEncodable,
 } from "./Errors.ts";
-import { MAX_DECODE_DEPTH, Policy, policyDepth, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
+import { Policy, policyDepth } from "./Policy.ts";
 import { wireHazard } from "./JsonHazard.ts";
 import { EncodeRefusal } from "./JsonRefusal.ts";
 import {
@@ -85,6 +85,7 @@ import {
 } from "./SinkRecordFields.ts";
 import { DecodeRefusal, WIRE_VERSIONS } from "./SinkWire.ts";
 import type { WireVersion } from "./SinkWire.ts";
+import { MAX_DECODE_DEPTH, UNTRUSTED_DECODE_OPTIONS } from "./UntrustedDecode.ts";
 
 /**
  * An `EvaluationError` on the wire — the union of the wire-crossing

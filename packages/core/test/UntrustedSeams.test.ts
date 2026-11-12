@@ -22,9 +22,10 @@ import {
   decodeSinkRecordString,
   decodeStoredRecord,
 } from "../src/SinkCodec.ts";
+import { MAX_DECODE_DEPTH } from "../src/UntrustedDecode.ts";
 import * as V2 from "./fixtures/sinkWireV2.ts";
 
-const OVER = P.MAX_DECODE_DEPTH + 10;
+const OVER = MAX_DECODE_DEPTH + 10;
 
 /** What the strict decode says for an excess key `rloe`, as the base prints it. */
 const EXCESS_RLOE = 'Expected no excess property\n  at ["rloe"]';
@@ -66,14 +67,14 @@ describe("Policy.fromJson", () => {
       assert.strictEqual(policy._tag, "HasRole");
     }));
 
-  it.effect("`}{` -> SchemaError (flips in 30-02: PolicyNotJson)", () =>
+  it.effect("`}{` -> PolicyNotJson (flipped in 30-02 (D-06))", () =>
     Effect.gen(function* () {
       const failure = yield* failureOf(P.fromJson("}{"));
-      assert.strictEqual(failure?._tag, "SchemaError");
+      assert.strictEqual(failure?._tag, "PolicyNotJson");
     }));
 
   it.effect(
-    "a 60,000-deep text missing its final brace -> SchemaError, no throw on construction or run (flips in 30-02: PolicyNotJson)",
+    "a 60,000-deep text missing its final brace -> PolicyNotJson, no throw on construction or run (flipped in 30-02 (D-06))",
     () =>
       Effect.gen(function* () {
         const malformed = deeplyNestedNot(60_000).slice(0, -1);
@@ -83,23 +84,23 @@ describe("Policy.fromJson", () => {
         });
         if (effect === undefined) return assert.fail("fromJson did not return an effect");
         const failure = yield* failureOf(effect);
-        assert.strictEqual(Reflect.get(Object(failure), "_tag"), "SchemaError");
+        assert.strictEqual(Reflect.get(Object(failure), "_tag"), "PolicyNotJson");
       }),
     60_000,
   );
 
   it.effect("the deepest `Not` nesting the guard admits -> success", () =>
     Effect.gen(function* () {
-      const text = deeplyNestedNot(P.MAX_DECODE_DEPTH - 1);
-      assert.isFalse(exceedsJsonDepth(JSON.parse(text), P.MAX_DECODE_DEPTH));
+      const text = deeplyNestedNot(MAX_DECODE_DEPTH - 1);
+      assert.isFalse(exceedsJsonDepth(JSON.parse(text), MAX_DECODE_DEPTH));
       const policy = yield* P.fromJson(text);
       assert.strictEqual(policy._tag, "Not");
     }));
 
   it.effect("one level deeper than the guard admits -> PolicyDecodeTooDeep naming 256", () =>
     Effect.gen(function* () {
-      const text = deeplyNestedNot(P.MAX_DECODE_DEPTH);
-      assert.isTrue(exceedsJsonDepth(JSON.parse(text), P.MAX_DECODE_DEPTH));
+      const text = deeplyNestedNot(MAX_DECODE_DEPTH);
+      assert.isTrue(exceedsJsonDepth(JSON.parse(text), MAX_DECODE_DEPTH));
       const failure = yield* failureOf(P.fromJson(text));
       assert.strictEqual(failure?._tag, "PolicyDecodeTooDeep");
       assert.strictEqual(failure instanceof P.PolicyDecodeTooDeep ? failure.maxDepth : undefined, 256);

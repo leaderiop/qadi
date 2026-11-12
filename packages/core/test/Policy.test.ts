@@ -6,6 +6,7 @@ import * as M from "../src/Matcher.ts";
 import { Obligation, obligation, unionObligations } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
+import { MAX_DECODE_DEPTH } from "../src/UntrustedDecode.ts";
 import { policyArbitrary, sharedPolicyArbitrary } from "./helpers.ts";
 
 describe("Policy combinators", () => {
@@ -376,8 +377,8 @@ describe("Policy serialization", () => {
     }));
 
   describe("excess-property rejection — a typo'd field inside a known tag is a decode failure, not a silent drop", () => {
-    // Effect v4 defaults `onExcessProperty` to `"ignore"`: without
-    // `UNTRUSTED_DECODE_OPTIONS` (Policy.ts), a persisted policy carrying a
+    // Effect v4 defaults `onExcessProperty` to `"ignore"`: without the strict
+    // options `untrustedDecoder` fixes (UntrustedDecode.ts), a persisted policy carrying a
     // misspelled key — `{"_tag":"HasRole","rle":"admin"}` — would decode by
     // silently dropping the typo, not by rejecting it. `HasRole` still needs
     // its own required `role`, so that particular typo also fails on a
@@ -442,6 +443,7 @@ describe("Policy serialization", () => {
     Effect.gen(function* () {
       const result = yield* Effect.result(P.fromJson("{not json"));
       assert.strictEqual(result._tag, "Failure");
+      if (result._tag === "Failure") assert.strictEqual(result.failure._tag, "PolicyNotJson");
     }));
 
   it.effect("rejects an unknown fieldStrategy value, rather than silently widening (MH-01)", () =>
@@ -474,26 +476,26 @@ describe("Policy serialization", () => {
 
     it.effect("fromJson refuses a policy nested past MAX_DECODE_DEPTH, naming the bound", () =>
       Effect.gen(function* () {
-        const json = deeplyNestedNot(P.MAX_DECODE_DEPTH + 10);
+        const json = deeplyNestedNot(MAX_DECODE_DEPTH + 10);
         const result = yield* Effect.result(P.fromJson(json));
         assert.strictEqual(result._tag, "Failure");
         if (result._tag === "Failure") {
           assert.strictEqual(result.failure._tag, "PolicyDecodeTooDeep");
           if (result.failure._tag === "PolicyDecodeTooDeep") {
-            assert.strictEqual(result.failure.maxDepth, P.MAX_DECODE_DEPTH);
+            assert.strictEqual(result.failure.maxDepth, MAX_DECODE_DEPTH);
           }
         }
       }));
 
     it.effect("fromJsonValue refuses an already-parsed policy nested past MAX_DECODE_DEPTH, naming the bound", () =>
       Effect.gen(function* () {
-        const value: unknown = JSON.parse(deeplyNestedNot(P.MAX_DECODE_DEPTH + 10));
+        const value: unknown = JSON.parse(deeplyNestedNot(MAX_DECODE_DEPTH + 10));
         const result = yield* Effect.result(P.fromJsonValue(value));
         assert.strictEqual(result._tag, "Failure");
         if (result._tag === "Failure") {
           assert.strictEqual(result.failure._tag, "PolicyDecodeTooDeep");
           if (result.failure._tag === "PolicyDecodeTooDeep") {
-            assert.strictEqual(result.failure.maxDepth, P.MAX_DECODE_DEPTH);
+            assert.strictEqual(result.failure.maxDepth, MAX_DECODE_DEPTH);
           }
         }
       }));
@@ -510,7 +512,7 @@ describe("Policy serialization", () => {
         // deeplyNestedNot(n) reaches structural depth n + 1 (the leaf's own
         // fields sit one level past the last `Not`), so n = MAX_DECODE_DEPTH - 1
         // is the deepest input the `> maxDepth` check must still accept.
-        const json = deeplyNestedNot(P.MAX_DECODE_DEPTH - 1);
+        const json = deeplyNestedNot(MAX_DECODE_DEPTH - 1);
         const result = yield* Effect.result(P.fromJson(json));
         assert.strictEqual(result._tag, "Success");
       }));
@@ -522,7 +524,7 @@ describe("Policy serialization", () => {
         // depth-counting bug specific to the array-traversal branch would
         // slip past every other test here.
         let node: unknown = { leaf: true };
-        for (let i = 0; i < P.MAX_DECODE_DEPTH; i++) node = { policies: [node] };
+        for (let i = 0; i < MAX_DECODE_DEPTH; i++) node = { policies: [node] };
         const result = yield* Effect.result(P.fromJsonValue(node));
         assert.strictEqual(result._tag, "Failure");
         // Specifically the depth refusal, not some unrelated schema failure —
@@ -559,17 +561,18 @@ describe("Policy serialization", () => {
         const json = deeplyNestedNot(60_000);
         const result = yield* Effect.result(P.fromJson(json));
         assert.strictEqual(result._tag, "Failure");
+        if (result._tag === "Failure") {
+          assert.strictEqual(result.failure._tag, "PolicyDecodeTooDeep");
+        }
       }),
       60_000,
     );
 
-    // KT-02: when `JSON.parse` itself throws, `fromJson` falls through to
-    // `Schema.decodeUnknownEffect(PolicyFromJson, …)`, which re-parses the
-    // same string with `Schema`'s own string-side parser — the depth guard
-    // above needs an already-parsed value to walk, and none exists yet on
-    // this path. This pins that the fallthrough stays inside the Effect
-    // channel even when the syntax error sits behind 60,000 otherwise
-    // well-formed nesting levels, not only behind a short, shallow one.
+    // KT-02: when `JSON.parse` itself throws, `fromJson` reports `PolicyNotJson`
+    // and stops: there is no fallthrough to a second, `Schema`-side parser any
+    // more (ADR-QD-143), and the depth guard needs a parsed value, which this
+    // path never has. Pins that the refusal stays inside the Effect channel even
+    // when the syntax error sits behind 60,000 otherwise well-formed levels.
     it.effect(
       "a malformed 60,000-deep JSON string (missing final brace) fails through the Effect channel, never throws",
       () =>
@@ -583,6 +586,9 @@ describe("Policy serialization", () => {
           if (effect === undefined) return;
           const result = yield* Effect.result(effect);
           assert.strictEqual(result._tag, "Failure");
+          if (result._tag === "Failure") {
+            assert.strictEqual(Reflect.get(Object(result.failure), "_tag"), "PolicyNotJson");
+          }
         }),
       60_000,
     );

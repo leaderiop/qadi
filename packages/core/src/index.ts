@@ -54,3 +54,4 @@ export * from "./SinkCodec.ts";
 export * from "./SinkWire.ts";
 export * from "./SubjectSet.ts";
 export * from "./TraceDiff.ts";
+export * from "./UntrustedDecode.ts";

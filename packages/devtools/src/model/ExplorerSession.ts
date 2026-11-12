@@ -26,10 +26,11 @@ import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
+import * as Match from "effect/Match";
 import type * as Schema from "effect/Schema";
 import * as SchemaIssue from "effect/SchemaIssue";
 import { DEFAULT_MAX_DEPTH, fromJson, policyDepth, simplify, toJson } from "@qadi/core";
-import type { Policy, PolicyDecodeTooDeep } from "@qadi/core";
+import type { Policy, PolicyDecodeTooDeep, PolicyNotJson } from "@qadi/core";
 import { sameSighting, sightingFor, type PolicySighting } from "./Catalogue.ts";
 import { makeExternalStore } from "./ExternalStore.ts";
 import { makeHeldChoice, type HeldChoice } from "./HeldChoice.ts";
@@ -116,25 +117,30 @@ export interface ExplorerSessionInit {
  * 17-member recursive `Policy` union spelled out, with no path and no hint
  * which value was actually wrong (WZ-01). `SchemaIssue.makeFormatterStandardSchemaV1`
  * already flattens the issue tree into `{ message, path }` pairs — this only
- * adds the `at <path>:` prefix per entry and a dedicated sentence for
- * {@link PolicyDecodeTooDeep}, which isn't a `Schema.SchemaError` at all and so
- * has no issue tree to format.
+ * adds the `at <path>:` prefix per entry. {@link PolicyDecodeTooDeep} and
+ * {@link PolicyNotJson} are not `Schema.SchemaError`s and have no issue tree,
+ * so each gets a sentence of its own. One exhaustive table over the three
+ * errors `fromJson` can fail with, so a fourth is a compile error here (D-06).
  */
-const formatDecodeFailure = (failure: PolicyDecodeTooDeep | Schema.SchemaError): string => {
-  if (failure._tag === "PolicyDecodeTooDeep") {
-    return (
-      `Policy nesting exceeds the decode limit (max depth ${failure.maxDepth}). ` +
-      "Simplify the policy, or split it into smaller pieces."
-    );
-  }
-  const { issues } = SchemaIssue.makeFormatterStandardSchemaV1()(failure.issue);
-  if (issues.length === 0) return failure.message;
-  return issues
-    .map(({ path, message }) =>
-      path === undefined || path.length === 0 ? message : `at ${path.map(String).join(".")}: ${message}`,
-    )
-    .join("\n");
-};
+const formatDecodeFailure = Match.type<PolicyDecodeTooDeep | PolicyNotJson | Schema.SchemaError>().pipe(
+  Match.tagsExhaustive({
+    PolicyDecodeTooDeep: ({ maxDepth }) =>
+      `Policy nesting exceeds the decode limit (max depth ${maxDepth}). ` +
+      "Simplify the policy, or split it into smaller pieces.",
+    PolicyNotJson: ({ message }) => `The text is not JSON: ${message}`,
+    SchemaError: (failure) => {
+      const { issues } = SchemaIssue.makeFormatterStandardSchemaV1()(failure.issue);
+      if (issues.length === 0) return failure.message;
+      return issues
+        .map(({ path, message }) =>
+          path === undefined || path.length === 0
+            ? message
+            : `at ${path.map(String).join(".")}: ${message}`,
+        )
+        .join("\n");
+    },
+  }),
+);
 
 /**
  * Reads a decode's exit as the refusal to show, or `undefined` for a success.
@@ -144,7 +150,7 @@ const formatDecodeFailure = (failure: PolicyDecodeTooDeep | Schema.SchemaError):
  * payload is malformed than any sentence.
  */
 export const refusalOf = (
-  exit: Exit.Exit<Policy, PolicyDecodeTooDeep | Schema.SchemaError>,
+  exit: Exit.Exit<Policy, PolicyDecodeTooDeep | PolicyNotJson | Schema.SchemaError>,
 ): string | undefined => {
   if (Exit.isSuccess(exit)) return undefined;
   const failure = Cause.findErrorOption(exit.cause);

@@ -29,7 +29,7 @@ import * as Schema from "effect/Schema";
 import { anonymous } from "./AuthSubject.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
 import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
-import { foldPolicy, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
+import { foldPolicy } from "./Policy.ts";
 import type { Policy } from "./Policy.ts";
 import { servePortRead } from "./PortAccess.ts";
 import { nonePort } from "./PortDerivation.ts";
@@ -38,6 +38,7 @@ import type { PortName } from "./PortName.ts";
 import type { PortServing, PortServingOf } from "./PortServing.ts";
 import { PortWireReply, RemotePortError, RemotePortFailure } from "./PortWire.ts";
 import { WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
+import { UNTRUSTED_DECODE_OPTIONS } from "./UntrustedDecode.ts";
 import { forEveryPort, mergePorts, tabulatePorts } from "./Ports.ts";
 import type { ArgsOf, DescriptionOf, ErrorOf, PortServices, PortTypes, ServiceOf, ShapeOf } from "./Ports.ts";
 

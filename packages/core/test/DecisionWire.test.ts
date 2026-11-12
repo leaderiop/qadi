@@ -5,7 +5,7 @@ import { Allow, Deny } from "../src/Decision.ts";
 import type { AllowingTrace, DenyingTrace } from "../src/Decision.ts";
 import { decodeDecision, DecisionWire, encodeDecision } from "../src/DecisionWire.ts";
 import { makeSubjectId } from "../src/Identity.ts";
-import { UNTRUSTED_DECODE_OPTIONS } from "../src/Policy.ts";
+import { untrustedDecoder } from "../src/UntrustedDecode.ts";
 import { obligation } from "../src/Obligation.ts";
 
 const trace = (allowed: boolean) => ({
@@ -127,7 +127,7 @@ describe("decodeDecision refuses a wire decision that contradicts its trace (ARC
 });
 
 describe("DecisionWire is a tagged union", () => {
-  const decode = Schema.decodeUnknownExit(DecisionWire, UNTRUSTED_DECODE_OPTIONS);
+  const { decode } = untrustedDecoder(DecisionWire);
   const base = {
     evaluationId: "e",
     subjectId: "u1",
