@@ -271,4 +271,67 @@ describe("the dock's diagnostics screens", () => {
     reactTab();
     assert.strictEqual(screen.getByTestId("qadi-diagnostics-stopped").getAttribute("data-announce"), "alert");
   });
+
+  it("D9 the first moment is the Starting notice, never a blank or a false not-handed message", async () => {
+    const { layer } = slowCounted();
+    const held: DiagnosticsDockOptions = { layer };
+    render(<DevtoolsDock diagnostics={held} />);
+    services();
+
+    assert.strictEqual(screen.getByTestId("qadi-diagnostics-starting").getAttribute("role"), "status");
+    assert.isNull(screen.queryByTestId("qadi-wiring-absent"));
+
+    await vi.waitFor(() => {
+      assert.isNotNull(screen.getByTestId("qadi-cache-card"));
+    });
+    assert.isNull(screen.queryByTestId("qadi-diagnostics-starting"));
+  });
+
+  it("D10 with nothing handed over, or a live poll, no notice renders and the not-handed copy stays", async () => {
+    const off = render(<DevtoolsDock />);
+    services();
+    assert.strictEqual(screen.getByTestId("qadi-services").getAttribute("data-diagnostics-status"), "Off");
+    assert.isNull(off.container.querySelector("[data-testid^='qadi-diagnostics-']"));
+    assert.isNotNull(screen.getByTestId("qadi-wiring-absent"));
+    reactTab();
+    assert.strictEqual(screen.getByTestId("qadi-questions").getAttribute("data-diagnostics-status"), "Off");
+    assert.isNull(off.container.querySelector("[data-testid^='qadi-diagnostics-']"));
+    assert.isNotNull(screen.getByTestId("qadi-questions-absent"));
+    off.unmount();
+
+    const { layer } = counted();
+    const held: DiagnosticsDockOptions = { layer };
+    const live = render(<DevtoolsDock diagnostics={held} />);
+    services();
+    await vi.waitFor(() => {
+      assert.strictEqual(screen.getByTestId("qadi-services").getAttribute("data-diagnostics-status"), "Live");
+    });
+    assert.isNull(live.container.querySelector("[data-testid^='qadi-diagnostics-']"));
+  });
+
+  it("D11 a rebuilt dock shows the Starting notice, not the stop it held before it was hidden", async () => {
+    const { layer } = slowCounted();
+    const { questions } = throwsFirst();
+    const held: DiagnosticsDockOptions = { layer, questions };
+    const App = ({ mode }: { readonly mode: "visible" | "hidden" }) => (
+      <Activity mode={mode}>
+        <DevtoolsDock diagnostics={held} />
+      </Activity>
+    );
+    const view = render(<App mode="visible" />);
+    services();
+    await vi.waitFor(() => {
+      assert.strictEqual(screen.getByTestId("qadi-services").getAttribute("data-diagnostics-status"), "Stopped");
+    });
+
+    view.rerender(<App mode="hidden" />);
+    view.rerender(<App mode="visible" />);
+    services();
+    assert.isNotNull(screen.getByTestId("qadi-diagnostics-starting"));
+    assert.isNull(screen.queryByTestId("qadi-diagnostics-stopped"));
+
+    await vi.waitFor(() => {
+      assert.strictEqual(screen.getByTestId("qadi-services").getAttribute("data-diagnostics-status"), "Live");
+    });
+  });
 });
