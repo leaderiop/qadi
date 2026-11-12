@@ -30,7 +30,7 @@ created: "2026-11-12"
 - **After every task commit:** the single new or edited test file, `pnpm vitest run --project devtools <file>`, plus `pnpm typecheck && pnpm lint` on src tasks.
 - **After every plan wave:** `pnpm vitest run --project devtools` (src waves: `pnpm build && pnpm vitest run`).
 - **After every src wave (2–7):** `pnpm build && pnpm vitest run` was green after each: 4772, 4780, 4783, 4786, 4789 and 4807 tests.
-- **Before `/gsd-verify-work`:** `pnpm check:pr < /dev/null` was green on `380f8a91`: 192 files and 4807 tests, with coverage at 99.46 / 97.99 / 99.3 / 99.75 (devtools model 99.82 / 99.25 / 100 / 100). Stryker with `stryker.devtools.mjs` was compared with the base: `DockModel.ts` 1, `DiagnosticsStore.ts` 1, `TimelineFeed.ts` 1 (new), `DiagnosticsFeed.ts` 0.9388 (new; six survivors named in `34-mutation-survivors.json`).
+- **Before `/gsd-verify-work`:** `pnpm check:pr < /dev/null` was green on `380f8a91`: 192 files and 4807 tests, with coverage at 99.46 / 97.99 / 99.3 / 99.75 (devtools model 99.82 / 99.25 / 100 / 100). Stryker with `stryker.devtools.mjs` was compared with the base: `DockModel.ts` 1, `DiagnosticsStore.ts` 1, `TimelineFeed.ts` 1 (new), `DiagnosticsFeed.ts` 0.9388 (new; six survivors named in `34-mutation-survivors.json`). After the review fixes (`40cb480e`): `DiagnosticsFeed.ts` 0.9279 (103 killed, eight survivors, all named), `DockModel.ts` 1.
 - **Max feedback latency:** ~95 seconds.
 
 The poll is a discrete-event system. A test samples at least once between every pair of events it distinguishes:
