@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-148                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-12                                     |
 > | Status         | Accepted — amends ADR-QD-014, ADR-QD-103       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-12): Initial (ARCH-83, CCR-QD-426) |
+> | Change History | 1.1 (2026-11-12): The sweep runs within a few macrotasks of the pressure, not one: after an unmount the registry removes its node a macrotask later and only then does the book signal (CCR-QD-426)<br>1.0 (2026-11-12): Initial (ARCH-83, CCR-QD-426) |
 
 ---
 
@@ -69,7 +69,7 @@ mechanism as candidate 1.
   for the whole loop including the yields, with `asked()` still 200. The spike measured it and left
   the cold-count guard out: a count of cold entries would be a second counter kept in step at two
   places for no measured gain, and the example app's end to end run passed with the scan live.
-- **A seed written and never read is forgotten one macrotask after the pressure,** rather than at
+- **A seed written and never read is forgotten within a few macrotasks of the pressure,** rather than at
   the provider's first sweep after its children rendered. Hydrated questions mounted in one
   synchronous span survive it (three seeds over a bound of 2 all stayed seeded).
 - **A render-phase read that commits after a sweep is re-admitted once.** The registry releases an
