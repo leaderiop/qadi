@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 35
 current_phase_name: The atom set owns its eviction sweep
 status: executing
-stopped_at: Phase 34 complete, ready to plan Phase 35
-last_updated: "2026-11-12T20:20:32.830Z"
+stopped_at: Completed 35-01-PLAN.md
+last_updated: "2026-11-12T20:27:32.789Z"
 last_activity: 2026-11-12
-last_activity_desc: Phase 34 complete, transitioned to Phase 35
-state_head: 6df5fcdbbf6c6215d5808035247129e2c3fc3326
+last_activity_desc: Phase 35 execution started
+state_head: c2333e7d810497507d1b4c7d119ea6893b9ccba5
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 40
-  completed_plans: 33
+  completed_plans: 34
   percent: 71
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 34 — Diagnostics as the dock model's seventh store
+**Current focus:** Phase 35 — The atom set owns its eviction sweep
 
 ## Current Position
 
-Phase: 35 (The atom set owns its eviction sweep) — READY TO EXECUTE
-Plan: Not started
+Phase: 35 (The atom set owns its eviction sweep) — EXECUTING
+Plan: 2 of 7
 Status: Ready to execute
-Last activity: 2026-11-12 — Phase 34 complete, transitioned to Phase 35
+Last activity: 2026-11-12 — Phase 35 execution started
 
 Progress: [███████░░░] 71% (v1.3: 0 of 7 phases)
 
@@ -180,6 +180,7 @@ Progress: [███████░░░] 71% (v1.3: 0 of 7 phases)
 | Phase 34 P07 | 25min | 3 tasks | 11 files |
 | Phase 34 P08 | 6 min | 3 tasks | 10 files |
 | Phase 34 P09 | 4 min | 3 tasks | 1 files |
+| Phase 35 P01 | 3 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -273,6 +274,7 @@ Progress: [███████░░░] 71% (v1.3: 0 of 7 phases)
 - [Phase 34]: ADR-QD-047 is amended (Rev 1.13) rather than a new ADR written; ADR-QD-147 is named Unused in CCR-QD-425
 - [Phase 34]: The Stopped reason is Cause.pretty kept verbatim and uncapped, carried only in the model's snapshot and rendered as height-bounded React text, never sent to a sink, response, log or metric
 - [Phase 34]: The useTimeline placeholder is the inert module-scope idleTimeline; useDiagnostics before its feed exists is Off without options and Starting with them
+- [Phase 35]: P3 StrictMode sweeper count measured at 2 on the base; Stryker instrumented QadiAtoms.ts and QadiProvider.tsx via the --mutate override so the baseline has no unmeasured files
 
 ### Pending Todos
 
@@ -314,8 +316,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T17:59:44.122Z
-Stopped at: Phase 34 complete, ready to plan Phase 35
+Last session: 2026-11-12T20:27:32.659Z
+Stopped at: Completed 35-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
