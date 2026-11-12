@@ -265,9 +265,9 @@ export const gateIdCollisionReporter = (
  *
  * The reason is carried because each case has a different cause and a different
  * fix, and a bare count cannot tell them apart. The payload-level ones
- * (`PayloadSubjectMismatch`, `UnsupportedPayloadVersion`, `MalformedPayload`)
- * reject the payload whole, so `entries` is then every entry in it. The
- * dehydrate side builds a payload and never refuses one whole, so its
+ * (`PayloadSubjectMismatch`, `UnsupportedPayloadVersion`, `MalformedPayload`,
+ * `PayloadTooDeep`) reject the payload whole, so `entries` is then every entry in
+ * it. The dehydrate side builds a payload and never refuses one whole, so its
  * `wholePayload` is always `false`.
  */
 export interface HydrationDrop<A, R extends HydrationDropReason = ClientHydrationDropReason> {

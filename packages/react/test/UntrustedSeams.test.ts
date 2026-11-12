@@ -96,31 +96,39 @@ describe("hydrateDecisions", () => {
     expect(hydrate(payloadOf([], { sneaky: true }))).toEqual({ seeded: 0, reasons: ["MalformedPayload"] });
   });
 
-  it("an excess envelope key holding a value nested past the bound -> MalformedPayload (flips in 30-05: PayloadTooDeep)", () => {
+  it("an excess envelope key holding a value nested past the bound -> PayloadTooDeep (flipped in 30-05 (D-07))", () => {
     expect(hydrate(payloadOf([], { sneaky: nested(OVER) }))).toEqual({
       seeded: 0,
-      reasons: ["MalformedPayload"],
+      reasons: ["PayloadTooDeep"],
     });
   });
 
-  // On the base the array is refused as not an object before the depth guard runs, so this
-  // row flips in 30-05 only if the module's guard comes ahead of that check there.
-  it("an array payload nested past the bound -> MalformedPayload (flips in 30-05: PayloadTooDeep, if the guard runs first)", () => {
-    expect(hydrate([nested(OVER)])).toEqual({ seeded: 0, reasons: ["MalformedPayload"] });
+  // An array is not an object to the version check, but the module's guard runs ahead of it
+  // (guard, prepare, decode), so an array nested past the bound is refused as too deep.
+  it("an array payload nested past the bound -> PayloadTooDeep (flipped in 30-05 (D-07): the guard runs first)", () => {
+    expect(hydrate([nested(OVER)])).toEqual({ seeded: 0, reasons: ["PayloadTooDeep"] });
   });
 
-  it("nested past the bound and version 3 -> MalformedPayload, the guard first (flips in 30-05: PayloadTooDeep)", () => {
+  it("nested past the bound and version 3 -> PayloadTooDeep, the guard first (flipped in 30-05 (D-07))", () => {
     expect(hydrate({ ...payloadOf([], { sneaky: nested(OVER) }), version: 3 })).toEqual({
       seeded: 0,
-      reasons: ["MalformedPayload"],
+      reasons: ["PayloadTooDeep"],
     });
   });
 
-  it("a subjectId value nested past the bound -> MalformedPayload (flips in 30-05: PayloadTooDeep)", () => {
+  it("a subjectId value nested past the bound -> PayloadTooDeep (flipped in 30-05 (D-07))", () => {
     expect(hydrate({ ...payloadOf([]), subjectId: nested(OVER) })).toEqual({
       seeded: 0,
-      reasons: ["MalformedPayload"],
+      reasons: ["PayloadTooDeep"],
     });
+  });
+
+  it("a valid envelope with entries: [] -> nothing seeded, nothing dropped", () => {
+    expect(hydrate(payloadOf([]))).toEqual({ seeded: 0, reasons: [] });
+  });
+
+  it("a payload with no entries key -> MalformedPayload", () => {
+    expect(hydrate({ version: 2, subjectId: "u1" })).toEqual({ seeded: 0, reasons: ["MalformedPayload"] });
   });
 
   it("the subjectId of another subject -> PayloadSubjectMismatch", () => {

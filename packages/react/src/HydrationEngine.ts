@@ -45,9 +45,14 @@ import {
   encodeDecision,
   exceedsJsonDepth,
   isAllowed,
+  untrustedDecoder,
 } from "@qadi/core";
+import type { UntrustedValueRefusal } from "@qadi/core";
+import * as Data from "effect/Data";
+import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
+import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import * as Struct from "effect/Struct";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
@@ -196,7 +201,45 @@ const encodePolicy = Schema.encodeOption(PolicySchema);
  * rule out.
  */
 const decodePolicy = Schema.decodeUnknownOption(PolicySchema, UNTRUSTED_DECODE_OPTIONS);
-const decodeEnvelope = Schema.decodeUnknownOption(Envelope, UNTRUSTED_DECODE_OPTIONS);
+
+/**
+ * A payload whose `version` is not {@link PAYLOAD_VERSION}, raised by the
+ * envelope decoder's `prepare`: a refusal of this module's own, beside the
+ * decoder's `TooDeep` and `Malformed`, so `prepare` fails without a cast.
+ */
+type PayloadVersionRefusal = Data.TaggedEnum<{ UnsupportedPayloadVersion: {} }>;
+const PayloadVersionRefusal = Data.taggedEnum<PayloadVersionRefusal>();
+
+/**
+ * Only `version: 2` is read. Any other value — or none, the format 0.9 and
+ * earlier wrote, whose reader 0.11.0 removed (ADR-QD-078's 2026-10-06
+ * amendment) — is a format this client does not read, which is not the same as
+ * a malformed one and is the signature of mismatched releases. A value that is
+ * not an object (an array included) passes through for the decode to call
+ * malformed.
+ */
+const checkVersion = (input: unknown): Result.Result<unknown, PayloadVersionRefusal> =>
+  Predicate.isObject(input) && (!Object.hasOwn(input, "version") || input["version"] !== PAYLOAD_VERSION)
+    ? Result.fail(PayloadVersionRefusal.UnsupportedPayloadVersion())
+    : Result.succeed(input);
+
+/**
+ * The payload decoder. `entries` is unwalked, since each entry is guarded from its
+ * own root below (INV-QD-306), and the version is checked after the guard and
+ * before the strict decode, so a version-3 payload nested past the bound is
+ * `PayloadTooDeep`, not `UnsupportedPayloadVersion` (D-04, D-07).
+ */
+const decodeEnvelope = untrustedDecoder(Envelope, { unwalked: ["entries"], prepare: checkVersion }).decode;
+
+/** The decoder's refusal as the reason the payload is refused with. */
+const payloadRefusalReason: (refusal: UntrustedValueRefusal | PayloadVersionRefusal) => PayloadRefusalReason =
+  Match.type<UntrustedValueRefusal | PayloadVersionRefusal>().pipe(
+    Match.tagsExhaustive({
+      TooDeep: (): PayloadRefusalReason => "PayloadTooDeep",
+      Malformed: (): PayloadRefusalReason => "MalformedPayload",
+      UnsupportedPayloadVersion: (): PayloadRefusalReason => "UnsupportedPayloadVersion",
+    }),
+  );
 const decodeEntry = Schema.decodeUnknownOption(DehydratedEntryWire, UNTRUSTED_DECODE_OPTIONS);
 
 export interface DehydrateOptions {
@@ -435,23 +478,9 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
   const visible: ReadonlyArray<unknown> =
     Predicate.isObject(payload) && Array.isArray(payload["entries"]) ? payload["entries"] : [];
 
-  // Entries are guarded one by one below; this covers everything else, which the
-  // envelope decode would otherwise recurse into on its way to refusing it.
-  if (!Predicate.isObject(payload) || exceedsJsonDepth({ ...payload, entries: [] }, MAX_DECODE_DEPTH)) {
-    return refuse("MalformedPayload", visible);
-  }
-
-  // Only `version: 2` is read. Any other value — or none, the format 0.9 and
-  // earlier wrote, whose reader 0.11.0 removed (ADR-QD-078's 2026-10-06
-  // amendment) — is a format this client does not read, which is not the same
-  // as a malformed one and is the signature of mismatched releases.
-  if (!Object.hasOwn(payload, "version") || payload["version"] !== PAYLOAD_VERSION) {
-    return refuse("UnsupportedPayloadVersion", visible);
-  }
-
   const envelope = decodeEnvelope(payload);
-  if (Option.isNone(envelope)) return refuse("MalformedPayload", visible);
-  const { subjectId, entries } = envelope.value;
+  if (Result.isFailure(envelope)) return refuse(payloadRefusalReason(envelope.failure), visible);
+  const { subjectId, entries } = envelope.success;
 
   // `undefined` names an empty payload (EC-06), not a subject that failed to
   // match — there is nothing to seed and nothing to warn about, the same

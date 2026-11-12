@@ -58,10 +58,10 @@ export type DehydrationDropReason =
 /**
  * Why the **client** did not seed an entry, or a whole payload.
  *
- * `PayloadSubjectMismatch`, `UnsupportedPayloadVersion` and `MalformedPayload`
- * reject the payload entire rather than entry by entry: the subject id and the
- * version are properties of the payload, and a value that is not an envelope has
- * no entries to speak of.
+ * `PayloadSubjectMismatch`, `UnsupportedPayloadVersion`, `MalformedPayload` and
+ * `PayloadTooDeep` reject the payload entire rather than entry by entry: the
+ * subject id and the version are properties of the payload, and a value that is
+ * not an envelope has no entries to speak of.
  *
  * There is no reason for an atom set that was not built by `makeQadiAtoms`.
  * That was `UnregisteredAtoms`, and it existed because the seed lookup was a
@@ -97,13 +97,24 @@ export type ClientHydrationDropReason =
   | "UnsupportedPayloadVersion"
   /**
    * The payload is not an envelope at all — not an object, no `entries` array,
-   * an excess key, or nested past the depth guard outside its entries.
+   * or an excess key.
    *
    * `hydrateDecisions` receives JSON from a page, and `JSON.parse` yields `any`,
    * so the parameter's type protects nothing. This is what a value that is not
    * even shaped like a payload is dropped as, instead of throwing.
    */
-  | "MalformedPayload";
+  | "MalformedPayload"
+  /**
+   * The payload nests deeper than `MAX_DECODE_DEPTH` outside its `entries`,
+   * refused before any decode recurses into it. An entry nested that deep is
+   * `EntryTooDeep` instead.
+   *
+   * Distinct from `MalformedPayload` (ADR-QD-143): a shape this schema cannot
+   * describe is a version-skew signal, while a payload nested past the bound is
+   * what a tampering proxy or an attacker would try, and the two want different
+   * follow-up.
+   */
+  | "PayloadTooDeep";
 
 /**
  * Every reason a decision failed to survive the trip, from either end.
@@ -125,6 +136,7 @@ export const hydrationDropReasons: ReadonlyArray<HydrationDropReason> = [
   "EntryTooDeep",
   "UnsupportedPayloadVersion",
   "MalformedPayload",
+  "PayloadTooDeep",
 ];
 
 /**
@@ -205,9 +217,16 @@ const MEANINGS: { readonly [R in HydrationDropReason]: HydrationDropMeaning } = 
     summary: "a payload that is not shaped like a dehydrated payload at all",
     remedy:
       "the payload is not shaped like a dehydrated payload — not an object, no " +
-      "entries array, an unrecognised key, or nested past the structural depth guard. " +
+      "entries array, or an unrecognised key. " +
       "Check that what reached hydrateDecisions is the JSON dehydrateDecisions " +
       "produced, unmodified",
+  },
+  PayloadTooDeep: {
+    summary: "a payload nested past the client's decode bound outside its entries, refused before any decode ran",
+    remedy:
+      "the payload nests deeper than this client will decode, outside its entries — a shape " +
+      "dehydrateDecisions never writes, so something between the server and the client changed it. " +
+      "Check any proxy, cache or script that touches the page's JSON",
   },
 };
 

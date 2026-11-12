@@ -82,7 +82,11 @@ export interface DecisionEntry {
  * Written out rather than `Extract`ed: with {@link EntryDropReason} it partitions
  * `ClientHydrationDropReason`, and a new reason is placed by hand.
  */
-export type PayloadRefusalReason = "PayloadSubjectMismatch" | "UnsupportedPayloadVersion" | "MalformedPayload";
+export type PayloadRefusalReason =
+  | "PayloadSubjectMismatch"
+  | "UnsupportedPayloadVersion"
+  | "MalformedPayload"
+  | "PayloadTooDeep";
 
 /** The reasons that drop some entries of a payload and seed the rest. */
 export type EntryDropReason = "MalformedEntry" | "UndecodablePolicy" | "EntryTooDeep";
