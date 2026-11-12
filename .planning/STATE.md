@@ -5,11 +5,11 @@ milestone_name: Arch Wave 8
 current_phase: 36
 current_phase_name: Carried spec debt and stale records
 status: planning
-stopped_at: Phase 35 complete, ready to plan Phase 36
-last_updated: "2026-11-12T21:31:32.390Z"
+stopped_at: Phase 36 UI-SPEC approved
+last_updated: "2026-11-12T22:08:22.162Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 35 complete, transitioned to Phase 36
-state_head: a9cfe0c191ba5b785325dd5469f49d5a25aaeab1
+state_head: 56c47bfd95b386517f21931369b5c6aafa5c0599
 progress:
   total_phases: 7
   completed_phases: 6
@@ -330,9 +330,9 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T21:14:14.782Z
-Stopped at: Phase 35 complete, ready to plan Phase 36
-Resume file: None
+Last session: 2026-11-12T22:08:21.954Z
+Stopped at: Phase 36 UI-SPEC approved
+Resume file: .planning/phases/36-carried-spec-debt-and-stale-records/36-UI-SPEC.md
 
 ## Operator Next Steps
 
