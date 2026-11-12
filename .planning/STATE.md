@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 30
 current_phase_name: One strict-decode module
 status: executing
-stopped_at: Completed 30-01-PLAN.md
-last_updated: "2026-11-12T04:02:55.018Z"
+stopped_at: Completed 30-02-PLAN.md
+last_updated: "2026-11-12T04:08:14.373Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 30 execution started
-state_head: b56d5b387189ab0e458a16f6a50a5f08bd33bc31
+state_head: 65e18aeb4ceb4b07d9d1d559d58ca7e0964a5019
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 9
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 30 (One strict-decode module) — EXECUTING
-Plan: 2 of 9
+Plan: 3 of 9
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 30 execution started
 
@@ -143,6 +143,7 @@ Progress: [░░░░░░░░░░] 0% (v1.3: 0 of 7 phases)
 | Phase 29 P02 | 2 min | 2 tasks | 4 files |
 | Phase 29 P03 | 25 min | 3 tasks | 8 files |
 | Phase 30 P01 | 6 min | 3 tasks | 5 files |
+| Phase 30 P02 | 12 min | 1 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -202,6 +203,7 @@ Progress: [░░░░░░░░░░] 0% (v1.3: 0 of 7 phases)
 - [Phase 29]: FAILURE_IS_NOT_A_DENIAL lives in devtools model/Verdict.ts and stays out of both barrels (D-05)
 - [Phase 29]: 29-03: no new ADR; ADR-QD-141 unused, narrowing recorded as an ADR-QD-094 amendment (CCR-QD-419)
 - [Phase 30]: 30-01: characterisation tables pin what the base returns (hydration [] is MalformedPayload, not UnsupportedPayloadVersion); the array-payload-nested row flips in 30-05 only if the guard runs before the object check
+- [Phase 30]: 30-02: PolicyNotJson carries the parser message and lives in Policy.ts; UNTRUSTED_DECODE_OPTIONS stays exported from the leaf until 30-06
 
 ### Pending Todos
 
@@ -242,8 +244,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T04:02:54.998Z
-Stopped at: Completed 30-01-PLAN.md
+Last session: 2026-11-12T04:08:14.354Z
+Stopped at: Completed 30-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

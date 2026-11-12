@@ -16,13 +16,13 @@ marked **Breaking**, `apps/website/.../reference/upgrading.md`). Releasing is st
 
 ### One strict-decode module (Phase 30)
 
-- [ ] **DEC-01**: One public core leaf (`UntrustedDecode.ts`) owns the untrusted decode order: parse (for text), depth guard, an optional seam-supplied preparation step, then strict decode. It returns a closed refusal union (`NotJson | TooDeep | Malformed`, with `Malformed` carrying the `SchemaError`). It is the only way to strict-decode untrusted input, so a caller cannot skip the guard.
-- [ ] **DEC-02**: Every untrusted JSON seam in `packages/*/src` decodes through the module: `Policy.fromJson`, `SinkCodec`, the three `PortWireEncode` decoders, `PortRemote`, `HydrationEngine` and the audit archive/entry decoders, plus any seam the phase's inventory finds. Each seam keeps only a total mapping from the closed refusal into its own error. Refusal precedence at every seam is unchanged and pinned by a characterisation table written green on the phase base.
-- [ ] **DEC-03**: The public `PolicyFromJson` codec no longer decodes untrusted JSON without the depth guard. It is removed, or it is routed through the module; discuss-phase picks whichever is cleaner, and either way it is Breaking and recorded.
-- [ ] **DEC-04**: No refusal is reported as a different kind. A too-deep input surfaces as too-deep at every seam, including audit (no `TooDeep` folded into `Malformed`). A public refusal union that needs a new arm is written out as the full closed union, and the break is recorded.
-- [ ] **DEC-05**: The strict decode options and the decode-depth constant live in the leaf. `Policy.ts` no longer declares or re-exports them. `UNTRUSTED_DECODE_OPTIONS` leaves the public surface (Breaking) unless discuss-phase finds a consumer that cannot use the decoder. Whether `exceedsJsonDepth`/`MAX_DECODE_DEPTH` stay public is decided toward the narrowest surface, and the hydration spec requirement that names them is restated to match.
+- [x] **DEC-01**: One public core leaf (`UntrustedDecode.ts`) owns the untrusted decode order: parse (for text), depth guard, an optional seam-supplied preparation step, then strict decode. It returns a closed refusal union (`NotJson | TooDeep | Malformed`, with `Malformed` carrying the `SchemaError`). It is the only way to strict-decode untrusted input, so a caller cannot skip the guard.
+- [x] **DEC-02**: Every untrusted JSON seam in `packages/*/src` decodes through the module: `Policy.fromJson`, `SinkCodec`, the three `PortWireEncode` decoders, `PortRemote`, `HydrationEngine` and the audit archive/entry decoders, plus any seam the phase's inventory finds. Each seam keeps only a total mapping from the closed refusal into its own error. Refusal precedence at every seam is unchanged and pinned by a characterisation table written green on the phase base.
+- [x] **DEC-03**: The public `PolicyFromJson` codec no longer decodes untrusted JSON without the depth guard. It is removed, or it is routed through the module; discuss-phase picks whichever is cleaner, and either way it is Breaking and recorded.
+- [x] **DEC-04**: No refusal is reported as a different kind. A too-deep input surfaces as too-deep at every seam, including audit (no `TooDeep` folded into `Malformed`). A public refusal union that needs a new arm is written out as the full closed union, and the break is recorded.
+- [x] **DEC-05**: The strict decode options and the decode-depth constant live in the leaf. `Policy.ts` no longer declares or re-exports them. `UNTRUSTED_DECODE_OPTIONS` leaves the public surface (Breaking) unless discuss-phase finds a consumer that cannot use the decoder. Whether `exceedsJsonDepth`/`MAX_DECODE_DEPTH` stay public is decided toward the narrowest surface, and the hydration spec requirement that names them is restated to match.
 - [ ] **DEC-06**: The workarounds for seams that walk only part of a payload (hydration's `{ ...payload, entries: [] }`, the audit envelope's `entries` and the row's `record`) are module options, not hand-built copies at the seams. Per-entry attribution (`EntryNotDecodable{ index, refusal }`, hydration's per-entry drop reasons) is preserved.
-- [ ] **DEC-07**: Every guarded seam has a test deeper than the bound, closing today's gaps: the port-wire decoders, the hydration envelope, and `PolicyFromJson` or its replacement. The module has one property test (the guard always precedes decode; the refusal kind is a function of the input). `wireHazard`'s outbound depth count still equals `exceedsJsonDepth` (INV-QD-096).
+- [x] **DEC-07**: Every guarded seam has a test deeper than the bound, closing today's gaps: the port-wire decoders, the hydration envelope, and `PolicyFromJson` or its replacement. The module has one property test (the guard always precedes decode; the refusal kind is a function of the input). `wireHazard`'s outbound depth count still equals `exceedsJsonDepth` (INV-QD-096).
 - [ ] **DEC-08**: A `scripts/check-house-style.mjs` rule refuses strict decode options or a hand-assembled guard-then-decode outside the leaf, checked in both directions like the other budgets, and AGENTS.md states the rule.
 
 ### A shared computation's reset supersedes its claims (Phase 31)
@@ -78,9 +78,9 @@ marked **Breaking**, `apps/website/.../reference/upgrading.md`). Releasing is st
 - [ ] **WX-01**: `pnpm check:pr < /dev/null` is green at the end of each phase.
 - [ ] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
 - [ ] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13), and its module column is corrected by hand for every moved declaration.
-- [ ] **WX-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock. Budgets change only together with their AGENTS.md table.
+- [x] **WX-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock. Budgets change only together with their AGENTS.md table.
 - [ ] **WX-05**: Coverage thresholds hold (core at least 95%, others at least 90%). The Stryker score of touched files does not fall (per-phase `NN-mutation-base.json`), and a drop is closed with a test, never re-baselined.
-- [ ] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base (RED for a defect, green for preserved behaviour).
+- [x] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base (RED for a defect, green for preserved behaviour).
 - [ ] **WX-07**: Every public break is recorded in its package's changeset as **Breaking** and in `upgrading.md`. Nothing is released or published, and no version-packages PR is merged.
 
 ## v2 Requirements
@@ -107,13 +107,13 @@ The seven WX rows apply to every phase 30 to 36, so each phase's Requirements li
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEC-01 | Phase 30 | Pending |
-| DEC-02 | Phase 30 | Pending |
-| DEC-03 | Phase 30 | Pending |
-| DEC-04 | Phase 30 | Pending |
-| DEC-05 | Phase 30 | Pending |
+| DEC-01 | Phase 30 | Complete |
+| DEC-02 | Phase 30 | Complete |
+| DEC-03 | Phase 30 | Complete |
+| DEC-04 | Phase 30 | Complete |
+| DEC-05 | Phase 30 | Complete |
 | DEC-06 | Phase 30 | Pending |
-| DEC-07 | Phase 30 | Pending |
+| DEC-07 | Phase 30 | Complete |
 | DEC-08 | Phase 30 | Pending |
 | SUPR-01 | Phase 31 | Pending |
 | SUPR-02 | Phase 31 | Pending |
@@ -148,9 +148,9 @@ The seven WX rows apply to every phase 30 to 36, so each phase's Requirements li
 | WX-01 | All v1.3 phases | Pending |
 | WX-02 | All v1.3 phases | Pending |
 | WX-03 | All v1.3 phases | Pending |
-| WX-04 | All v1.3 phases | Pending |
+| WX-04 | All v1.3 phases | Complete |
 | WX-05 | All v1.3 phases | Pending |
-| WX-06 | All v1.3 phases | Pending |
+| WX-06 | All v1.3 phases | Complete |
 | WX-07 | All v1.3 phases | Pending |
 
 **Coverage:**
