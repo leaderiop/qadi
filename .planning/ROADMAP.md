@@ -505,9 +505,9 @@ Plans:
   3. If none passes: the sweep stays in the provider, and what happens without a provider and under several providers is stated in the spec and the atom set's docs and pinned by tests.
   4. Either way, `QadiProvider.test.tsx`'s "stays over the bound after unmount" pin is reconciled, AGENTS.md §13 and `house-rules-evidence.md` §4 describe the outcome, and any new reliance on an `@stability unstable` atom API is pinned in `v4-reactivity-smoke.test.ts`.
 **Planning notes**: the mechanism is unproven, so a spike is mandatory and the e2e (`pnpm example`, about 30 tests) is an exit criterion; it needs Playwright, so use CI or the rootless podman container route if the host cannot run it. `runFork` runs synchronously to its first yield, so a sweep started from `live()` or `release` must begin with `yieldNow`. Only the e2e catches a dropped render (CCR-QD-150).
-**Plans**: 1/7 plans executed
+**Plans**: 2/7 plans executed
 - [x] 35-01-PLAN.md
-- [ ] 35-02-PLAN.md
+- [x] 35-02-PLAN.md
 - [ ] 35-03-PLAN.md
 - [ ] 35-04-PLAN.md
 - [ ] 35-05-PLAN.md
