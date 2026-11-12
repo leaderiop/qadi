@@ -213,9 +213,9 @@
 ## v1.2 Traceability
 | Requirement | Phase | Status |
 |---|---|---|
-| PREQ-01, PREQ-02, PREQ-03, PREQ-04, PREQ-05 | Phase 21 | Pending |
-| SCOPE-01, SCOPE-02, SCOPE-03, SCOPE-04, SCOPE-05 | Phase 22 | Pending |
-| SREC-01, SREC-02, SREC-03, SREC-04, SREC-05 | Phase 23 | Pending |
+| PREQ-01, PREQ-02, PREQ-03, PREQ-04, PREQ-05 | Phase 21 | Complete (2026-11-11; re-verified at HEAD 2026-11-12) |
+| SCOPE-01, SCOPE-02, SCOPE-03, SCOPE-04, SCOPE-05 | Phase 22 | Complete (2026-11-11; re-verified at HEAD 2026-11-12) |
+| SREC-01, SREC-02, SREC-03, SREC-04, SREC-05 | Phase 23 | Complete (2026-11-11; re-verified at HEAD 2026-11-12) |
 | SRC-01, SRC-02, SRC-03 | Phase 24 | Complete (2026-11-11) |
 | SIM-01, SIM-02, SIM-03, SIM-04, SIM-05 | Phase 25 | Complete (2026-11-11) |
 | DMOD-01, DMOD-02, DMOD-03, DMOD-04, DMOD-05 | Phase 26 | Complete (2026-11-11) |

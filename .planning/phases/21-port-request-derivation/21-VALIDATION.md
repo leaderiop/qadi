@@ -2,7 +2,7 @@
 phase: "21"
 slug: "port-request-derivation"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-status: draft
+status: validated
 nyquist_compliant: true
 wave_0_complete: true
 created: "2026-11-11"
@@ -42,19 +42,19 @@ created: "2026-11-11"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 21-01-01 | 01 | 1 | PREQ-04, WX-02, WX-05 | T-21-03 | Base and baseline recorded; a dropped key field shown to compile on the base | manual demo + baseline | `21-base.txt` exists; `git diff --quiet -- packages/core/src`; baseline names the touched files | ✅ | ⬜ pending |
-| 21-01-02 | 01 | 1 | PREQ-04, PREQ-05, WX-06 | T-21-01, T-21-03 | A question or pose missing a member is assignable today | type (RED) | `! pnpm exec tstyche PortRequest` | ❌ W0 → created in-task | ⬜ pending |
-| 21-01-03 | 01 | 1 | PREQ-03, WX-06 | T-21-01, T-21-02 | Key law red for four ports; wire bytes pinned | property (RED) + golden | `! pnpm vitest run --project core …PortDescription.test.ts -t "ARCH-69"`; goldens green | ✅ | ⬜ pending |
-| 21-02-01 | 02 | 2 | PREQ-04 | T-21-04 | `toQuestion` typed by `QuestionOf<Q>`, encode strips `undefined` | static gate | `QuestionOf<Q>` and `encodeUnknownResult` greps | ✅ | ⬜ pending |
-| 21-02-02 | 02 | 2 | PREQ-04, PREQ-05, WX-04 | T-21-04, T-21-05 | No conditional spread in any `toQuestion`; bytes unchanged | unit + type + gates | spread-count gate; `pnpm exec tsc -b packages/core`; core vitest minus ARCH-69; `tstyche PortRequest --only question` | ✅ | ⬜ pending |
-| 21-03-01 | 03 | 3 | PREQ-01, PREQ-02, PREQ-03 | T-21-06, T-21-07 | Four ports derive key/defect; law green; pair grouping intact | property + unit | ARCH-69 law; `SignatureHistory.test.ts`; no `key:`/`defect:`/`canonicalKey` in the four modules; `tsc` + `circular` | ✅ | ⬜ pending |
-| 21-03-02 | 03 | 3 | PREQ-02, PREQ-03 | T-21-08 | Override documented; replaced pins deleted only after the law is green | unit + gates | PortConformance/PortDescription/PortAccess/PortRemote; pin-count gate; devtools Capture; audit SignatureLedger | ✅ | ⬜ pending |
-| 21-03-03 | 03 | 3 | WX-04 | — | No budget or lint regression | static | `pnpm typecheck && pnpm lint && pnpm vitest run --project core` | ✅ | ⬜ pending |
-| 21-04-01 | 04 | 4 | PREQ-05 | T-21-09, T-21-10 | A pose cannot leave a member out | type | `tstyche PortRequest`; `tstyche PortSpan Ports PortServing PortWire`; `portSpan({` in 5 modules; `tsc` | ✅ | ⬜ pending |
-| 21-04-02 | 04 | 4 | PREQ-05 | T-21-10 | Encoded span questions unchanged | unit | PortSpan/PortAccess/Evaluate/Predicate tests; core vitest; lint | ✅ | ⬜ pending |
-| 21-05-01 | 05 | 5 | WX-02 | T-21-12 | Records name only what exists | doc gate | ADR/BEH/INV greps; `spec-revise --check && pnpm spec:verify:strict && pnpm spec:examples` | ✅ | ⬜ pending |
-| 21-05-02 | 05 | 5 | WX-02 | T-21-11 | Key-text change recorded | doc gate | CCR row count; changeset and AGENTS.md greps | ✅ | ⬜ pending |
-| 21-05-03 | 05 | 5 | WX-01, WX-03, WX-04, WX-05 | T-21-13 | Merge gate green and unweakened; mutation per file not lower | full gate | `pnpm check:pr` (background); no `scripts/`/threshold/overview edit since base; per-file Stryker comparison | ✅ | ⬜ pending |
+| 21-01-01 | 01 | 1 | PREQ-04, WX-02, WX-05 | T-21-03 | Base and baseline recorded; a dropped key field shown to compile on the base | manual demo + baseline | `21-base.txt` exists; `git diff --quiet -- packages/core/src`; baseline names the touched files | ✅ | ✅ green |
+| 21-01-02 | 01 | 1 | PREQ-04, PREQ-05, WX-06 | T-21-01, T-21-03 | A question or pose missing a member is assignable today | type (RED) | `! pnpm exec tstyche PortRequest` | ❌ W0 → created in-task | ✅ green |
+| 21-01-03 | 01 | 1 | PREQ-03, WX-06 | T-21-01, T-21-02 | Key law red for four ports; wire bytes pinned | property (RED) + golden | `! pnpm vitest run --project core …PortDescription.test.ts -t "ARCH-69"`; goldens green | ✅ | ✅ green |
+| 21-02-01 | 02 | 2 | PREQ-04 | T-21-04 | `toQuestion` typed by `QuestionOf<Q>`, encode strips `undefined` | static gate | `QuestionOf<Q>` and `encodeUnknownResult` greps | ✅ | ✅ green |
+| 21-02-02 | 02 | 2 | PREQ-04, PREQ-05, WX-04 | T-21-04, T-21-05 | No conditional spread in any `toQuestion`; bytes unchanged | unit + type + gates | spread-count gate; `pnpm exec tsc -b packages/core`; core vitest minus ARCH-69; `tstyche PortRequest --only question` | ✅ | ✅ green |
+| 21-03-01 | 03 | 3 | PREQ-01, PREQ-02, PREQ-03 | T-21-06, T-21-07 | Four ports derive key/defect; law green; pair grouping intact | property + unit | ARCH-69 law; `SignatureHistory.test.ts`; no `key:`/`defect:`/`canonicalKey` in the four modules; `tsc` + `circular` | ✅ | ✅ green |
+| 21-03-02 | 03 | 3 | PREQ-02, PREQ-03 | T-21-08 | Override documented; replaced pins deleted only after the law is green | unit + gates | PortConformance/PortDescription/PortAccess/PortRemote; pin-count gate; devtools Capture; audit SignatureLedger | ✅ | ✅ green |
+| 21-03-03 | 03 | 3 | WX-04 | — | No budget or lint regression | static | `pnpm typecheck && pnpm lint && pnpm vitest run --project core` | ✅ | ✅ green |
+| 21-04-01 | 04 | 4 | PREQ-05 | T-21-09, T-21-10 | A pose cannot leave a member out | type | `tstyche PortRequest`; `tstyche PortSpan Ports PortServing PortWire`; `portSpan({` in 5 modules; `tsc` | ✅ | ✅ green |
+| 21-04-02 | 04 | 4 | PREQ-05 | T-21-10 | Encoded span questions unchanged | unit | PortSpan/PortAccess/Evaluate/Predicate tests; core vitest; lint | ✅ | ✅ green |
+| 21-05-01 | 05 | 5 | WX-02 | T-21-12 | Records name only what exists | doc gate | ADR/BEH/INV greps; `spec-revise --check && pnpm spec:verify:strict && pnpm spec:examples` | ✅ | ✅ green |
+| 21-05-02 | 05 | 5 | WX-02 | T-21-11 | Key-text change recorded | doc gate | CCR row count; changeset and AGENTS.md greps | ✅ | ✅ green |
+| 21-05-03 | 05 | 5 | WX-01, WX-03, WX-04, WX-05 | T-21-13 | Merge gate green and unweakened; mutation per file not lower | full gate | `pnpm check:pr` (background); no `scripts/`/threshold/overview edit since base; per-file Stryker comparison | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -85,4 +85,12 @@ plan runs `node scripts/next-id.mjs` (it writes a reservation).
 - [x] Feedback latency < 60 s per task (the full gate runs once, at the end)
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-11-12, retroactively, at the milestone re-verification (HEAD d37a4355; 21-VERIFICATION.md "Validation rows at HEAD"). All thirteen tasks green. 21-01-02's RED was reproduced on the base in a worktree at 464544e3; 21-01-01's and 21-05-03's literal `git diff` checks only held at plan time (later phases edited `scripts/` comments and `spec/overview.md`; no threshold, budget value or config changed). Per-file mutation re-measured at HEAD after the review fixes: all nine baselined files at or above base (21-mutation-recheck.json).
+
+## Validation Audit 2026-11-12
+
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
