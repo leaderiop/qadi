@@ -6,6 +6,7 @@ import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
+import * as FastCheck from "fast-check";
 import type { CacheOutcome } from "../src/EvaluationMetrics.ts";
 import { makeSharedComputation } from "../src/SharedComputation.ts";
 
@@ -547,4 +548,283 @@ describe("SharedComputation", () => {
       assert.deepStrictEqual([...settled].sort(), ["kept:Success", "left:Success"]);
       assert.deepStrictEqual(record.interrupted, ["stale left"], "no fresh compute was interrupted");
     }));
+});
+
+/**
+ * A reference model of the single-flight regime, driven one command at a time
+ * against the module, with the laws checked after every step.
+ *
+ * Each started compute takes the next id (0, 1, 2, …) and waits on its own
+ * latch, so a value or an error names the compute it came from. The model
+ * restates only the regime: a Run joins its key's Live compute or claims
+ * afresh, a Reset makes every Live compute Superseded, a Settle completes a
+ * running compute, and a Leave detaches a waiter, interrupting the compute when
+ * it was the last. Only a Live compute's exit is ever settled.
+ */
+describe("PROPERTY: a reset supersedes its claims", () => {
+  type Command =
+    | { readonly _tag: "Run"; readonly key: string }
+    | { readonly _tag: "Reset" }
+    | { readonly _tag: "Settle"; readonly key: string; readonly ok: boolean; readonly pick: number }
+    | { readonly _tag: "Leave"; readonly pick: number };
+
+  type Standing = "Live" | "Superseded" | "Abandoned";
+  type Answer =
+    | { readonly value: number; readonly outcome: CacheOutcome }
+    | { readonly error: number };
+
+  interface ModelCompute {
+    readonly id: number;
+    readonly key: string;
+    standing: Standing;
+    running: boolean;
+  }
+  interface ModelWaiter {
+    readonly id: number;
+    readonly compute: number;
+    readonly outcome: CacheOutcome;
+    state: "waiting" | "answered" | "left";
+    answer: Answer | undefined;
+  }
+  interface Settled {
+    readonly key: string;
+    readonly exit: Exit.Exit<number, number>;
+  }
+
+  // Skewed to "a" so a key meets its own superseded claims often enough.
+  const key = FastCheck.oneof(
+    { weight: 3, arbitrary: FastCheck.constant("a") },
+    { weight: 1, arbitrary: FastCheck.constant("b") },
+  );
+  const pick = FastCheck.nat(1);
+  const commands = FastCheck.array(
+    FastCheck.oneof(
+      { weight: 7, arbitrary: key.map((k): Command => ({ _tag: "Run", key: k })) },
+      { weight: 4, arbitrary: FastCheck.constant<Command>({ _tag: "Reset" }) },
+      {
+        weight: 2,
+        arbitrary: FastCheck.tuple(key, FastCheck.boolean(), pick).map(
+          ([k, ok, p]): Command => ({ _tag: "Settle", key: k, ok, pick: p }),
+        ),
+      },
+      { weight: 6, arbitrary: pick.map((p): Command => ({ _tag: "Leave", pick: p })) },
+    ),
+    { maxLength: 16 },
+  );
+
+  const settleTurns = Effect.gen(function* () {
+    for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+  });
+
+  it.effect(
+    "the settle log, the answers, the started and the interrupted computes equal the model's after every step",
+    () =>
+      Effect.gen(function* () {
+        let supersededSettled = 0;
+        let supersededLastLeft = 0;
+        let claimedBesideSuperseded = 0;
+
+        const program = (cmds: ReadonlyArray<Command>) =>
+          Effect.gen(function* () {
+            // The module under test.
+            const settleLog: Array<Settled> = [];
+            const started: Array<{
+              readonly id: number;
+              readonly key: string;
+              readonly latch: Deferred.Deferred<boolean>;
+            }> = [];
+            const interrupted: Array<number> = [];
+            const answers: Array<{ readonly waiter: number; readonly answer: Answer }> = [];
+            const fibers: Array<Fiber.Fiber<void>> = [];
+            const shared = makeSharedComputation<string, number, number>({
+              cached: () => Option.none(),
+              settle: (settledKey, exit) => {
+                settleLog.push({ key: settledKey, exit });
+              },
+              onOutcome: () => Effect.void,
+            });
+            // Takes its id when it actually starts, so a Run that joins takes none.
+            const compute = (computeKey: string): Effect.Effect<number, number> =>
+              Effect.suspend(() => {
+                const id = started.length;
+                const latch = Deferred.makeUnsafe<boolean>();
+                started.push({ id, key: computeKey, latch });
+                return Deferred.await(latch).pipe(
+                  Effect.flatMap((ok) => (ok ? Effect.succeed(id) : Effect.fail(id))),
+                  Effect.onInterrupt(() =>
+                    Effect.sync(() => {
+                      interrupted.push(id);
+                    }),
+                  ),
+                );
+              });
+
+            // The reference model.
+            const computes: Array<ModelCompute> = [];
+            const waiters: Array<ModelWaiter> = [];
+            const live = new Map<string, number>();
+            const modelSettled: Array<Settled> = [];
+            const modelInterrupted: Array<number> = [];
+
+            const ascending = (x: number, y: number) => x - y;
+            const check = () => {
+              assert.deepStrictEqual(settleLog, modelSettled, "law 1: the settle log");
+              assert.deepStrictEqual(
+                [...answers].sort((x, y) => x.waiter - y.waiter),
+                waiters
+                  .filter((w) => w.state === "answered")
+                  .map((w) => ({ waiter: w.id, answer: w.answer })),
+                "law 2: each waiter answered at most once, with the model's answer",
+              );
+              assert.deepStrictEqual(
+                started.map(({ id, key: startedKey }) => ({ id, key: startedKey })),
+                computes.map(({ id, key: computeKey }) => ({ id, key: computeKey })),
+                "law 3: the started computes",
+              );
+              assert.deepStrictEqual(
+                [...interrupted].sort(ascending),
+                [...modelInterrupted].sort(ascending),
+                "law 3: the interrupted computes",
+              );
+            };
+
+            const complete = (c: ModelCompute, ok: boolean) => {
+              if (c.standing === "Superseded") supersededSettled += 1;
+              if (c.standing === "Live") {
+                modelSettled.push({ key: c.key, exit: ok ? Exit.succeed(c.id) : Exit.fail(c.id) });
+                live.delete(c.key);
+              }
+              c.running = false;
+              for (const w of waiters) {
+                if (w.compute !== c.id || w.state !== "waiting") continue;
+                w.state = "answered";
+                w.answer = ok ? { value: c.id, outcome: w.outcome } : { error: c.id };
+              }
+            };
+
+            const settleStep = (c: ModelCompute, ok: boolean) =>
+              Effect.gen(function* () {
+                const entry = started.find((s) => s.id === c.id);
+                if (entry === undefined) return assert.fail("the model's compute never started");
+                yield* Deferred.succeed(entry.latch, ok);
+                yield* settleTurns;
+                complete(c, ok);
+                check();
+              });
+
+            for (const cmd of cmds) {
+              if (cmd._tag === "Run") {
+                const id = fibers.length;
+                fibers.push(
+                  yield* Effect.forkChild(
+                    shared.run(cmd.key, compute(cmd.key)).pipe(
+                      Effect.match({
+                        onSuccess: (found): Answer => ({ value: found.value, outcome: found.outcome }),
+                        onFailure: (error): Answer => ({ error }),
+                      }),
+                      Effect.flatMap((answer) =>
+                        Effect.sync(() => {
+                          answers.push({ waiter: id, answer });
+                        }),
+                      ),
+                    ),
+                  ),
+                );
+                yield* settleTurns;
+                const liveId = live.get(cmd.key);
+                const joined = liveId === undefined ? undefined : computes[liveId];
+                if (joined !== undefined) {
+                  waiters.push({
+                    id,
+                    compute: joined.id,
+                    outcome: "coalesced",
+                    state: "waiting",
+                    answer: undefined,
+                  });
+                } else {
+                  if (computes.some((c) => c.key === cmd.key && c.running && c.standing === "Superseded")) {
+                    claimedBesideSuperseded += 1;
+                  }
+                  const claimed: ModelCompute = {
+                    id: computes.length,
+                    key: cmd.key,
+                    standing: "Live",
+                    running: true,
+                  };
+                  computes.push(claimed);
+                  live.set(cmd.key, claimed.id);
+                  waiters.push({ id, compute: claimed.id, outcome: "miss", state: "waiting", answer: undefined });
+                }
+                check();
+              } else if (cmd._tag === "Reset") {
+                yield* Effect.sync(() => shared.reset());
+                yield* settleTurns;
+                for (const c of computes) {
+                  if (c.running && c.standing === "Live") c.standing = "Superseded";
+                }
+                live.clear();
+                check();
+              } else if (cmd._tag === "Settle") {
+                const running = computes.filter((c) => c.key === cmd.key && c.running);
+                const chosen = running[cmd.pick % running.length];
+                if (chosen === undefined) {
+                  // Nothing running for this key: a settle changes nothing.
+                  yield* settleTurns;
+                  check();
+                } else {
+                  yield* settleStep(chosen, cmd.ok);
+                }
+              } else {
+                const waiting = waiters.filter((w) => w.state === "waiting");
+                const chosen = waiting[cmd.pick % waiting.length];
+                const fiber = chosen === undefined ? undefined : fibers[chosen.id];
+                if (chosen === undefined || fiber === undefined) {
+                  // Nobody waiting: a leave changes nothing.
+                  yield* settleTurns;
+                  check();
+                } else {
+                  // Returns once the waiter's own exit, and the compute's interruption
+                  // when it was the last to leave, are done.
+                  yield* Fiber.interrupt(fiber);
+                  yield* settleTurns;
+                  chosen.state = "left";
+                  const c = computes[chosen.compute];
+                  if (c !== undefined && c.running && !waiters.some((w) => w.compute === c.id && w.state === "waiting")) {
+                    if (c.standing === "Superseded") supersededLastLeft += 1;
+                    modelInterrupted.push(c.id);
+                    c.running = false;
+                    if (c.standing === "Live") {
+                      c.standing = "Abandoned";
+                      live.delete(c.key);
+                    }
+                  }
+                  check();
+                }
+              }
+            }
+
+            // Drain: complete what still runs, one step each with the laws checked.
+            for (const c of computes) {
+              if (c.running) yield* settleStep(c, true);
+            }
+            assert.isTrue(
+              waiters.every((w) => w.state !== "waiting"),
+              "after the drain every waiter is answered or left",
+            );
+            check();
+          });
+
+        yield* Effect.promise(() =>
+          FastCheck.assert(
+            FastCheck.asyncProperty(commands, (cmds) => Effect.runPromise(program(cmds))),
+            { numRuns: 300, seed: 3101 },
+          ),
+        );
+
+        assert.isAtLeast(supersededSettled, 30, "settles that completed a superseded compute");
+        assert.isAtLeast(supersededLastLeft, 30, "leaves that were a superseded compute's last waiter");
+        assert.isAtLeast(claimedBesideSuperseded, 30, "runs that claimed beside a running superseded compute");
+      }),
+    60_000,
+  );
 });
