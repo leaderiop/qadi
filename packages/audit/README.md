@@ -137,7 +137,7 @@ only function here that returns rows to delete, and `archive` is a
    check and writes the entries in sequence order).
 2. You write the bundle to your own long-term storage.
 3. You read it back and pass what the store returned, as parsed JSON, to
-   `readAuditArchive`. It refuses a bundle that does not decode, whose count,
+   `readAuditArchive`. It refuses a bundle that nests past the decode bound or does not decode, whose count,
    sequence, order or `sequenceIntegrityVerified` claim does not match, each with
    its own `ArchiveRefusal` in an `ArchiveNotVerified`.
 4. `planPurge` returns `{ purge, retain, undated, unarchived }`: an expired row

@@ -35,6 +35,9 @@ format 0.9 and earlier wrote. That is what a page cached by one deploy and
 hydrated by the next looks like. 0.10 still read the version-less format; 0.11
 does not (see [Upgrading to 0.11](/docs/reference/upgrading/#hydration-payloads-from-older-servers)).
 
+A payload nested past the decode bound outside its entries is dropped as
+`PayloadTooDeep`, not `MalformedPayload`.
+
 `hydrateDecisions`'s result is assignable to `QadiProvider`'s
 `initialValues` prop directly. Seeding through that prop, rather than through
 an effect that runs after mount, is the whole point — a value written after

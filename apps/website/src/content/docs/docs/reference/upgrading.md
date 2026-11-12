@@ -390,3 +390,70 @@ typed error. In `@qadi/devtools`, a what-if replay of a request its capture neve
 port's typed error on every port. It used to answer the port's default, which `not(...)` turned into an
 allow. See
 [ADR-QD-129](https://github.com/leaderiop/qadi/blob/main/spec/decisions/129-a-replay-miss-is-an-outage-on-every-port.md).
+
+## 0.12: untrusted JSON is decoded through `untrustedDecoder`
+
+Every decode of untrusted JSON in the library now goes through one module, and the names that let a
+caller assemble that decode by hand are gone.
+
+| Removed | Instead |
+| ------- | ------- |
+| `PolicyFromJson` | `fromJson` for policy text, `fromJsonValue` for a parsed value |
+| `UNTRUSTED_DECODE_OPTIONS` | `untrustedDecoder(schema, options?)`, which applies the strict options itself |
+| `exceedsJsonDepth` (no longer exported) | `untrustedDecoder(schema).decode`, which runs the depth guard before the decode |
+
+`fromJson` now refuses text that is not JSON as the new `PolicyNotJson` (`ACL021`), where it was a
+`SchemaError`. Its failure is `PolicyNotJson | PolicyDecodeTooDeep | SchemaError`; `fromJsonValue` is
+unchanged. `MAX_DECODE_DEPTH` keeps its value (256) and its export, and is now declared in
+`UntrustedDecode.ts`. Before:
+
+```ts
+import * as Schema from "effect/Schema";
+import { exceedsJsonDepth, MAX_DECODE_DEPTH, PolicyFromJson, UNTRUSTED_DECODE_OPTIONS } from "@qadi/core";
+
+const decodeText = Schema.decodeUnknownEffect(PolicyFromJson, UNTRUSTED_DECODE_OPTIONS);
+const tooDeep = (parsed: unknown) => exceedsJsonDepth(parsed, MAX_DECODE_DEPTH);
+```
+
+After, build the decoder once at module scope and match the `Result`:
+
+```typescript
+import * as Result from "effect/Result";
+import * as Schema from "effect/Schema";
+import { untrustedDecoder } from "@qadi/core";
+
+const Settings = Schema.Struct({ name: Schema.String });
+const decodeSettings = untrustedDecoder(Settings);
+
+export const settings = decodeSettings.decodeText('{"name":"x"}');
+export const refused = Result.isFailure(settings) ? settings.failure._tag : undefined;
+```
+
+Add a `PolicyNotJson` arm to any `catchTag` or exhaustive match on `fromJson`'s failure, and a
+`PayloadTooDeep` arm to any exhaustive match on a hydration drop reason (`ClientHydrationDropReason` and
+`hydrationDropReasons` gain it, so `qadi_hydration_dropped_total` has a ninth series). In
+`@qadi/devtools`, the policy paste box now says "The text is not JSON" when it is not.
+
+## 0.12: a payload or an archive nested past the decode bound is reported as too deep
+
+Input nested past `MAX_DECODE_DEPTH` outside the part that is decoded entry by entry is now reported as
+too deep, where it was reported as malformed. Each closed union below gains a member, so an exhaustive
+match on it needs an arm.
+
+- `@qadi/react`: `PayloadRefusalReason` gains `PayloadTooDeep`. A hydration payload nested past the
+  bound outside its entries (an extra key, a field or an array payload holding such a value) is dropped
+  as `PayloadTooDeep`, where it was `MalformedPayload`. An entry or policy nested too deep is still
+  `EntryTooDeep`.
+- `@qadi/audit`: `ArchiveRefusal` gains `TooDeep { maxDepth }`. `readAuditArchive` refuses a stored
+  archive nested past the bound outside its entries before any decode, where it was `Malformed`.
+- `@qadi/audit`: `decodeAuditEntry` refuses a row nested past the bound outside its record as
+  `DecodeRefusal.TooDeep`, where it was `DecodeRefusal.Malformed`.
+
+If you do not need the distinction, handle the new member as you handle the old one:
+
+```typescript
+import type { ArchiveRefusal } from "@qadi/audit";
+
+export const isBadBundle = (refusal: ArchiveRefusal): boolean =>
+  refusal._tag === "Malformed" || refusal._tag === "TooDeep";
+```
