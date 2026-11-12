@@ -2,7 +2,7 @@
 phase: 33-one-sealed-evaluation-layer
 reviewed: 2026-11-12T16:10:00Z
 depth: standard
-files_reviewed: 19
+files_reviewed: 21
 files_reviewed_list:
   - packages/core/src/EvaluationEnvironment.ts
   - packages/core/src/index.ts
@@ -12,8 +12,10 @@ files_reviewed_list:
   - packages/devtools/src/index.ts
   - packages/devtools/src/model/Simulation.ts
   - packages/devtools/src/model/SimulationSession.ts
+  - packages/devtools/src/model/SimulationSource.ts
   - packages/devtools/src/react/Simulator.tsx
   - packages/devtools/test/model/ReviewSimulationConformance.test.ts
+  - packages/devtools/test/model/SimulationSource.test.ts
   - packages/devtools/test/surface.tst.ts
   - packages/testing/src/QadiReviewLayer.ts
   - packages/testing/test/QadiReviewLayer.test.ts
@@ -26,81 +28,42 @@ files_reviewed_list:
 findings:
   critical: 0
   warning: 0
-  info: 3
-  total: 3
+  info: 0
+  total: 0
   necessity: 0
-status: issues_found
+status: clean
 ---
 
 # Phase 33: Code Review Report
 
-**Reviewed:** 2026-11-12
+**Reviewed:** 2026-11-12T16:10:00Z
 **Depth:** standard
-**Files Reviewed:** 19
-**Status:** issues_found
+**Files Reviewed:** 21
+**Status:** clean
 
 ## Summary
 
-No blocker or warning found. The seal holds. `evaluationEnvironment` puts `shadowing(...)` last in
-`Layer.mergeAll`, so a later-wins context merge means neither a ports layer nor a clock layer can
-re-expose an outer sink or cache. `decisionCacheLayer()` is called once per `evaluationEnvironment`
-call and built fresh on every `Effect.provide`, which the "every build gets a private cache" test
-proves with two different policies (`[1, 1]`, outer cache 0). The sink and cache tests provide the
-real sink and cache around the environment, not inside it, so they are not vacuous.
+Iteration 2 re-review of the three comment-only fixes from iteration 1 (commits 0fa3028d, 09af1949). All reviewed files meet quality standards. No issues found.
 
-`simulationLayer` services are unchanged for every source mode: same `sim` prefix, same ports, same
-subject layer, same sink and cache shadowing. The clock behaves identically for the two typed values.
-The two clock maps agree: both send `"deterministic"` to `TestClock.layer()` and everything else to
-`Layer.empty`. Only the unreachable untyped-value default differs from the old devtools code, where an
-unknown value used to select `TestClock`. The house rules are met: `pnpm typecheck` and the
-`check-house-style.mjs` and `check-api-surface.mjs` scripts are clean. The `--project core`, `--project testing` and
-`--project devtools` vitest runs pass. `pnpm lint` reported warnings only, none in the reviewed
-files. No remaining `clock: "test"` or `SimulationClock` outside history (CHANGELOG, CCR rows, ADR-146, the spec
-notes marked "until CCR-QD-424", and the upgrade note's "Before" block).
+**Iteration 1 changes checked against the code they describe**
 
-Three minor prose and test-strength items follow.
+- `git diff 5dac3c01 HEAD -- packages` touches five files, 22 insertions and 9 deletions. Filtering out comment lines leaves an empty diff, so no test, assertion, count or source statement changed.
+- IN-01 and IN-02 (`EvaluationEnvironment.test.ts`, `ReviewSimulationConformance.test.ts`, `QadiReviewLayer.test.ts`). The new comments say a built `Layer.empty` context has no `Clock` entry, so `it.live` buys nothing for the `Context.get` reads. I checked this by running `Layer.build(Layer.empty)` under a `TestClock` fiber with a scratch script. `Context.get(..., Clock.Clock)` returned a real, non-zero time, so the reads are independent of the fiber's clock and the claim holds. The statement that the `durationMillis === 0` assertions are a consequence and do not discriminate is also correct, because the `Context.get` assertions on the built layer context are what separate `TestClock.layer()` from `Layer.empty`. The claim about needing a port that takes real time and blocking forever under a frozen `TestClock` is consistent with `TestClock` semantics.
+- IN-03 (`SimulationSource.ts`, header of `SimulationSource.test.ts`). `simulationLayer` in `Simulation.ts` supplies `CurrentSubject` and calls `evaluationEnvironment({ ..., shadow: "sinkAndCache" })` for every source mode. `shadowing("sinkAndCache")` installs the discarding sink and a private `decisionCacheLayer()`. The reworded prose matches this.
 
-## Info
+**House rules**
 
-### IN-01: New test comments claim `it.effect`'s `TestClock` would make a live-clock read zero, which is not what the assertion reads
+- No `as` casts, `!`, `any`, `switch`, `Effect.fnUntraced`, `async` or `await` in the phase's source and test files. The grep hits for ` as ` are all `import * as` lines.
+- The doc comments added or changed by the phase lead with a one-line summary.
+- The phase introduced no plan or `D-NN` ids. The `ARCH-NN` and `D-NN` strings in `SimulationSession.ts`, `SimulationSource.test.ts` and `QadiReviewLayer.ts` all predate the phase (`git diff a201e2fb` adds none). `INV-QD-311` and `ADR-QD-146` are spec ids, not plan ids.
 
-**File:** `packages/core/test/EvaluationEnvironment.test.ts:146`, `packages/testing/test/QadiReviewLayer.test.ts:80`, `packages/devtools/test/model/ReviewSimulationConformance.test.ts:112`
-**Issue:** The comments say `it.effect` supplies a `TestClock`, "under which a live clock would read
-zero too", as the reason for `it.live`. The assertions read `Context.get(builtContext, Clock.Clock)`.
-A built `Layer.empty` context has no `Clock` entry, so `Clock` (a `Context.Reference`) resolves to its
-real default regardless of the ambient fiber clock. The pre-existing
-`packages/devtools/test/model/Simulation.test.ts:260-267` asserts the same live `> 0` under `it.effect` and
-passes. `it.live` is harmless, but the stated reason is wrong, and a reader will be misled about what
-the test isolates.
-**Fix:** Either drop the claim or restate it truthfully, for example: "`it.live` so the evaluation
-reads no ambient `TestClock`; the `Context.get` reads the layer's own contribution, and
-`Layer.empty` contributes none, so the default real clock answers."
+**Substantive checks re-confirmed**
 
-### IN-02: `durationMillis === 0` assertions cannot tell a deterministic clock from a live one
-
-**File:** `packages/core/test/EvaluationEnvironment.test.ts:154-159`, `packages/devtools/test/model/ReviewSimulationConformance.test.ts:138-141`
-**Issue:** Under `it.live` a trivial in-memory evaluation also measures 0 ms (the existing
-`Simulation.test.ts` comment at about line 242 says so explicitly). The `durationMillis` assertions
-therefore pass whichever clock layer is built. The `Context.get(...) === 0` assertions just above them
-carry the proof, so the test is not vacuous overall, but the `evaluate` leg does not show that
-`evaluate` reads the environment's clock.
-**Fix:** Either drop those two assertions, or keep them and note that they are consistency checks only.
-`TestLayers.test.ts`'s `TestClock.adjust` case already proves an evaluation reads the provided clock.
-If a stronger check is wanted, `yield* TestClock.adjust(...)` inside the provided effect and read
-`Clock.currentTimeMillis`, as that case does.
-
-### IN-03: `SimulationSource` prose says the seal is "supplied" in `simulationLayer`
-
-**File:** `packages/devtools/src/model/SimulationSource.ts:18-21`, `packages/devtools/test/model/SimulationSource.test.ts:6`
-**Issue:** "The seal lives in `simulationLayer`, not here: `CurrentSubject`, `DecisionSink` and
-`DecisionCache` are supplied there in every mode." After this phase `simulationLayer` supplies only
-`CurrentSubject`. It states `shadow: "sinkAndCache"` to core's `evaluationEnvironment`, which supplies the sink and
-cache. Still true as intent, but no longer literally accurate. `Simulation.ts` and `spec/invariants.md`
-INV-QD-042 were updated; these two spots were not. (Line 114 is the known `@qadi/testing` mention and is
-not raised.)
-**Fix:** "The seal is stated in `simulationLayer`, which supplies `CurrentSubject` and asks core's
-`evaluationEnvironment` for `shadow: "sinkAndCache"`; so no source ... reach ...". Same wording in the
-test header.
+- The seal. `shadow: "sinkAndCache"` installs `Layer.succeed(DecisionSink, { record: () => Effect.void })` and `decisionCacheLayer()`, so an outer sink or cache never sees a simulated decision. The core test "every build gets a private cache of its own" asserts the outer cache stays at size 0. `qadiReviewLayer` passes `shadow: "none"`, which is `Layer.empty`, so the review layer shadows nothing.
+- A fresh private cache on every build. `decisionCacheLayer()` is constructed inside `shadowing(...)`, and the core test asserts sizes of `[1, 1]` across two evaluations on the same environment value.
+- `simulationLayer` behaves the same for every source mode. It builds one `evaluationEnvironment` call whose `shadow` is a constant `"sinkAndCache"`. Only `ports` varies by source.
+- The two clock maps agree. `Simulation.ts` `clockLayer` and `QadiReviewLayer.ts` `clockLayer` both map `"deterministic"` to `TestClock.layer()` and anything else to `Layer.empty`. `ReviewSimulationConformance.test.ts` pins both.
+- Tests: `vitest run --project core --project testing --project devtools` on the three affected areas passed, 33 files and 973 tests.
 
 ---
 
