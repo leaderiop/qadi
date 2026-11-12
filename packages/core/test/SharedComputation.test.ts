@@ -4,6 +4,7 @@ import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
+import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as FastCheck from "fast-check";
@@ -712,8 +713,8 @@ describe("PROPERTY: a reset supersedes its claims", () => {
                 check();
               });
 
-            for (const cmd of cmds) {
-              if (cmd._tag === "Run") {
+            const runStep = (cmd: Extract<Command, { readonly _tag: "Run" }>) =>
+              Effect.gen(function* () {
                 const id = fibers.length;
                 fibers.push(
                   yield* Effect.forkChild(
@@ -756,15 +757,20 @@ describe("PROPERTY: a reset supersedes its claims", () => {
                   waiters.push({ id, compute: claimed.id, outcome: "miss", state: "waiting", answer: undefined });
                 }
                 check();
-              } else if (cmd._tag === "Reset") {
-                yield* Effect.sync(() => shared.reset());
-                yield* settleTurns;
-                for (const c of computes) {
-                  if (c.running && c.standing === "Live") c.standing = "Superseded";
-                }
-                live.clear();
-                check();
-              } else if (cmd._tag === "Settle") {
+              });
+
+            const resetStep = Effect.gen(function* () {
+              yield* Effect.sync(() => shared.reset());
+              yield* settleTurns;
+              for (const c of computes) {
+                if (c.running && c.standing === "Live") c.standing = "Superseded";
+              }
+              live.clear();
+              check();
+            });
+
+            const settleCommand = (cmd: Extract<Command, { readonly _tag: "Settle" }>) =>
+              Effect.gen(function* () {
                 const running = computes.filter((c) => c.key === cmd.key && c.running);
                 const chosen = running[cmd.pick % running.length];
                 if (chosen === undefined) {
@@ -774,7 +780,10 @@ describe("PROPERTY: a reset supersedes its claims", () => {
                 } else {
                   yield* settleStep(chosen, cmd.ok);
                 }
-              } else {
+              });
+
+            const leaveStep = (cmd: Extract<Command, { readonly _tag: "Leave" }>) =>
+              Effect.gen(function* () {
                 const waiting = waiters.filter((w) => w.state === "waiting");
                 const chosen = waiting[cmd.pick % waiting.length];
                 const fiber = chosen === undefined ? undefined : fibers[chosen.id];
@@ -800,8 +809,19 @@ describe("PROPERTY: a reset supersedes its claims", () => {
                   }
                   check();
                 }
-              }
-            }
+              });
+
+            // A new Command is a compile error here, not a silent Leave.
+            const step = Match.type<Command>().pipe(
+              Match.tagsExhaustive({
+                Run: runStep,
+                Reset: () => resetStep,
+                Settle: settleCommand,
+                Leave: leaveStep,
+              }),
+            );
+
+            for (const cmd of cmds) yield* step(cmd);
 
             // Drain: complete what still runs, one step each with the laws checked.
             for (const c of computes) {
