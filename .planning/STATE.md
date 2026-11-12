@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 34
 current_phase_name: Diagnostics as the dock model's seventh store
 status: executing
-stopped_at: Completed 34-07-PLAN.md
-last_updated: "2026-11-12T17:46:18.112Z"
+stopped_at: Completed 34-08-PLAN.md
+last_updated: "2026-11-12T17:53:47.892Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 34 execution started
-state_head: 48abf4fd88c51716a0c5bc13408a06bceaad97be
+state_head: 5fb722fc03599cc859ba7fb3e3d30e87e0f7a9bf
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 33
-  completed_plans: 31
+  completed_plans: 32
   percent: 57
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 34 (Diagnostics as the dock model's seventh store) — EXECUTING
-Plan: 8 of 9
+Plan: 9 of 9
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 34 execution started
 
@@ -177,6 +177,7 @@ Progress: [██████░░░░] 57% (v1.3: 0 of 7 phases)
 | Phase 34 P05 | 20min | 2 tasks | 4 files |
 | Phase 34 P06 | 12min | 3 tasks | 14 files |
 | Phase 34 P07 | 25min | 3 tasks | 11 files |
+| Phase 34 P08 | 6 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -267,6 +268,9 @@ Progress: [██████░░░░] 57% (v1.3: 0 of 7 phases)
 - [Phase 34]: usePaused reads through useStoreSnapshot (one subscription); simulation reads moved to the same hook
 - [Phase 34]: 34-06: DiagnosticsStatus is exported once as a value export (value and type merged); the duplicate type-line name is TS2300
 - [Phase 34]: 34-07: the notice re-decides its alert mode whenever the stop's identity changes (previous status held in state, compared during render), so a Stopped-to-Stopped change alerts again
+- [Phase 34]: ADR-QD-047 is amended (Rev 1.13) rather than a new ADR written; ADR-QD-147 is named Unused in CCR-QD-425
+- [Phase 34]: The Stopped reason is Cause.pretty kept verbatim and uncapped, carried only in the model's snapshot and rendered as height-bounded React text, never sent to a sink, response, log or metric
+- [Phase 34]: The useTimeline placeholder is the inert module-scope idleTimeline; useDiagnostics before its feed exists is Off without options and Starting with them
 
 ### Pending Todos
 
@@ -308,8 +312,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T17:46:17.990Z
-Stopped at: Completed 34-07-PLAN.md
+Last session: 2026-11-12T17:53:47.671Z
+Stopped at: Completed 34-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

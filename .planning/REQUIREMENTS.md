@@ -55,7 +55,7 @@ marked **Breaking**, `apps/website/.../reference/upgrading.md`). Releasing is st
 - [x] **DIAG-03**: Public `useDiagnostics` is a thin adapter over the same scoped diagnostics feed, so there is one poll implementation. `DiagnosticsDockOptions` is declared in the model.
 - [x] **DIAG-04**: The dock's snapshot hooks collapse into one store-snapshot hook, which removes the constant-`undefined` run passed to `useRunningStore` (v1.2 Phase 26 IN-01).
 - [x] **DIAG-05**: A poll defect is visible as a failed state, not a silently stopped panel, and is tested with a throwing source. The behaviour across a hidden `<Activity>` and across `diagnostics` going `undefined` and back is decided, stated and pinned.
-- [ ] **DIAG-06**: Model tests cover the poll's start, restart, stop and merge under `TestClock` with no render. ADR-QD-047 is amended, BEH-QD-465 (seven stores) and BEH-QD-323 are restated, and `DockModel.ts` keeps its mutation score.
+- [x] **DIAG-06**: Model tests cover the poll's start, restart, stop and merge under `TestClock` with no render. ADR-QD-047 is amended, BEH-QD-465 (seven stores) and BEH-QD-323 are restated, and `DockModel.ts` keeps its mutation score.
 
 ### The atom set owns its eviction sweep (Phase 35)
 
@@ -134,7 +134,7 @@ The seven WX rows apply to every phase 30 to 36, so each phase's Requirements li
 | DIAG-03 | Phase 34 | Complete |
 | DIAG-04 | Phase 34 | Complete |
 | DIAG-05 | Phase 34 | Complete |
-| DIAG-06 | Phase 34 | Pending |
+| DIAG-06 | Phase 34 | Complete |
 | SWEEP-01 | Phase 35 | Pending |
 | SWEEP-02 | Phase 35 | Pending |
 | SWEEP-03 | Phase 35 | Pending |
