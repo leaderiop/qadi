@@ -430,3 +430,7 @@ entries:
     file: "140-a-gates-write-side-is-a-leaf-below-the-atom-set.md"
     title: "A gate's write side is a leaf below the atom set, and its hook sits above it"
     status: "Accepted — amends ADR-QD-111, ADR-QD-080"
+  - id: "ADR-QD-143"
+    file: "143-untrusted-json-is-decoded-through-one-module.md"
+    title: "Untrusted JSON is decoded through one module"
+    status: "Accepted — amends ADR-QD-096, ADR-QD-107"
