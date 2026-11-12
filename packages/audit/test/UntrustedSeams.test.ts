@@ -8,7 +8,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { DecodeRefusal, MAX_DECODE_DEPTH } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
-import { archiveAuditTrail, readAuditArchive } from "../src/AuditArchive.ts";
+import { archiveAuditTrail, ArchiveRefusal, readAuditArchive } from "../src/AuditArchive.ts";
 import { decodeAuditEntry, encodeAuditEntry } from "../src/AuditEntry.ts";
 import { decisionRecord } from "./helpers.ts";
 
@@ -81,19 +81,25 @@ describe("readAuditArchive", () => {
     assert.strictEqual(archiveRefusalOf({ ...archive(), sneaky: true })?._tag, "Malformed");
   });
 
-  it("an excess envelope key holding a value nested past the bound -> Malformed (flips in 30-04: TooDeep)", () => {
-    assert.strictEqual(archiveRefusalOf({ ...archive(), sneaky: nested(OVER) })?._tag, "Malformed");
+  it("an excess envelope key holding a value nested past the bound -> TooDeep (flipped in 30-04 (D-07))", () => {
+    assert.deepStrictEqual(
+      archiveRefusalOf({ ...archive(), sneaky: nested(OVER) }),
+      ArchiveRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }),
+    );
   });
 
-  it("a metadata field holding a value nested past the bound -> Malformed (flips in 30-04: TooDeep)", () => {
+  it("a metadata field holding a value nested past the bound -> TooDeep (flipped in 30-04 (D-07))", () => {
     const metadata = { ...written().metadata, note: nested(OVER) };
-    assert.strictEqual(archiveRefusalOf({ ...archive(), metadata })?._tag, "Malformed");
+    assert.deepStrictEqual(
+      archiveRefusalOf({ ...archive(), metadata }),
+      ArchiveRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }),
+    );
   });
 
-  it('nested past the bound and archiveVersion "2" -> Malformed, the envelope decode first (flips in 30-04: TooDeep)', () => {
-    assert.strictEqual(
-      archiveRefusalOf({ ...archive(), archiveVersion: "2", sneaky: nested(OVER) })?._tag,
-      "Malformed",
+  it('nested past the bound and archiveVersion "2" -> TooDeep, the depth guard first (flipped in 30-04 (D-07))', () => {
+    assert.deepStrictEqual(
+      archiveRefusalOf({ ...archive(), archiveVersion: "2", sneaky: nested(OVER) }),
+      ArchiveRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }),
     );
   });
 

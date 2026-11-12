@@ -11,12 +11,13 @@
  */
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
+import * as Match from "effect/Match";
 import * as MutableHashMap from "effect/MutableHashMap";
 import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
-import { UNTRUSTED_DECODE_OPTIONS } from "@qadi/core";
-import type { DecodeRefusal } from "@qadi/core";
+import { untrustedDecoder } from "@qadi/core";
+import type { DecodeRefusal, UntrustedValueRefusal } from "@qadi/core";
 import { archiveFacts, verifiedArchiveFacts } from "./ArchiveFacts.ts";
 import { decodeAuditEntry } from "./AuditEntry.ts";
 import type { AuditEntry } from "./AuditEntry.ts";
@@ -129,12 +130,16 @@ export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(funct
 /**
  * Why a stored bundle is not an archive this package will vouch for.
  *
- * Each member is a different repair: `Malformed` and `UnsupportedArchiveVersion`
+ * Each member is a different repair: `TooDeep`, `Malformed` and `UnsupportedArchiveVersion`
  * say the bytes are not a bundle this reader reads; `EntryNotDecodable` names
  * the row (`index`) and `@qadi/core`'s own refusal for it; `CountMismatch`,
  * `SequenceBroken`, `NotInSequenceOrder` and `UnbackedClaim` say the bundle
  * decodes but is not the one {@link archiveAuditTrail} wrote.
  *
+ * - `TooDeep`: the stored bundle nests deeper than `MAX_DECODE_DEPTH` (`maxDepth`)
+ *   outside its entries, refused before any decode. An entry nested that deep is
+ *   `EntryNotDecodable` at its index instead, because the entries are read one by
+ *   one from their own roots.
  * - `CountMismatch`: `metadata.entryCount` (`declared`) differs from the number
  *   of entries (`actual`) — rows were dropped or added after bundling.
  * - `SequenceBroken`: the caller-assigned `sequenceNumber`s have a gap or a
@@ -147,6 +152,7 @@ export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(funct
  *   verify, or denies one).
  */
 export type ArchiveRefusal = Data.TaggedEnum<{
+  TooDeep: { readonly maxDepth: number };
   Malformed: { readonly message: string };
   UnsupportedArchiveVersion: { readonly version: string };
   EntryNotDecodable: { readonly index: number; readonly refusal: DecodeRefusal };
@@ -249,7 +255,14 @@ const ArchiveEnvelope = Schema.Struct({
   keyMaterial: Schema.optional(Schema.Array(KeyMaterialSchema)),
 });
 
-const decodeEnvelope = Schema.decodeUnknownResult(ArchiveEnvelope, UNTRUSTED_DECODE_OPTIONS);
+const decodeEnvelope = untrustedDecoder(ArchiveEnvelope, { unwalked: ["entries"] }).decode;
+
+const asArchiveRefusal: (refusal: UntrustedValueRefusal) => ArchiveRefusal = Match.type<UntrustedValueRefusal>().pipe(
+  Match.tagsExhaustive({
+    TooDeep: ({ maxDepth }) => ArchiveRefusal.TooDeep({ maxDepth }),
+    Malformed: ({ message }) => ArchiveRefusal.Malformed({ message }),
+  }),
+);
 
 const refuse = (refusal: ArchiveRefusal) => Result.fail(new ArchiveNotVerified({ refusal }));
 
@@ -261,9 +274,10 @@ const refuse = (refusal: ArchiveRefusal) => Result.fail(new ArchiveNotVerified({
  * typed `unknown` — not {@link archiveAuditTrail}'s in-memory result: "archived"
  * means "the store gave this back", the closest this package can get to "it
  * was stored" without owning storage. Pure; a refusal is a value. Checks run in
- * this order and each has its own {@link ArchiveRefusal}: the envelope is a
- * bundle (`Malformed`), `archiveVersion` is `"1"` (`UnsupportedArchiveVersion`),
- * every entry decodes through `decodeAuditEntry` (`EntryNotDecodable`), the
+ * this order and each has its own {@link ArchiveRefusal}: the envelope does not
+ * nest past the decode bound (`TooDeep`) and is a bundle (`Malformed`),
+ * `archiveVersion` is `"1"` (`UnsupportedArchiveVersion`), every entry decodes
+ * through `decodeAuditEntry`, each from its own root (`EntryNotDecodable`), the
  * count matches (`CountMismatch`), no sequence gap or duplicate
  * (`SequenceBroken`), the order is the writer's (`NotInSequenceOrder`), and
  * `sequenceIntegrityVerified` is exactly the claim the entries back
@@ -276,7 +290,7 @@ const refuse = (refusal: ArchiveRefusal) => Result.fail(new ArchiveNotVerified({
 export const readAuditArchive = (input: unknown): Result.Result<VerifiedArchive, ArchiveNotVerified> => {
   const envelope = decodeEnvelope(input);
   if (Result.isFailure(envelope)) {
-    return refuse(ArchiveRefusal.Malformed({ message: envelope.failure.message }));
+    return refuse(asArchiveRefusal(envelope.failure));
   }
   const bundle = envelope.success;
   if (bundle.archiveVersion !== ARCHIVE_VERSION) {
