@@ -450,13 +450,13 @@ Plans:
   4. A conformance test shows the review and simulation layers agree on ids, clock determinism and fail-closed ports, and `packages/core/test/helpers.ts` is built from the same builder.
   5. The clock vocabulary is settled and recorded (unified literals, or kept apart by a stated reason), with no `effect/testing` import added to core.
 **Planning notes**: test-scope budgets apply: read metrics by their export, never by a `qadi_*` literal, and script a broken port with `scriptedPort`.
-**Plans**: 3/6 plans executed
+**Plans**: 4/6 plans executed
 
 Plans:
 - [x] 33-01 (W1): Reserved-number check and the mutation baseline (nothing touched is measured at the base; the new module will be), committed alone, first; the review-layer pin (`QadiReviewLayer.test.ts`: outer sink, outer cache, ids, default clock) and the review/simulation conformance pin, both green on the phase base.
 - [x] 33-02 (W2): Tracer: `evaluationEnvironment`, `EvaluationEnvironmentOptions`, `EvaluationShadowing` and `EvaluationClock` in core with runtime and type tests, and `simulationLayer` rebuilt on it (`shadow: "sinkAndCache"`, `"sim"`) with every INV-QD-042 test green; then `qadiReviewLayer` (`shadow: "none"`) and core's test helpers built on it.
 - [x] 33-03 (W3): One clock vocabulary: `@qadi/testing`'s option takes `EvaluationClock` (`"deterministic"`), devtools' `SimulationClock` deleted; one literal-to-layer map per package; the two test renames line for line.
-- [ ] 33-04 (W4): ADR-QD-146 and ADR-QD-050's amendment (Rev 1.5); INV-QD-042 restated, INV-QD-311, INV-QD-312; BEH-QD-501..505 and BEH-QD-226 restated; devtools-spec prose.
+- [x] 33-04 (W4): ADR-QD-146 and ADR-QD-050's amendment (Rev 1.5); INV-QD-042 restated, INV-QD-311, INV-QD-312; BEH-QD-501..505 and BEH-QD-226 restated; devtools-spec prose.
 - [ ] 33-05 (W5): Overview rows, traceability rows, CCR-QD-424; changesets (core minor, testing and devtools Breaking); the upgrade note and the website's testing page.
 - [ ] 33-06 (W6): Gate integrity, WX-04 scan, commit-order and test-edit shape check, no surviving mutant in the new module, `pnpm check:pr` on the final tree.
 
