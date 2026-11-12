@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-02                                    |
-> | Revision       | 0.17 (draft)                                   |
+> | Revision       | 0.18 (draft)                                   |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.17 (2026-11-12): @qadi/testing's clock option is deterministic, the simulator's word (ARCH-81, CCR-QD-424)<br>0.16 (2026-11-11): §5 says the screen is a view of the dock's session: the dropdown, the cost line, the baseline sentence and the result's reading are the session's, and the session owns its runs through a scope (ARCH-73, BEH-QD-460, BEH-QD-461, CCR-QD-415)<br>0.15 (2026-11-10): §1 says every panel's verdict colour comes from one treatment, and §2 that the Inspector and the Simulator read the outcome once, through readOutcome (ARCH-67, BEH-QD-429, BEH-QD-430, CCR-QD-409)<br>0.14 (2026-11-10): §5 says the three subject rows and four fixture rows are one description each in the model, and the what-if table drops and remedies a signature (ARCH-61, lost ARCH-48, ADR-QD-047, CCR-QD-400)<br>0.13 (2026-11-09): §3 and §4 say what the explorer and the role viewer show is kept across a tab switch, in a session the dock owns (ARCH-58, BEH-QD-337, CCR-QD-394)<br>0.12 (2026-10-07): §6 and §7 say the dock samples the diagnostics when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>0.11 (2026-10-07): §5 states the session, the signatures row and the refused run (ARCH-20, CCR-QD-199)<br>0.10 (2026-10-07): §2 and §6 say five port spans and four other ports; §6 names the registry's card order and says what a defaulted card shows (`PortReport.defaulted`), and its counts of `name?` shapes and required services are corrected (ARCH-21, CCR-QD-198)<br>0.9 (2026-10-05): §6 names a decision log's `clear` in place of the removed `decisionSinkRing`'s (CCR-QD-181)<br>0.8 (2026-08-24): §7's gap notes closed against what was built — hydration counts (CCR-QD-072) and the instance registry and lens (CCR-QD-073); recorded in CCR-QD-074<br>0.7 (2026-08-24): The resolver-call gap closed, and the note corrected — annotating the spans was half of it, and a reader was the other half (CCR-QD-071)<br>0.6 (2026-08-24): Screen 5 built, and §5 corrected on two counts it had asserted since the first draft — it runs on `@qadi/core`'s own layers rather than `@qadi/testing`'s, and "never against live resolvers" was the wrong rule (CCR-QD-070)<br>0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.18 (2026-11-12): Screens 6 and React state the diagnostics poll's status (ARCH-82, CCR-QD-425)<br>0.17 (2026-11-12): @qadi/testing's clock option is deterministic, the simulator's word (ARCH-81, CCR-QD-424)<br>0.16 (2026-11-11): §5 says the screen is a view of the dock's session: the dropdown, the cost line, the baseline sentence and the result's reading are the session's, and the session owns its runs through a scope (ARCH-73, BEH-QD-460, BEH-QD-461, CCR-QD-415)<br>0.15 (2026-11-10): §1 says every panel's verdict colour comes from one treatment, and §2 that the Inspector and the Simulator read the outcome once, through readOutcome (ARCH-67, BEH-QD-429, BEH-QD-430, CCR-QD-409)<br>0.14 (2026-11-10): §5 says the three subject rows and four fixture rows are one description each in the model, and the what-if table drops and remedies a signature (ARCH-61, lost ARCH-48, ADR-QD-047, CCR-QD-400)<br>0.13 (2026-11-09): §3 and §4 say what the explorer and the role viewer show is kept across a tab switch, in a session the dock owns (ARCH-58, BEH-QD-337, CCR-QD-394)<br>0.12 (2026-10-07): §6 and §7 say the dock samples the diagnostics when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>0.11 (2026-10-07): §5 states the session, the signatures row and the refused run (ARCH-20, CCR-QD-199)<br>0.10 (2026-10-07): §2 and §6 say five port spans and four other ports; §6 names the registry's card order and says what a defaulted card shows (`PortReport.defaulted`), and its counts of `name?` shapes and required services are corrected (ARCH-21, CCR-QD-198)<br>0.9 (2026-10-05): §6 names a decision log's `clear` in place of the removed `decisionSinkRing`'s (CCR-QD-181)<br>0.8 (2026-08-24): §7's gap notes closed against what was built — hydration counts (CCR-QD-072) and the instance registry and lens (CCR-QD-073); recorded in CCR-QD-074<br>0.7 (2026-08-24): The resolver-call gap closed, and the note corrected — annotating the spans was half of it, and a reader was the other half (CCR-QD-071)<br>0.6 (2026-08-24): Screen 5 built, and §5 corrected on two counts it had asserted since the first draft — it runs on `@qadi/core`'s own layers rather than `@qadi/testing`'s, and "never against live resolvers" was the wrong rule (CCR-QD-070)<br>0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -334,6 +334,15 @@ wired adapter shows it muted, as `if defaulted: …`. DecisionHistory's card nam
 three-valued default (denies `hasActed` and `hasNotActed` alike,
 [ADR-QD-020](../decisions/020-decision-history-port.md)).
 
+The screen's first child is the diagnostics notice. While the sampler waits for its
+first sample the notice is a quiet status line; when sampling stops it is prominent, with
+the reason the sampler gave, the last reading kept below it, and a **Restart diagnostics**
+button that moves focus back into the screen. Until a sample is accepted the screen
+withholds what it cannot yet know, so a port the host has not been read for does not
+read as "not handed over"
+([BEH-QD-509](../behaviors/28-devtools-screens.md#beh-qd-509-every-screen-that-reads-the-diagnostics-states-its-status-the-same-way),
+[ADR-QD-047](../decisions/047-a-headless-devtools-model.md)).
+
 **Closed — `name?` exists on five port shapes**, and wrappers compose it
 (`"fromRecord (retrying)"`). The card reports the name, or *wired, unnamed* — and
 never "unwired" for a required port, because the misnomer this note identified
@@ -371,6 +380,12 @@ conflate the two. (Corrected 2026-10-05, CCR-QD-181: this named
 `decisionSinkRing`, which the decision log replaced.)
 
 ## 7. React panel (client only)
+
+This screen opens with the same diagnostics notice as Screen 6: a quiet status line while
+the first sample is pending, a prominent one with the reason and a **Restart diagnostics**
+button when sampling stops, and the hydration counts and question rows withheld until a
+sample is accepted
+([BEH-QD-509](../behaviors/28-devtools-screens.md#beh-qd-509-every-screen-that-reads-the-diagnostics-states-its-status-the-same-way)).
 
 - **Gates & hooks in tree** — every `<Can>`/`<Cannot>`/`useCan`/
   `useDecisionSuspense` instance with its render state; stale entries show
