@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-103                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted — amends ADR-QD-053, ADR-QD-080, ADR-QD-025 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-11): Note (ARCH-76, CCR-QD-418): useGateRegistration was removed (ADR-QD-140)<br>1.0 (2026-10-07): Initial (ARCH-23, CCR-QD-201) |
+> | Change History | 1.2 (2026-11-12): amendment — the atom set sweeps its own book one macrotask after the pressure; the provider forks none (ARCH-83, ADR-QD-148, CCR-QD-426)<br>1.1 (2026-11-11): Note (ARCH-76, CCR-QD-418): useGateRegistration was removed (ADR-QD-140)<br>1.0 (2026-10-07): Initial (ARCH-23, CCR-QD-201) |
 
 ---
 
@@ -93,3 +93,11 @@ special case. The book removes the second cache.
 
 **Leave `usePolicies` unregistered and document it.** Cheaper, and leaves the panel showing a question
 row with nothing under it.
+
+## Amendment (2026-11-12, ADR-QD-148, CCR-QD-426)
+
+The Consequences sentence "The provider's first sweep runs after its children have rendered and
+retained their questions" no longer holds. The atom set sweeps its own book one macrotask after the
+book goes over `maxTrackedQuestions`, so a cold question's seed, written and never read, can be
+forgotten that soon, and the provider forks no sweep ([ADR-QD-148](./148-the-atom-set-owns-its-eviction-sweep.md)).
+The rest of this decision is unchanged.

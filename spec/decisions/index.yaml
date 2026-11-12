@@ -438,3 +438,7 @@ entries:
     file: "146-one-evaluation-environment-states-its-shadowing.md"
     title: "One evaluation environment states its shadowing"
     status: "Accepted — amends ADR-QD-050"
+  - id: "ADR-QD-148"
+    file: "148-the-atom-set-owns-its-eviction-sweep.md"
+    title: "The atom set owns its eviction sweep"
+    status: "Accepted — amends ADR-QD-014, ADR-QD-103"

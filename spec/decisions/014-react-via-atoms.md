@@ -13,6 +13,7 @@
 > checked against the wrong package and did not hold up. See the correction
 > under Consequences (CCR-QD-150). `@effect/atom-react` is now a dependency of
 > `@qadi/react`.
+> **Amended:** 2026-11-12 by [ADR-QD-148](./148-the-atom-set-owns-its-eviction-sweep.md) — the atom set owns its eviction sweep: the provider no longer forks one, and idle-question growth is bounded without `scheduleTask` (CCR-QD-426).
 
 ## Context
 
