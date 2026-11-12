@@ -1,0 +1,41 @@
+{
+ "measured": {
+  "packages/devtools/src/model/TimelineFeed.ts": 1,
+  "packages/devtools/src/model/TimelineStore.ts": 0.9696969696969697,
+  "packages/devtools/src/model/DockModel.ts": 1,
+  "packages/devtools/src/model/SimulationSource.ts": 0.9841269841269841,
+  "packages/devtools/src/model/SimulationSession.ts": 0.9745042492917847,
+  "packages/devtools/src/model/Replay.ts": 1,
+  "packages/devtools/src/react/useTimeline.ts": 0.75,
+  "packages/devtools/src/react/useDockModel.ts": 1,
+  "packages/devtools/src/react/DevtoolsDock.tsx": 0.5873015873015873,
+  "packages/devtools/src/react/Simulator.tsx": 0.5449438202247191,
+  "packages/devtools/src/react/DiagnosticsNotice.tsx": 0.8444444444444444,
+  "packages/react/src/QadiAtoms.ts": 0.896551724137931,
+  "packages/react/src/HydrationEngine.ts": 0.9775784753363229
+ },
+ "unmeasured": {
+  "packages/core/src/DecisionSink.ts": "comment-only; proven by the comment-stripped transpile comparison",
+  "packages/core/src/AuthSubject.ts": "comment-only; proven by the comment-stripped transpile comparison",
+  "packages/core/src/Policy.ts": "comment-only; proven by the comment-stripped transpile comparison",
+  "packages/core/src/Explanation.ts": "comment-only; proven by the comment-stripped transpile comparison",
+  "packages/core/src/RelationshipResolver.ts": "comment-only; proven by the comment-stripped transpile comparison",
+  "packages/core/src/AttributeResolver.ts": "comment-only; proven by the comment-stripped transpile comparison",
+  "packages/core/src/Matcher.ts": "comment-only; proven by the comment-stripped transpile comparison",
+  "packages/core/src/UntrustedDecode.ts": "comment-only; proven by the comment-stripped transpile comparison",
+  "packages/core/src/SecurityLabel.ts": "comment-only; proven by the comment-stripped transpile comparison",
+  "packages/audit/src/AuditDecisionSinkLive.ts": "comment-only; proven by the comment-stripped transpile comparison",
+  "packages/audit/src/CircuitBreaker.ts": "comment-only; proven by the comment-stripped transpile comparison",
+  "packages/http/src/QadiHttpError.ts": "comment-only; proven by the comment-stripped transpile comparison",
+  "packages/http/src/GuardRoute.ts": "comment-only; proven by the comment-stripped transpile comparison",
+  "packages/react/src/GateWriter.ts": "comment-only; proven by the comment-stripped transpile comparison",
+  "packages/devtools/src/react/useScoped.ts": "comment-only; proven by the comment-stripped transpile comparison",
+  "packages/devtools/src/react/index.ts": "absent from the report (no mutant)"
+ },
+ "new": [
+  "packages/devtools/src/react/StoppedBox.tsx",
+  "packages/devtools/src/react/TimelineNotice.tsx",
+  "packages/devtools/src/react/focusRing.ts"
+ ],
+ "deleted": {}
+}
