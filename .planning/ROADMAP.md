@@ -439,12 +439,12 @@ Plans:
   1. `PortName.ts` holds one five-row table; `PortDescription.span` is `PortSpanOf<N>` (or the recorded fallback).
   2. `HydrationEngine.ts`'s withheld fields are one constant per entry kind.
   3. One `FAILURE_IS_NOT_A_DENIAL` constant serves the Inspector and the Simulator; literal test assertions are unedited.
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans executed
 
 Plans:
 - [x] 29-01 (W1): Preconditions and the 12-file mutation baseline; TIDY-01 port identity leaf (`PortName.ts`, `span: PortSpanOf<N>`)
 - [x] 29-02 (W2): TIDY-02 withheld-field constants; TIDY-03 the shared `FAILURE_IS_NOT_A_DENIAL` sentence
-- [ ] 29-03 (W3): Records (ADR-094 note, CCR-QD-419, changesets), `pnpm check:pr`, per-file mutation comparison
+- [x] 29-03 (W3): Records (ADR-094 note, CCR-QD-419, changesets), `pnpm check:pr`, per-file mutation comparison
 
 ### Progress (v1.2)
 

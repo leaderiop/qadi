@@ -6,16 +6,16 @@ current_phase: 29
 current_phase_name: Small restated facts
 current_plan: 3
 status: executing
-stopped_at: Completed 29-02-PLAN.md
-last_updated: "2026-11-11T23:21:00.550Z"
+stopped_at: Completed 29-03-PLAN.md
+last_updated: "2026-11-12T00:06:30.088Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 28 complete, transitioned to Phase 29
-state_head: d4813a1564345f95f86b84491a2d3af176d52ad9
+state_head: e63e6f522198ba9c9426d08c7134d57149e17217
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 38
-  completed_plans: 37
+  completed_plans: 38
   percent: 89
 ---
 
@@ -139,6 +139,7 @@ Last activity: 2026-11-11 — Phase 28 complete, transitioned to Phase 29
 | Phase 28 P05 | 25 min | 3 tasks | 12 files |
 | Phase 29 P01 | 5 min | 2 tasks | 22 files |
 | Phase 29 P02 | 2 min | 2 tasks | 4 files |
+| Phase 29 P03 | 25 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -196,6 +197,7 @@ Last activity: 2026-11-11 — Phase 28 complete, transitioned to Phase 29
 - [Phase 29]: 29-01: D-02 taken in full (PortDescription.span is PortSpanOf<N>, no cast needed, fallback not used); mutation baseline of twelve files committed first (dd158b25 over phase_base 50c7292d)
 - [Phase 29]: TIDY-02 needed no new test: HydrationPayload.test.ts already decodes allow and deny under the untrusted options, with and without includeTrace
 - [Phase 29]: FAILURE_IS_NOT_A_DENIAL lives in devtools model/Verdict.ts and stays out of both barrels (D-05)
+- [Phase 29]: 29-03: no new ADR; ADR-QD-141 unused, narrowing recorded as an ADR-QD-094 amendment (CCR-QD-419)
 
 ### Pending Todos
 
@@ -226,8 +228,8 @@ Last activity: 2026-11-11 — Phase 28 complete, transitioned to Phase 29
 
 ## Session Continuity
 
-Last session: 2026-11-11T23:21:00.258Z
-Stopped at: Completed 29-02-PLAN.md
+Last session: 2026-11-12T00:06:29.782Z
+Stopped at: Completed 29-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
