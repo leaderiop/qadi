@@ -1,12 +1,14 @@
 /**
  * The services an evaluation requires, declared in a type-only leaf.
  *
- * `Evaluate.ts` and `Lifecycle.ts` both name these, and `Evaluate.ts` imports
- * `Lifecycle.ts`, so declaring them in either would make the other import back,
- * and madge counts a type-only edge (ADR-QD-037). They are not beside
- * `EvaluateOptions` in `Question.ts` because they read `Ports.ts`, whose import
- * closure `Question.ts` must not carry. This module holds only `import type`
- * statements and type aliases.
+ * `Evaluate.ts` and `Lifecycle.ts` both name these. Declaring them in
+ * `Evaluate.ts` would make `Lifecycle.ts` import back, a cycle madge counts even
+ * when every edge is type-only (ADR-QD-037). Declaring them in `Lifecycle.ts`
+ * would put public types in a package-private module outside the barrel, which
+ * would then have to re-export them (ADR-QD-099). They are not beside
+ * `EvaluateOptions` in `Question.ts` because they read the port registry
+ * (`Ports.ts`), and `Question.ts` imports no evaluation code. This module holds
+ * only `import type` statements and type aliases.
  */
 import type { CurrentSubject } from "./CurrentSubject.ts";
 import type { EvaluationId } from "./EvaluationId.ts";
