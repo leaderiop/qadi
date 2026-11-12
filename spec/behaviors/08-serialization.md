@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-08                                    |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-09-19                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-09-19): BEH-QD-058 narrowed — the round-trip guarantee holds for policies whose segment-shaped and `HasRelationship.depth` fields already satisfy the checks decode enforces (`toJson`/`toJsonValue` do not re-run them on the way out), not for every `Policy` value the type admits; BEH-QD-059 gains a requirement that decoding reject a non-integer, negative, or out-of-`[0, DEFAULT_MAX_DEPTH]` `HasRelationship.depth` — previously a bare `Schema.Number` deferred entirely to `Evaluate.ts`'s runtime clamp (100-lens audit: BL-05, GB-02, MO-02, NW-02; GC-03, WZ-02)<br>1.1 (2026-09-08): BEH-QD-057 — `fromJson` took `json: unknown`, not `string`, and both `fromJson`/`fromJsonValue` were missing `PolicyDecodeTooDeep` from the error channel; BEH-QD-059 now names `PolicyDecodeTooDeep` as the error enforcing the recursion bound (CCR-QD-125)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.3 (2026-11-12): BEH-QD-057 drops PolicyFromJson and adds PolicyNotJson; BEH-QD-059 restated (the bound lives in UntrustedDecode.ts); BEH-QD-486 and BEH-QD-487 new (ARCH-78, CCR-QD-421)<br>1.2 (2026-09-19): BEH-QD-058 narrowed — the round-trip guarantee holds for policies whose segment-shaped and `HasRelationship.depth` fields already satisfy the checks decode enforces (`toJson`/`toJsonValue` do not re-run them on the way out), not for every `Policy` value the type admits; BEH-QD-059 gains a requirement that decoding reject a non-integer, negative, or out-of-`[0, DEFAULT_MAX_DEPTH]` `HasRelationship.depth` — previously a bare `Schema.Number` deferred entirely to `Evaluate.ts`'s runtime clamp (100-lens audit: BL-05, GB-02, MO-02, NW-02; GC-03, WZ-02)<br>1.1 (2026-09-08): BEH-QD-057 — `fromJson` took `json: unknown`, not `string`, and both `fromJson`/`fromJsonValue` were missing `PolicyDecodeTooDeep` from the error channel; BEH-QD-059 now names `PolicyDecodeTooDeep` as the error enforcing the recursion bound (CCR-QD-125)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -20,11 +20,10 @@
 > **See:** [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md)
 
 ```ts
-export const PolicyFromJson: Schema.Codec<Policy, string>;
 export const toJson: (policy: Policy) => Effect.Effect<string, SchemaError>;
 export const fromJson: (
   json: string,
-) => Effect.Effect<Policy, PolicyDecodeTooDeep | Schema.SchemaError>;
+) => Effect.Effect<Policy, PolicyDecodeTooDeep | PolicyNotJson | Schema.SchemaError>;
 export const toJsonValue: (policy: Policy) => Effect.Effect<unknown, SchemaError>;
 export const fromJsonValue: (
   value: unknown,
@@ -67,7 +66,8 @@ that `fromJson(toJson(p))` will.
 REQUIREMENT: Decoding MUST reject an unknown `_tag`, a permission segment
              containing `:`, an empty permission segment, a non-integer,
              negative, or out-of-`[0, DEFAULT_MAX_DEPTH]` `HasRelationship.depth`,
-             and malformed JSON.
+             and text that is not JSON (`fromJson` fails with `PolicyNotJson`,
+             BEH-QD-487).
 ```
 
 ```
@@ -81,12 +81,95 @@ The bound is `MAX_DECODE_DEPTH` — **256**, four times
 [BEH-QD-038](./05-evaluator.md#beh-qd-038-bounded-recursion)'s evaluation-time
 `DEFAULT_MAX_DEPTH` (64) — and is itself normative: `PolicyDecodeTooDeep.maxDepth`
 carries it to every caller, so a caller can log or assert against the exact
-figure a decode failed at. The multiplier is generous rather than tight because
+figure a decode failed at. It is declared in `UntrustedDecode.ts`, beside the
+strict decode options it was calibrated with, and applied by every untrusted
+seam through `untrustedDecoder` (BEH-QD-486), not by each seam's own guard. The
+multiplier is generous rather than tight because
 it bounds the raw JSON structure a decode walks, not the decoded policy tree
 `DEFAULT_MAX_DEPTH` bounds — an array-valued node (`AllOf`/`AnyOf`/`Rules`) adds
 extra JSON nesting around each `Policy` position that never shows up as an extra
 level of evaluation depth, so no policy `evaluate` would ever accept is rejected
 here first.
+
+## BEH-QD-486: Untrusted JSON is decoded through one decoder
+
+> **Invariant:** [INV-QD-305](../invariants.md#inv-qd-305-every-untrusted-json-seam-is-guarded-by-construction), [INV-QD-306](../invariants.md#inv-qd-306-an-unwalked-slot-is-unknown-and-has-its-own-guarded-decoder)
+> **See:** [ADR-QD-143](../decisions/143-untrusted-json-is-decoded-through-one-module.md)
+
+```ts
+export const MAX_DECODE_DEPTH: number;
+export type UntrustedRefusal = Data.TaggedEnum<{
+  NotJson: { readonly message: string };
+  TooDeep: { readonly maxDepth: number };
+  Malformed: { readonly message: string; readonly error: Schema.SchemaError };
+}>;
+export type UntrustedValueRefusal = Exclude<UntrustedRefusal, { readonly _tag: "NotJson" }>;
+export type UnwalkedKey<A> = /* the keys of A typed `unknown` or `ReadonlyArray<unknown>` */ string;
+export interface UntrustedDecoderOptions<A, R extends { readonly _tag: string }> {
+  readonly unwalked?: ReadonlyArray<UnwalkedKey<A>>;
+  readonly prepare?: (input: unknown) => Result.Result<unknown, R>;
+}
+export interface UntrustedDecoder<A, R extends { readonly _tag: string }> {
+  readonly decode: (input: unknown) => Result.Result<A, UntrustedValueRefusal | R>;
+  readonly decodeText: (text: string) => Result.Result<A, UntrustedRefusal | R>;
+}
+export const untrustedDecoder: <S extends Schema.ConstraintDecoder<unknown>, R extends { readonly _tag: string } = never>(
+  schema: S,
+  options?: UntrustedDecoderOptions<S["Type"], R>,
+) => UntrustedDecoder<S["Type"], R>;
+```
+
+```
+REQUIREMENT: `untrustedDecoder(schema, options?)` MUST return decoders that
+             run, in this fixed order: `JSON.parse` (`decodeText` only), the
+             depth guard over the input without its `unwalked` keys, `prepare`
+             when supplied, then a strict decode (an excess property is
+             refused). No option MAY loosen the strictness or the bound.
+```
+
+```
+REQUIREMENT: Both decoders MUST return a `Result` and MUST NOT throw. The
+             refusal MUST be the closed `UntrustedRefusal`: `NotJson` only
+             from `decodeText`, `TooDeep { maxDepth }` when the walked part
+             nests past `MAX_DECODE_DEPTH`, and `Malformed` carrying the
+             `Schema.SchemaError` otherwise. A `prepare` refusal MUST be
+             returned as it is, and its `_tag` MUST NOT collide with the
+             three above.
+```
+
+```
+REQUIREMENT: A key named in `unwalked` MUST be a top-level key the schema
+             types `unknown` or `ReadonlyArray<unknown>`, and the guard MUST
+             leave it out; whatever the seam reads from it MUST be decoded
+             through a decoder of its own, from its own root.
+```
+
+A decoder is built once, at module scope, and a seam keeps only a total
+mapping from the refusal into its own error (`Match.tagsExhaustive`). The
+strict options and the depth walk are not exported: `untrustedDecoder` is the
+only way to decode untrusted JSON strictly, and `[untrusted-decode]` in
+`scripts/check-house-style.mjs` fails any other file in `packages/*/src` that
+tries.
+
+## BEH-QD-487: `fromJson` says when the text is not JSON
+
+> **Invariant:** [INV-QD-305](../invariants.md#inv-qd-305-every-untrusted-json-seam-is-guarded-by-construction)
+> **See:** [ADR-QD-143](../decisions/143-untrusted-json-is-decoded-through-one-module.md)
+
+```
+REQUIREMENT: `fromJson` MUST fail with `PolicyNotJson` (code `ACL021`) for
+             text that is not JSON, and MUST NOT report it as a
+             `Schema.SchemaError`. It MUST NOT throw, whatever the text:
+             text nested past `MAX_DECODE_DEPTH` is `PolicyDecodeTooDeep`,
+             JSON that is not a policy is the `Schema.SchemaError` with its
+             issue tree, and text that does not parse — including a deeply
+             nested one missing its closing brace — is `PolicyNotJson`.
+```
+
+`PolicyNotJson` is a `Data.TaggedError` carrying `message`, the parser's own
+text. `fromJsonValue`, which takes an already-parsed value, cannot raise it.
+There is no other policy text decoder: `PolicyFromJson`, a schema that decoded
+text with no depth guard, was removed (ADR-QD-143).
 
 ---
 
