@@ -103,6 +103,7 @@ None deferred. Every candidate of the 2026-11-12 review is in scope.
 ## Traceability
 
 Which phases cover which requirements. One row per ID (`phase.complete` cannot parse grouped rows or ranges).
+The seven WX rows apply to every phase 30 to 36, so each phase's Requirements line in `ROADMAP.md` lists all seven.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
@@ -159,4 +160,4 @@ Which phases cover which requirements. One row per ID (`phase.complete` cannot p
 
 ---
 *Requirements defined: 2026-11-12*
-*Last updated: 2026-11-12 after initial definition*
+*Last updated: 2026-11-12 after roadmap creation (Phases 30-36)*

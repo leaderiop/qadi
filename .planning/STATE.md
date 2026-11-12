@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 milestone: v1.3
 milestone_name: Arch Wave 8 (Phases 30-36)
 status: planning
-last_updated: "2026-11-12T01:39:19.769Z"
+last_updated: "2026-11-12T02:15:48.000Z"
 last_activity: 2026-11-12
 progress:
-  total_phases: 0
+  total_phases: 7
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Milestone v1.2 complete and archived (override_closeout, not released); next: /gsd-new-milestone
+**Current focus:** Phase 30, One strict-decode module for every untrusted JSON seam (v1.3 Arch Wave 8, ARCH-78)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-11-12 — Milestone v1.3 started
+Phase: 30 of 36 (One strict-decode module)
+Plan: Not started (no plans yet; /gsd-discuss-phase 30, then /gsd-plan-phase 30)
+Status: Ready to plan
+Last activity: 2026-11-12 — Roadmap created for v1.3 (Phases 30-36, 45/45 requirements mapped)
+
+Progress: [░░░░░░░░░░] 0% (v1.3: 0 of 7 phases)
 
 
 ## Performance Metrics
@@ -233,11 +235,12 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T00:06:29.782Z
-Stopped at: Phase 29 complete — all phases complete
+Last session: 2026-11-12T02:15:48.000Z
+Stopped at: v1.3 roadmap created (Phases 30-36, serial); Phase 30 ready to plan
 Resume file: None
 
 ## Operator Next Steps
 
 
-- Start the next milestone with /gsd-new-milestone
+- Discuss Phase 30 with /gsd-discuss-phase 30 (it opens on four checkpoint:decision items), then /gsd-plan-phase 30
+- Phases 30-36 run strictly one at a time; Phase 35 opens on a spike and may conclude "keep the sweep in the provider"
