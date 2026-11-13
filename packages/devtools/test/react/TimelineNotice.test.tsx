@@ -231,10 +231,20 @@ describe("the timeline notice", () => {
     );
     await settle();
 
+    const failures: Array<unknown> = [];
+    const heard = (event: ErrorEvent) => {
+      failures.push(event.error);
+    };
+    window.addEventListener("error", heard);
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
     await click(screen.getByTestId("qadi-timeline-restart"));
+    window.removeEventListener("error", heard);
 
     assert.strictEqual(calls.restarts, 1);
     assert.strictEqual(document.activeElement, document.body);
+    assert.deepStrictEqual(failures, []);
+    assert.strictEqual(quiet.mock.calls.length, 0);
+    quiet.mockRestore();
   });
 
   it("TN12 a stop is drawn with its slot spacing, a bold lead and no sampled attribute", async () => {
