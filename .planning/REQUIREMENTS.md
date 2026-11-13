@@ -70,7 +70,7 @@ marked **Breaking**, `apps/website/.../reference/upgrading.md`). Releasing is st
 - [x] **DEBT-01**: `spec/behaviors/29-devtools-simulator.md` has one BEH-QD-219..221 block, reconstructed by hand. It keeps the current fail-closed replay text (ADR-QD-129, BEH-QD-411) and the intact tail prose, moves the spliced change-history fragment back to the header, and deletes the stale fail-open copy.
 - [x] **DEBT-02**: `spec/traceability.md` behaviour 29 names `model/Source.ts`, not `model/Sources.ts`.
 - [x] **DEBT-03**: No live record still claims the replay fail-open is undecided. Historical change-history rows stay exempt (AGENTS.md §15).
-- [ ] **DEBT-04**: Every open v1.2 info finding listed in `_WAVE8-CONTEXT.md` is re-verified at the phase base. Each one still true is fixed, and each one resolved by phases 30–35 (e.g. 26 IN-01) is recorded as resolved. 24 IN-01 (a recorder built and dropped per commit) and 24 IN-03 (`Ready` spelled twice) are fixed as tested code changes.
+- [x] **DEBT-04**: Every open v1.2 info finding listed in `_WAVE8-CONTEXT.md` is re-verified at the phase base. Each one still true is fixed, and each one resolved by phases 30–35 (e.g. 26 IN-01) is recorded as resolved. 24 IN-01 (a recorder built and dropped per commit) and 24 IN-03 (`Ready` spelled twice) are fixed as tested code changes.
 - [x] **DEBT-05**: The pre-existing stale citations are corrected: `v4-http-smoke.test.ts:106` (`registerApi`) and the `stryker.http.mjs` comment placing code in `PermissionRegistry.ts`. 28 IN-06 is narrowed to its remaining gap (an identity-changing rerender under StrictMode) and tested, or closed with evidence.
 
 ### Cross-cutting (every v1.3 phase)
@@ -143,7 +143,7 @@ The seven WX rows apply to every phase 30 to 36, so each phase's Requirements li
 | DEBT-01 | Phase 36 | Complete |
 | DEBT-02 | Phase 36 | Complete |
 | DEBT-03 | Phase 36 | Complete |
-| DEBT-04 | Phase 36 | Pending |
+| DEBT-04 | Phase 36 | Complete |
 | DEBT-05 | Phase 36 | Complete |
 | WX-01 | All v1.3 phases | Complete |
 | WX-02 | All v1.3 phases | Complete |

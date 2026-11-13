@@ -38,7 +38,7 @@ key-files:
 key-decisions:
   - "BEH-QD-460's listing reads `readonly baseline: Baseline | undefined;` because the real snapshot field is `Baseline | undefined` (absent until a result ran against the current seed); a spec listing that dropped `| undefined` would state a false type"
   - "INV-QD-313's traceability section 2 row was extended with the timeline feed and TimelineFeed.test.ts, beside the section 4 row the plan named"
-requirements-completed: [WX-02, WX-03]
+requirements-completed: [WX-02, WX-03, DEBT-04]
 status: complete
 duration: 30 min
 completed: 2026-11-13

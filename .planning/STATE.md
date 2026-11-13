@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 36
 current_phase_name: Carried spec debt and stale records
 status: executing
-stopped_at: Completed 36-12-PLAN.md
-last_updated: "2026-11-13T01:08:52.098Z"
+stopped_at: Completed 36-13-PLAN.md
+last_updated: "2026-11-13T01:19:03.170Z"
 last_activity: 2026-11-13
 last_activity_desc: Phase 36 execution started
-state_head: b2c4d0347add4bb3bff2bfd48115491bc8af0763
+state_head: 866ee204b228962ff2ee1924bd1e2b7fb0064a9c
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 54
-  completed_plans: 52
+  completed_plans: 53
   percent: 86
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 36 (Carried spec debt and stale records) — EXECUTING
-Plan: 13 of 14
+Plan: 14 of 14
 Status: Ready to execute
 Last activity: 2026-11-13 — Phase 36 execution started
 
@@ -200,6 +200,7 @@ Progress: [█████████░] 86% (v1.3: 0 of 7 phases)
 | Phase 36 P10 | 10 min | 3 tasks | 20 files |
 | Phase 36 P11 | 25 min | 3 tasks | 9 files |
 | Phase 36 P12 | 25 min | 3 tasks | 11 files |
+| Phase 36 P13 | 30 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -316,6 +317,7 @@ Progress: [█████████░] 86% (v1.3: 0 of 7 phases)
 - [Phase 36]: 36-11: the CCR-QD-427 row cites no reserved BEH, INV or ADR number and ends 'Records for the timeline and the hydration seed follow in this row.', so 36-12 and 36-13 extend it
 - [Phase 36]: 36-11: DEBT-02 deletes the stale Sources token instead of replacing it with Source (behaviour 27's module); BEH-QD-219..221 reconstruction is a pure deletion of base lines 175-345
 - [Phase 36]: 36-12: ADR-QD-039 and ADR-QD-103 keep Accepted status and carry dated amendments; ADR-QD-014's pinned divergent sequence is amended under its paragraph (D-20)
+- [Phase 36]: 36-13: BEH-QD-460's listing keeps 'Baseline | undefined' (the real snapshot type) rather than the plan's 'Baseline'
 
 ### Pending Todos
 
@@ -357,8 +359,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-13T01:08:51.825Z
-Stopped at: Completed 36-12-PLAN.md
+Last session: 2026-11-13T01:19:02.791Z
+Stopped at: Completed 36-13-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
