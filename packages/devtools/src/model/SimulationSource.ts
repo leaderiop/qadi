@@ -210,6 +210,8 @@ const rowsOf = (have: {
   readonly capture: CapturedAnswers | undefined;
 }): { readonly [K in SourceChoice]: SourceRow } => {
   const { ports, capture } = have;
+  // One value for both the description and the run: a replay has no recorder to differ by.
+  const replay = capture === undefined ? undefined : snapshot(capture);
   return {
     Fixtures: {
       usable: true,
@@ -218,7 +220,7 @@ const rowsOf = (have: {
       prepare: () => ({ _tag: "Ready", source: fixtures, captured: undefined }),
     },
     Snapshot:
-      capture === undefined
+      replay === undefined
         ? {
             usable: false,
             refusal: {
@@ -229,8 +231,8 @@ const rowsOf = (have: {
         : {
             usable: true,
             why: "real answers, captured once and replayed — one round of I/O for a whole sweep",
-            source: snapshot(capture),
-            prepare: () => ({ _tag: "Ready", source: snapshot(capture), captured: undefined }),
+            source: replay,
+            prepare: () => ({ _tag: "Ready", source: replay, captured: undefined }),
           },
     Live:
       ports === undefined
