@@ -734,11 +734,14 @@ describe("what the view shows is read by the session (ARCH-73)", () => {
       }));
   });
 
-  describe("baselineReading is whether the reconstruction reproduces the replayed row, in one line", () => {
+  describe("a checked baseline's reading is whether the reconstruction reproduces the replayed row, in one line", () => {
     const seededWith = (record: Parameters<typeof entryOf>[0]) =>
       makeSimulationSession({ sightings: [], seed: entryOf(record) });
 
-    const reading = (session: SimulationSession) => session.getSnapshot().baselineReading;
+    const reading = (session: SimulationSession) => {
+      const { baseline } = session.getSnapshot();
+      return baseline?._tag === "Checked" ? baseline.reading : undefined;
+    };
 
     it.effect("a match claims it, and only a match", () =>
       Effect.gen(function* () {

@@ -335,6 +335,19 @@ describe("baselineDiff", () => {
       "Deny",
     );
   });
+
+  it("a checked baseline carries its reading, decided once", () => {
+    const entry = entryOf(decisionRecord({ evaluationId: "ev-91" }));
+
+    assert.deepStrictEqual(checked(baselineDiff(entry, new Decided({ decision: allow() }))).reading, {
+      matches: true,
+      sentence: "matches — this reconstruction reproduces the logged decision",
+    });
+
+    const flipped = checked(baselineDiff(entry, new Decided({ decision: deny() }))).reading;
+    assert.isFalse(flipped.matches);
+    assert.isTrue(flipped.sentence.startsWith("differs"));
+  });
 });
 
 /**

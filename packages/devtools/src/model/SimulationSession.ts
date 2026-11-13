@@ -43,10 +43,8 @@ import { heldValue, makeHeldChoice } from "./HeldChoice.ts";
 import { readOutcome, type RecordOutcome } from "./Inspect.ts";
 import {
   baselineDiff,
-  readBaseline,
   replayInput,
   type Baseline,
-  type BaselineReading,
   type UnseededField,
 } from "./Replay.ts";
 import { simulate } from "./Simulation.ts";
@@ -181,8 +179,6 @@ export interface SimulationSnapshot {
   readonly stale: boolean;
   /** Present only for a result that ran against the current seed. */
   readonly baseline: Baseline | undefined;
-  /** The baseline in one line; present exactly when `baseline` is `Checked`. */
-  readonly baselineReading: BaselineReading | undefined;
 }
 
 export type RunKind = "Run" | "Sweep";
@@ -442,7 +438,6 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
       run,
       stale,
       baseline,
-      baselineReading: baseline?._tag === "Checked" ? readBaseline(baseline) : undefined,
     };
   };
 
