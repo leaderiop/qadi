@@ -8,6 +8,10 @@
  * `evaluate` and let a sink produce the record, which is a different and
  * deliberately smaller set.
  */
+import * as Effect from "effect/Effect";
+import { DiagnosticsStatus } from "../src/model/DiagnosticsFeed.ts";
+import { noStops } from "../src/react/StoppedBox.tsx";
+import type { DiagnosticsNoticeProps } from "../src/react/DiagnosticsNotice.tsx";
 import {
   Allow,
   Decided,
@@ -165,4 +169,16 @@ export const chain = <T>(wrap: (inner: T) => T, n: number, leaf: T): T => {
   let current = leaf;
   for (let i = 0; i < n; i++) current = wrap(current);
   return current;
+};
+
+/** Lets every fiber forked so far run to its next suspension before a clock step. */
+export const settleTurns = Effect.gen(function* () {
+  for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+});
+
+/** The binding for a panel rendered on its own, in a live poll. */
+export const liveNotice: DiagnosticsNoticeProps = {
+  status: DiagnosticsStatus.Live(),
+  onRestart: () => undefined,
+  announced: { current: noStops },
 };

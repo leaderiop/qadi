@@ -237,3 +237,126 @@ describe("makeQuestionBook", () => {
     expect(() => makeQuestionBook<Handle>({ capacity: 1, build })).not.toThrow();
   });
 });
+
+const signalledBook = (capacity: number, onSignal: () => void = () => undefined) => {
+  const signals = { count: 0 };
+  let built = 0;
+  const book = makeQuestionBook<Handle>({
+    capacity,
+    build: (_question, live) => {
+      built += 1;
+      return { n: built, live };
+    },
+    signal: () => {
+      signals.count += 1;
+      onSignal();
+    },
+  });
+  return { book, signals };
+};
+
+describe("the pressure signal", () => {
+  it("B1 raises no signal while the book is at or under capacity", () => {
+    const { book, signals } = signalledBook(2);
+
+    for (const name of ["a", "b"]) {
+      const release = book.open(q(name)).live();
+      release();
+    }
+    expect(signals.count).toBe(0);
+
+    const one = signalledBook(1);
+    one.book.open(q("a")).live();
+    expect(one.signals.count).toBe(0);
+  });
+
+  it("B2 an admission past capacity signals", () => {
+    const { book, signals } = signalledBook(2);
+
+    book.open(q("a"));
+    book.open(q("b"));
+    expect(signals.count).toBe(0);
+    book.open(q("c"));
+    expect(signals.count).toBe(1);
+    book.open(q("d"));
+    expect(signals.count).toBe(2);
+  });
+
+  it("B3 a release to zero while over capacity signals", () => {
+    const { book, signals } = signalledBook(1);
+    const releaseA = book.open(q("a")).live();
+    book.open(q("b")).live();
+    const before = signals.count;
+
+    releaseA();
+
+    expect(signals.count - before).toBe(1);
+  });
+
+  it("B4 a release that leaves a reader holding the entry raises none", () => {
+    const { book, signals } = signalledBook(1);
+    const a = book.open(q("a"));
+    const releaseFirst = a.live();
+    a.live();
+    book.open(q("b")).live();
+    const before = signals.count;
+
+    releaseFirst();
+
+    expect(signals.count - before).toBe(0);
+  });
+
+  it("B5 the release of a swept entry whose key a newer entry owns raises none", () => {
+    const { book, signals } = signalledBook(1);
+    const old = book.open(q("a"));
+    book.open(q("b"));
+    book.sweep();
+    book.open(q("a"));
+    const release = old.live();
+    const before = signals.count;
+
+    release();
+
+    expect(signals.count - before).toBe(0);
+    expect(book.asked().map((x) => x.policy)).toEqual([named("b"), named("a")]);
+  });
+
+  it("B6 a swept entry re-admitted past capacity signals", () => {
+    const { book, signals } = signalledBook(1);
+    const old = book.open(q("a"));
+    book.open(q("b"));
+    book.sweep();
+    const before = signals.count;
+
+    old.live();
+
+    expect(signals.count - before).toBe(1);
+    expect(book.asked().map((x) => x.policy)).toEqual([named("b"), named("a")]);
+  });
+
+  it("B7 the signal never sweeps: asked() is unchanged inside the callback and after it", () => {
+    const seen: Array<number> = [];
+    const ctx = signalledBook(1, () => {
+      seen.push(ctx.book.asked().length);
+    });
+
+    ctx.book.open(q("a"));
+    ctx.book.open(q("b"));
+    ctx.book.open(q("c"));
+
+    expect(seen).toEqual([2, 3]);
+    expect(ctx.book.asked().length).toBe(3);
+  });
+
+  it("B8 calling one release twice signals once", () => {
+    const { book, signals } = signalledBook(1);
+    const release = book.open(q("a")).live();
+    book.open(q("b")).live();
+    const before = signals.count;
+
+    release();
+    release();
+
+    expect(signals.count - before).toBe(1);
+  });
+});

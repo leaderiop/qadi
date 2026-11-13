@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-107                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — amends ADR-QD-094, ADR-QD-051       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-11): amendment — toQuestion names every member and an absent one is dropped before encoding (ARCH-69, ADR-QD-133, CCR-QD-411)<br>1.2 (2026-11-08): amendment — asked leaves PortWire for the description's serving facet; admission and servingFor derive from it (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.1 (2026-11-08): amendment — the span projections leave PortWire; a served span equals a local one; a throwing store is Unavailable (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
+> | Change History | 1.4 (2026-11-12): the port wire's strict decode is the untrusted decoder's (ADR-QD-143, ARCH-78, CCR-QD-421)<br>1.3 (2026-11-11): amendment — toQuestion names every member and an absent one is dropped before encoding (ARCH-69, ADR-QD-133, CCR-QD-411)<br>1.2 (2026-11-08): amendment — asked leaves PortWire for the description's serving facet; admission and servingFor derive from it (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.1 (2026-11-08): amendment — the span projections leave PortWire; a served span equals a local one; a throwing store is Unavailable (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
 
 ---
 
@@ -157,3 +157,7 @@ is unchanged (it moved to `PortServing.ts`). See
 `portWire` before the strict encode), so a question that leaves a member out does not compile and the
 wire bytes are unchanged. A derived port's request key is `canonicalKey` over that question. See
 [ADR-QD-133](133-a-port-request-is-derived-from-its-wire-question.md).
+
+## Amendment (2026-11-12, ADR-QD-143, CCR-QD-421)
+
+The question, answer and reply are decoded through `untrustedDecoder`; the strict options the Decision bullet names (`UNTRUSTED_DECODE_OPTIONS`) are private to `UntrustedDecode.ts`. The too-deep message is written once, in `PortWireEncode.ts`, and the three sentences ("the question nests deeper than the decode bound", and the answer's and the reply's) are unchanged byte for byte. `RemotePortFailure`'s shape is unchanged. See [ADR-QD-143](143-untrusted-json-is-decoded-through-one-module.md).

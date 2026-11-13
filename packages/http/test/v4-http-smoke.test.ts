@@ -12,7 +12,7 @@
  * those two packages uses its own dependency, and had no canary of its own
  * before this.
  *
- * Every API exercised here is one `GuardRoute.ts`, `PermissionRegistry.ts`,
+ * Every API exercised here is one `GuardRoute.ts`, `AccessPlan.ts`,
  * `PermissionRegistryRoute.ts`, `RequirePermission.ts` or `DecisionStreamRoute.ts` actually calls. Pinning
  * more than that would make the canary noisy, and a noisy canary gets
  * skipped.
@@ -103,8 +103,8 @@ describe("effect/http API canary", () => {
 
   // -------------------------------------------------------------------------
   // HttpApi / HttpApiGroup / HttpApiMiddleware — the annotation-carrying
-  // shape RequirePermission.ts and PermissionRegistry.ts's `registerApi`
-  // walk. `RequiredPermission`/`PublicEndpoint` are themselves plain
+  // shape RequirePermission.ts and AccessPlan.ts's `planApi` (reached through
+  // `guardApi`) walk. `RequiredPermission`/`PublicEndpoint` are themselves plain
   // `Context.Service` annotations (ADR-QD-036), so this pins the same
   // mechanism with a local stand-in rather than importing this package's
   // own types, keeping the canary's failure surface to the v4 API alone.
@@ -112,7 +112,7 @@ describe("effect/http API canary", () => {
 
   class Marker extends Context.Service<Marker, { readonly value: string }>()("smoke/Marker") {}
 
-  // Canary for the effect API only: `registerApi` now reads `endpoint.annotations`
+  // Canary for the effect API only: `planApi` reads `endpoint.annotations`
   // (ARCH-18), not `mergedAnnotations`, so this pins the merge `reflect` still offers.
   it("HttpApiGroup/HttpApiEndpoint carry annotations HttpApi.reflect can read back", () => {
     const endpoint = HttpApiEndpoint.get("ping", "/ping").pipe((e) => e.annotate(Marker, { value: "found" }));

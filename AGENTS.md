@@ -500,6 +500,48 @@ v4 API notes: `Schema.Union([...])` takes an **array**; the type is
 shared `Schema.suspend` ref; `parseJson(s)` → `fromJsonString(s)`;
 `decodeUnknown` → `decodeUnknownEffect`; `ParseResult` → `SchemaIssue`.
 
+## 7a. Untrusted decode — `untrustedDecoder`
+
+Untrusted JSON is decoded only through `@qadi/core`'s `untrustedDecoder`
+(`UntrustedDecode.ts`).
+
+It runs one fixed recipe: `JSON.parse` for text, the depth guard, an optional
+seam-supplied `prepare`, then a strict decode (`onExcessProperty: "error"`), and it
+answers with a `Result` whose refusal is a closed `UntrustedRefusal` (`NotJson`,
+`TooDeep`, `Malformed`) that the seam maps into its own error with
+`Match.tagsExhaustive`. A top-level key a second decoder guards from its own root
+is named in `unwalked` (INV-QD-306) and the guard leaves it out.
+
+Eight seams used to assemble that recipe by hand, and one of them,
+`PolicyFromJson`, skipped the guard: a payload nested tens of thousands of levels
+deep raised a raw `RangeError` from `Schema`'s recursive descent instead of a typed
+failure (INV-QD-305, ADR-QD-143). The strict options and the depth walk are now
+private to `@qadi/core` (the options to `UntrustedDecode.ts`, the walk out of the
+barrel), so a decoder cannot be built without the guard. `MAX_DECODE_DEPTH`, the
+bound, stays public.
+
+**The rule is enforced, not remembered**: in `packages/*/src`, every
+`onExcessProperty`, `exceedsJsonDepth`, `Schema.decode*` or `JSON.parse` token (comments and
+strings stripped) is counted per file, and only the files below may have any.
+Test scope is exempt, because a test decodes on purpose to pin what the decoder
+makes of an input.
+
+| Location | Count | Why |
+| -------- | ----- | --- |
+| `packages/core/src/UntrustedDecode.ts` | 5 | The decoder itself: the depth-guard import and call, the strict option, its one `Schema.decodeUnknownResult`, and `decodeText`'s `JSON.parse`. |
+| `packages/core/src/DecodeDepthGuard.ts` | 1 | The depth walk's declaration, package-private and reached only from the decoder. |
+| `packages/audit/src/AuditEntry.ts` | 1 | `recordJsonOf`, a deliberately lenient decode of a row's record after the strict read accepted it, so an envelope key this version does not declare is dropped. |
+| `packages/core/src/PortSpanEncode.ts` | 2 | `spanStruct` reads only its own named keys, and every leaf is a `SpanValue` primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map. |
+| `packages/core/src/SinkCodec.ts` | 1 | `decodeStoredRecordString` parses the stored envelope itself and must not walk it: an unknown envelope key is ignored, however deep (ADR-QD-096 D-15-c). `record` reaches the guarded `decodeSinkRecord` from its own root. |
+| `packages/devtools/src/model/SimulationForm.ts` | 1 | `parseJson` parses the simulation form's own typed text for the form's own validation; nothing crosses a trust boundary. |
+
+Enforced by `UNTRUSTED_DECODE_BUDGET` in `scripts/check-house-style.mjs`, checked
+in both directions like the budgets above: a token in any other file fails
+(`[untrusted-decode]`), and so does a count silently moving. The declaration each
+file's tokens belong to is checked to exist (`[untrusted-decode-names]`), and this
+table is checked against the budget (`[untrusted-decode-table]`), so a row cannot
+name the wrong file or count.
+
 ## 8. Naming
 
 | Pattern | Meaning |
@@ -586,7 +628,7 @@ state-management layer of its own. The rules that keep it that way:
 - **No additional dependencies, with one deliberate exception.** The React glue
   was one hand-rolled `useSyncExternalStore` call in `QadiProvider.tsx`.
 
-  `@effect/atom-react` is a dependency of `@qadi/react` (ADR-QD-014, reversed in CCR-QD-150). `maxTrackedQuestions` bounds the question book through a qadi-owned `sweepEvictions` fork, never through `AtomRegistry`'s `scheduleTask`/`defaultIdleTTL`, which reroutes dispatch and dropped a required render. The reversal's evidence: `spec/process/house-rules-evidence.md` §4.
+  `@effect/atom-react` is a dependency of `@qadi/react` (ADR-QD-014, reversed in CCR-QD-150). `maxTrackedQuestions` is enforced by the atom set itself: the question book signals when it goes over the bound and the atom set forks one deferred, one-shot sweep per pressure episode (ADR-QD-148), chosen after the dispose-reread smoke, the eviction pins, the e2e, one sweeper per atom set, StrictMode and `<Activity>`, and no leaked fibers all held; `AtomRegistry`'s `scheduleTask`/`defaultIdleTTL` stay off limits, because they reroute dispatch and dropped a required render. The reversal's evidence: `spec/process/house-rules-evidence.md` §4.
 - **Submodule imports, as everywhere else:**
   `import * as Atom from "effect/reactivity/Atom"`.
 - **Read decisions through `outcomeOf`.** It is the single place the rule

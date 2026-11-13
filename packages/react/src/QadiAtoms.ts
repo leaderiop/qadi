@@ -43,6 +43,7 @@ import { makeGateRegistry } from "./GateRegistry.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
 import type { AskedQuestion } from "./QuestionBook.ts";
 import { makeQuestionBook } from "./QuestionBook.ts";
+import { makeSweepScheduler, sweepForkOf } from "./SweepScheduler.ts";
 
 // `DeveloperSignals.ts` is out of the barrel — its ambient-global boundary is
 // not a public surface — so the two types callers name are re-exported here.
@@ -87,8 +88,8 @@ export interface QadiAtoms {
    *
    * The same atom for an equal question for as long as this atom set tracks it,
    * regardless of garbage collection (BEH-QD-065): the atom set's question book
-   * holds it strongly, and forgets it only when `sweepEvictions` drops the
-   * question while no reader holds it open.
+   * holds it strongly, and forgets it only when the atom set's own sweep drops
+   * the question while no reader holds it open.
    *
    * **A `resource` is a key, and a key must not be mutated after its first use
    * (BL-05).** Equality is structural and its comparison is cached per object
@@ -128,9 +129,9 @@ export interface QadiAtoms {
    * stale entry rendering as re-checking rather than as its old answer
    * ([ADR-QD-017](../../../spec/decisions/017-stale-decisions-are-not-decisions.md)).
    *
-   * Bounded: `sweepEvictions` drops the oldest questions no reader is holding
-   * once `maxTrackedQuestions` is exceeded, and never one a mounted gate still has
-   * open — see `QuestionBook.ts`.
+   * Bounded: the atom set's own sweep drops the oldest questions no reader is
+   * holding once `maxTrackedQuestions` is exceeded, and never one a mounted gate
+   * still has open — see `QuestionBook.ts`.
    */
   readonly asked: () => ReadonlyArray<AskedQuestion>;
   /**
@@ -143,27 +144,6 @@ export interface QadiAtoms {
    * the atom set's life when nothing is instrumented.
    */
   readonly gates: GateRegistry;
-  /**
-   * Evicts tracked questions with no reader currently holding them, until at
-   * most `maxTrackedQuestions` remain — or until every question left over
-   * that bound is still live, in which case it stops there rather than
-   * dropping something in use.
-   *
-   * A plain `Effect.sync` over this atom set's own closure state, requiring
-   * no service and touching nothing in `AtomRegistry` — deliberately, so it
-   * cannot go anywhere near the `scheduleTask`/`defaultIdleTTL` knob AGENTS.md
-   * §13 documents as off-limits (it also governs the registry's core
-   * value-dispatch/notify batching, and wiring it for idle-atom GC once
-   * already silently coalesced away a required intermediate render). Meant
-   * to be run periodically by whatever owns this atom set's lifecycle —
-   * `QadiProvider` forks it on `Schedule.spaced` at mount and interrupts that
-   * fiber at unmount — rather than invoked once. Eviction order among
-   * eligible (non-live) entries is oldest-first, the same FIFO choice
-   * `DecisionCache.ts`'s own bounded mode makes and for the same reason:
-   * nothing here claims "recently used" predicts "will be asked again"
-   * better than "recently added" does.
-   */
-  readonly sweepEvictions: Effect.Effect<void>;
   /**
    * Seeds this atom set from a server's dehydrated payload.
    *
@@ -227,9 +207,10 @@ export interface QadiAtomsOptions {
    * The most distinct questions this atom set keeps in `asked()` and its own
    * question book at once.
    *
-   * Once exceeded, `sweepEvictions` drops the oldest questions with no reader
-   * currently holding them — never one a mounted gate still has open. Must be
-   * a positive integer; defaults to `DEFAULT_MAX_TRACKED_QUESTIONS`.
+   * Once exceeded, the atom set sweeps itself back to the bound within a few
+   * macrotasks, dropping the oldest questions with no reader currently holding
+   * them — never one a mounted gate still has open. No provider is needed. Must
+   * be a positive integer; defaults to `DEFAULT_MAX_TRACKED_QUESTIONS`.
    */
   readonly maxTrackedQuestions?: number;
 }
@@ -264,8 +245,12 @@ export const makeQadiAtoms = (
   options?: QadiAtomsOptions,
 ): QadiAtoms => {
   const runtime = Atom.runtime(layer);
+  // Kept alive: the registry removes a node nothing reads one macrotask after it is
+  // written, and the provider writes the subject before any gate reads it. It holds
+  // one value per atom set.
   const subject = Atom.make<AuthSubject | undefined>(undefined).pipe(
     Atom.withEquality(subjectsEqual),
+    Atom.keepAlive,
   );
   // Resolved once per atom set and handed to every question, so the
   // development-mode default is decided at construction.
@@ -283,7 +268,7 @@ export const makeQadiAtoms = (
       policy,
       resource,
       report,
-      computedFor: (seed) =>
+      computedFor: (seededIn) =>
         runtime
           .atom((get): Effect.Effect<Decision, EvaluationError, QadiRuntimeServices> => {
             const current = get(subject);
@@ -298,11 +283,10 @@ export const makeQadiAtoms = (
             // payload carries an id, the client minted a fresh one, and nothing
             // related them (BEH-QD-186).
             //
-            // `get.once`, not `get`: reading the seed reactively would make every
-            // re-evaluation depend on the seed atom, so a seed set or cleared after
-            // mount would re-run a computation whose answer it cannot change. The id
-            // is correlation metadata, not an input to the decision.
-            const seeded = get.once(seed);
+            // Read from the registry's grant without subscribing, so a seed given
+            // later cannot re-run a computation whose answer it does not change. The
+            // id is correlation metadata, not an input to the decision.
+            const seeded = seededIn(get.registry);
             return evaluate(policy, {
               ...(resource === undefined ? {} : { resource }),
               ...(seeded === undefined ? {} : { evaluationId: seeded.evaluationId }),
@@ -312,18 +296,21 @@ export const makeQadiAtoms = (
       // Marks this question live for as long as this computation stays cached.
       // The count goes up first, inside the reader, and the release is the
       // reader's finalizer: a recompute (dispose, then a synchronous re-read) is
-      // never seen by `sweepEvictions` as a drop to zero — see `QuestionBook.ts`.
+      // never seen by the sweep as a drop to zero — see `QuestionBook.ts`.
       track: (get) => {
         get.addFinalizer(live());
       },
     });
 
+  // One pending sweep per atom set; the book signals it and the sweep reads the book.
+  const scheduler = makeSweepScheduler(() => book.sweep(), sweepForkOf(options));
+
   // **What this closure owns, and who may reach it.** Everything per-atom-set
   // lives here and nowhere at module scope: the question book (one
-  // `SeededQuestion` per question, from `HydrationEngine.ts`, holding its private
-  // seed atom and the one atom a consumer reads, and the liveness the eviction
+  // `SeededQuestion` per question, from `HydrationEngine.ts`, holding its
+  // seed slot and the one atom a consumer reads, and the liveness the eviction
   // sweep needs), the grouped-read family, and the `hydrate` capability that
-  // closes over the book. Nothing outside `makeQadiAtoms` can reach a seed atom —
+  // closes over the book. Nothing outside `makeQadiAtoms` can reach a seed slot —
   // that is ADR-QD-039's requirement, met by scope rather than by a side table
   // keyed on this object. Anything else that needs to be scoped to one atom set
   // (a gate registry, say) belongs in this closure and on the `QadiAtoms`
@@ -337,6 +324,7 @@ export const makeQadiAtoms = (
   // `v4-reactivity-smoke.test.ts` pins this; a bump to reference keying would
   // silently stop inline policies sharing.
   const book = makeQuestionBook<SeededQuestion<EvaluationError>>({
+    signal: scheduler.request,
     capacity: options?.maxTrackedQuestions ?? DEFAULT_MAX_TRACKED_QUESTIONS,
     build: (question, live) => seededDecision(question.policy, question.resource, live),
   });
@@ -356,8 +344,6 @@ export const makeQadiAtoms = (
       return out;
     }),
   );
-
-  const sweepEvictions: Effect.Effect<void> = Effect.sync(book.sweep);
 
   /**
    * Discards every decision, and every cached answer behind one.
@@ -397,7 +383,6 @@ export const makeQadiAtoms = (
     // which is not part of the public `AskedQuestion` shape).
     asked: book.asked,
     gates,
-    sweepEvictions,
     // The one place a seed atom is looked up, and it never leaves this closure:
     // `hydrateWith` is handed the lookup, not the atoms.
     hydrate: (dehydrated, hydrateSubject, hydrateOptions) =>

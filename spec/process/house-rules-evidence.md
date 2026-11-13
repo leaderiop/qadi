@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-PROC-03                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Process Specification                          |
-> | Change History | 1.0 (2026-10-08): the measurements behind `AGENTS.md`'s rules and its "Corrected in CCR-…" blocks moved here verbatim, so `AGENTS.md` carries each rule and a pointer instead of its history (retro of the wave-4 session) |
+> | Change History | 1.1 (2026-11-12): §4 addendum: the atom set owns the eviction sweep; the quoted history is unchanged (ARCH-83, CCR-QD-426)<br>1.0 (2026-10-08): the measurements behind `AGENTS.md`'s rules and its "Corrected in CCR-…" blocks moved here verbatim, so `AGENTS.md` carries each rule and a pointer instead of its history (retro of the wave-4 session) |
 
 `AGENTS.md` is read in full by every agent that works in this repository. It
 states each rule, its budget table and the command that enforces it. The
@@ -150,6 +150,16 @@ open question this paragraph used to describe is the one §5's table closed.
   > `QadiProvider.test.tsx` cover eviction past the bound, survival of a
   > currently-mounted gate, and that the existing render-sequence tests this
   > paragraph's history is about pass unchanged.
+
+**Addendum (2026-11-12, CCR-QD-426):** the provider-owned sweep the quoted paragraph above describes
+was replaced. The atom set now enforces the bound itself, through a deferred, one-shot sweep per
+pressure episode (ADR-QD-148): the question book signals when it goes over the bound, and the atom
+set's own scheduler forks one `Effect.yieldNow`-first fiber, so there is one sweeper per atom set and
+none runs on the render path or inside the registry's dispose-then-reread window. The spike's
+evidence, three candidate mechanisms measured against one set of criteria and the example app's end to
+end run, is in the phase record (`35-SPIKE.md`). `sweepIntervalMillis` and `sweepEvictions` are
+removed, and `AtomRegistry`'s `scheduleTask` and `defaultIdleTTL` remain off limits for the reason
+quoted above: they reroute dispatch and dropped a required render. The quoted history is unchanged.
 
 ## 5. Where the gate-instance subscription lives; the registry's scope (AGENTS.md §13)
 

@@ -36,6 +36,7 @@ import {
 } from "../src/Errors.ts";
 import { EncodeRefusal } from "../src/JsonRefusal.ts";
 import { DecodeRefusal, WIRE_VERSIONS } from "../src/SinkWire.ts";
+import { MAX_DECODE_DEPTH } from "../src/UntrustedDecode.ts";
 import type { EvaluationError } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
@@ -706,24 +707,24 @@ describe("the wire's recursive positions are depth-bounded before Schema recurse
   it.effect("a policy nested past MAX_DECODE_DEPTH fails typed, naming the bound", () =>
     Effect.gen(function* () {
       const result = yield* Effect.result(
-        decodeEffect(wireWithNestedPolicy(P.MAX_DECODE_DEPTH + 10)),
+        decodeEffect(wireWithNestedPolicy(MAX_DECODE_DEPTH + 10)),
       );
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
         assert.strictEqual(result.failure._tag, "SinkRecordNotDecodable");
-        assert.deepStrictEqual(result.failure.refusal, DecodeRefusal.TooDeep({ maxDepth: P.MAX_DECODE_DEPTH }));
+        assert.deepStrictEqual(result.failure.refusal, DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));
       }
     }));
 
   it.effect("a trace nested past MAX_DECODE_DEPTH fails typed, naming the bound", () =>
     Effect.gen(function* () {
       const result = yield* Effect.result(
-        decodeEffect(wireWithNestedTrace(P.MAX_DECODE_DEPTH + 10)),
+        decodeEffect(wireWithNestedTrace(MAX_DECODE_DEPTH + 10)),
       );
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
         assert.strictEqual(result.failure._tag, "SinkRecordNotDecodable");
-        assert.deepStrictEqual(result.failure.refusal, DecodeRefusal.TooDeep({ maxDepth: P.MAX_DECODE_DEPTH }));
+        assert.deepStrictEqual(result.failure.refusal, DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));
       }
     }));
 
@@ -1181,7 +1182,7 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
       for (let i = 0; i < 5_000; i++) deep = P.not(deep);
       assert.deepStrictEqual(
         refusalOf(recordWith({ policy: deep })),
-        EncodeRefusal.TooDeep({ path: ["policy"], maxDepth: P.MAX_DECODE_DEPTH }),
+        EncodeRefusal.TooDeep({ path: ["policy"], maxDepth: MAX_DECODE_DEPTH }),
       );
     });
 
@@ -1195,7 +1196,7 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
     it("a hand-built 300-deep trace is TooDeep at [outcome, decision, trace]", () => {
       assert.deepStrictEqual(
         refusalOf(decidedWith(P.hasPermission(read), nestedTrace(300))),
-        EncodeRefusal.TooDeep({ path: ["outcome", "decision", "trace"], maxDepth: P.MAX_DECODE_DEPTH }),
+        EncodeRefusal.TooDeep({ path: ["outcome", "decision", "trace"], maxDepth: MAX_DECODE_DEPTH }),
       );
     });
 
@@ -1213,7 +1214,7 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
       for (let i = 0; i < 300; i++) resource = { next: resource };
       const refusal = refusalOf(recordWith({ resource }));
       assert.strictEqual(refusal?._tag, "TooDeep");
-      if (refusal?._tag === "TooDeep") assert.strictEqual(refusal.path.length, P.MAX_DECODE_DEPTH + 1);
+      if (refusal?._tag === "TooDeep") assert.strictEqual(refusal.path.length, MAX_DECODE_DEPTH + 1);
     });
   });
 
@@ -1301,7 +1302,7 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
             resource: { value },
             failed: { _tag: "MissingResource", attribute: "owner" },
           };
-          return (refusalOf(record)?._tag === "TooDeep") === exceedsJsonDepth(wire, P.MAX_DECODE_DEPTH);
+          return (refusalOf(record)?._tag === "TooDeep") === exceedsJsonDepth(wire, MAX_DECODE_DEPTH);
         }),
         { numRuns: 200, seed: 7319 },
       );
@@ -1333,7 +1334,7 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
     });
 
     it("a 60,000-deep input is TooDeep, naming the bound, and nothing throws", () => {
-      assert.deepStrictEqual(decodeRefusalOf(deepPolicyJson(60_000)), DecodeRefusal.TooDeep({ maxDepth: P.MAX_DECODE_DEPTH }));
+      assert.deepStrictEqual(decodeRefusalOf(deepPolicyJson(60_000)), DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));
     }, 60_000);
 
     it("an unknown tag is Malformed", () => {
@@ -2122,6 +2123,24 @@ describe("the stored-record envelope (ARCH-11 D-11-e)", () => {
       const back = decodeStoredRecord(input);
       assert.isTrue(Result.isFailure(back) && back.failure.refusal._tag === "Malformed", JSON.stringify(input));
     }
+  });
+
+  it("each envelope refusal names its own reason", () => {
+    const record = JSON.parse(V2.V2_OBLIGATIONS);
+    const reasonOf = (input: unknown): string | undefined => {
+      const back = decodeStoredRecord(input);
+      return Result.isFailure(back) && back.failure.refusal._tag === "Malformed" ? back.failure.refusal.message : undefined;
+    };
+    for (const input of ["text", [1], null]) {
+      assert.strictEqual(reasonOf(input), "a stored record is a JSON object { environment, record }");
+    }
+    for (const input of [{}, { cursor: "x" }]) {
+      assert.strictEqual(reasonOf(input), "a bare record, not a stored-record envelope { environment, record }");
+    }
+    for (const input of [{ environment: 1, record }, { record }]) {
+      assert.strictEqual(reasonOf(input), "a stored record's environment is not a string");
+    }
+    assert.strictEqual(reasonOf({ environment: "Edge" }), "a stored record names no record");
   });
 
   it("a record the envelope carries is decoded by decodeSinkRecord's rules", () => {

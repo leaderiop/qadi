@@ -452,13 +452,12 @@ describe("hydrateDecisions", () => {
     expect(onDropped).toHaveBeenCalledWith(expect.objectContaining({ reason: "MalformedEntry" }));
   });
 
-  // The regression this guards: `decodeEntryFields` called
+  // The regression this guards: the entry decode called
   // `Schema.decodeUnknownOption` with no `ParseOptions`, so it inherited
-  // `Schema`'s default `onExcessProperty: "ignore"` rather than sharing
-  // `Policy.ts`'s `UNTRUSTED_DECODE_OPTIONS` — the exact silent-data-loss shape
-  // `UNTRUSTED_DECODE_OPTIONS`'s own doc comment exists to rule out, just reached
-  // through this module's decode call instead of one of `Policy.ts`'s own entry
-  // points.
+  // `Schema`'s default `onExcessProperty: "ignore"` rather than the strict options
+  // `untrustedDecoder` applies — the exact silent-data-loss shape those options
+  // exist to rule out, just reached through this module's decode call instead of
+  // one of the policy's own entry points.
   it("refuses an entry carrying an excess, unrecognized field rather than silently accepting it", () => {
     const policy = first(
       dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]).entries,
@@ -507,7 +506,7 @@ describe("hydrateDecisions", () => {
 
   // The regression this guards: `Schema`'s own recursive descent through
   // `PolicySchema`'s `Schema.suspend` has no depth cap, so before
-  // `hydrateDecisions` ran `exceedsJsonDepth` ahead of any decode, a payload
+  // `hydrateDecisions` decoded through `untrustedDecoder`, a payload
   // nested past the call stack's limit raised a raw `RangeError` defect here
   // instead of the fail-closed "drop the entry" every other malformed-payload
   // path in this module gets — the exact gap `Policy.ts`'s own

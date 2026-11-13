@@ -1,60 +1,25 @@
 "use client";
 /**
- * Keeps the diagnostics current for as long as a component is mounted.
+ * The React adapter for the diagnostics feed.
  *
- * `runDiagnostics` forked on mount and interrupted on unmount, read through
- * `useSyncExternalStore`, and nothing else: the cadence, the identity rule and
- * the layer's lifetime are the model's (`model/DiagnosticsStore.ts`), the way
- * `useTimeline` leaves the timeline to `TimelineStore`. This file is tested for
- * the three things only React can get wrong: starting on mount, stopping on
- * unmount, and not restarting on a re-render that changed nothing.
+ * It decides nothing: the feed is the one the dock model builds, so there is one
+ * poll. The feed lives in a scope the component holds, so unmounting closes it
+ * (ADR-QD-137).
  */
-import type * as Layer from "effect/Layer";
-import * as Schedule from "effect/Schedule";
-import { useState } from "react";
+import { useLayoutEffect } from "react";
 import {
-  DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS,
-  makeDiagnosticsStore,
-  noDiagnostics,
-  runDiagnostics,
-  type Diagnostics,
-} from "../model/DiagnosticsStore.ts";
-import type { AskedQuestionLike } from "../model/Gates.ts";
-import type { PortCallCollector } from "../model/PortCalls.ts";
-import { useRunningStore } from "./useRunningStore.ts";
+  idleDiagnostics,
+  makeDiagnosticsFeed,
+  type DiagnosticsDockOptions,
+  type DiagnosticsSnapshot,
+} from "../model/DiagnosticsFeed.ts";
+import { useScoped } from "./useScoped.ts";
+import { useStoreSnapshot } from "./useStoreSnapshot.ts";
+
+export type { DiagnosticsDockOptions } from "../model/DiagnosticsFeed.ts";
 
 /**
- * What a host hands over to have its diagnostics sampled: things it already
- * owns, and no Effects.
- *
- * Gates are not here. They are pushed by the host's subscription to
- * `@qadi/react`'s registry and stay a plain prop (AGENTS.md §13).
- */
-export interface DiagnosticsDockOptions {
-  /**
-   * The application's layer, read for the wiring report.
-   *
-   * Built once while the dock is mounted, and released on unmount. It is its
-   * own build, so a service that keeps state in its constructor is shared with
-   * the application only if the host shares it by value: build its context once
-   * and pass that context here and to the atoms as one value. Under a
-   * `QadiProvider`, hand `useDevtoolsFeed()`'s `diagnostics` from `@qadi/react`
-   * instead: its layer is the provider's own build, so nothing needs sharing.
-   *
-   * Typed `Layer<never, unknown>` because `Layer` is contravariant in what it
-   * provides: that is the one type every layer is assignable to.
-   */
-  readonly layer?: Layer.Layer<never, unknown>;
-  /** The collector whose `layer` is wired where evaluations run, for the recent port calls. */
-  readonly collector?: PortCallCollector;
-  /** Where the questions asked so far come from, usually `() => atoms.asked()`. */
-  readonly questions?: () => ReadonlyArray<AskedQuestionLike>;
-  /** How often to sample, in milliseconds. Defaults to `DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS`. */
-  readonly intervalMillis?: number;
-}
-
-/**
- * Samples the diagnostics while mounted, and returns the latest reading.
+ * Samples the diagnostics while mounted, and returns the poll's status and its latest reading.
  *
  * With `options` absent nothing runs and the reading is `noDiagnostics`: a hook
  * that sampled by default would give every mounted dock a fiber it never asked
@@ -64,30 +29,21 @@ export interface DiagnosticsDockOptions {
  * the `options` object does**, so an inline literal does not tear the layer
  * down on every render. Hold the fields at module scope, or in a `useMemo`, as
  * `useTimeline` asks of a source.
+ *
+ * The status is `Off` with no options, `Starting` until the first sample (also on
+ * the pass before the feed exists), `Live`, or `Stopped` with the reason and
+ * whether a sample was taken, keeping the last reading. Changing a field restarts
+ * a stopped sampler. A StrictMode remount or a hidden-then-shown tree starts a
+ * fresh run.
  */
-export const useDiagnostics = (options?: DiagnosticsDockOptions): Diagnostics => {
-  const [store] = useState(makeDiagnosticsStore);
-  const layer = options?.layer;
-  const collector = options?.collector;
-  const questions = options?.questions;
-  const intervalMillis = options?.intervalMillis;
+export const useDiagnostics = (options?: DiagnosticsDockOptions): DiagnosticsSnapshot => {
+  const feed = useScoped(() => makeDiagnosticsFeed(options));
 
-  const run =
-    options === undefined
-      ? undefined
-      : runDiagnostics(store, {
-          ...(layer === undefined ? {} : { layer }),
-          ...(collector === undefined ? {} : { collector }),
-          ...(questions === undefined ? {} : { questions }),
-          schedule: Schedule.spaced(intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS),
-        });
+  // The feed compares each field by identity. It runs again on the render the feed
+  // appears, so an input changed in between still lands.
+  useLayoutEffect(() => {
+    if (feed !== undefined) feed.configure(options);
+  }, [feed, options]);
 
-  const reading = useRunningStore(store, run, [
-    options === undefined,
-    layer,
-    collector,
-    questions,
-    intervalMillis,
-  ]);
-  return options === undefined ? noDiagnostics : reading;
+  return useStoreSnapshot(feed ?? idleDiagnostics(options));
 };

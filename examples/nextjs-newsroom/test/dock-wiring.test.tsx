@@ -34,7 +34,7 @@ const wiringReads: Array<string> = [];
 const Probe = () => {
   const feed = useDevtoolsFeed(dockExtras);
   const diagnostics = useDiagnostics({ ...feed.diagnostics, intervalMillis: 20 });
-  const wiring = diagnostics.wiring;
+  const wiring = diagnostics.reading.wiring;
   wiringReads.push(wiring._tag === "Read" ? `Read:${wiring.report.cache.size}` : wiring._tag);
   return null;
 };

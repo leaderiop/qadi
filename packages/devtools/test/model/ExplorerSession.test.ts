@@ -344,6 +344,17 @@ describe("the JSON pane", () => {
     assert.isDefined(showing(session).json.refusal);
   });
 
+  // Text that is not JSON is `PolicyNotJson` (BEH-QD-487), not a schema failure, so the
+  // paste box has its own sentence for it.
+  it("text that is not JSON is refused with its own sentence carrying the parser's message", () => {
+    const session = makeExplorerSession({ sightings: [sighting(hasPermission(read))] });
+    session.editJson("}{");
+    session.load();
+    const refusal = showing(session).json.refusal ?? "";
+    assert.isTrue(refusal.startsWith("The text is not JSON"));
+    assert.notInclude(refusal, "SyntaxError");
+  });
+
   it("an unloaded edit is dropped when another policy is chosen", () => {
     const session = makeExplorerSession({
       sightings: [sighting(hasPermission(read)), sighting(hasPermission(write))],

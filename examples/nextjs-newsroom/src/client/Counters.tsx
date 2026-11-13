@@ -31,7 +31,8 @@ export const Counters = ({
   readonly entriesInPayload: number;
   readonly articleId: string;
 }) => {
-  const { hydration: activity } = useDiagnostics(sampling);
+  const { status, reading } = useDiagnostics(sampling);
+  const activity = reading.hydration;
   const [edge, setEdge] = useState<EdgeOutcome | undefined>(undefined);
   const [edgeError, setEdgeError] = useState<string | undefined>(undefined);
 
@@ -55,7 +56,9 @@ export const Counters = ({
       <div style={card}>
         <div style={{ ...mono, marginBottom: 6 }}>this browser, after hydration</div>
         <pre style={pre} data-testid="client-counters">
-          {activity === undefined ? "sampling…" : `dehydrated: ${activity.dehydrated}
+          {status._tag === "Stopped"
+            ? `sampling stopped: ${status.reason}`
+            : activity === undefined ? "sampling…" : `dehydrated: ${activity.dehydrated}
 seeded:     ${activity.seeded}   (payload carried ${entriesInPayload})
 rechecked:  ${activity.rechecked}
 mismatched: ${activity.mismatched}

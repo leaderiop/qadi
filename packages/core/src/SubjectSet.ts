@@ -32,9 +32,10 @@ import { CurrentSubject } from "./CurrentSubject.ts";
 import type { Decision } from "./Decision.ts";
 import { isAllowed } from "./Decision.ts";
 import type { EvaluationError } from "./Errors.ts";
-import type { EvaluateOptions, StandingEvaluationServices } from "./Evaluate.ts";
 import { evaluate } from "./Evaluate.ts";
+import type { StandingEvaluationServices } from "./EvaluationServices.ts";
 import type { Policy } from "./Policy.ts";
+import type { EvaluateOptions } from "./Question.ts";
 
 /**
  * What an evaluation needs when the subject travels as a parameter.

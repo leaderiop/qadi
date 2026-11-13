@@ -2,8 +2,8 @@
  * Everything between a server's decision and the moment this client supersedes it.
  *
  * That is the payload codec in both directions (`dehydrateWith` and
- * `hydrateWith`), the seed atom a server-rendered decision is written to, the
- * rule that the client's own answer wins
+ * `hydrateWith`), the slot in which a question keeps the seeds it was handed and
+ * the grant a registry holds to one of them, the rule that the client's own answer wins
  * ([INV-QD-028](../../../spec/invariants.md)), the once-per-registry
  * announcement of a disagreement. Each codec direction is a module-private
  * planner returning the `HydrationEvent`s a call implies, and `HydrationEvent.ts`
@@ -14,7 +14,7 @@
  *
  * Private, and out of the barrel on purpose (AGENTS.md §9,
  * [ADR-QD-039](../../../spec/decisions/039-a-seed-is-not-an-authority.md)): a
- * consumer that could reach a seed atom could write an authorization decision
+ * consumer that could reach a seed slot could write an authorization decision
  * straight into the registry, bypassing the subject check and the evaluator.
  * `Hydration.ts` is the public interface over this module and re-exports by name
  * only what a consumer may hold. This file imports nothing from `Hydration.ts`,
@@ -38,16 +38,18 @@ import type {
 import {
   DecisionWireAllow,
   DecisionWireDeny,
-  MAX_DECODE_DEPTH,
   decisionDisagreement,
   Policy as PolicySchema,
-  UNTRUSTED_DECODE_OPTIONS,
   encodeDecision,
-  exceedsJsonDepth,
   isAllowed,
+  untrustedDecoder,
 } from "@qadi/core";
+import type { UntrustedValueRefusal } from "@qadi/core";
+import * as Data from "effect/Data";
+import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
+import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import * as Struct from "effect/Struct";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
@@ -55,7 +57,7 @@ import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import type { HydrationDropReporter, HydrationMismatchReporter } from "./DeveloperSignals.ts";
 import { hydrationDropReporter, saysDehydrationDropped, saysHydrationDropped } from "./DeveloperSignals.ts";
-import type { DecisionEntry, HydrationHooks, PayloadRefusalReason } from "./HydrationEvent.ts";
+import type { DecisionEntry, EntryDropReason, HydrationHooks, PayloadRefusalReason } from "./HydrationEvent.ts";
 import { HydrationEvent, emitHydration } from "./HydrationEvent.ts";
 import type { ClientDecision, SeededDecision } from "./SeededDecision.ts";
 import { AllowDisclosure, DenyDisclosure, SeededAllow, SeededDeny, permits } from "./SeededDecision.ts";
@@ -93,7 +95,7 @@ const ALLOW_WITHHELD = ["subjectId", "trace"] as const;
  * A deny entry withholds what an allow does, plus the two fields a denial
  * discloses only under `includeTrace`, inside its `disclosure`.
  */
-const DENY_WITHHELD = ["subjectId", "trace", "obligations", "reason"] as const;
+const DENY_WITHHELD = [...ALLOW_WITHHELD, "obligations", "reason"] as const;
 
 /**
  * One decision's wire form inside a payload, derived from `DecisionWire`.
@@ -117,9 +119,9 @@ const DenyEntry = DecisionWireDeny.mapFields((fields) => ({
  * One entry of a version-2 payload.
  *
  * `policy` is declared as `Schema.Unknown` rather than left off so decoding with
- * {@link UNTRUSTED_DECODE_OPTIONS} — `onExcessProperty: "error"` — flags a
+ * the module's strict decode — `onExcessProperty: "error"` — flags a
  * genuinely unrecognized key without also flagging `policy` itself. It has its
- * own decode path ({@link decodePolicy}) because it needs a type transformation
+ * own decode path (`decodePolicy`) because it needs a type transformation
  * this struct does not perform, and folding it in would run `PolicySchema` a
  * second time.
  */
@@ -178,26 +180,76 @@ const Envelope = DehydratedDecisionsWire.mapFields(
 const encodePolicy = Schema.encodeOption(PolicySchema);
 
 /**
- * Decoding is the untrusted side, so every decoder here returns an `Option` and
- * a malformed value is dropped rather than thrown on — the same fail-closed
- * treatment a mismatched subject gets.
+ * Every untrusted read in this module goes through `UntrustedDecode.ts`'s
+ * decoder: the depth guard, then the strict decode, in that order, so a payload
+ * nested past the call stack's limit is a typed refusal rather than a raw
+ * `RangeError` defect. Decoding is the untrusted side, so a malformed value is
+ * dropped rather than thrown on — the same fail-closed treatment a mismatched
+ * subject gets.
  *
- * `Schema`'s own recursive descent through `PolicySchema`'s `Schema.suspend` has
- * no depth cap of its own, so {@link hydrateWith} runs {@link exceedsJsonDepth}
- * over each entry before any of these, mirroring the guard-then-decode order
- * `SinkCodec.ts`'s `decodeSinkRecord` uses for the identical trust boundary: a
- * payload nested past the call stack's limit is dropped as a typed reason rather
- * than raising a raw `RangeError` defect.
- *
- * Every decode uses {@link UNTRUSTED_DECODE_OPTIONS}. Without it `Schema`'s
- * default `onExcessProperty: "ignore"` would silently strip an unrecognized key
- * from an otherwise-valid value instead of refusing it, the silent-data-loss
- * shape `UNTRUSTED_DECODE_OPTIONS`'s own doc comment in `Policy.ts` exists to
- * rule out.
+ * The envelope decoder leaves `entries` unwalked and each entry is guarded from
+ * its own root by the entry decoder (INV-QD-306), which is what keeps one
+ * hostile entry from refusing the payload or its siblings. The entry's `policy`
+ * is then decoded again from its own root: that entry-then-policy double check
+ * is deliberate and measured (ADR-QD-143), and it is why the policy decoder's
+ * `TooDeep` arm is the same code the entry decoder's is.
  */
-const decodePolicy = Schema.decodeUnknownOption(PolicySchema, UNTRUSTED_DECODE_OPTIONS);
-const decodeEnvelope = Schema.decodeUnknownOption(Envelope, UNTRUSTED_DECODE_OPTIONS);
-const decodeEntry = Schema.decodeUnknownOption(DehydratedEntryWire, UNTRUSTED_DECODE_OPTIONS);
+const decodePolicy = untrustedDecoder(PolicySchema).decode;
+
+/**
+ * A payload whose `version` is not {@link PAYLOAD_VERSION}, raised by the
+ * envelope decoder's `prepare`: a refusal of this module's own, beside the
+ * decoder's `TooDeep` and `Malformed`, so `prepare` fails without a cast.
+ */
+type PayloadVersionRefusal = Data.TaggedEnum<{ UnsupportedPayloadVersion: {} }>;
+const PayloadVersionRefusal = Data.taggedEnum<PayloadVersionRefusal>();
+
+/**
+ * Only `version: 2` is read. Any other value — or none, the format 0.9 and
+ * earlier wrote, whose reader 0.11.0 removed (ADR-QD-078's 2026-10-06
+ * amendment) — is a format this client does not read, which is not the same as
+ * a malformed one and is the signature of mismatched releases. A value that is
+ * not an object (an array included) passes through for the decode to call
+ * malformed.
+ */
+const checkVersion = (input: unknown): Result.Result<unknown, PayloadVersionRefusal> =>
+  Predicate.isObject(input) && (!Object.hasOwn(input, "version") || input["version"] !== PAYLOAD_VERSION)
+    ? Result.fail(PayloadVersionRefusal.UnsupportedPayloadVersion())
+    : Result.succeed(input);
+
+/**
+ * The payload decoder. `entries` is unwalked, since each entry is guarded from its
+ * own root below (INV-QD-306), and the version is checked after the guard and
+ * before the strict decode, so a version-3 payload nested past the bound is
+ * `PayloadTooDeep`, not `UnsupportedPayloadVersion` (BEH-QD-488).
+ */
+const decodeEnvelope = untrustedDecoder(Envelope, { unwalked: ["entries"], prepare: checkVersion }).decode;
+
+/** The decoder's refusal as the reason the payload is refused with. */
+const payloadRefusalReason: (refusal: UntrustedValueRefusal | PayloadVersionRefusal) => PayloadRefusalReason =
+  Match.type<UntrustedValueRefusal | PayloadVersionRefusal>().pipe(
+    Match.tagsExhaustive({
+      TooDeep: (): PayloadRefusalReason => "PayloadTooDeep",
+      Malformed: (): PayloadRefusalReason => "MalformedPayload",
+      UnsupportedPayloadVersion: (): PayloadRefusalReason => "UnsupportedPayloadVersion",
+    }),
+  );
+
+const decodeEntry = untrustedDecoder(DehydratedEntryWire).decode;
+
+/**
+ * Where a refused entry read lands: `TooDeep` is `EntryTooDeep` whichever read
+ * raised it, `Malformed` is `malformed`, the reason of the read that did
+ * (`MalformedEntry` for the entry, `UndecodablePolicy` for the policy). Shared by
+ * both reads.
+ */
+const entryDropReason = (refusal: UntrustedValueRefusal, malformed: EntryDropReason): EntryDropReason =>
+  Match.value(refusal).pipe(
+    Match.tagsExhaustive({
+      TooDeep: (): EntryDropReason => "EntryTooDeep",
+      Malformed: (): EntryDropReason => malformed,
+    }),
+  );
 
 export interface DehydrateOptions {
   /**
@@ -435,23 +487,9 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
   const visible: ReadonlyArray<unknown> =
     Predicate.isObject(payload) && Array.isArray(payload["entries"]) ? payload["entries"] : [];
 
-  // Entries are guarded one by one below; this covers everything else, which the
-  // envelope decode would otherwise recurse into on its way to refusing it.
-  if (!Predicate.isObject(payload) || exceedsJsonDepth({ ...payload, entries: [] }, MAX_DECODE_DEPTH)) {
-    return refuse("MalformedPayload", visible);
-  }
-
-  // Only `version: 2` is read. Any other value — or none, the format 0.9 and
-  // earlier wrote, whose reader 0.11.0 removed (ADR-QD-078's 2026-10-06
-  // amendment) — is a format this client does not read, which is not the same
-  // as a malformed one and is the signature of mismatched releases.
-  if (!Object.hasOwn(payload, "version") || payload["version"] !== PAYLOAD_VERSION) {
-    return refuse("UnsupportedPayloadVersion", visible);
-  }
-
   const envelope = decodeEnvelope(payload);
-  if (Option.isNone(envelope)) return refuse("MalformedPayload", visible);
-  const { subjectId, entries } = envelope.value;
+  if (Result.isFailure(envelope)) return refuse(payloadRefusalReason(envelope.failure), visible);
+  const { subjectId, entries } = envelope.success;
 
   // `undefined` names an empty payload (EC-06), not a subject that failed to
   // match — there is nothing to seed and nothing to warn about, the same
@@ -476,37 +514,38 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
   const malformed: Array<unknown> = [];
   const undecodable: Array<unknown> = [];
 
-  for (const entry of entries) {
-    if (exceedsJsonDepth(entry, MAX_DECODE_DEPTH)) {
-      tooDeep.push(entry);
-      continue;
-    }
+  const bucketOf: Record<EntryDropReason, Array<unknown>> = {
+    EntryTooDeep: tooDeep,
+    MalformedEntry: malformed,
+    UndecodablePolicy: undecodable,
+  };
 
+  for (const entry of entries) {
     const fields = decodeEntry(entry);
     // Checked before the policy: an entry malformed at this level — a string
     // where durationMillis belongs, an obligations value that isn't an array, a
     // disclosure of the wrong shape — is a different failure than a policy shape
     // this schema doesn't know, and warrants its own reason.
-    if (Option.isNone(fields)) {
-      malformed.push(entry);
+    if (Result.isFailure(fields)) {
+      bucketOf[entryDropReason(fields.failure, "MalformedEntry")].push(entry);
       continue;
     }
 
-    const decoded = decodePolicy(fields.value.policy);
+    const decoded = decodePolicy(fields.success.policy);
     // Collected rather than reported one at a time: a version skew makes *every*
     // entry of a shape undecodable, and one warning per entry would bury the
     // page's other output under a payload's worth of identical lines.
-    if (Option.isNone(decoded)) {
-      undecodable.push(entry);
+    if (Result.isFailure(decoded)) {
+      bucketOf[entryDropReason(decoded.failure, "UndecodablePolicy")].push(entry);
       continue;
     }
 
-    if (!entryAgrees(fields.value, decoded.value)) {
+    if (!entryAgrees(fields.success, decoded.success)) {
       malformed.push(entry);
       continue;
     }
 
-    seeded.push([seedFor(decoded.value, fields.value.resource), rebuild(fields.value, subject.id)]);
+    seeded.push(seedFor(decoded.success, fields.success.resource).hold(rebuild(fields.success, subject.id)));
   }
 
   const events: Array<HydrationEvent> = [];
@@ -540,11 +579,11 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
  * into a blank page would be a worse outcome than re-deciding. Trusting it would
  * be a breach.
  *
- * Written to the seed atom, never to the decision atom. See
+ * Held by the question's seed slot, never written to the decision atom. See
  * {@link makeSeededQuestion}.
  *
  * `seedFor` is the atom set's own closure over its families
- * (`QadiAtoms.hydrate`), so the seed atoms stay unreachable from outside it
+ * (`QadiAtoms.hydrate`), so the seed slots stay unreachable from outside it
  * (ADR-QD-039) without a module-scope side table keyed on the atom set.
  */
 export const hydrateWith = (
@@ -560,14 +599,34 @@ export const hydrateWith = (
 };
 
 // ---------------------------------------------------------------------------
-// The seed atom, and the atom that reads through it
+// The seed slot, and the atom that reads through it
 // ---------------------------------------------------------------------------
 
-/** Finds the seed atom standing behind one decision. Closure-private to an atom set. */
-export type HydrationSeedLookup = (
-  policy: Policy,
-  resource: Resource | undefined,
-) => Atom.Writable<SeededDecision | undefined>;
+/**
+ * Where one question keeps the seeds it was handed, and how it gives one to a registry.
+ *
+ * Closure-private to an atom set. `hold` keeps the decision in the question and
+ * returns the `initialValues` pair that gives a registry a grant to it: the
+ * decision itself never enters a registry, so a registry that was not given the
+ * grant cannot read it (ADR-QD-149).
+ * What the pair's atom and value are is the slot's own business.
+ */
+export interface SeedSlot {
+  readonly hold: (decision: SeededDecision) => readonly [Atom.Atom<unknown>, unknown];
+}
+
+/** Finds the slot standing behind one decision. Closure-private to an atom set. */
+export type HydrationSeedLookup = (policy: Policy, resource: Resource | undefined) => SeedSlot;
+
+/**
+ * What a registry holds in place of a seed.
+ *
+ * Opaque, and a class so that `instanceof` tells one from the `undefined` an
+ * unseeded registry holds. The question keeps the decision it stands for.
+ */
+class SeedGrant {
+  readonly kind = "SeedGrant";
+}
 
 /**
  * Announcement state for one question, kept **per registry**.
@@ -588,34 +647,18 @@ interface AnnounceState {
    * render, which a value comparison would report twice.
    */
   announced: boolean;
-  /**
-   * The seed, as this registry first saw it.
-   *
-   * Kept because `get.once(seed)` can read `undefined` for a seed that was
-   * definitely there: a registry may drop the value of an atom nothing mounted,
-   * and the seed atom is only ever a *dependency* of the question's atom. Under
-   * `registry.mount` it survives and the disagreement is reported; under a
-   * `QadiProvider`, which subscribes rather than mounts, it does not and the
-   * report would be silently skipped. Remembering the first non-absent reading
-   * makes the announcement depend only on what was seeded and what this client
-   * then decided, not on registry lifetime.
-   *
-   * Written in the branch that already reads the seed reactively, so it costs
-   * nothing and adds no dependency of its own.
-   */
-  observedSeed: SeededDecision | undefined;
 }
 
-/** A question's seed atom, and the atom a consumer reads the decision through. */
+/** A question's seed slot, and the atom a consumer reads the decision through. */
 export interface SeededQuestion<E> {
-  /** Where `hydrate` writes a server decision. Never reachable from outside. */
-  readonly seed: Atom.Writable<SeededDecision | undefined>;
+  /** Where `hydrate` keeps a server decision. Never reachable from outside. */
+  readonly seed: SeedSlot;
   /** The decision atom: the client's answer, or the seed until it has one. */
   readonly read: Atom.Atom<AsyncResult.AsyncResult<ClientDecision, E>>;
 }
 
 /**
- * Builds one question's seed atom and the atom that reads through it.
+ * Builds one question's seed slot and the atom that reads through it.
  *
  * A decision and the seed that covers its first frames are **separate atoms**,
  * and that separation is the whole of INV-QD-028. A seed written directly into
@@ -631,16 +674,27 @@ export interface SeededQuestion<E> {
  * the precedence explicit and one-directional instead of a consequence of when
  * an effect happens to settle.
  *
- * Exactly one `Atom.readable` per question, as before: adding an atom would
- * change notification and batching, and with it the render sequences
+ * The seeds live in the question, not in a registry. A registry removes a node
+ * nothing holds one macrotask after it is created, so a seed written into one
+ * was lost to a gate that mounted later, hid and showed, or remounted. The
+ * question keeps each decision under an opaque {@link SeedGrant}; a registry
+ * holds only the grant, in one node that stays alive, and reads a seed only
+ * through a grant node that is already there, never creating one, and never
+ * after its own client has answered. So a registry that was not seeded reads
+ * none, an unseeded question leaves no node, and the seed is forgotten with the
+ * question's handle (ADR-QD-149).
+ *
+ * Exactly one `Atom.readable` per question, as before: the grant atom is
+ * never read through a registry's `get`, so it adds no dependency, no
+ * notification and no batching, and with them no change to the render sequences
  * `QadiProvider.test.tsx` pins.
  */
 export const makeSeededQuestion = <E,>(input: {
   readonly policy: Policy;
   readonly resource: Resource | undefined;
-  /** Builds the computing atom; handed the seed so it can `get.once` the server's evaluation id. */
+  /** Builds the computing atom; handed the seed lookup so it can carry the server's evaluation id. */
   readonly computedFor: (
-    seed: Atom.Writable<SeededDecision | undefined>,
+    seededIn: (registry: AtomRegistry.AtomRegistry) => SeededDecision | undefined,
   ) => Atom.Atom<AsyncResult.AsyncResult<Decision, E>>;
   readonly report: HydrationMismatchReporter | undefined;
   /**
@@ -650,16 +704,24 @@ export const makeSeededQuestion = <E,>(input: {
   readonly track: (get: Atom.AtomContext) => void;
 }): SeededQuestion<E> => {
   const { policy, resource, report } = input;
-  // Declared before `computed`, which reads it with `get.once` to carry the
-  // server's evaluation id into the re-check.
-  const seed = Atom.make<SeededDecision | undefined>(undefined);
-  const computed = input.computedFor(seed);
+  // Kept alive, so a registry given the grant keeps it however long no gate reads it.
+  const grantAtom = Atom.make<SeedGrant | undefined>(undefined).pipe(Atom.keepAlive);
+  const seeds = new WeakMap<SeedGrant, SeededDecision>();
+  // `getNodes`, never `get`: a read that created the node would leave one for every
+  // question asked, seeded or not. No node means this registry was not given a seed.
+  const seededIn = (registry: AtomRegistry.AtomRegistry): SeededDecision | undefined => {
+    const node = registry.getNodes().get(grantAtom);
+    if (node === undefined) return undefined;
+    const held = node.valueOption();
+    return Option.isSome(held) && held.value instanceof SeedGrant ? seeds.get(held.value) : undefined;
+  };
+  const computed = input.computedFor(seededIn);
 
   const announceState = new WeakMap<AtomRegistry.AtomRegistry, AnnounceState>();
   const announceStateFor = (registry: AtomRegistry.AtomRegistry): AnnounceState => {
     const existing = announceState.get(registry);
     if (existing !== undefined) return existing;
-    const created: AnnounceState = { announced: false, observedSeed: undefined };
+    const created: AnnounceState = { announced: false };
     announceState.set(registry, created);
     return created;
   };
@@ -678,17 +740,13 @@ export const makeSeededQuestion = <E,>(input: {
     if (!AsyncResult.isInitial(result)) {
       if (!state.announced) {
         state.announced = true;
-        // `get.once`, not `get`. This block previously ran only when a
-        // reporter was wired, and was guarded that way so an atom set without
-        // one "reads exactly the atoms it read before — no reporter, no added
-        // dependency, no change". Counting must happen whether or not a
-        // reporter is wired, so the guard could not stay; `get.once` keeps the
-        // promise it was protecting, because it registers no dependency. It is
-        // also the honest read here: the seed is already spent in this branch,
-        // so re-running on a later seed change could not change the answer.
-        // `?? state.observedSeed`: the registry's copy is authoritative when it
-        // has one, and the first reading stands in when it has dropped it.
-        const seeded = get.once(seed) ?? state.observedSeed;
+        // Counting must happen whether or not a reporter is wired. The lookup
+        // registers no dependency, so an atom set without a reporter still
+        // "reads exactly the atoms it read before — no reporter, no added
+        // dependency, no change". It is also the honest read here: the seed is
+        // already spent in this branch, so re-running on a later seed change
+        // could not change the answer.
+        const seeded = seededIn(get.registry);
         if (seeded !== undefined) {
           // A failure is not a disagreement. The client could not answer, so
           // there is nothing for the server's answer to disagree with, and
@@ -703,10 +761,19 @@ export const makeSeededQuestion = <E,>(input: {
       }
       return result;
     }
-    const seeded = get(seed);
-    if (seeded !== undefined) state.observedSeed = seeded;
+    // Never after this registry's client has answered, even when a later `Initial`
+    // (the subject cleared) asks again: the seed is spent (BEH-QD-151).
+    const seeded = state.announced ? undefined : seededIn(get.registry);
     return seeded === undefined ? result : AsyncResult.success(seeded);
   });
+
+  const seed: SeedSlot = {
+    hold: (decision) => {
+      const grant = new SeedGrant();
+      seeds.set(grant, decision);
+      return [grantAtom, grant];
+    },
+  };
 
   return { seed, read };
 };

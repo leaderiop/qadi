@@ -1,21 +1,22 @@
 /**
  * The dock's cross-store rules, tested with no DOM (ARCH-74, DMOD-02).
  *
- * The dock owns six stores (the timeline, the policy rail, the explorer, the
- * role viewer's held choice, the simulation session and the dock session) and
- * the rules that connect them: a new timeline reaches every screen, a replay
- * commands the simulation, a new head does not move a held choice, an unchanged
- * input dispatches nothing, and no screen reads another timeline than the one
- * the dock shows. Until now those rules lived in layout effects and were proved
- * only by rendering the whole dock. They are stated here against `makeDockModel`
- * and nothing is rendered.
+ * The dock owns eight readouts (the timeline, the policy rail, the explorer, the
+ * role viewer's held choice, the simulation session, the dock session, the
+ * diagnostics reading and the timeline status) and the rules that connect them:
+ * a new timeline reaches every screen, a replay commands the simulation, a new
+ * head does not move a held choice, an unchanged input dispatches nothing, and no
+ * screen reads another timeline than the one the dock shows. Until now those
+ * rules lived in layout effects and were proved only by rendering the whole dock.
+ * They are stated here against `makeDockModel` and nothing is rendered.
  *
  * The model is built in a scope (ADR-QD-137): `it.effect` provides one, and a
- * test that needs to end it mid-test makes its own. A test title names the DOM
- * case it re-states (`was DevtoolsDock l.N`) so the dock test can drop that case
- * once this one is green (26-05).
+ * test that needs to end it mid-test makes its own. A test title carries a stable
+ * case label (`M1`, `M5`, ...), so a failing run names the rule and not a line in
+ * another file.
  */
 import { assert, describe, it } from "@effect/vitest";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
@@ -42,6 +43,8 @@ import {
 import type { Policy, StoredRecord } from "@qadi/core";
 import { catalogueOf, policyLabel } from "../../src/model/Catalogue.ts";
 import type { Catalogue } from "../../src/model/Catalogue.ts";
+import { DiagnosticsStatus, diagnosticsOff } from "../../src/model/DiagnosticsFeed.ts";
+import { noDiagnostics } from "../../src/model/DiagnosticsStore.ts";
 import { makeDockModel } from "../../src/model/DockModel.ts";
 import type { DockModel } from "../../src/model/DockModel.ts";
 import type { TabId } from "../../src/model/DockSession.ts";
@@ -50,6 +53,7 @@ import type { Source } from "../../src/model/Source.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { countsOf } from "../../src/model/Verdict.ts";
 import { allow, decisionRecord, deny, failedRecord, obligationRecord, read, readPolicy } from "../helpers.ts";
+import { settleTurns } from "../helpers.ts";
 
 const write = permission("doc", "write");
 const writePolicy: Policy = hasPermission(write);
@@ -179,7 +183,7 @@ const watched = (backlog: ReadonlyArray<StoredRecord>, live: Stream.Stream<Store
 };
 
 describe("a timeline reaches every screen (M1, M2, M3)", () => {
-  it.effect("M1 (was DevtoolsDock l.853): records alone fill both rails, one sighting per policy with its tally", () =>
+  it.effect("M1: records alone fill both rails, one sighting per policy with its tally", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel();
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
@@ -194,7 +198,7 @@ describe("a timeline reaches every screen (M1, M2, M3)", () => {
       assert.deepStrictEqual(model.sightings(), model.simulation.getSnapshot().sightings);
     }));
 
-  it.effect("M2 (was DevtoolsDock l.865): a declared catalogue adds names and unrun policies to both rails", () =>
+  it.effect("M2: a declared catalogue adds names and unrun policies to both rails", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel();
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
@@ -209,7 +213,7 @@ describe("a timeline reaches every screen (M1, M2, M3)", () => {
       }
     }));
 
-  it.effect("M3 (was DevtoolsDock l.883): roles come only from the catalogue, never from records", () =>
+  it.effect("M3: roles come only from the catalogue, never from records", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel();
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
@@ -240,7 +244,7 @@ describe("a replay commands the simulation (M4, M5, M6, M7)", () => {
     assert.strictEqual(snapshot.draft.action, action);
   };
 
-  it.effect("M4 (the wiring stays at DevtoolsDock l.988): replaying a row moves to the simulator and seeds it", () =>
+  it.effect("M4: replaying a row moves to the simulator and seeds it", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel();
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
@@ -251,7 +255,7 @@ describe("a replay commands the simulation (M4, M5, M6, M7)", () => {
       seededFrom(model, readPolicy, "read");
     }));
 
-  it.effect("M5 (was DevtoolsDock l.1026): replaying the same row again after another policy was chosen re-seeds", () =>
+  it.effect("M5: replaying the same row again after another policy was chosen re-seeds", () =>
     Effect.gen(function* () {
       const model = yield* twoRows();
       model.dock.replay(entryOf(model, "a"));
@@ -263,7 +267,7 @@ describe("a replay commands the simulation (M4, M5, M6, M7)", () => {
       seededFrom(model, readPolicy, "read");
     }));
 
-  it.effect("M6 (was DevtoolsDock l.1045): replaying the same row again after the action was edited restores it", () =>
+  it.effect("M6: replaying the same row again after the action was edited restores it", () =>
     Effect.gen(function* () {
       const model = yield* twoRows();
       model.dock.replay(entryOf(model, "a"));
@@ -275,7 +279,7 @@ describe("a replay commands the simulation (M4, M5, M6, M7)", () => {
       assert.strictEqual(model.simulation.getSnapshot().draft.action, "read");
     }));
 
-  it.effect("M7 (was DevtoolsDock l.1060): a new record after a replay keeps the replayed form and reaches the rail", () =>
+  it.effect("M7: a new record after a replay keeps the replayed form and reaches the rail", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel();
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
@@ -293,7 +297,7 @@ describe("a replay commands the simulation (M4, M5, M6, M7)", () => {
 });
 
 describe("a held choice does not follow the head (M8)", () => {
-  it.effect("M8 (was DevtoolsDock l.1152): a new head leaves both the explorer and the simulation on what they showed", () =>
+  it.effect("M8: a new head leaves both the explorer and the simulation on what they showed", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel();
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
@@ -310,7 +314,7 @@ describe("a held choice does not follow the head (M8)", () => {
 });
 
 describe("a tab change touches nothing else (M9)", () => {
-  it.effect("M9 (was DevtoolsDock l.1197): visiting every tab and returning leaves every other store's snapshot as it was", () =>
+  it.effect("M9: visiting every tab and returning leaves every other store's snapshot as it was", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel();
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
@@ -392,7 +396,7 @@ describe("configure dispatches only what changed (M10)", () => {
 });
 
 describe("a capacity change empties the timeline and keeps the dock's choices (M11)", () => {
-  it.effect("M11 (was DevtoolsDock l.435): the bound reaches the timeline", () =>
+  it.effect("M11: the bound reaches the timeline", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel({ capacity: 5 });
       for (let i = 1; i <= 6; i++) {
@@ -613,7 +617,7 @@ describe("what configure and the stores hold back (M2 b, M10 d, M15 b-d, M17)", 
 });
 
 describe("two docks share nothing (M14)", () => {
-  it.effect("M14 (was DevtoolsDock l.162): a record accepted by one model is absent from the other", () =>
+  it.effect("M14: a record accepted by one model is absent from the other", () =>
     Effect.gen(function* () {
       const one = yield* makeDockModel();
       const other = yield* makeDockModel();
@@ -708,4 +712,292 @@ describe("the stores never disagree about the timeline (P1, INV-QD-296)", () => 
       }),
     );
   });
+});
+
+describe("the diagnostics store (M18..M27)", () => {
+  it.effect("M18: a throwing questions source stops the diagnostics store visibly, keeps the last reading, and restart() resumes it", () =>
+    Effect.gen(function* () {
+      let fail = false;
+      const questions = () => {
+        if (fail) throw new Error("questions blew up");
+        return [];
+      };
+      const model = yield* makeDockModel({ diagnostics: { questions } });
+      const live = model.diagnostics.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Live")(live.status));
+      assert.deepStrictEqual(live.reading.questions, []);
+      const kept = live.reading;
+
+      fail = true;
+      yield* TestClock.adjust("2 seconds");
+
+      const stopped = model.diagnostics.getSnapshot();
+      if (!DiagnosticsStatus.$is("Stopped")(stopped.status)) return assert.fail("expected Stopped");
+      assert.isTrue(stopped.status.sampled);
+      assert.include(stopped.status.reason, "questions blew up");
+      assert.strictEqual(stopped.reading, kept);
+
+      fail = false;
+      model.diagnostics.restart();
+      assert.isTrue(DiagnosticsStatus.$is("Live")(model.diagnostics.getSnapshot().status));
+    }));
+
+  /** A layer that counts its builds and releases, taking `acquire` to build. */
+  const countedLayer = (acquire: Effect.Effect<void> = Effect.void) => {
+    const counts = { builds: 0, releases: 0 };
+    const layer = Layer.effectDiscard(
+      Effect.acquireRelease(
+        Effect.andThen(
+          acquire,
+          Effect.sync(() => {
+            counts.builds += 1;
+          }),
+        ),
+        () =>
+          Effect.sync(() => {
+            counts.releases += 1;
+          }),
+      ),
+    );
+    return { counts, layer };
+  };
+
+  /** Settles every fiber, then steps the clock. */
+  const step = (duration: Duration.Input) =>
+    Effect.gen(function* () {
+      yield* settleTurns;
+      yield* TestClock.adjust(duration);
+      yield* settleTurns;
+    });
+
+  /** The status tag and the activity list of every notification of the seventh store, in order. */
+  const recordingOf = (model: DockModel) => {
+    const seen: Array<{ readonly tag: string; readonly activity: ReadonlyArray<unknown> }> = [];
+    model.diagnostics.subscribe(() => {
+      const { status, reading } = model.diagnostics.getSnapshot();
+      seen.push({ tag: status._tag, activity: reading.activity });
+    });
+    return seen;
+  };
+
+  const suppliedActivity = [
+    { port: "AttributeResolver", calls: 1, translationCalls: 0, retries: 0, timeouts: 0 },
+  ];
+
+  it.effect("M19: an empty options object is Live at once with hydration read, and no options is Off", () =>
+    Effect.gen(function* () {
+      const live = yield* makeDockModel({ diagnostics: {} });
+      const { status, reading } = live.diagnostics.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Live")(status));
+      assert.isDefined(reading.hydration);
+
+      const off = yield* makeDockModel();
+      assert.isTrue(DiagnosticsStatus.$is("Off")(off.diagnostics.getSnapshot().status));
+      assert.strictEqual(off.diagnostics.getSnapshot().reading, noDiagnostics);
+    }));
+
+  it.effect("M20: an asynchronous layer leaves the store Starting after the build, then Live with the wiring read", () =>
+    Effect.gen(function* () {
+      const { layer } = countedLayer(Effect.sleep("1 second"));
+      const model = yield* makeDockModel({ diagnostics: { layer } });
+      const early = model.diagnostics.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Starting")(early.status));
+      assert.strictEqual(early.reading, noDiagnostics);
+
+      yield* step("1 second");
+
+      const late = model.diagnostics.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Live")(late.status));
+      assert.strictEqual(late.reading.wiring._tag, "Read");
+    }));
+
+  it.effect("M21: with no reading supplied the store keeps one snapshot, and a sample that changed nothing notifies nothing", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel({ diagnostics: {} });
+      const first = model.diagnostics.getSnapshot();
+      assert.strictEqual(model.diagnostics.getSnapshot(), first);
+      const heard = { calls: 0 };
+      model.diagnostics.subscribe(() => {
+        heard.calls += 1;
+      });
+
+      yield* step("10 seconds");
+
+      assert.strictEqual(heard.calls, 0);
+      assert.strictEqual(model.diagnostics.getSnapshot(), first);
+    }));
+
+  it.effect("M22: a supplied field wins over the sampled one, the rest are sampled, and the merge is one reference", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel({ diagnostics: {}, reading: { activity: suppliedActivity } });
+
+      const { reading } = model.diagnostics.getSnapshot();
+      assert.strictEqual(reading.activity, suppliedActivity);
+      assert.isDefined(reading.hydration);
+      assert.strictEqual(model.diagnostics.getSnapshot(), model.diagnostics.getSnapshot());
+    }));
+
+  it.effect("M23: a reading-only configure notifies once and never restarts the poll", () =>
+    Effect.gen(function* () {
+      const { counts, layer } = countedLayer();
+      const diagnostics = { layer };
+      const reading = { activity: suppliedActivity };
+      const model = yield* makeDockModel({ diagnostics });
+      const heard = { calls: 0 };
+      model.diagnostics.subscribe(() => {
+        heard.calls += 1;
+      });
+
+      model.configure({ diagnostics, reading });
+      assert.strictEqual(heard.calls, 1);
+      assert.strictEqual(counts.builds, 1);
+
+      model.configure({ diagnostics, reading });
+      assert.strictEqual(heard.calls, 1);
+      assert.strictEqual(counts.builds, 1);
+      assert.strictEqual(counts.releases, 0);
+    }));
+
+  it.effect("M24: a fresh diagnostics literal holding the same field references notifies no store and builds nothing", () =>
+    Effect.gen(function* () {
+      const { counts, layer } = countedLayer();
+      const questions = () => [];
+      const model = yield* makeDockModel({ diagnostics: { layer, questions, intervalMillis: 5_000 } });
+      const seen = listen(model);
+      model.diagnostics.subscribe(() => {
+        seen.calls += 1;
+      });
+
+      model.configure({ diagnostics: { layer, questions, intervalMillis: 5_000 } });
+      yield* step("1 second");
+
+      assert.strictEqual(seen.calls, 0);
+      assert.strictEqual(counts.builds, 1);
+    }));
+
+  it.effect("M25: configuring diagnostics away reads Off and releases the layer, and defined again goes Starting then Live", () =>
+    Effect.gen(function* () {
+      const { counts, layer } = countedLayer();
+      const model = yield* makeDockModel({ diagnostics: { layer } });
+
+      model.configure({});
+
+      const off = model.diagnostics.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Off")(off.status));
+      assert.strictEqual(off.reading, noDiagnostics);
+      assert.strictEqual(counts.releases, 1);
+
+      const seen = recordingOf(model);
+      model.configure({ diagnostics: { layer } });
+
+      assert.deepStrictEqual(
+        seen.map((one) => one.tag),
+        ["Starting", "Live"],
+      );
+    }));
+
+  it.effect("M26: closing the scope records no Stopped and releases the layer, and a rebuilt model starts at Starting", () =>
+    Effect.gen(function* () {
+      const first = countedLayer();
+      const scope = yield* Scope.make();
+      const model = yield* Scope.provide(makeDockModel({ diagnostics: { layer: first.layer } }), scope);
+      const seen = recordingOf(model);
+
+      yield* Scope.close(scope, Exit.void);
+
+      assert.deepStrictEqual(seen, []);
+      assert.strictEqual(first.counts.releases, 1);
+
+      const slow = countedLayer(Effect.sleep("1 second"));
+      const rebuilt = yield* makeDockModel({ diagnostics: { layer: slow.layer } });
+      const early = rebuilt.diagnostics.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Starting")(early.status));
+      assert.strictEqual(early.reading, noDiagnostics);
+
+      yield* step("1 second");
+      assert.isTrue(DiagnosticsStatus.$is("Live")(rebuilt.diagnostics.getSnapshot().status));
+    }));
+
+  it.effect("M27: replacing a poll field and the reading together never pairs the new reading with the old run's status", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel({ diagnostics: { questions: () => [] } });
+      const seen = recordingOf(model);
+      const answer = [{ policy: readPolicy }];
+
+      model.configure({ diagnostics: { questions: () => answer }, reading: { activity: suppliedActivity } });
+
+      const { status, reading } = model.diagnostics.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Live")(status));
+      assert.strictEqual(reading.activity, suppliedActivity);
+      assert.deepStrictEqual(reading.questions, answer);
+      assert.deepStrictEqual(
+        seen.map((one) => one.tag),
+        ["Starting", "Live"],
+      );
+      for (const one of seen) assert.strictEqual(one.activity, suppliedActivity);
+    }));
+
+  it.effect("M28: with no reading supplied the store's snapshot is the feed's own, even after one was supplied", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel({ reading: { activity: suppliedActivity } });
+      assert.notStrictEqual(model.diagnostics.getSnapshot(), diagnosticsOff);
+
+      model.configure({});
+
+      assert.strictEqual(model.diagnostics.getSnapshot(), diagnosticsOff);
+    }));
+});
+
+describe("the timeline's status (M29)", () => {
+  it.effect(
+    "M29: timelineStatus follows the timeline feed: a dying source reads Stopped and restart returns it to Reading",
+    () =>
+      Effect.gen(function* () {
+        const at = (evaluationId: string, when: number): StoredRecord =>
+          decisionRecord({ evaluationId, at: when });
+        const tally = { reads: 0 };
+        const source: Source = {
+          read: Effect.sync(() => {
+            tally.reads += 1;
+            return tally.reads === 1
+              ? { backlog: [at("x", 100)], live: Stream.die(new Error("live boom")) }
+              : { backlog: [at("x", 100), at("y", 200)], live: Stream.empty };
+          }),
+        };
+        const model = yield* makeDockModel({ source });
+        yield* flush;
+        assert.strictEqual(model.timelineStatus.getSnapshot()._tag, "Stopped");
+
+        model.timelineStatus.restart();
+        yield* flush;
+
+        assert.strictEqual(model.timelineStatus.getSnapshot()._tag, "Reading");
+        assert.deepStrictEqual(
+          model.timeline.getSnapshot().entries.map((entry) => entry.evaluationId),
+          ["x", "y"],
+        );
+      }),
+  );
+
+  it.effect(
+    "M30: a model with no source, configured with nothing three times, starts no read until a source is given",
+    () =>
+      Effect.gen(function* () {
+        const { source, tally } = watched([], Stream.empty);
+        const model = yield* makeDockModel();
+        const before = model.timeline.getSnapshot();
+
+        for (let i = 0; i < 3; i += 1) {
+          model.configure({});
+          yield* flush;
+          assert.strictEqual(model.timeline.getSnapshot(), before);
+        }
+        assert.strictEqual(tally.started, 0);
+
+        model.configure({ source });
+        yield* flush;
+
+        assert.strictEqual(tally.started, 1);
+      }),
+  );
 });

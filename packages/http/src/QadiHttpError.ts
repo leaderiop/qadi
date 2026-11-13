@@ -445,7 +445,7 @@ export const logSubjectExtractionFailed = (error: SubjectExtractionFailed): Effe
  * Deliberately not the full evaluation `trace` — `errorCode`, `subjectId`, and
  * either the root denial's `reason` sentence or the unmet obligation ids are
  * enough to diagnose from an operator's log, without repeating what
- * `Evaluate.ts`'s own `Effect.logDebug` already records in full.
+ * `Lifecycle.ts`'s own `Effect.logDebug` already records in full.
  */
 export const logDenial = (error: EnforcementDenial): Effect.Effect<void> =>
   Effect.logWarning(

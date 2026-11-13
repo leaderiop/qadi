@@ -27,10 +27,10 @@ import * as Clock from "effect/Clock";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
-import type { EvaluateOptions } from "./Evaluate.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
 import type { Policy } from "./Policy.ts";
 import { questionOf } from "./Question.ts";
+import type { EvaluateOptions } from "./Question.ts";
 import { walk } from "./Walk.ts";
 
 /** What a guard health check found. */

@@ -19,7 +19,7 @@
 import { expect, test } from "tstyche";
 import * as Effect from "effect/Effect";
 import type { Authorized } from "../src/Authorized.ts";
-import type { EvaluationServices } from "../src/Evaluate.ts";
+import type { EvaluationServices } from "../src/EvaluationServices.ts";
 import { permission } from "../src/Permission.ts";
 import { hasPermission } from "../src/Policy.ts";
 import type { EnforcementError, EvaluationError, UndischargedObligation } from "../src/Errors.ts";

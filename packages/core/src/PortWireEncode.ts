@@ -9,19 +9,20 @@
  *
  * Deliberately out of the barrel (AGENTS.md §9, ADR-QD-099): a host has no port
  * to describe — the registry is closed — so the builder is core's alone. It
- * imports `JsonHazard.ts`, `JsonRefusal.ts`, `DecodeDepthGuard.ts` and
- * `Policy.ts`, and no port module (ADR-QD-037).
+ * imports `JsonHazard.ts`, `JsonRefusal.ts` and `UntrustedDecode.ts`, and no
+ * port module (ADR-QD-037).
  */
+import * as Match from "effect/Match";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type { AuthSubject } from "./AuthSubject.ts";
-import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
 import type { SubjectId } from "./Identity.ts";
 import { toJson } from "./JsonHazard.ts";
 import { describeEncodeRefusal } from "./JsonRefusal.ts";
 import type { EncodeRefusal } from "./JsonRefusal.ts";
-import { MAX_DECODE_DEPTH, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
 import type { PortWire } from "./PortWire.ts";
+import { MAX_DECODE_DEPTH, untrustedDecoder } from "./UntrustedDecode.ts";
+import type { UntrustedValueRefusal } from "./UntrustedDecode.ts";
 
 /** The depth bound a wire value is held to — the one a policy and a sink record are. */
 export const WIRE_MAX_DEPTH = MAX_DECODE_DEPTH;
@@ -87,6 +88,26 @@ export const sameAnswer = <T>() => ({
 
 const refusal = (reason: EncodeRefusal): string => describeEncodeRefusal(reason);
 
+/** What a port-wire decode refuses: the question, the answer, or a remote reply. */
+export type WireSubject = "question" | "answer" | "reply";
+
+/**
+ * The message a port-wire decode refusal is reported with.
+ *
+ * The too-deep sentence was written out three times, once per decoder
+ * (ADR-QD-143); it is a template over {@link WireSubject} here. The sentences
+ * are observable data in `RemotePortFailure.Undecodable` and in the question and
+ * answer failures, so each stays byte-identical to what a peer already logs.
+ */
+export const undecodableMessage: (
+  refusal: UntrustedValueRefusal,
+) => (subject: WireSubject) => string = Match.type<UntrustedValueRefusal>().pipe(
+  Match.tagsExhaustive({
+    TooDeep: () => (subject: WireSubject) => `the ${subject} nests deeper than the decode bound`,
+    Malformed: ({ message }) => () => message,
+  }),
+);
+
 /** Builds a {@link PortWire} from a port's question and answer schemas. */
 export const portWire = <
   Args extends ReadonlyArray<unknown>,
@@ -101,9 +122,9 @@ export const portWire = <
   // Unknown, not `Q`: `presentMembers` is a generic filter, so the strict question
   // schema is what checks the member set it returns.
   const encodeQ = Schema.encodeUnknownResult(spec.question);
-  const decodeQ = Schema.decodeUnknownResult(spec.question, UNTRUSTED_DECODE_OPTIONS);
+  const decoderQ = untrustedDecoder(spec.question);
   const encodeA = Schema.encodeResult(spec.answer);
-  const decodeA = Schema.decodeUnknownResult(spec.answer, UNTRUSTED_DECODE_OPTIONS);
+  const decoderA = untrustedDecoder(spec.answer);
 
   return {
     encodeQuestion: (args) =>
@@ -117,15 +138,13 @@ export const portWire = <
         ),
       ),
     decodeQuestion: (input) =>
-      exceedsJsonDepth(input, WIRE_MAX_DEPTH)
-        ? Result.fail("the question nests deeper than the decode bound")
-        : Result.map(
-            Result.mapError(decodeQ(input), (error) => error.message),
-            (question) => ({
-              subjectId: question.subjectId,
-              args: (subject: AuthSubject) => spec.fromQuestion(question, subject),
-            }),
-          ),
+      Result.map(
+        Result.mapError(decoderQ.decode(input), (refused) => undecodableMessage(refused)("question")),
+        (question) => ({
+          subjectId: question.subjectId,
+          args: (subject: AuthSubject) => spec.fromQuestion(question, subject),
+        }),
+      ),
     encodeAnswer: (answer) =>
       Result.try({ try: () => spec.toAnswer(answer), catch: (error) => String(error) }).pipe(
         Result.flatMap((converted) => Result.mapError(converted, refusal)),
@@ -135,11 +154,9 @@ export const portWire = <
         ),
       ),
     decodeAnswer: (input) =>
-      exceedsJsonDepth(input, WIRE_MAX_DEPTH)
-        ? Result.fail("the answer nests deeper than the decode bound")
-        : Result.map(
-            Result.mapError(decodeA(input), (error) => error.message),
-            spec.fromAnswer,
-          ),
+      Result.map(
+        Result.mapError(decoderA.decode(input), (refused) => undecodableMessage(refused)("answer")),
+        spec.fromAnswer,
+      ),
   };
 };

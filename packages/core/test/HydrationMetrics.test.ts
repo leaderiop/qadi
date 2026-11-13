@@ -166,6 +166,7 @@ describe("HydrationMetrics", () => {
       "EntryTooDeep",
       "UnsupportedPayloadVersion",
       "MalformedPayload",
+      "PayloadTooDeep",
     ] as const;
 
     it.effect("names every drop reason, in order", () =>
@@ -230,7 +231,8 @@ describe("HydrationMetrics", () => {
       ["UndecodablePolicy", "version skew", "did not decode"],
       ["EntryTooDeep", "depth guard", "deeper than this client will walk"],
       ["UnsupportedPayloadVersion", "deploy in flight", "different @qadi/react releases"],
-      ["MalformedPayload", "dehydrated payload", "depth guard"],
+      ["MalformedPayload", "dehydrated payload", "unmodified"],
+      ["PayloadTooDeep", "outside its entries", "something between the server and the client changed it"],
     ];
 
     for (const [reason, summary, remedy] of pinned) {
@@ -241,7 +243,7 @@ describe("HydrationMetrics", () => {
     }
 
     it("covers every reason, with a distinct non-empty sentence of each kind", () => {
-      assert.strictEqual(pinned.length, 8);
+      assert.strictEqual(pinned.length, 9);
       assert.strictEqual(pinned.length, hydrationDropReasons.length);
       const summaries = hydrationDropReasons.map((reason) => hydrationDropMeaning(reason).summary);
       const remedies = hydrationDropReasons.map((reason) => hydrationDropMeaning(reason).remedy);

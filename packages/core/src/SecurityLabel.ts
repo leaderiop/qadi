@@ -140,7 +140,7 @@ export const labelDominates = (a: SecurityLabel, b: SecurityLabel): boolean => {
  *
  * Qadi never calls this. Deriving a label is not a decision (ADR-QD-021), so no
  * policy variant, matcher or evaluator path touches it; it exists for the caller
- * who has to label a derived object before asking about it. If `Evaluate.ts` ever
+ * who has to label a derived object before asking about it. If `Walk.ts` ever
  * imports this, that boundary has been crossed.
  */
 export const join = (a: SecurityLabel, b: SecurityLabel): SecurityLabel => ({

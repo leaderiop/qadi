@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-039                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-10-04                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.1 (2026-10-04): The seed lives in `HydrationEngine.ts`, and the lookup is a closure capability of the atom set (`QadiAtoms.hydrate`) rather than a module-scope `WeakMap`; `HydrationSeed.ts` is removed (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-23): Initial release (CCR-QD-052) |
+> | Change History | 1.2 (2026-11-12): Amendment: the seed is held by its question and reached through a grant (ADR-QD-149, CCR-QD-427)<br>1.1 (2026-10-04): The seed lives in `HydrationEngine.ts`, and the lookup is a closure capability of the atom set (`QadiAtoms.hydrate`) rather than a module-scope `WeakMap`; `HydrationSeed.ts` is removed (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-23): Initial release (CCR-QD-052) |
 
 _Amends: [ADR-QD-028](./028-decision-hydration.md), which decided the payload and
 said nothing about what happens to a seed once the client answers._
@@ -102,6 +102,15 @@ subject check and the evaluator.
 > a failure mode: a spread copy of an atom set, whose decision atoms are the real
 > ones, was refused whole as `UnregisteredAtoms`. That was a property of the
 > keying, not a defence of anything, and it is removed rather than reported.
+
+> **Amended 2026-11-12 (CCR-QD-427, [ADR-QD-149](./149-a-seed-is-held-by-its-question.md)).**
+> The seed no longer lives in a seed atom a registry may drop. Its question's handle holds it, and
+> a registry reaches it through a grant node `hydrate` gave that registry, so the third
+> consequence above ("A seed does not survive its own node") no longer holds: a seed now outlasts a
+> registry's removal of an idle node and lasts until this client answers or the question's row is
+> forgotten. The requirement that no consumer can reach a seed holds, and the precedence is still
+> a property of the derivation: `Initial` is the only state the seed covers, in flight or not, and
+> a re-check after an invalidation is `Success(previous, waiting)` and never falls back.
 
 ## Alternatives considered
 

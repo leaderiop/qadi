@@ -12,9 +12,9 @@
  * not that. It is absent unless wired, it is one method, and it carries the real
  * `Decision` rather than a projection of one. The alternative considered and
  * rejected was enriching span attributes, which cannot work: a `Trace` is a
- * tree, span attributes are flat primitives, and `Evaluate.ts` already documents
- * a deliberate cardinality objection to putting even the denial *reason* on a
- * span.
+ * tree, span attributes are flat primitives, and `EvaluationMetrics.ts` already
+ * documents a deliberate cardinality objection to keying anything on the denial
+ * *reason*.
  *
  * **Write-only by design.** Reading back is a property of an implementation, not
  * of this contract — that is what lets an out-of-process sink serve a replicated

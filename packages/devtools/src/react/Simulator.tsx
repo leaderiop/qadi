@@ -23,10 +23,9 @@
  */
 import { useState, type CSSProperties, type FC, type ReactNode } from "react";
 import * as Match from "effect/Match";
-import type { DecisionOutcome, EvaluationError } from "@qadi/core";
+import type { DecisionOutcome, EvaluationClock, EvaluationError } from "@qadi/core";
 import type { RecordOutcome } from "../model/Inspect.ts";
-import type { Baseline, BaselineReading, UnseededField } from "../model/Replay.ts";
-import type { SimulationClock } from "../model/Simulation.ts";
+import type { Baseline, UnseededField } from "../model/Replay.ts";
 import type { FieldView, SimulationField } from "../model/SimulationFields.ts";
 import type {
   RunState,
@@ -88,7 +87,7 @@ const SimulatorView: FC<{ readonly view: SimulationSessionView }> = ({ view }) =
 
       <RunView state={snapshot.run} stale={snapshot.stale} />
       {snapshot.baseline === undefined ? null : (
-        <BaselineCard baseline={snapshot.baseline} reading={snapshot.baselineReading} />
+        <BaselineCard baseline={snapshot.baseline} />
       )}
       {snapshot.run._tag === "Ran" && snapshot.run.report !== undefined ? (
         <WhatIfTable report={snapshot.run.report} />
@@ -208,7 +207,7 @@ const Controls: FC<{
   );
 };
 
-const clocks: ReadonlyArray<SimulationClock> = ["live", "deterministic"];
+const clocks: ReadonlyArray<EvaluationClock> = ["live", "deterministic"];
 
 /**
  * Three options, two of which are usually unavailable — and both say why.
@@ -455,7 +454,7 @@ const SimulatedFailure: FC<{ readonly error: EvaluationError }> = ({ error }) =>
  */
 const Duration: FC<{
   readonly outcome: DecisionOutcome;
-  readonly clock: SimulationClock;
+  readonly clock: EvaluationClock;
 }> = ({ outcome, clock }) => {
   if (outcome._tag !== "Decided") return null;
   return (
@@ -468,10 +467,7 @@ const Duration: FC<{
 };
 
 /** Whether the reconstruction reproduces the row it was seeded from. */
-const BaselineCard: FC<{
-  readonly baseline: Baseline;
-  readonly reading: BaselineReading | undefined;
-}> = ({ baseline, reading }) => {
+const BaselineCard: FC<{ readonly baseline: Baseline }> = ({ baseline }) => {
   if (baseline._tag === "Unavailable") {
     return (
       <section style={panel} data-testid="qadi-baseline">
@@ -483,11 +479,11 @@ const BaselineCard: FC<{
 
   return (
     <section
-      style={{ ...panel, borderColor: reading?.matches === true ? colors.allow : colors.border }}
+      style={{ ...panel, borderColor: baseline.reading.matches ? colors.allow : colors.border }}
       data-testid="qadi-baseline"
     >
       <div style={heading}>baseline {baseline.evaluationId}</div>
-      <div data-testid="qadi-baseline-state">{reading?.sentence}</div>
+      <div data-testid="qadi-baseline-state">{baseline.reading.sentence}</div>
       {baseline.caveat === undefined ? null : (
         <p
           style={{ ...muted, marginBottom: 0, marginTop: 6, color: colors.error }}

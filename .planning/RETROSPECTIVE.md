@@ -90,6 +90,48 @@
 
 ---
 
+## Milestone: v1.3 — Arch Wave 8
+
+**Completed:** 2026-11-13 (not merged, not released)
+**Phases:** 7 | **Plans:** 54 | **Tasks:** 56 | **Sessions:** one autonomous run (`/gsd-autonomous`), with context compactions
+
+### What Was Built
+- ARCH-78: `untrustedDecoder` is the only strict decode of untrusted JSON; nine seams keep only their refusal mapping, and the unguarded `PolicyFromJson` path is gone.
+- ARCH-79/80: `SharedComputation` owns staleness (closed claim `standing`), and evaluation options and services are each declared once.
+- ARCH-81: one sealed `evaluationEnvironment` builder with a closed shadowing union, shared by `@qadi/testing` and devtools' Simulation.
+- ARCH-82: diagnostics is the dock model's seventh store, with a closed status and no merge left in the view.
+- ARCH-83: the atom set owns its eviction sweep (edge-triggered, deferred, once per episode); the provider forks nothing.
+- Phase 36: the v1.2 spec debt closed, plus two live defects the debt work exposed: a hydration seed lost one macrotask after hydration, and a timeline feed whose death read as live.
+
+### What Worked
+- A ledger of every carried item, re-verified at the phase base (36-LEDGER.md, 37 rows), turned "clear the debt" into a checkable list. It also gave a third disposition, refuted, for findings that were wrong at the base.
+- Phase 35 opened with a mechanism spike that ranked three candidates on six fixed criteria before any production code. The decision rule was written before the results, so the pick was not argued after the fact.
+- Committing a pin of the AtomRegistry's removal timing before the seed fix caught the ordering hazard: a seed fix without the `subject` keepAlive would have shown a server allow forever (SD5).
+- The code review loop still found a real issue after verification passed: a metric description claiming reads it does not count (WR-01). That finding overrode a ledger decision to keep it.
+
+### What Was Inefficient
+- Phases 30–35 went stale again at close, because Phase 36 touched files their reports covered. This is the third milestone in a row.
+- 33 early commits went in without the Opus trailer (31 none, 2 Sonnet), because the SDK `commit` verb omits it and one fixer used its own model name. They were caught only at audit, too late to rewrite without breaking hash citations.
+- An e2e pin (`Success,Initial+waiting,Success`) encoded a defect as a rule. The fix broke it, and the run had to stop for a user decision (D-20).
+- `pnpm check:pr` still needs `< /dev/null` because of gate 15's install prompt.
+
+### Patterns Established
+- A ledger with a "Closed by" cell per carried item, plus an order check that each RED commit precedes its fix.
+- A mechanism spike with fixed criteria and a ranking rule, for a phase marked speculative.
+- Amend the trailer after every SDK `commit` call. Check `git log` for trailers per phase, not at audit.
+
+### Key Lessons
+1. Check commit trailers at each phase close. At milestone close, a rewrite would break every hash citation.
+2. A test that pins an intermediate state should cite the rule that state comes from. `Initial+waiting` was a symptom, and nothing said so.
+3. Expect the last phase to stale earlier verifications, and schedule the re-verify as part of the close rather than discovering it.
+
+### Cost Observations
+- Model mix: opus for the orchestrator and most subagents; sonnet for executors in some phases.
+- Sessions: one long autonomous run across several context compactions.
+- Notable: 333 commits over two days. Phase 36 alone had 14 plans, more than any earlier phase.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -98,6 +140,7 @@
 |-----------|----------|--------|------------|
 | v1.0 | n/a | 9 | First GSD milestone; one phase per architecture-review finding |
 | v1.2 | 1 (autonomous) | 9 | Decisions answered up front; per-file mutation baseline per phase (WX-05) and a re-check at close |
+| v1.3 | 1 (autonomous) | 7 | A carried-debt ledger with a per-row closer; a mechanism spike with fixed criteria before a speculative phase |
 
 ### Cumulative Quality
 
@@ -105,9 +148,10 @@
 |-----------|-------|----------|-------------------|
 | v1.0 | vitest 3974+559+42, e2e 30 (Phase 07 UAT run) | core ≥95%, others ≥90% (enforced) | 0 |
 | v1.2 | vitest 4400 (core/react/http/devtools/audit at audit), tstyche 233, e2e 30 | core ≥95%, others ≥90% (enforced); no touched file's mutation score fell | 0 |
+| v1.3 | vitest 200 files / 4917 tests, tstyche, e2e 30 | 99.47% statements / 99.75% lines overall; no measured file's mutation score fell | 0 |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases).
-2. Run review → fix after verification passes: it found warnings verification missed in both milestones.
+1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases; v1.3: 6 phases).
+2. Run review → fix after verification passes: it found warnings verification missed in every milestone.
 3. Shape tooling inputs so tools can read them: v1.0's requirement ranges and v1.2's grouped traceability rows both forced hand edits.

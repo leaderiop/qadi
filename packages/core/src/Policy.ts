@@ -22,14 +22,14 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
-import type * as SchemaAST from "effect/SchemaAST";
-import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
 import { Matcher, matcherDepth } from "./Matcher.ts";
 import { Obligation } from "./Obligation.ts";
 import type { Permission } from "./Permission.ts";
 import { PermissionSchema, SEGMENT_PATTERN } from "./Permission.ts";
 import type { SignatureMeaning } from "./Signature.ts";
 import { foldTree, foldTreeBy } from "./TreeFold.ts";
+import type { UntrustedRefusal, UntrustedValueRefusal } from "./UntrustedDecode.ts";
+import { untrustedDecoder } from "./UntrustedDecode.ts";
 
 /**
  * The default recursion bound for walking a `Policy` tree, shared by both
@@ -181,7 +181,7 @@ export type LabelName = typeof LabelName.Type;
  * keep. Real validation still happens, just only at the `Schema` decode
  * boundary these brands are also wired into above.
  *
- * `subject.roles.has(policy.role)` (`Evaluate.ts`) only type-checks as a
+ * `subject.roles.has(policy.role)` (`Walk.ts`) only type-checks as a
  * comparison of the same brand on both sides if subject role names are
  * constructed the same way `hasRole` builds `policy.role`. A second,
  * independent `Brand.nominal<RoleName>()` call in `AuthSubject.ts` would
@@ -407,19 +407,20 @@ const HasResourceAttribute = Schema.TaggedStruct("HasResourceAttribute", {
  * decoded policy is untrusted JSON (§7, ADR-QD-002), and a bare `Number`
  * would let `1e308`, a negative value, or — through `fromJsonValue`'s
  * plain-value path — `NaN`/`Infinity` all decode successfully, deferring
- * entirely to `PortAccess.ts`'s runtime `clampRelationshipDepth`. `Schema.Int`
- * rejects non-finite and fractional depths at the boundary instead; the
- * `isBetween` bound rejects out-of-range ones the same way. Reusing
+ * entirely to `RelationshipResolver.ts`'s runtime `clampRelationshipDepth`.
+ * `Schema.Int` rejects non-finite and fractional depths at the boundary instead;
+ * the `isBetween` bound rejects out-of-range ones the same way. Reusing
  * `DEFAULT_MAX_DEPTH` rather than inventing a second bound: nothing argues a
  * relationship graph should be walked deeper than a policy tree is ever
- * allowed to be — `Evaluate.ts`'s own `MAX_RELATIONSHIP_DEPTH` already reuses
- * it for the identical reason.
+ * allowed to be — `RelationshipResolver.ts`'s own `MAX_RELATIONSHIP_DEPTH`
+ * already reuses it for the identical reason.
  *
- * `clampRelationshipDepth` stays in `PortAccess.ts` as defense-in-depth: this
- * schema only runs on the decode path, so a policy built in memory through
- * `hasRelationship("owner", { depth: -5 })` (the smart constructors are
- * deliberately total, per `makeRoleName`'s comment above) never reaches this
- * check and still needs a runtime guard before it becomes resolver fuel.
+ * `clampRelationshipDepth` stays in `RelationshipResolver.ts` as
+ * defense-in-depth: this schema only runs on the decode path, so a policy built
+ * in memory through `hasRelationship("owner", { depth: -5 })` (the smart
+ * constructors are deliberately total, per `makeRoleName`'s comment above)
+ * never reaches this check and still needs a runtime guard before it becomes
+ * resolver fuel.
  */
 export const RelationshipDepth = Schema.Int.check(
   Schema.isBetween({ minimum: 0, maximum: DEFAULT_MAX_DEPTH }),
@@ -774,8 +775,9 @@ export const hasSignature = (
  * would have silently misrendered explanations, claiming a non-default
  * strategy is the default and violating INV-QD-031's
  * two-non-equivalent-policies-render-differently requirement with no
- * compile-time complaint. `Evaluate.ts`'s `exhaustive := fieldStrategy !==
- * "First"` check is semantic rather than default-tracking — `First` is the
+ * compile-time complaint. `Walk.ts`'s `exhaustive`
+ * (`!anyOfStopsAtAllow(policy.fieldStrategy)`) check is semantic rather than
+ * default-tracking — `First` is the
  * only short-circuiting strategy, not merely the default — and deliberately
  * stays independent of this function.
  */
@@ -912,8 +914,8 @@ export const allOfRoles = (roles: ReadonlyArray<string>): Policy =>
 // Serialization — derived, never hand-written
 // ---------------------------------------------------------------------------
 
-/** JSON string codec for a policy. */
-export const PolicyFromJson = Schema.fromJsonString(Policy);
+/** Encode-only: decoding goes through `policyDecoder` (`UntrustedDecode.ts`), never this codec. */
+const policyJsonString = Schema.fromJsonString(Policy);
 
 /**
  * Encodes a policy to a JSON string.
@@ -931,112 +933,68 @@ export const PolicyFromJson = Schema.fromJsonString(Policy);
  * every policy the FastCheck round-trip property generates but not
  * necessarily every `Policy` value the type admits.
  */
-export const toJson = Schema.encodeEffect(PolicyFromJson);
+export const toJson = Schema.encodeEffect(policyJsonString);
 
 /**
  * The raw JSON handed to {@link fromJson}/{@link fromJsonValue} nested deeper
- * than {@link MAX_DECODE_DEPTH}. Distinct from `Errors.ts`'s `PolicyTooDeep`
- * (which bounds a *decoded* policy at evaluation time) rather than imported
- * from there, because `Errors.ts` already depends on this module transitively
- * (via `Decision.ts`) and importing back would be circular.
+ * than `MAX_DECODE_DEPTH` (`UntrustedDecode.ts`). Distinct from `Errors.ts`'s
+ * `PolicyTooDeep` (which bounds a *decoded* policy at evaluation time) rather
+ * than imported from there, because `Errors.ts` already depends on this module
+ * transitively (via `Decision.ts`) and importing back would be circular.
  */
 export class PolicyDecodeTooDeep extends Data.TaggedError("PolicyDecodeTooDeep")<{
   readonly maxDepth: number;
 }> {}
 
 /**
- * A generous structural ceiling on the raw JSON a policy decodes from,
- * checked before `Schema.decodeUnknownEffect` ever recurses into it.
+ * The text handed to {@link fromJson} is not JSON.
  *
- * {@link DEFAULT_MAX_DEPTH} bounds a *decoded* `Policy` at evaluation time
- * (`Evaluate.ts`), but nothing bounded the decode itself: `Schema`'s own
- * recursive descent through `PolicyRef` has no cap, so an adversarial JSON
- * string nesting `{"_tag":"Not","policy":...}` tens of thousands deep
- * exhausts the call stack *during decode*, before the 64-deep evaluation
- * guard is ever consulted — confirmed empirically at 60,000 levels, where it
- * throws a raw `RangeError`, not a typed `Effect` failure.
- * {@link exceedsJsonDepth} (`DecodeDepthGuard.ts`) walks the parsed JSON with
- * an explicit array-backed stack rather than recursion, so the guard itself
- * cannot be the thing that overflows.
- *
- * The bound is 4x {@link DEFAULT_MAX_DEPTH} — headroom for the extra JSON
- * nesting an array-valued node (`AllOf`/`AnyOf`/`Rules`) adds around each
- * `Policy` position — so no policy `evaluate` would ever accept is rejected
- * here first. This was 8x until {@link UNTRUSTED_DECODE_OPTIONS} started
- * setting `onExcessProperty: "error"`: that option forces `Schema`'s struct
- * decoder onto its generic, per-node-generator code path rather than the
- * tight loop used when no `ParseOptions` are given (v4-rc.112,
- * `SchemaAST.ts`'s object-parser "fast path" comment), and that path costs
- * enough additional stack per recursive level that decode itself started
- * raising the same raw `RangeError` well *inside* the old 8x bound — confirmed
- * empirically: nesting between roughly 430 and 440 levels deep, comfortably
- * under the old `DEFAULT_MAX_DEPTH * 8` (512), already overflowed. 4x (256)
- * leaves the guard itself with headroom under that new, lower ceiling while
- * still exceeding the ~128 raw JSON levels a maximally `AllOf`/`AnyOf`-nested
- * `evaluate`-depth-64 policy needs.
+ * `message` is the parser's own text (its `SyntaxError`'s `message`), so a paste
+ * box can show where the text broke; it echoes part of the caller's own input
+ * back to the caller. Before ADR-QD-143 this was reported as a `Schema.SchemaError`
+ * though nothing about the schema was wrong.
  */
-export const MAX_DECODE_DEPTH = DEFAULT_MAX_DEPTH * 4;
+export class PolicyNotJson extends Data.TaggedError("PolicyNotJson")<{
+  readonly message: string;
+}> {}
 
-/**
- * Untrusted-input decode options, shared by every entry point below.
- *
- * `onExcessProperty: "error"` is the deliberate stance (ADR-QD-002's trust-
- * boundary framing): a `Policy` is persisted and re-parsed JSON, and the
- * v4 default (`"ignore"`) would silently strip an unrecognized key from an
- * otherwise-valid tag — `{"_tag":"HasPermission","permision":…}` decodes to
- * `{ _tag: "HasPermission", permission: undefined }`'s *absence* of the typo'd
- * grant, not a decode failure naming it. That is exactly the class of silent
- * data loss this ADT was rewritten to make unrepresentable, just one field
- * later than the `fieldStrategy` case the ADR already covers. Threaded once
- * here rather than per `Schema.TaggedStruct` variant: `ParseOptions` is a
- * decode-call option, not a schema-construction one (v4 has no per-struct
- * excess-property switch), and `options` propagates through every nested
- * struct a decode recurses into — `Matcher`, `Obligation`, `RuleStruct` — so
- * setting it once at each public entry point below covers the whole tree.
- *
- * Exported (CCR-QD-139) so `SinkCodec.ts`'s `decodeSinkRecord` — which
- * embeds this same `Policy` schema across the same trust boundary — can share it
- * rather than decode with `Schema`'s default `onExcessProperty: "ignore"`, the
- * exact silent-data-loss shape this option exists to rule out.
- */
-export const UNTRUSTED_DECODE_OPTIONS: SchemaAST.ParseOptions = { onExcessProperty: "error" };
+const policyDecoder = untrustedDecoder(Policy);
 
-const decodePolicyUnknown = Schema.decodeUnknownEffect(Policy, UNTRUSTED_DECODE_OPTIONS);
+/** Text refusals, as `fromJson` reports them. */
+const textFailure = Match.type<UntrustedRefusal>().pipe(
+  Match.tagsExhaustive({
+    NotJson: ({ message }) => new PolicyNotJson({ message }),
+    TooDeep: ({ maxDepth }) => new PolicyDecodeTooDeep({ maxDepth }),
+    Malformed: ({ error }) => error,
+  }),
+);
+
+/** Value refusals, as `fromJsonValue` reports them. */
+const valueFailure = Match.type<UntrustedValueRefusal>().pipe(
+  Match.tagsExhaustive({
+    TooDeep: ({ maxDepth }) => new PolicyDecodeTooDeep({ maxDepth }),
+    Malformed: ({ error }) => error,
+  }),
+);
 
 /**
  * Decodes a policy from an untrusted JSON string.
  *
- * Parses with the platform's own `JSON.parse` first — which, unlike
- * `Schema`'s decoder, does not blow the stack on extreme nesting — purely to
- * run {@link exceedsJsonDepth} over the result before `Schema` ever walks it.
- * A parse failure here is not reported: it falls through to `Schema`'s own
- * decoder, which already reports malformed JSON as a typed failure.
+ * Refuses, in this order: text that is not JSON ({@link PolicyNotJson}), JSON
+ * nested deeper than the decode bound ({@link PolicyDecodeTooDeep}, checked
+ * before `Schema` recurses into it), then anything the strict decode rejects
+ * (`Schema.SchemaError`, issue tree kept) — including an unrecognized field
+ * inside an otherwise-valid tag, which is refused rather than silently dropped.
  *
- * Rejects, rather than silently drops, an unrecognized field inside an
- * otherwise-valid tag — see {@link UNTRUSTED_DECODE_OPTIONS}.
+ * Decodes through `UntrustedDecode.ts` and nothing else, and never catches a
+ * throw from the decode itself: one past the guard would be a library defect.
  */
 export const fromJson = (
   json: string,
-): Effect.Effect<Policy, PolicyDecodeTooDeep | Schema.SchemaError> =>
-  Effect.suspend((): Effect.Effect<Policy, PolicyDecodeTooDeep | Schema.SchemaError> => {
-    // Keeps the parsed value rather than discarding it (CCR-QD-116): every
-    // successful decode used to run `JSON.parse` a second time, inside
-    // `PolicyFromJson`'s own `fromJsonString`, on the exact string just
-    // parsed here. `decodePolicyUnknown` — already used by `fromJsonValue`
-    // for the same already-parsed-value case — reuses it instead.
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(json);
-    } catch {
-      // Malformed JSON: let Schema.fromJsonString report it its own way, with
-      // its own error reporting for this case unchanged.
-      return Schema.decodeUnknownEffect(PolicyFromJson, UNTRUSTED_DECODE_OPTIONS)(json);
-    }
-    if (exceedsJsonDepth(parsed, MAX_DECODE_DEPTH)) {
-      return Effect.fail(new PolicyDecodeTooDeep({ maxDepth: MAX_DECODE_DEPTH }));
-    }
-    return decodePolicyUnknown(parsed);
-  });
+): Effect.Effect<Policy, PolicyDecodeTooDeep | PolicyNotJson | Schema.SchemaError> =>
+  Effect.suspend(() => Effect.fromResult(policyDecoder.decodeText(json))).pipe(
+    Effect.mapError(textFailure),
+  );
 
 /**
  * Encodes a policy to a plain JSON value.
@@ -1049,17 +1007,18 @@ export const toJsonValue = Schema.encodeEffect(Policy);
 /**
  * Decodes a policy from an untrusted plain JSON value.
  *
- * See {@link fromJson} — the same stack-exhaustion risk applies to an
- * already-parsed value handed in directly, so the same depth check runs
- * first, and the same excess-property rejection applies (see
- * {@link UNTRUSTED_DECODE_OPTIONS}).
+ * Refuses, in this order, as {@link fromJson} does, minus the text step: nesting
+ * past the decode bound ({@link PolicyDecodeTooDeep}), then anything the strict
+ * decode rejects (`Schema.SchemaError`). The same stack-exhaustion risk applies
+ * to an already-parsed value handed in directly, which is why the guard runs
+ * first, and a throw past it is a library defect, never caught here.
  */
 export const fromJsonValue = (
   value: unknown,
 ): Effect.Effect<Policy, PolicyDecodeTooDeep | Schema.SchemaError> =>
-  exceedsJsonDepth(value, MAX_DECODE_DEPTH)
-    ? Effect.fail(new PolicyDecodeTooDeep({ maxDepth: MAX_DECODE_DEPTH }))
-    : decodePolicyUnknown(value);
+  Effect.suspend(() => Effect.fromResult(policyDecoder.decode(value))).pipe(
+    Effect.mapError(valueFailure),
+  );
 
 // ---------------------------------------------------------------------------
 // Structural queries

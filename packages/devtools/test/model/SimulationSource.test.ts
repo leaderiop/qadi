@@ -3,9 +3,11 @@
  *
  * Three ways to answer a simulated evaluation, and one property that must hold
  * across all of them: none can reach `CurrentSubject`, `DecisionSink` or
- * `DecisionCache`, because the seal lives in `simulationLayer` rather than in
- * any one source. `Live` is the interesting case — it is the only mode where a
- * panel can cause I/O — and it is still sealed against the three that matter.
+ * `DecisionCache`, because the seal is stated in `simulationLayer` (it supplies
+ * `CurrentSubject` and asks core's `evaluationEnvironment` for
+ * `shadow: "sinkAndCache"`) rather than in any one source. `Live` is the
+ * interesting case — it is the only mode where a panel can cause I/O — and it
+ * is still sealed against the three that matter.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";

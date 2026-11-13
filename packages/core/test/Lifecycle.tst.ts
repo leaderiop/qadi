@@ -1,24 +1,42 @@
 /**
- * `LifecycleOptions` is `EvaluateOptions` less `QuestionOptions`.
+ * `decideQuestion` takes exactly the options a built question leaves out.
  *
- * `Lifecycle.ts` restates the two options that are not part of the `Question`
- * because importing `EvaluateOptions` would add a type-only edge madge counts
- * (ADR-QD-037). A restatement nothing compares drifts: a third option added to
- * one and not the other would compile and be silently ignored by `decideQuestion`.
- * Pinned in both directions, so either side gaining or losing a field fails here.
- *
- * ARCH-61; ports orphan O3 of lost commit 4b1ed49.
+ * `EvaluateOptions` is declared once, beside `QuestionOptions`. `decideQuestion`'s
+ * parameter is derived from it by `Omit`, so an option added to `EvaluateOptions`
+ * reaches it with no second edit, and a question option (`resource`, `action`,
+ * `maxDepth`) cannot be handed again to a question that already holds it. `ask`
+ * reads `EvaluateOptions` and requires `EvaluationServices` by name, so neither is
+ * restated in `Lifecycle.ts` (ADR-QD-037, ADR-QD-105).
  */
+import type * as Effect from "effect/Effect";
+import type { Concurrency } from "effect/Types";
 import { expect, test } from "tstyche";
-import type { EvaluateOptions } from "../src/Evaluate.ts";
-import type { LifecycleOptions } from "../src/Lifecycle.ts";
-import type { QuestionOptions } from "../src/Question.ts";
+import type { EvaluationError } from "../src/Errors.ts";
+import type { EvaluationServices } from "../src/EvaluationServices.ts";
+import type { Asked } from "../src/Lifecycle.ts";
+import { ask, decideQuestion } from "../src/Lifecycle.ts";
+import type { EvaluateOptions, QuestionOptions } from "../src/Question.ts";
 
-test("EvaluateOptions is QuestionOptions plus LifecycleOptions", () => {
-  expect<EvaluateOptions>().type.toBeAssignableTo<QuestionOptions & LifecycleOptions>();
-  expect<QuestionOptions & LifecycleOptions>().type.toBeAssignableTo<EvaluateOptions>();
+test("EvaluateOptions is QuestionOptions plus exactly concurrency and evaluationId", () => {
+  expect<keyof EvaluateOptions>().type.toBe<
+    keyof QuestionOptions | "concurrency" | "evaluationId"
+  >();
 });
 
-test("LifecycleOptions names exactly the fields EvaluateOptions adds", () => {
-  expect<keyof EvaluateOptions>().type.toBe<keyof QuestionOptions | keyof LifecycleOptions>();
+test("decideQuestion takes exactly the options a built question leaves out", () => {
+  expect<Parameters<typeof decideQuestion>[1]>().type.toBe<
+    Omit<EvaluateOptions, keyof QuestionOptions> | undefined
+  >();
+  // The remainder spelled out, so a source that stopped deriving or widened
+  // fails here independently of `Omit`.
+  expect<Parameters<typeof decideQuestion>[1]>().type.toBe<
+    { readonly concurrency?: Concurrency; readonly evaluationId?: string } | undefined
+  >();
+});
+
+test("ask takes EvaluateOptions and requires EvaluationServices", () => {
+  expect<Parameters<typeof ask>[1]>().type.toBe<EvaluateOptions | undefined>();
+  expect<ReturnType<typeof ask>>().type.toBe<
+    Effect.Effect<Asked, EvaluationError, EvaluationServices>
+  >();
 });

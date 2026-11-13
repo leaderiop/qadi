@@ -3,13 +3,12 @@ import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Hash from "effect/Hash";
 import * as Record from "effect/Record";
-import type { EvaluateOptions } from "../src/Evaluate.ts";
 import { eq, subjectId } from "../src/Matcher.ts";
 import { hasAction, hasResourceAttribute, hasRole } from "../src/Policy.ts";
 import type { Policy } from "../src/Policy.ts";
 import { toPredicate } from "../src/Predicate.ts";
 import { questionOf } from "../src/Question.ts";
-import type { QuestionOptions } from "../src/Question.ts";
+import type { EvaluateOptions, QuestionOptions } from "../src/Question.ts";
 import { subjectWith, testLayer } from "./helpers.ts";
 
 const subject = subjectWith({});

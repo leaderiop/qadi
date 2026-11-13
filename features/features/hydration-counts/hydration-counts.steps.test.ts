@@ -101,7 +101,7 @@ const malformed = (index: number): DehydratedEntry =>
 
 /**
  * A well-formed entry apart from one field this schema has never declared —
- * the shape `UNTRUSTED_DECODE_OPTIONS`'s `onExcessProperty: "error"` stance
+ * the shape `untrustedDecoder`'s `onExcessProperty: "error"` stance
  * now refuses instead of silently decoding with the extra key dropped (issue
  * #105). The policy is deliberately the same undecodable shape `gibberish`
  * uses: the field-level excess-property check runs ahead of the policy decode

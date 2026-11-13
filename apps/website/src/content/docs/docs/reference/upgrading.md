@@ -390,3 +390,227 @@ typed error. In `@qadi/devtools`, a what-if replay of a request its capture neve
 port's typed error on every port. It used to answer the port's default, which `not(...)` turned into an
 allow. See
 [ADR-QD-129](https://github.com/leaderiop/qadi/blob/main/spec/decisions/129-a-replay-miss-is-an-outage-on-every-port.md).
+
+## 0.12: untrusted JSON is decoded through `untrustedDecoder`
+
+Every decode of untrusted JSON in the library now goes through one module, and the names that let a
+caller assemble that decode by hand are gone.
+
+| Removed | Instead |
+| ------- | ------- |
+| `PolicyFromJson` | `fromJson` for policy text, `fromJsonValue` for a parsed value |
+| `UNTRUSTED_DECODE_OPTIONS` | `untrustedDecoder(schema, options?)`, which applies the strict options itself |
+| `exceedsJsonDepth` (no longer exported) | `untrustedDecoder(schema).decode`, which runs the depth guard before the decode |
+
+`fromJson` now refuses text that is not JSON as the new `PolicyNotJson` (`ACL021`), where it was a
+`SchemaError`. Its failure is `PolicyNotJson | PolicyDecodeTooDeep | SchemaError`; `fromJsonValue` is
+unchanged. `MAX_DECODE_DEPTH` keeps its value (256) and its export, and is now declared in
+`UntrustedDecode.ts`. Before:
+
+```ts
+import * as Schema from "effect/Schema";
+import { exceedsJsonDepth, MAX_DECODE_DEPTH, PolicyFromJson, UNTRUSTED_DECODE_OPTIONS } from "@qadi/core";
+
+const decodeText = Schema.decodeUnknownEffect(PolicyFromJson, UNTRUSTED_DECODE_OPTIONS);
+const tooDeep = (parsed: unknown) => exceedsJsonDepth(parsed, MAX_DECODE_DEPTH);
+```
+
+After, build the decoder once at module scope and match the `Result`:
+
+```typescript
+import * as Result from "effect/Result";
+import * as Schema from "effect/Schema";
+import { untrustedDecoder } from "@qadi/core";
+
+const Settings = Schema.Struct({ name: Schema.String });
+const decodeSettings = untrustedDecoder(Settings);
+
+export const settings = decodeSettings.decodeText('{"name":"x"}');
+export const refused = Result.isFailure(settings) ? settings.failure._tag : undefined;
+```
+
+Add a `PolicyNotJson` arm to any `catchTag` or exhaustive match on `fromJson`'s failure, and a
+`PayloadTooDeep` arm to any exhaustive match on a hydration drop reason (`ClientHydrationDropReason` and
+`hydrationDropReasons` gain it, so `qadi_hydration_dropped_total` has a ninth series). In
+`@qadi/devtools`, the policy paste box now says "The text is not JSON" when it is not.
+
+## 0.12: a payload or an archive nested past the decode bound is reported as too deep
+
+Input nested past `MAX_DECODE_DEPTH` outside the part that is decoded entry by entry is now reported as
+too deep, where it was reported as malformed. Each closed union below gains a member, so an exhaustive
+match on it needs an arm.
+
+- `@qadi/react`: `PayloadRefusalReason` gains `PayloadTooDeep`. A hydration payload nested past the
+  bound outside its entries (an extra key, a field or an array payload holding such a value) is dropped
+  as `PayloadTooDeep`, where it was `MalformedPayload`. An entry or policy nested too deep is still
+  `EntryTooDeep`.
+- `@qadi/audit`: `ArchiveRefusal` gains `TooDeep { maxDepth }`. `readAuditArchive` refuses a stored
+  archive nested past the bound outside its entries before any decode, where it was `Malformed`.
+- `@qadi/audit`: `decodeAuditEntry` refuses a row nested past the bound outside its record as
+  `DecodeRefusal.TooDeep`, where it was `DecodeRefusal.Malformed`.
+
+If you do not need the distinction, handle the new member as you handle the old one:
+
+```typescript
+import type { ArchiveRefusal } from "@qadi/audit";
+
+export const isBadBundle = (refusal: ArchiveRefusal): boolean =>
+  refusal._tag === "Malformed" || refusal._tag === "TooDeep";
+```
+
+## 0.12: one clock vocabulary, `EvaluationClock`
+
+`@qadi/testing` and `@qadi/devtools` now take one clock word, `@qadi/core`'s `EvaluationClock`
+(`"live" | "deterministic"`). `@qadi/testing`'s deterministic clock is `"deterministic"`, where it was
+`"test"`, and `@qadi/devtools` no longer exports a clock type of its own: `SimulationClock` is removed.
+`"live"` is still the default in both. Before:
+
+```ts
+import { qadiTestLayer, subjectWith } from "@qadi/testing";
+import type { SimulationClock } from "@qadi/devtools";
+
+const simulation: SimulationClock = "deterministic";
+const layer = qadiTestLayer(subjectWith({ permissions: ["doc:read"] }), { clock: "test" });
+```
+
+After:
+
+```typescript
+import { qadiTestLayer, subjectWith } from "@qadi/testing";
+import type { EvaluationClock } from "@qadi/core";
+
+export const clock: EvaluationClock = "deterministic";
+export const layer = qadiTestLayer(subjectWith({ permissions: ["doc:read"] }), { clock });
+```
+
+## 0.12: `useTimeline` follows its component's lifetime
+
+`useTimeline` now reads its source in a scope the hook holds, as the dock does. A remount, or a tree that is
+hidden and shown again, starts a fresh timeline, unpaused, and reads the source again; a capacity change keeps
+the returned `store` and empties and re-reads it. Keep pause state and rows that must survive a hide above the
+hook, for example in the dock's own model, or accept the fresh read, and stop comparing `store` across a
+capacity change. Before:
+
+```ts
+import { useEffect } from "react";
+import { useTimeline } from "@qadi/devtools/react";
+import { source } from "./source";
+
+export const useRows = (capacity: number) => {
+  const { timeline, store } = useTimeline(source, { capacity });
+  // A new store per capacity was the signal to reset.
+  useEffect(() => resetSelection(), [store]);
+  return timeline;
+};
+```
+
+After:
+
+```typescript
+import { sourceFromRecords } from "@qadi/devtools";
+import { useTimeline } from "@qadi/devtools/react";
+
+const source = sourceFromRecords([]);
+
+// The returned `store` is the same across capacities.
+export const useRows = (capacity: number) => useTimeline(source, { capacity }).timeline;
+```
+
+## 0.12: `useDiagnostics` returns `{ status, reading }`
+
+`useDiagnostics` now returns the diagnostics feed's snapshot, the same one the dock reads: the reading moved to
+`reading`, and `status` says whether the sampler is off, starting, live or stopped, with the reason when it stopped.
+A sampler that died used to leave a reading that never changed again; now the status says so. Read
+`reading.hydration` and the other fields from `reading`. Before:
+
+```ts
+import { useDiagnostics } from "@qadi/devtools/react";
+
+export const useHydration = () => {
+  const { hydration } = useDiagnostics({ intervalMillis: 1_000 });
+  return hydration;
+};
+```
+
+After:
+
+```typescript
+import type { HydrationActivity } from "@qadi/devtools";
+import { DiagnosticsStatus, useDiagnostics } from "@qadi/devtools/react";
+import type { DiagnosticsDockOptions } from "@qadi/devtools/react";
+
+const sampling: DiagnosticsDockOptions = { intervalMillis: 1_000 };
+
+export const useHydration = (): HydrationActivity | undefined =>
+  useDiagnostics(sampling).reading.hydration;
+
+export const useStopReason = (): string | undefined => {
+  const { status } = useDiagnostics(sampling);
+  return DiagnosticsStatus.$is("Stopped")(status) ? status.reason : undefined;
+};
+```
+
+## 0.12: the atom set holds its own bound
+
+The atom set now sweeps its own question book back to `maxTrackedQuestions` within a few macrotasks of the book passing it, so a
+provider is no longer what enforces the bound. `QadiProvider`'s `sweepIntervalMillis` and `QadiAtoms.sweepEvictions` are
+gone: delete the prop, and delete any timer that ran `sweepEvictions` yourself. The bound now holds with no provider, on
+a bare registry, and after a provider unmounts. Before:
+
+```ts
+import * as Effect from "effect/Effect";
+import { QadiProvider } from "@qadi/react";
+import { atoms, canRead, reader } from "./qadi";
+
+export const App = () => (
+  <QadiProvider atoms={atoms} subject={reader} sweepIntervalMillis={10_000}>
+    <Can policy={canRead}>allowed</Can>
+  </QadiProvider>
+);
+
+// A host without React ran the sweep itself on a timer.
+setInterval(() => Effect.runSync(atoms.sweepEvictions), 10_000);
+```
+
+After:
+
+```tsx
+import { EvaluationServicesNone, hasPermission, makeSubject, permission } from "@qadi/core";
+import { Can, QadiProvider, makeQadiAtoms } from "@qadi/react";
+
+// The bound is the atom set's own: nothing else sweeps for it.
+const atoms = makeQadiAtoms(EvaluationServicesNone, { maxTrackedQuestions: 200 });
+const reader = makeSubject({ id: "u1", permissions: ["doc:read"] });
+const canRead = hasPermission(permission("doc", "read"));
+
+export const App = () => (
+  <QadiProvider atoms={atoms} subject={reader}>
+    <Can policy={canRead}>allowed</Can>
+  </QadiProvider>
+);
+```
+
+## 0.12: a checked baseline carries its own reading
+
+`Baseline`'s `Checked` arm now carries `reading`, the one-line sentence and whether the reconstruction reproduces the
+logged row, decided once when the baseline is checked. Code that builds a `Baseline` by hand must add it, and code that
+worked the sentence out from `comparison` and `caveat` itself can read `baseline.reading.sentence` and
+`baseline.reading.matches` instead. Before:
+
+```ts
+import type { Baseline } from "@qadi/devtools";
+
+export const describeBaseline = (baseline: Baseline): string =>
+  baseline._tag === "Checked" ? baseline.comparison._tag : baseline.reason;
+```
+
+After:
+
+```typescript
+import type { Baseline } from "@qadi/devtools";
+
+export const describeBaseline = (baseline: Baseline): string =>
+  baseline._tag === "Checked" ? baseline.reading.sentence : baseline.reason;
+```
+
+The headless model that decides this is [ADR-QD-047](https://github.com/leaderiop/qadi/blob/main/spec/decisions/047-a-headless-devtools-model.md).

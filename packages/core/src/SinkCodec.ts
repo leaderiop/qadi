@@ -60,7 +60,6 @@ import type { DecisionDisagreement, Trace } from "./Decision.ts";
 import type { DecisionOutcome, SinkRecord, StoredRecord } from "./DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord, stampRecord } from "./DecisionRecord.ts";
 import { DecisionWire, decodeDecision, encodeDecision } from "./DecisionWire.ts";
-import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
 import {
   AttributeResolveError,
   CustomPredicateError,
@@ -74,9 +73,10 @@ import {
   SinkRecordNotDecodable,
   SinkRecordNotEncodable,
 } from "./Errors.ts";
-import { MAX_DECODE_DEPTH, Policy, policyDepth, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
+import { Policy, policyDepth } from "./Policy.ts";
 import { wireHazard } from "./JsonHazard.ts";
 import { EncodeRefusal } from "./JsonRefusal.ts";
+import { isPlainObject } from "./JsonShape.ts";
 import {
   DECISION_RECORD_TAG,
   decisionRecordFields,
@@ -85,6 +85,8 @@ import {
 } from "./SinkRecordFields.ts";
 import { DecodeRefusal, WIRE_VERSIONS } from "./SinkWire.ts";
 import type { WireVersion } from "./SinkWire.ts";
+import { MAX_DECODE_DEPTH, untrustedDecoder } from "./UntrustedDecode.ts";
+import type { UntrustedRefusal } from "./UntrustedDecode.ts";
 
 /**
  * An `EvaluationError` on the wire — the union of the wire-crossing
@@ -411,25 +413,7 @@ export const encodeSinkRecord = (record: SinkRecord): Result.Result<SinkRecordJs
 export const encodeSinkRecordString = (record: SinkRecord): Result.Result<string, SinkRecordNotEncodable> =>
   Result.map(encodeSinkRecord(record), (json) => JSON.stringify(json));
 
-/**
- * The untrusted decoder, built once.
- *
- * Strict everywhere (`UNTRUSTED_DECODE_OPTIONS`): a typo'd field inside the
- * embedded policy fails rather than decoding with the grant silently dropped
- * (ADR-QD-002). It is handed the {@link envelopeOf} projection, so the one
- * place an unknown key is tolerated is the envelope's top level (GH-01,
- * ADR-QD-096).
- */
-const decodeWire = Schema.decodeUnknownResult(SinkRecordWire, UNTRUSTED_DECODE_OPTIONS);
-
 const notDecodable = (refusal: DecodeRefusal) => Result.fail(new SinkRecordNotDecodable({ refusal }));
-
-const malformed = (error: { readonly message: string }) =>
-  notDecodable(DecodeRefusal.Malformed({ message: error.message }));
-
-/** A JSON object: what an envelope is, and what an array or a primitive is not. */
-const isJsonObject = (input: unknown): input is object =>
-  typeof input === "object" && input !== null && !Array.isArray(input);
 
 /** An own property's value, or `undefined`: never one inherited from a prototype. */
 const ownValue = (input: object, key: string): unknown => Object.getOwnPropertyDescriptor(input, key)?.value;
@@ -452,13 +436,13 @@ const envelopeOf = (input: object): unknown => {
 };
 
 /**
- * A decode's result as a record, `Malformed` with the schema's message, or
- * `Inconsistent` when the record's copies disagree.
+ * A decode's result as a record, or the refusal it carries, or `Inconsistent`
+ * when the record's copies disagree.
  */
 const decoded = (
-  wire: Result.Result<SinkRecordWire, { readonly message: string }>,
+  wire: Result.Result<SinkRecordWire, DecodeRefusal>,
 ): Result.Result<SinkRecord, SinkRecordNotDecodable> => {
-  if (Result.isFailure(wire)) return malformed(wire.failure);
+  if (Result.isFailure(wire)) return notDecodable(wire.failure);
   const record = rebuild(wire.success);
   return Result.isFailure(record)
     ? notDecodable(DecodeRefusal.Inconsistent({ disagreement: record.failure }))
@@ -468,57 +452,78 @@ const decoded = (
 /** The version this reader reads, as a value to compare a record's `version` with. */
 const WIRE_VERSION: WireVersion = 2;
 
+type UnsupportedVersion = Extract<DecodeRefusal, { readonly _tag: "UnsupportedVersion" }>;
+
+/**
+ * The decoder's `prepare`: the version check, then the envelope projection.
+ *
+ * The version is read before the projection so a record of another version is
+ * never decoded against this version's keys (ADR-QD-096). `version: 2` is read;
+ * any other value, **or none**, is `UnsupportedVersion` rather than `Malformed`
+ * (the same convention ADR-QD-078 gives the hydration payload). A value that is
+ * not a JSON object passes through unchanged, so the strict decode reports it
+ * `Malformed`: it is not a record of any version.
+ */
+const versionThenEnvelope = (input: unknown): Result.Result<unknown, UnsupportedVersion> => {
+  if (!isPlainObject(input)) return Result.succeed(input);
+  const version = ownValue(input, "version");
+  return version === WIRE_VERSION
+    ? Result.succeed(envelopeOf(input))
+    : Result.fail(DecodeRefusal.UnsupportedVersion({ version, supported: WIRE_VERSIONS }));
+};
+
+/**
+ * The untrusted decoder for the wire, built once (ADR-QD-143).
+ *
+ * `UntrustedDecode.ts` runs the depth guard, then {@link versionThenEnvelope},
+ * then the strict decode (a typo'd field inside the embedded policy fails
+ * rather than decoding with the grant silently dropped, ADR-QD-002). The
+ * decode is handed the {@link envelopeOf} projection, so the one place an
+ * unknown key is tolerated is the envelope's top level (GH-01, ADR-QD-096).
+ * No `Result.try` around the decode: the guard is what makes it safe, and a
+ * throw past it would be a library defect that should stay visible.
+ */
+const sinkWire = untrustedDecoder(SinkRecordWire, { prepare: versionThenEnvelope });
+
+/** The decoder's refusal in this wire's own vocabulary; `Inconsistent` comes later, from `rebuild`. */
+const asDecodeRefusal: (refusal: UntrustedRefusal | UnsupportedVersion) => DecodeRefusal = Match.type<
+  UntrustedRefusal | UnsupportedVersion
+>().pipe(
+  Match.tagsExhaustive({
+    NotJson: () => DecodeRefusal.NotJson(),
+    TooDeep: ({ maxDepth }) => DecodeRefusal.TooDeep({ maxDepth }),
+    Malformed: ({ message }) => DecodeRefusal.Malformed({ message }),
+    UnsupportedVersion: (refusal) => refusal,
+  }),
+);
+
 /**
  * Untrusted input as a record, or the reason it is not one.
  *
  * The depth guard runs first, so the schema's recursion through `Policy` and
- * `Trace` cannot overflow. Then the version: `version: 2` is read; any other
- * value, **or none**, is `UnsupportedVersion` rather than `Malformed`
- * (ADR-QD-096, the same convention ADR-QD-078 gives the hydration payload).
- * A record with no `version` is a pre-0.10 record — wire version 1, whose
- * reader 0.11.0 removed (ADR-QD-096's 2026-10-06 amendment) — and is reported
- * as such, with `version: undefined`, never upgraded and never given a
- * fabricated outcome or subject. The record is projected onto its envelope's
- * declared keys, decoded with `UNTRUSTED_DECODE_OPTIONS`, and rebuilt into
- * record classes. It accepts whatever {@link encodeSinkRecord} emits
- * (INV-QD-096).
+ * `Trace` cannot overflow, then the version, then the projection onto the
+ * envelope's declared keys, then the strict decode, all inside the decoder
+ * ({@link sinkWire}); the result is rebuilt into record classes. A record with
+ * no `version` is a pre-0.10 record — wire version 1, whose reader 0.11.0
+ * removed (ADR-QD-096's 2026-10-06 amendment) — and is reported as
+ * `UnsupportedVersion` with `version: undefined`, never upgraded and never
+ * given a fabricated outcome or subject. It accepts whatever
+ * {@link encodeSinkRecord} emits (INV-QD-096).
  *
  * **The seam for the wire's shape.** How the outcome is carried and the
  * version dispatch live behind this function, so no adapter observes them and
  * a change to them is an edit to this module alone.
- *
- * The depth guard is `DecodeDepthGuard.ts`'s, shared with `Policy.ts`'s own
- * untrusted entry points: the wire embeds `Policy` and the self-recursive
- * `TraceSchema`, neither bounded on its own, and without the guard `Schema`'s
- * descent raised a raw `RangeError` on a payload nested about 60,000 levels
- * deep. The decode options are `Policy.ts`'s too (CCR-QD-139), so a typo'd
- * field inside the embedded policy fails rather than decoding with the grant
- * silently dropped.
- *
- * No `Result.try` around the decode: the depth guard is what makes it safe, and
- * a throw past it would be a library defect that should stay visible.
  */
-export const decodeSinkRecord = (input: unknown): Result.Result<SinkRecord, SinkRecordNotDecodable> => {
-  if (exceedsJsonDepth(input, MAX_DECODE_DEPTH)) {
-    return notDecodable(DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));
-  }
-  // Not an object, so not a record of any version: the decode says why.
-  if (!isJsonObject(input)) return decoded(decodeWire(input));
-  const version = ownValue(input, "version");
-  return version === WIRE_VERSION
-    ? decoded(decodeWire(envelopeOf(input)))
-    : notDecodable(DecodeRefusal.UnsupportedVersion({ version, supported: WIRE_VERSIONS }));
-};
+export const decodeSinkRecord = (input: unknown): Result.Result<SinkRecord, SinkRecordNotDecodable> =>
+  decoded(Result.mapError(sinkWire.decode(input), asDecodeRefusal));
 
 /**
  * JSON text as a record, or the reason it is not one: `NotJson` when the text
  * does not parse, otherwise whatever {@link decodeSinkRecord} says. Never
  * throws (INV-QD-097).
  */
-export const decodeSinkRecordString = (text: string): Result.Result<SinkRecord, SinkRecordNotDecodable> => {
-  const parsed = Result.try((): unknown => JSON.parse(text));
-  return Result.isFailure(parsed) ? notDecodable(DecodeRefusal.NotJson()) : decodeSinkRecord(parsed.success);
-};
+export const decodeSinkRecordString = (text: string): Result.Result<SinkRecord, SinkRecordNotDecodable> =>
+  decoded(Result.mapError(sinkWire.decodeText(text), asDecodeRefusal));
 
 // ---------------------------------------------------------------------------
 // The stored-record envelope (ARCH-11 D-11-e)
@@ -573,6 +578,10 @@ const notAnEnvelope = (message: string) => notDecodable(DecodeRefusal.Malformed(
  * D-15-c): a newer server's additive metadata must not refuse every frame for
  * the length of a rolling deploy.
  *
+ * **Not a decoder of its own.** It reads the envelope with `ownValue` and hands
+ * `record` to {@link decodeSinkRecord}, which is guarded; walking the envelope
+ * too would refuse a deep unknown envelope key that D-15-c says is ignored.
+ *
  * **Only an envelope is read.** A bare record — what a server older than 0.10,
  * which predates the envelope, sends — is refused as `Malformed`, naming
  * itself as bare, so an older server is reported rather than silently
@@ -584,7 +593,7 @@ const notAnEnvelope = (message: string) => notDecodable(DecodeRefusal.Malformed(
  * environment is the producer's, never the reader's. Never throws.
  */
 export const decodeStoredRecord = (input: unknown): Result.Result<StoredRecord, SinkRecordNotDecodable> => {
-  if (!isJsonObject(input)) return notAnEnvelope("a stored record is a JSON object { environment, record }");
+  if (!isPlainObject(input)) return notAnEnvelope("a stored record is a JSON object { environment, record }");
   if (!Object.hasOwn(input, "environment") && !Object.hasOwn(input, "record")) {
     return notAnEnvelope("a bare record, not a stored-record envelope { environment, record }");
   }
@@ -599,6 +608,8 @@ export const decodeStoredRecord = (input: unknown): Result.Result<StoredRecord, 
  * the text does not parse, otherwise whatever {@link decodeStoredRecord} says.
  */
 export const decodeStoredRecordString = (text: string): Result.Result<StoredRecord, SinkRecordNotDecodable> => {
+  // Not `decodeText`: the envelope must not be walked, since an unknown envelope key is
+  // ignored however deep (ADR-QD-096 D-15-c). `record` is guarded from its own root.
   const parsed = Result.try((): unknown => JSON.parse(text));
   return Result.isFailure(parsed) ? notDecodable(DecodeRefusal.NotJson()) : decodeStoredRecord(parsed.success);
 };

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-25                                    |
-> | Revision       | 1.22                                           |
+> | Revision       | 1.26                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.22 (2026-11-11): BEH-QD-450 added: a record's wire envelope is its fields plus a version, stated once; the BEH-QD-195 note names decisionRecordFor (ARCH-71, ADR-QD-135, CCR-QD-413)<br>1.21 (2026-11-10): BEH-QD-400 added: the role walk (roleWalk, RoleStep) visits each reachable role once, by identity, pre-order, first path wins, revisits reported; BEH-QD-192's diamond sentence names it (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.20 (2026-11-10): BEH-QD-368 added — every `qadi_*` metric is declared once and read through its export, and the metric table lists all 22 (ADR-QD-123, ARCH-61, CCR-QD-401)<br>1.19 (2026-11-09): BEH-QD-195 note — the obligation projection is made once before the handler runs (obligationRecordFor; ARCH-54, CCR-QD-393)<br>1.18 (2026-11-09): BEH-QD-195 — an obligation record is projected by obligationRecord (SinkEmit.ts) from the question its allow answered, beside the decision record's projections (ARCH-54, CCR-QD-393)<br>1.17 (2026-10-08): BEH-QD-199 — `decodeSinkRecord` refuses a decision that contradicts its own trace, or a record whose ids or policy tag contradict its decision, as `Inconsistent` naming the first disagreement; BEH-QD-200 unchanged (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.16 (2026-10-08): BEH-QD-195 — the handler receives one `ObligationDischarge` (the question and the allow), and the `ObligationRecord` names `subjectId`, `action` and `resourceId` (ADR-QD-105, CCR-QD-220)<br>1.15 (2026-10-08): BEH-QD-194 — a field change is judged by the lattice (`sameVisibleFields`), not by text (ARCH-45, CCR-QD-264)<br>1.14 (2026-10-07): BEH-QD-198 — `asked` MUST NOT list one question twice, MUST bound itself to `maxTrackedQuestions` cold questions, MUST NOT drop a question any reader holds open (including across a recompute), and a question asked again after eviction reappears; the question book (`QuestionBook.ts`) is its home, and a collection no longer splits one question into two (ADR-QD-103, INV-QD-105, CCR-QD-201)<br>1.13 (2026-10-07): BEH-QD-194 — `diffTraces` is stack-safe, and `tracePathKey` is a path's one text form (ADR-QD-101, CCR-QD-191)<br>1.12 (2026-10-07): BEH-QD-318 added — `foldPolicyCases`, each arm receiving its children in the tag's own shape; BEH-QD-300's closing sentence names which consumers use which form (ADR-QD-090 amendment, CCR-QD-190)<br>1.11 (2026-10-06): BEH-QD-199 — version 2 only: a record with no `version` (version 1) or any other is refused as `UnsupportedVersion`, `SinkRecordJson` is the version-2 encoded type, `WireVersion`/`WIRE_VERSIONS` are `2`/`[2]`; BEH-QD-200 — "both outcomes" is only sayable in refused version-1 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.10 (2026-10-05): BEH-QD-199 — the wire is versioned: version 1 read for good, version 2 carries one tagged `outcome` and is what the encoder writes, any other version refused as `UnsupportedVersion`; the reader ignores an unknown top-level envelope key and still refuses one at any nested position (GH-01, ADR-QD-096); BEH-QD-200 — a decision record naming neither outcome, or both, is refused rather than given an invented `MissingResource` or a silently chosen `decided` (tickets 96, 155, CCR-QD-180)<br>1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-095, CCR-QD-179)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.26 (2026-11-12): BEH-QD-198 restated: a seed is not lost to a registry's idle removal (CCR-QD-427)<br>1.25 (2026-11-12): The sweep runs within a few macrotasks of the pressure, not one: after an unmount the registry removes its node a macrotask later and only then does the book signal (CCR-QD-426)<br>1.24 (2026-11-12): BEH-QD-511 new (an atom set holds its own bound wherever it runs); BEH-QD-198 restated: the atom set's own sweep, one macrotask after the pressure (ARCH-83, CCR-QD-426)<br>1.23 (2026-11-12): the record wire decodes through untrustedDecoder, not an exported options constant (ARCH-78, CCR-QD-421)<br>1.22 (2026-11-11): BEH-QD-450 added: a record's wire envelope is its fields plus a version, stated once; the BEH-QD-195 note names decisionRecordFor (ARCH-71, ADR-QD-135, CCR-QD-413)<br>1.21 (2026-11-10): BEH-QD-400 added: the role walk (roleWalk, RoleStep) visits each reachable role once, by identity, pre-order, first path wins, revisits reported; BEH-QD-192's diamond sentence names it (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.20 (2026-11-10): BEH-QD-368 added — every `qadi_*` metric is declared once and read through its export, and the metric table lists all 22 (ADR-QD-123, ARCH-61, CCR-QD-401)<br>1.19 (2026-11-09): BEH-QD-195 note — the obligation projection is made once before the handler runs (obligationRecordFor; ARCH-54, CCR-QD-393)<br>1.18 (2026-11-09): BEH-QD-195 — an obligation record is projected by obligationRecord (SinkEmit.ts) from the question its allow answered, beside the decision record's projections (ARCH-54, CCR-QD-393)<br>1.17 (2026-10-08): BEH-QD-199 — `decodeSinkRecord` refuses a decision that contradicts its own trace, or a record whose ids or policy tag contradict its decision, as `Inconsistent` naming the first disagreement; BEH-QD-200 unchanged (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.16 (2026-10-08): BEH-QD-195 — the handler receives one `ObligationDischarge` (the question and the allow), and the `ObligationRecord` names `subjectId`, `action` and `resourceId` (ADR-QD-105, CCR-QD-220)<br>1.15 (2026-10-08): BEH-QD-194 — a field change is judged by the lattice (`sameVisibleFields`), not by text (ARCH-45, CCR-QD-264)<br>1.14 (2026-10-07): BEH-QD-198 — `asked` MUST NOT list one question twice, MUST bound itself to `maxTrackedQuestions` cold questions, MUST NOT drop a question any reader holds open (including across a recompute), and a question asked again after eviction reappears; the question book (`QuestionBook.ts`) is its home, and a collection no longer splits one question into two (ADR-QD-103, INV-QD-105, CCR-QD-201)<br>1.13 (2026-10-07): BEH-QD-194 — `diffTraces` is stack-safe, and `tracePathKey` is a path's one text form (ADR-QD-101, CCR-QD-191)<br>1.12 (2026-10-07): BEH-QD-318 added — `foldPolicyCases`, each arm receiving its children in the tag's own shape; BEH-QD-300's closing sentence names which consumers use which form (ADR-QD-090 amendment, CCR-QD-190)<br>1.11 (2026-10-06): BEH-QD-199 — version 2 only: a record with no `version` (version 1) or any other is refused as `UnsupportedVersion`, `SinkRecordJson` is the version-2 encoded type, `WireVersion`/`WIRE_VERSIONS` are `2`/`[2]`; BEH-QD-200 — "both outcomes" is only sayable in refused version-1 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.10 (2026-10-05): BEH-QD-199 — the wire is versioned: version 1 read for good, version 2 carries one tagged `outcome` and is what the encoder writes, any other version refused as `UnsupportedVersion`; the reader ignores an unknown top-level envelope key and still refuses one at any nested position (GH-01, ADR-QD-096); BEH-QD-200 — a decision record naming neither outcome, or both, is refused rather than given an invented `MissingResource` or a silently chosen `decided` (tickets 96, 155, CCR-QD-180)<br>1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-095, CCR-QD-179)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
@@ -770,14 +770,19 @@ REQUIREMENT: `asked` MUST record each distinct question once, in the order first
 
 ```
 REQUIREMENT: `asked` MUST NOT list one question twice, including after a garbage
-             collection, and MUST NOT lose a question's hydrated seed to one.
+             collection, and MUST NOT lose a question's hydrated seed to one, or
+             to a registry's removal of an idle node (BEH-QD-517).
 ```
 
+> **Amended 2026-11-12 (CCR-QD-427).** The requirement gains "or to a registry's removal of
+> an idle node (BEH-QD-517)": the seed is held by its question and the registry holds a grant
+> to it ([ADR-QD-149](../decisions/149-a-seed-is-held-by-its-question.md)).
+
 ```
-REQUIREMENT: `asked` MUST bound itself: `sweepEvictions` MUST drop the oldest
-             questions no reader holds open until at most `maxTrackedQuestions`
-             remain, and MUST stop short of the bound rather than drop a
-             question that is still held.
+REQUIREMENT: `asked` MUST bound itself: the atom set's own sweep MUST drop the
+             oldest questions no reader holds open until at most
+             `maxTrackedQuestions` remain, and MUST stop short of the bound
+             rather than drop a question that is still held.
 ```
 
 ```
@@ -795,8 +800,10 @@ question structurally, holds its handle strongly while tracked, counts the
 readers holding it open, and sweeps cold entries oldest-first. Eviction forgets
 the handle as well as the row, so a question's seed that was written and never
 read can be forgotten with it once more than `maxTrackedQuestions` questions are
-cold; the default bound is 500, and the provider's first sweep runs after its
-children have rendered and retained their questions
+cold; the default bound is 500. The atom set sweeps within a few macrotasks of the book
+going over its bound ([BEH-QD-511](#beh-qd-511-an-atom-set-holds-its-own-bound-wherever-it-runs)),
+so a seed written and never read for a question past the bound can be forgotten that
+soon
 ([INV-QD-105](../invariants.md#inv-qd-105-a-live-question-is-never-evicted-and-one-question-has-one-handle-while-tracked)).
 
 This is the honest basis for a "gates in the tree" panel, and the reason that
@@ -934,9 +941,10 @@ REQUIREMENT: `decodeSinkRecord` MUST ignore a top-level envelope key it does
 ```
 
 The wire embeds the same `Policy` schema across the identical trust boundary
-ADR-QD-002 describes, so it shares `Policy.ts`'s `UNTRUSTED_DECODE_OPTIONS`
-(`{ onExcessProperty: "error" }`) rather than decoding with `Schema`'s default
-`"ignore"`. Before CCR-QD-139 it did not: a wire record whose embedded policy
+ADR-QD-002 describes, so it decodes through `untrustedDecoder`
+(`UntrustedDecode.ts`, BEH-QD-486), whose strict options
+(`{ onExcessProperty: "error" }`) are private to it, rather than with `Schema`'s
+default `"ignore"`. Before CCR-QD-139 it did not: a wire record whose embedded policy
 carried a typo'd field — `{"_tag":"HasPermission","permision":...}` — decoded
 successfully, silently dropping the grant rather than reporting the typo,
 exactly the class of silent data loss ADR-QD-002 exists to rule out.
@@ -1082,6 +1090,45 @@ invented and none is chosen.
 so a field written as explicitly `undefined` arrives absent. Both read as
 `undefined`, so nothing downstream can tell; it is stated here because a test
 comparing structurally can.
+
+## BEH-QD-511: An atom set holds its own bound, wherever it runs
+
+```
+REQUIREMENT: `asked()` MUST return to `maxTrackedQuestions` once the readers
+             holding the excess have released, with no `QadiProvider`: on a bare
+             `AtomRegistry`, or in a non-React host. No caller schedules the
+             sweep, and none can ask for one.
+```
+
+The question book signals when an admission leaves it past its bound and when a
+release leaves a question at zero readers while it is over, and the atom set sweeps
+after that call has returned, on one deferred fiber per pressure episode
+([ADR-QD-148](../decisions/148-the-atom-set-owns-its-eviction-sweep.md)). Before it,
+the bound held only where a provider forked a sweep, so a host with none saw `asked()`
+grow without limit.
+
+```typescript
+import * as AtomRegistry from "effect/reactivity/AtomRegistry";
+import { EvaluationServicesNone, hasPermission, permission } from "@qadi/core";
+import { makeQadiAtoms } from "@qadi/react";
+
+const atoms = makeQadiAtoms(EvaluationServicesNone, { maxTrackedQuestions: 2 });
+const registry = AtomRegistry.make();
+
+/** Mounts and releases more questions than the bound; no provider is involved. */
+export const askThree = () => {
+  for (const name of ["a", "b", "c"]) {
+    const release = registry.mount(atoms.decision(hasPermission(permission("doc", name))));
+    release();
+  }
+  // Once the atom set's sweep has run, a few macrotasks later, `atoms.asked()` is two long:
+  // the oldest question is forgotten and the two newest are kept.
+};
+```
+
+Source: `packages/react/src/QadiAtoms.ts`, `packages/react/src/QuestionBook.ts`,
+`packages/react/src/SweepScheduler.ts`. Tests: `packages/react/test/QadiAtoms.sweep.test.ts`
+(S1, S2, S4).
 
 ---
 

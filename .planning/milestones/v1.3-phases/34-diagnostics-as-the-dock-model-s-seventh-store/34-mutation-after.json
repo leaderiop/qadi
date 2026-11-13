@@ -1,0 +1,6 @@
+{
+ "packages/devtools/src/model/DockModel.ts": 1,
+ "packages/devtools/src/model/DiagnosticsStore.ts": 1,
+ "packages/devtools/src/model/DiagnosticsFeed.ts": 0.9279279279279279,
+ "packages/devtools/src/model/TimelineFeed.ts": 1
+}

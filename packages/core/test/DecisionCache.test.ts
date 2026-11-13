@@ -861,9 +861,10 @@ describe("DecisionCache", () => {
           const claimant = yield* Effect.forkChild(evaluate(needsLookup));
           yield* Deferred.await(started1);
 
-          // Flushed while ask 1 is still in flight. Advances `generation`
-          // and empties `inFlight`, so ask 1's claim is no longer the one at
-          // `key` from this point on.
+          // Flushed while ask 1 is still in flight. `clear` resets the shared
+          // computation, which supersedes ask 1's claim and takes it out of
+          // `inFlight`, so it is no longer the claim at `key` and nothing it
+          // computes is written into the emptied cache.
           yield* DecisionCache.use((c) => c.clear);
 
           // Ask 2: the fresh, post-clear claimant for the exact same

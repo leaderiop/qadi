@@ -18,8 +18,8 @@ import type { CSSProperties, FC } from "react";
 import type { Role } from "@qadi/core";
 import { heldIndex, heldValue, type HeldChoiceStore } from "../model/HeldChoice.ts";
 import { grantPath, roleSummary } from "../model/RoleTree.ts";
-import { useHeldChoiceSnapshot } from "./useExplorerSession.ts";
 import { button, colors, font, muted } from "./theme.ts";
+import { useStoreSnapshot } from "./useStoreSnapshot.ts";
 
 export interface RoleViewerProps {
   /**
@@ -45,7 +45,7 @@ const chip = (own: boolean): CSSProperties => ({
 export const RoleViewer: FC<RoleViewerProps> = ({ choice, unknownParents }) => {
   // Position is a reading of the current list, never the selection (see
   // `HeldChoice`). A role that left the list stays shown, and says so.
-  const { list: roles, choice: resolved } = useHeldChoiceSnapshot(choice);
+  const { list: roles, choice: resolved } = useStoreSnapshot(choice);
   const role = heldValue(resolved);
   const index = heldIndex(resolved);
   const evicted = resolved._tag === "Evicted";

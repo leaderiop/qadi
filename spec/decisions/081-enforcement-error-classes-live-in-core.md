@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-081                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted — amends ADR-QD-072, ADR-QD-075       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-07): the extended table gets its reader, `classifyHttpEnforcementFailure`, which the decision stream's recheck now uses (CCR-QD-197)<br>1.0 (2026-10-04): Initial release (CCR-QD-155, ARCH-04) |
+> | Change History | 1.2 (2026-11-12): Amendment: StandingEvaluationServices is declared in EvaluationServices.ts, not Evaluate.ts (ARCH-80, CCR-QD-427)<br>1.1 (2026-10-07): the extended table gets its reader, `classifyHttpEnforcementFailure`, which the decision stream's recheck now uses (CCR-QD-197)<br>1.0 (2026-10-04): Initial release (CCR-QD-155, ARCH-04) |
 
 ---
 
@@ -55,6 +55,12 @@ against a core export as "a third public export three packages would need to agr
 premise was false — core already exported one, and `Exclude` itself enforces the agreement.
 `GuardRoute.ts`'s own `Exclude<R | EvaluationServices, CurrentSubject>` stays: it is deliberate and pinned by
 `GuardRoute.tst.ts`.
+
+> **Amended 2026-11-12 (CCR-QD-427, [ADR-QD-105](./105-an-obligation-is-discharged-against-the-question-it-answered.md)'s revision note).**
+> `StandingEvaluationServices` is declared once in the type-only
+> `packages/core/src/EvaluationServices.ts`, beside `EvaluationServices`; `Evaluate.ts`
+> declares only `evaluate`. The paragraph above names the file as it was when written,
+> and so does the Implemented list below. The users it names are unchanged.
 
 **D-04-c: one in-channel projection replaces the three hand-written arms.** `RequirePermissionLive` fails
 with `projectHttpEnforcementFailure(error)` for every tag, and `HttpApiMiddleware`'s encoder builds every

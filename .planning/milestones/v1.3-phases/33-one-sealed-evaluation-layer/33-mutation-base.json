@@ -1,0 +1,14 @@
+{
+ "measured": {},
+ "unmeasured": {
+  "packages/core/src/index.ts": "excluded by stryker.config.mjs mutate",
+  "packages/testing/src/QadiReviewLayer.ts": "outside stryker.config.mjs mutate (packages/core/src only)",
+  "packages/devtools/src/model/Simulation.ts": "outside stryker.config.mjs mutate (packages/core/src only)",
+  "packages/devtools/src/model/SimulationSession.ts": "outside stryker.config.mjs mutate (packages/core/src only)",
+  "packages/devtools/src/react/Simulator.tsx": "outside stryker.config.mjs mutate (packages/core/src only)",
+  "packages/devtools/src/index.ts": "outside stryker.config.mjs mutate (packages/core/src only)"
+ },
+ "new": [
+  "packages/core/src/EvaluationEnvironment.ts"
+ ]
+}

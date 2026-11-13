@@ -152,7 +152,7 @@ before setting `metadata.sequenceIntegrityVerified: true`. Entries with no
 `sequenceNumber` follow the sequenced ones, in the order given.
 `readAuditArchive(input)` reads a stored bundle back. It refuses, each with its own
 `ArchiveRefusal` in an `ArchiveNotVerified`, a bundle that is not an archive, has
-another `archiveVersion`, holds an entry that does not decode, declares a count
+another `archiveVersion`, nests past the decode bound, holds an entry that does not decode, declares a count
 it does not hold, has a sequence gap or duplicate, is out of the order
 `archiveAuditTrail` writes, or claims a verification it cannot back. It never
 sorts or repairs the bundle.

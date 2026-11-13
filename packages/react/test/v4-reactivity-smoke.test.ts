@@ -7,8 +7,8 @@
  * bump fails diffusely across the React suite and the cause has to be inferred
  * from four failing component tests.
  *
- * Every API exercised here is one `QadiAtoms.ts`, `QuestionBook.ts` or
- * `QadiProvider.tsx` actually calls. Pinning more than that would make the canary noisy, and a noisy canary
+ * Every API exercised here is one `QadiAtoms.ts`, `QuestionBook.ts`,
+ * `SweepScheduler.ts` or `QadiProvider.tsx` actually calls. Pinning more than that would make the canary noisy, and a noisy canary
  * gets skipped.
  */
 import * as Context from "effect/Context";
@@ -21,8 +21,9 @@ import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import * as Reactivity from "effect/reactivity/Reactivity";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { collect } from "./support/collect.ts";
+import { settle } from "./support/settle.ts";
 
 // ---------------------------------------------------------------------------
 // A service to put behind a runtime, so "the layer reached the atom" is
@@ -455,5 +456,135 @@ describe("effect/reactivity API canary", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(registry.getNodes().has(runtime)).toBe(false);
+  });
+
+  it("registry.dispose() runs every node's finalizers before it returns", () => {
+    // The book's release signal and the registry's disposal: a sweep pending when a
+    // registry is disposed finds the questions its nodes held already released.
+    const events: Array<string> = [];
+    const atom = Atom.readable((get) => {
+      get.addFinalizer(() => events.push("fin"));
+      return 1;
+    });
+    const registry = AtomRegistry.make();
+    registry.mount(atom);
+
+    registry.dispose();
+
+    expect(events).toEqual(["fin"]);
+  });
+
+  it("the last unsubscribe removes a node a macrotask later, not before the call returns", async () => {
+    // The book's release signal: a release after an unmount arrives a turn after
+    // the unmount, so `SweepScheduler.ts`'s deferral has a release to wait for.
+    const events: Array<string> = [];
+    const atom = Atom.readable((get) => {
+      get.addFinalizer(() => events.push("fin"));
+      return 1;
+    });
+    const registry = makeRegistry();
+    const unmount = registry.mount(atom);
+
+    unmount();
+    expect(events).toEqual([]);
+    expect(registry.getNodes().has(atom)).toBe(true);
+
+    await settle();
+    expect(events).toEqual(["fin"]);
+    expect(registry.getNodes().has(atom)).toBe(false);
+  });
+
+  it("a fork that begins with Effect.yieldNow, raised in a recompute's finalizer, runs after the re-read", async () => {
+    // `SweepScheduler.ts`'s deferral: an episode forked from a release inside the
+    // dispose-then-reread runs only after the re-read has put the count back.
+    const events: Array<string> = [];
+    const dep = Atom.make(0);
+    const atom = Atom.readable((get) => {
+      events.push("read");
+      get.addFinalizer(() => {
+        events.push("fin");
+        Effect.runFork(Effect.yieldNow.pipe(Effect.andThen(Effect.sync(() => events.push("fork")))));
+      });
+      return get(dep);
+    });
+    const registry = makeRegistry();
+    registry.mount(atom);
+    events.length = 0;
+
+    registry.set(dep, 1);
+    expect(events).toEqual(["fin", "read"]);
+
+    await settle();
+    expect(events).toEqual(["fin", "read", "fork"]);
+  });
+
+  it("a node read once and never subscribed is removed a macrotask later", async () => {
+    // The render-path read: a question read in render and never committed leaves
+    // the registry a turn later, and its release is what the book signals on.
+    const atom = Atom.readable(() => 1);
+    const registry = makeRegistry();
+
+    registry.get(atom);
+    expect(registry.getNodes().has(atom)).toBe(true);
+
+    await settle();
+    expect(registry.getNodes().has(atom)).toBe(false);
+  });
+
+  it("a fork raised by the removal is begun, and not finished, when one yield after the unmount resumes", async () => {
+    // The dispatcher's bucket order `QadiAtoms.sweep.test.ts`'s S9 relies on: the
+    // removal, and the fork it raises, run in the first drained bucket, the episode
+    // yields into the next, and a continuation that yielded once resumes between them.
+    const events: Array<string> = [];
+    const atom = Atom.readable((get) => {
+      get.addFinalizer(() => {
+        events.push("forked");
+        Effect.runFork(Effect.yieldNow.pipe(Effect.andThen(Effect.sync(() => events.push("swept")))));
+      });
+      return 1;
+    });
+    const registry = makeRegistry();
+    const unmount = registry.mount(atom);
+
+    unmount();
+    expect(events).toEqual([]);
+
+    await Effect.runPromise(Effect.yieldNow);
+    expect(events).toEqual(["forked"]);
+
+    await settle();
+    expect(events).toEqual(["forked", "swept"]);
+  });
+
+  it("a node seeded through initialValues is removed a macrotask later unless its atom is keepAlive", async () => {
+    // Guards the subject's keepAlive and the seed grant: an `effect` bump that moves
+    // when a seeded, unheld node leaves the registry must fail here, by name.
+    const plain = Atom.make(0);
+    const kept = Atom.make(0).pipe(Atom.keepAlive);
+    const registry = makeRegistry({
+      initialValues: [
+        [plain, 1],
+        [kept, 1],
+      ],
+    });
+
+    expect(registry.getNodes().has(plain)).toBe(true);
+    expect(registry.getNodes().has(kept)).toBe(true);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(registry.getNodes().has(plain)).toBe(false));
+    expect(registry.getNodes().has(kept)).toBe(true);
+  });
+
+  it("getNodes().get finds no node for an atom nothing read, and a seeded keepAlive node holds its value before it is built", () => {
+    // Guards the seed grant's read of the node map: a lookup must not create a node,
+    // and a seeded keepAlive node must answer before anything built it.
+    const unread = Atom.make(0);
+    const kept = Atom.make("").pipe(Atom.keepAlive);
+    const registry = makeRegistry({ initialValues: [[kept, "seed"]] });
+
+    expect(registry.getNodes().get(unread)).toBeUndefined();
+    expect(registry.getNodes().has(unread)).toBe(false);
+    expect(registry.getNodes().get(kept)?.valueOption()).toEqual(Option.some("seed"));
   });
 });

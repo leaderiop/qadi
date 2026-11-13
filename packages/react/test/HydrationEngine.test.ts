@@ -82,10 +82,8 @@ describe("makeSeededQuestion", () => {
       track: () => {},
     });
 
-    const first = AtomRegistry.make();
-    const second = AtomRegistry.make();
-    first.set(q.seed, allow);
-    second.set(q.seed, allow);
+    const first = AtomRegistry.make({ initialValues: [q.seed.hold(allow)] });
+    const second = AtomRegistry.make({ initialValues: [q.seed.hold(allow)] });
     first.mount(q.read);
     second.mount(q.read);
     // Re-reading in the same registry must not announce again.
@@ -111,9 +109,8 @@ describe("makeSeededQuestion", () => {
         }),
       track: () => {},
     });
-    const registry = AtomRegistry.make();
+    const registry = AtomRegistry.make({ initialValues: [q.seed.hold(allow)] });
     registry.mount(q.read);
-    registry.set(q.seed, allow);
 
     const during = registry.get(q.read);
     assert.isTrue(AsyncResult.isSuccess(during));
@@ -123,6 +120,51 @@ describe("makeSeededQuestion", () => {
     registry.set(gate, 1);
     const after = registry.get(q.read);
     assert.strictEqual(AsyncResult.isSuccess(after) ? after.value : undefined, deny);
+  });
+});
+
+describe("a seed slot gives each registry its own grant", () => {
+  const question = () =>
+    makeSeededQuestion<never>({
+      policy,
+      resource: undefined,
+      report: undefined,
+      computedFor: () => Atom.readable(() => AsyncResult.initial<Decision, never>()),
+      track: () => {},
+    });
+  const decisionOf = (registry: AtomRegistry.AtomRegistry, q: ReturnType<typeof question>) => {
+    const result = registry.get(q.read);
+    return AsyncResult.isSuccess(result) ? result.value : undefined;
+  };
+
+  it("returns one grant atom for a question and a distinct grant per call", () => {
+    const q = question();
+    const [atomA, grantA] = q.seed.hold(allow);
+    const [atomB, grantB] = q.seed.hold(allow);
+    assert.strictEqual(atomA, atomB);
+    assert.notStrictEqual(grantA, grantB);
+  });
+
+  it("reads the decision of the grant a registry was given", () => {
+    const q = question();
+    const other = new SeededDeny({
+      evaluationId: "e3",
+      subjectId,
+      durationMillis: 0,
+      disclosure: { _tag: "Withheld" },
+    });
+    const first = AtomRegistry.make({ initialValues: [q.seed.hold(allow)] });
+    const second = AtomRegistry.make({ initialValues: [q.seed.hold(other)] });
+    assert.strictEqual(decisionOf(first, q), allow);
+    assert.strictEqual(decisionOf(second, q), other);
+  });
+
+  it("reads none in a registry given no grant, and creates no node for it", () => {
+    const q = question();
+    const [grantAtom] = q.seed.hold(allow);
+    const unseeded = AtomRegistry.make();
+    assert.isUndefined(decisionOf(unseeded, q));
+    assert.isFalse(unseeded.getNodes().has(grantAtom));
   });
 });
 
@@ -177,7 +219,7 @@ describe("dehydrateWith and hydrateWith: both directions through the engine (ARC
     const lookup: HydrationSeedLookup = (policy, resource) => {
       const atom = Atom.make<SeededDecision | undefined>(undefined);
       calls.push({ policy, resource, atom });
-      return atom;
+      return { hold: (decision) => [atom, decision] };
     };
     return { calls, lookup };
   };
@@ -262,7 +304,7 @@ describe("a refused payload is always counted (INV-QD-045, ARCH-60)", () => {
     const before = mismatchCount();
     const pairs = [
       ...hydrateWith(
-        () => Atom.make<SeededDecision | undefined>(undefined),
+        () => ({ hold: (decision) => [Atom.make<SeededDecision | undefined>(undefined), decision] }),
         { version: 2, subjectId: "u2", entries: [] },
         makeSubject({ id: "u1" }),
         { onDropped: (drop) => drops.push(drop) },
@@ -282,9 +324,12 @@ describe("a refused payload is always counted (INV-QD-045, ARCH-60)", () => {
     const drops: Array<unknown> = [];
     const before = mismatchCount();
     const pairs = [
-      ...hydrateWith(() => Atom.make<SeededDecision | undefined>(undefined), nameless, makeSubject({ id: "u1" }), {
-        onDropped: (drop) => drops.push(drop),
-      }),
+      ...hydrateWith(
+        () => ({ hold: (decision) => [Atom.make<SeededDecision | undefined>(undefined), decision] }),
+        nameless,
+        makeSubject({ id: "u1" }),
+        { onDropped: (drop) => drops.push(drop) },
+      ),
     ];
     assert.strictEqual(mismatchCount() - before, 1);
     assert.strictEqual(pairs.length, 0);
@@ -331,7 +376,12 @@ describe("a throwing reporter changes nothing (INT-04, ARCH-60)", () => {
     );
     const before = counts();
     const { value: pairs, lines } = said(() => [
-      ...hydrateWith(() => Atom.make<SeededDecision | undefined>(undefined), wire, alice, { onDropped: boom }),
+      ...hydrateWith(
+        () => ({ hold: (decision) => [Atom.make<SeededDecision | undefined>(undefined), decision] }),
+        wire,
+        alice,
+        { onDropped: boom },
+      ),
     ]);
     const after = counts();
 

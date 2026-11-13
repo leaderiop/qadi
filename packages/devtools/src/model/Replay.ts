@@ -103,6 +103,12 @@ export type BaselineCaveat =
   | { readonly _tag: "TraceUndisclosed"; readonly reason: string }
   | { readonly _tag: "BaselineFailed"; readonly reason: string };
 
+/** A baseline in one line, with the one bit a view colours it by. */
+export interface BaselineReading {
+  readonly matches: boolean;
+  readonly sentence: string;
+}
+
 export type Baseline =
   | { readonly _tag: "Unavailable"; readonly reason: string }
   | {
@@ -111,7 +117,12 @@ export type Baseline =
       readonly comparison: Comparison;
       /** Absent when the record can attest to the comparison outright. */
       readonly caveat: BaselineCaveat | undefined;
+      /** The comparison in one line, and whether it reproduces the row; decided once, here. */
+      readonly reading: BaselineReading;
     };
+
+/** The part of a checked baseline its reading is read from. */
+type Compared = Pick<Extract<Baseline, { _tag: "Checked" }>, "comparison" | "caveat">;
 
 /**
  * The reconstruction against the row it was seeded from.
@@ -129,12 +140,11 @@ export const baselineDiff = (entry: TimelineEntry, simulated: DecisionOutcome): 
   }
 
   const decision = entry.decision;
-  return {
-    _tag: "Checked",
-    evaluationId: entry.evaluationId,
+  const compared: Compared = {
     comparison: compareOutcomes(decision.outcome, simulated),
     caveat: caveatOf(decision.policy, decision.outcome),
   };
+  return { _tag: "Checked", evaluationId: entry.evaluationId, ...compared, reading: readBaseline(compared) };
 };
 
 const caveatOf = (policy: Policy, outcome: DecisionOutcome): BaselineCaveat | undefined => {
@@ -164,14 +174,9 @@ const caveatOf = (policy: Policy, outcome: DecisionOutcome): BaselineCaveat | un
  * than claiming a match. That is the difference between *no difference found*
  * and *no difference to find*, and only the first is worth a green tick.
  */
-export const matchesBaseline = (self: Baseline): boolean =>
-  self._tag === "Checked" && self.caveat === undefined && !isChanged(self.comparison);
+export const matchesBaseline = (self: Baseline): boolean => self._tag === "Checked" && reproduces(self);
 
-/** A baseline in one line, with the one bit a view colours it by. */
-export interface BaselineReading {
-  readonly matches: boolean;
-  readonly sentence: string;
-}
+const reproduces = (self: Compared): boolean => self.caveat === undefined && !isChanged(self.comparison);
 
 /**
  * What differed, in one line.
@@ -180,7 +185,7 @@ export interface BaselineReading {
  * because "the verdict flipped" is a boolean the reader already has and "at
  * which node" is the thing they came for.
  */
-const summarise = (baseline: Extract<Baseline, { _tag: "Checked" }>): string => {
+const summarise = (baseline: Compared): string => {
   const comparison = baseline.comparison;
   if (comparison._tag === "BecameError") {
     return `this reconstruction failed with ${comparison.error._tag} where the logged one decided`;
@@ -205,15 +210,15 @@ const summarise = (baseline: Extract<Baseline, { _tag: "Checked" }>): string => 
 };
 
 /**
- * Reads a checked baseline: whether the reconstruction reproduces the row, and
- * the sentence that says so.
+ * Reads a comparison: whether the reconstruction reproduces the row, and the
+ * sentence that says so.
  *
  * The sentence was the Simulator's, computed on every render outside the
  * mutation gate (ARCH-73); it is here so that what a reviewer is told about a
  * reconstruction is decided once, under test.
  */
-export const readBaseline = (self: Extract<Baseline, { _tag: "Checked" }>): BaselineReading => {
-  const matches = matchesBaseline(self);
+const readBaseline = (self: Compared): BaselineReading => {
+  const matches = reproduces(self);
   return {
     matches,
     sentence: matches ? "matches — this reconstruction reproduces the logged decision" : summarise(self),

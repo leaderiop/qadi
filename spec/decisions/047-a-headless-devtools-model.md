@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-047                                   |
-> | Revision       | 1.12                                            |
+> | Revision       | 1.15                                            |
 > | Effective Date | 2026-10-07                                     |
-> | Status         | Accepted; amended 2026-10-07 (sampling is the model's), 2026-10-08 (the feed, a supplied reading, the interface), 2026-11-09 (the explorer's state is model too), 2026-11-10 (the stream's prelude rules are core's), 2026-11-10 (the simulator's fields are described once), 2026-11-10 (the dock's state is model too; replay is a command), 2026-11-11 (the simulator is a view of its session; ARCH-20 D-20-b superseded by ADR-QD-137), 2026-11-11 (the dock is one model) |
+> | Status         | Accepted; amended 2026-10-07 (sampling is the model's), 2026-10-08 (the feed, a supplied reading, the interface), 2026-11-09 (the explorer's state is model too), 2026-11-10 (the stream's prelude rules are core's), 2026-11-10 (the simulator's fields are described once), 2026-11-10 (the dock's state is model too; replay is a command), 2026-11-11 (the simulator is a view of its session; ARCH-20 D-20-b superseded by ADR-QD-137), 2026-11-11 (the dock is one model), 2026-11-12 (diagnostics are the seventh store), 2026-11-12 (the timeline's status is the eighth readout; a checked baseline carries its reading) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.12 (2026-11-11): amendment — the dock is one model: makeDockModel owns the six stores and pushes the rail, one configure, one owned-model hook; one held-choice cell; PolicyChoice carries HeldChoice's arms (ARCH-74, BEH-QD-465, BEH-QD-466, INV-QD-296, CCR-QD-416)<br>1.11 (2026-11-11): amendment — the simulator is a view of its session (setAction, choosePolicyAt, policyMenu, cost, baselineReading and a run's reading are the session's); the run lifecycle is ADR-QD-137's, which supersedes ARCH-20 D-20-b (ARCH-73, BEH-QD-460, CCR-QD-415)<br>1.10 (2026-11-10): amendment — the dock's tab, filters, selection and replay are DockSession; replay is a SimulationSession command that always re-seeds, reversing ARCH-20 D-20-g for replay (ARCH-63, BEH-QD-389, BEH-QD-390, INV-QD-107, CCR-QD-405)<br>1.9 (2026-11-10): amendment — the simulator's input fields are described once in SimulationFields.ts, and the session's chip commands and form reading are derived from it; the chip typing buffer stays in the view (ARCH-61, lost ARCH-48, INV-QD-257, CCR-QD-400)<br>1.8 (2026-11-10): cross-reference — the stream's prelude rules are @qadi/core's decodeDecisionStream; sourceFromEventSource is the EventSource adapter over it, signature unchanged (ARCH-60, CCR-QD-397)<br>1.7 (2026-11-09): amendment — the policy explorer's state is `ExplorerSession` and the role viewer's choice a `HeldChoiceStore`, both owned by `DevtoolsDock` and package-private (ARCH-58, BEH-QD-337, INV-QD-107, CCR-QD-394)<br>1.6 (2026-10-08): amendment — the model's interface is its stores, the host wiring and the timeline readings; a screen's mechanics and the panels are package-private (ARCH-40, CCR-QD-321)<br>1.4 (2026-10-08): amendment — a supplied reading is one value, `DiagnosticsReading`, merged by `mergeReading` (ARCH-44, CCR-QD-241)<br>1.3 (2026-10-08): amendment — under a `QadiProvider`, the layer the dock builds is the provider's own, handed by `@qadi/react`'s `useDevtoolsFeed` (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.15 (2026-11-12): Amendment: the timeline's status is the eighth readout, and a checked baseline carries its reading (CCR-QD-427)<br>1.14 (2026-11-12): review fixes: a closed feed and a repeated command publish nothing; the notice keeps a persistent status region, alerts once per stop and shows its focus (ARCH-82, BEH-QD-507, BEH-QD-509, INV-QD-313, CCR-QD-425)<br>1.13 (2026-11-12): amendment — diagnostics are the dock model's seventh store: one scoped feed with a closed status; the public hooks are adapters over scoped feeds; useRunningStore deleted (ARCH-82, BEH-QD-506..510, INV-QD-313..314, CCR-QD-425)<br>1.12 (2026-11-11): amendment — the dock is one model: makeDockModel owns the six stores and pushes the rail, one configure, one owned-model hook; one held-choice cell; PolicyChoice carries HeldChoice's arms (ARCH-74, BEH-QD-465, BEH-QD-466, INV-QD-296, CCR-QD-416)<br>1.11 (2026-11-11): amendment — the simulator is a view of its session (setAction, choosePolicyAt, policyMenu, cost, baselineReading and a run's reading are the session's); the run lifecycle is ADR-QD-137's, which supersedes ARCH-20 D-20-b (ARCH-73, BEH-QD-460, CCR-QD-415)<br>1.10 (2026-11-10): amendment — the dock's tab, filters, selection and replay are DockSession; replay is a SimulationSession command that always re-seeds, reversing ARCH-20 D-20-g for replay (ARCH-63, BEH-QD-389, BEH-QD-390, INV-QD-107, CCR-QD-405)<br>1.9 (2026-11-10): amendment — the simulator's input fields are described once in SimulationFields.ts, and the session's chip commands and form reading are derived from it; the chip typing buffer stays in the view (ARCH-61, lost ARCH-48, INV-QD-257, CCR-QD-400)<br>1.8 (2026-11-10): cross-reference — the stream's prelude rules are @qadi/core's decodeDecisionStream; sourceFromEventSource is the EventSource adapter over it, signature unchanged (ARCH-60, CCR-QD-397)<br>1.7 (2026-11-09): amendment — the policy explorer's state is `ExplorerSession` and the role viewer's choice a `HeldChoiceStore`, both owned by `DevtoolsDock` and package-private (ARCH-58, BEH-QD-337, INV-QD-107, CCR-QD-394)<br>1.6 (2026-10-08): amendment — the model's interface is its stores, the host wiring and the timeline readings; a screen's mechanics and the panels are package-private (ARCH-40, CCR-QD-321)<br>1.4 (2026-10-08): amendment — a supplied reading is one value, `DiagnosticsReading`, merged by `mergeReading` (ARCH-44, CCR-QD-241)<br>1.3 (2026-10-08): amendment — under a `QadiProvider`, the layer the dock builds is the provider's own, handed by `@qadi/react`'s `useDevtoolsFeed` (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.2 (2026-10-07): amendment — the simulator's state is model, held by `SimulationSession` beside `TimelineStore`; "renders that model and computes nothing" was not true of screen 5 until now (CCR-QD-199)<br>1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-097) (CCR-QD-181)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 ---
 
@@ -392,3 +392,94 @@ a prop fed by the host's subscription ([ADR-QD-080](./080-a-gate-registry-belong
 > explorer's and the dock's state are still sessions, and replay is still a command.
 > No new ADR: this amends the model's boundary, which this record owns. ADR-QD-138 was
 > reserved for it and is left unused (CCR-QD-416).
+
+> **Amended 2026-11-12 (CCR-QD-425): diagnostics are the dock model's seventh store.** The
+> dock forked its diagnostics poll from a React effect through `useRunningStore`, with a
+> hand-written dependency list, and merged the supplied reading in a `useMemo`. It was the
+> one place the dock still broke the 2026-11-11 amendment's "one owned-model hook, and it
+> forks nothing", and it had a defect the rest did not: a sample that died (a throwing
+> `questions`) ended the fiber, a fiber handle drops a dead fiber without a word, and the
+> Services and React panels froze on their last reading with nothing said (ARCH-82).
+>
+> - **One scoped feed, with a closed status.** `model/DiagnosticsFeed.ts`
+>   (package-private) runs one `FiberHandle` in the owner's scope and forks it while the
+>   owner is built, so `useScoped`'s synchronous build never waits on a layer. `configure`
+>   restarts on `layer`, `collector`, `questions` or `intervalMillis` changing identity,
+>   or on `diagnostics` going defined or `undefined`; `restart()` starts it again with the
+>   options it holds. Its snapshot is `{ status, reading }`, and `status` is a
+>   `Data.TaggedEnum`: `Off`, `Starting`, `Live`, `Stopped { reason, sampled }`
+>   ([BEH-QD-506](../behaviors/28-devtools-screens.md#beh-qd-506-the-diagnostics-poll-is-the-dock-models-seventh-store-with-a-closed-status)).
+> - **A defect stops visibly; an interruption never does.** The run's exit is observed,
+>   and `Cause.hasInterruptsOnly` separates an interruption (a restart, `configure(undefined)`,
+>   the scope closing) from a defect. A per-start token keeps a replaced run's late exit
+>   or sample from writing over a fresh one (the scope's close retires it too, so a layer
+>   whose release dies as the feed closes is not reported as a stop), the last accepted reading stays, a layer that
+>   fails to build stays `WiringRead.Failed` inside a feed that is `Live`, and every restart
+>   passes through `Starting`
+>   ([BEH-QD-507](../behaviors/28-devtools-screens.md#beh-qd-507-a-defect-stops-the-poll-visibly-and-a-restart-resumes-it),
+>   [INV-QD-313](../invariants.md#inv-qd-313-a-poll-defect-is-stated-an-interruption-never-is-and-a-replaced-run-never-writes)).
+> - **The merged reading is the seventh store.** `DockModel` merges the feed's reading
+>   with the supplied one when the feed publishes or `reading` changes identity, never in
+>   `getSnapshot`, so it keeps its identity between changes. `DevtoolsDock` renders it
+>   and merges nothing
+>   ([INV-QD-314](../invariants.md#inv-qd-314-the-merged-diagnostics-reading-is-the-models-computed-when-an-input-changes-and-keeps-its-identity)).
+> - **Lifetime.** A hidden `Activity` rebuilds the model, so after a show the diagnostics
+>   are at `Starting` with no reading, and the gap is stated rather than bridged. Holding
+>   the reading above the model was rejected: it gives the dock a second owner of what the
+>   model owns. `undefined` options are `Off` with `noDiagnostics`
+>   ([BEH-QD-508](../behaviors/28-devtools-screens.md#beh-qd-508-the-diagnostics-and-the-timeline-live-as-long-as-their-owners-scope)).
+> - **The public hooks are adapters over scoped feeds.** `useDiagnostics` returns
+>   `{ status, reading }` (**Breaking** for `@qadi/devtools`), `useTimeline` reads through
+>   a scoped timeline feed with its signature unchanged, and one store-snapshot hook
+>   reads every store. `react/useRunningStore.ts` is deleted, so the sentence above that
+>   names it among the shared mechanics is corrected by this amendment and not rewritten:
+>   the shared mechanics are `model/ExternalStore.ts` and the store-snapshot hook
+>   ([BEH-QD-510](../behaviors/28-devtools-screens.md#beh-qd-510-the-public-hooks-are-adapters-over-scoped-feeds-read-through-one-store-snapshot-hook)).
+> - **Every screen that reads the diagnostics states the status the same way.** One shared
+>   notice: `Starting` fills a polite region that is always mounted, `Stopped` is announced
+>   once per stop (the alert holds the lead and body, and the reason follows it) with a
+>   restart
+>   ([BEH-QD-509](../behaviors/28-devtools-screens.md#beh-qd-509-every-screen-that-reads-the-diagnostics-states-its-status-the-same-way)).
+> - **Three questions the research left open, answered.** (1) The timeline's placeholder
+>   before its feed exists is an inert module-scope store, `idleTimeline`: a shared live
+>   one could be fed by one component and read by another. (2) `useDiagnostics` before its
+>   feed exists is `Off` with no options and `Starting` otherwise, never a reading that
+>   looks sampled. (3) The `Stopped` reason is `Cause.pretty` kept verbatim and uncapped,
+>   carried only in the model's in-memory snapshot and rendered as React text in a block
+>   bounded in height, never sent to a sink record, a response, a log or a metric: this is
+>   a developer tool in the host's own process, and a capped trace would hide the frame a
+>   reviewer needs to find the defect.
+>
+> This extends the 2026-11-11 amendment and reverses nothing in it. A hide and a show of
+> the dock still rebuilds the model; the diagnostics now say so. No new ADR: this amends
+> the model's boundary, which this record owns. ADR-QD-147 was reserved for it and is left
+> unused (CCR-QD-425).
+
+> **Amended 2026-11-12 (CCR-QD-427): the timeline's status is the eighth readout, and a checked baseline carries its reading.**
+> The timeline feed's read had the defect the diagnostics poll had before the previous
+> amendment: a source whose backlog or live stream died ended a fiber, a fiber handle drops
+> a dead fiber without a word, and every screen kept showing the entries it had as if more
+> were coming. It also let a read that a re-entrant replace had superseded keep writing its
+> backlog.
+>
+> - **The timeline's read is watched as the diagnostics poll is.** A read that ends on a
+>   defect is `Stopped { reason }`, an interruption never is, a replaced read never writes,
+>   and `restart()` reads the current source again, keeping what was delivered
+>   ([BEH-QD-519](../behaviors/28-devtools-screens.md#beh-qd-519-a-defect-stops-the-timeline-visibly-and-a-restart-resumes-it),
+>   [INV-QD-313](../invariants.md#inv-qd-313-a-poll-defect-is-stated-an-interruption-never-is-and-a-replaced-run-never-writes)).
+> - **`DockModel.timelineStatus` is the eighth readout.** It is the feed's own status and
+>   restart, not merged with anything. The dock states a stop on the four screens that read
+>   the timeline (Log, Inspector, Policies, Simulator) through the stopped box the
+>   diagnostics notice uses, so the two feeds cannot disagree about how a stop looks
+>   ([BEH-QD-520](../behaviors/28-devtools-screens.md#beh-qd-520-every-screen-that-reads-the-timeline-states-a-stop-the-same-way)).
+> - **A checked baseline carries its reading.** The 2026-11-11 amendment above lists the
+>   session's readings with a separate baseline reading beside the snapshot's `baseline`; a
+>   `Checked` baseline now carries its `reading`, decided once where it is checked, so the
+>   snapshot has no second field to disagree with it
+>   ([BEH-QD-460](../behaviors/29-devtools-simulator.md#beh-qd-460-the-simulator-renders-its-session-and-computes-nothing)).
+>   That amendment's list is history and is not rewritten. The removal is **Breaking** for
+>   `@qadi/devtools`.
+>
+> This extends the 2026-11-12 amendment above and reverses nothing in it. A hide and a show
+> of the dock still rebuilds the model, so a stop does not survive it and is announced
+> afresh. No new ADR: this amends the model's boundary, which this record owns (CCR-QD-427).

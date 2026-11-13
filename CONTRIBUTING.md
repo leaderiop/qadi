@@ -80,6 +80,7 @@ and these do not surface there:
 | Dispatch on a tagged union | `AGENTS.md` §5a — `Match`, not `switch` (four named, budgeted exceptions) |
 | Anything on the forbidden list (`as`, `!`, `async`, ambient time/uuid) | `AGENTS.md` §6 |
 | The `Policy` ADT itself | `AGENTS.md` §7 and `spec/decisions/002-schema-derived-policy-adt.md` |
+| Decode untrusted JSON (a store, a socket, a page, a peer) | `AGENTS.md` §7a — `untrustedDecoder`; `UNTRUSTED_DECODE_BUDGET` in `scripts/check-house-style.mjs` |
 | `@qadi/react` | `AGENTS.md` §13 — no React state for decisions, atoms only |
 | `@qadi/promise` | `AGENTS.md` §14 — the facade may never decide anything |
 | The Next.js example | `examples/nextjs-newsroom/README.md` — it consumes the packages as a stranger does, and is step 15 of `pnpm check` |

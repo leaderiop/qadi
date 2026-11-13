@@ -160,6 +160,12 @@ on every tick, and a layer that fails to build is stated on the Services panel,
 with the other reads carrying on. Gates are not sampled: they come from the
 provider's registry and the feed reads them for you.
 
+While the first sample is pending, the Services and React screens say so. If the
+sampler fails with an unexpected error it stops: the screens say so with the reason,
+keep the last reading and offer **Restart diagnostics**. A hidden-then-shown dock
+samples afresh from its first sample, and removing `diagnostics` stops sampling and
+clears the reading.
+
 **A host with no `QadiProvider`** (a shell running `runDiagnostics`) hands the
 dock a layer of its own, and the dock's build of it is its own: a service that
 keeps state in its constructor is two instances if the dock and the application
@@ -172,6 +178,28 @@ carries wins over the sampled one and a field it omits falls through to the
 sample, so a dock can sample this process's activity and show another process's
 wiring. Its `wiring` is a `WiringRead`, so it can state a failed read as well as a
 report.
+
+**A host reading the diagnostics itself** takes the same options with
+`useDiagnostics`, which returns `{ status, reading }` from the same feed the dock
+runs, so a page can show hydration counts and know when sampling stopped:
+
+```tsx
+import { useDiagnostics } from "@qadi/devtools/react";
+
+// Held at module scope: the run restarts when one of these changes identity.
+const sampling = { intervalMillis: 1_000 };
+
+export const HydrationLine = () => {
+  const { status, reading } = useDiagnostics(sampling);
+  return (
+    <p>
+      {status._tag === "Stopped"
+        ? `stopped: ${status.reason}`
+        : `seeded: ${reading.hydration?.seeded ?? 0}`}
+    </p>
+  );
+};
+```
 
 ## What it renders
 
@@ -187,7 +215,8 @@ the dock takes, and the readings of a timeline.
 - **Stores.** `makeTimelineStore` and `runSource` hold the timeline;
   `makeSimulationSession` holds the simulator; `makeDiagnosticsStore` and
   `runDiagnostics` hold what the dock samples. `@qadi/devtools/react` has the
-  React half of each (`useTimeline`, `useSimulationSession`, `useDiagnostics`).
+  React half of each (`useTimeline`, `useSimulationSession`, `useDiagnostics`). `useDiagnostics` and the dock
+  share one feed.
 - **Inspection** (`inspect`, `flattenTree`) — walking a decision's evaluation
   tree, including nodes that never resolved or were truncated; with verdict
   classification (`verdictOf`), pairing, filters and selection.

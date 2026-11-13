@@ -16,8 +16,8 @@ import type { CSSProperties, FC } from "react";
 import type { ExplorerSession, ExplorerSnapshot } from "../model/ExplorerSession.ts";
 import { inspect } from "../model/Inspect.ts";
 import { PolicyTree } from "./PolicyTree.tsx";
-import { useExplorerSnapshot } from "./useExplorerSession.ts";
 import { button, colors, font, input, muted } from "./theme.ts";
+import { useStoreSnapshot } from "./useStoreSnapshot.ts";
 
 export interface PolicyExplorerProps {
   /** Owned by the dock, so what this shows survives leaving the tab (INV-QD-107). */
@@ -55,7 +55,7 @@ type Showing = Extract<ExplorerSnapshot, { readonly _tag: "Showing" }>;
  * wiring.
  */
 export const PolicyExplorer: FC<PolicyExplorerProps> = ({ session }) => {
-  const snapshot = useExplorerSnapshot(session);
+  const snapshot = useStoreSnapshot(session);
 
   if (snapshot._tag === "Empty") {
     return (

@@ -53,7 +53,7 @@ import * as Data from "effect/Data";
 import * as Schema from "effect/Schema";
 import { TraceSchema } from "./Decision.ts";
 import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
-import type { PolicyDecodeTooDeep } from "./Policy.ts";
+import type { PolicyDecodeTooDeep, PolicyNotJson } from "./Policy.ts";
 import type { EncodeRefusal } from "./JsonRefusal.ts";
 import type { DecodeRefusal, SinkRecordTag } from "./SinkWire.ts";
 
@@ -410,9 +410,9 @@ export type EvaluationError =
 /**
  * Every error this library can produce, including enforcement and construction.
  *
- * `PolicyDecodeTooDeep` is defined in `Policy.ts`, not here, and imported as a
- * type only, because only its type is needed here: it is raised by the public
- * `decodePolicy`/`fromJson` API, before evaluation. A value import would not
+ * `PolicyDecodeTooDeep` and `PolicyNotJson` are defined in `Policy.ts`, not
+ * here, and imported as a type only, because only the type is needed here: both
+ * are raised by the public `fromJson`/`fromJsonValue` API, before evaluation. A value import would not
  * be circular — `Policy.ts` does not reach `Errors.ts` (ARCH-27). It
  * belongs in this union regardless: ADR-QD-008/INV-QD-010 promise every error
  * this library can produce a stable code, and this one previously bypassed
@@ -428,6 +428,7 @@ export type QadiError =
   | DuplicateRoleDefinition
   | InvalidPermissionSegment
   | PolicyDecodeTooDeep
+  | PolicyNotJson
   | InvalidBoundedPermits
   | SinkRecordNotEncodable
   | SinkRecordNotDecodable;
@@ -460,6 +461,7 @@ export const ERROR_CODES = {
   "PredicateNotRenderable": "ACL018",
   "SinkRecordNotEncodable": "ACL019",
   "SinkRecordNotDecodable": "ACL020",
+  "PolicyNotJson": "ACL021",
 } as const satisfies Record<QadiError["_tag"], `ACL${string}`>;
 
 /** The stable code for a guard error. */

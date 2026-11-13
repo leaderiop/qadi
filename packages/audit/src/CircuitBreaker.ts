@@ -160,7 +160,7 @@ type State = StateClosed | StateOpen | StateHalfOpen;
  * Every `CircuitBreakerStatus` — {@link transitionsTotal}'s closed domain.
  *
  * A `Record<CircuitBreakerStatus, true>` rather than an array literal, the
- * `Decision.ts`/`Evaluate.ts` `*_BY_TAG` idiom: TypeScript requires every key
+ * `EvaluationMetrics.ts` `*_BY_TAG` idiom: TypeScript requires every key
  * of the type to be present (TS2741 otherwise), so a fourth status added to
  * the state machine without a matching entry here is a compile error rather
  * than a word silently missing from this metric's snapshot.

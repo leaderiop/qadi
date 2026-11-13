@@ -24,7 +24,8 @@
  * also on a recompute, and the two are told apart by timing rather than by the
  * count: `NodeImpl.invalidate` disposes the lifetime (the count drops to zero)
  * and then, synchronously and with no `yield*` in between, reads the atom again
- * (back to one). `sweep` runs on its own fiber, so it can never observe the
+ * (back to one). `sweep` runs on a fiber its owner forks after the book
+ * signals, never inside the call that signalled, so it can never observe the
  * momentary zero of a question a registry still holds; only a real teardown
  * leaves a zero for it to find. `v4-reactivity-smoke.test.ts` pins that
  * synchronous dispose-then-reread, and `QadiAtoms.test.ts` pins the sweep
@@ -73,6 +74,15 @@ export interface BookOptions<H> {
    * reader's finalizer.
    */
   readonly build: (question: AskedQuestion, live: () => () => void) => H;
+  /**
+   * Called when the book goes over capacity: on an admission past it, and on a
+   * release that leaves an entry cold while it is over.
+   *
+   * The book never sweeps itself here, because the call that signals may be a
+   * render or a registry's dispose-then-reread; its owner defers the sweep. The
+   * book stays free of `effect` so its rules stay testable with a plain function.
+   */
+  readonly signal?: (() => void) | undefined;
 }
 
 export interface QuestionBook<H> {
@@ -116,7 +126,7 @@ class Entry<H> {
  * its own, rather than left to fail the first time a sweep runs.
  */
 export const makeQuestionBook = <H>(options: BookOptions<H>): QuestionBook<H> => {
-  const { capacity, build } = options;
+  const { capacity, build, signal } = options;
   if (!(Number.isInteger(capacity) && capacity >= 1)) {
     throw new Error(`makeQadiAtoms: maxTrackedQuestions must be a positive integer, got ${capacity}`);
   }
@@ -128,6 +138,7 @@ export const makeQuestionBook = <H>(options: BookOptions<H>): QuestionBook<H> =>
     MutableHashMap.set(entries, entry.key, entry);
     order.push(entry);
     entry.inBook = true;
+    if (order.length > capacity) signal?.();
   };
 
   const open = (question: AskedQuestion): H => {
@@ -145,6 +156,7 @@ export const makeQuestionBook = <H>(options: BookOptions<H>): QuestionBook<H> =>
           if (released) return;
           released = true;
           entry.liveCount -= 1;
+          if (entry.liveCount === 0 && entry.inBook && order.length > capacity) signal?.();
         };
       }),
     );

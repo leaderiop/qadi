@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (latest: v1.2 Arch Wave 7, ARCH-69 to ARCH-77)
+# Qadi — Architecture Waves (last completed: v1.3 Arch Wave 8, ARCH-78 to ARCH-83)
 
 ## What This Is
 
@@ -14,6 +14,13 @@ The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
 
 ## Current State
+
+v1.3 Arch Wave 8 completed 2026-11-13 on branch `arch-wave-8` (333 commits, 220 files, +12,836 / −1,914
+outside `.planning`): ARCH-78 to ARCH-83 plus the carried spec debt, ADR-QD-143..149 (144, 145 and 147 unused),
+CCR-QD-421..427. All 7 phases `passed`, every one re-verified at the final head. The milestone audit is `tech_debt`,
+accepted by the user: 45/45 requirements, 7/7 integration seams, 4/4 flows, six manual browser checks never run.
+`pnpm check:pr` exited 0 at the end of every phase. **Not merged and not released.** Archive:
+`.planning/milestones/v1.3-ROADMAP.md`, `v1.3-REQUIREMENTS.md`, `v1.3-MILESTONE-AUDIT.md`.
 
 v1.2 Arch Wave 7 completed 2026-11-12 on branch `arch-wave-7` (272 commits, 170 files, +9,900 / −3,457
 outside `.planning`): ARCH-69 to ARCH-77, ADR-QD-133..140 (136, 138, 139 and 141 unused), CCR-QD-411..419.
@@ -34,7 +41,20 @@ All 9 phases verified `passed` against the final tree; the full `pnpm check` is 
 
 Not defined yet. Start it with `/gsd-new-milestone`, which writes a fresh `.planning/REQUIREMENTS.md`.
 
-## Previous Milestone: v1.2 Arch Wave 7 (completed 2026-11-12; not released)
+## Previous Milestone: v1.3 Arch Wave 8 (completed 2026-11-13; not released)
+
+**Goal:** Resolve all six candidates of the 2026-11-12 architecture review and clear
+the v1.2 spec debt (Phases 30–36, from ARCH-78).
+
+**Base commit:** `aab87576` (v1.2 merged as #156). **Shared rules:** `.planning/phases/_SHARED-CONTEXT.md`, overridden where
+stated by `.planning/phases/_WAVE8-CONTEXT.md` (base, numbering, per-phase evidence from the review).
+
+**Target features:** see `.planning/milestones/v1.3-REQUIREMENTS.md` (DEC, SUPR, EOPT, SEAL, DIAG, SWEEP, DEBT, WX).
+
+**Review report (local, outside the repo):** `/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/architecture-review-20261112-022336.html`.
+
+<details>
+<summary>v1.2 Arch Wave 7 (completed 2026-11-12; not released)</summary>
 
 **Goal:** Resolve the eight candidates and three footnotes of the 2026-11-11 architecture review (Phases 21–29, ARCH-69…77).
 
@@ -48,6 +68,8 @@ keys are read by devtools replay and test doubles, not by evaluation).
 BEH-QD-440–484, INV-QD-286–303, ARCH-69–77).
 
 **Review report (local, outside the repo):** `/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/architecture-review-20261111-011702.html`.
+
+</details>
 
 <details>
 <summary>v1.1 Arch Wave 6 (all phases complete 2026-11-10; merged as #155; not released)</summary>
@@ -99,10 +121,18 @@ logged, counted or spanned.
 - ✓ ARCH-75 Bare-route module (ROUTE-01..03): `addGuardedRoute` is written once in `GuardRoute.ts` (`guardRoute`/`buildGuardedRoute` removed); its typing rule (the handler's `CurrentSubject` discharged, the loader's not, no "Error" marker) and method agreement are pinned on the public function in `GuardRoute.tst.ts`; `RouteMethod` is stated once in the package-private `UnguardedRoute.ts`; `PermissionRegistry.ts` holds only the registry and `/__permissions` moved to `PermissionRegistryRoute.ts`; export names unchanged, no import cycle — Phase 27 (ADR-QD-036 Rev 1.10 amended, CCR-QD-417, BEH-QD-470; `@qadi/http` patch)
 - ✓ ARCH-76 Gate registry dependency (GATE-01..04): outcome A (the human's, from `_DECISIONS-v1.2.md`): `GateWriter.ts` is the React-free write side, a leaf below the registry with type-only imports, holding a pure `reconcile` tested against a fake writer without rendering; the hooks moved to `useGate.ts` above `QadiAtoms` and `GateAtoms` is `Pick<QadiAtoms, "decision" | "decisions">`; the test-only `useGateRegistration` is gone (its seven cases run on `useGateRegistrations`); public surface unchanged, no cycle — Phase 28 (ADR-QD-140 amends ADR-QD-111 and ADR-QD-080, CCR-QD-418; `@qadi/react` patch)
 - ✓ ARCH-77 Small restated facts (TIDY-01..03): a port's name and span are stated once in the import-free `PortName.ts` (one five-row table; `PortName`, `PortSpanName` and the new `PortSpanOf<N>` read from it; metrics untouched), and `PortDescription.span` is `PortSpanOf<N>`, so a description can name only its own port's span; `HydrationEngine.ts` states each entry's withheld fields once (`ALLOW_WITHHELD`/`DENY_WITHHELD`); `FAILURE_IS_NOT_A_DENIAL` in devtools' `model/Verdict.ts` serves the Inspector and the Simulator — Phase 29 (ADR-QD-094 and ADR-QD-123 amended, CCR-QD-419, ADR-QD-141 unused; `@qadi/core` minor, `@qadi/react` and `@qadi/devtools` patch)
+- ✓ ARCH-78 One strict decode module (DEC-01..08): `UntrustedDecode.ts` is the one way to strict-decode untrusted JSON (parse, depth guard, an optional seam `prepare`, strict decode; closed `NotJson | TooDeep | Malformed`), and the nine seams (`Policy.fromJson`/`fromJsonValue`, `SinkCodec`, the three port-wire decoders, `PortRemote`, hydration, the audit archive and row) keep only an exhaustive refusal mapping; `unwalked` replaces the hand-built partial-walk copies; `PolicyFromJson` removed, `UNTRUSTED_DECODE_OPTIONS`/`exceedsJsonDepth` off the surface, `PolicyNotJson`, `PayloadTooDeep` and `ArchiveRefusal.TooDeep` added (all **Breaking**); `[untrusted-decode]` budgets strict decode and `JSON.parse` outside the leaf both ways — Phase 30 (ADR-QD-143, ADR-QD-002/096/107 amended, CCR-QD-421, BEH-QD-486..489, INV-QD-305/306; `@qadi/core`, `@qadi/react`, `@qadi/audit` minor, `@qadi/devtools` patch)
+- ✓ ARCH-79 A reset supersedes its claims (SUPR-01..05): `SharedComputation` owns its staleness rule — each in-flight claim carries a closed `standing: "Live" | "Superseded" | "Abandoned"`, `reset` supersedes every in-flight claim in one synchronous step, and only a Live claim's exit reaches the adapter through the new `settle(key, exit)` hook (replacing `claim`); a superseded claim still answers every waiter and is still interrupted when its last waiter leaves; `DecisionCache` keeps no generation counter (`clear` empties the map and calls `shared.reset()`); four clear-mid-compute races (RED first) and a model-based property (seed 3101, 300 runs) pin it, `DecisionCache.test.ts` unchanged; no public API change — Phase 31 (ADR-QD-132 amended, CCR-QD-422, BEH-QD-491, INV-QD-307, ADR-QD-144 unused; `@qadi/core` patch)
+- ✓ ARCH-80 Evaluation options and services stated once (EOPT-01..04): `EvaluateOptions` is declared once, beside `QuestionOptions` in `Question.ts`; `EvaluationServices` and `StandingEvaluationServices` live in a new type-only leaf `EvaluationServices.ts`; `Evaluate.ts` declares only `evaluate`, with no re-export; `Lifecycle.ts` deleted its restated `LifecycleOptions` — `decideQuestion` takes `Omit<EvaluateOptions, keyof QuestionOptions>` and `ask` requires `EvaluationServices` by name. Public names and shapes unchanged, proven by a barrel tstyche pin committed on the phase base and kept byte-identical; mutation scores unchanged; `@qadi/core` patch changeset; CCR-QD-423 — v1.3 Phase 32
+- ✓ ARCH-81 One sealed evaluation layer (SEAL-01..05): `@qadi/core` exports one builder, `evaluationEnvironment({ ports, idPrefix, clock, shadow })`, every option required, returning `StandingEvaluationServices`; `shadow` is the closed union `EvaluationShadowing` (`"none" | "sinkAndCache"`), dispatched exhaustively — `sinkAndCache` installs a discarding sink and a fresh private cache per build. Devtools' `simulationLayer` passes `sinkAndCache`, `@qadi/testing`'s `qadiReviewLayer` and core's test helpers pass `none`; INV-QD-042 restated, INV-QD-311/312, ADR-QD-146 amends ADR-QD-050. One clock vocabulary, core's type-only `EvaluationClock` (`"live" | "deterministic"`): **Breaking** for testing's `clock: "test"` and devtools' removed `SimulationClock`, each mapped to a layer once outside core (core imports no `effect/testing`). Characterisation pins first, a review–simulation conformance test, new module mutation 100%; changesets core minor, testing and devtools minor with Breaking; CCR-QD-424 — v1.3 Phase 33
+- ✓ ARCH-82 Diagnostics as the dock model's seventh store (DIAG-01..06): `makeDockModel` takes `diagnostics` and `reading` through per-field `configure` and runs the poll on its own `FiberHandle` in the model's scope via `makeDiagnosticsFeed`. Its status is the closed `DiagnosticsStatus` (`Off`/`Starting`/`Live`/`Stopped{reason,sampled}`); interruption never reads as `Stopped`, and a generation token and closing finalizer guard late writes. The seventh store `diagnostics` holds `{status, reading}`, merged when an input changes, so the dock merges nothing. `useTimeline` runs a scoped `makeTimelineFeed`; one `useStoreSnapshot` replaces `useRunningStore`, and `useDockSession`/`useExplorerSession` are deleted. A Stopped notice on Services and Questions has a restart button and focus return, with the reason `<pre>` outside the alert. **Breaking:** `useDiagnostics` returns `{status, reading}`, and `useTimeline`'s lifetime is scoped. ADR-QD-047 and ADR-QD-137 are amended, BEH-QD-506..510, INV-QD-313..314; mutation DockModel 100, DiagnosticsFeed 92.8 with every survivor named; browser checks passed; CCR-QD-425 — v1.3 Phase 34
+- ✓ ARCH-83 The atom set owns its eviction sweep (SWEEP-01..05): a spike measured three mechanisms against six criteria, and the edge-triggered deferred sweep won on the fixed ranking (no timer, no fiber lifetime, one sweeper by construction). `QuestionBook` signals through a package-private `signal` seam on an admission over capacity and on a release to zero while over it. The new package-private `SweepScheduler` coalesces signals behind one pending flag and forks `Effect.yieldNow` then the sweep, once per pressure episode; a throwing fork clears the flag. `maxTrackedQuestions` now holds on a bare registry with no provider, with one sweep per episode across any number of providers or registries, never on the render path or inside the dispose-then-reread window, under StrictMode and Activity. The provider forks nothing. **Breaking:** `QadiProviderProps.sweepIntervalMillis` and `QadiAtoms.sweepEvictions` are removed. ADR-QD-148 is new, ADR-QD-014 and ADR-QD-103 are amended, BEH-QD-511..515, INV-QD-315..316, and AGENTS.md §13 is amended with the user's approval; mutation SweepScheduler 100, and no touched file fell; e2e 30/30; CCR-QD-426 — v1.3 Phase 35
+
+- ✓ Carried spec debt and stale records (DEBT-01..05): one BEH-QD-219..221 block in behaviour 29 (fail-closed replay kept); the stale `Sources.ts` token deleted (D-17 override of DEBT-02's wording); no live record claims replay fail-open is undecided; every open v1.2 info finding re-verified and fixed, resolved or refuted with evidence (`describeSource` beside `prepareSource`, one recorder per run); stale citations corrected. Two live defects found and fixed: a server seed lost one macrotask after hydration (now held by its question, a registry holding only a `SeedGrant`; the `subject` atom keepAlive first) and a timeline feed whose death read as live (closed `TimelineStatus`, Stopped notice with restart, shared `StoppedBox`). `qadi_port_calls_total`'s description corrected to say it counts the evaluator only. **Breaking** in `@qadi/devtools`: `Baseline.Checked` gains `reading`, `baselineReading` removed. ADR-QD-149 amends ADR-QD-039/103, BEH-QD-516..520, INV-QD-317..318; CCR-QD-427 — v1.3 Phase 36
 
 ### Active
 
-(None. v1.2's requirements all moved to Validated; the next milestone defines new ones.)
+None. The next milestone defines its own requirements (`/gsd-new-milestone`).
 
 ### Out of Scope
 
@@ -160,6 +190,19 @@ logged, counted or spanned.
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
 
+### Known Issues (carried forward from v1.3)
+
+- The tech debt the v1.3 audit accepted is listed in `.planning/milestones/v1.3-MILESTONE-AUDIT.md`. Its main items:
+  - six manual checks never run in a real browser: Activity hide/show timing, notice contrast and the focus ring
+    (Phases 34, 36), the late render commit at the bound under 6x CPU throttle (Phase 35), and seed assumption A1
+    (selective hydration mounting a gate after the provider's first macrotask in a streaming Next render). Each has
+    an automated proxy in happy-dom or the e2e;
+  - UI reviews 20/24 (Phase 34) and 21/24 (Phase 36): Restart and the reason block keep the browser default ring on
+    the amber background;
+  - one named mutation survivor, `TimelineNotice.tsx:40:20` (React renders `null` and `undefined` identically);
+  - attribution: 33 early commits on `arch-wave-8` lack the Opus 5.5 trailer (31 none, 2 Sonnet), left as is because
+    commit hashes are cited across the records.
+
 ### Known Issues (carried forward from v1.2)
 
 - The tech debt the v1.2 audit accepted is listed in `.planning/milestones/v1.2-MILESTONE-AUDIT.md`. Its main items:
@@ -177,8 +220,7 @@ logged, counted or spanned.
 
 - CI: the Node 26 matrix leg exceeds the 60-minute `timeout-minutes` during mutation on a full
   `pnpm check` (seen at c807b64 and 127d6fa); release PRs will hit it.
-- Devtools replay: the other four ports' `none` answers still grant under `not(...)` on a
-  capture miss (INV-QD-007 fail-open); flipping each is one word in `Capture.ts`. Needs a decision.
+- ~~Devtools replay fail-open on four ports~~: closed in v1.1 (ADR-QD-129, CCR-QD-407); this line was stale until 2026-11-12.
 - Open review findings, all warning or info: Phase 01 WR-02/WR-03/IN-03, Phase 02 IN-01..07,
   Phase 04 IN-01..03, Phase 05 WR-01/IN-01/IN-02, Phase 07 IN-01..03, Phase 09 IN-01
   (see each phase's `*-REVIEW-DISPOSITION.md` in the archive).
@@ -207,7 +249,7 @@ logged, counted or spanned.
 | Phase 8 amends ADR-QD-094 behind a human checkpoint | Serving facts belong to the port, but ADR-094 kept non-behavioral data out of descriptions | Accepted (Phase 8, D-01 approved, ADR-QD-114); 08-05 skipped |
 | `AuthorizeRequest.ts` leaves the barrel; `authorizeRequest`/`AuthorizedRequest` re-exported by name from `GuardApi.ts` | Keeps the module package-private (ADR-QD-099) with no export added or removed | Accepted (Phase 1, ADR-QD-108) |
 | Signature request key includes the requirement (meaning, signerRole) | A store receives the requirement and may filter on it, so the key must be injective over it (INV-QD-043) | Accepted (Phase 2) |
-| Devtools replay fails closed on an unseen signature request | An empty list would let `not(hasSignature)` show an allow the real store might not give | Accepted (Phase 2, WR-04); the other four ports undecided |
+| Devtools replay fails closed on an unseen signature request | An empty list would let `not(hasSignature)` show an allow the real store might not give | Accepted (Phase 2, WR-04); the other four ports closed in v1.1 (ADR-QD-129, CCR-QD-407) |
 | The archive writer refuses a sequence number the reader cannot decode (`SequenceNumberInvalid`), rather than scoping BEH-QD-254's agreement to safe integers | Scoping would have written writer/reader drift into the spec; refusing at the writer keeps the agreement true and closes the gap check's `2 ** 53` blind spot | Accepted (Phase 3, WR-01, D-48-g); widens the failure union, so `@qadi/audit` takes a minor |
 | The per-entry decision lookup lives in `useGates`, memoised on the group atom, rather than using the group atom as each entry's identity | No `QadiAtoms` member returns entry atoms (widening it would break), and group-atom identity would re-register every sibling when one entry changes (BEH-QD-068) | Accepted (Phase 4, D-03, ADR-QD-111); D-07 pin found no re-creation, so no `Equal`-keyed memo was added |
 | No ADR for ARCH-50; reserved ADR-QD-112 left unused | The refusal policy's documented owner is still core's `reportEncodeRefusal` (ADR-QD-095 D-09-e); the http module only frames and applies it per route | Accepted (Phase 5, CCR-QD-389) |
@@ -231,6 +273,31 @@ logged, counted or spanned.
 | A survivor that surfaces in an untouched file after a split is killed with a test, not re-baselined (28-05) | Moving tests between `GateWriter.ts` and `useGate.ts` exposed a real `GateRegistry.ts` survivor (a stale handle's `update` after a same-id re-registration) | Accepted (Phase 28, 8fbd9f58) |
 | A port's span union is derived from a leaf table, not from the descriptions (29-CONTEXT D-02) | Each annotated description's `span` type is the whole union, and the leaf cannot import descriptions without a cycle; the inverse derivation also narrows `span` to `PortSpanOf<N>` | Accepted (Phase 29, ADR-QD-094 amendment, CCR-QD-419); TIDY-01 annotated as delivered by the inverse derivation |
 | Moving per-call literals to module-scope constants can lower a file's mutation score with nothing worse; close it with a test (29-03) | `ignoreStatic` drops the moved lists' killed mutants while survivors stay (`HydrationEngine.ts` 0.9619 → 0.9605) | Accepted (Phase 29, 94841eb0: a nameless payload with entries is refused whole); 0.9619 → 0.9693 |
+| Untrusted JSON is decoded only through `untrustedDecoder`; the strict options and depth walk are private to core (Phase 30) | `PolicyFromJson` skipped the depth guard and raised a raw `RangeError` on deep input; eight seams assembled the recipe by hand | Accepted (ADR-QD-143, INV-QD-305/306); `[untrusted-decode]` budgets every strict-decode and `JSON.parse` token both ways |
+| `SharedComputation` owns staleness through a closed claim `standing`, not `DecisionCache`'s generation counter (Phase 31) | Two owners of one rule; a clear mid-compute could let a superseded exit reach the cache | Accepted (ADR-QD-132 amended, ADR-QD-144 unused) |
+| One sealed evaluation builder with a closed `EvaluationShadowing` and one `EvaluationClock` vocabulary (Phase 33) | Testing and devtools each sealed their own layer and spelled the clock differently | Accepted (ADR-QD-146); testing's `clock: "test"` and devtools' `SimulationClock` removed (Breaking) |
+| The atom set owns its eviction sweep: an edge-triggered, deferred, once-per-episode sweep (Phase 35) | A spike ranked three mechanisms on six fixed criteria; this one has no timer, no fiber lifetime and one sweeper by construction | Accepted (ADR-QD-148, AGENTS.md §13 amended with the user's approval); `sweepIntervalMillis`/`sweepEvictions` removed (Breaking) |
+| A refuted finding is a third disposition; DEBT-02 met by deleting the stale token, not adding one (D-17) | `Sources.ts` had been renamed `SimulationSource.ts`, already in the row | Accepted (Phase 36, CCR-QD-427) |
+| A seed is held by its question; a registry holds only a keepAlive `SeedGrant`, and the `subject` keepAlive lands first (D-19) | The seed node was dropped one macrotask after hydration; holding it in the shared book entry would leak across server requests | Accepted (Phase 36, ADR-QD-149); one tiny node per hydrated entry, bounded by the payload |
+| The seed covers the client's whole first check, in flight or not (D-20, the user's choice) | ADR-QD-039: `Initial` is the only state where this client has never answered; Pending would make the first render disagree with the server HTML | Accepted (Phase 36); the example's e2e pin is `Success,Success` |
+| A false metric description is corrected even though the registry key changes (review WR-01, overriding the 36-10 ledger) | Compatibility is never the tiebreaker; the description claimed `toPredicate` reads were counted | Accepted (Phase 36, b3787bd9); `@qadi/core` patch changeset |
+
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
 
 ---
-*Last updated: 2026-11-12 after v1.2 milestone*
+*Last updated: 2026-11-13 after v1.3 milestone*

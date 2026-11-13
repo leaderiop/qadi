@@ -71,7 +71,6 @@ export type {
   Selection,
   SignatureHistoryCall,
   SimulatedSubject,
-  SimulationClock,
   SimulationEdit,
   SimulationField,
   SimulationInput,
@@ -103,7 +102,10 @@ export type {
 export type {
   DevtoolsDockProps,
   DiagnosticsDockOptions,
+  DiagnosticsSnapshot,
+  DiagnosticsStatus,
   SimulationSessionView,
+  TimelineStatus,
   UseSimulationSessionInput,
   UseTimeline,
 } from "../src/react/index.ts";
@@ -185,6 +187,18 @@ export { PolicyTree } from "../src/react/index.ts";
 
 // @ts-expect-error no exported member
 export { drawLens } from "../src/react/index.ts";
+
+// @ts-expect-error no exported member
+export { makeDiagnosticsFeed } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { makeTimelineFeed } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { useStoreSnapshot } from "../src/react/index.ts";
+
+// @ts-expect-error no exported member
+export { DiagnosticsNotice } from "../src/react/index.ts";
 
 test("the React entry's AskedQuestionLike is the model's", () => {
   expect<ReactAskedQuestionLike>().type.toBe<AskedQuestionLike>();

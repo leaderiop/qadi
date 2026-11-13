@@ -1,42 +1,43 @@
 ---
 gsd_state_version: "1.0"
-milestone: v1.2
+milestone: v1.3
 status: Awaiting next milestone
-stopped_at: Phase 29 complete — all phases complete
-last_updated: "2026-11-12T01:28:23.163Z"
-last_activity: 2026-11-12
-last_activity_desc: "Milestone v1.2 shipped as PR #156"
-state_head: eaf3b1fca18c2acddf74ce161533363d1b08625c
+stopped_at: Phase 36 complete — all phases complete
+last_updated: "2026-11-13T02:29:12.787Z"
+last_activity: 2026-11-13
+last_activity_desc: "Milestone v1.3 shipped as PR #157"
+state_head: 963f6079742687623a54d7852f9634c8a8bad409
 progress:
-  total_phases: 9
-  completed_phases: 9
-  total_plans: 38
-  completed_plans: 38
+  total_phases: 7
+  completed_phases: 7
+  total_plans: 54
+  completed_plans: 54
   percent: 100
-milestone_name: Arch Wave 7 (Phases 21-29)
-current_phase: 29
+milestone_name: Arch Wave 8
+current_phase: 36
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-12)
+See: .planning/PROJECT.md (updated 2026-11-13)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Milestone v1.2 complete and archived (override_closeout, not released); next: /gsd-new-milestone
+**Current focus:** v1.3 complete and archived; next milestone not defined (`/gsd-new-milestone`)
 
 ## Current Position
 
-Phase: Milestone v1.2 complete
+Phase: Milestone v1.3 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-11-12 -- Milestone v1.2 shipped as PR #156
+Last activity: 2026-11-13 -- Milestone v1.3 shipped as PR #157
+
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 73
+- Total plans completed: 127
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -63,6 +64,13 @@ Last activity: 2026-11-12 -- Milestone v1.2 shipped as PR #156
 | 27 | 3 | - | - |
 | 28 | 5 | - | - |
 | 29 | 3 | - | - |
+| 30 | 9 | - | - |
+| 31 | 5 | - | - |
+| 32 | 4 | - | - |
+| 33 | 6 | - | - |
+| 34 | 9 | - | - |
+| 35 | 7 | - | - |
+| 36 | 14 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -138,6 +146,60 @@ Last activity: 2026-11-12 -- Milestone v1.2 shipped as PR #156
 | Phase 29 P01 | 5 min | 2 tasks | 22 files |
 | Phase 29 P02 | 2 min | 2 tasks | 4 files |
 | Phase 29 P03 | 25 min | 3 tasks | 8 files |
+| Phase 30 P01 | 6 min | 3 tasks | 5 files |
+| Phase 30 P02 | 12 min | 1 tasks | 14 files |
+| Phase 30 P03 | 14 min | 3 tasks | 5 files |
+| Phase 30 P04 | 6 min | 2 tasks | 3 files |
+| Phase 30 P05 | 7 min | 2 tasks | 8 files |
+| Phase 30 P06 | 12 min | 2 tasks | 11 files |
+| Phase 30 P07 | 40 min | 2 tasks | 13 files |
+| Phase 30 P08 | 8 min | 2 tasks | 8 files |
+| Phase 30 P09 | 25 min | 3 tasks | 5 files |
+| Phase 31 P01 | 20 min | 2 tasks | 2 files |
+| Phase 31 P02 | 15 min | 2 tasks | 2 files |
+| Phase 31 P03 | 20 min | 2 tasks | 3 files |
+| Phase 31 P04 | 15 min | 2 tasks | 6 files |
+| Phase 31 P05 | 10 min | 3 tasks | 1 files |
+| Phase 32 P01 | 10 min | 2 tasks | 2 files |
+| Phase 32 P02 | 12 min | 2 tasks | 16 files |
+| Phase 32 P03 | 10 min | 2 tasks | 7 files |
+| Phase 32 P04 | 12 min | 3 tasks | 1 files |
+| Phase 33 P01 | 12 min | 3 tasks | 3 files |
+| Phase 33 P02 | 20 min | 2 tasks | 7 files |
+| Phase 33 P03 | 12 min | 2 tasks | 8 files |
+| Phase 33 P04 | 20 min | 2 tasks | 8 files |
+| Phase 33 P05 | 15 min | 2 tasks | 8 files |
+| Phase 33 P06 | 12 min | 3 tasks | 1 files |
+| Phase 34 P01 | 8 min | 3 tasks | 3 files |
+| Phase 34 P02 | 10min | 3 tasks | 7 files |
+| Phase 34 P03 | 4 min | 3 tasks | 8 files |
+| Phase 34 P04 | 8 min | 2 tasks | 10 files |
+| Phase 34 P05 | 20min | 2 tasks | 4 files |
+| Phase 34 P06 | 12min | 3 tasks | 14 files |
+| Phase 34 P07 | 25min | 3 tasks | 11 files |
+| Phase 34 P08 | 6 min | 3 tasks | 10 files |
+| Phase 34 P09 | 4 min | 3 tasks | 1 files |
+| Phase 35 P01 | 3 min | 3 tasks | 3 files |
+| Phase 35 P02 | 10 min | 3 tasks | 1 files |
+| Phase 35 P03 | 30min | 2 tasks | 1 files |
+| Phase 35 P04 | 5 min | 3 tasks | 11 files |
+| Phase 35 P05 | 20 min | 3 tasks | 8 files |
+| Phase 35 P06 | 8 min | 3 tasks | 11 files |
+| Phase 35 P07 | 5 min | 3 tasks | 1 files |
+| Phase 36 P01 | 25 min | 2 tasks | 2 files |
+| Phase 36 P02 | 15 min | 3 tasks | 9 files |
+| Phase 36 P03 | 6 min | 3 tasks | 4 files |
+| Phase 36 P04 | 40 min | 3 tasks | 4 files |
+| Phase 36 P05 | 7 min | 3 tasks | 7 files |
+| Phase 36 P06 | 20 min | 2 tasks | 9 files |
+| Phase 36 P07 | 20 min | 2 tasks | 4 files |
+| Phase 36 P08 | 14 min | 3 tasks | 11 files |
+| Phase 36 P09 | n/a | 3 tasks | 6 files |
+| Phase 36 P10 | 10 min | 3 tasks | 20 files |
+| Phase 36 P11 | 25 min | 3 tasks | 9 files |
+| Phase 36 P12 | 25 min | 3 tasks | 11 files |
+| Phase 36 P13 | 30 min | 3 tasks | 8 files |
+| Phase 36 P14 | 40 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -196,6 +258,66 @@ Last activity: 2026-11-12 -- Milestone v1.2 shipped as PR #156
 - [Phase 29]: TIDY-02 needed no new test: HydrationPayload.test.ts already decodes allow and deny under the untrusted options, with and without includeTrace
 - [Phase 29]: FAILURE_IS_NOT_A_DENIAL lives in devtools model/Verdict.ts and stays out of both barrels (D-05)
 - [Phase 29]: 29-03: no new ADR; ADR-QD-141 unused, narrowing recorded as an ADR-QD-094 amendment (CCR-QD-419)
+- [Phase 30]: 30-01: characterisation tables pin what the base returns (hydration [] is MalformedPayload, not UnsupportedPayloadVersion); the array-payload-nested row flips in 30-05 only if the guard runs before the object check
+- [Phase 30]: 30-02: PolicyNotJson carries the parser message and lives in Policy.ts; UNTRUSTED_DECODE_OPTIONS stays exported from the leaf until 30-06
+- [Phase 30]: 30-03: decodeStoredRecord stays outside the untrusted decoder; it hands record to the guarded decodeSinkRecord
+- [Phase 30]: 30-04: the audit row's too-deep maps to the existing DecodeRefusal.TooDeep (no new member); ArchiveRefusal gains TooDeep first (Breaking)
+- [Phase 30]: 30-05: an array payload nested past the bound is PayloadTooDeep (guard runs before prepare); a shallow array stays MalformedPayload
+- [Phase 30]: 30-06: UNTRUSTED_DECODE_BUDGET counts Schema.decode* too; [untrusted-decode-table] checks counts as well as files; options private and DecodeDepthGuard out of the barrel
+- [Phase 30]: ADR-QD-143: untrusted JSON is decoded through one module; BEH-QD-259 restated so it describes the decoder; BEH-QD-490 left Unused
+- [Phase 30]: 30-08: MAX_DECODE_DEPTH unchanged vs 0.11.0 (256); UNTRUSTED_DECODE_OPTIONS and exceedsJsonDepth treated as released names
+- [Phase 30]: 30-09: drop-closing tests for ExplorerSession.ts live in ExplorerSessionRefusal.test.ts, since ExplorerSession.test.ts hosts the paste-box characterisation pin
+- [Phase 30]: review (3 auto-fix rounds, 11 findings, all fixed): NotJson carries the parser's own message; JSON.parse counted by [untrusted-decode]; one package-private isPlainObject in JsonShape.ts; ADR-QD-002 amended; 30-mutation-after.json refreshed at HEAD
+- [Phase 31]: 31-01: RED races written against the base's claim hook; harness migration to settle stays in 31-03 Task 1
+- [Phase 31]: 31-02: claim transitions are module-scope tables typed Exclude<Standing, 'Live'>, so nothing can return to Live and no unkillable equivalent mutant is added
+- [Phase 31]: settle(key, exit) receives the full Exit so DecisionCache keeps its own successes-only policy
+- [Phase 31]: Property non-vacuity floors met by weighting the command generator, never by lowering a floor
+- [Phase 31]: ADR-QD-144 unused: a reset is a second cause of ADR-QD-132's decision, so it is amended rather than superseded
+- [Phase 32]: 32-01: the shape pin reads only the @qadi/core barrel and spells each service union out to the five ports, so it stays byte-identical through the move
+- [Phase 32]: 32-02: evaluationId doc now points at decideQuestion in Lifecycle.ts; no TS2883, no re-export in Evaluate.ts
+- [Phase 32]: ADR-QD-081's Evaluate.ts paragraph is history; left for Phase 36 and named in CCR-QD-423
+- [Phase 32]: 32-04: no drop in the six baselined files; check:pr green on the final tree (89 s, core 99.84% lines)
+- [Phase 33]: 33-01: baseline records absence of measured mutants from stryker.config.mjs globs, not a score
+- [Phase 33]: 33-02: simulationLayer typed Layer<EvaluationServices>; no Layer.fresh, freshness proven per build by test
+- [Phase 33]: 33-03: both clock maps (testing, devtools) annotated Layer.Layer<never>; EvaluationClock not re-exported from devtools
+- [Phase 33]: 33-04: ADR-QD-050 body untouched; the testing clock literal is corrected by a new 2026-11-12 amendment (Rev 1.5) pointing at ADR-QD-146
+- [Phase 33]: 33-05: one 0.12 upgrade section covers both breaks; core changeset carries no Breaking word
+- [Phase 33]: 33-06: Phase 33 closed with no surviving mutant in EvaluationEnvironment.ts (6/6 detected) and check:pr green on 5ae5de9a
+- [Phase 34]: 34-01: devtools mutation baseline measured (DockModel.ts and DiagnosticsStore.ts both 1, no survivors); async-layer pins use a real 30 ms sleep
+- [Phase 34]: 34-02: sampled resets only on Off, so a stop after a restart from Live reports sampled true
+- [Phase 34]: 34-02: run token in the marking accept kept and named as an unreachable Stryker survivor
+- [Phase 34]: idleTimeline is inert so a first-pass caller cannot feed a store shared across components; useTimeline's lifetime change is Breaking
+- [Phase 34]: usePaused reads through useStoreSnapshot (one subscription); simulation reads moved to the same hook
+- [Phase 34]: 34-06: DiagnosticsStatus is exported once as a value export (value and type merged); the duplicate type-line name is TS2300
+- [Phase 34]: 34-07: the notice re-decides its alert mode whenever the stop's identity changes (previous status held in state, compared during render), so a Stopped-to-Stopped change alerts again
+- [Phase 34]: ADR-QD-047 is amended (Rev 1.13) rather than a new ADR written; ADR-QD-147 is named Unused in CCR-QD-425
+- [Phase 34]: The Stopped reason is Cause.pretty kept verbatim and uncapped, carried only in the model's snapshot and rendered as height-bounded React text, never sent to a sink, response, log or metric
+- [Phase 34]: The useTimeline placeholder is the inert module-scope idleTimeline; useDiagnostics before its feed exists is Off without options and Starting with them
+- [Phase 35]: P3 StrictMode sweeper count measured at 2 on the base; Stryker instrumented QadiAtoms.ts and QadiProvider.tsx via the --mutate override so the baseline has no unmeasured files
+- [Phase 35]: 35-02: spike candidate 1 keeps the admission trigger; release-only fails (b), (d), (e) because it does not bound a question opened and never read
+- [Phase 35]: 35-02: release guard entry.inBook kept (orphan release without it sends 1 spurious signal and sweep); cold-count guard not added (200 live over bound 5: 195 coalesced sweeps, 82 ms, e2e 30 passed)
+- [Phase 35]: Spike conclusion: candidate-1 wins by D-02 rule 1 (no timer); candidate 2 passes all but carries Schedule.spaced, candidate 3 fails (d); admission trigger and entry.inBook guard kept
+- [Phase 35]: 35-04: candidate 1 landed as the spike concluded (admission trigger kept, entry.inBook release guard kept); SweepScheduler.ts holds the coalescer and withSweepFork/sweepForkOf, the fork travels in a class-private slot, nothing exported from the barrel
+- [Phase 35]: 35-05: candidate-1 executed as written; sweepIntervalMillis and QadiAtoms.sweepEvictions removed (Breaking), no inert prop kept
+- [Phase 35]: 35-06: BEH-QD-514 words the removed manual sweep as 'no member a caller can use to run a sweep' (the plan's verify forbids naming sweepEvictions in 09); ADR-QD-148 written for candidate-1
+- [Phase 35]: 35-07: closing checks green; no mutation survivor needed naming, 35-mutation-survivors.json not created
+- [Phase 36]: react/index.ts is recorded unmeasured (absent from the Stryker report, export-only barrel); devtools react files measured through the --mutate override with no config edit
+- [Phase 36]: 36-02: useTimelineStore keeps the one UseTimeline shape; a hand-fed store reads Reading and its restart does nothing
+- [Phase 36]: 36-02: gate 13 (spec:api) is red from the TimelineStatus barrel export until 36-13 adds the overview row
+- [Phase 36]: 36-03: SUBJ1..SUBJ3 are RED on the base (all three); 28 IN-06 closed green by GR-S1, GR-S2, GW-S1 with no defect
+- [Phase 36]: 36-04: HL6 builds its registry after settle() so the sweep evicts before the registry's own removal task runs
+- [Phase 36]: 36-05: describeSource is a package-private view of prepareSource until 36-08; D1 pins the identity RED
+- [Phase 36]: 36-05: SR1 reaches the unreachable (no ports, capture) row by dropping ports after a capture
+- [Phase 36]: 36-06: StoppedBox is generic over the stop value so the dock's ledger ref keeps its DiagnosticsStatus type; the timeline feed mirrors DiagnosticsFeed's generation token and Cause.hasInterruptsOnly exit guard
+- [Phase 36]: 36-07: timeline notice props are memoised in DockFrame like the diagnostics ones; readsTimeline is a closed Record<TabId, boolean>
+- [Phase 36]: 36-08: a checked baseline carries its reading, decided once in baselineDiff; a source description builds no recorder, only prepareSource does
+- [Phase 36]: D-20: the seed covers the client's first check; a re-check after invalidation never falls back (ADR-QD-039)
+- [Phase 36]: 36-10: comment-only edits (src, tests, stryker.http.mjs comment) proved by comment-stripped transpile comparison; no changeset, out of the mutation base (D-17)
+- [Phase 36]: 36-11: the CCR-QD-427 row cites no reserved BEH, INV or ADR number and ends 'Records for the timeline and the hydration seed follow in this row.', so 36-12 and 36-13 extend it
+- [Phase 36]: 36-11: DEBT-02 deletes the stale Sources token instead of replacing it with Source (behaviour 27's module); BEH-QD-219..221 reconstruction is a pure deletion of base lines 175-345
+- [Phase 36]: 36-12: ADR-QD-039 and ADR-QD-103 keep Accepted status and carry dated amendments; ADR-QD-014's pinned divergent sequence is amended under its paragraph (D-20)
+- [Phase 36]: 36-13: BEH-QD-460's listing keeps 'Baseline | undefined' (the real snapshot type) rather than the plan's 'Baseline'
+- [Phase 36]: 36-14: TimelineNotice.tsx:40:20 (Reading arm null vs undefined) is a named equivalent survivor; StoppedBox's effect deps are killed by TN15
 
 ### Pending Todos
 
@@ -212,7 +334,7 @@ Last activity: 2026-11-12 -- Milestone v1.2 shipped as PR #156
 - [Host] Run vitest from the repo root with `--project <pkg>`; running inside a package dir fails at collection.
 - `.planning/` is tracked (no `.gitignore` line). `.planning/architecture/` was archived under `.planning/milestones/archive-pre-gsd/` (tracked) by Phase 10 on 2026-11-10.
 - Shared spec files (README, traceability, invariants, overview, decisions/index.yaml) are edited by every phase, so parallel worktrees will conflict on revision lines. Use `scripts/spec-revise.mjs`. BEH/INV ids are allocated with `node scripts/next-id.mjs`.
-- Devtools replay: the other four ports' `none` answers still grant under `not(...)` on a capture miss (INV-QD-007 fail-open). Flipping each is one word in Capture.ts's `UNSEEN_REQUEST_IS_AN_OUTAGE`; needs a decision.
+- ~~Devtools replay fail-open~~: stale. Closed in v1.1 by ADR-QD-129 / CCR-QD-407 (`Capture.ts` `unseenReply` fails on every port); found 2026-11-12.
 - Write requirement lines as explicit ID lists, never ranges like `XC-01..05`: `phase.complete` cannot parse ranges.
 - Open review findings carried from v1.0 (warning/info): 01 WR-02/WR-03/IN-03; 02 IN-01..07; 04 IN-01..03; 05 WR-01/IN-01/IN-02; 07 IN-01..03; 09 IN-01. 01 and 08 VALIDATION.md files are still `draft`.
 - [Phase 22] Review findings (22-REVIEW-DISPOSITION.md): all seven fixed (WR-01 23e54421, WR-02 d4d62133, IN-01..05 3371400e..9e2b90bc). Phase 21's six findings also fixed (f0977945..7144dfba; 21-REVIEW-DISPOSITION.md).
@@ -222,6 +344,7 @@ Last activity: 2026-11-12 -- Milestone v1.2 shipped as PR #156
 - [Phase 27] Review (27-REVIEW-DISPOSITION.md): WR-01..03 fixed (82895714, f304bbc0, a4be4995: ADR-037/043/046 and three `@qadi/core` comments still named `guardRoute` as live); IN-01 (`GuardRoute.ts` "the one the module accepts" now ambiguous) and IN-02 ("lost ARCH-57's probe" typo, moved verbatim) open, info. ROUTE-01/ROUTE-03 delivered by intent (CCR-QD-417). `scripts/spec-revise.mjs` drops its document argument when `--date` is omitted (always pass `--date`; script untouched). Pre-existing stale citation `v4-http-smoke.test.ts:106` (`registerApi`) and a `stryker.http.mjs` comment still place code in `PermissionRegistry.ts`.
 - [Phase 28] Review (28-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01..IN-06 open, info ("three" re-exported types is four; stale `{@link useGates}` in `GateWriter.ts`; INV-QD-064 Source credits `GateWriter.ts` with `GateRegistry.ts`'s key logic; ADR-QD-140's "only test edit is one import" overstated; ADR-QD-053's amendment blockquote lacks a pointer to ADR-QD-140; no StrictMode lifecycle test — reviewer's probe showed correct). D-01 = A taken from `_DECISIONS-v1.2.md`. 28-03's executor died on a network error once and was resumed.
 - [Phase 29] Review (29-REVIEW-DISPOSITION.md): WR-01 fixed (7bddf8fb: ADR-QD-123's live line still placed `PortName` in `PortMetrics.ts`); IN-01 (`DENY_WITHHELD` restates `ALLOW_WITHHELD`'s fields), IN-02 (CCR-QD-419 says six and seven re-pointed modules; cites README Rev 1.155, now 1.156) and IN-03 (ADR-QD-123 amendment "still imports" should read "now imports") open, info. `astro check` (gate 15) shows an interactive `@astrojs/check` install prompt in this environment and only proceeds with stdin closed, so the website typecheck is effectively skipped (pre-existing; the final `pnpm check:pr` ran with `< /dev/null`).
+- [Phase 30] Review (30-REVIEW-DISPOSITION.md): all 11 findings fixed over three auto-fix rounds (WR-01..03 and IN-01..04, then IN-01/IN-02, then WR-01/IN-01; b1299653..a460ebae). The loop hit its 3-round cap with the last fixer pass closing everything, so the final 30-REVIEW.md reads issues_found with nothing open; iteration backups kept. 30-09's flip-marker scan reports three false positives (56214374, b3435e58, d42e8de4: added rows, oracle swap, title renames), confirmed by the verifier.
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
@@ -236,8 +359,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T00:06:29.782Z
-Stopped at: Phase 29 complete — all phases complete
+Last session: 2026-11-13T01:44:09.971Z
+Stopped at: Phase 36 complete — all phases complete
 Resume file: None
 
 ## Operator Next Steps

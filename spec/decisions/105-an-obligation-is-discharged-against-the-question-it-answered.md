@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-105                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — amends ADR-QD-019, ADR-QD-057, ADR-QD-058, ADR-QD-096 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-10): amendment — the ledger is a keyed store, and a discharge on a resource without a string id is refused (ARCH-59, ADR-QD-117, CCR-QD-395)<br>1.0 (2026-10-08): Initial (ARCH-30, CCR-QD-220) |
+> | Change History | 1.2 (2026-11-12): Revision note: the option and service types live in leaves below the Lifecycle split (ARCH-80, CCR-QD-423)<br>1.1 (2026-11-10): amendment — the ledger is a keyed store, and a discharge on a resource without a string id is refused (ARCH-59, ADR-QD-117, CCR-QD-395)<br>1.0 (2026-10-08): Initial (ARCH-30, CCR-QD-220) |
 
 ---
 
@@ -100,3 +100,18 @@ exact-pair read and refuses a foreign row. A discharge on a resource without a s
 (`SignatureCaptureError`, nothing recorded) instead of being recorded subject-wide, which made every
 `scope: "Any"` check with that meaning allow on every resource. See
 [ADR-QD-117](./117-a-signature-ledger-is-a-keyed-store.md).
+
+## Revision note (2026-11-12, ARCH-80, CCR-QD-423)
+
+The Lifecycle split stands. `ask` and `decideQuestion` now read their option and
+service types from leaves below both `Lifecycle.ts` and `Evaluate.ts`:
+`EvaluateOptions` is declared beside `QuestionOptions` in `Question.ts`, and
+`EvaluationServices` and `StandingEvaluationServices` in the type-only
+`EvaluationServices.ts`. `Lifecycle.ts`'s `LifecycleOptions`, a copy of the two
+options that are not part of the question, is deleted: `decideQuestion` takes
+`Omit<EvaluateOptions, keyof QuestionOptions>`, derived rather than copied, so it
+cannot be handed a second `resource`, `action` or `maxDepth` that the built
+question would ignore, and `ask` takes `EvaluateOptions` and requires
+`EvaluationServices` by name. `Evaluate.ts` declares only `evaluate`. Public names
+and shapes are unchanged, pinned through the barrel by `EvaluationShapes.tst.ts`.
+No new ADR is written; ADR-QD-145, reserved for this, is unused.

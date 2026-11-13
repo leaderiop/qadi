@@ -15,6 +15,7 @@ import { QuestionsPanel } from "../../src/react/QuestionsPanel.tsx";
 import { colors } from "../../src/react/theme.ts";
 import { VerdictTag } from "../../src/react/VerdictTag.tsx";
 import { treatmentOf } from "../../src/react/VerdictTreatment.ts";
+import { liveNotice } from "../helpers.ts";
 
 const node = (status: InspectNode["status"]): InspectNode => ({
   path: "$",
@@ -148,7 +149,7 @@ describe("QuestionsPanel", () => {
 
   it("names each guard's treatment, and shows an unknown state as itself", () => {
     render(
-      <QuestionsPanel
+      <QuestionsPanel diagnostics={liveNotice}
         questions={[{ policy: canRead }]}
         gates={[
           { id: "a", kind: "Can", policy: canRead, state: "Failed" },

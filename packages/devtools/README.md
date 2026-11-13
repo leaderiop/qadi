@@ -31,6 +31,10 @@ the dock takes, the timeline readings (`verdictOf`, `pairedEntries`, `inspect`,
 `useSimulationSession`, `useDiagnostics`). The dock's panels and a screen's
 mechanics are package-private.
 
+`useDiagnostics` returns `{ status, reading }` from the same feed the dock runs. The
+dock's Services and React screens state when sampling is starting or has stopped, and
+offer a restart.
+
 ## The model absorbs a hostile feed
 
 Records arrive from several processes at once, and none of them promises order,

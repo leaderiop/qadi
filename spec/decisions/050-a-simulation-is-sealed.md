@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-050                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-11): amendment — the source-choice rule (each source's availability, and that a Live run captures) is `prepareSource` in `model/SimulationSource.ts`, stated once; the session stores what it returns; corrects the 2026-10-07 amendment's "the session's rule" (ARCH-72, CCR-QD-414)<br>1.3 (2026-10-07): amendment — a chosen source that cannot be honoured is refused as a state, never replaced; a Live run captures, and the capture lives as long as the ports it came from (CCR-QD-199)<br>1.2 (2026-10-05): the sealed-sweep consequence names a decision log in place of the removed `decisionSinkRing` (ADR-QD-097) (CCR-QD-181)<br>1.1 (2026-09-19): Deployment requirement added for `Live` — it is a cross-subject attribute/relationship/history/signature read capability, not merely a data-source choice, and sealing (this ADR's own decision) does not restrict who may ask about whom; the host must gate the page or the `ports` prop to callers already authorized for that capability (.issues/medium/jessie-frazelle-JF-02.md)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.5 (2026-11-12): amendment — the seal is the simulator's shadow sinkAndCache choice of core's evaluationEnvironment; the testing clock option is deterministic (ADR-QD-146, CCR-QD-424)<br>1.4 (2026-11-11): amendment — the source-choice rule (each source's availability, and that a Live run captures) is `prepareSource` in `model/SimulationSource.ts`, stated once; the session stores what it returns; corrects the 2026-10-07 amendment's "the session's rule" (ARCH-72, CCR-QD-414)<br>1.3 (2026-10-07): amendment — a chosen source that cannot be honoured is refused as a state, never replaced; a Live run captures, and the capture lives as long as the ports it came from (CCR-QD-199)<br>1.2 (2026-10-05): the sealed-sweep consequence names a decision log in place of the removed `decisionSinkRing` (ADR-QD-097) (CCR-QD-181)<br>1.1 (2026-09-19): Deployment requirement added for `Live` — it is a cross-subject attribute/relationship/history/signature read capability, not merely a data-source choice, and sealing (this ADR's own decision) does not restrict who may ask about whom; the host must gate the page or the `ports` prop to callers already authorized for that capability (.issues/medium/jessie-frazelle-JF-02.md)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 ---
 
@@ -181,3 +181,15 @@ changed, and only where it lives has.
 - The session stores the options and the `Ready`/`Refused` result and inspects no source variant. A refusal is
   still a state, never a replacement (the 2026-10-07 amendment's first paragraph), and `resolveSource` and
   `sourceOptions` are gone.
+
+## Amendment (2026-11-12, ADR-QD-146, CCR-QD-424)
+
+**The seal is unchanged in what it does, and is now stated in one place.** `simulationLayer` is
+`@qadi/core`'s `evaluationEnvironment` with `shadow: "sinkAndCache"` and `idPrefix: "sim"`, plus the
+panel's `CurrentSubject`. The discarding sink and the private cache are that arm's, built fresh per
+build ([ADR-QD-146](./146-one-evaluation-environment-states-its-shadowing.md)), so the shadowing is a
+required choice of one builder that a caller assembling an environment cannot leave out.
+
+**The Decision's "Both clocks" paragraph is corrected, not rewritten.** `@qadi/testing`'s option now
+takes `clock: "deterministic"`, the same word as `simulate`, both from core's `EvaluationClock`; the
+literal that paragraph names for it, `"test"`, is gone. What either clock does is unchanged.

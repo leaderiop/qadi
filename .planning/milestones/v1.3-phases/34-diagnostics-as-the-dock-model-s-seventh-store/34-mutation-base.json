@@ -1,0 +1,30 @@
+{
+ "measured": {
+  "packages/devtools/src/model/DockModel.ts": 1,
+  "packages/devtools/src/model/DiagnosticsStore.ts": 1
+ },
+ "unmeasured": {
+  "packages/devtools/src/react/useDiagnostics.ts": "outside stryker.devtools.mjs mutate (packages/devtools/src/model/** only)",
+  "packages/devtools/src/react/useTimeline.ts": "outside stryker.devtools.mjs mutate (packages/devtools/src/model/** only)",
+  "packages/devtools/src/react/useDockModel.ts": "outside stryker.devtools.mjs mutate (packages/devtools/src/model/** only)",
+  "packages/devtools/src/react/useScoped.ts": "outside stryker.devtools.mjs mutate (packages/devtools/src/model/** only)",
+  "packages/devtools/src/react/useSimulationSession.ts": "outside stryker.devtools.mjs mutate (packages/devtools/src/model/** only)",
+  "packages/devtools/src/react/DevtoolsDock.tsx": "outside stryker.devtools.mjs mutate (packages/devtools/src/model/** only)",
+  "packages/devtools/src/react/ServicesPanel.tsx": "outside stryker.devtools.mjs mutate (packages/devtools/src/model/** only)",
+  "packages/devtools/src/react/QuestionsPanel.tsx": "outside stryker.devtools.mjs mutate (packages/devtools/src/model/** only)",
+  "packages/devtools/src/react/PolicyExplorer.tsx": "outside stryker.devtools.mjs mutate (packages/devtools/src/model/** only)",
+  "packages/devtools/src/react/RoleViewer.tsx": "outside stryker.devtools.mjs mutate (packages/devtools/src/model/** only)",
+  "packages/devtools/src/react/index.ts": "outside stryker.devtools.mjs mutate (packages/devtools/src/model/** only)"
+ },
+ "new": [
+  "packages/devtools/src/model/DiagnosticsFeed.ts",
+  "packages/devtools/src/model/TimelineFeed.ts",
+  "packages/devtools/src/react/DiagnosticsNotice.tsx",
+  "packages/devtools/src/react/useStoreSnapshot.ts"
+ ],
+ "deleted": {
+  "packages/devtools/src/react/useDockSession.ts": "deleted by this phase; outside stryker.devtools.mjs mutate",
+  "packages/devtools/src/react/useExplorerSession.ts": "deleted by this phase; outside stryker.devtools.mjs mutate",
+  "packages/devtools/src/react/useRunningStore.ts": "deleted by this phase; outside stryker.devtools.mjs mutate"
+ }
+}

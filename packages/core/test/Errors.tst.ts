@@ -22,6 +22,7 @@ import type {
 import type { AccessDenied, UndischargedObligation } from "../src/Errors.ts";
 import type { EncodeRefusal, EncodeRefusalAnnotations } from "../src/JsonRefusal.ts";
 import { encodeRefusalAnnotations } from "../src/JsonRefusal.ts";
+import type { PolicyNotJson } from "../src/Policy.ts";
 import type { SinkRecordTag } from "../src/SinkWire.ts";
 import type {
   ERROR_CODES,
@@ -31,7 +32,7 @@ import type {
 } from "../src/Errors.ts";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { ENFORCEMENT_DENIAL_TAGS, ENFORCEMENT_ERROR_CLASSES, ENFORCEMENT_ERROR_TAGS } from "../src/Errors.ts";
-import type { EvaluationServices, StandingEvaluationServices } from "../src/Evaluate.ts";
+import type { EvaluationServices, StandingEvaluationServices } from "../src/EvaluationServices.ts";
 
 declare class HypotheticalNewError {
   readonly _tag: "HypotheticalNewError";
@@ -76,6 +77,11 @@ test("the two record-codec refusals are QadiError members with codes", () => {
   expect<SinkRecordNotDecodable>().type.toBeAssignableTo<QadiError>();
   expect<(typeof ERROR_CODES)["SinkRecordNotEncodable"]>().type.toBe<"ACL019">();
   expect<(typeof ERROR_CODES)["SinkRecordNotDecodable"]>().type.toBe<"ACL020">();
+});
+
+test("PolicyNotJson is a QadiError member with code ACL021 (ADR-QD-143)", () => {
+  expect<PolicyNotJson>().type.toBeAssignableTo<QadiError>();
+  expect<(typeof ERROR_CODES)["PolicyNotJson"]>().type.toBe<"ACL021">();
 });
 
 declare const declaredSinkRefusal: SinkRecordNotEncodable;

@@ -40,9 +40,8 @@ export const useScoped = <A>(make: () => Effect.Effect<A, never, Scope.Scope>): 
       setValue(undefined);
       close();
     };
-    // `make` is read once per mount: later inputs arrive as commands, as
-    // `useRunningStore.ts` says of its `run`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // `make` is read once per mount: later inputs arrive as commands, which is how
+    // every owner here takes its props (the dock model's and the feeds' `configure`).
   }, []);
 
   return value;

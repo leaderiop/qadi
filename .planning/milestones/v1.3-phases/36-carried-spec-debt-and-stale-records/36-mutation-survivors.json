@@ -1,0 +1,3 @@
+{
+ "packages/devtools/src/react/TimelineNotice.tsx:40:20 ArrowFunction": "The Reading arm's `() => null` becomes `() => undefined`; React renders null and undefined as the same nothing, so no input can tell them apart."
+}

@@ -26,13 +26,13 @@ import type { Allow, Decision } from "./Decision.ts";
 import { isAllowed, project } from "./Decision.ts";
 import { AccessDenied, UndischargedObligation } from "./Errors.ts";
 import type { EnforcementError, EvaluationError } from "./Errors.ts";
-import type { EvaluateOptions, EvaluationServices } from "./Evaluate.ts";
 import { evaluate } from "./Evaluate.ts";
+import type { EvaluationServices } from "./EvaluationServices.ts";
 import { ask } from "./Lifecycle.ts";
 import { bindingObligations } from "./Obligation.ts";
 import type { Permission } from "./Permission.ts";
 import type { Policy } from "./Policy.ts";
-import type { Question } from "./Question.ts";
+import type { EvaluateOptions, Question } from "./Question.ts";
 import type { Resource } from "./Resource.ts";
 import { obligationRecordFor, sinkEmitter } from "./SinkEmit.ts";
 

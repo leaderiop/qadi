@@ -33,10 +33,11 @@
  */
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
+import * as Match from "effect/Match";
 import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
-import type { EncodeRefusal, SinkRecord } from "@qadi/core";
+import type { EncodeRefusal, SinkRecord, UntrustedValueRefusal } from "@qadi/core";
 import {
   DecodeRefusal,
   describeEncodeRefusal,
@@ -44,7 +45,7 @@ import {
   encodeSinkRecord,
   SinkRecordJson,
   SinkRecordNotDecodable,
-  UNTRUSTED_DECODE_OPTIONS,
+  untrustedDecoder,
 } from "@qadi/core";
 
 /**
@@ -143,13 +144,23 @@ export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(functio
 });
 
 /**
- * The row's own fields, decoded as untrusted: an excess property at the row's
- * top level, or a `sequenceNumber` that is not a number, is `Malformed`. The
- * record is `unknown` here because `decodeSinkRecord` has already read it.
+ * The row's own fields, decoded as untrusted through `UntrustedDecode.ts`: an
+ * excess property at the row's top level, or a `sequenceNumber` that is not a
+ * number, is `Malformed`, and a row nested past the decode bound outside its
+ * record is `TooDeep`. `record` is unwalked, and `unknown` here, because
+ * `decodeSinkRecord` has already read it from its own root (INV-QD-306).
  */
-const decodeRow = Schema.decodeUnknownResult(
+const decodeRow = untrustedDecoder(
   Schema.Struct({ record: Schema.Unknown, sequenceNumber: SequenceNumber }),
-  UNTRUSTED_DECODE_OPTIONS,
+  { unwalked: ["record"] },
+).decode;
+
+/** The row decoder's refusal in `@qadi/core`'s decode vocabulary; no member is added (ADR-QD-143). */
+const asDecodeRefusal: (refusal: UntrustedValueRefusal) => DecodeRefusal = Match.type<UntrustedValueRefusal>().pipe(
+  Match.tagsExhaustive({
+    TooDeep: ({ maxDepth }) => DecodeRefusal.TooDeep({ maxDepth }),
+    Malformed: ({ message }) => DecodeRefusal.Malformed({ message }),
+  }),
 );
 
 /**
@@ -158,7 +169,7 @@ const decodeRow = Schema.decodeUnknownResult(
  * so the one thing left to drop is what that read tolerates — an envelope key
  * this version does not declare (ADR-QD-096 D-15-c) — and the entry is the row
  * as this version describes it, not a copy of whatever extra a newer writer
- * added.
+ * added. The one lenient decode in this package, on purpose.
  */
 const recordJsonOf = Schema.decodeUnknownResult(SinkRecordJson);
 
@@ -191,7 +202,7 @@ export const decodeAuditEntry = (
   const record = decodeSinkRecord(input.record);
   if (Result.isFailure(record)) return Result.fail(record.failure);
   const row = decodeRow(input);
-  if (Result.isFailure(row)) return malformed(row.failure.message);
+  if (Result.isFailure(row)) return Result.fail(new SinkRecordNotDecodable({ refusal: asDecodeRefusal(row.failure) }));
   const json = recordJsonOf(input.record);
   if (Result.isFailure(json)) return malformed(json.failure.message);
   const entry: AuditEntry = { record: json.success, sequenceNumber: row.success.sequenceNumber };

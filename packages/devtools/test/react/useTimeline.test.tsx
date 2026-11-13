@@ -10,8 +10,10 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import { vi } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
+import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
+import * as Stream from "effect/Stream";
 import { encodeStoredRecordString } from "@qadi/core";
 import { useMemo } from "react";
 import type { Source } from "../../src/model/Source.ts";
@@ -23,6 +25,22 @@ const frame = Result.getOrElse(
   encodeStoredRecordString(decisionRecord({ evaluationId: "streamed", at: 100 })),
   () => "refused",
 );
+
+/** A source whose first read ends on a defect after `x`, and whose later reads hand over `x` and `y` and end. */
+const flaky = (): Source => {
+  let reads = 0;
+  return {
+    read: Effect.sync(() => {
+      reads += 1;
+      return reads === 1
+        ? { backlog: [decisionRecord({ evaluationId: "x", at: 100 })], live: Stream.die(new Error("live boom")) }
+        : {
+            backlog: [decisionRecord({ evaluationId: "x", at: 100 }), decisionRecord({ evaluationId: "y", at: 200 })],
+            live: Stream.empty,
+          };
+    }),
+  };
+};
 
 const Panel = ({ source }: { readonly source: Source }) => {
   const { timeline, paused } = useTimeline(source);
@@ -94,6 +112,37 @@ describe("useTimeline", () => {
       assert.strictEqual(closed, 1);
     });
   });
+
+  it("UT1 a dying source shows Stopped through the hook, and restart returns it to Reading", async () => {
+    const source = flaky();
+    const { result } = renderHook(() => useTimeline(source));
+
+    await waitFor(() => assert.strictEqual(result.current.status._tag, "Stopped"));
+
+    act(() => result.current.restart());
+
+    await waitFor(() => {
+      assert.strictEqual(result.current.status._tag, "Reading");
+      assert.deepStrictEqual(
+        result.current.timeline.entries.map((entry) => entry.evaluationId),
+        ["x", "y"],
+      );
+    });
+  });
+
+  it("UT2 the pass before the feed exists reads Reading and its restart does nothing", () => {
+    const source = flaky();
+    const passes: Array<ReturnType<typeof useTimeline>> = [];
+    renderHook(() => {
+      const hook = useTimeline(source);
+      passes.push(hook);
+      return hook;
+    });
+
+    const [first] = passes;
+    assert.strictEqual(first?.status._tag, "Reading");
+    assert.doesNotThrow(() => first?.restart());
+  });
 });
 
 const Manual = () => {
@@ -146,5 +195,16 @@ describe("useTimelineStore", () => {
       screen.getByText("pause").click();
     });
     assert.strictEqual(screen.getByTestId("paused").textContent, "true");
+  });
+
+  it("UT3 a hand-fed store reads Reading and its restart changes nothing", () => {
+    const { result } = renderHook(() => useTimelineStore());
+    const { status, timeline } = result.current;
+    assert.strictEqual(status._tag, "Reading");
+
+    act(() => result.current.restart());
+
+    assert.strictEqual(result.current.status, status);
+    assert.strictEqual(result.current.timeline, timeline);
   });
 });

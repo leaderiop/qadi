@@ -13,7 +13,8 @@
  * *refused*, as a state, and nothing is evaluated (`prepareSource`, in
  * `SimulationSource.ts`) — the `portsOf` rule, one layer up, where a chosen `Live`
  * with no `ports` used to answer from fixtures. A Live run *captures*, which is
- * what makes `Snapshot` available (`prepareSource` again). A run that was
+ * what makes `Snapshot` available (`prepareSource` again; the snapshot shows
+ * `describeSource`, which builds no recorder). A run that was
  * superseded never lands (`generation`). And a result is shown only for the
  * question it answered (`stale`, `baseline`).
  *
@@ -34,7 +35,7 @@ import * as FiberHandle from "effect/FiberHandle";
 import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import type * as Scope from "effect/Scope";
-import type { DecisionOutcome, Policy } from "@qadi/core";
+import type { DecisionOutcome, EvaluationClock, Policy } from "@qadi/core";
 import { makeExternalStore } from "./ExternalStore.ts";
 import type { CapturedAnswers } from "./Capture.ts";
 import { sameSighting, sightingFor, type PolicySighting } from "./Catalogue.ts";
@@ -42,20 +43,19 @@ import { heldValue, makeHeldChoice } from "./HeldChoice.ts";
 import { readOutcome, type RecordOutcome } from "./Inspect.ts";
 import {
   baselineDiff,
-  readBaseline,
   replayInput,
   type Baseline,
-  type BaselineReading,
   type UnseededField,
 } from "./Replay.ts";
-import { simulate, type SimulationClock } from "./Simulation.ts";
+import { simulate } from "./Simulation.ts";
 import type { ChipAdded, FieldView, SimulationField } from "./SimulationFields.ts";
 import { fieldOps, formOf, renameSubject } from "./SimulationFields.ts";
 import { actionOf, decodeResource, encodeResource, withAction, withResource } from "./SimulationForm.ts";
 import type { EvaluationPortsLayer, SimulationInput } from "./SimulationInput.ts";
 import {
+  describeSource,
   prepareSource,
-  type PreparedSource,
+  type ReadySource,
   type SourceChoice,
   type SourceOption,
   type SourceRefusal,
@@ -112,7 +112,7 @@ export type RunState =
        */
       readonly reading: RecordOutcome;
       readonly report: WhatIfReport | undefined;
-      readonly clock: SimulationClock;
+      readonly clock: EvaluationClock;
     }
   | { readonly _tag: "Broke"; readonly question: SimulationQuestion; readonly message: string }
   | { readonly _tag: "Refused"; readonly question: SimulationQuestion; readonly refusal: SourceRefusal };
@@ -168,7 +168,7 @@ export interface SimulationSnapshot {
   readonly options: ReadonlyArray<SourceOption>;
   /** Why the chosen source cannot be honoured, when it cannot. */
   readonly refusal: SourceRefusal | undefined;
-  readonly clock: SimulationClock;
+  readonly clock: EvaluationClock;
   readonly pairs: boolean;
   readonly capture: CapturedAnswers | undefined;
   /** What a sweep would run now; absent while there is no policy. */
@@ -179,8 +179,6 @@ export interface SimulationSnapshot {
   readonly stale: boolean;
   /** Present only for a result that ran against the current seed. */
   readonly baseline: Baseline | undefined;
-  /** The baseline in one line; present exactly when `baseline` is `Checked`. */
-  readonly baselineReading: BaselineReading | undefined;
 }
 
 export type RunKind = "Run" | "Sweep";
@@ -224,7 +222,7 @@ export interface SimulationSession {
   /** The host's resolvers. A different layer drops the capture taken from the old one. */
   readonly setPorts: (ports: EvaluationPortsLayer | undefined) => void;
   readonly chooseSource: (choice: SourceChoice) => void;
-  readonly setClock: (clock: SimulationClock) => void;
+  readonly setClock: (clock: EvaluationClock) => void;
   readonly setPairs: (pairs: boolean) => void;
   readonly edit: (next: SimulationInput) => void;
   /**
@@ -342,7 +340,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
   let draft: SimulationInput = blank;
   let resourceText: ResourceText = { text: "", error: undefined };
   let sourceChoice: SourceChoice = "Fixtures";
-  let clock: SimulationClock = "live";
+  let clock: EvaluationClock = "live";
   let pairs = false;
   let ports: EvaluationPortsLayer | undefined = init?.ports;
   let capture: CapturedAnswers | undefined;
@@ -398,14 +396,14 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
 
   const build = (): SimulationSnapshot => {
     const policy = policyChoice();
-    const { options, prepared } = prepareSource(sourceChoice, { ports, capture });
+    const { options, refusal, source } = describeSource(sourceChoice, { ports, capture });
     const policyNow = policyOf(policy);
     const plan =
       policyNow === undefined
         ? undefined
         : sweepPlan(policyNow, draft, {
             pairs,
-            ...(prepared._tag === "Ready" ? { source: prepared.source } : {}),
+            ...(source === undefined ? {} : { source }),
           });
 
     const question = run._tag === "Idle" ? undefined : run.question;
@@ -421,7 +419,6 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
       run._tag === "Ran" && !stale && seed !== undefined
         ? baselineDiff(seed, run.outcome)
         : undefined;
-    const refusal = prepared._tag === "Refused" ? prepared.refusal : undefined;
 
     return {
       sightings: chosen.list(),
@@ -441,7 +438,6 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
       run,
       stale,
       baseline,
-      baselineReading: baseline?._tag === "Checked" ? readBaseline(baseline) : undefined,
     };
   };
 
@@ -469,8 +465,8 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
   const program = (
     question: SimulationQuestion,
     kind: RunKind,
-    ready: Extract<PreparedSource, { readonly _tag: "Ready" }>,
-    runClock: SimulationClock,
+    ready: ReadySource,
+    runClock: EvaluationClock,
     runPairs: boolean,
   ) =>
     Effect.gen(function* () {
@@ -490,8 +486,8 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     mine: number,
     question: SimulationQuestion,
     kind: RunKind,
-    ready: Extract<PreparedSource, { readonly _tag: "Ready" }>,
-    runClock: SimulationClock,
+    ready: ReadySource,
+    runClock: EvaluationClock,
     runPairs: boolean,
   ) {
     const exit = yield* Effect.exit(program(question, kind, ready, runClock, runPairs));
@@ -530,7 +526,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
       source: sourceChoice,
     };
 
-    const { prepared } = prepareSource(sourceChoice, { ports, capture });
+    const prepared = prepareSource(sourceChoice, { ports, capture });
     if (prepared._tag === "Refused") {
       // Declined, not replaced: nothing is evaluated, and the run in flight stops.
       supersede();

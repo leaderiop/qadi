@@ -39,6 +39,9 @@
  * below (ADR-QD-123). The ninth, `AUDIT_HAND_LAYER_BUDGET`, has
  * `PORT_DOUBLE_BUDGET`'s scope and guards the same thing for the audit ports
  * (ARCH-62).
+ * The tenth, `UNTRUSTED_DECODE_BUDGET`, is `packages/*\/src` only like
+ * `DECISION_READ_BUDGET`, because a test decodes on purpose to pin what the
+ * untrusted decoder makes of an input (ADR-QD-143).
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -611,6 +614,57 @@ const DECISION_READ_BUDGET_NAMES = {
 };
 
 /**
+ * Strict decodes of untrusted input in library source, by file and exact count
+ * of the tokens one needs (ADR-QD-143, INV-QD-305, AGENTS.md section 7a).
+ *
+ * `untrustedDecoder` (`packages/core/src/UntrustedDecode.ts`) is the one way
+ * untrusted JSON is decoded: depth guard, preparation, strict decode. Eight
+ * seams used to assemble that by hand and one of them skipped the guard, so a
+ * strict `onExcessProperty`, a call to `exceedsJsonDepth`, a `Schema.decode*`
+ * call or a `JSON.parse` anywhere else in `packages/*\/src` fails, and so does a budgeted file's
+ * count moving without this table changing. Checked in both directions, with a
+ * names guard and a check that AGENTS.md section 7a's table lists exactly these
+ * files, like `SCHEMA_ERROR_BUDGET` and `DECISION_READ_BUDGET`.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const UNTRUSTED_DECODE_BUDGET = {
+  // The decoder: the depth-guard import and its call, the strict option, the one `Schema.decodeUnknownResult`, and `decodeText`'s `JSON.parse`.
+  "packages/core/src/UntrustedDecode.ts": 5,
+  // The depth walk's declaration: package-private, reached only from the untrusted decoder.
+  "packages/core/src/DecodeDepthGuard.ts": 1,
+  // `recordJsonOf`, the deliberately lenient read of a row's record once the strict, untrusted read accepted it.
+  "packages/audit/src/AuditEntry.ts": 1,
+  // `spanStruct` reads only its own named keys, and every leaf is a SpanValue primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map.
+  "packages/core/src/PortSpanEncode.ts": 2,
+  // `decodeStoredRecordString` parses the stored envelope itself and must not walk it: an unknown envelope key is ignored, however deep (ADR-QD-096 D-15-c). `record` reaches the guarded `decodeSinkRecord` from its own root.
+  "packages/core/src/SinkCodec.ts": 1,
+  // `parseJson` parses the simulation form's own typed text for the form's own validation; nothing crosses a trust boundary.
+  "packages/devtools/src/model/SimulationForm.ts": 1,
+};
+
+/**
+ * The declaration each `UNTRUSTED_DECODE_BUDGET` file's tokens belong to,
+ * checked to exist verbatim (the rename guard `DECISION_READ_BUDGET_NAMES` gives its table).
+ *
+ * @type {Readonly<Record<string, ReadonlyArray<string>>>}
+ */
+const UNTRUSTED_DECODE_BUDGET_NAMES = {
+  "packages/core/src/UntrustedDecode.ts": ["untrustedDecoder"],
+  "packages/core/src/DecodeDepthGuard.ts": ["exceedsJsonDepth"],
+  "packages/audit/src/AuditEntry.ts": ["recordJsonOf"],
+  "packages/core/src/PortSpanEncode.ts": ["spanStruct"],
+  "packages/core/src/SinkCodec.ts": ["decodeStoredRecordString"],
+  "packages/devtools/src/model/SimulationForm.ts": ["parseJson"],
+};
+
+/** What counts as an untrusted strict decode: global, so a line with two tokens counts two. */
+const UNTRUSTED_DECODE_TOKEN = /\bonExcessProperty\b|\bexceedsJsonDepth\b|\bSchema\.decode\w*|\bJSON\.parse\b/g;
+
+/** @type {Map<string, number[]>} */
+const UNTRUSTED_DECODE_LINES = new Map();
+
+/**
  * Test files that construct a port's typed error by hand, by file and exact
  * count of lines doing so (ARCH-10, ADR-QD-094).
  *
@@ -1056,6 +1110,16 @@ for (const file of sources) {
         decisionReadLines.set(rel, found);
       }
     }
+    // Library source only, like the decision-read scan above: a test decodes
+    // untrusted input on purpose, to pin what the untrusted decoder makes of it.
+    if (!isTestFile && rel.startsWith("packages/")) {
+      const matches = line.match(UNTRUSTED_DECODE_TOKEN) ?? [];
+      if (matches.length > 0) {
+        const found = UNTRUSTED_DECODE_LINES.get(rel) ?? [];
+        for (let i = 0; i < matches.length; i += 1) found.push(index + 1);
+        UNTRUSTED_DECODE_LINES.set(rel, found);
+      }
+    }
     // Library source only: the sink is read in one place (`SinkEmit.ts`), so
     // "an observer can never deny" (INV-QD-035) has locality. A presence read
     // for reporting, not an emission, is allowlisted by file.
@@ -1470,6 +1534,75 @@ for (const [rel, names] of Object.entries(DECISION_READ_BUDGET_NAMES)) {
       `${rel}  [decision-read-budget-names] DECISION_READ_BUDGET's reason names \`${name}\`, but no ` +
         `such identifier appears in this file any more — renamed without updating the budget's names.`,
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// AGENTS.md section 7a / ADR-QD-143 / INV-QD-305 — untrusted JSON is decoded
+// once, by `untrustedDecoder`. Checked in both directions like the budgets
+// above: a strict decode, a depth-guard call or a `Schema.decode*` anywhere
+// else in library source is a seam assembling the recipe by hand, and a
+// budgeted count moving means the table describes code that changed.
+// ---------------------------------------------------------------------------
+
+for (const [rel, budget] of Object.entries(UNTRUSTED_DECODE_BUDGET)) {
+  const found = UNTRUSTED_DECODE_LINES.get(rel) ?? [];
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [untrusted-decode] declares ${budget} untrusted-decode token(s), found ${found.length}` +
+        `${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+        `    Update UNTRUSTED_DECODE_BUDGET in scripts/check-house-style.mjs and AGENTS.md section 7a's table, with the reason, so they agree.`,
+    );
+  }
+}
+
+for (const [rel, found] of UNTRUSTED_DECODE_LINES) {
+  if (rel in UNTRUSTED_DECODE_BUDGET) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [untrusted-decode] Strict decode options, a depth-guard call, a Schema decode or a JSON.parse outside UntrustedDecode.ts.\n` +
+      `    Decode untrusted input with untrustedDecoder (ADR-QD-143, AGENTS.md section 7a).`,
+  );
+}
+
+for (const [rel, names] of Object.entries(UNTRUSTED_DECODE_BUDGET_NAMES)) {
+  const content = readFileSync(join(ROOT, rel), "utf8");
+  for (const name of names) {
+    if (new RegExp(`\\b(?:const|function)\\s+${name}\\b`).test(content)) continue;
+    failures += 1;
+    console.error(
+      `${rel}  [untrusted-decode-names] UNTRUSTED_DECODE_BUDGET's reason names \`${name}\`, but no ` +
+        `such declaration appears in this file any more: renamed without updating the budget's names.`,
+    );
+  }
+}
+
+// AGENTS.md section 7a's table is the budget stated for readers: its file column must be exactly the budget's keys, with the same counts.
+{
+  const agents = readFileSync(join(ROOT, "AGENTS.md"), "utf8").replace(/\r\n/g, "\n").split("\n");
+  const header = agents.findIndex((l) => /^\|\s*Location\s*\|\s*Count\s*\|\s*Why\s*\|/.test(l));
+  /** @type {Map<string, number>} */
+  const listed = new Map();
+  if (header !== -1) {
+    for (let i = header + 2; i < agents.length && agents[i].startsWith("|"); i += 1) {
+      const m = /^\|\s*`([^`]+)`\s*\|\s*(\d+)\s*\|/.exec(agents[i]);
+      if (m !== null) listed.set(m[1], Number(m[2]));
+    }
+  }
+  if (header === -1) {
+    failures += 1;
+    console.error("AGENTS.md  [untrusted-decode-table] the section 7a `| Location | Count | Why |` table was not found.");
+  }
+  for (const [rel, count] of listed) {
+    if (rel in UNTRUSTED_DECODE_BUDGET && UNTRUSTED_DECODE_BUDGET[rel] === count) continue;
+    failures += 1;
+    console.error(`AGENTS.md  [untrusted-decode-table] section 7a lists ${rel} (${count}), which UNTRUSTED_DECODE_BUDGET does not match.`);
+  }
+  for (const rel of Object.keys(UNTRUSTED_DECODE_BUDGET)) {
+    if (listed.has(rel)) continue;
+    failures += 1;
+    console.error(`AGENTS.md  [untrusted-decode-table] ${rel} is in UNTRUSTED_DECODE_BUDGET with no row in section 7a's table.`);
   }
 }
 

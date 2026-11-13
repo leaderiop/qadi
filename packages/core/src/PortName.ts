@@ -25,8 +25,9 @@ interface PortSpans {
 }
 
 /**
- * Every port `Evaluate.ts` can call into: the closed domain of
- * `portCallsTotal`, `portRetriesTotal` and `portTimeoutsTotal`.
+ * Every port the evaluator's walk (`Walk.ts`, through `PortAccess.ts`) can call
+ * into: the closed domain of `portCallsTotal`, `portRetriesTotal` and
+ * `portTimeoutsTotal`.
  *
  * `PORT_NAMES_BY_NAME` (`PortMetrics.ts`) is a `Record<PortName, true>`, so a
  * sixth port added here without a matching entry there is a compile error
