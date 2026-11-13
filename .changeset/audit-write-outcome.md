@@ -1,5 +1,0 @@
----
-"@qadi/audit": minor
----
-
-Every record `AuditDecisionSinkLive` receives now has exactly one reported outcome. An entry lost after a failed trail write (unwired, or after a failed `stage()`) is now logged as `audit entry dropped: trail write failed and ...` with its `evaluationId`, where it used to leave only a `write_failed` count; a staged entry that was not written is logged at info. `qadi_audit_writes_total` now counts breaker-refused records too, under a new `outcome="skipped_open"` label, so `sum(qadi_audit_writes_total)` is the number of records received (a dashboard dividing by it sees the denominator grow during an outage); a new `qadi_audit_entries_lost_total{after, staging}` counter counts entries held by neither the trail nor staging. New `AuditDecisionSinkOptions.onOutcome` receives each record's `AuditWriteOutcome` (exported, with `WrittenStaging`, `UnwrittenStaging`, `Durability` and `durabilityOf`) so a caller can dead-letter a lost entry; `record` now has a `qadi.audit.record` span carrying the outcome and its durability. No metric label or log message is renamed (ADR-QD-056, ARCH-35).

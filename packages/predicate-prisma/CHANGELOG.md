@@ -1,5 +1,52 @@
 # @qadi/predicate-prisma
 
+## 0.12.0
+
+### Minor Changes
+
+- b655b3b: **Breaking, for subpath importers only.** The `./*` subpath export is removed from `@qadi/core`, `@qadi/audit`, `@qadi/http`, `@qadi/testing`, `@qadi/promise`, `@qadi/predicate-sql` and `@qadi/predicate-prisma`. A package's entry points are now a closed list: the root, and (for `@qadi/devtools`) `./react`. A module kept out of a barrel is no longer importable, so `@qadi/core/TreeFold`, `/Compare`, `/FieldLattice`, `/FieldPath`, `/PortAccess`, `/PortDerivation`, `/ShortCircuit` and `@qadi/audit/CircuitBreaker` are gone with no replacement, and importing a barreled module by subpath (`@qadi/core/Policy`) now fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`. Migration: import the same names from the package root (`import { hasRole } from "@qadi/core"`); every barreled module is re-exported with `export *`, so each of its names is still there. No repository code imported a subpath. Enforced by gate 13's `ENTRY` check and gate 14's check 3b (ADR-QD-099).
+
+### Patch Changes
+
+- 965ff14: Each package's metrics are declared once, in a module its own tests import, and those tests read them by reference instead of matching an id string (ARCH-61, ADR-QD-123): `@qadi/audit`'s write, staging, lost-entry and circuit-breaker counters, and each compiler's compile counter, now in `CompileMetrics.ts`. Nothing is added to any package's public exports, and every metric id, description, type and series is unchanged, so an exporter sees the same metrics.
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [965ff14]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [965ff14]
+- Updated dependencies [c392315]
+- Updated dependencies [e9c7afc]
+- Updated dependencies [965ff14]
+- Updated dependencies [965ff14]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [e0365e0]
+- Updated dependencies [c392315]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [aab8757]
+- Updated dependencies [e0365e0]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [965ff14]
+- Updated dependencies [c392315]
+- Updated dependencies [c392315]
+- Updated dependencies [aab8757]
+- Updated dependencies [e0365e0]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [c392315]
+  - @qadi/core@0.12.0
+
 ## 0.11.0
 
 ### Patch Changes

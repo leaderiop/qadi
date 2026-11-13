@@ -1,5 +1,187 @@
 # @qadi/devtools
 
+## 0.12.0
+
+### Minor Changes
+
+- b655b3b: **Breaking.** A `Decision` is constructed from its trace, and a record or seed whose copies disagree is refused (ARCH-32, ADR-QD-106). `Allow` and `Deny` stored the verdict, `visibleFields`, `obligations` and `reason` beside the trace that already held them, and nothing compared the two: a version-2 record whose `Allow` said `allowed: false` in its trace, or whose fields or duties differed from the trace root's, decoded and re-encoded unchanged, and a `Disclosed` hydration seed had the same gap.
+
+  `@qadi/core`: `new Allow({ ...stamp, trace })` and `new Deny({ ...stamp, trace })` take a stamp (`evaluationId`, `subjectId`, `durationMillis`) and a trace of their verdict (`AllowingTrace`, `DenyingTrace`) and derive `visibleFields`, `obligations` and `reason` from it; passing one of those, or a trace not known to allow or deny, no longer compiles. New `makeDecision(stamp, trace)`, `DecisionStamp`, `isAllowingTrace`, `isDenyingTrace`, and `decisionDisagreement(claim, trace)` with `DecisionClaim` and the closed `DecisionDisagreement`. `decodeDecision` returns `Result<Decision, DecisionDisagreement>`. `decodeSinkRecord` refuses a decision that contradicts its own trace, or whose `evaluationId`, `subjectId` or policy tag contradict its record, as the new `DecodeRefusal.Inconsistent { disagreement }`, so an exhaustive match over `DecodeRefusal` needs an `Inconsistent` arm. The wire bytes do not change; a record written by `evaluate` is unaffected.
+
+  `@qadi/react`: a `Disclosed` hydration seed that disagrees with its own trace is dropped as `MalformedEntry`.
+
+  `@qadi/devtools`: `MalformedReason` gains `"inconsistent"`, so an exhaustive consumer needs a new arm.
+
+- b655b3b: **Breaking.** A port is answered remotely through its description (ARCH-31, ADR-QD-107). A browser that re-checks a seeded decision needs its ports answered by a server, and every host wrote both halves by hand: the newsroom example answered a relationship or history outage with `200 "Unknown"` (a denial, and under `not(...)` a grant), answered a malformed question, answered the cookie's subject under the asked subject's name, read an unrecognised 2xx body as `"Unknown"`, and left a served read invisible.
+
+  `@qadi/core`: `PortDescription` gains a required `wire: PortWire<Args, A>`, so a hand-built description without one no longer compiles. `PortInterpreter` (and `@qadi/devtools`' `PortCallInterpreter`) gains `"remote"`, so an exhaustive match over it needs an arm. New: `answerRemotely`, `askRemotely`, `remotePorts`, `servingFor`, `PortServing`, `PortServingOf`, `PortWire`, `PortWireReply`, `PortWireRefusal`, `RemotePortFailure`, `RemotePortError`, `describeRemotePortFailure`, `DecodedQuestion`, `servedPortCallsTotal` (`qadi_port_served_calls_total`) and `RelationshipDepth`. `RelatedResult` and `ActedResult` are now schema-derived consts with the same types. A served read goes through `servePortRead`, which opens the port's span with `qadi.interpreter = "remote"`. The question carries its subject and `answerRemotely` refuses any subject but the session's; a store outage reaches the asker as the port's own typed error with a `RemotePortError` cause and no server cause text.
+
+  `@qadi/http`: new `portRoutes`, `portRoutesUnguarded`, `PortRoutesOptions`, `PORT_REPLY_STATUS` (a `POST <prefix>/<PortName>` route per served port, `no-store`, status from a closed table) and `remotePortsLayer`, `RemotePortsOptions` (the client half over `HttpClient`).
+
+  `@qadi/devtools`: the Services panel labels a served call `served`.
+
+- b655b3b: **Breaking (`@qadi/http`, `@qadi/devtools`):** the decision stream's protocol words are declared once, in `@qadi/core`. `DecisionStreamEvent` (`"backlog" | "synced" | "message"`), `DecisionRecordEvent` (`"backlog" | "message"`) and `DecisionStreamSynced` are new core exports; `@qadi/http` no longer exports `DecisionFrameEvent` or `DecisionStreamSynced`, and `@qadi/devtools` no longer exports `DecisionEventName`. Migration: import `DecisionRecordEvent`, `DecisionStreamSynced` and `DecisionStreamEvent` from `@qadi/core`. `DecisionStreamSynced` now refuses a `backlog` that is not a non-negative integer. The bytes on the wire are unchanged (ADR-QD-097 amendment).
+- b655b3b: **Breaking.** `@qadi/devtools` exports its stores, its host wiring and ADR-QD-047's timeline readings, and nothing else. Both barrels used to export every name each module declared (245 across the two entry points, of which an application used about a dozen); they now name what a shell crosses, so 87 names released in 0.11.0 are no longer importable (56 from `@qadi/devtools`, 31 from `@qadi/devtools/react`). 24 more were added since 0.11.0 and never released. No alias is kept.
+
+  Removed from `@qadi/devtools`: the simulator's mechanics (`simulate`, `simulationLayer`, `whatIf`, `sweepPlan`, `SimulationOptions`, `WhatIfOptions`, `SimulationSource` and its members with `fixtures`, `snapshot`, `live`, `causesIO`, `portsOf`, `capturing`, `replayLayer`, `emptyAnswers`, `answerCount`, `compareOutcomes`, `isChanged`, `changedRows`, `composeEdits`, `applyEdits`, `editParts`, `remedyEdits`, `satisfyingValue`, `Synthesised`, `RemedySweep`, `singleEdits`, `pairEdits`, `sameEdge`, `sameEvent`, `PairSweep`, `DEFAULT_MAX_PAIRS`, `Replay`, `replayInput`, `baselineDiff`, `matchesBaseline`, `unseededByReplay`, `subjectOf`, `evaluationOptionsOf`, `ResolvedSource`, `resolveSource`, `sourceOptions`, and the `SimulationForm` codecs); the screens' readings (`RoleNode`, `RoleSummary`, `roleSummary`, `grantPath`, `decidingSet`, `GateGroup`, `GateStateCount`, `GATE_STATES`, `gateGroups`, `isLocatable`, `locatableIds`, `instancesAsking`, `policyLabel`, `policiesSeen`). Removed from `@qadi/devtools/react`: the panels with their props (`DecisionLog`, `Inspector`, `FieldsPanel`, `ObligationList`, `PolicyExplorer`, `PolicyTree`, `QuestionsPanel`, `RoleViewer`, `ServicesPanel`, `Simulator`, `WhatIfTable`, `VerdictTag`, `EnvironmentTag`) and the lens (`GateBox`, `isMeasurable`, `boxOf`, `boxesOf`, `drawLens`, `clearLens`, `gateIdAt`, `useLens`, `Lens`).
+
+  Migration: `simulate`, `whatIf` and `sweepPlan` become a session built in a scope, `yield* makeSimulationSession(...)`, with `run("Run")`, `run("Sweep")` and `getSnapshot().plan`; `fixtures`, `snapshot`, `live` and `capturing` become `session.chooseSource(...)` and `session.setPorts(...)`; `replayInput` and `baselineDiff` become `session.seed(entry)` with `getSnapshot().policy` and `.baseline`; the panels become `DevtoolsDock`; `roleSummary`, `gateGroups` and the lens have no replacement, being screen internals. The barrels now name their exports, and a type a public signature names stays public (ARCH-40, ADR-QD-047 and ADR-QD-099 amended).
+
+- c392315: **Breaking.** `Baseline`'s `Checked` arm now carries `reading` (`BaselineReading`), decided when the baseline is checked, so code that builds a `Baseline` by hand must add it. The simulation snapshot reads the sentence from `baseline.reading`.
+
+  The timeline states a dying read. `TimelineStatus` is `Reading` or `Stopped { reason }`, exported from `@qadi/devtools/react`, and `useTimeline()` returns `status` and a `restart` that reads the same source again from the start. A read that has been replaced no longer writes late entries into the new one.
+
+  The dock shows a stopped timeline above the log, inspector, policies and simulator screens, with a Restart timeline button, so a screen that reads the timeline no longer looks merely empty.
+
+  The dock's focus targets draw their own focus ring, and the Restart buttons read the body colour inside an amber border. `runSource` accepts any value with an `accept` method, not only a whole timeline store.
+
+- e0365e0: **Security fix:** a what-if replay no longer decides from a request its capture never saw, on any port. Before, a replay miss on `AttributeResolver`, `RelationshipResolver`, `DecisionHistory` or `CustomPredicate` answered the port's fail-closed default (`undefined`, `Unknown`, `Unknown`, `false`). That denied the leaf that asked, so under `not(...)` it became an allow the real store might not give. A miss now fails with the port's own typed error (`AttributeResolveError`, `RelationshipResolveError`, `DecisionHistoryUnavailable`, `CustomPredicateError`), under the leaf and under its negation alike, with a cause that says the request was not captured (ADR-QD-129). A port added to `@qadi/core`'s registry fails closed on a miss with no edit.
+
+  `SignatureHistory` already did this: a `hasSignature` node's `meaning` and `signerRole` are part of the signature request key, so a what-if that edits either asks a request the capture cannot answer. The empty list it used to answer denied `hasSignature` but granted `not(hasSignature(...))`; that request fails as `SignatureHistoryUnavailable`.
+
+  A request whose key `@qadi/core` refuses (a function or circular custom-predicate param, for example) is passed to the live port unrecorded during a capture, and fails with the port's typed error on replay.
+
+  What you will see: a Snapshot replay of a partial capture shows a failed row, "not captured", for every question the live run did not ask, where it used to show a decision.
+
+- b655b3b: Adds `runDiagnostics`, `makeDiagnosticsStore`, `DiagnosticsStore`, `Diagnostics`, `DiagnosticsOptions`, `WiringRead`, `noDiagnostics` and `DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS` to the model, and `useDiagnostics` and `DiagnosticsDockOptions` to `@qadi/devtools/react`, so a host no longer writes the loop that keeps the dock's Services and React panels current. `DevtoolsDock` takes a `diagnostics` prop (`layer`, `collector`, `questions`, `intervalMillis`) and samples on a schedule: a handed layer is built once while the dock is mounted and released on unmount, a reading keeps its identity while unchanged, and a layer that fails to build is stated on the Services panel instead of leaving it blank. The `wiring`, `activity`, `portCalls`, `hydration` and `questions` props are unchanged and take precedence field by field, for a reading taken elsewhere. `ServicesPanelProps.wiring` is now a `WiringRead` (breaking for a host that renders `ServicesPanel` directly: wrap a report in `WiringRead.Read({ report })`), and `AskedQuestionLike` is declared in the model and still re-exported from `@qadi/devtools/react` (ADR-QD-047 amendment).
+- c392315: **Breaking.** `useTimeline` reads its source in a scope it holds, as the dock does, so it follows its component's lifetime. A StrictMode remount, or a hidden-then-shown `<Activity>`, builds a fresh timeline: `paused` returns to `false` and the source is read again (a backlog refills; a live-only stream starts empty). A capacity change keeps the returned `store` and empties and re-reads it, where it used to return a new store. The signature is unchanged.
+
+  **Breaking.** `useDiagnostics` returns `{ status, reading }`, where it returned the reading itself. Read `reading.hydration` and the other fields from `reading`. `status` is `Off`, `Starting`, `Live` or `Stopped { reason, sampled }`, so a sampler that died is visible instead of a reading that stopped changing. A remount, or a hidden-then-shown `<Activity>`, starts a fresh run.
+
+  Adds `DiagnosticsStatus` and the `DiagnosticsSnapshot` type to `@qadi/devtools/react`. `DiagnosticsDockOptions` is unchanged and is now declared in the model. The dock states the sampler's status on the Services and React screens and offers a restart when it stopped.
+
+- b655b3b: **Breaking.** `DevtoolsDock`'s `wiring`, `activity`, `portCalls`, `questions` and `hydration` props are one `reading` prop of a new `DiagnosticsReading`, merged over what `diagnostics` samples by a new `mergeReading`, field by field: a field the reading carries wins, one it omits falls through to the sample. Its `wiring` is a `WiringRead` (not a bare `WiringReport`), so a reading from another process can state a failed read. Migrate `wiring={report}` to `reading={{ wiring: WiringRead.Read({ report }) }}` and the others to the same-named field of `reading`. `hydrationMismatches` is removed from `DevtoolsDock` and from `QuestionsPanel` (with the panel's legacy mismatch branch): pass `hydration`, or let `diagnostics` sample it, and read `hydration.mismatched`. No alias is kept. `DevtoolsDock` goes from fourteen props to nine (ARCH-44, reverses the layout half of ARCH-24's D-24-c, BEH-QD-323).
+- b655b3b: **Breaking.** A port's description now states its span's attributes, and `@qadi/devtools` reads them from there. `PortDescription` gains a required `attributes` field (a question annotated before the call, an answer annotated after it, and `disclose`) and a seventh, defaulted type parameter; this only affects code that constructs a description, which the closed registry leaves to tests. `@qadi/core` adds `decodePortSpan`, `PortSpanAttributes`, `PortSpanAttributesLike`, `PortSpanRow`, `PortSpanRowOf`, `SpanOf`, `SpanValue`, `SpanFields`, `SpanKey`, `SpanStruct`, `SpanType`, `PortInterpreter` and `SignatureAnswer`. Every span field is a string, a number or a boolean, so a field that could hold a resolved attribute's value does not compile (INV-QD-044), and the sentinel search now also runs under `toPredicate`. The wire is unchanged.
+
+  `@qadi/devtools`: a decoded port row now carries `attempts` (the per-call count a retrying wrapper wrote and nothing read), and a signature row its `scope` and `resourceId`; the Services panel shows both. A field outside its closed union (`scope`, a history or relationship answer) now reads as absent, and a row's optional fields are absent rather than `undefined`. `PortCallOf` and `WiredServiceName` are added. `wiringReport`'s five port rows are the registry's, in its order (`AttributeResolver`, `DecisionHistory`, `RelationshipResolver`, `CustomPredicate`, `SignatureHistory`, then `EvaluationId`, `CurrentSubject`, `DecisionCache`, `DecisionSink`), so the Services cards reorder; `PortReport.port` is a closed union and `PortReport` gains `defaulted`, which says a port is its description's fail-closed default or a wrapper around it. The card says `defaulted — <name>` in the warning tone for such a port, and `if defaulted: …` for a wired one (ADR-QD-094 and ADR-QD-051 amendments).
+
+- c392315: **Breaking.** The `SimulationClock` type is removed. Import `EvaluationClock` from `@qadi/core` instead; it has the same members, `"live" | "deterministic"`.
+
+  The simulation is now built on core's `evaluationEnvironment` with `shadow: "sinkAndCache"`. What it seals is unchanged.
+
+- b655b3b: The simulator's state is a headless session, and its form is a round-tripping codec. New: `makeSimulationSession` (an `Effect` that needs a `Scope`: the session owns its runs in that scope, and closing it interrupts the run in flight) and the `SimulationSession` store (with `resolveSource`, `sourceOptions` and the snapshot types), the `SimulationForm` codecs (`attributeCodec`, `edgeCodec`, `eventCodec`, `signatureCodec`, `roleCodec`, `permissionCodec`), and, from `@qadi/devtools/react`, `useSimulationSession` (which builds the session in a scope the component owns) and `useSimulationSnapshot`. Fixed: a chosen `Live` source with no `ports` (or `Snapshot` with no capture) is refused as a typed state instead of answering from fixtures; a run left behind by a policy change or a re-seed is dropped instead of landing under another policy or another row's baseline; the "what if" sweep runs the evaluations the cost line states (the pairs toggle was ignored); fixture edges and events keep their subject, a relation containing a colon is not split, and a string value that reads as a number is shown quoted; signatures are editable in the Fixtures card; and the dock keeps the simulator's form, capture and result across tab switches. A capture is dropped when the host's `ports` change. `SimulationSnapshot.policy` is a `PolicyChoice`: `Empty`, `Listed` (with its current index), `Evicted` (held, no longer listed) or `Seeded` (the policy of a replayed row). Its first three arms are `HeldChoice`'s, which is exported as a type (`HeldChoice<A>`), and the explorer's `ExplorerShown` carries the same three beside its `Draft`.
+
+  The session also holds the form's chips. `SimulationSession` gains `addChip(field, text)`, which commits typed text by that field's codec and answers with the reason when it is refused (`ChipAdded`: a blank commit is now refused as "nothing to add" rather than ignored), `removeChip(field, index)`, and `SimulationSnapshot.fields`, the form's reading field by field. `SimulationSession` also gains `replay(entry)`, the reviewer's act of replaying a row: it re-seeds on every call, even for the row last seeded, while `seed(entry)` stays the host's prop-driven path and leaves an edited form alone when re-run with the same row. New types: `SimulationField`, `FieldView`, `ChipView`, `ChipAdded`. `UnseededField` gains `key: SimulationField`, the field's key beside its label. Each simulation input field is now described once, and the weakenings, the remedies, the subject rename, the replay's unseeded list, the fixture ports and the chip commands are derived from that description.
+
+  **Fix:** the what-if sweep never offered to drop a signature fixture, so a `hasSignature` allow was swept to a table that could not say whether the signature was load-bearing; it now drops each element of every field the form edits. A `hasSignature` requirement is now answered with the signature its node names, and a `hasCustom` requirement, which no remedy can be built for, is named in `skipped` with its reason instead of being passed over in silence.
+
+  **Breaking:** `EditKind` gains `DropSignature` and `AddSignature`, so an exhaustive match over `EditKind` needs two more arms. A remedy that sets a subject attribute the input already holds now puts the replaced attribute last in the record (`{ a: 1, b: 2 }` set `a` to `9` gives `{ b: 2, a: 9 }`), as the form's own attribute editor always did. The subject card's attribute editor is captioned "subject attributes" (it was "attributes"), matching the replay's list; its test id `qadi-subject-attributes` is unchanged, but a test selecting its input by `aria-label="Add attributes"` must select `Add subject attributes`.
+
+- aab8757: The simulator is a view of its session, and a session owns its runs in a scope. `makeSimulationSession` now returns an `Effect` that needs a `Scope`: a newer run or a superseding command (choosing a policy, a re-seed, a replay, a change of ports) interrupts the run in flight at once, so a superseded Live run stops asking the application's resolvers before the command returns, and closing the scope interrupts it and leaves the session inert. `run(kind)` is a command (it returns `void`; there is no Effect to fork). `reap`, `hasRetired` and `dispose` are removed. `SimulationSessionView` is `{ session, snapshot }`, and `useSimulationSession` returns `undefined` until its session exists (it builds it in a scope the component owns and closes it on unmount).
+
+  `SimulationSession` gains `setAction(text)` (an empty text removes the action) and `choosePolicyAt(position)` (the select's `selectedIndex`, chosen from `snapshot.policyMenu`); its snapshot gains `policyMenu` and `cost`, a checked `baseline` carries its `reading`, and a finished run carries its `reading`. New types: `PolicyMenu`, `PolicyMenuOption`, `SweepCost`, `BaselineReading`, `RecordOutcome`, `ObligationState`. The screen computes none of what it shows, so what the dropdown lists, the cost line, the baseline sentence and a result's reading are now under the model's mutation gate.
+
+  The session interface has not been released yet (it arrives in the same release as `simulation-session.md`), so no released consumer is broken.
+
+- b655b3b: `renderTrace` and `diffTraces` no longer overflow the stack on a trace evaluated under a large `maxDepth`: a decision that evaluated fine used to turn into a raw `RangeError` when its trace was rendered or diffed (about 1,483 and 2,186 levels). `renderTrace` caps indentation at the new `RenderTraceOptions.indentLimit` (default 64, the default `maxDepth`): a line deeper than that keeps 64 levels of indent and is prefixed `(depth N) `, so rendering changes only for a trace deeper than 64 levels, and `indentLimit: Infinity` restores the old format. `@qadi/core` adds `foldTrace` and `TraceCases` (the stack-safe, case-wise walk for a caller-held trace), `foldAligned` and `AlignedNode` (an explanation folded with the trace of one evaluation, once per position, so a subtree shared by identity keeps its own trace and key) and `tracePathKey` (a `TracePath`'s `"$.0.2"` address). `@qadi/devtools` adds `describeTracePath`; `inspect` is now an adapter over `foldAligned`, its output is unchanged, and the package no longer carries a copy of the fold loop (ADR-QD-101).
+
+### Patch Changes
+
+- b655b3b: Adds `foldPolicyCases`, `foldMatcherCases` and `foldExplanationCases`, with `PolicyCases`, `MatcherCases`, `ExplanationCases`, `RuleResult`, `RowResult`, `LeafPolicy`, `LeafMatcher`, `leafCases` and `leafMatcherCases`. Each arm receives its children in the tag's own shape: a wrapper's one child is a value of the result type, not an array, and a `Rules` or `Table` row arrives paired with its condition's result, so a missing arm or an arm that treats a wrapper's child as an array is a compile error. `foldPolicy`, `foldMatcher` and `foldExplanation` are unchanged and remain the form for a fold that treats children alike. `simplify`, `explain`, `renderExplanation`, `toPredicate` and `@qadi/devtools`' remedy derivation fold case-wise, which deletes seven "expected exactly one child" helpers and five `Rules` length checks that no input could reach (ADR-QD-090 amendment).
+- 965ff14: A reconnect to `/__decisions` during the backlog no longer loses records (ARCH-60). The backlog was sent in decision order (by `at`) while a reconnect resumed after the last event id the client saw, so whenever decision order and arrival order differed (overlapping evaluations, any record ingested from an edge function) a client cut off mid-backlog resumed past records it had never received, with no error. A reconnect after the backlog also re-sent records the client had. The backlog now travels in cursor order, so a reconnect loses and repeats nothing (BEH-QD-349, INV-QD-250).
+
+  `@qadi/core`: the stream's order has one owner, `DecisionStream.ts`. Added: `encodeDecisionStream` (a log read as transport-free frames, the backlog in cursor order, one `synced`, then live), `decodeDecisionStream` (frames read back into a backlog, presented in `storedRecordOrder`, or none, and a live stream), `DecisionStreamFrame`, `EncodeDecisionStreamOptions`, `ReceivedFrame` and `DecisionStreamRead`. Both are codec-free: the record's bytes and the refusal words are the caller's. `DecisionStreamEvent`, `DecisionRecordEvent`, `DecisionStreamSynced`, `formatLogCursor` and `parseLogCursor` are declared in that module now, under the same names.
+
+  **Breaking (`@qadi/http`):** `frame`, `syncedFrame` and `decisionFrames` are removed, with no aliases. Use `@qadi/core`'s `encodeDecisionStream` and write each frame yourself. `decisionStreamRoute`, `decisionBacklogRoute`, the record bytes, both refusal warnings, both span names and `onRefused` are unchanged.
+
+  `@qadi/devtools`: `sourceFromEventSource` is the `EventSource` adapter over `@qadi/core`'s `decodeDecisionStream`. Its signature, `SourceRead`, `onMalformed` and what it prints are unchanged.
+
+  The order is the server's: a fixed reader connected to a server older than this release still loses records on a reconnect during the backlog. Upgrade the server.
+
+- b655b3b: Every developer signal `@qadi/react` raises now goes through one module, and the meaning of each hydration drop reason is stated once, in `@qadi/core`.
+
+  `@qadi/react`: `QadiProvider` takes `onDeveloperSignal` (type `ProviderSignalReporter`), told `{ _tag: "InstrumentedInProduction" }`, `{ _tag: "AtomsReplaced" }` or `{ _tag: "UnwritableGateRegistry" }` (type `ProviderSignal`, a closed union). Supplying it replaces the development console warning for all three and runs in production, as `onHydrationMismatch` does; without it the warnings are unchanged. **Breaking, for a test double only:** `HydrationDrop` gains a required `wholePayload: boolean`, so a hand-built `HydrationDrop` literal must add it. The default warning for a payload refused whole now reads "hydrateDecisions refused the payload (N decision(s) in it): …" instead of "did not seed 0 decision(s)" beside a counter that read one, and `MalformedPayload`'s sentence now also names the structural depth guard. Every other console message is byte-identical.
+
+  `@qadi/core`: `hydrationDropMeaning(reason)` returns `{ summary, remedy }` for a `HydrationDropReason` (`HydrationDropMeaning`), and `isHydrationDropReason(word)` narrows a metric key to one. The console prints `remedy`; the devtools panel shows `summary`.
+
+  `@qadi/devtools`: the hydration panel reads each reason's sentence from `hydrationDropMeaning`; the text is unchanged.
+
+- b655b3b: `useDevtoolsFeed(extra)` and `runtimeLayer(atoms, registry)`: hand the devtools dock everything it reads off the atom set in one call. `useDevtoolsFeed` returns `gates`, `onInvalidate` and a `diagnostics` (your `extra` plus a `layer` and `questions`) to spread onto `<DevtoolsDock {...feed} />`; the layer is the provider's own built runtime context, mounted for the dock's run, so the dock's wiring read sees the decision cache your guards filled and no stateful layer needs hoisting out of the atom set. Setting `layer` or `questions` in `extra` is a compile error. `DevtoolsFeed` and `DevtoolsDiagnosticsFeed` are exported types. `@qadi/devtools` gains no API (documentation and doc comments only), and still has no dependency on `@qadi/react` (ADR-QD-053, BEH-QD-327, ARCH-34).
+- b655b3b: An obligation row whose decision never arrived (an orphan) now shows the subject, action and resource id its record carries, and the text filter searches them. A row written before the record named its question renders as it did.
+- 965ff14: **Fix:** the role viewer draws every role correctly.
+
+  - A distinct role that shares a name with another is its own row. Before, the second one was marked "already reached above".
+  - A deep inheritance chain renders. Before, a 20,000-deep chain threw `RangeError: Maximum call stack size exceeded`.
+  - A role reached by a second path, as in a diamond, is one row marked "already reached above" and linked to its first occurrence. Its subtree is drawn once, under that first occurrence. Before, the viewer drew the subtree again under every repeat, so a chain of stacked diamonds drew a number of rows exponential in its length.
+
+  The viewer now draws the role walk from `@qadi/core`'s `roleWalk` as flat, indented rows. Nothing exported changed.
+
+- aab8757: The dock's stores are one internal model: a new decision, a new catalogue or new ports reach every screen together, and an unchanged prop resets nothing. Nothing changes for hosts.
+- 965ff14: **Fix:** replaying the same timeline row again re-seeds the simulator, even after another policy was chosen from the rail or the form was edited. Before, the second "Replay in simulator" on a row did nothing and the simulator kept the other policy. The dock's tab, log filters and selected row moved into an internal session with it; nothing changes for hosts.
+- e9c7afc: `renderExplanation` no longer throws on a policy built in code whose `fieldStrategy` or `combining` is outside its closed union (an unknown string, a key `Object.prototype` supplies such as `"toString"`, or `""`). It names the value verbatim and says what the evaluator does with it — an `allOf`/`anyOf` exposes no fields and is evaluated fail-closed, a rule table is walked under `DenyOverrides` — including for an empty or one-part composite, which used to render its part's fields though none are granted. `@qadi/devtools`' `inspect` marks such a value "(outside the union, evaluated fail-closed)" instead of showing it bare (ADR-QD-092, amended 2026-10-06).
+- 1721a42: The dock keeps the policy explorer's chosen policy, a pasted or simplified draft, the Tree/JSON view and an unloaded paste when you switch tabs and come back, and the role viewer keeps its role. What the explorer shows moved into a model the dock owns; no exported name changed.
+
+  Three explorer defects are fixed with it: loading a paste now ends a preview of the previous policy, so `apply` applies the tree on screen; a paste's refusal is cleared once its text or the shown policy changes; and an unloaded paste survives switching to the tree and back.
+
+- aab8757: Internal: the inspector and the simulator render one failure sentence (ARCH-77). The text that a failed check is not a denial was written in both panels; it is now one constant in the headless verdict model. The rendered text is unchanged.
+- b655b3b: `@qadi/devtools`' hydration panel reads the five hydration counts from the default metric registry, where `@qadi/react` writes them. At effect 4.0.0 a metric looks its registry up on every update, so under a host-wired `MetricRegistry` the panel read zero while the counts were rising (ADR-QD-052's "cannot diverge whatever a host wires" was written for a release candidate). A host that exports metrics from its own registry must export these five from the default one.
+- b655b3b: The simulator and the policy explorer keep the policy you chose when new decisions reorder the rail, and the role viewer keeps its role when a host rebuilds the list. A policy that leaves the rail stays chosen and is marked "no longer in the log" instead of being swapped for a neighbour, and the first policy shown is held so the default does not follow the newest decision either. `SimulationSession.choosePolicy` takes the policy instead of an index and `PolicyChoice` gains an `Evicted` member; both were added after the last release, so no released API changes. `catalogueOf` lists structurally equal declared policies once, under the first declared name, as BEH-QD-211 already required.
+- b655b3b: `@qadi/core` exports `PortFixtureData`, `PortFixtures`, `PORT_FIXTURES` and `fixturePortsLayer`: each port's fixture builder as one table closed over `PortName` (a port added to the registry without a row is a compile error), and the one place fixture data becomes an environment. `CustomPredicate`'s fixture is fixed verdicts by name. `@qadi/devtools`' Fixtures simulation builds its ports through it instead of its own copy of the data-to-layer map; behaviour is unchanged (ADR-QD-094, ARCH-42).
+- b655b3b: A port's request key now covers every argument the port receives, and two requests share a key exactly when every argument is `Equal.equals` (ADR-QD-094, ARCH-65). `relationshipResolverPort.key` includes the clamped `depth`, and `customPredicatePort.key` includes the resource and the whole subject (roles, permissions, attributes). Devtools' capture and replay no longer answer a depth-1 relationship ask with a depth-3 capture, a custom predicate on one resource with another resource's answer, or a what-if that dropped a role with the answer given to the original subject (a stale allow).
+
+  The key is no longer JSON text. JSON keyed a `Date` like its ISO string, `NaN` and `±Infinity` like `null`, `{ a: undefined }` like `{}`, a `Set` like an array and a `Map` like its entry pairs, and threw on a bigint or a cycle, so a replay or a `replyTable` could answer one question with another's answer. Every port now keys through one kind-tagged, deterministic, stack-safe encoding that agrees with `Equal.equals` (the identity `Question` and `DecisionCache` already used) over primitives, `Date`, `RegExp`, arrays, plain objects, `Set` and `Map`; a subclass of one of those containers keys as its base class. One limit: an object marked `Equal.byReference` keys by its structure, because a replay cannot preserve identity.
+
+  **Breaking:** `PortDescription.key` returns `Result<string, KeyRefusal>` instead of `string`. A request holding a value outside the domain (a cycle, a function, a symbol, a throwing getter, a value that implements `Equal` itself, any other class instance) is refused with a typed `KeyRefusal` (`Circular | Unkeyable | Unreadable`, with the path where it sits) instead of throwing or colliding. Every key's text changes, and `CapturedAnswers` maps key with them; no key was ever persisted or sent on a wire, so nothing needs migrating. Migration: match the `Result` (`Result.match(port.key(args), { onSuccess, onFailure })`) and use the success text as a map key, never the `Result` itself.
+
+  New: `KeyRefusal`, `UnkeyableKind` and `describeKeyRefusal` (one sentence per refusal).
+
+  `replyTable` matches a request by its key's text; a request whose key is refused fails with the port's own typed error (cause: `describeKeyRefusal`) and is never answered from the table, and an entry whose key is refused is left out. `signatureHistoryFromSignatures` fails a refused query with `SignatureHistoryUnavailable` instead of answering an empty list.
+
+  The key text changed again for four ports (ARCH-69, ADR-QD-133): `attributeResolverPort`, `relationshipResolverPort`, `decisionHistoryPort` and `signatureHistoryPort` now key as `canonicalKey` over their wire question, derived by `makePortDescription` rather than listed by hand, so a field the question carries can no longer be left out of the key. `customPredicatePort`'s key is unchanged. The text is in-process only, so nothing needs migrating; `PortDescription`'s type is unchanged.
+
+- e0365e0: A port states what it serves, and the pass-through port enumerations are gone (ARCH-53, ADR-QD-114).
+
+  **Breaking (`@qadi/core`):** `mapPorts` is removed. `tabulatePorts(f)` takes the same visitor and returns the same `PortLayers`, because it now has a layer form beside its uniform one; replace `mapPorts(f)` with `tabulatePorts(f)`. `PortLayerVisitor` stays. `mapPorts` was published in 0.10.0.
+
+  `fixturePortsLayer` takes one argument, and `PortFixtures` is now per port `{ answers?, layer? }`: a `layer` wins over `answers`, and neither means the port's fail-closed default. Both were added after 0.11.0 (ARCH-42) and are unreleased, so no published consumer is affected. `@qadi/testing` has no API change: `TestLayerOptions.ports` crosses to core as it is. `@qadi/devtools` has no behaviour change.
+
+  `PortDescription` gains a required `serving` (`PortServingFacet`: the allowlist word, the asked name, and the admit and declare functions), and `PortWire.asked` moves to `serving.asked`. `PortServing` and `PortServingOf` keep their shape and are now declared in `PortServing.ts`, with the same `@qadi/core` import; `PortServingFacet` is new. A hand-built description (rare, because the registry is closed) states `serving`. These were added after 0.11.0 by ARCH-31 and are unreleased, so they are not marked breaking: no published release carries the shapes they change.
+
+  A port also states the request each policy leaf asks it (ARCH-70, ADR-QD-134): `PortDescription.asks`, a `LeafRequests<P>` with one `(leaf, site) => request` per policy tag the port reads, where `site` is a `ReadSite` (the subject asking and the resource asked about). Every read builds its request through it and `servingFor` reads the name a leaf asks from the same request, so the facet keeps no leaf map of its own. `ServedLeaves` (unreleased, from this changeset's `PortServingFacet`) is replaced by `LeafRequests`; `ReadSite`, `LeafOf` and `AskedOf` are new.
+
+  **Breaking (`@qadi/core`):** `PortDescription` takes the request as far as a site supplies it as a type parameter (`P`, defaulting to `Args`) and an exact `Asks`, and requires `asks`. A hand-built description (rare, because the registry is closed) must state `asks`. `PortDescription` shipped in 0.10.0, so this one is marked breaking.
+
+- aab8757: **Internal:** the simulator's source availability (which of Fixtures, Snapshot and Live can be had, and why) and the rule that a Live run captures, which is what makes Snapshot available, now live in one function in the source module, and the simulator's session stores its result instead of working both out itself. No public name or behaviour changes.
+- c392315: The policy paste box says when the text is not JSON ("The text is not JSON: …", with the parser's message), instead of printing a schema message.
+- 965ff14: The dock no longer shows a denial and a failure alike. In the questions panel a failed guard and a denied guard were drawn in the same colour; a failed guard is now amber, and a denied guard red and bold. In the policy tree a denied node's mark was drawn in the amber the dock reserves for errors; it is now red. Every panel (the verdict tag, the questions panel and the policy tree) takes its verdict colour, weight and label from one treatment, in which a denial is solid and a failure outlined, so the two never look alike; a guard state the dock does not know is shown by its own name, muted (ARCH-67, BEH-QD-429). The Inspector and the Simulator read a decision's outcome and obligation state through one reading, and what they show is unchanged (BEH-QD-430).
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [965ff14]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [965ff14]
+- Updated dependencies [c392315]
+- Updated dependencies [e9c7afc]
+- Updated dependencies [965ff14]
+- Updated dependencies [965ff14]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [e0365e0]
+- Updated dependencies [c392315]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [aab8757]
+- Updated dependencies [e0365e0]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [965ff14]
+- Updated dependencies [c392315]
+- Updated dependencies [c392315]
+- Updated dependencies [aab8757]
+- Updated dependencies [e0365e0]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [c392315]
+  - @qadi/core@0.12.0
+
 ## 0.11.0
 
 ### Minor Changes
@@ -460,7 +642,7 @@
   row cannot vouch for agreement it never recorded.
 
   New in `@qadi/testing`: **`TestLayerOptions.clock`**. `qadiTestLayer(subject,
-{ clock: "test" })` wires a `TestClock`, so `durationMillis` is reproducible
+  { clock: "test" })` wires a `TestClock`, so `durationMillis` is reproducible
   outside a test runner that happens to supply one. The ids were already
   deterministic and the clock was not, which is half a determinism claim — and it
   survived unnoticed because `@effect/vitest` hands `it.effect` a `TestClock`

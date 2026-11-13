@@ -1,7 +1,0 @@
----
-"@qadi/audit": minor
----
-
-**Breaking.** A purge selects only rows an archive read back from storage holds. New `readAuditArchive(input: unknown)` reads a stored `AuditArchive` bundle back (every entry through `decodeAuditEntry`, the count, the sequence check, the order `archiveAuditTrail` writes and the `sequenceIntegrityVerified` claim) and returns `Result<VerifiedArchive, ArchiveNotVerified>`, each failure one of seven `ArchiveRefusal`s. `VerifiedArchive` cannot be built by hand. New `planPurge(entries, policy, now, archive)` is the only function that returns rows to delete: a row is in `purge` only when it is past its age and the archive holds it (two identical rows need two archived copies); an expired row the archive lacks is retained and listed in `unarchived`. A `VerifiedArchive` proves what the stored bytes say, not that the store is durable or untampered.
-
-Removed: `getPurgeableEntries` and `enforceRetention` (use `planPurge`, or `planRetention` for an age report); `RetentionPlan.purged` is now `RetentionPlan.expired`; the decommissioning checklist (`makeDecommissioningChecklist`, `completeDecommissioningStep`, `DecommissioningChecklist`, `DecommissioningStep`, `DecommissioningStepId`, `UnknownDecommissioningStep`), whose procedure is now an unenforced list in the README. A bundle written before the 2026-09 correction, whose `sequenceIntegrityVerified` was a vacuous `true`, is refused as `UnbackedClaim`; re-bundle its entries with `archiveAuditTrail` (ADR-QD-056, ARCH-38).
