@@ -72,8 +72,9 @@ Open-artifact audit clean. 45/45 requirements checked off.
 
 **Known verification overrides:** 0 newly acknowledged, 0 carried forward.
 
-**Carried forward:** Node 26 CI leg times out in mutation (60-minute limit); devtools replay
-fail-open on four ports' `none` answers needs a decision; open warning/info review findings
+**Carried forward:** Node 26 CI leg times out in mutation (60-minute limit); ~~devtools replay
+fail-open on four ports' `none` answers needs a decision~~ (closed in v1.1 by ADR-QD-129 /
+CCR-QD-407; corrected 2026-11-12); open warning/info review findings
 (see PROJECT.md "Known Issues").
 
 ---
