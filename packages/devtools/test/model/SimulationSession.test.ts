@@ -1748,3 +1748,59 @@ describe("what the session starts from, and what each command preserves", () => 
       assert.deepStrictEqual(session.getSnapshot().resourceText, { text: '{"id":"x"}', error: undefined });
     }));
 });
+
+describe("the snapshot describes every source choice", () => {
+  const WITHOUT_PORTS = "the host did not pass a `ports` layer, so this panel cannot reach any resolver";
+  const WITHOUT_CAPTURE = "run once against Live first; this replays what that run learned";
+
+  it.effect("SR1 options and refusal for every (choice × ports × capture), with the dock's own sentences", () =>
+    Effect.gen(function* () {
+      let rows = 0;
+      for (const choice of ["Fixtures", "Snapshot", "Live"] as const) {
+        for (const withPorts of [true, false]) {
+          for (const takeCapture of [false, true]) {
+            rows += 1;
+            const session = yield* sessionWith(clearance);
+            if (takeCapture) {
+              // A capture is taken by a Live run, which needs ports; dropping the ports then drops it.
+              session.setPorts(brokenPorts);
+              session.chooseSource("Live");
+              yield* ran(session);
+            }
+            session.setPorts(withPorts ? brokenPorts : undefined);
+            session.chooseSource(choice);
+
+            const snapshot = session.getSnapshot();
+            const captured = withPorts && takeCapture;
+            assert.strictEqual(snapshot.capture !== undefined, captured);
+            assert.deepStrictEqual(snapshot.options.map((o) => [o.id, o.enabled, o.why]), [
+              ["Fixtures", true, "answers you typed below"],
+              [
+                "Snapshot",
+                captured,
+                captured
+                  ? "real answers, captured once and replayed — one round of I/O for a whole sweep"
+                  : WITHOUT_CAPTURE,
+              ],
+              [
+                "Live",
+                withPorts,
+                withPorts ? "the application's own resolvers — every row is real I/O" : WITHOUT_PORTS,
+              ],
+            ]);
+            if (choice === "Live" && !withPorts) {
+              assert.deepStrictEqual(snapshot.refusal, { _tag: "LiveWithoutPorts", reason: WITHOUT_PORTS });
+            } else if (choice === "Snapshot" && !captured) {
+              assert.deepStrictEqual(snapshot.refusal, {
+                _tag: "SnapshotWithoutCapture",
+                reason: WITHOUT_CAPTURE,
+              });
+            } else {
+              assert.isUndefined(snapshot.refusal);
+            }
+          }
+        }
+      }
+      assert.strictEqual(rows, 12);
+    }));
+});
