@@ -5,17 +5,17 @@ milestone_name: Arch Wave 8
 current_phase: 36
 current_phase_name: Carried spec debt and stale records
 status: executing
-stopped_at: Completed 36-01-PLAN.md
-last_updated: "2026-11-12T23:58:37.469Z"
+stopped_at: Completed 36-02-PLAN.md
+last_updated: "2026-11-13T00:04:14.212Z"
 last_activity: 2026-11-13
 last_activity_desc: Phase 36 execution started
-state_head: 90ad54264d3df678043371fc992bbea2f3841217
+state_head: c7e6ce8a6376b4755b67b5ddbeca1e9da63c21c7
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 54
-  completed_plans: 41
-  percent: 76
+  completed_plans: 42
+  percent: 78
 ---
 
 # Project State
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 36 (Carried spec debt and stale records) — EXECUTING
-Plan: 2 of 14
+Plan: 3 of 14
 Status: Ready to execute
 Last activity: 2026-11-13 — Phase 36 execution started
 
-Progress: [████████░░] 76% (v1.3: 0 of 7 phases)
+Progress: [████████░░] 78% (v1.3: 0 of 7 phases)
 
 
 ## Performance Metrics
@@ -189,6 +189,7 @@ Progress: [████████░░] 76% (v1.3: 0 of 7 phases)
 | Phase 35 P06 | 8 min | 3 tasks | 11 files |
 | Phase 35 P07 | 5 min | 3 tasks | 1 files |
 | Phase 36 P01 | 25 min | 2 tasks | 2 files |
+| Phase 36 P02 | 15 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -291,6 +292,8 @@ Progress: [████████░░] 76% (v1.3: 0 of 7 phases)
 - [Phase 35]: 35-06: BEH-QD-514 words the removed manual sweep as 'no member a caller can use to run a sweep' (the plan's verify forbids naming sweepEvictions in 09); ADR-QD-148 written for candidate-1
 - [Phase 35]: 35-07: closing checks green; no mutation survivor needed naming, 35-mutation-survivors.json not created
 - [Phase 36]: react/index.ts is recorded unmeasured (absent from the Stryker report, export-only barrel); devtools react files measured through the --mutate override with no config edit
+- [Phase 36]: 36-02: useTimelineStore keeps the one UseTimeline shape; a hand-fed store reads Reading and its restart does nothing
+- [Phase 36]: 36-02: gate 13 (spec:api) is red from the TimelineStatus barrel export until 36-13 adds the overview row
 
 ### Pending Todos
 
@@ -332,8 +335,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-12T23:58:37.178Z
-Stopped at: Completed 36-01-PLAN.md
+Last session: 2026-11-13T00:04:13.791Z
+Stopped at: Completed 36-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
