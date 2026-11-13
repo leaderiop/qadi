@@ -5,17 +5,17 @@ milestone_name: Arch Wave 8
 current_phase: 36
 current_phase_name: Carried spec debt and stale records
 status: executing
-stopped_at: Completed 36-02-PLAN.md
-last_updated: "2026-11-13T00:04:14.212Z"
+stopped_at: Completed 36-03-PLAN.md
+last_updated: "2026-11-13T00:07:49.228Z"
 last_activity: 2026-11-13
 last_activity_desc: Phase 36 execution started
-state_head: c7e6ce8a6376b4755b67b5ddbeca1e9da63c21c7
+state_head: e3875a50321ea492cca16bf50d97d40208739090
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 54
-  completed_plans: 42
-  percent: 78
+  completed_plans: 43
+  percent: 80
 ---
 
 # Project State
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 36 (Carried spec debt and stale records) — EXECUTING
-Plan: 3 of 14
+Plan: 4 of 14
 Status: Ready to execute
 Last activity: 2026-11-13 — Phase 36 execution started
 
-Progress: [████████░░] 78% (v1.3: 0 of 7 phases)
+Progress: [████████░░] 80% (v1.3: 0 of 7 phases)
 
 
 ## Performance Metrics
@@ -190,6 +190,7 @@ Progress: [████████░░] 78% (v1.3: 0 of 7 phases)
 | Phase 35 P07 | 5 min | 3 tasks | 1 files |
 | Phase 36 P01 | 25 min | 2 tasks | 2 files |
 | Phase 36 P02 | 15 min | 3 tasks | 9 files |
+| Phase 36 P03 | 6 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -294,6 +295,7 @@ Progress: [████████░░] 78% (v1.3: 0 of 7 phases)
 - [Phase 36]: react/index.ts is recorded unmeasured (absent from the Stryker report, export-only barrel); devtools react files measured through the --mutate override with no config edit
 - [Phase 36]: 36-02: useTimelineStore keeps the one UseTimeline shape; a hand-fed store reads Reading and its restart does nothing
 - [Phase 36]: 36-02: gate 13 (spec:api) is red from the TimelineStatus barrel export until 36-13 adds the overview row
+- [Phase 36]: 36-03: SUBJ1..SUBJ3 are RED on the base (all three); 28 IN-06 closed green by GR-S1, GR-S2, GW-S1 with no defect
 
 ### Pending Todos
 
@@ -335,8 +337,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-13T00:04:13.791Z
-Stopped at: Completed 36-02-PLAN.md
+Last session: 2026-11-13T00:07:48.954Z
+Stopped at: Completed 36-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
