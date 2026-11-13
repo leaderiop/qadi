@@ -530,12 +530,12 @@ Plans:
   3. Every open v1.2 info finding listed in `_WAVE8-CONTEXT.md` has been re-verified at the phase base and is fixed or recorded as resolved by 30-35; 24 IN-01 (a recorder built and dropped per commit) and 24 IN-03 (`Ready` spelled twice) are fixed as tested code changes.
   4. The stale citations are corrected (`v4-http-smoke.test.ts:106` naming `registerApi`, and the `stryker.http.mjs` comment placing code in `PermissionRegistry.ts`), and 28 IN-06 is narrowed and tested or closed with evidence.
 **Planning notes**: pure verification and edit work; the risk is reconstruction care, not research. Re-verify every item at its base before touching it.
-**Plans**: 4/14 plans executed
+**Plans**: 5/14 plans executed
 - [x] 36-01-PLAN.md
 - [x] 36-02-PLAN.md
 - [x] 36-03-PLAN.md
 - [x] 36-04-PLAN.md
-- [ ] 36-05-PLAN.md
+- [x] 36-05-PLAN.md
 - [ ] 36-06-PLAN.md
 - [ ] 36-07-PLAN.md
 - [ ] 36-08-PLAN.md

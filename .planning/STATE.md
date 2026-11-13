@@ -5,17 +5,17 @@ milestone_name: Arch Wave 8
 current_phase: 36
 current_phase_name: Carried spec debt and stale records
 status: executing
-stopped_at: Completed 36-04-PLAN.md
-last_updated: "2026-11-13T00:11:53.720Z"
+stopped_at: Completed 36-05-PLAN.md
+last_updated: "2026-11-13T00:17:17.324Z"
 last_activity: 2026-11-13
 last_activity_desc: Phase 36 execution started
-state_head: 8a6c2cb53e9b9cce1ac9fc8332e95745b6545ff4
+state_head: 7645aa915f0e937c2167fcda80ae33d1d64be284
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 54
-  completed_plans: 44
-  percent: 81
+  completed_plans: 45
+  percent: 83
 ---
 
 # Project State
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 36 (Carried spec debt and stale records) — EXECUTING
-Plan: 5 of 14
+Plan: 6 of 14
 Status: Ready to execute
 Last activity: 2026-11-13 — Phase 36 execution started
 
-Progress: [████████░░] 81% (v1.3: 0 of 7 phases)
+Progress: [████████░░] 83% (v1.3: 0 of 7 phases)
 
 
 ## Performance Metrics
@@ -192,6 +192,7 @@ Progress: [████████░░] 81% (v1.3: 0 of 7 phases)
 | Phase 36 P02 | 15 min | 3 tasks | 9 files |
 | Phase 36 P03 | 6 min | 3 tasks | 4 files |
 | Phase 36 P04 | 40 min | 3 tasks | 4 files |
+| Phase 36 P05 | 7 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -298,6 +299,8 @@ Progress: [████████░░] 81% (v1.3: 0 of 7 phases)
 - [Phase 36]: 36-02: gate 13 (spec:api) is red from the TimelineStatus barrel export until 36-13 adds the overview row
 - [Phase 36]: 36-03: SUBJ1..SUBJ3 are RED on the base (all three); 28 IN-06 closed green by GR-S1, GR-S2, GW-S1 with no defect
 - [Phase 36]: 36-04: HL6 builds its registry after settle() so the sweep evicts before the registry's own removal task runs
+- [Phase 36]: 36-05: describeSource is a package-private view of prepareSource until 36-08; D1 pins the identity RED
+- [Phase 36]: 36-05: SR1 reaches the unreachable (no ports, capture) row by dropping ports after a capture
 
 ### Pending Todos
 
@@ -339,8 +342,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-13T00:11:53.145Z
-Stopped at: Completed 36-04-PLAN.md
+Last session: 2026-11-13T00:17:17.012Z
+Stopped at: Completed 36-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
