@@ -11,7 +11,8 @@ import { vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { StrictMode } from "react";
 import { DiagnosticsStatus } from "../../src/model/DiagnosticsFeed.ts";
-import { DiagnosticsNotice, diagnosticsRootProps, noStops } from "../../src/react/DiagnosticsNotice.tsx";
+import { DiagnosticsNotice, diagnosticsRootProps } from "../../src/react/DiagnosticsNotice.tsx";
+import { noStops } from "../../src/react/StoppedBox.tsx";
 import type { DiagnosticsNoticeProps } from "../../src/react/DiagnosticsNotice.tsx";
 import { colors, withAlpha } from "../../src/react/theme.ts";
 

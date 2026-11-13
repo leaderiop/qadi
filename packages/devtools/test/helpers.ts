@@ -10,7 +10,7 @@
  */
 import * as Effect from "effect/Effect";
 import { DiagnosticsStatus } from "../src/model/DiagnosticsFeed.ts";
-import { noStops } from "../src/react/DiagnosticsNotice.tsx";
+import { noStops } from "../src/react/StoppedBox.tsx";
 import type { DiagnosticsNoticeProps } from "../src/react/DiagnosticsNotice.tsx";
 import {
   Allow,

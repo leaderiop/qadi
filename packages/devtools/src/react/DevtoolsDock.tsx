@@ -18,14 +18,13 @@ import { useMemo, useRef } from "react";
 import { sourceFromRecords, type Source } from "../model/Source.ts";
 import type { Verdict } from "../model/Verdict.ts";
 import type { Catalogue } from "../model/Catalogue.ts";
-import type { DiagnosticsDockOptions } from "../model/DiagnosticsFeed.ts";
+import type { DiagnosticsDockOptions, DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
 import type { Diagnostics, DiagnosticsReading } from "../model/DiagnosticsStore.ts";
 import type { DockModel } from "../model/DockModel.ts";
 import type { DockSnapshot, TabId } from "../model/DockSession.ts";
 import type { GateInstanceLike } from "../model/Gates.ts";
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
 import { DecisionLog } from "./DecisionLog.tsx";
-import { noStops } from "./DiagnosticsNotice.tsx";
 import type { DiagnosticsNoticeProps } from "./DiagnosticsNotice.tsx";
 import { Inspector } from "./Inspector.tsx";
 import { PolicyExplorer } from "./PolicyExplorer.tsx";
@@ -33,6 +32,7 @@ import { QuestionsPanel } from "./QuestionsPanel.tsx";
 import { RoleViewer } from "./RoleViewer.tsx";
 import { ServicesPanel } from "./ServicesPanel.tsx";
 import { Simulator } from "./Simulator.tsx";
+import { noStops, type StopLedger } from "./StoppedBox.tsx";
 import { useDockModel } from "./useDockModel.ts";
 import { usePaused, useStoreSnapshot } from "./useStoreSnapshot.ts";
 import { body, button, colors, dock as dockStyle, font, input, muted, toolbar } from "./theme.ts";
@@ -165,7 +165,7 @@ const DockFrame: FC<{
   // Each field is the supplied reading's when it carries one, and the sample's otherwise: the model merges.
   const { status, reading: shown } = useStoreSnapshot(model.diagnostics);
   // Records only which stops were announced, never what the reading says (AGENTS.md §13).
-  const announced = useRef(noStops);
+  const announced = useRef<StopLedger<DiagnosticsStatus>>(noStops);
   const notice = useMemo(
     () => ({ status, onRestart: model.diagnostics.restart, announced }),
     [status, model],
