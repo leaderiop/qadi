@@ -44,9 +44,9 @@ Every item is re-verified at `phase_base` e018203500839e381f34734c68ad411cbd426c
 
 ## Not changed, with reasons
 
-- `PortMetrics.ts:85`: a `Metric.frequency` description asserted at `packages/core/test/Ports.test.ts:385` and part of the registry key (`type:id:description`), so changing it would split the metric.
+- `PortMetrics.ts:85`: a `Metric.frequency` description asserted at `packages/core/test/Ports.test.ts:385` and part of the registry key (`type:id:description`), so changing it would split the metric. **Changed in code review (`76abc28c`):** the description now names the evaluator, not `Evaluate.ts`, and the pin in `Ports.test.ts` moved with it; the new registry entry is recorded in `.changeset/port-calls-description.md` and the CCR-QD-427 row.
 - `Identity.ts:14`: the pair of owning files the author meant is not confirmable, so it is not changed.
-- `PortName.ts:28` and `PortMetrics.ts:26,35,36`: they name the `evaluate` entry point as opposed to `toPredicate`, consistent with the pinned description.
+- `PortName.ts:28` and `PortMetrics.ts:26,35,36`: they name the `evaluate` entry point as opposed to `toPredicate`, consistent with the pinned description. **Changed in code review (`76abc28c`):** `Evaluate.ts` no longer calls any port (`PortAccess.ts` does, reached from `Walk.ts`), so these now say "the evaluator" and `PortName.ts` names `Walk.ts` through `PortAccess.ts`.
 
 ## Records
 
