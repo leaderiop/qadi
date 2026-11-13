@@ -25,6 +25,11 @@ const record = (evaluationId: string, at: number): StoredRecord => decisionRecor
 const idsOf = (feed: TimelineFeed): ReadonlyArray<string> =>
   feed.timeline.getSnapshot().entries.map((entry) => entry.evaluationId);
 
+/** A source whose read starts after one turn, so the fiber is installed in the handle before its backlog runs. */
+const delayed = (backlog: ReadonlyArray<StoredRecord>): Source => ({
+  read: Effect.as(Effect.yieldNow, { backlog, live: Stream.empty }),
+});
+
 /** A source that counts its reads and releases, then hands over `backlog` and `live`. */
 const watched = (backlog: ReadonlyArray<StoredRecord>, live: Stream.Stream<StoredRecord>) => {
   const tally = { started: 0, finalized: 0 };
@@ -170,4 +175,19 @@ describe("the timeline feed", () => {
     assert.isFalse(idleTimeline.isPaused());
     assert.strictEqual(heard.calls, 0);
   });
+
+  it.effect("TF9 a read replaced while it is delivering its backlog writes nothing more", () =>
+    Effect.gen(function* () {
+      const feed = yield* makeTimelineFeed();
+      let swapped = false;
+      feed.timeline.subscribe(() => {
+        if (swapped) return;
+        swapped = true;
+        feed.configure({ source: delayed([record("b", 1000)]) });
+      });
+      feed.configure({ source: delayed([record("a1", 100), record("a2", 200), record("a3", 300)]) });
+      yield* flush;
+
+      assert.deepStrictEqual(idsOf(feed), ["a1", "b"]);
+    }));
 });
