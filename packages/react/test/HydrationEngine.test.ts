@@ -123,6 +123,51 @@ describe("makeSeededQuestion", () => {
   });
 });
 
+describe("a seed slot gives each registry its own grant", () => {
+  const question = () =>
+    makeSeededQuestion<never>({
+      policy,
+      resource: undefined,
+      report: undefined,
+      computedFor: () => Atom.readable(() => AsyncResult.initial<Decision, never>()),
+      track: () => {},
+    });
+  const decisionOf = (registry: AtomRegistry.AtomRegistry, q: ReturnType<typeof question>) => {
+    const result = registry.get(q.read);
+    return AsyncResult.isSuccess(result) ? result.value : undefined;
+  };
+
+  it("returns one grant atom for a question and a distinct grant per call", () => {
+    const q = question();
+    const [atomA, grantA] = q.seed.hold(allow);
+    const [atomB, grantB] = q.seed.hold(allow);
+    assert.strictEqual(atomA, atomB);
+    assert.notStrictEqual(grantA, grantB);
+  });
+
+  it("reads the decision of the grant a registry was given", () => {
+    const q = question();
+    const other = new SeededDeny({
+      evaluationId: "e3",
+      subjectId,
+      durationMillis: 0,
+      disclosure: { _tag: "Withheld" },
+    });
+    const first = AtomRegistry.make({ initialValues: [q.seed.hold(allow)] });
+    const second = AtomRegistry.make({ initialValues: [q.seed.hold(other)] });
+    assert.strictEqual(decisionOf(first, q), allow);
+    assert.strictEqual(decisionOf(second, q), other);
+  });
+
+  it("reads none in a registry given no grant, and creates no node for it", () => {
+    const q = question();
+    const [grantAtom] = q.seed.hold(allow);
+    const unseeded = AtomRegistry.make();
+    assert.isUndefined(decisionOf(unseeded, q));
+    assert.isFalse(unseeded.getNodes().has(grantAtom));
+  });
+});
+
 // The default registry, which a test cannot scope: every count read is a delta.
 const registry = Context.empty();
 

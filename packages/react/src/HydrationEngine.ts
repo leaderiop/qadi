@@ -2,8 +2,8 @@
  * Everything between a server's decision and the moment this client supersedes it.
  *
  * That is the payload codec in both directions (`dehydrateWith` and
- * `hydrateWith`), the seed atom a server-rendered decision is written to, the
- * rule that the client's own answer wins
+ * `hydrateWith`), the slot in which a question keeps the seeds it was handed and
+ * the grant a registry holds to one of them, the rule that the client's own answer wins
  * ([INV-QD-028](../../../spec/invariants.md)), the once-per-registry
  * announcement of a disagreement. Each codec direction is a module-private
  * planner returning the `HydrationEvent`s a call implies, and `HydrationEvent.ts`
@@ -14,7 +14,7 @@
  *
  * Private, and out of the barrel on purpose (AGENTS.md §9,
  * [ADR-QD-039](../../../spec/decisions/039-a-seed-is-not-an-authority.md)): a
- * consumer that could reach a seed atom could write an authorization decision
+ * consumer that could reach a seed slot could write an authorization decision
  * straight into the registry, bypassing the subject check and the evaluator.
  * `Hydration.ts` is the public interface over this module and re-exports by name
  * only what a consumer may hold. This file imports nothing from `Hydration.ts`,
@@ -579,11 +579,11 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
  * into a blank page would be a worse outcome than re-deciding. Trusting it would
  * be a breach.
  *
- * Written to the seed atom, never to the decision atom. See
+ * Held by the question's seed slot, never written to the decision atom. See
  * {@link makeSeededQuestion}.
  *
  * `seedFor` is the atom set's own closure over its families
- * (`QadiAtoms.hydrate`), so the seed atoms stay unreachable from outside it
+ * (`QadiAtoms.hydrate`), so the seed slots stay unreachable from outside it
  * (ADR-QD-039) without a module-scope side table keyed on the atom set.
  */
 export const hydrateWith = (
@@ -599,15 +599,17 @@ export const hydrateWith = (
 };
 
 // ---------------------------------------------------------------------------
-// The seed atom, and the atom that reads through it
+// The seed slot, and the atom that reads through it
 // ---------------------------------------------------------------------------
 
 /**
- * Where one question keeps the seed it was handed, and how it gives it to a registry.
+ * Where one question keeps the seeds it was handed, and how it gives one to a registry.
  *
- * Closure-private to an atom set. `hold` returns the `initialValues` pair that
- * puts a decision in front of a registry; what the pair's atom and value are is
- * the slot's own business.
+ * Closure-private to an atom set. `hold` keeps the decision in the question and
+ * returns the `initialValues` pair that gives a registry a grant to it: the
+ * decision itself never enters a registry, so a registry that was not given the
+ * grant cannot read it (ADR-QD-149).
+ * What the pair's atom and value are is the slot's own business.
  */
 export interface SeedSlot {
   readonly hold: (decision: SeededDecision) => readonly [Atom.Atom<unknown>, unknown];
@@ -615,6 +617,16 @@ export interface SeedSlot {
 
 /** Finds the slot standing behind one decision. Closure-private to an atom set. */
 export type HydrationSeedLookup = (policy: Policy, resource: Resource | undefined) => SeedSlot;
+
+/**
+ * What a registry holds in place of a seed.
+ *
+ * Opaque, and a class so that `instanceof` tells one from the `undefined` an
+ * unseeded registry holds. The question keeps the decision it stands for.
+ */
+class SeedGrant {
+  readonly kind = "SeedGrant";
+}
 
 /**
  * Announcement state for one question, kept **per registry**.
@@ -635,25 +647,9 @@ interface AnnounceState {
    * render, which a value comparison would report twice.
    */
   announced: boolean;
-  /**
-   * The seed, as this registry first saw it.
-   *
-   * Kept because `get.once(seedAtom)` can read `undefined` for a seed that was
-   * definitely there: a registry may drop the value of an atom nothing mounted,
-   * and the seed atom is only ever a *dependency* of the question's atom. Under
-   * `registry.mount` it survives and the disagreement is reported; under a
-   * `QadiProvider`, which subscribes rather than mounts, it does not and the
-   * report would be silently skipped. Remembering the first non-absent reading
-   * makes the announcement depend only on what was seeded and what this client
-   * then decided, not on registry lifetime.
-   *
-   * Written in the branch that already reads the seed reactively, so it costs
-   * nothing and adds no dependency of its own.
-   */
-  observedSeed: SeededDecision | undefined;
 }
 
-/** A question's seed atom, and the atom a consumer reads the decision through. */
+/** A question's seed slot, and the atom a consumer reads the decision through. */
 export interface SeededQuestion<E> {
   /** Where `hydrate` keeps a server decision. Never reachable from outside. */
   readonly seed: SeedSlot;
@@ -662,7 +658,7 @@ export interface SeededQuestion<E> {
 }
 
 /**
- * Builds one question's seed atom and the atom that reads through it.
+ * Builds one question's seed slot and the atom that reads through it.
  *
  * A decision and the seed that covers its first frames are **separate atoms**,
  * and that separation is the whole of INV-QD-028. A seed written directly into
@@ -678,16 +674,27 @@ export interface SeededQuestion<E> {
  * the precedence explicit and one-directional instead of a consequence of when
  * an effect happens to settle.
  *
- * Exactly one `Atom.readable` per question, as before: adding an atom would
- * change notification and batching, and with it the render sequences
+ * The seeds live in the question, not in a registry. A registry removes a node
+ * nothing holds one macrotask after it is created, so a seed written into one
+ * was lost to a gate that mounted later, hid and showed, or remounted. The
+ * question keeps each decision under an opaque {@link SeedGrant}; a registry
+ * holds only the grant, in one node that stays alive, and reads a seed only
+ * through a grant node that is already there, never creating one, and never
+ * after its own client has answered. So a registry that was not seeded reads
+ * none, an unseeded question leaves no node, and the seed is forgotten with the
+ * question's handle (ADR-QD-149).
+ *
+ * Exactly one `Atom.readable` per question, as before: the grant atom is
+ * never read through a registry's `get`, so it adds no dependency, no
+ * notification and no batching, and with them no change to the render sequences
  * `QadiProvider.test.tsx` pins.
  */
 export const makeSeededQuestion = <E,>(input: {
   readonly policy: Policy;
   readonly resource: Resource | undefined;
-  /** Builds the computing atom; handed the seed so it can `get.once` the server's evaluation id. */
+  /** Builds the computing atom; handed the seed lookup so it can carry the server's evaluation id. */
   readonly computedFor: (
-    seed: Atom.Writable<SeededDecision | undefined>,
+    seededIn: (registry: AtomRegistry.AtomRegistry) => SeededDecision | undefined,
   ) => Atom.Atom<AsyncResult.AsyncResult<Decision, E>>;
   readonly report: HydrationMismatchReporter | undefined;
   /**
@@ -697,16 +704,24 @@ export const makeSeededQuestion = <E,>(input: {
   readonly track: (get: Atom.AtomContext) => void;
 }): SeededQuestion<E> => {
   const { policy, resource, report } = input;
-  // Declared before `computed`, which reads it with `get.once` to carry the
-  // server's evaluation id into the re-check.
-  const seedAtom = Atom.make<SeededDecision | undefined>(undefined);
-  const computed = input.computedFor(seedAtom);
+  // Kept alive, so a registry given the grant keeps it however long no gate reads it.
+  const grantAtom = Atom.make<SeedGrant | undefined>(undefined).pipe(Atom.keepAlive);
+  const seeds = new WeakMap<SeedGrant, SeededDecision>();
+  // `getNodes`, never `get`: a read that created the node would leave one for every
+  // question asked, seeded or not. No node means this registry was not given a seed.
+  const seededIn = (registry: AtomRegistry.AtomRegistry): SeededDecision | undefined => {
+    const node = registry.getNodes().get(grantAtom);
+    if (node === undefined) return undefined;
+    const held = node.valueOption();
+    return Option.isSome(held) && held.value instanceof SeedGrant ? seeds.get(held.value) : undefined;
+  };
+  const computed = input.computedFor(seededIn);
 
   const announceState = new WeakMap<AtomRegistry.AtomRegistry, AnnounceState>();
   const announceStateFor = (registry: AtomRegistry.AtomRegistry): AnnounceState => {
     const existing = announceState.get(registry);
     if (existing !== undefined) return existing;
-    const created: AnnounceState = { announced: false, observedSeed: undefined };
+    const created: AnnounceState = { announced: false };
     announceState.set(registry, created);
     return created;
   };
@@ -725,17 +740,13 @@ export const makeSeededQuestion = <E,>(input: {
     if (!AsyncResult.isInitial(result)) {
       if (!state.announced) {
         state.announced = true;
-        // `get.once`, not `get`. This block previously ran only when a
-        // reporter was wired, and was guarded that way so an atom set without
-        // one "reads exactly the atoms it read before — no reporter, no added
-        // dependency, no change". Counting must happen whether or not a
-        // reporter is wired, so the guard could not stay; `get.once` keeps the
-        // promise it was protecting, because it registers no dependency. It is
-        // also the honest read here: the seed is already spent in this branch,
-        // so re-running on a later seed change could not change the answer.
-        // `?? state.observedSeed`: the registry's copy is authoritative when it
-        // has one, and the first reading stands in when it has dropped it.
-        const seeded = get.once(seedAtom) ?? state.observedSeed;
+        // Counting must happen whether or not a reporter is wired. The lookup
+        // registers no dependency, so an atom set without a reporter still
+        // "reads exactly the atoms it read before — no reporter, no added
+        // dependency, no change". It is also the honest read here: the seed is
+        // already spent in this branch, so re-running on a later seed change
+        // could not change the answer.
+        const seeded = seededIn(get.registry);
         if (seeded !== undefined) {
           // A failure is not a disagreement. The client could not answer, so
           // there is nothing for the server's answer to disagree with, and
@@ -750,10 +761,19 @@ export const makeSeededQuestion = <E,>(input: {
       }
       return result;
     }
-    const seeded = get(seedAtom);
-    if (seeded !== undefined) state.observedSeed = seeded;
+    // Never after this registry's client has answered, even when a later `Initial`
+    // (the subject cleared) asks again: the seed is spent (BEH-QD-151).
+    const seeded = state.announced ? undefined : seededIn(get.registry);
     return seeded === undefined ? result : AsyncResult.success(seeded);
   });
 
-  return { seed: { hold: (decision) => [seedAtom, decision] }, read };
+  const seed: SeedSlot = {
+    hold: (decision) => {
+      const grant = new SeedGrant();
+      seeds.set(grant, decision);
+      return [grantAtom, grant];
+    },
+  };
+
+  return { seed, read };
 };

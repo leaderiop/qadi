@@ -268,7 +268,7 @@ export const makeQadiAtoms = (
       policy,
       resource,
       report,
-      computedFor: (seed) =>
+      computedFor: (seededIn) =>
         runtime
           .atom((get): Effect.Effect<Decision, EvaluationError, QadiRuntimeServices> => {
             const current = get(subject);
@@ -283,11 +283,10 @@ export const makeQadiAtoms = (
             // payload carries an id, the client minted a fresh one, and nothing
             // related them (BEH-QD-186).
             //
-            // `get.once`, not `get`: reading the seed reactively would make every
-            // re-evaluation depend on the seed atom, so a seed set or cleared after
-            // mount would re-run a computation whose answer it cannot change. The id
-            // is correlation metadata, not an input to the decision.
-            const seeded = get.once(seed);
+            // Read from the registry's grant without subscribing, so a seed given
+            // later cannot re-run a computation whose answer it does not change. The
+            // id is correlation metadata, not an input to the decision.
+            const seeded = seededIn(get.registry);
             return evaluate(policy, {
               ...(resource === undefined ? {} : { resource }),
               ...(seeded === undefined ? {} : { evaluationId: seeded.evaluationId }),
@@ -308,10 +307,10 @@ export const makeQadiAtoms = (
 
   // **What this closure owns, and who may reach it.** Everything per-atom-set
   // lives here and nowhere at module scope: the question book (one
-  // `SeededQuestion` per question, from `HydrationEngine.ts`, holding its private
-  // seed atom and the one atom a consumer reads, and the liveness the eviction
+  // `SeededQuestion` per question, from `HydrationEngine.ts`, holding its
+  // seed slot and the one atom a consumer reads, and the liveness the eviction
   // sweep needs), the grouped-read family, and the `hydrate` capability that
-  // closes over the book. Nothing outside `makeQadiAtoms` can reach a seed atom —
+  // closes over the book. Nothing outside `makeQadiAtoms` can reach a seed slot —
   // that is ADR-QD-039's requirement, met by scope rather than by a side table
   // keyed on this object. Anything else that needs to be scoped to one atom set
   // (a gate registry, say) belongs in this closure and on the `QadiAtoms`
