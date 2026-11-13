@@ -1,19 +1,19 @@
 /**
  * The dock's cross-store rules, tested with no DOM (ARCH-74, DMOD-02).
  *
- * The dock owns six stores (the timeline, the policy rail, the explorer, the
- * role viewer's held choice, the simulation session and the dock session) and
- * the rules that connect them: a new timeline reaches every screen, a replay
- * commands the simulation, a new head does not move a held choice, an unchanged
- * input dispatches nothing, and no screen reads another timeline than the one
- * the dock shows. Until now those rules lived in layout effects and were proved
- * only by rendering the whole dock. They are stated here against `makeDockModel`
- * and nothing is rendered.
+ * The dock owns eight readouts (the timeline, the policy rail, the explorer, the
+ * role viewer's held choice, the simulation session, the dock session, the
+ * diagnostics reading and the timeline status) and the rules that connect them:
+ * a new timeline reaches every screen, a replay commands the simulation, a new
+ * head does not move a held choice, an unchanged input dispatches nothing, and no
+ * screen reads another timeline than the one the dock shows. Until now those
+ * rules lived in layout effects and were proved only by rendering the whole dock.
+ * They are stated here against `makeDockModel` and nothing is rendered.
  *
  * The model is built in a scope (ADR-QD-137): `it.effect` provides one, and a
- * test that needs to end it mid-test makes its own. A test title names the DOM
- * case it re-states (`was DevtoolsDock l.N`) so the dock test can drop that case
- * once this one is green (26-05).
+ * test that needs to end it mid-test makes its own. A test title carries a stable
+ * case label (`M1`, `M5`, ...), so a failing run names the rule and not a line in
+ * another file.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Duration from "effect/Duration";
@@ -183,7 +183,7 @@ const watched = (backlog: ReadonlyArray<StoredRecord>, live: Stream.Stream<Store
 };
 
 describe("a timeline reaches every screen (M1, M2, M3)", () => {
-  it.effect("M1 (was DevtoolsDock l.853): records alone fill both rails, one sighting per policy with its tally", () =>
+  it.effect("M1: records alone fill both rails, one sighting per policy with its tally", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel();
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
@@ -198,7 +198,7 @@ describe("a timeline reaches every screen (M1, M2, M3)", () => {
       assert.deepStrictEqual(model.sightings(), model.simulation.getSnapshot().sightings);
     }));
 
-  it.effect("M2 (was DevtoolsDock l.865): a declared catalogue adds names and unrun policies to both rails", () =>
+  it.effect("M2: a declared catalogue adds names and unrun policies to both rails", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel();
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
@@ -213,7 +213,7 @@ describe("a timeline reaches every screen (M1, M2, M3)", () => {
       }
     }));
 
-  it.effect("M3 (was DevtoolsDock l.883): roles come only from the catalogue, never from records", () =>
+  it.effect("M3: roles come only from the catalogue, never from records", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel();
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
@@ -244,7 +244,7 @@ describe("a replay commands the simulation (M4, M5, M6, M7)", () => {
     assert.strictEqual(snapshot.draft.action, action);
   };
 
-  it.effect("M4 (the wiring stays at DevtoolsDock l.988): replaying a row moves to the simulator and seeds it", () =>
+  it.effect("M4: replaying a row moves to the simulator and seeds it", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel();
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
@@ -255,7 +255,7 @@ describe("a replay commands the simulation (M4, M5, M6, M7)", () => {
       seededFrom(model, readPolicy, "read");
     }));
 
-  it.effect("M5 (was DevtoolsDock l.1026): replaying the same row again after another policy was chosen re-seeds", () =>
+  it.effect("M5: replaying the same row again after another policy was chosen re-seeds", () =>
     Effect.gen(function* () {
       const model = yield* twoRows();
       model.dock.replay(entryOf(model, "a"));
@@ -267,7 +267,7 @@ describe("a replay commands the simulation (M4, M5, M6, M7)", () => {
       seededFrom(model, readPolicy, "read");
     }));
 
-  it.effect("M6 (was DevtoolsDock l.1045): replaying the same row again after the action was edited restores it", () =>
+  it.effect("M6: replaying the same row again after the action was edited restores it", () =>
     Effect.gen(function* () {
       const model = yield* twoRows();
       model.dock.replay(entryOf(model, "a"));
@@ -279,7 +279,7 @@ describe("a replay commands the simulation (M4, M5, M6, M7)", () => {
       assert.strictEqual(model.simulation.getSnapshot().draft.action, "read");
     }));
 
-  it.effect("M7 (was DevtoolsDock l.1060): a new record after a replay keeps the replayed form and reaches the rail", () =>
+  it.effect("M7: a new record after a replay keeps the replayed form and reaches the rail", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel();
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
@@ -297,7 +297,7 @@ describe("a replay commands the simulation (M4, M5, M6, M7)", () => {
 });
 
 describe("a held choice does not follow the head (M8)", () => {
-  it.effect("M8 (was DevtoolsDock l.1152): a new head leaves both the explorer and the simulation on what they showed", () =>
+  it.effect("M8: a new head leaves both the explorer and the simulation on what they showed", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel();
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
@@ -314,7 +314,7 @@ describe("a held choice does not follow the head (M8)", () => {
 });
 
 describe("a tab change touches nothing else (M9)", () => {
-  it.effect("M9 (was DevtoolsDock l.1197): visiting every tab and returning leaves every other store's snapshot as it was", () =>
+  it.effect("M9: visiting every tab and returning leaves every other store's snapshot as it was", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel();
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
@@ -396,7 +396,7 @@ describe("configure dispatches only what changed (M10)", () => {
 });
 
 describe("a capacity change empties the timeline and keeps the dock's choices (M11)", () => {
-  it.effect("M11 (was DevtoolsDock l.435): the bound reaches the timeline", () =>
+  it.effect("M11: the bound reaches the timeline", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel({ capacity: 5 });
       for (let i = 1; i <= 6; i++) {
@@ -617,7 +617,7 @@ describe("what configure and the stores hold back (M2 b, M10 d, M15 b-d, M17)", 
 });
 
 describe("two docks share nothing (M14)", () => {
-  it.effect("M14 (was DevtoolsDock l.162): a record accepted by one model is absent from the other", () =>
+  it.effect("M14: a record accepted by one model is absent from the other", () =>
     Effect.gen(function* () {
       const one = yield* makeDockModel();
       const other = yield* makeDockModel();

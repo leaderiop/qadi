@@ -6,8 +6,10 @@
  * the claim the screen makes is about what the evaluator says and a fabricated
  * decision would prove only that the renderer agrees with the test author.
  *
- * Runs are forked, and a fixture run settles synchronously inside `runFork` —
- * so `act` around the click is enough and nothing here waits on a timer.
+ * The session owns every run and the view forks nothing: a click hands the run to
+ * the session, which settles it a few scheduler ticks later (`DecisionCache`
+ * computes on a detached fiber), so `run` below waits on real ticks and each test
+ * reads the settled screen.
  */
 import { afterEach, assert, describe, it } from "@effect/vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
@@ -412,11 +414,13 @@ describe("seeding from a logged row — JOB 5 on screen", () => {
 
 describe("unmounting mid-run — E7.8", () => {
   /**
-   * A fixture run settles inside `runFork`, so this cannot catch a late
-   * `setState` by timing. What it does check is that the cleanup path runs
-   * without throwing and that nothing is written afterwards — which is the
-   * observable half. The interrupt itself is what matters for a live source,
-   * and it is the reason this is a fiber rather than a promise.
+   * The session owns the run, so unmounting the view alone stops nothing; closing
+   * the scope does, and the test closes it. A fixture run is settled by the time
+   * `run` returns, so this cannot catch a late `setState` by timing. What it does
+   * check is that the cleanup path runs without throwing and that nothing is
+   * written afterwards, which is the observable half. The interrupt itself is what
+   * matters for a live source, and it is the reason a run is a fiber the session
+   * holds rather than a promise.
    */
   it("unmounts cleanly while a result is on screen", async () => {
     const { view, scope } = mount({ sightings: [sighting(hasPermission(read))] });
