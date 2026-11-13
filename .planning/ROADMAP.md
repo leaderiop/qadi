@@ -356,7 +356,7 @@ recorded in the phase CONTEXT and its ADR or CCR row.
 - [x] **Phase 33: One sealed evaluation layer** - One core builder for `@qadi/testing` and devtools' Simulation, with the sink and cache shadowing rule stated and required (ARCH-81) (completed 2026-11-12)
 - [x] **Phase 34: Diagnostics as the dock model's seventh store** - The poll runs in the model's scope and the reading merge leaves the view (ARCH-82) (completed 2026-11-12)
 - [x] **Phase 35: The atom set owns its eviction sweep** - Opens on a spike: either a mechanism lands, or the sweep stays in the provider with the rule stated and tested (ARCH-83) (completed 2026-11-12)
-- [ ] **Phase 36: Carried spec debt and stale records** - Duplicate BEH-QD-219..221, `Sources.ts`, the stale replay line, selected v1.2 info findings (CCR-QD-427, no ARCH)
+- [x] **Phase 36: Carried spec debt and stale records** - Duplicate BEH-QD-219..221, `Sources.ts`, the stale replay line, selected v1.2 info findings (CCR-QD-427, no ARCH) (completed 2026-11-13)
 
 ### Phase Details
 
@@ -530,7 +530,7 @@ Plans:
   3. Every open v1.2 info finding listed in `_WAVE8-CONTEXT.md` has been re-verified at the phase base and is fixed or recorded as resolved by 30-35; 24 IN-01 (a recorder built and dropped per commit) and 24 IN-03 (`Ready` spelled twice) are fixed as tested code changes.
   4. The stale citations are corrected (`v4-http-smoke.test.ts:106` naming `registerApi`, and the `stryker.http.mjs` comment placing code in `PermissionRegistry.ts`), and 28 IN-06 is narrowed and tested or closed with evidence.
 **Planning notes**: pure verification and edit work; the risk is reconstruction care, not research. Re-verify every item at its base before touching it.
-**Plans**: 14/14 plans executed
+**Plans**: 14/14 plans complete
 - [x] 36-01-PLAN.md
 - [x] 36-02-PLAN.md
 - [x] 36-03-PLAN.md
@@ -559,4 +559,4 @@ Phases execute in numeric order: 30 → 31 → 32 → 33 → 34 → 35 → 36
 | 33. One sealed evaluation layer | 6/6 | Complete    | 2026-11-12 |
 | 34. Diagnostics as the dock model's seventh store | 9/9 | Complete    | 2026-11-12 |
 | 35. The atom set owns its eviction sweep | 7/7 | Complete    | 2026-11-12 |
-| 36. Carried spec debt and stale records | 0/14 | Planned | - |
+| 36. Carried spec debt and stale records | 14/14 | Complete    | 2026-11-13 |
