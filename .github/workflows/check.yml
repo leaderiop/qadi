@@ -37,7 +37,14 @@ jobs:
     # 30-minute budget — roughly 96% of budget on the faster runtime, with the
     # older, slower floor leg about to join it. 60 leaves real headroom instead
     # of failing the floor leg on the clock rather than on merit.
-    timeout-minutes: 60
+    #
+    # 60 no longer fits the full gate. On release PR #158 (run 43354954531) both
+    # legs were cancelled at 60m: the first of seven Stryker suites (core, 83
+    # files) took 37m alone, and the run was in the second when the clock ran out.
+    # The full gate runs only on release PRs, release commits and manual runs, so
+    # 240 (GitHub's ceiling is 360) costs ordinary PRs nothing; `check:pr` still
+    # finishes in about five minutes.
+    timeout-minutes: 240
 
     # Runs the same job twice, once per Node version below, rather than adding a
     # second job — the matrix is what lets this stay one job definition (see
