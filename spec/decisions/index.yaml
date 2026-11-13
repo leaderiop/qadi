@@ -442,3 +442,7 @@ entries:
     file: "148-the-atom-set-owns-its-eviction-sweep.md"
     title: "The atom set owns its eviction sweep"
     status: "Accepted — amends ADR-QD-014, ADR-QD-103"
+  - id: "ADR-QD-149"
+    file: "149-a-seed-is-held-by-its-question.md"
+    title: "A seed is held by its question, and a registry holds only a grant to it"
+    status: "Accepted — amends ADR-QD-039, ADR-QD-103; reads ADR-QD-148"

@@ -186,6 +186,15 @@ Revisiting idle-atom GC needs a way to scope `scheduleTask` to eviction alone,
 or a different idle-cleanup mechanism entirely, not a bare pass-through of the
 library's registry options.
 
+> **Amended:** 2026-11-12 (CCR-QD-427). The pinned sequence above is now
+> `"Success(SeededAllow),Success(Deny)"`. The recorder keeps the decided tag beside
+> `Success`, because the seed and the client's denial are both `Success` results and a recorder
+> that collapsed consecutive equal tags would read a single `Success`. The middle
+> `Initial+waiting` was the registry dropping the seed partway through the first check, which
+> [ADR-QD-149](./149-a-seed-is-held-by-its-question.md) fixed: the seed covers the client's first
+> check, in flight or not ([ADR-QD-039](./039-a-seed-is-not-an-authority.md)), and the client's own
+> denial replaces it. The paragraph above stays as history.
+
 **Held to coverage, not mutation, rigor.** `@qadi/react` has no `stryker.*.mjs`.
 `stryker.devtools.mjs` draws a render-vs-decide line inside `@qadi/devtools` —
 mutation-test the model, skip the render code — and `@qadi/react` has the same
