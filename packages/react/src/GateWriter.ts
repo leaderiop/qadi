@@ -4,8 +4,9 @@
  *
  * Out of the barrel (AGENTS.md §9): the writer is not a consumer's, and one able
  * to register an instance could list a `<Can>` that does not exist (ADR-QD-080).
- * `GateRegistry.ts` re-exports the three public types by name; nothing else here
- * is reachable from outside the package.
+ * `GateRegistry.ts` re-exports the four public types (`GateInstance`, `GateKind`,
+ * `GateRegistry`, `GateRenderState`) by name; nothing else here is reachable from
+ * outside the package.
  *
  * A registry the package built owns its writer as a private slot of the registry
  * object, set once at construction, so the binding cannot be forgotten or made
@@ -161,9 +162,9 @@ export interface GateIdentity {
   readonly id: string;
   readonly kind: GateKind;
   /**
-   * The memoised decision atom for this question, looked up by {@link useGates}.
-   * Effects key on it, not on the raw policy and resource, so an inline policy
-   * does not churn registration.
+   * The memoised decision atom for this question, looked up by `useGates` in
+   * `useGate.ts`. Effects key on it, not on the raw policy and resource, so an
+   * inline policy does not churn registration.
    */
   readonly atom: object;
   readonly wraps: boolean;

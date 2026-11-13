@@ -323,7 +323,7 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
  * documents as re-parsed from untrusted JSON. Without the own-property guard,
  * a path like `__proto__.constructor` resolves prototype-chain members
  * instead of `undefined` — a read, not a write, but it breaks the isolation
- * every other matcher branch assumes. `readAttribute` (`Evaluate.ts`) and
+ * every other matcher branch assumes. `readAttribute` (`PortAccess.ts`) and
  * `FieldPath.ts` both already guard the same way; this closed the one place
  * that hadn't.
  *

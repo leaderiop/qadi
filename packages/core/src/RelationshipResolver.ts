@@ -45,8 +45,8 @@ export interface RelationshipCheck {
   /**
    * Maximum traversal depth. Undefined means the resolver decides.
    *
-   * `Evaluate.ts` clamps `HasRelationship.depth` to `[0, 64]` before ever
-   * constructing this request — every untrusted numeric that reaches this
+   * `relationshipAsks` (below) clamps `HasRelationship.depth` to `[0, 64]` before
+   * ever constructing this request — every untrusted numeric that reaches this
    * boundary is bounded on the evaluator's side. That clamp is fuel handed to
    * whichever resolver is wired; it only bounds a traversal if the resolver
    * actually spends it (RP-02). **An implementation that traverses a graph
@@ -112,9 +112,9 @@ export interface RelationshipResolverShape {
    * why (issue #100).
    *
    * `request.subjectId` carries the same width `AttributeResolverShape.resolve`'s
-   * `subjectId` does, for the same reason (JF-03): `Evaluate.ts`'s only call
-   * site always asks about the subject being evaluated, but the field is not
-   * narrowed to that in the type, because `@qadi/devtools`'s capture/sweep
+   * `subjectId` does, for the same reason (JF-03): `askRelationship`'s only call
+   * site (`PortAccess.ts`) always asks about the subject being evaluated, but the
+   * field is not narrowed to that in the type, because `@qadi/devtools`'s capture/sweep
    * tooling checks relationships for subjects outside the evaluation it is
    * instrumenting. An implementation must authorize an arbitrary subject id
    * safely, not assume it is always the one currently being evaluated.

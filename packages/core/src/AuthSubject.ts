@@ -17,7 +17,7 @@ import type { RoleName } from "./Policy.ts";
 import type { Role } from "./Role.ts";
 import { visitRoles } from "./RoleTraversal.ts";
 
-// `subject.roles.has(policy.role)` (`Evaluate.ts`) compares against
+// `subject.roles.has(policy.role)` (`Walk.ts`) compares against
 // `policy.role`, which is branded `RoleName` and validated at `Policy`'s
 // `Schema` decode boundary — non-empty, no `:` (`Policy.ts`'s
 // `SEGMENT_PATTERN`). Before this brand, `subject.roles` stayed plain

@@ -181,7 +181,7 @@ export type LabelName = typeof LabelName.Type;
  * keep. Real validation still happens, just only at the `Schema` decode
  * boundary these brands are also wired into above.
  *
- * `subject.roles.has(policy.role)` (`Evaluate.ts`) only type-checks as a
+ * `subject.roles.has(policy.role)` (`Walk.ts`) only type-checks as a
  * comparison of the same brand on both sides if subject role names are
  * constructed the same way `hasRole` builds `policy.role`. A second,
  * independent `Brand.nominal<RoleName>()` call in `AuthSubject.ts` would
@@ -407,19 +407,20 @@ const HasResourceAttribute = Schema.TaggedStruct("HasResourceAttribute", {
  * decoded policy is untrusted JSON (§7, ADR-QD-002), and a bare `Number`
  * would let `1e308`, a negative value, or — through `fromJsonValue`'s
  * plain-value path — `NaN`/`Infinity` all decode successfully, deferring
- * entirely to `PortAccess.ts`'s runtime `clampRelationshipDepth`. `Schema.Int`
- * rejects non-finite and fractional depths at the boundary instead; the
- * `isBetween` bound rejects out-of-range ones the same way. Reusing
+ * entirely to `RelationshipResolver.ts`'s runtime `clampRelationshipDepth`.
+ * `Schema.Int` rejects non-finite and fractional depths at the boundary instead;
+ * the `isBetween` bound rejects out-of-range ones the same way. Reusing
  * `DEFAULT_MAX_DEPTH` rather than inventing a second bound: nothing argues a
  * relationship graph should be walked deeper than a policy tree is ever
- * allowed to be — `Evaluate.ts`'s own `MAX_RELATIONSHIP_DEPTH` already reuses
- * it for the identical reason.
+ * allowed to be — `RelationshipResolver.ts`'s own `MAX_RELATIONSHIP_DEPTH`
+ * already reuses it for the identical reason.
  *
- * `clampRelationshipDepth` stays in `PortAccess.ts` as defense-in-depth: this
- * schema only runs on the decode path, so a policy built in memory through
- * `hasRelationship("owner", { depth: -5 })` (the smart constructors are
- * deliberately total, per `makeRoleName`'s comment above) never reaches this
- * check and still needs a runtime guard before it becomes resolver fuel.
+ * `clampRelationshipDepth` stays in `RelationshipResolver.ts` as
+ * defense-in-depth: this schema only runs on the decode path, so a policy built
+ * in memory through `hasRelationship("owner", { depth: -5 })` (the smart
+ * constructors are deliberately total, per `makeRoleName`'s comment above)
+ * never reaches this check and still needs a runtime guard before it becomes
+ * resolver fuel.
  */
 export const RelationshipDepth = Schema.Int.check(
   Schema.isBetween({ minimum: 0, maximum: DEFAULT_MAX_DEPTH }),
@@ -774,8 +775,9 @@ export const hasSignature = (
  * would have silently misrendered explanations, claiming a non-default
  * strategy is the default and violating INV-QD-031's
  * two-non-equivalent-policies-render-differently requirement with no
- * compile-time complaint. `Evaluate.ts`'s `exhaustive := fieldStrategy !==
- * "First"` check is semantic rather than default-tracking — `First` is the
+ * compile-time complaint. `Walk.ts`'s `exhaustive`
+ * (`!anyOfStopsAtAllow(policy.fieldStrategy)`) check is semantic rather than
+ * default-tracking — `First` is the
  * only short-circuiting strategy, not merely the default — and deliberately
  * stays independent of this function.
  */

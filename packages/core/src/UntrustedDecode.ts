@@ -32,7 +32,7 @@ import { isPlainObject } from "./JsonShape.ts";
  * checked before `Schema` ever recurses into it.
  *
  * `Policy.ts`'s `DEFAULT_MAX_DEPTH` bounds a *decoded* `Policy` at evaluation
- * time (`Evaluate.ts`), but nothing bounded the decode itself: `Schema`'s own
+ * time (`Walk.ts`), but nothing bounded the decode itself: `Schema`'s own
  * recursive descent through `PolicyRef` has no cap, so an adversarial JSON
  * string nesting `{"_tag":"Not","policy":...}` tens of thousands deep
  * exhausts the call stack *during decode*, before the 64-deep evaluation

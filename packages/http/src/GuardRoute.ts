@@ -81,17 +81,17 @@ type GuardedRoute<R, LR> = Layer.Layer<
  * cast (ARCH-61).
  *
  * `loadResource` is required to resolve to `never` in its error channel and
- * `handler` to the closed `HttpEnforcementFailure` union, which is the one the
- * module accepts — deliberately, not an oversight. `Effect.catchTag`
- * narrows by excluding matched tags from the *whole* error union it's
- * applied to; when that union also contains a fully open, caller-supplied
- * type parameter, TypeScript cannot prove the open parameter doesn't itself
- * contain one of the matched tags, so it refuses to narrow at all — this is
- * a real limit hit by compiling it, not a hypothetical one, and there is no
- * cast-free way around it for a genuinely generic error channel (`AGENTS.md`
- * has no cast carve-out). A caller with its own failure modes — a 404 from
- * `loadResource`, say — resolves them to a response with its own
- * `Effect.catchAll` before handing the result here, the same way a bare
+ * `handler` to the closed `HttpEnforcementFailure` union, which is the one
+ * `enforceRequest` (`AuthorizeRequest.ts`) accepts — deliberately, not an
+ * oversight. `Effect.catchTag` narrows by excluding matched tags from the
+ * *whole* error union it's applied to; when that union also contains a fully
+ * open, caller-supplied type parameter, TypeScript cannot prove the open
+ * parameter doesn't itself contain one of the matched tags, so it refuses to
+ * narrow at all — this is a real limit hit by compiling it, not a hypothetical
+ * one, and there is no cast-free way around it for a genuinely generic error
+ * channel (`AGENTS.md` has no cast carve-out). A caller with its own failure
+ * modes — a 404 from `loadResource`, say — resolves them to a response with its
+ * own `Effect.catchAll` before handing the result here, the same way a bare
  * `HttpRouter` handler is already expected to.
  *
  * `CurrentSubject` is excluded from `R | EvaluationServices` specifically —

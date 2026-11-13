@@ -109,7 +109,7 @@ interface StageResult {
  * `Layer.Layer<DecisionSink, never, AuditTrailPort>` — requires `AuditTrailPort`,
  * reads `AuditStagingPort` optionally via `Effect.serviceOption`, never as a
  * `Layer` dependency, so a caller who never wires staging pays nothing for it
- * — the same shape `DecisionSink` itself is read in `Evaluate.ts`.
+ * — the same shape `DecisionSink` itself is read in `SinkEmit.ts`.
  *
  * Each record has exactly one {@link AuditWriteOutcome}: the port calls below
  * produce it and report nothing; `AuditWriteReport.ts` turns it into metrics,

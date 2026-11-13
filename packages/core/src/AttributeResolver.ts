@@ -70,7 +70,7 @@ export interface AttributeResolverShape {
    *
    * `subjectId` is an arbitrary id, not implicitly `CurrentSubject`'s own
    * (JF-03) — `PortAccess.ts`'s `readAttribute`, the one call site both
-   * `Evaluate.ts` and `Predicate.ts` reach this through, always passes the
+   * `Walk.ts` and `Predicate.ts` reach this through, always passes the
    * subject being evaluated, so neither interpreter ever asks about anyone else, but the
    * parameter's width is real and belongs to a different consumer:
    * `@qadi/devtools`'s capture/sweep tooling resolves attributes for

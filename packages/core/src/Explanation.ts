@@ -511,7 +511,7 @@ const fieldStrategyText: (self: FieldStrategy) => string = (self) =>
  *
  * Reads `Policy.ts`'s `defaultFieldStrategy` rather than restating "Intersection
  * for allOf, First for anyOf" a second time — this file's own copy of that
- * sentence, and `Evaluate.ts`'s independent, semantic `exhaustive` check, are
+ * sentence, and `Walk.ts`'s independent, semantic `exhaustive` check, are
  * the "three places" EK-04 found this fact encoded (`defaultFieldStrategy`'s
  * own doc comment has the full history). This file's `"All" | "Any"` kind
  * labels are `Explanation`'s own vocabulary, not `Policy`'s `_tag`s, hence the
