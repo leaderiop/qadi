@@ -978,4 +978,26 @@ describe("the timeline's status (M29)", () => {
         );
       }),
   );
+
+  it.effect(
+    "M30: a model with no source, configured with nothing three times, starts no read until a source is given",
+    () =>
+      Effect.gen(function* () {
+        const { source, tally } = watched([], Stream.empty);
+        const model = yield* makeDockModel();
+        const before = model.timeline.getSnapshot();
+
+        for (let i = 0; i < 3; i += 1) {
+          model.configure({});
+          yield* flush;
+          assert.strictEqual(model.timeline.getSnapshot(), before);
+        }
+        assert.strictEqual(tally.started, 0);
+
+        model.configure({ source });
+        yield* flush;
+
+        assert.strictEqual(tally.started, 1);
+      }),
+  );
 });
