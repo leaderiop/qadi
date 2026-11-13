@@ -6,7 +6,7 @@
  */
 import { hasPermission, permission } from "@qadi/core";
 import { renderHook } from "@testing-library/react";
-import { createRef } from "react";
+import { createRef, StrictMode } from "react";
 import { describe, expect, it } from "vitest";
 import { makeGateRegistry } from "../src/GateRegistry.ts";
 import type { GateRenderState } from "../src/GateRegistry.ts";
@@ -48,9 +48,10 @@ interface Props {
   readonly state: GateRenderState;
 }
 
-const run = (props: Props) =>
+const run = (props: Props, wrapper?: typeof StrictMode) =>
   renderHook((p: Props) => useGateRegistrations(p.writer, [p.identity], [p.state]), {
     initialProps: props,
+    wrapper,
   });
 
 describe("useGateRegistrations (one identity)", () => {
@@ -100,6 +101,18 @@ describe("useGateRegistrations (one identity)", () => {
     view.rerender({ writer, identity: identityFor({}), state: "Allowed" });
 
     // Unregister, then register: two notifications, one live entry.
+    expect(notifications()).toBe(afterMount + 2);
+    expect(registry.instances()).toHaveLength(1);
+  });
+
+  it("GW-S1 under StrictMode a different atom re-registers with the non-strict notification count", () => {
+    const { registry, writer, notifications } = setup();
+    const view = run({ writer, identity: identityFor({}), state: "Allowed" }, StrictMode);
+    const afterMount = notifications();
+
+    view.rerender({ writer, identity: identityFor({}), state: "Allowed" });
+
+    // The same unregister then register as without StrictMode: two notifications.
     expect(notifications()).toBe(afterMount + 2);
     expect(registry.instances()).toHaveLength(1);
   });

@@ -45,9 +45,12 @@ import { MissingQadiProviderError } from "../src/QadiProvider.tsx";
 import { QadiProvider } from "../src/QadiProvider.tsx";
 
 const canRead = hasPermission(permission("doc", "read"));
+const canWrite = hasPermission(permission("doc", "write"));
 const isAdmin = hasRole("admin");
 
 const alice = makeSubject({ id: "u1", permissions: ["doc:read"] });
+const docA = { type: "doc", id: "a" };
+const docB = { type: "doc", id: "b" };
 
 const atoms = () => makeQadiAtoms(EvaluationServicesNone);
 
@@ -63,6 +66,34 @@ const mount = (children: ReactNode, instrument: boolean) => {
       {children}
     </QadiProvider>,
   );
+};
+
+/**
+ * Mounts `first`, rerenders `second`, and reports the registry's notifications
+ * since the mount, its entries and its id, then unmounts and reports what is left.
+ */
+const rerenderedGate = (strict: boolean, first: ReactNode, second: ReactNode) => {
+  const set = atoms();
+  let told = 0;
+  set.gates.subscribe(() => {
+    told += 1;
+  });
+  const tree = (child: ReactNode) => {
+    const provider = (
+      <QadiProvider atoms={set} subject={alice} instrument>
+        {child}
+      </QadiProvider>
+    );
+    return strict ? <StrictMode>{provider}</StrictMode> : provider;
+  };
+  const view = render(tree(first));
+  const idAtMount = set.gates.instances()[0]?.id;
+  const afterMount = told;
+  view.rerender(tree(second));
+  const instances = set.gates.instances();
+  const notifications = told - afterMount;
+  view.unmount();
+  return { idAtMount, instances, notifications, left: set.gates.instances() };
 };
 
 /** The guards listed by the most recent `mount`'s atom set. */
@@ -498,6 +529,44 @@ describe("scoped to its atom set", () => {
     expect(set.gates.instances()).toHaveLength(1);
     view.unmount();
     expect(set.gates.instances()).toHaveLength(0);
+  });
+
+  it("GR-S1 under StrictMode, an instrumented gate whose policy changes re-registers once, keeps its id and leaves one entry", () => {
+    const first = <Can policy={canRead}>x</Can>;
+    const second = <Can policy={canWrite}>x</Can>;
+    const plain = rerenderedGate(false, first, second);
+    const strict = rerenderedGate(true, first, second);
+
+    expect(plain.notifications).toBe(2);
+    expect(strict.notifications).toBe(plain.notifications);
+    expect(strict.instances).toHaveLength(1);
+    expect(strict.instances[0]?.policy).toBe(canWrite);
+    expect(strict.instances[0]?.id).toBe(strict.idAtMount);
+    expect(strict.instances[0]?.element).toBeDefined();
+    expect(strict.left).toHaveLength(0);
+  });
+
+  it("GR-S2 under StrictMode, an instrumented gate whose resource changes re-registers once, keeps its id and leaves one entry", () => {
+    const first = (
+      <Can policy={canRead} resource={docA}>
+        x
+      </Can>
+    );
+    const second = (
+      <Can policy={canRead} resource={docB}>
+        x
+      </Can>
+    );
+    const plain = rerenderedGate(false, first, second);
+    const strict = rerenderedGate(true, first, second);
+
+    expect(plain.notifications).toBe(2);
+    expect(strict.notifications).toBe(plain.notifications);
+    expect(strict.instances).toHaveLength(1);
+    expect(strict.instances[0]?.resource).toBe(docB);
+    expect(strict.instances[0]?.id).toBe(strict.idAtMount);
+    expect(strict.instances[0]?.element).toBeDefined();
+    expect(strict.left).toHaveLength(0);
   });
 });
 
