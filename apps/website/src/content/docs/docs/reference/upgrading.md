@@ -589,3 +589,28 @@ export const App = () => (
   </QadiProvider>
 );
 ```
+
+## 0.12: a checked baseline carries its own reading
+
+`Baseline`'s `Checked` arm now carries `reading`, the one-line sentence and whether the reconstruction reproduces the
+logged row, decided once when the baseline is checked. Code that builds a `Baseline` by hand must add it, and code that
+worked the sentence out from `comparison` and `caveat` itself can read `baseline.reading.sentence` and
+`baseline.reading.matches` instead. Before:
+
+```ts
+import type { Baseline } from "@qadi/devtools";
+
+export const describeBaseline = (baseline: Baseline): string =>
+  baseline._tag === "Checked" ? baseline.comparison._tag : baseline.reason;
+```
+
+After:
+
+```typescript
+import type { Baseline } from "@qadi/devtools";
+
+export const describeBaseline = (baseline: Baseline): string =>
+  baseline._tag === "Checked" ? baseline.reading.sentence : baseline.reason;
+```
+
+The headless model that decides this is [ADR-QD-047](https://github.com/leaderiop/qadi/blob/main/spec/decisions/047-a-headless-devtools-model.md).
