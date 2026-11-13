@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.19                                           |
+> | Revision       | 1.20                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.19 (2026-11-12): review fixes: a closed feed and a repeated command publish nothing; the notice keeps a persistent status region, alerts once per stop and shows its focus (ARCH-82, BEH-QD-507, BEH-QD-509, INV-QD-313, CCR-QD-425)<br>1.18 (2026-11-12): BEH-QD-465 restated (seven stores) and BEH-QD-323 restated (the model polls; useDiagnostics returns { status, reading }); BEH-QD-506..510 new (ARCH-82, CCR-QD-425)<br>1.17 (2026-11-11): The one internal hook, useGates, is in useGate.ts (ARCH-76, CCR-QD-418, ADR-QD-140)<br>1.16 (2026-11-11): BEH-QD-465 — the dock is one model (makeDockModel owns the six stores and pushes the rail, one configure, the model reads its source in its own scope); BEH-QD-466 — a choice from a list has one shape (HeldChoice's three arms, one cell in both sessions); BEH-QD-389's note names the dock model, not the owned hook (ARCH-74, ADR-QD-047 amendment, CCR-QD-416)<br>1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.20 (2026-11-12): BEH-QD-519 and BEH-QD-520 new: the timeline states a stop and restarts; BEH-QD-465 (eight readouts), BEH-QD-509 and BEH-QD-510 restated (CCR-QD-427)<br>1.19 (2026-11-12): review fixes: a closed feed and a repeated command publish nothing; the notice keeps a persistent status region, alerts once per stop and shows its focus (ARCH-82, BEH-QD-507, BEH-QD-509, INV-QD-313, CCR-QD-425)<br>1.18 (2026-11-12): BEH-QD-465 restated (seven stores) and BEH-QD-323 restated (the model polls; useDiagnostics returns { status, reading }); BEH-QD-506..510 new (ARCH-82, CCR-QD-425)<br>1.17 (2026-11-11): The one internal hook, useGates, is in useGate.ts (ARCH-76, CCR-QD-418, ADR-QD-140)<br>1.16 (2026-11-11): BEH-QD-465 — the dock is one model (makeDockModel owns the six stores and pushes the rail, one configure, the model reads its source in its own scope); BEH-QD-466 — a choice from a list has one shape (HeldChoice's three arms, one cell in both sessions); BEH-QD-389's note names the dock model, not the owned hook (ARCH-74, ADR-QD-047 amendment, CCR-QD-416)<br>1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -834,8 +834,11 @@ Pinned by `DockSession.test.ts`, headlessly, and through the dock by
 
 ## BEH-QD-465: The dock is one model
 
-> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) (amended, CCR-QD-416, CCR-QD-425) ·
+> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) (amended, CCR-QD-416, CCR-QD-425, CCR-QD-427) ·
 > **Scope:** [ADR-QD-137](../decisions/137-a-devtools-session-owns-its-runs-through-a-scope.md)
+>
+> **Amended 2026-11-12 (CCR-QD-427).** The timeline's status is the dock model's eighth readout,
+> `timelineStatus`, with its restart ([BEH-QD-519](#beh-qd-519-a-defect-stops-the-timeline-visibly-and-a-restart-resumes-it)).
 
 ```ts
 export interface DockModelInputs {
@@ -849,6 +852,7 @@ export interface DockModelInputs {
 export interface DockModel {
   readonly timeline: TimelineStore;
   readonly diagnostics: DiagnosticsReadout;
+  readonly timelineStatus: TimelineStatusReadout;
   readonly dock: DockSession;
   readonly explorer: ExplorerSession;
   readonly roles: HeldChoiceStore<Role>;
@@ -872,6 +876,9 @@ rules between them were reachable only by rendering. `makeDockModel` owns them, 
 show are the model's seventh store, beside the timeline, the dock session, the
 explorer, the role choice and the simulation
 ([BEH-QD-506](#beh-qd-506-the-diagnostics-poll-is-the-dock-models-seventh-store-with-a-closed-status)).
+The status of the timeline's own read, and the command that reads it again, are its eighth
+readout, `timelineStatus`, taken from the timeline feed the model already owns
+([BEH-QD-519](#beh-qd-519-a-defect-stops-the-timeline-visibly-and-a-restart-resumes-it)).
 
 ```
 REQUIREMENT: Every screen's store MUST be the model's, and it MUST outlive its tab.
@@ -905,6 +912,16 @@ The dock renders `model.diagnostics`, whose snapshot is already the merge of the
 reading and the one a host supplied, so no render computes it.
 
 ```
+REQUIREMENT: The dock model MUST expose the timeline's status and its restart as its
+             eighth readout, `timelineStatus`, read from the timeline feed and not merged
+             (BEH-QD-519).
+```
+
+Unlike the diagnostics, there is nothing to merge: a timeline has no second source of its
+status, so the readout is the feed's own, and a hide and a show of the dock rebuilds it at
+`Reading`.
+
+```
 REQUIREMENT: A tab change MUST change no other store.
 ```
 
@@ -933,10 +950,10 @@ The model has no `dispose` and no `read` command; the scope is the lifetime
 
 Pinned by `DockModel.test.ts`, headlessly (M1 to M17 and the property P1), and through
 the dock by `DevtoolsDock.test.tsx`, which keeps the layout and the wiring only, with
-M18 to M28 for the seventh store. A hide and a show of the dock in a React `Activity`
+M18 to M28 for the seventh store and M29 and M30 for the eighth. A hide and a show of the dock in a React `Activity`
 rebuilds the model, so a paused dock returns to live, the backlog is read again and the
 diagnostics start at `Starting` with no reading; this is accepted
-(ADR-QD-047, CCR-QD-416, CCR-QD-425).
+(ADR-QD-047, CCR-QD-416, CCR-QD-425, CCR-QD-427).
 
 ## BEH-QD-466: A choice from a list has one shape
 
@@ -1297,7 +1314,11 @@ Pinned by `packages/devtools/test/react/DiagnosticsLifetime.test.tsx` (H1 to H3,
 
 ## BEH-QD-509: Every screen that reads the diagnostics states its status the same way
 
-> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) (amended, CCR-QD-425)
+> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) (amended, CCR-QD-425, CCR-QD-427)
+>
+> **Amended 2026-11-12 (CCR-QD-427).** The stopped notice's box is one component shared with the
+> timeline's ([BEH-QD-520](#beh-qd-520-every-screen-that-reads-the-timeline-states-a-stop-the-same-way)),
+> and its Restart button reads the body colour inside an amber border.
 
 The Services and React screens read the diagnostics. Both render one shared notice first
 and write no notice markup of their own, so they cannot disagree about a stop.
@@ -1349,14 +1370,19 @@ not been read yet, not that the host never supplied it.
 REQUIREMENT: `Off` and `Live` MUST add nothing visible to a screen.
 ```
 
-Pinned by `packages/devtools/test/react/DiagnosticsNotice.test.tsx` (N1 to N13) and
+Pinned by `packages/devtools/test/react/DiagnosticsNotice.test.tsx` (N1 to N15: N14 is the
+screen root's focus ring and N15 is Restart's colours), `packages/devtools/test/react/theme.contrast.test.ts`
+(CT1 to CT6, the notice's colour pairs measured from the tokens) and
 `packages/devtools/test/react/DiagnosticsScreens.test.tsx` (D1 to D11). Specified in
-ADR-QD-047 (CCR-QD-425).
+ADR-QD-047 (CCR-QD-425, CCR-QD-427).
 
 ## BEH-QD-510: The public hooks are adapters over scoped feeds, read through one store-snapshot hook
 
-> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) (amended, CCR-QD-425) ·
+> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) (amended, CCR-QD-425, CCR-QD-427) ·
 > **Scope:** [ADR-QD-137](../decisions/137-a-devtools-session-owns-its-runs-through-a-scope.md)
+>
+> **Amended 2026-11-12 (CCR-QD-427).** `useTimeline`'s result carries the feed's `status` and
+> `restart` ([BEH-QD-519](#beh-qd-519-a-defect-stops-the-timeline-visibly-and-a-restart-resumes-it)).
 
 ```ts
 export const useDiagnostics: (options?: DiagnosticsDockOptions) => DiagnosticsSnapshot;
@@ -1365,6 +1391,9 @@ export const useTimeline: (
   options?: { readonly capacity?: number },
 ) => UseTimeline;
 ```
+
+`UseTimeline` carries `status` and `restart` beside its store
+([BEH-QD-519](#beh-qd-519-a-defect-stops-the-timeline-visibly-and-a-restart-resumes-it)).
 
 `useDiagnostics` and `useTimeline` decide nothing: each builds its feed in a scope its
 component holds and reads it. The React layer reads every store through one hook,
@@ -1407,6 +1436,145 @@ export const SamplerLine = () => {
 ```
 
 Pinned by `packages/devtools/test/react/useStoreSnapshot.test.tsx` (S1 to S3),
-`packages/devtools/test/react/useDiagnostics.test.tsx`, `useTimeline.test.tsx`,
-`DiagnosticsLifetime.test.tsx` and `TimelineLifetime.test.tsx`. Specified in ADR-QD-047
-(CCR-QD-425).
+`packages/devtools/test/react/useDiagnostics.test.tsx`, `useTimeline.test.tsx` (UT1 to UT3
+for the timeline's status and restart), `DiagnosticsLifetime.test.tsx` and
+`TimelineLifetime.test.tsx`. Specified in ADR-QD-047 (CCR-QD-425, CCR-QD-427).
+
+## BEH-QD-519: A defect stops the timeline visibly, and a restart resumes it
+
+> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) (amended, CCR-QD-427) ·
+> **Scope:** [ADR-QD-137](../decisions/137-a-devtools-session-owns-its-runs-through-a-scope.md) ·
+> **Invariant:** [INV-QD-313](../invariants.md#inv-qd-313-a-poll-defect-is-stated-an-interruption-never-is-and-a-replaced-run-never-writes)
+
+The timeline feed's read ends the way the diagnostics poll does, and is watched the same
+way. A source whose backlog or live stream dies ended its fiber, a fiber handle drops a
+dead fiber without a word, and the screens kept showing the entries it had delivered as if
+more were coming. A read that was replaced while it was still delivering its backlog could
+also keep writing after the re-entrant replace that superseded it.
+
+```
+REQUIREMENT: A read that ends on a defect MUST produce `Stopped { reason }` and keep what
+             the timeline delivered.
+```
+
+`reason` is `Cause.pretty` of the cause, kept verbatim. It lives only in the model's
+in-memory snapshot and is rendered as React text; it is never sent to a sink record, a
+response, a log or a metric. The entries the read delivered before it died stay in the
+timeline.
+
+```
+REQUIREMENT: An interruption MUST NOT produce `Stopped`: not a new source, not no source,
+             not a capacity change, not the scope closing, and not a replaced read whose
+             release dies.
+```
+
+```
+REQUIREMENT: A read that has been replaced MUST NOT write: not a record and not a stop.
+```
+
+```
+REQUIREMENT: A source that ends by itself MUST stay `Reading`.
+```
+
+A source with nothing more to deliver is not a defect, so a finished backlog stays quiet.
+
+```
+REQUIREMENT: `restart()` MUST start a fresh read from the source the feed holds, from
+             `Stopped` or from `Reading`, and a closed feed MUST ignore it and publish
+             nothing.
+```
+
+A restart replays the source's backlog into the same timeline, and the timeline's dedupe
+keeps each entry single. A command held across a rebuild (a stale `restart` captured before
+a hidden `Activity` closed the scope) would otherwise read a source nobody owns.
+
+```
+REQUIREMENT: `useTimeline` MUST return `status` and `restart`, reading `Reading` with an
+             inert `restart` before its feed exists, and `useTimelineStore` MUST return
+             the same shape with a `Reading` that never changes.
+```
+
+A store fed by hand has no read, so it has no stop to state.
+
+```tsx
+import type { Source } from "@qadi/devtools";
+import { TimelineStatus, useTimeline } from "@qadi/devtools/react";
+
+export const TimelineLine = ({ source }: { readonly source: Source }) => {
+  const { timeline, status, restart } = useTimeline(source);
+  return TimelineStatus.$is("Stopped")(status) ? (
+    <button type="button" onClick={restart}>
+      {status.reason}
+    </button>
+  ) : (
+    <p>{timeline.entries.length} decisions</p>
+  );
+};
+```
+
+Pinned by `packages/devtools/test/model/TimelineFeed.test.ts` (TF9 to TF17: TF9 a replaced read
+writes nothing more, TF10 and TF11 a defect is a stop, TF12 and TF13 an interruption and an
+end by itself are not, TF14 to TF17 the restart), `packages/devtools/test/model/DockModel.test.ts`
+(M29, the eighth readout) and `packages/devtools/test/react/useTimeline.test.tsx` (UT1 to UT3).
+Specified in ADR-QD-047 (CCR-QD-427).
+
+## BEH-QD-520: Every screen that reads the timeline states a stop the same way
+
+> **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) (amended, CCR-QD-427)
+
+The Log, the Inspector, the Policies explorer and the Simulator render from the timeline.
+Roles, Services and Questions do not. The dock renders one notice above the four, built
+from the same stopped box the diagnostics notice uses
+([BEH-QD-509](#beh-qd-509-every-screen-that-reads-the-diagnostics-states-its-status-the-same-way)),
+so a stop reads the same wherever it is first seen.
+
+```
+REQUIREMENT: A stopped timeline MUST render the notice as the dock body's first child on
+             the Log, Inspector, Policies and Simulator screens, and the other three MUST
+             render none.
+```
+
+Which screens read the timeline is data, a record closed over the tab ids, so a tab added
+later must state which it is before it compiles.
+
+```
+REQUIREMENT: The alert MUST hold the lead "Timeline stopped." and the body "The source
+             failed with an unexpected error and is no longer delivering decisions. What
+             it delivered before it stopped is kept, and nothing new will arrive."
+             verbatim, with the reason after it in a labelled block.
+```
+
+The alert carries the lead and the body only. The reason is a stack trace, so it follows the
+alert in a block labelled "Why the timeline stopped", and a screen reader does not read it
+aloud.
+
+```
+REQUIREMENT: A stop MUST be announced once however many screens the reviewer visits,
+             including a stop first seen on a screen that does not read the timeline and
+             under StrictMode, and a new stop after a restart, or after the dock is hidden
+             and shown, MUST be announced afresh.
+```
+
+Moving among the four screens keeps the same notice mounted, so it does not alert again. A
+stop that happened while the reviewer was on Roles, Services or Questions has not been
+announced, so the first of the four screens visited announces it.
+
+```
+REQUIREMENT: Restart MUST remove the notice and move focus to the dock body, which MUST
+             show a visible focus indication.
+```
+
+The button unmounts with the notice, which would leave focus on the page. The dock body is a
+programmatic focus target and not a tab stop, and it draws the dock's own focus ring.
+
+```
+REQUIREMENT: The notice MUST use the same stopped box as the diagnostics notice.
+```
+
+One box means one place for the alert-once rule, the reason block and the Restart button's
+colours, so the two feeds cannot disagree about how a stop looks.
+
+Pinned by `packages/devtools/test/react/TimelineNotice.test.tsx` (TN1 to TN10),
+`packages/devtools/test/react/theme.contrast.test.ts` (CT1 to CT6) and
+`packages/devtools/test/react/DiagnosticsNotice.test.tsx` (N14, N15). Specified in
+ADR-QD-047 (CCR-QD-427).
