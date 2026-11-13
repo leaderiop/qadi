@@ -1,5 +1,43 @@
 # Milestones
 
+## v1.3 Arch Wave 8 (Phases 30-36) (Completed: 2026-11-13; not released)
+
+**Phases completed:** 7 phases, 54 plans, 56 tasks
+**Closeout:** verified_closeout. All 7 phases `passed`. Phases 30–35 were re-verified at HEAD on
+2026-11-13 because later phases edited files their reports covered; every moved file was an expected
+change. Milestone audit: `tech_debt` (45/45 requirements, 7/7 phases, 7/7 integration seams, 4/4
+flows, Nyquist 7/7), with the debt accepted by the user. Archived as `milestones/v1.3-MILESTONE-AUDIT.md`.
+**Known verification overrides:** 1. DEBT-02 is met by deleting the stale `Sources.ts` token rather
+than naming `model/Source.ts` (user decision D-17, recorded in CCR-QD-427).
+**Git range:** `aab87576` → this archive commit on `arch-wave-8` (333 commits, 2026-11-12 → 2026-11-13);
+220 files changed outside `.planning`, +12,836 / −1,914.
+**Merge gate:** `pnpm check:pr` exit 0 at the end of every phase (Playwright e2e 30 passed); mutation
+runs per touched file under WX-05, never re-baselined.
+**Records:** ARCH-78..83, ADR-QD-143..149 (144, 145 and 147 unused), CCR-QD-421..427.
+**Release:** none. The branch is not merged and nothing was published.
+
+**Key accomplishments:**
+- **ARCH-78 (Phase 30):** `untrustedDecoder` is the one way to strict-decode untrusted JSON (parse,
+  depth guard, optional `prepare`, strict decode, closed `NotJson | TooDeep | Malformed`). The nine
+  seams keep only their refusal mapping, and `PolicyFromJson`'s unguarded `RangeError` is gone
+  (ADR-QD-143).
+- **ARCH-79/80 (Phases 31–32):** `SharedComputation` owns staleness through a closed claim `standing`,
+  so `DecisionCache` drops its generation counter. `EvaluateOptions` and `EvaluationServices` are
+  each declared once, and `LifecycleOptions` is deleted.
+- **ARCH-81 (Phase 33):** one sealed builder, `evaluationEnvironment`, with a closed
+  `EvaluationShadowing` and one `EvaluationClock`, serves `@qadi/testing` and devtools' Simulation
+  (ADR-QD-146).
+- **ARCH-82 (Phase 34):** diagnostics is the dock model's seventh store, polled in the model's scope
+  with a closed `DiagnosticsStatus`, and the dock merges nothing.
+- **ARCH-83 (Phase 35):** the atom set owns an edge-triggered, deferred, once-per-episode eviction
+  sweep, so `maxTrackedQuestions` holds on a bare registry; the provider forks nothing (ADR-QD-148).
+- **Carried debt (Phase 36):** two live defects fixed. A server seed is now held by its question
+  behind a registry's `SeedGrant` (ADR-QD-149), and a dying timeline feed reads as Stopped with a
+  restart. The v1.2 spec debt and every open info finding were closed, resolved or refuted with
+  evidence (CCR-QD-427).
+
+---
+
 ## v1.2 Arch Wave 7 (Phases 21-29) (Completed: 2026-11-12; not released)
 
 **Phases completed:** 9 phases, 38 plans, 75 tasks

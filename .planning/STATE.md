@@ -2,38 +2,36 @@
 gsd_state_version: "1.0"
 milestone: v1.3
 milestone_name: Arch Wave 8
-current_phase: 36
-status: completed
+status: Awaiting next milestone
 stopped_at: Phase 36 complete — all phases complete
-last_updated: "2026-11-13T02:11:57.275Z"
+last_updated: "2026-11-13T02:22:42.501Z"
 last_activity: 2026-11-13
-last_activity_desc: Phase 36 complete
-state_head: 0c5cdda797e4ed5459406f61c480c06a988b8ed0
+last_activity_desc: Milestone v1.3 completed and archived
+state_head: c22b5f6f03dbdb22e3efd05ad94aa5f86be609b8
 progress:
   total_phases: 7
   completed_phases: 7
   total_plans: 54
   completed_plans: 54
   percent: 100
+current_phase: 36
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-12)
+See: .planning/PROJECT.md (updated 2026-11-13)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 36 — Carried spec debt and stale records
+**Current focus:** v1.3 complete and archived; next milestone not defined (`/gsd-new-milestone`)
 
 ## Current Position
 
-Phase: 36
-Plan: Not started
-Status: All phases complete
-Last activity: 2026-11-13 — Phase 36 complete
-
-Progress: [██████████] 100% (v1.3: 0 of 7 phases)
+Phase: Milestone v1.3 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-11-13 — Milestone v1.3 completed and archived
 
 
 ## Performance Metrics
@@ -367,5 +365,5 @@ Resume file: None
 
 ## Operator Next Steps
 
-- Phase 31 (a reset supersedes its claims) is next: smart discuss, then /gsd-plan-phase 31
-- Phases 31-36 run strictly one at a time; Phase 35 opens on a spike and may conclude "keep the sweep in the provider"
+
+- Start the next milestone with /gsd-new-milestone
