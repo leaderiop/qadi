@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 36
 current_phase_name: Carried spec debt and stale records
 status: executing
-stopped_at: Completed 36-07-PLAN.md
-last_updated: "2026-11-13T00:25:30.201Z"
+stopped_at: Completed 36-08-PLAN.md
+last_updated: "2026-11-13T00:33:11.413Z"
 last_activity: 2026-11-13
 last_activity_desc: Phase 36 execution started
-state_head: 0637ed5234cb4ba5a566745dd1b26e9f5934fd18
+state_head: 35bfe8185510c86e459e56a878cd3dcdc37be334
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 54
-  completed_plans: 47
+  completed_plans: 48
   percent: 86
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 36 (Carried spec debt and stale records) — EXECUTING
-Plan: 8 of 14
+Plan: 9 of 14
 Status: Ready to execute
 Last activity: 2026-11-13 — Phase 36 execution started
 
@@ -195,6 +195,7 @@ Progress: [█████████░] 86% (v1.3: 0 of 7 phases)
 | Phase 36 P05 | 7 min | 3 tasks | 7 files |
 | Phase 36 P06 | 20 min | 2 tasks | 9 files |
 | Phase 36 P07 | 20 min | 2 tasks | 4 files |
+| Phase 36 P08 | 14 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -305,6 +306,7 @@ Progress: [█████████░] 86% (v1.3: 0 of 7 phases)
 - [Phase 36]: 36-05: SR1 reaches the unreachable (no ports, capture) row by dropping ports after a capture
 - [Phase 36]: 36-06: StoppedBox is generic over the stop value so the dock's ledger ref keeps its DiagnosticsStatus type; the timeline feed mirrors DiagnosticsFeed's generation token and Cause.hasInterruptsOnly exit guard
 - [Phase 36]: 36-07: timeline notice props are memoised in DockFrame like the diagnostics ones; readsTimeline is a closed Record<TabId, boolean>
+- [Phase 36]: 36-08: a checked baseline carries its reading, decided once in baselineDiff; a source description builds no recorder, only prepareSource does
 
 ### Pending Todos
 
@@ -346,8 +348,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-13T00:25:29.437Z
-Stopped at: Completed 36-07-PLAN.md
+Last session: 2026-11-13T00:33:11.071Z
+Stopped at: Completed 36-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
