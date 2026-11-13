@@ -1,5 +1,6 @@
 /**
- * `prepareSource`, the one place a source choice becomes something a run can use (ARCH-72).
+ * `prepareSource`, the one place a source choice becomes something a run can use (ARCH-72),
+ * and `describeSource`, the same choice as the dock shows it, without a recorder.
  *
  * This table is the whole availability rule: which of the three sources can be had,
  * and the sentence the dock shows for each. The session's tests no longer restate it;
@@ -18,7 +19,7 @@ import { answerCount, emptyAnswers } from "../../src/model/Capture.ts";
 import type { CapturedAnswers } from "../../src/model/Capture.ts";
 import { simulate } from "../../src/model/Simulation.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
-import { prepareSource } from "../../src/model/SimulationSource.ts";
+import { describeSource, prepareSource } from "../../src/model/SimulationSource.ts";
 import type { SourceChoice } from "../../src/model/SimulationSource.ts";
 
 const realPorts = portsLayer({
@@ -102,4 +103,17 @@ describe("prepareSource", () => {
       assert.strictEqual(answerCount(yield* p1.captured), 1);
       assert.strictEqual(answerCount(yield* p2.captured), 0);
     }));
+
+  it("D1 a description holds the host's own ports; only a preparation wraps them in a recorder", () => {
+    const have = { ports: realPorts, capture: undefined };
+    const description = describeSource("Live", have);
+    assert.strictEqual(description.refusal, undefined);
+    const described = description.source;
+    if (described === undefined || described._tag !== "Live") throw new Error("expected a Live description");
+    assert.strictEqual(described.ports, realPorts, "the description's Live source holds the host's own ports");
+
+    const prepared = prepareSource("Live", have).prepared;
+    if (prepared._tag !== "Ready" || prepared.source._tag !== "Live") throw new Error("expected a Ready Live preparation");
+    assert.notStrictEqual(prepared.source.ports, realPorts);
+  });
 });
