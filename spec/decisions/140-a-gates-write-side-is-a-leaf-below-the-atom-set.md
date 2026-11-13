@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-140                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-11                                     |
 > | Status         | Accepted — amends ADR-QD-111, ADR-QD-080       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-11): Initial (ARCH-76, CCR-QD-418) |
+> | Change History | 1.1 (2026-11-12): Consequences amended: the test-edit count describes the split alone (CCR-QD-427)<br>1.0 (2026-11-11): Initial (ARCH-76, CCR-QD-418) |
 
 ---
 
@@ -111,6 +111,12 @@ holds the gate hook, its scope context and the registration lifecycle, above
 - **Per-file mutation scores redistribute**, because the hooks now count under
   `useGate.ts` and the write side with `reconcile` under `GateWriter.ts`. The comparison
   in `28-mutation-base.json` is per file and over the six files together.
+
+> **Amended 2026-11-12 (CCR-QD-427).** "The only test edit is one import" counts the
+> split alone. Over the whole change `GateWriter.test.tsx` also moved its `run` helper
+> onto `useGateRegistrations(writer, [identity], [state])`, with its `describe` title
+> and header, before the split, and the change added `GateWriter.reconcile.test.ts`
+> and one `GateRegistry.store.test.ts` case. The Decision is unaffected.
 
 ## Alternatives considered
 

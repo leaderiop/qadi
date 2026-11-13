@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-123                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-10                                     |
 > | Status         | Accepted — amends ADR-QD-052                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-12): amendment — PortName and PortSpanName live in PortName.ts, not PortMetrics.ts (ARCH-77, CCR-QD-419)<br>1.0 (2026-11-10): Initial (ARCH-61, CCR-QD-401) |
+> | Change History | 1.2 (2026-11-12): Amendment wording: PortMetrics.ts now imports the PortName leaf (CCR-QD-427)<br>1.1 (2026-11-12): amendment — PortName and PortSpanName live in PortName.ts, not PortMetrics.ts (ARCH-77, CCR-QD-419)<br>1.0 (2026-11-10): Initial (ARCH-61, CCR-QD-401) |
 
 ---
 
@@ -126,5 +126,5 @@ changes), ADR-QD-076 (`ignoreStatic`), ADR-QD-099 (a closed entry-point list). B
 `packages/core/src/PortName.ts`, an import-free leaf, so a port module takes what a port *is* from a
 module that counts nothing (ARCH-77, [ADR-QD-094](./094-a-port-is-described-once.md)). The Decision's
 sentence that `PortMetrics.ts` owns `PortName` is therefore corrected above to past tense. Its reason
-stands: `PortMetrics.ts` still imports the leaf, not the other way round, so the type-only cycle
+stands: `PortMetrics.ts` now imports the leaf, never the reverse, so the type-only cycle
 ADR-QD-037 counts cannot form. No metric id, description, type or registry key changed.
