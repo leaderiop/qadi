@@ -35,7 +35,7 @@ export const stoppedKey = <S,>(ledger: StopLedger<S>, status: S): number =>
   ledger.stop === status ? ledger.count : ledger.count + 1;
 
 /** The two feeds that stop. */
-export type StoppedFeed = "diagnostics" | "timeline";
+type StoppedFeed = "diagnostics" | "timeline";
 
 /**
  * Per feed, the test-id prefix for `-notice`, `-stopped`, `-reason` and `-restart`, and
