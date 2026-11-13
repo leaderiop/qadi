@@ -11,9 +11,13 @@ import { act, render, screen } from "@testing-library/react";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
-import { Activity, StrictMode } from "react";
+import { Activity, StrictMode, type RefObject } from "react";
+import { vi } from "vitest";
 import { sourceFromRecords, type Source } from "../../src/model/Source.ts";
+import { TimelineStatus } from "../../src/model/TimelineFeed.ts";
 import { DevtoolsDock } from "../../src/react/DevtoolsDock.tsx";
+import { noStops, type StopLedger } from "../../src/react/StoppedBox.tsx";
+import { TimelineNotice } from "../../src/react/TimelineNotice.tsx";
 import { colors } from "../../src/react/theme.ts";
 import { decisionRecord } from "../helpers.ts";
 
@@ -64,6 +68,9 @@ const click = async (element: HTMLElement) => {
 };
 
 const goTo = (tab: (typeof TABS)[number]) => click(screen.getByRole("button", { name: tab }));
+
+/** A ledger with no stop in it, in the shape the dock hands the notice. */
+const ledger = (): RefObject<StopLedger<TimelineStatus>> => ({ current: noStops });
 
 const notice = () => screen.queryByTestId("qadi-timeline-notice");
 const stopped = () => screen.getByTestId("qadi-timeline-stopped");
@@ -209,5 +216,75 @@ describe("the timeline notice", () => {
     await settle();
 
     assert.strictEqual(stopped().getAttribute("data-announce"), "alert");
+  });
+
+  it("TN11 a restart outside the dock body runs once and moves no focus", async () => {
+    const calls = { restarts: 0 };
+    render(
+      <TimelineNotice
+        status={TimelineStatus.Stopped({ reason: "boom" })}
+        onRestart={() => {
+          calls.restarts += 1;
+        }}
+        announced={ledger()}
+      />,
+    );
+    await settle();
+
+    await click(screen.getByTestId("qadi-timeline-restart"));
+
+    assert.strictEqual(calls.restarts, 1);
+    assert.strictEqual(document.activeElement, document.body);
+  });
+
+  it("TN12 a stop is drawn with its slot spacing, a bold lead and no sampled attribute", async () => {
+    render(<TimelineNotice status={TimelineStatus.Stopped({ reason: "boom" })} onRestart={() => {}} announced={ledger()} />);
+    await settle();
+
+    const probe = document.createElement("div");
+    probe.style.padding = "12px 12px 0";
+    assert.strictEqual(screen.getByTestId("qadi-timeline-notice-slot").style.padding, probe.style.padding);
+    assert.strictEqual(screen.getByText("Timeline stopped.").style.fontWeight, "600");
+    assert.isFalse(stopped().hasAttribute("data-sampled"));
+  });
+
+  it("TN13 the dock body draws no ring for a focus that is not focus-visible", async () => {
+    render(<DevtoolsDock source={sourceFromRecords([])} />);
+    await settle();
+    const body = screen.getByTestId("qadi-dock-body");
+    vi.spyOn(body, "matches").mockReturnValue(false);
+
+    act(() => body.focus());
+
+    assert.strictEqual(body.style.outline, "");
+    assert.strictEqual(body.style.outlineOffset, "");
+  });
+
+  it("TN14 a notice mounted again for the stop already announced does not count it twice", async () => {
+    const announced = ledger();
+    const status = TimelineStatus.Stopped({ reason: "boom" });
+    const view = render(<TimelineNotice status={status} onRestart={() => {}} announced={announced} />);
+    await settle();
+    assert.strictEqual(announced.current.count, 1);
+    view.unmount();
+
+    render(<TimelineNotice status={status} onRestart={() => {}} announced={announced} />);
+    await settle();
+
+    assert.strictEqual(announced.current.count, 1);
+    assert.strictEqual(stopped().getAttribute("data-announce"), "none");
+  });
+
+  it("TN15 a notice handed another ledger records its stop there", async () => {
+    const status = TimelineStatus.Stopped({ reason: "boom" });
+    const first = ledger();
+    const view = render(<TimelineNotice status={status} onRestart={() => {}} announced={first} />);
+    await settle();
+    const second = ledger();
+
+    view.rerender(<TimelineNotice status={status} onRestart={() => {}} announced={second} />);
+    await settle();
+
+    assert.strictEqual(second.current.stop, status);
   });
 });

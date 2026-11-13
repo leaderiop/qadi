@@ -7,8 +7,10 @@
  * provides one, and a test that needs to end it mid-test makes its own.
  */
 import { assert, describe, it } from "@effect/vitest";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as Fiber from "effect/Fiber";
 import * as Queue from "effect/Queue";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
@@ -354,5 +356,50 @@ describe("the timeline feed", () => {
 
       assert.strictEqual(a.tally.reads, 1);
       assert.deepStrictEqual(heard, []);
+    }));
+
+  it.effect("TF18 a restart after the scope closed leaves a Stopped feed Stopped", () =>
+    Effect.gen(function* () {
+      const a = flaky();
+      const scope = yield* Scope.make();
+      const feed = yield* Scope.provide(makeTimelineFeed({ source: a.source }), scope);
+      yield* flush;
+      assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
+      const heard = heardStatus(feed);
+      yield* Scope.close(scope, Exit.void);
+      yield* settleTurns;
+
+      feed.status.restart();
+      yield* flush;
+
+      assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
+      assert.strictEqual(a.tally.reads, 1);
+      assert.deepStrictEqual(heard, []);
+    }));
+
+  it.effect("TF19 a replaced read whose release dies while the scope closes never publishes Stopped", () =>
+    Effect.gen(function* () {
+      const latch = yield* Deferred.make<void>();
+      const slow = watched(
+        [record("x", 100)],
+        Stream.never.pipe(
+          Stream.ensuring(Effect.andThen(Deferred.await(latch), Effect.die(new Error("late release")))),
+        ),
+      );
+      const scope = yield* Scope.make();
+      const feed = yield* Scope.provide(makeTimelineFeed({ source: slow.source }), scope);
+      const heard = heardStatus(feed);
+      yield* flush;
+      feed.configure({ source: watched([], Stream.never).source });
+      yield* flush;
+      const closing = yield* Effect.forkChild(Scope.close(scope, Exit.void));
+      yield* settleTurns;
+
+      yield* Deferred.succeed(latch, undefined);
+      yield* Fiber.join(closing);
+      yield* flush;
+
+      assert.deepStrictEqual(heard, []);
+      assert.strictEqual(feed.status.getSnapshot()._tag, "Reading");
     }));
 });
