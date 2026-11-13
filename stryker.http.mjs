@@ -16,7 +16,7 @@
  * "perTest"` (CCR-QD-119).** A run against this config reports survivors in code
  * that executes once, at import time, before any test runs — `RequirePermission.ts`'s
  * `requiresPermission` (called inline while `test/http.test.ts`'s `DocumentsGroup`
- * builds its endpoints), `GuardApi.ts`'s `guardApi` and `PermissionRegistry.ts`'s
+ * builds its endpoints), `GuardApi.ts`'s `guardApi` and `GuardRoute.ts`'s
  * `addGuardedRoute` (called while the same file's `AppLayer` is constructed), plus the three service-tag
  * `StringLiteral`s. Manually applying each of these mutations and running
  * `test/http.test.ts` directly crashes the whole file at import time — every test
