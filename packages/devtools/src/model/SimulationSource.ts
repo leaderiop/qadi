@@ -287,3 +287,29 @@ export const prepareSource = (
     prepared: chosen.usable ? chosen.ready() : { _tag: "Refused", refusal: chosen.refusal },
   };
 };
+
+/**
+ * What the dock shows for a source choice: its options, the refusal if it cannot be
+ * had, and the chosen source as the host gave it.
+ *
+ * Enough for `causesIO`; a run needs `prepareSource`, which builds a recorder.
+ */
+export interface SourceDescription {
+  readonly options: ReadonlyArray<SourceOption>;
+  readonly refusal: SourceRefusal | undefined;
+  readonly source: SimulationSource | undefined;
+}
+
+/** Describes a source choice without running it. */
+export const describeSource = (
+  choice: SourceChoice,
+  have: {
+    readonly ports: EvaluationPortsLayer | undefined;
+    readonly capture: CapturedAnswers | undefined;
+  },
+): SourceDescription => {
+  const { options, prepared } = prepareSource(choice, have);
+  return prepared._tag === "Ready"
+    ? { options, refusal: undefined, source: prepared.source }
+    : { options, refusal: prepared.refusal, source: undefined };
+};
