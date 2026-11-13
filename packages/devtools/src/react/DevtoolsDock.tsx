@@ -24,8 +24,10 @@ import type { DockModel } from "../model/DockModel.ts";
 import type { DockSnapshot, TabId } from "../model/DockSession.ts";
 import type { GateInstanceLike } from "../model/Gates.ts";
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
+import type { TimelineStatus } from "../model/TimelineFeed.ts";
 import { DecisionLog } from "./DecisionLog.tsx";
 import type { DiagnosticsNoticeProps } from "./DiagnosticsNotice.tsx";
+import { focusRingProps } from "./focusRing.ts";
 import { Inspector } from "./Inspector.tsx";
 import { PolicyExplorer } from "./PolicyExplorer.tsx";
 import { QuestionsPanel } from "./QuestionsPanel.tsx";
@@ -33,6 +35,7 @@ import { RoleViewer } from "./RoleViewer.tsx";
 import { ServicesPanel } from "./ServicesPanel.tsx";
 import { Simulator } from "./Simulator.tsx";
 import { noStops, type StopLedger } from "./StoppedBox.tsx";
+import { TimelineNotice, type TimelineNoticeProps } from "./TimelineNotice.tsx";
 import { useDockModel } from "./useDockModel.ts";
 import { usePaused, useStoreSnapshot } from "./useStoreSnapshot.ts";
 import { body, button, colors, dock as dockStyle, font, input, muted, toolbar } from "./theme.ts";
@@ -57,6 +60,22 @@ const TABS = [
   { id: "simulator", label: "Simulator" },
   { id: "questions", label: "React" },
 ] as const satisfies ReadonlyArray<{ readonly id: TabId; readonly label: string }>;
+
+/**
+ * Which tabs render entries from the timeline, and so state its stop above them.
+ *
+ * Closed over `TabId`, so a new tab is a compile error until it says whether it reads the
+ * timeline: a set would let a new tab default to "no" and show stale entries unmarked.
+ */
+const readsTimeline: Record<TabId, boolean> = {
+  log: true,
+  inspector: true,
+  policies: true,
+  roles: false,
+  services: false,
+  simulator: true,
+  questions: false,
+};
 
 const VERDICTS: ReadonlyArray<Verdict> = ["Allow", "Deny", "Error", "Unknown"];
 
@@ -170,6 +189,13 @@ const DockFrame: FC<{
     () => ({ status, onRestart: model.diagnostics.restart, announced }),
     [status, model],
   );
+  const timelineStatus = useStoreSnapshot(model.timelineStatus);
+  // Records only which stops were announced, never what the status says (AGENTS.md §13).
+  const timelineAnnounced = useRef<StopLedger<TimelineStatus>>(noStops);
+  const timelineNotice = useMemo(
+    () => ({ status: timelineStatus, onRestart: model.timelineStatus.restart, announced: timelineAnnounced }),
+    [timelineStatus, model],
+  );
   const paused = usePaused(timeline);
 
   return (
@@ -231,8 +257,15 @@ const DockFrame: FC<{
         </button>
       </div>
 
-      <div style={body}>
-        <Screen model={model} view={view} shown={shown} notice={notice} host={host} />
+      <div style={body} tabIndex={-1} data-testid="qadi-dock-body" {...focusRingProps}>
+        <Screen
+          model={model}
+          view={view}
+          shown={shown}
+          notice={notice}
+          timeline={timelineNotice}
+          host={host}
+        />
       </div>
     </section>
   );
@@ -278,6 +311,7 @@ const Screen: FC<{
   readonly view: DockSnapshot;
   readonly shown: Diagnostics;
   readonly notice: DiagnosticsNoticeProps;
+  readonly timeline: TimelineNoticeProps;
   readonly host: HostProps;
 }> = (props) => {
   const { notice } = props;
@@ -316,5 +350,10 @@ const Screen: FC<{
     ),
   };
 
-  return <>{screens[props.view.tab]()}</>;
+  return (
+    <>
+      {readsTimeline[props.view.tab] ? <TimelineNotice {...props.timeline} /> : null}
+      {screens[props.view.tab]()}
+    </>
+  );
 };
