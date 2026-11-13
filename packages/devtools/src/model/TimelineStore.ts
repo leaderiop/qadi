@@ -87,10 +87,10 @@ export const makeTimelineStore = (options?: { readonly capacity?: number }): Tim
  * wants: what already happened before what happens next, rather than rows
  * visibly rearranging under the cursor as a late backlog lands among live ones.
  * The scope closes when this is interrupted, which releases the source's
- * subscription or connection.
+ * subscription or connection. It writes only through `accept`.
  */
 export const runSource = Effect.fn("qadi.devtools.runSource")(function* (
-  store: TimelineStore,
+  store: Pick<TimelineStore, "accept">,
   source: Source,
 ) {
   yield* Effect.scoped(

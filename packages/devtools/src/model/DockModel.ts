@@ -1,5 +1,5 @@
 /**
- * The dock's seven stores and the rules between them, as one model a test can drive without rendering.
+ * The dock's eight readouts and the rules between them, as one model a test can drive without rendering.
  *
  * The dock built the timeline, the policy rail, the explorer, the role choice, the
  * simulation and its own session in React and connected them with layout effects,
@@ -19,8 +19,9 @@
  * through a timeline feed and its diagnostics through a diagnostics feed, each
  * with its own handle in the model's scope; closing the scope ends both and any
  * simulation run (ADR-QD-137). The seventh store is the diagnostics reading: the
- * poll's status and the sampled reading with a supplied one laid over it. There
- * is no `dispose` and no `read` command.
+ * poll's status and the sampled reading with a supplied one laid over it. The
+ * eighth is the timeline's status: whether its read is running or stopped, with the
+ * one command that reads it again. There is no `dispose` and no `read` command.
  *
  * Package-private (ADR-QD-099): the dock is the one thing that drives it.
  */

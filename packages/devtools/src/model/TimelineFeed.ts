@@ -9,8 +9,10 @@
  *
  * Package-private (ADR-QD-099).
  */
+import * as Cause from "effect/Cause";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as FiberHandle from "effect/FiberHandle";
 import type * as Scope from "effect/Scope";
 import { makeExternalStore } from "./ExternalStore.ts";
@@ -42,7 +44,12 @@ export const TimelineStatus = Data.taggedEnum<TimelineStatus>();
 /** One value, so a repeat `set` notifies nothing. */
 const READING: TimelineStatus = TimelineStatus.Reading();
 
-/** Where the read stands, and the one command that reads the current source again. */
+/**
+ * Where the read stands, and the one command that reads the current source again.
+ *
+ * `restart` replays the source's backlog into the same timeline, and the timeline's
+ * dedupe keeps each entry single. It does nothing once the feed's scope has closed.
+ */
 export interface TimelineStatusReadout {
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => TimelineStatus;
@@ -111,16 +118,51 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
   };
 
   const status = makeExternalStore<TimelineStatus>(READING);
+  // Names the current read, so a replaced read's late accept or exit changes nothing.
+  let generation = 0;
+  // Set when the scope closes: a restart on a closed feed would publish a state nothing follows.
+  let closed = false;
 
   const reads = yield* FiberHandle.make<void>();
+  // Added after the handle, so it runs first on close: the read it interrupts is then a replaced one.
+  yield* Effect.addFinalizer(() =>
+    Effect.sync(() => {
+      generation += 1;
+      closed = true;
+    }),
+  );
   const forkRead = yield* FiberHandle.runtime(reads)<never>();
   // A replacement interrupts the read before it; a source that went away is replaced by an empty one.
-  const readSource = (source: Source | undefined) => forkRead(runSource(timeline, source ?? NO_SOURCE));
+  const readSource = (source: Source | undefined) => {
+    generation += 1;
+    const mine = generation;
+    status.set(READING);
+    const marking: Pick<TimelineStore, "accept"> = {
+      accept: (record) => {
+        if (mine !== generation) return;
+        timeline.accept(record);
+      },
+    };
+    forkRead(
+      runSource(marking, source ?? NO_SOURCE).pipe(
+        Effect.onExit((exit) =>
+          Effect.sync(() => {
+            if (mine === generation && Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
+              status.set(TimelineStatus.Stopped({ reason: Cause.pretty(exit.cause) }));
+            }
+          }),
+        ),
+      ),
+    );
+  };
   readSource(inputs.source);
 
   return {
     timeline,
-    status: { subscribe: status.subscribe, getSnapshot: status.getSnapshot, restart: () => {} },
+    status: { subscribe: status.subscribe, getSnapshot: status.getSnapshot, restart: () => {
+        if (!closed) readSource(inputs.source);
+      },
+    },
     configure: (next) => {
       const before = inputs;
       inputs = next;
