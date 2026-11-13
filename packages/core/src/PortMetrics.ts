@@ -23,7 +23,7 @@
  * `EvaluationMetrics.ts` gives for keying denials on the policy tag. `portCallsTotal`,
  * `portRetriesTotal` and `portTimeoutsTotal` all carry the same five:
  * `AttributeResolver`, `DecisionHistory`, `RelationshipResolver`,
- * `CustomPredicate` and `SignatureHistory` — one per port `Evaluate.ts` can
+ * `CustomPredicate` and `SignatureHistory` — one per port the evaluator can
  * call into. Every port has every wrapper, each derived from its description
  * (`PortDerivation.ts`), so the two wrapper metrics need no narrower domain:
  * until ARCH-10 each had a narrower closed type of its own (three ports for
@@ -32,8 +32,8 @@
  *
  * `Predicate.ts`'s `toPredicate` also calls into `AttributeResolver` and
  * `DecisionHistory` — it is a second interpreter over the same tree
- * (ADR-QD-024), not `Evaluate.ts` — and those calls do not update
- * `portCallsTotal`, per the "`Evaluate.ts` can call into" scoping above. They
+ * (ADR-QD-024), not the evaluator — and those calls do not update
+ * `portCallsTotal`, per the "the evaluator can call into" scoping above. They
  * are counted in the sibling `predicatePortCallsTotal` instead, so a
  * deployment that leans on `toPredicate` for row-level security reads its port
  * traffic as the sum of the two, and neither metric's meaning or registry key
@@ -76,14 +76,14 @@ const PORT_NAMES: ReadonlyArray<PortName> = Record.keys(PORT_NAMES_BY_NAME);
  * the description string itself (werner-vogels, WV-06) so an operator reading
  * `qadi_port_calls_total` sees the scoping where they read the metric, not
  * only in source a dashboard viewer never opens. The description is part of the
- * metric's registry key (ADR-QD-052) and is pinned by `Ports.test.ts`, so it
- * is not reworded here.
+ * metric's registry key (ADR-QD-052) and is pinned by `Ports.test.ts`, so
+ * rewording it makes a new registry entry and edits that pin with it.
  */
 export const portCallsTotal = Metric.frequency("qadi_port_calls_total", {
   description:
     "Calls the evaluator made into a resolver or history port, by port. " +
-    "Scoped to Evaluate.ts only — Predicate.ts's translateNode reaches the " +
-    "same ports via a second interpreter and is not counted here.",
+    "Scoped to the evaluator only — toPredicate reaches the same ports via a " +
+    "second interpreter and counts them in qadi_predicate_port_calls_total.",
   preregisteredWords: PORT_NAMES,
 });
 

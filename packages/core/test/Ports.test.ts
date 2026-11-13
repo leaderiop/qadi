@@ -382,8 +382,8 @@ describe("translation's port activity is counted separately", () => {
     assert.strictEqual(
       portCallsTotal.description,
       "Calls the evaluator made into a resolver or history port, by port. " +
-        "Scoped to Evaluate.ts only — Predicate.ts's translateNode reaches the " +
-        "same ports via a second interpreter and is not counted here.",
+        "Scoped to the evaluator only — toPredicate reaches the same ports via a " +
+        "second interpreter and counts them in qadi_predicate_port_calls_total.",
     );
     assert.strictEqual(
       servedPortCallsTotal.description,
