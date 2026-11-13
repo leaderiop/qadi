@@ -9,18 +9,17 @@
  *
  * `seen` records every `AsyncResult` this guard has been handed, in order,
  * because the sequence is the whole demonstration and only the first of its
- * three states is ever in the served HTML:
+ * two states is ever in the served HTML:
  *
- *   1. `Success` — the seed. Hydration matches the server's, byte for byte.
- *   2. `Initial + waiting` — the re-check is in flight, and a seed must not be
- *      read while it is ([BEH-QD-151]). *Pending*, deliberately, rather than the
- *      server's now-stale allow.
- *   3. `Success` — this client's own denial, which is now the only answer.
+ *   1. `Success(SeededAllow)` — the seed. It covers the first frames and the client's first
+ *      check, so hydration matches the server's byte for byte (ADR-QD-039).
+ *   2. `Success(Deny)` — this client's own denial, which replaces the seed and is then
+ *      the only answer. A re-check after an invalidation never falls back to it.
  *
- * The raw tag read is the exhibit, not an oversight: `outcomeOf` would fold
- * these into outcomes, and the e2e test pins the raw sequence.
- *
- * [BEH-QD-151]: ../../../../spec/behaviors/19-hydration.md
+ * The raw read is the exhibit, not an oversight: `outcomeOf` would fold these
+ * into outcomes, and the e2e test pins the raw sequence. The decided tag is
+ * recorded beside `Success` because the seed and the denial are both `Success`
+ * results and would otherwise collapse into one entry.
  */
 import { useRef, useSyncExternalStore } from "react";
 import { useDecision } from "@qadi/react";
@@ -39,7 +38,9 @@ export const Divergent = () => {
   // A ref rather than state: this records renders and must not cause one.
   const seen = useRef<Array<string>>([]);
   const result = useDecision(inGoodStanding);
-  const tag = `${result._tag}${result.waiting ? "+waiting" : ""}`;
+  const tag = `${result._tag}${result.waiting ? "+waiting" : ""}${
+    result._tag === "Success" ? `(${result.value._tag})` : ""
+  }`;
   if (seen.current[seen.current.length - 1] !== tag) seen.current.push(tag);
 
   return (
@@ -61,8 +62,8 @@ export const Divergent = () => {
         <div style={{ ...mono, marginBottom: 4 }}>every result this guard was handed</div>
         <pre style={pre}>{seen.current.join("\n")}</pre>
         <p style={{ ...muted, margin: 0 }}>
-          The middle one is the point. The server&rsquo;s allow is <em>not</em> shown while this
-          client is asking for itself — a decision being re-checked is not a decision.
+          The server&rsquo;s allow covers the page only until this client&rsquo;s own answer,
+          which then replaces it — a seed is a cache, not an authorization.
         </p>
       </div>
 

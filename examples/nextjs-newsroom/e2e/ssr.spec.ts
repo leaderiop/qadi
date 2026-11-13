@@ -169,11 +169,9 @@ test.describe("the port endpoints answer only about the session", () => {
 test.describe("the browser half", () => {
   test("a seeded allow is replaced by this client's own denial", async ({ context, page }) => {
     // The seed is asserted against the **served bytes**, not against the page
-    // after hydration — and that is not a convenience. BEH-QD-151 says a seed
-    // must not be read while a re-check is in flight, so the moment this client
-    // starts asking, the guard correctly reads *pending* rather than the
-    // server's allow. Allowed → Pending → Denied is the specified sequence, and
-    // only the first of those three is ever in the HTML.
+    // after hydration: the HTML carries the server's allow, and the browser's
+    // first frames and this client's first check read that same seed (ADR-QD-039).
+    // Allowed → Denied is the whole sequence, and only the first is in the HTML.
     const html = await served("/edge/divergent", "omar");
     expect(html).toContain('data-testid="state-standing" data-state="Allowed"');
 
@@ -185,12 +183,12 @@ test.describe("the browser half", () => {
       timeout: 15_000,
     });
 
-    // The specified three-step sequence, recorded per render rather than polled
-    // — a poller at any interval can miss the middle state, and missing it is
-    // what makes this look like a plain Allowed → Denied flip.
+    // The two-step sequence, recorded per render rather than polled — the seed
+    // stays visible until this client's own answer replaces it, with no pending
+    // state between.
     await expect(page.getByTestId("seen-sequence")).toHaveAttribute(
       "data-seen",
-      "Success,Initial+waiting,Success",
+      "Success(SeededAllow),Success(Deny)",
     );
   });
 
