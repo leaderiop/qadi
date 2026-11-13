@@ -15,7 +15,7 @@
  */
 import { useCallback, useLayoutEffect, useState } from "react";
 import type { Source } from "../model/Source.ts";
-import { idleTimeline, makeTimelineFeed } from "../model/TimelineFeed.ts";
+import { idleTimeline, idleTimelineStatus, makeTimelineFeed, type TimelineStatus } from "../model/TimelineFeed.ts";
 import { makeTimelineStore, type TimelineStore } from "../model/TimelineStore.ts";
 import type { Timeline } from "../model/Timeline.ts";
 import { useScoped } from "./useScoped.ts";
@@ -28,6 +28,10 @@ export interface UseTimeline {
   readonly clear: () => void;
   /** Exposed so a screen can drive the store directly in a test or a replay. */
   readonly store: TimelineStore;
+  /** Whether the read is running or has ended on a defect. A hand-fed store never reads, so it is always `Reading`. */
+  readonly status: TimelineStatus;
+  /** Reads the current source again; does nothing before the feed exists and for a hand-fed store. */
+  readonly restart: () => void;
 }
 
 /**
@@ -62,8 +66,18 @@ export const useTimeline = (
   const store = feed?.timeline ?? idleTimeline;
   const timeline = useStoreSnapshot(store);
   const paused = usePaused(store);
+  const readout = feed?.status ?? idleTimelineStatus;
+  const status = useStoreSnapshot(readout);
 
-  return { timeline, paused, setPaused: store.setPaused, clear: store.clear, store };
+  return {
+    timeline,
+    paused,
+    setPaused: store.setPaused,
+    clear: store.clear,
+    store,
+    status,
+    restart: readout.restart,
+  };
 };
 
 /**
@@ -81,6 +95,7 @@ export const useTimelineStore = (options?: { readonly capacity?: number }): UseT
 
   const setPaused = useCallback((next: boolean) => store.setPaused(next), [store]);
   const clear = useCallback(() => store.clear(), [store]);
+  const status = useStoreSnapshot(idleTimelineStatus);
 
-  return { timeline, paused, setPaused, clear, store };
+  return { timeline, paused, setPaused, clear, store, status, restart: idleTimelineStatus.restart };
 };

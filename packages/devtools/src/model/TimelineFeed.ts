@@ -9,6 +9,7 @@
  *
  * Package-private (ADR-QD-099).
  */
+import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as FiberHandle from "effect/FiberHandle";
 import type * as Scope from "effect/Scope";
@@ -24,9 +25,35 @@ export interface TimelineFeedInputs {
   readonly source?: Source | undefined;
 }
 
+/**
+ * Where the timeline's read stands, as a closed set of states.
+ *
+ * A stop must be stated, not left as a timeline that looks current.
+ */
+export type TimelineStatus = Data.TaggedEnum<{
+  /** The read has not failed: it is running, has ended by itself, or there was nothing to read. */
+  Reading: {};
+  /** The read ended on a defect. `reason` is `Cause.pretty` of it; the entries it delivered stay. */
+  Stopped: { readonly reason: string };
+}>;
+
+export const TimelineStatus = Data.taggedEnum<TimelineStatus>();
+
+/** One value, so a repeat `set` notifies nothing. */
+const READING: TimelineStatus = TimelineStatus.Reading();
+
+/** Where the read stands, and the one command that reads the current source again. */
+export interface TimelineStatusReadout {
+  readonly subscribe: (listener: () => void) => () => void;
+  readonly getSnapshot: () => TimelineStatus;
+  readonly restart: () => void;
+}
+
 export interface TimelineFeed {
   /** Stable across a capacity change: a different bound empties it, it does not replace it. */
   readonly timeline: TimelineStore;
+  /** Where the read stands. */
+  readonly status: TimelineStatusReadout;
   /** Re-reads only when the capacity or the source moved. An omitted input reads as `undefined`. */
   readonly configure: (inputs: TimelineFeedInputs) => void;
 }
@@ -54,6 +81,13 @@ export const idleTimeline: TimelineStore = {
   isPaused: () => false,
 };
 
+/** What a hook reads on the pass before the feed exists. */
+export const idleTimelineStatus: TimelineStatusReadout = {
+  subscribe: () => () => {},
+  getSnapshot: () => READING,
+  restart: () => {},
+};
+
 /** Builds the feed in the caller's scope; closing it interrupts the read. */
 export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(function* (
   init?: TimelineFeedInputs,
@@ -76,6 +110,8 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
     isPaused: () => inner.isPaused(),
   };
 
+  const status = makeExternalStore<TimelineStatus>(READING);
+
   const reads = yield* FiberHandle.make<void>();
   const forkRead = yield* FiberHandle.runtime(reads)<never>();
   // A replacement interrupts the read before it; a source that went away is replaced by an empty one.
@@ -84,6 +120,7 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
 
   return {
     timeline,
+    status: { subscribe: status.subscribe, getSnapshot: status.getSnapshot, restart: () => {} },
     configure: (next) => {
       const before = inputs;
       inputs = next;

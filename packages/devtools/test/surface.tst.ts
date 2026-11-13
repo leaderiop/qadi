@@ -105,6 +105,7 @@ export type {
   DiagnosticsSnapshot,
   DiagnosticsStatus,
   SimulationSessionView,
+  TimelineStatus,
   UseSimulationSessionInput,
   UseTimeline,
 } from "../src/react/index.ts";

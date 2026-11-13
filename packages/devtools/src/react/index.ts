@@ -19,6 +19,7 @@
 export { DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
 export type { DiagnosticsDockOptions, DiagnosticsSnapshot } from "../model/DiagnosticsFeed.ts";
 export type { AskedQuestionLike } from "../model/Gates.ts";
+export { TimelineStatus } from "../model/TimelineFeed.ts";
 export { DevtoolsDock } from "./DevtoolsDock.tsx";
 export type { DevtoolsDockProps } from "./DevtoolsDock.tsx";
 export { useDiagnostics } from "./useDiagnostics.ts";

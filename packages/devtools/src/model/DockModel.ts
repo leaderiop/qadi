@@ -44,7 +44,7 @@ import { makeSimulationSession, type SimulationSession } from "./SimulationSessi
 import type { EvaluationPortsLayer } from "./SimulationInput.ts";
 import type { Source } from "./Source.ts";
 import type { Timeline } from "./Timeline.ts";
-import { makeTimelineFeed } from "./TimelineFeed.ts";
+import { makeTimelineFeed, type TimelineStatusReadout } from "./TimelineFeed.ts";
 import type { TimelineStore } from "./TimelineStore.ts";
 
 /** What a host hands the dock. Each field is compared by identity when it is configured again. */
@@ -69,6 +69,8 @@ export interface DockModel {
   readonly simulation: SimulationSession;
   /** The merged reading and the poll's status, recomputed when either side changes, never on read. */
   readonly diagnostics: DiagnosticsReadout;
+  /** The timeline read's status and its restart, passed through from the timeline feed; not merged. */
+  readonly timelineStatus: TimelineStatusReadout;
   /** `catalogueOf` of the shown timeline and the current catalogue, computed once per change. */
   readonly sightings: () => ReadonlyArray<PolicySighting>;
   /** Dispatches only the inputs whose identity changed. An omitted input reads as `undefined`. */
@@ -140,6 +142,7 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
       getSnapshot: shownReading.getSnapshot,
       restart: diagnosticsFeed.restart,
     },
+    timelineStatus: timelineFeed.status,
     sightings: () => rail,
 
     configure: (next) => {
