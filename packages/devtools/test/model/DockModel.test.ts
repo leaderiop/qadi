@@ -947,3 +947,35 @@ describe("the diagnostics store (M18..M27)", () => {
       assert.strictEqual(model.diagnostics.getSnapshot(), diagnosticsOff);
     }));
 });
+
+describe("the timeline's status (M29)", () => {
+  it.effect(
+    "M29: timelineStatus follows the timeline feed: a dying source reads Stopped and restart returns it to Reading",
+    () =>
+      Effect.gen(function* () {
+        const at = (evaluationId: string, when: number): StoredRecord =>
+          decisionRecord({ evaluationId, at: when });
+        const tally = { reads: 0 };
+        const source: Source = {
+          read: Effect.sync(() => {
+            tally.reads += 1;
+            return tally.reads === 1
+              ? { backlog: [at("x", 100)], live: Stream.die(new Error("live boom")) }
+              : { backlog: [at("x", 100), at("y", 200)], live: Stream.empty };
+          }),
+        };
+        const model = yield* makeDockModel({ source });
+        yield* flush;
+        assert.strictEqual(model.timelineStatus.getSnapshot()._tag, "Stopped");
+
+        model.timelineStatus.restart();
+        yield* flush;
+
+        assert.strictEqual(model.timelineStatus.getSnapshot()._tag, "Reading");
+        assert.deepStrictEqual(
+          model.timeline.getSnapshot().entries.map((entry) => entry.evaluationId),
+          ["x", "y"],
+        );
+      }),
+  );
+});
