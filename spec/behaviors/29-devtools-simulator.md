@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-29                                    |
-> | Revision       | 1.15                                            |
+> | Revision       | 1.16                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.15 (2026-11-12): BEH-QD-226 restated on EvaluationClock; BEH-QD-504 (one clock vocabulary) and BEH-QD-505 (the review layer and a simulation agree); the seal is the simulator's shadow sinkAndCache choice (ARCH-81, ADR-QD-146, CCR-QD-424)<br>1.14 (2026-11-11): BEH-QD-322 — PolicyChoice is HeldChoice's three arms, Empty, Listed and Evicted, or Seeded; the arms None and Chosen are gone (ARCH-74, BEH-QD-466, ADR-QD-047 amendment, CCR-QD-416)<br>1.13 (2026-11-11): BEH-QD-460 — the simulator renders its session and computes nothing (setAction, choosePolicyAt, policyMenu, cost, baselineReading, a run's reading); BEH-QD-461 — a session owns its runs: constructed in a scope, a superseding command interrupts the run in flight before it returns, closing the scope interrupts it; BEH-QD-322's fence and compiled example show the scoped constructor, run as a command, and no reap or dispose (ARCH-73, ADR-QD-137, ADR-QD-047 amendment, CCR-QD-415)<br>1.12 (2026-11-11): BEH-QD-455 — a source choice is prepared in one place: each source's availability and sentence are stated once, a Live preparation captures and each run prepares its own, and the session stores what `prepareSource` returns; BEH-QD-220's refusal and BEH-QD-322's fence name `prepareSource`, the session's former pair of functions being gone (ARCH-72, ADR-QD-050 amendment, CCR-QD-414)<br>1.11 (2026-11-10): BEH-QD-411 — a replay miss is an outage on every port; BEH-QD-221's miss requirements replaced, and a refused-key request is never captured and fails on replay (ARCH-65, ADR-QD-129, CCR-QD-407)<br>1.10 (2026-11-10): BEH-QD-390 — replay is an act: replaying a row always re-seeds, even the row last replayed; seed keeps its same-entry guard; BEH-QD-322's fence lists seed and replay (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.9 (2026-11-10): BEH-QD-222/225/322: signature rows, the hasCustom named skip, the field table and chip commands (ARCH-61, lost ARCH-48, ADR-QD-047 amendment, CCR-QD-400)<br>1.8 (2026-11-08): BEH-QD-221 — a signature request the capture never saw MUST fail as `SignatureHistoryUnavailable` (code review WR-04, INV-QD-043)<br>1.7 (2026-10-08): the simulator's mechanics (`simulate`, `whatIf`, `sweepPlan`, `capturing`, `replayLayer`, `remedyEdits`, `replayInput`, `baselineDiff`, the form codecs) are package-private; specified here because the simulator screen relies on them, and a host drives `makeSimulationSession` (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.6 (2026-10-08): BEH-QD-221 — a capture keys by the whole question the port received, not by a projection of it (ARCH-45, CCR-QD-263)<br>1.5 (2026-10-08): BEH-QD-322 — a chosen policy is held by value, not by its position in the rail; `choosePolicy` takes the policy, `PolicyChoice` gains `Evicted`, and the first policy shown is held (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.4 (2026-10-07): BEH-QD-220 — a source that cannot be honoured is refused, and a sweep runs the evaluations it stated; BEH-QD-225 — every field a replay names has a control; BEH-QD-322 — a simulation is a session (ADR-QD-047 and ADR-QD-050 amended, CCR-QD-199)<br>1.3 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.16 (2026-11-12): BEH-QD-219 to 221 printed once: the duplicate block, the Change History fragment spliced into the body and the superseded replay-miss requirements are removed; no requirement changes (CCR-QD-427)<br>1.15 (2026-11-12): BEH-QD-226 restated on EvaluationClock; BEH-QD-504 (one clock vocabulary) and BEH-QD-505 (the review layer and a simulation agree); the seal is the simulator's shadow sinkAndCache choice (ARCH-81, ADR-QD-146, CCR-QD-424)<br>1.14 (2026-11-11): BEH-QD-322 — PolicyChoice is HeldChoice's three arms, Empty, Listed and Evicted, or Seeded; the arms None and Chosen are gone (ARCH-74, BEH-QD-466, ADR-QD-047 amendment, CCR-QD-416)<br>1.13 (2026-11-11): BEH-QD-460 — the simulator renders its session and computes nothing (setAction, choosePolicyAt, policyMenu, cost, baselineReading, a run's reading); BEH-QD-461 — a session owns its runs: constructed in a scope, a superseding command interrupts the run in flight before it returns, closing the scope interrupts it; BEH-QD-322's fence and compiled example show the scoped constructor, run as a command, and no reap or dispose (ARCH-73, ADR-QD-137, ADR-QD-047 amendment, CCR-QD-415)<br>1.12 (2026-11-11): BEH-QD-455 — a source choice is prepared in one place: each source's availability and sentence are stated once, a Live preparation captures and each run prepares its own, and the session stores what `prepareSource` returns; BEH-QD-220's refusal and BEH-QD-322's fence name `prepareSource`, the session's former pair of functions being gone (ARCH-72, ADR-QD-050 amendment, CCR-QD-414)<br>1.11 (2026-11-10): BEH-QD-411 — a replay miss is an outage on every port; BEH-QD-221's miss requirements replaced, and a refused-key request is never captured and fails on replay (ARCH-65, ADR-QD-129, CCR-QD-407)<br>1.10 (2026-11-10): BEH-QD-390 — replay is an act: replaying a row always re-seeds, even the row last replayed; seed keeps its same-entry guard; BEH-QD-322's fence lists seed and replay (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.9 (2026-11-10): BEH-QD-222/225/322: signature rows, the hasCustom named skip, the field table and chip commands (ARCH-61, lost ARCH-48, ADR-QD-047 amendment, CCR-QD-400)<br>1.8 (2026-11-08): BEH-QD-221 — a signature request the capture never saw MUST fail as `SignatureHistoryUnavailable` (code review WR-04, INV-QD-043)<br>1.7 (2026-10-08): the simulator's mechanics (`simulate`, `whatIf`, `sweepPlan`, `capturing`, `replayLayer`, `remedyEdits`, `replayInput`, `baselineDiff`, the form codecs) are package-private; specified here because the simulator screen relies on them, and a host drives `makeSimulationSession` (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.6 (2026-10-08): BEH-QD-221 — a capture keys by the whole question the port received, not by a projection of it (ARCH-45, CCR-QD-263)<br>1.5 (2026-10-08): BEH-QD-322 — a chosen policy is held by value, not by its position in the rail; `choosePolicy` takes the policy, `PolicyChoice` gains `Evicted`, and the first policy shown is held (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.4 (2026-10-07): BEH-QD-220 — a source that cannot be honoured is refused, and a sweep runs the evaluations it stated; BEH-QD-225 — every field a replay names has a control; BEH-QD-322 — a simulation is a session (ADR-QD-047 and ADR-QD-050 amended, CCR-QD-199)<br>1.3 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 _Previous: [28 — The Devtools Screens](./28-devtools-screens.md)_
 
@@ -171,177 +171,6 @@ REQUIREMENT: A request whose key is refused (BEH-QD-410) MUST NOT be captured:
              the captured run MUST pass it to the live port unrecorded, and a
              replay MUST fail it with the port's own typed error.
 ```
-
-`CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
-
-_Previous: [28 — The Devtools Screens](./28-devtools-screens.md)_
-
----
-
-The seventh screen, and the only one that **runs** an evaluation rather than
-reading records. Six screens report what happened; this one answers what
-*would*. See [ADR-QD-050](../decisions/050-a-simulation-is-sealed.md).
-
-Everything below rests on one property, and it is not a display concern:
-`Effect.provide` adds to a context and cannot remove from one, so a simulator
-that supplied only what `evaluate` requires would write a fabricated audit row
-per run in any process where a real sink is wired.
-
-## BEH-QD-219: A simulation is sealed, in every source mode
-
-```ts
-export const simulate: (
-  policy: Policy,
-  input: SimulationInput,
-  options?: SimulationOptions,
-) => Effect.Effect<DecisionOutcome>;
-```
-
-> Package-private since [CCR-QD-321](../README.md#document-history): `SimulationOptions`, `simulate`. Specified because the screens rely on it; a host reaches the behaviour through `makeSimulationSession` or the dock, not through these names (ADR-QD-047).
-
-```
-REQUIREMENT: A simulation MUST write no DecisionRecord, in any source mode.
-```
-
-`simulationLayer` asks `@qadi/core`'s `evaluationEnvironment` for
-`shadow: "sinkAndCache"`, which shadows `DecisionSink` with a discarding one and
-`DecisionCache` with a private one. **Shadowing rather than omission**, because
-omission is not expressible — `Effect.provide` has no complement — and the
-consequence of skipping it is not cosmetic: a what-if sweep of eight edits
-writes eight rows that read exactly like decisions somebody asked for
-([INV-QD-042](../invariants.md),
-[ADR-QD-146](../decisions/146-one-evaluation-environment-states-its-shadowing.md)).
-
-```
-REQUIREMENT: A simulation MUST resolve every question through the source it was
-             given, and reach nothing else.
-```
-
-Asserted by running one beside a layer whose every port dies: the simulation
-still decides, because it never reached them.
-
-```
-REQUIREMENT: `CurrentSubject` MUST come from the form, never from a supplied layer.
-```
-
-In the type, not by convention: `LiveSource` carries
-`Layer<Exclude<EvaluationServices, CurrentSubject | EvaluationId>>`. The subject
-is the thing being simulated, so a layer able to supply one could change *what is
-being asked* rather than merely how it is answered.
-
-```
-REQUIREMENT: `simulate` MUST NOT fail. A broken port is a `Failed` outcome.
-```
-
-`R` and `E` are both `never`. A panel that could crash on a fixture typo is a
-panel nobody trusts, and the outcome ADT the timeline already carries is the
-right shape for the answer ([INV-QD-006](../invariants.md)).
-
-## BEH-QD-220: Three sources, and a fourth is a compile error
-
-```ts
-export type SimulationSource = FixtureSource | SnapshotSource | LiveSource;
-export const causesIO: (self: SimulationSource) => boolean;
-```
-
-> Package-private since [CCR-QD-321](../README.md#document-history): `FixtureSource`, `LiveSource`, `SimulationSource`, `SnapshotSource`, `causesIO`. Specified because the screens rely on it; a host reaches the behaviour through `makeSimulationSession` or the dock, not through these names (ADR-QD-047).
-
-```
-REQUIREMENT: The source union MUST dispatch exhaustively, with no default.
-```
-
-`portsOf` goes through `Match.tagsExhaustive`. Falling through to fixtures would
-be the worst available failure: the screen would answer confidently from data
-nobody supplied.
-
-```
-REQUIREMENT: A sweep's cost MUST be stated before it runs.
-```
-
-`sweepPlan` returns the evaluation count and whether the sweep performs I/O
-without running anything. A count discovered afterwards is not a warning.
-
-```
-REQUIREMENT: The sweep MUST run exactly the evaluations it stated.
-```
-
-The pairs toggle is part of the plan: `whatIf` takes the same `pairs` the plan
-was computed with, so `report.evaluations` equals the stated count in both
-positions. A screen that stated three evaluations and ran four would be
-announcing a cost it did not keep, and under `Live` the difference is unannounced
-lookups against production.
-
-```
-REQUIREMENT: A chosen source that cannot be honoured MUST be refused, never
-             replaced by another.
-```
-
-`portsOf(undefined)` answering from fixtures is the right default for a caller
-who never chose, and is pinned as such. The screen's session
-([BEH-QD-322](#beh-qd-322-a-simulation-is-a-session)) never passes it: a `Live`
-choice with no `ports`, or a `Snapshot` choice with no capture, is refused by
-`prepareSource` ([BEH-QD-455](#beh-qd-455-a-source-choice-is-prepared-in-one-place)),
-with the choice and the reason, and the session turns that refusal into the run
-state; nothing is evaluated.
-
-**`Snapshot` is what makes `Live` defensible rather than merely available.** A
-sweep of N edits costs N in-memory folds on fixtures, N live sweeps on `Live`,
-and one live run plus N folds on a snapshot.
-
-## BEH-QD-221: A capture records answers, and a replay reproduces them
-
-```ts
-export const capturing: (ports: Layer.Layer<EvaluationPorts>) => {
-  readonly layer: Layer.Layer<EvaluationPorts>;
-  readonly answers: Effect.Effect<CapturedAnswers>;
-};
-export const replayLayer: (answers: CapturedAnswers) => Layer.Layer<EvaluationPorts>;
-```
-
-> Package-private since [CCR-QD-321](../README.md#document-history): `capturing`, `replayLayer`. Specified because the screens rely on it; a host reaches the behaviour through `makeSimulationSession` or the dock, not through these names (ADR-QD-047).
-
-```
-REQUIREMENT: Replaying a capture MUST produce the trace the captured run produced.
-```
-
-```
-REQUIREMENT: A capture MUST key every answer by the whole question the port
-             received: the subject (roles, permissions and attributes, not its id
-             alone), the resource, and a relationship's depth. It MUST NOT answer
-             a question differing in any of them.
-```
-
-[INV-QD-043](../invariants.md). An agreement property, and it is stated rather
-than assumed because two paths answering one question is precisely the drift this
-library treats as a defect.
-
-```
-REQUIREMENT: A captured failure MUST replay as that failure, not as a miss.
-```
-
-Fail-closed defaults deny, so a replayed outage that became a miss would look
-like a correctly-denying policy rather than a broken port.
-
-```
-REQUIREMENT: A query the capture never saw MUST answer the fail-closed default,
-             except where the next requirement says otherwise.
-```
-
-`undefined` for an attribute, `Unknown` for a relationship and for history,
-`false` for a custom predicate — what a real deployment gets from an unwired port
-([INV-QD-007](../invariants.md)). The answer is read from the port's description
-(`none`), not re-declared here.
-
-```
-REQUIREMENT: A signature request the capture never saw MUST fail as
-             `SignatureHistoryUnavailable`, not answer an empty list.
-```
-
-The signature request key carries the asker's `meaning` and `signerRole`, which a
-store may answer whatever they say, so a what-if that edits either cannot be
-answered from the capture. An empty list denies `hasSignature` and grants
-`not(hasSignature)`; a failure is neither ([INV-QD-043](../invariants.md),
-[ADR-QD-109](../decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md)).
 
 `CapturedAnswers` is keyed by port name (`AttributeResolver`, …), and each map by
 that port description's `key`, so the capture and the replay agree about a key by
