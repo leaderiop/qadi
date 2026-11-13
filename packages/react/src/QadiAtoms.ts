@@ -245,8 +245,12 @@ export const makeQadiAtoms = (
   options?: QadiAtomsOptions,
 ): QadiAtoms => {
   const runtime = Atom.runtime(layer);
+  // Kept alive: the registry removes a node nothing reads one macrotask after it is
+  // written, and the provider writes the subject before any gate reads it. It holds
+  // one value per atom set.
   const subject = Atom.make<AuthSubject | undefined>(undefined).pipe(
     Atom.withEquality(subjectsEqual),
+    Atom.keepAlive,
   );
   // Resolved once per atom set and handed to every question, so the
   // development-mode default is decided at construction.
