@@ -21,7 +21,7 @@ import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import * as Reactivity from "effect/reactivity/Reactivity";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { collect } from "./support/collect.ts";
 import { settle } from "./support/settle.ts";
 
@@ -554,5 +554,37 @@ describe("effect/reactivity API canary", () => {
 
     await settle();
     expect(events).toEqual(["forked", "swept"]);
+  });
+
+  it("a node seeded through initialValues is removed a macrotask later unless its atom is keepAlive", async () => {
+    // Guards the subject's keepAlive and the seed grant: an `effect` bump that moves
+    // when a seeded, unheld node leaves the registry must fail here, by name.
+    const plain = Atom.make(0);
+    const kept = Atom.make(0).pipe(Atom.keepAlive);
+    const registry = makeRegistry({
+      initialValues: [
+        [plain, 1],
+        [kept, 1],
+      ],
+    });
+
+    expect(registry.getNodes().has(plain)).toBe(true);
+    expect(registry.getNodes().has(kept)).toBe(true);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(registry.getNodes().has(plain)).toBe(false));
+    expect(registry.getNodes().has(kept)).toBe(true);
+  });
+
+  it("getNodes().get finds no node for an atom nothing read, and a seeded keepAlive node holds its value before it is built", () => {
+    // Guards the seed grant's read of the node map: a lookup must not create a node,
+    // and a seeded keepAlive node must answer before anything built it.
+    const unread = Atom.make(0);
+    const kept = Atom.make("").pipe(Atom.keepAlive);
+    const registry = makeRegistry({ initialValues: [[kept, "seed"]] });
+
+    expect(registry.getNodes().get(unread)).toBeUndefined();
+    expect(registry.getNodes().has(unread)).toBe(false);
+    expect(registry.getNodes().get(kept)?.valueOption()).toEqual(Option.some("seed"));
   });
 });
