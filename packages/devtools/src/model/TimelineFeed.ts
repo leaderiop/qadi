@@ -157,12 +157,13 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
   };
   readSource(inputs.source);
 
+  const restart = () => {
+    if (!closed) readSource(inputs.source);
+  };
+
   return {
     timeline,
-    status: { subscribe: status.subscribe, getSnapshot: status.getSnapshot, restart: () => {
-        if (!closed) readSource(inputs.source);
-      },
-    },
+    status: { subscribe: status.subscribe, getSnapshot: status.getSnapshot, restart },
     configure: (next) => {
       const before = inputs;
       inputs = next;
