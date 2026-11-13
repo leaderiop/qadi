@@ -25,7 +25,7 @@ import type { Source } from "../model/Source.ts";
 import { useScoped } from "./useScoped.ts";
 
 export interface UseDockModelInput {
-  readonly source: Source;
+  readonly source?: Source | undefined;
   readonly capacity?: number | undefined;
   readonly catalogue?: Catalogue | undefined;
   readonly ports?: EvaluationPortsLayer | undefined;

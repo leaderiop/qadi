@@ -15,7 +15,7 @@
  */
 import type { FC, ReactNode } from "react";
 import { useMemo, useRef } from "react";
-import { sourceFromRecords, type Source } from "../model/Source.ts";
+import type { Source } from "../model/Source.ts";
 import type { Verdict } from "../model/Verdict.ts";
 import type { Catalogue } from "../model/Catalogue.ts";
 import type { DiagnosticsDockOptions, DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
@@ -39,12 +39,6 @@ import { TimelineNotice, type TimelineNoticeProps } from "./TimelineNotice.tsx";
 import { useDockModel } from "./useDockModel.ts";
 import { usePaused, useStoreSnapshot } from "./useStoreSnapshot.ts";
 import { body, button, colors, dock as dockStyle, font, input, muted, toolbar } from "./theme.ts";
-
-/**
- * A stable empty source, so a dock mounted without one does not re-subscribe on
- * every render. `useTimeline` holds its source by identity.
- */
-const nothing: Source = sourceFromRecords([]);
 
 /**
  * Data-driven, which is what made growing from two screens to six an entry in
@@ -146,7 +140,7 @@ export interface DevtoolsDockProps {
 type HostProps = Pick<DevtoolsDockProps, "gates" | "unknownParents" | "onInvalidate">;
 
 export const DevtoolsDock: FC<DevtoolsDockProps> = ({
-  source = nothing,
+  source,
   capacity,
   catalogue,
   diagnostics,
