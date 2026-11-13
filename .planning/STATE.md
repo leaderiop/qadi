@@ -5,17 +5,17 @@ milestone_name: Arch Wave 8
 current_phase: 36
 current_phase_name: Carried spec debt and stale records
 status: executing
-stopped_at: Completed 36-06-PLAN.md
-last_updated: "2026-11-13T00:21:26.762Z"
+stopped_at: Completed 36-07-PLAN.md
+last_updated: "2026-11-13T00:25:30.201Z"
 last_activity: 2026-11-13
 last_activity_desc: Phase 36 execution started
-state_head: b7b6c4937a22dcb8e4942626c65c6b90f82ebc9c
+state_head: 0637ed5234cb4ba5a566745dd1b26e9f5934fd18
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 54
-  completed_plans: 46
-  percent: 85
+  completed_plans: 47
+  percent: 86
 ---
 
 # Project State
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 36 (Carried spec debt and stale records) — EXECUTING
-Plan: 7 of 14
+Plan: 8 of 14
 Status: Ready to execute
 Last activity: 2026-11-13 — Phase 36 execution started
 
-Progress: [█████████░] 85% (v1.3: 0 of 7 phases)
+Progress: [█████████░] 86% (v1.3: 0 of 7 phases)
 
 
 ## Performance Metrics
@@ -194,6 +194,7 @@ Progress: [█████████░] 85% (v1.3: 0 of 7 phases)
 | Phase 36 P04 | 40 min | 3 tasks | 4 files |
 | Phase 36 P05 | 7 min | 3 tasks | 7 files |
 | Phase 36 P06 | 20 min | 2 tasks | 9 files |
+| Phase 36 P07 | 20 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -303,6 +304,7 @@ Progress: [█████████░] 85% (v1.3: 0 of 7 phases)
 - [Phase 36]: 36-05: describeSource is a package-private view of prepareSource until 36-08; D1 pins the identity RED
 - [Phase 36]: 36-05: SR1 reaches the unreachable (no ports, capture) row by dropping ports after a capture
 - [Phase 36]: 36-06: StoppedBox is generic over the stop value so the dock's ledger ref keeps its DiagnosticsStatus type; the timeline feed mirrors DiagnosticsFeed's generation token and Cause.hasInterruptsOnly exit guard
+- [Phase 36]: 36-07: timeline notice props are memoised in DockFrame like the diagnostics ones; readsTimeline is a closed Record<TabId, boolean>
 
 ### Pending Todos
 
@@ -344,8 +346,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-13T00:21:26.424Z
-Stopped at: Completed 36-06-PLAN.md
+Last session: 2026-11-13T00:25:29.437Z
+Stopped at: Completed 36-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
