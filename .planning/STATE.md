@@ -5,16 +5,16 @@ milestone_name: Arch Wave 8
 current_phase: 36
 current_phase_name: Carried spec debt and stale records
 status: executing
-stopped_at: Completed 36-09-PLAN.md
-last_updated: "2026-11-13T00:45:47.074Z"
+stopped_at: Completed 36-10-PLAN.md
+last_updated: "2026-11-13T00:50:14.577Z"
 last_activity: 2026-11-13
 last_activity_desc: Phase 36 execution started
-state_head: 5672f37c559e87614c7ab6c6a0fcc58833ba3885
+state_head: 161464364810d2fcdb257a3cca1951e76f17990c
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 54
-  completed_plans: 49
+  completed_plans: 50
   percent: 86
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 36 (Carried spec debt and stale records) — EXECUTING
-Plan: 10 of 14
+Plan: 11 of 14
 Status: Ready to execute
 Last activity: 2026-11-13 — Phase 36 execution started
 
@@ -197,6 +197,7 @@ Progress: [█████████░] 86% (v1.3: 0 of 7 phases)
 | Phase 36 P07 | 20 min | 2 tasks | 4 files |
 | Phase 36 P08 | 14 min | 3 tasks | 11 files |
 | Phase 36 P09 | n/a | 3 tasks | 6 files |
+| Phase 36 P10 | 10 min | 3 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -309,6 +310,7 @@ Progress: [█████████░] 86% (v1.3: 0 of 7 phases)
 - [Phase 36]: 36-07: timeline notice props are memoised in DockFrame like the diagnostics ones; readsTimeline is a closed Record<TabId, boolean>
 - [Phase 36]: 36-08: a checked baseline carries its reading, decided once in baselineDiff; a source description builds no recorder, only prepareSource does
 - [Phase 36]: D-20: the seed covers the client's first check; a re-check after invalidation never falls back (ADR-QD-039)
+- [Phase 36]: 36-10: comment-only edits (src, tests, stryker.http.mjs comment) proved by comment-stripped transpile comparison; no changeset, out of the mutation base (D-17)
 
 ### Pending Todos
 
@@ -350,8 +352,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-13T00:45:46.735Z
-Stopped at: Completed 36-09-PLAN.md
+Last session: 2026-11-13T00:50:14.220Z
+Stopped at: Completed 36-10-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
