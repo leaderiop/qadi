@@ -1,0 +1,18 @@
+{
+ "packages/devtools/src/model/TimelineFeed.ts": 1,
+ "packages/devtools/src/model/TimelineStore.ts": 0.9696969696969697,
+ "packages/devtools/src/model/DockModel.ts": 1,
+ "packages/devtools/src/model/SimulationSource.ts": 0.984375,
+ "packages/devtools/src/model/SimulationSession.ts": 0.9766763848396501,
+ "packages/devtools/src/model/Replay.ts": 1,
+ "packages/devtools/src/react/useTimeline.ts": 0.7727272727272727,
+ "packages/devtools/src/react/useDockModel.ts": 1,
+ "packages/devtools/src/react/DevtoolsDock.tsx": 0.6119402985074627,
+ "packages/devtools/src/react/Simulator.tsx": 0.563953488372093,
+ "packages/devtools/src/react/DiagnosticsNotice.tsx": 0.9166666666666666,
+ "packages/react/src/QadiAtoms.ts": 0.896551724137931,
+ "packages/react/src/HydrationEngine.ts": 0.9783549783549783,
+ "packages/devtools/src/react/StoppedBox.tsx": 1,
+ "packages/devtools/src/react/TimelineNotice.tsx": 0.8,
+ "packages/devtools/src/react/focusRing.ts": 1
+}
