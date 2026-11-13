@@ -1,6 +1,7 @@
 /**
  * `prepareSource`, the one place a source choice becomes something a run can use (ARCH-72),
- * and `describeSource`, the same choice as the dock shows it, without a recorder.
+ * and `describeSource`, the same choice as the dock shows it, without a recorder: options
+ * and refusal are read from the description, readiness and `captured` from the preparation.
  *
  * This table is the whole availability rule: which of the three sources can be had,
  * and the sentence the dock shows for each. The session's tests no longer restate it;
@@ -42,7 +43,9 @@ describe("prepareSource", () => {
       for (const ports of portsStates) {
         for (const capture of captureStates) {
           rows += 1;
-          const { options, prepared } = prepareSource(choice, { ports, capture });
+          const have = { ports, capture };
+          const { options, refusal } = describeSource(choice, have);
+          const prepared = prepareSource(choice, have);
 
           assert.deepStrictEqual(
             options.map((o) => [o.id, o.enabled]),
@@ -57,10 +60,12 @@ describe("prepareSource", () => {
             choice === "Fixtures" || (choice === "Snapshot" ? capture !== undefined : ports !== undefined);
           assert.strictEqual(prepared._tag, available ? "Ready" : "Refused");
 
+          assert.strictEqual(refusal === undefined, available);
           if (prepared._tag === "Refused") {
             const tag = choice === "Live" ? "LiveWithoutPorts" : "SnapshotWithoutCapture";
             assert.strictEqual(prepared.refusal._tag, tag);
             assert.strictEqual(prepared.refusal.reason, choice === "Live" ? WITHOUT_PORTS : WITHOUT_CAPTURE);
+            assert.deepStrictEqual(refusal, prepared.refusal);
             assert.strictEqual(
               prepared.refusal.reason,
               options.find((o) => o.id === choice)?.why,
@@ -77,8 +82,8 @@ describe("prepareSource", () => {
   });
 
   it("says why each option is or is not usable (ARCH-72)", () => {
-    const without = prepareSource("Fixtures", { ports: undefined, capture: undefined }).options;
-    const withBoth = prepareSource("Fixtures", { ports: realPorts, capture: emptyAnswers }).options;
+    const without = describeSource("Fixtures", { ports: undefined, capture: undefined }).options;
+    const withBoth = describeSource("Fixtures", { ports: realPorts, capture: emptyAnswers }).options;
     assert.strictEqual(without[0]?.why, "answers you typed below");
     assert.strictEqual(withBoth[0]?.why, "answers you typed below");
     assert.strictEqual(without[1]?.why, WITHOUT_CAPTURE);
@@ -93,8 +98,8 @@ describe("prepareSource", () => {
   it.effect("a Ready Live source records what its run asked, and each preparation records alone (ARCH-72)", () =>
     Effect.gen(function* () {
       const have = { ports: realPorts, capture: undefined };
-      const p1 = prepareSource("Live", have).prepared;
-      const p2 = prepareSource("Live", have).prepared;
+      const p1 = prepareSource("Live", have);
+      const p2 = prepareSource("Live", have);
       if (p1._tag !== "Ready" || p1.captured === undefined) throw new Error("expected a Ready Live preparation");
       if (p2._tag !== "Ready" || p2.captured === undefined) throw new Error("expected a Ready Live preparation");
 
@@ -112,7 +117,7 @@ describe("prepareSource", () => {
     if (described === undefined || described._tag !== "Live") throw new Error("expected a Live description");
     assert.strictEqual(described.ports, realPorts, "the description's Live source holds the host's own ports");
 
-    const prepared = prepareSource("Live", have).prepared;
+    const prepared = prepareSource("Live", have);
     if (prepared._tag !== "Ready" || prepared.source._tag !== "Live") throw new Error("expected a Ready Live preparation");
     assert.notStrictEqual(prepared.source.ports, realPorts);
   });

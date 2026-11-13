@@ -13,7 +13,8 @@
  * *refused*, as a state, and nothing is evaluated (`prepareSource`, in
  * `SimulationSource.ts`) — the `portsOf` rule, one layer up, where a chosen `Live`
  * with no `ports` used to answer from fixtures. A Live run *captures*, which is
- * what makes `Snapshot` available (`prepareSource` again). A run that was
+ * what makes `Snapshot` available (`prepareSource` again; the snapshot shows
+ * `describeSource`, which builds no recorder). A run that was
  * superseded never lands (`generation`). And a result is shown only for the
  * question it answered (`stale`, `baseline`).
  *
@@ -54,8 +55,9 @@ import { fieldOps, formOf, renameSubject } from "./SimulationFields.ts";
 import { actionOf, decodeResource, encodeResource, withAction, withResource } from "./SimulationForm.ts";
 import type { EvaluationPortsLayer, SimulationInput } from "./SimulationInput.ts";
 import {
+  describeSource,
   prepareSource,
-  type PreparedSource,
+  type ReadySource,
   type SourceChoice,
   type SourceOption,
   type SourceRefusal,
@@ -398,14 +400,14 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
 
   const build = (): SimulationSnapshot => {
     const policy = policyChoice();
-    const { options, prepared } = prepareSource(sourceChoice, { ports, capture });
+    const { options, refusal, source } = describeSource(sourceChoice, { ports, capture });
     const policyNow = policyOf(policy);
     const plan =
       policyNow === undefined
         ? undefined
         : sweepPlan(policyNow, draft, {
             pairs,
-            ...(prepared._tag === "Ready" ? { source: prepared.source } : {}),
+            ...(source === undefined ? {} : { source }),
           });
 
     const question = run._tag === "Idle" ? undefined : run.question;
@@ -421,7 +423,6 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
       run._tag === "Ran" && !stale && seed !== undefined
         ? baselineDiff(seed, run.outcome)
         : undefined;
-    const refusal = prepared._tag === "Refused" ? prepared.refusal : undefined;
 
     return {
       sightings: chosen.list(),
@@ -469,7 +470,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
   const program = (
     question: SimulationQuestion,
     kind: RunKind,
-    ready: Extract<PreparedSource, { readonly _tag: "Ready" }>,
+    ready: ReadySource,
     runClock: EvaluationClock,
     runPairs: boolean,
   ) =>
@@ -490,7 +491,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     mine: number,
     question: SimulationQuestion,
     kind: RunKind,
-    ready: Extract<PreparedSource, { readonly _tag: "Ready" }>,
+    ready: ReadySource,
     runClock: EvaluationClock,
     runPairs: boolean,
   ) {
@@ -530,7 +531,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
       source: sourceChoice,
     };
 
-    const { prepared } = prepareSource(sourceChoice, { ports, capture });
+    const prepared = prepareSource(sourceChoice, { ports, capture });
     if (prepared._tag === "Refused") {
       // Declined, not replaced: nothing is evaluated, and the run in flight stops.
       supersede();

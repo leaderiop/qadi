@@ -166,29 +166,37 @@ export type SourceRefusal =
   | { readonly _tag: "SnapshotWithoutCapture"; readonly reason: string };
 
 /**
- * What a run evaluates against, or the reason it cannot.
+ * A source a run can evaluate against.
  *
  * `captured` reads what a `Live` source's own recorder saw; it is `undefined` for
  * the two sources that record nothing.
  */
-export type PreparedSource =
-  | {
-      readonly _tag: "Ready";
-      readonly source: SimulationSource;
-      readonly captured: Effect.Effect<CapturedAnswers> | undefined;
-    }
-  | { readonly _tag: "Refused"; readonly refusal: SourceRefusal };
-
-export interface SourcePreparation {
-  readonly options: ReadonlyArray<SourceOption>;
-  readonly prepared: PreparedSource;
+export interface ReadySource {
+  readonly _tag: "Ready";
+  readonly source: SimulationSource;
+  readonly captured: Effect.Effect<CapturedAnswers> | undefined;
 }
 
-type Ready = Extract<PreparedSource, { readonly _tag: "Ready" }>;
+/** A source choice that was declined, with the reason. */
+export interface RefusedSource {
+  readonly _tag: "Refused";
+  readonly refusal: SourceRefusal;
+}
 
-/** A source the host can have: the sentence for its button, and how to build its run. */
+/** What a run evaluates against, or the reason it cannot. */
+export type PreparedSource = ReadySource | RefusedSource;
+
+/**
+ * A source the host can have: the sentence for its button, the plain source the
+ * dock describes, and how to build its run.
+ */
 type SourceRow =
-  | { readonly usable: true; readonly why: string; readonly ready: () => Ready }
+  | {
+      readonly usable: true;
+      readonly why: string;
+      readonly source: SimulationSource;
+      readonly prepare: () => ReadySource;
+    }
   | { readonly usable: false; readonly refusal: SourceRefusal };
 
 /**
@@ -206,7 +214,8 @@ const rowsOf = (have: {
     Fixtures: {
       usable: true,
       why: "answers you typed below",
-      ready: () => ({ _tag: "Ready", source: fixtures, captured: undefined }),
+      source: fixtures,
+      prepare: () => ({ _tag: "Ready", source: fixtures, captured: undefined }),
     },
     Snapshot:
       capture === undefined
@@ -220,7 +229,8 @@ const rowsOf = (have: {
         : {
             usable: true,
             why: "real answers, captured once and replayed — one round of I/O for a whole sweep",
-            ready: () => ({ _tag: "Ready", source: snapshot(capture), captured: undefined }),
+            source: snapshot(capture),
+            prepare: () => ({ _tag: "Ready", source: snapshot(capture), captured: undefined }),
           },
     Live:
       ports === undefined
@@ -234,7 +244,8 @@ const rowsOf = (have: {
         : {
             usable: true,
             why: "the application's own resolvers — every row is real I/O",
-            ready: () => {
+            source: live(ports),
+            prepare: () => {
               const recorder = capturing(ports);
               return { _tag: "Ready", source: live(recorder.layer), captured: recorder.answers };
             },
@@ -253,14 +264,21 @@ const SOURCE_ORDER: ReadonlyArray<SourceChoice> = Object.values<SourceChoice>({
   Live: "Live",
 } satisfies { readonly [K in SourceChoice]: K });
 
+/** The three buttons, in display order, each with its sentence. */
+const optionsOf = (rows: { readonly [K in SourceChoice]: SourceRow }): ReadonlyArray<SourceOption> =>
+  SOURCE_ORDER.map((id) => {
+    const row = rows[id];
+    return row.usable
+      ? { id, enabled: true, why: row.why }
+      : { id, enabled: false, why: row.refusal.reason };
+  });
+
 /**
  * Turns a source choice into what a run evaluates against, or the reason it cannot.
  *
  * Never a fall back to fixtures: `portsOf` treats an absent source as fixtures,
  * which is the right default for a caller who never chose and the wrong answer
- * for one who chose `Live` and is entitled to know it did not happen. And the
- * three options are offered and disabled with a reason, never removed: a control
- * that disappears teaches nobody it exists, which matters most for `Snapshot`.
+ * for one who chose `Live` and is entitled to know it did not happen.
  *
  * A `Live` run captures, which is what makes `Snapshot` available: the answers
  * cost nothing extra to record and they are what makes `Snapshot` reachable, the
@@ -274,18 +292,9 @@ export const prepareSource = (
     readonly ports: EvaluationPortsLayer | undefined;
     readonly capture: CapturedAnswers | undefined;
   },
-): SourcePreparation => {
-  const rows = rowsOf(have);
-  const chosen = rows[choice];
-  return {
-    options: SOURCE_ORDER.map((id) => {
-      const row = rows[id];
-      return row.usable
-        ? { id, enabled: true, why: row.why }
-        : { id, enabled: false, why: row.refusal.reason };
-    }),
-    prepared: chosen.usable ? chosen.ready() : { _tag: "Refused", refusal: chosen.refusal },
-  };
+): PreparedSource => {
+  const chosen = rowsOf(have)[choice];
+  return chosen.usable ? chosen.prepare() : { _tag: "Refused", refusal: chosen.refusal };
 };
 
 /**
@@ -293,6 +302,8 @@ export const prepareSource = (
  * had, and the chosen source as the host gave it.
  *
  * Enough for `causesIO`; a run needs `prepareSource`, which builds a recorder.
+ * The three options are offered and disabled with a reason, never removed: a control
+ * that disappears teaches nobody it exists, which matters most for `Snapshot`.
  */
 export interface SourceDescription {
   readonly options: ReadonlyArray<SourceOption>;
@@ -308,8 +319,11 @@ export const describeSource = (
     readonly capture: CapturedAnswers | undefined;
   },
 ): SourceDescription => {
-  const { options, prepared } = prepareSource(choice, have);
-  return prepared._tag === "Ready"
-    ? { options, refusal: undefined, source: prepared.source }
-    : { options, refusal: prepared.refusal, source: undefined };
+  const rows = rowsOf(have);
+  const chosen = rows[choice];
+  return {
+    options: optionsOf(rows),
+    refusal: chosen.usable ? undefined : chosen.refusal,
+    source: chosen.usable ? chosen.source : undefined,
+  };
 };
