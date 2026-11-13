@@ -1,6 +1,7 @@
 ---
 phase: 35-the-atom-set-owns-its-eviction-sweep
 verified: 2026-11-12T22:45:00Z
+re_verified: 2026-11-13
 status: passed
 score: 12/12 must-haves verified
 covered_files:
@@ -21,6 +22,7 @@ covered_files:
   - ".planning/phases/35-the-atom-set-owns-its-eviction-sweep/35-07-SUMMARY.md"
   - "AGENTS.md"
   - "apps/website/src/content/docs/docs/reference/upgrading.md"
+  - "packages/react/src/HydrationEngine.ts"
   - "packages/react/src/QadiAtoms.ts"
   - "packages/react/src/QadiProvider.tsx"
   - "packages/react/src/QuestionBook.ts"
@@ -37,9 +39,15 @@ covered_files:
   - "spec/invariants.md"
   - "spec/process/house-rules-evidence.md"
   - "spec/traceability.md"
-covered_digest: "v4:sha256:1f4e872936e927fa70aeabcde1219b23c12a8774096e50a0103f3f1006453176"
+covered_digest: "v4:sha256:f88974be2bbd974a7c0dac8bf43821ced3c6ce0741289a5382fbba43d082f1b6"
 behavior_unverified: 0
 overrides_applied: 0
+re_verification:
+  previous_status: passed
+  previous_score: 12/12
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 35: The atom set owns its eviction sweep Verification Report
@@ -47,7 +55,7 @@ overrides_applied: 0
 **Phase Goal:** Either the atom set enforces `maxTrackedQuestions` wherever it runs, with no provider, through a mechanism that meets every criterion, or the sweep stays in the provider and the rule is stated and tested.
 **Verified:** 2026-11-12T22:45:00Z
 **Status:** passed
-**Re-verification:** No, initial verification
+**Re-verification:** Yes, 2026-11-13 at HEAD 4a718d17 (staleness check after phase 36; see the section below)
 
 The mechanism branch of the goal was taken and holds in the code: an edge-triggered deferred sweep (`SweepScheduler.ts`), fed by a signal from `QuestionBook.ts`, owned by `makeQadiAtoms`. The provider forks nothing. Verified against the tree at HEAD 88408b20 (phase base 14dc8212), not from the SUMMARY claims.
 
@@ -100,7 +108,7 @@ Not applicable: the phase renders no dynamic data. The sweep mutates the book th
 
 | Behavior | Command | Result | Status |
 | -------- | ------- | ------ | ------ |
-| react project passes | `pnpm vitest run --project react` | 29 files, 475 tests passed | PASS |
+| react project passes | `pnpm vitest run --project react` | 29 files, 475 tests passed (original); 32 files, 498 tests passed (re-run 2026-11-13) | PASS |
 | Mutation not fallen (final tree) | `stryker run stryker.react.mjs` | 98.00 overall; SweepScheduler 100, QuestionBook 96.59 | PASS |
 | Spec gates | `pnpm spec:gates`, `pnpm spec:api` | dod-table 25 steps match; 916 exports documented | PASS |
 | Full merge gate (orchestrator) | `pnpm check:pr < /dev/null` | exit 0; Tests 4852, 568 and 42 passed; Playwright 30 passed | PASS (taken from the orchestrator's log; the log's tail confirms "ran 16 of 17 steps") |
@@ -150,4 +158,33 @@ No gaps. One caveat the record already states and I confirmed in the code: `Swee
 ---
 
 _Verified: 2026-11-12T22:45:00Z_
+_Verifier: Claude (gsd-verifier)_
+
+## Re-verification (2026-11-13)
+
+`verification.status` read `stale` because later phases of v1.3 changed files this report covered. Re-checked at HEAD 4a718d17 against phase 35's last own commit (a9cfe0c1, "phase verification passed"). Every one of the 12 truths still holds; no regression.
+
+**Sweep implementation files are byte-identical to the verified tree.** `git diff a9cfe0c1 HEAD` on `packages/react/src/SweepScheduler.ts`, `QuestionBook.ts` and `QadiProvider.tsx` is empty. The provider still forks no sweep (only the pre-existing `disposeTimer` `setTimeout` remains), `QadiAtoms.ts` still wires `makeSweepScheduler(() => book.sweep(), sweepForkOf(options))` and `signal: scheduler.request` into the book, and `sweepEvictions` / `sweepIntervalMillis` appear only in the changeset, upgrade guide, ADR-QD-148, CCR/BEH history, `house-rules-evidence.md` quoted history and the generated CHANGELOG (none in `packages/*/src`, tests or examples).
+
+| Moved file | Later commit(s) | What changed | Judgement |
+| ---------- | --------------- | ------------ | --------- |
+| `packages/react/src/QadiAtoms.ts` | 94f35dce, ce4dadbb (36-09) | `subject` atom gains `Atom.keepAlive`; `computedFor` takes a `seededIn(registry)` lookup instead of a seed atom; comment wording ("seed slot"). The scheduler, book wiring and option surface are untouched. | Expected. Orthogonal to the sweep (the subject node is one value per atom set; seeds are held by the question and forgotten with its handle, so an evicted question still drops its seed). |
+| `packages/react/test/v4-reactivity-smoke.test.ts` | ce282de7 (36-03) | Adds canaries for seeded-node removal and the node-map read; the phase-35 registry-timing pins are retained. | Expected extension. |
+| `spec/behaviors/09-react.md` | 87fd8e5a (36-12) | Rev 3.7: BEH-QD-516 (subject stays in the registry) and a clause on BEH-QD-067. BEH-QD-065 and BEH-QD-512..515 unchanged. | Expected extension. |
+| `spec/behaviors/25-inspection.md` | 87fd8e5a (36-12) | Rev 1.26: BEH-QD-198 gains "or to a registry's removal of an idle node (BEH-QD-517)". BEH-QD-511 and the 1.25 "within a few macrotasks" text unchanged. | Expected extension. |
+| `spec/invariants.md` | 8fbea283, 87fd8e5a (36-11, 36-12), plus phase 34/36-13 edits | Other invariants (INV-QD-064 source names, seed-held-by-question, timeline). INV-QD-315..316 (this phase) not weakened. | Expected. |
+| `spec/traceability.md` | 45c59daa, acd95120, 87fd8e5a, ff4e132d (36-11..13) | Rows for later phases' ADR-QD-149, simulator and timeline; phase 35 rows (CCR-QD-426, the S/C/P/B test files) kept. | Expected. |
+| `apps/website/.../upgrading.md` | 35bfe818 (36-08) | Adds a devtools note for a checked baseline's reading. "0.12: the atom set holds its own bound" section still present. | Expected. |
+
+Also covered-by-phase but moved: `packages/react/src/HydrationEngine.ts` (36-09: seeds held by the question via `SeedSlot`/`SeedGrant`). It is not on the sweep path; added to the fingerprint set for completeness.
+
+**Behavioral evidence at HEAD.** `pnpm vitest run --project react` passes: 32 files, 498 tests, including `QadiAtoms.sweep.test.ts` (S1..S9), `SweepScheduler.test.ts` (C1..C11), `QadiProvider.sweep.test.tsx` (P1..P5) and `QuestionBook.test.ts`. The orchestrator's `pnpm check:pr` at 341c1c15 (exit 0; later commits are `.planning`-only) covers the full gate, spec gates and the 30 Playwright e2e tests. Mutation was not re-run; the swept files (`SweepScheduler.ts`, `QuestionBook.ts`) are unchanged since the mutation run recorded in truth 12.
+
+**Requirements.** SWEEP-01..05 and WX-01..07 are all `[x]` and "Complete" in `.planning/REQUIREMENTS.md` (traceability table lines 138-154) and remain satisfied by the evidence above. SWEEP-04 stays N/A (mechanism branch). No orphans.
+
+**Status:** passed. No gaps, no human items.
+
+---
+
+_Re-verified: 2026-11-13_
 _Verifier: Claude (gsd-verifier)_

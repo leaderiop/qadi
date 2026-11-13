@@ -21,7 +21,8 @@ covered_files:
   - "spec/behaviors/21-decision-cache.md"
   - "spec/decisions/132-a-shared-computation-is-joinable-only-while-awaited.md"
   - "spec/invariants.md"
-covered_digest: "v4:sha256:f7985b020ae950b690c63871e442a227ef7835f0dae3ec516d7068f6668f1f56"
+covered_digest: "v4:sha256:d0ba49f1873dead147bfdf12c3dc4f9f8a7304b0212610817bc3d98bc8c1d0c2"
+re_verified: 2026-11-13
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -31,7 +32,7 @@ overrides_applied: 0
 **Phase Goal:** `SharedComputation` owns its own staleness rule: a reset supersedes every in-flight claim, so the decision cache keeps no generation counter and a stale answer cannot re-enter a cleared cache.
 **Verified:** 2026-11-12
 **Status:** passed
-**Re-verification:** No, initial verification
+**Re-verification:** Yes, at HEAD of arch-wave-8 on 2026-11-13 (initial verification 2026-11-12)
 
 ## Goal Achievement
 
@@ -40,7 +41,7 @@ overrides_applied: 0
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
 | 1 | After a reset every waiter of an in-flight claim is answered exactly once, the superseded exit never reaches `settle`, its compute is still interrupted when its last waiter leaves, an ask after the reset claims afresh; pinned at the seam by stale-last, stale-first plus third ask, two-key and parked-uninterruptible races | VERIFIED | `SharedComputation.ts`: closed `Standing = "Live" \| "Superseded" \| "Abandoned"`; `reset` maps every in-flight entry through `afterReset` then empties `inFlight`; the compute's `onExit` calls `hooks.settle` only when `standing === "Live"` while `Deferred.done` always runs; `awaitShared`'s last leaver still interrupts the fiber (`afterLastLeave` keeps Superseded). `SharedComputation.test.ts` has the four named race tests (lines 395, 426, 459, 501) plus the amended reset test (316), none going through `evaluate`. I ran SharedComputation.test.ts and DecisionCache.test.ts: 2 files, 57 tests, all passed. |
-| 2 | `DecisionCache` has no `generation`/`myGeneration` or stale-write check; `clear` is only the steps the adapter still owns; seam tests landed before the deletion; existing `DecisionCache.test.ts` pins pass unchanged | VERIFIED | `grep -i generation packages/core/src/DecisionCache.ts` is empty. `clear` (line 273) ends in `shared.reset()`. `git diff 7d89747a..HEAD -- packages/core/test/DecisionCache.test.ts` is empty (byte-identical). Commit order from `git log`: `f3cdf7a3` (RED seam races) then `f29466c4` (standing) then `ce9d2a46` (counter deleted, alone), then `22c33642` (settle hook). Only `audit/CircuitBreaker.ts` still uses "generation", unrelated. |
+| 2 | `DecisionCache` has no `generation`/`myGeneration` or stale-write check; `clear` is only the steps the adapter still owns; seam tests landed before the deletion; existing `DecisionCache.test.ts` pins pass unchanged | VERIFIED | `grep -i generation packages/core/src/DecisionCache.ts` is empty. `clear` (line 273) ends in `shared.reset()`. `git diff 7d89747a..HEAD -- packages/core/test/DecisionCache.test.ts` was empty at phase completion (byte-identical); at HEAD it differs by one comment only (see Re-verification). Commit order from `git log`: `f3cdf7a3` (RED seam races) then `f29466c4` (standing) then `ce9d2a46` (counter deleted, alone), then `22c33642` (settle hook). Only `audit/CircuitBreaker.ts` still uses "generation", unrelated. |
 | 3 | A property test over generated run/reset/settle/leave interleavings holds: no superseded exit settled, every waiter answered exactly once, post-reset ask claims afresh | VERIFIED | `SharedComputation.test.ts` lines 565 to 860: a model-based `FastCheck` property (`numRuns: 300, seed: 3101`) comparing the settle log, answers, started and interrupted computes to a reference model after every step, with coverage floors (at least 30 each for superseded-settled, superseded-last-leave, claim-beside-superseded) so the property cannot pass vacuously. Commands dispatch via `Match.tagsExhaustive`. Passes in my run. |
 | 4 | The staleness rule is a stated behaviour: new BEH under the decision-cache behaviour, BEH-QD-439 and INV-QD-025's Enforcement restated, ADR-QD-132 amended | VERIFIED | `spec/behaviors/21-decision-cache.md` v1.9 adds BEH-QD-491 ("A stale answer never re-enters a cleared cache") and BEH-QD-439 names the superseded state; `spec/invariants.md` has INV-QD-307 and INV-QD-025 restated; `spec/decisions/132-...md` amended; `spec/traceability.md` 1.155 rows; CCR-QD-422 in `spec/README.md`; patch changeset `.changeset/shared-computation-reset-supersedes.md` for `@qadi/core`. Only the reserved numbers are used (BEH-QD-491, INV-QD-307; ADR-QD-144 left unused, ADR-QD-132 amended, as the roadmap anticipated). |
 
@@ -120,7 +121,41 @@ None. The phase has no UI or external-service surface; the behavior-dependent tr
 
 No gaps. The staleness rule now lives in `SharedComputation` (closed `Standing`, `reset` supersedes, `settle` only for Live claims), `DecisionCache` keeps no generation counter and its own test file is byte-identical to the phase base, the four seam races and the property pin the rule, and the spec records are in place.
 
+## Re-verification (2026-11-13)
+
+Re-run at the HEAD of `arch-wave-8` because later v1.3 phases (32 to 36) touched a covered file. Reference point: `a1475c57`, the phase's last code commit.
+
+### Moved files
+
+| File | Later commits | Judgement |
+|------|---------------|-----------|
+| `spec/invariants.md` | `3e7a8b3e` (33-04), `1c999a03` (34-08), `880f9285`, `d23e9021` (34), `45364cce` (35-06), `8fbea283` (36-11), `87fd8e5a` (36-12), `97213e03` (36-13) | Expected. +150/-17 lines: new INV-QD-311 to 316 and later, other invariants restated, Change History rows 1.111 onward. The `INV-QD-025` and `INV-QD-307` sections are byte-identical to the phase's last commit (diffed section by section); the 1.110 history row that records this phase is intact. No contradiction of the reset-supersedes rule. |
+
+### Other covered inputs, checked for drift
+
+| File | Change since `a1475c57` | Judgement |
+|------|-------------------------|-----------|
+| `packages/core/src/SharedComputation.ts`, `packages/core/src/DecisionCache.ts` | none | Unchanged. `Standing` is still `"Live" \| "Superseded" \| "Abandoned"`, `afterReset` maps Live to Superseded, `clear` still ends in `shared.reset()`, `grep -ci generation DecisionCache.ts` is 0. |
+| `packages/core/test/SharedComputation.test.ts`, `spec/behaviors/21-decision-cache.md`, `spec/decisions/132-...md`, `.changeset/shared-computation-reset-supersedes.md` | none | Unchanged. BEH-QD-491 present, CCR-QD-422 present in `spec/README.md`, changeset present. |
+| `packages/core/test/DecisionCache.test.ts` (not a covered file) | `8f232992` (36-10), 7 lines | Expected. Comment only: the stale "Advances `generation`" comment (the Info item this report carried to Phase 36) now describes `clear` resetting the shared computation. No assertion changed, so truth 2's "existing pins pass unchanged" still holds; the byte-identity claim held at phase completion and is superseded by this comment fix. |
+
+### Spot-checks at HEAD
+
+| Behavior | Command | Result | Status |
+|----------|---------|--------|--------|
+| Seam races, property and cache race pins | `pnpm vitest run --project core packages/core/test/SharedComputation.test.ts packages/core/test/DecisionCache.test.ts < /dev/null` | 2 files, 57 tests passed | PASS |
+| Full merge gate (log read, not re-run) | `pnpm check:pr < /dev/null` at `341c1c15` (later commits are `.planning`-only) | exit 0, 200 files / 4917 tests, coverage 99.47% | PASS |
+
+### Requirements
+
+SUPR-01 to SUPR-05 and WX-01 to WX-07 are all present in `.planning/REQUIREMENTS.md`, checked `[x]` and mapped Complete in its traceability table (SUPR to Phase 31, WX to all v1.3 phases). No orphaned requirement.
+
+### Verdict
+
+No regression. The goal still holds: the reset-supersedes rule lives in `SharedComputation`, the decision cache has no generation counter, and the four seam races plus the model-based property still pass. Status stays `passed`.
+
 ---
 
 _Verified: 2026-11-12T09:30:00Z_
+_Re-verified: 2026-11-13_
 _Verifier: Claude (gsd-verifier)_

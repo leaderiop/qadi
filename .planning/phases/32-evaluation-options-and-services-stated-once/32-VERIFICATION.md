@@ -1,6 +1,7 @@
 ---
 phase: 32-evaluation-options-and-services-stated-once
 verified: 2026-11-12T00:00:00Z
+re_verified: 2026-11-13
 status: passed
 score: 4/4 roadmap truths verified (11/11 requirement IDs accounted for)
 covered_files:
@@ -20,7 +21,7 @@ covered_files:
   - "packages/core/src/index.ts"
   - "packages/core/test/EvaluationShapes.tst.ts"
   - "packages/core/test/Lifecycle.tst.ts"
-covered_digest: "v4:sha256:cabda88933076197809bd628a27f0e62fb473be1aca3cf7b81d3b39a2700ab15"
+covered_digest: "v4:sha256:0d6990cc2f8cd1b17c9182be2afb20869a528250a2afdeaf9075574199c6e0d7"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -30,7 +31,7 @@ overrides_applied: 0
 **Phase Goal:** `EvaluateOptions` and the evaluation services are each declared once, and reading the pipeline `Qadi.ts` -> `Evaluate.ts` -> `Lifecycle.ts` -> `Walk.ts` meets no duplicated type.
 **Verified:** 2026-11-12
 **Status:** passed
-**Re-verification:** No, initial verification
+**Re-verification:** Yes, 2026-11-13 at HEAD of arch-wave-8 (status unchanged: passed)
 
 ## Goal Achievement
 
@@ -118,6 +119,28 @@ None.
 ### Gaps Summary
 
 No gaps. Each of the four roadmap truths is backed by code and a passing gate. The phase goal is achieved: each of the three types is declared once, `LifecycleOptions` is gone from code, and `Evaluate.ts` holds only `evaluate`.
+
+## Re-verification (2026-11-13)
+
+Status was `stale` because a later v1.3 phase touched a covered file. Result: goal and all four truths still hold at HEAD; no regression.
+
+| Moved file | Later commit(s) | Judgement |
+|------------|-----------------|-----------|
+| `packages/core/src/index.ts` | `d8122f1c` feat(33-02): one sealed evaluation environment in core | Expected. The only diff since phase 32's last code commit (`4d5d9258`) is one added line, `export * from "./EvaluationEnvironment.ts";`, placed alphabetically before `EvaluationId.ts`. `export * from "./EvaluationServices.ts"` is intact, so the services stay declared once. |
+
+The other seven covered code and test files (`Evaluate.ts`, `EvaluationServices.ts`, `Lifecycle.ts`, `Qadi.ts`, `Question.ts`, `EvaluationShapes.tst.ts`, `Lifecycle.tst.ts`) have no commit since `4d5d9258` (`git log 4d5d9258..HEAD` empty for each).
+
+Fresh evidence at HEAD:
+
+- Single declarations: `grep (interface|type) EvaluateOptions|LifecycleOptions|EvaluationServices|StandingEvaluationServices` over `packages/*/src` gives `Question.ts:46` and `EvaluationServices.ts:23,40` only. `LifecycleOptions` appears nowhere in packages, features, examples, apps, scripts or .changeset.
+- No hand-spelled services union: the only match is `EvaluationServices.ts:23` plus the prose in `Ports.ts:121`. `Lifecycle.ts:66` (`Omit<EvaluateOptions, keyof QuestionOptions>`) and `:197-198` still read the shared types. `Evaluate.ts` still has one export, `evaluate`, and only `import type` of the moved types.
+- New phase-33 consumer `EvaluationEnvironment.ts` imports `StandingEvaluationServices` from `EvaluationServices.ts` (line 23, 94): it reuses the single declaration and adds no duplicate.
+- `pnpm circular`: no circular dependency. tstyche on `EvaluationShapes.tst.ts` + `Lifecycle.tst.ts`: 8 tests, 11 assertions pass.
+- `pnpm check:pr < /dev/null` exit 0 at 341c1c15 (log read: 16 of 17 steps, mutation skipped by design, exit=0; the v1.3 audit reports all seams PASS). Later commits are `.planning`-only.
+- `spec/overview.md` change history 1.97 still records EvaluateOptions' module as `Question.ts` and the services' as `EvaluationServices.ts` (CCR-QD-423).
+- Requirements: EOPT-01..04 and WX-01..07 are all `[x]` and `Complete` in `.planning/REQUIREMENTS.md`; all eleven still accounted for.
+
+Status: passed. Not re-run by me: the full Vitest/coverage/Playwright run (relied on the `check:pr` log) and Stryker (the per-phase mutation JSON is unchanged).
 
 ---
 

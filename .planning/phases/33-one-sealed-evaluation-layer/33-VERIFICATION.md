@@ -25,7 +25,8 @@ covered_files:
   - "packages/devtools/src/model/SimulationSource.ts"
   - "packages/devtools/src/react/Simulator.tsx"
   - "packages/testing/src/QadiReviewLayer.ts"
-covered_digest: "v4:sha256:1f366e60a53c698e8baf2192268938fdb8e148453d01aeecb704f9a1cab253b1"
+covered_digest: "v4:sha256:58f3d8d376a824503da6ff8562a1beb7200a899927b39468c0e4fa3d7726eef2"
+re_verified: 2026-11-13
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -35,7 +36,7 @@ overrides_applied: 0
 **Phase Goal:** Review and simulation are built from one evaluation-environment builder in `@qadi/core`, and whether the sink and the decision cache are shadowed is stated, required and tested instead of decided silently by each copy.
 **Verified:** 2026-11-12T16:20:00Z
 **Status:** passed
-**Re-verification:** No, initial verification
+**Re-verification:** Yes, 2026-11-13 at HEAD of arch-wave-8 (initial verification 2026-11-12 kept below)
 
 ## Goal Achievement
 
@@ -115,7 +116,24 @@ None.
 
 No gaps. Observations, none blocking: the devtools `package.json` keeps `@qadi/testing` as a devDependency (pre-existing, used by the conformance test, so it does not reach consumers); `clockLayer` in each package uses a ternary on a two-member union rather than `Match`, which AGENTS.md section 5a permits (the rule covers `_tag` dispatch, and `switch` is the forbidden form).
 
+## Re-verification (2026-11-13)
+
+Status stayed `passed` (12/12). Reason for re-verification: `verification.status` read `stale` because phases 31..36 changed covered files. All three moved files changed after this phase's last commit (`030df8dc`); the other six covered source files (`EvaluationEnvironment.ts`, core `index.ts`, `helpers.ts`, devtools `index.ts`, `Simulation.ts`, `QadiReviewLayer.ts`) have an empty diff since `030df8dc`.
+
+| Moved file | Later commits | Judgement |
+|------------|---------------|-----------|
+| `packages/devtools/src/model/SimulationSource.ts` | `546a9a65` (36-05) `describeSource`; `00d04248` (36-08) a description builds no recorder, one `ReadySource`/`RefusedSource` split; `8e8ac22c` (36) build a snapshot source once per row set | Expected. `PreparedSource` is split into `ReadySource`/`RefusedSource`, and `prepareSource` now returns it directly while `describeSource` serves the dock. The `Live` row still builds `live(ports)`/`live(recorder.layer)`; the 33 prose (`09af1949`) still stands (line 18, "All three are sealed the same way"). Nothing touches shadowing, the id prefix or the clock. |
+| `packages/devtools/src/model/SimulationSession.ts` | `00d04248`, `0cbd2f95` (36-08) | Expected. Switches `build()` to `describeSource`, drops `baselineReading` from the snapshot (the reading now lives on `Baseline.Checked`), types `program` with `ReadySource`. `EvaluationClock` (this phase's vocabulary) is still the clock type threaded through runs. No shadowing or environment code. |
+| `packages/devtools/src/react/Simulator.tsx` | `0cbd2f95` (36-08) | Expected. `BaselineCard` reads `baseline.reading` instead of a separate prop; still imports `EvaluationClock` from `@qadi/core`. UI only. |
+
+No regression found: the builder (`evaluationEnvironment`, required `shadow: EvaluationShadowing`, `Match.exhaustive`), its three call sites (`qadiReviewLayer` `shadow: "none"`, `simulationLayer` `shadow: "sinkAndCache"` prefix `sim`, `helpers.ts` `shadow: "none"`), INV-QD-042 (invariants.md:1703), INV-QD-311/312 (3616/3630), ADR-QD-146 (`spec/decisions/146-*.md`), and the three `sealed-evaluation-environment-*` changesets are all present. `grep effect/testing packages/core/src` is still empty. `@qadi/testing` is still devDependency-only in devtools, with no import in `packages/devtools/src`. No TBD/FIXME/XXX or `switch` in the moved files.
+
+Evidence at HEAD: `pnpm vitest run --project core --project testing --project devtools EvaluationEnvironment QadiReviewLayer ReviewSimulationConformance model/Simulation` gave 9 files / 274 tests passed. The `check:pr` log at `341c1c15` (exit 0: vitest 200 files / 4917 tests, tstyche, coverage 99.47%, e2e 30 passed) was read, and later commits are `.planning`-only.
+
+Requirements: SEAL-01..05 and WX-01..07 are all `[x]` in REQUIREMENTS.md and mapped Complete (rows 127-131, 148-154); no orphaned ids. The WX-04 note (no new `as`/`any`/`switch`/`async`) holds for the three moved files.
+
 ---
 
 _Verified: 2026-11-12T16:20:00Z_
+_Re-verified: 2026-11-13_
 _Verifier: Claude (gsd-verifier)_

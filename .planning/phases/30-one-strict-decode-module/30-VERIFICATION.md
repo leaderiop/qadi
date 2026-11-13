@@ -1,6 +1,7 @@
 ---
 phase: 30-one-strict-decode-module
 verified: 2026-11-12T05:50:00Z
+re_verified: 2026-11-13
 status: passed
 score: 20/20 must-haves verified (5/5 roadmap success criteria, 15/15 requirements)
 covered_files:
@@ -34,7 +35,7 @@ covered_files:
   - "packages/core/src/UntrustedDecode.ts"
   - "packages/react/src/HydrationEngine.ts"
   - "scripts/check-house-style.mjs"
-covered_digest: "v4:sha256:cba0c06272a817daca38991ee8d2d728a018a4be33c2f620d304f82f22e701b1"
+covered_digest: "v4:sha256:bcb483740bd627c59ed927a7b8c23f33e0c38324e61c8803657be3c080e752fa"
 behavior_unverified: 0
 overrides_applied: 0
 advisory:
@@ -49,7 +50,7 @@ advisory:
 **Phase Goal:** A new untrusted-JSON seam gets the depth guard by default: the decode order (parse, depth guard, strict decode, closed refusal) is stated once in a core leaf, and each seam keeps only its error mapping.
 **Verified:** 2026-11-12
 **Status:** passed
-**Re-verification:** No, initial verification (HEAD `0689238a`, which includes the 11 review-fix commits `b1299653..a460ebae`).
+**Re-verification:** Yes, 2026-11-13 at HEAD `4a718d17` (initial verification was at `0689238a`, which includes the 11 review-fix commits `b1299653..a460ebae`). See the Re-verification section at the end.
 
 ## Goal Achievement
 
@@ -174,7 +175,34 @@ None. Every behavior-dependent truth (guard precedes decode, refusal kind is a f
 
 No gaps. The phase goal is achieved: the decode recipe exists once, in `UntrustedDecode.ts`; nine seams use it and keep only a total mapping; nothing public can decode untrusted JSON without the guard; a house-style budget (both directions, AGENTS.md section 7a) refuses a second copy; `pnpm check:pr < /dev/null` is green on the current HEAD. One housekeeping item: regenerate or annotate `30-mutation-after.json`, which predates the review fixes.
 
+## Re-verification (2026-11-13)
+
+Why: `verification.status` read `stale` because phases 31 to 36 touched four files this report covered. Method: `git diff 0689238a HEAD` on every covered file (the commit this phase was last verified at), then re-checking the goal-bearing claims at HEAD `4a718d17`.
+
+| Moved file | Later commit(s) | What changed | Judgement |
+| ---------- | --------------- | ------------ | --------- |
+| `packages/core/src/UntrustedDecode.ts` | `ec4a0384` (36-10) | One doc-comment line: `Evaluate.ts` renamed to `Walk.ts` (the module that now holds the evaluation depth bound). No code line changed. | Expected (prose correction) |
+| `packages/core/src/Policy.ts` | `ec4a0384` (36-10) | Comment-only: `Evaluate.ts` / `PortAccess.ts` references re-pointed to `Walk.ts` / `RelationshipResolver.ts`. The `untrustedDecoder(PolicySchema)` wiring, `textFailure`/`valueFailure` mappings and the encode-only `fromJsonString` are untouched. | Expected (prose correction) |
+| `AGENTS.md` | `c06215ff` (35-06) | One bullet in section 13 (`maxTrackedQuestions` is now enforced by the atom set's own sweep, ADR-QD-148). Section 7a (the untrusted-decode rule and its budget table) is byte-identical. | Expected, unrelated to this phase's rule |
+| `packages/react/src/HydrationEngine.ts` | `8a6c2cb5`, `ce4dadbb`, `2b12ee8a` (36-04, 36-09) | The seed slot (`SeedSlot`/`SeedGrant`, ADR-QD-149) replaces the seed atom; `DENY_WITHHELD` is `[...ALLOW_WITHHELD, ...]`. The decode half is untouched: `decodePolicy`, `decodeEnvelope` (`unwalked: ["entries"]`, `prepare: checkVersion`) and `decodeEntry` are still `untrustedDecoder(...)` at lines 197, 226, 238, and no `entries: []` rewrite or strict-option copy reappeared. | Expected (extends a different concern: seed storage) |
+
+Other covered files diffed against `0689238a`: no change to `AuditArchive.ts`, `AuditEntry.ts`, `DecodeDepthGuard.ts`, `JsonShape.ts`, `PortRemote.ts`, `PortWireEncode.ts`, `SinkCodec.ts` or `scripts/check-house-style.mjs`. Two further audit files not in the covered list (`AuditDecisionSinkLive.ts`, `CircuitBreaker.ts`) changed one comment line each (`Evaluate.ts` renamed). No regression found.
+
+Goal-bearing claims re-checked at HEAD:
+
+- The leaf is still the only holder of the strict options and the guard-then-decode order: `UNTRUSTED_DECODE_OPTIONS` is module-private (`UntrustedDecode.ts:85`, used once at `:174`); `PolicyFromJson` and a public `UNTRUSTED_DECODE_OPTIONS` appear nowhere in `packages/*/src`.
+- `untrustedDecoder(` is called from 10 sites outside the leaf (Policy, SinkCodec, PortWireEncode x2, PortRemote, HydrationEngine x3, AuditArchive, AuditEntry), as at initial verification.
+- `node scripts/check-house-style.mjs` at HEAD: `493 file(s) clean`, exit 0, so `UNTRUSTED_DECODE_BUDGET` still agrees both directions with AGENTS.md section 7a.
+- Targeted tests at HEAD: core `UntrustedDecode.test.ts` + `UntrustedSeams.test.ts` 63 passed; react `UntrustedSeams.test.ts` 20 passed.
+- Full gate: `pnpm check:pr < /dev/null` exit 0 at `341c1c15` (16 of 16 steps; vitest 200 files / 4917 tests, tstyche, coverage 99.47%, e2e 30 passed); later commits are `.planning`-only. The v1.3 audit's integration check passed all seams.
+- No `packages/*/package.json` or `CHANGELOG.md` changed since the initial verification (WX-07 still holds).
+- Requirements DEC-01..08 and WX-01..07 are all still accounted for (15/15, each mapped to this phase in REQUIREMENTS.md and unchanged in evidence above).
+- The earlier advisory (stale `30-mutation-after.json`) is unchanged and still non-blocking. `HydrationEngine.ts` mutation was not re-run after phase 36 rewrote its seed half; the WX-05 floor claim for that file rests on the 0.9776 measured before phase 36, and that file's decode half did not change. The seed-slot code is phase 36's responsibility and has its own tests in the passing coverage run.
+
+Verdict: status stays `passed`; every moved-file change is a prose correction or a different concern's extension, and none undoes, weakens or contradicts this phase's delivery.
+
 ---
 
 _Verified: 2026-11-12_
+_Re-verified: 2026-11-13_
 _Verifier: Claude (gsd-verifier)_
