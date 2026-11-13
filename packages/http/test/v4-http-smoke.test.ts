@@ -12,7 +12,7 @@
  * those two packages uses its own dependency, and had no canary of its own
  * before this.
  *
- * Every API exercised here is one `GuardRoute.ts`, `PermissionRegistry.ts`,
+ * Every API exercised here is one `GuardRoute.ts`, `AccessPlan.ts`,
  * `PermissionRegistryRoute.ts`, `RequirePermission.ts` or `DecisionStreamRoute.ts` actually calls. Pinning
  * more than that would make the canary noisy, and a noisy canary gets
  * skipped.
