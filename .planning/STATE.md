@@ -5,17 +5,17 @@ milestone_name: Arch Wave 8
 current_phase: 36
 current_phase_name: Carried spec debt and stale records
 status: executing
-stopped_at: Completed 36-03-PLAN.md
-last_updated: "2026-11-13T00:07:49.228Z"
+stopped_at: Completed 36-04-PLAN.md
+last_updated: "2026-11-13T00:11:53.720Z"
 last_activity: 2026-11-13
 last_activity_desc: Phase 36 execution started
-state_head: e3875a50321ea492cca16bf50d97d40208739090
+state_head: 8a6c2cb53e9b9cce1ac9fc8332e95745b6545ff4
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 54
-  completed_plans: 43
-  percent: 80
+  completed_plans: 44
+  percent: 81
 ---
 
 # Project State
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-11-12)
 ## Current Position
 
 Phase: 36 (Carried spec debt and stale records) — EXECUTING
-Plan: 4 of 14
+Plan: 5 of 14
 Status: Ready to execute
 Last activity: 2026-11-13 — Phase 36 execution started
 
-Progress: [████████░░] 80% (v1.3: 0 of 7 phases)
+Progress: [████████░░] 81% (v1.3: 0 of 7 phases)
 
 
 ## Performance Metrics
@@ -191,6 +191,7 @@ Progress: [████████░░] 80% (v1.3: 0 of 7 phases)
 | Phase 36 P01 | 25 min | 2 tasks | 2 files |
 | Phase 36 P02 | 15 min | 3 tasks | 9 files |
 | Phase 36 P03 | 6 min | 3 tasks | 4 files |
+| Phase 36 P04 | 40 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -296,6 +297,7 @@ Progress: [████████░░] 80% (v1.3: 0 of 7 phases)
 - [Phase 36]: 36-02: useTimelineStore keeps the one UseTimeline shape; a hand-fed store reads Reading and its restart does nothing
 - [Phase 36]: 36-02: gate 13 (spec:api) is red from the TimelineStatus barrel export until 36-13 adds the overview row
 - [Phase 36]: 36-03: SUBJ1..SUBJ3 are RED on the base (all three); 28 IN-06 closed green by GR-S1, GR-S2, GW-S1 with no defect
+- [Phase 36]: 36-04: HL6 builds its registry after settle() so the sweep evicts before the registry's own removal task runs
 
 ### Pending Todos
 
@@ -337,8 +339,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-13T00:07:48.954Z
-Stopped at: Completed 36-03-PLAN.md
+Last session: 2026-11-13T00:11:53.145Z
+Stopped at: Completed 36-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
