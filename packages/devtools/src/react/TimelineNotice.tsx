@@ -48,8 +48,7 @@ const noticeOf: (self: TimelineStatus) => (binding: Binding) => ReactNode = Matc
           body={STOPPED_BODY}
           reasonLabel={REASON_LABEL}
           restartLabel={RESTART_LABEL}
-          hooks="qadi-timeline"
-          focusTarget="[data-testid='qadi-dock-body']"
+          feed="timeline"
           onRestart={onRestart}
           announced={announced}
         />

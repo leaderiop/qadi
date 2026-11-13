@@ -34,6 +34,23 @@ export const noStops: StopLedger<never> = { stop: undefined, count: 0 };
 export const stoppedKey = <S,>(ledger: StopLedger<S>, status: S): number =>
   ledger.stop === status ? ledger.count : ledger.count + 1;
 
+/** The two feeds that stop. */
+export type StoppedFeed = "diagnostics" | "timeline";
+
+/**
+ * Per feed, the test-id prefix for `-notice`, `-stopped`, `-reason` and `-restart`, and
+ * where focus goes once Restart removes the button that had it.
+ *
+ * One row per feed, closed over `StoppedFeed`, so a prefix cannot be paired with the other
+ * feed's focus target and a third feed is a missing key here (TS2741).
+ */
+const FEEDS: {
+  readonly [K in StoppedFeed]: { readonly hooks: string; readonly focusTarget: string };
+} = {
+  diagnostics: { hooks: "qadi-diagnostics", focusTarget: "[data-diagnostics-status]" },
+  timeline: { hooks: "qadi-timeline", focusTarget: "[data-testid='qadi-dock-body']" },
+};
+
 /** What a feed hands the box. */
 export interface StoppedBoxProps<S> {
   /** The stop value; its identity is the stop. */
@@ -44,10 +61,8 @@ export interface StoppedBoxProps<S> {
   readonly body: string;
   readonly reasonLabel: string;
   readonly restartLabel: string;
-  /** The test-id prefix for `-notice`, `-stopped`, `-reason` and `-restart`. */
-  readonly hooks: "qadi-diagnostics" | "qadi-timeline";
-  /** Where focus goes once Restart removes the button that had it. */
-  readonly focusTarget: "[data-diagnostics-status]" | "[data-testid='qadi-dock-body']";
+  /** Which feed stopped; it fixes the test-id prefix and where focus returns to (`FEEDS`). */
+  readonly feed: StoppedFeed;
   /** Rendered as `data-sampled` only when given. */
   readonly sampled?: boolean | undefined;
   readonly onRestart: () => void;
@@ -90,12 +105,12 @@ export const StoppedBox = <S,>({
   body,
   reasonLabel,
   restartLabel,
-  hooks,
-  focusTarget,
+  feed,
   sampled,
   onRestart,
   announced,
 }: StoppedBoxProps<S>): ReactElement => {
+  const { hooks, focusTarget } = FEEDS[feed];
   // Decided at mount: a new stop is a new mount (see `stoppedKey`), so a role is never added to a mounted element.
   const [alert] = useState(() => announced.current.stop !== status);
   useLayoutEffect(() => {

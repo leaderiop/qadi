@@ -101,8 +101,7 @@ const noticeOf: (self: DiagnosticsStatus) => (binding: Binding) => Parts = Match
           body={status.sampled ? STOPPED_BODY_SAMPLED : STOPPED_BODY_UNSAMPLED}
           reasonLabel={REASON_LABEL}
           restartLabel={RESTART_LABEL}
-          hooks="qadi-diagnostics"
-          focusTarget="[data-diagnostics-status]"
+          feed="diagnostics"
           sampled={status.sampled}
           onRestart={onRestart}
           announced={announced}
