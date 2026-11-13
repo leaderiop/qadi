@@ -33,6 +33,27 @@ const backgroundOf = (value: string): string => {
   return probe.style.background;
 };
 
+/** The outline a style property gives `value`, normalised the same way. */
+const outlineOf = (value: string): string => {
+  const probe = document.createElement("span");
+  probe.style.outline = value;
+  return probe.style.outline;
+};
+
+/** The text colour a style property gives `value`, normalised the same way. */
+const colorOf = (value: string): string => {
+  const probe = document.createElement("span");
+  probe.style.color = value;
+  return probe.style.color;
+};
+
+/** The border shorthand a style property gives `value`, normalised the same way. */
+const borderOf = (value: string): string => {
+  const probe = document.createElement("span");
+  probe.style.border = value;
+  return probe.style.border;
+};
+
 const stopped = (reason: string, sampled: boolean) => DiagnosticsStatus.Stopped({ reason, sampled });
 
 const notice = (status: DiagnosticsStatus, announced = freshRef(), onRestart = noop) => (
@@ -225,5 +246,26 @@ describe("the diagnostics notice", () => {
     assert.strictEqual(screen.getByRole("status"), region);
     assert.include(region.textContent ?? "", "Waiting for the first sample.");
     assert.isNull(screen.queryByRole("alert"));
+  });
+
+  it("N14 the screen root shows a 2px accent ring inside its edge on keyboard focus, and clears it on blur", () => {
+    render(<div {...diagnosticsRootProps(DiagnosticsStatus.Live())} data-testid="root" />);
+    const root = screen.getByTestId("root");
+    assert.strictEqual(root.style.outline, "");
+
+    act(() => root.focus());
+    assert.strictEqual(root.style.outline, outlineOf(`2px solid ${colors.accent}`));
+    assert.strictEqual(root.style.outlineOffset, "-2px");
+
+    act(() => root.blur());
+    assert.strictEqual(root.style.outline, "");
+    assert.strictEqual(root.style.outlineOffset, "");
+  });
+
+  it("N15 the Restart button reads the body colour inside an amber border", () => {
+    render(notice(stopped("boom", true)));
+    const restart = screen.getByTestId("qadi-diagnostics-restart");
+    assert.strictEqual(restart.style.color, colorOf(colors.text));
+    assert.strictEqual(restart.style.border, borderOf(`1px solid ${colors.error}`));
   });
 });
