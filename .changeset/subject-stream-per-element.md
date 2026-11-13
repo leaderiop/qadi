@@ -1,5 +1,0 @@
----
-"@qadi/core": minor
----
-
-**Breaking, for the streamed subject-set review.** `decideSubjectsStream` and `filterSubjectsStream` no longer fail the stream at the first `EvaluationError` (which left every later subject unevaluated and the consumer unable to tell which one broke). They report per element, as `decideSubjects`/`filterSubjects` already did: `decideSubjectsStream` emits a `SubjectOutcome` (`SubjectDecided { subject, decision }` or `SubjectFailed { subject, error }`) and `filterSubjectsStream` a `FilteredSubjectOutcome` (`SubjectAllowed { subject }` or `SubjectFailed { subject, error }`; a denied subject is absent, a failed one never is). Their error channel is the input stream's own. Migration: handle `SubjectFailed` (or match on `_tag`), and read `outcome.subject` / `outcome.decision` instead of the old bare `AuthSubject` / `SubjectDecision`. New `decideSubject(policy, subject, options)` is the one per-subject step all three forms fold over. `Qadi.filter`/`filterStream` are unchanged. `EvaluateOptions.concurrency` is documented as applying inside each subject's own composite, never across subjects.

@@ -1,5 +1,83 @@
 # @qadi/audit
 
+## 0.12.0
+
+### Minor Changes
+
+- e0365e0: The archive's rules are computed once. `archiveAuditTrail` and `readAuditArchive` now share one internal computation of an archive's order (sequenced entries by number, then unsequenced ones in the order given), its `sequenceIntegrityVerified` claim (at least two sequenced entries) and its first sequence gap or duplicate, so the reader cannot drift from the writer. Every bundle that was written and read back is still written and read back, and every `ArchiveRefusal` and its payload is unchanged (ARCH-48, ADR-QD-110).
+
+  **Breaking.** `verifySequenceIntegrity` and `archiveAuditTrail` now fail with the new `SequenceNumberInvalid` (`index`, `sequenceNumber`) when a `sequenceNumber` is not a safe integer, before looking for a gap or duplicate. Before, the writer archived `1.5` or `2 ** 53` with `sequenceIntegrityVerified: true`, and `readAuditArchive` refused that bundle as `EntryNotDecodable`; a duplicate past `2 ** 53` also passed the check. Code that reads `expectedSequence` from the failure should narrow on `_tag === "SequenceIntegrityError"` first.
+
+- 965ff14: An audit store call has a deadline. `AuditDecisionSinkLive` bounds every `stage`, `write` and `commit` call by the new `AuditDecisionSinkOptions.storeCallTimeout?: Duration.Input` (default 5 seconds; `Duration.infinity` opts out). Before, a store call that never settled held the decision with it, since `evaluate` awaits `record`, and the circuit breaker never opened, because it counts only calls that end. A call that reaches the deadline is a failed call: a write is `WriteFailed` and counts toward the breaker, a stage or commit is a staging failure, and each is reported through the existing `qadi_audit_writes_total`, `qadi_audit_entries_lost_total` and log lines. A store that is healthy but slower than 5 seconds now loses writes: raise `storeCallTimeout` for it. An adapter that makes itself uninterruptible is not bounded (ARCH-62, ADR-QD-126).
+
+  `AuditTrailPortTest` and `AuditStagingPortTest` answer each call from a script: new public `AuditPortReply` (`Ok`, `Fail`, `Die`, `Interrupt`, `Never`, `Latch`) and the script types `AuditTrailScript`, `AuditStageScript` and `AuditCommitScript`, taken as `write`, `stage` and `commit`. Each double also logs every call it receives (`calls()`, `stageCalls()`, `commitCalls()`).
+
+  **Breaking.** `AuditTrailPortTestOptions.failWith` and `AuditStagingPortTestOptions.failStageWith`/`failCommitWith` are removed. Replace `failWith: (entry) => new AuditWriteError({ entry, cause })` with `write: () => AuditPortReply.Fail({ cause })`, and the staging options with `stage`/`commit` scripts of the same shape. The double now builds `AuditWriteError`/`AuditStagingError` itself, and a commit's `Fail` carries the entry staged under its handle.
+
+- b655b3b: Every record `AuditDecisionSinkLive` receives now has exactly one reported outcome. An entry lost after a failed trail write (unwired, or after a failed `stage()`) is now logged as `audit entry dropped: trail write failed and ...` with its `evaluationId`, where it used to leave only a `write_failed` count; a staged entry that was not written is logged at info. `qadi_audit_writes_total` now counts breaker-refused records too, under a new `outcome="skipped_open"` label, so `sum(qadi_audit_writes_total)` is the number of records received (a dashboard dividing by it sees the denominator grow during an outage); a new `qadi_audit_entries_lost_total{after, staging}` counter counts entries held by neither the trail nor staging. New `AuditDecisionSinkOptions.onOutcome` receives each record's `AuditWriteOutcome` (exported, with `WrittenStaging`, `UnwrittenStaging`, `Durability` and `durabilityOf`) so a caller can dead-letter a lost entry; `record` now has a `qadi.audit.record` span carrying the outcome and its durability. No metric label or log message is renamed (ADR-QD-056, ARCH-35).
+- b655b3b: **Breaking, for subpath importers only.** The `./*` subpath export is removed from `@qadi/core`, `@qadi/audit`, `@qadi/http`, `@qadi/testing`, `@qadi/promise`, `@qadi/predicate-sql` and `@qadi/predicate-prisma`. A package's entry points are now a closed list: the root, and (for `@qadi/devtools`) `./react`. A module kept out of a barrel is no longer importable, so `@qadi/core/TreeFold`, `/Compare`, `/FieldLattice`, `/FieldPath`, `/PortAccess`, `/PortDerivation`, `/ShortCircuit` and `@qadi/audit/CircuitBreaker` are gone with no replacement, and importing a barreled module by subpath (`@qadi/core/Policy`) now fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`. Migration: import the same names from the package root (`import { hasRole } from "@qadi/core"`); every barreled module is re-exported with `export *`, so each of its names is still there. No repository code imported a subpath. Enforced by gate 13's `ENTRY` check and gate 14's check 3b (ADR-QD-099).
+- b655b3b: An encode refusal is described once, in core, and every adapter reports one the same way.
+
+  `@qadi/core` adds `encodeRefusalPath`, `encodeRefusalAnnotations` (and its `EncodeRefusalAnnotations` type), `describeEncodeRefusal` and `reportEncodeRefusal`. The three pure readings sit beside `EncodeRefusal`; the reporter calls an adapter's hook once or logs its message with the same three annotations, and contains a hook that throws.
+
+  `@qadi/audit` no longer drops a refused record silently: `AuditDecisionSinkLive` logs a warning naming the refusal, its path and the `evaluationId`, or calls the new `AuditDecisionSinkOptions.onRefused`. **Breaking:** `AuditEntryNotEncodable` carries a required `evaluationId`, so code that constructs the class must supply it. Nothing in this repository does.
+
+  `@qadi/http`: an `onRefused` that throws no longer ends the decision stream or empties `/__decisions/backlog`; the failure is logged and the next record is still served.
+
+- b655b3b: **Breaking.** A purge selects only rows an archive read back from storage holds. New `readAuditArchive(input: unknown)` reads a stored `AuditArchive` bundle back (every entry through `decodeAuditEntry`, the count, the sequence check, the order `archiveAuditTrail` writes and the `sequenceIntegrityVerified` claim) and returns `Result<VerifiedArchive, ArchiveNotVerified>`, each failure one of seven `ArchiveRefusal`s. `VerifiedArchive` cannot be built by hand. New `planPurge(entries, policy, now, archive)` is the only function that returns rows to delete: a row is in `purge` only when it is past its age and the archive holds it (two identical rows need two archived copies); an expired row the archive lacks is retained and listed in `unarchived`. A `VerifiedArchive` proves what the stored bytes say, not that the store is durable or untampered.
+
+  Removed: `getPurgeableEntries` and `enforceRetention` (use `planPurge`, or `planRetention` for an age report); `RetentionPlan.purged` is now `RetentionPlan.expired`; the decommissioning checklist (`makeDecommissioningChecklist`, `completeDecommissioningStep`, `DecommissioningChecklist`, `DecommissioningStep`, `DecommissioningStepId`, `UnknownDecommissioningStep`), whose procedure is now an unenforced list in the README. A bundle written before the 2026-09 correction, whose `sequenceIntegrityVerified` was a vacuous `true`, is refused as `UnbackedClaim`; re-bundle its entries with `archiveAuditTrail` (ADR-QD-056, ARCH-38).
+
+- b655b3b: Retention no longer deletes on an impossible age. `getPurgeableEntries` selected every row for `at = -Infinity` (a stored `-1e400`), `now = +Infinity` or a negative `maxAgeMs`; a row is now purgeable only with a finite `at` and `now`, `maxAgeMs >= 0` and `now - at > maxAgeMs`. New `planRetention(entries, policy, now)` returns `Result<RetentionPlan, RetentionInputInvalid>` (`{ retained, purged, undated }`; a non-finite `at` is retained and `undated`), and the two older functions project it (on a refusal they purge nothing). `decodeAuditEntry` and `decodeSinkRecord` now refuse, as `Malformed`, a non-finite `at` (a stored `1e400`) and a non-integer `sequenceNumber`: values no encoder ever emitted, so no wire version bump.
+- b655b3b: A captured signature now answers the question it was captured for. Before, `signatureObligationHandler` gave `capture` no resource, so a flow that stored what it captured stored it subject-wide: a default-scope `hasSignature` could not find it and `scope: "Any"` found it for every resource. **Breaking:** `SignatureCaptureRequest` gains required `evaluationId`, `resourceId`, `action` and `resource` (code that constructs a request must supply them; `capture` implementations just receive more), and `signatureObligationHandler` takes an `ObligationDischarge` and no longer requires `CurrentSubject`: the signer is the subject the allow was decided for. A `capture` that returns a signature for a different signer or meaning than asked now fails the discharge (`SignatureCaptureError`). **Breaking:** `signatureObligationHandler` now refuses a discharge whose question has a resource with no string id (absent, numeric, an object) with `SignatureCaptureError`, before `capture` runs, where 0.11.0 captured it and it was stored subject-wide, which a `scope: "Any"` check would then grant on every resource. A question with no resource at all still records subject-wide. New `SignatureLedger`, `signatureHistoryFromLedger`, `ledgerEntryOf` and `SignatureLedgerTest`: pass `{ ledger }` to the handler and the signature `capture` returned is recorded and read back as `SignatureHistory`; a ledger that cannot record fails the discharge. The ledger is a keyed store: an adapter implements `append(key, entry)` and `entriesAt(key)` over the opaque `SignatureLedgerKey` that `ledgerKeyOf(pair)` mints from a `LedgerPair` (a persisted format, `[1,"alice","doc-1"]`, frozen), and `signatureHistoryFromLedger` derives the exact-pair read, failing it as `SignatureHistoryUnavailable` (cause `SignatureLedgerReadError`) if the store answers a row stored under another key or signed by someone else. `checkSignatureLedger` and `checkSignatureHistoryScoping` check a deployment's real store against case-folding, trimming, Unicode-normalising, wildcard-reading and lossy mistakes, and return what they find as `LedgerConformanceViolation`s (`LedgerConformanceOptions` names a namespace for a shared table). Without a ledger, `capture` must persist where your `SignatureHistory` reads, keyed by the request.
+- c392315: **Breaking.** Two refusals for input nested past the decode bound are now reported as too deep, not as malformed.
+
+  - `ArchiveRefusal` gains `TooDeep { maxDepth }`: `readAuditArchive` refuses a stored archive nested past `MAX_DECODE_DEPTH` outside its entries, before any decode, where it was `Malformed`. An entry nested too deep is still `EntryNotDecodable`.
+  - `decodeAuditEntry` refuses a row nested past the bound outside its record as `DecodeRefusal.TooDeep`, where it was `DecodeRefusal.Malformed`.
+
+  Migration: add a `TooDeep` arm to any exhaustive match on `ArchiveRefusal`; treat a `DecodeRefusal.TooDeep` as you treat `Malformed` unless you want the distinction.
+
+### Patch Changes
+
+- 965ff14: Each package's metrics are declared once, in a module its own tests import, and those tests read them by reference instead of matching an id string (ARCH-61, ADR-QD-123): `@qadi/audit`'s write, staging, lost-entry and circuit-breaker counters, and each compiler's compile counter, now in `CompileMetrics.ts`. Nothing is added to any package's public exports, and every metric id, description, type and series is unchanged, so an exporter sees the same metrics.
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [965ff14]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [965ff14]
+- Updated dependencies [c392315]
+- Updated dependencies [e9c7afc]
+- Updated dependencies [965ff14]
+- Updated dependencies [965ff14]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [e0365e0]
+- Updated dependencies [c392315]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [aab8757]
+- Updated dependencies [e0365e0]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [965ff14]
+- Updated dependencies [c392315]
+- Updated dependencies [c392315]
+- Updated dependencies [aab8757]
+- Updated dependencies [e0365e0]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [b655b3b]
+- Updated dependencies [c392315]
+  - @qadi/core@0.12.0
+
 ## 0.11.0
 
 ### Minor Changes
