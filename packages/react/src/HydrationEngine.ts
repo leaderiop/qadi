@@ -545,7 +545,7 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
       continue;
     }
 
-    seeded.push([seedFor(decoded.success, fields.success.resource), rebuild(fields.success, subject.id)]);
+    seeded.push(seedFor(decoded.success, fields.success.resource).hold(rebuild(fields.success, subject.id)));
   }
 
   const events: Array<HydrationEvent> = [];
@@ -602,11 +602,19 @@ export const hydrateWith = (
 // The seed atom, and the atom that reads through it
 // ---------------------------------------------------------------------------
 
-/** Finds the seed atom standing behind one decision. Closure-private to an atom set. */
-export type HydrationSeedLookup = (
-  policy: Policy,
-  resource: Resource | undefined,
-) => Atom.Writable<SeededDecision | undefined>;
+/**
+ * Where one question keeps the seed it was handed, and how it gives it to a registry.
+ *
+ * Closure-private to an atom set. `hold` returns the `initialValues` pair that
+ * puts a decision in front of a registry; what the pair's atom and value are is
+ * the slot's own business.
+ */
+export interface SeedSlot {
+  readonly hold: (decision: SeededDecision) => readonly [Atom.Atom<unknown>, unknown];
+}
+
+/** Finds the slot standing behind one decision. Closure-private to an atom set. */
+export type HydrationSeedLookup = (policy: Policy, resource: Resource | undefined) => SeedSlot;
 
 /**
  * Announcement state for one question, kept **per registry**.
@@ -630,7 +638,7 @@ interface AnnounceState {
   /**
    * The seed, as this registry first saw it.
    *
-   * Kept because `get.once(seed)` can read `undefined` for a seed that was
+   * Kept because `get.once(seedAtom)` can read `undefined` for a seed that was
    * definitely there: a registry may drop the value of an atom nothing mounted,
    * and the seed atom is only ever a *dependency* of the question's atom. Under
    * `registry.mount` it survives and the disagreement is reported; under a
@@ -647,8 +655,8 @@ interface AnnounceState {
 
 /** A question's seed atom, and the atom a consumer reads the decision through. */
 export interface SeededQuestion<E> {
-  /** Where `hydrate` writes a server decision. Never reachable from outside. */
-  readonly seed: Atom.Writable<SeededDecision | undefined>;
+  /** Where `hydrate` keeps a server decision. Never reachable from outside. */
+  readonly seed: SeedSlot;
   /** The decision atom: the client's answer, or the seed until it has one. */
   readonly read: Atom.Atom<AsyncResult.AsyncResult<ClientDecision, E>>;
 }
@@ -691,8 +699,8 @@ export const makeSeededQuestion = <E,>(input: {
   const { policy, resource, report } = input;
   // Declared before `computed`, which reads it with `get.once` to carry the
   // server's evaluation id into the re-check.
-  const seed = Atom.make<SeededDecision | undefined>(undefined);
-  const computed = input.computedFor(seed);
+  const seedAtom = Atom.make<SeededDecision | undefined>(undefined);
+  const computed = input.computedFor(seedAtom);
 
   const announceState = new WeakMap<AtomRegistry.AtomRegistry, AnnounceState>();
   const announceStateFor = (registry: AtomRegistry.AtomRegistry): AnnounceState => {
@@ -727,7 +735,7 @@ export const makeSeededQuestion = <E,>(input: {
         // so re-running on a later seed change could not change the answer.
         // `?? state.observedSeed`: the registry's copy is authoritative when it
         // has one, and the first reading stands in when it has dropped it.
-        const seeded = get.once(seed) ?? state.observedSeed;
+        const seeded = get.once(seedAtom) ?? state.observedSeed;
         if (seeded !== undefined) {
           // A failure is not a disagreement. The client could not answer, so
           // there is nothing for the server's answer to disagree with, and
@@ -742,10 +750,10 @@ export const makeSeededQuestion = <E,>(input: {
       }
       return result;
     }
-    const seeded = get(seed);
+    const seeded = get(seedAtom);
     if (seeded !== undefined) state.observedSeed = seeded;
     return seeded === undefined ? result : AsyncResult.success(seeded);
   });
 
-  return { seed, read };
+  return { seed: { hold: (decision) => [seedAtom, decision] }, read };
 };
