@@ -71,6 +71,10 @@ test.describe("a guard can be found on screen", () => {
     const found = await page.locator("[data-qadi-gate]").first().evaluate((node) => {
       const range = document.createRange();
       range.selectNodeContents(node);
+      // The dock is fixed over the bottom 45vh once it mounts, a moment after the
+      // body is visible, and a point under it hits the dock, not the page. Scroll
+      // the box to the top first; the dock's spacer leaves room for it (Dock.tsx).
+      window.scrollTo({ top: window.scrollY + range.getBoundingClientRect().top, behavior: "instant" });
       const rect = range.getBoundingClientRect();
 
       const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
