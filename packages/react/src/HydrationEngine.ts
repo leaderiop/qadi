@@ -95,7 +95,7 @@ const ALLOW_WITHHELD = ["subjectId", "trace"] as const;
  * A deny entry withholds what an allow does, plus the two fields a denial
  * discloses only under `includeTrace`, inside its `disclosure`.
  */
-const DENY_WITHHELD = ["subjectId", "trace", "obligations", "reason"] as const;
+const DENY_WITHHELD = [...ALLOW_WITHHELD, "obligations", "reason"] as const;
 
 /**
  * One decision's wire form inside a payload, derived from `DecisionWire`.
