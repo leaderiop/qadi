@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (last completed: v1.3 Arch Wave 8, ARCH-78 to ARCH-83)
+# Qadi — Architecture Waves (current: v1.4 Arch Wave 9, ARCH-84 to ARCH-89)
 
 ## What This Is
 
@@ -19,7 +19,7 @@ v1.3 Arch Wave 8 completed 2026-11-13 on branch `arch-wave-8` (333 commits, 220 
 outside `.planning`): ARCH-78 to ARCH-83 plus the carried spec debt, ADR-QD-143..149 (144, 145 and 147 unused),
 CCR-QD-421..427. All 7 phases `passed`, every one re-verified at the final head. The milestone audit is `tech_debt`,
 accepted by the user: 45/45 requirements, 7/7 integration seams, 4/4 flows, six manual browser checks never run.
-`pnpm check:pr` exited 0 at the end of every phase. **Not merged and not released.** Archive:
+`pnpm check:pr` exited 0 at the end of every phase. Merged to `main` as #157 (release PR #158). Archive:
 `.planning/milestones/v1.3-ROADMAP.md`, `v1.3-REQUIREMENTS.md`, `v1.3-MILESTONE-AUDIT.md`.
 
 v1.2 Arch Wave 7 completed 2026-11-12 on branch `arch-wave-7` (272 commits, 170 files, +9,900 / −3,457
@@ -37,9 +37,23 @@ outside `.planning`): ARCH-46 to ARCH-54, ADR-QD-108..116 (112, 113 and 115 left
 All 9 phases verified `passed` against the final tree; the full `pnpm check` is green on Node 22.12.0
 (CI run 42676403473 at 127d6fa). Archive: `.planning/milestones/v1.0-ROADMAP.md`.
 
-## Next Milestone
+## Current Milestone: v1.4 Arch Wave 9
 
-Not defined yet. Start it with `/gsd-new-milestone`, which writes a fresh `.planning/REQUIREMENTS.md`.
+**Goal:** Resolve all six candidates of the 2026-11-14 architecture review (Phases 37–42, ARCH-84…89).
+
+**Base commit:** `637c0601` (`main`, v1.3 merged as #157, release PR #158). Branch `arch-wave-9`. **Shared rules:**
+`.planning/phases/_SHARED-CONTEXT.md`, overridden where stated by `.planning/phases/_WAVE9-CONTEXT.md` (base, numbering,
+per-phase evidence from the review).
+
+**Target features:**
+- One devtools module for a scoped run that a newer run supersedes (generation, close, finalizer order, stop, "land only if current"), replacing three hand copies that already drifted (review #1, Strong; top recommendation)
+- The sink record wire version stated once; schema literals, encoder and decoder check derived from it (review #2)
+- Each hydration drop reason stated once in core with its kind; the unions, the value list and react's payload/entry split derived (review #3)
+- Core owns describing a decode refusal (mirror of ADR-QD-116); devtools passes `DecodeRefusal` through (**Breaking** `MalformedReason`), audit decodes a row once (review #4)
+- One guarded value-to-text function in devtools; no panel throws on a bigint or circular value (review #5, latent defect)
+- A seeded question builds its own computing atom (callback inversion removed), reopening ADR-QD-148/149 behind a human checkpoint (review #6, Speculative)
+
+**Review report (local, outside the repo):** `/private/tmp/claude-502/-Users-mohammadalmechkor-Projects-Perso-qadi/16926f1e-64de-452f-bf60-d41917101ad8/scratchpad/architecture-review-20261114.html`.
 
 ## Previous Milestone: v1.3 Arch Wave 8 (completed 2026-11-13; not released)
 
@@ -132,7 +146,7 @@ logged, counted or spanned.
 
 ### Active
 
-None. The next milestone defines its own requirements (`/gsd-new-milestone`).
+- [ ] ARCH-84..89: the six deepenings of the 2026-11-14 review; see `.planning/REQUIREMENTS.md`.
 
 ### Out of Scope
 
@@ -300,4 +314,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-13 after v1.3 milestone*
+*Last updated: 2026-11-14 after starting milestone v1.4*
