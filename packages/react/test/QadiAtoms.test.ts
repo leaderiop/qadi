@@ -109,6 +109,20 @@ describe("makeQadiAtoms", () => {
     expect(permits(await settle(registry, atoms, isAdmin))).toBe(true);
   });
 
+  it("counts a subject write as a change exactly when who is asking changed, undefined included", () => {
+    const atoms = makeQadiAtoms(baseLayer);
+    const registry = makeRegistry();
+    const seen: Array<unknown> = [];
+    registry.subscribe(atoms.subject, (value) => seen.push(value));
+
+    registry.set(atoms.subject, undefined);
+    registry.set(atoms.subject, reader);
+    registry.set(atoms.subject, makeSubject({ id: "u1", permissions: ["doc:read"] }));
+    registry.set(atoms.subject, undefined);
+
+    expect(seen).toEqual([reader, undefined]);
+  });
+
   it("does not re-decide when a fresh but structurally equal subject replaces the current one (RC-01)", async () => {
     // `makeSubject`/`fromRoles` return a fresh object every call — the shape an
     // inline `<QadiProvider subject={makeSubject(...)} />` produces on every

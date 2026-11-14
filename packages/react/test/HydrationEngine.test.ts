@@ -299,6 +299,20 @@ describe("a refused payload is always counted (INV-QD-045, ARCH-60)", () => {
   const mismatchCount = () =>
     hydrationDroppedTotal.valueUnsafe(registry).occurrences.get("PayloadSubjectMismatch") ?? 0;
 
+  it("a value that is not an envelope is refused whole and hands back no entries", () => {
+    const drops: Array<unknown> = [];
+    const pairs = [
+      ...hydrateWith(
+        () => ({ hold: (decision) => [Atom.make<SeededDecision | undefined>(undefined), decision] }),
+        42,
+        makeSubject({ id: "u1" }),
+        { onDropped: (drop) => drops.push(drop) },
+      ),
+    ];
+    assert.strictEqual(pairs.length, 0);
+    assert.deepStrictEqual(drops, [{ reason: "MalformedPayload", entries: [], wholePayload: true }]);
+  });
+
   it("a payload naming another subject with no entries adds exactly one PayloadSubjectMismatch", () => {
     const drops: Array<unknown> = [];
     const before = mismatchCount();
