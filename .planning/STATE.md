@@ -4,17 +4,18 @@ milestone: v1.4
 milestone_name: Arch Wave 9
 current_phase: 42
 current_phase_name: A seeded question builds its own computing atom
+current_plan: 2
 status: executing
-stopped_at: Phase QD-41 complete, ready to plan Phase 42
-last_updated: "2026-11-14T18:19:00.740Z"
+stopped_at: Completed QD-42-01-PLAN.md
+last_updated: "2026-11-14T18:23:49.335Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase QD-41 complete, transitioned to Phase 42
-state_head: fee2be27194a5f97407ed0a0fea1b71558f535e0
+state_head: 82d0c0674f3f6e1add9931f33bbfcc1dd208feeb
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 38
-  completed_plans: 33
+  completed_plans: 34
   percent: 83
 ---
 
@@ -30,7 +31,8 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 ## Current Position
 
 Phase: QD-42 (A seeded question builds its own computing atom) — READY TO EXECUTE
-Plan: Not started
+Current Plan: 2
+Total Plans in Phase: 5
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase QD-41 complete, transitioned to Phase 42
 
@@ -241,6 +243,7 @@ Progress: [████████░░] 83% (v1.4: 1 of 6 phases)
 | Phase QD-41 P04 | 12 min | 3 tasks | 9 files |
 | Phase QD-41 P05 | 10 min | 2 tasks | 6 files |
 | Phase QD-41 P06 | 7 min | 3 tasks | 1 files |
+| Phase QD-42 P01 | 4 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -390,6 +393,7 @@ Progress: [████████░░] 83% (v1.4: 1 of 6 phases)
 - [Phase QD-41]: 41-03: valueText keeps SimulationForm's guarded body unchanged (one try, one JSON.stringify, bare catch with only a comment), public in @qadi/core and named in spec/overview.md
 - [Phase QD-41]: 41-04: a literal or witness with no JSON form is written as the fixed words 'a value with no JSON form' when an object, the word undefined otherwise, a bigint as its digits and n, in both explain and the remedy label
 - [Phase QD-41]: BEH-QD-541 and BEH-QD-542 are new sections beside BEH-QD-223 and BEH-QD-141, which stay untouched; BEH-QD-543 to 545, INV-QD-327 and INV-QD-328 are named Unused in the CCR-QD-432 row
+- [Phase QD-42]: 42-01: option 1b chosen by the user on 2026-11-14 (a seeded question builds its own computing atom in packages/react/src/SeededQuestion.ts); ADR-QD-155 used; SeededQuestion.ts judged by the five moved base survivors, never re-baselined
 
 ### Pending Todos
 
@@ -437,8 +441,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T16:10:39.399Z
-Stopped at: Phase QD-41 complete, ready to plan Phase 42
+Last session: 2026-11-14T18:23:44.408Z
+Stopped at: Completed QD-42-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

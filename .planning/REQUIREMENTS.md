@@ -53,11 +53,11 @@ unless a phase's planner records evidence against one). Per-phase evidence and r
 
 ### A seeded question builds its own computing atom (Phase 42, ARCH-89, react; human checkpoint)
 
-- [ ] **SEED-01**: Spike evidence for each option (lines moved, test fakes removed, render-sequence diff, mutation delta) is gathered before the human is asked.
-- [ ] **SEED-02**: The phase's first plan presents the consolidated options (R4: invert in place, invert into its own module, a seed holder, reject) and records the human's decision before any source change.
+- [x] **SEED-01**: Spike evidence for each option (lines moved, test fakes removed, render-sequence diff, mutation delta) is gathered before the human is asked.
+- [x] **SEED-02**: The phase's first plan presents the consolidated options (R4: invert in place, invert into its own module, a seed holder, reject) and records the human's decision before any source change.
 - [ ] **SEED-03**: If the decision is to change code: `makeSeededQuestion` takes no function that receives a function, the seed-to-evaluation link is tested through a real atom runtime (no fake `computedFor`), and the liveness rule is stated once.
 - [ ] **SEED-04**: If code changes, every existing pin holds: render sequences, the seed/lifetime/sweep suites, the 30 e2e scenarios, INV-QD-028/105/317/318, the `maxTrackedQuestions` proofs (StrictMode, `<Activity>`, no leaked fibers, one sweeper), and no `scheduleTask`/`defaultIdleTTL`.
-- [ ] **SEED-05**: If the decision is to reject: ADR-QD-155 records the rejection, no source changes, and the CCR row names the unused numbers.
+- [x] **SEED-05**: If the decision is to reject: ADR-QD-155 records the rejection, no source changes, and the CCR row names the unused numbers.
 - [ ] **SEED-06**: A final sweep corrects anything Phases 37–41 left stale, and the milestone is re-verified at its final head with a mutation re-check of every touched file.
 
 ### Cross-cutting (every v1.4 phase)
@@ -122,11 +122,11 @@ The seven WX rows apply to every phase 37 to 42, so each phase's Requirements li
 | TEXT-02 | Phase 41 | Complete |
 | TEXT-03 | Phase 41 | Complete |
 | TEXT-04 | Phase 41 | Complete |
-| SEED-01 | Phase 42 | Pending |
-| SEED-02 | Phase 42 | Pending |
+| SEED-01 | Phase 42 | Complete |
+| SEED-02 | Phase 42 | Complete |
 | SEED-03 | Phase 42 | Pending |
 | SEED-04 | Phase 42 | Pending |
-| SEED-05 | Phase 42 | Pending |
+| SEED-05 | Phase 42 | Complete |
 | SEED-06 | Phase 42 | Pending |
 | WX-01 | All v1.4 phases | Complete |
 | WX-02 | All v1.4 phases | Complete |
