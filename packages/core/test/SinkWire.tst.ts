@@ -8,10 +8,14 @@
  * (`describeDecodeRefusal`, `decodeRefusalAnnotations`, `decodeRefusalOf`) are pinned
  * the same way, so a changed signature or a widened domain fails here (ADR-QD-153).
  */
+import type * as Result from "effect/Result";
 import { expect, test } from "tstyche";
 import type {
+  DecodedSinkRecord,
   DecodeRefusalAnnotations,
+  SinkRecord,
   SinkRecordJson,
+  SinkRecordNotDecodable,
   UntrustedRefusal,
   UntrustedValueRefusal,
   WIRE_VERSION,
@@ -22,6 +26,7 @@ import {
   DecodeRefusal,
   decodeRefusalAnnotations,
   decodeRefusalOf,
+  decodeSinkRecordWithJson,
   describeDecodeRefusal,
 } from "../src/index.ts";
 
@@ -65,4 +70,14 @@ test("decodeRefusalOf maps an untrusted refusal or a version refusal, and nothin
   expect<ReturnType<typeof decodeRefusalOf>>().type.toBe<DecodeRefusal>();
   // @ts-expect-error is not assignable to parameter of type
   decodeRefusalOf(DecodeRefusal.Inconsistent({ disagreement: "Verdict" }));
+});
+
+test("a decoded record carries the record and its JSON form, nothing else", () => {
+  expect<DecodedSinkRecord>().type.toBe<{ readonly record: SinkRecord; readonly json: SinkRecordJson }>();
+});
+
+test("decodeSinkRecordWithJson reads unknown input", () => {
+  expect(decodeSinkRecordWithJson).type.toBe<
+    (input: unknown) => Result.Result<DecodedSinkRecord, SinkRecordNotDecodable>
+  >();
 });
