@@ -888,7 +888,26 @@ describe("what a remedy label shows, written out", () => {
 
   it("an object whose toJSON gives nothing", () => {
     assert.deepStrictEqual(labels(hasAttribute("x", eq(literal({ toJSON: () => undefined })))), [
-      "with subject attribute x = undefined",
+      "with subject attribute x = a value with no JSON form",
     ]);
+  });
+});
+
+describe("a remedy label with no JSON form, deduplicated", () => {
+  it("two cycles on one attribute are offered once, under the fixed words", () => {
+    interface Loop {
+      self?: Loop;
+    }
+    const first: Loop = {};
+    first.self = first;
+    const second: Loop = {};
+    second.self = second;
+
+    assert.deepStrictEqual(
+      labels(
+        anyOf([hasAttribute("x", eq(literal(first))), hasAttribute("x", eq(literal(second)))]),
+      ),
+      ["with subject attribute x = a value with no JSON form"],
+    );
   });
 });

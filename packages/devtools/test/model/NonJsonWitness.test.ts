@@ -153,7 +153,7 @@ const remedyRows: ReadonlyArray<readonly [string, () => ReadonlyArray<string>, s
 
 describe("a remedy over a value with no JSON form", () => {
   for (const [title, read, expected] of remedyRows) {
-    it.fails(title, () => {
+    it(title, () => {
       const got = read();
       assert.include(got, expected);
       for (const one of got) assert.notInclude(one, "SENTINEL-41");
@@ -198,7 +198,7 @@ const sessionRows: ReadonlyArray<readonly [string, Policy, Command, ReadonlyArra
 
 describe("a session command over a value with no JSON form", () => {
   for (const [title, policy, command, expected] of sessionRows) {
-    it.effect.fails(title, () =>
+    it.effect(title, () =>
       Effect.gen(function* () {
         const sightings =
           command === "listed"

@@ -56,4 +56,9 @@ describe("the mapping each devtools consumer keeps", () => {
       "not representable in the form",
     );
   });
+
+  it("Remedies: a bigint is labelled as its digits and n, and a cycle under the fixed words", () => {
+    assert.deepStrictEqual(labels(1n), ["with subject attribute x = 1n"]);
+    assert.deepStrictEqual(labels(loop), ["with subject attribute x = a value with no JSON form"]);
+  });
 });
