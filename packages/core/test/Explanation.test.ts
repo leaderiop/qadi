@@ -988,7 +988,7 @@ describe("what an explanation shows for a literal, written out", () => {
   it("an object whose toJSON gives nothing", () => {
     assert.strictEqual(
       said(P.hasAttribute("x", M.eq(M.literal({ toJSON: () => undefined })))),
-      "requires attribute `the subject's x equals undefined`",
+      "requires attribute `the subject's x equals a value with no JSON form`",
     );
   });
 });

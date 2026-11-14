@@ -77,4 +77,21 @@ describe("the mapping explain keeps over valueText", () => {
       "requires attribute `the subject's x contains undefined`",
     );
   });
+
+  it("explain: a bigint literal is its digits and n, a cycle the fixed words, and a list element by element", () => {
+    const said = (policy: P.Policy): string => renderExplanation(explain(policy));
+
+    assert.strictEqual(
+      said(P.hasAttribute("x", M.eq(M.literal(1n)))),
+      "requires attribute `the subject's x equals 1n`",
+    );
+    assert.strictEqual(
+      said(P.hasAttribute("x", M.contains(loop))),
+      "requires attribute `the subject's x contains a value with no JSON form`",
+    );
+    assert.strictEqual(
+      said(P.hasAttribute("x", M.inArray([1n, loop]))),
+      "requires attribute `the subject's x is one of [1n,a value with no JSON form]`",
+    );
+  });
 });

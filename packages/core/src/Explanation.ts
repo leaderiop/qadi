@@ -27,6 +27,7 @@ import { defaultFieldStrategy, foldPolicyCases } from "./Policy.ts";
 import { effectiveCombining, isCombining } from "./ShortCircuit.ts";
 import { childKey } from "./TraceKey.ts";
 import { foldTree, foldTreeBy } from "./TreeFold.ts";
+import { valueText } from "./ValueText.ts";
 import { defaultTerm, fieldsClause } from "./Wording.ts";
 import type { Combining, FieldStrategy, Policy, PolicyCases } from "./Policy.ts";
 
@@ -286,13 +287,28 @@ export const foldAligned = <R>(
 // Value grammar
 // ---------------------------------------------------------------------------
 
+/** The words a literal with no JSON form is written as; they carry none of it. */
+const NO_JSON_FORM = "a value with no JSON form";
+
+/**
+ * A literal as a reader sees it: its JSON text, a bigint as its digits and `n`.
+ *
+ * A literal with no JSON text is otherwise an object (a cycle, an array holding a
+ * bigint, a `toJSON` or getter that throws), written as the fixed words, or an
+ * `undefined`, function or symbol, written as the word `undefined` as before.
+ */
+const literalText = (value: unknown): string =>
+  typeof value === "bigint"
+    ? `${String(value)}n`
+    : (valueText(value) ?? (typeof value === "object" ? NO_JSON_FORM : "undefined"));
+
 const refText: (self: ValueRef) => string = Match.type<ValueRef>().pipe(
   Match.tagsExhaustive({
     SubjectRef: (r) => `the subject's ${r.path}`,
     SubjectIdRef: () => "the subject's id",
     ResourceRef: (r) => `the resource's ${r.path}`,
     ActionRef: () => "the action",
-    LiteralRef: (r) => JSON.stringify(r.value),
+    LiteralRef: (r) => literalText(r.value),
   }),
 );
 
@@ -304,11 +320,11 @@ const refText: (self: ValueRef) => string = Match.type<ValueRef>().pipe(
 const matcherTextCases: MatcherCases<string> = {
   Eq: (m) => `equals ${refText(m.ref)}`,
   Neq: (m) => `differs from ${refText(m.ref)}`,
-  In: (m) => `is one of ${JSON.stringify(m.values)}`,
+  In: (m) => `is one of ${valueText(m.values) ?? `[${m.values.map(literalText).join(",")}]`}`,
   Exists: () => "is present",
   Gte: (m) => `is at least ${m.value}`,
   Lt: (m) => `is below ${m.value}`,
-  Contains: (m) => `contains ${JSON.stringify(m.value)}`,
+  Contains: (m) => `contains ${literalText(m.value)}`,
   Dominates: (m) => `dominates ${refText(m.ref)}`,
   Size: (_m, text) => `has a size that ${text}`,
   FieldMatch: (m, text) => `has ${m.field} that ${text}`,

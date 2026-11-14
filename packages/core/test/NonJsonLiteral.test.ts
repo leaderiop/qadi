@@ -91,7 +91,7 @@ const rows: ReadonlyArray<readonly [string, P.Policy, string]> = [
 
 describe("an explanation of a literal with no JSON form", () => {
   for (const [title, policy, expected] of rows) {
-    it.fails(title, () => {
+    it(title, () => {
       const text = said(policy);
       assert.include(text, expected);
       assert.notInclude(text, "SENTINEL-41");

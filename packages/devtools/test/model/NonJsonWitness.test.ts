@@ -243,7 +243,7 @@ const readingRows: ReadonlyArray<readonly [string, () => string, string]> = [
 
 describe("a devtools reading of a policy over a value with no JSON form", () => {
   for (const [title, read, expected] of readingRows) {
-    it.fails(title, () => {
+    it(title, () => {
       const text = read();
       assert.include(text, expected);
       assert.notInclude(text, "SENTINEL-41");
