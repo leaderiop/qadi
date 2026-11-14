@@ -37,115 +37,13 @@
 import * as Metric from "effect/Metric";
 
 /**
- * Why the **server** left an entry out of a payload.
- *
- * A named union rather than a bare string literal: the two sides report through
- * the same `HydrationDrop` shape but with different reasons, so a reader of
- * either hook's signature should be able to see which set of reasons it is
- * looking at. An entry that is both foreign and unencodable is `ForeignSubject`:
- * the subject filter runs first and a foreign entry is never encoded.
- */
-export type DehydrationDropReason =
-  /** An entry whose decision was made for another subject. */
-  | "ForeignSubject"
-  /**
-   * An entry whose policy, built in code, the policy schema does not accept — a
-   * matcher bound that is not finite, or a relationship depth that is not an
-   * integer — so it cannot cross the network (ARCH-60).
-   */
-  | "UnencodablePolicy";
-
-/**
- * Why the **client** did not seed an entry, or a whole payload.
- *
- * `PayloadSubjectMismatch`, `UnsupportedPayloadVersion`, `MalformedPayload` and
- * `PayloadTooDeep` reject the payload entire rather than entry by entry: the
- * subject id and the version are properties of the payload, and a value that is
- * not an envelope has no entries to speak of.
- *
- * There is no reason for an atom set that was not built by `makeQadiAtoms`.
- * That was `UnregisteredAtoms`, and it existed because the seed lookup was a
- * side table keyed on the atom set's identity; the atom set now owns the
- * capability (`QadiAtoms.hydrate`), so the situation cannot arise.
- */
-export type ClientHydrationDropReason =
-  /** The payload names a subject this client is not. */
-  | "PayloadSubjectMismatch"
-  /** A field other than `policy` did not match `DehydratedEntry`'s shape. */
-  | "MalformedEntry"
-  /** The entry's policy did not decode. */
-  | "UndecodablePolicy"
-  /**
-   * The entry nested deeper than `untrustedDecoder`'s depth bound allows
-   * (`MAX_DECODE_DEPTH`), refused by the entry's own guard before
-   * anything recurses into it — the same guard-then-decode order every other
-   * untrusted seam gets from the decoder. Distinct from `MalformedEntry`: a
-   * shape this schema cannot describe is a version-skew signal, while this one
-   * is what an adversarial payload would try, and the two want different
-   * follow-up.
-   */
-  | "EntryTooDeep"
-  /**
-   * The payload names a `version` this client does not read — or none, the
-   * format `@qadi/react` 0.9 and earlier wrote, read until 0.11.0 (ADR-QD-078).
-   *
-   * Not the same as malformed: a page cached by one deploy and hydrated by the
-   * next carries a format the other end has not heard of, and the failure is gone
-   * when the deploy finishes. Named separately so a dashboard can tell a rollout
-   * from a bug.
-   */
-  | "UnsupportedPayloadVersion"
-  /**
-   * The payload is not an envelope at all — not an object, no `entries` array,
-   * or an excess key.
-   *
-   * `hydrateDecisions` receives JSON from a page, and `JSON.parse` yields `any`,
-   * so the parameter's type protects nothing. This is what a value that is not
-   * even shaped like a payload is dropped as, instead of throwing.
-   */
-  | "MalformedPayload"
-  /**
-   * The payload nests deeper than `MAX_DECODE_DEPTH` outside its `entries`,
-   * refused before any decode recurses into it. An entry nested that deep is
-   * `EntryTooDeep` instead.
-   *
-   * Distinct from `MalformedPayload` (ADR-QD-143): a shape this schema cannot
-   * describe is a version-skew signal, while a payload nested past the bound is
-   * what a tampering proxy or an attacker would try, and the two want different
-   * follow-up.
-   */
-  | "PayloadTooDeep";
-
-/**
- * Every reason a decision failed to survive the trip, from either end.
- *
- * The key domain of {@link hydrationDroppedTotal}, and closed rather than a free
- * string: an unbounded frequency key grows a permanent registry entry per
- * distinct value, which is the cardinality objection `PortMetrics.ts` records
- * for keying on a port name.
- */
-export type HydrationDropReason = DehydrationDropReason | ClientHydrationDropReason;
-
-/** Every reason, as values — so a reader need not restate the union. */
-export const hydrationDropReasons: ReadonlyArray<HydrationDropReason> = [
-  "ForeignSubject",
-  "UnencodablePolicy",
-  "PayloadSubjectMismatch",
-  "MalformedEntry",
-  "UndecodablePolicy",
-  "EntryTooDeep",
-  "UnsupportedPayloadVersion",
-  "MalformedPayload",
-  "PayloadTooDeep",
-];
-
-/**
  * What a hydration drop reason means, in the two registers it is read in.
  *
- * The meaning of a reason is a fact about this module's closed union, so it is
- * stated here once and read by every adapter: `@qadi/react`'s console warning
- * prints `remedy` and `@qadi/devtools`' panel shows `summary`. Two tables in two
- * packages that cannot see each other's had already drifted apart.
+ * The meaning of a reason is a fact about this module's closed set of reasons,
+ * stated once, on the reason's row of the table below, and read by every adapter:
+ * `@qadi/react`'s console warning prints `remedy` and `@qadi/devtools`' panel
+ * shows `summary`. Two tables in two packages that cannot see each other's had
+ * already drifted apart.
  *
  * `summary` is read on a panel beside a count, by someone who may not have
  * caused the drop. `remedy` is read once, by whoever did, and names the fix.
@@ -158,19 +56,45 @@ export interface HydrationDropMeaning {
 }
 
 /**
- * A mapped type over the closed union rather than a `Match`: there is no
- * dispatch here, only a constant per key, and the exhaustiveness a mapped type
- * over a closed union gives is the same compile error a `Match.exhaustive`
- * would.
+ * One row of the drop-reason table: what a reason means and which kind of drop
+ * it is.
+ *
+ * `dehydration` is the server leaving an entry out of a payload, `payload` the
+ * client refusing a payload whole, `entry` the client dropping one entry and
+ * seeding the rest. Exported because a row without a kind is a type-level
+ * negative a test must be able to name, and {@link HydrationDropReasonOf}
+ * constrains its `K` by this field (ADR-QD-152).
  */
-const MEANINGS: { readonly [R in HydrationDropReason]: HydrationDropMeaning } = {
+export interface HydrationDropRow extends HydrationDropMeaning {
+  readonly kind: "dehydration" | "payload" | "entry";
+}
+
+/**
+ * Every hydration drop reason, stated once, with its kind and its meaning.
+ *
+ * The keys are the reasons, and their declaration order is the metric's
+ * preregistered order and the devtools panel's row order, so this interleaved
+ * order is load-bearing. Module-private because readers read
+ * {@link hydrationDropReasons} and {@link hydrationDropMeaning}; `as const
+ * satisfies` as `ENFORCEMENT_ERROR_CLASSES` does, so a row missing a field or
+ * naming a fourth kind is a compile error here (ADR-QD-152).
+ */
+const HYDRATION_DROP_TABLE = {
+  /** An entry whose decision was made for another subject. */
   ForeignSubject: {
+    kind: "dehydration",
     summary: "the server put two subjects' decisions in one payload",
     remedy:
       "a payload mixing subjects has no safe reading, so the others were discarded — " +
       "check what fed this call",
   },
+  /**
+   * An entry whose policy, built in code, the policy schema does not accept — a
+   * matcher bound that is not finite, or a relationship depth that is not an
+   * integer — so it cannot cross the network (ARCH-60).
+   */
   UnencodablePolicy: {
+    kind: "dehydration",
     summary:
       "a policy built in code that the policy schema does not accept — a non-finite bound or a fractional depth",
     remedy:
@@ -178,14 +102,18 @@ const MEANINGS: { readonly [R in HydrationDropReason]: HydrationDropMeaning } = 
       "finite, or a relationship depth that is not an integer — so it cannot cross the network. " +
       "The entry was left out and the client will ask the question itself; fix the policy",
   },
+  /** The payload names a subject this client is not. */
   PayloadSubjectMismatch: {
+    kind: "payload",
     summary: "a payload reached a client it was not rendered for",
     remedy:
       "the payload names a different subject than this client's. Nothing was seeded, " +
       "and nothing should have been — check that the page and its payload were " +
       "rendered for the same user, and that no cache is serving one user's page to another",
   },
+  /** A field other than `policy` did not match `DehydratedEntry`'s shape. */
   MalformedEntry: {
+    kind: "entry",
     summary: "an entry's shape didn't match what this client expects, apart from its policy",
     remedy:
       "an entry's shape didn't match what this client expects — a field other than " +
@@ -193,19 +121,41 @@ const MEANINGS: { readonly [R in HydrationDropReason]: HydrationDropMeaning } = 
       "version skew, same as an undecodable policy; a hand-built payload that skips " +
       "required fields is the other",
   },
+  /** The entry's policy did not decode. */
   UndecodablePolicy: {
+    kind: "entry",
     summary: "a policy shape the client's schema does not know — usually version skew",
     remedy:
       "their policies did not decode. The usual cause is version skew: the server " +
       "encoded a policy shape this client's schema does not know",
   },
+  /**
+   * The entry nested deeper than `untrustedDecoder`'s depth bound allows
+   * (`MAX_DECODE_DEPTH`), refused by the entry's own guard before
+   * anything recurses into it — the same guard-then-decode order every other
+   * untrusted seam gets from the decoder. Distinct from `MalformedEntry`: a
+   * shape this schema cannot describe is a version-skew signal, while this one
+   * is what an adversarial payload would try, and the two want different
+   * follow-up.
+   */
   EntryTooDeep: {
+    kind: "entry",
     summary: "an entry nested past the client's structural depth guard, before any decode ran",
     remedy:
       "an entry nested deeper than this client will walk. That is not a shape a " +
       "well-behaved server produces — check what fed this payload",
   },
+  /**
+   * The payload names a `version` this client does not read — or none, the
+   * format `@qadi/react` 0.9 and earlier wrote, read until 0.11.0 (ADR-QD-078).
+   *
+   * Not the same as malformed: a page cached by one deploy and hydrated by the
+   * next carries a format the other end has not heard of, and the failure is gone
+   * when the deploy finishes. Named separately so a dashboard can tell a rollout
+   * from a bug.
+   */
   UnsupportedPayloadVersion: {
+    kind: "payload",
     summary:
       "a payload version this client does not read — a deploy in flight, or mismatched releases",
     remedy:
@@ -213,7 +163,16 @@ const MEANINGS: { readonly [R in HydrationDropReason]: HydrationDropMeaning } = 
       "deploy and hydrated by the next does this for as long as the deploy takes; if " +
       "it persists, the server and the client are running different @qadi/react releases",
   },
+  /**
+   * The payload is not an envelope at all — not an object, no `entries` array,
+   * or an excess key.
+   *
+   * `hydrateDecisions` receives JSON from a page, and `JSON.parse` yields `any`,
+   * so the parameter's type protects nothing. This is what a value that is not
+   * even shaped like a payload is dropped as, instead of throwing.
+   */
   MalformedPayload: {
+    kind: "payload",
     summary: "a payload that is not shaped like a dehydrated payload at all",
     remedy:
       "the payload is not shaped like a dehydrated payload — not an object, no " +
@@ -221,27 +180,102 @@ const MEANINGS: { readonly [R in HydrationDropReason]: HydrationDropMeaning } = 
       "Check that what reached hydrateDecisions is the JSON dehydrateDecisions " +
       "produced, unmodified",
   },
+  /**
+   * The payload nests deeper than `MAX_DECODE_DEPTH` outside its `entries`,
+   * refused before any decode recurses into it. An entry nested that deep is
+   * `EntryTooDeep` instead.
+   *
+   * Distinct from `MalformedPayload` (ADR-QD-143): a shape this schema cannot
+   * describe is a version-skew signal, while a payload nested past the bound is
+   * what a tampering proxy or an attacker would try, and the two want different
+   * follow-up.
+   */
   PayloadTooDeep: {
+    kind: "payload",
     summary: "a payload nested past the client's decode bound outside its entries, refused before any decode ran",
     remedy:
       "the payload nests deeper than this client will decode, outside its entries — a shape " +
       "dehydrateDecisions never writes, so something between the server and the client changed it. " +
       "Check any proxy, cache or script that touches the page's JSON",
   },
-};
+} as const satisfies { readonly [reason: string]: HydrationDropRow };
+
+/**
+ * Every reason a decision failed to survive the trip, from either end.
+ *
+ * The key domain of {@link hydrationDroppedTotal}, and closed rather than a free
+ * string: an unbounded frequency key grows a permanent registry entry per
+ * distinct value, which is the cardinality objection `PortMetrics.ts` records
+ * for keying on a port name. It is the table's keys.
+ */
+export type HydrationDropReason = keyof typeof HYDRATION_DROP_TABLE;
+
+/**
+ * The reasons whose kind is `K`.
+ *
+ * The one way a reader names a group of reasons, so a group is read off the
+ * table rather than written out beside it. `K` is constrained to the three
+ * kinds, so a fourth is a compile error (ADR-QD-152).
+ */
+export type HydrationDropReasonOf<K extends HydrationDropRow["kind"]> = {
+  readonly [R in HydrationDropReason]: (typeof HYDRATION_DROP_TABLE)[R]["kind"] extends K
+    ? R
+    : never;
+}[HydrationDropReason];
+
+/**
+ * Why the **server** left an entry out of a payload.
+ *
+ * A named union rather than a bare string literal: the two sides report through
+ * the same `HydrationDrop` shape but with different reasons, so a reader of
+ * either hook's signature should be able to see which set of reasons it is
+ * looking at. An entry that is both foreign and unencodable is `ForeignSubject`:
+ * the subject filter runs first and a foreign entry is never encoded. Derived
+ * from the table by kind.
+ */
+export type DehydrationDropReason = HydrationDropReasonOf<"dehydration">;
+
+/**
+ * Why the **client** did not seed an entry, or a whole payload.
+ *
+ * `PayloadSubjectMismatch`, `UnsupportedPayloadVersion`, `MalformedPayload` and
+ * `PayloadTooDeep` reject the payload entire rather than entry by entry: the
+ * subject id and the version are properties of the payload, and a value that is
+ * not an envelope has no entries to speak of.
+ *
+ * There is no reason for an atom set that was not built by `makeQadiAtoms`.
+ * That was `UnregisteredAtoms`, and it existed because the seed lookup was a
+ * side table keyed on the atom set's identity; the atom set now owns the
+ * capability (`QadiAtoms.hydrate`), so the situation cannot arise. Derived from
+ * the table by kind.
+ */
+export type ClientHydrationDropReason = HydrationDropReasonOf<"payload" | "entry">;
 
 /** The summary and the remedy for one reason. */
 export const hydrationDropMeaning = (reason: HydrationDropReason): HydrationDropMeaning =>
-  MEANINGS[reason];
+  HYDRATION_DROP_TABLE[reason];
 
 /**
  * Whether a metric key is one of {@link hydrationDropReasons}.
  *
  * A frequency's keys arrive as `string`, and any module in the process can write
- * a word into it; this narrows one without a cast.
+ * a word into it; this narrows one without a cast. Own keys only, so a name
+ * every object inherits (`toString`, `__proto__`) is not a reason.
  */
 export const isHydrationDropReason = (word: string): word is HydrationDropReason =>
-  hydrationDropReasons.some((one) => one === word);
+  Object.hasOwn(HYDRATION_DROP_TABLE, word);
+
+/**
+ * Every reason, as values — so a reader need not restate the union.
+ *
+ * The table's keys in declaration order (`Object.keys` keeps insertion order for
+ * keys that are not integer-like), narrowed by the own-key guard so no cast is
+ * needed. Declared after the guard because it calls it at load: a `const` read
+ * before its declaration throws.
+ */
+export const hydrationDropReasons: ReadonlyArray<HydrationDropReason> = Object.keys(
+  HYDRATION_DROP_TABLE,
+).filter(isHydrationDropReason);
 
 /**
  * Decisions a server projected into a payload.
