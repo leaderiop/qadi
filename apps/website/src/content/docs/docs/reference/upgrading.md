@@ -74,10 +74,11 @@ later.
 
 Each refusal is reported, not swallowed:
 
-- `@qadi/devtools` reports a version-1 record as `"unsupported-version"` and a
-  bare frame as `"not-a-record"`, through `onMalformed`.
+- `@qadi/devtools` reports a version-1 record as an `UnsupportedVersion`
+  refusal and a bare frame as a `Malformed` one, through `onMalformed`.
 - An aggregator using `decodeSinkRecordString` gets `UnsupportedVersion`, which
-  the example's ingest route answers with a 400 saying the sender predates 0.10.
+  the example's ingest route answers with a 400 carrying `describeDecodeRefusal`'s
+  sentence: upgrade the sender.
 
 ## Hydration payloads from older servers
 
@@ -614,3 +615,48 @@ export const describeBaseline = (baseline: Baseline): string =>
 ```
 
 The headless model that decides this is [ADR-QD-047](https://github.com/leaderiop/qadi/blob/main/spec/decisions/047-a-headless-devtools-model.md).
+
+## 0.13: onMalformed receives core's DecodeRefusal
+
+`sourceFromEventSource`'s `onMalformed` now receives `@qadi/core`'s `DecodeRefusal` as its second argument, not a word. `MalformedReason` is gone, and the default warning's `qadi.reason` annotation is now `qadi.refusal`, holding the refusal's tag. The five words map to tags:
+
+| Before | After |
+| - | - |
+| `not-json` | `NotJson` |
+| `too-deep` | `TooDeep` |
+| `not-a-record` | `Malformed` |
+| `unsupported-version` | `UnsupportedVersion` |
+| `inconsistent` | `Inconsistent` |
+
+`not-a-record` named both a bare record and a record the wire does not describe; both are now `Malformed`, and its `message` tells them apart. Before:
+
+```ts
+import { sourceFromEventSource } from "@qadi/devtools";
+
+export const dropped: Array<string> = [];
+
+export const source = sourceFromEventSource({
+  url: "/__decisions",
+  onMalformed: (frame, reason) => {
+    dropped.push(`${reason}: ${frame.slice(0, 120)}`);
+  },
+});
+```
+
+After:
+
+```typescript
+import { describeDecodeRefusal } from "@qadi/core";
+import { sourceFromEventSource } from "@qadi/devtools";
+
+export const dropped: Array<string> = [];
+
+export const source = sourceFromEventSource({
+  url: "/__decisions",
+  onMalformed: (frame, refusal) => {
+    dropped.push(`${describeDecodeRefusal(refusal)}: ${frame.slice(0, 120)}`);
+  },
+});
+```
+
+The decision is [ADR-QD-153](https://github.com/leaderiop/qadi/blob/main/spec/decisions/153-core-owns-describing-a-decode-refusal.md).
