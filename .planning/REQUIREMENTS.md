@@ -17,7 +17,7 @@ unless a phase's planner records evidence against one). Per-phase evidence and r
 - [ ] **RUN-05**: A restart from inside a store's Starting/Reading notification leaves the newest run live in all three stores (RED first on the phase base, or refuted with recorded evidence), and a run body that starts a command before its first yield is reported, not left silently idle.
 - [x] **RUN-06**: Observable behaviour is unchanged: the session run is still a root span, interruption never reads as `Stopped` (INV-QD-313), and the session still reads a defect or self-interrupt as `Broke`; the feeds' interrupt-only filter is one named hook that the session does not use.
 - [ ] **RUN-07**: A seeded model-based property (ARCH-79 pattern) drives random interleavings of begin, fork, land, stop and close, and checks that only the current run's result lands and nothing lands after close.
-- [ ] **RUN-08**: ADR-QD-137 §7 and point 3 are corrected (no `useRunningStore`; the unconditional stop), and AGENTS.md §10 stops naming `it.scoped`, which `@effect/vitest@4.1.2` does not have.
+- [x] **RUN-08**: ADR-QD-137 §7 and point 3 are corrected (no `useRunningStore`; the unconditional stop), and AGENTS.md §10 stops naming `it.scoped`, which `@effect/vitest@4.1.2` does not have.
 
 ### The sink wire version stated once (Phase 38, ARCH-85, core)
 
@@ -101,7 +101,7 @@ The seven WX rows apply to every phase 37 to 42, so each phase's Requirements li
 | RUN-05 | Phase 37 | Pending |
 | RUN-06 | Phase 37 | Complete |
 | RUN-07 | Phase 37 | Pending |
-| RUN-08 | Phase 37 | Pending |
+| RUN-08 | Phase 37 | Complete |
 | WIRE-01 | Phase 38 | Pending |
 | WIRE-02 | Phase 38 | Pending |
 | WIRE-03 | Phase 38 | Pending |
