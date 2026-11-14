@@ -58,7 +58,7 @@ unless a phase's planner records evidence against one). Per-phase evidence and r
 - [x] **SEED-03**: If the decision is to change code: `makeSeededQuestion` takes no function that receives a function, the seed-to-evaluation link is tested through a real atom runtime (no fake `computedFor`), and the liveness rule is stated once.
 - [x] **SEED-04**: If code changes, every existing pin holds: render sequences, the seed/lifetime/sweep suites, the 30 e2e scenarios, INV-QD-028/105/317/318, the `maxTrackedQuestions` proofs (StrictMode, `<Activity>`, no leaked fibers, one sweeper), and no `scheduleTask`/`defaultIdleTTL`.
 - [x] **SEED-05**: If the decision is to reject: ADR-QD-155 records the rejection, no source changes, and the CCR row names the unused numbers.
-- [ ] **SEED-06**: A final sweep corrects anything Phases 37–41 left stale, and the milestone is re-verified at its final head with a mutation re-check of every touched file.
+- [x] **SEED-06**: A final sweep corrects anything Phases 37–41 left stale, and the milestone is re-verified at its final head with a mutation re-check of every touched file.
 
 ### Cross-cutting (every v1.4 phase)
 
@@ -127,7 +127,7 @@ The seven WX rows apply to every phase 37 to 42, so each phase's Requirements li
 | SEED-03 | Phase 42 | Complete |
 | SEED-04 | Phase 42 | Complete |
 | SEED-05 | Phase 42 | Complete |
-| SEED-06 | Phase 42 | Pending |
+| SEED-06 | Phase 42 | Complete |
 | WX-01 | All v1.4 phases | Complete |
 | WX-02 | All v1.4 phases | Complete |
 | WX-03 | All v1.4 phases | Complete |
