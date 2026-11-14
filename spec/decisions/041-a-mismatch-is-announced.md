@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-041                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted; amended 2026-11-10 (a supplied reporter that throws is contained) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.4 (2026-11-10): amended — a supplied reporter that throws is contained and announced as ReporterThrew, in every environment; DehydrationDropped replaces PayloadMixedSubjects (ARCH-60, INV-QD-251, CCR-QD-398)<br>1.3 (2026-10-08): The confinement point is `DeveloperSignals.ts` and holds every developer signal `@qadi/react` raises, including `QadiProvider`'s three, each replaceable through `onDeveloperSignal`; the confinement is enforced by `no-ambient-console`; the deferral in Consequences is superseded in a blockquote (CCR-QD-203)<br>1.2 (2026-10-04): `HydrationMismatch.seeded` is a `SeededDecision`, not a `Decision`; the stated reason for naming the policy from `decided.trace` ("a stand-in that names nothing") is corrected in a blockquote, original preserved (ADR-QD-078, CCR-QD-156)<br>1.1 (2026-09-07): The worked-example paraphrase updated to match ADR-QD-040's corrected denial text (issue 45, CCR-QD-114)<br>1.0 (2026-08-23): Initial release (CCR-QD-056) |
+> | Change History | 1.5 (2026-11-14): Amendment: the once-per-question latch is SeededQuestion.ts's announced state, seededDecision is deleted (ADR-QD-155, CCR-QD-433)<br>1.4 (2026-11-10): amended — a supplied reporter that throws is contained and announced as ReporterThrew, in every environment; DehydrationDropped replaces PayloadMixedSubjects (ARCH-60, INV-QD-251, CCR-QD-398)<br>1.3 (2026-10-08): The confinement point is `DeveloperSignals.ts` and holds every developer signal `@qadi/react` raises, including `QadiProvider`'s three, each replaceable through `onDeveloperSignal`; the confinement is enforced by `no-ambient-console`; the deferral in Consequences is superseded in a blockquote (CCR-QD-203)<br>1.2 (2026-10-04): `HydrationMismatch.seeded` is a `SeededDecision`, not a `Decision`; the stated reason for naming the policy from `decided.trace` ("a stand-in that names nothing") is corrected in a blockquote, original preserved (ADR-QD-078, CCR-QD-156)<br>1.1 (2026-09-07): The worked-example paraphrase updated to match ADR-QD-040's corrected denial text (issue 45, CCR-QD-114)<br>1.0 (2026-08-23): Initial release (CCR-QD-056) |
 
 _Follows: [ADR-QD-039](./039-a-seed-is-not-an-authority.md), which made the
 client's answer supersede the seed and said nothing about telling anyone._
@@ -233,3 +233,11 @@ library.
   takes the same `HydrationDrop` as `HydrateOptions.onDropped`.
 - The confinement is unchanged: `DeveloperSignals.ts` is still the only file
   that writes to `console`.
+
+## Amendment (2026-11-14, ADR-QD-155, CCR-QD-433)
+
+The once-per-question latch is no longer a closure flag in `seededDecision` in `QadiAtoms.ts`;
+`seededDecision` is deleted. It is the `announced` state per registry in
+`packages/react/src/SeededQuestion.ts`'s `makeSeededQuestion`
+([ADR-QD-155](./155-a-seeded-question-owns-its-computing-atom.md)). Where "Once per question"
+above says `seededDecision`, read `SeededQuestion.ts`. The rule is unchanged.
