@@ -5,16 +5,16 @@ milestone_name: Arch Wave 9
 current_phase: 39
 current_phase_name: Each hydration drop reason stated once, with its kind
 status: executing
-stopped_at: Completed QD-39-02-PLAN.md
-last_updated: "2026-11-14T05:59:27.912Z"
+stopped_at: Completed QD-39-03-PLAN.md
+last_updated: "2026-11-14T06:02:03.274Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase QD-39 execution started
-state_head: 56facfa11142177dcfb75083dc666073d91fb192
+state_head: 32bca17747e536d511fd6f1ff91e0988c4464d6a
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 18
-  completed_plans: 15
+  completed_plans: 16
   percent: 33
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 ## Current Position
 
 Phase: QD-39 (Each hydration drop reason stated once, with its kind) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Executing Phase QD-39
 Last activity: 2026-11-14 — Phase QD-39 execution started
 
@@ -220,6 +220,7 @@ Progress: [███░░░░░░░] 33% (v1.4: 1 of 6 phases)
 | Phase QD-38 P04 | 25 min | 3 tasks | 2 files |
 | Phase QD-39 P01 | 10 min | 3 tasks | 4 files |
 | Phase QD-39 P02 | 3 min | 2 tasks | 2 files |
+| Phase QD-39 P03 | 15 min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -353,6 +354,7 @@ Progress: [███░░░░░░░] 33% (v1.4: 1 of 6 phases)
 - [Phase QD-38]: 38-04: a mutation ratio drop after a conversion that removes killed mutants is closed by a boundary test (two cases at exactly MAX_DECODE_DEPTH), never a re-baseline
 - [Phase QD-39]: 39-01: the new-reason experiment uses an entry reason (ThrowawayEntry) so 39-03's after-record compares like with like
 - [Phase QD-39]: 39-02: second public type is HydrationDropRow; negatives are checked @ts-expect-error directives (toRaiseError deprecated in tstyche 7.2.5)
+- [Phase QD-39]: 39-03: a payload row compiles everywhere in react (payload refusal map is keyed by decoder tags); only an entry row is a compile error, at bucketOf
 
 ### Pending Todos
 
@@ -397,8 +399,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T05:59:27.841Z
-Stopped at: Completed QD-39-02-PLAN.md
+Last session: 2026-11-14T06:02:03.206Z
+Stopped at: Completed QD-39-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

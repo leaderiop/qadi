@@ -477,7 +477,7 @@ Plans:
   4. A throwaway new row reaches the metric, the devtools hydration panel (at zero) and react's reporters with one edit, recorded; names and runtime exports are unchanged.
 
 **Planning notes**: **Research flag: standard, skip research-phase** (the `ENFORCEMENT_ERROR_CLASSES` precedent). **Plan shape**: commit the written-out ordered nine-word snapshot first, with the mutation base (`HydrationEvent.ts` is in the react Stryker list); core first, then react derives from it (delete the "placed by hand" doc); keep the metric's declaration line, id and description untouched, because the registry key includes the description; `METRIC_ID_LITERAL_BUDGET` for `HydrationMetrics.test.ts` stays 5; overview rows for the new public type; `bucketOf` and the refusal maps stay exhaustive.
-**Plans**: 2/5 plans executed
+**Plans**: 3/5 plans executed
 
 Plans:
 **Wave 1**
@@ -487,7 +487,7 @@ Plans:
 - [x] 39-02-PLAN.md — Tracer: one module-private table in `HydrationMetrics.ts` with each reason's kind and meaning; the unions, `HydrationDropReasonOf`, `HydrationDropRow`, the list, the `Object.hasOwn` guard and the meaning read it; the kinds pinned and a kind-less row refused in tstyche
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 39-03-PLAN.md — React's payload and entry groups read off core's table; the new-reason experiment after the change recorded and reverted
+- [x] 39-03-PLAN.md — React's payload and entry groups read off core's table; the new-reason experiment after the change recorded and reverted
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 39-04-PLAN.md — ADR-QD-152 amending ADR-QD-123 and ADR-QD-037, INV-QD-323, BEH-QD-230/231 and INV-QD-045 amended, the overview and traceability rows, the CCR-QD-430 row, and the `@qadi/core` minor and `@qadi/react` patch changesets

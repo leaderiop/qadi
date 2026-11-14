@@ -32,7 +32,7 @@ unless a phase's planner records evidence against one). Per-phase evidence and r
 - [x] **DROP-01**: One keyed table in `HydrationMetrics.ts` states each reason once with its kind (`dehydration` | `payload` | `entry`) and its meaning; the `MEANINGS` table is folded into it.
 - [x] **DROP-02**: The reason unions, `hydrationDropReasons`, `isHydrationDropReason` (by `Object.hasOwn`) and react's payload/entry groups derive from the table, and a reason without a kind fails to compile (tstyche negative).
 - [x] **DROP-03**: The list order is exactly today's interleaved order (a written-out nine-word snapshot committed on the phase base stays green), and the existing written-out lists and the `length === 9` pin stay as independent oracles.
-- [ ] **DROP-04**: `qadi_hydration_dropped_total`'s declaration, id, description and `[metric-table]` row are unchanged, and a throwaway new row reaches the metric, the devtools panel and react's reporters with one edit (recorded).
+- [x] **DROP-04**: `qadi_hydration_dropped_total`'s declaration, id, description and `[metric-table]` row are unchanged, and a throwaway new row reaches the metric, the devtools panel and react's reporters with one edit (recorded).
 
 ### Core owns describing a decode refusal (Phase 40, ARCH-87, core + devtools + audit)
 
@@ -110,7 +110,7 @@ The seven WX rows apply to every phase 37 to 42, so each phase's Requirements li
 | DROP-01 | Phase 39 | Complete |
 | DROP-02 | Phase 39 | Complete |
 | DROP-03 | Phase 39 | Complete |
-| DROP-04 | Phase 39 | Pending |
+| DROP-04 | Phase 39 | Complete |
 | DREF-01 | Phase 40 | Pending |
 | DREF-02 | Phase 40 | Pending |
 | DREF-03 | Phase 40 | Pending |
