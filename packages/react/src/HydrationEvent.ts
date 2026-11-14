@@ -49,7 +49,14 @@
  * `console` and `process.env`: a boundary in a file with a name stays visible,
  * where one spread across three call sites dissolves into convention.
  */
-import type { Decision, DehydrationDropReason, HydrationDropReason, Policy, Resource } from "@qadi/core";
+import type {
+  Decision,
+  DehydrationDropReason,
+  HydrationDropReason,
+  HydrationDropReasonOf,
+  Policy,
+  Resource,
+} from "@qadi/core";
 import {
   hydrationDehydratedTotal,
   hydrationDroppedTotal,
@@ -79,17 +86,20 @@ export interface DecisionEntry {
  *
  * The subject id and the version are properties of the payload, and a value that
  * is not an envelope has no entries to speak of, so there is nothing to seed.
- * Written out rather than `Extract`ed: with {@link EntryDropReason} it partitions
- * `ClientHydrationDropReason`, and a new reason is placed by hand.
+ * Read off core's drop-reason table by kind, so with {@link EntryDropReason} it
+ * partitions `ClientHydrationDropReason`, and a new payload reason joins this
+ * group from its row alone (ADR-QD-152).
  */
-export type PayloadRefusalReason =
-  | "PayloadSubjectMismatch"
-  | "UnsupportedPayloadVersion"
-  | "MalformedPayload"
-  | "PayloadTooDeep";
+export type PayloadRefusalReason = HydrationDropReasonOf<"payload">;
 
-/** The reasons that drop some entries of a payload and seed the rest. */
-export type EntryDropReason = "MalformedEntry" | "UndecodablePolicy" | "EntryTooDeep";
+/**
+ * The reasons that drop some entries of a payload and seed the rest.
+ *
+ * Read off core's table by kind; the engine buckets refused entries in a record
+ * keyed by every one of these reasons, so a new entry reason does not compile
+ * until it has a bucket there (ADR-QD-152).
+ */
+export type EntryDropReason = HydrationDropReasonOf<"entry">;
 
 /**
  * Everything hydration can tell the world about one call.
