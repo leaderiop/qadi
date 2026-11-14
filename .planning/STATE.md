@@ -5,16 +5,16 @@ milestone_name: Arch Wave 9
 current_phase: 37
 current_phase_name: A scoped run that a newer run supersedes
 status: executing
-stopped_at: Completed 37-07-PLAN.md
-last_updated: "2026-11-14T02:15:19.288Z"
+stopped_at: Completed 37-08-PLAN.md
+last_updated: "2026-11-14T02:26:29.345Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 37 execution started
-state_head: e0de1815695c6f8bb81ea7f61900312220e0a222
+state_head: 7dc42374382ac2a7ef7ead7bffbab9612997715f
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 ## Current Position
 
 Phase: 37 (A scoped run that a newer run supersedes) — EXECUTING
-Plan: 8 of 9
+Plan: 9 of 9
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 37 execution started
 
@@ -210,6 +210,7 @@ Progress: [░░░░░░░░░░] 0% (v1.4: 0 of 6 phases)
 | Phase 37 P05 | 10 min | 2 tasks | 2 files |
 | Phase 37 P06 | 12 min | 2 tasks | 2 files |
 | Phase 37 P07 | 14 min | 2 tasks | 7 files |
+| Phase 37 P08 | 16 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -335,6 +336,7 @@ Progress: [░░░░░░░░░░] 0% (v1.4: 0 of 6 phases)
 - [Phase 37]: 37-05: DiagnosticsFeed keeps only its Starting publish, isCurrent-guarded accept, Stopped mapping and closed guards; protocol block removed
 - [Phase 37]: 37-06: SimulationSession supersede stays a named one-line runs.stop(); the guarded stop is deleted and land keeps mapping every non-success exit of a current run to Broke (no onFailure hook)
 - [Phase 37]: ADR-QD-150 records the held fork as the stronger form of RUN-05; the report-only fallback is named and was not needed
+- [Phase 37]: 37-08: the five superseding-run behaviours live in 28-devtools-screens.md (BEH-QD-521..525); INV-QD-319 is the property's law and INV-QD-320 the re-entrancy law
 
 ### Pending Todos
 
@@ -377,8 +379,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T02:15:19.265Z
-Stopped at: Completed 37-07-PLAN.md
+Last session: 2026-11-14T02:26:29.271Z
+Stopped at: Completed 37-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

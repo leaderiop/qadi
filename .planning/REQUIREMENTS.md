@@ -12,11 +12,11 @@ unless a phase's planner records evidence against one). Per-phase evidence and r
 
 - [x] **RUN-01**: A package-private devtools module owns the run handle, the generation token, the closed state, the finalizer ordering (registered after the handle so it runs first), interrupt-on-replace, `stop` and "land only while current", through a two-step `begin()` → publish → `fork(token, effect)` interface (R2).
 - [ ] **RUN-02**: `SimulationSession`, `TimelineFeed` and `DiagnosticsFeed` use the module, and none of them declares `let generation`, `let closed`, `FiberHandle.make`/`FiberHandle.runtime` or its own bump-in-finalizer block (negative grep scoped to the phase's added lines).
-- [ ] **RUN-03**: The module has its own tests through its interface: supersede, close mid-run (including a defecting finalizer), stop in each state (not started, running, completed, closed), interrupt vs failure, and two instances in two scopes.
-- [ ] **RUN-04**: `stop` is one unconditional rule (R1) used by both former call sites, pinned by one test: stopping with no run changes nothing and notifies nobody.
-- [ ] **RUN-05**: A restart from inside a store's Starting/Reading notification leaves the newest run live in all three stores (RED first on the phase base, or refuted with recorded evidence), and a run body that starts a command before its first yield is reported, not left silently idle.
+- [x] **RUN-03**: The module has its own tests through its interface: supersede, close mid-run (including a defecting finalizer), stop in each state (not started, running, completed, closed), interrupt vs failure, and two instances in two scopes.
+- [x] **RUN-04**: `stop` is one unconditional rule (R1) used by both former call sites, pinned by one test: stopping with no run changes nothing and notifies nobody.
+- [x] **RUN-05**: A restart from inside a store's Starting/Reading notification leaves the newest run live in all three stores (RED first on the phase base, or refuted with recorded evidence), and a run body that starts a command before its first yield is reported, not left silently idle.
 - [x] **RUN-06**: Observable behaviour is unchanged: the session run is still a root span, interruption never reads as `Stopped` (INV-QD-313), and the session still reads a defect or self-interrupt as `Broke`; the feeds' interrupt-only filter is one named hook that the session does not use.
-- [ ] **RUN-07**: A seeded model-based property (ARCH-79 pattern) drives random interleavings of begin, fork, land, stop and close, and checks that only the current run's result lands and nothing lands after close.
+- [x] **RUN-07**: A seeded model-based property (ARCH-79 pattern) drives random interleavings of begin, fork, land, stop and close, and checks that only the current run's result lands and nothing lands after close.
 - [x] **RUN-08**: ADR-QD-137 §7 and point 3 are corrected (no `useRunningStore`; the unconditional stop), and AGENTS.md §10 stops naming `it.scoped`, which `@effect/vitest@4.1.2` does not have.
 
 ### The sink wire version stated once (Phase 38, ARCH-85, core)
@@ -96,11 +96,11 @@ The seven WX rows apply to every phase 37 to 42, so each phase's Requirements li
 |-------------|-------|--------|
 | RUN-01 | Phase 37 | Complete |
 | RUN-02 | Phase 37 | Pending |
-| RUN-03 | Phase 37 | Pending |
-| RUN-04 | Phase 37 | Pending |
-| RUN-05 | Phase 37 | Pending |
+| RUN-03 | Phase 37 | Complete |
+| RUN-04 | Phase 37 | Complete |
+| RUN-05 | Phase 37 | Complete |
 | RUN-06 | Phase 37 | Complete |
-| RUN-07 | Phase 37 | Pending |
+| RUN-07 | Phase 37 | Complete |
 | RUN-08 | Phase 37 | Complete |
 | WIRE-01 | Phase 38 | Pending |
 | WIRE-02 | Phase 38 | Pending |
