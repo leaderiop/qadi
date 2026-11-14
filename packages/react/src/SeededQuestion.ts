@@ -47,7 +47,7 @@ import { permits } from "./SeededDecision.ts";
  * is a control appearing and then disappearing. Field-set differences would
  * report every projection difference as a wiring problem.
  */
-export const isMismatch = (seeded: SeededDecision, decided: Decision): boolean =>
+const isMismatch =(seeded: SeededDecision, decided: Decision): boolean =>
   permits(seeded) !== isAllowed(decided);
 
 /**
