@@ -5,16 +5,16 @@ milestone_name: Arch Wave 9
 current_phase: 39
 current_phase_name: Each hydration drop reason stated once, with its kind
 status: executing
-stopped_at: Phase QD-38 complete, ready to plan Phase 39
-last_updated: "2026-11-14T05:49:47.941Z"
+stopped_at: Completed QD-39-01-PLAN.md
+last_updated: "2026-11-14T05:55:13.442Z"
 last_activity: 2026-11-14
-last_activity_desc: Phase QD-38 complete, transitioned to Phase 39
-state_head: dc4dc091d9cd39dde63c421b6124671055c749fc
+last_activity_desc: Phase QD-39 execution started
+state_head: d84cc614a5c2afb1d14a1de5d3e220fe2265297d
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 18
-  completed_plans: 13
+  completed_plans: 14
   percent: 33
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-14)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 39 — Each hydration drop reason stated once, with its kind
+**Current focus:** Phase QD-39 — Each hydration drop reason stated once, with its kind
 
 ## Current Position
 
-Phase: QD-39 (Each hydration drop reason stated once, with its kind) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-11-14 — Phase QD-38 complete, transitioned to Phase 39
+Phase: QD-39 (Each hydration drop reason stated once, with its kind) — EXECUTING
+Plan: 2 of 5
+Status: Executing Phase QD-39
+Last activity: 2026-11-14 — Phase QD-39 execution started
 
 Progress: [███░░░░░░░] 33% (v1.4: 1 of 6 phases)
 
@@ -218,6 +218,7 @@ Progress: [███░░░░░░░] 33% (v1.4: 1 of 6 phases)
 | Phase QD-38 P02 | 15 min | 3 tasks | 3 files |
 | Phase QD-38 P03 | 20 min | 3 tasks | 9 files |
 | Phase QD-38 P04 | 25 min | 3 tasks | 2 files |
+| Phase QD-39 P01 | 10 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -349,6 +350,7 @@ Progress: [███░░░░░░░] 33% (v1.4: 1 of 6 phases)
 - [Phase QD-38]: 38-02: decoder read check is isReadVersion = Schema.is(Schema.Literals(WIRE_VERSIONS)), not WIRE_VERSIONS.some (Stryker some-to-every mutant is equivalent over a one-element set)
 - [Phase QD-38]: ADR-QD-151: the sink wire write version WIRE_VERSION and the read set WIRE_VERSIONS are distinct; the narrowing to readonly [2] is source-compatible (minor changeset)
 - [Phase QD-38]: 38-04: a mutation ratio drop after a conversion that removes killed mutants is closed by a boundary test (two cases at exactly MAX_DECODE_DEPTH), never a re-baseline
+- [Phase QD-39]: 39-01: the new-reason experiment uses an entry reason (ThrowawayEntry) so 39-03's after-record compares like with like
 
 ### Pending Todos
 
@@ -393,8 +395,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T04:07:49.274Z
-Stopped at: Phase QD-38 complete, ready to plan Phase 39
+Last session: 2026-11-14T05:55:13.408Z
+Stopped at: Completed QD-39-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

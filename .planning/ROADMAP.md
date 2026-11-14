@@ -477,11 +477,11 @@ Plans:
   4. A throwaway new row reaches the metric, the devtools hydration panel (at zero) and react's reporters with one edit, recorded; names and runtime exports are unchanged.
 
 **Planning notes**: **Research flag: standard, skip research-phase** (the `ENFORCEMENT_ERROR_CLASSES` precedent). **Plan shape**: commit the written-out ordered nine-word snapshot first, with the mutation base (`HydrationEvent.ts` is in the react Stryker list); core first, then react derives from it (delete the "placed by hand" doc); keep the metric's declaration line, id and description untouched, because the registry key includes the description; `METRIC_ID_LITERAL_BUDGET` for `HydrationMetrics.test.ts` stays 5; overview rows for the new public type; `bucketOf` and the refusal maps stay exhaustive.
-**Plans**: 5 plans
+**Plans**: 1/5 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 39-01-PLAN.md — Evidence on the base: the mutation baseline of both files (first commit, alone), the nine words written out and read off the metric at zero, the unions and react's groups written out at type level, and the new-reason experiment on the base recorded and reverted
+- [x] 39-01-PLAN.md — Evidence on the base: the mutation baseline of both files (first commit, alone), the nine words written out and read off the metric at zero, the unions and react's groups written out at type level, and the new-reason experiment on the base recorded and reverted
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 39-02-PLAN.md — Tracer: one module-private table in `HydrationMetrics.ts` with each reason's kind and meaning; the unions, `HydrationDropReasonOf`, `HydrationDropRow`, the list, the `Object.hasOwn` guard and the meaning read it; the kinds pinned and a kind-less row refused in tstyche
