@@ -5,16 +5,16 @@ milestone_name: Arch Wave 9
 current_phase: 41
 current_phase_name: One guarded value-to-text function
 status: executing
-stopped_at: Completed 41-02-PLAN.md
-last_updated: "2026-11-14T15:51:17.658Z"
+stopped_at: Completed 41-03-PLAN.md
+last_updated: "2026-11-14T15:55:34.107Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase QD-40 complete, transitioned to Phase 41
-state_head: 8217de3f04e2b9dd7ab40d7e47d6625edcc9ffae
+state_head: b428e4002b0bc25856ed1f7b829b00607f0b3513
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 33
-  completed_plans: 29
+  completed_plans: 30
   percent: 67
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 ## Current Position
 
 Phase: QD-41 (One guarded value-to-text function) — READY TO EXECUTE
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase QD-40 complete, transitioned to Phase 41
 
@@ -236,6 +236,7 @@ Progress: [███████░░░] 67% (v1.4: 1 of 6 phases)
 | Phase QD-40 P09 | 10 min | 3 tasks | 1 files |
 | Phase QD-41 P01 | 25 min | 2 tasks | 5 files |
 | Phase QD-41 P02 | 25min | 3 tasks | 6 files |
+| Phase QD-41 P03 | 15 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -382,6 +383,7 @@ Progress: [███████░░░] 67% (v1.4: 1 of 6 phases)
 - [Phase QD-40]: 40-08: the README example is a compiled typescript fence; trailer stays Claude Sonnet 5.5 as in 40-05 to 40-07
 - [Phase QD-40]: 40-09: no measured file's mutation score fell (SinkCodec 0.9755, SinkWire 1, Source 1, AuditEntry 1); check:pr green, nothing released
 - [Phase QD-41]: ADR-QD-154: valueText(value: unknown): string | undefined is a public @qadi/core export (core cannot import a devtools-private module, ADR-QD-099); each consumer keeps its own reading of no text; core minor, devtools patch
+- [Phase QD-41]: 41-03: valueText keeps SimulationForm's guarded body unchanged (one try, one JSON.stringify, bare catch with only a comment), public in @qadi/core and named in spec/overview.md
 
 ### Pending Todos
 
@@ -428,8 +430,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T15:51:17.579Z
-Stopped at: Completed 41-02-PLAN.md
+Last session: 2026-11-14T15:55:34.020Z
+Stopped at: Completed 41-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

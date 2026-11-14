@@ -559,7 +559,7 @@ Plans:
   4. The way a remedy over a non-JSON value is shown is decided and pinned, with BEH-QD-223 intact.
 
 **Planning notes**: **Research flag: standard, skip research-phase** (the language semantics are settled; the work is the RED test and the adapters). Only `Remedies.ts:574` is live (used at `:481`, `:496` and for the size at `:249`); `Inspect.ts`'s `outsideUnion` and `QuestionsPanel.tsx`'s `resourceOf` cannot throw and are not folded in, because folding would change visible output. Filters (`[]`), SimulationForm (`undefined`, then its round-trip check) and Remedies (the word `undefined`) keep thin local mappings over the primitive. Wrap the stringify call (`Result.try` or the existing try/catch precedent), because a throwing `toJSON` or getter is reachable; no blanket catch, no `orDie`. **Plan shape, RED first**: RED tests at two levels (`remedyEdits`, and `makeSimulationSession` with `setPolicy`/`chooseSight`) in a new file, together with the mutation base for the four touched model files; then the primitive and its one test table (bigint, circular, nested bigint, symbol, function, `undefined`, `NaN`, `-0`, null-prototype, throwing `toJSON`, throwing getter) with a per-consumer pinned-output row; then the three consumers; then records; the mutation comparison last.
-**Plans**: 2/6 plans executed
+**Plans**: 3/6 plans executed
 
 Plans:
 **Wave 1**
@@ -569,7 +569,7 @@ Plans:
 - [x] 41-02-PLAN.md — RED: explain over a bigint or cycle literal (core); remedyEdits, the session commands, the rail and the inspector (devtools); the base's outputs written out in four test files
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 41-03-PLAN.md — tracer: valueText in core, exported and named in the overview, the form reads through it; the one rule table in core with a row per consumer
+- [x] 41-03-PLAN.md — tracer: valueText in core, exported and named in the overview, the form reads through it; the one rule table in core with a row per consumer
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 41-04-PLAN.md — explain and the remedy label read through valueText (both RED files flip green); Filters too; the scoped grep

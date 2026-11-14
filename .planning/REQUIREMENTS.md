@@ -47,7 +47,7 @@ unless a phase's planner records evidence against one). Per-phase evidence and r
 ### One guarded value-to-text function in devtools (Phase 41, ARCH-88)
 
 - [ ] **TEXT-01**: RED on the phase base: tests show a bigint or circular value through `contains`, `inArray` and `eq(literal)` throws from `remedyEdits` and from a session command (`setPolicy`/`chooseSight`), in a new test file; they pass after.
-- [ ] **TEXT-02**: One total value-to-text primitive, a public `@qadi/core` export read by core's `explain` too (D-13, user decision 2026-11-14), returns `string | undefined` and is never the cause of a throw (including a throwing `toJSON` or getter); its rules are asserted in one test table.
+- [x] **TEXT-02**: One total value-to-text primitive, a public `@qadi/core` export read by core's `explain` too (D-13, user decision 2026-11-14), returns `string | undefined` and is never the cause of a throw (including a throwing `toJSON` or getter); its rules are asserted in one test table.
 - [ ] **TEXT-03**: Remedies, Filters and SimulationForm read through it, no other `JSON.stringify` of an unknown value remains in those modules, and their existing outputs are pinned unchanged (bare strings, the word `undefined` in a remedy label, Filters' `[]`, the form's round-trip refusal).
 - [ ] **TEXT-04**: How a remedy over a non-JSON value is shown (degraded label or skipped with a reason) is decided and pinned, and BEH-QD-223 is not weakened.
 
@@ -119,7 +119,7 @@ The seven WX rows apply to every phase 37 to 42, so each phase's Requirements li
 | DREF-06 | Phase 40 | Complete |
 | DREF-07 | Phase 40 | Complete |
 | TEXT-01 | Phase 41 | Pending |
-| TEXT-02 | Phase 41 | Pending |
+| TEXT-02 | Phase 41 | Complete |
 | TEXT-03 | Phase 41 | Pending |
 | TEXT-04 | Phase 41 | Pending |
 | SEED-01 | Phase 42 | Pending |
