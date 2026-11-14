@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (latest: v1.4 Arch Wave 9 completed; next milestone not yet defined)
+# Qadi — Architecture Waves (current: v1.5 Arch Wave 10)
 
 ## What This Is
 
@@ -12,6 +12,28 @@ module was a shallow pass-through.
 
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
+
+## Current Milestone: v1.5 Arch Wave 10
+
+**Goal:** Resolve all ten candidates of the 2026-11-15 architecture review, closing the four silent defects first
+(a caller's `resource` dropped by `guard`/`filter*`, a wire field dropped by hydration's `rebuild`, a `NaN` breaker
+threshold that never opens, a failing user sink that loses records unlogged), then the six deepenings.
+
+**Target features (Phases 43–52, ARCH-90…99, strictly serial):**
+- 43: One handover module behind the ten enforcement entry points; `guard`/`filter*` refuse a second resource (Breaking, core)
+- 44: The hydration seed's fields stated once; dehydrate and rebuild are spreads (react)
+- 45: The audit circuit breaker as one pure transition function; options validated at construction (audit)
+- 46: The sink emitter contains and reports a failing sink once (core)
+- 47: Port facts (defaultedness, consequence, call reading) read from the port description, not names (core, devtools)
+- 48: Audit reports core's `SinkRecordNotEncodable` and derives "lost" from durability (audit, Breaking)
+- 49: Gates as the dock model's eighth store, with one gate-state vocabulary in core (core, react, devtools)
+- 50: What a leaf needs from the request, stated once; opens on a benchmark and may end in a recorded rejection (core)
+- 51: Policy tag arity stated once; `foldTrace` stays public (core)
+- 52: Core owns the predicate compile shell; each dialect keeps its rules, renderer and metric (core, predicate-sql, predicate-prisma)
+
+**Source review:** `/private/tmp/claude-502/-Users-mohammadalmechkor-Projects-Perso-qadi/bf083921-e7cd-4930-bcad-a3ef483d2ac8/scratchpad/architecture-review-20261115.html`
+(session-scoped; `.planning/phases/_WAVE10-CONTEXT.md` holds everything a planner needs). Branch `arch-wave-10`, based on
+`arch-wave-9` at `ba0d0615` (v1.4 is not merged). No merge, no release.
 
 ## Current State
 
@@ -165,7 +187,16 @@ logged, counted or spanned.
 
 ### Active
 
-(None — ARCH-84..89 shipped in v1.4 and are listed under Validated. The next milestone defines new ones.)
+- [ ] ARCH-90 One handover module behind the enforcement entry points (HAND-01..06) — Phase 43
+- [ ] ARCH-91 The hydration seed's fields stated once (HYDF-01..04) — Phase 44
+- [ ] ARCH-92 The audit circuit breaker as one transition function (BRKR-01..05) — Phase 45
+- [ ] ARCH-93 The sink emitter reports what it contains (EMIT-01..04) — Phase 46
+- [ ] ARCH-94 Port facts read from the description (PFCT-01..05) — Phase 47
+- [ ] ARCH-95 Audit reports core's refusal and derives "lost" (AREF-01..04) — Phase 48
+- [ ] ARCH-96 Gates as the dock model's eighth store, one gate-state vocabulary (GATE-01..05) — Phase 49
+- [ ] ARCH-97 What a leaf needs from the request, stated once (LEAF-01..05) — Phase 50
+- [ ] ARCH-98 Policy tag arity stated once (ARTY-01..03) — Phase 51
+- [ ] ARCH-99 Core owns the predicate compile shell (COMP-01..04) — Phase 52
 
 ### Out of Scope
 
@@ -351,4 +382,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-14 after v1.4 milestone*
+*Last updated: 2026-11-15 after starting v1.5 milestone*
