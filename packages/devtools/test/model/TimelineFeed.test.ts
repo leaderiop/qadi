@@ -402,4 +402,18 @@ describe("the timeline feed", () => {
       assert.deepStrictEqual(heard, []);
       assert.strictEqual(feed.status.getSnapshot()._tag, "Reading");
     }));
+
+  it.effect("TF20 a restart from Stopped publishes Reading before a read that dies at once publishes Stopped", () =>
+    Effect.gen(function* () {
+      const feed = yield* makeTimelineFeed({ source: { read: Effect.die(new Error("gone")) } });
+      yield* flush;
+      assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
+      const heard = heardStatus(feed);
+
+      feed.status.restart();
+      yield* flush;
+
+      assert.deepStrictEqual(heard, ["Reading", "Stopped"]);
+      assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
+    }));
 });
