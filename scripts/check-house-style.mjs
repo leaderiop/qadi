@@ -637,8 +637,6 @@ const UNTRUSTED_DECODE_BUDGET = {
   "packages/core/src/UntrustedDecode.ts": 5,
   // The depth walk's declaration: package-private, reached only from the untrusted decoder.
   "packages/core/src/DecodeDepthGuard.ts": 1,
-  // `recordJsonOf`, the deliberately lenient read of a row's record once the strict, untrusted read accepted it.
-  "packages/audit/src/AuditEntry.ts": 1,
   // `spanStruct` reads only its own named keys, and every leaf is a SpanValue primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map.
   "packages/core/src/PortSpanEncode.ts": 2,
   // `decodeStoredRecordString` parses the stored envelope itself and must not walk it: an unknown envelope key is ignored, however deep (ADR-QD-096 D-15-c). `record` reaches the guarded `decodeSinkRecord` from its own root. `SinkRecordWithJson`'s `Schema.decodeTo` is the transformation that gives `decodeSinkRecordWithJson` the record and its JSON form from one strict decode, run only through `untrustedDecoder` (ADR-QD-153).
@@ -656,7 +654,6 @@ const UNTRUSTED_DECODE_BUDGET = {
 const UNTRUSTED_DECODE_BUDGET_NAMES = {
   "packages/core/src/UntrustedDecode.ts": ["untrustedDecoder"],
   "packages/core/src/DecodeDepthGuard.ts": ["exceedsJsonDepth"],
-  "packages/audit/src/AuditEntry.ts": ["recordJsonOf"],
   "packages/core/src/PortSpanEncode.ts": ["spanStruct"],
   "packages/core/src/SinkCodec.ts": ["decodeStoredRecordString", "SinkRecordWithJson"],
   "packages/devtools/src/model/SimulationForm.ts": ["parseJson"],
