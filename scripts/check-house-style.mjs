@@ -602,7 +602,7 @@ const DECISION_READ_BUDGET = {
   // event's `mismatch`, ARCH-60; it was two before the event carried it).
   // Upstream of what a consumer reads — it chooses which result the atom holds
   // (ADR-QD-039) — so not a second reading of one.
-  "packages/react/src/HydrationEngine.ts": 2,
+  "packages/react/src/SeededQuestion.ts": 2,
 };
 
 /**
@@ -614,7 +614,7 @@ const DECISION_READ_BUDGET = {
  */
 const DECISION_READ_BUDGET_NAMES = {
   "packages/react/src/DecisionOutcome.ts": ["outcomeOf"],
-  "packages/react/src/HydrationEngine.ts": ["makeSeededQuestion"],
+  "packages/react/src/SeededQuestion.ts": ["makeSeededQuestion"],
 };
 
 /**

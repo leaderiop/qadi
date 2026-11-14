@@ -643,7 +643,7 @@ state-management layer of its own. The rules that keep it that way:
   `previousSuccess` — will report stale allows. `DECISION_READ_BUDGET` in
   `scripts/check-house-style.mjs` refuses such a read in `packages/*/src`
   outside its two budgeted files (`DecisionOutcome.ts`, and
-  `HydrationEngine.ts`'s seed precedence, which chooses what the atom holds
+  `SeededQuestion.ts`'s seed precedence, which chooses what the atom holds
   rather than reading it), checked in both directions; the two doc-fence gates
   (`check-doc-examples.mjs`, `check-website-doc-examples.mjs`) refuse it in a
   compiled fence that imports `@qadi/react`, unless the fence says why with a
