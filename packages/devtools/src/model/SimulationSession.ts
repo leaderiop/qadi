@@ -15,15 +15,16 @@
  * with no `ports` used to answer from fixtures. A Live run *captures*, which is
  * what makes `Snapshot` available (`prepareSource` again; the snapshot shows
  * `describeSource`, which builds no recorder). A run that was
- * superseded never lands (`generation`). And a result is shown only for the
- * question it answered (`stale`, `baseline`).
+ * superseded never lands (`isCurrent`, on the run's token). And a result is shown
+ * only for the question it answered (`stale`, `baseline`).
  *
  * The store is a closure over `makeExternalStore`, the mechanics
  * `TimelineStore.ts` shares; commands are synchronous and notify once.
  *
- * **The session owns its runs.** It is built in a `Scope` and keeps one
- * `FiberHandle`: every run forks into it, so a newer run or a superseding
- * command interrupts the run in flight, and closing the scope interrupts it too.
+ * **The session owns its runs.** It is built in a `Scope` and keeps one superseding
+ * run (`makeSupersedingRun`, ADR-QD-150): every run forks into it, so a newer run
+ * or a superseding command interrupts the run in flight, and closing the scope
+ * interrupts it too.
  * A host ends a session by closing its scope; nothing is reaped or disposed
  * (ADR-QD-137, which overrides ARCH-20 D-20-b, "the hook forks; model code
  * never does").
@@ -31,9 +32,7 @@
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
-import * as FiberHandle from "effect/FiberHandle";
 import * as Match from "effect/Match";
-import * as Option from "effect/Option";
 import type * as Scope from "effect/Scope";
 import type { DecisionOutcome, EvaluationClock, Policy } from "@qadi/core";
 import { makeExternalStore } from "./ExternalStore.ts";
@@ -48,6 +47,8 @@ import {
   type UnseededField,
 } from "./Replay.ts";
 import { simulate } from "./Simulation.ts";
+import { makeSupersedingRun } from "./SupersedingRun.ts";
+import type { RunToken } from "./SupersedingRun.ts";
 import type { ChipAdded, FieldView, SimulationField } from "./SimulationFields.ts";
 import { fieldOps, formOf, renameSubject } from "./SimulationFields.ts";
 import { actionOf, decodeResource, encodeResource, withAction, withResource } from "./SimulationForm.ts";
@@ -346,20 +347,8 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
   let capture: CapturedAnswers | undefined;
   let run: RunState = { _tag: "Idle" };
 
-  /** Which run's result is still wanted. Bumped synchronously, before any fiber is touched. */
-  let generation = 0;
-  /** Every run forks into this handle, so a newer fiber interrupts the one it replaces. */
-  const runs = yield* FiberHandle.make<void>();
-  const fork = yield* FiberHandle.runtime(runs)<never>();
-  let closed = false;
-  // Registered after the handle, so it runs first when the scope closes: a run the
-  // close interrupts can never land, and a closed session answers no `run`.
-  yield* Effect.addFinalizer(() =>
-    Effect.sync(() => {
-      generation += 1;
-      closed = true;
-    }),
-  );
+  /** Every run forks into this, so a newer run or a superseding command interrupts the one in flight; a closed session answers no `run`. */
+  const runs = yield* makeSupersedingRun();
 
   const policyChoice = (): PolicyChoice =>
     seeded === undefined
@@ -451,15 +440,13 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
   /**
    * Makes the run in flight stale and stops it, before the command returns.
    *
-   * Correctness is the generation's: the abandoned run's exit is never applied.
-   * Installing a fiber in the handle interrupts the one it replaces at once, so a
-   * superseded Live run stops asking the application's resolvers with no host
-   * code (BEH-QD-322, ADR-QD-137). The replaced run's finalizers run inside the
-   * command, and none of them writes session state.
+   * Correctness is the token's: the abandoned run's exit is never applied. The
+   * stop is unconditional, so a superseded Live run stops asking the application's
+   * resolvers with no host code (BEH-QD-322, ADR-QD-150). The replaced run's
+   * finalizers run inside the command, and none of them writes session state.
    */
   const supersede = () => {
-    generation += 1;
-    if (Option.isSome(FiberHandle.getUnsafe(runs))) fork(Effect.void);
+    runs.stop();
   };
 
   const program = (
@@ -483,7 +470,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
   // `root`: a run is the reviewer's own act, and the context the session captured
   // has the constructor's span as its parent.
   const land = Effect.fn("qadi.devtools.simulationSession.run", { root: true })(function* (
-    mine: number,
+    mine: RunToken,
     question: SimulationQuestion,
     kind: RunKind,
     ready: ReadySource,
@@ -492,7 +479,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
   ) {
     const exit = yield* Effect.exit(program(question, kind, ready, runClock, runPairs));
     // Superseded, or its scope closed: there is nothing to report to.
-    if (mine !== generation) return;
+    if (!runs.isCurrent(mine)) return;
 
     if (Exit.isSuccess(exit)) {
       if (exit.value.answers !== undefined) capture = exit.value.answers;
@@ -514,7 +501,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
   });
 
   const start = (kind: RunKind): void => {
-    if (closed) return;
+    if (runs.closed()) return;
     const choice = policyChoice();
     const policy = policyOf(choice);
     if (policy === undefined) return;
@@ -535,13 +522,13 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
       return;
     }
 
-    generation += 1;
-    const mine = generation;
+    const mine = runs.begin();
     const runClock = clock;
     run = { _tag: "Running", question };
     commit();
-    // A subscriber notified by that commit may already have superseded this run.
-    if (mine === generation) fork(land(mine, question, kind, prepared, runClock, pairs));
+    // A subscriber notified by that commit may already have superseded this run, and
+    // `fork` refuses a token that is no longer current.
+    runs.fork(mine, land(mine, question, kind, prepared, runClock, pairs));
   };
 
   /** The one path a draft changes by: the same no-op rule and resource text for every command. */
