@@ -239,6 +239,8 @@ const decodeFrame = (
     onFailure: (error) => malformed(frame, error.refusal, onMalformed),
   });
 
+const thrownName = (thrown: unknown): string => thrown instanceof Error ? thrown.name : typeof thrown;
+
 /**
  * Reports the drop, then filters the frame out.
  *
@@ -256,7 +258,15 @@ const malformed = (
       ? Effect.logWarning("qadi/devtools: a frame was not a decision record").pipe(
         Effect.annotateLogs({ ...decodeRefusalAnnotations(refusal), "qadi.frame": frame }),
       )
-      : Effect.sync(() => onMalformed(frame, refusal)),
+      : Effect.try({ try: () => onMalformed(frame, refusal), catch: thrownName }).pipe(
+        // A callback that throws must not end the stream. Only the thrown value's
+        // name or type is logged: its message may carry the sender's text (INV-QD-104).
+        Effect.catch((thrown) =>
+          Effect.logWarning("qadi/devtools: onMalformed threw").pipe(
+            Effect.annotateLogs({ "qadi.thrown": thrown }),
+          )
+        ),
+      ),
     Result.fail(frame),
   );
 
