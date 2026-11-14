@@ -25,7 +25,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-14)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase QD-39 — Each hydration drop reason stated once, with its kind
+**Current focus:** Phase 40 — Core owns describing a decode refusal
 
 ## Current Position
 
@@ -363,7 +363,7 @@ Progress: [█████░░░░░] 50% (v1.4: 1 of 6 phases)
 
 ### Pending Todos
 
-- v1.4: research-phase before planning Phases 40 and 42 (37, 38 done) (`/gsd-plan-phase --research-phase <N>`); 38, 39 and 41 are standard. Phase 40 opens on the compatibility decision for `onMalformed`/`qadi.reason`; Phase 41 opens on RED first plus the non-JSON display decision; Phase 42 opens on a human checkpoint (evidence, then one `AskUserQuestion`).
+- v1.4: research-phase before planning Phases 40 and 42 (37, 38, 39 done) (`/gsd-plan-phase --research-phase <N>`); 38, 39 and 41 are standard. Phase 40 opens on the compatibility decision for `onMalformed`/`qadi.reason`; Phase 41 opens on RED first plus the non-JSON display decision; Phase 42 opens on a human checkpoint (evidence, then one `AskUserQuestion`).
 - v1.2: phases open on a `checkpoint:decision` (23-01, 25-01, 28-01; see ROADMAP); answer each once when its phase starts. 22-01's two were already answered in `_DECISIONS-v1.2.md` (done 2026-11-11).
 - v1.2: v1.1's phase dirs (10-20) are not yet archived to `.planning/milestones/v1.1-phases/`; do it with /gsd-complete-milestone when v1.1 is released or explicitly closed.
 
@@ -390,6 +390,7 @@ Progress: [█████░░░░░] 50% (v1.4: 1 of 6 phases)
 - [Phase 30] Review (30-REVIEW-DISPOSITION.md): all 11 findings fixed over three auto-fix rounds (WR-01..03 and IN-01..04, then IN-01/IN-02, then WR-01/IN-01; b1299653..a460ebae). The loop hit its 3-round cap with the last fixer pass closing everything, so the final 30-REVIEW.md reads issues_found with nothing open; iteration backups kept. 30-09's flip-marker scan reports three false positives (56214374, b3435e58, d42e8de4: added rows, oracle swap, title renames), confirmed by the verifier.
 - [Phase 37] Review (37-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01..IN-04 all fixed (0231bbfc, cff0df37, dc266bbd, 6934fe16), re-review clean; `pnpm check:pr` green after the fixes. `phase.complete`'s five "file not on disk" warnings are false positives (command strings such as `node scripts/next-id.mjs` read as paths).
 - [Phase 38] Review (38-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01..IN-03 all fixed (df5811e1, 4fd82be6, 24dabf2a), re-review clean; the verifier re-ran `pnpm check:pr` (green) and Stryker after the fixes (SinkCodec.ts 0.9752 ≥ base 0.9634). `phase.complete`'s two "file not on disk" warnings are false positives (the `git checkout --` revert commands in the SUMMARYs).
+- [Phase 39] Review (39-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01, IN-02 fixed (cd7046ff, a6e30c38), IN-03 skipped as the recorded behaviour (`hydrationDropMeaning` returns the row, `kind` at run time); re-review clean; regression gate (full tests, tstyche 266, typecheck, lint) green after the fixes. Mutation: `HydrationMetrics.ts` now has 0 scored mutants (all static under `ignoreStatic`), so mutation no longer samples it; the written-out pins carry it. The 39-05 commits carry a Sonnet co-author trailer (recorded in 39-05-SUMMARY). `phase.complete`'s three "file not on disk" warnings are false positives (revert command strings in the SUMMARYs).
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
@@ -411,4 +412,4 @@ Resume file: None
 ## Operator Next Steps
 
 
-- Phase 39 next in the autonomous run: smart discuss, then /gsd-plan-phase 39, then /gsd-execute-phase 39
+- Phase 40 next in the autonomous run: smart discuss (opens on the DREF-01/DREF-05 compatibility decision for `onMalformed`/`qadi.reason`), then /gsd-plan-phase 40 with research, then /gsd-execute-phase 40

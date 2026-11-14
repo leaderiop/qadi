@@ -148,6 +148,8 @@ logged, counted or spanned.
 
 - ✓ ARCH-85 The sink wire version stated once (WIRE-01..05): `export const WIRE_VERSION = 2 as const` in `SinkWire.ts` is the one place the record wire's version number appears in `packages/core/src/Sink*.ts` code (seven sites at the base). `WIRE_VERSIONS = [WIRE_VERSION] as const` (the read set, now `readonly [2]`) and `WireVersion` derive from it; both schema literals and the encoder read it; the decoder tests membership in the read set (`isReadVersion = Schema.is(Schema.Literals(WIRE_VERSIONS))`), never `=== WIRE_VERSION`. A tstyche pin (`SinkWire.tst.ts`) and the byte goldens go red on a retype; on the base the same retype compiled with half the codec at 2 and the decoder refused its own output. Bytes unchanged. ADR-QD-151 amends ADR-QD-096; INV-QD-096 amended in place; CCR-QD-429; `@qadi/core` minor.
 
+- ✓ ARCH-86 Each hydration drop reason stated once, with its kind (DROP-01..04): one module-private `HYDRATION_DROP_TABLE` in `HydrationMetrics.ts` (`as const satisfies` `HydrationDropRow`) holds each of the nine reasons, in the metric's preregistered order, with its kind (`dehydration`, `payload` or `entry`), summary and remedy; `MEANINGS` is gone. The three reason unions, `hydrationDropReasons` (`Object.keys` filtered by the guard, no cast), `isHydrationDropReason` (`Object.hasOwn`) and `hydrationDropMeaning` derive from it, and react's `PayloadRefusalReason`/`EntryDropReason` are `HydrationDropReasonOf<"payload">`/`<"entry">`. A row without a kind is TS2741; on the base a new reason needed 5 edits in 3 files and the compiler asked for one, now it is one row. A new `entry` row is a compile error at react's `bucketOf`; a `payload` row compiles (the payload map is keyed by refusal tags), recorded in ADR-QD-152. Metric declarations unchanged. New public types `HydrationDropReasonOf`, `HydrationDropRow`; INV-QD-323; CCR-QD-430; `@qadi/core` minor, `@qadi/react` patch.
+
 ### Active
 
 - [ ] ARCH-84..89: the six deepenings of the 2026-11-14 review; see `.planning/REQUIREMENTS.md`.
@@ -302,6 +304,7 @@ logged, counted or spanned.
 | A fork requested while another fork's start is running is held and installed when that start returns (D-07, the user's choice over research's "report") | A body whose synchronous prefix starts a newer run left the newest run interrupted and the store idle; holding one pending slot makes the newest run live with no doc rule for callers | Accepted (Phase 37, ADR-QD-150); one slot suffices because each `begin` supersedes the last |
 | `stop` is one unconditional rule: supersede, then fork `Effect.void` (D-05) | The session's guarded stop and the feeds' unguarded one had drifted; a no-run stop changes nothing visible, and allocating a fiber is not forbidden | Accepted (Phase 37, ADR-QD-150 amends ADR-QD-137 point 3) |
 | The read set and the write version stay separate ideas: `WIRE_VERSIONS` derives from `WIRE_VERSION`, and the decoder checks membership in the set (D-02, D-03) | A reader that keeps an older version lists it beside a schema for it, without touching what the encoder writes; `=== WIRE_VERSION` would fuse them | Accepted (Phase 38, ADR-QD-151 amends ADR-QD-096) |
+| Core owns each drop reason's kind; react's payload and entry groups are read off core's table, and react's dispatchers stay untouched (D-06, D-09, D-10) | One table means a reason cannot be added without its kind and meaning; reshaping `HydrationEngine.ts` to make a new payload reason a compile error was left out because Phase 42 shares that file | Accepted (Phase 39, ADR-QD-152 touches ADR-QD-123 and ADR-QD-037) |
 
 ## Evolution
 
@@ -321,4 +324,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-14 after Phase 38*
+*Last updated: 2026-11-14 after Phase 39*
