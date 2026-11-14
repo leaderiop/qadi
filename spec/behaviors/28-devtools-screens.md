@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.20                                           |
+> | Revision       | 1.21                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.20 (2026-11-12): BEH-QD-519 and BEH-QD-520 new: the timeline states a stop and restarts; BEH-QD-465 (eight readouts), BEH-QD-509 and BEH-QD-510 restated (CCR-QD-427)<br>1.19 (2026-11-12): review fixes: a closed feed and a repeated command publish nothing; the notice keeps a persistent status region, alerts once per stop and shows its focus (ARCH-82, BEH-QD-507, BEH-QD-509, INV-QD-313, CCR-QD-425)<br>1.18 (2026-11-12): BEH-QD-465 restated (seven stores) and BEH-QD-323 restated (the model polls; useDiagnostics returns { status, reading }); BEH-QD-506..510 new (ARCH-82, CCR-QD-425)<br>1.17 (2026-11-11): The one internal hook, useGates, is in useGate.ts (ARCH-76, CCR-QD-418, ADR-QD-140)<br>1.16 (2026-11-11): BEH-QD-465 — the dock is one model (makeDockModel owns the six stores and pushes the rail, one configure, the model reads its source in its own scope); BEH-QD-466 — a choice from a list has one shape (HeldChoice's three arms, one cell in both sessions); BEH-QD-389's note names the dock model, not the owned hook (ARCH-74, ADR-QD-047 amendment, CCR-QD-416)<br>1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.21 (2026-11-14): BEH-QD-521 to BEH-QD-525 new: one module owns a run a newer run supersedes (CCR-QD-428)<br>1.20 (2026-11-12): BEH-QD-519 and BEH-QD-520 new: the timeline states a stop and restarts; BEH-QD-465 (eight readouts), BEH-QD-509 and BEH-QD-510 restated (CCR-QD-427)<br>1.19 (2026-11-12): review fixes: a closed feed and a repeated command publish nothing; the notice keeps a persistent status region, alerts once per stop and shows its focus (ARCH-82, BEH-QD-507, BEH-QD-509, INV-QD-313, CCR-QD-425)<br>1.18 (2026-11-12): BEH-QD-465 restated (seven stores) and BEH-QD-323 restated (the model polls; useDiagnostics returns { status, reading }); BEH-QD-506..510 new (ARCH-82, CCR-QD-425)<br>1.17 (2026-11-11): The one internal hook, useGates, is in useGate.ts (ARCH-76, CCR-QD-418, ADR-QD-140)<br>1.16 (2026-11-11): BEH-QD-465 — the dock is one model (makeDockModel owns the six stores and pushes the rail, one configure, the model reads its source in its own scope); BEH-QD-466 — a choice from a list has one shape (HeldChoice's three arms, one cell in both sessions); BEH-QD-389's note names the dock model, not the owned hook (ARCH-74, ADR-QD-047 amendment, CCR-QD-416)<br>1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -1578,3 +1578,157 @@ Pinned by `packages/devtools/test/react/TimelineNotice.test.tsx` (TN1 to TN10),
 `packages/devtools/test/react/theme.contrast.test.ts` (CT1 to CT6) and
 `packages/devtools/test/react/DiagnosticsNotice.test.tsx` (N14, N15). Specified in
 ADR-QD-047 (CCR-QD-427).
+
+## BEH-QD-521: A superseded run never lands, and a newer run interrupts it
+
+> **Decision:** [ADR-QD-150](../decisions/150-a-scoped-run-that-a-newer-run-supersedes.md) ·
+> **Scope:** [ADR-QD-137](../decisions/137-a-devtools-session-owns-its-runs-through-a-scope.md) ·
+> **Invariant:** [INV-QD-319](../invariants.md#inv-qd-319-only-the-current-run-lands-and-nothing-starts-or-lands-after-close)
+
+The timeline feed, the diagnostics feed and the simulation session each run one run at a
+time, and each does it through one package-private module, `SupersedingRun.ts`. A command
+that supersedes the run in flight takes a token from the module and the old token is no
+longer current. A store writes a result only while its run's token is current, so the order
+in which two fibers finish decides nothing.
+
+```
+REQUIREMENT: A superseded run MUST NOT write a record, a sample, a stop or a result.
+```
+
+```
+REQUIREMENT: A newer run MUST interrupt the run in flight before the command that starts
+             it returns.
+```
+
+A store that reads its token and compares it with its own counter has restated the module.
+The token is opaque: a store asks whether it is current and nothing else.
+
+Pinned by `packages/devtools/test/model/SupersedingRun.test.ts` (R1 and R2 a newer fork
+interrupts the older run and the superseded one starts nothing, R9 a superseded run is never
+reported, R15 a `begin` with no `fork` leaves the older run running but no longer current,
+and the `PROPERTY` describe, which runs random command sequences against a model),
+`packages/devtools/test/model/TimelineFeed.test.ts` (TF9) and the session's supersession
+cases in `packages/devtools/test/model/SimulationSession.test.ts`. Specified in ADR-QD-150
+(CCR-QD-428).
+
+## BEH-QD-522: Stopping a run is one unconditional rule
+
+> **Decision:** [ADR-QD-150](../decisions/150-a-scoped-run-that-a-newer-run-supersedes.md) ·
+> **Scope:** [ADR-QD-137](../decisions/137-a-devtools-session-owns-its-runs-through-a-scope.md) ·
+> **Invariant:** [INV-QD-319](../invariants.md#inv-qd-319-only-the-current-run-lands-and-nothing-starts-or-lands-after-close)
+
+A stop supersedes the current run and starts nothing. The session once forked only when its
+handle held a fiber, and that guard saved one throwaway fiber that no host could observe, in
+the one place the three stores disagreed about what a stop is.
+
+```
+REQUIREMENT: A stop MUST supersede the current run and interrupt any run in flight.
+```
+
+```
+REQUIREMENT: A stop with no run in flight (never started, completed, or after close) MUST
+             change nothing a host can see: no notification, no failure hook and no span.
+```
+
+"A stop must not allocate a fiber" was never a requirement; a store never needs to ask
+whether a run is in flight before it stops.
+
+Pinned by `packages/devtools/test/model/SupersedingRun.test.ts` (R5 to R8: no run, a run in
+flight, a completed run and a closed scope),
+`packages/devtools/test/model/SimulationSession.runs.test.ts` (SR2 to SR4: a command that
+supersedes on a session that never ran, after a finished run and on a closed session asks no
+resolver and opens no span) and `packages/devtools/test/model/DiagnosticsFeed.test.ts` (F26).
+Specified in ADR-QD-150 (CCR-QD-428, D-05).
+
+## BEH-QD-523: Closing the owner's scope interrupts the run and is never reported
+
+> **Decision:** [ADR-QD-150](../decisions/150-a-scoped-run-that-a-newer-run-supersedes.md) ·
+> **Scope:** [ADR-QD-137](../decisions/137-a-devtools-session-owns-its-runs-through-a-scope.md) ·
+> **Invariant:** [INV-QD-319](../invariants.md#inv-qd-319-only-the-current-run-lands-and-nothing-starts-or-lands-after-close)
+
+The module registers a finalizer after the handle that holds the run, so on a close it
+clears the current token and marks the module closed before the handle interrupts the run.
+The run the handle then interrupts is no longer current.
+
+```
+REQUIREMENT: Closing the owner's scope MUST interrupt the run in flight, and that run MUST
+             NOT land and MUST NOT be reported as a failure, even when its release dies.
+```
+
+```
+REQUIREMENT: After the scope has closed no command MUST start a run, and no command
+             MUST throw.
+```
+
+This holds for a store built in a sequential scope, which is the default. A scope made with
+`Scope.make("parallel")` forks its finalizers and so voids the ordering: a run that dies as
+its scope closes could then be reported. No store is built in one, and a later store must not
+be.
+
+Pinned by `packages/devtools/test/model/SupersedingRun.test.ts` (R3 a close mid-run never
+calls `onFailure` even when the release dies, R4 a `begin` after the close gives a token that
+is never current, R8 a stop after the close, R14 a close inside a run's synchronous start),
+`packages/devtools/test/model/DiagnosticsFeed.test.ts` (F24),
+`packages/devtools/test/model/TimelineFeed.test.ts` (TF19) and the session's close case in
+`packages/devtools/test/model/SimulationSession.test.ts`. Specified in ADR-QD-150
+(CCR-QD-428).
+
+## BEH-QD-524: A restart issued before the run starts leaves the newest run live
+
+> **Decision:** [ADR-QD-150](../decisions/150-a-scoped-run-that-a-newer-run-supersedes.md) ·
+> **Scope:** [ADR-QD-137](../decisions/137-a-devtools-session-owns-its-runs-through-a-scope.md) ·
+> **Invariant:** [INV-QD-320](../invariants.md#inv-qd-320-a-newer-run-is-never-interrupted-by-an-older-runs-start)
+
+A store publishes what it shows (`Reading`, `Starting`, `Running`) between taking a token and
+forking the run. A subscriber notified by that publish may restart the store, which takes a
+newer token. The two feeds forked the stale run anyway and interrupted nothing that was live.
+
+```
+REQUIREMENT: A run whose token is no longer current when it is forked MUST start nothing,
+             and the newest run MUST be live.
+```
+
+`fork` re-checks the token and says whether it started the run, so the outer start forks
+nothing and the restart's run is the one left running.
+
+Pinned by `packages/devtools/test/model/SupersedingRun.test.ts` (R1 a superseded token
+forks nothing, R16 `fork` says whether it started or held a run and refuses a token that is
+not current), `packages/devtools/test/model/TimelineFeed.test.ts` (TF21),
+`packages/devtools/test/model/DiagnosticsFeed.test.ts` (F28) and the session's subscriber
+cases in `packages/devtools/test/model/SimulationSession.test.ts`. Specified in ADR-QD-150
+(CCR-QD-428, D-06).
+
+## BEH-QD-525: A restart issued from a run's synchronous start leaves the newest run live
+
+> **Decision:** [ADR-QD-150](../decisions/150-a-scoped-run-that-a-newer-run-supersedes.md) ·
+> **Scope:** [ADR-QD-137](../decisions/137-a-devtools-session-owns-its-runs-through-a-scope.md) ·
+> **Invariant:** [INV-QD-320](../invariants.md#inv-qd-320-a-newer-run-is-never-interrupted-by-an-older-runs-start)
+
+A run starts synchronously: its body's first steps run inside `fork`, before the fiber is
+installed in the handle. A body that starts a command that starts a newer run therefore
+installed the newer fiber first and the stale outer fiber after it, and replacing a fiber
+interrupts the one it replaces, so the newest run was the one interrupted.
+
+```
+REQUIREMENT: A run started while another run's synchronous start is still running MUST be
+             installed once that start returns, interrupting the stale outer run, to any
+             depth.
+```
+
+```
+REQUIREMENT: A stop or a close issued inside a run's synchronous start MUST be honoured and
+             MUST NOT throw.
+```
+
+The module holds the fork requested inside another fork's start in one slot (each `begin`
+supersedes the one before it, so one is enough) and installs it when the outer start
+returns, re-checking the slot until nothing is held. The synchronous start itself is kept:
+36 existing tests read the state a first step reaches before `fork` returns.
+
+Pinned by `packages/devtools/test/model/SupersedingRun.test.ts` (R11 a fork inside a start is
+held and then installed, R12 three nested forks leave the innermost live, R13 a stop and R14
+a close inside a start),
+`packages/devtools/test/model/TimelineFeed.test.ts` (TF22 and TF23),
+`packages/devtools/test/model/DiagnosticsFeed.test.ts` (F29) and
+`packages/devtools/test/model/SimulationSession.runs.test.ts` (SR5). Specified in ADR-QD-150
+(CCR-QD-428, D-07, D-08).
