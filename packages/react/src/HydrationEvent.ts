@@ -4,10 +4,10 @@
  * Every exit from `dehydrateDecisions` and `hydrateDecisions` — entries put into
  * a payload, entries left out, a payload refused whole, entries dropped, entries
  * seeded, a seed answered again by this client — is a {@link HydrationEvent}.
- * `HydrationEngine.ts` builds the events a call implies, and {@link emitHydration}
- * is the only thing that writes a hydration counter or calls a hydration
- * reporter: one table, one arm per tag, so a new exit is one compile error in
- * one place.
+ * `HydrationEngine.ts` and `SeededQuestion.ts` build the events a call implies,
+ * and {@link emitHydration} is the only thing that writes a hydration counter
+ * or calls a hydration reporter: one table, one arm per tag, so a new exit is
+ * one compile error in one place.
  *
  * Why (ARCH-60, a port of the lost commit `f27d049`): each exit used to write a counter
  * through `HydrationCounts.ts` and call a reporter resolved in

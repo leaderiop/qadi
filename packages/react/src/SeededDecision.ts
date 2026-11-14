@@ -8,7 +8,7 @@
  * cannot take a withheld trace for an evaluated one, and no trace root or deny
  * reason has to be invented to make a seed look like what it is not.
  *
- * A leaf module, imported by both `HydrationEngine.ts` and
+ * A leaf module, imported by `HydrationEngine.ts`, `SeededQuestion.ts` and
  * `DeveloperSignals.ts` (whose `HydrationMismatch` names a `SeededDecision`):
  * declaring these in the engine would make the warning module import it back,
  * and madge counts that type-only edge as a cycle (ADR-QD-037). Not in the
