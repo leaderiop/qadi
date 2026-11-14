@@ -144,6 +144,8 @@ logged, counted or spanned.
 
 - ✓ Carried spec debt and stale records (DEBT-01..05): one BEH-QD-219..221 block in behaviour 29 (fail-closed replay kept); the stale `Sources.ts` token deleted (D-17 override of DEBT-02's wording); no live record claims replay fail-open is undecided; every open v1.2 info finding re-verified and fixed, resolved or refuted with evidence (`describeSource` beside `prepareSource`, one recorder per run); stale citations corrected. Two live defects found and fixed: a server seed lost one macrotask after hydration (now held by its question, a registry holding only a `SeedGrant`; the `subject` atom keepAlive first) and a timeline feed whose death read as live (closed `TimelineStatus`, Stopped notice with restart, shared `StoppedBox`). `qadi_port_calls_total`'s description corrected to say it counts the evaluator only. **Breaking** in `@qadi/devtools`: `Baseline.Checked` gains `reading`, `baselineReading` removed. ADR-QD-149 amends ADR-QD-039/103, BEH-QD-516..520, INV-QD-317..318; CCR-QD-427 — v1.3 Phase 36
 
+- ✓ ARCH-84 A scoped run that a newer run supersedes (RUN-01..08): one package-private module, `SupersedingRun.ts` (`makeSupersedingRun`), owns the protocol the timeline feed, the diagnostics feed and the simulation session each restated by hand. The interface has two steps: `begin()` supersedes and returns an opaque token, the store publishes, then `fork(token, run, { onFailure? })` runs only while the token is current. `isCurrent` guards each landed write, `stop` is unconditional, and the finalizer is registered after the handle so it runs first on close. A restart from inside a store's own notification now leaves the newest run live: `fork` re-checks the token, and a fork requested during another fork's start is held in one slot and installed when that start returns (the in-prefix case is repaired rather than reported). This fixed three latent defects found RED first (TF21–TF23, F28/F29, SR5). Module rows R1–R17 and a seeded property (seed 3701, nine floors at least 30) cover it; mutation TimelineFeed 1, DiagnosticsFeed 0.928 to 0.947, SimulationSession 0.977 to 0.982, SupersedingRun 0.943 with three equivalent survivors named. ADR-QD-150 amends ADR-QD-137 (Rev 1.3), BEH-QD-521..525, INV-QD-319..320, AGENTS.md §10 no longer names `it.scoped`; `@qadi/devtools` patch changeset; CCR-QD-428 — v1.4 Phase 37
+
 ### Active
 
 - [ ] ARCH-84..89: the six deepenings of the 2026-11-14 review; see `.planning/REQUIREMENTS.md`.
@@ -295,6 +297,8 @@ logged, counted or spanned.
 | A seed is held by its question; a registry holds only a keepAlive `SeedGrant`, and the `subject` keepAlive lands first (D-19) | The seed node was dropped one macrotask after hydration; holding it in the shared book entry would leak across server requests | Accepted (Phase 36, ADR-QD-149); one tiny node per hydrated entry, bounded by the payload |
 | The seed covers the client's whole first check, in flight or not (D-20, the user's choice) | ADR-QD-039: `Initial` is the only state where this client has never answered; Pending would make the first render disagree with the server HTML | Accepted (Phase 36); the example's e2e pin is `Success,Success` |
 | A false metric description is corrected even though the registry key changes (review WR-01, overriding the 36-10 ledger) | Compatibility is never the tiebreaker; the description claimed `toPredicate` reads were counted | Accepted (Phase 36, b3787bd9); `@qadi/core` patch changeset |
+| A fork requested while another fork's start is running is held and installed when that start returns (D-07, the user's choice over research's "report") | A body whose synchronous prefix starts a newer run left the newest run interrupted and the store idle; holding one pending slot makes the newest run live with no doc rule for callers | Accepted (Phase 37, ADR-QD-150); one slot suffices because each `begin` supersedes the last |
+| `stop` is one unconditional rule: supersede, then fork `Effect.void` (D-05) | The session's guarded stop and the feeds' unguarded one had drifted; a no-run stop changes nothing visible, and allocating a fiber is not forbidden | Accepted (Phase 37, ADR-QD-150 amends ADR-QD-137 point 3) |
 
 ## Evolution
 
@@ -314,4 +318,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-14 after starting milestone v1.4*
+*Last updated: 2026-11-14 after Phase 37*
