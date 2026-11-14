@@ -2038,6 +2038,13 @@ describe("decodeSinkRecord reads wire version 2, and only it", () => {
     it("version 2, written out, decodes", () => {
       assert.strictEqual(decodeRefusalOf(JSON.stringify({ ...parsed, version: 2 })), undefined);
     });
+
+    // A version added to WIRE_VERSIONS without a schema would fail the strict decode as Malformed.
+    for (const version of WIRE_VERSIONS) {
+      it(`every version in the read set decodes: ${version}`, () => {
+        assert.strictEqual(decodeRefusalOf(JSON.stringify({ ...parsed, version })), undefined);
+      });
+    }
   });
 
   describe("pre-0.10 bytes (wire version 1) are refused whole, never upgraded (0.11.0)", () => {
