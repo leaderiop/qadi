@@ -146,6 +146,8 @@ logged, counted or spanned.
 
 - ✓ ARCH-84 A scoped run that a newer run supersedes (RUN-01..08): one package-private module, `SupersedingRun.ts` (`makeSupersedingRun`), owns the protocol the timeline feed, the diagnostics feed and the simulation session each restated by hand. The interface has two steps: `begin()` supersedes and returns an opaque token, the store publishes, then `fork(token, run, { onFailure? })` runs only while the token is current. `isCurrent` guards each landed write, `stop` is unconditional, and the finalizer is registered after the handle so it runs first on close. A restart from inside a store's own notification now leaves the newest run live: `fork` re-checks the token, and a fork requested during another fork's start is held in one slot and installed when that start returns (the in-prefix case is repaired rather than reported). This fixed three latent defects found RED first (TF21–TF23, F28/F29, SR5). Module rows R1–R17 and a seeded property (seed 3701, nine floors at least 30) cover it; mutation TimelineFeed 1, DiagnosticsFeed 0.928 to 0.947, SimulationSession 0.977 to 0.982, SupersedingRun 0.943 with three equivalent survivors named. ADR-QD-150 amends ADR-QD-137 (Rev 1.3), BEH-QD-521..525, INV-QD-319..320, AGENTS.md §10 no longer names `it.scoped`; `@qadi/devtools` patch changeset; CCR-QD-428 — v1.4 Phase 37
 
+- ✓ ARCH-85 The sink wire version stated once (WIRE-01..05): `export const WIRE_VERSION = 2 as const` in `SinkWire.ts` is the one place the record wire's version number appears in `packages/core/src/Sink*.ts` code (seven sites at the base). `WIRE_VERSIONS = [WIRE_VERSION] as const` (the read set, now `readonly [2]`) and `WireVersion` derive from it; both schema literals and the encoder read it; the decoder tests membership in the read set (`isReadVersion = Schema.is(Schema.Literals(WIRE_VERSIONS))`), never `=== WIRE_VERSION`. A tstyche pin (`SinkWire.tst.ts`) and the byte goldens go red on a retype; on the base the same retype compiled with half the codec at 2 and the decoder refused its own output. Bytes unchanged. ADR-QD-151 amends ADR-QD-096; INV-QD-096 amended in place; CCR-QD-429; `@qadi/core` minor.
+
 ### Active
 
 - [ ] ARCH-84..89: the six deepenings of the 2026-11-14 review; see `.planning/REQUIREMENTS.md`.
@@ -299,6 +301,7 @@ logged, counted or spanned.
 | A false metric description is corrected even though the registry key changes (review WR-01, overriding the 36-10 ledger) | Compatibility is never the tiebreaker; the description claimed `toPredicate` reads were counted | Accepted (Phase 36, b3787bd9); `@qadi/core` patch changeset |
 | A fork requested while another fork's start is running is held and installed when that start returns (D-07, the user's choice over research's "report") | A body whose synchronous prefix starts a newer run left the newest run interrupted and the store idle; holding one pending slot makes the newest run live with no doc rule for callers | Accepted (Phase 37, ADR-QD-150); one slot suffices because each `begin` supersedes the last |
 | `stop` is one unconditional rule: supersede, then fork `Effect.void` (D-05) | The session's guarded stop and the feeds' unguarded one had drifted; a no-run stop changes nothing visible, and allocating a fiber is not forbidden | Accepted (Phase 37, ADR-QD-150 amends ADR-QD-137 point 3) |
+| The read set and the write version stay separate ideas: `WIRE_VERSIONS` derives from `WIRE_VERSION`, and the decoder checks membership in the set (D-02, D-03) | A reader that keeps an older version lists it beside a schema for it, without touching what the encoder writes; `=== WIRE_VERSION` would fuse them | Accepted (Phase 38, ADR-QD-151 amends ADR-QD-096) |
 
 ## Evolution
 
@@ -318,4 +321,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-14 after Phase 37*
+*Last updated: 2026-11-14 after Phase 38*
