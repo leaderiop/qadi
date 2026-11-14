@@ -16,7 +16,7 @@ import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import type { StoredRecord } from "@qadi/core";
-import { sourceFromRecords, type Source } from "../../src/model/Source.ts";
+import { sourceFromRecords, type Source, type SourceRead } from "../../src/model/Source.ts";
 import { idleTimeline, makeTimelineFeed, type TimelineFeed } from "../../src/model/TimelineFeed.ts";
 import { decisionRecord, settleTurns } from "../helpers.ts";
 
@@ -415,5 +415,69 @@ describe("the timeline feed", () => {
 
       assert.deepStrictEqual(heard, ["Reading", "Stopped"]);
       assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
+    }));
+
+  it.effect("TF21 a subscriber that reconfigures the feed inside its Reading notification leaves the newest read live", () =>
+    Effect.gen(function* () {
+      const feed = yield* makeTimelineFeed({
+        source: { read: Effect.succeed({ backlog: [], live: Stream.die(new Error("boom")) }) },
+      });
+      yield* flush;
+      assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
+      const once = { done: false };
+      feed.status.subscribe(() => {
+        if (once.done || feed.status.getSnapshot()._tag !== "Reading") return;
+        once.done = true;
+        feed.configure({ source: delayed([record("from-B", 200)]) });
+      });
+
+      feed.configure({ source: delayed([record("from-A", 100)]) });
+      yield* flush;
+
+      assert.deepStrictEqual(idsOf(feed), ["from-B"]);
+    }));
+
+  it.effect("TF22 a read whose first step reconfigures the feed leaves the newest read live", () =>
+    Effect.gen(function* () {
+      const feed = yield* makeTimelineFeed();
+      const outer: Source = {
+        read: Effect.sync(() => {
+          feed.configure({ source: delayed([record("from-B", 200)]) });
+          return { backlog: [record("from-A", 100)], live: Stream.never };
+        }),
+      };
+
+      feed.configure({ source: outer });
+      yield* flush;
+
+      assert.deepStrictEqual(idsOf(feed), ["from-B"]);
+      assert.strictEqual(feed.status.getSnapshot()._tag, "Reading");
+    }));
+
+  it.effect("TF23 a subscriber that restarts the feed inside the Stopped of a read that died in its first step leaves the retry live", () =>
+    Effect.gen(function* () {
+      const feed = yield* makeTimelineFeed();
+      const tally = { reads: 0 };
+      const source: Source = {
+        read: Effect.suspend((): Effect.Effect<SourceRead> => {
+          tally.reads += 1;
+          return tally.reads === 1
+            ? Effect.die(new Error("first"))
+            : Effect.as(Effect.yieldNow, { backlog: [record("retry", 1)], live: Stream.never });
+        }),
+      };
+      const once = { done: false };
+      feed.status.subscribe(() => {
+        if (once.done || feed.status.getSnapshot()._tag !== "Stopped") return;
+        once.done = true;
+        feed.status.restart();
+      });
+
+      feed.configure({ source });
+      yield* flush;
+
+      assert.deepStrictEqual(idsOf(feed), ["retry"]);
+      assert.strictEqual(tally.reads, 2);
+      assert.strictEqual(feed.status.getSnapshot()._tag, "Reading");
     }));
 });
