@@ -25,7 +25,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-14)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 41 — One guarded value-to-text function
+**Current focus:** Phase 42 — A seeded question builds its own computing atom
 
 ## Current Position
 
@@ -393,7 +393,7 @@ Progress: [████████░░] 83% (v1.4: 1 of 6 phases)
 
 ### Pending Todos
 
-- v1.4: research-phase before planning Phases 40 and 42 (37, 38, 39, 40 done) (`/gsd-plan-phase --research-phase <N>`); 38, 39 and 41 are standard. Phase 40 opens on the compatibility decision for `onMalformed`/`qadi.reason`; Phase 41 opens on RED first plus the non-JSON display decision; Phase 42 opens on a human checkpoint (evidence, then one `AskUserQuestion`).
+- v1.4: research-phase before planning Phases 40 and 42 (37, 38, 39, 40, 41 done) (`/gsd-plan-phase --research-phase <N>`); 38, 39 and 41 are standard. Phase 40 opens on the compatibility decision for `onMalformed`/`qadi.reason`; Phase 41 opens on RED first plus the non-JSON display decision; Phase 42 opens on a human checkpoint (evidence, then one `AskUserQuestion`).
 - v1.2: phases open on a `checkpoint:decision` (23-01, 25-01, 28-01; see ROADMAP); answer each once when its phase starts. 22-01's two were already answered in `_DECISIONS-v1.2.md` (done 2026-11-11).
 - v1.2: v1.1's phase dirs (10-20) are not yet archived to `.planning/milestones/v1.1-phases/`; do it with /gsd-complete-milestone when v1.1 is released or explicitly closed.
 
@@ -422,6 +422,7 @@ Progress: [████████░░] 83% (v1.4: 1 of 6 phases)
 - [Phase 38] Review (38-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01..IN-03 all fixed (df5811e1, 4fd82be6, 24dabf2a), re-review clean; the verifier re-ran `pnpm check:pr` (green) and Stryker after the fixes (SinkCodec.ts 0.9752 ≥ base 0.9634). `phase.complete`'s two "file not on disk" warnings are false positives (the `git checkout --` revert commands in the SUMMARYs).
 - [Phase 39] Review (39-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01, IN-02 fixed (cd7046ff, a6e30c38), IN-03 skipped as the recorded behaviour (`hydrationDropMeaning` returns the row, `kind` at run time); re-review clean; regression gate (full tests, tstyche 266, typecheck, lint) green after the fixes. Mutation: `HydrationMetrics.ts` now has 0 scored mutants (all static under `ignoreStatic`), so mutation no longer samples it; the written-out pins carry it. The 39-05 commits carry a Sonnet co-author trailer (recorded in 39-05-SUMMARY). `phase.complete`'s three "file not on disk" warnings are false positives (revert command strings in the SUMMARYs).
 - [Phase 40] Review (40-REVIEW-DISPOSITION.md): 0 critical; WR-01 (a throwing `onMalformed` ended the devtools stream, pre-existing) and IN-01..03 fixed, an iteration-2 info (`thrownName` hardened) fixed, iteration 3 clean; mutation re-run after the fixes holds (SinkCodec 0.97546, SinkWire 1 at 60/60, Source 1 at 80/80, AuditEntry 1); post-review `pnpm check:pr` green. User decision: D-03 amended (counted `Schema.decodeTo`, SinkCodec.ts 1 → 2). Commits from 40-05 onward carry a Sonnet co-author trailer (recorded in 40-05..40-09 SUMMARYs). `spec-revise.mjs` drops its first positional argument unless `--date` is passed (index filter against `dateFlag + 1` when `dateFlag` is -1).
+- [Phase 41] Review (41-REVIEW-DISPOSITION.md): 0 critical; WR-01 (label rule written twice) fixed by a second core export `valueLabel`, WR-03 (`In` fallback walk could throw) fixed, IN-02 fixed; WR-02 (an object whose `toJSON` gives nothing changed label, against D-07's wording) and IN-01/IN-03 skipped; iteration 2 clean; mutation re-run holds (Explanation 0.98701 vs base 0.98673, ValueText 1 at 13/13, Remedies/Filters 1, SimulationForm 0.98367); post-review `pnpm check:pr` green. User decision: one primitive, a public core export (D-13..D-16), after planning found core's `explain` threw too.
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
@@ -443,4 +444,4 @@ Resume file: None
 ## Operator Next Steps
 
 
-- Phase 41 next in the autonomous run: smart discuss (TEXT-04: how a remedy over a non-JSON value is shown), then /gsd-plan-phase 41 (standard, skip research), then /gsd-execute-phase 41, RED first
+- Phase 42 next in the autonomous run: research-phase first (shares `HydrationEngine.ts` with Phase 39), then a hard human checkpoint on the engine choice, then plan and execute

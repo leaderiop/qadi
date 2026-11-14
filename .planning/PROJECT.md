@@ -152,6 +152,8 @@ logged, counted or spanned.
 
 - ✓ ARCH-87 Core owns describing a decode refusal (DREF-01..07), the mirror of ADR-QD-116's encode side: `SinkWire.ts` exports `decodeRefusalOf` (the one `UntrustedValueRefusal` → `DecodeRefusal` mapping; `SinkCodec.ts`'s and `AuditEntry.ts`'s copies deleted), a total `describeDecodeRefusal` (module-scope `Match.tagsExhaustive`, `typeof`-only bounded version, 40/200 caps) and the tag-only `decodeRefusalAnnotations` (`qadi.refusal` only, INV-QD-104; an `EXEMPTIONS` entry for `no-refusal-annotation-outside-core`). **Breaking (`@qadi/devtools`):** `onMalformed(frame, refusal: DecodeRefusal)`; `MalformedReason`, `reasonOf` and `qadi.reason` deleted, five-word upgrade map (`not-a-record` collapses into `Malformed`); a throwing `onMalformed` no longer ends the stream (code review). Audit decodes a row's record once through the new `decodeSinkRecordWithJson` (a counted `Schema.decodeTo` in `SinkCodec.ts`, 1 → 2 in `UNTRUSTED_DECODE_BUDGET`; `AuditEntry.ts`'s row and `recordJsonOf` retired, total unchanged), output identical on every differential row. A new refusal is now a compile error in core only. Cost: `decodeSinkRecord` 8.4 → 18.4 µs (~2.19×), accepted in ADR-QD-153. ADR-QD-153; CCR-QD-431; INV-QD-325; BEH-QD-536/537; `@qadi/core` minor, `@qadi/devtools` Breaking (minor), `@qadi/audit` patch.
 
+- ✓ ARCH-88 One guarded value-to-text function (TEXT-01..04): `@qadi/core`'s new `ValueText.ts` exports `valueText` (`(value: unknown) => string | undefined`, never throws) and `valueLabel` (the one label rule: a bigint as `10n`, an object with no JSON form as `a value with no JSON form`, otherwise the word `undefined`). Core's `explain` (`LiteralRef`, `In`, `Contains`; an unwalkable `In` list reads through `valueLabel`) and devtools' remedy label, Filters' search text and SimulationForm all read through it, so a bigint, a cycle or a throwing `toJSON`/getter no longer throws out of `explain`, `policyLabel`, `inspect`, `remedyEdits` or `SimulationSession.commit()`. Existing labels unchanged except one recorded case (an object whose `toJSON` gives nothing: `undefined` → the fixed words). User decision: one primitive in core (D-13..D-16), not one in devtools. ADR-QD-154; CCR-QD-432; BEH-QD-541/542; `@qadi/core` minor, `@qadi/devtools` patch.
+
 ### Active
 
 - [ ] ARCH-84..89: the six deepenings of the 2026-11-14 review; see `.planning/REQUIREMENTS.md`.
@@ -308,6 +310,7 @@ logged, counted or spanned.
 | The read set and the write version stay separate ideas: `WIRE_VERSIONS` derives from `WIRE_VERSION`, and the decoder checks membership in the set (D-02, D-03) | A reader that keeps an older version lists it beside a schema for it, without touching what the encoder writes; `=== WIRE_VERSION` would fuse them | Accepted (Phase 38, ADR-QD-151 amends ADR-QD-096) |
 | Core owns each drop reason's kind; react's payload and entry groups are read off core's table, and react's dispatchers stay untouched (D-06, D-09, D-10) | One table means a reason cannot be added without its kind and meaning; reshaping `HydrationEngine.ts` to make a new payload reason a compile error was left out because Phase 42 shares that file | Accepted (Phase 39, ADR-QD-152 touches ADR-QD-123 and ADR-QD-037) |
 | A decode refusal is described once, in core; devtools passes core's refusal through and audit takes its JSON form from the one strict decode, counted in the budget (D-03 amended, D-05..D-11) | Three restatements of the mapping and two exhaustive reads outside core were the defect; the counted `decodeTo` keeps the untrusted-decode gate honest rather than dodging its regex with `encodeTo` | Accepted (Phase 40, ADR-QD-153; Breaking for `@qadi/devtools`; ~2.19× decode cost accepted) |
+| One guarded value-to-text function and one label rule live in core, read by `explain` and the devtools panels (D-13..D-16) | Core's `explain` threw on the same bigint and cycle probes as the devtools remedy label, and core cannot import a devtools-private module (ADR-QD-099); a second guard or a second wording of the rule would drift | Accepted (Phase 41, ADR-QD-154; one label change for an object whose `toJSON` gives nothing, against D-07's wording) |
 
 ## Evolution
 
@@ -327,4 +330,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-14 after Phase 40*
+*Last updated: 2026-11-14 after Phase 41*
