@@ -5,8 +5,9 @@
  * A leaf, so `Errors.ts` (whose `SinkRecordNotDecodable` carries these types)
  * and `SinkCodec.ts` (which raises them) can both import it without a cycle:
  * `Errors.ts` cannot import `SinkCodec.ts` (ADR-QD-037, which counts type-only
- * edges), and this module imports only `effect`, one type from `Decision.ts` and
- * two from `SinkRecordFields.ts`, whose import closures do not reach this module.
+ * edges), and this module imports only `effect`, one type each from `Decision.ts`
+ * and `UntrustedDecode.ts`, and two from `SinkRecordFields.ts`, none of whose import
+ * closures reach this module.
  * The error classes stay in `Errors.ts` with the rest of `QadiError`; only the
  * vocabulary they name lives here (ADR-QD-095's ARCH-27 amendment). The
  * encode-refusal vocabulary, which the port wire reads too, lives in
@@ -15,8 +16,10 @@
  * is reached by its own path.
  */
 import * as Data from "effect/Data";
+import * as Match from "effect/Match";
 import type { DecisionDisagreement } from "./Decision.ts";
 import type { DECISION_RECORD_TAG, OBLIGATION_RECORD_TAG } from "./SinkRecordFields.ts";
+import type { UntrustedRefusal } from "./UntrustedDecode.ts";
 
 /**
  * The `_tag` of a `SinkRecord` — `"Decision"` or `"Obligations"`.
@@ -102,3 +105,25 @@ export type DecodeRefusal = Data.TaggedEnum<{
 
 /** Constructors and guards for {@link DecodeRefusal}. */
 export const DecodeRefusal = Data.taggedEnum<DecodeRefusal>();
+
+/**
+ * An untrusted decoder's refusal, or a version refusal, in the sink wire's own
+ * vocabulary.
+ *
+ * The one mapping (ADR-QD-153), which `SinkCodec.ts` and `@qadi/audit` read
+ * rather than restate. `NotJson`'s parser message is dropped because the wire's
+ * `NotJson` carries none; `Inconsistent` is not an input, it comes later from
+ * the record's rebuild; a version refusal passes through unchanged.
+ */
+export const decodeRefusalOf: (
+  refusal: UntrustedRefusal | Extract<DecodeRefusal, { readonly _tag: "UnsupportedVersion" }>,
+) => DecodeRefusal = Match.type<
+  UntrustedRefusal | Extract<DecodeRefusal, { readonly _tag: "UnsupportedVersion" }>
+>().pipe(
+  Match.tagsExhaustive({
+    NotJson: () => DecodeRefusal.NotJson(),
+    TooDeep: ({ maxDepth }) => DecodeRefusal.TooDeep({ maxDepth }),
+    Malformed: ({ message }) => DecodeRefusal.Malformed({ message }),
+    UnsupportedVersion: (refusal) => refusal,
+  }),
+);

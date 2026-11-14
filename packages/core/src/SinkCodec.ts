@@ -83,9 +83,8 @@ import {
   OBLIGATION_RECORD_TAG,
   obligationRecordFields,
 } from "./SinkRecordFields.ts";
-import { DecodeRefusal, WIRE_VERSION, WIRE_VERSIONS } from "./SinkWire.ts";
+import { DecodeRefusal, decodeRefusalOf, WIRE_VERSION, WIRE_VERSIONS } from "./SinkWire.ts";
 import { MAX_DECODE_DEPTH, untrustedDecoder } from "./UntrustedDecode.ts";
-import type { UntrustedRefusal } from "./UntrustedDecode.ts";
 
 /**
  * An `EvaluationError` on the wire — the union of the wire-crossing
@@ -492,18 +491,6 @@ const versionThenEnvelope = (input: unknown): Result.Result<unknown, Unsupported
  */
 const sinkWire = untrustedDecoder(SinkRecordWire, { prepare: versionThenEnvelope });
 
-/** The decoder's refusal in this wire's own vocabulary; `Inconsistent` comes later, from `rebuild`. */
-const asDecodeRefusal: (refusal: UntrustedRefusal | UnsupportedVersion) => DecodeRefusal = Match.type<
-  UntrustedRefusal | UnsupportedVersion
->().pipe(
-  Match.tagsExhaustive({
-    NotJson: () => DecodeRefusal.NotJson(),
-    TooDeep: ({ maxDepth }) => DecodeRefusal.TooDeep({ maxDepth }),
-    Malformed: ({ message }) => DecodeRefusal.Malformed({ message }),
-    UnsupportedVersion: (refusal) => refusal,
-  }),
-);
-
 /**
  * Untrusted input as a record, or the reason it is not one.
  *
@@ -522,7 +509,7 @@ const asDecodeRefusal: (refusal: UntrustedRefusal | UnsupportedVersion) => Decod
  * a change to them is an edit to this module alone.
  */
 export const decodeSinkRecord = (input: unknown): Result.Result<SinkRecord, SinkRecordNotDecodable> =>
-  decoded(Result.mapError(sinkWire.decode(input), asDecodeRefusal));
+  decoded(Result.mapError(sinkWire.decode(input), decodeRefusalOf));
 
 /**
  * JSON text as a record, or the reason it is not one: `NotJson` when the text
@@ -530,7 +517,7 @@ export const decodeSinkRecord = (input: unknown): Result.Result<SinkRecord, Sink
  * throws (INV-QD-097).
  */
 export const decodeSinkRecordString = (text: string): Result.Result<SinkRecord, SinkRecordNotDecodable> =>
-  decoded(Result.mapError(sinkWire.decodeText(text), asDecodeRefusal));
+  decoded(Result.mapError(sinkWire.decodeText(text), decodeRefusalOf));
 
 // ---------------------------------------------------------------------------
 // The stored-record envelope (ARCH-11 D-11-e)
