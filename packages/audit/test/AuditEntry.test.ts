@@ -7,6 +7,7 @@ import {
   DecisionSink,
   decisionSinkForwarding,
   DecodeRefusal,
+  decodeSinkRecordWithJson,
   EncodeRefusal,
   encodeSinkRecordString,
   hasCustom,
@@ -420,4 +421,53 @@ describe("decodeAuditEntry reads version-2 rows, and refuses a pre-0.10 row", ()
       const row = decodeAuditEntry(JSON.parse(JSON.stringify(entry)));
       assert.deepStrictEqual(Result.getOrUndefined(row)?.record, original);
     }));
+});
+
+/**
+ * INV-QD-325: the persisted record is the strict decode's JSON form. Compared
+ * as serialised text, so key order is part of the check.
+ */
+describe("the entry's record is the strict decode's JSON form", () => {
+  const strictText = (record: unknown) => {
+    const decoded = decodeSinkRecordWithJson(record);
+    return Result.isSuccess(decoded) ? JSON.stringify(decoded.success.json) : undefined;
+  };
+
+  it.effect("for every record kind, the entry holds what decodeSinkRecordWithJson gives, byte for byte", () =>
+    Effect.gen(function* () {
+      const originals = [
+        decisionRecord({ evaluationId: "s1" }),
+        failedRecord({ evaluationId: "s2" }),
+        failedWithCause("db down", "s3"),
+        obligationRecord({ evaluationId: "s4" }),
+      ];
+      for (const original of originals) {
+        const row = JSON.parse(JSON.stringify(yield* encodeAuditEntry(original)));
+        const read = decodeAuditEntry(row);
+        assert.isTrue(Result.isSuccess(read), original.evaluationId);
+        if (Result.isSuccess(read)) {
+          assert.strictEqual(JSON.stringify(read.success.entry.record), strictText(row.record), original.evaluationId);
+          assert.deepStrictEqual(read.success.record, original);
+        }
+      }
+    }));
+
+  it("an unknown envelope key and reversed keys read to the strict decode's form, not the row's", () => {
+    const record = Object.fromEntries(
+      Object.entries({
+        ...JSON.parse(
+          '{"_tag":"Decision","version":2,"evaluationId":"g","at":1,"subjectId":"u1","policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"outcome":{"_tag":"Failed","error":{"_tag":"MissingResource","attribute":"owner"}}}',
+        ),
+        traceparent: "00-abc",
+      }).reverse(),
+    );
+    const read = decodeAuditEntry({ record });
+    assert.isTrue(Result.isSuccess(read));
+    if (Result.isSuccess(read)) {
+      const text = JSON.stringify(read.success.entry.record);
+      assert.strictEqual(text, strictText(record));
+      assert.notInclude(text, "traceparent");
+      assert.isTrue(text.indexOf('"_tag"') < text.indexOf('"evaluationId"'));
+    }
+  });
 });
