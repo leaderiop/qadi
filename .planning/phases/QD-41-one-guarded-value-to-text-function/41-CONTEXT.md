@@ -6,17 +6,18 @@
 <domain>
 ## Phase Boundary
 
-No devtools panel or session command throws on a bigint or circular value. One package-private, guarded value-to-text
-function is the single way Remedies, Filters and SimulationForm turn an unknown value into text. The defect is real:
+No devtools panel or session command throws on a bigint or circular value. One guarded value-to-text function, a public
+`@qadi/core` export (D-13), is the single way core's `explain` and devtools' Remedies, Filters and SimulationForm turn an
+unknown value into text. The defect is real:
 research ran the real `remedyEdits` against built core, and six probes threw `TypeError`. The probes are `contains(10n)`,
 `contains(circular)`, `inArray([1n])`, `inArray([circular])`, `eq(literal(1n))` and `eq(literal(circular))`. The throw
 escapes `SimulationSession.commit()` synchronously, through `derive` and `sweepPlan`, outside any Effect.
 
 Records:
 - ARCH-88 and CCR-QD-432.
-- ADR-QD-154 is **Unused**; the CCR row names it.
+- ADR-QD-154 is used (D-16; it was Unused before the 2026-11-14 amendment).
 - BEH-QD-541..545 and INV-QD-327..328 are reserved; use them only for statements nothing already covers.
-- Changeset: `@qadi/devtools` patch (a fix).
+- Changesets: `@qadi/core` minor (the new export, D-13) and `@qadi/devtools` patch (a fix).
 
 Requirements: TEXT-01 to TEXT-04, plus the WX cross-cutting rows.
 
@@ -73,6 +74,25 @@ The roadmap marks this phase standard: **skip research-phase**.
   3. The three consumers.
   4. The records (BEH-QD-541, CCR-QD-432, the changeset).
   5. The mutation comparison and the merge gate, last.
+
+### Core's `explain` (amended 2026-11-14 after planning, user decision)
+Planning found that `packages/core/src/Explanation.ts` (`LiteralRef` `:295`, `In` `:307`, `Contains` `:311`) calls
+`JSON.stringify` with no guard. It throws `TypeError` on the same six bigint and cycle probes, and devtools reaches it
+through `policyLabel` (the rail, `sightingFor`, `Gates.ts`) and `inspect` (the inspector, `readOutcome`, `Replay.ts`).
+The user chose **one primitive, in core**.
+
+- **D-13 (supersedes D-02's placement): the one guarded value-to-text function is a public `@qadi/core` export.**
+  - It keeps D-03's contract: `(value: unknown) => string | undefined`, never throws.
+  - Core's `explain` and devtools' Remedies, Filters and SimulationForm all read through it.
+  - There is no second guarded stringify in devtools.
+  - It is a new export, so it needs a `spec/overview.md` row (gate 13) and a `@qadi/core` **minor** changeset; `@qadi/devtools` stays patch.
+  - The planner names it, consistently with core's naming (§8).
+- **D-14: Core's `explain` reads through it.** Its labels for a bigint or non-JSON value follow the same rule as Remedies' labels (D-06: a bigint is shown as `10n`, anything else gets the fixed placeholder). Every label that rendered before stays byte-identical and is pinned on the base.
+- **D-15: Proof extends to core.**
+  - The phase's first commit is a mutation baseline that also covers `packages/core/src/Explanation.ts` (core config), plus the new core module as `new`.
+  - The RED tests also cover `explain`, and a devtools path through `policyLabel`/`inspect`.
+  - A new BEH (BEH-QD-542 is free) states `explain`'s rule.
+- **D-16 (supersedes D-10): ADR-QD-154 is used.** It records why the one function is a public core export: core cannot import a devtools-private module, and one rule must serve core's `explain` and the devtools panels. ADR-QD-154 cites ADR-QD-099 (closed entry points).
 
 ### Claude's Discretion
 - The primitive's module and function names (for example `ValueText.ts`/`valueText`).

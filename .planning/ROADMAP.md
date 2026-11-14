@@ -544,22 +544,41 @@ Plans:
 
 ### Phase 41: One guarded value-to-text function
 
-**Goal**: No devtools panel or session command throws on a bigint or circular value: one guarded value-to-text function is the single way Remedies, Filters and SimulationForm turn an unknown value into text.
+**Goal**: No devtools panel or session command throws on a bigint or circular value: one guarded value-to-text function, a public `@qadi/core` export (D-13, user decision 2026-11-14), is the single way core's `explain` and devtools' Remedies, Filters and SimulationForm turn an unknown value into text.
 **Depends on**: Phase 37 (soft: both touch `SimulationSession.ts`; 41's RED session test targets the final session). No hard edge.
 **Requirements**: TEXT-01, TEXT-02, TEXT-03, TEXT-04, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
-**Records**: ARCH-88; ADR-QD-154 (Unused if the non-JSON display decision needs only its CCR row); CCR-QD-432; BEH-QD-541 to 545; INV-QD-327 to 328; changeset for `@qadi/devtools` (patch: a fix)
+**Records**: ARCH-88; ADR-QD-154 (the one value-to-text function is a public `@qadi/core` export, user decision 2026-11-14, CONTEXT D-13..D-16); CCR-QD-432; BEH-QD-541 to 545; INV-QD-327 to 328; changesets for `@qadi/core` (minor: the new export) and `@qadi/devtools` (patch: a fix)
 **Opens on** (`checkpoint:decision`):
   1. RED first, on `637c0601`. The defect is reproduced, not hypothetical: research ran the real `remedyEdits` against built core and six probes (`contains(10n)`, `contains(circular)`, `inArray([1n])`, `inArray([circular])`, `eq(literal(1n))`, `eq(literal(circular))`) all throw `TypeError`, which escapes `SimulationSession.commit()` synchronously through `derive` and `sweepPlan`, outside any Effect, so nothing captures it as `Broke`. "Refute and downgrade" is no longer an available outcome.
   2. How a remedy over a non-JSON value is shown (TEXT-04): a degraded label (`10n`, a fixed placeholder, no value content in logs) or skipped with a stated reason. Decided and pinned; BEH-QD-223 is not weakened.
 
 **Success Criteria** (what must be TRUE):
   1. On the phase base, a bigint or circular value through `contains`, `inArray` and `eq(literal)` makes `remedyEdits` and a session command (`setPolicy`, `chooseSight`) throw (RED, in a new test file); after the phase none of them throws.
-  2. One package-private total primitive returns `string | undefined` and is never the cause of a throw, including a throwing `toJSON` or getter; its rules are asserted in one test table and nowhere else.
+  2. One total primitive, a public `@qadi/core` export (D-13), returns `string | undefined` and is never the cause of a throw, including a throwing `toJSON` or getter; its rules are asserted in one test table and nowhere else.
   3. Remedies, Filters and SimulationForm read through it, with no other `JSON.stringify` of an unknown value left in those modules (scoped grep), and their existing outputs are pinned unchanged (bare strings, the word `undefined` in a remedy label, Filters' `[]`, the form's round-trip refusal).
   4. The way a remedy over a non-JSON value is shown is decided and pinned, with BEH-QD-223 intact.
 
 **Planning notes**: **Research flag: standard, skip research-phase** (the language semantics are settled; the work is the RED test and the adapters). Only `Remedies.ts:574` is live (used at `:481`, `:496` and for the size at `:249`); `Inspect.ts`'s `outsideUnion` and `QuestionsPanel.tsx`'s `resourceOf` cannot throw and are not folded in, because folding would change visible output. Filters (`[]`), SimulationForm (`undefined`, then its round-trip check) and Remedies (the word `undefined`) keep thin local mappings over the primitive. Wrap the stringify call (`Result.try` or the existing try/catch precedent), because a throwing `toJSON` or getter is reachable; no blanket catch, no `orDie`. **Plan shape, RED first**: RED tests at two levels (`remedyEdits`, and `makeSimulationSession` with `setPolicy`/`chooseSight`) in a new file, together with the mutation base for the four touched model files; then the primitive and its one test table (bigint, circular, nested bigint, symbol, function, `undefined`, `NaN`, `-0`, null-prototype, throwing `toJSON`, throwing getter) with a per-consumer pinned-output row; then the three consumers; then records; the mutation comparison last.
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+**Wave 1**
+- [ ] 41-01-PLAN.md — mutation baseline over core's and devtools' configs, first and alone; ADR-QD-154 (valueText is a public core export) before any code
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 41-02-PLAN.md — RED: explain over a bigint or cycle literal (core); remedyEdits, the session commands, the rail and the inspector (devtools); the base's outputs written out in four test files
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 41-03-PLAN.md — tracer: valueText in core, exported and named in the overview, the form reads through it; the one rule table in core with a row per consumer
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 41-04-PLAN.md — explain and the remedy label read through valueText (both RED files flip green); Filters too; the scoped grep
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 41-05-PLAN.md — BEH-QD-542 and BEH-QD-541, traceability, the core minor and devtools patch changesets, the completed CCR-QD-432 row
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 41-06-PLAN.md — gate integrity, the WX-04 scan, commit order, the evidence, the mutation comparison over both configs, check:pr, nothing released
 
 ### Phase 42: A seeded question builds its own computing atom
 

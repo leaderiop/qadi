@@ -47,7 +47,7 @@ unless a phase's planner records evidence against one). Per-phase evidence and r
 ### One guarded value-to-text function in devtools (Phase 41, ARCH-88)
 
 - [ ] **TEXT-01**: RED on the phase base: tests show a bigint or circular value through `contains`, `inArray` and `eq(literal)` throws from `remedyEdits` and from a session command (`setPolicy`/`chooseSight`), in a new test file; they pass after.
-- [ ] **TEXT-02**: One package-private total value-to-text primitive returns `string | undefined` and is never the cause of a throw (including a throwing `toJSON` or getter); its rules are asserted in one test table.
+- [ ] **TEXT-02**: One total value-to-text primitive, a public `@qadi/core` export read by core's `explain` too (D-13, user decision 2026-11-14), returns `string | undefined` and is never the cause of a throw (including a throwing `toJSON` or getter); its rules are asserted in one test table.
 - [ ] **TEXT-03**: Remedies, Filters and SimulationForm read through it, no other `JSON.stringify` of an unknown value remains in those modules, and their existing outputs are pinned unchanged (bare strings, the word `undefined` in a remedy label, Filters' `[]`, the form's round-trip refusal).
 - [ ] **TEXT-04**: How a remedy over a non-JSON value is shown (degraded label or skipped with a reason) is decided and pinned, and BEH-QD-223 is not weakened.
 
