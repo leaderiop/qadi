@@ -601,7 +601,7 @@ Plans:
   4. A final sweep corrects anything Phases 37-41 left stale (citations, overview module columns, BEH/INV Sources), and the milestone is re-verified at its final head with a mutation re-check of every touched file.
 
 **Planning notes**: **Research flag: needs `/gsd-plan-phase --research-phase 42`, but the human checkpoint is the research.** Stay quiet through stop-hook repeats once the question is asked. **Plan shape, human checkpoint first**: on a go, base both files with the same `--mutate` list (`QadiAtoms.ts` about 0.8966, `HydrationEngine.ts` about 0.9776); real-runtime seam tests before the fakes are deleted (four fake-`computedFor` cases in `HydrationEngine.test.ts`); RED for "no node for an unhydrated question" and "a late seed does not re-run the computation". Timing traps: read the seed through `seededIn(get.registry)`, never `get(grantAtom)` (a new dependency and a re-run); add no second `Atom.readable` (it changes render sequences); `live()` stays first; hand the question the final `keepAlive`/`withEquality` subject atom object, not the pre-pipe base; `WeakMap<SeedGrant, ...>` stays the only seed holder. The SD1-SD5, HL1-HL6, eviction pins and `QadiProvider.test.tsx` render sequences are untouched. `pnpm example` needs Playwright: use CI or the rootless podman route if the host cannot run it. The last plan is the cross-phase stale sweep and a named milestone re-verify.
-**Plans**: 2/5 plans executed
+**Plans**: 3/5 plans executed
 
 Plans:
 **Wave 1**
@@ -611,7 +611,7 @@ Plans:
 - [x] 42-02-PLAN.md — tests first on the base: real-runtime seam tests through makeQadiAtoms, the two trap tests proven red under the `get(grantAtom)` trap, the two mutation-closing tests
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 42-03-PLAN.md — tracer: SeededQuestion.ts builds its own computing atom, HydrationEngine.ts the codec, the four fakes gone; the decision-read budget and AGENTS.md §13 move together; SeededQuestion.test.ts on a real runtime
+- [x] 42-03-PLAN.md — tracer: SeededQuestion.ts builds its own computing atom, HydrationEngine.ts the codec, the four fakes gone; the decision-read budget and AGENTS.md §13 move together; SeededQuestion.test.ts on a real runtime
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 42-04-PLAN.md — records: four header comments, ADR-QD-149 and ADR-QD-140 amendments, INV-QD-028/105/317/318 and BEH-QD-517/518 Sources, traceability, the CCR-QD-433 row, the @qadi/react patch changeset

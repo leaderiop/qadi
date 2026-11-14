@@ -116,7 +116,7 @@ The edit was temporary and never committed; the verify's `git diff --quiet -- pa
 - As in 42-01 and 42-02, the trailer is `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`, which the plan's trailer check accepts.
 
 **2. [Note] D-05 says four fake computedFor cases; the plan removes six**
-- `HydrationEngine.test.ts` held six cases that used a fake computing atom (three in describe `makeSeededQuestion`, three in `a seed slot gives each registry its own grant`); four of them passed an explicit `computedFor`, the other two used the shared `question()` helper that does. All six were removed and all six return in `SeededQuestion.test.ts`. The verify names the six titles.
+- `HydrationEngine.test.ts` held six cases on a fake computing atom: three in describe `makeSeededQuestion`, each with its own `computedFor`, and three in `a seed slot gives each registry its own grant`, which share one helper holding a fourth `computedFor`. D-05 counts those four `computedFor` sites; the cases are six. All six were removed and all six return in `SeededQuestion.test.ts`; the verify names their titles.
 
 **3. [Plan-verify defect] Subject-prefix commit count: not triggered**
 - The known defect from 42-02 (a check counting commits by subject prefix also counts the plan's own SUMMARY and state commits) did not fire here: Task 1's precondition counts only `^test(42-02):` (exactly 2) and the order check filters out `.planning/` commits. The guarded facts were also checked directly before editing: `git diff --quiet <phase_base> -- packages/*/src/* scripts AGENTS.md` and `git status --porcelain -- packages scripts AGENTS.md` were clean, and no `(42-03`..`(42-09` commit existed. Nothing edited.
