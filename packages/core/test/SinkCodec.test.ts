@@ -1217,16 +1217,29 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
       if (refusal?._tag === "TooDeep") assert.strictEqual(refusal.path.length, MAX_DECODE_DEPTH + 1);
     });
 
-    it("a policy exactly MAX_DECODE_DEPTH deep passes the pre-check; the final walk refuses it, deeper than [policy]", () => {
-      const refusal = refusalOf(recordWith({ policy: nestedAllOf(MAX_DECODE_DEPTH) }));
-      assert.strictEqual(refusal?._tag, "TooDeep");
-      if (refusal?._tag === "TooDeep") assert.isAbove(refusal.path.length, 1);
+    it("a policy exactly MAX_DECODE_DEPTH deep is TooDeep at the path one past the bound", () => {
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ policy: nestedAllOf(MAX_DECODE_DEPTH) })),
+        EncodeRefusal.TooDeep({
+          path: ["policy", ...Array.from({ length: MAX_DECODE_DEPTH / 2 }, () => ["policies", 0]).flat()],
+          maxDepth: MAX_DECODE_DEPTH,
+        }),
+      );
     });
 
-    it("a trace exactly MAX_DECODE_DEPTH deep passes the pre-check; the final walk refuses it, deeper than its root", () => {
-      const refusal = refusalOf(decidedWith(P.hasPermission(read), nestedTrace(MAX_DECODE_DEPTH - 1)));
-      assert.strictEqual(refusal?._tag, "TooDeep");
-      if (refusal?._tag === "TooDeep") assert.isAbove(refusal.path.length, 3);
+    it("a trace exactly MAX_DECODE_DEPTH deep is TooDeep at the path one past the bound", () => {
+      assert.deepStrictEqual(
+        refusalOf(decidedWith(P.hasPermission(read), nestedTrace(MAX_DECODE_DEPTH - 1))),
+        EncodeRefusal.TooDeep({
+          path: [
+            "outcome",
+            "decision",
+            "trace",
+            ...Array.from({ length: (MAX_DECODE_DEPTH - 2) / 2 }, () => ["children", 0]).flat(),
+          ],
+          maxDepth: MAX_DECODE_DEPTH,
+        }),
+      );
     });
   });
 
