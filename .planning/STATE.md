@@ -2,20 +2,19 @@
 gsd_state_version: "1.0"
 milestone: v1.4
 milestone_name: Arch Wave 9
-current_phase: 42
-current_plan: Not started
-status: completed
+status: Awaiting next milestone
 stopped_at: Phase QD-42 complete — all phases complete
-last_updated: "2026-11-14T19:15:42.095Z"
+last_updated: "2026-11-14T19:22:24.876Z"
 last_activity: 2026-11-14
-last_activity_desc: Phase QD-42 complete
-state_head: fe6b79e240e378514931183f3d0a7b8c293c1d42
+last_activity_desc: Milestone v1.4 completed and archived
+state_head: d7c623ac00193d1bfa437e6e8d3af37d12649b50
 progress:
   total_phases: 6
   completed_phases: 6
   total_plans: 38
   completed_plans: 38
   percent: 100
+current_phase: 42
 ---
 
 # Project State
@@ -25,17 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-14)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 42 — A seeded question builds its own computing atom
+**Current focus:** Planning next milestone (v1.4 Arch Wave 9 complete 2026-11-14; not merged, not released)
 
 ## Current Position
 
-Phase: QD-42
-Current Plan: Not started
-Total Plans in Phase: 5
-Status: All phases complete
-Last activity: 2026-11-14 — Phase QD-42 complete
-
-Progress: [██████████] 100% (v1.4: 1 of 6 phases)
+Phase: Milestone v1.4 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-11-14 — Milestone v1.4 completed and archived
 
 
 ## Performance Metrics
@@ -458,4 +454,5 @@ Resume file: None
 ## Operator Next Steps
 
 
-- All v1.4 phases (37-42) complete; next in the autonomous run: milestone audit, complete and cleanup (no release)
+
+- Start the next milestone with /gsd-new-milestone

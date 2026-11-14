@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (current: v1.4 Arch Wave 9, ARCH-84 to ARCH-89)
+# Qadi — Architecture Waves (latest: v1.4 Arch Wave 9 completed; next milestone not yet defined)
 
 ## What This Is
 
@@ -14,6 +14,13 @@ The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
 
 ## Current State
+
+v1.4 Arch Wave 9 completed 2026-11-14 on branch `arch-wave-9` (228 commits, 95 files, +6,124 / −1,115
+outside `.planning`): ARCH-84 to ARCH-89, ADR-QD-150..155, CCR-QD-428..433. All 6 phases `passed`; 38, 39 and 40 were
+re-verified at the final head after later phases edited files they cover. The milestone audit is `passed`: 41/41
+requirements, 7/7 integration seams, 5/5 flows, minor tech debt recorded. `pnpm check:pr` exited 0 at the final head and
+`pnpm example` passed 30/30. One Breaking change (`@qadi/devtools`, Phase 40). **Not merged and not released.** Archive:
+`.planning/milestones/v1.4-ROADMAP.md`, `v1.4-REQUIREMENTS.md`, `v1.4-MILESTONE-AUDIT.md`.
 
 v1.3 Arch Wave 8 completed 2026-11-13 on branch `arch-wave-8` (333 commits, 220 files, +12,836 / −1,914
 outside `.planning`): ARCH-78 to ARCH-83 plus the carried spec debt, ADR-QD-143..149 (144, 145 and 147 unused),
@@ -37,7 +44,7 @@ outside `.planning`): ARCH-46 to ARCH-54, ADR-QD-108..116 (112, 113 and 115 left
 All 9 phases verified `passed` against the final tree; the full `pnpm check` is green on Node 22.12.0
 (CI run 42676403473 at 127d6fa). Archive: `.planning/milestones/v1.0-ROADMAP.md`.
 
-## Current Milestone: v1.4 Arch Wave 9
+## Previous Milestone: v1.4 Arch Wave 9 (completed 2026-11-14; not released)
 
 **Goal:** Resolve all six candidates of the 2026-11-14 architecture review (Phases 37–42, ARCH-84…89).
 
@@ -158,7 +165,7 @@ logged, counted or spanned.
 
 ### Active
 
-- [ ] ARCH-84..89: the six deepenings of the 2026-11-14 review; see `.planning/REQUIREMENTS.md`.
+(None — ARCH-84..89 shipped in v1.4 and are listed under Validated. The next milestone defines new ones.)
 
 ### Out of Scope
 
@@ -215,6 +222,17 @@ logged, counted or spanned.
   - ADR Document IDs must equal the file number (`verify-traceability.sh`, gate 10).
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
+
+### Known Issues (carried forward from v1.4)
+
+- The v1.4 audit (`.planning/milestones/v1.4-MILESTONE-AUDIT.md`) passed with minor tech debt:
+  - Phase 40's VALIDATION.md is `nyquist_compliant: false`: two 40-09 checks failed only on recorded plan-verify defects;
+  - core `HydrationMetrics.ts` (which now holds `HYDRATION_DROP_TABLE`) is in no Stryker mutate list;
+  - `SeededQuestion.ts` carries five equivalent surviving mutants moved from the base, and `QadiAtoms.ts` four (0.9);
+  - Phase 41 changed one label against D-07's wording (an object whose `toJSON` gives nothing now reads as the fixed
+    words, not `undefined`), recorded in ADR-QD-154 and BEH-QD-541;
+  - attribution: executor and fixer commits carry `Co-Authored-By: Claude Sonnet 5.5`, and one 41-02 docs commit has no
+    trailer, left as is because commit hashes are cited across the records.
 
 ### Known Issues (carried forward from v1.3)
 
@@ -333,4 +351,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-14 after Phase 42*
+*Last updated: 2026-11-14 after v1.4 milestone*

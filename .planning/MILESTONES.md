@@ -1,5 +1,44 @@
 # Milestones
 
+## v1.4 Arch Wave 9 (Phases 37-42) (Completed: 2026-11-14; not released)
+
+**Phases completed:** 6 phases, 38 plans
+**Closeout:** verified_closeout. All 6 phases `passed`. Phases 38, 39 and 40 were re-verified at the final
+head on 2026-11-14, because later phases edited files their reports covered; each goal still held. Milestone
+audit: `passed` (41/41 requirements, 6/6 phases, 7/7 integration seams, 5/5 flows, Nyquist 5/6 with Phase 40
+partial on recorded plan-verify defects), minor tech debt recorded. Archived as `milestones/v1.4-MILESTONE-AUDIT.md`.
+**Known verification overrides:** 0.
+**Git range:** `637c0601` → this archive commit on `arch-wave-9` (228 commits before the archive, 2026-11-13 →
+2026-11-14); 95 files changed outside `.planning`, +6,124 / −1,115.
+**Merge gate:** `pnpm check:pr` exit 0 at the end of every phase and at the final head; `pnpm example` 30/30.
+Mutation is run per touched file under WX-05 and never re-baselined. The final milestone re-check has all 15
+touched files at their latest recorded score.
+**Records:** ARCH-84..89, ADR-QD-150..155, CCR-QD-428..433.
+**Release:** none. The branch is not merged and nothing was published. Changesets are pending, unconsumed:
+`@qadi/core` minor, `@qadi/devtools` **Breaking** (Phase 40) and patch, `@qadi/audit` patch, `@qadi/react` patch.
+
+**Key accomplishments:**
+- **ARCH-84 (Phase 37):** one package-private devtools module, `SupersedingRun.ts`, owns the scoped-run
+  protocol (generation, close, finalizer order, stop, land only while current). The timeline feed,
+  simulation session and diagnostics feed had each restated it by hand (ADR-QD-150).
+- **ARCH-85 (Phase 38):** the sink wire version is stated once (`WIRE_VERSION`). The schema literals, the
+  encoder, the decoder's check, `WIRE_VERSIONS` and `WireVersion` derive from it (ADR-QD-151).
+- **ARCH-86 (Phase 39):** each hydration drop reason is stated once, in core's `HYDRATION_DROP_TABLE`, with
+  its kind. The unions, the value list, the meanings and react's payload and entry groups derive from it
+  (ADR-QD-152).
+- **ARCH-87 (Phase 40):** core owns describing a decode refusal (`describeDecodeRefusal`, tag-only
+  annotations, one `UntrustedValueRefusal` → `DecodeRefusal` mapping). Devtools passes the refusal through,
+  which is **Breaking**: `MalformedReason` is removed. Audit decodes a row's record once
+  (`decodeSinkRecordWithJson`) (ADR-QD-153).
+- **ARCH-88 (Phase 41):** one guarded value-to-text function and one label rule in core (`valueText`,
+  `valueLabel`). They are read by `explain` and by devtools' Remedies, Filters and SimulationForm. A bigint
+  or circular value no longer throws (ADR-QD-154; user choice: one primitive in core).
+- **ARCH-89 (Phase 42):** a seeded question builds its own computing atom in react's package-private
+  `SeededQuestion.ts`. The callback-that-takes-a-callback is gone and the fakes are replaced by real-runtime
+  tests (ADR-QD-155; user choice: option 1b).
+
+---
+
 ## v1.3 Arch Wave 8 (Phases 30-36) (Completed: 2026-11-13; not released)
 
 **Phases completed:** 7 phases, 54 plans, 56 tasks
