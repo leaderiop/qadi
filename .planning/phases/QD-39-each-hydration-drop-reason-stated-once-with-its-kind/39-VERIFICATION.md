@@ -1,6 +1,6 @@
 ---
 phase: QD-39-each-hydration-drop-reason-stated-once-with-its-kind
-verified: 2026-11-14T08:00:00Z
+verified: 2026-11-14T20:30:00Z
 status: passed
 score: 6/6 must-haves verified
 covered_files:
@@ -19,7 +19,7 @@ covered_files:
   - "packages/core/test/HydrationMetrics.tst.ts"
   - "packages/react/src/HydrationEvent.ts"
   - "packages/react/test/Hydration.tst.ts"
-covered_digest: "v4:sha256:e60fe66a461f244c1f1d177e317027f2e8a67674014104648e2c0e1385fc6781"
+covered_digest: "v4:sha256:7236f4ca890b6e095518ab578b89b96b2868edce566ec2374893233b8fab1d0f"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -27,9 +27,25 @@ overrides_applied: 0
 # Phase 39: Each hydration drop reason stated once, with its kind - Verification Report
 
 **Phase Goal:** Each hydration drop reason is stated once in core with its kind (`dehydration`, `payload` or `entry`), so the reason unions, the value list, the meanings and react's payload and entry groups derive from one table, and a new reason without a kind is a compile error.
-**Verified:** 2026-11-14
+**Verified:** 2026-11-14 (refreshed at final head a26eece4)
 **Status:** passed
-**Re-verification:** No, initial verification
+**Re-verification:** Yes, refresh at the v1.4 final head (see below)
+
+## Re-verification at final head
+
+Refreshed against `a26eece4` (arch-wave-9, v1.4 milestone audit passed). The GSD tooling marked the previous digest stale. Of the covered files, only `packages/react/src/HydrationEvent.ts` changed after Phase 39's review fixes: commit `acc137a4` (Phase 42, `docs(42-04)`) rewrote one doc-comment sentence so it names `SeededQuestion.ts` beside `HydrationEngine.ts` as a builder of events. No code line changed. `HydrationMetrics.ts`, `HydrationMetrics.test.ts`, `HydrationMetrics.tst.ts` and `Hydration.tst.ts` have no commit after `a6e30c38`/`cd7046ff` (Phase 39's own review fixes). Phases 40 and 41 touched none of the covered files.
+
+Re-checked on the current tree, not copied:
+
+- Table, derivations and readers: `HYDRATION_DROP_TABLE` (`as const satisfies`, nine rows with `kind`), `HydrationDropReason = keyof typeof table`, `HydrationDropReasonOf<K>`, `isHydrationDropReason` via `Object.hasOwn`, `hydrationDropReasons` from `Object.keys(table)`. react's `PayloadRefusalReason` / `EntryDropReason` are `HydrationDropReasonOf<"payload">` / `<"entry">` (`HydrationEvent.ts:93,102`); the engine's `bucketOf` is `Record<EntryDropReason, ...>`. devtools `Hydration.ts` and react `DeveloperSignals.ts` read meanings through `hydrationDropMeaning`. No `MEANINGS` table remains for hydration (the only grep hits are the unrelated `SIGNATURE_MEANINGS`).
+- Metric: `hydrationDroppedTotal` still `Metric.frequency("qadi_hydration_dropped_total", ...)` with the same description and `preregisteredWords: hydrationDropReasons`.
+- Kind-less row, reproduced again: a `Throwaway: { summary, remedy }` row inserted into the table gave `TS2741 Property 'kind' is missing ... required in type 'HydrationDropRow'` under `tsc -p packages/core/tsconfig.src.json`; the file was restored with `git checkout`, and the tree is clean for `packages/` and `tsc` is clean again.
+- Tests on HEAD: core `HydrationMetrics.test.ts` 25/25; the whole react project 61 files, 1437 tests; tstyche on `HydrationMetrics.tst.ts` and `Hydration.tst.ts` 17 tests, 41 assertions, all pass.
+- Gate: `pnpm check:pr < /dev/null` exited 0 at the final head (log `checkpr42.log`: 16 of 17 steps, mutation skipped by design for non-release runs). This closes the earlier note that the full `check:pr` had not been re-run after Phase 39's review fixes (WX-01).
+- Mutation: Phase 42's `42-milestone-mutation.json` records `HydrationMetrics.ts` at base 1, after 1 (from `39-mutation-after.json`); Stryker was not run here. The milestone audit notes the file is not in a Stryker mutate list.
+- Requirements: all 11 IDs (DROP-01..04, WX-01..07) are in the plans' frontmatter and marked complete in REQUIREMENTS.md; no orphans.
+
+Verdict: unchanged, the goal holds at the final head. No gaps.
 
 ## Goal Achievement
 
@@ -93,7 +109,7 @@ No probes declared by the phase. Skipped.
 | DROP-02 | 39-02, 39-03, 39-04, 39-05 | SATISFIED | derivations read; kind-less negative proven |
 | DROP-03 | 39-01, 39-02, 39-05 | SATISFIED | nine-word snapshot committed before refactor, green |
 | DROP-04 | 39-01, 39-03, 39-04, 39-05 | SATISFIED | metric unchanged; new-row experiment recorded |
-| WX-01 | 39-05 | SATISFIED | `pnpm check:pr` exit 0 on `0c3aca1d` per 39-05-SUMMARY; the two later review-fix commits touched only a string wrap and a test import, and typecheck, lint, tstyche and the vitest subset pass on HEAD (the full `pnpm check:pr` was not re-run by this verifier) |
+| WX-01 | 39-05 | SATISFIED | `pnpm check:pr < /dev/null` exit 0 at final head `a26eece4` (checkpr42.log), after exit 0 on `0c3aca1d` per 39-05-SUMMARY |
 | WX-02 | 39-01, 39-04, 39-05 | SATISFIED | ADR-QD-152, CCR-QD-430, INV-QD-323 present, reserved numbers |
 | WX-03 | 39-04, 39-05 | SATISFIED | overview names the two types; gate 13 passes |
 | WX-04 | 39-02, 39-03, 39-05 | SATISFIED | diff of core/react src added lines: only `as const`; house-style gate clean |
@@ -116,7 +132,7 @@ None.
 - **Mutation no longer guards `HydrationMetrics.ts`.** After the conversion 0 mutants are scored (the five base scored mutants were the old `.some(===)` guard, replaced by `Object.hasOwn`; the rest are static under `ignoreStatic`). The score reads 1 = base 1, so WX-05 is met as written, but protection of this file now rests on the written-out snapshot, the type pins and the experiments. This is recorded in 39-05-SUMMARY.md.
 - **Co-author trailer.** The 39-05 commits carry `Claude Sonnet 5.5` where the plan's constraint check names Opus. Process-only; already recorded as a plan-verify defect. No effect on goal.
 - **Runtime `kind` on the meaning object.** `hydrationDropMeaning` now returns the row, so the object carries `kind` at run time while its type stays `HydrationDropMeaning`. Documented in the changeset and ADR-QD-152; not a public break.
-- The full `pnpm check:pr` and the mutation run were not re-executed here; the 39-05 evidence for them was taken from the SUMMARY plus the independent re-runs listed above.
+- Stryker was not re-run here; the mutation evidence is the recorded `39-mutation-after.json` and Phase 42's `42-milestone-mutation.json`. The full `pnpm check:pr` at the final head was run by the orchestrator (exit 0).
 
 ## Gaps Summary
 

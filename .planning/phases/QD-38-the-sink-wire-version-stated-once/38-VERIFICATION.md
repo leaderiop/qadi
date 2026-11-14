@@ -1,6 +1,6 @@
 ---
 phase: QD-38-the-sink-wire-version-stated-once
-verified: 2026-11-14T05:25:00Z
+verified: 2026-11-14T18:30:00Z
 status: passed
 score: 4/4 roadmap success criteria verified (plus all plan must-haves)
 covered_files:
@@ -16,7 +16,7 @@ covered_files:
   - "packages/core/src/SinkWire.ts"
   - "packages/core/test/SinkCodec.test.ts"
   - "packages/core/test/SinkWire.tst.ts"
-covered_digest: "v4:sha256:66110f01c61dbcc13f4adc248607b555e7b001bf3ffdd4844550236fd18c660f"
+covered_digest: "v4:sha256:9e7159f130c2c1f3973be02c62c6dcb614c74ce18b3b9a3b895659765259e87d"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -26,7 +26,26 @@ overrides_applied: 0
 **Phase Goal:** The sink record wire's version number is written once, in `SinkWire.ts`, and the schema literals, the encoder, the decoder's check, `WIRE_VERSIONS` and `WireVersion` all derive from it, so retyping it cannot leave half the codec behind.
 **Verified:** 2026-11-14
 **Status:** passed
-**Re-verification:** No, initial verification
+**Re-verification:** Yes, refreshed at the milestone final head a26eece4 (the fingerprint went stale when Phase 40 edited covered files)
+
+## Re-verification at final head
+
+Refreshed against `a26eece4` (arch-wave-9, v1.4 final head). The phase-38 truths below were first verified at the end of Phase 38; the GSD fingerprint went stale because later commits legitimately edited covered files. Those commits, all Phase 40 (decode-refusal wire), touched `SinkCodec.ts`, `SinkWire.ts`, `SinkCodec.test.ts` and `SinkWire.tst.ts` (the last via the 40-03 and 40-04 pin commits); Phases 41 and 42 did not touch any covered file:
+
+`2356dc4e` (40-02, Malformed messages written out), `c615bd64`, `139d5dc2`, `97aa9508` (40-03, refusal mapping moved into `SinkWire.ts`, `decodeRefusalOf`, `describeDecodeRefusal`), `fd822cee`, `0cbdb70a` (40-04, one strict decode giving the record and its JSON form), `dd0c3da3`, `946a35ce`, `a7553b90` (40 review fixes: a test-helper rename and two comment edits).
+
+Re-checked on the current tree, none of it taken from the previous report:
+
+- Single-constant scan (comment lines dropped) of `Literal(2)`, `version: 2`, `= 2`, `2 as const`, `[2]` over `packages/core/src/Sink*.ts` returns exactly `SinkWire.ts:9: export const WIRE_VERSION = 2 as const;` (the line moved from 43 because Phase 40 added declarations above it).
+- `SinkWire.ts` still has `WIRE_VERSIONS = [WIRE_VERSION] as const` (`:57`) and `WireVersion = (typeof WIRE_VERSIONS)[number]` (`:73`). `SinkCodec.ts` still reads the constant at `:147` and `:155` (`Schema.Literal(WIRE_VERSION)`), `:225` and `:227` (`version: WIRE_VERSION` after the record spread), `:472` (`isReadVersion = Schema.is(Schema.Literals(WIRE_VERSIONS))`) and `:492` (`supported: WIRE_VERSIONS`). Phase 40's single-decode work did not reintroduce a literal.
+- `pnpm exec vitest run --project core packages/core/test/SinkCodec.test.ts`: 168 passed (156 at Phase 38 close, plus Phase 40's rows). The written-out `supported: [2]` rows for absent, 1, 3 and string "2", and the "every version in WIRE_VERSIONS decodes" row, are present. `fixtures/sinkWireV2.ts` has no diff since the Phase 38 review commits and no golden was removed; the lines Phase 40 removed from `SinkCodec.test.ts` are the `decodeRefusalOf` to `refusalOfText` helper rename, with the same assertions.
+- `pnpm exec tstyche packages/core/test/SinkWire.tst.ts`: 10 tests, 14 assertions pass (the five Phase 38 pins, `WIRE_VERSION` = `2`, `WireVersion` = `2`, `WIRE_VERSIONS` = `readonly [2]`, both `SinkRecordJson` versions = `2`, plus Phase 40's decode-reader pins).
+- `pnpm check:pr < /dev/null` at the final head exited 0 (16 of 17 steps, `pnpm mutation` skipped by design); log `checkpr42.log` ends `run-check: ran 16 of 17 steps`. Spec gates (13 included) are inside it.
+- Mutation, from the recorded Phase 42 `42-milestone-mutation.json` (no Stryker run): `SinkCodec.ts` 0.9755 (159/163), above the Phase 38 base 0.9634; `SinkWire.ts` 1.0 (60/60). WX-05 holds (the file grew with Phase 40, and its score did not fall).
+- `spec/overview.md` still names `WIRE_VERSION` (`:459`, `:522-526`), ADR-QD-151 exists at `spec/decisions/151-the-sink-wire-version-is-stated-once.md`, the changeset `.changeset/sink-wire-version-stated-once.md` is `"@qadi/core": minor`, and `git status` is clean for `packages`, `spec`, `.changeset`, `scripts` and `AGENTS.md`.
+- Requirement cross-reference: WIRE-01 to WIRE-05 and WX-01 to WX-07 are all present in `.planning/REQUIREMENTS.md` and marked Complete (`:24-28`, `:65-71`, traceability `:105-109`, `:131-137`); all twelve appear in the plan frontmatter. No orphans.
+
+Verdict unchanged: status passed, 4/4.
 
 ## Goal Achievement
 
@@ -115,5 +134,5 @@ None. Minor note, not a gap: the `38-mutation-after.json` in the phase directory
 
 ---
 
-_Verified: 2026-11-14_
+_Verified: 2026-11-14 (refreshed at a26eece4)_
 _Verifier: Claude (gsd-verifier)_

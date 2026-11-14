@@ -1,6 +1,6 @@
 ---
 phase: QD-40-core-owns-describing-a-decode-refusal
-verified: 2026-11-14T14:30:00Z
+verified: 2026-11-14T20:25:00Z
 status: passed
 score: 4/4 roadmap success criteria verified (plus all 14 requirement IDs)
 covered_files:
@@ -31,7 +31,7 @@ covered_files:
   - packages/devtools/src/model/Source.ts
   - packages/http/src/DecisionStreamRoute.ts
   - scripts/check-house-style.mjs
-covered_digest: "v4:sha256:04a752ee535be8aa70a4a8bd2a4fd60bc2857075cb120c95360f2d701586dfc6"
+covered_digest: "v4:sha256:c944134292730bef62986eec4655d48ba0ab6af62c75eab294bdc146ecd4b5b1"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -39,9 +39,25 @@ overrides_applied: 0
 # Phase 40: Core owns describing a decode refusal - Verification Report
 
 **Phase Goal:** Core owns describing a decode refusal (the mirror of ADR-QD-116's encode side), so devtools passes `DecodeRefusal` through instead of renaming it and audit decodes a row's record once.
-**Verified:** 2026-11-14 on HEAD 76504b3a (phase base eb5a9406)
+**Verified:** 2026-11-14 on HEAD 76504b3a (phase base eb5a9406); refreshed 2026-11-14 at a26eece4
 **Status:** passed
-**Re-verification:** No, initial verification
+**Re-verification:** Yes, refresh at the milestone's final head (no gaps were open; the earlier report passed)
+
+## Re-verification at final head
+
+Refreshed at `a26eece4` (arch-wave-9, v1.4 milestone audit). The earlier report passed; the GSD tooling marked it stale because later v1.4 phases edited covered files. All four truths and all 14 requirement IDs were re-checked against the current tree, not the earlier report.
+
+**Later commits that touched covered files:** exactly one, `3eeddb68` (`chore(42-03)`), which edits `scripts/check-house-style.mjs` (2 lines) and `AGENTS.md` (1 line) to move the `DECISION_READ_BUDGET` key from `HydrationEngine.ts` to `SeededQuestion.ts`. It is the react decision-read budget and section 13; it does not touch the untrusted-decode budget, `_NAMES` or the section 7a table that truth 3 depends on. No later commit touched `SinkWire.ts`, `SinkCodec.ts`, `AuditEntry.ts`, `Source.ts`, `index.ts`, `DecisionStreamRoute.ts`, `Dock.tsx` or `Retention.ts`. Phases 41 and 42 changed other files in core (`ValueText.ts`, `Explanation.ts`) and devtools (`Filters.ts`, `Remedies.ts`, `SimulationForm.ts`) and react's seeded question; none is a Phase 40 artifact.
+
+**Evidence re-run on the current tree:**
+- `pnpm check:pr < /dev/null` at the final head: exit 0, 16 of 16 steps ran (mutation skipped by design), per the orchestrator's log; I read the log, steps 1 to 16 all present and no failure lines.
+- `node scripts/check-house-style.mjs`: 505 files clean (3 declared switches), which includes `[untrusted-decode-table]`, `[untrusted-decode-names]` and the decision-read budget after `3eeddb68`.
+- vitest: core `DecodeRefusal` and `SinkCodec` files 3 files / 219 tests pass; audit `AuditEntry*` 2 files / 46 tests pass (the differential and the 60,000-deep `TooDeep` pin); devtools `Source.test.ts` 44 tests pass.
+- Source greps: `describeDecodeRefusal`, `decodeRefusalAnnotations`, `decodeRefusalOf` present in `SinkWire.ts`; `AuditEntry.ts` calls `decodeSinkRecordWithJson` once; `MalformedReason`, `reasonOf`, `recordJsonOf` have no match in `packages/*/src` or the example; `onMalformed` takes `refusal: DecodeRefusal`; `Retention.ts` has no diff since the original verified head.
+- Mutation (recorded JSON only, Stryker not run): `42-milestone-mutation.json` lists `SinkCodec.ts` 0.97546 (base 0.97546), `SinkWire.ts` 1, `Source.ts` 1, `AuditEntry.ts` 1; none fell.
+- Requirements: the union of `requirements:` across 40-01..40-09 PLANs is DREF-01..07 and WX-01..07; REQUIREMENTS.md lists all 14 as checked and Complete. No orphans.
+
+**Outcome:** no regression, no gap; status stays `passed`.
 
 ## Goal Achievement
 
