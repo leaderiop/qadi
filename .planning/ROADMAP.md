@@ -402,14 +402,14 @@ first plan gathers evidence and presents options, asks once (one `AskUserQuestio
   5. Observable behaviour is unchanged: the session run is still a root span, interruption never reads as `Stopped` (INV-QD-313), the session still reads a defect or self-interrupt as `Broke`, and every pre-existing store test passes unchanged on day one; ADR-QD-137 §7 and point 3 are corrected (no `useRunningStore`; the unconditional stop) and AGENTS.md §10 stops naming `it.scoped`, which `@effect/vitest@4.1.2` does not have.
 
 **Planning notes**: **Research flag: needs `/gsd-plan-phase --research-phase 37`.** Run the two RED reproductions first (a feed restarted inside its Starting or Reading notification; a body whose synchronous prefix starts a command) and count the store tests that depend on a synchronous prefix before fixing the interface. **Plan shape, RED first**: the mutation base for all three stores, committed alone and first (`DiagnosticsFeed.ts` has no recorded base, `TimelineFeed.ts` was 1.0, `SimulationSession.ts` about 0.97; the close uses the same invocation); then the module's RED tests (re-entrancy, close with a defecting finalizer, the stop table, two instances, the self-interrupt row); then one store converted at a time, deleting a store-level case only after the module's test covers it; then the records plan (ADR-QD-150, the CCR README row in the same plan as its first citation, BEH/INV, traceability, changeset, the three "Added after the handle" comments and `DiagnosticsFeed`'s "without a Stopped" doc, AGENTS.md §10, `spec-revise --date` then `--check`); the mutation comparison last. A test that closes its scope mid-test builds `Scope.makeUnsafe()` and runs `Scope.provide` then `Scope.close`; `it.effect` already scopes a test. A `Scope.make("parallel")` voids the finalizer ordering, so the module's doc says so. The module builds synchronously (`useScoped` uses `Effect.runSync`) and holds per-build closure state only.
-**Plans**: 1/9 plans executed
+**Plans**: 2/9 plans executed
 
 Plans:
 **Wave 1**
 - [x] 37-01-PLAN.md — Mutation baseline for the three stores, committed alone and first; the timeline ordering pin and the session self-interrupt and no-run stop pins, green on the base
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 37-02-PLAN.md — Tracer: the timeline feed's three re-entrancy cases RED, then the `SupersedingRun` module and the timeline feed on it, GREEN
+- [x] 37-02-PLAN.md — Tracer: the timeline feed's three re-entrancy cases RED, then the `SupersedingRun` module and the timeline feed on it, GREEN
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 37-03-PLAN.md — The module's interface rows R1 to R17 (supersede, close, stop in four states, failure hook, two scopes, held forks, synchronous build)

@@ -5,16 +5,16 @@ milestone_name: Arch Wave 9
 current_phase: 37
 current_phase_name: A scoped run that a newer run supersedes
 status: executing
-stopped_at: Completed 37-01-PLAN.md
-last_updated: "2026-11-14T01:49:48.582Z"
+stopped_at: Completed QD-37-02-PLAN.md
+last_updated: "2026-11-14T01:53:11.548Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 37 execution started
-state_head: 0958f5c40be9c8be2a80e1683c333d6d92ea991c
+state_head: c2e172065e0caa4408fcb7f75a31d53248cbb3d3
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 9
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 ## Current Position
 
 Phase: 37 (A scoped run that a newer run supersedes) — EXECUTING
-Plan: 2 of 9
+Plan: 3 of 9
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 37 execution started
 
@@ -204,6 +204,7 @@ Progress: [░░░░░░░░░░] 0% (v1.4: 0 of 6 phases)
 | Phase 36 P13 | 30 min | 3 tasks | 8 files |
 | Phase 36 P14 | 40 min | 3 tasks | 5 files |
 | Phase 37 P01 | 8 min | 3 tasks | 3 files |
+| Phase QD-37 P02 | 12 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -324,6 +325,7 @@ Progress: [░░░░░░░░░░] 0% (v1.4: 0 of 6 phases)
 - [Phase 36]: 36-14: TimelineNotice.tsx:40:20 (Reading arm null vs undefined) is a named equivalent survivor; StoppedBox's effect deps are killed by TN15
 - [v1.4]: the six phases 37-42 and their order are fixed by the user; research reconciliations R1-R6 (`research/SUMMARY.md`) are binding unless a planner records evidence against one; reserved numbers are ADR 150-155, CCR 428-433, BEH 521-550, INV 319-330 (never run `node scripts/next-id.mjs`)
 - [Phase 37]: 37-01: baseline recorded as measured (TimelineFeed 1, DiagnosticsFeed 0.9279, SimulationSession 0.9767); SupersedingRun.ts recorded as new; the Stryker pattern for the not-yet-existing file was accepted unchanged
+- [Phase QD-37]: 37-02: SupersedingRun module copied from the verified prototype; TimelineFeed keeps only its closed guard and the Stopped mapping
 
 ### Pending Todos
 
@@ -366,8 +368,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T01:49:48.561Z
-Stopped at: Completed 37-01-PLAN.md
+Last session: 2026-11-14T01:53:11.527Z
+Stopped at: Completed QD-37-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
