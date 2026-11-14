@@ -1,0 +1,6 @@
+{
+ "packages/devtools/src/model/TimelineFeed.ts": 1,
+ "packages/devtools/src/model/DiagnosticsFeed.ts": 0.9473684210526315,
+ "packages/devtools/src/model/SimulationSession.ts": 0.9818731117824774,
+ "packages/devtools/src/model/SupersedingRun.ts": 0.9473684210526315
+}
