@@ -98,17 +98,21 @@ export const source = sourceFromEventSource({
 The environment label is stated once, where the log is made; over SSE it
 travels inside each frame, so `sourceFromEventSource` states none. A frame must
 be a `{ environment, record }` envelope whose record is wire version 2. A bare
-record from a server older than 0.10 is reported as `"not-a-record"`, and a
-version-1 record as `"unsupported-version"`; see
+record from a server older than 0.10 is reported as a `Malformed` refusal, and a
+version-1 record as `UnsupportedVersion`; see
 [Upgrading to 0.11](/docs/reference/upgrading/#peers-on-09-or-earlier).
 
-A frame whose record is well-formed but contradicts itself (a decision that says allow beside a trace that says deny, or ids that are not the decision's) is reported as `"inconsistent"`: it is neither version skew nor a malformed frame, and the log and the inspector would otherwise have read different copies of one evaluation.
+A frame whose record is well-formed but contradicts itself (a decision that says allow beside a trace that says deny, or ids that are not the decision's) is reported as `Inconsistent`: it is neither version skew nor a malformed frame, and the log and the inspector would otherwise have read different copies of one evaluation.
 
 A frame that is not JSON, one that does not decode, or a server that
 disconnects each drops one row and reports why via an `onMalformed`/
 `onDisconnect` callback, rather than taking the panel down — a devtools panel
 is what you look at when something is already wrong, so it has to survive a
 bad frame.
+
+`onMalformed` receives `@qadi/core`'s `DecodeRefusal`, and `describeDecodeRefusal`
+gives its sentence. With no callback the drop is logged, annotated with the
+refusal's tag.
 
 ## Keeping the Services and React panels current
 

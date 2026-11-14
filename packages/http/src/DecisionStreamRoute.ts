@@ -29,7 +29,7 @@
  * producer's label travels with the record, so a reader never states it
  * again, and an `Edge` record an aggregator ingested arrives labelled `Edge`.
  * A reader older than the envelope ignores the named events and reports each
- * `message` frame as `not-a-record` through its `onMalformed` — loudly, not as
+ * `message` frame as malformed through its `onMalformed` — loudly, not as
  * silently mislabelled rows.
  *
  * **SSE rather than a WebSocket**, and the reasoning is the traffic, not taste.
