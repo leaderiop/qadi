@@ -1,0 +1,13 @@
+{
+ "measured": {
+  "packages/core/src/Explanation.ts": 0.9867256637168141,
+  "packages/devtools/src/model/Remedies.ts": 1,
+  "packages/devtools/src/model/Filters.ts": 1,
+  "packages/devtools/src/model/SimulationForm.ts": 0.9819494584837545
+ },
+ "unmeasured": {},
+ "new": [
+  "packages/core/src/ValueText.ts"
+ ],
+ "deleted": {}
+}
