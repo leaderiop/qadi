@@ -4,18 +4,18 @@ milestone: v1.4
 milestone_name: Arch Wave 9
 current_phase: 42
 current_phase_name: A seeded question builds its own computing atom
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed QD-42-03-PLAN.md
-last_updated: "2026-11-14T18:31:56.737Z"
+stopped_at: Completed QD-42-04-PLAN.md
+last_updated: "2026-11-14T18:38:51.087Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase QD-41 complete, transitioned to Phase 42
-state_head: 786767ef9be3467c03171d23cc88c50387788544
+state_head: de0b659901c2778a77b6d6ab82657029957046d8
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 38
-  completed_plans: 36
+  completed_plans: 37
   percent: 83
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 ## Current Position
 
 Phase: QD-42 (A seeded question builds its own computing atom) — READY TO EXECUTE
-Current Plan: 4
+Current Plan: 5
 Total Plans in Phase: 5
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase QD-41 complete, transitioned to Phase 42
@@ -246,6 +246,7 @@ Progress: [████████░░] 83% (v1.4: 1 of 6 phases)
 | Phase QD-42 P01 | 4 min | 2 tasks | 5 files |
 | Phase QD-42 P02 | 2 min | 2 tasks | 2 files |
 | Phase QD-42 P03 | 3 min | 3 tasks | 7 files |
+| Phase QD-42 P04 | 6 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -399,6 +400,7 @@ Progress: [████████░░] 83% (v1.4: 1 of 6 phases)
 - [Phase QD-42]: 42-02: the seam tests name no makeSeededQuestion or fake computing atom, so 42-03 moves the code under them unchanged; the trap tests are proven red under get(grantAtom) and the source restored
 - [Phase QD-42]: 42-03: the AnnounceState WeakSet reshape is not taken; the { announced: false } survivor is equivalent and the move stays a move for 42-05's survivor comparison
 - [Phase QD-42]: 42-03: QadiRuntimeServices stays in QadiAtoms.ts; only DECISIONS_KEY moved down into SeededQuestion.ts (a back-import would be a madge cycle)
+- [Phase QD-42]: 42-04: ADR-QD-140's amendment names both QadiAtoms.ts imports its edge list lacked (SeededQuestion.ts and SweepScheduler.ts); the unused reserved numbers appear only in the CCR-QD-433 row
 
 ### Pending Todos
 
@@ -446,8 +448,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T18:31:56.479Z
-Stopped at: Completed QD-42-03-PLAN.md
+Last session: 2026-11-14T18:38:50.828Z
+Stopped at: Completed QD-42-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
