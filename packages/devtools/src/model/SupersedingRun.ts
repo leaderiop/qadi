@@ -26,7 +26,9 @@
  * step reaches before `fork` returns. A fork requested while another fork's start
  * is still running (a prefix that starts a command that starts a newer run) is
  * held in one slot and installed when that start returns, re-checked until nothing
- * is held, so the newest run is live and the stale outer one is interrupted.
+ * is held, so the newest run is live and the stale outer one is interrupted. A token
+ * is forked once: a second fork of the same token from inside a start overwrites the
+ * held one, so the first never starts although it answered `true`.
  *
  * Package-private (ADR-QD-099).
  */
@@ -53,7 +55,10 @@ export interface ForkHooks {
 export interface SupersedingRun {
   /** Supersedes the current run and returns the token of the next one. */
   readonly begin: () => RunToken;
-  /** Runs `run` while `token` is current; answers whether it did (it was started, or held to start). */
+  /**
+   * Runs `run` while `token` is current; answers whether it did (it was started, or held to start).
+   * A token is forked once: a second fork of the same token from inside a start overwrites the held one.
+   */
   readonly fork: (token: RunToken, run: Effect.Effect<void, unknown>, hooks?: ForkHooks) => boolean;
   /** Whether `token` names the run that is current now. */
   readonly isCurrent: (token: RunToken) => boolean;
