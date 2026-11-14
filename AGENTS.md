@@ -577,7 +577,10 @@ table. A module another package needs is exported from the barrel instead.
 
 ## 10. Tests
 
-`@effect/vitest`: `it.effect`, `it.scoped`, `it.layer`, `TestClock`.
+`@effect/vitest`: `it.effect`, `it.layer`, `TestClock`. `it.effect` already gives each
+test its own scope; a test that must close a scope mid-test builds it with
+`Scope.makeUnsafe()` (or `yield* Scope.make()`), provides it with `Scope.provide`, and
+closes it with `Scope.close(scope, Exit.void)`.
 Coverage thresholds are enforced in config — a shortfall fails the run.
 `packages/core` is held at 95%, everything else at 90%.
 
