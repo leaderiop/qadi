@@ -1,439 +1,369 @@
-# Feature Research: v1.3 Arch Wave 8 (behaviour inventory per phase, 30–36)
+# Feature Research: v1.4 Arch Wave 9 (behaviour inventory per phase, 37-42)
 
 **Domain:** Effect v4 authorization library, architecture-deepening wave (subsequent milestone)
-**Researched:** 2026-11-12
-**Base:** every `file:line` below was read at HEAD `b8b19f6c`. `git diff aab87576 HEAD -- packages spec scripts features` is empty, so the lines are also true at the phase base `aab87576`.
-**Confidence:** HIGH for every code and spec claim (read directly). MEDIUM where a mechanism is a hypothesis (Phase 35, Phase 33 option choice). The one empirical check (madge, Phase 32) is HIGH.
+**Researched:** 2026-11-14
+**Base:** every `file:line` below was read at HEAD `bb48bbfb`. `git diff 637c0601 HEAD -- packages spec scripts features AGENTS.md` is empty, so the lines are also true at the milestone base `637c0601`.
+**Confidence:** HIGH for every code and spec claim (read directly). HIGH for the Phase 41 reachability result (reproduced by running the code, see below). MEDIUM for the Phase 37 re-entrancy hypothesis and the Phase 42 design options (not run).
 
-"Features" here means: the observable behaviour that exists today and must survive, the behaviour that changes, and what is table stakes, differentiator or anti-feature for each deepening. Standard per-phase record work (ADR + CCR + BEH + INV + traceability + overview prose + changeset) applies to every phase and is not repeated below. Gate 13 (`scripts/check-api-surface.mjs`) checks export **names** only (lines 327-372), not the module column in `spec/overview.md`, so moving a declaration is a prose edit, not a red gate.
+"Features" here means the observable behaviour that must survive, the behaviour that changes, and what is table stakes, differentiator or anti-feature for each deepening. Per-phase record work (ADR + CCR + BEH + INV + traceability + overview prose + changeset, `_SHARED-CONTEXT.md`) applies to every phase and is not repeated. Gate 13 (`scripts/check-api-surface.mjs`) checks export names only. Numbering is the block in `_WAVE9-CONTEXT.md` (ADR 150-155, CCR 428-433, BEH 521-550, INV 319-330); confirm free by grep, never `next-id.mjs`.
 
 ---
 
-## Corrections to `_WAVE8-CONTEXT.md` found while re-verifying (read these first)
+## Corrections to `_WAVE9-CONTEXT.md` found while re-verifying (read these first)
 
 | # | Context claim | Truth at HEAD | Consequence |
 |---|---------------|---------------|-------------|
-| C1 | Phase 30: audit "decode only with the options and no depth guard" | Half true. `AuditEntry.ts:191` runs `decodeSinkRecord(input.record)` first, which depth-guards (`SinkCodec.ts:502`); `decodeRow` (`AuditEntry.ts:150`) decodes `record: Schema.Unknown`, which does not recurse; `recordJsonOf` (`:163`) runs only after the guard accepted. `AuditArchive.ts:252` `ArchiveEnvelope` is non-recursive (`entries: Schema.Array(Schema.Unknown)`), and each entry goes through `decodeAuditEntry` (`:287`). Audit is guarded transitively and a test pins it (`AuditEntry.test.ts:191`, 60,000 deep, `DecodeRefusal.TooDeep`). | Audit "gaining a depth guard" is **not** a behaviour change if the guard stays per entry. It becomes consumer-visible only if the guard is lifted to the whole bundle (a too-deep entry would then stop being `ArchiveRefusal.EntryNotDecodable({ index, refusal: TooDeep })`). Keep per entry. |
-| C2 | Phase 30: "`PortWireEncode.ts:104-139` (×3)" | Two decoders (`:104`, `:106`) and two guards (`:120`, `:138`). Eight guard call sites total, nine decoder constructions in six modules. | Counts only. |
-| C3 | Phase 30 omits | `PolicyFromJson` (`Policy.ts:916`) is a **public, unguarded** JSON-string codec (`overview.md:132`). `fromJson` only falls back to it for malformed text (`Policy.ts:1033`). A consumer decoding with it directly gets the raw-`RangeError` hazard the whole recipe exists to prevent. | A real seam the review missed. The phase must decide: guard it, deprecate it, or document it as unguarded. |
-| C4 | Phase 33: two copies "decide differently whether the sink (and cache) is shadowed, and neither says so" | `qadiReviewLayer` (`testing/src/QadiReviewLayer.ts:145-165`) shadows **nothing**: no sink, no cache, no subject. `simulationLayer` (`devtools/src/model/Simulation.ts:85-105`) shadows both and says so in its header and INV-QD-042. The "~10 verbatim lines" are really three: `evaluationIdSequential(prefix)`, `clockLayer`, and a `fixturePortsLayer` call (Simulation reaches it through `portsOf`, `SimulationSource.ts:96,122`, because it also has Snapshot and Live sources). | The overlap is small. The review itself rated payoff "small". The real deliverable is the stated shadowing rule. |
-| C5 | Phase 32: `EvaluationServices` is spelled out in `Lifecycle.ts` "to dodge a madge cycle" | Verified empirically in a scratch copy (`/private/tmp/claude-502/.../scratchpad/cc`, repo untouched): adding `import type { CurrentSubject, EvaluationId, PortServices }` to `Question.ts` leaves `madge --circular` green (80 files, no cycle; `Question.ts` then depends on `Ports.ts`). | A `Question.ts` leaf is feasible. Still re-run `pnpm circular` in the phase. |
-| C6 | Phase 35: "the atom set schedules its own sweep while it is mounted" | An atom set has **no lifecycle**: `makeQadiAtoms` is a module-scope synchronous call (`QadiAtoms.ts:262`), with no `Scope` and no dispose. Each `QadiProvider` makes its own `AtomRegistry` (`QadiProvider.tsx:241`); one atom set can serve many registries. "While mounted" has no referent today. | Mechanism choice is the whole phase (see Phase 35). |
-| C7 | Phase 36: duplicate BEH-QD-219..221 | Confirmed (`29-devtools-simulator.md:28/188, 76/236, 127/287`), but the duplication is worse than a repeated heading: the **second copy carries pre-ADR-QD-129 text that contradicts BEH-QD-411** (`:~290-340`: "A query the capture never saw MUST answer the fail-closed default"), and the first copy's tail is **corrupted** by a spliced change-history fragment (`:173`). The duplication already exists at `965ff14c`. | Phase 36 must delete the second copy and repair line 173, not just renumber. |
-| C8 | Phase 36: 28 IN-06 (no StrictMode lifecycle test) | Partly stale. `packages/react/test/GateRegistry.test.tsx:489` "StrictMode registers once" renders an instrumented provider under `StrictMode` and asserts 1 then 0 instances. Not covered: an identity-changing rerender through `useGateRegistrations` under StrictMode. | Narrow the item, or drop it. |
-| C9 | Phase 36: stale replay line "wherever it remains" | Remaining at HEAD: `.planning/PROJECT.md:225` ("the other four ports undecided") and `.planning/MILESTONES.md:76`. Already struck: `STATE.md:212`, `PROJECT.md:49,196`. Nothing in `spec/`. | Two lines. |
+| C1 | Phase 37: "The failure check is repeated verbatim" in three stores | Two copies only: `TimelineFeed.ts:150`, `DiagnosticsFeed.ts:221`. `SimulationSession.ts` has no `hasInterruptsOnly`; its `land` (`:464-514`) wraps the program in `Effect.exit`, checks `mine !== generation` at `:495`, and maps every failure to `Broke` (`:511`). | The shared module owns "land only if current". The failure classification (`Exit.isFailure && !hasInterruptsOnly`) is a hook two stores use and the third deliberately does not. Do not force `Broke` through it. |
+| C2 | Phase 37: drift is `SimulationSession.ts:462` vs `DiagnosticsFeed.ts:231-233` only | A second, larger drift: `SimulationSession.start` re-checks `mine === generation` after `commit()` and before forking (`:538-544`, comment "A subscriber notified by that commit may already have superseded this run"). `DiagnosticsFeed.start` (`:204-229`) and `TimelineFeed.readSource` (`:136-155`) notify subscribers (`show(Starting)`, `status.set(READING)`) and then fork unconditionally. A subscriber that restarts the feed from inside that notification forks the older run last; `FiberHandle` interrupts the newer one and the older run's `accept` is dropped (`mine !== generation`). Feed stays Starting/Reading forever. | Hypothesis, **not reproduced**. Phase 37 writes the RED test first (subscriber calls `restart()` or `configure()` inside the notification). If it is RED, the shared module's "claim, notify, fork only if still current" step fixes it by construction and it is a live defect fix, not only locality. If it cannot be made RED, say so with evidence and keep the step anyway because the session needs it. |
+| C3 | Phase 37: other stores that own fibers | `DockModel.ts` has no `FiberHandle`, `generation` or `closed` (grep empty). Its source read is `TimelineFeed` (ARCH-82). `audit/src/CircuitBreaker.ts` has its own `generation` (permit tagging) and is a different concern (probe permits, not a superseded fiber run). | Exactly three adopters. Do not touch `CircuitBreaker.ts`. |
+| C4 | Phase 37: ADR-QD-137 §7 text | `137-...md:85-88` still says "the timeline's `useRunningStore` is the other shape ... and is unchanged". `useRunningStore` was deleted by ARCH-82 (ADR-QD-047 1.13). | The phase's ADR/amendment corrects §7 so "general for the package" is true of the new module, not of a deleted hook. |
+| C5 | Phase 38: "six edits, four unchecked" | Seven sites: `SinkWire.ts:48`, `:51`; `SinkCodec.ts:146`, `:154`, `:224`, `:226`, `:453`. Retyping `WireVersion` to `2 \| 3` compiles: `[2]` still satisfies `ReadonlyArray<WireVersion>` and `const WIRE_VERSION: WireVersion = 2` still compiles. The harm claim holds. | Counts only. The sites that are not typed to the constant are the two `Schema.Literal(2)` and the two `version: 2 as const`. |
+| C6 | Phase 39: "Completeness is pinned only by tests" | Partly. `packages/react/test/Hydration.tst.ts:90-91` already pins at type level that `PayloadRefusalReason \| EntryDropReason` equals `ClientHydrationDropReason` and that they are disjoint. `MEANINGS` (`HydrationMetrics.ts:166`) is already a mapped type over the union, so a reason without a meaning already fails to compile. What is hand-kept: the union members (`:48`, `:71`), `hydrationDropReasons` (`:130-140`), react's two groups (`HydrationEvent.ts:85, :92`). | The new table subsumes `MEANINGS` as a column. It is not a fourth list; do not leave `MEANINGS` standing beside it. The tstyche pin stays (it then proves the derivation). |
+| C7 | Phase 39: devtools pins nine by `hydrationDropReasons.length` | `Hydration.test.ts:109` is `assert.strictEqual(hydrationDropReasons.length, 9)` and core `HydrationMetrics.test.ts:155-174, 220-256` deliberately write the nine out "rather than read from `hydrationDropReasons`". | These written-out lists are the label-set contract for `qadi_hydration_dropped_total`, independent of the source of truth. They must survive a derived list. Deleting them would remove the only check that the metric label set did not move. |
+| C8 | Phase 40: audit "decodes `input.record` twice" | True (`AuditEntry.ts:193` and `:201`), and a third copy exists: `AuditEntry.ts:159-164` `asDecodeRefusal` restates `SinkCodec.ts:489-498` `asDecodeRefusal` (same `TooDeep`/`Malformed` arms, over `UntrustedValueRefusal`). | The audit cleanup removes two things: the second decode and the duplicate refusal mapping. |
+| C9 | Phase 41: "Unguarded: `Inspect.ts:300-310` `outsideUnion`, `QuestionsPanel.tsx:388` `resourceOf`" | **Neither can throw.** `outsideUnion` does `JSON.stringify` on a `string` only, `"an object"` for objects, `String(value)` for the rest; `String(bigint)` and `String(symbol)` are total. `QuestionsPanel.tsx:388` `resourceOf` is `typeof id === "string" ? id : Object.keys(resource).join(", ")`; it renders no value at all. Only `Remedies.ts:574` is unguarded and live. | The hazard set is one function. `outsideUnion` has its own presentation rules (quote a string, say "an object", append "outside the union") and is a legitimate second rendering, not a duplicate. `resourceOf` is not value-to-text. Fold them in only if the phase wants one `textOf` primitive underneath; do not claim they are defects. |
+| C10 | Phase 41: "Risk: ... **not reproduced**" | **Reproduced** at the function level by running `remedyEdits` against the built core (`packages/core/lib`), see Phase 41. All six probes throw `TypeError`. It is reachable from the session snapshot builder, not only from a panel's render. | Phase 41 is a defect fix with a RED test, not a pure locality change. |
+| C11 | Phase 42: ADR conflict is with ADR-QD-103, 148, 149 | No ADR names `computedFor`, `seededIn` or the callback shape (`grep` over `spec/`: only `makeSeededQuestion` as the home of the seed in ADR-149:43 and INV-QD-028/105/317/318 Sources). What the ADRs fix is *where the seed lives* (the question's handle, ADR-149), *who sweeps* (ADR-148) and *that `live()` runs first in the reader* (ADR-103, INV-QD-105). A design that keeps those three needs INV Source/Enforcement citations updated, not an ADR reversal. | The checkpoint should state this plainly: "go" may need only amendments to INV-QD-028/105 Sources plus a new ADR for the new seam, "amend ADRs" only if the chosen shape moves the liveness bookkeeping. |
 
 ---
 
-## Phase 30: one strict-decode module for every untrusted JSON seam
+## Phase 37: one module for a scoped run that a newer run supersedes (ARCH-84, devtools)
 
-### Today's behaviour: every untrusted decode seam in `packages/*/src`
+**Re-verified evidence**
 
-Method: grepped `UNTRUSTED_DECODE_OPTIONS`, `exceedsJsonDepth`, `fromJsonString`, `decodeUnknown`, `JSON.parse`, `Schema.decode`, `.json` across `packages/*/src`. The shared pieces: `exceedsJsonDepth` (`core/src/DecodeDepthGuard.ts:36`, iterative, array stack, public via `index.ts:15`), `MAX_DECODE_DEPTH = 256` (`Policy.ts:978`, public, normative per BEH-QD-059), `UNTRUSTED_DECODE_OPTIONS = { onExcessProperty: "error" }` (`Policy.ts:1002`, public, `overview.md:117`).
+| Review claim | Verdict | Evidence |
+|---|---|---|
+| Three hand copies of generation / closed / handle / finalizer / `FiberHandle.runtime` fork | CONFIRMED | `TimelineFeed.ts:122-146`, `DiagnosticsFeed.ts:170-190`, `SimulationSession.ts:350-362` (same five elements, each with the same "added after the handle, so it runs first on close" comment) |
+| Failure check repeated verbatim | PARTLY (C1) | `TimelineFeed.ts:150`, `DiagnosticsFeed.ts:221` |
+| Stop drifted | CONFIRMED | `SimulationSession.ts:460-463` guards with `Option.isSome(FiberHandle.getUnsafe(runs))`; `DiagnosticsFeed.ts:231-236` (`off`) forks `Effect.void` unconditionally. `TimelineFeed` has no stop (a replacement with `NO_SOURCE` is its only way to idle, `:137`) |
+| Existing tests | CONFIRMED | `TimelineFeed.test.ts` TF6, TF9, TF15-19; `DiagnosticsFeed.test.ts` F6-F13, F16-F17, F24-F27; `SimulationSession.test.ts:306, 369, 414` plus the generation-staleness cases. Matching-line counts: 26 / 25 / 50 |
 
-| # | Seam (file:line) | Input | Depth guard? | Refusal it returns | Public? | Covering spec | Pinning test |
-|---|------------------|-------|--------------|--------------------|---------|---------------|--------------|
-| 1 | `Policy.fromJson` `Policy.ts:1017-1041` (guard `:1035`, decoder `:1004`) | text | after `JSON.parse`; a parse failure falls through to `Schema` `fromJsonString` (`:1033`) | `Effect.fail(PolicyDecodeTooDeep{maxDepth})` or `Schema.SchemaError` (carries the issue tree) | yes | BEH-QD-059, ADR-QD-002; `PolicyDecodeTooDeep` is in `QadiError`, `ERROR_CODES` `ACL017` (`Errors.ts:430,459`) | `Policy.test.ts:557`, `:574` (malformed 60,000-deep text) |
-| 2 | `Policy.fromJsonValue` `Policy.ts:1055-1062` | value | yes, `:1060` | same two | yes | BEH-QD-059 | `Policy.test.ts:536-560` (null node), `:557` |
-| 3 | `PolicyFromJson` `Policy.ts:916` | text | **no** | raw `Schema` errors, or a `RangeError` defect on deep input | **yes, unguarded** | `overview.md:132` | none for depth |
-| 4 | `decodeSinkRecord` `SinkCodec.ts:499-510` (decoder `:423`, guard `:502`) | value | yes, first, before version dispatch and the `envelopeOf` projection | `Result.fail(SinkRecordNotDecodable{ DecodeRefusal })`: `TooDeep`, `UnsupportedVersion`, `Malformed({message})`, `Inconsistent` | yes | BEH-QD-199, BEH-QD-450, ADR-QD-095/096, INV-QD-096/097/170 | `SinkCodec.test.ts:741,1304,1335` |
-| 5 | `decodeSinkRecordString` `SinkCodec.ts:517-520` (`JSON.parse` `:519`) | text | via #4 | `DecodeRefusal.NotJson` else #4 | yes | INV-QD-097 | same file |
-| 6 | `decodeStoredRecord` / `decodeStoredRecordString` `SinkCodec.ts:~582-604` (`JSON.parse` `:602`) | value / text | the envelope is read with `ownValue` (non-recursive); `record` goes through #4 | `Malformed` for a bad envelope, else #4's | yes | ADR-QD-097 | `SinkCodec.test.ts` |
-| 7 | `portWire.decodeQuestion` `PortWireEncode.ts:119-129` (decoder `:104`, guard `:120`) | value | yes, `WIRE_MAX_DEPTH = MAX_DECODE_DEPTH` (`:27`) | `Result.fail(string)` ("the question nests deeper than the decode bound", or `error.message`) | the `PortWire` interface is public (`PortWire.ts:153`) | ADR-QD-107; `34-remote-ports.md:147-148` | **no depth test** (see gap G1) |
-| 8 | `portWire.decodeAnswer` `PortWireEncode.ts:137-143` (decoder `:106`, guard `:138`) | value | yes | `Result.fail(string)` | same | same | **no depth test** |
-| 9 | `askRemotely` reply `PortRemote.ts:123,151-153` | value (from `send`) | yes, `:151` | `RemotePortFailure.Undecodable({ message })`, wrapped by the port's own typed error | `RemotePortFailure` public | BEH-QD-329/333, INV-QD-095 | `PortRemote.test.ts:212` (shape only) |
-| 10 | `planHydration` payload `HydrationEngine.ts:440` | unknown | yes, over `{ ...payload, entries: [] }` (the entries are guarded one by one, so the envelope guard excludes them) | drop reason `MalformedPayload` | the eight drop reasons are public (`hydrationDropReasons`) | BEH-QD-259/268/269, INV-QD-045 | **payload-level depth is not pinned** (G2) |
-| 11 | `planHydration` per entry `HydrationEngine.ts:480` then `decodeEntry` `:199`, `decodePolicy` `:198` | unknown | yes | `EntryTooDeep`, `MalformedEntry`, `UndecodablePolicy` (`Option`, not `Result`) | reasons public | BEH-QD-259, INV-QD-045 | `Hydration.test.ts:516`, `HydrationCounts.test.ts:348` |
-| 12 | `decodeAuditEntry` `AuditEntry.ts:187-200` | unknown | transitively via #4 (`:191`); `decodeRow` `:150` is non-recursive | `SinkRecordNotDecodable` (same `DecodeRefusal`) | yes | BEH-QD-312, INV-QD-097 | `AuditEntry.test.ts:191` |
-| 13 | `readAuditArchive` `AuditArchive.ts:252,276-312` | unknown | envelope non-recursive; each entry via #12 | `ArchiveRefusal.Malformed({message})`, `EntryNotDecodable({ index, refusal })`, plus the sequence refusals | yes | BEH-QD-254 | `Retention.test.ts` / `AuditEntry.test.ts` (entry level only) |
-| 14 | devtools `Source.ts:241-246` `decodeFrame` | SSE frame text | via #6 | `onMalformed` callback, record skipped | internal (`sourceFromEventSource` public) | BEH-QD-311, ADR-QD-047 | `Source.test.ts` |
-| 15 | devtools `ExplorerSession.ts:288` | typed text | via #1 | `formatDecodeFailure` (`:123-139`) **reads `SchemaError.issue`** to print `at <path>: <message>`; a dedicated sentence for `PolicyDecodeTooDeep` | internal | WZ-01 | `ExplorerSession.test.ts:544` |
-| 16 | http `PortRoutes.ts:82-85` `questionOf` (`request.json`), `RemotePorts.ts:57-60` (`response.json`) | request / response body | via #7 and #9 | `undefined` body becomes a malformed-question refusal; reply `Undecodable` | public routes | BEH-QD-330/331 | `PortRoutes.test.ts` |
-
-Not seams (checked, leave alone): `core/src/PortSpanEncode.ts:56-59` decodes tracer span attributes the process wrote itself; `devtools/src/model/SimulationForm.ts:70` `JSON.parse`s text the reviewer typed into the dock (its recursive `sameJson` is a self-inflicted case, not a trust boundary); `@qadi/promise`, `predicate-sql`, `predicate-prisma`, `testing`, `http` (beyond #16) hold no JSON decode.
-
-**Gaps the review missed (G1-G3, all HIGH):**
-- **G1.** The port-wire depth guards (#7, #8, #9) have no test deeper than the bound. `PortConformance.test.ts:460-467` feeds a 200-deep object, which is under 256 and is refused by `onExcessProperty` anyway, so it does not prove the guard. A mutant deleting `exceedsJsonDepth` at `PortWireEncode.ts:120/138` or `PortRemote.ts:151` is unkilled by depth.
-- **G2.** The hydration envelope-level guard (`HydrationEngine.ts:440`) has no test; `HydrationPayload.test.ts` has no depth case.
-- **G3.** `PolicyFromJson` (#3) is public and unguarded.
-
-**Coupling that must be preserved.** `MAX_DECODE_DEPTH` is 4x `DEFAULT_MAX_DEPTH` and its comment (`Policy.ts:960-978`) records that the bound was lowered from 8x to 4x *because* `onExcessProperty: "error"` forces the slow decoder path that overflows the stack around 430-440 levels. The options and the depth bound are one calibration. Keeping them in one module is the point.
-
-### Table stakes (phase is not done without these)
-
-| Behaviour | Why | Complexity | Notes |
-|-----------|-----|------------|-------|
-| One module owns "(parse) -> depth guard -> strict decode" and returns a closed refusal over `unknown` and text | The stated goal; a new seam gets the guard by default | MEDIUM | Sync `Result`, not `Effect`: seams #4-#13 are sync `Result` or `Option`; the Effect seams (#1, #2) adapt it. Decoders stay built once at module scope (hot path; `SinkCodec.ts:423` does this today). |
-| The refusal carries enough for every seam's existing mapping | Mappings differ: `PolicyDecodeTooDeep`, `DecodeRefusal.TooDeep/NotJson/Malformed`, plain string, `Undecodable({message})`, three drop reasons, `ArchiveRefusal` | MEDIUM | `Malformed` must carry the **underlying `SchemaError`/issue**, not only `message`: #15 formats the issue tree and #1's public error channel is `Schema.SchemaError` (BEH-QD-059). A message-only `Malformed` regresses WZ-01 and changes `fromJson`'s observable errors. |
-| A projection step between guard and decode | `decodeSinkRecord` guards, checks version, then decodes `envelopeOf(input)` (ADR-QD-096 D-15-c: lenient envelope, strict content) | LOW | Without it SinkCodec cannot move in. |
-| A way to guard part of a value | Hydration guards the envelope with `entries` blanked and each entry separately so one hostile entry does not refuse the page (INV-QD-045) | MEDIUM | This is the "guard workaround" that should move inside. Payload-level too deep must stay `MalformedPayload`; entry-level must stay `EntryTooDeep`: one refusal, two reasons by position. |
-| Every public refusal and error shape unchanged | `PolicyDecodeTooDeep` (in `QadiError`), `DecodeRefusal` (public closed union; a new arm breaks consumers' `Match.tagsExhaustive`), `RemotePortFailure`, `ArchiveRefusal`, the eight hydration drop reasons | LOW | The new module's `TooDeep` is internal; each seam keeps its mapping. |
-| `MAX_DECODE_DEPTH` stays 256 and `PolicyDecodeTooDeep.maxDepth` stays 256 | BEH-QD-059 says the bound "is itself normative" | LOW | |
-| `UNTRUSTED_DECODE_OPTIONS` and `exceedsJsonDepth` stay exported from `@qadi/core` (re-export from the new module, or keep the declaration and have the module import it) | Removal is **Breaking** (ADR-QD-099, gate 13); `@qadi/audit` and `@qadi/react` import both from the barrel | LOW | Update `overview.md:116-118` module column. |
-| Never throw: no `Effect.orDie`, no try/catch around the decode | `SinkCodec.ts:499-510` doc: "a throw past [the guard] would be a library defect that should stay visible"; AGENTS.md §4 | LOW | |
-| Depth tests at every seam, 60,000-deep, including #7, #8, #9, #10 (closes G1, G2) | A guard no test exercises is the defect class this wave removes | LOW | One property test over the module plus one refusal row per seam (the review's own testing win). |
-| New invariant: "every untrusted JSON seam is guarded by construction" (reserved INV-QD-305/306) | Today no INV states it (INV-QD-097 covers only the record codec) | LOW | |
-| `Policy.ts` sheds the JSON concern | Review win | LOW | `fromJson` / `fromJsonValue` stay in `Policy.ts` as thin mappers (public, `overview.md:132`). |
-
-### Differentiators ("complete" version; the user prefers complete over simple)
-
-| Behaviour | Value | Complexity | Notes |
-|-----------|-------|------------|-------|
-| Resolve G3: guard `PolicyFromJson`, or mark it unguarded in its doc and spec with a pointer to `fromJson` | Closes the one public unguarded decode path | LOW | Guarding changes its type if it stays a `Schema` codec; a doc-only fix is the cheap option. Decide in the ADR. |
-| Make the guard impossible to skip for a new seam at the type level (the module is the only place a decoder is constructed with the options) and enforce with a house-style rule | "A new seam gets the guard by default" becomes a gate, as `UNTRUSTED_DECODE_OPTIONS` outside the module fails `check-house-style.mjs` | MEDIUM | Same pattern as the existing budgets (AGENTS.md §5/§6); a budget needs an exact table and a both-directions check. |
-| Audit routes through the module for its own two decodes (`decodeRow`, `decodeEnvelope`) | Removes the last two raw `UNTRUSTED_DECODE_OPTIONS` decoders outside core | LOW | Zero observable change if the guard stays per entry (C1). |
-| Port-wire mapping stops being free strings: a typed internal refusal rendered to the same sentences | Lets #7-#9 share one message table | LOW | The strings are observable inside `RemotePortFailure.Undecodable.message`; keep byte-identical or flag. |
-
-### Anti-features (breach an ADR or AGENTS.md)
-
-| Anti-feature | Why | Instead |
-|--------------|-----|---------|
-| Lifting the audit guard to the whole archive bundle | Silently changes `ArchiveRefusal` for a too-deep entry (C1) | Guard per entry |
-| A message-only `Malformed` | Regresses `ExplorerSession.formatDecodeFailure` and `fromJson`'s `SchemaError` channel | Carry the issue |
-| Changing `MAX_DECODE_DEPTH`, or splitting the bound from the options | The calibration above | One module |
-| Adding an arm to `DecodeRefusal` or the hydration reasons for "TooDeep at payload level" | Public closed unions | Map to `MalformedPayload` as today |
-| `Result.try` / `Effect.orDie` around the decode; `as` / `any` to unify the seams' return types | AGENTS.md §4, §6 | Closed union plus adapters |
-| `import * as Core from "@qadi/core"` in audit / react | AGENTS.md §1 | Named imports from the root |
-| A second, per-package copy of the module | The defect class under repair | One module in core, on the barrel |
-
-**Behaviour changes flagged.** Consumer-visible: none *if* C1 and the `Malformed`-carries-issue rule hold. Package-private only: where `UNTRUSTED_DECODE_OPTIONS` and `exceedsJsonDepth` are declared. Consumer-visible and additive: the new module's exports (a cross-package module must be on the barrel, ADR-QD-099), `@qadi/core` minor. Breaking only if an existing export is removed.
-
-**Dependencies:** `DecodeDepthGuard.ts`, `Policy.ts`, `SinkCodec.ts`/`SinkWire.ts`, `PortWireEncode.ts`, `PortRemote.ts`, `@qadi/react` `HydrationEngine.ts`, `@qadi/audit` `AuditEntry.ts`/`AuditArchive.ts`. Import-cycle care: `Policy.ts` imports `DecodeDepthGuard.ts` today; if the new module imports `Policy` (for the schema) while `Policy.ts` imports it back, that is a madge cycle (ADR-QD-037); keep the module schema-agnostic (takes the decoder) so it stays a leaf.
-
----
-
-## Phase 31: a shared computation's reset supersedes its claims
-
-### Today's behaviour (`core/src/SharedComputation.ts`, `core/src/DecisionCache.ts`)
-
-- `SharedComputation.reset` (`:371-374`) only empties `inFlight`. Claims already running keep settling their waiters (doc `:60-66`).
-- `forget(key, entry)` (`:96-101`) removes a claim only if it is still the one at `key` (identity check), so a stale finalizer never unclaims a fresh claim.
-- The `abandoned` flag (`:78-83`, set at `:178`, read at `:343`: `if (!entry.abandoned) settle(exit)`) already means "answer the waiters, skip `settle`". Today only the last-leaver sets it.
-- `DecisionCache` keeps `generation` (`:231-238`), reads it when a claim is made (`claim` hook, `:241-243`), and compares in the settle (`:246-251`, `myGeneration === generation`). `clear` (`:292-302`) is four steps: `entries = ∅`, `insertionOrder = ∅`, `shared.reset()`, `generation += 1`.
-- Observable `clear` behaviour (`DecisionCache.ts:79-97` doc, `DecisionCache.test.ts:749-880`): a compute in flight is **not cancelled** and still answers the fibers already waiting; its answer never re-enters the cache; a new ask after `clear` computes fresh instead of coalescing onto the old compute; a third ask coalesces onto the fresh compute, not a third compute (`:820-880`, the identity-checked `forget` mutant).
-- `DecisionCache` is `makeSharedComputation`'s **only** adapter (`grep` over `packages/*/src`). `reset` is package-private; `clear` is public (`DecisionCacheShape.clear`, BEH-QD-190 at `25-inspection.md:59`).
-- Specs: BEH-QD-190 states `clear` "MUST NOT cancel a compute in flight" and nothing else about staleness. **No BEH or INV states "a stale answer never re-enters a flushed cache" or "a post-clear ask claims afresh"**: those live only in the doc comment and the tests. BEH-QD-439 (`21-decision-cache.md:289`) and INV-QD-025 (`invariants.md:949`) cover abandonment. ADR-QD-132 is the decision this extends.
-- Tests: `SharedComputation.test.ts:318-352` already pins reset at module level (fresh claim after reset, stale exit does not remove the fresh claim, third ask joins the fresh one) but its harness uses `claim: () => () => {}`, so it **cannot** assert "stale settle is skipped"; the comment says that is "the adapter's call". The harness at `:23-36` already records `settled`.
+Is the `isSome` guard needed? Nothing at HEAD says so. `fork(Effect.void)` on an empty handle installs and immediately completes a fiber; the handle empties again. The phase decides (guard vs unconditional), pins it with one test through the new module ("stop with no run: nothing notified, no state change, no span"), and removes the other copy. Prefer the unconditional form unless a test shows the guard prevents something: it removes a branch (and a surviving-mutant candidate).
 
 ### Table stakes
 
-| Behaviour | Why | Complexity | Notes |
-|-----------|-----|------------|-------|
-| `reset` marks every forgotten claim superseded; the stale claim still answers its waiters (value or failure) and does **not** call `settle` | The rule moves from the adapter into the module (the phase's goal) | LOW | Reuse the existing `abandoned` path (`:343`). |
-| `DecisionCache`: `generation` and `myGeneration` deleted; `clear` becomes three steps (`entries`, `insertionOrder`, `reset`) | Review win | LOW | The `claim` hook no longer needs to read state "in the same step"; its comment at `SharedComputation.ts:~299` changes. |
-| Unchanged: `clear` does not cancel a running compute; `size` is 0 after a clear mid-compute even when the stale compute finishes last; a post-clear ask is a `miss`; metric order and outcomes (`onOutcome`) unchanged | BEH-QD-190, INV-QD-025, BEH-QD-166 (no double insertion-order append) | LOW | All pinned by `DecisionCache.test.ts:749-880`; keep them green untouched. |
-| The last waiter leaving a superseded claim still interrupts its fiber and does not remove the fresh claim | `awaitShared` (`:171-182`) + `forget`'s identity check | LOW | Easy to break if `abandoned` is overloaded: a superseded claim that later loses its last waiter must still call `Fiber.interrupt`. Consider a separate `superseded` flag, or document why one flag is enough. |
-| A module-level test: stale claim answers its waiters, writes nothing (`settled` empty for it), fresh claim settles once | "clear-mid-compute races testable without `evaluate`" | LOW | Extend `SharedComputation.test.ts:318` (assert on `settled`, not only runs). Add tests at the new seam before deleting the old ones (PROJECT.md mutation rule). |
-| Restate: ADR-QD-132 extension (reserved ADR-QD-144), BEH-QD-439 gains "reset supersedes", INV-QD-025 Enforcement | Spec is normative | LOW | |
+| # | Observable, testable statement | Complexity |
+|---|---|---|
+| 37-T1 | One package-private devtools module owns the handle, the generation, the closed flag, the finalizer ordering (finalizer registered after the handle so it runs first), the replace-and-interrupt step, `stop`, and the "land only if still current" check. `TimelineFeed`, `DiagnosticsFeed` and `SimulationSession` each contain none of `let generation`, `let closed`, `FiberHandle.make`, `FiberHandle.runtime`, `Effect.addFinalizer(() => ... generation += 1 ...)`. A negative grep scoped to the lines the phase adds proves it | MED |
+| 37-T2 | The module has its own test file driving only its interface: supersede (an older run's late result lands nowhere), close mid-run (a closed scope never lands a result and a later start does nothing), stop with a run, stop with no run, interrupt-versus-failure (an interruption never reaches the failure hook; a defect does), replaced-run-whose-release-dies never reports (TF19/F9/F24 shape) | MED |
+| 37-T3 | Every pre-existing test in the three store test files still passes unchanged on day one (add the module's tests before deleting any per-store test; XC-05) | LOW |
+| 37-T4 | Stop semantics decided and pinned once: whichever of guarded/unconditional is chosen, `DiagnosticsFeed.off` and `SimulationSession.supersede` call the same function | LOW |
+| 37-T5 | A start whose notification re-enters (a subscriber calling restart/configure from inside the "Starting"/"Reading" publish) leaves the newer run as the live one in all three stores. RED first on `637c0601` for the two feeds (C2); if not RED, state why with the failing-then-green evidence | MED |
+| 37-T6 | Behaviour and spans unchanged: `qadi.devtools.simulationSession.run` is still a root span (ADR-137 §5), the handle's runtime still captures the constructing context (clock, tracer, sink), `Stopped` is never published for an interruption (INV-QD-313), `Broke` still reports a defect in a session run | LOW |
+| 37-T7 | Per-file Stryker scores for `TimelineFeed.ts`, `DiagnosticsFeed.ts`, `SimulationSession.ts` do not fall from base (XC-05, `37-mutation-base.json`), and the new module is at or near 100 (cf. `DockModel.ts` 100, `SweepScheduler` 100) | MED |
+| 37-T8 | `Effect.fn` for any effectful function; no new `Effect.fnUntraced` (`UNTRACED_BUDGET` unchanged); no `Context.Service` (closures in a scope); `FiberHandle` and `Exit`/`Cause` imported as `effect/*` namespaces | LOW |
 
 ### Differentiators
 
-| Behaviour | Value | Complexity | Notes |
-|-----------|-------|------------|-------|
-| A new BEH sentence under BEH-QD-190 stating the staleness rule (stale answer never re-enters, new ask claims afresh), which has no requirement today | Closes the "rule exists only in a doc comment" gap | LOW | Public behaviour of a public method (`clear`). |
-| Property test over interleavings of `run`, `reset`, settle and leave with a model | The rule is a small state machine | MEDIUM | Optional; the existing racing tests are example-based. |
+| Feature | Value | Complexity | Notes |
+|---|---|---|---|
+| Module exposes `landIf(mine, effect)`-style single hook for "land only if current", so each store's `accept` guard is one call, not an `if (mine !== generation) return` | Removes the three `mine !== generation` repetitions inside `accept`/`land` | LOW | Keeps the per-store diff to "what to do with a landed result" |
+| A model-based property (seeded, like ARCH-79's seed 3101) over random supersede/close/stop/land interleavings: a result lands only if it is the newest run and the scope is open | Stronger than example tests; replaces dozens of per-store matching lines | MED | Reuse the SharedComputation model-test pattern |
+| ADR-QD-137 §7 amended (C4), and ADR-QD-047's feed paragraphs cite the module | The rule becomes enforced rather than remembered | LOW | One amendment, no new decision beyond the module |
 
 ### Anti-features
 
-| Anti-feature | Why |
-|--------------|-----|
-| Cancelling in-flight computes on `clear` | BEH-QD-190 forbids ("housekeeping must not become a source of failures") |
-| Waiters of a superseded claim receiving anything but its exit | BEH-QD-439 |
-| `Effect`-wrapping `reset` | It must be callable inside `clear`'s one synchronous `Effect.sync` step (`SharedComputation.ts:60-66`) |
-| A second adapter or a public `SharedComputation` | Package-private by design; ADR-QD-132 |
+| Anti-feature | Why not | Instead |
+|---|---|---|
+| A `Context.Service` or Layer for the run | The module is closures in a scope; a service adds a tag for nothing | Plain `Effect.fn` constructor returning a record |
+| Folding the three stores' result handling into the module | The review says each store keeps only what it does with a landed result | Module returns "is current" and "failure that counts"; stores keep their own writes |
+| Making `SimulationSession`'s `Broke` go through the feed failure check (C1) | Different semantics: a session defect is a reportable outcome, a feed defect is a `Stopped` status | Two hooks, one owner of currency |
+| Touching `CircuitBreaker.ts` (audit) or `DockModel.ts` | C3: different concern / no adopter | Leave |
+| Re-opening ADR-137's other decisions (scope owns runs, root span, ordering change) | Out of scope; only §7's wording is corrected | Amendment |
+| Using `Effect.orDie`, `as`, `!`, `Record<string, unknown>` to type a generic result | House rules | Parametrise the module over the result type |
 
-**Behaviour changes flagged.** None consumer-visible. Pure internal restructure; `clear`'s contract is identical. `@qadi/core` patch (or no changeset if the changeset policy treats it as internal; follow ARCH-68 precedent, which was a patch).
-
-**Dependencies:** none outside `core/src`. Independent of 30 (no shared files). Mutation: `SharedComputation.ts` and `DecisionCache.ts` mutants must not fall.
+**Public surface:** none. All three stores' internals; only `makeSimulationSession` and its types are public and unchanged (`index.ts:98-111`, `spec/overview.md:874`). No `overview.md` edit. `@qadi/devtools` patch changeset (or none; if the RED re-entrancy test is real, patch with a fix note).
+**Spec touched:** BEH-QD-461 (`29-devtools-simulator.md`, a session owns its runs), BEH-QD-506..510 and BEH-QD-519/520 (`28-devtools-screens.md`, feed stop/restart), INV-QD-313 and INV-QD-314 (`invariants.md:3644, 3660`, a replaced run never writes), ADR-QD-137 §7 and ADR-QD-047 (amend), new BEH-QD-521..525 and INV-QD-319/320.
+**Dependencies:** `FiberHandle`, `Exit`, `Cause`, `Scope`; `makeExternalStore` for the stores that publish. Self-contained.
 
 ---
 
-## Phase 32: evaluation options and services stated once, in a leaf
+## Phase 38: the sink record wire version stated once (ARCH-85, core)
 
-### Today's behaviour
-
-- `EvaluateOptions extends QuestionOptions` (`Evaluate.ts:26-69`) adds `concurrency` and `evaluationId`, with long doc comments (ADR-QD-026, ADR-QD-012).
-- `LifecycleOptions` (`Lifecycle.ts:60-65`) restates exactly those two fields. `Lifecycle.tst.ts` pins `EvaluateOptions = QuestionOptions & LifecycleOptions` in both directions (`:14-21`); `traceability.md:470` cites that file. Reason stated there: importing `EvaluateOptions` into `Lifecycle.ts` would add a type-only edge, but `Evaluate.ts` already imports `Lifecycle.ts` (`:17`) so that would be a cycle.
-- `EvaluationServices = CurrentSubject | EvaluationId | PortServices` (`Evaluate.ts:77`), `StandingEvaluationServices = Exclude<…, CurrentSubject>` (`:94`). `Lifecycle.ts:206-209` spells the union out again: `ask(...)`'s requirement is `CurrentSubject | EvaluationId | PortServices`, and its options are `QuestionOptions & LifecycleOptions`.
-- `evaluate = Effect.map(ask(policy, options), (asked) => asked.decision)` (`Evaluate.ts:107-111`); `decide = evaluate` (`Qadi.ts:222-226`, ADR-QD-104 fixes `decide`'s surface).
-- All three names are **public** (`overview.md:162,176,177`, barrel `export * from "./Evaluate.ts"`, `index.ts:18`). `LifecycleOptions`, `Lifecycle.ts`, `decideQuestion`, `ask` are not on the barrel (no `Lifecycle` in `index.ts`); `ask` is imported by `Evaluate.ts:17` and `Qadi.ts:31` only.
-- Importers of the types: `Qadi.ts:29` (`EvaluateOptions`, `EvaluationServices`; `EnforceOptions extends EvaluateOptions` at `:98`), `GuardHealthCheck.ts:30`, `SubjectSet.ts:35`, `EvaluationServicesNone.ts:40` (`StandingEvaluationServices`), `@qadi/http` (`StandingEvaluationServices`, `EvaluationServices`), `@qadi/promise` (`FacadeOptions extends EvaluateOptions`, `promise/src/index.ts:66`), `@qadi/react` `QadiAtoms.ts:22,60`, `@qadi/testing` `QadiReviewLayer.ts:9,29`, `@qadi/devtools` `SimulationInput.ts:21,106`, `features/step-definitions/Bridge.ts:33`.
-- `Question.test.ts:6-31` holds the QuestionOptions/EvaluateOptions classification as a type plus a differential test over `keyof EvaluateOptions`.
-- **Feasibility (verified, C5):** `Question.ts` currently imports only `AuthSubject`, `Policy`, `Resource` (`:9-12`); adding type imports of `CurrentSubject`, `EvaluationId`, `Ports` leaves `pnpm circular` green in a scratch copy.
+**Re-verified evidence:** CONFIRMED at `SinkWire.ts:48, :51`, `SinkCodec.ts:146, :154, :224, :226, :453, :470`. `WireVersion` and `WIRE_VERSIONS` are public (`index.ts:55` re-exports `SinkWire.ts`; `spec/overview.md:456, :518-521`). `DecodeRefusal.UnsupportedVersion.supported` reports `WIRE_VERSIONS` (`SinkWire.ts:82`), and `SinkCodec.test.ts:84, 1956` consume it. Audit tests read `WireVersion` too (`AuditEntry.test.ts`).
 
 ### Table stakes
 
-| Behaviour | Why | Complexity | Notes |
-|-----------|-----|------------|-------|
-| `EvaluateOptions`, `EvaluationServices`, `StandingEvaluationServices` declared once in a leaf (`Question.ts` is viable; a new leaf is the alternative) | Goal | LOW | If `Question.ts`: it is already a public module, so the names reach the barrel there; `Evaluate.ts` then keeps the public name by re-export. Two `export *` paths to one symbol: verify TS accepts it (no TS2308); if not, drop the `Evaluate.ts` re-export and update `overview.md` rows only. |
-| `LifecycleOptions` deleted; `Lifecycle.ts` uses the leaf's `EvaluateOptions` and `EvaluationServices` | Goal | LOW | `ask`'s signature becomes `(policy, options?: EvaluateOptions) => Effect<Asked, EvaluationError, EvaluationServices>`. |
-| `Lifecycle.tst.ts` deleted or reduced; `traceability.md:470` row updated in the same change | Its claim (two types agree) is vacuous once there is one | LOW | Keep a pin that `EvaluateOptions` has exactly `QuestionOptions` plus `concurrency | evaluationId` (the `Question.test.ts` classification already does most of this). |
-| `pnpm circular` green; no new type-only edge cycles | ADR-QD-037 counts type-only edges | LOW | Run it; do not trust the scratch result alone. |
-| Public type identity unchanged for consumers: `EvaluateOptions`/`EvaluationServices` resolve to structurally identical types; no consumer code edit | Gate: `@qadi/promise`, `@qadi/http`, devtools, react, testing all compile untouched | LOW | `pnpm typecheck` across packages is the check. |
-| ADR-QD-105 (keeps the Lifecycle split) and ADR-QD-037 respected; ADR-QD-145 reserved, may go unused | Context | LOW | An amendment to ADR-QD-100 (a question is asked once) is more natural than a new ADR. |
+| # | Observable, testable statement | Complexity |
+|---|---|---|
+| 38-T1 | One constant in `SinkWire.ts` is the only place the number appears in `packages/*/src`. `Schema.Literal(...)` in `SinkCodec.ts:146, :154`, `version: ... as const` at `:224, :226`, the `WIRE_VERSION` at `:453` and `WIRE_VERSIONS` all derive from it. A scoped grep for `Literal(2)`, `version: 2` and `= 2` in `packages/core/src/Sink*.ts` is empty | LOW |
+| 38-T2 | A compile-time pin: adding a member to the version union without editing the codec is a compile error (or, if the new design makes the union the source, adding a member forces the schema, encoder and decoder arms). Pin it in a `.tst.ts` (tstyche) and prove it by a throwaway edit recorded in the summary | MED |
+| 38-T3 | Wire bytes unchanged: the existing golden round trip and `SinkCodec.test.ts` pass untouched, and the encoder writes `version: 2` for every record shape (`Decision`, `Obligations`; `outcome` untouched) | LOW |
+| 38-T4 | The decoder still refuses any other version as `UnsupportedVersion({ version, supported: WIRE_VERSIONS })` with `version` as sent and `undefined` when absent (INV-QD-098; `SinkCodec.test.ts:1350, 1956`) | LOW |
+| 38-T5 | Public types unchanged: `WireVersion` is still the literal `2`, `WIRE_VERSIONS` still `[2]` at runtime. If its declared type changes (for example `readonly [2]`), that is a deliberate, recorded narrowing, not an accident | LOW |
+| 38-T6 | A read/write agreement statement: every version the decoder reads (`WIRE_VERSIONS`) is one the encoder can write, or the difference is stated. Today read set = write set = `{2}`; the single-constant design must keep "the codec reads what it writes" true when a version 3 is added | MED |
 
 ### Differentiators
 
-| Behaviour | Value | Complexity | Notes |
-|-----------|-------|------------|-------|
-| Keep the full doc comments for `concurrency` and `evaluationId` with the type in the leaf; `Evaluate.ts` shrinks to the public `evaluate` | One place to read the options | LOW | |
-| Drop `Evaluate.ts`'s `evaluate = map(ask, .decision)` indirection only if it genuinely simplifies reading the pipeline | The review's "two pass-through modules" | LOW | **Do not** touch `decide` (ADR-QD-104). `evaluate` is public and ubiquitous; leave it. |
+| Feature | Value | Complexity | Notes |
+|---|---|---|---|
+| New INV: "the codec reads what it writes for every supported version" (enforced by a test that iterates `WIRE_VERSIONS`, encodes, decodes) | The review suggests it; it states the invariant the single constant makes cheap | LOW | Next free INV in the 321-322 block. INV-QD-096 already says "whatever the codec emits it accepts"; make the new one a version-indexed restatement or amend INV-QD-096, do not duplicate it |
+| Distinguish "the version the encoder writes" from "the versions the decoder reads" as two named facts derived from the one table | Makes a future `2 \| 3` migration (reader reads both, writer writes 3) a one-row edit | LOW | Today they are equal; ADR-096's 2026-10-06 amendment explicitly kept the union for this |
+| Test that fails if a golden fixture is regenerated from the constant instead of written out | Stops the constant from silently moving the pinned bytes | LOW | Keep one literal `"version":2` golden string |
 
 ### Anti-features
 
-| Anti-feature | Why |
-|--------------|-----|
-| Removing or renaming a public name (`EvaluateOptions`, `EvaluationServices`, `StandingEvaluationServices`) | Breaking (ADR-QD-099, gate 13); only the declaring module moves |
-| Merging `Lifecycle.ts` back into `Evaluate.ts` | ADR-QD-105 keeps the split |
-| Hand-listing the services union in a third place; `as` casts to unify the two option shapes | The restated fact this phase removes |
+| Anti-feature | Why not | Instead |
+|---|---|---|
+| Making `WireVersion` a wider type "to be ready for 3" | Closed-union rule: the full union is edited when 3 exists; widening now is the exact thing `WIRE_VERSIONS`' doc forbids | Keep `2` |
+| Reintroducing a version-1 reader or an upgrade path | Removed in 0.11.0 (ADR-096 amendment) | Out of scope |
+| A runtime version registry or table of per-version codecs | Speculative generality | One constant; per-version struct stays hand-written |
+| Replacing the written-out golden literals in tests with the constant | Defeats the pin (T3) | Keep literal bytes |
+| `as` to coerce a derived literal | House rule | `as const` on the constant only (already used at `SinkCodec.ts:224`) |
 
-**Behaviour changes flagged.** None consumer-visible. Runtime behaviour identical; type names and structure identical. Docs-only churn in `overview.md` module column and the website glossary if it names `Evaluate.ts`.
-
-**Dependencies:** `Question.ts` ← `Evaluate.ts`, `Lifecycle.ts`, `Qadi.ts`, `GuardHealthCheck.ts`, `SubjectSet.ts`, `EvaluationServicesNone.ts`; `Ports.ts`, `CurrentSubject.ts`, `EvaluationId.ts` (type-only). Do this **before** Phase 33 only if Phase 33's sealed layer wants `EvaluationServices` from the same leaf; otherwise independent.
+**Public surface:** `WireVersion`, `WIRE_VERSIONS` keep their names. If the declared type of `WIRE_VERSIONS` changes, `spec/overview.md:456, :518-521` prose is edited; gate 13 is name-based so stays green. `@qadi/core` patch changeset; **not** Breaking while the types are unchanged.
+**Spec touched:** ADR-QD-095, ADR-QD-096 (amend: "a version bump is a one-row edit", it said "full-union edit"), INV-QD-096/097/098, `behaviors/24-decision-sink.md` (and `08-serialization.md` if it cites the version), new INV-QD-321/322 (optional), `SinkCodec.ts` header (`:42-44`).
+**Dependencies:** `SinkWire.ts` is a leaf that `SinkCodec.ts` imports (ADR-QD-037, no cycle). `@qadi/audit` and devtools read `supported` only.
+**Smallest phase in the milestone.** Complexity LOW; the work is choosing the constant's shape.
 
 ---
 
-## Phase 33: one sealed evaluation layer for review and simulation
+## Phase 39: each hydration drop reason stated once, with its kind (ARCH-86, core + react)
 
-### Today's behaviour: who shadows what
-
-| Concern | `qadiReviewLayer` (`testing/src/QadiReviewLayer.ts:145-165`) | `simulationLayer` (`devtools/src/model/Simulation.ts:85-105`) |
-|---------|------|------|
-| Ports | `fixturePortsLayer(options.ports)` | `portsOf(options.source, input)` (`SimulationSource.ts:96`): Fixtures calls `fixturePortsLayer(setupsOf(input))` (`:122`); Snapshot replays; Live passes the host's ports |
-| Evaluation ids | `evaluationIdSequential(options.idPrefix ?? "eval")` | `evaluationIdSequential("sim")` (prefix is **not** asserted by any devtools test; `grep` finds `eval-1` only in `testing/test/TestLayers.test.ts:78,191`) |
-| Clock | `clockLayer(options.clock)`: `"test"` -> `TestClock.layer()`, `"live"` or absent -> `Layer.empty` | `clockLayer(options.clock ?? "live")`: `"deterministic"` -> `TestClock.layer()`, `"live"` -> `Layer.empty` (identical shape, different literal) |
-| Subject | none (`qadiTestLayer` adds `currentSubjectLayer` on top, `QadiTestLayer.ts:17`) | always `currentSubjectLayer(subjectOf(input.subject))` |
-| `DecisionSink` | **not provided, not shadowed**: an ambient sink records review/test evaluations | shadowed by `Layer.succeed(DecisionSink, { record: () => Effect.void })` (`:100`) |
-| `DecisionCache` | **not provided, not shadowed**: an ambient cache is read and written | shadowed by a private `decisionCacheLayer()` (`:104`) |
-
-Tests, by what they assert:
-- Simulation pins the seal: `Simulation.test.ts:~110-135` ("writes nothing, even with a real sink in scope"; "does not touch a cache in scope"), `SimulationSource.test.ts:150-175` (a Live and a Snapshot simulation write no record), clock wiring `Simulation.test.ts:240-275`. Spec: INV-QD-042 (`invariants.md:1694`, Source names `Simulation.ts`'s `simulationLayer`), BEH-QD-219, ADR-QD-050 Rev 1.4 (`:124`: "The simulator cannot reach `@qadi/testing`").
-- Review pins **nothing** about sink or cache. `TestLayers.test.ts` covers ids (`:78,85`), fail-closed defaults, ports, clock (`:160-215`), signature scoping.
-- A third copy exists in test scope: `core/test/helpers.ts:30-45` `testLayer` (ports + sequential ids, "cannot depend on `@qadi/testing`"), and `EvaluationServicesNone` (`core/src/EvaluationServicesNone.ts`, `EvaluationIdLive`: random ids, not a copy).
-- Public surface involved: `qadiReviewLayer`, `qadiTestLayer`, `QadiTestServices`, `TestLayerOptions.clock: "live" | "test"` (testing, public) and `SimulationClock = "live" | "deterministic"`, `SimulationOptions` (devtools, public). `LiveSource` is `Layer<Exclude<EvaluationServices, CurrentSubject | EvaluationId>>` (INV-QD-042).
-- `devtools` has `@qadi/testing` only as a **devDependency** (`package.json:60`); `src` must not import it (ADR-QD-050).
+**Re-verified evidence:** CONFIRMED with C6 and C7. The two unions (`HydrationMetrics.ts:48`, `:71`), the list (`:130-140`), the meanings table (`:166-232`, already compile-checked), react's two groups (`HydrationEvent.ts:85, :92`) and `HydrationEngine.ts:229-250` (`payloadRefusalReason`, `entryDropReason`) and `:517` (`bucketOf: Record<EntryDropReason, ...>`). Readers: devtools `Hydration.ts:31-36, :85, :107-112`; react `DeveloperSignals.ts:37-44, :156, :165, :273, :286, :322`. Nine reasons: 2 dehydration (`ForeignSubject`, `UnencodablePolicy`), 4 whole-payload (`PayloadSubjectMismatch`, `UnsupportedPayloadVersion`, `MalformedPayload`, `PayloadTooDeep`), 3 entry (`MalformedEntry`, `UndecodablePolicy`, `EntryTooDeep`). The metric registry key includes the description and `preregisteredWords` order (devtools `Hydration.test.ts:104-107` pins declaration order), so label set and order are a contract.
 
 ### Table stakes
 
-| Behaviour | Why | Complexity | Notes |
-|-----------|-----|------------|-------|
-| One layer builder in `@qadi/core` taking `{ ports, idPrefix, clock, sealed }` (names are the phase's), consumed by both | Goal | LOW-MEDIUM | A module both `@qadi/testing` and `@qadi/devtools` import is a **new public `@qadi/core` export** (ADR-QD-099: out of the barrel means not importable). `@qadi/core` minor; `overview.md` row; changeset. |
-| The shadowing rule is **stated**: INV-QD-042 amended (new Source: the core module) and a BEH sentence for the review layer | The review's one non-negotiable ask | LOW | |
-| Simulation still shadows sink and cache in every source mode (INV-QD-042 unchanged in meaning); all `Simulation.test.ts` / `SimulationSource.test.ts` seal tests pass untouched | Fabricating audit rows from a debug panel is a defect | LOW | |
-| Review's decision about the sink and cache is explicit and tested | Today it is accidental | LOW | See the decision below. |
-| Public option vocabularies unchanged: `"test"` and `"deterministic"` stay each package's own names, mapped onto the core clock option inside each consumer | Renaming a public literal is Breaking | LOW | |
-| The `"sim"` id prefix preserved and now asserted by a devtools test | Currently unpinned; a refactor could change it silently | LOW | |
-| Devtools still does not import `@qadi/testing` from `src` | ADR-QD-050 | LOW | |
-
-### The decision the phase must make (and a recommendation)
-
-Should `qadiReviewLayer` shadow the sink and cache? **Recommend no, and make it a parameter of the shared builder (`sealed: false` for review, `true` for simulation).**
-- Shadowing in the review layer is **consumer-visible and breaking in practice**: a test that provides an ambient sink or cache **outside** the review layer to observe records (the natural way to test a sink) would see nothing, because the innermost provide wins (Effect semantics, AGENTS.md note in `QadiReviewLayer.ts:77-90`); with `Layer.mergeAll` the winner depends on argument order. No repo test pins it, so a regression would be silent.
-- "A review query is asked by nobody" (`QadiReviewLayer.ts:127`) argues the reverse for production `decideSubjects`, but `qadiReviewLayer` is a *test* fixture.
-- This is the layered, complete shape the user prefers: one builder, an explicit seal switch, the rule in one place.
+| # | Observable, testable statement | Complexity |
+|---|---|---|
+| 39-T1 | One keyed table in `HydrationMetrics.ts`, each row carrying `reason`, `kind` (`dehydration` / `payload` / `entry`), and the meaning (`summary`, `remedy`). `DehydrationDropReason`, `ClientHydrationDropReason`, `HydrationDropReason`, `hydrationDropReasons`, `MEANINGS`' content and `isHydrationDropReason` all derive from it. A row without a `kind` fails to compile (`satisfies` over the row type), proved by a throwaway edit | MED |
+| 39-T2 | Insertion order is the metric's order: `hydrationDropReasons` is `ForeignSubject, UnencodablePolicy, PayloadSubjectMismatch, MalformedEntry, UndecodablePolicy, EntryTooDeep, UnsupportedPayloadVersion, MalformedPayload, PayloadTooDeep`, exactly as now (`HydrationMetrics.ts:130-140`) | LOW |
+| 39-T3 | The metric label set is unchanged: `qadi_hydration_dropped_total` keeps its id, description and nine `preregisteredWords` in the same order, so the registry key does not move (ADR-QD-123; `[metric-table]` row at `spec/behaviors/25-inspection.md:749` stays green; core `HydrationMetrics.test.ts` written-out lists and `Hydration.test.ts:109` untouched and green) | LOW |
+| 39-T4 | React's `PayloadRefusalReason` and `EntryDropReason` are derived from the table's `payload` and `entry` kinds (no hand-written literals; `HydrationEvent.ts:82-84` comment "placed by hand" deleted). `Hydration.tst.ts:90-91` (partition) still passes unchanged and now proves the derivation | MED |
+| 39-T5 | `bucketOf` in `HydrationEngine.ts:517` and the two refusal maps (`:229-250`) still compile exhaustively over the derived groups; a new `entry` reason fails them at compile time | LOW |
+| 39-T6 | A new reason with a kind and a meaning added in one place reaches the metric, devtools' panel at zero (BEH-QD-232) and react's reporters with no other edit (demonstrated by a throwaway row, recorded) | LOW |
+| 39-T7 | Public type names and runtime exports unchanged (`HydrationDropMeaning`, `hydrationDropMeaning`, `isHydrationDropReason`, the three unions, `hydrationDropReasons`). The unions are now `typeof TABLE[number]["reason"]`-style; per-member JSDoc on the reasons moves to the table rows | LOW |
 
 ### Differentiators
 
-| Behaviour | Value | Complexity | Notes |
-|-----------|-------|------------|-------|
-| Re-point `core/test/helpers.ts` `testLayer` at the builder (the third copy) | Removes the hand-copy the file itself apologises for | LOW | Test-scope only. |
-| A conformance test asserting `qadiReviewLayer` and `simulationLayer` agree on ids, clock and fail-closed ports for identical inputs | Locks the shared half | LOW | |
+| Feature | Value | Complexity | Notes |
+|---|---|---|---|
+| A public `hydrationDropKind(reason)` (or a `kind` read off the table) so devtools can group payload-level versus entry-level reasons | Devtools already explains "the two payload-level reasons" (`Hydration.test.ts:121`) by name | LOW | New export means `spec/overview.md` row + minor changeset; only if a consumer reads it, else keep the kind package-private to core and react |
+| Kind column also decides `wholePayload` in react's `HydrationDrop` (today `HydrationEvent.ts` derives it by tag) | One more restated fact gone | LOW | Check `DeveloperSignals.ts:273` before committing to it |
+| Tighten INV-QD-045 to say the reason set and its kinds are one table | Invariant states what the code now guarantees | LOW | INV-QD-045 currently says "nine" (INV-QD-045's reason set is nine, history 1.108) |
 
 ### Anti-features
 
-| Anti-feature | Why |
-|--------------|-----|
-| Making `@qadi/devtools` depend on `@qadi/testing` | ADR-QD-050 |
-| Unifying `TestLayerOptions.clock` and `SimulationClock` literals | Public, Breaking |
-| Shadowing sink/cache in `qadiReviewLayer` by default | Silent consumer breakage (above) |
-| Moving `CurrentSubject` into the sealed layer | INV-QD-042: the subject is the thing simulated; `LiveSource` excludes it by type |
-| `Layer.mergeAll` past ~90 arguments (AGENTS.md §3 gotcha) | n/a here but note if the builder grows |
+| Anti-feature | Why not | Instead |
+|---|---|---|
+| Deleting the written-out nine in `HydrationMetrics.test.ts` / `Hydration.test.ts` (C7) | They pin the label set independently of the source of truth | Keep; a derived list that silently loses a reason must still fail a test |
+| `Record<string, unknown>` or `Object.keys` cast to enumerate the table | Memory rule; loses the literal type | An `as const` array of rows with `satisfies`, or a typed keyed object whose key set is the closed union (the union then comes from a separate row array) |
+| `old \| "New"` widening for the sake of source compatibility | Closed-union rule | Add the row |
+| Moving drop-reason meaning to react or devtools | ADR-QD-037 puts it in core; two tables had already drifted | Stay in core |
+| Changing any metric id, description or label order | Registry keys on type:id:description; re-declaration fails silently | T3 |
+| Re-opening ADR-QD-143 or ADR-QD-078 | Out of scope | Cite only |
 
-**Behaviour changes flagged.** Consumer-visible only if the review layer is made to shadow (recommended against). Additive: one new public `@qadi/core` export. Internal: Simulation's layer composition.
-
-**Dependencies:** `fixturePortsLayer`, `evaluationIdSequential`, `currentSubjectLayer`, `decisionCacheLayer`, `DecisionSink` (core), `TestClock`. `spec/traceability.md:71` lists `QadiReviewLayer.ts` under behaviour 29: add the new core file to that row and the INV-QD-042 Source. Mutation baseline: `Simulation.ts` is small; keep its score.
+**Public surface:** names unchanged (`spec/overview.md:322-323` prose says "nine reasons", still true; edit only the module description if the table is named there). React's two reason types are package-private (not in `packages/react/src/index.ts`, not in `overview.md`). `@qadi/core` patch (types stay structurally identical); `@qadi/react` patch. Becomes minor only if `hydrationDropKind` is exported.
+**Spec touched:** INV-QD-045, BEH-QD-230, BEH-QD-232 (`19-hydration.md:509, :796`), `25-inspection.md:749` metric row (verify only), ADR-QD-123 (cite), ADR-QD-052 and ADR-QD-037 (cite), new BEH 531..535 / INV 323..324 as needed.
+**Dependencies:** `@qadi/core` -> `@qadi/react` (`HydrationEvent.ts:52`, `DeveloperSignals.ts:37-44`) and `@qadi/devtools` (`Hydration.ts:31-36`). Core first, react derive second, in the same phase.
 
 ---
 
-## Phase 34: diagnostics as the dock model's seventh store
+## Phase 40: core owns describing a decode refusal (ARCH-87, core + devtools + audit)
 
-### Today's behaviour: every input and output
-
-**Inputs (public, `devtools/src/react`):** `DevtoolsDockProps.diagnostics?: DiagnosticsDockOptions` and `.reading?: DiagnosticsReading` (`DevtoolsDock.tsx:92-117`); `useDiagnostics(options?)` is a public export (`react/index.ts:21`, pinned in `surface.test.ts:71`). `DiagnosticsDockOptions` (`useDiagnostics.ts:33-55`): `layer?: Layer<never, unknown>`, `collector?: PortCallCollector`, `questions?: () => ReadonlyArray<AskedQuestionLike>`, `intervalMillis?: number`.
-
-**Model-level public exports (`devtools/src/index.ts:27-37`):** `makeDiagnosticsStore`, `mergeReading`, `noDiagnostics`, `runDiagnostics`, types `Diagnostics`, `DiagnosticsOptions`, `DiagnosticsReading`, `DiagnosticsStore`. `WiringRead` too. `makeDockModel`, `DockModel`, `DockModelInputs` are **package-private** (BEH-QD-465), so adding model fields changes no public surface.
-
-**Output:** `Diagnostics` = `{ wiring: WiringRead, activity, hydration | undefined, portCalls | undefined, questions | undefined }`, rendered by the Services panel (`wiring`, `activity`, `portCalls`) and the React panel (`questions`, `hydration`) in `DevtoolsDock.tsx:289-306`.
-
-**How it runs today:**
-- `DevtoolsDock` (`:148-154`) calls `useDiagnostics(diagnostics)` **before** the model exists, then `useMemo(mergeReading(sampled, reading), [sampled, reading])`, so "supplied wins per field" lives in the view. `mergeReading` returns `sampled` itself when `reading === undefined` (identity preserved, `DiagnosticsStore.ts:~120`).
-- `useDiagnostics` (`useDiagnostics.ts:68-93`): one `makeDiagnosticsStore()` held in `useState` (so the **reading survives restarts and Activity hide/show**); `run` is `undefined` when `options === undefined` (nothing runs and the hook returns the constant `noDiagnostics` even though the store may hold a stale reading); otherwise `runDiagnostics(store, { layer?, collector?, questions?, schedule: Schedule.spaced(intervalMillis ?? 2000) })`.
-- **Restart rule** (`useRunningStore.ts:23-42`, deps at `useDiagnostics.ts:85-91`): `[options === undefined, layer, collector, questions, intervalMillis]` by identity, never the options object. The effect forks `Effect.runFork(run)` and cleans up with `Effect.runFork(Fiber.interrupt(fiber))`. The `run` itself is deliberately not a dep; `eslint-disable react-hooks/exhaustive-deps` at `:40-41`.
-- `runDiagnostics` (`DiagnosticsStore.ts:~183-215`): builds the layer **once per run** in the run's scope, releases on interrupt (BEH-QD-323); a build failure is `WiringRead.Failed` and the other reads keep sampling; `Effect.repeat(sample, schedule)` samples once at start, then per step; `accept` keeps each field's reference when `Equal.equals`.
-- `useRunningStore` is also used by `useTimeline` (`useTimeline.ts:52`, with a real run) and, with a constant `undefined` run, by `useDockSnapshot` (`useDockSession.ts:14-15`), `useExplorerSnapshot` and `useHeldChoiceSnapshot` (`useExplorerSession.ts:15-21`). That is Phase 26 IN-01 (still true).
-- `DockModel` (`DockModel.ts:48-70, 117-150`): stores `timeline, dock, explorer, roles, simulation`, `sightings()`; `configure` dispatches only identity-changed inputs; the source read already runs on a `FiberHandle` in the model's scope (`:99-103`).
-- Hide/show of the dock in a React `Activity` **rebuilds the model** (pause returns to live, backlog re-read), accepted in BEH-QD-465 and 26-UI-SPEC. Diagnostics is **not** inside that today, so its reading survives; moving it in changes that.
-- Callers of the dock's diagnostics props: `examples/nextjs-newsroom/src/client/{Dock,Counters,atoms}.tsx`, `examples/nextjs-newsroom/test/dock-wiring.test.tsx`, `@qadi/react` `DevtoolsFeed.ts` (`useDevtoolsFeed()` returns `diagnostics: Extra & { layer, questions }`, spreadable onto the dock), `features/features/devtools-screens/*`, website `docs/packages/devtools.md`, `react/hooks.md`, `reference/upgrading.md`.
-- Specs: BEH-QD-323 (`28-devtools-screens.md:572`, title already says "sampled by the model"), BEH-QD-465/466 (`:827,918`), ADR-QD-047 Rev 1.12, INV-QD-296, INV-QD-107. BEH-QD-465 and ADR-047 1.12 never mention diagnostics, so the review is right that this is an omission.
-- Tests: `useDiagnostics.test.tsx` (5 React-only cases: fills after mount, starts nothing without options, finalizer on unmount, no restart on equal literal, restart on new layer); `DiagnosticsStore.test.ts:59-400` (store identity rules, `runDiagnostics` under `TestClock`, `mergeReading` 17 cases); `DevtoolsDock.test.tsx:752-1210` (reading/diagnostics merging through the DOM; inline `reading={{…}}` literals at `:752,796,1032`); `DockModel.test.ts` M1-M17 and P1.
+**Re-verified evidence:** CONFIRMED with C8. Encode side: `describeEncodeRefusal` (`JsonRefusal.ts:143-153`), `encodeRefusalAnnotations` (`:112-122`), `reportEncodeRefusal` (`EncodeRefusalReport.ts:25`), used by `DecisionSinkForwarding.ts:90`, `PortWireEncode.ts:89` and audit `AuditEntry.ts:106`. Decode side: `reasonOf` (`Source.ts:220-228`) is a 1:1 kebab rename of `DecodeRefusal` (`SinkWire.ts:53-83`: `NotJson`, `TooDeep`, `Malformed`, `UnsupportedVersion`, `Inconsistent`); the `MalformedReason` doc (`Source.ts:250-273`) re-explains all five. `onMalformed(frame, reason)` is public (`Source.ts:126`; `index.ts:116`; `overview.md:849`), used in `examples/nextjs-newsroom/src/client/Dock.tsx:73`, `Source.test.ts`, `Source.tst.ts`, `surface.tst.ts:48`, BEH-QD-204 (`27-devtools-timeline.md:167, :178`). The log annotation `qadi.reason` currently carries the kebab string (`Source.ts:289`).
 
 ### Table stakes
 
-| Behaviour | Why | Complexity | Notes |
-|-----------|-----|------------|-------|
-| `DockModelInputs` gains `diagnostics` and `reading`; `configure` dispatches by identity **per field** (`layer`, `collector`, `questions`, `intervalMillis`), never the options object | BEH-QD-323 and the existing restart rule; an inline literal must not tear the layer down (`useDiagnostics.test.tsx:79`) | MEDIUM | |
-| The poll runs on a `FiberHandle` in the model's scope; a changed field supersedes (interrupts, releases the old layer, starts a new run); `diagnostics` going `undefined` stops it; scope close ends it and releases the layer | Mirrors the source read (`DockModel.ts:99-103`) and ADR-QD-137 | MEDIUM | Old layer released before or concurrently with the new build: `useDiagnostics.test.tsx:109` asserts both happen. |
-| The model exposes the **merged** reading as a store with today's identity rules: the same snapshot while neither the sample nor the supplied reading changed; each field keeps its own reference; `mergeReading` stays public and is the one place the rule lives | `useSyncExternalStore` re-render cost; BEH-QD-323 | MEDIUM | A host that passes a fresh `reading` literal each render must not cause a render loop (`DevtoolsDock.test.tsx:752`). Publishing happens in the parent's layout effect and only `DockFrame` subscribes, so no loop, but dedupe per field (`Equal.equals`) so unchanged content does not publish. |
-| Public `useDiagnostics` stays, as an adapter for hosts without the dock, with the same four-field restart rule | Public export, `surface.test.ts:71`, `DevtoolsFeed.ts` doc | LOW | It may reuse the same `runDiagnostics`; it can no longer be the dock's mechanism. |
-| Three snapshot hooks merge into one reader (`useSyncExternalStore` directly); `useRunningStore` keeps only `useTimeline`'s and `useDiagnostics`'s real runs | Resolves Phase 26 IN-01 | LOW | |
-| The hand-written deps list and the `eslint-disable` in `useRunningStore`/`useDiagnostics` are gone from the dock path | Review win | LOW | |
-| Model tests under `TestClock` with no render: restart on each field, no restart on a new options object with equal fields, `undefined` stops it, scope close releases the layer, `reading` merge precedence incl. explicit empty list, identity preservation | The headless win | MEDIUM | Move the `useDiagnostics.test.tsx` cases that only the model decides; keep the three only React can get wrong (mount, unmount, no restart on equal rerender). `DockModel.ts` mutation score is 100; do not lower it. |
-| ADR-QD-047 amendment (Rev 1.13; reserved ADR-QD-147 may go unused as ADR-138 did), BEH-QD-465 gains the seventh store, BEH-QD-323 restated, INV-QD-296 extended | The omission is the finding | LOW | |
-
-### Decisions the phase must make (flag; not table stakes either way)
-
-| Question | Today | Options |
-|----------|-------|---------|
-| Reading across a hidden `<Activity>` | survives (store in `useState`) | accept a reset (consistent with the model rebuild, BEH-QD-465), or hold the diagnostics store outside the rebuilt model. Consumer-visible: the Services/React panels would show "nothing read" until the first sample (up to `intervalMillis`, default 2,000 ms, `DiagnosticsStore.ts:~170`) after a re-show. |
-| `diagnostics` going `undefined` then defined again | returns `noDiagnostics` while undefined; on re-enable the store still holds the **stale** last reading until the first sample | reset to `noDiagnostics` on `undefined` (cleaner), or keep (today). Pin whichever. |
-| When the poll starts | on the dock's first mount, before the model exists | at model build (one render later). Invisible except in ordering tests. |
+| # | Observable, testable statement | Complexity |
+|---|---|---|
+| 40-T1 | `@qadi/core` exports the decode-side describer (the mirror of `describeEncodeRefusal`): one total `DecodeRefusal -> string` over a `Match.tagsExhaustive` (module scope), and the five-reason prose that lives in `Source.ts:250-273` lives there once. A sixth `DecodeRefusal` member is a compile error in core only | MED |
+| 40-T2 | Devtools has no `reasonOf`, no `MalformedReason`, no restated prose. `onMalformed: (frame, refusal: DecodeRefusal) => void`. The default log warning (`Source.ts:287-290`) carries the core describer's output, not a devtools vocabulary | MED |
+| 40-T3 | INV-QD-104 holds on the decode side: any annotation says which refusal (the `_tag`), never what. `Malformed.message` (schema issue text, may name values), `UnsupportedVersion.version` (any JSON as sent) and `Inconsistent.disagreement` are not log annotations. The sentence (like `EncodeFailed`'s) may carry them but is never a default log message or annotation. Test with a sentinel value in a malformed frame (mirror `encodeRefusalAnnotations` tests) | MED |
+| 40-T4 | `decodeAuditEntry` decodes `input.record` once. The strict decode yields the record and the record's wire JSON together, or the entry's JSON is derived without a second `Schema.decode*`. `recordJsonOf` (`AuditEntry.ts:177`) is deleted | MED |
+| 40-T5 | The budget shrinks both ways: `UNTRUSTED_DECODE_BUDGET["packages/audit/src/AuditEntry.ts"]` (`scripts/check-house-style.mjs:637`) is removed, AGENTS.md §7a's table row is removed in the same task, `[untrusted-decode-table]` and `[untrusted-decode-names]` stay green | LOW |
+| 40-T6 | Audit's duplicate `asDecodeRefusal` (`AuditEntry.ts:159-164`) is gone: the row decoder's refusal reaches `DecodeRefusal` through one core mapping (core's `SinkCodec.ts:489-498` is the other copy today) | LOW |
+| 40-T7 | Behaviour preserved for audit: the same rows decode to the same `AuditEntry` (record JSON identical, unknown envelope key still dropped per ADR-096 D-15-c), refusals identical, depth refusal still `TooDeep` from the record's own root before the row (INV-QD-306; `AuditEntry.test.ts:191` at 60,000 deep). Differential: run the old and new `decodeAuditEntry` over the existing fixtures, same output | MED |
+| 40-T8 | **Breaking** `@qadi/devtools`: `MalformedReason` removed and `onMalformed`'s second parameter retyped. Changeset marks it Breaking; `apps/website/.../reference/upgrading.md` gets the old-to-new map (`not-json`->`NotJson`, `too-deep`->`TooDeep`, `not-a-record`->`Malformed`, `unsupported-version`->`UnsupportedVersion`, `inconsistent`->`Inconsistent`) and the changed `qadi.reason` log value; `examples/nextjs-newsroom/src/client/Dock.tsx:73` and `devtools.md:108` updated; `surface.tst.ts:48` and `Source.tst.ts` updated | LOW |
+| 40-T9 | `spec/overview.md`: new core export(s) listed (gate 13), `MalformedReason` row (`:849`) removed/changed. BEH-QD-204 restated | LOW |
 
 ### Differentiators
 
-| Behaviour | Value | Complexity | Notes |
-|-----------|-------|------------|-------|
-| `useDiagnostics` becomes a thin adapter over the same scoped runner (`useScoped`), so the hook and the dock share one mechanism | One restart implementation | MEDIUM | `useScoped` exists (`react/useScoped.ts`). |
-| `DockModel` exposes `diagnostics` as a `{ subscribe, getSnapshot }` store typed like the others | Consistency with the "six stores" statement | LOW | |
+| Feature | Value | Complexity | Notes |
+|---|---|---|---|
+| A decode reporter mirroring `reportEncodeRefusal` (an `Effect.fn` that logs with the annotation set), used by devtools' default path | Same shape both directions; devtools stops hand-rolling `Effect.logWarning` | MED | Review says "reporter if a consumer needs one": devtools does need the log, so this is justified rather than speculative. Keep the `frame` annotation devtools already writes (`qadi.frame`) as a devtools extra |
+| `decodeRefusalAnnotations(refusal)` (tag only) beside `encodeRefusalAnnotations` | Closes INV-QD-104 mechanically | LOW | |
+| Audit and `AuditArchive.EntryNotDecodable` use the describer when they report (today they carry the raw refusal) | One sentence per refusal for compliance reviewers | LOW | Only if a consumer reads it; `AuditEntryNotEncodable.reason` is the precedent |
+| Core owns `UntrustedValueRefusal -> DecodeRefusal` (the mapping both core and audit write) | Third restatement of a mapping gone (C8) | LOW | Likely needed for T4/T6 anyway |
 
 ### Anti-features
 
-| Anti-feature | Why |
-|--------------|-----|
-| Moving gates into the diagnostics store | They are pushed by the host's registry subscription and stay a plain prop (AGENTS.md §13; `DiagnosticsStore.ts` header) |
-| Making sampling push-based or adding writes to the evaluation hot path | BEH-QD-216, ADR-QD-052 |
-| Removing or renaming `useDiagnostics`, `mergeReading`, `runDiagnostics`, `DiagnosticsDockOptions` | Public; Breaking |
-| Decisions or the diagnostics reading in React state | AGENTS.md §13 (the registry bullet) |
-| A `dispose`/`read` command on the model | BEH-QD-465 ("the scope is the lifetime") |
-| `Effect.runFork` of the poll from a component | The thing being removed |
+| Anti-feature | Why not | Instead |
+|---|---|---|
+| Keeping `MalformedReason` as an alias of a kebab projection "for compatibility" | Memory: compat is never the tiebreaker; milestone states Breaking | Remove, document in upgrading.md |
+| A new `DecodeRefusal` member, or splitting `Malformed` | Closed union edited as a whole, no reason to touch it | Describe the five |
+| Annotating `Malformed.message` or `UnsupportedVersion.version` | INV-QD-104 (where, never what); `message` can name values | Sentence only, never a default log message |
+| Re-encoding the decoded record to get the entry JSON (`encodeSinkRecord(record)`) as the audit shortcut | Can fail or normalise differently from the stored row (e.g. `outcome` rebuild, INV-QD-096/098 are per direction, not a proof of identity for every decoded record) | Core hands out the already-validated wire value with the record (new minor export, ADR-QD-099: another package needs it, so it goes in the barrel), proven by the differential in T7 |
+| Re-opening ADR-QD-143 (decoder recipe) or ADR-QD-116 (refusal leaf) | Out of scope | Cite; ADR-QD-153 amends 095/110 only as needed |
 
-**Behaviour changes flagged.** Consumer-visible only through the Activity-reset decision above and the one-render start delay. Everything else is identical by test. `@qadi/devtools` patch (as ARCH-74).
-
-**Dependencies:** `DockModel.ts`, `useDockModel.ts`, `DevtoolsDock.tsx`, `DiagnosticsStore.ts`, `useDiagnostics.ts`, `useRunningStore.ts`, `useDockSession.ts`, `useExplorerSession.ts`, `Wiring.ts`, `Hydration.ts`, `PortCalls.ts`. It touches `DevtoolsDock.tsx` (Phase 36's 26 IN-02 `nothing`) and the three snapshot hooks (26 IN-01): sequence 36 after 34 and re-verify.
+**Public surface:** core gains the describer (and reporter/annotations if included, plus a record-with-wire decode export if that route is taken), so `@qadi/core` **minor**; `@qadi/devtools` **Breaking** (minor on 0.x); `@qadi/audit` patch (internal, behaviour identical). `spec/overview.md` rows: new core exports, `:849` removed, `:456` neighbourhood. `UNTRUSTED_DECODE_BUDGET` and AGENTS.md §7a table edited together.
+**Spec touched:** BEH-QD-204 (`27-devtools-timeline.md:167`), BEH-QD-203, BEH on stream/backlog (`26-decision-stream.md:322, :419, :585, :597` cite `onMalformed`), INV-QD-104, INV-QD-097 (the codec is total), INV-QD-170, INV-QD-305/306, ADR-QD-095, ADR-QD-110 ("audit facts computed once", touched), ADR-QD-116 (mirror), `spec/README.md` CCR row 431, new BEH 536..540, INV 325..326.
+**Dependencies:** `SinkWire.ts` (leaf, ADR-037), `JsonRefusal.ts`/`EncodeRefusalReport.ts` (pattern), `UntrustedDecode.ts`. Phase 38 touches `SinkCodec.ts`/`SinkWire.ts` first, so 40 builds on 38's constant; run 38 before 40 (already the order).
+**Largest cross-package phase after 42.** Complexity MED-HIGH (three packages, a Breaking surface, a budgeted-exception removal).
 
 ---
 
-## Phase 35: the atom set owns its eviction sweep (speculative; opens on a spike)
+## Phase 41: one guarded value-to-text function in devtools (ARCH-88, latent defect)
 
-### Today's behaviour: every caller and pin
+**Re-verified evidence and reachability (the question that was open).**
 
-| What | Where |
-|------|-------|
-| `maxTrackedQuestions` option, default 500 | `QadiAtoms.ts:190-234` (`DEFAULT_MAX_TRACKED_QUESTIONS`), passed as `capacity` at `:340`; validated positive integer at `QuestionBook.ts:120-122` (error text names `maxTrackedQuestions`); `QuestionBook.test.ts:235` |
-| `sweepEvictions: Effect<void>` on the public `QadiAtoms` interface | `QadiAtoms.ts:166` (doc `:131-166`), implemented `:360` as `Effect.sync(book.sweep)`; spec `09-react.md:73`; `25-inspection.md:777` |
-| The only src caller: the provider's `useEffect` forking `Effect.repeat(atoms.sweepEvictions, Schedule.spaced(sweepIntervalMillis))` | `QadiProvider.tsx:343-349` (runs the sweep once at fork, then every interval); prop `sweepIntervalMillis` `:193,228` (default `DEFAULT_SWEEP_INTERVAL_MILLIS = 30_000`, `:130`) |
-| Tests pinning the sweep | `QadiAtoms.test.ts:379-520` (six cases, call `Effect.runSync(set.sweepEvictions)` directly: across an invalidation, across a recompute, FIFO among cold, never a mounted one); `QadiProvider.test.tsx:298-345`: "periodically evicts cold questions in the background" and "stops sweeping once the provider unmounts" (**asserts the atom set stays over the bound after unmount: `:340-345`, "No provider is mounted any more to fork a sweep fiber"**); `QuestionBook.test.ts` (book rules without atoms) |
-| No other callers | `grep` across `packages/*`, `features`, `examples`, website: none use `sweepIntervalMillis`, `maxTrackedQuestions` or `sweepEvictions` outside the files above and spec |
-| Specs | INV-QD-105 (`invariants.md:3167`), ADR-QD-103 (`:77`: "The provider's first sweep runs after its children have rendered and retained their questions"), ADR-QD-014, AGENTS.md §13, `spec/process/house-rules-evidence.md` §4 (CCR-QD-150) |
-| The constraint that makes the mechanism hard | `QuestionBook.ts` header: `sweep` "runs on its own fiber, so it can never observe the momentary zero of a question a registry still holds" (a recompute disposes the reader's lifetime and re-reads synchronously, `NodeImpl.invalidate`, pinned by `v4-reactivity-smoke.test.ts`); re-admission lets a swept entry whose atom a registry still holds come back (`QuestionBook.ts` "Re-admission") |
-| Verified facts for the spike | `Atom.runtime(layer)` uses the default factory whose `memoMap` is `removeTtl(make(() => Layer.makeMemoMapUnsafe()))` (`node_modules/effect/src/reactivity/Atom.ts:896`), i.e. a **per-registry** memo map, so a layer built under `atoms.runtime` is built once per registry and is torn down with it. One atom set can run under several registries (each provider creates its own, `QadiProvider.tsx:241`). |
+The unguarded sink is `Remedies.ts:574-575` `render = (v) => typeof v === "string" ? v : String(JSON.stringify(v))`, used at `:481` (SubjectAttribute label), `:496` (ResourceAttribute label) and `:249`-area (`Size`: `a size is a number, and ${render(v)} is not`). The values come from `satisfyingValue`/`witnessCases` (`:145-254`): `In` -> `m.values[0]` (`:206`), `Contains` -> `[m.value]` (`:241`), `Eq` -> `refValue` -> `LiteralRef.value` (`:269`), then `FieldMatch`/`SomeMatch`/`EveryMatch` wrap it. `checked` only keeps a witness `judgeMatcher` holds, and `contains`/`inArray`/`eq(literal(...))` hold for the value they were built from. Core types: `contains(value: unknown)` (`Matcher.ts:284`), `inArray(values: ReadonlyArray<unknown>)` (`:234`), `literal(value: unknown)` (`:73`), schemas `Schema.Unknown` (`:102, :115`). So a **policy built in code** can carry a bigint or a circular object. (A policy decoded from JSON cannot: JSON has neither.)
+
+**Reproduced**, running the real `remedyEdits` from `packages/devtools/src/model/Remedies.ts` against the built core (`node` 26, script in the session scratchpad, repo untouched):
+
+| Policy | Result |
+|---|---|
+| `hasAttribute("tags", contains(10n))` | `TypeError: Do not know how to serialize a BigInt` |
+| `hasAttribute("tags", contains(circular))` | `TypeError: Converting circular structure to JSON` |
+| `hasAttribute("level", inArray([1n]))` | BigInt `TypeError` |
+| `hasResourceAttribute("level", inArray([circular]))` | circular `TypeError` |
+| `hasResourceAttribute("level", eq(literal(1n)))` | BigInt `TypeError` |
+| `hasAttribute("level", eq(literal(circular)))` | circular `TypeError` |
+
+**Where the throw lands (worse than "while rendering"):** `remedyEdits` is called by `derive` (`WhatIf.ts:201`), which `sweepPlan` calls (`:173`), and `SimulationSession.build()` calls `sweepPlan` synchronously (`SimulationSession.ts:404`) on every `commit()` (`:447-449`). So the throw happens inside a session command (choosing a policy, editing the draft, toggling pairs), outside any Effect, so no `Broke` capture; it propagates to the caller (a React event handler or the model's subscribe path), leaving the command's state mutation done and its publish not. Only reproduced at the `remedyEdits` level; the phase's RED test should be written at the **session** level (`makeSimulationSession` + `setPolicy`/`chooseSight` with such a policy) and at `remedyEdits`, and recorded RED on `637c0601`.
+
+Other claimed sites (C9): `Filters.ts:136-146` guarded (try/catch, `[]`); `SimulationForm.ts:95-103` guarded (`undefined`) and then a round-trip check; `Inspect.ts:300-310` total; `QuestionsPanel.tsx:388` not a value renderer. `grep` of `packages/devtools/src` for `JSON.stringify`/`String(` finds no other unguarded rendering of a policy- or resource-carried value (the `String(...)` hits are numbers, errors and enum-ish fields: `Remedies.ts:225, :240, :258` are `number`s already `Number.isFinite`-checked or numeric; `Capture.ts:164-167` and `SimulationSession.ts:511` stringify errors/causes, not user values).
 
 ### Table stakes
 
-| Behaviour | Why | Complexity | Notes |
-|-----------|-----|------------|-------|
-| The phase opens on a spike or `checkpoint:decision` and may conclude "keep it in the provider, but state and test the rule" | Context; mechanism unproven | MEDIUM | The honest-negative outcome must be a valid, fully recorded phase (an ADR stating the rule and a graph-level test that the limit is documented as provider-owned). |
-| If a mechanism is adopted: the limit holds wherever the atom set runs (no provider), observable from a graph test with no render | Goal | MEDIUM-HIGH | |
-| Never `AtomRegistry`'s `scheduleTask` / `defaultIdleTTL` as the scheduler | AGENTS.md §13, CCR-QD-150: it rerouted dispatch and dropped a required render | n/a | Hard constraint. |
-| The sweep stays on a separate fiber from any dispatch or recompute, so it can never see a momentary zero | `QuestionBook.ts` header, INV-QD-105 | n/a | An inline sweep on `book.open` would run inside `decisions`' derived atom compute (`QadiAtoms.ts:~345`, `decision(...)` called from a family atom), possibly inside a synchronous dispose-and-reread: **disqualifying** unless proven otherwise. |
-| First sweep still runs after the first render's readers have gone live (ADR-QD-103) | Otherwise a just-opened cold question is evictable before it subscribes | LOW | Re-admission covers the leak case but not the "same atom while tracked" promise (BEH-QD-065) for a question opened in render and not yet live. |
-| No leaked timer: nothing outlives its registry or the process (a module-scope atom set is shared across SSR requests) | A never-ending interval on a module-scope object keeps Node alive and leaks per server process | HIGH | Disqualifies "start a fiber at `makeQadiAtoms`". |
-| `sweepEvictions` and `maxTrackedQuestions` stay public and working; `QadiProvider`'s `sweepIntervalMillis` stays accepted (additive move of the interval to `QadiAtomsOptions` is fine; removal is **Breaking**) | Public surface (ADR-QD-099, gate 13); hand-written `QadiAtoms` doubles must still type-check | LOW | |
-| `QadiProvider.test.tsx:340-345` ("stays over the bound after unmount") is reconciled explicitly: either it still holds (the sweep dies with the registry) or it is rewritten with the reason | It directly contradicts "limit holds without a provider" read naively | LOW | |
-| Several providers or registries over one atom set do not multiply sweeps unboundedly | Current doc: redundant but harmless (idempotent) | LOW | |
-
-### Candidate mechanisms for the spike (hypotheses, MEDIUM confidence, none verified end to end)
-
-| Candidate | Fit | Risk |
-|-----------|-----|------|
-| A. Append a `Layer.effectDiscard(Effect.forkScoped(Effect.repeat(sweep, spaced)))` to the layer given to `Atom.runtime(layer)` | Scope = the runtime atom's lifetime per registry (per-registry memoMap, above): "while it is mounted"; a qadi-owned fork, no `scheduleTask`; separate fiber | The runtime atom may not be built until a decision atom is read (a registry that never reads runs no sweep; arguably fine); idle-TTL/keep-alive behaviour of the runtime atom unverified; the runtime layer's type (`QadiLayer`) must stay `Layer<StandingEvaluationServices>` |
-| B. Sweep-on-`open` (amortised, no fiber) | No lifecycle needed | Likely disqualified: runs in render and possibly in a derived-atom compute, can see the momentary zero (above); the just-opened cold entry could be evicted when all older ones are live |
-| C. Keep in the provider; state the rule (limit is provider-owned, off without a provider) and pin it | Zero risk | Does not meet the stated goal; valid per context |
-| D. A `Scope`-taking `QadiAtoms.runSweep(scope)` the host calls | Explicit lifecycle | Re-creates the provider's job in the host; not "the atom set owns it" |
+| # | Observable, testable statement | Complexity |
+|---|---|---|
+| 41-T1 | RED first on `637c0601`: a session-level test and a `remedyEdits` test with a bigint and a circular value (through `contains`, `inArray`, `eq(literal)`) throws; GREEN after the fix: no throw, a label is produced, the remedy still builds or is skipped with a stated reason | MED |
+| 41-T2 | One package-private function turns an unknown value into text and never throws (bigint, circular, `Symbol`, function, `undefined`, null-prototype object, a throwing `toJSON`, a throwing getter). One test table covers every value class and is the only place the rules are asserted | LOW |
+| 41-T3 | `Filters.ts`, `SimulationForm.ts` and `Remedies.ts` read through it (or through a thin adapter over its primitive: Filters wants `ReadonlyArray<string>` with `[]` for the unrepresentable, the form wants `string \| undefined` and then its own round-trip check, Remedies wants a label). No `JSON.stringify` of an unknown value remains outside the one function: scoped grep over the lines the phase adds, and a house-style-like pin if cheap | LOW |
+| 41-T4 | Existing behaviour pinned and unchanged: strings shown bare (`= low`), `JSON.stringify(undefined)` still renders as the word `undefined` in a remedy label (the `render` doc says this is intended, "the right label for a policy only an absent attribute satisfies"), Filters still returns `[]` for an unrepresentable, the form still refuses non-round-tripping text (`SimulationForm.ts:105-`) | LOW |
+| 41-T5 | What a remedy label says for a value with no JSON form is decided and tested (a bigint can print as `10n`; a circular object as a fixed placeholder). It must not repeat the value's content beyond what JSON does today and must not throw | LOW |
+| 41-T6 | `witnessed.value` that cannot be shown does not drop the remedy: the edit is still built (the input value is fine) and only its label degrades, or it is skipped with a reason in `skipped`, whichever the phase picks and pins. BEH-QD-223 ("a synthesised value must satisfy the matcher") is not weakened | MED |
 
 ### Differentiators
 
-| Behaviour | Value | Complexity | Notes |
-|-----------|-------|------------|-------|
-| A graph-level test (no render) that eviction holds under a bare `AtomRegistry` | Review's testing win | MEDIUM | `QadiAtoms.test.ts` already builds registries by hand. |
-| `sweepIntervalMillis` as an atom-set option (provider prop kept as an override) | One home for the limit and its cadence | LOW | Additive public option. |
+| Feature | Value | Complexity | Notes |
+|---|---|---|---|
+| Phase finds the reachable cases are bigint and circular only and writes the table with those plus a throwing getter and `toJSON` | Honest coverage of what `JSON.stringify` can actually do | LOW | |
+| A cap on text length in labels | Row labels say "short enough" (`Remedies.ts:566`) yet a large object is rendered whole | LOW | Only if it falls out of the table; do not invent a limit |
+| Decide whether `Inspect.outsideUnion` rides on the same primitive for its non-object branch | One total primitive underneath | LOW | Keep its presentation rules (C9) |
 
 ### Anti-features
 
-| Anti-feature | Why |
-|--------------|-----|
-| `scheduleTask` / `defaultIdleTTL` | AGENTS.md §13 / CCR-QD-150 |
-| A module-scope timer or `setInterval` | No lifecycle, SSR leak |
-| `useState`/`useEffect` for decisions or the sweep in a new place | AGENTS.md §13 |
-| Making `maxTrackedQuestions` mean something different (it is a best-effort bound that stops at live entries) | INV-QD-105 |
+| Anti-feature | Why not | Instead |
+|---|---|---|
+| Wrapping `Remedies` in a blanket try/catch or `Effect.orDie`/`catchAll` | Hides other throws; defects in a decision-adjacent panel must stay visible (core value) | Fix the one function |
+| Calling `outsideUnion` or `resourceOf` defects | C9: neither throws | Leave them, or sit them on the primitive |
+| Reaching into core to forbid a bigint or circular in `contains` | A policy built in code is legal; JSON decode already excludes both | Make devtools total |
+| Making the function public | Devtools model internals (`index.ts` is named-export only, ADR-047) | Package-private |
+| `as`, `Record<string, unknown>` | Memory and AGENTS.md | Type predicate / `typeof` narrowing |
+| Showing a failing value's content in a log | INV-QD-044 reasoning (span data) | Fixed placeholder text |
 
-**Behaviour changes flagged.** Consumer-visible if a mechanism is adopted: an atom set used without a provider starts evicting (today it silently never does); after provider unmount the set may keep or stop sweeping depending on mechanism. Additive public option only. If the outcome is C: no behaviour change.
-
-**Dependencies:** `QadiAtoms.ts`, `QuestionBook.ts`, `QadiProvider.tsx`, `effect/reactivity/Atom` runtime semantics. Independent of 30-34 (react package). Run before 36 so 36 can re-verify.
-
----
-
-## Phase 36: carried spec debt and stale records (each item verified at HEAD)
-
-| Item | Still true? | Evidence at HEAD | Touched by 30-35? |
-|------|-------------|------------------|-------------------|
-| Duplicate BEH-QD-219..221 | **yes, worse than stated** (C7) | `spec/behaviors/29-devtools-simulator.md:28/188, 76/236, 127/287`; second copy `:188-348` holds pre-ADR-129 text ("MUST answer the fail-closed default", "A signature request ... MUST fail as `SignatureHistoryUnavailable`") that contradicts BEH-QD-411 (`:349`); first copy `:173` is a `CapturedAnswers` paragraph spliced with a change-history tail (`…CCR-QD-177)<br>1.2 (2026-10-05)…1.0 (2026-08-24) |`). Duplicated since `965ff14c`. | Phase 33 edits INV-QD-042 and BEH-QD-219's Source line: do 36 after 33 |
-| `traceability.md` behaviour 29 names `model/Sources.ts` | yes | `spec/traceability.md:71` lists `Sources`; the modules are `Source.ts` (record source, behaviour 28) and `SimulationSource.ts` (already in the same list) | Phase 33 edits this row |
-| Stale replay "fail-open undecided" | yes, 2 lines | `.planning/PROJECT.md:225` ("the other four ports undecided"), `.planning/MILESTONES.md:76`; struck already at `STATE.md:212`, `PROJECT.md:49,196` | no |
-| 24 IN-01 build() makes and drops a recorder per commit while Live | yes | `SimulationSession.ts:399-401` `build()` calls `prepareSource`; `SimulationSource.ts:236-239` `Live.ready()` runs `capturing(ports)`; `build` uses only `options`, the refusal and the tag | no |
-| 24 IN-03 `Ready` spelled twice | yes, three spellings | private `type Ready` `SimulationSource.ts:186`; inline `Extract<PreparedSource, { readonly _tag: "Ready" }>` at `SimulationSession.ts:472` and `:493` | no |
-| 24 IN-02 CCR-QD-414 cites README Rev 1.148 | textually yes (`spec/README.md:352`), arguably history (exempt per AGENTS.md §15) | | no |
-| 25 IN-01 `BaselineCard` blank sentence | yes | `Simulator.tsx:486,490` (`reading?.matches`, `{reading?.sentence}`) | no |
-| 25 IN-02 stale comments in `Simulator.test.tsx` | yes | `packages/devtools/test/react/Simulator.test.tsx:9` and `:415` ("settles synchronously inside `runFork`") | no |
-| 26 IN-01 three snapshot hooks pass constant `undefined` run | yes | `useDockSession.ts:15`, `useExplorerSession.ts:16,20` | **Phase 34 resolves it**; drop from 36 |
-| 26 IN-02 `DevtoolsDock`'s `nothing` duplicates the model default | yes | `DevtoolsDock.tsx:45` (`nothing`), `:130` (`source = nothing`), stale comment `:41-44` ("`useTimeline` holds its source by identity"); `DockModel.ts:83,121` (`NO_SOURCE`) | **Phase 34 edits this file**; re-verify |
-| 26 IN-03 stale "was DevtoolsDock l.N" titles | yes | `DockModel.test.ts` 11 titles (`:182,197,212,254,266,278,296,313,395,616` and M4 `:243`), header `:15-16` ("once this one is green (26-05)") | Phase 34 adds model tests to this file |
-| 27 IN-01 GuardRoute wording "the one the module accepts" | yes | `GuardRoute.ts:83-85` (intended referent: `AuthorizeRequest.ts`'s `enforceRequest`) | no |
-| 27 IN-02 "lost ARCH-57's probe" typo | yes | `GuardRoute.ts:79-80` | no |
-| Stale citation `v4-http-smoke.test.ts:106` (`registerApi`) | yes | comment still says "`PermissionRegistry.ts`'s `registerApi`"; `registerApi` no longer exists in `packages/http/src` (only mentioned in `GuardApi.ts:6`) | no |
-| `stryker.http.mjs` comment places code in `PermissionRegistry.ts` | yes | repo-root `stryker.http.mjs:19` ("`PermissionRegistry.ts`'s `addGuardedRoute`"; it is in `GuardRoute.ts` since ARCH-75); `:9` names the `/__permissions` route, now in `PermissionRegistryRoute.ts` | no |
-| 28 IN-01 GateWriter header says three re-exported types | yes | `GateWriter.ts:7`; `GateRegistry.ts:47` re-exports four | no |
-| 28 IN-02 `{@link useGates}` unresolvable | yes | `GateWriter.ts:164` (the review said `:178`) | no |
-| 28 IN-03 INV-QD-064 Source credits `GateWriter.ts` with the key closure | yes | `spec/invariants.md:2654` (Rev bump needed) | no |
-| 28 IN-04 ADR-QD-140 overstates test change | yes | `spec/decisions/140-*.md:107` ("the only test edit is one import") | no |
-| 28 IN-05 ADR-QD-053 blockquote places `useGates` in `GateWriter.ts` | yes | `spec/decisions/053-a-gate-can-be-found.md:74` | no |
-| 28 IN-06 no StrictMode lifecycle test | **partly stale** (C8) | `GateRegistry.test.tsx:489` covers instrumented StrictMode 1-then-0; the identity-changing rerender through `useGateRegistrations` is the only gap | no |
-| 29 IN-01 `DENY_WITHHELD` restates `ALLOW_WITHHELD`'s fields | yes | `HydrationEngine.ts:90,96` (`["subjectId","trace"]` vs `["subjectId","trace","obligations","reason"]`) | Phase 30 edits this file: do 36 after 30 |
-| 29 IN-02 CCR-QD-419 "six modules re-pointed" / README Rev 1.155 | yes | `spec/README.md:357` | no |
-| 29 IN-03 ADR-QD-123 "still imports" | yes | `spec/decisions/123-a-metric-is-declared-once.md:129` | no |
-
-Table stakes: the duplicate-BEH repair (delete the stale second copy, fix `:173`, update the document history), the `Sources.ts` fix, the two stale replay lines, and every item above still true after 30-35 that is pure wording. Differentiators: the 24 IN-01 split (`describeSources` for options and refusal, `ready()` for the run path) is a real, tested code change (LOW-MEDIUM, `SimulationSession.ts` mutation score must hold); the 28 IN-06 narrowed test. Anti-features: re-baselining a mutation score instead of killing a survivor (PROJECT.md decision 28-05); editing historical CCR rows or change-history entries to "fix" them (AGENTS.md §15); renumbering a BEH instead of deleting the duplicate.
-
-**Behaviour changes flagged.** None consumer-visible except 24 IN-01 (internal perf), which is not observable.
+**Public surface:** none. `@qadi/devtools` patch changeset describing the fix (a policy built with a bigint/circular value no longer throws in the simulator). No `overview.md` edit.
+**Spec touched:** BEH-QD-223 (`29-devtools-simulator.md:289`), `29-devtools-simulator.md` filters/remedies behaviours, ADR-QD-050 (cite), ADR-QD-047 (cite), new BEH 541..545, INV 327..328 (an invariant "no panel throws on a value a policy can carry" is a natural one).
+**Dependencies:** none beyond `Remedies.ts`, `Filters.ts`, `SimulationForm.ts`, `WhatIf.ts`, `SimulationSession.ts`. Independent of 37 and 40, but both touch `SimulationSession.ts`'s neighbourhood (37 edits it; run 41 after), mutation base for `SimulationSession.ts` must be taken per phase.
 
 ---
 
-## Cross-phase ordering constraints (file contention and re-verification)
+## Phase 42: a seeded question builds its own computing atom (ARCH-89, speculative; human checkpoint)
 
-| Constraint | Reason |
-|------------|--------|
-| 30 before 36 | 29 IN-01 is in `HydrationEngine.ts`, which 30 edits |
-| 33 before 36 | 33 edits `traceability.md:71` and INV-QD-042; 36 edits the same row and file |
-| 34 before 36 | 34 resolves 26 IN-01 and edits `DevtoolsDock.tsx` (26 IN-02) and `DockModel.test.ts` (26 IN-03) |
-| 32 before or independent of 33 | 33 may import `EvaluationServices` from the new leaf |
-| 31, 35 independent | no shared files with the others |
-| Every phase | same spec registers (ADR, CCR, BEH, INV, README, traceability): strictly sequential per `_WAVE8-CONTEXT.md` |
+**Re-verified evidence:** CONFIRMED at `HydrationEngine.ts:692-` (`makeSeededQuestion`, `computedFor` param `:696-698`, `track` `:704`, `const computed = input.computedFor(seededIn)` `:718`) and `QadiAtoms.ts:257-` (`seededDecision`, `computedFor: (seededIn) => runtime.atom(...)` `:271-295`, `track: (get) => get.addFinalizer(live())` `:296-`). The same liveness rule is told in `QuestionBook.ts:17-37` and `:74`, `QadiAtoms.ts:289-296` and `HydrationEngine.ts:700-703`, and also in `invariants.md:3206-3208` (INV-QD-105's Source names `makeSeededQuestion`'s `track`). `HydrationEngine.test.ts:54-132` passes a fake `computedFor` (`:61, :81, :105, :132`).
 
-## MVP recommendation for the wave
+What the seam is for: `seededIn` is a closure over `grantAtom` and `seeds` that live *inside* `makeSeededQuestion`; the computing atom needs the server's `evaluationId` from the seed (BEH-QD-186), and the read atom needs the computing atom. So the module that creates the seed store must be handed the thing that needs the seed store. The callback receiving a callback is the symptom.
 
-Prioritise, in order of risk-reduction per effort: Phase 30 (closes three real untested or unguarded seams: G1-G3, and the trust-boundary rule), Phase 31 (pure internal, low risk, restates a rule that has no BEH), Phase 34 (completes ARCH-74's stated rule; needs the Activity decision), Phase 32 (low effort, feasibility verified), Phase 33 (small payoff, one real decision), Phase 35 (speculative; budget a spike and accept a "keep in provider, state the rule" outcome), Phase 36 last.
+**What an inversion must carry across the boundary** (so the checkpoint is concrete): `Atom.runtime(layer)`'s `runtime.atom`, the `subject` atom, `evaluate`, `CurrentSubject`, `DECISIONS_KEY` (a private const in `QadiAtoms.ts:79`) and `runtime.factory.withReactivity`. `HydrationEngine.ts`'s header says it "imports nothing from `Hydration.ts`, `QadiAtoms.ts` or `QadiProvider.tsx`, so no cycle" (`:20-21`). Pulling evaluation into it breaks that statement's spirit (it would import `evaluate` and the runtime services), so "the runtime and the subject atom handed in" must be handed as values, not imported.
 
-Defer nothing from the table stakes above. Differentiators: take the ones marked LOW; the type-level/house-style enforcement in Phase 30 and the property test in Phase 31 are the "complete" choices the user's preference implies, at MEDIUM cost.
+### Options to put before the human (first plan; no code before the decision)
+
+| Option | Shape | Keeps ADR-149 (seed in the question) | Keeps ADR-148/103 liveness | Cost |
+|---|---|---|---|---|
+| A. As reviewed | `makeSeededQuestion({ policy, resource, runtime, subject, report, track })` builds the computing atom itself | yes | yes if `track` stays | Engine gains evaluation knowledge; tests need a real runtime or a fake `runtime.atom`; moves `DECISIONS_KEY` and the `evaluate` call |
+| B. Seed holder first | A tiny `makeSeedHolder()` returns `{ seededIn, hold }`; `QadiAtoms` builds the computing atom from `holder.seededIn` and passes `{ computed, holder }` to `makeSeededQuestion` | yes | yes | Removes the callback-that-receives-a-callback with no layering change; the grant, `seeds` WeakMap and `hold` move to the holder; computing atom stays where it is (the `evaluate` knowledge) |
+| C. Reject, record why | Rejection ADR citing ADR-103/148/149 | n/a | n/a | Cheapest; the liveness rule stays stated three times and the test keeps its fake |
+
+Recommendation for the checkpoint: present B as the option that removes the inversion without reopening ADRs, A as the review's literal proposal, and C. The human decides go / amend / reject (the user's condition, 2026-11-14). Do not write code in the checkpoint plan.
+
+### Table stakes (if the human says go with A or B)
+
+| # | Observable, testable statement | Complexity |
+|---|---|---|
+| 42-T1 | `makeSeededQuestion` has no parameter whose type is a function receiving a function (`computedFor`/`seededIn` inversion gone) | MED |
+| 42-T2 | The seed to evaluation link (the evaluation id from the seed reaches `evaluate`, BEH-QD-186) is stated in one module and tested through the real way the atom is built, not a fake: `HydrationEngine.test.ts`'s four `computedFor` fakes are replaced by tests that build the real computing atom | MED |
+| 42-T3 | The liveness rule ("`live()` first inside the reader, release in its finalizer") is stated once in prose, at `QuestionBook.ts`'s `BookOptions.build` doc; the other two copies (`QadiAtoms.ts:289-296`, `HydrationEngine.ts:700-703`) become a one-line pointer or vanish | LOW |
+| 42-T4 | All behaviour pins unchanged and untouched: `QadiProvider.test.tsx` render sequences (the file says exactly one `Atom.readable` per question and no added dependency), `QadiProvider.seed.test.tsx`, `Hydration.lifetime.test.ts`, `QadiAtoms.sweep.test.ts`, `QadiProvider.sweep.test.tsx`, the e2e (30/30 at v1.3), INV-QD-028/105/317/318, ADR-QD-149's "registry holds only a grant" and ADR-QD-148's no-scheduleTask/no-defaultIdleTTL | HIGH |
+| 42-T5 | `maxTrackedQuestions` still holds with no leaked fibers, one sweeper per atom set, StrictMode and `<Activity>` (the v1.3 Phase 35 proofs re-run) | MED |
+| 42-T6 | A "no" outcome ends the phase with a rejection ADR (a decision, not a skip), the evidence recorded, and no source change | LOW |
+| 42-T7 | This phase also corrects anything 37-41 left stale (CONTEXT: "which also corrects anything 37-41 left stale"): a final sweep of cross-references across the six phases (INV/BEH numbering, overview prose, ADR amendments) | MED |
+
+### Differentiators
+
+| Feature | Value | Complexity | Notes |
+|---|---|---|---|
+| Spike evidence (as Phase 35 did) comparing A/B/C on fixed criteria before the human decides: lines moved, tests that no longer need fakes, render-sequence diff, mutation delta | Makes the checkpoint a decision on measured facts | MED | `Phase 35`'s spike is the template |
+| The seed holder (B) is independently unit-tested for ADR-149's properties (no node created for an unseeded question, no read after the client answered) without any atom runtime | The two highest-value invariants become cheap tests | LOW | |
+
+### Anti-features
+
+| Anti-feature | Why not | Instead |
+|---|---|---|
+| Changing code before the human decides | The user's explicit condition | First plan is evidence and options only |
+| Using `AtomRegistry`'s `scheduleTask`/`defaultIdleTTL` or a React `useState`/`useEffect` for a decision | AGENTS.md §13; ADR-148 | Atom graph only |
+| Holding the seed in the shared book entry | Leaks across server requests (ADR-149) | Held by the question's handle, grant in the registry |
+| A second `Atom.readable` per question | `QadiProvider.test.tsx` render sequences | Exactly one |
+| Reintroducing a module-scope seed table | AGENTS.md §13 ("No module-scope state is left") | Closure in the atom set |
+| Editing ADR text to make the change fit | Amend only if the human chooses "amend" | Otherwise reject by ADR |
+
+**Public surface:** none expected (`makeSeededQuestion` is package-private; `QadiAtoms` interface unchanged). `@qadi/react` patch, or no changeset on a rejection.
+**Spec touched:** INV-QD-028 (`invariants.md:1081`), INV-QD-105 (`:3206`), INV-QD-317/318 (`:3706, :3720`) Sources and Enforcement; ADR-QD-039 (`:96`), 103, 148, 149 (cite or amend); BEH-QD-186, BEH-QD-151 (`19-hydration.md`); `spec/traceability.md:111, :161-162`; new BEH 546..550, INV 329..330 only if kept.
+**Dependencies:** `HydrationEngine.ts`, `QadiAtoms.ts`, `QuestionBook.ts`; phase 39 also edits `HydrationEngine.ts`/`HydrationEvent.ts` (reason groups), so 42 runs after 39 and rebases on its derived types.
+
+---
+
+## Feature Dependencies
+
+```
+38 wire version constant ──> 40 decode describer (both edit SinkWire.ts / SinkCodec.ts; 40 reads WIRE_VERSIONS in UnsupportedVersion's prose)
+39 reason table ───────────> 42 (HydrationEngine.ts / HydrationEvent.ts edited by 39 first)
+37 run module ─────────────> 41 (both touch SimulationSession.ts; 37 first so 41's RED test targets the final session)
+40 describer ──────────────> audit one-decode ──> UNTRUSTED_DECODE_BUDGET row removed (same task)
+41 RED session test ───────> shares fixtures with SimulationSession.test.ts (1,809 lines): put it in a new file
+42 checkpoint ─────────────> everything after it; "no" ends cleanly
+```
+
+Order in the roadmap (37 -> 42) already respects all of these.
+
+## MVP Definition
+
+### Must ship (the milestone is the six deepenings)
+
+- [ ] 37: one run module, three adopters, stop semantics decided, re-entrancy RED-or-refuted
+- [ ] 38: one wire-version constant, compile-time pin, bytes unchanged
+- [ ] 39: one keyed reason table with kinds, all derived, written-out label-set pins kept
+- [ ] 40: core decode describer, devtools passes `DecodeRefusal` through (Breaking), audit one decode, budget row removed
+- [ ] 41: RED then GREEN for the Remedies throw, one guarded function, one test table
+- [ ] 42: checkpoint plan with evidence and options; code only on "go"
+
+### Defer / exclude (named so they are not rediscovered)
+
+- `FIXTURE_DATA` placement in `SimulationFields.ts:568`, and the literals `"Decision"`/`"Obligations"` at `DecisionRecord.ts:145/149` (context: too small unless a phase lands there)
+- Sections the review did not read: `DecisionCache.ts`, `Lifecycle.ts`, `PortAccess.ts`, `AuditArchive.ts` internals, `Simulator.tsx`, `RoleViewer.tsx`, `PolicyExplorer.tsx`
+- `CircuitBreaker.ts`'s generation (C3)
+- `oxfmt`, budget changes other than the one removal in Phase 40 (`UNTRUSTED_DECODE_BUDGET`), re-opening ADRs 077-107
+
+## Feature Prioritization Matrix
+
+| Phase | Value | Cost | Risk | Notes |
+|---|---|---|---|---|
+| 41 | HIGH (a real throw) | LOW | LOW | Reproduced; could ship first if order allowed, but the context fixes 37 first |
+| 37 | HIGH (top recommendation, possible latent hang) | MED | MED | Three stores at once; mutation bar |
+| 40 | MED-HIGH | MED-HIGH | MED (Breaking, three packages) | |
+| 39 | MED | MED | LOW | Label set is the contract |
+| 38 | LOW-MED | LOW | LOW | |
+| 42 | UNCERTAIN | MED-HIGH | HIGH | Human checkpoint decides |
 
 ## Sources
 
-All first-party at HEAD `b8b19f6c` (code, `spec/`, tests, `.planning/milestones/v1.2-phases/*-REVIEW.md`), plus one empirical `madge 8.0.0` run on a scratch copy of `packages/core/src` and a read of `node_modules/effect/src/reactivity/Atom.ts`. No web sources. Confidence per claim: HIGH unless marked as a hypothesis (Phase 35 mechanisms, Phase 33 recommendation).
+All HIGH confidence, read directly at `bb48bbfb` (= base `637c0601` for `packages`, `spec`, `scripts`, `features`, `AGENTS.md`):
+
+- `.planning/phases/_WAVE9-CONTEXT.md`, `_SHARED-CONTEXT.md`, `.planning/PROJECT.md`, `AGENTS.md`
+- Phase 37: `packages/devtools/src/model/{TimelineFeed,DiagnosticsFeed,SimulationSession}.ts`, `spec/decisions/137-*.md:85-88`, the three test files
+- Phase 38: `packages/core/src/{SinkWire,SinkCodec}.ts`, `spec/overview.md:456, :518-521`
+- Phase 39: `packages/core/src/HydrationMetrics.ts`, `packages/react/src/{HydrationEvent,HydrationEngine,DeveloperSignals}.ts`, `packages/react/test/Hydration.tst.ts`, `packages/devtools/test/model/Hydration.test.ts`, `spec/behaviors/25-inspection.md:749`
+- Phase 40: `packages/devtools/src/model/Source.ts`, `packages/audit/src/AuditEntry.ts`, `packages/core/src/{JsonRefusal,EncodeRefusalReport,SinkCodec}.ts`, `scripts/check-house-style.mjs:631-640`
+- Phase 41: `packages/devtools/src/model/{Remedies,Filters,SimulationForm,Inspect,WhatIf,SimulationSession}.ts`, `packages/devtools/src/react/QuestionsPanel.tsx`, `packages/core/src/Matcher.ts`; reproduction by executing `remedyEdits` under Node 26 against `packages/core/lib`
+- Phase 42: `packages/react/src/{HydrationEngine,QadiAtoms,QuestionBook}.ts`, `spec/decisions/{103,148,149}-*.md`, `spec/invariants.md:3198-3215`
