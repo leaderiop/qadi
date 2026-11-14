@@ -12,12 +12,13 @@
  */
 import { expect, test } from "tstyche";
 import { hydrationDropMeaning, isHydrationDropReason } from "../src/HydrationMetrics.ts";
-import type { HydrationDropReasonOf, HydrationDropRow } from "../src/index.ts";
 import type {
   ClientHydrationDropReason,
   DehydrationDropReason,
   HydrationDropMeaning,
   HydrationDropReason,
+  HydrationDropReasonOf,
+  HydrationDropRow,
 } from "../src/HydrationMetrics.ts";
 
 test("hydrationDropMeaning takes exactly the closed reason union", () => {
