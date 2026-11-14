@@ -5,16 +5,16 @@ milestone_name: Arch Wave 9
 current_phase: 41
 current_phase_name: One guarded value-to-text function
 status: executing
-stopped_at: Completed QD-41-04-PLAN.md
-last_updated: "2026-11-14T15:58:38.230Z"
+stopped_at: Completed QD-41-05-PLAN.md
+last_updated: "2026-11-14T16:02:42.547Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase QD-40 complete, transitioned to Phase 41
-state_head: 39bbd1554148b8710cf5447ff9bea5906880fffb
+state_head: 37715cb7dc9aa09a553609c7d982be3fe2a4a802
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 33
-  completed_plans: 31
+  completed_plans: 32
   percent: 67
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 ## Current Position
 
 Phase: QD-41 (One guarded value-to-text function) — READY TO EXECUTE
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase QD-40 complete, transitioned to Phase 41
 
@@ -238,6 +238,7 @@ Progress: [███████░░░] 67% (v1.4: 1 of 6 phases)
 | Phase QD-41 P02 | 25min | 3 tasks | 6 files |
 | Phase QD-41 P03 | 15 min | 2 tasks | 6 files |
 | Phase QD-41 P04 | 12 min | 3 tasks | 9 files |
+| Phase QD-41 P05 | 10 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -386,6 +387,7 @@ Progress: [███████░░░] 67% (v1.4: 1 of 6 phases)
 - [Phase QD-41]: ADR-QD-154: valueText(value: unknown): string | undefined is a public @qadi/core export (core cannot import a devtools-private module, ADR-QD-099); each consumer keeps its own reading of no text; core minor, devtools patch
 - [Phase QD-41]: 41-03: valueText keeps SimulationForm's guarded body unchanged (one try, one JSON.stringify, bare catch with only a comment), public in @qadi/core and named in spec/overview.md
 - [Phase QD-41]: 41-04: a literal or witness with no JSON form is written as the fixed words 'a value with no JSON form' when an object, the word undefined otherwise, a bigint as its digits and n, in both explain and the remedy label
+- [Phase QD-41]: BEH-QD-541 and BEH-QD-542 are new sections beside BEH-QD-223 and BEH-QD-141, which stay untouched; BEH-QD-543 to 545, INV-QD-327 and INV-QD-328 are named Unused in the CCR-QD-432 row
 
 ### Pending Todos
 
@@ -432,8 +434,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T15:58:38.083Z
-Stopped at: Completed QD-41-04-PLAN.md
+Last session: 2026-11-14T16:02:42.301Z
+Stopped at: Completed QD-41-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
