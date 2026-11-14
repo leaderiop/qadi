@@ -1972,6 +1972,49 @@ describe("decodeSinkRecord reads wire version 2, and only it", () => {
     });
   });
 
+  /**
+   * The read set written out as `[2]`, not read back from `WIRE_VERSIONS`.
+   *
+   * The rows above compare `supported` with `WIRE_VERSIONS` itself, so a retyped version moves both
+   * sides and still passes; these state `[2]` and the accepted `2` by hand (ADR-QD-096).
+   */
+  describe("the read set, written out: supported is [2], and version 2 decodes", () => {
+    const parsed = JSON.parse(V2.V2_FAILED_MISSING_RESOURCE);
+
+    it("no version key: supported is [2], written out", () => {
+      const { version: _version, ...unversioned } = parsed;
+      assert.deepStrictEqual(
+        decodeRefusalOf(JSON.stringify(unversioned)),
+        DecodeRefusal.UnsupportedVersion({ version: undefined, supported: [2] }),
+      );
+    });
+
+    it("version 1: supported is [2], written out", () => {
+      assert.deepStrictEqual(
+        decodeRefusalOf(JSON.stringify({ ...parsed, version: 1 })),
+        DecodeRefusal.UnsupportedVersion({ version: 1, supported: [2] }),
+      );
+    });
+
+    it("version 3: supported is [2], written out", () => {
+      assert.deepStrictEqual(
+        decodeRefusalOf(JSON.stringify({ ...parsed, version: 3 })),
+        DecodeRefusal.UnsupportedVersion({ version: 3, supported: [2] }),
+      );
+    });
+
+    it("the string 2: supported is [2], written out", () => {
+      assert.deepStrictEqual(
+        decodeRefusalOf(JSON.stringify({ ...parsed, version: "2" })),
+        DecodeRefusal.UnsupportedVersion({ version: "2", supported: [2] }),
+      );
+    });
+
+    it("version 2, written out, decodes", () => {
+      assert.strictEqual(decodeRefusalOf(JSON.stringify({ ...parsed, version: 2 })), undefined);
+    });
+  });
+
   describe("pre-0.10 bytes (wire version 1) are refused whole, never upgraded (0.11.0)", () => {
     const cases: ReadonlyArray<readonly [string, string]> = [
       ["a decided record", PRE_010.decidedAllow],
