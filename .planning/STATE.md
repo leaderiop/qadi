@@ -5,16 +5,16 @@ milestone_name: Arch Wave 9
 current_phase: 40
 current_phase_name: Core owns describing a decode refusal
 status: executing
-stopped_at: Completed QD-40-06-PLAN.md
-last_updated: "2026-11-14T12:37:01.033Z"
+stopped_at: Completed QD-40-07-PLAN.md
+last_updated: "2026-11-14T12:42:56.851Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase QD-39 complete, transitioned to Phase 40
-state_head: af5c3e56a942721a8aae1e0f06166ec108e48e7c
+state_head: 19408aa4c7297cc50574ce803d7a950fc9ba4b81
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 27
-  completed_plans: 24
+  completed_plans: 25
   percent: 50
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 ## Current Position
 
 Phase: QD-40 (Core owns describing a decode refusal) — EXECUTING
-Plan: 7 of 9
+Plan: 8 of 9
 Status: Plan 40-01 complete (baseline, ADR-QD-153); ready for 40-02
 Last activity: 2026-11-14 — Completed 40-01 (mutation baseline, ADR-QD-153)
 
@@ -230,6 +230,7 @@ Progress: [█████░░░░░] 50% (v1.4: 1 of 6 phases)
 | Phase QD-40 P04 | 8 min | 2 tasks | 5 files |
 | Phase QD-40 P05 | 3 min | 2 tasks | 7 files |
 | Phase QD-40 P06 | 4 min | 2 tasks | 4 files |
+| Phase QD-40 P07 | 20 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -372,6 +373,7 @@ Progress: [█████░░░░░] 50% (v1.4: 1 of 6 phases)
 - [Phase QD-40]: 40-04: SinkRecordWithJson Schema.decodeTo pair compiles in situ with no cast; SinkCodec.ts budget 1 to 2 with _NAMES and AGENTS.md row; single decode costs 0.452x of the base's hz (54.6k vs 120.8k), recorded for ADR-QD-153's revision
 - [Phase QD-40]: 40-05: devtools' default warning keeps its fixed message and is annotated by decodeRefusalAnnotations plus qadi.frame, never the describer; the example's refusedBecause replaced by describeDecodeRefusal so a new refusal fails in packages/core/src only
 - [Phase QD-40]: 40-06: decodeAuditEntry keeps record-before-row order; only the second lenient decode and local refusal mapping removed; AuditEntry.ts leaves UNTRUSTED_DECODE_BUDGET in the same commit
+- [Phase QD-40]: 40-07: ADR-QD-153 Rev 1.1 states the single decode's measured cost (mean 0.0084 to 0.0184 ms, about 2.19x) and keeps the single path; the two-decoders fallback is not taken
 
 ### Pending Todos
 
@@ -417,8 +419,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T12:37:00.956Z
-Stopped at: Completed QD-40-06-PLAN.md
+Last session: 2026-11-14T12:42:56.765Z
+Stopped at: Completed QD-40-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

@@ -512,7 +512,7 @@ Plans:
   4. The break is recorded wherever a consumer reads it: the `@qadi/devtools` Breaking changeset with the upgrade map, `upgrading.md`, the devtools README, the website devtools page, the Next.js example's `Dock.tsx`, the `DecisionStreamRoute.ts` comment, BEH-QD-204 and the overview rows.
 
 **Planning notes**: **Research flag: needs `/gsd-plan-phase --research-phase 40`** (the compatibility decision, and the typing of the JSON form returned with the record). Core states no reporter (one consumer; devtools keeps its `Effect.logWarning` adapter with `qadi.frame`). A third restatement exists: `AuditEntry.ts:159-164` repeats `SinkCodec.ts:489-498`. **Plan shape**: the compatibility decision first, with a table pin of the five words on the base and the mutation base; then the describer and annotations in core; then devtools; then audit with the differential rows; then the one budget row that goes away, with AGENTS.md §7a, `[untrusted-decode-table]` and `[untrusted-decode-names]` in the same task; the break recorded in every place DREF-07 lists (also `surface.tst.ts`, `Source.tst.ts` and `26-decision-stream.md`); run `pnpm spec:website-examples` explicitly.
-**Plans**: 6/9 plans executed
+**Plans**: 7/9 plans executed
 
 Plans:
 **Wave 1**
@@ -534,7 +534,7 @@ Plans:
 - [x] 40-06-PLAN.md — audit decodes a row's record once; recordJsonOf and its budget row retired
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 40-07-PLAN.md — spec: ADR-QD-153 measured, ADR-095/143 and INV-QD-104 amended, INV-QD-325, BEH-QD-536/537, overview
+- [x] 40-07-PLAN.md — spec: ADR-QD-153 measured, ADR-095/143 and INV-QD-104 amended, INV-QD-325, BEH-QD-536/537, overview
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 40-08-PLAN.md — changesets, the 0.13 upgrade note, README, website, route comment, CCR-QD-431 completed
