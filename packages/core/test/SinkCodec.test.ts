@@ -2362,3 +2362,71 @@ describe("ARCH-71: the encoded value keeps today's keys", () => {
     });
   }
 });
+
+/**
+ * Whole `Malformed` refusal messages `decodeSinkRecord` gives, written out by
+ * hand from a run on the unchanged decoder.
+ *
+ * Devtools and audit show these messages, and the cases above check substrings
+ * only. A change in how the record is walked (a wrapping schema, a second walk)
+ * would show as a path prefix here first, before any substring check noticed.
+ */
+describe("the Malformed message decodeSinkRecord gives, written out", () => {
+  const policy = { _tag: "HasPermission", permission: { resource: "doc", action: "read" } };
+  const decision = {
+    _tag: "Allow",
+    evaluationId: "g",
+    subjectId: "u1",
+    durationMillis: 2,
+    trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
+    obligations: [],
+  };
+  const outcome = { _tag: "Decided", decision };
+  const record = { _tag: "Decision", version: 2, evaluationId: "g", at: 1, subjectId: "u1", policy, outcome };
+
+  const refusalOf = (input: unknown) => {
+    const result = decodeSinkRecord(input);
+    return Result.isFailure(result) ? result.failure.refusal : undefined;
+  };
+
+  it("at is Infinity", () => {
+    assert.deepStrictEqual(
+      refusalOf({ ...record, at: Number.POSITIVE_INFINITY }),
+      DecodeRefusal.Malformed({ message: "Expected a finite number\n  at [\"at\"]" }),
+    );
+  });
+
+  it("at is NaN", () => {
+    assert.deepStrictEqual(refusalOf({ ...record, at: Number.NaN }), DecodeRefusal.Malformed({ message: "Expected a finite number\n  at [\"at\"]" }));
+  });
+
+  it("an unknown decision _tag", () => {
+    assert.deepStrictEqual(
+      refusalOf({ ...record, outcome: { ...outcome, decision: { ...decision, _tag: "Maybe" } } }),
+      DecodeRefusal.Malformed({ message: "Expected { readonly \"_tag\": \"Allow\", ... } | { readonly \"_tag\": \"Deny\", ... }\n  at [\"outcome\"][\"decision\"]" }),
+    );
+  });
+
+  it("a subjectId that is not a string", () => {
+    assert.deepStrictEqual(refusalOf({ ...record, subjectId: 1 }), DecodeRefusal.Malformed({ message: "Expected string\n  at [\"subjectId\"]" }));
+  });
+
+  it("no outcome", () => {
+    const { outcome: _outcome, ...withoutOutcome } = record;
+    assert.deepStrictEqual(refusalOf(withoutOutcome), DecodeRefusal.Malformed({ message: "Missing key\n  at [\"outcome\"]" }));
+  });
+
+  it("a stray second outcome", () => {
+    assert.deepStrictEqual(
+      refusalOf({ ...record, outcome: { ...outcome, error: { _tag: "MissingResource", attribute: "owner" } } }),
+      DecodeRefusal.Malformed({ message: "Expected no excess property\n  at [\"outcome\"][\"error\"]" }),
+    );
+  });
+
+  it("a typo inside the embedded policy", () => {
+    assert.deepStrictEqual(
+      refusalOf({ ...record, policy: { ...policy, permision: "x" } }),
+      DecodeRefusal.Malformed({ message: "Expected no excess property\n  at [\"policy\"][\"permision\"]" }),
+    );
+  });
+});
