@@ -112,21 +112,17 @@ export const makeSupersedingRun = Effect.fn(function* (): Effect.fn.Return<Super
     }
   };
 
-  const fork = (token: RunToken, run: Effect.Effect<void, unknown>, hooks?: ForkHooks): boolean => {
+  const fork = (token: RunToken, run: Effect.Effect<void, unknown>, hooks: ForkHooks = {}): boolean => {
     if (!isCurrent(token)) return false;
-    const onFailure = hooks?.onFailure;
-    const watched =
-      onFailure === undefined
-        ? run
-        : run.pipe(
-            Effect.onExit((exit) =>
-              Effect.sync(() => {
-                if (isCurrent(token) && Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
-                  onFailure(exit.cause);
-                }
-              }),
-            ),
-          );
+    const watched = run.pipe(
+      Effect.onExit((exit) =>
+        Effect.sync(() => {
+          if (isCurrent(token) && Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
+            hooks.onFailure?.(exit.cause);
+          }
+        }),
+      ),
+    );
     if (starting) {
       held = { token, run: watched };
       return true;
