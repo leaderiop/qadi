@@ -174,4 +174,39 @@ describe("how the session ends a run", () => {
       assert.strictEqual(tally.started, 0);
       assert.strictEqual(runSpans(spans), 0);
     }));
+
+  it.effect("SR5 a ports layer that starts a run while it is built leaves the newest run live", () =>
+    Effect.gen(function* () {
+      const { tally, ports } = slow();
+      // Built after the session, because the hook closes over it. Constructed in the
+      // run's synchronous prefix, so the nested `run` starts a newer run before the
+      // outer fork has installed anything.
+      const holder: { session: SimulationSession | undefined; nested: boolean } = {
+        session: undefined,
+        nested: false,
+      };
+      const hooked = Layer.merge(
+        ports,
+        Layer.effectDiscard(
+          Effect.sync(() => {
+            if (holder.nested) return;
+            holder.nested = true;
+            holder.session?.run("Run");
+          }),
+        ),
+      );
+      const session = yield* makeSimulationSession({ sightings: [sighting(clearance)] });
+      holder.session = session;
+      session.chooseSource("Live");
+      session.edit(withClearance);
+      session.setPorts(hooked);
+
+      session.run("Run");
+      yield* settleTurns;
+      yield* TestClock.adjust("5 seconds");
+      yield* settleTurns;
+
+      assert.strictEqual(session.getSnapshot().run._tag, "Ran");
+      assert.strictEqual(tally.finished, 1);
+    }));
 });
