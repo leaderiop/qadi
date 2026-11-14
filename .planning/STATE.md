@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.4
 milestone_name: Arch Wave 9
-current_phase: 40
-current_phase_name: Core owns describing a decode refusal
-status: executing
-stopped_at: Completed 40-09-PLAN.md
-last_updated: "2026-11-14T12:51:56.331Z"
+current_phase: 41
+current_phase_name: One guarded value-to-text function
+status: planning
+stopped_at: Phase QD-40 complete, ready to plan Phase 41
+last_updated: "2026-11-14T13:09:09.070Z"
 last_activity: 2026-11-14
-last_activity_desc: Phase QD-39 complete, transitioned to Phase 40
-state_head: b3d7f3a32d3fa9c2f0a036f0d4d69fa4f4f82d0c
+last_activity_desc: Phase QD-40 complete, transitioned to Phase 41
+state_head: fc80d782ecf259df96a898e4780d46aabc39e000
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 27
   completed_plans: 27
-  percent: 50
+  percent: 67
 ---
 
 # Project State
@@ -29,18 +29,18 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 
 ## Current Position
 
-Phase: QD-40 (Core owns describing a decode refusal) — EXECUTING
-Plan: 9 of 9
-Status: Plan 40-01 complete (baseline, ADR-QD-153); ready for 40-02
-Last activity: 2026-11-14 — Completed 40-01 (mutation baseline, ADR-QD-153)
+Phase: 41 — One guarded value-to-text function
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-14 — Phase QD-40 complete, transitioned to Phase 41
 
-Progress: [█████░░░░░] 50% (v1.4: 1 of 6 phases)
+Progress: [███████░░░] 67% (v1.4: 1 of 6 phases)
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 145
+- Total plans completed: 154
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -77,6 +77,7 @@ Progress: [█████░░░░░] 50% (v1.4: 1 of 6 phases)
 | 37 | 9 | - | - |
 | QD-38 | 4 | - | - |
 | QD-39 | 5 | - | - |
+| QD-40 | 9 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -424,7 +425,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-14T12:51:56.247Z
-Stopped at: Completed 40-09-PLAN.md
+Stopped at: Phase QD-40 complete, ready to plan Phase 41
 Resume file: None
 
 ## Operator Next Steps

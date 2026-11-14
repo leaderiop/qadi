@@ -380,7 +380,7 @@ first plan gathers evidence and presents options, asks once (one `AskUserQuestio
 - [x] **Phase 37: A scoped run that a newer run supersedes** - One devtools module owns the run protocol (generation, close, finalizer order, stop, land only while current) that three stores restate by hand (ARCH-84) (completed 2026-11-14)
 - [x] **Phase 38: The sink wire version stated once** - One exported `WIRE_VERSION` in `SinkWire.ts`; the schema literals, encoder and decoder check derive from it (ARCH-85) (completed 2026-11-14)
 - [x] **Phase 39: Each hydration drop reason stated once, with its kind** - One keyed table in core; the unions, the list, the meanings and react's payload and entry groups derive from it (ARCH-86) (completed 2026-11-14)
-- [ ] **Phase 40: Core owns describing a decode refusal** - Core describes `DecodeRefusal`; devtools passes it through (Breaking) and audit decodes a row's record once (ARCH-87)
+- [x] **Phase 40: Core owns describing a decode refusal** - Core describes `DecodeRefusal`; devtools passes it through (Breaking) and audit decodes a row's record once (ARCH-87) (completed 2026-11-14)
 - [ ] **Phase 41: One guarded value-to-text function** - A bigint or circular value no longer throws from Remedies or a session command; Remedies, Filters and SimulationForm read through one function (ARCH-88)
 - [ ] **Phase 42: A seeded question builds its own computing atom** - Opens on a human checkpoint: invert the callback, or record the rejection; then a cross-phase stale sweep and milestone re-verify (ARCH-89)
 
@@ -512,7 +512,7 @@ Plans:
   4. The break is recorded wherever a consumer reads it: the `@qadi/devtools` Breaking changeset with the upgrade map, `upgrading.md`, the devtools README, the website devtools page, the Next.js example's `Dock.tsx`, the `DecisionStreamRoute.ts` comment, BEH-QD-204 and the overview rows.
 
 **Planning notes**: **Research flag: needs `/gsd-plan-phase --research-phase 40`** (the compatibility decision, and the typing of the JSON form returned with the record). Core states no reporter (one consumer; devtools keeps its `Effect.logWarning` adapter with `qadi.frame`). A third restatement exists: `AuditEntry.ts:159-164` repeats `SinkCodec.ts:489-498`. **Plan shape**: the compatibility decision first, with a table pin of the five words on the base and the mutation base; then the describer and annotations in core; then devtools; then audit with the differential rows; then the one budget row that goes away, with AGENTS.md §7a, `[untrusted-decode-table]` and `[untrusted-decode-names]` in the same task; the break recorded in every place DREF-07 lists (also `surface.tst.ts`, `Source.tst.ts` and `26-decision-stream.md`); run `pnpm spec:website-examples` explicitly.
-**Plans**: 9/9 plans executed
+**Plans**: 9/9 plans complete
 
 Plans:
 **Wave 1**
@@ -594,6 +594,6 @@ Phases execute in numeric order: 37 → 38 → 39 → 40 → 41 → 42
 | 37. A scoped run that a newer run supersedes | 9/9 | Complete    | 2026-11-14 |
 | 38. The sink wire version stated once | 4/4 | Complete    | 2026-11-14 |
 | 39. Each hydration drop reason stated once, with its kind | 5/5 | Complete    | 2026-11-14 |
-| 40. Core owns describing a decode refusal | 0/0 | Not started | - |
+| 40. Core owns describing a decode refusal | 9/9 | Complete    | 2026-11-14 |
 | 41. One guarded value-to-text function | 0/0 | Not started | - |
 | 42. A seeded question builds its own computing atom | 0/0 | Not started | - |
