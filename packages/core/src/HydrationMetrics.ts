@@ -96,7 +96,8 @@ const HYDRATION_DROP_TABLE = {
   UnencodablePolicy: {
     kind: "dehydration",
     summary:
-      "a policy built in code that the policy schema does not accept — a non-finite bound or a fractional depth",
+      "a policy built in code that the policy schema does not accept — " +
+      "a non-finite bound or a fractional depth",
     remedy:
       "a policy built in code does not satisfy the policy schema — a matcher bound that is not " +
       "finite, or a relationship depth that is not an integer — so it cannot cross the network. " +
@@ -192,7 +193,9 @@ const HYDRATION_DROP_TABLE = {
    */
   PayloadTooDeep: {
     kind: "payload",
-    summary: "a payload nested past the client's decode bound outside its entries, refused before any decode ran",
+    summary:
+      "a payload nested past the client's decode bound outside its entries, " +
+      "refused before any decode ran",
     remedy:
       "the payload nests deeper than this client will decode, outside its entries — a shape " +
       "dehydrateDecisions never writes, so something between the server and the client changed it. " +
