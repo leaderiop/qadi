@@ -8,7 +8,7 @@
  * does not take a filter.
  */
 import * as Match from "effect/Match";
-import type { Resource } from "@qadi/core";
+import { type Resource, valueText } from "@qadi/core";
 import type { TimelineEntry } from "./Timeline.ts";
 import { verdictOf, type Verdict } from "./Verdict.ts";
 
@@ -130,17 +130,14 @@ const resourceText = (resource: Resource | undefined): ReadonlyArray<string> =>
 /**
  * One element, or none.
  *
- * `JSON.stringify` returns `undefined` — the value, not the string — for a
- * function or a symbol, and throws on a circular object. A resource that
- * crossed the wire as JSON can be neither, but a locally-built one never did,
- * and neither a filter nor the panel it belongs to may be what falls over.
+ * A value with no JSON text — a function, a symbol, a bigint, a cycle, a
+ * `toJSON` or getter that throws — contributes nothing, and its key is still
+ * searched. A resource that crossed the wire as JSON can be none of these, but a
+ * locally-built one never did, and neither a filter nor the panel it belongs to
+ * may be what falls over.
  */
 const render = (value: unknown): ReadonlyArray<string> => {
   if (typeof value === "string") return [value];
-  try {
-    const rendered = JSON.stringify(value);
-    return rendered === undefined ? [] : [rendered];
-  } catch {
-    return [];
-  }
+  const rendered = valueText(value);
+  return rendered === undefined ? [] : [rendered];
 };
