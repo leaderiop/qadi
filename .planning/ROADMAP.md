@@ -405,14 +405,31 @@ first plan gathers evidence and presents options, asks once (one `AskUserQuestio
 **Plans**: 9 plans
 
 Plans:
+**Wave 1**
 - [ ] 37-01-PLAN.md — Mutation baseline for the three stores, committed alone and first; the timeline ordering pin and the session self-interrupt and no-run stop pins, green on the base
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 37-02-PLAN.md — Tracer: the timeline feed's three re-entrancy cases RED, then the `SupersedingRun` module and the timeline feed on it, GREEN
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 37-03-PLAN.md — The module's interface rows R1 to R17 (supersede, close, stop in four states, failure hook, two scopes, held forks, synchronous build)
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 37-04-PLAN.md — The seeded interleaving property over begin, fork, land, stop and close, proved to catch each subtle line
+
+**Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 37-05-PLAN.md — The diagnostics feed's two re-entrancy cases RED, then the feed on the module, GREEN
+
+**Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 37-06-PLAN.md — The session's in-prefix case RED, then the session on the module with the unconditional stop, GREEN
+
+**Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 37-07-PLAN.md — ADR-QD-150 amending ADR-QD-137, the CCR-QD-428 row, AGENTS.md section 10 and the devtools patch changeset
+
+**Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 37-08-PLAN.md — BEH-QD-521 to 525, INV-QD-319 and 320, the session behaviours and INV-QD-313 restated, traceability
+
+**Wave 9** *(blocked on Wave 8 completion)*
 - [ ] 37-09-PLAN.md — Close: gate integrity, the WX-04 scan, commit order and test shape, the mutation comparison and `check:pr`
 
 ### Phase 38: The sink wire version stated once
