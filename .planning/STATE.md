@@ -5,16 +5,16 @@ milestone_name: Arch Wave 9
 current_phase: 41
 current_phase_name: One guarded value-to-text function
 status: executing
-stopped_at: Phase QD-40 complete, ready to plan Phase 41
-last_updated: "2026-11-14T15:41:46.559Z"
+stopped_at: Completed QD-41-01-PLAN.md
+last_updated: "2026-11-14T15:48:36.590Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase QD-40 complete, transitioned to Phase 41
-state_head: 6ef2c679900ec8602045086e49600d5e974fba7f
+state_head: 5d5b1bf60283e1c5ffc14b03310dbeb323a85c2b
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 33
-  completed_plans: 27
+  completed_plans: 28
   percent: 67
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 ## Current Position
 
 Phase: QD-41 (One guarded value-to-text function) — READY TO EXECUTE
-Plan: Not started
+Plan: 2 of 6
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase QD-40 complete, transitioned to Phase 41
 
@@ -234,6 +234,7 @@ Progress: [███████░░░] 67% (v1.4: 1 of 6 phases)
 | Phase QD-40 P07 | 20 min | 2 tasks | 9 files |
 | Phase QD-40 P08 | 3 min | 3 tasks | 8 files |
 | Phase QD-40 P09 | 10 min | 3 tasks | 1 files |
+| Phase QD-41 P01 | 25 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -379,6 +380,7 @@ Progress: [███████░░░] 67% (v1.4: 1 of 6 phases)
 - [Phase QD-40]: 40-07: ADR-QD-153 Rev 1.1 states the single decode's measured cost (mean 0.0084 to 0.0184 ms, about 2.19x) and keeps the single path; the two-decoders fallback is not taken
 - [Phase QD-40]: 40-08: the README example is a compiled typescript fence; trailer stays Claude Sonnet 5.5 as in 40-05 to 40-07
 - [Phase QD-40]: 40-09: no measured file's mutation score fell (SinkCodec 0.9755, SinkWire 1, Source 1, AuditEntry 1); check:pr green, nothing released
+- [Phase QD-41]: ADR-QD-154: valueText(value: unknown): string | undefined is a public @qadi/core export (core cannot import a devtools-private module, ADR-QD-099); each consumer keeps its own reading of no text; core minor, devtools patch
 
 ### Pending Todos
 
@@ -425,8 +427,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T12:51:56.247Z
-Stopped at: Phase QD-40 complete, ready to plan Phase 41
+Last session: 2026-11-14T15:48:33.023Z
+Stopped at: Completed QD-41-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
