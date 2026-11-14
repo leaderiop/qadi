@@ -47,6 +47,7 @@ import * as P from "../src/Policy.ts";
 import {
   decodeSinkRecord,
   decodeSinkRecordString,
+  decodeSinkRecordWithJson,
   decodeStoredRecord,
   decodeStoredRecordString,
   encodeSinkRecord,
@@ -2428,5 +2429,99 @@ describe("the Malformed message decodeSinkRecord gives, written out", () => {
       refusalOf({ ...record, policy: { ...policy, permision: "x" } }),
       DecodeRefusal.Malformed({ message: "Expected no excess property\n  at [\"policy\"][\"permision\"]" }),
     );
+  });
+});
+
+/**
+ * The single decode's JSON form is the base's: what the writer's goldens say,
+ * in schema key order, an explicit `undefined` optional field kept and an unknown
+ * envelope key absent (ADR-QD-153).
+ *
+ * `decodeSinkRecordWithJson` is the decode audit persists from, so a `json` that
+ * differed from what was validated (the input's key order, a kept unknown key, a
+ * dropped `undefined` key) would store bytes no writer wrote.
+ */
+describe("decodeSinkRecordWithJson: the record and its JSON form from one decode", () => {
+  const jsonOfText = (text: string, input: unknown = JSON.parse(text)): SinkRecordJson =>
+    Result.match(decodeSinkRecordWithJson(input), {
+      onSuccess: ({ json }) => json,
+      onFailure: (error) => assert.fail(`refused: ${JSON.stringify(error.refusal)}`),
+    });
+
+  it("each version-2 golden reads to its record and to its own text", () => {
+    for (const text of [
+      V2.V2_DECIDED_ALLOW,
+      V2.V2_DECIDED_ALLOW_ALL_FIELDS,
+      V2.V2_DECIDED_DENY,
+      V2.V2_FAILED_MISSING_RESOURCE,
+      V2.V2_FAILED_ATTRIBUTE_ERROR_CAUSE,
+      V2.V2_OBLIGATIONS,
+      V2.V2_OBLIGATIONS_FULL_ENVELOPE,
+      V2.V2_DECISION_FULL_ENVELOPE,
+    ]) {
+      const both = decodeSinkRecordWithJson(JSON.parse(text));
+      assert.isTrue(Result.isSuccess(both));
+      if (Result.isFailure(both)) return;
+      assert.strictEqual(JSON.stringify(both.success.json), text);
+      assert.deepStrictEqual(both.success.record, recordOf(text));
+    }
+  });
+
+  it("an unknown envelope key is absent from the JSON form", () => {
+    const json = jsonOfText("", { ...JSON.parse(V2.V2_DECIDED_ALLOW), traceparent: "00-abc" });
+    assert.notProperty(json, "traceparent");
+    assert.strictEqual(JSON.stringify(json), V2.V2_DECIDED_ALLOW);
+  });
+
+  it("a record whose keys are reversed gives its JSON form in schema order", () => {
+    const reversed = Object.fromEntries(Object.entries(JSON.parse(V2.V2_DECIDED_ALLOW)).reverse());
+    assert.deepStrictEqual(Object.keys(reversed).slice(0, 2), ["outcome", "policy"]);
+    const json = jsonOfText("", reversed);
+    assert.deepStrictEqual(Object.keys(json), [
+      "_tag",
+      "version",
+      "evaluationId",
+      "at",
+      "subjectId",
+      "policy",
+      "outcome",
+    ]);
+    assert.strictEqual(JSON.stringify(json), V2.V2_DECIDED_ALLOW);
+  });
+
+  it("an explicit undefined optional field keeps its key", () => {
+    const json = jsonOfText("", { ...JSON.parse(V2.V2_DECIDED_ALLOW), resource: undefined });
+    assert.isTrue(Object.hasOwn(json, "resource"));
+    assert.deepStrictEqual(Object.keys(json), [
+      "_tag",
+      "version",
+      "evaluationId",
+      "at",
+      "subjectId",
+      "policy",
+      "resource",
+      "outcome",
+    ]);
+  });
+
+  it("it refuses exactly what decodeSinkRecord refuses", () => {
+    let deep: unknown = { _tag: "HasRole", role: "x" };
+    for (let i = 0; i < 60_000; i++) deep = { _tag: "Not", policy: deep };
+    const base = JSON.parse(V2.V2_DECIDED_ALLOW);
+    const { outcome: _outcome, ...noOutcome } = base;
+    const { version: _version, ...unversioned } = base;
+    for (const [input, refusal] of [
+      [{ ...base, policy: deep }, DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH })],
+      [{ ...base, version: 3 }, DecodeRefusal.UnsupportedVersion({ version: 3, supported: WIRE_VERSIONS })],
+      [unversioned, UNVERSIONED],
+      [noOutcome, DecodeRefusal.Malformed({ message: 'Missing key\n  at ["outcome"]' })],
+    ] as const) {
+      const both = decodeSinkRecordWithJson(input);
+      const alone = decodeSinkRecord(input);
+      assert.isTrue(Result.isFailure(both) && Result.isFailure(alone));
+      if (Result.isSuccess(both) || Result.isSuccess(alone)) return;
+      assert.deepStrictEqual(both.failure.refusal, refusal);
+      assert.deepStrictEqual(both.failure, alone.failure);
+    }
   });
 });

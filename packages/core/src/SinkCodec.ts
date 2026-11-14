@@ -55,6 +55,7 @@
 import * as Match from "effect/Match";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
+import * as SchemaGetter from "effect/SchemaGetter";
 import * as Struct from "effect/Struct";
 import type { DecisionDisagreement, Trace } from "./Decision.ts";
 import type { DecisionOutcome, SinkRecord, StoredRecord } from "./DecisionRecord.ts";
@@ -434,17 +435,28 @@ const envelopeOf = (input: object): unknown => {
 };
 
 /**
- * A decode's result as a record, or the refusal it carries, or `Inconsistent`
- * when the record's copies disagree.
+ * What the strict decode accepted, as a record and as its JSON form.
+ *
+ * `json` is the schema's own output, in schema key order with an unknown envelope
+ * key absent, and is what a store persists (ADR-QD-110, ADR-QD-153).
+ */
+export interface DecodedSinkRecord {
+  readonly record: SinkRecord;
+  readonly json: SinkRecordJson;
+}
+
+/**
+ * A decode's result as a record with its JSON form, or the refusal it carries,
+ * or `Inconsistent` when the record's copies disagree.
  */
 const decoded = (
-  wire: Result.Result<SinkRecordWire, DecodeRefusal>,
-): Result.Result<SinkRecord, SinkRecordNotDecodable> => {
+  wire: Result.Result<{ readonly json: SinkRecordJson; readonly record: SinkRecordWire }, DecodeRefusal>,
+): Result.Result<DecodedSinkRecord, SinkRecordNotDecodable> => {
   if (Result.isFailure(wire)) return notDecodable(wire.failure);
-  const record = rebuild(wire.success);
+  const record = rebuild(wire.success.record);
   return Result.isFailure(record)
     ? notDecodable(DecodeRefusal.Inconsistent({ disagreement: record.failure }))
-    : Result.succeed(record.success);
+    : Result.succeed({ record: record.success, json: wire.success.json });
 };
 
 /**
@@ -479,6 +491,24 @@ const versionThenEnvelope = (input: unknown): Result.Result<unknown, Unsupported
 };
 
 /**
+ * The record wire read as its JSON form and its record in one strict decode.
+ *
+ * The source walk validates {@link SinkRecordJson}: schema key order, an unknown
+ * nested key refused, an explicit `undefined` optional kept. The transformation
+ * hands that one value to both sides, and the target walk decodes `record` into
+ * the wire type. It is a schema-level decode, so `UNTRUSTED_DECODE_BUDGET` counts
+ * it, and `Schema.encodeTo` would be the same transformation written backwards
+ * only to hide it from the count (ADR-QD-153). It runs only through
+ * `untrustedDecoder`, after the depth guard and {@link versionThenEnvelope}.
+ */
+const SinkRecordWithJson = SinkRecordJson.pipe(
+  Schema.decodeTo(Schema.Struct({ json: SinkRecordJson, record: SinkRecordWire }), {
+    decode: SchemaGetter.transform((json) => ({ json, record: json })),
+    encode: SchemaGetter.transform(({ json }) => json),
+  }),
+);
+
+/**
  * The untrusted decoder for the wire, built once (ADR-QD-143).
  *
  * `UntrustedDecode.ts` runs the depth guard, then {@link versionThenEnvelope},
@@ -489,7 +519,18 @@ const versionThenEnvelope = (input: unknown): Result.Result<unknown, Unsupported
  * No `Result.try` around the decode: the guard is what makes it safe, and a
  * throw past it would be a library defect that should stay visible.
  */
-const sinkWire = untrustedDecoder(SinkRecordWire, { prepare: versionThenEnvelope });
+const sinkWire = untrustedDecoder(SinkRecordWithJson, { prepare: versionThenEnvelope });
+
+/**
+ * Untrusted input as a record and its JSON form, or the reason it is not one,
+ * from one strict decode.
+ *
+ * Refuses exactly what {@link decodeSinkRecord} refuses, because that reads
+ * through this decoder. `@qadi/audit`'s row reader is its consumer, which
+ * persists `json` rather than re-encoding the record (ADR-QD-153).
+ */
+export const decodeSinkRecordWithJson = (input: unknown): Result.Result<DecodedSinkRecord, SinkRecordNotDecodable> =>
+  decoded(Result.mapError(sinkWire.decode(input), decodeRefusalOf));
 
 /**
  * Untrusted input as a record, or the reason it is not one.
@@ -502,22 +543,24 @@ const sinkWire = untrustedDecoder(SinkRecordWire, { prepare: versionThenEnvelope
  * removed (ADR-QD-096's 2026-10-06 amendment) — and is reported as
  * `UnsupportedVersion` with `version: undefined`, never upgraded and never
  * given a fabricated outcome or subject. It accepts whatever
- * {@link encodeSinkRecord} emits (INV-QD-096).
+ * {@link encodeSinkRecord} emits (INV-QD-096). It reads through the same decoder
+ * as {@link decodeSinkRecordWithJson}.
  *
  * **The seam for the wire's shape.** How the outcome is carried and the
  * version dispatch live behind this function, so no adapter observes them and
  * a change to them is an edit to this module alone.
  */
 export const decodeSinkRecord = (input: unknown): Result.Result<SinkRecord, SinkRecordNotDecodable> =>
-  decoded(Result.mapError(sinkWire.decode(input), decodeRefusalOf));
+  Result.map(decodeSinkRecordWithJson(input), ({ record }) => record);
 
 /**
  * JSON text as a record, or the reason it is not one: `NotJson` when the text
  * does not parse, otherwise whatever {@link decodeSinkRecord} says. Never
- * throws (INV-QD-097).
+ * throws (INV-QD-097). It reads through the same decoder as
+ * {@link decodeSinkRecordWithJson}.
  */
 export const decodeSinkRecordString = (text: string): Result.Result<SinkRecord, SinkRecordNotDecodable> =>
-  decoded(Result.mapError(sinkWire.decodeText(text), decodeRefusalOf));
+  Result.map(decoded(Result.mapError(sinkWire.decodeText(text), decodeRefusalOf)), ({ record }) => record);
 
 // ---------------------------------------------------------------------------
 // The stored-record envelope (ARCH-11 D-11-e)
