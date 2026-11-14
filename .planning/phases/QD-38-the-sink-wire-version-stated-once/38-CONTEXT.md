@@ -44,9 +44,14 @@ Read first: `.planning/phases/_SHARED-CONTEXT.md`, `.planning/phases/_WAVE9-CONT
   included and `2` is hard-coded in the expected text. It is green on the base and stays green after the change.
 - **D-06:** Compile-time pin: a tstyche file (`packages/core/test/SinkWire.tst.ts`, or the existing core tstyche file
   that fits better) pins `typeof WIRE_VERSION` as `2`, `WireVersion` as `2`, `typeof WIRE_VERSIONS` as `readonly [2]`,
-  and both schema structs' `version` Type as `2`. A throwaway retype of `WIRE_VERSION` to `3` is run, recorded in the
-  SUMMARY and reverted. It must show that the codec still typechecks with no other edit, and that the pin and the
-  byte golden both go red. That is the proof that retyping is one deliberate edit, not half the codec.
+  and both schema structs' `version` Type as `2`. The pin is what makes WIRE-02 true: retyping the version without
+  editing anything else fails the type-test gate. A throwaway retype to `3` is run twice, recorded in the SUMMARYs
+  and reverted each time:
+  - On the base, in the first plan, to show the harm: what compiles and what the encoder and decoder then do.
+  - After the conversion, to show the fix: the codec needs no edit, because it derives, and the tstyche pin and the
+    byte golden both go red.
+  Together they prove that retyping is one deliberate edit, not half the codec (ROADMAP plan shape: golden and
+  experiment first, because `ignoreStatic` hides module-scope constants from mutation).
 - **D-07:** Refusal rows stay pinned, adding any that are missing: an object with `version` absent, `1`, `3` or the
   string `"2"` is `UnsupportedVersion({ version, supported: [2] })`, with `version` `undefined` when absent
   (INV-QD-098). A version-2 record still decodes.
