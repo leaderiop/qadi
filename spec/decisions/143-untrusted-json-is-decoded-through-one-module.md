@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-143                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-12                                     |
 > | Status         | Accepted — amends ADR-QD-096, ADR-QD-107       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-12): the one package-private isPlainObject lives in JsonShape.ts, shared by the decoder family and FieldPath.ts (ARCH-78, CCR-QD-421)<br>1.1 (2026-11-12): Budget exceptions: PortSpanEncode.ts reason states the property that holds (named keys, SpanValue leaves); JSON.parse is counted, adding SinkCodec.ts and SimulationForm.ts rows.<br>1.0 (2026-11-12): Initial (ARCH-78, CCR-QD-421) |
+> | Change History | 1.3 (2026-11-14): amendment: the audit row reads one strict decode, recordJsonOf retired, SinkCodec.ts counts 2 (ADR-QD-153, CCR-QD-431)<br>1.2 (2026-11-12): the one package-private isPlainObject lives in JsonShape.ts, shared by the decoder family and FieldPath.ts (ARCH-78, CCR-QD-421)<br>1.1 (2026-11-12): Budget exceptions: PortSpanEncode.ts reason states the property that holds (named keys, SpanValue leaves); JSON.parse is counted, adding SinkCodec.ts and SimulationForm.ts rows.<br>1.0 (2026-11-12): Initial (ARCH-78, CCR-QD-421) |
 
 ---
 
@@ -226,3 +226,14 @@ guard. **No guard was dropped** for the sake of any of them; a guard is never dr
 [BEH-QD-486](../behaviors/08-serialization.md), [BEH-QD-487](../behaviors/08-serialization.md),
 [BEH-QD-488](../behaviors/19-hydration.md), [BEH-QD-489](../behaviors/33-audit-pipeline.md),
 [INV-QD-305](../invariants.md), [INV-QD-306](../invariants.md), CCR-QD-421.
+
+## Amendment (2026-11-14, ADR-QD-153, CCR-QD-431)
+
+The `AuditEntry.ts` row of the budget and the `recordJsonOf` non-seam above retire.
+`decodeAuditEntry` takes the record's JSON form from `@qadi/core`'s `decodeSinkRecordWithJson`, one
+strict decode, so `@qadi/audit` holds no counted token. `SinkCodec.ts`'s count is 2:
+`decodeStoredRecordString`'s `JSON.parse` and `SinkRecordWithJson`'s `Schema.decodeTo`, a transformation
+inside the strict decode's own schema rather than a second decode of the input. The total stays 11.
+Audit's copy of the refusal mapping is gone too: the row's refusal is read from core's `decodeRefusalOf`
+([ADR-QD-153](153-core-owns-describing-a-decode-refusal.md),
+[INV-QD-325](../invariants.md#inv-qd-325-an-audit-entrys-record-is-the-json-form-of-the-record-the-strict-decode-accepted)).

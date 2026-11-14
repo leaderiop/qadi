@@ -5,12 +5,12 @@
 > | Property       | Value                                               |
 > | -------------- | --------------------------------------------------- |
 > | Document ID    | QADI-ADR-153                                        |
-> | Revision       | 1.0                                                 |
+> | Revision       | 1.1                                                 |
 > | Effective Date | 2026-11-14                                          |
 > | Status         | Accepted — amends ADR-QD-095 and ADR-QD-143         |
 > | Author         | Qadi Engineering                                    |
 > | Classification | Architecture Decision Record                        |
-> | Change History | 1.0 (2026-11-14): Initial release (ARCH-87, CCR-QD-431) |
+> | Change History | 1.1 (2026-11-14): measured: the single decode before and after, and a new refusal before and after (ARCH-87, CCR-QD-431)<br>1.0 (2026-11-14): Initial release (ARCH-87, CCR-QD-431) |
 
 ---
 
@@ -136,6 +136,29 @@ in the same pass as the record.** Devtools and audit stop restating it. (ARCH-87
 - [ADR-QD-095](./095-sinkcodec-owns-both-directions.md) names `decodeSinkRecord` as the one decode
   and [ADR-QD-143](./143-untrusted-json-is-decoded-through-one-module.md) lists `recordJsonOf` as a
   counted token; both are amended in place.
+
+## Measured
+
+**The cost.** `UntrustedDecode.bench.ts`'s `decodeSinkRecord alone`, on the base and after the
+single decode, with the figures as they were recorded:
+
+- decodeSinkRecord alone: 120,796.63 hz, mean 0.0084 ms (ran on `2356dc4e`, whose `packages/*/src` equals `phase_base`; `pnpm exec vitest bench --run --root packages/core UntrustedDecode --reporter=verbose`; the planning reading was 119,701.35 hz, mean 0.0084 ms)
+- decodeSinkRecord alone: 54,601.48 hz, mean 0.0184 ms (base: 120,796.63 hz, mean 0.0084 ms; ratio 0.452 by hz, mean 2.19x; a second run read 54,617.21 hz; `pnpm exec vitest bench --run --root packages/core UntrustedDecode --reporter=verbose` at `0cbdb70a`)
+
+The decode costs a little over twice what it did, about 10 microseconds more per record: the source
+walk validates `SinkRecordJson`, then the target walk decodes `record` from the same value, on top
+of the depth guard and the projection. That is paid per frame on `@qadi/devtools`' feed and per row
+on `@qadi/audit`'s read path, neither of which is a per-evaluation path, and in exchange the record
+and its JSON form can no longer disagree. The single path stays. The fallback named above, two
+decoders built from one factory, is not taken: the cost is bounded and per record, and two decoders
+would be two paths whose refusals must be kept identical.
+
+**The vocabulary.** A new `DecodeRefusal` member was added as an experiment and reverted, before and
+after the change. On the base `tsc` named one file, `@qadi/devtools`' `Source.ts` (`reasonOf`), and
+one more exhaustive read sat outside `tsc`'s project, in the Next.js example's `api.ts`
+(`refusedBecause`), found only by searching for `Match.type<DecodeRefusal>`. After the change `tsc`
+names only `packages/core/src/SinkWire.ts` (`describeDecodeRefusal`), and no `Match.type<DecodeRefusal>`
+remains outside it.
 
 ## Related
 
