@@ -5,16 +5,16 @@ milestone_name: Arch Wave 9
 current_phase: 38
 current_phase_name: The sink wire version stated once
 status: executing
-stopped_at: Phase 37 complete, ready to plan Phase 38
-last_updated: "2026-11-14T03:46:58.448Z"
+stopped_at: Completed 38-01-PLAN.md
+last_updated: "2026-11-14T03:49:56.764Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase QD-38 execution started
-state_head: 1fca368a6c6c7e9a8073c105058ccdf6ee58a628
+state_head: 9284313df5b0c2257b2a37fd853c3536b330076f
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 13
-  completed_plans: 9
+  completed_plans: 10
   percent: 17
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 ## Current Position
 
 Phase: QD-38 (The sink wire version stated once) — EXECUTING
-Plan: 1 of 4
+Plan: 2 of 4
 Status: Executing Phase QD-38
 Last activity: 2026-11-14 — Phase QD-38 execution started
 
@@ -213,6 +213,7 @@ Progress: [██░░░░░░░░] 17% (v1.4: 1 of 6 phases)
 | Phase 37 P07 | 14 min | 2 tasks | 7 files |
 | Phase 37 P08 | 16 min | 2 tasks | 5 files |
 | Phase 37 P09 | 25 min | 3 tasks | 3 files |
+| Phase QD-38 P01 | 10min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -340,6 +341,7 @@ Progress: [██░░░░░░░░] 17% (v1.4: 1 of 6 phases)
 - [Phase 37]: ADR-QD-150 records the held fork as the stronger form of RUN-05; the report-only fallback is named and was not needed
 - [Phase 37]: 37-08: the five superseding-run behaviours live in 28-devtools-screens.md (BEH-QD-521..525); INV-QD-319 is the property's law and INV-QD-320 the re-entrancy law
 - [Phase 37]: 37-09: the three SupersedingRun.ts mutation survivors (token literal, brand value, hook-less onExit branch) are named equivalent; no store score dropped. After review IN-01 the branch is gone (`fork` always wraps, `hooks.onFailure?.`), and the third survivor is now that optional chain (0.9434)
+- [Phase QD-38]: 38-01: D-05 golden already exists (V2_DECIDED_ALLOW, V2_OBLIGATIONS); recorded, not duplicated
 
 ### Pending Todos
 
@@ -383,8 +385,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T02:35:02.151Z
-Stopped at: Phase 37 complete, ready to plan Phase 38
+Last session: 2026-11-14T03:49:56.720Z
+Stopped at: Completed 38-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

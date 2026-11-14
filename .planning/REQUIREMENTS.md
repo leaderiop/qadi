@@ -22,8 +22,8 @@ unless a phase's planner records evidence against one). Per-phase evidence and r
 ### The sink wire version stated once (Phase 38, ARCH-85, core)
 
 - [ ] **WIRE-01**: One exported constant `WIRE_VERSION` in `SinkWire.ts` is the only place the record wire's version number appears in `packages/core/src/Sink*.ts`; `WIRE_VERSIONS`, `WireVersion`, both schema literals, the encoder and the decoder check derive from it.
-- [ ] **WIRE-02**: Retyping the version without editing the codec fails to compile (a tstyche pin, plus a recorded throwaway retype-to-3 experiment).
-- [ ] **WIRE-03**: Wire bytes are unchanged (byte golden with the key order, committed on the phase base), and every other version is still refused as `UnsupportedVersion({ version, supported })`.
+- [x] **WIRE-02**: Retyping the version without editing the codec fails to compile (a tstyche pin, plus a recorded throwaway retype-to-3 experiment).
+- [x] **WIRE-03**: Wire bytes are unchanged (byte golden with the key order, committed on the phase base), and every other version is still refused as `UnsupportedVersion({ version, supported })`.
 - [ ] **WIRE-04**: INV-QD-096 is amended to state that the codec reads what it writes for every supported version, without a duplicate invariant.
 - [ ] **WIRE-05**: The new export has its `spec/overview.md` row and a `@qadi/core` minor changeset, and the `WIRE_VERSIONS` narrowing to `readonly [2]` is recorded; hydration's payload version and audit's bundle version are untouched.
 
@@ -103,8 +103,8 @@ The seven WX rows apply to every phase 37 to 42, so each phase's Requirements li
 | RUN-07 | Phase 37 | Complete |
 | RUN-08 | Phase 37 | Complete |
 | WIRE-01 | Phase 38 | Pending |
-| WIRE-02 | Phase 38 | Pending |
-| WIRE-03 | Phase 38 | Pending |
+| WIRE-02 | Phase 38 | Complete |
+| WIRE-03 | Phase 38 | Complete |
 | WIRE-04 | Phase 38 | Pending |
 | WIRE-05 | Phase 38 | Pending |
 | DROP-01 | Phase 39 | Pending |
