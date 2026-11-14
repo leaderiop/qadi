@@ -33,7 +33,13 @@ Read first:
 ### Settled by research (not re-asked)
 - **D-01: Audit gets the JSON form from core's strict decode, never by re-encoding.** Re-encoding can fail with `SinkRecordNotEncodable` on a read path, normalises differently, and could change what `Retention`'s `MutableHashMap<AuditEntry>` counts.
 - **D-02: Core gets no reporter.** There is one consumer, and devtools keeps its `Effect.logWarning` adapter with `qadi.frame`.
-- **D-03: Core's rows in `UNTRUSTED_DECODE_BUDGET` do not move.** Exactly one budget row goes away, for `AuditEntry.ts`. The new core export adds no counted `Schema.decode*` / `JSON.parse` token.
+- **D-03 (amended 2026-11-14 after research, user decision): the transformation is counted.** The single decode needs one schema transformation in `SinkCodec.ts`. It is written as `Schema.decodeTo`, never as `Schema.encodeTo`.
+  - Using `encodeTo` would be the same transformation, reversed only to slip past the budget's regex.
+  - `SinkCodec.ts` goes from 1 to 2 in `UNTRUSTED_DECODE_BUDGET`, with its comment and reason, its `_NAMES` entry naming the new declaration, and its AGENTS.md §7a row.
+  - `AuditEntry.ts`'s row goes away. The total is unchanged.
+  - Core's other rows (`UntrustedDecode.ts` 5, `DecodeDepthGuard.ts` 1, `PortSpanEncode.ts` 2) do not move. No other new counted token is added.
+  - ADR-QD-153 records this.
+  - Superseded wording: "Core's rows do not move; the new export adds no counted token."
 - **D-04: Plan shape, binding:**
   1. the compatibility decision first, with a table pin of the five words on the base and the mutation base;
   2. then the describer and annotations in core;
