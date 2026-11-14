@@ -150,6 +150,8 @@ logged, counted or spanned.
 
 - ✓ ARCH-86 Each hydration drop reason stated once, with its kind (DROP-01..04): one module-private `HYDRATION_DROP_TABLE` in `HydrationMetrics.ts` (`as const satisfies` `HydrationDropRow`) holds each of the nine reasons, in the metric's preregistered order, with its kind (`dehydration`, `payload` or `entry`), summary and remedy; `MEANINGS` is gone. The three reason unions, `hydrationDropReasons` (`Object.keys` filtered by the guard, no cast), `isHydrationDropReason` (`Object.hasOwn`) and `hydrationDropMeaning` derive from it, and react's `PayloadRefusalReason`/`EntryDropReason` are `HydrationDropReasonOf<"payload">`/`<"entry">`. A row without a kind is TS2741; on the base a new reason needed 5 edits in 3 files and the compiler asked for one, now it is one row. A new `entry` row is a compile error at react's `bucketOf`; a `payload` row compiles (the payload map is keyed by refusal tags), recorded in ADR-QD-152. Metric declarations unchanged. New public types `HydrationDropReasonOf`, `HydrationDropRow`; INV-QD-323; CCR-QD-430; `@qadi/core` minor, `@qadi/react` patch.
 
+- ✓ ARCH-87 Core owns describing a decode refusal (DREF-01..07), the mirror of ADR-QD-116's encode side: `SinkWire.ts` exports `decodeRefusalOf` (the one `UntrustedValueRefusal` → `DecodeRefusal` mapping; `SinkCodec.ts`'s and `AuditEntry.ts`'s copies deleted), a total `describeDecodeRefusal` (module-scope `Match.tagsExhaustive`, `typeof`-only bounded version, 40/200 caps) and the tag-only `decodeRefusalAnnotations` (`qadi.refusal` only, INV-QD-104; an `EXEMPTIONS` entry for `no-refusal-annotation-outside-core`). **Breaking (`@qadi/devtools`):** `onMalformed(frame, refusal: DecodeRefusal)`; `MalformedReason`, `reasonOf` and `qadi.reason` deleted, five-word upgrade map (`not-a-record` collapses into `Malformed`); a throwing `onMalformed` no longer ends the stream (code review). Audit decodes a row's record once through the new `decodeSinkRecordWithJson` (a counted `Schema.decodeTo` in `SinkCodec.ts`, 1 → 2 in `UNTRUSTED_DECODE_BUDGET`; `AuditEntry.ts`'s row and `recordJsonOf` retired, total unchanged), output identical on every differential row. A new refusal is now a compile error in core only. Cost: `decodeSinkRecord` 8.4 → 18.4 µs (~2.19×), accepted in ADR-QD-153. ADR-QD-153; CCR-QD-431; INV-QD-325; BEH-QD-536/537; `@qadi/core` minor, `@qadi/devtools` Breaking (minor), `@qadi/audit` patch.
+
 ### Active
 
 - [ ] ARCH-84..89: the six deepenings of the 2026-11-14 review; see `.planning/REQUIREMENTS.md`.
@@ -305,6 +307,7 @@ logged, counted or spanned.
 | `stop` is one unconditional rule: supersede, then fork `Effect.void` (D-05) | The session's guarded stop and the feeds' unguarded one had drifted; a no-run stop changes nothing visible, and allocating a fiber is not forbidden | Accepted (Phase 37, ADR-QD-150 amends ADR-QD-137 point 3) |
 | The read set and the write version stay separate ideas: `WIRE_VERSIONS` derives from `WIRE_VERSION`, and the decoder checks membership in the set (D-02, D-03) | A reader that keeps an older version lists it beside a schema for it, without touching what the encoder writes; `=== WIRE_VERSION` would fuse them | Accepted (Phase 38, ADR-QD-151 amends ADR-QD-096) |
 | Core owns each drop reason's kind; react's payload and entry groups are read off core's table, and react's dispatchers stay untouched (D-06, D-09, D-10) | One table means a reason cannot be added without its kind and meaning; reshaping `HydrationEngine.ts` to make a new payload reason a compile error was left out because Phase 42 shares that file | Accepted (Phase 39, ADR-QD-152 touches ADR-QD-123 and ADR-QD-037) |
+| A decode refusal is described once, in core; devtools passes core's refusal through and audit takes its JSON form from the one strict decode, counted in the budget (D-03 amended, D-05..D-11) | Three restatements of the mapping and two exhaustive reads outside core were the defect; the counted `decodeTo` keeps the untrusted-decode gate honest rather than dodging its regex with `encodeTo` | Accepted (Phase 40, ADR-QD-153; Breaking for `@qadi/devtools`; ~2.19× decode cost accepted) |
 
 ## Evolution
 
@@ -324,4 +327,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-14 after Phase 39*
+*Last updated: 2026-11-14 after Phase 40*
