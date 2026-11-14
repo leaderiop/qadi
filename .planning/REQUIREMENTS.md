@@ -39,7 +39,7 @@ unless a phase's planner records evidence against one). Per-phase evidence and r
 - [x] **DREF-01**: A compatibility decision is recorded before any code: what devtools' malformed-frame callback and its log annotation carry after the change (recommended: the refusal's `_tag`, documented as Breaking).
 - [x] **DREF-02**: Core exports a total `describeDecodeRefusal` (module-scope `Match.tagsExhaustive`, safe for an `unknown` version or message), so a new refusal is a compile error in core only.
 - [x] **DREF-03**: Core exports a tag-only decode-refusal annotations helper and owns the one `UntrustedValueRefusal` → `DecodeRefusal` mapping; a sentinel-value test shows no annotation carries `Malformed.message` or `UnsupportedVersion.version` (INV-QD-104).
-- [ ] **DREF-04**: Devtools passes `DecodeRefusal` through: `reasonOf` and `MalformedReason` are gone, and `onMalformed` receives the refusal.
+- [x] **DREF-04**: Devtools passes `DecodeRefusal` through: `reasonOf` and `MalformedReason` are gone, and `onMalformed` receives the refusal.
 - [x] **DREF-05**: Audit decodes a row's record once, taking its JSON form from core's strict decode (no re-encode), with output identical on a differential over existing fixtures, a 60,000-deep record still `TooDeep`, and an unknown envelope key still dropped.
 - [ ] **DREF-06**: `recordJsonOf` and audit's copy of the refusal mapping are deleted, and `UNTRUSTED_DECODE_BUDGET`, its `_NAMES`, and the AGENTS.md §7a table agree in the same task.
 - [ ] **DREF-07**: The break is recorded: `@qadi/devtools` Breaking changeset with the five-word upgrade map, `upgrading.md`, the devtools README, the website devtools page, the Next.js example's `Dock.tsx`, the `DecisionStreamRoute.ts` comment, BEH-QD-204 and the overview rows.
@@ -114,7 +114,7 @@ The seven WX rows apply to every phase 37 to 42, so each phase's Requirements li
 | DREF-01 | Phase 40 | Complete |
 | DREF-02 | Phase 40 | Complete |
 | DREF-03 | Phase 40 | Complete |
-| DREF-04 | Phase 40 | Pending |
+| DREF-04 | Phase 40 | Complete |
 | DREF-05 | Phase 40 | Complete |
 | DREF-06 | Phase 40 | Pending |
 | DREF-07 | Phase 40 | Pending |
