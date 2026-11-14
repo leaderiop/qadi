@@ -1,5 +1,6 @@
 /**
- * The record wire's own words: the version `decodeSinkRecord` reads, why it
+ * The record wire's own words: the version `encodeSinkRecord` writes, the version
+ * `decodeSinkRecord` reads, why it
  * refuses its input, and the tag of a record.
  *
  * A leaf, so `Errors.ts` (whose `SinkRecordNotDecodable` carries these types)
@@ -31,24 +32,41 @@ import type { DECISION_RECORD_TAG, OBLIGATION_RECORD_TAG } from "./SinkRecordFie
 export type SinkRecordTag = typeof DECISION_RECORD_TAG | typeof OBLIGATION_RECORD_TAG;
 
 /**
+ * The record-wire version `encodeSinkRecord` writes, stated once (ADR-QD-096,
+ * ADR-QD-151).
+ *
+ * The schema literals, the encoder, {@link WIRE_VERSIONS} and {@link WireVersion}
+ * derive from it, so retyping the version is one edit. `as const` because a bare
+ * `= 2` widens to `number` in the encoder's spread. Exported and declared in this
+ * leaf because {@link DecodeRefusal}'s `supported` lives here and this leaf cannot
+ * import `SinkCodec.ts` (ADR-QD-037); the barrel's `export *` makes it public.
+ */
+export const WIRE_VERSION = 2 as const;
+
+/**
+ * Every wire version `decodeSinkRecord` reads: version 2, and only it.
+ *
+ * The read set, a separate idea from the write version {@link WIRE_VERSION}:
+ * today it is that one version, and a reader that keeps an older version lists it
+ * here beside a schema for it (ADR-QD-151).
+ */
+export const WIRE_VERSIONS = [WIRE_VERSION] as const;
+
+/**
  * A version of the record wire that `decodeSinkRecord` reads (ADR-QD-096).
  *
  * Version 2 carries `version: 2` and a decision's outcome as one tagged value.
  * It is the only one: version 1 — spelled by the absence of a `version` key,
  * the outcome as two optional fields `decided`/`failed`, written by every
  * `@qadi/core` before 0.10 — was read until 0.11.0 and is now refused as
- * `UnsupportedVersion` (ADR-QD-096's 2026-10-06 amendment). A closed union of
- * one member, kept rather than deleted because it is what
- * {@link DecodeRefusal}'s `UnsupportedVersion.supported` reports, and a
- * future version 3 is a full-union edit here, not a new export.
+ * `UnsupportedVersion` (ADR-QD-096's 2026-10-06 amendment). Derived from
+ * {@link WIRE_VERSIONS}, so it is `2` while the read set is `[2]`, and kept
+ * because {@link DecodeRefusal}'s `UnsupportedVersion.supported` reports it.
  *
  * Declared here rather than in `SinkCodec.ts` because {@link DecodeRefusal}
  * names it, and this leaf cannot import `SinkCodec.ts` (ADR-QD-037).
  */
-export type WireVersion = 2;
-
-/** Every wire version `decodeSinkRecord` reads: version 2, and only it. */
-export const WIRE_VERSIONS: ReadonlyArray<WireVersion> = [2];
+export type WireVersion = (typeof WIRE_VERSIONS)[number];
 
 /**
  * Why `decodeSinkRecord` refused its input.

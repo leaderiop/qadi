@@ -83,8 +83,7 @@ import {
   OBLIGATION_RECORD_TAG,
   obligationRecordFields,
 } from "./SinkRecordFields.ts";
-import { DecodeRefusal, WIRE_VERSIONS } from "./SinkWire.ts";
-import type { WireVersion } from "./SinkWire.ts";
+import { DecodeRefusal, WIRE_VERSION, WIRE_VERSIONS } from "./SinkWire.ts";
 import { MAX_DECODE_DEPTH, untrustedDecoder } from "./UntrustedDecode.ts";
 import type { UntrustedRefusal } from "./UntrustedDecode.ts";
 
@@ -143,7 +142,7 @@ type OutcomeWire = typeof OutcomeWire.Type;
  */
 const decisionV2Fields = {
   _tag: Schema.Literal(DECISION_RECORD_TAG),
-  version: Schema.Literal(2),
+  version: Schema.Literal(WIRE_VERSION),
   ...decisionRecordFields.fields,
   outcome: OutcomeWire,
 };
@@ -151,7 +150,7 @@ const decisionV2Fields = {
 /** A version-2 obligation record's fields, in the order they are written. */
 const obligationsV2Fields = {
   _tag: Schema.Literal(OBLIGATION_RECORD_TAG),
-  version: Schema.Literal(2),
+  version: Schema.Literal(WIRE_VERSION),
   ...obligationRecordFields.fields,
 };
 
@@ -221,9 +220,9 @@ const omitUndefined = <A extends object>(fresh: A): A => {
  */
 const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>().pipe(
   Match.tagsExhaustive({
-    Obligations: (record) => omitUndefined({ ...record, version: 2 as const }),
+    Obligations: (record) => omitUndefined({ ...record, version: WIRE_VERSION }),
     Decision: (record) =>
-      omitUndefined({ ...record, version: 2 as const, outcome: outcomeOf(record.outcome) }),
+      omitUndefined({ ...record, version: WIRE_VERSION, outcome: outcomeOf(record.outcome) }),
   }),
 );
 
@@ -449,8 +448,15 @@ const decoded = (
     : Result.succeed(record.success);
 };
 
-/** The version this reader reads, as a value to compare a record's `version` with. */
-const WIRE_VERSION: WireVersion = 2;
+/**
+ * Whether a record's `version` is one this reader reads.
+ *
+ * A guard over {@link WIRE_VERSIONS}, the read set, which is a separate idea from
+ * {@link WIRE_VERSION}, the version the encoder writes (ADR-QD-151). A `Schema.is`
+ * guard because `version` is `unknown`, so `.includes` does not compile, and
+ * Stryker's `.some`-to-`.every` mutant is indistinguishable over a one-element set.
+ */
+const isReadVersion = Schema.is(Schema.Literals(WIRE_VERSIONS));
 
 type UnsupportedVersion = Extract<DecodeRefusal, { readonly _tag: "UnsupportedVersion" }>;
 
@@ -462,12 +468,13 @@ type UnsupportedVersion = Extract<DecodeRefusal, { readonly _tag: "UnsupportedVe
  * any other value, **or none**, is `UnsupportedVersion` rather than `Malformed`
  * (the same convention ADR-QD-078 gives the hydration payload). A value that is
  * not a JSON object passes through unchanged, so the strict decode reports it
- * `Malformed`: it is not a record of any version.
+ * `Malformed`: it is not a record of any version. Membership is tested against the
+ * read set, not the write version.
  */
 const versionThenEnvelope = (input: unknown): Result.Result<unknown, UnsupportedVersion> => {
   if (!isPlainObject(input)) return Result.succeed(input);
   const version = ownValue(input, "version");
-  return version === WIRE_VERSION
+  return isReadVersion(version)
     ? Result.succeed(envelopeOf(input))
     : Result.fail(DecodeRefusal.UnsupportedVersion({ version, supported: WIRE_VERSIONS }));
 };
