@@ -378,7 +378,7 @@ first plan gathers evidence and presents options, asks once (one `AskUserQuestio
 ### Phases
 
 - [x] **Phase 37: A scoped run that a newer run supersedes** - One devtools module owns the run protocol (generation, close, finalizer order, stop, land only while current) that three stores restate by hand (ARCH-84) (completed 2026-11-14)
-- [ ] **Phase 38: The sink wire version stated once** - One exported `WIRE_VERSION` in `SinkWire.ts`; the schema literals, encoder and decoder check derive from it (ARCH-85)
+- [x] **Phase 38: The sink wire version stated once** - One exported `WIRE_VERSION` in `SinkWire.ts`; the schema literals, encoder and decoder check derive from it (ARCH-85) (completed 2026-11-14)
 - [ ] **Phase 39: Each hydration drop reason stated once, with its kind** - One keyed table in core; the unions, the list, the meanings and react's payload and entry groups derive from it (ARCH-86)
 - [ ] **Phase 40: Core owns describing a decode refusal** - Core describes `DecodeRefusal`; devtools passes it through (Breaking) and audit decodes a row's record once (ARCH-87)
 - [ ] **Phase 41: One guarded value-to-text function** - A bigint or circular value no longer throws from Remedies or a session command; Remedies, Filters and SimulationForm read through one function (ARCH-88)
@@ -447,7 +447,7 @@ Plans:
   4. INV-QD-096 states that the codec reads what it writes for every supported version (amended, no duplicate invariant); the new export has its `spec/overview.md` row and a `@qadi/core` minor changeset that records the `WIRE_VERSIONS` narrowing.
 
 **Planning notes**: **Research flag: standard, skip research-phase** (one constant, verified under strict flags). **Plan shape**: the byte golden (with key order) and the throwaway retype-to-3 experiment first, because mutation will not guard this phase (`ignoreStatic` hides module-scope constants); the edit sites are those `_WAVE9-CONTEXT.md` lists plus the decoder's comparison, which the review undercounted; one conversion plan; then the records plan. No new counted `Schema.decode*` token (`UNTRUSTED_DECODE_BUDGET` is untouched). The mutation base is still recorded for the touched files so the close can compare.
-**Plans**: 4/4 plans executed
+**Plans**: 4/4 plans complete
 
 Plans:
 **Wave 1**
@@ -548,7 +548,7 @@ Phases execute in numeric order: 37 → 38 → 39 → 40 → 41 → 42
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 37. A scoped run that a newer run supersedes | 9/9 | Complete    | 2026-11-14 |
-| 38. The sink wire version stated once | 0/0 | Not started | - |
+| 38. The sink wire version stated once | 4/4 | Complete    | 2026-11-14 |
 | 39. Each hydration drop reason stated once, with its kind | 0/0 | Not started | - |
 | 40. Core owns describing a decode refusal | 0/0 | Not started | - |
 | 41. One guarded value-to-text function | 0/0 | Not started | - |
