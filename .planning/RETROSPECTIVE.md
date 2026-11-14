@@ -132,6 +132,48 @@
 
 ---
 
+## Milestone: v1.4 — Arch Wave 9
+
+**Completed:** 2026-11-14 (not merged, not released)
+**Phases:** 6 | **Plans:** 38 | **Sessions:** one autonomous run (`/gsd-autonomous`), with context compactions
+
+### What Was Built
+- ARCH-84: one devtools module, `SupersedingRun.ts`, owns the scoped-run protocol that three stores had restated by hand.
+- ARCH-85: the sink wire version is stated once (`WIRE_VERSION`), and everything else derives from it.
+- ARCH-86: each hydration drop reason is stated once in core's `HYDRATION_DROP_TABLE` with its kind, and react's groups derive from it.
+- ARCH-87: core describes a decode refusal. Devtools passes it through, which is the milestone's one Breaking change. Audit decodes a row once.
+- ARCH-88: one guarded value-to-text function and one label rule in core, read by `explain` and by the devtools panels. This closes a live throw on a bigint or a cycle.
+- ARCH-89: a seeded question builds its own computing atom in `SeededQuestion.ts`, tested on a real atom runtime.
+
+### What Worked
+- Each phase opened with a mutation baseline committed alone and first, on the untouched base. Every close compared against it with the same invocation, and nothing was re-baselined.
+- In Phase 42, a human checkpoint came after spike evidence for all four options (lines moved, fakes removed, mutation delta). The user picked from measured options, not from argument.
+- Trap tests were written on the base and shown red under a deliberate wrong edit before the code moved. That proved they bite (Phase 42's `get(grantAtom)` trap).
+- The review loop again found real issues after verification passed: stale normative spec in Phase 42 (WR-01), the label rule written twice in Phase 41, and a test that could pass vacuously.
+
+### What Was Inefficient
+- Phases 38, 39 and 40 went stale at close, because later phases edited files their reports covered. This is the fourth milestone in a row. The re-verify was planned this time, but it still costs a verifier run per phase.
+- Planning in Phase 41 found that core's `explain` had the same throw. That reopened CONTEXT after planning (D-13..D-16) and forced a re-plan.
+- Plan verifies that count commits by subject prefix also counted each plan's own SUMMARY and state commits (42-02, 42-05). Executors had to check the guarded facts by hand.
+- A mutation-after JSON written before the review fixes was not the latest recorded score. The milestone re-check had to read the review disposition instead.
+
+### Patterns Established
+- A milestone re-check of every touched file against its latest recorded score, in the last plan, with five Stryker runs one at a time.
+- A cross-phase stale sweep in the last plan: no live record names a removed or moved name, and every citation resolves.
+- Executor prompts are generated from a per-phase script with shared constraints plus per-plan reading and constraint files.
+
+### Key Lessons
+1. Record a post-review mutation figure as the phase's final score. Otherwise later comparisons read a pre-fix number.
+2. A verify that counts commits should filter on content paths, not only the subject prefix.
+3. When a planner finds the same defect in a second package, take it back to the user before planning. The fix's placement can change (Phase 41's core export).
+
+### Cost Observations
+- Model mix: opus for the orchestrator, planners and research; sonnet for executors, checkers, reviewers, fixers and verifiers.
+- Sessions: one long autonomous run across several context compactions.
+- Notable: 228 commits in about a day. Three human decisions (Phases 40, 41, 42), each asked once.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -141,6 +183,7 @@
 | v1.0 | n/a | 9 | First GSD milestone; one phase per architecture-review finding |
 | v1.2 | 1 (autonomous) | 9 | Decisions answered up front; per-file mutation baseline per phase (WX-05) and a re-check at close |
 | v1.3 | 1 (autonomous) | 7 | A carried-debt ledger with a per-row closer; a mechanism spike with fixed criteria before a speculative phase |
+| v1.4 | 1 (autonomous) | 6 | Spike evidence for every option before a human checkpoint; a milestone-wide mutation re-check and stale sweep in the last plan |
 
 ### Cumulative Quality
 
@@ -149,9 +192,10 @@
 | v1.0 | vitest 3974+559+42, e2e 30 (Phase 07 UAT run) | core ≥95%, others ≥90% (enforced) | 0 |
 | v1.2 | vitest 4400 (core/react/http/devtools/audit at audit), tstyche 233, e2e 30 | core ≥95%, others ≥90% (enforced); no touched file's mutation score fell | 0 |
 | v1.3 | vitest 200 files / 4917 tests, tstyche, e2e 30 | 99.47% statements / 99.75% lines overall; no measured file's mutation score fell | 0 |
+| v1.4 | vitest 5139 tests, tstyche, e2e 30 | core ≥95%, others ≥90% (enforced); all 15 touched files at their latest recorded mutation score | 0 |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases; v1.3: 6 phases).
+1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases; v1.3: 6 phases; v1.4: 3 phases).
 2. Run review → fix after verification passes: it found warnings verification missed in every milestone.
 3. Shape tooling inputs so tools can read them: v1.0's requirement ranges and v1.2's grouped traceability rows both forced hand edits.
