@@ -512,14 +512,14 @@ Plans:
   4. The break is recorded wherever a consumer reads it: the `@qadi/devtools` Breaking changeset with the upgrade map, `upgrading.md`, the devtools README, the website devtools page, the Next.js example's `Dock.tsx`, the `DecisionStreamRoute.ts` comment, BEH-QD-204 and the overview rows.
 
 **Planning notes**: **Research flag: needs `/gsd-plan-phase --research-phase 40`** (the compatibility decision, and the typing of the JSON form returned with the record). Core states no reporter (one consumer; devtools keeps its `Effect.logWarning` adapter with `qadi.frame`). A third restatement exists: `AuditEntry.ts:159-164` repeats `SinkCodec.ts:489-498`. **Plan shape**: the compatibility decision first, with a table pin of the five words on the base and the mutation base; then the describer and annotations in core; then devtools; then audit with the differential rows; then the one budget row that goes away, with AGENTS.md §7a, `[untrusted-decode-table]` and `[untrusted-decode-names]` in the same task; the break recorded in every place DREF-07 lists (also `surface.tst.ts`, `Source.tst.ts` and `26-decision-stream.md`); run `pnpm spec:website-examples` explicitly.
-**Plans**: 1/9 plans executed
+**Plans**: 2/9 plans executed
 
 Plans:
 **Wave 1**
 - [x] 40-01-PLAN.md — mutation baseline; ADR-QD-153 (the compatibility decision) before any code
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 40-02-PLAN.md — characterisation on the base: the five drop words, the Malformed messages, the audit differential
+- [x] 40-02-PLAN.md — characterisation on the base: the five drop words, the Malformed messages, the audit differential
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 40-03-PLAN.md — tracer: one mapping in SinkWire.ts; core's describer and tag-only annotations; type pins

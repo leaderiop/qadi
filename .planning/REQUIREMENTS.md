@@ -36,7 +36,7 @@ unless a phase's planner records evidence against one). Per-phase evidence and r
 
 ### Core owns describing a decode refusal (Phase 40, ARCH-87, core + devtools + audit)
 
-- [ ] **DREF-01**: A compatibility decision is recorded before any code: what devtools' malformed-frame callback and its log annotation carry after the change (recommended: the refusal's `_tag`, documented as Breaking).
+- [x] **DREF-01**: A compatibility decision is recorded before any code: what devtools' malformed-frame callback and its log annotation carry after the change (recommended: the refusal's `_tag`, documented as Breaking).
 - [ ] **DREF-02**: Core exports a total `describeDecodeRefusal` (module-scope `Match.tagsExhaustive`, safe for an `unknown` version or message), so a new refusal is a compile error in core only.
 - [ ] **DREF-03**: Core exports a tag-only decode-refusal annotations helper and owns the one `UntrustedValueRefusal` → `DecodeRefusal` mapping; a sentinel-value test shows no annotation carries `Malformed.message` or `UnsupportedVersion.version` (INV-QD-104).
 - [ ] **DREF-04**: Devtools passes `DecodeRefusal` through: `reasonOf` and `MalformedReason` are gone, and `onMalformed` receives the refusal.
@@ -111,7 +111,7 @@ The seven WX rows apply to every phase 37 to 42, so each phase's Requirements li
 | DROP-02 | Phase 39 | Complete |
 | DROP-03 | Phase 39 | Complete |
 | DROP-04 | Phase 39 | Complete |
-| DREF-01 | Phase 40 | Pending |
+| DREF-01 | Phase 40 | Complete |
 | DREF-02 | Phase 40 | Pending |
 | DREF-03 | Phase 40 | Pending |
 | DREF-04 | Phase 40 | Pending |
