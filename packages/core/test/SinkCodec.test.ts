@@ -47,6 +47,7 @@ import * as P from "../src/Policy.ts";
 import {
   decodeSinkRecord,
   decodeSinkRecordString,
+  decodeSinkRecordWithJson,
   decodeStoredRecord,
   decodeStoredRecordString,
   encodeSinkRecord,
@@ -806,28 +807,28 @@ describe("decodeSinkRecord ignores an unknown envelope key and refuses one anywh
 
   it("an unknown key inside the decision is still refused", () => {
     const text = V2.V2_DECIDED_ALLOW.replace('"durationMillis":2', '"durationMillis":2,"ttl":60');
-    assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+    assert.strictEqual(refusalOfText(text)?._tag, "Malformed");
   });
 
   it("an unknown key inside the error is still refused", () => {
     const text = V2.V2_FAILED_MISSING_RESOURCE.replace('"attribute":"owner"', '"attribute":"owner","retry":true');
-    assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+    assert.strictEqual(refusalOfText(text)?._tag, "Malformed");
   });
 
   it("an unknown key inside the embedded policy is still refused, beside an ignored envelope key", () => {
     const text = withEnvelopeKey(V2.V2_DECIDED_ALLOW.replace('"action":"read"}}', '"action":"read"},"permision":"x"}'));
-    assert.include(decodeRefusalOf(text)?._tag === "Malformed" ? JSON.stringify(decodeRefusalOf(text)) : "", "permision");
+    assert.include(refusalOfText(text)?._tag === "Malformed" ? JSON.stringify(refusalOfText(text)) : "", "permision");
   });
 
   it("an array is not an envelope: refused, never projected into an empty record", () => {
-    assert.strictEqual(decodeRefusalOf("[1,2]")?._tag, "Malformed");
+    assert.strictEqual(refusalOfText("[1,2]")?._tag, "Malformed");
   });
 
   it("a stored `at` of 1e400 or -1e400 (which JSON.parse reads as ±Infinity) is Malformed: the inbound twin of wireHazard's NonFinite", () => {
     const text = stringOf(recordWith({}));
     assert.isTrue(text.includes('"at":1,'));
-    assert.strictEqual(decodeRefusalOf(text.replace('"at":1,', '"at":1e400,'))?._tag, "Malformed");
-    assert.strictEqual(decodeRefusalOf(text.replace('"at":1,', '"at":-1e400,'))?._tag, "Malformed");
+    assert.strictEqual(refusalOfText(text.replace('"at":1,', '"at":1e400,'))?._tag, "Malformed");
+    assert.strictEqual(refusalOfText(text.replace('"at":1,', '"at":-1e400,'))?._tag, "Malformed");
   });
 
   it("an in-memory record with `at: NaN` is Malformed", () => {
@@ -1216,6 +1217,31 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
       assert.strictEqual(refusal?._tag, "TooDeep");
       if (refusal?._tag === "TooDeep") assert.strictEqual(refusal.path.length, MAX_DECODE_DEPTH + 1);
     });
+
+    it("a policy exactly MAX_DECODE_DEPTH deep is TooDeep at the path one past the bound", () => {
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ policy: nestedAllOf(MAX_DECODE_DEPTH) })),
+        EncodeRefusal.TooDeep({
+          path: ["policy", ...Array.from({ length: MAX_DECODE_DEPTH / 2 }, () => ["policies", 0]).flat()],
+          maxDepth: MAX_DECODE_DEPTH,
+        }),
+      );
+    });
+
+    it("a trace exactly MAX_DECODE_DEPTH deep is TooDeep at the path one past the bound", () => {
+      assert.deepStrictEqual(
+        refusalOf(decidedWith(P.hasPermission(read), nestedTrace(MAX_DECODE_DEPTH - 1))),
+        EncodeRefusal.TooDeep({
+          path: [
+            "outcome",
+            "decision",
+            "trace",
+            ...Array.from({ length: (MAX_DECODE_DEPTH - 2) / 2 }, () => ["children", 0]).flat(),
+          ],
+          maxDepth: MAX_DECODE_DEPTH,
+        }),
+      );
+    });
   });
 
   describe("properties", () => {
@@ -1311,7 +1337,7 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
 });
 
 /** The refusal `decodeSinkRecordString` gives, or `undefined` when it accepts. */
-const decodeRefusalOf = (text: string): DecodeRefusal | undefined =>
+const refusalOfText = (text: string): DecodeRefusal | undefined =>
   Result.match(decodeSinkRecordString(text), {
     onSuccess: () => undefined,
     onFailure: (error) => error.refusal,
@@ -1330,30 +1356,30 @@ const deepPolicyJson = (levels: number): string =>
 describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
   describe("each reason", () => {
     it("text that does not parse is NotJson", () => {
-      assert.deepStrictEqual(decodeRefusalOf("{"), DecodeRefusal.NotJson());
+      assert.deepStrictEqual(refusalOfText("{"), DecodeRefusal.NotJson());
     });
 
     it("a 60,000-deep input is TooDeep, naming the bound, and nothing throws", () => {
-      assert.deepStrictEqual(decodeRefusalOf(deepPolicyJson(60_000)), DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));
+      assert.deepStrictEqual(refusalOfText(deepPolicyJson(60_000)), DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));
     }, 60_000);
 
     it("an unknown tag is Malformed", () => {
-      assert.strictEqual(decodeRefusalOf('{"_tag":"Nope","version":2}')?._tag, "Malformed");
+      assert.strictEqual(refusalOfText('{"_tag":"Nope","version":2}')?._tag, "Malformed");
     });
 
     it("an input that is not an object is Malformed, not a version question", () => {
       for (const text of ["[1,2]", "null", "1", '"Decision"']) {
-        assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed", text);
+        assert.strictEqual(refusalOfText(text)?._tag, "Malformed", text);
       }
     });
 
     it("an object naming no version is UnsupportedVersion, with version undefined", () => {
-      assert.deepStrictEqual(decodeRefusalOf('{"_tag":"Nope"}'), UNVERSIONED);
-      assert.deepStrictEqual(decodeRefusalOf("{}"), UNVERSIONED);
+      assert.deepStrictEqual(refusalOfText('{"_tag":"Nope"}'), UNVERSIONED);
+      assert.deepStrictEqual(refusalOfText("{}"), UNVERSIONED);
     });
 
     it("a typo'd field inside the embedded policy is Malformed, not a silent drop (CCR-QD-139)", () => {
-      const refusal = decodeRefusalOf(
+      const refusal = refusalOfText(
         V2.V2_FAILED_MISSING_RESOURCE.replace('"action":"read"}}', '"action":"read"},"rloe":"admin"}'),
       );
       assert.strictEqual(refusal?._tag, "Malformed");
@@ -1371,14 +1397,14 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
     it("the value form agrees with the text form", () => {
       assert.deepStrictEqual(
         Result.isFailure(decodeSinkRecord(JSON.parse('{"_tag":"Nope"}'))),
-        decodeRefusalOf('{"_tag":"Nope"}') !== undefined,
+        refusalOfText('{"_tag":"Nope"}') !== undefined,
       );
     });
   });
 
   describe("what the receiver keeps doing", () => {
     it("a pre-0.10 Decision record with no subjectId is UnsupportedVersion, never given a sentinel subject", () => {
-      assert.deepStrictEqual(decodeRefusalOf(PRE_010.noSubject), UNVERSIONED);
+      assert.deepStrictEqual(refusalOfText(PRE_010.noSubject), UNVERSIONED);
     });
 
     it("a Deny with no reason is refused", () => {
@@ -1394,7 +1420,7 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
           decision: { _tag: "Deny", evaluationId: "e", subjectId: "u1", durationMillis: 1, trace: trace(false), obligations: [] },
         },
       });
-      assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+      assert.strictEqual(refusalOfText(text)?._tag, "Malformed");
     });
 
     it("an Allow carrying a reason is refused", () => {
@@ -1418,11 +1444,11 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
           },
         },
       });
-      assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+      assert.strictEqual(refusalOfText(text)?._tag, "Malformed");
     });
 
     it("a record naming no outcome is refused, not given an invented error (ticket 96)", () => {
-      const refusal = decodeRefusalOf(
+      const refusal = refusalOfText(
         '{"_tag":"Decision","version":2,"evaluationId":"e","at":0,"subjectId":"u1","policy":{"_tag":"HasRole","role":"x"}}',
       );
       assert.strictEqual(refusal?._tag, "Malformed");
@@ -1432,7 +1458,7 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
     it("a pre-0.10 record naming both outcomes is refused, not silently given one (ticket 155)", () => {
       // Version 2 cannot say "both"; the version-1 bytes that could are refused
       // for their version before any outcome is read.
-      assert.deepStrictEqual(decodeRefusalOf(PRE_010.bothOutcomes), UNVERSIONED);
+      assert.deepStrictEqual(refusalOfText(PRE_010.bothOutcomes), UNVERSIONED);
     });
 
     it("an Error cause comes back as an Error carrying its message", () => {
@@ -1702,7 +1728,7 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
           checked += 1;
           const pre010 = asPre010Bytes(v2.success);
           assert.notStrictEqual(pre010, v2.success);
-          assert.deepStrictEqual(decodeRefusalOf(pre010), UNVERSIONED);
+          assert.deepStrictEqual(refusalOfText(pre010), UNVERSIONED);
           return true;
         }),
         { numRuns: 300, seed: 6204 },
@@ -1943,13 +1969,13 @@ describe("decodeSinkRecord reads wire version 2, and only it", () => {
     ];
     for (const [name, text] of cases) {
       it(name, () => {
-        assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+        assert.strictEqual(refusalOfText(text)?._tag, "Malformed");
       });
     }
 
     it("no subjectId: required in version 2", () => {
       const text = JSON.stringify({ ...JSON.parse(V2.V2_FAILED_MISSING_RESOURCE), subjectId: undefined });
-      assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+      assert.strictEqual(refusalOfText(text)?._tag, "Malformed");
     });
   });
 
@@ -1958,18 +1984,68 @@ describe("decodeSinkRecord reads wire version 2, and only it", () => {
     for (const version of versions) {
       it(`version: ${JSON.stringify(version)}`, () => {
         const text = JSON.stringify({ ...JSON.parse(V2.V2_FAILED_MISSING_RESOURCE), version });
-        assert.deepStrictEqual(decodeRefusalOf(text), DecodeRefusal.UnsupportedVersion({ version, supported: WIRE_VERSIONS }));
+        assert.deepStrictEqual(refusalOfText(text), DecodeRefusal.UnsupportedVersion({ version, supported: WIRE_VERSIONS }));
       });
     }
 
     it("no version key at all: version undefined", () => {
       const { version: _version, ...unversioned } = JSON.parse(V2.V2_FAILED_MISSING_RESOURCE);
-      assert.deepStrictEqual(decodeRefusalOf(JSON.stringify(unversioned)), UNVERSIONED);
+      assert.deepStrictEqual(refusalOfText(JSON.stringify(unversioned)), UNVERSIONED);
     });
 
     it("the supported version is 2, alone", () => {
       assert.deepStrictEqual(WIRE_VERSIONS, [2]);
     });
+  });
+
+  /**
+   * The read set written out as `[2]`, not read back from `WIRE_VERSIONS`.
+   *
+   * The rows above compare `supported` with `WIRE_VERSIONS` itself, so a retyped version moves both
+   * sides and still passes; these state `[2]` and the accepted `2` by hand (ADR-QD-096).
+   */
+  describe("the read set, written out: supported is [2], and version 2 decodes", () => {
+    const parsed = JSON.parse(V2.V2_FAILED_MISSING_RESOURCE);
+
+    it("no version key: supported is [2], written out", () => {
+      const { version: _version, ...unversioned } = parsed;
+      assert.deepStrictEqual(
+        refusalOfText(JSON.stringify(unversioned)),
+        DecodeRefusal.UnsupportedVersion({ version: undefined, supported: [2] }),
+      );
+    });
+
+    it("version 1: supported is [2], written out", () => {
+      assert.deepStrictEqual(
+        refusalOfText(JSON.stringify({ ...parsed, version: 1 })),
+        DecodeRefusal.UnsupportedVersion({ version: 1, supported: [2] }),
+      );
+    });
+
+    it("version 3: supported is [2], written out", () => {
+      assert.deepStrictEqual(
+        refusalOfText(JSON.stringify({ ...parsed, version: 3 })),
+        DecodeRefusal.UnsupportedVersion({ version: 3, supported: [2] }),
+      );
+    });
+
+    it("the string 2: supported is [2], written out", () => {
+      assert.deepStrictEqual(
+        refusalOfText(JSON.stringify({ ...parsed, version: "2" })),
+        DecodeRefusal.UnsupportedVersion({ version: "2", supported: [2] }),
+      );
+    });
+
+    it("version 2, written out, decodes", () => {
+      assert.strictEqual(refusalOfText(JSON.stringify({ ...parsed, version: 2 })), undefined);
+    });
+
+    // A version added to WIRE_VERSIONS without a schema would fail the strict decode as Malformed.
+    for (const version of WIRE_VERSIONS) {
+      it(`every version in the read set decodes: ${version}`, () => {
+        assert.strictEqual(refusalOfText(JSON.stringify({ ...parsed, version })), undefined);
+      });
+    }
   });
 
   describe("pre-0.10 bytes (wire version 1) are refused whole, never upgraded (0.11.0)", () => {
@@ -1983,14 +2059,14 @@ describe("decodeSinkRecord reads wire version 2, and only it", () => {
     ];
     for (const [name, text] of cases) {
       it(`${name} is UnsupportedVersion, version undefined`, () => {
-        assert.deepStrictEqual(decodeRefusalOf(text), UNVERSIONED);
+        assert.deepStrictEqual(refusalOfText(text), UNVERSIONED);
         assert.isTrue(Result.isFailure(decodeSinkRecord(JSON.parse(text))));
       });
     }
 
     it("the same record labelled version 1 is UnsupportedVersion, version 1", () => {
       const text = JSON.stringify({ ...JSON.parse(PRE_010.failedMissingResource), version: 1 });
-      assert.deepStrictEqual(decodeRefusalOf(text), DecodeRefusal.UnsupportedVersion({ version: 1, supported: WIRE_VERSIONS }));
+      assert.deepStrictEqual(refusalOfText(text), DecodeRefusal.UnsupportedVersion({ version: 1, supported: WIRE_VERSIONS }));
     });
   });
 
@@ -2286,4 +2362,166 @@ describe("ARCH-71: the encoded value keeps today's keys", () => {
       );
     });
   }
+});
+
+/**
+ * Whole `Malformed` refusal messages `decodeSinkRecord` gives, written out by
+ * hand from a run on the unchanged decoder.
+ *
+ * Devtools and audit show these messages, and the cases above check substrings
+ * only. A change in how the record is walked (a wrapping schema, a second walk)
+ * would show as a path prefix here first, before any substring check noticed.
+ */
+describe("the Malformed message decodeSinkRecord gives, written out", () => {
+  const policy = { _tag: "HasPermission", permission: { resource: "doc", action: "read" } };
+  const decision = {
+    _tag: "Allow",
+    evaluationId: "g",
+    subjectId: "u1",
+    durationMillis: 2,
+    trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
+    obligations: [],
+  };
+  const outcome = { _tag: "Decided", decision };
+  const record = { _tag: "Decision", version: 2, evaluationId: "g", at: 1, subjectId: "u1", policy, outcome };
+
+  const refusalOf = (input: unknown) => {
+    const result = decodeSinkRecord(input);
+    return Result.isFailure(result) ? result.failure.refusal : undefined;
+  };
+
+  it("at is Infinity", () => {
+    assert.deepStrictEqual(
+      refusalOf({ ...record, at: Number.POSITIVE_INFINITY }),
+      DecodeRefusal.Malformed({ message: "Expected a finite number\n  at [\"at\"]" }),
+    );
+  });
+
+  it("at is NaN", () => {
+    assert.deepStrictEqual(refusalOf({ ...record, at: Number.NaN }), DecodeRefusal.Malformed({ message: "Expected a finite number\n  at [\"at\"]" }));
+  });
+
+  it("an unknown decision _tag", () => {
+    assert.deepStrictEqual(
+      refusalOf({ ...record, outcome: { ...outcome, decision: { ...decision, _tag: "Maybe" } } }),
+      DecodeRefusal.Malformed({ message: "Expected { readonly \"_tag\": \"Allow\", ... } | { readonly \"_tag\": \"Deny\", ... }\n  at [\"outcome\"][\"decision\"]" }),
+    );
+  });
+
+  it("a subjectId that is not a string", () => {
+    assert.deepStrictEqual(refusalOf({ ...record, subjectId: 1 }), DecodeRefusal.Malformed({ message: "Expected string\n  at [\"subjectId\"]" }));
+  });
+
+  it("no outcome", () => {
+    const { outcome: _outcome, ...withoutOutcome } = record;
+    assert.deepStrictEqual(refusalOf(withoutOutcome), DecodeRefusal.Malformed({ message: "Missing key\n  at [\"outcome\"]" }));
+  });
+
+  it("a stray second outcome", () => {
+    assert.deepStrictEqual(
+      refusalOf({ ...record, outcome: { ...outcome, error: { _tag: "MissingResource", attribute: "owner" } } }),
+      DecodeRefusal.Malformed({ message: "Expected no excess property\n  at [\"outcome\"][\"error\"]" }),
+    );
+  });
+
+  it("a typo inside the embedded policy", () => {
+    assert.deepStrictEqual(
+      refusalOf({ ...record, policy: { ...policy, permision: "x" } }),
+      DecodeRefusal.Malformed({ message: "Expected no excess property\n  at [\"policy\"][\"permision\"]" }),
+    );
+  });
+});
+
+/**
+ * The single decode's JSON form is the base's: what the writer's goldens say,
+ * in schema key order, an explicit `undefined` optional field kept and an unknown
+ * envelope key absent (ADR-QD-153).
+ *
+ * `decodeSinkRecordWithJson` is the decode audit persists from, so a `json` that
+ * differed from what was validated (the input's key order, a kept unknown key, a
+ * dropped `undefined` key) would store bytes no writer wrote.
+ */
+describe("decodeSinkRecordWithJson: the record and its JSON form from one decode", () => {
+  const jsonOfText = (text: string, input: unknown = JSON.parse(text)): SinkRecordJson =>
+    Result.match(decodeSinkRecordWithJson(input), {
+      onSuccess: ({ json }) => json,
+      onFailure: (error) => assert.fail(`refused: ${JSON.stringify(error.refusal)}`),
+    });
+
+  it("each version-2 golden reads to its record and to its own text", () => {
+    for (const text of [
+      V2.V2_DECIDED_ALLOW,
+      V2.V2_DECIDED_ALLOW_ALL_FIELDS,
+      V2.V2_DECIDED_DENY,
+      V2.V2_FAILED_MISSING_RESOURCE,
+      V2.V2_FAILED_ATTRIBUTE_ERROR_CAUSE,
+      V2.V2_OBLIGATIONS,
+      V2.V2_OBLIGATIONS_FULL_ENVELOPE,
+      V2.V2_DECISION_FULL_ENVELOPE,
+    ]) {
+      const both = decodeSinkRecordWithJson(JSON.parse(text));
+      assert.isTrue(Result.isSuccess(both));
+      if (Result.isFailure(both)) return;
+      assert.strictEqual(JSON.stringify(both.success.json), text);
+      assert.deepStrictEqual(both.success.record, recordOf(text));
+    }
+  });
+
+  it("an unknown envelope key is absent from the JSON form", () => {
+    const json = jsonOfText("", { ...JSON.parse(V2.V2_DECIDED_ALLOW), traceparent: "00-abc" });
+    assert.notProperty(json, "traceparent");
+    assert.strictEqual(JSON.stringify(json), V2.V2_DECIDED_ALLOW);
+  });
+
+  it("a record whose keys are reversed gives its JSON form in schema order", () => {
+    const reversed = Object.fromEntries(Object.entries(JSON.parse(V2.V2_DECIDED_ALLOW)).reverse());
+    assert.deepStrictEqual(Object.keys(reversed).slice(0, 2), ["outcome", "policy"]);
+    const json = jsonOfText("", reversed);
+    assert.deepStrictEqual(Object.keys(json), [
+      "_tag",
+      "version",
+      "evaluationId",
+      "at",
+      "subjectId",
+      "policy",
+      "outcome",
+    ]);
+    assert.strictEqual(JSON.stringify(json), V2.V2_DECIDED_ALLOW);
+  });
+
+  it("an explicit undefined optional field keeps its key", () => {
+    const json = jsonOfText("", { ...JSON.parse(V2.V2_DECIDED_ALLOW), resource: undefined });
+    assert.isTrue(Object.hasOwn(json, "resource"));
+    assert.deepStrictEqual(Object.keys(json), [
+      "_tag",
+      "version",
+      "evaluationId",
+      "at",
+      "subjectId",
+      "policy",
+      "resource",
+      "outcome",
+    ]);
+  });
+
+  it("it refuses exactly what decodeSinkRecord refuses", () => {
+    let deep: unknown = { _tag: "HasRole", role: "x" };
+    for (let i = 0; i < 60_000; i++) deep = { _tag: "Not", policy: deep };
+    const base = JSON.parse(V2.V2_DECIDED_ALLOW);
+    const { outcome: _outcome, ...noOutcome } = base;
+    const { version: _version, ...unversioned } = base;
+    for (const [input, refusal] of [
+      [{ ...base, policy: deep }, DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH })],
+      [{ ...base, version: 3 }, DecodeRefusal.UnsupportedVersion({ version: 3, supported: WIRE_VERSIONS })],
+      [unversioned, UNVERSIONED],
+      [noOutcome, DecodeRefusal.Malformed({ message: 'Missing key\n  at ["outcome"]' })],
+    ] as const) {
+      const both = decodeSinkRecordWithJson(input);
+      const alone = decodeSinkRecord(input);
+      assert.isTrue(Result.isFailure(both) && Result.isFailure(alone));
+      if (Result.isSuccess(both) || Result.isSuccess(alone)) return;
+      assert.deepStrictEqual(both.failure.refusal, refusal);
+      assert.deepStrictEqual(both.failure, alone.failure);
+    }
+  });
 });

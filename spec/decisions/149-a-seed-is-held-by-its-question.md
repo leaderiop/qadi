@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-149                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-12                                     |
 > | Status         | Accepted — amends ADR-QD-039, ADR-QD-103; reads ADR-QD-148 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-12): Initial (CCR-QD-427)         |
+> | Change History | 1.1 (2026-11-14): Amendment: a seeded question owns its computing atom, in SeededQuestion.ts (ADR-QD-155, CCR-QD-433)<br>1.0 (2026-11-12): Initial (CCR-QD-427)         |
 
 ---
 
@@ -128,3 +128,12 @@ holds. The precedence (a live answer beats a seed) is still a property of the de
 [INV-QD-028](../invariants.md),
 [INV-QD-105](../invariants.md),
 BEH-QD-516, BEH-QD-517, BEH-QD-518, INV-QD-317, INV-QD-318, CCR-QD-427.
+
+## Amendment (2026-11-14, ADR-QD-155, CCR-QD-433)
+
+The seed slot, the grant, `seededIn` and the computing atom that reads the seed are now
+`SeededQuestion.ts`'s `makeSeededQuestion`
+([ADR-QD-155](./155-a-seeded-question-owns-its-computing-atom.md)). Where this record says
+`makeSeededQuestion` (`HydrationEngine.ts`), read `SeededQuestion.ts`. The decision itself is
+unchanged: a `WeakMap<SeedGrant, SeededDecision>` per question, a `keepAlive` grant node per
+verified entry, and a seed read through `getNodes()` and never `registry.get`.

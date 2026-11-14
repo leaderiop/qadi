@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-140                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-11                                     |
 > | Status         | Accepted — amends ADR-QD-111, ADR-QD-080       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-12): Consequences amended: the test-edit count describes the split alone (CCR-QD-427)<br>1.0 (2026-11-11): Initial (ARCH-76, CCR-QD-418) |
+> | Change History | 1.2 (2026-11-14): Amendment: the atom set's import edges gain SeededQuestion.ts and SweepScheduler.ts (ADR-QD-155, CCR-QD-433)<br>1.1 (2026-11-12): Consequences amended: the test-edit count describes the split alone (CCR-QD-427)<br>1.0 (2026-11-11): Initial (ARCH-76, CCR-QD-418) |
 
 ---
 
@@ -137,3 +137,12 @@ Related: [ADR-QD-037](037-circular-imports-and-type-level-tests-are-gates.md),
 [ADR-QD-111](111-a-gate-writer-is-resolved-once-by-its-provider.md),
 [INV-QD-046](../invariants.md#inv-qd-046-instrumentation-never-changes-what-a-guard-renders),
 [INV-QD-064](../invariants.md#inv-qd-064-a-guard-is-listed-only-by-the-registry-its-provider-writes-to).
+
+## Amendment (2026-11-14, ADR-QD-155, CCR-QD-433)
+
+The edge list under Consequences is as of the split. `QadiAtoms.ts` now also imports
+`SweepScheduler.ts` ([ADR-QD-148](./148-the-atom-set-owns-its-eviction-sweep.md)) and
+`SeededQuestion.ts` ([ADR-QD-155](./155-a-seeded-question-owns-its-computing-atom.md)).
+`SeededQuestion.ts` imports `DeveloperSignals.ts`, `HydrationEvent.ts` and `SeededDecision.ts`
+and nothing above it, and `HydrationEngine.ts` imports it as a type only. The split itself is
+unchanged.

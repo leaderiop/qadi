@@ -111,12 +111,7 @@ export type {
 } from "./model/SimulationSession.ts";
 export type { SourceChoice, SourceOption, SourceRefusal } from "./model/SimulationSource.ts";
 export { mergeSources, sourceFromEventSource, sourceFromRecords } from "./model/Source.ts";
-export type {
-  DecisionEventSource,
-  MalformedReason,
-  Source,
-  SourceRead,
-} from "./model/Source.ts";
+export type { DecisionEventSource, Source, SourceRead } from "./model/Source.ts";
 export {
   DEFAULT_TIMELINE_CAPACITY,
   TimelineDecision,

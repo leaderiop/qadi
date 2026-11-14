@@ -1,43 +1,43 @@
 ---
 gsd_state_version: "1.0"
-milestone: v1.3
+milestone: v1.4
+milestone_name: Arch Wave 9
 status: Awaiting next milestone
-stopped_at: Phase 36 complete — all phases complete
-last_updated: "2026-11-13T02:29:12.787Z"
-last_activity: 2026-11-13
-last_activity_desc: "Milestone v1.3 shipped as PR #157"
-state_head: 963f6079742687623a54d7852f9634c8a8bad409
+stopped_at: Phase QD-42 complete — all phases complete
+last_updated: "2026-11-14T19:22:24.876Z"
+last_activity: 2026-11-14
+last_activity_desc: Milestone v1.4 completed and archived
+state_head: d7c623ac00193d1bfa437e6e8d3af37d12649b50
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 54
-  completed_plans: 54
+  total_phases: 6
+  completed_phases: 6
+  total_plans: 38
+  completed_plans: 38
   percent: 100
-milestone_name: Arch Wave 8
-current_phase: 36
+current_phase: 42
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-13)
+See: .planning/PROJECT.md (updated 2026-11-14)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** v1.3 complete and archived; next milestone not defined (`/gsd-new-milestone`)
+**Current focus:** Planning next milestone (v1.4 Arch Wave 9 complete 2026-11-14; not merged, not released)
 
 ## Current Position
 
-Phase: Milestone v1.3 complete
+Phase: Milestone v1.4 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-11-13 -- Milestone v1.3 shipped as PR #157
+Last activity: 2026-11-14 — Milestone v1.4 completed and archived
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 127
+- Total plans completed: 165
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -71,6 +71,12 @@ Last activity: 2026-11-13 -- Milestone v1.3 shipped as PR #157
 | 34 | 9 | - | - |
 | 35 | 7 | - | - |
 | 36 | 14 | - | - |
+| 37 | 9 | - | - |
+| QD-38 | 4 | - | - |
+| QD-39 | 5 | - | - |
+| QD-40 | 9 | - | - |
+| QD-41 | 6 | - | - |
+| QD-42 | 5 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -200,6 +206,44 @@ Last activity: 2026-11-13 -- Milestone v1.3 shipped as PR #157
 | Phase 36 P12 | 25 min | 3 tasks | 11 files |
 | Phase 36 P13 | 30 min | 3 tasks | 8 files |
 | Phase 36 P14 | 40 min | 3 tasks | 5 files |
+| Phase 37 P01 | 8 min | 3 tasks | 3 files |
+| Phase QD-37 P02 | 12 min | 2 tasks | 3 files |
+| Phase 37 P03 | 8 min | 2 tasks | 1 files |
+| Phase 37 P04 | 25 min | 2 tasks | 1 files |
+| Phase 37 P05 | 10 min | 2 tasks | 2 files |
+| Phase 37 P06 | 12 min | 2 tasks | 2 files |
+| Phase 37 P07 | 14 min | 2 tasks | 7 files |
+| Phase 37 P08 | 16 min | 2 tasks | 5 files |
+| Phase 37 P09 | 25 min | 3 tasks | 3 files |
+| Phase QD-38 P01 | 10min | 3 tasks | 2 files |
+| Phase QD-38 P02 | 15 min | 3 tasks | 3 files |
+| Phase QD-38 P03 | 20 min | 3 tasks | 9 files |
+| Phase QD-38 P04 | 25 min | 3 tasks | 2 files |
+| Phase QD-39 P01 | 10 min | 3 tasks | 4 files |
+| Phase QD-39 P02 | 3 min | 2 tasks | 2 files |
+| Phase QD-39 P03 | 15 min | 2 tasks | 1 files |
+| Phase QD-39 P04 | 25 min | 3 tasks | 11 files |
+| Phase QD-39 P05 | 10 min | 3 tasks | 1 files |
+| Phase QD-40 P01 | 4 min | 2 tasks | 5 files |
+| Phase QD-40 P02 | 9 min | 3 tasks | 3 files |
+| Phase QD-40 P03 | 9 min | 3 tasks | 5 files |
+| Phase QD-40 P04 | 8 min | 2 tasks | 5 files |
+| Phase QD-40 P05 | 3 min | 2 tasks | 7 files |
+| Phase QD-40 P06 | 4 min | 2 tasks | 4 files |
+| Phase QD-40 P07 | 20 min | 2 tasks | 9 files |
+| Phase QD-40 P08 | 3 min | 3 tasks | 8 files |
+| Phase QD-40 P09 | 10 min | 3 tasks | 1 files |
+| Phase QD-41 P01 | 25 min | 2 tasks | 5 files |
+| Phase QD-41 P02 | 25min | 3 tasks | 6 files |
+| Phase QD-41 P03 | 15 min | 2 tasks | 6 files |
+| Phase QD-41 P04 | 12 min | 3 tasks | 9 files |
+| Phase QD-41 P05 | 10 min | 2 tasks | 6 files |
+| Phase QD-41 P06 | 7 min | 3 tasks | 1 files |
+| Phase QD-42 P01 | 4 min | 2 tasks | 5 files |
+| Phase QD-42 P02 | 2 min | 2 tasks | 2 files |
+| Phase QD-42 P03 | 3 min | 3 tasks | 7 files |
+| Phase QD-42 P04 | 6 min | 3 tasks | 11 files |
+| Phase QD-42 P05 | 17 min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -318,9 +362,47 @@ Last activity: 2026-11-13 -- Milestone v1.3 shipped as PR #157
 - [Phase 36]: 36-12: ADR-QD-039 and ADR-QD-103 keep Accepted status and carry dated amendments; ADR-QD-014's pinned divergent sequence is amended under its paragraph (D-20)
 - [Phase 36]: 36-13: BEH-QD-460's listing keeps 'Baseline | undefined' (the real snapshot type) rather than the plan's 'Baseline'
 - [Phase 36]: 36-14: TimelineNotice.tsx:40:20 (Reading arm null vs undefined) is a named equivalent survivor; StoppedBox's effect deps are killed by TN15
+- [v1.4]: the six phases 37-42 and their order are fixed by the user; research reconciliations R1-R6 (`research/SUMMARY.md`) are binding unless a planner records evidence against one; reserved numbers are ADR 150-155, CCR 428-433, BEH 521-550, INV 319-330 (never run `node scripts/next-id.mjs`)
+- [Phase 37]: 37-01: baseline recorded as measured (TimelineFeed 1, DiagnosticsFeed 0.9279, SimulationSession 0.9767); SupersedingRun.ts recorded as new; the Stryker pattern for the not-yet-existing file was accepted unchanged
+- [Phase QD-37]: 37-02: SupersedingRun module copied from the verified prototype; TimelineFeed keeps only its closed guard and the Stopped mapping
+- [Phase 37]: 37-04: the property reaches the stale-held-fork arm of drain through a NestStale body and a ninth floor, instead of a module row
+- [Phase 37]: 37-05: DiagnosticsFeed keeps only its Starting publish, isCurrent-guarded accept, Stopped mapping and closed guards; protocol block removed
+- [Phase 37]: 37-06: SimulationSession supersede stays a named one-line runs.stop(); the guarded stop is deleted and land keeps mapping every non-success exit of a current run to Broke (no onFailure hook)
+- [Phase 37]: ADR-QD-150 records the held fork as the stronger form of RUN-05; the report-only fallback is named and was not needed
+- [Phase 37]: 37-08: the five superseding-run behaviours live in 28-devtools-screens.md (BEH-QD-521..525); INV-QD-319 is the property's law and INV-QD-320 the re-entrancy law
+- [Phase 37]: 37-09: the three SupersedingRun.ts mutation survivors (token literal, brand value, hook-less onExit branch) are named equivalent; no store score dropped. After review IN-01 the branch is gone (`fork` always wraps, `hooks.onFailure?.`), and the third survivor is now that optional chain (0.9434)
+- [Phase QD-38]: 38-01: D-05 golden already exists (V2_DECIDED_ALLOW, V2_OBLIGATIONS); recorded, not duplicated
+- [Phase QD-38]: 38-02: decoder read check is isReadVersion = Schema.is(Schema.Literals(WIRE_VERSIONS)), not WIRE_VERSIONS.some (Stryker some-to-every mutant is equivalent over a one-element set)
+- [Phase QD-38]: ADR-QD-151: the sink wire write version WIRE_VERSION and the read set WIRE_VERSIONS are distinct; the narrowing to readonly [2] is source-compatible (minor changeset)
+- [Phase QD-38]: 38-04: a mutation ratio drop after a conversion that removes killed mutants is closed by a boundary test (two cases at exactly MAX_DECODE_DEPTH), never a re-baseline
+- [Phase QD-39]: 39-01: the new-reason experiment uses an entry reason (ThrowawayEntry) so 39-03's after-record compares like with like
+- [Phase QD-39]: 39-02: second public type is HydrationDropRow; negatives are checked @ts-expect-error directives (toRaiseError deprecated in tstyche 7.2.5)
+- [Phase QD-39]: 39-03: a payload row compiles everywhere in react (payload refusal map is keyed by decoder tags); only an entry row is a compile error, at bucketOf
+- [Phase QD-39]: 39-04: ADR-QD-152 states the payload-row finding as found (only an entry row is a compile error in react, at bucketOf); INV-QD-323 is the one new number, BEH-QD-531 to 535 and INV-QD-324 are Unused
+- [Phase QD-39]: Phase 39 close: no mutation drop; core's HydrationMetrics.ts scores 1 on nothing scored (18 static mutants ignored), carried by the written-out pins and experiments
+- [Phase QD-40]: ADR-QD-153 records the counted single decode (Schema.decodeTo, SinkCodec.ts 1 to 2, AuditEntry.ts row retired, total 11, Schema.encodeTo rejected) and the Breaking devtools surface (onMalformed receives DecodeRefusal, qadi.reason, MalformedReason and reasonOf deleted, no alias)
+- [Phase QD-40]: 40-02: the core Malformed table and the audit differential are the oracles 40-04 and 40-06 leave byte-identical; the devtools table is the only one 40-05 rewrites, by the upgrade map
+- [Phase QD-40]: 40-03: the version is described by typeof alone, string cut at 40 code units, message at 200; annotations carry exactly one key qadi.refusal; SinkWire.ts exempt from no-refusal-annotation-outside-core
+- [Phase QD-40]: 40-04: SinkRecordWithJson Schema.decodeTo pair compiles in situ with no cast; SinkCodec.ts budget 1 to 2 with _NAMES and AGENTS.md row; single decode costs 0.452x of the base's hz (54.6k vs 120.8k), recorded for ADR-QD-153's revision
+- [Phase QD-40]: 40-05: devtools' default warning keeps its fixed message and is annotated by decodeRefusalAnnotations plus qadi.frame, never the describer; the example's refusedBecause replaced by describeDecodeRefusal so a new refusal fails in packages/core/src only
+- [Phase QD-40]: 40-06: decodeAuditEntry keeps record-before-row order; only the second lenient decode and local refusal mapping removed; AuditEntry.ts leaves UNTRUSTED_DECODE_BUDGET in the same commit
+- [Phase QD-40]: 40-07: ADR-QD-153 Rev 1.1 states the single decode's measured cost (mean 0.0084 to 0.0184 ms, about 2.19x) and keeps the single path; the two-decoders fallback is not taken
+- [Phase QD-40]: 40-08: the README example is a compiled typescript fence; trailer stays Claude Sonnet 5.5 as in 40-05 to 40-07
+- [Phase QD-40]: 40-09: no measured file's mutation score fell (SinkCodec 0.9755, SinkWire 1, Source 1, AuditEntry 1); check:pr green, nothing released
+- [Phase QD-41]: ADR-QD-154: valueText(value: unknown): string | undefined is a public @qadi/core export (core cannot import a devtools-private module, ADR-QD-099); each consumer keeps its own reading of no text; core minor, devtools patch
+- [Phase QD-41]: 41-03: valueText keeps SimulationForm's guarded body unchanged (one try, one JSON.stringify, bare catch with only a comment), public in @qadi/core and named in spec/overview.md
+- [Phase QD-41]: 41-04: a literal or witness with no JSON form is written as the fixed words 'a value with no JSON form' when an object, the word undefined otherwise, a bigint as its digits and n, in both explain and the remedy label
+- [Phase QD-41]: BEH-QD-541 and BEH-QD-542 are new sections beside BEH-QD-223 and BEH-QD-141, which stay untouched; BEH-QD-543 to 545, INV-QD-327 and INV-QD-328 are named Unused in the CCR-QD-432 row
+- [Phase QD-42]: 42-01: option 1b chosen by the user on 2026-11-14 (a seeded question builds its own computing atom in packages/react/src/SeededQuestion.ts); ADR-QD-155 used; SeededQuestion.ts judged by the five moved base survivors, never re-baselined
+- [Phase QD-42]: 42-02: the seam tests name no makeSeededQuestion or fake computing atom, so 42-03 moves the code under them unchanged; the trap tests are proven red under get(grantAtom) and the source restored
+- [Phase QD-42]: 42-03: the AnnounceState WeakSet reshape is not taken; the { announced: false } survivor is equivalent and the move stays a move for 42-05's survivor comparison
+- [Phase QD-42]: 42-03: QadiRuntimeServices stays in QadiAtoms.ts; only DECISIONS_KEY moved down into SeededQuestion.ts (a back-import would be a madge cycle)
+- [Phase QD-42]: 42-04: ADR-QD-140's amendment names both QadiAtoms.ts imports its edge list lacked (SeededQuestion.ts and SweepScheduler.ts); the unused reserved numbers appear only in the CCR-QD-433 row
+- [Phase QD-42]: 42-05: no closing test needed; HydrationEngine.ts 1 and QadiAtoms.ts 0.9 above base, SeededQuestion.ts carries only its five moved survivors, all fifteen milestone files equal their latest recorded score
 
 ### Pending Todos
 
+- v1.4: research-phase before planning Phases 40 and 42 (37, 38, 39, 40, 41, 42 done) (`/gsd-plan-phase --research-phase <N>`); 38, 39 and 41 are standard. Phase 40 opens on the compatibility decision for `onMalformed`/`qadi.reason`; Phase 41 opens on RED first plus the non-JSON display decision; Phase 42 opens on a human checkpoint (evidence, then one `AskUserQuestion`).
 - v1.2: phases open on a `checkpoint:decision` (23-01, 25-01, 28-01; see ROADMAP); answer each once when its phase starts. 22-01's two were already answered in `_DECISIONS-v1.2.md` (done 2026-11-11).
 - v1.2: v1.1's phase dirs (10-20) are not yet archived to `.planning/milestones/v1.1-phases/`; do it with /gsd-complete-milestone when v1.1 is released or explicitly closed.
 
@@ -345,6 +427,12 @@ Last activity: 2026-11-13 -- Milestone v1.3 shipped as PR #157
 - [Phase 28] Review (28-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01..IN-06 open, info ("three" re-exported types is four; stale `{@link useGates}` in `GateWriter.ts`; INV-QD-064 Source credits `GateWriter.ts` with `GateRegistry.ts`'s key logic; ADR-QD-140's "only test edit is one import" overstated; ADR-QD-053's amendment blockquote lacks a pointer to ADR-QD-140; no StrictMode lifecycle test — reviewer's probe showed correct). D-01 = A taken from `_DECISIONS-v1.2.md`. 28-03's executor died on a network error once and was resumed.
 - [Phase 29] Review (29-REVIEW-DISPOSITION.md): WR-01 fixed (7bddf8fb: ADR-QD-123's live line still placed `PortName` in `PortMetrics.ts`); IN-01 (`DENY_WITHHELD` restates `ALLOW_WITHHELD`'s fields), IN-02 (CCR-QD-419 says six and seven re-pointed modules; cites README Rev 1.155, now 1.156) and IN-03 (ADR-QD-123 amendment "still imports" should read "now imports") open, info. `astro check` (gate 15) shows an interactive `@astrojs/check` install prompt in this environment and only proceeds with stdin closed, so the website typecheck is effectively skipped (pre-existing; the final `pnpm check:pr` ran with `< /dev/null`).
 - [Phase 30] Review (30-REVIEW-DISPOSITION.md): all 11 findings fixed over three auto-fix rounds (WR-01..03 and IN-01..04, then IN-01/IN-02, then WR-01/IN-01; b1299653..a460ebae). The loop hit its 3-round cap with the last fixer pass closing everything, so the final 30-REVIEW.md reads issues_found with nothing open; iteration backups kept. 30-09's flip-marker scan reports three false positives (56214374, b3435e58, d42e8de4: added rows, oracle swap, title renames), confirmed by the verifier.
+- [Phase 37] Review (37-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01..IN-04 all fixed (0231bbfc, cff0df37, dc266bbd, 6934fe16), re-review clean; `pnpm check:pr` green after the fixes. `phase.complete`'s five "file not on disk" warnings are false positives (command strings such as `node scripts/next-id.mjs` read as paths).
+- [Phase 38] Review (38-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01..IN-03 all fixed (df5811e1, 4fd82be6, 24dabf2a), re-review clean; the verifier re-ran `pnpm check:pr` (green) and Stryker after the fixes (SinkCodec.ts 0.9752 ≥ base 0.9634). `phase.complete`'s two "file not on disk" warnings are false positives (the `git checkout --` revert commands in the SUMMARYs).
+- [Phase 39] Review (39-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01, IN-02 fixed (cd7046ff, a6e30c38), IN-03 skipped as the recorded behaviour (`hydrationDropMeaning` returns the row, `kind` at run time); re-review clean; regression gate (full tests, tstyche 266, typecheck, lint) green after the fixes. Mutation: `HydrationMetrics.ts` now has 0 scored mutants (all static under `ignoreStatic`), so mutation no longer samples it; the written-out pins carry it. The 39-05 commits carry a Sonnet co-author trailer (recorded in 39-05-SUMMARY). `phase.complete`'s three "file not on disk" warnings are false positives (revert command strings in the SUMMARYs).
+- [Phase 40] Review (40-REVIEW-DISPOSITION.md): 0 critical; WR-01 (a throwing `onMalformed` ended the devtools stream, pre-existing) and IN-01..03 fixed, an iteration-2 info (`thrownName` hardened) fixed, iteration 3 clean; mutation re-run after the fixes holds (SinkCodec 0.97546, SinkWire 1 at 60/60, Source 1 at 80/80, AuditEntry 1); post-review `pnpm check:pr` green. User decision: D-03 amended (counted `Schema.decodeTo`, SinkCodec.ts 1 → 2). Commits from 40-05 onward carry a Sonnet co-author trailer (recorded in 40-05..40-09 SUMMARYs). `spec-revise.mjs` drops its first positional argument unless `--date` is passed (index filter against `dateFlag + 1` when `dateFlag` is -1).
+- [Phase 41] Review (41-REVIEW-DISPOSITION.md): 0 critical; WR-01 (label rule written twice) fixed by a second core export `valueLabel`, WR-03 (`In` fallback walk could throw) fixed, IN-02 fixed; WR-02 (an object whose `toJSON` gives nothing changed label, against D-07's wording) and IN-01/IN-03 skipped; iteration 2 clean; mutation re-run holds (Explanation 0.98701 vs base 0.98673, ValueText 1 at 13/13, Remedies/Filters 1, SimulationForm 0.98367); post-review `pnpm check:pr` green. User decision: one primitive, a public core export (D-13..D-16), after planning found core's `explain` threw too.
+- [Phase 42] Review (42-REVIEW-DISPOSITION.md): 0 critical; WR-01 (stale spec placing the seed logic in `HydrationEngine.ts`) fixed by dated amendments to ADR-QD-093, ADR-QD-041 and BEH-QD-151, WR-02 (late-seed test could pass vacuously) fixed, IN-01 (`isMismatch` unused export) and IN-02 fixed; iteration 2 left one whitespace info, fixed; mutation re-run holds (HydrationEngine 1, QadiAtoms 0.9, SeededQuestion 57/62 with the five base survivors); post-review `pnpm check:pr` green. User decision: option 1b.
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
@@ -359,11 +447,12 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-13T01:44:09.971Z
-Stopped at: Phase 36 complete — all phases complete
+Last session: 2026-11-14T18:57:50.249Z
+Stopped at: Phase QD-42 complete — all phases complete
 Resume file: None
 
 ## Operator Next Steps
+
 
 
 - Start the next milestone with /gsd-new-milestone

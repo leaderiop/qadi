@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-093                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted — amends ADR-QD-017, ADR-QD-053, ADR-QD-025 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-05): Initial release (CCR-QD-175) |
+> | Change History | 1.1 (2026-11-14): Amendment: the seed precedence and its DECISION_READ_BUDGET key live in SeededQuestion.ts (ADR-QD-155, CCR-QD-433)<br>1.0 (2026-10-05): Initial release (CCR-QD-175) |
 
 ---
 
@@ -141,3 +141,14 @@ the newsroom's `Invalidation.tsx` and `Divergent.tsx`, which read raw as their e
 ADR-QD-017's accepted one-frame subject-change window, which no read function can see.
 
 _Related: [INV-QD-094](../invariants.md#inv-qd-094-a-decision-being-re-checked-or-that-failed-never-reads-as-a-verdict) · [BEH-QD-066](../behaviors/09-react.md#beh-qd-066-decision-state) · [BEH-QD-307](../behaviors/09-react.md#beh-qd-307-a-decision-result-reads-as-one-of-five-outcomes) · [ADR-QD-017](./017-stale-decisions-are-not-decisions.md) · [ADR-QD-053](./053-a-gate-can-be-found.md) · [ADR-QD-078](./078-a-seed-is-its-own-type-and-the-payload-is-versioned.md) · [ADR-QD-080](./080-a-gate-registry-belongs-to-its-atom-set.md)_
+
+## Amendment (2026-11-14, ADR-QD-155, CCR-QD-433)
+
+The seed precedence, and the `DECISION_READ_BUDGET` key that counts it, now live in
+`packages/react/src/SeededQuestion.ts` (`makeSeededQuestion`;
+[ADR-QD-155](./155-a-seeded-question-owns-its-computing-atom.md)), not in
+`HydrationEngine.ts`. The budget is `DecisionOutcome.ts` 2 and `SeededQuestion.ts` 2: one
+`isInitial` deciding whether the computed result replaces the seed, and one `isSuccess` deciding
+whether it disagrees with it. Where this record says `HydrationEngine.ts` 3, or seed precedence in
+`HydrationEngine.ts`, read `SeededQuestion.ts` 2. The decision is unchanged: that precedence
+chooses what the atom holds, upstream of the read.

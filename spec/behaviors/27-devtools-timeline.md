@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-27                                    |
-> | Revision       | 1.11                                           |
+> | Revision       | 1.13                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.11 (2026-11-10): BEH-QD-203 — the prelude rules are @qadi/core's decodeDecisionStream and sourceFromEventSource is the EventSource adapter over it; no requirement changes (ARCH-60, CCR-QD-397)<br>1.10 (2026-10-08): BEH-QD-204 — `onMalformed` also distinguishes `"inconsistent"`, a record that contradicts its own trace or envelope (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.9 (2026-10-08): BEH-QD-209 — an orphan shows its subject, action and resource id when the record carries them, and its filter text includes them; the handler wording follows `ObligationDischarge` (ADR-QD-105, CCR-QD-220)<br>1.8 (2026-10-07): BEH-QD-208 — the alignment is core's (`foldAligned`, INV-QD-103) and the devtools `TreeFold.ts` twin is deleted; `describeTracePath` words a path for a screen; the stale `dehydrateDecisions` clause is corrected (ADR-QD-101, CCR-QD-191)<br>1.7 (2026-10-06): BEH-QD-208 — a node whose `fieldStrategy` or `combining` is outside its closed union shows the value verbatim and says it is evaluated fail-closed (ADR-QD-092 amendment, CCR-QD-183)<br>1.6 (2026-10-06): BEH-QD-203 — an absent backlog is a prelude that did not arrive in time, not an older server, and the reader stamps nothing (`legacyEnvironment` removed); BEH-QD-204 — version 2 is the one version a frame decodes from, a pre-0.10 record is `"unsupported-version"` and a bare frame `"not-a-record"` (ADR-QD-096/097 amendments, CCR-QD-182)<br>1.5 (2026-10-05): ARCH-11 — BEH-QD-203's `Source` is one scoped `read` returning `SourceRead`, and its third requirement is replaced (the environment is stamped once, by the producing log, and carried on the wire); BEH-QD-235's backlog requirements name `SourceRead.backlog` and `storedRecordOrder`; BEH-QD-204 reads the envelope; BEH-QD-205's capacity is `DEFAULT_LOG_CAPACITY` (ADR-QD-097, CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"unsupported-version"`, and a frame of either wire version decodes (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"too-deep"`, read from `decodeSinkRecordString`'s `DecodeRefusal` (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.13 (2026-11-14): BEH-QD-204: a throwing onMalformed leaves the stream running and is logged by the thrown value's name or type only (ADR-QD-153, CCR-QD-431)<br>1.12 (2026-11-14): BEH-QD-204 amended: onMalformed receives DecodeRefusal, the default warning annotated by decodeRefusalAnnotations (ADR-QD-153, CCR-QD-431)<br>1.11 (2026-11-10): BEH-QD-203 — the prelude rules are @qadi/core's decodeDecisionStream and sourceFromEventSource is the EventSource adapter over it; no requirement changes (ARCH-60, CCR-QD-397)<br>1.10 (2026-10-08): BEH-QD-204 — `onMalformed` also distinguishes `"inconsistent"`, a record that contradicts its own trace or envelope (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.9 (2026-10-08): BEH-QD-209 — an orphan shows its subject, action and resource id when the record carries them, and its filter text includes them; the handler wording follows `ObligationDischarge` (ADR-QD-105, CCR-QD-220)<br>1.8 (2026-10-07): BEH-QD-208 — the alignment is core's (`foldAligned`, INV-QD-103) and the devtools `TreeFold.ts` twin is deleted; `describeTracePath` words a path for a screen; the stale `dehydrateDecisions` clause is corrected (ADR-QD-101, CCR-QD-191)<br>1.7 (2026-10-06): BEH-QD-208 — a node whose `fieldStrategy` or `combining` is outside its closed union shows the value verbatim and says it is evaluated fail-closed (ADR-QD-092 amendment, CCR-QD-183)<br>1.6 (2026-10-06): BEH-QD-203 — an absent backlog is a prelude that did not arrive in time, not an older server, and the reader stamps nothing (`legacyEnvironment` removed); BEH-QD-204 — version 2 is the one version a frame decodes from, a pre-0.10 record is `"unsupported-version"` and a bare frame `"not-a-record"` (ADR-QD-096/097 amendments, CCR-QD-182)<br>1.5 (2026-10-05): ARCH-11 — BEH-QD-203's `Source` is one scoped `read` returning `SourceRead`, and its third requirement is replaced (the environment is stamped once, by the producing log, and carried on the wire); BEH-QD-235's backlog requirements name `SourceRead.backlog` and `storedRecordOrder`; BEH-QD-204 reads the envelope; BEH-QD-205's capacity is `DEFAULT_LOG_CAPACITY` (ADR-QD-097, CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"unsupported-version"`, and a frame of either wire version decodes (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"too-deep"`, read from `decodeSinkRecordString`'s `DecodeRefusal` (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 _Previous: [26 — The Decision Stream](./26-decision-stream.md)_
 
@@ -175,11 +175,18 @@ A devtools panel is what you are looking at when something is already wrong. A
 panel that dies on a bad frame fails exactly when it is needed.
 
 ```
-REQUIREMENT: `onMalformed` MUST distinguish `"not-json"`, `"too-deep"`,
-             `"not-a-record"`, `"unsupported-version"` and `"inconsistent"`.
+REQUIREMENT: `onMalformed` MUST receive `@qadi/core`'s `DecodeRefusal` as decoded:
+             `NotJson`, `TooDeep`, `Malformed`, `UnsupportedVersion` or
+             `Inconsistent`, each a different problem with a different fix.
 REQUIREMENT: A frame whose record is wire version 2 MUST decode; a record of
              any other version, or none, MUST be reported as
-             `"unsupported-version"`, and a bare record as `"not-a-record"`.
+             `UnsupportedVersion`, and a bare record as `Malformed`.
+REQUIREMENT: With no `onMalformed`, the drop MUST be logged with a fixed message
+             annotated by `decodeRefusalAnnotations` and the frame, never with
+             the refusal's sentence.
+REQUIREMENT: An `onMalformed` that throws MUST leave the stream running; the
+             throw MUST be logged with a fixed message annotated by the thrown
+             value's name or type only, never its message.
 ```
 
 > **Amended in CCR-QD-182 (0.11.0).** The second requirement read: "A frame of
@@ -188,28 +195,43 @@ REQUIREMENT: A frame whose record is wire version 2 MUST decode; a record of
 > ([ADR-QD-096](../decisions/096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)'s
 > 2026-10-06 amendment).
 
+> **Amended in CCR-QD-431 (0.13.0).** The two requirements above this one read:
+> "`onMalformed` MUST distinguish `"not-json"`, `"too-deep"`, `"not-a-record"`,
+> `"unsupported-version"` and `"inconsistent"`." and "A frame whose record is wire
+> version 2 MUST decode; a record of any other version, or none, MUST be reported
+> as `"unsupported-version"`, and a bare record as `"not-a-record"`." Devtools
+> restated core's vocabulary in five words of its own, `"not-a-record"` named two
+> different refusals, and a sixth refusal would have needed a sixth word and a
+> change in every place that read them. `onMalformed` now receives core's value
+> itself, and `"not-a-record"` collapses into `Malformed`
+> ([ADR-QD-153](../decisions/153-core-owns-describing-a-decode-refusal.md)).
+
 They are different problems with different fixes — a truncating proxy, a sender
 older than (or foreign to) this wire's depth bound, and a `@qadi/core` on the
 far side that disagrees about the wire form — and a reader who cannot tell them
-apart debugs the wrong one. `"too-deep"` became its own reason when the sender
+apart debugs the wrong one. `TooDeep` became its own refusal when the sender
 started refusing to emit such a record (ARCH-09): a current `@qadi/core` never
-sends one, so the fix is upgrading the sender, not the reader. The reason comes
-from `@qadi/core`'s `decodeStoredRecordString` — the envelope read, then
-`decodeSinkRecord` on its `record` — mapped from its closed `DecodeRefusal`. A
-bare record — a server older than 0.10 — is `"not-a-record"`, and so is every
-frame a panel older than the envelope reads from a newer server: loud, not
-silently mislabelled. `"unsupported-version"` is a record of a wire version
-this panel's `@qadi/core` does not read
+sends one, so the fix is upgrading the sender, not the reader. The refusal
+comes from `@qadi/core`'s `decodeStoredRecordString` — the envelope read, then
+`decodeSinkRecord` on its `record` — and is passed on as its closed
+`DecodeRefusal`, unrenamed. A bare record — a server older than 0.10 — is
+`Malformed`, and so is every frame a panel older than the envelope reads from a
+newer server: loud, not silently mislabelled. `UnsupportedVersion` is a record
+of a wire version this panel's `@qadi/core` does not read
 ([ADR-QD-096](../decisions/096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)):
 a newer `version`, fixed by upgrading the panel, or none — a pre-0.10 record,
-fixed by upgrading its sender — either of which `"not-a-record"` would have
-hidden. A version-2 frame naming no outcome is `"not-a-record"`; it is never
-rebuilt into a row. `"inconsistent"` is a well-formed record that contradicts
-itself: a decision whose verdict, fields, duties or reason are not its own
-trace's, or whose ids or policy tag are not its record's. It is neither skew nor
-a malformed frame, and it is the case in which the log and the inspector would
-otherwise have read different copies of one evaluation
+fixed by upgrading its sender — either of which `Malformed` would have hidden.
+A version-2 frame naming no outcome is `Malformed`; it is never rebuilt into a
+row. `Inconsistent` is a well-formed record that contradicts itself: a decision
+whose verdict, fields, duties or reason are not its own trace's, or whose ids or
+policy tag are not its record's. It is neither skew nor a malformed frame, and
+it is the case in which the log and the inspector would otherwise have read
+different copies of one evaluation
 ([ADR-QD-106](../decisions/106-a-decision-is-constructed-from-its-trace.md)).
+A reader who wants a sentence shows `describeDecodeRefusal`'s; the default
+warning carries the tag as `qadi.refusal` instead, because the sentence can hold
+text the sender chose
+([INV-QD-104](../invariants.md#inv-qd-104-a-refusal-report-says-where-never-what)).
 Reported rather than silent,
 on the precedent of `onDropped`, `onUnknownParent` and `onFailure`: a reader
 dropping every frame while looking healthy is the defect, not the drop.

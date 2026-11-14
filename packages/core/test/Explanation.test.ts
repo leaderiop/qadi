@@ -909,3 +909,86 @@ describe("foldExplanationCases (ARCH-17)", () => {
     );
   });
 });
+
+describe("what an explanation shows for a literal, written out", () => {
+  const fn = (): number => 1;
+  const said = (policy: P.Policy): string => renderExplanation(explain(policy));
+  const bare: unknown = Object.setPrototypeOf({ a: 1 }, null);
+
+  it("a function literal is the word undefined", () => {
+    assert.strictEqual(
+      said(P.hasAttribute("x", M.eq(M.literal(fn)))),
+      "requires attribute `the subject's x equals undefined`",
+    );
+  });
+
+  it("an undefined literal is the word undefined", () => {
+    assert.strictEqual(
+      said(P.hasAttribute("x", M.eq(M.literal(undefined)))),
+      "requires attribute `the subject's x equals undefined`",
+    );
+  });
+
+  it("a symbol literal is the word undefined", () => {
+    assert.strictEqual(
+      said(P.hasAttribute("x", M.eq(M.literal(Symbol("token"))))),
+      "requires attribute `the subject's x equals undefined`",
+    );
+  });
+
+  it("a contains over a function is the word undefined", () => {
+    assert.strictEqual(
+      said(P.hasAttribute("x", M.contains(fn))),
+      "requires attribute `the subject's x contains undefined`",
+    );
+  });
+
+  it("a list holding a function and undefined is its JSON, with null in their place", () => {
+    assert.strictEqual(
+      said(P.hasAttribute("x", M.inArray([fn, undefined]))),
+      "requires attribute `the subject's x is one of [null,null]`",
+    );
+  });
+
+  it("an empty list is []", () => {
+    assert.strictEqual(
+      said(P.hasAttribute("x", M.inArray([]))),
+      "requires attribute `the subject's x is one of []`",
+    );
+  });
+
+  it("an empty string literal is two quotes", () => {
+    assert.strictEqual(
+      said(P.hasAttribute("x", M.eq(M.literal("")))),
+      "requires attribute `the subject's x equals \"\"`",
+    );
+  });
+
+  it("a negative zero literal is 0", () => {
+    assert.strictEqual(
+      said(P.hasAttribute("x", M.eq(M.literal(-0)))),
+      "requires attribute `the subject's x equals 0`",
+    );
+  });
+
+  it("a NaN literal is null", () => {
+    assert.strictEqual(
+      said(P.hasAttribute("x", M.eq(M.literal(Number.NaN)))),
+      "requires attribute `the subject's x equals null`",
+    );
+  });
+
+  it("an object with no prototype is its JSON", () => {
+    assert.strictEqual(
+      said(P.hasAttribute("x", M.eq(M.literal(bare)))),
+      "requires attribute `the subject's x equals {\"a\":1}`",
+    );
+  });
+
+  it("an object whose toJSON gives nothing", () => {
+    assert.strictEqual(
+      said(P.hasAttribute("x", M.eq(M.literal({ toJSON: () => undefined })))),
+      "requires attribute `the subject's x equals a value with no JSON form`",
+    );
+  });
+});

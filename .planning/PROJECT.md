@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (last completed: v1.3 Arch Wave 8, ARCH-78 to ARCH-83)
+# Qadi — Architecture Waves (latest: v1.4 Arch Wave 9 completed; next milestone not yet defined)
 
 ## What This Is
 
@@ -15,11 +15,18 @@ The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local
 
 ## Current State
 
+v1.4 Arch Wave 9 completed 2026-11-14 on branch `arch-wave-9` (228 commits, 95 files, +6,124 / −1,115
+outside `.planning`): ARCH-84 to ARCH-89, ADR-QD-150..155, CCR-QD-428..433. All 6 phases `passed`; 38, 39 and 40 were
+re-verified at the final head after later phases edited files they cover. The milestone audit is `passed`: 41/41
+requirements, 7/7 integration seams, 5/5 flows, minor tech debt recorded. `pnpm check:pr` exited 0 at the final head and
+`pnpm example` passed 30/30. One Breaking change (`@qadi/devtools`, Phase 40). **Not merged and not released.** Archive:
+`.planning/milestones/v1.4-ROADMAP.md`, `v1.4-REQUIREMENTS.md`, `v1.4-MILESTONE-AUDIT.md`.
+
 v1.3 Arch Wave 8 completed 2026-11-13 on branch `arch-wave-8` (333 commits, 220 files, +12,836 / −1,914
 outside `.planning`): ARCH-78 to ARCH-83 plus the carried spec debt, ADR-QD-143..149 (144, 145 and 147 unused),
 CCR-QD-421..427. All 7 phases `passed`, every one re-verified at the final head. The milestone audit is `tech_debt`,
 accepted by the user: 45/45 requirements, 7/7 integration seams, 4/4 flows, six manual browser checks never run.
-`pnpm check:pr` exited 0 at the end of every phase. **Not merged and not released.** Archive:
+`pnpm check:pr` exited 0 at the end of every phase. Merged to `main` as #157 (release PR #158). Archive:
 `.planning/milestones/v1.3-ROADMAP.md`, `v1.3-REQUIREMENTS.md`, `v1.3-MILESTONE-AUDIT.md`.
 
 v1.2 Arch Wave 7 completed 2026-11-12 on branch `arch-wave-7` (272 commits, 170 files, +9,900 / −3,457
@@ -37,9 +44,23 @@ outside `.planning`): ARCH-46 to ARCH-54, ADR-QD-108..116 (112, 113 and 115 left
 All 9 phases verified `passed` against the final tree; the full `pnpm check` is green on Node 22.12.0
 (CI run 42676403473 at 127d6fa). Archive: `.planning/milestones/v1.0-ROADMAP.md`.
 
-## Next Milestone
+## Previous Milestone: v1.4 Arch Wave 9 (completed 2026-11-14; not released)
 
-Not defined yet. Start it with `/gsd-new-milestone`, which writes a fresh `.planning/REQUIREMENTS.md`.
+**Goal:** Resolve all six candidates of the 2026-11-14 architecture review (Phases 37–42, ARCH-84…89).
+
+**Base commit:** `637c0601` (`main`, v1.3 merged as #157, release PR #158). Branch `arch-wave-9`. **Shared rules:**
+`.planning/phases/_SHARED-CONTEXT.md`, overridden where stated by `.planning/phases/_WAVE9-CONTEXT.md` (base, numbering,
+per-phase evidence from the review).
+
+**Target features:**
+- One devtools module for a scoped run that a newer run supersedes (generation, close, finalizer order, stop, "land only if current"), replacing three hand copies that already drifted (review #1, Strong; top recommendation)
+- The sink record wire version stated once; schema literals, encoder and decoder check derived from it (review #2)
+- Each hydration drop reason stated once in core with its kind; the unions, the value list and react's payload/entry split derived (review #3)
+- Core owns describing a decode refusal (mirror of ADR-QD-116); devtools passes `DecodeRefusal` through (**Breaking** `MalformedReason`), audit decodes a row once (review #4)
+- One guarded value-to-text function in devtools; no panel throws on a bigint or circular value (review #5, latent defect)
+- A seeded question builds its own computing atom (callback inversion removed), reopening ADR-QD-148/149 behind a human checkpoint (review #6, Speculative)
+
+**Review report (local, outside the repo):** `/private/tmp/claude-502/-Users-mohammadalmechkor-Projects-Perso-qadi/16926f1e-64de-452f-bf60-d41917101ad8/scratchpad/architecture-review-20261114.html`.
 
 ## Previous Milestone: v1.3 Arch Wave 8 (completed 2026-11-13; not released)
 
@@ -130,9 +151,21 @@ logged, counted or spanned.
 
 - ✓ Carried spec debt and stale records (DEBT-01..05): one BEH-QD-219..221 block in behaviour 29 (fail-closed replay kept); the stale `Sources.ts` token deleted (D-17 override of DEBT-02's wording); no live record claims replay fail-open is undecided; every open v1.2 info finding re-verified and fixed, resolved or refuted with evidence (`describeSource` beside `prepareSource`, one recorder per run); stale citations corrected. Two live defects found and fixed: a server seed lost one macrotask after hydration (now held by its question, a registry holding only a `SeedGrant`; the `subject` atom keepAlive first) and a timeline feed whose death read as live (closed `TimelineStatus`, Stopped notice with restart, shared `StoppedBox`). `qadi_port_calls_total`'s description corrected to say it counts the evaluator only. **Breaking** in `@qadi/devtools`: `Baseline.Checked` gains `reading`, `baselineReading` removed. ADR-QD-149 amends ADR-QD-039/103, BEH-QD-516..520, INV-QD-317..318; CCR-QD-427 — v1.3 Phase 36
 
+- ✓ ARCH-84 A scoped run that a newer run supersedes (RUN-01..08): one package-private module, `SupersedingRun.ts` (`makeSupersedingRun`), owns the protocol the timeline feed, the diagnostics feed and the simulation session each restated by hand. The interface has two steps: `begin()` supersedes and returns an opaque token, the store publishes, then `fork(token, run, { onFailure? })` runs only while the token is current. `isCurrent` guards each landed write, `stop` is unconditional, and the finalizer is registered after the handle so it runs first on close. A restart from inside a store's own notification now leaves the newest run live: `fork` re-checks the token, and a fork requested during another fork's start is held in one slot and installed when that start returns (the in-prefix case is repaired rather than reported). This fixed three latent defects found RED first (TF21–TF23, F28/F29, SR5). Module rows R1–R17 and a seeded property (seed 3701, nine floors at least 30) cover it; mutation TimelineFeed 1, DiagnosticsFeed 0.928 to 0.947, SimulationSession 0.977 to 0.982, SupersedingRun 0.943 with three equivalent survivors named. ADR-QD-150 amends ADR-QD-137 (Rev 1.3), BEH-QD-521..525, INV-QD-319..320, AGENTS.md §10 no longer names `it.scoped`; `@qadi/devtools` patch changeset; CCR-QD-428 — v1.4 Phase 37
+
+- ✓ ARCH-85 The sink wire version stated once (WIRE-01..05): `export const WIRE_VERSION = 2 as const` in `SinkWire.ts` is the one place the record wire's version number appears in `packages/core/src/Sink*.ts` code (seven sites at the base). `WIRE_VERSIONS = [WIRE_VERSION] as const` (the read set, now `readonly [2]`) and `WireVersion` derive from it; both schema literals and the encoder read it; the decoder tests membership in the read set (`isReadVersion = Schema.is(Schema.Literals(WIRE_VERSIONS))`), never `=== WIRE_VERSION`. A tstyche pin (`SinkWire.tst.ts`) and the byte goldens go red on a retype; on the base the same retype compiled with half the codec at 2 and the decoder refused its own output. Bytes unchanged. ADR-QD-151 amends ADR-QD-096; INV-QD-096 amended in place; CCR-QD-429; `@qadi/core` minor.
+
+- ✓ ARCH-86 Each hydration drop reason stated once, with its kind (DROP-01..04): one module-private `HYDRATION_DROP_TABLE` in `HydrationMetrics.ts` (`as const satisfies` `HydrationDropRow`) holds each of the nine reasons, in the metric's preregistered order, with its kind (`dehydration`, `payload` or `entry`), summary and remedy; `MEANINGS` is gone. The three reason unions, `hydrationDropReasons` (`Object.keys` filtered by the guard, no cast), `isHydrationDropReason` (`Object.hasOwn`) and `hydrationDropMeaning` derive from it, and react's `PayloadRefusalReason`/`EntryDropReason` are `HydrationDropReasonOf<"payload">`/`<"entry">`. A row without a kind is TS2741; on the base a new reason needed 5 edits in 3 files and the compiler asked for one, now it is one row. A new `entry` row is a compile error at react's `bucketOf`; a `payload` row compiles (the payload map is keyed by refusal tags), recorded in ADR-QD-152. Metric declarations unchanged. New public types `HydrationDropReasonOf`, `HydrationDropRow`; INV-QD-323; CCR-QD-430; `@qadi/core` minor, `@qadi/react` patch.
+
+- ✓ ARCH-87 Core owns describing a decode refusal (DREF-01..07), the mirror of ADR-QD-116's encode side: `SinkWire.ts` exports `decodeRefusalOf` (the one `UntrustedValueRefusal` → `DecodeRefusal` mapping; `SinkCodec.ts`'s and `AuditEntry.ts`'s copies deleted), a total `describeDecodeRefusal` (module-scope `Match.tagsExhaustive`, `typeof`-only bounded version, 40/200 caps) and the tag-only `decodeRefusalAnnotations` (`qadi.refusal` only, INV-QD-104; an `EXEMPTIONS` entry for `no-refusal-annotation-outside-core`). **Breaking (`@qadi/devtools`):** `onMalformed(frame, refusal: DecodeRefusal)`; `MalformedReason`, `reasonOf` and `qadi.reason` deleted, five-word upgrade map (`not-a-record` collapses into `Malformed`); a throwing `onMalformed` no longer ends the stream (code review). Audit decodes a row's record once through the new `decodeSinkRecordWithJson` (a counted `Schema.decodeTo` in `SinkCodec.ts`, 1 → 2 in `UNTRUSTED_DECODE_BUDGET`; `AuditEntry.ts`'s row and `recordJsonOf` retired, total unchanged), output identical on every differential row. A new refusal is now a compile error in core only. Cost: `decodeSinkRecord` 8.4 → 18.4 µs (~2.19×), accepted in ADR-QD-153. ADR-QD-153; CCR-QD-431; INV-QD-325; BEH-QD-536/537; `@qadi/core` minor, `@qadi/devtools` Breaking (minor), `@qadi/audit` patch.
+
+- ✓ ARCH-88 One guarded value-to-text function (TEXT-01..04): `@qadi/core`'s new `ValueText.ts` exports `valueText` (`(value: unknown) => string | undefined`, never throws) and `valueLabel` (the one label rule: a bigint as `10n`, an object with no JSON form as `a value with no JSON form`, otherwise the word `undefined`). Core's `explain` (`LiteralRef`, `In`, `Contains`; an unwalkable `In` list reads through `valueLabel`) and devtools' remedy label, Filters' search text and SimulationForm all read through it, so a bigint, a cycle or a throwing `toJSON`/getter no longer throws out of `explain`, `policyLabel`, `inspect`, `remedyEdits` or `SimulationSession.commit()`. Existing labels unchanged except one recorded case (an object whose `toJSON` gives nothing: `undefined` → the fixed words). User decision: one primitive in core (D-13..D-16), not one in devtools. ADR-QD-154; CCR-QD-432; BEH-QD-541/542; `@qadi/core` minor, `@qadi/devtools` patch.
+
+- ✓ ARCH-89 A seeded question builds its own computing atom (SEED-01..06): `@qadi/react`'s package-private `SeededQuestion.ts` exports `makeSeededQuestion({ policy, resource, runtime, subject, report, live })`, which builds the question's computing atom itself and reads its seed through `seededIn(get.registry)`; the `computedFor` callback-that-takes-a-callback and `QadiAtoms.ts`'s hand-wired `seededDecision` are gone, `HydrationEngine.ts` is the payload codec only, `DECISIONS_KEY` and the `DECISION_READ_BUDGET` key moved with the code (`QadiRuntimeServices` did not), and the fake computing-atom tests were replaced by real-runtime ones, including two trap tests proven red under a `get(grantAtom)` read. User decision: option 1b (own module) over 1a (in place), 2 (seed holder) and 3 (reject). Milestone re-check: all 15 touched files at their latest recorded score. ADR-QD-155 (amends ADR-QD-149, ADR-QD-140; review added dated amendments to ADR-QD-093, ADR-QD-041 and BEH-QD-151); CCR-QD-433; `@qadi/react` patch.
+
 ### Active
 
-None. The next milestone defines its own requirements (`/gsd-new-milestone`).
+(None — ARCH-84..89 shipped in v1.4 and are listed under Validated. The next milestone defines new ones.)
 
 ### Out of Scope
 
@@ -189,6 +222,17 @@ None. The next milestone defines its own requirements (`/gsd-new-milestone`).
   - ADR Document IDs must equal the file number (`verify-traceability.sh`, gate 10).
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
+
+### Known Issues (carried forward from v1.4)
+
+- The v1.4 audit (`.planning/milestones/v1.4-MILESTONE-AUDIT.md`) passed with minor tech debt:
+  - Phase 40's VALIDATION.md is `nyquist_compliant: false`: two 40-09 checks failed only on recorded plan-verify defects;
+  - core `HydrationMetrics.ts` (which now holds `HYDRATION_DROP_TABLE`) is in no Stryker mutate list;
+  - `SeededQuestion.ts` carries five equivalent surviving mutants moved from the base, and `QadiAtoms.ts` four (0.9);
+  - Phase 41 changed one label against D-07's wording (an object whose `toJSON` gives nothing now reads as the fixed
+    words, not `undefined`), recorded in ADR-QD-154 and BEH-QD-541;
+  - attribution: executor and fixer commits carry `Co-Authored-By: Claude Sonnet 5.5`, and one 41-02 docs commit has no
+    trailer, left as is because commit hashes are cited across the records.
 
 ### Known Issues (carried forward from v1.3)
 
@@ -281,6 +325,13 @@ None. The next milestone defines its own requirements (`/gsd-new-milestone`).
 | A seed is held by its question; a registry holds only a keepAlive `SeedGrant`, and the `subject` keepAlive lands first (D-19) | The seed node was dropped one macrotask after hydration; holding it in the shared book entry would leak across server requests | Accepted (Phase 36, ADR-QD-149); one tiny node per hydrated entry, bounded by the payload |
 | The seed covers the client's whole first check, in flight or not (D-20, the user's choice) | ADR-QD-039: `Initial` is the only state where this client has never answered; Pending would make the first render disagree with the server HTML | Accepted (Phase 36); the example's e2e pin is `Success,Success` |
 | A false metric description is corrected even though the registry key changes (review WR-01, overriding the 36-10 ledger) | Compatibility is never the tiebreaker; the description claimed `toPredicate` reads were counted | Accepted (Phase 36, b3787bd9); `@qadi/core` patch changeset |
+| A fork requested while another fork's start is running is held and installed when that start returns (D-07, the user's choice over research's "report") | A body whose synchronous prefix starts a newer run left the newest run interrupted and the store idle; holding one pending slot makes the newest run live with no doc rule for callers | Accepted (Phase 37, ADR-QD-150); one slot suffices because each `begin` supersedes the last |
+| `stop` is one unconditional rule: supersede, then fork `Effect.void` (D-05) | The session's guarded stop and the feeds' unguarded one had drifted; a no-run stop changes nothing visible, and allocating a fiber is not forbidden | Accepted (Phase 37, ADR-QD-150 amends ADR-QD-137 point 3) |
+| The read set and the write version stay separate ideas: `WIRE_VERSIONS` derives from `WIRE_VERSION`, and the decoder checks membership in the set (D-02, D-03) | A reader that keeps an older version lists it beside a schema for it, without touching what the encoder writes; `=== WIRE_VERSION` would fuse them | Accepted (Phase 38, ADR-QD-151 amends ADR-QD-096) |
+| Core owns each drop reason's kind; react's payload and entry groups are read off core's table, and react's dispatchers stay untouched (D-06, D-09, D-10) | One table means a reason cannot be added without its kind and meaning; reshaping `HydrationEngine.ts` to make a new payload reason a compile error was left out because Phase 42 shares that file | Accepted (Phase 39, ADR-QD-152 touches ADR-QD-123 and ADR-QD-037) |
+| A decode refusal is described once, in core; devtools passes core's refusal through and audit takes its JSON form from the one strict decode, counted in the budget (D-03 amended, D-05..D-11) | Three restatements of the mapping and two exhaustive reads outside core were the defect; the counted `decodeTo` keeps the untrusted-decode gate honest rather than dodging its regex with `encodeTo` | Accepted (Phase 40, ADR-QD-153; Breaking for `@qadi/devtools`; ~2.19× decode cost accepted) |
+| One guarded value-to-text function and one label rule live in core, read by `explain` and the devtools panels (D-13..D-16) | Core's `explain` threw on the same bigint and cycle probes as the devtools remedy label, and core cannot import a devtools-private module (ADR-QD-099); a second guard or a second wording of the rule would drift | Accepted (Phase 41, ADR-QD-154; one label change for an object whose `toJSON` gives nothing, against D-07's wording) |
+| A seeded question builds its own computing atom, in its own package-private module `SeededQuestion.ts` (option 1b) | The seed-to-evaluation link was split across `HydrationEngine.ts` and `QadiAtoms.ts` through a callback that received a callback, and was tested only with fakes; one module owning it, tested on a real atom runtime, removes the split without a second `Atom.readable` or a new dependency | Accepted (Phase 42, ADR-QD-155; user choice of 1b over 1a, 2 and 3) |
 
 ## Evolution
 
@@ -300,4 +351,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-13 after v1.3 milestone*
+*Last updated: 2026-11-14 after v1.4 milestone*

@@ -28,6 +28,7 @@ import {
   makeSubjectId,
   permissionKey,
   resourceIdOf,
+  valueLabel,
 } from "@qadi/core";
 import type {
   HistoryScope,
@@ -566,10 +567,8 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
 /**
  * Short enough for a row label.
  *
- * A string is shown bare — `= low`, not `= "low"` — and everything else as
- * JSON. `JSON.stringify` answers `undefined` for the values it cannot
- * represent, and `String` renders that as the word, which is the right label
- * for a policy only an absent attribute satisfies.
+ * A string is shown bare — `= low`, not `= "low"` — and everything else through
+ * `@qadi/core`'s `valueLabel` (`= 10n`; the fixed words for a value with no JSON
+ * form; `undefined`, the right label for a policy only an absent attribute satisfies).
  */
-const render = (v: unknown): string =>
-  typeof v === "string" ? v : String(JSON.stringify(v));
+const render = (v: unknown): string => (typeof v === "string" ? v : valueLabel(v));

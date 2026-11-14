@@ -268,7 +268,8 @@ const RULES = [
     id: "no-refusal-annotation-outside-core",
     // A refused record's path and annotations are read once, in
     // `packages/core/src/JsonRefusal.ts` (`encodeRefusalPath`,
-    // `encodeRefusalAnnotations`), and reported once
+    // `encodeRefusalAnnotations`) and, for the decode side, in
+    // `packages/core/src/SinkWire.ts` (`decodeRefusalAnnotations`), and reported once
     // (`reportEncodeRefusal`). Three adapters each rebuilt the same three
     // keys and a `"path" in` check before ARCH-25, and the second copy arrived
     // through review ("mirrors the stream route"). A plain rule, not a budget:
@@ -276,7 +277,7 @@ const RULES = [
     // scanned by non-`testScope` rules, so tests may assert the keys.
     re: /"qadi\.(?:refusal|path)"|"path"\s+in\s/,
     message:
-      'A refusal is read through @qadi/core (encodeRefusalAnnotations / encodeRefusalPath / reportEncodeRefusal), not by restating "qadi.refusal", "qadi.path" or a `"path" in` check.',
+      'A refusal is read through @qadi/core (encodeRefusalAnnotations / decodeRefusalAnnotations / encodeRefusalPath / reportEncodeRefusal), not by restating "qadi.refusal", "qadi.path" or a `"path" in` check.',
     raw: true,
   },
   {
@@ -338,6 +339,9 @@ const RULES = [
 const EXEMPTIONS = {
   "packages/core/src/Decision.ts": ["no-decision-constructor-outside-decision"],
   "packages/core/src/JsonRefusal.ts": ["no-refusal-annotation-outside-core"],
+  // The decode side's annotation key, stated once beside `DecodeRefusal` by
+  // `decodeRefusalAnnotations` (ADR-QD-153).
+  "packages/core/src/SinkWire.ts": ["no-refusal-annotation-outside-core"],
   "packages/core/src/EvaluationId.ts": ["no-ambient-uuid"],
   // The one module that writes to the console or reads `process.env`: every
   // developer signal `@qadi/react` raises, including `QadiProvider`'s three,
@@ -598,7 +602,7 @@ const DECISION_READ_BUDGET = {
   // event's `mismatch`, ARCH-60; it was two before the event carried it).
   // Upstream of what a consumer reads — it chooses which result the atom holds
   // (ADR-QD-039) — so not a second reading of one.
-  "packages/react/src/HydrationEngine.ts": 2,
+  "packages/react/src/SeededQuestion.ts": 2,
 };
 
 /**
@@ -610,7 +614,7 @@ const DECISION_READ_BUDGET = {
  */
 const DECISION_READ_BUDGET_NAMES = {
   "packages/react/src/DecisionOutcome.ts": ["outcomeOf"],
-  "packages/react/src/HydrationEngine.ts": ["makeSeededQuestion"],
+  "packages/react/src/SeededQuestion.ts": ["makeSeededQuestion"],
 };
 
 /**
@@ -633,12 +637,10 @@ const UNTRUSTED_DECODE_BUDGET = {
   "packages/core/src/UntrustedDecode.ts": 5,
   // The depth walk's declaration: package-private, reached only from the untrusted decoder.
   "packages/core/src/DecodeDepthGuard.ts": 1,
-  // `recordJsonOf`, the deliberately lenient read of a row's record once the strict, untrusted read accepted it.
-  "packages/audit/src/AuditEntry.ts": 1,
   // `spanStruct` reads only its own named keys, and every leaf is a SpanValue primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map.
   "packages/core/src/PortSpanEncode.ts": 2,
-  // `decodeStoredRecordString` parses the stored envelope itself and must not walk it: an unknown envelope key is ignored, however deep (ADR-QD-096 D-15-c). `record` reaches the guarded `decodeSinkRecord` from its own root.
-  "packages/core/src/SinkCodec.ts": 1,
+  // `decodeStoredRecordString` parses the stored envelope itself and must not walk it: an unknown envelope key is ignored, however deep (ADR-QD-096 D-15-c). `record` reaches the guarded `decodeSinkRecord` from its own root. `SinkRecordWithJson`'s `Schema.decodeTo` is the transformation that gives `decodeSinkRecordWithJson` the record and its JSON form from one strict decode, run only through `untrustedDecoder` (ADR-QD-153).
+  "packages/core/src/SinkCodec.ts": 2,
   // `parseJson` parses the simulation form's own typed text for the form's own validation; nothing crosses a trust boundary.
   "packages/devtools/src/model/SimulationForm.ts": 1,
 };
@@ -652,9 +654,8 @@ const UNTRUSTED_DECODE_BUDGET = {
 const UNTRUSTED_DECODE_BUDGET_NAMES = {
   "packages/core/src/UntrustedDecode.ts": ["untrustedDecoder"],
   "packages/core/src/DecodeDepthGuard.ts": ["exceedsJsonDepth"],
-  "packages/audit/src/AuditEntry.ts": ["recordJsonOf"],
   "packages/core/src/PortSpanEncode.ts": ["spanStruct"],
-  "packages/core/src/SinkCodec.ts": ["decodeStoredRecordString"],
+  "packages/core/src/SinkCodec.ts": ["decodeStoredRecordString", "SinkRecordWithJson"],
   "packages/devtools/src/model/SimulationForm.ts": ["parseJson"],
 };
 

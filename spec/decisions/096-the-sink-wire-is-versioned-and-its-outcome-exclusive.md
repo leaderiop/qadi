@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-096                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — amends ADR-QD-002, ADR-QD-056, ADR-QD-060; D-15-d reversed 2026-10-06 (version 2 only) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-12): D-15-c's projection is the untrusted decoder's prepare step (ADR-QD-143, ARCH-78, CCR-QD-421)<br>1.3 (2026-10-08): amended — a version-2 decision whose copies disagree is refused as `Inconsistent`, and the duplicated fields are queued for the next version (ADR-QD-106, CCR-QD-301)<br>1.2 (2026-10-08): Document ID corrected from `QADI-ADR-903` to `QADI-ADR-096`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.1 (2026-10-06): amended — 0.11.0 reads version 2 only; D-15-d ("the v1 reader is permanent") reversed at the maintainer's direction, D-15-g/h/i withdrawn with it, INV-QD-099 retired, the migration path stated (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-15, CCR-QD-180) |
+> | Change History | 1.5 (2026-11-14): amendment: the version is stated once, in SinkWire.ts (ADR-QD-151, ARCH-85, CCR-QD-429)<br>1.4 (2026-11-12): D-15-c's projection is the untrusted decoder's prepare step (ADR-QD-143, ARCH-78, CCR-QD-421)<br>1.3 (2026-10-08): amended — a version-2 decision whose copies disagree is refused as `Inconsistent`, and the duplicated fields are queued for the next version (ADR-QD-106, CCR-QD-301)<br>1.2 (2026-10-08): Document ID corrected from `QADI-ADR-903` to `QADI-ADR-096`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.1 (2026-10-06): amended — 0.11.0 reads version 2 only; D-15-d ("the v1 reader is permanent") reversed at the maintainer's direction, D-15-g/h/i withdrawn with it, INV-QD-099 retired, the migration path stated (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-15, CCR-QD-180) |
 
 ---
 
@@ -304,3 +304,7 @@ The duplicated fields stay on the wire for now. Dropping them (`visibleFields`, 
 ## Amendment (2026-11-12, ADR-QD-143, CCR-QD-421)
 
 D-15-c's projection now runs as the untrusted decoder's `prepare` step in `SinkCodec.ts`: the version check, then `envelopeOf`, between the depth guard and the strict decode, so the pinned order is still guard, version, project, decode. `UNTRUSTED_DECODE_OPTIONS`, which the D-15-c row names, is private to `UntrustedDecode.ts`, and the strict decode is the decoder's. The stored-record envelope (`decodeStoredRecord`) stays outside the decoder for the reason D-15-c gives: it reads the envelope with `ownValue` and hands `record` to the guarded `decodeSinkRecord`, so a deep unknown envelope key is still ignored. The original text above stands as written. See [ADR-QD-143](143-untrusted-json-is-decoded-through-one-module.md).
+
+## Amendment (2026-11-14, ADR-QD-151, CCR-QD-429)
+
+The version is now stated once, as `WIRE_VERSION` in `SinkWire.ts`; `WIRE_VERSIONS` and `WireVersion` derive from it, and the read set is a separate idea from the write version. The 2026-10-06 amendment's "full-union edit" now means an edit to that one constant, plus the read set and a schema when an older version stays readable. The bytes are unchanged, and the original text above stands as written. See [ADR-QD-151](151-the-sink-wire-version-is-stated-once.md).

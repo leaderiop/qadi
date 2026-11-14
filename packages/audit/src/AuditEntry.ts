@@ -33,15 +33,15 @@
  */
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
-import * as Match from "effect/Match";
 import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
-import type { EncodeRefusal, SinkRecord, UntrustedValueRefusal } from "@qadi/core";
+import type { EncodeRefusal, SinkRecord } from "@qadi/core";
 import {
   DecodeRefusal,
+  decodeRefusalOf,
+  decodeSinkRecordWithJson,
   describeEncodeRefusal,
-  decodeSinkRecord,
   encodeSinkRecord,
   SinkRecordJson,
   SinkRecordNotDecodable,
@@ -148,30 +148,12 @@ export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(functio
  * excess property at the row's top level, or a `sequenceNumber` that is not a
  * number, is `Malformed`, and a row nested past the decode bound outside its
  * record is `TooDeep`. `record` is unwalked, and `unknown` here, because
- * `decodeSinkRecord` has already read it from its own root (INV-QD-306).
+ * `decodeSinkRecordWithJson` has already read it from its own root (INV-QD-306).
  */
 const decodeRow = untrustedDecoder(
   Schema.Struct({ record: Schema.Unknown, sequenceNumber: SequenceNumber }),
   { unwalked: ["record"] },
 ).decode;
-
-/** The row decoder's refusal in `@qadi/core`'s decode vocabulary; no member is added (ADR-QD-143). */
-const asDecodeRefusal: (refusal: UntrustedValueRefusal) => DecodeRefusal = Match.type<UntrustedValueRefusal>().pipe(
-  Match.tagsExhaustive({
-    TooDeep: ({ maxDepth }) => DecodeRefusal.TooDeep({ maxDepth }),
-    Malformed: ({ message }) => DecodeRefusal.Malformed({ message }),
-  }),
-);
-
-/**
- * The row's record as `SinkRecordJson`, once `decodeSinkRecord` has accepted
- * it. Default options, deliberately and only here: the strict read has run,
- * so the one thing left to drop is what that read tolerates — an envelope key
- * this version does not declare (ADR-QD-096 D-15-c) — and the entry is the row
- * as this version describes it, not a copy of whatever extra a newer writer
- * added. The one lenient decode in this package, on purpose.
- */
-const recordJsonOf = Schema.decodeUnknownResult(SinkRecordJson);
 
 const malformed = (message: string) =>
   Result.fail(new SinkRecordNotDecodable({ refusal: DecodeRefusal.Malformed({ message }) }));
@@ -181,13 +163,18 @@ const malformed = (message: string) =>
  *
  * The guarded reader for rows a store re-parses — a compliance review, a query
  * tool, another process. The record goes through `@qadi/core`'s
- * `decodeSinkRecord` first, which refuses input nested past the decode bound
+ * `decodeSinkRecordWithJson` first, which refuses input nested past the decode bound
  * before the schema recurses into it; decoding a row with the schema alone
  * died with a `RangeError` on a deeply nested stored policy. Only then is the
  * rest of the row decoded, now safe. A refusal is a value, never a throw.
  *
+ * The record is decoded once, by core's strict reader, and the entry holds that
+ * decode's JSON form, so an envelope key this version does not declare is dropped
+ * by the decode itself rather than by a second lenient read (ADR-QD-110,
+ * ADR-QD-153).
+ *
  * Reads wire version 2 only (ADR-QD-096's 2026-10-06 amendment), and
- * whatever leniency and strictness `decodeSinkRecord` applies — an unknown
+ * whatever leniency and strictness `decodeSinkRecordWithJson` applies — an unknown
  * envelope key ignored, a typo inside the embedded policy refused, a record of
  * any other `version` refused as `UnsupportedVersion` — applies here too. That
  * includes a row written before 0.10, whose record has no `version` at all: it
@@ -199,12 +186,10 @@ export const decodeAuditEntry = (
   input: unknown,
 ): Result.Result<{ readonly entry: AuditEntry; readonly record: SinkRecord }, SinkRecordNotDecodable> => {
   if (!Predicate.hasProperty(input, "record")) return malformed("an audit row has no record");
-  const record = decodeSinkRecord(input.record);
-  if (Result.isFailure(record)) return Result.fail(record.failure);
+  const decoded = decodeSinkRecordWithJson(input.record);
+  if (Result.isFailure(decoded)) return Result.fail(decoded.failure);
   const row = decodeRow(input);
-  if (Result.isFailure(row)) return Result.fail(new SinkRecordNotDecodable({ refusal: asDecodeRefusal(row.failure) }));
-  const json = recordJsonOf(input.record);
-  if (Result.isFailure(json)) return malformed(json.failure.message);
-  const entry: AuditEntry = { record: json.success, sequenceNumber: row.success.sequenceNumber };
-  return Result.succeed({ entry, record: record.success });
+  if (Result.isFailure(row)) return Result.fail(new SinkRecordNotDecodable({ refusal: decodeRefusalOf(row.failure) }));
+  const entry: AuditEntry = { record: decoded.success.json, sequenceNumber: row.success.sequenceNumber };
+  return Result.succeed({ entry, record: decoded.success.record });
 };

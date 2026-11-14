@@ -1,0 +1,5 @@
+{
+ "packages/devtools/src/model/SupersedingRun.ts:94:29 ObjectLiteral": "A token is only ever compared by identity (`token === current`); `{}` is as distinct an object as `{ [tokenBrand]: true }`, and the brand key exists for the type, never read at run time.",
+ "packages/devtools/src/model/SupersedingRun.ts:94:45 BooleanLiteral": "The brand's value `true` is never read: the brand key only makes the type opaque, and identity decides currency, so `false` changes nothing a caller can observe.",
+ "packages/devtools/src/model/SupersedingRun.ts:121:13 OptionalChaining": "`hooks.onFailure?.(...)` made `hooks.onFailure(...)` throws a TypeError inside the `onExit` finalizer only for a current failing run whose fork named no `onFailure`; that changes only the exit of a fiber nobody observes (the handle's deferred is never joined, and Effect v4 logs no unhandled fiber failure for it, checked with a collecting logger), so no input through the interface differs."
+}

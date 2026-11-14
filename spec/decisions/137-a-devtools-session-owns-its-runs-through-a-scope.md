@@ -5,12 +5,12 @@
 > | Property       | Value                                                                  |
 > | -------------- | ---------------------------------------------------------------------- |
 > | Document ID    | QADI-ADR-137                                                           |
-> | Revision       | 1.2                                                                    |
+> | Revision       | 1.3                                                                    |
 > | Effective Date | 2026-11-11                                                             |
 > | Status         | Accepted — supersedes ARCH-20 D-20-b (an amendment to ADR-QD-047)     |
 > | Author         | Qadi Engineering                                                       |
 > | Classification | Architecture Decision Record                                           |
-> | Change History | 1.2 (2026-11-12): amendment — the timeline's read is scoped too; useRunningStore deleted (ARCH-82, CCR-QD-425)<br>1.1 (2026-11-11): useScoped clears its value on cleanup, so a hidden Activity never leaves a child on a closed session (WR-02)<br>1.0 (2026-11-11): Initial (ARCH-73, CCR-QD-415)                        |
+> | Change History | 1.3 (2026-11-14): amendment: one module owns the run, and the stop is unconditional (ARCH-84, CCR-QD-428)<br>1.2 (2026-11-12): amendment — the timeline's read is scoped too; useRunningStore deleted (ARCH-82, CCR-QD-425)<br>1.1 (2026-11-11): useScoped clears its value on cleanup, so a hidden Activity never leaves a child on a closed session (WR-02)<br>1.0 (2026-11-11): Initial (ARCH-73, CCR-QD-415)                        |
 
 ---
 
@@ -59,15 +59,16 @@ number rather than an amendment's paragraph.
    registers a finalizer on the scope.
 2. **`run(kind)` is a synchronous command.** It does the synchronous part (policy,
    question, refusal) and forks the evaluation into the handle. It returns `void`.
-3. **A superseding command interrupts the run in flight before it returns.** It bumps
-   the generation and, when the handle holds a fiber, installs an empty fiber in its
-   place; replacing a fiber in a `FiberHandle` interrupts it, inside the command. Choosing
-   a policy, a re-seed or a replay, a change of ports and a newer run all do this, with no
-   host code. The generation still decides what lands: an interrupted run never reaches
-   the landing step, and the check stays as the belt for a resolver that ignores
-   interruption.
+3. **A superseding command interrupts the run in flight before it returns.** It supersedes
+   the current token and installs an empty run in its place, unconditionally, through the
+   package-private module ([ADR-QD-150](./150-a-scoped-run-that-a-newer-run-supersedes.md)):
+   replacing a run in the handle interrupts it, inside the command, whether or not one was
+   in flight. Choosing a policy, a re-seed or a replay, a change of ports and a newer run
+   all do this, with no host code. The token still decides what lands: an interrupted run
+   never reaches the landing step, and the check stays as the belt for a resolver that
+   ignores interruption.
 4. **Closing the scope interrupts the run in flight and leaves the session inert.** The
-   finalizer moves the generation and marks the session closed, so a later `run` starts
+   finalizer ends the current token and marks the session closed, so a later `run` starts
    nothing and a closed session's snapshot does not change.
 5. **A run's services are the constructing context's, and its span is a root.** The
    handle's runtime captures the context the session was built under, so a run sees the
@@ -82,9 +83,11 @@ number rather than an amendment's paragraph.
    and `DevtoolsDock` renders nothing for that pass. The cleanup also clears the value, so
    a hidden `<Activity>` (which runs the cleanup and later the effect, keeping state)
    unmounts whatever read the closed session once, and the next session remounts it.
-7. **The rule is general for the package.** A devtools store that owns fibers is built in a
-   scope its owner holds. Phase 26's dock model follows it; the timeline's `useRunningStore`
-   is the other shape (a source it reads, not a run it owns) and is unchanged.
+7. **The rule is general for the package.** Every devtools store that reads or runs anything
+   is built in a scope its owner holds and runs through the module
+   ([ADR-QD-150](./150-a-scoped-run-that-a-newer-run-supersedes.md)): the simulation
+   session, the timeline feed and the diagnostics feed. Phase 26's dock model builds them in
+   its own scope.
 
 ## Consequences
 
@@ -97,7 +100,7 @@ number rather than an amendment's paragraph.
 - **The ordering change, stated.** A new run starts evaluating before the old run's
   finalizers have finished (`runForkWith` forks the new fiber, then the handle interrupts
   the old one); the base awaited the reap first. It is safe because each run builds its own
-  ports layer and recorder and only the generation-current run writes session state.
+  ports layer and recorder and only the current run writes session state.
 - The interface change is public (`@qadi/devtools`, minor) and unreleased: the session
   arrived in a release that has not shipped, so no released consumer breaks.
   [BEH-QD-461](../behaviors/29-devtools-simulator.md#beh-qd-461-a-session-owns-its-runs)
@@ -132,3 +135,18 @@ number rather than an amendment's paragraph.
 > built in a scope its owner holds. A hidden-then-shown tree therefore starts a fresh
 > timeline
 > ([BEH-QD-508](../behaviors/28-devtools-screens.md#beh-qd-508-the-diagnostics-and-the-timeline-live-as-long-as-their-owners-scope)).
+
+> **Amended 2026-11-14 (CCR-QD-428): one module owns the run.** The protocol this record
+> gave the session (a counter, a closed flag, a finalizer registered after the handle, a
+> handle to fork into and a check before each landed write) was restated by hand in three
+> stores. It is now one package-private module,
+> `packages/devtools/src/model/SupersedingRun.ts`
+> ([ADR-QD-150](./150-a-scoped-run-that-a-newer-run-supersedes.md)). Four sentences change.
+> Point 3 read "bumps the generation and, when the handle holds a fiber, installs an empty
+> fiber in its place"; it now supersedes the token and installs an empty run
+> unconditionally, because the guard saved one fiber no host could see. Point 4's finalizer
+> ends the current token rather than moving a counter. Point 7 no longer names
+> `useRunningStore` (deleted by CCR-QD-425) and names the three stores that run through the
+> module. The ordering consequence says that only the current run writes session state.
+> Context and Alternatives considered keep their history, and the generation they name is
+> the counter the module replaced.

@@ -92,22 +92,26 @@ away — each drops one row and reports why. A devtools panel is what you are
 looking at when something is already wrong, so a panel that dies on a bad frame
 fails exactly when it is needed.
 
-```ts
+```typescript
+import { describeDecodeRefusal } from "@qadi/core";
 import { sourceFromEventSource } from "@qadi/devtools";
 
-const source = sourceFromEventSource({
+export const source = sourceFromEventSource({
   url: "/__decisions",
-  onMalformed: (frame, reason) => {
-    // "not-json"            — a broken transport: a proxy truncated or injected.
-    // "too-deep"            — nested past the decode bound: an older or foreign
-    //                         sender, since a current one refuses to emit it.
-    // "not-a-record"        — a protocol mismatch: the far side disagrees about
-    //                         the wire form.
-    // "unsupported-version" — a newer server: upgrade this panel.
-    // "inconsistent"        — a record that contradicts itself: its decision is
-    //                         not its own trace's, or its ids are not its
-    //                         record's. Not skew: a hand-built record or tampering.
-    console.warn(reason, frame);
+  // `refusal` is @qadi/core's `DecodeRefusal`, as decoded; match its `_tag`.
+  onMalformed: (frame, refusal) => {
+    // NotJson            — a broken transport: a proxy truncated or injected.
+    // TooDeep            — nested past the decode bound: an older or foreign
+    //                      sender, since a current one refuses to emit it.
+    // Malformed          — a wire disagreement: the far side disagrees about
+    //                      the wire form, including a bare record from a server
+    //                      older than 0.10.
+    // UnsupportedVersion — a newer server, or a sender with no version:
+    //                      upgrade this panel.
+    // Inconsistent       — a record that contradicts itself: its decision is
+    //                      not its own trace's, or its ids are not its
+    //                      record's. Not skew: a hand-built record or tampering.
+    console.warn(describeDecodeRefusal(refusal), frame);
   },
   onDisconnect: () => console.info("reconnecting…"),
 });

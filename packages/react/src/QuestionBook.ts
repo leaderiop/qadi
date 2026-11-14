@@ -12,9 +12,10 @@
  * hydrated seed dropped (ADR-QD-103, BEH-QD-065, BEH-QD-198).
  *
  * Generic over the handle it stores and free of any `effect/reactivity` import,
- * so every rule here is testable with plain objects. `QadiAtoms.ts` is its one
- * adapter: the handle is a `SeededQuestion`, and the reader's `get.addFinalizer`
- * is wired to the `release` that {@link BookOptions.build}'s `live` returns.
+ * so every rule here is testable with plain objects. `SeededQuestion.ts` is its
+ * one adapter: `QadiAtoms.ts` builds each handle with `makeSeededQuestion`, and
+ * that question's reader hands the `release` that {@link BookOptions.build}'s
+ * `live` returns to `get.addFinalizer`.
  * `AskedQuestion` is declared here and re-exported from `QadiAtoms.ts`, so this
  * module imports nothing local (ADR-QD-037).
  *

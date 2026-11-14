@@ -530,9 +530,8 @@ makes of an input.
 | -------- | ----- | --- |
 | `packages/core/src/UntrustedDecode.ts` | 5 | The decoder itself: the depth-guard import and call, the strict option, its one `Schema.decodeUnknownResult`, and `decodeText`'s `JSON.parse`. |
 | `packages/core/src/DecodeDepthGuard.ts` | 1 | The depth walk's declaration, package-private and reached only from the decoder. |
-| `packages/audit/src/AuditEntry.ts` | 1 | `recordJsonOf`, a deliberately lenient decode of a row's record after the strict read accepted it, so an envelope key this version does not declare is dropped. |
 | `packages/core/src/PortSpanEncode.ts` | 2 | `spanStruct` reads only its own named keys, and every leaf is a `SpanValue` primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map. |
-| `packages/core/src/SinkCodec.ts` | 1 | `decodeStoredRecordString` parses the stored envelope itself and must not walk it: an unknown envelope key is ignored, however deep (ADR-QD-096 D-15-c). `record` reaches the guarded `decodeSinkRecord` from its own root. |
+| `packages/core/src/SinkCodec.ts` | 2 | `decodeStoredRecordString` parses the stored envelope itself and must not walk it: an unknown envelope key is ignored, however deep (ADR-QD-096 D-15-c). `record` reaches the guarded `decodeSinkRecord` from its own root. `SinkRecordWithJson`'s `Schema.decodeTo` is the transformation that gives `decodeSinkRecordWithJson` the record and its JSON form from one strict decode, run only through `untrustedDecoder` (ADR-QD-153). |
 | `packages/devtools/src/model/SimulationForm.ts` | 1 | `parseJson` parses the simulation form's own typed text for the form's own validation; nothing crosses a trust boundary. |
 
 Enforced by `UNTRUSTED_DECODE_BUDGET` in `scripts/check-house-style.mjs`, checked
@@ -577,7 +576,10 @@ table. A module another package needs is exported from the barrel instead.
 
 ## 10. Tests
 
-`@effect/vitest`: `it.effect`, `it.scoped`, `it.layer`, `TestClock`.
+`@effect/vitest`: `it.effect`, `it.layer`, `TestClock`. `it.effect` already gives each
+test its own scope; a test that must close a scope mid-test builds it with
+`Scope.makeUnsafe()` (or `yield* Scope.make()`), provides it with `Scope.provide`, and
+closes it with `Scope.close(scope, Exit.void)`.
 Coverage thresholds are enforced in config — a shortfall fails the run.
 `packages/core` is held at 95%, everything else at 90%.
 
@@ -641,7 +643,7 @@ state-management layer of its own. The rules that keep it that way:
   `previousSuccess` — will report stale allows. `DECISION_READ_BUDGET` in
   `scripts/check-house-style.mjs` refuses such a read in `packages/*/src`
   outside its two budgeted files (`DecisionOutcome.ts`, and
-  `HydrationEngine.ts`'s seed precedence, which chooses what the atom holds
+  `SeededQuestion.ts`'s seed precedence, which chooses what the atom holds
   rather than reading it), checked in both directions; the two doc-fence gates
   (`check-doc-examples.mjs`, `check-website-doc-examples.mjs`) refuse it in a
   compiled fence that imports `@qadi/react`, unless the fence says why with a

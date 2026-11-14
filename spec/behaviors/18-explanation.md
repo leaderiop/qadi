@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-18                                    |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.9                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-10-07): BEH-QD-144 — `renderTrace` is stack-safe and caps indentation (`indentLimit`); BEH-QD-319 added — `foldAligned` and `foldTrace` (ADR-QD-101, CCR-QD-191)<br>1.6 (2026-10-07): BEH-QD-303 gains `foldExplanationCases`, `ExplanationCases` and `RowResult`; `explain` and `renderExplanation` fold case-wise (ADR-QD-090 amendment, CCR-QD-190)<br>1.5 (2026-10-06): BEH-QD-139 — a `fieldStrategy` or `combining` outside its closed union MUST appear verbatim with what it is evaluated as; BEH-QD-141 — `renderExplanation` MUST NOT throw on one; BEH-QD-137 — an empty `All` carrying one is not atomic (ADR-QD-092 amendment, CCR-QD-183)<br>1.4 (2026-10-04): BEH-QD-141 — `explain` and `renderExplanation` MUST NOT exhaust the call stack, matchers included; BEH-QD-303 added (`foldExplanation`) (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-09-07): BEH-QD-139 gains an explicit requirement that `fieldStrategy` and `HasRelationship.depth` appear when non-default; `depth` was missing from the rendering entirely (INV-QD-031, issue 45, CCR-QD-114)<br>1.2 (2026-08-23): BEH-QD-137 — a rendering denotes exactly one policy; composite children are parenthesised (ADR-QD-042, INV-QD-031, CCR-QD-057)<br>1.1 (2026-08-23): BEH-QD-144 — `renderTrace`, the decision-side counterpart to `renderExplanation` (ADR-QD-039, CCR-QD-053)<br>1.0 (2026-07-26): Initial release (CCR-QD-028) |
+> | Change History | 1.9 (2026-11-14): BEH-QD-542: explain reads literals through valueLabel; an unwalkable list is the fixed words (ARCH-88, CCR-QD-432)<br>1.8 (2026-11-14): BEH-QD-542: a literal with no JSON form is explained by a fixed rule, and never throws (ARCH-88, CCR-QD-432)<br>1.7 (2026-10-07): BEH-QD-144 — `renderTrace` is stack-safe and caps indentation (`indentLimit`); BEH-QD-319 added — `foldAligned` and `foldTrace` (ADR-QD-101, CCR-QD-191)<br>1.6 (2026-10-07): BEH-QD-303 gains `foldExplanationCases`, `ExplanationCases` and `RowResult`; `explain` and `renderExplanation` fold case-wise (ADR-QD-090 amendment, CCR-QD-190)<br>1.5 (2026-10-06): BEH-QD-139 — a `fieldStrategy` or `combining` outside its closed union MUST appear verbatim with what it is evaluated as; BEH-QD-141 — `renderExplanation` MUST NOT throw on one; BEH-QD-137 — an empty `All` carrying one is not atomic (ADR-QD-092 amendment, CCR-QD-183)<br>1.4 (2026-10-04): BEH-QD-141 — `explain` and `renderExplanation` MUST NOT exhaust the call stack, matchers included; BEH-QD-303 added (`foldExplanation`) (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-09-07): BEH-QD-139 gains an explicit requirement that `fieldStrategy` and `HasRelationship.depth` appear when non-default; `depth` was missing from the rendering entirely (INV-QD-031, issue 45, CCR-QD-114)<br>1.2 (2026-08-23): BEH-QD-137 — a rendering denotes exactly one policy; composite children are parenthesised (ADR-QD-042, INV-QD-031, CCR-QD-057)<br>1.1 (2026-08-23): BEH-QD-144 — `renderTrace`, the decision-side counterpart to `renderExplanation` (ADR-QD-039, CCR-QD-053)<br>1.0 (2026-07-26): Initial release (CCR-QD-028) |
 
 _Previous: [17 — Concurrent Evaluation](./17-concurrency.md)_
 
@@ -216,6 +216,41 @@ Deliberately unlike `toPredicate`, which refuses what it cannot translate
 so refusing is the safe answer; a partial *explanation* is just an incomplete
 description, and a policy a reviewer cannot read at all is worse than one they can
 only partly act on.
+
+## BEH-QD-542: A literal with no JSON form is explained by a fixed rule, and never throws
+
+A policy literal is a caller's value, and a bigint, a cycle, or a `toJSON` or getter
+that throws has no JSON text; a bigint such as `10n` is written `10n`.
+
+```
+REQUIREMENT: `explain` MUST write a literal that has JSON text as that text, a
+             bigint literal as its digits followed by `n`, an `undefined`,
+             function or symbol literal as the word `undefined`, and any other
+             literal as the fixed words `a value with no JSON form`; writing it
+             MUST NOT throw.
+```
+
+```
+REQUIREMENT: `explain` MUST write a list of literals that has no JSON text
+             element by element, each element by the rule above.
+```
+
+```
+REQUIREMENT: The fixed words MUST carry none of the literal's content, including
+             the message of a `toJSON` or getter that throws.
+```
+
+[BEH-QD-141](#beh-qd-141-explanation-is-total) already required `explain` not to
+fail, and a bigint or a cycle literal made it throw. Every literal that was written
+before is written the same (a list of a function and `undefined` is still
+`[null,null]`), except an object whose `toJSON` gives nothing, which has no JSON
+form and takes the fixed words. `explain` reads every literal through
+`@qadi/core`'s `valueLabel`, the one label rule, built on `valueText`
+([ADR-QD-154](../decisions/154-one-value-to-text-function-exported-by-core.md)), the
+one guarded function the devtools remedy label, search text and simulator form read
+too. A list with no JSON text is written element by element, or as the fixed words
+when it cannot be walked (a revoked proxy, a throwing `get` trap). The devtools rail and inspector, which label and draw a policy through
+`explain`, no longer fall over on such a policy.
 
 ## BEH-QD-142: The third interpreter, and its cost
 

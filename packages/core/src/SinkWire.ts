@@ -1,12 +1,15 @@
 /**
- * The record wire's own words: the version `decodeSinkRecord` reads, why it
- * refuses its input, and the tag of a record.
+ * The record wire's own words: the version `encodeSinkRecord` writes, the version
+ * `decodeSinkRecord` reads, why it refuses its input, and the tag of a record.
+ * It also owns describing a refusal: `decodeRefusalOf`, `describeDecodeRefusal` and
+ * `decodeRefusalAnnotations` (ADR-QD-153).
  *
  * A leaf, so `Errors.ts` (whose `SinkRecordNotDecodable` carries these types)
  * and `SinkCodec.ts` (which raises them) can both import it without a cycle:
  * `Errors.ts` cannot import `SinkCodec.ts` (ADR-QD-037, which counts type-only
- * edges), and this module imports only `effect`, one type from `Decision.ts` and
- * two from `SinkRecordFields.ts`, whose import closures do not reach this module.
+ * edges), and this module imports only `effect`, one type each from `Decision.ts`
+ * and `UntrustedDecode.ts`, and two from `SinkRecordFields.ts`, none of whose import
+ * closures reach this module.
  * The error classes stay in `Errors.ts` with the rest of `QadiError`; only the
  * vocabulary they name lives here (ADR-QD-095's ARCH-27 amendment). The
  * encode-refusal vocabulary, which the port wire reads too, lives in
@@ -15,8 +18,10 @@
  * is reached by its own path.
  */
 import * as Data from "effect/Data";
+import * as Match from "effect/Match";
 import type { DecisionDisagreement } from "./Decision.ts";
 import type { DECISION_RECORD_TAG, OBLIGATION_RECORD_TAG } from "./SinkRecordFields.ts";
+import type { UntrustedRefusal } from "./UntrustedDecode.ts";
 
 /**
  * The `_tag` of a `SinkRecord` — `"Decision"` or `"Obligations"`.
@@ -31,24 +36,41 @@ import type { DECISION_RECORD_TAG, OBLIGATION_RECORD_TAG } from "./SinkRecordFie
 export type SinkRecordTag = typeof DECISION_RECORD_TAG | typeof OBLIGATION_RECORD_TAG;
 
 /**
+ * The record-wire version `encodeSinkRecord` writes, stated once (ADR-QD-096,
+ * ADR-QD-151).
+ *
+ * The schema literals, the encoder, {@link WIRE_VERSIONS} and {@link WireVersion}
+ * derive from it, so retyping the version is one edit. `as const` because a bare
+ * `= 2` widens to `number` in the encoder's spread. Exported and declared in this
+ * leaf because {@link DecodeRefusal}'s `supported` lives here and this leaf cannot
+ * import `SinkCodec.ts` (ADR-QD-037); the barrel's `export *` makes it public.
+ */
+export const WIRE_VERSION = 2 as const;
+
+/**
+ * Every wire version `decodeSinkRecord` reads: version 2, and only it.
+ *
+ * The read set, a separate idea from the write version {@link WIRE_VERSION}:
+ * today it is that one version, and a reader that keeps an older version lists it
+ * here beside a schema for it (ADR-QD-151).
+ */
+export const WIRE_VERSIONS = [WIRE_VERSION] as const;
+
+/**
  * A version of the record wire that `decodeSinkRecord` reads (ADR-QD-096).
  *
  * Version 2 carries `version: 2` and a decision's outcome as one tagged value.
  * It is the only one: version 1 — spelled by the absence of a `version` key,
  * the outcome as two optional fields `decided`/`failed`, written by every
  * `@qadi/core` before 0.10 — was read until 0.11.0 and is now refused as
- * `UnsupportedVersion` (ADR-QD-096's 2026-10-06 amendment). A closed union of
- * one member, kept rather than deleted because it is what
- * {@link DecodeRefusal}'s `UnsupportedVersion.supported` reports, and a
- * future version 3 is a full-union edit here, not a new export.
+ * `UnsupportedVersion` (ADR-QD-096's 2026-10-06 amendment). Derived from
+ * {@link WIRE_VERSIONS}, so it is `2` while the read set is `[2]`, and kept
+ * because {@link DecodeRefusal}'s `UnsupportedVersion.supported` reports it.
  *
  * Declared here rather than in `SinkCodec.ts` because {@link DecodeRefusal}
  * names it, and this leaf cannot import `SinkCodec.ts` (ADR-QD-037).
  */
-export type WireVersion = 2;
-
-/** Every wire version `decodeSinkRecord` reads: version 2, and only it. */
-export const WIRE_VERSIONS: ReadonlyArray<WireVersion> = [2];
+export type WireVersion = (typeof WIRE_VERSIONS)[number];
 
 /**
  * Why `decodeSinkRecord` refused its input.
@@ -85,3 +107,101 @@ export type DecodeRefusal = Data.TaggedEnum<{
 
 /** Constructors and guards for {@link DecodeRefusal}. */
 export const DecodeRefusal = Data.taggedEnum<DecodeRefusal>();
+
+/**
+ * An untrusted decoder's refusal, or a version refusal, in the sink wire's own
+ * vocabulary.
+ *
+ * The one mapping (ADR-QD-153), which `SinkCodec.ts` and `@qadi/audit` read
+ * rather than restate. `NotJson`'s parser message is dropped because the wire's
+ * `NotJson` carries none; `Inconsistent` is not an input, it comes later from
+ * the record's rebuild; a version refusal passes through unchanged.
+ */
+export const decodeRefusalOf: (
+  refusal: UntrustedRefusal | Extract<DecodeRefusal, { readonly _tag: "UnsupportedVersion" }>,
+) => DecodeRefusal = Match.type<
+  UntrustedRefusal | Extract<DecodeRefusal, { readonly _tag: "UnsupportedVersion" }>
+>().pipe(
+  Match.tagsExhaustive({
+    NotJson: () => DecodeRefusal.NotJson(),
+    TooDeep: ({ maxDepth }) => DecodeRefusal.TooDeep({ maxDepth }),
+    Malformed: ({ message }) => DecodeRefusal.Malformed({ message }),
+    UnsupportedVersion: (refusal) => refusal,
+  }),
+);
+
+/** How many UTF-16 code units of a version string {@link describeDecodeRefusal} shows. */
+const SHOWN_VERSION_CHARS = 40;
+
+/** How many UTF-16 code units of a `Malformed` message {@link describeDecodeRefusal} shows. */
+const SHOWN_MESSAGE_CHARS = 200;
+
+/**
+ * A refusal's `version`, described without reading it.
+ *
+ * The version is sender data of any type, so this dispatches on `typeof` alone: no
+ * property read, no `toString`, no array test (which throws on a revoked
+ * `Proxy`), and `JSON.stringify` only on a string slice. A string is quoted and
+ * cut at {@link SHOWN_VERSION_CHARS} code units.
+ */
+const shownVersion = (version: unknown): string => {
+  if (version === undefined) return "none";
+  if (version === null) return "null";
+  if (typeof version === "string") {
+    const shown = JSON.stringify(version.slice(0, SHOWN_VERSION_CHARS));
+    return version.length > SHOWN_VERSION_CHARS ? `${shown}…` : shown;
+  }
+  if (typeof version === "number" || typeof version === "boolean") return String(version);
+  if (typeof version === "bigint") return "a bigint";
+  if (typeof version === "symbol") return "a symbol";
+  if (typeof version === "function") return "a function";
+  return "an object";
+};
+
+/** A `Malformed` message cut at {@link SHOWN_MESSAGE_CHARS} code units. */
+const shownMessage = (message: string): string =>
+  message.length > SHOWN_MESSAGE_CHARS ? `${message.slice(0, SHOWN_MESSAGE_CHARS)}…` : message;
+
+/**
+ * The log and span annotations of a refused record: which refusal, under the key
+ * the encode side uses. Exactly one key, and never a value from the record
+ * (INV-QD-104).
+ */
+export type DecodeRefusalAnnotations = { readonly "qadi.refusal": DecodeRefusal["_tag"] };
+
+/**
+ * A refusal's log and span annotations: which refusal, never what was sent.
+ *
+ * Never `Malformed.message` or `UnsupportedVersion.version`, which are sender
+ * data: the default log implementation copies annotations onto the current span,
+ * so an annotation is span data (INV-QD-104, ADR-QD-153). The key is the one
+ * `EncodeRefusalAnnotations` uses, so a reader filters both sides by it.
+ */
+export const decodeRefusalAnnotations = (self: DecodeRefusal): DecodeRefusalAnnotations => ({
+  "qadi.refusal": self._tag,
+});
+
+/**
+ * One sentence per {@link DecodeRefusal}, naming the reason and its fix, for a
+ * caller holding the refusal.
+ *
+ * It may carry the sender's message and a bounded description of its version, so
+ * it is never an annotation and never a default log message (INV-QD-104). Built
+ * once at module scope (AGENTS.md §5a); a new refusal is a compile error here and
+ * only here (ADR-QD-153). Total: it never throws and never calls code the sender
+ * supplied, whatever the version holds.
+ */
+export const describeDecodeRefusal: (self: DecodeRefusal) => string = Match.type<DecodeRefusal>().pipe(
+  Match.tagsExhaustive({
+    NotJson: () =>
+      "not JSON: the text did not parse, so it was truncated or replaced before this reader parsed it",
+    TooDeep: ({ maxDepth }) =>
+      `nested deeper than ${maxDepth} levels: a current writer refuses to emit that, so the record came from an older or foreign writer or was altered`,
+    Malformed: ({ message }) =>
+      `not a record this reader can read, so the sender and this reader disagree about the wire form: ${shownMessage(message)}`,
+    Inconsistent: ({ disagreement }) =>
+      `a record that contradicts itself (${disagreement}): built by hand or tampered with, not version skew`,
+    UnsupportedVersion: ({ version, supported }) =>
+      `a record of wire version ${shownVersion(version)}, which this reader does not read (it reads ${supported.join(", ")}): upgrade the reader if the version is newer, or the sender if it has none`,
+  }),
+);

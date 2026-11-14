@@ -510,3 +510,32 @@ describe("exact refusals and boundaries", () => {
     assert.strictEqual(okValue(permissionCodec.encode("doc:read", "")), "doc:read");
   });
 });
+
+describe("the refusal a value with no JSON form gets, written out", () => {
+  interface Loop {
+    readonly name: string;
+    self?: Loop;
+  }
+
+  const reasonOf = <A>(decoded: Decoded<A>): string =>
+    decoded._tag === "Refused" ? decoded.reason : "";
+
+  it("a bigint, a cycle, a toJSON that throws and a getter that throws are each not representable in the form", () => {
+    const loop: Loop = { name: "loop" };
+    loop.self = loop;
+    const throwsInToJSON = {
+      toJSON: (): never => {
+        throw new Error("SENTINEL-41 from toJSON");
+      },
+    };
+    const throwsInGetter = {
+      get boom(): never {
+        throw new Error("SENTINEL-41 from a getter");
+      },
+    };
+
+    for (const value of [4242n, loop, throwsInToJSON, throwsInGetter]) {
+      assert.strictEqual(reasonOf(attributeCodec.encode(["k", value], "")), "not representable in the form");
+    }
+  });
+});

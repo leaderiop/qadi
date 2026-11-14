@@ -1,4 +1,4 @@
-import type { Decision, DehydrationDropReason, DenyingTrace, Policy, Resource } from "@qadi/core";
+import type { DehydrationDropReason, DenyingTrace, Policy, Resource } from "@qadi/core";
 import {
   Allow,
   Deny,
@@ -16,17 +16,14 @@ import {
 } from "@qadi/core";
 import { assert, describe, it } from "@effect/vitest";
 import * as Context from "effect/Context";
-import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
-import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { vi } from "vitest";
 import type { HydrationDrop } from "../src/DeveloperSignals.ts";
-import { dehydrateWith, hydrateWith, makeSeededQuestion } from "../src/HydrationEngine.ts";
-import type { DecisionEntry, HydrationMismatch, HydrationSeedLookup } from "../src/HydrationEngine.ts";
+import { dehydrateWith, hydrateWith } from "../src/HydrationEngine.ts";
+import type { DecisionEntry, HydrationSeedLookup } from "../src/HydrationEngine.ts";
 import type { SeededDecision } from "../src/SeededDecision.ts";
 import { SeededAllow, SeededDeny } from "../src/SeededDecision.ts";
 
-const subjectId = makeSubjectId("u1");
 const denyTrace: DenyingTrace = {
   policyTag: "HasRole",
   allowed: false,
@@ -34,139 +31,6 @@ const denyTrace: DenyingTrace = {
   children: [],
   obligations: [],
 };
-const policy = hasRole("admin");
-
-const allow = new SeededAllow({
-  evaluationId: "e1",
-  subjectId,
-  durationMillis: 0,
-  visibleFields: undefined,
-  obligations: [],
-  disclosure: { _tag: "Withheld" },
-});
-const deny = new Deny({
-  evaluationId: "e2",
-  subjectId,
-  durationMillis: 0,
-  trace: denyTrace,
-});
-
-describe("makeSeededQuestion", () => {
-  it("runs `track` before any read of its own atoms, once per computation", () => {
-    const order: Array<string> = [];
-    const q = makeSeededQuestion<never>({
-      policy,
-      resource: undefined,
-      report: undefined,
-      computedFor: () =>
-        Atom.readable(() => {
-          order.push("computed");
-          return AsyncResult.success<Decision>(deny);
-        }),
-      track: () => {
-        order.push("track");
-      },
-    });
-    const registry = AtomRegistry.make();
-    registry.get(q.read);
-    assert.deepStrictEqual(order, ["track", "computed"]);
-  });
-
-  it("announces a disagreement once per registry, not once per question", () => {
-    const reports: Array<HydrationMismatch> = [];
-    const q = makeSeededQuestion<never>({
-      policy,
-      resource: undefined,
-      report: (m) => reports.push(m),
-      computedFor: () => Atom.readable(() => AsyncResult.success<Decision>(deny)),
-      track: () => {},
-    });
-
-    const first = AtomRegistry.make({ initialValues: [q.seed.hold(allow)] });
-    const second = AtomRegistry.make({ initialValues: [q.seed.hold(allow)] });
-    first.mount(q.read);
-    second.mount(q.read);
-    // Re-reading in the same registry must not announce again.
-    first.get(q.read);
-    first.get(q.read);
-
-    assert.strictEqual(reports.length, 2);
-    assert.strictEqual(reports[0]?.seeded, allow);
-    assert.strictEqual(reports[0]?.decided, deny);
-  });
-
-  it("reads the seed while the computed answer is still Initial, and drops it after", () => {
-    let settled = false;
-    const gate = Atom.make(0);
-    const q = makeSeededQuestion<never>({
-      policy,
-      resource: undefined,
-      report: undefined,
-      computedFor: () =>
-        Atom.readable((get) => {
-          get(gate);
-          return settled ? AsyncResult.success<Decision>(deny) : AsyncResult.initial<Decision, never>();
-        }),
-      track: () => {},
-    });
-    const registry = AtomRegistry.make({ initialValues: [q.seed.hold(allow)] });
-    registry.mount(q.read);
-
-    const during = registry.get(q.read);
-    assert.isTrue(AsyncResult.isSuccess(during));
-    assert.strictEqual(AsyncResult.isSuccess(during) ? during.value : undefined, allow);
-
-    settled = true;
-    registry.set(gate, 1);
-    const after = registry.get(q.read);
-    assert.strictEqual(AsyncResult.isSuccess(after) ? after.value : undefined, deny);
-  });
-});
-
-describe("a seed slot gives each registry its own grant", () => {
-  const question = () =>
-    makeSeededQuestion<never>({
-      policy,
-      resource: undefined,
-      report: undefined,
-      computedFor: () => Atom.readable(() => AsyncResult.initial<Decision, never>()),
-      track: () => {},
-    });
-  const decisionOf = (registry: AtomRegistry.AtomRegistry, q: ReturnType<typeof question>) => {
-    const result = registry.get(q.read);
-    return AsyncResult.isSuccess(result) ? result.value : undefined;
-  };
-
-  it("returns one grant atom for a question and a distinct grant per call", () => {
-    const q = question();
-    const [atomA, grantA] = q.seed.hold(allow);
-    const [atomB, grantB] = q.seed.hold(allow);
-    assert.strictEqual(atomA, atomB);
-    assert.notStrictEqual(grantA, grantB);
-  });
-
-  it("reads the decision of the grant a registry was given", () => {
-    const q = question();
-    const other = new SeededDeny({
-      evaluationId: "e3",
-      subjectId,
-      durationMillis: 0,
-      disclosure: { _tag: "Withheld" },
-    });
-    const first = AtomRegistry.make({ initialValues: [q.seed.hold(allow)] });
-    const second = AtomRegistry.make({ initialValues: [q.seed.hold(other)] });
-    assert.strictEqual(decisionOf(first, q), allow);
-    assert.strictEqual(decisionOf(second, q), other);
-  });
-
-  it("reads none in a registry given no grant, and creates no node for it", () => {
-    const q = question();
-    const [grantAtom] = q.seed.hold(allow);
-    const unseeded = AtomRegistry.make();
-    assert.isUndefined(decisionOf(unseeded, q));
-    assert.isFalse(unseeded.getNodes().has(grantAtom));
-  });
-});
 
 // The default registry, which a test cannot scope: every count read is a delta.
 const registry = Context.empty();
@@ -298,6 +162,20 @@ describe("dehydrateWith and hydrateWith: both directions through the engine (ARC
 describe("a refused payload is always counted (INV-QD-045, ARCH-60)", () => {
   const mismatchCount = () =>
     hydrationDroppedTotal.valueUnsafe(registry).occurrences.get("PayloadSubjectMismatch") ?? 0;
+
+  it("a value that is not an envelope is refused whole and hands back no entries", () => {
+    const drops: Array<unknown> = [];
+    const pairs = [
+      ...hydrateWith(
+        () => ({ hold: (decision) => [Atom.make<SeededDecision | undefined>(undefined), decision] }),
+        42,
+        makeSubject({ id: "u1" }),
+        { onDropped: (drop) => drops.push(drop) },
+      ),
+    ];
+    assert.strictEqual(pairs.length, 0);
+    assert.deepStrictEqual(drops, [{ reason: "MalformedPayload", entries: [], wholePayload: true }]);
+  });
 
   it("a payload naming another subject with no entries adds exactly one PayloadSubjectMismatch", () => {
     const drops: Array<unknown> = [];

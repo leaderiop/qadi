@@ -6,7 +6,9 @@
  * React binding thin enough to be obviously correct.
  */
 import {
+  Allow,
   AttributeResolver,
+  Deny,
   EvaluationIdLive,
   EvaluationServicesNone,
   makeDecisionLog,
@@ -15,14 +17,17 @@ import {
   hasPermission,
   hasRole,
   makeSubject,
+  makeSubjectId,
   permission,
   portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
+import * as Atom from "effect/reactivity/Atom";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { dehydrateDecisions } from "../src/Hydration.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import { permits } from "../src/SeededDecision.ts";
 import { collect } from "./support/collect.ts";
@@ -102,6 +107,20 @@ describe("makeQadiAtoms", () => {
 
     registry.set(atoms.subject, makeSubject({ id: "u2", roles: ["admin"] }));
     expect(permits(await settle(registry, atoms, isAdmin))).toBe(true);
+  });
+
+  it("counts a subject write as a change exactly when who is asking changed, undefined included", () => {
+    const atoms = makeQadiAtoms(baseLayer);
+    const registry = makeRegistry();
+    const seen: Array<unknown> = [];
+    registry.subscribe(atoms.subject, (value) => seen.push(value));
+
+    registry.set(atoms.subject, undefined);
+    registry.set(atoms.subject, reader);
+    registry.set(atoms.subject, makeSubject({ id: "u1", permissions: ["doc:read"] }));
+    registry.set(atoms.subject, undefined);
+
+    expect(seen).toEqual([reader, undefined]);
   });
 
   it("does not re-decide when a fresh but structurally equal subject replaces the current one (RC-01)", async () => {
@@ -564,5 +583,136 @@ describe("a DecisionSink wired into the runtime layer", () => {
       const result = registry.get(set.decision(canRead));
       expect(AsyncResult.isSuccess(result) && !result.waiting).toBe(true);
     });
+  });
+});
+
+describe("a seeded question, through the atom set's own runtime", () => {
+  // Every case builds its question the way production does: `makeQadiAtoms`, its
+  // real `Atom.runtime` and its real kept-alive subject atom, seeded only through
+  // `atoms.hydrate`. Nothing here names the module that builds the question, so
+  // the cases hold the seed-to-evaluation link the same before and after the code
+  // that builds it moves.
+  const admin = makeSubject({ id: "u1", roles: ["admin"] });
+  const visitor = makeSubject({ id: "u1" });
+
+  const serverAllow = new Allow({
+    evaluationId: "seed-1",
+    subjectId: makeSubjectId("u1"),
+    durationMillis: 1,
+    trace: { policyTag: "HasRole", allowed: true, children: [], obligations: [] },
+  });
+  const serverDeny = new Deny({
+    evaluationId: "seed-2",
+    subjectId: makeSubjectId("u1"),
+    durationMillis: 1,
+    trace: {
+      policyTag: "HasRole",
+      allowed: false,
+      reason: "subject lacks role 'admin'",
+      children: [],
+      obligations: [],
+    },
+  });
+
+  /** The grant pairs the atom set hands a registry for one server decision. */
+  const seedsOf = (atoms: ReturnType<typeof makeQadiAtoms>, decision: Allow | Deny) => [
+    ...atoms.hydrate(dehydrateDecisions([{ policy: isAdmin, decision }]), admin),
+  ];
+
+  const registryOf = (initialValues: ReadonlyArray<readonly [Atom.Atom<unknown>, unknown]>) => {
+    const registry = AtomRegistry.make({ initialValues });
+    registries.push(registry);
+    return registry;
+  };
+
+  const decidedIn = (registry: AtomRegistry.AtomRegistry, atoms: ReturnType<typeof makeQadiAtoms>) => {
+    const result = registry.get(atoms.decision(isAdmin));
+    return AsyncResult.isSuccess(result) ? result.value : undefined;
+  };
+
+  it("reads the seed while the subject is unknown, and drops it once the client answers", () => {
+    const atoms = makeQadiAtoms(baseLayer);
+    const registry = registryOf(seedsOf(atoms, serverAllow));
+    registry.mount(atoms.decision(isAdmin));
+
+    expect(decidedIn(registry, atoms)?.evaluationId).toBe("seed-1");
+
+    registry.set(atoms.subject, visitor);
+    const after = decidedIn(registry, atoms);
+    expect(after).toBeDefined();
+    expect(after === undefined ? true : permits(after)).toBe(false);
+  });
+
+  it("announces a disagreement once per registry, not once per question", () => {
+    const reports: Array<unknown> = [];
+    const atoms = makeQadiAtoms(baseLayer, { onHydrationMismatch: (m) => reports.push(m) });
+    const first = registryOf([...seedsOf(atoms, serverAllow), [atoms.subject, visitor]]);
+    const second = registryOf([...seedsOf(atoms, serverAllow), [atoms.subject, visitor]]);
+    first.mount(atoms.decision(isAdmin));
+    second.mount(atoms.decision(isAdmin));
+    decidedIn(first, atoms);
+    decidedIn(first, atoms);
+
+    expect(reports.length).toBe(2);
+  });
+
+  it("carries the seed's evaluation id into the client's own evaluation (BEH-QD-186)", () => {
+    const atoms = makeQadiAtoms(baseLayer);
+    const registry = registryOf([...seedsOf(atoms, serverAllow), [atoms.subject, admin]]);
+    registry.mount(atoms.decision(isAdmin));
+
+    const decided = decidedIn(registry, atoms);
+    expect(decided?.evaluationId).toBe("seed-1");
+    expect(decided === undefined ? false : permits(decided)).toBe(true);
+  });
+
+  it("gives each registry the decision of the grant it was given", () => {
+    const atoms = makeQadiAtoms(baseLayer);
+    const first = registryOf(seedsOf(atoms, serverAllow));
+    const second = registryOf(seedsOf(atoms, serverDeny));
+
+    expect(decidedIn(first, atoms)?.evaluationId).toBe("seed-1");
+    expect(decidedIn(second, atoms)?.evaluationId).toBe("seed-2");
+  });
+
+  it("a registry given no grant reads none, and holds no grant node for it", () => {
+    const atoms = makeQadiAtoms(baseLayer);
+    const pairs = seedsOf(atoms, serverAllow);
+    expect(pairs.length).toBe(1);
+    const grantAtom = pairs[0]?.[0];
+    const registry = makeRegistry();
+
+    expect(AsyncResult.isInitial(registry.get(atoms.decision(isAdmin)))).toBe(true);
+    expect(grantAtom !== undefined && registry.getNodes().has(grantAtom)).toBe(false);
+  });
+
+  it("a seed given after the first read does not re-run the computation", () => {
+    const atoms = makeQadiAtoms(baseLayer);
+    const registry = registryOf([[atoms.subject, admin]]);
+    registry.mount(atoms.decision(isAdmin));
+    const first = decidedIn(registry, atoms);
+    expect(first).toBeDefined();
+
+    // The grant arrives in a registry that has already answered: a late seed.
+    const pairs = seedsOf(atoms, serverAllow);
+    expect(pairs.length).toBeGreaterThan(0);
+    for (const [grantAtom, grant] of pairs) {
+      expect(Atom.isWritable(grantAtom)).toBe(true);
+      if (Atom.isWritable(grantAtom)) registry.set(grantAtom, grant);
+    }
+
+    expect(decidedIn(registry, atoms)).toBe(first);
+  });
+
+  it("an unhydrated question leaves no grant node, after a computation has run", () => {
+    const atoms = makeQadiAtoms(baseLayer);
+    const pairs = seedsOf(atoms, serverAllow);
+    expect(pairs.length).toBe(1);
+    const grantAtom = pairs[0]?.[0];
+    const registry = registryOf([[atoms.subject, admin]]);
+    registry.mount(atoms.decision(isAdmin));
+
+    expect(decidedIn(registry, atoms)).toBeDefined();
+    expect(grantAtom !== undefined && registry.getNodes().has(grantAtom)).toBe(false);
   });
 });

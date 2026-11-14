@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-095                                   |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.6 (2026-11-11): amended — the projection is the wire schema's encode over the record spread whole, the record's fields are one struct in SinkRecordFields.ts, and SinkRecordTag is derived (ARCH-71, ADR-QD-135, CCR-QD-413)<br>1.5 (2026-11-09): amended — the encode-refusal vocabulary and its three readings move from SinkWire.ts to the leaf JsonRefusal.ts, which the port wire reads too (ARCH-54, ADR-QD-116, CCR-QD-393)<br>1.4 (2026-10-08): Document ID corrected from `QADI-ADR-902` to `QADI-ADR-095`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.3 (2026-10-07): the refusal vocabulary and the three readings of an `EncodeRefusal` move to the leaf `SinkWire.ts` (ARCH-27, CCR-QD-194)<br>1.2 (2026-10-07): D-09-e gains a third reporter: the audit pipeline logs or calls `onRefused`; core owns the path, the annotations, the sentence and the hook containment (CCR-QD-193)<br>1.1 (2026-10-07): the inbound side refuses a non-finite `at` and a non-integer `sequenceNumber` (CCR-QD-186) |
+> | Change History | 1.7 (2026-11-14): amended: devtools passes DecodeRefusal through, MalformedReason retired (ARCH-87, ADR-QD-153, CCR-QD-431)<br>1.6 (2026-11-11): amended — the projection is the wire schema's encode over the record spread whole, the record's fields are one struct in SinkRecordFields.ts, and SinkRecordTag is derived (ARCH-71, ADR-QD-135, CCR-QD-413)<br>1.5 (2026-11-09): amended — the encode-refusal vocabulary and its three readings move from SinkWire.ts to the leaf JsonRefusal.ts, which the port wire reads too (ARCH-54, ADR-QD-116, CCR-QD-393)<br>1.4 (2026-10-08): Document ID corrected from `QADI-ADR-902` to `QADI-ADR-095`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.3 (2026-10-07): the refusal vocabulary and the three readings of an `EncodeRefusal` move to the leaf `SinkWire.ts` (ARCH-27, CCR-QD-194)<br>1.2 (2026-10-07): D-09-e gains a third reporter: the audit pipeline logs or calls `onRefused`; core owns the path, the annotations, the sentence and the hook containment (CCR-QD-193)<br>1.1 (2026-10-07): the inbound side refuses a non-finite `at` and a non-integer `sequenceNumber` (CCR-QD-186) |
 
 ---
 
@@ -224,3 +224,10 @@ wire; `decodeAuditEntry` is the guarded reader) and
 > `SinkRecord["_tag"]`, pinned equal by a type test" no longer holds: `SinkWire.ts` derives
 > the tag from the leaf's two record tags, which reach no import cycle, and `Errors.tst.ts`
 > keeps the pin. The wire is byte-identical and no version moved.
+
+> **Amended 2026-11-14 (CCR-QD-431, ARCH-87).** D-09-f no longer holds: `@qadi/devtools` has no
+> `MalformedReason`. `sourceFromEventSource`'s `onMalformed` receives `@qadi/core`'s `DecodeRefusal`
+> unrenamed, its default warning is annotated by `decodeRefusalAnnotations` (the refusal's tag) plus the
+> frame, and `describeDecodeRefusal` is the one sentence. The union D-09-f named, and the members
+> ADR-QD-096 D-15-f and ADR-QD-106 added to it, retire with it, so a new `DecodeRefusal` member is a
+> compile error in `@qadi/core` alone ([ADR-QD-153](153-core-owns-describing-a-decode-refusal.md)).

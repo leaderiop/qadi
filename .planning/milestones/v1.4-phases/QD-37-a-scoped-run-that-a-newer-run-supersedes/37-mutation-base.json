@@ -1,0 +1,12 @@
+{
+ "measured": {
+  "packages/devtools/src/model/TimelineFeed.ts": 1,
+  "packages/devtools/src/model/DiagnosticsFeed.ts": 0.9279279279279279,
+  "packages/devtools/src/model/SimulationSession.ts": 0.9766763848396501
+ },
+ "unmeasured": {},
+ "new": [
+  "packages/devtools/src/model/SupersedingRun.ts"
+ ],
+ "deleted": {}
+}

@@ -27,6 +27,7 @@ import { defaultFieldStrategy, foldPolicyCases } from "./Policy.ts";
 import { effectiveCombining, isCombining } from "./ShortCircuit.ts";
 import { childKey } from "./TraceKey.ts";
 import { foldTree, foldTreeBy } from "./TreeFold.ts";
+import { valueLabel, valueText } from "./ValueText.ts";
 import { defaultTerm, fieldsClause } from "./Wording.ts";
 import type { Combining, FieldStrategy, Policy, PolicyCases } from "./Policy.ts";
 
@@ -286,13 +287,29 @@ export const foldAligned = <R>(
 // Value grammar
 // ---------------------------------------------------------------------------
 
+/**
+ * A literal as a reader sees it, through `valueLabel`.
+ *
+ * A list with no JSON text is written element by element. The walk is the one
+ * thing here that can throw (a revoked proxy, a throwing `get` trap), so a list
+ * that cannot be walked is written as one value, never as a failure.
+ */
+const listText = (values: ReadonlyArray<unknown>): string => {
+  try {
+    return `[${values.map(valueLabel).join(",")}]`;
+  } catch {
+    // The walk threw: read the whole list through the total label.
+  }
+  return valueLabel(values);
+};
+
 const refText: (self: ValueRef) => string = Match.type<ValueRef>().pipe(
   Match.tagsExhaustive({
     SubjectRef: (r) => `the subject's ${r.path}`,
     SubjectIdRef: () => "the subject's id",
     ResourceRef: (r) => `the resource's ${r.path}`,
     ActionRef: () => "the action",
-    LiteralRef: (r) => JSON.stringify(r.value),
+    LiteralRef: (r) => valueLabel(r.value),
   }),
 );
 
@@ -304,11 +321,11 @@ const refText: (self: ValueRef) => string = Match.type<ValueRef>().pipe(
 const matcherTextCases: MatcherCases<string> = {
   Eq: (m) => `equals ${refText(m.ref)}`,
   Neq: (m) => `differs from ${refText(m.ref)}`,
-  In: (m) => `is one of ${JSON.stringify(m.values)}`,
+  In: (m) => `is one of ${valueText(m.values) ?? listText(m.values)}`,
   Exists: () => "is present",
   Gte: (m) => `is at least ${m.value}`,
   Lt: (m) => `is below ${m.value}`,
-  Contains: (m) => `contains ${JSON.stringify(m.value)}`,
+  Contains: (m) => `contains ${valueLabel(m.value)}`,
   Dominates: (m) => `dominates ${refText(m.ref)}`,
   Size: (_m, text) => `has a size that ${text}`,
   FieldMatch: (m, text) => `has ${m.field} that ${text}`,

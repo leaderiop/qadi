@@ -1,268 +1,210 @@
 # Project Research Summary
 
-**Project:** Qadi, milestone v1.3 "Arch Wave 8" (Phases 30-36)
-**Domain:** Effect v4 authorization library (pnpm monorepo); architecture deepenings, no new features
-**Researched:** 2026-11-12 (base `aab87576`, HEAD `b8b19f6c`, branch `arch-wave-8`)
-**Confidence:** HIGH overall; Phase 35 is MEDIUM-LOW (mechanism unproven, spike mandatory)
+**Project:** Qadi, milestone v1.4 "Arch Wave 9" (Phases 37-42, ARCH-84..89)
+**Domain:** Effect v4 authorization library (pnpm monorepo); six internal architecture deepenings, no new features
+**Researched:** 2026-11-14 (base `637c0601`, branch `arch-wave-9`)
+**Confidence:** HIGH for Phases 37-41, MEDIUM for Phase 42 (a human decision, not a research gap)
 
 ## Executive Summary
 
-Wave 8 is six architecture deepenings plus spec debt, each restating one rule in one place. It adds no dependency and no version bump: every API needed ships in the installed `effect@4.1.2` and `@effect/atom-react@4.1.2`. Phases 30-33 are core (strict decode, shared-computation reset, options/services leaf, sealed evaluation layer). Phase 34 is devtools (diagnostics as the dock model's seventh store). Phase 35 is the one speculative react phase (atom set owns its eviction sweep). Phase 36 is spec debt, and it must run last because it corrects whatever 30-35 leave stale. Execution is strictly serial, 30 to 36, because every phase edits the same spec registers.
+Wave 9 is six relocations, not six capabilities. Each phase takes one fact that is currently restated by hand and gives it one owner: the superseding-run protocol (37, devtools), the sink wire version (38, core), the hydration drop-reason set with its kinds (39, core+react), the decode-refusal vocabulary (40, core+devtools+audit), the value-to-text guard (41, devtools), and the seed-to-evaluation link (42, react). No dependency, no new Effect API, no version change: everything is expressible with what the repo already imports (`FiberHandle`, `Exit`, `Cause`, `Schema`, `Metric`, `Match`, `Atom`). The research value is the behaviour the hand copies rely on without saying so, which the shared module must keep (publish-before-fork, finalizer order, label order, wire byte order, atom subscription shape).
 
-The recommended approach is behaviour-preserving at every public boundary. Move declarations, do not remove public names. Keep each seam's own refusal mapping, and make the shared module hold only the order of operations. Write characterisation tests on the phase base before moving code, and add tests at the new seam before deleting old ones. This protects both the mutation-score rule (no touched file falls) and the invariants that only exist as pins today.
+Keep the context's strict order 37 -> 42, with hard dependencies 38 -> 40 (shared `SinkWire.ts`/`SinkCodec.ts`) and 39 -> 42 (shared `HydrationEngine.ts`), and a soft one 37 -> 41 (both touch `SimulationSession.ts`). Two phases are really defect fixes with RED tests first: 37 (a possible stuck-on-Starting race, not yet reproduced) and 41 (a reproduced synchronous throw from `Remedies.ts:574` that escapes `SimulationSession.commit()`). Phase 40 is the only Breaking change (`@qadi/devtools` `onMalformed`/`MalformedReason`) and the only one that retires a budgeted exception (`UNTRUSTED_DECODE_BUDGET` for `AuditEntry.ts`). Phase 42 starts with a human checkpoint and may end in a rejection ADR.
 
-The main risks are:
-- **Phase 30:** a one-shot decode helper that flips refusal precedence at the sink and hydration seams, or widens a public closed union (`ArchiveRefusal`, `DecodeRefusal`).
-- **Phase 31:** conflating "superseded" with "abandoned", so waiters hang or a stale claim writes the cache.
-- **Phase 33:** silently changing whether `@qadi/testing` shadows the sink and cache.
-- **Phase 34:** a poll defect that stops the panel without a trace, and an Activity re-show that blanks the reading.
-- **Phase 35:** repeating CCR-QD-150's dropped render, which only the e2e suite catches.
-- **Phase 36:** deleting the wrong copy of the duplicated BEH-QD-219..221, which would reinstate fail-open text.
+Main risks are all "looks the same, behaves differently": a one-call `run` that removes the publish-before-fork gap (37), a table that reorders `preregisteredWords` or a constant that widens the wire type (38, 39), a re-encode that changes what an audit entry stores (40), one return contract flattening five deliberately different renderers (41), and a "tidier" atom construction that adds a subscription or second readable (42). Mitigation is uniform: characterise on the base first (golden bytes, written-out label lists, RED reproductions), put tests at the new seam before deleting store-level tests, measure per-file mutation with the same invocation at base and close (XC-05).
+
+## Reconciliations (where the four files disagreed, and which wins)
+
+**R1. Phase 37 stop rule: unconditional wins over the guarded form.**
+ARCHITECTURE pins the guarded form (`Option.isSome(FiberHandle.getUnsafe(...))`, ADR-QD-137 point 3) but only read `FiberHandle` and did not execute it (MEDIUM). STACK reproduced it: `fork(Effect.void)` on an empty handle completes inside `runFork`, the observer clears the slot, `getUnsafe` is `None` before and after, and on a closed handle the fork returns `constInterruptedFiber()` and never starts the body. The guard saves one throwaway fiber, no observable effect. FEATURES independently recommends unconditional. Decision: `stop` = bump generation; `fork(Effect.void)`, no guard, in the one module; `SimulationSession.ts:462`'s guard is deleted. ADR-QD-150 restates ADR-137 point 3 ("when the handle holds a fiber"). Pin on the module interface: stop with no run (not started, closed, completed) means no notification, no state change, no span, handle empty. PITFALLS' "must not allocate a fiber" is dropped as a requirement (the observable pin is no effect, not no allocation).
+
+**R2. Phase 37 module interface: two-step begin/fork, two failure hooks.**
+PITFALLS (and FEATURES C2) are right that a one-call `run(effect)` breaks all three stores: each publishes between bump and fork (`TimelineFeed` `status.set(READING)`, `DiagnosticsFeed` `show(Starting)` "before the fork: its synchronous prefix may already reach Live", `SimulationSession` `commit()` then `if (mine === generation) fork`). Interface: `begin()` bumps and returns a token; the store publishes; `fork(token, effect)` forks only while the token is still current and says whether it did; `isCurrent(token)` guards each landed write (`marking.accept`, `land`); `stop()`; `closed()`; one finalizer registered after the handle (reverse-order, sequential close). The module makes the pre-fork re-check the default, so the feeds gain what only `SimulationSession` has today (FEATURES C2: a subscriber restarting the feed inside the Starting/Reading notification leaves the older run forked last; hypothesis, RED first).
+Failure classification is not shared (PITFALLS 3, FEATURES C1): `mine === generation && Exit.isFailure && !Cause.hasInterruptsOnly` exists in two copies only (`TimelineFeed.ts:150`, `DiagnosticsFeed.ts:221`) and becomes one named hook for the feeds. `SimulationSession` has no `hasInterruptsOnly`: `land` runs `Effect.exit` inside the fiber and maps every non-success exit with a current token to `Broke`, including a self-interrupt. It keeps that rule and uses only `isCurrent`. Pin the self-interrupt row ("reads Broke, not Running") before touching it.
+Extra hazard (STACK, reproduced `exp3`): a body whose synchronous prefix calls a command that starts a newer run installs the inner fiber first, then the outer installs and interrupts it, leaving state idle with a stale generation. Decision: option A (keep synchronous start; module doc says "a body must not call a command before its first yield"; RED test that a violation is reported, not silently idle). Reject `Effect.yieldNow` first (breaks ~34 tests relying on a synchronous prefix) and `FiberHandle.run({startImmediately:false})` (needs `runSyncWith`).
+
+**R3. Phase 41 reproduction: reproduced (FEATURES wins), narrower hazard set.**
+STACK and PITFALLS only reasoned from code. FEATURES ran the real `remedyEdits` against built core: six probes (`contains(10n)`, `contains(circular)`, `inArray([1n])`, `inArray([circular])`, `eq(literal(1n))`, `eq(literal(circular))`) all throw `TypeError`. It escapes synchronously: `remedyEdits` <- `derive` (`WhatIf.ts:201`) <- `sweepPlan` (`:173`) <- `SimulationSession.build()` (`SimulationSession.ts:404`) <- `commit()` (`:447-449`), outside any Effect, so no `Broke` capture; the command's state mutation is done and its publish is not. Only `Remedies.ts:574` (`String(JSON.stringify(v))`, used at `:481`, `:496`, size `:249`) is live. `Inspect.ts:300-310` `outsideUnion` and `QuestionsPanel.tsx:388` `resourceOf` cannot throw. Phase 41 is a defect fix with RED first on `637c0601` at two levels (`remedyEdits`, and `makeSimulationSession` + `setPolicy`/`chooseSight`); "refute and downgrade" is no longer an available outcome. The uniform primitive is a total stringify returning `string | undefined`; Filters (`[]`), SimulationForm (`undefined` then round-trip check), Remedies (the word `undefined`, intended) and `outsideUnion` (own presentation) keep thin local mappings.
+
+**R4. Phase 42 options: one consolidated set for the human checkpoint.**
+FEATURES (A as-reviewed, B seed holder, C reject) and ARCHITECTURE (A extract `SeededQuestion.ts`, B first-class seed lookup, C reject) are the same three choices cut differently. Consolidated:
+- **Option 1, invert (review's shape).** `makeSeededQuestion({ policy, resource, runtime, subject, report, live })` builds its own computing atom, calls `get.addFinalizer(live())` itself (the `track` callback disappears), reads the seed via `seededIn(get.registry)` (`registry.getNodes()`, never `get`). **1a** stays in `HydrationEngine.ts` (engine gains evaluation knowledge, imports `evaluate`/`CurrentSubject`); **1b** extracts `react/src/SeededQuestion.ts` (ARCHITECTURE's recommendation). Cost either way: `DECISIONS_KEY` and `QadiRuntimeServices` must move down (importing back up from `HydrationEngine.ts` to `QadiAtoms.ts` is a madge cycle, ADR-QD-037); 1b also moves `DECISION_READ_BUDGET`/`_NAMES` file keys, AGENTS.md §13 wording and ADR-QD-149's file citation, both directions; tests need a real `Atom.runtime(Layer)` and real subject atom (four fake-`computedFor` cases replaced).
+- **Option 2, seed holder first.** A first-class `{ seededIn, hold }` created once per question, handed to both the computing atom (stays in `QadiAtoms.ts`) and `makeSeededQuestion`. Removes callback-receiving-a-callback with no layering change, no ADR reopened; ADR-149 properties become unit-testable without an atom runtime. But the seed-to-evaluation link stays split across two modules, so it only half answers the review.
+- **Option 3, reject.** ADR-QD-155 rejection, no source change; only the liveness rule is de-duplicated in prose (one statement at `QuestionBook.ts` `BookOptions.build`, pointers elsewhere). Cheapest; the fake in `HydrationEngine.test.ts` stays.
+
+The ADR conflict is narrower than `_WAVE9-CONTEXT.md` says (state at the checkpoint): ADR-QD-148 does **not** name `makeSeededQuestion`, `computedFor` or `seededIn`. ADR-QD-149 names `makeSeededQuestion` only as the home of the seed (its `WeakMap<SeedGrant,...>` survives any option); ADR-QD-103 contributes "atom set is the one adapter" and the liveness-first rule (INV-QD-105 Source cites `track`). "Go" needs INV-QD-028/105/317/318 Source/Enforcement updates plus text amendments, not an ADR reversal; "amend" only if liveness bookkeeping moves. STACK: nothing in effect 4.1.2 blocks or forces the inversion; do not present a nonexistent effect limitation. Identity trap: hand the question the final `keepAlive`/`withEquality` subject atom object, never the pre-pipe base.
+
+**R5. Phase 38: `WIRE_VERSION` is exported and public.**
+`SinkWire.ts` is `export *`'d from the core barrel (`index.ts:55`), ADR-QD-116 forbids re-exports, so any exported constant is public. The alternative (private, codec re-states it) is the defect being fixed, and `DecodeRefusal.supported` in `SinkWire.ts` cannot import the codec (ADR-QD-037). Decision: export it. Cost: gate 13 row in `spec/overview.md` (near `:518-521`), a `@qadi/core` **minor** changeset (new export), and a recorded narrowing of `WIRE_VERSIONS` to `readonly [2]` (type-only, source compatible). Form (STACK, verified under strict flags): `WIRE_VERSION = 2 as const` (bare `= 2` widens to `number` in the encoder spread, which is why the encoder has `2 as const` today); `WIRE_VERSIONS = [WIRE_VERSION] as const`; `type WireVersion = (typeof WIRE_VERSIONS)[number]`; `Schema.Literal(WIRE_VERSION)` in both field structs; encoder `version: WIRE_VERSION` after the record spread (same key order, bytes unchanged); decoder membership by `.some(v => v === version)`. Name `WIRE_VERSION` (STACK, ARCHITECTURE); PITFALLS' `CURRENT_WIRE_VERSION` is acceptable if the planner finds the pair confusable. Keep hard-coded `2` in goldens and "supported version is 2, alone". Do not touch hydration's payload `version: 2` or audit's bundle version.
+
+**R6. AGENTS.md §10 `it.scoped` does not exist (finding).**
+STACK verified in `@effect/vitest@4.1.2` (`index.ts:253-266`, `internal.ts:353`): `it.effect` is `Tester<Scope.Scope>` and already scopes the test; `it.scoped` is absent; `TimelineFeed.test.ts` already uses `it.effect`. A test that must close its scope mid-test builds `Scope.makeUnsafe()`, runs via `Scope.provide(effect, scope)` and `Scope.close(scope, Exit.void)`. Action: correct AGENTS.md §10 in Phase 37's records plan, or planners will write `it.scoped` and get a TypeError.
+
+**Smaller disagreements settled:**
+- *Phase 39 table form.* One keyed `as const` object in current order (key order is the metric's `preregisteredWords` order, observable in devtools `Hydration.ts:114` and two tests; interleaved: ForeignSubject, UnencodablePolicy, PayloadSubjectMismatch, MalformedEntry, UndecodablePolicy, EntryTooDeep, UnsupportedPayloadVersion, MalformedPayload, PayloadTooDeep). Fold `MEANINGS` into rows (two tables keyed by one union is the same defect one level down). Enumerate with a `hasOwn` predicate (STACK, no cast); ARCHITECTURE's `Struct.keys` is unverified in 4.1.2.
+- *Phase 39 length pin.* ARCHITECTURE says delete `Hydration.test.ts:109` (`length === 9`), STACK says replace; FEATURES and PITFALLS say keep. Keep it and core's written-out order lists as the independent label-set oracle (C7); the completeness proof added is a tstyche negative (a kind-less reason fails to compile).
+- *Phase 40 audit single decode.* Core returns the strict decode's already-validated JSON form with the record (new minor export, no new counted `Schema.decode*` token), proven by a differential over existing fixtures and a structural-equality/Retention check. Re-encoding (STACK's suggestion, ARCHITECTURE B) is rejected: it can fail (`SinkRecordNotEncodable` on a read path), normalise differently, and change what `Retention`'s `MutableHashMap<AuditEntry>` counts.
+- *Phase 40 reporter.* Core exports `describeDecodeRefusal` (module-scope `Match.tagsExhaustive`, bounded/safe for `unknown`) and a tag-only annotations helper (closes INV-QD-104). No reporter in core (one consumer; devtools keeps its `Effect.logWarning` adapter with `qadi.frame`). `Malformed.message` and `UnsupportedVersion.version` appear in the sentence at most, never in a default log annotation.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new dependency. Everything is read from installed source. `madge@8.0.0` stays the cycle gate. Two facts constrain design. madge counts type-only edges (verified), so `import type` is never a cycle workaround. madge sees only relative imports, so cross-package cycles are the TypeScript project references' job.
+No new dependency, no version change: `effect@4.1.2` (lock-pinned), `@effect/vitest@4.1.2`, tstyche. Re-check `FiberHandle.ts:395-435` and `internal/effect.ts:592-612` if the lock moves (Phase 37's ordering facts).
 
-**Core technologies (all installed):**
-- `effect/Schema` decoders (`decodeUnknownResult`, `Effect.fromResult`): Phase 30 core is a sync `Result` over a closed `Data.TaggedEnum`, with `Effect` and `Option` adapters at the edges. A schema-issue-only cause is converted; a stack-overflow `RangeError` is a defect and throws, so "guard first, decode second" is load-bearing and never wrapped in `Result.try`.
-- `HashMap`, `Deferred`, `Fiber` (existing `SharedComputation` state): Phase 31 is a flag flip over existing state, no new primitive.
-- `FiberHandle.runtime` plus `Schedule.spaced`: Phase 34 poll on a second handle in the model's scope. Restart is synchronous via `setUnsafe`, stop is a fork of `Effect.void` (the `NO_SOURCE` idiom).
-- `AtomContext.mount`/`addFinalizer`, `Effect.runFork`, `Effect.yieldNow`: Phase 35 spike inputs. `runFork` runs synchronously to the first yield, so any sweep started from `live()` or `release` must begin with `yieldNow`.
+**Core technologies (all already imported):**
+- `FiberHandle.make` + `FiberHandle.runtime(handle)<never>()`: the "one slot, newer replaces older" primitive; fork returns synchronously; the replaced fiber is interrupted inside the fork call after the new prefix runs (verified).
+- `Exit` / `Cause.hasInterruptsOnly`: failure check (`Exit.hasInterrupts` means "any", do not swap).
+- `Schema.Literal(WIRE_VERSION)` + `as const` tuple: derivation without a cast; non-widening constant required.
+- `as const` keyed table + `keyof typeof` + `ReasonOfKind<K>`: Phase 39 derivation, same shape as `ENFORCEMENT_ERROR_CLASSES`; reasons are frequency words not attributes, so the registry key (type, id, description, attributes) does not move.
+- `Match.type<DecodeRefusal>().pipe(Match.tagsExhaustive(...))`: Phase 40 mirrors `describeEncodeRefusal` (ADR-QD-116).
+- `Result.try` (or the existing try/catch precedent) for the Phase 41 guard; a throwing `toJSON`/getter is reachable, so wrap the call.
+- `Atom.runtime(...).atom`, `AtomRegistry.getNodes()`: `keepAlive`/`withEquality` return new objects (identity trap); `withReactivity` returns a second atom.
+
+**Do not add:** `FiberMap`/`FiberSet`, `Effect.race*`, `Ref`, `Semaphore`/`Latch`, state-machine libs, new `Effect.fnUntraced` (budget exact 3), new `switch` (exact 3), new `Schema.TaggedError` (exact 12), `Record<string, unknown>`, `old | "New"` widening, changes to `scheduleTask`/`defaultIdleTTL`.
 
 ### Expected Features
 
-"Features" here are behaviours that must survive, behaviours that change, and what is table stakes, differentiator or anti-feature per phase.
+**Must have (per phase; see Requirement candidates):** 37 one run module + three adopters + stop pinned + re-entrancy RED-or-refuted; 38 one constant + compile-time pin + bytes unchanged; 39 one keyed table with kinds, all derived, label set/order unchanged; 40 core decode describer + devtools passthrough (Breaking) + audit single decode + budget row removed; 41 RED then GREEN for the Remedies throw + one primitive + one test table; 42 checkpoint with evidence and options, code only on "go".
 
-**Must have (table stakes):**
-- **P30:** one public leaf in `@qadi/core` owning "(parse) -> depth guard -> (prepare) -> strict decode", returning a closed refusal. `Malformed` carries the `SchemaError`. `MAX_DECODE_DEPTH` stays 256. Depth tests at every seam (closes gaps G1 port wire, G2 hydration envelope, G3 `PolicyFromJson`).
-- **P31:** `reset` makes every forgotten claim stop settling while still answering its waiters. `generation` is deleted from `DecisionCache`. `clear` is three steps. A new BEH sentence states the staleness rule.
-- **P32:** `EvaluateOptions`, `EvaluationServices` and `StandingEvaluationServices` each declared once. `LifecycleOptions` and the hand-spelled union are deleted. All three names stay on the `@qadi/core` root.
-- **P33:** one builder in core; the shadowing rule stated in INV-QD-042 and in the doc of both layers.
-- **P34:** `DockModelInputs` gains `diagnostics` and `reading`. Per-field identity dispatch. The poll runs on a `FiberHandle`. The merged reading is a model store. Three snapshot hooks collapse into one. Public `useDiagnostics` stays as an adapter.
-- **P35:** a spike, with "keep it in the provider, state and test the rule" as a valid recorded outcome.
-- **P36:** reconstruct BEH-QD-219..221 in `29-devtools-simulator.md`, fix `traceability.md:71` (`Sources.ts` to `Source.ts`), strike two stale replay lines, and sweep the info items that are still true at the phase base.
+**Should have:** 37 model-based property over supersede/close/stop/land interleavings (ARCH-79 pattern), ADR-137 §7 corrected (it still says `useRunningStore` "is unchanged"; deleted by ARCH-82); 38 version-indexed INV (amend INV-QD-096, do not duplicate), keep one literal `"version":2` golden; 39 public kind accessor only if a consumer reads it; 40 `decodeRefusalAnnotations` (tag only), core owns `UntrustedValueRefusal -> DecodeRefusal` (third restatement at `AuditEntry.ts:159-164` vs `SinkCodec.ts:489-498`); 42 spike evidence (Phase 35 template).
 
-**Should have (complete choice, user prefers complete over simple):**
-- P30: house-style rule refusing `UNTRUSTED_DECODE_OPTIONS` outside the leaf (confirm in discuss-phase).
-- P31: property test over `run`/`reset`/settle/leave interleavings (optional, MEDIUM).
-- P33: conformance test that review and simulation agree on ids, clock and fail-closed ports; re-point `core/test/helpers.ts` at the builder.
-- P34: `useDiagnostics` as a thin adapter over the same scoped feed.
-
-**Defer / anti-features:**
-- Lifting the audit guard to the whole bundle (changes `ArchiveRefusal` for a deep entry).
-- A message-only `Malformed` (regresses `ExplorerSession.formatDecodeFailure` and `fromJson`'s `SchemaError` channel).
-- Shadowing sink/cache in `qadiReviewLayer`.
-- Touching `decide`/`evaluate`/`permitted` (ADR-QD-104).
-- `scheduleTask`/`defaultIdleTTL`, any module-scope timer or `setInterval`, sweep-on-`open`.
-- Re-baselining a mutation score instead of killing a survivor.
-- Editing historical CCR rows.
+**Defer/exclude:** `FIXTURE_DATA` placement, `"Decision"`/`"Obligations"` literals at `DecisionRecord.ts:145/149`, `CircuitBreaker.ts` generation, `DockModel.ts` (no adopter), unread sections, `oxfmt`, other budget changes, re-opening ADRs 077-107.
 
 ### Architecture Approach
 
-Three new type or logic leaves appear in core, all below their consumers so `pnpm circular` stays green: `UntrustedDecode.ts` (imports `DecodeDepthGuard.ts` and `effect/*` only), `EvaluationServices.ts` (type-only; imports `CurrentSubject`, `EvaluationId`, `Ports`), and `SealedEvaluation.ts` (imports `DecisionSink`, `DecisionCache`, `EvaluationId`, `Ports`, `EvaluationServices`). Reachability was checked: `Ports.ts`, `CurrentSubject.ts` and `EvaluationId.ts` do not reach `Question.ts`, `Evaluate.ts` or `Lifecycle.ts`. Anything another package must call has to be on the `@qadi/core` barrel (ADR-QD-099), so the strict-decode leaf and the sealed layer are public additions (core minor). ADR-QD-116 is the precedent for moving a public name without re-exporting from its old module.
+Each phase moves one fact to one owner. 38/39/40 live in public core leaves; 37/41 are package-private devtools modules; 42 is react-internal. Imports point downward (madge counts type-only edges, ADR-QD-037); package-private modules stay out of barrels (ADR-QD-099); new core exports need a gate 13 row and changeset.
 
 **Major components:**
-1. `UntrustedDecode.ts` (P30): `untrustedDecoder(schema, { maxDepth?, unwalked?, prepare? })` returning `{ decode, decodeText }`. The guard cannot be skipped because `decode` is the only way in.
-2. `SharedComputation.ts` / `DecisionCache.ts` (P31): the module owns the supersede rule; the adapter keeps only entries and insertion order.
-3. `Question.ts` + `EvaluationServices.ts` (P32): options beside `QuestionOptions`, services in a type-only leaf.
-4. `SealedEvaluation.ts` (P33): ports, id prefix, injected clock layer, explicit shadowing argument.
-5. `DockModel.ts` + `DiagnosticsStore.ts` (P34): a scoped diagnostics feed as the seventh store; `DiagnosticsDockOptions` moves into the model and `useDiagnostics.ts` re-exports it.
-6. `QadiAtoms.ts` / `QuestionBook.ts` / `QadiProvider.tsx` (P35): a qadi-owned sweep trigger outside the registry's synchronous dispose-reread window.
+1. `devtools/src/model/SupersedingRuns.ts` (new; the planner names it): handle, generation, closed flag, finalizer order, begin/fork/isCurrent/stop/closed, feed failure hook; imports only `effect/*`; per-build closure state only (StrictMode and `<Activity>` build two scopes).
+2. `core/src/SinkWire.ts` leaf: `WIRE_VERSION`, `WIRE_VERSIONS`, `WireVersion`, `DecodeRefusal`, `describeDecodeRefusal`.
+3. `core/src/HydrationMetrics.ts`: the reason table; react's two groups derived via a generic kind-subset type (one new public type).
+4. `devtools/src/model/ValueText.ts` (new, package-private): total stringify and its one test table.
+5. `react/src/SeededQuestion.ts` (only Option 1b).
+
+Anti-patterns: unifying the lookalike (three different `version: 2` wires; five different value-to-text sites); importing up; a counted decode token outside the leaf.
 
 ### Critical Pitfalls
 
-1. **One-shot decode flips refusal precedence (P30).** The sink guards, then checks the version, then projects the envelope, then decodes. Hydration guards `{...payload, entries: []}`, then checks the version, then decodes per entry. Keep `prepare` and `unwalked`; run a characterisation table on the base first (rows: not JSON, too deep, deep AND wrong version, wrong version, extra envelope key, excess key, valid).
-2. **Re-implementing the depth walk or catching throws (P30).** INV-QD-096 requires the outbound `wireHazard` count to equal `exceedsJsonDepth`. No `try/catch` or `Result.try` around schema decode (only around `JSON.parse`). Do not touch the encode half.
-3. **Reusing `abandoned` as-is for `reset` (P31).** Superseded claims still have waiters to answer, and still get interrupted if the last waiter leaves. Skip-settle must stay inside the same synchronous `onExit` step. `forget` stays identity-checked. `reset` must flag every in-flight claim.
-4. **Silent shadowing change (P33).** The innermost provide wins, so a review layer that shadows hides a caller's outer sink. The rule must be an explicit required argument.
-5. **A diagnostics poll that dies invisibly or re-polls (P34).** `FiberHandle` swallows a poll defect into its deferred. `configure` must compare four fields individually, or an inline literal rebuilds the host layer every render. The builder runs under `Effect.runSync`, so it must fork and never await.
-6. **Dropped render from scheduler coupling (P35).** Only the e2e (`pnpm example`) catches it; unit tests do not.
-7. **BEH-QD-219..221 is a corrupted splice, not two copies (P36).** Copy 1 has the current text but a change-history fragment at line 173. Copy 2 has the intact tail but the pre-ADR-129 fail-open text. Reconstruct by hand.
+1. **Publish-before-fork (37)**: a one-call `run` overwrites a synchronously reached Live/Stopped with Starting and loses the session's post-commit re-check. Avoid: begin/fork(token), RED re-entrancy test, per-store ordering rows.
+2. **Finalizer order and synchronous build (37)**: finalizer after the handle so it runs first; the module must build synchronously (`useScoped` uses `Effect.runSync`). Avoid: close-mid-run test with a defecting finalizer, two-instance test, state the order once. Caveat: a `Scope.make("parallel")` voids the ordering; document it.
+3. **Mutation falls when logic moves (all, 37 first)**: v1.3 saw TimelineFeed 1.0 -> 0.9194. Avoid: base all touched files at `637c0601` with the close's exact invocation (XC-05; `HydrationEngine.ts`/`QadiAtoms.ts` need `--mutate`), module tests first, delete store tests only after module tests are green, never re-baseline.
+4. **Contracts the gates do not see (38, 39)**: `ignoreStatic` hides module-scope constants from Stryker; `[metric-table]` checks id/type/file, not label values or order. Avoid: byte golden and a written-out nine-word ordered snapshot on the base; tstyche pins; scratch retype-to-3 and throwaway kind-less-reason experiments recorded.
+5. **Observable vocabulary and stored values (40)**: `qadi.reason` log string, `Dock.tsx:73`, README, website `devtools.md:108`/`upgrading.md`, `DecisionStreamRoute.ts:32`, `26-decision-stream.md`; `not-a-record` collapses into `Malformed`; the describer must be bounded for `unknown`; audit single decode must not change `AuditEntry.record`.
+6. **Seed timing contract (42)**: `get(grantAtom)` instead of `seededIn(get.registry)` adds a dependency and re-run; a second `Atom.readable` changes render sequences; `live()` must stay first; same `keepAlive` subject object; `WeakMap<SeedGrant,...>` stays the only seed holder. Only the 30 e2e and render-sequence tests see these.
 
-## Disagreements Between Research Files, Settled
+**Cross-cutting (every phase):**
+- *Records.* Never run `node scripts/next-id.mjs` (reserved: ADR 150-155, CCR 428-433, BEH 521-550, INV 319-330; confirm free by grep; name unused in the CCR row). CCR README row in the same plan as its first citation. Gate 13 is names-only: hand-edit overview rows/module columns. `spec-revise` with `--date` then `--check`. Prose "gate N" names its command. `typescript` fences must compile (`pnpm spec:examples`; website via `pnpm spec:website-examples`, which stdin-closed `astro check` skips).
+- *Verification hygiene.* `pnpm check:pr < /dev/null`; ten silent minutes = hung. Scope negative greps to added lines and exclude `.stryker-tmp`, `.next`, `node_modules`, `reports`; zsh aliases `grep` (use `/usr/bin/grep`); vitest from the repo root with `--project`.
+- *Budgets.* Exactly one row goes away (Phase 40 `UNTRUSTED_DECODE_BUDGET` for `AuditEntry.ts`, with the AGENTS.md §7a table and `[untrusted-decode-table]`/`[untrusted-decode-names]` in the same task); `METRIC_ID_LITERAL_BUDGET` for `HydrationMetrics.test.ts` stays 5; `DECISION_READ_BUDGET`/`_NAMES` and §13 move only under 1b. All both directions.
+- *Tests pin rules, not accidents:* each RED test names its INV/ADR.
+- *Close hygiene.* Trailer check per phase; named re-verify plan after Phase 42; explicit requirement IDs one per row (phase-complete cannot parse ranges).
 
-| Question | Positions | Recommendation |
-|----------|-----------|----------------|
-| **P31:** reuse `abandoned` or a separate state | STACK: rename/widen the one flag, mechanics identical. ARCH: rename to `dropsExit`/`superseded`. FEATURES: consider a separate flag. PITFALLS: separate state, because the two facts differ | **Reuse the mechanism, not the flag.** Add a separate `superseded` boolean. `onExit` settles only when `!abandoned && !superseded`; `Deferred.done` and the last-leaver interrupt are untouched, so waiters are always answered. `reset` walks `HashMap.values(inFlight)` flagging every claim, then swaps the table, in one synchronous step. Keep the `claim` hook shape (ARCH's `settle(key, exit)` change touches about twenty tests for one allocation; revisit later). Add seam tests (stale-last, stale-first plus third-ask coalescing, two keys, parked-uninterruptible) before deleting `generation`. |
-| **P32:** where `EvaluateOptions` lives | ARCH/FEATURES: in `Question.ts` beside `QuestionOptions`. STACK/PITFALLS: a new leaf, to keep `Question.ts` light | **`EvaluateOptions` in `Question.ts`.** It needs only `QuestionOptions` and `effect/Types`, so it adds no heavy edge, and it sits beside the classification test (`Question.test.ts`). **`EvaluationServices` and `StandingEvaluationServices` go in a new type-only leaf `EvaluationServices.ts`.** Putting the services in `Question.ts` would hang it on `Ports.ts`' roughly 41-module closure. No re-export from `Evaluate.ts` (ADR-QD-116), unless TS2883 forces a named re-export. Gate 13 checks names only, so update the `spec/overview.md` module column by hand. |
-| **P30:** one call vs guard + decode with `unwalked`/`prepare` | PITFALLS: two steps (guard, then pre-bound decode). ARCH: one `untrustedDecoder` with `unwalked`/`prepare`. STACK: Result core, `maxDepth` as a parameter | **One entry (`untrustedDecoder`) with `maxDepth`, `unwalked` and `prepare` options.** This meets the PITFALLS concern, because `prepare` runs between guard and decode (sink version and projection) and `unwalked` replaces hydration's `{...payload, entries: []}` workaround. A guard-only export would let a new seam skip the guard, which is the defect class. Order is fixed: guard, prepare, decode. `exceedsJsonDepth` stays the single walk and stays public. |
-| **P30:** audit `TooDeep` mapping | PITFALLS: widen `ArchiveRefusal` (full closed union) or map to `Malformed`. ARCH: map, do not widen. FEATURES: keep per-entry attribution | **No widening of any public union.** Use `unwalked: ["entries"]` on the envelope and `["record"]` on the row. A deep entry stays `EntryNotDecodable({ index, refusal: TooDeep })` via `decodeSinkRecord`. Envelope or row `TooDeep` and `Malformed` map to the existing `ArchiveRefusal.Malformed`. FEATURES C1 shows audit is already guarded transitively, so the "behaviour change" is vacuous. `recordJsonOf` stays outside the module with its deliberate default options. |
-| **P30:** `PolicyFromJson` (public, unguarded, gap G3) | Only FEATURES found it | **Document it as unguarded, with a pointer to `fromJson`, in its doc and the spec. Do not guard or deprecate.** Guarding changes its type; deprecation is churn. Open it as a checkpoint. `Policy.fromJson` keeps its fallback through `PolicyFromJson` for malformed text, because the public error channel is `PolicyDecodeTooDeep \| SchemaError` and the 60,000-deep malformed test pins it. |
-| **P30:** where the constants go | ARCH: move to the leaf, no re-export. STACK/PITFALLS: `Policy.ts` may re-export | **Move `MAX_DECODE_DEPTH` and `UNTRUSTED_DECODE_OPTIONS` to the leaf and keep both exported from the `@qadi/core` root. No re-export from `Policy.ts`.** Pin `MAX_DECODE_DEPTH === DEFAULT_MAX_DEPTH * 4` in a test. Port-wire sentences stay seam-local and byte-identical. |
-| **P33:** clock | ARCH: core uses `"live" \| "deterministic"` and imports `TestClock`. STACK/PITFALLS: no `TestClock` in core | **Core takes the clock as an already-built `Layer`.** Each package keeps its own public vocabulary (`"test"` for review, `"deterministic"` for simulation) and its own `clockLayer`. Core stays free of `effect/testing`. |
-| **P33:** shadowing shape | ARCH: two functions. PITFALLS: required explicit argument | **One builder with a required closed-union argument** (user preference: closed union). Review passes "none", simulation passes "sink and cache". Review does not shadow (see decision below). |
-| **P35:** mechanism | ARCH ranks edge-triggered deferred sweep first. STACK ranks a book-level self-terminating fiber first. FEATURES ranks a layer-scoped periodic fork first and rejects sweep-on-`open` | **Spike order: (1) edge-triggered deferred sweep.** `QuestionBook` calls an injected `onPressure()` when over capacity after `open`, or on a release to zero while over capacity. The atom set coalesces calls behind a `pending` flag and forks `yieldNow` then `sweepEvictions`. No timer, no scope, works with no provider. **(2) a self-terminating book-level fiber** (starts on the first live question, ends itself when a tick finds nothing live or over capacity, never interrupted on the 1-to-0 edge). Use (2) only if (1) cannot cover cold entries after release. **(3) layer-scoped periodic fork last.** It inherits the registry's `Scheduler` (the thing §13 warns about), builds nothing for an unmounted atom set, and is per-registry. **Sweep-on-`open` is rejected** (it runs inside the dispose-reread window). **(4) keep it in the provider, state and test the rule,** is a valid recorded conclusion. |
-| **P35:** `sweepIntervalMillis` | STACK/ARCH: an edge-triggered mechanism retires the interval; removal is Breaking | **Do not remove it this wave.** If (1) lands, keep the prop accepted and documented as superseded, and do not break its type. Removal is a separate Breaking decision (react minor plus an `upgrading.md` note). If (2) lands, move the interval to `QadiAtomsOptions` and keep the prop as an override. |
+## Corrections to `_WAVE9-CONTEXT.md`
+- 37: the failure check is in two copies, not three; `SimulationSession` also has a post-commit `mine === generation` re-check the feeds lack; exactly three adopters (`DockModel.ts` none, `CircuitBreaker.ts` a different concern); ADR-137 §7 text is stale.
+- 38: seven edit sites, not six (`SinkWire.ts:48, :51`; `SinkCodec.ts:146, :154, :224, :226, :453`; decoder `:470`).
+- 39: completeness is not pinned only by tests (`MEANINGS` is already a mapped type; `react/test/Hydration.tst.ts:90-91` pins the partition); the written-out label lists are a deliberate contract.
+- 40: a third restatement exists (`AuditEntry.ts:159-164` vs `SinkCodec.ts:489-498`).
+- 41: only `Remedies.ts:574` is live, and it is reproduced.
+- 42: the conflict is with INV sources and text amendments, not ADR-148 (it does not name `makeSeededQuestion`; ADR-149 does, as the seed's home).
 
 ## Implications for Roadmap
 
-Keep the given phases 30-36 in numeric order. Every plan edits `spec/overview.md`, `traceability.md`, the README CCR rows, behaviours/invariants and `.changeset/`, so execution is serial and `use_worktrees` stays false.
+Strict numeric order, one phase at a time. Hard deps 38->40, 39->42; soft 37->41 (41's RED session test goes in a new file since `SimulationSession.test.ts` is 1,809 lines). A defensible swap is 41 ahead of 40 (a reproduced throw outranks a Breaking rename, no shared file); the user fixed the order, so raise it only if the user wants defects first.
 
-Standard per-phase record work applies to every phase (ADR/CCR/BEH/INV/traceability/overview prose/changeset). It is not repeated below. Each phase's first plan records per-file mutation base scores (same invocation as the close) and its last plan compares them.
+Per-phase plan shape: (1) base plan (mutation base JSON for touched files with the close's invocation; characterisation/golden/RED tests); (2) seam tests; (3) conversion plan(s); (4) records plan (ADR, CCR README row, BEH/INV, traceability, overview rows, changeset, `spec-revise --date`); (5) close plan (full gate order, mutation compare, trailer check).
 
-### Phase 30: One strict-decode module for every untrusted JSON seam (ARCH-78, ADR-QD-143)
-**Rationale:** Highest risk reduction. It closes G1-G3 and states the trust-boundary rule once. It goes first because it edits files that Phase 36 sweeps and the core barrel that 32 and 33 also touch.
-**Delivers:** public leaf `UntrustedDecode.ts` (`MAX_DECODE_DEPTH`, `UNTRUSTED_DECODE_OPTIONS`, `UntrustedRefusal`, `untrustedDecoder`); seams re-pointed (`Policy`, `SinkCodec`, `PortWireEncode`, `PortRemote`, `HydrationEngine`, `AuditArchive`, `AuditEntry`); depth tests at every seam.
-**Avoids:** pitfalls 1-5 and 28 (no `switch`, no new `Schema.TaggedError`, no `as`).
-**Changesets:** core minor; react and audit patch.
-**Plan order:** characterisation table (green on base) first, then the leaf and its property test, then core seams, then audit, then hydration (depends on the core export), then records.
-**checkpoint:decision to open on:**
-1. `PolicyFromJson` (recommend doc-only, not guard or deprecate).
-2. Add a house-style rule refusing `UNTRUSTED_DECODE_OPTIONS` outside the leaf (recommend yes; it is a new rule, not a budget change).
-3. Confirm no public union widening (audit maps to `Malformed`).
-4. Confirm constants move without a `Policy.ts` re-export.
+### Phase 37: Superseding-run module (ARCH-84, devtools, patch)
+**Rationale:** top recommendation, self-contained, practice ground for "seam tests before deleting store tests".
+**Delivers:** package-private module; the three stores shed `let generation`, `let closed`, `FiberHandle.make/runtime`, the bump-in-finalizer block and repeated `mine !== generation`; unconditional stop; ADR-QD-150 amending ADR-137 §7 and point 3; AGENTS.md §10 fix.
+**Avoids:** Pitfalls 1-5, 19, 20 (update the three "Added after the handle" comments and DiagnosticsFeed's "without a Stopped" doc).
+**Plan-shape:** RED-first. Mutation base for all three stores FIRST (DiagnosticsFeed has no recorded base; TimelineFeed 1.0, SimulationSession ~0.97); module RED tests (re-entrancy, close with defecting finalizer, stop table, two instances, self-interrupt row); convert one store at a time; delete store cases only after the module covers them; compare last.
 
-### Phase 31: A shared computation's reset supersedes its claims (ARCH-79, amends ADR-QD-132)
-**Rationale:** Small, internal, no barrel or overview impact; it lowers risk before the larger 32 and 33. Independent of 30.
-**Delivers:** `superseded` flag; `reset` flags all in-flight claims; `generation` and `myGeneration` removed; `clear` is three steps; BEH-QD-439 restated; a new BEH sentence under BEH-QD-190 (a stale answer never re-enters the cache, a post-clear ask claims afresh); INV-QD-025 Enforcement restated.
-**Avoids:** pitfalls 6 and 7. `DecisionCache.test.ts:749-880` and the issue #64 pins stay unchanged and green.
-**Changesets:** core patch. ADR-QD-144 likely unused.
-**checkpoint:decision to open on:**
-1. Separate `superseded` flag vs one flag (recommend separate).
-2. Keep the `claim` hook shape vs `settle(key, exit)` (recommend keep).
-3. Add the property test (optional differentiator).
+### Phase 38: Wire version stated once (ARCH-85, core, minor)
+**Rationale:** smallest; settles `SinkWire.ts`/`SinkCodec.ts` before 40.
+**Delivers:** `WIRE_VERSION`, derived `WIRE_VERSIONS`/`WireVersion`; schema/encoder/decoder read them; tstyche pin; byte golden; overview row; changeset.
+**Avoids:** Pitfall 6; no new counted decode token.
+**Plan-shape:** golden and retype-to-3 scratch experiment first (mutation will not guard this phase); one plan plus records.
 
-### Phase 32: Evaluation options and services stated once (ARCH-80, amends ADR-QD-105 if anything)
-**Rationale:** Low effort, feasibility verified. It should precede 33 so 33 imports from the new leaf once.
-**Delivers:** `EvaluateOptions` in `Question.ts`; new `EvaluationServices.ts`; `LifecycleOptions` and the hand-spelled union deleted; `Lifecycle.tst.ts` reduced to one key-set assertion; the `traceability.md:470` row updated.
-**Avoids:** pitfalls 8 and 9. Run `pnpm circular` after the first edit and `pnpm typecheck` (TS2883 appears in declaration emit).
-**Changesets:** core patch. ADR-QD-145 likely unused.
-**checkpoint:decision to open on:**
-1. Leaf placement as settled above.
-2. No re-export vs a named re-export if TS2883 appears.
-3. ADR vs a revision note on ADR-QD-105.
+### Phase 39: Hydration drop reasons stated once (ARCH-86, core minor + react patch)
+**Rationale:** core first, react derives second; must precede 42.
+**Delivers:** one keyed table with kinds and folded meanings; unions/list/`isHydrationDropReason` (`Object.hasOwn`) derived; react's two groups derived (delete the "placed by hand" doc); kind-less reason a compile error; overview rows for the new public type.
+**Avoids:** Pitfall 7; keep the `qadi_hydration_dropped_total` declaration line, id and description untouched.
+**Plan-shape:** commit a written-out ordered nine-word snapshot first; `HydrationEvent.ts` is in the react stryker list.
 
-### Phase 33: One sealed evaluation layer (ARCH-81, ADR-QD-146, amends ADR-QD-050 Rev 1.5)
-**Rationale:** Small payoff (the real overlap is `evaluationIdSequential`, the clock layer and a `fixturePortsLayer` call). Its one real deliverable is the stated shadowing rule.
-**Delivers:** `SealedEvaluation.ts` (public, core minor); `simulationLayer` and `qadiReviewLayer` consume it; INV-QD-042 Source updated; a thin devtools test that it is wired; the `"sim"` id prefix now asserted.
-**Avoids:** pitfalls 10-12 and 28. Test-scope budgets apply: read metrics by export, never by a `qadi_*` literal, and script a broken port with `scriptedPort`.
-**Changesets:** core minor; testing and devtools patch.
-**checkpoint:decision to open on:**
-1. Does review shadow the sink and cache (recommend no).
-2. Clock via an injected layer (recommend yes).
-3. Single builder with a closed union.
-4. Re-point `core/test/helpers.ts` at the builder.
+### Phase 40: Core owns describing a decode refusal (ARCH-87, core minor + devtools Breaking + audit patch)
+**Rationale:** needs 38's vocabulary; the only Breaking phase; retires one budget row.
+**Delivers:** `describeDecodeRefusal` (+ tag-only annotations) in `SinkWire.ts`; `UntrustedValueRefusal -> DecodeRefusal` once in core; devtools `onMalformed(frame, refusal: DecodeRefusal)`, `reasonOf`/`MalformedReason` deleted; audit decodes once via core's record-plus-JSON export, `recordJsonOf` and the duplicate `asDecodeRefusal` deleted; Breaking changeset, upgrading map (`not-json`->`NotJson`, `too-deep`->`TooDeep`, `not-a-record`->`Malformed`, `unsupported-version`->`UnsupportedVersion`, `inconsistent`->`Inconsistent`), README, website, `Dock.tsx`, `surface.tst.ts`, `Source.tst.ts`, `DecisionStreamRoute.ts:32`, `26-decision-stream.md`, BEH-QD-204.
+**Avoids:** Pitfalls 8, 9, 16.
+**Plan-shape:** compatibility decision plan FIRST (what `qadi.reason`/the callback carries; recommend the `_tag`, documented Breaking, since compat is never the tiebreaker) plus a table-pin of the five words on the base; then the describer; then devtools; then audit with differential rows (unknown envelope key, key-order permutation, `undefined` fields, float, 60,000-deep), Retention untouched; AGENTS.md §7a + budget in the same task.
 
-### Phase 34: Diagnostics as the dock model's seventh store (ARCH-82, amends ADR-QD-047 Rev 1.13)
-**Rationale:** Completes ARCH-74's stated rule. Independent of 30-33 (devtools only). It must precede 36 because it resolves 26 IN-01 and edits `DevtoolsDock.tsx` and `DockModel.test.ts`.
-**Delivers:** `DockModelInputs.diagnostics` and `.reading`; per-field dispatch; second `FiberHandle`; merged-reading store computed on input change and never inside `getSnapshot`; `DiagnosticsDockOptions` moved to the model with `useDiagnostics.ts` re-exporting; one `useStoreSnapshot`; BEH-QD-465 (seven stores) and BEH-QD-323 restated.
-**Avoids:** pitfalls 13-18. Model tests run under `TestClock` inside `it.effect`, with `settleTurns` before each `adjust`.
-**Changesets:** devtools patch. ADR-QD-147 likely unused. `DockModel.ts` mutation base is 100.
-**checkpoint:decision to open on:**
-1. Reading across a hidden `<Activity>` (recommend accept the reset, state it in the ADR-047 amendment and check it in a real browser).
-2. `diagnostics` going `undefined` then defined again (recommend reset to `noDiagnostics`, pin it).
-3. Poll defect visibility (recommend a visible failed state, with a test using a throwing `questions` thunk).
-4. Accept the poll starting one render later.
+### Phase 41: One guarded value-to-text primitive (ARCH-88, devtools, patch fix)
+**Rationale:** independent, cheap, reproduced defect; after 37 so RED targets the final session.
+**Delivers:** `ValueText.ts` total stringify returning `string | undefined` (bigint -> `10n`, circular -> a fixed placeholder, no content in logs); Remedies reads it (the word `undefined` preserved); Filters/SimulationForm re-pointed, outputs unchanged; one test table (bigint, circular, nested bigint, symbol, function, `undefined`, `NaN`, `-0`, null-prototype, throwing `toJSON`, throwing getter); a per-consumer pinned-output row.
+**Avoids:** Pitfalls 10, 11; no blanket catch/`orDie`; do not call `outsideUnion`/`resourceOf` defects.
+**Plan-shape:** RED-first on `637c0601` (six `remedyEdits` probes plus session level, in a new test file); the remedy is kept with a degraded label or skipped with a stated reason (decide, pin; BEH-QD-223 not weakened); mutation base for the four touched model files.
 
-### Phase 35: The atom set owns its eviction sweep (ARCH-83; ADR-QD-148 only if a mechanism lands)
-**Rationale:** Speculative, so it follows the deterministic phases and precedes 36. It opens on a spike. "Keep it in the provider, state and test the rule" is a successful outcome, recorded as a CCR with ADR-QD-148 unused.
-**Delivers:** the spike conclusion with evidence; if a mechanism lands, the limit holds with no provider, observable from a bare `AtomRegistry.make()` graph test.
-**Spike pass criteria:**
-- The `v4-reactivity-smoke` dispose-reread test passes with the new trigger active.
-- The existing `QadiAtoms.test.ts` sweep-across-invalidation pins pass.
-- The `examples/nextjs-newsroom` e2e (`pnpm example`, about 30 tests) passes unchanged. It needs Playwright; use CI or the container route if the host lacks it.
-- Two providers or registries over one atom set produce no unbounded sweeps.
-- StrictMode or hidden-Activity double builds start no second sweeper.
-- A leak test (many atom sets, no running fibers, process exits).
-- `QadiProvider.test.tsx:340-345` ("stays over the bound after unmount") is reconciled, not ignored.
-- No `scheduleTask` or `defaultIdleTTL`, and the sweep never runs from the render path.
+### Phase 42: Seeded question builds its own computing atom (ARCH-89, react; human checkpoint)
+**Rationale:** speculative; depends on 39; also sweeps anything 37-41 left stale.
+**Delivers:** plan 1 is evidence and options only (R4), no code; then the chosen implementation or a rejection ADR-155 with a CCR row naming unused BEH/INV. One `AskUserQuestion`, then quiet through stop-hook repeats.
+**Avoids:** Pitfalls 12, 13, 17.
+**Plan-shape:** human checkpoint FIRST; if go: base both files with the same `--mutate` list (QadiAtoms ~0.8966, HydrationEngine ~0.9776); real-runtime seam tests before deleting fakes; SD1-SD5/HL1-HL6/eviction pins/`QadiProvider.test.tsx` render sequences untouched; RED for "no node for an unhydrated question" and "a late seed does not re-run the computation"; `pnpm example` (30 e2e); the last plan is the cross-phase stale sweep and a named milestone re-verify with a mutation re-check of every touched file.
 
-**Avoids:** pitfalls 19-21.
-**Changesets:** react minor if the interval option moves; Breaking only if the prop is removed (not recommended).
-**checkpoint:decision to open on:**
-1. Spike order and the stop rule (recommended order above; stop at the first mechanism that passes every criterion).
-2. Fallback acceptance criteria for concluding "keep it in the provider".
-3. Fate of `sweepIntervalMillis`.
-4. AGENTS.md §13 and CCR-QD-150 wording amendment (human-approved edit).
+### Requirement candidates (testable; roadmapper assigns IDs, one per row)
 
-### Phase 36: Carried spec debt and stale records (CCR-QD-427, no ARCH, no ADR)
-**Rationale:** Last, because 30, 33 and 34 edit the same files and rows (HydrationEngine for 29 IN-01, `traceability.md:71` and INV-QD-042, `DevtoolsDock.tsx` and `DockModel.test.ts`), and 36 corrects stale prose they create. Re-verify every item at its base before touching it.
-**Delivers:**
-- BEH-QD-219..221 reconstructed in `29-devtools-simulator.md`: keep copy 1's requirement text (BEH-QD-411), copy 2's intact tail prose after reconciling its first sentence with ADR-QD-129, move the spliced 1.0-1.2 history back to the header, delete the second block, then run `spec-revise.mjs ... --date ... --check`.
-- `traceability.md:71` `Sources.ts` to `Source.ts`.
-- The two stale replay lines (`PROJECT.md:225`, `MILESTONES.md:76`).
-- Wording items still true at base.
-- 24 IN-01 and IN-03 as real, tested code changes.
-- 28 IN-06 narrowed to the identity-changing rerender gap.
-
-**Drop or verify:** drop 26 IN-01 (34 resolves it). Re-verify 26 IN-02 and IN-03 after 34, 29 IN-01 after 30, and 24 IN-02 (history, exempt per AGENTS.md §15).
-**Avoids:** pitfalls 22 and 23. Gates are silent about which BEH-29 copy is kept, so review it as a diff.
-**checkpoint:decision to open on:**
-1. Which info items are in scope after re-verifying.
-2. Whether the 24 IN-01 code split is in scope (recommend yes; it is tested and unobservable).
-3. 28 IN-06: narrow or drop.
-4. Confirm no CCR/ADR numbers are minted (use the reserved CCR-QD-427 only).
-
-### Cross-phase ordering edges
-
-| Edge | Strength | Reason |
-|------|----------|--------|
-| 30 -> 36 | hard | 36 corrects prose that 30 creates; 29 IN-01 is in `HydrationEngine.ts`, which 30 edits |
-| 32 -> 33 | soft | 33's module imports `StandingEvaluationServices` from the leaf 32 creates; names are public either way |
-| 33 -> 36 | hard | both edit `traceability.md:71` and INV-QD-042; 33 must land first |
-| 34 -> 36 | hard | 34 resolves 26 IN-01, edits `DevtoolsDock.tsx` (26 IN-02) and `DockModel.test.ts` (26 IN-03) |
-| 35 -> 36 | ordering | 36 re-verifies anything 35 touches in spec |
-| 31, 34, 35 vs 30/32/33 | none | no shared source files; 31 only calls `decisionCacheLayer()` in 33 |
-| All | serial | shared spec registers; this is the reason, not code |
-| 30 -> react/audit seams | internal | within 30, hydration and audit plans depend on the core export |
-
-Run `pnpm circular` after the first source edit of Phases 30, 32 and 33.
+| Phase | Candidates |
+|-------|-----------|
+| 37 | T1 module owns handle/generation/closed/finalizer order/replace-interrupt/stop/currency; stores contain none of `let generation`, `let closed`, `FiberHandle.make`, `FiberHandle.runtime`, the bump-in-finalizer block (negative grep on added lines). T2 module has its own tests (supersede, close mid-run, stop in four states, interrupt vs failure, a replaced run whose release dies never reports, two instances in two scopes). T3 all pre-existing store tests pass unchanged on day one. T4 stop unconditional, pinned once, both former call sites use it. T5 a re-entrant start from inside the Starting/Reading notification leaves the newest run live in all three stores (RED first for the feeds, or refuted with evidence); a body calling a command in its sync prefix is reported, not silently idle. T6 behaviour unchanged: `qadi.devtools.simulationSession.run` still a root span, `Stopped` never for interruption (INV-QD-313), session `Broke` on defect and self-interrupt. T7 per-file mutation >= base for the three stores, new module near 100. T8 no new `Effect.fnUntraced`, no `Context.Service`. T9 ADR-137 §7 and AGENTS.md §10 corrected. |
+| 38 | The number appears once in `packages/core/src/Sink*.ts` (scoped grep empty for `Literal(2)`, `version: 2`, `= 2`). Compile-time pin: retyping without editing the codec fails (tstyche, throwaway edit recorded). Wire bytes unchanged (golden, key order). Decoder still refuses other versions as `UnsupportedVersion({version, supported})` (`undefined` when absent, INV-QD-098). `WireVersion` still `2`; `WIRE_VERSIONS` narrowing recorded. Decoder-read set vs encoder-write set stated. Gate 13 row and changeset. |
+| 39 | One keyed table with a kind per row; unions, list, meanings, `isHydrationDropReason` derived; a kind-less reason fails to compile. List order exactly as today. Metric id, description, label set, `[metric-table]` row unchanged. React groups derived (tstyche partition pin passes). `bucketOf` and refusal maps stay exhaustive. Written-out nine lists and `length === 9` kept. A throwaway new row reaches the metric, the devtools panel at zero and react reporters with one edit. Names and runtime exports unchanged. |
+| 40 | Core exports a total `DecodeRefusal` describer (module-scope `Match.tagsExhaustive`; a sixth member is a compile error in core only). Devtools has no `reasonOf`/`MalformedReason`; `onMalformed(frame, refusal)`. INV-QD-104 on decode: annotations say which refusal, never what (sentinel-value test). Audit decodes `input.record` once, output identical (differential; 60,000-deep still `TooDeep`; unknown envelope key still dropped). `recordJsonOf` and the duplicate `asDecodeRefusal` gone. `UNTRUSTED_DECODE_BUDGET`, AGENTS.md §7a, `[untrusted-decode-table]` agree. Breaking changeset, upgrading map, README, website, example, BEH-QD-204, overview rows. |
+| 41 | RED on `637c0601`: session-level and `remedyEdits` tests with bigint and circular via `contains`, `inArray`, `eq(literal)` throw today, pass after. One package-private total primitive; one test table is the only place its rules are asserted. Filters, SimulationForm, Remedies read through it; no `JSON.stringify` of an unknown value outside it (scoped grep). Existing outputs pinned (bare strings, the word `undefined` in a remedy label, Filters `[]`, form round-trip refusal). Non-JSON witness behaviour decided and pinned; BEH-QD-223 not weakened. |
+| 42 | Plan 1 delivers evidence and options only; a recorded human decision before any code. If go: no function-receiving-a-function parameter on `makeSeededQuestion`; the seed-to-evaluation link in one module, tested through the real atom (no fake `computedFor`); the liveness rule stated once in prose; all pins untouched (render sequences, seed/lifetime/sweep suites, 30 e2e, INV-QD-028/105/317/318, no `scheduleTask`/`defaultIdleTTL`); `maxTrackedQuestions` proofs re-run (StrictMode, `<Activity>`, no leaked fibers, one sweeper per atom set). If no: rejection ADR-155, no source change. Cross-reference sweep over 37-41. |
 
 ### Research Flags
 
-Phases likely needing deeper research or a spike during planning:
-- **Phase 35:** mechanism unproven; a spike is mandatory, with the e2e as an exit criterion.
-- **Phase 34:** needs `/gsd-plan-phase --research-phase` only for the poll-defect behaviour in `FiberHandle` and the Activity decision; the mechanics are otherwise verified.
-- **Phase 30:** the exact `prepare` typing for `SinkCodec` and the double-walk cost (measure once) are small research items. The design itself is settled.
+Needs deeper research (`/gsd-plan-phase --research-phase <N>`):
+- **Phase 37:** run the two RED reproductions (feed pre-fork re-entrancy, in-prefix re-entrancy) before fixing the interface; count store tests that depend on a synchronous prefix.
+- **Phase 40:** the compatibility decision for `qadi.reason`/`onMalformed`; typing of the JSON form returned with the record (one narrow checked step, no `as`).
+- **Phase 42:** the human checkpoint is the research; spike evidence (lines moved, tests freed of fakes, render-sequence diff, mutation delta) before asking.
 
-Phases with standard patterns (skip research-phase):
-- **Phase 31:** the mechanism is existing state and is fully read.
-- **Phase 32:** feasibility verified empirically with madge.
-- **Phase 33:** one decision, no unknown API.
-- **Phase 36:** pure verification and edit work; the risk is reconstruction care, not research.
+Standard patterns (skip research-phase): **38** (one constant, verified under strict flags), **39** (`ENFORCEMENT_ERROR_CLASSES` precedent; verify `Struct.keys` only if used), **41** (language semantics settled; the work is the RED test and adapters).
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Read from installed `effect@4.1.2` and the repo tree; madge run empirically. Phase 35 APIs are verified, but their composition is not yet run |
-| Features | HIGH | Every claim read at HEAD; it corrected nine claims in `_WAVE8-CONTEXT.md` (C1-C9). Phase 33 and 35 recommendations are hypotheses |
-| Architecture | HIGH for 30, 31, 32, 34; MEDIUM for 33; LOW-MEDIUM for 35 | Import layering checked with `madge --json`; Phase 35's mechanism is argument, not measurement |
-| Pitfalls | HIGH for repo mechanics; MEDIUM for 34 and 35 runtime behaviour | Argued from source and waves 5-7 records, not yet exercised |
+| Stack | HIGH | APIs read in `node_modules/effect/src` 4.1.2; runtime behaviour run in scratch scripts; types compiled under strict flags. Phase 42 "no behaviour change" is MEDIUM (read, not executed). |
+| Features | HIGH | Read at HEAD; Phase 41 reproduced by execution. Phase 37 re-entrancy and the Phase 42 designs are hypotheses. |
+| Architecture | MEDIUM-HIGH | Every named file/ADR read; no tests, `madge` or `check:pr` run, so re-run `pnpm circular` per phase. Audit single-decode and Phase 42 are real design choices. |
+| Pitfalls | HIGH / MEDIUM | Repo mechanics HIGH; inferred items covered by STACK runs and RED tests. |
 
-**Overall confidence:** HIGH, except Phase 35.
+**Overall confidence:** HIGH for 37-41, MEDIUM for 42.
 
 ### Gaps to Address
-
-- **Phase 35 mechanism:** unproven. Settle it in the spike. The Playwright e2e may not run on the host.
-- **Phase 34 Activity reset and poll-defect surfacing:** consumer-visible. Decide at the checkpoint and confirm the re-show blank in a real browser (human check, as in the v1.2 audit).
-- **Phase 30 double walk:** hydration (entry then policy) and sink/audit (record then row) walk twice. Measure once; do not drop the guard.
-- **Phase 33 shadowing:** the recommendation (review does not shadow) has no test pinning it today. Add the outer-sink and outer-cache tests in the phase.
-- **Gate 13 and the module column:** gate 13 checks export names, not the overview's module column. Moves in 30, 32 and 33 need hand edits to `spec/overview.md`.
-- **Numbering:** reserved block is CCR 421-427, ADR 143-148, BEH 486-520, INV 305-318. Never run `node scripts/next-id.mjs`. Unused reservations (likely ADR-QD-144, 145 and 147, plus 148 if Phase 35 concludes keep-in-provider) are named "Unused:" in the phase's CCR row.
-- **Website doc fences:** `pnpm check:pr` can skip the website typecheck (an interactive prompt hangs it). Run `pnpm spec:website-examples` explicitly for Phases 32, 33 and 35. Run `pnpm check:pr < /dev/null`.
-- **Verification staleness:** Phases 30-33 touch files earlier verification reports cover; plan a re-verify at close and treat "stale" as re-run, not failed.
-- **Process:** no release or version-packages merge; per-file mutation must not fall, and a drop is closed with a test, not a re-baseline.
+- Phase 37 feed re-entrancy is a hypothesis: RED first; if not RED, record the evidence and keep begin/fork anyway (the session needs it).
+- `Struct.keys` in effect 4.1.2 is unverified; use the `hasOwn` predicate unless confirmed.
+- `DiagnosticsFeed.ts` has no recorded mutation base; `HydrationEngine.ts`/`QadiAtoms.ts` bases only exist for the v1.3 Phase 36 `--mutate` invocation; re-measure at `637c0601` per phase.
+- Phase 40: how core hands out the JSON form with one narrow checked step and no new counted decode token; the exact `qadi.reason` value/annotation key (decide in ADR-153).
+- Phase 41: label text for non-JSON values (`10n`, a fixed placeholder); keep-degraded vs skip-with-reason; both pinned.
+- Phase 42: Option 1a/1b/2/3 is a human decision; effect 4.1.2 neither blocks nor forces it.
+- Numbering: reserved ADR 150-155, CCR 428-433, BEH 521-550, INV 319-330; name unused ones in each CCR row.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `node_modules/effect/src/{Schema,SchemaParser,SchemaAST,FiberHandle,Effect,HashMap}.ts` and `reactivity/{Atom,AtomRegistry}.ts` (`effect@4.1.2`), plus `@effect/atom-react@4.1.2` source: decoder families, defect-versus-issue conversion, `FiberHandle` semantics, atom/registry lifetimes.
-- Repo source at base `aab87576` and HEAD `b8b19f6c`: `packages/core/src/{Policy,DecodeDepthGuard,SinkCodec,PortWireEncode,PortRemote,SharedComputation,DecisionCache,Lifecycle,Evaluate,Question}.ts`, `packages/react/src/{HydrationEngine,QadiAtoms,QuestionBook,QadiProvider}`, `packages/audit/src/{AuditArchive,AuditEntry}.ts`, `packages/testing/src/QadiReviewLayer.ts`, `packages/devtools/src/{model,react}/*`.
-- `madge@8.0.0` runs: the real tree (210 files, green) and a type-only cycle fixture; BFS reachability over `madge --json`.
-- Project authority: `AGENTS.md`, `spec/` ADRs 037, 047, 050, 099, 105, 116, 129, 132; `spec/process/house-rules-evidence.md` section 4 (CCR-QD-150); `.planning/phases/_WAVE8-CONTEXT.md`, `PROJECT.md`, `STATE.md`, v1.2 milestone audit.
+- `node_modules/effect/src`: `FiberHandle.ts`, `internal/effect.ts` (`runForkWith`, `scopeCloseFinalizers`, `interruptUnsafe`), `Cause.ts`, `Exit.ts`, `Schema.ts` (`Literal`, `Literals`), `Metric.ts` (`makeKey`, `FrequencyMetric`), `reactivity/Atom.ts`, `reactivity/AtomRegistry.ts`; `@effect/vitest@4.1.2` `src/index.ts`.
+- Scratch reproductions (STACK): FiberHandle order, stop, closed handle, slow finalizer, re-entrancy; strict-flag type derivations. FEATURES: `remedyEdits` run against built `packages/core/lib` (six probes).
+- Repo at `637c0601`: devtools `model/{TimelineFeed,DiagnosticsFeed,SimulationSession,Source,Filters,Remedies,Inspect,SimulationForm,WhatIf}.ts`; core `{SinkWire,SinkCodec,HydrationMetrics,JsonRefusal,EncodeRefusalReport,Errors,Matcher}.ts`; react `{HydrationEngine,HydrationEvent,QadiAtoms,QuestionBook}.ts`; `audit/src/AuditEntry.ts`; `scripts/check-house-style.mjs`; `stryker.*.mjs`; `AGENTS.md`; ADRs 037, 039, 052, 095, 096, 099, 103, 110, 116, 123, 137, 143, 148, 149; `_WAVE9-CONTEXT.md`, `_SHARED-CONTEXT.md`; the v1.2/v1.3 milestone audits and the Phase 36 mutation base.
 
 ### Secondary (MEDIUM confidence)
-- Waves 5-7 phase summaries and review dispositions (mutation `ignoreStatic`, `useScoped`/`Activity`, verification staleness).
+- ARCHITECTURE's reading of `dist/FiberHandle.js` (superseded by STACK's execution); Phase 42 option costs (read, not run).
 
-### Tertiary (LOW confidence, needs validation)
-- Phase 35 mechanism rankings (all three research files rank candidates differently; none is run end to end).
-- Phase 33 shadowing recommendation (argued from Effect's provide semantics, not pinned by an existing test).
+### Tertiary (LOW confidence)
+- Phase 37 feed re-entrancy and Phase 42 render-sequence risk: hypotheses until RED tests and the e2e say otherwise.
 
-Detail lives in `/Users/mohammadalmechkor/Projects/Perso/qadi/.planning/research/{STACK,FEATURES,ARCHITECTURE,PITFALLS}.md`.
+Detail lives in `.planning/research/STACK.md`, `FEATURES.md`, `ARCHITECTURE.md`, `PITFALLS.md`.
 
 ---
-*Research completed: 2026-11-12*
+*Research completed: 2026-11-14*
 *Ready for roadmap: yes*
