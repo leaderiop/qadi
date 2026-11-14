@@ -424,7 +424,7 @@ describe("the superseding run", () => {
 /**
  * R1 to R17 pin each rule on one hand-picked sequence. This states the rules that hold
  * together as a model, and checks the module against it after every step of a random
- * interleaving of begin, fork, land, stop and close (D-11, RUN-07; the form of
+ * interleaving of begin, fork, land, stop and close (the form of
  * `SharedComputation.test.ts`'s property).
  *
  * A fork's body waits on a gate the program opens, so the program, not a clock, decides
