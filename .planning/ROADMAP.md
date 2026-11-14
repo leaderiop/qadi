@@ -377,7 +377,7 @@ first plan gathers evidence and presents options, asks once (one `AskUserQuestio
 
 ### Phases
 
-- [ ] **Phase 37: A scoped run that a newer run supersedes** - One devtools module owns the run protocol (generation, close, finalizer order, stop, land only while current) that three stores restate by hand (ARCH-84)
+- [x] **Phase 37: A scoped run that a newer run supersedes** - One devtools module owns the run protocol (generation, close, finalizer order, stop, land only while current) that three stores restate by hand (ARCH-84) (completed 2026-11-14)
 - [ ] **Phase 38: The sink wire version stated once** - One exported `WIRE_VERSION` in `SinkWire.ts`; the schema literals, encoder and decoder check derive from it (ARCH-85)
 - [ ] **Phase 39: Each hydration drop reason stated once, with its kind** - One keyed table in core; the unions, the list, the meanings and react's payload and entry groups derive from it (ARCH-86)
 - [ ] **Phase 40: Core owns describing a decode refusal** - Core describes `DecodeRefusal`; devtools passes it through (Breaking) and audit decodes a row's record once (ARCH-87)
@@ -402,7 +402,7 @@ first plan gathers evidence and presents options, asks once (one `AskUserQuestio
   5. Observable behaviour is unchanged: the session run is still a root span, interruption never reads as `Stopped` (INV-QD-313), the session still reads a defect or self-interrupt as `Broke`, and every pre-existing store test passes unchanged on day one; ADR-QD-137 §7 and point 3 are corrected (no `useRunningStore`; the unconditional stop) and AGENTS.md §10 stops naming `it.scoped`, which `@effect/vitest@4.1.2` does not have.
 
 **Planning notes**: **Research flag: needs `/gsd-plan-phase --research-phase 37`.** Run the two RED reproductions first (a feed restarted inside its Starting or Reading notification; a body whose synchronous prefix starts a command) and count the store tests that depend on a synchronous prefix before fixing the interface. **Plan shape, RED first**: the mutation base for all three stores, committed alone and first (`DiagnosticsFeed.ts` has no recorded base, `TimelineFeed.ts` was 1.0, `SimulationSession.ts` about 0.97; the close uses the same invocation); then the module's RED tests (re-entrancy, close with a defecting finalizer, the stop table, two instances, the self-interrupt row); then one store converted at a time, deleting a store-level case only after the module's test covers it; then the records plan (ADR-QD-150, the CCR README row in the same plan as its first citation, BEH/INV, traceability, changeset, the three "Added after the handle" comments and `DiagnosticsFeed`'s "without a Stopped" doc, AGENTS.md §10, `spec-revise --date` then `--check`); the mutation comparison last. A test that closes its scope mid-test builds `Scope.makeUnsafe()` and runs `Scope.provide` then `Scope.close`; `it.effect` already scopes a test. A `Scope.make("parallel")` voids the finalizer ordering, so the module's doc says so. The module builds synchronously (`useScoped` uses `Effect.runSync`) and holds per-build closure state only.
-**Plans**: 9/9 plans executed
+**Plans**: 9/9 plans complete
 
 Plans:
 **Wave 1**
@@ -534,7 +534,7 @@ Phases execute in numeric order: 37 → 38 → 39 → 40 → 41 → 42
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 37. A scoped run that a newer run supersedes | 0/0 | Not started | - |
+| 37. A scoped run that a newer run supersedes | 9/9 | Complete    | 2026-11-14 |
 | 38. The sink wire version stated once | 0/0 | Not started | - |
 | 39. Each hydration drop reason stated once, with its kind | 0/0 | Not started | - |
 | 40. Core owns describing a decode refusal | 0/0 | Not started | - |
