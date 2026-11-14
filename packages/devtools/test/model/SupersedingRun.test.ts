@@ -158,6 +158,10 @@ describe("the superseding run", () => {
       assert.isTrue(run.fork(run.begin(), body(log, "A"), hooks));
       yield* elapse;
       assert.deepStrictEqual(log, ["A:start", "A:done"]);
+
+      // Positive control: this tracer does record a span, so the equality above can fail.
+      yield* Effect.void.pipe(Effect.withSpan("control"));
+      assert.strictEqual(spans.length, before + 1);
     }).pipe(Effect.provide(collectingTracer(spans)));
   });
 
@@ -195,6 +199,10 @@ describe("the superseding run", () => {
       assert.deepStrictEqual(log, ["A:start", "A:done"]);
       assert.deepStrictEqual(heard, []);
       assert.strictEqual(spans.length, before);
+
+      // Positive control: this tracer does record a span, so the equality above can fail.
+      yield* Effect.void.pipe(Effect.withSpan("control"));
+      assert.strictEqual(spans.length, before + 1);
     }).pipe(Effect.provide(collectingTracer(spans)));
   });
 
