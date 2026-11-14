@@ -867,3 +867,97 @@ describe("mergeSources", () => {
       assert.strictEqual(got.length, 2);
     }));
 });
+
+/**
+ * The five drop words `onMalformed` receives, one frame each, written out by hand.
+ *
+ * `onMalformed`'s second argument is public, and a table of all five is what a
+ * change to it is checked against row by row. Each frame is one the cases above
+ * already build; this describe holds them together, in the shape a rewrite of the
+ * argument rewrites.
+ */
+describe("what onMalformed receives, one frame per drop", () => {
+  /** The record's own wire text, as a server on this release frames it. */
+  const recordText = JSON.stringify(JSON.parse(frameOf(decisionRecord({ evaluationId: "versioned" }))).record);
+
+  /** Delivers `frame`, then one good record, and returns what `onMalformed` was told. */
+  const droppedFrame = (frame: string) =>
+    Effect.gen(function* () {
+      const reported: Array<readonly [string, MalformedReason]> = [];
+      const got = yield* collect(
+        fakeEventSource(),
+        [frame, frameOf(decisionRecord({ evaluationId: "after" }))],
+        1,
+        { onMalformed: (bad, reason) => reported.push([bad, reason]) },
+      );
+      return { reported, delivered: got[0]?.evaluationId };
+    });
+
+  it.effect("a frame that is not JSON: not-json", () =>
+    Effect.gen(function* () {
+      const frame = "}{ not json";
+      const { reported, delivered } = yield* droppedFrame(frame);
+      assert.deepStrictEqual(reported, [[frame, "not-json"]]);
+      assert.strictEqual(delivered, "after");
+    }));
+
+  it.effect("a frame nested past the decode bound: too-deep", () =>
+    Effect.gen(function* () {
+      let policy: unknown = { _tag: "HasRole", role: "x" };
+      for (let i = 0; i < MAX_DECODE_DEPTH + 10; i++) {
+        policy = { _tag: "Not", policy };
+      }
+      const frame = enveloped(JSON.stringify({
+        _tag: "Decision",
+        evaluationId: "too-deep",
+        at: 0,
+        subjectId: "attacker",
+        policy,
+      }));
+      const { reported, delivered } = yield* droppedFrame(frame);
+      assert.deepStrictEqual(reported, [[frame, "too-deep"]]);
+      assert.strictEqual(delivered, "after");
+    }));
+
+  it.effect("a bare record, not an envelope: not-a-record", () =>
+    Effect.gen(function* () {
+      const frame = Result.getOrThrow(encodeSinkRecordString(decisionRecord({ evaluationId: "old" })));
+      const { reported, delivered } = yield* droppedFrame(frame);
+      assert.deepStrictEqual(reported, [[frame, "not-a-record"]]);
+      assert.strictEqual(delivered, "after");
+    }));
+
+  it.effect("a version-3 record: unsupported-version", () =>
+    Effect.gen(function* () {
+      const frame = enveloped(JSON.stringify({ ...JSON.parse(recordText), version: 3 }));
+      const { reported, delivered } = yield* droppedFrame(frame);
+      assert.deepStrictEqual(reported, [[frame, "unsupported-version"]]);
+      assert.strictEqual(delivered, "after");
+    }));
+
+  it.effect("a record that contradicts its own trace: inconsistent", () =>
+    Effect.gen(function* () {
+      const frame = enveloped(JSON.stringify({
+        _tag: "Decision",
+        version: 2,
+        evaluationId: "contradiction",
+        at: 1,
+        subjectId: "alice",
+        policy: { _tag: "HasPermission", permission: { resource: "doc", action: "read" } },
+        outcome: {
+          _tag: "Decided",
+          decision: {
+            _tag: "Allow",
+            evaluationId: "contradiction",
+            subjectId: "alice",
+            durationMillis: 1,
+            trace: { policyTag: "HasPermission", allowed: false, reason: "no", children: [], obligations: [] },
+            obligations: [],
+          },
+        },
+      }));
+      const { reported, delivered } = yield* droppedFrame(frame);
+      assert.deepStrictEqual(reported, [[frame, "inconsistent"]]);
+      assert.strictEqual(delivered, "after");
+    }));
+});
