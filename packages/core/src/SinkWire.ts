@@ -1,7 +1,6 @@
 /**
  * The record wire's own words: the version `encodeSinkRecord` writes, the version
- * `decodeSinkRecord` reads, why it
- * refuses its input, and the tag of a record.
+ * `decodeSinkRecord` reads, why it refuses its input, and the tag of a record.
  *
  * A leaf, so `Errors.ts` (whose `SinkRecordNotDecodable` carries these types)
  * and `SinkCodec.ts` (which raises them) can both import it without a cycle:
