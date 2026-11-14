@@ -239,7 +239,15 @@ const decodeFrame = (
     onFailure: (error) => malformed(frame, error.refusal, onMalformed),
   });
 
-const thrownName = (thrown: unknown): string => thrown instanceof Error ? thrown.name : typeof thrown;
+/** The thrown value's name or type for the log, never its message; it must not throw itself (INV-QD-104). */
+const thrownName = (thrown: unknown): string => {
+  try {
+    return thrown instanceof Error && typeof thrown.name === "string" ? thrown.name : typeof thrown;
+  } catch {
+    // A revoked Proxy or a throwing `name` getter: a defect here would end the stream.
+    return "unknown";
+  }
+};
 
 /**
  * Reports the drop, then filters the frame out.

@@ -619,6 +619,57 @@ describe("sourceFromEventSource", () => {
       assert.isFalse(JSON.stringify(logs[0]).includes("secret sender text"));
     }));
 
+  // `thrownName` runs on a foreign value, so it must be total: a defect there would end the stream.
+  const hostileThrows: ReadonlyArray<readonly [string, () => never, string]> = [
+    [
+      "a revoked proxy",
+      () => {
+        const { proxy, revoke } = Proxy.revocable({}, {});
+        revoke();
+        throw proxy;
+      },
+      "unknown",
+    ],
+    [
+      "an Error whose name getter throws",
+      () => {
+        const error = new Error("secret sender text");
+        Object.defineProperty(error, "name", {
+          get: () => {
+            throw new Error("secret sender text");
+          },
+        });
+        throw error;
+      },
+      "unknown",
+    ],
+    [
+      "an Error whose name is not a string",
+      () => {
+        const error = new Error("secret sender text");
+        Object.defineProperty(error, "name", { value: { sender: "secret sender text" } });
+        throw error;
+      },
+      "object",
+    ],
+  ];
+  for (const [title, thrower, expected] of hostileThrows) {
+    it.effect(`an onMalformed that throws ${title} is logged as ${expected} and the stream keeps running`, () =>
+      Effect.gen(function* () {
+        const fake = fakeEventSource();
+        const { lines: logs, layer: logger } = collectingLogger();
+
+        const got = yield* collect(fake, ["not json", frameOf(decisionRecord({ evaluationId: "after" }))], 1, {
+          onMalformed: thrower,
+        }).pipe(Effect.provide(logger));
+
+        assert.strictEqual(got[0]?.evaluationId, "after");
+        assert.strictEqual(logs.length, 1);
+        assert.strictEqual(annotationOf(logs[0]?.annotations, "qadi.thrown"), expected);
+        assert.isFalse(JSON.stringify(logs[0]).includes("secret sender text"));
+      }));
+  }
+
   // E1.4 — the connection drops.
   it.effect("a connection error is reported and the stream keeps running", () =>
     Effect.gen(function* () {
