@@ -454,3 +454,7 @@ entries:
     file: "151-the-sink-wire-version-is-stated-once.md"
     title: "The sink wire version is stated once"
     status: "Accepted — amends ADR-QD-096"
+  - id: "ADR-QD-152"
+    file: "152-each-hydration-drop-reason-is-stated-once-with-its-kind.md"
+    title: "Each hydration drop reason is stated once, with its kind"
+    status: "Accepted — amends ADR-QD-123 and ADR-QD-037"
