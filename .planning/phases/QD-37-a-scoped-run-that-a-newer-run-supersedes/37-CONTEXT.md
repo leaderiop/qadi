@@ -68,8 +68,11 @@ Read first: `.planning/phases/_SHARED-CONTEXT.md`, `.planning/phases/_WAVE9-CONT
   and first (`DiagnosticsFeed.ts` has no recorded base; `TimelineFeed.ts` was 1.0; `SimulationSession.ts` about 0.97).
   The new module has no base: every mutant is killed or named in the close plan as an equivalent survivor. A drop in a
   store is closed with a test and never re-baselined (WX-05).
-- **D-11** RUN-07 property: a seeded fast-check `fc.commands` model (ARCH-79 / Phase 31 pattern; `fast-check` is already
-  a devtools devDependency) over random begin, fork, land, stop and close interleavings. It checks that only the current
+- **D-11** RUN-07 property: a seeded fast-check model in the ARCH-79 / Phase 31 form (`fast-check` is already a devtools
+  devDependency) over random begin, fork, land, stop and close interleavings. The precedent
+  (`packages/core/test/SharedComputation.test.ts:566-845`) is a weighted `oneof` command array, a hand-written
+  interpreter, `asyncProperty` and a fixed seed, not `fc.commands`; the discuss table's `fc.commands` wording was a
+  mislabel of that precedent, corrected after research (A5). It checks that only the current
   run's result lands and nothing lands after close. Weighted generators meet non-vacuity floors, and a floor is never lowered.
 - **D-12** Module tests, through its own interface in a new test file: supersede, close mid-run (including a defecting
   finalizer), stop in each state (not started, running, completed, closed), interrupt versus failure (the `onFailure`
