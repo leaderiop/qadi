@@ -5,16 +5,16 @@ milestone_name: Arch Wave 9
 current_phase: 40
 current_phase_name: Core owns describing a decode refusal
 status: executing
-stopped_at: Completed QD-40-07-PLAN.md
-last_updated: "2026-11-14T12:42:56.851Z"
+stopped_at: Completed QD-40-08-PLAN.md
+last_updated: "2026-11-14T12:46:20.557Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase QD-39 complete, transitioned to Phase 40
-state_head: 19408aa4c7297cc50574ce803d7a950fc9ba4b81
+state_head: 0d8c959127c29816fd5d557fff9635150d0184d6
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 27
-  completed_plans: 25
+  completed_plans: 26
   percent: 50
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 ## Current Position
 
 Phase: QD-40 (Core owns describing a decode refusal) — EXECUTING
-Plan: 8 of 9
+Plan: 9 of 9
 Status: Plan 40-01 complete (baseline, ADR-QD-153); ready for 40-02
 Last activity: 2026-11-14 — Completed 40-01 (mutation baseline, ADR-QD-153)
 
@@ -231,6 +231,7 @@ Progress: [█████░░░░░] 50% (v1.4: 1 of 6 phases)
 | Phase QD-40 P05 | 3 min | 2 tasks | 7 files |
 | Phase QD-40 P06 | 4 min | 2 tasks | 4 files |
 | Phase QD-40 P07 | 20 min | 2 tasks | 9 files |
+| Phase QD-40 P08 | 3 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -374,6 +375,7 @@ Progress: [█████░░░░░] 50% (v1.4: 1 of 6 phases)
 - [Phase QD-40]: 40-05: devtools' default warning keeps its fixed message and is annotated by decodeRefusalAnnotations plus qadi.frame, never the describer; the example's refusedBecause replaced by describeDecodeRefusal so a new refusal fails in packages/core/src only
 - [Phase QD-40]: 40-06: decodeAuditEntry keeps record-before-row order; only the second lenient decode and local refusal mapping removed; AuditEntry.ts leaves UNTRUSTED_DECODE_BUDGET in the same commit
 - [Phase QD-40]: 40-07: ADR-QD-153 Rev 1.1 states the single decode's measured cost (mean 0.0084 to 0.0184 ms, about 2.19x) and keeps the single path; the two-decoders fallback is not taken
+- [Phase QD-40]: 40-08: the README example is a compiled typescript fence; trailer stays Claude Sonnet 5.5 as in 40-05 to 40-07
 
 ### Pending Todos
 
@@ -419,8 +421,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T12:42:56.765Z
-Stopped at: Completed QD-40-07-PLAN.md
+Last session: 2026-11-14T12:46:20.477Z
+Stopped at: Completed QD-40-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

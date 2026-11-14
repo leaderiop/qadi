@@ -42,7 +42,7 @@ unless a phase's planner records evidence against one). Per-phase evidence and r
 - [x] **DREF-04**: Devtools passes `DecodeRefusal` through: `reasonOf` and `MalformedReason` are gone, and `onMalformed` receives the refusal.
 - [x] **DREF-05**: Audit decodes a row's record once, taking its JSON form from core's strict decode (no re-encode), with output identical on a differential over existing fixtures, a 60,000-deep record still `TooDeep`, and an unknown envelope key still dropped.
 - [x] **DREF-06**: `recordJsonOf` and audit's copy of the refusal mapping are deleted, and `UNTRUSTED_DECODE_BUDGET`, its `_NAMES`, and the AGENTS.md §7a table agree in the same task.
-- [ ] **DREF-07**: The break is recorded: `@qadi/devtools` Breaking changeset with the five-word upgrade map, `upgrading.md`, the devtools README, the website devtools page, the Next.js example's `Dock.tsx`, the `DecisionStreamRoute.ts` comment, BEH-QD-204 and the overview rows.
+- [x] **DREF-07**: The break is recorded: `@qadi/devtools` Breaking changeset with the five-word upgrade map, `upgrading.md`, the devtools README, the website devtools page, the Next.js example's `Dock.tsx`, the `DecisionStreamRoute.ts` comment, BEH-QD-204 and the overview rows.
 
 ### One guarded value-to-text function in devtools (Phase 41, ARCH-88)
 
@@ -117,7 +117,7 @@ The seven WX rows apply to every phase 37 to 42, so each phase's Requirements li
 | DREF-04 | Phase 40 | Complete |
 | DREF-05 | Phase 40 | Complete |
 | DREF-06 | Phase 40 | Complete |
-| DREF-07 | Phase 40 | Pending |
+| DREF-07 | Phase 40 | Complete |
 | TEXT-01 | Phase 41 | Pending |
 | TEXT-02 | Phase 41 | Pending |
 | TEXT-03 | Phase 41 | Pending |
