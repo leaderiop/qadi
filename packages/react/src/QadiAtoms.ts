@@ -13,15 +13,8 @@
  * it is what makes one shared evaluation per policy possible — the predecessor
  * re-ran the whole evaluation in every component that asked the same question.
  */
-import type {
-  AuthSubject,
-  Decision,
-  EvaluationError,
-  Policy,
-  Resource,
-  StandingEvaluationServices,
-} from "@qadi/core";
-import { CurrentSubject, DecisionCache, evaluate, subjectEquivalence } from "@qadi/core";
+import type { AuthSubject, Policy, Resource, StandingEvaluationServices } from "@qadi/core";
+import { DecisionCache, subjectEquivalence } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import type * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -33,9 +26,7 @@ import {
   type HydrateOptions,
   type HydrationMismatchReporter,
   type InitialValues,
-  type SeededQuestion,
   hydrateWith,
-  makeSeededQuestion,
 } from "./HydrationEngine.ts";
 import { hydrationMismatchReporter } from "./DeveloperSignals.ts";
 import type { GateRegistry } from "./GateRegistry.ts";
@@ -43,6 +34,7 @@ import { makeGateRegistry } from "./GateRegistry.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
 import type { AskedQuestion } from "./QuestionBook.ts";
 import { makeQuestionBook } from "./QuestionBook.ts";
+import { type SeededQuestion, DECISIONS_KEY, makeSeededQuestion } from "./SeededQuestion.ts";
 import { makeSweepScheduler, sweepForkOf } from "./SweepScheduler.ts";
 
 // `DeveloperSignals.ts` is out of the barrel — its ambient-global boundary is
@@ -74,9 +66,6 @@ export type QadiLayer = Layer.Layer<
   never,
   AtomRegistry.AtomRegistry | Reactivity.Reactivity
 >;
-
-/** The reactivity key every decision atom is registered under. */
-const DECISIONS_KEY = "qadi/decisions";
 
 export interface QadiAtoms {
   /** The runtime the decision atoms evaluate in. */
@@ -259,55 +248,12 @@ export const makeQadiAtoms = (
     options?.onGateIdCollision === undefined ? {} : { onIdCollision: options.onGateIdCollision },
   );
 
-  const seededDecision = (
-    policy: Policy,
-    resource: Resource | undefined,
-    live: () => () => void,
-  ) =>
-    makeSeededQuestion<EvaluationError>({
-      policy,
-      resource,
-      report,
-      computedFor: (seededIn) =>
-        runtime
-          .atom((get): Effect.Effect<Decision, EvaluationError, QadiRuntimeServices> => {
-            const current = get(subject);
-            // No subject yet is not a denial — it is an unanswerable question. An
-            // effect that never settles leaves the atom `Initial`, which is exactly
-            // "still loading". Returning a Deny here would render every guarded
-            // control as forbidden for the first frame after a page load.
-            if (current === undefined) return Effect.never;
-            // A re-check continues the server's evaluation rather than starting an
-            // unrelated one, so it carries that evaluation's id. Without this the
-            // two halves of a hydrated decision cannot be joined by anything: the
-            // payload carries an id, the client minted a fresh one, and nothing
-            // related them (BEH-QD-186).
-            //
-            // Read from the registry's grant without subscribing, so a seed given
-            // later cannot re-run a computation whose answer it does not change. The
-            // id is correlation metadata, not an input to the decision.
-            const seeded = seededIn(get.registry);
-            return evaluate(policy, {
-              ...(resource === undefined ? {} : { resource }),
-              ...(seeded === undefined ? {} : { evaluationId: seeded.evaluationId }),
-            }).pipe(Effect.provideService(CurrentSubject, current));
-          })
-          .pipe(runtime.factory.withReactivity([DECISIONS_KEY])),
-      // Marks this question live for as long as this computation stays cached.
-      // The count goes up first, inside the reader, and the release is the
-      // reader's finalizer: a recompute (dispose, then a synchronous re-read) is
-      // never seen by the sweep as a drop to zero — see `QuestionBook.ts`.
-      track: (get) => {
-        get.addFinalizer(live());
-      },
-    });
-
   // One pending sweep per atom set; the book signals it and the sweep reads the book.
   const scheduler = makeSweepScheduler(() => book.sweep(), sweepForkOf(options));
 
   // **What this closure owns, and who may reach it.** Everything per-atom-set
   // lives here and nowhere at module scope: the question book (one
-  // `SeededQuestion` per question, from `HydrationEngine.ts`, holding its
+  // `SeededQuestion` per question, from `SeededQuestion.ts`, holding its
   // seed slot and the one atom a consumer reads, and the liveness the eviction
   // sweep needs), the grouped-read family, and the `hydrate` capability that
   // closes over the book. Nothing outside `makeQadiAtoms` can reach a seed slot —
@@ -323,10 +269,18 @@ export const makeQadiAtoms = (
   // object, so a fresh object each render re-walks the whole policy tree.
   // `v4-reactivity-smoke.test.ts` pins this; a bump to reference keying would
   // silently stop inline policies sharing.
-  const book = makeQuestionBook<SeededQuestion<EvaluationError>>({
+  const book = makeQuestionBook<SeededQuestion>({
     signal: scheduler.request,
     capacity: options?.maxTrackedQuestions ?? DEFAULT_MAX_TRACKED_QUESTIONS,
-    build: (question, live) => seededDecision(question.policy, question.resource, live),
+    build: (question, live) =>
+      makeSeededQuestion({
+        policy: question.policy,
+        resource: question.resource,
+        runtime,
+        subject,
+        report,
+        live,
+      }),
   });
 
   const decision = (policy: Policy, resource?: Resource): Atom.Atom<DecisionResult> =>
