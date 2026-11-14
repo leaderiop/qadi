@@ -90,3 +90,10 @@ test("the client's reasons are partitioned into whole-payload and per-entry", ()
   expect<PayloadRefusalReason | EntryDropReason>().type.toBe<ClientHydrationDropReason>();
   expect<Extract<PayloadRefusalReason, EntryDropReason>>().type.toBe<never>();
 });
+
+test("the payload and entry groups, written out", () => {
+  expect<PayloadRefusalReason>().type.toBe<
+    "PayloadSubjectMismatch" | "UnsupportedPayloadVersion" | "MalformedPayload" | "PayloadTooDeep"
+  >();
+  expect<EntryDropReason>().type.toBe<"MalformedEntry" | "UndecodablePolicy" | "EntryTooDeep">();
+});

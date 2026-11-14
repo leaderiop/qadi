@@ -28,6 +28,7 @@ import {
   isHydrationDropReason,
 } from "../src/HydrationMetrics.ts";
 import type { HydrationDropReason } from "../src/HydrationMetrics.ts";
+import { isolatedMetrics } from "./helpers.ts";
 
 /** Whatever registry these metrics were first touched through. */
 const registry = Context.empty();
@@ -258,6 +259,46 @@ describe("HydrationMetrics", () => {
       assert.isFalse(isHydrationDropReason(""));
       // The removed reason: a build that still counts it is not this one.
       assert.isFalse(isHydrationDropReason("UnregisteredAtoms"));
+    });
+  });
+
+  /**
+   * The nine drop reasons written out by hand, in the order the metric's snapshot holds them.
+   *
+   * The order is observable: it is the metric's preregistered order and the rows
+   * of the devtools panel, and an oracle read from the list under test cannot
+   * notice that list changing. A fresh registry (`isolatedMetrics`) makes every
+   * word read zero whatever this suite raised, so the comparison is exact
+   * rather than a delta (ADR-QD-052). The inherited names guard the own-key
+   * test, which a prototype lookup would fail.
+   */
+  describe("the drop reasons, written out: nine words in their order and no others", () => {
+    const NINE = [
+      "ForeignSubject",
+      "UnencodablePolicy",
+      "PayloadSubjectMismatch",
+      "MalformedEntry",
+      "UndecodablePolicy",
+      "EntryTooDeep",
+      "UnsupportedPayloadVersion",
+      "MalformedPayload",
+      "PayloadTooDeep",
+    ] as const;
+
+    it.effect("the metric preregisters the nine words, in order, at zero", () =>
+      Effect.gen(function* () {
+        const state = yield* isolatedMetrics(Metric.value(hydrationDroppedTotal));
+        assert.deepStrictEqual(
+          [...state.occurrences],
+          NINE.map((word): [string, number] => [word, 0]),
+        );
+      }),
+    );
+
+    it("a name every object inherits is not a reason", () => {
+      for (const word of ["toString", "constructor", "hasOwnProperty", "__proto__", "valueOf"]) {
+        assert.isFalse(isHydrationDropReason(word), word);
+      }
     });
   });
 });

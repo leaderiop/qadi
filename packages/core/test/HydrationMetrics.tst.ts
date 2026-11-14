@@ -8,7 +8,12 @@
  */
 import { expect, test } from "tstyche";
 import { hydrationDropMeaning, isHydrationDropReason } from "../src/HydrationMetrics.ts";
-import type { HydrationDropMeaning, HydrationDropReason } from "../src/HydrationMetrics.ts";
+import type {
+  ClientHydrationDropReason,
+  DehydrationDropReason,
+  HydrationDropMeaning,
+  HydrationDropReason,
+} from "../src/HydrationMetrics.ts";
 
 test("hydrationDropMeaning takes exactly the closed reason union", () => {
   expect<Parameters<typeof hydrationDropMeaning>[0]>().type.toBe<HydrationDropReason>();
@@ -23,4 +28,28 @@ test("hydrationDropMeaning returns the two-sentence meaning", () => {
 
 test("isHydrationDropReason narrows a string to the union", () => {
   expect(isHydrationDropReason).type.toBe<(word: string) => word is HydrationDropReason>();
+});
+
+test("each reason union, written out", () => {
+  expect<HydrationDropReason>().type.toBe<
+    | "ForeignSubject"
+    | "UnencodablePolicy"
+    | "PayloadSubjectMismatch"
+    | "MalformedEntry"
+    | "UndecodablePolicy"
+    | "EntryTooDeep"
+    | "UnsupportedPayloadVersion"
+    | "MalformedPayload"
+    | "PayloadTooDeep"
+  >();
+  expect<DehydrationDropReason>().type.toBe<"ForeignSubject" | "UnencodablePolicy">();
+  expect<ClientHydrationDropReason>().type.toBe<
+    | "PayloadSubjectMismatch"
+    | "MalformedEntry"
+    | "UndecodablePolicy"
+    | "EntryTooDeep"
+    | "UnsupportedPayloadVersion"
+    | "MalformedPayload"
+    | "PayloadTooDeep"
+  >();
 });
