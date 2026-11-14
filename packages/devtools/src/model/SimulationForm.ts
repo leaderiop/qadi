@@ -19,9 +19,10 @@
  * which, and everything derived from that (the chip commands, the weakenings,
  * the grants, the rename), is `SimulationFields.ts`.
  *
- * Pure, and importing nothing but the input vocabulary: it is a leaf above
- * `SimulationInput.ts`.
+ * Pure, and importing nothing but the input vocabulary and core's value-to-text
+ * guard (`valueText`): it is a leaf above `SimulationInput.ts`.
  */
+import { valueText } from "@qadi/core";
 import type {
   ActedEventInput,
   PermissionKey,
@@ -92,16 +93,6 @@ const sameJson = (a: unknown, b: unknown): boolean => {
   return Object.is(a, b);
 };
 
-/** `JSON.stringify` that answers `undefined` instead of throwing (a `BigInt`, a cycle). */
-const stringify = (value: unknown): string | undefined => {
-  try {
-    const text: string | undefined = JSON.stringify(value);
-    return text;
-  } catch {
-    return undefined;
-  }
-};
-
 /**
  * The JSON text of a value, only when parsing it back gives the same value.
  *
@@ -110,7 +101,7 @@ const stringify = (value: unknown): string | undefined => {
  * as text that would decode to a different value.
  */
 const jsonText = (value: unknown): Decoded<string> => {
-  const text = stringify(value);
+  const text = valueText(value);
   if (text === undefined) return refused("not representable in the form");
   const back = parseJson(text);
   return back._tag === "Ok" && sameJson(value, back.value)
