@@ -458,3 +458,7 @@ entries:
     file: "152-each-hydration-drop-reason-is-stated-once-with-its-kind.md"
     title: "Each hydration drop reason is stated once, with its kind"
     status: "Accepted — amends ADR-QD-123 and ADR-QD-037"
+  - id: "ADR-QD-153"
+    file: "153-core-owns-describing-a-decode-refusal.md"
+    title: "Core owns describing a decode refusal"
+    status: "Accepted — amends ADR-QD-095 and ADR-QD-143"
