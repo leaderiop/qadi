@@ -5,16 +5,16 @@ milestone_name: Arch Wave 9
 current_phase: 37
 current_phase_name: A scoped run that a newer run supersedes
 status: executing
-stopped_at: Completed 37-03-PLAN.md
-last_updated: "2026-11-14T01:58:41.229Z"
+stopped_at: Completed 37-04-PLAN.md
+last_updated: "2026-11-14T02:04:47.713Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 37 execution started
-state_head: 13f92e54ced55288b9aacaa1833821687555611b
+state_head: 147ed59061576cc0954ada2491accc8dbfcff492
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 9
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 ## Current Position
 
 Phase: 37 (A scoped run that a newer run supersedes) — EXECUTING
-Plan: 4 of 9
+Plan: 5 of 9
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 37 execution started
 
@@ -206,6 +206,7 @@ Progress: [░░░░░░░░░░] 0% (v1.4: 0 of 6 phases)
 | Phase 37 P01 | 8 min | 3 tasks | 3 files |
 | Phase QD-37 P02 | 12 min | 2 tasks | 3 files |
 | Phase 37 P03 | 8 min | 2 tasks | 1 files |
+| Phase 37 P04 | 25 min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -327,6 +328,7 @@ Progress: [░░░░░░░░░░] 0% (v1.4: 0 of 6 phases)
 - [v1.4]: the six phases 37-42 and their order are fixed by the user; research reconciliations R1-R6 (`research/SUMMARY.md`) are binding unless a planner records evidence against one; reserved numbers are ADR 150-155, CCR 428-433, BEH 521-550, INV 319-330 (never run `node scripts/next-id.mjs`)
 - [Phase 37]: 37-01: baseline recorded as measured (TimelineFeed 1, DiagnosticsFeed 0.9279, SimulationSession 0.9767); SupersedingRun.ts recorded as new; the Stryker pattern for the not-yet-existing file was accepted unchanged
 - [Phase QD-37]: 37-02: SupersedingRun module copied from the verified prototype; TimelineFeed keeps only its closed guard and the Stopped mapping
+- [Phase 37]: 37-04: the property reaches the stale-held-fork arm of drain through a NestStale body and a ninth floor, instead of a module row
 
 ### Pending Todos
 
@@ -369,8 +371,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T01:58:41.207Z
-Stopped at: Completed 37-03-PLAN.md
+Last session: 2026-11-14T02:04:47.660Z
+Stopped at: Completed 37-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
