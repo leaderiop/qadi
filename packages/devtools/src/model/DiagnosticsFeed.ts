@@ -21,8 +21,6 @@
 import * as Cause from "effect/Cause";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
-import * as Exit from "effect/Exit";
-import * as FiberHandle from "effect/FiberHandle";
 import type * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
 import * as Schedule from "effect/Schedule";
@@ -38,6 +36,7 @@ import {
 import { makeExternalStore } from "./ExternalStore.ts";
 import type { AskedQuestionLike } from "./Gates.ts";
 import type { PortCallCollector } from "./PortCalls.ts";
+import { makeSupersedingRun } from "./SupersedingRun.ts";
 
 /**
  * Where the poll stands, as a closed set of states.
@@ -158,7 +157,7 @@ const IDLE_STARTING = idle(diagnosticsStarting);
 export const idleDiagnostics = (options: DiagnosticsDockOptions | undefined): DiagnosticsReadout =>
   options === undefined ? IDLE_OFF : IDLE_STARTING;
 
-/** Builds the feed in the caller's scope; closing it interrupts the run, without a `Stopped`. */
+/** Builds the feed in the caller's scope; closing it interrupts the run, and an interruption is never a `Stopped`. */
 export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed")(function* (
   init?: DiagnosticsDockOptions,
 ): Effect.fn.Return<DiagnosticsFeed, never, Scope.Scope> {
@@ -166,20 +165,9 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
   let store: DiagnosticsStore = makeDiagnosticsStore();
   // Whether the reading shown holds an accepted sample: reset only by `Off`.
   let sampled = false;
-  // Names the current run, so a replaced run's late exit or accept changes nothing.
-  let generation = 0;
-  // Set when the scope closes: a command on a closed feed would publish a state nothing follows.
-  let closed = false;
   const view = makeExternalStore<DiagnosticsSnapshot>(diagnosticsOff);
-  const handle = yield* FiberHandle.make<void>();
-  // Added after the handle, so it runs first on close: the run it interrupts is then a replaced one.
-  yield* Effect.addFinalizer(() =>
-    Effect.sync(() => {
-      generation += 1;
-      closed = true;
-    }),
-  );
-  const fork = yield* FiberHandle.runtime(handle)<never>();
+  // One run at a time: a newer start supersedes and interrupts the one before it.
+  const runs = yield* makeSupersedingRun();
 
   // One publish per transition, carrying status and reading together.
   const show = (status: DiagnosticsStatus) => {
@@ -197,8 +185,7 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
   });
 
   const start = (next: DiagnosticsDockOptions) => {
-    generation += 1;
-    const mine = generation;
+    const token = runs.begin();
     const target = store;
     // Before the fork: its synchronous prefix may already reach `Live` or `Stopped`. The one `Starting` value, so `show` drops a repeat.
     show(diagnosticsStarting.status);
@@ -206,7 +193,7 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
       subscribe: target.subscribe,
       getSnapshot: target.getSnapshot,
       accept: (reading) => {
-        if (mine !== generation) return;
+        if (!runs.isCurrent(token)) return;
         target.accept(reading);
         sampled = true;
         // `accept` returns early on an unchanged reading, so Live is marked here, not by its notify.
@@ -214,30 +201,21 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
         show(DiagnosticsStatus.$is("Live")(current) ? current : DiagnosticsStatus.Live());
       },
     };
-    fork(
-      runDiagnostics(marking, runOptions(next)).pipe(
-        Effect.onExit((exit) =>
-          Effect.sync(() => {
-            if (mine === generation && Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
-              show(DiagnosticsStatus.Stopped({ reason: Cause.pretty(exit.cause), sampled }));
-            }
-          }),
-        ),
-      ),
-    );
+    runs.fork(token, runDiagnostics(marking, runOptions(next)), {
+      onFailure: (cause) => show(DiagnosticsStatus.Stopped({ reason: Cause.pretty(cause), sampled })),
+    });
   };
 
   const off = () => {
-    generation += 1;
-    // Replacing the fiber interrupts the previous run synchronously; `FiberHandle.clear` is an Effect.
-    fork(Effect.void);
+    runs.stop();
     store = makeDiagnosticsStore();
     sampled = false;
     view.set(diagnosticsOff);
   };
 
   const configure = (next: DiagnosticsDockOptions | undefined) => {
-    if (closed) return;
+    // A command on a closed feed would publish a state nothing follows.
+    if (runs.closed()) return;
     const before = options;
     options = next;
     if (next === undefined) {
@@ -257,7 +235,7 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
   };
 
   const restart = () => {
-    if (!closed && options !== undefined) start(options);
+    if (!runs.closed() && options !== undefined) start(options);
   };
 
   if (init !== undefined) start(init);
