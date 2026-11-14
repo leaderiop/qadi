@@ -12,11 +12,10 @@
 import * as Cause from "effect/Cause";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
-import * as Exit from "effect/Exit";
-import * as FiberHandle from "effect/FiberHandle";
 import type * as Scope from "effect/Scope";
 import { makeExternalStore } from "./ExternalStore.ts";
 import { sourceFromRecords, type Source } from "./Source.ts";
+import { makeSupersedingRun } from "./SupersedingRun.ts";
 import { DEFAULT_TIMELINE_CAPACITY, emptyTimeline, type Timeline } from "./Timeline.ts";
 import { makeTimelineStore, runSource, type TimelineStore } from "./TimelineStore.ts";
 
@@ -118,47 +117,27 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
   };
 
   const status = makeExternalStore<TimelineStatus>(READING);
-  // Names the current read, so a replaced read's late accept or exit changes nothing.
-  let generation = 0;
-  // Set when the scope closes: a restart on a closed feed would publish a state nothing follows.
-  let closed = false;
-
-  const reads = yield* FiberHandle.make<void>();
-  // Added after the handle, so it runs first on close: the read it interrupts is then a replaced one.
-  yield* Effect.addFinalizer(() =>
-    Effect.sync(() => {
-      generation += 1;
-      closed = true;
-    }),
-  );
-  const forkRead = yield* FiberHandle.runtime(reads)<never>();
-  // A replacement interrupts the read before it; a source that went away is replaced by an empty one.
+  // One read at a time: a newer read supersedes and interrupts the one before it.
+  const reads = yield* makeSupersedingRun();
+  // A source that went away is replaced by an empty one.
   const readSource = (source: Source | undefined) => {
-    generation += 1;
-    const mine = generation;
+    const token = reads.begin();
     status.set(READING);
     const marking: Pick<TimelineStore, "accept"> = {
       accept: (record) => {
-        if (mine !== generation) return;
+        if (!reads.isCurrent(token)) return;
         timeline.accept(record);
       },
     };
-    forkRead(
-      runSource(marking, source ?? NO_SOURCE).pipe(
-        Effect.onExit((exit) =>
-          Effect.sync(() => {
-            if (mine === generation && Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
-              status.set(TimelineStatus.Stopped({ reason: Cause.pretty(exit.cause) }));
-            }
-          }),
-        ),
-      ),
-    );
+    reads.fork(token, runSource(marking, source ?? NO_SOURCE), {
+      onFailure: (cause) => status.set(TimelineStatus.Stopped({ reason: Cause.pretty(cause) })),
+    });
   };
   readSource(inputs.source);
 
+  // A restart on a closed feed would publish a state nothing follows.
   const restart = () => {
-    if (!closed) readSource(inputs.source);
+    if (!reads.closed()) readSource(inputs.source);
   };
 
   return {
