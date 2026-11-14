@@ -462,3 +462,7 @@ entries:
     file: "153-core-owns-describing-a-decode-refusal.md"
     title: "Core owns describing a decode refusal"
     status: "Accepted — amends ADR-QD-095 and ADR-QD-143"
+  - id: "ADR-QD-154"
+    file: "154-one-value-to-text-function-exported-by-core.md"
+    title: "One value-to-text function, exported by core"
+    status: "Accepted"
