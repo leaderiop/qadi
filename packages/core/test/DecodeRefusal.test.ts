@@ -34,14 +34,14 @@ describe("describeDecodeRefusal gives one sentence per refusal", () => {
   it("NotJson says the text did not parse", () => {
     assert.strictEqual(
       describeDecodeRefusal(DecodeRefusal.NotJson()),
-      "not JSON: the text did not parse, so something between the sender and this reader truncated or replaced it",
+      "not JSON: the text did not parse, so it was truncated or replaced before this reader parsed it",
     );
   });
 
   it("TooDeep names the depth", () => {
     assert.strictEqual(
       describeDecodeRefusal(DecodeRefusal.TooDeep({ maxDepth: 64 })),
-      "nested deeper than 64 levels: a current sender refuses to emit that, so the sender is older or foreign",
+      "nested deeper than 64 levels: a current writer refuses to emit that, so the record came from an older or foreign writer or was altered",
     );
   });
 

@@ -192,9 +192,9 @@ export const decodeRefusalAnnotations = (self: DecodeRefusal): DecodeRefusalAnno
 export const describeDecodeRefusal: (self: DecodeRefusal) => string = Match.type<DecodeRefusal>().pipe(
   Match.tagsExhaustive({
     NotJson: () =>
-      "not JSON: the text did not parse, so something between the sender and this reader truncated or replaced it",
+      "not JSON: the text did not parse, so it was truncated or replaced before this reader parsed it",
     TooDeep: ({ maxDepth }) =>
-      `nested deeper than ${maxDepth} levels: a current sender refuses to emit that, so the sender is older or foreign`,
+      `nested deeper than ${maxDepth} levels: a current writer refuses to emit that, so the record came from an older or foreign writer or was altered`,
     Malformed: ({ message }) =>
       `not a record this reader can read, so the sender and this reader disagree about the wire form: ${shownMessage(message)}`,
     Inconsistent: ({ disagreement }) =>
