@@ -512,7 +512,35 @@ Plans:
   4. The break is recorded wherever a consumer reads it: the `@qadi/devtools` Breaking changeset with the upgrade map, `upgrading.md`, the devtools README, the website devtools page, the Next.js example's `Dock.tsx`, the `DecisionStreamRoute.ts` comment, BEH-QD-204 and the overview rows.
 
 **Planning notes**: **Research flag: needs `/gsd-plan-phase --research-phase 40`** (the compatibility decision, and the typing of the JSON form returned with the record). Core states no reporter (one consumer; devtools keeps its `Effect.logWarning` adapter with `qadi.frame`). A third restatement exists: `AuditEntry.ts:159-164` repeats `SinkCodec.ts:489-498`. **Plan shape**: the compatibility decision first, with a table pin of the five words on the base and the mutation base; then the describer and annotations in core; then devtools; then audit with the differential rows; then the one budget row that goes away, with AGENTS.md §7a, `[untrusted-decode-table]` and `[untrusted-decode-names]` in the same task; the break recorded in every place DREF-07 lists (also `surface.tst.ts`, `Source.tst.ts` and `26-decision-stream.md`); run `pnpm spec:website-examples` explicitly.
-**Plans**: TBD
+**Plans**: 9 plans
+
+Plans:
+**Wave 1**
+- [ ] 40-01-PLAN.md — mutation baseline; ADR-QD-153 (the compatibility decision) before any code
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 40-02-PLAN.md — characterisation on the base: the five drop words, the Malformed messages, the audit differential
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 40-03-PLAN.md — tracer: one mapping in SinkWire.ts; core's describer and tag-only annotations; type pins
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 40-04-PLAN.md — one strict decode gives the record and its JSON form, counted in the budget; bench after
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 40-05-PLAN.md — devtools passes DecodeRefusal through (Breaking); the example reads the describer
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 40-06-PLAN.md — audit decodes a row's record once; recordJsonOf and its budget row retired
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 40-07-PLAN.md — spec: ADR-QD-153 measured, ADR-095/143 and INV-QD-104 amended, INV-QD-325, BEH-QD-536/537, overview
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 40-08-PLAN.md — changesets, the 0.13 upgrade note, README, website, route comment, CCR-QD-431 completed
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 40-09-PLAN.md — close: gate integrity, order, ids, mutation against the base, merge gate, nothing released
 
 ### Phase 41: One guarded value-to-text function
 
