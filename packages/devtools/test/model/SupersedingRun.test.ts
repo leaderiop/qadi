@@ -10,12 +10,15 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as Match from "effect/Match";
 import * as Scope from "effect/Scope";
 import type * as Tracer from "effect/Tracer";
 import * as TestClock from "effect/testing/TestClock";
 import { collectingTracer } from "@qadi/testing";
+import * as FastCheck from "fast-check";
 import { makeSupersedingRun } from "../../src/model/SupersedingRun.ts";
 import type { ForkHooks, RunToken } from "../../src/model/SupersedingRun.ts";
 import { settleTurns } from "../helpers.ts";
@@ -416,4 +419,338 @@ describe("the superseding run", () => {
     Effect.runSync(Scope.close(scope, Exit.void));
     assert.isTrue(run.closed());
   });
+});
+
+/**
+ * R1 to R17 pin each rule on one hand-picked sequence. This states the rules that hold
+ * together as a model, and checks the module against it after every step of a random
+ * interleaving of begin, fork, land, stop and close (D-11, RUN-07; the form of
+ * `SharedComputation.test.ts`'s property).
+ *
+ * A fork's body waits on a gate the program opens, so the program, not a clock, decides
+ * when a run ends. A `Nest` body begins an inner token and forks an inner run from its
+ * own synchronous prefix, so the inner fork is held and installed once the outer start
+ * returns; `NestStale` then begins again before that, so the held fork is stale when
+ * the start returns and nothing is installed. The model keeps `current` as the index of
+ * a begun token, -1 for the token `stop` makes inside the module and none after close.
+ */
+describe("PROPERTY: only the current run lands, and nothing lands after close", () => {
+  type Body = "Ok" | "Die" | "Never" | "Nest" | "NestStale";
+  type Command =
+    | { readonly _tag: "Begin" }
+    | { readonly _tag: "Fork"; readonly fresh: boolean; readonly pick: number; readonly body: Body }
+    | { readonly _tag: "Land" }
+    | { readonly _tag: "Stop" }
+    | { readonly _tag: "Close" };
+
+  type Kind = "Ok" | "Die" | "Never";
+  interface ModelRun {
+    readonly id: number;
+    readonly token: number;
+    readonly kind: Kind;
+    state: "unstarted" | "running" | "done" | "died" | "interrupted";
+  }
+
+  // Distance back from the newest begun token: mostly the newest, sometimes a stale one.
+  const pick = FastCheck.oneof(
+    { weight: 5, arbitrary: FastCheck.constant(0) },
+    { weight: 2, arbitrary: FastCheck.constant(1) },
+    { weight: 1, arbitrary: FastCheck.nat(8) },
+  );
+  // Mostly the begin-then-fork pairing a store does; a fork on an older token is the rest.
+  const fresh = FastCheck.oneof(
+    { weight: 3, arbitrary: FastCheck.constant(true) },
+    { weight: 1, arbitrary: FastCheck.constant(false) },
+  );
+  const body = FastCheck.oneof(
+    { weight: 4, arbitrary: FastCheck.constant<Body>("Ok") },
+    { weight: 6, arbitrary: FastCheck.constant<Body>("Die") },
+    { weight: 1, arbitrary: FastCheck.constant<Body>("Never") },
+    { weight: 2, arbitrary: FastCheck.constant<Body>("Nest") },
+    { weight: 2, arbitrary: FastCheck.constant<Body>("NestStale") },
+  );
+  const commands = FastCheck.array(
+    FastCheck.oneof(
+      { weight: 7, arbitrary: FastCheck.constant<Command>({ _tag: "Begin" }) },
+      {
+        weight: 10,
+        arbitrary: FastCheck.tuple(fresh, pick, body).map(
+          ([f, p, b]): Command => ({ _tag: "Fork", fresh: f, pick: p, body: b }),
+        ),
+      },
+      { weight: 12, arbitrary: FastCheck.constant<Command>({ _tag: "Land" }) },
+      { weight: 5, arbitrary: FastCheck.constant<Command>({ _tag: "Stop" }) },
+      { weight: 5, arbitrary: FastCheck.constant<Command>({ _tag: "Close" }) },
+    ),
+    { minLength: 6, maxLength: 24 },
+  );
+
+  it.effect(
+    "the started, interrupted, landed and heard runs equal the model after every step",
+    () =>
+      Effect.gen(function* () {
+        let refusedForks = 0;
+        let replacedWhileRunning = 0;
+        let stoppedWhileRunning = 0;
+        let closedWhileRunning = 0;
+        let landedResults = 0;
+        let staleLands = 0;
+        let heldForks = 0;
+        let staleHeldForks = 0;
+        let heardFailures = 0;
+
+        const program = (cmds: ReadonlyArray<Command>) =>
+          Effect.gen(function* () {
+            // The module under test, and what it did.
+            const scope = Scope.makeUnsafe();
+            const run = yield* Scope.provide(makeSupersedingRun(), scope);
+            const tokens: Array<RunToken> = [];
+            const gates = new Map<number, Deferred.Deferred<void>>();
+            const returns: Array<boolean> = [];
+            const started: Array<number> = [];
+            const ended: Array<number> = [];
+            const interrupted: Array<number> = [];
+            const landed: Array<number> = [];
+            const heard: Array<number> = [];
+            let closedAt: { readonly started: number; readonly landed: number; readonly heard: number } | undefined;
+
+            // The reference model.
+            let closed = false;
+            let current: number | undefined;
+            let installed: ModelRun | undefined;
+            const runs: Array<ModelRun> = [];
+            const modelReturns: Array<boolean> = [];
+            const modelStarted: Array<number> = [];
+            const modelInterrupted: Array<number> = [];
+            const modelLanded: Array<number> = [];
+            const modelHeard: Array<number> = [];
+
+            const allocate = (kind: Kind, token: number): ModelRun => {
+              const model: ModelRun = { id: runs.length, token, kind, state: "unstarted" };
+              runs.push(model);
+              return model;
+            };
+
+            // Waits on its gate, then lands only while its token is current, or dies.
+            const realBody = (model: ModelRun, token: RunToken, prefix: () => void = () => undefined) => {
+              const gate = Deferred.makeUnsafe<void>();
+              gates.set(model.id, gate);
+              const wait: Effect.Effect<void> = model.kind === "Never" ? Effect.never : Deferred.await(gate);
+              return Effect.sync(() => {
+                started.push(model.id);
+                prefix();
+              }).pipe(
+                Effect.andThen(wait),
+                Effect.andThen(
+                  Effect.suspend(() => {
+                    ended.push(model.id);
+                    return model.kind === "Die"
+                      ? Effect.die(new Error("boom"))
+                      : Effect.sync(() => {
+                          if (run.isCurrent(token)) landed.push(model.id);
+                        });
+                  }),
+                ),
+                Effect.onInterrupt(() =>
+                  Effect.sync(() => {
+                    interrupted.push(model.id);
+                  }),
+                ),
+              );
+            };
+            const hooksFor = (model: ModelRun): ForkHooks => ({
+              onFailure: () => {
+                heard.push(model.id);
+              },
+            });
+
+            const installModel = (model: ModelRun) => {
+              if (installed !== undefined && installed.state === "running") {
+                installed.state = "interrupted";
+                modelInterrupted.push(installed.id);
+              }
+              installed = model;
+              model.state = "running";
+              modelStarted.push(model.id);
+            };
+
+            const ascending = (x: number, y: number) => x - y;
+            const check = () => {
+              const modelRunning = runs.filter((r) => r.state === "running").map((r) => r.id);
+              const running = started.filter((id) => !interrupted.includes(id) && !ended.includes(id));
+              assert.isAtMost(running.length, 1, "law 1: at most one run is running");
+              assert.deepStrictEqual(running, modelRunning, "law 1: the running run equals the model's");
+              tokens.forEach((token, i) => {
+                assert.strictEqual(run.isCurrent(token), current === i, `law 2: isCurrent of token ${i}`);
+              });
+              assert.strictEqual(run.closed(), closed, "law 2: closed");
+              assert.deepStrictEqual(returns, modelReturns, "law 3: what fork answered");
+              assert.deepStrictEqual(started, modelStarted, "law 4: the started runs, in order");
+              assert.deepStrictEqual(
+                landed,
+                modelLanded,
+                "law 4: only a run whose token is current when it lands lands, and every such run lands",
+              );
+              assert.deepStrictEqual(heard, modelHeard, "law 5: onFailure hears exactly the current runs that die");
+              assert.deepStrictEqual(
+                [...interrupted].sort(ascending),
+                [...modelInterrupted].sort(ascending),
+                "law 6: the interrupted runs",
+              );
+              assert.deepStrictEqual(
+                [...ended].sort(ascending),
+                runs.filter((r) => r.state === "done" || r.state === "died").map((r) => r.id),
+                "law 6: the runs that ended on their own",
+              );
+              if (closedAt !== undefined) {
+                assert.strictEqual(started.length, closedAt.started, "law 7: nothing starts after close");
+                assert.strictEqual(landed.length, closedAt.landed, "law 7: nothing lands after close");
+                assert.strictEqual(heard.length, closedAt.heard, "law 7: nothing is heard after close");
+              }
+            };
+            const done = Effect.gen(function* () {
+              yield* settleTurns;
+              check();
+            });
+
+            const beginStep = Effect.gen(function* () {
+              tokens.push(run.begin());
+              if (!closed) current = tokens.length - 1;
+              yield* done;
+            });
+
+            const forkStep = (cmd: Extract<Command, { readonly _tag: "Fork" }>) =>
+              Effect.gen(function* () {
+                if (cmd.fresh) {
+                  tokens.push(run.begin());
+                  if (!closed) current = tokens.length - 1;
+                }
+                const n = tokens.length;
+                const index = n - 1 - Math.min(cmd.pick, n - 1);
+                const token = tokens[index];
+                // No token begun yet: a fork has nothing to name.
+                if (token === undefined) return yield* done;
+
+                const nested = cmd.body === "Nest" || cmd.body === "NestStale";
+                const outer = allocate(cmd.body === "Die" || cmd.body === "Never" ? cmd.body : "Ok", index);
+                const inner = nested ? allocate("Ok", n) : undefined;
+                const prefix = () => {
+                  if (inner === undefined) return;
+                  const innerToken = run.begin();
+                  tokens.push(innerToken);
+                  returns.push(run.fork(innerToken, realBody(inner, innerToken), hooksFor(inner)));
+                  if (cmd.body === "NestStale") tokens.push(run.begin());
+                };
+                returns.push(run.fork(token, realBody(outer, token, prefix), hooksFor(outer)));
+
+                if (current !== index) {
+                  modelReturns.push(false);
+                  refusedForks += 1;
+                  return yield* done;
+                }
+                if (installed !== undefined && installed.state === "running") replacedWhileRunning += 1;
+                installModel(outer);
+                if (inner !== undefined) {
+                  // The inner begin is current, and its fork is held until the outer start returns.
+                  current = n;
+                  modelReturns.push(true);
+                  heldForks += 1;
+                  if (cmd.body === "NestStale") {
+                    current = n + 1;
+                    staleHeldForks += 1;
+                  } else {
+                    installModel(inner);
+                  }
+                }
+                modelReturns.push(true);
+                yield* done;
+              });
+
+            const landStep = Effect.gen(function* () {
+              const target = installed;
+              const gate = target === undefined ? undefined : gates.get(target.id);
+              if (target === undefined || target.state !== "running" || target.kind === "Never") return yield* done;
+              if (gate === undefined) return assert.fail("a started run has no gate");
+              yield* Deferred.succeed(gate, undefined);
+              yield* settleTurns;
+              const lands = current === target.token;
+              target.state = target.kind === "Die" ? "died" : "done";
+              if (!lands) staleLands += 1;
+              else if (target.kind === "Die") {
+                modelHeard.push(target.id);
+                heardFailures += 1;
+              } else {
+                modelLanded.push(target.id);
+                landedResults += 1;
+              }
+              yield* done;
+            });
+
+            const stopStep = Effect.gen(function* () {
+              run.stop();
+              if (!closed) {
+                current = -1;
+                if (installed !== undefined && installed.state === "running") {
+                  installed.state = "interrupted";
+                  modelInterrupted.push(installed.id);
+                  stoppedWhileRunning += 1;
+                }
+                installed = undefined;
+              }
+              yield* done;
+            });
+
+            const closeScope = Effect.gen(function* () {
+              yield* Scope.close(scope, Exit.void);
+              yield* settleTurns;
+              if (!closed) {
+                closed = true;
+                current = undefined;
+                if (installed !== undefined && installed.state === "running") {
+                  installed.state = "interrupted";
+                  modelInterrupted.push(installed.id);
+                }
+              }
+              closedAt ??= { started: started.length, landed: landed.length, heard: heard.length };
+              check();
+            });
+            const closeStep = Effect.gen(function* () {
+              if (!closed && installed !== undefined && installed.state === "running") closedWhileRunning += 1;
+              yield* closeScope;
+            });
+
+            // A new Command is a compile error here, not a silent no-op.
+            const step = Match.type<Command>().pipe(
+              Match.tagsExhaustive({
+                Begin: () => beginStep,
+                Fork: forkStep,
+                Land: () => landStep,
+                Stop: () => stopStep,
+                Close: () => closeStep,
+              }),
+            );
+
+            for (const cmd of cmds) yield* step(cmd);
+            yield* closeScope;
+          });
+
+        yield* Effect.promise(() =>
+          FastCheck.assert(
+            FastCheck.asyncProperty(commands, (cmds) => Effect.runPromise(program(cmds))),
+            { numRuns: 300, seed: 3701 },
+          ),
+        );
+
+        assert.isAtLeast(refusedForks, 30, "forks refused because their token was not current");
+        assert.isAtLeast(replacedWhileRunning, 30, "forks that replaced a run while it ran");
+        assert.isAtLeast(stoppedWhileRunning, 30, "stops that found a run running");
+        assert.isAtLeast(closedWhileRunning, 30, "closes that found a run running");
+        assert.isAtLeast(landedResults, 30, "results that landed");
+        assert.isAtLeast(staleLands, 30, "runs released after their token stopped being current");
+        assert.isAtLeast(heldForks, 30, "forks held while another start ran");
+        assert.isAtLeast(staleHeldForks, 30, "held forks whose token went stale before they installed");
+        assert.isAtLeast(heardFailures, 30, "failures onFailure heard");
+      }),
+    60_000,
+  );
 });
