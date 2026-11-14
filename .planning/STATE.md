@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 milestone: v1.5
 milestone_name: Arch Wave 10
 status: planning
-last_updated: "2026-11-14T23:45:17.254Z"
+last_updated: "2026-11-14T23:52:22.000Z"
 last_activity: 2026-11-15
 progress:
-  total_phases: 0
+  total_phases: 10
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-14)
+See: .planning/PROJECT.md (updated 2026-11-15)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Planning next milestone (v1.4 Arch Wave 9 complete 2026-11-14; not merged, not released)
+**Current focus:** Phase 43 — One handover module behind the enforcement entry points (v1.5 Arch Wave 10; v1.4 complete 2026-11-14, not merged, not released)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-11-15 — Milestone v1.5 started
+Phase: 43 of 52 (One handover module behind the enforcement entry points)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-15 — Roadmap created (Phases 43-52, 52/52 requirements mapped)
+
+Progress: [░░░░░░░░░░] 0% (0 of 10 phases)
 
 
 ## Performance Metrics
@@ -395,9 +397,11 @@ Last activity: 2026-11-15 — Milestone v1.5 started
 - [Phase QD-42]: 42-03: QadiRuntimeServices stays in QadiAtoms.ts; only DECISIONS_KEY moved down into SeededQuestion.ts (a back-import would be a madge cycle)
 - [Phase QD-42]: 42-04: ADR-QD-140's amendment names both QadiAtoms.ts imports its edge list lacked (SeededQuestion.ts and SweepScheduler.ts); the unused reserved numbers appear only in the CCR-QD-433 row
 - [Phase QD-42]: 42-05: no closing test needed; HydrationEngine.ts 1 and QadiAtoms.ts 0.9 above base, SeededQuestion.ts carries only its five moved survivors, all fifteen milestone files equal their latest recorded score
+- [v1.5]: the ten phases 43-52 and their order are fixed by the user (2026-11-15); per-phase evidence is `.planning/phases/_WAVE10-CONTEXT.md`; reserved numbers are ADR 156-165, CCR 434-443, BEH 551-600, INV 331-350 (never run `node scripts/next-id.mjs`); base `ba0d0615` (head of `arch-wave-9`, not merged), branch `arch-wave-10`, strictly serial, nothing released
 
 ### Pending Todos
 
+- v1.5: Phase 43 (`@qadi/core`) and Phase 48 (`@qadi/audit`) are **Breaking**; Phase 50 opens on a `pnpm bench` measurement and may end in a recorded rejection (ADR-QD-163); Phase 48's first plan checks ADR-QD-054 and ADR-QD-056 before any code; soft edges 45 → 48, 47 → 49 and 50 → 51 (same files; serial order covers them).
 - v1.4: research-phase before planning Phases 40 and 42 (37, 38, 39, 40, 41, 42 done) (`/gsd-plan-phase --research-phase <N>`); 38, 39 and 41 are standard. Phase 40 opens on the compatibility decision for `onMalformed`/`qadi.reason`; Phase 41 opens on RED first plus the non-JSON display decision; Phase 42 opens on a human checkpoint (evidence, then one `AskUserQuestion`).
 - v1.2: phases open on a `checkpoint:decision` (23-01, 25-01, 28-01; see ROADMAP); answer each once when its phase starts. 22-01's two were already answered in `_DECISIONS-v1.2.md` (done 2026-11-11).
 - v1.2: v1.1's phase dirs (10-20) are not yet archived to `.planning/milestones/v1.1-phases/`; do it with /gsd-complete-milestone when v1.1 is released or explicitly closed.
@@ -443,12 +447,12 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T18:57:50.249Z
-Stopped at: Phase QD-42 complete — all phases complete
+Last session: 2026-11-14T23:52:22.000Z
+Stopped at: Roadmap created for v1.5 (Phases 43-52); Phase 43 ready to plan
 Resume file: None
 
 ## Operator Next Steps
 
 
 
-- Start the next milestone with /gsd-new-milestone
+- Plan Phase 43 with /gsd-plan-phase 43 (or gather context first with /gsd-discuss-phase 43)

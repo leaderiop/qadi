@@ -138,25 +138,69 @@
 
 ## Traceability
 
+Which phases cover which requirements. One row per ID (`phase.complete` cannot parse grouped rows or ranges).
+The seven WX rows apply to every phase 43 to 52, so each phase's Requirements line in `ROADMAP.md` lists all seven.
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HAND-01..06 | Phase 43 | Pending |
-| HYDF-01..04 | Phase 44 | Pending |
-| BRKR-01..05 | Phase 45 | Pending |
-| EMIT-01..04 | Phase 46 | Pending |
-| PFCT-01..05 | Phase 47 | Pending |
-| AREF-01..04 | Phase 48 | Pending |
-| GATE-01..05 | Phase 49 | Pending |
-| LEAF-01..05 | Phase 50 | Pending |
-| ARTY-01..03 | Phase 51 | Pending |
-| COMP-01..04 | Phase 52 | Pending |
-| WX-01..07 | All v1.5 phases | Pending |
+| HAND-01 | Phase 43 | Pending |
+| HAND-02 | Phase 43 | Pending |
+| HAND-03 | Phase 43 | Pending |
+| HAND-04 | Phase 43 | Pending |
+| HAND-05 | Phase 43 | Pending |
+| HAND-06 | Phase 43 | Pending |
+| HYDF-01 | Phase 44 | Pending |
+| HYDF-02 | Phase 44 | Pending |
+| HYDF-03 | Phase 44 | Pending |
+| HYDF-04 | Phase 44 | Pending |
+| BRKR-01 | Phase 45 | Pending |
+| BRKR-02 | Phase 45 | Pending |
+| BRKR-03 | Phase 45 | Pending |
+| BRKR-04 | Phase 45 | Pending |
+| BRKR-05 | Phase 45 | Pending |
+| EMIT-01 | Phase 46 | Pending |
+| EMIT-02 | Phase 46 | Pending |
+| EMIT-03 | Phase 46 | Pending |
+| EMIT-04 | Phase 46 | Pending |
+| PFCT-01 | Phase 47 | Pending |
+| PFCT-02 | Phase 47 | Pending |
+| PFCT-03 | Phase 47 | Pending |
+| PFCT-04 | Phase 47 | Pending |
+| PFCT-05 | Phase 47 | Pending |
+| AREF-01 | Phase 48 | Pending |
+| AREF-02 | Phase 48 | Pending |
+| AREF-03 | Phase 48 | Pending |
+| AREF-04 | Phase 48 | Pending |
+| GATE-01 | Phase 49 | Pending |
+| GATE-02 | Phase 49 | Pending |
+| GATE-03 | Phase 49 | Pending |
+| GATE-04 | Phase 49 | Pending |
+| GATE-05 | Phase 49 | Pending |
+| LEAF-01 | Phase 50 | Pending |
+| LEAF-02 | Phase 50 | Pending |
+| LEAF-03 | Phase 50 | Pending |
+| LEAF-04 | Phase 50 | Pending |
+| LEAF-05 | Phase 50 | Pending |
+| ARTY-01 | Phase 51 | Pending |
+| ARTY-02 | Phase 51 | Pending |
+| ARTY-03 | Phase 51 | Pending |
+| COMP-01 | Phase 52 | Pending |
+| COMP-02 | Phase 52 | Pending |
+| COMP-03 | Phase 52 | Pending |
+| COMP-04 | Phase 52 | Pending |
+| WX-01 | All v1.5 phases | Pending |
+| WX-02 | All v1.5 phases | Pending |
+| WX-03 | All v1.5 phases | Pending |
+| WX-04 | All v1.5 phases | Pending |
+| WX-05 | All v1.5 phases | Pending |
+| WX-06 | All v1.5 phases | Pending |
+| WX-07 | All v1.5 phases | Pending |
 
 **Coverage:**
-- v1.5 requirements: 52 total (45 phase-specific + 7 cross-cutting)
+- v1.5 requirements: 52 total (45 phase-specific, 7 cross-cutting)
 - Mapped to phases: 52
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-11-15*
-*Last updated: 2026-11-15 after initial definition*
+*Last updated: 2026-11-15 after roadmap creation (Phases 43-52)*

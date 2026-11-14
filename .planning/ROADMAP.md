@@ -7,6 +7,7 @@
 - ✅ **v1.2 Arch Wave 7** — Phases 21-29 (completed 2026-11-12; not released) — [archive](milestones/v1.2-ROADMAP.md)
 - ✅ **v1.3 Arch Wave 8** — Phases 30-36 (completed 2026-11-13; not released) — [archive](milestones/v1.3-ROADMAP.md)
 - ✅ **v1.4 Arch Wave 9** — Phases 37-42 (completed 2026-11-14; not released) — [archive](milestones/v1.4-ROADMAP.md)
+- 🚧 **v1.5 Arch Wave 10** — Phases 43-52 (in progress)
 
 ## Phases
 
@@ -25,7 +26,8 @@
 
 </details>
 
-## 🚧 v1.1 Arch Wave 6 (Phases 10-20)
+<details>
+<summary>🚧 v1.1 Arch Wave 6 (Phases 10-20) — all phases complete 2026-11-10; merged as #155; not archived as a GSD milestone</summary>
 
 ### Overview
 
@@ -271,6 +273,8 @@ Plans:
 | 19. Verdict presentation | 3/3 | Complete | 2026-11-10 |
 | 20. DecisionCache shared computation | 4/4 | Complete | 2026-11-10 |
 
+</details>
+
 <details>
 <summary>✅ v1.2 Arch Wave 7 (Phases 21-29) — COMPLETED 2026-11-12 (not released)</summary>
 
@@ -322,3 +326,253 @@ Full details: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · requir
 [milestones/v1.4-MILESTONE-AUDIT.md](milestones/v1.4-MILESTONE-AUDIT.md)
 
 </details>
+
+## 🚧 v1.5 Arch Wave 10 (Phases 43-52)
+
+### Overview
+
+Wave 10 resolves the ten candidates of the 2026-11-15 architecture review. The first four each hide a silent wrong result, so they come first: `guard` and the four `filter*` entry points accept a `resource` option and silently drop it (43); hydration's `rebuild` copies the seed's fields by hand and drops any field added to the wire (44); an audit breaker built with `failureThreshold: NaN` never opens (45); and a user-written sink that fails or dies loses its records with no log line (46). The next three give a restated fact one owner: port facts read from the description rather than from display names (47), audit reports core's own refusal and derives "lost" from durability (48), and the gate registry becomes the dock model's eighth store over one gate-state vocabulary (49). Phase 50 opens on a benchmark and may end in a recorded rejection. Phases 51 and 52 are the two speculative ones. Base commit `ba0d0615` (the head of `arch-wave-9`; v1.4 is not merged), branch `arch-wave-10`. Read `.planning/phases/_SHARED-CONTEXT.md`, then `.planning/phases/_WAVE10-CONTEXT.md`, which overrides it only where it names the source review, the base, the numbering and the per-phase evidence. Each planner re-verifies that evidence against `ba0d0615` before planning.
+
+**The ten phases and their order are fixed (2026-11-15).** Nothing is added, merged, split or reordered.
+
+**Standing direction (user, unchanged):** the cleanest design wins, not the simplest, and the project is not in production, so breaking changes are allowed. Keeping a public name, avoiding a Breaking changeset or keeping source compatibility is never the reason to pick a design. Every break is recorded (changeset marked **Breaking**, `apps/website/.../reference/upgrading.md`). Nothing is released or published, no version-packages PR is merged, and the branch is not merged.
+
+Order: defects first (43-46), then the "stated once" deepenings (47-49), then the benchmark-gated phase (50), then the two speculative phases (51-52). **Execution order: phases run strictly one at a time, in numeric order (43 → 52).** Every records plan edits the same spec registers (CCR tail, invariants, traceability, `index.yaml`, `overview.md`, behaviour docs) and `use_worktrees` is false. The per-phase "Depends on" lines name the soft content edges; serial order is the operational rule.
+
+**Every phase** carries the seven cross-cutting requirements (WX-01 to WX-07): `pnpm check:pr < /dev/null` green at the end (ten silent minutes means hung); ADR (or "Unused" in its CCR row), CCR, BEH/INV and traceability records using only reserved numbers, never `node scripts/next-id.mjs`; `spec/overview.md` names every added export and drops every removed one (gate 13 checks names only, so a moved declaration's module column is corrected by hand); no new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await` or ambient `console`/`process.env`/clock, and a budget changes only together with its AGENTS.md table; coverage held (core at least 95 percent, the others at least 90) and per-file Stryker scores recorded in the first plan (`NN-mutation-base.json`, the same invocation at the base and the close) and compared in the last, a drop closed with a test and never re-baselined; a characterisation or regression test written on the phase base before any behaviour change; every public break recorded as **Breaking**. Re-run `pnpm circular` after the first source edit of every phase that moves a declaration, and `pnpm spec:website-examples` explicitly for any phase that edits a website page. Scope negative greps to the phase's added lines and exclude `.stryker-tmp`, `.next`, `node_modules` and `reports`; run vitest from the repo root with `--project`.
+
+**Soft edges** (from `_WAVE10-CONTEXT.md`; none is a hard edge, serial order covers all of them):
+
+| Edge | Strength | Reason |
+|------|----------|--------|
+| 45 → 48 | soft | both edit `AuditDecisionSinkLive.ts`; 48 starts from 45's version |
+| 47 → 49 | soft | both edit devtools `ServicesPanel` and `DockModel`; 49 starts from 47's version |
+| 50 → 51 | soft | both edit `Walk.ts` and `Policy.ts`; 51 starts from whatever 50 left (or from the base if 50 ends in a rejection) |
+
+**Numbering reserved for v1.5** (the whole block is held in the shared reservation file, set to CCR 443, ADR 165, BEH 600, INV 350 on 2026-11-15; confirm a number is free by grepping `spec/`, `packages/`, `.changeset/` and `AGENTS.md` before using it; name an unused reservation "Unused:" in the phase's CCR row). Next free on `ba0d0615`: ADR-QD-156, CCR-QD-434, BEH-QD-551, INV-QD-331. Highest ARCH is ARCH-89; ARCH ids below 90 are never reused. ADR Document IDs equal the file number (gate 10).
+
+| Phase | ARCH | ADR-QD | CCR-QD | BEH-QD | INV-QD |
+|---|---|---|---|---|---|
+| 43 | 90 | 156 | 434 | 551–555 | 331–332 |
+| 44 | 91 | 157 | 435 | 556–560 | 333–334 |
+| 45 | 92 | 158 | 436 | 561–565 | 335–336 |
+| 46 | 93 | 159 | 437 | 566–570 | 337–338 |
+| 47 | 94 | 160 | 438 | 571–575 | 339–340 |
+| 48 | 95 | 161 | 439 | 576–580 | 341–342 |
+| 49 | 96 | 162 | 440 | 581–585 | 343–344 |
+| 50 | 97 | 163 | 441 | 586–590 | 345–346 |
+| 51 | 98 | 164 | 442 | 591–595 | 347–348 |
+| 52 | 99 | 165 | 443 | 596–600 | 349–350 |
+
+**Already deep, not re-planned** (`_WAVE10-CONTEXT.md`): `SinkCodec`, the port descriptions and derivations, http request enforcement, `DecisionCache`/`SharedComputation`, the react atom core, `@qadi/promise`, `@qadi/testing`, devtools `Source.ts`/`Remedies.ts`. Settled by an ADR and not re-proposed: the composite folds in `Walk.ts` (ADR-QD-073/077), the http error tables (ADR-QD-102), a codec in `DecisionStream` (ADR-QD-097), the port question in several forms (ADR-QD-133), the shared `clockLayer` (ADR-QD-146), the backlog sort's place (ADR-QD-097 amendment), the SinkCodec depth walks (`UNTRUSTED_DECODE_BUDGET`), and `hydrateDecisions` versus `atoms.hydrate` (ADR-QD-078/039).
+
+### Phases
+
+- [ ] **Phase 43: One handover module behind the enforcement entry points** - One package-private module owns ask → discharge → release; `guard` and `filter*` refuse a second `resource` at the type level (ARCH-90, Breaking, core)
+- [ ] **Phase 44: The hydration seed's fields stated once** - Each verdict's seed fields derive from core's wire statement; dehydrate and rebuild are spreads, so a new wire field can no longer be dropped (ARCH-91, react)
+- [ ] **Phase 45: The audit circuit breaker as one transition function** - One pure `(state, event, now)` function holds every generation and probe rule; a `NaN` threshold is refused at construction (ARCH-92, audit)
+- [ ] **Phase 46: The sink emitter reports what it contains** - A failing or dying user sink is contained and reported with exactly one warning, naming the sink (ARCH-93, core)
+- [ ] **Phase 47: Port facts read from the description** - Defaultedness, consequence and call reading come from the port description, not from display names (ARCH-94, core, devtools)
+- [ ] **Phase 48: Audit reports core's refusal and derives "lost"** - `AuditEntryNotEncodable` is deleted and the lost-staging label derives from durability (ARCH-95, Breaking, audit)
+- [ ] **Phase 49: Gates as the dock model's eighth store, one gate-state vocabulary** - The gate registry joins the dock model and the five gate-state words are stated once in core (ARCH-96, core, react, devtools)
+- [ ] **Phase 50: What a leaf needs from the request, stated once** - Opens on a benchmark; one table of leaf needs read by `Walk` and `Predicate`, or a recorded rejection (ARCH-97, core)
+- [ ] **Phase 51: Policy tag arity stated once** - One closed record gives each tag's arity; `traceShapeOf` reads it and `leafTags` goes; `foldTrace` stays public (ARCH-98, core)
+- [ ] **Phase 52: Core owns the predicate compile shell** - One core function owns defaults, renderability and outcome counting; each dialect keeps its rules, renderer and metric (ARCH-99, core, predicate-sql, predicate-prisma)
+
+### Phase Details
+
+### Phase 43: One handover module behind the enforcement entry points
+
+**Goal**: The rule "the resource decided on is the value handed over" (INV-QD-108, ADR-QD-104) is written once in a package-private module behind the ten enforcement entry points, so `guard` and the four `filter*` entry points can no longer accept a `resource` option and silently drop it.
+**Depends on**: Nothing in v1.5 (first phase; serial order).
+**Requirements**: HAND-01, HAND-02, HAND-03, HAND-04, HAND-05, HAND-06, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Records**: ARCH-90; ADR-QD-156 (extends ADR-QD-104); CCR-QD-434; BEH-QD-551 to 555; INV-QD-331 to 332 (INV-QD-108 restated in place to cover every handover entry point); changeset for `@qadi/core` (**Breaking**: the `guard` and `filter*` options lose `resource`) and `upgrading.md`
+**Settled by the review check**: `LoadedEnforceOptions` already refuses `resource?: never` on `enforceLoaded`, `enforceProjected` and `enforceProjectedLoaded`; `guard` (`{ ...options, resource }`) and `decideOne` (`{ ...options, resource: item }`, behind all four `filter*`) take `EnforceOptions`, so `filter(p, items, { resource: x })` and `guard(perm, p, { resource: x })` compile and `x` is dropped.
+
+**Success Criteria** (what must be TRUE):
+  1. A tstyche test committed on the phase base shows `guard` and each of `filter`, `filterStream`, `filterProjected` and `filterStreamProjected` compiling with `{ resource: x }` (RED); after the phase each is a compile error, the way the three loaded entry points already are.
+  2. One package-private module owns "ask against this value → discharge on allow → release whole or projected", and the ten entry points in `Qadi.ts` are adapters over it by shape (effect, array, stream). The allow → `discharge` / deny branch and the `project(decision, value)` step each appear once in the phase's added code (scoped grep; at the base the branch is written in `permitted` and `decideOne`, and `project` is applied in four places).
+  3. A runtime test over all ten entry points shows the released value is the decided value, and for `filter*` that each released item is the item that was decided.
+  4. Behaviour is otherwise unchanged, pinned by characterisation tests written on the base and green before and after: discharge precedes the guarded work (ADR-QD-011), `filter` partitions rather than fails (JA-04), obligation discharge precedes handover (ADR-QD-019), and an item's fate is the same in the array and stream forms.
+  5. No call site passes `resource` to `guard` or `filter*` in `packages/*`, `examples/*`, `features/step-definitions` or the spec and website ` ```typescript ` fences (both doc-fence gates green); INV-QD-108 is restated, and the Breaking change is in the `@qadi/core` changeset and `upgrading.md`.
+
+**Planning notes**: Re-verify the line numbers in `_WAVE10-CONTEXT.md` (`Qadi.ts` :113, :129, :197, :406, :430) against the base. **Plan shape, RED first**: the mutation base for `Qadi.ts`, the tstyche RED and the characterisation tests, committed first; then the module with one entry point converted at a time, deleting a duplicated branch only after the module's test covers it; then the call-site sweep across `packages/*`, `examples/*`, `features/step-definitions` and both fence sets; then the records plan; run `pnpm spec:website-examples` explicitly and `pnpm circular` after the first move.
+**Plans**: TBD
+
+### Phase 44: The hydration seed's fields stated once
+
+**Goal**: Each verdict's seed fields are stated once, derived from core's wire statement, so a field added to the wire's `common` reaches the client's seed without a hand edit in `rebuild`, and the Allow/Deny branch is written once.
+**Depends on**: Phase 43 (serial order only; no shared source).
+**Requirements**: HYDF-01, HYDF-02, HYDF-03, HYDF-04, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Records**: ARCH-91; ADR-QD-157 (the ADR-QD-135 pattern applied to the seed; ADR-QD-078 kept); CCR-QD-435; BEH-QD-556 to 560; INV-QD-333 to 334; changeset for `@qadi/react` (patch: a fix)
+**Settled by the review check**: the defect is real and compiles today: a field added to the wire's `common` reaches the payload and is dropped by `rebuild` on the client. The pattern is `SinkRecordFields.ts`: a `Schema.Struct` of fields, a `Data.TaggedClass` typed by its `Type`, and a wire that spreads it. ADR-QD-078 (a seed is its own type, `_tag` is `SeededAllow`, not `Allow`) and ADR-QD-155 (`SeededQuestion.ts` owns the computing atom) stay as they are.
+
+**Success Criteria** (what must be TRUE):
+  1. RED on the phase base: a property test that any `Decision` → dehydrated entry → `SeededDecision` keeps every disclosed wire field fails when a scratch field is added to core's wire `common` (the code still compiles and `rebuild` drops it); the scratch field is then removed and the property is green over the real fields.
+  2. Each verdict's seed fields are one statement derived from `DecisionWireAllow`/`DecisionWireDeny` minus the withheld fields. `SeededAllow` and `SeededDeny` stay `Data.TaggedClass`es with `_tag` `SeededAllow`/`SeededDeny`, typed by it, and no hand-written field list remains in `SeededDecision.ts` or in `rebuild`.
+  3. `dehydrateDecision` and `rebuild` are spreads with the one `subjectId` substitution, and the Allow/Deny branch is written once for dehydrate, rebuild and agreement (at the base it is written three times).
+  4. `entryAgrees` still refuses a seed whose fields disagree with its trace through core's `decisionDisagreement` (INV-QD-170), existing tests unchanged, and the payload's wire form is byte-identical for existing entries (a golden committed on the base).
+
+**Planning notes**: **Plan shape, RED first**: the mutation base for `HydrationEngine.ts` and `SeededDecision.ts`, the byte golden and the property with its scratch-field RED, committed first; then the derived statement; then the spreads; then records. Core's `DecisionWire.ts` is read, not edited, unless the planner records evidence that it must change.
+**Plans**: TBD
+
+### Phase 45: The audit circuit breaker as one transition function
+
+**Goal**: Every generation and probe rule of the audit circuit breaker lives in one pure transition function, tested without fibers or a clock, and a breaker whose options cannot work is refused when it is built rather than silently never opening.
+**Depends on**: Phase 44 (serial order only). Soft edge to Phase 48 (both edit `AuditDecisionSinkLive.ts`).
+**Requirements**: BRKR-01, BRKR-02, BRKR-03, BRKR-04, BRKR-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Records**: ARCH-92; ADR-QD-158; CCR-QD-436; BEH-QD-561 to 565; INV-QD-335 to 336 (INV-QD-052, each event one atomic modify, is kept); changeset for `@qadi/audit` (minor: construction refuses bad options with a typed error)
+**Settled by the review check**: `CircuitBreaker.ts` has five separate `Ref.modify` bodies (`observe`, `recordSuccess`, `recordFailure`, `claimProbe`, `releaseProbe`), each restating the stale-generation check, the bump (`generation + 1` appears eight times), the state rebuild and the announcement decision. History to keep: commit `9b2ca5d8` (a probe claim not released on abnormal exit), issue #72 (claim/release atomicity), and the regression tests at `CircuitBreaker.test.ts:339, 403, 426, 452`. By contrast `decisionCacheLayer`, `makeDecisionLog` and `decisionStreamRoute` already refuse a bad bound when built.
+
+**Success Criteria** (what must be TRUE):
+  1. A test with `failureThreshold: NaN` is RED on the phase base (the breaker never opens, because `consecutiveFailures >= NaN` is always false); after the phase, a non-finite, zero, negative or non-integer threshold or cooldown fails at construction with a typed error, one row per bad value.
+  2. One pure function `(state, event, now) → (next state, transition announced)` over a closed event union (Observe, Success, Failure, Claim, Release, each with its generation) holds every generation and probe rule, and `generation + 1` is written once in the phase's added code (scoped grep; eight at the base).
+  3. The `Ref`/`Clock`/metric adapter runs exactly one `Ref.modify` per event (INV-QD-052), and its matchers are built once at module scope (AGENTS.md §5a); `Match.value(state)` is no longer rebuilt per call.
+  4. Table-driven tests of the transition function cover a stale generation, a release stealing a newer claim, a stale failure reopening a newer window and every legal transition, and need no fibers or `TestClock`.
+  5. The existing concurrency regression tests (`CircuitBreaker.test.ts:339, 403, 426, 452`) pass unchanged as adapter tests, and the breaker's metrics and transition announcements are unchanged.
+
+**Planning notes**: **Plan shape, RED first**: the mutation base for `CircuitBreaker.ts`, the `NaN` RED and the transition table written against the base's observable behaviour, committed first; then the pure function and the adapter, one event converted at a time; then option validation (`AuditDecisionSinkLive.ts` :127 passes options through unvalidated); then records. Keep the work off the lines Phase 48 will edit.
+**Plans**: TBD
+
+### Phase 46: The sink emitter reports what it contains
+
+**Goal**: A decision sink that fails or dies is contained, as INV-QD-035 requires (an observer must never deny), and reported with exactly one warning, so a user-written sink can no longer lose records with no log at all.
+**Depends on**: Phase 45 (serial order only; no shared source).
+**Requirements**: EMIT-01, EMIT-02, EMIT-03, EMIT-04, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Records**: ARCH-93; ADR-QD-159 (INV-QD-035 restated; ADR-QD-044 and ADR-QD-100 kept); CCR-QD-437; BEH-QD-566 to 570; INV-QD-337 to 338; changeset for `@qadi/core` (minor: an optional `name` on `DecisionSinkShape`; a failing user sink now logs once)
+**Settled by the review check**: `sinkEmitter` runs `Effect.catchCause(sink.value.record(record), () => Effect.void)`, so it contains every failure and reports none. The shipped sinks report their own: `DecisionSinkForwarding.ts` :98 and :126 ("could not be forwarded", the encode-refusal report), :188 ("a fanned-out decision sink failed unexpectedly", sibling isolation) and `DecisionLog.ts` :174 (the append/publish half). The phase's research classifies each as "containment the emitter now covers" or "a report that says something else". Port shapes already carry a `name` (`PortDescription.ts`); `DecisionSinkShape` does not.
+
+**Success Criteria** (what must be TRUE):
+  1. A custom sink that fails, and one that dies, run through `evaluate` each produce exactly one warning and leave the decision unchanged; both are RED on the phase base, where they produce zero warnings.
+  2. The warning names the sink when it has a `name` (an optional `name` added to `DecisionSinkShape`), and an unnamed sink still produces its one warning.
+  3. Each existing shipped-sink warning is classified in the phase's records. Only containment the emitter now covers is removed, and what stays is a report that says something else (forwarding's encode refusal, `decisionSinkAll`'s sibling isolation, the decision log's append/publish split). No single failure of a shipped sink is reported twice.
+  4. The sink is still read once per evaluation (ADR-QD-044/100, `sink-read-once`), a sink never changes a decision, and INV-QD-035 is restated to include the report.
+
+**Planning notes**: **Plan shape, RED first**: the mutation base for `SinkEmit.ts` and the touched sinks, the two RED tests and a per-warning classification table committed first; then the emitter's report and the `name`; then removing only the covered duplicates; then records.
+**Plans**: TBD
+
+### Phase 47: Port facts read from the description
+
+**Goal**: Whether a port's service is its fail-closed default, what that costs, and how a call row reads are facts the port description states once, so devtools no longer parses a display-name convention and a hand-written wrapper can no longer make a fail-closed default look like a real adapter.
+**Depends on**: Phase 46 (serial order only). Soft edge to Phase 49 (both edit devtools `ServicesPanel` and `DockModel`).
+**Requirements**: PFCT-01, PFCT-02, PFCT-03, PFCT-04, PFCT-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Records**: ARCH-94; ADR-QD-160 (ADR-QD-094 and ADR-QD-109 kept; BEH-QD-196's naming convention stays a display name only); CCR-QD-438; BEH-QD-571 to 575; INV-QD-339 to 340; changesets for `@qadi/core` (minor: the structural defaultedness fact) and `@qadi/devtools` (patch)
+**Settled by the review check**: `PortDerivation.ts` names a wrapper `` `${inner.name ?? "?"} (${suffix})` `` and devtools' `isDefaultName` (`Wiring.ts`) parses that convention back, which is the misleading direction for a diagnostic. The devtools tables keyed by port that restate facts a description could own are `CONSEQUENCES` (`Wiring.ts`), `ROWS` (`model/PortCalls.ts`, five arms identical except the tag) and `describeOne` (`react/ServicesPanel.tsx`, a React view that knows each port's span fields). `forEveryPort` exists in core's `Ports.ts`. Devtools depends only on `@qadi/core`.
+
+**Success Criteria** (what must be TRUE):
+  1. Whether a port's service is its description's fail-closed default, through any number of derived wrappers, is a structural fact core exposes, and devtools' `isDefaultName` is deleted.
+  2. RED on the phase base: a hand-written wrapper whose name does not follow `"<inner> (<suffix>)"`, around a fail-closed default, is reported as defaulted; on the base it shows as a real adapter.
+  3. Each port's fail-closed consequence sentence and call-row reading are stated once per port, next to its description or in one devtools port-reading module keyed by `PortName`; `CONSEQUENCES` and the per-port arms of `describeOne` are gone, and `ServicesPanel.tsx` no longer knows any port's span fields.
+  4. `PortCalls.ts`'s `ROWS` is built with `forEveryPort`, and a throwaway sixth port in the registry (recorded and reverted) needs no devtools edit beyond what the compiler asks for.
+  5. Rendered output for the five ports is unchanged (characterisation tests written on the base), and devtools still depends only on `@qadi/core`.
+
+**Planning notes**: **Plan shape, RED first**: the mutation base for the touched devtools files, the wrapper RED and a rendered-output characterisation for each port, committed first; then core's fact; then devtools' tables; then records. Re-run `pnpm circular` after the first move. Keep the work off the lines Phase 49 will edit in `ServicesPanel`/`DockModel`.
+**Plans**: TBD
+
+### Phase 48: Audit reports core's refusal and derives "lost"
+
+**Goal**: Audit reports the same refusal type core, forwarding and http use, and the "lost staging" label is derived from the outcome's durability in one place, so the span attribute and the metric/log label cannot disagree about whether a staged write was lost.
+**Depends on**: Phase 47 (serial order only). Soft edge to Phase 45 (both edit `AuditDecisionSinkLive.ts`; start from 45's version).
+**Requirements**: AREF-01, AREF-02, AREF-03, AREF-04, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Records**: ARCH-95; ADR-QD-161 (written after checking ADR-QD-054 and ADR-QD-056); CCR-QD-439; BEH-QD-576 to 580; INV-QD-341 to 342; changeset for `@qadi/audit` (**Breaking**: `onRefused` takes core's `SinkRecordNotEncodable`, and `AuditEntryNotEncodable` is deleted) and `upgrading.md`
+**Settled by the review check**: `AuditEntryNotEncodable` (`AuditEntry.ts`) copies core's `SinkRecordNotEncodable` field for field (`recordTag`, `evaluationId`, `refusal`) and adds only `reason`, which is `describeEncodeRefusal(refusal)`. Its doc cites ADR-QD-054 ("core has no reason to know this error exists"), but core already declares that error. "Lost" is stated twice: `unwrittenDurability` in `AuditWriteOutcome.ts` maps NotWired/StageFailed to `"Lost"`, and `lostStaging` in `AuditWriteReport.ts` maps NotWired to `not_wired`, StageFailed to `failed` and Staged to `undefined`; both are exhaustive, but a new variant could be mapped differently in each. **Check ADR-QD-056 (the audit companion package) before deciding.**
+
+**Success Criteria** (what must be TRUE):
+  1. `AuditEntryNotEncodable` is deleted; audit's `onRefused` takes core's `SinkRecordNotEncodable`, the same type forwarding and http use, and the logged reason is `describeEncodeRefusal(refusal)` computed at the one place a line is written.
+  2. The lost-staging label is derived from the outcome's durability (`durabilityOf`), so the span attribute and the metric/log label cannot disagree: a table test over every outcome variant pins that they agree, and only one exhaustive mapping remains.
+  3. `writtenStaging`'s hand-written `_tag` ternary is replaced by an exhaustive match.
+  4. Audit's observable output is unchanged for existing inputs (log lines, span attributes, metric labels), pinned by characterisation tests written on the base.
+  5. ADR-QD-161 records the decision after checking ADR-QD-054 and ADR-QD-056, and the `@qadi/audit` changeset and `upgrading.md` mark `onRefused`'s new type as **Breaking**.
+
+**Planning notes**: **Research flag: the first plan checks ADR-QD-054 and ADR-QD-056 against core's `SinkRecordNotEncodable` before any code**, and records what the ADRs actually forbid. **Plan shape, RED first**: the mutation base for the audit files, the characterisation of log, span and metric output on every outcome variant, committed first; then the refusal type; then the durability-derived label; then records.
+**Plans**: TBD
+
+### Phase 49: Gates as the dock model's eighth store, one gate-state vocabulary
+
+**Goal**: The gate registry is the dock model's eighth store, so `QuestionsPanel` renders one snapshot in which each question and the instances asking it come from the same moment, and the five gate-state words are stated once in core so react and devtools cannot drift.
+**Depends on**: Phase 48 (serial order only). Soft edge to Phase 47 (both edit devtools `ServicesPanel` and `DockModel`; start from 47's version).
+**Requirements**: GATE-01, GATE-02, GATE-03, GATE-04, GATE-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Records**: ARCH-96; ADR-QD-162 (amends the dock model's store set, the ARCH-74/82 lineage; the ADR-QD-152 pattern for the vocabulary; ADR-QD-053 and ADR-QD-080 kept); CCR-QD-440; BEH-QD-581 to 585; INV-QD-343 to 344; changesets for `@qadi/core` (minor: the gate-state vocabulary), `@qadi/react` (patch) and `@qadi/devtools` (minor, marked **Breaking** if the design changes a public dock prop or `GateInstanceLike`)
+**Settled by the review check**: today `QuestionsPanel.tsx` joins the polled `questions` (through `model/DiagnosticsStore.ts`) with the live `gates` prop (`react/DevtoolsDock.tsx`), which skips `DockModel`, and the per-row `instancesAsking` join runs in the view. `model/Gates.ts` restates `GateRenderState` (`"Failed" | "Denied" | "Rechecking" | "Pending" | "Allowed"`) and types `GateInstanceLike.state` as `string`; react's version is `GateWriter.ts`'s, derived from `DecisionOutcome.ts`'s tags; no test ties the two. Devtools takes no dependency on `@qadi/react`.
+
+**Success Criteria** (what must be TRUE):
+  1. The five gate-state words are stated once in `@qadi/core`, and react's `GateRenderState` and devtools' `GATE_DISPLAY` derive from that statement; a type-level test ties them together, and devtools has no dependency on `@qadi/react` (ADR-QD-053/080).
+  2. A state this build does not know is still shown as `Unrecognised`, never as an answer.
+  3. The gate registry's structural `subscribe`/`instances` is a `makeDockModel` store, the model produces the joined question × instance rows, and `QuestionsPanel` renders one snapshot with no `gates` prop join and no per-row `instancesAsking` join in the view.
+  4. The join is tested headlessly through the dock model, as the ARCH-74/82 stores are: a test where gates change while the questions poll shows rows from one moment, with no render.
+  5. With instrumentation off nothing is registered or rendered (AGENTS.md §13), the react suite passes untouched, and the panel's rendered output is unchanged for existing inputs.
+
+**Planning notes**: **Plan shape, RED first**: the mutation base for `DockModel.ts`, `QuestionsPanel.tsx`, `Gates.ts` and react's `GateWriter.ts`, with a characterisation of the panel's current rows, committed first; then the vocabulary in core and both derivations; then the eighth store and the panel read; then records. Browser behaviour (Activity hide/show, focus) stays as it was; any change to it is named.
+**UI hint**: yes
+**Plans**: TBD
+
+### Phase 50: What a leaf needs from the request, stated once
+
+**Goal**: The rule that a leaf which reads the action or the resource fails when the request has none (INV-QD-011), together with the order in which absences are checked, is either stated once in one table that `Walk` and `Predicate` both read, or the phase ends with a measured rejection recorded in ADR-QD-163.
+**Depends on**: Phase 49 (serial order only). Soft edge to Phase 51 (both edit `Walk.ts` and `Policy.ts`).
+**Requirements**: LEAF-01, LEAF-02, LEAF-03, LEAF-04, LEAF-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Records**: ARCH-97; ADR-QD-163 (the benchmark numbers, and the rejection if it ends in one); CCR-QD-441; BEH-QD-586 to 590; INV-QD-345 to 346 (INV-QD-011 is pinned, not duplicated); changeset for `@qadi/core` (patch) only if code changes
+**Opens on a benchmark** (AGENTS.md §5a requires `pnpm bench` before a change near budgeted switch #1, `evaluateNode`): a prototype in which `evaluateNode` reads a module-scope leaf-needs table is measured against the phase base, and the numbers go in ADR-QD-163. If any workload regresses beyond run-to-run noise, the phase ends with a recorded rejection, no source change, and LEAF-02 to LEAF-05 marked "Not pursued (measured)".
+**Settled by the review check**: the rule is written per leaf and per interpreter. In `Walk.ts`, `action === undefined && referencesAction(matcher)` appears twice, the `HasAction` check once, a resource-referencing matcher raises `MissingResource`, and `HasResourceAttribute` raises `MissingResource`; `PortAccess.ts`'s `readScoped` raises `MissingResourceId`; `Predicate.ts` rewrites the same checks as `NeedAction` plans. The check order differs per leaf (`HasAttribute` checks action then resource, `HasResourceAttribute` resource then action), so a request missing both gets a different error depending on the leaf, and nothing states whether that matters. The port-free `HasRole`/`HasPermission` are judged in both `Walk.ts` and `Predicate.ts`. ADR-QD-024/100 (admission is shared, the walks stay two) and the `SWITCH_BUDGET` stay.
+
+**Success Criteria** (what must be TRUE):
+  1. `pnpm bench` numbers for the table prototype against the phase base, per workload, are recorded in ADR-QD-163 with the noise band, and the phase's outcome (pursue or reject) follows from them. On a rejection no source file changes, ADR-QD-163 records the rejection and its numbers, and LEAF-02 to LEAF-05 are annotated "Not pursued (measured)".
+  2. If pursued: one package-private module states, per leaf, which request inputs it needs (action, resource, resource id), which error each absence becomes, and one stated check order; `Walk` and `Predicate` both read it, and the per-leaf copies of those checks are gone from the phase's added code.
+  3. If pursued: the difference in check order between leaves is preserved or changed deliberately, pinned by a RED-first test over a request missing both the action and the resource for each leaf kind, and a behaviour row states the decision.
+  4. If pursued: the port-free `HasRole`/`HasPermission` judgement is written once and both interpreters use it, and an exhaustive table test over every leaf tag pins INV-QD-011.
+  5. If pursued: `SWITCH_BUDGET` and `UNTRACED_BUDGET` are unchanged (the AGENTS.md tables and the budgets agree), and `pnpm bench` after the change shows no workload regressed beyond noise against the phase base.
+
+**Planning notes**: **The benchmark is the first plan, and it gates the rest.** Prototype on a scratch branch or an unmerged commit, run `pnpm bench` against the base the way ADR-QD-073's addendum did, and record the table before writing any source that stays. Re-verify the `Walk.ts`, `PortAccess.ts` and `Predicate.ts` line numbers in `_WAVE10-CONTEXT.md` against the base. If pursued, **plan shape, RED first**: the mutation base for `Walk.ts`, `Predicate.ts` and `PortAccess.ts`, and the missing-both-inputs characterisation per leaf kind, committed first; then the module; then `Walk`; then `Predicate`; then records.
+**Plans**: TBD
+
+### Phase 51: Policy tag arity stated once
+
+**Goal**: Each policy tag's arity (Leaf, Wrapper or Many) is stated once in `Policy.ts`, so `Decision.ts`'s trace shape reads it instead of a hand-kept `leafTags` array, and moving a tag's arity in one place and not the other fails to compile.
+**Depends on**: Phase 50 (serial order only). Soft edge: both edit `Walk.ts` and `Policy.ts`, so this phase starts from whatever Phase 50 left (the base, if 50 ended in a rejection).
+**Requirements**: ARTY-01, ARTY-02, ARTY-03, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Records**: ARCH-98; ADR-QD-164 (or the CCR row states why `renderTrace` and `diffTraces` keep their own walks); CCR-QD-442; BEH-QD-591 to 595; INV-QD-347 to 348 (INV-QD-090 is kept); changeset for `@qadi/core` (patch; minor if the arity record is exported)
+**Settled by the review check**: `Policy.ts`'s `childrenOf`, `LeafPolicy` and `leafCases` state which tags are leaf, wrapper or many; `Decision.ts` restates them in a hand-kept `leafTags` array plus `traceShapeOf`, exhaustive over tag names but tied to nothing, so moving a wrapper tag under "Many" there compiles. **Correction to the review:** `foldTrace` has no callers in the repo, by design: it is the stack-safe public primitive for hosts holding a `Trace` (INV-QD-090), and it stays. `renderTrace` (pre-order with indentation) and `diffTraces` (lockstep over two trees) keep their own walks, and the ADR or CCR states why.
+
+**Success Criteria** (what must be TRUE):
+  1. One closed record in `Policy.ts` gives each policy tag's arity (Leaf, Wrapper or Many); `traceShapeOf` reads it and `leafTags` is deleted.
+  2. A type-level test ties `LeafPolicy` and `childrenOf` to the record: a checked `@ts-expect-error` negative shows that moving a tag's arity in one place and not the other fails to compile, where on the base moving a wrapper tag under "Many" in `Decision.ts` compiles (recorded).
+  3. Every policy tag's trace shape is unchanged, pinned by a table test over all tags written on the base and green before and after.
+  4. `foldTrace` stays public and unchanged (the barrel pin and its INV-QD-090 tests untouched), `renderTrace` and `diffTraces` keep their own walks, and the ADR or CCR states why; `SWITCH_BUDGET` is unchanged.
+
+**Planning notes**: **Plan shape, RED first**: the mutation base for `Policy.ts` and `Decision.ts`, the all-tags shape table and the recorded base experiment (move a tag, it compiles), committed first; then the record and the two readers; then the type-level negative; then records. Re-run `pnpm circular`.
+**Plans**: TBD
+
+### Phase 52: Core owns the predicate compile shell
+
+**Goal**: Core owns the shell every predicate dialect repeats (the defaults, renderability, and counting refused and compiled outcomes), so `@qadi/predicate-sql` and `@qadi/predicate-prisma` each keep only their rules, their renderer and their own metric.
+**Depends on**: Phase 51 (serial order only; no shared source).
+**Requirements**: COMP-01, COMP-02, COMP-03, COMP-04, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Records**: ARCH-99; ADR-QD-165 (ADR-QD-054 and ADR-QD-079 kept: a companion package may compile a dialect, and renderability is a core rule; ADR-QD-123 kept); CCR-QD-443; BEH-QD-596 to 600; INV-QD-349 to 350; changesets for `@qadi/core` (minor: the new export), `@qadi/predicate-sql` (patch) and `@qadi/predicate-prisma` (patch)
+**Settled by the review check**: `predicate-sql/src/index.ts` and `predicate-prisma/src/index.ts` repeat the same shell: `identifiers ?? "Ascii"`, `maxInValues ?? DEFAULT_MAX_IN_VALUES`, `toRenderable`, then `tapError(refused)` and `update(compiled)`. Both `CompileMetrics.ts` files are identical except for the metric id and description. The renderers are rightly different (Prisma folds vacuous identities; SQL accumulates parameters) and stay in their packages. ADR-QD-123 stands: each package declares its own metric once, the ids stay distinct, and the `[metric-table]` rows are unchanged.
+
+**Success Criteria** (what must be TRUE):
+  1. One core function owns compiling with a dialect's rules and renderer: the defaults (`identifiers`, `maxInValues`), `toRenderable`, and counting refused and compiled outcomes against a counter series the caller supplies. The repeated shell is gone from both packages' added code (scoped grep).
+  2. `compileSql` and `compilePrismaWhere` keep only their rules, their renderer and their own declared metric; the ids are distinct, each metric is declared once, the `[metric-table]` rows and `METRIC_ID_LITERAL_BUDGET` are unchanged.
+  3. Output is unchanged for both dialects, refusals included, shown by differential or characterisation tests written on the phase base (a row per refusal reason per dialect) and green before and after, and each call moves its dialect's counter exactly once.
+  4. `spec/overview.md` names the new core export (gate 13), the changesets cover all three packages, and `pnpm check:pr < /dev/null` is green.
+
+**Planning notes**: **Plan shape, RED first**: the mutation base for both dialects' `index.ts` and `CompileMetrics.ts`, and the differential tests, committed first; then core's function with one dialect converted; then the second; then records. Re-run `pnpm circular`, and check the packed `exports` map (gate 14) for the new core name.
+**Plans**: TBD
+
+### Progress (v1.5)
+
+**Execution Order:**
+Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 → 50 → 51 → 52
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 43. One handover module behind the enforcement entry points | 0/TBD | Not started | - |
+| 44. The hydration seed's fields stated once | 0/TBD | Not started | - |
+| 45. The audit circuit breaker as one transition function | 0/TBD | Not started | - |
+| 46. The sink emitter reports what it contains | 0/TBD | Not started | - |
+| 47. Port facts read from the description | 0/TBD | Not started | - |
+| 48. Audit reports core's refusal and derives "lost" | 0/TBD | Not started | - |
+| 49. Gates as the dock model's eighth store, one gate-state vocabulary | 0/TBD | Not started | - |
+| 50. What a leaf needs from the request, stated once | 0/TBD | Not started | - |
+| 51. Policy tag arity stated once | 0/TBD | Not started | - |
+| 52. Core owns the predicate compile shell | 0/TBD | Not started | - |
