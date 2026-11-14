@@ -569,4 +569,58 @@ describe("the diagnostics feed", () => {
       assert.strictEqual(reading, noDiagnostics);
     }),
   );
+
+  it.effect("F28 a subscriber that reconfigures the feed inside its Starting notification leaves the newest run sampling", () =>
+    Effect.gen(function* () {
+      const calls = { a: 0, b: 0 };
+      const qa = () => {
+        calls.a += 1;
+        return asking("a");
+      };
+      const qb = () => {
+        calls.b += 1;
+        return asking("b" + calls.b);
+      };
+      const feed = yield* makeDiagnosticsFeed();
+      let reentered = false;
+      feed.subscribe(() => {
+        if (reentered || !DiagnosticsStatus.$is("Starting")(feed.getSnapshot().status)) return;
+        reentered = true;
+        feed.configure({ questions: qb });
+      });
+
+      feed.configure({ questions: qa });
+      yield* step("4 seconds");
+
+      assert.strictEqual(calls.a, 0);
+      assert.isAtLeast(calls.b, 2);
+      assert.isTrue(DiagnosticsStatus.$is("Live")(feed.getSnapshot().status));
+    }),
+  );
+
+  it.effect("F29 a source that reconfigures the feed on its first sample leaves the newest run sampling", () =>
+    Effect.gen(function* () {
+      const calls = { a: 0, b: 0 };
+      const feed = yield* makeDiagnosticsFeed();
+      const qa = () => {
+        calls.a += 1;
+        if (calls.a === 1) {
+          feed.configure({
+            questions: () => {
+              calls.b += 1;
+              return asking("b" + calls.b);
+            },
+          });
+        }
+        return asking("a");
+      };
+
+      feed.configure({ questions: qa });
+      yield* step("4 seconds");
+
+      assert.strictEqual(calls.a, 1);
+      assert.isAtLeast(calls.b, 2);
+      assert.isTrue(DiagnosticsStatus.$is("Live")(feed.getSnapshot().status));
+    }),
+  );
 });
