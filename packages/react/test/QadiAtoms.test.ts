@@ -694,7 +694,10 @@ describe("a seeded question, through the atom set's own runtime", () => {
     expect(first).toBeDefined();
 
     // The grant arrives in a registry that has already answered: a late seed.
-    for (const [grantAtom, grant] of seedsOf(atoms, serverAllow)) {
+    const pairs = seedsOf(atoms, serverAllow);
+    expect(pairs.length).toBeGreaterThan(0);
+    for (const [grantAtom, grant] of pairs) {
+      expect(Atom.isWritable(grantAtom)).toBe(true);
       if (Atom.isWritable(grantAtom)) registry.set(grantAtom, grant);
     }
 
