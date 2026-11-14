@@ -21,7 +21,7 @@ unless a phase's planner records evidence against one). Per-phase evidence and r
 
 ### The sink wire version stated once (Phase 38, ARCH-85, core)
 
-- [ ] **WIRE-01**: One exported constant `WIRE_VERSION` in `SinkWire.ts` is the only place the record wire's version number appears in `packages/core/src/Sink*.ts`; `WIRE_VERSIONS`, `WireVersion`, both schema literals, the encoder and the decoder check derive from it.
+- [x] **WIRE-01**: One exported constant `WIRE_VERSION` in `SinkWire.ts` is the only place the record wire's version number appears in `packages/core/src/Sink*.ts`; `WIRE_VERSIONS`, `WireVersion`, both schema literals, the encoder and the decoder check derive from it.
 - [x] **WIRE-02**: Retyping the version without editing the codec fails to compile (a tstyche pin, plus a recorded throwaway retype-to-3 experiment).
 - [x] **WIRE-03**: Wire bytes are unchanged (byte golden with the key order, committed on the phase base), and every other version is still refused as `UnsupportedVersion({ version, supported })`.
 - [x] **WIRE-04**: INV-QD-096 is amended to state that the codec reads what it writes for every supported version, without a duplicate invariant.
@@ -102,7 +102,7 @@ The seven WX rows apply to every phase 37 to 42, so each phase's Requirements li
 | RUN-06 | Phase 37 | Complete |
 | RUN-07 | Phase 37 | Complete |
 | RUN-08 | Phase 37 | Complete |
-| WIRE-01 | Phase 38 | Pending |
+| WIRE-01 | Phase 38 | Complete |
 | WIRE-02 | Phase 38 | Complete |
 | WIRE-03 | Phase 38 | Complete |
 | WIRE-04 | Phase 38 | Complete |

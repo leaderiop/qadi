@@ -5,16 +5,16 @@ milestone_name: Arch Wave 9
 current_phase: 38
 current_phase_name: The sink wire version stated once
 status: executing
-stopped_at: Completed QD-38-03-PLAN.md
-last_updated: "2026-11-14T04:00:28.312Z"
+stopped_at: Completed QD-38-04-PLAN.md
+last_updated: "2026-11-14T04:07:49.305Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase QD-38 execution started
-state_head: 74196d10a283d7850f51b0e86bf8eb802e990393
+state_head: 7f74dbef49768b653762a341b7363fddd18ed017
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
   percent: 17
 ---
 
@@ -216,6 +216,7 @@ Progress: [██░░░░░░░░] 17% (v1.4: 1 of 6 phases)
 | Phase QD-38 P01 | 10min | 3 tasks | 2 files |
 | Phase QD-38 P02 | 15 min | 3 tasks | 3 files |
 | Phase QD-38 P03 | 20 min | 3 tasks | 9 files |
+| Phase QD-38 P04 | 25 min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -346,6 +347,7 @@ Progress: [██░░░░░░░░] 17% (v1.4: 1 of 6 phases)
 - [Phase QD-38]: 38-01: D-05 golden already exists (V2_DECIDED_ALLOW, V2_OBLIGATIONS); recorded, not duplicated
 - [Phase QD-38]: 38-02: decoder read check is isReadVersion = Schema.is(Schema.Literals(WIRE_VERSIONS)), not WIRE_VERSIONS.some (Stryker some-to-every mutant is equivalent over a one-element set)
 - [Phase QD-38]: ADR-QD-151: the sink wire write version WIRE_VERSION and the read set WIRE_VERSIONS are distinct; the narrowing to readonly [2] is source-compatible (minor changeset)
+- [Phase QD-38]: 38-04: a mutation ratio drop after a conversion that removes killed mutants is closed by a boundary test (two cases at exactly MAX_DECODE_DEPTH), never a re-baseline
 
 ### Pending Todos
 
@@ -389,8 +391,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T04:00:28.280Z
-Stopped at: Completed QD-38-03-PLAN.md
+Last session: 2026-11-14T04:07:49.274Z
+Stopped at: Completed QD-38-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

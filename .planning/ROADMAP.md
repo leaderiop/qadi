@@ -447,7 +447,7 @@ Plans:
   4. INV-QD-096 states that the codec reads what it writes for every supported version (amended, no duplicate invariant); the new export has its `spec/overview.md` row and a `@qadi/core` minor changeset that records the `WIRE_VERSIONS` narrowing.
 
 **Planning notes**: **Research flag: standard, skip research-phase** (one constant, verified under strict flags). **Plan shape**: the byte golden (with key order) and the throwaway retype-to-3 experiment first, because mutation will not guard this phase (`ignoreStatic` hides module-scope constants); the edit sites are those `_WAVE9-CONTEXT.md` lists plus the decoder's comparison, which the review undercounted; one conversion plan; then the records plan. No new counted `Schema.decode*` token (`UNTRUSTED_DECODE_BUDGET` is untouched). The mutation base is still recorded for the touched files so the close can compare.
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans executed
 
 Plans:
 **Wave 1**
@@ -460,7 +460,7 @@ Plans:
 - [x] 38-03-PLAN.md — ADR-QD-151 amending ADR-QD-096, the CCR-QD-429 row, INV-QD-096 amended in place, BEH-QD-199 and the overview naming `WIRE_VERSION`, and the `@qadi/core` minor changeset
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 38-04-PLAN.md — Close: gate integrity, the WX-04 scan, commit order, the scoped greps, the mutation comparison against the base, and `pnpm check:pr`
+- [x] 38-04-PLAN.md — Close: gate integrity, the WX-04 scan, commit order, the scoped greps, the mutation comparison against the base, and `pnpm check:pr`
 
 ### Phase 39: Each hydration drop reason stated once, with its kind
 
