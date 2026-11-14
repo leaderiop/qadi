@@ -381,7 +381,7 @@ first plan gathers evidence and presents options, asks once (one `AskUserQuestio
 - [x] **Phase 38: The sink wire version stated once** - One exported `WIRE_VERSION` in `SinkWire.ts`; the schema literals, encoder and decoder check derive from it (ARCH-85) (completed 2026-11-14)
 - [x] **Phase 39: Each hydration drop reason stated once, with its kind** - One keyed table in core; the unions, the list, the meanings and react's payload and entry groups derive from it (ARCH-86) (completed 2026-11-14)
 - [x] **Phase 40: Core owns describing a decode refusal** - Core describes `DecodeRefusal`; devtools passes it through (Breaking) and audit decodes a row's record once (ARCH-87) (completed 2026-11-14)
-- [ ] **Phase 41: One guarded value-to-text function** - A bigint or circular value no longer throws from Remedies or a session command; Remedies, Filters and SimulationForm read through one function (ARCH-88)
+- [x] **Phase 41: One guarded value-to-text function** - A bigint or circular value no longer throws from Remedies or a session command; Remedies, Filters and SimulationForm read through one function (ARCH-88) (completed 2026-11-14)
 - [ ] **Phase 42: A seeded question builds its own computing atom** - Opens on a human checkpoint: invert the callback, or record the rejection; then a cross-phase stale sweep and milestone re-verify (ARCH-89)
 
 ### Phase Details
@@ -559,7 +559,7 @@ Plans:
   4. The way a remedy over a non-JSON value is shown is decided and pinned, with BEH-QD-223 intact.
 
 **Planning notes**: **Research flag: standard, skip research-phase** (the language semantics are settled; the work is the RED test and the adapters). Only `Remedies.ts:574` is live (used at `:481`, `:496` and for the size at `:249`); `Inspect.ts`'s `outsideUnion` and `QuestionsPanel.tsx`'s `resourceOf` cannot throw and are not folded in, because folding would change visible output. Filters (`[]`), SimulationForm (`undefined`, then its round-trip check) and Remedies (the word `undefined`) keep thin local mappings over the primitive. Wrap the stringify call (`Result.try` or the existing try/catch precedent), because a throwing `toJSON` or getter is reachable; no blanket catch, no `orDie`. **Plan shape, RED first**: RED tests at two levels (`remedyEdits`, and `makeSimulationSession` with `setPolicy`/`chooseSight`) in a new file, together with the mutation base for the four touched model files; then the primitive and its one test table (bigint, circular, nested bigint, symbol, function, `undefined`, `NaN`, `-0`, null-prototype, throwing `toJSON`, throwing getter) with a per-consumer pinned-output row; then the three consumers; then records; the mutation comparison last.
-**Plans**: 6/6 plans executed
+**Plans**: 6/6 plans complete
 
 Plans:
 **Wave 1**
@@ -614,5 +614,5 @@ Phases execute in numeric order: 37 → 38 → 39 → 40 → 41 → 42
 | 38. The sink wire version stated once | 4/4 | Complete    | 2026-11-14 |
 | 39. Each hydration drop reason stated once, with its kind | 5/5 | Complete    | 2026-11-14 |
 | 40. Core owns describing a decode refusal | 9/9 | Complete    | 2026-11-14 |
-| 41. One guarded value-to-text function | 0/0 | Not started | - |
+| 41. One guarded value-to-text function | 6/6 | Complete    | 2026-11-14 |
 | 42. A seeded question builds its own computing atom | 0/0 | Not started | - |
