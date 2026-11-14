@@ -477,7 +477,7 @@ Plans:
   4. A throwaway new row reaches the metric, the devtools hydration panel (at zero) and react's reporters with one edit, recorded; names and runtime exports are unchanged.
 
 **Planning notes**: **Research flag: standard, skip research-phase** (the `ENFORCEMENT_ERROR_CLASSES` precedent). **Plan shape**: commit the written-out ordered nine-word snapshot first, with the mutation base (`HydrationEvent.ts` is in the react Stryker list); core first, then react derives from it (delete the "placed by hand" doc); keep the metric's declaration line, id and description untouched, because the registry key includes the description; `METRIC_ID_LITERAL_BUDGET` for `HydrationMetrics.test.ts` stays 5; overview rows for the new public type; `bucketOf` and the refusal maps stay exhaustive.
-**Plans**: 4/5 plans executed
+**Plans**: 5/5 plans executed
 
 Plans:
 **Wave 1**
@@ -493,7 +493,7 @@ Plans:
 - [x] 39-04-PLAN.md — ADR-QD-152 amending ADR-QD-123 and ADR-QD-037, INV-QD-323, BEH-QD-230/231 and INV-QD-045 amended, the overview and traceability rows, the CCR-QD-430 row, and the `@qadi/core` minor and `@qadi/react` patch changesets
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 39-05-PLAN.md — Close: gate integrity, the WX-04 scan, commit order, the scoped greps, both mutation comparisons against the base, and `pnpm check:pr`
+- [x] 39-05-PLAN.md — Close: gate integrity, the WX-04 scan, commit order, the scoped greps, both mutation comparisons against the base, and `pnpm check:pr`
 
 ### Phase 40: Core owns describing a decode refusal
 

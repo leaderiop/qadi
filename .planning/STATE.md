@@ -5,16 +5,16 @@ milestone_name: Arch Wave 9
 current_phase: 39
 current_phase_name: Each hydration drop reason stated once, with its kind
 status: executing
-stopped_at: Completed QD-39-04-PLAN.md
-last_updated: "2026-11-14T06:09:15.256Z"
+stopped_at: Completed QD-39-05-PLAN.md
+last_updated: "2026-11-14T06:15:53.884Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase QD-39 execution started
-state_head: 74b1d5970bab61a8431c5cc3329df6c3f28daf0f
+state_head: 5d61c9554d3ddd56781d0572d6cc3f3ea10bf183
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 18
-  completed_plans: 17
+  completed_plans: 18
   percent: 33
 ---
 
@@ -222,6 +222,7 @@ Progress: [███░░░░░░░] 33% (v1.4: 1 of 6 phases)
 | Phase QD-39 P02 | 3 min | 2 tasks | 2 files |
 | Phase QD-39 P03 | 15 min | 2 tasks | 1 files |
 | Phase QD-39 P04 | 25 min | 3 tasks | 11 files |
+| Phase QD-39 P05 | 10 min | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -357,6 +358,7 @@ Progress: [███░░░░░░░] 33% (v1.4: 1 of 6 phases)
 - [Phase QD-39]: 39-02: second public type is HydrationDropRow; negatives are checked @ts-expect-error directives (toRaiseError deprecated in tstyche 7.2.5)
 - [Phase QD-39]: 39-03: a payload row compiles everywhere in react (payload refusal map is keyed by decoder tags); only an entry row is a compile error, at bucketOf
 - [Phase QD-39]: 39-04: ADR-QD-152 states the payload-row finding as found (only an entry row is a compile error in react, at bucketOf); INV-QD-323 is the one new number, BEH-QD-531 to 535 and INV-QD-324 are Unused
+- [Phase QD-39]: Phase 39 close: no mutation drop; core's HydrationMetrics.ts scores 1 on nothing scored (18 static mutants ignored), carried by the written-out pins and experiments
 
 ### Pending Todos
 
@@ -401,8 +403,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T06:09:15.219Z
-Stopped at: Completed QD-39-04-PLAN.md
+Last session: 2026-11-14T06:15:53.798Z
+Stopped at: Completed QD-39-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
