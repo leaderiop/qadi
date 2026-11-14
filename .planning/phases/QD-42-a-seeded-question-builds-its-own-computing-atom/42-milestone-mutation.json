@@ -1,0 +1,77 @@
+{
+ "packages/core/src/Explanation.ts": {
+  "phase": "41-REVIEW-DISPOSITION.md (228/231)",
+  "base": 0.987012987012987,
+  "after": 0.987012987012987
+ },
+ "packages/core/src/HydrationMetrics.ts": {
+  "phase": "39-mutation-after.json",
+  "base": 1,
+  "after": 1
+ },
+ "packages/core/src/SinkCodec.ts": {
+  "phase": "40-REVIEW-DISPOSITION.md (159/163)",
+  "base": 0.9754601226993865,
+  "after": 0.9754601226993865
+ },
+ "packages/core/src/SinkWire.ts": {
+  "phase": "40-REVIEW-DISPOSITION.md (60/60)",
+  "base": 1,
+  "after": 1
+ },
+ "packages/core/src/ValueText.ts": {
+  "phase": "41-REVIEW-DISPOSITION.md (13/13)",
+  "base": 1,
+  "after": 1
+ },
+ "packages/devtools/src/model/DiagnosticsFeed.ts": {
+  "phase": "37-mutation-after.json",
+  "base": 0.9473684210526315,
+  "after": 0.9473684210526315
+ },
+ "packages/devtools/src/model/Filters.ts": {
+  "phase": "41-REVIEW-DISPOSITION.md (75/75)",
+  "base": 1,
+  "after": 1
+ },
+ "packages/devtools/src/model/Remedies.ts": {
+  "phase": "41-REVIEW-DISPOSITION.md (297/297)",
+  "base": 1,
+  "after": 1
+ },
+ "packages/devtools/src/model/SimulationForm.ts": {
+  "phase": "41-mutation-after.json",
+  "base": 0.9836660617059891,
+  "after": 0.9836660617059891
+ },
+ "packages/devtools/src/model/SimulationSession.ts": {
+  "phase": "37-mutation-after.json",
+  "base": 0.9818731117824774,
+  "after": 0.9818731117824774
+ },
+ "packages/devtools/src/model/Source.ts": {
+  "phase": "40-REVIEW-DISPOSITION.md (80/80)",
+  "base": 1,
+  "after": 1
+ },
+ "packages/devtools/src/model/SupersedingRun.ts": {
+  "phase": "37-mutation-after.json",
+  "base": 0.9433962264150944,
+  "after": 0.9433962264150944
+ },
+ "packages/devtools/src/model/TimelineFeed.ts": {
+  "phase": "37-mutation-after.json",
+  "base": 1,
+  "after": 1
+ },
+ "packages/audit/src/AuditEntry.ts": {
+  "phase": "40-mutation-after.json",
+  "base": 1,
+  "after": 1
+ },
+ "packages/react/src/HydrationEvent.ts": {
+  "phase": "39-mutation-after.json",
+  "base": 1,
+  "after": 1
+ }
+}
