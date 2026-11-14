@@ -323,7 +323,7 @@ const costOf = (refusal: SourceRefusal | undefined, plan: SweepPlan | undefined)
  *
  * The scope is the session's lifetime: closing it interrupts the run in flight
  * and leaves the session inert, which is how a host ends one. The constructor
- * is an `Effect` so that the handle its runs fork into is acquired and released
+ * is an `Effect` so that the superseding run its runs fork into is acquired and released
  * with that scope, and `run` captures the context it was built under, so a run
  * sees the clock, tracer and sink the session was built with (ADR-QD-137).
  */
