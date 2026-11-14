@@ -4,18 +4,18 @@ milestone: v1.4
 milestone_name: Arch Wave 9
 current_phase: 42
 current_phase_name: A seeded question builds its own computing atom
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed QD-42-01-PLAN.md
-last_updated: "2026-11-14T18:23:49.335Z"
+stopped_at: Completed QD-42-02-PLAN.md
+last_updated: "2026-11-14T18:27:10.063Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase QD-41 complete, transitioned to Phase 42
-state_head: 82d0c0674f3f6e1add9931f33bbfcc1dd208feeb
+state_head: 541adffd34ba2dfd32cbb7af5778643b72d08cbe
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 38
-  completed_plans: 34
+  completed_plans: 35
   percent: 83
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 ## Current Position
 
 Phase: QD-42 (A seeded question builds its own computing atom) — READY TO EXECUTE
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 5
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase QD-41 complete, transitioned to Phase 42
@@ -244,6 +244,7 @@ Progress: [████████░░] 83% (v1.4: 1 of 6 phases)
 | Phase QD-41 P05 | 10 min | 2 tasks | 6 files |
 | Phase QD-41 P06 | 7 min | 3 tasks | 1 files |
 | Phase QD-42 P01 | 4 min | 2 tasks | 5 files |
+| Phase QD-42 P02 | 2 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -394,6 +395,7 @@ Progress: [████████░░] 83% (v1.4: 1 of 6 phases)
 - [Phase QD-41]: 41-04: a literal or witness with no JSON form is written as the fixed words 'a value with no JSON form' when an object, the word undefined otherwise, a bigint as its digits and n, in both explain and the remedy label
 - [Phase QD-41]: BEH-QD-541 and BEH-QD-542 are new sections beside BEH-QD-223 and BEH-QD-141, which stay untouched; BEH-QD-543 to 545, INV-QD-327 and INV-QD-328 are named Unused in the CCR-QD-432 row
 - [Phase QD-42]: 42-01: option 1b chosen by the user on 2026-11-14 (a seeded question builds its own computing atom in packages/react/src/SeededQuestion.ts); ADR-QD-155 used; SeededQuestion.ts judged by the five moved base survivors, never re-baselined
+- [Phase QD-42]: 42-02: the seam tests name no makeSeededQuestion or fake computing atom, so 42-03 moves the code under them unchanged; the trap tests are proven red under get(grantAtom) and the source restored
 
 ### Pending Todos
 
@@ -441,8 +443,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T18:23:44.408Z
-Stopped at: Completed QD-42-01-PLAN.md
+Last session: 2026-11-14T18:27:09.967Z
+Stopped at: Completed QD-42-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

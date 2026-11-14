@@ -40,7 +40,7 @@ The seed-to-evaluation link is pinned through the atom set's own runtime on the 
 
 ## The seven cases (describe `a seeded question, through the atom set's own runtime`)
 
-All pass on the base; the file holds 34 cases, all passing (27 before this plan).
+All pass on the base; `QadiAtoms.test.ts` held 27 cases before this plan, 34 after the seven, 35 after the closing case; all pass.
 
 1. reads the seed while the subject is unknown, and drops it once the client answers
 2. announces a disagreement once per registry, not once per question (two reports for two registries, one of them read twice)
