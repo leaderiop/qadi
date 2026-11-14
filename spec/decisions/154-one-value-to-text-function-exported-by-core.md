@@ -5,12 +5,12 @@
 > | Property       | Value                                               |
 > | -------------- | --------------------------------------------------- |
 > | Document ID    | QADI-ADR-154                                        |
-> | Revision       | 1.0                                                 |
+> | Revision       | 1.1                                                 |
 > | Effective Date | 2026-11-14                                          |
 > | Status         | Accepted                                            |
 > | Author         | Qadi Engineering                                    |
 > | Classification | Architecture Decision Record                        |
-> | Change History | 1.0 (2026-11-14): Initial release (ARCH-88, CCR-QD-432) |
+> | Change History | 1.1 (2026-11-14): The label rule lives in core's valueLabel, not in each consumer (ARCH-88, CCR-QD-432)<br>1.0 (2026-11-14): Initial release (ARCH-88, CCR-QD-432) |
 
 ---
 
@@ -56,12 +56,17 @@ The obvious home for a shared guard is devtools, which has three of the four cop
    removes. The function therefore sits in core, where both can read it, and is public because a package
    cannot read another's non-barrel module. It is a new export and so a minor change to `@qadi/core`.
 
-3. **Each consumer keeps its own reading of no text**, beside its own code. Only the guard is shared.
-   - `explain` writes a `bigint` literal as its digits and `n` (`10n`), a list element by element when the
-     list as a whole has no JSON text, and any other value with no JSON form as the fixed words
-     `a value with no JSON form`. An `undefined`, a function or a symbol stays the word `undefined`, as
-     before.
-   - The remedy label (`Remedies.ts`) shows a string bare and otherwise follows the same rule as `explain`.
+3. **The label rule lives once, in core's `valueLabel`.** `valueLabel(value: unknown): string`, beside
+   `valueText` in the same module and exported with it, never throws: a `bigint` is its digits and `n`
+   (`10n`), otherwise `valueText`'s text, and where there is none an object is the fixed words
+   `a value with no JSON form` and anything else (`undefined`, a function, a symbol) is the word
+   `undefined`, as before. The fixed words are declared once, there.
+
+   **The other consumers keep their own reading of no text**, beside their own code.
+   - `explain` reads every literal through `valueLabel`, and writes a list with no JSON text element by
+     element, or as one `valueLabel` when the list cannot be walked (a revoked proxy, a throwing `get`
+     trap).
+   - The remedy label (`Remedies.ts`) shows a string bare and reads everything else through `valueLabel`.
    - The search text (`Filters.ts`) adds nothing for a value with no text.
    - The simulator form (`SimulationForm.ts`) refuses it, through the round trip it already checks.
 
@@ -81,10 +86,12 @@ The obvious home for a shared guard is devtools, which has three of the four cop
 - **A core module reached by devtools through a new subpath.** [ADR-QD-099](./099-entry-points-are-a-closed-list.md)
   makes each entry point a reasoned edit to a closed list, a cost out of proportion for one function that
   every consumer would also import by name anyway.
-- **Exporting the label rule as well** (the bigint `n`, the fixed words). `explain` quotes a string and the
-  remedy label shows it bare, and the search text and the form read no text differently again, so a shared
-  label rule would take a parameter per reading. Each reading stays with its consumer and only the guard is
-  shared.
+- **Leaving the label rule in each consumer** (the bigint `n`, the fixed words). The first release did, and
+  `explain` and the remedy label then each declared the fixed words and the same three-branch expression,
+  with nothing tying them together. The rule is one function, `valueLabel`, and a string is the only thing
+  the two readings differ on (`explain` quotes it, the remedy label shows it bare), which the remedy label
+  handles before it calls `valueLabel`. The search text and the form read no text differently again and
+  keep their own.
 - **A function answering a `Result` or an `Effect`.** Every caller is a pure, synchronous renderer, and
   `undefined` is `JSON.stringify`'s own answer for no text; a wrapper type would be one more thing to
   unwrap at each of four sites.
@@ -92,7 +99,7 @@ The obvious home for a shared guard is devtools, which has three of the four cop
 
 ## Consequences
 
-- `@qadi/core` is a minor: a new export, and `explain` no longer throws on a `bigint` or a cyclic literal,
+- `@qadi/core` is a minor: two new exports, `valueText` and `valueLabel`, and `explain` no longer throws on a `bigint` or a cyclic literal,
   so [BEH-QD-141](../behaviors/18-explanation.md) holds again.
 - `@qadi/devtools` is a patch: the remedy table and the session commands no longer throw, and no second
   guard stays in devtools (`SimulationForm.ts`'s private `stringify` is deleted and `Filters.ts` reads

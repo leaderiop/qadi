@@ -1,15 +1,15 @@
 /**
- * The one table of `valueText`'s rules.
+ * The one table of `valueText`'s rules, and the one of `valueLabel`'s.
  *
- * No other test asserts them: each consumer's own reading of no text is pinned
- * through the consumer, so a rule change fails one table and a mapping change
+ * The consumers (`explain`, `@qadi/devtools`' remedy labels) pin only that they
+ * read through `valueLabel`, so a rule change fails one table and a mapping change
  * fails the consumer that owns it.
  */
 import { assert, describe, it } from "@effect/vitest";
 import { explain, renderExplanation } from "../src/Explanation.ts";
 import * as M from "../src/Matcher.ts";
 import * as P from "../src/Policy.ts";
-import { valueText } from "../src/ValueText.ts";
+import { valueLabel, valueText } from "../src/ValueText.ts";
 
 interface Loop {
   self?: Loop;
@@ -20,6 +20,17 @@ loop.self = loop;
 
 const revoked = Proxy.revocable({}, {});
 revoked.revoke();
+
+const revokedList = Proxy.revocable([], {});
+revokedList.revoke();
+
+const throwingList = new Proxy([], {
+  get: (): never => {
+    throw new Error("SENTINEL-41 from a get trap");
+  },
+});
+
+const NO_JSON_FORM = "a value with no JSON form";
 
 const rows: ReadonlyArray<readonly [title: string, value: unknown, text: string | undefined]> = [
   ["a string is its JSON text, quoted", "low", '"low"'],
@@ -70,28 +81,59 @@ describe("valueText, one row per rule", () => {
   }
 });
 
-describe("the mapping explain keeps over valueText", () => {
-  it("explain: a symbol literal, which has no JSON text, is the word undefined", () => {
+const labelRows: ReadonlyArray<readonly [title: string, value: unknown, label: string]> = [
+  ["a string is its quoted JSON text", "low", '"low"'],
+  ["a number is its JSON text", 5, "5"],
+  ["null is null", null, "null"],
+  ["a bigint is its digits and n", 10n, "10n"],
+  ["a negative bigint keeps its sign", -3n, "-3n"],
+  ["an array is its JSON text", [1, "a"], '[1,"a"]'],
+  ["a cycle is the fixed words", loop, NO_JSON_FORM],
+  ["an array holding a bigint is the fixed words", [1n], NO_JSON_FORM],
+  ["an object whose toJSON gives nothing is the fixed words", { toJSON: () => undefined }, NO_JSON_FORM],
+  [
+    "a toJSON that throws is the fixed words",
+    {
+      toJSON: (): never => {
+        throw new Error("SENTINEL-41 from toJSON");
+      },
+    },
+    NO_JSON_FORM,
+  ],
+  ["a revoked proxy is the fixed words", revoked.proxy, NO_JSON_FORM],
+  ["undefined is the word undefined", undefined, "undefined"],
+  ["a function is the word undefined", (): number => 1, "undefined"],
+  ["a symbol is the word undefined", Symbol("token"), "undefined"],
+];
+
+describe("valueLabel, one row per rule", () => {
+  for (const [title, value, label] of labelRows) {
+    it(title, () => {
+      assert.strictEqual(valueLabel(value), label);
+    });
+  }
+});
+
+describe("what explain reads through valueLabel", () => {
+  const said = (policy: P.Policy): string => renderExplanation(explain(policy));
+
+  it("a literal and a list are written by the label rule, a list element by element", () => {
     assert.strictEqual(
-      renderExplanation(explain(P.hasAttribute("x", M.contains(Symbol("token"))))),
+      said(P.hasAttribute("x", M.contains(Symbol("token")))),
       "requires attribute `the subject's x contains undefined`",
-    );
-  });
-
-  it("explain: a bigint literal is its digits and n, a cycle the fixed words, and a list element by element", () => {
-    const said = (policy: P.Policy): string => renderExplanation(explain(policy));
-
-    assert.strictEqual(
-      said(P.hasAttribute("x", M.eq(M.literal(1n)))),
-      "requires attribute `the subject's x equals 1n`",
-    );
-    assert.strictEqual(
-      said(P.hasAttribute("x", M.contains(loop))),
-      "requires attribute `the subject's x contains a value with no JSON form`",
     );
     assert.strictEqual(
       said(P.hasAttribute("x", M.inArray([1n, loop]))),
-      "requires attribute `the subject's x is one of [1n,a value with no JSON form]`",
+      `requires attribute \`the subject's x is one of [1n,${NO_JSON_FORM}]\``,
     );
+  });
+
+  it("a list that cannot be walked is the fixed words, not a failure", () => {
+    for (const list of [revokedList.proxy, throwingList]) {
+      assert.strictEqual(
+        said(P.hasAttribute("x", M.inArray(list))),
+        `requires attribute \`the subject's x is one of ${NO_JSON_FORM}\``,
+      );
+    }
   });
 });

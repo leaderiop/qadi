@@ -28,7 +28,7 @@ import {
   makeSubjectId,
   permissionKey,
   resourceIdOf,
-  valueText,
+  valueLabel,
 } from "@qadi/core";
 import type {
   HistoryScope,
@@ -564,21 +564,11 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
     }),
   );
 
-/** The words a label shows for a value with no JSON form; they carry none of it. */
-const NO_JSON_FORM = "a value with no JSON form";
-
 /**
  * Short enough for a row label.
  *
- * A string is shown bare — `= low`, not `= "low"` — a bigint as its digits and
- * `n` (`= 10n`), and everything else as `valueText`'s JSON. Where there is none,
- * an object (a cycle, an array holding a bigint, a `toJSON` or getter that
- * throws) is shown as the fixed words, which carry none of it, and `undefined`,
- * a function or a symbol as the word `undefined`, the right label for a policy
- * only an absent attribute satisfies.
+ * A string is shown bare — `= low`, not `= "low"` — and everything else through
+ * `@qadi/core`'s `valueLabel` (`= 10n`; the fixed words for a value with no JSON
+ * form; `undefined`, the right label for a policy only an absent attribute satisfies).
  */
-const render = (v: unknown): string => {
-  if (typeof v === "string") return v;
-  if (typeof v === "bigint") return `${String(v)}n`;
-  return valueText(v) ?? (typeof v === "object" ? NO_JSON_FORM : "undefined");
-};
+const render = (v: unknown): string => (typeof v === "string" ? v : valueLabel(v));
