@@ -1,0 +1,11 @@
+{
+ "measured": {
+  "packages/core/src/SinkCodec.ts": 0.9751552795031055,
+  "packages/core/src/SinkWire.ts": 1,
+  "packages/devtools/src/model/Source.ts": 1,
+  "packages/audit/src/AuditEntry.ts": 0.9130434782608695
+ },
+ "unmeasured": {},
+ "new": [],
+ "deleted": {}
+}
