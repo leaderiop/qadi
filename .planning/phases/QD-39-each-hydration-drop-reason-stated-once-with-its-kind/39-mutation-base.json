@@ -1,0 +1,9 @@
+{
+ "measured": {
+  "packages/core/src/HydrationMetrics.ts": 1,
+  "packages/react/src/HydrationEvent.ts": 1
+ },
+ "unmeasured": {},
+ "new": [],
+ "deleted": {}
+}
