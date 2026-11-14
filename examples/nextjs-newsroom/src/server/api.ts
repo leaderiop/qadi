@@ -26,11 +26,9 @@ import * as HttpServer from "effect/http/HttpServer";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import * as Layer from "effect/Layer";
-import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as Result from "effect/Result";
-import { decodeSinkRecordString, servingFor } from "@qadi/core";
-import type { DecodeRefusal } from "@qadi/core";
+import { decodeSinkRecordString, describeDecodeRefusal, servingFor } from "@qadi/core";
 import {
   addGuardedRoute,
   devtoolsRoutes,
@@ -118,29 +116,6 @@ const ArticleRoute = addGuardedRoute(
 )((_authorized, article) => Effect.succeed(json(article)));
 
 /**
- * Why an ingested body was refused, as the 400's text.
- *
- * A record of a wire version this aggregator's `@qadi/core` does not read is
- * told apart from a body that is not a record at all, because the fix is
- * different (ADR-QD-096): a newer `version` means upgrade the aggregator, and
- * none at all means a sender older than 0.10, whose version-1 records 0.11.0
- * no longer reads — upgrade the sender.
- */
-const refusedBecause: (refusal: DecodeRefusal) => string = Match.type<DecodeRefusal>().pipe(
-  Match.tagsExhaustive({
-    NotJson: (refusal) => `not a decision record: ${refusal._tag}`,
-    TooDeep: (refusal) => `not a decision record: ${refusal._tag}`,
-    Malformed: (refusal) => `not a decision record: ${refusal._tag}`,
-    Inconsistent: (refusal) =>
-      `a decision record that contradicts its own ${refusal.disagreement}`,
-    UnsupportedVersion: (refusal) =>
-      refusal.version === undefined
-        ? `no wire version — a sender older than 0.10: this aggregator reads ${refusal.supported.join(", ")}`
-        : `unsupported wire version ${JSON.stringify(refusal.version)}: this aggregator reads ${refusal.supported.join(", ")}`,
-  }),
-);
-
-/**
  * The edge aggregator's receiving half.
  *
  * A serverless invocation cannot keep a log — the process ends and takes it
@@ -152,7 +127,9 @@ const refusedBecause: (refusal: DecodeRefusal) => string = Match.type<DecodeRefu
  * an Edge row.
  *
  * A malformed body is a 400 naming why, and nothing else; a record of a wire
- * version this aggregator does not read is a 400 saying so.
+ * version this aggregator does not read is a 400 saying so. The text is
+ * `@qadi/core`'s `describeDecodeRefusal` (ADR-QD-153), which tells a newer
+ * `version` (upgrade the aggregator) from none at all (upgrade the sender).
  * `decodeSinkRecordString` validates untrusted input — not JSON, nested past
  * the decode bound, or not a record — and an aggregator that half-built a
  * record from a bad frame would be the defect the wire codec exists to prevent.
@@ -173,7 +150,7 @@ const IngestRoute = HttpRouter.add(
 
     const record = decodeSinkRecordString(body.success);
     if (Result.isFailure(record)) {
-      return HttpServerResponse.text(refusedBecause(record.failure.refusal), { status: 400 });
+      return HttpServerResponse.text(describeDecodeRefusal(record.failure.refusal), { status: 400 });
     }
 
     yield* log.ingest(record.success, "Edge");

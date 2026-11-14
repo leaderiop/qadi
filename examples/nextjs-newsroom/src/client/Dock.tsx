@@ -33,7 +33,7 @@
  */
 import { useMemo } from "react";
 import * as Effect from "effect/Effect";
-import { permissionKey, resolveRoleGraph } from "@qadi/core";
+import { describeDecodeRefusal, permissionKey, resolveRoleGraph } from "@qadi/core";
 import type { Role } from "@qadi/core";
 import { mergeSources, sourceFromEventSource } from "@qadi/devtools";
 import { DevtoolsDock } from "@qadi/devtools/react";
@@ -70,8 +70,8 @@ const makeSource = () =>
       withCredentials: true,
       // A frame that does not decode is one row lost, never the stream. The
       // panel is what you are looking at when something is already wrong.
-      onMalformed: (frame, reason) => {
-        console.warn(`qadi: dropped a ${reason} frame`, frame.slice(0, 120));
+      onMalformed: (frame, refusal) => {
+        console.warn(`qadi: dropped a frame: ${describeDecodeRefusal(refusal)}`, frame.slice(0, 120));
       },
     }),
     clientLog,
