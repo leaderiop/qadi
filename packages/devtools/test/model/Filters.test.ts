@@ -508,3 +508,18 @@ describe("entryKey", () => {
 const fail = (): never => {
   throw new Error("expected a timeline entry");
 };
+
+describe("the search text a value with no JSON form gives, written out", () => {
+  it("a bigint and a toJSON that throws add their keys and nothing else", () => {
+    const throwsInToJSON = {
+      toJSON: (): never => {
+        throw new Error("SENTINEL-41 from toJSON");
+      },
+    };
+    const timeline = fold([
+      allowRecord({ evaluationId: "x", at: 100, resource: { big: 4242n, doc: throwsInToJSON } }),
+    ]);
+
+    assert.strictEqual(searchTextOf(timeline.entries[0] ?? fail()), "x server alice big doc");
+  });
+});

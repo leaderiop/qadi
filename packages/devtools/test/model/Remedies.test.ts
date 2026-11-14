@@ -853,3 +853,42 @@ describe("stack safety — a caller-held policy of any nesting depth (ARCH-02 C7
     assert.strictEqual(found._tag, "Unsynthesisable");
   }, 60_000);
 });
+
+describe("what a remedy label shows, written out", () => {
+  const fn = (): number => 1;
+  const bare: unknown = Object.setPrototypeOf({ a: 1 }, null);
+
+  it("a function witness is the word undefined", () => {
+    assert.deepStrictEqual(labels(hasAttribute("x", eq(literal(fn)))), [
+      "with subject attribute x = undefined",
+    ]);
+  });
+
+  it("an empty string witness is shown bare, as nothing", () => {
+    assert.deepStrictEqual(labels(hasAttribute("x", eq(literal("")))), ["with subject attribute x = "]);
+  });
+
+  it("a negative zero witness is shown as 0", () => {
+    assert.deepStrictEqual(labels(hasAttribute("x", eq(literal(-0)))), ["with subject attribute x = 0"]);
+  });
+
+  it("an object with no prototype is shown as its JSON", () => {
+    assert.deepStrictEqual(labels(hasAttribute("x", eq(literal(bare)))), [
+      'with subject attribute x = {"a":1}',
+    ]);
+  });
+
+  it("a resource attribute number witness is shown as its JSON", () => {
+    assert.include(labels(hasResourceAttribute("n", eq(literal(5)))), "with resource attribute n = 5");
+  });
+
+  it("a size over a function witness is declined with the word undefined", () => {
+    assert.strictEqual(declines(size(eq(literal(fn)))), "a size is a number, and undefined is not");
+  });
+
+  it("an object whose toJSON gives nothing", () => {
+    assert.deepStrictEqual(labels(hasAttribute("x", eq(literal({ toJSON: () => undefined })))), [
+      "with subject attribute x = undefined",
+    ]);
+  });
+});
