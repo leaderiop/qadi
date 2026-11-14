@@ -450,3 +450,7 @@ entries:
     file: "150-a-scoped-run-that-a-newer-run-supersedes.md"
     title: "A scoped run that a newer run supersedes"
     status: "Accepted — amends ADR-QD-137"
+  - id: "ADR-QD-151"
+    file: "151-the-sink-wire-version-is-stated-once.md"
+    title: "The sink wire version is stated once"
+    status: "Accepted — amends ADR-QD-096"
