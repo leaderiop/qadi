@@ -446,3 +446,7 @@ entries:
     file: "149-a-seed-is-held-by-its-question.md"
     title: "A seed is held by its question, and a registry holds only a grant to it"
     status: "Accepted — amends ADR-QD-039, ADR-QD-103; reads ADR-QD-148"
+  - id: "ADR-QD-150"
+    file: "150-a-scoped-run-that-a-newer-run-supersedes.md"
+    title: "A scoped run that a newer run supersedes"
+    status: "Accepted — amends ADR-QD-137"
