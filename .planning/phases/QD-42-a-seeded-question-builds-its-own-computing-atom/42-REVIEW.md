@@ -1,107 +1,69 @@
 ---
 phase: QD-42-a-seeded-question-builds-its-own-computing-atom
-reviewed: 2026-11-14T20:05:00Z
+reviewed: 2026-11-14T20:20:00Z
 depth: standard
-files_reviewed: 12
+iteration: 2
+files_reviewed: 9
 files_reviewed_list:
   - packages/react/src/SeededQuestion.ts
   - packages/react/src/HydrationEngine.ts
   - packages/react/src/QadiAtoms.ts
-  - packages/react/src/QuestionBook.ts
-  - packages/react/src/SeededDecision.ts
-  - packages/react/src/HydrationEvent.ts
-  - packages/react/src/Hydration.ts
   - packages/react/test/SeededQuestion.test.ts
   - packages/react/test/QadiAtoms.test.ts
   - packages/react/test/HydrationEngine.test.ts
-  - scripts/check-house-style.mjs
-  - .changeset/react-seeded-question-owns-its-computing-atom.md
+  - spec/decisions/093-a-decision-is-read-once.md
+  - spec/decisions/041-a-mismatch-is-announced.md
+  - spec/behaviors/19-hydration.md
 findings:
   critical: 0
-  warning: 2
-  info: 2
-  total: 4
+  warning: 0
+  info: 1
+  total: 1
 status: issues_found
 ---
 
-# Phase QD-42: Code Review Report
+# Phase QD-42: Code Review Report (iteration 2)
 
 **Reviewed:** 2026-11-14
 **Depth:** standard
-**Files Reviewed:** 12
+**Files Reviewed:** 9
 **Status:** issues_found
 
 ## Summary
 
-The move is behaviour-preserving. I diffed the removed `makeSeededQuestion` and
-`seededDecision` against the new `SeededQuestion.ts` line by line:
+The four iteration-1 fixes are correct and complete. One typo remains, introduced by the IN-01 fix.
 
-- The seed is read through `seededIn(get.registry)` in both the computing atom and the reader. Nothing calls `get(grantAtom)`.
-- The reader's first statement is `get.addFinalizer(live())`, before any `get`.
-- There is exactly one `Atom.readable` per question.
-- `runtime.atom(...).pipe(runtime.factory.withReactivity([DECISIONS_KEY]))` is unchanged.
-- The `announced` per-registry state and the `Initial`/seed precedence are byte-equivalent.
-- The two decision-read tokens (`isInitial`, `isSuccess`) moved with the function, so `DECISION_READ_BUDGET` at 2 for `SeededQuestion.ts` is correct.
+- **WR-01 (ccf659e6).** ADR-093, ADR-041 and BEH-QD-151 now carry dated amendments naming `SeededQuestion.ts`. The earlier text is kept as history, as the scope note requires.
+  - The ADR-093 amendment says the budget is `DecisionOutcome.ts` 2 and `SeededQuestion.ts` 2. That matches `DECISION_READ_BUDGET` in `scripts/check-house-style.mjs`.
+  - `SeededQuestion.ts` contains exactly one `isInitial` and one `isSuccess`, as the amendment says.
+  - Revision and change-history rows were bumped. BEH-19 reads 1.21, with the 1.20 row already present.
+  - A grep for stale `seededDecision`, `computedFor` and `HydrationEngine.ts` placement claims finds only history (ADR-155 context, ADR-041 and ADR-093 bodies) and the new amendments.
+- **WR-02 (74067e6e).** The late-seed test now asserts `pairs.length > 0` and `Atom.isWritable(grantAtom)` before it sets the grant. It can no longer pass without delivering the late seed.
+- **IN-01 (3dd1c88e).** `isMismatch` is no longer exported. Its only use is `SeededQuestion.ts:228`. The remaining grep hits are prose in `spec/`, `CHANGELOG.md` and a doc comment in `TraceDiff.ts`.
+- **IN-02 (187354ea).** The test now imports `HydrationMismatch` from `DeveloperSignals.ts`, which declares it at line 51.
 
-Checks I ran:
+I checked the rest of the diff against `diff_base` 7e5dafdb (`QadiAtoms.ts`, `HydrationEngine.ts`, `QuestionBook.ts`, `HydrationEvent.ts`, `Hydration.ts`, `SeededDecision.ts`, the house-style budget and AGENTS.md). I found no new defects.
 
-- `tsc --noEmit` on `packages/react` is clean. Narrowing the runtime parameter to `StandingEvaluationServices` type-checks against the `QadiRuntimeServices` runtime.
-- `oxlint` reports only the `_` parameter warning at `QadiAtoms.ts:321`. That line is unchanged since 2026-08-25 and not part of this diff.
-- `node scripts/check-house-style.mjs` is clean.
-- `SeededQuestion.test.ts` and `HydrationEngine.test.ts` pass when run from the repo root (21 tests). From `packages/react` as cwd, `SeededQuestion.test.ts` fails with `Cannot read properties of undefined (reading 'config')`. That is the workspace project config, not the test, but note it.
+- The `HydrationEngine.ts` removals leave no unused imports.
+- `SeededQuestion.ts` imports nothing from the engine or atom set, so no cycle forms.
+- The move keeps the reader's first statement as `get.addFinalizer(live())`.
 
-No critical issues. The new `SeededQuestion.ts` has no import cycle: it imports only `DeveloperSignals` (type), `HydrationEvent` and `SeededDecision`. The remaining findings are stale prose and one weak test.
+Checks run:
 
-## Warnings
-
-### WR-01: Normative spec still places `makeSeededQuestion` and the `announced` guard in `HydrationEngine.ts`
-
-**File:** `spec/decisions/149-a-seed-is-held-by-its-question.md:43`, `spec/behaviors/19-hydration.md:329`, `spec/decisions/093-a-decision-is-read-once.md:93` and `:137`
-**Issue:** AGENTS.md §11 says `spec/` is normative and that code follows it, so a changed location must update the doc in the same change. The move updated the Source lines in `invariants.md`, `traceability.md` and ADR-155. These sites still claim `makeSeededQuestion` or seed precedence lives in `HydrationEngine.ts`:
-
-- ADR-149:43 reads "`makeSeededQuestion` (`HydrationEngine.ts`) keeps a WeakMap".
-- BEH-QD-151, in `19-hydration.md:329`, reads "the `announced` guard in `HydrationEngine.ts`'s `read`".
-- ADR-093:93 gives the `DECISION_READ_BUDGET` as "`HydrationEngine.ts` 3". The budget is now `SeededQuestion.ts` 2. ADR-093:137 says "seed precedence in `HydrationEngine.ts`".
-
-ADR-039:96 and ADR-149:137 are amendment or history notes and may be intentionally frozen. The three above present the location as current fact. A reader following BEH-QD-151 to the `announced` guard lands in a file that no longer has it.
-**Fix:** Change each to `SeededQuestion.ts`. For ADR-093:93, state the budget as it is now. If the ADR-093 lines are deliberately historical, mark them as `>` blockquote history, as AGENTS.md §15 does for superseded claims.
-
-### WR-02: The late-seed test in `QadiAtoms.test.ts` can pass without ever delivering the late seed
-
-**File:** `packages/react/test/QadiAtoms.test.ts:690-693`
-**Issue:** The test is "a seed given after the first read does not re-run the computation":
-
-```ts
-for (const [grantAtom, grant] of seedsOf(atoms, serverAllow)) {
-  if (Atom.isWritable(grantAtom)) registry.set(grantAtom, grant);
-}
-expect(decidedIn(registry, atoms)).toBe(first);
-```
-
-If `isWritable` is false, or `seedsOf` returns no pairs, the loop body never sets anything. The final `toBe(first)` then holds trivially, because nothing happened. It is the only guard for the "seed given later cannot re-run a computation" claim in `SeededQuestion.ts:181`. A regression that made the grant non-writable would leave this test green. The sibling in `SeededQuestion.test.ts` handles this correctly with `return assert.fail(...)`.
-**Fix:**
-```ts
-const pairs = seedsOf(atoms, serverAllow);
-expect(pairs.length).toBe(1);
-const [grantAtom, grant] = pairs[0]!;
-expect(Atom.isWritable(grantAtom)).toBe(true);
-if (Atom.isWritable(grantAtom)) registry.set(grantAtom, grant);
-```
-Replace the `!` with a guard if the house `no-non-null` rule is enforced for tests.
+- `vitest --project react` on `SeededQuestion`, `QadiAtoms` and `HydrationEngine`: 56 passed.
+- `node scripts/check-house-style.mjs`: clean, 505 files.
 
 ## Info
 
-### IN-01: `SeededQuestion.ts` exports `isMismatch` and `DECISIONS_KEY`; only `DECISIONS_KEY` has a consumer
+### IN-01: Missing space after `=` in `isMismatch`, introduced by the IN-01 fix
 
 **File:** `packages/react/src/SeededQuestion.ts:50`
-**Issue:** `isMismatch` is exported but nothing in `packages/*/src` or `packages/*/test` imports it. It was exported from `HydrationEngine.ts` before, so this preserves an existing dead export. The move was the chance to drop it. `DECISIONS_KEY` is consumed by `QadiAtoms.ts:325`. It also had a single in-file owner before, so exporting it is necessary now.
-**Fix:** Drop `export` from `isMismatch`. The prose references in `spec/overview.md` and `TraceDiff.ts` are to the concept, not the import. Leave it exported only if a structural (fallow) finding says otherwise.
-
-### IN-02: `SeededQuestion.ts` header claims "imports nothing from `HydrationEngine.ts`", while the test imports a type from it
-
-**File:** `packages/react/test/SeededQuestion.test.ts:8`
-**Issue:** `HydrationMismatch` is imported from `../src/HydrationEngine.ts`. That is a re-export of the type declared in `DeveloperSignals.ts`. The source file is correct. The test couples a `SeededQuestion` test to the codec module whose responsibility it was just split from, and it would break if the re-export is ever trimmed.
-**Fix:** `import type { HydrationMismatch } from "../src/DeveloperSignals.ts";`
+**Issue:** The fix to drop `export` also deleted the space before the parenthesis. The line reads `const isMismatch =(seeded: SeededDecision, decided: Decision): boolean =>`. Every other declaration in the file, and the original `export const isMismatch = (…`, has the space. This is a typo in code added by the fix, not a style preference. `oxfmt` is not a gate (AGENTS.md §17), so nothing catches it.
+**Fix:**
+```ts
+const isMismatch = (seeded: SeededDecision, decided: Decision): boolean =>
+  permits(seeded) !== isAllowed(decided);
+```
 
 ---
 
