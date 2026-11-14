@@ -5,16 +5,16 @@ milestone_name: Arch Wave 9
 current_phase: 40
 current_phase_name: Core owns describing a decode refusal
 status: executing
-stopped_at: Completed QD-40-03-PLAN.md
-last_updated: "2026-11-14T12:27:34.715Z"
+stopped_at: Completed 40-04-PLAN.md
+last_updated: "2026-11-14T12:31:18.291Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase QD-39 complete, transitioned to Phase 40
-state_head: a889d7331a61d8e2e8b752f381340a0d0b2d8562
+state_head: 0cbdb70ab1f7c8ec3710423832ab84c6d47aa092
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 27
-  completed_plans: 21
+  completed_plans: 22
   percent: 50
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 ## Current Position
 
 Phase: QD-40 (Core owns describing a decode refusal) — EXECUTING
-Plan: 4 of 9
+Plan: 5 of 9
 Status: Plan 40-01 complete (baseline, ADR-QD-153); ready for 40-02
 Last activity: 2026-11-14 — Completed 40-01 (mutation baseline, ADR-QD-153)
 
@@ -227,6 +227,7 @@ Progress: [█████░░░░░] 50% (v1.4: 1 of 6 phases)
 | Phase QD-40 P01 | 4 min | 2 tasks | 5 files |
 | Phase QD-40 P02 | 9 min | 3 tasks | 3 files |
 | Phase QD-40 P03 | 9 min | 3 tasks | 5 files |
+| Phase QD-40 P04 | 8 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -366,6 +367,7 @@ Progress: [█████░░░░░] 50% (v1.4: 1 of 6 phases)
 - [Phase QD-40]: ADR-QD-153 records the counted single decode (Schema.decodeTo, SinkCodec.ts 1 to 2, AuditEntry.ts row retired, total 11, Schema.encodeTo rejected) and the Breaking devtools surface (onMalformed receives DecodeRefusal, qadi.reason, MalformedReason and reasonOf deleted, no alias)
 - [Phase QD-40]: 40-02: the core Malformed table and the audit differential are the oracles 40-04 and 40-06 leave byte-identical; the devtools table is the only one 40-05 rewrites, by the upgrade map
 - [Phase QD-40]: 40-03: the version is described by typeof alone, string cut at 40 code units, message at 200; annotations carry exactly one key qadi.refusal; SinkWire.ts exempt from no-refusal-annotation-outside-core
+- [Phase QD-40]: 40-04: SinkRecordWithJson Schema.decodeTo pair compiles in situ with no cast; SinkCodec.ts budget 1 to 2 with _NAMES and AGENTS.md row; single decode costs 0.452x of the base's hz (54.6k vs 120.8k), recorded for ADR-QD-153's revision
 
 ### Pending Todos
 
@@ -411,8 +413,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T12:27:34.640Z
-Stopped at: Completed QD-40-03-PLAN.md
+Last session: 2026-11-14T12:31:18.211Z
+Stopped at: Completed 40-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
