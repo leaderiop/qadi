@@ -89,15 +89,58 @@ None. Anything this wave defers goes to the next architecture review.
 
 ## Traceability
 
-Which phases cover which requirements. Updated during roadmap creation.
+Which phases cover which requirements. One row per ID (`phase.complete` cannot parse grouped rows or ranges).
+The seven WX rows apply to every phase 37 to 42, so each phase's Requirements line in `ROADMAP.md` lists all seven.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| RUN-01 | Phase 37 | Pending |
+| RUN-02 | Phase 37 | Pending |
+| RUN-03 | Phase 37 | Pending |
+| RUN-04 | Phase 37 | Pending |
+| RUN-05 | Phase 37 | Pending |
+| RUN-06 | Phase 37 | Pending |
+| RUN-07 | Phase 37 | Pending |
+| RUN-08 | Phase 37 | Pending |
+| WIRE-01 | Phase 38 | Pending |
+| WIRE-02 | Phase 38 | Pending |
+| WIRE-03 | Phase 38 | Pending |
+| WIRE-04 | Phase 38 | Pending |
+| WIRE-05 | Phase 38 | Pending |
+| DROP-01 | Phase 39 | Pending |
+| DROP-02 | Phase 39 | Pending |
+| DROP-03 | Phase 39 | Pending |
+| DROP-04 | Phase 39 | Pending |
+| DREF-01 | Phase 40 | Pending |
+| DREF-02 | Phase 40 | Pending |
+| DREF-03 | Phase 40 | Pending |
+| DREF-04 | Phase 40 | Pending |
+| DREF-05 | Phase 40 | Pending |
+| DREF-06 | Phase 40 | Pending |
+| DREF-07 | Phase 40 | Pending |
+| TEXT-01 | Phase 41 | Pending |
+| TEXT-02 | Phase 41 | Pending |
+| TEXT-03 | Phase 41 | Pending |
+| TEXT-04 | Phase 41 | Pending |
+| SEED-01 | Phase 42 | Pending |
+| SEED-02 | Phase 42 | Pending |
+| SEED-03 | Phase 42 | Pending |
+| SEED-04 | Phase 42 | Pending |
+| SEED-05 | Phase 42 | Pending |
+| SEED-06 | Phase 42 | Pending |
+| WX-01 | All v1.4 phases | Pending |
+| WX-02 | All v1.4 phases | Pending |
+| WX-03 | All v1.4 phases | Pending |
+| WX-04 | All v1.4 phases | Pending |
+| WX-05 | All v1.4 phases | Pending |
+| WX-06 | All v1.4 phases | Pending |
+| WX-07 | All v1.4 phases | Pending |
 
 **Coverage:**
-- v1.4 requirements: 41 total (34 phase-specific + 7 cross-cutting)
-- Mapped to phases: 0 (filled by the roadmapper)
+- v1.4 requirements: 41 total (34 phase-specific, 7 cross-cutting)
+- Mapped to phases: 41
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-11-14*
-*Last updated: 2026-11-14 after initial definition*
+*Last updated: 2026-11-14 after roadmap creation (Phases 37-42)*

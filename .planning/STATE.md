@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 milestone: v1.4
 milestone_name: Arch Wave 9
 status: planning
-last_updated: "2026-11-13T23:58:55.420Z"
+last_updated: "2026-11-14T00:19:53.000Z"
 last_activity: 2026-11-14
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-13)
+See: .planning/PROJECT.md (updated 2026-11-14)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** v1.3 complete and archived; next milestone not defined (`/gsd-new-milestone`)
+**Current focus:** Phase 37, A scoped run that a newer run supersedes (v1.4 Arch Wave 9, ARCH-84)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-11-14 — Milestone v1.4 started
+Phase: 37 of 42 (A scoped run that a newer run supersedes)
+Plan: Not started (no plans yet; /gsd-discuss-phase 37, then /gsd-plan-phase --research-phase 37)
+Status: Ready to plan
+Last activity: 2026-11-14 — Roadmap created for v1.4 (Phases 37-42, 41/41 requirements mapped)
+
+Progress: [░░░░░░░░░░] 0% (v1.4: 0 of 6 phases)
 
 
 ## Performance Metrics
@@ -314,9 +316,11 @@ Last activity: 2026-11-14 — Milestone v1.4 started
 - [Phase 36]: 36-12: ADR-QD-039 and ADR-QD-103 keep Accepted status and carry dated amendments; ADR-QD-014's pinned divergent sequence is amended under its paragraph (D-20)
 - [Phase 36]: 36-13: BEH-QD-460's listing keeps 'Baseline | undefined' (the real snapshot type) rather than the plan's 'Baseline'
 - [Phase 36]: 36-14: TimelineNotice.tsx:40:20 (Reading arm null vs undefined) is a named equivalent survivor; StoppedBox's effect deps are killed by TN15
+- [v1.4]: the six phases 37-42 and their order are fixed by the user; research reconciliations R1-R6 (`research/SUMMARY.md`) are binding unless a planner records evidence against one; reserved numbers are ADR 150-155, CCR 428-433, BEH 521-550, INV 319-330 (never run `node scripts/next-id.mjs`)
 
 ### Pending Todos
 
+- v1.4: research-phase before planning Phases 37, 40 and 42 (`/gsd-plan-phase --research-phase <N>`); 38, 39 and 41 are standard. Phase 40 opens on the compatibility decision for `onMalformed`/`qadi.reason`; Phase 41 opens on RED first plus the non-JSON display decision; Phase 42 opens on a human checkpoint (evidence, then one `AskUserQuestion`).
 - v1.2: phases open on a `checkpoint:decision` (23-01, 25-01, 28-01; see ROADMAP); answer each once when its phase starts. 22-01's two were already answered in `_DECISIONS-v1.2.md` (done 2026-11-11).
 - v1.2: v1.1's phase dirs (10-20) are not yet archived to `.planning/milestones/v1.1-phases/`; do it with /gsd-complete-milestone when v1.1 is released or explicitly closed.
 
@@ -355,11 +359,11 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-13T01:44:09.971Z
-Stopped at: Phase 36 complete — all phases complete
+Last session: 2026-11-14T00:19:53.000Z
+Stopped at: Roadmap created for v1.4 — Phase 37 not started
 Resume file: None
 
 ## Operator Next Steps
 
 
-- Start the next milestone with /gsd-new-milestone
+- Discuss Phase 37 with /gsd-discuss-phase 37, then plan it with /gsd-plan-phase --research-phase 37
