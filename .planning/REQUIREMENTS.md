@@ -11,7 +11,7 @@ unless a phase's planner records evidence against one). Per-phase evidence and r
 ### One module for a scoped run a newer run supersedes (Phase 37, ARCH-84, devtools)
 
 - [x] **RUN-01**: A package-private devtools module owns the run handle, the generation token, the closed state, the finalizer ordering (registered after the handle so it runs first), interrupt-on-replace, `stop` and "land only while current", through a two-step `begin()` → publish → `fork(token, effect)` interface (R2).
-- [ ] **RUN-02**: `SimulationSession`, `TimelineFeed` and `DiagnosticsFeed` use the module, and none of them declares `let generation`, `let closed`, `FiberHandle.make`/`FiberHandle.runtime` or its own bump-in-finalizer block (negative grep scoped to the phase's added lines).
+- [x] **RUN-02**: `SimulationSession`, `TimelineFeed` and `DiagnosticsFeed` use the module, and none of them declares `let generation`, `let closed`, `FiberHandle.make`/`FiberHandle.runtime` or its own bump-in-finalizer block (negative grep scoped to the phase's added lines).
 - [x] **RUN-03**: The module has its own tests through its interface: supersede, close mid-run (including a defecting finalizer), stop in each state (not started, running, completed, closed), interrupt vs failure, and two instances in two scopes.
 - [x] **RUN-04**: `stop` is one unconditional rule (R1) used by both former call sites, pinned by one test: stopping with no run changes nothing and notifies nobody.
 - [x] **RUN-05**: A restart from inside a store's Starting/Reading notification leaves the newest run live in all three stores (RED first on the phase base, or refuted with recorded evidence), and a run body that starts a command before its first yield is reported, not left silently idle.
@@ -62,13 +62,13 @@ unless a phase's planner records evidence against one). Per-phase evidence and r
 
 ### Cross-cutting (every v1.4 phase)
 
-- [ ] **WX-01**: `pnpm check:pr < /dev/null` is green at the end of each phase.
-- [ ] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
-- [ ] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13), and its module column is corrected by hand for every moved declaration.
+- [x] **WX-01**: `pnpm check:pr < /dev/null` is green at the end of each phase.
+- [x] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
+- [x] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13), and its module column is corrected by hand for every moved declaration.
 - [x] **WX-04**: No new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock. Budgets change only together with their AGENTS.md table.
-- [ ] **WX-05**: Coverage thresholds hold (core at least 95%, others at least 90%). The Stryker score of touched files does not fall (per-phase `NN-mutation-base.json`, same invocation at base and close), and a drop is closed with a test, never re-baselined.
+- [x] **WX-05**: Coverage thresholds hold (core at least 95%, others at least 90%). The Stryker score of touched files does not fall (per-phase `NN-mutation-base.json`, same invocation at base and close), and a drop is closed with a test, never re-baselined.
 - [x] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base (RED for a defect, green for preserved behaviour).
-- [ ] **WX-07**: Every public break is recorded in its package's changeset as **Breaking** and in `upgrading.md`. Nothing is released or published, and no version-packages PR is merged.
+- [x] **WX-07**: Every public break is recorded in its package's changeset as **Breaking** and in `upgrading.md`. Nothing is released or published, and no version-packages PR is merged.
 
 ## v2 Requirements
 
@@ -95,7 +95,7 @@ The seven WX rows apply to every phase 37 to 42, so each phase's Requirements li
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | RUN-01 | Phase 37 | Complete |
-| RUN-02 | Phase 37 | Pending |
+| RUN-02 | Phase 37 | Complete |
 | RUN-03 | Phase 37 | Complete |
 | RUN-04 | Phase 37 | Complete |
 | RUN-05 | Phase 37 | Complete |
@@ -128,13 +128,13 @@ The seven WX rows apply to every phase 37 to 42, so each phase's Requirements li
 | SEED-04 | Phase 42 | Pending |
 | SEED-05 | Phase 42 | Pending |
 | SEED-06 | Phase 42 | Pending |
-| WX-01 | All v1.4 phases | Pending |
-| WX-02 | All v1.4 phases | Pending |
-| WX-03 | All v1.4 phases | Pending |
+| WX-01 | All v1.4 phases | Complete |
+| WX-02 | All v1.4 phases | Complete |
+| WX-03 | All v1.4 phases | Complete |
 | WX-04 | All v1.4 phases | Complete |
-| WX-05 | All v1.4 phases | Pending |
+| WX-05 | All v1.4 phases | Complete |
 | WX-06 | All v1.4 phases | Complete |
-| WX-07 | All v1.4 phases | Pending |
+| WX-07 | All v1.4 phases | Complete |
 
 **Coverage:**
 - v1.4 requirements: 41 total (34 phase-specific, 7 cross-cutting)
