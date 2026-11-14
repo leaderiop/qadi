@@ -466,3 +466,7 @@ entries:
     file: "154-one-value-to-text-function-exported-by-core.md"
     title: "One value-to-text function, exported by core"
     status: "Accepted"
+  - id: "ADR-QD-155"
+    file: "155-a-seeded-question-owns-its-computing-atom.md"
+    title: "A seeded question owns its computing atom, in its own module"
+    status: "Accepted — amends ADR-QD-149, ADR-QD-140"
