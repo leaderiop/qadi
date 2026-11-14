@@ -1,63 +1,49 @@
 ---
 phase: QD-40-core-owns-describing-a-decode-refusal
-reviewed: 2026-11-14T14:30:00Z
+reviewed: 2026-11-14T16:00:00Z
 depth: standard
-iteration: 2
-files_reviewed: 7
+files_reviewed: 2
 files_reviewed_list:
-  - packages/core/src/SinkWire.ts
-  - packages/core/src/SinkCodec.ts
-  - packages/core/test/DecodeRefusal.test.ts
-  - packages/core/test/SinkCodec.test.ts
   - packages/devtools/src/model/Source.ts
   - packages/devtools/test/model/Source.test.ts
-  - spec/behaviors/27-devtools-timeline.md
 findings:
   critical: 0
   warning: 0
-  info: 1
-  total: 1
-status: issues_found
+  info: 0
+  total: 0
+status: clean
 ---
 
-# Phase 40: Code Review Report (iteration 2)
+# Phase 40: Code Review Report (iteration 3)
 
-**Reviewed:** 2026-11-14T14:30:00Z
+**Reviewed:** 2026-11-14T16:00:00Z
 **Depth:** standard
-**Files Reviewed:** 7
-**Status:** issues_found (one Info, no Critical or Warning)
+**Files Reviewed:** 2
+**Status:** clean
 
 ## Summary
 
-I read `git diff 93898e60 HEAD` over the scoped files and 40-REVIEW-FIX.md. All four earlier findings are resolved, and I found no new Critical or Warning defect.
+Re-review of the iteration-2 fix (commit 0c4f5545) for IN-01, `thrownName` not hardened. The diff against 1ff97a55 touches only `Source.ts` (a doc comment and a `try`/`catch` around `thrownName`) and `Source.test.ts` (three table-driven tests).
 
-- **WR-01 resolved.** `malformed` in `Source.ts` now runs `onMalformed` under `Effect.try` and catches a throw with `Effect.catch`. The stream continues because the effect always ends in `Result.fail(frame)`. The log message is fixed, and the only annotation is `qadi.thrown`, which is the thrown value's `name` or its `typeof`. The thrown message is never logged, which keeps INV-QD-104. The default branch (no `onMalformed`) is unchanged. Two tests cover the `Error` and non-`Error` branches, and each checks that the next good record is delivered and the sender-like text is absent from the log. BEH-QD-204 gained the matching REQUIREMENT, and Rev 1.13 and its change-history row are consistent with it. `Effect.try`/`Effect.catch` follow house style: no `async`, no `as`, no `catchTags`.
-- **`onDisconnect` left alone.** This is accepted per the brief.
-- **IN-01 resolved.** The test helper is renamed to `refusalOfText` at its declaration and every use. A grep finds no remaining `decodeRefusalOf` in `SinkCodec.test.ts`, so there is no shadowing of the core export.
-- **IN-02 resolved.** The `SinkWire.ts` and `SinkCodec.ts` headers now name the moved and added exports and cite ADR-QD-153.
-- **IN-03 resolved.** The `NotJson` and `TooDeep` sentences no longer presume a sender. The literals in `DecodeRefusal.test.ts` match the source. The only remaining quotes of the old text are in `40-03-PLAN.md` and `40-REVIEW.md`, which are historical planning artifacts and need no change.
+IN-01 is resolved:
 
-## Info
+- `thrownName` is now total. `thrown instanceof Error` throws on a revoked Proxy, and a throwing `name` getter throws on read. Both land in the `catch` and return `"unknown"`. Without that, `Effect.try`'s `catch: thrownName` mapper would throw inside the mapper and turn into a defect, which ends the stream.
+- A non-string `name` falls back to `typeof thrown`. This closes the case where a hostile `name` object would otherwise reach the log annotation.
+- It still returns only a name or a type, never a message, so INV-QD-104 holds.
+- The doc comment states the contract in one line and gives the why in the `catch` comment, as AGENTS.md asks.
 
-### IN-01: `thrownName` is undocumented and reads a foreign value without hardening
+New defect check, none found:
 
-**File:** `packages/devtools/src/model/Source.ts:242`
-**Issue:** `thrownName` runs as `Effect.try`'s `catch` handler on a value the consumer's callback threw. A throw inside it becomes a defect, not a typed failure, and a defect would end the stream, which is the thing WR-01 fixed. It is reachable only for pathological thrown values, such as a revoked `Proxy` (`instanceof` throws) or an `Error` whose `name` is a throwing getter. A non-string `name` would also be annotated verbatim. The risk is low and rests on judgment, since a real callback rarely throws such a value. The helper also has no doc comment, while its neighbours `decodeFrame` and `malformed` do.
-**Fix:** Either accept the risk and add a one-line comment saying so, or make the helper total:
-```ts
-/** The thrown value's type name for the log, never its message (INV-QD-104). */
-const thrownName = (thrown: unknown): string => {
-  try {
-    return thrown instanceof Error && typeof thrown.name === "string" ? thrown.name : typeof thrown;
-  } catch {
-    return "unknown";
-  }
-};
-```
-A `try`/`catch` in a pure helper is acceptable here because the module already wraps a foreign callback. If adopted, add a test with a revoked proxy.
+- House style is met. There is no `as`, `!`, `any`, `switch` or `Record<string, unknown>`, and no forbidden ambient API. Bare `catch {` already appears in `packages/*/src` (`CustomPredicate.ts`, `Filters.ts`, `SimulationForm.ts`, `Capture.ts`), so it is not a new pattern.
+- The three tests drive each branch through the real `onMalformed` path. A revoked proxy is thrown and expects `"unknown"`. A throwing `name` getter is thrown and expects `"unknown"`. A non-string `name` is thrown and expects `"object"`, which equals `typeof thrown` for an Error instance. Each asserts that the next good record is still delivered, that exactly one log line is written, that the `qadi.thrown` value is as expected, and that the sender-like text is absent from the serialized log. Removing any of the three branches (`catch`, the `typeof name` guard, either ternary arm) fails a test.
+- The test table is typed as `ReadonlyArray<readonly [string, () => never, string]>`, and each thrower really never returns. There are no unsafe casts.
+
+Known and accepted items (Breaking change, `qadi.frame`, `onDisconnect`, the `"unknown"` fallback name) were not re-raised.
+
+All reviewed files meet quality standards. No issues found.
 
 ---
 
-_Reviewed: 2026-11-14T14:30:00Z_
+_Reviewed: 2026-11-14T16:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
