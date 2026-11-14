@@ -7,7 +7,9 @@
  *   where; {@link encodeSinkRecordString} gives the same as text.
  * - **Inbound**: {@link decodeSinkRecord} turns untrusted `unknown` into a
  *   record, or a `SinkRecordNotDecodable`; {@link decodeSinkRecordString} does
- *   the same from text, adding "not JSON" as a reason.
+ *   the same from text, adding "not JSON" as a reason;
+ *   {@link decodeSinkRecordWithJson} gives the record and its JSON form from one
+ *   decode, and both of the above read through it (ADR-QD-153).
  *
  * The guard, the projection, the schema encode, the depth bound and the
  * rebuild are this module's implementation, so every sink (forwarding, the
