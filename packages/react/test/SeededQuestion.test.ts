@@ -5,7 +5,7 @@ import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { afterEach } from "vitest";
-import type { HydrationMismatch } from "../src/HydrationEngine.ts";
+import type { HydrationMismatch } from "../src/DeveloperSignals.ts";
 import { SeededAllow, SeededDeny, permits } from "../src/SeededDecision.ts";
 import { makeSeededQuestion } from "../src/SeededQuestion.ts";
 
