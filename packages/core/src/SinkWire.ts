@@ -127,3 +127,79 @@ export const decodeRefusalOf: (
     UnsupportedVersion: (refusal) => refusal,
   }),
 );
+
+/** How many UTF-16 code units of a version string {@link describeDecodeRefusal} shows. */
+const SHOWN_VERSION_CHARS = 40;
+
+/** How many UTF-16 code units of a `Malformed` message {@link describeDecodeRefusal} shows. */
+const SHOWN_MESSAGE_CHARS = 200;
+
+/**
+ * A refusal's `version`, described without reading it.
+ *
+ * The version is sender data of any type, so this dispatches on `typeof` alone: no
+ * property read, no `toString`, no array test (which throws on a revoked
+ * `Proxy`), and `JSON.stringify` only on a string slice. A string is quoted and
+ * cut at {@link SHOWN_VERSION_CHARS} code units.
+ */
+const shownVersion = (version: unknown): string => {
+  if (version === undefined) return "none";
+  if (version === null) return "null";
+  if (typeof version === "string") {
+    const shown = JSON.stringify(version.slice(0, SHOWN_VERSION_CHARS));
+    return version.length > SHOWN_VERSION_CHARS ? `${shown}…` : shown;
+  }
+  if (typeof version === "number" || typeof version === "boolean") return String(version);
+  if (typeof version === "bigint") return "a bigint";
+  if (typeof version === "symbol") return "a symbol";
+  if (typeof version === "function") return "a function";
+  return "an object";
+};
+
+/** A `Malformed` message cut at {@link SHOWN_MESSAGE_CHARS} code units. */
+const shownMessage = (message: string): string =>
+  message.length > SHOWN_MESSAGE_CHARS ? `${message.slice(0, SHOWN_MESSAGE_CHARS)}…` : message;
+
+/**
+ * The log and span annotations of a refused record: which refusal, under the key
+ * the encode side uses. Exactly one key, and never a value from the record
+ * (INV-QD-104).
+ */
+export type DecodeRefusalAnnotations = { readonly "qadi.refusal": DecodeRefusal["_tag"] };
+
+/**
+ * A refusal's log and span annotations: which refusal, never what was sent.
+ *
+ * Never `Malformed.message` or `UnsupportedVersion.version`, which are sender
+ * data: the default log implementation copies annotations onto the current span,
+ * so an annotation is span data (INV-QD-104, ADR-QD-153). The key is the one
+ * `EncodeRefusalAnnotations` uses, so a reader filters both sides by it.
+ */
+export const decodeRefusalAnnotations = (self: DecodeRefusal): DecodeRefusalAnnotations => ({
+  "qadi.refusal": self._tag,
+});
+
+/**
+ * One sentence per {@link DecodeRefusal}, naming the reason and its fix, for a
+ * caller holding the refusal.
+ *
+ * It may carry the sender's message and a bounded description of its version, so
+ * it is never an annotation and never a default log message (INV-QD-104). Built
+ * once at module scope (AGENTS.md §5a); a new refusal is a compile error here and
+ * only here (ADR-QD-153). Total: it never throws and never calls code the sender
+ * supplied, whatever the version holds.
+ */
+export const describeDecodeRefusal: (self: DecodeRefusal) => string = Match.type<DecodeRefusal>().pipe(
+  Match.tagsExhaustive({
+    NotJson: () =>
+      "not JSON: the text did not parse, so something between the sender and this reader truncated or replaced it",
+    TooDeep: ({ maxDepth }) =>
+      `nested deeper than ${maxDepth} levels: a current sender refuses to emit that, so the sender is older or foreign`,
+    Malformed: ({ message }) =>
+      `not a record this reader can read, so the sender and this reader disagree about the wire form: ${shownMessage(message)}`,
+    Inconsistent: ({ disagreement }) =>
+      `a record that contradicts itself (${disagreement}): built by hand or tampered with, not version skew`,
+    UnsupportedVersion: ({ version, supported }) =>
+      `a record of wire version ${shownVersion(version)}, which this reader does not read (it reads ${supported.join(", ")}): upgrade the reader if the version is newer, or the sender if it has none`,
+  }),
+);

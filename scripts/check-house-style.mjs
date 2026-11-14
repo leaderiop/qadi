@@ -268,7 +268,8 @@ const RULES = [
     id: "no-refusal-annotation-outside-core",
     // A refused record's path and annotations are read once, in
     // `packages/core/src/JsonRefusal.ts` (`encodeRefusalPath`,
-    // `encodeRefusalAnnotations`), and reported once
+    // `encodeRefusalAnnotations`) and, for the decode side, in
+    // `packages/core/src/SinkWire.ts` (`decodeRefusalAnnotations`), and reported once
     // (`reportEncodeRefusal`). Three adapters each rebuilt the same three
     // keys and a `"path" in` check before ARCH-25, and the second copy arrived
     // through review ("mirrors the stream route"). A plain rule, not a budget:
@@ -276,7 +277,7 @@ const RULES = [
     // scanned by non-`testScope` rules, so tests may assert the keys.
     re: /"qadi\.(?:refusal|path)"|"path"\s+in\s/,
     message:
-      'A refusal is read through @qadi/core (encodeRefusalAnnotations / encodeRefusalPath / reportEncodeRefusal), not by restating "qadi.refusal", "qadi.path" or a `"path" in` check.',
+      'A refusal is read through @qadi/core (encodeRefusalAnnotations / decodeRefusalAnnotations / encodeRefusalPath / reportEncodeRefusal), not by restating "qadi.refusal", "qadi.path" or a `"path" in` check.',
     raw: true,
   },
   {
@@ -338,6 +339,9 @@ const RULES = [
 const EXEMPTIONS = {
   "packages/core/src/Decision.ts": ["no-decision-constructor-outside-decision"],
   "packages/core/src/JsonRefusal.ts": ["no-refusal-annotation-outside-core"],
+  // The decode side's annotation key, stated once beside `DecodeRefusal` by
+  // `decodeRefusalAnnotations` (ADR-QD-153).
+  "packages/core/src/SinkWire.ts": ["no-refusal-annotation-outside-core"],
   "packages/core/src/EvaluationId.ts": ["no-ambient-uuid"],
   // The one module that writes to the console or reads `process.env`: every
   // developer signal `@qadi/react` raises, including `QadiProvider`'s three,
