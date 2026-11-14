@@ -11,45 +11,33 @@ files_reviewed_list:
 findings:
   critical: 0
   warning: 0
-  info: 3
-  total: 3
+  info: 0
+  total: 0
   necessity: 0
-status: issues_found
+status: clean
 ---
 
-# Phase 38: Code Review Report
+# Phase 38: Code Review Report (iteration 2)
 
 **Reviewed:** 2026-11-14T00:00:00Z
 **Depth:** standard
 **Files Reviewed:** 4
-**Status:** issues_found
+**Status:** clean
 
 ## Summary
 
-Reviewed the phase's changes against base `b1e8ecbf` (`SinkWire.ts` read whole; `SinkCodec.test.ts` 155 tests pass).
+Re-reviewed `git diff cb303ea6 HEAD`. Only `SinkWire.ts` (comment) and `SinkCodec.test.ts` changed; `SinkCodec.ts` and `SinkWire.tst.ts` are untouched, so there is no codec behavior change. `packages/core/test/SinkCodec.test.ts` runs 156/156 (was 155; one new row for the single member of `WIRE_VERSIONS`). `scripts/check-house-style.mjs` reports 496 files clean.
 
-- **The version is stated once.** The scoped grep over `packages/core/src/Sink*.ts` for `Literal(2)`, `version: 2` and `= 2` matches only the constant in code (D-04); the other hits are doc prose, which D-11 leaves alone.
-- **Wire bytes are unchanged.** The encoder writes `version: WIRE_VERSION` after the record spread, so key order holds; `WIRE_VERSION` is `as const` and does not widen in the spread.
-- **Read set and write version are separate.** `versionThenEnvelope` tests membership in `WIRE_VERSIONS` through `Schema.is(Schema.Literals(WIRE_VERSIONS))`; a non-2 version is still `UnsupportedVersion({ version, supported })`, and an absent `version` still reports `undefined`.
-- **No house-style breaks.** No `as`, `!`, `any` or `switch`; the codec's private constant is gone, so nothing shadows the export.
-- **The type pins are sound.** `SinkWire.tst.ts` writes its expectations by hand, and the refusal rows hard-code `[2]` and `2`.
+Previous findings:
 
-## Info
+- **IN-01 resolved.** `SinkCodec.test.ts:2042-2047` loops over `WIRE_VERSIONS` and asserts each version decodes a record of its own version (`decodeRefusalOf(...) === undefined`). A version added to the read set without a schema would now fail as `Malformed`. The loop reads the set itself, so it follows additions, and the hard-coded `[2]` pin at line 1996 still guards against a silent retype.
+- **IN-02 resolved.** Both boundary tests now `deepStrictEqual` the exact `EncodeRefusal.TooDeep`. The paths are arithmetically correct at `MAX_DECODE_DEPTH = 256` (`UntrustedDecode.ts:63`). The policy path is `["policy", ("policies", 0) x 128]`, length 257. The trace path is `["outcome", "decision", "trace", ("children", 0) x 127]`, length 257. Both are `MAX_DECODE_DEPTH + 1`, which matches the sibling "deep resource" test and the new titles ("one past the bound"). The test passes, which confirms the walk is deterministic. The `/ 2` and `(MAX - 2) / 2` expressions assume an even bound; 256 is even, and a change to an odd bound would fail the test loudly rather than silently.
+- **IN-03 resolved.** The `SinkWire.ts` header now wraps cleanly at line 3.
 
-### IN-01: `isReadVersion` can accept a version that has no decode schema
+New defects from the fixes: none found. The tests use no `as`, `!` or `any`; imports are unchanged; the `for ... of` generating `it` titles is an established vitest pattern; and the new comment states its why in one line.
 
-**File:** `packages/core/src/SinkCodec.ts:458-476`
-**Issue:** The guard is built from `WIRE_VERSIONS`, but the strict decode knows only `Schema.Literal(WIRE_VERSION)`. A version added to `WIRE_VERSIONS` without a schema would pass the version check and fail the strict decode as `Malformed` rather than `UnsupportedVersion`. The docs say a retained version is listed "beside a schema for it", but nothing enforces it. A latent hazard on a future edit, not a defect today.
-**Fix:** Optional: a test that every member of `WIRE_VERSIONS` decodes a fixture of its own version, or leave it as ADR-QD-151 documents the convention.
+---
 
-### IN-02: The two new `MAX_DECODE_DEPTH` boundary tests assert only a lower bound on the path
-
-**File:** `packages/core/test/SinkCodec.test.ts:1220-1230`
-**Issue:** Sibling tests pin exact refusals (`EncodeRefusal.TooDeep({ path: [...], maxDepth })`); these two check only `path.length > 1` and `> 3`. Both titles claim the record "passes the pre-check; the final walk refuses it", but any TooDeep with a longer path passes, so the assertion does not identify the refusing stage.
-**Fix:** Assert the exact path the final walk produces (for the trace case a `path` starting `["outcome", "decision", "trace", ...]`), or reword the titles if the exact path cannot be stated.
-
-### IN-03: The `SinkWire.ts` header comment is badly wrapped
-
-**File:** `packages/core/src/SinkWire.ts:1-4`
-**Issue:** The edit left a ragged break ("…`decodeSinkRecord` reads, why it" / "refuses its input, …"). Cosmetic.
-**Fix:** Re-wrap the paragraph to about 90 columns.
+_Reviewed: 2026-11-14T00:00:00Z_
+_Reviewer: Claude (gsd-code-reviewer)_
+_Depth: standard_
