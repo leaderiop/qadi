@@ -45,7 +45,6 @@ export type {
   HydrationDrops,
   InspectKind,
   InspectNode,
-  MalformedReason,
   NodeStatus,
   ObligationState,
   PairRole,
@@ -112,6 +111,10 @@ export type {
 
 // Representative private names, one or more per private module. Each import
 // below must fail.
+// The drop word was core's `DecodeRefusal` all along (ADR-QD-153): not an export of this package.
+// @ts-expect-error no exported member
+export type { MalformedReason } from "../src/index.ts";
+
 // @ts-expect-error no exported member
 export { whatIf } from "../src/index.ts";
 

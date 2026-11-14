@@ -19,13 +19,18 @@
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import type * as Filter from "effect/Filter";
-import * as Match from "effect/Match";
 import * as Queue from "effect/Queue";
 import * as Result from "effect/Result";
 import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 import type { DecodeRefusal, ReceivedFrame, StoredRecord } from "@qadi/core";
-import { decodeDecisionStream, DecisionStreamEvent, decodeStoredRecordString, storedRecordOrder } from "@qadi/core";
+import {
+  decodeDecisionStream,
+  decodeRefusalAnnotations,
+  DecisionStreamEvent,
+  decodeStoredRecordString,
+  storedRecordOrder,
+} from "@qadi/core";
 
 /** What one `read` of a source hands its reader. */
 export interface SourceRead {
@@ -100,7 +105,7 @@ export interface DecisionEventSource {
  * **The environment comes off the wire.** Every frame is a stored-record
  * envelope decoded by `@qadi/core`'s `decodeStoredRecordString`, which stamps
  * the producer's label; this reader states none. A bare record — what a server
- * older than 0.10 sends — is reported `not-a-record`, never stamped with a
+ * older than 0.10 sends — is reported as a `Malformed` refusal, never stamped with a
  * label this reader would have to make up.
  *
  * **Every failure here degrades a row, never the stream.** A frame that is not
@@ -122,8 +127,11 @@ export const sourceFromEventSource = (options: {
   readonly syncTimeout?: Duration.Input;
   /** Replaces the browser `EventSource`. Supply one to test without a network. */
   readonly open?: (url: string, withCredentials: boolean) => DecisionEventSource;
-  /** A frame arrived that is not a record. Replaces the default log. */
-  readonly onMalformed?: (frame: string, reason: MalformedReason) => void;
+  /**
+   * A frame arrived that is not a record, with `@qadi/core`'s refusal as decoded
+   * (`describeDecodeRefusal` words it). Replaces the default log.
+   */
+  readonly onMalformed?: (frame: string, refusal: DecodeRefusal) => void;
   /** The connection dropped. `EventSource` will retry on its own. */
   readonly onDisconnect?: () => void;
 }): Source => {
@@ -212,22 +220,6 @@ export const mergeSources = (sources: ReadonlyArray<Source>): Source => ({
 });
 
 /**
- * Why a frame was dropped, from the codec's own reason.
- *
- * Built once at module scope (AGENTS.md §5a): a frame is decoded per message,
- * and a matcher rebuilt per call is the slower form.
- */
-const reasonOf: (refusal: DecodeRefusal) => MalformedReason = Match.type<DecodeRefusal>().pipe(
-  Match.tagsExhaustive({
-    NotJson: (): MalformedReason => "not-json",
-    TooDeep: (): MalformedReason => "too-deep",
-    Malformed: (): MalformedReason => "not-a-record",
-    UnsupportedVersion: (): MalformedReason => "unsupported-version",
-    Inconsistent: (): MalformedReason => "inconsistent",
-  }),
-);
-
-/**
  * One SSE frame to one stored record, or a reported drop.
  *
  * One call to `@qadi/core`'s `decodeStoredRecordString`, which parses, reads
@@ -239,56 +231,32 @@ const reasonOf: (refusal: DecodeRefusal) => MalformedReason = Match.type<DecodeR
  * failing the stream.
  */
 const decodeFrame = (
-  onMalformed: ((frame: string, reason: MalformedReason) => void) | undefined,
+  onMalformed: ((frame: string, refusal: DecodeRefusal) => void) | undefined,
 ): Filter.FilterEffect<string, StoredRecord, string> =>
 (frame) =>
   Result.match(decodeStoredRecordString(frame), {
     onSuccess: (record) => Effect.succeed(Result.succeed(record)),
-    onFailure: (error) => malformed(frame, reasonOf(error.refusal), onMalformed),
+    onFailure: (error) => malformed(frame, error.refusal, onMalformed),
   });
 
 /**
- * Why a frame was dropped.
+ * Reports the drop, then filters the frame out.
  *
- * The five are different problems with different fixes and the reader is owed
- * the distinction: `not-json` is a broken transport — a proxy that truncated
- * the stream, a reverse proxy injecting its own body — `too-deep` is JSON
- * nested past the bound every receiver decodes, which a current sender refuses
- * to emit, so it means an older or foreign sender; `not-a-record` is a
- * protocol mismatch — a frame that is not a stored-record envelope (a bare
- * record, which a server older than 0.10 sends), or a record whose content the
- * wire does not describe (a field of the wrong type, an unknown tag); and
- * `unsupported-version` is a record of a wire version this panel's
- * `@qadi/core` does not read — a sender newer than the panel, fixed by
- * upgrading the panel, or a version-1 record (no `version`) from a sender older
- * than 0.10, fixed by upgrading the sender (ADR-QD-096); and `inconsistent` is a
- * well-formed record that contradicts itself: a decision whose verdict, fields,
- * duties or reason are not its own trace's, or whose ids or policy tag are not
- * its record's. Not version skew: a producer that built a decision by hand, or
- * tampering (INV-QD-170).
- *
- * A closed union rather than a free string: this is a value a caller branches
- * on, and adding a reason should be a compile error at every consumer.
+ * The message is fixed, and the annotations are `@qadi/core`'s tag-only helper
+ * plus the frame, so the describer's sentence and the decoder's own message
+ * (text a sender chose) stay out of logs and spans (INV-QD-104, ADR-QD-153).
  */
-export type MalformedReason =
-  | "not-json"
-  | "too-deep"
-  | "not-a-record"
-  | "unsupported-version"
-  | "inconsistent";
-
-/** Reports the drop, then filters the frame out. */
 const malformed = (
   frame: string,
-  reason: MalformedReason,
-  onMalformed: ((frame: string, reason: MalformedReason) => void) | undefined,
+  refusal: DecodeRefusal,
+  onMalformed: ((frame: string, refusal: DecodeRefusal) => void) | undefined,
 ): Effect.Effect<Result.Result<never, string>> =>
   Effect.as(
     onMalformed === undefined
       ? Effect.logWarning("qadi/devtools: a frame was not a decision record").pipe(
-        Effect.annotateLogs({ "qadi.frame": frame, "qadi.reason": reason }),
+        Effect.annotateLogs({ ...decodeRefusalAnnotations(refusal), "qadi.frame": frame }),
       )
-      : Effect.sync(() => onMalformed(frame, reason)),
+      : Effect.sync(() => onMalformed(frame, refusal)),
     Result.fail(frame),
   );
 

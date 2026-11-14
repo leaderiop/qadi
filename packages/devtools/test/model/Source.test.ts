@@ -18,13 +18,19 @@ import * as Fiber from "effect/Fiber";
 import * as TestClock from "effect/testing/TestClock";
 import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
-import { encodeSinkRecordString, encodeStoredRecordString, makeDecisionLog, MAX_DECODE_DEPTH } from "@qadi/core";
+import {
+  DecodeRefusal,
+  encodeSinkRecordString,
+  encodeStoredRecordString,
+  makeDecisionLog,
+  MAX_DECODE_DEPTH,
+  WIRE_VERSIONS,
+} from "@qadi/core";
 import { DecisionStreamEvent } from "@qadi/core";
 import type { StoredRecord } from "@qadi/core";
 import { collectingLogger } from "@qadi/testing";
 import {
   type DecisionEventSource,
-  type MalformedReason,
   mergeSources,
   type Source,
   sourceFromEventSource,
@@ -96,7 +102,7 @@ const collect = (
   frames: ReadonlyArray<string>,
   count: number,
   options?: {
-    readonly onMalformed?: (frame: string, reason: MalformedReason) => void;
+    readonly onMalformed?: (frame: string, refusal: DecodeRefusal) => void;
     readonly onDisconnect?: () => void;
     readonly failFirst?: boolean;
   },
@@ -206,7 +212,7 @@ describe("sourceFromEventSource", () => {
   const readOnce = (
     fake: ReturnType<typeof fakeEventSource>,
     count: number,
-    options?: { readonly onMalformed?: (frame: string, reason: MalformedReason) => void },
+    options?: { readonly onMalformed?: (frame: string, refusal: DecodeRefusal) => void },
   ) =>
     Effect.scoped(
       Effect.gen(function* () {
@@ -257,15 +263,15 @@ describe("sourceFromEventSource", () => {
     it.effect("a backlog frame that does not decode is reported and left out of the backlog", () =>
       Effect.gen(function* () {
         const fake = fakeEventSource();
-        const reported: Array<readonly [string, MalformedReason]> = [];
+        const reported: Array<readonly [string, DecodeRefusal]> = [];
         fake.queueEvent("backlog", "}{ not json");
         fake.queueEvent("backlog", frameOf(decisionRecord({ evaluationId: "kept" })));
         fake.queueEvent("synced", '{"backlog":2}');
         fake.queue([frameOf(decisionRecord({ evaluationId: "live" }))]);
 
-        const got = yield* readOnce(fake, 1, { onMalformed: (frame, reason) => reported.push([frame, reason]) });
+        const got = yield* readOnce(fake, 1, { onMalformed: (frame, refusal) => reported.push([frame, refusal]) });
         assert.deepStrictEqual(ids(got.backlog), ["kept"]);
-        assert.deepStrictEqual(reported, [["}{ not json", "not-json"]]);
+        assert.deepStrictEqual(reported, [["}{ not json", DecodeRefusal.NotJson()]]);
       }));
   });
 
@@ -282,15 +288,17 @@ describe("sourceFromEventSource", () => {
         assert.deepStrictEqual(got.live.map((r) => r.environment), ["Server"]);
       }));
 
-    it.effect("a bare frame — what a server older than 0.10 sends — is not-a-record, never stamped", () =>
+    it.effect("a bare frame — what a server older than 0.10 sends — is Malformed, never stamped", () =>
       Effect.gen(function* () {
         const bare = Result.getOrThrow(encodeSinkRecordString(decisionRecord({ evaluationId: "old" })));
         const fake = fakeEventSource();
-        const reported: Array<readonly [string, MalformedReason]> = [];
+        const reported: Array<readonly [string, DecodeRefusal]> = [];
         fake.queueEvent("synced", '{"backlog":0}');
         fake.queue([bare, frameOf(decisionRecord({ evaluationId: "after" }))]);
-        const got = yield* readOnce(fake, 1, { onMalformed: (frame, reason) => reported.push([frame, reason]) });
-        assert.deepStrictEqual(reported, [[bare, "not-a-record"]]);
+        const got = yield* readOnce(fake, 1, { onMalformed: (frame, refusal) => reported.push([frame, refusal]) });
+        assert.strictEqual(reported.length, 1);
+        assert.strictEqual(reported[0]?.[0], bare);
+        assert.strictEqual(reported[0]?.[1]._tag, "Malformed");
         assert.deepStrictEqual(ids(got.live), ["after"]);
       }));
   });
@@ -312,16 +320,16 @@ describe("sourceFromEventSource", () => {
   it.effect("a frame that is not JSON drops that row, and says the transport broke", () =>
     Effect.gen(function* () {
       const fake = fakeEventSource();
-      const reported: Array<[string, string]> = [];
+      const reported: Array<[string, DecodeRefusal]> = [];
 
       const got = yield* collect(
         fake,
         ["}{ not json", frameOf(decisionRecord({ evaluationId: "after" }))],
         1,
-        { onMalformed: (frame, reason) => reported.push([frame, reason]) },
+        { onMalformed: (frame, refusal) => reported.push([frame, refusal]) },
       );
 
-      assert.deepStrictEqual(reported, [["}{ not json", "not-json"]]);
+      assert.deepStrictEqual(reported, [["}{ not json", DecodeRefusal.NotJson()]]);
       assert.strictEqual(got[0]?.evaluationId, "after");
     }));
 
@@ -329,7 +337,7 @@ describe("sourceFromEventSource", () => {
   it.effect("JSON that fails to decode drops that row, and says the protocol disagreed", () =>
     Effect.gen(function* () {
       const fake = fakeEventSource();
-      const reported: Array<[string, string]> = [];
+      const reported: Array<[string, DecodeRefusal]> = [];
 
       const got = yield* collect(
         fake,
@@ -338,7 +346,7 @@ describe("sourceFromEventSource", () => {
           frameOf(decisionRecord({ evaluationId: "after" })),
         ],
         1,
-        { onMalformed: (frame, reason) => reported.push([frame, reason]) },
+        { onMalformed: (frame, refusal) => reported.push([frame, refusal]) },
       );
 
       // The two failures are different problems with different fixes — a
@@ -346,16 +354,16 @@ describe("sourceFromEventSource", () => {
       // agree about the wire form — and a reader that cannot tell them apart
       // debugs the wrong one.
       assert.strictEqual(reported.length, 1);
-      assert.strictEqual(reported[0]?.[1], "not-a-record");
+      assert.strictEqual(reported[0]?.[1]._tag, "Malformed");
       assert.strictEqual(got[0]?.evaluationId, "after");
     }));
 
   /**
    * H6 — the inbound depth guard, exercised through the real SSE path.
    *
-   * Reported as `too-deep`, its own reason since ARCH-09: a current sender
+   * Reported as `TooDeep`, its own refusal since ARCH-09: a current sender
    * refuses to emit such a record (`encodeSinkRecord`'s matching bound), so a
-   * too-deep frame means an older or foreign sender, a third fix distinct from
+   * TooDeep frame means an older or foreign sender, a third fix distinct from
    * a broken transport or a protocol mismatch.
    *
    * Before `SinkCodec.ts`'s inbound decode gained a depth guard ahead of
@@ -375,7 +383,7 @@ describe("sourceFromEventSource", () => {
     () =>
       Effect.gen(function* () {
         const fake = fakeEventSource();
-        const reported: Array<[string, string]> = [];
+        const reported: Array<[string, DecodeRefusal]> = [];
 
         let policy: unknown = { _tag: "HasRole", role: "x" };
         for (let i = 0; i < MAX_DECODE_DEPTH + 10; i++) {
@@ -393,21 +401,21 @@ describe("sourceFromEventSource", () => {
           fake,
           [deepFrame, frameOf(decisionRecord({ evaluationId: "after" }))],
           1,
-          { onMalformed: (frame, reason) => reported.push([frame, reason]) },
+          { onMalformed: (frame, refusal) => reported.push([frame, refusal]) },
         );
 
         assert.strictEqual(reported.length, 1);
-        assert.strictEqual(reported[0]?.[1], "too-deep");
+        assert.deepStrictEqual(reported[0]?.[1], DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));
         assert.strictEqual(got[0]?.evaluationId, "after");
       }),
   );
 
   // E1.3 — a record naming no outcome is not a record: dropped as malformed,
   // never rebuilt as a verdict or as an invented error (tickets 96, 155).
-  it.effect("a Decision frame with no outcome is dropped as not-a-record, never rebuilt", () =>
+  it.effect("a Decision frame with no outcome is dropped as Malformed, never rebuilt", () =>
     Effect.gen(function* () {
       const fake = fakeEventSource();
-      const reported: Array<readonly [string, MalformedReason]> = [];
+      const reported: Array<readonly [string, DecodeRefusal]> = [];
       const frame = enveloped(JSON.stringify({
         _tag: "Decision",
         version: 2,
@@ -418,19 +426,21 @@ describe("sourceFromEventSource", () => {
       }));
 
       const got = yield* collect(fake, [frame, frameOf(decisionRecord({ evaluationId: "after" }))], 1, {
-        onMalformed: (bad, reason) => reported.push([bad, reason]),
+        onMalformed: (bad, refusal) => reported.push([bad, refusal]),
       });
 
-      assert.deepStrictEqual(reported, [[frame, "not-a-record"]]);
+      assert.strictEqual(reported.length, 1);
+      assert.strictEqual(reported[0]?.[0], frame);
+      assert.strictEqual(reported[0]?.[1]._tag, "Malformed");
       assert.strictEqual(got[0]?.evaluationId, "after");
     }));
 
   // ARCH-32: a well-formed record whose decision says allow beside a trace
-  // that says deny is neither version skew nor not-a-record.
-  it.effect("a decision that contradicts its own trace is dropped as inconsistent", () =>
+  // that says deny is neither version skew nor Malformed.
+  it.effect("a decision that contradicts its own trace is dropped as Inconsistent", () =>
     Effect.gen(function* () {
       const fake = fakeEventSource();
-      const reported: Array<readonly [string, MalformedReason]> = [];
+      const reported: Array<readonly [string, DecodeRefusal]> = [];
       const frame = enveloped(JSON.stringify({
         _tag: "Decision",
         version: 2,
@@ -452,10 +462,10 @@ describe("sourceFromEventSource", () => {
       }));
 
       const got = yield* collect(fake, [frame, frameOf(decisionRecord({ evaluationId: "after" }))], 1, {
-        onMalformed: (bad, reason) => reported.push([bad, reason]),
+        onMalformed: (bad, refusal) => reported.push([bad, refusal]),
       });
 
-      assert.deepStrictEqual(reported, [[frame, "inconsistent"]]);
+      assert.deepStrictEqual(reported, [[frame, DecodeRefusal.Inconsistent({ disagreement: "Verdict" })]]);
       assert.strictEqual(got[0]?.evaluationId, "after");
     }));
 
@@ -490,24 +500,26 @@ describe("sourceFromEventSource", () => {
         assert.strictEqual(got[0]?.evaluationId, "versioned");
       }));
 
-    it.effect("a pre-0.10 (version-1) record is dropped as unsupported-version, never upgraded", () =>
+    it.effect("a pre-0.10 (version-1) record is dropped as UnsupportedVersion, never upgraded", () =>
       Effect.gen(function* () {
-        const reported: Array<readonly [string, MalformedReason]> = [];
+        const reported: Array<readonly [string, DecodeRefusal]> = [];
         const got = yield* collect(fakeEventSource(), [pre010, framed], 1, {
-          onMalformed: (frame, reason) => reported.push([frame, reason]),
+          onMalformed: (frame, refusal) => reported.push([frame, refusal]),
         });
-        assert.deepStrictEqual(reported, [[pre010, "unsupported-version"]]);
+        assert.strictEqual(reported.length, 1);
+        assert.strictEqual(reported[0]?.[0], pre010);
+        assert.strictEqual(reported[0]?.[1]._tag, "UnsupportedVersion");
         assert.strictEqual(got[0]?.evaluationId, "versioned");
       }));
 
-    it.effect("a version-3 frame is dropped as unsupported-version, not as not-a-record", () =>
+    it.effect("a version-3 frame is dropped as UnsupportedVersion, not as Malformed", () =>
       Effect.gen(function* () {
-        const reported: Array<readonly [string, MalformedReason]> = [];
+        const reported: Array<readonly [string, DecodeRefusal]> = [];
         const newer = withField("version", 3);
         const got = yield* collect(fakeEventSource(), [newer, framed], 1, {
-          onMalformed: (frame, reason) => reported.push([frame, reason]),
+          onMalformed: (frame, refusal) => reported.push([frame, refusal]),
         });
-        assert.deepStrictEqual(reported, [[newer, "unsupported-version"]]);
+        assert.deepStrictEqual(reported, [[newer, DecodeRefusal.UnsupportedVersion({ version: 3, supported: WIRE_VERSIONS })]]);
         assert.strictEqual(got[0]?.evaluationId, "versioned");
       }));
   });
@@ -539,7 +551,35 @@ describe("sourceFromEventSource", () => {
       assert.strictEqual(logs.length, 1);
       assert.include(String(logs[0]?.message), "not a decision record");
       assert.include(String(annotationOf(logs[0]?.annotations, "qadi.frame")), "not json");
-      assert.strictEqual(annotationOf(logs[0]?.annotations, "qadi.reason"), "not-json");
+      assert.strictEqual(annotationOf(logs[0]?.annotations, "qadi.refusal"), "NotJson");
+      assert.isUndefined(annotationOf(logs[0]?.annotations, "qadi.reason"));
+    }));
+
+  // INV-QD-104: the message is fixed and the annotations are the refusal's tag and
+  // the frame; the decoder's message (sender-derived text) reaches neither.
+  it.effect("the default warning says which refusal, never the decoder's message", () =>
+    Effect.gen(function* () {
+      const fake = fakeEventSource();
+      const { lines: logs, layer: logger } = collectingLogger();
+      const frame = enveloped(JSON.stringify({
+        _tag: "Decision",
+        version: 2,
+        evaluationId: "broken",
+        at: 1,
+        subjectId: "alice",
+        policy: { _tag: "HasPermission", permission: { resource: "doc", action: "read" } },
+      }));
+
+      yield* collect(fake, [frame, frameOf(decisionRecord({ evaluationId: "after" }))], 1).pipe(
+        Effect.provide(logger),
+      );
+
+      assert.strictEqual(logs.length, 1);
+      assert.strictEqual(String(logs[0]?.message), "qadi/devtools: a frame was not a decision record");
+      assert.strictEqual(annotationOf(logs[0]?.annotations, "qadi.refusal"), "Malformed");
+      assert.isUndefined(annotationOf(logs[0]?.annotations, "qadi.reason"));
+      const others = Object.entries(Object(logs[0]?.annotations)).filter(([key]) => key !== "qadi.frame");
+      assert.isFalse(JSON.stringify(others).includes("Missing key"));
     }));
 
   // E1.4 — the connection drops.
@@ -869,7 +909,7 @@ describe("mergeSources", () => {
 });
 
 /**
- * The five drop words `onMalformed` receives, one frame each, written out by hand.
+ * The five refusals `onMalformed` receives, one frame each, written out by hand.
  *
  * `onMalformed`'s second argument is public, and a table of all five is what a
  * change to it is checked against row by row. Each frame is one the cases above
@@ -883,25 +923,25 @@ describe("what onMalformed receives, one frame per drop", () => {
   /** Delivers `frame`, then one good record, and returns what `onMalformed` was told. */
   const droppedFrame = (frame: string) =>
     Effect.gen(function* () {
-      const reported: Array<readonly [string, MalformedReason]> = [];
+      const reported: Array<readonly [string, DecodeRefusal]> = [];
       const got = yield* collect(
         fakeEventSource(),
         [frame, frameOf(decisionRecord({ evaluationId: "after" }))],
         1,
-        { onMalformed: (bad, reason) => reported.push([bad, reason]) },
+        { onMalformed: (bad, refusal) => reported.push([bad, refusal]) },
       );
       return { reported, delivered: got[0]?.evaluationId };
     });
 
-  it.effect("a frame that is not JSON: not-json", () =>
+  it.effect("a frame that is not JSON: NotJson", () =>
     Effect.gen(function* () {
       const frame = "}{ not json";
       const { reported, delivered } = yield* droppedFrame(frame);
-      assert.deepStrictEqual(reported, [[frame, "not-json"]]);
+      assert.deepStrictEqual(reported, [[frame, DecodeRefusal.NotJson()]]);
       assert.strictEqual(delivered, "after");
     }));
 
-  it.effect("a frame nested past the decode bound: too-deep", () =>
+  it.effect("a frame nested past the decode bound: TooDeep", () =>
     Effect.gen(function* () {
       let policy: unknown = { _tag: "HasRole", role: "x" };
       for (let i = 0; i < MAX_DECODE_DEPTH + 10; i++) {
@@ -915,27 +955,29 @@ describe("what onMalformed receives, one frame per drop", () => {
         policy,
       }));
       const { reported, delivered } = yield* droppedFrame(frame);
-      assert.deepStrictEqual(reported, [[frame, "too-deep"]]);
+      assert.deepStrictEqual(reported, [[frame, DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH })]]);
       assert.strictEqual(delivered, "after");
     }));
 
-  it.effect("a bare record, not an envelope: not-a-record", () =>
+  it.effect("a bare record, not an envelope: Malformed", () =>
     Effect.gen(function* () {
       const frame = Result.getOrThrow(encodeSinkRecordString(decisionRecord({ evaluationId: "old" })));
       const { reported, delivered } = yield* droppedFrame(frame);
-      assert.deepStrictEqual(reported, [[frame, "not-a-record"]]);
+      assert.deepStrictEqual(reported, [
+        [frame, DecodeRefusal.Malformed({ message: "a bare record, not a stored-record envelope { environment, record }" })],
+      ]);
       assert.strictEqual(delivered, "after");
     }));
 
-  it.effect("a version-3 record: unsupported-version", () =>
+  it.effect("a version-3 record: UnsupportedVersion", () =>
     Effect.gen(function* () {
       const frame = enveloped(JSON.stringify({ ...JSON.parse(recordText), version: 3 }));
       const { reported, delivered } = yield* droppedFrame(frame);
-      assert.deepStrictEqual(reported, [[frame, "unsupported-version"]]);
+      assert.deepStrictEqual(reported, [[frame, DecodeRefusal.UnsupportedVersion({ version: 3, supported: WIRE_VERSIONS })]]);
       assert.strictEqual(delivered, "after");
     }));
 
-  it.effect("a record that contradicts its own trace: inconsistent", () =>
+  it.effect("a record that contradicts its own trace: Inconsistent", () =>
     Effect.gen(function* () {
       const frame = enveloped(JSON.stringify({
         _tag: "Decision",
@@ -957,7 +999,7 @@ describe("what onMalformed receives, one frame per drop", () => {
         },
       }));
       const { reported, delivered } = yield* droppedFrame(frame);
-      assert.deepStrictEqual(reported, [[frame, "inconsistent"]]);
+      assert.deepStrictEqual(reported, [[frame, DecodeRefusal.Inconsistent({ disagreement: "Verdict" })]]);
       assert.strictEqual(delivered, "after");
     }));
 });
