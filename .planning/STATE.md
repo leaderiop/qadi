@@ -5,16 +5,16 @@ milestone_name: Arch Wave 9
 current_phase: 40
 current_phase_name: Core owns describing a decode refusal
 status: executing
-stopped_at: Phase QD-39 complete, ready to plan Phase 40
-last_updated: "2026-11-14T12:11:02.607Z"
+stopped_at: Completed QD-40-01-PLAN.md
+last_updated: "2026-11-14T12:16:15.805Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase QD-39 complete, transitioned to Phase 40
-state_head: b716786c1ff0766133e84b1f4a0a414ba9c44719
+state_head: 251ccd1a7aee0a7a1a2be60721c38720e5acfc77
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 27
-  completed_plans: 18
+  completed_plans: 19
   percent: 50
 ---
 
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-11-14)
 
 ## Current Position
 
-Phase: QD-40 (Core owns describing a decode refusal) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-11-14 — Phase QD-39 complete, transitioned to Phase 40
+Phase: QD-40 (Core owns describing a decode refusal) — EXECUTING
+Plan: 2 of 9
+Status: Plan 40-01 complete (baseline, ADR-QD-153); ready for 40-02
+Last activity: 2026-11-14 — Completed 40-01 (mutation baseline, ADR-QD-153)
 
 Progress: [█████░░░░░] 50% (v1.4: 1 of 6 phases)
 
@@ -224,6 +224,7 @@ Progress: [█████░░░░░] 50% (v1.4: 1 of 6 phases)
 | Phase QD-39 P03 | 15 min | 2 tasks | 1 files |
 | Phase QD-39 P04 | 25 min | 3 tasks | 11 files |
 | Phase QD-39 P05 | 10 min | 3 tasks | 1 files |
+| Phase QD-40 P01 | 4 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -360,6 +361,7 @@ Progress: [█████░░░░░] 50% (v1.4: 1 of 6 phases)
 - [Phase QD-39]: 39-03: a payload row compiles everywhere in react (payload refusal map is keyed by decoder tags); only an entry row is a compile error, at bucketOf
 - [Phase QD-39]: 39-04: ADR-QD-152 states the payload-row finding as found (only an entry row is a compile error in react, at bucketOf); INV-QD-323 is the one new number, BEH-QD-531 to 535 and INV-QD-324 are Unused
 - [Phase QD-39]: Phase 39 close: no mutation drop; core's HydrationMetrics.ts scores 1 on nothing scored (18 static mutants ignored), carried by the written-out pins and experiments
+- [Phase QD-40]: ADR-QD-153 records the counted single decode (Schema.decodeTo, SinkCodec.ts 1 to 2, AuditEntry.ts row retired, total 11, Schema.encodeTo rejected) and the Breaking devtools surface (onMalformed receives DecodeRefusal, qadi.reason, MalformedReason and reasonOf deleted, no alias)
 
 ### Pending Todos
 
@@ -405,8 +407,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T06:15:53.798Z
-Stopped at: Phase QD-39 complete, ready to plan Phase 40
+Last session: 2026-11-14T12:16:15.740Z
+Stopped at: Completed QD-40-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
