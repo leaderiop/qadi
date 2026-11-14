@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-123                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-10                                     |
 > | Status         | Accepted — amends ADR-QD-052                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-12): Amendment wording: PortMetrics.ts now imports the PortName leaf (CCR-QD-427)<br>1.1 (2026-11-12): amendment — PortName and PortSpanName live in PortName.ts, not PortMetrics.ts (ARCH-77, CCR-QD-419)<br>1.0 (2026-11-10): Initial (ARCH-61, CCR-QD-401) |
+> | Change History | 1.3 (2026-11-14): amendment: the hydration drop vocabulary is one table, the metric unchanged (ADR-QD-152, ARCH-86, CCR-QD-430)<br>1.2 (2026-11-12): Amendment wording: PortMetrics.ts now imports the PortName leaf (CCR-QD-427)<br>1.1 (2026-11-12): amendment — PortName and PortSpanName live in PortName.ts, not PortMetrics.ts (ARCH-77, CCR-QD-419)<br>1.0 (2026-11-10): Initial (ARCH-61, CCR-QD-401) |
 
 ---
 
@@ -128,3 +128,13 @@ module that counts nothing (ARCH-77, [ADR-QD-094](./094-a-port-is-described-once
 sentence that `PortMetrics.ts` owns `PortName` is therefore corrected above to past tense. Its reason
 stands: `PortMetrics.ts` now imports the leaf, never the reverse, so the type-only cycle
 ADR-QD-037 counts cannot form. No metric id, description, type or registry key changed.
+
+## Amendment (2026-11-14, ADR-QD-152, CCR-QD-430)
+
+The hydration drop vocabulary, which the Alternatives above kept out of a consolidation because it
+is not a metric, is now one module-private table in `HydrationMetrics.ts` holding each reason with
+its kind and meaning ([ADR-QD-152](./152-each-hydration-drop-reason-is-stated-once-with-its-kind.md)).
+`qadi_hydration_dropped_total` did not move: its declaration, id, description and
+`preregisteredWords: hydrationDropReasons` are byte-identical, so its registry key is too, and
+`hydrationDropReasons` is now the table's keys in declaration order, the same nine words in the
+same order. Its `[metric-table]` row is unchanged.
