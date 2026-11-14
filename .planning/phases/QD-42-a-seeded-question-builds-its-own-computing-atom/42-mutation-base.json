@@ -1,0 +1,64 @@
+{
+ "measured": {
+  "packages/react/src/HydrationEngine.ts": 0.9783549783549783,
+  "packages/react/src/QadiAtoms.ts": 0.896551724137931
+ },
+ "unmeasured": {},
+ "new": [],
+ "deleted": {},
+ "moved": {
+  "packages/react/src/SeededQuestion.ts": {
+   "from": [
+    "packages/react/src/HydrationEngine.ts",
+    "packages/react/src/QadiAtoms.ts"
+   ],
+   "region": {
+    "detected": 62,
+    "scored": 67,
+    "score": 0.9253731343283582
+   },
+   "survivors": [
+    {
+     "from": "packages/react/src/HydrationEngine.ts",
+     "line": 716,
+     "column": 12,
+     "mutatorName": "ConditionalExpression",
+     "replacement": "true",
+     "original": "Option.isSome(held) && held.value instanceof SeedGrant"
+    },
+    {
+     "from": "packages/react/src/HydrationEngine.ts",
+     "line": 628,
+     "column": 19,
+     "mutatorName": "StringLiteral",
+     "replacement": "\"\"",
+     "original": "\"SeedGrant\""
+    },
+    {
+     "from": "packages/react/src/HydrationEngine.ts",
+     "line": 716,
+     "column": 12,
+     "mutatorName": "LogicalOperator",
+     "replacement": "Option.isSome(held) || held.value instanceof SeedGrant",
+     "original": "Option.isSome(held) && held.value instanceof SeedGrant"
+    },
+    {
+     "from": "packages/react/src/HydrationEngine.ts",
+     "line": 724,
+     "column": 36,
+     "mutatorName": "ObjectLiteral",
+     "replacement": "{}",
+     "original": "{ announced: false }"
+    },
+    {
+     "from": "packages/react/src/QadiAtoms.ts",
+     "line": 291,
+     "column": 19,
+     "mutatorName": "ConditionalExpression",
+     "replacement": "false",
+     "original": "resource === undefined"
+    }
+   ]
+  }
+ }
+}
