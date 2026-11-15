@@ -476,7 +476,32 @@ Plans:
   5. The existing concurrency regression tests (`CircuitBreaker.test.ts:339, 403, 426, 452`) pass unchanged as adapter tests, and the breaker's metrics and transition announcements are unchanged.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `CircuitBreaker.ts`, the `NaN` RED and the transition table written against the base's observable behaviour, committed first; then the pure function and the adapter, one event converted at a time; then option validation (`AuditDecisionSinkLive.ts` :127 passes options through unvalidated); then records. Keep the work off the lines Phase 48 will edit.
-**Plans**: TBD
+**Plans**: 8 plans
+
+Plans:
+**Wave 1**
+- [ ] 45-01-PLAN.md — mutation base for `CircuitBreaker.ts` and `AuditDecisionSinkLive.ts` (first commit); the adapter transition table green on the base; the option rows RED (`failureThreshold: NaN` never opens)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 45-02-PLAN.md — tracer: `step` and `run`, with Observe converted; then the pure transition table and the seeded property
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 45-03-PLAN.md — Success, Failure, Claim and Release each one `step`, one commit per event; `generation + 1` written once; every converting commit replayed green
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 45-04-PLAN.md — tracer: `InvalidAuditSinkOption` and the `failureThreshold` refusal through the sink's layer type; the barrel line and overview row; then `resetTimeoutMs`
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 45-05-PLAN.md — the `storeCallTimeout` refusal (`Duration.infinity` kept) and the zero-deadline row; the option rows tightened; the layer's type pin; `check:fast`
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 45-06-PLAN.md — ADR-QD-158, the ADR-QD-126 amendment, the CCR-QD-436 row started; the `@qadi/audit` minor Breaking changeset, the 0.13 upgrade entry, README and website claims
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 45-07-PLAN.md — BEH-QD-561, INV-QD-335, the BEH-QD-249/251/379 and INV-QD-052 amendments, traceability, the overview options row, CCR-QD-436 completed
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 45-08-PLAN.md — close: mutation after-run and comparison, scope and scan, commit order and ids, `check:pr`, release check
 
 ### Phase 46: The sink emitter reports what it contains
 
