@@ -368,7 +368,7 @@ Order: defects first (43-46), then the "stated once" deepenings (47-49), then th
 
 ### Phases
 
-- [ ] **Phase 43: One handover module behind the enforcement entry points** - One package-private module owns ask → discharge → release; `guard` and `filter*` refuse a second `resource` at the type level (ARCH-90, Breaking, core)
+- [x] **Phase 43: One handover module behind the enforcement entry points** - One package-private module owns ask → discharge → release; `guard` and `filter*` refuse a second `resource` at the type level (ARCH-90, Breaking, core) (completed 2026-11-15)
 - [ ] **Phase 44: The hydration seed's fields stated once** - Each verdict's seed fields derive from core's wire statement; dehydrate and rebuild are spreads, so a new wire field can no longer be dropped (ARCH-91, react)
 - [ ] **Phase 45: The audit circuit breaker as one transition function** - One pure `(state, event, now)` function holds every generation and probe rule; a `NaN` threshold is refused at construction (ARCH-92, audit)
 - [ ] **Phase 46: The sink emitter reports what it contains** - A failing or dying user sink is contained and reported with exactly one warning, naming the sink (ARCH-93, core)
@@ -397,7 +397,7 @@ Order: defects first (43-46), then the "stated once" deepenings (47-49), then th
   5. No call site passes `resource` to `guard` or `filter*` in `packages/*`, `examples/*`, `features/step-definitions` or the spec and website ` ```typescript ` fences (both doc-fence gates green); INV-QD-108 is restated, and the Breaking change is in the `@qadi/core` changeset and `upgrading.md`.
 
 **Planning notes**: Re-verify the line numbers in `_WAVE10-CONTEXT.md` (`Qadi.ts` :113, :129, :197, :406, :430) against the base. **Plan shape, RED first**: the mutation base for `Qadi.ts`, the tstyche RED and the characterisation tests, committed first; then the module with one entry point converted at a time, deleting a duplicated branch only after the module's test covers it; then the call-site sweep across `packages/*`, `examples/*`, `features/step-definitions` and both fence sets; then the records plan; run `pnpm spec:website-examples` explicitly and `pnpm circular` after the first move.
-**Plans**: 8/8 plans executed
+**Plans**: 8/8 plans complete
 
 Plans:
 **Wave 1**
@@ -591,7 +591,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 43. One handover module behind the enforcement entry points | 8/8 | In Progress | - |
+| 43. One handover module behind the enforcement entry points | 8/8 | Complete    | 2026-11-15 |
 | 44. The hydration seed's fields stated once | 0/TBD | Not started | - |
 | 45. The audit circuit breaker as one transition function | 0/TBD | Not started | - |
 | 46. The sink emitter reports what it contains | 0/TBD | Not started | - |
