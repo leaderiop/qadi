@@ -40,6 +40,7 @@ Shared wave rules: `.planning/phases/_WAVE10-CONTEXT.md`. Reserved ids: ARCH-93,
 - **D-05:** `DecisionSinkShape` gains `readonly name?: string | undefined`, the same shape `AttributeResolverShape` uses (AGENTS.md §2). It is optional, so existing sinks still compile.
 - **D-06:** Every shipped sink names itself: `decisionSinkForwarding`, `decisionSinkAll`, `DecisionLog`'s sink, `AuditDecisionSinkLive`, and any devtools or react sink research finds. A warning from a shipped sink never says "unnamed".
 - **D-07:** `decisionSinkAll` is named a fixed `"decisionSinkAll"`.
+- **D-06a (user decision 2026-11-15):** The shadow sink at `EvaluationEnvironment.ts:75` is a fifth shipped sink and is named too (`"evaluationEnvironment.shadow"`), applying D-06 literally, even though it cannot fail today.
 - **D-08:** An unnamed sink's warning carries `"unnamed"` in the name annotation, with the same message. It still produces its one warning.
 
 ### Classifying the shipped sinks' warnings
@@ -47,7 +48,7 @@ Shared wave rules: `.planning/phases/_WAVE10-CONTEXT.md`. Reserved ids: ARCH-93,
   - keep the encode-refusal report (`reportRefusal`) and the send-failure report (`reportSendFailure`, which calls `onFailure`). Both say something else: the sink handled the failure.
   - remove the outer defence-in-depth `Effect.catchCause` (the one for a throwing `onFailure`). It is containment the emitter now covers, so a throwing `onFailure` gets the emitter's one warning.
 - **D-10:** `decisionSinkAll`'s per-member catch stays, because it changes behaviour: the members after a failed one still run. Its warning gains the failing member's `name` (`"unnamed"` when the member has none). A member's failure is reported once, by `decisionSinkAll`, and the emitter sees success.
-- **D-11:** `DecisionLog`'s `isolate` stays. It changes behaviour (the other half still runs) and says which half failed.
+- **D-11 (amended after research, user decision 2026-11-15):** `DecisionLog`'s two `isolate` catches stay because they say which half failed (append or publish), which the emitter cannot say. They do **not** let the other half run: an append defect skips publish, and a publish defect comes after append. The doc comment at `DecisionLog.ts:165-171` and the BEH text are corrected to say this. Each half gets a pin where a test can reach it. A half no test can reach is recorded as kept but unreachable.
 - **D-12:** For any other shipped sink found in research (audit, devtools, react), the rule is one failure, one report:
   - a sink's own catch stays only if it changes behaviour or says something the emitter cannot;
   - pure outer containment is removed.
@@ -62,6 +63,7 @@ Shared wave rules: `.planning/phases/_WAVE10-CONTEXT.md`. Reserved ids: ARCH-93,
 
   Each asserts exactly one warning (zero on the phase base) and an unchanged decision. A named sink's warning carries its name, and an unnamed one carries `"unnamed"`.
 - **D-14:** A "failing" sink is written without `as`. `record`'s error is `never`, so a test fails a sink as a defect. Research checks whether a typed failure can leak without a cast, and pins one if it can.
+- **D-14a (user decision 2026-11-15):** One RED row pins a typed failure leaked without `as`. It uses a type predicate `(x: unknown): x is never`, then `Effect.fail`, and is named for what it is: a type escape. It sits beside the die, throw and self-interrupt rows. The spec says the `never` channel closes the gap except by deliberate escape.
 - **D-15:** Warnings are counted with a test logger (`Logger.make` collecting entries), which reads the level and the annotations. No `console`.
 - **D-16:** The base Stryker scores for `SinkEmit.ts`, `DecisionSinkForwarding.ts`, `DecisionLog.ts` and every other edited sink file are committed alone, first. No touched file's score may drop.
 
