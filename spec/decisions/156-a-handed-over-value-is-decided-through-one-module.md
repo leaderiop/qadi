@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-156                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-15                                     |
 > | Status         | Accepted — extends ADR-QD-104                  |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-15): Initial (ARCH-90, CCR-QD-434) |
+> | Change History | 1.1 (2026-11-15): INV-QD-108 link uses the restated heading's anchor (ARCH-90, CCR-QD-434)<br>1.0 (2026-11-15): Initial (ARCH-90, CCR-QD-434) |
 
 ---
 
@@ -80,7 +80,7 @@ Architecture review #6 found that `Qadi.ts` decided a handed-over value in two i
 
 ## Consequences
 
-- [INV-QD-108](../invariants.md#inv-qd-108-a-projected-value-is-the-evaluated-resource) covers eight entry points rather
+- [INV-QD-108](../invariants.md#inv-qd-108-a-handed-over-value-is-the-evaluated-resource) covers eight entry points rather
   than three.
 - [INV-QD-013](../invariants.md#inv-qd-013-enforcement-never-proceeds-on-an-undischarged-obligation)'s paragraph on the two
   paths goes, and a new invariant states that the array and stream forms of a collection agree.
