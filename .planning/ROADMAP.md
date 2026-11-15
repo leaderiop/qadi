@@ -518,7 +518,7 @@ Plans:
   4. The sink is still read once per evaluation (ADR-QD-044/100, `sink-read-once`), a sink never changes a decision, and INV-QD-035 is restated to include the report.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `SinkEmit.ts` and the touched sinks, the two RED tests and a per-warning classification table committed first; then the emitter's report and the `name`; then removing only the covered duplicates; then records.
-**Plans**: 2/7 plans executed
+**Plans**: 3/7 plans executed
 
 Plans:
 **Wave 1**
@@ -528,7 +528,7 @@ Plans:
 - [x] 46-02-PLAN.md — one report per shipped-sink failure characterised green on the base; the names, the fan-out member and the forwarder rows RED; the audit name row; the W0-W10 classification table
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 46-03-PLAN.md — tracer: `DecisionSinkShape.name` and the emitter that suspends, contains and reports once; then the type pin and the corrected test notes
+- [x] 46-03-PLAN.md — tracer: `DecisionSinkShape.name` and the emitter that suspends, contains and reports once; then the type pin and the corrected test notes
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 46-04-PLAN.md — tracer: the fan-out names its failed member and keeps going; the forwarder's outer catch removed and a throwing `send` made a send failure; every shipped sink named; `check:fast`
@@ -660,7 +660,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 43. One handover module behind the enforcement entry points | 8/8 | Complete    | 2026-11-15 |
 | 44. The hydration seed's fields stated once | 6/6 | Complete    | 2026-11-15 |
 | 45. The audit circuit breaker as one transition function | 8/8 | Complete    | 2026-11-15 |
-| 46. The sink emitter reports what it contains | 2/7 | In Progress | - |
+| 46. The sink emitter reports what it contains | 3/7 | In Progress | - |
 | 47. Port facts read from the description | 0/TBD | Not started | - |
 | 48. Audit reports core's refusal and derives "lost" | 0/TBD | Not started | - |
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 0/TBD | Not started | - |

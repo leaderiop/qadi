@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 46
 current_phase_name: The sink emitter reports what it contains
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 46-02-PLAN.md
-last_updated: "2026-11-15T13:57:09.427Z"
+stopped_at: Completed 46-03-PLAN.md
+last_updated: "2026-11-15T13:59:47.349Z"
 last_activity: 2026-11-15
 last_activity_desc: Phase 46 execution started
-state_head: 5d18976b647741b53de45c40fb4a1d000df8dd98
+state_head: 935ce6970031a2ee5962ccd79f0ab95fc88a02d7
 progress:
   total_phases: 10
   completed_phases: 3
   total_plans: 29
-  completed_plans: 24
+  completed_plans: 25
   percent: 30
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 46 (The sink emitter reports what it contains) — EXECUTING
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 7
 Status: Ready to execute
 Last activity: 2026-11-15 — Phase 46 execution started
@@ -276,6 +276,7 @@ Progress: [███░░░░░░░] 30% (3 of 10 phases)
 | Phase 45 P08 | 10 min | 3 tasks | 1 files |
 | Phase 46 P01 | 22 min | 2 tasks | 2 files |
 | Phase 46 P02 | 12 min | 2 tasks | 3 files |
+| Phase 46 P03 | 10 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -457,6 +458,7 @@ Progress: [███░░░░░░░] 30% (3 of 10 phases)
 - [Phase 46]: 46-01: a sink whose name getter throws is reported once as unnamed (E7); an empty-string name is annotated as given (E11)
 - [Phase 46]: 46-01: mutation baseline re-measured on the base; scores equal RESEARCH Q7 (SinkEmit 1, DecisionSinkForwarding 0.8065, DecisionLog 0.9275, EvaluationEnvironment 1, AuditDecisionSinkLive 1)
 - [Phase 46]: 46-02: N4 reads the shadow sink with Effect.serviceOption(DecisionSink), since evaluationEnvironment's declared outputs omit DecisionSink
+- [Phase 46]: 46-03: reportSinkFailure is a plain untraced function and sinkName uses ?? so an empty name is kept; both live in SinkEmit.ts, sinkName package-private for 46-04
 
 ### Pending Todos
 
@@ -509,8 +511,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T13:57:09.357Z
-Stopped at: Completed 46-02-PLAN.md
+Last session: 2026-11-15T13:59:47.276Z
+Stopped at: Completed 46-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
