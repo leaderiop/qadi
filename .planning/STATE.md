@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 43
 current_phase_name: One handover module behind the enforcement entry points
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed QD-43-05-PLAN.md
-last_updated: "2026-11-15T01:47:15.468Z"
+stopped_at: Completed QD-43-06-PLAN.md
+last_updated: "2026-11-15T01:53:14.531Z"
 last_activity: 2026-11-15
 last_activity_desc: Roadmap created (Phases 43-52, 52/52 requirements mapped)
-state_head: d863b7190e293b18c76310d09f966b69ba8e73db
+state_head: 73b591a7270cb7f45d564b4f353c08a71794b37c
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 8
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 43 (One handover module behind the enforcement entry points) — READY TO EXECUTE
-Current Plan: 6
+Current Plan: 7
 Total Plans in Phase: 8
 Status: Ready to execute
 Last activity: 2026-11-15 — Roadmap created (Phases 43-52, 52/52 requirements mapped)
@@ -254,6 +254,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 10 phases)
 | Phase 43 P03 | 25min | 2 tasks | 5 files |
 | Phase 43 P04 | 30min | 2 tasks | 6 files |
 | Phase QD-43 P05 | 20min | 2 tasks | 7 files |
+| Phase 43 P06 | 12min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -415,6 +416,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 10 phases)
 - [Phase 43]: 43-03: guard adapts Handover.ts directly via admittedOrDenied/decidedOn; AccessDenied constructed once in Qadi.ts; closed RELEASE table is the one project( in the module
 - [Phase 43]: 43-04: handOver is a plain function per item (no Effect.fn); the array forms share keptInOrder, the stream forms Stream.filterMap over the same Result; @qadi/promise filter/filterProjected take Omit<FacadeOptions, resource>, no branch
 - [Phase QD-43]: 43-05: upgrade sections link ADR-QD-156 at its planned filename; one Breaking changeset per package
+- [Phase 43]: ADR-QD-156: Handover.ts owns options, verdict, discharge, resource scoping and release; guard adapts it directly; LoadedEnforceOptions renamed HandoverOptions with no alias
 
 ### Pending Todos
 
@@ -464,8 +466,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T01:47:15.443Z
-Stopped at: Completed QD-43-05-PLAN.md
+Last session: 2026-11-15T01:53:14.500Z
+Stopped at: Completed QD-43-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

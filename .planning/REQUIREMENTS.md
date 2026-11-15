@@ -23,7 +23,7 @@
   - `examples/*`;
   - `features/step-definitions`;
   - the spec and website ` ```typescript ` fences (both doc-fence gates green).
-- [ ] **HAND-06**: ADR-QD-156 extends ADR-104, and INV-QD-108 is restated to cover every handover entry point.
+- [x] **HAND-06**: ADR-QD-156 extends ADR-104, and INV-QD-108 is restated to cover every handover entry point.
 
 ### The hydration seed's fields stated once (Phase 44, ARCH-91, react)
 
@@ -148,7 +148,7 @@ The seven WX rows apply to every phase 43 to 52, so each phase's Requirements li
 | HAND-03 | Phase 43 | Complete |
 | HAND-04 | Phase 43 | Complete |
 | HAND-05 | Phase 43 | Complete |
-| HAND-06 | Phase 43 | Pending |
+| HAND-06 | Phase 43 | Complete |
 | HYDF-01 | Phase 44 | Pending |
 | HYDF-02 | Phase 44 | Pending |
 | HYDF-03 | Phase 44 | Pending |
