@@ -34,7 +34,6 @@ import type {
   SubjectId,
 } from "@qadi/core";
 import {
-  DecisionWireDeny,
   decisionDisagreement,
   Policy as PolicySchema,
   encodeDecision,
@@ -54,7 +53,7 @@ import { hydrationDropReporter, saysDehydrationDropped, saysHydrationDropped } f
 import type { DecisionEntry, EntryDropReason, HydrationHooks, PayloadRefusalReason } from "./HydrationEvent.ts";
 import { HydrationEvent, emitHydration } from "./HydrationEvent.ts";
 import type { SeededDecision } from "./SeededDecision.ts";
-import { ALLOW_WITHHELD, AllowSeedFields, DenyDisclosure, SeededAllow, SeededDeny } from "./SeededDecision.ts";
+import { ALLOW_WITHHELD, AllowSeedFields, DENY_WITHHELD, DenySeedFields, SeededAllow, SeededDeny } from "./SeededDecision.ts";
 import type { SeedSlot } from "./SeededQuestion.ts";
 
 // Named here rather than reached through the barrel: `DeveloperSignals.ts` stays
@@ -70,12 +69,6 @@ export type InitialValues = Iterable<readonly [Atom.Atom<unknown>, unknown]>;
 // ---------------------------------------------------------------------------
 
 /**
- * A deny entry withholds what an allow does, plus the two fields a denial
- * discloses only under `includeTrace`, inside its `disclosure`.
- */
-const DENY_WITHHELD = [...ALLOW_WITHHELD, "obligations", "reason"] as const;
-
-/**
  * One decision's wire form inside a payload: the seed's fields under the wire's tag.
  *
  * The subject lives on the envelope instead of each entry, and the trace (and,
@@ -85,10 +78,7 @@ const DENY_WITHHELD = [...ALLOW_WITHHELD, "obligations", "reason"] as const;
  */
 const AllowEntry = Schema.TaggedStruct("Allow", AllowSeedFields.fields);
 
-const DenyEntry = DecisionWireDeny.mapFields((fields) => ({
-  ...Struct.omit(fields, DENY_WITHHELD),
-  disclosure: DenyDisclosure,
-}));
+const DenyEntry = Schema.TaggedStruct("Deny", DenySeedFields.fields);
 
 /**
  * One entry of a version-2 payload.
@@ -366,12 +356,7 @@ const rebuild = (entry: DehydratedEntry, subjectId: SubjectId): SeededDecision =
   const d = entry.decision;
   return d._tag === "Allow"
     ? new SeededAllow({ ...d, subjectId })
-    : new SeededDeny({
-        evaluationId: d.evaluationId,
-        subjectId,
-        durationMillis: d.durationMillis,
-        disclosure: d.disclosure,
-      });
+    : new SeededDeny({ ...d, subjectId });
 };
 
 /**

@@ -69,6 +69,14 @@ export type DenyDisclosure = typeof DenyDisclosure.Type;
 export const ALLOW_WITHHELD = ["subjectId", "trace"] as const;
 
 /**
+ * A deny entry withholds what an allow does, plus the two fields a denial
+ * discloses only under `includeTrace`, inside its `disclosure`.
+ *
+ * A denial's `obligations` are always empty (D-04), so they are not carried.
+ */
+export const DENY_WITHHELD = [...ALLOW_WITHHELD, "obligations", "reason"] as const;
+
+/**
  * An allow seed's fields, stated once: the wire's allow minus what it withholds, plus its disclosure.
  *
  * `_tag` is omitted because the class carries its own (ADR-QD-078). The payload
@@ -80,6 +88,16 @@ export const ALLOW_WITHHELD = ["subjectId", "trace"] as const;
 export const AllowSeedFields = Schema.Struct({
   ...Struct.omit(DecisionWireAllow.fields, ["_tag", ...ALLOW_WITHHELD]),
   disclosure: AllowDisclosure,
+});
+
+/**
+ * A denial seed's fields, stated once: the wire's denial minus what it withholds, plus its disclosure.
+ *
+ * See {@link AllowSeedFields}; a denial carries no `visibleFields`, `obligations` or `reason` outside its disclosure.
+ */
+export const DenySeedFields = Schema.Struct({
+  ...Struct.omit(DecisionWireDeny.fields, ["_tag", ...DENY_WITHHELD]),
+  disclosure: DenyDisclosure,
 });
 
 /**
@@ -95,13 +113,13 @@ export class SeededAllow extends Data.TaggedClass("SeededAllow")<
   typeof AllowSeedFields.Type & { readonly subjectId: SubjectId }
 > {}
 
-/** The server's denial, as this client received it. See {@link SeededAllow}. */
-export class SeededDeny extends Data.TaggedClass("SeededDeny")<{
-  readonly evaluationId: string;
-  readonly subjectId: SubjectId;
-  readonly durationMillis: number;
-  readonly disclosure: DenyDisclosure;
-}> {}
+/**
+ * The server's denial, as this client received it. See {@link SeededAllow}.
+ * Its fields are {@link DenySeedFields} plus the subject.
+ */
+export class SeededDeny extends Data.TaggedClass("SeededDeny")<
+  typeof DenySeedFields.Type & { readonly subjectId: SubjectId }
+> {}
 
 /** A decision rebuilt from a payload, which is a projection and not an evaluation. */
 export type SeededDecision = SeededAllow | SeededDeny;
