@@ -397,11 +397,11 @@ Order: defects first (43-46), then the "stated once" deepenings (47-49), then th
   5. No call site passes `resource` to `guard` or `filter*` in `packages/*`, `examples/*`, `features/step-definitions` or the spec and website ` ```typescript ` fences (both doc-fence gates green); INV-QD-108 is restated, and the Breaking change is in the `@qadi/core` changeset and `upgrading.md`.
 
 **Planning notes**: Re-verify the line numbers in `_WAVE10-CONTEXT.md` (`Qadi.ts` :113, :129, :197, :406, :430) against the base. **Plan shape, RED first**: the mutation base for `Qadi.ts`, the tstyche RED and the characterisation tests, committed first; then the module with one entry point converted at a time, deleting a duplicated branch only after the module's test covers it; then the call-site sweep across `packages/*`, `examples/*`, `features/step-definitions` and both fence sets; then the records plan; run `pnpm spec:website-examples` explicitly and `pnpm circular` after the first move.
-**Plans**: 8 plans
+**Plans**: 1/8 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 43-01-PLAN.md — mutation baseline with the moved module (first commit), then the RED tstyche refusals for `guard`, `filter*` and the facade
+- [x] 43-01-PLAN.md — mutation baseline with the moved module (first commit), then the RED tstyche refusals for `guard`, `filter*` and the facade
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 43-02-PLAN.md — characterisation on the base: the effect and collection shapes, the spans, the smuggled resource (RED for `enforceProjected`)
@@ -591,7 +591,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 43. One handover module behind the enforcement entry points | 0/TBD | Not started | - |
+| 43. One handover module behind the enforcement entry points | 1/8 | In Progress | - |
 | 44. The hydration seed's fields stated once | 0/TBD | Not started | - |
 | 45. The audit circuit breaker as one transition function | 0/TBD | Not started | - |
 | 46. The sink emitter reports what it contains | 0/TBD | Not started | - |
