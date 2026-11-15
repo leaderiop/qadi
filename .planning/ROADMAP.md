@@ -476,7 +476,7 @@ Plans:
   5. The existing concurrency regression tests (`CircuitBreaker.test.ts:339, 403, 426, 452`) pass unchanged as adapter tests, and the breaker's metrics and transition announcements are unchanged.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `CircuitBreaker.ts`, the `NaN` RED and the transition table written against the base's observable behaviour, committed first; then the pure function and the adapter, one event converted at a time; then option validation (`AuditDecisionSinkLive.ts` :127 passes options through unvalidated); then records. Keep the work off the lines Phase 48 will edit.
-**Plans**: 6/8 plans executed
+**Plans**: 7/8 plans executed
 
 Plans:
 **Wave 1**
@@ -498,7 +498,7 @@ Plans:
 - [x] 45-06-PLAN.md — ADR-QD-158, the ADR-QD-126 amendment, the CCR-QD-436 row started; the `@qadi/audit` minor Breaking changeset, the 0.13 upgrade entry, README and website claims
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 45-07-PLAN.md — BEH-QD-561, INV-QD-335, the BEH-QD-249/251/379 and INV-QD-052 amendments, traceability, the overview options row, CCR-QD-436 completed
+- [x] 45-07-PLAN.md — BEH-QD-561, INV-QD-335, the BEH-QD-249/251/379 and INV-QD-052 amendments, traceability, the overview options row, CCR-QD-436 completed
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 45-08-PLAN.md — close: mutation after-run and comparison, scope and scan, commit order and ids, `check:pr`, release check
@@ -637,7 +637,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 |-------|----------------|--------|-----------|
 | 43. One handover module behind the enforcement entry points | 8/8 | Complete    | 2026-11-15 |
 | 44. The hydration seed's fields stated once | 6/6 | Complete    | 2026-11-15 |
-| 45. The audit circuit breaker as one transition function | 6/8 | In Progress | - |
+| 45. The audit circuit breaker as one transition function | 7/8 | In Progress | - |
 | 46. The sink emitter reports what it contains | 0/TBD | Not started | - |
 | 47. Port facts read from the description | 0/TBD | Not started | - |
 | 48. Audit reports core's refusal and derives "lost" | 0/TBD | Not started | - |
