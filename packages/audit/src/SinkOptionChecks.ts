@@ -15,7 +15,9 @@ import { InvalidAuditSinkOption } from "./InvalidAuditSinkOption.ts";
  * `NaN`, `Infinity` and anything past `Number.MAX_SAFE_INTEGER` built a breaker
  * that never opened: `consecutiveFailures` counts by one and cannot reach it.
  */
-export const checkFailureThreshold = (received: number): Effect.Effect<number, InvalidAuditSinkOption> =>
+export const checkFailureThreshold = (
+  received: number,
+): Effect.Effect<number, InvalidAuditSinkOption> =>
   Number.isSafeInteger(received) && received > 0
     ? Effect.succeed(received)
     : Effect.fail(new InvalidAuditSinkOption({ option: "failureThreshold", received }));
@@ -30,8 +32,13 @@ export const checkFailureThreshold = (received: number): Effect.Effect<number, I
  * because `NaN` decodes to a zero duration. A raw number is tested for being whole
  * before it is decoded, because `Duration.millis` rounds `1.0000000001` to 1 ms.
  */
-export const checkResetTimeoutMs = (received: Duration.Input): Effect.Effect<number, InvalidAuditSinkOption> => {
-  const millis = Option.filter(Duration.fromInput(received), (d) => Duration.isFinite(d) && Duration.isPositive(d)).pipe(
+export const checkResetTimeoutMs = (
+  received: Duration.Input,
+): Effect.Effect<number, InvalidAuditSinkOption> => {
+  const millis = Option.filter(
+    Duration.fromInput(received),
+    (d) => Duration.isFinite(d) && Duration.isPositive(d),
+  ).pipe(
     Option.map(Duration.toMillis),
     Option.filter(Number.isSafeInteger),
     Option.filter(() => typeof received !== "number" || Number.isInteger(received)),
@@ -42,14 +49,18 @@ export const checkResetTimeoutMs = (received: Duration.Input): Effect.Effect<num
 };
 
 /**
- * Refuses a store-call deadline that is not a positive duration; `Duration.infinity` is accepted as no deadline.
+ * Refuses a store-call deadline that is not a positive duration; `Duration.infinity`
+ * is accepted as no deadline.
  *
- * A zero, negative or `NaN` deadline timed every store call out at once, so every record was
- * `WriteFailed` and the breaker tripped from configuration alone. `Duration.infinity` stays the
- * documented opt-out (BEH-QD-379, ADR-QD-126), so finiteness is not tested. The raw input is
- * reported, because `NaN` decodes to a zero duration.
+ * A zero, negative or `NaN` deadline timed every store call out at once, so every
+ * record was `WriteFailed` and the breaker tripped from configuration alone.
+ * `Duration.infinity` stays the documented opt-out (BEH-QD-379, ADR-QD-126), so
+ * finiteness is not tested. The raw input is reported, because `NaN` decodes to a
+ * zero duration.
  */
-export const checkStoreCallTimeout = (received: Duration.Input): Effect.Effect<Duration.Duration, InvalidAuditSinkOption> => {
+export const checkStoreCallTimeout = (
+  received: Duration.Input,
+): Effect.Effect<Duration.Duration, InvalidAuditSinkOption> => {
   const deadline = Option.filter(Duration.fromInput(received), Duration.isPositive);
   return Option.isSome(deadline)
     ? Effect.succeed(deadline.value)
