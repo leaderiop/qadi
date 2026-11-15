@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 45
 current_phase_name: The audit circuit breaker as one transition function
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed 45-05-PLAN.md
-last_updated: "2026-11-15T06:48:08.110Z"
+stopped_at: Completed 45-06-PLAN.md
+last_updated: "2026-11-15T06:53:59.944Z"
 last_activity: 2026-11-15
 last_activity_desc: Phase 45 execution started
-state_head: 52dd8ab6a0d57b8c013bdcb14a90156d48f4b015
+state_head: 1fef41b6badb85ad38a631fd9697ec24ee73f092
 progress:
   total_phases: 10
   completed_phases: 2
   total_plans: 22
-  completed_plans: 19
+  completed_plans: 20
   percent: 20
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 45 (The audit circuit breaker as one transition function) — EXECUTING
-Current Plan: 6
+Current Plan: 7
 Total Plans in Phase: 8
 Status: Ready to execute
 Last activity: 2026-11-15 — Phase 45 execution started
@@ -270,6 +270,7 @@ Progress: [██░░░░░░░░] 20% (2 of 10 phases)
 | Phase 45 P03 | 6min | 2 tasks | 1 files |
 | Phase 45 P04 | 12min | 3 tasks | 8 files |
 | Phase QD-45 P05 | 8 min | 2 tasks | 5 files |
+| Phase 45 P06 | 25min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -445,6 +446,7 @@ Progress: [██░░░░░░░░] 20% (2 of 10 phases)
 - [Phase 45]: 45-03: the four helpers survive as one-liners over run, so admit/withPermit/finalizer stay byte-identical to phase_base
 - [Phase 45]: 45-04: a bad breaker option is a typed InvalidAuditSinkOption refusal at construction; the layer error channel moves from never; received carries the raw input because NaN decodes to a zero duration
 - [Phase QD-45]: 45-05: storeCallTimeout is checked by the sink after the breaker is built (two bad options name the breaker's first); Duration.infinity stays no deadline (D-06a)
+- [Phase 45]: ADR-QD-158: a refused sink option is a typed InvalidAuditSinkOption (config), unlike BEH-QD-166's defect (code constant); Duration.infinity stays accepted
 
 ### Pending Todos
 
@@ -496,8 +498,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T06:48:08.072Z
-Stopped at: Completed 45-05-PLAN.md
+Last session: 2026-11-15T06:53:59.906Z
+Stopped at: Completed 45-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
