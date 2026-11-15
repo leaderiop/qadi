@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-157                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-15                                     |
 > | Status         | Accepted — amends ADR-QD-078                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-15): the byte golden does not guard a new optional wire field; the key-set pin does (ARCH-91, CCR-QD-435)<br>1.1 (2026-11-15): Related: BEH-QD-556 and INV-QD-333 (ARCH-91, CCR-QD-435)<br>1.0 (2026-11-15): Initial (ARCH-91, CCR-QD-435) |
+> | Change History | 1.3 (2026-11-15): Consequences: the guard is both the wire key-set pin and the engine-agreement test (ARCH-91, CCR-QD-435)<br>1.2 (2026-11-15): the byte golden does not guard a new optional wire field; the key-set pin does (ARCH-91, CCR-QD-435)<br>1.1 (2026-11-15): Related: BEH-QD-556 and INV-QD-333 (ARCH-91, CCR-QD-435)<br>1.0 (2026-11-15): Initial (ARCH-91, CCR-QD-435) |
 
 ---
 
@@ -92,8 +92,10 @@ the same trust boundary.
   default. `trace`, and a denial's `reason` and `obligations`, stay withheld by name. The byte golden in
   `HydrationSeedFields.test.ts` moves only for a field its fixtures populate, so a new optional wire field would pass
   it; the guard is that file's key-set pin, which compares `DecisionWireAllow`'s and `DecisionWireDeny`'s keys with an
-  explicit disclosed and withheld list and fails on any new field until it is classified (plan 44-03's GREEN run: the
-  scratch field reaches the seed with no edit in `rebuild`).
+  explicit disclosed and withheld list and fails on any new field until it is classified, together with the test that
+  the withheld half of that list equals the engine's `ALLOW_WITHHELD`/`DENY_WITHHELD`, so a field cannot be classified
+  withheld in the test and still ship (plan 44-03's GREEN run: the scratch field reaches the seed with no edit in
+  `rebuild`).
 - **Breaking for `@qadi/react` (minor).** `SeededAllow`'s `visibleFields` is an optional key, absent when the server sent
   none. Reading it and constructing a seed are unchanged. A type that requires the key, and a check of its presence
   (`in`, `Object.keys`, `Equal.equals` against a seed built with an explicit `undefined`), break.
