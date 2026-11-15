@@ -78,9 +78,11 @@ const askTwice = Effect.gen(function* () {
 The ninth service, optional on the same terms as the cache
 ([ADR-QD-044](https://github.com/leaderiop/qadi/blob/main/spec/decisions/044-an-optional-decision-sink.md)).
 `evaluate` hands it every completed evaluation and reads nothing back — its
-`record` method returns `Effect<void>` with no error channel, and `evaluate`
-additionally catches any defect at the call site, so nothing a sink does can
-reach back and alter the decision it was just given
+`record` method returns `Effect<void>` with no error channel, and the one
+emitter contains whatever a sink does anyway, a defect or a throw, and reports
+it once as a warning naming the sink (its optional `name`, or `unnamed`;
+[ADR-QD-159](https://github.com/leaderiop/qadi/blob/main/spec/decisions/159-the-sink-emitter-reports-what-it-contains.md)),
+so nothing a sink does can reach back and alter the decision it was just given
 ([INV-QD-035](https://github.com/leaderiop/qadi/blob/main/spec/invariants.md#inv-qd-035-a-sink-cannot-change-a-decision)).
 A cache hit doesn't skip the sink either — the trace was reused, but the
 sink still receives a full record for that call.

@@ -79,7 +79,8 @@ const program = evaluate(hasRole("editor")).pipe(Effect.provide(decisionCacheLay
 **`DecisionSink`** is the only write-only port in the library: `evaluate`
 hands it every completed evaluation through its one method, `record()`, and
 reads nothing back. Whatever happens inside a sink — a failure, even a defect
-— cannot change the decision that already happened. `@qadi/audit`'s
+— cannot change the decision that already happened, and it is reported once, as a
+warning naming the sink. `@qadi/audit`'s
 `AuditDecisionSinkLive` is the assembled implementation of this seam; see
 [@qadi/audit](/docs/packages/audit/).
 
