@@ -99,7 +99,6 @@ const mismatch: HydrationMismatch = {
     evaluationId: "e0",
     subjectId: makeSubjectId("u1"),
     durationMillis: 1,
-    visibleFields: undefined,
     obligations: [],
     disclosure: { _tag: "Withheld" },
   }),

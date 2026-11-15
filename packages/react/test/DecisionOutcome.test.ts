@@ -75,7 +75,6 @@ const seededAllow = new SeededAllow({
   evaluationId: "s-allow",
   subjectId,
   durationMillis: 0,
-  visibleFields: undefined,
   obligations: [],
   disclosure: { _tag: "Withheld" },
 });
