@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 46
 current_phase_name: The sink emitter reports what it contains
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 46-01-PLAN.md
-last_updated: "2026-11-15T13:52:07.579Z"
+stopped_at: Completed 46-02-PLAN.md
+last_updated: "2026-11-15T13:57:09.427Z"
 last_activity: 2026-11-15
 last_activity_desc: Phase 46 execution started
-state_head: 43a0b1b58017d60a2e54848eec3bf2f1d6df9e96
+state_head: 5d18976b647741b53de45c40fb4a1d000df8dd98
 progress:
   total_phases: 10
   completed_phases: 3
   total_plans: 29
-  completed_plans: 23
+  completed_plans: 24
   percent: 30
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 46 (The sink emitter reports what it contains) — EXECUTING
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 7
 Status: Ready to execute
 Last activity: 2026-11-15 — Phase 46 execution started
@@ -275,6 +275,7 @@ Progress: [███░░░░░░░] 30% (3 of 10 phases)
 | Phase QD-45 P07 | 12 min | 2 tasks | 6 files |
 | Phase 45 P08 | 10 min | 3 tasks | 1 files |
 | Phase 46 P01 | 22 min | 2 tasks | 2 files |
+| Phase 46 P02 | 12 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -455,6 +456,7 @@ Progress: [███░░░░░░░] 30% (3 of 10 phases)
 - [Phase 45]: 45-08: mutation held without a survivor test round; CircuitBreaker.ts 0.8496 vs base 0.8051, AuditDecisionSinkLive.ts 1
 - [Phase 46]: 46-01: a sink whose name getter throws is reported once as unnamed (E7); an empty-string name is annotated as given (E11)
 - [Phase 46]: 46-01: mutation baseline re-measured on the base; scores equal RESEARCH Q7 (SinkEmit 1, DecisionSinkForwarding 0.8065, DecisionLog 0.9275, EvaluationEnvironment 1, AuditDecisionSinkLive 1)
+- [Phase 46]: 46-02: N4 reads the shadow sink with Effect.serviceOption(DecisionSink), since evaluationEnvironment's declared outputs omit DecisionSink
 
 ### Pending Todos
 
@@ -507,8 +509,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T13:52:07.495Z
-Stopped at: Completed 46-01-PLAN.md
+Last session: 2026-11-15T13:57:09.357Z
+Stopped at: Completed 46-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
