@@ -738,3 +738,34 @@ export const fieldsOf = (seed: SeededAllow): { readonly visibleFields: VisibleFi
 A check of the key's presence should read the value instead: `seed.visibleFields === undefined` is true whether the key is absent or holds `undefined`.
 
 The decision is [ADR-QD-157](https://github.com/leaderiop/qadi/blob/main/spec/decisions/157-a-seeds-fields-are-the-wires-stated-once.md).
+
+## 0.13: a breaker or audit sink option that cannot work is refused when it is built
+
+`AuditDecisionSinkLive`'s layer is now `Layer<DecisionSink, InvalidAuditSinkOption, AuditTrailPort>`, where its error was `never`. Building it with an option that cannot work fails with `InvalidAuditSinkOption`, naming the option and the value received. Refused: a `failureThreshold` that is not a positive whole number (`NaN` built a breaker that never opened), a `resetTimeoutMs` that is not a finite, positive, whole number of milliseconds, and a `storeCallTimeout` that is not a positive duration (zero timed every store call out at once). A composition that passes no options, or valid ones, behaves as before; only a type annotation on the layer, or on an `Effect` that provides it, that declares `never` stops compiling. Before:
+
+```ts
+const sink: Layer.Layer<DecisionSink, never, AuditTrailPort> = AuditDecisionSinkLive(options);
+```
+
+After:
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import type { DecisionSink } from "@qadi/core";
+import { AuditDecisionSinkLive, AuditTrailPortTest } from "@qadi/audit";
+import type { AuditTrailPort, InvalidAuditSinkOption } from "@qadi/audit";
+
+export const sink: Layer.Layer<DecisionSink, InvalidAuditSinkOption, AuditTrailPort> = AuditDecisionSinkLive({
+  failureThreshold: 5,
+});
+
+export const program = Effect.void.pipe(
+  Effect.provide(sink.pipe(Layer.provide(AuditTrailPortTest().layer))),
+  Effect.catchTag("InvalidAuditSinkOption", (refused) => Effect.logError(refused.message)),
+);
+```
+
+`Duration.infinity` is still the no-deadline value for `storeCallTimeout`; only a zero, negative, `NaN` or malformed duration is refused.
+
+The decision is [ADR-QD-158](https://github.com/leaderiop/qadi/blob/main/spec/decisions/158-the-breakers-rules-are-one-transition-function.md).

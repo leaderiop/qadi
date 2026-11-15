@@ -94,6 +94,9 @@ that reaches it is interrupted and fails with the port's own error, its cause a
 `TimeoutError`: a late write is `WriteFailed` and counts toward the breaker, and a
 late stage or commit is a staging failure, reported as in the table above. Raise it
 for a store that is healthy but slow, or pass `Duration.infinity` for no deadline.
+A `storeCallTimeout` that is not a positive duration (zero, a negative, `NaN`) is refused when the
+layer is built, with `InvalidAuditSinkOption`, as is a `failureThreshold` that is not a positive whole
+number or a `resetTimeoutMs` that is not a finite, positive, whole number of milliseconds.
 An adapter that makes itself uninterruptible is not bounded by it.
 
 ```typescript

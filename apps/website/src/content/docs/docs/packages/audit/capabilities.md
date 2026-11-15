@@ -5,7 +5,7 @@ description: The assembled DecisionSink pipeline, and the retention, sequence-in
 
 ## The assembled pipeline
 
-`AuditDecisionSinkLive` is a `Layer<DecisionSink, never, AuditTrailPort>` —
+`AuditDecisionSinkLive` is a `Layer<DecisionSink, InvalidAuditSinkOption, AuditTrailPort>` —
 it requires `AuditTrailPort` and reads `AuditStagingPort` optionally, via
 `Effect.serviceOption`, so a caller who never wires staging pays nothing for
 it. Every capability it composes is reached through `record()`, the one
@@ -18,6 +18,8 @@ const AppLayer = AuditDecisionSinkLive({ failureThreshold: 5, resetTimeoutMs: 30
   Layer.provide(myAuditTrailPortLive),
 );
 ```
+
+The layer fails with `InvalidAuditSinkOption` when an option cannot work: a `failureThreshold` that is not a positive whole number, a `resetTimeoutMs` that is not a finite, positive, whole number of milliseconds, or a `storeCallTimeout` that is not a positive duration.
 
 **Audit trail** (`AuditTrailPort`) — one method, `write(entry): Effect<void, AuditWriteError>`.
 `AuditEntry` is schema-derived, built on `@qadi/core`'s own record codec
@@ -52,13 +54,13 @@ the caller's own reconciliation. An `AuditStagingError` from either method
 never blocks or fails the write that follows it; a `commit()` failure is
 still tracked, never silently swallowed.
 
-**Circuit breaker** — internal, no port and no public error type. It trips
+**Circuit breaker** — internal, no port and no public error type for a tripped breaker; a breaker whose options cannot work is never built (`InvalidAuditSinkOption`). It trips
 only on `AuditWriteError`, never on `AuditStagingError`, which is tracked
 separately. While open, `record()` still calls `stage()` if staging is wired
 but skips `write()` entirely. Every state transition is computed and written
 back in one atomic `Ref.modify`, since `filter`/`filterStream` evaluate items
 concurrently and concurrent `record()` calls reaching the same breaker are
-the ordinary case, not an edge case.
+the ordinary case, not an edge case. Every transition is one pure function applied in one atomic `Ref.modify`.
 
 **A deadline on every store call** — `storeCallTimeout`, 5 seconds by default.
 `evaluate` waits for `record()`, so a store call that never answered used to hold
@@ -70,6 +72,8 @@ failure. A store that is healthy but slower than the deadline now loses writes,
 which is reported as above. Raise the deadline for such a store, or pass
 `Duration.infinity` to wait without limit. An adapter that makes itself
 uninterruptible is not bounded by the deadline.
+
+A `storeCallTimeout` that is not a positive duration (zero, a negative, `NaN`) is refused when the layer is built, with `InvalidAuditSinkOption`, as is a `failureThreshold` that is not a positive whole number or a `resetTimeoutMs` that is not a finite, positive, whole number of milliseconds.
 
 ```typescript
 import * as Duration from "effect/Duration";
