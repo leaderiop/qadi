@@ -12,17 +12,16 @@
  * {@link Question} into a record, so no record can disagree with the question
  * it reports (ADR-QD-100, ADR-QD-105, ARCH-54, ARCH-71).
  */
-import type * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import type { Allow } from "./Decision.ts";
 import { DecisionRecord, ObligationRecord } from "./DecisionRecord.ts";
 import type { DecisionOutcome, ObligationOutcome, SinkRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
-import type { DecisionSinkShape } from "./DecisionSink.ts";
 import type { CacheOutcome } from "./EvaluationMetrics.ts";
 import type { Question } from "./Question.ts";
 import { resourceIdOf } from "./Resource.ts";
+import { handedOver, reportSinkFailure } from "./SinkReport.ts";
 
 /** What an evaluation stamps on every record it makes. */
 export interface Stamp {
@@ -30,75 +29,7 @@ export interface Stamp {
   readonly at: number;
 }
 
-const UNNAMED = "unnamed";
-
-/**
- * The name a report gives a sink: its own `name`, or `unnamed`.
- *
- * Read when a failure is reported, never when the emitter is built, and guarded
- * because `name` may be a getter in a caller's code. Package-private (the module
- * is not in the barrel) and shared with `decisionSinkAll`'s member report. `??`,
- * not `||`: an empty name is one the sink chose.
- */
-export const sinkName = (shape: DecisionSinkShape): Effect.Effect<string> =>
-  Effect.sync(() => shape.name ?? UNNAMED).pipe(Effect.catchCause(() => Effect.succeed(UNNAMED)));
-
-/**
- * The two fields of a record a report names, read before the sink sees it.
- *
- * `string`, not the record's own types: a record whose fields cannot be read is
- * reported as `unknown` rather than not at all (INV-QD-337).
- */
-interface HandedOver {
-  readonly _tag: string;
-  readonly evaluationId: string;
-}
-
-const UNKNOWN = "unknown";
-
-/**
- * Reads what a report will name from `record`, contained.
- *
- * The record is the same mutable object the sink is handed, so a sink that
- * redefines a field and then fails must not take the report with it, nor make
- * the report name an evaluation it did not lose. Read first, so the report
- * describes what was handed over; a getter that throws gives `unknown`.
- */
-const handedOver = (record: SinkRecord): HandedOver => {
-  try {
-    return { _tag: record._tag, evaluationId: record.evaluationId };
-  } catch {
-    return { _tag: UNKNOWN, evaluationId: UNKNOWN };
-  }
-};
-
-/**
- * Reports one contained sink failure as one warning.
- *
- * Built lazily and contained because a throwing logger, name getter or cause
- * rendering must not turn an observer's failure into a defect (INV-QD-035). The
- * annotations are exactly these four, never a subject, resource, policy or
- * action. A plain function, not a traced one: it runs only on a failure.
- */
-const reportSinkFailure = (
-  shape: DecisionSinkShape,
-  handed: HandedOver,
-  cause: Cause.Cause<unknown>,
-): Effect.Effect<void> =>
-  Effect.suspend(() =>
-    sinkName(shape).pipe(
-      Effect.flatMap((name) =>
-        Effect.logWarning("qadi: a decision sink failed; the record was not delivered").pipe(
-          Effect.annotateLogs({
-            "qadi.sink": name,
-            "qadi.record_tag": handed._tag,
-            evaluationId: handed.evaluationId,
-            "qadi.cause": String(cause),
-          }),
-        ),
-      ),
-    ),
-  ).pipe(Effect.catchCause(() => Effect.void));
+const SINK_FAILED = "qadi: a decision sink failed; the record was not delivered";
 
 /**
  * Reads the sink once and returns a function that hands it one record, containing
@@ -130,7 +61,7 @@ export const sinkEmitter: Effect.Effect<(record: SinkRecord) => Effect.Effect<vo
           const handed = handedOver(record);
           return Effect.catchCause(
             Effect.suspend(() => sink.value.record(record)),
-            (cause) => reportSinkFailure(sink.value, handed, cause),
+            (cause) => reportSinkFailure(SINK_FAILED, sink.value, handed, cause),
           );
         }
       : () => Effect.void,

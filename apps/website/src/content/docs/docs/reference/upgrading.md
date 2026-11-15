@@ -774,7 +774,7 @@ The decision is [ADR-QD-158](https://github.com/leaderiop/qadi/blob/main/spec/de
 
 Whatever a sink's `record` does that loses the record (a defect, a throw, including one before it returns an effect, a self-interruption, or a failure leaked through a type escape) was contained and never reported, and a throw before an effect was returned ended `evaluate`. The emitter now contains every one of them and logs it once at `Warn`: `qadi: a decision sink failed; the record was not delivered`, annotated `qadi.sink`, `qadi.record_tag`, `evaluationId` and `qadi.cause`. The decision is unchanged, and the line carries nothing about the subject, resource, policy or action.
 
-`DecisionSinkShape` gains an optional `name`, reported in `qadi.sink` (`unnamed` without one). `decisionSinkForwarding`, `decisionSinkAll`, the decision log's sink, the simulation shadow and `AuditDecisionSinkLive` name themselves, and `decisionSinkAll`'s member line gains `qadi.sink`.
+`DecisionSinkShape` gains an optional `name`, reported in `qadi.sink` (`unnamed` without one). `decisionSinkForwarding`, `decisionSinkAll`, the decision log's sink, the simulation shadow and `AuditDecisionSinkLive` name themselves, and `decisionSinkAll`'s member line gains `qadi.sink`, `qadi.record_tag` and `evaluationId`.
 
 Nothing needs to change in a caller's code. One log text changes: a throwing `onFailure` on a send failure is now reported by the emitter's line, naming `decisionSinkForwarding`, where it said "qadi: a decision record could not be forwarded", so a query keyed on that text for this case should match the new line. A `send` that throws before returning an effect now reaches `onFailure`. To have a sink named in its reports:
 

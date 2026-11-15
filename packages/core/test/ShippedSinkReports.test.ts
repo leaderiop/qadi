@@ -203,11 +203,22 @@ const SINK_REPORT = "qadi: a decision sink failed; the record was not delivered"
 /** What a report must never carry: the question's own content. */
 const WITHHELD = ["subjectid", "resource", "resourceid", "policy", "action"];
 
-/** Asserts one line that is the fan-out's report of the member `sink`, whose failure said `cause`. */
-const assertMemberReport = (lines: ReadonlyArray<CapturedLog>, sink: string, cause: string): void => {
+/**
+ * Asserts one line that is the fan-out's report of the member `sink`, whose failure said `cause`,
+ * for the `Decision` record whose evaluation id is `evaluationId`.
+ */
+const assertMemberReport = (
+  lines: ReadonlyArray<CapturedLog>,
+  sink: string,
+  cause: string,
+  evaluationId: string | undefined,
+): void => {
   const line = assertOneLine(lines, cause);
   assert.strictEqual(String(line?.message), MEMBER_REPORT);
   assert.strictEqual(line?.annotations["qadi.sink"], sink);
+  assert.strictEqual(line?.annotations["qadi.record_tag"], "Decision");
+  assert.isDefined(evaluationId);
+  assert.strictEqual(line?.annotations["evaluationId"], evaluationId);
   for (const key of Object.keys(line?.annotations ?? {})) {
     assert.isFalse(
       WITHHELD.some((word) => key.toLowerCase().includes(word)),
@@ -232,7 +243,7 @@ describe("a fan-out names the member that failed and keeps going (EMIT-03, D-10)
       const after = recording();
       const decision = yield* evaluateFanOut([dyingMember("member died"), after.layer], logs.layer);
 
-      assertMemberReport(logs.lines, "unnamed", "member died");
+      assertMemberReport(logs.lines, "unnamed", "member died", after.records[0]?.evaluationId);
       assert.strictEqual(after.records.length, 1);
       assert.isTrue(isAllowed(decision));
     }).pipe(Effect.provide(testLayer(allowed))));
@@ -243,7 +254,7 @@ describe("a fan-out names the member that failed and keeps going (EMIT-03, D-10)
       const after = recording();
       const decision = yield* evaluateFanOut([Layer.succeed(DecisionSink, billing), after.layer], logs.layer);
 
-      assertMemberReport(logs.lines, "billing-audit", "billing down");
+      assertMemberReport(logs.lines, "billing-audit", "billing down", after.records[0]?.evaluationId);
       assert.strictEqual(after.records.length, 1);
       assert.isTrue(isAllowed(decision));
     }).pipe(Effect.provide(testLayer(allowed))));
@@ -260,7 +271,7 @@ describe("a fan-out names the member that failed and keeps going (EMIT-03, D-10)
       const after = recording();
       const decision = yield* evaluateFanOut([Layer.succeed(DecisionSink, hostile), after.layer], logs.layer);
 
-      assertMemberReport(logs.lines, "unnamed", "member died");
+      assertMemberReport(logs.lines, "unnamed", "member died", after.records[0]?.evaluationId);
       assert.strictEqual(after.records.length, 1);
       assert.isTrue(isAllowed(decision));
     }).pipe(Effect.provide(testLayer(allowed))));
@@ -276,7 +287,7 @@ describe("a fan-out names the member that failed and keeps going (EMIT-03, D-10)
       const after = recording();
       const decision = yield* evaluateFanOut([throwing, after.layer], logs.layer);
 
-      assertMemberReport(logs.lines, "unnamed", "member threw");
+      assertMemberReport(logs.lines, "unnamed", "member threw", after.records[0]?.evaluationId);
       assert.strictEqual(after.records.length, 1);
       assert.isTrue(isAllowed(decision));
     }).pipe(Effect.provide(testLayer(allowed))));
@@ -288,7 +299,7 @@ describe("a fan-out names the member that failed and keeps going (EMIT-03, D-10)
       const inner = decisionSinkAll([Layer.succeed(DecisionSink, billing)]);
       const decision = yield* evaluateFanOut([inner, after.layer], logs.layer);
 
-      assertMemberReport(logs.lines, "billing-audit", "billing down");
+      assertMemberReport(logs.lines, "billing-audit", "billing down", after.records[0]?.evaluationId);
       assert.strictEqual(after.records.length, 1);
       assert.isTrue(isAllowed(decision));
     }).pipe(Effect.provide(testLayer(allowed))));
@@ -316,7 +327,7 @@ describe("a fan-out and an interruption (EMIT-03)", () => {
       const selfInterrupting = Layer.succeed(DecisionSink, { record: () => Effect.interrupt });
       const decision = yield* evaluateFanOut([selfInterrupting, after.layer], logs.layer);
 
-      assertMemberReport(logs.lines, "unnamed", "Interrupt");
+      assertMemberReport(logs.lines, "unnamed", "Interrupt", after.records[0]?.evaluationId);
       assert.strictEqual(after.records.length, 1);
       assert.isTrue(isAllowed(decision));
     }).pipe(Effect.provide(testLayer(allowed))));

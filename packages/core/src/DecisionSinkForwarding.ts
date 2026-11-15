@@ -26,7 +26,7 @@ import type { DecisionSinkShape } from "./DecisionSink.ts";
 import type { SinkRecordNotEncodable } from "./Errors.ts";
 import { encodeSinkRecord } from "./SinkCodec.ts";
 import type { SinkRecordJson } from "./SinkCodec.ts";
-import { sinkName } from "./SinkEmit.ts";
+import { handedOver, reportSinkFailure } from "./SinkReport.ts";
 
 /**
  * A sink that encodes each record for the wire and hands it to `send`.
@@ -129,6 +129,8 @@ export const decisionSinkForwarding = (options: {
   });
 };
 
+const MEMBER_FAILED = "qadi: a fanned-out decision sink failed unexpectedly";
+
 /**
  * One sink that writes to all of them, in order.
  *
@@ -169,10 +171,13 @@ export const decisionSinkAll = (
 
       return {
         name: "decisionSinkAll",
-        record: (record: SinkRecord) =>
+        record: (record: SinkRecord) => {
+          // Read before any member runs, so every member's line names the record as
+          // it was handed over, however a member treats it (WR-01).
+          const handed = handedOver(record);
           // `discard` because every result is `void`; it changes allocation,
           // not behaviour, so mutation testing reports it as equivalent.
-          Effect.forEach(
+          return Effect.forEach(
             shapes,
             (shape) =>
               // A member's `never` error channel is a contract, not a mechanism
@@ -182,19 +187,11 @@ export const decisionSinkAll = (
               // the report is itself contained so a throwing logger or name getter
               // cannot stop the `forEach` either (D-10).
               Effect.suspend(() => shape.record(record)).pipe(
-                Effect.catchCause((cause) =>
-                  sinkName(shape).pipe(
-                    Effect.flatMap((name) =>
-                      Effect.logWarning("qadi: a fanned-out decision sink failed unexpectedly").pipe(
-                        Effect.annotateLogs({ "qadi.sink": name, "qadi.cause": String(cause) }),
-                      ),
-                    ),
-                    Effect.catchCause(() => Effect.void),
-                  ),
-                ),
+                Effect.catchCause((cause) => reportSinkFailure(MEMBER_FAILED, shape, handed, cause)),
               ),
             { discard: true },
-          ),
+          );
+        },
       };
     }),
   );
