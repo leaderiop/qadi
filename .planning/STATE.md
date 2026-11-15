@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 43
 current_phase_name: One handover module behind the enforcement entry points
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 43-01-PLAN.md
-last_updated: "2026-11-15T01:31:42.710Z"
+stopped_at: Completed 43-02-PLAN.md
+last_updated: "2026-11-15T01:37:03.789Z"
 last_activity: 2026-11-15
 last_activity_desc: Roadmap created (Phases 43-52, 52/52 requirements mapped)
-state_head: 375ecb3e88b91a7f969e0546582dffb0d4677ee4
+state_head: 718c1f226ff033154eaf917238ec9f8bc6f3398b
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 8
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 43 (One handover module behind the enforcement entry points) — READY TO EXECUTE
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 8
 Status: Ready to execute
 Last activity: 2026-11-15 — Roadmap created (Phases 43-52, 52/52 requirements mapped)
@@ -250,6 +250,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 10 phases)
 | Phase QD-42 P04 | 6 min | 3 tasks | 11 files |
 | Phase QD-42 P05 | 17 min | 3 tasks | 2 files |
 | Phase 43 P01 | 5min | 2 tasks | 3 files |
+| Phase 43 P02 | 12min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -407,6 +408,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 10 phases)
 - [Phase QD-42]: 42-05: no closing test needed; HydrationEngine.ts 1 and QadiAtoms.ts 0.9 above base, SeededQuestion.ts carries only its five moved survivors, all fifteen milestone files equal their latest recorded score
 - [v1.5]: the ten phases 43-52 and their order are fixed by the user (2026-11-15); per-phase evidence is `.planning/phases/_WAVE10-CONTEXT.md`; reserved numbers are ADR 156-165, CCR 434-443, BEH 551-600, INV 331-350 (never run `node scripts/next-id.mjs`); base `ba0d0615` (head of `arch-wave-9`, not merged), branch `arch-wave-10`, strictly serial, nothing released
 - [Phase 43]: 43-01: Collection-entry-point refusals are tested via Parameters<typeof X>[2], because a callable form on an Effect/Stream-returning function passes vacuously under effect(floatingEffect)
+- [Phase 43]: [43-02] Handover characterisation uses core's testLayer plus a recording DecisionSink, not the testing package's qadiTestLayer (dependency cycle); the one RED case is enforceProjected's smuggled resource
 
 ### Pending Todos
 
@@ -456,8 +458,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T01:31:35.193Z
-Stopped at: Completed 43-01-PLAN.md
+Last session: 2026-11-15T01:37:03.767Z
+Stopped at: Completed 43-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

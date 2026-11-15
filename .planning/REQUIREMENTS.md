@@ -12,8 +12,8 @@
 
 - [ ] **HAND-01**: One package-private module owns "ask against this value → discharge on allow → release whole or projected". The ten enforcement entry points in `Qadi.ts` are adapters over it, by shape (effect, array, stream).
 - [x] **HAND-02**: `guard`, `filter`, `filterStream`, `filterProjected` and `filterStreamProjected` refuse a `resource` in their options at the type level, as the loaded entry points already do. A tstyche test shows each one compiling on the phase base (RED) and refused after the change.
-- [ ] **HAND-03**: The allow → discharge / deny branch and the `project(decision, value)` step are each written once. A runtime test shows that, for every entry point, the released value is the decided value.
-- [ ] **HAND-04**: Observable behaviour is otherwise unchanged:
+- [x] **HAND-03**: The allow → discharge / deny branch and the `project(decision, value)` step are each written once. A runtime test shows that, for every entry point, the released value is the decided value.
+- [x] **HAND-04**: Observable behaviour is otherwise unchanged:
   - discharge precedes the guarded work (ADR-011);
   - `filter` partitions rather than fails (JA-04);
   - an item's fate is the same in the array and stream forms;
@@ -145,8 +145,8 @@ The seven WX rows apply to every phase 43 to 52, so each phase's Requirements li
 |-------------|-------|--------|
 | HAND-01 | Phase 43 | Pending |
 | HAND-02 | Phase 43 | Complete |
-| HAND-03 | Phase 43 | Pending |
-| HAND-04 | Phase 43 | Pending |
+| HAND-03 | Phase 43 | Complete |
+| HAND-04 | Phase 43 | Complete |
 | HAND-05 | Phase 43 | Pending |
 | HAND-06 | Phase 43 | Pending |
 | HYDF-01 | Phase 44 | Pending |
