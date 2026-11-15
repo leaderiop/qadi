@@ -7,6 +7,7 @@ export * from "./AuditStagingPortTest.ts";
 export * from "./AuditTrailPort.ts";
 export * from "./AuditTrailPortTest.ts";
 export * from "./AuditWriteOutcome.ts";
+export * from "./InvalidAuditSinkOption.ts";
 export * from "./Retention.ts";
 export * from "./SequenceIntegrity.ts";
 export * from "./SignatureCapturePort.ts";
