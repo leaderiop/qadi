@@ -518,7 +518,29 @@ Plans:
   4. The sink is still read once per evaluation (ADR-QD-044/100, `sink-read-once`), a sink never changes a decision, and INV-QD-035 is restated to include the report.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `SinkEmit.ts` and the touched sinks, the two RED tests and a per-warning classification table committed first; then the emitter's report and the `name`; then removing only the covered duplicates; then records.
-**Plans**: TBD
+**Plans**: 7 plans
+
+Plans:
+**Wave 1**
+- [ ] 46-01-PLAN.md — mutation base for the five touched source files (first commit); the emitter's rows through `evaluate` and `enforce`, RED on the base (a dying, throwing, self-interrupting, type-escaped or synchronously throwing sink is reported nowhere)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 46-02-PLAN.md — one report per shipped-sink failure characterised green on the base; the names, the fan-out member and the forwarder rows RED; the audit name row; the W0-W10 classification table
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 46-03-PLAN.md — tracer: `DecisionSinkShape.name` and the emitter that suspends, contains and reports once; then the type pin and the corrected test notes
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 46-04-PLAN.md — tracer: the fan-out names its failed member and keeps going; the forwarder's outer catch removed and a throwing `send` made a send failure; every shipped sink named; `check:fast`
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 46-05-PLAN.md — ADR-QD-159, the ADR-QD-044 amendment, the CCR-QD-437 row started; the `@qadi/core` minor and `@qadi/audit` patch changesets, the 0.13 upgrade entry, the website and overview prose
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 46-06-PLAN.md — BEH-QD-566 to 570 and four amended behaviours; INV-QD-035 restated, INV-QD-337 and 338; traceability; CCR-QD-437 completed
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 46-07-PLAN.md — close: mutation after-run and comparison, scope and scan, commit order and ids, `check:pr`, release check
 
 ### Phase 47: Port facts read from the description
 
