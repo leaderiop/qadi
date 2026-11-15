@@ -204,10 +204,10 @@ export const verdictOf = <E = never, R = never>(
     ask(policy, options),
     ({ question, decision }): Effect.Effect<Verdict, UndischargedObligation | E, R> =>
       isAllowed(decision)
-        ? Effect.as(discharge({ question, decision }, options?.onObligations), {
-            _tag: "Admitted",
-            decision,
-          })
+        ? Effect.map(
+            discharge({ question, decision }, options?.onObligations),
+            (): Verdict => ({ _tag: "Admitted", decision }),
+          )
         : Effect.succeed({ _tag: "Refused", decision }),
   );
 
