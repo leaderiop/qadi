@@ -33,6 +33,15 @@ import type { SinkRecord } from "./DecisionRecord.ts";
 
 export interface DecisionSinkShape {
   /**
+   * A label a reader sees when this sink's failure is reported; never an input to a decision.
+   *
+   * A sink with no name is reported as `unnamed`. The name is read only when a
+   * failure is reported, never when the emitter is built and never on the
+   * success path, so a sink that never fails costs nothing for having one.
+   * Nothing branches on it, as with `AttributeResolverShape.name`.
+   */
+  readonly name?: string | undefined;
+  /**
    * Receives one completed evaluation.
    *
    * **The error channel is `never`, and unlike `SubjectExtractorShape.extract` —
@@ -43,9 +52,11 @@ export interface DecisionSinkShape {
    * decision, so it is handed no way to say otherwise. An implementation that
    * can fail handles its own failure.
    *
-   * `never` alone is not sufficient — that same finding showed exactly how it
-   * gets subverted, by `Effect.die` — so `evaluate` also catches defects at the
-   * call site. Both, because one was already proven not to be enough.
+   * `never` alone is not sufficient (BEH-QD-175 showed exactly how it gets
+   * subverted, by `Effect.die`), so the one emitter contains whatever `record`
+   * does: a defect, a throw before it returns an effect, a self-interruption or
+   * a failure leaked through a type escape. It reports each once, as a warning
+   * naming this sink (ADR-QD-159).
    */
   readonly record: (record: SinkRecord) => Effect.Effect<void>;
 }

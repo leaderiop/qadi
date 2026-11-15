@@ -12,12 +12,14 @@
  * {@link Question} into a record, so no record can disagree with the question
  * it reports (ADR-QD-100, ADR-QD-105, ARCH-54, ARCH-71).
  */
+import type * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import type { Allow } from "./Decision.ts";
 import { DecisionRecord, ObligationRecord } from "./DecisionRecord.ts";
 import type { DecisionOutcome, ObligationOutcome, SinkRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
+import type { DecisionSinkShape } from "./DecisionSink.ts";
 import type { CacheOutcome } from "./EvaluationMetrics.ts";
 import type { Question } from "./Question.ts";
 import { resourceIdOf } from "./Resource.ts";
@@ -28,9 +30,50 @@ export interface Stamp {
   readonly at: number;
 }
 
+const UNNAMED = "unnamed";
+
 /**
- * Reads the sink once and returns a function that hands it one record and
- * swallows everything; a no-op when no sink is wired.
+ * The name a report gives a sink: its own `name`, or `unnamed`.
+ *
+ * Read when a failure is reported, never when the emitter is built, and guarded
+ * because `name` may be a getter in a caller's code. Package-private (the module
+ * is not in the barrel) and shared with `decisionSinkAll`'s member report. `??`,
+ * not `||`: an empty name is one the sink chose.
+ */
+export const sinkName = (shape: DecisionSinkShape): Effect.Effect<string> =>
+  Effect.sync(() => shape.name ?? UNNAMED).pipe(Effect.catchCause(() => Effect.succeed(UNNAMED)));
+
+/**
+ * Reports one contained sink failure as one warning.
+ *
+ * Built lazily and contained because a throwing logger, name getter or cause
+ * rendering must not turn an observer's failure into a defect (INV-QD-035). The
+ * annotations are exactly these four, never a subject, resource, policy or
+ * action. A plain function, not a traced one: it runs only on a failure.
+ */
+const reportSinkFailure = (
+  shape: DecisionSinkShape,
+  record: SinkRecord,
+  cause: Cause.Cause<unknown>,
+): Effect.Effect<void> =>
+  Effect.suspend(() =>
+    sinkName(shape).pipe(
+      Effect.flatMap((name) =>
+        Effect.logWarning("qadi: a decision sink failed; the record was not delivered").pipe(
+          Effect.annotateLogs({
+            "qadi.sink": name,
+            "qadi.record_tag": record._tag,
+            evaluationId: record.evaluationId,
+            "qadi.cause": String(cause),
+          }),
+        ),
+      ),
+    ),
+  ).pipe(Effect.catchCause(() => Effect.void));
+
+/**
+ * Reads the sink once and returns a function that hands it one record, containing
+ * and reporting any failure; a no-op when no sink is wired.
  *
  * Optional by construction: `serviceOption` adds nothing to the requirements,
  * and ADR-QD-009 deleted four always-on observability ports, so an optional
@@ -38,8 +81,12 @@ export interface Stamp {
  *
  * `catchCause` rather than `catchAll` because the shape's `never` error
  * channel is not on its own enough — BEH-QD-175 recorded exactly how that gets
- * subverted, by `Effect.die`, and a dying sink would otherwise take the
+ * subverted, by `Effect.die` — and a dying sink would otherwise take the
  * decision with it.
+ *
+ * `Effect.suspend` contains a `record` that throws before returning an effect,
+ * which on the base made `evaluate` die. Every cause it contains is reported
+ * once (ADR-QD-159, INV-QD-337, INV-QD-338).
  *
  * This is the inverse of the `Effect.orDie` AGENTS.md §4 forbids on this path,
  * not an instance of it: that turns a failure into a defect, this stops a
@@ -50,7 +97,11 @@ export const sinkEmitter: Effect.Effect<(record: SinkRecord) => Effect.Effect<vo
   Effect.serviceOption(DecisionSink),
   (sink) =>
     Option.isSome(sink)
-      ? (record) => Effect.catchCause(sink.value.record(record), () => Effect.void)
+      ? (record) =>
+          Effect.catchCause(
+            Effect.suspend(() => sink.value.record(record)),
+            (cause) => reportSinkFailure(sink.value, record, cause),
+          )
       : () => Effect.void,
 );
 
