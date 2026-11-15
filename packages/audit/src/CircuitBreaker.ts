@@ -77,8 +77,8 @@ export interface CircuitBreakerOptions {
    * Finite, positive and a whole number of milliseconds, at most
    * `Number.MAX_SAFE_INTEGER`; anything else is refused with
    * `InvalidAuditSinkOption` when the breaker is built. A plain number is
-   * tested for being whole; a string or `Duration` is read as `Duration` reads
-   * it, which rounds to the millisecond.
+   * tested for being whole; a string or `Duration` is read to the nanosecond,
+   * as `Duration` keeps it, and must come to whole milliseconds.
    */
   readonly resetTimeoutMs: Duration.Input;
 }

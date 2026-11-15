@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-158                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-15                                     |
 > | Status         | Accepted — amends ADR-QD-126                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-15): the safe-integer bound stated as exactness, not reachability; a string or Duration cooldown is read as Duration reads it (ARCH-92, CCR-QD-436)<br>1.2 (2026-11-15): Decision 4: the bounds are the safe integers, a raw non-whole reset is refused (ARCH-92, CCR-QD-436)<br>1.1 (2026-11-15): Related: BEH-QD-561 and INV-QD-335 (ARCH-92, CCR-QD-436)<br>1.0 (2026-11-15): Initial (ARCH-92, CCR-QD-436) |
+> | Change History | 1.4 (2026-11-15): a string or Duration cooldown is read to the nanosecond and must come to whole milliseconds (code review iteration 3, ARCH-92, CCR-QD-436)<br>1.3 (2026-11-15): the safe-integer bound stated as exactness, not reachability; a string or Duration cooldown is read as Duration reads it (ARCH-92, CCR-QD-436)<br>1.2 (2026-11-15): Decision 4: the bounds are the safe integers, a raw non-whole reset is refused (ARCH-92, CCR-QD-436)<br>1.1 (2026-11-15): Related: BEH-QD-561 and INV-QD-335 (ARCH-92, CCR-QD-436)<br>1.0 (2026-11-15): Initial (ARCH-92, CCR-QD-436) |
 
 ---
 
@@ -60,7 +60,8 @@ The five that passed are the options that work.
    `failureThreshold`, `resetTimeoutMs`, `storeCallTimeout`) and the raw `received`. `makeCircuitBreaker` refuses a
    `failureThreshold` that is not a positive safe integer and a `resetTimeoutMs` that is not a finite, positive, whole
    number of milliseconds within the safe integers (a raw number is tested for being whole before it is decoded, because
-   `Duration.millis` rounds `1.0000000001` to one millisecond; a string or `Duration` value is read as `Duration` reads it).
+   `Duration.millis` rounds `1.0000000001` to one millisecond; a string or `Duration` value is read to the nanosecond `Duration` keeps and must come to whole milliseconds, so
+   `"1.5 millis"` is refused).
    Past `Number.MAX_SAFE_INTEGER` a count by one and a millisecond sum stop being exact, so such a bound is refused with
    `NaN` and `Infinity`; a large value under it is accepted as the host's choice, however long it takes to reach. The sink refuses a `storeCallTimeout` that is not a positive duration, and keeps
    `Duration.infinity` as no deadline
