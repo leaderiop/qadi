@@ -660,3 +660,55 @@ export const source = sourceFromEventSource({
 ```
 
 The decision is [ADR-QD-153](https://github.com/leaderiop/qadi/blob/main/spec/decisions/153-core-owns-describing-a-decode-refusal.md).
+
+## 0.13: guard and the filter entry points refuse a second resource
+
+`LoadedEnforceOptions` is renamed `HandoverOptions`, with no alias, and is now the options type of all eight entry points that hand over a value: `enforceProjected`, `enforceLoaded`, `enforceProjectedLoaded`, `guard`, `filter`, `filterStream`, `filterProjected` and `filterStreamProjected`. So `guard` and the four `filter*` entry points no longer accept `options.resource`, which they used to drop silently: the positional resource, or the item, was always the one evaluated. `enforce` and `assert` hand over no value and keep `options.resource`. Before:
+
+```ts
+import { filter } from "@qadi/core";
+import type { LoadedEnforceOptions } from "@qadi/core";
+
+declare const tenant: { readonly id: string };
+
+export const options: LoadedEnforceOptions = { concurrency: 4 };
+
+export const admitted = filter(policy, items, { resource: tenant, concurrency: 4 });
+```
+
+After:
+
+```typescript
+import { filter, hasRole } from "@qadi/core";
+import type { HandoverOptions } from "@qadi/core";
+
+const items: ReadonlyArray<{ readonly id: string }> = [{ id: "doc-1" }, { id: "doc-2" }];
+const options: HandoverOptions = { concurrency: 4 };
+
+export const admitted = filter(hasRole("editor"), items, options);
+```
+
+The decision is [ADR-QD-156](https://github.com/leaderiop/qadi/blob/main/spec/decisions/156-a-handed-over-value-is-decided-through-one-module.md).
+
+## 0.13: the promise facade's filter takes no resource
+
+`@qadi/promise`'s `filter` and `filterProjected` now take `Omit<FacadeOptions, "resource">`, as `projected` already did: each item is the resource of its own decision, so a second one cannot be written. Before:
+
+```ts
+const admitted = await qadi.filter(alice, policy, docs, { resource: tenant });
+```
+
+After:
+
+```typescript
+import { EvaluationServicesNone, hasRole, makeSubject } from "@qadi/core";
+import { makeQadi } from "@qadi/promise";
+
+const qadi = makeQadi(EvaluationServicesNone);
+const alice = makeSubject({ id: "u-1", roles: ["editor"] });
+const docs: ReadonlyArray<{ readonly id: string }> = [{ id: "doc-1" }];
+
+export const admitted = qadi.filter(alice, hasRole("editor"), docs);
+```
+
+The decision is [ADR-QD-156](https://github.com/leaderiop/qadi/blob/main/spec/decisions/156-a-handed-over-value-is-decided-through-one-module.md).
