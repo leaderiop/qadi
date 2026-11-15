@@ -44,14 +44,14 @@ import { checkStoreCallTimeout } from "./SinkOptionChecks.ts";
 export interface AuditDecisionSinkOptions {
   /**
    * Consecutive `AuditWriteError`s before the breaker trips. Defaults to 5.
-   * Must be a positive whole number; any other value is refused with
+   * Must be a positive safe integer; any other value is refused with
    * `InvalidAuditSinkOption` when the layer is built.
    */
   readonly failureThreshold?: number;
   /**
    * How long a tripped breaker stays open before allowing one probe write.
    * Defaults to 30 000 (milliseconds). Must be a finite, positive, whole number
-   * of milliseconds; any other value is refused with `InvalidAuditSinkOption`
+   * of milliseconds, at most `Number.MAX_SAFE_INTEGER`; any other value is refused with `InvalidAuditSinkOption`
    * when the layer is built.
    *
    * `Duration.Input`, not a bare `number` — see `CircuitBreaker.ts`'s

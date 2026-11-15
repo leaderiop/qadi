@@ -9,23 +9,32 @@ import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import { InvalidAuditSinkOption } from "./InvalidAuditSinkOption.ts";
 
-/** Refuses a failure threshold that is not a positive whole number; `NaN` and `Infinity` built a breaker that never opened. */
+/**
+ * Refuses a failure threshold that is not a positive safe integer.
+ *
+ * `NaN`, `Infinity` and anything past `Number.MAX_SAFE_INTEGER` built a breaker
+ * that never opened: `consecutiveFailures` counts by one and cannot reach it.
+ */
 export const checkFailureThreshold = (received: number): Effect.Effect<number, InvalidAuditSinkOption> =>
-  Number.isInteger(received) && received > 0
+  Number.isSafeInteger(received) && received > 0
     ? Effect.succeed(received)
     : Effect.fail(new InvalidAuditSinkOption({ option: "failureThreshold", received }));
 
 /**
- * Refuses a reset that is not a finite, positive, whole number of milliseconds.
+ * Refuses a reset that is not a finite, positive, whole number of milliseconds
+ * within the safe integers.
  *
- * A cooldown at or below zero flapped Open to HalfOpen on every read, and a
- * malformed value died when the breaker was built. The decoded duration is tested
- * and the raw input reported, because `NaN` decodes to a zero duration.
+ * A cooldown at or below zero flapped Open to HalfOpen on every read, a malformed
+ * value died when the breaker was built, and one past the safe integers (`1e21`)
+ * never left Open. The decoded duration is tested and the raw input reported,
+ * because `NaN` decodes to a zero duration. A raw number is tested for being whole
+ * before it is decoded, because `Duration.millis` rounds `1.0000000001` to 1 ms.
  */
 export const checkResetTimeoutMs = (received: Duration.Input): Effect.Effect<number, InvalidAuditSinkOption> => {
   const millis = Option.filter(Duration.fromInput(received), (d) => Duration.isFinite(d) && Duration.isPositive(d)).pipe(
     Option.map(Duration.toMillis),
-    Option.filter(Number.isInteger),
+    Option.filter(Number.isSafeInteger),
+    Option.filter(() => typeof received !== "number" || Number.isInteger(received)),
   );
   return Option.isSome(millis)
     ? Effect.succeed(millis.value)

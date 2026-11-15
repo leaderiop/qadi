@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-158                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-15                                     |
 > | Status         | Accepted — amends ADR-QD-126                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-15): Related: BEH-QD-561 and INV-QD-335 (ARCH-92, CCR-QD-436)<br>1.0 (2026-11-15): Initial (ARCH-92, CCR-QD-436) |
+> | Change History | 1.2 (2026-11-15): Decision 4: the bounds are the safe integers, a raw non-whole reset is refused (ARCH-92, CCR-QD-436)<br>1.1 (2026-11-15): Related: BEH-QD-561 and INV-QD-335 (ARCH-92, CCR-QD-436)<br>1.0 (2026-11-15): Initial (ARCH-92, CCR-QD-436) |
 
 ---
 
@@ -58,8 +58,10 @@ The five that passed are the options that work.
    public error ([BEH-QD-251](../behaviors/33-audit-pipeline.md#beh-qd-251-a-tripped-circuit-breaker-skips-the-write-not-the-stage-and-its-transitions-are-atomic-under-concurrency)).
 4. **A typed refusal.** `InvalidAuditSinkOption` is a `Data.TaggedError` carrying `option` (the closed three:
    `failureThreshold`, `resetTimeoutMs`, `storeCallTimeout`) and the raw `received`. `makeCircuitBreaker` refuses a
-   `failureThreshold` that is not a positive whole number and a `resetTimeoutMs` that is not a finite, positive, whole
-   number of milliseconds. The sink refuses a `storeCallTimeout` that is not a positive duration, and keeps
+   `failureThreshold` that is not a positive safe integer and a `resetTimeoutMs` that is not a finite, positive, whole
+   number of milliseconds within the safe integers (a raw number is tested for being whole before it is decoded, because
+   `Duration.millis` rounds `1.0000000001` to one millisecond). A bound past `Number.MAX_SAFE_INTEGER` can never be reached
+   or elapse, the same breaker that never opens as `NaN` or `Infinity`. The sink refuses a `storeCallTimeout` that is not a positive duration, and keeps
    `Duration.infinity` as no deadline
    ([BEH-QD-379](../behaviors/33-audit-pipeline.md#beh-qd-379-a-store-call-is-bounded-by-the-sinks-deadline)).
 5. **The layer's type moves.** `AuditDecisionSinkLive` is

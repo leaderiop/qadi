@@ -62,7 +62,7 @@ export type CircuitBreakerStatus = "Closed" | "Open" | "HalfOpen";
 
 export interface CircuitBreakerOptions {
   /**
-   * A positive whole number of consecutive failures before the breaker opens;
+   * A positive safe integer of consecutive failures before the breaker opens;
    * anything else is refused with `InvalidAuditSinkOption` when the breaker is built.
    */
   readonly failureThreshold: number;
@@ -73,8 +73,9 @@ export interface CircuitBreakerOptions {
    * passing a plain millisecond number is still valid `Duration.Input`,
    * unchanged); only the type widened.
    *
-   * Finite, positive and a whole number of milliseconds; anything else is
-   * refused with `InvalidAuditSinkOption` when the breaker is built.
+   * Finite, positive and a whole number of milliseconds, at most
+   * `Number.MAX_SAFE_INTEGER`; anything else is refused with
+   * `InvalidAuditSinkOption` when the breaker is built.
    */
   readonly resetTimeoutMs: Duration.Input;
 }

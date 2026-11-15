@@ -117,7 +117,11 @@ describe("makeCircuitBreaker refuses an option that cannot work (BRKR-03)", () =
     refusedByBreaker({ ...OPTIONS, failureThreshold: -1 }, "failureThreshold", -1));
   it.effect("failureThreshold 2.5 is refused when built", () =>
     refusedByBreaker({ ...OPTIONS, failureThreshold: 2.5 }, "failureThreshold", 2.5));
+  it.effect("failureThreshold 1e300 is refused when built (it can never be reached)", () =>
+    refusedByBreaker({ ...OPTIONS, failureThreshold: 1e300 }, "failureThreshold", 1e300));
   it.effect("failureThreshold 1 is accepted", () => acceptedByBreaker({ ...OPTIONS, failureThreshold: 1 }));
+  it.effect("failureThreshold Number.MAX_SAFE_INTEGER is accepted, the last count a breaker can reach", () =>
+    acceptedByBreaker({ ...OPTIONS, failureThreshold: Number.MAX_SAFE_INTEGER }));
   it.effect("resetTimeoutMs NaN is refused when built", () =>
     refusedByBreaker({ ...OPTIONS, resetTimeoutMs: Number.NaN }, "resetTimeoutMs", Number.NaN));
   it.effect("resetTimeoutMs Infinity is refused when built", () =>
@@ -139,6 +143,12 @@ describe("makeCircuitBreaker refuses an option that cannot work (BRKR-03)", () =
     refusedByBreaker({ ...OPTIONS, resetTimeoutMs: 1n }, "resetTimeoutMs", 1n));
   it.effect("resetTimeoutMs '1e3 seconds' is refused when built", () =>
     refusedByBreaker({ ...OPTIONS, resetTimeoutMs: "1e3 seconds" }, "resetTimeoutMs", "1e3 seconds"));
+  it.effect("resetTimeoutMs 1e21 is refused when built (a cooldown that never ends)", () =>
+    refusedByBreaker({ ...OPTIONS, resetTimeoutMs: 1e21 }, "resetTimeoutMs", 1e21));
+  it.effect("resetTimeoutMs 1.0000000001 is refused when built, not rounded to 1 millisecond", () =>
+    refusedByBreaker({ ...OPTIONS, resetTimeoutMs: 1.0000000001 }, "resetTimeoutMs", 1.0000000001));
+  it.effect("resetTimeoutMs Number.MAX_SAFE_INTEGER is accepted, the largest cooldown a count can state", () =>
+    acceptedByBreaker({ ...OPTIONS, resetTimeoutMs: Number.MAX_SAFE_INTEGER }));
   it.effect("resetTimeoutMs 1 is accepted", () => acceptedByBreaker({ ...OPTIONS, resetTimeoutMs: 1 }));
   it.effect("resetTimeoutMs 2_000_000n (two milliseconds) is accepted", () =>
     acceptedByBreaker({ ...OPTIONS, resetTimeoutMs: 2_000_000n }));
@@ -149,6 +159,10 @@ describe("AuditDecisionSinkLive refuses an option that cannot work (BRKR-03)", (
     refusedBySink({ failureThreshold: Number.NaN }, "failureThreshold", Number.NaN));
   it.effect("resetTimeoutMs NaN is refused when the layer is built", () =>
     refusedBySink({ resetTimeoutMs: Number.NaN }, "resetTimeoutMs", Number.NaN));
+  it.effect("failureThreshold 1e300 is refused when the layer is built", () =>
+    refusedBySink({ failureThreshold: 1e300 }, "failureThreshold", 1e300));
+  it.effect("resetTimeoutMs 1e21 is refused when the layer is built", () =>
+    refusedBySink({ resetTimeoutMs: 1e21 }, "resetTimeoutMs", 1e21));
   it.effect("storeCallTimeout NaN is refused when the layer is built", () =>
     refusedBySink({ storeCallTimeout: Number.NaN }, "storeCallTimeout", Number.NaN));
   it.effect("storeCallTimeout -Infinity is refused when the layer is built", () =>
@@ -167,4 +181,5 @@ describe("AuditDecisionSinkLive refuses an option that cannot work (BRKR-03)", (
   it.effect("storeCallTimeout 1 is accepted", () => acceptedBySink({ storeCallTimeout: 1 }));
   it.effect("storeCallTimeout Duration.infinity is accepted (no deadline)", () =>
     acceptedBySink({ storeCallTimeout: Duration.infinity }));
+
 });
