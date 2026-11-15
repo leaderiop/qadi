@@ -26,17 +26,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-15)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 44 — The hydration seed's fields stated once
+**Current focus:** Phase 45 — The audit circuit breaker as one transition function
 
 ## Current Position
 
 Phase: 45 — The audit circuit breaker as one transition function
 Current Plan: Not started
-Total Plans in Phase: 6
+Total Plans in Phase: - (not planned yet)
 Status: Ready to plan
 Last activity: 2026-11-15 — Phase 44 complete, transitioned to Phase 45
 
-Progress: [██░░░░░░░░] 20% (1 of 10 phases)
+Progress: [██░░░░░░░░] 20% (2 of 10 phases)
 
 
 ## Performance Metrics
@@ -471,6 +471,7 @@ Progress: [██░░░░░░░░] 20% (1 of 10 phases)
 - [Phase 41] Review (41-REVIEW-DISPOSITION.md): 0 critical; WR-01 (label rule written twice) fixed by a second core export `valueLabel`, WR-03 (`In` fallback walk could throw) fixed, IN-02 fixed; WR-02 (an object whose `toJSON` gives nothing changed label, against D-07's wording) and IN-01/IN-03 skipped; iteration 2 clean; mutation re-run holds (Explanation 0.98701 vs base 0.98673, ValueText 1 at 13/13, Remedies/Filters 1, SimulationForm 0.98367); post-review `pnpm check:pr` green. User decision: one primitive, a public core export (D-13..D-16), after planning found core's `explain` threw too.
 - [Phase 42] Review (42-REVIEW-DISPOSITION.md): 0 critical; WR-01 (stale spec placing the seed logic in `HydrationEngine.ts`) fixed by dated amendments to ADR-QD-093, ADR-QD-041 and BEH-QD-151, WR-02 (late-seed test could pass vacuously) fixed, IN-01 (`isMismatch` unused export) and IN-02 fixed; iteration 2 left one whitespace info, fixed; mutation re-run holds (HydrationEngine 1, QadiAtoms 0.9, SeededQuestion 57/62 with the five base survivors); post-review `pnpm check:pr` green. User decision: option 1b.
 - [Phase 43] Review (43-REVIEW-DISPOSITION.md): 0 critical; WR-01 (the facade's `Omit<FacadeOptions, "resource">` refused only fresh literals, so a `FacadeOptions` variable still had its `resource` dropped) fixed in 9c0bef1d (`resource?: never` on `filter`, `filterProjected` and `projected`, RED-then-GREEN tstyche on a variable), records aligned in 39faed5a; iteration 2 had 0 warnings. IN-01 (`Verdict`/`Admitted` names reused from `Compare.ts`/`Admission.ts`), IN-02 (`Handover.test.ts` header says "public surface only, green on the base", but it imports `verdictOf`), IN-03 (`resourceFree` doc overstates its monopoly: `enforce`/`assert` keep `options.resource`) and IN-04 (wall-clock ordering test; `guard` arrow mis-indented) open, info. Post-review `pnpm check:pr` green; verification passed 5/5. `phase.complete`'s "file not on disk" warnings are false positives (relative spec paths and a command string).
+- [Phase 44] Review (44-REVIEW-DISPOSITION.md): 0 critical; three successive WR-01 warnings fixed — 0e05e184 (the byte golden cannot see a new optional wire field: a key-set pin of `DecisionWireAllow/Deny.fields`, spec reworded), 623edb09 (the pin tied to the engine's `ALLOW_WITHHELD`/`DENY_WITHHELD`), 3b340636 (spec names both guards); the auto loop hit its 3-iteration cap with the last fix applied, iteration backups kept untracked. IN-01 (plan-local ids `D-04`, `HYDF-03/04` in source and test titles) and IN-02 ("pinned on the phase base" describe title) open, info. Post-review `pnpm check:pr` green at 9e63b00f; verification passed 4/4; `phase.complete`'s "file not on disk" warnings are false positives (command strings and a relative link). ROADMAP's Phase 44 Records line corrected from "patch" to minor (Breaking).
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
@@ -493,4 +494,4 @@ Resume file: None
 
 
 
-- Plan Phase 43 with /gsd-plan-phase 43 (or gather context first with /gsd-discuss-phase 43)
+- Plan Phase 45 with /gsd-plan-phase 45 (or gather context first with /gsd-discuss-phase 45)
