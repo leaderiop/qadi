@@ -6,9 +6,8 @@
  * duration was accepted or died with a defect. Each bad value is one row, so a
  * value the checks miss is a named failure rather than a gap in a loop.
  *
- * The assertions are runtime-only on purpose: this file imports no error class,
- * so it compiles on the base and its RED is the behaviour's, not the compiler's.
- * 45-05 tightens the rows to `InvalidAuditSinkOption` once it exists.
+ * The rows were written before the error class existed, so their RED was the
+ * behaviour's, not the compiler's; the assertions now name `InvalidAuditSinkOption`.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
@@ -16,33 +15,41 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import { DecisionSink } from "@qadi/core";
 import { makeCircuitBreaker } from "../src/CircuitBreaker.ts";
 import type { CircuitBreakerOptions } from "../src/CircuitBreaker.ts";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
 import type { AuditDecisionSinkOptions } from "../src/AuditDecisionSinkLive.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
+import { InvalidAuditSinkOption } from "../src/InvalidAuditSinkOption.ts";
 import type { AuditWriteOutcome } from "../src/AuditWriteOutcome.ts";
 import { decisionRecord } from "./helpers.ts";
 
 const OPTIONS = { failureThreshold: 3, resetTimeoutMs: 10_000 };
 
-/** The refusal's shape: a typed failure, tagged, naming the option and the raw value received. */
-const assertRefusal = (cause: Cause.Cause<unknown>, option: string, received: unknown) => {
-  const squashed = Cause.squash(cause);
-  assert.propertyVal(squashed, "_tag", "InvalidAuditSinkOption");
-  assert.propertyVal(squashed, "option", option);
-  assert.deepPropertyVal(squashed, "received", received);
+/** The refusal's shape: the typed failure is an `InvalidAuditSinkOption` naming the option and the raw value received. */
+const assertRefusal = (cause: Cause.Cause<unknown>, option: string, received: unknown, message?: string) => {
+  const found = Cause.findErrorOption(cause);
+  assert.isTrue(Option.isSome(found), "the cause holds a typed failure");
+  if (Option.isSome(found)) {
+    assert.instanceOf(found.value, InvalidAuditSinkOption);
+    if (found.value instanceof InvalidAuditSinkOption) {
+      assert.strictEqual(found.value.option, option);
+      assert.isTrue(Object.is(found.value.received, received), `received is ${String(received)}`);
+      if (message !== undefined) assert.strictEqual(found.value.message, message);
+    }
+  }
 };
 
 /**
  * Passes only when construction fails with the refusal. A breaker that builds is
  * driven through ten admitted failures, so the message says what it would have done.
  */
-const refusedByBreaker = (options: CircuitBreakerOptions, option: string, received: unknown) =>
+const refusedByBreaker = (options: CircuitBreakerOptions, option: string, received: unknown, message?: string) =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(makeCircuitBreaker(options));
-    if (Exit.isFailure(exit)) return assertRefusal(exit.cause, option, received);
+    if (Exit.isFailure(exit)) return assertRefusal(exit.cause, option, received, message);
     const breaker = exit.value;
     for (let n = 0; n < 10; n++) {
       yield* breaker.withPermit((permit) =>
@@ -73,11 +80,11 @@ const sinkOver = (options: AuditDecisionSinkOptions) => {
 
 const recordOnce = DecisionSink.use((sink) => sink.record(decisionRecord()));
 
-const refusedBySink = (options: AuditDecisionSinkOptions, option: string, received: unknown) =>
+const refusedBySink = (options: AuditDecisionSinkOptions, option: string, received: unknown, message?: string) =>
   Effect.gen(function* () {
     const sink = sinkOver(options);
     const exit = yield* Effect.exit(recordOnce.pipe(Effect.provide(sink.layer)));
-    if (Exit.isFailure(exit)) return assertRefusal(exit.cause, option, received);
+    if (Exit.isFailure(exit)) return assertRefusal(exit.cause, option, received, message);
     return assert.fail(`built a sink whose first record ended ${sink.outcomes.map((o) => o._tag).join(", ")}`);
   });
 
@@ -94,7 +101,12 @@ const acceptedBySink = (options: AuditDecisionSinkOptions) =>
 
 describe("makeCircuitBreaker refuses an option that cannot work (BRKR-03)", () => {
   it.effect("failureThreshold NaN is refused when built", () =>
-    refusedByBreaker({ ...OPTIONS, failureThreshold: Number.NaN }, "failureThreshold", Number.NaN));
+    refusedByBreaker(
+      { ...OPTIONS, failureThreshold: Number.NaN },
+      "failureThreshold",
+      Number.NaN,
+      "failureThreshold must be a positive whole number; received NaN",
+    ));
   it.effect("failureThreshold Infinity is refused when built", () =>
     refusedByBreaker({ ...OPTIONS, failureThreshold: Infinity }, "failureThreshold", Infinity));
   it.effect("failureThreshold -Infinity is refused when built", () =>
@@ -117,7 +129,12 @@ describe("makeCircuitBreaker refuses an option that cannot work (BRKR-03)", () =
   it.effect("resetTimeoutMs -1 is refused when built", () =>
     refusedByBreaker({ ...OPTIONS, resetTimeoutMs: -1 }, "resetTimeoutMs", -1));
   it.effect("resetTimeoutMs 1.5 is refused when built", () =>
-    refusedByBreaker({ ...OPTIONS, resetTimeoutMs: 1.5 }, "resetTimeoutMs", 1.5));
+    refusedByBreaker(
+      { ...OPTIONS, resetTimeoutMs: 1.5 },
+      "resetTimeoutMs",
+      1.5,
+      "resetTimeoutMs must be a finite, positive, whole number of milliseconds; received 1.5",
+    ));
   it.effect("resetTimeoutMs 1n (one nanosecond) is refused when built", () =>
     refusedByBreaker({ ...OPTIONS, resetTimeoutMs: 1n }, "resetTimeoutMs", 1n));
   it.effect("resetTimeoutMs '1e3 seconds' is refused when built", () =>
@@ -137,7 +154,12 @@ describe("AuditDecisionSinkLive refuses an option that cannot work (BRKR-03)", (
   it.effect("storeCallTimeout -Infinity is refused when the layer is built", () =>
     refusedBySink({ storeCallTimeout: -Infinity }, "storeCallTimeout", -Infinity));
   it.effect("storeCallTimeout 0 is refused when the layer is built", () =>
-    refusedBySink({ storeCallTimeout: 0 }, "storeCallTimeout", 0));
+    refusedBySink(
+      { storeCallTimeout: 0 },
+      "storeCallTimeout",
+      0,
+      "storeCallTimeout must be a positive duration, or Duration.infinity for no deadline; received 0",
+    ));
   it.effect("storeCallTimeout -1 is refused when the layer is built", () =>
     refusedBySink({ storeCallTimeout: -1 }, "storeCallTimeout", -1));
   it.effect("storeCallTimeout '1e3 seconds' is refused when the layer is built", () =>
