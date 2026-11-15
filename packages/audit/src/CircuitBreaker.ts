@@ -24,6 +24,12 @@
  * here is a plain {@link Refused} value, not an error; nothing outside this
  * module ever constructs or inspects a failure from it.
  *
+ * **A construction refusal is not a tripped breaker.** `makeCircuitBreaker` fails
+ * with `InvalidAuditSinkOption` when `failureThreshold` is not a positive whole
+ * number or `resetTimeoutMs` is not a finite, positive, whole number of
+ * milliseconds, so every breaker that exists can open and close (ARCH-92,
+ * ADR-QD-158); refusing a write is still the plain {@link Refused} value.
+ *
  * The state machine's shape was never HexDi's defect, only its wiring and its
  * `Date.now()` usage were — kept as-is: `closed → open` after
  * `failureThreshold` consecutive failures, `open → half-open` after
@@ -42,7 +48,7 @@
  */
 import * as Clock from "effect/Clock";
 import * as Data from "effect/Data";
-import * as Duration from "effect/Duration";
+import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
@@ -50,7 +56,7 @@ import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import * as Record from "effect/Record";
 import * as Ref from "effect/Ref";
-import { checkFailureThreshold } from "./SinkOptionChecks.ts";
+import { checkFailureThreshold, checkResetTimeoutMs } from "./SinkOptionChecks.ts";
 
 export type CircuitBreakerStatus = "Closed" | "Open" | "HalfOpen";
 
@@ -66,6 +72,9 @@ export interface CircuitBreakerOptions {
    * `Ms`-suffixed name for source compatibility (every existing caller
    * passing a plain millisecond number is still valid `Duration.Input`,
    * unchanged); only the type widened.
+   *
+   * Finite, positive and a whole number of milliseconds; anything else is
+   * refused with `InvalidAuditSinkOption` when the breaker is built.
    */
   readonly resetTimeoutMs: Duration.Input;
 }
@@ -377,11 +386,10 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
 ) {
   const failureThreshold = yield* checkFailureThreshold(options.failureThreshold);
 
-  // Decoded once, here, rather than on every `Ref.modify` comparison below:
-  // `Duration.toMillis` is cheap, but `status` runs on every `record()` call,
-  // and the plain `Ref.modify` callback it runs inside is not the place to
-  // re-decode a caller-supplied `Duration.Input` on each read.
-  const resetTimeoutMillis = Duration.toMillis(options.resetTimeoutMs);
+  // Decoded and checked once, here, rather than in every transition: `status` runs
+  // on every `record()` call, and `step` is not the place to re-decode a
+  // caller-supplied `Duration.Input` on each read.
+  const resetTimeoutMillis = yield* checkResetTimeoutMs(options.resetTimeoutMs);
 
   const ref = yield* Ref.make<State>(new StateClosed({ generation: 0, consecutiveFailures: 0 }));
 
