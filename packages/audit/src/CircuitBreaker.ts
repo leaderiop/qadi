@@ -417,38 +417,7 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
     run(new Success({ generation })).pipe(Effect.asVoid);
 
   const recordFailure = (generation: number): Effect.Effect<void> =>
-    Effect.gen(function* () {
-      const now = yield* Clock.currentTimeMillis;
-      const openedNow = yield* Ref.modify(
-        ref,
-        (state): readonly [boolean, State] =>
-          state.generation !== generation
-            ? [false, state]
-            : Match.value(state).pipe(
-                Match.tagsExhaustive({
-                  // A no-op while `Open`: a write admitted before the trip and
-                  // settling after it is not evidence about the store since
-                  // (ARCH-07 C5, D-07-c). The generation check above already
-                  // covers it; this arm keeps the dispatch exhaustive.
-                  Open: (open): readonly [boolean, State] => [false, open],
-                  HalfOpen: (halfOpen): readonly [boolean, State] => [
-                    true,
-                    new StateOpen({ generation: halfOpen.generation + 1, openedAt: now }),
-                  ],
-                  Closed: (closed): readonly [boolean, State] => {
-                    const consecutiveFailures = closed.consecutiveFailures + 1;
-                    return consecutiveFailures >= options.failureThreshold
-                      ? [true, new StateOpen({ generation: closed.generation + 1, openedAt: now })]
-                      : [
-                          false,
-                          new StateClosed({ generation: closed.generation, consecutiveFailures }),
-                        ];
-                  },
-                }),
-              ),
-      );
-      if (openedNow) yield* announceTransition("Open");
-    });
+    run(new Failure({ generation })).pipe(Effect.asVoid);
 
   // Atomic with the check: a second concurrent caller reading `undefined` here
   // must never be able to observe `probeClaimed` still false a moment later,
