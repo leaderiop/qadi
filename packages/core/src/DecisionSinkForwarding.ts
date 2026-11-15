@@ -62,7 +62,9 @@ import { sinkName } from "./SinkEmit.ts";
  * [INV-QD-035](../../../spec/invariants.md#inv-qd-035-a-sink-cannot-change-a-decision)
  * says an observer cannot change a decision, and a devtools page being
  * unreachable is the most ordinary thing that can go wrong here — an
- * authorization request must not fail because nobody is watching.
+ * authorization request must not fail because nobody is watching. A hook that
+ * throws is not this sink's to contain: the emitter reports it once, naming this
+ * sink (ADR-QD-159).
  *
  * Reported rather than silent, though: a forwarder dropping every record while
  * looking healthy is the same defect `dehydrateDecisions` had before `onDropped`
@@ -109,24 +111,19 @@ export const decisionSinkForwarding = (options: {
         Effect.sync(() => onFailure(Cause.squash(cause)));
 
   return Layer.succeed(DecisionSink, {
+    name: "decisionSinkForwarding",
     record: (record) =>
       Effect.sync(() => encodeSinkRecord(record)).pipe(
         Effect.flatMap(
           Result.match({
             onFailure: reportRefusal,
-            // `catchCause`, not `catchAll`: `send` is a caller's function, so it
-            // can die as easily as it can fail, and either would otherwise reach
-            // the decision through a sink that promised it never could.
-            onSuccess: (json) => options.send(json).pipe(Effect.catchCause(reportSendFailure)),
+            // `catchCause`, not `catchAll`, and suspended: `send` is a caller's
+            // function, so it can die or throw before returning an effect as
+            // easily as it can fail, and any of those would otherwise reach the
+            // decision through a sink that promised it never could (BEH-QD-187).
+            onSuccess: (json) =>
+              Effect.suspend(() => options.send(json)).pipe(Effect.catchCause(reportSendFailure)),
           }),
-        ),
-        // Defence in depth for INV-QD-035: the encode never throws and `send`'s
-        // failures are caught above, but `onFailure` is a caller's callback too,
-        // and one that throws must not become this decision's defect.
-        Effect.catchCause((cause) =>
-          Effect.logWarning("qadi: a decision record could not be forwarded").pipe(
-            Effect.annotateLogs({ "qadi.cause": String(cause) }),
-          ),
         ),
       ),
   });
