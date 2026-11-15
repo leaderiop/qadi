@@ -44,6 +44,7 @@ import * as Clock from "effect/Clock";
 import * as Data from "effect/Data";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
+import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
@@ -419,23 +420,13 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
   const recordFailure = (generation: number): Effect.Effect<void> =>
     run(new Failure({ generation })).pipe(Effect.asVoid);
 
-  // Atomic with the check: a second concurrent caller reading `undefined` here
-  // must never be able to observe `probeClaimed` still false a moment later,
-  // or two callers could both believe they hold the one probe slot. Returns
-  // the window's generation when the claim is won.
-  const claimProbe: Effect.Effect<number | undefined> = Ref.modify(
-    ref,
-    (state): readonly [number | undefined, State] =>
-      state._tag !== "HalfOpen" || state.probeClaimed
-        ? [undefined, state]
-        : [
-            state.generation,
-            new StateHalfOpen({
-              generation: state.generation,
-              halfOpenAt: state.halfOpenAt,
-              probeClaimed: true,
-            }),
-          ],
+  // The claim is one step: the check and the claim are one atomic `Ref.modify`, so
+  // two concurrent callers cannot both believe they hold the one probe slot. Won
+  // exactly when the state changed; answers the window's generation then.
+  const claimProbe: Effect.Effect<number | undefined> = run(new Claim()).pipe(
+    Effect.map(({ before, next }): number | undefined =>
+      Equal.equals(before, next) ? undefined : next.generation,
+    ),
   );
 
   // Guarded so a finalizer that runs after the probe already settled has
