@@ -28,6 +28,8 @@
 import type {
   AuthSubject,
   Decision,
+  DecisionClaim,
+  DecisionWire,
   DehydrationDropReason,
   Policy,
   Resource,
@@ -246,20 +248,71 @@ export interface DehydrateOptions {
   readonly onDropped?: HydrationDropReporter<DecisionEntry, DehydrationDropReason>;
 }
 
-const dehydrateDecision = (decision: Decision, includeTrace: boolean): DehydratedEntry["decision"] => {
-  const wire = encodeDecision(decision);
-  return wire._tag === "Allow"
-    ? {
-        ...Struct.omit(wire, ALLOW_WITHHELD),
-        disclosure: includeTrace ? { _tag: "Disclosed", trace: wire.trace } : { _tag: "Withheld" },
-      }
-    : {
-        ...Struct.omit(wire, DENY_WITHHELD),
-        disclosure: includeTrace
-          ? { _tag: "Disclosed", trace: wire.trace, reason: wire.reason }
-          : { _tag: "Withheld" },
-      };
+/** A wire verdict: the closed set of tags `encodeDecision` produces. */
+type WireVerdict = DecisionWire["_tag"];
+type WireOf = { readonly [V in WireVerdict]: Extract<DecisionWire, { readonly _tag: V }> };
+type EntryOf = { readonly [V in WireVerdict]: Extract<DehydratedEntry["decision"], { readonly _tag: V }> };
+type SeedOf = { readonly Allow: SeededAllow; readonly Deny: SeededDeny };
+type DisclosedOf = {
+  readonly [V in WireVerdict]: Extract<EntryOf[V]["disclosure"], { readonly _tag: "Disclosed" }>;
 };
+
+/** What one verdict does at the three places the Allow/Deny branch used to be written. */
+interface Row<V extends WireVerdict> {
+  readonly entry: (wire: WireOf[V], includeTrace: boolean) => EntryOf[V];
+  readonly seed: (entry: EntryOf[V], subjectId: SubjectId) => SeedOf[V];
+  readonly claim: (entry: EntryOf[V], disclosure: DisclosedOf[V]) => DecisionClaim;
+}
+
+/**
+ * Each wire verdict's row: its payload entry, its seed and its claim against a disclosed trace.
+ *
+ * The Allow/Deny branch was written in `dehydrateDecision`, `rebuild` and
+ * `entryAgrees`. A mapped type over `DecisionWire["_tag"]` makes a verdict
+ * without a row a compile error, the closed-table pattern of `FieldLattice.ts`
+ * (ADR-QD-092) and `HYDRATION_DROP_TABLE` (ADR-QD-152). The entry is built from
+ * `encodeDecision`'s value, never from a struct's keys, because that value's key
+ * order is the payload's bytes. The deny claim's `obligations: []` and the
+ * reason from the disclosure are `entryAgrees`' rule, unchanged (INV-QD-170)
+ * (ARCH-91, ADR-QD-157).
+ */
+const VERDICTS: { readonly [V in WireVerdict]: Row<V> } = {
+  Allow: {
+    entry: (wire, includeTrace) => ({
+      ...Struct.omit(wire, ALLOW_WITHHELD),
+      disclosure: includeTrace ? { _tag: "Disclosed", trace: wire.trace } : { _tag: "Withheld" },
+    }),
+    seed: (entry, subjectId) => new SeededAllow({ ...entry, subjectId }),
+    claim: (entry) => ({ verdict: "Allow", visibleFields: entry.visibleFields, obligations: entry.obligations }),
+  },
+  Deny: {
+    entry: (wire, includeTrace) => ({
+      ...Struct.omit(wire, DENY_WITHHELD),
+      disclosure: includeTrace
+        ? { _tag: "Disclosed", trace: wire.trace, reason: wire.reason }
+        : { _tag: "Withheld" },
+    }),
+    seed: (entry, subjectId) => new SeededDeny({ ...entry, subjectId }),
+    claim: (_entry, disclosure) => ({ verdict: "Deny", reason: disclosure.reason, obligations: [] }),
+  },
+};
+
+/** The one place a verdict becomes its row, generic so a call keeps its value and its row correlated. */
+const rowOf = <V extends WireVerdict>(tag: V): Row<V> => VERDICTS[tag];
+
+const entryOf = <V extends WireVerdict>(wire: WireOf[V] & { readonly _tag: V }, includeTrace: boolean): EntryOf[V] =>
+  rowOf(wire._tag).entry(wire, includeTrace);
+
+const seedOf = <V extends WireVerdict>(entry: EntryOf[V] & { readonly _tag: V }, subjectId: SubjectId): SeedOf[V] =>
+  rowOf(entry._tag).seed(entry, subjectId);
+
+const claimOf = <V extends WireVerdict>(
+  entry: EntryOf[V] & { readonly _tag: V },
+  disclosure: DisclosedOf[V],
+): DecisionClaim => rowOf(entry._tag).claim(entry, disclosure);
+
+const dehydrateDecision = (decision: Decision, includeTrace: boolean): DehydratedEntry["decision"] =>
+  entryOf(encodeDecision(decision), includeTrace);
 
 /**
  * One decision as a payload entry, or `None` when its policy does not encode.
@@ -352,12 +405,8 @@ export const dehydrateWith = (
   return plan.payload;
 };
 
-const rebuild = (entry: DehydratedEntry, subjectId: SubjectId): SeededDecision => {
-  const d = entry.decision;
-  return d._tag === "Allow"
-    ? new SeededAllow({ ...d, subjectId })
-    : new SeededDeny({ ...d, subjectId });
-};
+const rebuild = (entry: DehydratedEntry, subjectId: SubjectId): SeededDecision =>
+  seedOf(entry.decision, subjectId);
 
 /**
  * Whether an entry's disclosed trace agrees with the entry, and is its policy's.
@@ -370,7 +419,7 @@ const rebuild = (entry: DehydratedEntry, subjectId: SubjectId): SeededDecision =
  * The entry also repeats the verdict, `visibleFields`, `obligations` and
  * (a denial's) `reason` that the trace root already holds. `@qadi/core`'s
  * {@link decisionDisagreement} is the one rule for whether two such copies
- * agree; this module only shapes the claim, and a seed that disagrees with the
+ * agree; the verdict's row in {@link VERDICTS} only shapes the claim, and a seed that disagrees with the
  * trace it carries is refused the same way (INV-QD-170). A `Withheld` seed has
  * no trace, so its fields are the only copy and there is nothing to compare.
  */
@@ -378,14 +427,7 @@ const entryAgrees = (entry: DehydratedEntry, policy: Policy): boolean => {
   const decision = entry.decision;
   if (decision.disclosure._tag !== "Disclosed") return true;
   if (decision.disclosure.trace.policyTag !== policy._tag) return false;
-  return (
-    decisionDisagreement(
-      decision._tag === "Allow"
-        ? { verdict: "Allow", visibleFields: decision.visibleFields, obligations: decision.obligations }
-        : { verdict: "Deny", reason: decision.disclosure.reason, obligations: [] },
-      decision.disclosure.trace,
-    ) === undefined
-  );
+  return decisionDisagreement(claimOf(decision, decision.disclosure), decision.disclosure.trace) === undefined;
 };
 
 export interface HydrateOptions {
