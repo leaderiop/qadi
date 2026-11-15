@@ -34,7 +34,6 @@ import type {
   SubjectId,
 } from "@qadi/core";
 import {
-  DecisionWireAllow,
   DecisionWireDeny,
   decisionDisagreement,
   Policy as PolicySchema,
@@ -55,7 +54,7 @@ import { hydrationDropReporter, saysDehydrationDropped, saysHydrationDropped } f
 import type { DecisionEntry, EntryDropReason, HydrationHooks, PayloadRefusalReason } from "./HydrationEvent.ts";
 import { HydrationEvent, emitHydration } from "./HydrationEvent.ts";
 import type { SeededDecision } from "./SeededDecision.ts";
-import { AllowDisclosure, DenyDisclosure, SeededAllow, SeededDeny } from "./SeededDecision.ts";
+import { ALLOW_WITHHELD, AllowSeedFields, DenyDisclosure, SeededAllow, SeededDeny } from "./SeededDecision.ts";
 import type { SeedSlot } from "./SeededQuestion.ts";
 
 // Named here rather than reached through the barrel: `DeveloperSignals.ts` stays
@@ -71,29 +70,20 @@ export type InitialValues = Iterable<readonly [Atom.Atom<unknown>, unknown]>;
 // ---------------------------------------------------------------------------
 
 /**
- * The `DecisionWire` fields an allow entry does not carry: the subject lives on
- * the envelope and the trace is replaced by a `disclosure`.
- */
-const ALLOW_WITHHELD = ["subjectId", "trace"] as const;
-
-/**
  * A deny entry withholds what an allow does, plus the two fields a denial
  * discloses only under `includeTrace`, inside its `disclosure`.
  */
 const DENY_WITHHELD = [...ALLOW_WITHHELD, "obligations", "reason"] as const;
 
 /**
- * One decision's wire form inside a payload, derived from `DecisionWire`.
+ * One decision's wire form inside a payload: the seed's fields under the wire's tag.
  *
  * The subject lives on the envelope instead of each entry, and the trace (and,
- * for a denial, the reason) is replaced by a `disclosure` — so what is left of
- * the wire shape is whatever `@qadi/core` says it is, with no field list written
- * twice.
+ * for a denial, the reason) is replaced by a `disclosure`. The entry is built from
+ * the seed's own fields, so the payload and the seed read one statement and no
+ * field list is written twice (ARCH-91).
  */
-const AllowEntry = DecisionWireAllow.mapFields((fields) => ({
-  ...Struct.omit(fields, ALLOW_WITHHELD),
-  disclosure: AllowDisclosure,
-}));
+const AllowEntry = Schema.TaggedStruct("Allow", AllowSeedFields.fields);
 
 const DenyEntry = DecisionWireDeny.mapFields((fields) => ({
   ...Struct.omit(fields, DENY_WITHHELD),
@@ -375,14 +365,7 @@ export const dehydrateWith = (
 const rebuild = (entry: DehydratedEntry, subjectId: SubjectId): SeededDecision => {
   const d = entry.decision;
   return d._tag === "Allow"
-    ? new SeededAllow({
-        evaluationId: d.evaluationId,
-        subjectId,
-        durationMillis: d.durationMillis,
-        visibleFields: d.visibleFields,
-        obligations: d.obligations,
-        disclosure: d.disclosure,
-      })
+    ? new SeededAllow({ ...d, subjectId })
     : new SeededDeny({
         evaluationId: d.evaluationId,
         subjectId,
