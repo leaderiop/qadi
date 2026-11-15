@@ -476,11 +476,11 @@ Plans:
   5. The existing concurrency regression tests (`CircuitBreaker.test.ts:339, 403, 426, 452`) pass unchanged as adapter tests, and the breaker's metrics and transition announcements are unchanged.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `CircuitBreaker.ts`, the `NaN` RED and the transition table written against the base's observable behaviour, committed first; then the pure function and the adapter, one event converted at a time; then option validation (`AuditDecisionSinkLive.ts` :127 passes options through unvalidated); then records. Keep the work off the lines Phase 48 will edit.
-**Plans**: 8 plans
+**Plans**: 1/8 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 45-01-PLAN.md — mutation base for `CircuitBreaker.ts` and `AuditDecisionSinkLive.ts` (first commit); the adapter transition table green on the base; the option rows RED (`failureThreshold: NaN` never opens)
+- [x] 45-01-PLAN.md — mutation base for `CircuitBreaker.ts` and `AuditDecisionSinkLive.ts` (first commit); the adapter transition table green on the base; the option rows RED (`failureThreshold: NaN` never opens)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 45-02-PLAN.md — tracer: `step` and `run`, with Observe converted; then the pure transition table and the seeded property
@@ -637,7 +637,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 |-------|----------------|--------|-----------|
 | 43. One handover module behind the enforcement entry points | 8/8 | Complete    | 2026-11-15 |
 | 44. The hydration seed's fields stated once | 6/6 | Complete    | 2026-11-15 |
-| 45. The audit circuit breaker as one transition function | 0/TBD | Not started | - |
+| 45. The audit circuit breaker as one transition function | 1/8 | In Progress | - |
 | 46. The sink emitter reports what it contains | 0/TBD | Not started | - |
 | 47. Port facts read from the description | 0/TBD | Not started | - |
 | 48. Audit reports core's refusal and derives "lost" | 0/TBD | Not started | - |

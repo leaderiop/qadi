@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 45
 current_phase_name: The audit circuit breaker as one transition function
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 44 complete, ready to plan Phase 45
-last_updated: "2026-11-15T06:24:14.092Z"
+stopped_at: Completed 45-01-PLAN.md
+last_updated: "2026-11-15T06:31:33.056Z"
 last_activity: 2026-11-15
-last_activity_desc: Phase 44 complete, transitioned to Phase 45
-state_head: 2a97ebfb81cbecf4a0f2d5399b78a4103f444bb8
+last_activity_desc: Phase 45 execution started
+state_head: 849fb8a8c10f42a684cfa10880113d4493b9af9f
 progress:
   total_phases: 10
   completed_phases: 2
   total_plans: 22
-  completed_plans: 14
+  completed_plans: 15
   percent: 20
 ---
 
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 
 ## Current Position
 
-Phase: 45 (The audit circuit breaker as one transition function) — READY TO EXECUTE
-Current Plan: Not started
+Phase: 45 (The audit circuit breaker as one transition function) — EXECUTING
+Current Plan: 2
 Total Plans in Phase: 8
 Status: Ready to execute
-Last activity: 2026-11-15 — Phase 44 complete, transitioned to Phase 45
+Last activity: 2026-11-15 — Phase 45 execution started
 
 Progress: [██░░░░░░░░] 20% (2 of 10 phases)
 
@@ -265,6 +265,7 @@ Progress: [██░░░░░░░░] 20% (2 of 10 phases)
 | Phase 44 P04 | 15min | 3 tasks | 8 files |
 | Phase QD-44 P05 | 15min | 2 tasks | 6 files |
 | Phase QD-44 P06 | 12 min | 3 tasks | 1 files |
+| Phase 45 P01 | 9min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -435,6 +436,7 @@ Progress: [██░░░░░░░░] 20% (2 of 10 phases)
 - [Phase 44]: ADR-QD-157: a seed's fields are the wire's, stated once (ADR-QD-135 pattern); ADR-QD-078 kept and amended; the optional visibleFields key is a Breaking minor for @qadi/react
 - [Phase QD-44]: INV-QD-333 used (no existing invariant says a seed carries every disclosed wire field); BEH-QD-557..560 and INV-QD-334 unused
 - [Phase QD-44]: 44-06: mutation after the seed fields stated once equals the base (HydrationEngine.ts 1, SeededDecision.ts 0.875); no survivor test needed; check:pr green
+- [Phase 45]: 45-01: the adapter table needed no row corrected against the base; the sink option rows end Written (not WriteFailed) on the base because a healthy synchronous write beats a zero deadline
 
 ### Pending Todos
 
@@ -486,8 +488,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T04:23:54.933Z
-Stopped at: Phase 44 complete, ready to plan Phase 45
+Last session: 2026-11-15T06:31:33.019Z
+Stopped at: Completed 45-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
