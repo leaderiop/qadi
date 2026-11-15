@@ -54,10 +54,12 @@ Read first:
   `Layer<DecisionSink, InvalidAuditSinkOption, AuditTrailPort>`. ADR-QD-158 records why this differs from BEH-QD-166
   (a bound written as a constant in code is a defect there).
 - **D-06: All three duration/count options are checked.** `failureThreshold`: a positive integer (NaN, ±Infinity, 0,
-  negative, non-integer refused). `resetTimeoutMs`: finite, positive, whole milliseconds. `storeCallTimeout`: finite and
-  positive (a non-finite timeout lets a hung store call hold its record forever; zero is refused — see D-14). The
-  researcher confirms how `Duration.Input` decodes NaN/negative/Infinity in the installed effect and picks the exact
-  checks.
+  negative, non-integer refused). `resetTimeoutMs`: finite, positive, whole milliseconds. `storeCallTimeout`: positive
+  (NaN, zero, negative, `-Infinity` and a malformed string are refused; zero is refused — see D-14).
+- **D-06a (amended 2026-11-15 after research): `Duration.infinity` stays accepted for `storeCallTimeout`** and means
+  "no deadline", as BEH-QD-379 requires (`spec/behaviors/33-audit-pipeline.md:304-305`, `AuditSinkDeadline.test.ts:277`,
+  ADR-QD-126, README, website). The user chose to keep the documented opt-out over the literal "finite" rule. The
+  validators check the *decoded* duration (`Duration.millis(NaN)` decodes to zero) and report the raw input.
 - **D-07: Where.** `makeCircuitBreaker` validates its own two options, so every breaker is valid by construction; the
   sink validates `storeCallTimeout`. Both use one error class.
 - **D-08: `InvalidAuditSinkOption`**, a `Data.TaggedError` with `{ option: "failureThreshold" | "resetTimeoutMs" |
