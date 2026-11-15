@@ -14,8 +14,11 @@
  * its RED is the behaviour's rather than the compiler's.
  */
 import { assert, describe, it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import { attributeResolverPort } from "../src/AttributeResolver.ts";
@@ -319,6 +322,24 @@ describe("a sink that fails is reported once, through evaluate (EMIT-01, EMIT-02
         evaluationId: handed[0]?.evaluationId,
         cause: "sink defect",
       });
+    }).pipe(Effect.provide(testLayer(allowed))));
+});
+
+describe("an interrupted evaluation is not a sink failure (EMIT-01)", () => {
+  it.effect("E12: interrupting the evaluation while the sink runs ends as an interrupt and reports nothing", () =>
+    Effect.gen(function* () {
+      const entered = yield* Deferred.make<void>();
+      const logs = collectingLogger();
+      const blocked = Layer.succeed(DecisionSink, {
+        record: () => Deferred.succeed(entered, undefined).pipe(Effect.andThen(Effect.never)),
+      });
+
+      const fiber = yield* Effect.forkChild(baseline.pipe(Effect.provide(Layer.merge(blocked, logs.layer))));
+      yield* Deferred.await(entered);
+      const exit = yield* Fiber.interrupt(fiber).pipe(Effect.andThen(Fiber.await(fiber)));
+
+      assert.isTrue(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause));
+      assert.strictEqual(logs.lines.length, 0);
     }).pipe(Effect.provide(testLayer(allowed))));
 });
 

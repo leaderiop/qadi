@@ -10,7 +10,11 @@
  * behaviour's rather than the compiler's (ARCH-93, EMIT-03).
  */
 import { assert, describe, it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as Option from "effect/Option";
@@ -301,6 +305,38 @@ describe("a fan-out names the member that failed and keeps going (EMIT-03, D-10)
 
       assert.strictEqual(after.records.length, 1);
       assert.isTrue(isAllowed(decision));
+    }).pipe(Effect.provide(testLayer(allowed))));
+});
+
+describe("a fan-out and an interruption (EMIT-03)", () => {
+  it.effect("A7: a member that interrupts itself is reported once, and the next member still records", () =>
+    Effect.gen(function* () {
+      const logs = collectingLogger();
+      const after = recording();
+      const selfInterrupting = Layer.succeed(DecisionSink, { record: () => Effect.interrupt });
+      const decision = yield* evaluateFanOut([selfInterrupting, after.layer], logs.layer);
+
+      assertMemberReport(logs.lines, "unnamed", "Interrupt");
+      assert.strictEqual(after.records.length, 1);
+      assert.isTrue(isAllowed(decision));
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("A8: interrupting the evaluation while a member runs ends as an interrupt and reports nothing", () =>
+    Effect.gen(function* () {
+      const entered = yield* Deferred.make<void>();
+      const logs = collectingLogger();
+      const after = recording();
+      const blocked = Layer.succeed(DecisionSink, {
+        record: () => Deferred.succeed(entered, undefined).pipe(Effect.andThen(Effect.never)),
+      });
+
+      const fiber = yield* Effect.forkChild(evaluateFanOut([blocked, after.layer], logs.layer));
+      yield* Deferred.await(entered);
+      const exit = yield* Fiber.interrupt(fiber).pipe(Effect.andThen(Fiber.await(fiber)));
+
+      assert.isTrue(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause));
+      assert.strictEqual(logs.lines.length, 0);
+      assert.strictEqual(after.records.length, 0);
     }).pipe(Effect.provide(testLayer(allowed))));
 });
 
