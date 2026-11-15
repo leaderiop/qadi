@@ -22,6 +22,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
+import * as Stream from "effect/Stream";
 import type * as Tracer from "effect/Tracer";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
@@ -289,5 +290,283 @@ describe("the spans one enforcing call opens", () => {
         owner,
       );
       assert.deepStrictEqual(names, ["qadi.evaluate", "qadi.discharge"]);
+    }));
+});
+
+// A type alias, not an interface: only an alias is assignable to `Resource`'s index signature.
+type Item = {
+  readonly id: string;
+  readonly ownerId: string;
+  readonly kind: string;
+  readonly secret: string;
+};
+
+const a: Item = { id: "a", ownerId: "u1", kind: "x", secret: "S1" };
+const b: Item = { id: "b", ownerId: "u2", kind: "x", secret: "S2" };
+const c: Item = { id: "c", ownerId: "u1", kind: "y", secret: "S3" };
+const batch: ReadonlyArray<Item> = [a, b, c];
+
+/** Admits what the subject owns, and narrows kind `x` and kind `y` differently. */
+const byKind = P.anyOf([
+  P.allOf([
+    ownedByMe,
+    P.hasResourceAttribute("kind", M.eq(M.literal("x"))),
+    P.hasPermission(read, { fields: ["id", "ownerId", "kind"] }),
+  ]),
+  P.allOf([
+    ownedByMe,
+    P.hasResourceAttribute("kind", M.eq(M.literal("y"))),
+    P.hasPermission(read, { fields: ["id", "kind"] }),
+  ]),
+]);
+
+interface Collection {
+  readonly name: string;
+  readonly projected: boolean;
+  readonly run: (
+    policy: Policy,
+    input: ReadonlyArray<Item>,
+    options: Qadi.EnforceOptions,
+  ) => Effect.Effect<ReadonlyArray<unknown>, EnforcementError, EvaluationServices>;
+}
+
+const collections: ReadonlyArray<Collection> = [
+  { name: "filter", projected: false, run: (p, input, o) => Qadi.filter(p, input, o) },
+  {
+    name: "filterStream",
+    projected: false,
+    run: (p, input, o) =>
+      Stream.runCollect(Qadi.filterStream(p, Stream.fromIterable(input), o)).pipe(
+        Effect.map((chunk) => Array.from(chunk)),
+      ),
+  },
+  { name: "filterProjected", projected: true, run: (p, input, o) => Qadi.filterProjected(p, input, o) },
+  {
+    name: "filterStreamProjected",
+    projected: true,
+    run: (p, input, o) =>
+      Stream.runCollect(Qadi.filterStreamProjected(p, Stream.fromIterable(input), o)).pipe(
+        Effect.map((chunk) => Array.from(chunk)),
+      ),
+  },
+];
+
+const narrowed = [
+  { id: "a", ownerId: "u1", kind: "x" },
+  { id: "c", kind: "y" },
+];
+
+/** The admitted items: the same references for a whole release, fresh narrowed objects for a projected one. */
+const expectAdmitted = (collection: Collection, out: ReadonlyArray<unknown>) => {
+  const want: ReadonlyArray<unknown> = collection.projected ? narrowed : [a, c];
+  assert.deepStrictEqual(out, want);
+  if (collection.projected) return;
+  for (const [i, item] of out.entries()) assert.strictEqual(item, want[i]);
+};
+
+type Id = Readonly<Record<string, unknown>> | undefined;
+const idOf = (resource: Id) => String(resource?.["id"]);
+const byId = (x: Id, y: Id) => idOf(x).localeCompare(idOf(y));
+
+const allowedResources = (recorded: ReadonlyArray<SinkRecord>) => {
+  const out = [];
+  for (const row of decisionRows(recorded)) {
+    if (row.outcome._tag === "Decided" && row.outcome.decision._tag === "Allow") out.push(row.resource);
+  }
+  return out.sort(byId);
+};
+
+describe("the resource decided on is the value handed over: collection shapes", () => {
+  const reader = (h: ReturnType<typeof harness>) => Layer.mergeAll(testLayer(owner), h.sink);
+
+  it.effect("each collection partitions rather than fails, and the array and stream forms admit the same items", () =>
+    Effect.gen(function* () {
+      for (const collection of collections) {
+        const out = yield* collection.run(byKind, batch, {}).pipe(Effect.provide(testLayer(owner)));
+        expectAdmitted(collection, out);
+      }
+    }));
+
+  it.effect("the items released are the items whose decisions admitted them", () =>
+    Effect.gen(function* () {
+      for (const collection of collections) {
+        const h = harness();
+        const seen: Array<Id> = [];
+        const out = yield* collection
+          .run(P.obliged(log, byKind), batch, {
+            onObligations: ({ question }) => Effect.sync(() => void seen.push(question.resource)),
+          })
+          .pipe(Effect.provide(reader(h)));
+        expectAdmitted(collection, out);
+
+        // Record order is not defined under concurrency, so compare as sets.
+        assert.deepStrictEqual(allowedResources(h.rows), [a, c]);
+        assert.deepStrictEqual(
+          decisionRows(h.rows).map((row) => row.resource).sort(byId),
+          [a, b, c],
+        );
+        assert.deepStrictEqual(seen.sort(byId), [a, c]);
+      }
+    }));
+
+  it.live("released order is input order under concurrency: unbounded", () =>
+    Effect.gen(function* () {
+      for (const collection of collections) {
+        const h = harness();
+        // The first admitted item is the slowest to discharge, so a result built
+        // in completion order would come back reversed.
+        const out = yield* collection
+          .run(P.obliged(log, byKind), batch, {
+            concurrency: "unbounded",
+            onObligations: ({ question }) =>
+              Effect.sleep(question.resource?.["id"] === "a" ? "30 millis" : "0 millis"),
+          })
+          .pipe(Effect.provide(reader(h)));
+        expectAdmitted(collection, out);
+        assert.deepStrictEqual(allowedResources(h.rows), [a, c]);
+      }
+    }));
+
+  it.effect("two items equal in every field but distinct by reference come back as themselves", () =>
+    Effect.gen(function* () {
+      const first: Item = { id: "t", ownerId: "u1", kind: "x", secret: "S" };
+      const second: Item = { ...first };
+      for (const collection of collections) {
+        const out = yield* collection
+          .run(byKind, [first, second], {})
+          .pipe(Effect.provide(testLayer(owner)));
+        assert.strictEqual(out.length, 2);
+        assert.notStrictEqual(out[0], out[1]);
+        if (collection.projected) {
+          assert.deepStrictEqual(out, [
+            { id: "t", ownerId: "u1", kind: "x" },
+            { id: "t", ownerId: "u1", kind: "x" },
+          ]);
+        } else {
+          assert.strictEqual(out[0], first);
+          assert.strictEqual(out[1], second);
+        }
+      }
+    }));
+
+  it.effect("an empty input releases nothing and records no decision", () =>
+    Effect.gen(function* () {
+      for (const collection of collections) {
+        const h = harness();
+        const out = yield* collection.run(byKind, [], {}).pipe(Effect.provide(reader(h)));
+        assert.deepStrictEqual(out, []);
+        assert.strictEqual(h.rows.length, 0);
+      }
+    }));
+
+  it.effect("an empty stream releases nothing and records no decision", () =>
+    Effect.gen(function* () {
+      const h = harness();
+      const whole = yield* Stream.runCollect(Qadi.filterStream(byKind, Stream.empty)).pipe(
+        Effect.provide(reader(h)),
+      );
+      const projected = yield* Stream.runCollect(
+        Qadi.filterStreamProjected(byKind, Stream.empty),
+      ).pipe(Effect.provide(reader(h)));
+      assert.deepStrictEqual(Array.from(whole), []);
+      assert.deepStrictEqual(Array.from(projected), []);
+      assert.strictEqual(h.rows.length, 0);
+    }));
+
+  it.effect("a single admitted item comes back as a one-element result", () =>
+    Effect.gen(function* () {
+      for (const collection of collections) {
+        const out = yield* collection.run(byKind, [a], {}).pipe(Effect.provide(testLayer(owner)));
+        assert.deepStrictEqual(out, [collection.projected ? narrowed[0] : a]);
+      }
+    }));
+
+  it.effect("a binding obligation with no handler fails the call rather than dropping the item", () =>
+    Effect.gen(function* () {
+      for (const collection of collections) {
+        const result = yield* Effect.result(
+          collection.run(P.obliged(log, byKind), batch, {}),
+        ).pipe(Effect.provide(testLayer(owner)));
+        assert.isTrue(Result.isFailure(result));
+        if (!Result.isFailure(result)) return;
+        assert.strictEqual(result.failure._tag, "UndischargedObligation");
+      }
+    }));
+});
+
+describe("a resource smuggled in at runtime is never the one decided on", () => {
+  // An untyped value standing for a JavaScript caller, the only caller this
+  // defence exists for: `JSON.parse` returns `any`, so it compiles with neither
+  // an `as` nor an `any` written here, before and after the type refuses it.
+  const smuggled = JSON.parse('{"resource":{"ownerId":"someone-else"}}');
+
+  const decidedOn = (h: Harness) => {
+    const [decision, ...extra] = decisionRows(h.rows);
+    assert.strictEqual(extra.length, 0);
+    assert.isTrue(decision?.outcome._tag === "Decided" && decision.outcome.decision._tag === "Allow");
+    assert.deepStrictEqual(decision?.resource, record);
+  };
+
+  it.effect("guard decides on its positional resource", () =>
+    Effect.gen(function* () {
+      const h = harness();
+      const out = yield* Qadi.guard(read, ownedByMe, smuggled)(record, (_authorized, resource) =>
+        Effect.succeed(resource),
+      ).pipe(Effect.provide(Layer.mergeAll(testLayer(owner), h.sink)));
+      assert.strictEqual(out, record);
+      decidedOn(h);
+    }));
+
+  it.effect("enforceLoaded decides on the value it loaded", () =>
+    Effect.gen(function* () {
+      const h = harness();
+      const out = yield* Effect.succeed(record).pipe(
+        Qadi.enforceLoaded(ownedByMe, smuggled),
+        Effect.provide(Layer.mergeAll(testLayer(owner), h.sink)),
+      );
+      assert.strictEqual(out, record);
+      decidedOn(h);
+    }));
+
+  it.effect("enforceProjectedLoaded decides on the value it loaded", () =>
+    Effect.gen(function* () {
+      const h = harness();
+      const out = yield* Effect.succeed(record).pipe(
+        Qadi.enforceProjectedLoaded(ownedAndNarrowed, smuggled),
+        Effect.provide(Layer.mergeAll(testLayer(owner), h.sink)),
+      );
+      assert.deepStrictEqual(out, narrowedRecord);
+      decidedOn(h);
+    }));
+
+  for (const collection of collections) {
+    it.effect(`${collection.name} decides on each item it was given`, () =>
+      Effect.gen(function* () {
+        const h = harness();
+        const out = yield* collection
+          .run(byKind, batch, smuggled)
+          .pipe(Effect.provide(Layer.mergeAll(testLayer(owner), h.sink)));
+        expectAdmitted(collection, out);
+        assert.deepStrictEqual(
+          decisionRows(h.rows).map((row) => row.resource).sort(byId),
+          [a, b, c],
+        );
+      }));
+  }
+
+  // The one defect case on the base: `enforceProjected` hands its options
+  // straight to the decision, so a runtime `resource` is evaluated while `self`'s
+  // value is projected. It decides with none instead, so a policy that reads one
+  // fails closed (INV-QD-108).
+  it.effect("enforceProjected ignores a smuggled resource and decides with none", () =>
+    Effect.gen(function* () {
+      const h = harness();
+      const result = yield* Effect.result(
+        Effect.succeed(record).pipe(Qadi.enforceProjected(ownedByMe, smuggled)),
+      ).pipe(Effect.provide(Layer.mergeAll(testLayer(owner), h.sink)));
+      assert.isTrue(Result.isFailure(result));
+      if (!Result.isFailure(result)) return;
+      assert.strictEqual(result.failure._tag, "MissingResource");
+      for (const row of h.rows) assert.isFalse(Object.hasOwn(row, "resource"));
     }));
 });
