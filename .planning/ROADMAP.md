@@ -369,7 +369,7 @@ Order: defects first (43-46), then the "stated once" deepenings (47-49), then th
 ### Phases
 
 - [x] **Phase 43: One handover module behind the enforcement entry points** - One package-private module owns ask → discharge → release; `guard` and `filter*` refuse a second `resource` at the type level (ARCH-90, Breaking, core) (completed 2026-11-15)
-- [ ] **Phase 44: The hydration seed's fields stated once** - Each verdict's seed fields derive from core's wire statement; dehydrate and rebuild are spreads, so a new wire field can no longer be dropped (ARCH-91, react)
+- [x] **Phase 44: The hydration seed's fields stated once** - Each verdict's seed fields derive from core's wire statement; dehydrate and rebuild are spreads, so a new wire field can no longer be dropped (ARCH-91, react) (completed 2026-11-15)
 - [ ] **Phase 45: The audit circuit breaker as one transition function** - One pure `(state, event, now)` function holds every generation and probe rule; a `NaN` threshold is refused at construction (ARCH-92, audit)
 - [ ] **Phase 46: The sink emitter reports what it contains** - A failing or dying user sink is contained and reported with exactly one warning, naming the sink (ARCH-93, core)
 - [ ] **Phase 47: Port facts read from the description** - Defaultedness, consequence and call reading come from the port description, not from display names (ARCH-94, core, devtools)
@@ -429,7 +429,7 @@ Plans:
 **Goal**: Each verdict's seed fields are stated once, derived from core's wire statement, so a field added to the wire's `common` reaches the client's seed without a hand edit in `rebuild`, and the Allow/Deny branch is written once.
 **Depends on**: Phase 43 (serial order only; no shared source).
 **Requirements**: HYDF-01, HYDF-02, HYDF-03, HYDF-04, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
-**Records**: ARCH-91; ADR-QD-157 (the ADR-QD-135 pattern applied to the seed; ADR-QD-078 kept); CCR-QD-435; BEH-QD-556 to 560; INV-QD-333 to 334; changeset for `@qadi/react` (patch: a fix)
+**Records**: ARCH-91; ADR-QD-157 (the ADR-QD-135 pattern applied to the seed; ADR-QD-078 kept); CCR-QD-435; BEH-QD-556 to 560; INV-QD-333 to 334; changeset for `@qadi/react` (minor, **Breaking**: `SeededAllow.visibleFields` is an optional key, as on the wire; D-03)
 **Settled by the review check**: the defect is real and compiles today: a field added to the wire's `common` reaches the payload and is dropped by `rebuild` on the client. The pattern is `SinkRecordFields.ts`: a `Schema.Struct` of fields, a `Data.TaggedClass` typed by its `Type`, and a wire that spreads it. ADR-QD-078 (a seed is its own type, `_tag` is `SeededAllow`, not `Allow`) and ADR-QD-155 (`SeededQuestion.ts` owns the computing atom) stay as they are.
 
 **Success Criteria** (what must be TRUE):
@@ -439,7 +439,7 @@ Plans:
   4. `entryAgrees` still refuses a seed whose fields disagree with its trace through core's `decisionDisagreement` (INV-QD-170), existing tests unchanged, and the payload's wire form is byte-identical for existing entries (a golden committed on the base).
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `HydrationEngine.ts` and `SeededDecision.ts`, the byte golden and the property with its scratch-field RED, committed first; then the derived statement; then the spreads; then records. Core's `DecisionWire.ts` is read, not edited, unless the planner records evidence that it must change.
-**Plans**: 6/6 plans executed
+**Plans**: 6/6 plans complete
 
 Plans:
 **Wave 1**
@@ -611,7 +611,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 43. One handover module behind the enforcement entry points | 8/8 | Complete    | 2026-11-15 |
-| 44. The hydration seed's fields stated once | 6/6 | In Progress | - |
+| 44. The hydration seed's fields stated once | 6/6 | Complete    | 2026-11-15 |
 | 45. The audit circuit breaker as one transition function | 0/TBD | Not started | - |
 | 46. The sink emitter reports what it contains | 0/TBD | Not started | - |
 | 47. Port facts read from the description | 0/TBD | Not started | - |
