@@ -247,6 +247,6 @@ export const AuditDecisionSinkLive = (
         });
       });
 
-      return { record };
+      return { name: "AuditDecisionSinkLive", record };
     }),
   );

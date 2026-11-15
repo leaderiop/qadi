@@ -5,8 +5,8 @@
  * discarding sink and a private cache in front of them. A seal only the simulator's
  * own tests observed was a seal one refactor away from gone, so the builder proves
  * both arms directly. The installed sink is called directly rather than through
- * `evaluate`, because `evaluate` swallows a sink's failure and a broken discarding
- * sink would otherwise be invisible.
+ * `evaluate`: `evaluate` contains a sink's failure and reports it as one warning,
+ * which a test of the discarding sink's own behaviour should not have to read.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Clock from "effect/Clock";

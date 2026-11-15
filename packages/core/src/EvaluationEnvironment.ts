@@ -71,8 +71,9 @@ const shadowing = (shadow: EvaluationShadowing) =>
         // A discarding sink rather than none: a service cannot be removed from a
         // context, so the only way to guarantee a simulation writes nothing is to
         // put a sink here that discards. Without it, a sweep run anywhere a real
-        // sink is in scope fabricates audit rows.
-        Layer.succeed(DecisionSink, { record: () => Effect.void }),
+        // sink is in scope fabricates audit rows. It is named like every shipped
+        // sink, though it cannot fail.
+        Layer.succeed(DecisionSink, { name: "evaluationEnvironment.shadow", record: () => Effect.void }),
         // A private cache rather than none, for the same reason: this shadows the
         // application's, so an imagined decision neither reads a real entry nor
         // inserts a fabricated one that a real request would later hit.
