@@ -333,10 +333,10 @@ describe("DecisionSink — a sink cannot change a decision", () => {
   /** The verdict reached with no sink at all: the baseline every case must match. */
   const baseline = evaluate(P.hasPermission(read));
 
-  // A sink that *fails* has no test here because it cannot be written: the
-  // `never` error channel makes `Effect.fail` un-assignable to
-  // `DecisionSinkShape["record"]`, which `DecisionSink.tst.ts` pins. Only a
-  // defect can still reach the call site, which is what the next two cases are.
+  // The `never` error channel refuses `Effect.fail` unless a type escape is
+  // used (`DecisionSink.tst.ts` pins the refusal), and `SinkEmitReport.test.ts`
+  // row E4 pins exactly that escape. A defect still reaches the emitter without
+  // one, which is what the next two cases are.
 
   it.effect("a sink that THROWS leaves the allow intact", () =>
     Effect.gen(function* () {
