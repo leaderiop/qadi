@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 46
 current_phase_name: The sink emitter reports what it contains
-current_plan: 5
+current_plan: 6
 status: executing
-stopped_at: Completed 46-04-PLAN.md
-last_updated: "2026-11-15T14:05:11.248Z"
+stopped_at: Completed 46-05-PLAN.md
+last_updated: "2026-11-15T14:11:59.317Z"
 last_activity: 2026-11-15
 last_activity_desc: Phase 46 execution started
-state_head: a2c161c2108d554e492f440591b0cb94ff26eaa9
+state_head: 98267c46b48b7fccc21c76b8a0d8e1ec43d2fc77
 progress:
   total_phases: 10
   completed_phases: 3
   total_plans: 29
-  completed_plans: 26
+  completed_plans: 27
   percent: 30
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 46 (The sink emitter reports what it contains) — EXECUTING
-Current Plan: 5
+Current Plan: 6
 Total Plans in Phase: 7
 Status: Ready to execute
 Last activity: 2026-11-15 — Phase 46 execution started
@@ -278,6 +278,7 @@ Progress: [███░░░░░░░] 30% (3 of 10 phases)
 | Phase 46 P02 | 12 min | 2 tasks | 3 files |
 | Phase 46 P03 | 10 min | 2 tasks | 4 files |
 | Phase 46 P04 | 12 min | 3 tasks | 5 files |
+| Phase 46 P05 | 14 min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -462,6 +463,8 @@ Progress: [███░░░░░░░] 30% (3 of 10 phases)
 - [Phase 46]: 46-03: reportSinkFailure is a plain untraced function and sinkName uses ?? so an empty name is kept; both live in SinkEmit.ts, sinkName package-private for 46-04
 - [Phase 46]: 46-04: the forwarder's outer catch is removed; a throwing onFailure is reported once by the emitter naming decisionSinkForwarding
 - [Phase 46]: 46-04: DecisionLog's isolate catches stay; the publish half is kept though unreachable by any test, so the append half's catch cannot mislabel a publish defect
+- [Phase 46]: 46-05: ADR-QD-159 records the metric as declined and deferred (ADR-QD-123), log flood and log forging as accepted consequences, and the change as not breaking
+- [Phase 46]: 46-05: the CCR-QD-437 row lists Task 1's files only; the overview, upgrade guide and changesets are added by 46-06 with the Used/Unused ids
 
 ### Pending Todos
 
@@ -514,8 +517,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T14:05:11.165Z
-Stopped at: Completed 46-04-PLAN.md
+Last session: 2026-11-15T14:11:59.236Z
+Stopped at: Completed 46-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

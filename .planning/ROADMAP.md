@@ -518,7 +518,7 @@ Plans:
   4. The sink is still read once per evaluation (ADR-QD-044/100, `sink-read-once`), a sink never changes a decision, and INV-QD-035 is restated to include the report.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `SinkEmit.ts` and the touched sinks, the two RED tests and a per-warning classification table committed first; then the emitter's report and the `name`; then removing only the covered duplicates; then records.
-**Plans**: 4/7 plans executed
+**Plans**: 5/7 plans executed
 
 Plans:
 **Wave 1**
@@ -534,7 +534,7 @@ Plans:
 - [x] 46-04-PLAN.md — tracer: the fan-out names its failed member and keeps going; the forwarder's outer catch removed and a throwing `send` made a send failure; every shipped sink named; `check:fast`
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 46-05-PLAN.md — ADR-QD-159, the ADR-QD-044 amendment, the CCR-QD-437 row started; the `@qadi/core` minor and `@qadi/audit` patch changesets, the 0.13 upgrade entry, the website and overview prose
+- [x] 46-05-PLAN.md — ADR-QD-159, the ADR-QD-044 amendment, the CCR-QD-437 row started; the `@qadi/core` minor and `@qadi/audit` patch changesets, the 0.13 upgrade entry, the website and overview prose
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 46-06-PLAN.md — BEH-QD-566 to 570 and four amended behaviours; INV-QD-035 restated, INV-QD-337 and 338; traceability; CCR-QD-437 completed
@@ -660,7 +660,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 43. One handover module behind the enforcement entry points | 8/8 | Complete    | 2026-11-15 |
 | 44. The hydration seed's fields stated once | 6/6 | Complete    | 2026-11-15 |
 | 45. The audit circuit breaker as one transition function | 8/8 | Complete    | 2026-11-15 |
-| 46. The sink emitter reports what it contains | 4/7 | In Progress | - |
+| 46. The sink emitter reports what it contains | 5/7 | In Progress | - |
 | 47. Port facts read from the description | 0/TBD | Not started | - |
 | 48. Audit reports core's refusal and derives "lost" | 0/TBD | Not started | - |
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 0/TBD | Not started | - |
