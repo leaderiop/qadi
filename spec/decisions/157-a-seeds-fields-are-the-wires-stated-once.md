@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-157                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-15                                     |
 > | Status         | Accepted — amends ADR-QD-078                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-15): Initial (ARCH-91, CCR-QD-435) |
+> | Change History | 1.1 (2026-11-15): Related: BEH-QD-556 and INV-QD-333 (ARCH-91, CCR-QD-435)<br>1.0 (2026-11-15): Initial (ARCH-91, CCR-QD-435) |
 
 ---
 
@@ -107,3 +107,4 @@ the same trust boundary.
 - [ADR-QD-039](./039-a-seed-is-not-an-authority.md)
 - [ADR-QD-028](./028-decision-hydration.md)
 - INV-QD-022, INV-QD-059, INV-QD-170, BEH-QD-148
+- [BEH-QD-556](../behaviors/19-hydration.md#beh-qd-556-a-seed-carries-every-field-the-payload-discloses), [INV-QD-333](../invariants.md#inv-qd-333-a-seeds-fields-are-the-wires)
