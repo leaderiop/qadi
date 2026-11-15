@@ -794,3 +794,13 @@ describe("AuditDecisionSinkLive — onOutcome and the record span", () => {
       assert.strictEqual(span?.attributes.get("qadi.audit.durability"), "Lost");
     }));
 });
+
+describe("AuditDecisionSinkLive names itself (ARCH-93)", () => {
+  it.effect("AuditDecisionSinkLive names itself", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest();
+      yield* Effect.gen(function* () {
+        assert.propertyVal(yield* DecisionSink, "name", "AuditDecisionSinkLive");
+      }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail)));
+    }));
+});

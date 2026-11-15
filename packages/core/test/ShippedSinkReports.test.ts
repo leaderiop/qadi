@@ -12,14 +12,18 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Logger from "effect/Logger";
+import * as Option from "effect/Option";
 import { isAllowed } from "../src/Decision.ts";
 import { makeDecisionLog } from "../src/DecisionLog.ts";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
-import { decisionSinkForwarding } from "../src/DecisionSinkForwarding.ts";
+import { decisionSinkAll, decisionSinkForwarding } from "../src/DecisionSinkForwarding.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { evaluationEnvironment } from "../src/EvaluationEnvironment.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
+import { portsLayer } from "../src/Ports.ts";
 import { collectingLogger, subjectWith, testLayer } from "./helpers.ts";
 import type { CapturedLog } from "./helpers.ts";
 
@@ -148,5 +152,207 @@ describe("one failure, one report, before and after (EMIT-03)", () => {
       yield* log.ingest(second).pipe(Effect.provide(logs.layer));
       assert.strictEqual(logs.lines.length, 1);
       assert.strictEqual((yield* log.snapshot).length, 1);
+    }).pipe(Effect.provide(testLayer(allowed))));
+});
+
+describe("every shipped sink names itself (EMIT-03, D-06)", () => {
+  it.effect("N1: decisionSinkForwarding names itself", () =>
+    Effect.gen(function* () {
+      assert.propertyVal(yield* DecisionSink, "name", "decisionSinkForwarding");
+    }).pipe(Effect.provide(decisionSinkForwarding({ send: () => Effect.void }))));
+
+  it.effect("N2: decisionSinkAll names itself, and an empty fan-out reports nothing", () =>
+    Effect.gen(function* () {
+      const sink = decisionSinkAll([]);
+      assert.propertyVal(yield* DecisionSink.pipe(Effect.provide(sink)), "name", "decisionSinkAll");
+
+      const logs = collectingLogger();
+      const decision = yield* evaluate(policy).pipe(Effect.provide(Layer.mergeAll(sink, logs.layer)));
+      assert.isTrue(isAllowed(decision));
+      assert.strictEqual(logs.lines.length, 0);
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("N3: a decision log names its sink decisionLog", () =>
+    Effect.gen(function* () {
+      const log = yield* makeDecisionLog({ environment: "test" });
+      assert.propertyVal(yield* DecisionSink.pipe(Effect.provide(log.layer)), "name", "decisionLog");
+    }));
+
+  it.effect("N4: the sinkAndCache shadow names its sink evaluationEnvironment.shadow", () =>
+    Effect.gen(function* () {
+      const shadow = evaluationEnvironment({
+        ports: portsLayer(),
+        idPrefix: "x",
+        clock: Layer.empty,
+        shadow: "sinkAndCache",
+      });
+      // `serviceOption`: the environment's declared outputs do not list the sink it shadows with.
+      const installed = yield* Effect.serviceOption(DecisionSink).pipe(Effect.provide(shadow));
+      assert.isTrue(Option.isSome(installed));
+      assert.propertyVal(Option.getOrUndefined(installed), "name", "evaluationEnvironment.shadow");
+    }));
+});
+
+const MEMBER_REPORT = "qadi: a fanned-out decision sink failed unexpectedly";
+const SINK_REPORT = "qadi: a decision sink failed; the record was not delivered";
+
+/** What a report must never carry: the question's own content. */
+const WITHHELD = ["subjectid", "resource", "resourceid", "policy", "action"];
+
+/** Asserts one line that is the fan-out's report of the member `sink`, whose failure said `cause`. */
+const assertMemberReport = (lines: ReadonlyArray<CapturedLog>, sink: string, cause: string): void => {
+  const line = assertOneLine(lines, cause);
+  assert.strictEqual(String(line?.message), MEMBER_REPORT);
+  assert.strictEqual(line?.annotations["qadi.sink"], sink);
+  for (const key of Object.keys(line?.annotations ?? {})) {
+    assert.isFalse(
+      WITHHELD.some((word) => key.toLowerCase().includes(word)),
+      `the report carries an annotation named ${key}`,
+    );
+  }
+};
+
+/** Evaluates under a fan-out of `members` with `logger` installed. */
+const evaluateFanOut = (members: ReadonlyArray<Layer.Layer<DecisionSink>>, logger: Layer.Layer<never>) =>
+  evaluate(policy).pipe(Effect.provide(Layer.mergeAll(decisionSinkAll(members), logger)));
+
+const dyingMember = (text: string) =>
+  Layer.succeed(DecisionSink, { record: () => Effect.die(new Error(text)) });
+
+const billing = { name: "billing-audit", record: () => Effect.die(new Error("billing down")) };
+
+describe("a fan-out names the member that failed and keeps going (EMIT-03, D-10)", () => {
+  it.effect("A1: an unnamed member that dies is reported once as unnamed, and the next member still records", () =>
+    Effect.gen(function* () {
+      const logs = collectingLogger();
+      const after = recording();
+      const decision = yield* evaluateFanOut([dyingMember("member died"), after.layer], logs.layer);
+
+      assertMemberReport(logs.lines, "unnamed", "member died");
+      assert.strictEqual(after.records.length, 1);
+      assert.isTrue(isAllowed(decision));
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("A2: a named member that dies is reported once with its name", () =>
+    Effect.gen(function* () {
+      const logs = collectingLogger();
+      const after = recording();
+      const decision = yield* evaluateFanOut([Layer.succeed(DecisionSink, billing), after.layer], logs.layer);
+
+      assertMemberReport(logs.lines, "billing-audit", "billing down");
+      assert.strictEqual(after.records.length, 1);
+      assert.isTrue(isAllowed(decision));
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("A3: a member whose name getter throws is reported once as unnamed, and the next member still records", () =>
+    Effect.gen(function* () {
+      const hostile = {
+        get name(): string {
+          throw new Error("name getter exploded");
+        },
+        record: () => Effect.die(new Error("member died")),
+      };
+      const logs = collectingLogger();
+      const after = recording();
+      const decision = yield* evaluateFanOut([Layer.succeed(DecisionSink, hostile), after.layer], logs.layer);
+
+      assertMemberReport(logs.lines, "unnamed", "member died");
+      assert.strictEqual(after.records.length, 1);
+      assert.isTrue(isAllowed(decision));
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("A4: a member whose record throws before returning an effect is reported once, and the next member still records", () =>
+    Effect.gen(function* () {
+      const throwing = Layer.succeed(DecisionSink, {
+        record: () => {
+          throw new Error("member threw");
+        },
+      });
+      const logs = collectingLogger();
+      const after = recording();
+      const decision = yield* evaluateFanOut([throwing, after.layer], logs.layer);
+
+      assertMemberReport(logs.lines, "unnamed", "member threw");
+      assert.strictEqual(after.records.length, 1);
+      assert.isTrue(isAllowed(decision));
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("A5: a nested fan-out reports a dying member once, at the innermost level, naming that member", () =>
+    Effect.gen(function* () {
+      const logs = collectingLogger();
+      const after = recording();
+      const inner = decisionSinkAll([Layer.succeed(DecisionSink, billing)]);
+      const decision = yield* evaluateFanOut([inner, after.layer], logs.layer);
+
+      assertMemberReport(logs.lines, "billing-audit", "billing down");
+      assert.strictEqual(after.records.length, 1);
+      assert.isTrue(isAllowed(decision));
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("A6: a logger that throws while a member is reported does not stop the next member", () =>
+    Effect.gen(function* () {
+      const exploding = Logger.layer([
+        Logger.make(() => {
+          throw new Error("logger exploded");
+        }),
+      ]);
+      const after = recording();
+      const decision = yield* evaluateFanOut([dyingMember("member died"), after.layer], exploding);
+
+      assert.strictEqual(after.records.length, 1);
+      assert.isTrue(isAllowed(decision));
+    }).pipe(Effect.provide(testLayer(allowed))));
+});
+
+describe("a forwarder's own failures (EMIT-03, D-09)", () => {
+  it.effect("F1: a send that throws before returning an effect reaches onFailure as the thrown error, and nothing is logged", () =>
+    Effect.gen(function* () {
+      const seen: Array<unknown> = [];
+      const logs = collectingLogger();
+      const decision = yield* evaluate(policy).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            decisionSinkForwarding({
+              send: () => {
+                throw new Error("send threw");
+              },
+              onFailure: (error) => {
+                seen.push(error);
+              },
+            }),
+            logs.layer,
+          ),
+        ),
+      );
+
+      assert.strictEqual(seen.length, 1);
+      assert.instanceOf(seen[0], Error);
+      assert.strictEqual(seen[0] instanceof Error ? seen[0].message : undefined, "send threw");
+      assert.strictEqual(logs.lines.length, 0);
+      assert.isTrue(isAllowed(decision));
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("F2: a send failure whose onFailure throws is reported by the emitter, naming decisionSinkForwarding", () =>
+    Effect.gen(function* () {
+      const logs = collectingLogger();
+      const decision = yield* evaluate(policy).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            decisionSinkForwarding({
+              send: () => Effect.fail("offline"),
+              onFailure: () => {
+                throw new Error("onFailure exploded");
+              },
+            }),
+            logs.layer,
+          ),
+        ),
+      );
+
+      const line = assertOneLine(logs.lines, "onFailure exploded");
+      assert.strictEqual(String(line?.message), SINK_REPORT);
+      assert.strictEqual(line?.annotations["qadi.sink"], "decisionSinkForwarding");
+      assert.strictEqual(line?.annotations["qadi.record_tag"], "Decision");
+      assert.isTrue(isAllowed(decision));
     }).pipe(Effect.provide(testLayer(allowed))));
 });
