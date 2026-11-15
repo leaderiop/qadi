@@ -86,6 +86,12 @@ Shared wave rules: `.planning/phases/_WAVE10-CONTEXT.md`. Reserved ids: ARCH-94,
   - the `spec/overview.md` row for `isPortDefault`;
   - CCR-QD-438, which names any reserved id left unused.
 
+### Settled after research (2026-11-16, user answers to 47-RESEARCH.md's Open Questions)
+- **D-17:** `decoratePorts` (`Ports.ts`) is a derived wrapper too: it copies the mark from each inner shape, so devtools' `capturing` keeps a captured default reading as defaulted. A `Capture.test.ts` row pins "a captured default reads defaulted". This extends D-01's site list by one.
+- **D-18:** `ROWS` uses **R6**: one monomorphic, fully type-checked row helper applied once per port (five one-line entries), with no overload whose implementation widens to `unknown` (the user's rule against widened implementation types). PFCT-04 and roadmap criterion 4 are reworded to "built by one generic, fully type-checked row builder over the registry's descriptions"; a sixth port is one more compiler-flagged line in `PortCalls.ts`. This replaces D-07's "built from `forEveryPort`/`tabulatePorts`".
+- **D-19:** PFCT-05 accepts the compiler's full list for a sixth port: the port-reading row, `ROWS`' entry, and the two simulation fixture tables (`SimulationFields.ts`, `SimulationSource.ts`) that core's `PortFixtureData` requires. `PortCall` is derived from the registry (`{ readonly [K in PortName]: PortCallOf<K> }[PortName]`); the five named aliases stay. The SUMMARY records the exact flagged list (D-12). Deriving the fixture tables is out of scope.
+- **D-20:** The mark is a unique `Symbol(...)`, not `Symbol.for`. Nobody outside core can forge it; a duplicate install of `@qadi/core` reads the other copy's defaults as real adapters, a limit BEH-QD-572 states.
+
 ### Claude's Discretion
 - The exact symbol name, the reader's module (`PortDescription.ts`, `PortDerivation.ts`, or `Ports.ts`), and the port-reading module's file name.
 - How the generic `ROWS` builder is typed, provided it uses no `as`, `!` or `any`.

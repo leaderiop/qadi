@@ -554,7 +554,7 @@ Plans:
   1. Whether a port's service is its description's fail-closed default, through any number of derived wrappers, is a structural fact core exposes, and devtools' `isDefaultName` is deleted.
   2. RED on the phase base: a hand-written wrapper whose name does not follow `"<inner> (<suffix>)"`, around a fail-closed default, is reported as defaulted; on the base it shows as a real adapter.
   3. Each port's fail-closed consequence sentence and call-row reading are stated once per port, next to its description or in one devtools port-reading module keyed by `PortName`; `CONSEQUENCES` and the per-port arms of `describeOne` are gone, and `ServicesPanel.tsx` no longer knows any port's span fields.
-  4. `PortCalls.ts`'s `ROWS` is built with `forEveryPort`, and a throwaway sixth port in the registry (recorded and reverted) needs no devtools edit beyond what the compiler asks for.
+  4. `PortCalls.ts`'s `ROWS` is built by one generic, fully type-checked row builder over the registry's descriptions (D-18), and a throwaway sixth port in the registry (recorded and reverted) needs no devtools edit beyond what the compiler asks for.
   5. Rendered output for the five ports is unchanged (characterisation tests written on the base), and devtools still depends only on `@qadi/core`.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for the touched devtools files, the wrapper RED and a rendered-output characterisation for each port, committed first; then core's fact; then devtools' tables; then records. Re-run `pnpm circular` after the first move. Keep the work off the lines Phase 49 will edit in `ServicesPanel`/`DockModel`.

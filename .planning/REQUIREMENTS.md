@@ -61,7 +61,7 @@
 - [ ] **PFCT-01**: Whether a port's service is its description's fail-closed default, through any number of derived wrappers, is a structural fact core exposes, not a parse of a display name. Devtools' `isDefaultName` is deleted.
 - [ ] **PFCT-02**: A wrapper whose name does not follow `"<inner> (<suffix>)"`, around a fail-closed default, is reported as defaulted. The test is RED on the phase base.
 - [ ] **PFCT-03**: Each port's fail-closed consequence sentence and its call-row reading are stated once per port, next to its description or in one devtools port-reading module keyed by `PortName`. `CONSEQUENCES` and the per-port arms of `describeOne` go.
-- [ ] **PFCT-04**: `PortCalls.ts`'s `ROWS` is built with `forEveryPort`, and `ServicesPanel.tsx` no longer knows any port's span fields.
+- [ ] **PFCT-04**: `PortCalls.ts`'s `ROWS` is built by one generic, fully type-checked row builder over the registry's descriptions (no widened implementation type; reworded 2026-11-16 by the user's Phase 47 decision D-18), and `ServicesPanel.tsx` no longer knows any port's span fields.
 - [ ] **PFCT-05**: Adding a port to the registry needs no edit in devtools beyond what the compiler asks for.
 
 ### Audit reports core's refusal and derives "lost" (Phase 48, ARCH-95, audit, Breaking)
