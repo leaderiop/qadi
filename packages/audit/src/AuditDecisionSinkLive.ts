@@ -51,8 +51,8 @@ export interface AuditDecisionSinkOptions {
   /**
    * How long a tripped breaker stays open before allowing one probe write.
    * Defaults to 30 000 (milliseconds). Must be a finite, positive, whole number
-   * of milliseconds, at most `Number.MAX_SAFE_INTEGER`; any other value is refused with `InvalidAuditSinkOption`
-   * when the layer is built.
+   * of milliseconds, at most `Number.MAX_SAFE_INTEGER`; any other value is
+   * refused with `InvalidAuditSinkOption` when the layer is built.
    *
    * `Duration.Input`, not a bare `number` — see `CircuitBreaker.ts`'s
    * `CircuitBreakerOptions.resetTimeoutMs` doc comment (issue #107). A plain
