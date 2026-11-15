@@ -439,11 +439,11 @@ Plans:
   4. `entryAgrees` still refuses a seed whose fields disagree with its trace through core's `decisionDisagreement` (INV-QD-170), existing tests unchanged, and the payload's wire form is byte-identical for existing entries (a golden committed on the base).
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `HydrationEngine.ts` and `SeededDecision.ts`, the byte golden and the property with its scratch-field RED, committed first; then the derived statement; then the spreads; then records. Core's `DecisionWire.ts` is read, not edited, unless the planner records evidence that it must change.
-**Plans**: 6 plans
+**Plans**: 1/6 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 44-01-PLAN.md — mutation baseline (first commit), then the round-trip property and the eight-string payload golden green on the base; RED under an uncommitted scratch wire field
+- [x] 44-01-PLAN.md — mutation baseline (first commit), then the round-trip property and the eight-string payload golden green on the base; RED under an uncommitted scratch wire field
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 44-02-PLAN.md — tracer: the allow's seed fields stated once in `SeededDecision.ts`, entry and class derived, `rebuild` a spread (RED first for the absent key); then the denial; tests drop `visibleFields: undefined`; the type pin
@@ -611,7 +611,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 43. One handover module behind the enforcement entry points | 8/8 | Complete    | 2026-11-15 |
-| 44. The hydration seed's fields stated once | 0/TBD | Not started | - |
+| 44. The hydration seed's fields stated once | 1/6 | In Progress | - |
 | 45. The audit circuit breaker as one transition function | 0/TBD | Not started | - |
 | 46. The sink emitter reports what it contains | 0/TBD | Not started | - |
 | 47. Port facts read from the description | 0/TBD | Not started | - |

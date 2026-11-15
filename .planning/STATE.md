@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 44
 current_phase_name: The hydration seed's fields stated once
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 43 complete, ready to plan Phase 44
-last_updated: "2026-11-15T03:48:19.616Z"
+stopped_at: Completed 44-01-PLAN.md
+last_updated: "2026-11-15T03:56:20.779Z"
 last_activity: 2026-11-15
-last_activity_desc: Phase 43 complete, transitioned to Phase 44
-state_head: 9e7838c31342f7c8f0fae799554571ed695838ca
+last_activity_desc: Phase 44 execution started
+state_head: 573f79e9bee09d5ad43e147e0bceae2ae36f2725
 progress:
   total_phases: 10
   completed_phases: 1
   total_plans: 14
-  completed_plans: 8
+  completed_plans: 9
   percent: 10
 ---
 
@@ -26,15 +26,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-15)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 44 — The hydration seed's fields stated once (v1.5 Arch Wave 10; Phase 43 complete 2026-11-15; v1.4 complete 2026-11-14, not merged, not released)
+**Current focus:** Phase 44 — The hydration seed's fields stated once
 
 ## Current Position
 
-Phase: 44 (The hydration seed's fields stated once) — READY TO EXECUTE
-Current Plan: Not started
+Phase: 44 (The hydration seed's fields stated once) — EXECUTING
+Current Plan: 2
 Total Plans in Phase: 6
 Status: Ready to execute
-Last activity: 2026-11-15 — Phase 43 complete, transitioned to Phase 44
+Last activity: 2026-11-15 — Phase 44 execution started
 
 Progress: [█░░░░░░░░░] 10% (1 of 10 phases)
 
@@ -258,6 +258,7 @@ Progress: [█░░░░░░░░░] 10% (1 of 10 phases)
 | Phase 43 P06 | 12min | 2 tasks | 9 files |
 | Phase 43 P07 | 25min | 3 tasks | 9 files |
 | Phase QD-43 P08 | 15min | 3 tasks | 4 files |
+| Phase 44 P01 | 10min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -422,6 +423,7 @@ Progress: [█░░░░░░░░░] 10% (1 of 10 phases)
 - [Phase 43]: ADR-QD-156: Handover.ts owns options, verdict, discharge, resource scoping and release; guard adapts it directly; LoadedEnforceOptions renamed HandoverOptions with no alias
 - [Phase 43]: INV-QD-331 added (array and stream forms agree on who passes, in order); INV-QD-108 renamed and its anchor corrected at every link
 - [Phase QD-43]: 43-08: a verdict's refusal tag is observable only through the package-private verdictOf, so its survivor is closed by a direct test; the close's no-as scan misreads Effect.as, so verdictOf uses Effect.map
+- [Phase 44]: 44-01: base mutation scores HydrationEngine.ts 1 (183/183), SeededDecision.ts 0.875 (7/8, one NoCoverage survivor at :119:18); close must meet both unrounded
 
 ### Pending Todos
 
@@ -472,8 +474,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15
-Stopped at: Phase 43 complete, ready to plan Phase 44
+Last session: 2026-11-15T03:56:20.737Z
+Stopped at: Completed 44-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
