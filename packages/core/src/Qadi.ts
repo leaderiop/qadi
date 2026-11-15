@@ -218,10 +218,10 @@ export const enforceProjectedLoaded =
  * witness that the check succeeded.
  *
  * Shares `enforce`'s handover module (`Handover.ts`) and so its obligation
- * discharge and denial handling, and is not written over `enforce`. Differs from `enforce` in shape: rather than wrapping an existing
- * effect, it takes a resource and a handler *function*, and passes the
- * resulting witness to the handler as a value rather than through the
- * environment. Per-permission distinctness falls out of `permission` being a
+ * discharge and denial handling, and is not written over `enforce`. Differs
+ * from `enforce` in shape: rather than wrapping an existing effect, it takes a
+ * resource and a handler *function*, and passes the resulting witness to the
+ * handler as a value rather than through the environment. Per-permission distinctness falls out of `permission` being a
  * real field on {@link Authorized}, not out of `Context`'s runtime tag
  * identity — a per-permission `Context.Service` registry was tried first and
  * rejected for needing an unsound cast at retrieval (ADR-QD-035).
@@ -244,8 +244,9 @@ export const enforceProjectedLoaded =
  * as any argument to an `Effect` combinator does — but that only constructs
  * the *description* of the guarded effect; nothing it describes executes
  * until the handover module's `flatMap` runs it, which happens only after the
- * policy has allowed and its obligations are discharged. The witness is therefore an inert value at construction time,
- * observable only from inside the handler's own body once it runs. A handler
+ * policy has allowed and its obligations are discharged. The witness is
+ * therefore an inert value at construction time, observable only from inside
+ * the handler's own body once it runs. A handler
  * written as an idiomatic pure effect description is unaffected by this; one
  * that performs work in its function body *before* returning an `Effect` runs
  * that work unconditionally — on both the allow and the deny path — so
@@ -257,10 +258,10 @@ export const enforceProjectedLoaded =
  * same way this function does, for a permission it was never granted.
  * {@link Authorized}'s "produced only by `Qadi.guard`" is a documented
  * convention this module happens to follow, not a runtime guarantee the type
- * enforces. What actually gates the protected work is `enforce` re-checking
- * the policy on every call, not possession of the witness — so a forged
- * witness fabricates a value, not authority: the guarded effect still only
- * runs once the handover module admits it.
+ * enforces. What actually gates the protected work is the handover module
+ * checking the policy on every call, not possession of the witness — so a
+ * forged witness fabricates a value, not authority: the guarded effect still
+ * only runs once the handover module admits it.
  */
 export const guard =
   <P extends Permission, EO = never, RO = never>(

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-07                                    |
-> | Revision       | 1.13                                           |
+> | Revision       | 1.14                                           |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.13 (2026-11-15): INV-QD-108 anchor corrected to the restated heading (ARCH-90, CCR-QD-434)<br>1.12 (2026-10-08): BEH-QD-054 names the `RequirePermission` middleware rather than the removed `RequirePermissionLive` (ARCH-36, CCR-QD-311)<br>1.11 (2026-10-08): BEH-QD-324 — a projected value is the evaluated resource (`enforceLoaded`, `enforceProjectedLoaded`, `LoadedEnforceOptions`); `enforceProjected` is resource-free and refuses `options.resource` (**breaking**); BEH-QD-050 gains `filterProjected`/`filterStreamProjected` and states that `filter` does not project; BEH-QD-051's signature corrected (ADR-QD-104, INV-QD-108, CCR-QD-207)<br>1.10 (2026-10-05): the reference to `SinkCodec.ts`'s retired `isJsonSafe` now names the record walk that replaced it (ADR-QD-095, CCR-QD-179)<br>1.9 (2026-10-04): BEH-QD-270 — every enforcement failure has exactly one class (`denied`, `outage`, `wiringMistake`), decided once in `@qadi/core`'s `Errors.ts` and derived by every adapter; `EnforcementError` moved from `Qadi.ts` to `Errors.ts` (ADR-QD-081, CCR-QD-155)<br>1.8 (2026-09-19): BEH-QD-056 gains a fifth requirement stating explicitly that `*`/`**` are grammar only at a field spec's terminal segment — a mid-path wildcard is treated as a literal, silently matching nothing, rather than rejected at decode time. The leniency was already real (`FieldPath.ts`'s `shapeOf` only ever inspects the last segment, and `FieldPath.test.ts` already pinned the observable behavior) but unstated here, so a policy author reading only this document could not have known it (100-persona audit finding EK-02)<br>1.7 (2026-09-09): BEH-QD-054's example replaced `error._tag === "AccessDenied"` narrowing with `Effect.catchTag`, per AGENTS.md §4's array-form-only rule (issue 110, CCR-QD-147)<br>1.6 (2026-09-08): BEH-QD-056 gains a fourth requirement — projecting a record never exhausts the call stack; `FieldPath.ts`'s `projectAt` walked recursively over a `fields` spec's uncapped segment count and raised a raw `RangeError` out of the enforcement path, and now uses the explicit array-backed stack `DecodeDepthGuard.ts` and `SinkCodec.ts` already use (issue 66, INV-QD-004, CCR-QD-115)<br>1.5 (2026-09-07): Brought current against `EnforceOptions`/`filterStream`, which the document predated — BEH-QD-049's `enforce`, BEH-QD-050's `assert`/`filter`, and BEH-QD-055's `guard` corrected to their real `EnforceOptions<EO, RO>`-generic signatures; `filterStream` added to BEH-QD-050 as `filter`'s streamed sibling (CCR-QD-110)<br>1.4 (2026-08-25): BEH-QD-056 — a field spec may be a dot-path, `*` reaches exactly one level, `**` and a literal terminal are containment-equivalent; BEH-QD-051 revised to match (INV-QD-004, CCR-QD-078)<br>1.3 (2026-08-23): BEH-QD-055 — a guarded resource is the evaluated resource; the first requirement `guard` has carried (ADR-QD-043, INV-QD-032, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-054 — a denial carries the trace, not only the sentence (ADR-QD-039, CCR-QD-053)<br>1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.14 (2026-11-15): BEH-QD-551 new: an entry point that hands over a value refuses a second resource; BEH-QD-050, 051, 055 and 324 show HandoverOptions (ARCH-90, ADR-QD-156, CCR-QD-434)<br>1.13 (2026-11-15): INV-QD-108 anchor corrected to the restated heading (ARCH-90, CCR-QD-434)<br>1.12 (2026-10-08): BEH-QD-054 names the `RequirePermission` middleware rather than the removed `RequirePermissionLive` (ARCH-36, CCR-QD-311)<br>1.11 (2026-10-08): BEH-QD-324 — a projected value is the evaluated resource (`enforceLoaded`, `enforceProjectedLoaded`, `LoadedEnforceOptions`); `enforceProjected` is resource-free and refuses `options.resource` (**breaking**); BEH-QD-050 gains `filterProjected`/`filterStreamProjected` and states that `filter` does not project; BEH-QD-051's signature corrected (ADR-QD-104, INV-QD-108, CCR-QD-207)<br>1.10 (2026-10-05): the reference to `SinkCodec.ts`'s retired `isJsonSafe` now names the record walk that replaced it (ADR-QD-095, CCR-QD-179)<br>1.9 (2026-10-04): BEH-QD-270 — every enforcement failure has exactly one class (`denied`, `outage`, `wiringMistake`), decided once in `@qadi/core`'s `Errors.ts` and derived by every adapter; `EnforcementError` moved from `Qadi.ts` to `Errors.ts` (ADR-QD-081, CCR-QD-155)<br>1.8 (2026-09-19): BEH-QD-056 gains a fifth requirement stating explicitly that `*`/`**` are grammar only at a field spec's terminal segment — a mid-path wildcard is treated as a literal, silently matching nothing, rather than rejected at decode time. The leniency was already real (`FieldPath.ts`'s `shapeOf` only ever inspects the last segment, and `FieldPath.test.ts` already pinned the observable behavior) but unstated here, so a policy author reading only this document could not have known it (100-persona audit finding EK-02)<br>1.7 (2026-09-09): BEH-QD-054's example replaced `error._tag === "AccessDenied"` narrowing with `Effect.catchTag`, per AGENTS.md §4's array-form-only rule (issue 110, CCR-QD-147)<br>1.6 (2026-09-08): BEH-QD-056 gains a fourth requirement — projecting a record never exhausts the call stack; `FieldPath.ts`'s `projectAt` walked recursively over a `fields` spec's uncapped segment count and raised a raw `RangeError` out of the enforcement path, and now uses the explicit array-backed stack `DecodeDepthGuard.ts` and `SinkCodec.ts` already use (issue 66, INV-QD-004, CCR-QD-115)<br>1.5 (2026-09-07): Brought current against `EnforceOptions`/`filterStream`, which the document predated — BEH-QD-049's `enforce`, BEH-QD-050's `assert`/`filter`, and BEH-QD-055's `guard` corrected to their real `EnforceOptions<EO, RO>`-generic signatures; `filterStream` added to BEH-QD-050 as `filter`'s streamed sibling (CCR-QD-110)<br>1.4 (2026-08-25): BEH-QD-056 — a field spec may be a dot-path, `*` reaches exactly one level, `**` and a literal terminal are containment-equivalent; BEH-QD-051 revised to match (INV-QD-004, CCR-QD-078)<br>1.3 (2026-08-23): BEH-QD-055 — a guarded resource is the evaluated resource; the first requirement `guard` has carried (ADR-QD-043, INV-QD-032, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-054 — a denial carries the trace, not only the sentence (ADR-QD-039, CCR-QD-053)<br>1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -48,7 +48,7 @@ export const assert: <E = never, R = never>(
 export const filter: <A extends Resource, EO = never, RO = never>(
   policy: Policy,
   items: ReadonlyArray<A>,
-  options?: EnforceOptions<EO, RO>,
+  options?: HandoverOptions<EO, RO>,
 ) => Effect.Effect<
   ReadonlyArray<A>,
   EvaluationError | UndischargedObligation | EO,
@@ -57,7 +57,7 @@ export const filter: <A extends Resource, EO = never, RO = never>(
 export const filterProjected: <A extends Resource, EO = never, RO = never>(
   policy: Policy,
   items: ReadonlyArray<A>,
-  options?: EnforceOptions<EO, RO>,
+  options?: HandoverOptions<EO, RO>,
 ) => Effect.Effect<
   ReadonlyArray<Partial<A>>,
   EvaluationError | UndischargedObligation | EO,
@@ -66,7 +66,7 @@ export const filterProjected: <A extends Resource, EO = never, RO = never>(
 export const filterStreamProjected: <A extends Resource, E2 = never, R2 = never, EO = never, RO = never>(
   policy: Policy,
   items: Stream.Stream<A, E2, R2>,
-  options?: EnforceOptions<EO, RO>,
+  options?: HandoverOptions<EO, RO>,
 ) => Stream.Stream<
   Partial<A>,
   EvaluationError | UndischargedObligation | EO | E2,
@@ -75,7 +75,7 @@ export const filterStreamProjected: <A extends Resource, E2 = never, R2 = never,
 export const filterStream: <A extends Resource, E2 = never, R2 = never, EO = never, RO = never>(
   policy: Policy,
   items: Stream.Stream<A, E2, R2>,
-  options?: EnforceOptions<EO, RO>,
+  options?: HandoverOptions<EO, RO>,
 ) => Stream.Stream<
   A,
   EvaluationError | UndischargedObligation | EO | E2,
@@ -98,13 +98,17 @@ same reason ([ADR-QD-024](../decisions/024-predicate-output.md)).
 `filterProjected` and `filterStreamProjected` are the projecting siblings: the same
 per-item decision, but each admitted item comes back as `Partial<A>`, narrowed to
 the `visibleFields` of *its own* allow. A field-restricting policy's withheld fields
-never reach the caller through them. They share `filter`'s decision logic, so all
-four agree about who passes ([BEH-QD-324](#beh-qd-324-a-projected-value-is-the-evaluated-resource)).
+never reach the caller through them. They and `filterStream` adapt the same per-item
+step as `filter`, `Handover.ts`'s `handOver`, so all four agree about who passes
+([INV-QD-331](../invariants.md#inv-qd-331-the-array-and-stream-forms-of-a-collection-entry-point-agree-on-who-passes-in-order),
+[BEH-QD-324](#beh-qd-324-a-projected-value-is-the-evaluated-resource)). Each takes
+`HandoverOptions`, so none accepts a `resource`
+([BEH-QD-551](#beh-qd-551-an-entry-point-that-hands-over-a-value-refuses-a-second-resource)).
 
 `filterStream` is `filter`'s streamed sibling, for a collection too large to
 hold as a `ReadonlyArray` or too large to wait on in full before the first
 admitted item is usable — paginated rows from a database, say. It shares
-`filter`'s per-item decision logic, so the two can never disagree about who
+`filter`'s per-item step, so the two can never disagree about who
 passes, and it is additive: `filter` is unchanged and stays the default entry
 point for a collection already in hand.
 
@@ -115,7 +119,7 @@ point for a collection already in hand.
 ```ts
 export const enforceProjected: <EO = never, RO = never>(
   policy: Policy,
-  options?: LoadedEnforceOptions<EO, RO>,
+  options?: HandoverOptions<EO, RO>,
 ) => <A extends Resource, E, R>(
   self: Effect.Effect<A, E, R>,
 ) => Effect.Effect<Partial<A>, E | EnforcementError | EO, R | EvaluationServices | RO>;
@@ -144,10 +148,11 @@ fails `enforce`, `assert`, `filter` and the rest of that table; `project` above
 is the pure, non-failing half this wraps, and does not see obligations at all.
 
 `enforceProjected` decides **before** `self` runs, so it can see no resource, and
-`options.resource` is refused at the type level (`LoadedEnforceOptions`): it was a
+`options.resource` is refused at the type level (`HandoverOptions`): it was a
 second channel, evaluated against one record while `self`'s value — possibly a
-different one — was projected under that decision. A policy that reads the resource
-belongs on `enforceProjectedLoaded` (BEH-QD-324).
+different one — was projected under that decision. A `resource` an untyped caller
+passes anyway is dropped, so the decision is made with none. A policy that reads the
+resource belongs on `enforceProjectedLoaded` (BEH-QD-324).
 
 ## BEH-QD-052: Denial carries its reason
 
@@ -273,7 +278,7 @@ once is the array form — `Effect.catchTag(["AccessDenied", "UndischargedObliga
 export const guard: <P extends Permission, EO = never, RO = never>(
   permission: P,
   policy: Policy,
-  options?: EnforceOptions<EO, RO>,
+  options?: HandoverOptions<EO, RO>,
 ) => <A extends Resource, B, E, R>(
   resource: A,
   handler: (authorized: Authorized<P>, resource: A) => Effect.Effect<B, E, R>,
@@ -281,8 +286,9 @@ export const guard: <P extends Permission, EO = never, RO = never>(
 ```
 
 ```
-REQUIREMENT: The policy MUST be evaluated against `resource`. A `resource`
-             supplied in `options` MUST NOT override it.
+REQUIREMENT: The policy MUST be evaluated against `resource`. `options` MUST
+             NOT accept a `resource`, and a `resource` an untyped caller passes
+             MUST NOT be the one evaluated.
 ```
 
 The first requirement `guard` has carried. It was written after the reverse
@@ -310,20 +316,20 @@ touching a resource attribute refuses rather than erroring.
 > **See:** [ADR-QD-104](../decisions/104-a-projected-read-decides-against-the-value-it-projects.md)
 
 ```ts
-export type LoadedEnforceOptions<E = never, R = never> = Omit<EnforceOptions<E, R>, "resource"> & {
+export type HandoverOptions<E = never, R = never> = Omit<EnforceOptions<E, R>, "resource"> & {
   readonly resource?: never;
 };
 
 export const enforceLoaded: <EO = never, RO = never>(
   policy: Policy,
-  options?: LoadedEnforceOptions<EO, RO>,
+  options?: HandoverOptions<EO, RO>,
 ) => <A extends Resource, E, R>(
   self: Effect.Effect<A, E, R>,
 ) => Effect.Effect<A, E | EnforcementError | EO, R | EvaluationServices | RO>;
 
 export const enforceProjectedLoaded: <EO = never, RO = never>(
   policy: Policy,
-  options?: LoadedEnforceOptions<EO, RO>,
+  options?: HandoverOptions<EO, RO>,
 ) => <A extends Resource, E, R>(
   self: Effect.Effect<A, E, R>,
 ) => Effect.Effect<Partial<A>, E | EnforcementError | EO, R | EvaluationServices | RO>;
@@ -333,7 +339,9 @@ export const enforceProjectedLoaded: <EO = never, RO = never>(
 REQUIREMENT: `enforceLoaded` and `enforceProjectedLoaded` MUST evaluate the
              policy with the value the wrapped effect produced as the resource,
              and MUST NOT accept a second resource: `options.resource` is
-             `never`. `enforceProjected`'s options are the same type.
+             `never`. `enforceProjected`'s options are the same type, and
+             so are those of every other entry point that hands over a value
+             (BEH-QD-551).
              On a denial the loaded value MUST NOT be handed over and nothing
              is projected. An allow with an undischarged binding obligation
              MUST fail with `UndischargedObligation` before the value is handed
@@ -392,6 +400,35 @@ const readGated = loadDocument("doc-1").pipe(
   enforceProjectedLoaded(ownerReads),
 );
 ```
+
+## BEH-QD-551: An entry point that hands over a value refuses a second resource
+
+> **Invariant:** [INV-QD-032](../invariants.md#inv-qd-032-a-guarded-resource-is-the-evaluated-resource),
+> [INV-QD-108](../invariants.md#inv-qd-108-a-handed-over-value-is-the-evaluated-resource)
+> **See:** [ADR-QD-156](../decisions/156-a-handed-over-value-is-decided-through-one-module.md)
+
+```
+REQUIREMENT: `guard`, `filter`, `filterStream`, `filterProjected` and
+             `filterStreamProjected`, like `enforceProjected`, `enforceLoaded`
+             and `enforceProjectedLoaded`, MUST take `HandoverOptions`, and
+             `{ resource }` in their options MUST NOT compile.
+             A `resource` reaching one of them at runtime from an untyped
+             caller MUST be ignored: the positional resource, the item or the
+             loaded value is the one evaluated, and `enforceProjected` decides
+             with none.
+```
+
+`{ resource: undefined }` is refused only under `exactOptionalPropertyTypes`; the
+runtime drop covers whatever the type lets through. `enforce` and `assert` keep
+`EnforceOptions` and `options.resource`, because they hand over no value, so there is
+no second record for the resource to disagree with (BEH-QD-049). Before 0.13 `guard` and `filter` accepted a
+`resource` in their options and silently dropped it, and `enforceProjected` evaluated
+it; the refusal makes the dropped argument visible at the call site.
+
+The type tests are `packages/core/test/Qadi.tst.ts` (`guard refuses a second resource
+in its options` and `the collection entry points refuse a second resource in their
+options`); the runtime drop is `packages/core/test/Handover.test.ts` (`a resource
+smuggled in at runtime is never the one decided on`).
 
 ## BEH-QD-056: Wildcard depth is exactly one level, never more
 
