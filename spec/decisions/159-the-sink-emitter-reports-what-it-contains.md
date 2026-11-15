@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-159                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-15                                     |
 > | Status         | Accepted — amends ADR-QD-044                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-15): Initial (ARCH-93, CCR-QD-437) |
+> | Change History | 1.1 (2026-11-15): Related: BEH-QD-566 to BEH-QD-570, INV-QD-337 and INV-QD-338 (ARCH-93, CCR-QD-437)<br>1.0 (2026-11-15): Initial (ARCH-93, CCR-QD-437) |
 
 ---
 
@@ -182,3 +182,10 @@ named above.
   [BEH-QD-182](../behaviors/24-decision-sink.md#beh-qd-182-a-sink-cannot-change-a-decision),
   [BEH-QD-187](../behaviors/24-decision-sink.md#beh-qd-187-a-sink-can-forward-and-a-forwarder-cannot-break-evaluation)
 - [INV-QD-035](../invariants.md#inv-qd-035-a-sink-cannot-change-a-decision)
+- [BEH-QD-566](../behaviors/24-decision-sink.md#beh-qd-566-a-sink-that-fails-is-reported-once-for-every-record-it-loses),
+  [BEH-QD-567](../behaviors/24-decision-sink.md#beh-qd-567-a-sink-may-name-itself-and-a-report-names-it-or-says-unnamed),
+  [BEH-QD-568](../behaviors/24-decision-sink.md#beh-qd-568-a-report-cannot-change-an-outcome),
+  [BEH-QD-569](../behaviors/24-decision-sink.md#beh-qd-569-a-shipped-sink-keeps-only-the-reports-that-change-behaviour-or-say-something-else),
+  [BEH-QD-570](../behaviors/24-decision-sink.md#beh-qd-570-a-fan-out-names-the-member-that-failed-and-every-member-is-isolated)
+- [INV-QD-337](../invariants.md#inv-qd-337-a-contained-sink-failure-is-reported-exactly-once-per-lost-record-naming-the-sink),
+  [INV-QD-338](../invariants.md#inv-qd-338-no-report-on-the-sink-path-can-change-an-outcome-or-stop-a-later-fan-out-member)
