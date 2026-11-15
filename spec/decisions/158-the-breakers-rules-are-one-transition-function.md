@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-158                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-15                                     |
 > | Status         | Accepted — amends ADR-QD-126                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-15): Initial (ARCH-92, CCR-QD-436) |
+> | Change History | 1.1 (2026-11-15): Related: BEH-QD-561 and INV-QD-335 (ARCH-92, CCR-QD-436)<br>1.0 (2026-11-15): Initial (ARCH-92, CCR-QD-436) |
 
 ---
 
@@ -103,5 +103,7 @@ The five that passed are the options that work.
 - [ADR-QD-099](./099-entry-points-are-a-closed-list.md)
 - [ADR-QD-044](./044-an-optional-decision-sink.md)
 - [BEH-QD-251](../behaviors/33-audit-pipeline.md#beh-qd-251-a-tripped-circuit-breaker-skips-the-write-not-the-stage-and-its-transitions-are-atomic-under-concurrency), [BEH-QD-379](../behaviors/33-audit-pipeline.md#beh-qd-379-a-store-call-is-bounded-by-the-sinks-deadline)
+- [BEH-QD-561](../behaviors/33-audit-pipeline.md#beh-qd-561-a-breaker-or-audit-sink-option-that-cannot-work-is-refused-when-it-is-built)
 - [INV-QD-052](../invariants.md#inv-qd-052-once-a-circuit-breaker-trips-write-is-never-attempted-again-until-reset)
+- [INV-QD-335](../invariants.md#inv-qd-335-a-circuit-breakers-generation-increments-exactly-when-its-status-changes)
 - BEH-QD-166 (`spec/behaviors/21-decision-cache.md`), the contrast
