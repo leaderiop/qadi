@@ -470,3 +470,7 @@ entries:
     file: "155-a-seeded-question-owns-its-computing-atom.md"
     title: "A seeded question owns its computing atom, in its own module"
     status: "Accepted — amends ADR-QD-149, ADR-QD-140"
+  - id: "ADR-QD-156"
+    file: "156-a-handed-over-value-is-decided-through-one-module.md"
+    title: "A handed-over value is decided through one module"
+    status: "Accepted — extends ADR-QD-104"
