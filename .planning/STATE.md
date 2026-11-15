@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 46
 current_phase_name: The sink emitter reports what it contains
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 45 complete, ready to plan Phase 46
-last_updated: "2026-11-15T13:44:43.443Z"
+stopped_at: Completed 46-01-PLAN.md
+last_updated: "2026-11-15T13:52:07.579Z"
 last_activity: 2026-11-15
-last_activity_desc: Phase 45 complete, transitioned to Phase 46
-state_head: 099739309538e075be6c093978991ea992a0a188
+last_activity_desc: Phase 46 execution started
+state_head: 43a0b1b58017d60a2e54848eec3bf2f1d6df9e96
 progress:
   total_phases: 10
   completed_phases: 3
   total_plans: 29
-  completed_plans: 22
+  completed_plans: 23
   percent: 30
 ---
 
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 
 ## Current Position
 
-Phase: 46 (The sink emitter reports what it contains) — READY TO EXECUTE
-Current Plan: Not started
+Phase: 46 (The sink emitter reports what it contains) — EXECUTING
+Current Plan: 2
 Total Plans in Phase: 7
 Status: Ready to execute
-Last activity: 2026-11-15 — Phase 45 complete, transitioned to Phase 46
+Last activity: 2026-11-15 — Phase 46 execution started
 
 Progress: [███░░░░░░░] 30% (3 of 10 phases)
 
@@ -274,6 +274,7 @@ Progress: [███░░░░░░░] 30% (3 of 10 phases)
 | Phase 45 P06 | 25min | 2 tasks | 9 files |
 | Phase QD-45 P07 | 12 min | 2 tasks | 6 files |
 | Phase 45 P08 | 10 min | 3 tasks | 1 files |
+| Phase 46 P01 | 22 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -452,6 +453,8 @@ Progress: [███░░░░░░░] 30% (3 of 10 phases)
 - [Phase 45]: ADR-QD-158: a refused sink option is a typed InvalidAuditSinkOption (config), unlike BEH-QD-166's defect (code constant); Duration.infinity stays accepted
 - [Phase QD-45]: 45-07: the CCR-QD-436 row lists changed files by full path, because its check matches each changed path as a substring
 - [Phase 45]: 45-08: mutation held without a survivor test round; CircuitBreaker.ts 0.8496 vs base 0.8051, AuditDecisionSinkLive.ts 1
+- [Phase 46]: 46-01: a sink whose name getter throws is reported once as unnamed (E7); an empty-string name is annotated as given (E11)
+- [Phase 46]: 46-01: mutation baseline re-measured on the base; scores equal RESEARCH Q7 (SinkEmit 1, DecisionSinkForwarding 0.8065, DecisionLog 0.9275, EvaluationEnvironment 1, AuditDecisionSinkLive 1)
 
 ### Pending Todos
 
@@ -504,8 +507,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T07:05:37.129Z
-Stopped at: Phase 45 complete, ready to plan Phase 46
+Last session: 2026-11-15T13:52:07.495Z
+Stopped at: Completed 46-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
