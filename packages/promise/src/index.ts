@@ -62,6 +62,11 @@ export type QadiLayer = Layer.Layer<StandingEvaluationServices>;
  * ([ADR-QD-032](../../../spec/decisions/032-promise-facade.md), BEH-QD-169).
  * A signal aborted before the call starts rejects without running any lookup.
  * `signal` is not passed on to `@qadi/core`'s options.
+ *
+ * `check`, `decide` and `assert` keep `resource`: they hand over no value, so
+ * the resource they decide on is theirs to name. `projected`, `filter` and
+ * `filterProjected` take `Omit<FacadeOptions, "resource">`: the value they hand
+ * over is the resource decided on (INV-QD-108).
  */
 export interface FacadeOptions extends EvaluateOptions {
   readonly signal?: AbortSignal | undefined;
@@ -139,6 +144,11 @@ export interface Qadi {
    * `options.concurrency` reaches core's own `filter` unchanged, the same as
    * any other option here — a Promise consumer filtering many items is not
    * forced into sequential resolution.
+   *
+   * **Each item is the resource of its own decision.** `options.resource` does
+   * not exist here (it is `Omit`ted), as on `projected`, so a policy that reads
+   * the resource decides against the very item that comes back, never against a
+   * second record the caller restated beside it (INV-QD-108).
    */
   readonly filter: <A extends Resource>(
     subject: AuthSubject,
@@ -175,6 +185,10 @@ export interface Qadi {
    * items whole and ignores an allow's field restriction, this does not. Same
    * obligation caveat as `filter`, and `options.concurrency` reaches core
    * unchanged.
+   *
+   * `options.resource` does not exist here either (it is `Omit`ted): each item
+   * is the resource of its own decision, and it is that decision that projects
+   * it (INV-QD-108).
    */
   readonly filterProjected: <A extends Resource>(
     subject: AuthSubject,
