@@ -13,6 +13,8 @@
  */
 import type { Decision, Trace } from "@qadi/core";
 import {
+  DecisionWireAllow,
+  DecisionWireDeny,
   encodeDecision,
   hasRole,
   makeDecision,
@@ -31,6 +33,27 @@ const WITHHELD = {
   Allow: ["_tag", "subjectId", "trace"],
   Deny: ["_tag", "subjectId", "trace", "obligations", "reason"],
 } as const;
+
+// Every field the wire carries, classified. The golden below only sees fields its fixtures populate,
+// so a new optional wire field would pass it; this fails on any new key until someone decides here
+// whether the payload discloses it.
+const DISCLOSED = {
+  Allow: ["evaluationId", "durationMillis", "obligations", "visibleFields"],
+  Deny: ["evaluationId", "durationMillis"],
+} as const;
+
+describe("every wire field is classified as disclosed or withheld", () => {
+  it("the wire structs' keys are exactly the disclosed and the withheld ones", () => {
+    for (const [verdict, struct] of [
+      ["Allow", DecisionWireAllow],
+      ["Deny", DecisionWireDeny],
+    ] as const) {
+      expect(Object.keys(struct.fields).sort()).toEqual(
+        [...DISCLOSED[verdict], ...WITHHELD[verdict]].sort(),
+      );
+    }
+  });
+});
 
 const alice = makeSubject({ id: "u1" });
 // `policyTag: "HasRole"` below, so `entryAgrees` accepts a Disclosed seed.
