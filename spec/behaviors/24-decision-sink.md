@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-24                                    |
-> | Revision       | 1.13                                           |
+> | Revision       | 1.14                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.13 (2026-11-11): BEH-QD-451 added: an absent optional is an absent key on every record core emits; BEH-QD-183's note names decisionRecordFor (ARCH-71, ADR-QD-135, CCR-QD-413)<br>1.12 (2026-10-08): BEH-QD-187 — a receiver that reads the sent record can refuse it as `Inconsistent` when its decision contradicts its trace; the sender never writes one (ADR-QD-106, CCR-QD-301)<br>1.11 (2026-10-08): the `ObligationRecord` shape note — it names `subjectId`, `action` and `resourceId` (optional, identity not content) (BEH-QD-195, ADR-QD-105, CCR-QD-220)<br>1.10 (2026-10-07): BEH-QD-187 — the default refusal log's annotations come from `encodeRefusalAnnotations`, and an `onFailure` that throws on a refusal is contained (CCR-QD-193)<br>1.9 (2026-10-07): BEH-QD-182 names the single emitter (`SinkEmit.ts`); BEH-QD-183 — a record's request half is projected from the `Question` (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-06): BEH-QD-187 — forwarding's `send` receives wire version 2, the one version a 0.11 receiver reads; a 0.9 sender must upgrade (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): ARCH-11 — BEH-QD-185 rewritten for `makeDecisionLog` (one positive-integer bound; `decisionSinkRing` removed); BEH-QD-187's example is a log and a forwarder; BEH-QD-188 requires an ingested record to reach live readers; BEH-QD-313 (a reader sees each retained record once, across backlog and live) added (ADR-QD-097, CCR-QD-181)<br>1.6 (2026-10-05): BEH-QD-187 — `send` receives wire version 2; receivers upgrade before senders (ADR-QD-096, CCR-QD-180)<br>1.5 (2026-10-05): BEH-QD-187 — `send` receives a `SinkRecordJson` from `encodeSinkRecord`; an encode refusal never reaches `send` and is reported through `onFailure` as a `SinkRecordNotEncodable` (ADR-QD-095, CCR-QD-179)<br>1.4 (2026-09-08): BEH-QD-183's `DecisionRecord` ts-fence gained the two fields it omitted, `subjectId` and `cache`, matching the real class in `DecisionRecord.ts` (CCR-QD-132)<br>1.3 (2026-09-08): BEH-QD-187 — `onFailure` MUST receive the plain value `send` failed or died with, not an Effect `Cause` wrapping it; `decisionSinkForwarding` was handing the callback the raw `Cause` from `catchCause`, which does not match `error: unknown`'s documented meaning or the sibling `onDropped`/`onUnknownParent` convention (CCR-QD-122)<br>1.2 (2026-09-07): BEH-QD-181's `DecisionSinkShape.record` corrected from `DecisionRecord` to the actual `SinkRecord` (`DecisionRecord \| ObligationRecord`) (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
+> | Change History | 1.14 (2026-11-15): BEH-QD-566 to BEH-QD-570 new — a failing sink is reported once, naming it; BEH-QD-181 the optional name; BEH-QD-182 a type escape, contained and reported; BEH-QD-185 the log's two catches; BEH-QD-187 a throwing send and hook (ARCH-93, ADR-QD-159, CCR-QD-437)<br>1.13 (2026-11-11): BEH-QD-451 added: an absent optional is an absent key on every record core emits; BEH-QD-183's note names decisionRecordFor (ARCH-71, ADR-QD-135, CCR-QD-413)<br>1.12 (2026-10-08): BEH-QD-187 — a receiver that reads the sent record can refuse it as `Inconsistent` when its decision contradicts its trace; the sender never writes one (ADR-QD-106, CCR-QD-301)<br>1.11 (2026-10-08): the `ObligationRecord` shape note — it names `subjectId`, `action` and `resourceId` (optional, identity not content) (BEH-QD-195, ADR-QD-105, CCR-QD-220)<br>1.10 (2026-10-07): BEH-QD-187 — the default refusal log's annotations come from `encodeRefusalAnnotations`, and an `onFailure` that throws on a refusal is contained (CCR-QD-193)<br>1.9 (2026-10-07): BEH-QD-182 names the single emitter (`SinkEmit.ts`); BEH-QD-183 — a record's request half is projected from the `Question` (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-06): BEH-QD-187 — forwarding's `send` receives wire version 2, the one version a 0.11 receiver reads; a 0.9 sender must upgrade (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): ARCH-11 — BEH-QD-185 rewritten for `makeDecisionLog` (one positive-integer bound; `decisionSinkRing` removed); BEH-QD-187's example is a log and a forwarder; BEH-QD-188 requires an ingested record to reach live readers; BEH-QD-313 (a reader sees each retained record once, across backlog and live) added (ADR-QD-097, CCR-QD-181)<br>1.6 (2026-10-05): BEH-QD-187 — `send` receives wire version 2; receivers upgrade before senders (ADR-QD-096, CCR-QD-180)<br>1.5 (2026-10-05): BEH-QD-187 — `send` receives a `SinkRecordJson` from `encodeSinkRecord`; an encode refusal never reaches `send` and is reported through `onFailure` as a `SinkRecordNotEncodable` (ADR-QD-095, CCR-QD-179)<br>1.4 (2026-09-08): BEH-QD-183's `DecisionRecord` ts-fence gained the two fields it omitted, `subjectId` and `cache`, matching the real class in `DecisionRecord.ts` (CCR-QD-132)<br>1.3 (2026-09-08): BEH-QD-187 — `onFailure` MUST receive the plain value `send` failed or died with, not an Effect `Cause` wrapping it; `decisionSinkForwarding` was handing the callback the raw `Cause` from `catchCause`, which does not match `error: unknown`'s documented meaning or the sibling `onDropped`/`onUnknownParent` convention (CCR-QD-122)<br>1.2 (2026-09-07): BEH-QD-181's `DecisionSinkShape.record` corrected from `DecisionRecord` to the actual `SinkRecord` (`DecisionRecord \| ObligationRecord`) (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
 
 _Previous: [23 — HTTP Enforcement](./23-http.md)_
 
@@ -35,6 +35,7 @@ optional, absent unless wired, contributing nothing to `EvaluationServices`. See
 
 ```ts
 export interface DecisionSinkShape {
+  readonly name?: string | undefined;
   readonly record: (record: SinkRecord) => Effect.Effect<void>;
 }
 export class DecisionSink extends Context.Service<DecisionSink, DecisionSinkShape>()(…) {}
@@ -57,6 +58,9 @@ REQUIREMENT: An application that provides no sink MUST behave exactly as it did
              before one existed.
 ```
 
+A sink may **name itself** (`name`, optional): a label a report carries, never an
+input to a decision ([BEH-QD-567](#beh-qd-567-a-sink-may-name-itself-and-a-report-names-it-or-says-unnamed)).
+
 The port is **write-only**: one method, taking a record and returning nothing.
 Reading records back is a property of an implementation, never of this contract.
 That is what lets a replicated or serverless deployment forward records
@@ -76,11 +80,11 @@ This is the invariant the whole design rests on, and it is enforced twice
 because once was already proven insufficient.
 
 **First, in the type.** `record` returns `Effect<void>` — a `never` error
-channel — which makes a failing sink **unrepresentable**, not merely
-discouraged: `Effect.fail` is not assignable to it, so a sink that reports
-failure cannot be written at all. (This is stronger than first claimed for it,
-and the merge gate is what established it, by rejecting a test that tried to
-build one.)
+channel — which makes a failing sink **unrepresentable except through a type
+escape**, not merely discouraged: `Effect.fail` is not assignable to it, so a sink
+that reports failure cannot be written without one — a predicate that claims
+`never`, say. (This is stronger than first claimed for it, and the merge gate is
+what established it, by rejecting a test that tried to build one.)
 
 Note this is the *opposite* call from
 [BEH-QD-175](./23-http.md#beh-qd-175-a-credential-store-that-breaks-is-an-outage),
@@ -93,13 +97,101 @@ to it must never reach the decision — so it is given no way to say otherwise.
 **Second, at the call site**, because the type leaves one gap. A **defect** is
 still assignable: `Effect.die`, and — the realistic case — any implementation
 whose body throws, since `Effect.sync` converts that into one. That is precisely
-the subversion BEH-QD-175 recorded. So the one emitter, `sinkEmitter` in `SinkEmit.ts` (used by `evaluate` and by the obligation gate), wraps the call in
-`Effect.catchCause`, and a dying sink is swallowed whole.
+the subversion BEH-QD-175 recorded. So the one emitter, `sinkEmitter` in `SinkEmit.ts` (used by `evaluate` and by the obligation gate), suspends the call and wraps it in
+`Effect.catchCause`: a sink that dies, throws, interrupts itself or leaks a typed
+failure through a type escape does not reach the decision. The cause is contained
+and **reported once** ([BEH-QD-566](#beh-qd-566-a-sink-that-fails-is-reported-once-for-every-record-it-loses)),
+not swallowed: a sink that lost a record leaves a line saying so.
 
 This is the inverse of the `Effect.orDie` [AGENTS.md §4](../../AGENTS.md) forbids
 on evaluation paths, not an instance of it. That turns a failure into a defect;
 this stops a bystander's defect from becoming an authorization outcome. **An
 observer must never be able to deny.**
+
+## BEH-QD-566: A sink that fails is reported once, for every record it loses
+
+> **Invariant:** [INV-QD-337](../invariants.md#inv-qd-337-a-contained-sink-failure-is-reported-exactly-once-per-lost-record-naming-the-sink)
+>
+> **See:** [ADR-QD-159](../decisions/159-the-sink-emitter-reports-what-it-contains.md)
+
+```
+REQUIREMENT: Every cause the emitter contains — a defect, a throw (including one
+             before `record` returns an effect), a self-interruption, a typed
+             failure leaked through a type escape — MUST produce exactly one
+             `Warn` line, `qadi: a decision sink failed; the record was not
+             delivered`, per lost record, in the order the records were emitted.
+```
+
+```
+REQUIREMENT: The line MUST be annotated `qadi.sink`, `qadi.record_tag`,
+             `evaluationId` and `qadi.cause`, and MUST NOT annotate a subject, a
+             resource, a resource id, a policy or an action.
+```
+
+The message is `qadi: a decision sink failed; the record was not delivered`. A sink
+that loses nothing is not reported: a sink that records, and no sink at all, each
+produce no line. `qadi.cause` renders the cause as the shipped sinks
+already did, so a sink's own error text reaches the log. The order is the order
+the records were emitted: an allow with duties reaches the sink twice, the
+decision first and then the obligation record, and a sink that dies on both is
+reported twice, in that order. Before ARCH-93 the emitter contained every cause
+and reported none, so a failing sink lost its records and left no trace.
+
+## BEH-QD-567: A sink may name itself, and a report names it or says unnamed
+
+> **Invariant:** [INV-QD-337](../invariants.md#inv-qd-337-a-contained-sink-failure-is-reported-exactly-once-per-lost-record-naming-the-sink)
+>
+> **See:** [ADR-QD-159](../decisions/159-the-sink-emitter-reports-what-it-contains.md)
+
+```
+REQUIREMENT: A report MUST carry the sink's `name` as given, the empty string
+             included, or `unnamed` when it has none.
+```
+
+```
+REQUIREMENT: The name MUST be read only when a failure is reported, and a name
+             that cannot be read MUST be reported as `unnamed`.
+```
+
+The name is a label a reader sees and nothing branches on it, as with
+`AttributeResolverShape.name`. It is read on the failure path only, so a sink that
+never fails costs nothing for having one, and it is read inside the containment,
+so a getter that throws cannot end the report. `??`, not `||`: the empty string is
+a name the sink chose.
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import { DecisionSink } from "@qadi/core";
+
+// A sink that names itself: a failure of it is reported as `qadi.sink = "billing-audit"`.
+export const BillingAuditSink = Layer.succeed(DecisionSink, {
+  name: "billing-audit",
+  record: (record) => Effect.logDebug(`audited a ${record._tag}`),
+});
+```
+
+The shipped sinks name themselves: `decisionSinkForwarding`, `decisionSinkAll`,
+`decisionLog` (a log's sink), `evaluationEnvironment.shadow` (the sink a simulation
+installs, which discards) and `AuditDecisionSinkLive`.
+
+## BEH-QD-568: A report cannot change an outcome
+
+> **Invariant:** [INV-QD-338](../invariants.md#inv-qd-338-no-report-on-the-sink-path-can-change-an-outcome-or-stop-a-later-fan-out-member),
+> [INV-QD-035](../invariants.md#inv-qd-035-a-sink-cannot-change-a-decision)
+>
+> **See:** [ADR-QD-159](../decisions/159-the-sink-emitter-reports-what-it-contains.md)
+
+```
+REQUIREMENT: A logger that throws, a `name` getter that throws, or a cause whose
+             rendering throws MUST leave the verdict, the trace and the error a
+             caller receives as they would be with no sink.
+```
+
+The report is built lazily and contained for the reason the sink is: an observer
+must never be able to deny, and a report is the observer's own failure. A report
+that could change an outcome would put back, one step later, the subversion the
+emitter exists to close.
 
 ## BEH-QD-183: A record is complete
 
@@ -282,6 +374,15 @@ The log is still one **implementation** of the write-only port
 `DecisionSink`, and the readable surface belongs to the log, never to the port
 ([ADR-QD-097](../decisions/097-a-decision-log-is-a-sink-and-its-own-history.md)).
 
+**The log's two catches name the half that failed (ARCH-93).** `isolate("append")`
+and `isolate("publish")` each report which half of the record path died and swallow
+it. They do not let the other half run: the publish half's catch sits inside the
+append half's, so an append defect skips the publish, and a publish defect comes
+after the append. The publish catch is kept though nothing reaches it (`PubSub.publish`
+on the sliding pubsub a log builds neither fails nor dies): without it the append
+half's catch would report a publish defect as the append half. The half's name is
+what the emitter cannot say ([BEH-QD-569](#beh-qd-569-a-shipped-sink-keeps-only-the-reports-that-change-behaviour-or-say-something-else)).
+
 > **Rewritten in CCR-QD-181 (ARCH-11).** This requirement described
 > `decisionSinkRing`, removed with `decisionSinkFeed` when one decision log
 > replaced both. The superseded text:
@@ -385,6 +486,14 @@ Sentry.captureException(error)` got a `Cause` object with no `.message`,
 however `send` actually failed. `Cause.squash` now unwraps it before the
 callback sees it.
 
+**A throwing `send` and a throwing hook (ARCH-93).** A `send` that throws before it
+returns an effect is a send failure: it reaches `onFailure` as the thrown error, or
+the no-hook warning, as a `send` that fails or dies does. An `onFailure` that throws
+is not the forwarder's to catch a second time: the emitter reports it once, naming
+`decisionSinkForwarding`, so the forwarder's own outer catch, which wrote the same
+line as the no-hook warning, is removed. The member line of `decisionSinkAll` names
+the member that failed ([BEH-QD-570](#beh-qd-570-a-fan-out-names-the-member-that-failed-and-every-member-is-isolated)).
+
 ```
 REQUIREMENT: `send` MUST receive the record as `encodeSinkRecord` produced it.
              A record `encodeSinkRecord` refuses MUST NOT reach `send`, and MUST
@@ -447,6 +556,62 @@ longer paired with a feed this way: one log is both
 ([BEH-QD-313](#beh-qd-313-a-reader-sees-each-retained-record-once-across-backlog-and-live)).) Sequential, because
 these run inside the evaluation and a sink that would benefit from concurrency is
 one already violating the rule above.
+
+## BEH-QD-569: A shipped sink keeps only the reports that change behaviour or say something else
+
+> **Invariant:** [INV-QD-337](../invariants.md#inv-qd-337-a-contained-sink-failure-is-reported-exactly-once-per-lost-record-naming-the-sink)
+>
+> **See:** [ADR-QD-159](../decisions/159-the-sink-emitter-reports-what-it-contains.md)
+
+```
+REQUIREMENT: A shipped sink MUST NOT report a failure the emitter also reports.
+             It keeps its own catch only where the catch changes behaviour or
+             names something the emitter cannot.
+```
+
+One failure, one line. Every warning on a sink's record path was classified, and
+each decision is pinned by a test that counts the lines:
+
+| # | Warning | Decision |
+| - | ------- | -------- |
+| W1 | the forwarder's encode refusal line | kept: it says something else (a refusal, not a delivery failure) |
+| W2 | "an encode-refusal hook threw" | kept: it names the hook the sink was handed |
+| W3 | the forwarder's no-hook "could not be forwarded" | kept: the sink handled the failure and returns success |
+| W3b | the forwarder's `onFailure` call | kept: behaviour (BEH-QD-187), it logs nothing |
+| W4 | the forwarder's outer catch for a throwing `onFailure` | **removed**: pure containment, so the emitter's report is the only one |
+| W5 | the fan-out's member line | kept: it changes behaviour (later members still run), and gains `qadi.sink` |
+| W6 | the log's append-half line | kept: it says which half died |
+| W7 | the log's publish-half line | kept: without it the append half would be blamed (unreachable by a test) |
+| W8 | the audit sink's outcome line | kept: a report, not containment |
+| W9 | "an onOutcome hook threw" | kept: it names the caller's hook |
+| W10 | the audit sink's commit failure | kept: a value, an outcome, not a line |
+
+A sink that keeps a catch returns success, so the emitter sees nothing to report.
+
+## BEH-QD-570: A fan-out names the member that failed, and every member is isolated
+
+> **Invariant:** [INV-QD-338](../invariants.md#inv-qd-338-no-report-on-the-sink-path-can-change-an-outcome-or-stop-a-later-fan-out-member)
+>
+> **See:** [ADR-QD-159](../decisions/159-the-sink-emitter-reports-what-it-contains.md)
+
+```
+REQUIREMENT: A member that fails, including one that throws before returning an
+             effect, MUST be reported once by the fan-out, `qadi: a fanned-out
+             decision sink failed unexpectedly`, with `qadi.sink` naming the
+             member or `unnamed`.
+```
+
+```
+REQUIREMENT: A member that fails MUST NOT stop the members after it, whatever the
+             logger does; a fan-out inside a fan-out MUST report at the
+             innermost level only, and the emitter MUST NOT report it again.
+```
+
+The member's line is `qadi: a fanned-out decision sink failed unexpectedly`, annotated
+`qadi.sink` and `qadi.cause`. The fan-out reports and returns success, so the emitter sees nothing. A member
+whose `name` getter throws is reported as `unnamed`, and a logger that throws
+while a member is reported does not stop the next member. An empty fan-out reports
+nothing.
 
 ## BEH-QD-188: A log can ingest what another process decided
 
