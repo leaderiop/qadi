@@ -7,9 +7,9 @@
  * golden pins the bytes because the payload's key order comes from `encodeDecision`'s literal, not
  * from a schema.
  *
- * The withheld names below are test-local on purpose: the property must be writable on the phase
- * base, where the engine's own lists are not importable, and it proves something about the code
- * only if it does not read them.
+ * The withheld names below are test-local on purpose: the property proves something about the code
+ * only if it does not read the engine's own lists. One separate test compares the two, so a field
+ * classified withheld here is also withheld by the engine, and not only by this file.
  */
 import type { Decision, Trace } from "@qadi/core";
 import {
@@ -28,6 +28,7 @@ import { describe, expect, it } from "vitest";
 import type { HydrationSeedLookup } from "../src/HydrationEngine.ts";
 import { dehydrateWith, hydrateWith } from "../src/HydrationEngine.ts";
 import type { SeededDecision } from "../src/SeededDecision.ts";
+import { ALLOW_WITHHELD, DENY_WITHHELD } from "../src/SeededDecision.ts";
 
 const WITHHELD = {
   Allow: ["_tag", "subjectId", "trace"],
@@ -52,6 +53,14 @@ describe("every wire field is classified as disclosed or withheld", () => {
         [...DISCLOSED[verdict], ...WITHHELD[verdict]].sort(),
       );
     }
+  });
+
+  // The pin above only checks that each key is classified. An optional field with no fixture would
+  // pass it and the property, then ship to every page if the engine's deny-list forgot it.
+  it("the engine withholds exactly the fields this file classifies as withheld", () => {
+    const sans = (names: ReadonlyArray<string>) => names.filter((n) => n !== "_tag").sort();
+    expect(sans(ALLOW_WITHHELD)).toEqual(sans(WITHHELD.Allow));
+    expect(sans(DENY_WITHHELD)).toEqual(sans(WITHHELD.Deny));
   });
 });
 
