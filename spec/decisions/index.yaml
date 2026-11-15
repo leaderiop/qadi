@@ -482,3 +482,7 @@ entries:
     file: "158-the-breakers-rules-are-one-transition-function.md"
     title: "The breaker's rules are one transition function"
     status: "Accepted — amends ADR-QD-126"
+  - id: "ADR-QD-159"
+    file: "159-the-sink-emitter-reports-what-it-contains.md"
+    title: "The sink emitter reports what it contains"
+    status: "Accepted — amends ADR-QD-044"
