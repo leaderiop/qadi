@@ -2,10 +2,10 @@
 phase: "45"
 slug: "the-audit-circuit-breaker-as-one-transition-function"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-# audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+# audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: true) (#2117)
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: "2026-11-15"
 ---
 
@@ -40,22 +40,22 @@ created: "2026-11-15"
 
 ## Per-Task Verification Map
 
-Filled per plan by the planner; the requirement map below is the contract.
+Plans: 45-01 (WX-05 base, WX-06, BRKR-03 RED, BRKR-04 adapter table), 45-02 (BRKR-01 tracer `step`), 45-03 (BRKR-01/02 the remaining events), 45-04 (BRKR-03 threshold and cooldown checks), 45-05 (BRKR-03 store-call deadline, layer error type), 45-06 (WX-07 release records), 45-07 (WX-02/03 spec records), 45-08 (WX-01/04/05 close). Re-run 2026-11-15 at af91048d: audit 107/107 (CircuitBreaker, Table, Transition, Options, AuditSinkDeadline), tstyche 278/278, added `generation + 1` lines 1, `Match.value` 0, `Ref.modify(` 1, `CircuitBreaker.test.ts` and `check-house-style.mjs` unchanged since the base, no `-QD-NEXT` added (the two hits are CCR history rows); 45-08 recorded `pnpm check:pr < /dev/null` exit 0 (5252 tests, BDD 568) and Stryker after `CircuitBreaker.ts` 0.8496 (base 0.805), `AuditDecisionSinkLive.ts` 1 (base 1), new files 1.
 
 | Requirement | Behavior | Test Type | Automated Command | File Exists | Status |
 |-------------|----------|-----------|-------------------|-------------|--------|
-| BRKR-01 | every generation/probe rule in one pure `step`; `generation + 1` written once | pure table + property; scoped grep | `pnpm exec vitest run --project audit packages/audit/test/CircuitBreakerTransition.test.ts`; added `generation + 1` lines under `packages/audit/src` since the base = 1 | ❌ W0 | ⬜ pending |
-| BRKR-02 | one `Ref.modify` per event; hoisted matchers | adapter suite + structural scan | `pnpm exec vitest run --project audit`; `Match.value` count in `CircuitBreaker.ts` = 0; `Ref.modify` count = 1 | ✅ suite | ⬜ pending |
-| BRKR-03 | bad options refused at construction, one row per value; `NaN` RED on the base | `it.effect` rows | `pnpm exec vitest run --project audit packages/audit/test/CircuitBreakerOptions.test.ts packages/audit/test/AuditSinkDeadline.test.ts` | ❌ W0 (RED on base) | ⬜ pending |
-| BRKR-04 | stale generation, release stealing a newer claim, stale failure reopening a newer window, every legal transition; no fibers or clock | pure table (plain `it`) + adapter table | `CircuitBreakerTransition.test.ts`; `CircuitBreakerTable.test.ts` | ❌ W0 | ⬜ pending |
-| BRKR-05 | the four regression tests unchanged and green | existing | `pnpm exec vitest run --project audit packages/audit/test/CircuitBreaker.test.ts`; `git diff <base> --stat -- packages/audit/test/CircuitBreaker.test.ts` empty | ✅ | ⬜ pending |
-| WX-01 | the merge gate | full | `pnpm check:pr < /dev/null` | ✅ | ⬜ pending |
-| WX-02 | only reserved ids (ARCH-92, ADR-QD-158, CCR-QD-436, BEH-QD-561..565, INV-QD-335..336) | git grep | no `-QD-NEXT` placeholder under `packages` or `spec` | ✅ | ⬜ pending |
-| WX-03 | the overview names `InvalidAuditSinkOption` | gate 13 | `pnpm spec:api` | ✅ | ⬜ pending |
-| WX-04 | nothing forbidden added; budgets unchanged | lint + scan | `pnpm lint`; `git diff <base> -- scripts/check-house-style.mjs` empty | ✅ | ⬜ pending |
-| WX-05 | coverage holds; no per-file Stryker drop | coverage + mutation | `pnpm coverage`; `pnpm exec stryker run stryker.audit.mjs --mutate 'packages/audit/src/CircuitBreaker.ts,packages/audit/src/AuditDecisionSinkLive.ts'`, then the comparer | ❌ W0 base | ⬜ pending |
-| WX-06 | tests come before the change | git order | the base JSON, the adapter table and the RED option rows precede the first `packages/audit/src` edit | n/a | ⬜ pending |
-| WX-07 | Breaking recorded | file + gate | `.changeset/*.md` has `"@qadi/audit": minor` and **Breaking**; `upgrading.md` entry; `pnpm spec:website-examples` | ❌ | ⬜ pending |
+| BRKR-01 | every generation/probe rule in one pure `step`; `generation + 1` written once | pure table + property; scoped grep | `pnpm exec vitest run --project audit packages/audit/test/CircuitBreakerTransition.test.ts`; added `generation + 1` lines under `packages/audit/src` since the base = 1 | ✅ | ✅ green |
+| BRKR-02 | one `Ref.modify` per event; hoisted matchers | adapter suite + structural scan | `pnpm exec vitest run --project audit`; `Match.value` count in `CircuitBreaker.ts` = 0; `Ref.modify` count = 1 | ✅ | ✅ green |
+| BRKR-03 | bad options refused at construction, one row per value; `NaN` RED on the base | `it.effect` rows | `pnpm exec vitest run --project audit packages/audit/test/CircuitBreakerOptions.test.ts packages/audit/test/AuditSinkDeadline.test.ts` | ✅ | ✅ green |
+| BRKR-04 | stale generation, release stealing a newer claim, stale failure reopening a newer window, every legal transition; no fibers or clock | pure table (plain `it`) + adapter table | `CircuitBreakerTransition.test.ts`; `CircuitBreakerTable.test.ts` | ✅ | ✅ green |
+| BRKR-05 | the four regression tests unchanged and green | existing | `pnpm exec vitest run --project audit packages/audit/test/CircuitBreaker.test.ts`; `git diff <base> --stat -- packages/audit/test/CircuitBreaker.test.ts` empty | ✅ | ✅ green |
+| WX-01 | the merge gate | full | `pnpm check:pr < /dev/null` | ✅ | ✅ green |
+| WX-02 | only reserved ids (ARCH-92, ADR-QD-158, CCR-QD-436, BEH-QD-561..565, INV-QD-335..336) | git grep | no `-QD-NEXT` placeholder under `packages` or `spec` | ✅ | ✅ green |
+| WX-03 | the overview names `InvalidAuditSinkOption` | gate 13 | `pnpm spec:api` | ✅ | ✅ green |
+| WX-04 | nothing forbidden added; budgets unchanged | lint + scan | `pnpm lint`; `git diff <base> -- scripts/check-house-style.mjs` empty | ✅ | ✅ green |
+| WX-05 | coverage holds; no per-file Stryker drop | coverage + mutation | `pnpm coverage`; `pnpm exec stryker run stryker.audit.mjs --mutate 'packages/audit/src/CircuitBreaker.ts,packages/audit/src/AuditDecisionSinkLive.ts'`, then the comparer | ✅ | ✅ green |
+| WX-06 | tests come before the change | git order | the base JSON, the adapter table and the RED option rows precede the first `packages/audit/src` edit | n/a | ✅ green |
+| WX-07 | Breaking recorded | file + gate | `.changeset/*.md` has `"@qadi/audit": minor` and **Breaking**; `upgrading.md` entry; `pnpm spec:website-examples` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -63,10 +63,10 @@ Filled per plan by the planner; the requirement map below is the contract.
 
 ## Wave 0 Requirements
 
-- [ ] `45-mutation-base.json`: the base Stryker scores for `CircuitBreaker.ts` and `AuditDecisionSinkLive.ts`, committed alone
-- [ ] `packages/audit/test/CircuitBreakerTable.test.ts`: the adapter-level transition table, green on the base
-- [ ] `packages/audit/test/CircuitBreakerOptions.test.ts`: one row per bad value, runtime assertions only, RED on the base; RED output in the SUMMARY
-- [ ] `packages/audit/test/CircuitBreakerTransition.test.ts`: the pure table and the seeded property (with `step`)
+- [x] `45-mutation-base.json`: the base Stryker scores for `CircuitBreaker.ts` and `AuditDecisionSinkLive.ts`, committed alone
+- [x] `packages/audit/test/CircuitBreakerTable.test.ts`: the adapter-level transition table, green on the base
+- [x] `packages/audit/test/CircuitBreakerOptions.test.ts`: one row per bad value, runtime assertions only, RED on the base; RED output in the SUMMARY
+- [x] `packages/audit/test/CircuitBreakerTransition.test.ts`: the pure table and the seeded property (with `step`)
 
 ---
 
@@ -78,11 +78,19 @@ All phase behaviors have automated verification.
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 60s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 60s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-11-15
+
+## Validation Audit 2026-11-15
+
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
