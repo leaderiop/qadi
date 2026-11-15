@@ -155,9 +155,9 @@ REQUIREMENT: `filter` and `filterProjected` MUST refuse a `resource` in their
 The facade only forwards to core ([ADR-QD-032](../decisions/032-promise-facade.md)), so the refusal is core's
 ([BEH-QD-551](./07-enforcement.md#beh-qd-551-an-entry-point-that-hands-over-a-value-refuses-a-second-resource))
 made visible at this boundary: a caller of `Qadi.filter` who restated a `resource` beside
-the items used to have it silently dropped, and now cannot write it, whether as a literal or as a `FacadeOptions` variable. `check`, `decide` and
-`assert` keep `resource`, because they hand over no value. The type test is
-`packages/promise/test/Facade.tst.ts`.
+the items used to have it silently dropped, and now cannot write it, whether as a literal
+or as a `FacadeOptions` variable. `check`, `decide` and `assert` keep `resource`, because
+they hand over no value. The type test is `packages/promise/test/Facade.tst.ts`.
 
 ## BEH-QD-173: Worked example
 
