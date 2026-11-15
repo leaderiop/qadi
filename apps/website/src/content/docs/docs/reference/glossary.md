@@ -356,8 +356,9 @@ closer to the opposite, proof that a full policy evaluation succeeded. See
 ### Guard
 
 The combinator that produces a witness:
-`guard(permission, policy)(resource, handler)`. Built on `enforce`, sharing
-its obligation-discharge and denial handling, but shaped differently — it
+`guard(permission, policy)(resource, handler)`. It shares `enforce`'s handover
+module (the same obligation discharge and denial handling), but is shaped
+differently — it
 takes a resource and a handler function rather than wrapping an existing
 effect, since a witness needs somewhere to go once the check succeeds. See
 [Witness & Guard](/docs/concepts/witness-guard/).
