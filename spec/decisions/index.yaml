@@ -478,3 +478,7 @@ entries:
     file: "157-a-seeds-fields-are-the-wires-stated-once.md"
     title: "A seed's fields are the wire's, stated once"
     status: "Accepted — amends ADR-QD-078"
+  - id: "ADR-QD-158"
+    file: "158-the-breakers-rules-are-one-transition-function.md"
+    title: "The breaker's rules are one transition function"
+    status: "Accepted — amends ADR-QD-126"

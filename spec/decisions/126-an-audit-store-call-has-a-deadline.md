@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-126                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-10                                     |
-> | Status         | Accepted — amends ADR-QD-044, ADR-QD-056       |
+> | Status         | Accepted — amends ADR-QD-044, ADR-QD-056; amended 2026-11-15 (a zero deadline is refused, ADR-QD-158) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-10): Initial (ARCH-62, CCR-QD-404) |
+> | Change History | 1.1 (2026-11-15): amended — a zero storeCallTimeout is refused when the sink is built; Duration.infinity kept (ARCH-92, CCR-QD-436)<br>1.0 (2026-11-10): Initial (ARCH-62, CCR-QD-404) |
 
 ---
 
@@ -113,3 +113,7 @@ with no clock movement.
 [BEH-QD-379](../behaviors/33-audit-pipeline.md#beh-qd-379-a-store-call-is-bounded-by-the-sinks-deadline),
 [BEH-QD-380](../behaviors/33-audit-pipeline.md#beh-qd-380-the-audit-doubles-answer-each-call-from-a-script),
 [INV-QD-035](../invariants.md#inv-qd-035-a-sink-cannot-change-a-decision).
+
+## Amendment (2026-11-15, ADR-QD-158, CCR-QD-436)
+
+**A zero deadline is refused, not pinned.** The sink now checks `storeCallTimeout` when its layer is built: zero, a negative, `NaN`, `-Infinity` or a malformed value is refused with `InvalidAuditSinkOption`, so the pinned zero behaviour above no longer happens. `Duration.infinity` still means no deadline. See [ADR-QD-158](./158-the-breakers-rules-are-one-transition-function.md).
