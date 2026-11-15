@@ -27,8 +27,8 @@
 
 ### The hydration seed's fields stated once (Phase 44, ARCH-91, react)
 
-- [ ] **HYDF-01**: Each verdict's seed fields are stated once, derived from core's `DecisionWireAllow`/`DecisionWireDeny` minus the withheld fields. `SeededAllow`/`SeededDeny` stay `Data.TaggedClass`es (ADR-078), typed by that statement (the ADR-135 pattern).
-- [ ] **HYDF-02**: `dehydrateDecision` and `rebuild` are spreads with the one `subjectId` substitution, and the Allow/Deny branch is written once for dehydrate, rebuild and agreement.
+- [x] **HYDF-01**: Each verdict's seed fields are stated once, derived from core's `DecisionWireAllow`/`DecisionWireDeny` minus the withheld fields. `SeededAllow`/`SeededDeny` stay `Data.TaggedClass`es (ADR-078), typed by that statement (the ADR-135 pattern).
+- [x] **HYDF-02**: `dehydrateDecision` and `rebuild` are spreads with the one `subjectId` substitution, and the Allow/Deny branch is written once for dehydrate, rebuild and agreement.
 - [x] **HYDF-03**: A property test checks that any `Decision` → entry → `SeededDecision` keeps every disclosed wire field. It is shown RED on the phase base with a scratch wire field, and the scratch field is then removed.
 - [x] **HYDF-04**: `entryAgrees` still refuses a seed whose fields disagree with its trace (INV-QD-170), and the payload's wire form is byte-identical for existing entries.
 
@@ -149,8 +149,8 @@ The seven WX rows apply to every phase 43 to 52, so each phase's Requirements li
 | HAND-04 | Phase 43 | Complete |
 | HAND-05 | Phase 43 | Complete |
 | HAND-06 | Phase 43 | Complete |
-| HYDF-01 | Phase 44 | Pending |
-| HYDF-02 | Phase 44 | Pending |
+| HYDF-01 | Phase 44 | Complete |
+| HYDF-02 | Phase 44 | Complete |
 | HYDF-03 | Phase 44 | Complete |
 | HYDF-04 | Phase 44 | Complete |
 | BRKR-01 | Phase 45 | Pending |

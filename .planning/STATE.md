@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 44
 current_phase_name: The hydration seed's fields stated once
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 44-01-PLAN.md
-last_updated: "2026-11-15T03:56:20.779Z"
+stopped_at: Completed 44-02-PLAN.md
+last_updated: "2026-11-15T04:00:31.368Z"
 last_activity: 2026-11-15
 last_activity_desc: Phase 44 execution started
-state_head: 573f79e9bee09d5ad43e147e0bceae2ae36f2725
+state_head: 792c8f2a00809b5b03ae9f3f1517edeb34b72994
 progress:
   total_phases: 10
   completed_phases: 1
   total_plans: 14
-  completed_plans: 9
+  completed_plans: 10
   percent: 10
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 44 (The hydration seed's fields stated once) — EXECUTING
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 6
 Status: Ready to execute
 Last activity: 2026-11-15 — Phase 44 execution started
@@ -259,6 +259,7 @@ Progress: [█░░░░░░░░░] 10% (1 of 10 phases)
 | Phase 43 P07 | 25min | 3 tasks | 9 files |
 | Phase QD-43 P08 | 15min | 3 tasks | 4 files |
 | Phase 44 P01 | 10min | 3 tasks | 2 files |
+| Phase QD-44 P02 | 20min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -424,6 +425,7 @@ Progress: [█░░░░░░░░░] 10% (1 of 10 phases)
 - [Phase 43]: INV-QD-331 added (array and stream forms agree on who passes, in order); INV-QD-108 renamed and its anchor corrected at every link
 - [Phase QD-43]: 43-08: a verdict's refusal tag is observable only through the package-private verdictOf, so its survivor is closed by a direct test; the close's no-as scan misreads Effect.as, so verdictOf uses Effect.map
 - [Phase 44]: 44-01: base mutation scores HydrationEngine.ts 1 (183/183), SeededDecision.ts 0.875 (7/8, one NoCoverage survivor at :119:18); close must meet both unrounded
+- [Phase QD-44]: 44-02: a seeded allow with no visibleFields has no visibleFields key (D-03); rebuild spreads the decoded entry and lets the class set _tag
 
 ### Pending Todos
 
@@ -474,8 +476,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T03:56:20.737Z
-Stopped at: Completed 44-01-PLAN.md
+Last session: 2026-11-15T04:00:31.337Z
+Stopped at: Completed 44-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
