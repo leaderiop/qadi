@@ -474,3 +474,7 @@ entries:
     file: "156-a-handed-over-value-is-decided-through-one-module.md"
     title: "A handed-over value is decided through one module"
     status: "Accepted — extends ADR-QD-104"
+  - id: "ADR-QD-157"
+    file: "157-a-seeds-fields-are-the-wires-stated-once.md"
+    title: "A seed's fields are the wire's, stated once"
+    status: "Accepted — amends ADR-QD-078"
