@@ -200,6 +200,9 @@ describe("every shipped sink names itself (EMIT-03, D-06)", () => {
 const MEMBER_REPORT = "qadi: a fanned-out decision sink failed unexpectedly";
 const SINK_REPORT = "qadi: a decision sink failed; the record was not delivered";
 
+/** The only annotations a report carries, sorted. */
+const REPORT_KEYS = ["evaluationId", "qadi.cause", "qadi.record_tag", "qadi.sink"];
+
 /** What a report must never carry: the question's own content. */
 const WITHHELD = ["subjectid", "resource", "resourceid", "policy", "action"];
 
@@ -219,6 +222,7 @@ const assertMemberReport = (
   assert.strictEqual(line?.annotations["qadi.record_tag"], "Decision");
   assert.isDefined(evaluationId);
   assert.strictEqual(line?.annotations["evaluationId"], evaluationId);
+  assert.deepStrictEqual(Object.keys(line?.annotations ?? {}).toSorted(), REPORT_KEYS);
   for (const key of Object.keys(line?.annotations ?? {})) {
     assert.isFalse(
       WITHHELD.some((word) => key.toLowerCase().includes(word)),

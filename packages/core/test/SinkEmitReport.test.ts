@@ -39,6 +39,9 @@ import type { CapturedLog } from "./helpers.ts";
 
 const REPORT = "qadi: a decision sink failed; the record was not delivered";
 
+/** The only annotations a report carries, sorted. */
+const REPORT_KEYS = ["evaluationId", "qadi.cause", "qadi.record_tag", "qadi.sink"];
+
 /** What a report must never carry: the question's own content, not just the sink's. */
 const WITHHELD = ["subjectid", "resource", "resourceid", "policy", "action"];
 
@@ -94,6 +97,8 @@ const assertReport = (line: CapturedLog | undefined, expected: ExpectedReport): 
   assert.isDefined(expected.evaluationId);
   assert.strictEqual(line.annotations["evaluationId"], expected.evaluationId);
   assert.include(String(line.annotations["qadi.cause"]), expected.cause);
+  // Exactly these four, so a content-bearing key cannot be added under a name WITHHELD does not list.
+  assert.deepStrictEqual(Object.keys(line.annotations).toSorted(), REPORT_KEYS);
   for (const key of Object.keys(line.annotations)) {
     assert.isFalse(
       WITHHELD.some((word) => key.toLowerCase().includes(word)),
@@ -299,6 +304,41 @@ describe("a sink that fails is reported once, through evaluate (EMIT-01, EMIT-02
         evaluationId: "unknown",
         cause: "sink defect",
       });
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("E15: a sink that dies with a value no one can render is reported once, and the allow is unchanged", () =>
+    Effect.gen(function* () {
+      const explode = (): never => {
+        throw new Error("rendering exploded");
+      };
+      // A Proxy whose every trap throws, and an object that cannot be turned into text or JSON.
+      const trapped = new Proxy(
+        {},
+        {
+          get: explode,
+          has: explode,
+          ownKeys: explode,
+          getPrototypeOf: explode,
+          getOwnPropertyDescriptor: explode,
+        },
+      );
+      const unprintable = {
+        toString: explode,
+        toJSON: explode,
+        get message(): string {
+          return explode();
+        },
+      };
+
+      for (const hostile of [trapped, unprintable]) {
+        const sink = failingSink(Effect.die(hostile));
+        const lines = yield* decideUnder(sink.layer);
+        // The rendering is inside the report's own containment: one line, whatever it could read.
+        assert.strictEqual(lines.length, 1);
+        assert.strictEqual(lines[0]?.level, "Warn");
+        assert.strictEqual(lines[0]?.annotations["evaluationId"], sink.handed[0]?.evaluationId);
+        assert.deepStrictEqual(Object.keys(lines[0]?.annotations ?? {}).toSorted(), REPORT_KEYS);
+      }
     }).pipe(Effect.provide(testLayer(allowed))));
 
   it.effect("E8: a sink that dies on the failure path is reported once, and the typed error survives", () =>
