@@ -730,6 +730,34 @@ describe("Qadi.filterStream — concurrency across items", () => {
     }));
 });
 
+describe("Qadi.filterStreamProjected — concurrency across items", () => {
+  const policy = P.hasAttribute("clearance", M.gte(1));
+  const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+  it.effect("with concurrency: 'unbounded', every item's lookup is in flight at once", () =>
+    Effect.gen(function* () {
+      const invocations = yield* Ref.make(0);
+      const gate = yield* Deferred.make<void>();
+
+      yield* Effect.gen(function* () {
+        const fiber = yield* forkAndSettle(
+          Stream.runCollect(
+            Qadi.filterStreamProjected(policy, Stream.fromIterable(items), {
+              concurrency: "unbounded",
+            }),
+          ),
+        );
+        assert.strictEqual(yield* Ref.get(invocations), items.length);
+        yield* Deferred.succeed(gate, undefined);
+        yield* Fiber.join(fiber);
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({}), { AttributeResolver: blockingResolver(invocations, gate) }),
+        ),
+      );
+    }));
+});
+
 describe("Qadi obligations", () => {
   // `enforce` returns the guarded effect's value, not the decision, so an
   // obligation would otherwise be computed and thrown away while the caller ran

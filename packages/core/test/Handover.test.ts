@@ -28,6 +28,7 @@ import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
 import type { EnforcementError } from "../src/Errors.ts";
 import type { EvaluationServices } from "../src/EvaluationServices.ts";
+import { verdictOf } from "../src/Handover.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
@@ -569,4 +570,16 @@ describe("a resource smuggled in at runtime is never the one decided on", () => 
       assert.strictEqual(result.failure._tag, "MissingResource");
       for (const row of h.rows) assert.isFalse(Object.hasOwn(row, "resource"));
     }));
+});
+
+// The one place this file reads the package-private module directly: a verdict's
+// `_tag` is what `isAdmitted` narrows on, and no entry point reports it, so the
+// refusal's name is observable only here.
+describe("the verdict an enforcing call reaches", () => {
+  it.effect("a denial is a Refused verdict carrying the denying decision", () =>
+    Effect.gen(function* () {
+      const verdict = yield* verdictOf(ownedByMe, { resource: record });
+      assert.strictEqual(verdict._tag, "Refused");
+      assert.strictEqual(verdict.decision._tag, "Deny");
+    }).pipe(Effect.provide(testLayer(stranger))));
 });
