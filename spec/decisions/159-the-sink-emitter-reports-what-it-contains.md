@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-159                                   |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-11-15                                     |
 > | Status         | Accepted — amends ADR-QD-044                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.6 (2026-11-15): E15 is a hostile-cause regression row; E9 alone pins the rendering containment; the table's A rows are A1-A8 and W5 points at the member report<br>1.5 (2026-11-15): the exact four annotation keys are pinned; the cause-rendering clause says the rendering runs inside the report's own containment; row E15 (ARCH-93, CCR-QD-437)<br>1.4 (2026-11-15): the fan-out's member line carries the emitter's four keys, both built by one report in SinkReport.ts, which also holds sinkName (ARCH-93, CCR-QD-437)<br>1.3 (2026-11-15): the report names the tag and evaluation id read before the sink runs, and unknown when they cannot be read; rows E13, E14 (ARCH-93, CCR-QD-437)<br>1.2 (2026-11-15): The record tag literal reads Obligations, as the code emits<br>1.1 (2026-11-15): Related: BEH-QD-566 to BEH-QD-570, INV-QD-337 and INV-QD-338 (ARCH-93, CCR-QD-437)<br>1.0 (2026-11-15): Initial (ARCH-93, CCR-QD-437) |
+> | Change History | 1.7 (2026-11-15): The W0 row cites E1-E15, as the classification does<br>1.6 (2026-11-15): E15 is a hostile-cause regression row; E9 alone pins the rendering containment; the table's A rows are A1-A8 and W5 points at the member report<br>1.5 (2026-11-15): the exact four annotation keys are pinned; the cause-rendering clause says the rendering runs inside the report's own containment; row E15 (ARCH-93, CCR-QD-437)<br>1.4 (2026-11-15): the fan-out's member line carries the emitter's four keys, both built by one report in SinkReport.ts, which also holds sinkName (ARCH-93, CCR-QD-437)<br>1.3 (2026-11-15): the report names the tag and evaluation id read before the sink runs, and unknown when they cannot be read; rows E13, E14 (ARCH-93, CCR-QD-437)<br>1.2 (2026-11-15): The record tag literal reads Obligations, as the code emits<br>1.1 (2026-11-15): Related: BEH-QD-566 to BEH-QD-570, INV-QD-337 and INV-QD-338 (ARCH-93, CCR-QD-437)<br>1.0 (2026-11-15): Initial (ARCH-93, CCR-QD-437) |
 
 ---
 
@@ -109,7 +109,7 @@ failure it covers is reported once and not twice. `File:line` are at the phase b
 
 | # | Where | What it says or does | Kind | Decision | One report after the change | Pinned by |
 |---|-------|----------------------|------|----------|-----------------------------|-----------|
-| W0 | `SinkEmit.ts:53` | `catchCause(..., () => Effect.void)`: contains every cause and reports none | outer containment | becomes the report (R0) | n/a: it is replaced by R0 | E1-E10, O1-O5 (46-01) |
+| W0 | `SinkEmit.ts:53` | `catchCause(..., () => Effect.void)`: contains every cause and reports none | outer containment | becomes the report (R0) | n/a: it is replaced by R0 | E1-E15, O1-O5 (46-01, 46-03 review fixes) |
 | W1 | `DecisionSinkForwarding.ts:87-94`, through `EncodeRefusalReport.ts:37` | "qadi: a decision record could not be encoded for forwarding" with `qadi.refusal`, `qadi.path`, `evaluationId` | says something else (an encode refusal, not a delivery failure) | keep (D-09) | yes: it returns success, so the emitter is silent | existing `DecisionSinkForwarding.test.ts` "with no onFailure, a refusal logs its own message, distinct from a send failure" |
 | W2 | `EncodeRefusalReport.ts:40-45`, called from W1 and `AuditWriteReport.ts:218-222` | "qadi: an encode-refusal hook threw" with `qadi.cause` | contains a hook the sink was handed and says which hook | keep | yes: it returns success | C3; existing `AuditDecisionSinkLive.test.ts` "a throwing onRefused is logged, and the next healthy record is still written" |
 | W3 | `DecisionSinkForwarding.ts:98-100` (`reportSendFailure`, no `onFailure`) | "qadi: a decision record could not be forwarded" with `qadi.cause`: `send` failed or died | the sink handled the failure | keep (D-09) | yes: it returns success | C2; existing `DecisionSinkForwarding.test.ts` "with no onFailure it warns rather than going quiet" |
