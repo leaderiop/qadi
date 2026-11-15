@@ -5,17 +5,17 @@ milestone_name: Arch Wave 10
 current_phase: 43
 current_phase_name: One handover module behind the enforcement entry points
 current_plan: 8
-status: executing
-stopped_at: Completed 43-07-PLAN.md
-last_updated: "2026-11-15T02:07:01.562Z"
+status: verifying
+stopped_at: Completed QD-43-08-PLAN.md
+last_updated: "2026-11-15T02:19:23.326Z"
 last_activity: 2026-11-15
 last_activity_desc: Roadmap created (Phases 43-52, 52/52 requirements mapped)
-state_head: f839ceffa1cad4920b1bef1b6afef021ea92ad6a
+state_head: 3b923a91734610e1c400c14d7dd38c712ebab8c0
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -33,7 +33,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 Phase: 43 (One handover module behind the enforcement entry points) — READY TO EXECUTE
 Current Plan: 8
 Total Plans in Phase: 8
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-15 — Roadmap created (Phases 43-52, 52/52 requirements mapped)
 
 Progress: [░░░░░░░░░░] 0% (0 of 10 phases)
@@ -256,6 +256,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 10 phases)
 | Phase QD-43 P05 | 20min | 2 tasks | 7 files |
 | Phase 43 P06 | 12min | 2 tasks | 9 files |
 | Phase 43 P07 | 25min | 3 tasks | 9 files |
+| Phase QD-43 P08 | 15min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -419,6 +420,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 10 phases)
 - [Phase QD-43]: 43-05: upgrade sections link ADR-QD-156 at its planned filename; one Breaking changeset per package
 - [Phase 43]: ADR-QD-156: Handover.ts owns options, verdict, discharge, resource scoping and release; guard adapts it directly; LoadedEnforceOptions renamed HandoverOptions with no alias
 - [Phase 43]: INV-QD-331 added (array and stream forms agree on who passes, in order); INV-QD-108 renamed and its anchor corrected at every link
+- [Phase QD-43]: 43-08: a verdict's refusal tag is observable only through the package-private verdictOf, so its survivor is closed by a direct test; the close's no-as scan misreads Effect.as, so verdictOf uses Effect.map
 
 ### Pending Todos
 
@@ -468,8 +470,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T02:07:01.427Z
-Stopped at: Completed 43-07-PLAN.md
+Last session: 2026-11-15T02:19:23.302Z
+Stopped at: Completed QD-43-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
