@@ -107,19 +107,39 @@ describe("a seed keeps every disclosed wire field (HYDF-03)", () => {
           }
         }
 
-        // No key beyond the ones the wire disclosed and the seed's own. `visibleFields` is exempt
-        // because the base writes it as an explicit `undefined`.
+        // No key beyond the ones the wire disclosed and the seed's own.
         const allowed = new Set([
           "_tag",
           "subjectId",
           "disclosure",
-          "visibleFields",
           ...Object.keys(wire).filter((key) => !withheld.includes(key)),
         ]);
         for (const key of seed.keys()) expect(allowed.has(key)).toBe(true);
       }),
       { numRuns: 300, seed: 2026111501 },
     );
+  });
+});
+
+describe("a seed's fields are the wire's (ARCH-91)", () => {
+  it("an allow sent without visibleFields seeds without the key, and [] seeds as []", () => {
+    const none = makeDecision(
+      { evaluationId: "e1", subjectId: makeSubjectId("u1"), durationMillis: 3 },
+      { policyTag: "HasRole", allowed: true, children: [], obligations: [] },
+    );
+    const empty = makeDecision(
+      { evaluationId: "e2", subjectId: makeSubjectId("u1"), durationMillis: 3 },
+      { policyTag: "HasRole", allowed: true, children: [], obligations: [], visibleFields: [] },
+    );
+    for (const includeTrace of [false, true]) {
+      const absent = seedsOf(none, includeTrace);
+      expect(absent).toHaveLength(1);
+      expect(Object.keys(absent[0] ?? {})).not.toContain("visibleFields");
+
+      const present = seedsOf(empty, includeTrace);
+      expect(present).toHaveLength(1);
+      expect(Object.entries(present[0] ?? {})).toContainEqual(["visibleFields", []]);
+    }
   });
 });
 
