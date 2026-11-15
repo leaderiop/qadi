@@ -20,8 +20,8 @@ type SinkOption = "failureThreshold" | "resetTimeoutMs" | "storeCallTimeout";
 
 // A closed record: a fourth option without an entry is TS2741.
 const REQUIRED: Record<SinkOption, string> = {
-  failureThreshold: "a positive whole number",
-  resetTimeoutMs: "a finite, positive, whole number of milliseconds",
+  failureThreshold: "a positive safe integer",
+  resetTimeoutMs: "a finite, positive, whole number of milliseconds within the safe integers",
   storeCallTimeout: "a positive duration, or Duration.infinity for no deadline",
 };
 

@@ -25,9 +25,10 @@
  * module ever constructs or inspects a failure from it.
  *
  * **A construction refusal is not a tripped breaker.** `makeCircuitBreaker` fails
- * with `InvalidAuditSinkOption` when `failureThreshold` is not a positive whole
- * number or `resetTimeoutMs` is not a finite, positive, whole number of
- * milliseconds, so every breaker that exists can open and close (ARCH-92,
+ * with `InvalidAuditSinkOption` when `failureThreshold` is not a positive safe
+ * integer or `resetTimeoutMs` is not a finite, positive, whole number of
+ * milliseconds within the safe integers, so every breaker that exists can open
+ * and close (ARCH-92,
  * ADR-QD-158); refusing a write is still the plain {@link Refused} value.
  *
  * The state machine's shape was never HexDi's defect, only its wiring and its
@@ -75,7 +76,9 @@ export interface CircuitBreakerOptions {
    *
    * Finite, positive and a whole number of milliseconds, at most
    * `Number.MAX_SAFE_INTEGER`; anything else is refused with
-   * `InvalidAuditSinkOption` when the breaker is built.
+   * `InvalidAuditSinkOption` when the breaker is built. A plain number is
+   * tested for being whole; a string or `Duration` is read as `Duration` reads
+   * it, which rounds to the millisecond.
    */
   readonly resetTimeoutMs: Duration.Input;
 }

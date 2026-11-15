@@ -119,7 +119,7 @@ describe("makeCircuitBreaker refuses an option that cannot work (BRKR-03)", () =
       { ...OPTIONS, failureThreshold: Number.NaN },
       "failureThreshold",
       Number.NaN,
-      "failureThreshold must be a positive whole number; received NaN",
+      "failureThreshold must be a positive safe integer; received NaN",
     ));
   it.effect("failureThreshold Infinity is refused when built", () =>
     refusedByBreaker({ ...OPTIONS, failureThreshold: Infinity }, "failureThreshold", Infinity));
@@ -134,7 +134,7 @@ describe("makeCircuitBreaker refuses an option that cannot work (BRKR-03)", () =
   it.effect("failureThreshold 1e300 is refused when built (it can never be reached)", () =>
     refusedByBreaker({ ...OPTIONS, failureThreshold: 1e300 }, "failureThreshold", 1e300));
   it.effect("failureThreshold 1 is accepted", () => acceptedByBreaker({ ...OPTIONS, failureThreshold: 1 }));
-  it.effect("failureThreshold Number.MAX_SAFE_INTEGER is accepted, the last count a breaker can reach", () =>
+  it.effect("failureThreshold Number.MAX_SAFE_INTEGER is accepted, the largest count it can hold exactly", () =>
     acceptedByBreaker({ ...OPTIONS, failureThreshold: Number.MAX_SAFE_INTEGER }));
   it.effect("resetTimeoutMs NaN is refused when built", () =>
     refusedByBreaker({ ...OPTIONS, resetTimeoutMs: Number.NaN }, "resetTimeoutMs", Number.NaN));
@@ -151,7 +151,7 @@ describe("makeCircuitBreaker refuses an option that cannot work (BRKR-03)", () =
       { ...OPTIONS, resetTimeoutMs: 1.5 },
       "resetTimeoutMs",
       1.5,
-      "resetTimeoutMs must be a finite, positive, whole number of milliseconds; received 1.5",
+      "resetTimeoutMs must be a finite, positive, whole number of milliseconds within the safe integers; received 1.5",
     ));
   it.effect("resetTimeoutMs 1n (one nanosecond) is refused when built", () =>
     refusedByBreaker({ ...OPTIONS, resetTimeoutMs: 1n }, "resetTimeoutMs", 1n));

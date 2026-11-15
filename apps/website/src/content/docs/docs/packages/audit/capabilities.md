@@ -19,7 +19,7 @@ const AppLayer = AuditDecisionSinkLive({ failureThreshold: 5, resetTimeoutMs: 30
 );
 ```
 
-The layer fails with `InvalidAuditSinkOption` when an option cannot work: a `failureThreshold` that is not a positive whole number, a `resetTimeoutMs` that is not a finite, positive, whole number of milliseconds, or a `storeCallTimeout` that is not a positive duration.
+The layer fails with `InvalidAuditSinkOption` when an option cannot work: a `failureThreshold` that is not a positive safe integer, a `resetTimeoutMs` that is not a finite, positive, whole number of milliseconds within the safe integers, or a `storeCallTimeout` that is not a positive duration.
 
 **Audit trail** (`AuditTrailPort`) — one method, `write(entry): Effect<void, AuditWriteError>`.
 `AuditEntry` is schema-derived, built on `@qadi/core`'s own record codec
@@ -73,7 +73,7 @@ which is reported as above. Raise the deadline for such a store, or pass
 `Duration.infinity` to wait without limit. An adapter that makes itself
 uninterruptible is not bounded by the deadline.
 
-A `storeCallTimeout` that is not a positive duration (zero, a negative, `NaN`) is refused when the layer is built, with `InvalidAuditSinkOption`, as is a `failureThreshold` that is not a positive whole number or a `resetTimeoutMs` that is not a finite, positive, whole number of milliseconds.
+A `storeCallTimeout` that is not a positive duration (zero, a negative, `NaN`) is refused when the layer is built, with `InvalidAuditSinkOption`, as is a `failureThreshold` that is not a positive safe integer or a `resetTimeoutMs` that is not a finite, positive, whole number of milliseconds within the safe integers.
 
 ```typescript
 import * as Duration from "effect/Duration";
