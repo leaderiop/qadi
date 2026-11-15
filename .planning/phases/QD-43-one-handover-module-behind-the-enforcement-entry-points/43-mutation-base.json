@@ -1,0 +1,30 @@
+{
+ "measured": {
+  "packages/core/src/Qadi.ts": 0.972972972972973
+ },
+ "unmeasured": {},
+ "new": [],
+ "deleted": {},
+ "moved": {
+  "packages/core/src/Handover.ts": {
+   "from": [
+    "packages/core/src/Qadi.ts"
+   ],
+   "region": {
+    "detected": 38,
+    "scored": 39,
+    "score": 0.9743589743589743
+   },
+   "survivors": [
+    {
+     "from": "packages/core/src/Qadi.ts",
+     "line": 448,
+     "column": 26,
+     "mutatorName": "ObjectLiteral",
+     "replacement": "{}",
+     "original": "{ item, allowed: false }"
+    }
+   ]
+  }
+ }
+}
