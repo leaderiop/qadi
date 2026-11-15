@@ -49,7 +49,7 @@
 
 - [ ] **EMIT-01**: `sinkEmitter` contains a sink's failure or defect and reports it with exactly one warning, naming the sink when it has a `name` (an optional `name` added to `DecisionSinkShape`).
 - [ ] **EMIT-02**: A custom sink that fails and one that dies, run through `evaluate`, each produce exactly one warning and leave the decision unchanged. Both are RED on the phase base, where they produce zero warnings.
-- [ ] **EMIT-03**: Each shipped sink keeps only the reports that change behaviour or say something else:
+- [x] **EMIT-03**: Each shipped sink keeps only the reports that change behaviour or say something else:
   - forwarding's encode refusal;
   - `decisionSinkAll`'s sibling isolation;
   - the decision log's append/publish split.
@@ -160,7 +160,7 @@ The seven WX rows apply to every phase 43 to 52, so each phase's Requirements li
 | BRKR-05 | Phase 45 | Complete |
 | EMIT-01 | Phase 46 | Pending |
 | EMIT-02 | Phase 46 | Pending |
-| EMIT-03 | Phase 46 | Pending |
+| EMIT-03 | Phase 46 | Complete |
 | EMIT-04 | Phase 46 | Pending |
 | PFCT-01 | Phase 47 | Pending |
 | PFCT-02 | Phase 47 | Pending |
