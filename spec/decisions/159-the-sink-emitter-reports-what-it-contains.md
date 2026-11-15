@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-159                                   |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-11-15                                     |
 > | Status         | Accepted — amends ADR-QD-044                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.5 (2026-11-15): the exact four annotation keys are pinned; the cause-rendering clause says the rendering runs inside the report's own containment; row E15 (ARCH-93, CCR-QD-437)<br>1.4 (2026-11-15): the fan-out's member line carries the emitter's four keys, both built by one report in SinkReport.ts, which also holds sinkName (ARCH-93, CCR-QD-437)<br>1.3 (2026-11-15): the report names the tag and evaluation id read before the sink runs, and unknown when they cannot be read; rows E13, E14 (ARCH-93, CCR-QD-437)<br>1.2 (2026-11-15): The record tag literal reads Obligations, as the code emits<br>1.1 (2026-11-15): Related: BEH-QD-566 to BEH-QD-570, INV-QD-337 and INV-QD-338 (ARCH-93, CCR-QD-437)<br>1.0 (2026-11-15): Initial (ARCH-93, CCR-QD-437) |
+> | Change History | 1.6 (2026-11-15): E15 is a hostile-cause regression row; E9 alone pins the rendering containment; the table's A rows are A1-A8 and W5 points at the member report<br>1.5 (2026-11-15): the exact four annotation keys are pinned; the cause-rendering clause says the rendering runs inside the report's own containment; row E15 (ARCH-93, CCR-QD-437)<br>1.4 (2026-11-15): the fan-out's member line carries the emitter's four keys, both built by one report in SinkReport.ts, which also holds sinkName (ARCH-93, CCR-QD-437)<br>1.3 (2026-11-15): the report names the tag and evaluation id read before the sink runs, and unknown when they cannot be read; rows E13, E14 (ARCH-93, CCR-QD-437)<br>1.2 (2026-11-15): The record tag literal reads Obligations, as the code emits<br>1.1 (2026-11-15): Related: BEH-QD-566 to BEH-QD-570, INV-QD-337 and INV-QD-338 (ARCH-93, CCR-QD-437)<br>1.0 (2026-11-15): Initial (ARCH-93, CCR-QD-437) |
 
 ---
 
@@ -74,7 +74,7 @@ member throwing before returning an effect, or a throwing logger, not stop the m
    action. The tag and the evaluation id are read from the record before the sink is called (`handedOver`, contained), so a
    sink that rewrites its own record and then fails is reported with the evaluation it was handed; a record whose fields
    cannot be read is reported as `unknown`, never dropped. The report (`reportSinkFailure`, `SinkReport.ts`, shared with the fan-out's member line) is a plain function built under `Effect.suspend` and has its own `catchCause`, so a throwing logger,
-   name getter or cause that cannot be rendered cannot become a defect and cannot change an outcome (INV-QD-035): the rendering of `String(cause)` runs inside the report's own `catchCause`, whether or not a given value can make it throw (E9 pins the containment from the logger's side, E15 from the cause's). It is not traced: it
+   name getter or cause that cannot be rendered cannot become a defect and cannot change an outcome (INV-QD-035): the rendering of `String(cause)` runs inside the report's own `catchCause`, whether or not a given value can make it throw (E9, a throwing logger, is the row that pins the containment; E15 pins that a hostile cause value is still reported once with an unchanged decision). It is not traced: it
    runs only on a failure, and a span-name literal would be a mutant no row can observe.
 2. **A sink may name itself.** `DecisionSinkShape.name` is optional, `string | undefined`, as
    `AttributeResolverShape.name` is. It is read only inside a report and guarded (`sinkName` in `SinkReport.ts`, package-private), so a getter
@@ -105,7 +105,7 @@ member throwing before returning an effect, or a throwing logger, not stop the m
 D-12: each `logWarning`, `logError` and `catchCause` on a sink's `record` path, with the test row that pins that the
 failure it covers is reported once and not twice. `File:line` are at the phase base `76e589e0`; the rows named under
 "Pinned by" are in `packages/core/test/SinkEmitReport.test.ts` (E1-E15, O1-O5),
-`packages/core/test/ShippedSinkReports.test.ts` (C1-C4, N1-N4, A1-A6, F1-F2), or are existing rows named by title.
+`packages/core/test/ShippedSinkReports.test.ts` (C1-C4, N1-N4, A1-A8, F1-F2), or are existing rows named by title.
 
 | # | Where | What it says or does | Kind | Decision | One report after the change | Pinned by |
 |---|-------|----------------------|------|----------|-----------------------------|-----------|
@@ -115,7 +115,7 @@ failure it covers is reported once and not twice. `File:line` are at the phase b
 | W3 | `DecisionSinkForwarding.ts:98-100` (`reportSendFailure`, no `onFailure`) | "qadi: a decision record could not be forwarded" with `qadi.cause`: `send` failed or died | the sink handled the failure | keep (D-09) | yes: it returns success | C2; existing `DecisionSinkForwarding.test.ts` "with no onFailure it warns rather than going quiet" |
 | W3b | `DecisionSinkForwarding.ts:108` (`reportSendFailure`, with `onFailure`) | no log: calls the caller's hook with `Cause.squash(cause)` | behaviour (BEH-QD-187) | keep | a hook that throws dies out of W3b, and after D-09 the emitter reports it once | F1 (a `send` that throws reaches the hook as the thrown error, nothing logged) |
 | W4 | `DecisionSinkForwarding.ts:125-129` | same text as W3 with `qadi.cause`: the outer "defence in depth" for a throwing `onFailure` | pure outer containment | remove (D-09) | removing it is what prevents a second `Warn` beside the emitter's | C1 (count one before and after) and F2 (the emitter's report, naming `decisionSinkForwarding`) |
-| W5 | `DecisionSinkForwarding.ts:187-191` | "qadi: a fanned-out decision sink failed unexpectedly" with `qadi.cause` | changes behaviour (later members still run) | keep, add `qadi.sink` = the member's `name` or `unnamed`, with `qadi.record_tag` and `evaluationId` (D-10) | yes: it returns success, so the emitter is silent; a nested fan-out reports once at the innermost level | A1-A6; existing "a member's death is reported through a log, not silently swallowed" |
+| W5 | `DecisionSinkForwarding.ts:190` (`reportSinkFailure`, `SinkReport.ts`) | "qadi: a fanned-out decision sink failed unexpectedly" with `qadi.cause` | changes behaviour (later members still run) | keep, add `qadi.sink` = the member's `name` or `unnamed`, with `qadi.record_tag` and `evaluationId` (D-10) | yes: it returns success, so the emitter is silent; a nested fan-out reports once at the innermost level | A1-A8; existing "a member's death is reported through a log, not silently swallowed" |
 | W6 | `DecisionLog.ts:172-177`, `isolate("append")` at `:259` | "qadi: a decision log's append half failed" with `qadi.cause` | says which half died | keep (D-11) | yes: it returns success | C4 |
 | W7 | `DecisionLog.ts:257`, `isolate("publish")` | "qadi: a decision log's publish half failed" | behaviour-neutral but needed: without it the outer `isolate("append")` would label a publish defect as the append half | keep | yes: the inner catch returns success, so the outer sees none | none: see "Kept but unreachable" |
 | W8 | `AuditWriteReport.ts:241` | the audit outcome line (`describeAuditWriteOutcome`), annotated with `evaluationId` | a report, not containment | keep, untouched | yes: the record path returns success | existing `AuditDecisionSinkLive.test.ts` "unwired, a failed write logs the drop with its evaluationId" and "onOutcome receives each record's outcome once, after its report" |
