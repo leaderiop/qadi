@@ -414,31 +414,7 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
   // Each outcome applies only while `generation` is still the one its permit
   // was admitted under (D-07-d); otherwise it is left unchanged.
   const recordSuccess = (generation: number): Effect.Effect<void> =>
-    Effect.gen(function* () {
-      const closedNow = yield* Ref.modify(
-        ref,
-        (state): readonly [boolean, State] =>
-          state.generation !== generation
-            ? [false, state]
-            : Match.value(state).pipe(
-                Match.tagsExhaustive({
-                  Closed: (closed): readonly [boolean, State] => [
-                    false,
-                    new StateClosed({ generation: closed.generation, consecutiveFailures: 0 }),
-                  ],
-                  HalfOpen: (halfOpen): readonly [boolean, State] => [
-                    true,
-                    new StateClosed({
-                      generation: halfOpen.generation + 1,
-                      consecutiveFailures: 0,
-                    }),
-                  ],
-                  Open: (open): readonly [boolean, State] => [false, open],
-                }),
-              ),
-      );
-      if (closedNow) yield* announceTransition("Closed");
-    });
+    run(new Success({ generation })).pipe(Effect.asVoid);
 
   const recordFailure = (generation: number): Effect.Effect<void> =>
     Effect.gen(function* () {
