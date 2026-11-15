@@ -34,10 +34,10 @@
 
 ### The audit circuit breaker as one transition function (Phase 45, ARCH-92, audit)
 
-- [ ] **BRKR-01**: One pure transition function, `(state, event, now) → (next state, transition announced)`, over a closed event union (Observe, Success, Failure, Claim, Release, each with its generation) holds every generation and probe rule. `generation + 1` is written once.
+- [x] **BRKR-01**: One pure transition function, `(state, event, now) → (next state, transition announced)`, over a closed event union (Observe, Success, Failure, Claim, Release, each with its generation) holds every generation and probe rule. `generation + 1` is written once.
 - [ ] **BRKR-02**: The `Ref`/`Clock`/metric adapter runs exactly one `Ref.modify` per event (INV-QD-052), and its matchers are built once at module scope (AGENTS.md §5a).
 - [ ] **BRKR-03**: Breaker options are validated at construction, and a non-finite, zero, negative or non-integer threshold or cooldown fails with a typed error. A test with `failureThreshold: NaN` is RED on the phase base, where the breaker silently never opens.
-- [ ] **BRKR-04**: Table-driven tests of the transition function cover:
+- [x] **BRKR-04**: Table-driven tests of the transition function cover:
   - a stale generation;
   - a release stealing a newer claim;
   - a stale failure reopening a newer window;
@@ -153,10 +153,10 @@ The seven WX rows apply to every phase 43 to 52, so each phase's Requirements li
 | HYDF-02 | Phase 44 | Complete |
 | HYDF-03 | Phase 44 | Complete |
 | HYDF-04 | Phase 44 | Complete |
-| BRKR-01 | Phase 45 | Pending |
+| BRKR-01 | Phase 45 | Complete |
 | BRKR-02 | Phase 45 | Pending |
 | BRKR-03 | Phase 45 | Pending |
-| BRKR-04 | Phase 45 | Pending |
+| BRKR-04 | Phase 45 | Complete |
 | BRKR-05 | Phase 45 | Pending |
 | EMIT-01 | Phase 46 | Pending |
 | EMIT-02 | Phase 46 | Pending |

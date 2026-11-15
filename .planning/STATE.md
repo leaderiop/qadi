@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 45
 current_phase_name: The audit circuit breaker as one transition function
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 45-01-PLAN.md
-last_updated: "2026-11-15T06:31:33.056Z"
+stopped_at: Completed QD-45-02-PLAN.md
+last_updated: "2026-11-15T06:34:51.190Z"
 last_activity: 2026-11-15
 last_activity_desc: Phase 45 execution started
-state_head: 849fb8a8c10f42a684cfa10880113d4493b9af9f
+state_head: 8c44d106528431fef4c45d46b75f032b127ed84d
 progress:
   total_phases: 10
   completed_phases: 2
   total_plans: 22
-  completed_plans: 15
+  completed_plans: 16
   percent: 20
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 45 (The audit circuit breaker as one transition function) — EXECUTING
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 8
 Status: Ready to execute
 Last activity: 2026-11-15 — Phase 45 execution started
@@ -266,6 +266,7 @@ Progress: [██░░░░░░░░] 20% (2 of 10 phases)
 | Phase QD-44 P05 | 15min | 2 tasks | 6 files |
 | Phase QD-44 P06 | 12 min | 3 tasks | 1 files |
 | Phase 45 P01 | 9min | 3 tasks | 3 files |
+| Phase QD-45 P02 | 8min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -437,6 +438,7 @@ Progress: [██░░░░░░░░] 20% (2 of 10 phases)
 - [Phase QD-44]: INV-QD-333 used (no existing invariant says a seed carries every disclosed wire field); BEH-QD-557..560 and INV-QD-334 unused
 - [Phase QD-44]: 44-06: mutation after the seed fields stated once equals the base (HydrationEngine.ts 1, SeededDecision.ts 0.875); no survivor test needed; check:pr green
 - [Phase 45]: 45-01: the adapter table needed no row corrected against the base; the sink option rows end Written (not WriteFailed) on the base because a healthy synchronous write beats a zero deadline
+- [Phase QD-45]: 45-02: run's reply is a module-private Moved { before, next }; non-observe helpers stay until 45-03
 
 ### Pending Todos
 
@@ -488,8 +490,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T06:31:33.019Z
-Stopped at: Completed 45-01-PLAN.md
+Last session: 2026-11-15T06:34:51.153Z
+Stopped at: Completed QD-45-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
