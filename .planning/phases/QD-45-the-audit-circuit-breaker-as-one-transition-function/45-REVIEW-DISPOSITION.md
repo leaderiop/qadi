@@ -5,11 +5,11 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The new qualifier says a string or `Duration` cooldown \"rounds to the millisecond\"; the check refuses it unless it is already a whole millisecond"
   - id: IN-01
     severity: info
-    disposition: open
+    disposition: fixed
     title: "The 0.13 entry in `upgrading.md` still states the old rule and omits the qualifiers the changeset gained"
   - id: IN-02
     severity: info
@@ -23,17 +23,17 @@ findings:
     severity: info
     disposition: fixed
     title: "Lines exceed the hand-wrapped width"
-open: 2
+open: 0
 total: 5
-recorded: 2026-11-15T07:29:02.388Z
+recorded: 2026-11-15T07:29:17.182Z
 ---
 
 # Phase 45: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| IN-01 | info | open | - |
+| WR-01 | warning | fixed | 45-REVIEW-FIX.md |
+| IN-01 | info | fixed | 45-REVIEW-FIX.md |
 | IN-02 | info | fixed | 45-REVIEW-FIX.iter1.md (not in the current review) |
 | IN-03 | info | fixed | 45-REVIEW-FIX.iter1.md (not in the current review) |
 | IN-04 | info | fixed | 45-REVIEW-FIX.iter1.md (not in the current review) |
