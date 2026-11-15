@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-159                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-15                                     |
 > | Status         | Accepted — amends ADR-QD-044                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-15): Related: BEH-QD-566 to BEH-QD-570, INV-QD-337 and INV-QD-338 (ARCH-93, CCR-QD-437)<br>1.0 (2026-11-15): Initial (ARCH-93, CCR-QD-437) |
+> | Change History | 1.2 (2026-11-15): The record tag literal reads Obligations, as the code emits<br>1.1 (2026-11-15): Related: BEH-QD-566 to BEH-QD-570, INV-QD-337 and INV-QD-338 (ARCH-93, CCR-QD-437)<br>1.0 (2026-11-15): Initial (ARCH-93, CCR-QD-437) |
 
 ---
 
@@ -69,7 +69,7 @@ member throwing before returning an effect, or a throwing logger, not stop the m
    qadi: a decision sink failed; the record was not delivered
    ```
 
-   annotated with exactly four keys: `qadi.sink` (the sink's name), `qadi.record_tag` (`Decision` or `Obligation`),
+   annotated with exactly four keys: `qadi.sink` (the sink's name), `qadi.record_tag` (`Decision` or `Obligations`),
    `evaluationId` and `qadi.cause` (the cause, rendered as `String(cause)`). Never a subject, resource, policy or
    action. The report is a plain function built under `Effect.suspend` and has its own `catchCause`, so a throwing logger,
    name getter or cause rendering cannot become a defect and cannot change an outcome (INV-QD-035). It is not traced: it
