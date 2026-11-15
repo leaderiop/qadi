@@ -29,7 +29,7 @@ import type { Question } from "../src/Question.ts";
 import type { Resource } from "../src/Resource.ts";
 import type {
   EnforceOptions,
-  LoadedEnforceOptions,
+  HandoverOptions,
   ObligationDischarge,
   ObligationHandler,
 } from "../src/Qadi.ts";
@@ -108,7 +108,7 @@ test("guard infers Authorized<P> from the literal permission argument, not a wid
   expect<Authorized<typeof write>>().type.not.toBeAssignableTo<Witness>();
 });
 
-declare const loadedOptions: LoadedEnforceOptions<ObligationError, ObligationReq>;
+declare const loadedOptions: HandoverOptions<ObligationError, ObligationReq>;
 declare const loaded: Effect.Effect<{ readonly id: string }, WrappedError, WrappedReq>;
 
 test("the loaded entry points refuse a second resource", () => {
