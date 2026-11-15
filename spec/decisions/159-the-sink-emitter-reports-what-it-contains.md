@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-159                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-15                                     |
 > | Status         | Accepted — amends ADR-QD-044                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-15): The record tag literal reads Obligations, as the code emits<br>1.1 (2026-11-15): Related: BEH-QD-566 to BEH-QD-570, INV-QD-337 and INV-QD-338 (ARCH-93, CCR-QD-437)<br>1.0 (2026-11-15): Initial (ARCH-93, CCR-QD-437) |
+> | Change History | 1.3 (2026-11-15): the report names the tag and evaluation id read before the sink runs, and unknown when they cannot be read; rows E13, E14 (ARCH-93, CCR-QD-437)<br>1.2 (2026-11-15): The record tag literal reads Obligations, as the code emits<br>1.1 (2026-11-15): Related: BEH-QD-566 to BEH-QD-570, INV-QD-337 and INV-QD-338 (ARCH-93, CCR-QD-437)<br>1.0 (2026-11-15): Initial (ARCH-93, CCR-QD-437) |
 
 ---
 
@@ -71,7 +71,9 @@ member throwing before returning an effect, or a throwing logger, not stop the m
 
    annotated with exactly four keys: `qadi.sink` (the sink's name), `qadi.record_tag` (`Decision` or `Obligations`),
    `evaluationId` and `qadi.cause` (the cause, rendered as `String(cause)`). Never a subject, resource, policy or
-   action. The report is a plain function built under `Effect.suspend` and has its own `catchCause`, so a throwing logger,
+   action. The tag and the evaluation id are read from the record before the sink is called (`handedOver`, contained), so a
+   sink that rewrites its own record and then fails is reported with the evaluation it was handed; a record whose fields
+   cannot be read is reported as `unknown`, never dropped. The report is a plain function built under `Effect.suspend` and has its own `catchCause`, so a throwing logger,
    name getter or cause rendering cannot become a defect and cannot change an outcome (INV-QD-035). It is not traced: it
    runs only on a failure, and a span-name literal would be a mutant no row can observe.
 2. **A sink may name itself.** `DecisionSinkShape.name` is optional, `string | undefined`, as
@@ -100,7 +102,7 @@ member throwing before returning an effect, or a throwing logger, not stop the m
 
 D-12: each `logWarning`, `logError` and `catchCause` on a sink's `record` path, with the test row that pins that the
 failure it covers is reported once and not twice. `File:line` are at the phase base `76e589e0`; the rows named under
-"Pinned by" are in `packages/core/test/SinkEmitReport.test.ts` (E1-E11, O1-O5),
+"Pinned by" are in `packages/core/test/SinkEmitReport.test.ts` (E1-E14, O1-O5),
 `packages/core/test/ShippedSinkReports.test.ts` (C1-C4, N1-N4, A1-A6, F1-F2), or are existing rows named by title.
 
 | # | Where | What it says or does | Kind | Decision | One report after the change | Pinned by |
@@ -117,7 +119,7 @@ failure it covers is reported once and not twice. `File:line` are at the phase b
 | W8 | `AuditWriteReport.ts:241` | the audit outcome line (`describeAuditWriteOutcome`), annotated with `evaluationId` | a report, not containment | keep, untouched | yes: the record path returns success | existing `AuditDecisionSinkLive.test.ts` "unwired, a failed write logs the drop with its evaluationId" and "onOutcome receives each record's outcome once, after its report" |
 | W9 | `AuditWriteReport.ts:254-258` | "qadi/audit: an onOutcome hook threw" with `evaluationId`, `qadi.cause` | contains a caller's hook and says which | keep | yes: it returns success | existing `AuditDecisionSinkLive.test.ts` "a throwing onOutcome is logged, and the next record is still written" |
 | W10 | `AuditDecisionSinkLive.ts:203` | `catchCause(... WrittenStaging.CommitFailed({ cause }))`: a value, not a log | behaviour (an outcome) | keep | n/a: no line is written; the failure becomes an outcome | existing `AuditSinkDeadline.test.ts` "a hung commit settles as CommitFailed after a successful write" |
-| R0 | `SinkEmit.ts` (46-03) | "qadi: a decision sink failed; the record was not delivered" with `qadi.sink`, `qadi.record_tag`, `evaluationId`, `qadi.cause` (D-01 to D-04) | the emitter's one report of a cause the sink let through | new | the only report for a cause that escapes a sink's `record`: every row above returns success | E1-E11, O1-O5 (46-01); F2 |
+| R0 | `SinkEmit.ts` (46-03) | "qadi: a decision sink failed; the record was not delivered" with `qadi.sink`, `qadi.record_tag`, `evaluationId`, `qadi.cause` (D-01 to D-04) | the emitter's one report of a cause the sink let through | new | the only report for a cause that escapes a sink's `record`: every row above returns success | E1-E14, O1-O5 (46-01); F2 |
 
 devtools, react and http implement no `DecisionSink`: `Wiring.ts` in devtools only reads whether one is installed
 (`Effect.serviceOption(DecisionSink)`), and a grep over `packages/*/src` finds exactly five implementations, the five
@@ -162,6 +164,8 @@ named above.
 
 - A sink whose `record` throws before it returns an effect makes `evaluate` die: `emit(record)` evaluates the call
   eagerly, outside `catchCause` (E5).
+- A sink that redefines a field of its own record with a throwing getter and then dies erased its own report, because the
+  report read the record lazily, after the sink had run (E13, E14).
 - A report handler that throws is a defect unless the report is built lazily and contained (E9, A6).
 - A forwarder `send` that throws before returning an effect skips `onFailure` and is caught only by W4 (C2, F1).
 - A fan-out member that throws before returning an effect silently stops every later member, because the call is eager

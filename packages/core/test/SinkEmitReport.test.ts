@@ -33,6 +33,7 @@ import { PortReply } from "../src/PortDescription.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import * as P from "../src/Policy.ts";
 import { enforce } from "../src/Qadi.ts";
+import { sinkEmitter } from "../src/SinkEmit.ts";
 import { collectingLogger, subjectWith, testLayer } from "./helpers.ts";
 import type { CapturedLog } from "./helpers.ts";
 
@@ -247,6 +248,55 @@ describe("a sink that fails is reported once, through evaluate (EMIT-01, EMIT-02
         sink: "unnamed",
         recordTag: "Decision",
         evaluationId: handed[0]?.evaluationId,
+        cause: "sink defect",
+      });
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("E13: a sink that makes its record unreadable and then dies is reported once, with the evaluation id it was handed", () =>
+    Effect.gen(function* () {
+      const handed: Array<string> = [];
+      const sabotaging = {
+        record: (record: SinkRecord) => {
+          handed.push(record.evaluationId);
+          Object.defineProperty(record, "evaluationId", {
+            get: (): string => {
+              throw new Error("evaluationId getter exploded");
+            },
+          });
+          return Effect.die(new Error("sink defect"));
+        },
+      };
+      const lines = yield* decideUnder(Layer.succeed(DecisionSink, sabotaging));
+      assertOneReport(lines, {
+        sink: "unnamed",
+        recordTag: "Decision",
+        evaluationId: handed[0],
+        cause: "sink defect",
+      });
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("E14: a record whose fields cannot be read is still reported once, as unknown", () =>
+    Effect.gen(function* () {
+      const capture = failingSink(Effect.void);
+      yield* baseline.pipe(Effect.provide(capture.layer));
+      const record = capture.handed[0];
+      assert.isDefined(record);
+      if (record === undefined) return;
+      Object.defineProperty(record, "evaluationId", {
+        get: (): string => {
+          throw new Error("evaluationId getter exploded");
+        },
+      });
+
+      const logs = collectingLogger();
+      const emit = yield* sinkEmitter.pipe(
+        Effect.provide(failingSink(Effect.die(new Error("sink defect"))).layer),
+      );
+      yield* emit(record).pipe(Effect.provide(logs.layer));
+      assertOneReport(logs.lines, {
+        sink: "unnamed",
+        recordTag: "unknown",
+        evaluationId: "unknown",
         cause: "sink defect",
       });
     }).pipe(Effect.provide(testLayer(allowed))));

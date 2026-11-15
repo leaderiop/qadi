@@ -44,6 +44,35 @@ export const sinkName = (shape: DecisionSinkShape): Effect.Effect<string> =>
   Effect.sync(() => shape.name ?? UNNAMED).pipe(Effect.catchCause(() => Effect.succeed(UNNAMED)));
 
 /**
+ * The two fields of a record a report names, read before the sink sees it.
+ *
+ * `string`, not the record's own types: a record whose fields cannot be read is
+ * reported as `unknown` rather than not at all (INV-QD-337).
+ */
+interface HandedOver {
+  readonly _tag: string;
+  readonly evaluationId: string;
+}
+
+const UNKNOWN = "unknown";
+
+/**
+ * Reads what a report will name from `record`, contained.
+ *
+ * The record is the same mutable object the sink is handed, so a sink that
+ * redefines a field and then fails must not take the report with it, nor make
+ * the report name an evaluation it did not lose. Read first, so the report
+ * describes what was handed over; a getter that throws gives `unknown`.
+ */
+const handedOver = (record: SinkRecord): HandedOver => {
+  try {
+    return { _tag: record._tag, evaluationId: record.evaluationId };
+  } catch {
+    return { _tag: UNKNOWN, evaluationId: UNKNOWN };
+  }
+};
+
+/**
  * Reports one contained sink failure as one warning.
  *
  * Built lazily and contained because a throwing logger, name getter or cause
@@ -53,7 +82,7 @@ export const sinkName = (shape: DecisionSinkShape): Effect.Effect<string> =>
  */
 const reportSinkFailure = (
   shape: DecisionSinkShape,
-  record: SinkRecord,
+  handed: HandedOver,
   cause: Cause.Cause<unknown>,
 ): Effect.Effect<void> =>
   Effect.suspend(() =>
@@ -62,8 +91,8 @@ const reportSinkFailure = (
         Effect.logWarning("qadi: a decision sink failed; the record was not delivered").pipe(
           Effect.annotateLogs({
             "qadi.sink": name,
-            "qadi.record_tag": record._tag,
-            evaluationId: record.evaluationId,
+            "qadi.record_tag": handed._tag,
+            evaluationId: handed.evaluationId,
             "qadi.cause": String(cause),
           }),
         ),
@@ -97,11 +126,13 @@ export const sinkEmitter: Effect.Effect<(record: SinkRecord) => Effect.Effect<vo
   Effect.serviceOption(DecisionSink),
   (sink) =>
     Option.isSome(sink)
-      ? (record) =>
-          Effect.catchCause(
+      ? (record) => {
+          const handed = handedOver(record);
+          return Effect.catchCause(
             Effect.suspend(() => sink.value.record(record)),
-            (cause) => reportSinkFailure(sink.value, record, cause),
-          )
+            (cause) => reportSinkFailure(sink.value, handed, cause),
+          );
+        }
       : () => Effect.void,
 );
 
