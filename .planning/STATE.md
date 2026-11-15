@@ -26,7 +26,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-15)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 43 — One handover module behind the enforcement entry points (v1.5 Arch Wave 10; v1.4 complete 2026-11-14, not merged, not released)
+**Current focus:** Phase 44 — The hydration seed's fields stated once (v1.5 Arch Wave 10; Phase 43 complete 2026-11-15; v1.4 complete 2026-11-14, not merged, not released)
 
 ## Current Position
 
@@ -36,7 +36,7 @@ Total Plans in Phase: 8
 Status: Ready to plan
 Last activity: 2026-11-15 — Phase 43 complete, transitioned to Phase 44
 
-Progress: [█░░░░░░░░░] 10% (0 of 10 phases)
+Progress: [█░░░░░░░░░] 10% (1 of 10 phases)
 
 
 ## Performance Metrics
@@ -457,6 +457,7 @@ Progress: [█░░░░░░░░░] 10% (0 of 10 phases)
 - [Phase 40] Review (40-REVIEW-DISPOSITION.md): 0 critical; WR-01 (a throwing `onMalformed` ended the devtools stream, pre-existing) and IN-01..03 fixed, an iteration-2 info (`thrownName` hardened) fixed, iteration 3 clean; mutation re-run after the fixes holds (SinkCodec 0.97546, SinkWire 1 at 60/60, Source 1 at 80/80, AuditEntry 1); post-review `pnpm check:pr` green. User decision: D-03 amended (counted `Schema.decodeTo`, SinkCodec.ts 1 → 2). Commits from 40-05 onward carry a Sonnet co-author trailer (recorded in 40-05..40-09 SUMMARYs). `spec-revise.mjs` drops its first positional argument unless `--date` is passed (index filter against `dateFlag + 1` when `dateFlag` is -1).
 - [Phase 41] Review (41-REVIEW-DISPOSITION.md): 0 critical; WR-01 (label rule written twice) fixed by a second core export `valueLabel`, WR-03 (`In` fallback walk could throw) fixed, IN-02 fixed; WR-02 (an object whose `toJSON` gives nothing changed label, against D-07's wording) and IN-01/IN-03 skipped; iteration 2 clean; mutation re-run holds (Explanation 0.98701 vs base 0.98673, ValueText 1 at 13/13, Remedies/Filters 1, SimulationForm 0.98367); post-review `pnpm check:pr` green. User decision: one primitive, a public core export (D-13..D-16), after planning found core's `explain` threw too.
 - [Phase 42] Review (42-REVIEW-DISPOSITION.md): 0 critical; WR-01 (stale spec placing the seed logic in `HydrationEngine.ts`) fixed by dated amendments to ADR-QD-093, ADR-QD-041 and BEH-QD-151, WR-02 (late-seed test could pass vacuously) fixed, IN-01 (`isMismatch` unused export) and IN-02 fixed; iteration 2 left one whitespace info, fixed; mutation re-run holds (HydrationEngine 1, QadiAtoms 0.9, SeededQuestion 57/62 with the five base survivors); post-review `pnpm check:pr` green. User decision: option 1b.
+- [Phase 43] Review (43-REVIEW-DISPOSITION.md): 0 critical; WR-01 (the facade's `Omit<FacadeOptions, "resource">` refused only fresh literals, so a `FacadeOptions` variable still had its `resource` dropped) fixed in 9c0bef1d (`resource?: never` on `filter`, `filterProjected` and `projected`, RED-then-GREEN tstyche on a variable), records aligned in 39faed5a; iteration 2 had 0 warnings. IN-01 (`Verdict`/`Admitted` names reused from `Compare.ts`/`Admission.ts`), IN-02 (`Handover.test.ts` header says "public surface only, green on the base", but it imports `verdictOf`), IN-03 (`resourceFree` doc overstates its monopoly: `enforce`/`assert` keep `options.resource`) and IN-04 (wall-clock ordering test; `guard` arrow mis-indented) open, info. Post-review `pnpm check:pr` green; verification passed 5/5. `phase.complete`'s "file not on disk" warnings are false positives (relative spec paths and a command string).
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
@@ -471,7 +472,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T02:19:23.302Z
+Last session: 2026-11-15
 Stopped at: Phase 43 complete, ready to plan Phase 44
 Resume file: None
 

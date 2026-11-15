@@ -185,9 +185,10 @@ logged, counted or spanned.
 
 - ✓ ARCH-89 A seeded question builds its own computing atom (SEED-01..06): `@qadi/react`'s package-private `SeededQuestion.ts` exports `makeSeededQuestion({ policy, resource, runtime, subject, report, live })`, which builds the question's computing atom itself and reads its seed through `seededIn(get.registry)`; the `computedFor` callback-that-takes-a-callback and `QadiAtoms.ts`'s hand-wired `seededDecision` are gone, `HydrationEngine.ts` is the payload codec only, `DECISIONS_KEY` and the `DECISION_READ_BUDGET` key moved with the code (`QadiRuntimeServices` did not), and the fake computing-atom tests were replaced by real-runtime ones, including two trap tests proven red under a `get(grantAtom)` read. User decision: option 1b (own module) over 1a (in place), 2 (seed holder) and 3 (reject). Milestone re-check: all 15 touched files at their latest recorded score. ADR-QD-155 (amends ADR-QD-149, ADR-QD-140; review added dated amendments to ADR-QD-093, ADR-QD-041 and BEH-QD-151); CCR-QD-433; `@qadi/react` patch.
 
+- ✓ ARCH-90 One handover module behind the enforcement entry points (HAND-01..06): the package-private `Handover.ts` owns "decide against this value, discharge on allow, release whole or projected" — `HandoverOptions` (`resource?: never`), the closed `Admitted`/`Refused` verdict from `verdictOf` (the one allow → discharge / deny branch), `resourceFree`/`decidedOn` (the positional value written last), the closed `Release` table holding the one `project(` and the per-item `handOver`; `discharge` moved byte-identical. The ten entry points in `Qadi.ts` are adapters by shape; `permitted`, `decideOne`, `withLoadedResource` and `FilterVerdict` are gone. `guard` and the four `filter*` refuse `{ resource }` at compile time (RED on the base), and `enforceProjected` now decides resource-free even when a resource is smuggled in at runtime. `@qadi/promise`'s `filter`, `filterProjected` and `projected` refuse `resource` through `resource?: never`, so a `FacadeOptions` variable is refused as well as a literal (review WR-01). **Breaking:** `LoadedEnforceOptions` renamed `HandoverOptions` with no alias. Mutation Qadi.ts 0.973 → 1, Handover.ts 1. ADR-QD-156 (amends ADR-104/105/019/022/035), CCR-QD-434, BEH-QD-551/552, INV-QD-331, INV-QD-108/032/009/013 restated; `@qadi/core` and `@qadi/promise` minor (Breaking) — v1.5 Phase 43
+
 ### Active
 
-- [ ] ARCH-90 One handover module behind the enforcement entry points (HAND-01..06) — Phase 43
 - [ ] ARCH-91 The hydration seed's fields stated once (HYDF-01..04) — Phase 44
 - [ ] ARCH-92 The audit circuit breaker as one transition function (BRKR-01..05) — Phase 45
 - [ ] ARCH-93 The sink emitter reports what it contains (EMIT-01..04) — Phase 46
@@ -363,6 +364,7 @@ logged, counted or spanned.
 | A decode refusal is described once, in core; devtools passes core's refusal through and audit takes its JSON form from the one strict decode, counted in the budget (D-03 amended, D-05..D-11) | Three restatements of the mapping and two exhaustive reads outside core were the defect; the counted `decodeTo` keeps the untrusted-decode gate honest rather than dodging its regex with `encodeTo` | Accepted (Phase 40, ADR-QD-153; Breaking for `@qadi/devtools`; ~2.19× decode cost accepted) |
 | One guarded value-to-text function and one label rule live in core, read by `explain` and the devtools panels (D-13..D-16) | Core's `explain` threw on the same bigint and cycle probes as the devtools remedy label, and core cannot import a devtools-private module (ADR-QD-099); a second guard or a second wording of the rule would drift | Accepted (Phase 41, ADR-QD-154; one label change for an object whose `toJSON` gives nothing, against D-07's wording) |
 | A seeded question builds its own computing atom, in its own package-private module `SeededQuestion.ts` (option 1b) | The seed-to-evaluation link was split across `HydrationEngine.ts` and `QadiAtoms.ts` through a callback that received a callback, and was tested only with fakes; one module owning it, tested on a real atom runtime, removes the split without a second `Atom.readable` or a new dependency | Accepted (Phase 42, ADR-QD-155; user choice of 1b over 1a, 2 and 3) |
+| A handed-over value is decided through one package-private module, and every entry point that hands over a value refuses a second resource by type (`resource?: never`) | `guard` and `filter*` took `EnforceOptions` and silently overwrote `options.resource`; overriding is a second form of the rule ADR-104 stated by refusal for the loaded entry points, and a dropped argument is a silent wrong answer | Accepted (Phase 43, ADR-QD-156; `LoadedEnforceOptions` renamed `HandoverOptions` with no alias; the facade refuses with `resource?: never`, not `Omit`, after review WR-01) |
 
 ## Evolution
 
@@ -382,4 +384,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-15 after starting v1.5 milestone*
+*Last updated: 2026-11-15 after Phase 43*
