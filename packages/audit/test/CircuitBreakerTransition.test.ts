@@ -90,6 +90,11 @@ describe("the breaker's transition function (BRKR-01, BRKR-04)", () => {
     assert.isUndefined(t.announced);
   });
 
+  it("S2b: a Success on Closed with no failures answers the state it was given", () => {
+    const before = closed(4, 0);
+    assertSame(at(before, new Success({ generation: 4 }), 1000), before);
+  });
+
   it("S3: a Success on the probe's HalfOpen window closes it, one generation on", () => {
     const t = at(halfOpen(4, 1000, true), new Success({ generation: 4 }), 1050);
     assert.deepStrictEqual(t.next, closed(5, 0));

@@ -229,7 +229,10 @@ const observeState: (state: State) => Arm = Match.type<State>().pipe(
 
 const successState: (state: State) => Move = Match.type<State>().pipe(
   Match.tagsExhaustive({
-    Closed: (closed): Move => new StateClosed({ generation: closed.generation, consecutiveFailures: 0 }),
+    Closed: (closed): Move =>
+      closed.consecutiveFailures === 0
+        ? closed
+        : new StateClosed({ generation: closed.generation, consecutiveFailures: 0 }),
     HalfOpen: (): Move => "Closed",
     Open: (open): Move => open,
   }),
