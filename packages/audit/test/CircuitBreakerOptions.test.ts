@@ -61,11 +61,25 @@ const refusedByBreaker = (options: CircuitBreakerOptions, option: string, receiv
     return assert.fail(`built a breaker that reads ${first} then ${second} after 10 consecutive failures`);
   });
 
+/**
+ * Passes only when the breaker is built, starts Closed and opens after its
+ * threshold of failures, so an acceptance that builds a breaker which cannot
+ * open still fails. A threshold too large to drive is only checked for Closed.
+ */
 const acceptedByBreaker = (options: CircuitBreakerOptions) =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(makeCircuitBreaker(options));
     assert.isTrue(Exit.isSuccess(exit), "the breaker is built");
-    if (Exit.isSuccess(exit)) assert.strictEqual(yield* exit.value.status, "Closed");
+    if (Exit.isFailure(exit)) return;
+    const breaker = exit.value;
+    assert.strictEqual(yield* breaker.status, "Closed");
+    if (options.failureThreshold > 1_000) return;
+    for (let n = 0; n < options.failureThreshold; n++) {
+      yield* breaker.withPermit((permit) =>
+        permit._tag === "Admitted" ? permit.attempt(Effect.fail("offline")).pipe(Effect.asVoid) : Effect.void,
+      );
+    }
+    assert.strictEqual(yield* breaker.status, "Open");
   });
 
 /** A sink over a healthy trail, with every outcome collected in order. */
@@ -147,6 +161,10 @@ describe("makeCircuitBreaker refuses an option that cannot work (BRKR-03)", () =
     refusedByBreaker({ ...OPTIONS, resetTimeoutMs: 1e21 }, "resetTimeoutMs", 1e21));
   it.effect("resetTimeoutMs 1.0000000001 is refused when built, not rounded to 1 millisecond", () =>
     refusedByBreaker({ ...OPTIONS, resetTimeoutMs: 1.0000000001 }, "resetTimeoutMs", 1.0000000001));
+  it.effect("resetTimeoutMs -0 is refused when built", () =>
+    refusedByBreaker({ ...OPTIONS, resetTimeoutMs: -0 }, "resetTimeoutMs", -0));
+  it.effect("resetTimeoutMs Duration.zero is refused when built", () =>
+    refusedByBreaker({ ...OPTIONS, resetTimeoutMs: Duration.zero }, "resetTimeoutMs", Duration.zero));
   it.effect("resetTimeoutMs Number.MAX_SAFE_INTEGER is accepted, the largest cooldown a count can state", () =>
     acceptedByBreaker({ ...OPTIONS, resetTimeoutMs: Number.MAX_SAFE_INTEGER }));
   it.effect("resetTimeoutMs 1 is accepted", () => acceptedByBreaker({ ...OPTIONS, resetTimeoutMs: 1 }));
@@ -161,8 +179,12 @@ describe("AuditDecisionSinkLive refuses an option that cannot work (BRKR-03)", (
     refusedBySink({ resetTimeoutMs: Number.NaN }, "resetTimeoutMs", Number.NaN));
   it.effect("failureThreshold 1e300 is refused when the layer is built", () =>
     refusedBySink({ failureThreshold: 1e300 }, "failureThreshold", 1e300));
+  it.effect("failureThreshold 0 is refused when the layer is built", () =>
+    refusedBySink({ failureThreshold: 0 }, "failureThreshold", 0));
   it.effect("resetTimeoutMs 1e21 is refused when the layer is built", () =>
     refusedBySink({ resetTimeoutMs: 1e21 }, "resetTimeoutMs", 1e21));
+  it.effect("resetTimeoutMs Duration.zero is refused when the layer is built", () =>
+    refusedBySink({ resetTimeoutMs: Duration.zero }, "resetTimeoutMs", Duration.zero));
   it.effect("storeCallTimeout NaN is refused when the layer is built", () =>
     refusedBySink({ storeCallTimeout: Number.NaN }, "storeCallTimeout", Number.NaN));
   it.effect("storeCallTimeout -Infinity is refused when the layer is built", () =>
@@ -179,7 +201,11 @@ describe("AuditDecisionSinkLive refuses an option that cannot work (BRKR-03)", (
   it.effect("storeCallTimeout '1e3 seconds' is refused when the layer is built", () =>
     refusedBySink({ storeCallTimeout: "1e3 seconds" }, "storeCallTimeout", "1e3 seconds"));
   it.effect("storeCallTimeout 1 is accepted", () => acceptedBySink({ storeCallTimeout: 1 }));
+  it.effect("storeCallTimeout -0 is refused when the layer is built", () =>
+    refusedBySink({ storeCallTimeout: -0 }, "storeCallTimeout", -0));
   it.effect("storeCallTimeout Duration.infinity is accepted (no deadline)", () =>
     acceptedBySink({ storeCallTimeout: Duration.infinity }));
-
+  // `Duration.fromInput` reads the string "Infinity" as `Duration.infinity`, so it is the same opt-out.
+  it.effect("storeCallTimeout 'Infinity' is accepted (no deadline)", () =>
+    acceptedBySink({ storeCallTimeout: "Infinity" }));
 });
