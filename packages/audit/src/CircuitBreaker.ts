@@ -378,19 +378,19 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
 
   const ref = yield* Ref.make<State>(new StateClosed({ generation: 0, consecutiveFailures: 0 }));
 
+  const transition = step({ failureThreshold: options.failureThreshold, resetTimeoutMillis });
+
   /**
-   * Every transition below reads and writes `ref` through a single
-   * `Ref.modify` call rather than a separate `Ref.get` followed by a later
-   * `Ref.set` — the two-step form lets two fibers both read the same stale
-   * state before either writes back, losing an update or double-counting a
+   * Applies one event to `ref` through `step`: every event reads and writes `ref`
+   * through a single `Ref.modify` call rather than a separate `Ref.get` followed
+   * by a later `Ref.set` — the two-step form lets two fibers both read the same
+   * stale state before either writes back, losing an update or double-counting a
    * transition under concurrent `record()` calls (`Qadi.ts`'s `filter`/
    * `filterStream` evaluate items concurrently, so this is a real, not
    * hypothetical, caller shape). `Ref.modify` performs the read-compute-write
    * as one atomic step, which is what actually closes the race rather than
-   * just narrowing its window.
+   * just narrowing its window (INV-QD-052).
    */
-  const transition = step({ failureThreshold: options.failureThreshold, resetTimeoutMillis });
-
   const run = (event: Event): Effect.Effect<Moved> =>
     Effect.gen(function* () {
       const now = yield* Clock.currentTimeMillis;
@@ -432,20 +432,10 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
   // Guarded so a finalizer that runs after the probe already settled has
   // nothing left to undo: a genuinely new half-open window is only ever
   // reachable after `recordSuccess`/`recordFailure` has already moved on, and
-  // the generation check means this call cannot steal a *different* window's
-  // claim.
+  // `step`'s generation check means this call cannot steal a *different*
+  // window's claim.
   const releaseProbe = (generation: number): Effect.Effect<void> =>
-    Effect.gen(function* () {
-      const now = yield* Clock.currentTimeMillis;
-      const reopened = yield* Ref.modify(
-        ref,
-        (state): readonly [boolean, State] =>
-          state._tag !== "HalfOpen" || !state.probeClaimed || state.generation !== generation
-            ? [false, state]
-            : [true, new StateOpen({ generation: state.generation + 1, openedAt: now })],
-      );
-      if (reopened) yield* announceTransition("Open");
-    });
+    run(new Release({ generation })).pipe(Effect.asVoid);
 
   const admit = Effect.gen(function* (): Effect.fn.Return<Permit> {
     const [initialStatus, initialGeneration] = yield* observe;
