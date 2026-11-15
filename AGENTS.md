@@ -495,6 +495,15 @@ parses the whole policy on every evaluation), and the wire struct spreads it. Th
 decision's `outcome` stays outside the struct, because ADR-QD-106's checks sit
 between its in-memory and wire forms.
 
+**The hydration seed's fields are the third** (ADR-QD-157), for the same reason: a
+seed is rebuilt in the browser from a payload a server page embedded, and fields
+written once in the class, once in the payload entry and again in `rebuild` dropped
+a field the wire gained while everything compiled. Each verdict's fields are one
+`Schema.Struct` in `SeededDecision.ts`, `@qadi/core`'s
+`DecisionWireAllow`/`DecisionWireDeny` minus what the payload withholds;
+`SeededAllow`/`SeededDeny` are `Data.TaggedClass`es typed by that struct's `Type`
+plus the subject, and the payload entry is the same fields under the wire's tag.
+
 v4 API notes: `Schema.Union([...])` takes an **array**; the type is
 `Schema.Codec<T>` (not `Schema.Schema<T>`); recursion factors into a single
 shared `Schema.suspend` ref; `parseJson(s)` → `fromJsonString(s)`;
