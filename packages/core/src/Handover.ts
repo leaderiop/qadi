@@ -13,7 +13,7 @@
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import type { Allow, Deny } from "./Decision.ts";
-import { isAllowed } from "./Decision.ts";
+import { isAllowed, project } from "./Decision.ts";
 import { UndischargedObligation } from "./Errors.ts";
 import type { EvaluationError } from "./Errors.ts";
 import type { EvaluationServices } from "./EvaluationServices.ts";
@@ -232,3 +232,23 @@ export const decidedOn = <E, R>(
   options: HandoverOptions<E, R> | undefined,
   value: Resource,
 ): EnforceOptions<E, R> => ({ ...resourceFree(options), resource: value });
+
+/** How an admitted value is released: whole, or projected to the allow's visible fields. */
+export type Release = "Whole" | "Projected";
+
+/**
+ * How an admitted value is released: whole, or projected to the allow's visible fields.
+ *
+ * The only place `project` is applied. `Whole` returns the caller's own
+ * reference; a member missing from this table is a compile error, as in
+ * `FieldLattice.ts` (ADR-QD-092).
+ */
+export const RELEASE: {
+  readonly [K in Release]: <A extends Resource>(
+    decision: Allow,
+    value: A,
+  ) => K extends "Whole" ? A : Partial<A>;
+} = {
+  Whole: (_decision, value) => value,
+  Projected: (decision, value) => project(decision, value),
+};

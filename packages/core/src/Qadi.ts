@@ -29,7 +29,7 @@ import type { UndischargedObligation } from "./Errors.ts";
 import type { EnforcementError, EvaluationError } from "./Errors.ts";
 import { evaluate } from "./Evaluate.ts";
 import type { EvaluationServices } from "./EvaluationServices.ts";
-import { decidedOn, isAdmitted, verdictOf } from "./Handover.ts";
+import { RELEASE, decidedOn, isAdmitted, resourceFree, verdictOf } from "./Handover.ts";
 import type { EnforceOptions, HandoverOptions } from "./Handover.ts";
 import type { Permission } from "./Permission.ts";
 import type { Policy } from "./Policy.ts";
@@ -90,6 +90,9 @@ export const check = (
  * Fails with {@link AccessDenied} unless the policy allows.
  *
  * Useful as a standalone precondition when there is no effect to wrap.
+ *
+ * Keeps `EnforceOptions` and so `options.resource`: it hands over no value, so a
+ * policy that reads a resource reads it from there (ADR-QD-104).
  */
 export const assert = <E = never, R = never>(
   policy: Policy,
@@ -107,6 +110,10 @@ export const assert = <E = never, R = never>(
  * ```ts
  * const handler = updateDocument(id).pipe(Qadi.enforce(canEditDocument))
  * ```
+ *
+ * Keeps `EnforceOptions` and so `options.resource`: the wrapped work's result is
+ * not a resource, so nothing is handed over to decide on, and a policy that
+ * reads a resource reads it from there (ADR-QD-104).
  */
 export const enforce =
   <EO = never, RO = never>(policy: Policy, options?: EnforceOptions<EO, RO>) =>
@@ -126,10 +133,11 @@ export const enforce =
  * that reads one (`hasResourceAttribute`, `hasRelationship`) fails closed with
  * `MissingResource`, and a custom predicate is handed none. A policy that reads
  * the record belongs on {@link enforceProjectedLoaded}, which decides against the
- * value it projects. `options.resource` is refused at the type level for that
- * reason: it was a second channel, evaluated against one record while `self`'s
- * value, a possibly different one, was projected under that decision's field
- * visibility (ADR-QD-104, INV-QD-108; the same defect `guard` closed under
+ * value it projects. `options` is {@link HandoverOptions}, which refuses
+ * `resource`, and a `resource` an untyped caller passes anyway is dropped, so the
+ * decision is taken with none: it was a second channel, evaluated against one
+ * record while `self`'s value, a possibly different one, was projected under that
+ * decision's field visibility (ADR-QD-104, INV-QD-108; the same defect `guard` closed under
  * [INV-QD-032](../../../spec/invariants.md#inv-qd-032-a-guarded-resource-is-the-evaluated-resource)).
  *
  * **The return type is optimistic for a `"*"`-projected nested object** — see
@@ -144,8 +152,8 @@ export const enforceProjected =
     E | EnforcementError | EO,
     R | EvaluationServices | RO
   > =>
-    Effect.flatMap(admittedOrDenied(policy, options), (decision) =>
-      Effect.map(self, (value) => project(decision, value)),
+    Effect.flatMap(admittedOrDenied(policy, resourceFree(options)), (decision) =>
+      Effect.map(self, (value) => RELEASE.Projected(decision, value)),
     );
 
 /**
@@ -167,8 +175,8 @@ export const enforceProjected =
  * access at all from reaching the loader, gate it with a resource-free policy
  * first: `load.pipe(enforce(canReadAny), enforceLoaded(isOwner))`.
  *
- * `options.resource` is refused at the type level: the resource is the loaded
- * value, and a second one is the two-channel hazard INV-QD-108 closes.
+ * `options` is {@link HandoverOptions}, which refuses `resource`: the resource is
+ * the loaded value, and a second one is the two-channel hazard INV-QD-108 closes.
  */
 export const enforceLoaded =
   <EO = never, RO = never>(policy: Policy, options?: HandoverOptions<EO, RO>) =>
@@ -176,7 +184,9 @@ export const enforceLoaded =
     self: Effect.Effect<A, E, R>,
   ): Effect.Effect<A, E | EnforcementError | EO, R | EvaluationServices | RO> =>
     Effect.flatMap(self, (value) =>
-      Effect.as(admittedOrDenied(policy, decidedOn(options, value)), value),
+      Effect.map(admittedOrDenied(policy, decidedOn(options, value)), (decision) =>
+        RELEASE.Whole(decision, value),
+      ),
     );
 
 /**
@@ -199,7 +209,7 @@ export const enforceProjectedLoaded =
   ): Effect.Effect<Partial<A>, E | EnforcementError | EO, R | EvaluationServices | RO> =>
     Effect.flatMap(self, (value) =>
       Effect.map(admittedOrDenied(policy, decidedOn(options, value)), (decision) =>
-        project(decision, value),
+        RELEASE.Projected(decision, value),
       ),
     );
 
