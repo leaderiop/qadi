@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 45
 current_phase_name: The audit circuit breaker as one transition function
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 45-03-PLAN.md
-last_updated: "2026-11-15T06:38:17.174Z"
+stopped_at: Completed 45-04-PLAN.md
+last_updated: "2026-11-15T06:42:30.528Z"
 last_activity: 2026-11-15
 last_activity_desc: Phase 45 execution started
-state_head: 59fc4a7944426cea1b19d09a53a6174392782f0b
+state_head: f99d8767a2fa6ec0289f4b7b6b31fd73f0b6c6a0
 progress:
   total_phases: 10
   completed_phases: 2
   total_plans: 22
-  completed_plans: 17
+  completed_plans: 18
   percent: 20
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 45 (The audit circuit breaker as one transition function) — EXECUTING
-Current Plan: 4
+Current Plan: 5
 Total Plans in Phase: 8
 Status: Ready to execute
 Last activity: 2026-11-15 — Phase 45 execution started
@@ -268,6 +268,7 @@ Progress: [██░░░░░░░░] 20% (2 of 10 phases)
 | Phase 45 P01 | 9min | 3 tasks | 3 files |
 | Phase QD-45 P02 | 8min | 2 tasks | 2 files |
 | Phase 45 P03 | 6min | 2 tasks | 1 files |
+| Phase 45 P04 | 12min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -441,6 +442,7 @@ Progress: [██░░░░░░░░] 20% (2 of 10 phases)
 - [Phase 45]: 45-01: the adapter table needed no row corrected against the base; the sink option rows end Written (not WriteFailed) on the base because a healthy synchronous write beats a zero deadline
 - [Phase QD-45]: 45-02: run's reply is a module-private Moved { before, next }; non-observe helpers stay until 45-03
 - [Phase 45]: 45-03: the four helpers survive as one-liners over run, so admit/withPermit/finalizer stay byte-identical to phase_base
+- [Phase 45]: 45-04: a bad breaker option is a typed InvalidAuditSinkOption refusal at construction; the layer error channel moves from never; received carries the raw input because NaN decodes to a zero duration
 
 ### Pending Todos
 
@@ -492,8 +494,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T06:38:17.137Z
-Stopped at: Completed 45-03-PLAN.md
+Last session: 2026-11-15T06:42:30.488Z
+Stopped at: Completed 45-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
