@@ -371,7 +371,7 @@ Order: defects first (43-46), then the "stated once" deepenings (47-49), then th
 - [x] **Phase 43: One handover module behind the enforcement entry points** - One package-private module owns ask → discharge → release; `guard` and `filter*` refuse a second `resource` at the type level (ARCH-90, Breaking, core) (completed 2026-11-15)
 - [x] **Phase 44: The hydration seed's fields stated once** - Each verdict's seed fields derive from core's wire statement; dehydrate and rebuild are spreads, so a new wire field can no longer be dropped (ARCH-91, react) (completed 2026-11-15)
 - [x] **Phase 45: The audit circuit breaker as one transition function** - One pure `(state, event, now)` function holds every generation and probe rule; a `NaN` threshold is refused at construction (ARCH-92, audit) (completed 2026-11-15)
-- [ ] **Phase 46: The sink emitter reports what it contains** - A failing or dying user sink is contained and reported with exactly one warning, naming the sink (ARCH-93, core)
+- [x] **Phase 46: The sink emitter reports what it contains** - A failing or dying user sink is contained and reported with exactly one warning, naming the sink (ARCH-93, core) (completed 2026-11-15)
 - [ ] **Phase 47: Port facts read from the description** - Defaultedness, consequence and call reading come from the port description, not from display names (ARCH-94, core, devtools)
 - [ ] **Phase 48: Audit reports core's refusal and derives "lost"** - `AuditEntryNotEncodable` is deleted and the lost-staging label derives from durability (ARCH-95, Breaking, audit)
 - [ ] **Phase 49: Gates as the dock model's eighth store, one gate-state vocabulary** - The gate registry joins the dock model and the five gate-state words are stated once in core (ARCH-96, core, react, devtools)
@@ -518,7 +518,7 @@ Plans:
   4. The sink is still read once per evaluation (ADR-QD-044/100, `sink-read-once`), a sink never changes a decision, and INV-QD-035 is restated to include the report.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `SinkEmit.ts` and the touched sinks, the two RED tests and a per-warning classification table committed first; then the emitter's report and the `name`; then removing only the covered duplicates; then records.
-**Plans**: 7/7 plans executed
+**Plans**: 7/7 plans complete
 
 Plans:
 **Wave 1**
@@ -660,7 +660,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 43. One handover module behind the enforcement entry points | 8/8 | Complete    | 2026-11-15 |
 | 44. The hydration seed's fields stated once | 6/6 | Complete    | 2026-11-15 |
 | 45. The audit circuit breaker as one transition function | 8/8 | Complete    | 2026-11-15 |
-| 46. The sink emitter reports what it contains | 7/7 | In Progress | - |
+| 46. The sink emitter reports what it contains | 7/7 | Complete    | 2026-11-15 |
 | 47. Port facts read from the description | 0/TBD | Not started | - |
 | 48. Audit reports core's refusal and derives "lost" | 0/TBD | Not started | - |
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 0/TBD | Not started | - |
