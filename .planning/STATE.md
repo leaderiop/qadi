@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 43
 current_phase_name: One handover module behind the enforcement entry points
-current_plan: 5
+current_plan: 6
 status: executing
-stopped_at: Completed 43-04-PLAN.md
-last_updated: "2026-11-15T01:45:02.092Z"
+stopped_at: Completed QD-43-05-PLAN.md
+last_updated: "2026-11-15T01:47:15.468Z"
 last_activity: 2026-11-15
 last_activity_desc: Roadmap created (Phases 43-52, 52/52 requirements mapped)
-state_head: 1713a37debf47806943a21523bf7b757f8691a66
+state_head: d863b7190e293b18c76310d09f966b69ba8e73db
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 8
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 43 (One handover module behind the enforcement entry points) — READY TO EXECUTE
-Current Plan: 5
+Current Plan: 6
 Total Plans in Phase: 8
 Status: Ready to execute
 Last activity: 2026-11-15 — Roadmap created (Phases 43-52, 52/52 requirements mapped)
@@ -253,6 +253,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 10 phases)
 | Phase 43 P02 | 12min | 2 tasks | 1 files |
 | Phase 43 P03 | 25min | 2 tasks | 5 files |
 | Phase 43 P04 | 30min | 2 tasks | 6 files |
+| Phase QD-43 P05 | 20min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -413,6 +414,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 10 phases)
 - [Phase 43]: [43-02] Handover characterisation uses core's testLayer plus a recording DecisionSink, not the testing package's qadiTestLayer (dependency cycle); the one RED case is enforceProjected's smuggled resource
 - [Phase 43]: 43-03: guard adapts Handover.ts directly via admittedOrDenied/decidedOn; AccessDenied constructed once in Qadi.ts; closed RELEASE table is the one project( in the module
 - [Phase 43]: 43-04: handOver is a plain function per item (no Effect.fn); the array forms share keptInOrder, the stream forms Stream.filterMap over the same Result; @qadi/promise filter/filterProjected take Omit<FacadeOptions, resource>, no branch
+- [Phase QD-43]: 43-05: upgrade sections link ADR-QD-156 at its planned filename; one Breaking changeset per package
 
 ### Pending Todos
 
@@ -462,8 +464,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T01:45:02.069Z
-Stopped at: Completed 43-04-PLAN.md
+Last session: 2026-11-15T01:47:15.443Z
+Stopped at: Completed QD-43-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

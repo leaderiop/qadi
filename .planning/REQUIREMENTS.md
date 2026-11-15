@@ -118,7 +118,7 @@
   - measured with the same invocation at the phase base and at close;
   - a drop is closed with a test, never re-baselined.
 - [x] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base: RED for a defect, green for preserved behaviour.
-- [ ] **WX-07**: Every public break is recorded as **Breaking** in its package's changeset and in `upgrading.md`. Nothing is released or published, and no version-packages PR is merged.
+- [x] **WX-07**: Every public break is recorded as **Breaking** in its package's changeset and in `upgrading.md`. Nothing is released or published, and no version-packages PR is merged.
 
 ## Future Requirements
 
@@ -194,7 +194,7 @@ The seven WX rows apply to every phase 43 to 52, so each phase's Requirements li
 | WX-04 | All v1.5 phases | Complete |
 | WX-05 | All v1.5 phases | Complete |
 | WX-06 | All v1.5 phases | Complete |
-| WX-07 | All v1.5 phases | Pending |
+| WX-07 | All v1.5 phases | Complete |
 
 **Coverage:**
 - v1.5 requirements: 52 total (45 phase-specific, 7 cross-cutting)
