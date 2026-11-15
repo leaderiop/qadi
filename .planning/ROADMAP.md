@@ -518,7 +518,7 @@ Plans:
   4. The sink is still read once per evaluation (ADR-QD-044/100, `sink-read-once`), a sink never changes a decision, and INV-QD-035 is restated to include the report.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `SinkEmit.ts` and the touched sinks, the two RED tests and a per-warning classification table committed first; then the emitter's report and the `name`; then removing only the covered duplicates; then records.
-**Plans**: 6/7 plans executed
+**Plans**: 7/7 plans executed
 
 Plans:
 **Wave 1**
@@ -540,7 +540,7 @@ Plans:
 - [x] 46-06-PLAN.md — BEH-QD-566 to 570 and four amended behaviours; INV-QD-035 restated, INV-QD-337 and 338; traceability; CCR-QD-437 completed
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 46-07-PLAN.md — close: mutation after-run and comparison, scope and scan, commit order and ids, `check:pr`, release check
+- [x] 46-07-PLAN.md — close: mutation after-run and comparison, scope and scan, commit order and ids, `check:pr`, release check
 
 ### Phase 47: Port facts read from the description
 
@@ -660,7 +660,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 43. One handover module behind the enforcement entry points | 8/8 | Complete    | 2026-11-15 |
 | 44. The hydration seed's fields stated once | 6/6 | Complete    | 2026-11-15 |
 | 45. The audit circuit breaker as one transition function | 8/8 | Complete    | 2026-11-15 |
-| 46. The sink emitter reports what it contains | 6/7 | In Progress | - |
+| 46. The sink emitter reports what it contains | 7/7 | In Progress | - |
 | 47. Port facts read from the description | 0/TBD | Not started | - |
 | 48. Audit reports core's refusal and derives "lost" | 0/TBD | Not started | - |
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 0/TBD | Not started | - |
