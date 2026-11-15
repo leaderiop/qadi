@@ -5,17 +5,17 @@ milestone_name: Arch Wave 10
 current_phase: 45
 current_phase_name: The audit circuit breaker as one transition function
 current_plan: 8
-status: executing
-stopped_at: Completed 45-07-PLAN.md
-last_updated: "2026-11-15T07:00:11.906Z"
+status: verifying
+stopped_at: Completed 45-08-PLAN.md
+last_updated: "2026-11-15T07:05:37.165Z"
 last_activity: 2026-11-15
 last_activity_desc: Phase 45 execution started
-state_head: 90d7c00625bc66fca98bae946fc6db8a619ccddb
+state_head: 90f77914accb2fbddc86bc495d36aef2c264b265
 progress:
   total_phases: 10
   completed_phases: 2
   total_plans: 22
-  completed_plans: 21
+  completed_plans: 22
   percent: 20
 ---
 
@@ -33,7 +33,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 Phase: 45 (The audit circuit breaker as one transition function) — EXECUTING
 Current Plan: 8
 Total Plans in Phase: 8
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-15 — Phase 45 execution started
 
 Progress: [██░░░░░░░░] 20% (2 of 10 phases)
@@ -272,6 +272,7 @@ Progress: [██░░░░░░░░] 20% (2 of 10 phases)
 | Phase QD-45 P05 | 8 min | 2 tasks | 5 files |
 | Phase 45 P06 | 25min | 2 tasks | 9 files |
 | Phase QD-45 P07 | 12 min | 2 tasks | 6 files |
+| Phase 45 P08 | 10 min | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -449,6 +450,7 @@ Progress: [██░░░░░░░░] 20% (2 of 10 phases)
 - [Phase QD-45]: 45-05: storeCallTimeout is checked by the sink after the breaker is built (two bad options name the breaker's first); Duration.infinity stays no deadline (D-06a)
 - [Phase 45]: ADR-QD-158: a refused sink option is a typed InvalidAuditSinkOption (config), unlike BEH-QD-166's defect (code constant); Duration.infinity stays accepted
 - [Phase QD-45]: 45-07: the CCR-QD-436 row lists changed files by full path, because its check matches each changed path as a substring
+- [Phase 45]: 45-08: mutation held without a survivor test round; CircuitBreaker.ts 0.8496 vs base 0.8051, AuditDecisionSinkLive.ts 1
 
 ### Pending Todos
 
@@ -500,8 +502,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T07:00:11.849Z
-Stopped at: Completed 45-07-PLAN.md
+Last session: 2026-11-15T07:05:37.129Z
+Stopped at: Completed 45-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
