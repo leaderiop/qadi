@@ -39,13 +39,20 @@ import { emitWriteOutcome, outcomePath } from "./AuditWriteReport.ts";
 import { makeCircuitBreaker } from "./CircuitBreaker.ts";
 import type { Permit } from "./CircuitBreaker.ts";
 import type { InvalidAuditSinkOption } from "./InvalidAuditSinkOption.ts";
+import { checkStoreCallTimeout } from "./SinkOptionChecks.ts";
 
 export interface AuditDecisionSinkOptions {
-  /** Consecutive `AuditWriteError`s before the breaker trips. Defaults to 5. */
+  /**
+   * Consecutive `AuditWriteError`s before the breaker trips. Defaults to 5.
+   * Must be a positive whole number; any other value is refused with
+   * `InvalidAuditSinkOption` when the layer is built.
+   */
   readonly failureThreshold?: number;
   /**
    * How long a tripped breaker stays open before allowing one probe write.
-   * Defaults to 30 000 (milliseconds).
+   * Defaults to 30 000 (milliseconds). Must be a finite, positive, whole number
+   * of milliseconds; any other value is refused with `InvalidAuditSinkOption`
+   * when the layer is built.
    *
    * `Duration.Input`, not a bare `number` — see `CircuitBreaker.ts`'s
    * `CircuitBreakerOptions.resetTimeoutMs` doc comment (issue #107). A plain
@@ -54,7 +61,9 @@ export interface AuditDecisionSinkOptions {
   readonly resetTimeoutMs?: Duration.Input;
   /**
    * How long one call to the audit store may take before the sink counts it
-   * as failed. Defaults to 5 seconds; `Duration.infinity` opts out.
+   * as failed. Defaults to 5 seconds; `Duration.infinity` opts out. Must be a
+   * positive duration; any other value is refused with `InvalidAuditSinkOption`
+   * when the layer is built.
    *
    * `evaluate` awaits `DecisionSink.record`, so a store call that never
    * settled held the decision with it, and the breaker — which only counts
@@ -136,7 +145,7 @@ export const AuditDecisionSinkLive = (
       // interrupted and fails with the port's own error for `entry`, its
       // cause a `TimeoutError`. Both ports' errors share the `{ entry, cause }`
       // shape, so the one constructor call here serves all three call sites.
-      const storeCallTimeout = Duration.fromInputUnsafe(options?.storeCallTimeout ?? DEFAULT_STORE_CALL_TIMEOUT);
+      const storeCallTimeout = yield* checkStoreCallTimeout(options?.storeCallTimeout ?? DEFAULT_STORE_CALL_TIMEOUT);
       const bounded = <A, E>(
         call: Effect.Effect<A, E>,
         entry: AuditEntry,

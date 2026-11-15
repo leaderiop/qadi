@@ -31,3 +31,18 @@ export const checkResetTimeoutMs = (received: Duration.Input): Effect.Effect<num
     ? Effect.succeed(millis.value)
     : Effect.fail(new InvalidAuditSinkOption({ option: "resetTimeoutMs", received }));
 };
+
+/**
+ * Refuses a store-call deadline that is not a positive duration; `Duration.infinity` is accepted as no deadline.
+ *
+ * A zero, negative or `NaN` deadline timed every store call out at once, so every record was
+ * `WriteFailed` and the breaker tripped from configuration alone. `Duration.infinity` stays the
+ * documented opt-out (BEH-QD-379, ADR-QD-126), so finiteness is not tested. The raw input is
+ * reported, because `NaN` decodes to a zero duration.
+ */
+export const checkStoreCallTimeout = (received: Duration.Input): Effect.Effect<Duration.Duration, InvalidAuditSinkOption> => {
+  const deadline = Option.filter(Duration.fromInput(received), Duration.isPositive);
+  return Option.isSome(deadline)
+    ? Effect.succeed(deadline.value)
+    : Effect.fail(new InvalidAuditSinkOption({ option: "storeCallTimeout", received }));
+};
