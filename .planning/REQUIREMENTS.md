@@ -47,14 +47,14 @@
 
 ### The sink emitter reports what it contains (Phase 46, ARCH-93, core)
 
-- [ ] **EMIT-01**: `sinkEmitter` contains a sink's failure or defect and reports it with exactly one warning, naming the sink when it has a `name` (an optional `name` added to `DecisionSinkShape`).
-- [ ] **EMIT-02**: A custom sink that fails and one that dies, run through `evaluate`, each produce exactly one warning and leave the decision unchanged. Both are RED on the phase base, where they produce zero warnings.
+- [x] **EMIT-01**: `sinkEmitter` contains a sink's failure or defect and reports it with exactly one warning, naming the sink when it has a `name` (an optional `name` added to `DecisionSinkShape`).
+- [x] **EMIT-02**: A custom sink that fails and one that dies, run through `evaluate`, each produce exactly one warning and leave the decision unchanged. Both are RED on the phase base, where they produce zero warnings.
 - [x] **EMIT-03**: Each shipped sink keeps only the reports that change behaviour or say something else:
   - forwarding's encode refusal;
   - `decisionSinkAll`'s sibling isolation;
   - the decision log's append/publish split.
   Each existing warning is classified, and only containment the emitter now covers is removed.
-- [ ] **EMIT-04**: The sink is still read once per evaluation (ADR-044/100, `sink-read-once`), and INV-QD-035 is restated to include the report.
+- [x] **EMIT-04**: The sink is still read once per evaluation (ADR-044/100, `sink-read-once`), and INV-QD-035 is restated to include the report.
 
 ### Port facts read from the description (Phase 47, ARCH-94, core + devtools)
 
@@ -158,10 +158,10 @@ The seven WX rows apply to every phase 43 to 52, so each phase's Requirements li
 | BRKR-03 | Phase 45 | Complete |
 | BRKR-04 | Phase 45 | Complete |
 | BRKR-05 | Phase 45 | Complete |
-| EMIT-01 | Phase 46 | Pending |
-| EMIT-02 | Phase 46 | Pending |
+| EMIT-01 | Phase 46 | Complete |
+| EMIT-02 | Phase 46 | Complete |
 | EMIT-03 | Phase 46 | Complete |
-| EMIT-04 | Phase 46 | Pending |
+| EMIT-04 | Phase 46 | Complete |
 | PFCT-01 | Phase 47 | Pending |
 | PFCT-02 | Phase 47 | Pending |
 | PFCT-03 | Phase 47 | Pending |

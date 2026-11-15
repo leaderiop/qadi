@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 46
 current_phase_name: The sink emitter reports what it contains
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed 46-05-PLAN.md
-last_updated: "2026-11-15T14:11:59.317Z"
+stopped_at: Completed 46-06-PLAN.md
+last_updated: "2026-11-15T14:18:37.994Z"
 last_activity: 2026-11-15
 last_activity_desc: Phase 46 execution started
-state_head: 98267c46b48b7fccc21c76b8a0d8e1ec43d2fc77
+state_head: 78b183993489fa628324b8ed83109fe388b8d476
 progress:
   total_phases: 10
   completed_phases: 3
   total_plans: 29
-  completed_plans: 27
+  completed_plans: 28
   percent: 30
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 46 (The sink emitter reports what it contains) — EXECUTING
-Current Plan: 6
+Current Plan: 7
 Total Plans in Phase: 7
 Status: Ready to execute
 Last activity: 2026-11-15 — Phase 46 execution started
@@ -279,6 +279,7 @@ Progress: [███░░░░░░░] 30% (3 of 10 phases)
 | Phase 46 P03 | 10 min | 2 tasks | 4 files |
 | Phase 46 P04 | 12 min | 3 tasks | 5 files |
 | Phase 46 P05 | 14 min | 2 tasks | 11 files |
+| Phase 46 P06 | 25 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -465,6 +466,7 @@ Progress: [███░░░░░░░] 30% (3 of 10 phases)
 - [Phase 46]: 46-04: DecisionLog's isolate catches stay; the publish half is kept though unreachable by any test, so the append half's catch cannot mislabel a publish defect
 - [Phase 46]: 46-05: ADR-QD-159 records the metric as declined and deferred (ADR-QD-123), log flood and log forging as accepted consequences, and the change as not breaking
 - [Phase 46]: 46-05: the CCR-QD-437 row lists Task 1's files only; the overview, upgrade guide and changesets are added by 46-06 with the Used/Unused ids
+- [Phase 46]: 46-06: BEH-QD-566..570 and INV-QD-337/338 state the emitter's report; INV-QD-035 keeps its heading, restated; CCR-QD-437 closed with Used ids and Unused: none
 
 ### Pending Todos
 
@@ -517,8 +519,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T14:11:59.236Z
-Stopped at: Completed 46-05-PLAN.md
+Last session: 2026-11-15T14:18:37.825Z
+Stopped at: Completed 46-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
