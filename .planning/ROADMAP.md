@@ -400,13 +400,28 @@ Order: defects first (43-46), then the "stated once" deepenings (47-49), then th
 **Plans**: 8 plans
 
 Plans:
+**Wave 1**
 - [ ] 43-01-PLAN.md — mutation baseline with the moved module (first commit), then the RED tstyche refusals for `guard`, `filter*` and the facade
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 43-02-PLAN.md — characterisation on the base: the effect and collection shapes, the spans, the smuggled resource (RED for `enforceProjected`)
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 43-03-PLAN.md — tracer: `Handover.ts` and `guard` through it; the effect shapes release through `RELEASE`; `LoadedEnforceOptions` → `HandoverOptions`
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 43-04-PLAN.md — the four collections through `handOver`; the facade's `filter`/`filterProjected` refuse `resource`
+
+**Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 43-05-PLAN.md — website pages and glossaries, the two 0.13 upgrade sections, the two Breaking changesets
+
+**Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 43-06-PLAN.md — ADR-QD-156 and the dated amendments to ADR-QD-104, 105, 019, 022, 035
+
+**Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 43-07-PLAN.md — INV-QD-009/013/032/108 restated, INV-QD-331, BEH-QD-551/552, overview, traceability, the CCR-QD-434 row
+
+**Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 43-08-PLAN.md — close: mutation after vs base, scope and forbidden-construct scan, commit order and ids, `check:pr`, release check
 
 ### Phase 44: The hydration seed's fields stated once
