@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-035                                   |
-> | Revision       | 1.0                                             |
+> | Revision       | 1.1                                             |
 > | Effective Date | 2026-08-22                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-08-22): Initial release (CCR-QD-041) |
+> | Change History | 1.1 (2026-11-15): Amendment: guard takes HandoverOptions and adapts the handover module (ADR-QD-156, CCR-QD-434)<br>1.0 (2026-08-22): Initial release (CCR-QD-041) |
 
 ---
 
@@ -153,3 +153,12 @@ deliberately fakes having checked) is fully covered by it.
 ---
 
 _Related: [ADR-QD-002](./002-schema-derived-policy-adt.md) · [ADR-QD-011](./011-enforce-as-aspect.md) · [ADR-QD-032](./032-promise-facade.md) · [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) · [INV-QD-009](../invariants.md#inv-qd-009-guarded-effects-do-not-run-when-denied) · [Glossary](../glossary.md) · [Roadmap](../roadmap.md)_
+
+## Amendment (2026-11-15, ADR-QD-156, CCR-QD-434)
+
+`guard`'s options are `HandoverOptions`, not `EnforceOptions<EO, RO>` ([ADR-QD-156](./156-a-handed-over-value-is-decided-through-one-module.md)), so a second
+resource cannot be written: the positional `resource` is the one decided on. `guard` adapts the handover module directly
+(`decidedOn(options, resource)` into `admittedOrDenied`) rather than calling `enforce` with the resource spread over its
+options, so the Decision's call into `Qadi.enforce` now reads as that adapter. The decision itself is unchanged: the
+witness is a branded value, the handler shape is the same, and the handler's effect is still constructed eagerly,
+when the returned function is called, and run only after the allow.

@@ -245,3 +245,11 @@ shipped implementation is sequential, and it named
 property before there was anything to state it about. It was wrong on one
 mechanism: it expected N subjects to mean N rebuilt environments, where
 `provideService` supplies one service into the environment already there.
+
+## Amendment (2026-11-15, ADR-QD-156, CCR-QD-434)
+
+Where this record says every enforcing entry point goes through one `permitted`, read `Handover.ts`
+([ADR-QD-156](./156-a-handed-over-value-is-decided-through-one-module.md)): `verdictOf` is the one allow-or-deny branch, and the array and
+stream forms of the collection entry points share `handOver`, one per-item step. That is the same argument this record
+makes for subject sets, applied to the collections: two implementations of "who passes" would eventually disagree. The
+decision itself is unchanged: a subject set is asked by nobody, and the answer reports rather than enforces.
