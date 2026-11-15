@@ -439,7 +439,26 @@ Plans:
   4. `entryAgrees` still refuses a seed whose fields disagree with its trace through core's `decisionDisagreement` (INV-QD-170), existing tests unchanged, and the payload's wire form is byte-identical for existing entries (a golden committed on the base).
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `HydrationEngine.ts` and `SeededDecision.ts`, the byte golden and the property with its scratch-field RED, committed first; then the derived statement; then the spreads; then records. Core's `DecisionWire.ts` is read, not edited, unless the planner records evidence that it must change.
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+**Wave 1**
+- [ ] 44-01-PLAN.md — mutation baseline (first commit), then the round-trip property and the eight-string payload golden green on the base; RED under an uncommitted scratch wire field
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 44-02-PLAN.md — tracer: the allow's seed fields stated once in `SeededDecision.ts`, entry and class derived, `rebuild` a spread (RED first for the absent key); then the denial; tests drop `visibleFields: undefined`; the type pin
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 44-03-PLAN.md — the `VERDICTS` table read by dehydrate, rebuild and agreement; GREEN under the scratch field
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 44-04-PLAN.md — ADR-QD-157, the ADR-QD-078 amendment, AGENTS.md §7, the `@qadi/react` minor Breaking changeset, the 0.13 upgrade entry
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 44-05-PLAN.md — BEH-QD-556, INV-QD-333, the INV-QD-022/059 and BEH-QD-148 notes, traceability, overview, the CCR-QD-435 row
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 44-06-PLAN.md — close: mutation after vs base, scope and forbidden-construct scan, commit order and ids, `check:pr`, release check
 
 ### Phase 45: The audit circuit breaker as one transition function
 
