@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 43
 current_phase_name: One handover module behind the enforcement entry points
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 43-03-PLAN.md
-last_updated: "2026-11-15T01:41:56.426Z"
+stopped_at: Completed 43-04-PLAN.md
+last_updated: "2026-11-15T01:45:02.092Z"
 last_activity: 2026-11-15
 last_activity_desc: Roadmap created (Phases 43-52, 52/52 requirements mapped)
-state_head: 51b6339283d5bebf45256dbc6e878c4aa9ffb41f
+state_head: 1713a37debf47806943a21523bf7b757f8691a66
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 8
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 43 (One handover module behind the enforcement entry points) — READY TO EXECUTE
-Current Plan: 4
+Current Plan: 5
 Total Plans in Phase: 8
 Status: Ready to execute
 Last activity: 2026-11-15 — Roadmap created (Phases 43-52, 52/52 requirements mapped)
@@ -252,6 +252,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 10 phases)
 | Phase 43 P01 | 5min | 2 tasks | 3 files |
 | Phase 43 P02 | 12min | 2 tasks | 1 files |
 | Phase 43 P03 | 25min | 2 tasks | 5 files |
+| Phase 43 P04 | 30min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -411,6 +412,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 10 phases)
 - [Phase 43]: 43-01: Collection-entry-point refusals are tested via Parameters<typeof X>[2], because a callable form on an Effect/Stream-returning function passes vacuously under effect(floatingEffect)
 - [Phase 43]: [43-02] Handover characterisation uses core's testLayer plus a recording DecisionSink, not the testing package's qadiTestLayer (dependency cycle); the one RED case is enforceProjected's smuggled resource
 - [Phase 43]: 43-03: guard adapts Handover.ts directly via admittedOrDenied/decidedOn; AccessDenied constructed once in Qadi.ts; closed RELEASE table is the one project( in the module
+- [Phase 43]: 43-04: handOver is a plain function per item (no Effect.fn); the array forms share keptInOrder, the stream forms Stream.filterMap over the same Result; @qadi/promise filter/filterProjected take Omit<FacadeOptions, resource>, no branch
 
 ### Pending Todos
 
@@ -460,8 +462,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T01:41:56.400Z
-Stopped at: Completed 43-03-PLAN.md
+Last session: 2026-11-15T01:45:02.069Z
+Stopped at: Completed 43-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
