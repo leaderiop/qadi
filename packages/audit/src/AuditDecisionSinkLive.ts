@@ -38,6 +38,7 @@ import { AuditWriteOutcome, durabilityOf, UnwrittenStaging, WrittenStaging } fro
 import { emitWriteOutcome, outcomePath } from "./AuditWriteReport.ts";
 import { makeCircuitBreaker } from "./CircuitBreaker.ts";
 import type { Permit } from "./CircuitBreaker.ts";
+import type { InvalidAuditSinkOption } from "./InvalidAuditSinkOption.ts";
 
 export interface AuditDecisionSinkOptions {
   /** Consecutive `AuditWriteError`s before the breaker trips. Defaults to 5. */
@@ -106,10 +107,11 @@ interface StageResult {
 }
 
 /**
- * `Layer.Layer<DecisionSink, never, AuditTrailPort>` — requires `AuditTrailPort`,
- * reads `AuditStagingPort` optionally via `Effect.serviceOption`, never as a
- * `Layer` dependency, so a caller who never wires staging pays nothing for it
- * — the same shape `DecisionSink` itself is read in `SinkEmit.ts`.
+ * `Layer.Layer<DecisionSink, InvalidAuditSinkOption, AuditTrailPort>` — requires
+ * `AuditTrailPort`, reads `AuditStagingPort` optionally via `Effect.serviceOption`,
+ * never as a `Layer` dependency, so a caller who never wires staging pays nothing
+ * for it — the same shape `DecisionSink` itself is read in `SinkEmit.ts`. The layer
+ * fails with {@link InvalidAuditSinkOption} when an option cannot work (ARCH-92).
  *
  * Each record has exactly one {@link AuditWriteOutcome}: the port calls below
  * produce it and report nothing; `AuditWriteReport.ts` turns it into metrics,
@@ -117,7 +119,7 @@ interface StageResult {
  */
 export const AuditDecisionSinkLive = (
   options?: AuditDecisionSinkOptions,
-): Layer.Layer<DecisionSink, never, AuditTrailPort> =>
+): Layer.Layer<DecisionSink, InvalidAuditSinkOption, AuditTrailPort> =>
   Layer.effect(
     DecisionSink,
     Effect.gen(function* () {

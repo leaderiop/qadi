@@ -50,10 +50,15 @@ import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import * as Record from "effect/Record";
 import * as Ref from "effect/Ref";
+import { checkFailureThreshold } from "./SinkOptionChecks.ts";
 
 export type CircuitBreakerStatus = "Closed" | "Open" | "HalfOpen";
 
 export interface CircuitBreakerOptions {
+  /**
+   * A positive whole number of consecutive failures before the breaker opens;
+   * anything else is refused with `InvalidAuditSinkOption` when the breaker is built.
+   */
   readonly failureThreshold: number;
   /**
    * `Duration.Input`, not a bare `number` — `@qadi/http`'s `DecisionStreamOptions.reauth.interval`
@@ -370,6 +375,8 @@ const announceTransition = (to: CircuitBreakerStatus): Effect.Effect<void> =>
 export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(function* (
   options: CircuitBreakerOptions,
 ) {
+  const failureThreshold = yield* checkFailureThreshold(options.failureThreshold);
+
   // Decoded once, here, rather than on every `Ref.modify` comparison below:
   // `Duration.toMillis` is cheap, but `status` runs on every `record()` call,
   // and the plain `Ref.modify` callback it runs inside is not the place to
@@ -378,7 +385,7 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
 
   const ref = yield* Ref.make<State>(new StateClosed({ generation: 0, consecutiveFailures: 0 }));
 
-  const transition = step({ failureThreshold: options.failureThreshold, resetTimeoutMillis });
+  const transition = step({ failureThreshold, resetTimeoutMillis });
 
   /**
    * Applies one event to `ref` through `step`: every event reads and writes `ref`
