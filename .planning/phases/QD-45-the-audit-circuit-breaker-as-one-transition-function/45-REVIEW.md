@@ -1,8 +1,9 @@
 ---
 phase: QD-45-the-audit-circuit-breaker-as-one-transition-function
-reviewed: 2026-11-15T08:20:00Z
+reviewed: 2026-11-15T10:00:00Z
 depth: standard
-files_reviewed: 24
+iteration: 3
+files_reviewed: 13
 files_reviewed_list:
   - .changeset/audit-options-refused-when-built.md
   - apps/website/src/content/docs/docs/packages/audit/capabilities.md
@@ -12,154 +13,94 @@ files_reviewed_list:
   - packages/audit/src/CircuitBreaker.ts
   - packages/audit/src/InvalidAuditSinkOption.ts
   - packages/audit/src/SinkOptionChecks.ts
-  - packages/audit/src/index.ts
-  - packages/audit/test/Agreement.test.ts
-  - packages/audit/test/AuditDecisionSinkLive.tst.ts
-  - packages/audit/test/AuditSinkDeadline.test.ts
   - packages/audit/test/CircuitBreakerOptions.test.ts
-  - packages/audit/test/CircuitBreakerTable.test.ts
-  - packages/audit/test/CircuitBreakerTransition.test.ts
-  - packages/audit/test/driveExit.ts
   - spec/README.md
   - spec/behaviors/33-audit-pipeline.md
-  - spec/decisions/126-an-audit-store-call-has-a-deadline.md
   - spec/decisions/158-the-breakers-rules-are-one-transition-function.md
-  - spec/decisions/index.yaml
-  - spec/invariants.md
-  - spec/overview.md
-  - spec/traceability.md
+  - .planning/phases/QD-45-the-audit-circuit-breaker-as-one-transition-function/45-REVIEW-FIX.iter2.md
 findings:
   critical: 0
   warning: 1
-  info: 4
-  total: 5
+  info: 1
+  total: 2
 status: issues_found
 ---
 
-# Phase QD-45: Code Review Report
+# Phase QD-45: Code Review Report (iteration 3)
 
-**Reviewed:** 2026-11-15T08:20:00Z
+**Reviewed:** 2026-11-15T10:00:00Z
 **Depth:** standard
-**Files Reviewed:** 24
+**Files Reviewed:** 13 (the fix diff `d3bb6271~1..d3bb6271`, plus every file that states the option rules)
 **Status:** issues_found
 
 ## Summary
 
-The transition function is correct. I traced every arm of `step` against the base's five `Ref.modify` bodies
-(`git show d6f1aff7:packages/audit/src/CircuitBreaker.ts`) and found no behavioural difference:
+All three iteration-2 findings are resolved in the code and the docs they named. The commit changes no behavior: it
+touches message strings, doc comments, one test title and spec revisions, and `vitest` on
+`CircuitBreakerOptions.test.ts` passes (39 tests). `InvalidAuditSinkOption`'s `REQUIRED` now agrees with
+`SinkOptionChecks.ts` (safe integer; whole milliseconds within the safe integers; positive duration with
+`Duration.infinity` allowed for `storeCallTimeout`). The revisions agree with the file headers: BEH-QD-561 sits in
+33-audit-pipeline.md Rev 1.21, ADR-QD-158 Rev 1.3, `spec/README.md` Rev 1.192, and the CCR-QD-436 row names all three
+with the same numbers. D-06a holds.
 
-- The stale-generation check happens before any arm. Observe and Claim carry no generation, as D-02 requires.
-- `generation + 1` is written once, in `step`. `ENTER` is a closed record, so a missing status is TS2741.
-- A Claim is won exactly when `Equal.equals(before, next)` is false. A claimed HalfOpen, Closed and Open all answer the
-  state they were given, so only an unclaimed HalfOpen changes.
-- A Release steals nothing, because the generation check runs first.
-- Observe's age-out and reset boundaries (`<` against `resetTimeoutMillis`) match the base.
-- Each event is exactly one `Ref.modify`. The clock is read once, outside it, as before.
-
-The refusal is a typed failure of the layer, not a defect. The tests use `Cause.findErrorOption`, which only matches
-`Fail`, so a defect would fail them. The layer's error type is `InvalidAuditSinkOption`, and the `.tst.ts` pins it.
-`received` is the raw input, so `NaN` is reported as `NaN` and not `0 millis`. I confirmed this by running the checks
-against NaN, `-0`, bigint, nested objects, a circular object and malformed strings. The `message` getter never throws.
-`Duration.infinity` stays accepted for `storeCallTimeout` (D-06a), which is not a finding.
-
-Verification I ran (read-only):
-
-- `node scripts/check-house-style.mjs` is clean.
-- `oxlint packages/audit` and `tsc -b packages/audit` are clean.
-- `vitest --project audit` on CircuitBreaker*, AuditSinkDeadline and Agreement passes: 6 files, 108 tests.
-- No `as`, `!`, `any` or `switch` in the added source.
-- Phase 48's lines in `AuditDecisionSinkLive.ts` (:78, :176) are untouched.
-
-No blockers. One validation gap (WR-01) leaves a smaller version of the defect the phase set out to close. The rest is
-a doc claim that the code contradicts, two doc gaps and test-coverage nits.
+The new sentence that fixes iteration-2 IN-01 is wrong about what the code does (WR-01), and one mirror of the
+changeset, the `upgrading.md` 0.13 entry, was not brought to the new wording (IN-01). Both are documentation only.
 
 ## Warnings
 
-### WR-01: `failureThreshold` and `resetTimeoutMs` still accept values that can never trip or reset, and a non-whole millisecond passes the whole-ms rule
+### WR-01: The new qualifier says a string or `Duration` cooldown "rounds to the millisecond"; the check refuses it unless it is already a whole millisecond
 
-**File:** `packages/audit/src/SinkOptionChecks.ts:13-16`, `:25-33`
-**Issue:** The phase's goal is a breaker that cannot silently never open. `Infinity` is refused, but the bound that
-makes it unreachable is not.
+**File:** `packages/audit/src/AuditDecisionSinkLive.ts:54-57`, `packages/audit/src/CircuitBreaker.ts:77-81`,
+`.changeset/audit-options-refused-when-built.md:5`,
+`spec/decisions/158-the-breakers-rules-are-one-transition-function.md:61-63`
+**Issue:** Iteration-2 IN-01 was fixed by adding "a string or `Duration` is read as `Duration` reads it, which rounds to
+the millisecond" to both option docs, the changeset and ADR-QD-158 point 4. `Duration` rounds to the nanosecond, not the
+millisecond, and `checkResetTimeoutMs` then refuses any result that is not a whole safe-integer millisecond count
+(`Option.filter(Number.isSafeInteger)` on `Duration.toMillis`). Verified by running the check's pipeline on the installed
+`effect`:
 
-- `checkFailureThreshold` uses `Number.isInteger`. `failureThreshold: 1e300` (or any value above
-  `Number.MAX_SAFE_INTEGER`) passes. `consecutiveFailures` counts by 1 and cannot reach it, so it is the same
-  "never opens" breaker as `NaN`/`Infinity`.
-- `checkResetTimeoutMs` has the same gap. `resetTimeoutMs: 1e21` (verified: accepted, answers `1e+21`) and
-  `10n ** 30n` nanos (accepted, `1e+24`) never leave Open, which is what the ADR measured for `Infinity`. The rule is
-  inconsistent: `Infinity` is refused as "not finite" while a number a million years long is accepted.
-- The "whole number of milliseconds" test runs on the decoded `Duration`. `Duration.millis` stores a non-integer as
-  rounded nanoseconds, so `resetTimeoutMs: 1.0000000001` is accepted and silently becomes 1 ms (verified). `1.5` is
-  refused only because the rounding is exact there. The documented rule ("whole number of milliseconds") and the
-  implementation disagree at the edges.
+| Input | Result |
+| ----- | ------ |
+| `"1.0000000001 millis"` | accepted as 1 ms (sub-nanosecond noise is dropped) |
+| `Duration.millis(1.0000000001)` | accepted as 1 ms |
+| `"1.5 millis"`, `Duration.millis(1.5)`, `"1500 micros"` | refused |
+| `"1.5 seconds"` | accepted as 1500 ms (whole) |
 
-**Fix:** bound the integers and test the raw number where the input is a number.
-```ts
-export const checkFailureThreshold = (received: number): Effect.Effect<number, InvalidAuditSinkOption> =>
-  Number.isSafeInteger(received) && received > 0
-    ? Effect.succeed(received)
-    : Effect.fail(new InvalidAuditSinkOption({ option: "failureThreshold", received }));
-
-// resetTimeoutMs: reject a raw non-integer number before decoding, and cap the decoded value.
-const millis = Option.filter(Duration.fromInput(received), (d) => Duration.isFinite(d) && Duration.isPositive(d)).pipe(
-  Option.map(Duration.toMillis),
-  Option.filter(Number.isSafeInteger),
-  Option.filter(() => typeof received !== "number" || Number.isInteger(received)),
-);
+So a reader of the option doc or the release note would expect `"1.5 millis"` to become 1 or 2 ms, and it fails the
+layer. The rule a string or `Duration` follows is "whole milliseconds after `Duration` rounds to the nanosecond", the
+same rule as a number except that sub-nanosecond noise is dropped. The doc claims a rounding that does not exist.
+**Fix:** say what happens, in the four places:
 ```
-Add table rows for `1e300`, `1.0000000001` and `1e21` in `CircuitBreakerOptions.test.ts`.
+A plain number is tested for being whole. A string or `Duration` is read as `Duration` reads it, to the nearest
+nanosecond, and is refused unless that is a whole number of milliseconds (`"1.5 seconds"` is accepted, `"1.5 millis"`
+is not).
+```
+Optionally pin it with two rows in `CircuitBreakerOptions.test.ts`: `"1.5 millis"` refused, `"1.5 seconds"` accepted.
 
 ## Info
 
-### IN-01: `step`'s doc claims "an event that changes nothing answers the state it was given, reference-equal"; `Success` on a Closed breaker does not
+### IN-01: The 0.13 entry in `upgrading.md` still states the old rule and omits the qualifiers the changeset gained
 
-**File:** `packages/audit/src/CircuitBreaker.ts:231`, `:302-304`
-**Issue:** `successState`'s `Closed` arm always builds a new `StateClosed`, even when `consecutiveFailures` is already
-0. That event changes nothing, yet the answer is an equal but distinct object. This is the common case (every
-successful write while Closed). The doc comment promises reference equality. `CircuitBreakerTransition.test.ts` only
-asserts `strictEqual` for stale, Open, claimed and similar rows, never for this one, so the claim is untested and false
-for the hottest event. It also writes a fresh object into the `Ref` on every healthy write. The base did the same, so
-behaviour is unchanged.
-**Fix:** answer the state when there is nothing to reset, and add a row that pins it.
-```ts
-Closed: (closed): Move =>
-  closed.consecutiveFailures === 0
-    ? closed
-    : new StateClosed({ generation: closed.generation, consecutiveFailures: 0 }),
-```
-Or soften the comment to "equal to".
+**File:** `apps/website/src/content/docs/docs/reference/upgrading.md:744`
+**Issue:** The fix commit updated the changeset, `README.md` and `capabilities.md` but not the upgrade guide's mirror of
+the changeset. Line 744 still reads "a `failureThreshold` that is not a positive whole number" and "a `resetTimeoutMs`
+that is not a finite, positive, whole number of milliseconds", while the refusal message says "positive safe integer" and
+"... within the safe integers". It is not self-contradictory (a later clause refuses "any value past
+`Number.MAX_SAFE_INTEGER`"), but it is the page a user reads when the new error appears, and it disagrees with that
+error's wording. It also lacks the `storeCallTimeout`-only `Duration.infinity` sentence and the "no infinite opt-out for
+the cooldown" note that the changeset added in the same commit.
+**Fix:** copy the changeset's refused-options sentences into line 744 (after correcting WR-01's qualifier).
 
-### IN-02: The upgrade guide and changeset say a valid composition "behaves as before" but give no way to keep an old "never trip" or "never reset" setting
+## Iteration 2 findings
 
-**File:** `apps/website/src/content/docs/docs/reference/upgrading.md:744`, `.changeset/audit-options-refused-when-built.md:6`
-**Issue:** `failureThreshold: Infinity` (disable the breaker) and `resetTimeoutMs: Duration.infinity` (hold a tripped
-breaker open) were accepted and did what they said (the ADR records `Infinity` "never left Open"). They are now refused.
-That is a runtime break for those callers, not only a type-annotation break. The guide's "only a type annotation ...
-stops compiling" is accurate only for callers who passed valid values. Nothing says what to pass instead (for example
-`Number.MAX_SAFE_INTEGER`, once WR-01 makes that the explicit bound).
-**Fix:** add one sentence to the guide and the changeset naming the runtime break and the replacement value.
-
-### IN-03: Option-test gaps that leave accepted and refused rows unpinned
-
-**File:** `packages/audit/test/CircuitBreakerOptions.test.ts:89-97`, `:140-170`
-**Issue:**
-- `acceptedByBreaker` only checks the status is `Closed`. It does not show the breaker can open, so an over-wide
-  acceptance still passes.
-- The sink table has one row per bad value for `storeCallTimeout`, but only `NaN` for the other two options.
-- There is no row for `storeCallTimeout: "Infinity"` (the string form of the accepted opt-out), for `-0`, or for the
-  `Duration` objects `Duration.millis(-1)` and `Duration.zero` as `resetTimeoutMs`. I ran these and they behave
-  correctly, but nothing pins them.
-**Fix:** drive `acceptedByBreaker` through `failureThreshold` failures and assert `Open`. Add rows for `"Infinity"`,
-`-0` and a `Duration.zero` `resetTimeoutMs`.
-
-### IN-04: Lines in the new source exceed the hand-wrapped width the codebase uses
-
-**File:** `packages/audit/src/SinkOptionChecks.ts:13`, `:25-26`, `:43`; `packages/audit/src/CircuitBreaker.ts:231`
-**Issue:** several lines run to 110-130 columns. AGENTS.md section 17 settles on hand-wrapping at about ninety, and the
-rest of `packages/audit/src` follows it. `oxfmt` is not a gate, so nothing fails; it is a consistency nit.
-**Fix:** wrap the signatures and the `Option.filter` chains.
+| ID | Result | Evidence |
+| -- | ------ | -------- |
+| WR-01 | Resolved | `InvalidAuditSinkOption.ts:23-24` reads "a positive safe integer" and "... whole number of milliseconds within the safe integers"; the two pinned message rows in `CircuitBreakerOptions.test.ts` follow and pass. `CircuitBreaker.ts:28-30`, `README.md:98-100`, `capabilities.md:22` and `:76` agree. Residual: `upgrading.md:744` (IN-01 above). |
+| IN-01 | Resolved in intent, with a wrong sentence | The qualifier is now in both option docs, the changeset and ADR point 4, and BEH-QD-561 says "a raw number". The wording "rounds to the millisecond" is inaccurate (WR-01 above). |
+| IN-02 | Resolved | The changeset scopes "`Duration.infinity` is still accepted" to `storeCallTimeout` and says the cooldown has no infinite opt-out; ADR point 4 states the bound as exactness; the test title reads "the largest count it can hold exactly". |
 
 ---
 
-_Reviewed: 2026-11-15T08:20:00Z_
+_Reviewed: 2026-11-15T10:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
