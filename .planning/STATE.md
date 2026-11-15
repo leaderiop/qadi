@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 44
 current_phase_name: The hydration seed's fields stated once
-current_plan: 5
+current_plan: 6
 status: executing
-stopped_at: Completed 44-04-PLAN.md
-last_updated: "2026-11-15T04:10:06.405Z"
+stopped_at: Completed 44-05-PLAN.md
+last_updated: "2026-11-15T04:16:53.582Z"
 last_activity: 2026-11-15
 last_activity_desc: Phase 44 execution started
-state_head: a632cf693eb6b77d1a778b63b54f5f2053a7a643
+state_head: 308f54ed67d463457db1725f40a1b3dba0ad78ba
 progress:
   total_phases: 10
   completed_phases: 1
   total_plans: 14
-  completed_plans: 12
+  completed_plans: 13
   percent: 10
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 44 (The hydration seed's fields stated once) — EXECUTING
-Current Plan: 5
+Current Plan: 6
 Total Plans in Phase: 6
 Status: Ready to execute
 Last activity: 2026-11-15 — Phase 44 execution started
@@ -262,6 +262,7 @@ Progress: [█░░░░░░░░░] 10% (1 of 10 phases)
 | Phase QD-44 P02 | 20min | 3 tasks | 8 files |
 | Phase QD-44 P03 | 10min | 2 tasks | 1 files |
 | Phase 44 P04 | 15min | 3 tasks | 8 files |
+| Phase QD-44 P05 | 15min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -430,6 +431,7 @@ Progress: [█░░░░░░░░░] 10% (1 of 10 phases)
 - [Phase QD-44]: 44-02: a seeded allow with no visibleFields has no visibleFields key (D-03); rebuild spreads the decoded entry and lets the class set _tag
 - [Phase QD-44]: 44-03: the Allow/Deny branch is one closed VERDICTS table read through the generic rowOf; entryAgrees' rule kept verbatim
 - [Phase 44]: ADR-QD-157: a seed's fields are the wire's, stated once (ADR-QD-135 pattern); ADR-QD-078 kept and amended; the optional visibleFields key is a Breaking minor for @qadi/react
+- [Phase QD-44]: INV-QD-333 used (no existing invariant says a seed carries every disclosed wire field); BEH-QD-557..560 and INV-QD-334 unused
 
 ### Pending Todos
 
@@ -480,8 +482,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T04:10:06.347Z
-Stopped at: Completed 44-04-PLAN.md
+Last session: 2026-11-15T04:16:53.546Z
+Stopped at: Completed 44-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
