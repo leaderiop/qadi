@@ -12,6 +12,7 @@
  */
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
+import * as Result from "effect/Result";
 import type { Allow, Deny } from "./Decision.ts";
 import { isAllowed, project } from "./Decision.ts";
 import { UndischargedObligation } from "./Errors.ts";
@@ -252,3 +253,30 @@ export const RELEASE: {
   Whole: (_decision, value) => value,
   Projected: (decision, value) => project(decision, value),
 };
+
+/**
+ * Decides one value an entry point may hand over, discharges what its allow obliges, and
+ * releases it, or says it was refused.
+ *
+ * The one per-item step the array and stream forms of a collection share, so an item's
+ * fate cannot differ between them (BEH-QD-050). A refusal is a value, not an error,
+ * because a collection partitions (JA-04): `Result.failVoid` for a refused item,
+ * `Result.succeed` of what `release` made of an admitted one.
+ *
+ * The scoped options keep `concurrency`, which also bounds each item's own composite
+ * fan-out; `HandoverOptions` has no `resource`, so the item is the resource of its own
+ * decision and is released under that decision alone.
+ */
+export const handOver = <A extends Resource, B, E = never, R = never>(
+  policy: Policy,
+  value: A,
+  options: HandoverOptions<E, R> | undefined,
+  release: (decision: Allow, value: A) => B,
+): Effect.Effect<
+  Result.Result<B, void>,
+  EvaluationError | UndischargedObligation | E,
+  EvaluationServices | R
+> =>
+  Effect.map(verdictOf(policy, decidedOn(options, value)), (verdict) =>
+    isAdmitted(verdict) ? Result.succeed(release(verdict.decision, value)) : Result.failVoid,
+  );

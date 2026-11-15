@@ -144,7 +144,7 @@ export interface Qadi {
     subject: AuthSubject,
     policy: Policy,
     items: ReadonlyArray<A>,
-    options?: FacadeOptions,
+    options?: Omit<FacadeOptions, "resource">,
   ) => Promise<ReadonlyArray<A>>;
 
   /**
@@ -180,7 +180,7 @@ export interface Qadi {
     subject: AuthSubject,
     policy: Policy,
     items: ReadonlyArray<A>,
-    options?: FacadeOptions,
+    options?: Omit<FacadeOptions, "resource">,
   ) => Promise<ReadonlyArray<Partial<A>>>;
 
   /**

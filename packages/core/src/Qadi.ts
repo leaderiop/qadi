@@ -23,13 +23,13 @@ import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import type { Authorized } from "./Authorized.ts";
 import type { Allow, Decision, Deny } from "./Decision.ts";
-import { isAllowed, project } from "./Decision.ts";
+import { isAllowed } from "./Decision.ts";
 import { AccessDenied } from "./Errors.ts";
 import type { UndischargedObligation } from "./Errors.ts";
 import type { EnforcementError, EvaluationError } from "./Errors.ts";
 import { evaluate } from "./Evaluate.ts";
 import type { EvaluationServices } from "./EvaluationServices.ts";
-import { RELEASE, decidedOn, isAdmitted, resourceFree, verdictOf } from "./Handover.ts";
+import { RELEASE, decidedOn, handOver, isAdmitted, resourceFree, verdictOf } from "./Handover.ts";
 import type { EnforceOptions, HandoverOptions } from "./Handover.ts";
 import type { Permission } from "./Permission.ts";
 import type { Policy } from "./Policy.ts";
@@ -277,32 +277,17 @@ export const guard =
     return Effect.flatMap(admittedOrDenied(policy, decidedOn(options, resource)), () => work);
   };
 
-type FilterVerdict<A> =
-  | { readonly item: A; readonly allowed: false }
-  | { readonly item: A; readonly allowed: true; readonly decision: Allow };
-
 /**
- * Evaluates one item against `policy` and discharges its obligations if it
- * allows. The one place `filter` and `filterStream` share this logic, so an
- * item's fate can't be decided one way for the array form and another for the
- * streamed one.
+ * The values an array collection kept, in input order, in one pass (BS-04): the
+ * streamed forms never materialize an intermediate array, and neither do these.
  */
-const decideOne = <A extends Resource, EO, RO>(
-  policy: Policy,
-  item: A,
-  options: EnforceOptions<EO, RO> | undefined,
-): Effect.Effect<
-  FilterVerdict<A>,
-  EvaluationError | UndischargedObligation | EO,
-  EvaluationServices | RO
-> =>
-  Effect.map(
-    verdictOf(policy, { ...options, resource: item }),
-    (verdict): FilterVerdict<A> =>
-      isAdmitted(verdict)
-        ? { item, allowed: true, decision: verdict.decision }
-        : { item, allowed: false },
-  );
+const keptInOrder = <B>(results: ReadonlyArray<Result.Result<B, void>>): ReadonlyArray<B> => {
+  const kept: Array<B> = [];
+  for (const result of results) {
+    if (Result.isSuccess(result)) kept.push(result.success);
+  }
+  return kept;
+};
 
 /**
  * Keeps only the elements a policy allows, evaluated per element as resource.
@@ -325,13 +310,16 @@ const decideOne = <A extends Resource, EO, RO>(
  * item finished first, so there is no INV-QD-005-shaped invariant a second,
  * independent option would need to preserve.
  *
+ * A second resource cannot be written (`HandoverOptions`): every item is the
+ * resource of its own decision.
+ *
  * **Not given `SubjectSet.ts`'s `decideSubjects`/`filterSubjects` partition
  * treatment, deliberately (JA-04).** Those report: a subject-set review has no
  * permission being exercised and nothing discharged, so one subject's
  * `EvaluationError` can be split into `failures` and the batch's other rows
  * kept. This function enforces: by the time an item is known to be allowed,
- * `decideOne` has already discharged its obligations (an audit write, a
- * notification) below, so a later item's `EvaluationError` failing the whole
+ * `handOver` (`Handover.ts`) has already discharged its obligations (an audit
+ * write, a notification) below, so a later item's `EvaluationError` failing the whole
  * call is the only option that does not pair an already-fired side effect
  * with a return value — "the items the policy admits" — that never actually
  * admitted it.
@@ -339,27 +327,17 @@ const decideOne = <A extends Resource, EO, RO>(
 export const filter = <A extends Resource, EO = never, RO = never>(
   policy: Policy,
   items: ReadonlyArray<A>,
-  options?: EnforceOptions<EO, RO>,
+  options?: HandoverOptions<EO, RO>,
 ): Effect.Effect<
   ReadonlyArray<A>,
   EvaluationError | UndischargedObligation | EO,
   EvaluationServices | RO
 > =>
   Effect.map(
-    Effect.forEach(items, (item) => decideOne(policy, item, options), {
+    Effect.forEach(items, (item) => handOver(policy, item, options, RELEASE.Whole), {
       concurrency: options?.concurrency,
     }),
-    // Single pass (BS-04): the streamed sibling below already avoids
-    // materializing an intermediate array, and the array form can too — the
-    // `FilterVerdict` wrapper stays, since `filterStream` still needs it, but
-    // nothing requires filtering and mapping as two separate traversals.
-    (results) => {
-      const kept: Array<A> = [];
-      for (const result of results) {
-        if (result.allowed) kept.push(result.item);
-      }
-      return kept;
-    },
+    keptInOrder,
   );
 
 /**
@@ -373,8 +351,9 @@ export const filter = <A extends Resource, EO = never, RO = never>(
  * database, say — and the caller wants to start consuming admitted items as
  * they're decided rather than after every one has been.
  *
- * Shares `decideOne` with `filter`, so the two can never disagree about who
- * passes. `options.concurrency` does the same double duty documented on
+ * Shares `handOver` (`Handover.ts`) with `filter`, so the two can never disagree
+ * about who passes. A second resource cannot be written (`HandoverOptions`).
+ * `options.concurrency` does the same double duty documented on
  * `filter` — bounding both this stream's own fan-out and each item's
  * `allOf`/`anyOf`/`rules` fan-out — for the same reason: nothing here depends
  * on which item is decided first, so there is no short-circuit invariant a
@@ -383,18 +362,17 @@ export const filter = <A extends Resource, EO = never, RO = never>(
 export const filterStream = <A extends Resource, E2 = never, R2 = never, EO = never, RO = never>(
   policy: Policy,
   items: Stream.Stream<A, E2, R2>,
-  options?: EnforceOptions<EO, RO>,
+  options?: HandoverOptions<EO, RO>,
 ): Stream.Stream<
   A,
   EvaluationError | UndischargedObligation | EO | E2,
   EvaluationServices | RO | R2
 > =>
   items.pipe(
-    Stream.mapEffect((item) => decideOne(policy, item, options), {
+    Stream.mapEffect((item) => handOver(policy, item, options, RELEASE.Whole), {
       concurrency: options?.concurrency,
     }),
-    Stream.filter((r) => r.allowed),
-    Stream.map((r) => r.item),
+    Stream.filterMap((result) => result),
   );
 
 /**
@@ -404,39 +382,35 @@ export const filterStream = <A extends Resource, E2 = never, R2 = never, EO = ne
  * resource of its own evaluation, and comes back narrowed to the `visibleFields`
  * of that evaluation's allow, so a field-restricting policy's withheld fields
  * never reach the caller. Items are admitted, dropped, discharged and ordered
- * exactly as `filter` does it — the two share `decideOne` and cannot disagree
- * about who passes; only the shape of what an admitted item comes back as
- * differs (BEH-QD-050).
+ * exactly as `filter` does it — the two share `handOver` (`Handover.ts`) and
+ * cannot disagree about who passes; only the shape of what an admitted item
+ * comes back as differs (BEH-QD-050). A second resource cannot be written
+ * (`HandoverOptions`): every item is the resource of its own decision.
  */
 export const filterProjected = <A extends Resource, EO = never, RO = never>(
   policy: Policy,
   items: ReadonlyArray<A>,
-  options?: EnforceOptions<EO, RO>,
+  options?: HandoverOptions<EO, RO>,
 ): Effect.Effect<
   ReadonlyArray<Partial<A>>,
   EvaluationError | UndischargedObligation | EO,
   EvaluationServices | RO
 > =>
   Effect.map(
-    Effect.forEach(items, (item) => decideOne(policy, item, options), {
+    Effect.forEach(items, (item) => handOver(policy, item, options, RELEASE.Projected), {
       concurrency: options?.concurrency,
     }),
-    (results) => {
-      const kept: Array<Partial<A>> = [];
-      for (const result of results) {
-        if (result.allowed) kept.push(project(result.decision, result.item));
-      }
-      return kept;
-    },
+    keptInOrder,
   );
 
 /**
  * The streamed sibling of {@link filterProjected}: admitted items, each
  * projected by its own decision, as they are decided.
  *
- * Shares `decideOne` with `filterProjected` and `filter`, so all of them agree
- * about who passes, and carries `filterStream`'s `options.concurrency` double
- * duty for the same reason.
+ * Shares `handOver` (`Handover.ts`) with `filterProjected` and `filter`, so all
+ * of them agree about who passes, and carries `filterStream`'s
+ * `options.concurrency` double duty for the same reason. A second resource
+ * cannot be written (`HandoverOptions`).
  */
 export const filterStreamProjected = <
   A extends Resource,
@@ -447,15 +421,15 @@ export const filterStreamProjected = <
 >(
   policy: Policy,
   items: Stream.Stream<A, E2, R2>,
-  options?: EnforceOptions<EO, RO>,
+  options?: HandoverOptions<EO, RO>,
 ): Stream.Stream<
   Partial<A>,
   EvaluationError | UndischargedObligation | EO | E2,
   EvaluationServices | RO | R2
 > =>
   items.pipe(
-    Stream.mapEffect((item) => decideOne(policy, item, options), {
+    Stream.mapEffect((item) => handOver(policy, item, options, RELEASE.Projected), {
       concurrency: options?.concurrency,
     }),
-    Stream.filterMap((r) => (r.allowed ? Result.succeed(project(r.decision, r.item)) : Result.failVoid)),
+    Stream.filterMap((result) => result),
   );

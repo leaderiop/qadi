@@ -326,7 +326,7 @@ interface Collection {
   readonly run: (
     policy: Policy,
     input: ReadonlyArray<Item>,
-    options: Qadi.EnforceOptions,
+    options: Qadi.HandoverOptions,
   ) => Effect.Effect<ReadonlyArray<unknown>, EnforcementError, EvaluationServices>;
 }
 
