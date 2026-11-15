@@ -65,12 +65,19 @@ export type QadiLayer = Layer.Layer<StandingEvaluationServices>;
  *
  * `check`, `decide` and `assert` keep `resource`: they hand over no value, so
  * the resource they decide on is theirs to name. `projected`, `filter` and
- * `filterProjected` take `Omit<FacadeOptions, "resource">`: the value they hand
- * over is the resource decided on (INV-QD-108).
+ * `filterProjected` take `HandoverFacadeOptions`, which refuses `resource`: the
+ * value they hand over is the resource decided on (INV-QD-108).
  */
 export interface FacadeOptions extends EvaluateOptions {
   readonly signal?: AbortSignal | undefined;
 }
+
+/**
+ * `FacadeOptions` for a method that hands a value over: `resource?: never` refuses
+ * any options value that carries one, a variable as well as a literal (`Omit` alone
+ * refuses only a fresh literal's excess property), as core's `HandoverOptions` does.
+ */
+type HandoverFacadeOptions = Omit<FacadeOptions, "resource"> & { readonly resource?: never };
 
 export interface Qadi {
   /**
@@ -145,8 +152,8 @@ export interface Qadi {
    * any other option here — a Promise consumer filtering many items is not
    * forced into sequential resolution.
    *
-   * **Each item is the resource of its own decision.** `options.resource` does
-   * not exist here (it is `Omit`ted), as on `projected`, so a policy that reads
+   * **Each item is the resource of its own decision.** `options.resource` is
+   * refused here (typed `never`), as on `projected`, so a policy that reads
    * the resource decides against the very item that comes back, never against a
    * second record the caller restated beside it (INV-QD-108).
    */
@@ -154,14 +161,14 @@ export interface Qadi {
     subject: AuthSubject,
     policy: Policy,
     items: ReadonlyArray<A>,
-    options?: Omit<FacadeOptions, "resource">,
+    options?: HandoverFacadeOptions,
   ) => Promise<ReadonlyArray<A>>;
 
   /**
    * The record, projected to the fields the policy lets this subject see.
    *
    * **The record is the resource: the decision sees exactly what is returned.**
-   * `options.resource` does not exist here (it is `Omit`ted), so a policy that
+   * `options.resource` is refused here (typed `never`), so a policy that
    * reads the resource — `hasResourceAttribute`, `hasRelationship`, a custom
    * predicate — decides against the very record that comes back projected,
    * never against a second one the caller restated beside it (INV-QD-108).
@@ -175,7 +182,7 @@ export interface Qadi {
     subject: AuthSubject,
     policy: Policy,
     record: A,
-    options?: Omit<FacadeOptions, "resource">,
+    options?: HandoverFacadeOptions,
   ) => Promise<Partial<A>>;
 
   /**
@@ -186,7 +193,7 @@ export interface Qadi {
    * obligation caveat as `filter`, and `options.concurrency` reaches core
    * unchanged.
    *
-   * `options.resource` does not exist here either (it is `Omit`ted): each item
+   * `options.resource` is refused here too (typed `never`): each item
    * is the resource of its own decision, and it is that decision that projects
    * it (INV-QD-108).
    */
@@ -194,7 +201,7 @@ export interface Qadi {
     subject: AuthSubject,
     policy: Policy,
     items: ReadonlyArray<A>,
-    options?: Omit<FacadeOptions, "resource">,
+    options?: HandoverFacadeOptions,
   ) => Promise<ReadonlyArray<Partial<A>>>;
 
   /**

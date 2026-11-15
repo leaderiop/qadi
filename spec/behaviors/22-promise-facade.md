@@ -147,15 +147,15 @@ the request lifetime.
 > [BEH-QD-551](./07-enforcement.md#beh-qd-551-an-entry-point-that-hands-over-a-value-refuses-a-second-resource)
 
 ```
-REQUIREMENT: `filter` and `filterProjected` MUST take
-             `Omit<FacadeOptions, "resource">`, as `projected` does, and each
-             item MUST be the resource of its own decision.
+REQUIREMENT: `filter` and `filterProjected` MUST refuse a `resource` in their
+             options (`Omit<FacadeOptions, "resource">` with `resource?: never`), as
+             `projected` does, and each item MUST be the resource of its own decision.
 ```
 
 The facade only forwards to core ([ADR-QD-032](../decisions/032-promise-facade.md)), so the refusal is core's
 ([BEH-QD-551](./07-enforcement.md#beh-qd-551-an-entry-point-that-hands-over-a-value-refuses-a-second-resource))
 made visible at this boundary: a caller of `Qadi.filter` who restated a `resource` beside
-the items used to have it silently dropped, and now cannot write it. `check`, `decide` and
+the items used to have it silently dropped, and now cannot write it, whether as a literal or as a `FacadeOptions` variable. `check`, `decide` and
 `assert` keep `resource`, because they hand over no value. The type test is
 `packages/promise/test/Facade.tst.ts`.
 

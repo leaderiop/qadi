@@ -692,7 +692,7 @@ The decision is [ADR-QD-156](https://github.com/leaderiop/qadi/blob/main/spec/de
 
 ## 0.13: the promise facade's filter takes no resource
 
-`@qadi/promise`'s `filter` and `filterProjected` now take `Omit<FacadeOptions, "resource">`, as `projected` already did: each item is the resource of its own decision, so a second one cannot be written. Before:
+`@qadi/promise`'s `filter` and `filterProjected` now refuse `resource` in their options (`Omit<FacadeOptions, "resource">` with `resource?: never`, so a `FacadeOptions` variable is refused too), as `projected` does: each item is the resource of its own decision, so a second one cannot be written. Before:
 
 ```ts
 const admitted = await qadi.filter(alice, policy, docs, { resource: tenant });

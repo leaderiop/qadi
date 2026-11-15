@@ -12,12 +12,14 @@
 import { expect, test } from "tstyche";
 import type { AuthSubject } from "@qadi/core";
 import { hasPermission, permission } from "@qadi/core";
-import type { Qadi } from "../src/index.ts";
+import type { FacadeOptions, Qadi } from "../src/index.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
 
 declare const qadi: Qadi;
 declare const alice: AuthSubject;
+// Not a fresh literal: excess-property checking does not apply to a variable.
+declare const withResource: FacadeOptions;
 
 test("the facade's filter and filterProjected refuse a second resource in their options", () => {
   expect(qadi.filter).type.not.toBeCallableWith(alice, canRead, [{ id: "a" }], {
@@ -27,6 +29,16 @@ test("the facade's filter and filterProjected refuse a second resource in their 
     resource: { id: "x" },
   });
 
+  // A variable that may carry `resource` is refused too, not only a literal.
+  expect(qadi.filter).type.not.toBeCallableWith(alice, canRead, [{ id: "a" }], withResource);
+  expect(qadi.filterProjected).type.not.toBeCallableWith(
+    alice,
+    canRead,
+    [{ id: "a" }],
+    withResource,
+  );
+  expect(qadi.projected).type.not.toBeCallableWith(alice, canRead, { id: "a" }, withResource);
+
   // Controls: a refusal of every options value would pass the lines above too.
   expect(qadi.filter).type.toBeCallableWith(alice, canRead, [{ id: "a" }]);
   expect(qadi.filter).type.toBeCallableWith(alice, canRead, [{ id: "a" }], { concurrency: 2 });
@@ -34,4 +46,5 @@ test("the facade's filter and filterProjected refuse a second resource in their 
   expect(qadi.filterProjected).type.toBeCallableWith(alice, canRead, [{ id: "a" }], {
     concurrency: 2,
   });
+  expect(qadi.projected).type.toBeCallableWith(alice, canRead, { id: "a" }, { concurrency: 2 });
 });

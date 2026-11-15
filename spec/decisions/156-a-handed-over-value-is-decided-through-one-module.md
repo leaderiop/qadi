@@ -62,7 +62,7 @@ Architecture review #6 found that `Qadi.ts` decided a handed-over value in two i
    `admittedOrDenied(policy, decidedOn(options, resource))`, so the positional resource is set in exactly one place.
 5. **What does not change.** No span is added or removed: `discharge` keeps its span and no adapter gains one. Obligation
    discharge, `AccessDenied` and the sink record stay one implementation ([ADR-QD-019](./019-obligations.md)).
-   `@qadi/promise`'s `filter` and `filterProjected` take `Omit<FacadeOptions, "resource">`, so the facade refuses the
+   `@qadi/promise`'s `filter` and `filterProjected` refuse `resource` (`Omit<FacadeOptions, "resource">` with `resource?: never`), so the facade refuses the
    resource too, with no branch of its own ([ADR-QD-032](./032-promise-facade.md)).
 
 ## Alternatives considered
