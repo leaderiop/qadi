@@ -26,6 +26,7 @@ import type { DecisionSinkShape } from "./DecisionSink.ts";
 import type { SinkRecordNotEncodable } from "./Errors.ts";
 import { encodeSinkRecord } from "./SinkCodec.ts";
 import type { SinkRecordJson } from "./SinkCodec.ts";
+import { sinkName } from "./SinkEmit.ts";
 
 /**
  * A sink that encodes each record for the wire and hands it to `send`.
@@ -148,11 +149,14 @@ export const decisionSinkForwarding = (options: {
  * (JA-02, corrected — this previously said the `never` error channel alone
  * was enough, which is a documented contract each member is *supposed* to
  * uphold, not a mechanism that holds if one doesn't). Each member's
- * `record(record)` call is individually wrapped in `Effect.catchCause` below,
- * so a member that dies anyway — a bug in its own `record`, not the ordinary
- * delivery failure `never` already promises it swallows — is reported and
- * skipped rather than stopping `Effect.forEach` and, with it, every sink
- * after it in `sinks`.
+ * `record(record)` call is individually suspended and caught below, so a member
+ * that throws or dies anyway — a bug in its own `record`, not the ordinary
+ * delivery failure `never` already promises it swallows — is reported, naming
+ * the member, and skipped rather than stopping `Effect.forEach` and, with it,
+ * every sink after it in `sinks`.
+ *
+ * A member's failure is reported here, so the emitter sees success and does not
+ * report it again (ADR-QD-159).
  */
 export const decisionSinkAll = (
   sinks: ReadonlyArray<Layer.Layer<DecisionSink>>,
@@ -167,26 +171,28 @@ export const decisionSinkAll = (
       );
 
       return {
+        name: "decisionSinkAll",
         record: (record: SinkRecord) =>
           // `discard` because every result is `void`; it changes allocation,
           // not behaviour, so mutation testing reports it as equivalent.
           Effect.forEach(
             shapes,
             (shape) =>
-              shape.record(record).pipe(
-                // Each member's `record` is *documented* — by `never` in its
-                // own error channel — to swallow its own failures, but a
-                // documented contract is not a mechanism: a member that dies
-                // anyway (a bug in its own `record`, not the ordinary
-                // delivery failure it already catches) must not stop this
-                // `forEach` and, with it, delivery to every sink after it in
-                // `sinks` (JA-02). Report-and-continue, the same shape
-                // `decisionSinkForwarding`'s own `send` handler above uses,
-                // for the identical reason: one member's fate must not
-                // become every member's fate.
+              // A member's `never` error channel is a contract, not a mechanism
+              // (JA-02): a member that throws before returning an effect or dies
+              // anyway must not stop delivery to the members after it. So each
+              // call is suspended and caught, reported once naming the member, and
+              // the report is itself contained so a throwing logger or name getter
+              // cannot stop the `forEach` either (D-10).
+              Effect.suspend(() => shape.record(record)).pipe(
                 Effect.catchCause((cause) =>
-                  Effect.logWarning("qadi: a fanned-out decision sink failed unexpectedly").pipe(
-                    Effect.annotateLogs({ "qadi.cause": String(cause) }),
+                  sinkName(shape).pipe(
+                    Effect.flatMap((name) =>
+                      Effect.logWarning("qadi: a fanned-out decision sink failed unexpectedly").pipe(
+                        Effect.annotateLogs({ "qadi.sink": name, "qadi.cause": String(cause) }),
+                      ),
+                    ),
+                    Effect.catchCause(() => Effect.void),
                   ),
                 ),
               ),
