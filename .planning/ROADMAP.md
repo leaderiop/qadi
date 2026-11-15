@@ -439,7 +439,7 @@ Plans:
   4. `entryAgrees` still refuses a seed whose fields disagree with its trace through core's `decisionDisagreement` (INV-QD-170), existing tests unchanged, and the payload's wire form is byte-identical for existing entries (a golden committed on the base).
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `HydrationEngine.ts` and `SeededDecision.ts`, the byte golden and the property with its scratch-field RED, committed first; then the derived statement; then the spreads; then records. Core's `DecisionWire.ts` is read, not edited, unless the planner records evidence that it must change.
-**Plans**: 2/6 plans executed
+**Plans**: 3/6 plans executed
 
 Plans:
 **Wave 1**
@@ -449,7 +449,7 @@ Plans:
 - [x] 44-02-PLAN.md — tracer: the allow's seed fields stated once in `SeededDecision.ts`, entry and class derived, `rebuild` a spread (RED first for the absent key); then the denial; tests drop `visibleFields: undefined`; the type pin
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 44-03-PLAN.md — the `VERDICTS` table read by dehydrate, rebuild and agreement; GREEN under the scratch field
+- [x] 44-03-PLAN.md — the `VERDICTS` table read by dehydrate, rebuild and agreement; GREEN under the scratch field
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 44-04-PLAN.md — ADR-QD-157, the ADR-QD-078 amendment, AGENTS.md §7, the `@qadi/react` minor Breaking changeset, the 0.13 upgrade entry
@@ -611,7 +611,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 43. One handover module behind the enforcement entry points | 8/8 | Complete    | 2026-11-15 |
-| 44. The hydration seed's fields stated once | 2/6 | In Progress | - |
+| 44. The hydration seed's fields stated once | 3/6 | In Progress | - |
 | 45. The audit circuit breaker as one transition function | 0/TBD | Not started | - |
 | 46. The sink emitter reports what it contains | 0/TBD | Not started | - |
 | 47. Port facts read from the description | 0/TBD | Not started | - |
