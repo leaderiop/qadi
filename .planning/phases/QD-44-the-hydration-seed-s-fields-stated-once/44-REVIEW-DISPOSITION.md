@@ -9,13 +9,13 @@ findings:
     title: "INV-QD-333, ADR-QD-157 and the traceability rows name the key-set pin as the whole guard and omit the engine-agreement test"
   - id: IN-01
     severity: info
-    disposition: open
+    disposition: fixed
     title: "plan-local ids remain in source and test titles (carried)"
   - id: IN-02
     severity: info
-    disposition: open
+    disposition: fixed
     title: "\"pinned on the phase base\" wording survives (carried, remainder of IN-02)"
-open: 2
+open: 0
 total: 3
 recorded: 2026-11-15T04:41:27.977Z
 ---
@@ -25,8 +25,8 @@ recorded: 2026-11-15T04:41:27.977Z
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
 | WR-01 | warning | fixed | 44-REVIEW-FIX.md |
-| IN-01 | info | open | - |
-| IN-02 | info | open | - |
+| IN-01 | info | fixed | milestone-audit fix 71dcd6ca (2026-11-16) |
+| IN-02 | info | fixed | milestone-audit fix f18a93e1 (2026-11-16) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
