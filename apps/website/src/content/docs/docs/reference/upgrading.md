@@ -868,3 +868,30 @@ export const encodeOrNull = (record: SinkRecord) =>
 Log where the refusal was found, as above: `encodeRefusalAnnotations(e)` is the refusal's tag, its path and the evaluation id, the same annotations the default warning carries. They carry no value from the refused record, whose subject, resource and policy are what the refusal exists to keep out of a log line, but the path is made of the record's own keys, so a resource keyed by data puts that key in `qadi.path`. `describeEncodeRefusal(e.refusal)` returns the sentence `reason` held and, like `reason`, may carry caller text: an `EncodeFailed` sentence includes the message of a getter that threw on the record. It is for code holding the refusal to diagnose it, not for a log line or a span ([INV-QD-104](https://github.com/leaderiop/qadi/blob/main/spec/invariants.md#inv-qd-104-a-refusal-report-says-where-never-what)).
 
 The decision is [ADR-QD-161](https://github.com/leaderiop/qadi/blob/main/spec/decisions/161-audit-reports-cores-refusal-and-decides-lost-once.md).
+
+## 0.13: the dock takes the gate registry, not its instances
+
+`DevtoolsDock`'s `gates` prop takes the gate registry instead of an array of guard instances. The dock subscribes to the registry in its own scope for as long as it is mounted and pairs each asked question with the guards asking it at one moment, so a host no longer re-renders to feed it. `useDevtoolsFeed()`'s `gates` is the registry too (the provider's `gates` prop, else `atoms.gates`), so `<DevtoolsDock {...feed} />` needs no edit; code that read `feed.gates` as an array reads `feed.gates.instances()`. When no registry is handed over, the panel now says "Pass gates — usually atoms.gates, from @qadi/react — to list who is asking."
+
+Before:
+
+```ts
+const Dock = () => <DevtoolsDock gates={useGateInstances()} />;
+```
+
+After:
+
+```typescript
+import { createElement } from "react";
+import type { GateRegistryLike } from "@qadi/devtools";
+import { DevtoolsDock } from "@qadi/devtools/react";
+import type { QadiAtoms } from "@qadi/react";
+
+export const Dock = ({ atoms }: { readonly atoms: QadiAtoms }) => {
+  // The registry satisfies the dock's structural type, with no import of @qadi/react in devtools.
+  const fits: GateRegistryLike = atoms.gates;
+  return createElement(DevtoolsDock, { gates: fits });
+};
+```
+
+The decision is [ADR-QD-162](https://github.com/leaderiop/qadi/blob/main/spec/decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md).
