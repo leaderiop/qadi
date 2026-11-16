@@ -24,6 +24,7 @@ import {
   DecisionSink,
   EvaluationId,
   forEveryPort,
+  isPortDefault,
   portCallsTotal,
   portRetriesTotal,
   portTimeoutsTotal,
@@ -57,13 +58,13 @@ export interface PortReport {
   readonly present: boolean;
   /**
    * Whether this port is its description's fail-closed default, or a wrapper
-   * around it (`"<default> (retrying)"`, BEH-QD-196's naming contract).
+   * that carries it.
    *
-   * `undefined` when there is nothing to say: the port is absent from the
-   * layer, or the row is not a port at all. A reader's label, derived from
-   * `name` for display — core never branches on a name, and a host that names
-   * its own adapter after a default is reported as defaulted, which is what it
-   * asked for.
+   * Read from the fact core states (`isPortDefault`, ARCH-94), never from
+   * `name`. `undefined` when there is nothing to say: the port is absent from
+   * the layer, or the row is not a port at all. A hand-written wrapper that
+   * spreads the default reads defaulted whatever it is called, and one that
+   * builds a fresh object reads as a real adapter.
    */
   readonly defaulted: boolean | undefined;
   /** What it means for this one to be defaulted or absent. */
@@ -96,7 +97,7 @@ export const wiringReport: Effect.Effect<WiringReport> = Effect.gen(function* ()
   const ports = yield* Effect.all(
     forEveryPort((d) =>
       Effect.map(Effect.serviceOption(d.service), (shape) =>
-        portRow(d.port, d.none.name, shape),
+        portRow(d.port, shape, isPortDefault(d, Option.getOrUndefined(shape))),
       ),
     ),
   );
@@ -133,33 +134,18 @@ const CONSEQUENCES: { readonly [K in PortName]: string } = {
     "an unwired signature history answers no signatures on file, so every hasSignature node denies",
 };
 
-/**
- * Whether `name` is the description's default, or a wrapper around it.
- *
- * A wrapper composes its inner name as `"<inner> (<suffix>)"` (BEH-QD-196), so
- * a retrying default reads `"AttributeResolverNone (retrying)"` and exact
- * equality would call it a real adapter.
- */
-const isDefaultName = (name: string, noneName: string): boolean =>
-  name === noneName || name.startsWith(`${noneName} (`);
-
 const portRow = (
   port: PortName,
-  noneName: string,
   service: Option.Option<{ readonly name?: string | undefined }>,
-): PortReport => {
-  const name = nameOf(service);
-  return {
-    port,
-    name,
-    required: true,
-    present: Option.isSome(service),
-    defaulted: Option.isSome(service)
-      ? name !== undefined && isDefaultName(name, noneName)
-      : undefined,
-    consequence: CONSEQUENCES[port],
-  };
-};
+  isDefault: boolean,
+): PortReport => ({
+  port,
+  name: nameOf(service),
+  required: true,
+  present: Option.isSome(service),
+  defaulted: Option.isSome(service) ? isDefault : undefined,
+  consequence: CONSEQUENCES[port],
+});
 
 export interface PortActivity {
   readonly port: string;
