@@ -156,7 +156,7 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   let gatesNow = inputs.gates;
   let closed = false;
   let offGates = () => {};
-  // Why `subscribe` or the release of the previous subscription threw, if either did: the registry's changes then may not reach the model.
+  // Why `subscribe` or the release of the previous subscription threw, if either did: the registry's changes then may not reach the model, until `configure` watches again.
   let watchFailure: string | undefined;
   // What `rejoin` compares of a failure: one throw reads the same from any call path, where its rendered stack does not.
   let failureKey: string | undefined;
@@ -260,7 +260,8 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
       simulation.setPorts(next.ports);
       diagnosticsFeed.configure(next.diagnostics);
       remerge();
-      if (next.gates !== gatesNow) {
+      // A watch that failed is tried again, with the same registry or another.
+      if (next.gates !== gatesNow || watchFailure !== undefined) {
         gatesNow = next.gates;
         watchGates(gatesNow);
       }

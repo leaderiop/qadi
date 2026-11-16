@@ -1006,7 +1006,7 @@ describe("the timeline's status (M29)", () => {
   );
 });
 
-describe("the questions store (M31, M32, M33, M36..M42, P2)", () => {
+describe("the questions store (M31, M32, M33, M36..M44, P2)", () => {
   const guard = (
     id: string,
     policy: Policy,
@@ -1353,6 +1353,7 @@ describe("the questions store (M31, M32, M33, M36..M42, P2)", () => {
 
       // The handle left the model's state before it was called: neither a swap nor the close calls it again.
       model.configure({ gates: b.registry, reading });
+      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["b"]]);
       model.configure({ gates: undefined, reading });
       assert.strictEqual(a.releases(), 1);
       assert.strictEqual(b.listeners(), 0);
@@ -1376,6 +1377,62 @@ describe("the questions store (M31, M32, M33, M36..M42, P2)", () => {
       assert.strictEqual(a.releases(), 1);
       model.configure({ gates: a.registry, reading });
       assert.strictEqual(a.releases(), 1);
+    }));
+
+  it.effect("M43: a registry whose subscribe threw is subscribed again by a configure with the same registry", () =>
+    Effect.gen(function* () {
+      const reading = { questions: [{ policy: readPolicy }] };
+      const double = makeGateRegistryDouble([guard("a", readPolicy)]);
+      double.failSubscribe(boom);
+      const model = yield* makeDockModel({ gates: double.registry, reading });
+      assert.include(failedReason(model.questions.getSnapshot()) ?? "", "registry exploded");
+
+      // Still failing: tried again and stated again, with nothing held.
+      model.configure({ gates: double.registry, reading });
+      assert.include(failedReason(model.questions.getSnapshot()) ?? "", "registry exploded");
+      assert.strictEqual(double.subscriptions(), 2);
+
+      double.mendSubscribe();
+      model.configure({ gates: double.registry, reading });
+      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["a"]]);
+      assert.strictEqual(double.listeners(), 1);
+
+      // Recovered: the same registry is not subscribed again, and its changes arrive.
+      model.configure({ gates: double.registry, reading });
+      assert.strictEqual(double.subscriptions(), 3);
+      double.add(guard("b", readPolicy));
+      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["a", "b"]]);
+    }));
+
+  it.effect("M44: a registry that mends without announcing stays Failed until something reads it again", () =>
+    Effect.gen(function* () {
+      let asked: ReadonlyArray<AskedQuestionLike> = [{ policy: readPolicy }];
+      const double = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const questionsOf = () => asked;
+      const model = yield* makeDockModel({ diagnostics: { questions: questionsOf }, gates: double.registry });
+      yield* settleTurns;
+      double.failReads(boom);
+      assert.include(failedReason(model.questions.getSnapshot()) ?? "", "registry exploded");
+
+      double.mendReadsQuietly();
+      yield* tick;
+      assert.include(failedReason(model.questions.getSnapshot()) ?? "", "registry exploded");
+
+      // A poll that changed what is asked reads the registry again.
+      asked = [{ policy: readPolicy }, { policy: writePolicy }];
+      yield* tick;
+      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["a"], []]);
+
+      // So does a notification, and so does a `configure`, even with the same registry.
+      double.failReads(boom);
+      double.mendReadsQuietly();
+      double.add(guard("b", readPolicy));
+      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["a", "b"], []]);
+
+      double.failReads(boom);
+      double.mendReadsQuietly();
+      model.configure({ diagnostics: { questions: questionsOf }, gates: double.registry });
+      assert.strictEqual(model.questions.getSnapshot().gates._tag, "Listed");
     }));
 
   type Command =

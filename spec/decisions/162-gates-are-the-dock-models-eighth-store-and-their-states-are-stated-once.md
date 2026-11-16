@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-162                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — amends ADR-QD-047; applies ADR-QD-152; keeps ADR-QD-053, ADR-QD-080 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-16): decision 5: the same failure is compared by name and message, not by the stack its reason renders (review iteration 2 IN-02)<br>1.2 (2026-11-16): decision 5: releasing the old registry's subscription is guarded and stated, never repeated (review iteration 2 WR-01)<br>1.1 (2026-11-16): decision 5: a registry that throws is stated as GatesView.Failed and its rows make no claim; the first version's rationale was false for react's own registry (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-96, CCR-QD-440) |
+> | Change History | 1.4 (2026-11-16): decision 5: a configure after a failed watch subscribes again; a silent mend is read at the next announcement, changed poll or configure (review iteration 2 IN-03)<br>1.3 (2026-11-16): decision 5: the same failure is compared by name and message, not by the stack its reason renders (review iteration 2 IN-02)<br>1.2 (2026-11-16): decision 5: releasing the old registry's subscription is guarded and stated, never repeated (review iteration 2 WR-01)<br>1.1 (2026-11-16): decision 5: a registry that throws is stated as GatesView.Failed and its rows make no claim; the first version's rationale was false for react's own registry (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-96, CCR-QD-440) |
 
 ---
 
@@ -130,8 +130,11 @@ released by its finalizer. ADR-QD-152 is the shape of the vocabulary. No record 
    `WiringRead.Failed` carry theirs, and the panel renders it as `qadi-gates-failed` the way `ServicesPanel` renders
    `qadi-wiring-failed`. While the view is `Failed` each row's `asking` is `undefined`, which is no claim. It is not an empty
    list, because that prints "asked, nothing mounted" about a registry nobody could read. It is not the last good listing either,
-   because those guards may be gone. The lens is given no guards. The view recovers when the registry reads again and announces
-   it, or when `configure` hands over another registry. Releasing the old registry's subscription is guarded the same way (review iteration 2, WR-01): the handle leaves the model's
+   because those guards may be gone. The lens is given no guards. The view recovers when the registry is read again and answers: when it announces a change, when a poll that changed the
+   questions joins them, or when a `configure` does, which always reads the registry (review iteration 2, IN-03). A registry that
+   mends without announcing stays `Failed` until the first of those, because a quiet poll tick reads nothing. A `configure` made
+   while the last watch failed, `subscribe` or the release before it, watches again, with the same registry or another; one made
+   after a watch that worked never subscribes the same registry twice. Releasing the old registry's subscription is guarded the same way (review iteration 2, WR-01): the handle leaves the model's
    state before it is called, so a throw can neither skip the new subscription and the re-join nor run again on the next
    `configure` or in the finalizer. It is stated as `Failed` with its reason, which names the registry that was left; a failed
    `subscribe` of the new registry is stated over it, because that one names the registry the model now reads. The old
