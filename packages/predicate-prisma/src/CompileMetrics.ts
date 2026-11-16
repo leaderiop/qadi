@@ -8,6 +8,7 @@
  * description would read zero forever (ADR-QD-052).
  */
 import * as Metric from "effect/Metric";
+import type { CompileOutcomes } from "@qadi/core";
 
 /**
  * The untagged base, deliberately not exported: reading it gives `0` and
@@ -26,10 +27,7 @@ const compiledBase = Metric.counter("qadi_predicate_prisma_compiled_total", {
  * can aggregate. Unlike `@qadi/core`'s `predicatesTranslatedTotal`, which counts
  * successes only, these carry an `outcome` attribute: `compiled` or `refused`.
  */
-export const compiledTotal: {
-  readonly compiled: Metric.Counter<number>;
-  readonly refused: Metric.Counter<number>;
-} = {
+export const compiledTotal: CompileOutcomes = {
   compiled: Metric.withAttributes(compiledBase, { outcome: "compiled" }),
   refused: Metric.withAttributes(compiledBase, { outcome: "refused" }),
 };
