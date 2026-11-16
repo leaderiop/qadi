@@ -23,6 +23,7 @@ import {
   attributeResolverRetrying,
   attributeResolverTimingOut,
 } from "../src/AttributeResolver.ts";
+import { makeSubjectId } from "../src/Identity.ts";
 import { isPortDefault, PortReply } from "../src/PortDescription.ts";
 import type { PortName } from "../src/PortName.ts";
 import { recordingPort, scriptedPort } from "../src/PortDoubles.ts";
@@ -228,6 +229,19 @@ describe("a derived wrapper is its port's default exactly when what it wraps is 
 
       assert.strictEqual(shape.name, "attributeResolverFromRecord (decorated)");
       assert.isFalse(isPortDefault(attributeResolverPort, shape));
+    }),
+  );
+
+  it.effect("W10: decoratePorts keeps the prototype of what the decorator returns (WR-03)", () =>
+    Effect.gen(function* () {
+      const context = yield* Layer.build(
+        decoratePorts(portsLayer(), (_d, inner) => Object.create(inner)),
+      );
+      const shape = Context.get(context, AttributeResolver);
+
+      assert.isFalse(Object.hasOwn(shape, "resolve"));
+      assert.isTrue(isPortDefault(attributeResolverPort, shape));
+      assert.isUndefined(yield* shape.resolve(makeSubjectId("alice"), "clearance"));
     }),
   );
 

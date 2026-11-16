@@ -20,11 +20,21 @@ export interface DefaultMark<N extends PortName> {
   readonly [DEFAULT_OF]: N;
 }
 
-/** `shape` with the mark naming `port` set, as an own, enumerable, symbol-keyed property. */
+/**
+ * A copy of `shape` with the mark naming `port` set, as an own, enumerable, symbol-keyed property.
+ *
+ * The copy keeps `shape`'s prototype and its own descriptors, so a decorator that returns a class
+ * instance keeps its prototype methods and a getter stays a getter (a spread would drop the first
+ * and freeze the second).
+ */
 export const markDefault = <N extends PortName, Shape extends object>(
   port: N,
   shape: Shape,
-): Shape & DefaultMark<N> => ({ ...shape, [DEFAULT_OF]: port });
+): Shape & DefaultMark<N> =>
+  Object.create(Object.getPrototypeOf(shape), {
+    ...Object.getOwnPropertyDescriptors(shape),
+    [DEFAULT_OF]: { value: port, enumerable: true, writable: true, configurable: true },
+  });
 
 /**
  * Whether `service` carries the mark naming `port`.
