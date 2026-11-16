@@ -11,7 +11,7 @@ import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import { EncodeRefusal } from "@qadi/core";
 import { AuditStagingError } from "../src/AuditStagingPort.ts";
-import type { LeafPath, SeriesKey } from "./observeLeaf.ts";
+import type { LeafObservation, LeafPath, SeriesKey } from "./observeLeaf.ts";
 import { LEAF_PATHS, observeLeaf } from "./observeLeaf.ts";
 
 const ZERO: { readonly [K in SeriesKey]: number } = {
@@ -176,38 +176,45 @@ const BY_LEAF: { readonly [P in LeafPath]: LeafRow & { readonly leaf: P } } = {
 
 const ROWS: ReadonlyArray<LeafRow> = LEAF_PATHS.map((leaf) => BY_LEAF[leaf]);
 
+/** Asserts one observation against its row's literals: the same values whether or not a hook is installed. */
+const assertRow = (o: LeafObservation, row: LeafRow): void => {
+  assert.strictEqual(o.path, row.leaf);
+  assert.deepStrictEqual(o.stagingKeys, row.stagingKeys);
+  assert.deepStrictEqual(
+    o.lines.map((l) => ({ level: l.level, message: l.message, annotations: l.annotations })),
+    row.lines,
+  );
+  assert.deepStrictEqual(o.span, { "qadi.audit.outcome": row.leaf, "qadi.audit.durability": row.durability });
+  assert.deepStrictEqual(o.counters, row.counters);
+  assert.deepStrictEqual(o.refusals, []);
+  assert.strictEqual(o.rows, row.rows);
+
+  if (row.leaf !== "Written.CommitFailed") {
+    // Only the commit failure carries a cause; every other line, and the refusal, has none.
+    assert.deepStrictEqual(
+      o.lines.map((l) => l.cause.reasons.length),
+      o.lines.map(() => 0),
+    );
+    return;
+  }
+  // The store's reason survives into the line: the warning is the operator's only account of it.
+  const found = Cause.findErrorOption(o.lines[0]?.cause ?? Cause.empty);
+  assert.isTrue(Option.isSome(found));
+  const error = Option.getOrUndefined(found);
+  assert.isTrue(error instanceof AuditStagingError);
+  if (error instanceof AuditStagingError) assert.strictEqual(error.cause, "commit offline");
+};
+
 describe("what audit emits for each outcome leaf, written on the phase base (ARCH-95, D-11)", () => {
   for (const row of ROWS) {
     it.effect(`${row.leaf}: ${row.emits}`, () =>
       Effect.gen(function* () {
-        // Refused runs without a hook, to see the default warning; every other leaf installs one, so the empty
-        // `refusals` below says the hook is never called for a record that was not refused.
-        const o = yield* observeLeaf(row.leaf, { onRefused: row.leaf !== "Refused" });
-        assert.strictEqual(o.path, row.leaf);
-        assert.deepStrictEqual(o.stagingKeys, row.stagingKeys);
-        assert.deepStrictEqual(
-          o.lines.map((l) => ({ level: l.level, message: l.message, annotations: l.annotations })),
-          row.lines,
-        );
-        assert.deepStrictEqual(o.span, { "qadi.audit.outcome": row.leaf, "qadi.audit.durability": row.durability });
-        assert.deepStrictEqual(o.counters, row.counters);
-        assert.deepStrictEqual(o.refusals, []);
-        assert.strictEqual(o.rows, row.rows);
-
-        if (row.leaf !== "Written.CommitFailed") {
-          // Only the commit failure carries a cause; every other line, and the refusal, has none.
-          assert.deepStrictEqual(
-            o.lines.map((l) => l.cause.reasons.length),
-            o.lines.map(() => 0),
-          );
-          return;
-        }
-        // The store's reason survives into the line: the warning is the operator's only account of it.
-        const found = Cause.findErrorOption(o.lines[0]?.cause ?? Cause.empty);
-        assert.isTrue(Option.isSome(found));
-        const error = Option.getOrUndefined(found);
-        assert.isTrue(error instanceof AuditStagingError);
-        if (error instanceof AuditStagingError) assert.strictEqual(error.cause, "commit offline");
+        // The default configuration, no hook installed, exactly as the base characterisation ran it.
+        assertRow(yield* observeLeaf(row.leaf, { onRefused: false }), row);
+        if (row.leaf === "Refused") return;
+        // The same leaf with a hook installed emits the same, and its empty `refusals` can now fail: the hook is
+        // never called for a record that was not refused. Refused's hook is the separate test below.
+        assertRow(yield* observeLeaf(row.leaf, { onRefused: true }), row);
       }),
     );
   }

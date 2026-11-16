@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-161                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — amends ADR-QD-056, ADR-QD-095       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-16): the behaviours and invariants are linked under Related, not named only (CCR-QD-439)<br>1.3 (2026-11-16): decision 3: the line's wording reads the row; the staging counter's label is per arm (ARCH-95, CCR-QD-439)<br>1.2 (2026-11-16): decision 2: describeEncodeRefusal may carry caller text, so it is for diagnosis, not a log line (ARCH-95, CCR-QD-439); a host logs encodeRefusalAnnotations<br>1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-95, CCR-QD-439)<br>1.0 (2026-11-16): accepted (ARCH-95, CCR-QD-439) |
+> | Change History | 1.5 (2026-11-16): Consequences: the characterisation's expected values are unchanged and it still runs the default configuration; rows were only added (CCR-QD-439)<br>1.4 (2026-11-16): the behaviours and invariants are linked under Related, not named only (CCR-QD-439)<br>1.3 (2026-11-16): decision 3: the line's wording reads the row; the staging counter's label is per arm (ARCH-95, CCR-QD-439)<br>1.2 (2026-11-16): decision 2: describeEncodeRefusal may carry caller text, so it is for diagnosis, not a log line (ARCH-95, CCR-QD-439); a host logs encodeRefusalAnnotations<br>1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-95, CCR-QD-439)<br>1.0 (2026-11-16): accepted (ARCH-95, CCR-QD-439) |
 
 ---
 
@@ -115,8 +115,10 @@ under Related.
   `reason` stop compiling or stop matching. It is recorded in the `@qadi/audit` changeset, marked **Breaking**, and in the
   0.13 entry of the upgrade guide, which gives the rename, the replacement for `reason` and the new tag. `@qadi/core`
   changes only a doc comment, so it has no changeset.
-- **Output is byte-identical**: the characterisation written before the first source edit passes unchanged after every
-  commit of the phase.
+- **Output is byte-identical**: every expected value in the characterisation written before the first source edit is
+  unchanged after every commit of the phase, and it still observes each leaf with no `onRefused` hook, as the default
+  sink runs. Later commits only added to it: each leaf that is not refused also runs with a hook installed and must emit
+  the same with no refusal, and the leaf lists are closed.
 - **A fourth staging variant is a compile error at every reader**, because the row, the durability, the lost label, the
   level and `writtenStaging` are all exhaustive.
 - **`Written.CommitFailed` and `Refused` warn without being lost**, by design (D-06a), and the tests say so rather than
