@@ -69,12 +69,14 @@ const row = (what, status, first, ok) => {
   rows.push(`| ${what} | ${status} | ${first.replace(/\|/g, "\\|")} | ${ok ? "yes" : "NO"} |`);
 };
 try {
+  // The row passes only for the stated reason: git refuses the patch's Decision.ts hunk. A missing patch
+  // ("can't open patch"), a corrupt one or any other git error prints its own first line and fails the row.
   const apply = cp.spawnSync("git", ["apply", "--check", p.join(D, "base-experiment", "not-to-many.patch")], { encoding: "utf8" });
   row(
     "the base experiment's patch (Not under Many in Decision.ts)",
     "-",
     `git apply --check exit ${apply.status}: ${(apply.stderr.split("\n")[0] || "").trim()}`,
-    apply.status !== 0,
+    apply.status !== 0 && /^error: patch failed: packages\/core\/src\/Decision\.ts:\d+$/m.test(apply.stderr),
   );
   const control = tsc();
   row("control: no edit", String(control.status), control.errors[0] || "", control.status === 0);
