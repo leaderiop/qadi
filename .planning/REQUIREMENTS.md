@@ -93,9 +93,9 @@
 
 ### Policy tag arity stated once (Phase 51, ARCH-98, core)
 
-- [ ] **ARTY-01**: One closed record in `Policy.ts` gives each policy tag's arity (Leaf, Wrapper or Many). `Decision.ts`'s `traceShapeOf` reads it, and `leafTags` is deleted.
-- [ ] **ARTY-02**: A type-level test ties `LeafPolicy` and `childrenOf` to the record, so moving a tag's arity in one place and not the other fails to compile.
-- [ ] **ARTY-03**: `foldTrace` stays public and unchanged. `renderTrace`/`diffTraces` keep their own walks, and the ADR or CCR states why.
+- [x] **ARTY-01**: One closed record in `Policy.ts` gives each policy tag's arity (Leaf, Wrapper or Many). `Decision.ts`'s `traceShapeOf` reads it, and `leafTags` is deleted.
+- [x] **ARTY-02**: A type-level test ties `LeafPolicy` and `childrenOf` to the record, so moving a tag's arity in one place and not the other fails to compile.
+- [x] **ARTY-03**: `foldTrace` stays public and unchanged. `renderTrace`/`diffTraces` keep their own walks, and the ADR or CCR states why.
 
 ### Core owns the predicate compile shell (Phase 52, ARCH-99, core + predicate-sql + predicate-prisma)
 
@@ -181,9 +181,9 @@ The seven WX rows apply to every phase 43 to 52, so each phase's Requirements li
 | LEAF-03 | Phase 50 | Complete |
 | LEAF-04 | Phase 50 | Complete |
 | LEAF-05 | Phase 50 | Complete |
-| ARTY-01 | Phase 51 | Pending |
-| ARTY-02 | Phase 51 | Pending |
-| ARTY-03 | Phase 51 | Pending |
+| ARTY-01 | Phase 51 | Complete |
+| ARTY-02 | Phase 51 | Complete |
+| ARTY-03 | Phase 51 | Complete |
 | COMP-01 | Phase 52 | Pending |
 | COMP-02 | Phase 52 | Pending |
 | COMP-03 | Phase 52 | Pending |
