@@ -30,6 +30,7 @@ Shared wave rules: `.planning/phases/_WAVE10-CONTEXT.md`. Reserved ids: ARCH-95,
 - **D-01:** `AuditEntryNotEncodable` is deleted with no alias. `AuditDecisionSinkLive`'s `onRefused`, `AuditWriteEmitOptions.onRefused` and `AuditWriteOutcome.Refused.refusal` take core's `SinkRecordNotEncodable` (`packages/core/src/Errors.ts:381`), the type `decisionSinkForwarding` and `@qadi/http`'s `DecisionLogHttp` already use.
 - **D-02:** `encodeAuditEntry` fails with core's `SinkRecordNotEncodable` exactly as `encodeSinkRecord` returns it. The `mapError` goes. This is Breaking for a caller's `catchTag("AuditEntryNotEncodable")`.
 - **D-03:** The `reason` field goes away. The default refusal warning stays byte-identical: it never carried the reason, because core's `reportEncodeRefusal` annotates `qadi.refusal`, `qadi.path` and `evaluationId`. A hook that wants the sentence calls `describeEncodeRefusal(e.refusal)`. Success criterion 1's "logged reason ... computed at the one place a line is written" is read this way: the one place the sentence is computed is core's `describeEncodeRefusal`, and audit's one line is written by `reportEncodeRefusal`. No `qadi.reason` annotation is added to core, because that would change the forwarding and http lines (criterion 4).
+- **D-03a (research, user-confirmed 2026-11-16):** AREF-01 and ROADMAP criterion 1 are reworded to this reading: the sentence is computed once, by core's `describeEncodeRefusal`, and the one line audit writes is `reportEncodeRefusal`'s, which carries no reason (as on the base).
 - **D-04:**
   - ADR-QD-161 records the decision. The class's ADR-QD-054 citation ("core has no reason to know this error exists") was a misreading: ADR-054 concerns compile-only dialect packages, and core already declares the error.
   - ADR-QD-056 is checked and unaffected: core's `DecisionSink` is the seam.
@@ -40,7 +41,9 @@ Shared wave rules: `.planning/phases/_WAVE10-CONTEXT.md`. Reserved ids: ARCH-95,
   - One closed row per `UnwrittenStaging` variant, typed so that durability and the lost label cannot disagree: `{ durability: "StagingOnly" } | { durability: "Lost"; lost: "not_wired" | "failed" }`.
   - `durabilityOf` and the lost label (`lostLabel`) both read it.
   - `unwrittenDurability` and `lostStaging` are deleted, so only one exhaustive mapping remains.
+- **D-05a (research, user-confirmed 2026-11-16):** The research found a third restatement of lost-ness: the per-arm `warning(...)`/`info(...)` level choice in `writeFailedStagingReport`/`skippedStagingReport`. The level for the six unwritten leaves is also read from the row (Lost → warning, StagingOnly → info), so the row is the only place lost-ness is decided and `durabilityOf`'s doc comment becomes true. Output stays byte-identical.
 - **D-06:** A table test over all 11 outcome leaves (Refused; Written × NotWired/StageFailed/Committed/CommitFailed; WriteFailed × NotWired/Staged/StageFailed; Skipped × NotWired/Staged/StageFailed) pins that `durabilityOf(o) === "Lost"` ⇔ a lost counter is incremented ⇔ the line is a warning ⇔ span `qadi.audit.durability` is `"Lost"`.
+- **D-06a (research, user-confirmed 2026-11-16):** The "line is a warning" leg holds only over the six unwritten leaves (WriteFailed × 3, Skipped × 3): `Written.CommitFailed` (durability `Trail`) and `Refused` (durability `Refused`) also warn without being lost. The test, BEH and INV scope that leg accordingly; the durability ⇔ lost-counter ⇔ span legs hold over all 11.
 - **D-07:** Metric ids, labels and the `LOST_COUNTERS` keys are unchanged (ADR-QD-123; the `[metric-table]` rows are untouched).
 - **D-08:** The public `Durability` type is unchanged.
 
@@ -51,6 +54,7 @@ Shared wave rules: `.planning/phases/_WAVE10-CONTEXT.md`. Reserved ids: ARCH-95,
   - The `_tag` ternary and the `commit === undefined` check both go.
   - Hoisted to module scope where it closes over no per-call state (§5a).
 - **D-10:** `evaluationIdOf` and `emitWriteOutcome`'s `if (outcome._tag === "Refused")` in `AuditWriteReport.ts` also become exhaustive matches, because they are the same defect class in the same file.
+- **D-10a (research, user-confirmed 2026-11-16):** `outcomePath`'s `_tag === "Refused"` ternary (`AuditWriteReport.ts:144`) becomes an exhaustive match too, so no hand-written `_tag` branch is left in the audit report.
 
 ### Evidence and records
 - **D-11:** Committed first, before any `packages/*/src` edit:
@@ -71,7 +75,7 @@ Shared wave rules: `.planning/phases/_WAVE10-CONTEXT.md`. Reserved ids: ARCH-95,
   Change history (CHANGELOGs, old CCR rows) is not rewritten.
 
 ### Claude's Discretion
-- The row table's name and file (it should sit beside `UnwrittenStaging` in `AuditWriteOutcome.ts`, so `AuditWriteReport.ts` imports it).
+- The row table's name and file. Chosen after research: a package-private leaf module (e.g. `UnwrittenRow.ts`), kept out of the barrel, so no new public export, overview row or changeset line is needed and madge reports no cycle. `AuditWriteOutcome.ts` (`durabilityOf`) and `AuditWriteReport.ts` both import it.
 - The characterisation harness, reusing the log/span capture helpers already in `packages/audit/test`.
 
 </decisions>

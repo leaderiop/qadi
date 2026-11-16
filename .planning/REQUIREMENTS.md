@@ -66,7 +66,7 @@
 
 ### Audit reports core's refusal and derives "lost" (Phase 48, ARCH-95, audit, Breaking)
 
-- [ ] **AREF-01**: `AuditEntryNotEncodable` is deleted. Audit's `onRefused` takes core's `SinkRecordNotEncodable`, the same type forwarding and http use, and the logged reason is `describeEncodeRefusal(refusal)` at the one place a line is written.
+- [ ] **AREF-01**: `AuditEntryNotEncodable` is deleted. Audit's `onRefused` takes core's `SinkRecordNotEncodable`, the same type forwarding and http use, and the refusal's sentence is computed in one place, core's `describeEncodeRefusal(refusal)`; audit's one line is core's `reportEncodeRefusal`, unchanged (it never carried a reason; D-03a).
 - [ ] **AREF-02**: The lost-staging label is derived from the outcome's durability (`durabilityOf`), so the span attribute and the metric/log label cannot disagree. Only one exhaustive mapping remains.
 - [ ] **AREF-03**: `writtenStaging`'s `_tag` ternary is replaced by an exhaustive match.
 - [ ] **AREF-04**: ADR-QD-161 records the decision after checking ADR-054/056, and the `@qadi/audit` changeset marks `onRefused`'s type as **Breaking**.
