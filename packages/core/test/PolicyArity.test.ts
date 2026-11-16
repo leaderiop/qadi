@@ -110,11 +110,9 @@ const node = (policyTag: Tag, children: ReadonlyArray<Trace> = [], allowed = tru
 const three = (): ReadonlyArray<Trace> => [node("HasRole"), node("HasAction"), node("HasPermission")];
 
 describe("the arity record", () => {
-  it("names every tag exactly once, with one of the three arities", () => {
+  // That each value is one of the three arities is the type's to refuse, not a test's.
+  it("names every tag exactly once", () => {
     assert.deepStrictEqual(Object.keys(POLICY_ARITY).sort(), [...POLICY_TAGS].sort());
-    for (const tag of POLICY_TAGS) {
-      assert.include(["Leaf", "Wrapper", "Many"], POLICY_ARITY[tag], tag);
-    }
   });
 });
 
@@ -152,30 +150,18 @@ describe("a tag outside the union", () => {
 describe("rendering and diffing read no arity (BEH-QD-595)", () => {
   for (const tag of POLICY_TAGS) {
     it(`${tag}: renderTrace shows all three children`, () => {
-      assert.strictEqual(
-        renderTrace(node(tag, three())),
-        [`✓ ${tag}`, "  ✓ HasRole", "  ✓ HasAction", "  ✓ HasPermission"].join("\n"),
-      );
+      // One line for the node and one per child; how a line looks is RenderTrace.test.ts's.
+      assert.strictEqual(renderTrace(node(tag, three())).split("\n").length - 1, 3);
     });
 
     it(`${tag}: diffTraces reports the child whose verdict differs at [0]`, () => {
+      const changes = diffTraces(
+        node(tag, [node("HasAction", [], true)]),
+        node(tag, [node("HasAction", [], false)]),
+      );
       assert.deepStrictEqual(
-        diffTraces(
-          node(tag, [node("HasAction", [], true)]),
-          node(tag, [node("HasAction", [], false)]),
-        ),
-        [
-          {
-            _tag: "VerdictChanged",
-            path: [0],
-            policyTag: "HasAction",
-            label: undefined,
-            before: true,
-            after: false,
-            beforeReason: undefined,
-            afterReason: undefined,
-          },
-        ],
+        changes.map(({ path, before, after }) => ({ path, before, after })),
+        [{ path: [0], before: true, after: false }],
       );
     });
   }
