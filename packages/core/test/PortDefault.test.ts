@@ -25,6 +25,7 @@ import {
   attributeResolverTimingOut,
 } from "../src/AttributeResolver.ts";
 import { makeSubjectId } from "../src/Identity.ts";
+import { isMarkedDefault, markDefault } from "../src/PortDefault.ts";
 import { CustomPredicate, customPredicateFromRecord, customPredicatePort } from "../src/CustomPredicate.ts";
 import { isPortDefault, PortReply } from "../src/PortDescription.ts";
 import type { PortName } from "../src/PortName.ts";
@@ -171,6 +172,40 @@ describe("a port's fail-closed default is a fact the service carries (PFCT-01, D
 
     assert.isFalse(isPortDefault(attributeResolverPort, hostile));
     assert.isFalse(isPortDefault(attributeResolverPort, revoked.proxy));
+  });
+
+  it("M9: marking an extensible shape marks that object, so private state and methods keep working (WR-01)", () => {
+    class Holder {
+      readonly #answer = 42;
+      readonly name = "holder";
+      answer(): number {
+        return this.#answer;
+      }
+    }
+    const holder = new Holder();
+    const marked = markDefault("AttributeResolver", holder);
+
+    assert.strictEqual(marked, holder);
+    assert.strictEqual(marked.answer(), 42);
+    assert.isTrue(isPortDefault(attributeResolverPort, marked));
+    assert.isTrue(isMarkedDefault("AttributeResolver", marked));
+  });
+
+  it("M10: marking a frozen shape copies it; the copy keeps the prototype and the original stays unmarked (WR-01)", () => {
+    class Plain {
+      readonly name = "plain";
+      hello(): string {
+        return "hello";
+      }
+    }
+    const frozen = Object.freeze(new Plain());
+    const marked = markDefault("AttributeResolver", frozen);
+
+    assert.notStrictEqual(marked, frozen);
+    assert.strictEqual(Object.getPrototypeOf(marked), Plain.prototype);
+    assert.strictEqual(marked.hello(), "hello");
+    assert.isTrue(isPortDefault(attributeResolverPort, marked));
+    assert.isFalse(isPortDefault(attributeResolverPort, frozen));
   });
 
   it.effect("M8: the mark never shows in keys or JSON", () =>

@@ -23,20 +23,24 @@ export interface DefaultMark<N extends PortName> {
 }
 
 /**
- * A copy of `shape` with the mark naming `port` set, as an own, enumerable, symbol-keyed property.
+ * `shape` with the mark naming `port` set, as an own, enumerable, symbol-keyed property.
  *
- * The copy keeps `shape`'s prototype and its own descriptors, so a decorator that returns a class
- * instance keeps its prototype methods and a getter stays a getter (a spread would drop the first
- * and freeze the second).
+ * An extensible `shape` is marked in place and returned as it is, so `#private` fields, internal slots
+ * (a `Map`) and prototype methods keep working. A frozen, sealed or otherwise non-extensible one cannot
+ * take a property, so it is copied with its prototype and its own descriptors (a getter stays a getter,
+ * where a spread would freeze it); state outside own properties does not survive that copy, so a
+ * decorator that wants it kept returns an extensible object.
  */
 export const markDefault = <N extends PortName, Shape extends object>(
   port: N,
   shape: Shape,
 ): Shape & DefaultMark<N> =>
-  Object.create(Object.getPrototypeOf(shape), {
-    ...Object.getOwnPropertyDescriptors(shape),
-    [DEFAULT_OF]: { value: port, enumerable: true, writable: true, configurable: true },
-  });
+  Object.isExtensible(shape)
+    ? Object.assign(shape, { [DEFAULT_OF]: port })
+    : Object.create(Object.getPrototypeOf(shape), {
+        ...Object.getOwnPropertyDescriptors(shape),
+        ...Object.getOwnPropertyDescriptors({ [DEFAULT_OF]: port }),
+      });
 
 /**
  * Whether `service` carries the mark naming `port`.

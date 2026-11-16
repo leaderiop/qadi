@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-160                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — reads ADR-QD-094, ADR-QD-109        |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-16): Consequences: decoratePorts marks by the slot (ARCH-94 review IN-02)<br>1.3 (2026-11-16): Decision 2: the mark cannot be minted but can be copied deliberately (ARCH-94 review IN-01)<br>1.2 (2026-11-16): a throwing or revoked proxy reads not defaulted; the accepted-throw consequence is withdrawn (ARCH-94 review WR-02)<br>1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-94, CCR-QD-438)<br>1.0 (2026-11-16): accepted (ARCH-94, CCR-QD-438) |
+> | Change History | 1.5 (2026-11-16): Consequences: an extensible decoratePorts result is marked in place (ARCH-94 review WR-01)<br>1.4 (2026-11-16): Consequences: decoratePorts marks by the slot (ARCH-94 review IN-02)<br>1.3 (2026-11-16): Decision 2: the mark cannot be minted but can be copied deliberately (ARCH-94 review IN-01)<br>1.2 (2026-11-16): a throwing or revoked proxy reads not defaulted; the accepted-throw consequence is withdrawn (ARCH-94 review WR-02)<br>1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-94, CCR-QD-438)<br>1.0 (2026-11-16): accepted (ARCH-94, CCR-QD-438) |
 
 ---
 
@@ -87,7 +87,10 @@ Both directions of the change, because a wrapper author is moved both ways (rese
   shape", not "answers like the default" (research Pitfall 7).
 - **`decoratePorts` marks whatever its decorator returns for a defaulted slot** (D-17), so a decorator that replaces the
   default with a real implementation still reads defaulted. It carries the mark by the slot, not by what the decorator
-  used; whether the result was built from `inner` is not checkable.
+  used; whether the result was built from `inner` is not checkable. An extensible result is marked in place (so a
+  `#private` field or an internal slot keeps working, and an object the host shares is marked too); a non-extensible
+  one is copied with its prototype and descriptors, and state outside own properties does not survive that copy, so
+  the decorator returns an extensible object (WR-01).
 - **A duplicate install of `@qadi/core`** reads the other copy's defaults as real adapters, because each copy has its own
   symbol (D-20, accepted; T-47-19).
 - **A hostile `Proxy` service whose descriptor trap throws, or a revoked one,** reads not defaulted: `isMarkedDefault`
