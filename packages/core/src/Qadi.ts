@@ -272,8 +272,7 @@ export const guard =
   <A extends Resource, B, E, R>(
     resource: A,
     handler: (authorized: Authorized<P>, resource: A) => Effect.Effect<B, E, R>,
-  ): Effect.Effect<B, E | EnforcementError | EO, R | EvaluationServices | RO> =>
-  {
+  ): Effect.Effect<B, E | EnforcementError | EO, R | EvaluationServices | RO> => {
     const work = handler(Brand.nominal<Authorized<P>>()({ permission }), resource);
     return Effect.flatMap(admittedOrDenied(policy, decidedOn(options, resource)), () => work);
   };

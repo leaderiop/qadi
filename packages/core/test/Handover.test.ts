@@ -17,6 +17,7 @@
  * test importing it is a dependency cycle (`helpers.ts`).
  */
 import { assert, describe, it } from "@effect/vitest";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
@@ -408,17 +409,20 @@ describe("the resource decided on is the value handed over: collection shapes", 
       }
     }));
 
-  it.live("released order is input order under concurrency: unbounded", () =>
+  it.effect("released order is input order under concurrency: unbounded", () =>
     Effect.gen(function* () {
       for (const collection of collections) {
         const h = harness();
-        // The first admitted item is the slowest to discharge, so a result built
-        // in completion order would come back reversed.
+        // The first admitted item cannot finish discharging until the last one
+        // has, so a result built in completion order would come back reversed.
+        const lastDischarged = yield* Deferred.make<void>();
         const out = yield* collection
           .run(P.obliged(log, byKind), batch, {
             concurrency: "unbounded",
             onObligations: ({ question }) =>
-              Effect.sleep(question.resource?.["id"] === "a" ? "30 millis" : "0 millis"),
+              question.resource?.["id"] === "a"
+                ? Deferred.await(lastDischarged)
+                : Effect.asVoid(Deferred.succeed(lastDischarged, undefined)),
           })
           .pipe(Effect.provide(reader(h)));
         expectAdmitted(collection, out);
