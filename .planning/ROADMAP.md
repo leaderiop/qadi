@@ -598,7 +598,7 @@ Plans:
   5. ADR-QD-161 records the decision after checking ADR-QD-054 and ADR-QD-056, and the `@qadi/audit` changeset and `upgrading.md` mark `onRefused`'s new type as **Breaking**.
 
 **Planning notes**: **Research flag: the first plan checks ADR-QD-054 and ADR-QD-056 against core's `SinkRecordNotEncodable` before any code**, and records what the ADRs actually forbid. **Plan shape, RED first**: the mutation base for the audit files, the characterisation of log, span and metric output on every outcome variant, committed first; then the refusal type; then the durability-derived label; then records.
-**Plans**: 5/8 plans executed
+**Plans**: 6/8 plans executed
 
 Plans:
 **Wave 1**
@@ -617,7 +617,7 @@ Plans:
 - [x] 48-05-PLAN.md — tracer: `StageResult` a closed union and `writtenStaging` an exhaustive match; `evaluationIdOf`, `outcomePath` and the refusal branch exhaustive
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 48-06-PLAN.md — ADR-QD-161; ADR-QD-056 and ADR-QD-095 amended; the **Breaking** `@qadi/audit` changeset and the 0.13 upgrade entry; README and `capabilities.md`
+- [x] 48-06-PLAN.md — ADR-QD-161; ADR-QD-056 and ADR-QD-095 amended; the **Breaking** `@qadi/audit` changeset and the 0.13 upgrade entry; README and `capabilities.md`
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 48-07-PLAN.md — BEH-QD-576 to 580 and the BEH-QD-249/250/252 restatements; INV-QD-341, INV-QD-342; traceability; the overview `durabilityOf` row; CCR-QD-439 completed
@@ -709,7 +709,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 45. The audit circuit breaker as one transition function | 8/8 | Complete    | 2026-11-15 |
 | 46. The sink emitter reports what it contains | 7/7 | Complete    | 2026-11-15 |
 | 47. Port facts read from the description | 7/7 | Complete    | 2026-11-16 |
-| 48. Audit reports core's refusal and derives "lost" | 5/8 | In Progress | - |
+| 48. Audit reports core's refusal and derives "lost" | 6/8 | In Progress | - |
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 0/TBD | Not started | - |
 | 50. What a leaf needs from the request, stated once | 0/TBD | Not started | - |
 | 51. Policy tag arity stated once | 0/TBD | Not started | - |

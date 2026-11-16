@@ -69,7 +69,7 @@
 - [x] **AREF-01**: `AuditEntryNotEncodable` is deleted. Audit's `onRefused` takes core's `SinkRecordNotEncodable`, the same type forwarding and http use, and the refusal's sentence is computed in one place, core's `describeEncodeRefusal(refusal)`; audit's one line is core's `reportEncodeRefusal`, unchanged (it never carried a reason; D-03a).
 - [x] **AREF-02**: The lost-staging label is derived from the outcome's durability (`durabilityOf`), so the span attribute and the metric/log label cannot disagree. Only one exhaustive mapping remains.
 - [x] **AREF-03**: `writtenStaging`'s `_tag` ternary is replaced by an exhaustive match.
-- [ ] **AREF-04**: ADR-QD-161 records the decision after checking ADR-054/056, and the `@qadi/audit` changeset marks `onRefused`'s type as **Breaking**.
+- [x] **AREF-04**: ADR-QD-161 records the decision after checking ADR-054/056, and the `@qadi/audit` changeset marks `onRefused`'s type as **Breaking**.
 
 ### Gates as the dock model's eighth store, with one gate-state vocabulary (Phase 49, ARCH-96, core + react + devtools)
 
@@ -170,7 +170,7 @@ The seven WX rows apply to every phase 43 to 52, so each phase's Requirements li
 | AREF-01 | Phase 48 | Complete |
 | AREF-02 | Phase 48 | Complete |
 | AREF-03 | Phase 48 | Complete |
-| AREF-04 | Phase 48 | Pending |
+| AREF-04 | Phase 48 | Complete |
 | GATE-01 | Phase 49 | Pending |
 | GATE-02 | Phase 49 | Pending |
 | GATE-03 | Phase 49 | Pending |
