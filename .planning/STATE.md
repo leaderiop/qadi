@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 48
 current_phase_name: "Audit reports core's refusal and derives \"lost\""
-current_plan: 7
+current_plan: 8
 status: executing
-stopped_at: Completed QD-48-06-PLAN.md
-last_updated: "2026-11-16T03:20:24.622Z"
+stopped_at: Completed QD-48-07-PLAN.md
+last_updated: "2026-11-16T03:28:46.753Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase QD-48 execution started
-state_head: c836d423b804ad19b24cfb43a71b7027a38c8878
+state_head: d5ef81cab78f6a7124cd37aee622b40ffe934dd4
 progress:
   total_phases: 10
   completed_phases: 5
   total_plans: 44
-  completed_plans: 42
+  completed_plans: 43
   percent: 50
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: QD-48 (Audit reports core's refusal and derives "lost") — EXECUTING
-Current Plan: 7
+Current Plan: 8
 Total Plans in Phase: 8
 Status: Executing Phase QD-48
 Last activity: 2026-11-16 — Phase QD-48 execution started
@@ -296,6 +296,7 @@ Progress: [█████░░░░░] 50% (5 of 10 phases)
 | Phase QD-48 P04 | 20min | 2 tasks | 5 files |
 | Phase QD-48 P05 | 6min | 2 tasks | 2 files |
 | Phase QD-48 P06 | 20min | 3 tasks | 10 files |
+| Phase QD-48 P07 | 20min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -496,6 +497,7 @@ Progress: [█████░░░░░] 50% (5 of 10 phases)
 - [Phase QD-48]: 48-04: one package-private row per unwritten staging decides lost-ness (D-05/D-05a); tags declared structurally to avoid an import cycle
 - [Phase QD-48]: 48-05 D-09/D-10: StageResult is a closed unexported Data.TaggedEnum; writtenStaging, evaluationIdOf, outcomePath and the refusal dispatch are exhaustive matches
 - [Phase QD-48]: ADR-QD-161 records the audit refusal as core's SinkRecordNotEncodable and lost decided once; ADR-QD-056/095 amended, Breaking changeset
+- [Phase QD-48]: BEH-QD-579 scopes the warning leg to the six unwritten leaves; Written.CommitFailed and Refused warn without being lost
 
 ### Pending Todos
 
@@ -550,8 +552,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T03:20:24.449Z
-Stopped at: Completed QD-48-06-PLAN.md
+Last session: 2026-11-16T03:28:46.397Z
+Stopped at: Completed QD-48-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
