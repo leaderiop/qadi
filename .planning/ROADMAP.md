@@ -375,7 +375,7 @@ Order: defects first (43-46), then the "stated once" deepenings (47-49), then th
 - [x] **Phase 47: Port facts read from the description** - Defaultedness, consequence and call reading come from the port description, not from display names (ARCH-94, core, devtools) (completed 2026-11-16)
 - [x] **Phase 48: Audit reports core's refusal and derives "lost"** - `AuditEntryNotEncodable` is deleted and the lost-staging label derives from durability (ARCH-95, Breaking, audit) (completed 2026-11-16)
 - [x] **Phase 49: Gates as the dock model's eighth store, one gate-state vocabulary** - The gate registry joins the dock model and the five gate-state words are stated once in core (ARCH-96, core, react, devtools) (completed 2026-11-16)
-- [ ] **Phase 50: What a leaf needs from the request, stated once** - Opens on a benchmark; one table of leaf needs read by `Walk` and `Predicate`, or a recorded rejection (ARCH-97, core)
+- [x] **Phase 50: What a leaf needs from the request, stated once** - Opens on a benchmark; one table of leaf needs read by `Walk` and `Predicate`, or a recorded rejection (ARCH-97, core) (completed 2026-11-16)
 - [ ] **Phase 51: Policy tag arity stated once** - One closed record gives each tag's arity; `traceShapeOf` reads it and `leafTags` goes; `foldTrace` stays public (ARCH-98, core)
 - [ ] **Phase 52: Core owns the predicate compile shell** - One core function owns defaults, renderability and outcome counting; each dialect keeps its rules, renderer and metric (ARCH-99, core, predicate-sql, predicate-prisma)
 
@@ -689,7 +689,7 @@ Plans:
   5. If pursued: `SWITCH_BUDGET` and `UNTRACED_BUDGET` are unchanged (the AGENTS.md tables and the budgets agree), and `pnpm bench` after the change shows no workload regressed beyond noise against the phase base.
 
 **Planning notes**: **The benchmark is the first plan, and it gates the rest.** Prototype on a scratch branch or an unmerged commit, run `pnpm bench` against the base the way ADR-QD-073's addendum did, and record the table before writing any source that stays. Re-verify the `Walk.ts`, `PortAccess.ts` and `Predicate.ts` line numbers in `_WAVE10-CONTEXT.md` against the base. If pursued, **plan shape, RED first**: the mutation base for `Walk.ts`, `Predicate.ts` and `PortAccess.ts`, and the missing-both-inputs characterisation per leaf kind, committed first; then the module; then `Walk`; then `Predicate`; then records.
-**Plans**: 8/8 plans executed
+**Plans**: 8/8 plans complete
 
 Plans:
 **Wave 1**
@@ -764,6 +764,6 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 47. Port facts read from the description | 7/7 | Complete    | 2026-11-16 |
 | 48. Audit reports core's refusal and derives "lost" | 8/8 | Complete    | 2026-11-16 |
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 9/9 | Complete    | 2026-11-16 |
-| 50. What a leaf needs from the request, stated once | 8/8 | In Progress | - |
+| 50. What a leaf needs from the request, stated once | 8/8 | Complete    | 2026-11-16 |
 | 51. Policy tag arity stated once | 0/TBD | Not started | - |
 | 52. Core owns the predicate compile shell | 0/TBD | Not started | - |
