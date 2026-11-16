@@ -1,0 +1,142 @@
+// SKETCH for packages/core/test/LeafMatrix.test.ts. Uses only evaluate/toPredicate, so it is green on the phase
+// base (a characterisation, WX-06 "green for preserved behaviour") and must stay green on the prototype.
+import { assert, describe, it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import { evaluate } from "../src/Evaluate.ts";
+import { MissingAction, MissingResource, MissingResourceId } from "../src/Errors.ts";
+import * as M from "../src/Matcher.ts";
+import { permission } from "../src/Permission.ts";
+import * as P from "../src/Policy.ts";
+import type { LeafPolicy } from "../src/Policy.ts";
+import { toPredicate } from "../src/Predicate.ts";
+import { subjectWith, testLayer } from "./helpers.ts";
+
+type LeafTag = LeafPolicy["_tag"];
+const LEAF_TAGS: ReadonlyArray<string> = Object.keys(P.leafCases(() => 0));
+const isLeafTag = (tag: string): tag is LeafTag => LEAF_TAGS.includes(tag);
+type Own = "Nothing" | "Action" | "Resource";
+type Refs = "none" | "action" | "resource";
+/** What the D-05 rule needs to know about one fixture; written by hand, NOT read from LEAF_NEEDS. */
+interface Fixture {
+  readonly tag: LeafTag;
+  readonly policy: P.Policy;
+  readonly own: Own;
+  readonly refs: Refs;
+  /** The name the failure carries: attribute, or the relation/event/meaning of a scoped port read. */
+  readonly name: string;
+  readonly expected?: string;
+  readonly scoped: boolean;
+}
+const fx = (policy: P.Policy, f: Omit<Fixture, "policy" | "tag">): Fixture => {
+  if (!isLeafTag(policy._tag)) throw new Error(`not a leaf: ${policy._tag}`);
+  return { tag: policy._tag, policy, ...f };
+};
+
+/** Typed over every leaf tag: a new leaf without fixtures is a compile error (TS2741). */
+export const FIXTURES: { readonly [K in LeafTag]: ReadonlyArray<Fixture> } = {
+  HasPermission: [fx(P.hasPermission(permission("doc", "read")), { own: "Nothing", refs: "none", name: "", scoped: false })],
+  HasRole: [fx(P.hasRole("editor"), { own: "Nothing", refs: "none", name: "", scoped: false })],
+  HasAction: [fx(P.hasAction("read"), { own: "Action", refs: "none", name: "", expected: "read", scoped: false })],
+  HasAttribute: [
+    fx(P.hasAttribute("department", M.neq(M.literal("x"))), { own: "Nothing", refs: "none", name: "department", scoped: false }),
+    fx(P.hasAttribute("department", M.eq(M.action())), { own: "Nothing", refs: "action", name: "department", scoped: false }),
+    fx(P.hasAttribute("department", M.someMatch(M.eq(M.resource("owner")))), { own: "Nothing", refs: "resource", name: "department", scoped: false }),
+  ],
+  HasResourceAttribute: [
+    fx(P.hasResourceAttribute("owner", M.eq(M.literal("u-1"))), { own: "Resource", refs: "none", name: "owner", scoped: false }),
+    fx(P.hasResourceAttribute("owner", M.eq(M.action())), { own: "Resource", refs: "action", name: "owner", scoped: false }),
+    fx(P.hasResourceAttribute("owner", M.eq(M.resource("other"))), { own: "Resource", refs: "resource", name: "owner", scoped: false }),
+  ],
+  HasRelationship: [fx(P.hasRelationship("owner"), { own: "Nothing", refs: "none", name: "owner", scoped: true })],
+  HasActed: [
+    fx(P.hasActed("e", { scope: "Resource" }), { own: "Nothing", refs: "none", name: "e", scoped: true }),
+    fx(P.hasActed("e", { scope: "Any" }), { own: "Nothing", refs: "none", name: "e", scoped: false }),
+  ],
+  HasNotActed: [
+    fx(P.hasNotActed("e", { scope: "Resource" }), { own: "Nothing", refs: "none", name: "e", scoped: true }),
+    fx(P.hasNotActed("e", { scope: "Any" }), { own: "Nothing", refs: "none", name: "e", scoped: false }),
+  ],
+  HasCustom: [fx(P.hasCustom("c"), { own: "Nothing", refs: "none", name: "", scoped: false })],
+  HasSignature: [
+    fx(P.hasSignature("m", { scope: "Resource" }), { own: "Nothing", refs: "none", name: "m", scoped: true }),
+    fx(P.hasSignature("m", { scope: "Any" }), { own: "Nothing", refs: "none", name: "m", scoped: false }),
+  ],
+};
+
+export type ResourceShape = "none" | "no-id" | "id";
+export const SHAPES: Readonly<Record<ResourceShape, Record<string, unknown> | undefined>> = {
+  none: undefined,
+  "no-id": { owner: "u-1", other: "x" },
+  id: { id: "r1", owner: "u-1", other: "x" },
+};
+
+/** The D-05 rule, written independently of the table: own input, then the matcher's reference, then the port read. */
+export const oracle = (f: Fixture, action: boolean, shape: ResourceShape): string => {
+  const resource = shape !== "none";
+  if (f.own === "Action" && !action) return `Action:${f.expected ?? "-"}`;
+  if (f.own === "Resource" && !resource) return `Resource:${f.name}`;
+  if (f.refs === "action" && !action) return "Action:-";
+  if (f.refs === "resource" && !resource) return `Resource:${f.name}`;
+  if (f.scoped && shape !== "id") return `ResourceId:${f.name}`;
+  return "ok";
+};
+
+export const labelOf = (error: unknown): string =>
+  error instanceof MissingAction
+    ? `Action:${error.expected ?? "-"}`
+    : error instanceof MissingResource
+      ? `Resource:${error.attribute}`
+      : error instanceof MissingResourceId
+        ? `ResourceId:${error.relation}`
+        : `other:${String(error)}`;
+
+export const layer = testLayer(subjectWith({ id: "u-1", roles: ["editor"], permissions: ["doc:read"], attributes: { department: "cardiology" } }));
+
+describe("every leaf, action present or absent, resource none / without id / with id", () => {
+  it.effect("evaluate fails exactly where the one rule says, and with the error it names", () =>
+    Effect.gen(function* () {
+      let cells = 0;
+      for (const [tag, fixtures] of Object.entries(FIXTURES)) {
+        for (const f of fixtures) {
+          assert.strictEqual(f.policy._tag, tag);
+          for (const action of [false, true]) {
+            for (const shape of ["none", "no-id", "id"] as const) {
+              const resource = SHAPES[shape];
+              const exit = yield* Effect.exit(
+                evaluate(f.policy, { ...(action ? { action: "read" } : {}), ...(resource === undefined ? {} : { resource }) }).pipe(Effect.provide(layer)),
+              );
+              const got = Exit.isSuccess(exit) ? "ok" : labelOf(Cause.squash(exit.cause));
+              assert.strictEqual(got, oracle(f, action, shape), `${tag} action=${action} resource=${shape}`);
+              cells++;
+            }
+          }
+        }
+      }
+      assert.isAbove(cells, 100);
+    }),
+  );
+
+  it.effect("toPredicate agrees with evaluate on the action, which is the one input both have", () =>
+    Effect.gen(function* () {
+      for (const fixtures of Object.values(FIXTURES)) {
+        for (const f of fixtures) {
+          for (const action of [false, true]) {
+            const pred = yield* Effect.exit(toPredicate(f.policy, action ? { action: "read" } : undefined).pipe(Effect.provide(layer)));
+            const ev = yield* Effect.exit(
+              evaluate(f.policy, { ...(action ? { action: "read" } : {}), resource: { id: "r1", owner: "u-1", other: "x" } }).pipe(Effect.provide(layer)),
+            );
+            const predLabel = Exit.isSuccess(pred) ? "ok" : labelOf(Cause.squash(pred.cause));
+            const evLabel = Exit.isSuccess(ev) ? "ok" : labelOf(Cause.squash(ev.cause));
+            // toPredicate's resource is the row, so only the action can be missing for either; HasAttribute's
+            // reference to the resource is a refusal there (PolicyNotTranslatable), not an absence.
+            if (predLabel.startsWith("Action:") || evLabel.startsWith("Action:")) {
+              assert.strictEqual(predLabel, evLabel, `${f.policy._tag} action=${action}`);
+            }
+          }
+        }
+      }
+    }),
+  );
+});

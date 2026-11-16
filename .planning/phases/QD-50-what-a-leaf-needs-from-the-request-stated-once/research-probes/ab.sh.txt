@@ -1,0 +1,26 @@
+#!/bin/bash
+# ab.sh <patch> <outdir> <rounds>
+# Interleaved A/B: base, proto, base, proto, ... The prototype is a patch applied with
+# `git apply` before its run and reverted with `git apply -R` after it. No worktree, no
+# branch switch. The tree is the phase base plus the bench workloads (applied beforehand).
+set -u
+ROOT=/Users/mohammadalmechkor/Projects/Perso/qadi
+PATCH=$1; OUT=$2; ROUNDS=$3
+mkdir -p "$OUT"
+cd "$ROOT" || exit 1
+applied=0
+cleanup() { if [ "$applied" = 1 ]; then git apply -R "$PATCH"; applied=0; fi; }
+trap cleanup EXIT INT TERM
+git diff --quiet HEAD -- packages/core/src || { echo "src is not at HEAD; refusing"; exit 2; }
+for i in $(seq 1 "$ROUNDS"); do
+  for arm in base proto; do
+    if [ "$arm" = proto ]; then git apply "$PATCH" && applied=1; fi
+    # no wait for a quiet machine: the host runs unrelated builds (load 18-40); the load is logged per run
+    { date +%T; uptime; } > "$OUT/$arm-$i.load-before"
+    pnpm exec vitest bench --run --reporter=json --outputFile="$OUT/$arm-$i.json" \
+      packages/core/bench/Evaluate.bench.ts > "$OUT/$arm-$i.log" 2>&1
+    { date +%T; uptime; } > "$OUT/$arm-$i.load-after"
+    cleanup
+  done
+done
+git diff --quiet HEAD -- packages/core/src && echo "src restored to HEAD" > "$OUT/done.txt"

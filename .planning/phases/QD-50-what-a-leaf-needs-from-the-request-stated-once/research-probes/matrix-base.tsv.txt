@@ -1,0 +1,168 @@
+evaluate	HasPermission(held)	action=-	resource=none	Allow
+evaluate	HasPermission(held)	action=-	resource=no-id	Allow
+evaluate	HasPermission(held)	action=-	resource=id	Allow
+evaluate	HasPermission(held)	action=read	resource=none	Allow
+evaluate	HasPermission(held)	action=read	resource=no-id	Allow
+evaluate	HasPermission(held)	action=read	resource=id	Allow
+toPredicate	HasPermission(held)	action=-		PRED {"_tag":"True"}
+toPredicate	HasPermission(held)	action=read		PRED {"_tag":"True"}
+evaluate	HasPermission(not held)	action=-	resource=none	Deny
+evaluate	HasPermission(not held)	action=-	resource=no-id	Deny
+evaluate	HasPermission(not held)	action=-	resource=id	Deny
+evaluate	HasPermission(not held)	action=read	resource=none	Deny
+evaluate	HasPermission(not held)	action=read	resource=no-id	Deny
+evaluate	HasPermission(not held)	action=read	resource=id	Deny
+toPredicate	HasPermission(not held)	action=-		PRED {"_tag":"False"}
+toPredicate	HasPermission(not held)	action=read		PRED {"_tag":"False"}
+evaluate	HasRole(held)	action=-	resource=none	Allow
+evaluate	HasRole(held)	action=-	resource=no-id	Allow
+evaluate	HasRole(held)	action=-	resource=id	Allow
+evaluate	HasRole(held)	action=read	resource=none	Allow
+evaluate	HasRole(held)	action=read	resource=no-id	Allow
+evaluate	HasRole(held)	action=read	resource=id	Allow
+toPredicate	HasRole(held)	action=-		PRED {"_tag":"True"}
+toPredicate	HasRole(held)	action=read		PRED {"_tag":"True"}
+evaluate	HasRole(not held)	action=-	resource=none	Deny
+evaluate	HasRole(not held)	action=-	resource=no-id	Deny
+evaluate	HasRole(not held)	action=-	resource=id	Deny
+evaluate	HasRole(not held)	action=read	resource=none	Deny
+evaluate	HasRole(not held)	action=read	resource=no-id	Deny
+evaluate	HasRole(not held)	action=read	resource=id	Deny
+toPredicate	HasRole(not held)	action=-		PRED {"_tag":"False"}
+toPredicate	HasRole(not held)	action=read		PRED {"_tag":"False"}
+evaluate	HasAction(read)	action=-	resource=none	FAIL MissingAction{"expected":"read"}<expectedKey=true>
+evaluate	HasAction(read)	action=-	resource=no-id	FAIL MissingAction{"expected":"read"}<expectedKey=true>
+evaluate	HasAction(read)	action=-	resource=id	FAIL MissingAction{"expected":"read"}<expectedKey=true>
+evaluate	HasAction(read)	action=read	resource=none	Allow
+evaluate	HasAction(read)	action=read	resource=no-id	Allow
+evaluate	HasAction(read)	action=read	resource=id	Allow
+toPredicate	HasAction(read)	action=-		FAIL MissingAction{"expected":"read"}<expectedKey=true>
+toPredicate	HasAction(read)	action=read		PRED {"_tag":"True"}
+evaluate	HasAttribute[no ref]	action=-	resource=none	Allow
+evaluate	HasAttribute[no ref]	action=-	resource=no-id	Allow
+evaluate	HasAttribute[no ref]	action=-	resource=id	Allow
+evaluate	HasAttribute[no ref]	action=read	resource=none	Allow
+evaluate	HasAttribute[no ref]	action=read	resource=no-id	Allow
+evaluate	HasAttribute[no ref]	action=read	resource=id	Allow
+toPredicate	HasAttribute[no ref]	action=-		PRED {"_tag":"True"}
+toPredicate	HasAttribute[no ref]	action=read		PRED {"_tag":"True"}
+evaluate	HasAttribute[ref action]	action=-	resource=none	FAIL MissingAction{}
+evaluate	HasAttribute[ref action]	action=-	resource=no-id	FAIL MissingAction{}
+evaluate	HasAttribute[ref action]	action=-	resource=id	FAIL MissingAction{}
+evaluate	HasAttribute[ref action]	action=read	resource=none	Deny
+evaluate	HasAttribute[ref action]	action=read	resource=no-id	Deny
+evaluate	HasAttribute[ref action]	action=read	resource=id	Deny
+toPredicate	HasAttribute[ref action]	action=-		FAIL MissingAction{}<expectedKey=true>
+toPredicate	HasAttribute[ref action]	action=read		PRED {"_tag":"False"}
+evaluate	HasAttribute[ref resource]	action=-	resource=none	FAIL MissingResource{"attribute":"department"}
+evaluate	HasAttribute[ref resource]	action=-	resource=no-id	Deny
+evaluate	HasAttribute[ref resource]	action=-	resource=id	Deny
+evaluate	HasAttribute[ref resource]	action=read	resource=none	FAIL MissingResource{"attribute":"department"}
+evaluate	HasAttribute[ref resource]	action=read	resource=no-id	Deny
+evaluate	HasAttribute[ref resource]	action=read	resource=id	Deny
+toPredicate	HasAttribute[ref resource]	action=-		FAIL PolicyNotTranslatable{"policyTag":"HasAttribute","reason":"the matcher compares against the resource, which is a column"}
+toPredicate	HasAttribute[ref resource]	action=read		FAIL PolicyNotTranslatable{"policyTag":"HasAttribute","reason":"the matcher compares against the resource, which is a column"}
+evaluate	HasAttribute[nested ref action]	action=-	resource=none	FAIL MissingAction{}
+evaluate	HasAttribute[nested ref action]	action=-	resource=no-id	FAIL MissingAction{}
+evaluate	HasAttribute[nested ref action]	action=-	resource=id	FAIL MissingAction{}
+evaluate	HasAttribute[nested ref action]	action=read	resource=none	Deny
+evaluate	HasAttribute[nested ref action]	action=read	resource=no-id	Deny
+evaluate	HasAttribute[nested ref action]	action=read	resource=id	Deny
+toPredicate	HasAttribute[nested ref action]	action=-		FAIL MissingAction{}<expectedKey=true>
+toPredicate	HasAttribute[nested ref action]	action=read		PRED {"_tag":"False"}
+evaluate	HasAttribute[nested ref resource]	action=-	resource=none	FAIL MissingResource{"attribute":"department"}
+evaluate	HasAttribute[nested ref resource]	action=-	resource=no-id	Deny
+evaluate	HasAttribute[nested ref resource]	action=-	resource=id	Deny
+evaluate	HasAttribute[nested ref resource]	action=read	resource=none	FAIL MissingResource{"attribute":"department"}
+evaluate	HasAttribute[nested ref resource]	action=read	resource=no-id	Deny
+evaluate	HasAttribute[nested ref resource]	action=read	resource=id	Deny
+toPredicate	HasAttribute[nested ref resource]	action=-		FAIL PolicyNotTranslatable{"policyTag":"HasAttribute","reason":"the matcher compares against the resource, which is a column"}
+toPredicate	HasAttribute[nested ref resource]	action=read		FAIL PolicyNotTranslatable{"policyTag":"HasAttribute","reason":"the matcher compares against the resource, which is a column"}
+evaluate	HasResourceAttribute[no ref]	action=-	resource=none	FAIL MissingResource{"attribute":"owner"}
+evaluate	HasResourceAttribute[no ref]	action=-	resource=no-id	Allow
+evaluate	HasResourceAttribute[no ref]	action=-	resource=id	Allow
+evaluate	HasResourceAttribute[no ref]	action=read	resource=none	FAIL MissingResource{"attribute":"owner"}
+evaluate	HasResourceAttribute[no ref]	action=read	resource=no-id	Allow
+evaluate	HasResourceAttribute[no ref]	action=read	resource=id	Allow
+toPredicate	HasResourceAttribute[no ref]	action=-		PRED {"_tag":"Compare","column":"owner","op":"Eq","value":"u-1"}
+toPredicate	HasResourceAttribute[no ref]	action=read		PRED {"_tag":"Compare","column":"owner","op":"Eq","value":"u-1"}
+evaluate	HasResourceAttribute[ref action]	action=-	resource=none	FAIL MissingResource{"attribute":"owner"}
+evaluate	HasResourceAttribute[ref action]	action=-	resource=no-id	FAIL MissingAction{}
+evaluate	HasResourceAttribute[ref action]	action=-	resource=id	FAIL MissingAction{}
+evaluate	HasResourceAttribute[ref action]	action=read	resource=none	FAIL MissingResource{"attribute":"owner"}
+evaluate	HasResourceAttribute[ref action]	action=read	resource=no-id	Deny
+evaluate	HasResourceAttribute[ref action]	action=read	resource=id	Deny
+toPredicate	HasResourceAttribute[ref action]	action=-		FAIL MissingAction{}<expectedKey=true>
+toPredicate	HasResourceAttribute[ref action]	action=read		PRED {"_tag":"Compare","column":"owner","op":"Eq","value":"read"}
+evaluate	HasResourceAttribute[ref resource]	action=-	resource=none	FAIL MissingResource{"attribute":"owner"}
+evaluate	HasResourceAttribute[ref resource]	action=-	resource=no-id	Deny
+evaluate	HasResourceAttribute[ref resource]	action=-	resource=id	Deny
+evaluate	HasResourceAttribute[ref resource]	action=read	resource=none	FAIL MissingResource{"attribute":"owner"}
+evaluate	HasResourceAttribute[ref resource]	action=read	resource=no-id	Deny
+evaluate	HasResourceAttribute[ref resource]	action=read	resource=id	Deny
+toPredicate	HasResourceAttribute[ref resource]	action=-		FAIL PolicyNotTranslatable{"policyTag":"HasResourceAttribute","reason":"matcher 'Eq' on column 'owner' has no predicate form"}
+toPredicate	HasResourceAttribute[ref resource]	action=read		FAIL PolicyNotTranslatable{"policyTag":"HasResourceAttribute","reason":"matcher 'Eq' on column 'owner' has no predicate form"}
+evaluate	HasRelationship	action=-	resource=none	FAIL MissingResourceId{"relation":"owner"}
+evaluate	HasRelationship	action=-	resource=no-id	FAIL MissingResourceId{"relation":"owner"}
+evaluate	HasRelationship	action=-	resource=id	Deny
+evaluate	HasRelationship	action=read	resource=none	FAIL MissingResourceId{"relation":"owner"}
+evaluate	HasRelationship	action=read	resource=no-id	FAIL MissingResourceId{"relation":"owner"}
+evaluate	HasRelationship	action=read	resource=id	Deny
+toPredicate	HasRelationship	action=-		FAIL PolicyNotTranslatable{"policyTag":"HasRelationship","reason":"a relationship is keyed by the row's id and cannot fold"}
+toPredicate	HasRelationship	action=read		FAIL PolicyNotTranslatable{"policyTag":"HasRelationship","reason":"a relationship is keyed by the row's id and cannot fold"}
+evaluate	HasActed[Resource]	action=-	resource=none	FAIL MissingResourceId{"relation":"e"}
+evaluate	HasActed[Resource]	action=-	resource=no-id	FAIL MissingResourceId{"relation":"e"}
+evaluate	HasActed[Resource]	action=-	resource=id	Deny
+evaluate	HasActed[Resource]	action=read	resource=none	FAIL MissingResourceId{"relation":"e"}
+evaluate	HasActed[Resource]	action=read	resource=no-id	FAIL MissingResourceId{"relation":"e"}
+evaluate	HasActed[Resource]	action=read	resource=id	Deny
+toPredicate	HasActed[Resource]	action=-		FAIL PolicyNotTranslatable{"policyTag":"HasActed","reason":"a resource-scoped history question is keyed by the row"}
+toPredicate	HasActed[Resource]	action=read		FAIL PolicyNotTranslatable{"policyTag":"HasActed","reason":"a resource-scoped history question is keyed by the row"}
+evaluate	HasActed[Any]	action=-	resource=none	Deny
+evaluate	HasActed[Any]	action=-	resource=no-id	Deny
+evaluate	HasActed[Any]	action=-	resource=id	Deny
+evaluate	HasActed[Any]	action=read	resource=none	Deny
+evaluate	HasActed[Any]	action=read	resource=no-id	Deny
+evaluate	HasActed[Any]	action=read	resource=id	Deny
+toPredicate	HasActed[Any]	action=-		PRED {"_tag":"False"}
+toPredicate	HasActed[Any]	action=read		PRED {"_tag":"False"}
+evaluate	HasNotActed[Resource]	action=-	resource=none	FAIL MissingResourceId{"relation":"e"}
+evaluate	HasNotActed[Resource]	action=-	resource=no-id	FAIL MissingResourceId{"relation":"e"}
+evaluate	HasNotActed[Resource]	action=-	resource=id	Deny
+evaluate	HasNotActed[Resource]	action=read	resource=none	FAIL MissingResourceId{"relation":"e"}
+evaluate	HasNotActed[Resource]	action=read	resource=no-id	FAIL MissingResourceId{"relation":"e"}
+evaluate	HasNotActed[Resource]	action=read	resource=id	Deny
+toPredicate	HasNotActed[Resource]	action=-		FAIL PolicyNotTranslatable{"policyTag":"HasNotActed","reason":"a resource-scoped history question is keyed by the row"}
+toPredicate	HasNotActed[Resource]	action=read		FAIL PolicyNotTranslatable{"policyTag":"HasNotActed","reason":"a resource-scoped history question is keyed by the row"}
+evaluate	HasNotActed[Any]	action=-	resource=none	Deny
+evaluate	HasNotActed[Any]	action=-	resource=no-id	Deny
+evaluate	HasNotActed[Any]	action=-	resource=id	Deny
+evaluate	HasNotActed[Any]	action=read	resource=none	Deny
+evaluate	HasNotActed[Any]	action=read	resource=no-id	Deny
+evaluate	HasNotActed[Any]	action=read	resource=id	Deny
+toPredicate	HasNotActed[Any]	action=-		PRED {"_tag":"False"}
+toPredicate	HasNotActed[Any]	action=read		PRED {"_tag":"False"}
+evaluate	HasSignature[Resource]	action=-	resource=none	FAIL MissingResourceId{"relation":"m"}
+evaluate	HasSignature[Resource]	action=-	resource=no-id	FAIL MissingResourceId{"relation":"m"}
+evaluate	HasSignature[Resource]	action=-	resource=id	Deny
+evaluate	HasSignature[Resource]	action=read	resource=none	FAIL MissingResourceId{"relation":"m"}
+evaluate	HasSignature[Resource]	action=read	resource=no-id	FAIL MissingResourceId{"relation":"m"}
+evaluate	HasSignature[Resource]	action=read	resource=id	Deny
+toPredicate	HasSignature[Resource]	action=-		FAIL PolicyNotTranslatable{"policyTag":"HasSignature","reason":"a signature is looked up through an external port and cannot fold into a resource-independent expression"}
+toPredicate	HasSignature[Resource]	action=read		FAIL PolicyNotTranslatable{"policyTag":"HasSignature","reason":"a signature is looked up through an external port and cannot fold into a resource-independent expression"}
+evaluate	HasSignature[Any]	action=-	resource=none	Deny
+evaluate	HasSignature[Any]	action=-	resource=no-id	Deny
+evaluate	HasSignature[Any]	action=-	resource=id	Deny
+evaluate	HasSignature[Any]	action=read	resource=none	Deny
+evaluate	HasSignature[Any]	action=read	resource=no-id	Deny
+evaluate	HasSignature[Any]	action=read	resource=id	Deny
+toPredicate	HasSignature[Any]	action=-		FAIL PolicyNotTranslatable{"policyTag":"HasSignature","reason":"a signature is looked up through an external port and cannot fold into a resource-independent expression"}
+toPredicate	HasSignature[Any]	action=read		FAIL PolicyNotTranslatable{"policyTag":"HasSignature","reason":"a signature is looked up through an external port and cannot fold into a resource-independent expression"}
+evaluate	HasCustom	action=-	resource=none	Deny
+evaluate	HasCustom	action=-	resource=no-id	Deny
+evaluate	HasCustom	action=-	resource=id	Deny
+evaluate	HasCustom	action=read	resource=none	Deny
+evaluate	HasCustom	action=read	resource=no-id	Deny
+evaluate	HasCustom	action=read	resource=id	Deny
+toPredicate	HasCustom	action=-		FAIL PolicyNotTranslatable{"policyTag":"HasCustom","reason":"'c' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression"}
+toPredicate	HasCustom	action=read		FAIL PolicyNotTranslatable{"policyTag":"HasCustom","reason":"'c' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression"}
