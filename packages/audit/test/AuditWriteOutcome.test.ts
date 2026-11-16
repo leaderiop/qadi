@@ -201,7 +201,7 @@ describe("AuditWriteOutcome — the eleven leaves", () => {
       if (durability !== "Lost" && durability !== "StagingOnly") continue;
       const log = describeAuditWriteOutcome(row.outcome).log;
       assert.notStrictEqual(log, undefined);
-      assert.strictEqual(typeof log === "object" ? log.level : undefined, durability === "Lost" ? "Warn" : "Info");
+      assert.strictEqual(log?.level, durability === "Lost" ? "Warn" : "Info");
     }
   });
 });

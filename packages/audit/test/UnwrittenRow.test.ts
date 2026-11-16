@@ -62,8 +62,8 @@ describe("the unwritten line warns exactly when the row says lost (D-05a)", () =
     for (const s of stagings) {
       it(`${c.name}.${s.name}: Warn when lost, Info when staged`, () => {
         const log = describeAuditWriteOutcome(c.make({ entry, staging: s.staging })).log;
-        assert.isTrue(typeof log === "object" && log !== undefined);
-        if (typeof log !== "object" || log === undefined) return;
+        assert.isDefined(log);
+        if (log === undefined) return;
         const lost = unwrittenRow(s.staging).durability === "Lost";
         assert.strictEqual(log.level, lost ? "Warn" : "Info");
         // The wording reads the row too: only a lost entry is called dropped.
