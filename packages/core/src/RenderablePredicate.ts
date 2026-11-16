@@ -32,6 +32,7 @@
 import * as Arr from "effect/Array";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
+import * as Metric from "effect/Metric";
 import * as Result from "effect/Result";
 import { PredicateNotRenderable } from "./Errors.ts";
 import type { RenderRefusal } from "./Errors.ts";
@@ -519,3 +520,50 @@ export const toRenderable = Effect.fn("qadi.predicate.toRenderable")(function* (
 ) {
   return yield* Effect.fromResult(classify(predicate, { rules, polarity: "Positive" }));
 });
+
+/**
+ * The two counter series a compile reports to, one per outcome.
+ *
+ * Each dialect package declares its own counter once (ADR-QD-123) and hands its
+ * two tagged series here, so core counts without owning a metric id.
+ */
+export interface CompileOutcomes {
+  readonly compiled: Metric.Counter<number>;
+  readonly refused: Metric.Counter<number>;
+}
+
+/** What `compilePredicate` takes beside the predicate. */
+export interface CompilePredicateOptions<A> {
+  /** The dialect's `RenderRules` minus the two fields core defaults. */
+  readonly rules: Omit<RenderRules, "identifiers" | "maxInValues">;
+  /** Default `"Ascii"`. */
+  readonly identifiers?: IdentifierRule | undefined;
+  /** Default {@link DEFAULT_MAX_IN_VALUES}. */
+  readonly maxInValues?: number | undefined;
+  /** Prints a classified tree; runs only once classification has succeeded. */
+  readonly render: (node: RenderableNode) => A;
+  readonly outcomes: CompileOutcomes;
+}
+
+/**
+ * Compiles a `Predicate` with a dialect's rules and renderer, counting the outcome.
+ *
+ * Plain function, no span of its own: the caller's `Effect.fn` span stays the root
+ * and `toRenderable`'s the child. It applies the two defaults, counts a refusal on
+ * `outcomes.refused`, renders, and only then counts `outcomes.compiled`, so a
+ * defect in classification or in `render` counts neither outcome (BEH-QD-596,
+ * ADR-QD-165).
+ */
+export const compilePredicate = <A>(
+  predicate: Predicate,
+  options: CompilePredicateOptions<A>,
+): Effect.Effect<A, PredicateNotRenderable> =>
+  toRenderable(predicate, {
+    ...options.rules,
+    identifiers: options.identifiers ?? "Ascii",
+    maxInValues: options.maxInValues ?? DEFAULT_MAX_IN_VALUES,
+  }).pipe(
+    Effect.tapError(() => Metric.update(options.outcomes.refused, 1)),
+    Effect.map(options.render),
+    Effect.tap(() => Metric.update(options.outcomes.compiled, 1)),
+  );
