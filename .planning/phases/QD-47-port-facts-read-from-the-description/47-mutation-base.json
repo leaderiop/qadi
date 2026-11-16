@@ -1,0 +1,19 @@
+{
+ "measured": {
+  "packages/core/src/PortDerivation.ts": 0.98,
+  "packages/core/src/PortDescription.ts": 1,
+  "packages/core/src/PortDoubles.ts": 1,
+  "packages/core/src/Ports.ts": 1,
+  "packages/devtools/src/model/PortCalls.ts": 1,
+  "packages/devtools/src/model/Wiring.ts": 1
+ },
+ "unmeasured": {
+  "packages/devtools/src/react/ServicesPanel.tsx": "not instrumentable: stryker.devtools.mjs mutates packages/devtools/src/model/**/*.ts only; its call-row reading moves into model/PortReading.ts, measured as new"
+ },
+ "new": [
+  "packages/core/src/PortDefault.ts",
+  "packages/devtools/src/model/PortReading.ts"
+ ],
+ "deleted": {},
+ "moved": {}
+}
