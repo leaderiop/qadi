@@ -20,8 +20,7 @@
  * React-free, so {@link reconcile} is tested without rendering. The hooks that
  * read and register through it are in `useGate.ts` (ARCH-76, ADR-QD-140).
  */
-import type { Policy, Resource } from "@qadi/core";
-import type { DecisionOutcome } from "./DecisionOutcome.ts";
+import type { GateState, Policy, Resource } from "@qadi/core";
 
 /** Which surface the instance is. */
 export type GateKind =
@@ -48,11 +47,12 @@ export type GateKind =
  * [ADR-QD-017](../../../spec/decisions/017-stale-decisions-are-not-decisions.md):
  * a decision being re-checked is not a decision.
  *
- * Derived from {@link DecisionOutcome}'s tag rather than restated, so a guard
- * reports exactly the outcome it rendered from, and a sixth outcome is a sixth
- * state.
+ * Core's {@link GateState}, stated once there for this package and
+ * `@qadi/devtools` to read (ADR-QD-162). `DecisionOutcome.tst.ts` ties it to
+ * `DecisionOutcome["_tag"]` both ways, so a guard reports exactly the outcome it
+ * rendered from and a sixth outcome is a compile error rather than a drifted word.
  */
-export type GateRenderState = DecisionOutcome["_tag"];
+export type GateRenderState = GateState;
 
 export interface GateInstance {
   /**

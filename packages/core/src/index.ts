@@ -21,6 +21,7 @@ export * from "./EvaluationMetrics.ts";
 export * from "./EvaluationServices.ts";
 export * from "./EvaluationServicesNone.ts";
 export * from "./Explanation.ts";
+export * from "./GateState.ts";
 export * from "./GuardHealthCheck.ts";
 export * from "./HydrationMetrics.ts";
 export * from "./Identity.ts";

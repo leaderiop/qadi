@@ -22,7 +22,8 @@
 import * as Arr from "effect/Array";
 import * as Equal from "effect/Equal";
 import * as Record from "effect/Record";
-import type { Policy, Resource } from "@qadi/core";
+import { gateStates, isGateState } from "@qadi/core";
+import type { GateState, Policy, Resource } from "@qadi/core";
 import { policyLabel } from "./Catalogue.ts";
 import type { DisplayState } from "./Verdict.ts";
 
@@ -68,22 +69,13 @@ export interface GateInstanceLike {
 }
 
 /**
- * The five render states a guard reports, restating `DecisionOutcome`'s tags.
- *
- * Restated rather than imported because this package does not depend on
- * `@qadi/react`, which is why `GateInstanceLike.state` stays a `string`: a
- * state outside this union is a newer build's, and is shown, not refused.
- */
-type GateRenderState = "Failed" | "Denied" | "Rechecking" | "Pending" | "Allowed";
-
-/**
  * How each render state is shown, worst news first.
  *
- * Closed over the five states, so a sixth added to the union is a compile error
- * here rather than a guard drawn like some other one. `Failed` is an `Error`,
- * never a `Deny` (INV-QD-006).
+ * Keyed by `@qadi/core`'s {@link GateState}, so a sixth state added there is a
+ * compile error here rather than a guard drawn like some other one. `Failed` is
+ * an `Error`, never a `Deny` (INV-QD-006).
  */
-const GATE_DISPLAY: { readonly [K in GateRenderState]: DisplayState } = {
+const GATE_DISPLAY: { readonly [K in GateState]: DisplayState } = {
   Failed: "Error",
   Denied: "Deny",
   Rechecking: "Rechecking",
@@ -94,24 +86,21 @@ const GATE_DISPLAY: { readonly [K in GateRenderState]: DisplayState } = {
 /**
  * The render states, in the order a panel should show them.
  *
- * Typed as plain strings, so a state this build does not know sorts after these
- * rather than vanishing. The order is *worst-news-first*: a reader opens this
- * panel because something is missing. Derived from `GATE_DISPLAY`, so the list
- * and the map cannot disagree.
+ * Core's `gateStates`, typed as plain strings, so a state this build does not
+ * know sorts after these rather than vanishing. The order is *worst-news-first*:
+ * a reader opens this panel because something is missing.
  */
-export const GATE_STATES: ReadonlyArray<string> = Object.keys(GATE_DISPLAY);
-
-const isGateRenderState = (state: string): state is GateRenderState =>
-  Object.hasOwn(GATE_DISPLAY, state);
+export const GATE_STATES: ReadonlyArray<string> = gateStates;
 
 /**
  * How a guard's render state is shown.
  *
- * A state this build does not know is `Unrecognised`: muted, and labelled with
- * its own name by the panel, never coloured as though it were an answer.
+ * A state this build does not know, a newer `@qadi/react`'s, is `Unrecognised`:
+ * muted, and labelled with its own name by the panel, never coloured as though
+ * it were an answer, and shown rather than refused.
  */
 export const displayOfGateState = (state: string): DisplayState =>
-  isGateRenderState(state) ? GATE_DISPLAY[state] : "Unrecognised";
+  isGateState(state) ? GATE_DISPLAY[state] : "Unrecognised";
 
 /** How many instances are in one state. */
 export interface GateStateCount {

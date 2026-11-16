@@ -22,5 +22,5 @@ test("gateStates is a read-only list of the union", () => {
 });
 
 // The table is module-private: naming it from outside is a compile error.
-// @ts-expect-error no exported member
+// @ts-expect-error but it is not exported
 export { GATE_STATE_TABLE } from "../src/GateState.ts";

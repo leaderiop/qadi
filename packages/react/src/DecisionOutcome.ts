@@ -30,9 +30,9 @@
  * need either a derived atom per question or a hand-rolled suspense promise, and
  * the second is where COMPAT-01's race came from (CCR-QD-150).
  *
- * A leaf: it imports nothing local but `SeededDecision.ts`, so `GateWriter.ts`
- * can derive `GateRenderState` from it without closing an import cycle through
- * `QadiAtoms.ts` (ADR-QD-037). No `"use client"`: a server render reads it too.
+ * A leaf: it imports nothing local but `SeededDecision.ts`, so nothing here
+ * closes an import cycle through `QadiAtoms.ts` (ADR-QD-037). No `"use client"`:
+ * a server render reads it too.
  */
 import type { Allow, Deny, EvaluationError } from "@qadi/core";
 import type * as Cause from "effect/Cause";
@@ -63,7 +63,8 @@ export type DecisionResult = AsyncResult.AsyncResult<ClientDecision, EvaluationE
  * (ADR-QD-053), and neither carries the answer it may have held. `Failed`
  * carries the evaluation's `Cause`, for logging or `Cause.squash`, and nothing
  * else. Closed: a sixth case is a compile error in every `$match` and
- * `Match.tagsExhaustive` over it, including `GateRenderState`'s consumers.
+ * `Match.tagsExhaustive` over it, and `DecisionOutcome.tst.ts` pins its tags to
+ * core's `GateState` both ways.
  */
 export type DecisionOutcome = Data.TaggedEnum<{
   Pending: {};
