@@ -2,8 +2,8 @@
  * Whether an audit entry that was not written to the trail was lost, and the word that names why: one row per unwritten staging.
  *
  * `durabilityOf`, the lost-entry counter's label and the unwritten line's level
- * all read this row, so they cannot disagree (ARCH-95, ADR-QD-161). The three
- * tags are declared structurally here because importing `UnwrittenStaging` from
+ * and wording all read this row, so they cannot disagree (ARCH-95, ADR-QD-161).
+ * The three tags are declared structurally here because importing `UnwrittenStaging` from
  * `AuditWriteOutcome.ts`, which imports this module, would be an import cycle
  * (ADR-QD-037), and a fourth variant passed to {@link unwrittenRow} is a
  * compile error at every call.

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-161                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — amends ADR-QD-056, ADR-QD-095       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-16): decision 2: describeEncodeRefusal may carry caller text, so it is for diagnosis, not a log line (ARCH-95, CCR-QD-439); a host logs encodeRefusalAnnotations<br>1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-95, CCR-QD-439)<br>1.0 (2026-11-16): accepted (ARCH-95, CCR-QD-439) |
+> | Change History | 1.3 (2026-11-16): decision 3: the line's wording reads the row; the staging counter's label is per arm (ARCH-95, CCR-QD-439)<br>1.2 (2026-11-16): decision 2: describeEncodeRefusal may carry caller text, so it is for diagnosis, not a log line (ARCH-95, CCR-QD-439); a host logs encodeRefusalAnnotations<br>1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-95, CCR-QD-439)<br>1.0 (2026-11-16): accepted (ARCH-95, CCR-QD-439) |
 
 ---
 
@@ -78,8 +78,11 @@ branch for `Refused`.
    change the forwarding and http lines.
 3. **One closed row per unwritten staging variant** (D-05, D-05a), in the package-private `UnwrittenRow.ts`:
    `{ durability: "StagingOnly" } | { durability: "Lost"; lost: "not_wired" | "failed" }`, typed so durability and the lost
-   word cannot disagree. `durabilityOf`, the lost label and the unwritten line's level (Lost warns, StagingOnly informs)
-   all read it, so `unwrittenDurability` and `lostStaging` are deleted and `durabilityOf`'s doc is now true.
+   word cannot disagree. `durabilityOf`, the lost label and the unwritten line's level and wording (a Lost entry warns
+   "audit entry dropped" with the clause its word names, a StagingOnly one informs that its staged copy is left) all read
+   it, so `unwrittenDurability` and `lostStaging` are deleted and `durabilityOf`'s doc is now true. Only what stopped the
+   write ("trail write failed" or "circuit breaker open") comes from the outcome's case. The `qadi_audit_staging_total`
+   label each arm adds (`failed_open` among them) records what `stage()` did and is chosen per arm, not read from the row.
 4. **The agreement is tested over the eleven leaves** (D-06, D-06a): `durabilityOf(o) === "Lost"` if and only if a lost
    counter is incremented if and only if the span's `qadi.audit.durability` is `"Lost"`. The warning leg is scoped to the
    six unwritten leaves, because `Written.CommitFailed` (durability `Trail`) and `Refused` (durability `Refused`) also warn

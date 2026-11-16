@@ -64,7 +64,11 @@ describe("the unwritten line warns exactly when the row says lost (D-05a)", () =
         const log = describeAuditWriteOutcome(c.make({ entry, staging: s.staging })).log;
         assert.isTrue(typeof log === "object" && log !== undefined);
         if (typeof log !== "object" || log === undefined) return;
-        assert.strictEqual(log.level, unwrittenRow(s.staging).durability === "Lost" ? "Warn" : "Info");
+        const lost = unwrittenRow(s.staging).durability === "Lost";
+        assert.strictEqual(log.level, lost ? "Warn" : "Info");
+        // The wording reads the row too: only a lost entry is called dropped.
+        assert.strictEqual(log.message.startsWith("audit entry dropped: "), lost);
+        assert.strictEqual(log.message.startsWith("audit entry not written: "), !lost);
         assert.isUndefined(log.cause);
       });
     }

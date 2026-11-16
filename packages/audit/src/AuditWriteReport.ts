@@ -61,10 +61,14 @@ interface StagingReport {
   readonly log: LogLine | undefined;
 }
 
-const DROPPED_BREAKER_UNWIRED = "audit entry dropped: circuit breaker open and no staging port wired";
-const DROPPED_BREAKER_STAGE_FAILED = "audit entry dropped: circuit breaker open and staging failed";
-const DROPPED_WRITE_UNWIRED = "audit entry dropped: trail write failed and no staging port wired";
-const DROPPED_WRITE_STAGE_FAILED = "audit entry dropped: trail write failed and staging failed";
+/** What stopped the trail write, as an unwritten line words it. */
+type NotWrittenBecause = "trail write failed" | "circuit breaker open";
+
+/** Why a lost entry's staging could not hold it, keyed by the row's word. */
+const LOST_CLAUSE: Record<LostWord, string> = {
+  not_wired: "no staging port wired",
+  failed: "staging failed",
+};
 const NOT_WRITTEN_STAGED_SUFFIX = "its staged copy is left for reconciliation";
 const COMMIT_FAILED =
   "audit staging commit failed: entry is durable in the trail, but its " +
@@ -82,11 +86,17 @@ const auditReport = (
   lost: LostLabel | undefined,
 ): AuditWriteReport => ({ writes, staging: staged.staging, lost, log: staged.log });
 
-const unwrittenLine = (staging: UnwrittenStaging, message: string): LogLine => ({
-  level: unwrittenRow(staging).durability === "Lost" ? "Warn" : "Info",
-  message,
-  cause: undefined,
-});
+/**
+ * The unwritten line, read from the staging's row: a Lost entry warns that it
+ * was dropped and names the row's word, a StagingOnly one informs that its staged
+ * copy is left (ARCH-95, ADR-QD-161).
+ */
+const unwrittenLine = (because: NotWrittenBecause, staging: UnwrittenStaging): LogLine => {
+  const row = unwrittenRow(staging);
+  return row.durability === "Lost"
+    ? { level: "Warn", message: `audit entry dropped: ${because} and ${LOST_CLAUSE[row.lost]}`, cause: undefined }
+    : { level: "Info", message: `audit entry not written: ${because}; ${NOT_WRITTEN_STAGED_SUFFIX}`, cause: undefined };
+};
 
 const writtenStagingReport: (self: WrittenStaging) => StagingReport = Match.type<WrittenStaging>().pipe(
   Match.tagsExhaustive({
@@ -100,25 +110,17 @@ const writtenStagingReport: (self: WrittenStaging) => StagingReport = Match.type
 
 const writeFailedStagingReport: (self: UnwrittenStaging) => StagingReport = Match.type<UnwrittenStaging>().pipe(
   Match.tagsExhaustive({
-    NotWired: (s) => stagingReport([], unwrittenLine(s, DROPPED_WRITE_UNWIRED)),
-    Staged: (s) =>
-      stagingReport(
-        ["staged"],
-        unwrittenLine(s, `audit entry not written: trail write failed; ${NOT_WRITTEN_STAGED_SUFFIX}`),
-      ),
-    StageFailed: (s) => stagingReport(["failed"], unwrittenLine(s, DROPPED_WRITE_STAGE_FAILED)),
+    NotWired: (s) => stagingReport([], unwrittenLine("trail write failed", s)),
+    Staged: (s) => stagingReport(["staged"], unwrittenLine("trail write failed", s)),
+    StageFailed: (s) => stagingReport(["failed"], unwrittenLine("trail write failed", s)),
   }),
 );
 
 const skippedStagingReport: (self: UnwrittenStaging) => StagingReport = Match.type<UnwrittenStaging>().pipe(
   Match.tagsExhaustive({
-    NotWired: (s) => stagingReport(["skipped_open"], unwrittenLine(s, DROPPED_BREAKER_UNWIRED)),
-    Staged: (s) =>
-      stagingReport(
-        ["staged"],
-        unwrittenLine(s, `audit entry not written: circuit breaker open; ${NOT_WRITTEN_STAGED_SUFFIX}`),
-      ),
-    StageFailed: (s) => stagingReport(["failed_open"], unwrittenLine(s, DROPPED_BREAKER_STAGE_FAILED)),
+    NotWired: (s) => stagingReport(["skipped_open"], unwrittenLine("circuit breaker open", s)),
+    Staged: (s) => stagingReport(["staged"], unwrittenLine("circuit breaker open", s)),
+    StageFailed: (s) => stagingReport(["failed_open"], unwrittenLine("circuit breaker open", s)),
   }),
 );
 
