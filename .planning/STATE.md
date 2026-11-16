@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 47
 current_phase_name: Port facts read from the description
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed QD-47-02-PLAN.md
-last_updated: "2026-11-16T00:09:02.596Z"
+stopped_at: Completed 47-03-PLAN.md
+last_updated: "2026-11-16T00:14:59.669Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase 47 execution started
-state_head: c04552f660d354ab23eedde71f69470b013fe344
+state_head: 98337fcb7c6236bc9d192043f5ad68dd7496c13e
 progress:
   total_phases: 10
   completed_phases: 4
   total_plans: 36
-  completed_plans: 31
+  completed_plans: 32
   percent: 40
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 47 (Port facts read from the description) — EXECUTING
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 7
 Status: Ready to execute
 Last activity: 2026-11-16 — Phase 47 execution started
@@ -284,6 +284,7 @@ Progress: [████░░░░░░] 40% (4 of 10 phases)
 | Phase QD-46 P07 | 5 min | 3 tasks | 1 files |
 | Phase 47 P01 | 15min | 2 tasks | 2 files |
 | Phase QD-47 P02 | 4 min | 2 tasks | 2 files |
+| Phase 47 P03 | 5 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -474,6 +475,7 @@ Progress: [████░░░░░░] 40% (4 of 10 phases)
 - [Phase QD-46]: 46-07: all five touched files met or beat their mutation base on the first measurement (DecisionLog 0.9857, DecisionSinkForwarding 0.9118, others 1); no test round or fix commit needed
 - [Phase 47]: 47-01: Stryker base scores stored unrounded from fresh runs of both configs (PortDerivation 0.98, the other five 1); RED rows committed on the untouched base
 - [Phase QD-47]: 47-02: every services-panel reading is a whole-string strictEqual on the row's first span, pinned on the base; the captured-default row guards decoratePorts' carry (D-17)
+- [Phase 47]: 47-03: the default's mark is a package-private unique Symbol(qadi.PortDefault) holding the PortName; isPortDefault reads the own property only
 
 ### Pending Todos
 
@@ -527,8 +529,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T00:09:02.504Z
-Stopped at: Completed QD-47-02-PLAN.md
+Last session: 2026-11-16T00:14:59.405Z
+Stopped at: Completed 47-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
