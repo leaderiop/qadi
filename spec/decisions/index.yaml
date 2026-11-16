@@ -506,3 +506,7 @@ entries:
     file: "164-policy-tag-arity-is-stated-once.md"
     title: "Policy tag arity is stated once"
     status: "Accepted — applies ADR-QD-152; reads ADR-QD-090, ADR-QD-101, ADR-QD-099; keeps ADR-QD-073, ADR-QD-077"
+  - id: "ADR-QD-165"
+    file: "165-core-owns-the-predicate-compile-shell.md"
+    title: "Core owns the predicate compile shell"
+    status: "Accepted — keeps ADR-QD-054, ADR-QD-079, ADR-QD-123"
