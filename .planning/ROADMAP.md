@@ -764,7 +764,23 @@ Plans:
   4. `spec/overview.md` names the new core export (gate 13), the changesets cover all three packages, and `pnpm check:pr < /dev/null` is green.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for both dialects' `index.ts` and `CompileMetrics.ts`, and the differential tests, committed first; then core's function with one dialect converted; then the second; then records. Re-run `pnpm circular`, and check the packed `exports` map (gate 14) for the new core name.
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+**Wave 1**
+- [ ] 52-01-PLAN.md — preconditions, the base facts, the reserved ids, the base declarations and gates; the mutation baseline of `RenderablePredicate.ts` and both dialects' `index.ts` and `CompileMetrics.ts` committed alone
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 52-02-PLAN.md — each dialect's compile shell pinned through `compileSql` and `compilePrismaWhere` on the base (47 and 21 tests): refusals, outputs, one counter move per call, the span tree
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 52-03-PLAN.md — `CompilePredicate.test.ts` RED, then `compilePredicate`, `CompilePredicateOptions` and `CompileOutcomes` in core; `compileSql`, then `compilePrismaWhere` (compiled counted after the render) through it; the overview rows (935) and gate 14 (523)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 52-04-PLAN.md — ADR-QD-165, BEH-QD-596..600, INV-QD-349, traceability, CCR-QD-443 (INV-QD-350 unused), the three changesets
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 52-05-PLAN.md — the mutation after-run and D-09a comparison, the phase scan, `check:pr`, the release check, COMP-01..04 complete
 
 ### Progress (v1.5)
 
@@ -782,4 +798,4 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 9/9 | Complete    | 2026-11-16 |
 | 50. What a leaf needs from the request, stated once | 8/8 | Complete    | 2026-11-16 |
 | 51. Policy tag arity stated once | 5/5 | Complete    | 2026-11-16 |
-| 52. Core owns the predicate compile shell | 0/TBD | Not started | - |
+| 52. Core owns the predicate compile shell | 0/5 | Not started | - |

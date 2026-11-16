@@ -56,6 +56,24 @@ Filled by the planner from the PLAN files' `<verify>` blocks. Requirement → te
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
+### Per-task map (from the PLAN files' `<verify>` blocks)
+
+| Task | Requirements | Automated verify | Status |
+|------|--------------|------------------|--------|
+| 52-01 T1 base facts, reserved ids, declarations, gates | WX-02 | base-facts recount at `phase_base`; `git grep -lwF` per reserved id; `tsc -b` then both `lib/index.d.ts` sha256 lines and the 932 / 522 / three-switch lines in the SUMMARY | ⬜ pending |
+| 52-01 T2 mutation base | WX-05, WX-06 | the three Stryker runs, `tools/mutation.mjs base`, then the JSON shape check (`movedShell` four lines per dialect, both `CompileMetrics.ts` unmeasured); first-commit check (`chore(52-01)` alone, parent `phase_base`) | ⬜ pending |
+| 52-02 T1 SQL CompileShell (tracer) | COMP-03, WX-06 | `vitest run --project predicate-sql packages/predicate-sql/test/CompileShell.test.ts` (47 of 47), tsc, lint; import, literal and commit check | ⬜ pending |
+| 52-02 T2 Prisma CompileShell | COMP-03, WX-06, WX-01 | `vitest run --project predicate-prisma packages/predicate-prisma/test/CompileShell.test.ts` (21 of 21), tsc, lint; import, literal and commit check; `pnpm check:pr` | ⬜ pending |
+| 52-03 T1 RED, core shell, compileSql (tracer) | COMP-01, COMP-02, COMP-03, WX-04 | `vitest run --project core` CompilePredicate + RenderablePredicate, `--project predicate-sql`, `tsc -b`, `tsc -p tsconfig.test.json`, circular, lint, house style; structure check (plain function, pipe order, SQL through it, `params` inside `render`); RED-then-core-then-SQL order | ⬜ pending |
+| 52-03 T2 compilePrismaWhere (D-06a) | COMP-02, COMP-03 | `vitest run --project predicate-prisma`, SQL CompileShell, core CompilePredicate, tsc, lint, the scoped grep (no output); structure and commit check, CompileShell files untouched | ⬜ pending |
+| 52-03 T3 overview rows, gates | COMP-04, WX-03, WX-04, WX-01 | row check; `check-api-surface` 935; `spec-revise --check`; commit check; `tsc -b` then declarations equal to the base's, package-install 523, house style, circular; `pnpm check:pr` | ⬜ pending |
+| 52-04 T1 ADR-QD-165 | WX-02 | ADR and `index.yaml` content check; `spec-revise --check`; commit check | ⬜ pending |
+| 52-04 T2 BEH, INV, traceability | WX-02 | headings once each with exact titles and order, INV-QD-350 unused, traceability rows and anchors; `spec-revise --check`, `pnpm spec:examples`; commit check | ⬜ pending |
+| 52-04 T3 CCR row, changesets | COMP-04, WX-02, WX-07, WX-01 | CCR row and changeset front-matter check; AGENTS.md, `25-inspection.md`, `upgrading.md` unchanged; `spec-revise --check`, `pnpm spec:verify:strict`; commit check; `pnpm check:pr` | ⬜ pending |
+| 52-05 T1 mutation after | WX-05 | `tools/mutation.mjs compare` (`WX-05 holds (D-09a)`); base once, after last | ⬜ pending |
+| 52-05 T2 phase scan | COMP-01..03, WX-04, WX-06 | `tsc -b`, `tools/scan.mjs` (`phase scan clean`), `pnpm circular`, house style (3 switches); no tools/scripts/Stryker config change | ⬜ pending |
+| 52-05 T3 close | WX-01, WX-07, COMP-01..04 | `pnpm check:pr`; release check; COMP-01..04 complete | ⬜ pending |
+
 ---
 
 ## Wave 0 Requirements
