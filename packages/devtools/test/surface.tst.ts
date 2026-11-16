@@ -7,7 +7,7 @@
  * importable (ADR-QD-099). The values are pinned by `surface.test.ts`.
  */
 import { expect, test } from "tstyche";
-import type { AskedQuestionLike } from "../src/index.ts";
+import type { AskedQuestionLike, GateInstanceLike, GateRegistryLike } from "../src/index.ts";
 import type { AskedQuestionLike as ReactAskedQuestionLike } from "../src/react/index.ts";
 
 export type {
@@ -40,6 +40,7 @@ export type {
   FieldView,
   Filters,
   GateInstanceLike,
+  GateRegistryLike,
   HeldChoice,
   HydrationActivity,
   HydrationDrops,
@@ -134,6 +135,9 @@ export { roleSummary } from "../src/index.ts";
 export { gateGroups } from "../src/index.ts";
 
 // @ts-expect-error no exported member
+export { joinQuestions } from "../src/index.ts";
+
+// @ts-expect-error no exported member
 export { simulate } from "../src/index.ts";
 
 // @ts-expect-error no exported member
@@ -205,4 +209,11 @@ export { DiagnosticsNotice } from "../src/react/index.ts";
 
 test("the React entry's AskedQuestionLike is the model's", () => {
   expect<ReactAskedQuestionLike>().type.toBe<AskedQuestionLike>();
+});
+
+test("GateRegistryLike is the two methods react's registry has, and no more", () => {
+  expect<GateRegistryLike>().type.toBe<{
+    readonly instances: () => ReadonlyArray<GateInstanceLike>;
+    readonly subscribe: (listener: () => void) => () => void;
+  }>();
 });
