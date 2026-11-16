@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 47
 current_phase_name: Port facts read from the description
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed 47-05-PLAN.md
-last_updated: "2026-11-16T00:25:22.693Z"
+stopped_at: Completed 47-06-PLAN.md
+last_updated: "2026-11-16T00:34:44.607Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase 47 execution started
-state_head: fec62fc03c7773c39f78c705d6ce81fb3388ea4e
+state_head: 4e2b0ebbe3514daa542c217e67f292c0d0346c8b
 progress:
   total_phases: 10
   completed_phases: 4
   total_plans: 36
-  completed_plans: 34
+  completed_plans: 35
   percent: 40
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 47 (Port facts read from the description) — EXECUTING
-Current Plan: 6
+Current Plan: 7
 Total Plans in Phase: 7
 Status: Ready to execute
 Last activity: 2026-11-16 — Phase 47 execution started
@@ -287,6 +287,7 @@ Progress: [████░░░░░░] 40% (4 of 10 phases)
 | Phase 47 P03 | 5 min | 3 tasks | 8 files |
 | Phase 47 P04 | 10min | 3 tasks | 4 files |
 | Phase 47 P05 | 10min | 3 tasks | 7 files |
+| Phase 47 P06 | 10min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -480,6 +481,7 @@ Progress: [████░░░░░░] 40% (4 of 10 phases)
 - [Phase 47]: 47-03: the default's mark is a package-private unique Symbol(qadi.PortDefault) holding the PortName; isPortDefault reads the own property only
 - [Phase 47]: 47-04: ROWS built by monomorphic rowOf (R6, D-18); PortCall derived from the registry (D-19)
 - [Phase 47]: 47-05: the sixth port's devtools cost measured at four src files (PortReading, PortCalls, SimulationFields, SimulationSource), scratch reverted; ADR-QD-160 names BEH/INV in plain text until 47-06; changesets core minor and devtools patch, none Breaking
+- [Phase 47]: 47-06: BEH-QD-574 is placed in 30-port-calls.md beside BEH-QD-228; BEH-QD-573 and 575 stay in 28-devtools-screens.md
 
 ### Pending Todos
 
@@ -533,8 +535,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T00:25:22.525Z
-Stopped at: Completed 47-05-PLAN.md
+Last session: 2026-11-16T00:34:44.446Z
+Stopped at: Completed 47-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
