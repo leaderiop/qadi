@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 50
 current_phase_name: What a leaf needs from the request, stated once
-current_plan: 7
+current_plan: 8
 status: executing
-stopped_at: Completed QD-50-06-PLAN.md
-last_updated: "2026-11-16T13:23:07.444Z"
+stopped_at: Completed 50-07-PLAN.md
+last_updated: "2026-11-16T13:34:32.103Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase QD-50 execution started
-state_head: a4ae5813056231073794b1c23c71ec69f728496f
+state_head: c7b4ee28866ec89e5a72d349e108aaa6281dbb39
 progress:
   total_phases: 10
   completed_phases: 7
   total_plans: 61
-  completed_plans: 59
+  completed_plans: 60
   percent: 70
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: QD-50 (What a leaf needs from the request, stated once) — EXECUTING
-Current Plan: 7
+Current Plan: 8
 Total Plans in Phase: 8
 Status: Executing Phase QD-50
 Last activity: 2026-11-16 — Phase QD-50 execution started
@@ -315,6 +315,7 @@ Progress: [███████░░░] 70% (7 of 10 phases)
 | Phase QD-50 P04 | 8min | 2 tasks | 3 files |
 | Phase QD-50 P05 | 6min | 2 tasks | 3 files |
 | Phase QD-50 P06 | 10min | 2 tasks | 2 files |
+| Phase QD-50 P07 | 25min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -532,6 +533,7 @@ Progress: [███████░░░] 70% (7 of 10 phases)
 - [Phase QD-50]: 50-04: LeafNeeds.ts ships as the gate-measured P1 module (D-01); Walk's leaf arms read it
 - [Phase QD-50]: 50-05: D-08a applied, toPredicate's MissingAction has no own expected key when no action was named; readScoped builds MissingResourceId through errorOf after annotateQuestion
 - [Phase QD-50]: 50-06: after-run gate pass (0/35 slower, geomean +1.87%); mutation holds, Walk.ts by D-13, LeafNeeds.ts sole survivor equivalent
+- [Phase QD-50]: ADR-QD-163 records both bench runs from the committed analysis.tsv files; the after-run's worst row (+9.3%) is stated as 0.7 points inside its band
 
 ### Pending Todos
 
@@ -588,8 +590,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T13:23:07.232Z
-Stopped at: Completed QD-50-06-PLAN.md
+Last session: 2026-11-16T13:34:31.890Z
+Stopped at: Completed 50-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
