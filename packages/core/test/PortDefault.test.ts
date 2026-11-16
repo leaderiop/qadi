@@ -218,6 +218,37 @@ describe("a port's fail-closed default is a fact the service carries (PFCT-01, D
     assert.isFalse(isPortDefault(attributeResolverPort, frozen));
   });
 
+  it("M11: an extensible object that inherits a read-only mark takes its own mark and does not throw (WR-01)", () => {
+    const frozenDefault = Object.freeze(markDefault("AttributeResolver", { name: "none" }));
+    const child = Object.create(frozenDefault);
+    const marked = markDefault("AttributeResolver", child);
+
+    assert.isTrue(isPortDefault(attributeResolverPort, marked));
+  });
+
+  it("M12: a proxy that refuses the define is copied rather than thrown on (WR-01)", () => {
+    const refusing = new Proxy({ name: "refusing" }, { defineProperty: () => false });
+    const marked = markDefault("AttributeResolver", refusing);
+
+    assert.isTrue(isPortDefault(attributeResolverPort, marked));
+    assert.strictEqual(marked.name, "refusing");
+  });
+
+  it("M13: a proxy whose define trap throws is copied rather than thrown on (WR-01)", () => {
+    const throwing = new Proxy(
+      { name: "throwing" },
+      {
+        defineProperty: () => {
+          throw new Error("trap");
+        },
+      },
+    );
+    const marked = markDefault("AttributeResolver", throwing);
+
+    assert.isTrue(isPortDefault(attributeResolverPort, marked));
+    assert.strictEqual(marked.name, "throwing");
+  });
+
   it.effect("M8: the mark never shows in keys or JSON", () =>
     Effect.gen(function* () {
       const none = yield* defaultOf(attributeResolverPort);

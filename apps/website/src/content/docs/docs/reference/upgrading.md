@@ -820,7 +820,7 @@ export const auditedAttributes = Layer.effect(
 ).pipe(Layer.provide(AttributeResolverNone));
 ```
 
-`decoratePorts` carries the mark by the slot it decorates, not by what your decorator returns: a decorator that replaces a default with a real implementation still reads as defaulted, because the slot held the default when it ran. Wire the real implementation into `portsLayer` instead of decorating a default into one. An extensible result is marked in place, so return an extensible object (a frozen one is copied, and a `#private` field or internal slot does not survive the copy).
+`decoratePorts` carries the mark by the slot it decorates, not by what your decorator returns: a decorator that replaces a default with a real implementation still reads as defaulted, because the slot held the default when it ran. Wire the real implementation into `portsLayer` instead of decorating a default into one. A result that accepts the property is marked in place, so return an object that does (a frozen one, or a proxy that refuses the define, is copied, and a `#private` field or internal slot does not survive the copy). The mark then stays on an object you also use elsewhere.
 
 A second install of `@qadi/core` has its own mark, so it reads the other copy's defaults as real adapters.
 

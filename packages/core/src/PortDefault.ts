@@ -23,24 +23,45 @@ export interface DefaultMark<N extends PortName> {
 }
 
 /**
+ * Defines `mark` on `shape` itself, and whether it took.
+ *
+ * `Reflect.defineProperty` answers `false` for a non-extensible object and for a proxy whose trap
+ * refuses, and ignores an inherited read-only mark, where an assignment would throw. A trap that
+ * throws is a refusal too: marking never fails the layer that built the shape.
+ */
+const defineMark = <N extends PortName, Shape extends object>(
+  shape: Shape,
+  mark: TypedPropertyDescriptor<N>,
+): shape is Shape & DefaultMark<N> => {
+  try {
+    return Reflect.defineProperty(shape, DEFAULT_OF, mark);
+  } catch {
+    return false;
+  }
+};
+
+/**
  * `shape` with the mark naming `port` set, as an own, enumerable, symbol-keyed property.
  *
- * An extensible `shape` is marked in place and returned as it is, so `#private` fields, internal slots
- * (a `Map`) and prototype methods keep working. A frozen, sealed or otherwise non-extensible one cannot
- * take a property, so it is copied with its prototype and its own descriptors (a getter stays a getter,
- * where a spread would freeze it); state outside own properties does not survive that copy, so a
- * decorator that wants it kept returns an extensible object.
+ * A `shape` that accepts the property is marked in place and returned as it is, so `#private` fields,
+ * internal slots (a `Map`) and prototype methods keep working. One that does not (frozen, sealed or
+ * otherwise non-extensible, or a proxy that refuses the define) is copied with its prototype and its
+ * own descriptors (a getter stays a getter, where a spread would freeze it); state outside own
+ * properties does not survive that copy, so a decorator that wants it kept returns an object that
+ * accepts the property.
  */
 export const markDefault = <N extends PortName, Shape extends object>(
   port: N,
   shape: Shape,
-): Shape & DefaultMark<N> =>
-  Object.isExtensible(shape)
-    ? Object.assign(shape, { [DEFAULT_OF]: port })
+): Shape & DefaultMark<N> => {
+  const mark = Object.getOwnPropertyDescriptors({ [DEFAULT_OF]: port });
+  return defineMark(shape, mark[DEFAULT_OF])
+    ? shape
     : Object.create(Object.getPrototypeOf(shape), {
         ...Object.getOwnPropertyDescriptors(shape),
-        ...Object.getOwnPropertyDescriptors({ [DEFAULT_OF]: port }),
+        ...mark,
       });
+};
 
 /** The own mark descriptor of `service`, or `undefined` when it has none or the read throws. */
 const ownMark = (service: unknown): PropertyDescriptor | undefined => {
