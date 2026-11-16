@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 51
 current_phase_name: Policy tag arity stated once
-current_plan: Not started
-status: planning
-stopped_at: Phase QD-50 complete, ready to plan Phase 51
-last_updated: "2026-11-16T14:27:16.826Z"
+current_plan: 2
+status: executing
+stopped_at: Completed QD-51-01-PLAN.md
+last_updated: "2026-11-16T15:44:59.177Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase QD-50 complete, transitioned to Phase 51
-state_head: 0df5bf74a8483e3fcf2e8872e316be093dd623de
+state_head: d7324ee496227e615f6ddec6def40250657cc76f
 progress:
   total_phases: 10
   completed_phases: 8
-  total_plans: 61
-  completed_plans: 61
+  total_plans: 66
+  completed_plans: 62
   percent: 80
 ---
 
@@ -31,9 +31,9 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: 51 — Policy tag arity stated once
-Current Plan: Not started
-Total Plans in Phase: - (not planned yet)
-Status: Ready to plan
+Current Plan: 2
+Total Plans in Phase: 5
+Status: Ready to execute
 Last activity: 2026-11-16 — Phase QD-50 complete, transitioned to Phase 51
 
 Progress: [████████░░] 80% (8 of 10 phases)
@@ -318,6 +318,7 @@ Progress: [████████░░] 80% (8 of 10 phases)
 | Phase QD-50 P06 | 10min | 2 tasks | 2 files |
 | Phase QD-50 P07 | 25min | 3 tasks | 9 files |
 | Phase QD-50 P08 | 20min | 2 tasks | 1 files |
+| Phase QD-51 P01 | 6min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -536,6 +537,7 @@ Progress: [████████░░] 80% (8 of 10 phases)
 - [Phase QD-50]: 50-05: D-08a applied, toPredicate's MissingAction has no own expected key when no action was named; readScoped builds MissingResourceId through errorOf after annotateQuestion
 - [Phase QD-50]: 50-06: after-run gate pass (0/35 slower, geomean +1.87%); mutation holds, Walk.ts by D-13, LeafNeeds.ts sole survivor equivalent
 - [Phase QD-50]: ADR-QD-163 records both bench runs from the committed analysis.tsv files; the after-run's worst row (+9.3%) is stated as 0.7 points inside its band
+- [Phase QD-51]: 51-01: Stryker baseline of Policy.ts and Decision.ts measured once on the untouched base and committed alone as the phase's first commit; never re-baselined
 
 ### Pending Todos
 
@@ -593,8 +595,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T13:38:20.256Z
-Stopped at: Phase QD-50 complete, ready to plan Phase 51
+Last session: 2026-11-16T15:44:51.567Z
+Stopped at: Completed QD-51-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

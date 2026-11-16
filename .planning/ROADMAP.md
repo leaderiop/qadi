@@ -731,11 +731,11 @@ Plans:
   4. `foldTrace` stays public and unchanged (the barrel pin and its INV-QD-090 tests untouched), `renderTrace` and `diffTraces` keep their own walks, and the ADR or CCR states why; `SWITCH_BUDGET` is unchanged.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `Policy.ts` and `Decision.ts`, the all-tags shape table and the recorded base experiment (move a tag, it compiles), committed first; then the record and the two readers; then the type-level negative; then records. Re-run `pnpm circular`.
-**Plans**: 5 plans
+**Plans**: 1/5 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 51-01-PLAN.md — preconditions, the base facts and the reserved ids; the mutation baseline of `Policy.ts` and `Decision.ts` committed alone
+- [x] 51-01-PLAN.md — preconditions, the base facts and the reserved ids; the mutation baseline of `Policy.ts` and `Decision.ts` committed alone
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 51-02-PLAN.md — every tag's trace shape through `foldTrace`, green on the base; the base experiment (an arity move compiles) recorded with its 32-move matrix
@@ -781,5 +781,5 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 48. Audit reports core's refusal and derives "lost" | 8/8 | Complete    | 2026-11-16 |
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 9/9 | Complete    | 2026-11-16 |
 | 50. What a leaf needs from the request, stated once | 8/8 | Complete    | 2026-11-16 |
-| 51. Policy tag arity stated once | 0/TBD | Not started | - |
+| 51. Policy tag arity stated once | 1/5 | In Progress | - |
 | 52. Core owns the predicate compile shell | 0/TBD | Not started | - |
