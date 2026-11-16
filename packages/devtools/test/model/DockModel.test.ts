@@ -1137,6 +1137,42 @@ describe("the questions store (M31, M32, M33, P2)", () => {
       assert.strictEqual(a.subscriptions(), subscribed);
     }));
 
+  it.effect("M34: a supplied question list keeps one snapshot while the poll goes from Starting to Live", () =>
+    Effect.gen(function* () {
+      const layer = Layer.effectDiscard(Effect.sleep("1 second"));
+      const model = yield* makeDockModel({ diagnostics: { layer }, reading: { questions: [] } });
+      assert.isTrue(DiagnosticsStatus.$is("Starting")(model.diagnostics.getSnapshot().status));
+      const first = model.questions.getSnapshot();
+      assert.strictEqual(first.questions._tag, "Empty");
+      const heard = { calls: 0 };
+      model.questions.subscribe(() => {
+        heard.calls += 1;
+      });
+
+      yield* settleTurns;
+      yield* TestClock.adjust("1 second");
+      yield* settleTurns;
+
+      assert.isTrue(DiagnosticsStatus.$is("Live")(model.diagnostics.getSnapshot().status));
+      assert.strictEqual(model.questions.getSnapshot(), first);
+      assert.strictEqual(heard.calls, 0);
+    }));
+
+  it.effect("M35: a model whose scope closed subscribes to no registry a later configure hands it", () =>
+    Effect.gen(function* () {
+      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const b = makeGateRegistryDouble([guard("b", readPolicy)]);
+      const scope = yield* Scope.make();
+      const model = yield* Scope.provide(makeDockModel({ gates: a.registry }), scope);
+      yield* Scope.close(scope, Exit.void);
+
+      model.configure({ gates: b.registry });
+
+      assert.strictEqual(a.listeners(), 0);
+      assert.strictEqual(b.listeners(), 0);
+      assert.strictEqual(b.subscriptions(), 0);
+    }));
+
   type Command =
     | { readonly kind: "add"; readonly id: number; readonly policy: number; readonly resource: number; readonly state: number }
     | { readonly kind: "remove"; readonly id: number }
