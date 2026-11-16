@@ -33,7 +33,7 @@ covered_files:
   - "packages/react/src/DecisionOutcome.ts"
   - "packages/react/src/DevtoolsFeed.ts"
   - "packages/react/src/GateWriter.ts"
-covered_digest: "v4:sha256:d8a0666030faeaa423a6a79047f89df62700f3548b10bd934ed55ef25898bd66"
+covered_digest: "v4:sha256:228257f2cc8f8cd7a329c19dd872e2de602b34e7795ed1f60b756eedc038e6a7"
 behavior_unverified: 0
 overrides_applied: 0
 ---

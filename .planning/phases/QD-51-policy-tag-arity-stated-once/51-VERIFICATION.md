@@ -23,7 +23,7 @@ covered_files:
   - "packages/core/test/PolicyArity.tst.ts"
   - "packages/core/test/TraceShape.test.ts"
   - "spec/decisions/164-policy-tag-arity-is-stated-once.md"
-covered_digest: "v4:sha256:465691e2488f810cb687fbcfe7df6cd06e4f52cc674229cedb7f821f7307cc81"
+covered_digest: "v4:sha256:7ae324486bf48b0ae8fb56de006ede31a1c4931fcc419d5f5f6c3596b4d68110"
 behavior_unverified: 0
 overrides_applied: 0
 ---

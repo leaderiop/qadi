@@ -21,7 +21,7 @@ covered_files:
   - "packages/react/src/SeededDecision.ts"
   - "packages/react/test/Hydration.tst.ts"
   - "packages/react/test/HydrationSeedFields.test.ts"
-covered_digest: "v4:sha256:358b6d29ee91bfe70eef7e5a6ab08caa120d627ccd102c3e17f660c0b96b5374"
+covered_digest: "v4:sha256:dd2c4303a2ab1d4659fd35a3575456849b53f40ab08098d52786c60b381a2926"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:

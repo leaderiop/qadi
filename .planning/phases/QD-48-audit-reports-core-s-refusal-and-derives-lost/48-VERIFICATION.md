@@ -36,7 +36,7 @@ covered_files:
   - "packages/audit/test/observeLeaf.ts"
   - "packages/core/src/JsonRefusal.ts"
   - "spec/decisions/161-audit-reports-cores-refusal-and-decides-lost-once.md"
-covered_digest: "v4:sha256:cb4cb40b22fd3808c00eda01babeb94e609aa9e8bf8332983c49df01548677df"
+covered_digest: "v4:sha256:a03c8f623fb50b5d6358b62c7b5ec9bedd6cfbb48e7dfe85f242007d18d051ab"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
