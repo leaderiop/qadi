@@ -66,6 +66,7 @@ Two changes, one phase:
 - **D-12:** `QuestionsPanel` renders the model's one `questions` snapshot.
   - No `gates` prop, and no `gateGroups`/`instancesAsking` call in the view.
   - It keeps the absent-versus-empty messages (`QuestionsPanel.tsx:115-117`) and the lens, pick and Activity behaviour exactly as today.
+- **D-12a:** One deliberate copy edit (user decision during the UI contract, 2026-11-16). The gates-absent message's advice changes from `useGateInstances()` / `atoms.gates.instances()` to `Pass gates — usually atoms.gates, from @qadi/react — to list who is asking.`, because the old advice no longer type-checks after D-09. The one assertion on it in `QuestionsPanel.gates.test.tsx` is updated in the same commit, and ADR-QD-162 names it. Every other string stays byte-identical. `QuestionsPanel` is not exported, so its props are package-private and add no Breaking line.
 - **D-13:** Characterisation first. A byte-exact test of the panel's current rows on the phase base is committed before any `packages/*/src` edit. It covers:
   - absent and empty gates;
   - one row per guard;
