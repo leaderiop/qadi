@@ -1,13 +1,15 @@
 ---
 phase: QD-51-policy-tag-arity-stated-once
-reviewed: 2026-11-16T16:25:00Z
+reviewed: 2026-11-16T17:10:00Z
 depth: standard
-files_reviewed: 17
+iteration: 2
+files_reviewed: 19
 files_reviewed_list:
   - .changeset/policy-arity-stated-once.md
   - packages/core/src/Decision.ts
   - packages/core/src/Policy.ts
   - packages/core/src/PolicyArity.ts
+  - packages/core/test/Decision.test.ts
   - packages/core/test/PolicyArity.test.ts
   - packages/core/test/PolicyArity.tst.ts
   - packages/core/test/TraceShape.test.ts
@@ -18,170 +20,113 @@ files_reviewed_list:
   - spec/decisions/index.yaml
   - spec/invariants.md
   - spec/traceability.md
+  - .planning/phases/QD-51-policy-tag-arity-stated-once/51-SECURITY.md
+  - .planning/phases/QD-51-policy-tag-arity-stated-once/tools/moves.mjs
   - .planning/phases/QD-51-policy-tag-arity-stated-once/tools/mutation.mjs
   - .planning/phases/QD-51-policy-tag-arity-stated-once/tools/proofs.mjs
   - .planning/phases/QD-51-policy-tag-arity-stated-once/tools/scan.mjs
 findings:
   critical: 0
-  warning: 4
-  info: 6
-  total: 10
+  warning: 2
+  info: 3
+  total: 5
   necessity: 0
 status: issues_found
 ---
 
-# Phase QD-51: Code Review Report
+# Phase QD-51: Code Review Report (iteration 2)
 
-**Reviewed:** 2026-11-16T16:25:00Z
+**Reviewed:** 2026-11-16T17:10:00Z
 **Depth:** standard
-**Files Reviewed:** 17 (the 14 source, test and spec files plus the three committed phase tools; `moves.mjs` was read for the same restore claim)
+**Files Reviewed:** 20 (the source, test and spec files of the phase diff, `51-SECURITY.md`, and the four phase tools; `scan.mjs` and `mutation.mjs` were read for the iteration-1 fixes)
 
 ## Summary
 
-The core change holds up. I checked it by experiment, not by reading: I copied `packages/core` into the scratchpad, edited the copy, and ran `tsc`. The live tree was untouched.
+All ten iteration-1 fixes are in place and none introduced a code defect. I checked each against the source and the recorded evidence, not against the fix report.
 
-- **Closure over `Policy["_tag"]`.** A missing tag fails in `childrenOf`'s `satisfies` (TS2741) and in `TagsOfArity`'s default (TS2344). A stray tag fails only in `TagsOfArity`'s default (TS2344), which is where the ADR says it is enforced. `keyof Rec` equal to `Tag` in the tstyche file is a second net.
-- **Moves `ChildArms` cannot see.** The only one is Leaf to Many (an empty array is a valid Many). It is caught in `src`, not only in tests: `LeafNeeds.ts`, `Walk.ts`, `Predicate.ts` and `Simplify.ts` all fail.
-- **The `{ readonly 0?: never }` trick works.** Removing it makes the tuple negative's `@ts-expect-error` unused (TS2578), so the test does guard it.
-- **Emitted `.d.ts`.** It is stable and compiles. `TagsOfArity` and `ArityRecord` are not importable by a consumer (TS2459, because the file ends in `export {}`). Nothing leaks from the root, and the barrel test pins that `POLICY_ARITY` is not exported.
-- **`traceShapeOf`.** It matches the base for all 16 tags. All 16 are covered by `TraceShape.test.ts`, which reads no record (`scan.mjs` checks that too).
-- **Numbers.** ADR-QD-164's numbers agree with `moves.tsv` (8 of 32 caught by existing tests, 32 of 32 by the table, the three arm edits). They also agree with the mutation JSONs: Decision.ts 162/169 to 160/166, the deleted region with 2 detected and 1 survived, Policy.ts unchanged. Commit hashes resolve.
-- **Targeted runs.** `PolicyArity.test.ts`, `TraceShape.test.ts` and `PolicyArity.tst.ts` are green.
+**Verified correct**
 
-The defects are in the evidence layer, not the type machinery. One ADR sentence overclaims against the base. Two tools state guarantees they do not provide. One closed-union dispatch is still non-exhaustive.
+- **WR-02, the table.** `traceChildrenByArity` is `as const satisfies { readonly [A in Arity]: … }`. It is total over `Arity` by type, with no cast, and `ChildrenOf` ends in `A extends "Many" ? … : never`. The two rows that were ternary arms keep their bodies, so behaviour is identical for every union tag. `TraceShape.test.ts` is unchanged since iteration 1 and is green with `PolicyArity.test.ts` and `Decision.test.ts` (89 tests).
+- **Foreign tag.** For `Bogus`, `constructor`, `toString` and `__proto__` the arity read is `undefined`, a function or `Object.prototype`. Each coerces to a key the table lacks, so `undefined(self)` throws a `TypeError` when `foldTreeBy` opens the node, before any child's arm runs. It is fail-closed: it throws and never allows. The differences from the base are in WR-01 and IN-01.
+- **IN-01.** I read tstyche 7.2.5's `SuppressedService`. With `checkSuppressedErrors` (default on) the directive needs an argument (`directiveRequires`), allows exactly one error on the line (`onlySingleError`) and requires the message to contain the text (`messageDidNotMatch`). The header is right, and each of the three directives sits on one line with one erroring expression. `PolicyArity.tst.ts` is green (3 suppressed matched).
+- **WR-04.** `process.on("exit", restore)`, the signal handlers, the `tick` yield and the per-child `signal` check cover every path I could find that leaves `src` edited. A SIGKILL is declared as uncovered. A caught signal exits 128+n, a child killed by a signal exits 1, and an uncaught throw restores through the `finally`. The `dirty()` check exits 3.
+- **WR-03.** The `git apply --check` row requires the `^error: patch failed: packages/core/src/Decision.ts:\d+$` line, so a missing patch no longer passes.
+- **IN-06.** `minus` in `mutation.mjs` is a correct multiset subtraction. `compare` on the recorded JSONs still prints "WX-05 holds" (exit 0). `scan.mjs` skips a TypeScript with no `transpileModule`.
+- **Numbers.** "8 of 32 caught by existing tests, 32 of 32 by TraceShape, `tsc_exit` 0 on every move and arm row" agree with `base-experiment/moves.tsv` (counted from the file). INV-QD-348's "one test in `Decision.test.ts`" for `Not` Wrapper to Many agrees with its row (`Decision_failed` 1).
+- **House rules.** No `as` outside `as const`, no `!`, `any` or `switch`. Imports are namespaces or named. `PolicyArity.ts` imports nothing and is not in the barrel. `node scripts/check-house-style.mjs` is clean (539 files, 3 declared switches) and `scripts/` has no diff from the phase base. `tsc -p tsconfig.test.json` exits 0.
+- **New `Decision.test.ts` test.** It can fail: it asserts both guards on an allowing and a denying trace, and the expected pairs are written out, not read from the code.
+
+What remains is one false accepted-risk statement, a proof row that can pass for the wrong reason, and three info items.
 
 ## Warnings
 
-### WR-01: ADR-QD-164 says every "experiment, after" edit compiled on the base; three of them did not (or did not exist)
+### WR-01: `51-SECURITY.md` T-51-09 describes the foreign-tag behaviour of code that no longer exists
 
-**File:** `spec/decisions/164-policy-tag-arity-is-stated-once.md:134`
-**Issue:** The sentence is "On the base every one of these compiled (the matrix of 32 plus the three arm edits)."
+**File:** `.planning/phases/QD-51-policy-tag-arity-stated-once/51-SECURITY.md:40` and `:56`
+**Issue:** Both T-51-09 entries (the register row, status "closed (accepted; foreign tags throw Match.exhaustive at traceStep)", and the Accepted Risks Log) say a foreign tag "still throws the same `absurd` error at `traceStep`'s `Match.exhaustive` one call later, as on the base". After WR-02 this is false in two ways. I ran both forms:
 
-The table above it holds record edits. Three rows are "`HasRole` removed", "an unknown tag added" and "an unknown arity word". The base experiment has no row for any of these. It measured 32 moves of `traceShapeOf`'s three lists plus three arm edits, and the base has no record to edit.
+- Base: `Match.exhaustive` threw `Error: effect/match/Match/exhaustive: absurd`.
+- Now: `TypeError: traceChildrenByArity[...] is not a function`. It is raised in `traceChildrenOf` when `foldTreeBy` opens the node (`TreeFold.ts`'s `open`), so `traceStep`'s `Match.exhaustive` is never reached.
 
-The nearest base equivalents do not compile. I took `git archive 8d87d837`, deleted `"HasRole"` from `leafTags`, and ran `tsc`. It fails at `Decision.ts(439,3)` with TS2345, because `Match.exhaustive` leaves `HasRole` unmatched. The ADR's own Context says "a new tag fails to compile everywhere", which contradicts this sentence.
+The "one call later" also did not describe the base: `traceShapeOf` itself was the `Match.exhaustive`, called from `traceChildrenOf` at open. The mitigation text matched the intermediate `?? Many` fall-through that WR-02 removed. The risk row is a verified security record, and "closed" rests on a mechanism that is gone. The behaviour is still fail-closed and is pinned by `PolicyArity.test.ts` ("a tag outside the union").
 
-The headline is true: all 32 moves and all 3 arm edits compiled on the base. But a reader takes "every one of these" to mean the table above, and that is not what `moves.tsv` shows. The same wording sits in INV-QD-347 ("all 32 single-tag moves did"). That one is accurate only because it says "moves".
-
-**Fix:** Restate the sentence against the evidence:
+**Fix:** Rewrite both entries to the current mechanism, for example:
 ```
-On the base all 32 single-tag moves of `traceShapeOf` and all three `childrenOf` arm edits compiled
-(`base-experiment/moves.tsv`). After, the equivalent record edits (rows 2 to 8) and the two arm edits
-fail to compile; the three structural rows (removed, stray tag, unknown word) have no base
-counterpart, because the base had no record, and a tag removed from `leafTags` already failed
-`Match.exhaustive`. The last row is the one the type was never going to see.
+a foreign tag (`Bogus`, `toString`, `constructor`, `__proto__` are pinned in PolicyArity.test.ts) has no
+row in `POLICY_ARITY` or in `traceChildrenByArity`, so `foldTrace` throws a TypeError when it opens the node,
+before any child's arm runs. The base threw `Match.exhaustive`'s error at the same point; only the error's
+class and message differ. It is never an allow.
 ```
+Change the status text to "closed (accepted; foreign tags throw a TypeError at traceChildrenOf, pinned)".
 
-### WR-02: A non-exhaustive dispatch on the closed `Arity` union brings back the silent-widening class this phase removes
+### WR-02: `proofs.mjs`'s runtime-refusal row passes whenever vitest exits non-zero, not only when a test fails
 
-**File:** `packages/core/src/Decision.ts:423` (also `packages/core/src/PolicyArity.ts:50`)
-**Issue:** `traceChildrenOf` dispatches on `Arity` with `shape === "Leaf" ? [] : shape === "Wrapper" ? self.children.slice(0, 1) : self.children`. The last arm is an unconditional else. `ChildrenOf` has the same shape: its final branch is `ReadonlyArray<Child> & {…}` with no `A extends "Many"` guard.
+**File:** `.planning/phases/QD-51-policy-tag-arity-stated-once/tools/proofs.mjs:76-77` and `:103-104` (the row at `:43`)
+**Issue:** `failing` is `run("vitest", …).status !== 0`. The row "childrenOf arm: AllOf returns none (… Policy.test.ts's lockstep refuses it)" is accepted when `tsc` exits 0 and `failing(...)` is true. A mistyped or moved test path, a vitest crash, a configuration error or a collection error all exit non-zero too. I confirmed it: `vitest run --project core packages/core/test/Nonexistent.test.ts` exits 1. Such a run would be shown as `yes` in the table and copied into the SUMMARY as proof that the lockstep property refuses an empty `Many` arm. It is the same defect as iteration 1's WR-03, one row further down: a check that passes for any failure of the tool it uses.
 
-A fourth `Arity` word, for example `"Pair"`, therefore compiles everywhere and `foldTrace` silently hands such a node every child. That is the "fold that silently drops or invents a child" that `PolicyArity.ts`'s header promises cannot happen. AGENTS.md §5a requires an `never`-guarded or `Match` dispatch for exactly this reason, and says to widen a closed union as a full union with every reader updated.
-
-The base had the same ternary over `TraceShape`, and D-04 says the runtime is unchanged. So this is not a regression. But `Arity` is now the shared type, and its readers are not exhaustive over it. The plan's own proofs do not exercise adding an arity word (only an unknown one), so nothing would catch it.
-
-**Fix:** Keep the runtime behaviour and make the dispatch total by type:
-```ts
-const CHILDREN_BY_ARITY: { readonly [A in Arity]: (self: Trace) => ReadonlyArray<Trace> } = {
-  Leaf: () => [],
-  Wrapper: (self) => self.children.slice(0, 1),
-  Many: (self) => self.children,
-};
-const traceChildrenOf = (self: Trace): ReadonlyArray<Trace> =>
-  CHILDREN_BY_ARITY[traceShapeOf(self.policyTag)](self);
-```
-In `ChildrenOf`, write the last branch as `A extends "Many" ? … : never`. Add a tstyche line showing that a fourth word is refused somewhere.
-
-### WR-03: `proofs.mjs`'s first row passes on any `git apply` failure, so it cannot fail for the reason it claims
-
-**File:** `.planning/phases/QD-51-policy-tag-arity-stated-once/tools/proofs.mjs:72-78`
-**Issue:** The row "the base experiment's patch cannot be applied" sets its pass condition to `apply.status !== 0`. A missing patch file, a wrong working directory, a corrupt patch or a git error all give a non-zero status, and all count as "as expected". The claim is that the edit no longer applies because its list is deleted (ADR §"The experiment, after", SUMMARY row 1). Only the printed first stderr line, which a human has to read, shows why.
-
-The patch is also not in the same place as the other rows' evidence: it is the one row that never runs `tsc`. A stronger check is available, because `proofs.mjs` already restores the file afterwards.
-
-**Fix:** Pin the reason, not just the status:
+**Fix:** Require an actual failed test, not just a non-zero exit:
 ```js
-const apply = cp.spawnSync("git", ["apply", "--check", patch], { encoding: "utf8" });
-const reason = /patch failed: packages\/core\/src\/Decision\.ts/.test(apply.stderr);
-row("the base experiment's patch (Not under Many in Decision.ts)", "-",
-    `git apply --check exit ${apply.status}: ${apply.stderr.split("\n")[0].trim()}`,
-    apply.status !== 0 && reason);
+const failing = (test) => {
+  const r = run("node_modules/.bin/vitest", ["run", "--project", "core", "--reporter=json", test]);
+  try {
+    return JSON.parse(r.stdout).numFailedTests > 0;
+  } catch {
+    return false;
+  }
+};
 ```
-Also assert that `patch` exists first.
-
-### WR-04: `proofs.mjs` and `moves.mjs` claim to restore on Ctrl-C, but their SIGINT handlers cannot run, and SIGTERM and SIGHUP are not handled
-
-**File:** `.planning/phases/QD-51-policy-tag-arity-stated-once/tools/proofs.mjs:52`, `.planning/phases/QD-51-policy-tag-arity-stated-once/tools/moves.mjs:75` (header comment at line 6)
-**Issue:** Both tools run `tsc` and `vitest` through `spawnSync`. A synchronous child call blocks the event loop, so a `process.on("SIGINT", …)` handler is never delivered until the script ends. I reproduced it: a script with such a handler and three `spawnSync("sleep", ["1"])` calls ignored `kill -INT`, ran all three steps, finished with exit 0, and never printed from the handler.
-
-Consequences:
-- The "restores every file it edits (also on Ctrl-C)" comment in `moves.mjs` is false. The handler is dead code.
-- With Ctrl-C from a terminal, the child `tsc` or `vitest` gets the signal and dies. The script keeps going and prints rows with `tsc exit null`, and `proofs.mjs` prints spurious "NO" rows. It does not abort.
-- A SIGTERM, SIGHUP (terminal closed) or a harness timeout leaves `Policy.ts` or `PolicyArity.ts` modified on disk. The next run refuses (exit 2, "not clean"), so there is no silent corruption, but a human must `git checkout` the file. The `finally` does not run on a signal kill.
-
-**Fix:** Either drop the Ctrl-C claim and the dead handler, or make the restore real. Use `spawn` with async awaiting so the handler can run, or add `process.on("exit", restore)` plus handlers for SIGTERM and SIGHUP that call `restore()` synchronously. A synchronous `exit` listener does run on `process.exit()`, so wire the restore there. Say in the header that a hard kill needs `git checkout -- packages/core/src`.
+A path that matches no file then gives no JSON with failed tests, and the row reports `NO`.
 
 ## Info
 
-### IN-01: The text after `@ts-expect-error` in the tstyche negatives is decorative; the directive passes for any error on that line
+### IN-01: BEH-QD-593 and the changeset say nothing about the error class a foreign tag now raises
 
-**File:** `packages/core/test/PolicyArity.tst.ts:123`, `129` and `136`
-**Issue:** The directives read `// @ts-expect-error is not assignable to type 'never'` and so on. TypeScript ignores the trailing text. Neither `tsc` nor tstyche checks it, so each directive would pass for an unrelated error on the same line, such as a typo in `Moved<…>`. The header comment ("a checked `@ts-expect-error`") and BEH-QD-592 ("checked `@ts-expect-error` negatives") read as if the message were pinned.
+**File:** `spec/behaviors/18-explanation.md:523`, `.changeset/policy-arity-stated-once.md:5`, `packages/core/src/Decision.ts:431-433` (and `spec/decisions/164-policy-tag-arity-is-stated-once.md`, which is silent)
+**Issue:** The wording "the fold throws on opening it, before any child's arm runs, as the base's `Match.exhaustive` did" is true about when and that it throws. It does not say that the thrown value changed from `Error: effect/match/Match/exhaustive: absurd` to a `TypeError`. The changeset says "No public type, export or outcome changes". `foldTrace` is public and a caller-held trace may carry any tag, so the failure's class and message for such a trace changed. It is a throw both before and after, so the outcome is the same. The guard is also not stated anywhere: no code names this case. It exists because an absent table row is called as a function, so a later `?? "Many"` or an `Object.hasOwn` fallback in `traceShapeOf` would remove it. The pin in `PolicyArity.test.ts` protects that, but the spec does not say what the pin protects.
 
-It is mitigated: each negative has a positive control (the "arm as written is accepted" test, and the two directions together). I confirmed that removing `& { readonly 0?: never }` makes the first directive unused (TS2578). `proofs.mjs` does check the message against the real source. It is not a defect today, but the comment overstates the check.
+**Fix:** In BEH-QD-593, replace "as the base's `Match.exhaustive` did" with "at the same point as the base's `Match.exhaustive`; the error is now a `TypeError`, not that match's error, and callers should not rely on its class". Make the same one-clause correction in `traceChildrenOf`'s doc comment.
 
-**Fix:** Say "the directive consumes any error; the message is a note" in the header. Or pin the message with tstyche's `expect(...).type.toRaiseError("…")` for the three cases.
+### IN-02: The IN-04 tstyche line for `Array.of` pins nothing beyond the line above it
 
-### IN-02: `POLICY_ARITY[tag]` is an unguarded own-property read, so a foreign tag falls through to Many and no test pins it
+**File:** `packages/core/test/PolicyArity.tst.ts:150-151`
+**Issue:** The comment says "a fixed-size Many arm's way out: `Array.of(a, b)` is an array, not a tuple", but the assertion is `expect(Array.of<Policy>()).type.toBeAssignableTo<ChildrenOf<"Many", Policy>>()`. `Array.of<Policy>()` has type `Policy[]`, and line 148 already asserts `ReadonlyArray<Policy>` is assignable, so this line cannot fail unless that one does. It does not pin the documented workaround of a call with elements. The claim itself holds, since `Array.of<T>(...items: T[])` returns `T[]`.
 
-**File:** `packages/core/src/Decision.ts:413`
-**Issue:** For a tag outside the union, which a hand-built `Trace` can carry, the base's `Match.exhaustive` threw at once. Now `POLICY_ARITY[tag]` returns `undefined`, or an inherited member for `"constructor"`, `"toString"` or `"__proto__"`. `traceChildrenOf` then falls to the Many branch and folds the foreign node's whole child subtree. The `MatchError` comes only when `traceStep` runs, one call later. A hostile foreign node with a cyclic or shared child can therefore raise a different error first.
+**Fix:** Pin the call shape the documentation shows:
+```ts
+declare const a: Policy;
+declare const b: Policy;
+expect(Array.of(a, b)).type.toBeAssignableTo<ChildrenOf<"Many", Policy>>();
+```
 
-The outcome is still a throw, never an allow. The plan accepted it as T-51-09, and RESEARCH Q5 probed five names. That probe is not a committed test, so the behaviour is unpinned, unlike every other tag. The sibling pattern in `FieldLattice.ts` reads its table through `Object.hasOwn` with a fail-closed row, as AGENTS.md §5a describes.
+### IN-03: INV-QD-348 says `Decision.test.ts` is "untouched", and the CCR-QD-442 row does not list it
 
-**Fix:** Either pin it with a test ("a foreign tag still throws `MatchError`, before any child's arm runs"), or read the record through a guard such as `Object.hasOwn(POLICY_ARITY, tag) ? POLICY_ARITY[tag] : undefined` and throw there. The second keeps the base's fail-early behaviour.
+**File:** `spec/invariants.md:4034`, `spec/README.md:379` (the CCR-QD-442 row)
+**Issue:** INV-QD-348's Enforcement says `Decision.test.ts` ("`foldTrace` at depth and width, sharing and cycles, INV-QD-090") is "untouched". Commit 2cd90675 added the `isAllowingTrace`/`isDenyingTrace` test to that file. The `foldTrace` tests in it are unchanged, which is probably what is meant, but the file is not. The CCR-QD-442 row lists "the phase's source and tests" and names six files; `packages/core/test/Decision.test.ts` is not among them, and the row's iteration-1 paragraph does not say that WR-02's mutation-floor test was added there. The brief asks that the row list every revision, and a reader of the row cannot learn that this test file changed.
 
-### IN-03: `PolicyArity.test.ts` has one assertion that cannot fail and two that couple to unrelated output shape
-
-**File:** `packages/core/test/PolicyArity.test.ts:101`, `144`, `153-161`
-**Issue:**
-- Line 101: `assert.include(["Leaf", "Wrapper", "Many"], POLICY_ARITY[tag], tag)` can never fail at runtime. `as const satisfies … Arity` already forbids any other word at compile time, and a wrong-but-valid word is caught by the readers' lockstep, not here.
-- Lines 144 and 153-161: `renderTrace`'s expected string hard-codes the `✓` glyph. The `diffTraces` expectation lists `label`, `beforeReason` and `afterReason` as explicit `undefined`, which `deepStrictEqual` distinguishes. The first RED expectation was wrong for exactly this reason (the 74917a4d deviation). A later change to the check mark, or to `diffTraces` omitting absent keys, fails these 32 tests with no arity involved.
-
-**Fix:** Drop the line-101 assertion, since the type owns it. For render and diff, assert only the arity-relevant fact: the number of rendered child lines, and that `diffTraces(...)[0].path` equals `[0]` with `verdict` before and after matching `before` and `after`.
-
-### IN-04: The Many type refuses every fixed-length array literal, which a future Many tag will meet as an opaque error
-
-**File:** `packages/core/src/PolicyArity.ts:50-53`
-**Issue:** `ReadonlyArray<Child> & { readonly 0?: never }` rejects any array literal with a first element. That is the intent for `[p.policy]`. But a future Many tag with fixed children, for example a binary `Xor` returning `[p.left, p.right]`, fails with "not assignable to type 'never'". The `PolicyArity.tst.ts` case `readonly [Policy, Policy]` not assignable to Many documents this limit. The error text names neither Many nor the tag, and the workaround (a spread or a non-literal array) appears nowhere.
-
-**Fix:** Add one sentence to the `ChildrenOf` doc comment and to BEH-QD-592: "a Many arm returning a literal needs a non-literal array, e.g. `Array.of(a, b)`".
-
-### IN-05: ADR-QD-164 and the proof table cite a test file as the reader that refuses Leaf to Many; the `src` readers refuse it first
-
-**File:** `spec/decisions/164-policy-tag-arity-is-stated-once.md:93` and the proof table row for Leaf to Many; `proofs.mjs:36`
-**Issue:** I made the `HasRole: "Many"` edit in the copy. It fails first in `src`: `LeafNeeds.ts(165,3)` TS2353, `Policy.ts(1187,3)` for `leafCases`, `Predicate.ts(395,75)`, `Walk.ts(323,28)` and `Simplify.ts(100,7)`. It fails in tests afterwards. The ADR and the SUMMARY cite only `Policy.test.ts(1045,52)`, because the proof prints `errors[0]` under `"any"`, and that line comes from the test graph. A reader concludes the refusal depends on a test file. A `tsc -p tsconfig.build.json` of `src` alone refuses it as well, and that is the stronger fact.
-
-**Fix:** Cite `LeafNeeds.ts` (keyed by `LeafPolicy["_tag"]`) and `Walk.ts` as the readers. Make the proof row's expectation a message fragment from `src` (for example `"'HasRole' does not exist in type"`) rather than `"any"`.
-
-### IN-06: Tooling brittleness: a hard-coded TypeScript path, a dead fallback branch, and survivor identity that is a set, not a multiset
-
-**File:** `.planning/phases/QD-51-policy-tag-arity-stated-once/tools/scan.mjs:133`, `scan.mjs:119-121`, `.planning/phases/QD-51-policy-tag-arity-stated-once/tools/mutation.mjs:44-45`
-**Issue:**
-- `scan.mjs` requires `./node_modules/.pnpm/typescript@6.0.3/node_modules/typescript`. A dependency bump makes the whole "Policy.ts emits the base's JavaScript" check report a missing install, not the actual comparison.
-- `scan.mjs` keeps an "A1 fallback" branch for an import that was never taken (`polImport`). It is dead and only widens what the scan accepts.
-- `mutation.mjs compare` computes `added` and `gone` with `includes`, so two textually identical survivors (same mutator, replacement, mutated text and line text) count as one. A second identical survivor in the after-run would not be reported as new.
-
-All three hold today, so the phase's evidence is intact. They would hide a regression.
-
-**Fix:**
-- Resolve TypeScript with `createRequire(...).resolve("typescript")`.
-- Delete the fallback branch.
-- Compare survivors as multisets, counting identities.
+**Fix:** In INV-QD-348 say "its `foldTrace` tests untouched". In the CCR row add `packages/core/test/Decision.test.ts` (one test for the two trace guards, WR-02) to the file list, and bump the revisions the two edits touch.
 
 ---
 
-_Reviewed: 2026-11-16T16:25:00Z_
+_Reviewed: 2026-11-16T17:10:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
