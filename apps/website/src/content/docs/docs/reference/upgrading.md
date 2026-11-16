@@ -790,3 +790,36 @@ export const billingSink = Layer.succeed(DecisionSink, {
 ```
 
 The decision is [ADR-QD-159](https://github.com/leaderiop/qadi/blob/main/spec/decisions/159-the-sink-emitter-reports-what-it-contains.md).
+
+## 0.13: a port's defaulted state is read from the port, not its name
+
+`@qadi/devtools` used to decide that a port was its fail-closed default by parsing the display name `@qadi/core` composes for a wrapper (`"<inner> (<suffix>)"`). It now asks `@qadi/core`, which marks the default it builds and carries the mark through every wrapper it derives (`…Retrying`, `…Bounded`, `…TimingOut`, `recordingPort`, `decoratePorts`). `isPortDefault(description, service)` is the new, public reader. The mark is a symbol-keyed property, so `Object.keys`, JSON and a clone do not see it, and evaluation never reads it. Nothing is renamed or removed and no outcome changes.
+
+A hand-written wrapper moves in two directions:
+
+- A wrapper that spreads `inner` now reads as defaulted, whatever it is called, including a wrapper with no name of its own. One that spreads the default and replaces its method still reads as defaulted, because the fact is that it was built from the default's shape, not that it answers like the default.
+- A wrapper that builds a fresh object, or delegates through `Object.create`, now reads as a real adapter, even when its name starts with a default's. A name no longer makes a service count as a default.
+
+The devtools wiring report and services panel show the difference, and nothing else about them changes. A wrapper that should keep the default's identity spreads `inner`:
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import { AttributeResolver, AttributeResolverNone } from "@qadi/core";
+
+export const auditedAttributes = Layer.effect(
+  AttributeResolver,
+  Effect.gen(function* () {
+    const inner = yield* AttributeResolver;
+    return AttributeResolver.of({
+      ...inner,
+      name: "audited",
+      resolve: (subjectId, attribute) => inner.resolve(subjectId, attribute),
+    });
+  }),
+).pipe(Layer.provide(AttributeResolverNone));
+```
+
+A second install of `@qadi/core` has its own mark, so it reads the other copy's defaults as real adapters.
+
+The decision is [ADR-QD-160](https://github.com/leaderiop/qadi/blob/main/spec/decisions/160-port-facts-are-read-from-the-description.md).
