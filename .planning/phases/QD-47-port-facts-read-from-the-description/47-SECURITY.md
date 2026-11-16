@@ -39,7 +39,7 @@ created: "2026-11-16"
 | T-47-08 | Spoofing | A default under another port | medium | mitigate | The mark holds the `PortName`, and the reader compares it with `d.port`. Row M6 is green | closed |
 | T-47-09 | Information disclosure | The mark leaking into JSON or keys | low | mitigate | A symbol key. Row M8 pins `Object.keys` and the JSON text | closed |
 | T-47-10 | Spoofing | A scripted double or remote asker marked | medium | mitigate | `PortDoubles.ts` and `PortRemote.ts` do not mention the mark (grep is clean). Row M2 pins a scripted double false | closed |
-| T-47-11 | Denial of service | A `Proxy` service whose trap throws | low | accept | See the Accepted Risks Log | closed |
+| T-47-11 | Denial of service | A `Proxy` service whose trap throws | low | mitigate | Mitigated by code-review fixes WR-02 (iteration 1, `80d56c5f`) and WR-01 (iteration 3, `a7d385c2`). `isMarkedDefault` reads through `ownMark`, which answers no mark when the trap throws. `markDefault` defines through `defineMark`, which falls back to a copy when the define is refused or throws. Rows M7b, M12 and M13 cover this. AR-47-01 is withdrawn | closed |
 | T-47-12 | Elevation of privilege | An evaluation path branching on the mark | high | mitigate | Only `PortDefault.ts`, `PortDescription.ts`, `PortDerivation.ts`, `Ports.ts` and devtools' `Wiring.ts` name the mark or the reader | closed |
 | T-47-13 | Spoofing | A method-replacing spread reading defaulted | low | accept | See the Accepted Risks Log | closed |
 | T-47-14 | Spoofing | A fresh-object or `Object.create` wrapper reading real | medium | accept | See the Accepted Risks Log | closed |
@@ -66,7 +66,7 @@ created: "2026-11-16"
 
 | Risk ID | Threat Ref | Rationale | Accepted By | Date |
 |---------|------------|-----------|-------------|------|
-| AR-47-01 | T-47-11 | A service is the host's own in-process code. The reader runs only in devtools' wiring report, never on an evaluation path. Recorded in ADR-QD-160's consequences | Plan-time disposition (47-03) | 2026-11-16 |
+| ~~AR-47-01~~ | T-47-11 | *Withdrawn 2026-11-16: the code-review fixes made the reader and the marker total, so the risk is mitigated rather than accepted (see T-47-11).* Original: a service is the host's own in-process code. The reader runs only in devtools' wiring report, never on an evaluation path | Plan-time disposition (47-03) | 2026-11-16 |
 | AR-47-02 | T-47-13 | `defaulted` means "built from the default's shape", not "answers fail-closed" (BEH-QD-572, ADR-QD-160). A diagnostic that errs towards warning errs in the safe direction | Plan-time disposition (47-04) | 2026-11-16 |
 | AR-47-03 | T-47-14 | The documented limit (user decision D-04). BEH-QD-572, ADR-QD-160 and the 0.13 upgrade entry tell wrapper authors to spread `inner`. R7 of `WiringDefaulted.test.ts` pins it | User decision D-04 | 2026-11-16 |
 | AR-47-04 | T-47-19 | The user chose a unique symbol (D-20): being unforgeable outweighs the duplicate-install case. ADR-QD-160 and BEH-QD-572 state the limit | User decision D-20 | 2026-11-16 |
@@ -91,3 +91,11 @@ created: "2026-11-16"
 - [x] `status: verified` set in frontmatter
 
 **Approval:** verified 2026-11-16
+
+## Security Audit 2026-11-16
+
+| Metric | Count |
+|---|---|
+| Threats found | 26 |
+| Closed | 26 |
+| Open | 0 |
