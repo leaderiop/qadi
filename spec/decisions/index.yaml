@@ -486,3 +486,7 @@ entries:
     file: "159-the-sink-emitter-reports-what-it-contains.md"
     title: "The sink emitter reports what it contains"
     status: "Accepted — amends ADR-QD-044"
+  - id: "ADR-QD-160"
+    file: "160-port-facts-are-read-from-the-description.md"
+    title: "Port facts are read from the description"
+    status: "Accepted — reads ADR-QD-094, ADR-QD-109"
