@@ -140,8 +140,8 @@ identity. `runDiagnostics` and `makeDiagnosticsStore` are the same loop without
 React, for a shell of your own.
 
 Under a `QadiProvider`, `@qadi/react` hands you all of that in one call:
-`<DevtoolsDock {...useDevtoolsFeed({ collector })} />` supplies `gates`,
-`onInvalidate` and a `diagnostics` whose layer is the provider's own build, so
+`<DevtoolsDock {...useDevtoolsFeed({ collector })} />` supplies `gates` (the
+registry the dock subscribes to), `onInvalidate` and a `diagnostics` whose layer is the provider's own build, so
 the dock reads the cache your decisions filled and nothing needs hoisting.
 
 **Without a provider, the dock's build of your layer is its own build.** A
