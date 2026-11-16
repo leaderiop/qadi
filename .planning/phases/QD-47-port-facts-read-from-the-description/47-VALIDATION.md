@@ -3,9 +3,9 @@ phase: "47"
 slug: "port-facts-read-from-the-description"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
 # audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: "2026-11-16"
 ---
 
@@ -47,22 +47,22 @@ Each plan fills in its own tasks. The requirement map below is the contract.
 
 | Requirement | Behavior | Test Type | Automated Command | File Exists | Status |
 |-------------|----------|-----------|-------------------|-------------|--------|
-| PFCT-02 | A spreading wrapper, renamed `audited <port>`, around each port's fail-closed default reads `defaulted: true`. This is RED on the base. | `it.effect` via `forEveryPort` | `pnpm exec vitest run --project devtools packages/devtools/test/model/WiringDefaulted.test.ts` | ❌ W0 (RED on base) | ⬜ pending |
-| PFCT-01 | `isPortDefault` is true for each `nonePort` and through retrying, bounded, timingOut and recording wrappers (two orders, two depths). It is false for a real adapter, a fresh object, a default under another port, a shape with no mark, `undefined`, `null`, a string and a function. Only own properties count. | `it.effect` | `pnpm exec vitest run --project core packages/core/test/PortDefault.test.ts` | ❌ written test-first in the core plan (it cannot compile on the base) | ⬜ pending |
-| PFCT-01 | The reader's signature | tstyche | `pnpm test:tstyche` | ❌ `packages/core/test/PortDefault.tst.ts`, in the core plan | ⬜ pending |
-| PFCT-01 (D-17) | `decoratePorts`, and therefore `capturing`, carries the mark, so a captured default reads defaulted | `it.effect` | `pnpm exec vitest run --project devtools packages/devtools/test/model/Capture.test.ts` | ❌ new row, in the core plan | ⬜ pending |
-| PFCT-01 | `isDefaultName` and `CONSEQUENCES` are gone | grep | `bash -c '! /usr/bin/grep -nE "isDefaultName\|CONSEQUENCES" packages/devtools/src/model/Wiring.ts'` | at close | ⬜ pending |
-| PFCT-03 | Byte-exact text for the five consequence lines, every call-row branch, the `attempts` suffix, and the card's defaulted and real text | render | `pnpm exec vitest run --project devtools packages/devtools/test/react/ServicesPanel.reading.test.tsx` | ❌ W0 (green on base) | ⬜ pending |
-| PFCT-03 / PFCT-04 | `ServicesPanel.tsx` names no port's span field | grep | `bash -c '! /usr/bin/grep -nE "call\.(attribute\|resolved\|event\|relation\|depth\|meaning\|signerRole\|matched\|scope\|name\|answer\|resourceId)" packages/devtools/src/react/ServicesPanel.tsx'` | at close | ⬜ pending |
-| PFCT-04 (D-18) | `ROWS` is built by the one monomorphic, fully checked row helper (R6), with no widened implementation type. `PortCall` is derived from the registry (D-19). | typecheck + test | `pnpm exec tsc -p tsconfig.test.json`; `pnpm exec vitest run --project devtools packages/devtools/test/model/PortCalls.test.ts` | ✅ | ⬜ pending |
-| PFCT-05 (D-12, D-19) | The sixth-port scratch run is recorded and reverted. The flagged list is the port-reading row, `ROWS`' entry, and `SimulationFields.ts` and `SimulationSource.ts`. | manual evidence in the SUMMARY | the recipe in 47-RESEARCH.md Q4; `git status` is clean afterwards | n/a | ⬜ pending |
-| WX-01 | The merge gate | full | `pnpm check:pr < /dev/null` | ✅ | ⬜ pending |
-| WX-02 | Only reserved ids are used (ARCH-94, ADR-QD-160, CCR-QD-438, BEH-QD-571..575, INV-QD-339..340) | lint | `pnpm lint` (`[no-numbering-placeholder]`) | ✅ | ⬜ pending |
-| WX-03 | The overview names `isPortDefault` | gate 13 | `pnpm spec:api` | ✅ | ⬜ pending |
-| WX-04 | Nothing forbidden is added, and the budgets are unchanged | lint + scan | `pnpm lint`; `git diff <base> -- scripts/check-house-style.mjs` is empty | ✅ | ⬜ pending |
-| WX-05 | Coverage holds, and no touched file's Stryker score drops | coverage + mutation | `pnpm coverage`; the two `--mutate` runs, then the comparer against `47-mutation-base.json` | ❌ W0 base | ⬜ pending |
-| WX-06 | Tests come before the change | git order | The base JSON, the RED row and the characterisation precede the first `packages/*/src` edit | n/a | ⬜ pending |
-| WX-07 | The changes are recorded (not Breaking) | file | `.changeset/*.md` with `"@qadi/core": minor` and `"@qadi/devtools": patch` | ❌ | ⬜ pending |
+| PFCT-02 | A spreading wrapper, renamed `audited <port>`, around each port's fail-closed default reads `defaulted: true`. This is RED on the base. | `it.effect` via `forEveryPort` | `pnpm exec vitest run --project devtools packages/devtools/test/model/WiringDefaulted.test.ts` | ✅ (RED at 47-01, green at 47-04) | ✅ green |
+| PFCT-01 | `isPortDefault` is true for each `nonePort` and through retrying, bounded, timingOut and recording wrappers (two orders, two depths). It is false for a real adapter, a fresh object, a default under another port, a shape with no mark, `undefined`, `null`, a string and a function. Only own properties count. | `it.effect` | `pnpm exec vitest run --project core packages/core/test/PortDefault.test.ts` | ✅ (47-03) | ✅ green |
+| PFCT-01 | The reader's signature | tstyche | `pnpm test:tstyche` | ✅ `PortDefault.tst.ts` (47-03) | ✅ green |
+| PFCT-01 (D-17) | `decoratePorts`, and therefore `capturing`, carries the mark, so a captured default reads defaulted | `it.effect` | `pnpm exec vitest run --project devtools packages/devtools/test/model/Capture.test.ts` | ✅ (47-02) | ✅ green |
+| PFCT-01 | `isDefaultName` and `CONSEQUENCES` are gone | grep | `bash -c '! /usr/bin/grep -nE "isDefaultName\|CONSEQUENCES" packages/devtools/src/model/Wiring.ts'` | at close | ✅ green |
+| PFCT-03 | Byte-exact text for the five consequence lines, every call-row branch, the `attempts` suffix, and the card's defaulted and real text | render | `pnpm exec vitest run --project devtools packages/devtools/test/react/ServicesPanel.reading.test.tsx` | ✅ (47-02) | ✅ green |
+| PFCT-03 / PFCT-04 | `ServicesPanel.tsx` names no port's span field | grep | `bash -c '! /usr/bin/grep -nE "call\.(attribute\|resolved\|event\|relation\|depth\|meaning\|signerRole\|matched\|scope\|name\|answer\|resourceId)" packages/devtools/src/react/ServicesPanel.tsx'` | at close | ✅ green |
+| PFCT-04 (D-18) | `ROWS` is built by the one monomorphic, fully checked row helper (R6), with no widened implementation type. `PortCall` is derived from the registry (D-19). | typecheck + test | `pnpm exec tsc -p tsconfig.test.json`; `pnpm exec vitest run --project devtools packages/devtools/test/model/PortCalls.test.ts` | ✅ | ✅ green |
+| PFCT-05 (D-12, D-19) | The sixth-port scratch run is recorded and reverted. The flagged list is the port-reading row, `ROWS`' entry, and `SimulationFields.ts` and `SimulationSource.ts`. | manual evidence in the SUMMARY | the recipe in 47-RESEARCH.md Q4; `git status` is clean afterwards | n/a | ✅ green |
+| WX-01 | The merge gate | full | `pnpm check:pr < /dev/null` | ✅ | ✅ green |
+| WX-02 | Only reserved ids are used (ARCH-94, ADR-QD-160, CCR-QD-438, BEH-QD-571..575, INV-QD-339..340) | lint | `pnpm lint` (`[no-numbering-placeholder]`) | ✅ | ✅ green |
+| WX-03 | The overview names `isPortDefault` | gate 13 | `pnpm spec:api` | ✅ | ✅ green |
+| WX-04 | Nothing forbidden is added, and the budgets are unchanged | lint + scan | `pnpm lint`; `git diff <base> -- scripts/check-house-style.mjs` is empty | ✅ | ✅ green |
+| WX-05 | Coverage holds, and no touched file's Stryker score drops | coverage + mutation | `pnpm coverage`; the two `--mutate` runs, then the comparer against `47-mutation-base.json` | ✅ `47-mutation-base.json` / `47-mutation-after.json` | ✅ green |
+| WX-06 | Tests come before the change | git order | The base JSON, the RED row and the characterisation precede the first `packages/*/src` edit | n/a | ✅ green |
+| WX-07 | The changes are recorded (not Breaking) | file | `.changeset/*.md` with `"@qadi/core": minor` and `"@qadi/devtools": patch` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -70,14 +70,14 @@ Each plan fills in its own tasks. The requirement map below is the contract.
 
 ## Wave 0 Requirements
 
-- [ ] `47-mutation-base.json`, committed alone as the phase's first commit.
+- [x] `47-mutation-base.json`, committed alone as the phase's first commit.
   - It holds base scores from two Stryker runs on the untouched tree (the reports on disk are stale).
   - Core: `PortDerivation.ts`, `PortDescription.ts`, `PortDoubles.ts`, `Ports.ts`.
   - Devtools: `model/Wiring.ts`, `model/PortCalls.ts`.
   - `ServicesPanel.tsx` is not instrumentable, because `stryker.devtools.mjs` mutates `src/model/**` only.
-- [ ] `packages/devtools/test/model/WiringDefaulted.test.ts`: the RED row. It compiles on the base, and its RED output goes in the SUMMARY.
-- [ ] `packages/devtools/test/react/ServicesPanel.reading.test.tsx`: the byte-exact characterisation, green on the base.
-- [ ] In the core plan (not Wave 0, per research Pitfall 1), written test-first:
+- [x] `packages/devtools/test/model/WiringDefaulted.test.ts`: the RED row. It compiles on the base, and its RED output goes in the SUMMARY.
+- [x] `packages/devtools/test/react/ServicesPanel.reading.test.tsx`: the byte-exact characterisation, green on the base.
+- [x] In the core plan (not Wave 0, per research Pitfall 1), written test-first:
   - `packages/core/test/PortDefault.test.ts`;
   - `packages/core/test/PortDefault.tst.ts`;
   - the `Capture.test.ts` row.
@@ -94,11 +94,19 @@ Each plan fills in its own tasks. The requirement map below is the contract.
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 60s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 60s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-11-16 (State A audit: every requirement covered by a green automated check; PFCT-05 by the recorded sixth-port evidence in 47-05-SUMMARY.md)
+
+## Validation Audit 2026-11-16
+
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
