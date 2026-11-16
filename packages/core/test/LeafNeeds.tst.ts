@@ -1,16 +1,18 @@
 /**
- * Pins the compile-time half of the leaf-needs table: a row's `own` and `matcher`
- * are its leaf variant's, so a row that disagrees with its leaf does not compile
- * (ADR-QD-163, INV-QD-345).
+ * Pins the compile-time half of the leaf-needs table (ADR-QD-163, INV-QD-345).
  *
- * `absenceOf`'s guards trust the table; without this a wrong row compiled and
- * failed open.
+ * A row's `own` is its tag's classification, from closed tag lists in which an
+ * unlisted tag gets `never`, and its `matcher` is read from the variant's shape. So
+ * a row that disagrees with its leaf does not compile, and neither does any row for
+ * a leaf no list names yet. `absenceOf`'s guards trust the table; without this a
+ * wrong row compiled and failed open.
  */
 import { expect, test } from "tstyche";
 import { LEAF_NEEDS } from "../src/LeafNeeds.ts";
-import type { LeafNeedOf } from "../src/LeafNeeds.ts";
+import type { LeafNeedOf, LeafNeedOfVariant } from "../src/LeafNeeds.ts";
+import type { Matcher } from "../src/Matcher.ts";
 
-test("own is the input the variant reads itself", () => {
+test("own is the classification of the variant's tag", () => {
   expect<LeafNeedOf<"HasAction">["own"]>().type.toBe<"Action">();
   expect<LeafNeedOf<"HasResourceAttribute">["own"]>().type.toBe<"Resource">();
   expect<LeafNeedOf<"HasAttribute">["own"]>().type.toBe<"Nothing">();
@@ -55,4 +57,33 @@ test("every row of the table is its leaf's", () => {
   expect(LEAF_NEEDS).type.toBeAssignableTo<{
     readonly [K in keyof typeof LEAF_NEEDS]: LeafNeedOf<K>;
   }>();
+});
+
+test("a leaf no classification names has no row", () => {
+  // Leaves the policy does not have: one that reads the action itself, one that
+  // reads the resource itself through a matcher.
+  type HasActionIn = { readonly _tag: "HasActionIn"; readonly actions: ReadonlyArray<string> };
+  type HasResourceField = {
+    readonly _tag: "HasResourceField";
+    readonly attribute: string;
+    readonly matcher: Matcher;
+  };
+  expect<LeafNeedOfVariant<HasActionIn>["own"]>().type.toBe<never>();
+  expect<LeafNeedOfVariant<HasResourceField>["own"]>().type.toBe<never>();
+  // So no row fits it, the fail-open "reads nothing" row included.
+  expect<LeafNeedOfVariant<HasActionIn>>().type.not.toBeAssignableFrom({
+    own: "Nothing",
+    matcher: false,
+    resourceId: "Never",
+  } as const);
+  expect<LeafNeedOfVariant<HasActionIn>>().type.not.toBeAssignableFrom({
+    own: "Action",
+    matcher: false,
+    resourceId: "Never",
+  } as const);
+  expect<LeafNeedOfVariant<HasResourceField>>().type.not.toBeAssignableFrom({
+    own: "Nothing",
+    matcher: true,
+    resourceId: "Never",
+  } as const);
 });

@@ -32,9 +32,6 @@ type MatcherLeaf = Extract<LeafPolicy, { readonly matcher: Matcher }>;
 /** The leaf that names the action itself. */
 type ActionLeaf = Extract<LeafPolicy, { readonly _tag: "HasAction" }>;
 
-/** The leaf that reads an attribute of the resource itself. */
-type ResourceLeaf = Extract<LeafPolicy, { readonly _tag: "HasResourceAttribute" }>;
-
 /** What one leaf needs from the request. */
 export interface LeafNeed {
   /** What the leaf itself reads, whatever its matcher says; checked first. */
@@ -45,27 +42,70 @@ export interface LeafNeed {
   readonly resourceId: "Never" | "Always" | "ByScope";
 }
 
+/** The leaves that read the action themselves. */
+type ReadsAction = "HasAction";
+
+/** The leaves that read an attribute of the resource themselves. */
+type ReadsResource = "HasResourceAttribute";
+
+/** The leaves that read neither input themselves; a matcher may still reference one. */
+type ReadsNothing =
+  | "HasPermission"
+  | "HasRole"
+  | "HasAttribute"
+  | "HasRelationship"
+  | "HasActed"
+  | "HasNotActed"
+  | "HasCustom"
+  | "HasSignature";
+
 /**
- * The only row the leaf tagged `K` can have: `own` is the input its variant reads
- * itself, and `matcher` is `true` exactly when the variant carries a matcher.
+ * The `own` a leaf tagged `Tag` must state, from three closed tag lists.
  *
- * Derived from the variant, so a row that disagrees with its leaf is a compile
- * error rather than a check that never fires: `absenceOf`'s two guards trust the
- * table, and this is what makes them sound.
+ * A leaf's type does not show which input it reads (`HasAttribute` and
+ * `HasResourceAttribute` have the same fields), so each tag is classified by name,
+ * and a tag in none of the lists is `never`: a new leaf's row is TS2322 until
+ * someone states what it reads, rather than defaulting to "reads nothing" and
+ * failing open.
  */
-export type LeafNeedOf<K extends LeafTag> = LeafNeed & {
-  readonly own: Extract<LeafPolicy, { readonly _tag: K }> extends ActionLeaf
-    ? "Action"
-    : Extract<LeafPolicy, { readonly _tag: K }> extends ResourceLeaf
-      ? "Resource"
-      : "Nothing";
-  readonly matcher: Extract<LeafPolicy, { readonly _tag: K }> extends MatcherLeaf ? true : false;
+type OwnOf<Tag extends string> = Tag extends ReadsAction
+  ? "Action"
+  : Tag extends ReadsResource
+    ? "Resource"
+    : Tag extends ReadsNothing
+      ? "Nothing"
+      : never;
+
+/**
+ * The only row a leaf variant `V` can have: `own` is its tag's classification
+ * ({@link OwnOf}), and `matcher` is `true` exactly when the variant carries a
+ * matcher, read from its shape.
+ *
+ * Generic over the variant, not the tag, so a test can build a leaf the policy does
+ * not have yet and see that no row fits it.
+ */
+export type LeafNeedOfVariant<V extends { readonly _tag: string }> = LeafNeed & {
+  readonly own: OwnOf<V["_tag"]>;
+  readonly matcher: V extends { readonly matcher: Matcher } ? true : false;
 };
 
 /**
+ * The only row the leaf tagged `K` can have ({@link LeafNeedOfVariant}).
+ *
+ * A row that disagrees with its leaf is a compile error rather than a check that
+ * never fires: `absenceOf`'s two guards trust the table, and this is what makes
+ * them sound.
+ */
+export type LeafNeedOf<K extends LeafTag> = LeafNeedOfVariant<
+  Extract<LeafPolicy, { readonly _tag: K }>
+>;
+
+/**
  * One row per leaf tag. A missing row is TS2741 and an extra one TS2353, so a new
- * leaf cannot ship without saying what it needs (INV-QD-345); a row whose `own` or
- * `matcher` disagrees with its leaf's variant is TS2322 ({@link LeafNeedOf}).
+ * leaf cannot ship without saying what it needs (INV-QD-345); a row whose `own`
+ * disagrees with its tag's classification, or whose `matcher` disagrees with its
+ * leaf's shape, is TS2322 ({@link LeafNeedOf}), and so is any row for a tag no
+ * classification names.
  *
  * Rows equal in content stay separate, keyed rows: the key is the leaf, not the
  * shape of its need.
