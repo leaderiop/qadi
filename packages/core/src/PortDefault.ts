@@ -32,10 +32,15 @@ export const markDefault = <N extends PortName, Shape extends object>(
  * Reads the own property, never an inherited one (an `in`-based test would also
  * see a prototype's mark), and is total over any value.
  */
-export const isMarkedDefault = (port: PortName, service: unknown): boolean =>
-  typeof service === "object" &&
-  service !== null &&
-  Object.getOwnPropertyDescriptor(service, DEFAULT_OF)?.value === port;
+export const isMarkedDefault = (port: PortName, service: unknown): boolean => {
+  if (typeof service !== "object" || service === null) return false;
+  try {
+    return Object.getOwnPropertyDescriptor(service, DEFAULT_OF)?.value === port;
+  } catch {
+    // A hostile or revoked proxy is not the default, and a diagnostic read must not throw.
+    return false;
+  }
+};
 
 /** `made` is a wrapper around `inner`: it is the port's default exactly when `inner` is. */
 export const carryDefault = <N extends PortName, Shape extends object>(

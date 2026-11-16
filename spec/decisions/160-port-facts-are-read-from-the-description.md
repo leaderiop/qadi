@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-160                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — reads ADR-QD-094, ADR-QD-109        |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-94, CCR-QD-438)<br>1.0 (2026-11-16): accepted (ARCH-94, CCR-QD-438) |
+> | Change History | 1.2 (2026-11-16): a throwing or revoked proxy reads not defaulted; the accepted-throw consequence is withdrawn (ARCH-94 review WR-02)<br>1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-94, CCR-QD-438)<br>1.0 (2026-11-16): accepted (ARCH-94, CCR-QD-438) |
 
 ---
 
@@ -86,8 +86,8 @@ Both directions of the change, because a wrapper author is moved both ways (rese
   shape", not "answers like the default" (research Pitfall 7).
 - **A duplicate install of `@qadi/core`** reads the other copy's defaults as real adapters, because each copy has its own
   symbol (D-20, accepted; T-47-19).
-- **A hostile `Proxy` service whose descriptor trap throws** makes the devtools wiring read fail (T-47-11, accepted:
-  the reader runs only there).
+- **A hostile `Proxy` service whose descriptor trap throws, or a revoked one,** reads not defaulted: `isMarkedDefault`
+  catches the throw, so the reader stays total and the wiring read cannot fail on a service it was handed (WR-02).
 - **The mark never reaches `Object.keys`, JSON or a structural clone**, and core's evaluation never reads it, so no
   outcome, trace or record changes.
 - **Not a breaking change.** `isPortDefault` is one added export, so `@qadi/core` is a minor; `@qadi/devtools` is a patch.

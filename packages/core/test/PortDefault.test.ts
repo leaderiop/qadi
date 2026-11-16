@@ -123,6 +123,22 @@ describe("a port's fail-closed default is a fact the service carries (PFCT-01, D
     for (const value of notShapes) assert.isFalse(isPortDefault(attributeResolverPort, value));
   });
 
+  it("M7b: a proxy whose descriptor trap throws, or a revoked one, reads not defaulted", () => {
+    const hostile = new Proxy(
+      {},
+      {
+        getOwnPropertyDescriptor() {
+          throw new Error("trap");
+        },
+      },
+    );
+    const revoked = Proxy.revocable({}, {});
+    revoked.revoke();
+
+    assert.isFalse(isPortDefault(attributeResolverPort, hostile));
+    assert.isFalse(isPortDefault(attributeResolverPort, revoked.proxy));
+  });
+
   it.effect("M8: the mark never shows in keys or JSON", () =>
     Effect.gen(function* () {
       const none = yield* defaultOf(attributeResolverPort);
