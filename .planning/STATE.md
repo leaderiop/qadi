@@ -2,21 +2,21 @@
 gsd_state_version: "1.0"
 milestone: v1.5
 milestone_name: Arch Wave 10
-current_phase: 48
-current_phase_name: "Audit reports core's refusal and derives \"lost\""
-current_plan: 8
-status: executing
-stopped_at: Completed QD-48-08-PLAN.md
-last_updated: "2026-11-16T03:33:52.797Z"
+current_phase: 49
+current_phase_name: Gates as the dock model's eighth store, one gate-state vocabulary
+current_plan: Not started
+status: planning
+stopped_at: Phase QD-48 complete, ready to plan Phase 49
+last_updated: "2026-11-16T04:19:06.219Z"
 last_activity: 2026-11-16
-last_activity_desc: Phase QD-48 execution started
-state_head: f03a3037cce4b1fc5b352f5045b11dd3fbfc3737
+last_activity_desc: Phase QD-48 complete, transitioned to Phase 49
+state_head: ccfdbded8721f118e929377c7ea2e6efccf6efce
 progress:
   total_phases: 10
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 44
   completed_plans: 44
-  percent: 50
+  percent: 60
 ---
 
 # Project State
@@ -30,19 +30,19 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 
 ## Current Position
 
-Phase: QD-48 (Audit reports core's refusal and derives "lost") — EXECUTING
-Current Plan: 8
+Phase: 49 — Gates as the dock model's eighth store, one gate-state vocabulary
+Current Plan: Not started
 Total Plans in Phase: 8
-Status: Executing Phase QD-48
-Last activity: 2026-11-16 — Phase QD-48 execution started
+Status: Ready to plan
+Last activity: 2026-11-16 — Phase QD-48 complete, transitioned to Phase 49
 
-Progress: [█████░░░░░] 50% (5 of 10 phases)
+Progress: [██████░░░░] 60% (5 of 10 phases)
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 201
+- Total plans completed: 209
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -87,6 +87,7 @@ Progress: [█████░░░░░] 50% (5 of 10 phases)
 | 45 | 8 | - | - |
 | 46 | 7 | - | - |
 | 47 | 7 | - | - |
+| QD-48 | 8 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -555,7 +556,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-16T03:33:52.624Z
-Stopped at: Completed QD-48-08-PLAN.md
+Stopped at: Phase QD-48 complete, ready to plan Phase 49
 Resume file: None
 
 ## Operator Next Steps
