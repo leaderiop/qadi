@@ -1,0 +1,21 @@
+{
+ "measured": {
+  "packages/devtools/src/model/DockModel.ts": 1,
+  "packages/devtools/src/model/Gates.ts": 1,
+  "packages/react/src/DecisionOutcome.ts": 1,
+  "packages/react/src/DevtoolsFeed.ts": 0.7777777777777778,
+  "packages/react/src/GateWriter.ts": 0.9795918367346939
+ },
+ "unmeasured": {
+  "packages/core/src/index.ts": "a barrel: export-star lines only, no mutant",
+  "packages/devtools/src/index.ts": "a barrel: named re-exports only, no mutant",
+  "packages/devtools/src/react/DevtoolsDock.tsx": "not instrumentable: stryker.devtools.mjs mutates packages/devtools/src/model/**/*.ts only",
+  "packages/devtools/src/react/QuestionsPanel.tsx": "not instrumentable: stryker.devtools.mjs mutates packages/devtools/src/model/**/*.ts only",
+  "packages/devtools/src/react/useDockModel.ts": "not instrumentable: stryker.devtools.mjs mutates packages/devtools/src/model/**/*.ts only"
+ },
+ "new": [
+  "packages/core/src/GateState.ts"
+ ],
+ "deleted": {},
+ "moved": {}
+}
