@@ -6,16 +6,16 @@ current_phase: 49
 current_phase_name: Gates as the dock model's eighth store, one gate-state vocabulary
 current_plan: 9
 status: executing
-stopped_at: Completed QD-49-08-PLAN.md
-last_updated: "2026-11-16T07:13:17.594Z"
+stopped_at: Completed 49-09-PLAN.md
+last_updated: "2026-11-16T07:22:19.050Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase QD-49 execution started
-state_head: f9d2c3f58579aceed757fa86df497a1b063e40bf
+state_head: b60ba39c22d5a37b06cf30d60842a6f1c3087288
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 53
-  completed_plans: 52
+  completed_plans: 53
   percent: 60
 ---
 
@@ -307,6 +307,7 @@ Progress: [██████░░░░] 60% (6 of 10 phases)
 | Phase QD-49 P06 | 10min | 3 tasks | 6 files |
 | Phase QD-49 P07 | 25min | 3 tasks | 14 files |
 | Phase QD-49 P08 | 25min | 2 tasks | 5 files |
+| Phase QD-49 P09 | 15m | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -517,6 +518,7 @@ Progress: [██████░░░░] 60% (6 of 10 phases)
 - [Phase QD-49]: GateRegistryLike joins GateInstanceLike on the devtools root entry only; joinQuestions, the views and the snapshot stay model-private
 - [Phase QD-49]: ADR-QD-162 states the dock model's store count once (seven before, questions the eighth, sightings a thunk); ADR-QD-053 is noted, not reversed
 - [Phase QD-49]: 49-08: the five BEH records stay at five and the new listings are ts fences (package-private); AGENTS.md section 13 and devtools-spec 02-screens.md re-read and unchanged
+- [Phase QD-49]: 49-09: mutation holds every touched file at its base score; no survivor round needed; check:pr green, nothing released
 
 ### Pending Todos
 
@@ -572,8 +574,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T07:13:17.406Z
-Stopped at: Completed QD-49-08-PLAN.md
+Last session: 2026-11-16T07:22:18.420Z
+Stopped at: Completed 49-09-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
