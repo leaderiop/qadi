@@ -1494,8 +1494,14 @@ describe("the questions store (M31, M32, M33, M36..M47, P2)", () => {
       );
       const double = makeGateRegistryDouble([guard("a", readPolicy)], { swallowListenerErrors: true });
       double.failReads(unrenderable);
-      const model = yield* makeDockModel({ reading: { questions: [{ policy: readPolicy }] }, gates: double.registry });
+      const reading = { questions: [{ policy: readPolicy }] };
+      const model = yield* makeDockModel({ reading });
+      assert.strictEqual(model.questions.getSnapshot().gates._tag, "Absent");
+
+      // From no registry to one that throws a value nothing can render: the view moves, though no list did.
+      model.configure({ reading, gates: double.registry });
       assert.strictEqual(model.questions.getSnapshot().gates._tag, "Failed");
+      assert.strictEqual(failedReason(model.questions.getSnapshot()), "The registry threw a value that could not be described.");
       assert.deepStrictEqual(claims(model.questions.getSnapshot()), [undefined]);
 
       double.mendReads();
