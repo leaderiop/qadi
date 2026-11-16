@@ -494,3 +494,7 @@ entries:
     file: "161-audit-reports-cores-refusal-and-decides-lost-once.md"
     title: "Audit reports core's refusal and decides lost once"
     status: "Accepted — amends ADR-QD-056, ADR-QD-095"
+  - id: "ADR-QD-162"
+    file: "162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md"
+    title: "Gates are the dock model's eighth store, and their states are stated once"
+    status: "Accepted — amends ADR-QD-047; applies ADR-QD-152; keeps ADR-QD-053, ADR-QD-080"
