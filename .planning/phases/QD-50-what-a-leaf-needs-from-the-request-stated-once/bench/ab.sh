@@ -6,7 +6,8 @@
 # branch switch. Nothing is ever committed from here.
 #
 # Exit codes: 2 usage / refused start, 3 patch does not apply, 4 a bench run failed,
-# 5 packages/core/src was not restored at the end.
+# 5 packages/core/src was not restored (a revert failed, or src is dirty at the end),
+# 130 / 143 stopped by INT / TERM (after the bench run in progress returns; src reverted).
 set -u
 
 usage() { echo "usage: ab.sh <patch> <outdir> <rounds> <head-label> <patched-label>" >&2; exit 2; }
@@ -46,8 +47,21 @@ mkdir -p "$OUT" || exit 2
 } > "$OUT/meta.txt"
 
 applied=0
-cleanup() { if [ "$applied" = 1 ]; then git apply -R "$PATCH"; applied=0; fi; }
-trap cleanup EXIT INT TERM
+# A revert that fails leaves src patched: say so and exit 5, never carry on.
+cleanup() {
+  if [ "$applied" = 1 ]; then
+    applied=0
+    git apply -R "$PATCH" || {
+      echo "ab.sh: could not revert $PATCH; $SRC is left patched" >&2
+      exit 5
+    }
+  fi
+}
+# A handler for INT or TERM does not end a bash script by itself: the signal traps
+# exit, and the EXIT trap is the one place that reverts.
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 for i in $(seq 1 "$ROUNDS"); do
   for arm in "$HEAD_LABEL" "$PATCHED_LABEL"; do
