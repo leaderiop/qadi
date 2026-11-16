@@ -174,6 +174,48 @@
 
 ---
 
+## Milestone: v1.5 — Arch Wave 10
+
+**Completed:** 2026-11-16 (not merged, not released)
+**Phases:** 10 | **Plans:** 71 | **Sessions:** one autonomous run (`/gsd-autonomous`), with context compactions
+
+### What Was Built
+- ARCH-90: one package-private `Handover.ts` behind every enforcement entry point. `guard` and `filter*` refuse a second `resource` at the type level (Breaking, core and promise).
+- ARCH-91: the hydration seed's fields are derived from core's wire form, so a new wire field reaches the seed untouched (Breaking, react).
+- ARCH-92: the audit breaker is one pure `step`. Options that cannot work (`NaN`, zero, negative) are refused when the layer is built (Breaking, audit).
+- ARCH-93: `sinkEmitter` contains a failing or dying sink and reports it once, by name. A synchronous throw from `record` no longer kills `evaluate`.
+- ARCH-94/95: port defaultedness is a mark, not a name. Audit reports core's `SinkRecordNotEncodable` and derives "lost" from durability (Breaking, audit).
+- ARCH-96..99: one gate-state vocabulary, and gates as the dock model's eighth store (Breaking, react and devtools). Leaf request needs, stated once and benchmarked within noise. Policy tag arity, stated once. Core's `compilePredicate` shell, shared by both SQL dialects.
+
+### What Worked
+- The four silent defects went first, each with a RED test on the untouched base before any code moved.
+- Phase 50 opened on its benchmark gate (3 + 3 interleaved runs, median of per-run minima) and only then planned the change. The rule "may end in a recorded rejection" kept it honest.
+- Recording post-review mutation (`NN-mutation-review.json`) from Phase 51 on applied v1.4's lesson. The milestone gate then had the latest scores.
+- The milestone audit fixed its own info findings (six in 43/44) instead of carrying them, then re-verified the phases they touched.
+
+### What Was Inefficient
+- Five phases went stale at close (43, 44, 45, 46, 48). Again the cause was later phases or the audit's fixes touching covered files.
+- Backfilling `requirements-completed` into four SUMMARYs made those reports stale too, because SUMMARYs are covered inputs. Only a digest refresh was needed, but it cost a second pass.
+- Plan-local ids (D-NN, BRKR-, EMIT-) leaked into shipped test titles and comments in most phases. About 20 remain as tech debt.
+- Under zsh, an unquoted `$files` does not word-split. A fingerprint loop failed silently until it switched to `xargs`.
+
+### Patterns Established
+- A disposition file for every review, with each finding fixed, skipped with a reason, or refuted, and `open: 0` before close.
+- Characterisation tests kept byte-identical across a refactor as before/after evidence (Phase 52's `CompileShell.test.ts`).
+- One brief file per subagent in the scratchpad ("Read and follow …"), so prompts stay reviewable and reusable.
+
+### Key Lessons
+1. Write `requirements-completed` in each closing SUMMARY when the phase closes. A backfill at audit makes verification stale.
+2. A plan-local id belongs in `.planning`, never in shipped source or test titles. The house-style gate should refuse it the way it refuses `ADR-QD-NEXT`.
+3. Budget one re-verify per phase whose files a later phase touches. It has happened in every milestone so far.
+
+### Cost Observations
+- Model mix: opus for the orchestrator, planners and research. Sonnet for executors, checkers, reviewers, fixers, verifiers and the integration check.
+- Sessions: one long autonomous run across several context compactions.
+- Notable: 510 commits in about two days. Twelve discuss/research decisions, each answered once ("Accept all" or the recommended option). Tech debt accepted at the audit.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -184,6 +226,7 @@
 | v1.2 | 1 (autonomous) | 9 | Decisions answered up front; per-file mutation baseline per phase (WX-05) and a re-check at close |
 | v1.3 | 1 (autonomous) | 7 | A carried-debt ledger with a per-row closer; a mechanism spike with fixed criteria before a speculative phase |
 | v1.4 | 1 (autonomous) | 6 | Spike evidence for every option before a human checkpoint; a milestone-wide mutation re-check and stale sweep in the last plan |
+| v1.5 | 1 (autonomous) | 10 | Defects first with RED on base; a benchmark gate opening a phase; post-review mutation records; the audit fixes its own info findings |
 
 ### Cumulative Quality
 
@@ -193,9 +236,10 @@
 | v1.2 | vitest 4400 (core/react/http/devtools/audit at audit), tstyche 233, e2e 30 | core ≥95%, others ≥90% (enforced); no touched file's mutation score fell | 0 |
 | v1.3 | vitest 200 files / 4917 tests, tstyche, e2e 30 | 99.47% statements / 99.75% lines overall; no measured file's mutation score fell | 0 |
 | v1.4 | vitest 5139 tests, tstyche, e2e 30 | core ≥95%, others ≥90% (enforced); all 15 touched files at their latest recorded mutation score | 0 |
+| v1.5 | vitest 231 files / 5656 tests (+568, +43), tstyche, e2e 30 | core ≥95%, others ≥90% (enforced); full `pnpm check` with mutation green, every Stryker run ≥ 80 | 0 |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases; v1.3: 6 phases; v1.4: 3 phases).
+1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases; v1.3: 6 phases; v1.4: 3 phases; v1.5: 5 phases).
 2. Run review → fix after verification passes: it found warnings verification missed in every milestone.
 3. Shape tooling inputs so tools can read them: v1.0's requirement ranges and v1.2's grouped traceability rows both forced hand edits.
