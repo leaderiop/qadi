@@ -558,7 +558,7 @@ Plans:
   5. Rendered output for the five ports is unchanged (characterisation tests written on the base), and devtools still depends only on `@qadi/core`.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for the touched devtools files, the wrapper RED and a rendered-output characterisation for each port, committed first; then core's fact; then devtools' tables; then records. Re-run `pnpm circular` after the first move. Keep the work off the lines Phase 49 will edit in `ServicesPanel`/`DockModel`.
-**Plans**: 4/7 plans executed
+**Plans**: 5/7 plans executed
 
 Plans:
 **Wave 1**
@@ -574,7 +574,7 @@ Plans:
 - [x] 47-04-PLAN.md — tracer: `Wiring.ts` reads `isPortDefault` and `isDefaultName` is deleted (the RED goes green); `PortReading.ts` replaces `CONSEQUENCES` and `describeOne`; `ROWS` by one monomorphic row builder and a derived `PortCall`
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 47-05-PLAN.md — the sixth-port scratch measured and reverted; ADR-QD-160; the two changesets and the upgrade entry
+- [x] 47-05-PLAN.md — the sixth-port scratch measured and reverted; ADR-QD-160; the two changesets and the upgrade entry
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 47-06-PLAN.md — BEH-QD-571 to 575 with BEH-QD-196, 215 and 228 amended; INV-QD-339 and 340; traceability, the overview `PortReport` row, ADR links; CCR-QD-438 completed
@@ -683,7 +683,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 44. The hydration seed's fields stated once | 6/6 | Complete    | 2026-11-15 |
 | 45. The audit circuit breaker as one transition function | 8/8 | Complete    | 2026-11-15 |
 | 46. The sink emitter reports what it contains | 7/7 | Complete    | 2026-11-15 |
-| 47. Port facts read from the description | 4/7 | In Progress | - |
+| 47. Port facts read from the description | 5/7 | In Progress | - |
 | 48. Audit reports core's refusal and derives "lost" | 0/TBD | Not started | - |
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 0/TBD | Not started | - |
 | 50. What a leaf needs from the request, stated once | 0/TBD | Not started | - |

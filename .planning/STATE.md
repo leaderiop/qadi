@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 47
 current_phase_name: Port facts read from the description
-current_plan: 5
+current_plan: 6
 status: executing
-stopped_at: Completed 47-04-PLAN.md
-last_updated: "2026-11-16T00:20:16.314Z"
+stopped_at: Completed 47-05-PLAN.md
+last_updated: "2026-11-16T00:25:22.693Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase 47 execution started
-state_head: 83dca085c54d8557fba9254965f4f576776e4dbf
+state_head: fec62fc03c7773c39f78c705d6ce81fb3388ea4e
 progress:
   total_phases: 10
   completed_phases: 4
   total_plans: 36
-  completed_plans: 33
+  completed_plans: 34
   percent: 40
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 ## Current Position
 
 Phase: 47 (Port facts read from the description) — EXECUTING
-Current Plan: 5
+Current Plan: 6
 Total Plans in Phase: 7
 Status: Ready to execute
 Last activity: 2026-11-16 — Phase 47 execution started
@@ -286,6 +286,7 @@ Progress: [████░░░░░░] 40% (4 of 10 phases)
 | Phase QD-47 P02 | 4 min | 2 tasks | 2 files |
 | Phase 47 P03 | 5 min | 3 tasks | 8 files |
 | Phase 47 P04 | 10min | 3 tasks | 4 files |
+| Phase 47 P05 | 10min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -478,6 +479,7 @@ Progress: [████░░░░░░] 40% (4 of 10 phases)
 - [Phase QD-47]: 47-02: every services-panel reading is a whole-string strictEqual on the row's first span, pinned on the base; the captured-default row guards decoratePorts' carry (D-17)
 - [Phase 47]: 47-03: the default's mark is a package-private unique Symbol(qadi.PortDefault) holding the PortName; isPortDefault reads the own property only
 - [Phase 47]: 47-04: ROWS built by monomorphic rowOf (R6, D-18); PortCall derived from the registry (D-19)
+- [Phase 47]: 47-05: the sixth port's devtools cost measured at four src files (PortReading, PortCalls, SimulationFields, SimulationSource), scratch reverted; ADR-QD-160 names BEH/INV in plain text until 47-06; changesets core minor and devtools patch, none Breaking
 
 ### Pending Todos
 
@@ -531,8 +533,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T00:20:16.213Z
-Stopped at: Completed 47-04-PLAN.md
+Last session: 2026-11-16T00:25:22.525Z
+Stopped at: Completed 47-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
