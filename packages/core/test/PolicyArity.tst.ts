@@ -4,9 +4,12 @@
  * `POLICY_ARITY` states each tag's arity once. `childrenOf`'s arms are typed by it,
  * `LeafPolicy` is derived from it, and `PolicyCases` and `TraceCases` are tied to it
  * here, so moving a tag's arity in one place and not the other disagrees at exactly
- * that tag. Every negative is a checked `@ts-expect-error` with one erroring
- * reference per directive: `pnpm typecheck` consumes each directive, and an unused
- * one is itself an error.
+ * that tag. Every negative is a `@ts-expect-error` on a line holding exactly one
+ * erroring expression, and it is checked twice. Under `pnpm typecheck` the directive
+ * consumes any error on its line and its text is a note; an unused one is itself an
+ * error (TS2578). Under `pnpm test:tstyche` (`checkSuppressedErrors`, on by default)
+ * the text after the directive is a fragment the one suppressed error's message must
+ * contain, and a second error on the line fails, so the message is pinned there.
  */
 import { expect, test } from "tstyche";
 import type { Trace, TraceCases } from "../src/Decision.ts";
