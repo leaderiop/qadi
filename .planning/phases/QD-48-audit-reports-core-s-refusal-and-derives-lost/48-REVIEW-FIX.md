@@ -1,77 +1,80 @@
 ---
 phase: QD-48-audit-reports-core-s-refusal-and-derives-lost
-fixed_at: 2026-11-16T04:02:25Z
+fixed_at: 2026-11-16T04:10:23Z
 review_path: .planning/phases/QD-48-audit-reports-core-s-refusal-and-derives-lost/48-REVIEW.md
-iteration: 2
-findings_in_scope: 4
-fixed: 4
+iteration: 3
+findings_in_scope: 3
+fixed: 3
 skipped: 0
 status: all_fixed
 ---
 
 # Phase QD-48: Code Review Fix Report
 
-**Fixed at:** 2026-11-16T04:02:25Z
+**Fixed at:** 2026-11-16T04:10:23Z
 **Source review:** .planning/phases/QD-48-audit-reports-core-s-refusal-and-derives-lost/48-REVIEW.md
-**Iteration:** 2
+**Iteration:** 3
 
 **Summary:**
-- Findings in scope: 4 (WR-01, IN-01 to IN-03; scope `--all`)
-- Fixed: 4
+- Findings in scope: 3 (IN-01 to IN-03; scope `--all`)
+- Fixed: 3
 - Skipped: 0
 
-Verification ran in the main checkout (`workflow.use_worktrees` is `false`).
+Verification ran in the main checkout (`workflow.use_worktrees` is `false`). Every fix is spec text; no source or test file changed.
+
+The fixes were committed in the order IN-03, IN-02, IN-01. That way the CCR-QD-439 row edit (IN-01) could cite the invariants, traceability and overview revisions the other two fixes made, with one `spec/README.md` bump instead of three.
 
 ## Fixed Issues
 
-### WR-01: The base characterisation no longer pins the default configuration's output for ten of the eleven leaves
+### IN-03: INV-QD-342 cites as enforcement a hook-payload assertion that cannot tell core's class from the removed one
 
-**Files modified:** `packages/audit/test/AuditWriteOutput.test.ts`, `spec/decisions/161-audit-reports-cores-refusal-and-decides-lost-once.md` (Rev 1.5), `spec/README.md` (Rev 1.215, CCR-QD-439 row)
-**Commit:** 1d7ff083
-**Applied fix:** The row assertions moved into one `assertRow(o, row)`. Each leaf first runs with `{ onRefused: false }`, the default configuration the base characterisation ran. Every leaf except `Refused` then runs a second time with `{ onRefused: true }` and is held to the same literals, including the empty `refusals`, which can fail in that run. `Refused`'s hook is still the separate test. No expected value changed, and the IN-06 closed keying (`BY_LEAF`, `LEAF_PATHS`) is unchanged. ADR-QD-161's Consequences now says three things: every expected value is unchanged after every commit; the test still observes each leaf with no hook, as the default sink runs; and later commits only added to it (the hooked run and the closed leaf lists). The CCR-QD-439 row cites Rev 1.5.
+**Files modified:** `spec/invariants.md` (Rev 1.138), `spec/traceability.md` (Rev 1.202)
+**Commit:** 5b3d7c3b
+**Applied fix:** INV-QD-342's Enforcement now cites three tests:
+- `AuditRefusal.tst.ts`: the types of `encodeAuditEntry`'s error, both `onRefused` hooks and `Refused` are core's class.
+- `AuditEntry.test.ts`: `encodeAuditEntry` fails with an instance of core's class.
+- `AuditDecisionSinkLive.test.ts`: the hook receives an instance of core's class with no own `reason`.
 
-### IN-01: The tests still narrow `report.log` with `typeof … === "object"`
+It also says that `AuditWriteOutput.test.ts` pins only the payload's fields, which the removed class carried too, so that test characterises the payload and does not hold the invariant.
 
-**Files modified:** `packages/audit/test/UnwrittenRow.test.ts`, `packages/audit/test/AuditWriteOutcome.test.ts`
-**Commit:** 216746da
-**Applied fix:** `UnwrittenRow.test.ts` uses `assert.isDefined(log); if (log === undefined) return;`, and `AuditWriteOutcome.test.ts` uses `log?.level`. No `typeof log === "object"` is left in `packages/audit`.
+In `spec/traceability.md`, the INV-QD-342 row now lists `AuditDecisionSinkLive.test.ts` in place of `AuditWriteOutput.test.ts`. I also added INV-QD-342 to the test-file rows for `AuditDecisionSinkLive.test.ts` and `AuditEntry.test.ts`, which did not map it before.
 
-### IN-02: `durabilityOf`'s doc comment names the row's readers without the wording
+### IN-02: The overview's `durabilityOf` row still names the line's level, not its wording, as a reader of the row
 
-**Files modified:** `packages/audit/src/AuditWriteOutcome.ts`
-**Commit:** ebf40d27
-**Applied fix:** The comment now reads "…the unwritten line's level and wording read, so they cannot disagree". This matches `UnwrittenRow.ts`, BEH-QD-578 and ADR-QD-161 decision 3. Only the comment changed.
+**Files modified:** `spec/overview.md` (Rev 1.117)
+**Commit:** 2b83831f
+**Applied fix:** The row now reads "…the unwritten line's level and wording read (ADR-QD-161)". `pnpm spec:api` passes.
 
-### IN-03: The upgrade prose says the annotations carry "nothing else from the refused record"
+### IN-01: The CCR-QD-439 row says the two characterisation files "stay unedited across the phase", and its file list omits `AuditWriteExits.test.ts`
 
-**Files modified:** `apps/website/src/content/docs/docs/reference/upgrading.md`, `.changeset/audit-refusal-is-cores.md`, `spec/behaviors/33-audit-pipeline.md` (Rev 1.25), `spec/decisions/161-audit-reports-cores-refusal-and-decides-lost-once.md` (Rev 1.6), `spec/README.md` (Rev 1.216, CCR-QD-439 row)
-**Commit:** 7ff85185
-**Applied fix:** Four places now state INV-QD-104's exception precisely: the annotations carry no value from the record, but `qadi.path` is made of the record's own keys, so a resource keyed by data puts that key in the line. Where each change went:
-- The 0.13 upgrade prose.
-- The changeset's "To log a refusal" sentence.
-- ADR-QD-161 decision 2.
-- BEH-QD-577's `onRefused` requirement.
+**Files modified:** `spec/README.md` (Rev 1.217)
+**Commit:** 14099ab2
+**Applied fix:** The narrative now matches ADR-QD-161 Rev 1.5: the two files "were written on the phase base; their expected values are unchanged across the phase, and later commits only added the hooked run and closed the leaf lists."
 
-I left the ADR-QD-056 and ADR-QD-095 amendments alone, because they do not describe what the annotations carry. The README and `capabilities.md` lines ("nothing else from the entry") are about the unwritten lines, not refusals, so I left them as well. BEH-QD-250's narrative already says "never a value from the record". In the CCR-QD-439 row, I also added a missing comma between the BEH Rev 1.22 and Rev 1.23 entries.
+`packages/audit/test/AuditWriteExits.test.ts` is added to the file list. Against `git diff --name-only c9fde4ba..HEAD -- packages spec apps .changeset`, it was the only phase-changed file the list omitted.
+
+The row also cites this iteration's revisions: invariants Rev 1.138, overview Rev 1.117, traceability Rev 1.202, and `spec/README.md` Rev 1.210 to 1.217.
 
 ## Checks
 
-- `pnpm exec vitest run --project audit`: 28 files, 526 tests pass. The test count is unchanged, because the hooked run is inside each leaf's existing `it`.
-- `pnpm typecheck`, `pnpm circular` (no cycle), `pnpm test:tstyche` (289 tests, 606 assertions), `pnpm spec:verify:strict` (21 PASS, 0 FAIL), `node scripts/spec-revise.mjs --check`, `pnpm spec:examples` (116 blocks), `pnpm spec:website-examples` (66 blocks) and `pnpm spec:api` (928 exports): all pass.
-- `pnpm lint`: house-style clean (526 files). The only warnings are pre-existing ones in files this fix did not touch (`.codex/`, `scripts/`).
+- `pnpm exec vitest run --project audit`: 28 files, 526 tests pass.
+- These all pass:
+  - `pnpm typecheck`
+  - `pnpm circular` (no cycle)
+  - `pnpm test:tstyche` (289 tests, 606 assertions)
+  - `pnpm spec:verify:strict` (21 PASS, 0 FAIL)
+  - `node scripts/spec-revise.mjs --check`
+  - `pnpm spec:examples` (116 blocks)
+  - `pnpm spec:website-examples` (66 blocks)
+  - `pnpm spec:api` (928 exports)
+- `pnpm lint`: house-style is clean (526 files). The only warnings are pre-existing ones in files this fix did not touch (`.codex/`, `scripts/`, `packages/react/src/QadiAtoms.ts`).
 
 ## Mutation
 
-`packages/audit/src/AuditWriteOutcome.ts` was the only src file changed (a doc comment). I ran `pnpm exec stryker run stryker.audit.mjs --mutate 'packages/audit/src/AuditWriteOutcome.ts' < /dev/null` on it:
-
-| File | Score | Killed | Survived |
-| ---- | ----- | ------ | -------- |
-| `AuditWriteOutcome.ts` | 100 | 2 | 0 |
-
-`AuditDecisionSinkLive.ts`, `AuditWriteReport.ts`, `AuditEntry.ts` and `UnwrittenRow.ts` were not changed in this iteration, so I did not re-run them. Their iteration-1 scores were all 100.
+No `packages/audit/src` file changed in this iteration, so I did not run Stryker. The iteration-1 and iteration-2 scores still apply: 100 for `AuditDecisionSinkLive.ts`, `AuditWriteReport.ts`, `AuditEntry.ts`, `AuditWriteOutcome.ts` and `UnwrittenRow.ts`.
 
 ---
 
-_Fixed: 2026-11-16T04:02:25Z_
+_Fixed: 2026-11-16T04:10:23Z_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 2_
+_Iteration: 3_
