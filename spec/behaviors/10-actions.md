@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-10                                    |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-11-16): BEH-QD-586 and BEH-QD-587 new: a leaf's own input is reported before what its matcher references; an action absence that names no action carries no expected key in either interpreter; BEH-QD-076 points at both (ARCH-97, CCR-QD-441)<br>1.1 (2026-11-10): BEH-QD-076's listing shows MissingAction as the Schema.TaggedError it is (ARCH-61, CCR-QD-403)<br>1.0 (2026-07-26): Initial release (CCR-QD-012) |
+> | Change History | 1.3 (2026-11-16): HasAttribute's outcome on a request missing both inputs depends on what its matcher references (review WR-03)<br>1.2 (2026-11-16): BEH-QD-586 and BEH-QD-587 new: a leaf's own input is reported before what its matcher references; an action absence that names no action carries no expected key in either interpreter; BEH-QD-076 points at both (ARCH-97, CCR-QD-441)<br>1.1 (2026-11-10): BEH-QD-076's listing shows MissingAction as the Schema.TaggedError it is (ARCH-61, CCR-QD-403)<br>1.0 (2026-07-26): Initial release (CCR-QD-012) |
 
 _Previous: [09 — React Integration](./09-react.md)_
 
@@ -167,8 +167,12 @@ REQUIREMENT: When a request lacks an input a leaf needs, the absence reported
              `HasResourceAttribute`: the resource), then what its matcher
              references, the action before the resource. A request missing both
              the action and the resource MUST therefore fail `HasAction` with
-             `MissingAction`, `HasResourceAttribute` with `MissingResource`, and
-             `HasAttribute` (which owns neither) with `MissingAction`.
+             `MissingAction` and `HasResourceAttribute` with `MissingResource`,
+             whatever its matcher references. `HasAttribute`, which owns
+             neither, MUST fail with `MissingAction` when its matcher references
+             the action and with `MissingResource` when it references the
+             resource, and MUST NOT fail for either absence when it references
+             neither: its matcher's own decision stands.
 
 REQUIREMENT: `evaluate` and `toPredicate` MUST report the same absence for the
              same leaf and request wherever both apply.

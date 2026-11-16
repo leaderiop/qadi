@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-163                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — reads ADR-QD-024, ADR-QD-100, ADR-QD-134; applies ADR-QD-152; keeps ADR-QD-034, ADR-QD-073 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-97, CCR-QD-441) |
+> | Change History | 1.2 (2026-11-16): HasAttribute's outcome on a request missing both inputs depends on what its matcher references (review WR-03)<br>1.1 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-97, CCR-QD-441) |
 
 ---
 
@@ -72,10 +72,12 @@ its matcher references, the action before the resource.** `HasAction` reads the 
 resource; a resource-scoped port leaf reads a resource id (enforced by `readScoped`, decision 3). Whatever its matcher
 references comes after that.
 
-The rule reproduces every error the base raised. `HasAttribute` owns nothing, so it asks the matcher: the action, then the
-resource. `HasResourceAttribute` owns the resource, so a request missing the resource reports `MissingResource` before the
-matcher's reference to the action is asked, which is its base order. `HasAction` owns the action. A request missing both inputs
-therefore reports the leaf's own input, and that is the only observable consequence of the rule's first half.
+The rule reproduces every error the base raised. `HasAttribute` owns nothing, so it asks only what its matcher references: a
+request missing both inputs fails it with `MissingAction` when the matcher references the action, with `MissingResource` when it
+references the resource, and not at all when it references neither. `HasResourceAttribute` owns the resource, so a request
+missing the resource reports `MissingResource` before the matcher's reference to the action is asked, which is its base order.
+`HasAction` owns the action. A request missing both inputs therefore reports the leaf's own input, for a leaf that has one, and
+that is the only observable consequence of the rule's first half.
 
 The second half, "the action before the resource" among what a matcher references, cannot be observed: a matcher holds at most
 one reference, so it never has two to put in order. The rule is stated that way because it is the one sentence that describes
