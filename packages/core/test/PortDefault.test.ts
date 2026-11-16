@@ -10,17 +10,23 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Context from "effect/Context";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Schedule from "effect/Schedule";
 import {
   AttributeResolver,
+  AttributeResolverNone,
+  attributeResolverBounded,
   attributeResolverFromRecord,
   attributeResolverPort,
+  attributeResolverRetrying,
+  attributeResolverTimingOut,
 } from "../src/AttributeResolver.ts";
 import { isPortDefault, PortReply } from "../src/PortDescription.ts";
 import type { PortName } from "../src/PortName.ts";
-import { scriptedPort } from "../src/PortDoubles.ts";
-import { forEveryPort, portsLayer } from "../src/Ports.ts";
+import { recordingPort, scriptedPort } from "../src/PortDoubles.ts";
+import { decoratePorts, forEveryPort, portsLayer } from "../src/Ports.ts";
 import type { DescriptionOf } from "../src/Ports.ts";
 
 /** The shape `portsLayer()` builds for `d`'s service: that port's fail-closed default. */
@@ -131,5 +137,95 @@ describe("a port's fail-closed default is a fact the service carries (PFCT-01, D
         assert.strictEqual(Object.getOwnPropertyDescriptor(none, mark)?.value, "AttributeResolver");
       }
     }),
+  );
+});
+
+const retrying = attributeResolverRetrying(Schedule.recurs(1));
+const bounded = attributeResolverBounded(2);
+const timingOut = attributeResolverTimingOut(Duration.seconds(1));
+const recording = (layer: Layer.Layer<AttributeResolver>) =>
+  recordingPort(attributeResolverPort, layer).layer;
+
+/** Asserts the built shape's name first, so a row red for a wrong stack is told from the defect. */
+const readsAs = <E>(layer: Layer.Layer<AttributeResolver, E>, name: string, defaulted: boolean) =>
+  Effect.gen(function* () {
+    const shape = yield* attributeShapeOf(layer);
+
+    assert.strictEqual(shape.name, name);
+    assert.strictEqual(isPortDefault(attributeResolverPort, shape), defaulted);
+  });
+
+describe("a derived wrapper is its port's default exactly when what it wraps is (PFCT-01, D-17)", () => {
+  it.effect("W1: retrying around the default", () =>
+    readsAs(retrying(AttributeResolverNone), "AttributeResolverNone (retrying)", true),
+  );
+
+  it.effect("W2: bounded around the default", () =>
+    readsAs(bounded(AttributeResolverNone), "AttributeResolverNone (bounded 2)", true),
+  );
+
+  it.effect("W3: timing out around the default", () =>
+    readsAs(timingOut(AttributeResolverNone), "AttributeResolverNone (timing out)", true),
+  );
+
+  it.effect("W4: recording around the default", () =>
+    readsAs(recording(AttributeResolverNone), "AttributeResolverNone (recording)", true),
+  );
+
+  it.effect("W5: recording, timing out, retrying, bounded", () =>
+    readsAs(
+      bounded(retrying(timingOut(recording(AttributeResolverNone)))),
+      "AttributeResolverNone (recording) (timing out) (retrying) (bounded 2)",
+      true,
+    ),
+  );
+
+  it.effect("W6: retrying, timing out, recording, bounded", () =>
+    readsAs(
+      bounded(recording(timingOut(retrying(AttributeResolverNone)))),
+      "AttributeResolverNone (retrying) (timing out) (recording) (bounded 2)",
+      true,
+    ),
+  );
+
+  it.effect("W7: retrying twice", () =>
+    readsAs(retrying(retrying(AttributeResolverNone)), "AttributeResolverNone (retrying) (retrying)", true),
+  );
+
+  it.effect("W8: retrying and bounded around a real adapter", () =>
+    readsAs(
+      bounded(retrying(attributeResolverFromRecord({}))),
+      "attributeResolverFromRecord (retrying) (bounded 2)",
+      false,
+    ),
+  );
+
+  it.effect("W9: decoratePorts around a real adapter", () =>
+    Effect.gen(function* () {
+      const context = yield* Layer.build(
+        decoratePorts(
+          portsLayer({ AttributeResolver: attributeResolverFromRecord({}) }),
+          (d, inner) => d.make(`${inner.name ?? "?"} (decorated)`, d.invoke(inner)),
+        ),
+      );
+      const shape = Context.get(context, AttributeResolver);
+
+      assert.strictEqual(shape.name, "attributeResolverFromRecord (decorated)");
+      assert.isFalse(isPortDefault(attributeResolverPort, shape));
+    }),
+  );
+
+  forEveryPort((d) =>
+    it.effect(`${d.port}: decoratePorts keeps its default`, () =>
+      Effect.gen(function* () {
+        const context = yield* Layer.build(
+          decoratePorts(portsLayer(), (e, inner) => e.make(`${inner.name ?? "?"} (decorated)`, e.invoke(inner))),
+        );
+        const shape = Context.get(context, d.service);
+
+        assert.strictEqual(shape.name, `${d.none.name} (decorated)`);
+        assert.isTrue(isPortDefault(d, shape));
+      }),
+    ),
   );
 });
