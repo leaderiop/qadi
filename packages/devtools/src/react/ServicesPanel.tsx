@@ -18,6 +18,7 @@ import * as Match from "effect/Match";
 import { isUnsampled } from "../model/DiagnosticsFeed.ts";
 import type { WiringRead } from "../model/DiagnosticsStore.ts";
 import type { PortCall, PortCallLog } from "../model/PortCalls.ts";
+import { describeCall } from "../model/PortReading.ts";
 import type { CacheReport, PortActivity, PortReport } from "../model/Wiring.ts";
 import { DiagnosticsNotice, diagnosticsRootProps } from "./DiagnosticsNotice.tsx";
 import type { DiagnosticsNoticeProps } from "./DiagnosticsNotice.tsx";
@@ -258,57 +259,14 @@ const RecentCalls: FC<{
 };
 
 /**
- * One call in a sentence, built once at module scope per AGENTS.md §5a.
- *
- * Every field can be absent, because a span is decoded from `unknown` and a call
- * that failed before it was made never recorded an answer. *Not recorded* rather
- * than a blank or a plausible default: a reader chasing a wiring problem needs
- * to know the difference between "it said nothing" and "nobody asked".
- */
-const describeOne: (self: PortCall) => string = Match.type<PortCall>().pipe(
-  Match.tagsExhaustive({
-    AttributeResolver: (call) =>
-      `${call.attribute ?? "not recorded"} → ${
-        call.resolved === undefined
-          ? "no answer"
-          : call.resolved
-            ? "a value"
-            : "nothing"
-      }`,
-    DecisionHistory: (call) =>
-      `${call.event ?? "not recorded"} ${
-        call.resourceId === undefined ? "anywhere" : `on ${call.resourceId}`
-      } → ${call.answer ?? "no answer"}`,
-    RelationshipResolver: (call) =>
-      `${call.relation ?? "not recorded"} on ${call.resourceId ?? "no resource"}${
-        call.depth === undefined ? "" : ` (depth ${String(call.depth)})`
-      } → ${call.answer ?? "no answer"}`,
-    CustomPredicate: (call) =>
-      `${call.name ?? "not recorded"} → ${
-        call.answer === undefined ? "no answer" : call.answer ? "true" : "false"
-      }`,
-    SignatureHistory: (call) =>
-      `${call.meaning ?? "not recorded"}${
-        call.signerRole === undefined ? "" : ` from a '${call.signerRole}'`
-      }${
-        call.resourceId !== undefined
-          ? ` on ${call.resourceId}`
-          : call.scope === "Any"
-            ? " anywhere"
-            : ""
-      } → ${call.matched === undefined ? "no answer" : call.matched ? "matched" : "no match"}`,
-  }),
-);
-
-/**
  * One call in a sentence, with how many times it ran when a retrying wrapper
  * made it more than once — the per-call count a process-wide `retried` total
  * cannot give (`qadi.attempts`).
  */
 const describe = (call: PortCall): string =>
   call.attempts !== undefined && call.attempts > 1
-    ? `${describeOne(call)} · ${String(call.attempts)} attempts`
-    : describeOne(call);
+    ? `${describeCall(call)} · ${String(call.attempts)} attempts`
+    : describeCall(call);
 
 const callsFor = (log: PortCallLog | undefined, port: string): ReadonlyArray<PortCall> =>
   log === undefined ? [] : log.calls.filter((call) => call._tag === port);

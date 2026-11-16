@@ -31,6 +31,7 @@ import {
   predicatePortCallsTotal,
 } from "@qadi/core";
 import type { PortName } from "@qadi/core";
+import { PORT_READING } from "./PortReading.ts";
 
 /**
  * Every row of the wiring report: the five ports of the registry, and the four
@@ -93,7 +94,7 @@ export interface WiringReport {
  */
 export const wiringReport: Effect.Effect<WiringReport> = Effect.gen(function* () {
   // The five ports come from the registry, in its order: a sixth port is a row
-  // here without an edit, and a missing consequence below is a compile error.
+  // here without an edit, and a missing reading in `PortReading.ts` is a compile error.
   const ports = yield* Effect.all(
     forEveryPort((d) =>
       Effect.map(Effect.serviceOption(d.service), (shape) =>
@@ -124,16 +125,6 @@ export const wiringReport: Effect.Effect<WiringReport> = Effect.gen(function* ()
   };
 });
 
-/** What it costs for each port to be defaulted, by port — exhaustive over the registry. */
-const CONSEQUENCES: { readonly [K in PortName]: string } = {
-  AttributeResolver: "a missing attribute resolves to undefined, so an attribute policy denies",
-  DecisionHistory: "the three-valued default denies hasActed and hasNotActed alike",
-  RelationshipResolver: "an unanswered relationship denies",
-  CustomPredicate: "every hasCustom node denies, since no registered predicate can be reached",
-  SignatureHistory:
-    "an unwired signature history answers no signatures on file, so every hasSignature node denies",
-};
-
 const portRow = (
   port: PortName,
   service: Option.Option<{ readonly name?: string | undefined }>,
@@ -144,7 +135,7 @@ const portRow = (
   required: true,
   present: Option.isSome(service),
   defaulted: Option.isSome(service) ? isDefault : undefined,
-  consequence: CONSEQUENCES[port],
+  consequence: PORT_READING[port].consequence,
 });
 
 export interface PortActivity {
