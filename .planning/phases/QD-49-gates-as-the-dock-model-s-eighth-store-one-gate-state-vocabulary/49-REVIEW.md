@@ -1,8 +1,8 @@
 ---
 phase: QD-49-gates-as-the-dock-model-s-eighth-store-one-gate-state-vocabulary
-reviewed: 2026-11-16T09:30:00Z
+reviewed: 2026-11-16T10:45:00Z
 depth: standard
-iteration: 2
+iteration: 3
 files_reviewed: 46
 files_reviewed_list:
   - .changeset/devtools-feed-hands-the-gate-registry.md
@@ -18,6 +18,8 @@ files_reviewed_list:
   - packages/core/test/GateState.tst.ts
   - packages/devtools/README.md
   - packages/devtools/src/index.ts
+  - packages/devtools/src/model/DiagnosticsFeed.ts
+  - packages/devtools/src/model/DiagnosticsStore.ts
   - packages/devtools/src/model/DockModel.ts
   - packages/devtools/src/model/Gates.ts
   - packages/devtools/src/react/DevtoolsDock.tsx
@@ -53,107 +55,146 @@ files_reviewed_list:
   - spec/traceability.md
 findings:
   critical: 0
-  warning: 1
-  info: 3
-  total: 4
+  warning: 0
+  info: 6
+  total: 6
 status: issues_found
 ---
 
-# Phase QD-49: Code Review Report (iteration 2)
+# Phase QD-49: Code Review Report (iteration 3)
 
-**Reviewed:** 2026-11-16T09:30:00Z
+**Reviewed:** 2026-11-16T10:45:00Z
 **Depth:** standard
 **Files Reviewed:** 46
 **Status:** issues_found
 
 ## Summary
 
-I re-checked each iteration-1 fix against the source and reviewed the whole non-planning diff (`76330fbd..HEAD`). The six iteration-1 findings are fixed, and the fixes hold except for one gap in the new guard. The 463 tests in `packages/devtools/test/model` and `packages/devtools/test/react` pass.
+I checked the three iteration-2 fixes against the source and re-reviewed the whole non-planning diff (`76330fbd..HEAD`). I found no critical issues and no warnings. The six findings below are all info: stale spec text, one weak spot in a guard, and design judgements the fixer already wrote down.
+
+I ran the devtools model and react suites (62 files, 1510 tests, all pass). I also re-ran Stryker on `DockModel.ts` alone: 117 killed, 0 survived, score 100.00.
 
 **Verified as correct**
 
-- **WR-01, the `readGates` guard.**
-  - `instances()` is read in exactly one place. A throw there becomes `GatesView.Failed`, so nothing throws out of `rejoin` on the build, `configure`, registry-notification or poll-tick path.
-  - The poll fiber is not ended, the other `shownReading` listeners still run (M39), and the build cannot take down a host's layout effect (M37).
-  - `configure` is not half-applied for a throwing `instances()` or `subscribe` (M41).
-  - Recovery works when the registry mends and announces it (M38) or `configure` hands over a registry that works (M40, M41).
-  - A failed `subscribe` is held in `watchFailure` and is deliberately not retried for the same registry object. It is left honestly failed.
-- **Reason text.** `Cause.pretty(Cause.die(thrown))` is what `DiagnosticsStatus.Stopped` and `TimelineStatus.Stopped` carry. The panel's `qadi-gates-failed` copy and `colors.error` match `ServicesPanel`'s `qadi-wiring-failed`, and the 49-UI-SPEC amendment names them.
-- **`asking: undefined`.** `QuestionRow` is typed for it, the panel renders no unmounted note, highlight or instance rows for it (`QuestionsPanel.tsx`), and `joinQuestions` returns the one `NO_INSTANCES` constant, so the lens points at nothing.
-- **IN-02.** `rejoin` returns at once when `closed`, and M36 pins that neither registry is read.
-- **IN-03.** `Listed` is `{}`. Only `snapshot.instances` states the list, and M31 and M32 assert it is the registry's own array.
-- **IN-04.** `panelInput` writes the snapshot out with `Equal.equals` over policy and resource, in registry order. It matches what `joinQuestions` produces: `Listed()`/`Empty()`/`Absent()`, `asking` as the filtered list or `[]`, and `instances: gates ?? []`.
-- **Characterisation and budgets.** `QuestionsPanel.characterisation.test.tsx` was not touched by `a017d7aa..da14a9c5`. The only expected values that moved against the base are the D-12a copy literals. `scripts/` and `.oxlintrc.json` are unchanged against the phase base, so no budget moved.
-- **Spec text.** ADR-QD-162 Rev 1.1 decision 5, BEH-QD-583/584 Rev 1.25, the react-integration appendix, INV-QD-343/344 (they cite committed tests, and no `NN-NN` SUMMARY citation remains in `spec/`) and the CCR-QD-440 row all agree with the code. The one exception is the unguarded unsubscribe (WR-01 below).
-- **House rules.** I found no `as`, `!`, `any`, `switch` or `console` in the diff. `Match.tagsExhaustive` is hoisted at module scope in `QuestionsPanel.tsx`.
+- **WR-01 (`8aceb349`), release of the old subscription.**
+  - `watchGates` moves the handle out of `offGates` before calling it. The release and the new `subscribe` are two separate `try` blocks.
+  - A throwing release therefore cannot skip the new subscription or the `rejoin`, and it cannot run again on a later `configure` or on close.
+  - A failed `subscribe` overwrites the release failure, so `Failed` names the registry the model now reads.
+  - The finalizer sets `closed` first, takes the handle out, and swallows the throw. I think swallowing is right: a closing model has no store left to state it in, and the scope must still close (M42 b pins that).
+  - Both M42 cases fail with the source reverted, per the fixer. I did not revert them myself.
+- **IN-02 (`02aa3fca`), the failure key.**
+  - `failureKey` is `name: message` for an `Error` and the rendered reason for anything else.
+  - Two genuinely different failures with the same name and message are merged, and the panel keeps showing the first one's stack. That is the stated trade-off and I accept it: nobody can tell them apart from the panel.
+  - Failure to recovery, failure to `Absent`, and failure to a different failure all publish, because the key is compared separately from `gates`.
+- **IN-03 (`f0e8ee6c`), the retry.**
+  - `configure` re-watches when `next.gates !== gatesNow || watchFailure !== undefined`.
+  - A working watch is never subscribed twice, because `watchFailure` is `undefined` and the registry has not changed.
+  - A silent mend stays `Failed`. A quiet poll tick reads nothing, so it is read at the next registry notification, a poll that changed the questions, or any `configure`. BEH-QD-584 and ADR-QD-162 decision 5 (Rev 1.4) say exactly that, and M44 pins it.
+- **Iteration-1 fixes.**
+  - No throw from `instances()` or `subscribe` reaches the host, a layout effect, or another store's listener. This holds on the build, `configure`, a registry notification and a poll tick (M37 to M41).
+  - `configure` is never half applied.
+  - Recovery restores a `Listed` view.
+  - The lens gets `NO_INSTANCES` while the view is `Failed`.
+  - A row with `asking: undefined` renders no unmounted note, no highlight and no instance rows.
+- **`IN-04` and the characterisation.**
+  - `panelInput` still matches `joinQuestions` output.
+  - The characterisation test was not touched by the fixes.
+  - The only moved expected values are the D-12a copy literals.
+- **Stale claims.**
+  - `DiagnosticsStore.ts` and `DiagnosticsFeed.ts` no longer say gates "stay a plain prop". I grepped `packages/*/src`, the READMEs, `apps/website/src/content`, `spec/behaviors`, `spec/appendices`, `spec/overview.md` and `examples/*/src`.
+  - What is left is history under an explicit correction: `spec/behaviors/28-devtools-screens.md:372,379`, `spec/decisions/047-a-headless-devtools-model.md:197` (superseded by its own amendment), the `upgrading.md` "Before" snippet, and the react-integration appendix, which now says `gates.instances()`.
+  - The `useGateInstances()` mention in `QadiAtoms.ts:132` is about the hook for a component, which still exists.
+- **House rules.**
+  - I found no `as`, `!`, `any`, `switch` or `console` in the phase's `packages/*/src` diff.
+  - `Match.tagsExhaustive` is hoisted at module scope in `QuestionsPanel.tsx`.
+  - `scripts/` and `.oxlintrc.json` are unchanged against the phase base, so no budget moved.
+  - oxlint is clean on the changed model, panel and test files.
 
-The new finding is that the unguarded unsubscribe is not as harmless as ADR-QD-162 decision 5 leaves it: it re-creates the half-applied `configure` that the fix claims to remove. The rest is stale text, including the leftover the fixer flagged.
+## Info
 
-## Warnings
+### IN-01: `reasonOf` is the one step inside the guard that can still throw
 
-### WR-01: A throwing unsubscribe leaves `configure` half-applied and the model stuck, which the ADR and fix report say cannot happen
-
-**File:** `packages/devtools/src/model/DockModel.ts:194-203, 243-247, 208-214`
-**Issue:** `watchGates` calls `offGates()` bare as its first statement. If the old registry's unsubscribe throws (host code, the same class as `instances()` and `subscribe`), the following happens inside `configure`:
-
-1. `inputs = next` and `gatesNow = next.gates` are already assigned (lines 232 and 244).
-2. `watchGates` throws at line 195, before `offGates` is reset (line 198) and before `watchFailure` is cleared. The new registry is never subscribed to.
-3. The throw leaves `configure` before `rejoin()` (line 247), so the snapshot keeps showing the old registry's guards. That throw comes out of `useDockModel`'s `useLayoutEffect`, which is the unmount-the-host failure WR-01 set out to remove.
-4. The model is then stuck:
-   - `offGates` still holds the throwing function, so every later `configure` with a different registry throws at the same line.
-   - A repeat `configure` with the same new registry does nothing, because `next.gates !== gatesNow` is now false. The model never subscribes to it and never re-joins.
-   - The finalizer (lines 208-214) calls the same `offGates()` inside `Effect.sync`, so closing the scope ends in a defect.
-
-Decision 5 says the remaining unguarded throw is only "the function `subscribe` returned" and presents it as a minor leftover. The fix report and the ADR also state that a `configure` can no longer be left half applied. Both statements are false for this path. A custom registry is the only way to reach it, since react's unsubscribe cannot throw. It is still the one throw path that the other two guards leave, and the cost of closing it is two lines. No test covers it: M41 counts `releases()` but never makes a release throw.
-**Fix:** Clear the handle before calling it, and state a failing unsubscribe the way the other two are stated.
+**File:** `packages/devtools/src/model/DockModel.ts:96, 169-170, 211, 216`
+**Issue:** Each `catch` block calls `reasonOf(thrown)`, which is `Cause.pretty(Cause.die(thrown))`. For an ordinary `Error`, a string, `null`, a circular object, a null-prototype object or a bigint it returns a string. I ran these through `Cause.pretty` and all of them returned text. A thrown value whose own properties throw on access, such as a Proxy or an object with a throwing `message` getter, makes `Cause.pretty` throw, and that throw leaves the `catch`. In `readGates` it escapes `rejoin`, then the registry notification, the poll tick or the layout effect. That is the path the guard exists to close. A registry would have to throw such an object, which is very unlikely, so I rate this info.
+**Fix:** If the guarantee should be absolute, make `reasonOf` total:
 
 ```ts
-const watchGates = (registry: GateRegistryLike | undefined) => {
-  const release = offGates;
-  offGates = () => {};
-  watchFailure = undefined;
+const reasonOf = (thrown: unknown): string => {
   try {
-    release();
-    offGates = closed || registry === undefined ? () => {} : registry.subscribe(rejoin);
-  } catch (thrown) {
-    watchFailure = reasonOf(thrown);
+    return Cause.pretty(Cause.die(thrown));
+  } catch {
+    return "The registry threw a value that could not be described.";
   }
 };
 ```
 
-Do the same in the finalizer, with `try { release() } catch {}` after `closed = true`, because a closing model has nowhere to state it. Add a double option such as `failRelease`, and an M41 case where `configure` to a second registry still ends with `rejoin` run and the old handle cleared. Then change ADR-QD-162 decision 5 and BEH-QD-584 to say a throwing unsubscribe is stated as `Failed`, not left uncaught.
+Otherwise leave it and let decision 5 say "any throw whose value `Cause.pretty` can render".
 
-If you keep it unguarded, decision 5 must say that a throwing unsubscribe leaves the model half-applied and permanently on the old snapshot. Do not claim "`configure` can no longer be left half applied" without that qualifier.
+### IN-02: A failed release is stated with copy that says the registry "threw when it was read", and it stays `Failed` while the new registry works
 
-## Info
+**File:** `packages/devtools/src/model/DockModel.ts:204-218, 264-267`; `packages/devtools/src/react/QuestionsPanel.tsx` (`qadi-gates-failed` copy)
+**Issue:** After a swap `a` to `b` where `a`'s unsubscribe throws, `b` is subscribed and works, yet the model holds `watchFailure` and stays `Failed`. The new registry's notifications call `rejoin`, which sees `watchFailure` and keeps the failure. Only a `configure` clears it. In a real host `atoms.gates` is stable, so `configure` does not run again. The panel stays in "The registry handed to the dock threw when it was read, so who is asking cannot be shown: …" for the rest of the dock's life. That sentence is wrong for a failed release or a failed `subscribe`, because nothing was read. ADR-QD-162 decision 5 documents the choice and `@qadi/react`'s own unsubscribe cannot throw, so this only affects a custom registry and I do not rate it above info.
+**Fix:** Either do not let a release failure outlast the swap, because it concerns a registry the model has left:
 
-### IN-01: The header comments in `DiagnosticsFeed.ts` and `DiagnosticsStore.ts` still say gates "stay a plain prop"
+```ts
+catch (thrown) { if (registry === undefined) watchFailure = reasonOf(thrown); }
+```
 
-**File:** `packages/devtools/src/model/DiagnosticsFeed.ts:74-75`, `packages/devtools/src/model/DiagnosticsStore.ts:34-35`, `spec/decisions/047-a-headless-devtools-model.md:197`
-**Issue:** The two source headers say "They are pushed by the host's subscription to `@qadi/react`'s registry and stay a plain prop (AGENTS.md §13)". After this phase gates are a model input that the dock's model subscribes to, and the host does not subscribe. This is the leftover the fixer flagged, and it is confirmed. I found two more places:
-- `spec/decisions/047-a-headless-devtools-model.md:197` still reads "gates stay a prop fed by the host's subscription (ADR-QD-080)" in the decision body. The dated Rev 1.16 amendment at the end of the file supersedes it, so this is stale only in the body's own text.
-- `spec/process/house-rules-evidence.md:193` ("still fed `gates` as a plain prop") sits in a quoted history blockquote under a correction. It is exempt as change history.
+or keep it and make the copy say what threw. For example carry a `watch` flag in `GatesView.Failed` and render "The registry handed to the dock threw when it was subscribed to or released: …".
 
-I checked `packages/*/src`, the READMEs, `apps/website/src/content`, `spec/behaviors`, `spec/appendices`, `spec/overview.md` and `examples/*/src`. There is no other live "plain prop" or `useGateInstances()`-for-the-dock claim. The remaining `useGateInstances` hits are the `upgrading.md` "Before" snippet, BEH-QD-585 saying the hook stays for a component that wants the list, and the BEH-QD-217 correction history.
-**Fix:** In both headers, replace the sentence with "Gates are not here. They are the dock model's own input (`DockModelInputs.gates`), a registry the model subscribes to (ADR-QD-162)." For ADR-QD-047:197, either edit the sentence to "gates are a model input, ADR-QD-162" or leave it and add a bracketed "(superseded by the 2026-11-16 amendment below)".
+### IN-03: A watch failure is not compared by name and message, so a retry on another call path can publish an identical failure
 
-### IN-02: The failure reason carries the throw's stack, so the "same reason publishes nothing" dedup depends on the call path
+**File:** `packages/devtools/src/model/DockModel.ts:161-165, 211, 216`
+**Issue:** IN-02 of iteration 2 made `failureKey` the error's name and message, so the same throw from another call path publishes nothing. `readGates` sets `failureKey = watchFailure` for a failed watch, and `watchFailure` is the full rendered reason, stack included. A `subscribe` that throws a fresh `Error` each call is first called from the build and then from `configure`. The two stacks differ, so the first retry publishes a new `Failed` snapshot for a failure nobody can tell apart. BEH-QD-583 says the same failure "MUST publish nothing". The cost is one extra notification, so this is info.
+**Fix:** Keep a separate key for the watch failure:
 
-**File:** `packages/devtools/src/model/DockModel.ts:96, 183-190`
-**Issue:** `Cause.pretty(Cause.die(thrown))` for an `Error` includes its stack (I checked: the output is the message plus `at …` frames). `rejoin` compares `key.failed` by string, and M38 pins that the same throw publishes nothing. That holds for the double's single `boom` object. A registry that constructs a new `Error` on each read gets a stack that differs by caller: a registry notification, a poll tick and `configure` call `instances()` from different frames. Alternating paths then publish a new `Failed` snapshot each time, though nothing changed that a reader could tell apart. The reason is also shown verbatim in the panel, stack frames and host file paths included. That is consistent with the `Stopped` precedent, so I do not rate it above info.
-**Fix:** None needed if the precedent's behaviour is wanted. If the dedup should be by what the registry said, compare `thrown instanceof Error ? thrown.message : String(thrown)` for the key and keep `Cause.pretty` for display. Or note in BEH-QD-583 that "the same reason" means the same rendered text, stack included.
+```ts
+let watchKey: string | undefined;
+const keyOf = (thrown: unknown): string =>
+  thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : reasonOf(thrown);
+// in the two watch catches: watchFailure = reasonOf(thrown); watchKey = keyOf(thrown);
+// in readGates: failureKey = watchKey
+```
 
-### IN-03: Failed is left in place in two cases the spec does not say: the same registry mends silently, or its `subscribe` starts working
+and reuse `keyOf` in the `instances()` catch.
 
-**File:** `packages/devtools/src/model/DockModel.ts:161-168, 243-247`; `spec/behaviors/28-devtools-screens.md` BEH-QD-584
-**Issue:** Two recovery paths are honest but unspecified, and neither is tested:
-- A registry whose `instances()` threw and then mends without announcing the change stays `Failed` until something else moves. A quiet poll tick keeps `fed` and publishes nothing, so `remerge` never reaches `rejoin`. ADR decision 5 says "reads again and announces it", which is correct. A silent mend is not covered, and the panel gives no hint that the failure is stale.
-- A registry whose `subscribe` threw stays failed when `configure` is handed the same object again, because `next.gates !== gatesNow` is false. BEH-QD-584's "a later `configure` with a registry that subscribes MUST recover it" reads as covering that case. The code means a different registry.
-**Fix:** Add "a different registry" to the BEH-QD-584 requirement, and one sentence to decision 5 saying a mend that is not announced is not noticed until the questions or a registry change moves. No code change is needed unless a retry is wanted. If it is, `watchGates` could be retried from `rejoin` while `watchFailure` is set. I do not recommend that, because it re-runs host code on every tick.
+### IN-04: The `instanceof Error` branch of `failureKey` is not tested, and the mutation tool cannot see that
+
+**File:** `packages/devtools/src/model/DockModel.ts:169`; `packages/devtools/test/model/DockModel.test.ts` (M38)
+**Issue:** `failureKey` is `thrown instanceof Error ? name: message : reasonOf(thrown)`. Every test throws an `Error` (`boom`, `new Error("registry exploded")`), so the second arm never runs. Stryker reports 117 of 117 killed, but I read the mutant list for this line and it has only the template-literal mutant, with no `ConditionalExpression` mutant for the ternary. The 100% score therefore says nothing about the non-`Error` arm. If that arm broke, two different thrown strings would be merged, or one string would publish on every read, and no test would fail.
+**Fix:** Add one case to M38: throw a string, then a different string, and assert one `Failed` snapshot for the first and a new one for the second. Then throw the first string again from another path and assert nothing is published.
+
+### IN-05: `configure` reads and publishes with the old registry before it swaps in the new one
+
+**File:** `packages/devtools/src/model/DockModel.ts:260-267`
+**Issue:** `configure` calls `remerge()` at line 262 and only then sets `gatesNow = next.gates` and re-watches. When `next.reading` changed, `remerge` reaches `shownReading.set`, so `rejoin` runs. It reads the old registry's `instances()` and publishes a snapshot that joins the new questions to the old guards. The swap then publishes a second snapshot. Two synchronous notifications go out, the first with a registry the host has just handed away. If the host has already torn that registry down and its `instances()` throws, the first snapshot is `Failed` and the second recovers. React's `useSyncExternalStore` reads once after the layout effect, so a reader never sees it, but a test or a non-React listener does, and it runs host code on a registry the host has left.
+**Fix:** Take the swap first, then remerge:
+
+```ts
+if (next.gates !== gatesNow || watchFailure !== undefined) {
+  gatesNow = next.gates;
+  watchGates(gatesNow);
+}
+remerge();
+rejoin();
+```
+
+If you keep the order, note it in the `configure` comment.
+
+### IN-06: Spec text did not follow iteration 2 in INV-QD-343, and BEH-QD-584's first requirement overreaches
+
+**File:** `spec/invariants.md:3965, 3971`; `spec/behaviors/28-devtools-screens.md` (BEH-QD-584 requirement 2); `spec/traceability.md` (Rev 1.205 history)
+**Issue:** Three small mismatches against the code and the rest of the spec.
+- INV-QD-343's statement says a recompute that finds "the same failure reason" keeps the snapshot. BEH-QD-583 Rev 1.27 and decision 5 say the failure is compared by an error's name and message, not the rendered reason.
+- INV-QD-343's enforcement cites "`DockModel.test.ts` M36 to M41, each of which fails with the guard it pins removed (the guarded read, the guarded subscribe, or the closed check)". Iteration 2 added M42 to M44 (the release guard, the retry and the silent mend) and the revised M38, and BEH-QD-584 already cites M42 to M44.
+- BEH-QD-584's second requirement says "with the same registry it MUST NOT subscribe again". Since IN-03 a `configure` with the same registry after a failed watch does subscribe again, and the failed-watch requirement below it says so. The first needs "after a watch that worked".
+- The traceability history (Rev 1.205) and the DockModel.test.ts row stop at iteration 1.
+
+**Fix:** Edit the INV-QD-343 statement to "the same failure (an error's name and message)". Change its enforcement to "M36 to M44". Qualify the BEH-QD-584 requirement with "after a watch that worked". Add the M42 to M44 rows to the traceability entry. Bump all three through `scripts/spec-revise.mjs`.
 
 ---
 
-_Reviewed: 2026-11-16T09:30:00Z_
+_Reviewed: 2026-11-16T10:45:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
-_Iteration: 2_
+_Iteration: 3_
