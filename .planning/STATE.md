@@ -6,16 +6,16 @@ current_phase: 48
 current_phase_name: "Audit reports core's refusal and derives \"lost\""
 current_plan: 8
 status: executing
-stopped_at: Completed QD-48-07-PLAN.md
-last_updated: "2026-11-16T03:28:46.753Z"
+stopped_at: Completed QD-48-08-PLAN.md
+last_updated: "2026-11-16T03:33:52.797Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase QD-48 execution started
-state_head: d5ef81cab78f6a7124cd37aee622b40ffe934dd4
+state_head: f03a3037cce4b1fc5b352f5045b11dd3fbfc3737
 progress:
   total_phases: 10
   completed_phases: 5
   total_plans: 44
-  completed_plans: 43
+  completed_plans: 44
   percent: 50
 ---
 
@@ -297,6 +297,7 @@ Progress: [█████░░░░░] 50% (5 of 10 phases)
 | Phase QD-48 P05 | 6min | 2 tasks | 2 files |
 | Phase QD-48 P06 | 20min | 3 tasks | 10 files |
 | Phase QD-48 P07 | 20min | 3 tasks | 6 files |
+| Phase QD-48 P08 | 5min | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -498,6 +499,7 @@ Progress: [█████░░░░░] 50% (5 of 10 phases)
 - [Phase QD-48]: 48-05 D-09/D-10: StageResult is a closed unexported Data.TaggedEnum; writtenStaging, evaluationIdOf, outcomePath and the refusal dispatch are exhaustive matches
 - [Phase QD-48]: ADR-QD-161 records the audit refusal as core's SinkRecordNotEncodable and lost decided once; ADR-QD-056/095 amended, Breaking changeset
 - [Phase QD-48]: BEH-QD-579 scopes the warning leg to the six unwritten leaves; Written.CommitFailed and Refused warn without being lost
+- [Phase QD-48]: 48-08: the overview's historical Change History row naming the deleted class stays (history exempt); the scope check excluded only that row
 
 ### Pending Todos
 
@@ -552,8 +554,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T03:28:46.397Z
-Stopped at: Completed QD-48-07-PLAN.md
+Last session: 2026-11-16T03:33:52.624Z
+Stopped at: Completed QD-48-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
