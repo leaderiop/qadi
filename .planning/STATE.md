@@ -26,17 +26,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-16)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase QD-48 — Audit reports core's refusal and derives "lost"
+**Current focus:** Phase 49 — Gates as the dock model's eighth store, one gate-state vocabulary
 
 ## Current Position
 
 Phase: 49 — Gates as the dock model's eighth store, one gate-state vocabulary
 Current Plan: Not started
-Total Plans in Phase: 8
+Total Plans in Phase: - (not planned yet)
 Status: Ready to plan
 Last activity: 2026-11-16 — Phase QD-48 complete, transitioned to Phase 49
 
-Progress: [██████░░░░] 60% (5 of 10 phases)
+Progress: [██████░░░░] 60% (6 of 10 phases)
 
 
 ## Performance Metrics
@@ -541,6 +541,7 @@ Progress: [██████░░░░] 60% (5 of 10 phases)
 - [Phase 45] Review (45-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 10 findings — iteration 1 WR-01 (a `1e300` threshold or `1e21` cooldown still never tripped or reset; `Number.isSafeInteger`, a raw non-whole cooldown refused, 4883eb09), IN-01..04 (Success on a zero-failure Closed breaker answers its state, a runtime-break note, option rows, wrapping); iteration 2 (refusal message and docs said "whole number", d3bb6271); iteration 3 (a string or `Duration` cooldown is read to the nanosecond, the 0.13 upgrade entry synced, 4e413439); cap reached, backups untracked. Post-review mutation CircuitBreaker.ts 0.853, `pnpm check:pr` green (5266 tests, BDD 568); security 18/18 closed; verification passed 5/5. `phase.complete`'s "file not on disk" warnings are false positives (command strings).
 - [Phase 46] Review (46-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 8 findings — iteration 1 WR-01 (a sink that made its record unreadable before dying erased its own report; fields captured before the call, 697c076e), WR-02 (outer-interrupt rows, ab4a1496), IN-01/03 (one shared report in package-private `SinkReport.ts`, member line has the four keys, ff60679c), IN-02 (exact key set, hostile-cause row, 09ccefc3); iteration 2 (E15 claim, classification carried forward, 806ccd48/5e1c61d8); iteration 3 (ADR W0 cell, e0299678); cap reached, backups untracked. Security audit corrected ADR-QD-159's record tag to `Obligations` (9ad3da01); 19/19 closed. Post-review mutation all ≥ base (SinkReport.ts 1; DecisionSinkForwarding 0.90, its `{ discard: true }` survivors equivalent), `pnpm check:pr` green (5305 tests, BDD 568); verification passed 8/8. `phase.complete`'s "file not on disk" warnings are false positives (command strings).
 - [Phase 47] Review (47-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 10 findings — iteration 1 WR-01 (an unnamed default read "wired, unnamed", b1ce4e15), WR-02 (`isPortDefault` threw on a hostile proxy; made total, 80d56c5f), WR-03 (the mark's copy lost a class's prototype, 829be12e), WR-04 (never-marked rows for all five ports, 78ca795b), IN-01/02 (forgery wording, decorator limit stated); iteration 2 WR-01 (`#private` state lost: mark in place, 47de9c93) and MUT-01 (PortDefault.ts fell to 0.64 after iteration 1; dead guard removed, `try` narrowed, spread row, 1b14f0b1); iteration 3 WR-01 (in-place assign could throw; `Reflect.defineProperty` with copy fallback, a7d385c2), IN-01; cap reached, backups untracked. Security 26/26 closed (T-47-11 moved from accepted to mitigated by the review fixes, c02aeac7); UI audit 23/24. Post-review mutation PortDefault.ts 0.857 (two equivalent catch-block survivors named), others ≥ base; `pnpm check:pr` green (5384 tests, BDD 568); verification passed 8/8. `phase.complete`'s "file not on disk" warnings are false positives (command strings, the reverted scratch port, short paths).
+- [Phase 48] Review (48-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 16 findings — iteration 1 WR-01 (the 0.13 upgrade guide taught logging `describeEncodeRefusal`, which can carry caller text; now logs the default warning's annotations, b054bbdd), IN-01..08 (the unused `"encodeRefusal"` marker removed, the unwritten wording moved into the row, closed leaf lists, spec wording); iteration 2 WR-01 (the characterisation lost its no-hook run when IN-05 installed a hook; every leaf now runs both ways, 1d7ff083) + 3 info; iteration 3 three spec-text info. Stryker: all five audit files at 1 (AuditWriteReport.ts base 0.9659); `check:pr` exit 0 after the fixes.
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
@@ -563,4 +564,4 @@ Resume file: None
 
 
 
-- Plan Phase 48 with /gsd-plan-phase 48 (or gather context first with /gsd-discuss-phase 48)
+- Plan Phase 49 with /gsd-plan-phase 49 (or gather context first with /gsd-discuss-phase 49)
