@@ -1,5 +1,5 @@
 /**
- * The dock's eight readouts and the rules between them, as one model a test can drive without rendering.
+ * The dock's eight stores and the rules between them, as one model a test can drive without rendering.
  *
  * The dock built the timeline, the policy rail, the explorer, the role choice, the
  * simulation and its own session in React and connected them with layout effects,
@@ -18,10 +18,17 @@
  * **The model owns its lifetime.** It is built in a `Scope`. It reads its source
  * through a timeline feed and its diagnostics through a diagnostics feed, each
  * with its own handle in the model's scope; closing the scope ends both and any
- * simulation run (ADR-QD-137). The seventh store is the diagnostics reading: the
- * poll's status and the sampled reading with a supplied one laid over it. The
- * eighth is the timeline's status: whether its read is running or stopped, with the
- * one command that reads it again. There is no `dispose` and no `read` command.
+ * simulation run and the registry subscription (ADR-QD-137). There is no `dispose`
+ * and no `read` command.
+ *
+ * **Eight stores, counted once.** Seven came first: the timeline, the dock session,
+ * the explorer, the role choice, the simulation, the diagnostics reading (the poll's
+ * status and the sampled reading with a supplied one laid over it) and the timeline
+ * status (whether its read is running or stopped, with the one command that reads it
+ * again). `questions` is the eighth: the gate registry joined to the polled questions,
+ * recomputed from both in one synchronous step. `sightings` is a thunk and not a
+ * store. Earlier records counted the policy rail among the stores, which is why they
+ * call diagnostics the seventh store and the timeline status the eighth.
  *
  * Package-private (ADR-QD-099): the dock is the one thing that drives it.
  */
@@ -30,6 +37,7 @@ import type * as Scope from "effect/Scope";
 import type { Role } from "@qadi/core";
 import { catalogueOf, type Catalogue, type PolicySighting } from "./Catalogue.ts";
 import {
+  isUnsampled,
   makeDiagnosticsFeed,
   type DiagnosticsDockOptions,
   type DiagnosticsReadout,
@@ -38,7 +46,8 @@ import {
 import { mergeReading, type DiagnosticsReading } from "./DiagnosticsStore.ts";
 import { makeDockSession, type DockSession } from "./DockSession.ts";
 import { makeExplorerSession, type ExplorerSession } from "./ExplorerSession.ts";
-import { makeExternalStore } from "./ExternalStore.ts";
+import { makeExternalStore, type ExternalStore } from "./ExternalStore.ts";
+import { joinQuestions, type GateRegistryLike, type JoinInput, type QuestionsSnapshot } from "./Gates.ts";
 import { makeHeldChoiceStore, type HeldChoiceStore } from "./HeldChoice.ts";
 import { sameRole } from "./RoleTree.ts";
 import { makeSimulationSession, type SimulationSession } from "./SimulationSession.ts";
@@ -54,6 +63,8 @@ export interface DockModelInputs {
   readonly catalogue?: Catalogue | undefined;
   /** What to sample; compared per field, so an inline literal restarts nothing. */
   readonly diagnostics?: DiagnosticsDockOptions | undefined;
+  /** The registry of live guards; the model subscribes in its own scope. Absent: the panel says none was handed over. */
+  readonly gates?: GateRegistryLike | undefined;
   /** A reading taken elsewhere: each field it carries wins; a change recomputes the merge and never restarts the poll. */
   readonly reading?: DiagnosticsReading | undefined;
   readonly ports?: EvaluationPortsLayer | undefined;
@@ -72,6 +83,8 @@ export interface DockModel {
   readonly diagnostics: DiagnosticsReadout;
   /** The timeline read's status and its restart, passed through from the timeline feed; not merged. */
   readonly timelineStatus: TimelineStatusReadout;
+  /** The asked questions joined to the guards asking them, both read at one moment; holds guards and questions, never a verdict. */
+  readonly questions: Pick<ExternalStore<QuestionsSnapshot>, "subscribe" | "getSnapshot">;
   /** `catalogueOf` of the shown timeline and the current catalogue, computed once per change. */
   readonly sightings: () => ReadonlyArray<PolicySighting>;
   /** Dispatches only the inputs whose identity changed. An omitted input reads as `undefined`. */
@@ -132,6 +145,42 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   };
   diagnosticsFeed.subscribe(remerge);
 
+  // Both sources are read in the one call, so no snapshot pairs a question from one moment with
+  // a guard from another. A registry that throws from `instances()` is the host's defect and is not caught.
+  let gatesNow = inputs.gates;
+  let closed = false;
+  let offGates = () => {};
+  const joinKeyNow = (): JoinInput => {
+    const { status, reading } = shownReading.getSnapshot();
+    return {
+      questions: reading.questions,
+      gates: gatesNow?.instances(),
+      unsampled: reading.questions === undefined && isUnsampled(status),
+    };
+  };
+  let lastKey = joinKeyNow();
+  const questions = makeExternalStore<QuestionsSnapshot>(joinQuestions(lastKey));
+  const rejoin = () => {
+    const key = joinKeyNow();
+    if (key.questions === lastKey.questions && key.gates === lastKey.gates && key.unsampled === lastKey.unsampled) return;
+    lastKey = key;
+    questions.set(joinQuestions(key));
+  };
+  const watchGates = (registry: GateRegistryLike | undefined) => {
+    offGates();
+    offGates = closed || registry === undefined ? () => {} : registry.subscribe(rejoin);
+  };
+  // After `shownReading` exists and before any host listener, so the join moves first.
+  shownReading.subscribe(rejoin);
+  watchGates(gatesNow);
+  yield* Effect.addFinalizer(() =>
+    Effect.sync(() => {
+      closed = true;
+      offGates();
+      offGates = () => {};
+    }),
+  );
+
   return {
     timeline,
     dock,
@@ -144,6 +193,7 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
       restart: diagnosticsFeed.restart,
     },
     timelineStatus: timelineFeed.status,
+    questions: { subscribe: questions.subscribe, getSnapshot: questions.getSnapshot },
     sightings: () => rail,
 
     configure: (next) => {
@@ -158,6 +208,11 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
       simulation.setPorts(next.ports);
       diagnosticsFeed.configure(next.diagnostics);
       remerge();
+      if (next.gates !== gatesNow) {
+        gatesNow = next.gates;
+        watchGates(gatesNow);
+      }
+      rejoin();
     },
   };
 });
