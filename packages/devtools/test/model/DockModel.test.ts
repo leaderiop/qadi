@@ -1010,7 +1010,7 @@ describe("the questions store (M31, M32, M33, P2)", () => {
   const guard = (
     id: string,
     policy: Policy,
-    fields?: { readonly state?: string; readonly resource?: Resource },
+    fields?: { readonly state?: string; readonly resource?: Resource | undefined },
   ): GateInstanceLike => ({ id, kind: "Can", policy, state: fields?.state ?? "Allowed", resource: fields?.resource });
 
   /** The ids asking each asked question, row by row; empty when the view carries no rows. */

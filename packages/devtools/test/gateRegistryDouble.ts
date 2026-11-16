@@ -34,7 +34,7 @@ export const makeGateRegistryDouble = (initial: ReadonlyArray<GateInstanceLike> 
 
   const changed = () => {
     stale = true;
-    for (const listener of [...live]) listener();
+    for (const listener of live) listener();
   };
 
   return {
