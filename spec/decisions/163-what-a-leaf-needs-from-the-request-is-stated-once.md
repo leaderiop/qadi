@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-163                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — reads ADR-QD-024, ADR-QD-100, ADR-QD-134; applies ADR-QD-152; keeps ADR-QD-034, ADR-QD-073 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-16): HasAttribute's outcome on a request missing both inputs depends on what its matcher references (review WR-03)<br>1.1 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-97, CCR-QD-441) |
+> | Change History | 1.3 (2026-11-16): Context: the base's action test built MissingAction({}), its resource test MissingResource (review IN-01)<br>1.2 (2026-11-16): HasAttribute's outcome on a request missing both inputs depends on what its matcher references (review WR-03)<br>1.1 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-97, CCR-QD-441) |
 
 ---
 
@@ -20,8 +20,8 @@ The rule that a leaf which reads the action or the resource fails when the reque
 leaf and per interpreter.
 
 At the phase base (`5ab8d0c0`), `Walk.ts` carried it in three arms of `evaluateNode`: `HasAttribute` and
-`HasResourceAttribute` each tested `action === undefined && referencesAction(policy.matcher)` and each built
-`new MissingResource(...)`, and `HasAction` built `new MissingAction({ expected: policy.action })`. The two matcher leaves
+`HasResourceAttribute` each tested `action === undefined && referencesAction(policy.matcher)` and built
+`new MissingAction({})` from that test, each built `new MissingResource(...)` from its resource test, and `HasAction` built `new MissingAction({ expected: policy.action })`. The two matcher leaves
 checked in different orders: `HasAttribute` asked the action first and the resource second, `HasResourceAttribute` asked the
 resource first and the action second. `Predicate.ts` restated every one of those checks as lazy `NeedAction` plans, three of
 its cells carrying an own `expected: undefined` key that `evaluate`'s `MissingAction` never had, and `readScoped` in
