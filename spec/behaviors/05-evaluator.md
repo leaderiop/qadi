@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-05                                    |
-> | Revision       | 1.10                                           |
+> | Revision       | 1.11                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.10 (2026-10-08): BEH-QD-039 — a decision is built from a stamp and a trace (`makeDecision`), and its verdict, `visibleFields`, `obligations` and `reason` are the trace root's (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.9 (2026-10-07): BEH-QD-033 — the interpreter is the internal `walk`, `evaluate` the only public path to a decision; BEH-QD-317 added, a readiness probe asks the ports every time (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-05): BEH-QD-035 — the stop rule reads the field lattice's `decidedByFirst` law; a strategy outside the union, prototype keys included, never stops early (ADR-QD-092, CCR-QD-174)<br>1.7 (2026-10-04): BEH-QD-038 — nesting depth is judged on the policy before any node is visited, matcher nesting counts, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-261 — scope sentence: the conversion lives in `PortAccess.ts` and applies to every port read core makes, `toPredicate`'s included (BEH-QD-264); the requirement text for `evaluate` is unchanged (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-09): BEH-QD-261 — the five bare `yield*` port calls (`AttributeResolver.resolve`, `DecisionHistory.hasActed`, `RelationshipResolver.check`, `CustomPredicate.evaluate`, `SignatureHistory.signaturesFor`) now each convert a defecting implementation into their own typed `EvaluationError`, joining the four `EvaluationError` tags (`MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep`) that were already synchronous and so never at risk of dying — so a caller's `Effect.retry` around `evaluate` now sees a retryable failure at all nine tags, not just those four (issue #100, CCR-QD-142)<br>1.4 (2026-09-07): BEH-QD-033's `evaluate` signature corrected — the requirement channel omitted `CustomPredicate`/`SignatureHistory`, both joined by CCR-QD-082/CCR-QD-089 (CCR-QD-110)<br>1.3 (2026-07-26): `DecisionHistory` joins `EvaluationServices` (CCR-QD-016)<br>1.2 (2026-07-26): `Trace.obligations` (CCR-QD-015)<br>1.1 (2026-07-26): Missing-action rule cross-referenced (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.11 (2026-11-16): BEH-QD-589 and BEH-QD-590 new: the port-free judgements are written once; every leaf tag has one row in the leaf-needs table (ARCH-97, CCR-QD-441)<br>1.10 (2026-10-08): BEH-QD-039 — a decision is built from a stamp and a trace (`makeDecision`), and its verdict, `visibleFields`, `obligations` and `reason` are the trace root's (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.9 (2026-10-07): BEH-QD-033 — the interpreter is the internal `walk`, `evaluate` the only public path to a decision; BEH-QD-317 added, a readiness probe asks the ports every time (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-05): BEH-QD-035 — the stop rule reads the field lattice's `decidedByFirst` law; a strategy outside the union, prototype keys included, never stops early (ADR-QD-092, CCR-QD-174)<br>1.7 (2026-10-04): BEH-QD-038 — nesting depth is judged on the policy before any node is visited, matcher nesting counts, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-261 — scope sentence: the conversion lives in `PortAccess.ts` and applies to every port read core makes, `toPredicate`'s included (BEH-QD-264); the requirement text for `evaluate` is unchanged (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-09): BEH-QD-261 — the five bare `yield*` port calls (`AttributeResolver.resolve`, `DecisionHistory.hasActed`, `RelationshipResolver.check`, `CustomPredicate.evaluate`, `SignatureHistory.signaturesFor`) now each convert a defecting implementation into their own typed `EvaluationError`, joining the four `EvaluationError` tags (`MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep`) that were already synchronous and so never at risk of dying — so a caller's `Effect.retry` around `evaluate` now sees a retryable failure at all nine tags, not just those four (issue #100, CCR-QD-142)<br>1.4 (2026-09-07): BEH-QD-033's `evaluate` signature corrected — the requirement channel omitted `CustomPredicate`/`SignatureHistory`, both joined by CCR-QD-082/CCR-QD-089 (CCR-QD-110)<br>1.3 (2026-07-26): `DecisionHistory` joins `EvaluationServices` (CCR-QD-016)<br>1.2 (2026-07-26): `Trace.obligations` (CCR-QD-015)<br>1.1 (2026-07-26): Missing-action rule cross-referenced (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -301,6 +301,42 @@ export const probeTwice = Effect.gen(function* () {
 A probe answers "do the wired ports answer?", which is not an authorization
 decision. Its `qadi.guardHealthCheck` span carries `qadi.healthy` and, when
 unhealthy, `qadi.error_tag`.
+
+## BEH-QD-589: The port-free judgements are written once
+
+> **See:** [ADR-QD-163](../decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md)
+
+```
+REQUIREMENT: Whether the subject holds a `HasRole` leaf's role, whether it holds a
+             `HasPermission` leaf's permission, and whether the request's action
+             is a `HasAction` leaf's action MUST each be decided by one function
+             (`holdsRole`, `holdsPermission`, `holdsAction`) that `evaluate` and
+             `toPredicate` both call. `evaluate`'s reason sentences MUST be
+             unchanged.
+```
+
+Each interpreter wraps the boolean, `evaluate` in an allow or a deny with its
+reason, `toPredicate` in a constant. The functions are in
+`packages/core/src/LeafNeeds.ts`, package-private, and `LeafNeeds.test.ts`
+asserts that none is on the barrel.
+
+## BEH-QD-590: Every leaf tag has one row in the leaf-needs table
+
+> **Invariant:** [INV-QD-345](../invariants.md#inv-qd-345-every-leaf-tag-has-one-row-in-the-leaf-needs-table)
+> **See:** [ADR-QD-163](../decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md),
+> [ADR-QD-152](../decisions/152-each-hydration-drop-reason-is-stated-once-with-its-kind.md)
+
+```
+REQUIREMENT: `LEAF_NEEDS` MUST have exactly one row for each tag of `LeafPolicy`:
+             a leaf tag without a row MUST be a compile error (TS2741), and a row
+             for a tag that is not a leaf MUST be one too (TS2353). Both
+             interpreters MUST read it, and neither MAY restate what a row says.
+```
+
+A row says what the leaf reads itself, whether its matcher is asked what it
+references, and whether it asks a port about one resource. The table is keyed
+by the leaf, so two leaves with the same need keep two rows. Pinned by
+`LeafNeeds.test.ts` and the typecheck.
 
 ---
 

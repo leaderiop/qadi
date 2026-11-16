@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-10                                    |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-11-10): BEH-QD-076's listing shows MissingAction as the Schema.TaggedError it is (ARCH-61, CCR-QD-403)<br>1.0 (2026-07-26): Initial release (CCR-QD-012) |
+> | Change History | 1.2 (2026-11-16): BEH-QD-586 and BEH-QD-587 new: a leaf's own input is reported before what its matcher references; an action absence that names no action carries no expected key in either interpreter; BEH-QD-076 points at both (ARCH-97, CCR-QD-441)<br>1.1 (2026-11-10): BEH-QD-076's listing shows MissingAction as the Schema.TaggedError it is (ARCH-61, CCR-QD-403)<br>1.0 (2026-07-26): Initial release (CCR-QD-012) |
 
 _Previous: [09 — React Integration](./09-react.md)_
 
@@ -102,8 +102,12 @@ REQUIREMENT: The check MUST happen before the matcher runs. `evaluateMatcher` is
              `referencesAction` is the guard.
 ```
 
+The guard is asked from `LeafNeeds.ts`'s `absenceOf`, once, for both interpreters,
+and in a fixed order ([BEH-QD-586](#beh-qd-586-a-leafs-own-input-is-reported-before-what-its-matcher-references)).
+
 `expected` names the required action when the policy named one. A matcher
-comparing against `action()` requires nothing, so it reports `undefined`.
+comparing against `action()` requires nothing, so its `MissingAction` carries no
+`expected` ([BEH-QD-587](#beh-qd-587-an-action-absence-that-names-no-action-carries-no-expected-key)).
 
 ## BEH-QD-077: Observability
 
@@ -151,6 +155,51 @@ const performsRequiredOperation: Policy = hasResourceAttribute(
   eq(action()),
 );
 ```
+
+## BEH-QD-586: A leaf's own input is reported before what its matcher references
+
+> **Invariant:** [INV-QD-346](../invariants.md#inv-qd-346-a-leafs-own-input-is-checked-before-what-its-matcher-references-the-action-before-the-resource)
+> **See:** [ADR-QD-163](../decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md)
+
+```
+REQUIREMENT: When a request lacks an input a leaf needs, the absence reported
+             MUST be the leaf's own input first (`HasAction`: the action;
+             `HasResourceAttribute`: the resource), then what its matcher
+             references, the action before the resource. A request missing both
+             the action and the resource MUST therefore fail `HasAction` with
+             `MissingAction`, `HasResourceAttribute` with `MissingResource`, and
+             `HasAttribute` (which owns neither) with `MissingAction`.
+
+REQUIREMENT: `evaluate` and `toPredicate` MUST report the same absence for the
+             same leaf and request wherever both apply.
+```
+
+The order is the one each leaf had before ARCH-97, now stated once as a row in
+`packages/core/src/LeafNeeds.ts`'s table and applied by `absenceOf`; it was
+preserved deliberately, not redesigned. "The action before the resource" among
+what a matcher references never decides between two references, because a
+matcher holds at most one; it is the own-before-matcher half that a request
+missing both inputs can see. Pinned by `LeafMatrix.test.ts` (every leaf tag by
+action by resource by what the matcher references, written on the phase base as
+a characterisation) and `LeafNeeds.test.ts`.
+
+## BEH-QD-587: An action absence that names no action carries no expected key
+
+> **Invariant:** [INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one)
+> **See:** [ADR-QD-163](../decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md)
+
+```
+REQUIREMENT: A `MissingAction` raised for a leaf that names no action (a matcher
+             that compares against `action()`) MUST NOT have an own `expected`
+             key, from `evaluate` and from `toPredicate` alike. A `HasAction`
+             leaf's `MissingAction` MUST carry the action the leaf names.
+```
+
+`toPredicate` used to build an own `expected: undefined` in three cells, which
+`evaluate` never did. `expected` is `Schema.optional`, so the two encode
+identically and the difference was visible only to an in-process
+`Object.hasOwn`. Both interpreters now build the error through `errorOf`. Pinned
+by `Predicate.test.ts`'s D-08a test, which was written red first.
 
 ---
 
