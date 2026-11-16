@@ -53,6 +53,23 @@ Filled by the planner from the PLAN files' `<verify>` blocks. Requirement → te
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
+### Per-task map (from the PLAN files' `<verify>` blocks)
+
+| Task | Requirements | Automated verify | Status |
+|------|--------------|------------------|--------|
+| 51-01 T1 base facts, reserved ids | WX-02 | base-facts recount at `phase_base`; `git grep -lwF` per reserved id | ⬜ pending |
+| 51-01 T2 mutation base | WX-05, WX-06 | `tools/mutation.mjs base` then the JSON shape check; first-commit check (`chore(51-01)` alone, parent `phase_base`) | ⬜ pending |
+| 51-02 T1 TraceShape table (tracer) | ARTY-01, WX-06 | `vitest run --project core packages/core/test/TraceShape.test.ts` (19 of 19), tsc, lint; import and commit check | ⬜ pending |
+| 51-02 T2 base experiment | ARTY-02, WX-06 | `tools/moves.mjs` → `moves.tsv` check (32 compile, 32 caught), `git apply --check`; commit check; `pnpm check:pr` | ⬜ pending |
+| 51-03 T1 RED, record, `traceShapeOf` (tracer) | ARTY-01, ARTY-02 | vitest (TraceShape, PolicyArity, Decision, Policy, Explanation), tstyche (PolicyArity, Policy, LeafNeeds), tsc, `pnpm circular`, lint, api surface; RED-then-GREEN order and content check | ⬜ pending |
+| 51-03 T2 `Policy.ts` tie, after proofs | ARTY-02, WX-04 | `tools/proofs.mjs` (every proof as expected), core vitest, `pnpm test:tstyche`; emitted JS equal to the base; commit check; `pnpm check:pr` | ⬜ pending |
+| 51-04 T1 ADR-QD-164 | ARTY-03, WX-02 | ADR and `index.yaml` content check; `spec-revise --check`; commit check | ⬜ pending |
+| 51-04 T2 BEH, INV, traceability, fence | ARTY-03, WX-02 | headings once each, INV-QD-090 unchanged, traceability ids; `spec-revise --check`, `pnpm spec:verify:strict`, `pnpm spec:examples`; commit check | ⬜ pending |
+| 51-04 T3 CCR row, changeset | WX-02, WX-03, WX-07 | CCR row and patch changeset check; overview/AGENTS.md/upgrading.md unchanged; commit check; `pnpm check:pr` | ⬜ pending |
+| 51-05 T1 mutation after | WX-05 | `tools/mutation.mjs compare` (`WX-05 holds`); base once, after last | ⬜ pending |
+| 51-05 T2 phase scan | ARTY-01..03, WX-04, WX-06 | `tools/scan.mjs` (`phase scan clean`), `pnpm circular`, house style (3 switches); no tools/scripts/config change | ⬜ pending |
+| 51-05 T3 close | WX-01, WX-07, ARTY-01..03 | `pnpm check:pr`; release check; ARTY-01..03 complete | ⬜ pending |
+
 ---
 
 ## Wave 0 Requirements

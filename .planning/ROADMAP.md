@@ -731,7 +731,23 @@ Plans:
   4. `foldTrace` stays public and unchanged (the barrel pin and its INV-QD-090 tests untouched), `renderTrace` and `diffTraces` keep their own walks, and the ADR or CCR states why; `SWITCH_BUDGET` is unchanged.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `Policy.ts` and `Decision.ts`, the all-tags shape table and the recorded base experiment (move a tag, it compiles), committed first; then the record and the two readers; then the type-level negative; then records. Re-run `pnpm circular`.
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+**Wave 1**
+- [ ] 51-01-PLAN.md — preconditions, the base facts and the reserved ids; the mutation baseline of `Policy.ts` and `Decision.ts` committed alone
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 51-02-PLAN.md — every tag's trace shape through `foldTrace`, green on the base; the base experiment (an arity move compiles) recorded with its 32-move matrix
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 51-03-PLAN.md — the tests RED, the package-private `PolicyArity.ts` with `traceShapeOf` reading it, then `childrenOf` and `LeafPolicy` tied to it; the after proofs (the same moves no longer compile)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 51-04-PLAN.md — ADR-QD-164, BEH-QD-591..595, INV-QD-347..348, traceability, the `LeafPolicy` fence, CCR-QD-442, the `@qadi/core` patch changeset
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 51-05-PLAN.md — the mutation after-run and comparison, the phase scan, `check:pr`, the release check, ARTY-01..03 complete
 
 ### Phase 52: Core owns the predicate compile shell
 
