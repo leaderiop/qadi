@@ -42,7 +42,7 @@ rejection) and a pursue path. The gate passed.
    a keyed table written `as const satisfies { readonly [K in LeafPolicy["_tag"]]: LeafNeed }`, applying ADR-QD-152: a leaf
    tag without a row is TS2741 and an extra row is TS2353 (INV-QD-345). A row says what the leaf reads itself (`own`:
    `Nothing`, `Action` or `Resource`), whether its matcher is asked what it references (`matcher`), and whether it asks a port
-   about one resource (`resourceId`: `Never`, `Always` or `ByScope`). It is out of the barrel (ADR-QD-099), so gate 13 asks for
+   about one resource (`resourceId`: `Never`, `Always` or `ByScope`). It is out of the barrel (ADR-QD-099), so gate 13 (`check-api-surface.mjs`) asks for
    no overview row, and `LeafNeeds.test.ts` asserts that none of its exports is on the barrel.
 2. **One closed `Absence` union and two functions** (D-08, D-08b). `absenceOf(leaf, supplied)` applies the one rule to a
    row and returns an `ActionAbsence`, a `ResourceAbsence` or nothing; `errorOf(absence)` says which error each absence becomes.
