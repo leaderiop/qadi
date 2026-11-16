@@ -6,17 +6,15 @@
  * releasing another. Ten entry points enforce (`assert`, `enforce`,
  * `enforceProjected`, `enforceLoaded`, `enforceProjectedLoaded`, `guard`,
  * `filter`, `filterStream`, `filterProjected`, `filterStreamProjected`), and
- * this file reaches all of them through the public `Qadi.*` surface only: the
- * module that will sit behind them is package-private (ADR-QD-099), so a test
- * that imported it would pin its shape rather than the behaviour it keeps.
+ * every describe but the last reaches them through the public `Qadi.*` surface:
+ * `Handover.ts`, the module behind them, is package-private (ADR-QD-099), so a
+ * test that imported it would pin its shape rather than the behaviour it keeps.
+ * The last describe reads `verdictOf` directly, because no entry point reports
+ * the verdict's tag.
  *
  * The environment is core's own `testLayer` plus a recording `DecisionSink`, not
  * the testing package's `qadiTestLayer`: that package depends on core, so a core
  * test importing it is a dependency cycle (`helpers.ts`).
- *
- * Every case is green on the base and stays green after the move except the one
- * named defect case in the last describe, `enforceProjected ignores a smuggled
- * resource and decides with none`, which the move closes.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
