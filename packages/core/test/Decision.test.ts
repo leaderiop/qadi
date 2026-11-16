@@ -8,7 +8,16 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Equal from "effect/Equal";
 import * as Schema from "effect/Schema";
 import * as FastCheck from "fast-check";
-import { Allow, Deny, foldTrace, makeDecision, project, TraceSchema } from "../src/Decision.ts";
+import {
+  Allow,
+  Deny,
+  foldTrace,
+  isAllowingTrace,
+  isDenyingTrace,
+  makeDecision,
+  project,
+  TraceSchema,
+} from "../src/Decision.ts";
 import type { Trace, TraceCases } from "../src/Decision.ts";
 import { makeSubjectId } from "../src/Identity.ts";
 import { POLICY_TAGS } from "../src/Policy.ts";
@@ -222,6 +231,17 @@ describe("a decision is built from a stamp and a trace (ARCH-32)", () => {
     visibleFields: ["id"],
     obligations: [obligation("audit.log")],
   };
+
+  it("the two trace guards split traces by the root's verdict", () => {
+    const denying: Trace = { ...allowing, allowed: false };
+    assert.deepStrictEqual(
+      [allowing, denying].map((t) => [isAllowingTrace(t), isDenyingTrace(t)]),
+      [
+        [true, false],
+        [false, true],
+      ],
+    );
+  });
 
   it("an allowing trace builds an Allow equal to a second build of it", () => {
     const first = makeDecision(stamp, allowing);
