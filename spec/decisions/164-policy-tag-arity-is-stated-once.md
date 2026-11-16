@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-164                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — applies ADR-QD-152; reads ADR-QD-090, ADR-QD-101, ADR-QD-099; keeps ADR-QD-073, ADR-QD-077 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-16): Initial release (ARCH-98, CCR-QD-442) |
+> | Change History | 1.1 (2026-11-16): review iteration 1 WR-01: the after table says what each edit did on the base (ARCH-98)<br>1.0 (2026-11-16): Initial release (ARCH-98, CCR-QD-442) |
 
 ---
 
@@ -117,22 +117,27 @@ the shape through changed, and INV-QD-090 is kept as written, not restated.
 `tools/proofs.mjs` (run on the committed tree, exit 0) makes each of the following edits temporarily and runs
 `node_modules/.bin/tsc -p tsconfig.test.json`; each is then restored. The control, no edit, is `exit 0`.
 
-| Edit | Result |
-|---|---|
-| the base experiment's patch | cannot be applied: its list is deleted (`git apply --check` refused, `patch failed: packages/core/src/Decision.ts:435`) |
-| record: `Not` Wrapper to Many (the same move, where the arity now lives) | `exit 1`, `Policy.ts(1060,18): error TS2322: Type 'Policy' is not assignable to type 'never'` |
-| record: `Obliged` Wrapper to Many | `exit 1`, `Policy.ts(1061,22)`, the same error |
-| record: `AllOf` Many to Wrapper | `exit 1`, `Type 'readonly Policy[]' is not assignable to type 'readonly [Policy]'` |
-| record: `Rules` Many to Wrapper | `exit 1`, `Type 'Policy[]' is not assignable to type 'readonly [Policy]'` |
-| record: `Not` Wrapper to Leaf | `exit 1`, `Type '[Policy]' is not assignable to type 'readonly []'` |
-| record: `HasRole` Leaf to Wrapper | `exit 1`, `Type '[]' is not assignable to type 'readonly [Policy]'` |
-| record: `HasRole` Leaf to Many (the gap above) | `exit 1`, `Policy.test.ts(1045,52): error TS2741`: `LeafPolicy`'s readers refuse it |
-| record: `HasRole` removed, an unknown tag added, an unknown arity word | `exit 1`, `TS7053`, `TS2344`, `TS2322` |
-| `childrenOf` arm: `Not` returns none, or two | `exit 1`, `TS2322` at the arm |
-| `childrenOf` arm: `AllOf: () => []` | `exit 0`: a Many may be empty; `Policy.test.ts`'s lockstep property refuses it at runtime |
+| Edit | On the base (`base-experiment/moves.tsv`) | Result after |
+|---|---|---|
+| the base experiment's patch | `move Not Wrapper->Many`: `tsc_exit` 0 | cannot be applied: its list is deleted (`git apply --check` refused, `patch failed: packages/core/src/Decision.ts:435`) |
+| record: `Not` Wrapper to Many (the same move, where the arity now lives) | `move Not Wrapper->Many`: `tsc_exit` 0 | `exit 1`, `Policy.ts(1060,18): error TS2322: Type 'Policy' is not assignable to type 'never'` |
+| record: `Obliged` Wrapper to Many | `move Obliged Wrapper->Many`: `tsc_exit` 0 | `exit 1`, `Policy.ts(1061,22)`, the same error |
+| record: `AllOf` Many to Wrapper | `move AllOf Many->Wrapper`: `tsc_exit` 0 | `exit 1`, `Type 'readonly Policy[]' is not assignable to type 'readonly [Policy]'` |
+| record: `Rules` Many to Wrapper | `move Rules Many->Wrapper`: `tsc_exit` 0 | `exit 1`, `Type 'Policy[]' is not assignable to type 'readonly [Policy]'` |
+| record: `Not` Wrapper to Leaf | `move Not Wrapper->Leaf`: `tsc_exit` 0 | `exit 1`, `Type '[Policy]' is not assignable to type 'readonly []'` |
+| record: `HasRole` Leaf to Wrapper | `move HasRole Leaf->Wrapper`: `tsc_exit` 0 | `exit 1`, `Type '[]' is not assignable to type 'readonly [Policy]'` |
+| record: `HasRole` Leaf to Many (the gap above) | `move HasRole Leaf->Many`: `tsc_exit` 0 | `exit 1`, `Policy.test.ts(1045,52): error TS2741`: `LeafPolicy`'s readers refuse it |
+| record: `HasRole` removed, an unknown tag added, an unknown arity word | no counterpart: the base had no record, and `moves.mjs` measured none of the three | `exit 1`, `TS7053`, `TS2344`, `TS2322` |
+| `childrenOf` arm: `Not` returns none, or two | `arm Not`: `tsc_exit` 0 for both | `exit 1`, `TS2322` at the arm |
+| `childrenOf` arm: `AllOf: () => []` | `arm AllOf`: `tsc_exit` 0 | `exit 0`: a Many may be empty; `Policy.test.ts`'s lockstep property refuses it at runtime |
 
-On the base every one of these compiled (the matrix of 32 plus the three arm edits). After, every one but the last fails
-to compile, and the last is the one the type was never going to see.
+On the base all 32 single-tag moves of `traceShapeOf` and all three `childrenOf` arm edits compiled (`moves.tsv`,
+`tsc_exit` 0 on every row). After, the equivalent record edits and the two `Not` arm edits fail to compile. The three
+structural rows (a tag removed, a stray tag, an unknown word) have no base counterpart, because there was no record to
+edit, and the nearest base edit did not compile either: a tag deleted from `leafTags` leaves `Match.exhaustive` with that
+tag unmatched (`Decision.ts(439,3)`, TS2345; measured by the phase's code review on a copy of the base, not part of
+`moves.tsv`), which is the Context's "a new tag fails to compile everywhere". The last row is the one the type was never
+going to see.
 
 The evidence's order is part of the record. `TraceShape.test.ts` was written and committed on the base, by hand from
 INV-QD-090 and `childrenOf` and independent of the record (`dfb137ea`), so it passes on the old code and on the new; the
