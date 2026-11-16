@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-161                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — amends ADR-QD-056, ADR-QD-095       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-16): accepted (ARCH-95, CCR-QD-439) |
+> | Change History | 1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-95, CCR-QD-439)<br>1.0 (2026-11-16): accepted (ARCH-95, CCR-QD-439) |
 
 ---
 
@@ -126,4 +126,5 @@ by the plan that follows this one, so they are named, not linked, here.
 - [ADR-QD-095](./095-sinkcodec-owns-both-directions.md), whose D-09-e audit clause no longer holds
 - [ADR-QD-123](./123-a-metric-is-declared-once.md), whose metric rows this change leaves untouched
 - ARCH-95, CCR-QD-439
-- BEH-QD-576 to BEH-QD-580, INV-QD-341 and INV-QD-342 (written by the plan that follows this one)
+- [BEH-QD-576](../behaviors/33-audit-pipeline.md#beh-qd-576-an-audit-refusal-is-cores-sinkrecordnotencodable), [BEH-QD-577](../behaviors/33-audit-pipeline.md#beh-qd-577-a-refused-records-default-line-is-cores-report-and-its-sentence-is-cores-to-compute), [BEH-QD-578](../behaviors/33-audit-pipeline.md#beh-qd-578-one-row-per-unwritten-staging-decides-whether-the-entry-is-lost), [BEH-QD-579](../behaviors/33-audit-pipeline.md#beh-qd-579-the-spans-durability-the-lost-counter-and-the-unwritten-lines-level-agree-on-every-leaf), [BEH-QD-580](../behaviors/33-audit-pipeline.md#beh-qd-580-the-stage-result-is-a-closed-union-and-every-branch-on-an-outcome-is-exhaustive)
+- [INV-QD-341](../invariants.md#inv-qd-341-an-unwritten-audit-entry-is-lost-exactly-when-its-stagings-row-says-so) and [INV-QD-342](../invariants.md#inv-qd-342-an-audit-refusal-is-cores-one-sinkrecordnotencodable)
