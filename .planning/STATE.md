@@ -5,17 +5,17 @@ milestone_name: Arch Wave 10
 current_phase: 47
 current_phase_name: Port facts read from the description
 current_plan: 7
-status: executing
-stopped_at: Completed 47-06-PLAN.md
-last_updated: "2026-11-16T00:34:44.607Z"
+status: verifying
+stopped_at: Completed 47-07-PLAN.md
+last_updated: "2026-11-16T00:42:21.369Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase 47 execution started
-state_head: 4e2b0ebbe3514daa542c217e67f292c0d0346c8b
+state_head: 3d31e61bb1aef8e93867df478c6d68faae83445c
 progress:
   total_phases: 10
   completed_phases: 4
   total_plans: 36
-  completed_plans: 35
+  completed_plans: 36
   percent: 40
 ---
 
@@ -33,7 +33,7 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 Phase: 47 (Port facts read from the description) — EXECUTING
 Current Plan: 7
 Total Plans in Phase: 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-16 — Phase 47 execution started
 
 Progress: [████░░░░░░] 40% (4 of 10 phases)
@@ -288,6 +288,7 @@ Progress: [████░░░░░░] 40% (4 of 10 phases)
 | Phase 47 P04 | 10min | 3 tasks | 4 files |
 | Phase 47 P05 | 10min | 3 tasks | 7 files |
 | Phase 47 P06 | 10min | 2 tasks | 9 files |
+| Phase 47 P07 | 25min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -482,6 +483,7 @@ Progress: [████░░░░░░] 40% (4 of 10 phases)
 - [Phase 47]: 47-04: ROWS built by monomorphic rowOf (R6, D-18); PortCall derived from the registry (D-19)
 - [Phase 47]: 47-05: the sixth port's devtools cost measured at four src files (PortReading, PortCalls, SimulationFields, SimulationSource), scratch reverted; ADR-QD-160 names BEH/INV in plain text until 47-06; changesets core minor and devtools patch, none Breaking
 - [Phase 47]: 47-06: BEH-QD-574 is placed in 30-port-calls.md beside BEH-QD-228; BEH-QD-573 and 575 stay in 28-devtools-screens.md
+- [Phase 47]: 47-07: mutation after the phase keeps every touched file at its base score; the new files PortDefault.ts and PortReading.ts score 1; the CCR-QD-438 row names the evidence
 
 ### Pending Todos
 
@@ -535,8 +537,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T00:34:44.446Z
-Stopped at: Completed 47-06-PLAN.md
+Last session: 2026-11-16T00:42:13.626Z
+Stopped at: Completed 47-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
