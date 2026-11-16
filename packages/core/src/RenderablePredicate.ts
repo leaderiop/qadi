@@ -534,8 +534,17 @@ export interface CompileOutcomes {
 
 /** What `compilePredicate` takes beside the predicate. */
 export interface CompilePredicateOptions<A> {
-  /** The dialect's `RenderRules` minus the two fields core defaults. */
-  readonly rules: Omit<RenderRules, "identifiers" | "maxInValues">;
+  /**
+   * The dialect's `RenderRules` minus the two fields core defaults.
+   *
+   * A value carrying either field is refused by type, not dropped at runtime: a
+   * full `RenderRules` would otherwise type-check here and have its own
+   * `maxInValues` silently replaced by the default.
+   */
+  readonly rules: Omit<RenderRules, "identifiers" | "maxInValues"> & {
+    readonly identifiers?: never;
+    readonly maxInValues?: never;
+  };
   /** Default `"Ascii"`. */
   readonly identifiers?: IdentifierRule | undefined;
   /** Default {@link DEFAULT_MAX_IN_VALUES}. */

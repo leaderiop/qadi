@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-165                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — keeps ADR-QD-054, ADR-QD-079, ADR-QD-123 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-16): Initial release (ARCH-99, CCR-QD-443) |
+> | Change History | 1.1 (2026-11-16): CompilePredicateOptions.rules refuses identifiers and maxInValues by type (ARCH-99, CCR-QD-443 review iteration 1 WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-99, CCR-QD-443) |
 
 ---
 
@@ -38,7 +38,10 @@ export interface CompileOutcomes {
   readonly refused: Metric.Counter<number>;
 }
 export interface CompilePredicateOptions<A> {
-  readonly rules: Omit<RenderRules, "identifiers" | "maxInValues">;
+  readonly rules: Omit<RenderRules, "identifiers" | "maxInValues"> & {
+    readonly identifiers?: never;
+    readonly maxInValues?: never;
+  };
   readonly identifiers?: IdentifierRule | undefined;
   readonly maxInValues?: number | undefined;
   readonly render: (node: RenderableNode) => A;
@@ -49,6 +52,9 @@ export const compilePredicate: <A>(
   options: CompilePredicateOptions<A>,
 ) => Effect.Effect<A, PredicateNotRenderable>;
 ```
+
+`rules` carries neither defaulted field: a value holding `identifiers` or `maxInValues`, a full `RenderRules`
+included, does not type-check, so a dialect's own bound cannot be silently replaced by the default.
 
 The order is fixed: apply the defaults, classify with `toRenderable`, count `refused` on a refusal, render, count
 `compiled`. Each dialect keeps its own rules, its own renderer and its own counter, and passes the three in; a third
