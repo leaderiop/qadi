@@ -156,22 +156,28 @@ const discharge = Effect.fn("qadi.discharge")(function* <E, R>(
 });
 
 /** An allow whose obligations are discharged: the value may be handed over. */
-export interface Admitted {
-  readonly _tag: "Admitted";
+export interface Released {
+  readonly _tag: "Released";
   readonly decision: Allow;
 }
 
 /** A denial: nothing is handed over. */
-export interface Refused {
-  readonly _tag: "Refused";
+export interface Barred {
+  readonly _tag: "Barred";
   readonly decision: Deny;
 }
 
-/** What an enforcing call concluded, closed over the two answers a decision can give. */
-export type Verdict = Admitted | Refused;
+/**
+ * What an enforcing call concluded, closed over the two answers a decision can give.
+ *
+ * Named apart from `Compare.ts`'s `Verdict`, `Admission.ts`'s `Admitted` and the
+ * obligation outcome `"Refused"`, so a search for one lands on one concept.
+ */
+export type HandoverVerdict = Released | Barred;
 
-/** Narrows a verdict to the one that admits. */
-export const isAdmitted = (verdict: Verdict): verdict is Admitted => verdict._tag === "Admitted";
+/** Narrows a verdict to the one that releases. */
+export const isReleased = (verdict: HandoverVerdict): verdict is Released =>
+  verdict._tag === "Released";
 
 /**
  * Evaluates, discharges what an allow obliges, and says whether the value may be handed over.
@@ -196,19 +202,19 @@ export const verdictOf = <E = never, R = never>(
   policy: Policy,
   options: EnforceOptions<E, R> | undefined,
 ): Effect.Effect<
-  Verdict,
+  HandoverVerdict,
   EvaluationError | UndischargedObligation | E,
   EvaluationServices | R
 > =>
   Effect.flatMap(
     ask(policy, options),
-    ({ question, decision }): Effect.Effect<Verdict, UndischargedObligation | E, R> =>
+    ({ question, decision }): Effect.Effect<HandoverVerdict, UndischargedObligation | E, R> =>
       isAllowed(decision)
         ? Effect.map(
             discharge({ question, decision }, options?.onObligations),
-            (): Verdict => ({ _tag: "Admitted", decision }),
+            (): HandoverVerdict => ({ _tag: "Released", decision }),
           )
-        : Effect.succeed({ _tag: "Refused", decision }),
+        : Effect.succeed({ _tag: "Barred", decision }),
   );
 
 /**
@@ -278,5 +284,5 @@ export const handOver = <A extends Resource, B, E = never, R = never>(
   EvaluationServices | R
 > =>
   Effect.map(verdictOf(policy, decidedOn(options, value)), (verdict) =>
-    isAdmitted(verdict) ? Result.succeed(release(verdict.decision, value)) : Result.failVoid,
+    isReleased(verdict) ? Result.succeed(release(verdict.decision, value)) : Result.failVoid,
   );

@@ -573,13 +573,13 @@ describe("a resource smuggled in at runtime is never the one decided on", () => 
 });
 
 // The one place this file reads the package-private module directly: a verdict's
-// `_tag` is what `isAdmitted` narrows on, and no entry point reports it, so the
+// `_tag` is what `isReleased` narrows on, and no entry point reports it, so the
 // refusal's name is observable only here.
 describe("the verdict an enforcing call reaches", () => {
-  it.effect("a denial is a Refused verdict carrying the denying decision", () =>
+  it.effect("a denial is a Barred verdict carrying the denying decision", () =>
     Effect.gen(function* () {
       const verdict = yield* verdictOf(ownedByMe, { resource: record });
-      assert.strictEqual(verdict._tag, "Refused");
+      assert.strictEqual(verdict._tag, "Barred");
       assert.strictEqual(verdict.decision._tag, "Deny");
     }).pipe(Effect.provide(testLayer(stranger))));
 });

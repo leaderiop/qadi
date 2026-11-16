@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-156                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-15                                     |
 > | Status         | Accepted — extends ADR-QD-104                  |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-15): INV-QD-108 link uses the restated heading's anchor (ARCH-90, CCR-QD-434)<br>1.0 (2026-11-15): Initial (ARCH-90, CCR-QD-434) |
+> | Change History | 1.2 (2026-11-16): the handover verdict is HandoverVerdict, Released or Barred, named apart from Verdict and Admitted (ARCH-90, CCR-QD-434)<br>1.1 (2026-11-15): INV-QD-108 link uses the restated heading's anchor (ARCH-90, CCR-QD-434)<br>1.0 (2026-11-15): Initial (ARCH-90, CCR-QD-434) |
 
 ---
 
@@ -40,8 +40,9 @@ Architecture review #6 found that `Qadi.ts` decided a handed-over value in two i
    owns:
    - the options types: `EnforceOptions`, `HandoverOptions`, `ObligationDischarge` and `ObligationHandler`;
    - `discharge`, the obligations an allow owes, run before the value is handed over;
-   - the one allow-or-deny branch, `verdictOf`, which evaluates, discharges and answers a `Verdict` (`Admitted` or
-     `Refused`) without deciding what a refusal means;
+   - the one allow-or-deny branch, `verdictOf`, which evaluates, discharges and answers a `HandoverVerdict` (`Released`
+     or `Barred`) without deciding what a refusal means; the names are apart from `Compare.ts`'s `Verdict` and
+     `Admission.ts`'s `Admitted`, so a search for either lands on one concept;
    - the only two places a resource is set or dropped: `resourceFree` and `decidedOn`;
    - the one `project(`, in `RELEASE`, a closed table over `Release` (`Whole` or `Projected`): a member missing from
      it is a compile error, as in `FieldLattice.ts` ([ADR-QD-092](./092-field-strategy-meaning-lives-beside-the-lattice.md));

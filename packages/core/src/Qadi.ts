@@ -29,7 +29,7 @@ import type { UndischargedObligation } from "./Errors.ts";
 import type { EnforcementError, EvaluationError } from "./Errors.ts";
 import { evaluate } from "./Evaluate.ts";
 import type { EvaluationServices } from "./EvaluationServices.ts";
-import { RELEASE, decidedOn, handOver, isAdmitted, resourceFree, verdictOf } from "./Handover.ts";
+import { RELEASE, decidedOn, handOver, isReleased, resourceFree, verdictOf } from "./Handover.ts";
 import type { EnforceOptions, HandoverOptions } from "./Handover.ts";
 import type { Permission } from "./Permission.ts";
 import type { Policy } from "./Policy.ts";
@@ -57,7 +57,7 @@ const admittedOrDenied = <E = never, R = never>(
   options: EnforceOptions<E, R> | undefined,
 ): Effect.Effect<Allow, EnforcementError | E, EvaluationServices | R> =>
   Effect.flatMap(verdictOf(policy, options), (verdict) =>
-    isAdmitted(verdict)
+    isReleased(verdict)
       ? Effect.succeed(verdict.decision)
       : Effect.fail(accessDenied(policy, verdict.decision)),
   );
