@@ -731,7 +731,7 @@ Plans:
   4. `foldTrace` stays public and unchanged (the barrel pin and its INV-QD-090 tests untouched), `renderTrace` and `diffTraces` keep their own walks, and the ADR or CCR states why; `SWITCH_BUDGET` is unchanged.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `Policy.ts` and `Decision.ts`, the all-tags shape table and the recorded base experiment (move a tag, it compiles), committed first; then the record and the two readers; then the type-level negative; then records. Re-run `pnpm circular`.
-**Plans**: 2/5 plans executed
+**Plans**: 3/5 plans executed
 
 Plans:
 **Wave 1**
@@ -741,7 +741,7 @@ Plans:
 - [x] 51-02-PLAN.md — every tag's trace shape through `foldTrace`, green on the base; the base experiment (an arity move compiles) recorded with its 32-move matrix
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 51-03-PLAN.md — the tests RED, the package-private `PolicyArity.ts` with `traceShapeOf` reading it, then `childrenOf` and `LeafPolicy` tied to it; the after proofs (the same moves no longer compile)
+- [x] 51-03-PLAN.md — the tests RED, the package-private `PolicyArity.ts` with `traceShapeOf` reading it, then `childrenOf` and `LeafPolicy` tied to it; the after proofs (the same moves no longer compile)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 51-04-PLAN.md — ADR-QD-164, BEH-QD-591..595, INV-QD-347..348, traceability, the `LeafPolicy` fence, CCR-QD-442, the `@qadi/core` patch changeset
@@ -781,5 +781,5 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 48. Audit reports core's refusal and derives "lost" | 8/8 | Complete    | 2026-11-16 |
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 9/9 | Complete    | 2026-11-16 |
 | 50. What a leaf needs from the request, stated once | 8/8 | Complete    | 2026-11-16 |
-| 51. Policy tag arity stated once | 2/5 | In Progress | - |
+| 51. Policy tag arity stated once | 3/5 | In Progress | - |
 | 52. Core owns the predicate compile shell | 0/TBD | Not started | - |
