@@ -82,7 +82,7 @@ export interface QuestionsPanelProps {
 const NO_COUNTS_YET = "no counts read yet.";
 
 const GATES_ABSENT_TEXT =
-  "No live guards were handed to the dock. Pass gates — usually useGateInstances(), or atoms.gates.instances() — to list who is asking.";
+  "No live guards were handed to the dock. Pass gates — usually atoms.gates, from @qadi/react — to list who is asking.";
 const GATES_EMPTY_TEXT =
   "No guard is registered. Pass instrument to QadiProvider to let them say that they exist.";
 

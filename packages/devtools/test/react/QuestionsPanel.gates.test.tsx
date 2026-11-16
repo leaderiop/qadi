@@ -45,7 +45,7 @@ describe("the two views, side by side", () => {
     render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: asked })} />);
     assert.include(
       screen.getByTestId("qadi-gates-absent").textContent ?? "",
-      "useGateInstances()",
+      "atoms.gates, from @qadi/react",
     );
   });
 
