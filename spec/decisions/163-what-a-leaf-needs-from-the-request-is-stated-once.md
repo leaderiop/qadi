@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-163                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — reads ADR-QD-024, ADR-QD-100, ADR-QD-134; applies ADR-QD-152; keeps ADR-QD-034, ADR-QD-073 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-16): Initial release (ARCH-97, CCR-QD-441) |
+> | Change History | 1.1 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-97, CCR-QD-441) |
 
 ---
 
@@ -39,8 +39,11 @@ rejection) and a pursue path. The gate passed.
 ## Decision
 
 1. **One package-private module states each leaf's needs** (D-01, D-09). `packages/core/src/LeafNeeds.ts` holds `LEAF_NEEDS`,
-   a keyed table written `as const satisfies { readonly [K in LeafPolicy["_tag"]]: LeafNeed }`, applying ADR-QD-152: a leaf
-   tag without a row is TS2741 and an extra row is TS2353 (INV-QD-345). A row says what the leaf reads itself (`own`:
+   a keyed table written `as const satisfies { readonly [K in LeafPolicy["_tag"]]: LeafNeedOf<K> }`, applying ADR-QD-152: a leaf
+   tag without a row is TS2741 and an extra row is TS2353 (INV-QD-345). `LeafNeedOf<K>` derives a row's `own` and `matcher`
+   from the leaf's own variant, so a row that disagrees with its leaf (`matcher: false` on a leaf that carries a matcher,
+   `own: "Action"` on a leaf that names no action) is TS2322: `absenceOf` reads a leaf's matcher and action through two guards
+   that trust the row, and a row the compiler did not tie to its leaf would fail open. A row says what the leaf reads itself (`own`:
    `Nothing`, `Action` or `Resource`), whether its matcher is asked what it references (`matcher`), and whether it asks a port
    about one resource (`resourceId`: `Never`, `Always` or `ByScope`). It is out of the barrel (ADR-QD-099), so gate 13 (`check-api-surface.mjs`) asks for
    no overview row, and `LeafNeeds.test.ts` asserts that none of its exports is on the barrel.
@@ -249,7 +252,8 @@ mutant was not done. `PortAccess.ts` and `Predicate.ts` did not fall.
 ## Consequences
 
 - **A new leaf tag needs a row.** Adding a leaf to `LeafPolicy` without a row in `LEAF_NEEDS` is TS2741 and an extra row is
-  TS2353 (INV-QD-345); a leaf whose own input is checked after what its matcher references is a failing matrix cell and a
+  TS2353, and a row whose `own` or `matcher` disagrees with its leaf's variant is TS2322 (INV-QD-345,
+  `LeafNeeds.tst.ts`); a leaf whose own input is checked after what its matcher references is a failing matrix cell and a
   failing table test (INV-QD-346, `LeafMatrix.test.ts`, `LeafNeeds.test.ts`).
 - **The two interpreters cannot disagree about a leaf's absence.** They read one function, so a request missing both inputs
   reports the same error from `evaluate` and `toPredicate` wherever both apply, and `MissingAction`'s `expected` key is the

@@ -32,6 +32,9 @@ type MatcherLeaf = Extract<LeafPolicy, { readonly matcher: Matcher }>;
 /** The leaf that names the action itself. */
 type ActionLeaf = Extract<LeafPolicy, { readonly _tag: "HasAction" }>;
 
+/** The leaf that reads an attribute of the resource itself. */
+type ResourceLeaf = Extract<LeafPolicy, { readonly _tag: "HasResourceAttribute" }>;
+
 /** What one leaf needs from the request. */
 export interface LeafNeed {
   /** What the leaf itself reads, whatever its matcher says; checked first. */
@@ -43,8 +46,26 @@ export interface LeafNeed {
 }
 
 /**
+ * The only row the leaf tagged `K` can have: `own` is the input its variant reads
+ * itself, and `matcher` is `true` exactly when the variant carries a matcher.
+ *
+ * Derived from the variant, so a row that disagrees with its leaf is a compile
+ * error rather than a check that never fires: `absenceOf`'s two guards trust the
+ * table, and this is what makes them sound.
+ */
+export type LeafNeedOf<K extends LeafTag> = LeafNeed & {
+  readonly own: Extract<LeafPolicy, { readonly _tag: K }> extends ActionLeaf
+    ? "Action"
+    : Extract<LeafPolicy, { readonly _tag: K }> extends ResourceLeaf
+      ? "Resource"
+      : "Nothing";
+  readonly matcher: Extract<LeafPolicy, { readonly _tag: K }> extends MatcherLeaf ? true : false;
+};
+
+/**
  * One row per leaf tag. A missing row is TS2741 and an extra one TS2353, so a new
- * leaf cannot ship without saying what it needs (INV-QD-345).
+ * leaf cannot ship without saying what it needs (INV-QD-345); a row whose `own` or
+ * `matcher` disagrees with its leaf's variant is TS2322 ({@link LeafNeedOf}).
  *
  * Rows equal in content stay separate, keyed rows: the key is the leaf, not the
  * shape of its need.
@@ -60,7 +81,7 @@ export const LEAF_NEEDS = {
   HasNotActed: { own: "Nothing", matcher: false, resourceId: "ByScope" },
   HasCustom: { own: "Nothing", matcher: false, resourceId: "Never" },
   HasSignature: { own: "Nothing", matcher: false, resourceId: "ByScope" },
-} as const satisfies { readonly [K in LeafTag]: LeafNeed };
+} as const satisfies { readonly [K in LeafTag]: LeafNeedOf<K> };
 
 /** What a request supplied, as far as an interpreter knows it. */
 export interface Supplied<Resource extends boolean = boolean> {
