@@ -24,9 +24,11 @@ import {
   attributeResolverTimingOut,
 } from "../src/AttributeResolver.ts";
 import { makeSubjectId } from "../src/Identity.ts";
+import { CustomPredicate, customPredicateFromRecord, customPredicatePort } from "../src/CustomPredicate.ts";
 import { isPortDefault, PortReply } from "../src/PortDescription.ts";
 import type { PortName } from "../src/PortName.ts";
-import { recordingPort, scriptedPort } from "../src/PortDoubles.ts";
+import { recordingPort, replyTable, scriptedPort } from "../src/PortDoubles.ts";
+import { askRemotely } from "../src/PortRemote.ts";
 import { decoratePorts, forEveryPort, portsLayer } from "../src/Ports.ts";
 import type { DescriptionOf } from "../src/Ports.ts";
 
@@ -108,6 +110,36 @@ describe("a port's fail-closed default is a fact the service carries (PFCT-01, D
           assert.strictEqual(isPortDefault({ port: asked.port }, owner.shape), owner.port === asked.port);
         }
       }
+    }),
+  );
+
+  forEveryPort((d) => {
+    const built = (layer: Layer.Layer<typeof d.service.Identifier>) =>
+      Effect.gen(function* () {
+        const context = yield* Layer.build(layer);
+        return Context.get(context, d.service);
+      });
+
+    return it.effect(`${d.port}: a scripted double, a replay and a remote asker never carry the mark`, () =>
+      Effect.gen(function* () {
+        const scripted = yield* built(scriptedPort(d, () => undefined).layer);
+        const replay = yield* built(scriptedPort(d, replyTable(d, [])).layer);
+
+        assert.isFalse(isPortDefault(d, scripted));
+        assert.isFalse(isPortDefault(d, replay));
+        assert.isFalse(isPortDefault(d, askRemotely(d, () => Effect.never)));
+      }),
+    );
+  });
+
+  it.effect("M2b: the record fixtures are not defaults", () =>
+    Effect.gen(function* () {
+      const context = yield* Layer.build(
+        Layer.mergeAll(attributeResolverFromRecord({}), customPredicateFromRecord({})),
+      );
+
+      assert.isFalse(isPortDefault(attributeResolverPort, Context.get(context, AttributeResolver)));
+      assert.isFalse(isPortDefault(customPredicatePort, Context.get(context, CustomPredicate)));
     }),
   );
 
