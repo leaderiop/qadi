@@ -24,7 +24,8 @@ if (dirty()) {
 }
 const orig = Object.fromEntries(SRC.map((f) => [f, fs.readFileSync(f, "utf8")]));
 
-// [what, file, from, to, expectation]; an expectation is a TS message fragment some error must carry,
+// [what, file, from, to, expectation]; an expectation is a TS message fragment some error must carry (Leaf ->
+// Many's is LeafNeeds.ts's, so the refusal shown is the one in src, not a test file's),
 // "any" (some error), or "compiles" (exit 0) with the test file that must then fail.
 const PROOFS = [
   ["record: Not Wrapper -> Many (the base experiment's move)", ARI, '  Not: "Wrapper",\n', '  Not: "Many",\n', "is not assignable to type 'never'"],
@@ -33,7 +34,7 @@ const PROOFS = [
   ["record: Rules Many -> Wrapper", ARI, '  Rules: "Many",\n', '  Rules: "Wrapper",\n', "is not assignable to type 'readonly [Policy]'"],
   ["record: Not Wrapper -> Leaf", ARI, '  Not: "Wrapper",\n', '  Not: "Leaf",\n', "is not assignable to type 'readonly []'"],
   ["record: HasRole Leaf -> Wrapper", ARI, '  HasRole: "Leaf",\n', '  HasRole: "Wrapper",\n', "is not assignable to type 'readonly [Policy]'"],
-  ["record: HasRole Leaf -> Many (childrenOf's gap; LeafPolicy and its readers refuse it)", ARI, '  HasRole: "Leaf",\n', '  HasRole: "Many",\n', "any"],
+  ["record: HasRole Leaf -> Many (childrenOf's gap; LeafPolicy and its readers refuse it)", ARI, '  HasRole: "Leaf",\n', '  HasRole: "Many",\n', "'HasRole' does not exist in type '{ readonly HasActed: LeafNeedOf<"],
   ["record: HasRole removed", ARI, '  HasRole: "Leaf",\n', "", "any"],
   ["record: an unknown tag added", ARI, '  Rules: "Many",\n', '  Rules: "Many",\n  Bogus: "Leaf",\n', "any"],
   ["record: an unknown arity word", ARI, '  Not: "Wrapper",\n', '  Not: "Wrap",\n', "any"],

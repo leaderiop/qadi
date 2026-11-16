@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-164                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — applies ADR-QD-152; reads ADR-QD-090, ADR-QD-101, ADR-QD-099; keeps ADR-QD-073, ADR-QD-077 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-16): review iteration 1 WR-02: the trace children are a closed per-arity table (ARCH-98)<br>1.1 (2026-11-16): review iteration 1 WR-01: the after table says what each edit did on the base (ARCH-98)<br>1.0 (2026-11-16): Initial release (ARCH-98, CCR-QD-442) |
+> | Change History | 1.3 (2026-11-16): review iteration 1 IN-05: Leaf to Many is refused by the src readers, LeafNeeds.ts first (ARCH-98)<br>1.2 (2026-11-16): review iteration 1 WR-02: the trace children are a closed per-arity table (ARCH-98)<br>1.1 (2026-11-16): review iteration 1 WR-01: the after table says what each edit did on the base (ARCH-98)<br>1.0 (2026-11-16): Initial release (ARCH-98, CCR-QD-442) |
 
 ---
 
@@ -88,8 +88,10 @@ accepted. Without it a one-element tuple is an array, and the base experiment's 
 
 It has one gap, and it is stated and not hidden. A Many arm may be empty, so `readonly []` is assignable to a Many arm,
 and the move Leaf to Many leaves `childrenOf` accepting every arm it had. That move is refused elsewhere: a leaf moved
-to Many drops out of `LeafPolicy`, so its readers disagree at that tag (the proof table below shows
-`Policy.test.ts` failing to compile with `TS2741`, a `leafCases` result missing the tag). The other direction, Many to
+to Many drops out of `LeafPolicy`, so its readers in `src` disagree at that tag, before any test file is read:
+`LeafNeeds.ts`'s table, keyed by `LeafPolicy["_tag"]`, has a row for a tag that is no longer a leaf
+(`LeafNeeds.ts(165,3): error TS2353: … 'HasRole' does not exist in type …`), and `Policy.ts`'s `leafCases`, `Walk.ts`,
+`Predicate.ts` and `Simplify.ts` fail with it. The other direction, Many to
 Leaf, is refused by the arm itself, which would return an array where `readonly []` is required. A Many arm that returns the wrong array, or an empty one, is a runtime fact, caught by
 `PolicyArity.test.ts`'s per-tag lockstep (every reader agrees on the child count) and by `Policy.test.ts`'s own lockstep
 property.
@@ -130,7 +132,7 @@ the shape through changed, and INV-QD-090 is kept as written, not restated.
 | record: `Rules` Many to Wrapper | `move Rules Many->Wrapper`: `tsc_exit` 0 | `exit 1`, `Type 'Policy[]' is not assignable to type 'readonly [Policy]'` |
 | record: `Not` Wrapper to Leaf | `move Not Wrapper->Leaf`: `tsc_exit` 0 | `exit 1`, `Type '[Policy]' is not assignable to type 'readonly []'` |
 | record: `HasRole` Leaf to Wrapper | `move HasRole Leaf->Wrapper`: `tsc_exit` 0 | `exit 1`, `Type '[]' is not assignable to type 'readonly [Policy]'` |
-| record: `HasRole` Leaf to Many (the gap above) | `move HasRole Leaf->Many`: `tsc_exit` 0 | `exit 1`, `Policy.test.ts(1045,52): error TS2741`: `LeafPolicy`'s readers refuse it |
+| record: `HasRole` Leaf to Many (the gap above) | `move HasRole Leaf->Many`: `tsc_exit` 0 | `exit 1`, `LeafNeeds.ts(165,3): error TS2353`, `'HasRole' does not exist in type`: `LeafPolicy`'s readers in `src` refuse it (`leafCases`, `Walk.ts`, `Predicate.ts` and `Simplify.ts` as well) |
 | record: `HasRole` removed, an unknown tag added, an unknown arity word | no counterpart: the base had no record, and `moves.mjs` measured none of the three | `exit 1`, `TS7053`, `TS2344`, `TS2322` |
 | `childrenOf` arm: `Not` returns none, or two | `arm Not`: `tsc_exit` 0 for both | `exit 1`, `TS2322` at the arm |
 | `childrenOf` arm: `AllOf: () => []` | `arm AllOf`: `tsc_exit` 0 | `exit 0`: a Many may be empty; `Policy.test.ts`'s lockstep property refuses it at runtime |
