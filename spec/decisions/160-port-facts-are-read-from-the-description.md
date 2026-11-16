@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-160                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — reads ADR-QD-094, ADR-QD-109        |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-16): accepted (ARCH-94, CCR-QD-438) |
+> | Change History | 1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-94, CCR-QD-438)<br>1.0 (2026-11-16): accepted (ARCH-94, CCR-QD-438) |
 
 ---
 
@@ -99,5 +99,6 @@ Both directions of the change, because a wrapper author is moved both ways (rese
 - [ADR-QD-094](./094-a-port-is-described-once.md), the description this reads from
 - [ADR-QD-109](./109-a-ports-span-is-projected-once-and-every-read-is-one-body.md), the same rule for the span
 - ARCH-94, CCR-QD-438
-- BEH-QD-196 (the display name that stays display) and BEH-QD-215 (the wiring report's wiring rule), in plain text
-- BEH-QD-571 to BEH-QD-575, INV-QD-339 and INV-QD-340, in plain text until they are written
+- [BEH-QD-196](../behaviors/25-inspection.md#beh-qd-196-a-port-says-which-implementation-it-is) (the display name that stays display) and [BEH-QD-215](../behaviors/28-devtools-screens.md#beh-qd-215-a-required-port-is-never-reported-as-unwired) (the wiring report's wiring rule)
+- [BEH-QD-571](../behaviors/25-inspection.md#beh-qd-571-a-ports-fail-closed-default-is-a-fact-its-service-carries-through-every-derived-wrapper), [BEH-QD-572](../behaviors/25-inspection.md#beh-qd-572-a-hand-written-wrapper-keeps-the-default-only-by-spreading-it), [BEH-QD-573](../behaviors/28-devtools-screens.md#beh-qd-573-each-ports-consequence-and-call-reading-are-stated-once), [BEH-QD-574](../behaviors/30-port-calls.md#beh-qd-574-call-rows-are-built-by-one-checked-row-builder-and-portcall-is-derived-from-the-registry), [BEH-QD-575](../behaviors/28-devtools-screens.md#beh-qd-575-a-new-port-asks-devtools-only-for-what-the-compiler-names)
+- [INV-QD-339](../invariants.md#inv-qd-339-a-ports-service-is-its-default-exactly-when-it-carries-that-defaults-mark) and [INV-QD-340](../invariants.md#inv-qd-340-a-defaults-mark-names-its-port-so-a-shape-under-another-port-is-never-that-ports-default)
