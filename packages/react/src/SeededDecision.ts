@@ -72,7 +72,7 @@ export const ALLOW_WITHHELD = ["subjectId", "trace"] as const;
  * A deny entry withholds what an allow does, plus the two fields a denial
  * discloses only under `includeTrace`, inside its `disclosure`.
  *
- * A denial's `obligations` are always empty (D-04), so they are not carried.
+ * A denial's `obligations` are always empty (BEH-QD-081, ADR-QD-019), so they are not carried.
  */
 export const DENY_WITHHELD = [...ALLOW_WITHHELD, "obligations", "reason"] as const;
 

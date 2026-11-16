@@ -106,7 +106,7 @@ const seedsOf = (decision: Decision, includeTrace: boolean): ReadonlyArray<Seede
   return held;
 };
 
-describe("a seed keeps every disclosed wire field (HYDF-03)", () => {
+describe("a seed keeps every disclosed wire field (BEH-QD-556, INV-QD-333)", () => {
   it("PROPERTY: every wire field the payload discloses reaches the seed", () => {
     FastCheck.assert(
       FastCheck.property(decisionArbitrary, FastCheck.boolean(), (decision, includeTrace) => {
@@ -211,7 +211,7 @@ const deny = makeDecision(stamp("e4"), {
 const bytes = (decision: Decision, includeTrace: boolean): string =>
   JSON.stringify(dehydrateWith([{ policy, decision }], { includeTrace }));
 
-describe("the payload's bytes are pinned on the phase base (HYDF-04)", () => {
+describe("the payload's bytes are pinned on the phase base (ADR-QD-157)", () => {
   it("an allow with every field visible", () => {
     expect(bytes(allowAll, false)).toBe(
       `{"version":2,"subjectId":"u1","entries":[{"policy":{"_tag":"HasRole","role":"admin"},"decision":{"_tag":"Allow","evaluationId":"e1","durationMillis":3,"obligations":[],"disclosure":{"_tag":"Withheld"}}}]}`,
