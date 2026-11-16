@@ -99,13 +99,13 @@
 
 ### Core owns the predicate compile shell (Phase 52, ARCH-99, core + predicate-sql + predicate-prisma)
 
-- [ ] **COMP-01**: One core function owns compiling with a dialect's rules and renderer:
+- [x] **COMP-01**: One core function owns compiling with a dialect's rules and renderer:
   - the defaults (`identifiers`, `maxInValues`);
   - `toRenderable`;
   - counting refused/compiled outcomes against a counter series the caller supplies.
-- [ ] **COMP-02**: `compileSql` and `compilePrismaWhere` keep only their rules, their renderer and their own declared metric, with distinct ids, declared once (ADR-123). The `[metric-table]` rows are unchanged.
-- [ ] **COMP-03**: Output is unchanged for both dialects, including refusals, which differential/characterisation tests written on the phase base show.
-- [ ] **COMP-04**: `spec/overview.md` names the new core export, and the changesets cover all three packages.
+- [x] **COMP-02**: `compileSql` and `compilePrismaWhere` keep only their rules, their renderer and their own declared metric, with distinct ids, declared once (ADR-123). The `[metric-table]` rows are unchanged.
+- [x] **COMP-03**: Output is unchanged for both dialects, including refusals, which differential/characterisation tests written on the phase base show.
+- [x] **COMP-04**: `spec/overview.md` names the new core export, and the changesets cover all three packages.
 
 ### Every phase (cross-cutting)
 
@@ -184,10 +184,10 @@ The seven WX rows apply to every phase 43 to 52, so each phase's Requirements li
 | ARTY-01 | Phase 51 | Complete |
 | ARTY-02 | Phase 51 | Complete |
 | ARTY-03 | Phase 51 | Complete |
-| COMP-01 | Phase 52 | Pending |
-| COMP-02 | Phase 52 | Pending |
-| COMP-03 | Phase 52 | Pending |
-| COMP-04 | Phase 52 | Pending |
+| COMP-01 | Phase 52 | Complete |
+| COMP-02 | Phase 52 | Complete |
+| COMP-03 | Phase 52 | Complete |
+| COMP-04 | Phase 52 | Complete |
 | WX-01 | All v1.5 phases | Complete |
 | WX-02 | All v1.5 phases | Complete |
 | WX-03 | All v1.5 phases | Complete |
