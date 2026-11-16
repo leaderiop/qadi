@@ -147,10 +147,19 @@ test("what each arity lets an arm return", () => {
   expect<readonly [Policy]>().type.not.toBeAssignableTo<ChildrenOf<"Many", Policy>>();
   expect<readonly [Policy, Policy]>().type.not.toBeAssignableTo<ChildrenOf<"Many", Policy>>();
   expect<ReadonlyArray<Policy>>().type.toBeAssignableTo<ChildrenOf<"Many", Policy>>();
-  // A fixed-size Many arm's way out: `Array.of(a, b)` is an array, not a tuple.
-  expect(Array.of<Policy>()).type.toBeAssignableTo<ChildrenOf<"Many", Policy>>();
   // The documented gap: an empty array is a valid Many, so Leaf -> Many is caught by
   // `LeafPolicy`'s readers, not by `childrenOf`'s arms.
   expect<readonly []>().type.toBeAssignableTo<ChildrenOf<"Many", Policy>>();
   expect<readonly []>().type.toBeAssignableTo<ChildrenOf<"Leaf", Policy>>();
+});
+
+declare const a: Policy;
+declare const b: Policy;
+
+test("a fixed-size Many arm's way out: `Array.of(a, b)` is an array, `[a, b]` a tuple", () => {
+  const viaOf: ChildrenOf<"Many", Policy> = Array.of(a, b);
+  expect(viaOf).type.toBe<ChildrenOf<"Many", Policy>>();
+  // @ts-expect-error is not assignable to type 'never'
+  const literal: ChildrenOf<"Many", Policy> = [a, b];
+  expect(literal).type.toBe<ChildrenOf<"Many", Policy>>();
 });
