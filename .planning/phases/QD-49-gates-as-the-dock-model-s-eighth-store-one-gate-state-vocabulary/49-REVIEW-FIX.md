@@ -1,86 +1,82 @@
 ---
 phase: QD-49-gates-as-the-dock-model-s-eighth-store-one-gate-state-vocabulary
-fixed_at: 2026-11-16T10:15:00Z
+fixed_at: 2026-11-16T11:30:00Z
 review_path: .planning/phases/QD-49-gates-as-the-dock-model-s-eighth-store-one-gate-state-vocabulary/49-REVIEW.md
-iteration: 2
-findings_in_scope: 4
-fixed: 4
+iteration: 3
+findings_in_scope: 6
+fixed: 6
 skipped: 0
 status: all_fixed
 ---
 
-# Phase QD-49: Code Review Fix Report (iteration 2)
+# Phase 49: Code Review Fix Report
 
-**Fixed at:** 2026-11-16T10:15:00Z
-**Source review:** `.planning/phases/QD-49-gates-as-the-dock-model-s-eighth-store-one-gate-state-vocabulary/49-REVIEW.md`
-**Iteration:** 2
+**Fixed at:** 2026-11-16T11:30:00Z
+**Source review:** .planning/phases/QD-49-gates-as-the-dock-model-s-eighth-store-one-gate-state-vocabulary/49-REVIEW.md
+**Iteration:** 3
 
 **Summary:**
-- Findings in scope: 4 (`--all`: WR-01, IN-01, IN-02, IN-03)
-- Fixed: 4
+- Findings in scope: 6 (IN-01 to IN-06, `--all`)
+- Fixed: 6
 - Skipped: 0
 
-Edits were made in the main checkout (`workflow.use_worktrees` is `false`). Every spec file touched was bumped through
-`scripts/spec-revise.mjs` in the commit that changed it, and the new revisions are on the CCR-QD-440 row in `spec/README.md`
-(Rev 1.223, 1.224, 1.225), not a new CCR. No new ids. The 49-02 characterisation is untouched and no existing expected value
-in the panel tests changed. WR-01, IN-02 and IN-03 are logic fixes; each is committed on its own and each new test was shown to
-fail with the source change reverted, so all three are marked "requires human verification".
+IN-01 to IN-05 are edits to the same forty lines of `DockModel.ts` and to the tests that pin them (M42, M43 and the new M45 to M47 read each other's behaviour), so they share one commit rather than leave a red tree between commits. IN-06 is spec only and has its own commit. A third commit adds one assertion that killed the last surviving mutant of IN-01.
+
+Workflow ran in the main checkout: `workflow.use_worktrees` is `false` in `.planning/config.json`, so no worktree was created.
 
 ## Fixed Issues
 
-### WR-01: A throwing unsubscribe left `configure` half-applied and the model stuck
+### IN-01: `reasonOf` could throw out of the guard
 
-**Status:** fixed: requires human verification
-**Files modified:** `packages/devtools/src/model/DockModel.ts`, `packages/devtools/test/gateRegistryDouble.ts`, `packages/devtools/test/model/DockModel.test.ts`, `spec/decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md` (Rev 1.2), `spec/behaviors/28-devtools-screens.md` (Rev 1.26), `spec/README.md` (Rev 1.223)
-**Commit:** 8aceb349
-**Applied fix:** `watchGates` takes the handle out of `offGates` before calling it and calls it in its own `try`; the new `subscribe` is a second, independent `try`, so a throwing release can neither skip the new subscription and the `rejoin`, nor run again on the next `configure`. The finalizer does the same (handle out of state first, throw swallowed after `closed` is set, since a closing model has nowhere to state it). Which registry the failure names: a failed release is stated as `Failed` with its reason and names the registry that was left; a failed `subscribe` of the new registry wins over it, because that one names the registry the model now reads. The old registry's leaked listener only calls `rejoin`, which reads the registry the model holds now. The double gained `failRelease` (the unsubscribe throws and the listener stays live); M42 covers the configure-swap path (release once, new registry applied in full, not called again by a repeat configure, an `undefined` configure or the close) and M42 b the close path (the scope still closes, the release is called once). With `DockModel.ts` reverted both M42 cases fail. ADR-QD-162 decision 5 and BEH-QD-584 now say it; the "never half applied" claim holds on this path.
+**Files modified:** `packages/devtools/src/model/DockModel.ts`, `packages/devtools/test/model/DockModel.test.ts`
+**Commits:** 91db923b, 365b82a8
+**Applied fix:** `reasonOf` is total: it returns a fixed sentence ("The registry threw a value that could not be described.") when `Cause.pretty` throws. The shared failure key `keyOf` is total too, because `thrown instanceof Error` itself throws on a Proxy with a throwing `getPrototypeOf` trap. M46 throws such a Proxy from a read, from a `configure` and from `subscribe`, and asserts the fixed sentence. 365b82a8 starts M46 from no registry so the view must move from `Absent` to `Failed` on the key alone, which kills the `keyOf` catch-block mutant.
 
-### IN-01: Stale header comments said gates "stay a plain prop"
+### IN-02: A release failure outlived the swap, and the failure copy named only a read
 
-**Status:** fixed
-**Files modified:** `packages/devtools/src/model/DiagnosticsFeed.ts`, `packages/devtools/src/model/DiagnosticsStore.ts`
-**Commit:** e4dff113
-**Applied fix:** Both headers now say gates are the dock model's own input (`DockModelInputs.gates`), a registry the model subscribes to (ADR-QD-162). ADR-QD-047:197 was left as it is: its Rev 1.16 amendment supersedes it and change history is prepend-only. `spec/process/house-rules-evidence.md` was not edited (quoted history).
+**Files modified:** `packages/devtools/src/model/DockModel.ts`, `packages/devtools/src/react/QuestionsPanel.tsx`, `packages/devtools/test/model/DockModel.test.ts`, `spec/behaviors/28-devtools-screens.md`, `spec/decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md`, `.planning/phases/QD-49-gates-as-the-dock-model-s-eighth-store-one-gate-state-vocabulary/49-UI-SPEC.md`
+**Commit:** 91db923b
+**Applied fix:** (a) Took the preferred option. A release that throws belongs to a registry the model no longer reads, so it is swallowed (still called once, never again) and the view after a swap is the new registry's listing. `watchFailure` now holds only a failed `subscribe`. ADR-QD-162 decision 5 and BEH-QD-584 state this, and say a failing release has nowhere honest to be shown, like the finalizer's. M42 now asserts `Listed` and the new registry's changes arriving after the swap, with the same single release call as before. (b) The copy is one neutral sentence: "The registry handed to the dock threw, so who is asking cannot be shown: {reason}". The two panel tests that pin the copy assert only "registry exploded" and "who is asking cannot be shown", so no panel test changed. The UI-SPEC amendment and ADR consequences note the new wording. The 49-02 characterisation is untouched.
 
-### IN-02: The failure reason's stack made "same reason publishes nothing" depend on the call path
+### IN-03: A failed watch was not keyed like a failed read
 
-**Status:** fixed: requires human verification
-**Files modified:** `packages/devtools/src/model/DockModel.ts`, `packages/devtools/test/model/DockModel.test.ts`, `spec/decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md` (Rev 1.3), `spec/behaviors/28-devtools-screens.md` (Rev 1.27), `spec/README.md` (Rev 1.224)
-**Commit:** 02aa3fca
-**Applied fix:** `rejoin` compares a `failureKey` (an error's `name: message`; for a value that is not an error, its rendered reason) instead of the rendered reason, so the same throw built afresh on another call path publishes nothing. The displayed reason is unchanged: still `Cause.pretty`, stack included, as `DiagnosticsStatus.Stopped` carries it. M38 gained a step where a new `Error` with the same message is thrown and the snapshot and listener count do not move; it fails with the change reverted. BEH-QD-583's "same failure reason" and ADR-QD-162 decision 5 say what "the same" means.
+**Files modified:** `packages/devtools/src/model/DockModel.ts`, `packages/devtools/test/model/DockModel.test.ts`
+**Commit:** 91db923b
+**Applied fix:** `keyOf` (an error's name and message, else the rendered reason) is shared by the read path and by `watchGates`, which stores `watchKey` beside `watchFailure`. M43 throws a fresh `Error` with the same message from each retry and asserts the snapshot is the same object and no listener is called.
 
-### IN-03: A failed watch stayed failed in two cases the spec did not state
+### IN-04: The non-`Error` arm of `failureKey` was untested
 
-**Status:** fixed: requires human verification
-**Files modified:** `packages/devtools/src/model/DockModel.ts`, `packages/devtools/test/gateRegistryDouble.ts`, `packages/devtools/test/model/DockModel.test.ts`, `spec/decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md` (Rev 1.4), `spec/behaviors/28-devtools-screens.md` (Rev 1.28), `spec/README.md` (Rev 1.225)
-**Commit:** f0e8ee6c
-**Applied fix:** Completeness over the spec-only option. `configure` now watches again when `next.gates !== gatesNow || watchFailure !== undefined`, so a `configure` with the same registry object retries a failed `subscribe` (and a failed release, which clears the same way) and re-joins. `watchGates` releases whatever is held first, so a retry never double-subscribes, and a watch that worked is never retried. The double gained `mendSubscribe` and `mendReadsQuietly`. M43 pins the retry (still failing: stated again, 2 subscriptions; mended: recovered, 1 listener; no resubscribe afterwards and changes arrive) and fails with the retry reverted. M44 pins the other case as the spec now states it: a registry that mends without announcing stays `Failed` through a quiet poll tick (a quiet tick reads nothing) and is read again by a registry announcement, a poll that changed the questions, or any `configure`. M42 also checks that a release failure clears on the next `configure` of the same registry. BEH-QD-584 and ADR-QD-162 decision 5 state this precisely.
+**Files modified:** `packages/devtools/test/model/DockModel.test.ts`
+**Commit:** 91db923b
+**Applied fix:** M45, through the model: a thrown string is one `Failed` snapshot, the same string from another path publishes nothing, a thrown object publishes a new one, and a further registry change under the same throw publishes nothing. The Stryker report has no ternary mutant for this line, so the score cannot show the arm is tested; M45 does.
 
-## Skipped Issues
+### IN-05: `configure` published a snapshot read from the old registry
 
-None.
+**Files modified:** `packages/devtools/src/model/DockModel.ts`, `packages/devtools/test/model/DockModel.test.ts`
+**Commit:** 91db923b
+**Applied fix:** In `configure`, `gatesNow` is swapped and re-watched before `remerge()`. M47 changes registry and reading in one `configure` and asserts exactly one published snapshot, joined to the new registry, and that the old registry's `instances()` was not read. It fails with the old order.
+
+### IN-06: Spec text did not follow iterations 2 and 3
+
+**Files modified:** `spec/invariants.md` (Rev 1.141), `spec/behaviors/28-devtools-screens.md` (Rev 1.30), `spec/traceability.md` (Rev 1.206), `spec/README.md` (Rev 1.226)
+**Commit:** 703bfd55 (the spec edits that follow from IN-01 to IN-05 are in 91db923b, with `spec/decisions/162...` Rev 1.5)
+**Applied fix:** INV-QD-343's statement says the failure is an error's name and message, and its enforcement cites M36 to M47 and what each pins. BEH-QD-584's same-registry requirement reads "after a watch that worked". BEH-QD-583's pinned-by list names M38, M45 and M46. The traceability rows and history cover M42 to M47. The CCR-QD-440 row in `spec/README.md` gained the iteration-3 changes and the new revision ranges. No new BEH, INV, ADR or CCR id was used.
 
 ## Verification
 
-Where the gates ran: the main checkout on branch `arch-wave-10` (no worktree).
+All run in the main checkout (no worktree), from the repository root, after the last commit:
 
-| Check | Result |
-| ----- | ------ |
-| `pnpm exec vitest run --project devtools` | pass, 64 files, 1516 tests |
-| `pnpm exec vitest run --project react` | pass, 34 files, 518 tests |
-| `pnpm typecheck` | pass |
-| `pnpm lint` | pass (warnings only, none in changed lines) |
-| `pnpm circular` | pass |
-| `pnpm test:tstyche` | pass, 293 tests, 613 assertions |
-| `pnpm spec:verify:strict` | pass, 21 of 21 |
-| `pnpm spec:examples` | pass, 116 blocks |
-| `pnpm spec:website-examples` | pass, 67 blocks |
-| `pnpm spec:api` | pass |
-| `pnpm spec:claims` | pass |
-| Stryker (`stryker.devtools.mjs`, model files changed) | `DockModel.ts` 100.00 (117 killed, 0 survived); `Gates.ts` 100.00 (66 killed, 0 survived) |
+- `pnpm exec vitest run --project devtools`: 64 files, 1519 tests passed
+- `pnpm exec vitest run --project react`: 34 files, 518 tests passed
+- `pnpm typecheck`, `pnpm circular`, `pnpm test:tstyche` (293 tests, 613 assertions): passed
+- `pnpm lint`: no errors (warnings only, all in files this phase did not touch)
+- `pnpm spec:verify:strict` (21 pass, 0 fail, 0 skip), `pnpm spec:examples` (116 blocks), `pnpm spec:website-examples` (67 blocks), `pnpm spec:api` (932 exports), `pnpm spec:claims` (8 claims): passed
+- Stryker on `DockModel.ts` and `Gates.ts` (run after 365b82a8): `DockModel.ts` 100.00 (123 killed, 0 survived), `Gates.ts` 100.00 (66 killed, 0 survived). A first run left two survivors, the fallback string and the `keyOf` catch; M46 now pins both.
+
+M42, M43, M46 and M47 fail with the source reverted to the iteration-2 state (checked with `git stash` on `DockModel.ts`); M45 passes on it by design, since it covers an arm that already worked.
 
 ---
 
-_Fixed: 2026-11-16T10:15:00Z_
+_Fixed: 2026-11-16T11:30:00Z_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 2_
+_Iteration: 3_
