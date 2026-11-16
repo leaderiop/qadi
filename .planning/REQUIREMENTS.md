@@ -75,9 +75,9 @@
 
 - [x] **GATE-01**: The five gate-state words are stated once in `@qadi/core` (the ADR-152 pattern). React's `GateRenderState` and devtools' `GATE_DISPLAY` derive from that statement, and devtools takes no dependency on `@qadi/react` (ADR-053/080).
 - [x] **GATE-02**: A state this build does not know is still shown as `Unrecognised`, never as an answer.
-- [ ] **GATE-03**: The gate registry (its structural `subscribe`/`instances`) is a `makeDockModel` store. The model produces the joined question × instance rows, and `QuestionsPanel` renders one snapshot rather than joining two sources.
-- [ ] **GATE-04**: The join is tested headlessly through the dock model, as ARCH-74/82's stores are.
-- [ ] **GATE-05**: With instrumentation off, nothing is registered or rendered (§13), and the react suite passes untouched.
+- [x] **GATE-03**: The gate registry (its structural `subscribe`/`instances`) is a `makeDockModel` store. The model produces the joined question × instance rows, and `QuestionsPanel` renders one snapshot rather than joining two sources.
+- [x] **GATE-04**: The join is tested headlessly through the dock model, as ARCH-74/82's stores are.
+- [x] **GATE-05**: With instrumentation off, nothing is registered or rendered (§13), and the react suite passes untouched.
 
 ### What a leaf needs from the request, stated once (Phase 50, ARCH-97, core; opens on a benchmark)
 
@@ -173,9 +173,9 @@ The seven WX rows apply to every phase 43 to 52, so each phase's Requirements li
 | AREF-04 | Phase 48 | Complete |
 | GATE-01 | Phase 49 | Complete |
 | GATE-02 | Phase 49 | Complete |
-| GATE-03 | Phase 49 | Pending |
-| GATE-04 | Phase 49 | Pending |
-| GATE-05 | Phase 49 | Pending |
+| GATE-03 | Phase 49 | Complete |
+| GATE-04 | Phase 49 | Complete |
+| GATE-05 | Phase 49 | Complete |
 | LEAF-01 | Phase 50 | Pending |
 | LEAF-02 | Phase 50 | Pending |
 | LEAF-03 | Phase 50 | Pending |
