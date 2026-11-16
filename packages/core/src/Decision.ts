@@ -413,17 +413,27 @@ type TraceStep = <R>(cases: TraceCases<R>, children: ReadonlyArray<R>) => R;
 const traceShapeOf = (tag: Trace["policyTag"]): Arity => POLICY_ARITY[tag];
 
 /**
- * The children a trace node is folded through, by its tag's arity: none for a
- * leaf, its first child for a wrapper, every child otherwise.
+ * The children a trace node is folded through, per arity: none for a leaf, its
+ * first child for a wrapper, every child for a many.
+ *
+ * One row per `Arity` word, so a fourth word is a missing row and not a node
+ * silently handed every child (ADR-QD-164).
+ */
+const traceChildrenByArity = {
+  Leaf: () => [],
+  Wrapper: (self) => self.children.slice(0, 1),
+  Many: (self) => self.children,
+} as const satisfies { readonly [A in Arity]: (self: Trace) => ReadonlyArray<Trace> };
+
+/**
+ * The children a trace node is folded through, by its tag's arity.
  *
  * Read by `traceStep` below, which hands exactly these results to the arm; a
  * leaf's `children` are not walked, so a foreign leaf that carries some cannot
  * reach a fold that was told it has none.
  */
-const traceChildrenOf = (self: Trace): ReadonlyArray<Trace> => {
-  const shape = traceShapeOf(self.policyTag);
-  return shape === "Leaf" ? [] : shape === "Wrapper" ? self.children.slice(0, 1) : self.children;
-};
+const traceChildrenOf = (self: Trace): ReadonlyArray<Trace> =>
+  traceChildrenByArity[traceShapeOf(self.policyTag)](self);
 
 const traceStep: (node: Trace) => TraceStep = (node) =>
   Match.value(node.policyTag).pipe(

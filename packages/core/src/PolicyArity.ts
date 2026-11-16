@@ -51,7 +51,9 @@ export type ChildrenOf<A extends Arity, Child> = A extends "Leaf"
   ? readonly []
   : A extends "Wrapper"
     ? readonly [Child]
-    : ReadonlyArray<Child> & { readonly 0?: never };
+    : A extends "Many"
+      ? ReadonlyArray<Child> & { readonly 0?: never }
+      : never;
 
 /** One arm per tag of `Node`, each returning the children its arity in `R` allows. */
 export type ChildArms<

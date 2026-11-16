@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-164                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — applies ADR-QD-152; reads ADR-QD-090, ADR-QD-101, ADR-QD-099; keeps ADR-QD-073, ADR-QD-077 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-16): review iteration 1 WR-01: the after table says what each edit did on the base (ARCH-98)<br>1.0 (2026-11-16): Initial release (ARCH-98, CCR-QD-442) |
+> | Change History | 1.2 (2026-11-16): review iteration 1 WR-02: the trace children are a closed per-arity table (ARCH-98)<br>1.1 (2026-11-16): review iteration 1 WR-01: the after table says what each edit did on the base (ARCH-98)<br>1.0 (2026-11-16): Initial release (ARCH-98, CCR-QD-442) |
 
 ---
 
@@ -63,7 +63,11 @@ should never have been given.
    `Exclude`. It is the same type (`PolicyArity.tst.ts` proves it by `toBe` against the old expression), so its overview row
    stands, and `LEAF_NEEDS`, keyed by `LeafPolicy["_tag"]` (ADR-QD-163), now follows the record.
 5. **The trace shape reads the record.** `Decision.ts`'s `traceShapeOf` is `POLICY_ARITY[tag]`, one read. `leafTags`, the
-   `TraceShape` alias and the `Match.whenOr` chain are deleted; `traceChildrenOf`'s behaviour is unchanged.
+   `TraceShape` alias and the `Match.whenOr` chain are deleted; `traceChildrenOf`'s behaviour is unchanged. It selects a
+   node's children through a closed table with one row per `Arity` word (`as const satisfies { readonly [A in Arity]: … }`),
+   not a ternary whose last arm is an unconditional else, and `ChildrenOf`'s last branch is `A extends "Many" ? … : never`.
+   So a fourth arity word is a missing row (TS2741 in `Decision.ts`) and not a node silently handed every child; the
+   proof was made by adding `"Pair"` to `Arity` temporarily.
 6. **`PolicyCases` and `TraceCases` stay hand-written and are tied by tstyche** (D-06, D-06a). Their arms are not a function
    of arity alone: `Rules` receives `RuleResult` rows and not an array of results, and a trace wrapper's child is
    `R | undefined`. A generated type would have to special-case exactly those, so it would state the facts again less
