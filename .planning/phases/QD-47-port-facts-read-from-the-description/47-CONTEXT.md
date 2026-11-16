@@ -48,7 +48,7 @@ Shared wave rules: `.planning/phases/_WAVE10-CONTEXT.md`. Reserved ids: ARCH-94,
   - Core gets no display prose.
   - Adding a port is exactly the compile error the roadmap allows (PFCT-05).
 - **D-06:** `ServicesPanel.tsx` keeps only a generic `describe(call)` that dispatches through the module, plus the existing `attempts` suffix. No port's span field names remain in the view. `CONSEQUENCES` and `describeOne`'s per-port arms are deleted.
-- **D-07:** `ROWS` (`model/PortCalls.ts`) is built once at module scope from the registry (`forEveryPort`/`tabulatePorts`) by one generic row builder, so the five tag-only-different arms are gone.
+- **D-07 [informational]:** *Superseded by D-18 (2026-11-16): the registry-generic builder does not type-check without a widened implementation type, so `ROWS` uses the R6 monomorphic helper instead.* Original text: `ROWS` (`model/PortCalls.ts`) is built once at module scope from the registry (`forEveryPort`/`tabulatePorts`) by one generic row builder, so the five tag-only-different arms are gone.
   - `ROWS[K]` still returns `PortCallOf<K>`.
   - No `as`, `!` or `any`. If the typing fights back, the planner records the approach in research.
 - **D-08:** Rendered wording is **byte-identical** for all five ports:

@@ -558,7 +558,29 @@ Plans:
   5. Rendered output for the five ports is unchanged (characterisation tests written on the base), and devtools still depends only on `@qadi/core`.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for the touched devtools files, the wrapper RED and a rendered-output characterisation for each port, committed first; then core's fact; then devtools' tables; then records. Re-run `pnpm circular` after the first move. Keep the work off the lines Phase 49 will edit in `ServicesPanel`/`DockModel`.
-**Plans**: TBD
+**Plans**: 7 plans
+
+Plans:
+**Wave 1**
+- [ ] 47-01-PLAN.md — mutation base for the six touched source files (first commit); `WiringDefaulted.test.ts` RED on the base (a renamed spreading wrapper around a default reads as a real adapter, a fresh object named after a default reads defaulted)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 47-02-PLAN.md — the services panel's wording for every port characterised green on the base (20 readings, four card rows); the captured-default row in `Capture.test.ts`
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 47-03-PLAN.md — tracer: `PortDefault.ts`'s mark, `isPortDefault` and `nonePort` marking; every derived wrapper and `decoratePorts` carries it; the overview row and CCR-QD-438 started
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 47-04-PLAN.md — tracer: `Wiring.ts` reads `isPortDefault` and `isDefaultName` is deleted (the RED goes green); `PortReading.ts` replaces `CONSEQUENCES` and `describeOne`; `ROWS` by one monomorphic row builder and a derived `PortCall`
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 47-05-PLAN.md — the sixth-port scratch measured and reverted; ADR-QD-160; the two changesets and the upgrade entry
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 47-06-PLAN.md — BEH-QD-571 to 575 with BEH-QD-196, 215 and 228 amended; INV-QD-339 and 340; traceability, the overview `PortReport` row, ADR links; CCR-QD-438 completed
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 47-07-PLAN.md — mutation after against the base plus the two new files; scope, scan, commit order, ids and held lines; `pnpm check:pr`; nothing released
 
 ### Phase 48: Audit reports core's refusal and derives "lost"
 
