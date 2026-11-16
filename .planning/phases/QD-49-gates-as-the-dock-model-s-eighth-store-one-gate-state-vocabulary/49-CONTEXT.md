@@ -82,7 +82,9 @@ Two changes, one phase:
   - the new core `GateState.ts`, recorded as `new`.
 
   `QuestionsPanel.tsx` and `DevtoolsDock.tsx` are recorded as not instrumentable (the devtools config mutates `src/model/**` only), as `ServicesPanel.tsx` was in Phase 47. `ignoreStatic` means the tables themselves are not mutated (ADR-076). No touched file's score may drop.
-- **D-16:** Instrumentation off (§13). With no registry, nothing is registered or rendered, and the panel shows today's "absent" message. The react suite passes untouched, apart from the tstyche pin in D-03.
+- **D-16:** Instrumentation off (§13). With no registry, nothing is registered or rendered, and the panel shows today's "absent" message. The react suite passes untouched, apart from the tstyche pin in D-03 and the D-18 feed assertions (`DevtoolsFeed.test.tsx:176,188`), which are named exceptions.
+- **D-18:** `@qadi/react`'s `useDevtoolsFeed()` returns the gate registry as `gates` (user decision after research, 2026-11-16), so `<DevtoolsDock {...feed} />` keeps compiling. `DevtoolsFeed.gates` changes from `ReadonlyArray<GateInstance>` to the registry. This is **Breaking** for `@qadi/react`, so its changeset becomes a minor marked Breaking (supersedes D-17's patch), with a 0.13 upgrade line. The two feed assertions that pin the array shape change; every other react test stays untouched.
+- **D-19:** Ordinals (Claude's discretion, from research). ADR-QD-162 states the store count once (seven stores before, `questions` the eighth, `sightings` a thunk) and notes that older records counted differently (the policy rail, "eighth readout"). Linked BEH anchors such as BEH-QD-506 are not retitled.
 
 ### Records
 - **D-17:**
@@ -90,7 +92,7 @@ Two changes, one phase:
   - **Spec ids:** CCR-QD-440, BEH-QD-581..585, INV-QD-343..344.
   - **Changesets:**
     - `@qadi/core` minor: the vocabulary.
-    - `@qadi/react` patch: `GateRenderState` derives from core.
+    - `@qadi/react` minor, **Breaking** (D-18): `DevtoolsFeed.gates` is the registry; `GateRenderState` derives from core.
     - `@qadi/devtools` minor, **Breaking**: the `gates` prop's type.
   - **Docs:** `spec/overview.md` rows (core's new exports; devtools' `GateInstanceLike` row unchanged or updated; line 585's statement about react's `GateRenderState`), the devtools and react docs that show `gates={useGateInstances()}`, and the 0.13 upgrade entry.
 
