@@ -15,9 +15,10 @@ import {
   gateGroups,
   instancesAsking,
   isLocatable,
+  joinQuestions,
   locatableIds,
 } from "../../src/model/Gates.ts";
-import type { GateGroup, GateInstanceLike } from "../../src/model/Gates.ts";
+import type { AskedQuestionLike, GateGroup, GateInstanceLike, QuestionsSnapshot } from "../../src/model/Gates.ts";
 import { displayOfNodeStatus, displayOfVerdict } from "../../src/model/Verdict.ts";
 
 /** AGENTS.md §6 leaves no `!`, and an absent group is a failure worth naming. */
@@ -253,5 +254,84 @@ describe("displayOfNodeStatus and displayOfVerdict", () => {
       (["Allow", "Deny", "Error", "Unknown"] as const).map(displayOfVerdict),
       ["Allow", "Deny", "Error", "Unknown"],
     );
+  });
+});
+
+describe("joinQuestions: the panel's rows, decided once", () => {
+  const canWrite = hasPermission(permission("doc", "write"));
+  const noQuestions = { questions: undefined, gates: undefined, unsampled: false };
+
+  /** The ids asking each question, row by row; `undefined` when the view is not `Rows`. */
+  const askingIds = (snapshot: QuestionsSnapshot): ReadonlyArray<ReadonlyArray<string>> | undefined =>
+    snapshot.questions._tag === "Rows"
+      ? snapshot.questions.rows.map((row) => row.asking.map((one) => one.id))
+      : undefined;
+
+  it("an absent registry is Absent, and its instances are one empty constant", () => {
+    const first = joinQuestions(noQuestions);
+    const second = joinQuestions(noQuestions);
+
+    assert.strictEqual(first.gates._tag, "Absent");
+    assert.deepStrictEqual(first.instances, []);
+    assert.strictEqual(first.instances, second.instances);
+  });
+
+  it("an empty registry is Empty, not Absent, and its instances are that very array", () => {
+    const none: ReadonlyArray<GateInstanceLike> = [];
+    const snapshot = joinQuestions({ ...noQuestions, gates: none });
+
+    assert.strictEqual(snapshot.gates._tag, "Empty");
+    assert.strictEqual(snapshot.instances, none);
+  });
+
+  it("a registry with guards is Listed, carrying the registry's own array", () => {
+    const guards = [instance({ id: "a" }), instance({ id: "b", policy: isAdmin })];
+    const snapshot = joinQuestions({ ...noQuestions, gates: guards });
+
+    assert.strictEqual(snapshot.gates._tag, "Listed");
+    assert.strictEqual(snapshot.instances, guards);
+    if (snapshot.gates._tag === "Listed") assert.strictEqual(snapshot.gates.instances, guards);
+  });
+
+  it("no questions is Unsampled while the poll has not sampled, and Absent once it has", () => {
+    assert.strictEqual(joinQuestions({ ...noQuestions, unsampled: true }).questions._tag, "Unsampled");
+    assert.strictEqual(joinQuestions({ ...noQuestions, unsampled: false }).questions._tag, "Absent");
+  });
+
+  it("an empty list of questions is Empty", () => {
+    assert.strictEqual(joinQuestions({ ...noQuestions, questions: [] }).questions._tag, "Empty");
+  });
+
+  it("pairs each question with the guards asking it, in registry order", () => {
+    const questions: ReadonlyArray<AskedQuestionLike> = [
+      { policy: canRead },
+      { policy: isAdmin },
+      { policy: canRead, resource: { id: "x" } },
+      { policy: canWrite },
+    ];
+    const guards = [
+      instance({ id: "a", policy: canRead }),
+      // Built separately, equal by structure: the same question as `a`.
+      instance({ id: "b", policy: hasPermission(permission("doc", "read")) }),
+      // A state this build does not know is listed, not dropped.
+      instance({ id: "c", policy: isAdmin, state: "Suspended" }),
+      instance({ id: "d", policy: canRead, resource: { id: "x" } }),
+    ];
+
+    const snapshot = joinQuestions({ questions, gates: guards, unsampled: false });
+
+    assert.deepStrictEqual(askingIds(snapshot), [["a", "b"], ["c"], ["d"], []]);
+    if (snapshot.questions._tag === "Rows") {
+      assert.deepStrictEqual(
+        snapshot.questions.rows.map((row) => row.question),
+        questions,
+      );
+    }
+  });
+
+  it("a question with no registry is a row asked by nobody", () => {
+    const snapshot = joinQuestions({ questions: [{ policy: canRead }], gates: undefined, unsampled: false });
+
+    assert.deepStrictEqual(askingIds(snapshot), [[]]);
   });
 });

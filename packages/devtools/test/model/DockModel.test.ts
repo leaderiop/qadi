@@ -1,11 +1,13 @@
 /**
  * The dock's cross-store rules, tested with no DOM (ARCH-74, DMOD-02).
  *
- * The dock owns eight readouts (the timeline, the policy rail, the explorer, the
- * role viewer's held choice, the simulation session, the dock session, the
- * diagnostics reading and the timeline status) and the rules that connect them:
- * a new timeline reaches every screen, a replay commands the simulation, a new
- * head does not move a held choice, an unchanged input dispatches nothing, and no
+ * The dock owns eight stores and the rules that connect them. Seven came first: the
+ * timeline, the dock session, the explorer, the role viewer's held choice, the
+ * simulation session, the diagnostics reading and the timeline status. `questions`,
+ * the gate registry joined to the polled questions, is the eighth. The policy rail,
+ * `sightings`, is a thunk and not a store, though earlier records counted it. The
+ * rules: a new timeline reaches every screen, a replay commands the simulation, a
+ * new head does not move a held choice, an unchanged input dispatches nothing, and no
  * screen reads another timeline than the one the dock shows. Until now those
  * rules lived in layout effects and were proved only by rendering the whole dock.
  * They are stated here against `makeDockModel` and nothing is rendered.
@@ -40,7 +42,7 @@ import {
   scriptedPort,
   attributeResolverPort,
 } from "@qadi/core";
-import type { Policy, StoredRecord } from "@qadi/core";
+import type { Policy, Resource, StoredRecord } from "@qadi/core";
 import { catalogueOf, policyLabel } from "../../src/model/Catalogue.ts";
 import type { Catalogue } from "../../src/model/Catalogue.ts";
 import { DiagnosticsStatus, diagnosticsOff } from "../../src/model/DiagnosticsFeed.ts";
@@ -49,11 +51,13 @@ import { makeDockModel } from "../../src/model/DockModel.ts";
 import type { DockModel } from "../../src/model/DockModel.ts";
 import type { TabId } from "../../src/model/DockSession.ts";
 import { noFilters } from "../../src/model/Filters.ts";
+import type { AskedQuestionLike, GateInstanceLike, QuestionsSnapshot } from "../../src/model/Gates.ts";
 import type { Source } from "../../src/model/Source.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { countsOf } from "../../src/model/Verdict.ts";
 import { allow, decisionRecord, deny, failedRecord, obligationRecord, read, readPolicy } from "../helpers.ts";
 import { settleTurns } from "../helpers.ts";
+import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
 
 const write = permission("doc", "write");
 const writePolicy: Policy = hasPermission(write);
@@ -1000,4 +1004,260 @@ describe("the timeline's status (M29)", () => {
         assert.strictEqual(tally.started, 1);
       }),
   );
+});
+
+describe("the questions store (M31, M32, M33, P2)", () => {
+  const guard = (
+    id: string,
+    policy: Policy,
+    fields?: { readonly state?: string; readonly resource?: Resource },
+  ): GateInstanceLike => ({ id, kind: "Can", policy, state: fields?.state ?? "Allowed", resource: fields?.resource });
+
+  /** The ids asking each asked question, row by row; empty when the view carries no rows. */
+  const askingIds = (snapshot: QuestionsSnapshot): ReadonlyArray<ReadonlyArray<string>> =>
+    snapshot.questions._tag === "Rows" ? snapshot.questions.rows.map((row) => row.asking.map((one) => one.id)) : [];
+
+  /** Settles every fiber, steps the clock one poll interval, settles again. */
+  const tick = Effect.gen(function* () {
+    yield* settleTurns;
+    yield* TestClock.adjust("2 seconds");
+    yield* settleTurns;
+  });
+
+  it.effect("M31: rows pair each question with its guards at once on a registry change, and a quiet tick keeps the snapshot", () =>
+    Effect.gen(function* () {
+      let asked: ReadonlyArray<AskedQuestionLike> = [{ policy: readPolicy }];
+      const double = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const model = yield* makeDockModel({ diagnostics: { questions: () => asked }, gates: double.registry });
+      yield* settleTurns;
+
+      const first = model.questions.getSnapshot();
+      assert.deepStrictEqual(askingIds(first), [["a"]]);
+      assert.strictEqual(first.instances, double.registry.instances());
+
+      double.add(guard("b", readPolicy));
+      const added = model.questions.getSnapshot();
+      assert.deepStrictEqual(askingIds(added), [["a", "b"]]);
+      assert.strictEqual(added.instances, double.registry.instances());
+
+      const heard = { calls: 0 };
+      model.questions.subscribe(() => {
+        heard.calls += 1;
+      });
+      yield* tick;
+      assert.strictEqual(model.questions.getSnapshot(), added);
+      assert.strictEqual(heard.calls, 0);
+
+      asked = [{ policy: readPolicy }, { policy: writePolicy }];
+      yield* tick;
+      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["a", "b"], []]);
+      assert.strictEqual(heard.calls, 1);
+    }));
+
+  it.effect("M32: the gates view says absent, empty or listed, and the questions view says unsampled, absent, empty or rows", () =>
+    Effect.gen(function* () {
+      const asked = { diagnostics: { questions: () => [{ policy: readPolicy }] } };
+
+      const none = yield* makeDockModel(asked);
+      yield* settleTurns;
+      assert.strictEqual(none.questions.getSnapshot().gates._tag, "Absent");
+      assert.deepStrictEqual(askingIds(none.questions.getSnapshot()), [[]]);
+
+      const empty = yield* makeDockModel({ ...asked, gates: makeGateRegistryDouble().registry });
+      yield* settleTurns;
+      assert.strictEqual(empty.questions.getSnapshot().gates._tag, "Empty");
+
+      const one = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const listed = yield* makeDockModel({ ...asked, gates: one.registry });
+      yield* settleTurns;
+      const view = listed.questions.getSnapshot();
+      assert.strictEqual(view.gates._tag, "Listed");
+      if (view.gates._tag === "Listed") assert.strictEqual(view.gates.instances, one.registry.instances());
+      assert.strictEqual(view.instances, one.registry.instances());
+
+      const off = yield* makeDockModel();
+      assert.strictEqual(off.questions.getSnapshot().questions._tag, "Absent");
+      assert.strictEqual(off.questions.getSnapshot().gates._tag, "Absent");
+
+      const supplied = yield* makeDockModel({ reading: { questions: [] } });
+      assert.strictEqual(supplied.questions.getSnapshot().questions._tag, "Empty");
+    }));
+
+  it.effect("M32 b: a poll that has not sampled reads Unsampled, and Absent once it has with no questions to read", () =>
+    Effect.gen(function* () {
+      const layer = Layer.effectDiscard(Effect.sleep("1 second"));
+      const model = yield* makeDockModel({ diagnostics: { layer } });
+      assert.isTrue(DiagnosticsStatus.$is("Starting")(model.diagnostics.getSnapshot().status));
+      assert.strictEqual(model.questions.getSnapshot().questions._tag, "Unsampled");
+
+      yield* settleTurns;
+      yield* TestClock.adjust("1 second");
+      yield* settleTurns;
+
+      assert.isTrue(DiagnosticsStatus.$is("Live")(model.diagnostics.getSnapshot().status));
+      assert.strictEqual(model.questions.getSnapshot().questions._tag, "Absent");
+    }));
+
+  it.effect("M33: the registry subscription lives as long as the model's scope, follows a new registry and never outlives close", () =>
+    Effect.gen(function* () {
+      const reading = { questions: [{ policy: readPolicy }] };
+      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const b = makeGateRegistryDouble([guard("b1", writePolicy), guard("b2", readPolicy)]);
+      const scope = yield* Scope.make();
+      const model = yield* Scope.provide(makeDockModel({ gates: a.registry, reading }), scope);
+
+      assert.strictEqual(a.listeners(), 1);
+      assert.strictEqual(a.subscriptions(), 1);
+      const first = model.questions.getSnapshot();
+
+      model.configure({ gates: a.registry, reading });
+      assert.strictEqual(a.subscriptions(), 1);
+      assert.strictEqual(model.questions.getSnapshot(), first);
+
+      model.configure({ gates: b.registry, reading });
+      assert.strictEqual(a.listeners(), 0);
+      assert.strictEqual(b.listeners(), 1);
+      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["b2"]]);
+      assert.strictEqual(model.questions.getSnapshot().instances, b.registry.instances());
+
+      model.configure({ reading });
+      assert.strictEqual(b.listeners(), 0);
+      assert.strictEqual(model.questions.getSnapshot().gates._tag, "Absent");
+
+      model.configure({ gates: a.registry, reading });
+      assert.strictEqual(a.listeners(), 1);
+
+      yield* Scope.close(scope, Exit.void);
+      assert.strictEqual(a.listeners(), 0);
+      assert.strictEqual(b.listeners(), 0);
+
+      const subscribed = a.subscriptions();
+      model.configure({ gates: a.registry, reading });
+      assert.strictEqual(a.listeners(), 0);
+      assert.strictEqual(a.subscriptions(), subscribed);
+    }));
+
+  type Command =
+    | { readonly kind: "add"; readonly id: number; readonly policy: number; readonly resource: number; readonly state: number }
+    | { readonly kind: "remove"; readonly id: number }
+    | { readonly kind: "update"; readonly id: number; readonly state: number }
+    | { readonly kind: "ask"; readonly questions: ReadonlyArray<number> }
+    | { readonly kind: "tick" };
+
+  const policies: ReadonlyArray<Policy> = [readPolicy, writePolicy, hasRole("admin")];
+  // One state outside the vocabulary, so the unknown path runs through the join.
+  const states: ReadonlyArray<string> = ["Allowed", "Denied", "Failed", "Pending", "Rechecking", "Suspended"];
+  const GUARDS = 4;
+  const RESOURCES = 3;
+
+  const nth = <A>(pool: ReadonlyArray<A>, index: number): A => {
+    const one = pool[index];
+    if (one === undefined) throw new Error(`no pool entry ${index}`);
+    return one;
+  };
+  const resourceOf = (index: number): Resource | undefined => (index === 0 ? undefined : { id: `r${index}` });
+  const questionOf = (index: number): AskedQuestionLike => ({
+    policy: nth(policies, index % policies.length),
+    resource: resourceOf(Math.floor(index / policies.length)),
+  });
+
+  const pick = (size: number) => FastCheck.integer({ min: 0, max: size - 1 });
+  const commands = FastCheck.oneof(
+    FastCheck.record({
+      id: pick(GUARDS),
+      policy: pick(policies.length),
+      resource: pick(RESOURCES),
+      state: pick(states.length),
+    }).map((fields): Command => ({ kind: "add", ...fields })),
+    pick(GUARDS).map((id): Command => ({ kind: "remove", id })),
+    FastCheck.record({ id: pick(GUARDS), state: pick(states.length) }).map(
+      (fields): Command => ({ kind: "update", ...fields }),
+    ),
+    FastCheck.array(pick(policies.length * RESOURCES), { maxLength: 3 }).map(
+      (questions): Command => ({ kind: "ask", questions }),
+    ),
+    FastCheck.constant<Command>({ kind: "tick" }),
+  );
+
+  it.effect("P2: whatever the registry and the poll do, each snapshot's rows are the questions and guards of one moment", () =>
+    Effect.gen(function* () {
+      const sequences = FastCheck.sample(FastCheck.array(commands, { maxLength: 25 }), { numRuns: 60, seed: 49 });
+
+      for (const sequence of sequences) {
+        const where = JSON.stringify(sequence);
+        let asked: ReadonlyArray<AskedQuestionLike> = [];
+        const double = makeGateRegistryDouble();
+        const scope = yield* Scope.make();
+        const model = yield* Scope.provide(
+          makeDockModel({ diagnostics: { questions: () => asked }, gates: double.registry }),
+          scope,
+        );
+
+        // Independent of `joinQuestions`: `Equal.equals` over policy and resource, in registry order.
+        const oracle = (
+          questions: ReadonlyArray<AskedQuestionLike>,
+          guards: ReadonlyArray<GateInstanceLike>,
+        ): ReadonlyArray<ReadonlyArray<string>> =>
+          questions.map((question) =>
+            guards
+              .filter((one) => Equal.equals(one.policy, question.policy) && Equal.equals(one.resource, question.resource))
+              .map((one) => one.id),
+          );
+
+        /** What is wrong with the snapshot now, read against both sources at this very moment. */
+        const disagreements = (moment: string): ReadonlyArray<string> => {
+          const snapshot = model.questions.getSnapshot();
+          const polled = model.diagnostics.getSnapshot().reading.questions ?? [];
+          const guards = double.registry.instances();
+          const problems: Array<string> = [];
+          if (snapshot.instances !== guards) problems.push(`${moment}: instances is not the registry's own array`);
+          const rows = JSON.stringify(askingIds(snapshot));
+          const expected = JSON.stringify(oracle(polled, guards));
+          if (rows !== expected) problems.push(`${moment}: rows ${rows}, oracle ${expected}`);
+          const gatesTag = guards.length === 0 ? "Empty" : "Listed";
+          if (snapshot.gates._tag !== gatesTag) problems.push(`${moment}: gates view ${snapshot.gates._tag}, wanted ${gatesTag}`);
+          return problems;
+        };
+
+        const heard: Array<string> = [];
+        model.questions.subscribe(() => {
+          heard.push(...disagreements("on notify"));
+        });
+        const agrees = (moment: string) => {
+          assert.deepStrictEqual(disagreements(moment), [], where);
+          assert.deepStrictEqual(heard, [], where);
+        };
+
+        yield* settleTurns;
+        agrees("start");
+        for (const command of sequence) {
+          const before = model.questions.getSnapshot();
+          if (command.kind === "add") {
+            double.add(
+              guard(`g${command.id}`, nth(policies, command.policy), {
+                state: nth(states, command.state),
+                resource: resourceOf(command.resource),
+              }),
+            );
+            yield* settleTurns;
+          } else if (command.kind === "remove") {
+            double.remove(`g${command.id}`);
+            yield* settleTurns;
+          } else if (command.kind === "update") {
+            double.update(`g${command.id}`, nth(states, command.state));
+            yield* settleTurns;
+          } else if (command.kind === "ask") {
+            asked = command.questions.map(questionOf);
+            yield* tick;
+          } else {
+            yield* tick;
+            assert.strictEqual(model.questions.getSnapshot(), before, `a tick that changed nothing keeps the reference: ${where}`);
+          }
+          agrees(command.kind);
+        }
+
+        yield* Scope.close(scope, Exit.void);
+        assert.strictEqual(double.listeners(), 0, `closing the scope released the registry subscription: ${where}`);
+      }
+    }));
 });
