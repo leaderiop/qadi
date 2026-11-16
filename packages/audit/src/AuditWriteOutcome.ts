@@ -97,7 +97,7 @@ export const AuditWriteOutcome = Data.taggedEnum<AuditWriteOutcome>();
  */
 export type Durability = "Trail" | "StagingOnly" | "Lost" | "Refused";
 
-// A helper, not a literal: a `Match` arm returning `"Lost"` infers `string`.
+// A helper, not a literal: a `Match` arm returning `"Trail"` infers `string`.
 const durability = (d: Durability): Durability => d;
 
 /**
@@ -111,7 +111,7 @@ export const durabilityOf: (self: AuditWriteOutcome) => Durability = Match.type<
   Match.tagsExhaustive({
     Refused: () => durability("Refused"),
     Written: () => durability("Trail"),
-    WriteFailed: (o) => durability(unwrittenRow(o.staging).durability),
-    Skipped: (o) => durability(unwrittenRow(o.staging).durability),
+    WriteFailed: (o) => unwrittenRow(o.staging).durability,
+    Skipped: (o) => unwrittenRow(o.staging).durability,
   }),
 );
