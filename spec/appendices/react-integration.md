@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-APP-REACT                                 |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Appendix — Worked Example                      |
-> | Change History | 1.2 (2026-10-05): §5's "read the whole decision" example rendered the editor while an allow was being re-checked — `Success` with `waiting: true` is neither `Initial` nor `Failure`, so the ladder fell through to the previous verdict; it now reads the result once with `outcomeOf` (ADR-QD-093, CCR-QD-175)<br>1.1 (2026-07-26): Atom keying corrected — structural, not by reference (CCR-QD-013)<br>1.0 (2026-07-26): Initial release (CCR-QD-003) |
+> | Change History | 1.3 (2026-11-16): Seeing who is asking: useDevtoolsFeed() returns the registry as gates, not the list (review WR-02; ARCH-96, CCR-QD-440)<br>1.2 (2026-10-05): §5's "read the whole decision" example rendered the editor while an allow was being re-checked — `Success` with `waiting: true` is neither `Initial` nor `Failure`, so the ladder fell through to the previous verdict; it now reads the result once with `outcomeOf` (ADR-QD-093, CCR-QD-175)<br>1.1 (2026-07-26): Atom keying corrected — structural, not by reference (CCR-QD-013)<br>1.0 (2026-07-26): Initial release (CCR-QD-003) |
 
 ---
 
@@ -446,7 +446,7 @@ export const withQadi = (subject: AuthSubject | undefined, ui: ReactNode) => {
 
 An instrumented provider records each guard in its atom set's `gates` registry, beside
 `atoms.asked()` ([ADR-QD-080](../decisions/080-a-gate-registry-belongs-to-its-atom-set.md)).
-Read it with `instances()` and `subscribe()`, or `useGateInstances()` inside the provider; `useDevtoolsFeed()` returns the same list with the rest of what a devtools panel reads from the atom set (BEH-QD-327).
+Read it with `instances()` and `subscribe()`, or `useGateInstances()` inside the provider; `useDevtoolsFeed()` returns the registry itself as `gates` (read it with `gates.instances()`), with the rest of what a devtools panel reads from the atom set (BEH-QD-327, BEH-QD-585).
 
 ```tsx
 import { EvaluationServicesNone } from "@qadi/core";
