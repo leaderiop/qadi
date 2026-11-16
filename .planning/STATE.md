@@ -2,21 +2,21 @@
 gsd_state_version: "1.0"
 milestone: v1.5
 milestone_name: Arch Wave 10
-current_phase: 51
-current_phase_name: Policy tag arity stated once
-current_plan: 5
-status: verifying
-stopped_at: Completed QD-51-05-PLAN.md
-last_updated: "2026-11-16T16:09:16.101Z"
+current_phase: 52
+current_phase_name: Core owns the predicate compile shell
+current_plan: Not started
+status: planning
+stopped_at: Phase QD-51 complete, ready to plan Phase 52
+last_updated: "2026-11-16T17:05:08.167Z"
 last_activity: 2026-11-16
-last_activity_desc: Phase QD-50 complete, transitioned to Phase 51
-state_head: daa407a7b540db298d0ca208f4c82d96593b75be
+last_activity_desc: Phase QD-51 complete, transitioned to Phase 52
+state_head: a909db5653bbe8c30e774bedc5e506a43c292bc0
 progress:
   total_phases: 10
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 66
   completed_plans: 66
-  percent: 80
+  percent: 90
 ---
 
 # Project State
@@ -30,19 +30,19 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 
 ## Current Position
 
-Phase: 51 — Policy tag arity stated once
-Current Plan: 5
+Phase: 52 — Core owns the predicate compile shell
+Current Plan: Not started
 Total Plans in Phase: 5
-Status: Phase complete — ready for verification
-Last activity: 2026-11-16 — Phase QD-50 complete, transitioned to Phase 51
+Status: Ready to plan
+Last activity: 2026-11-16 — Phase QD-51 complete, transitioned to Phase 52
 
-Progress: [████████░░] 80% (8 of 10 phases)
+Progress: [█████████░] 90% (8 of 10 phases)
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 226
+- Total plans completed: 231
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -90,6 +90,7 @@ Progress: [████████░░] 80% (8 of 10 phases)
 | QD-48 | 8 | - | - |
 | QD-49 | 9 | - | - |
 | QD-50 | 8 | - | - |
+| QD-51 | 5 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -603,7 +604,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-16T16:09:15.898Z
-Stopped at: Completed QD-51-05-PLAN.md
+Stopped at: Phase QD-51 complete, ready to plan Phase 52
 Resume file: None
 
 ## Operator Next Steps

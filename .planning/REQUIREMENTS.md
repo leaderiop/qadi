@@ -93,7 +93,7 @@
 
 ### Policy tag arity stated once (Phase 51, ARCH-98, core)
 
-- [x] **ARTY-01**: One closed record in `Policy.ts` gives each policy tag's arity (Leaf, Wrapper or Many). `Decision.ts`'s `traceShapeOf` reads it, and `leafTags` is deleted.
+- [x] **ARTY-01**: One closed record (package-private `PolicyArity.ts`, beside `Policy.ts`: CONTEXT D-01a) gives each policy tag's arity (Leaf, Wrapper or Many). `Decision.ts`'s `traceShapeOf` reads it, and `leafTags` is deleted.
 - [x] **ARTY-02**: A type-level test ties `LeafPolicy` and `childrenOf` to the record, so moving a tag's arity in one place and not the other fails to compile.
 - [x] **ARTY-03**: `foldTrace` stays public and unchanged. `renderTrace`/`diffTraces` keep their own walks, and the ADR or CCR states why.
 

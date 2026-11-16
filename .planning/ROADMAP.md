@@ -376,7 +376,7 @@ Order: defects first (43-46), then the "stated once" deepenings (47-49), then th
 - [x] **Phase 48: Audit reports core's refusal and derives "lost"** - `AuditEntryNotEncodable` is deleted and the lost-staging label derives from durability (ARCH-95, Breaking, audit) (completed 2026-11-16)
 - [x] **Phase 49: Gates as the dock model's eighth store, one gate-state vocabulary** - The gate registry joins the dock model and the five gate-state words are stated once in core (ARCH-96, core, react, devtools) (completed 2026-11-16)
 - [x] **Phase 50: What a leaf needs from the request, stated once** - Opens on a benchmark; one table of leaf needs read by `Walk` and `Predicate`, or a recorded rejection (ARCH-97, core) (completed 2026-11-16)
-- [ ] **Phase 51: Policy tag arity stated once** - One closed record gives each tag's arity; `traceShapeOf` reads it and `leafTags` goes; `foldTrace` stays public (ARCH-98, core)
+- [x] **Phase 51: Policy tag arity stated once** - One closed record gives each tag's arity; `traceShapeOf` reads it and `leafTags` goes; `foldTrace` stays public (ARCH-98, core) (completed 2026-11-16)
 - [ ] **Phase 52: Core owns the predicate compile shell** - One core function owns defaults, renderability and outcome counting; each dialect keeps its rules, renderer and metric (ARCH-99, core, predicate-sql, predicate-prisma)
 
 ### Phase Details
@@ -725,13 +725,13 @@ Plans:
 **Settled by the review check**: `Policy.ts`'s `childrenOf`, `LeafPolicy` and `leafCases` state which tags are leaf, wrapper or many; `Decision.ts` restates them in a hand-kept `leafTags` array plus `traceShapeOf`, exhaustive over tag names but tied to nothing, so moving a wrapper tag under "Many" there compiles. **Correction to the review:** `foldTrace` has no callers in the repo, by design: it is the stack-safe public primitive for hosts holding a `Trace` (INV-QD-090), and it stays. `renderTrace` (pre-order with indentation) and `diffTraces` (lockstep over two trees) keep their own walks, and the ADR or CCR states why.
 
 **Success Criteria** (what must be TRUE):
-  1. One closed record in `Policy.ts` gives each policy tag's arity (Leaf, Wrapper or Many); `traceShapeOf` reads it and `leafTags` is deleted.
+  1. One closed record (package-private `PolicyArity.ts`, beside `Policy.ts`: CONTEXT D-01a) gives each policy tag's arity (Leaf, Wrapper or Many); `traceShapeOf` reads it and `leafTags` is deleted.
   2. A type-level test ties `LeafPolicy` and `childrenOf` to the record: a checked `@ts-expect-error` negative shows that moving a tag's arity in one place and not the other fails to compile, where on the base moving a wrapper tag under "Many" in `Decision.ts` compiles (recorded).
   3. Every policy tag's trace shape is unchanged, pinned by a table test over all tags written on the base and green before and after.
   4. `foldTrace` stays public and unchanged (the barrel pin and its INV-QD-090 tests untouched), `renderTrace` and `diffTraces` keep their own walks, and the ADR or CCR states why; `SWITCH_BUDGET` is unchanged.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `Policy.ts` and `Decision.ts`, the all-tags shape table and the recorded base experiment (move a tag, it compiles), committed first; then the record and the two readers; then the type-level negative; then records. Re-run `pnpm circular`.
-**Plans**: 5/5 plans executed
+**Plans**: 5/5 plans complete
 
 Plans:
 **Wave 1**
@@ -781,5 +781,5 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 48. Audit reports core's refusal and derives "lost" | 8/8 | Complete    | 2026-11-16 |
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 9/9 | Complete    | 2026-11-16 |
 | 50. What a leaf needs from the request, stated once | 8/8 | Complete    | 2026-11-16 |
-| 51. Policy tag arity stated once | 5/5 | In Progress | - |
+| 51. Policy tag arity stated once | 5/5 | Complete    | 2026-11-16 |
 | 52. Core owns the predicate compile shell | 0/TBD | Not started | - |
