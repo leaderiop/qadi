@@ -689,7 +689,32 @@ Plans:
   5. If pursued: `SWITCH_BUDGET` and `UNTRACED_BUDGET` are unchanged (the AGENTS.md tables and the budgets agree), and `pnpm bench` after the change shows no workload regressed beyond noise against the phase base.
 
 **Planning notes**: **The benchmark is the first plan, and it gates the rest.** Prototype on a scratch branch or an unmerged commit, run `pnpm bench` against the base the way ADR-QD-073's addendum did, and record the table before writing any source that stays. Re-verify the `Walk.ts`, `PortAccess.ts` and `Predicate.ts` line numbers in `_WAVE10-CONTEXT.md` against the base. If pursued, **plan shape, RED first**: the mutation base for `Walk.ts`, `Predicate.ts` and `PortAccess.ts`, and the missing-both-inputs characterisation per leaf kind, committed first; then the module; then `Walk`; then `Predicate`; then records.
-**Plans**: TBD
+**Plans**: 8 plans
+
+Plans:
+**Wave 1**
+- [ ] 50-01-PLAN.md — preconditions, the base facts and the reserved ids; the mutation baseline committed alone
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 50-02-PLAN.md — the two leaf-heavy bench workloads, the interleaved A/B runner and the D-03a analysis, and every leaf's absences characterised on the base
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 50-03-PLAN.md — the bench gate (prototype P1 against the base, 3 + 3) and `50-BENCH.md`'s verdict; on a rejection, ADR-QD-163, CCR-QD-441 and LEAF-02..05 "Not pursued (measured)", and the phase ends
+
+**Wave 4** *(blocked on Wave 3 completion; pursue only)*
+- [ ] 50-04-PLAN.md — the table test RED, `LeafNeeds.ts`, and `Walk`'s leaf arms reading it (HasAttribute first); the swapped-order negative control
+
+**Wave 5** *(blocked on Wave 4 completion; pursue only)*
+- [ ] 50-05-PLAN.md — the D-08a test RED, `toPredicate` reading the table and the judgements, `readScoped`'s error through `errorOf`
+
+**Wave 6** *(blocked on Wave 5 completion; pursue only)*
+- [ ] 50-06-PLAN.md — the final source against the base on the gate's statistic; the mutation after-run with D-13's rule for `Walk.ts`
+
+**Wave 7** *(blocked on Wave 6 completion; pursue only)*
+- [ ] 50-07-PLAN.md — ADR-QD-163 with both measurements, BEH-QD-586..590, INV-QD-345..346, INV-QD-011's source, traceability, CCR-QD-441, the `@qadi/core` patch changeset
+
+**Wave 8** *(blocked on Wave 7 completion; pursue only)*
+- [ ] 50-08-PLAN.md — the phase scan (scope, constructs, order, ids), `check:pr`, the release check, LEAF-01..05 complete
 
 ### Phase 51: Policy tag arity stated once
 
