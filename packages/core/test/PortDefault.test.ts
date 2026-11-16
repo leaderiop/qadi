@@ -265,6 +265,18 @@ describe("a derived wrapper is its port's default exactly when what it wraps is 
     }),
   );
 
+  it.effect("W11: decoratePorts marks by the slot, so a replaced default still reads defaulted (IN-02, D-17)", () =>
+    Effect.gen(function* () {
+      const context = yield* Layer.build(
+        decoratePorts(portsLayer(), (d, inner) => d.make("replaced", d.invoke(inner))),
+      );
+      const shape = Context.get(context, AttributeResolver);
+
+      assert.strictEqual(shape.name, "replaced");
+      assert.isTrue(isPortDefault(attributeResolverPort, shape));
+    }),
+  );
+
   it.effect("W10: decoratePorts keeps the prototype of what the decorator returns (WR-03)", () =>
     Effect.gen(function* () {
       const context = yield* Layer.build(

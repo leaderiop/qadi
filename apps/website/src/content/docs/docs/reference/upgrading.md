@@ -820,6 +820,8 @@ export const auditedAttributes = Layer.effect(
 ).pipe(Layer.provide(AttributeResolverNone));
 ```
 
+`decoratePorts` carries the mark by the slot it decorates, not by what your decorator returns: a decorator that replaces a default with a real implementation still reads as defaulted, because the slot held the default when it ran. Wire the real implementation into `portsLayer` instead of decorating a default into one.
+
 A second install of `@qadi/core` has its own mark, so it reads the other copy's defaults as real adapters.
 
 The decision is [ADR-QD-160](https://github.com/leaderiop/qadi/blob/main/spec/decisions/160-port-facts-are-read-from-the-description.md).
