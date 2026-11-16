@@ -1,9 +1,9 @@
 ---
 phase: QD-48-audit-reports-core-s-refusal-and-derives-lost
-reviewed: 2026-11-16T03:57:21Z
+reviewed: 2026-11-16T04:06:33Z
 depth: standard
-iteration: 2
-files_reviewed: 30
+iteration: 3
+files_reviewed: 31
 files_reviewed_list:
   - .changeset/audit-refusal-is-cores.md
   - apps/website/src/content/docs/docs/packages/audit/capabilities.md
@@ -35,131 +35,120 @@ files_reviewed_list:
   - spec/invariants.md
   - spec/overview.md
   - spec/traceability.md
+  - packages/core/src/EncodeRefusalReport.ts
 findings:
   critical: 0
-  warning: 1
+  warning: 0
   info: 3
-  total: 4
+  total: 3
   necessity: 0
 status: issues_found
 ---
 
-# Phase QD-48: Code Review Report (iteration 2)
+# Phase QD-48: Code Review Report (iteration 3)
 
-**Reviewed:** 2026-11-16T03:57:21Z
+**Reviewed:** 2026-11-16T04:06:33Z
 **Depth:** standard
-**Files Reviewed:** 30
+**Files Reviewed:** 31
 **Status:** issues_found
 
 ## Summary
 
-Scope: the iteration-1 fixes (`git diff 0a724d3c..HEAD`, commits `b054bbdd..eaa0ef15`) and the whole non-planning phase
-diff `c9fde4ba..7606d97e`. Checks run: `vitest --project audit` (28 files, 526 passed), `tstyche` on
-`AuditRefusal.tst.ts` and `UnwrittenRow.tst.ts` (8 passed), `check-house-style.mjs` (clean),
-`spec:website-examples` (66 blocks compile, including the new upgrade fence), `spec:verify:strict` (21 PASS) and
-`spec-revise --check` (clean). `necessity-review.md` was read; no finding is a necessity finding.
+**Scope:**
+- The iteration-2 fixes (`git diff 3186d875..HEAD`, commits `1d7ff083..7ff85185`).
+- The iteration-1 fixes (`0a724d3c..HEAD`).
+- The whole non-planning phase diff (`c9fde4ba..b7c62f34`).
 
-Iteration-1 fixes verified against the source:
+`EncodeRefusalReport.ts` was read as a callee only; it is not changed in the phase.
 
-- **WR-01 (upgrade guide).** The After fence now logs `"audit entry refused"` annotated with
-  `encodeRefusalAnnotations(e)`. That function is exported from `@qadi/core`'s barrel (`index.ts:27`,
-  `export * from "./JsonRefusal.ts"`). It takes `{ refusal; evaluationId }`, which `SinkRecordNotEncodable` satisfies,
-  and returns exactly the three keys `reportEncodeRefusal` puts on the default warning (`EncodeRefusalReport.ts:37`).
-  The prose about `describeEncodeRefusal` matches `JsonRefusal.ts:144-155` (the `EncodeFailed` arm interpolates
-  `refusal.message`) and INV-QD-104 (`invariants.md:3215-3221`). The base `reason` was
-  `describeEncodeRefusal(error.refusal)` (`git show c9fde4ba:packages/audit/src/AuditEntry.ts:138`), so "byte for byte
-  the same sentence" is true. The INV-QD-104 anchor resolves. The same caveat appears, worded consistently, in the
-  changeset, ADR-QD-161 decision 2, the ADR-QD-056 and ADR-QD-095 amendments, and BEH-QD-577. `JsonRefusal.ts`'s new
-  claim that "no error carries it as a field" holds: the one other caller, `PortWireEncode.ts:89`, turns the sentence
-  into a `Result` failure string, and `PortRemote.ts:91-96` and `:142-146` both discard it.
-- **IN-01 (marker removed).** `log` is `LogLine | undefined`, `Refused` reports `log: undefined`, and `logLine` logs
-  exactly when the base's `typeof line === "object"` did. `Refused` never reaches `logLine`: the `Match.value` routes it
-  to `reportEncodeRefusal`. No spec text named the marker.
-- **IN-02 (wording moved into the row).** The lines were rebuilt by hand, and all six unwritten messages are
-  byte-identical to the deleted constants and template strings:
-  - "audit entry dropped: {trail write failed | circuit breaker open} and {no staging port wired | staging failed}";
-  - "audit entry not written: {…}; its staged copy is left for reconciliation".
+**Checks run:**
+- `vitest --project audit`: 28 files, 526 passed.
+- `check-house-style.mjs`: 526 files clean.
 
-  The levels are unchanged. `AuditWriteOutput.test.ts`'s literal expectations were not edited and still pass.
-  `LOST_CLAUSE` is a closed `Record<LostWord, string>`.
-- **IN-03, IN-04, IN-07 and IN-08** are as described in the fix report. INV-QD-341 now scopes its claim to
-  `WriteFailed`/`Skipped`, which matches BEH-QD-579 and D-06a. `Written` leaves never being Lost is still stated by
-  INV-QD-106 (`invariants.md:3304`).
-- **IN-06 (closed leaf lists).** `LEAF_PATHS` is `Object.keys(LEAF_SPECS).filter(isLeafPath)`, with an
-  `Object.hasOwn` type predicate and no `as`. `BY_LEAF`'s `LeafRow & { leaf: P }` makes the key and the row's `leaf`
-  agree, and `LEAVES` is a mapped type over `LeafPath`, so each list really is closed.
-- **IN-05** is addressed for the ten non-`Refused` rows, but the change introduces the one Warning below.
+I read `necessity-review.md`. None of the findings is a necessity finding.
 
-## Warnings
+**Iteration-2 fixes, checked against the source:**
 
-### WR-01: The base characterisation no longer pins the default configuration's output for ten of the eleven leaves
+- **WR-01 (both configurations pinned).**
+  - `assertRow` holds every observation to the same row literals. Each leaf runs first with `{ onRefused: false }`, then every non-`Refused` leaf runs again with `{ onRefused: true }` (`AuditWriteOutput.test.ts:210-219`).
+  - `git diff 6c741117..HEAD` on the file shows every expected literal unchanged since the base characterisation: messages, annotations, span, counters, `stagingKeys`, `rows`, the commit cause and the `Refused` hook payload. The diff only re-keys `ROWS` as `BY_LEAF` and adds the hooked run.
+  - Each `observeLeaf` call builds a fresh layer, logger and tracer under `isolatedMetrics` and measures counter deltas, so the second run cannot see the first run's output.
+  - The empty `refusals` check in the hooked run can now fail.
+  - ADR-QD-161's reworded Consequences match the file's history.
+- **IN-01.** `UnwrittenRow.test.ts:65-66` and `AuditWriteOutcome.test.ts:204` narrow with `undefined`. No `typeof log === "object"` is left.
+- **IN-02.** The `durabilityOf` doc comment now says "level and wording".
+- **IN-03.** Four places now state the `qadi.path` residue:
+  - the 0.13 upgrade prose;
+  - the changeset;
+  - ADR-QD-161 decision 2;
+  - BEH-QD-577.
 
-**File:** `packages/audit/test/AuditWriteOutput.test.ts:183-185`; `spec/decisions/161-audit-reports-cores-refusal-and-decides-lost-once.md` (Consequences, "Output is byte-identical")
-**Issue:** The IN-05 fix runs every non-`Refused` row with `observeLeaf(row.leaf, { onRefused: row.leaf !== "Refused" })`,
-which installs an `onRefused` hook. This test is the phase's only literal pin of each line's message, annotation set and
-cause, the span and the 13 counter deltas (criterion 4, D-11). Before iteration 1, it pinned those values with no hook,
-which is the default `AuditDecisionSinkLive()` configuration. Now it pins them only with a hook installed, for 10 of the
-11 leaves.
+  The wording matches `encodeRefusalAnnotations`'s doc (`JsonRefusal.ts:118-119`) and INV-QD-104's Implication, which calls it "the one residue". The ADR-QD-056 and ADR-QD-095 amendments make no claim about what the annotations carry, so leaving them alone is consistent.
 
-No other test fills the gap for the default configuration:
-- `AuditLostAgreement.test.ts` checks only the line count and level.
-- `AuditWriteExits.test.ts` checks lines against the projection, not against base literals.
+**Byte-identical output, re-derived from the source diff:**
+- The six unwritten messages built by `unwrittenLine` + `LOST_CLAUSE` equal the deleted constants and template strings character for character. The levels are unchanged.
+- `outcomePath` and `evaluationIdOf` return the same strings as the old ternaries.
+- `Refused` still reaches only `reportEncodeRefusal`, with the same message and the same `{ refusal, evaluationId }` values for its annotations.
+- `logLine` logs exactly when the base's `typeof … === "object"` branch did.
 
-So a regression that changed a non-refused line only when `onRefused` is absent would pass every test.
+**Upgrade fence (WR-01 of iteration 1).**
+- `encodeRefusalAnnotations` takes `{ refusal; evaluationId }` and returns exactly the three keys `reportEncodeRefusal` applies (`EncodeRefusalReport.ts:37`).
+- The `describeEncodeRefusal` caveat matches `JsonRefusal.ts:144-155` and INV-QD-104.
+- The same caveat appears, consistently, in the changeset, ADR-QD-161, the ADR-QD-056 and ADR-QD-095 amendments and BEH-QD-577.
 
-ADR-QD-161's Consequences says "the characterisation written before the first source edit passes unchanged after
-every commit of the phase". The file was edited at `e09367ae` and `5f482fae`, after the source edits, and now observes
-a different configuration, so the claim is no longer literally true. The `Refused` row still asserts
-`o.refusals` is `[]` with no hook installed, which cannot fail. The other ten rows' empty-refusals check is now real.
-**Fix:** Pin both configurations instead of swapping one for the other. Run the literal row with no hook, then run the
-same leaf with a hook and assert identical output plus no refusal:
+**INV-QD-341.** Its scope ("for a `WriteFailed` or `Skipped` outcome (the six unwritten leaves)… `Refused` has no staging row and is never Lost, though it warns") agrees with BEH-QD-579's three requirements and with INV-QD-342.
 
-```ts
-const bare = yield* observeLeaf(row.leaf, { onRefused: false });
-// …existing literal assertions on `bare`…
-if (row.leaf !== "Refused") {
-  const hooked = yield* observeLeaf(row.leaf, { onRefused: true });
-  assert.deepStrictEqual(hooked.refusals, []);
-  assert.deepStrictEqual(hooked.lines.map(({ level, message, annotations }) => ({ level, message, annotations })),
-    bare.lines.map(({ level, message, annotations }) => ({ level, message, annotations })));
-}
-```
+**IN-06 (closed leaf lists).** `LEAF_PATHS` is `Object.keys(LEAF_SPECS).filter(isLeafPath)`, with an `Object.hasOwn` predicate and no `as`. `BY_LEAF` and `LEAVES` are mapped over `LeafPath`, so each list is closed.
 
-Then reword the ADR consequence to "whose expected values are unchanged after every commit of the phase", or keep the
-literal claim true by not editing the file's observations.
+No source-code defect was found. The three remaining items are documentation that no longer matches the code or the tests.
 
 ## Info
 
-### IN-01: The tests still narrow `report.log` with `typeof … === "object"`, which only the removed marker needed
+### IN-01: The CCR-QD-439 row says the two characterisation files "stay unedited across the phase", and its file list omits `AuditWriteExits.test.ts`
 
-**File:** `packages/audit/test/UnwrittenRow.test.ts:65-66`; `packages/audit/test/AuditWriteOutcome.test.ts:204`
-**Issue:** `typeof log === "object"` was needed to exclude the `"encodeRefusal"` string. After the IN-01 fix, `log` is
-`LogLine | undefined`, so `log !== undefined` is the whole check. The leftover reads as if a string arm still exists.
-**Fix:** `assert.isDefined(log); if (log === undefined) return;` and `log?.level` respectively.
+**File:** `spec/README.md:376`
+**Issue:** The row's narrative says: "48-02's characterisation of every leaf's output (`AuditWriteOutput.test.ts`) and the agreement … (`AuditLostAgreement.test.ts`) were written on the phase base and stay unedited across the phase."
 
-### IN-02: `durabilityOf`'s doc comment names the row's readers without the wording IN-02 added
+`git log` contradicts this:
+- `AuditWriteOutput.test.ts` was edited at `e09367ae`, `5f482fae` and `1d7ff083`.
+- `AuditLostAgreement.test.ts` was edited at `5f482fae` (the switch to `LEAF_PATHS` and the `LEAVES` record).
 
-**File:** `packages/audit/src/AuditWriteOutcome.ts:103-107`
-**Issue:** It says the row is "the same row the lost-entry counter's label and the unwritten line's level read". Since
-`9bbed2ab`, the line's wording reads the row too, and `UnwrittenRow.ts:4-5`, BEH-QD-578 and ADR-QD-161 decision 3 all say
-"level and wording". The statement is still true, but it is now the one description of the row's readers that is
-incomplete.
-**Fix:** "…the unwritten line's level and wording read…".
+Iteration 2's WR-01 corrected the same over-claim in ADR-QD-161's Consequences (Rev 1.5) but left this sentence. The row also lists every phase test file except `packages/audit/test/AuditWriteExits.test.ts`, which the phase changed (the `"encodeRefusal"` marker branch was rewritten).
+**Fix:** Reword the sentence to match ADR-QD-161 Rev 1.5: "…were written on the phase base; their expected values are unchanged across the phase, and later commits only added the hooked run and closed the leaf lists." Add `packages/audit/test/AuditWriteExits.test.ts` to the file list.
 
-### IN-03: The upgrade prose says the annotations carry "nothing else from the refused record", but the path is the record's own keys
+### IN-02: The overview's `durabilityOf` row still names the line's level, not its wording, as a reader of the row
 
-**File:** `apps/website/src/content/docs/docs/reference/upgrading.md:867`
-**Issue:** `qadi.path` is built from the keys of the caller's object (`JsonRefusal.ts:118-119`). INV-QD-104's
-Implication (`invariants.md:3232-3235`) calls this "the one residue": a resource keyed by data puts that key in a log
-line. The guide's sentence says the annotations hold "nothing else from the refused record, whose subject, resource and
-policy are what the refusal exists to keep out", and does not mention the residue. A reader whose resources are keyed
-by personal data would conclude that the annotations are safe to ship.
-**Fix:** Append: "The path is made of the record's own keys, so a resource keyed by data puts that key in the line
-(INV-QD-104)."
+**File:** `spec/overview.md:763` (and its Change History entry 1.116 at `:13`)
+**Issue:** The row says: "…the same row the lost-entry counter's label and the unwritten line's level read (ADR-QD-161)."
+
+Since `9bbed2ab` the line's wording reads the row too. These places all say "level and wording":
+- `UnwrittenRow.ts:4-5`;
+- the `durabilityOf` doc comment (`AuditWriteOutcome.ts:106-107`, as fixed in iteration-2 IN-02);
+- BEH-QD-578;
+- ADR-QD-161 decision 3.
+
+This row is the public API table entry for the same export, and it is now the one incomplete description of the row's readers. The statement is still true, only incomplete.
+**Fix:** "…the unwritten line's level and wording read (ADR-QD-161)."
+
+### IN-03: INV-QD-342 cites as enforcement a hook-payload assertion that cannot tell core's class from the removed one
+
+**File:** `spec/invariants.md:3959`; `spec/traceability.md:175`; `packages/audit/test/AuditWriteOutput.test.ts:226-243`
+**Issue:** INV-QD-342 (an audit refusal is core's `SinkRecordNotEncodable`) lists `AuditWriteOutput.test.ts` "(the hook payload)" as enforcement. That assertion compares only these fields of the payload:
+- `recordTag`;
+- `evaluationId`;
+- `refusal`;
+- `r instanceof Error`.
+
+It was written on the phase base and passed there, when the hook received the audit class, so it cannot fail if the invariant is broken at runtime. The test that does pin the hook's runtime class is `AuditDecisionSinkLive.test.ts:526-528` (`assert.instanceOf(first, SinkRecordNotEncodable)` and no own `reason`), and neither INV-QD-342 nor its traceability row cites it.
+
+The type-level pins in `AuditRefusal.tst.ts` and the `instanceOf` in `AuditEntry.test.ts:71` do hold the invariant, so coverage is fine. Only the citation points at the wrong test.
+**Fix:** Do one of the following:
+- Replace "`AuditWriteOutput.test.ts` (the hook payload)" with "`AuditDecisionSinkLive.test.ts` (the hook receives core's class with no `reason`)" in both places.
+- Keep the citation, and leave the characterisation's literals untouched: run a separate hooked `Refused` observation outside the base-written assertion and add `isCore: r instanceof SinkRecordNotEncodable` to it.
 
 ---
 
-_Reviewed: 2026-11-16T03:57:21Z_
+_Reviewed: 2026-11-16T04:06:33Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
-_Iteration: 2_
+_Iteration: 3_
