@@ -841,10 +841,11 @@ After:
 
 ```typescript
 import * as Effect from "effect/Effect";
-import { describeEncodeRefusal } from "@qadi/core";
+import { describeEncodeRefusal, encodeRefusalAnnotations } from "@qadi/core";
 import type { SinkRecord, SinkRecordNotEncodable } from "@qadi/core";
 import { AuditDecisionSinkLive, encodeAuditEntry } from "@qadi/audit";
 
+// Held in process for diagnosis, never logged: the sentence can carry text from the record.
 export const refused: Array<string> = [];
 
 export const sink = AuditDecisionSinkLive({
@@ -856,11 +857,14 @@ export const sink = AuditDecisionSinkLive({
 export const encodeOrNull = (record: SinkRecord) =>
   encodeAuditEntry(record).pipe(
     Effect.catchTag("SinkRecordNotEncodable", (e) =>
-      Effect.logWarning(describeEncodeRefusal(e.refusal)).pipe(Effect.as(null)),
+      Effect.logWarning("audit entry refused").pipe(
+        Effect.annotateLogs(encodeRefusalAnnotations(e)),
+        Effect.as(null),
+      ),
     ),
   );
 ```
 
-Log the evaluation id and the sentence, as above, and nothing else from the refused record: its subject, resource and policy are what the refusal exists to keep out of a log line.
+Log where the refusal was found, as above: `encodeRefusalAnnotations(e)` is the refusal's tag, its path and the evaluation id, the same annotations the default warning carries, and nothing else from the refused record, whose subject, resource and policy are what the refusal exists to keep out of a log line. `describeEncodeRefusal(e.refusal)` returns the sentence `reason` held and, like `reason`, may carry caller text: an `EncodeFailed` sentence includes the message of a getter that threw on the record. It is for code holding the refusal to diagnose it, not for a log line or a span ([INV-QD-104](https://github.com/leaderiop/qadi/blob/main/spec/invariants.md#inv-qd-104-a-refusal-report-says-where-never-what)).
 
 The decision is [ADR-QD-161](https://github.com/leaderiop/qadi/blob/main/spec/decisions/161-audit-reports-cores-refusal-and-decides-lost-once.md).

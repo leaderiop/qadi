@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-095                                   |
-> | Revision       | 1.8                                            |
+> | Revision       | 1.9                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.8 (2026-11-16): amended: D-09-e's audit clause is superseded, audit reports core's SinkRecordNotEncodable (ARCH-95, ADR-QD-161, CCR-QD-439)<br>1.7 (2026-11-14): amended: devtools passes DecodeRefusal through, MalformedReason retired (ARCH-87, ADR-QD-153, CCR-QD-431)<br>1.6 (2026-11-11): amended — the projection is the wire schema's encode over the record spread whole, the record's fields are one struct in SinkRecordFields.ts, and SinkRecordTag is derived (ARCH-71, ADR-QD-135, CCR-QD-413)<br>1.5 (2026-11-09): amended — the encode-refusal vocabulary and its three readings move from SinkWire.ts to the leaf JsonRefusal.ts, which the port wire reads too (ARCH-54, ADR-QD-116, CCR-QD-393)<br>1.4 (2026-10-08): Document ID corrected from `QADI-ADR-902` to `QADI-ADR-095`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.3 (2026-10-07): the refusal vocabulary and the three readings of an `EncodeRefusal` move to the leaf `SinkWire.ts` (ARCH-27, CCR-QD-194)<br>1.2 (2026-10-07): D-09-e gains a third reporter: the audit pipeline logs or calls `onRefused`; core owns the path, the annotations, the sentence and the hook containment (CCR-QD-193)<br>1.1 (2026-10-07): the inbound side refuses a non-finite `at` and a non-integer `sequenceNumber` (CCR-QD-186) |
+> | Change History | 1.9 (2026-11-16): the amendment: describeEncodeRefusal may carry caller text, so it is for diagnosis, not a log line (ARCH-95, CCR-QD-439)<br>1.8 (2026-11-16): amended: D-09-e's audit clause is superseded, audit reports core's SinkRecordNotEncodable (ARCH-95, ADR-QD-161, CCR-QD-439)<br>1.7 (2026-11-14): amended: devtools passes DecodeRefusal through, MalformedReason retired (ARCH-87, ADR-QD-153, CCR-QD-431)<br>1.6 (2026-11-11): amended — the projection is the wire schema's encode over the record spread whole, the record's fields are one struct in SinkRecordFields.ts, and SinkRecordTag is derived (ARCH-71, ADR-QD-135, CCR-QD-413)<br>1.5 (2026-11-09): amended — the encode-refusal vocabulary and its three readings move from SinkWire.ts to the leaf JsonRefusal.ts, which the port wire reads too (ARCH-54, ADR-QD-116, CCR-QD-393)<br>1.4 (2026-10-08): Document ID corrected from `QADI-ADR-902` to `QADI-ADR-095`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.3 (2026-10-07): the refusal vocabulary and the three readings of an `EncodeRefusal` move to the leaf `SinkWire.ts` (ARCH-27, CCR-QD-194)<br>1.2 (2026-10-07): D-09-e gains a third reporter: the audit pipeline logs or calls `onRefused`; core owns the path, the annotations, the sentence and the hook containment (CCR-QD-193)<br>1.1 (2026-10-07): the inbound side refuses a non-finite `at` and a non-integer `sequenceNumber` (CCR-QD-186) |
 
 ---
 
@@ -68,7 +68,8 @@ the bytes go and how a refusal is reported.
 
 > **Amended 2026-11-16 (CCR-QD-439, ARCH-95).** D-09-e's audit clause no longer holds: `@qadi/audit` reports
 > `@qadi/core`'s `SinkRecordNotEncodable` itself, with no `reason` field. The sentence is `describeEncodeRefusal`'s, read
-> by a hook that wants it, and the default line is unchanged ([ADR-QD-161](./161-audit-reports-cores-refusal-and-decides-lost-once.md)).
+> by a hook that wants it for diagnosis and never logged, because it may carry caller text (INV-QD-104), and the default
+> line is unchanged ([ADR-QD-161](./161-audit-reports-cores-refusal-and-decides-lost-once.md)).
 
 **A cause is never a reason to refuse.** `Schema.Defect()` now governs `cause` on
 every outbound path: an `Error` keeps `name`/`message`/`cause`, a cycle is dropped, a

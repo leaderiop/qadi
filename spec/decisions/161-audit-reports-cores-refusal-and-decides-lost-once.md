@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-161                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — amends ADR-QD-056, ADR-QD-095       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-95, CCR-QD-439)<br>1.0 (2026-11-16): accepted (ARCH-95, CCR-QD-439) |
+> | Change History | 1.2 (2026-11-16): decision 2: describeEncodeRefusal may carry caller text, so it is for diagnosis, not a log line (ARCH-95, CCR-QD-439); a host logs encodeRefusalAnnotations<br>1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-95, CCR-QD-439)<br>1.0 (2026-11-16): accepted (ARCH-95, CCR-QD-439) |
 
 ---
 
@@ -70,7 +70,10 @@ branch for `Refused`.
    and the emit option) and `AuditWriteOutcome.Refused.refusal` take that class, so the type and the `_tag` of the value
    are the only things a caller sees change.
 2. **`reason` goes, and the sentence is computed once** (D-03, D-03a). A hook that wants it calls
-   `describeEncodeRefusal(e.refusal)`, which is byte for byte the sentence the field held. The one line audit writes about
+   `describeEncodeRefusal(e.refusal)`, which is byte for byte the sentence the field held and, like it, may carry caller text
+   (an `EncodeFailed` sentence includes a throwing getter's message), so it is for diagnosis in code holding the refusal,
+   never a log line (INV-QD-104); a host that logs a refusal annotates `encodeRefusalAnnotations(e)`, as the default
+   warning does. The one line audit writes about
    a refusal is `reportEncodeRefusal`'s, unchanged, and no `qadi.reason` annotation is added to core, because that would
    change the forwarding and http lines.
 3. **One closed row per unwritten staging variant** (D-05, D-05a), in the package-private `UnwrittenRow.ts`:
