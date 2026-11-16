@@ -113,7 +113,7 @@ const DEFAULT_STORE_CALL_TIMEOUT: Duration.Input = Duration.seconds(5);
  *
  * `commit` exists on `Staged` alone, so a check that must agree with the tag
  * cannot drift from it: a handle plus an optional commit needed two checks that
- * a new variant would pass silently.
+ * a new variant would pass silently (ARCH-95, ADR-QD-161).
  */
 type StageResult = Data.TaggedEnum<{
   NotWired: {};
