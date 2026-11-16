@@ -1,0 +1,133 @@
+{
+ "measured": {
+  "packages/core/src/RenderablePredicate.ts": 0.9821428571428571,
+  "packages/predicate-sql/src/index.ts": 0.9545454545454546,
+  "packages/predicate-prisma/src/index.ts": 0.9243697478991597
+ },
+ "counts": {
+  "packages/core/src/RenderablePredicate.ts": {
+   "killed": 165,
+   "timeout": 0,
+   "survived": 3,
+   "noCoverage": 0,
+   "ignored": 61
+  },
+  "packages/predicate-sql/src/index.ts": {
+   "killed": 63,
+   "timeout": 0,
+   "survived": 2,
+   "noCoverage": 1,
+   "ignored": 43
+  },
+  "packages/predicate-prisma/src/index.ts": {
+   "killed": 110,
+   "timeout": 0,
+   "survived": 4,
+   "noCoverage": 5,
+   "ignored": 32
+  }
+ },
+ "survivors": {
+  "packages/core/src/RenderablePredicate.ts": [
+   "ArrowFunction | Survived | () => undefined | () => false | Unrepresentable: () => () => false,",
+   "MethodExpression | Survived | NON_FINITE.every(value => !evaluatePredicate(leaf, { [column]: value })) | NON_FINITE.some((value) => !evaluatePredicate(leaf, { [column]: value })) | NON_FINITE.some((value) => !evaluatePredicate(leaf, { [column]: value }))",
+   "ObjectLiteral | Survived | {} | { [column]: value } | NON_FINITE.some((value) => !evaluatePredicate(leaf, { [column]: value }))"
+  ],
+  "packages/predicate-sql/src/index.ts": [
+   "ObjectLiteral | Survived | {} | { _tag: \"Unknown\" } | ? { _tag: \"Unknown\" }",
+   "StringLiteral | NoCoverage | `` | `(${expression} AND ${column} IS NOT NULL)` | ExcludeNull: (column, expression) => `(${expression} AND ${column} IS NOT NULL)`,",
+   "StringLiteral | Survived | \"\" | \"Unknown\" | ? { _tag: \"Unknown\" }"
+  ],
+  "packages/predicate-prisma/src/index.ts": [
+   "ArrayDeclaration | NoCoverage | [] | [{ [column]: filter }, { [column]: { not: null } }] | if (\"not\" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };",
+   "ConditionalExpression | Survived | false | \"not\" in filter | if (\"not\" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };",
+   "ConditionalExpression | Survived | true | keys.length === 1 | return keys.length === 1 && Array.isArray(where.AND) && where.AND.length === 0;",
+   "ConditionalExpression | Survived | true | keys.length === 1 | return keys.length === 1 && Array.isArray(where.OR) && where.OR.length === 0;",
+   "ObjectLiteral | NoCoverage | {} | { AND: [{ [column]: filter }, { [column]: { not: null } }] } | if (\"not\" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };",
+   "ObjectLiteral | NoCoverage | {} | { [column]: filter } | if (\"not\" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };",
+   "ObjectLiteral | NoCoverage | {} | { [column]: { not: null } } | if (\"not\" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };",
+   "ObjectLiteral | NoCoverage | {} | { not: null } | if (\"not\" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };",
+   "StringLiteral | Survived | \"\" | \"not\" | if (\"not\" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };"
+  ]
+ },
+ "unmeasured": {
+  "packages/predicate-sql/src/CompileMetrics.ts": "no scored mutant: all 8 ignored (ignoreStatic: true; module-scope declarations only)",
+  "packages/predicate-prisma/src/CompileMetrics.ts": "no scored mutant: all 8 ignored (ignoreStatic: true; module-scope declarations only)"
+ },
+ "movedShell": {
+  "packages/predicate-sql/src/index.ts": {
+   "lines": [],
+   "detected": 0,
+   "survived": 0,
+   "ignored": 0,
+   "mutants": []
+  },
+  "packages/predicate-prisma/src/index.ts": {
+   "lines": [],
+   "detected": 0,
+   "survived": 0,
+   "ignored": 0,
+   "mutants": []
+  }
+ },
+ "region": {
+  "packages/core/src/RenderablePredicate.ts": {
+   "from": 557,
+   "to": 571,
+   "detected": 6,
+   "survived": 0,
+   "ignored": 1,
+   "mutants": [
+    {
+     "line": 557,
+     "mutator": "ArrowFunction",
+     "status": "Ignored",
+     "replacement": "() => undefined",
+     "text": "<A>( predicate: Predicate, options: CompilePredicateOptions<A>, ): Effect.Effect<A, PredicateNotRenderable> => toRenderable(predicate, { ...options.rules, identifiers: options.identifiers ?? \"Ascii\", maxInValues: options.maxInValues ?? DEFAULT_MAX_IN_VALUES, }).pipe( Effect.tapError(() => Metric.update(options.outcomes.refused, 1)), Effect.map(options.render), Effect.tap(() => Metric.update(options.outcomes.compiled, 1)), )"
+    },
+    {
+     "line": 561,
+     "mutator": "ObjectLiteral",
+     "status": "Killed",
+     "replacement": "{}",
+     "text": "{ ...options.rules, identifiers: options.identifiers ?? \"Ascii\", maxInValues: options.maxInValues ?? DEFAULT_MAX_IN_VALUES, }"
+    },
+    {
+     "line": 563,
+     "mutator": "LogicalOperator",
+     "status": "Killed",
+     "replacement": "options.identifiers && \"Ascii\"",
+     "text": "options.identifiers ?? \"Ascii\""
+    },
+    {
+     "line": 563,
+     "mutator": "StringLiteral",
+     "status": "Killed",
+     "replacement": "\"\"",
+     "text": "\"Ascii\""
+    },
+    {
+     "line": 564,
+     "mutator": "LogicalOperator",
+     "status": "Killed",
+     "replacement": "options.maxInValues && DEFAULT_MAX_IN_VALUES",
+     "text": "options.maxInValues ?? DEFAULT_MAX_IN_VALUES"
+    },
+    {
+     "line": 566,
+     "mutator": "ArrowFunction",
+     "status": "Killed",
+     "replacement": "() => undefined",
+     "text": "() => Metric.update(options.outcomes.refused, 1)"
+    },
+    {
+     "line": 568,
+     "mutator": "ArrowFunction",
+     "status": "Killed",
+     "replacement": "() => undefined",
+     "text": "() => Metric.update(options.outcomes.compiled, 1)"
+    }
+   ]
+  }
+ }
+}
