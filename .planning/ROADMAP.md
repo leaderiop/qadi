@@ -642,11 +642,11 @@ Plans:
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `DockModel.ts`, `QuestionsPanel.tsx`, `Gates.ts` and react's `GateWriter.ts`, with a characterisation of the panel's current rows, committed first; then the vocabulary in core and both derivations; then the eighth store and the panel read; then records. Browser behaviour (Activity hide/show, focus) stays as it was; any change to it is named.
 **UI hint**: yes
-**Plans**: 9 plans
+**Plans**: 1/9 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 49-01-PLAN.md — preconditions, the ADR check and the reserved ids; the mutation baseline committed alone
+- [x] 49-01-PLAN.md — preconditions, the ADR check and the reserved ids; the mutation baseline committed alone
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 49-02-PLAN.md — the Questions panel's twelve-cell characterisation through the public dock, and the panel tests routed through one input seam, on the base
@@ -738,7 +738,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 46. The sink emitter reports what it contains | 7/7 | Complete    | 2026-11-15 |
 | 47. Port facts read from the description | 7/7 | Complete    | 2026-11-16 |
 | 48. Audit reports core's refusal and derives "lost" | 8/8 | Complete    | 2026-11-16 |
-| 49. Gates as the dock model's eighth store, one gate-state vocabulary | 0/TBD | Not started | - |
+| 49. Gates as the dock model's eighth store, one gate-state vocabulary | 1/9 | In Progress | - |
 | 50. What a leaf needs from the request, stated once | 0/TBD | Not started | - |
 | 51. Policy tag arity stated once | 0/TBD | Not started | - |
 | 52. Core owns the predicate compile shell | 0/TBD | Not started | - |

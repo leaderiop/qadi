@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 49
 current_phase_name: Gates as the dock model's eighth store, one gate-state vocabulary
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 49 UI-SPEC approved
-last_updated: "2026-11-16T06:02:32.451Z"
+stopped_at: Completed 49-01-PLAN.md
+last_updated: "2026-11-16T06:09:27.940Z"
 last_activity: 2026-11-16
-last_activity_desc: Phase QD-48 complete, transitioned to Phase 49
-state_head: d2a134f3ba54ff3f656b2ec3ace86a1349851798
+last_activity_desc: Phase QD-49 execution started
+state_head: 53e36fade85003a7ca88c03cb67b2b4783e24eba
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 53
-  completed_plans: 44
+  completed_plans: 45
   percent: 60
 ---
 
@@ -26,15 +26,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-16)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 49 — Gates as the dock model's eighth store, one gate-state vocabulary
+**Current focus:** Phase QD-49 — Gates as the dock model's eighth store, one gate-state vocabulary
 
 ## Current Position
 
-Phase: 49 (Gates as the dock model's eighth store, one gate-state vocabulary) — READY TO EXECUTE
-Current Plan: Not started
+Phase: QD-49 (Gates as the dock model's eighth store, one gate-state vocabulary) — EXECUTING
+Current Plan: 2
 Total Plans in Phase: 9
-Status: Ready to execute
-Last activity: 2026-11-16 — Phase QD-48 complete, transitioned to Phase 49
+Status: Executing Phase QD-49
+Last activity: 2026-11-16 — Phase QD-49 execution started
 
 Progress: [██████░░░░] 60% (6 of 10 phases)
 
@@ -299,6 +299,7 @@ Progress: [██████░░░░] 60% (6 of 10 phases)
 | Phase QD-48 P06 | 20min | 3 tasks | 10 files |
 | Phase QD-48 P07 | 20min | 3 tasks | 6 files |
 | Phase QD-48 P08 | 5min | 3 tasks | 1 files |
+| Phase QD-49 P01 | 8min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -501,6 +502,7 @@ Progress: [██████░░░░] 60% (6 of 10 phases)
 - [Phase QD-48]: ADR-QD-161 records the audit refusal as core's SinkRecordNotEncodable and lost decided once; ADR-QD-056/095 amended, Breaking changeset
 - [Phase QD-48]: BEH-QD-579 scopes the warning leg to the six unwritten leaves; Written.CommitFailed and Refused warn without being lost
 - [Phase QD-48]: 48-08: the overview's historical Change History row naming the deleted class stays (history exempt); the scope check excluded only that row
+- [Phase QD-49]: 49-01: no ADR forbids the gates-as-eighth-store design; ADR-QD-053's one-shot-prop and useGateInstances sentences become historical, noted (not reversed) by ADR-QD-162
 
 ### Pending Todos
 
@@ -556,9 +558,9 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T04:28:43.911Z
-Stopped at: Phase 49 UI-SPEC approved
-Resume file: .planning/phases/QD-49-gates-as-the-dock-model-s-eighth-store-one-gate-state-vocabulary/49-UI-SPEC.md
+Last session: 2026-11-16T06:09:27.714Z
+Stopped at: Completed 49-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
