@@ -372,7 +372,7 @@ Order: defects first (43-46), then the "stated once" deepenings (47-49), then th
 - [x] **Phase 44: The hydration seed's fields stated once** - Each verdict's seed fields derive from core's wire statement; dehydrate and rebuild are spreads, so a new wire field can no longer be dropped (ARCH-91, react) (completed 2026-11-15)
 - [x] **Phase 45: The audit circuit breaker as one transition function** - One pure `(state, event, now)` function holds every generation and probe rule; a `NaN` threshold is refused at construction (ARCH-92, audit) (completed 2026-11-15)
 - [x] **Phase 46: The sink emitter reports what it contains** - A failing or dying user sink is contained and reported with exactly one warning, naming the sink (ARCH-93, core) (completed 2026-11-15)
-- [ ] **Phase 47: Port facts read from the description** - Defaultedness, consequence and call reading come from the port description, not from display names (ARCH-94, core, devtools)
+- [x] **Phase 47: Port facts read from the description** - Defaultedness, consequence and call reading come from the port description, not from display names (ARCH-94, core, devtools) (completed 2026-11-16)
 - [ ] **Phase 48: Audit reports core's refusal and derives "lost"** - `AuditEntryNotEncodable` is deleted and the lost-staging label derives from durability (ARCH-95, Breaking, audit)
 - [ ] **Phase 49: Gates as the dock model's eighth store, one gate-state vocabulary** - The gate registry joins the dock model and the five gate-state words are stated once in core (ARCH-96, core, react, devtools)
 - [ ] **Phase 50: What a leaf needs from the request, stated once** - Opens on a benchmark; one table of leaf needs read by `Walk` and `Predicate`, or a recorded rejection (ARCH-97, core)
@@ -558,7 +558,7 @@ Plans:
   5. Rendered output for the five ports is unchanged (characterisation tests written on the base), and devtools still depends only on `@qadi/core`.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for the touched devtools files, the wrapper RED and a rendered-output characterisation for each port, committed first; then core's fact; then devtools' tables; then records. Re-run `pnpm circular` after the first move. Keep the work off the lines Phase 49 will edit in `ServicesPanel`/`DockModel`.
-**Plans**: 7/7 plans executed
+**Plans**: 7/7 plans complete
 
 Plans:
 **Wave 1**
@@ -683,7 +683,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 44. The hydration seed's fields stated once | 6/6 | Complete    | 2026-11-15 |
 | 45. The audit circuit breaker as one transition function | 8/8 | Complete    | 2026-11-15 |
 | 46. The sink emitter reports what it contains | 7/7 | Complete    | 2026-11-15 |
-| 47. Port facts read from the description | 7/7 | In Progress | - |
+| 47. Port facts read from the description | 7/7 | Complete    | 2026-11-16 |
 | 48. Audit reports core's refusal and derives "lost" | 0/TBD | Not started | - |
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 0/TBD | Not started | - |
 | 50. What a leaf needs from the request, stated once | 0/TBD | Not started | - |
