@@ -3,8 +3,9 @@
  * What a devtools panel reads from this provider, in one call.
  *
  * {@link useDevtoolsFeed} returns the atom-set half of a dock's wiring —
- * `gates`, `onInvalidate`, and `diagnostics` (`layer` and `questions`) — as a
- * value a host spreads onto `<DevtoolsDock {...feed} />`. {@link runtimeLayer}
+ * `gates` (the provider's effective gate registry), `onInvalidate`, and
+ * `diagnostics` (`layer` and `questions`) — as a value a host spreads onto
+ * `<DevtoolsDock {...feed} />`. {@link runtimeLayer}
  * is the headless function it is built on, for a tool that holds a registry but
  * no React tree.
  *
@@ -40,8 +41,8 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { useMemo } from "react";
-import type { GateInstance } from "./GateRegistry.ts";
-import { useGateInstances, useInvalidate } from "./hooks.ts";
+import type { GateRegistry } from "./GateRegistry.ts";
+import { useInvalidate } from "./hooks.ts";
 import { useQadiContext } from "./QadiProvider.tsx";
 import type { QadiAtoms, QadiRuntimeServices } from "./QadiAtoms.ts";
 import type { AskedQuestion } from "./QuestionBook.ts";
@@ -78,10 +79,14 @@ export interface DevtoolsDiagnosticsFeed {
 /**
  * The shape {@link useDevtoolsFeed} returns, spreadable onto `<DevtoolsDock />`.
  *
- * `diagnostics` is the caller's `Extra` plus the two fields the feed owns.
+ * `gates` is the provider's effective registry: its `gates` prop if given, else
+ * `atoms.gates`. The dock subscribes to it in its own scope, so the host no
+ * longer re-renders on every guard change (ADR-QD-162). With `instrument` off the
+ * registry lists nothing. `diagnostics` is the caller's `Extra` plus the two
+ * fields the feed owns.
  */
 export interface DevtoolsFeed<Extra> {
-  readonly gates: ReadonlyArray<GateInstance>;
+  readonly gates: GateRegistry;
   readonly onInvalidate: () => void;
   readonly diagnostics: Extra & DevtoolsDiagnosticsFeed;
 }
@@ -111,8 +116,7 @@ export const useDevtoolsFeed = <
 >(
   extra: Extra,
 ): DevtoolsFeed<Extra> => {
-  const { atoms, registry } = useQadiContext("useDevtoolsFeed");
-  const gates = useGateInstances();
+  const { atoms, registry, gates } = useQadiContext("useDevtoolsFeed");
   const onInvalidate = useInvalidate();
   const layer = useMemo(() => runtimeLayer(atoms, registry), [atoms, registry]);
   const questions = atoms.asked;

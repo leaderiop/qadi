@@ -1,13 +1,16 @@
 /**
  * The characterisation's one input seam for the live guards.
  *
- * It returns its argument unchanged, so the dock is handed exactly the guards the cell
- * names. `QuestionsPanel.characterisation.test.tsx` passes every `gates` it renders
- * through here and nothing else, so when the gate registry becomes a dock-model store
- * (ARCH-96, 49-05) this body changes to return a registry double and the cells' inputs
- * and expected markup stay as written (D-13, Pitfall 8).
+ * It builds the registry the dock now takes (`GateRegistryLike`): `instances` answers
+ * the guards the cell names, always the same array, and nothing ever changes, so
+ * `subscribe` has nothing to announce. `QuestionsPanel.characterisation.test.tsx`
+ * passes every `gates` it renders through here and nothing else, so its cells' inputs
+ * and expected markup stayed as written when the registry became a dock-model store
+ * (ARCH-96, D-13, Pitfall 8).
  */
-import type { GateInstanceLike } from "../../src/index.ts";
+import type { GateInstanceLike, GateRegistryLike } from "../../src/model/Gates.ts";
 
-export const gatesProp = (guards: ReadonlyArray<GateInstanceLike>): ReadonlyArray<GateInstanceLike> =>
-  guards;
+export const gatesProp = (guards: ReadonlyArray<GateInstanceLike>): GateRegistryLike => ({
+  instances: () => guards,
+  subscribe: () => () => {},
+});
