@@ -4,8 +4,10 @@
  *
  * A name cannot say it: a wrapper composes `"<inner> (<suffix>)"` for display
  * (BEH-QD-196), and a host's own wrapper may call itself anything. Package-private
- * (not in the barrel): the symbol cannot be minted outside core, so a wrapper can
- * only carry the mark forward by spreading `inner` (ARCH-94, ADR-QD-099).
+ * (not in the barrel): the key is not exported and cannot be minted with `Symbol.for`,
+ * so a wrapper carries the mark by spreading `inner`. It can be read off an existing
+ * default with `Object.getOwnPropertySymbols`, so copying it is possible but deliberate:
+ * the mark labels a diagnostic and guards nothing (ARCH-94, ADR-QD-099).
  */
 import type { PortName } from "./PortName.ts";
 

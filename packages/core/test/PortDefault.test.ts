@@ -5,8 +5,9 @@
  * wrapper that spread a default and renamed itself hid it. `nonePort` now sets a mark on the
  * default it builds (an own, symbol-keyed property naming its port), every derived wrapper and
  * `decoratePorts` copy it from what they wrap, and `isPortDefault` reads it, own properties only.
- * The mark is package-private: nothing outside core can mint it, so a wrapper keeps it only by
- * spreading `...inner`.
+ * The mark is package-private: its key is not exported and cannot be minted with `Symbol.for`, so a
+ * wrapper keeps it by spreading `...inner` (it can be read off a default with
+ * `Object.getOwnPropertySymbols`, so copying it is deliberate, not accidental).
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Context from "effect/Context";

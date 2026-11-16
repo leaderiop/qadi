@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-160                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — reads ADR-QD-094, ADR-QD-109        |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-16): a throwing or revoked proxy reads not defaulted; the accepted-throw consequence is withdrawn (ARCH-94 review WR-02)<br>1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-94, CCR-QD-438)<br>1.0 (2026-11-16): accepted (ARCH-94, CCR-QD-438) |
+> | Change History | 1.3 (2026-11-16): Decision 2: the mark cannot be minted but can be copied deliberately (ARCH-94 review IN-01)<br>1.2 (2026-11-16): a throwing or revoked proxy reads not defaulted; the accepted-throw consequence is withdrawn (ARCH-94 review WR-02)<br>1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-94, CCR-QD-438)<br>1.0 (2026-11-16): accepted (ARCH-94, CCR-QD-438) |
 
 ---
 
@@ -39,8 +39,9 @@ did the same for the span a port opens. Two readers still stood outside that rul
    replay and a fixture never set it: they are not the fail-closed default.
 2. **One public reader, `isPortDefault(description, service)`**, in `PortDescription.ts`, is the only way to ask. It
    reads the own property descriptor, so an inherited mark reads false, and it compares the held name with
-   `description.port`, so a default moved onto another port's service reads false. Nothing outside core can forge the
-   mark; a wrapper keeps it only by spreading `inner`.
+   `description.port`, so a default moved onto another port's service reads false. The key is not exported and cannot be
+   minted with `Symbol.for`; it can be read off an existing default with `Object.getOwnPropertySymbols`, so copying it is
+   possible but deliberate. It labels a diagnostic and guards nothing. A wrapper keeps it by spreading `inner`.
 3. **The display name stays display.** BEH-QD-196's `"<inner> (<suffix>)"` is unchanged and nothing parses it (D-13).
 4. **One reading per port in devtools** (D-05, D-06). `PORT_READING`, a mapped type over `PortName` in the
    package-private `model/PortReading.ts`, holds each port's consequence sentence and its call-row reading. The panel
