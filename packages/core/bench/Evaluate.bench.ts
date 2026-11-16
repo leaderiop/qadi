@@ -42,6 +42,11 @@
  *                     row, the mirror image
  *   deep rules        10 levels alternating `rules([permitWhen(inner)])` with
  *                     `allOf`, the rules recursion path
+ *   leaf-heavy        `allOf` of 8 leaves, matchers referencing the action and
+ *                     the resource, against the control whose matchers
+ *                     reference neither — the checks the `HasAttribute`,
+ *                     `HasResourceAttribute` and `HasAction` arms make before
+ *                     they read anything (ARCH-97, ADR-QD-163)
  *
  * The last six exist because `allOf` was the only combinator measured on its
  * own: `anyOf` appeared only inside `deep`, always `First` with two children,
@@ -65,22 +70,35 @@
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as ManagedRuntime from "effect/ManagedRuntime";
-import { test } from "vitest";
+import { assert, test } from "vitest";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { fromRoles } from "../src/AuthSubject.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
 import { EvaluationIdLive } from "../src/EvaluationId.ts";
+import { isAllowed } from "../src/Decision.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { EvaluationServicesNone } from "../src/EvaluationServicesNone.ts";
-import { eq, fieldMatch, gte, literal, neq, subject, subjectId } from "../src/Matcher.ts";
+import {
+  action,
+  eq,
+  fieldMatch,
+  gte,
+  literal,
+  neq,
+  resource,
+  subject,
+  subjectId,
+} from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import {
   allOf,
   anyOf,
   denyWhen,
+  hasAction,
   hasAttribute,
   hasPermission,
+  hasResourceAttribute,
   labeled,
   not,
   obliged,
@@ -309,6 +327,52 @@ const deepRules: Policy = Array.from({ length: 10 }).reduce<Policy>(
   hasPermission(read),
 );
 
+/**
+ * What the leaf-needs checks cost where they run (ARCH-97, ADR-QD-163). Every
+ * workload above is built from `hasPermission`, or from a `hasAttribute` whose
+ * matcher references neither the action nor the resource, so none of them
+ * stresses the checks `evaluateNode`'s `HasAttribute`, `HasResourceAttribute`
+ * and `HasAction` arms make before they read anything.
+ *
+ * Eight leaves whose matchers reference the action (`neq(action())`) and the
+ * resource (`eq(resource(...))`), beside the two own-input leaves
+ * (`hasResourceAttribute`, `hasAction`), and every one holds so the whole fold
+ * runs. The request supplies both inputs: the checks are on the hot path whether
+ * or not they fire, and the failing path is not the one measured.
+ */
+const leafHeavy = allOf([
+  hasAttribute("department", neq(action())),
+  hasAttribute("department", eq(resource("department"))),
+  hasResourceAttribute("owner", eq(subjectId())),
+  hasResourceAttribute("department", neq(action())),
+  hasResourceAttribute("department", eq(subject("department"))),
+  hasAction("read"),
+  hasAttribute("department", neq(action())),
+  hasAttribute("department", eq(resource("department"))),
+]);
+
+/**
+ * The same eight tags and the same request, with matchers that reference
+ * neither input: the control for `leafHeavy`, so the cost of reading the
+ * references is told from the cost of the arms.
+ */
+const leafHeavyPlain = allOf([
+  hasAttribute("department", eq(subject("department"))),
+  hasAttribute("clearance", fieldMatch("level", gte(2))),
+  hasAttribute("department", neq(subjectId())),
+  hasResourceAttribute("owner", eq(subjectId())),
+  hasResourceAttribute("department", eq(subject("department"))),
+  hasResourceAttribute("owner", eq(literal("alice"))),
+  hasAction("read"),
+  hasAttribute("department", neq(literal("oncology"))),
+]);
+
+/** The request the two `leafHeavy` workloads evaluate against. */
+const leafRequest = {
+  action: "read",
+  resource: { id: "doc-1", department: "cardiology", owner: "alice" },
+} as const;
+
 const items = Array.from({ length: 500 }, (_, index) => ({
   id: `doc-${index}`,
   ownerId: index % 2 === 0 ? "alice" : "bob",
@@ -321,6 +385,16 @@ const subjects = Array.from({ length: 500 }, (_, index) =>
 const options = { time: 1000, warmupTime: 300 };
 
 test("evaluate", async ({ bench }) => {
+  // A workload that fails throws out of `runSync`; one that denies fails here, so
+  // neither is ever timed as a fast path.
+  assert(
+    isAllowed(runtime.runSync(evaluate(leafHeavy, leafRequest))),
+    "leaf-heavy (action and resource) must decide Allow",
+  );
+  assert(
+    isAllowed(runtime.runSync(evaluate(leafHeavyPlain, leafRequest))),
+    "leaf-heavy (neither) must decide Allow",
+  );
   await bench.compare(
     bench("one node", () => run(one)),
     bench("wide — allOf of 8", () => run(wide)),
@@ -339,6 +413,12 @@ test("evaluate", async ({ bench }) => {
     bench("rules DenyOverrides — 8 permits", () => run(rulesDenyOverrides)),
     bench("rules PermitOverrides — 8 denies", () => run(rulesPermitOverrides)),
     bench("deep rules — 10 nested", () => run(deepRules)),
+    bench("leaf-heavy — allOf of 8, matchers reference action and resource", () => {
+      runtime.runSync(evaluate(leafHeavy, leafRequest));
+    }),
+    bench("leaf-heavy — allOf of 8, matchers reference neither", () => {
+      runtime.runSync(evaluate(leafHeavyPlain, leafRequest));
+    }),
     options,
   );
 });
