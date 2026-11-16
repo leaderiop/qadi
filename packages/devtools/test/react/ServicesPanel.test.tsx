@@ -115,6 +115,28 @@ describe("the services panel", () => {
     assert.notInclude(consequence.textContent ?? "", "if defaulted");
   });
 
+  // ARCH-94 review WR-01: `defaulted` no longer depends on the name, so an unnamed default exists.
+  it("a defaulted port with no name still says it is defaulted", () => {
+    const unnamed: WiringReport = {
+      ports: [
+        {
+          port: "AttributeResolver",
+          name: undefined,
+          required: true,
+          present: true,
+          defaulted: true,
+          consequence: "a missing attribute resolves to undefined, so an attribute policy denies",
+        },
+      ],
+      cache: { present: false, size: undefined },
+    };
+    render(<ServicesPanel diagnostics={liveNotice} wiring={read(unnamed)} activity={[]} />);
+    const card = cardFor("AttributeResolver") ?? fail();
+
+    assert.strictEqual(card.getAttribute("data-defaulted"), "true");
+    assert.strictEqual(within(card).getByTestId("qadi-port-state").textContent, "defaulted — unnamed");
+  });
+
   it("a wired port says what being defaulted would cost, as a condition", () => {
     const real: WiringReport = {
       ports: [

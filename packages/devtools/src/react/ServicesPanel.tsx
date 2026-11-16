@@ -280,10 +280,11 @@ const callsFor = (log: PortCallLog | undefined, port: string): ReadonlyArray<Por
  */
 const stateOf = (port: PortReport): string => {
   if (!port.present) return port.required ? "not provided to this reader" : "absent";
-  if (port.name === undefined) return "wired, unnamed";
   // The name, and the fact: a default reads as just another implementation
-  // otherwise, which is exactly what it must not look like.
-  return port.defaulted === true ? `defaulted — ${port.name}` : port.name;
+  // otherwise, which is exactly what it must not look like. `defaulted` is read
+  // from the mark, not the name, so it is checked before the name can hide it.
+  if (port.defaulted === true) return `defaulted — ${port.name ?? "unnamed"}`;
+  return port.name ?? "wired, unnamed";
 };
 
 /**
