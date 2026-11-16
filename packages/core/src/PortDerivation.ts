@@ -31,6 +31,7 @@ import type * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
 import { InvalidBoundedPermits } from "./Errors.ts";
 import type { SubjectId } from "./Identity.ts";
+import { markDefault } from "./PortDefault.ts";
 import { KeyRefusal } from "./PortDescription.ts";
 import type { LeafRequests, PortDescription, PortShape } from "./PortDescription.ts";
 import { canonicalKey } from "./PortKey.ts";
@@ -360,7 +361,8 @@ export const timingOutPort =
  * every request (INV-QD-007, ADR-QD-040).
  *
  * The answer is one precomputed effect shared by every call, so the default
- * adds no allocation to the evaluation path.
+ * adds no allocation to the evaluation path. The default carries its port's mark
+ * (`isPortDefault`, ARCH-94), which every derived wrapper copies.
  */
 export const nonePort = <
   N extends PortName,
@@ -374,5 +376,5 @@ export const nonePort = <
   d: PortDescription<N, Self, Shape, Args, A, E, P>,
 ): Layer.Layer<Self> => {
   const answered: Effect.Effect<A, E> = Effect.succeed(d.none.answer);
-  return Layer.succeed(d.service, d.make(d.none.name, () => answered));
+  return Layer.succeed(d.service, markDefault(d.port, d.make(d.none.name, () => answered)));
 };

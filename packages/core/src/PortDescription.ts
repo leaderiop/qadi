@@ -31,6 +31,7 @@ import type * as Result from "effect/Result";
 import type { AuthSubject } from "./AuthSubject.ts";
 import type { WirePath } from "./JsonRefusal.ts";
 import type { Policy } from "./Policy.ts";
+import { isMarkedDefault } from "./PortDefault.ts";
 import type { PortName, PortSpanOf } from "./PortName.ts";
 import type { PortSpanAttributesLike, SpanFields, SpanStruct, SpanType } from "./PortSpan.ts";
 import type { PortServingFacet } from "./PortServing.ts";
@@ -339,3 +340,16 @@ export const PortReply = {
 export type PortScript<Args extends ReadonlyArray<unknown>, A> = (
   ...args: Args
 ) => PortReply<A> | undefined;
+
+/**
+ * Whether `service` is the fail-closed default of the port `d` describes, or a
+ * wrapper that carries it.
+ *
+ * Structural: the default's mark names the port it defaults, so a shape moved onto
+ * another port's service is never that port's default. `nonePort` sets it, every
+ * derived wrapper copies it, and a hand-written wrapper keeps it by spreading
+ * `...inner`; one that builds a fresh object does not, and reads as a real adapter
+ * (ARCH-94). Total over any value.
+ */
+export const isPortDefault = (d: { readonly port: PortName }, service: unknown): boolean =>
+  isMarkedDefault(d.port, service);
