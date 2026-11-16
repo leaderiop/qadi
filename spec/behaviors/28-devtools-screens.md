@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.23                                           |
+> | Revision       | 1.24                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.23 (2026-11-16): BEH-QD-215: a defaulted port with no name reads 'defaulted — unnamed' (ARCH-94 review WR-01)<br>1.22 (2026-11-16): BEH-QD-573 and BEH-QD-575 new; BEH-QD-215's defaulted is read from isPortDefault, not a name (ARCH-94, CCR-QD-438)<br>1.21 (2026-11-14): BEH-QD-521 to BEH-QD-525 new: one module owns a run a newer run supersedes (CCR-QD-428)<br>1.20 (2026-11-12): BEH-QD-519 and BEH-QD-520 new: the timeline states a stop and restarts; BEH-QD-465 (eight readouts), BEH-QD-509 and BEH-QD-510 restated (CCR-QD-427)<br>1.19 (2026-11-12): review fixes: a closed feed and a repeated command publish nothing; the notice keeps a persistent status region, alerts once per stop and shows its focus (ARCH-82, BEH-QD-507, BEH-QD-509, INV-QD-313, CCR-QD-425)<br>1.18 (2026-11-12): BEH-QD-465 restated (seven stores) and BEH-QD-323 restated (the model polls; useDiagnostics returns { status, reading }); BEH-QD-506..510 new (ARCH-82, CCR-QD-425)<br>1.17 (2026-11-11): The one internal hook, useGates, is in useGate.ts (ARCH-76, CCR-QD-418, ADR-QD-140)<br>1.16 (2026-11-11): BEH-QD-465 — the dock is one model (makeDockModel owns the six stores and pushes the rail, one configure, the model reads its source in its own scope); BEH-QD-466 — a choice from a list has one shape (HeldChoice's three arms, one cell in both sessions); BEH-QD-389's note names the dock model, not the owned hook (ARCH-74, ADR-QD-047 amendment, CCR-QD-416)<br>1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.24 (2026-11-16): BEH-QD-581 to 585; BEH-QD-465 amended and BEH-QD-217 corrected: the gate registry is the dock model's eighth store (ARCH-96, CCR-QD-440)<br>1.23 (2026-11-16): BEH-QD-215: a defaulted port with no name reads 'defaulted — unnamed' (ARCH-94 review WR-01)<br>1.22 (2026-11-16): BEH-QD-573 and BEH-QD-575 new; BEH-QD-215's defaulted is read from isPortDefault, not a name (ARCH-94, CCR-QD-438)<br>1.21 (2026-11-14): BEH-QD-521 to BEH-QD-525 new: one module owns a run a newer run supersedes (CCR-QD-428)<br>1.20 (2026-11-12): BEH-QD-519 and BEH-QD-520 new: the timeline states a stop and restarts; BEH-QD-465 (eight readouts), BEH-QD-509 and BEH-QD-510 restated (CCR-QD-427)<br>1.19 (2026-11-12): review fixes: a closed feed and a repeated command publish nothing; the notice keeps a persistent status region, alerts once per stop and shows its focus (ARCH-82, BEH-QD-507, BEH-QD-509, INV-QD-313, CCR-QD-425)<br>1.18 (2026-11-12): BEH-QD-465 restated (seven stores) and BEH-QD-323 restated (the model polls; useDiagnostics returns { status, reading }); BEH-QD-506..510 new (ARCH-82, CCR-QD-425)<br>1.17 (2026-11-11): The one internal hook, useGates, is in useGate.ts (ARCH-76, CCR-QD-418, ADR-QD-140)<br>1.16 (2026-11-11): BEH-QD-465 — the dock is one model (makeDockModel owns the six stores and pushes the rail, one configure, the model reads its source in its own scope); BEH-QD-466 — a choice from a list has one shape (HeldChoice's three arms, one cell in both sessions); BEH-QD-389's note names the dock model, not the owned hook (ARCH-74, ADR-QD-047 amendment, CCR-QD-416)<br>1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -380,6 +380,13 @@ the React glue is still one `useSyncExternalStore` call in `QadiProvider.tsx`.
 > inside the provider, or `useSyncExternalStore(atoms.gates.subscribe,
 > atoms.gates.instances, atoms.gates.instances)` outside it; the module-scope
 > pair named above no longer exists.
+>
+> **Correction (2026-11-16, ADR-QD-162).** The host no longer subscribes. `DevtoolsDock`
+> takes the registry itself (`gates: GateRegistryLike`, usually the feed's `gates` or
+> `atoms.gates`) and its model subscribes in its own scope
+> ([BEH-QD-584](#beh-qd-584-the-gate-registry-is-a-model-input-subscribed-for-the-models-scope)); the feed hands the
+> registry over ([BEH-QD-585](#beh-qd-585-the-dock-takes-the-registry-and-the-feed-hands-it-over)). The host calls above
+> are kept as written, as the history of the wiring.
 
 A component knows perfectly well that it exists. Nothing was asking it.
 
@@ -885,12 +892,24 @@ Pinned by `DockSession.test.ts`, headlessly, and through the dock by
 >
 > **Amended 2026-11-12 (CCR-QD-427).** The timeline's status is the dock model's eighth readout,
 > `timelineStatus`, with its restart ([BEH-QD-519](#beh-qd-519-a-defect-stops-the-timeline-visibly-and-a-restart-resumes-it)).
+>
+> **Amended 2026-11-16 (CCR-QD-440).** The gate registry is the model's eighth store, `questions`: the polled questions
+> joined to the registry's guards at one moment
+> ([BEH-QD-583](#beh-qd-583-the-questions-store-is-one-moment-and-keeps-its-reference-when-nothing-moved)), over a registry
+> the model subscribes to in its own scope
+> ([BEH-QD-584](#beh-qd-584-the-gate-registry-is-a-model-input-subscribed-for-the-models-scope)). The count is the one
+> [ADR-QD-162](../decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md) states: seven
+> stores before (the timeline, the dock session, the explorer, the role choice, the simulation, the diagnostics and the
+> timeline status), `questions` the eighth, and `sightings` a thunk the model reads and not a store. The earlier ordinals
+> in this section counted the policy rail among the stores, so they called the diagnostics the seventh and the timeline
+> status the eighth readout; they are kept as written.
 
 ```ts
 export interface DockModelInputs {
   readonly capacity?: number | undefined;
   readonly catalogue?: Catalogue | undefined;
   readonly diagnostics?: DiagnosticsDockOptions | undefined;
+  readonly gates?: GateRegistryLike | undefined;
   readonly ports?: EvaluationPortsLayer | undefined;
   readonly reading?: DiagnosticsReading | undefined;
   readonly source?: Source | undefined;
@@ -899,6 +918,7 @@ export interface DockModel {
   readonly timeline: TimelineStore;
   readonly diagnostics: DiagnosticsReadout;
   readonly timelineStatus: TimelineStatusReadout;
+  readonly questions: Pick<ExternalStore<QuestionsSnapshot>, "subscribe" | "getSnapshot">;
   readonly dock: DockSession;
   readonly explorer: ExplorerSession;
   readonly roles: HeldChoiceStore<Role>;
@@ -1778,3 +1798,216 @@ a close inside a start),
 `packages/devtools/test/model/DiagnosticsFeed.test.ts` (F29) and
 `packages/devtools/test/model/SimulationSession.runs.test.ts` (SR5). Specified in ADR-QD-150
 (CCR-QD-428, D-07, D-08).
+
+## BEH-QD-581: A guard's render states are stated once, in core
+
+> **Decision:** [ADR-QD-162](../decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md) ·
+> **Scope:** [ADR-QD-152](../decisions/152-each-hydration-drop-reason-is-stated-once-with-its-kind.md) ·
+> **Invariant:** [INV-QD-344](../invariants.md#inv-qd-344-the-five-gate-states-are-stated-once-and-each-reader-is-tied-to-them-by-its-type)
+
+The five words a guard reports it rendered were written twice, in two packages that cannot see each other: `@qadi/react`
+derived `GateRenderState` from `DecisionOutcome`'s tags and `@qadi/devtools` restated the union privately for its display
+table. Nothing tied the two, so a sixth outcome in react compiled and was shown as `Unrecognised`.
+
+```ts
+export type GateState = "Failed" | "Denied" | "Rechecking" | "Pending" | "Allowed";
+export const isGateState: (word: string) => word is GateState;
+export const gateStates: ReadonlyArray<GateState>;
+```
+
+```
+REQUIREMENT: `@qadi/core` MUST state the five gate states once, in one module-private table
+             whose keys are `GateState`; `gateStates` MUST list them in declaration order,
+             worst news first (Failed, Denied, Rechecking, Pending, Allowed), and
+             `isGateState` MUST test an own key only, so an inherited name such as
+             `toString` is not a state.
+```
+
+```
+REQUIREMENT: `@qadi/react`'s `GateRenderState` MUST be `GateState`, and
+             `DecisionOutcome["_tag"]` MUST equal it in both directions.
+```
+
+A sixth outcome added to the decision's outcome, or a sixth state added to core's table, is a type-test failure in react
+until the other moves with it.
+
+```
+REQUIREMENT: `@qadi/devtools` MUST key its display of a state by `GateState`, so a sixth
+             state is a compile error there, and MUST read the list and the guard from
+             core rather than restate them.
+```
+
+The rows of core's table are empty on purpose: the display words (`Error`, `Deny`, `Allow`) are devtools' vocabulary and
+nothing else about a state is generic.
+
+Pinned by `packages/core/test/GateState.test.ts` (the five words in their order, the barrel, an inherited name is not a
+state), `packages/core/test/GateState.tst.ts`, `packages/react/test/DecisionOutcome.tst.ts` (a gate's render state is
+core's `GateState`, and core's states are the outcome's tags, both ways) and `packages/devtools/test/model/Gates.test.ts`
+(`displayOfGateState`: GATE_STATES lists exactly the mapped states, worst news first). Specified in ADR-QD-162
+(CCR-QD-440, D-01 to D-07).
+
+## BEH-QD-582: A render state the dock does not know is shown as itself
+
+> **Decision:** [ADR-QD-162](../decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md) ·
+> **Scope:** [ADR-QD-053](../decisions/053-a-gate-can-be-found.md) ·
+> **Invariant:** [INV-QD-344](../invariants.md#inv-qd-344-the-five-gate-states-are-stated-once-and-each-reader-is-tied-to-them-by-its-type)
+
+`GateInstanceLike.state` stays `string`: the dock takes a guard structurally from a package it does not depend on, and a
+newer `@qadi/react` may report a word this build has never seen.
+
+```
+REQUIREMENT: A state outside the five, a newer react's word or an inherited name such as
+             `toString`, MUST be displayed as `Unrecognised` with its own name, and MUST
+             NOT be shown as a known state, as an answer, or dropped.
+```
+
+`displayOfGateState` is decided by `isGateState`, an own-key test, so `toString` is not a state and `__proto__` is not
+either. A failure is displayed `Error` and never `Deny`: a guard that failed to answer has not been refused.
+
+Pinned by `packages/devtools/test/model/Gates.test.ts` (`displayOfGateState`: maps each of the five render states, a
+failure to Error and never to Deny; calls a state this build does not know Unrecognised, not an answer) and
+`packages/devtools/test/react/QuestionsPanel.characterisation.test.tsx` (the `unrecognised and toString` cell). Specified
+in ADR-QD-162 (CCR-QD-440, D-06).
+
+## BEH-QD-583: The questions store is one moment, and keeps its reference when nothing moved
+
+> **Decision:** [ADR-QD-162](../decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md) ·
+> **Scope:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) ·
+> **Invariant:** [INV-QD-343](../invariants.md#inv-qd-343-a-questions-snapshot-pairs-each-asked-question-with-the-guards-asking-it-at-one-moment)
+
+The question panel used to pair a polled list with a `gates` prop in the view, from two sources read at two moments.
+`DockModel.questions` is the dock model's eighth store, and the join is made once, in the model.
+
+```ts
+export interface QuestionRow {
+  readonly question: AskedQuestionLike;
+  readonly asking: ReadonlyArray<GateInstanceLike>;
+}
+export type GatesView = Data.TaggedEnum<{
+  Absent: {};
+  Empty: {};
+  Listed: { readonly instances: ReadonlyArray<GateInstanceLike> };
+}>;
+export type QuestionsView = Data.TaggedEnum<{
+  Unsampled: {};
+  Absent: {};
+  Empty: {};
+  Rows: { readonly rows: ReadonlyArray<QuestionRow> };
+}>;
+export interface QuestionsSnapshot {
+  readonly gates: GatesView;
+  readonly questions: QuestionsView;
+  readonly instances: ReadonlyArray<GateInstanceLike>;
+}
+// on DockModel
+readonly questions: Pick<ExternalStore<QuestionsSnapshot>, "subscribe" | "getSnapshot">;
+```
+
+```
+REQUIREMENT: The model MUST recompute `questions` from the polled questions and the
+             registry's `instances()` in one synchronous step, whichever of the two moved,
+             so no row pairs a question from one moment with a guard from another.
+```
+
+```
+REQUIREMENT: `QuestionsSnapshot.instances` MUST be the registry's own array, or one
+             constant when there is no registry; a recompute that finds the same questions,
+             the same instances array and the same unsampled flag MUST publish nothing.
+```
+
+A quiet tick therefore redraws nothing, and a lens that follows `instances` is not rebuilt by one.
+
+```
+REQUIREMENT: `Unsampled` MUST mean no sample has been taken yet and `Absent` a sample that
+             carried no question source; the panel renders the first as nothing at all and
+             the second as its explanation.
+```
+
+`joinQuestions` is pure over one input and is the one place the panel's rows are decided; the panel calls neither
+`gateGroups` nor `instancesAsking`. The listing is a `ts` fence: `makeDockModel` and the views are package-private
+(ADR-QD-099), so it is not compiled, as BEH-QD-465's is not.
+
+Pinned by `packages/devtools/test/model/DockModel.test.ts` (M31 rows pair each question with its guards at once on a
+registry change, and a quiet tick keeps the snapshot; M32 and M32 b the gates and questions views; P2 each snapshot's rows
+are the questions and guards of one moment) and `packages/devtools/test/model/Gates.test.ts` (`joinQuestions`: the panel's
+rows, decided once). Specified in ADR-QD-162 (CCR-QD-440, D-08, D-10, D-14).
+
+## BEH-QD-584: The gate registry is a model input, subscribed for the model's scope
+
+> **Decision:** [ADR-QD-162](../decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md) ·
+> **Scope:** [ADR-QD-137](../decisions/137-a-devtools-session-owns-its-runs-through-a-scope.md) ·
+> **Invariant:** [INV-QD-343](../invariants.md#inv-qd-343-a-questions-snapshot-pairs-each-asked-question-with-the-guards-asking-it-at-one-moment)
+
+```ts
+export interface GateRegistryLike {
+  readonly instances: () => ReadonlyArray<GateInstanceLike>;
+  readonly subscribe: (listener: () => void) => () => void;
+}
+// DockModelInputs gains
+readonly gates?: GateRegistryLike | undefined;
+```
+
+`GateRegistryLike` is structural, and `@qadi/react`'s `GateRegistry` satisfies it without devtools importing it
+(ADR-QD-053). A registry holds who is asking and what each guard rendered, never a verdict (ADR-QD-080).
+
+```
+REQUIREMENT: The model MUST subscribe to the registry in its own scope, after the reading
+             it joins exists, and MUST release the subscription with a finalizer on that
+             scope; nothing MUST be delivered to the model after close.
+```
+
+```
+REQUIREMENT: `configure` with a different registry MUST release the old subscription,
+             subscribe to the new registry and re-join at once; with the same registry it
+             MUST NOT subscribe again.
+```
+
+```
+REQUIREMENT: With no registry the model MUST subscribe to nothing and the gates view MUST
+             be `Absent`.
+```
+
+Instrumentation off means absent (AGENTS.md §13): a dock handed no registry renders and subscribes to nothing. A registry
+whose `instances()` throws is the host's defect, and the model does not catch it; a caught error would show an empty panel
+with nothing said. A hide and a show of the dock rebuilds the model, and with it the subscription.
+
+Pinned by `packages/devtools/test/model/DockModel.test.ts` (M33 the registry subscription lives as long as the model's
+scope, follows a new registry and never outlives close) and `packages/devtools/test/react/DevtoolsDock.test.tsx` (the
+gate registry lives as long as the dock: one subscription under StrictMode, one moved to a swapped registry, none when
+handed no registry). Specified in ADR-QD-162 (CCR-QD-440, D-08, D-10, D-11).
+
+## BEH-QD-585: The dock takes the registry, and the feed hands it over
+
+> **Decision:** [ADR-QD-162](../decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md) ·
+> **Scope:** [ADR-QD-053](../decisions/053-a-gate-can-be-found.md)
+
+```
+REQUIREMENT: `DevtoolsDockProps.gates` MUST be a `GateRegistryLike`, with no array form.
+```
+
+The prop used to take `ReadonlyArray<GateInstanceLike>` and a host re-rendered on every guard change to feed it. A host now
+hands over the registry once and the dock subscribes (BEH-QD-584); `useGateInstances` is unchanged for a component that
+wants the list itself.
+
+```
+REQUIREMENT: `useDevtoolsFeed().gates` MUST be the provider's effective registry (its
+             `gates` prop, else `atoms.gates`), so that `<DevtoolsDock {...feed} />` is
+             unchanged.
+```
+
+```
+REQUIREMENT: `@qadi/devtools` MUST take the registry structurally, with no dependency on
+             `@qadi/react`.
+```
+
+One copy edit reaches the browser (D-12a, a user decision during the UI contract). The gates-absent message's advice read
+"Pass gates — usually useGateInstances(), or atoms.gates.instances() — to list who is asking." and now reads "Pass gates —
+usually atoms.gates, from @qadi/react — to list who is asking.", because the old advice no longer type-checks once `gates`
+takes the registry. Every other string is byte-identical.
+
+Pinned by `packages/react/test/DevtoolsFeed.test.tsx` (gates are the provider's effective registry: one per instrumented
+guard, none otherwise), `packages/devtools/test/react/QuestionsPanel.gates.test.tsx` (the advice names `atoms.gates, from
+@qadi/react`), `packages/devtools/test/react/QuestionsPanel.characterisation.test.tsx` (twelve cells, the two literals
+that carry the sentence), `packages/devtools/test/surface.tst.ts` (`GateRegistryLike` is the two methods react's registry
+has, and no more) and `examples/nextjs-newsroom/test/dock-wiring.test.tsx` (the dock's gate registry). Specified in
+ADR-QD-162 (CCR-QD-440, D-09, D-12a, D-18).
