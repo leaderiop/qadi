@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 51
 current_phase_name: Policy tag arity stated once
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed QD-51-03-PLAN.md
-last_updated: "2026-11-16T15:56:12.261Z"
+stopped_at: Completed QD-51-04-PLAN.md
+last_updated: "2026-11-16T16:04:58.021Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase QD-50 complete, transitioned to Phase 51
-state_head: 886133944414cefd0cfa55bb11df5cf1d87f30f0
+state_head: 1a570b91ec6a9a992681dc51425bb3c971fb94e1
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 66
-  completed_plans: 64
+  completed_plans: 65
   percent: 80
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: 51 — Policy tag arity stated once
-Current Plan: 4
+Current Plan: 5
 Total Plans in Phase: 5
 Status: Ready to execute
 Last activity: 2026-11-16 — Phase QD-50 complete, transitioned to Phase 51
@@ -321,6 +321,7 @@ Progress: [████████░░] 80% (8 of 10 phases)
 | Phase QD-51 P01 | 6min | 2 tasks | 1 files |
 | Phase QD-51 P02 | 15min | 2 tasks | 4 files |
 | Phase QD-51 P03 | 10min | 2 tasks | 5 files |
+| Phase QD-51 P04 | 25min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -542,6 +543,7 @@ Progress: [████████░░] 80% (8 of 10 phases)
 - [Phase QD-51]: 51-01: Stryker baseline of Policy.ts and Decision.ts measured once on the untouched base and committed alone as the phase's first commit; never re-baselined
 - [Phase QD-51]: 51-02: TraceShape EXPECTED is hand-written and never reads the arity record; base experiment: 32/32 moves compile, table catches 32/32, Decision.test.ts 8/32
 - [Phase QD-51]: 51-03: POLICY_ARITY lives in package-private PolicyArity.ts; Policy.ts closes it over its tag union via module-local ArityRecord/TagsOfArity; Many type carries { readonly 0?: never }
+- [Phase QD-51]: ADR-QD-164: renderTrace and diffTraces keep their own walks and read no arity; foldTrace stays public and unchanged
 
 ### Pending Todos
 
@@ -599,8 +601,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T15:56:12.071Z
-Stopped at: Completed QD-51-03-PLAN.md
+Last session: 2026-11-16T16:04:57.834Z
+Stopped at: Completed QD-51-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
