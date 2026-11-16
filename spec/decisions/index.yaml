@@ -490,3 +490,7 @@ entries:
     file: "160-port-facts-are-read-from-the-description.md"
     title: "Port facts are read from the description"
     status: "Accepted — reads ADR-QD-094, ADR-QD-109"
+  - id: "ADR-QD-161"
+    file: "161-audit-reports-cores-refusal-and-decides-lost-once.md"
+    title: "Audit reports core's refusal and decides lost once"
+    status: "Accepted — amends ADR-QD-056, ADR-QD-095"
