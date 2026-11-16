@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 52
 current_phase_name: Core owns the predicate compile shell
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed QD-52-02-PLAN.md
-last_updated: "2026-11-16T18:16:51.017Z"
+stopped_at: Completed 52-03-PLAN.md
+last_updated: "2026-11-16T18:21:59.312Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase QD-51 complete, transitioned to Phase 52
-state_head: 9634bf35e11e801a26b611e25aff56e34431b7d8
+state_head: 3b3454a06852393d0325d5de8bad2f03b78f092b
 progress:
   total_phases: 10
   completed_phases: 9
   total_plans: 71
-  completed_plans: 68
+  completed_plans: 69
   percent: 90
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: 52 — Core owns the predicate compile shell
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 5
 Status: Ready to execute
 Last activity: 2026-11-16 — Phase QD-51 complete, transitioned to Phase 52
@@ -326,6 +326,7 @@ Progress: [█████████░] 90% (9 of 10 phases)
 | Phase QD-51 P05 | 15min | 3 tasks | 2 files |
 | Phase QD-52 P01 | 6min | 2 tasks | 1 files |
 | Phase QD-52 P02 | 15min | 2 tasks | 2 files |
+| Phase QD-52 P03 | 9min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -548,6 +549,7 @@ Progress: [█████████░] 90% (9 of 10 phases)
 - [Phase QD-51]: 51-02: TraceShape EXPECTED is hand-written and never reads the arity record; base experiment: 32/32 moves compile, table catches 32/32, Decision.test.ts 8/32
 - [Phase QD-51]: 51-03: POLICY_ARITY lives in package-private PolicyArity.ts; Policy.ts closes it over its tag union via module-local ArityRecord/TagsOfArity; Many type carries { readonly 0?: never }
 - [Phase QD-51]: ADR-QD-164: renderTrace and diffTraces keep their own walks and read no arity; foldTrace stays public and unchanged
+- [Phase QD-52]: 52-03: Prisma's D-06a rationale lives in a body comment, not the doc comment, so the emitted declaration stays byte-identical to the base
 
 ### Pending Todos
 
@@ -606,8 +608,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T18:16:50.796Z
-Stopped at: Completed QD-52-02-PLAN.md
+Last session: 2026-11-16T18:21:59.093Z
+Stopped at: Completed 52-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
