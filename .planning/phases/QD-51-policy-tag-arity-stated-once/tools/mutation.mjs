@@ -39,12 +39,23 @@ if (mode === "compare") {
   if (!(ARI in (a.measured || {})) && !(ARI in (a.unmeasured || {}))) {
     bad.push(ARI + " is neither measured nor recorded unmeasured");
   }
+  // Survivors are compared as multisets: two textually identical survivors are two, and one more of
+  // them after is a new survivor.
+  const minus = (xs, ys) => {
+    const left = [...ys];
+    return xs.filter((x) => {
+      const i = left.indexOf(x);
+      if (i < 0) return true;
+      left.splice(i, 1);
+      return false;
+    });
+  };
   if (!bad.length) {
     for (const f of [DEC, POL]) {
       const sb = b.measured[f];
       const sa = a.measured[f];
-      const added = a.survivors[f].filter((x) => !b.survivors[f].includes(x));
-      const gone = b.survivors[f].filter((x) => !a.survivors[f].includes(x));
+      const added = minus(a.survivors[f], b.survivors[f]);
+      const gone = minus(b.survivors[f], a.survivors[f]);
       console.log(`${f} ${sb} -> ${sa} (survivors +${added.length} -${gone.length})`);
       for (const x of added) console.log("  new survivor " + x.slice(0, 160));
       for (const x of gone) console.log("  gone survivor " + x.slice(0, 160));

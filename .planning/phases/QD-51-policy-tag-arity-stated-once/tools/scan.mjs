@@ -115,25 +115,34 @@ for (const m of [
 // 4. Policy.ts: three type-position edits; the emitted JavaScript is the base's, comments aside.
 const polH = fs.readFileSync(POL, "utf8");
 const polCode = code(polH);
-// 51-03's A1 fallback, if it ran, declares Arity locally and imports only the other two.
-const polImport = polCode.includes('import type { ChildArms, POLICY_ARITY } from "./PolicyArity.ts";')
-  ? 'import type { ChildArms, POLICY_ARITY } from "./PolicyArity.ts";'
-  : 'import type { Arity, ChildArms, POLICY_ARITY } from "./PolicyArity.ts";';
 for (const x of [
-  polImport,
+  'import type { Arity, ChildArms, POLICY_ARITY } from "./PolicyArity.ts";',
   "satisfies ChildArms<Policy, typeof POLICY_ARITY>",
   'export type LeafPolicy = Extract<Policy, { readonly _tag: TagsOfArity<"Leaf"> }>;',
 ]) {
   if (count(polCode, x) !== 1) bad.push(`Policy.ts has ${count(polCode, x)} of: ${x}`);
 }
 if (/export (type|interface) (TagsOfArity|ArityRecord)\b/.test(polCode)) bad.push("Policy.ts exports a module-local arity type");
-let ts;
-try {
-  const req = createRequire(process.cwd() + "/");
-  ts = req("./node_modules/.pnpm/typescript@6.0.3/node_modules/typescript");
-} catch {
-  bad.push("TypeScript 6.0.3 is not installed under node_modules/.pnpm");
-}
+// The root's own `typescript` is the Go port (7.x), which has no JS API, so take the first that has
+// `transpileModule`: the root's, then every installed version, newest first.
+const req = createRequire(process.cwd() + "/");
+const ts = [
+  "typescript",
+  ...fs
+    .readdirSync("node_modules/.pnpm")
+    .filter((d) => /^typescript@\d/.test(d))
+    .sort((x, y) => y.localeCompare(x, undefined, { numeric: true }))
+    .map((d) => `./node_modules/.pnpm/${d}/node_modules/typescript`),
+]
+  .map((id) => {
+    try {
+      return req(id);
+    } catch {
+      return undefined;
+    }
+  })
+  .find((m) => typeof m?.transpileModule === "function");
+if (!ts) bad.push("no installed TypeScript has a JS API (transpileModule)");
 if (ts) {
   const js = (src) =>
     ts.transpileModule(src, {
