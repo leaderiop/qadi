@@ -31,8 +31,7 @@ import { PolicyNotTranslatable } from "./Errors.ts";
 import { predicatesTranslatedTotal } from "./EvaluationMetrics.ts";
 import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
 import { evaluateMatcher, getByPath, referencesResource } from "./Matcher.ts";
-import { permissionKey } from "./Permission.ts";
-import { absenceOf, errorOf } from "./LeafNeeds.ts";
+import { absenceOf, errorOf, holdsAction, holdsPermission, holdsRole } from "./LeafNeeds.ts";
 import type { ActionAbsence, Supplied } from "./LeafNeeds.ts";
 import { fieldsOf, foldPolicy, foldPolicyCases } from "./Policy.ts";
 import { askActed, isAnyActedLeaf, readAttribute } from "./PortAccess.ts";
@@ -393,16 +392,15 @@ const compileTree = (admitted: Admitted): Compiled => {
    * because the arms close over the subject, the action and the matcher context.
    */
   const cases: PolicyCases<Compiled> = {
-    HasRole: (p) => planned({ _tag: "Constant", value: subject.roles.has(p.role) }),
+    HasRole: (p) => planned({ _tag: "Constant", value: holdsRole(subject, p) }),
 
-    HasPermission: (p) =>
-      planned({ _tag: "Constant", value: subject.permissions.has(permissionKey(p.permission)) }),
+    HasPermission: (p) => planned({ _tag: "Constant", value: holdsPermission(subject, p) }),
 
     HasAction: (p) => {
       const absent = absenceOf(p, supplied);
       return absent !== undefined
         ? planned({ _tag: "NeedAction", absence: absent })
-        : planned({ _tag: "Constant", value: action === p.action });
+        : planned({ _tag: "Constant", value: holdsAction(p, action) });
     },
 
     HasAttribute: (p) => {
