@@ -82,8 +82,11 @@ const auditReport = (
   lost: LostLabel | undefined,
 ): AuditWriteReport => ({ writes, staging: staged.staging, lost, log: staged.log });
 
-const warning = (message: string): LogLine => ({ level: "Warn", message, cause: undefined });
-const info = (message: string): LogLine => ({ level: "Info", message, cause: undefined });
+const unwrittenLine = (staging: UnwrittenStaging, message: string): LogLine => ({
+  level: unwrittenRow(staging).durability === "Lost" ? "Warn" : "Info",
+  message,
+  cause: undefined,
+});
 
 const writtenStagingReport: (self: WrittenStaging) => StagingReport = Match.type<WrittenStaging>().pipe(
   Match.tagsExhaustive({
@@ -97,19 +100,25 @@ const writtenStagingReport: (self: WrittenStaging) => StagingReport = Match.type
 
 const writeFailedStagingReport: (self: UnwrittenStaging) => StagingReport = Match.type<UnwrittenStaging>().pipe(
   Match.tagsExhaustive({
-    NotWired: () => stagingReport([], warning(DROPPED_WRITE_UNWIRED)),
-    Staged: () =>
-      stagingReport(["staged"], info(`audit entry not written: trail write failed; ${NOT_WRITTEN_STAGED_SUFFIX}`)),
-    StageFailed: () => stagingReport(["failed"], warning(DROPPED_WRITE_STAGE_FAILED)),
+    NotWired: (s) => stagingReport([], unwrittenLine(s, DROPPED_WRITE_UNWIRED)),
+    Staged: (s) =>
+      stagingReport(
+        ["staged"],
+        unwrittenLine(s, `audit entry not written: trail write failed; ${NOT_WRITTEN_STAGED_SUFFIX}`),
+      ),
+    StageFailed: (s) => stagingReport(["failed"], unwrittenLine(s, DROPPED_WRITE_STAGE_FAILED)),
   }),
 );
 
 const skippedStagingReport: (self: UnwrittenStaging) => StagingReport = Match.type<UnwrittenStaging>().pipe(
   Match.tagsExhaustive({
-    NotWired: () => stagingReport(["skipped_open"], warning(DROPPED_BREAKER_UNWIRED)),
-    Staged: () =>
-      stagingReport(["staged"], info(`audit entry not written: circuit breaker open; ${NOT_WRITTEN_STAGED_SUFFIX}`)),
-    StageFailed: () => stagingReport(["failed_open"], warning(DROPPED_BREAKER_STAGE_FAILED)),
+    NotWired: (s) => stagingReport(["skipped_open"], unwrittenLine(s, DROPPED_BREAKER_UNWIRED)),
+    Staged: (s) =>
+      stagingReport(
+        ["staged"],
+        unwrittenLine(s, `audit entry not written: circuit breaker open; ${NOT_WRITTEN_STAGED_SUFFIX}`),
+      ),
+    StageFailed: (s) => stagingReport(["failed_open"], unwrittenLine(s, DROPPED_BREAKER_STAGE_FAILED)),
   }),
 );
 

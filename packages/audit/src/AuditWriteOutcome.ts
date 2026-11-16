@@ -103,9 +103,9 @@ const durability = (d: Durability): Durability => d;
 /**
  * Whether an outcome's entry survives, and where.
  *
- * The single place "lost or not" is decided: the lost-entry counter, the
- * warning-versus-info choice and a caller's dead-letter decision all read it,
- * so they cannot disagree.
+ * An unwritten entry's answer is its staging's row (`UnwrittenRow.ts`), the same
+ * row the lost-entry counter's label and the unwritten line's level read, so the
+ * three cannot disagree (ARCH-95, ADR-QD-161).
  */
 export const durabilityOf: (self: AuditWriteOutcome) => Durability = Match.type<AuditWriteOutcome>().pipe(
   Match.tagsExhaustive({
