@@ -4,8 +4,9 @@
 // Run from the repository root on the untouched phase base, after TraceShape.test.ts exists:
 //   node .planning/phases/QD-51-policy-tag-arity-stated-once/tools/moves.mjs
 // It writes base-experiment/moves.tsv and base-experiment/not-to-many.patch beside this folder,
-// restores every file it edits (also on Ctrl-C), and exits 2 before editing anything when the
-// tree is not the base it expects, 3 when packages/core/src is not clean afterwards.
+// restores every file it edits on every exit, a caught SIGINT, SIGTERM or SIGHUP included (not SIGKILL:
+// then `git checkout -- packages/core/src`), and exits 1 when a child is killed by a signal, 2 before
+// editing anything when the tree is not the base it expects, 3 when packages/core/src is not clean afterwards.
 import cp from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -72,19 +73,26 @@ const restore = () => {
   fs.writeFileSync(DEC, base);
   fs.writeFileSync(POL, pbase);
 };
-process.on("SIGINT", () => {
-  restore();
-  process.exit(130);
-});
+// spawnSync blocks the event loop, so a signal sent to this process is held until the loop yields: `tick`
+// after each measurement lets a caught SIGINT, SIGTERM or SIGHUP stop the run there. A child's own signal
+// (a Ctrl-C reaches the child too) is checked as it returns. Every exit path restores through the exit
+// listener. SIGKILL cannot be caught: after one, run `git checkout -- packages/core/src`.
+process.on("exit", restore);
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(sig, () => process.exit(128 + os.constants.signals[sig]));
+const tick = () => new Promise((resolve) => setImmediate(resolve));
+const run = (cmd, args) => {
+  const r = cp.spawnSync(cmd, args, { encoding: "utf8" });
+  if (r.signal) {
+    console.error(`${cmd} was killed by ${r.signal}; restoring packages/core/src and stopping`);
+    process.exit(1);
+  }
+  return r;
+};
 
 const measure = () => {
-  const tsc = cp.spawnSync("node_modules/.bin/tsc", ["-p", "tsconfig.test.json"], { encoding: "utf8" });
+  const tsc = run("node_modules/.bin/tsc", ["-p", "tsconfig.test.json"]);
   const json = p.join(os.tmpdir(), `qadi-51-moves-${process.pid}.json`);
-  cp.spawnSync(
-    "node_modules/.bin/vitest",
-    ["run", "--project", "core", "--reporter=json", `--outputFile=${json}`, ...TESTS],
-    { encoding: "utf8" },
-  );
+  run("node_modules/.bin/vitest", ["run", "--project", "core", "--reporter=json", `--outputFile=${json}`, ...TESTS]);
   const j = JSON.parse(fs.readFileSync(json, "utf8"));
   const failed = TESTS.map((t) => {
     const r = j.testResults.find((x) => x.name.endsWith(t));
@@ -113,6 +121,7 @@ try {
         }
         rows.push(["move", tag, `${from}->${to}`, ...measure()].join("\t"));
         fs.writeFileSync(DEC, base);
+        await tick();
       }
     }
   }
@@ -120,6 +129,7 @@ try {
     fs.writeFileSync(POL, pbase.replace(from, to));
     rows.push(["arm", tag, to.trim(), ...measure()].join("\t"));
     fs.writeFileSync(POL, pbase);
+    await tick();
   }
 } finally {
   restore();

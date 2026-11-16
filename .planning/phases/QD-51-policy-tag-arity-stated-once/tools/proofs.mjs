@@ -5,9 +5,11 @@
 // Run from the repository root, on the finished tree (51-03 Task 2 onwards), nothing else heavy running:
 //   node .planning/phases/QD-51-policy-tag-arity-stated-once/tools/proofs.mjs
 // Prints a markdown table (copy it into the SUMMARY) and exits 0 when every row is as expected, 1 when a
-// row is not, 2 before editing anything when an edit's text is missing, 3 when src is not restored.
+// row is not or a child was killed by a signal, 2 before editing anything when an edit's text is missing, 3
+// when src is not restored.
 import cp from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import p from "node:path";
 
 const D = p.join(p.dirname(new URL(import.meta.url).pathname), "..");
@@ -49,18 +51,29 @@ for (const [what, file, from] of PROOFS) {
 const restore = () => {
   for (const f of SRC) fs.writeFileSync(f, orig[f]);
 };
-process.on("SIGINT", () => {
-  restore();
-  process.exit(130);
-});
+// spawnSync blocks the event loop, so a signal sent to this process is held until the loop yields: `tick`
+// after each measurement lets a caught SIGINT, SIGTERM or SIGHUP stop the run there. A child's own signal
+// (a Ctrl-C reaches the child too) is checked as it returns. Every exit path restores through the exit
+// listener. SIGKILL cannot be caught: after one, run `git checkout -- packages/core/src`.
+process.on("exit", restore);
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(sig, () => process.exit(128 + os.constants.signals[sig]));
+const tick = () => new Promise((resolve) => setImmediate(resolve));
+const run = (cmd, args) => {
+  const r = cp.spawnSync(cmd, args, { encoding: "utf8" });
+  if (r.signal) {
+    console.error(`${cmd} was killed by ${r.signal}; restoring packages/core/src and stopping`);
+    process.exit(1);
+  }
+  return r;
+};
 
 const tsc = () => {
-  const r = cp.spawnSync("node_modules/.bin/tsc", ["-p", "tsconfig.test.json"], { encoding: "utf8" });
+  const r = run("node_modules/.bin/tsc", ["-p", "tsconfig.test.json"]);
   const errors = r.stdout.split("\n").filter((l) => l.includes("error TS"));
   return { status: r.status, errors };
 };
 const failing = (test) =>
-  cp.spawnSync("node_modules/.bin/vitest", ["run", "--project", "core", test], { encoding: "utf8" }).status !== 0;
+  run("node_modules/.bin/vitest", ["run", "--project", "core", test]).status !== 0;
 
 const rows = ["| Edit | tsc exit | Error (the expected one, else the first) | As expected |", "|---|---|---|---|"];
 let bad = 0;
@@ -71,7 +84,7 @@ const row = (what, status, first, ok) => {
 try {
   // The row passes only for the stated reason: git refuses the patch's Decision.ts hunk. A missing patch
   // ("can't open patch"), a corrupt one or any other git error prints its own first line and fails the row.
-  const apply = cp.spawnSync("git", ["apply", "--check", p.join(D, "base-experiment", "not-to-many.patch")], { encoding: "utf8" });
+  const apply = run("git", ["apply", "--check", p.join(D, "base-experiment", "not-to-many.patch")]);
   row(
     "the base experiment's patch (Not under Many in Decision.ts)",
     "-",
@@ -95,6 +108,7 @@ try {
     }
     row(what, String(r.status), first, ok);
     fs.writeFileSync(file, orig[file]);
+    await tick();
   }
 } finally {
   restore();
