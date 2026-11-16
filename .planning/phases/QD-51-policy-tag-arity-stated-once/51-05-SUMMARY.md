@@ -28,6 +28,7 @@ actuals:
   tokens: 4000
   tasks: 3
   commits: 1
+requirements-completed: [ARTY-01, ARTY-02, ARTY-03]  # backfilled at the v1.5 milestone audit; the phase VERIFICATION marks each SATISFIED
 ---
 
 # Phase QD-51 Plan 05: Phase close Summary

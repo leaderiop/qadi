@@ -24,6 +24,7 @@ actuals:
   tokens: 6000
   tasks: 3
   commits: 1
+requirements-completed: [AREF-01, AREF-02, AREF-03, AREF-04]  # backfilled at the v1.5 milestone audit; the phase VERIFICATION marks each SATISFIED
 ---
 
 # Phase QD-48 Plan 08: Close the phase on evidence Summary

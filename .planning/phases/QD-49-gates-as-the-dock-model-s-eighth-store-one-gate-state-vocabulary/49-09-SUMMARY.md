@@ -28,6 +28,7 @@ actuals:
   tokens: 4000
   tasks: 3
   commits: 1
+requirements-completed: [GATE-01, GATE-02, GATE-03, GATE-04, GATE-05]  # backfilled at the v1.5 milestone audit; the phase VERIFICATION marks each SATISFIED
 ---
 
 # Phase 49 Plan 09: Phase close Summary

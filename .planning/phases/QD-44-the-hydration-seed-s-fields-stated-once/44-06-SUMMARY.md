@@ -30,6 +30,7 @@ actuals:
   tokens: 400
   tasks: 3
   commits: 1
+requirements-completed: [HYDF-01, HYDF-02, HYDF-03, HYDF-04]  # backfilled at the v1.5 milestone audit; the phase VERIFICATION marks each SATISFIED
 ---
 
 # Phase 44 Plan 06: The phase close Summary
