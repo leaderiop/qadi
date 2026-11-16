@@ -22,7 +22,9 @@ import type { VisibleFields } from "./FieldLattice.ts";
 import { mergeFields } from "./FieldLattice.ts";
 import { holds } from "./Compare.ts";
 import type { Matcher, MatcherContext, Verdict } from "./Matcher.ts";
-import { judgeMatcher, referencesAction, referencesResource } from "./Matcher.ts";
+import { judgeMatcher, referencesAction } from "./Matcher.ts";
+import { absenceOf, errorOf } from "./LeafNeeds.ts";
+import type { Supplied } from "./LeafNeeds.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
@@ -63,6 +65,7 @@ import type { Question } from "./Question.ts";
 interface Evaluation {
   readonly resource: Resource | undefined;
   readonly action: string | undefined;
+  readonly supplied: Supplied;
   readonly concurrency: Concurrency | undefined;
 }
 
@@ -323,22 +326,9 @@ const evaluateNode = (
           : deny("HasRole", `subject lacks role '${policy.role}'`),
       );
 
-    case "HasAttribute":
-      if (action === undefined && referencesAction(policy.matcher)) {
-        // No key, not `expected: undefined`: `expected` is `Schema.optional`
-        // precisely so a JSON round-trip drops it, and this arm has no
-        // expected action to report — omitting the key spells that directly
-        // instead of writing a value that only round-trips to the same thing.
-        return Effect.fail(new MissingAction({}));
-      }
-      // The `HasResourceAttribute` mirror of the action check above
-      // (INV-QD-011): a matcher comparing against `resource(...)` with no
-      // resource in context would otherwise resolve that reference to
-      // `undefined`, compare false, and read as an ordinary denial rather than
-      // the caller error it is.
-      if (resource === undefined && referencesResource(policy.matcher)) {
-        return Effect.fail(new MissingResource({ attribute: policy.attribute }));
-      }
+    case "HasAttribute": {
+      const absent = absenceOf(policy, request.supplied);
+      if (absent !== undefined) return Effect.fail(errorOf(absent));
       return Effect.map(readAttribute("evaluate", subject, policy), (value) => {
         // One judgement gives both the decision and, on a denial, its reason.
         const verdict = judgeMatcher(policy.matcher, value, matcherContext);
@@ -346,6 +336,7 @@ const evaluateNode = (
           ? allow("HasAttribute", policy.fields)
           : deny("HasAttribute", attributeReason("subject", policy.attribute, verdict, policy.matcher));
       });
+    }
 
     case "HasResourceAttribute": {
       if (resource === undefined) {
@@ -900,6 +891,7 @@ export const walk = (
     const request: Evaluation = {
       resource: question.resource,
       action: question.action,
+      supplied: { action: question.action !== undefined, resource: question.resource !== undefined },
       concurrency,
     };
     // Admission is shared with `toPredicate` (`Admission.ts`): the depth gate,
