@@ -2,20 +2,19 @@
 gsd_state_version: "1.0"
 milestone: v1.5
 milestone_name: Arch Wave 10
-current_phase: 52
-current_plan: Not started
-status: completed
+status: Awaiting next milestone
 stopped_at: Phase QD-52 complete — all phases complete
-last_updated: "2026-11-16T18:55:06.615Z"
+last_updated: "2026-11-16T19:47:03.650Z"
 last_activity: 2026-11-16
-last_activity_desc: Phase QD-52 complete
-state_head: 48968dcefe35bf144c36ed615029535010ae9633
+last_activity_desc: Milestone v1.5 completed and archived
+state_head: 0e7f5a20b76a2b32dc6b1e3d25647810d915b911
 progress:
   total_phases: 10
   completed_phases: 10
   total_plans: 71
   completed_plans: 71
   percent: 100
+current_phase: 52
 ---
 
 # Project State
@@ -25,17 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-16)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Milestone v1.5 complete (Phases 43–52) — audit and close next
+**Current focus:** v1.5 Arch Wave 10 complete and archived (2026-11-16; not merged, not released) — next: `/gsd-new-milestone`
 
 ## Current Position
 
-Phase: QD-52
-Current Plan: Not started
-Total Plans in Phase: 5
-Status: All phases complete
-Last activity: 2026-11-16 — Phase QD-52 complete
-
-Progress: [██████████] 100% (10 of 10 phases)
+Phase: Milestone v1.5 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-11-16 — Milestone v1.5 completed and archived
 
 
 ## Performance Metrics
@@ -620,4 +616,5 @@ Resume file: None
 
 
 
-- Audit the milestone with /gsd-audit-milestone, then /gsd-complete-milestone v1.5 (no merge, no release)
+
+- Start the next milestone with /gsd-new-milestone

@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (current: v1.5 Arch Wave 10)
+# Qadi — Architecture Waves (last completed: v1.5 Arch Wave 10)
 
 ## What This Is
 
@@ -13,7 +13,7 @@ module was a shallow pass-through.
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
 
-## Current Milestone: v1.5 Arch Wave 10
+## Previous Milestone: v1.5 Arch Wave 10 (completed 2026-11-16; not released)
 
 **Goal:** Resolve all ten candidates of the 2026-11-15 architecture review, closing the four silent defects first
 (a caller's `resource` dropped by `guard`/`filter*`, a wire field dropped by hydration's `rebuild`, a `NaN` breaker
@@ -36,6 +36,15 @@ threshold that never opens, a failing user sink that loses records unlogged), th
 `arch-wave-9` at `ba0d0615` (v1.4 is not merged). No merge, no release.
 
 ## Current State
+
+v1.5 Arch Wave 10 completed 2026-11-16 on branch `arch-wave-10` (510 commits, 198 files, +14,406 / −1,559
+outside `.planning`): ARCH-90 to ARCH-99, ADR-QD-156..165, CCR-QD-434..443. All 10 phases `passed`; 43, 44, 45, 46
+and 48 were re-verified at the final head after later phases (and the audit's own fixes) edited files they cover. The
+milestone audit is `tech_debt`, accepted by the user: 52/52 requirements, 6/6 integration seams, 3/3 flows, Nyquist
+10/10. The full `pnpm check` (with mutation) exited 0 at the final head. Breaking changes in `@qadi/core`,
+`@qadi/promise`, `@qadi/react`, `@qadi/audit` and `@qadi/devtools`, pending as changesets. **Not merged and not
+released.** The branch builds on `arch-wave-9` (v1.4, also unmerged). Archive: `.planning/milestones/v1.5-ROADMAP.md`,
+`v1.5-REQUIREMENTS.md`, `v1.5-MILESTONE-AUDIT.md`.
 
 v1.4 Arch Wave 9 completed 2026-11-14 on branch `arch-wave-9` (228 commits, 95 files, +6,124 / −1,115
 outside `.planning`): ARCH-84 to ARCH-89, ADR-QD-150..155, CCR-QD-428..433. All 6 phases `passed`; 38, 39 and 40 were
@@ -185,7 +194,7 @@ logged, counted or spanned.
 
 - ✓ ARCH-89 A seeded question builds its own computing atom (SEED-01..06): `@qadi/react`'s package-private `SeededQuestion.ts` exports `makeSeededQuestion({ policy, resource, runtime, subject, report, live })`, which builds the question's computing atom itself and reads its seed through `seededIn(get.registry)`; the `computedFor` callback-that-takes-a-callback and `QadiAtoms.ts`'s hand-wired `seededDecision` are gone, `HydrationEngine.ts` is the payload codec only, `DECISIONS_KEY` and the `DECISION_READ_BUDGET` key moved with the code (`QadiRuntimeServices` did not), and the fake computing-atom tests were replaced by real-runtime ones, including two trap tests proven red under a `get(grantAtom)` read. User decision: option 1b (own module) over 1a (in place), 2 (seed holder) and 3 (reject). Milestone re-check: all 15 touched files at their latest recorded score. ADR-QD-155 (amends ADR-QD-149, ADR-QD-140; review added dated amendments to ADR-QD-093, ADR-QD-041 and BEH-QD-151); CCR-QD-433; `@qadi/react` patch.
 
-- ✓ ARCH-90 One handover module behind the enforcement entry points (HAND-01..06): the package-private `Handover.ts` owns "decide against this value, discharge on allow, release whole or projected" — `HandoverOptions` (`resource?: never`), the closed `Admitted`/`Refused` verdict from `verdictOf` (the one allow → discharge / deny branch), `resourceFree`/`decidedOn` (the positional value written last), the closed `Release` table holding the one `project(` and the per-item `handOver`; `discharge` moved byte-identical. The ten entry points in `Qadi.ts` are adapters by shape; `permitted`, `decideOne`, `withLoadedResource` and `FilterVerdict` are gone. `guard` and the four `filter*` refuse `{ resource }` at compile time (RED on the base), and `enforceProjected` now decides resource-free even when a resource is smuggled in at runtime. `@qadi/promise`'s `filter`, `filterProjected` and `projected` refuse `resource` through `resource?: never`, so a `FacadeOptions` variable is refused as well as a literal (review WR-01). **Breaking:** `LoadedEnforceOptions` renamed `HandoverOptions` with no alias. Mutation Qadi.ts 0.973 → 1, Handover.ts 1. ADR-QD-156 (amends ADR-104/105/019/022/035), CCR-QD-434, BEH-QD-551/552, INV-QD-331, INV-QD-108/032/009/013 restated; `@qadi/core` and `@qadi/promise` minor (Breaking) — v1.5 Phase 43
+- ✓ ARCH-90 One handover module behind the enforcement entry points (HAND-01..06): the package-private `Handover.ts` owns "decide against this value, discharge on allow, release whole or projected" — `HandoverOptions` (`resource?: never`), the closed `HandoverVerdict` (`Released`/`Barred`, renamed from `Admitted`/`Refused` at the milestone audit) from `verdictOf` (the one allow → discharge / deny branch), `resourceFree`/`decidedOn` (the positional value written last), the closed `Release` table holding the one `project(` and the per-item `handOver`; `discharge` moved byte-identical. The ten entry points in `Qadi.ts` are adapters by shape; `permitted`, `decideOne`, `withLoadedResource` and `FilterVerdict` are gone. `guard` and the four `filter*` refuse `{ resource }` at compile time (RED on the base), and `enforceProjected` now decides resource-free even when a resource is smuggled in at runtime. `@qadi/promise`'s `filter`, `filterProjected` and `projected` refuse `resource` through `resource?: never`, so a `FacadeOptions` variable is refused as well as a literal (review WR-01). **Breaking:** `LoadedEnforceOptions` renamed `HandoverOptions` with no alias. Mutation Qadi.ts 0.973 → 1, Handover.ts 1. ADR-QD-156 (amends ADR-104/105/019/022/035), CCR-QD-434, BEH-QD-551/552, INV-QD-331, INV-QD-108/032/009/013 restated; `@qadi/core` and `@qadi/promise` minor (Breaking) — v1.5 Phase 43
 - ✓ ARCH-91 The hydration seed's fields stated once (HYDF-01..04): `SeededDecision.ts` states each verdict's seed fields once — `AllowSeedFields`/`DenySeedFields` are `Struct.omit` of core's `DecisionWireAllow`/`DecisionWireDeny` fields minus `ALLOW_WITHHELD`/`DENY_WITHHELD`, plus `disclosure` — and `SeededAllow`/`SeededDeny` stay `Data.TaggedClass`es typed by them plus the one `subjectId` (ADR-QD-078 kept). The payload entries are `Schema.TaggedStruct`s of the same fields, `rebuild` is a spread, and the Allow/Deny branch is one closed `VERDICTS` table read by `dehydrateDecision`, `rebuild` and `entryAgrees` (no `_tag ===` branch left). A seeded round-trip property (RED on the base with a scratch wire field, GREEN after), an eight-string payload byte golden (unchanged), a wire key-set pin and a pin tying the test's classification to the engine's withheld lists (review WR-01 ×3) guard it. **Breaking:** `SeededAllow.visibleFields` is an optional key, absent when the server sent none. Mutation HydrationEngine.ts 1 → 1, SeededDecision.ts 0.875 → 0.875. ADR-QD-157 (Rev 1.3), ADR-QD-078 Rev 1.5, CCR-QD-435, BEH-QD-556, INV-QD-333, AGENTS.md §7; `@qadi/react` minor (Breaking) — v1.5 Phase 44
 - ✓ ARCH-92 The audit circuit breaker as one transition function (BRKR-01..05): `CircuitBreaker.ts`'s rules are one pure `step(rules)(state, event, now)` over a closed event union (Observe, Success, Failure, Claim, Release; the last three carry a generation), with the stale-generation check written once (`admittedUnder`), `generation + 1` written once (eight copies at the base) and seven hoisted `Match.type` matchers; one `run(event)` does the one clock read, the one `Ref.modify` and the announcement (INV-QD-052 kept), and a Claim is won when the state changed. A 21-row pure table plus a seeded fast-check property tests it without fibers or a clock; the 16-row adapter table and `CircuitBreaker.test.ts` (byte-identical) stay green. Options are checked once when built (package-private `SinkOptionChecks.ts`) and refused with the typed `InvalidAuditSinkOption`: a `failureThreshold` that is not a positive safe integer, a `resetTimeoutMs` that is not a finite, positive, whole number of milliseconds within the safe integers, a `storeCallTimeout` that is not a positive duration (`Duration.infinity` kept as no deadline, user decision D-06a). RED on the base (`NaN` built a breaker that never opened). **Breaking:** `AuditDecisionSinkLive`'s layer error is `InvalidAuditSinkOption` (was `never`), and `Infinity`/`Duration.infinity` thresholds and cooldowns are refused. Mutation CircuitBreaker.ts 0.805 → 0.853, AuditDecisionSinkLive.ts 1 → 1, new files 1. ADR-QD-158 (Rev 1.4), ADR-QD-126 Rev 1.1, CCR-QD-436, BEH-QD-561, INV-QD-335, BEH-QD-249/251/379 and INV-QD-052 amended; `@qadi/audit` minor (Breaking) — v1.5 Phase 45
 - ✓ ARCH-93 The sink emitter reports what it contains (EMIT-01..04): `sinkEmitter` suspends the sink's call, so a synchronous throw from `record` is contained too (on the base it made `evaluate` die), and turns every contained cause — failure, defect, self-interrupt — into exactly one `Warn` line, "qadi: a decision sink failed; the record was not delivered", annotated with exactly four keys (`qadi.sink`, `qadi.record_tag`, `evaluationId`, `qadi.cause`), inside a containment of its own so a throwing logger, `name` getter or cause rendering cannot defect or change a decision (INV-QD-035 restated, INV-QD-337/338). The report and the guarded `sinkName` live in package-private `SinkReport.ts`; `_tag`/`evaluationId` are captured before the sink runs (review WR-01), and an interruption of the evaluation itself propagates unreported (review WR-02). `DecisionSinkShape` gains optional `name`; all five shipped sinks name themselves (`decisionSinkAll`, `decisionSinkForwarding`, `decisionLog`, `evaluationEnvironment.shadow`, `AuditDecisionSinkLive`); the fan-out names its failed member with the same four keys and keeps going; the forwarder's outer catch is gone (one failure, one report — classification W0..W10); the sink is still read once. RED on the base: 14 + 12 + 1 rows logged nothing. Mutation DecisionLog.ts 0.93 → 0.99, DecisionSinkForwarding.ts 0.81 → 0.90, SinkEmit/EvaluationEnvironment/AuditDecisionSinkLive 1 → 1, SinkReport.ts 1. ADR-QD-159 (Rev 1.7), ADR-QD-044 Rev 1.3, CCR-QD-437, BEH-QD-566..570 (181/182/185/187 amended), INV-QD-337/338; `@qadi/core` minor, `@qadi/audit` patch — v1.5 Phase 46
@@ -254,6 +263,17 @@ logged, counted or spanned.
   - ADR Document IDs must equal the file number (`verify-traceability.sh`, gate 10).
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
+
+### Known Issues (carried forward from v1.5)
+
+- The v1.5 audit (`.planning/milestones/v1.5-MILESTONE-AUDIT.md`) is `tech_debt`, accepted by the user:
+  - plan-local ids (BRKR-, EMIT-, PFCT-, GATE-04, bare D-NN) remain in test titles and comments from Phases 45–52, and
+    ADR-QD-163/164 prose cites WX-05/ARTY-03; each needs the fitting BEH/INV/ADR id chosen per describe block;
+  - "written on the phase base" survives in audit `AuditWriteOutput.test.ts` and predicate-sql `CompileShell.test.ts`;
+  - Phase 52 IN-03 skipped on purpose: a duplicated refusal row and one oxlint `no-new-array` warning in predicate-sql's
+    `CompileShell.test.ts`, kept byte-identical as before/after evidence;
+  - D-06a (Prisma counts compiled after render) is pinned only by core's throwing-render case; the real trigger is a
+    renderer stack overflow on ~3000-deep `Negate` chains.
 
 ### Known Issues (carried forward from v1.4)
 
@@ -393,4 +413,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-16 after Phase 52*
+*Last updated: 2026-11-16 after v1.5 milestone*
