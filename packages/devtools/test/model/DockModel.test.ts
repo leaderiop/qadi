@@ -1239,6 +1239,11 @@ describe("the questions store (M31, M32, M33, M36..M42, P2)", () => {
       assert.deepStrictEqual(claims(failed), [undefined]);
       assert.strictEqual(heard.calls, 1);
 
+      // The same failure thrown afresh, from another call site with another stack, says the same thing.
+      double.failReads(new Error("registry exploded"));
+      assert.strictEqual(model.questions.getSnapshot(), failed);
+      assert.strictEqual(heard.calls, 1);
+
       // A different reason is a different statement, though no guard, question or flag moved with it.
       double.failReads(new Error("registry exploded again"));
       const again = model.questions.getSnapshot();

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-162                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — amends ADR-QD-047; applies ADR-QD-152; keeps ADR-QD-053, ADR-QD-080 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-16): decision 5: releasing the old registry's subscription is guarded and stated, never repeated (review iteration 2 WR-01)<br>1.1 (2026-11-16): decision 5: a registry that throws is stated as GatesView.Failed and its rows make no claim; the first version's rationale was false for react's own registry (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-96, CCR-QD-440) |
+> | Change History | 1.3 (2026-11-16): decision 5: the same failure is compared by name and message, not by the stack its reason renders (review iteration 2 IN-02)<br>1.2 (2026-11-16): decision 5: releasing the old registry's subscription is guarded and stated, never repeated (review iteration 2 WR-01)<br>1.1 (2026-11-16): decision 5: a registry that throws is stated as GatesView.Failed and its rows make no claim; the first version's rationale was false for react's own registry (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-96, CCR-QD-440) |
 
 ---
 
@@ -137,6 +137,10 @@ released by its finalizer. ADR-QD-152 is the shape of the vocabulary. No record 
    `subscribe` of the new registry is stated over it, because that one names the registry the model now reads. The old
    registry's listener may stay live in the host's registry. It only calls `rejoin`, which reads the registry the model holds now.
    A finalizer that cannot release has nowhere to state it, and swallows the throw after the model is marked closed.
+   Two failures are the same when an error's name and message agree (a thrown value that is not an error, when its rendered
+   reason does): the stack `Cause.pretty` renders differs by which path read the registry, and would otherwise publish a new
+   snapshot for a failure no reader could tell apart (review iteration 2, IN-02). The reason shown keeps its stack, as
+   `DiagnosticsStatus.Stopped` does.
    After close the model reads no registry at all, so a late `configure` runs none of the host's code.
 
 ## Consequences

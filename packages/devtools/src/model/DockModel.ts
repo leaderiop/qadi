@@ -158,11 +158,15 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   let offGates = () => {};
   // Why `subscribe` or the release of the previous subscription threw, if either did: the registry's changes then may not reach the model.
   let watchFailure: string | undefined;
+  // What `rejoin` compares of a failure: one throw reads the same from any call path, where its rendered stack does not.
+  let failureKey: string | undefined;
   const readGates = (): Pick<JoinInput, "gates" | "failed"> => {
+    failureKey = watchFailure;
     if (watchFailure !== undefined) return { gates: undefined, failed: watchFailure };
     try {
       return { gates: gatesNow?.instances(), failed: undefined };
     } catch (thrown) {
+      failureKey = thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : reasonOf(thrown);
       return { gates: undefined, failed: reasonOf(thrown) };
     }
   };
@@ -175,6 +179,7 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
     };
   };
   let lastKey = joinKeyNow();
+  let lastFailureKey = failureKey;
   const questions = makeExternalStore<QuestionsSnapshot>(joinQuestions(lastKey));
   const rejoin = () => {
     // A closed model runs no host code: a command after close reads no registry.
@@ -183,12 +188,13 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
     if (
       key.questions === lastKey.questions &&
       key.gates === lastKey.gates &&
-      key.failed === lastKey.failed &&
+      failureKey === lastFailureKey &&
       key.unsampled === lastKey.unsampled
     ) {
       return;
     }
     lastKey = key;
+    lastFailureKey = failureKey;
     questions.set(joinQuestions(key));
   };
   // Releases the held subscription and takes the new one; both are host code and both are guarded.
