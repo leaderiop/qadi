@@ -45,20 +45,20 @@ export interface LogLine {
 }
 
 /**
- * What one outcome reports. `log` is `"encodeRefusal"` for a refused record,
- * which goes through `@qadi/core`'s `reportEncodeRefusal` (ARCH-25) rather than
- * a line of this package's own.
+ * What one outcome reports. `log` is this package's own line, if any: a refused
+ * record has none, because `emitWriteOutcome` hands it to `@qadi/core`'s
+ * `reportEncodeRefusal` (ARCH-25), and that match is the one place saying so.
  */
 export interface AuditWriteReport {
   readonly writes: WritesLabel;
   readonly staging: ReadonlyArray<StagingLabel>;
   readonly lost: LostLabel | undefined;
-  readonly log: LogLine | "encodeRefusal" | undefined;
+  readonly log: LogLine | undefined;
 }
 
 interface StagingReport {
   readonly staging: ReadonlyArray<StagingLabel>;
-  readonly log: LogLine | "encodeRefusal" | undefined;
+  readonly log: LogLine | undefined;
 }
 
 const DROPPED_BREAKER_UNWIRED = "audit entry dropped: circuit breaker open and no staging port wired";
@@ -133,7 +133,7 @@ const lostLabel = (after: LostLabel["after"], staging: UnwrittenStaging): LostLa
  */
 export const describeAuditWriteOutcome: (self: AuditWriteOutcome) => AuditWriteReport = Match.type<AuditWriteOutcome>().pipe(
   Match.tagsExhaustive({
-    Refused: () => auditReport("encode_failed", stagingReport([], "encodeRefusal"), undefined),
+    Refused: () => auditReport("encode_failed", stagingReport([], undefined), undefined),
     Written: (o) => auditReport("written", writtenStagingReport(o.staging), undefined),
     WriteFailed: (o) =>
       auditReport("write_failed", writeFailedStagingReport(o.staging), lostLabel("write_failed", o.staging)),
@@ -221,16 +221,13 @@ const evaluationIdOf: (self: AuditWriteOutcome) => string = Match.type<AuditWrit
   Match.exhaustive,
 );
 
-/**
- * Logs one line annotated with the record's `evaluationId`. The refusal marker
- * and an absent line log nothing here: a refusal is core's report, not a line.
- */
+/** Logs one line annotated with the record's `evaluationId`; an absent line logs nothing. */
 const logLine = (line: AuditWriteReport["log"], evaluationId: string): Effect.Effect<void> =>
-  typeof line === "object"
-    ? Effect.logWithLevel(line.level)(...(line.cause === undefined ? [line.message] : [line.message, line.cause])).pipe(
+  line === undefined
+    ? Effect.void
+    : Effect.logWithLevel(line.level)(...(line.cause === undefined ? [line.message] : [line.message, line.cause])).pipe(
         Effect.annotateLogs({ evaluationId }),
-      )
-    : Effect.void;
+      );
 
 /**
  * Applies {@link describeAuditWriteOutcome}: updates the metrics, logs the line,

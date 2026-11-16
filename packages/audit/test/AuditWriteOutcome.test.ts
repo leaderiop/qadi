@@ -38,7 +38,7 @@ const ROWS: ReadonlyArray<Row> = [
     outcome: AuditWriteOutcome.Refused({ refusal }),
     path: "Refused",
     durability: "Refused",
-    report: { writes: "encode_failed", staging: [], lost: undefined, log: "encodeRefusal" },
+    report: { writes: "encode_failed", staging: [], lost: undefined, log: undefined },
   },
   {
     name: "Written, no staging",
