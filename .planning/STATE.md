@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 50
 current_phase_name: What a leaf needs from the request, stated once
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase QD-49 complete, ready to plan Phase 50
-last_updated: "2026-11-16T12:36:45.960Z"
+stopped_at: Completed QD-50-01-PLAN.md
+last_updated: "2026-11-16T12:43:29.087Z"
 last_activity: 2026-11-16
-last_activity_desc: Phase QD-49 complete, transitioned to Phase 50
-state_head: 4733ab79d933cfb55e2a076afd231372a8c182ab
+last_activity_desc: Phase QD-50 execution started
+state_head: 75580ec068aa6cc5034d3e5d1f544edaf0e7dc1d
 progress:
   total_phases: 10
   completed_phases: 7
   total_plans: 61
-  completed_plans: 53
+  completed_plans: 54
   percent: 70
 ---
 
@@ -26,15 +26,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-16)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 50 — What a leaf needs from the request, stated once
+**Current focus:** Phase QD-50 — What a leaf needs from the request, stated once
 
 ## Current Position
 
-Phase: QD-50 (What a leaf needs from the request, stated once) — READY TO EXECUTE
-Current Plan: Not started
+Phase: QD-50 (What a leaf needs from the request, stated once) — EXECUTING
+Current Plan: 2
 Total Plans in Phase: 8
-Status: Ready to execute
-Last activity: 2026-11-16 — Phase QD-49 complete, transitioned to Phase 50
+Status: Executing Phase QD-50
+Last activity: 2026-11-16 — Phase QD-50 execution started
 
 Progress: [███████░░░] 70% (7 of 10 phases)
 
@@ -309,6 +309,7 @@ Progress: [███████░░░] 70% (7 of 10 phases)
 | Phase QD-49 P07 | 25min | 3 tasks | 14 files |
 | Phase QD-49 P08 | 25min | 2 tasks | 5 files |
 | Phase QD-49 P09 | 15m | 3 tasks | 1 files |
+| Phase QD-50 P01 | 6min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -520,6 +521,7 @@ Progress: [███████░░░] 70% (7 of 10 phases)
 - [Phase QD-49]: ADR-QD-162 states the dock model's store count once (seven before, questions the eighth, sightings a thunk); ADR-QD-053 is noted, not reversed
 - [Phase QD-49]: 49-08: the five BEH records stay at five and the new listings are ts fences (package-private); AGENTS.md section 13 and devtools-spec 02-screens.md re-read and unchanged
 - [Phase QD-49]: 49-09: mutation holds every touched file at its base score; no survivor round needed; check:pr green, nothing released
+- [Phase QD-50]: 50-01: survivor identity is textual (mutator, status, replacement, mutated text, line text); 50-06 compares sorted lists
 
 ### Pending Todos
 
@@ -576,8 +578,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T07:22:18.420Z
-Stopped at: Phase QD-49 complete, ready to plan Phase 50
+Last session: 2026-11-16T12:43:28.894Z
+Stopped at: Completed QD-50-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
