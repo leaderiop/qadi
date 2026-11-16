@@ -353,8 +353,9 @@ const leafHeavy = allOf([
 
 /**
  * The same eight tags and the same request, with matchers that reference
- * neither input: the control for `leafHeavy`, so the cost of reading the
- * references is told from the cost of the arms.
+ * neither input. The request supplies both inputs, so in neither workload does
+ * the absence check ask a matcher what it references: the two take the same
+ * path, and the delta they share is the table read with both inputs present.
  */
 const leafHeavyPlain = allOf([
   hasAttribute("department", eq(subject("department"))),

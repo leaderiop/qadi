@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-163                                   |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — reads ADR-QD-024, ADR-QD-100, ADR-QD-134; applies ADR-QD-152; keeps ADR-QD-034, ADR-QD-073 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.6 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.5 (2026-11-16): a leaf no own classification names has no row that compiles (review iteration 2 WR-01)<br>1.4 (2026-11-16): the leaf-heavy pair measures the table read on the present-inputs path, not a matcher-reference walk (review IN-04)<br>1.3 (2026-11-16): Context: the base's action test built MissingAction({}), its resource test MissingResource (review IN-01)<br>1.2 (2026-11-16): HasAttribute's outcome on a request missing both inputs depends on what its matcher references (review WR-03)<br>1.1 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-97, CCR-QD-441) |
+> | Change History | 1.7 (2026-11-16): the leafHeavyPlain comment was corrected, comment-only (review iteration 2 IN-01)<br>1.6 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.5 (2026-11-16): a leaf no own classification names has no row that compiles (review iteration 2 WR-01)<br>1.4 (2026-11-16): the leaf-heavy pair measures the table read on the present-inputs path, not a matcher-reference walk (review IN-04)<br>1.3 (2026-11-16): Context: the base's action test built MissingAction({}), its resource test MissingResource (review IN-01)<br>1.2 (2026-11-16): HasAttribute's outcome on a request missing both inputs depends on what its matcher references (review WR-03)<br>1.1 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-97, CCR-QD-441) |
 
 ---
 
@@ -177,9 +177,9 @@ neither input and the one whose matchers reference both, 0.0 percentage points a
 workloads supply the action and the resource, so `absenceOf` returns before `referencesAction` or `referencesResource` runs
 and neither walks a matcher reference: the two take the same path, differ only in their matchers' own cost, and so the delta
 they share is the table read on the path where every input is present. The walk of a matcher's references runs only on the
-failing path, which neither workload measures. The bench file's comment on `leafHeavyPlain` says the pair tells the cost of
-reading the references from the cost of the arms; it does not, for this reason, and the comment is left as measured because a
-change to that file would no longer be the file the committed runs measured.
+failing path, which neither workload measures. The bench file's comment on `leafHeavyPlain` once said the pair tells the cost
+of reading the references from the cost of the arms; it was corrected to say this, a comment-only edit that changes no
+workload, so the file still runs what the committed runs measured.
 
 ### The after-run: the shipped source against the base
 
