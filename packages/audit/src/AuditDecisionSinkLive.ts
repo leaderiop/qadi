@@ -20,6 +20,7 @@
  * `Qadi.ts`'s `ObligationHandler`, not `DecisionSink`.
  */
 import * as Cause from "effect/Cause";
+import * as Data from "effect/Data";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -108,14 +109,36 @@ const DEFAULT_RESET_TIMEOUT_MS: Duration.Input = Duration.millis(30_000);
 const DEFAULT_STORE_CALL_TIMEOUT: Duration.Input = Duration.seconds(5);
 
 /**
- * How a stage attempt went and — only when it succeeded — how to commit it.
- * One value rather than a handle plus a `stagingPort !== undefined` check that
- * must always agree: `commit` is defined exactly when `staging` is `Staged`.
+ * How a stage attempt went, and the commit only a staged entry has.
+ *
+ * `commit` exists on `Staged` alone, so a check that must agree with the tag
+ * cannot drift from it: a handle plus an optional commit needed two checks that
+ * a new variant would pass silently.
  */
-interface StageResult {
-  readonly staging: UnwrittenStaging;
-  readonly commit: (() => Effect.Effect<void, AuditStagingError>) | undefined;
-}
+type StageResult = Data.TaggedEnum<{
+  NotWired: {};
+  StageFailed: {};
+  Staged: { readonly commit: () => Effect.Effect<void, AuditStagingError> };
+}>;
+
+const StageResult = Data.taggedEnum<StageResult>();
+
+// A staged copy is committed only once the trail write succeeded; a commit that
+// fails or dies is the staging store's bookkeeping, never the entry.
+const writtenStaging: (self: StageResult) => Effect.Effect<WrittenStaging> = Match.type<StageResult>().pipe(
+  Match.tagsExhaustive({
+    NotWired: () => Effect.succeed(WrittenStaging.NotWired()),
+    StageFailed: () => Effect.succeed(WrittenStaging.StageFailed()),
+    Staged: (s) =>
+      s.commit().pipe(
+        Effect.as(WrittenStaging.Committed()),
+        Effect.catchCause((cause) => Effect.succeed(WrittenStaging.CommitFailed({ cause }))),
+      ),
+  }),
+);
+
+/** The unwritten staging of a stage result: the tags are the same three, so nothing is restated and `commit` is never carried. */
+const unwrittenOf = (self: StageResult): UnwrittenStaging => UnwrittenStaging[self._tag]();
 
 /**
  * `Layer.Layer<DecisionSink, InvalidAuditSinkOption, AuditTrailPort>` — requires
@@ -175,33 +198,17 @@ export const AuditDecisionSinkLive = (
       const stageEntry = (entry: AuditEntry): Effect.Effect<StageResult> =>
         Effect.gen(function* () {
           if (stagingPort === undefined) {
-            return { staging: UnwrittenStaging.NotWired(), commit: undefined };
+            return StageResult.NotWired();
           }
           const staged = yield* Effect.exit(
             bounded(stagingPort.stage(entry), entry, AuditStagingError),
           );
           if (Exit.isFailure(staged)) {
-            return { staging: UnwrittenStaging.StageFailed(), commit: undefined };
+            return StageResult.StageFailed();
           }
           const handle = staged.value;
-          return {
-            staging: UnwrittenStaging.Staged(),
-            commit: () => bounded(stagingPort.commit(handle), entry, AuditStagingError),
-          };
+          return StageResult.Staged({ commit: () => bounded(stagingPort.commit(handle), entry, AuditStagingError) });
         });
-
-      // A staged copy is committed only once the trail write succeeded; a
-      // commit that fails or dies is the staging store's bookkeeping, never the
-      // entry.
-      const writtenStaging = (staged: StageResult): Effect.Effect<WrittenStaging> =>
-        staged.commit === undefined
-          ? Effect.succeed(
-              staged.staging._tag === "StageFailed" ? WrittenStaging.StageFailed() : WrittenStaging.NotWired(),
-            )
-          : staged.commit().pipe(
-              Effect.as(WrittenStaging.Committed()),
-              Effect.catchCause((cause) => Effect.succeed(WrittenStaging.CommitFailed({ cause }))),
-            );
 
       // The port calls, and nothing else: no metric is updated and no line is
       // logged here. `attempt` runs the write under `Effect.exit` and records
@@ -218,12 +225,12 @@ export const AuditDecisionSinkLive = (
           const staged = yield* stageEntry(entry);
           return yield* Match.value(permit).pipe(
             Match.tagsExhaustive({
-              Refused: () => Effect.succeed(AuditWriteOutcome.Skipped({ entry, staging: staged.staging })),
+              Refused: () => Effect.succeed(AuditWriteOutcome.Skipped({ entry, staging: unwrittenOf(staged) })),
               Admitted: (admitted) =>
                 Effect.gen(function* () {
                   const written = yield* admitted.attempt(bounded(trailPort.write(entry), entry, AuditWriteError));
                   if (Exit.isFailure(written)) {
-                    return AuditWriteOutcome.WriteFailed({ entry, staging: staged.staging });
+                    return AuditWriteOutcome.WriteFailed({ entry, staging: unwrittenOf(staged) });
                   }
                   return AuditWriteOutcome.Written({ entry, staging: yield* writtenStaging(staged) });
                 }),
