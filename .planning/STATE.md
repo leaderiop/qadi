@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 49
 current_phase_name: Gates as the dock model's eighth store, one gate-state vocabulary
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed QD-49-02-PLAN.md
-last_updated: "2026-11-16T06:16:55.331Z"
+stopped_at: Completed 49-03-PLAN.md
+last_updated: "2026-11-16T06:26:00.063Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase QD-49 execution started
-state_head: a5cb2a10dba87905539ae4a46e7c11699f46c252
+state_head: c19540ef8a6c52966c86c204e493ec7b20492b16
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 53
-  completed_plans: 46
+  completed_plans: 47
   percent: 60
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: QD-49 (Gates as the dock model's eighth store, one gate-state vocabulary) — EXECUTING
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 9
 Status: Executing Phase QD-49
 Last activity: 2026-11-16 — Phase QD-49 execution started
@@ -301,6 +301,7 @@ Progress: [██████░░░░] 60% (6 of 10 phases)
 | Phase QD-48 P08 | 5min | 3 tasks | 1 files |
 | Phase QD-49 P01 | 8min | 2 tasks | 2 files |
 | Phase QD-49 P02 | 12min | 3 tasks | 6 files |
+| Phase QD-49 P03 | 25min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -505,6 +506,7 @@ Progress: [██████░░░░] 60% (6 of 10 phases)
 - [Phase QD-48]: 48-08: the overview's historical Change History row naming the deleted class stays (history exempt); the scope check excluded only that row
 - [Phase QD-49]: 49-01: no ADR forbids the gates-as-eighth-store design; ADR-QD-053's one-shot-prop and useGateInstances sentences become historical, noted (not reversed) by ADR-QD-162
 - [Phase QD-49]: 49-02: the characterisation hands guards through gatesProp in a panelMarkup(props, guards?) helper, so no gates prop and an empty one stay distinct and 49-05 flips one line
+- [Phase QD-49]: 49-03: GateState rows stay empty in core; display words (Error, Deny, Allow) live only in devtools (D-02)
 
 ### Pending Todos
 
@@ -560,8 +562,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T06:16:55.174Z
-Stopped at: Completed QD-49-02-PLAN.md
+Last session: 2026-11-16T06:25:59.895Z
+Stopped at: Completed 49-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

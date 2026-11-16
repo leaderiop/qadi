@@ -642,7 +642,7 @@ Plans:
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `DockModel.ts`, `QuestionsPanel.tsx`, `Gates.ts` and react's `GateWriter.ts`, with a characterisation of the panel's current rows, committed first; then the vocabulary in core and both derivations; then the eighth store and the panel read; then records. Browser behaviour (Activity hide/show, focus) stays as it was; any change to it is named.
 **UI hint**: yes
-**Plans**: 2/9 plans executed
+**Plans**: 3/9 plans executed
 
 Plans:
 **Wave 1**
@@ -652,7 +652,7 @@ Plans:
 - [x] 49-02-PLAN.md — the Questions panel's twelve-cell characterisation through the public dock, and the panel tests routed through one input seam, on the base
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 49-03-PLAN.md — the five gate states stated once in core (RED first), read by react's type and devtools' display; overview rows; the sixth-word negative control
+- [x] 49-03-PLAN.md — the five gate states stated once in core (RED first), read by react's type and devtools' display; overview rows; the sixth-word negative control
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 49-04-PLAN.md — the gate registry as the dock model's eighth store, joined at one moment (RED first, a fast-check property); the torn-join negative control and a Stryker spot check
@@ -738,7 +738,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 46. The sink emitter reports what it contains | 7/7 | Complete    | 2026-11-15 |
 | 47. Port facts read from the description | 7/7 | Complete    | 2026-11-16 |
 | 48. Audit reports core's refusal and derives "lost" | 8/8 | Complete    | 2026-11-16 |
-| 49. Gates as the dock model's eighth store, one gate-state vocabulary | 2/9 | In Progress | - |
+| 49. Gates as the dock model's eighth store, one gate-state vocabulary | 3/9 | In Progress | - |
 | 50. What a leaf needs from the request, stated once | 0/TBD | Not started | - |
 | 51. Policy tag arity stated once | 0/TBD | Not started | - |
 | 52. Core owns the predicate compile shell | 0/TBD | Not started | - |
