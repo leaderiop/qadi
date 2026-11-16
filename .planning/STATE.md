@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 51
 current_phase_name: Policy tag arity stated once
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed QD-51-01-PLAN.md
-last_updated: "2026-11-16T15:44:59.177Z"
+stopped_at: Completed QD-51-02-PLAN.md
+last_updated: "2026-11-16T15:50:32.667Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase QD-50 complete, transitioned to Phase 51
-state_head: d7324ee496227e615f6ddec6def40250657cc76f
+state_head: 4288068ada56d24d8b0c6092309cace48769404e
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 66
-  completed_plans: 62
+  completed_plans: 63
   percent: 80
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: 51 — Policy tag arity stated once
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 5
 Status: Ready to execute
 Last activity: 2026-11-16 — Phase QD-50 complete, transitioned to Phase 51
@@ -319,6 +319,7 @@ Progress: [████████░░] 80% (8 of 10 phases)
 | Phase QD-50 P07 | 25min | 3 tasks | 9 files |
 | Phase QD-50 P08 | 20min | 2 tasks | 1 files |
 | Phase QD-51 P01 | 6min | 2 tasks | 1 files |
+| Phase QD-51 P02 | 15min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -538,6 +539,7 @@ Progress: [████████░░] 80% (8 of 10 phases)
 - [Phase QD-50]: 50-06: after-run gate pass (0/35 slower, geomean +1.87%); mutation holds, Walk.ts by D-13, LeafNeeds.ts sole survivor equivalent
 - [Phase QD-50]: ADR-QD-163 records both bench runs from the committed analysis.tsv files; the after-run's worst row (+9.3%) is stated as 0.7 points inside its band
 - [Phase QD-51]: 51-01: Stryker baseline of Policy.ts and Decision.ts measured once on the untouched base and committed alone as the phase's first commit; never re-baselined
+- [Phase QD-51]: 51-02: TraceShape EXPECTED is hand-written and never reads the arity record; base experiment: 32/32 moves compile, table catches 32/32, Decision.test.ts 8/32
 
 ### Pending Todos
 
@@ -595,8 +597,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T15:44:51.567Z
-Stopped at: Completed QD-51-01-PLAN.md
+Last session: 2026-11-16T15:50:32.469Z
+Stopped at: Completed QD-51-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
