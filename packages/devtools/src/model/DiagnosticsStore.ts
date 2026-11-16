@@ -31,8 +31,8 @@
  * `accept` keeps each field's previous reference when `Equal.equals` says it is
  * unchanged and notifies only if some field moved.
  *
- * Gates are deliberately not here. They are pushed by the host's subscription
- * to `@qadi/react`'s registry and stay a plain prop (AGENTS.md §13).
+ * Gates are deliberately not here. They are the dock model's own input
+ * (`DockModelInputs.gates`), a registry the model subscribes to (ADR-QD-162).
  */
 import * as Cause from "effect/Cause";
 import * as Data from "effect/Data";
