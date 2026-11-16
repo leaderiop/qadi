@@ -16,6 +16,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import { Activity, StrictMode } from "react";
 import {
   allOf,
   AttributeResolver,
@@ -39,6 +40,8 @@ import { sourceFromRecords } from "../../src/model/Source.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
 import { WiringRead } from "../../src/model/DiagnosticsStore.ts";
 import type { WiringReport } from "../../src/model/Wiring.ts";
+import type { GateInstanceLike } from "../../src/model/Gates.ts";
+import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
 import { decisionRecord, obligationRecord } from "../helpers.ts";
 
 const read = permission("doc", "read");
@@ -1217,5 +1220,98 @@ describe("screen 6 — the port calls the dock threads through", () => {
       await click(screen.getByRole("button", { name: "Services" }));
       assert.isNotNull(screen.getByTestId("qadi-wiring-absent"));
     });
+  });
+});
+
+/**
+ * The dock's gate registry subscription lives exactly as long as its scope
+ * (ADR-QD-137, ADR-QD-162): one while visible, none while hidden or unmounted,
+ * one under StrictMode, and a swapped registry hands its subscription over.
+ *
+ * These cases pin the behaviour 49-05 shipped, so they were written after it and
+ * passed at once; the base had no registry subscription in devtools to pin.
+ */
+describe("the gate registry lives as long as the dock", () => {
+  const asked = [{ policy: hasPermission(read) }];
+  const guard = (id: string): GateInstanceLike => ({
+    id,
+    kind: "Can",
+    policy: hasPermission(read),
+    state: "Allowed",
+  });
+  const guardIds = () => screen.queryAllByTestId("qadi-instance").length;
+
+  it("holds one subscription while visible, none while hidden, and lists a guard added meanwhile on re-show", async () => {
+    const double = makeGateRegistryDouble([guard("a")]);
+    const App = ({ mode }: { readonly mode: "visible" | "hidden" }) => (
+      <Activity mode={mode}>
+        <DevtoolsDock gates={double.registry} reading={{ questions: asked }} />
+      </Activity>
+    );
+    const view = render(<App mode="visible" />);
+    await act(async () => {});
+    assert.strictEqual(double.listeners(), 1);
+
+    await act(async () => {
+      view.rerender(<App mode="hidden" />);
+    });
+    assert.strictEqual(double.listeners(), 0);
+
+    double.add(guard("b"));
+    await act(async () => {
+      view.rerender(<App mode="visible" />);
+    });
+    assert.strictEqual(double.listeners(), 1);
+    await click(screen.getByRole("button", { name: "React" }));
+    assert.strictEqual(guardIds(), 2);
+  });
+
+  it("holds exactly one subscription under StrictMode", async () => {
+    const double = makeGateRegistryDouble([guard("a")]);
+    render(
+      <StrictMode>
+        <DevtoolsDock gates={double.registry} />
+      </StrictMode>,
+    );
+    await act(async () => {});
+    assert.strictEqual(double.listeners(), 1);
+  });
+
+  it("moves its one subscription to a swapped registry and lists the new guards at once", async () => {
+    const first = makeGateRegistryDouble([guard("a")]);
+    const second = makeGateRegistryDouble([guard("b"), guard("c")]);
+    const view = render(<DevtoolsDock gates={first.registry} reading={{ questions: asked }} />);
+    await act(async () => {});
+    assert.strictEqual(first.listeners(), 1);
+    await click(screen.getByRole("button", { name: "React" }));
+    assert.strictEqual(guardIds(), 1);
+
+    await act(async () => {
+      view.rerender(<DevtoolsDock gates={second.registry} reading={{ questions: asked }} />);
+    });
+    assert.strictEqual(first.listeners(), 0);
+    assert.strictEqual(second.listeners(), 1);
+    assert.strictEqual(guardIds(), 2);
+  });
+
+  it("leaves no subscription behind when it unmounts", async () => {
+    const double = makeGateRegistryDouble([guard("a")]);
+    const view = render(<DevtoolsDock gates={double.registry} />);
+    await act(async () => {});
+    assert.strictEqual(double.listeners(), 1);
+    await act(async () => {
+      view.unmount();
+    });
+    assert.strictEqual(double.listeners(), 0);
+  });
+
+  it("subscribes to nothing and says where guards come from when handed no registry", async () => {
+    const double = makeGateRegistryDouble([guard("a")]);
+    render(<DevtoolsDock reading={{ questions: asked }} />);
+    await act(async () => {});
+    assert.strictEqual(double.subscriptions(), 0);
+    await click(screen.getByRole("button", { name: "React" }));
+    assert.include(screen.getByTestId("qadi-gates-absent").textContent ?? "", "atoms.gates, from @qadi/react");
+    assert.isNull(screen.queryByTestId("qadi-pick"));
   });
 });
