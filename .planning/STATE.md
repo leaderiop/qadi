@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 50
 current_phase_name: What a leaf needs from the request, stated once
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed QD-50-02-PLAN.md
-last_updated: "2026-11-16T12:52:27.927Z"
+stopped_at: Completed QD-50-03-PLAN.md
+last_updated: "2026-11-16T13:05:32.731Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase QD-50 execution started
-state_head: f6322ff9eb4b73c560474c6f108a455667892a92
+state_head: cec75b99481f0577cb422b7fa3e49ab1ec6f4dc2
 progress:
   total_phases: 10
   completed_phases: 7
   total_plans: 61
-  completed_plans: 55
+  completed_plans: 56
   percent: 70
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: QD-50 (What a leaf needs from the request, stated once) — EXECUTING
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 8
 Status: Executing Phase QD-50
 Last activity: 2026-11-16 — Phase QD-50 execution started
@@ -311,6 +311,7 @@ Progress: [███████░░░] 70% (7 of 10 phases)
 | Phase QD-49 P09 | 15m | 3 tasks | 1 files |
 | Phase QD-50 P01 | 6min | 2 tasks | 2 files |
 | Phase QD-50 P02 | 12min | 3 tasks | 5 files |
+| Phase QD-50 P03 | 12min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -524,6 +525,7 @@ Progress: [███████░░░] 70% (7 of 10 phases)
 - [Phase QD-49]: 49-09: mutation holds every touched file at its base score; no survivor round needed; check:pr green, nothing released
 - [Phase QD-50]: 50-01: survivor identity is textual (mutator, status, replacement, mutated text, line text); 50-06 compares sorted lists
 - [Phase QD-50]: 50-02: matrix expectations are base-captured literals plus a hand-written D-05 oracle; no leaf-needs table or leafTags read
+- [Phase QD-50]: Bench gate passed (slower 0 of 35, geomean +2.75%, worst +8.7% inside band): the leaf-needs table is pursued, 50-04..50-08 run
 
 ### Pending Todos
 
@@ -580,8 +582,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T12:52:27.722Z
-Stopped at: Completed QD-50-02-PLAN.md
+Last session: 2026-11-16T13:05:32.540Z
+Stopped at: Completed QD-50-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
