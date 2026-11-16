@@ -6,7 +6,13 @@ import * as Metric from "effect/Metric";
 import type * as Tracer from "effect/Tracer";
 import type { Predicate } from "../src/Predicate.ts";
 import { compilePredicate } from "../src/RenderablePredicate.ts";
-import type { CompileOutcomes, RenderableNode } from "../src/RenderablePredicate.ts";
+import type {
+  CompileOutcomes,
+  CompilePredicateOptions,
+  FiniteGuard,
+  NullGuard,
+  RenderableNode,
+} from "../src/RenderablePredicate.ts";
 import { collectingTracer, isolatedMetrics } from "./helpers.ts";
 
 // `compilePredicate` is core's compile shell (BEH-QD-596). The dialect packages pin
@@ -108,17 +114,52 @@ describe("compilePredicate — the compile shell (BEH-QD-596)", () => {
       }),
     ));
 
-  it.effect("the dialect's rules reach toRenderable unchanged", () =>
+  // Each field is flipped from `RULES` to a value that changes what `toRenderable`
+  // makes of the probe, so a field the shell dropped or replaced would fail its row.
+  it.effect("each of the dialect's five rules reaches toRenderable unchanged", () =>
     isolatedMetrics(
       Effect.gen(function* () {
-        const refusal = yield* Effect.flip(
-          compilePredicate(eq("not", 1), {
-            rules: { ...RULES, reservedColumns: new Set(["not"]) },
-            outcomes,
-            render: () => "ok",
-          }),
+        const node = (predicate: Predicate, rules: CompilePredicateOptions<RenderableNode>["rules"]) =>
+          compilePredicate(predicate, { rules, outcomes, render: (n) => n });
+        const refusalOf = (predicate: Predicate, rules: CompilePredicateOptions<RenderableNode>["rules"]) =>
+          Effect.map(Effect.flip(node(predicate, rules)), (e) => e.refusal);
+        const gte = (column: string, value: number): Predicate => ({ _tag: "Compare", column, op: "Gte", value });
+
+        // reservedColumns
+        assert.strictEqual(yield* refusalOf(eq("not", 1), { ...RULES, reservedColumns: new Set(["not"]) }), "ReservedColumn");
+        // nullability: `Unknown` renders a null comparison, a declared NOT NULL column refuses it
+        assert.deepStrictEqual(yield* node(eq("a", null), RULES), { _tag: "IsNull", column: "a", negated: false });
+        assert.strictEqual(
+          yield* refusalOf(eq("a", null), { ...RULES, nullability: { _tag: "Declared", nullable: new Set() } }),
+          "NullOnNonNullableColumn",
         );
-        assert.strictEqual(refusal.refusal, "ReservedColumn");
+        // negation: under one `Negate`, a three-valued target must exclude the NULL row itself
+        const negated: Predicate = { _tag: "Negate", predicate: eq("a", 1) };
+        const inner = (nullGuard: NullGuard): RenderableNode => ({
+          _tag: "Not",
+          inner: { _tag: "Equals", column: "a", negated: false, value: 1, nullGuard },
+        });
+        assert.deepStrictEqual(yield* node(negated, RULES), inner("None"));
+        assert.deepStrictEqual(yield* node(negated, { ...RULES, negation: "ThreeValued" }), inner("ExcludeNull"));
+        // finiteness: `Unknown` guards a range, a column declared not floating needs no guard
+        const range = (finiteGuard: FiniteGuard): RenderableNode => ({
+          _tag: "Range",
+          column: "a",
+          op: "Gte",
+          bound: 3,
+          nullGuard: "None",
+          finiteGuard,
+        });
+        assert.deepStrictEqual(yield* node(gte("a", 3), RULES), range("ExcludeNonFinite"));
+        assert.deepStrictEqual(
+          yield* node(gte("a", 3), { ...RULES, finiteness: { _tag: "Declared", floating: new Set() } }),
+          range("None"),
+        );
+        // finiteExclusion: a range that needs the guard refuses where the target cannot express it
+        assert.strictEqual(
+          yield* refusalOf(gte("a", 3), { ...RULES, finiteExclusion: "Inexpressible" }),
+          "NonFiniteColumn",
+        );
       }),
     ));
 
