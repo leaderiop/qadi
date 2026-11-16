@@ -689,7 +689,7 @@ Plans:
   5. If pursued: `SWITCH_BUDGET` and `UNTRACED_BUDGET` are unchanged (the AGENTS.md tables and the budgets agree), and `pnpm bench` after the change shows no workload regressed beyond noise against the phase base.
 
 **Planning notes**: **The benchmark is the first plan, and it gates the rest.** Prototype on a scratch branch or an unmerged commit, run `pnpm bench` against the base the way ADR-QD-073's addendum did, and record the table before writing any source that stays. Re-verify the `Walk.ts`, `PortAccess.ts` and `Predicate.ts` line numbers in `_WAVE10-CONTEXT.md` against the base. If pursued, **plan shape, RED first**: the mutation base for `Walk.ts`, `Predicate.ts` and `PortAccess.ts`, and the missing-both-inputs characterisation per leaf kind, committed first; then the module; then `Walk`; then `Predicate`; then records.
-**Plans**: 5/8 plans executed
+**Plans**: 6/8 plans executed
 
 Plans:
 **Wave 1**
@@ -708,7 +708,7 @@ Plans:
 - [x] 50-05-PLAN.md — the D-08a test RED, `toPredicate` reading the table and the judgements, `readScoped`'s error through `errorOf`
 
 **Wave 6** *(blocked on Wave 5 completion; pursue only)*
-- [ ] 50-06-PLAN.md — the final source against the base on the gate's statistic; the mutation after-run with D-13's rule for `Walk.ts`
+- [x] 50-06-PLAN.md — the final source against the base on the gate's statistic; the mutation after-run with D-13's rule for `Walk.ts`
 
 **Wave 7** *(blocked on Wave 6 completion; pursue only)*
 - [ ] 50-07-PLAN.md — ADR-QD-163 with both measurements, BEH-QD-586..590, INV-QD-345..346, INV-QD-011's source, traceability, CCR-QD-441, the `@qadi/core` patch changeset
@@ -764,6 +764,6 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 47. Port facts read from the description | 7/7 | Complete    | 2026-11-16 |
 | 48. Audit reports core's refusal and derives "lost" | 8/8 | Complete    | 2026-11-16 |
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 9/9 | Complete    | 2026-11-16 |
-| 50. What a leaf needs from the request, stated once | 5/8 | In Progress | - |
+| 50. What a leaf needs from the request, stated once | 6/8 | In Progress | - |
 | 51. Policy tag arity stated once | 0/TBD | Not started | - |
 | 52. Core owns the predicate compile shell | 0/TBD | Not started | - |

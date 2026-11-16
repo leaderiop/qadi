@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 50
 current_phase_name: What a leaf needs from the request, stated once
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed QD-50-05-PLAN.md
-last_updated: "2026-11-16T13:14:51.213Z"
+stopped_at: Completed QD-50-06-PLAN.md
+last_updated: "2026-11-16T13:23:07.444Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase QD-50 execution started
-state_head: 0595cc93241aad8762d1f956af909c9f82e9a606
+state_head: a4ae5813056231073794b1c23c71ec69f728496f
 progress:
   total_phases: 10
   completed_phases: 7
   total_plans: 61
-  completed_plans: 58
+  completed_plans: 59
   percent: 70
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: QD-50 (What a leaf needs from the request, stated once) — EXECUTING
-Current Plan: 6
+Current Plan: 7
 Total Plans in Phase: 8
 Status: Executing Phase QD-50
 Last activity: 2026-11-16 — Phase QD-50 execution started
@@ -314,6 +314,7 @@ Progress: [███████░░░] 70% (7 of 10 phases)
 | Phase QD-50 P03 | 12min | 3 tasks | 2 files |
 | Phase QD-50 P04 | 8min | 2 tasks | 3 files |
 | Phase QD-50 P05 | 6min | 2 tasks | 3 files |
+| Phase QD-50 P06 | 10min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -530,6 +531,7 @@ Progress: [███████░░░] 70% (7 of 10 phases)
 - [Phase QD-50]: Bench gate passed (slower 0 of 35, geomean +2.75%, worst +8.7% inside band): the leaf-needs table is pursued, 50-04..50-08 run
 - [Phase QD-50]: 50-04: LeafNeeds.ts ships as the gate-measured P1 module (D-01); Walk's leaf arms read it
 - [Phase QD-50]: 50-05: D-08a applied, toPredicate's MissingAction has no own expected key when no action was named; readScoped builds MissingResourceId through errorOf after annotateQuestion
+- [Phase QD-50]: 50-06: after-run gate pass (0/35 slower, geomean +1.87%); mutation holds, Walk.ts by D-13, LeafNeeds.ts sole survivor equivalent
 
 ### Pending Todos
 
@@ -586,8 +588,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T13:14:51.002Z
-Stopped at: Completed QD-50-05-PLAN.md
+Last session: 2026-11-16T13:23:07.232Z
+Stopped at: Completed QD-50-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
