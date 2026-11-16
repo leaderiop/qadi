@@ -220,10 +220,12 @@ export const verdictOf = <E = never, R = never>(
 /**
  * Drops any runtime `resource` from the options.
  *
- * With {@link decidedOn}, the only place a resource enters or leaves enforcement
- * options. `HandoverOptions` refuses one at compile time; this is what an
- * untyped caller meets at runtime, so an entry point that decides with no
- * resource, or with the one it hands over, never evaluates another.
+ * With {@link decidedOn}, the only place the value-handing entry points' options
+ * gain or lose a resource; `assert` and `enforce` keep `options.resource` by
+ * design, because what they wrap is not a resource (ADR-QD-156).
+ * `HandoverOptions` refuses one at compile time; this is what an untyped caller
+ * meets at runtime, so an entry point that decides with no resource, or with
+ * the one it hands over, never evaluates another.
  */
 export const resourceFree = <E, R>(options: HandoverOptions<E, R> = {}): EnforceOptions<E, R> => {
   const { resource: _resource, ...rest } = options;
