@@ -598,7 +598,7 @@ Plans:
   5. ADR-QD-161 records the decision after checking ADR-QD-054 and ADR-QD-056, and the `@qadi/audit` changeset and `upgrading.md` mark `onRefused`'s new type as **Breaking**.
 
 **Planning notes**: **Research flag: the first plan checks ADR-QD-054 and ADR-QD-056 against core's `SinkRecordNotEncodable` before any code**, and records what the ADRs actually forbid. **Plan shape, RED first**: the mutation base for the audit files, the characterisation of log, span and metric output on every outcome variant, committed first; then the refusal type; then the durability-derived label; then records.
-**Plans**: 3/8 plans executed
+**Plans**: 4/8 plans executed
 
 Plans:
 **Wave 1**
@@ -611,7 +611,7 @@ Plans:
 - [x] 48-03-PLAN.md — `AuditRefusal.tst.ts` RED; tracer: the refusal typed `SinkRecordNotEncodable` end to end; the audit class deleted; the overview row dropped; CCR-QD-439 started
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 48-04-PLAN.md — tracer: one row per unwritten staging (`UnwrittenRow.ts`, package-private) read by `durabilityOf` and the lost label; the line's level reads it; `durabilityOf`'s doc made true
+- [x] 48-04-PLAN.md — tracer: one row per unwritten staging (`UnwrittenRow.ts`, package-private) read by `durabilityOf` and the lost label; the line's level reads it; `durabilityOf`'s doc made true
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 48-05-PLAN.md — tracer: `StageResult` a closed union and `writtenStaging` an exhaustive match; `evaluationIdOf`, `outcomePath` and the refusal branch exhaustive
@@ -709,7 +709,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 45. The audit circuit breaker as one transition function | 8/8 | Complete    | 2026-11-15 |
 | 46. The sink emitter reports what it contains | 7/7 | Complete    | 2026-11-15 |
 | 47. Port facts read from the description | 7/7 | Complete    | 2026-11-16 |
-| 48. Audit reports core's refusal and derives "lost" | 3/8 | In Progress | - |
+| 48. Audit reports core's refusal and derives "lost" | 4/8 | In Progress | - |
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 0/TBD | Not started | - |
 | 50. What a leaf needs from the request, stated once | 0/TBD | Not started | - |
 | 51. Policy tag arity stated once | 0/TBD | Not started | - |
