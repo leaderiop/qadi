@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-163                                   |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — reads ADR-QD-024, ADR-QD-100, ADR-QD-134; applies ADR-QD-152; keeps ADR-QD-034, ADR-QD-073 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.5 (2026-11-16): a leaf no own classification names has no row that compiles (review iteration 2 WR-01)<br>1.4 (2026-11-16): the leaf-heavy pair measures the table read on the present-inputs path, not a matcher-reference walk (review IN-04)<br>1.3 (2026-11-16): Context: the base's action test built MissingAction({}), its resource test MissingResource (review IN-01)<br>1.2 (2026-11-16): HasAttribute's outcome on a request missing both inputs depends on what its matcher references (review WR-03)<br>1.1 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-97, CCR-QD-441) |
+> | Change History | 1.6 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.5 (2026-11-16): a leaf no own classification names has no row that compiles (review iteration 2 WR-01)<br>1.4 (2026-11-16): the leaf-heavy pair measures the table read on the present-inputs path, not a matcher-reference walk (review IN-04)<br>1.3 (2026-11-16): Context: the base's action test built MissingAction({}), its resource test MissingResource (review IN-01)<br>1.2 (2026-11-16): HasAttribute's outcome on a request missing both inputs depends on what its matcher references (review WR-03)<br>1.1 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-97, CCR-QD-441) |
 
 ---
 
@@ -40,16 +40,17 @@ rejection) and a pursue path. The gate passed.
 
 1. **One package-private module states each leaf's needs** (D-01, D-09). `packages/core/src/LeafNeeds.ts` holds `LEAF_NEEDS`,
    a keyed table written `as const satisfies { readonly [K in LeafPolicy["_tag"]]: LeafNeedOf<K> }`, applying ADR-QD-152: a leaf
-   tag without a row is TS2741 and an extra row is TS2353 (INV-QD-345). `LeafNeedOf<K>` fixes the one row a leaf can have. Its `matcher` is read
-   from the variant's shape (`true` exactly when it carries a `matcher`). Its `own` cannot be: a leaf's type does not show
-   which input it reads (`HasAttribute` and `HasResourceAttribute` have the same fields), so each tag is classified by name
-   into one of three closed lists, one per `own` value, and a tag in none of them gets `never`. A row that disagrees with its
-   leaf (`matcher: false` on a leaf that carries a matcher, `own: "Action"` on a leaf classified as reading nothing) is
-   TS2322, and so is every row for a leaf no list names yet, so a new leaf does not compile until someone states what it
-   reads; it cannot default to reading nothing. `absenceOf` reads a leaf's matcher and action through two guards that trust
-   the row, and a row the compiler did not tie to its leaf would fail open. The classification is still a hand-written
-   statement: the compiler guarantees that one is made for every leaf, not that it is right, and `LeafMatrix.test.ts`'s
-   fixture per leaf tag is what checks a classification against behaviour. A row says what the leaf reads itself (`own`:
+   tag without a row is TS2741 and an extra row is TS2353 (INV-QD-345). `LeafNeedOf<K>` fixes the one row a leaf can have.
+   Its `matcher` is read from the variant's shape (`true` exactly when it carries a `matcher`). Its `own` cannot be: a leaf's
+   type does not show which input it reads (`HasAttribute` and `HasResourceAttribute` have the same fields), so each tag is
+   classified by name into one of three closed lists, one per `own` value, and a tag in none of them gets `never`; its
+   `resourceId` is classified the same way, by three closed lists. A row that disagrees with its leaf (`matcher: false` on a
+   leaf that carries a matcher, `own: "Action"` on a leaf classified as reading nothing) is TS2322, and so is every row for a
+   leaf no list names yet, so a new leaf does not compile until someone states what it reads; it cannot default to reading
+   nothing. `absenceOf` reads a leaf's matcher and action through two guards that trust the row, and a row the compiler did
+   not tie to its leaf would fail open. The classification is still a hand-written statement: the compiler guarantees that
+   one is made for every leaf, not that it is right. `LeafMatrix.test.ts`'s fixture per leaf tag checks an `own` against
+   behaviour, and `LeafNeeds.test.ts` checks a `resourceId` against `readScoped`. A row says what the leaf reads itself (`own`:
    `Nothing`, `Action` or `Resource`), whether its matcher is asked what it references (`matcher`), and whether it asks a port
    about one resource (`resourceId`: `Never`, `Always` or `ByScope`). It is out of the barrel (ADR-QD-099), so gate 13 (`check-api-surface.mjs`) asks for
    no overview row, and `LeafNeeds.test.ts` asserts that none of its exports is on the barrel.
@@ -265,8 +266,8 @@ mutant was not done. `PortAccess.ts` and `Predicate.ts` did not fall.
 ## Consequences
 
 - **A new leaf tag needs a row.** Adding a leaf to `LeafPolicy` without a row in `LEAF_NEEDS` is TS2741 and an extra row is
-  TS2353, a row whose `own` disagrees with its tag's classification or whose `matcher` disagrees with its variant is TS2322,
-  and a leaf that no `own` classification names has no row that compiles (INV-QD-345, `LeafNeeds.tst.ts`); a leaf whose own input is checked after what its matcher references is a failing matrix cell and a
+  TS2353, a row whose `own` or `resourceId` disagrees with its tag's classification or whose `matcher` disagrees with its
+  variant is TS2322, and a leaf that no classification names has no row that compiles (INV-QD-345, `LeafNeeds.tst.ts`); a leaf whose own input is checked after what its matcher references is a failing matrix cell and a
   failing table test (INV-QD-346, `LeafMatrix.test.ts`, `LeafNeeds.test.ts`).
 - **The two interpreters cannot disagree about a leaf's absence.** They read one function, so a request missing both inputs
   reports the same error from `evaluate` and `toPredicate` wherever both apply, and `MissingAction`'s `expected` key is the

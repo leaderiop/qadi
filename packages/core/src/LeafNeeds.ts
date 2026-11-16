@@ -38,7 +38,11 @@ export interface LeafNeed {
   readonly own: "Nothing" | "Action" | "Resource";
   /** Whether its matcher is asked what it references; checked after `own`. */
   readonly matcher: boolean;
-  /** Whether it asks a port about one resource, which `readScoped` enforces. */
+  /**
+   * Whether it asks a port about one resource. Declarative: `readScoped` enforces
+   * the need and does not read this column; the type ties it to the leaf's tag and
+   * `LeafNeeds.test.ts` ties it to what `readScoped` does.
+   */
   readonly resourceId: "Never" | "Always" | "ByScope";
 }
 
@@ -76,10 +80,37 @@ type OwnOf<Tag extends string> = Tag extends ReadsAction
       ? "Nothing"
       : never;
 
+/** The leaves that always ask a port about one resource. */
+type AsksAlways = "HasRelationship";
+
+/** The leaves that ask about one resource when their `scope` names it. */
+type AsksByScope = "HasActed" | "HasNotActed" | "HasSignature";
+
+/** The leaves that never ask a port about one resource. */
+type AsksNever =
+  | "HasPermission"
+  | "HasRole"
+  | "HasAttribute"
+  | "HasResourceAttribute"
+  | "HasAction"
+  | "HasCustom";
+
 /**
- * The only row a leaf variant `V` can have: `own` is its tag's classification
- * ({@link OwnOf}), and `matcher` is `true` exactly when the variant carries a
- * matcher, read from its shape.
+ * The `resourceId` a leaf tagged `Tag` must state; an unlisted tag is `never`, as
+ * in {@link OwnOf}.
+ */
+type ResourceIdOf<Tag extends string> = Tag extends AsksAlways
+  ? "Always"
+  : Tag extends AsksByScope
+    ? "ByScope"
+    : Tag extends AsksNever
+      ? "Never"
+      : never;
+
+/**
+ * The only row a leaf variant `V` can have: `own` and `resourceId` are its tag's
+ * classifications ({@link OwnOf}, {@link ResourceIdOf}), and `matcher` is `true`
+ * exactly when the variant carries a matcher, read from its shape.
  *
  * Generic over the variant, not the tag, so a test can build a leaf the policy does
  * not have yet and see that no row fits it.
@@ -87,6 +118,7 @@ type OwnOf<Tag extends string> = Tag extends ReadsAction
 export type LeafNeedOfVariant<V extends { readonly _tag: string }> = LeafNeed & {
   readonly own: OwnOf<V["_tag"]>;
   readonly matcher: V extends { readonly matcher: Matcher } ? true : false;
+  readonly resourceId: ResourceIdOf<V["_tag"]>;
 };
 
 /**
@@ -102,10 +134,10 @@ export type LeafNeedOf<K extends LeafTag> = LeafNeedOfVariant<
 
 /**
  * One row per leaf tag. A missing row is TS2741 and an extra one TS2353, so a new
- * leaf cannot ship without saying what it needs (INV-QD-345); a row whose `own`
- * disagrees with its tag's classification, or whose `matcher` disagrees with its
- * leaf's shape, is TS2322 ({@link LeafNeedOf}), and so is any row for a tag no
- * classification names.
+ * leaf cannot ship without saying what it needs (INV-QD-345); a row whose `own` or
+ * `resourceId` disagrees with its tag's classification, or whose `matcher`
+ * disagrees with its leaf's shape, is TS2322 ({@link LeafNeedOf}), and so is any
+ * row for a tag no classification names.
  *
  * Rows equal in content stay separate, keyed rows: the key is the leaf, not the
  * shape of its need.
