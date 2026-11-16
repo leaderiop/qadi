@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-33                                    |
-> | Revision       | 1.21                                           |
+> | Revision       | 1.22                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.21 (2026-11-15): BEH-QD-561 — a failureThreshold is a positive safe integer; a resetTimeoutMs is whole and within the safe integers, a raw non-whole number refused (ARCH-92, CCR-QD-436)<br>1.20 (2026-11-15): BEH-QD-561 new — an option that cannot work is refused when built; BEH-QD-249 the layer's error; BEH-QD-251 one transition function; BEH-QD-379 a zero deadline is refused (ARCH-92, CCR-QD-436)<br>1.19 (2026-11-12): BEH-QD-254 lists ArchiveRefusal.TooDeep; BEH-QD-312 reads a row through untrustedDecoder; BEH-QD-489 new (ARCH-78, CCR-QD-421)<br>1.18 (2026-11-10): BEH-QD-249 gains storeCallTimeout; BEH-QD-251 — the sink's own deadline is a failure, a caller's interruption still is not; BEH-QD-379 (a store call is bounded; Duration.zero pinned; an uninterruptible adapter is not bounded) and BEH-QD-380 (the doubles' script; failWith, failStageWith and failCommitWith removed) added (ARCH-62, ADR-QD-126, CCR-QD-404)<br>1.17 (2026-11-10): BEH-QD-256 — a resource with no string id refuses the discharge before capture. BEH-QD-326 — the ledger is a keyed store read through ledgerKeyOf; a foreign row fails the read; scope "Any" reads subject-wide rows. BEH-QD-339 added — a ledger adapter can be checked (ARCH-59, ADR-QD-117, INV-QD-120, CCR-QD-395)<br>1.16 (2026-11-08): BEH-QD-254 — the writer and the reader compute an archive's order, claim and sequence break once, and the reader accepts every bundle the writer writes; a sequence number outside the safe integers fails `SequenceNumberInvalid` at the writer (code review WR-01) (ARCH-48, ADR-QD-110, CCR-QD-387)<br>1.15 (2026-10-08): BEH-QD-312 — a stored row whose record contradicts its own trace is refused as `Inconsistent` (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.14 (2026-10-08): BEH-QD-256 — the capture request is derived from the discharged question (signer, `resourceId`, `action`, `resource`, `evaluationId`), not the ambient subject, and a capture that returns a signature for a different signer or meaning fails the discharge. BEH-QD-255 — a ledger is a store, not a capture. BEH-QD-326 — a signature captured for a discharged question answers that question's `hasSignature`, and no other (`SignatureLedger`; INV-QD-120, ADR-QD-105, CCR-QD-220)<br>1.13 (2026-10-08): BEH-QD-253 — a purge selects only rows a `VerifiedArchive` holds (`planPurge`); `planRetention` reports `expired`; `getPurgeableEntries` and `enforceRetention` removed. BEH-QD-254 — `readAuditArchive` reads a stored bundle back, each failure its own `ArchiveRefusal` (ARCH-38, CCR-QD-230)<br>1.12 (2026-10-08): BEH-QD-249 gains `AuditDecisionSinkOptions.onOutcome`. BEH-QD-251 — an entry neither written nor staged is reported by a warning naming its evaluation id, including after a failed trail write; `qadi_audit_writes_total` counts every record received exactly once, breaker-refused ones as `skipped_open`. BEH-QD-252 — a staged entry that was not written is reported at info; the eleven outcomes are tabled; `qadi_audit_entries_lost_total` (INV-QD-106, ADR-QD-056, CCR-QD-204)<br>1.11 (2026-10-07): BEH-QD-250 — a refused record is reported (`AuditDecisionSinkOptions.onRefused`, else a warning naming the refusal, its path and the evaluation id), never dropped silently, and a hook that throws never fails the record; `AuditEntryNotEncodable` carries `evaluationId` and its `reason` is core's `describeEncodeRefusal`. BEH-QD-249's signature fence gains `onRefused` and its `resetTimeoutMs` is `Duration.Input` as the code has it (CCR-QD-193)<br>1.10 (2026-10-07): BEH-QD-253 — retention is `planRetention`, which purges only with a finite age past a valid limit and refuses an impossible `now` or `maxAgeMs`; a non-finite `at` is retained and reported `undated`. BEH-QD-312 — a non-finite `at` and a non-integer `sequenceNumber` are `Malformed` (INV-QD-101, ADR-QD-095 amendment, CCR-QD-186)<br>1.9 (2026-10-07): BEH-QD-254 — entries carrying no `sequenceNumber` follow every sequenced entry in the order given, and are never ordered by `at` (pins what `archiveAuditTrail` already did; CCR-QD-185)<br>1.8 (2026-10-06): BEH-QD-312 — `decodeAuditEntry` reads wire version 2 only: a pre-0.10 row is refused as `UnsupportedVersion`, reported, never upgraded, and migrated with 0.10.x; `AuditEntry.record` is version-2 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): BEH-QD-312 — `decodeAuditEntry` applies every check `decodeSinkRecord` applies, and reads rows of both wire versions; the row schema alone is not a reader. BEH-QD-250 — rows are written as wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.6 (2026-10-05): BEH-QD-250 restated — a row's `record` is `encodeSinkRecord`'s encoded wire, byte-identical to the stream and forwarding; the refusal carries core's `EncodeRefusal`; a `cause` is never a reason to refuse. BEH-QD-312 — `decodeAuditEntry`, the guarded reader (ADR-QD-095, CCR-QD-179)<br>1.5 (2026-10-05): BEH-QD-250 widened — the guard walks the outcome as well: a resolver error's `cause` carrying a reference cycle or a `BigInt` used to pass it and then throw at the store's `JSON.stringify`, which counted as a write failure and could trip the breaker; `Map`/`Set`/`RegExp`/binary data are refused rather than persisted as `{}` (CCR-QD-178)<br>1.4 (2026-10-04): BEH-QD-251 — the half-open probe claim is released on every exit including interruption during staging; a failure settling on an already-`Open` breaker is a no-op; outcomes count only toward the window that admitted them; the interruption prose corrected (`Effect.exit` folds a typed failure, a defect and an adapter's self-interruption, not a caller's interruption) (CCR-QD-154)<br>1.3 (2026-09-09): BEH-QD-250 widened — `encodeAuditEntry` guarded only `resource` via `isJsonSafe`, not the whole record; `policy`'s `HasCustom.params` (ADR-QD-055's escape hatch) is a second caller-supplied `unknown` a `SinkRecord` can carry, and a circular or `BigInt`-valued one sailed past the narrow guard uncaught. Now guarded via `isRecordJsonSafe` (`SinkCodec.ts`), which walks `resource` **and** `policy` (issue #104)<br>1.2 (2026-09-07): BEH-QD-250 and BEH-QD-251 widened — `isJsonSafe` walks iteratively so a merely-deep (non-cyclic) value no longer risks the same stack exhaustion the circular-reference case was already guarded against; `stage()`/`write()` now run under `Effect.exit` rather than `Effect.result`, so a defect or interruption from either — not just a typed `AuditWriteError`/`AuditStagingError` — reaches the breaker and the metrics the same way a typed failure already did (CCR-QD-113)<br>1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
+> | Change History | 1.22 (2026-11-16): BEH-QD-576 to 580 new; BEH-QD-249 and 250 restated, the audit refusal is core's SinkRecordNotEncodable and carries no reason; BEH-QD-252 note (ARCH-95, ADR-QD-161, CCR-QD-439)<br>1.21 (2026-11-15): BEH-QD-561 — a failureThreshold is a positive safe integer; a resetTimeoutMs is whole and within the safe integers, a raw non-whole number refused (ARCH-92, CCR-QD-436)<br>1.20 (2026-11-15): BEH-QD-561 new — an option that cannot work is refused when built; BEH-QD-249 the layer's error; BEH-QD-251 one transition function; BEH-QD-379 a zero deadline is refused (ARCH-92, CCR-QD-436)<br>1.19 (2026-11-12): BEH-QD-254 lists ArchiveRefusal.TooDeep; BEH-QD-312 reads a row through untrustedDecoder; BEH-QD-489 new (ARCH-78, CCR-QD-421)<br>1.18 (2026-11-10): BEH-QD-249 gains storeCallTimeout; BEH-QD-251 — the sink's own deadline is a failure, a caller's interruption still is not; BEH-QD-379 (a store call is bounded; Duration.zero pinned; an uninterruptible adapter is not bounded) and BEH-QD-380 (the doubles' script; failWith, failStageWith and failCommitWith removed) added (ARCH-62, ADR-QD-126, CCR-QD-404)<br>1.17 (2026-11-10): BEH-QD-256 — a resource with no string id refuses the discharge before capture. BEH-QD-326 — the ledger is a keyed store read through ledgerKeyOf; a foreign row fails the read; scope "Any" reads subject-wide rows. BEH-QD-339 added — a ledger adapter can be checked (ARCH-59, ADR-QD-117, INV-QD-120, CCR-QD-395)<br>1.16 (2026-11-08): BEH-QD-254 — the writer and the reader compute an archive's order, claim and sequence break once, and the reader accepts every bundle the writer writes; a sequence number outside the safe integers fails `SequenceNumberInvalid` at the writer (code review WR-01) (ARCH-48, ADR-QD-110, CCR-QD-387)<br>1.15 (2026-10-08): BEH-QD-312 — a stored row whose record contradicts its own trace is refused as `Inconsistent` (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.14 (2026-10-08): BEH-QD-256 — the capture request is derived from the discharged question (signer, `resourceId`, `action`, `resource`, `evaluationId`), not the ambient subject, and a capture that returns a signature for a different signer or meaning fails the discharge. BEH-QD-255 — a ledger is a store, not a capture. BEH-QD-326 — a signature captured for a discharged question answers that question's `hasSignature`, and no other (`SignatureLedger`; INV-QD-120, ADR-QD-105, CCR-QD-220)<br>1.13 (2026-10-08): BEH-QD-253 — a purge selects only rows a `VerifiedArchive` holds (`planPurge`); `planRetention` reports `expired`; `getPurgeableEntries` and `enforceRetention` removed. BEH-QD-254 — `readAuditArchive` reads a stored bundle back, each failure its own `ArchiveRefusal` (ARCH-38, CCR-QD-230)<br>1.12 (2026-10-08): BEH-QD-249 gains `AuditDecisionSinkOptions.onOutcome`. BEH-QD-251 — an entry neither written nor staged is reported by a warning naming its evaluation id, including after a failed trail write; `qadi_audit_writes_total` counts every record received exactly once, breaker-refused ones as `skipped_open`. BEH-QD-252 — a staged entry that was not written is reported at info; the eleven outcomes are tabled; `qadi_audit_entries_lost_total` (INV-QD-106, ADR-QD-056, CCR-QD-204)<br>1.11 (2026-10-07): BEH-QD-250 — a refused record is reported (`AuditDecisionSinkOptions.onRefused`, else a warning naming the refusal, its path and the evaluation id), never dropped silently, and a hook that throws never fails the record; `AuditEntryNotEncodable` carries `evaluationId` and its `reason` is core's `describeEncodeRefusal`. BEH-QD-249's signature fence gains `onRefused` and its `resetTimeoutMs` is `Duration.Input` as the code has it (CCR-QD-193)<br>1.10 (2026-10-07): BEH-QD-253 — retention is `planRetention`, which purges only with a finite age past a valid limit and refuses an impossible `now` or `maxAgeMs`; a non-finite `at` is retained and reported `undated`. BEH-QD-312 — a non-finite `at` and a non-integer `sequenceNumber` are `Malformed` (INV-QD-101, ADR-QD-095 amendment, CCR-QD-186)<br>1.9 (2026-10-07): BEH-QD-254 — entries carrying no `sequenceNumber` follow every sequenced entry in the order given, and are never ordered by `at` (pins what `archiveAuditTrail` already did; CCR-QD-185)<br>1.8 (2026-10-06): BEH-QD-312 — `decodeAuditEntry` reads wire version 2 only: a pre-0.10 row is refused as `UnsupportedVersion`, reported, never upgraded, and migrated with 0.10.x; `AuditEntry.record` is version-2 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): BEH-QD-312 — `decodeAuditEntry` applies every check `decodeSinkRecord` applies, and reads rows of both wire versions; the row schema alone is not a reader. BEH-QD-250 — rows are written as wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.6 (2026-10-05): BEH-QD-250 restated — a row's `record` is `encodeSinkRecord`'s encoded wire, byte-identical to the stream and forwarding; the refusal carries core's `EncodeRefusal`; a `cause` is never a reason to refuse. BEH-QD-312 — `decodeAuditEntry`, the guarded reader (ADR-QD-095, CCR-QD-179)<br>1.5 (2026-10-05): BEH-QD-250 widened — the guard walks the outcome as well: a resolver error's `cause` carrying a reference cycle or a `BigInt` used to pass it and then throw at the store's `JSON.stringify`, which counted as a write failure and could trip the breaker; `Map`/`Set`/`RegExp`/binary data are refused rather than persisted as `{}` (CCR-QD-178)<br>1.4 (2026-10-04): BEH-QD-251 — the half-open probe claim is released on every exit including interruption during staging; a failure settling on an already-`Open` breaker is a no-op; outcomes count only toward the window that admitted them; the interruption prose corrected (`Effect.exit` folds a typed failure, a defect and an adapter's self-interruption, not a caller's interruption) (CCR-QD-154)<br>1.3 (2026-09-09): BEH-QD-250 widened — `encodeAuditEntry` guarded only `resource` via `isJsonSafe`, not the whole record; `policy`'s `HasCustom.params` (ADR-QD-055's escape hatch) is a second caller-supplied `unknown` a `SinkRecord` can carry, and a circular or `BigInt`-valued one sailed past the narrow guard uncaught. Now guarded via `isRecordJsonSafe` (`SinkCodec.ts`), which walks `resource` **and** `policy` (issue #104)<br>1.2 (2026-09-07): BEH-QD-250 and BEH-QD-251 widened — `isJsonSafe` walks iteratively so a merely-deep (non-cyclic) value no longer risks the same stack exhaustion the circular-reference case was already guarded against; `stage()`/`write()` now run under `Effect.exit` rather than `Effect.result`, so a defect or interruption from either — not just a typed `AuditWriteError`/`AuditStagingError` — reaches the breaker and the metrics the same way a typed failure already did (CCR-QD-113)<br>1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
 
 _Previous: [32 — Custom Predicates](./32-custom-predicates.md)_
 
@@ -27,7 +27,7 @@ export interface AuditDecisionSinkOptions {
   readonly failureThreshold?: number;
   readonly resetTimeoutMs?: Duration.Input;
   readonly storeCallTimeout?: Duration.Input;
-  readonly onRefused?: (refusal: AuditEntryNotEncodable) => void;
+  readonly onRefused?: (refusal: SinkRecordNotEncodable) => void;
   readonly onOutcome?: (outcome: AuditWriteOutcome) => void;
 }
 export const AuditDecisionSinkLive: (
@@ -57,12 +57,14 @@ what `record()` actually does, not of a function that exists beside it.
 > cannot work is now refused when the layer is built
 > ([BEH-QD-561](#beh-qd-561-a-breaker-or-audit-sink-option-that-cannot-work-is-refused-when-it-is-built)).
 
+> **Amended in CCR-QD-439 (ARCH-95).** `onRefused` receives `@qadi/core`'s
+> `SinkRecordNotEncodable` ([BEH-QD-576](#beh-qd-576-an-audit-refusal-is-cores-sinkrecordnotencodable)).
+
 ## BEH-QD-250: A record with no safe durable representation refuses, cleanly, rather than approximating or crashing
 
 ```ts
 export const AuditEntry: Schema.Struct<{ record: typeof SinkRecordJson; sequenceNumber: … }>;
-export class AuditEntryNotEncodable { recordTag; evaluationId: string; refusal: EncodeRefusal; reason: string }
-export const encodeAuditEntry: (record: SinkRecord) => Effect<AuditEntry, AuditEntryNotEncodable>;
+export const encodeAuditEntry: (record: SinkRecord) => Effect<AuditEntry, SinkRecordNotEncodable>;
 ```
 
 ```
@@ -70,8 +72,9 @@ REQUIREMENT: encodeAuditEntry MUST produce the row through `@qadi/core`'s
              `encodeSinkRecord`, so a row's `record` is the encoded wire:
              `JSON.stringify(entry.record)` MUST equal the decision stream's
              frame data and forwarding's `send` value for the same record.
-REQUIREMENT: encodeAuditEntry MUST fail AuditEntryNotEncodable, carrying the
-             `EncodeRefusal` and its path, for a record carrying anywhere a
+REQUIREMENT: encodeAuditEntry MUST fail with `@qadi/core`'s
+             SinkRecordNotEncodable, exactly as `encodeSinkRecord` returns it,
+             carrying the `EncodeRefusal` and its path, for a record carrying anywhere a
              value with no safe durable representation (a function, a Symbol,
              a circular reference, a BigInt, a Map/Set/RegExp/binary array, a
              value nested past the decode bound) — MUST NOT stringify, drop the
@@ -85,9 +88,9 @@ REQUIREMENT: A refused record MUST be reported — through `onRefused` when
              increment either way. It MUST NOT be dropped silently, and a hook
              that throws MUST NOT fail the record or the decision: it is logged,
              and the next record is still written.
-REQUIREMENT: `AuditEntryNotEncodable.reason` MUST be `@qadi/core`'s
-             `describeEncodeRefusal` of its `refusal`, and `evaluationId` the
-             refused record's.
+REQUIREMENT: The refusal's `evaluationId` MUST be the refused record's. Its
+             sentence is `@qadi/core`'s `describeEncodeRefusal(refusal)`,
+             computed only there: the refusal carries no `reason` field.
 ```
 
 A `Predicate`'s `Compare`/`MemberOf` values are `unknown`, and
@@ -119,12 +122,56 @@ Until ARCH-25 the pipeline built `reason` and discarded it, recording only the
 counter: a decision had no audit row and no `evaluationId` anywhere, the one
 reporter of the three that left no trace. The annotations are core's
 `encodeRefusalAnnotations` (`qadi.refusal`, `qadi.path`, `evaluationId`), never a
-value from the record; `reason` can carry caller text (a throwing getter's
-message) and so is for a caller holding the error, not for a log.
+value from the record; core's sentence (`describeEncodeRefusal`) can carry caller text
+(a throwing getter's message) and so is for a caller holding the error, not for a log.
 
 A property whose value is `undefined` is absence — JSON drops the key — not a
 refusal; a valid `Date` is persisted as its ISO string (the named normalisations
 of [INV-QD-096](../invariants.md#inv-qd-096-whatever-the-record-codec-emits-it-accepts)).
+
+> **Amended in CCR-QD-439 (ARCH-95).** The audit package's own refusal class is gone:
+> the refusal is core's, and the default line is unchanged
+> ([BEH-QD-576](#beh-qd-576-an-audit-refusal-is-cores-sinkrecordnotencodable), [BEH-QD-577](#beh-qd-577-a-refused-records-default-line-is-cores-report-and-its-sentence-is-cores-to-compute), [ADR-QD-161](../decisions/161-audit-reports-cores-refusal-and-decides-lost-once.md)).
+
+## BEH-QD-576: An audit refusal is core's `SinkRecordNotEncodable`
+
+> **Invariant:** [INV-QD-342](../invariants.md#inv-qd-342-an-audit-refusal-is-cores-one-sinkrecordnotencodable)
+
+```
+REQUIREMENT: encodeAuditEntry MUST fail with `@qadi/core`'s
+             SinkRecordNotEncodable exactly as `encodeSinkRecord` returns it;
+             `onRefused` (AuditDecisionSinkOptions, AuditWriteEmitOptions) and
+             AuditWriteOutcome.Refused.refusal MUST be typed with it;
+             `@qadi/audit` MUST NOT declare an error of its own for a refusal,
+             and the refusal MUST NOT carry a `reason`.
+```
+
+It is the same class `decisionSinkForwarding` and `DecisionLogHttp` report, so a
+consumer handles one tag for a refusal across core, audit and http. The audit
+package once declared its own class around it and built the sentence into a
+`reason` field on the strength of an ADR-QD-054 citation that was a misreading
+([ADR-QD-161](../decisions/161-audit-reports-cores-refusal-and-decides-lost-once.md)).
+Pinned by `AuditRefusal.tst.ts` (four type pins) and `AuditEntry.test.ts`.
+
+## BEH-QD-577: A refused record's default line is core's report, and its sentence is core's to compute
+
+```
+REQUIREMENT: Without `onRefused`, a refused record MUST be logged once at Warn by
+             `@qadi/core`'s `reportEncodeRefusal` with the message "qadi/audit: a
+             decision record could not be encoded for the audit trail; no row was
+             written", annotated `qadi.refusal`, `qadi.path` and `evaluationId` and
+             nothing else, and MUST NOT carry the sentence.
+REQUIREMENT: With `onRefused`, no line is logged and the hook receives the
+             refusal; a hook that wants the sentence calls
+             `describeEncodeRefusal(e.refusal)`.
+REQUIREMENT: `qadi_audit_writes_total{outcome="encode_failed"}` MUST increment
+             either way.
+```
+
+The default line is unchanged from the phase base, byte for byte; the only thing
+that moved is who computes the sentence (core, on demand, rather than the audit
+package at refusal time). Pinned by `AuditWriteOutput.test.ts` (the `Refused`
+rows).
 
 ## BEH-QD-312: A stored row is read back through a guard
 
@@ -573,6 +620,69 @@ leaf of `AuditWriteOutcome` and one arm of the projection in
 Every log line annotates `evaluationId` only (INV-QD-104's reasoning). `onOutcome`
 receives the same value with the encoded entry, which is how a deployment builds
 the gap marker ADR-QD-056 leaves open: the library writes none.
+
+> **Amended in CCR-QD-439 (ARCH-95).** The Entry column's Lost and staging only, the
+> `qadi_audit_entries_lost_total` label and the Log column's warning or info for the
+> six unwritten rows are one row per staging variant ([BEH-QD-578](#beh-qd-578-one-row-per-unwritten-staging-decides-whether-the-entry-is-lost));
+> `Written.CommitFailed` and `Refused` warn without being lost ([BEH-QD-579](#beh-qd-579-the-spans-durability-the-lost-counter-and-the-unwritten-lines-level-agree-on-every-leaf)).
+
+## BEH-QD-578: One row per unwritten staging decides whether the entry is lost
+
+> **Invariant:** [INV-QD-341](../invariants.md#inv-qd-341-an-unwritten-audit-entry-is-lost-exactly-when-its-stagings-row-says-so)
+
+```
+REQUIREMENT: Each UnwrittenStaging variant MUST have exactly one row:
+             NotWired is Lost with the word not_wired; Staged is StagingOnly
+             with no word; StageFailed is Lost with the word failed. The row is
+             typed so that a Lost row carries its word and a StagingOnly row
+             carries none.
+REQUIREMENT: `durabilityOf`, the `qadi_audit_entries_lost_total` label and the
+             unwritten line's level MUST be read from that row. A fourth
+             variant MUST be a compile error at the row's reader.
+```
+
+Before ARCH-95 the same fact was written three times, in `durabilityOf`, in the
+lost label and in the line's level, and they agreed by accident
+([ADR-QD-161](../decisions/161-audit-reports-cores-refusal-and-decides-lost-once.md)).
+The row (`UnwrittenRow.ts`) is package-private. Pinned by `UnwrittenRow.test.ts`
+and `UnwrittenRow.tst.ts`.
+
+## BEH-QD-579: The span's durability, the lost counter and the unwritten line's level agree on every leaf
+
+> **Invariant:** [INV-QD-341](../invariants.md#inv-qd-341-an-unwritten-audit-entry-is-lost-exactly-when-its-stagings-row-says-so)
+
+```
+REQUIREMENT: For each of the eleven leaves of AuditWriteOutcome, `durabilityOf`
+             MUST be "Lost" exactly when a `qadi_audit_entries_lost_total`
+             series increments and exactly when the span's
+             `qadi.audit.durability` is "Lost".
+REQUIREMENT: Over the six unwritten leaves (WriteFailed and Skipped, each by
+             three stagings), the same MUST hold of the line: it is a warning
+             exactly when the entry is Lost.
+REQUIREMENT: Written.CommitFailed (durability Trail) and Refused (durability
+             Refused) MUST warn without being lost.
+```
+
+The warning leg is scoped to the six unwritten leaves because two others warn for
+a different reason: a failed commit is the staging store's bookkeeping, and a
+refusal is reported, not lost (the entry never existed). Pinned by
+`AuditLostAgreement.test.ts` (nineteen rows).
+
+## BEH-QD-580: The stage result is a closed union, and every branch on an outcome is exhaustive
+
+```
+REQUIREMENT: The stage result MUST be a closed union in which only Staged carries
+             `commit`.
+REQUIREMENT: The written staging MUST be chosen by an exhaustive match over it
+             (NotWired, StageFailed, or the commit, then Committed or
+             CommitFailed on any cause); an unwritten outcome's `staging` MUST
+             carry only its tag.
+REQUIREMENT: The evaluation id, the outcome path and the refusal dispatch MUST
+             be exhaustive matches, so a new variant is a compile error.
+```
+
+No output changed. Pinned by `AuditWriteOutput.test.ts` (the unwritten leaves'
+staging keys) and `AuditWriteOutcome.test.ts` (the path per leaf).
 
 ## BEH-QD-253: Retention partitions entries, by construction
 
