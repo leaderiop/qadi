@@ -108,6 +108,23 @@ type ResourceIdOf<Tag extends string> = Tag extends AsksAlways
       : never;
 
 /**
+ * `unknown` when no tag is in two of one column's lists, `never` when one is.
+ *
+ * {@link OwnOf} and {@link ResourceIdOf} are conditional chains, so a tag listed
+ * twice would silently take the first list's classification; `LEAF_NEEDS`
+ * satisfies this too, so the duplicate is a compile error at the table instead.
+ */
+type Disjoint<A extends string, B extends string, C extends string> = [
+  Extract<A, B> | Extract<A, C> | Extract<B, C>,
+] extends [never]
+  ? unknown
+  : never;
+
+/** Both columns' lists are disjoint ({@link Disjoint}). */
+type ListsDisjoint = Disjoint<ReadsAction, ReadsResource, ReadsNothing> &
+  Disjoint<AsksAlways, AsksByScope, AsksNever>;
+
+/**
  * The only row a leaf variant `V` can have: `own` and `resourceId` are its tag's
  * classifications ({@link OwnOf}, {@link ResourceIdOf}), and `matcher` is `true`
  * exactly when the variant carries a matcher, read from its shape.
@@ -137,7 +154,8 @@ export type LeafNeedOf<K extends LeafTag> = LeafNeedOfVariant<
  * leaf cannot ship without saying what it needs (INV-QD-345); a row whose `own` or
  * `resourceId` disagrees with its tag's classification, or whose `matcher`
  * disagrees with its leaf's shape, is TS2322 ({@link LeafNeedOf}), and so is any
- * row for a tag no classification names.
+ * row for a tag no classification names. A tag in two lists of one column makes
+ * the whole table fail to compile ({@link Disjoint}).
  *
  * Rows equal in content stay separate, keyed rows: the key is the leaf, not the
  * shape of its need.
@@ -153,7 +171,7 @@ export const LEAF_NEEDS = {
   HasNotActed: { own: "Nothing", matcher: false, resourceId: "ByScope" },
   HasCustom: { own: "Nothing", matcher: false, resourceId: "Never" },
   HasSignature: { own: "Nothing", matcher: false, resourceId: "ByScope" },
-} as const satisfies { readonly [K in LeafTag]: LeafNeedOf<K> };
+} as const satisfies { readonly [K in LeafTag]: LeafNeedOf<K> } & ListsDisjoint;
 
 /** What a request supplied, as far as an interpreter knows it. */
 export interface Supplied<Resource extends boolean = boolean> {
