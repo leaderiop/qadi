@@ -71,6 +71,11 @@ export const LEAF_SPECS: { readonly [P in LeafPath]: ExitSpec } = {
   "Skipped.StageFailed": { ...base, wired: true, open: true, stage: stageFails },
 };
 
+const isLeafPath = (key: string): key is LeafPath => Object.hasOwn(LEAF_SPECS, key);
+
+/** The eleven leaves, read off {@link LEAF_SPECS}'s keys, so a list built from it cannot drop one. */
+export const LEAF_PATHS: ReadonlyArray<LeafPath> = Object.keys(LEAF_SPECS).filter(isLeafPath);
+
 /** The thirteen audit counter series, as `<family>.<label>` (the lost ones as `lost.<after>.<staging>`). */
 export type SeriesKey =
   | "writes.encode_failed"

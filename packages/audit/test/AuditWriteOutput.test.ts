@@ -12,7 +12,7 @@ import * as Option from "effect/Option";
 import { EncodeRefusal } from "@qadi/core";
 import { AuditStagingError } from "../src/AuditStagingPort.ts";
 import type { LeafPath, SeriesKey } from "./observeLeaf.ts";
-import { observeLeaf } from "./observeLeaf.ts";
+import { LEAF_PATHS, observeLeaf } from "./observeLeaf.ts";
 
 const ZERO: { readonly [K in SeriesKey]: number } = {
   "writes.encode_failed": 0,
@@ -60,8 +60,9 @@ interface LeafRow {
   readonly rows: number;
 }
 
-const ROWS: ReadonlyArray<LeafRow> = [
-  {
+/** One row per leaf, keyed by it, so dropping a leaf is a compile error. */
+const BY_LEAF: { readonly [P in LeafPath]: LeafRow & { readonly leaf: P } } = {
+  Refused: {
     leaf: "Refused",
     emits: "one default warning, no row, encode_failed",
     stagingKeys: [],
@@ -76,7 +77,7 @@ const ROWS: ReadonlyArray<LeafRow> = [
     counters: moved("writes.encode_failed"),
     rows: 0,
   },
-  {
+  "Written.NotWired": {
     leaf: "Written.NotWired",
     emits: "no line, written",
     stagingKeys: ["_tag"],
@@ -85,7 +86,7 @@ const ROWS: ReadonlyArray<LeafRow> = [
     counters: moved("writes.written"),
     rows: 1,
   },
-  {
+  "Written.StageFailed": {
     leaf: "Written.StageFailed",
     emits: "no line, written and staging.failed",
     stagingKeys: ["_tag"],
@@ -94,7 +95,7 @@ const ROWS: ReadonlyArray<LeafRow> = [
     counters: moved("writes.written", "staging.failed"),
     rows: 1,
   },
-  {
+  "Written.Committed": {
     leaf: "Written.Committed",
     emits: "no line, written and staging.staged",
     stagingKeys: ["_tag"],
@@ -103,7 +104,7 @@ const ROWS: ReadonlyArray<LeafRow> = [
     counters: moved("writes.written", "staging.staged"),
     rows: 1,
   },
-  {
+  "Written.CommitFailed": {
     leaf: "Written.CommitFailed",
     emits: "one warning carrying the store's cause, durable in the trail, no lost counter",
     stagingKeys: ["_tag", "cause"],
@@ -117,7 +118,7 @@ const ROWS: ReadonlyArray<LeafRow> = [
     counters: moved("writes.written", "staging.staged", "staging.commit_failed"),
     rows: 1,
   },
-  {
+  "WriteFailed.NotWired": {
     leaf: "WriteFailed.NotWired",
     emits: "one warning, span Lost, write_failed and lost.write_failed.not_wired",
     stagingKeys: ["_tag"],
@@ -126,7 +127,7 @@ const ROWS: ReadonlyArray<LeafRow> = [
     counters: moved("writes.write_failed", "lost.write_failed.not_wired"),
     rows: 0,
   },
-  {
+  "WriteFailed.Staged": {
     leaf: "WriteFailed.Staged",
     emits: "one info, StagingOnly, no lost counter",
     stagingKeys: ["_tag"],
@@ -135,7 +136,7 @@ const ROWS: ReadonlyArray<LeafRow> = [
     counters: moved("writes.write_failed", "staging.staged"),
     rows: 0,
   },
-  {
+  "WriteFailed.StageFailed": {
     leaf: "WriteFailed.StageFailed",
     emits: "one warning, Lost, lost.write_failed.failed",
     stagingKeys: ["_tag"],
@@ -144,7 +145,7 @@ const ROWS: ReadonlyArray<LeafRow> = [
     counters: moved("writes.write_failed", "staging.failed", "lost.write_failed.failed"),
     rows: 0,
   },
-  {
+  "Skipped.NotWired": {
     leaf: "Skipped.NotWired",
     emits: "one warning, Lost, lost.skipped_open.not_wired",
     stagingKeys: ["_tag"],
@@ -153,7 +154,7 @@ const ROWS: ReadonlyArray<LeafRow> = [
     counters: moved("writes.skipped_open", "staging.skipped_open", "lost.skipped_open.not_wired"),
     rows: 0,
   },
-  {
+  "Skipped.Staged": {
     leaf: "Skipped.Staged",
     emits: "one info, StagingOnly, no lost counter",
     stagingKeys: ["_tag"],
@@ -162,7 +163,7 @@ const ROWS: ReadonlyArray<LeafRow> = [
     counters: moved("writes.skipped_open", "staging.staged"),
     rows: 0,
   },
-  {
+  "Skipped.StageFailed": {
     leaf: "Skipped.StageFailed",
     emits: "one warning, Lost, lost.skipped_open.failed",
     stagingKeys: ["_tag"],
@@ -171,7 +172,9 @@ const ROWS: ReadonlyArray<LeafRow> = [
     counters: moved("writes.skipped_open", "staging.failed_open", "lost.skipped_open.failed"),
     rows: 0,
   },
-];
+};
+
+const ROWS: ReadonlyArray<LeafRow> = LEAF_PATHS.map((leaf) => BY_LEAF[leaf]);
 
 describe("what audit emits for each outcome leaf, written on the phase base (ARCH-95, D-11)", () => {
   for (const row of ROWS) {
