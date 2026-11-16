@@ -21,6 +21,7 @@ import * as Match from "effect/Match";
 import type { SinkRecordNotEncodable } from "@qadi/core";
 import type { AuditEntry } from "./AuditEntry.ts";
 import type { AuditStagingError } from "./AuditStagingPort.ts";
+import { unwrittenRow } from "./UnwrittenRow.ts";
 
 /**
  * The staging result of a record whose trail write **succeeded**.
@@ -99,14 +100,6 @@ export type Durability = "Trail" | "StagingOnly" | "Lost" | "Refused";
 // A helper, not a literal: a `Match` arm returning `"Lost"` infers `string`.
 const durability = (d: Durability): Durability => d;
 
-const unwrittenDurability: (self: UnwrittenStaging) => Durability = Match.type<UnwrittenStaging>().pipe(
-  Match.tagsExhaustive({
-    NotWired: () => durability("Lost"),
-    Staged: () => durability("StagingOnly"),
-    StageFailed: () => durability("Lost"),
-  }),
-);
-
 /**
  * Whether an outcome's entry survives, and where.
  *
@@ -118,7 +111,7 @@ export const durabilityOf: (self: AuditWriteOutcome) => Durability = Match.type<
   Match.tagsExhaustive({
     Refused: () => durability("Refused"),
     Written: () => durability("Trail"),
-    WriteFailed: (o) => unwrittenDurability(o.staging),
-    Skipped: (o) => unwrittenDurability(o.staging),
+    WriteFailed: (o) => durability(unwrittenRow(o.staging).durability),
+    Skipped: (o) => durability(unwrittenRow(o.staging).durability),
   }),
 );

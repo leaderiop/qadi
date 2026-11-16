@@ -22,6 +22,8 @@ import { reportEncodeRefusal } from "@qadi/core";
 import type { SinkRecordNotEncodable } from "@qadi/core";
 import type { AuditStagingError } from "./AuditStagingPort.ts";
 import type { AuditWriteOutcome, UnwrittenStaging, WrittenStaging } from "./AuditWriteOutcome.ts";
+import { unwrittenRow } from "./UnwrittenRow.ts";
+import type { LostWord } from "./UnwrittenRow.ts";
 
 /** `qadi_audit_writes_total`'s `outcome` values. */
 export type WritesLabel = "encode_failed" | "written" | "write_failed" | "skipped_open";
@@ -32,7 +34,7 @@ export type StagingLabel = "staged" | "failed" | "skipped_open" | "failed_open" 
 /** `qadi_audit_entries_lost_total`'s labels: what stopped the write, and what staging did. */
 export interface LostLabel {
   readonly after: "write_failed" | "skipped_open";
-  readonly staging: "not_wired" | "failed";
+  readonly staging: LostWord;
 }
 
 /** One log line: the level, the exact message, and the cause appended to it, if any. */
@@ -79,7 +81,6 @@ const auditReport = (
   staged: StagingReport,
   lost: LostLabel | undefined,
 ): AuditWriteReport => ({ writes, staging: staged.staging, lost, log: staged.log });
-const lostWord = (w: LostLabel["staging"]): LostLabel["staging"] => w;
 
 const warning = (message: string): LogLine => ({ level: "Warn", message, cause: undefined });
 const info = (message: string): LogLine => ({ level: "Info", message, cause: undefined });
@@ -112,17 +113,9 @@ const skippedStagingReport: (self: UnwrittenStaging) => StagingReport = Match.ty
   }),
 );
 
-const lostStaging: (self: UnwrittenStaging) => LostLabel["staging"] | undefined = Match.type<UnwrittenStaging>().pipe(
-  Match.tagsExhaustive({
-    NotWired: () => lostWord("not_wired"),
-    Staged: () => undefined,
-    StageFailed: () => lostWord("failed"),
-  }),
-);
-
 const lostLabel = (after: LostLabel["after"], staging: UnwrittenStaging): LostLabel | undefined => {
-  const stagingLabel = lostStaging(staging);
-  return stagingLabel === undefined ? undefined : { after, staging: stagingLabel };
+  const row = unwrittenRow(staging);
+  return row.durability === "Lost" ? { after, staging: row.lost } : undefined;
 };
 
 /**
