@@ -174,6 +174,16 @@ describe("a port's fail-closed default is a fact the service carries (PFCT-01, D
     assert.isFalse(isPortDefault(attributeResolverPort, revoked.proxy));
   });
 
+  forEveryPort((d) =>
+    it.effect(`${d.port}: a hand-written spread of its default reads defaulted (D-04)`, () =>
+      Effect.gen(function* () {
+        const none = yield* defaultOf(d);
+
+        assert.isTrue(isPortDefault(d, { ...none }));
+      }),
+    ),
+  );
+
   it("M9: marking an extensible shape marks that object, so private state and methods keep working (WR-01)", () => {
     class Holder {
       readonly #answer = 42;
