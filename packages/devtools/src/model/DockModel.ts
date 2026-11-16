@@ -92,8 +92,26 @@ export interface DockModel {
   readonly configure: (inputs: DockModelInputs) => void;
 }
 
-/** What a registry's throw is stated as: the same text `DiagnosticsStatus.Stopped` carries for a poll's defect. */
-const reasonOf = (thrown: unknown): string => Cause.pretty(Cause.die(thrown));
+/**
+ * What a registry's throw is stated as: the same text `DiagnosticsStatus.Stopped` carries for a poll's defect.
+ * Total: a thrown value that cannot itself be rendered (a getter that throws) must not throw out of the guard.
+ */
+const reasonOf = (thrown: unknown): string => {
+  try {
+    return Cause.pretty(Cause.die(thrown));
+  } catch {
+    return "The registry threw a value that could not be described.";
+  }
+};
+
+/** What two failures are compared by: an error's name and message, since the stack differs by call path. */
+const keyOf = (thrown: unknown): string => {
+  try {
+    return thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : reasonOf(thrown);
+  } catch {
+    return reasonOf(thrown);
+  }
+};
 
 /** One list for every absent catalogue, so the role store keeps one identity. */
 const NO_ROLES: ReadonlyArray<Role> = [];
@@ -156,17 +174,18 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   let gatesNow = inputs.gates;
   let closed = false;
   let offGates = () => {};
-  // Why `subscribe` or the release of the previous subscription threw, if either did: the registry's changes then may not reach the model, until `configure` watches again.
+  // Why `subscribe` threw, if it did: the registry's changes then may not reach the model, until `configure` watches again.
   let watchFailure: string | undefined;
+  let watchKey: string | undefined;
   // What `rejoin` compares of a failure: one throw reads the same from any call path, where its rendered stack does not.
   let failureKey: string | undefined;
   const readGates = (): Pick<JoinInput, "gates" | "failed"> => {
-    failureKey = watchFailure;
+    failureKey = watchKey;
     if (watchFailure !== undefined) return { gates: undefined, failed: watchFailure };
     try {
       return { gates: gatesNow?.instances(), failed: undefined };
     } catch (thrown) {
-      failureKey = thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : reasonOf(thrown);
+      failureKey = keyOf(thrown);
       return { gates: undefined, failed: reasonOf(thrown) };
     }
   };
@@ -199,21 +218,23 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   };
   // Releases the held subscription and takes the new one; both are host code and both are guarded.
   // The handle leaves the model's state before it is called, so a release that throws neither skips the
-  // new subscription nor runs again on the next `configure` or in the finalizer. A failed `subscribe`
-  // is stated over a failed release: it names the registry the model now reads.
+  // new subscription nor runs again on the next `configure` or in the finalizer. A release that throws
+  // is not stated: it belongs to a registry the model no longer reads, and has nowhere honest to be shown.
   const watchGates = (registry: GateRegistryLike | undefined) => {
     const release = offGates;
     offGates = () => {};
     watchFailure = undefined;
+    watchKey = undefined;
     try {
       release();
-    } catch (thrown) {
-      watchFailure = reasonOf(thrown);
+    } catch {
+      // The registry left behind may keep a listener, which only calls `rejoin`.
     }
     try {
       offGates = closed || registry === undefined ? () => {} : registry.subscribe(rejoin);
     } catch (thrown) {
       watchFailure = reasonOf(thrown);
+      watchKey = keyOf(thrown);
     }
   };
   // After `shownReading` exists and before any host listener, so the join moves first.
@@ -259,12 +280,14 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
       // The session guards an identical layer itself, so this is not guarded again.
       simulation.setPorts(next.ports);
       diagnosticsFeed.configure(next.diagnostics);
-      remerge();
-      // A watch that failed is tried again, with the same registry or another.
+      // The registry is swapped before `remerge`, whose publish joins through it: one `configure` reads
+      // no registry the host has just handed away. A watch that failed is tried again, with the same
+      // registry or another.
       if (next.gates !== gatesNow || watchFailure !== undefined) {
         gatesNow = next.gates;
         watchGates(gatesNow);
       }
+      remerge();
       rejoin();
     },
   };

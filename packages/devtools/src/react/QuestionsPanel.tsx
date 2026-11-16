@@ -155,7 +155,7 @@ const gatesBlock: (view: GatesView) => (lens: Lens) => ReactNode = Match.type<Ga
     // The precedent's wording and colour: `ServicesPanel`'s `qadi-wiring-failed`.
     Failed: ({ reason }) => () => (
       <p style={{ ...muted, color: colors.error }} data-testid="qadi-gates-failed">
-        The registry handed to the dock threw when it was read, so who is asking cannot be shown: {reason}
+        The registry handed to the dock threw, so who is asking cannot be shown: {reason}
       </p>
     ),
   }),

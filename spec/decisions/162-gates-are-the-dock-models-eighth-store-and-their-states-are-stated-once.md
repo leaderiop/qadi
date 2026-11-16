@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-162                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — amends ADR-QD-047; applies ADR-QD-152; keeps ADR-QD-053, ADR-QD-080 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-16): decision 5: a configure after a failed watch subscribes again; a silent mend is read at the next announcement, changed poll or configure (review iteration 2 IN-03)<br>1.3 (2026-11-16): decision 5: the same failure is compared by name and message, not by the stack its reason renders (review iteration 2 IN-02)<br>1.2 (2026-11-16): decision 5: releasing the old registry's subscription is guarded and stated, never repeated (review iteration 2 WR-01)<br>1.1 (2026-11-16): decision 5: a registry that throws is stated as GatesView.Failed and its rows make no claim; the first version's rationale was false for react's own registry (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-96, CCR-QD-440) |
+> | Change History | 1.5 (2026-11-16): decision 5: a release that throws is not stated, a failed subscribe is keyed like a failed read, stating a throw is total, configure swaps before it re-merges; the failure copy is one neutral sentence (review iteration 3 IN-01, IN-02, IN-03, IN-05; ARCH-96, CCR-QD-440)<br>1.4 (2026-11-16): decision 5: a configure after a failed watch subscribes again; a silent mend is read at the next announcement, changed poll or configure (review iteration 2 IN-03)<br>1.3 (2026-11-16): decision 5: the same failure is compared by name and message, not by the stack its reason renders (review iteration 2 IN-02)<br>1.2 (2026-11-16): decision 5: releasing the old registry's subscription is guarded and stated, never repeated (review iteration 2 WR-01)<br>1.1 (2026-11-16): decision 5: a registry that throws is stated as GatesView.Failed and its rows make no claim; the first version's rationale was false for react's own registry (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-96, CCR-QD-440) |
 
 ---
 
@@ -133,17 +133,22 @@ released by its finalizer. ADR-QD-152 is the shape of the vocabulary. No record 
    because those guards may be gone. The lens is given no guards. The view recovers when the registry is read again and answers: when it announces a change, when a poll that changed the
    questions joins them, or when a `configure` does, which always reads the registry (review iteration 2, IN-03). A registry that
    mends without announcing stays `Failed` until the first of those, because a quiet poll tick reads nothing. A `configure` made
-   while the last watch failed, `subscribe` or the release before it, watches again, with the same registry or another; one made
+   while the last `subscribe` failed watches again, with the same registry or another; one made
    after a watch that worked never subscribes the same registry twice. Releasing the old registry's subscription is guarded the same way (review iteration 2, WR-01): the handle leaves the model's
    state before it is called, so a throw can neither skip the new subscription and the re-join nor run again on the next
-   `configure` or in the finalizer. It is stated as `Failed` with its reason, which names the registry that was left; a failed
-   `subscribe` of the new registry is stated over it, because that one names the registry the model now reads. The old
+   `configure` or in the finalizer. It is not stated (review iteration 3, IN-02): it belongs to a registry the model no longer
+   reads, so after a swap the view is the new registry's listing, not `Failed` until the next `configure`. A release that fails
+   has nowhere honest to be shown, like the finalizer's: a registry the model has left, or a model that is closing. The old
    registry's listener may stay live in the host's registry. It only calls `rejoin`, which reads the registry the model holds now.
-   A finalizer that cannot release has nowhere to state it, and swallows the throw after the model is marked closed.
+   A finalizer that cannot release swallows the throw after the model is marked closed.
    Two failures are the same when an error's name and message agree (a thrown value that is not an error, when its rendered
    reason does): the stack `Cause.pretty` renders differs by which path read the registry, and would otherwise publish a new
-   snapshot for a failure no reader could tell apart (review iteration 2, IN-02). The reason shown keeps its stack, as
-   `DiagnosticsStatus.Stopped` does.
+   snapshot for a failure no reader could tell apart (review iteration 2, IN-02). A failed `subscribe` is keyed the same way as a
+   failed read, so a retry that throws the same failure from another call path publishes nothing (review iteration 3, IN-03).
+   The reason shown keeps its stack, as `DiagnosticsStatus.Stopped` does. Stating a throw is itself total (review iteration 3,
+   IN-01): a thrown value that cannot be rendered, such as a Proxy whose getter throws, is stated as a fixed sentence, so the
+   guard cannot throw out of its own `catch`. `configure` swaps the registry before it re-merges the reading, so one `configure`
+   publishes one snapshot and none of them reads a registry the host has just handed away (review iteration 3, IN-05).
    After close the model reads no registry at all, so a late `configure` runs none of the host's code.
 
 ## Consequences
@@ -163,8 +168,9 @@ released by its finalizer. ADR-QD-152 is the shape of the vocabulary. No record 
   subscribes to it. `useGateInstances` is unchanged for a component that wants the list itself.
 - **Breaking for `@qadi/react` and `@qadi/devtools`**, recorded in two changesets marked **Breaking** and in the 0.13 entry of
   the upgrade guide; `@qadi/core` gains `GateState`, `gateStates` and `isGateState`, a minor with no break.
-- **One more string, for a state that did not exist before** (decision 5): "The registry handed to the dock threw when it was
-  read, so who is asking cannot be shown: {reason}", under `qadi-gates-failed`. It appears only when a registry throws.
+- **One more string, for a state that did not exist before** (decision 5): "The registry handed to the dock threw, so who is
+  asking cannot be shown: {reason}", under `qadi-gates-failed`. One neutral sentence, true of a failed read and of a failed
+  `subscribe` (review iteration 3, IN-02). It appears only when a registry throws.
 - **A sixth gate state is a compile error** in react (the pin) and devtools (`GATE_DISPLAY`'s key type), and not before.
 - **What this does not do** (D-06): `GateInstanceLike.kind` stays `string`, so a kind react gains still reaches the panel as
   itself; stating the kinds once is deferred. `sightings` stays a thunk.
