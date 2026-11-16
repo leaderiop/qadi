@@ -630,7 +630,7 @@ Plans:
 **Goal**: The gate registry is the dock model's eighth store, so `QuestionsPanel` renders one snapshot in which each question and the instances asking it come from the same moment, and the five gate-state words are stated once in core so react and devtools cannot drift.
 **Depends on**: Phase 48 (serial order only). Soft edge to Phase 47 (both edit devtools `ServicesPanel` and `DockModel`; start from 47's version).
 **Requirements**: GATE-01, GATE-02, GATE-03, GATE-04, GATE-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
-**Records**: ARCH-96; ADR-QD-162 (amends the dock model's store set, the ARCH-74/82 lineage; the ADR-QD-152 pattern for the vocabulary; ADR-QD-053 and ADR-QD-080 kept); CCR-QD-440; BEH-QD-581 to 585; INV-QD-343 to 344; changesets for `@qadi/core` (minor: the gate-state vocabulary), `@qadi/react` (patch) and `@qadi/devtools` (minor, marked **Breaking** if the design changes a public dock prop or `GateInstanceLike`)
+**Records**: ARCH-96; ADR-QD-162 (amends the dock model's store set, the ARCH-74/82 lineage; the ADR-QD-152 pattern for the vocabulary; ADR-QD-053 and ADR-QD-080 kept); CCR-QD-440; BEH-QD-581 to 585; INV-QD-343 to 344; changesets for `@qadi/core` (minor: the gate-state vocabulary), `@qadi/react` (minor, **Breaking**: `useDevtoolsFeed()` returns the registry, D-18) and `@qadi/devtools` (minor, **Breaking**: the dock's `gates` prop is a registry, D-09)
 **Settled by the review check**: today `QuestionsPanel.tsx` joins the polled `questions` (through `model/DiagnosticsStore.ts`) with the live `gates` prop (`react/DevtoolsDock.tsx`), which skips `DockModel`, and the per-row `instancesAsking` join runs in the view. `model/Gates.ts` restates `GateRenderState` (`"Failed" | "Denied" | "Rechecking" | "Pending" | "Allowed"`) and types `GateInstanceLike.state` as `string`; react's version is `GateWriter.ts`'s, derived from `DecisionOutcome.ts`'s tags; no test ties the two. Devtools takes no dependency on `@qadi/react`.
 
 **Success Criteria** (what must be TRUE):
@@ -642,7 +642,35 @@ Plans:
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `DockModel.ts`, `QuestionsPanel.tsx`, `Gates.ts` and react's `GateWriter.ts`, with a characterisation of the panel's current rows, committed first; then the vocabulary in core and both derivations; then the eighth store and the panel read; then records. Browser behaviour (Activity hide/show, focus) stays as it was; any change to it is named.
 **UI hint**: yes
-**Plans**: TBD
+**Plans**: 9 plans
+
+Plans:
+**Wave 1**
+- [ ] 49-01-PLAN.md — preconditions, the ADR check and the reserved ids; the mutation baseline committed alone
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 49-02-PLAN.md — the Questions panel's twelve-cell characterisation through the public dock, and the panel tests routed through one input seam, on the base
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 49-03-PLAN.md — the five gate states stated once in core (RED first), read by react's type and devtools' display; overview rows; the sixth-word negative control
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 49-04-PLAN.md — the gate registry as the dock model's eighth store, joined at one moment (RED first, a fast-check property); the torn-join negative control and a Stryker spot check
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 49-05-PLAN.md — the feed hands over the registry (RED first), the dock takes it and the panel renders the model's snapshot with the characterisation unchanged; the D-12a sentence
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 49-06-PLAN.md — `GateRegistryLike` public and named by the overview; the dock's subscription across Activity, StrictMode, a swap and an unmount; the example's cross-package pin
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 49-07-PLAN.md — ADR-QD-162 with the ADR-QD-047 and ADR-QD-053 notes; three changesets and the 0.13 upgrade entry; the website and README docs
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 49-08-PLAN.md — BEH-QD-581 to 585, INV-QD-343 and 344, the traceability rows, CCR-QD-440 closed
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 49-09-PLAN.md — mutation after (no touched file falls; `GateState.ts` measured); scope, scan, commit order and ids; `pnpm check:pr`; nothing released
 
 ### Phase 50: What a leaf needs from the request, stated once
 
