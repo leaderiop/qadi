@@ -430,8 +430,7 @@ const renderNode: (node: RenderableNode) => PrismaWhereInput = Match.type<Render
 export const compilePrismaWhere = Effect.fn("qadi.predicatePrisma.compilePrismaWhere")(
   function* (predicate: Predicate, options: CompilePrismaWhereOptions) {
     // `compiled` is counted only after `render` returns, so a renderer defect
-    // counts neither outcome (D-06a). A comment here, not the doc comment above: a
-    // sentence in the doc comment is emitted into the declaration.
+    // counts neither outcome (BEH-QD-597, ADR-QD-165).
     return yield* compilePredicate(predicate, {
       rules: {
         reservedColumns: RESERVED_PRISMA_KEYS,
