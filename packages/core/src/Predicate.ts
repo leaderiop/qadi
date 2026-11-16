@@ -26,16 +26,14 @@ import { CurrentSubject } from "./CurrentSubject.ts";
 import type { DecisionHistory } from "./DecisionHistory.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
 import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors.ts";
-import { MissingAction, PolicyNotTranslatable } from "./Errors.ts";
+import type { MissingAction } from "./Errors.ts";
+import { PolicyNotTranslatable } from "./Errors.ts";
 import { predicatesTranslatedTotal } from "./EvaluationMetrics.ts";
 import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
-import {
-  evaluateMatcher,
-  getByPath,
-  referencesAction,
-  referencesResource,
-} from "./Matcher.ts";
+import { evaluateMatcher, getByPath, referencesResource } from "./Matcher.ts";
 import { permissionKey } from "./Permission.ts";
+import { absenceOf, errorOf } from "./LeafNeeds.ts";
+import type { ActionAbsence, Supplied } from "./LeafNeeds.ts";
 import { fieldsOf, foldPolicy, foldPolicyCases } from "./Policy.ts";
 import { askActed, isAnyActedLeaf, readAttribute } from "./PortAccess.ts";
 import type { AnyActedLeaf } from "./PortAccess.ts";
@@ -309,7 +307,7 @@ type Plan =
       readonly wanted: ActedResult;
       readonly leaf: AnyActedLeaf;
     }
-  | { readonly _tag: "NeedAction"; readonly expected: string | undefined }
+  | { readonly _tag: "NeedAction"; readonly absence: ActionAbsence }
   | { readonly _tag: "Conjunction"; readonly plans: ReadonlyArray<Plan> }
   | {
       readonly _tag: "Disjunction";
@@ -361,6 +359,8 @@ const refused = (policyTag: string, reason: string): Compiled => new Refusal(pol
 const compileTree = (admitted: Admitted): Compiled => {
   const { policy, subject, action } = admitted.question;
   const context = admitted.matcherContext;
+  // A predicate filters rows, so the resource is the row and is always present.
+  const supplied: Supplied<true> = { action: action !== undefined, resource: true };
 
   /** Plans every folded child in order, stopping at the first refusal. */
   const plansOf = (folded: ReadonlyArray<Compiled>): ReadonlyArray<Plan> | Refusal => {
@@ -398,10 +398,12 @@ const compileTree = (admitted: Admitted): Compiled => {
     HasPermission: (p) =>
       planned({ _tag: "Constant", value: subject.permissions.has(permissionKey(p.permission)) }),
 
-    HasAction: (p) =>
-      action === undefined
-        ? planned({ _tag: "NeedAction", expected: p.action })
-        : planned({ _tag: "Constant", value: action === p.action }),
+    HasAction: (p) => {
+      const absent = absenceOf(p, supplied);
+      return absent !== undefined
+        ? planned({ _tag: "NeedAction", absence: absent })
+        : planned({ _tag: "Constant", value: action === p.action });
+    },
 
     HasAttribute: (p) => {
       // Folds against the subject — but only if it does not reach for a column
@@ -412,16 +414,14 @@ const compileTree = (admitted: Admitted): Compiled => {
           "the matcher compares against the resource, which is a column",
         );
       }
-      if (action === undefined && referencesAction(p.matcher)) {
-        return planned({ _tag: "NeedAction", expected: undefined });
-      }
+      const absent = absenceOf(p, supplied);
+      if (absent !== undefined) return planned({ _tag: "NeedAction", absence: absent });
       return planned({ _tag: "AskAttribute", leaf: p });
     },
 
     HasResourceAttribute: (p) => {
-      if (action === undefined && referencesAction(p.matcher)) {
-        return planned({ _tag: "NeedAction", expected: undefined });
-      }
+      const absent = absenceOf(p, supplied);
+      if (absent !== undefined) return planned({ _tag: "NeedAction", absence: absent });
       const column = columnPredicate(p.attribute, p.matcher, context);
       return column === undefined
         ? refused(
@@ -594,7 +594,7 @@ const run = (
         Effect.map(askActed("toPredicate", subject, p.leaf, undefined), (answer) =>
           constant(answer === p.wanted),
         ),
-      NeedAction: (p) => Effect.fail(new MissingAction({ expected: p.expected })),
+      NeedAction: (p) => Effect.fail(errorOf(p.absence)),
       // Suspended: building the child eagerly recursed natively once per `Not`
       // level, so a deep chain under a large `maxDepth` overflowed the stack.
       Negation: (p) => Effect.map(Effect.suspend(() => run(p.plan, subject, context)), negate),
