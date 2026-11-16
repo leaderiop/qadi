@@ -149,7 +149,18 @@ describe("rendering and diffing read no arity (BEH-QD-595)", () => {
           node(tag, [node("HasAction", [], true)]),
           node(tag, [node("HasAction", [], false)]),
         ),
-        [{ _tag: "VerdictChanged", path: [0], policyTag: "HasAction", before: true, after: false }],
+        [
+          {
+            _tag: "VerdictChanged",
+            path: [0],
+            policyTag: "HasAction",
+            label: undefined,
+            before: true,
+            after: false,
+            beforeReason: undefined,
+            afterReason: undefined,
+          },
+        ],
       );
     });
   }
