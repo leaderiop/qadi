@@ -177,7 +177,9 @@ describe("what audit emits for each outcome leaf, written on the phase base (ARC
   for (const row of ROWS) {
     it.effect(`${row.leaf}: ${row.emits}`, () =>
       Effect.gen(function* () {
-        const o = yield* observeLeaf(row.leaf, { onRefused: false });
+        // Refused runs without a hook, to see the default warning; every other leaf installs one, so the empty
+        // `refusals` below says the hook is never called for a record that was not refused.
+        const o = yield* observeLeaf(row.leaf, { onRefused: row.leaf !== "Refused" });
         assert.strictEqual(o.path, row.leaf);
         assert.deepStrictEqual(o.stagingKeys, row.stagingKeys);
         assert.deepStrictEqual(
