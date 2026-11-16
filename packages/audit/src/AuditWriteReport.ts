@@ -143,8 +143,11 @@ export const describeAuditWriteOutcome: (self: AuditWriteOutcome) => AuditWriteR
 );
 
 /** The leaf as a closed word — `"Refused"` or `"<Case>.<Staging>"` — for a span attribute. */
-export const outcomePath = (self: AuditWriteOutcome): string =>
-  self._tag === "Refused" ? self._tag : `${self._tag}.${self.staging._tag}`;
+export const outcomePath: (self: AuditWriteOutcome) => string = Match.type<AuditWriteOutcome>().pipe(
+  Match.tag("Refused", (o) => o._tag),
+  Match.tag("Written", "WriteFailed", "Skipped", (o) => `${o._tag}.${o.staging._tag}`),
+  Match.exhaustive,
+);
 
 /**
  * Records received, by what became of them. Every record `record()` is handed
@@ -212,8 +215,22 @@ export interface AuditWriteEmitOptions {
   readonly onOutcome: ((outcome: AuditWriteOutcome) => void) | undefined;
 }
 
-const evaluationIdOf = (outcome: AuditWriteOutcome): string =>
-  outcome._tag === "Refused" ? outcome.refusal.evaluationId : outcome.entry.record.evaluationId;
+const evaluationIdOf: (self: AuditWriteOutcome) => string = Match.type<AuditWriteOutcome>().pipe(
+  Match.tag("Refused", (o) => o.refusal.evaluationId),
+  Match.tag("Written", "WriteFailed", "Skipped", (o) => o.entry.record.evaluationId),
+  Match.exhaustive,
+);
+
+/**
+ * Logs one line annotated with the record's `evaluationId`. The refusal marker
+ * and an absent line log nothing here: a refusal is core's report, not a line.
+ */
+const logLine = (line: AuditWriteReport["log"], evaluationId: string): Effect.Effect<void> =>
+  typeof line === "object"
+    ? Effect.logWithLevel(line.level)(...(line.cause === undefined ? [line.message] : [line.message, line.cause])).pipe(
+        Effect.annotateLogs({ evaluationId }),
+      )
+    : Effect.void;
 
 /**
  * Applies {@link describeAuditWriteOutcome}: updates the metrics, logs the line,
@@ -231,18 +248,17 @@ export const emitWriteOutcome = Effect.fn("qadi.audit.emitWriteOutcome")(functio
   const report = describeAuditWriteOutcome(outcome);
   const evaluationId = evaluationIdOf(outcome);
 
-  if (outcome._tag === "Refused") {
-    yield* reportEncodeRefusal(outcome.refusal, {
-      message:
-        "qadi/audit: a decision record could not be encoded for the audit trail; no row was written",
-      onRefused: options.onRefused,
-    });
-  } else if (report.log !== undefined && report.log !== "encodeRefusal") {
-    const { level, message, cause } = report.log;
-    yield* Effect.logWithLevel(level)(...(cause === undefined ? [message] : [message, cause])).pipe(
-      Effect.annotateLogs({ evaluationId }),
-    );
-  }
+  yield* Match.value(outcome).pipe(
+    Match.tag("Refused", (o) =>
+      reportEncodeRefusal(o.refusal, {
+        message:
+          "qadi/audit: a decision record could not be encoded for the audit trail; no row was written",
+        onRefused: options.onRefused,
+      }),
+    ),
+    Match.tag("Written", "WriteFailed", "Skipped", () => logLine(report.log, evaluationId)),
+    Match.exhaustive,
+  );
 
   yield* Metric.update(WRITES_COUNTERS[report.writes], 1);
   for (const label of report.staging) yield* Metric.update(STAGING_COUNTERS[label], 1);
