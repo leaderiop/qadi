@@ -23,7 +23,16 @@ import {
 } from "../src/LeafNeeds.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { FIXTURES, SHAPES, labelOf, leafLayer, leafSubject, oracle } from "./LeafFixtures.ts";
+import {
+  FIXTURES,
+  SHAPES,
+  evaluateLabel,
+  labelOf,
+  leafLayer,
+  leafSubject,
+  oracle,
+  predicateLabel,
+} from "./LeafFixtures.ts";
 
 const ALL = Object.values(FIXTURES).flat();
 
@@ -178,6 +187,48 @@ describe("the port-free judgements", () => {
     assert.isFalse(holdsAction(leaf, "write"));
     assert.isFalse(holdsAction(leaf, undefined));
   });
+});
+
+describe("evaluate and toPredicate agree where both apply (D-11)", () => {
+  const TRUE = 'PRED {"_tag":"True"}';
+  const FALSE = 'PRED {"_tag":"False"}';
+
+  it.effect("a HasAction deny keeps its reason, and compiles to False", () =>
+    Effect.gen(function* () {
+      const write = P.hasAction("write");
+      assert.strictEqual(
+        yield* evaluateLabel(write, true, "id"),
+        "Deny: action is 'read', not 'write'",
+      );
+      assert.strictEqual(yield* predicateLabel(write, true), FALSE);
+      assert.strictEqual(yield* evaluateLabel(write, false, "id"), "Action:write");
+      assert.strictEqual(yield* predicateLabel(write, false), "Action:write");
+    }),
+  );
+
+  it.effect("an allow is a True constant and a deny a False one, and an absence is the same", () =>
+    Effect.gen(function* () {
+      let constants = 0;
+      for (const policy of [...ALL.map((f) => f.policy), P.hasAction("write")]) {
+        for (const action of [false, true]) {
+          const walked = yield* evaluateLabel(policy, action, "id");
+          const compiled = yield* predicateLabel(policy, action);
+          const where = `${policy._tag} action=${action ? "read" : "-"}: ${walked} / ${compiled}`;
+          if (walked.startsWith("Action:") || compiled.startsWith("Action:")) {
+            assert.strictEqual(compiled, walked, where);
+          }
+          if (compiled === TRUE || compiled === FALSE) {
+            assert.strictEqual(walked === "Allow", compiled === TRUE, where);
+            assert.isTrue(walked === "Allow" || walked.startsWith("Deny: "), where);
+            constants++;
+          }
+        }
+      }
+      // The cells that compile to a constant, counted so that a fixture change
+      // which drops them from the comparison is seen.
+      assert.strictEqual(constants, 18);
+    }),
+  );
 });
 
 describe("the barrel", () => {
