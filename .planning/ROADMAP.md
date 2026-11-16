@@ -374,7 +374,7 @@ Order: defects first (43-46), then the "stated once" deepenings (47-49), then th
 - [x] **Phase 46: The sink emitter reports what it contains** - A failing or dying user sink is contained and reported with exactly one warning, naming the sink (ARCH-93, core) (completed 2026-11-15)
 - [x] **Phase 47: Port facts read from the description** - Defaultedness, consequence and call reading come from the port description, not from display names (ARCH-94, core, devtools) (completed 2026-11-16)
 - [x] **Phase 48: Audit reports core's refusal and derives "lost"** - `AuditEntryNotEncodable` is deleted and the lost-staging label derives from durability (ARCH-95, Breaking, audit) (completed 2026-11-16)
-- [ ] **Phase 49: Gates as the dock model's eighth store, one gate-state vocabulary** - The gate registry joins the dock model and the five gate-state words are stated once in core (ARCH-96, core, react, devtools)
+- [x] **Phase 49: Gates as the dock model's eighth store, one gate-state vocabulary** - The gate registry joins the dock model and the five gate-state words are stated once in core (ARCH-96, core, react, devtools) (completed 2026-11-16)
 - [ ] **Phase 50: What a leaf needs from the request, stated once** - Opens on a benchmark; one table of leaf needs read by `Walk` and `Predicate`, or a recorded rejection (ARCH-97, core)
 - [ ] **Phase 51: Policy tag arity stated once** - One closed record gives each tag's arity; `traceShapeOf` reads it and `leafTags` goes; `foldTrace` stays public (ARCH-98, core)
 - [ ] **Phase 52: Core owns the predicate compile shell** - One core function owns defaults, renderability and outcome counting; each dialect keeps its rules, renderer and metric (ARCH-99, core, predicate-sql, predicate-prisma)
@@ -642,7 +642,7 @@ Plans:
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for `DockModel.ts`, `QuestionsPanel.tsx`, `Gates.ts` and react's `GateWriter.ts`, with a characterisation of the panel's current rows, committed first; then the vocabulary in core and both derivations; then the eighth store and the panel read; then records. Browser behaviour (Activity hide/show, focus) stays as it was; any change to it is named.
 **UI hint**: yes
-**Plans**: 9/9 plans executed
+**Plans**: 9/9 plans complete
 
 Plans:
 **Wave 1**
@@ -738,7 +738,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 46. The sink emitter reports what it contains | 7/7 | Complete    | 2026-11-15 |
 | 47. Port facts read from the description | 7/7 | Complete    | 2026-11-16 |
 | 48. Audit reports core's refusal and derives "lost" | 8/8 | Complete    | 2026-11-16 |
-| 49. Gates as the dock model's eighth store, one gate-state vocabulary | 9/9 | In Progress | - |
+| 49. Gates as the dock model's eighth store, one gate-state vocabulary | 9/9 | Complete    | 2026-11-16 |
 | 50. What a leaf needs from the request, stated once | 0/TBD | Not started | - |
 | 51. Policy tag arity stated once | 0/TBD | Not started | - |
 | 52. Core owns the predicate compile shell | 0/TBD | Not started | - |
