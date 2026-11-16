@@ -134,8 +134,9 @@ describe("every reader agrees with the record", () => {
 
 describe("a tag outside the union", () => {
   // A caller-held trace may carry any tag. The record has no row for one, so the fold
-  // throws when it opens the node, before any child's arm runs, as the base's
-  // `Match.exhaustive` did; inherited names do not read as an arity either.
+  // throws when it opens the node, before any child's arm runs, at the same point as the
+  // base's `Match.exhaustive` (a `TypeError` now, so the class is not asserted); inherited
+  // names do not read as an arity either.
   for (const name of ["Bogus", "constructor", "toString", "__proto__"]) {
     it(`${name}: foldTrace throws before any child's arm runs`, () => {
       const foreign: Tag = JSON.parse(JSON.stringify(name));

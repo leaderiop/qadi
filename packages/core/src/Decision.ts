@@ -431,8 +431,10 @@ const traceChildrenByArity = {
  * Read by `traceStep` below, which hands exactly these results to the arm; a
  * leaf's `children` are not walked, so a foreign leaf that carries some cannot
  * reach a fold that was told it has none. A tag outside the union has no row, so
- * the fold throws on opening its node, before any child's arm runs, as the
- * `Match.exhaustive` this replaced did (pinned by `PolicyArity.test.ts`).
+ * the fold throws on opening its node, before any child's arm runs, at the same
+ * point as the `Match.exhaustive` this replaced; the error is now a `TypeError`,
+ * not that match's, and callers should not rely on its class (pinned by
+ * `PolicyArity.test.ts`).
  */
 const traceChildrenOf = (self: Trace): ReadonlyArray<Trace> =>
   traceChildrenByArity[traceShapeOf(self.policyTag)](self);

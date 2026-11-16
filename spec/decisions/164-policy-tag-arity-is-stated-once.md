@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-164                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — applies ADR-QD-152; reads ADR-QD-090, ADR-QD-101, ADR-QD-099; keeps ADR-QD-073, ADR-QD-077 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-16): review iteration 1 IN-05: Leaf to Many is refused by the src readers, LeafNeeds.ts first (ARCH-98)<br>1.2 (2026-11-16): review iteration 1 WR-02: the trace children are a closed per-arity table (ARCH-98)<br>1.1 (2026-11-16): review iteration 1 WR-01: the after table says what each edit did on the base (ARCH-98)<br>1.0 (2026-11-16): Initial release (ARCH-98, CCR-QD-442) |
+> | Change History | 1.4 (2026-11-16): review iteration 2 IN-01: what a tag outside the union does, and what pins it (ARCH-98)<br>1.3 (2026-11-16): review iteration 1 IN-05: Leaf to Many is refused by the src readers, LeafNeeds.ts first (ARCH-98)<br>1.2 (2026-11-16): review iteration 1 WR-02: the trace children are a closed per-arity table (ARCH-98)<br>1.1 (2026-11-16): review iteration 1 WR-01: the after table says what each edit did on the base (ARCH-98)<br>1.0 (2026-11-16): Initial release (ARCH-98, CCR-QD-442) |
 
 ---
 
@@ -68,6 +68,17 @@ should never have been given.
    not a ternary whose last arm is an unconditional else, and `ChildrenOf`'s last branch is `A extends "Many" ? … : never`.
    So a fourth arity word is a missing row (TS2741 in `Decision.ts`) and not a node silently handed every child; the
    proof was made by adding `"Pair"` to `Arity` temporarily.
+
+   A tag outside the union (a caller-held trace may carry one; `Trace.policyTag` is public) has no row in either
+   table: `POLICY_ARITY[tag]` reads `undefined` or an inherited member, which names no row of the per-arity table, and
+   calling that absent row throws a `TypeError` in `traceChildrenOf` when `foldTreeBy` opens the node, before any
+   child's arm runs. The base threw `effect/match/Match/exhaustive: absurd` on the same path, one call deeper, from
+   `traceShapeOf`'s `Match.exhaustive`. Both are fail-closed defects, never an allow; only the error's class and
+   message changed, and callers should not rely on either. No code names the case: the throw exists because the absent
+   row is called, so a fallback that gave a foreign tag an arity (`?? "Many"` in `traceShapeOf`, or an
+   `Object.hasOwn` default) would remove it silently. `PolicyArity.test.ts`'s "a tag outside the union" (review
+   iteration 1 IN-02) is what stops that: for `Bogus`, `constructor`, `toString` and `__proto__` it asserts that
+   `foldTrace` throws and that no child's arm ran, and does not assert the error's class.
 6. **`PolicyCases` and `TraceCases` stay hand-written and are tied by tstyche** (D-06, D-06a). Their arms are not a function
    of arity alone: `Rules` receives `RuleResult` rows and not an array of results, and a trace wrapper's child is
    `R | undefined`. A generated type would have to special-case exactly those, so it would state the facts again less
