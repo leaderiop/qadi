@@ -1,105 +1,89 @@
 ---
 phase: QD-47-port-facts-read-from-the-description
-fixed_at: 2026-11-16T03:00:00Z
+fixed_at: 2026-11-16T05:00:00Z
 review_path: .planning/phases/QD-47-port-facts-read-from-the-description/47-REVIEW.md
-iteration: 1
-findings_in_scope: 6
-fixed: 6
+iteration: 2
+findings_in_scope: 2
+fixed: 2
 skipped: 0
 status: all_fixed
 ---
 
 # Phase 47: Code Review Fix Report
 
-**Fixed at:** 2026-11-16T03:00:00Z
+**Fixed at:** 2026-11-16T05:00:00Z
 **Source review:** `.planning/phases/QD-47-port-facts-read-from-the-description/47-REVIEW.md`
-**Iteration:** 1
+**Iteration:** 2
 
 **Summary:**
-- Findings in scope: 6 (fix scope `all`: WR-01 to WR-04, IN-01, IN-02)
-- Fixed: 6
+- Findings in scope: 2 (WR-01 from the review, and MUT-01, a mutation regression the orchestrator measured after iteration 1)
+- Fixed: 2
 - Skipped: 0
 
-Each finding is one commit. WR-01 to WR-03 wrote a failing row first and ran it red before the fix. WR-04 and IN-02 add rows
-that pin behaviour already true, so they could not be red. Verification ran in the main checkout (`workflow.use_worktrees` is
-`false`), on branch `arch-wave-10`. A closing docs commit (`a2e6ffa1`) updates the CCR-QD-438 row in `spec/README.md` to the
-new revisions. No new spec file was bumped beyond those the row already names.
+Each finding is one commit. Verification ran in the main checkout (`workflow.use_worktrees` is `false`), on branch `arch-wave-10`.
+The CCR-QD-438 row in `spec/README.md` was updated inside the WR-01 commit (BEH-QD-571's file Rev 1.35, ADR-QD-160 Rev 1.5,
+README Rev 1.205).
 
 ## Fixed Issues
 
-### WR-01: `stateOf` shows "wired, unnamed" for a defaulted port with no name, hiding "defaulted"
-
-**Files modified:** `packages/devtools/src/react/ServicesPanel.tsx`, `packages/devtools/test/react/ServicesPanel.test.tsx`,
-`spec/behaviors/28-devtools-screens.md`, `spec/devtools-spec/02-screens.md`
-**Commit:** `b1ce4e15`
-**Applied fix:** `stateOf` checks `defaulted` before the name, so a present, defaulted, unnamed port reads
-`defaulted — unnamed`. Every other output is unchanged (the existing `ServicesPanel.reading.test.tsx` rows were not touched).
-The new row in `ServicesPanel.test.tsx` was red (`wired, unnamed`) before the fix and compares the whole string. BEH-QD-215
-(Rev 1.23) and the devtools Screen 6 sentence (Rev 0.20 draft) state the new reading.
-
-### WR-02: "total over any value" is claimed as a MUST, but `isMarkedDefault` throws on a Proxy whose descriptor trap throws
+### WR-01: `markDefault` still breaks a decorator result that has private or internal-slot state, and the docs say it keeps class instances
 
 **Files modified:** `packages/core/src/PortDefault.ts`, `packages/core/test/PortDefault.test.ts`,
-`spec/behaviors/25-inspection.md`, `spec/decisions/160-port-facts-are-read-from-the-description.md`, `spec/invariants.md`
-**Commit:** `80d56c5f`
-**Applied fix:** `isMarkedDefault` wraps the own-descriptor read in `try`/`catch` and answers `false` on a throw. Row M7b
-(a Proxy whose `getOwnPropertyDescriptor` trap throws, and a revoked proxy) was red with `Error: trap` before the fix. BEH-QD-571,
-INV-QD-339 and the overview keep "total"; BEH-QD-571 names the throwing and revoked proxy, INV-QD-339's enforcement lists M7b,
-and ADR-QD-160's accepted Proxy-throw consequence is replaced by "a throwing trap reads not defaulted".
+`spec/behaviors/25-inspection.md`, `spec/decisions/160-port-facts-are-read-from-the-description.md`, `spec/README.md`,
+`.changeset/port-default-is-a-mark.md`, `apps/website/src/content/docs/docs/reference/upgrading.md`
+**Commit:** `47de9c93`
+**Applied fix:** `markDefault` marks an extensible shape in place with `Object.assign(shape, { [DEFAULT_OF]: port })` and returns
+the same object, so `#private` fields, internal slots and prototype methods keep working. Only a non-extensible shape is
+copied, with its prototype and own descriptors, and the mark's descriptor now comes from
+`Object.getOwnPropertyDescriptors({ [DEFAULT_OF]: port })` (no boolean literals). The remaining limit is stated in the source
+comment, BEH-QD-571 (Rev 1.35), ADR-QD-160 (Rev 1.5), the 0.13 upgrade entry and the changeset: a non-extensible result with
+private or internal-slot state is copied and loses that state, so the decorator returns an extensible object. The IN-02 text
+also says `decoratePorts` marks an extensible result in place, so an object the host shares is marked too. The "a class instance
+keeps its methods" claim is corrected.
+Tests: M9 (an extensible instance with a `#private` field is returned as the same object, its method works, it reads
+defaulted) was red before the fix (`marked !== holder`) and is green after. M10 (a frozen shape is copied, keeps its prototype
+and methods, reads defaulted, the original stays unmarked) pins behaviour that was already true, so it could not be red.
+A `decoratePorts` row (b) was tried and dropped: `f` is generic over the port, so returning a class instance from it does not
+type-check without a cast, and the house rules forbid one. M9 covers the in-place marking directly, and `carryDefault` calls
+`markDefault` unchanged.
+**Status note:** a logic change; the design was chosen by the orchestrator, so it is worth a human read of the in-place
+mutation (the only new behaviour is that a result `f` shares with the host is now marked itself).
 
-### WR-03: `markDefault` rebuilds the shape with a spread, which loses a class-based shape's prototype methods
+### MUT-01: PortDefault.ts mutation score fell after iteration 1
 
-**Files modified:** `packages/core/src/PortDefault.ts`, `packages/core/test/PortDefault.test.ts`,
-`spec/behaviors/25-inspection.md`
-**Commit:** `829be12e`
-**Applied fix:** `markDefault` now builds the copy with `Object.create(Object.getPrototypeOf(shape), { ...Object.getOwnPropertyDescriptors(shape), [DEFAULT_OF]: … })`,
-so the prototype and getters survive. It needs no `as`: `Object.create` returns `any`, which is assignable to the declared
-return type. The mark stays an own, enumerable, symbol-keyed property (M3's spread copy and M8's enumerability assertion
-need `enumerable: true`; M8 passes unchanged and `Object.keys` and JSON are not affected, since symbols are never keys).
-Row W10 (`decoratePorts` with a decorator returning `Object.create(inner)`, so the methods live on the prototype) was red
-before the fix and now keeps `resolve` callable and the shape defaulted. `f` is generic over the port, so a literal class
-instance cannot be written without a cast. The delegating-object form is the same prototype case. BEH-QD-571 states it.
+**Files modified:** `packages/core/src/PortDefault.ts`, `packages/core/test/PortDefault.test.ts`
+**Commit:** `1b14f0b1`
+**Applied fix:** The `typeof service !== "object" || service === null` guard in `isMarkedDefault` is deleted (the `try` already
+answers false for null, undefined and a hostile proxy, and a primitive has no own mark). The `try` is narrowed to the one
+throwing call, in a package-private `ownMark(service)` helper that returns the descriptor or `undefined`; the `?.value === port`
+comparison now sits outside it, so dropping `?.` throws uncaught on an unmarked object and M1/M2 kill it. The three
+`enumerable/writable/configurable: true` mutants went with the WR-01 rewrite. A new per-port row (`forEveryPort`) pins that a
+hand-written `{ ...default }` reads defaulted (D-04), which also pins the mark's enumerability.
 
-### WR-04: BEH-QD-571's "MUST NOT carry the mark" list is pinned for one port and one kind of double
+Stryker (`--mutate` PortDefault.ts, PortDerivation.ts, Ports.ts, PortDescription.ts), run after both commits' content was in place:
 
-**Files modified:** `packages/core/test/PortDefault.test.ts`, `spec/behaviors/25-inspection.md`, `spec/traceability.md`
-**Commit:** `78ca795b`
-**Applied fix:** A `forEveryPort` row per port asserts that `scriptedPort(d, () => undefined)`, a replay
-(`scriptedPort(d, replyTable(d, []))`) and `askRemotely(d, …)` read not defaulted. Row M2b covers the two record fixtures that
-exist (`attributeResolverFromRecord`, `customPredicateFromRecord`). Every constructor BEH-QD-571 names exists, so the BEH
-was not narrowed. BEH-QD-571's "Pinned by" and the traceability rows (INV-QD-339 and the `PortDefault.test.ts` file row) name the
-new rows. These rows pass on the current code by design.
+| File | Score | Killed / total |
+| ---- | ----- | -------------- |
+| `PortDefault.ts` | 90.00 | 9 / 10 |
+| `PortDerivation.ts` | 98.00 | 49 / 50 (the pre-existing `{ permits }` survivor) |
+| `PortDescription.ts` | 100.00 | 16 / 16 |
+| `Ports.ts` | 100.00 | 16 / 16 |
 
-### IN-01: The "nobody outside core can forge the mark" claim overstates; the symbol is readable off any default
+## New-file survivors
 
-**Files modified:** `packages/core/src/PortDefault.ts`, `packages/core/test/PortDefault.test.ts`,
-`spec/behaviors/25-inspection.md`, `spec/decisions/160-port-facts-are-read-from-the-description.md`
-**Commit:** `eed4af9b`
-**Applied fix:** The source comment, the test header, BEH-QD-571/572's limits list and ADR-QD-160 Decision 2 now say the key is
-not exported and cannot be minted with `Symbol.for`, that it can be read off an existing default with
-`Object.getOwnPropertySymbols`, so copying it is possible but deliberate, and that it labels a diagnostic and guards
-nothing. The upgrade guide never made the claim.
+- `packages/core/src/PortDefault.ts:49:11`, BlockStatement (`} catch { return undefined; }` becomes `} catch {}`). Equivalent:
+  an empty `catch` falls off the end of the helper and returns `undefined`, the same value the body returns, so no test can
+  observe the difference. Dropping the `return` instead would leave a code path with no return (`noImplicitReturns`).
 
-### IN-02: `decoratePorts` stamps the mark on whatever `f` returns, so a decorator that replaces the shape still reads defaulted
+## Checks
 
-**Files modified:** `packages/core/test/PortDefault.test.ts`, `spec/behaviors/25-inspection.md`,
-`spec/decisions/160-port-facts-are-read-from-the-description.md`, `spec/traceability.md`,
-`apps/website/src/content/docs/docs/reference/upgrading.md`, `.changeset/port-default-is-a-mark.md`
-**Commit:** `48e1c2db`
-**Applied fix:** Documentation only, behaviour unchanged (D-17). BEH-QD-571, ADR-QD-160's consequences, the 0.13 upgrade entry and
-the `@qadi/core` changeset state that `decoratePorts` marks by the slot, not by what the decorator returns. Row W11 pins it:
-a decorator that replaces a default with a differently named shape still reads defaulted.
-
-## Skipped Issues
-
-None.
-
-## Verification
-
-Run in the main checkout, not a worktree. See the summary returned with this report for the result of each command.
+All passed, run in the main checkout: `pnpm exec vitest run --project core --project devtools` (135 files, 3879 tests),
+`pnpm exec tsc -p tsconfig.test.json`, `pnpm typecheck`, `pnpm lint`, `pnpm circular`, `pnpm test:tstyche`,
+`pnpm spec:verify:strict`, `node scripts/spec-revise.mjs --check`, `pnpm spec:examples`, `pnpm spec:website-examples`,
+`pnpm spec:api`.
 
 ---
 
-_Fixed: 2026-11-16T03:00:00Z_
+_Fixed: 2026-11-16T05:00:00Z_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 1_
+_Iteration: 2_
