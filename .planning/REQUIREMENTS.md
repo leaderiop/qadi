@@ -81,7 +81,7 @@
 
 ### What a leaf needs from the request, stated once (Phase 50, ARCH-97, core; opens on a benchmark)
 
-- [ ] **LEAF-01**: `pnpm bench` measures a prototype in which `evaluateNode` reads a module-scope leaf-needs table, against the phase base. The numbers go in ADR-QD-163. If any workload regresses beyond run-to-run noise, the phase ends with a recorded rejection, and LEAF-02 to LEAF-05 are marked "Not pursued (measured)".
+- [x] **LEAF-01**: `pnpm bench` measures a prototype in which `evaluateNode` reads a module-scope leaf-needs table, against the phase base. The numbers go in ADR-QD-163. If any workload regresses beyond run-to-run noise, the phase ends with a recorded rejection, and LEAF-02 to LEAF-05 are marked "Not pursued (measured)".
 - [ ] **LEAF-02**: One package-private module states, per leaf:
   - which request inputs it needs (action, resource, resource id);
   - which error each absence becomes;
@@ -89,7 +89,7 @@
   `Walk` and `Predicate` both read it.
 - [ ] **LEAF-03**: The current per-leaf difference in check order is either preserved or changed deliberately, with a RED test and a behaviour row.
 - [ ] **LEAF-04**: The port-free `HasRole`/`HasPermission` judgement is written once, and both interpreters use it.
-- [ ] **LEAF-05**: An exhaustive table test over every leaf tag pins INV-QD-011, and `SWITCH_BUDGET`/`UNTRACED_BUDGET` are unchanged.
+- [x] **LEAF-05**: An exhaustive table test over every leaf tag pins INV-QD-011, and `SWITCH_BUDGET`/`UNTRACED_BUDGET` are unchanged.
 
 ### Policy tag arity stated once (Phase 51, ARCH-98, core)
 
@@ -176,11 +176,11 @@ The seven WX rows apply to every phase 43 to 52, so each phase's Requirements li
 | GATE-03 | Phase 49 | Complete |
 | GATE-04 | Phase 49 | Complete |
 | GATE-05 | Phase 49 | Complete |
-| LEAF-01 | Phase 50 | Pending |
+| LEAF-01 | Phase 50 | Complete |
 | LEAF-02 | Phase 50 | Pending |
 | LEAF-03 | Phase 50 | Pending |
 | LEAF-04 | Phase 50 | Pending |
-| LEAF-05 | Phase 50 | Pending |
+| LEAF-05 | Phase 50 | Complete |
 | ARTY-01 | Phase 51 | Pending |
 | ARTY-02 | Phase 51 | Pending |
 | ARTY-03 | Phase 51 | Pending |

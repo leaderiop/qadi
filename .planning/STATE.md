@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 50
 current_phase_name: What a leaf needs from the request, stated once
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed QD-50-01-PLAN.md
-last_updated: "2026-11-16T12:43:29.087Z"
+stopped_at: Completed QD-50-02-PLAN.md
+last_updated: "2026-11-16T12:52:27.927Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase QD-50 execution started
-state_head: 75580ec068aa6cc5034d3e5d1f544edaf0e7dc1d
+state_head: f6322ff9eb4b73c560474c6f108a455667892a92
 progress:
   total_phases: 10
   completed_phases: 7
   total_plans: 61
-  completed_plans: 54
+  completed_plans: 55
   percent: 70
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: QD-50 (What a leaf needs from the request, stated once) — EXECUTING
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 8
 Status: Executing Phase QD-50
 Last activity: 2026-11-16 — Phase QD-50 execution started
@@ -310,6 +310,7 @@ Progress: [███████░░░] 70% (7 of 10 phases)
 | Phase QD-49 P08 | 25min | 2 tasks | 5 files |
 | Phase QD-49 P09 | 15m | 3 tasks | 1 files |
 | Phase QD-50 P01 | 6min | 2 tasks | 2 files |
+| Phase QD-50 P02 | 12min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -522,6 +523,7 @@ Progress: [███████░░░] 70% (7 of 10 phases)
 - [Phase QD-49]: 49-08: the five BEH records stay at five and the new listings are ts fences (package-private); AGENTS.md section 13 and devtools-spec 02-screens.md re-read and unchanged
 - [Phase QD-49]: 49-09: mutation holds every touched file at its base score; no survivor round needed; check:pr green, nothing released
 - [Phase QD-50]: 50-01: survivor identity is textual (mutator, status, replacement, mutated text, line text); 50-06 compares sorted lists
+- [Phase QD-50]: 50-02: matrix expectations are base-captured literals plus a hand-written D-05 oracle; no leaf-needs table or leafTags read
 
 ### Pending Todos
 
@@ -578,8 +580,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T12:43:28.894Z
-Stopped at: Completed QD-50-01-PLAN.md
+Last session: 2026-11-16T12:52:27.722Z
+Stopped at: Completed QD-50-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
