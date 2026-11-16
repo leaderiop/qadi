@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-161                                   |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — amends ADR-QD-056, ADR-QD-095       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.5 (2026-11-16): Consequences: the characterisation's expected values are unchanged and it still runs the default configuration; rows were only added (CCR-QD-439)<br>1.4 (2026-11-16): the behaviours and invariants are linked under Related, not named only (CCR-QD-439)<br>1.3 (2026-11-16): decision 3: the line's wording reads the row; the staging counter's label is per arm (ARCH-95, CCR-QD-439)<br>1.2 (2026-11-16): decision 2: describeEncodeRefusal may carry caller text, so it is for diagnosis, not a log line (ARCH-95, CCR-QD-439); a host logs encodeRefusalAnnotations<br>1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-95, CCR-QD-439)<br>1.0 (2026-11-16): accepted (ARCH-95, CCR-QD-439) |
+> | Change History | 1.6 (2026-11-16): decision 2: the annotations carry no value from the record, but qadi.path names its keys (INV-QD-104, CCR-QD-439)<br>1.5 (2026-11-16): Consequences: the characterisation's expected values are unchanged and it still runs the default configuration; rows were only added (CCR-QD-439)<br>1.4 (2026-11-16): the behaviours and invariants are linked under Related, not named only (CCR-QD-439)<br>1.3 (2026-11-16): decision 3: the line's wording reads the row; the staging counter's label is per arm (ARCH-95, CCR-QD-439)<br>1.2 (2026-11-16): decision 2: describeEncodeRefusal may carry caller text, so it is for diagnosis, not a log line (ARCH-95, CCR-QD-439); a host logs encodeRefusalAnnotations<br>1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-95, CCR-QD-439)<br>1.0 (2026-11-16): accepted (ARCH-95, CCR-QD-439) |
 
 ---
 
@@ -73,7 +73,8 @@ branch for `Refused`.
    `describeEncodeRefusal(e.refusal)`, which is byte for byte the sentence the field held and, like it, may carry caller text
    (an `EncodeFailed` sentence includes a throwing getter's message), so it is for diagnosis in code holding the refusal,
    never a log line (INV-QD-104); a host that logs a refusal annotates `encodeRefusalAnnotations(e)`, as the default
-   warning does. The one line audit writes about
+   warning does, which carries no value from the record but whose `qadi.path` is made of the record's own keys, so a
+   resource keyed by data puts that key in the line (INV-QD-104's one residue). The one line audit writes about
    a refusal is `reportEncodeRefusal`'s, unchanged, and no `qadi.reason` annotation is added to core, because that would
    change the forwarding and http lines.
 3. **One closed row per unwritten staging variant** (D-05, D-05a), in the package-private `UnwrittenRow.ts`:
