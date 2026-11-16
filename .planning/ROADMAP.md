@@ -377,7 +377,7 @@ Order: defects first (43-46), then the "stated once" deepenings (47-49), then th
 - [x] **Phase 49: Gates as the dock model's eighth store, one gate-state vocabulary** - The gate registry joins the dock model and the five gate-state words are stated once in core (ARCH-96, core, react, devtools) (completed 2026-11-16)
 - [x] **Phase 50: What a leaf needs from the request, stated once** - Opens on a benchmark; one table of leaf needs read by `Walk` and `Predicate`, or a recorded rejection (ARCH-97, core) (completed 2026-11-16)
 - [x] **Phase 51: Policy tag arity stated once** - One closed record gives each tag's arity; `traceShapeOf` reads it and `leafTags` goes; `foldTrace` stays public (ARCH-98, core) (completed 2026-11-16)
-- [ ] **Phase 52: Core owns the predicate compile shell** - One core function owns defaults, renderability and outcome counting; each dialect keeps its rules, renderer and metric (ARCH-99, core, predicate-sql, predicate-prisma)
+- [x] **Phase 52: Core owns the predicate compile shell** - One core function owns defaults, renderability and outcome counting; each dialect keeps its rules, renderer and metric (ARCH-99, core, predicate-sql, predicate-prisma) (completed 2026-11-16)
 
 ### Phase Details
 
@@ -764,7 +764,7 @@ Plans:
   4. `spec/overview.md` names the new core export (gate 13), the changesets cover all three packages, and `pnpm check:pr < /dev/null` is green.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for both dialects' `index.ts` and `CompileMetrics.ts`, and the differential tests, committed first; then core's function with one dialect converted; then the second; then records. Re-run `pnpm circular`, and check the packed `exports` map (gate 14) for the new core name.
-**Plans**: 5/5 plans executed
+**Plans**: 5/5 plans complete
 
 Plans:
 **Wave 1**
@@ -798,4 +798,4 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 9/9 | Complete    | 2026-11-16 |
 | 50. What a leaf needs from the request, stated once | 8/8 | Complete    | 2026-11-16 |
 | 51. Policy tag arity stated once | 5/5 | Complete    | 2026-11-16 |
-| 52. Core owns the predicate compile shell | 5/5 | In Progress | - |
+| 52. Core owns the predicate compile shell | 5/5 | Complete    | 2026-11-16 |
