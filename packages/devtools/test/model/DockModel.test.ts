@@ -1239,15 +1239,21 @@ describe("the questions store (M31, M32, M33, M36..M41, P2)", () => {
       assert.deepStrictEqual(claims(failed), [undefined]);
       assert.strictEqual(heard.calls, 1);
 
+      // A different reason is a different statement, though no guard, question or flag moved with it.
+      double.failReads(new Error("registry exploded again"));
+      const again = model.questions.getSnapshot();
+      assert.include(failedReason(again) ?? "", "registry exploded again");
+      assert.strictEqual(heard.calls, 2);
+
       // The same throw again says the same thing: nothing is published for it.
       double.add(guard("b", readPolicy));
-      assert.strictEqual(model.questions.getSnapshot(), failed);
-      assert.strictEqual(heard.calls, 1);
+      assert.strictEqual(model.questions.getSnapshot(), again);
+      assert.strictEqual(heard.calls, 2);
 
       double.mendReads();
       assert.strictEqual(model.questions.getSnapshot().gates._tag, "Listed");
       assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["a", "b"]]);
-      assert.strictEqual(heard.calls, 2);
+      assert.strictEqual(heard.calls, 3);
     }));
 
   it.effect("M39: a registry that throws on a poll tick leaves the poll running and the other listeners called", () =>
