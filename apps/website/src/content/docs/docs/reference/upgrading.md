@@ -825,3 +825,42 @@ export const auditedAttributes = Layer.effect(
 A second install of `@qadi/core` has its own mark, so it reads the other copy's defaults as real adapters.
 
 The decision is [ADR-QD-160](https://github.com/leaderiop/qadi/blob/main/spec/decisions/160-port-facts-are-read-from-the-description.md).
+
+## 0.13: audit reports core's refusal, and AuditEntryNotEncodable is gone
+
+`@qadi/audit` declared its own refusal error beside `@qadi/core`'s `SinkRecordNotEncodable`, and `encodeAuditEntry` mapped one into the other. The audit class is removed. `encodeAuditEntry` fails with, and `AuditDecisionSinkLive`'s `onRefused` receives, `SinkRecordNotEncodable`, the error `decisionSinkForwarding` and `DecisionLogHttp` already report. It has the same `evaluationId`, `recordTag` and `refusal` fields. The `reason` field is gone: `describeEncodeRefusal(e.refusal)` gives byte for byte the same sentence. A `catchTag` on the old tag moves to `"SinkRecordNotEncodable"`, and `AuditWriteOutcome`'s `Refused.refusal` has the new type. The default refusal warning, every other log line, every metric and every span attribute are unchanged.
+
+Before:
+
+```ts
+const onRefused = (e: AuditEntryNotEncodable) => refused.push(e.reason);
+const encoded = encodeAuditEntry(record).pipe(Effect.catchTag("AuditEntryNotEncodable", (e) => Effect.logWarning(e.reason)));
+```
+
+After:
+
+```typescript
+import * as Effect from "effect/Effect";
+import { describeEncodeRefusal } from "@qadi/core";
+import type { SinkRecord, SinkRecordNotEncodable } from "@qadi/core";
+import { AuditDecisionSinkLive, encodeAuditEntry } from "@qadi/audit";
+
+export const refused: Array<string> = [];
+
+export const sink = AuditDecisionSinkLive({
+  onRefused: (e: SinkRecordNotEncodable) => {
+    refused.push(`${e.evaluationId}: ${describeEncodeRefusal(e.refusal)}`);
+  },
+});
+
+export const encodeOrNull = (record: SinkRecord) =>
+  encodeAuditEntry(record).pipe(
+    Effect.catchTag("SinkRecordNotEncodable", (e) =>
+      Effect.logWarning(describeEncodeRefusal(e.refusal)).pipe(Effect.as(null)),
+    ),
+  );
+```
+
+Log the evaluation id and the sentence, as above, and nothing else from the refused record: its subject, resource and policy are what the refusal exists to keep out of a log line.
+
+The decision is [ADR-QD-161](https://github.com/leaderiop/qadi/blob/main/spec/decisions/161-audit-reports-cores-refusal-and-decides-lost-once.md).

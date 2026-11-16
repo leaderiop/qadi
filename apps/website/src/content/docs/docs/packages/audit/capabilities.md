@@ -41,7 +41,7 @@ Read rows back with
 `Schema`'s default options silently strips a typo inside the stored policy. `encodeAuditEntry` refuses rather than approximates: a
 record carrying a value with no safe durable representation — a function, a
 `Symbol`, a circular reference, a `Map`/`Set`/`RegExp` — fails
-`AuditEntryNotEncodable`, naming the refusal and its path, instead of being
+`@qadi/core`'s `SinkRecordNotEncodable`, naming the refusal and its path, instead of being
 stringified or silently dropped. The refusal is reported, not only counted: it reaches
 `AuditDecisionSinkLive`'s `onRefused` when you pass one, otherwise it is logged as a
 warning naming the refusal, its path and the record's `evaluationId`.
