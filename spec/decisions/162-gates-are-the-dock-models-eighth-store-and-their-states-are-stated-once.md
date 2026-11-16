@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-162                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — amends ADR-QD-047; applies ADR-QD-152; keeps ADR-QD-053, ADR-QD-080 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-16): decision 5: a registry that throws is stated as GatesView.Failed and its rows make no claim; the first version's rationale was false for react's own registry (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-96, CCR-QD-440) |
+> | Change History | 1.2 (2026-11-16): decision 5: releasing the old registry's subscription is guarded and stated, never repeated (review iteration 2 WR-01)<br>1.1 (2026-11-16): decision 5: a registry that throws is stated as GatesView.Failed and its rows make no claim; the first version's rationale was false for react's own registry (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-96, CCR-QD-440) |
 
 ---
 
@@ -131,7 +131,12 @@ released by its finalizer. ADR-QD-152 is the shape of the vocabulary. No record 
    `qadi-wiring-failed`. While the view is `Failed` each row's `asking` is `undefined`, which is no claim. It is not an empty
    list, because that prints "asked, nothing mounted" about a registry nobody could read. It is not the last good listing either,
    because those guards may be gone. The lens is given no guards. The view recovers when the registry reads again and announces
-   it, or when `configure` hands over another registry. A throw from the function `subscribe` returned is still not guarded.
+   it, or when `configure` hands over another registry. Releasing the old registry's subscription is guarded the same way (review iteration 2, WR-01): the handle leaves the model's
+   state before it is called, so a throw can neither skip the new subscription and the re-join nor run again on the next
+   `configure` or in the finalizer. It is stated as `Failed` with its reason, which names the registry that was left; a failed
+   `subscribe` of the new registry is stated over it, because that one names the registry the model now reads. The old
+   registry's listener may stay live in the host's registry. It only calls `rejoin`, which reads the registry the model holds now.
+   A finalizer that cannot release has nowhere to state it, and swallows the throw after the model is marked closed.
    After close the model reads no registry at all, so a late `configure` runs none of the host's code.
 
 ## Consequences

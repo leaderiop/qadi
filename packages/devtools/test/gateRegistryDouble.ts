@@ -14,7 +14,8 @@
  * runs in a try/catch, for the tests that must see what production does.
  *
  * It can also be made to fail like a host's registry: `failReads` makes `instances()`
- * throw, `mendReads` stops it, and `failSubscribe` makes the next `subscribe` calls throw.
+ * throw, `mendReads` stops it, `failSubscribe` makes the next `subscribe` calls throw and
+ * `failRelease` makes the unsubscribe functions it hands out throw, leaving the listener live.
  */
 import type { GateInstanceLike, GateRegistryLike } from "../src/model/Gates.ts";
 
@@ -38,6 +39,8 @@ export interface GateRegistryDouble {
   readonly mendReads: () => void;
   /** From now on `subscribe` throws `thrown`. */
   readonly failSubscribe: (thrown: unknown) => void;
+  /** From now on each unsubscribe function throws `thrown` when called, and the listener stays subscribed. */
+  readonly failRelease: (thrown: unknown) => void;
 }
 
 export interface GateRegistryDoubleOptions {
@@ -58,6 +61,7 @@ export const makeGateRegistryDouble = (
   let read = 0;
   let readFailure: { readonly thrown: unknown } | undefined;
   let subscribeFailure: { readonly thrown: unknown } | undefined;
+  let releaseFailure: { readonly thrown: unknown } | undefined;
 
   const changed = () => {
     stale = true;
@@ -91,6 +95,7 @@ export const makeGateRegistryDouble = (
         live.add(listener);
         return () => {
           released += 1;
+          if (releaseFailure !== undefined) throw releaseFailure.thrown;
           live.delete(listener);
         };
       },
@@ -122,6 +127,9 @@ export const makeGateRegistryDouble = (
     },
     failSubscribe: (thrown) => {
       subscribeFailure = { thrown };
+    },
+    failRelease: (thrown) => {
+      releaseFailure = { thrown };
     },
   };
 };

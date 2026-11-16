@@ -1006,7 +1006,7 @@ describe("the timeline's status (M29)", () => {
   );
 });
 
-describe("the questions store (M31, M32, M33, M36..M41, P2)", () => {
+describe("the questions store (M31, M32, M33, M36..M42, P2)", () => {
   const guard = (
     id: string,
     policy: Policy,
@@ -1330,6 +1330,47 @@ describe("the questions store (M31, M32, M33, M36..M41, P2)", () => {
       yield* Scope.close(scope, Exit.void);
       assert.strictEqual(a.releases(), 2);
       assert.strictEqual(subscribes.releases(), 0);
+    }));
+
+  it.effect("M42: an unsubscribe that throws is stated, applies the new registry in full and is not called again", () =>
+    Effect.gen(function* () {
+      const reading = { questions: [{ policy: readPolicy }] };
+      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const b = makeGateRegistryDouble([guard("b", readPolicy)]);
+      const scope = yield* Scope.make();
+      const model = yield* Scope.provide(makeDockModel({ gates: a.registry, reading }), scope);
+      a.failRelease(boom);
+
+      model.configure({ gates: b.registry, reading });
+      assert.include(failedReason(model.questions.getSnapshot()) ?? "", "registry exploded");
+      assert.strictEqual(a.releases(), 1);
+      assert.strictEqual(b.listeners(), 1);
+
+      // The handle left the model's state before it was called: neither a swap nor the close calls it again.
+      model.configure({ gates: b.registry, reading });
+      model.configure({ gates: undefined, reading });
+      assert.strictEqual(a.releases(), 1);
+      assert.strictEqual(b.listeners(), 0);
+
+      model.configure({ gates: a.registry, reading });
+      assert.strictEqual(a.releases(), 1);
+      yield* Scope.close(scope, Exit.void);
+      assert.strictEqual(a.releases(), 2);
+    }));
+
+  it.effect("M42 b: a scope that closes over an unsubscribe that throws still closes, and calls it once", () =>
+    Effect.gen(function* () {
+      const reading = { questions: [{ policy: readPolicy }] };
+      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const scope = yield* Scope.make();
+      const model = yield* Scope.provide(makeDockModel({ gates: a.registry, reading }), scope);
+      a.failRelease(boom);
+
+      const closed = yield* Effect.exit(Scope.close(scope, Exit.void));
+      assert.isTrue(Exit.isSuccess(closed));
+      assert.strictEqual(a.releases(), 1);
+      model.configure({ gates: a.registry, reading });
+      assert.strictEqual(a.releases(), 1);
     }));
 
   type Command =

@@ -156,7 +156,7 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   let gatesNow = inputs.gates;
   let closed = false;
   let offGates = () => {};
-  // Why `subscribe` threw, if it did: the registry's changes then cannot reach the model.
+  // Why `subscribe` or the release of the previous subscription threw, if either did: the registry's changes then may not reach the model.
   let watchFailure: string | undefined;
   const readGates = (): Pick<JoinInput, "gates" | "failed"> => {
     if (watchFailure !== undefined) return { gates: undefined, failed: watchFailure };
@@ -191,13 +191,22 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
     lastKey = key;
     questions.set(joinQuestions(key));
   };
+  // Releases the held subscription and takes the new one; both are host code and both are guarded.
+  // The handle leaves the model's state before it is called, so a release that throws neither skips the
+  // new subscription nor runs again on the next `configure` or in the finalizer. A failed `subscribe`
+  // is stated over a failed release: it names the registry the model now reads.
   const watchGates = (registry: GateRegistryLike | undefined) => {
-    offGates();
+    const release = offGates;
+    offGates = () => {};
     watchFailure = undefined;
+    try {
+      release();
+    } catch (thrown) {
+      watchFailure = reasonOf(thrown);
+    }
     try {
       offGates = closed || registry === undefined ? () => {} : registry.subscribe(rejoin);
     } catch (thrown) {
-      offGates = () => {};
       watchFailure = reasonOf(thrown);
     }
   };
@@ -208,8 +217,13 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   yield* Effect.addFinalizer(() =>
     Effect.sync(() => {
       closed = true;
-      offGates();
+      const release = offGates;
       offGates = () => {};
+      try {
+        release();
+      } catch {
+        // A closing model has nowhere to state it.
+      }
     }),
   );
 
