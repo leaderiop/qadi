@@ -6,7 +6,7 @@
 # branch switch. Nothing is ever committed from here.
 #
 # Exit codes: 2 usage / refused start, 3 patch does not apply, 4 a bench run failed,
-# 5 packages/core/src was not restored (a revert failed, or src is dirty at the end),
+# 5 packages/core/src was not restored (a revert failed, or src is dirty after a run or at exit),
 # 130 / 143 stopped by INT / TERM (after the bench run in progress returns; src reverted).
 set -u
 
@@ -46,15 +46,28 @@ mkdir -p "$OUT" || exit 2
   echo "start: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } > "$OUT/meta.txt"
 
+# applied=1 from just before `git apply` until a revert is attempted, so a signal that
+# lands while `git apply` runs still reverts. reverted=1 from that attempt until src is
+# seen clean, so a revert that fails says so even when a signal ends cleanup first.
 applied=0
-# A revert that fails leaves src patched: say so and exit 5, never carry on.
+reverted=0
+# Ends with src clean, or says why not and exits 5; never carries on.
 cleanup() {
   if [ "$applied" = 1 ]; then
     applied=0
-    git apply -R "$PATCH" || {
-      echo "ab.sh: could not revert $PATCH; $SRC is left patched" >&2
-      exit 5
-    }
+    reverted=1
+    git apply -R "$PATCH"
+  fi
+  if src_clean; then
+    reverted=0
+  elif [ "$reverted" = 1 ]; then
+    trap - EXIT # said once: an exit from a direct call would run cleanup again
+    echo "ab.sh: could not revert $PATCH; $SRC is left patched" >&2
+    exit 5
+  else
+    trap - EXIT
+    echo "ab.sh: $SRC is not clean" >&2
+    exit 5
   fi
 }
 # A handler for INT or TERM does not end a bash script by itself: the signal traps
@@ -66,8 +79,12 @@ trap 'exit 143' TERM
 for i in $(seq 1 "$ROUNDS"); do
   for arm in "$HEAD_LABEL" "$PATCHED_LABEL"; do
     if [ "$arm" = "$PATCHED_LABEL" ]; then
-      git apply "$PATCH" || { echo "ab.sh: patch no longer applies before $arm-$i" >&2; exit 3; }
       applied=1
+      git apply "$PATCH" || {
+        applied=0
+        echo "ab.sh: patch no longer applies before $arm-$i" >&2
+        exit 3
+      }
     fi
     # No wait for a quiet machine: the load is logged around every run instead.
     { date +%T; uptime; } > "$OUT/$arm-$i.load-before"
@@ -83,5 +100,4 @@ done
 
 trap - EXIT INT TERM
 cleanup
-src_clean || { echo "ab.sh: src not restored" >&2; exit 5; }
 echo "src restored to HEAD" > "$OUT/done.txt"
