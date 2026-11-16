@@ -26,17 +26,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-16)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase QD-50 — What a leaf needs from the request, stated once
+**Current focus:** Phase 51 — Policy tag arity stated once
 
 ## Current Position
 
 Phase: 51 — Policy tag arity stated once
 Current Plan: Not started
-Total Plans in Phase: 8
+Total Plans in Phase: - (not planned yet)
 Status: Ready to plan
 Last activity: 2026-11-16 — Phase QD-50 complete, transitioned to Phase 51
 
-Progress: [████████░░] 80% (7 of 10 phases)
+Progress: [████████░░] 80% (8 of 10 phases)
 
 
 ## Performance Metrics
@@ -578,6 +578,7 @@ Progress: [████████░░] 80% (7 of 10 phases)
 - [Phase 47] Review (47-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 10 findings — iteration 1 WR-01 (an unnamed default read "wired, unnamed", b1ce4e15), WR-02 (`isPortDefault` threw on a hostile proxy; made total, 80d56c5f), WR-03 (the mark's copy lost a class's prototype, 829be12e), WR-04 (never-marked rows for all five ports, 78ca795b), IN-01/02 (forgery wording, decorator limit stated); iteration 2 WR-01 (`#private` state lost: mark in place, 47de9c93) and MUT-01 (PortDefault.ts fell to 0.64 after iteration 1; dead guard removed, `try` narrowed, spread row, 1b14f0b1); iteration 3 WR-01 (in-place assign could throw; `Reflect.defineProperty` with copy fallback, a7d385c2), IN-01; cap reached, backups untracked. Security 26/26 closed (T-47-11 moved from accepted to mitigated by the review fixes, c02aeac7); UI audit 23/24. Post-review mutation PortDefault.ts 0.857 (two equivalent catch-block survivors named), others ≥ base; `pnpm check:pr` green (5384 tests, BDD 568); verification passed 8/8. `phase.complete`'s "file not on disk" warnings are false positives (command strings, the reverted scratch port, short paths).
 - [Phase 48] Review (48-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 16 findings — iteration 1 WR-01 (the 0.13 upgrade guide taught logging `describeEncodeRefusal`, which can carry caller text; now logs the default warning's annotations, b054bbdd), IN-01..08 (the unused `"encodeRefusal"` marker removed, the unwritten wording moved into the row, closed leaf lists, spec wording); iteration 2 WR-01 (the characterisation lost its no-hook run when IN-05 installed a hook; every leaf now runs both ways, 1d7ff083) + 3 info; iteration 3 three spec-text info. Stryker: all five audit files at 1 (AuditWriteReport.ts base 0.9659); `check:pr` exit 0 after the fixes.
 - [Phase 49] Review (49-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 16 findings — iteration 1 WR-01 (a throwing gate registry escaped into the host and other stores; guarded read, closed `GatesView.Failed`, rows make no claim, 0d9c2071/e4fc69d2), WR-02 (react-integration appendix), IN-01..04; iteration 2 WR-01 (a throwing unsubscribe left `configure` half-applied, 8aceb349) + IN-01..03 (stale "plain prop" headers, failure keyed by name and message, `configure` retries a failed watch); iteration 3 six info (total `reasonOf`, release failure of a left registry swallowed, neutral copy, swap before `remerge`, spec text; 91db923b..365b82a8). Stryker DockModel.ts 123/123, Gates.ts 66/66 (verifier re-ran); `check:pr` exit 0 (coverage 99.57/98.39); security 24/24; UI 22/24 (the `qadi-gates-failed` arm postdates the UI audit — look at it next time the dock is opened); verification passed 5/5. `phase.complete`'s "file not on disk" warnings are false positives (command strings, short paths).
+- [Phase 50] Bench gate first (D-03a): pursue at 0/35 beyond band (geomean +2.75%); after-run of the final source 0/35 (geomean +1.87%, worst +9.3% on `anyOf First — 8, last allows`, 0.7 points inside its band). Mutation: Walk.ts 95.05→94.81% passes by D-13 (survivors identical), LeafNeeds.ts 98.11% (one equivalent survivor). Review (50-REVIEW-DISPOSITION.md): 0 open; three iterations, 13 findings, 12 fixed, IN-05 skipped by D-06 — all type-level or wording, no measured line changed (closed classification lists with `never` defaults and a disjointness check; ab.sh signal/revert handling).
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
@@ -600,4 +601,4 @@ Resume file: None
 
 
 
-- Plan Phase 50 with /gsd-plan-phase 50 (or gather context first with /gsd-discuss-phase 50)
+- Plan Phase 51 with /gsd-plan-phase 51 (or gather context first with /gsd-discuss-phase 51)
