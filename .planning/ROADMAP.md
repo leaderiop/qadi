@@ -598,7 +598,32 @@ Plans:
   5. ADR-QD-161 records the decision after checking ADR-QD-054 and ADR-QD-056, and the `@qadi/audit` changeset and `upgrading.md` mark `onRefused`'s new type as **Breaking**.
 
 **Planning notes**: **Research flag: the first plan checks ADR-QD-054 and ADR-QD-056 against core's `SinkRecordNotEncodable` before any code**, and records what the ADRs actually forbid. **Plan shape, RED first**: the mutation base for the audit files, the characterisation of log, span and metric output on every outcome variant, committed first; then the refusal type; then the durability-derived label; then records.
-**Plans**: TBD
+**Plans**: 8 plans
+
+Plans:
+**Wave 1**
+- [ ] 48-01-PLAN.md — the ADR check (ADR-QD-054 and ADR-QD-056 quoted against core's `SinkRecordNotEncodable`) and the reserved ids, before any code; the mutation base for the four touched audit files (first commit)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 48-02-PLAN.md — `observeLeaf.ts` and the eleven-leaf characterisation (`AuditWriteOutput.test.ts`, 12 rows) and the agreement table (`AuditLostAgreement.test.ts`, 19 rows), green on the base
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 48-03-PLAN.md — `AuditRefusal.tst.ts` RED; tracer: the refusal typed `SinkRecordNotEncodable` end to end; the audit class deleted; the overview row dropped; CCR-QD-439 started
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 48-04-PLAN.md — tracer: one row per unwritten staging (`UnwrittenRow.ts`, package-private) read by `durabilityOf` and the lost label; the line's level reads it; `durabilityOf`'s doc made true
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 48-05-PLAN.md — tracer: `StageResult` a closed union and `writtenStaging` an exhaustive match; `evaluationIdOf`, `outcomePath` and the refusal branch exhaustive
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 48-06-PLAN.md — ADR-QD-161; ADR-QD-056 and ADR-QD-095 amended; the **Breaking** `@qadi/audit` changeset and the 0.13 upgrade entry; README and `capabilities.md`
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 48-07-PLAN.md — BEH-QD-576 to 580 and the BEH-QD-249/250/252 restatements; INV-QD-341, INV-QD-342; traceability; the overview `durabilityOf` row; CCR-QD-439 completed
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 48-08-PLAN.md — mutation after (no touched file falls; `UnwrittenRow.ts` measured); scope, scan, held lines, commit order and ids; `pnpm check:pr`; nothing released
 
 ### Phase 49: Gates as the dock model's eighth store, one gate-state vocabulary
 
