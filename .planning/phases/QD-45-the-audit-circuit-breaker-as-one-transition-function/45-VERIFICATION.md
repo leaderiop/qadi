@@ -1,6 +1,6 @@
 ---
 phase: QD-45-the-audit-circuit-breaker-as-one-transition-function
-verified: 2026-11-15T08:40:00Z
+verified: 2026-11-16T20:10:00Z
 status: passed
 score: 5/5 must-haves verified
 covered_files:
@@ -30,7 +30,7 @@ covered_files:
   - "packages/audit/test/CircuitBreakerOptions.test.ts"
   - "packages/audit/test/CircuitBreakerTable.test.ts"
   - "packages/audit/test/CircuitBreakerTransition.test.ts"
-covered_digest: "v4:sha256:a421755c7461d2f5d44e1fab770f65bc21e78f0d28f4d2afb0bc0da55a096f88"
+covered_digest: "v4:sha256:90f452c8d0a504af6390c88a53c7f20612aea389c6f69ce9ad063fa63bb1b993"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -38,9 +38,22 @@ overrides_applied: 0
 # Phase 45: The audit circuit breaker as one transition function Verification Report
 
 **Phase Goal:** Every generation and probe rule of the audit circuit breaker lives in one pure transition function, tested without fibers or a clock, and a breaker whose options cannot work is refused when it is built rather than silently never opening.
-**Verified:** 2026-11-15
+**Verified:** 2026-11-16
 **Status:** passed
-**Re-verification:** No, initial verification
+**Re-verification:** Yes, at 6db92426 (see "Re-verification" below)
+
+## Re-verification at 6db92426
+
+The first verification (2026-11-15, after `0aea3495`) went stale because one covered file, `packages/audit/src/AuditDecisionSinkLive.ts`, changed afterwards. Nothing else this phase covers moved: `CircuitBreaker.ts`, `SinkOptionChecks.ts`, `InvalidAuditSinkOption.ts`, `index.ts`, the changeset and the three breaker test files plus `AuditDecisionSinkLive.tst.ts` have an empty `git diff 0aea3495 HEAD`.
+
+What moved in `AuditDecisionSinkLive.ts` (phases 46 and 48, not 45):
+
+- `e649b0d6`, `849050ae`: `onRefused` takes core's `SinkRecordNotEncodable`; the returned sink record gains `name: "AuditDecisionSinkLive"`.
+- `1a516884`, `f57dd012`: `StageResult` becomes a closed `Data.TaggedEnum` (`NotWired`, `StageFailed`, `Staged{commit}`); `writtenStaging` is a `Match.type` over it and `unwrittenOf` projects it.
+
+Re-checked against this phase's must-haves: the layer signature is still `Layer<DecisionSink, InvalidAuditSinkOption, AuditTrailPort>`; `checkStoreCallTimeout` is still yielded at build (line 173) and `makeCircuitBreaker` still receives and validates the threshold and cooldown (line 162), so truth 1 holds. None of the changes touch the breaker call sites, `step`, or `run`, so truths 2 to 5 are unaffected (`generation + 1` still appears once in `packages/audit/src`). The new matcher is a module-scope `Match.type` with `tagsExhaustive`, so WX-04 holds (house-style gate: 542 files clean, 3 declared switches). The audit suite passes with the phase 46/48 tests included.
+
+**New verdict: passed, 5/5, unchanged.** No gaps.
 
 ## Goal Achievement
 
@@ -52,7 +65,7 @@ overrides_applied: 0
 | 2 | One pure `(state, event, now) -> (next, announced)` over a closed Observe/Success/Failure/Claim/Release union, each with its generation, holds every generation and probe rule; `generation + 1` is written once | VERIFIED | `step(rules)(state, event, now)` in `CircuitBreaker.ts` (pure, no Clock/Ref). Closed `Event` union of five `Data.TaggedClass`es; stale check is `admittedUnder` (one place); `ENTER` is a `Record<CircuitBreakerStatus, ...>`. `/usr/bin/grep "generation + 1"` in `packages/audit/src`: exactly 1 hit (line 322); base had 8. |
 | 3 | The adapter runs exactly one `Ref.modify` per event (INV-QD-052); matchers built once at module scope; `Match.value(state)` no longer rebuilt per call | VERIFIED | `run(event)` is the only `Ref.modify` body (6 textual `Ref.modify` mentions: 1 call plus comments); `observe`, `recordSuccess`, `recordFailure`, `claimProbe`, `releaseProbe` all delegate to `run`. All dispatchers (`observeState`, `successState`, `failureState`, `claimState`, `releaseState`, `decide`, `admittedUnder`) are module-scope `Match.type<...>().pipe(Match.tagsExhaustive)`. `Match.value`, `switch`, `fnUntraced`, `Date.now()` calls: none in code. |
 | 4 | Table-driven tests of the transition function cover a stale generation, a release stealing a newer claim, a stale failure reopening a newer window and every legal transition, with no fibers or TestClock | VERIFIED | `CircuitBreakerTransition.test.ts` is plain `it(...)` (no Effect, Fiber or TestClock): rows O1-O5, S1-S4, F1-F5, C1-C3, R1-R4 (S1 stale success, F1 stale failure does not reopen a newer window, R2 release does not steal a newer claim) plus a seeded FastCheck property over event sequences. Adapter table `CircuitBreakerTable.test.ts` (16 rows) is separate. |
-| 5 | Existing concurrency regression tests (`CircuitBreaker.test.ts:339, 403, 426, 452`) pass unchanged; metrics and announcements unchanged | VERIFIED | `git diff d6f1aff7 HEAD -- packages/audit/test/CircuitBreaker.test.ts` is empty. `pnpm exec vitest run packages/audit`: 25 files, 478 tests, all passed (run by me). `transitionsTotal` declaration unchanged in role (still `Metric.frequency` with the same id, fed by `announceTransition`). Table rows assert announcements via `Metric.value(transitionsTotal)`. |
+| 5 | Existing concurrency regression tests (`CircuitBreaker.test.ts:339, 403, 426, 452`) pass unchanged; metrics and announcements unchanged | VERIFIED | `git diff d6f1aff7 HEAD -- packages/audit/test/CircuitBreaker.test.ts` is empty. `pnpm exec vitest run --project audit`: 28 files, 526 tests, all passed (re-run at 6db92426). `transitionsTotal` declaration unchanged in role (still `Metric.frequency` with the same id, fed by `announceTransition`). Table rows assert announcements via `Metric.value(transitionsTotal)`. |
 
 **Score:** 5/5 truths verified (0 behavior-unverified)
 
@@ -88,10 +101,10 @@ Not applicable beyond the above: no rendered data; the state flows from `Ref` th
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
 | Audit package suite | `pnpm exec vitest run packages/audit` | 25 files, 478 passed | PASS |
-| House-style gate | `node scripts/check-house-style.mjs` | 513 files clean (3 declared switches, unchanged) | PASS |
-| API-surface gate 13 | `node scripts/check-api-surface.mjs` | 928 exports documented | PASS |
+| House-style gate | `node scripts/check-house-style.mjs` | 542 files clean (3 declared switches, unchanged) | PASS |
+| API-surface gate 13 | `node scripts/check-api-surface.mjs` | 935 exports documented | PASS |
 
-The orchestrator's `pnpm check:pr` (exit 0, 5266 unit, 568 BDD) was not re-run by me; the audit subset and the two cheap gates above were.
+The orchestrator reports `pnpm check:pr` exit 0 at f18a93e1 (only .planning files changed since); not re-run by me; the audit subset and the two cheap gates above were.
 
 ### Probe Execution
 
@@ -135,5 +148,5 @@ None. The goal is achieved in the code: the rules are one pure `step`, adapted b
 
 ---
 
-_Verified: 2026-11-15_
+_Verified: 2026-11-16_
 _Verifier: Claude (gsd-verifier)_

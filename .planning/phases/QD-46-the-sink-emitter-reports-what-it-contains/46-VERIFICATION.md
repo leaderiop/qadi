@@ -1,6 +1,6 @@
 ---
 phase: QD-46-the-sink-emitter-reports-what-it-contains
-verified: 2026-11-15T16:15:00Z
+verified: 2026-11-16T19:10:00Z
 status: passed
 score: 8/8 must-haves verified
 covered_files:
@@ -27,17 +27,37 @@ covered_files:
   - "packages/core/src/SinkReport.ts"
   - "packages/core/test/ShippedSinkReports.test.ts"
   - "packages/core/test/SinkEmitReport.test.ts"
-covered_digest: "v4:sha256:9c5a9b6c8178a33e471758ba53953df68fe5636b4ad01e8adada8625b965be5a"
+covered_digest: "v4:sha256:5217d2c963176c7de3100f37be16ebe8b91738bb7a89f8da983dd4a8140082e6"
 behavior_unverified: 0
 overrides_applied: 0
+re_verification:
+  previous_status: passed
+  previous_score: 8/8
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 46: The sink emitter reports what it contains Verification Report
 
 **Phase Goal:** A decision sink that fails or dies is contained (INV-QD-035) and reported with exactly one warning, so a user-written sink can no longer lose records with no log.
-**Verified:** 2026-11-15
+**Verified:** 2026-11-16 (re-verified at HEAD 6db92426)
 **Status:** passed
-**Re-verification:** No, initial verification
+**Re-verification:** Yes, at 6db92426. The first verification (2026-11-15, status passed) went stale because `packages/audit/src/AuditDecisionSinkLive.ts` changed afterwards.
+
+## Re-verification at 6db92426
+
+**What moved.** Only `AuditDecisionSinkLive.ts` among the covered files. The core sink files (`DecisionLog`, `DecisionSink`, `DecisionSinkForwarding`, `EvaluationEnvironment`, `SinkEmit`, `SinkReport`) and both core tests have an empty `git diff 8ca326a1 HEAD`. Three Phase 48 commits touched the audit file:
+
+- `849050ae`: `onRefused` now takes core's `SinkRecordNotEncodable` instead of the audit-local `AuditEntryNotEncodable`.
+- `1a516884`: `StageResult` became a closed `Data.TaggedEnum` (`NotWired`, `StageFailed`, `Staged`), `writtenStaging` became a `Match.tagsExhaustive` and `unwrittenOf` replaced the `staging` field.
+- `f57dd012`: a doc comment only.
+
+**Why this does not affect the phase goal.** I read the diff of the file. Phase 46's one change to it is `name: "AuditDecisionSinkLive"` on the returned sink, and that line is intact and asserted by `AuditDecisionSinkLive.test.ts:807`. The refactors alter how staging state is represented and how a refusal is typed. They add no catch around `record` and no logging of a sink failure. The emitter in `SinkEmit.ts` still does the containment and the single report, so the audit sink needs no report of its own, which is what EMIT-03 required. The audit sink's own handling of a throwing hook (`onOutcome`, `onRefused`) is unchanged in kind, and the whole audit project passes.
+
+**Re-run evidence.** Core: SinkEmitReport, ShippedSinkReports, DecisionSink and EvaluationEnvironment, 97 passed. Audit: the full project, 28 files and 526 tests passed (`AuditDecisionSinkLive.test.ts` alone: 35). `node scripts/check-house-style.mjs`: 542 files clean, 3 declared switches. No `TBD`/`FIXME`/`XXX` in the audit file. All 11 requirement IDs are still ticked Complete in REQUIREMENTS.md. `pnpm check:pr` and Stryker were not re-run, per the brief: `check:pr` exited 0 at f18a93e1, the last source change, and only `.planning` files moved after it.
+
+**Verdict:** unchanged, passed 8/8. No regressions.
 
 ## Goal Achievement
 

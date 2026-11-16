@@ -1,6 +1,6 @@
 ---
 phase: QD-48-audit-reports-core-s-refusal-and-derives-lost
-verified: 2026-11-16T04:20:00Z
+verified: 2026-11-16T19:10:00Z
 status: passed
 score: 5/5 roadmap success criteria verified; 11/11 requirement IDs satisfied
 covered_files:
@@ -36,17 +36,29 @@ covered_files:
   - "packages/audit/test/observeLeaf.ts"
   - "packages/core/src/JsonRefusal.ts"
   - "spec/decisions/161-audit-reports-cores-refusal-and-decides-lost-once.md"
-covered_digest: "v4:sha256:f1acdd12a84706645cba47a6ee5ad5efdb5186c6bbecd496cc2a0d65a252dcaa"
+covered_digest: "v4:sha256:cb4cb40b22fd3808c00eda01babeb94e609aa9e8bf8332983c49df01548677df"
 behavior_unverified: 0
 overrides_applied: 0
+re_verification:
+  previous_status: passed
+  previous_score: 5/5
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 48: Audit reports core's refusal and derives "lost" Verification Report
 
 **Phase Goal:** Audit reports the same refusal type core, forwarding and http use, and the "lost staging" label is derived from the outcome's durability in one place, so the span attribute and the metric/log label cannot disagree about whether a staged write was lost.
-**Verified:** 2026-11-16 (HEAD a9b92e7e, phase_base c9fde4ba)
+**Verified:** 2026-11-16 (re-verified at HEAD 6db92426; first verified at a9b92e7e, phase_base c9fde4ba)
 **Status:** passed
-**Re-verification:** No, initial verification
+**Re-verification:** Yes, at 6db92426. The earlier report went stale because one covered file moved.
+
+### Re-verification at 6db92426: what moved and why
+
+One covered file moved since the first verification: `apps/website/src/content/docs/docs/reference/upgrading.md`, by de3fba19 `docs(49-07)`. That commit appends a new section at the end of the file (27 added lines, 0 removed): "0.13: the dock takes the gate registry, not its instances", for phase 49's `DevtoolsDock` change. It does not touch phase 48's section ("0.13: audit reports core's refusal, and AuditEntryNotEncodable is gone", starting at line 829 and ending with the ADR-QD-161 link). I re-read that section at HEAD: the Before fence is `ts`, the After fence is `typescript` and logs `encodeRefusalAnnotations(e)`, `reason` is documented as gone, the INV-QD-104 caution and the ADR-QD-161 link are intact. The same commit added three changesets for `@qadi/core`, `@qadi/react` and `@qadi/devtools`; none touches `@qadi/audit` or the audit refusal changeset.
+
+Every other covered file is unchanged between a9b92e7e and 6db92426: `git diff a9b92e7e HEAD` over `packages/audit`, `packages/core/src/JsonRefusal.ts`, `.changeset/audit-refusal-is-cores.md` and ADR-QD-161 is empty. Commits since touch only other packages (react, devtools, core gate vocabulary) and `.planning`. Regression checks at HEAD: `vitest --project audit` 28 files / 526 tests pass; `tstyche packages/audit` 9 files / 27 tests / 48 assertions pass; no `packages/*/src` or `packages/*/test` file names `AuditEntryNotEncodable` (hits only in the four CHANGELOG.md histories); `UnwrittenRow.ts` still the one `Match.tagsExhaustive` mapping and `unwrittenDurability` / `lostStaging` have zero hits in `packages/audit/src`. The 11 requirement IDs map unchanged (plans 48-01..48-08 vs REQUIREMENTS.md). Gates not re-run here: the orchestrator reports `pnpm check:pr` exit 0 at f18a93e1, and only `.planning` files changed after it; Stryker was not re-run (the five audit files are byte-identical to the 100% run). Verdict unchanged: passed.
 
 ## Goal Achievement
 
