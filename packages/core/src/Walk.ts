@@ -17,14 +17,14 @@ import type { AuthSubject } from "./AuthSubject.ts";
 import type { Trace } from "./Decision.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
 import type { EvaluationError } from "./Errors.ts";
-import { MissingAction, MissingResource, PolicyTooDeep } from "./Errors.ts";
+import { PolicyTooDeep } from "./Errors.ts";
 import type { VisibleFields } from "./FieldLattice.ts";
 import { mergeFields } from "./FieldLattice.ts";
 import { holds } from "./Compare.ts";
 import type { Matcher, MatcherContext, Verdict } from "./Matcher.ts";
-import { judgeMatcher, referencesAction } from "./Matcher.ts";
-import { absenceOf, errorOf } from "./LeafNeeds.ts";
+import { absenceOf, errorOf, holdsAction, holdsPermission, holdsRole } from "./LeafNeeds.ts";
 import type { Supplied } from "./LeafNeeds.ts";
+import { judgeMatcher } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
@@ -71,6 +71,7 @@ interface Evaluation {
 
 
 const NO_OBLIGATIONS: ReadonlyArray<Obligation> = [];
+const NO_RESOURCE: Resource = {};
 /** Shared empty children array for leaf verdicts — mirrors `NO_OBLIGATIONS`. */
 const NO_CHILDREN: ReadonlyArray<Trace> = [];
 
@@ -310,18 +311,16 @@ const evaluateNode = (
   const { action, resource } = request;
 
   switch (policy._tag) {
-    case "HasPermission": {
-      const key = permissionKey(policy.permission);
+    case "HasPermission":
       return Effect.succeed(
-        subject.permissions.has(key)
+        holdsPermission(subject, policy)
           ? allow("HasPermission", policy.fields)
-          : deny("HasPermission", `subject lacks permission '${key}'`),
+          : deny("HasPermission", `subject lacks permission '${permissionKey(policy.permission)}'`),
       );
-    }
 
     case "HasRole":
       return Effect.succeed(
-        subject.roles.has(policy.role)
+        holdsRole(subject, policy)
           ? allow("HasRole", policy.fields)
           : deny("HasRole", `subject lacks role '${policy.role}'`),
       );
@@ -339,21 +338,16 @@ const evaluateNode = (
     }
 
     case "HasResourceAttribute": {
-      if (resource === undefined) {
-        return Effect.fail(new MissingResource({ attribute: policy.attribute }));
-      }
-      if (action === undefined && referencesAction(policy.matcher)) {
-        // See the `HasAttribute` arm above: no expected action here either.
-        return Effect.fail(new MissingAction({}));
-      }
+      const absent = absenceOf(policy, request.supplied);
+      if (absent !== undefined) return Effect.fail(errorOf(absent));
       // `Object.hasOwn`, mirroring `readAttribute` above and `FieldPath.ts`'s
       // `projectAt`: a decoded policy's `attribute` is untrusted input, and
       // without this guard a name like `"toString"` or `"constructor"`
       // resolves an inherited `Object.prototype` member instead of reporting
       // the absence `attributeReason` already has a sentence for.
-      const value = Object.hasOwn(resource, policy.attribute)
-        ? resource[policy.attribute]
-        : undefined;
+      // `absenceOf` has ruled out an absent resource; the `??` is the type's.
+      const row = resource ?? NO_RESOURCE;
+      const value = Object.hasOwn(row, policy.attribute) ? row[policy.attribute] : undefined;
       const verdict = judgeMatcher(policy.matcher, value, matcherContext);
       return Effect.succeed(
         holds(verdict)
@@ -369,13 +363,10 @@ const evaluateNode = (
       return evaluateHasRelationship(policy, subject, resource);
 
     case "HasAction": {
-      // Absent input is a caller error, not a decision — the `MissingResource`
-      // precedent, and the reason `referencesAction` is checked above.
-      if (action === undefined) {
-        return Effect.fail(new MissingAction({ expected: policy.action }));
-      }
+      const absent = absenceOf(policy, request.supplied);
+      if (absent !== undefined) return Effect.fail(errorOf(absent));
       return Effect.succeed(
-        action === policy.action
+        holdsAction(policy, action)
           ? allow("HasAction", policy.fields)
           : deny("HasAction", `action is '${action}', not '${policy.action}'`),
       );
