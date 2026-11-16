@@ -73,8 +73,31 @@ const tsc = () => {
   const errors = r.stdout.split("\n").filter((l) => l.includes("error TS"));
   return { status: r.status, errors };
 };
-const failing = (test) =>
-  run("node_modules/.bin/vitest", ["run", "--project", "core", test]).status !== 0;
+// A compiling edit's row passes only when vitest ran the named file and reported a failing test in it. A
+// non-zero exit alone is not enough: a missing or mistyped path, a crash or a collection error exit 1 too,
+// and each fails the row with its own message.
+const failing = (test) => {
+  if (!fs.existsSync(test)) return { ok: false, why: `no such test file: ${test}` };
+  const dir = fs.mkdtempSync(p.join(os.tmpdir(), "qd51-proofs-"));
+  const out = p.join(dir, "vitest.json");
+  try {
+    const r = run("node_modules/.bin/vitest", ["run", "--project", "core", "--reporter=json", `--outputFile=${out}`, test]);
+    if (!fs.existsSync(out)) return { ok: false, why: `vitest wrote no report (exit ${r.status})` };
+    let report;
+    try {
+      report = JSON.parse(fs.readFileSync(out, "utf8"));
+    } catch {
+      return { ok: false, why: `vitest's report is not JSON (exit ${r.status})` };
+    }
+    const file = (report.testResults || []).find((t) => t.name === p.resolve(test));
+    if (!file) return { ok: false, why: `vitest did not run ${test} (exit ${r.status})` };
+    const failed = (file.assertionResults || []).filter((a) => a.status === "failed").length;
+    if (report.numFailedTests > 0 && failed > 0) return { ok: true, why: `vitest: ${failed} failing test(s) in ${test}` };
+    return { ok: false, why: `vitest ran ${test} with no failing test (exit ${r.status}, ${file.status})` };
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+};
 
 const rows = ["| Edit | tsc exit | Error (the expected one, else the first) | As expected |", "|---|---|---|---|"];
 let bad = 0;
@@ -98,10 +121,12 @@ try {
     fs.writeFileSync(file, orig[file].replace(from, to));
     const r = tsc();
     const hit = r.errors.find((e) => e.includes(want));
-    const first = (hit || r.errors[0] || "").trim().slice(0, 220);
+    let first = (hit || r.errors[0] || "").trim().slice(0, 220);
     let ok;
     if (want.startsWith("compiles:")) {
-      ok = r.status === 0 && failing(want.slice("compiles:".length));
+      const t = r.status === 0 ? failing(want.slice("compiles:".length)) : { ok: false, why: "" };
+      ok = r.status === 0 && t.ok;
+      first = first || t.why;
     } else if (want === "any") {
       ok = r.status !== 0 && r.errors.length > 0;
     } else {
