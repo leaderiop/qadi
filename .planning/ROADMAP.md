@@ -598,11 +598,11 @@ Plans:
   5. ADR-QD-161 records the decision after checking ADR-QD-054 and ADR-QD-056, and the `@qadi/audit` changeset and `upgrading.md` mark `onRefused`'s new type as **Breaking**.
 
 **Planning notes**: **Research flag: the first plan checks ADR-QD-054 and ADR-QD-056 against core's `SinkRecordNotEncodable` before any code**, and records what the ADRs actually forbid. **Plan shape, RED first**: the mutation base for the audit files, the characterisation of log, span and metric output on every outcome variant, committed first; then the refusal type; then the durability-derived label; then records.
-**Plans**: 8 plans
+**Plans**: 1/8 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 48-01-PLAN.md — the ADR check (ADR-QD-054 and ADR-QD-056 quoted against core's `SinkRecordNotEncodable`) and the reserved ids, before any code; the mutation base for the four touched audit files (first commit)
+- [x] 48-01-PLAN.md — the ADR check (ADR-QD-054 and ADR-QD-056 quoted against core's `SinkRecordNotEncodable`) and the reserved ids, before any code; the mutation base for the four touched audit files (first commit)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 48-02-PLAN.md — `observeLeaf.ts` and the eleven-leaf characterisation (`AuditWriteOutput.test.ts`, 12 rows) and the agreement table (`AuditLostAgreement.test.ts`, 19 rows), green on the base
@@ -709,7 +709,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 45. The audit circuit breaker as one transition function | 8/8 | Complete    | 2026-11-15 |
 | 46. The sink emitter reports what it contains | 7/7 | Complete    | 2026-11-15 |
 | 47. Port facts read from the description | 7/7 | Complete    | 2026-11-16 |
-| 48. Audit reports core's refusal and derives "lost" | 0/TBD | Not started | - |
+| 48. Audit reports core's refusal and derives "lost" | 1/8 | In Progress | - |
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 0/TBD | Not started | - |
 | 50. What a leaf needs from the request, stated once | 0/TBD | Not started | - |
 | 51. Policy tag arity stated once | 0/TBD | Not started | - |
