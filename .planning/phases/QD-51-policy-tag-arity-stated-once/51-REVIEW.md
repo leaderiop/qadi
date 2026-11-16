@@ -1,8 +1,8 @@
 ---
 phase: QD-51-policy-tag-arity-stated-once
-reviewed: 2026-11-16T17:10:00Z
+reviewed: 2026-11-16T18:00:00Z
 depth: standard
-iteration: 2
+iteration: 3
 files_reviewed: 19
 files_reviewed_list:
   - .changeset/policy-arity-stated-once.md
@@ -21,112 +21,53 @@ files_reviewed_list:
   - spec/invariants.md
   - spec/traceability.md
   - .planning/phases/QD-51-policy-tag-arity-stated-once/51-SECURITY.md
-  - .planning/phases/QD-51-policy-tag-arity-stated-once/tools/moves.mjs
   - .planning/phases/QD-51-policy-tag-arity-stated-once/tools/mutation.mjs
   - .planning/phases/QD-51-policy-tag-arity-stated-once/tools/proofs.mjs
   - .planning/phases/QD-51-policy-tag-arity-stated-once/tools/scan.mjs
 findings:
   critical: 0
-  warning: 2
-  info: 3
-  total: 5
+  warning: 0
+  info: 0
+  total: 0
   necessity: 0
-status: issues_found
+status: clean
 ---
 
-# Phase QD-51: Code Review Report (iteration 2)
+# Phase QD-51: Code Review Report
 
-**Reviewed:** 2026-11-16T17:10:00Z
+**Reviewed:** 2026-11-16T18:00:00Z
 **Depth:** standard
-**Files Reviewed:** 20 (the source, test and spec files of the phase diff, `51-SECURITY.md`, and the four phase tools; `scan.mjs` and `mutation.mjs` were read for the iteration-1 fixes)
+**Iteration:** 3 of 3
+**Files Reviewed:** 19
+**Status:** clean
 
 ## Summary
 
-All ten iteration-1 fixes are in place and none introduced a code defect. I checked each against the source and the recorded evidence, not against the fix report.
+Every iteration-2 fix is correct and complete, and the final pass over the phase's whole non-planning diff (`8d87d837..HEAD`) found no defect, so nothing is raised. `necessity` was not assessed beyond the new per-arity table, which has no impossible-state guard.
 
-**Verified correct**
+Verified against source rather than prose:
 
-- **WR-02, the table.** `traceChildrenByArity` is `as const satisfies { readonly [A in Arity]: … }`. It is total over `Arity` by type, with no cast, and `ChildrenOf` ends in `A extends "Many" ? … : never`. The two rows that were ternary arms keep their bodies, so behaviour is identical for every union tag. `TraceShape.test.ts` is unchanged since iteration 1 and is green with `PolicyArity.test.ts` and `Decision.test.ts` (89 tests).
-- **Foreign tag.** For `Bogus`, `constructor`, `toString` and `__proto__` the arity read is `undefined`, a function or `Object.prototype`. Each coerces to a key the table lacks, so `undefined(self)` throws a `TypeError` when `foldTreeBy` opens the node, before any child's arm runs. It is fail-closed: it throws and never allows. The differences from the base are in WR-01 and IN-01.
-- **IN-01.** I read tstyche 7.2.5's `SuppressedService`. With `checkSuppressedErrors` (default on) the directive needs an argument (`directiveRequires`), allows exactly one error on the line (`onlySingleError`) and requires the message to contain the text (`messageDidNotMatch`). The header is right, and each of the three directives sits on one line with one erroring expression. `PolicyArity.tst.ts` is green (3 suppressed matched).
-- **WR-04.** `process.on("exit", restore)`, the signal handlers, the `tick` yield and the per-child `signal` check cover every path I could find that leaves `src` edited. A SIGKILL is declared as uncovered. A caught signal exits 128+n, a child killed by a signal exits 1, and an uncaught throw restores through the `finally`. The `dirty()` check exits 3.
-- **WR-03.** The `git apply --check` row requires the `^error: patch failed: packages/core/src/Decision.ts:\d+$` line, so a missing patch no longer passes.
-- **IN-06.** `minus` in `mutation.mjs` is a correct multiset subtraction. `compare` on the recorded JSONs still prints "WX-05 holds" (exit 0). `scan.mjs` skips a TypeScript with no `transpileModule`.
-- **Numbers.** "8 of 32 caught by existing tests, 32 of 32 by TraceShape, `tsc_exit` 0 on every move and arm row" agree with `base-experiment/moves.tsv` (counted from the file). INV-QD-348's "one test in `Decision.test.ts`" for `Not` Wrapper to Many agrees with its row (`Decision_failed` 1).
-- **House rules.** No `as` outside `as const`, no `!`, `any` or `switch`. Imports are namespaces or named. `PolicyArity.ts` imports nothing and is not in the barrel. `node scripts/check-house-style.mjs` is clean (539 files, 3 declared switches) and `scripts/` has no diff from the phase base. `tsc -p tsconfig.test.json` exits 0.
-- **New `Decision.test.ts` test.** It can fail: it asserts both guards on an allowing and a denying trace, and the expected pairs are written out, not read from the code.
+- **WR-01 (T-51-09).** `51-SECURITY.md` now describes the mechanism that exists. I probed `foldTrace` on a hand-built node with `Bogus`, `toString`, `__proto__` and `hasOwnProperty`. Each throws `TypeError: traceChildrenByArity[traceShapeOf(...)] is not a function`. The stack is `traceChildrenOf` called from `TreeFold.ts`'s `open`, so the throw precedes any child arm. The row's list of four pinned names (`Bogus`, `constructor`, `toString`, `__proto__`) matches `PolicyArity.test.ts`. The inherited-member read cannot land on a real row, because no `Object.prototype` value stringifies to `Leaf`, `Wrapper` or `Many`.
+- **WR-02 (`proofs.mjs`).** A `compiles:` row passes only when the named file exists and vitest wrote a JSON report. That report must list the file under its resolved absolute path, with at least one `failed` assertion in it. I ran vitest with the same flags (`--project core --reporter=json --outputFile=...`) on `PolicyArity.test.ts`. The report shape (`testResults[].name` absolute, `assertionResults[].status`, `numFailedTests`) is what the script reads. A missing path, a crash or a collection error each fail the row with their own message. I did not run the script, because it rewrites `packages/core/src`.
+- **IN-01 (foreign-tag `TypeError`).** The statement now agrees in BEH-QD-593, ADR-QD-164 (1.4), the changeset, the `traceChildrenOf` doc comment and the test comment. The test asserts a throw and that no child arm ran, not the class. I checked that a `?? "Many"` fallback would make the HasRole arm run first and fail `ran === 0`, so the stated guard is real.
+- **IN-02 (`Array.of(a, b)`).** `PolicyArity.tst.ts` pins the accepted `Array.of(a, b)` against the refused literal `[a, b]`, with the message fragment `is not assignable to type 'never'`. `tstyche` reports 15 of 15 passed, 4 suppressed errors matched.
+- **IN-03 (INV-QD-348, CCR-QD-442).** INV-QD-348's enforcement line now says that `Decision.test.ts`'s `foldTrace` tests are untouched and one guard test was added. The CCR-QD-442 row lists `Decision.test.ts`.
 
-What remains is one false accepted-risk statement, a proof row that can pass for the wrong reason, and three info items.
+Final pass:
 
-## Warnings
+- `node_modules/.bin/tsc -p tsconfig.test.json` is clean.
+- `vitest --project core` on `PolicyArity`, `TraceShape` and `Decision` passes (89 tests).
+- `pnpm lint` (oxlint plus `check-house-style.mjs`: 539 files clean, 3 declared switches) passes.
+- `pnpm circular` finds no cycle.
+- `pnpm spec:gates` and `pnpm spec:verify:strict` pass (25 DoD steps; 21 of 21 traceability checks, revision headers agreeing with history).
+- `PolicyArity.ts` imports nothing and is not re-exported by the barrel.
+- Nothing in `packages/*/src` outside `PolicyArity.ts` restates an arity.
+- `childrenOf`'s `satisfies ChildArms<Policy, typeof POLICY_ARITY>`, the derived `LeafPolicy` and the `traceChildrenByArity` table are consistent with the tstyche pins.
 
-### WR-01: `51-SECURITY.md` T-51-09 describes the foreign-tag behaviour of code that no longer exists
-
-**File:** `.planning/phases/QD-51-policy-tag-arity-stated-once/51-SECURITY.md:40` and `:56`
-**Issue:** Both T-51-09 entries (the register row, status "closed (accepted; foreign tags throw Match.exhaustive at traceStep)", and the Accepted Risks Log) say a foreign tag "still throws the same `absurd` error at `traceStep`'s `Match.exhaustive` one call later, as on the base". After WR-02 this is false in two ways. I ran both forms:
-
-- Base: `Match.exhaustive` threw `Error: effect/match/Match/exhaustive: absurd`.
-- Now: `TypeError: traceChildrenByArity[...] is not a function`. It is raised in `traceChildrenOf` when `foldTreeBy` opens the node (`TreeFold.ts`'s `open`), so `traceStep`'s `Match.exhaustive` is never reached.
-
-The "one call later" also did not describe the base: `traceShapeOf` itself was the `Match.exhaustive`, called from `traceChildrenOf` at open. The mitigation text matched the intermediate `?? Many` fall-through that WR-02 removed. The risk row is a verified security record, and "closed" rests on a mechanism that is gone. The behaviour is still fail-closed and is pinned by `PolicyArity.test.ts` ("a tag outside the union").
-
-**Fix:** Rewrite both entries to the current mechanism, for example:
-```
-a foreign tag (`Bogus`, `toString`, `constructor`, `__proto__` are pinned in PolicyArity.test.ts) has no
-row in `POLICY_ARITY` or in `traceChildrenByArity`, so `foldTrace` throws a TypeError when it opens the node,
-before any child's arm runs. The base threw `Match.exhaustive`'s error at the same point; only the error's
-class and message differ. It is never an allow.
-```
-Change the status text to "closed (accepted; foreign tags throw a TypeError at traceChildrenOf, pinned)".
-
-### WR-02: `proofs.mjs`'s runtime-refusal row passes whenever vitest exits non-zero, not only when a test fails
-
-**File:** `.planning/phases/QD-51-policy-tag-arity-stated-once/tools/proofs.mjs:76-77` and `:103-104` (the row at `:43`)
-**Issue:** `failing` is `run("vitest", …).status !== 0`. The row "childrenOf arm: AllOf returns none (… Policy.test.ts's lockstep refuses it)" is accepted when `tsc` exits 0 and `failing(...)` is true. A mistyped or moved test path, a vitest crash, a configuration error or a collection error all exit non-zero too. I confirmed it: `vitest run --project core packages/core/test/Nonexistent.test.ts` exits 1. Such a run would be shown as `yes` in the table and copied into the SUMMARY as proof that the lockstep property refuses an empty `Many` arm. It is the same defect as iteration 1's WR-03, one row further down: a check that passes for any failure of the tool it uses.
-
-**Fix:** Require an actual failed test, not just a non-zero exit:
-```js
-const failing = (test) => {
-  const r = run("node_modules/.bin/vitest", ["run", "--project", "core", "--reporter=json", test]);
-  try {
-    return JSON.parse(r.stdout).numFailedTests > 0;
-  } catch {
-    return false;
-  }
-};
-```
-A path that matches no file then gives no JSON with failed tests, and the row reports `NO`.
-
-## Info
-
-### IN-01: BEH-QD-593 and the changeset say nothing about the error class a foreign tag now raises
-
-**File:** `spec/behaviors/18-explanation.md:523`, `.changeset/policy-arity-stated-once.md:5`, `packages/core/src/Decision.ts:431-433` (and `spec/decisions/164-policy-tag-arity-is-stated-once.md`, which is silent)
-**Issue:** The wording "the fold throws on opening it, before any child's arm runs, as the base's `Match.exhaustive` did" is true about when and that it throws. It does not say that the thrown value changed from `Error: effect/match/Match/exhaustive: absurd` to a `TypeError`. The changeset says "No public type, export or outcome changes". `foldTrace` is public and a caller-held trace may carry any tag, so the failure's class and message for such a trace changed. It is a throw both before and after, so the outcome is the same. The guard is also not stated anywhere: no code names this case. It exists because an absent table row is called as a function, so a later `?? "Many"` or an `Object.hasOwn` fallback in `traceShapeOf` would remove it. The pin in `PolicyArity.test.ts` protects that, but the spec does not say what the pin protects.
-
-**Fix:** In BEH-QD-593, replace "as the base's `Match.exhaustive` did" with "at the same point as the base's `Match.exhaustive`; the error is now a `TypeError`, not that match's error, and callers should not rely on its class". Make the same one-clause correction in `traceChildrenOf`'s doc comment.
-
-### IN-02: The IN-04 tstyche line for `Array.of` pins nothing beyond the line above it
-
-**File:** `packages/core/test/PolicyArity.tst.ts:150-151`
-**Issue:** The comment says "a fixed-size Many arm's way out: `Array.of(a, b)` is an array, not a tuple", but the assertion is `expect(Array.of<Policy>()).type.toBeAssignableTo<ChildrenOf<"Many", Policy>>()`. `Array.of<Policy>()` has type `Policy[]`, and line 148 already asserts `ReadonlyArray<Policy>` is assignable, so this line cannot fail unless that one does. It does not pin the documented workaround of a call with elements. The claim itself holds, since `Array.of<T>(...items: T[])` returns `T[]`.
-
-**Fix:** Pin the call shape the documentation shows:
-```ts
-declare const a: Policy;
-declare const b: Policy;
-expect(Array.of(a, b)).type.toBeAssignableTo<ChildrenOf<"Many", Policy>>();
-```
-
-### IN-03: INV-QD-348 says `Decision.test.ts` is "untouched", and the CCR-QD-442 row does not list it
-
-**File:** `spec/invariants.md:4034`, `spec/README.md:379` (the CCR-QD-442 row)
-**Issue:** INV-QD-348's Enforcement says `Decision.test.ts` ("`foldTrace` at depth and width, sharing and cycles, INV-QD-090") is "untouched". Commit 2cd90675 added the `isAllowingTrace`/`isDenyingTrace` test to that file. The `foldTrace` tests in it are unchanged, which is probably what is meant, but the file is not. The CCR-QD-442 row lists "the phase's source and tests" and names six files; `packages/core/test/Decision.test.ts` is not among them, and the row's iteration-1 paragraph does not say that WR-02's mutation-floor test was added there. The brief asks that the row list every revision, and a reader of the row cannot learn that this test file changed.
-
-**Fix:** In INV-QD-348 say "its `foldTrace` tests untouched". In the CCR row add `packages/core/test/Decision.test.ts` (one test for the two trace guards, WR-02) to the file list, and bump the revisions the two edits touch.
+Not checked: Stryker and the post-fix mutation scores, which the orchestrator accepted as out of scope, and the full `pnpm check` (coverage, BDD, website, package install).
 
 ---
 
-_Reviewed: 2026-11-16T17:10:00Z_
+_Reviewed: 2026-11-16T18:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
