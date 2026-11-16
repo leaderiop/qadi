@@ -30,12 +30,11 @@
  * refusal is `@qadi/core`'s `SinkRecordNotEncodable`, the error `encodeSinkRecord`
  * returns, not an audit copy of it (ADR-QD-161).
  */
-import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
-import type { EncodeRefusal, SinkRecord } from "@qadi/core";
+import type { SinkRecord } from "@qadi/core";
 import {
   DecodeRefusal,
   decodeRefusalOf,
@@ -45,30 +44,6 @@ import {
   SinkRecordNotDecodable,
   untrustedDecoder,
 } from "@qadi/core";
-
-/**
- * A `SinkRecord` this package refuses to persist, and why.
- *
- * `refusal` is `@qadi/core`'s `EncodeRefusal`: a value with no safe durable
- * representation — a function, a `Symbol`, a `bigint`, a circular reference, a
- * `Map`/`Set`/`RegExp`/binary array JSON renders as `{}`, a policy deeper than a
- * reader will decode — anywhere in the record, with the path it was found at.
- * `reason` is that refusal as a sentence (`@qadi/core`'s `describeEncodeRefusal`),
- * for a log line. `evaluationId` is the refused record's, so a hook holds the
- * correlation handle the same way `SinkRecordNotEncodable` gives it. A resolver error's
- * `cause` is never a reason: it crosses through `Schema.Defect()`.
- *
- * Never thrown; a typed `Effect` failure, the same shape
- * `@qadi/predicate-sql`'s `PredicateNotRenderable` uses, declared here rather
- * than shared, per ADR-QD-054: `@qadi/core` has no reason to know this error
- * exists.
- */
-export class AuditEntryNotEncodable extends Data.TaggedError("AuditEntryNotEncodable")<{
-  readonly recordTag: SinkRecord["_tag"];
-  readonly evaluationId: string;
-  readonly refusal: EncodeRefusal;
-  readonly reason: string;
-}> {}
 
 /**
  * The optional gap-detection field, declared once for the row schema and the
