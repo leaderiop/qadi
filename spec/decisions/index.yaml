@@ -502,3 +502,7 @@ entries:
     file: "163-what-a-leaf-needs-from-the-request-is-stated-once.md"
     title: "What a leaf needs from the request is stated once"
     status: "Accepted — reads ADR-QD-024, ADR-QD-100, ADR-QD-134; applies ADR-QD-152; keeps ADR-QD-034, ADR-QD-073"
+  - id: "ADR-QD-164"
+    file: "164-policy-tag-arity-is-stated-once.md"
+    title: "Policy tag arity is stated once"
+    status: "Accepted — applies ADR-QD-152; reads ADR-QD-090, ADR-QD-101, ADR-QD-099; keeps ADR-QD-073, ADR-QD-077"
