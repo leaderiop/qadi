@@ -2,10 +2,9 @@
  * The table of what a leaf needs from the request (ARCH-97, ADR-QD-163; INV-QD-345,
  * INV-QD-346).
  *
- * Written before `LeafNeeds.ts` exists, so it is RED by import (D-14). The oracle
- * and the fixtures are the characterisation's (`LeafFixtures.ts`), written by hand
- * from the D-05 rule and reading no table: a table that disagreed with the rule
- * would fail here rather than agree with itself.
+ * The oracle and the fixtures are the characterisation's (`LeafFixtures.ts`),
+ * written by hand from the D-05 rule and reading no table: a table that disagreed
+ * with the rule would fail here rather than agree with itself.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
@@ -71,7 +70,7 @@ describe("absenceOf", () => {
   it("gives no absence for a leaf that needs nothing, and none when both inputs are supplied", () => {
     for (const f of ALL) {
       assert.isUndefined(absenceOf(f.policy, { action: true, resource: true }), f.label);
-      if (LEAF_NEEDS[f.policy._tag].own === "Nothing" && f.refs === "none") {
+      if (f.own === "Nothing" && f.refs === "none") {
         for (const action of [false, true]) {
           for (const resource of [false, true]) {
             assert.isUndefined(absenceOf(f.policy, { action, resource }), f.label);
