@@ -12,19 +12,25 @@
  * Services panel said "0 completed entries" for as long as the page stayed
  * open; the example hoisted the cache out of the layer by hand to stop it
  * (CCR-QD-200). The property is `@qadi/react`'s now
- * (`DevtoolsFeed.test.tsx`), and this is its cross-package proof.
+ * (`DevtoolsFeed.test.tsx`), and this is its cross-package proof. The gate registry
+ * is the third thing the two packages meet on, structurally: react's `atoms.gates`
+ * is what the dock's `gates` prop takes (ADR-QD-053, ADR-QD-162).
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { hasRole } from "@qadi/core";
+import type { GateRegistryLike } from "@qadi/devtools";
 import { useDiagnostics } from "@qadi/devtools/react";
 import { Can, QadiProvider, useDevtoolsFeed } from "@qadi/react";
 import { clientPortCalls, atoms } from "../src/client/atoms.ts";
 import { users } from "../src/domain/subjects.ts";
 
 afterEach(cleanup);
+
+/** Compiles only while react's registry fits devtools' prop, with neither depending on the other. */
+const registryFits: GateRegistryLike = atoms.gates;
 
 const dockExtras = { collector: clientPortCalls };
 
@@ -55,6 +61,27 @@ describe("the dock's wiring read", () => {
       () => expect(wiringReads.some((read) => /^Read:[1-9]/.test(read))).toBe(true),
       { timeout: 3000 },
     );
+  });
+});
+
+describe("the dock's gate registry", () => {
+  it("hands the dock the provider's gate registry, which devtools takes as it is", () => {
+    const first = users[0];
+    if (first === undefined) throw new Error("nothing to evaluate with");
+    let captured: GateRegistryLike | undefined;
+    const Capture = () => {
+      captured = useDevtoolsFeed(dockExtras).gates;
+      return null;
+    };
+
+    render(
+      <QadiProvider atoms={atoms} subject={first.subject}>
+        <Capture />
+      </QadiProvider>,
+    );
+
+    expect(captured).toBe(atoms.gates);
+    expect(captured).toBe(registryFits);
   });
 });
 
