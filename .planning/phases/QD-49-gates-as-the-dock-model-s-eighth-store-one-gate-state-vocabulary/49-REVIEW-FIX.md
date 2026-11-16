@@ -1,93 +1,86 @@
 ---
 phase: QD-49-gates-as-the-dock-model-s-eighth-store-one-gate-state-vocabulary
-fixed_at: 2026-11-16T09:15:00Z
+fixed_at: 2026-11-16T10:15:00Z
 review_path: .planning/phases/QD-49-gates-as-the-dock-model-s-eighth-store-one-gate-state-vocabulary/49-REVIEW.md
-iteration: 1
-findings_in_scope: 6
-fixed: 6
+iteration: 2
+findings_in_scope: 4
+fixed: 4
 skipped: 0
 status: all_fixed
 ---
 
-# Phase QD-49: Code Review Fix Report
+# Phase QD-49: Code Review Fix Report (iteration 2)
 
-**Fixed at:** 2026-11-16T09:15:00Z
-**Source review:** .planning/phases/QD-49-gates-as-the-dock-model-s-eighth-store-one-gate-state-vocabulary/49-REVIEW.md
-**Iteration:** 1
+**Fixed at:** 2026-11-16T10:15:00Z
+**Source review:** `.planning/phases/QD-49-gates-as-the-dock-model-s-eighth-store-one-gate-state-vocabulary/49-REVIEW.md`
+**Iteration:** 2
 
 **Summary:**
-- Findings in scope: 6 (WR-01, WR-02, IN-01 to IN-04; scope `--all`)
-- Fixed: 6
+- Findings in scope: 4 (`--all`: WR-01, IN-01, IN-02, IN-03)
+- Fixed: 4
 - Skipped: 0
 
-Verification ran in the main checkout (`workflow.use_worktrees` is `false`), on branch `arch-wave-10`.
-
-WR-01, IN-02 and IN-03 share one commit (`0d9c2071`). All three change the one join input and its view (`JoinInput`, `GatesView`, `rejoin`), so splitting them would have left a red tree. The characterisation file `QuestionsPanel.characterisation.test.tsx` and every expected value in the existing panel tests are unchanged.
+Edits were made in the main checkout (`workflow.use_worktrees` is `false`). Every spec file touched was bumped through
+`scripts/spec-revise.mjs` in the commit that changed it, and the new revisions are on the CCR-QD-440 row in `spec/README.md`
+(Rev 1.223, 1.224, 1.225), not a new CCR. No new ids. The 49-02 characterisation is untouched and no existing expected value
+in the panel tests changed. WR-01, IN-02 and IN-03 are logic fixes; each is committed on its own and each new test was shown to
+fail with the source change reverted, so all three are marked "requires human verification".
 
 ## Fixed Issues
 
-### WR-01: A throwing registry stops the model's updates silently, and ADR-QD-162 section 5's rationale does not hold for `@qadi/react`'s own registry
+### WR-01: A throwing unsubscribe left `configure` half-applied and the model stuck
 
-**Files modified:** `packages/devtools/src/model/DockModel.ts`, `packages/devtools/src/model/Gates.ts`, `packages/devtools/src/react/QuestionsPanel.tsx`, `packages/devtools/test/gateRegistryDouble.ts`, `packages/devtools/test/model/DockModel.test.ts`, `packages/devtools/test/model/Gates.test.ts`, `packages/devtools/test/react/DevtoolsDock.test.tsx`, `packages/devtools/test/react/QuestionsPanel.gates.test.tsx`, `spec/decisions/162-*.md` (Rev 1.1), `spec/behaviors/28-devtools-screens.md` (Rev 1.25), `.planning/phases/QD-49-*/49-UI-SPEC.md` (amendment note)
-**Commits:** `0d9c2071` (the fix), `e4fc69d2` (a test the mutation run asked for), `da14a9c5` (traceability rows and the CCR-QD-440 row)
-**Applied fix:**
-- The registry read is guarded in one place, `readGates` in `DockModel.ts`, which `joinKeyNow` calls. That covers every path: the build, `configure`, a registry notification and a poll tick. A throw from `instances()` becomes `GatesView.Failed({ reason })`, with `reason` as `Cause.pretty(Cause.die(thrown))`, the text `DiagnosticsStatus.Stopped` carries. A throw from `subscribe` is held as a watch failure and stated the same way. A later `configure` with a working registry recovers it.
-- Because nothing throws out of `rejoin`, `configure` can no longer be left half applied, the poll fiber is not ended, the other listeners on `shownReading` still run, and a layout effect does not rethrow.
-- The panel renders `Failed` as `qadi-gates-failed`, with the wording and `colors.error` of `ServicesPanel`'s `qadi-wiring-failed`: "The registry handed to the dock threw when it was read, so who is asking cannot be shown: {reason}". The 49-UI-SPEC copy table carries an amendment note.
-- Rows while `Failed`: the choice is no claim. `QuestionRow.asking` is `ReadonlyArray<GateInstanceLike> | undefined`, and `undefined` means "could not be read". The row keeps its label and scope and renders no "asked, nothing mounted", no highlight and no instance rows. An empty list would print the false "nothing mounted"; the last good listing could name guards that are gone. `snapshot.instances` is the empty constant, so the lens points at nothing. ADR-QD-162 decision 5 is replaced (its first rationale was false: react's `changed()` swallows a listener's throw, and a poll tick ends the poll) and BEH-QD-583 and BEH-QD-584 say the same.
-- Tests: `gateRegistryDouble.ts` gained `swallowListenerErrors` (react's behaviour), `failReads`, `mendReads`, `failSubscribe` and `reads`/`releases` counters. M37 (build), M38 (notification the registry swallows, a changed reason, the same throw publishes nothing, mending), M39 (poll tick: status stays `Live`, the diagnostics listener is called, the poll goes on), M40 (`subscribe` throws, a working registry replaces it), M41 (`configure` with throwing registries, the old subscription released once), a `joinQuestions` failed-read pair in `Gates.test.ts`, two panel tests, and a dock test that mounts with a throwing registry.
-- Proof the tests bite: with the guarded read replaced by a bare `gatesNow?.instances()`, M37, M38, M39, M41 and the dock test fail (5 failures). With the `subscribe` try/catch removed, M40 and M41 fail. With the closed check removed from `rejoin`, M36 fails. Each was restored afterwards.
-- Mutation run, `stryker.devtools.mjs` on `model/DockModel.ts` and `model/Gates.ts`: the first run left one survivor (the failure reason's comparison in `rejoin`), which `e4fc69d2` kills. Final scores: `DockModel.ts` 100 (109 killed, 0 survived), `Gates.ts` 100 (66 killed, 0 survived).
+**Status:** fixed: requires human verification
+**Files modified:** `packages/devtools/src/model/DockModel.ts`, `packages/devtools/test/gateRegistryDouble.ts`, `packages/devtools/test/model/DockModel.test.ts`, `spec/decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md` (Rev 1.2), `spec/behaviors/28-devtools-screens.md` (Rev 1.26), `spec/README.md` (Rev 1.223)
+**Commit:** 8aceb349
+**Applied fix:** `watchGates` takes the handle out of `offGates` before calling it and calls it in its own `try`; the new `subscribe` is a second, independent `try`, so a throwing release can neither skip the new subscription and the `rejoin`, nor run again on the next `configure`. The finalizer does the same (handle out of state first, throw swallowed after `closed` is set, since a closing model has nowhere to state it). Which registry the failure names: a failed release is stated as `Failed` with its reason and names the registry that was left; a failed `subscribe` of the new registry wins over it, because that one names the registry the model now reads. The old registry's leaked listener only calls `rejoin`, which reads the registry the model holds now. The double gained `failRelease` (the unsubscribe throws and the listener stays live); M42 covers the configure-swap path (release once, new registry applied in full, not called again by a repeat configure, an `undefined` configure or the close) and M42 b the close path (the scope still closes, the release is called once). With `DockModel.ts` reverted both M42 cases fail. ADR-QD-162 decision 5 and BEH-QD-584 now say it; the "never half applied" claim holds on this path.
 
-This is a robustness fix to a branch the reviewer called a logic gap, so I mark it **fixed: requires human verification** for the choice of "no claim" over "last good listing". It is a user-visible rendering decision.
+### IN-01: Stale header comments said gates "stay a plain prop"
 
-### WR-02: `spec/appendices/react-integration.md` still says `useDevtoolsFeed()` returns the list
+**Status:** fixed
+**Files modified:** `packages/devtools/src/model/DiagnosticsFeed.ts`, `packages/devtools/src/model/DiagnosticsStore.ts`
+**Commit:** e4dff113
+**Applied fix:** Both headers now say gates are the dock model's own input (`DockModelInputs.gates`), a registry the model subscribes to (ADR-QD-162). ADR-QD-047:197 was left as it is: its Rev 1.16 amendment supersedes it and change history is prepend-only. `spec/process/house-rules-evidence.md` was not edited (quoted history).
 
-**Files modified:** `spec/appendices/react-integration.md` (Rev 1.3)
-**Commit:** `2fdf190a`
-**Applied fix:** The sentence now says `useDevtoolsFeed()` returns the registry itself as `gates` (read it with `gates.instances()`), citing BEH-QD-327 and BEH-QD-585. I searched `spec/`, `apps/website/src/content` and both package READMEs for "same list" and for `useDevtoolsFeed` beside gates, list, array or instances. No other stale claim was found (the website's `upgrading.md` and `devtools.md`, the READMEs, `overview.md` and ADR-QD-053 already say the registry).
+### IN-02: The failure reason's stack made "same reason publishes nothing" depend on the call path
 
-### IN-01: INV-QD-343/344 cite phase SUMMARY negative controls as enforcement
+**Status:** fixed: requires human verification
+**Files modified:** `packages/devtools/src/model/DockModel.ts`, `packages/devtools/test/model/DockModel.test.ts`, `spec/decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md` (Rev 1.3), `spec/behaviors/28-devtools-screens.md` (Rev 1.27), `spec/README.md` (Rev 1.224)
+**Commit:** 02aa3fca
+**Applied fix:** `rejoin` compares a `failureKey` (an error's `name: message`; for a value that is not an error, its rendered reason) instead of the rendered reason, so the same throw built afresh on another call path publishes nothing. The displayed reason is unchanged: still `Cause.pretty`, stack included, as `DiagnosticsStatus.Stopped` carries it. M38 gained a step where a new `Error` with the same message is thrown and the snapshot and listener count do not move; it fails with the change reverted. BEH-QD-583's "same failure reason" and ADR-QD-162 decision 5 say what "the same" means.
 
-**Files modified:** `spec/invariants.md` (Rev 1.140)
-**Commit:** `755173ba`
-**Applied fix:** INV-QD-343's Enforcement now cites M31 and P2 by what each asserts (a registry change reaches the rows at once; after every registry change and poll tick the rows equal an independent oracle read at that moment, so a poll-only join fails), `Gates.test.ts`, and M36 to M41 for the throwing registry. INV-QD-344's Implication cites `pnpm typecheck` and `GATE_DISPLAY`'s mapped type for devtools, and `DecisionOutcome.tst.ts` for react, in place of "the 49-03 negative control". INV-QD-343's statement also names the failure reason and the `Failed` view. No `NN-NN` SUMMARY citation remains in `spec/`.
+### IN-03: A failed watch stayed failed in two cases the spec did not state
 
-### IN-02: `configure` after close still polls the new registry
+**Status:** fixed: requires human verification
+**Files modified:** `packages/devtools/src/model/DockModel.ts`, `packages/devtools/test/gateRegistryDouble.ts`, `packages/devtools/test/model/DockModel.test.ts`, `spec/decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md` (Rev 1.4), `spec/behaviors/28-devtools-screens.md` (Rev 1.28), `spec/README.md` (Rev 1.225)
+**Commit:** f0e8ee6c
+**Applied fix:** Completeness over the spec-only option. `configure` now watches again when `next.gates !== gatesNow || watchFailure !== undefined`, so a `configure` with the same registry object retries a failed `subscribe` (and a failed release, which clears the same way) and re-joins. `watchGates` releases whatever is held first, so a retry never double-subscribes, and a watch that worked is never retried. The double gained `mendSubscribe` and `mendReadsQuietly`. M43 pins the retry (still failing: stated again, 2 subscriptions; mended: recovered, 1 listener; no resubscribe afterwards and changes arrive) and fails with the retry reverted. M44 pins the other case as the spec now states it: a registry that mends without announcing stays `Failed` through a quiet poll tick (a quiet tick reads nothing) and is read again by a registry announcement, a poll that changed the questions, or any `configure`. M42 also checks that a release failure clears on the next `configure` of the same registry. BEH-QD-584 and ADR-QD-162 decision 5 state this precisely.
 
-**Files modified:** `packages/devtools/src/model/DockModel.ts`, `packages/devtools/test/model/DockModel.test.ts`
-**Commit:** `0d9c2071` (shared with WR-01, see the note at the top)
-**Applied fix:** `rejoin` returns at once when the model is closed. The guard sits in `rejoin` and not in the tail of `configure`, because a `reading` change after close reaches `rejoin` through the diagnostics store and would otherwise read the old registry. M36 closes the scope, configures a new registry and a new reading twice, and asserts that neither registry's `instances()` was called and the snapshot is unchanged. M35 still pins the subscription counts.
+## Skipped Issues
 
-### IN-03: `GatesView.Listed` carries `instances`, which duplicates `QuestionsSnapshot.instances`
+None.
 
-**Files modified:** `packages/devtools/src/model/Gates.ts`, `packages/devtools/test/model/Gates.test.ts`, `packages/devtools/test/model/DockModel.test.ts`, `packages/devtools/test/react/questionsPanelInput.ts`, `spec/behaviors/28-devtools-screens.md`
-**Commit:** `0d9c2071` (shared with WR-01)
-**Applied fix:** `Listed` is now `{}`, one constant like `Absent` and `Empty`. `snapshot.instances` states the list once, and `useLens` still receives the registry's own array (M31 asserts `first.instances === registry.instances()`). The two assertions that pinned both to be identical were removed; BEH-QD-583's listing is updated.
+## Verification
 
-### IN-04: Panel tests build their input with the code under change
+Where the gates ran: the main checkout on branch `arch-wave-10` (no worktree).
 
-**Files modified:** `packages/devtools/test/react/questionsPanelInput.ts`
-**Commit:** `459ac79d`
-**Applied fix:** `panelInput` no longer calls `joinQuestions`. It writes the snapshot out with `Equal.equals` over policy and resource, in registry order, the grouping `Gates.ts` documents, so every call site in the three test files is unchanged. This was contained (one helper), so it was fixed and not skipped. The commit was made against the base API, before WR-01, so that tree is green on its own.
-
-## Checks
-
-Run in the main checkout, after all fixes:
-
-- `pnpm exec vitest run --project devtools`: 64 files, 1512 tests pass.
-- `pnpm exec vitest run --project react`: 34 files, 518 tests pass.
-- `pnpm exec vitest run --project core packages/core/test/GateState.test.ts`: 5 tests pass.
-- `pnpm typecheck`, `pnpm lint`, `pnpm circular`, `pnpm test:tstyche`, `pnpm spec:verify:strict`, `pnpm spec:examples`, `pnpm spec:website-examples`, `pnpm spec:api`, `pnpm spec:claims`: all exit 0.
-- `pnpm exec stryker run stryker.devtools.mjs --mutate 'packages/devtools/src/model/DockModel.ts,packages/devtools/src/model/Gates.ts'`: `DockModel.ts` 100, `Gates.ts` 100.
-
-## Not changed
-
-- `ADR-QD-162` decision 5 still does not guard the function `subscribe` returns: an `unsubscribe` that throws propagates. The reviewer's finding was about `instances()` and `subscribe`; the ADR says so.
-- `DiagnosticsStore.ts` and `DiagnosticsFeed.ts` still say, in their header comments, that gates "stay a plain prop". That text predates this phase and is not in the review.
+| Check | Result |
+| ----- | ------ |
+| `pnpm exec vitest run --project devtools` | pass, 64 files, 1516 tests |
+| `pnpm exec vitest run --project react` | pass, 34 files, 518 tests |
+| `pnpm typecheck` | pass |
+| `pnpm lint` | pass (warnings only, none in changed lines) |
+| `pnpm circular` | pass |
+| `pnpm test:tstyche` | pass, 293 tests, 613 assertions |
+| `pnpm spec:verify:strict` | pass, 21 of 21 |
+| `pnpm spec:examples` | pass, 116 blocks |
+| `pnpm spec:website-examples` | pass, 67 blocks |
+| `pnpm spec:api` | pass |
+| `pnpm spec:claims` | pass |
+| Stryker (`stryker.devtools.mjs`, model files changed) | `DockModel.ts` 100.00 (117 killed, 0 survived); `Gates.ts` 100.00 (66 killed, 0 survived) |
 
 ---
 
-_Fixed: 2026-11-16T09:15:00Z_
+_Fixed: 2026-11-16T10:15:00Z_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 1_
+_Iteration: 2_
