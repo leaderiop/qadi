@@ -211,7 +211,7 @@ const deny = makeDecision(stamp("e4"), {
 const bytes = (decision: Decision, includeTrace: boolean): string =>
   JSON.stringify(dehydrateWith([{ policy, decision }], { includeTrace }));
 
-describe("the payload's bytes are pinned on the phase base (ADR-QD-157)", () => {
+describe("the payload's bytes are pinned (ADR-QD-157)", () => {
   it("an allow with every field visible", () => {
     expect(bytes(allowAll, false)).toBe(
       `{"version":2,"subjectId":"u1","entries":[{"policy":{"_tag":"HasRole","role":"admin"},"decision":{"_tag":"Allow","evaluationId":"e1","durationMillis":3,"obligations":[],"disclosure":{"_tag":"Withheld"}}}]}`,
