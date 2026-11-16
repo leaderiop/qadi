@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-161                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — amends ADR-QD-056, ADR-QD-095       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-16): decision 3: the line's wording reads the row; the staging counter's label is per arm (ARCH-95, CCR-QD-439)<br>1.2 (2026-11-16): decision 2: describeEncodeRefusal may carry caller text, so it is for diagnosis, not a log line (ARCH-95, CCR-QD-439); a host logs encodeRefusalAnnotations<br>1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-95, CCR-QD-439)<br>1.0 (2026-11-16): accepted (ARCH-95, CCR-QD-439) |
+> | Change History | 1.4 (2026-11-16): the behaviours and invariants are linked under Related, not named only (CCR-QD-439)<br>1.3 (2026-11-16): decision 3: the line's wording reads the row; the staging counter's label is per arm (ARCH-95, CCR-QD-439)<br>1.2 (2026-11-16): decision 2: describeEncodeRefusal may carry caller text, so it is for diagnosis, not a log line (ARCH-95, CCR-QD-439); a host logs encodeRefusalAnnotations<br>1.1 (2026-11-16): Related links the behaviours and invariants it names (ARCH-95, CCR-QD-439)<br>1.0 (2026-11-16): accepted (ARCH-95, CCR-QD-439) |
 
 ---
 
@@ -94,8 +94,8 @@ branch for `Refused`.
    module scope by `writtenStaging`; `evaluationIdOf`, `outcomePath` and the refusal branch of the report become
    exhaustive matches too (D-10, D-10a), so no hand-written `_tag` branch is left in the audit report.
 
-Behaviours BEH-QD-576 to BEH-QD-580 and invariants INV-QD-341 and INV-QD-342 state the rule in `spec/`; they are written
-by the plan that follows this one, so they are named, not linked, here.
+Behaviours BEH-QD-576 to BEH-QD-580 and invariants INV-QD-341 and INV-QD-342 state the rule in `spec/`; each is linked
+under Related.
 
 ## Alternatives considered
 
