@@ -134,6 +134,21 @@ describe("every reader agrees with the record", () => {
   }
 });
 
+describe("a tag outside the union", () => {
+  // A caller-held trace may carry any tag. The record has no row for one, so the fold
+  // throws when it opens the node, before any child's arm runs, as the base's
+  // `Match.exhaustive` did; inherited names do not read as an arity either.
+  for (const name of ["Bogus", "constructor", "toString", "__proto__"]) {
+    it(`${name}: foldTrace throws before any child's arm runs`, () => {
+      const foreign: Tag = JSON.parse(JSON.stringify(name));
+      let ran = 0;
+      const arms: TraceCases<number> = { ...traceArms, HasRole: () => ++ran };
+      assert.throws(() => foldTrace(node(foreign, [node("HasRole")]), arms));
+      assert.strictEqual(ran, 0);
+    });
+  }
+});
+
 describe("rendering and diffing read no arity (BEH-QD-595)", () => {
   for (const tag of POLICY_TAGS) {
     it(`${tag}: renderTrace shows all three children`, () => {

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-18                                    |
-> | Revision       | 1.10                                            |
+> | Revision       | 1.11                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.10 (2026-11-16): BEH-QD-593 and BEH-QD-595: foldTrace reads the arity record; renderTrace and diffTraces read no arity (ARCH-98, CCR-QD-442)<br>1.9 (2026-11-14): BEH-QD-542: explain reads literals through valueLabel; an unwalkable list is the fixed words (ARCH-88, CCR-QD-432)<br>1.8 (2026-11-14): BEH-QD-542: a literal with no JSON form is explained by a fixed rule, and never throws (ARCH-88, CCR-QD-432)<br>1.7 (2026-10-07): BEH-QD-144 — `renderTrace` is stack-safe and caps indentation (`indentLimit`); BEH-QD-319 added — `foldAligned` and `foldTrace` (ADR-QD-101, CCR-QD-191)<br>1.6 (2026-10-07): BEH-QD-303 gains `foldExplanationCases`, `ExplanationCases` and `RowResult`; `explain` and `renderExplanation` fold case-wise (ADR-QD-090 amendment, CCR-QD-190)<br>1.5 (2026-10-06): BEH-QD-139 — a `fieldStrategy` or `combining` outside its closed union MUST appear verbatim with what it is evaluated as; BEH-QD-141 — `renderExplanation` MUST NOT throw on one; BEH-QD-137 — an empty `All` carrying one is not atomic (ADR-QD-092 amendment, CCR-QD-183)<br>1.4 (2026-10-04): BEH-QD-141 — `explain` and `renderExplanation` MUST NOT exhaust the call stack, matchers included; BEH-QD-303 added (`foldExplanation`) (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-09-07): BEH-QD-139 gains an explicit requirement that `fieldStrategy` and `HasRelationship.depth` appear when non-default; `depth` was missing from the rendering entirely (INV-QD-031, issue 45, CCR-QD-114)<br>1.2 (2026-08-23): BEH-QD-137 — a rendering denotes exactly one policy; composite children are parenthesised (ADR-QD-042, INV-QD-031, CCR-QD-057)<br>1.1 (2026-08-23): BEH-QD-144 — `renderTrace`, the decision-side counterpart to `renderExplanation` (ADR-QD-039, CCR-QD-053)<br>1.0 (2026-07-26): Initial release (CCR-QD-028) |
+> | Change History | 1.11 (2026-11-16): BEH-QD-593: a tag outside the union throws before any child's arm runs (ARCH-98, review iteration 1 IN-02)<br>1.10 (2026-11-16): BEH-QD-593 and BEH-QD-595: foldTrace reads the arity record; renderTrace and diffTraces read no arity (ARCH-98, CCR-QD-442)<br>1.9 (2026-11-14): BEH-QD-542: explain reads literals through valueLabel; an unwalkable list is the fixed words (ARCH-88, CCR-QD-432)<br>1.8 (2026-11-14): BEH-QD-542: a literal with no JSON form is explained by a fixed rule, and never throws (ARCH-88, CCR-QD-432)<br>1.7 (2026-10-07): BEH-QD-144 — `renderTrace` is stack-safe and caps indentation (`indentLimit`); BEH-QD-319 added — `foldAligned` and `foldTrace` (ADR-QD-101, CCR-QD-191)<br>1.6 (2026-10-07): BEH-QD-303 gains `foldExplanationCases`, `ExplanationCases` and `RowResult`; `explain` and `renderExplanation` fold case-wise (ADR-QD-090 amendment, CCR-QD-190)<br>1.5 (2026-10-06): BEH-QD-139 — a `fieldStrategy` or `combining` outside its closed union MUST appear verbatim with what it is evaluated as; BEH-QD-141 — `renderExplanation` MUST NOT throw on one; BEH-QD-137 — an empty `All` carrying one is not atomic (ADR-QD-092 amendment, CCR-QD-183)<br>1.4 (2026-10-04): BEH-QD-141 — `explain` and `renderExplanation` MUST NOT exhaust the call stack, matchers included; BEH-QD-303 added (`foldExplanation`) (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-09-07): BEH-QD-139 gains an explicit requirement that `fieldStrategy` and `HasRelationship.depth` appear when non-default; `depth` was missing from the rendering entirely (INV-QD-031, issue 45, CCR-QD-114)<br>1.2 (2026-08-23): BEH-QD-137 — a rendering denotes exactly one policy; composite children are parenthesised (ADR-QD-042, INV-QD-031, CCR-QD-057)<br>1.1 (2026-08-23): BEH-QD-144 — `renderTrace`, the decision-side counterpart to `renderExplanation` (ADR-QD-039, CCR-QD-053)<br>1.0 (2026-07-26): Initial release (CCR-QD-028) |
 
 _Previous: [17 — Concurrent Evaluation](./17-concurrency.md)_
 
@@ -517,7 +517,10 @@ The shape is `traceShapeOf`, one read of the record (it was a `leafTags` list an
 `Match.whenOr` chain that nothing tied to `childrenOf`). Pinned by `TraceShape.test.ts`,
 written on the phase base by hand from INV-QD-090 and independent of the record: a node
 carrying three children under every one of the 16 tags, each arm's view of them, and the
-order of the visit. `PolicyArity.test.ts` pins that `foldTrace` agrees with the record.
+order of the visit. `PolicyArity.test.ts` pins that `foldTrace` agrees with the record, and
+that a node whose tag is outside the union (a caller-held trace may carry one, `"constructor"`
+and `"__proto__"` included) has no arity: the fold throws on opening it, before any child's arm
+runs, as the base's `Match.exhaustive` did.
 
 ## BEH-QD-595: renderTrace and diffTraces walk every present child and read no arity
 
