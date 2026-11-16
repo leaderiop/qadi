@@ -498,3 +498,7 @@ entries:
     file: "162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md"
     title: "Gates are the dock model's eighth store, and their states are stated once"
     status: "Accepted — amends ADR-QD-047; applies ADR-QD-152; keeps ADR-QD-053, ADR-QD-080"
+  - id: "ADR-QD-163"
+    file: "163-what-a-leaf-needs-from-the-request-is-stated-once.md"
+    title: "What a leaf needs from the request is stated once"
+    status: "Accepted — reads ADR-QD-024, ADR-QD-100, ADR-QD-134; applies ADR-QD-152; keeps ADR-QD-034, ADR-QD-073"
