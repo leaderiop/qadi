@@ -18,7 +18,8 @@
 import * as Data from "effect/Data";
 import type * as Cause from "effect/Cause";
 import * as Match from "effect/Match";
-import type { AuditEntry, AuditEntryNotEncodable } from "./AuditEntry.ts";
+import type { SinkRecordNotEncodable } from "@qadi/core";
+import type { AuditEntry } from "./AuditEntry.ts";
 import type { AuditStagingError } from "./AuditStagingPort.ts";
 
 /**
@@ -76,7 +77,7 @@ export const UnwrittenStaging = Data.taggedEnum<UnwrittenStaging>();
  * itself. The library writes none.
  */
 export type AuditWriteOutcome = Data.TaggedEnum<{
-  Refused: { readonly refusal: AuditEntryNotEncodable };
+  Refused: { readonly refusal: SinkRecordNotEncodable };
   Written: { readonly entry: AuditEntry; readonly staging: WrittenStaging };
   WriteFailed: { readonly entry: AuditEntry; readonly staging: UnwrittenStaging };
   Skipped: { readonly entry: AuditEntry; readonly staging: UnwrittenStaging };

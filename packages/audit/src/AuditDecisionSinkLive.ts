@@ -27,10 +27,10 @@ import * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as Result from "effect/Result";
-import type { SinkRecord } from "@qadi/core";
+import type { SinkRecord, SinkRecordNotEncodable } from "@qadi/core";
 import { DecisionSink } from "@qadi/core";
 import { encodeAuditEntry } from "./AuditEntry.ts";
-import type { AuditEntry, AuditEntryNotEncodable } from "./AuditEntry.ts";
+import type { AuditEntry } from "./AuditEntry.ts";
 import { AuditTrailPort, AuditWriteError } from "./AuditTrailPort.ts";
 import { AuditStagingPort } from "./AuditStagingPort.ts";
 import { AuditStagingError } from "./AuditStagingPort.ts";
@@ -87,7 +87,7 @@ export interface AuditDecisionSinkOptions {
    * `qadi_audit_writes_total{outcome="encode_failed"}` counter increments
    * either way. A hook that throws is logged, never a defect (INV-QD-035).
    */
-  readonly onRefused?: (refusal: AuditEntryNotEncodable) => void;
+  readonly onRefused?: (refusal: SinkRecordNotEncodable) => void;
   /**
    * Called once per record with what became of it, after its metrics are
    * updated and its line is logged. Never replaces either; `onRefused` still

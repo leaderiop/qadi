@@ -8,10 +8,12 @@ import {
   decisionSinkForwarding,
   DecodeRefusal,
   decodeSinkRecordWithJson,
+  describeEncodeRefusal,
   EncodeRefusal,
   encodeSinkRecordString,
   hasCustom,
   MAX_DECODE_DEPTH,
+  SinkRecordNotEncodable,
   WIRE_VERSIONS,
 } from "@qadi/core";
 import { AuditEntry, decodeAuditEntry, encodeAuditEntry } from "../src/AuditEntry.ts";
@@ -66,11 +68,12 @@ describe("encodeAuditEntry", () => {
       const result = yield* Effect.result(encodeAuditEntry(record));
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
-        assert.strictEqual(result.failure._tag, "AuditEntryNotEncodable");
+        assert.instanceOf(result.failure, SinkRecordNotEncodable);
+        assert.strictEqual(result.failure._tag, "SinkRecordNotEncodable");
         assert.strictEqual(result.failure.recordTag, "Decision");
         assert.strictEqual(result.failure.evaluationId, "ev-refused");
         assert.strictEqual(result.failure.refusal._tag, "Unrepresentable");
-        assert.strictEqual(result.failure.reason, "resource.handler: a function has no JSON form");
+        assert.strictEqual(describeEncodeRefusal(result.failure.refusal), "resource.handler: a function has no JSON form");
       }
     }));
 
@@ -103,9 +106,9 @@ describe("encodeAuditEntry", () => {
       const result = yield* Effect.result(encodeAuditEntry(record));
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
-        assert.strictEqual(result.failure._tag, "AuditEntryNotEncodable");
+        assert.strictEqual(result.failure._tag, "SinkRecordNotEncodable");
         assert.strictEqual(result.failure.refusal._tag, "Circular");
-        assert.include(result.failure.reason, "a circular reference has no JSON form");
+        assert.include(describeEncodeRefusal(result.failure.refusal), "a circular reference has no JSON form");
       }
     }));
 
@@ -127,7 +130,7 @@ describe("encodeAuditEntry", () => {
   // inside a `SinkRecord`, buried in `policy` rather than sitting beside it
   // as `resource` does. A guard that only checked `resource` let a circular
   // or `BigInt`-valued `params` sail through to the store's `JSON.stringify`
-  // uncaught, instead of failing cleanly with `AuditEntryNotEncodable`.
+  // uncaught, instead of failing cleanly with core's `SinkRecordNotEncodable`.
   it.effect("a policy carrying an unsafe HasCustom.params refuses, not just an unsafe resource", () =>
     Effect.gen(function* () {
       const cyclic: Record<string, unknown> = { name: "rule" };
@@ -136,7 +139,7 @@ describe("encodeAuditEntry", () => {
       const result = yield* Effect.result(encodeAuditEntry(record));
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
-        assert.strictEqual(result.failure._tag, "AuditEntryNotEncodable");
+        assert.strictEqual(result.failure._tag, "SinkRecordNotEncodable");
         assert.strictEqual(result.failure.recordTag, "Decision");
         assert.strictEqual(result.failure.refusal._tag, "Circular");
       }
@@ -148,12 +151,12 @@ describe("encodeAuditEntry", () => {
       const result = yield* Effect.result(encodeAuditEntry(record));
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
-        assert.strictEqual(result.failure._tag, "AuditEntryNotEncodable");
+        assert.strictEqual(result.failure._tag, "SinkRecordNotEncodable");
         assert.deepStrictEqual(
           result.failure.refusal,
           EncodeRefusal.Unrepresentable({ path: ["policy", "params", "limit"], kind: "bigint" }),
         );
-        assert.strictEqual(result.failure.reason, "policy.params.limit: a bigint has no JSON form");
+        assert.strictEqual(describeEncodeRefusal(result.failure.refusal), "policy.params.limit: a bigint has no JSON form");
       }
     }));
 });
@@ -166,7 +169,7 @@ describe("an audit row is the same wire the decision stream emits (ARCH-09)", ()
       );
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
-        assert.strictEqual(result.failure._tag, "AuditEntryNotEncodable");
+        assert.strictEqual(result.failure._tag, "SinkRecordNotEncodable");
         assert.deepStrictEqual(
           result.failure.refusal,
           EncodeRefusal.Opaque({ path: ["resource", "tags"], kind: "Set", brand: "Set" }),

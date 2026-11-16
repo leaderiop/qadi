@@ -26,10 +26,9 @@
  * Built on `@qadi/core`'s own wire schema rather than re-deriving
  * `Policy`/`Trace`/`Obligation` a second time: a wire form for a value crossing
  * a process boundary is exactly what an audit row is. Duplicating it here would
- * be the drift ADR-QD-002's own reasoning warns against, not an instance of
- * "each companion package owns its shape" — that principle covers *error*
- * types (ADR-QD-054), not re-deriving a schema `@qadi/core` already publishes
- * for this exact purpose.
+ * be the drift ADR-QD-002's own reasoning warns against; for the same reason a
+ * refusal is `@qadi/core`'s `SinkRecordNotEncodable`, the error `encodeSinkRecord`
+ * returns, not an audit copy of it (ADR-QD-161).
  */
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
@@ -41,7 +40,6 @@ import {
   DecodeRefusal,
   decodeRefusalOf,
   decodeSinkRecordWithJson,
-  describeEncodeRefusal,
   encodeSinkRecord,
   SinkRecordJson,
   SinkRecordNotDecodable,
@@ -120,7 +118,8 @@ export type AuditEntry = typeof AuditEntry.Type;
  * closes the defect where a cyclic resolver `cause` reached the store, threw,
  * counted as a write failure and tripped the breaker during an outage
  * (ARCH-09). Refuses rather than approximates: an unsafe record fails
- * `AuditEntryNotEncodable`, never partially written or silently dropped.
+ * with `@qadi/core`'s `SinkRecordNotEncodable`, exactly as `encodeSinkRecord`
+ * returns it, never partially written or silently dropped (ADR-QD-161).
  *
  * Written as wire version 2 (ADR-QD-096), which every reader since 0.10.0
  * reads; a reader of the store older than 0.10 must upgrade first.
@@ -128,17 +127,7 @@ export type AuditEntry = typeof AuditEntry.Type;
 export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(function* (
   record: SinkRecord,
 ) {
-  const json = yield* Effect.fromResult(encodeSinkRecord(record)).pipe(
-    Effect.mapError(
-      (error) =>
-        new AuditEntryNotEncodable({
-          recordTag: record._tag,
-          evaluationId: record.evaluationId,
-          refusal: error.refusal,
-          reason: describeEncodeRefusal(error.refusal),
-        }),
-    ),
-  );
+  const json = yield* Effect.fromResult(encodeSinkRecord(record));
   const entry: AuditEntry = { record: json, sequenceNumber: undefined };
   return entry;
 });

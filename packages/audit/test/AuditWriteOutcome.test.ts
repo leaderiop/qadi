@@ -1,8 +1,9 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
+import type { SinkRecordNotEncodable } from "@qadi/core";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
-import type { AuditEntry, AuditEntryNotEncodable } from "../src/AuditEntry.ts";
+import type { AuditEntry } from "../src/AuditEntry.ts";
 import { AuditStagingError } from "../src/AuditStagingPort.ts";
 import { AuditWriteOutcome, durabilityOf, UnwrittenStaging, WrittenStaging } from "../src/AuditWriteOutcome.ts";
 import type { Durability } from "../src/AuditWriteOutcome.ts";
@@ -11,7 +12,7 @@ import type { AuditWriteReport } from "../src/AuditWriteReport.ts";
 import { decisionRecord } from "./helpers.ts";
 
 const entry: AuditEntry = Effect.runSync(encodeAuditEntry(decisionRecord({ evaluationId: "ev-table" })));
-const refusal: AuditEntryNotEncodable = Effect.runSync(
+const refusal: SinkRecordNotEncodable = Effect.runSync(
   Effect.flip(encodeAuditEntry(decisionRecord({ evaluationId: "poisoned", resource: { tags: new Set(["x"]) } }))),
 );
 const commitCause = Cause.fail(new AuditStagingError({ entry, cause: "commit offline" }));

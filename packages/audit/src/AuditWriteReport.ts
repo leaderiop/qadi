@@ -19,7 +19,7 @@ import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import { reportEncodeRefusal } from "@qadi/core";
-import type { AuditEntryNotEncodable } from "./AuditEntry.ts";
+import type { SinkRecordNotEncodable } from "@qadi/core";
 import type { AuditStagingError } from "./AuditStagingPort.ts";
 import type { AuditWriteOutcome, UnwrittenStaging, WrittenStaging } from "./AuditWriteOutcome.ts";
 
@@ -206,7 +206,7 @@ export const LOST_COUNTERS: Record<LostLabel["after"], Record<LostLabel["staging
 
 /** The caller-supplied hooks `emit` calls. */
 export interface AuditWriteEmitOptions {
-  readonly onRefused: ((refusal: AuditEntryNotEncodable) => void) | undefined;
+  readonly onRefused: ((refusal: SinkRecordNotEncodable) => void) | undefined;
   readonly onOutcome: ((outcome: AuditWriteOutcome) => void) | undefined;
 }
 
