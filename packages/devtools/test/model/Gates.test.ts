@@ -259,12 +259,12 @@ describe("displayOfNodeStatus and displayOfVerdict", () => {
 
 describe("joinQuestions: the panel's rows, decided once", () => {
   const canWrite = hasPermission(permission("doc", "write"));
-  const noQuestions = { questions: undefined, gates: undefined, unsampled: false };
+  const noQuestions = { questions: undefined, gates: undefined, failed: undefined, unsampled: false };
 
   /** The ids asking each question, row by row; `undefined` when the view is not `Rows`. */
-  const askingIds = (snapshot: QuestionsSnapshot): ReadonlyArray<ReadonlyArray<string>> | undefined =>
+  const askingIds = (snapshot: QuestionsSnapshot): ReadonlyArray<ReadonlyArray<string> | undefined> | undefined =>
     snapshot.questions._tag === "Rows"
-      ? snapshot.questions.rows.map((row) => row.asking.map((one) => one.id))
+      ? snapshot.questions.rows.map((row) => row.asking?.map((one) => one.id))
       : undefined;
 
   it("an absent registry is Absent, and its instances are one empty constant", () => {
@@ -290,7 +290,6 @@ describe("joinQuestions: the panel's rows, decided once", () => {
 
     assert.strictEqual(snapshot.gates._tag, "Listed");
     assert.strictEqual(snapshot.instances, guards);
-    if (snapshot.gates._tag === "Listed") assert.strictEqual(snapshot.gates.instances, guards);
   });
 
   it("no questions is Unsampled while the poll has not sampled, and Absent once it has", () => {
@@ -318,7 +317,7 @@ describe("joinQuestions: the panel's rows, decided once", () => {
       instance({ id: "d", policy: canRead, resource: { id: "x" } }),
     ];
 
-    const snapshot = joinQuestions({ questions, gates: guards, unsampled: false });
+    const snapshot = joinQuestions({ questions, gates: guards, failed: undefined, unsampled: false });
 
     assert.deepStrictEqual(askingIds(snapshot), [["a", "b"], ["c"], ["d"], []]);
     if (snapshot.questions._tag === "Rows") {
@@ -330,8 +329,23 @@ describe("joinQuestions: the panel's rows, decided once", () => {
   });
 
   it("a question with no registry is a row asked by nobody", () => {
-    const snapshot = joinQuestions({ questions: [{ policy: canRead }], gates: undefined, unsampled: false });
+    const snapshot = joinQuestions({ questions: [{ policy: canRead }], gates: undefined, failed: undefined, unsampled: false });
 
     assert.deepStrictEqual(askingIds(snapshot), [[]]);
+  });
+
+  it("a registry that could not be read is Failed with its reason, lists no guard and makes no claim in any row", () => {
+    const guards = [instance({ id: "a" })];
+    const snapshot = joinQuestions({ questions: [{ policy: canRead }], gates: guards, failed: "boom", unsampled: false });
+
+    assert.strictEqual(snapshot.gates._tag, "Failed");
+    if (snapshot.gates._tag === "Failed") assert.strictEqual(snapshot.gates.reason, "boom");
+    assert.deepStrictEqual(snapshot.instances, []);
+    assert.deepStrictEqual(askingIds(snapshot), [undefined]);
+  });
+
+  it("a failed read keeps the questions view as it is", () => {
+    assert.strictEqual(joinQuestions({ ...noQuestions, failed: "boom" }).questions._tag, "Absent");
+    assert.strictEqual(joinQuestions({ ...noQuestions, failed: "boom", questions: [] }).questions._tag, "Empty");
   });
 });

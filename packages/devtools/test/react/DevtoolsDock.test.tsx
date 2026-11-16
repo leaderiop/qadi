@@ -1314,4 +1314,18 @@ describe("the gate registry lives as long as the dock", () => {
     assert.include(screen.getByTestId("qadi-gates-absent").textContent ?? "", "atoms.gates, from @qadi/react");
     assert.isNull(screen.queryByTestId("qadi-pick"));
   });
+
+  it("states a registry that throws, claims nothing about who is asking, and mounts without throwing", async () => {
+    const double = makeGateRegistryDouble([guard("a")]);
+    double.failReads(new Error("registry exploded"));
+    render(<DevtoolsDock gates={double.registry} reading={{ questions: asked }} />);
+    await act(async () => {});
+    await click(screen.getByRole("button", { name: "React" }));
+
+    assert.include(screen.getByTestId("qadi-gates-failed").textContent ?? "", "registry exploded");
+    assert.strictEqual(screen.getAllByTestId("qadi-question").length, 1);
+    assert.isNull(screen.queryByTestId("qadi-question-unmounted"));
+    assert.isNull(screen.queryByTestId("qadi-highlight"));
+    assert.strictEqual(guardIds(), 0);
+  });
 });

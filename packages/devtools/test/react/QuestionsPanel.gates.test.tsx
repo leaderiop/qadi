@@ -14,7 +14,8 @@
 import { assert, describe, it } from "@effect/vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { hasPermission, hasRole, permission } from "@qadi/core";
-import type { GateInstanceLike } from "../../src/model/Gates.ts";
+import { GatesView, QuestionsView } from "../../src/model/Gates.ts";
+import type { GateInstanceLike, QuestionsSnapshot } from "../../src/model/Gates.ts";
 import { QuestionsPanel } from "../../src/react/QuestionsPanel.tsx";
 import type { AskedQuestionLike } from "../../src/react/QuestionsPanel.tsx";
 import { liveNotice } from "../helpers.ts";
@@ -117,6 +118,35 @@ describe("the two views, side by side", () => {
       screen.getByTestId("qadi-question-unmounted").textContent ?? "",
       "nothing mounted",
     );
+  });
+});
+
+describe("a registry that could not be read", () => {
+  // The snapshot the model gives while the registry throws: a view, no guards and rows with no claim.
+  const snapshot: QuestionsSnapshot = {
+    gates: GatesView.Failed({ reason: "registry exploded" }),
+    questions: QuestionsView.Rows({ rows: [{ question: { policy: canRead }, asking: undefined }] }),
+    instances: [],
+  };
+  const unreadable = { questions: { subscribe: () => () => {}, getSnapshot: () => snapshot } };
+
+  it("says it, with the reason, and offers no pick", () => {
+    render(<QuestionsPanel diagnostics={liveNotice} {...unreadable} />);
+    const note = screen.getByTestId("qadi-gates-failed");
+
+    assert.include(note.textContent ?? "", "registry exploded");
+    assert.include(note.textContent ?? "", "who is asking cannot be shown");
+    assert.isNull(screen.queryByTestId("qadi-gates-absent"));
+    assert.isNull(screen.queryByTestId("qadi-pick"));
+  });
+
+  it("keeps the question and claims nothing about who is asking", () => {
+    render(<QuestionsPanel diagnostics={liveNotice} {...unreadable} />);
+
+    assert.strictEqual(screen.getAllByTestId("qadi-question").length, 1);
+    assert.isNull(screen.queryByTestId("qadi-question-unmounted"));
+    assert.isNull(screen.queryByTestId("qadi-highlight"));
+    assert.isNull(screen.queryByTestId("qadi-instance"));
   });
 });
 

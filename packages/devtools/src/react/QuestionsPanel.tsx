@@ -152,6 +152,12 @@ const gatesBlock: (view: GatesView) => (lens: Lens) => ReactNode = Match.type<Ga
     Absent: () => gatesNote(GATES_ABSENT_TEXT),
     Empty: () => gatesNote(GATES_EMPTY_TEXT),
     Listed: () => (lens: Lens) => <PickButton lens={lens} />,
+    // The precedent's wording and colour: `ServicesPanel`'s `qadi-wiring-failed`.
+    Failed: ({ reason }) => () => (
+      <p style={{ ...muted, color: colors.error }} data-testid="qadi-gates-failed">
+        The registry handed to the dock threw when it was read, so who is asking cannot be shown: {reason}
+      </p>
+    ),
   }),
 );
 
@@ -184,7 +190,8 @@ const Question: FC<{
   readonly lens: Lens;
 }> = ({ entry, lens }) => {
   const { question, asking } = entry;
-  const locatable = asking.filter(isLocatable);
+  // `undefined`: the registry could not be read, so this row says nothing about who is asking.
+  const locatable = (asking ?? []).filter(isLocatable);
 
   return (
     <div data-testid="qadi-question-block">
@@ -193,7 +200,7 @@ const Question: FC<{
         <span style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-question-scope">
           {question.resource === undefined ? "no resource" : resourceOf(question.resource)}
         </span>
-        {asking.length === 0 ? (
+        {asking === undefined ? null : asking.length === 0 ? (
           <span style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-question-unmounted">
             {/* Not an error. A component that asked and then unmounted leaves
                 its question behind in the atom layer. */}
@@ -219,7 +226,7 @@ const Question: FC<{
         )}
       </div>
 
-      {asking.map((instance) => (
+      {(asking ?? []).map((instance) => (
         <InstanceRow key={instance.id} instance={instance} picked={lens.picked === instance.id} />
       ))}
     </div>

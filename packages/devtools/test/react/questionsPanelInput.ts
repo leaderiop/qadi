@@ -31,7 +31,7 @@ export const panelInput = (input: {
   const { questions, gates } = input;
   const snapshot: QuestionsSnapshot = {
     gates:
-      gates === undefined ? GatesView.Absent() : gates.length === 0 ? GatesView.Empty() : GatesView.Listed({ instances: gates }),
+      gates === undefined ? GatesView.Absent() : gates.length === 0 ? GatesView.Empty() : GatesView.Listed(),
     questions:
       questions === undefined
         ? QuestionsView.Absent()

@@ -119,6 +119,13 @@ unchanged, except Open Question 1.
 | Registry handed in, no instances | `qadi-gates-absent` | `No guard is registered. Pass instrument to QadiProvider to let them say that they exist.` |
 | At least one instance | `qadi-pick` | `pick a control on the page`; while picking: `picking — click a control, or press Escape` |
 
+> **Amendment (review iteration 1, WR-01, 2026-11-16).** A registry that throws is a fourth gates-block state, and the only one
+> this phase adds. Element `qadi-gates-failed`, copy `The registry handed to the dock threw when it was read, so who is asking
+> cannot be shown: {reason}`, `muted` with `colors.error`, the wording and colour of `ServicesPanel`'s `qadi-wiring-failed`.
+> While it shows, a question row keeps its label and scope and renders no `qadi-question-unmounted`, no `qadi-highlight` and
+> no `qadi-instance` (the row makes no claim about who is asking), and `qadi-pick` is absent. It appears only when a
+> registry throws, so no existing input renders it and the characterisation is unchanged.
+
 The two empty messages are told apart by a **closed distinction in the snapshot** (D-10: absent versus empty), never by
 `undefined` versus `[]` in the view. Absent is a missing prop. Empty is a missing `instrument` on the provider. They have
 different fixes, so the two messages must stay different.

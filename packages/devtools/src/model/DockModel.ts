@@ -32,6 +32,7 @@
  *
  * Package-private (ADR-QD-099): the dock is the one thing that drives it.
  */
+import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
 import type { Role } from "@qadi/core";
@@ -91,6 +92,9 @@ export interface DockModel {
   readonly configure: (inputs: DockModelInputs) => void;
 }
 
+/** What a registry's throw is stated as: the same text `DiagnosticsStatus.Stopped` carries for a poll's defect. */
+const reasonOf = (thrown: unknown): string => Cause.pretty(Cause.die(thrown));
+
 /** One list for every absent catalogue, so the role store keeps one identity. */
 const NO_ROLES: ReadonlyArray<Role> = [];
 
@@ -146,33 +150,61 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   diagnosticsFeed.subscribe(remerge);
 
   // Both sources are read in the one call, so no snapshot pairs a question from one moment with
-  // a guard from another. A registry that throws from `instances()` is the host's defect and is not caught.
+  // a guard from another. The registry is host code and the read is guarded: react's own registry
+  // swallows a listener's throw, so an unguarded one would freeze this store silently, and a throw
+  // while building would take the host's tree with it. A throw is stated as `GatesView.Failed`.
   let gatesNow = inputs.gates;
   let closed = false;
   let offGates = () => {};
+  // Why `subscribe` threw, if it did: the registry's changes then cannot reach the model.
+  let watchFailure: string | undefined;
+  const readGates = (): Pick<JoinInput, "gates" | "failed"> => {
+    if (watchFailure !== undefined) return { gates: undefined, failed: watchFailure };
+    try {
+      return { gates: gatesNow?.instances(), failed: undefined };
+    } catch (thrown) {
+      return { gates: undefined, failed: reasonOf(thrown) };
+    }
+  };
   const joinKeyNow = (): JoinInput => {
     const { status, reading } = shownReading.getSnapshot();
     return {
       questions: reading.questions,
-      gates: gatesNow?.instances(),
+      ...readGates(),
       unsampled: reading.questions === undefined && isUnsampled(status),
     };
   };
   let lastKey = joinKeyNow();
   const questions = makeExternalStore<QuestionsSnapshot>(joinQuestions(lastKey));
   const rejoin = () => {
+    // A closed model runs no host code: a command after close reads no registry.
+    if (closed) return;
     const key = joinKeyNow();
-    if (key.questions === lastKey.questions && key.gates === lastKey.gates && key.unsampled === lastKey.unsampled) return;
+    if (
+      key.questions === lastKey.questions &&
+      key.gates === lastKey.gates &&
+      key.failed === lastKey.failed &&
+      key.unsampled === lastKey.unsampled
+    ) {
+      return;
+    }
     lastKey = key;
     questions.set(joinQuestions(key));
   };
   const watchGates = (registry: GateRegistryLike | undefined) => {
     offGates();
-    offGates = closed || registry === undefined ? () => {} : registry.subscribe(rejoin);
+    watchFailure = undefined;
+    try {
+      offGates = closed || registry === undefined ? () => {} : registry.subscribe(rejoin);
+    } catch (thrown) {
+      offGates = () => {};
+      watchFailure = reasonOf(thrown);
+    }
   };
   // After `shownReading` exists and before any host listener, so the join moves first.
   shownReading.subscribe(rejoin);
   watchGates(gatesNow);
+  rejoin();
   yield* Effect.addFinalizer(() =>
     Effect.sync(() => {
       closed = true;

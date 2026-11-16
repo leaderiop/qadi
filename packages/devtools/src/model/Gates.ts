@@ -249,17 +249,28 @@ export interface GateRegistryLike {
   readonly subscribe: (listener: () => void) => () => void;
 }
 
-/** One asked question and the guards asking it right now; none is a real and common state. */
+/**
+ * One asked question and the guards asking it right now; none is a real and common state.
+ *
+ * `asking` is `undefined` while the registry could not be read: the row then makes no claim
+ * about who is asking, neither a list nor "nothing mounted".
+ */
 export interface QuestionRow {
   readonly question: AskedQuestionLike;
-  readonly asking: ReadonlyArray<GateInstanceLike>;
+  readonly asking: ReadonlyArray<GateInstanceLike> | undefined;
 }
 
-/** What the panel says about the registry: none handed over, none mounted, or the guards. */
+/**
+ * What the panel says about the registry: none handed over, none mounted, the guards, or a read that failed.
+ *
+ * `Failed` carries the reason the registry threw, as `DiagnosticsStatus.Stopped` and
+ * `WiringRead.Failed` carry theirs: a host's registry that throws is stated and not swallowed.
+ */
 export type GatesView = Data.TaggedEnum<{
   Absent: {};
   Empty: {};
-  Listed: { readonly instances: ReadonlyArray<GateInstanceLike> };
+  Listed: {};
+  Failed: { readonly reason: string };
 }>;
 
 export const GatesView = Data.taggedEnum<GatesView>();
@@ -284,7 +295,7 @@ export const QuestionsView = Data.taggedEnum<QuestionsView>();
 export interface QuestionsSnapshot {
   readonly gates: GatesView;
   readonly questions: QuestionsView;
-  /** Every guard the registry lists: its own array, never a copy, or one constant when absent. */
+  /** Every guard the registry lists: its own array, never a copy, or one constant when absent or unread. */
   readonly instances: ReadonlyArray<GateInstanceLike>;
 }
 
@@ -292,6 +303,8 @@ export interface QuestionsSnapshot {
 export interface JoinInput {
   readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
   readonly gates: ReadonlyArray<GateInstanceLike> | undefined;
+  /** Why the registry could not be read; when set it wins, and `gates` is ignored. */
+  readonly failed: string | undefined;
   /** Already reduced to "no sample yet and no questions": the only case the view needs. */
   readonly unsampled: boolean;
 }
@@ -299,31 +312,40 @@ export interface JoinInput {
 const NO_INSTANCES: ReadonlyArray<GateInstanceLike> = [];
 const GATES_ABSENT = GatesView.Absent();
 const GATES_EMPTY = GatesView.Empty();
+const GATES_LISTED = GatesView.Listed();
 const QUESTIONS_UNSAMPLED = QuestionsView.Unsampled();
 const QUESTIONS_ABSENT = QuestionsView.Absent();
 const QUESTIONS_EMPTY = QuestionsView.Empty();
+
+/** The registry's view: a failed read first, then absent, empty or listed. */
+const gatesViewOf = (input: JoinInput): GatesView =>
+  input.failed !== undefined
+    ? GatesView.Failed({ reason: input.failed })
+    : input.gates === undefined
+      ? GATES_ABSENT
+      : Arr.isReadonlyArrayNonEmpty(input.gates)
+        ? GATES_LISTED
+        : GATES_EMPTY;
 
 /**
  * Joins the asked questions to the guards asking them: the one place the panel's rows are decided.
  *
  * The panel used to pair a polled list with a `gates` prop in the view, so a row
  * could join two moments. This is pure over one input, and the store that calls it
- * reads both sources in the same step.
+ * reads both sources in the same step. A failed read leaves each row's `asking`
+ * undefined and lists no guard, so no row claims "nothing mounted" about a registry
+ * nobody could read.
  */
 export const joinQuestions = (input: JoinInput): QuestionsSnapshot => {
-  const instances = input.gates ?? NO_INSTANCES;
+  const instances = input.failed === undefined ? (input.gates ?? NO_INSTANCES) : NO_INSTANCES;
   const groups = gateGroups(instances);
   const rowOf = (question: AskedQuestionLike): QuestionRow => ({
     question,
-    asking: instancesAsking(groups, question.policy, question.resource),
+    asking:
+      input.failed === undefined ? instancesAsking(groups, question.policy, question.resource) : undefined,
   });
   return {
-    gates:
-      input.gates === undefined
-        ? GATES_ABSENT
-        : Arr.isReadonlyArrayNonEmpty(input.gates)
-          ? GatesView.Listed({ instances })
-          : GATES_EMPTY,
+    gates: gatesViewOf(input),
     questions:
       input.questions === undefined
         ? input.unsampled

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-162                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — amends ADR-QD-047; applies ADR-QD-152; keeps ADR-QD-053, ADR-QD-080 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-16): Initial release (ARCH-96, CCR-QD-440) |
+> | Change History | 1.1 (2026-11-16): decision 5: a registry that throws is stated as GatesView.Failed and its rows make no claim; the first version's rationale was false for react's own registry (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-96, CCR-QD-440) |
 
 ---
 
@@ -118,8 +118,21 @@ released by its finalizer. ADR-QD-152 is the shape of the vocabulary. No record 
    differently, because they counted the policy rail among the stores, so diagnostics was "the seventh store" and the timeline
    status "the eighth readout" there. Those anchors keep their titles, and the header of `DockModel.ts`
    states the count this record does.
-5. **A throwing `instances()` is the host's defect, and the model does not catch it** (D-11). A registry is host code. A
-   caught error would show an empty panel with nothing said, which is worse than the host seeing its own throw.
+5. **A registry that throws is stated, and its rows make no claim** (review finding WR-01). The registry is host code, and the
+   model reads it on four paths: the build, `configure`, a registry notification and a poll tick. The first version left a
+   throw uncaught, on the argument that a caught error would show an empty panel with nothing said and the host would see its own
+   throw. That is false on the paths that matter. `@qadi/react`'s `makeGateRegistry.changed()` runs each listener in a
+   try/catch and swallows it, so a throw in a notification froze the questions store on its last snapshot with nothing said. A
+   poll tick runs inside the poll fiber, where the throw ended the poll. A throw while building came out of the host's layout
+   effect and unmounted its tree. A `configure` that threw after `inputs = next` left the model half applied. So the read is
+   guarded, and the choice made is stating the failure rather than hiding it: a throw from `instances()` or from `subscribe`
+   becomes `GatesView.Failed({ reason })`, where `reason` is `Cause.pretty` of the throw, as `DiagnosticsStatus.Stopped` and
+   `WiringRead.Failed` carry theirs, and the panel renders it as `qadi-gates-failed` the way `ServicesPanel` renders
+   `qadi-wiring-failed`. While the view is `Failed` each row's `asking` is `undefined`, which is no claim. It is not an empty
+   list, because that prints "asked, nothing mounted" about a registry nobody could read. It is not the last good listing either,
+   because those guards may be gone. The lens is given no guards. The view recovers when the registry reads again and announces
+   it, or when `configure` hands over another registry. A throw from the function `subscribe` returned is still not guarded.
+   After close the model reads no registry at all, so a late `configure` runs none of the host's code.
 
 ## Consequences
 
@@ -138,6 +151,8 @@ released by its finalizer. ADR-QD-152 is the shape of the vocabulary. No record 
   subscribes to it. `useGateInstances` is unchanged for a component that wants the list itself.
 - **Breaking for `@qadi/react` and `@qadi/devtools`**, recorded in two changesets marked **Breaking** and in the 0.13 entry of
   the upgrade guide; `@qadi/core` gains `GateState`, `gateStates` and `isGateState`, a minor with no break.
+- **One more string, for a state that did not exist before** (decision 5): "The registry handed to the dock threw when it was
+  read, so who is asking cannot be shown: {reason}", under `qadi-gates-failed`. It appears only when a registry throws.
 - **A sixth gate state is a compile error** in react (the pin) and devtools (`GATE_DISPLAY`'s key type), and not before.
 - **What this does not do** (D-06): `GateInstanceLike.kind` stays `string`, so a kind react gains still reaches the panel as
   itself; stating the kinds once is deferred. `sightings` stays a thunk.
