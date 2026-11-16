@@ -1,8 +1,9 @@
 ---
 phase: QD-52-core-owns-the-predicate-compile-shell
-reviewed: 2026-11-16T19:45:00Z
+reviewed: 2026-11-16T19:55:00Z
 depth: standard
-files_reviewed: 20
+iteration: 2
+files_reviewed: 21
 files_reviewed_list:
   - .changeset/core-compile-predicate.md
   - .changeset/predicate-prisma-compile-shell-in-core.md
@@ -11,6 +12,7 @@ files_reviewed_list:
   - .planning/phases/QD-52-core-owns-the-predicate-compile-shell/tools/scan.mjs
   - packages/core/src/RenderablePredicate.ts
   - packages/core/test/CompilePredicate.test.ts
+  - packages/core/test/CompilePredicate.tst.ts
   - packages/predicate-prisma/src/CompileMetrics.ts
   - packages/predicate-prisma/src/index.ts
   - packages/predicate-prisma/test/CompileShell.test.ts
@@ -26,85 +28,47 @@ files_reviewed_list:
   - spec/traceability.md
 findings:
   critical: 0
-  warning: 1
-  info: 4
-  total: 5
+  warning: 0
+  info: 0
+  total: 0
   necessity: 0
-status: issues_found
+status: clean
 ---
 
-# Phase QD-52: Code Review Report
+# Phase QD-52: Code Review Report (iteration 2)
 
-**Reviewed:** 2026-11-16T19:45:00Z
+**Reviewed:** 2026-11-16T19:55:00Z
 **Depth:** standard
-**Files Reviewed:** 20
+**Files Reviewed:** 21
+**Status:** clean
 
 ## Summary
 
-The shell move is correct. `compilePredicate` counts `refused` once, only on a typed `PredicateNotRenderable` (`tapError` does not see a defect). It counts `compiled` only after `Effect.map(options.render)` returns, and `Effect.map` turns a throwing renderer into a defect that counts neither outcome. `render` runs inside the returned Effect, so a reused program re-runs it and the SQL `params` accumulator is fresh per run. The explicit `identifiers`/`maxInValues` keys sit after `...options.rules`, so at runtime the two defaults always win over anything in `rules`. `undefined` and an omitted value both reach the base's default. The `?? "Ascii"` and `?? DEFAULT_MAX_IN_VALUES` fallbacks match the base exactly.
+Every iteration-1 fix is correct and complete, and the final pass over the phase's whole non-planning diff found no defect.
 
-I checked each of these against the diff and the code:
-- Spans are unchanged: `compilePredicate` is a plain function and `toRenderable` is the only child span. Both packages' span-tree tests assert it.
-- `compiledTotal: CompileOutcomes` is a pure annotation, and `check-house-style` is clean (542 files).
-- `tsc -b` and `tsc -p tsconfig.test.json` pass.
-- The three new test files pass (8, 47 and 21 tests).
-- The characterisation tests assert literal reasons, tags and outputs and import neither `toRenderable` nor `compilePredicate`. Counters are read through `compiledTotal` and isolated per test with `isolatedMetrics`.
-- `scan.mjs` prints "phase scan clean". `mutation.mjs compare`, run from the repo root, prints "WX-05 holds (D-09a)". Core goes 0.9815 to 0.9821 with every `compilePredicate` mutant killed, and SQL and Prisma keep identical survivor sets (+0/-0).
-- The ADR, BEH, INV, traceability, overview and CCR-QD-443 claims match the code and the evidence. That covers the revision numbers, the six-versus-four refusal-reachability table, "Unused: INV-QD-350", and the three changesets and their levels (the packages are in one `fixed` group, so the levels cannot desynchronise).
+**WR-01 (closed `rules` type).** `rules` is now `Omit<RenderRules, "identifiers" | "maxInValues"> & { identifiers?: never; maxInValues?: never }` (`RenderablePredicate.ts:540-543`). A full `RenderRules` value no longer type-checks, so a dialect's own `maxInValues` cannot be silently replaced by the default.
+- `packages/core/test/CompilePredicate.tst.ts` has four tests and they pass under `pnpm exec tstyche`: 4 tests, 5 assertions, and 3 suppressed errors matched. Under `Omit` alone, assigning a variable of type `RenderRules` is assignable (excess-property checks apply only to fresh literals), so the three negatives would fail without the `never` fields. That is the stated reason. The suppression text `is not assignable to type 'never'` matches the actual error for each of the three. The positive case pins that a dialect's rules still go in.
+- The file is in `tsconfig.test.json`'s `packages/*/test/**/*.ts` include, so an unused `@ts-expect-error` is TS2578 under `pnpm typecheck`. `tsc -p tsconfig.test.json` exits clean, and so does `tsc -b`.
+- The ADR (Rev 1.1), BEH-QD-596 (Rev 1.11), `spec/overview.md` (Rev 1.121), `spec/README.md` (Rev 1.245) and the `@qadi/core` changeset all carry the same signature and sentence. Each header's Revision matches its newest history entry (`spec:verify:strict` 21 pass, 0 fail), and `spec:api` (935 exports) and `spec:gates` (143 references) pass. The CCR-QD-443 row keeps the original revision numbers in its leading list and names the new ones in its iteration-1 sentence, the same convention the CCR-QD-442 row follows.
+- The runtime is unchanged: the two explicit keys after `...options.rules` still win, and `rules` can no longer carry either field by type.
 
-No critical issues. One type-soundness warning on `rules`, and four info items.
+**IN-01 (Prisma comment).** It now cites `BEH-QD-597, ADR-QD-165` and drops the process sentence. A comment cannot change behaviour, and `check-house-style` is clean (542 files).
 
-## Warnings
+**IN-02 (doc comments).** `CompilePredicateOptions` documents `rules` (and why a carrying value is refused), the two defaults including `undefined`, the `render` contract and `outcomes`. The `compilePredicate` doc states the per-run behaviour. I checked each statement against the code. `render` runs inside the returned Effect, once per run, only after classification succeeds. A throw becomes a defect through `Effect.map` and counts neither outcome. The SQL accumulator is per run.
 
-### WR-01: `rules` accepts a full `RenderRules` and silently ignores its `identifiers` and `maxInValues`
+**IN-04 (five rules).** `"each of the dialect's five rules reaches toRenderable unchanged"` flips each of the five fields to a value that changes the probe's outcome, and each row is distinct. `reservedColumns` gives `ReservedColumn`. `nullability` gives `IsNull` against `NullOnNonNullableColumn`. `negation` gives `nullGuard` `None` against `ExcludeNull`. `finiteness` gives `ExcludeNonFinite` against `None`. `finiteExclusion` gives `NonFiniteColumn`. The title now matches the assertions.
 
-**File:** `packages/core/src/RenderablePredicate.ts:540` (the `rules` field), `:563-564` (the overriding keys)
-**Issue:** `rules: Omit<RenderRules, "identifiers" | "maxInValues">` rejects extra properties only on a fresh object literal. A caller who passes an existing `RenderRules` value, `compilePredicate(p, { rules: myRenderRules, render, outcomes })`, type-checks without error. The spread then puts `identifiers` and `maxInValues` into the object, and the two explicit keys after it overwrite them with `options.identifiers ?? "Ascii"` and `options.maxInValues ?? 1000`. A third dialect that has a complete `RenderRules` in hand would get a `maxInValues` of 1000 instead of its own tighter bound, with no compile error and no refusal. The shell is the only place that applies those fields (BEH-QD-596), so a silent override at its one seam goes the wrong way for a resource-exhaustion bound. The doc comment says only "minus the two fields core defaults".
-**Fix:** Make the type reject the fields too:
-```ts
-readonly rules: Omit<RenderRules, "identifiers" | "maxInValues"> & {
-  readonly identifiers?: never;
-  readonly maxInValues?: never;
-};
-```
-Or take the two fields only from the top level and document that a `rules` value carrying them is rejected. Pin it with a `.tst.ts` case. Update the same signature in ADR-QD-165 and BEH-QD-596, which copy it.
+**Verification run.** All of these pass:
+- `vitest --project core` on `CompilePredicate.test.ts`: 8 tests.
+- `vitest --project predicate-sql --project predicate-prisma`: 198 tests.
+- `scripts/check-house-style.mjs`: 542 files clean.
+- `scan.mjs` reports only the four expected items: the new `.tst.ts` outside its scope list, the changed `rules` line, a second commit on `CompilePredicate.test.ts`, and the after JSON predating later src commits. These are not findings.
+- The one oxlint warning on the phase's files is the `new Array(1001)` in `packages/predicate-sql/test/CompileShell.test.ts:160`. It is iteration-1 IN-03, skipped on purpose, and not re-raised.
 
-## Info
-
-### IN-01: Shipped source cites a planning-only decision id, and the comment describes the authoring process
-
-**File:** `packages/predicate-prisma/src/index.ts:432-434`
-**Issue:** The body comment says "(D-06a)" and then "A comment here, not the doc comment above: a sentence in the doc comment is emitted into the declaration." `D-06a` is a `52-CONTEXT.md` decision id. It is not defined in ADR-QD-165, BEH-QD-597 or anywhere else under `spec/`, so a reader of the source cannot resolve it. The second sentence is about how the comment was placed, not about what the code does.
-**Fix:** Cite the spec record and drop the process sentence:
-```ts
-// `compiled` is counted only after `render` returns, so a renderer defect counts
-// neither outcome (BEH-QD-597, ADR-QD-165).
-```
-
-### IN-02: `compilePredicate`'s doc leaves out the `render` contract and the `outcomes` field
-
-**File:** `packages/core/src/RenderablePredicate.ts:538-550`
-**Issue:** `render` runs once per run of the returned Effect, not once per construction, so it must allocate its own per-run state. SQL's accumulator relies on this and carries the comment "The accumulator is per run of the Effect". The core doc and the BEH state neither the rule nor that a throw becomes a defect. `outcomes` has no field comment. A third dialect author reading only core would not learn either point. Core's test "each run of the returned Effect counts once" pins the behaviour, but not the doc.
-**Fix:** Add to `CompilePredicateOptions`: `render` "runs once per run of the returned Effect, after classification succeeds; keep per-run state inside it, and a throw is a defect that counts neither outcome", and `outcomes` "the dialect's own counter series (ADR-QD-123)".
-
-### IN-03: One new SQL test is redundant and carries an oxlint warning
-
-**File:** `packages/predicate-sql/test/CompileShell.test.ts:158-162`
-**Issue:** "one more than the default maxInValues refuses" repeats the REFUSALS row "TooManyValues past the default maxInValues" (1001 values, postgres, same reason), which already runs for all three dialects. It also uses `new Array(1001).fill(1)`, which oxlint flags as `unicorn(no-new-array)`. This is the only warning this phase adds.
-**Fix:** Delete the test, or use `Array.from({ length: 1001 }, () => 1)`. The row already covers the behaviour.
-
-### IN-04: A core test title overstates what it pins
-
-**File:** `packages/core/test/CompilePredicate.test.ts:118-129`
-**Issue:** "the dialect's rules reach toRenderable unchanged" asserts only `reservedColumns`. `nullability`, `negation`, `finiteness` and `finiteExclusion` are not pinned in core. They are covered only indirectly, through each dialect's characterisation rows. Mutation (all `compilePredicate` mutants killed) shows nothing is lost today, but a rename of the title to the single field it asserts is more honest.
-**Fix:** Rename it to "a rule from `rules` reaches toRenderable (reservedColumns)". Alternatively add one `NullOnNonNullableColumn` row (a `Declared` nullability) to cover a second field.
+The shell, the counters, the span tree, the changesets, the invariant text and the traceability rows are unchanged since iteration 1 and still match the code.
 
 ---
 
-Tool notes, not findings (both tools do what the brief asks):
-- `mutation.mjs` matches a moved mutant with `into.includes(key(x))`. It never consumes the counterpart it matched, so two base shell mutants that share a key would both be satisfied by a single killed mutant in core. Today all four keys per package are distinct, so the compare is sound.
-- `scan.mjs` section 9 reads `lib/index.d.ts` from disk and cannot tell a stale build from a fresh one. It relies on the documented `tsc -b` run first. Section 7 hard-codes `(Opus|Sonnet) 5.5` in the trailer regex.
-
-_Reviewed: 2026-11-16T19:45:00Z_
+_Reviewed: 2026-11-16T19:55:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
