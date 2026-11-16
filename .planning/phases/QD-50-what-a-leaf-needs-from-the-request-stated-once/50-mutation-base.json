@@ -1,0 +1,68 @@
+{
+ "measured": {
+  "packages/core/src/PortAccess.ts": 1,
+  "packages/core/src/Predicate.ts": 1,
+  "packages/core/src/Walk.ts": 0.9504643962848297
+ },
+ "counts": {
+  "packages/core/src/PortAccess.ts": {
+   "killed": 46,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 17
+  },
+  "packages/core/src/Predicate.ts": {
+   "killed": 298,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 22
+  },
+  "packages/core/src/Walk.ts": {
+   "killed": 307,
+   "timeout": 0,
+   "survived": 13,
+   "noCoverage": 3,
+   "ignored": 16
+  }
+ },
+ "survivors": {
+  "packages/core/src/PortAccess.ts": [],
+  "packages/core/src/Predicate.ts": [],
+  "packages/core/src/Walk.ts": [
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | (child) => Effect.exit(evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth)),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | (child) => Effect.exit(evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth)),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | depth + 1,",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | evaluateNode(rule.condition, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | yield* evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | yield* evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ConditionalExpression | Survived | false | depth > maxDepth | if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));",
+   "ObjectLiteral | NoCoverage | {} | { maxDepth } | if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));",
+   "ObjectLiteral | Survived | {} | { concurrency: request.concurrency } | { concurrency: request.concurrency },",
+   "ObjectLiteral | Survived | {} | { concurrency: request.concurrency } | { concurrency: request.concurrency },",
+   "StringLiteral | NoCoverage | \"\" | \"a required policy denied\" | return deny(\"AllOf\", trace.reason ?? \"a required policy denied\", fold.children);",
+   "StringLiteral | NoCoverage | \"\" | \"the obliged policy denied\" | : deny(\"Obliged\", child.reason ?? \"the obliged policy denied\", [child]),",
+   "StringLiteral | Survived | \"\" | \"HasCustom\" | ? allow(\"HasCustom\", policy.fields)"
+  ]
+ },
+ "leafArms": {
+  "packages/core/src/Walk.ts": {
+   "from": 310,
+   "to": 393,
+   "detected": 64,
+   "survived": 0
+  }
+ },
+ "unmeasured": {},
+ "new": [
+  "packages/core/src/LeafNeeds.ts"
+ ],
+ "deleted": {},
+ "moved": {
+  "packages/core/src/Walk.ts": "packages/core/src/LeafNeeds.ts"
+ }
+}
