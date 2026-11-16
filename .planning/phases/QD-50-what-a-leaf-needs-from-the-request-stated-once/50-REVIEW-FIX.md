@@ -1,144 +1,130 @@
 ---
 phase: QD-50-what-a-leaf-needs-from-the-request-stated-once
-fixed_at: 2026-11-16T13:57:52Z
+fixed_at: 2026-11-16T14:13:13Z
 review_path: .planning/phases/QD-50-what-a-leaf-needs-from-the-request-stated-once/50-REVIEW.md
-iteration: 1
-findings_in_scope: 8
-fixed: 7
-skipped: 1
-status: partial
+iteration: 2
+findings_in_scope: 4
+fixed: 4
+skipped: 0
+status: all_fixed
 ---
 
 # Phase 50: Code Review Fix Report
 
-**Fixed at:** 2026-11-16T13:57:52Z
+**Fixed at:** 2026-11-16T14:13:13Z
 **Source review:** .planning/phases/QD-50-what-a-leaf-needs-from-the-request-stated-once/50-REVIEW.md
-**Iteration:** 1
+**Iteration:** 2
 
 **Summary:**
-- Findings in scope: 8 (WR-01 to WR-03, IN-01 to IN-05, `--all`)
-- Fixed: 7
-- Skipped: 1 (IN-05, no change needed: D-06 requires the row)
+- Findings in scope: 4 (WR-01, WR-02, IN-01, IN-02; `--all`)
+- Fixed: 4
+- Skipped: 0
 
-Each fix has its own commit. IN-02 and IN-03 both edit `LeafNeeds.test.ts`, but they were split into two commits, and the tree is green at each one. The only skip is IN-05, a necessity finding that the locked decision D-06 answers. So `partial` means one deliberate no-change, not unfinished work.
+Each finding has its own commit. WR-01 and IN-02 both edit `LeafNeedOf` and `LeafNeeds.tst.ts`. They were split into two commits, and the tree is green at each one.
 
 The work ran in the main checkout. `workflow.use_worktrees` is `false` in `.planning/config.json`, so no worktree was created.
 
-The hot path is unchanged. `absenceOf`'s runtime code, its check order and what it reads per call are byte-identical (D-01, ADR-QD-163). WR-01 is type-level only, and the emitted `LEAF_NEEDS` value does not change. `LeafMatrix.test.ts`, `LeafFixtures.ts`, `Evaluate.bench.ts`, `50-BENCH.md`, `bench/gate/` and `bench/after/` were not touched.
+The hot path is unchanged. `absenceOf`'s runtime code, its check order and what it reads per call are byte-identical (D-01, ADR-QD-163). The `LeafNeeds.ts` diff since iteration 2 began (`c7270bf7`) touches only types and doc comments, and the emitted `LEAF_NEEDS` value does not change. `Evaluate.bench.ts` changed only in comment lines (see IN-01). `LeafMatrix.test.ts`, `LeafFixtures.ts`, `50-BENCH.md`, `bench/gate/`, `bench/after/` and `scripts/` were not touched.
 
 ## Fixed Issues
 
-### WR-01: A mis-specified `LeafNeeds` row is accepted by the compiler and fails open
+### WR-01: `LeafNeedOf`'s `own` is derived from two hard-coded tag names, so the guarantee does not hold for a new leaf
 
-**Files modified:** `packages/core/src/LeafNeeds.ts`, `packages/core/test/LeafNeeds.tst.ts` (new), `spec/decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md` (Rev 1.1), `spec/invariants.md` (Rev 1.143), `spec/behaviors/05-evaluator.md` (Rev 1.12), `spec/traceability.md` (Rev 1.208), `spec/README.md` (Rev 1.228)
-**Commit:** d9ef8c34
+**Files modified:** `packages/core/src/LeafNeeds.ts`, `packages/core/test/LeafNeeds.tst.ts`, `spec/decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md` (Rev 1.5), `spec/invariants.md` (Rev 1.145), `spec/behaviors/05-evaluator.md` (Rev 1.14), `spec/traceability.md` (Rev 1.210), `spec/README.md` (Rev 1.233)
+**Commit:** af9a3d89
 **Applied fix:**
-- **The row type.** The new `LeafNeedOf<K>` is `LeafNeed &` a row whose fields are derived from `Extract<LeafPolicy, { _tag: K }>`:
-  - `own` is `"Action"` for the `HasAction` variant, `"Resource"` for `HasResourceAttribute`, and `"Nothing"` otherwise.
-  - `matcher` is `true` exactly when the variant extends `MatcherLeaf`, and `false` otherwise.
-- **The table.** `LEAF_NEEDS` is now `as const satisfies { readonly [K in LeafTag]: LeafNeedOf<K> }`. The runtime value, `absenceOf`, `isMatcherLeaf` and `isActionLeaf` are unchanged; the guards are now sound by construction and were kept.
-- **Proof.** I temporarily wrote four bad rows: `HasRole` as `own: "Action"` with `matcher: true`, `HasAttribute` as `matcher: false`, and `HasRelationship` as `own: "Resource"`. `tsc -p tsconfig.test.json` gave TS2322 on all four cells, and the file was restored.
-- **`LeafNeeds.tst.ts`.** It pins the derived `own`/`matcher` per variant, refuses four mismatched rows with `type.not.toBeAssignableFrom`, and checks every table row against its leaf. It has 13 assertions. As a negative control, loosening `LeafNeedOf` to `LeafNeed | {...}` fails 12 of the 13.
-- **Spec.** ADR-QD-163 decision 1 and Consequences, INV-QD-345 (Source, Implication, Enforcement) and BEH-QD-590 now state the TS2322 guarantee. The traceability file maps `LeafNeeds.tst.ts`.
+- **Closed lists for `own`.** `own` now comes from `OwnOf<Tag>`, built from three closed tag lists: `ReadsAction`, `ReadsResource` and `ReadsNothing` (8 tags). A tag in none of them gets `never`, so any row for an unclassified leaf is TS2322 and cannot default to "reads nothing".
+- **Why lists rather than fields.** No variant's shape shows which input it reads. `HasAttribute` and `HasResourceAttribute` have identical fields, and `HasAction`'s `action` field is the expected action, not proof that the leaf reads the request's action. So `own` uses the tag lists throughout. `matcher` is still read from the shape.
+- **The new type.** `LeafNeedOfVariant<V>` is generic over a variant, and `LeafNeedOf<K>` is that type applied to `Extract<LeafPolicy, { _tag: K }>`. This lets a test build a leaf the policy does not have. It is exported from the package-private module only, which is still off the barrel.
+- **`LeafNeeds.tst.ts`.** A new test, "a leaf no classification names has no row", builds two hypothetical variants as test-local types: `HasActionIn { actions }` and `HasResourceField { attribute, matcher }`. It asserts that `own` is `never` for both, and that the fail-open "Nothing" rows and an "Action" row are refused. The header now says that `own` is classified by tag.
+- **Loosening check.** I set `OwnOf`'s default back to `"Nothing"`. The new test then failed 4 of its assertions (both `toBe<never>` and both "Nothing" rows), with 14 of 18 passing. The file was restored from a copy.
+- **Spec.** ADR-QD-163 decision 1 and Consequences, INV-QD-345 (Source, Implication, Enforcement), BEH-QD-590 and the traceability row now claim exactly what the compiler guarantees. Every leaf must be classified before its row compiles. The classification itself is still hand-written: the compiler checks that one is made, and `LeafMatrix.test.ts`'s fixture per tag checks that it is right.
 
-### WR-02: `ab.sh` does not stop on INT/TERM; it reverts, then carries on benching
+### WR-02: `ab.sh` can leave the prototype applied when a signal lands during `git apply`, and a signal during a failing revert loses the message
 
 **Files modified:** `.planning/phases/QD-50-what-a-leaf-needs-from-the-request-stated-once/bench/ab.sh`
-**Commit:** caff5b31
+**Commit:** c20e7cf3
 **Applied fix:**
-- **Traps.** The script now sets `trap cleanup EXIT; trap 'exit 130' INT; trap 'exit 143' TERM`, so a signal ends the script and the EXIT trap is the one place that reverts.
-- **Failed revert.** `cleanup` clears `applied` before it reverts, so it cannot retry. If `git apply -R` fails, it prints `ab.sh: could not revert <patch>; packages/core/src is left patched` and exits 5. The header's exit-code list now includes 5 for a failed revert and 130/143 for INT/TERM.
-- **Signal timing.** Bash runs a trap only after the foreground command returns, so a signal ends the script after the bench run in progress finishes. The header says so.
+- **Forward apply.** `applied=1` is now set before `git apply "$PATCH"`, and cleared in the failure branch before `exit 3`.
+- **Revert.** `cleanup` sets `reverted=1` before `git apply -R` and always ends with a `src_clean` check.
+  - If src is clean, it clears `reverted`.
+  - If src is dirty after a revert attempt, it prints `could not revert $PATCH; $SRC is left patched` and exits 5. This works even when a signal ended the first `cleanup` before the `||` would have run.
+  - If src is dirty for any other reason, it prints `$SRC is not clean` and exits 5.
+  - Both failure branches run `trap - EXIT` first, so the message prints once.
+- **End of script.** The redundant final `src_clean` line is dropped, because `cleanup` now does that check. The header's exit-5 description now says "dirty after a run or at exit".
 
-**Verification:**
+**Verification:** I made a minimal reproduction of the old and new patterns. It runs in a throwaway git repo with a real one-file patch, and a `sleep 2` is placed after the slow step. TERM was sent at 1 s; a background bash child ignores INT, and both signals use the same trap.
+
+| Scenario | Old pattern | New pattern |
+| --- | --- | --- |
+| TERM during forward `git apply` | exit 143, src left patched, no message | exit 143, src clean |
+| TERM during a failing `git apply -R` | exit 143, src left patched, no message | exit 5, "could not revert; src left patched" |
+| Failing revert, no signal | exit 5, message | exit 5, message (printed once) |
+| TERM during a successful revert | exit 143, src clean | exit 143, src clean |
+| No signal | exit 0, src clean | exit 0, src clean |
+
+On the real script:
 - `bash -n` passes.
 - Zero rounds exits 2 (usage).
 - A missing patch exits 3.
-- A minimal reproduction of the trap pattern was run under Python's `subprocess`, because a non-interactive bash `&` child ignores SIGINT. Results:
+- `packages/core/src` was clean afterwards.
 
-  | Pattern | Signal | Result |
-  | --- | --- | --- |
-  | Old | INT or TERM | Ran all 5 iterations and exited 0 |
-  | New | INT | Stopped after the iteration in progress, reverted once, exited 130 |
-  | New | TERM | Stopped after the iteration in progress, reverted once, exited 143 |
-  | New | Failing revert | Printed the message and exited 5 |
+No bench was run, and the committed runs are unaffected.
 
-**Committed runs not affected:** neither bench run that ADR-QD-163 and 50-BENCH.md cite was affected. Both exited 0 and left src clean: `bench/gate/done.txt` and `bench/after/done.txt` both read `src restored to HEAD`, which the script writes only after its final `src_clean` check passes. Neither run received a signal.
+### IN-01: A comment the ADR calls inaccurate is left in the committed bench file
 
-### WR-03: BEH-QD-586 and INV-QD-346 state a `HasAttribute` outcome the code does not give
+**Files modified:** `packages/core/bench/Evaluate.bench.ts` (comment only), `spec/decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md` (Rev 1.7), `spec/README.md` (Rev 1.235)
+**Commit:** c6760496
+**Applied fix:** The `leafHeavyPlain` doc comment now says that both workloads supply both inputs, so the absence check never asks a matcher what it references. The two take the same path, and the delta they share is the table read with both inputs present. The ADR's note now says the comment was corrected by a comment-only edit that changed no workload, so the file still runs what the committed runs measured.
 
-**Files modified:** `spec/behaviors/10-actions.md` (Rev 1.3), `spec/invariants.md` (Rev 1.144), `spec/decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md` (Rev 1.2), `spec/README.md` (Rev 1.229)
-**Commit:** 021f45ed
-**Applied fix:**
-- **BEH-QD-586's REQUIREMENT.** `HasAction` fails with `MissingAction`, and `HasResourceAttribute` with `MissingResource` whatever its matcher references. `HasAttribute` fails with `MissingAction` when its matcher references the action and with `MissingResource` when it references the resource. When it references neither it MUST NOT fail for either absence, and its matcher's own decision stands. These match the fixture cells `HasAttribute[no ref]` (Allow), `[ref action]`/`[nested ref action]` (`Action:-`), `[ref resource]`/`[nested ref resource]` (`Resource:department`) and all three `HasResourceAttribute` fixtures (`Resource:owner`).
-- **INV-QD-346's Implication.** It is qualified the same way. It also drops the claim that the result holds "in both interpreters" for a missing resource: `toPredicate`'s resource is the row, so it now says `toPredicate` reports the same absence wherever both interpreters apply.
-- **Grep of the other new text.** ADR-QD-163's "The check order" made the same unconditional claim ("`HasAttribute` ... asks the matcher: the action, then the resource" and "reports the leaf's own input"). It is now qualified by what the matcher references and by "for a leaf that has one". BEH-QD-587 to BEH-QD-590, INV-QD-345, the changeset and `LeafNeeds.ts`'s header carry no such claim.
+The bench diff is comment-only (`git diff -U0`):
 
-### IN-01: ADR-QD-163's Context misdescribes the base's errors
+```
+@@ -356,2 +356,3 @@ const leafHeavy = allOf([
+- * neither input: the control for `leafHeavy`, so the cost of reading the
+- * references is told from the cost of the arms.
++ * neither input. The request supplies both inputs, so in neither workload does
++ * the absence check ask a matcher what it references: the two take the same
++ * path, and the delta they share is the table read with both inputs present.
+```
 
-**Files modified:** `spec/decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md` (Rev 1.3), `spec/README.md` (Rev 1.230)
-**Commit:** 344400a3
-**Applied fix:** The Context now says the two matcher arms each built `new MissingAction({})` from the action test and `new MissingResource(...)` from their resource test. This was checked against `git show 5ab8d0c0:packages/core/src/Walk.ts`, lines 332, 340, 352 and 356.
+### IN-02: Two names say "every row is its leaf's", but `resourceId` is not tied to the leaf at compile time
 
-### IN-02: `LeafNeeds.test.ts`'s header is stale
-
-**Files modified:** `packages/core/test/LeafNeeds.test.ts`
-**Commit:** 9ec37497
-**Applied fix:** The "RED by import (D-14)" sentence is dropped. The no-absence test now selects its cells with the fixture's own `f.own === "Nothing" && f.refs === "none"` instead of `LEAF_NEEDS[...]`, so no expectation in that test is derived from the table under test.
-
-### IN-03: The agreement property and the `HasAction` deny sentence are thinner than BEH-QD-586/589 claim
-
-**Files modified:** `packages/core/test/LeafNeeds.test.ts`, `spec/behaviors/05-evaluator.md` (Rev 1.13), `spec/traceability.md` (Rev 1.209), `spec/README.md` (Rev 1.231)
-**Commit:** 3d4ac0d1
-**Applied fix:** A new `describe` in `LeafNeeds.test.ts` (the characterisation is untouched) has two tests.
-- **The `HasAction("write")` cell.**
-  - With action `read`, `evaluate` gives exactly `Deny: action is 'read', not 'write'` and `toPredicate` gives `PRED {"_tag":"False"}`.
-  - With no action, both give `Action:write`.
-- **The agreement property.** It runs over every fixture plus `HasAction("write")`, with the action both absent and present.
-  - An `Action:` label on either side must equal the other side.
-  - Wherever `toPredicate` compiles to a constant, `evaluate` allows exactly when the constant is `True`, and otherwise gives a `Deny: `.
-  - The constant cells are counted exactly (18), so a fixture change that drops them is seen.
-- **Negative controls, both restored with `git checkout`.**
-  - Dropping the comma from `Walk.ts`'s `HasAction` reason fails the deny-cell test.
-  - Inverting `toPredicate`'s `HasRole` constant (`!holdsRole`) fails the agreement property.
-- **Spec.** BEH-QD-589's prose and the traceability row for `LeafNeeds.test.ts` name the new pins.
-
-### IN-04: The leaf-heavy workloads never read the references they are described as measuring
-
-**Files modified:** `spec/decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md` (Rev 1.4), `spec/README.md` (Rev 1.232)
-**Commit:** 3c545f18
-**Applied fix:**
-- **ADR-only fix.** The fix is in the ADR only, because the brief's hard rules freeze `packages/core/bench/Evaluate.bench.ts`.
-- **What the ADR now says.** Both leaf-heavy workloads supply the action and the resource, so `absenceOf` returns before `referencesAction`/`referencesResource` runs and neither workload walks a matcher reference. The two take the same path and differ only in their matchers' own cost, so the delta they share is the table read on the present-inputs path. The reference walk runs only on the failing path, which neither workload measures.
-- **The bench comment.** The ADR also records that the bench file's `leafHeavyPlain` comment ("the cost of reading the references is told from the cost of the arms") is inaccurate for the same reason. That comment is left as committed, because editing the file would make it no longer the file the committed runs measured.
-
-## Skipped Issues
-
-### IN-05: `LeafNeed.resourceId` has no reader in source
-
-**File:** `packages/core/src/LeafNeeds.ts:34-37`
-**Reason:** No change needed. D-06 (locked) requires the table to state the resource-id need while `readScoped` stays the one enforcement point, and BEH-QD-588 says "MUST state". The column is a declarative fact, tied to `readScoped`'s behaviour by the D-06 test in `LeafNeeds.test.ts` ("a row's resourceId is what readScoped does"). The review itself says "None required".
-**Original issue:** `LEAF_NEEDS[...].resourceId` has no reader in `packages/*/src`. Its only consumer is the D-06 test.
+**Files modified:** `packages/core/src/LeafNeeds.ts`, `packages/core/test/LeafNeeds.tst.ts`, `spec/decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md` (Rev 1.6), `spec/invariants.md` (Rev 1.146), `spec/behaviors/05-evaluator.md` (Rev 1.15), `spec/behaviors/30-port-calls.md` (Rev 1.10), `spec/traceability.md` (Rev 1.211), `spec/README.md` (Rev 1.234)
+**Commit:** 95608c8e
+**Applied fix:** I took the preferred option and constrained the column, so the existing title "every row of the table is its leaf's" is now true for the whole row.
+- **The type.** `resourceId` now comes from `ResourceIdOf<Tag>`, built from three closed lists: `AsksAlways` (`HasRelationship`), `AsksByScope` (`HasActed`, `HasNotActed`, `HasSignature`) and `AsksNever` (the other six). An unlisted tag gets `never`.
+- **The doc comment.** `LeafNeed.resourceId` now says the column is declarative: `readScoped` enforces the need and does not read this column. The type ties the column to the tag, and `LeafNeeds.test.ts` ties it to `readScoped`'s behaviour.
+- **`LeafNeeds.tst.ts`.** New assertions:
+  - A test pins `resourceId` per tag (`Always`, `ByScope` twice, `Never`).
+  - A refused row: `HasActed` stating `resourceId: "Never"`.
+  - `resourceId` is `never` for the hypothetical `HasActionIn`.
+- **Loosening checks, both restored from a copy.**
+  - Setting `ResourceIdOf`'s default back to `"Never"` failed 1 assertion (the hypothetical's `never`).
+  - Typing the column as the free union `LeafNeed["resourceId"]` failed 6 assertions across 3 tests.
+- **Spec.** INV-QD-345 (Source, Implication), BEH-QD-590, BEH-QD-588's prose, ADR-QD-163 decision 1 and Consequences, and the traceability row now include `resourceId` in the compile-time check. BEH-QD-588 also states that `readScoped` does not read the column.
 
 ## Verification
 
-All of these ran in the main checkout (no worktree), from the repository root, after the last commit (3c545f18):
+All of these ran in the main checkout (no worktree), from the repository root, after the last commit (c6760496):
 
 - `pnpm exec vitest run --project core`: 75 files, 2438 tests passed
 - `pnpm typecheck`: passed
-- `pnpm lint`: exit 0, with no diagnostics in any file this fix touched. Its warnings are all in `.codex/`/`.agents/` hook files.
+- `pnpm lint`: exit 0. No diagnostic is in a file this fix touched; the warnings are in `.codex/` hooks and in unrelated devtools and react files.
 - `pnpm circular`: no circular dependency
-- `pnpm test:tstyche`: 59 files, 626 assertions passed, including the new `LeafNeeds.tst.ts`
+- `pnpm test:tstyche`: 59 files, 299 tests, 637 assertions passed. `LeafNeeds.tst.ts` now has 6 tests and 24 assertions.
 - `pnpm spec:verify:strict`: 21 pass, 0 fail, 0 skip
 - `pnpm spec:examples`: 116 blocks compile
-- `pnpm spec:api`: 932 exports documented
+- `pnpm spec:api`: 932 exports documented across 9 packages
 - `node scripts/check-house-style.mjs`: 536 files clean, 3 declared switches. SWITCH_BUDGET and UNTRACED_BUDGET are unchanged.
-- Stryker, run alone (no other vitest running): `pnpm exec stryker run stryker.config.mjs --mutate 'packages/core/src/LeafNeeds.ts'` scored **98.11%**, with 52 killed and 1 survived. The survivor is the argued-equivalent `isActionLeaf` mutant (`LEAF_NEEDS[leaf._tag].own === "Action"` replaced with `true`), the same as before.
+- **Stryker**, run alone with no other vitest running: `pnpm exec stryker run stryker.config.mjs --mutate 'packages/core/src/LeafNeeds.ts' < /dev/null`.
+  - Score: **98.11%**, with 52 killed, 1 survived and 0 with no coverage.
+  - The one survivor is the argued-equivalent `isActionLeaf` mutant (`LEAF_NEEDS[leaf._tag].own === "Action"` replaced with `true`), unchanged from before.
 
-No new BEH, INV, ADR or CCR id was used. Every spec revision is recorded in the existing CCR-QD-441 row in `spec/README.md`.
+No new BEH, INV, ADR or CCR id was used. Every spec revision is added to the existing CCR-QD-441 row in `spec/README.md`, under "Review iteration 2".
 
 ---
 
-_Fixed: 2026-11-16T13:57:52Z_
+_Fixed: 2026-11-16T14:13:13Z_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 1_
+_Iteration: 2_
