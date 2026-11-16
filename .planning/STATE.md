@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 49
 current_phase_name: Gates as the dock model's eighth store, one gate-state vocabulary
-current_plan: 7
+current_plan: 8
 status: executing
-stopped_at: Completed QD-49-06-PLAN.md
-last_updated: "2026-11-16T06:52:50.415Z"
+stopped_at: Completed 49-07-PLAN.md
+last_updated: "2026-11-16T07:02:06.811Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase QD-49 execution started
-state_head: d0413f0ee9f3fbb796673f51088bba72595b98be
+state_head: f27060996f8a02fd341a7c4456e2290ee7d1c401
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 53
-  completed_plans: 50
+  completed_plans: 51
   percent: 60
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: QD-49 (Gates as the dock model's eighth store, one gate-state vocabulary) — EXECUTING
-Current Plan: 7
+Current Plan: 8
 Total Plans in Phase: 9
 Status: Executing Phase QD-49
 Last activity: 2026-11-16 — Phase QD-49 execution started
@@ -305,6 +305,7 @@ Progress: [██████░░░░] 60% (6 of 10 phases)
 | Phase QD-49 P04 | 12min | 3 tasks | 5 files |
 | Phase QD-49 P49-05 | 25min | 3 tasks | 9 files |
 | Phase QD-49 P06 | 10min | 3 tasks | 6 files |
+| Phase QD-49 P07 | 25min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -513,6 +514,7 @@ Progress: [██████░░░░] 60% (6 of 10 phases)
 - [Phase QD-49]: 49-04: a throwing registry instances() is not caught in the questions store; the dock model's subscription is scope-owned (closed flag + finalizer) and re-subscribes only on a registry identity change
 - [Phase QD-49]: 49-05: the feed hands over the gate registry, the dock's gates prop is GateRegistryLike only, and D-12a is the one copy change, committed after the tracer
 - [Phase QD-49]: GateRegistryLike joins GateInstanceLike on the devtools root entry only; joinQuestions, the views and the snapshot stay model-private
+- [Phase QD-49]: ADR-QD-162 states the dock model's store count once (seven before, questions the eighth, sightings a thunk); ADR-QD-053 is noted, not reversed
 
 ### Pending Todos
 
@@ -568,8 +570,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T06:52:50.270Z
-Stopped at: Completed QD-49-06-PLAN.md
+Last session: 2026-11-16T07:02:06.627Z
+Stopped at: Completed 49-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
