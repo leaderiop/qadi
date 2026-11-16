@@ -4,18 +4,18 @@ milestone: v1.5
 milestone_name: Arch Wave 10
 current_phase: 47
 current_phase_name: Port facts read from the description
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 47 UI-SPEC approved
-last_updated: "2026-11-16T00:02:12.816Z"
-last_activity: 2026-11-15
-last_activity_desc: Phase 46 complete, transitioned to Phase 47
-state_head: 6a5fc14ae628fc295d336114e265db74bc01ab6e
+stopped_at: Completed 47-01-PLAN.md
+last_updated: "2026-11-16T00:06:12.240Z"
+last_activity: 2026-11-16
+last_activity_desc: Phase 47 execution started
+state_head: eff51e788e8c2aab08835832c1325f38a0672630
 progress:
   total_phases: 10
   completed_phases: 4
   total_plans: 36
-  completed_plans: 29
+  completed_plans: 30
   percent: 40
 ---
 
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-11-15)
 
 ## Current Position
 
-Phase: 47 (Port facts read from the description) — READY TO EXECUTE
-Current Plan: Not started
+Phase: 47 (Port facts read from the description) — EXECUTING
+Current Plan: 2
 Total Plans in Phase: 7
 Status: Ready to execute
-Last activity: 2026-11-15 — Phase 46 complete, transitioned to Phase 47
+Last activity: 2026-11-16 — Phase 47 execution started
 
 Progress: [████░░░░░░] 40% (4 of 10 phases)
 
@@ -282,6 +282,7 @@ Progress: [████░░░░░░] 40% (4 of 10 phases)
 | Phase 46 P05 | 14 min | 2 tasks | 11 files |
 | Phase 46 P06 | 25 min | 2 tasks | 5 files |
 | Phase QD-46 P07 | 5 min | 3 tasks | 1 files |
+| Phase 47 P01 | 15min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -470,6 +471,7 @@ Progress: [████░░░░░░] 40% (4 of 10 phases)
 - [Phase 46]: 46-05: the CCR-QD-437 row lists Task 1's files only; the overview, upgrade guide and changesets are added by 46-06 with the Used/Unused ids
 - [Phase 46]: 46-06: BEH-QD-566..570 and INV-QD-337/338 state the emitter's report; INV-QD-035 keeps its heading, restated; CCR-QD-437 closed with Used ids and Unused: none
 - [Phase QD-46]: 46-07: all five touched files met or beat their mutation base on the first measurement (DecisionLog 0.9857, DecisionSinkForwarding 0.9118, others 1); no test round or fix commit needed
+- [Phase 47]: 47-01: Stryker base scores stored unrounded from fresh runs of both configs (PortDerivation 0.98, the other five 1); RED rows committed on the untouched base
 
 ### Pending Todos
 
@@ -523,9 +525,9 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-15T15:19:04.457Z
-Stopped at: Phase 47 UI-SPEC approved
-Resume file: .planning/phases/QD-47-port-facts-read-from-the-description/47-UI-SPEC.md
+Last session: 2026-11-16T00:06:12.150Z
+Stopped at: Completed 47-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 

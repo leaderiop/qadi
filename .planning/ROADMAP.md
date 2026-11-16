@@ -558,11 +558,11 @@ Plans:
   5. Rendered output for the five ports is unchanged (characterisation tests written on the base), and devtools still depends only on `@qadi/core`.
 
 **Planning notes**: **Plan shape, RED first**: the mutation base for the touched devtools files, the wrapper RED and a rendered-output characterisation for each port, committed first; then core's fact; then devtools' tables; then records. Re-run `pnpm circular` after the first move. Keep the work off the lines Phase 49 will edit in `ServicesPanel`/`DockModel`.
-**Plans**: 7 plans
+**Plans**: 1/7 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 47-01-PLAN.md — mutation base for the six touched source files (first commit); `WiringDefaulted.test.ts` RED on the base (a renamed spreading wrapper around a default reads as a real adapter, a fresh object named after a default reads defaulted)
+- [x] 47-01-PLAN.md — mutation base for the six touched source files (first commit); `WiringDefaulted.test.ts` RED on the base (a renamed spreading wrapper around a default reads as a real adapter, a fresh object named after a default reads defaulted)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 47-02-PLAN.md — the services panel's wording for every port characterised green on the base (20 readings, four card rows); the captured-default row in `Capture.test.ts`
@@ -683,7 +683,7 @@ Phases execute in numeric order: 43 → 44 → 45 → 46 → 47 → 48 → 49 �
 | 44. The hydration seed's fields stated once | 6/6 | Complete    | 2026-11-15 |
 | 45. The audit circuit breaker as one transition function | 8/8 | Complete    | 2026-11-15 |
 | 46. The sink emitter reports what it contains | 7/7 | Complete    | 2026-11-15 |
-| 47. Port facts read from the description | 0/TBD | Not started | - |
+| 47. Port facts read from the description | 1/7 | In Progress | - |
 | 48. Audit reports core's refusal and derives "lost" | 0/TBD | Not started | - |
 | 49. Gates as the dock model's eighth store, one gate-state vocabulary | 0/TBD | Not started | - |
 | 50. What a leaf needs from the request, stated once | 0/TBD | Not started | - |
