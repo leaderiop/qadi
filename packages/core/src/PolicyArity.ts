@@ -45,7 +45,9 @@ export const POLICY_ARITY = {
  * assignable to `never`, so a `Wrapper` arm (`[p.policy]`) left behind when its tag
  * moves to `Many` fails with `is not assignable to type 'never'`, while an existing
  * array (`p.policies`) is accepted. A `Many` arm may be empty, so `Leaf` to `Many` is
- * the one move this cannot see; `LeafPolicy`'s readers catch it.
+ * the one move this cannot see; `LeafPolicy`'s readers catch it. A `Many` arm with a
+ * fixed number of children returns a non-literal array, e.g. `Array.of(a, b)`, because
+ * a literal `[a, b]` is a tuple and is refused with the same `never` error.
  */
 export type ChildrenOf<A extends Arity, Child> = A extends "Leaf"
   ? readonly []
