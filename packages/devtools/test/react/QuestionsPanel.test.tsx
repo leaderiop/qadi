@@ -17,18 +17,19 @@ import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import { QuestionsPanel } from "../../src/react/QuestionsPanel.tsx";
 import type { AskedQuestionLike } from "../../src/react/QuestionsPanel.tsx";
 import { liveNotice } from "../helpers.ts";
+import { panelInput } from "./questionsPanelInput.ts";
 
 const read = permission("doc", "read");
 
 describe("the questions panel", () => {
   // E5.1 — an empty state that explains, rather than a blank panel.
   it("with no atom set, says where questions come from", () => {
-    render(<QuestionsPanel diagnostics={liveNotice} questions={undefined} />);
+    render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: undefined })} />);
     assert.include(screen.getByTestId("qadi-questions-absent").textContent ?? "", "asked()");
   });
 
   it("with an atom set that has been asked nothing, says so differently", () => {
-    render(<QuestionsPanel diagnostics={liveNotice} questions={[]} />);
+    render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [] })} />);
     // A different fact from "no atom set": one is unwired, the other is idle.
     assert.include(screen.getByTestId("qadi-questions-empty").textContent ?? "", "Nothing has been asked");
     assert.isNull(screen.queryByTestId("qadi-questions-absent"));
@@ -37,7 +38,7 @@ describe("the questions panel", () => {
   // E5.4 — stated up front, because a reader counting rows against their
   // component tree would otherwise conclude the panel is broken.
   it("explains the keying before showing anything", () => {
-    render(<QuestionsPanel diagnostics={liveNotice} questions={[]} />);
+    render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [] })} />);
     const note = screen.getByTestId("qadi-keying-note").textContent ?? "";
 
     assert.include(note, "per question");
@@ -56,7 +57,7 @@ describe("the questions panel", () => {
       { policy: hasPermission(read) },
       { policy: hasRole("editor") },
     ];
-    render(<QuestionsPanel diagnostics={liveNotice} questions={questions} />);
+    render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions })} />);
 
     assert.deepStrictEqual(
       screen.getAllByTestId("qadi-question").map((q) => q.textContent?.split("no resource")[0]),
@@ -70,7 +71,7 @@ describe("the questions panel", () => {
       { policy: hasPermission(read) },
       { policy: hasPermission(read), resource: { id: "invoice-42" } },
     ];
-    render(<QuestionsPanel diagnostics={liveNotice} questions={questions} />);
+    render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions })} />);
 
     assert.deepStrictEqual(
       screen.getAllByTestId("qadi-question-scope").map((s) => s.textContent),
@@ -81,7 +82,7 @@ describe("the questions panel", () => {
   it("names a resource by its keys when it has no id", () => {
     render(
       <QuestionsPanel diagnostics={liveNotice}
-        questions={[{ policy: hasPermission(read), resource: { tenantId: "acme", stage: "draft" } }]}
+        {...panelInput({ questions: [{ policy: hasPermission(read), resource: { tenantId: "acme", stage: "draft" } }] })}
       />,
     );
     assert.strictEqual(
@@ -92,7 +93,7 @@ describe("the questions panel", () => {
 
   describe("hydration, with nothing read", () => {
     it("says when nothing is wired, rather than showing zero", () => {
-      render(<QuestionsPanel diagnostics={liveNotice} questions={[]} />);
+      render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [] })} />);
       // Zero would claim there were no mismatches; there is simply nobody
       // counting. And it names the fix, which is a real one.
       const text = screen.getByTestId("qadi-hydration-unwired").textContent ?? "";
@@ -114,7 +115,7 @@ describe("the questions panel", () => {
     it("shows all four counts", () => {
       render(
         <QuestionsPanel diagnostics={liveNotice}
-          questions={[]}
+          {...panelInput({ questions: [] })}
           hydration={reading({ dehydrated: 12, seeded: 10, rechecked: 8, mismatched: 1 })}
         />,
       );
@@ -126,20 +127,20 @@ describe("the questions panel", () => {
     });
 
     it("states the rate where anything was re-checked", () => {
-      render(<QuestionsPanel diagnostics={liveNotice} questions={[]} hydration={reading({ rechecked: 4, mismatched: 1 })} />);
+      render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [] })} hydration={reading({ rechecked: 4, mismatched: 1 })} />);
       assert.include(screen.getByTestId("qadi-hydration-rate").textContent ?? "", "1 of 4");
     });
 
     it("offers no rate where nothing was re-checked", () => {
       // "0 of 0 disagreed" is a sentence about nothing.
-      render(<QuestionsPanel diagnostics={liveNotice} questions={[]} hydration={reading({ seeded: 3 })} />);
+      render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [] })} hydration={reading({ seeded: 3 })} />);
       assert.isNull(screen.queryByTestId("qadi-hydration-rate"));
     });
 
     it("says nothing was dropped, rather than leaving it blank", () => {
       render(
         <QuestionsPanel diagnostics={liveNotice}
-          questions={[]}
+          {...panelInput({ questions: [] })}
           hydration={reading({
             seeded: 3,
             drops: [{ reason: "ForeignSubject", count: 0, meaning: "mixed payload" }],
@@ -155,7 +156,7 @@ describe("the questions panel", () => {
     it("lists only the reasons that fired, with what each means", () => {
       render(
         <QuestionsPanel diagnostics={liveNotice}
-          questions={[]}
+          {...panelInput({ questions: [] })}
           hydration={reading({
             drops: [
               { reason: "ForeignSubject", count: 0, meaning: "mixed payload" },
@@ -173,7 +174,7 @@ describe("the questions panel", () => {
     });
 
     it("says the totals are process-wide before a reader subtracts them", () => {
-      render(<QuestionsPanel diagnostics={liveNotice} questions={[]} hydration={reading({ dehydrated: 10, seeded: 4 })} />);
+      render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [] })} hydration={reading({ dehydrated: 10, seeded: 4 })} />);
       const scope = screen.getByTestId("qadi-hydration-scope").textContent ?? "";
 
       assert.include(scope, "Process-wide");
@@ -183,7 +184,7 @@ describe("the questions panel", () => {
     it("does not report a negative shortfall in a browser", () => {
       // A client seeds from payloads it did not build, so this is the ordinary
       // case there rather than a fault to hunt.
-      render(<QuestionsPanel diagnostics={liveNotice} questions={[]} hydration={reading({ dehydrated: 0, seeded: 4 })} />);
+      render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [] })} hydration={reading({ dehydrated: 0, seeded: 4 })} />);
       const scope = screen.getByTestId("qadi-hydration-scope").textContent ?? "";
 
       assert.include(scope, "seeded more than it built");
@@ -191,7 +192,7 @@ describe("the questions panel", () => {
     });
 
     it("reads naturally for a shortfall of one", () => {
-      render(<QuestionsPanel diagnostics={liveNotice} questions={[]} hydration={reading({ dehydrated: 1, seeded: 0 })} />);
+      render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [] })} hydration={reading({ dehydrated: 1, seeded: 0 })} />);
       assert.include(screen.getByTestId("qadi-hydration-scope").textContent ?? "", "1 dehydrated entry ");
     });
   });
@@ -199,13 +200,13 @@ describe("the questions panel", () => {
   describe("invalidate", () => {
     // E5.6 — absent, not inert.
     it("offers no button when no handler was supplied", () => {
-      render(<QuestionsPanel diagnostics={liveNotice} questions={[]} />);
+      render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [] })} />);
       assert.isNull(screen.queryByTestId("qadi-invalidate"));
     });
 
     it("calls the handler it was given", async () => {
       let invalidated = 0;
-      render(<QuestionsPanel diagnostics={liveNotice} questions={[]} onInvalidate={() => (invalidated += 1)} />);
+      render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [] })} onInvalidate={() => (invalidated += 1)} />);
 
       await act(async () => {
         screen.getByTestId("qadi-invalidate").click();
