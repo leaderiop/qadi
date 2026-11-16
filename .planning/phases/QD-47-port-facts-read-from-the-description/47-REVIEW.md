@@ -1,8 +1,9 @@
 ---
 phase: QD-47-port-facts-read-from-the-description
-reviewed: 2026-11-16T02:00:00Z
+reviewed: 2026-11-16T04:00:00Z
 depth: standard
-files_reviewed: 26
+iteration: 2
+files_reviewed: 27
 files_reviewed_list:
   - .changeset/devtools-defaulted-from-core.md
   - .changeset/port-default-is-a-mark.md
@@ -20,6 +21,7 @@ files_reviewed_list:
   - packages/devtools/test/model/Capture.test.ts
   - packages/devtools/test/model/WiringDefaulted.test.ts
   - packages/devtools/test/react/ServicesPanel.reading.test.tsx
+  - packages/devtools/test/react/ServicesPanel.test.tsx
   - spec/README.md
   - spec/behaviors/25-inspection.md
   - spec/behaviors/28-devtools-screens.md
@@ -32,167 +34,76 @@ files_reviewed_list:
   - spec/traceability.md
 findings:
   critical: 0
-  warning: 4
-  info: 2
-  total: 6
+  warning: 1
+  info: 0
+  total: 1
 status: issues_found
 ---
 
-# Phase QD-47: Code Review Report
+# Phase QD-47: Code Review Report (iteration 2)
 
-**Reviewed:** 2026-11-16T02:00:00Z
+**Reviewed:** 2026-11-16T04:00:00Z
 **Depth:** standard
-**Files Reviewed:** 26
+**Files Reviewed:** 27
 **Status:** issues_found
 
 ## Summary
 
-The mark itself is sound. It is set only by `nonePort` (`PortDerivation.ts:384`), and copied by `wrapPort` (so retrying,
-timingOut and recording), `boundedPort` and `decoratePorts`. `scriptedPort` and `askRemotely` build through `d.make` with no
-inner and never carry it. `isMarkedDefault` reads an own descriptor and compares the `PortName`. Nothing on an evaluation
-or enforcement path reads it: the only readers are `isPortDefault` (called from devtools `Wiring.ts`) and the build-time
-`carryDefault` checks. `Capture.ts`'s `capturing` goes through `decoratePorts`, so a captured default keeps the mark. The
-`rowOf`/`ROWS` typing uses no `as`, `!` or `any`, and `describeCall` type-checks (`tsc -b packages/devtools` is clean).
-`PORT_READING` text is byte-identical to the removed `CONSEQUENCES` and `describeOne` arms, checked line by line against
-the diff. `check-house-style.mjs` and `check-api-surface.mjs` pass, and 89 tests across the four directly relevant files
-pass when run from the repo root.
+Re-review after fix iteration 1 (commits b1ce4e15 to a2e6ffa1). `check-house-style.mjs` and `check-api-surface.mjs` pass,
+`tsc -b packages/core packages/devtools` and `oxlint` on the touched files are clean, and 162 tests pass across
+`PortDefault`, `PortsLayer`, `ServicesPanel`, `ServicesPanel.reading`, `WiringDefaulted` and `Capture`.
 
-Four warnings and two info items remain:
+Iteration-1 findings:
 
-- The UI-audit lead is real (WR-01).
-- The spec promises totality of `isPortDefault` that the code does not provide, and the ADR contradicts the BEH (WR-02).
-- `markDefault`'s spread can drop a class-based shape's prototype methods (WR-03).
-- Some `MUST NOT carry the mark` claims have no test (WR-04).
+- WR-01 (`stateOf` hides "defaulted" for an unnamed default): verified fixed. `stateOf` checks `defaulted === true` first and
+  reads `defaulted — ${name ?? "unnamed"}`. Every other branch is unchanged: a non-present port, a non-defaulted named port and
+  a non-defaulted unnamed port (`wired, unnamed`) produce the same strings as before, and a defaulted named port still reads
+  `defaulted — <name>`. The new row renders the combination and compares the whole string. BEH-QD-215, devtools Screen 6 and
+  the revisions say the same.
+- WR-02 (totality of `isPortDefault`): verified fixed. The `try`/`catch` covers a throwing trap and a revoked proxy (M7b), and
+  BEH-QD-571, INV-QD-339, ADR-QD-160 and the overview now agree.
+- WR-03 (`markDefault` loses prototype methods): partly fixed. The prototype and own descriptors now survive, a getter stays a
+  getter, a frozen shape copies without error, and `{ ...marked }` still carries the enumerable symbol mark (D-04), so W10 and
+  M3 hold. One case the fix and its documentation claim is still broken, reported as WR-01 below.
+- WR-04 (never-marked list pinned for one port): verified fixed. Per-port rows cover a scripted double, a replay and a remote
+  asker, and M2b covers the two record fixtures that exist (`attributeResolverFromRecord`, `customPredicateFromRecord`;
+  nothing else in `packages/core/src` or `packages/testing/src` is a fixture builder).
+- IN-01 (forgery wording): verified fixed in the source comment, the test header, BEH-QD-572 and ADR-QD-160 Decision 2.
+- IN-02 (`decoratePorts` marks by the slot): verified fixed in BEH-QD-571, ADR-QD-160, the 0.13 upgrade entry and the
+  changeset, and pinned by W11.
 
-Locked decisions D-04, D-08, D-18, D-19 and D-20 are not re-litigated here.
+Locked decisions D-04, D-08, D-17, D-18, D-19 and D-20 are not re-litigated. The mark descriptor is now `writable: true,
+configurable: true` where the iteration-1 suggestion had `false`; that matches what a spread produces and nothing depends on
+immutability, so it is not a finding.
 
 ## Warnings
 
-### WR-01: `stateOf` shows "wired, unnamed" for a defaulted port with no name, hiding "defaulted"
+### WR-01: `markDefault` still breaks a decorator result that has private or internal-slot state, and the docs say it keeps class instances
 
-**File:** `packages/devtools/src/react/ServicesPanel.tsx:281-287`
-**Issue:** `stateOf` tests `port.name === undefined` before `port.defaulted`. Before ARCH-94 an unnamed shape could never be
-defaulted, because `defaulted` was `name !== undefined && isDefaultName(...)`, so the order was harmless. `defaulted` no
-longer depends on the name, and the phase's own row WiringDefaulted `R6` builds exactly this shape: a spread wrapper with
-`name: undefined` around the default reads `defaulted: true` with `name: undefined`. `PortShape.name` is
-`string | undefined`, so the type allows it. The card's state line then reads `wired, unnamed`, the one place the card says
-"defaulted — <name>". The `data-defaulted="true"` attribute, the error colour and the unprefixed consequence line still
-say it. The card's headline state therefore contradicts its own colour: a reader sees "wired" with a fail-closed colour.
-No test renders this combination. `ServicesPanel.test.tsx:70` pins "wired, unnamed" only for a non-defaulted port, and
-`ServicesPanel.reading.test.tsx` only has named ports.
-
-**Fix:** Check `defaulted` first, and say the name is missing rather than dropping the fact:
-```ts
-const stateOf = (port: PortReport): string => {
-  if (!port.present) return port.required ? "not provided to this reader" : "absent";
-  if (port.defaulted === true) return `defaulted — ${port.name ?? "unnamed"}`;
-  return port.name ?? "wired, unnamed";
-};
-```
-Add a `ServicesPanel` row: a report with `defaulted: true, name: undefined` renders `defaulted — unnamed`. Keep BEH-QD-215's
-"an unnamed implementation MUST be reported as unnamed" true by that text.
-
-### WR-02: "total over any value" is claimed as a MUST, but `isMarkedDefault` throws on a Proxy whose descriptor trap throws
-
-**File:** `packages/core/src/PortDefault.ts:29-38`; `spec/behaviors/25-inspection.md` (BEH-QD-571, third requirement);
-`spec/invariants.md` (INV-QD-339 Source); `spec/overview.md` (`isPortDefault` row); `spec/decisions/160-...md` (Consequences)
-**Issue:** The code comment, BEH-QD-571 ("MUST be total over any value"), INV-QD-339 and the `overview.md` row all say the reader
-is total. `Object.getOwnPropertyDescriptor(proxy, sym)` runs the proxy's `getOwnPropertyDescriptor` trap, and a throwing trap
-(or a revoked proxy) throws. Confirmed in node. ADR-QD-160's Consequences then accept exactly this ("A hostile `Proxy`
-service whose descriptor trap throws makes the devtools wiring read fail (T-47-11, accepted)"), so the normative documents
-contradict each other. The effect matters: `wiringReport` is typed `Effect<WiringReport>` with an empty error channel,
-and BEH-QD-215 says it must run with no layer, so a throw inside the `Effect.map` becomes a defect in a diagnostic that
-cannot otherwise fail. The M7 row, the only totality pin, tests six non-proxy values.
-
-**Fix:** Make the claim true, which costs two lines, and pin it:
-```ts
-export const isMarkedDefault = (port: PortName, service: unknown): boolean => {
-  if (typeof service !== "object" || service === null) return false;
-  try {
-    return Object.getOwnPropertyDescriptor(service, DEFAULT_OF)?.value === port;
-  } catch {
-    return false; // a hostile proxy is not the default; the reader must not throw
-  }
-};
-```
-Add `new Proxy({}, { getOwnPropertyDescriptor() { throw new Error("trap") } })` and a revoked proxy to M7, and remove the
-"accepted" bullet from ADR-QD-160. If the throw is kept instead, drop "total" and "MUST be total" from all four places.
-
-### WR-03: `markDefault` rebuilds the shape with a spread, which loses a class-based shape's prototype methods
-
-**File:** `packages/core/src/PortDefault.ts:24-27`, reached from `packages/core/src/Ports.ts:337`
-**Issue:** `markDefault` returns `{ ...shape, [DEFAULT_OF]: port }`. For `nonePort` and `wrapPort` the shape is a plain
-object from `d.make`, so this is harmless. `decoratePorts` is public, and `carryDefault(d.port, inner, f(d, inner))` copies
-whatever `f` returns. If `f` returns a class instance (methods on the prototype, a natural way to write a decorating
-adapter), the spread keeps only own enumerable properties, so `resolve` becomes `undefined`. Confirmed in node: a class
-instance's method is a function and `{...instance}` has no such method. This happens only when `inner` is the default, so it
-passes every test that uses real adapters and fails in the one wiring that is the library's fail-closed default, as
-`TypeError: resolve is not a function` at evaluation, which is a defect, not a deny. Getters are also evaluated once and
-frozen into a value.
-
-**Fix:** Mark without rebuilding the object's own shape:
-```ts
-export const markDefault = <N extends PortName, Shape extends object>(
-  port: N,
-  shape: Shape,
-): Shape & DefaultMark<N> =>
-  Object.create(Object.getPrototypeOf(shape), {
-    ...Object.getOwnPropertyDescriptors(shape),
-    [DEFAULT_OF]: { value: port, enumerable: true, writable: false, configurable: false },
-  });
-```
-Check that the signature type-checks without `as` (a `Reflect`-free overload or a typed `Object.create` wrapper), or have
-`decoratePorts` document that `f` must return a plain object. Add a `decoratePorts` row whose `f` returns a class instance
-around a default.
-
-### WR-04: BEH-QD-571's "MUST NOT carry the mark" list is pinned for one port and one kind of double
-
-**File:** `packages/core/test/PortDefault.test.ts:65-73` (M2); `spec/behaviors/25-inspection.md` (BEH-QD-571 fourth requirement);
-`spec/traceability.md` (the `PortDefault.test.ts` row)
-**Issue:** BEH-QD-571 says "A scripted double, a remote asker, a replay and a fixture MUST NOT carry the mark". The suite
-tests a scripted double for `AttributeResolver` only (M2). There is no row for `askRemotely` (`PortRemote.ts:140`), a
-replay or `replyTable` double, or a fixture built from a record, and no row for a scripted double on the other four ports.
-Nothing guards a future refactor that routes one of these through `nonePort` or `wrapPort` of a default (for example,
-building a replay as `wrapPort(none)`), which would make a real, answering port read as the fail-closed default. This is the
-unsafe direction for a diagnostic: it tells the operator a wired store is the stub. The traceability row presents the
-requirement as pinned.
-
-**Fix:** Add `forEveryPort` rows asserting `isPortDefault(d, shape)` is false for `scriptedPort(d, () => PortReply.answer(...))`,
-for the port's remote asker, for a `replyTable` replay, and for its fixture layer when one exists. Or narrow BEH-QD-571
-and the traceability row to the cases that are tested.
-
-## Info
-
-### IN-01: The "nobody outside core can forge the mark" claim overstates; the symbol is readable off any default
-
-**File:** `packages/core/src/PortDefault.ts:5-8`; `spec/behaviors/25-inspection.md` (BEH-QD-572, "so that nothing outside the module that sets it can forge one");
-`spec/decisions/160-...md` Decision 2 ("Nothing outside core can forge the mark")
-**Issue:** The mark is an own, enumerable, symbol-keyed property, so `Object.getOwnPropertySymbols(defaultShape)[0]` returns
-the key and `{ [key]: "AttributeResolver", ...realAdapter }` then reads as defaulted. The test file does exactly this in M8.
-A wrapper that spreads the default and replaces the method (documented as a limit in BEH-QD-572) is the same forgery by
-accident. The unique `Symbol` does stop `Symbol.for` minting and a guess of the key, but not reading it off a live default.
-The mark is a diagnostic label that no evaluation reads, so there is no security consequence, but "cannot forge" is stronger
-than what holds, and it should not be read as an integrity guarantee.
-
-**Fix:** Reword in the three places to "cannot be minted without first having a default in hand (a spread keeps it, a
-guess does not)", and say that it labels a diagnostic and guards nothing.
-
-### IN-02: `decoratePorts` stamps the mark on whatever `f` returns, so a decorator that replaces the shape still reads defaulted
-
-**File:** `packages/core/src/Ports.ts:337`; `spec/behaviors/25-inspection.md` (BEH-QD-571, second requirement)
-**Issue:** `carryDefault(d.port, inner, f(d, inner))` marks the result whenever `inner` is the default, regardless of whether
-`f` used `inner` at all. A decorator that swaps in a different real implementation for a defaulted slot (for example a
-test harness installing a store behind a default) reads defaulted afterwards. This is the same "built from the default's
-shape" limit BEH-QD-572 states for hand-written wrappers, but BEH-QD-571 says "carry the mark exactly when the inner shape
-has it", which reads as a property of the derivations, not of the decorator's behaviour. The upgrade guide and ADR list the
-spread-and-replace limit but not this one for `decoratePorts`.
-
-**Fix:** Add one sentence to BEH-QD-571 and the upgrade-guide entry: `decoratePorts` carries the mark by the slot it
-decorates, not by what `f` returns. Or have it carry only when `f`'s result is derived from `inner` (not checkable), in
-which case the sentence is the right fix.
+**File:** `packages/core/src/PortDefault.ts:24-33`; `spec/behaviors/25-inspection.md` (BEH-QD-571, "Marking copies the shape
+with its prototype and its own descriptors, so a decorator that returns a class instance or a delegating object keeps the
+methods it inherits")
+**Issue:** The fix copies the shape with `Object.create(getPrototypeOf(shape), getOwnPropertyDescriptors(shape) + mark)`. That
+is a new object, not the original, so any state that lives outside own properties is not carried: ES `#private` fields and
+built-in internal slots (`Map`, `Set`, `Date`, a `Promise`-like) belong to the original instance. A decorator that returns an
+instance of a class using `#private` state, the idiomatic way to write a class-based adapter, therefore fails once the slot
+held the default. Verified in node: a class with `#x` and a method `resolve() { return this.#x }`, copied this way, throws
+`TypeError: Cannot read private member #x from an object whose class did not declare it` when `resolve()` is called on the
+copy. This happens only when `inner` is the default, so it passes every test with real adapters and surfaces in the library's
+fail-closed wiring as a `TypeError` defect at evaluation, not a deny. That is the same failure mode WR-03 reported, only
+narrowed from "any class instance" to "a class with private or internal-slot state". W10 uses `Object.create(inner)`, which
+has no such state, and the source comment and BEH-QD-571 state the guarantee for "a class instance" without the limit.
+**Fix:** Either make the claim true or state the limit. The smallest change is the limit: in the `markDefault` doc comment, in
+BEH-QD-571 and in the 0.13 upgrade entry, say that the mark is set on a copy built from the result's prototype and own
+properties, so a decorator must return an object whose methods do not depend on `#private` fields or internal slots (return a
+plain record or a prototype-delegating object, as `d.make` does). To make it true, set the mark on a delegating wrapper that
+keeps the original as `this`, which is more machinery; or have `decoratePorts` mark `f`'s result in place when it is
+extensible and not shared with `inner`, falling back to the copy. Add a `decoratePorts` row whose decorator returns an
+instance with a `#private` field around a default, red before and green after, or a documented-limit row asserting the
+`TypeError`, so the limit is pinned either way.
 
 ---
 
-_Reviewed: 2026-11-16T02:00:00Z_
+_Reviewed: 2026-11-16T04:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
