@@ -21,31 +21,44 @@
  * view cannot answer and the second can — and the lens can point at the place
  * the button is not.
  */
-import type { CSSProperties, FC } from "react";
-import { useEffect, useMemo, useRef } from "react";
+import * as Match from "effect/Match";
+import type { CSSProperties, FC, ReactNode } from "react";
+import { useEffect, useRef } from "react";
 import type { Resource } from "@qadi/core";
 import { policyLabel } from "../model/Catalogue.ts";
 import { isUnsampled } from "../model/DiagnosticsFeed.ts";
-import type { AskedQuestionLike, GateGroup, GateInstanceLike } from "../model/Gates.ts";
-import {
-  displayOfGateState,
-  gateGroups,
-  instancesAsking,
-  isLocatable,
-  locatableIds,
+import type { ExternalStore } from "../model/ExternalStore.ts";
+import type {
+  GateInstanceLike,
+  GatesView,
+  QuestionRow,
+  QuestionsSnapshot,
+  QuestionsView,
 } from "../model/Gates.ts";
+import { displayOfGateState, isLocatable, locatableIds } from "../model/Gates.ts";
 import type { HydrationActivity } from "../model/Hydration.ts";
 import { unaccountedEntries } from "../model/Hydration.ts";
 import { DiagnosticsNotice, diagnosticsRootProps } from "./DiagnosticsNotice.tsx";
 import type { DiagnosticsNoticeProps } from "./DiagnosticsNotice.tsx";
 import { button, colors, font, muted } from "./theme.ts";
 import { useLens } from "./useLens.ts";
+import { useStoreSnapshot } from "./useStoreSnapshot.ts";
 import { treatmentOf } from "./VerdictTreatment.ts";
 
 export type { AskedQuestionLike } from "../model/Gates.ts";
 
 export interface QuestionsPanelProps {
-  readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
+  /**
+   * The dock model's readout: one snapshot of the asked questions joined with the guards asking them.
+   *
+   * The model reads the question source and the gate registry at one moment, so a
+   * row never pairs a question from one moment with a guard from another. A guard
+   * registry handed over absent, or listing nothing because the provider is not
+   * instrumented, is the snapshot's `gates` view, and those two states are
+   * distinguished because one is a missing prop and the other a missing prop
+   * **on the provider**, with different fixes.
+   */
+  readonly questions: Pick<ExternalStore<QuestionsSnapshot>, "subscribe" | "getSnapshot">;
   /**
    * Read with `hydrationActivity`, which needs no wiring at all.
    *
@@ -55,15 +68,6 @@ export interface QuestionsPanelProps {
    * supplied.
    */
   readonly hydration?: HydrationActivity | undefined;
-  /**
-   * The live guards, usually `useGateInstances()` or `atoms.gates.instances()` from `@qadi/react`.
-   *
-   * Absent, or empty because the provider is not instrumented, and the panel
-   * shows only what has been asked and says how to see who is asking. Those two
-   * states are distinguished, because one is a missing prop and the other is a
-   * missing prop **on the provider** and they have different fixes.
-   */
-  readonly gates?: ReadonlyArray<GateInstanceLike> | undefined;
   /** Wired to `useInvalidate`. Absent means the button is not shown. */
   readonly onInvalidate?: (() => void) | undefined;
   /**
@@ -77,6 +81,11 @@ export interface QuestionsPanelProps {
 /** What the hydration block reads before any sample was taken. */
 const NO_COUNTS_YET = "no counts read yet.";
 
+const GATES_ABSENT_TEXT =
+  "No live guards were handed to the dock. Pass gates — usually atoms.gates, from @qadi/react — to list who is asking.";
+const GATES_EMPTY_TEXT =
+  "No guard is registered. Pass instrument to QadiProvider to let them say that they exist.";
+
 const row: CSSProperties = {
   display: "flex",
   gap: 8,
@@ -88,15 +97,13 @@ const row: CSSProperties = {
 export const QuestionsPanel: FC<QuestionsPanelProps> = ({
   questions,
   hydration,
-  gates,
   onInvalidate,
   diagnostics,
 }) => {
   const unsampled = isUnsampled(diagnostics.status);
-  const instances = useMemo(() => gates ?? [], [gates]);
-  const groups = useMemo(() => gateGroups(instances), [instances]);
+  const snapshot = useStoreSnapshot(questions);
 
-  const lens = useLens(instances);
+  const lens = useLens(snapshot.instances);
 
   return (
     <div {...diagnosticsRootProps(diagnostics.status)} data-testid="qadi-questions">
@@ -111,38 +118,9 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
         the evaluator sees. The guards asking each question are listed underneath.
       </p>
 
-      {instances.length === 0 ? (
-        <p style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-gates-absent">
-          {gates === undefined
-            ? "No live guards were handed to the dock. Pass gates — usually useGateInstances(), or atoms.gates.instances() — to list who is asking."
-            : "No guard is registered. Pass instrument to QadiProvider to let them say that they exist."}
-        </p>
-      ) : (
-        <PickButton lens={lens} />
-      )}
+      {gatesBlock(snapshot.gates)(lens)}
 
-      {questions === undefined ? (
-        unsampled ? null : (
-          <p style={muted} data-testid="qadi-questions-absent">
-            No atom set was handed to the dock. Pass <code>questions</code> — usually{" "}
-            <code>atoms.asked()</code> — to list what has been asked.
-          </p>
-        )
-      ) : questions.length === 0 ? (
-        <p style={muted} data-testid="qadi-questions-empty">
-          Nothing has been asked yet. A question appears here the first time a
-          component reads its decision.
-        </p>
-      ) : (
-        questions.map((question, index) => (
-          <Question
-            key={`${policyLabel(question.policy)}-${index}`}
-            question={question}
-            groups={groups}
-            lens={lens}
-          />
-        ))
-      )}
+      {questionsBlock(snapshot.questions)(lens)}
 
       <Hydration activity={hydration} unsampled={unsampled} />
 
@@ -160,14 +138,60 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
   );
 };
 
+type Lens = ReturnType<typeof useLens>;
+
+const gatesNote = (text: string) => (): ReactNode => (
+  <p style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-gates-absent">
+    {text}
+  </p>
+);
+
+/** The gates block for one view, built once; a new view is a compile error here. */
+const gatesBlock: (view: GatesView) => (lens: Lens) => ReactNode = Match.type<GatesView>().pipe(
+  Match.tagsExhaustive({
+    Absent: () => gatesNote(GATES_ABSENT_TEXT),
+    Empty: () => gatesNote(GATES_EMPTY_TEXT),
+    Listed: () => (lens: Lens) => <PickButton lens={lens} />,
+    // The precedent's wording and colour: `ServicesPanel`'s `qadi-wiring-failed`.
+    Failed: ({ reason }) => () => (
+      <p style={{ ...muted, color: colors.error }} data-testid="qadi-gates-failed">
+        The registry handed to the dock threw, so who is asking cannot be shown: {reason}
+      </p>
+    ),
+  }),
+);
+
+/** The questions block for one view, built once; a new view is a compile error here. */
+const questionsBlock: (view: QuestionsView) => (lens: Lens) => ReactNode = Match.type<QuestionsView>().pipe(
+  Match.tagsExhaustive({
+    Unsampled: () => () => null,
+    Absent: () => () => (
+      <p style={muted} data-testid="qadi-questions-absent">
+        No atom set was handed to the dock. Pass <code>questions</code> — usually{" "}
+        <code>atoms.asked()</code> — to list what has been asked.
+      </p>
+    ),
+    Empty: () => () => (
+      <p style={muted} data-testid="qadi-questions-empty">
+        Nothing has been asked yet. A question appears here the first time a
+        component reads its decision.
+      </p>
+    ),
+    Rows: (view) => (lens: Lens) =>
+      view.rows.map((entry, index) => (
+        <Question key={`${policyLabel(entry.question.policy)}-${index}`} entry={entry} lens={lens} />
+      )),
+  }),
+);
+
 /** One question, and the guards currently asking it. */
 const Question: FC<{
-  readonly question: AskedQuestionLike;
-  readonly groups: ReadonlyArray<GateGroup>;
-  readonly lens: ReturnType<typeof useLens>;
-}> = ({ question, groups, lens }) => {
-  const asking = instancesAsking(groups, question.policy, question.resource);
-  const locatable = asking.filter(isLocatable);
+  readonly entry: QuestionRow;
+  readonly lens: Lens;
+}> = ({ entry, lens }) => {
+  const { question, asking } = entry;
+  // `undefined`: the registry could not be read, so this row says nothing about who is asking.
+  const locatable = (asking ?? []).filter(isLocatable);
 
   return (
     <div data-testid="qadi-question-block">
@@ -176,7 +200,7 @@ const Question: FC<{
         <span style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-question-scope">
           {question.resource === undefined ? "no resource" : resourceOf(question.resource)}
         </span>
-        {asking.length === 0 ? (
+        {asking === undefined ? null : asking.length === 0 ? (
           <span style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-question-unmounted">
             {/* Not an error. A component that asked and then unmounted leaves
                 its question behind in the atom layer. */}
@@ -202,7 +226,7 @@ const Question: FC<{
         )}
       </div>
 
-      {asking.map((instance) => (
+      {(asking ?? []).map((instance) => (
         <InstanceRow key={instance.id} instance={instance} picked={lens.picked === instance.id} />
       ))}
     </div>
@@ -257,7 +281,7 @@ const InstanceRow: FC<{
   );
 };
 
-const PickButton: FC<{ readonly lens: ReturnType<typeof useLens> }> = ({ lens }) => (
+const PickButton: FC<{ readonly lens: Lens }> = ({ lens }) => (
   <div style={{ marginBottom: 6 }}>
     <button
       type="button"

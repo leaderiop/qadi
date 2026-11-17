@@ -24,6 +24,13 @@
  * here is a plain {@link Refused} value, not an error; nothing outside this
  * module ever constructs or inspects a failure from it.
  *
+ * **A construction refusal is not a tripped breaker.** `makeCircuitBreaker` fails
+ * with `InvalidAuditSinkOption` when `failureThreshold` is not a positive safe
+ * integer or `resetTimeoutMs` is not a finite, positive, whole number of
+ * milliseconds within the safe integers, so every breaker that exists can open
+ * and close (ARCH-92,
+ * ADR-QD-158); refusing a write is still the plain {@link Refused} value.
+ *
  * The state machine's shape was never HexDi's defect, only its wiring and its
  * `Date.now()` usage were — kept as-is: `closed → open` after
  * `failureThreshold` consecutive failures, `open → half-open` after
@@ -42,17 +49,23 @@
  */
 import * as Clock from "effect/Clock";
 import * as Data from "effect/Data";
-import * as Duration from "effect/Duration";
+import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
+import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import * as Record from "effect/Record";
 import * as Ref from "effect/Ref";
+import { checkFailureThreshold, checkResetTimeoutMs } from "./SinkOptionChecks.ts";
 
 export type CircuitBreakerStatus = "Closed" | "Open" | "HalfOpen";
 
 export interface CircuitBreakerOptions {
+  /**
+   * A positive safe integer of consecutive failures before the breaker opens;
+   * anything else is refused with `InvalidAuditSinkOption` when the breaker is built.
+   */
   readonly failureThreshold: number;
   /**
    * `Duration.Input`, not a bare `number` — `@qadi/http`'s `DecisionStreamOptions.reauth.interval`
@@ -60,6 +73,12 @@ export interface CircuitBreakerOptions {
    * `Ms`-suffixed name for source compatibility (every existing caller
    * passing a plain millisecond number is still valid `Duration.Input`,
    * unchanged); only the type widened.
+   *
+   * Finite, positive and a whole number of milliseconds, at most
+   * `Number.MAX_SAFE_INTEGER`; anything else is refused with
+   * `InvalidAuditSinkOption` when the breaker is built. A plain number is
+   * tested for being whole; a string or `Duration` is read to the nanosecond,
+   * as `Duration` keeps it, and must come to whole milliseconds.
    */
   readonly resetTimeoutMs: Duration.Input;
 }
@@ -140,21 +159,175 @@ export interface CircuitBreaker {
  * permit captures the generation it was admitted under, and its outcome counts
  * only while that generation is current (see {@link CircuitBreaker.withPermit}).
  */
-class StateClosed extends Data.TaggedClass("Closed")<{
+export class StateClosed extends Data.TaggedClass("Closed")<{
   readonly generation: number;
   readonly consecutiveFailures: number;
 }> {}
-class StateOpen extends Data.TaggedClass("Open")<{
+export class StateOpen extends Data.TaggedClass("Open")<{
   readonly generation: number;
   readonly openedAt: number;
 }> {}
-class StateHalfOpen extends Data.TaggedClass("HalfOpen")<{
+export class StateHalfOpen extends Data.TaggedClass("HalfOpen")<{
   readonly generation: number;
   readonly halfOpenAt: number;
   /** See {@link CircuitBreaker.withPermit}. */
   readonly probeClaimed: boolean;
 }> {}
-type State = StateClosed | StateOpen | StateHalfOpen;
+export type State = StateClosed | StateOpen | StateHalfOpen;
+
+/** Every event is one of these five; `Observe` and `Claim` act on the current state and carry nothing. */
+export class Observe extends Data.TaggedClass("Observe")<Record<never, never>> {}
+/** A permit's write succeeded; counts only while `generation` is the window the permit was admitted under. */
+export class Success extends Data.TaggedClass("Success")<{ readonly generation: number }> {}
+/** A permit's write failed; counts only while `generation` is the window the permit was admitted under. */
+export class Failure extends Data.TaggedClass("Failure")<{ readonly generation: number }> {}
+/** A caller asks for the half-open window's one probe. */
+export class Claim extends Data.TaggedClass("Claim")<Record<never, never>> {}
+/** A probe's claim is given back unsettled; counts only while `generation` is the window that held it. */
+export class Release extends Data.TaggedClass("Release")<{ readonly generation: number }> {}
+export type Event = Observe | Success | Failure | Claim | Release;
+
+export interface Rules {
+  readonly failureThreshold: number;
+  readonly resetTimeoutMillis: number;
+}
+
+export interface Transition {
+  readonly next: State;
+  /** The status entered, exactly when the status changed; `undefined` otherwise. */
+  readonly announced: CircuitBreakerStatus | undefined;
+}
+
+/** A status to enter (the generation bumps) or the state that replaces this one (it does not). */
+type Move = CircuitBreakerStatus | State;
+type Arm = (now: number, rules: Rules) => Move;
+type Decide = (state: State, now: number, rules: Rules) => Move;
+
+/**
+ * Builds the state a status change enters, keyed by status.
+ *
+ * A `Record<CircuitBreakerStatus, …>`, the closed-record idiom of
+ * {@link CIRCUIT_BREAKER_STATUSES_BY_STATUS}: a fourth status without an entry is
+ * TS2741 rather than a state `step` cannot build.
+ */
+const ENTER: Record<CircuitBreakerStatus, (generation: number, now: number) => State> = {
+  Closed: (generation) => new StateClosed({ generation, consecutiveFailures: 0 }),
+  HalfOpen: (generation, now) =>
+    new StateHalfOpen({ generation, halfOpenAt: now, probeClaimed: false }),
+  Open: (generation, now) => new StateOpen({ generation, openedAt: now }),
+};
+
+// Defense in depth alongside the release finalizer (ticket #38 / H4): a
+// half-open window that has outlived `resetTimeoutMillis` without resolving is
+// reopened on the next read, rather than left to wedge forever.
+const observeState: (state: State) => Arm = Match.type<State>().pipe(
+  Match.tagsExhaustive({
+    Closed: (closed): Arm => () => closed,
+    HalfOpen: (halfOpen): Arm => (now, rules) =>
+      now - halfOpen.halfOpenAt < rules.resetTimeoutMillis ? halfOpen : "Open",
+    Open: (open): Arm => (now, rules) =>
+      now - open.openedAt < rules.resetTimeoutMillis ? open : "HalfOpen",
+  }),
+);
+
+const successState: (state: State) => Move = Match.type<State>().pipe(
+  Match.tagsExhaustive({
+    Closed: (closed): Move =>
+      closed.consecutiveFailures === 0
+        ? closed
+        : new StateClosed({ generation: closed.generation, consecutiveFailures: 0 }),
+    HalfOpen: (): Move => "Closed",
+    Open: (open): Move => open,
+  }),
+);
+
+// A no-op while `Open`: a write admitted before the trip and settling after it
+// is not evidence about the store since (ARCH-07 C5, D-07-c).
+const failureState: (state: State) => (rules: Rules) => Move = Match.type<State>().pipe(
+  Match.tagsExhaustive({
+    Open: (open): ((rules: Rules) => Move) => () => open,
+    HalfOpen: (): ((rules: Rules) => Move) => () => "Open",
+    Closed: (closed): ((rules: Rules) => Move) => (rules) => {
+      const consecutiveFailures = closed.consecutiveFailures + 1;
+      return consecutiveFailures >= rules.failureThreshold
+        ? "Open"
+        : new StateClosed({ generation: closed.generation, consecutiveFailures });
+    },
+  }),
+);
+
+const claimState: (state: State) => Move = Match.type<State>().pipe(
+  Match.tagsExhaustive({
+    Closed: (closed): Move => closed,
+    Open: (open): Move => open,
+    HalfOpen: (halfOpen): Move =>
+      halfOpen.probeClaimed
+        ? halfOpen
+        : new StateHalfOpen({
+            generation: halfOpen.generation,
+            halfOpenAt: halfOpen.halfOpenAt,
+            probeClaimed: true,
+          }),
+  }),
+);
+
+const releaseState: (state: State) => Move = Match.type<State>().pipe(
+  Match.tagsExhaustive({
+    Closed: (closed): Move => closed,
+    Open: (open): Move => open,
+    HalfOpen: (halfOpen): Move => (halfOpen.probeClaimed ? "Open" : halfOpen),
+  }),
+);
+
+const decide: (event: Event) => Decide = Match.type<Event>().pipe(
+  Match.tagsExhaustive({
+    Observe: (): Decide => (state, now, rules) => observeState(state)(now, rules),
+    Success: (): Decide => (state) => successState(state),
+    Failure: (): Decide => (state, _now, rules) => failureState(state)(rules),
+    Claim: (): Decide => (state) => claimState(state),
+    Release: (): Decide => (state) => releaseState(state),
+  }),
+);
+
+/** The generation an event was admitted under; `undefined` for an event that acts on the current state. */
+const admittedUnder: (event: Event) => number | undefined = Match.type<Event>().pipe(
+  Match.tagsExhaustive({
+    Observe: () => undefined,
+    Claim: () => undefined,
+    Success: (e) => e.generation,
+    Failure: (e) => e.generation,
+    Release: (e) => e.generation,
+  }),
+);
+
+/**
+ * One event's effect on the breaker: the next state, and the status it announces when that changed.
+ *
+ * Before ARCH-92 five `Ref.modify` bodies each restated the stale-generation
+ * check, the generation bump, the state rebuild and the announcement. Here the
+ * stale check is {@link admittedUnder}, the bump is written once, through
+ * {@link ENTER}, so a status change and its announcement cannot disagree
+ * (ADR-QD-158). An event that changes nothing answers the state it was given,
+ * reference-equal. `step` never reads the clock: `now` is an argument.
+ */
+export const step =
+  (rules: Rules) =>
+  (state: State, event: Event, now: number): Transition => {
+    const admitted = admittedUnder(event);
+    if (admitted !== undefined && admitted !== state.generation) {
+      return { next: state, announced: undefined };
+    }
+    const move = decide(event)(state, now, rules);
+    return typeof move === "string"
+      ? { next: ENTER[move](state.generation + 1, now), announced: move }
+      : { next: move, announced: undefined };
+  };
+
+/** What one event did, as `run` answers it: the state it found and the state it left. */
+interface Moved {
+  readonly before: State;
+  readonly next: State;
+}
 
 /**
  * Every `CircuitBreakerStatus` — {@link transitionsTotal}'s closed domain.
@@ -218,165 +391,73 @@ const announceTransition = (to: CircuitBreakerStatus): Effect.Effect<void> =>
 export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(function* (
   options: CircuitBreakerOptions,
 ) {
-  // Decoded once, here, rather than on every `Ref.modify` comparison below:
-  // `Duration.toMillis` is cheap, but `status` runs on every `record()` call,
-  // and the plain `Ref.modify` callback it runs inside is not the place to
-  // re-decode a caller-supplied `Duration.Input` on each read.
-  const resetTimeoutMillis = Duration.toMillis(options.resetTimeoutMs);
+  const failureThreshold = yield* checkFailureThreshold(options.failureThreshold);
+
+  // Decoded and checked once, here, rather than in every transition: `status` runs
+  // on every `record()` call, and `step` is not the place to re-decode a
+  // caller-supplied `Duration.Input` on each read.
+  const resetTimeoutMillis = yield* checkResetTimeoutMs(options.resetTimeoutMs);
 
   const ref = yield* Ref.make<State>(new StateClosed({ generation: 0, consecutiveFailures: 0 }));
 
+  const transition = step({ failureThreshold, resetTimeoutMillis });
+
   /**
-   * Every transition below reads and writes `ref` through a single
-   * `Ref.modify` call rather than a separate `Ref.get` followed by a later
-   * `Ref.set` — the two-step form lets two fibers both read the same stale
-   * state before either writes back, losing an update or double-counting a
+   * Applies one event to `ref` through `step`: every event reads and writes `ref`
+   * through a single `Ref.modify` call rather than a separate `Ref.get` followed
+   * by a later `Ref.set` — the two-step form lets two fibers both read the same
+   * stale state before either writes back, losing an update or double-counting a
    * transition under concurrent `record()` calls (`Qadi.ts`'s `filter`/
    * `filterStream` evaluate items concurrently, so this is a real, not
    * hypothetical, caller shape). `Ref.modify` performs the read-compute-write
    * as one atomic step, which is what actually closes the race rather than
-   * just narrowing its window.
+   * just narrowing its window (INV-QD-052).
    */
+  const run = (event: Event): Effect.Effect<Moved> =>
+    Effect.gen(function* () {
+      const now = yield* Clock.currentTimeMillis;
+      const [moved, announced] = yield* Ref.modify(
+        ref,
+        (before): readonly [readonly [Moved, CircuitBreakerStatus | undefined], State] => {
+          const { next, announced } = transition(before, event, now);
+          return [[{ before, next }, announced], next];
+        },
+      );
+      if (announced !== undefined) yield* announceTransition(announced);
+      return moved;
+    });
+
   type Observed = readonly [CircuitBreakerStatus, number];
-  type Observation = readonly [readonly [Observed, boolean], State];
-  const observe: Effect.Effect<Observed> = Effect.gen(function* () {
-    const now = yield* Clock.currentTimeMillis;
-    const [observed, justTransitioned] = yield* Ref.modify(
-      ref,
-      (state): Observation =>
-        Match.value(state).pipe(
-          Match.tagsExhaustive({
-            Closed: (closed): Observation => [[[closed._tag, closed.generation], false], closed],
-            // Defense in depth alongside the release finalizer (ticket #38 /
-            // H4): a half-open window that has outlived `resetTimeoutMs`
-            // without resolving is reopened here too, on the next status
-            // read, rather than left to wedge forever.
-            HalfOpen: (halfOpen): Observation =>
-              now - halfOpen.halfOpenAt < resetTimeoutMillis
-                ? [[[halfOpen._tag, halfOpen.generation], false], halfOpen]
-                : [
-                    [["Open", halfOpen.generation + 1], true],
-                    new StateOpen({ generation: halfOpen.generation + 1, openedAt: now }),
-                  ],
-            Open: (open): Observation =>
-              now - open.openedAt < resetTimeoutMillis
-                ? [[[open._tag, open.generation], false], open]
-                : [
-                    [["HalfOpen", open.generation + 1], true],
-                    new StateHalfOpen({
-                      generation: open.generation + 1,
-                      halfOpenAt: now,
-                      probeClaimed: false,
-                    }),
-                  ],
-          }),
-        ),
-    );
-    if (justTransitioned) yield* announceTransition(observed[0]);
-    return observed;
-  });
+  const observe: Effect.Effect<Observed> = run(new Observe()).pipe(
+    Effect.map(({ next }): Observed => [next._tag, next.generation]),
+  );
 
   const status: Effect.Effect<CircuitBreakerStatus> = Effect.map(observe, ([current]) => current);
 
   // Each outcome applies only while `generation` is still the one its permit
   // was admitted under (D-07-d); otherwise it is left unchanged.
   const recordSuccess = (generation: number): Effect.Effect<void> =>
-    Effect.gen(function* () {
-      const closedNow = yield* Ref.modify(
-        ref,
-        (state): readonly [boolean, State] =>
-          state.generation !== generation
-            ? [false, state]
-            : Match.value(state).pipe(
-                Match.tagsExhaustive({
-                  Closed: (closed): readonly [boolean, State] => [
-                    false,
-                    new StateClosed({ generation: closed.generation, consecutiveFailures: 0 }),
-                  ],
-                  HalfOpen: (halfOpen): readonly [boolean, State] => [
-                    true,
-                    new StateClosed({
-                      generation: halfOpen.generation + 1,
-                      consecutiveFailures: 0,
-                    }),
-                  ],
-                  Open: (open): readonly [boolean, State] => [false, open],
-                }),
-              ),
-      );
-      if (closedNow) yield* announceTransition("Closed");
-    });
+    run(new Success({ generation })).pipe(Effect.asVoid);
 
   const recordFailure = (generation: number): Effect.Effect<void> =>
-    Effect.gen(function* () {
-      const now = yield* Clock.currentTimeMillis;
-      const openedNow = yield* Ref.modify(
-        ref,
-        (state): readonly [boolean, State] =>
-          state.generation !== generation
-            ? [false, state]
-            : Match.value(state).pipe(
-                Match.tagsExhaustive({
-                  // A no-op while `Open`: a write admitted before the trip and
-                  // settling after it is not evidence about the store since
-                  // (ARCH-07 C5, D-07-c). The generation check above already
-                  // covers it; this arm keeps the dispatch exhaustive.
-                  Open: (open): readonly [boolean, State] => [false, open],
-                  HalfOpen: (halfOpen): readonly [boolean, State] => [
-                    true,
-                    new StateOpen({ generation: halfOpen.generation + 1, openedAt: now }),
-                  ],
-                  Closed: (closed): readonly [boolean, State] => {
-                    const consecutiveFailures = closed.consecutiveFailures + 1;
-                    return consecutiveFailures >= options.failureThreshold
-                      ? [true, new StateOpen({ generation: closed.generation + 1, openedAt: now })]
-                      : [
-                          false,
-                          new StateClosed({ generation: closed.generation, consecutiveFailures }),
-                        ];
-                  },
-                }),
-              ),
-      );
-      if (openedNow) yield* announceTransition("Open");
-    });
+    run(new Failure({ generation })).pipe(Effect.asVoid);
 
-  // Atomic with the check: a second concurrent caller reading `undefined` here
-  // must never be able to observe `probeClaimed` still false a moment later,
-  // or two callers could both believe they hold the one probe slot. Returns
-  // the window's generation when the claim is won.
-  const claimProbe: Effect.Effect<number | undefined> = Ref.modify(
-    ref,
-    (state): readonly [number | undefined, State] =>
-      state._tag !== "HalfOpen" || state.probeClaimed
-        ? [undefined, state]
-        : [
-            state.generation,
-            new StateHalfOpen({
-              generation: state.generation,
-              halfOpenAt: state.halfOpenAt,
-              probeClaimed: true,
-            }),
-          ],
+  // The claim is one step: the check and the claim are one atomic `Ref.modify`, so
+  // two concurrent callers cannot both believe they hold the one probe slot. Won
+  // exactly when the state changed; answers the window's generation then.
+  const claimProbe: Effect.Effect<number | undefined> = run(new Claim()).pipe(
+    Effect.map(({ before, next }): number | undefined =>
+      Equal.equals(before, next) ? undefined : next.generation,
+    ),
   );
 
   // Guarded so a finalizer that runs after the probe already settled has
   // nothing left to undo: a genuinely new half-open window is only ever
   // reachable after `recordSuccess`/`recordFailure` has already moved on, and
-  // the generation check means this call cannot steal a *different* window's
-  // claim.
+  // `step`'s generation check means this call cannot steal a *different*
+  // window's claim.
   const releaseProbe = (generation: number): Effect.Effect<void> =>
-    Effect.gen(function* () {
-      const now = yield* Clock.currentTimeMillis;
-      const reopened = yield* Ref.modify(
-        ref,
-        (state): readonly [boolean, State] =>
-          state._tag !== "HalfOpen" || !state.probeClaimed || state.generation !== generation
-            ? [false, state]
-            : [true, new StateOpen({ generation: state.generation + 1, openedAt: now })],
-      );
-      if (reopened) yield* announceTransition("Open");
-    });
+    run(new Release({ generation })).pipe(Effect.asVoid);
 
   const admit = Effect.gen(function* (): Effect.fn.Return<Permit> {
     const [initialStatus, initialGeneration] = yield* observe;

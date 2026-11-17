@@ -19,9 +19,11 @@ import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import { reportEncodeRefusal } from "@qadi/core";
-import type { AuditEntryNotEncodable } from "./AuditEntry.ts";
+import type { SinkRecordNotEncodable } from "@qadi/core";
 import type { AuditStagingError } from "./AuditStagingPort.ts";
 import type { AuditWriteOutcome, UnwrittenStaging, WrittenStaging } from "./AuditWriteOutcome.ts";
+import { unwrittenRow } from "./UnwrittenRow.ts";
+import type { LostWord } from "./UnwrittenRow.ts";
 
 /** `qadi_audit_writes_total`'s `outcome` values. */
 export type WritesLabel = "encode_failed" | "written" | "write_failed" | "skipped_open";
@@ -32,7 +34,7 @@ export type StagingLabel = "staged" | "failed" | "skipped_open" | "failed_open" 
 /** `qadi_audit_entries_lost_total`'s labels: what stopped the write, and what staging did. */
 export interface LostLabel {
   readonly after: "write_failed" | "skipped_open";
-  readonly staging: "not_wired" | "failed";
+  readonly staging: LostWord;
 }
 
 /** One log line: the level, the exact message, and the cause appended to it, if any. */
@@ -43,26 +45,30 @@ export interface LogLine {
 }
 
 /**
- * What one outcome reports. `log` is `"encodeRefusal"` for a refused record,
- * which goes through `@qadi/core`'s `reportEncodeRefusal` (ARCH-25) rather than
- * a line of this package's own.
+ * What one outcome reports. `log` is this package's own line, if any: a refused
+ * record has none, because `emitWriteOutcome` hands it to `@qadi/core`'s
+ * `reportEncodeRefusal` (ARCH-25), and that match is the one place saying so.
  */
 export interface AuditWriteReport {
   readonly writes: WritesLabel;
   readonly staging: ReadonlyArray<StagingLabel>;
   readonly lost: LostLabel | undefined;
-  readonly log: LogLine | "encodeRefusal" | undefined;
+  readonly log: LogLine | undefined;
 }
 
 interface StagingReport {
   readonly staging: ReadonlyArray<StagingLabel>;
-  readonly log: LogLine | "encodeRefusal" | undefined;
+  readonly log: LogLine | undefined;
 }
 
-const DROPPED_BREAKER_UNWIRED = "audit entry dropped: circuit breaker open and no staging port wired";
-const DROPPED_BREAKER_STAGE_FAILED = "audit entry dropped: circuit breaker open and staging failed";
-const DROPPED_WRITE_UNWIRED = "audit entry dropped: trail write failed and no staging port wired";
-const DROPPED_WRITE_STAGE_FAILED = "audit entry dropped: trail write failed and staging failed";
+/** What stopped the trail write, as an unwritten line words it. */
+type NotWrittenBecause = "trail write failed" | "circuit breaker open";
+
+/** Why a lost entry's staging could not hold it, keyed by the row's word. */
+const LOST_CLAUSE: Record<LostWord, string> = {
+  not_wired: "no staging port wired",
+  failed: "staging failed",
+};
 const NOT_WRITTEN_STAGED_SUFFIX = "its staged copy is left for reconciliation";
 const COMMIT_FAILED =
   "audit staging commit failed: entry is durable in the trail, but its " +
@@ -79,10 +85,18 @@ const auditReport = (
   staged: StagingReport,
   lost: LostLabel | undefined,
 ): AuditWriteReport => ({ writes, staging: staged.staging, lost, log: staged.log });
-const lostWord = (w: LostLabel["staging"]): LostLabel["staging"] => w;
 
-const warning = (message: string): LogLine => ({ level: "Warn", message, cause: undefined });
-const info = (message: string): LogLine => ({ level: "Info", message, cause: undefined });
+/**
+ * The unwritten line, read from the staging's row: a Lost entry warns that it
+ * was dropped and names the row's word, a StagingOnly one informs that its staged
+ * copy is left (ARCH-95, ADR-QD-161).
+ */
+const unwrittenLine = (because: NotWrittenBecause, staging: UnwrittenStaging): LogLine => {
+  const row = unwrittenRow(staging);
+  return row.durability === "Lost"
+    ? { level: "Warn", message: `audit entry dropped: ${because} and ${LOST_CLAUSE[row.lost]}`, cause: undefined }
+    : { level: "Info", message: `audit entry not written: ${because}; ${NOT_WRITTEN_STAGED_SUFFIX}`, cause: undefined };
+};
 
 const writtenStagingReport: (self: WrittenStaging) => StagingReport = Match.type<WrittenStaging>().pipe(
   Match.tagsExhaustive({
@@ -96,33 +110,23 @@ const writtenStagingReport: (self: WrittenStaging) => StagingReport = Match.type
 
 const writeFailedStagingReport: (self: UnwrittenStaging) => StagingReport = Match.type<UnwrittenStaging>().pipe(
   Match.tagsExhaustive({
-    NotWired: () => stagingReport([], warning(DROPPED_WRITE_UNWIRED)),
-    Staged: () =>
-      stagingReport(["staged"], info(`audit entry not written: trail write failed; ${NOT_WRITTEN_STAGED_SUFFIX}`)),
-    StageFailed: () => stagingReport(["failed"], warning(DROPPED_WRITE_STAGE_FAILED)),
+    NotWired: (s) => stagingReport([], unwrittenLine("trail write failed", s)),
+    Staged: (s) => stagingReport(["staged"], unwrittenLine("trail write failed", s)),
+    StageFailed: (s) => stagingReport(["failed"], unwrittenLine("trail write failed", s)),
   }),
 );
 
 const skippedStagingReport: (self: UnwrittenStaging) => StagingReport = Match.type<UnwrittenStaging>().pipe(
   Match.tagsExhaustive({
-    NotWired: () => stagingReport(["skipped_open"], warning(DROPPED_BREAKER_UNWIRED)),
-    Staged: () =>
-      stagingReport(["staged"], info(`audit entry not written: circuit breaker open; ${NOT_WRITTEN_STAGED_SUFFIX}`)),
-    StageFailed: () => stagingReport(["failed_open"], warning(DROPPED_BREAKER_STAGE_FAILED)),
-  }),
-);
-
-const lostStaging: (self: UnwrittenStaging) => LostLabel["staging"] | undefined = Match.type<UnwrittenStaging>().pipe(
-  Match.tagsExhaustive({
-    NotWired: () => lostWord("not_wired"),
-    Staged: () => undefined,
-    StageFailed: () => lostWord("failed"),
+    NotWired: (s) => stagingReport(["skipped_open"], unwrittenLine("circuit breaker open", s)),
+    Staged: (s) => stagingReport(["staged"], unwrittenLine("circuit breaker open", s)),
+    StageFailed: (s) => stagingReport(["failed_open"], unwrittenLine("circuit breaker open", s)),
   }),
 );
 
 const lostLabel = (after: LostLabel["after"], staging: UnwrittenStaging): LostLabel | undefined => {
-  const stagingLabel = lostStaging(staging);
-  return stagingLabel === undefined ? undefined : { after, staging: stagingLabel };
+  const row = unwrittenRow(staging);
+  return row.durability === "Lost" ? { after, staging: row.lost } : undefined;
 };
 
 /**
@@ -131,7 +135,7 @@ const lostLabel = (after: LostLabel["after"], staging: UnwrittenStaging): LostLa
  */
 export const describeAuditWriteOutcome: (self: AuditWriteOutcome) => AuditWriteReport = Match.type<AuditWriteOutcome>().pipe(
   Match.tagsExhaustive({
-    Refused: () => auditReport("encode_failed", stagingReport([], "encodeRefusal"), undefined),
+    Refused: () => auditReport("encode_failed", stagingReport([], undefined), undefined),
     Written: (o) => auditReport("written", writtenStagingReport(o.staging), undefined),
     WriteFailed: (o) =>
       auditReport("write_failed", writeFailedStagingReport(o.staging), lostLabel("write_failed", o.staging)),
@@ -141,8 +145,11 @@ export const describeAuditWriteOutcome: (self: AuditWriteOutcome) => AuditWriteR
 );
 
 /** The leaf as a closed word — `"Refused"` or `"<Case>.<Staging>"` — for a span attribute. */
-export const outcomePath = (self: AuditWriteOutcome): string =>
-  self._tag === "Refused" ? self._tag : `${self._tag}.${self.staging._tag}`;
+export const outcomePath: (self: AuditWriteOutcome) => string = Match.type<AuditWriteOutcome>().pipe(
+  Match.tag("Refused", (o) => o._tag),
+  Match.tag("Written", "WriteFailed", "Skipped", (o) => `${o._tag}.${o.staging._tag}`),
+  Match.exhaustive,
+);
 
 /**
  * Records received, by what became of them. Every record `record()` is handed
@@ -206,12 +213,23 @@ export const LOST_COUNTERS: Record<LostLabel["after"], Record<LostLabel["staging
 
 /** The caller-supplied hooks `emit` calls. */
 export interface AuditWriteEmitOptions {
-  readonly onRefused: ((refusal: AuditEntryNotEncodable) => void) | undefined;
+  readonly onRefused: ((refusal: SinkRecordNotEncodable) => void) | undefined;
   readonly onOutcome: ((outcome: AuditWriteOutcome) => void) | undefined;
 }
 
-const evaluationIdOf = (outcome: AuditWriteOutcome): string =>
-  outcome._tag === "Refused" ? outcome.refusal.evaluationId : outcome.entry.record.evaluationId;
+const evaluationIdOf: (self: AuditWriteOutcome) => string = Match.type<AuditWriteOutcome>().pipe(
+  Match.tag("Refused", (o) => o.refusal.evaluationId),
+  Match.tag("Written", "WriteFailed", "Skipped", (o) => o.entry.record.evaluationId),
+  Match.exhaustive,
+);
+
+/** Logs one line annotated with the record's `evaluationId`; an absent line logs nothing. */
+const logLine = (line: AuditWriteReport["log"], evaluationId: string): Effect.Effect<void> =>
+  line === undefined
+    ? Effect.void
+    : Effect.logWithLevel(line.level)(...(line.cause === undefined ? [line.message] : [line.message, line.cause])).pipe(
+        Effect.annotateLogs({ evaluationId }),
+      );
 
 /**
  * Applies {@link describeAuditWriteOutcome}: updates the metrics, logs the line,
@@ -229,18 +247,17 @@ export const emitWriteOutcome = Effect.fn("qadi.audit.emitWriteOutcome")(functio
   const report = describeAuditWriteOutcome(outcome);
   const evaluationId = evaluationIdOf(outcome);
 
-  if (outcome._tag === "Refused") {
-    yield* reportEncodeRefusal(outcome.refusal, {
-      message:
-        "qadi/audit: a decision record could not be encoded for the audit trail; no row was written",
-      onRefused: options.onRefused,
-    });
-  } else if (report.log !== undefined && report.log !== "encodeRefusal") {
-    const { level, message, cause } = report.log;
-    yield* Effect.logWithLevel(level)(...(cause === undefined ? [message] : [message, cause])).pipe(
-      Effect.annotateLogs({ evaluationId }),
-    );
-  }
+  yield* Match.value(outcome).pipe(
+    Match.tag("Refused", (o) =>
+      reportEncodeRefusal(o.refusal, {
+        message:
+          "qadi/audit: a decision record could not be encoded for the audit trail; no row was written",
+        onRefused: options.onRefused,
+      }),
+    ),
+    Match.tag("Written", "WriteFailed", "Skipped", () => logLine(report.log, evaluationId)),
+    Match.exhaustive,
+  );
 
   yield* Metric.update(WRITES_COUNTERS[report.writes], 1);
   for (const label of report.staging) yield* Metric.update(STAGING_COUNTERS[label], 1);

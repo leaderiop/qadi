@@ -12,9 +12,14 @@ import { expect, test } from "tstyche";
 import type {
   Allow,
   ClientHydrationDropReason,
+  DecisionWireAllow,
+  DecisionWireDeny,
   DehydrationDropReason,
   Deny,
   HydrationDropReason,
+  Obligation,
+  SubjectId,
+  VisibleFields,
 } from "@qadi/core";
 import { isAllowed } from "@qadi/core";
 import type { DeniedNode } from "../src/components.tsx";
@@ -31,6 +36,7 @@ import type {
 } from "../src/Hydration.ts";
 import { dehydrateDecisions } from "../src/Hydration.ts";
 import type { EntryDropReason, PayloadRefusalReason } from "../src/HydrationEvent.ts";
+import type { AllowDisclosure, AllowSeedFields, DenyDisclosure, DenySeedFields } from "../src/SeededDecision.ts";
 import { permits } from "../src/SeededDecision.ts";
 
 declare const anyDecision: ClientDecision;
@@ -96,4 +102,45 @@ test("the payload and entry groups, written out", () => {
     "PayloadSubjectMismatch" | "UnsupportedPayloadVersion" | "MalformedPayload" | "PayloadTooDeep"
   >();
   expect<EntryDropReason>().type.toBe<"MalformedEntry" | "UndecodablePolicy" | "EntryTooDeep">();
+});
+
+test("a seed's constructor input is its verdict's seed fields plus the subject (ADR-QD-157)", () => {
+  type AllowInput = ConstructorParameters<typeof SeededAllow>[0];
+  type DenyInput = ConstructorParameters<typeof SeededDeny>[0];
+  type AllowFields = typeof AllowSeedFields.Type & { readonly subjectId: SubjectId };
+  type DenyFields = typeof DenySeedFields.Type & { readonly subjectId: SubjectId };
+
+  expect<AllowInput>().type.toBeAssignableTo<AllowFields>();
+  expect<AllowInput>().type.toBeAssignableFrom<AllowFields>();
+  expect<keyof AllowInput>().type.toBe<
+    "evaluationId" | "durationMillis" | "visibleFields" | "obligations" | "disclosure" | "subjectId"
+  >();
+  expect<DenyInput>().type.toBeAssignableTo<DenyFields>();
+  expect<DenyInput>().type.toBeAssignableFrom<DenyFields>();
+  expect<keyof DenyInput>().type.toBe<"evaluationId" | "durationMillis" | "disclosure" | "subjectId">();
+
+  // The seed's keys are the wire's minus what it withholds, plus its disclosure.
+  expect<keyof typeof AllowSeedFields.Type>().type.toBe<
+    Exclude<keyof typeof DecisionWireAllow.Type, "_tag" | "subjectId" | "trace"> | "disclosure"
+  >();
+  expect<keyof typeof DenySeedFields.Type>().type.toBe<
+    | Exclude<
+        keyof typeof DecisionWireDeny.Type,
+        "_tag" | "subjectId" | "trace" | "obligations" | "reason"
+      >
+    | "disclosure"
+  >();
+  expect<(typeof AllowSeedFields.Type)["disclosure"]>().type.toBe<AllowDisclosure>();
+  expect<(typeof DenySeedFields.Type)["disclosure"]>().type.toBe<DenyDisclosure>();
+
+  // D-03: the key is optional on input, and a seed no longer satisfies a type that requires it.
+  expect<{
+    readonly evaluationId: string;
+    readonly subjectId: SubjectId;
+    readonly durationMillis: number;
+    readonly obligations: ReadonlyArray<Obligation>;
+    readonly disclosure: AllowDisclosure;
+  }>().type.toBeAssignableTo<AllowInput>();
+  expect<SeededAllow["visibleFields"]>().type.toBe<VisibleFields>();
+  expect<SeededAllow>().type.not.toBeAssignableTo<{ readonly visibleFields: VisibleFields }>();
 });

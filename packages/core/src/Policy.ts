@@ -26,6 +26,7 @@ import { Matcher, matcherDepth } from "./Matcher.ts";
 import { Obligation } from "./Obligation.ts";
 import type { Permission } from "./Permission.ts";
 import { PermissionSchema, SEGMENT_PATTERN } from "./Permission.ts";
+import type { Arity, ChildArms, POLICY_ARITY } from "./PolicyArity.ts";
 import type { SignatureMeaning } from "./Signature.ts";
 import { foldTree, foldTreeBy } from "./TreeFold.ts";
 import type { UntrustedRefusal, UntrustedValueRefusal } from "./UntrustedDecode.ts";
@@ -1036,6 +1037,10 @@ export const fromJsonValue = (
  * its own traversal, so a caller-held policy (which has no `MAX_DECODE_DEPTH`
  * bound) cannot overflow the call stack with a raw `RangeError`, a defect rather
  * than a typed failure.
+ *
+ * Each arm's return type is the one its tag's arity in `PolicyArity.ts` allows, so
+ * moving a tag's arity without its arm, or an arm without the record, does not
+ * compile (ARCH-98).
  */
 export const childrenOf: (self: Policy) => ReadonlyArray<Policy> = Match.type<Policy>().pipe(
   Match.tagsExhaustive({
@@ -1055,7 +1060,7 @@ export const childrenOf: (self: Policy) => ReadonlyArray<Policy> = Match.type<Po
     Not: (p) => [p.policy],
     Obliged: (p) => [p.policy],
     Labeled: (p) => [p.policy],
-  }),
+  } satisfies ChildArms<Policy, typeof POLICY_ARITY>),
 );
 
 /**
@@ -1119,11 +1124,21 @@ export const foldPolicy = <R>(
 
 type PolicyOf<T extends Policy["_tag"]> = Extract<Policy, { readonly _tag: T }>;
 
-/** The ten `Policy` tags that have no children. */
-export type LeafPolicy = Exclude<
-  Policy,
-  { readonly _tag: "AllOf" | "AnyOf" | "Rules" | "Not" | "Obliged" | "Labeled" }
->;
+type ArityRecord = { readonly [K in Policy["_tag"]]: Arity };
+
+/**
+ * The tags of record `R` with arity `A`; `R` defaults to the record, and must name
+ * every `Policy` tag and no other, so a record missing one or naming a stray does
+ * not compile.
+ */
+type TagsOfArity<
+  A extends Arity,
+  R extends ArityRecord & { readonly [K in Exclude<keyof R, Policy["_tag"]>]: never } =
+    typeof POLICY_ARITY,
+> = { [K in keyof R]: R[K] extends A ? K : never }[keyof R];
+
+/** The `Policy` tags the arity record calls Leaf: the ones with no children. */
+export type LeafPolicy = Extract<Policy, { readonly _tag: TagsOfArity<"Leaf"> }>;
 
 /** One `Rules` row paired with its condition's result, in row order. */
 export interface RuleResult<R> {

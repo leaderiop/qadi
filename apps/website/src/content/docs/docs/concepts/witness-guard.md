@@ -105,7 +105,7 @@ that gap at the type level.
 
 ## Why not just `enforce`?
 
-`guard` is built on `enforce` — it shares the same obligation-discharge and
+`guard` shares `enforce`'s handover module — the same obligation discharge and
 denial handling, not a second enforcement path — but it's shaped
 differently on purpose. `enforce` wraps an *existing* `Effect` and hands back
 its result unchanged; `guard` takes a *resource* and a *handler function*,

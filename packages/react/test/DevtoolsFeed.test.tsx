@@ -173,7 +173,7 @@ describe("what the feed forwards", () => {
         <Probe />
       </QadiProvider>,
     );
-    await waitFor(() => expect(required(instrumented.feed, "the feed").gates).toHaveLength(1));
+    await waitFor(() => expect(required(instrumented.feed, "the feed").gates.instances()).toHaveLength(1));
     first.unmount();
 
     const plain: Seen<typeof noExtra> = { renders: [] };
@@ -185,7 +185,7 @@ describe("what the feed forwards", () => {
       </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("yes")).toBeDefined());
-    expect(required(plain.feed, "the feed").gates).toEqual([]);
+    expect(required(plain.feed, "the feed").gates.instances()).toEqual([]);
   });
 
   it("onInvalidate discards the provider's decisions, so a mounted guard re-asks", async () => {

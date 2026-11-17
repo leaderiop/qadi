@@ -55,9 +55,10 @@ const qadi = makeQadi(
 `projected(subject, policy, record)` decides against `record` and hands back
 `record` narrowed to the fields the policy lets the subject see, rejecting
 `AccessDenied` when it does not. The record is the resource — there is no
-`options.resource`, so what is decided and what is returned cannot be two
-different records. `filterProjected` does the same per item over a collection;
-`filter` returns admitted items whole and does not apply a field restriction.
+`options.resource` on `projected`, `filter` or `filterProjected`, so what is
+decided and what is returned cannot be two different records.
+`filterProjected` does the same per item over a collection; `filter` returns
+admitted items whole and does not apply a field restriction.
 
 ## This facade cannot discharge a binding obligation
 

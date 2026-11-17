@@ -660,3 +660,238 @@ export const source = sourceFromEventSource({
 ```
 
 The decision is [ADR-QD-153](https://github.com/leaderiop/qadi/blob/main/spec/decisions/153-core-owns-describing-a-decode-refusal.md).
+
+## 0.13: guard and the filter entry points refuse a second resource
+
+`LoadedEnforceOptions` is renamed `HandoverOptions`, with no alias, and is now the options type of all eight entry points that hand over a value: `enforceProjected`, `enforceLoaded`, `enforceProjectedLoaded`, `guard`, `filter`, `filterStream`, `filterProjected` and `filterStreamProjected`. So `guard` and the four `filter*` entry points no longer accept `options.resource`, which they used to drop silently: the positional resource, or the item, was always the one evaluated. `enforce` and `assert` hand over no value and keep `options.resource`. Before:
+
+```ts
+import { filter } from "@qadi/core";
+import type { LoadedEnforceOptions } from "@qadi/core";
+
+declare const tenant: { readonly id: string };
+
+export const options: LoadedEnforceOptions = { concurrency: 4 };
+
+export const admitted = filter(policy, items, { resource: tenant, concurrency: 4 });
+```
+
+After:
+
+```typescript
+import { filter, hasRole } from "@qadi/core";
+import type { HandoverOptions } from "@qadi/core";
+
+const items: ReadonlyArray<{ readonly id: string }> = [{ id: "doc-1" }, { id: "doc-2" }];
+const options: HandoverOptions = { concurrency: 4 };
+
+export const admitted = filter(hasRole("editor"), items, options);
+```
+
+The decision is [ADR-QD-156](https://github.com/leaderiop/qadi/blob/main/spec/decisions/156-a-handed-over-value-is-decided-through-one-module.md).
+
+## 0.13: the promise facade's filter takes no resource
+
+`@qadi/promise`'s `filter` and `filterProjected` now refuse `resource` in their options (`Omit<FacadeOptions, "resource">` with `resource?: never`, so a `FacadeOptions` variable is refused too), as `projected` does: each item is the resource of its own decision, so a second one cannot be written. Before:
+
+```ts
+const admitted = await qadi.filter(alice, policy, docs, { resource: tenant });
+```
+
+After:
+
+```typescript
+import { EvaluationServicesNone, hasRole, makeSubject } from "@qadi/core";
+import { makeQadi } from "@qadi/promise";
+
+const qadi = makeQadi(EvaluationServicesNone);
+const alice = makeSubject({ id: "u-1", roles: ["editor"] });
+const docs: ReadonlyArray<{ readonly id: string }> = [{ id: "doc-1" }];
+
+export const admitted = qadi.filter(alice, hasRole("editor"), docs);
+```
+
+The decision is [ADR-QD-156](https://github.com/leaderiop/qadi/blob/main/spec/decisions/156-a-handed-over-value-is-decided-through-one-module.md).
+
+## 0.13: a seeded allow has no `visibleFields` key when the server sent none
+
+`SeededAllow`'s `visibleFields` is now an optional key, as it is on the decision's wire form: a seed rebuilt from a payload that sent no `visibleFields` has no `visibleFields` key, where it held `visibleFields: undefined`. Reading `seed.visibleFields` is unchanged (`undefined` still means every field), and building a `SeededAllow` with or without the key compiles. What breaks is assigning a `SeededAllow` to a type that requires `visibleFields`, and code that checks for the key (`"visibleFields" in seed`, `Object.keys`, or `Equal.equals` against a seed built with an explicit `undefined`). The payload's version and bytes are unchanged. Before:
+
+```ts
+import type { VisibleFields } from "@qadi/core";
+import type { SeededAllow } from "@qadi/react";
+
+export const fieldsOf = (seed: SeededAllow): { readonly visibleFields: VisibleFields } => seed;
+```
+
+After:
+
+```typescript
+import type { VisibleFields } from "@qadi/core";
+import type { SeededAllow } from "@qadi/react";
+
+export const fieldsOf = (seed: SeededAllow): { readonly visibleFields: VisibleFields } => ({
+  visibleFields: seed.visibleFields,
+});
+```
+
+A check of the key's presence should read the value instead: `seed.visibleFields === undefined` is true whether the key is absent or holds `undefined`.
+
+The decision is [ADR-QD-157](https://github.com/leaderiop/qadi/blob/main/spec/decisions/157-a-seeds-fields-are-the-wires-stated-once.md).
+
+## 0.13: a breaker or audit sink option that cannot work is refused when it is built
+
+`AuditDecisionSinkLive`'s layer is now `Layer<DecisionSink, InvalidAuditSinkOption, AuditTrailPort>`, where its error was `never`. Building it with an option that cannot work fails with `InvalidAuditSinkOption`, naming the option and the value received. Refused: a `failureThreshold` that is not a positive safe integer (`NaN` built a breaker that never opened), a `resetTimeoutMs` that is not a finite, positive, whole number of milliseconds within the safe integers, and a `storeCallTimeout` that is not a positive duration (zero timed every store call out at once). A plain-number `resetTimeoutMs` must be whole; a string or `Duration` form is read to the nanosecond, as `Duration` keeps it, and must come to whole milliseconds (`"1.5 millis"` is refused, `"1.5 seconds"` accepted). For `storeCallTimeout` only, `Duration.infinity` is still accepted as no deadline. This is also a runtime break: `failureThreshold: Infinity` (a breaker that never opens) and `resetTimeoutMs: Duration.infinity` (a breaker that never leaves Open; unlike `storeCallTimeout`, the cooldown has no infinite opt-out) were accepted and are now refused, as is any value past `Number.MAX_SAFE_INTEGER`. Pass `Number.MAX_SAFE_INTEGER` for either to keep the effect; the sink has no option to run without its breaker. A composition that passes no options, or valid ones, behaves as before, and for it only a type annotation on the layer, or on an `Effect` that provides it, that declares `never` stops compiling. Before:
+
+```ts
+const sink: Layer.Layer<DecisionSink, never, AuditTrailPort> = AuditDecisionSinkLive(options);
+```
+
+After:
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import type { DecisionSink } from "@qadi/core";
+import { AuditDecisionSinkLive, AuditTrailPortTest } from "@qadi/audit";
+import type { AuditTrailPort, InvalidAuditSinkOption } from "@qadi/audit";
+
+export const sink: Layer.Layer<DecisionSink, InvalidAuditSinkOption, AuditTrailPort> = AuditDecisionSinkLive({
+  failureThreshold: 5,
+});
+
+export const program = Effect.void.pipe(
+  Effect.provide(sink.pipe(Layer.provide(AuditTrailPortTest().layer))),
+  Effect.catchTag("InvalidAuditSinkOption", (refused) => Effect.logError(refused.message)),
+);
+```
+
+`Duration.infinity` is still the no-deadline value for `storeCallTimeout`; only a zero, negative, `NaN` or malformed duration is refused.
+
+The decision is [ADR-QD-158](https://github.com/leaderiop/qadi/blob/main/spec/decisions/158-the-breakers-rules-are-one-transition-function.md).
+
+## 0.13: a decision sink that fails is reported once
+
+Whatever a sink's `record` does that loses the record (a defect, a throw, including one before it returns an effect, a self-interruption, or a failure leaked through a type escape) was contained and never reported, and a throw before an effect was returned ended `evaluate`. The emitter now contains every one of them and logs it once at `Warn`: `qadi: a decision sink failed; the record was not delivered`, annotated `qadi.sink`, `qadi.record_tag`, `evaluationId` and `qadi.cause`. The decision is unchanged, and the line carries nothing about the subject, resource, policy or action.
+
+`DecisionSinkShape` gains an optional `name`, reported in `qadi.sink` (`unnamed` without one). `decisionSinkForwarding`, `decisionSinkAll`, the decision log's sink, the simulation shadow and `AuditDecisionSinkLive` name themselves, and `decisionSinkAll`'s member line gains `qadi.sink`, `qadi.record_tag` and `evaluationId`.
+
+Nothing needs to change in a caller's code. One log text changes: a throwing `onFailure` on a send failure is now reported by the emitter's line, naming `decisionSinkForwarding`, where it said "qadi: a decision record could not be forwarded", so a query keyed on that text for this case should match the new line. A `send` that throws before returning an effect now reaches `onFailure`. To have a sink named in its reports:
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import { DecisionSink } from "@qadi/core";
+
+export const billingSink = Layer.succeed(DecisionSink, {
+  name: "billing-audit",
+  record: (record) => Effect.logDebug(`recorded ${record.evaluationId}`),
+});
+```
+
+The decision is [ADR-QD-159](https://github.com/leaderiop/qadi/blob/main/spec/decisions/159-the-sink-emitter-reports-what-it-contains.md).
+
+## 0.13: a port's defaulted state is read from the port, not its name
+
+`@qadi/devtools` used to decide that a port was its fail-closed default by parsing the display name `@qadi/core` composes for a wrapper (`"<inner> (<suffix>)"`). It now asks `@qadi/core`, which marks the default it builds and carries the mark through every wrapper it derives (`…Retrying`, `…Bounded`, `…TimingOut`, `recordingPort`, `decoratePorts`). `isPortDefault(description, service)` is the new, public reader. The mark is a symbol-keyed property, so `Object.keys`, JSON and a clone do not see it, and evaluation never reads it. Nothing is renamed or removed and no outcome changes.
+
+A hand-written wrapper moves in two directions:
+
+- A wrapper that spreads `inner` now reads as defaulted, whatever it is called, including a wrapper with no name of its own. One that spreads the default and replaces its method still reads as defaulted, because the fact is that it was built from the default's shape, not that it answers like the default.
+- A wrapper that builds a fresh object, or delegates through `Object.create`, now reads as a real adapter, even when its name starts with a default's. A name no longer makes a service count as a default.
+
+The devtools wiring report and services panel show the difference, and nothing else about them changes. A wrapper that should keep the default's identity spreads `inner`:
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import { AttributeResolver, AttributeResolverNone } from "@qadi/core";
+
+export const auditedAttributes = Layer.effect(
+  AttributeResolver,
+  Effect.gen(function* () {
+    const inner = yield* AttributeResolver;
+    return AttributeResolver.of({
+      ...inner,
+      name: "audited",
+      resolve: (subjectId, attribute) => inner.resolve(subjectId, attribute),
+    });
+  }),
+).pipe(Layer.provide(AttributeResolverNone));
+```
+
+`decoratePorts` carries the mark by the slot it decorates, not by what your decorator returns: a decorator that replaces a default with a real implementation still reads as defaulted, because the slot held the default when it ran. Wire the real implementation into `portsLayer` instead of decorating a default into one. A result that accepts the property is marked in place, so return an object that does (a frozen one, or a proxy that refuses the define, is copied, and a `#private` field or internal slot does not survive the copy). The mark then stays on an object you also use elsewhere.
+
+A second install of `@qadi/core` has its own mark, so it reads the other copy's defaults as real adapters.
+
+The decision is [ADR-QD-160](https://github.com/leaderiop/qadi/blob/main/spec/decisions/160-port-facts-are-read-from-the-description.md).
+
+## 0.13: audit reports core's refusal, and AuditEntryNotEncodable is gone
+
+`@qadi/audit` declared its own refusal error beside `@qadi/core`'s `SinkRecordNotEncodable`, and `encodeAuditEntry` mapped one into the other. The audit class is removed. `encodeAuditEntry` fails with, and `AuditDecisionSinkLive`'s `onRefused` receives, `SinkRecordNotEncodable`, the error `decisionSinkForwarding` and `DecisionLogHttp` already report. It has the same `evaluationId`, `recordTag` and `refusal` fields. The `reason` field is gone: `describeEncodeRefusal(e.refusal)` gives byte for byte the same sentence. A `catchTag` on the old tag moves to `"SinkRecordNotEncodable"`, and `AuditWriteOutcome`'s `Refused.refusal` has the new type. The default refusal warning, every other log line, every metric and every span attribute are unchanged.
+
+Before:
+
+```ts
+const onRefused = (e: AuditEntryNotEncodable) => refused.push(e.reason);
+const encoded = encodeAuditEntry(record).pipe(Effect.catchTag("AuditEntryNotEncodable", (e) => Effect.logWarning(e.reason)));
+```
+
+After:
+
+```typescript
+import * as Effect from "effect/Effect";
+import { describeEncodeRefusal, encodeRefusalAnnotations } from "@qadi/core";
+import type { SinkRecord, SinkRecordNotEncodable } from "@qadi/core";
+import { AuditDecisionSinkLive, encodeAuditEntry } from "@qadi/audit";
+
+// Held in process for diagnosis, never logged: the sentence can carry text from the record.
+export const refused: Array<string> = [];
+
+export const sink = AuditDecisionSinkLive({
+  onRefused: (e: SinkRecordNotEncodable) => {
+    refused.push(`${e.evaluationId}: ${describeEncodeRefusal(e.refusal)}`);
+  },
+});
+
+export const encodeOrNull = (record: SinkRecord) =>
+  encodeAuditEntry(record).pipe(
+    Effect.catchTag("SinkRecordNotEncodable", (e) =>
+      Effect.logWarning("audit entry refused").pipe(
+        Effect.annotateLogs(encodeRefusalAnnotations(e)),
+        Effect.as(null),
+      ),
+    ),
+  );
+```
+
+Log where the refusal was found, as above: `encodeRefusalAnnotations(e)` is the refusal's tag, its path and the evaluation id, the same annotations the default warning carries. They carry no value from the refused record, whose subject, resource and policy are what the refusal exists to keep out of a log line, but the path is made of the record's own keys, so a resource keyed by data puts that key in `qadi.path`. `describeEncodeRefusal(e.refusal)` returns the sentence `reason` held and, like `reason`, may carry caller text: an `EncodeFailed` sentence includes the message of a getter that threw on the record. It is for code holding the refusal to diagnose it, not for a log line or a span ([INV-QD-104](https://github.com/leaderiop/qadi/blob/main/spec/invariants.md#inv-qd-104-a-refusal-report-says-where-never-what)).
+
+The decision is [ADR-QD-161](https://github.com/leaderiop/qadi/blob/main/spec/decisions/161-audit-reports-cores-refusal-and-decides-lost-once.md).
+
+## 0.13: the dock takes the gate registry, not its instances
+
+`DevtoolsDock`'s `gates` prop takes the gate registry instead of an array of guard instances. The dock subscribes to the registry in its own scope for as long as it is mounted and pairs each asked question with the guards asking it at one moment, so a host no longer re-renders to feed it. `useDevtoolsFeed()`'s `gates` is the registry too (the provider's `gates` prop, else `atoms.gates`), so `<DevtoolsDock {...feed} />` needs no edit; code that read `feed.gates` as an array reads `feed.gates.instances()`. When no registry is handed over, the panel now says "Pass gates — usually atoms.gates, from @qadi/react — to list who is asking."
+
+Before:
+
+```ts
+const Dock = () => <DevtoolsDock gates={useGateInstances()} />;
+```
+
+After:
+
+```typescript
+import { createElement } from "react";
+import type { GateRegistryLike } from "@qadi/devtools";
+import { DevtoolsDock } from "@qadi/devtools/react";
+import type { QadiAtoms } from "@qadi/react";
+
+export const Dock = ({ atoms }: { readonly atoms: QadiAtoms }) => {
+  // The registry satisfies the dock's structural type, with no import of @qadi/react in devtools.
+  const fits: GateRegistryLike = atoms.gates;
+  return createElement(DevtoolsDock, { gates: fits });
+};
+```
+
+The decision is [ADR-QD-162](https://github.com/leaderiop/qadi/blob/main/spec/decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md).

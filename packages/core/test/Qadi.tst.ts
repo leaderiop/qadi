@@ -26,13 +26,24 @@ import type { EnforcementError, EvaluationError, UndischargedObligation } from "
 import type { Allow } from "../src/Decision.ts";
 import type { Obligation } from "../src/Obligation.ts";
 import type { Question } from "../src/Question.ts";
+import type { Resource } from "../src/Resource.ts";
 import type {
   EnforceOptions,
-  LoadedEnforceOptions,
+  HandoverOptions,
   ObligationDischarge,
   ObligationHandler,
 } from "../src/Qadi.ts";
-import { enforce, enforceLoaded, enforceProjected, enforceProjectedLoaded, filterProjected, guard } from "../src/Qadi.ts";
+import {
+  enforce,
+  enforceLoaded,
+  enforceProjected,
+  enforceProjectedLoaded,
+  filter,
+  filterProjected,
+  filterStream,
+  filterStreamProjected,
+  guard,
+} from "../src/Qadi.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -97,7 +108,7 @@ test("guard infers Authorized<P> from the literal permission argument, not a wid
   expect<Authorized<typeof write>>().type.not.toBeAssignableTo<Witness>();
 });
 
-declare const loadedOptions: LoadedEnforceOptions<ObligationError, ObligationReq>;
+declare const loadedOptions: HandoverOptions<ObligationError, ObligationReq>;
 declare const loaded: Effect.Effect<{ readonly id: string }, WrappedError, WrappedReq>;
 
 test("the loaded entry points refuse a second resource", () => {
@@ -144,4 +155,49 @@ test("filterProjected and filterStreamProjected return Partial<A>", () => {
       EvaluationServices
     >
   >();
+});
+
+type SecondResource = { readonly resource: Resource };
+
+test("guard refuses a second resource in its options", () => {
+  // `guard(...)` returns a function, not an Effect, so this callable form is a real check.
+  expect(guard).type.not.toBeCallableWith(read, hasPermission(read), { resource: { id: "x" } });
+  expect<Parameters<typeof guard>[2]>().type.not.toBeAssignableFrom<SecondResource>();
+  expect(guard).type.toBeCallableWith(read, hasPermission(read));
+  expect(guard).type.toBeCallableWith(read, hasPermission(read), {});
+});
+
+test("the collection entry points refuse a second resource in their options", () => {
+  // `Parameters<…>[2]` rather than `not.toBeCallableWith`: a call that returns an Effect or a
+  // Stream is never "callable" to tstyche under `effect(floatingEffect)`, so the callable form
+  // would pass vacuously on the base. `{ resource: undefined }` is refused only because
+  // `exactOptionalPropertyTypes` is on.
+  expect<Parameters<typeof filter>[2]>().type.not.toBeAssignableFrom<SecondResource>();
+  expect<Parameters<typeof filter>[2]>().type.not.toBeAssignableFrom<{
+    readonly resource: undefined;
+  }>();
+  expect<Parameters<typeof filterStream>[2]>().type.not.toBeAssignableFrom<SecondResource>();
+  expect<Parameters<typeof filterStream>[2]>().type.not.toBeAssignableFrom<{
+    readonly resource: undefined;
+  }>();
+  expect<Parameters<typeof filterProjected>[2]>().type.not.toBeAssignableFrom<SecondResource>();
+  expect<Parameters<typeof filterProjected>[2]>().type.not.toBeAssignableFrom<{
+    readonly resource: undefined;
+  }>();
+  expect<Parameters<typeof filterStreamProjected>[2]>().type.not.toBeAssignableFrom<SecondResource>();
+  expect<Parameters<typeof filterStreamProjected>[2]>().type.not.toBeAssignableFrom<{
+    readonly resource: undefined;
+  }>();
+
+  // Controls: a refusal of every options value would pass the lines above too.
+  expect<Parameters<typeof filter>[2]>().type.toBeAssignableFrom<{ readonly concurrency: number }>();
+  expect<Parameters<typeof filter>[2]>().type.toBeAssignableFrom<{ readonly action: string }>();
+  expect<Parameters<typeof filter>[2]>().type.toBeAssignableFrom<undefined>();
+  expect<Parameters<typeof filterStream>[2]>().type.toBeAssignableFrom<{
+    readonly concurrency: number;
+  }>();
+  expect<Parameters<typeof filterStream>[2]>().type.toBeAssignableFrom<{
+    readonly action: string;
+  }>();
+  expect<Parameters<typeof filterStream>[2]>().type.toBeAssignableFrom<undefined>();
 });

@@ -110,7 +110,9 @@ to present as a permissions problem.
 ## Feeding the devtools dock
 
 `useDevtoolsFeed(extra)` returns what a devtools dock reads from this provider:
-the `gates` that `useGateInstances` lists, an `onInvalidate` that is
+the `gates`, the provider's effective registry (its `gates` prop, else
+`atoms.gates`), which the dock subscribes to (`useGateInstances` stays the hook for
+a component that wants the list itself), an `onInvalidate` that is
 `useInvalidate`, and `diagnostics` (your `extra` plus a `layer` that is the
 provider's own built services and `questions`, which is `atoms.asked`). Spread it
 onto `<DevtoolsDock />`. Hold `extra` at module scope. It reads no decision and

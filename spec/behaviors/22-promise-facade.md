@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-22                                    |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-10-08): BEH-QD-169 — every call forwards `options.signal` and never reads it; `FacadeOptions` (ARCH-45, CCR-QD-266)<br>1.2 (2026-09-19): KD-04 — noted that two facade-specific bugs (BEH-QD-170's error identity, `filter`'s missing options parameter) are pinned only as regression tests in `facade.test.ts`, one of them under no `BEH-QD-NNN` number at all<br>1.1 (2026-09-07): Noted that this is the one behavior with no `.feature` leg, and why<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
+> | Change History | 1.4 (2026-11-15): BEH-QD-552 new: the facade's filter and filterProjected take no resource (ARCH-90, CCR-QD-434)<br>1.3 (2026-10-08): BEH-QD-169 — every call forwards `options.signal` and never reads it; `FacadeOptions` (ARCH-45, CCR-QD-266)<br>1.2 (2026-09-19): KD-04 — noted that two facade-specific bugs (BEH-QD-170's error identity, `filter`'s missing options parameter) are pinned only as regression tests in `facade.test.ts`, one of them under no `BEH-QD-NNN` number at all<br>1.1 (2026-09-07): Noted that this is the one behavior with no `.feature` leg, and why<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
 
 _Previous: [21 — Decision Cache](./21-decision-cache.md)_
 
@@ -139,6 +139,25 @@ REQUIREMENT: `dispose` MUST release what the layer built, and the facade MUST NO
 Closing its own runtime would be guessing at the process lifetime, which is the
 caller's to know — the same refusal [BEH-QD-164](./21-decision-cache.md) makes about
 the request lifetime.
+
+## BEH-QD-552: The facade's collection reads take no resource
+
+> **Invariant:** [INV-QD-108](../invariants.md#inv-qd-108-a-handed-over-value-is-the-evaluated-resource)
+> **See:** [ADR-QD-156](../decisions/156-a-handed-over-value-is-decided-through-one-module.md),
+> [BEH-QD-551](./07-enforcement.md#beh-qd-551-an-entry-point-that-hands-over-a-value-refuses-a-second-resource)
+
+```
+REQUIREMENT: `filter` and `filterProjected` MUST refuse a `resource` in their
+             options (`Omit<FacadeOptions, "resource">` with `resource?: never`), as
+             `projected` does, and each item MUST be the resource of its own decision.
+```
+
+The facade only forwards to core ([ADR-QD-032](../decisions/032-promise-facade.md)), so the refusal is core's
+([BEH-QD-551](./07-enforcement.md#beh-qd-551-an-entry-point-that-hands-over-a-value-refuses-a-second-resource))
+made visible at this boundary: a caller of `Qadi.filter` who restated a `resource` beside
+the items used to have it silently dropped, and now cannot write it, whether as a literal
+or as a `FacadeOptions` variable. `check`, `decide` and `assert` keep `resource`, because
+they hand over no value. The type test is `packages/promise/test/Facade.tst.ts`.
 
 ## BEH-QD-173: Worked example
 

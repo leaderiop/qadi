@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-31                                    |
-> | Revision       | 1.9                                            |
+> | Revision       | 1.11                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.9 (2026-11-10): the compilers' counters live in each package's package-private `src/CompileMetrics.ts`, read by its tests through the export; they are tagged by outcome, unlike core's `qadi_predicates_translated_total`, which counts successes only, and the stale per-object memoisation claim is replaced by the per-update registry lookup (ADR-QD-123, ARCH-61, CCR-QD-401)<br>1.8 (2026-10-05): BEH-QD-306 added — a range never admits a non-finite row the reference denies: `Range` gains `finiteGuard`, `RenderRules` gains `finiteness` and `finiteExclusion`, `compileSql` renders `col - col = 0` on postgres and sqlite, `compilePrismaWhere` takes a required `floating` and refuses a range on such a column (`NonFiniteColumn`); BEH-QD-241/242's engines hold a float column; BEH-QD-244 records PostgreSQL's `NaN` ordering as a found defect (CCR-QD-172)<br>1.7 (2026-10-04): Dialect-free leaf rules move beside `evaluatePredicate` (ADR-QD-079, CCR-QD-158). BEH-QD-236 now says `@qadi/core` declares the one `PredicateNotRenderable` (reversing the per-package declaration and ticket 95) and shows the options both packages take; BEH-QD-238, BEH-QD-240 and BEH-QD-258 state the shared rules once (`isSafeLiteral`, `maxInValues` for both packages, `IdentifierRule`) and BEH-QD-238/242 replace the false claim that the two packages "agree on which predicates compile at all" with the exact difference, which is the renderer-declared reserved columns; BEH-QD-241/242 name real engines (PGlite, `node:sqlite`, Prisma over SQLite) as the check and record that the JavaScript readers are retired; BEH-QD-244 widens the accepted type-coercion limitation to `Eq`/`Neq`/`MemberOf` (N2), records SQLite boolean binding as `1`/`0` and the two-valued-`NOT` lie-safety rule; BEH-QD-271/265 added (classification once, in core; a nullability declaration can only narrow or refuse)<br>1.6 (2026-10-04): BEH-QD-244 gains a fourth REQUIREMENT and `compilePrismaWhere` gains a required `options.nullable` — a compiled Prisma `Negate` over a leaf on a nullable column dropped the NULL rows `evaluatePredicate` admits (`NOT UNKNOWN` is `UNKNOWN`), and a filter mentioning `null` on a required column is refused by Prisma at query time. Found by running 3000 random predicates through a real Prisma 7.10 client over SQLite: 127 result-set mismatches, every one under a `Negate`, none an over-admission. The leaf is now null-guarded by polarity (CCR-QD-157, ADR-QD-079)<br>1.5 (2026-09-08): BEH-QD-238's allowlist corrected again — the `number` branch is *finite* numbers, in both compilers. `@qadi/predicate-sql`'s `isSafeValue` admitted `NaN`/`±Infinity`, and its only exclusion was a `Gte`/`Lt`-specific guard, so a `NaN`-valued `Eq`/`Neq`/`MemberOf` bound `NaN` as a real parameter — and PostgreSQL's `NaN = NaN` is TRUE where `evaluatePredicate`'s `===` is false for every row (INV-QD-047). `@qadi/predicate-prisma` already refused all three; the two compilers now share one allowlist across all four `CompareOp`s, and a `NaN`-valued `Gte`/`Lt` refuses where it used to render `FALSE` (issue #65, CCR-QD-120)<br>1.4 (2026-09-07): BEH-QD-239 and BEH-QD-242 corrected — both encoded the belief that a vacuous `{OR: []}`/`{AND: []}` behaves the same nested inside `AND`/`OR`/`NOT` as it does at the top of the query; per real Prisma engine behavior it does not (Prisma issues #17367, #21856), and `@qadi/predicate-prisma`'s `renderNode` nested it verbatim, an audit's Critical finding (C1, issue 34). `renderNode` now constant-folds every `And`/`Or` child so a vacuous identity is never left nested, and `BEH-QD-242`'s agreement property is checked against a second, engine-accurate test reader in addition to the original JS-semantics one, since the original alone shares the same wrong belief and cannot see the difference (CCR-QD-111)<br>1.3 (2026-09-07): BEH-QD-236's `compileSql` signature corrected — shown with an optional `options` and `dialect` required only inside it, but the real export requires `options: CompileSqlOptions` with `dialect` required inside that; spec text reconciled to the actual, simpler signature rather than the API being widened to match the doc<br>1.2 (2026-09-06): BEH-QD-238's allowlist corrected — `Date` compiled to a query that disagreed with `evaluatePredicate` (INV-QD-047/048), an audit finding, not a design choice; both compilers now refuse it. BEH-QD-258 added: a column colliding with the target's own syntax (a SQL quote character, or one of Prisma's `AND`/`OR`/`NOT`) refuses rather than escaping or compiling to something the column name did not mean (CCR-QD-106)<br>1.1 (2026-08-25): BEH-QD-244 — NULL handling fixed in both compilers after manual verification against real PostgreSQL, MySQL, SQLite and a SQLite-backed Prisma client found the original translation wrong; the numeric-string coercion limitation recorded as an accepted caveat (INV-QD-047, INV-QD-048, CCR-QD-081)<br>1.0 (2026-08-25): Initial release (CCR-QD-079) |
+> | Change History | 1.11 (2026-11-16): BEH-QD-596: rules refuses identifiers and maxInValues by type (ARCH-99, CCR-QD-443 review iteration 1 WR-01)<br>1.10 (2026-11-16): BEH-QD-596..600: the compile shell in core, its counting rule, unchanged dialect output, no new span, each dialect's own counter (ARCH-99, CCR-QD-443)<br>1.9 (2026-11-10): the compilers' counters live in each package's package-private `src/CompileMetrics.ts`, read by its tests through the export; they are tagged by outcome, unlike core's `qadi_predicates_translated_total`, which counts successes only, and the stale per-object memoisation claim is replaced by the per-update registry lookup (ADR-QD-123, ARCH-61, CCR-QD-401)<br>1.8 (2026-10-05): BEH-QD-306 added — a range never admits a non-finite row the reference denies: `Range` gains `finiteGuard`, `RenderRules` gains `finiteness` and `finiteExclusion`, `compileSql` renders `col - col = 0` on postgres and sqlite, `compilePrismaWhere` takes a required `floating` and refuses a range on such a column (`NonFiniteColumn`); BEH-QD-241/242's engines hold a float column; BEH-QD-244 records PostgreSQL's `NaN` ordering as a found defect (CCR-QD-172)<br>1.7 (2026-10-04): Dialect-free leaf rules move beside `evaluatePredicate` (ADR-QD-079, CCR-QD-158). BEH-QD-236 now says `@qadi/core` declares the one `PredicateNotRenderable` (reversing the per-package declaration and ticket 95) and shows the options both packages take; BEH-QD-238, BEH-QD-240 and BEH-QD-258 state the shared rules once (`isSafeLiteral`, `maxInValues` for both packages, `IdentifierRule`) and BEH-QD-238/242 replace the false claim that the two packages "agree on which predicates compile at all" with the exact difference, which is the renderer-declared reserved columns; BEH-QD-241/242 name real engines (PGlite, `node:sqlite`, Prisma over SQLite) as the check and record that the JavaScript readers are retired; BEH-QD-244 widens the accepted type-coercion limitation to `Eq`/`Neq`/`MemberOf` (N2), records SQLite boolean binding as `1`/`0` and the two-valued-`NOT` lie-safety rule; BEH-QD-271/265 added (classification once, in core; a nullability declaration can only narrow or refuse)<br>1.6 (2026-10-04): BEH-QD-244 gains a fourth REQUIREMENT and `compilePrismaWhere` gains a required `options.nullable` — a compiled Prisma `Negate` over a leaf on a nullable column dropped the NULL rows `evaluatePredicate` admits (`NOT UNKNOWN` is `UNKNOWN`), and a filter mentioning `null` on a required column is refused by Prisma at query time. Found by running 3000 random predicates through a real Prisma 7.10 client over SQLite: 127 result-set mismatches, every one under a `Negate`, none an over-admission. The leaf is now null-guarded by polarity (CCR-QD-157, ADR-QD-079)<br>1.5 (2026-09-08): BEH-QD-238's allowlist corrected again — the `number` branch is *finite* numbers, in both compilers. `@qadi/predicate-sql`'s `isSafeValue` admitted `NaN`/`±Infinity`, and its only exclusion was a `Gte`/`Lt`-specific guard, so a `NaN`-valued `Eq`/`Neq`/`MemberOf` bound `NaN` as a real parameter — and PostgreSQL's `NaN = NaN` is TRUE where `evaluatePredicate`'s `===` is false for every row (INV-QD-047). `@qadi/predicate-prisma` already refused all three; the two compilers now share one allowlist across all four `CompareOp`s, and a `NaN`-valued `Gte`/`Lt` refuses where it used to render `FALSE` (issue #65, CCR-QD-120)<br>1.4 (2026-09-07): BEH-QD-239 and BEH-QD-242 corrected — both encoded the belief that a vacuous `{OR: []}`/`{AND: []}` behaves the same nested inside `AND`/`OR`/`NOT` as it does at the top of the query; per real Prisma engine behavior it does not (Prisma issues #17367, #21856), and `@qadi/predicate-prisma`'s `renderNode` nested it verbatim, an audit's Critical finding (C1, issue 34). `renderNode` now constant-folds every `And`/`Or` child so a vacuous identity is never left nested, and `BEH-QD-242`'s agreement property is checked against a second, engine-accurate test reader in addition to the original JS-semantics one, since the original alone shares the same wrong belief and cannot see the difference (CCR-QD-111)<br>1.3 (2026-09-07): BEH-QD-236's `compileSql` signature corrected — shown with an optional `options` and `dialect` required only inside it, but the real export requires `options: CompileSqlOptions` with `dialect` required inside that; spec text reconciled to the actual, simpler signature rather than the API being widened to match the doc<br>1.2 (2026-09-06): BEH-QD-238's allowlist corrected — `Date` compiled to a query that disagreed with `evaluatePredicate` (INV-QD-047/048), an audit finding, not a design choice; both compilers now refuse it. BEH-QD-258 added: a column colliding with the target's own syntax (a SQL quote character, or one of Prisma's `AND`/`OR`/`NOT`) refuses rather than escaping or compiling to something the column name did not mean (CCR-QD-106)<br>1.1 (2026-08-25): BEH-QD-244 — NULL handling fixed in both compilers after manual verification against real PostgreSQL, MySQL, SQLite and a SQLite-backed Prisma client found the original translation wrong; the numeric-string coercion limitation recorded as an accepted caveat (INV-QD-047, INV-QD-048, CCR-QD-081)<br>1.0 (2026-08-25): Initial release (CCR-QD-079) |
 
 _Previous: [30 — Port Calls](./30-port-calls.md)_
 
@@ -655,6 +655,122 @@ document that is not lie-safe: leaving a `Float` column out renders a plain rang
 that can admit an infinite row, which is why it is required and derived
 mechanically. Declaring an `Int` column floating only refuses ranges that were
 safe.
+
+## BEH-QD-596: A compile is a dialect's rules and renderer inside one core shell
+
+> **Invariant:** [INV-QD-349](../invariants.md#inv-qd-349-one-compile-shell-and-each-compile-moves-its-dialects-counter-exactly-once)
+> **See:** [ADR-QD-165](../decisions/165-core-owns-the-predicate-compile-shell.md), [ADR-QD-054](../decisions/054-a-companion-package-may-compile-a-dialect.md)
+
+```ts
+export interface CompileOutcomes {
+  readonly compiled: Metric.Counter<number>;
+  readonly refused: Metric.Counter<number>;
+}
+
+export interface CompilePredicateOptions<A> {
+  readonly rules: Omit<RenderRules, "identifiers" | "maxInValues"> & {
+    readonly identifiers?: never;
+    readonly maxInValues?: never;
+  };
+  readonly identifiers?: IdentifierRule | undefined;
+  readonly maxInValues?: number | undefined;
+  readonly render: (node: RenderableNode) => A;
+  readonly outcomes: CompileOutcomes;
+}
+
+export const compilePredicate: <A>(
+  predicate: Predicate,
+  options: CompilePredicateOptions<A>,
+) => Effect.Effect<A, PredicateNotRenderable>;
+```
+
+```
+REQUIREMENT: `@qadi/core`'s `compilePredicate` MUST be the only place a compile
+             applies `identifiers ?? "Ascii"` and `maxInValues ??
+             DEFAULT_MAX_IN_VALUES`, runs `toRenderable`, and calls the
+             dialect's `render`, and MUST call `render` only once classification
+             has succeeded, returning what it returns.
+REQUIREMENT: A dialect MUST supply `rules` (its `RenderRules` minus the two
+             defaulted fields), `render` and `outcomes`, and nothing else of the
+             shell: `compileSql` and `compilePrismaWhere` MUST NOT apply either
+             default, call `toRenderable` or update a counter themselves.
+```
+
+A third dialect is a renderer and its rules, and no copy of the shell (BEH-QD-271).
+
+`rules` refuses a value carrying `identifiers` or `maxInValues` by type, a full `RenderRules` value included. With
+`Omit` alone it refused them only on a fresh object literal, so a dialect holding a complete `RenderRules` would have
+type-checked and had its own `maxInValues` replaced by the default, the wrong way for a resource-exhaustion bound.
+`CompilePredicate.tst.ts` pins the refusal.
+
+## BEH-QD-597: Each compile moves its dialect's counter exactly once, after the render
+
+> **Invariant:** [INV-QD-349](../invariants.md#inv-qd-349-one-compile-shell-and-each-compile-moves-its-dialects-counter-exactly-once)
+> **See:** [ADR-QD-165](../decisions/165-core-owns-the-predicate-compile-shell.md)
+
+```
+REQUIREMENT: `outcomes.refused` MUST move by one exactly once per
+             `PredicateNotRenderable`, and `outcomes.compiled` by one exactly
+             once after a successful render, on both `compileSql` and
+             `compilePrismaWhere`.
+REQUIREMENT: A defect in classification or in `render` MUST move neither
+             counter: a call is refused, compiled, or neither, never both.
+```
+
+Before ARCH-99 `@qadi/predicate-prisma` counted `compiled` before its render, so a renderer defect (a `Negate` chain a few
+thousand deep overflowing `renderNode`) still counted a compile. It no longer does (CCR-QD-443). This is a correction to
+a counter, not a change to any output or public type; the depth that overflows is the machine's, so a Prisma test does
+not pin it, and `CompilePredicate.test.ts`'s throwing `render` pins the rule in core.
+
+## BEH-QD-598: Each dialect's output and refusals are its rules' and renderer's alone
+
+> **Invariant:** [INV-QD-349](../invariants.md#inv-qd-349-one-compile-shell-and-each-compile-moves-its-dialects-counter-exactly-once), [INV-QD-061](../invariants.md#inv-qd-061-torenderable-preserves-evaluatepredicates-meaning-in-two-valued-logic)
+> **See:** [ADR-QD-165](../decisions/165-core-owns-the-predicate-compile-shell.md)
+
+```
+REQUIREMENT: The shell MUST add no refusal and change no output: a compile's text,
+             params or `WhereInput` and its refusal, for every predicate, MUST be
+             what the dialect's rules and renderer say.
+```
+
+The refusals each dialect can reach:
+
+| `refusal` | `compileSql` | `compilePrismaWhere` |
+| --------- | ------------ | -------------------- |
+| `UnsafeColumn` | reachable | reachable |
+| `UnsafeValue` | reachable | reachable |
+| `TooManyValues` | reachable | reachable |
+| `NullOnNonNullableColumn` | reachable | reachable |
+| `ReservedColumn` | unreachable: no reserved column | reachable |
+| `NonFiniteColumn` | unreachable: the finite guard is expressible | reachable |
+
+## BEH-QD-599: The compile shell adds no span of its own
+
+> **Invariant:** [INV-QD-349](../invariants.md#inv-qd-349-one-compile-shell-and-each-compile-moves-its-dialects-counter-exactly-once)
+> **See:** [ADR-QD-165](../decisions/165-core-owns-the-predicate-compile-shell.md)
+
+```
+REQUIREMENT: `compilePredicate` MUST open no span. The dialect's own `Effect.fn`
+             span (`qadi.predicateSql.compileSql`,
+             `qadi.predicatePrisma.compilePrismaWhere`) MUST be the root of a
+             compile's trace and `qadi.predicate.toRenderable` its only child.
+```
+
+## BEH-QD-600: Each dialect declares its own compile counter once and hands it to the shell
+
+> **Invariant:** [INV-QD-349](../invariants.md#inv-qd-349-one-compile-shell-and-each-compile-moves-its-dialects-counter-exactly-once)
+> **See:** [ADR-QD-165](../decisions/165-core-owns-the-predicate-compile-shell.md), [ADR-QD-123](../decisions/123-a-metric-is-declared-once.md)
+
+```
+REQUIREMENT: Each dialect package MUST declare its compile counter once, at module
+             scope, with its own `qadi_…` id (ADR-QD-123, BEH-QD-368), and MUST
+             pass its two tagged series (`compiled`, `refused`) as
+             `CompileOutcomes`.
+REQUIREMENT: `@qadi/core` MUST declare no compile counter and take no metric id:
+             it counts against the series it is handed.
+```
+
+`spec/behaviors/25-inspection.md`'s metric table is unchanged: the same two counters, declared in the same two files.
 
 ---
 

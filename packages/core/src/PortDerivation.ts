@@ -31,6 +31,7 @@ import type * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
 import { InvalidBoundedPermits } from "./Errors.ts";
 import type { SubjectId } from "./Identity.ts";
+import { carryDefault, markDefault } from "./PortDefault.ts";
 import { KeyRefusal } from "./PortDescription.ts";
 import type { LeafRequests, PortDescription, PortShape } from "./PortDescription.ts";
 import { canonicalKey } from "./PortKey.ts";
@@ -219,7 +220,7 @@ export const retryCountingAttempts = <A, E>(
  * Rebuilds `layer`'s port with every call passed through `around`, named
  * `"<inner> (<suffix>)"` so a panel reports the whole stack rather than losing
  * the base implementation's identity (BEH-QD-196). An unnamed inner reads
- * `"?"`.
+ * `"?"`. The wrapper carries the inner's default mark (ARCH-94).
  */
 export const wrapPort = <
   N extends PortName,
@@ -236,7 +237,7 @@ export const wrapPort = <
   around: (call: (...args: Args) => Effect.Effect<A, E>) => (...args: Args) => Effect.Effect<A, E>,
 ): Layer.Layer<Self> =>
   wrapService(d.service, layer, (inner) =>
-    d.make(`${inner.name ?? "?"} (${suffix})`, around(d.invoke(inner))),
+    carryDefault(d.port, inner, d.make(`${inner.name ?? "?"} (${suffix})`, around(d.invoke(inner)))),
   );
 
 /**
@@ -282,7 +283,8 @@ export const retryingPort =
  * per item. Built on `effect/Semaphore` rather than a rate limiter: the
  * problem is concurrent in-flight calls, not calls per second. A permit count
  * that is not a positive integer fails the layer's construction with
- * `InvalidBoundedPermits` ({@link boundedPermits}).
+ * `InvalidBoundedPermits` ({@link boundedPermits}). Carries the inner's
+ * default mark (ARCH-94).
  */
 export const boundedPort =
   <
@@ -301,8 +303,12 @@ export const boundedPort =
     wrapServiceEffect(d.service, layer, (inner) =>
       Effect.map(boundedPermits(permits), (semaphore) => {
         const call = d.invoke(inner);
-        return d.make(`${inner.name ?? "?"} (bounded ${permits})`, (...args) =>
-          Semaphore.withPermit(semaphore)(call(...args)),
+        return carryDefault(
+          d.port,
+          inner,
+          d.make(`${inner.name ?? "?"} (bounded ${permits})`, (...args) =>
+            Semaphore.withPermit(semaphore)(call(...args)),
+          ),
         );
       }),
     );
@@ -360,7 +366,8 @@ export const timingOutPort =
  * every request (INV-QD-007, ADR-QD-040).
  *
  * The answer is one precomputed effect shared by every call, so the default
- * adds no allocation to the evaluation path.
+ * adds no allocation to the evaluation path. The default carries its port's mark
+ * (`isPortDefault`, ARCH-94), which every derived wrapper copies.
  */
 export const nonePort = <
   N extends PortName,
@@ -374,5 +381,5 @@ export const nonePort = <
   d: PortDescription<N, Self, Shape, Args, A, E, P>,
 ): Layer.Layer<Self> => {
   const answered: Effect.Effect<A, E> = Effect.succeed(d.none.answer);
-  return Layer.succeed(d.service, d.make(d.none.name, () => answered));
+  return Layer.succeed(d.service, markDefault(d.port, d.make(d.none.name, () => answered)));
 };

@@ -14,6 +14,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
 import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
@@ -36,6 +37,7 @@ import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
 import type { AuditStagingPortTestOptions } from "../src/AuditStagingPortTest.ts";
 import { AuditStagingError } from "../src/AuditStagingPort.ts";
 import type { AuditTrailPort } from "../src/AuditTrailPort.ts";
+import { InvalidAuditSinkOption } from "../src/InvalidAuditSinkOption.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
 import type { AuditWriteOutcome } from "../src/AuditWriteOutcome.ts";
 import { decisionRecord, read } from "./helpers.ts";
@@ -289,19 +291,21 @@ describe("AuditDecisionSinkLive — the deadline's boundaries", () => {
       }).pipe(Effect.provide(sink.layer));
     }));
 
-  it.effect("storeCallTimeout: Duration.zero (pinned, not chosen): the call starts, then fails at once", () =>
+  it.effect("storeCallTimeout: Duration.zero is refused when the layer is built", () =>
     Effect.gen(function* () {
-      const arrived = yield* Latch.make();
-      const trail = trailBy(() => AuditPortReply.Latch({ latch: arrived }));
+      const trail = trailBy(() => AuditPortReply.Ok());
       const sink = sinkOver(trail.layer, { storeCallTimeout: Duration.zero });
 
-      yield* Effect.gen(function* () {
-        const fiber = yield* forkRecord(decisionRecord());
-        const settled = yield* Fiber.join(fiber); // no clock adjust: it settled without time passing
-        assert.isTrue(Option.isSome(settled));
-        assert.isTrue(yield* arrived.close, "the store call started: its latch was open");
-        assert.deepStrictEqual(sink.outcomes(), ["WriteFailed/NotWired"]);
-      }).pipe(Effect.provide(sink.layer));
+      const exit = yield* DecisionSink.use((s) => s.record(decisionRecord())).pipe(Effect.provide(sink.layer), Effect.exit);
+      assert.isTrue(Exit.isFailure(exit));
+      const error = Exit.isFailure(exit) ? Cause.findErrorOption(exit.cause) : Option.none();
+      assert.isTrue(Option.isSome(error) && error.value instanceof InvalidAuditSinkOption);
+      if (Option.isSome(error) && error.value instanceof InvalidAuditSinkOption) {
+        assert.strictEqual(error.value.option, "storeCallTimeout");
+        assert.isTrue(Object.is(error.value.received, Duration.zero));
+      }
+      assert.strictEqual(trail.attempts(), 0);
+      assert.deepStrictEqual(sink.outcomes(), []);
     }));
 
   for (const [label, script, outcome] of [

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-044                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-10): amended by ADR-QD-126 — the audit sink's store calls are bounded (ARCH-62, CCR-QD-404)<br>1.1 (2026-10-07): "an observer can never deny" is enforced at one emitter, `SinkEmit.ts`, for decision and obligation records alike, and `sink-read-once` keeps it there (ADR-QD-100, CCR-QD-189). 1.0 (2026-08-23): Initial release (CCR-QD-060) |
+> | Change History | 1.3 (2026-11-15): amended by ADR-QD-159 — a sink that fails is reported once (ARCH-93, CCR-QD-437)<br>1.2 (2026-11-10): amended by ADR-QD-126 — the audit sink's store calls are bounded (ARCH-62, CCR-QD-404)<br>1.1 (2026-10-07): "an observer can never deny" is enforced at one emitter, `SinkEmit.ts`, for decision and obligation records alike, and `sink-read-once` keeps it there (ADR-QD-100, CCR-QD-189). 1.0 (2026-08-23): Initial release (CCR-QD-060) |
 
 ---
 
@@ -134,3 +134,7 @@ is unchanged; see the amendment to [ADR-QD-012](./012-deterministic-time-and-ids
 > **Amended in CCR-QD-189 (ADR-QD-100).** The guarantee that was enforced at two call sites (`evaluate`, `discharge`) now lives in one emitter, `sinkEmitter` in `SinkEmit.ts`, which both use. `scripts/check-house-style.mjs`'s `sink-read-once` rule fails a second `serviceOption(DecisionSink)` in library source.
 
 > **Amended by [ADR-QD-126](./126-an-audit-store-call-has-a-deadline.md) (ARCH-62, CCR-QD-404).** The audit sink bounds each of its own store calls by a deadline (`storeCallTimeout`, 5 seconds by default), so a store cannot hold a decision past it: a call that reaches it is a failed attempt. It does not buffer; the buffered sink this consequence describes is deferred, not rejected, with its costs recorded there.
+
+## Amendment (2026-11-15, ADR-QD-159, CCR-QD-437)
+
+**A sink that fails is reported once, not only contained.** The one emitter now reports every cause it contains, a defect, a throw before an effect is returned, a self-interruption or a failure leaked through a type escape, as one warning naming the sink (`DecisionSinkShape.name`, optional, `unnamed` when absent), where it used to contain them and say nothing. A failing `record` is still unrepresentable by its type, and is contained and reported like any other cause when a type escape produces one. The single read this decision established, and `sink-read-once`, stand. See [ADR-QD-159](./159-the-sink-emitter-reports-what-it-contains.md).

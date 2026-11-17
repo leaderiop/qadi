@@ -150,8 +150,8 @@ export const App = () => (
 );
 ```
 
-`useDevtoolsFeed` returns `gates`, `onInvalidate` and `diagnostics`, and
-`diagnostics` carries your `extras` plus the two fields the feed owns: a `layer`
+`useDevtoolsFeed` returns `gates` (the provider's gate registry), `onInvalidate`
+and `diagnostics`, and `diagnostics` carries your `extras` plus the two fields the feed owns: a `layer`
 that is the provider's own built services, and `questions`. Because that layer is
 the registry's own build, a service that keeps state in its constructor, such as
 `decisionCacheLayer`'s cache, is one instance shared by the decisions and the
@@ -161,8 +161,9 @@ in your extras is a compile error.
 The layer is held while the dock is mounted and released when it unmounts, a
 reading keeps its identity while nothing changed, so the dock does not re-render
 on every tick, and a layer that fails to build is stated on the Services panel,
-with the other reads carrying on. Gates are not sampled: they come from the
-provider's registry and the feed reads them for you.
+with the other reads carrying on. Gates are not sampled: the dock subscribes to
+the registry the feed hands it, for as long as the dock is mounted, and pairs each
+asked question with the guards asking it at one moment.
 
 While the first sample is pending, the Services and React screens say so. If the
 sampler fails with an unexpected error it stops: the screens say so with the reason,
@@ -211,7 +212,7 @@ export const HydrationLine = () => {
 runs on import or installs itself. The panels it composes (the decision log,
 the inspector, the policy explorer, the role viewer, the Services, Simulator and
 React panels) are what the dock draws, **not exports**: a host mounts the dock
-and hands it a `source`, a `catalogue`, `diagnostics` and `gates`.
+and hands it a `source`, a `catalogue`, `diagnostics` and `gates`, the registry (usually the feed's, or `atoms.gates`).
 
 What the headless model exports is what a shell crosses: three stores, the wiring
 the dock takes, and the readings of a timeline.
@@ -245,7 +246,8 @@ the dock takes, and the readings of a timeline.
   `hydrationActivity`) — which ports are in use, and the counters `@qadi/react`
   writes and this package reads, covering drops, mismatches, and rechecks between
   a server render and its client. Which mounted `Can`/`Cannot` gates are asking
-  what is the dock's Questions panel, fed `gates` by the host.
+  what is the dock's Questions panel, which the host hands `gates`, the
+  registry (usually the feed's, or `atoms.gates`).
 
 `environment` is a plain `string` on every record, not a closed union, because
 nothing here branches on it — it is a label a reader sees, and an unfamiliar

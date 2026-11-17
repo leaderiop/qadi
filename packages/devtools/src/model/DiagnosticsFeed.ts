@@ -71,8 +71,8 @@ export interface DiagnosticsSnapshot {
  * What a host hands over to have its diagnostics sampled: things it already
  * owns, and no Effects.
  *
- * Gates are not here. They are pushed by the host's subscription to
- * `@qadi/react`'s registry and stay a plain prop (AGENTS.md §13).
+ * Gates are not here. They are the dock model's own input (`DockModelInputs.gates`),
+ * a registry the model subscribes to (ADR-QD-162).
  */
 export interface DiagnosticsDockOptions {
   /**

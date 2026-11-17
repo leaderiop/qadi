@@ -1,0 +1,99 @@
+diff --git a/packages/core/bench/Evaluate.bench.ts b/packages/core/bench/Evaluate.bench.ts
+index b2f6a418..65393285 100644
+--- a/packages/core/bench/Evaluate.bench.ts
++++ b/packages/core/bench/Evaluate.bench.ts
+@@ -72,15 +72,27 @@ import { currentSubjectLayer } from "../src/CurrentSubject.ts";
+ import { EvaluationIdLive } from "../src/EvaluationId.ts";
+ import { evaluate } from "../src/Evaluate.ts";
+ import { EvaluationServicesNone } from "../src/EvaluationServicesNone.ts";
+-import { eq, fieldMatch, gte, literal, neq, subject, subjectId } from "../src/Matcher.ts";
++import {
++  action,
++  eq,
++  fieldMatch,
++  gte,
++  literal,
++  neq,
++  resource,
++  subject,
++  subjectId,
++} from "../src/Matcher.ts";
+ import { obligation } from "../src/Obligation.ts";
+ import { permission } from "../src/Permission.ts";
+ import {
+   allOf,
+   anyOf,
+   denyWhen,
++  hasAction,
+   hasAttribute,
+   hasPermission,
++  hasResourceAttribute,
+   labeled,
+   not,
+   obliged,
+@@ -309,6 +321,52 @@ const deepRules: Policy = Array.from({ length: 10 }).reduce<Policy>(
+   hasPermission(read),
+ );
+ 
++/**
++ * What the leaf-needs checks cost where they run (ARCH-97, ADR-QD-163). Every
++ * workload above is built from `hasPermission`, or from a `hasAttribute` whose
++ * matcher references neither the action nor the resource, so none of them
++ * stresses the checks `evaluateNode`'s `HasAttribute`, `HasResourceAttribute`
++ * and `HasAction` arms make before they read anything.
++ *
++ * Eight leaves whose matchers reference the action (`neq(action())`) and the
++ * resource (`eq(resource(...))`), beside the two own-input leaves
++ * (`hasResourceAttribute`, `hasAction`), and every one holds so the whole fold
++ * runs. The request supplies both inputs: the checks are on the hot path whether
++ * or not they fire, and the failing path is not the one measured.
++ */
++const leafHeavy = allOf([
++  hasAttribute("department", neq(action())),
++  hasAttribute("department", eq(resource("department"))),
++  hasResourceAttribute("owner", eq(subjectId())),
++  hasResourceAttribute("department", neq(action())),
++  hasResourceAttribute("department", eq(subject("department"))),
++  hasAction("read"),
++  hasAttribute("department", neq(action())),
++  hasAttribute("department", eq(resource("department"))),
++]);
++
++/**
++ * The same eight tags and the same request, with matchers that reference
++ * neither input: the control for `leafHeavy`, so the cost of reading the
++ * references is told from the cost of the arms.
++ */
++const leafHeavyPlain = allOf([
++  hasAttribute("department", eq(subject("department"))),
++  hasAttribute("clearance", fieldMatch("level", gte(2))),
++  hasAttribute("department", neq(subjectId())),
++  hasResourceAttribute("owner", eq(subjectId())),
++  hasResourceAttribute("department", eq(subject("department"))),
++  hasResourceAttribute("owner", eq(literal("alice"))),
++  hasAction("read"),
++  hasAttribute("department", neq(literal("oncology"))),
++]);
++
++/** The request the two `leafHeavy` workloads evaluate against. */
++const leafRequest = {
++  action: "read",
++  resource: { id: "doc-1", department: "cardiology", owner: "alice" },
++} as const;
++
+ const items = Array.from({ length: 500 }, (_, index) => ({
+   id: `doc-${index}`,
+   ownerId: index % 2 === 0 ? "alice" : "bob",
+@@ -339,6 +397,12 @@ test("evaluate", async ({ bench }) => {
+     bench("rules DenyOverrides — 8 permits", () => run(rulesDenyOverrides)),
+     bench("rules PermitOverrides — 8 denies", () => run(rulesPermitOverrides)),
+     bench("deep rules — 10 nested", () => run(deepRules)),
++    bench("leaf-heavy — allOf of 8, matchers reference action and resource", () => {
++      runtime.runSync(evaluate(leafHeavy, leafRequest));
++    }),
++    bench("leaf-heavy — allOf of 8, matchers reference neither", () => {
++      runtime.runSync(evaluate(leafHeavyPlain, leafRequest));
++    }),
+     options,
+   );
+ });

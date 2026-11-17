@@ -1,0 +1,9 @@
+head: 94e825e65274d33cd103f1b4232c972a2d7b02c6
+patch: /Users/mohammadalmechkor/Projects/Perso/qadi/.planning/phases/QD-50-what-a-leaf-needs-from-the-request-stated-once/bench/after/to-base.patch
+patch_sha256: 2fbb412a18300ea4eba9dc6183b0782ac725a438f06501c99db26b1648f8029b
+head_label: final
+patched_label: base
+rounds: 3
+node: v26.13.0
+cpu: Apple M3 Pro
+start: 2026-11-16T13:15:49Z

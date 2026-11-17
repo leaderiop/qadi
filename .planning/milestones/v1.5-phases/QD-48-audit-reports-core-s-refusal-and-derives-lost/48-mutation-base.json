@@ -1,0 +1,14 @@
+{
+ "measured": {
+  "packages/audit/src/AuditDecisionSinkLive.ts": 1,
+  "packages/audit/src/AuditEntry.ts": 1,
+  "packages/audit/src/AuditWriteOutcome.ts": 1,
+  "packages/audit/src/AuditWriteReport.ts": 0.9659090909090909
+ },
+ "unmeasured": {},
+ "new": [
+  "packages/audit/src/UnwrittenRow.ts"
+ ],
+ "deleted": {},
+ "moved": {}
+}

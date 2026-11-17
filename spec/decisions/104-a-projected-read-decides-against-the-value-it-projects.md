@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-104                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — amends ADR-QD-011, ADR-QD-043       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-08): Initial (ARCH-39, CCR-QD-207) |
+> | Change History | 1.1 (2026-11-15): Amendment: HandoverOptions, the options type of every entry point that hands over a value (ADR-QD-156, CCR-QD-434)<br>1.0 (2026-10-08): Initial (ARCH-39, CCR-QD-207) |
 
 ---
 
@@ -68,3 +68,14 @@ decides against the data it projects.
   "forgot", not "passed a different record of the same type", which is the defect); keeping
   `resource` on `enforceProjected` and re-deciding on the loaded value (two evaluations, two
   records and two discharges of possibly the same obligation).
+
+## Amendment (2026-11-15, ADR-QD-156, CCR-QD-434)
+
+[ADR-QD-156](./156-a-handed-over-value-is-decided-through-one-module.md) moves the handover into `Handover.ts` and extends this record's rule from three entry points to eight.
+Where this record calls its options type `LoadedEnforceOptions`, read `HandoverOptions`: it is renamed with no alias, and
+it is now the options type of `guard` and the four `filter*` entry points (`filter`, `filterStream`, `filterProjected`
+and `filterStreamProjected`) as well as `enforceProjected`, `enforceLoaded` and `enforceProjectedLoaded`, so a second
+`resource` is refused at compile time on every entry point that hands over a value. Where it says every one routes
+through `permitted`, read `verdictOf` and `discharge` in `Handover.ts`. The resource is set by `decidedOn` (and dropped
+by `resourceFree` for `enforceProjected`, which decides without one), and `project(decision, value)` is written once,
+in `RELEASE`. The decision itself is unchanged: a projected read decides against the value it projects.

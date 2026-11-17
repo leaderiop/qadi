@@ -18,6 +18,7 @@ import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
 import type { AuditWriteOutcome } from "../src/AuditWriteOutcome.ts";
 import { LOST_COUNTERS, STAGING_COUNTERS, WRITES_COUNTERS } from "../src/AuditWriteReport.ts";
+import type { InvalidAuditSinkOption } from "../src/InvalidAuditSinkOption.ts";
 import type { StagingLabel, WritesLabel } from "../src/AuditWriteReport.ts";
 import { decisionRecord } from "./helpers.ts";
 
@@ -92,7 +93,7 @@ const lostTotal = (counts: Counts): number => Object.values(counts.lost).reduce(
 const lostLabelsMoved = (before: Counts, after: Counts): ReadonlyArray<string> =>
   Record.keys(after.lost).filter((label) => after.lost[label] > before.lost[label]);
 
-export const driveExit = (spec: ExitSpec): Effect.Effect<ExitObservation> =>
+export const driveExit = (spec: ExitSpec): Effect.Effect<ExitObservation, InvalidAuditSinkOption> =>
   Effect.gen(function* () {
     const outcomes: Array<AuditWriteOutcome> = [];
     const isTarget = (entry: AuditEntry) => entry.record.evaluationId === "target";

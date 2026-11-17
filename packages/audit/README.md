@@ -52,8 +52,8 @@ A row whose record contradicts itself (the decision is not its own trace's) is r
 
 A record carrying a value with no safe durable representation — a function,
 a circular reference, a `bigint`, a `Map`/`Set`/`RegExp`/binary array, in the
-resource, the policy or anywhere else — fails `AuditEntryNotEncodable`, with
-the refusal and the path it was found at, rather than being partially written
+resource, the policy or anywhere else — fails `@qadi/core`'s
+`SinkRecordNotEncodable`, with the refusal and the path it was found at, rather than being partially written
 or silently dropped. A refused record is reported, never dropped silently: it reaches
 `onRefused` when you pass one to `AuditDecisionSinkLive`, otherwise it is logged as a
 warning naming the refusal, its path and the `evaluationId`, and the
@@ -94,6 +94,10 @@ that reaches it is interrupted and fails with the port's own error, its cause a
 `TimeoutError`: a late write is `WriteFailed` and counts toward the breaker, and a
 late stage or commit is a staging failure, reported as in the table above. Raise it
 for a store that is healthy but slow, or pass `Duration.infinity` for no deadline.
+A `storeCallTimeout` that is not a positive duration (zero, a negative, `NaN`) is refused when the
+layer is built, with `InvalidAuditSinkOption`, as is a `failureThreshold` that is not a positive safe
+integer or a `resetTimeoutMs` that is not a finite, positive, whole number of milliseconds within the
+safe integers.
 An adapter that makes itself uninterruptible is not bounded by it.
 
 ```typescript

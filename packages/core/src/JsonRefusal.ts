@@ -137,8 +137,9 @@ const where = (path: WirePath): string => (path.length === 0 ? "the record" : pa
  *
  * `EncodeFailed`'s sentence carries its `message`, which can be text a caller
  * wrote (a throwing getter's message), so a sentence is never an annotation and
- * never a default log message (INV-QD-104); only an error's own `reason` field
- * carries it. `@qadi/audit` fills `AuditEntryNotEncodable.reason` with this.
+ * never a default log message (INV-QD-104); a caller holding a refusal, in an
+ * `onRefused` or `onFailure` hook, asks for it here, and no error carries it as a
+ * field (ADR-QD-161).
  */
 export const describeEncodeRefusal: (self: EncodeRefusal) => string = Match.type<EncodeRefusal>().pipe(
   Match.tagsExhaustive({

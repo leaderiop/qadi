@@ -1,43 +1,43 @@
 ---
 gsd_state_version: "1.0"
-milestone: v1.4
-milestone_name: Arch Wave 9
+milestone: v1.5
 status: Awaiting next milestone
-stopped_at: Phase QD-42 complete — all phases complete
-last_updated: "2026-11-14T19:22:24.876Z"
-last_activity: 2026-11-14
-last_activity_desc: Milestone v1.4 completed and archived
-state_head: d7c623ac00193d1bfa437e6e8d3af37d12649b50
+stopped_at: Phase QD-52 complete — all phases complete
+last_updated: "2026-11-16T19:51:11.650Z"
+last_activity: 2026-11-16
+last_activity_desc: "Milestone v1.5 shipped as PR #162"
+state_head: 10d621c0e82d8720519b904b9beef5706e53a853
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 38
-  completed_plans: 38
+  total_phases: 10
+  completed_phases: 10
+  total_plans: 71
+  completed_plans: 71
   percent: 100
-current_phase: 42
+milestone_name: Arch Wave 10
+current_phase: 52
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-14)
+See: .planning/PROJECT.md (updated 2026-11-16)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Planning next milestone (v1.4 Arch Wave 9 complete 2026-11-14; not merged, not released)
+**Current focus:** v1.5 Arch Wave 10 complete and archived (2026-11-16; not merged, not released) — next: `/gsd-new-milestone`
 
 ## Current Position
 
-Phase: Milestone v1.4 complete
+Phase: Milestone v1.5 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-11-14 — Milestone v1.4 completed and archived
+Last activity: 2026-11-16 -- Milestone v1.5 shipped as PR #162
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 165
+- Total plans completed: 236
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -77,6 +77,16 @@ Last activity: 2026-11-14 — Milestone v1.4 completed and archived
 | QD-40 | 9 | - | - |
 | QD-41 | 6 | - | - |
 | QD-42 | 5 | - | - |
+| 43 | 8 | - | - |
+| 44 | 6 | - | - |
+| 45 | 8 | - | - |
+| 46 | 7 | - | - |
+| 47 | 7 | - | - |
+| QD-48 | 8 | - | - |
+| QD-49 | 9 | - | - |
+| QD-50 | 8 | - | - |
+| QD-51 | 5 | - | - |
+| QD-52 | 5 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -244,6 +254,77 @@ Last activity: 2026-11-14 — Milestone v1.4 completed and archived
 | Phase QD-42 P03 | 3 min | 3 tasks | 7 files |
 | Phase QD-42 P04 | 6 min | 3 tasks | 11 files |
 | Phase QD-42 P05 | 17 min | 3 tasks | 2 files |
+| Phase 43 P01 | 5min | 2 tasks | 3 files |
+| Phase 43 P02 | 12min | 2 tasks | 1 files |
+| Phase 43 P03 | 25min | 2 tasks | 5 files |
+| Phase 43 P04 | 30min | 2 tasks | 6 files |
+| Phase QD-43 P05 | 20min | 2 tasks | 7 files |
+| Phase 43 P06 | 12min | 2 tasks | 9 files |
+| Phase 43 P07 | 25min | 3 tasks | 9 files |
+| Phase QD-43 P08 | 15min | 3 tasks | 4 files |
+| Phase 44 P01 | 10min | 3 tasks | 2 files |
+| Phase QD-44 P02 | 20min | 3 tasks | 8 files |
+| Phase QD-44 P03 | 10min | 2 tasks | 1 files |
+| Phase 44 P04 | 15min | 3 tasks | 8 files |
+| Phase QD-44 P05 | 15min | 2 tasks | 6 files |
+| Phase QD-44 P06 | 12 min | 3 tasks | 1 files |
+| Phase 45 P01 | 9min | 3 tasks | 3 files |
+| Phase QD-45 P02 | 8min | 2 tasks | 2 files |
+| Phase 45 P03 | 6min | 2 tasks | 1 files |
+| Phase 45 P04 | 12min | 3 tasks | 8 files |
+| Phase QD-45 P05 | 8 min | 2 tasks | 5 files |
+| Phase 45 P06 | 25min | 2 tasks | 9 files |
+| Phase QD-45 P07 | 12 min | 2 tasks | 6 files |
+| Phase 45 P08 | 10 min | 3 tasks | 1 files |
+| Phase 46 P01 | 22 min | 2 tasks | 2 files |
+| Phase 46 P02 | 12 min | 2 tasks | 3 files |
+| Phase 46 P03 | 10 min | 2 tasks | 4 files |
+| Phase 46 P04 | 12 min | 3 tasks | 5 files |
+| Phase 46 P05 | 14 min | 2 tasks | 11 files |
+| Phase 46 P06 | 25 min | 2 tasks | 5 files |
+| Phase QD-46 P07 | 5 min | 3 tasks | 1 files |
+| Phase 47 P01 | 15min | 2 tasks | 2 files |
+| Phase QD-47 P02 | 4 min | 2 tasks | 2 files |
+| Phase 47 P03 | 5 min | 3 tasks | 8 files |
+| Phase 47 P04 | 10min | 3 tasks | 4 files |
+| Phase 47 P05 | 10min | 3 tasks | 7 files |
+| Phase 47 P06 | 10min | 2 tasks | 9 files |
+| Phase 47 P07 | 25min | 3 tasks | 2 files |
+| Phase QD-48 P01 | 10min | 2 tasks | 1 files |
+| Phase QD-48 P02 | 15min | 3 tasks | 3 files |
+| Phase QD-48 P03 | 25min | 3 tasks | 12 files |
+| Phase QD-48 P04 | 20min | 2 tasks | 5 files |
+| Phase QD-48 P05 | 6min | 2 tasks | 2 files |
+| Phase QD-48 P06 | 20min | 3 tasks | 10 files |
+| Phase QD-48 P07 | 20min | 3 tasks | 6 files |
+| Phase QD-48 P08 | 5min | 3 tasks | 1 files |
+| Phase QD-49 P01 | 8min | 2 tasks | 2 files |
+| Phase QD-49 P02 | 12min | 3 tasks | 6 files |
+| Phase QD-49 P03 | 25min | 3 tasks | 10 files |
+| Phase QD-49 P04 | 12min | 3 tasks | 5 files |
+| Phase QD-49 P49-05 | 25min | 3 tasks | 9 files |
+| Phase QD-49 P06 | 10min | 3 tasks | 6 files |
+| Phase QD-49 P07 | 25min | 3 tasks | 14 files |
+| Phase QD-49 P08 | 25min | 2 tasks | 5 files |
+| Phase QD-49 P09 | 15m | 3 tasks | 1 files |
+| Phase QD-50 P01 | 6min | 2 tasks | 2 files |
+| Phase QD-50 P02 | 12min | 3 tasks | 5 files |
+| Phase QD-50 P03 | 12min | 3 tasks | 2 files |
+| Phase QD-50 P04 | 8min | 2 tasks | 3 files |
+| Phase QD-50 P05 | 6min | 2 tasks | 3 files |
+| Phase QD-50 P06 | 10min | 2 tasks | 2 files |
+| Phase QD-50 P07 | 25min | 3 tasks | 9 files |
+| Phase QD-50 P08 | 20min | 2 tasks | 1 files |
+| Phase QD-51 P01 | 6min | 2 tasks | 1 files |
+| Phase QD-51 P02 | 15min | 2 tasks | 4 files |
+| Phase QD-51 P03 | 10min | 2 tasks | 5 files |
+| Phase QD-51 P04 | 25min | 3 tasks | 8 files |
+| Phase QD-51 P05 | 15min | 3 tasks | 2 files |
+| Phase QD-52 P01 | 6min | 2 tasks | 1 files |
+| Phase QD-52 P02 | 15min | 2 tasks | 2 files |
+| Phase QD-52 P03 | 9min | 3 tasks | 7 files |
+| Phase QD-52 P04 | 25min | 3 tasks | 9 files |
+| Phase QD-52 P05 | 15min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -399,9 +480,79 @@ Last activity: 2026-11-14 — Milestone v1.4 completed and archived
 - [Phase QD-42]: 42-03: QadiRuntimeServices stays in QadiAtoms.ts; only DECISIONS_KEY moved down into SeededQuestion.ts (a back-import would be a madge cycle)
 - [Phase QD-42]: 42-04: ADR-QD-140's amendment names both QadiAtoms.ts imports its edge list lacked (SeededQuestion.ts and SweepScheduler.ts); the unused reserved numbers appear only in the CCR-QD-433 row
 - [Phase QD-42]: 42-05: no closing test needed; HydrationEngine.ts 1 and QadiAtoms.ts 0.9 above base, SeededQuestion.ts carries only its five moved survivors, all fifteen milestone files equal their latest recorded score
+- [v1.5]: the ten phases 43-52 and their order are fixed by the user (2026-11-15); per-phase evidence is `.planning/phases/_WAVE10-CONTEXT.md`; reserved numbers are ADR 156-165, CCR 434-443, BEH 551-600, INV 331-350 (never run `node scripts/next-id.mjs`); base `ba0d0615` (head of `arch-wave-9`, not merged), branch `arch-wave-10`, strictly serial, nothing released
+- [Phase 43]: 43-01: Collection-entry-point refusals are tested via Parameters<typeof X>[2], because a callable form on an Effect/Stream-returning function passes vacuously under effect(floatingEffect)
+- [Phase 43]: [43-02] Handover characterisation uses core's testLayer plus a recording DecisionSink, not the testing package's qadiTestLayer (dependency cycle); the one RED case is enforceProjected's smuggled resource
+- [Phase 43]: 43-03: guard adapts Handover.ts directly via admittedOrDenied/decidedOn; AccessDenied constructed once in Qadi.ts; closed RELEASE table is the one project( in the module
+- [Phase 43]: 43-04: handOver is a plain function per item (no Effect.fn); the array forms share keptInOrder, the stream forms Stream.filterMap over the same Result; @qadi/promise filter/filterProjected take Omit<FacadeOptions, resource>, no branch
+- [Phase QD-43]: 43-05: upgrade sections link ADR-QD-156 at its planned filename; one Breaking changeset per package
+- [Phase 43]: ADR-QD-156: Handover.ts owns options, verdict, discharge, resource scoping and release; guard adapts it directly; LoadedEnforceOptions renamed HandoverOptions with no alias
+- [Phase 43]: INV-QD-331 added (array and stream forms agree on who passes, in order); INV-QD-108 renamed and its anchor corrected at every link
+- [Phase QD-43]: 43-08: a verdict's refusal tag is observable only through the package-private verdictOf, so its survivor is closed by a direct test; the close's no-as scan misreads Effect.as, so verdictOf uses Effect.map
+- [Phase 44]: 44-01: base mutation scores HydrationEngine.ts 1 (183/183), SeededDecision.ts 0.875 (7/8, one NoCoverage survivor at :119:18); close must meet both unrounded
+- [Phase QD-44]: 44-02: a seeded allow with no visibleFields has no visibleFields key (D-03); rebuild spreads the decoded entry and lets the class set _tag
+- [Phase QD-44]: 44-03: the Allow/Deny branch is one closed VERDICTS table read through the generic rowOf; entryAgrees' rule kept verbatim
+- [Phase 44]: ADR-QD-157: a seed's fields are the wire's, stated once (ADR-QD-135 pattern); ADR-QD-078 kept and amended; the optional visibleFields key is a Breaking minor for @qadi/react
+- [Phase QD-44]: INV-QD-333 used (no existing invariant says a seed carries every disclosed wire field); BEH-QD-557..560 and INV-QD-334 unused
+- [Phase QD-44]: 44-06: mutation after the seed fields stated once equals the base (HydrationEngine.ts 1, SeededDecision.ts 0.875); no survivor test needed; check:pr green
+- [Phase 45]: 45-01: the adapter table needed no row corrected against the base; the sink option rows end Written (not WriteFailed) on the base because a healthy synchronous write beats a zero deadline
+- [Phase QD-45]: 45-02: run's reply is a module-private Moved { before, next }; non-observe helpers stay until 45-03
+- [Phase 45]: 45-03: the four helpers survive as one-liners over run, so admit/withPermit/finalizer stay byte-identical to phase_base
+- [Phase 45]: 45-04: a bad breaker option is a typed InvalidAuditSinkOption refusal at construction; the layer error channel moves from never; received carries the raw input because NaN decodes to a zero duration
+- [Phase QD-45]: 45-05: storeCallTimeout is checked by the sink after the breaker is built (two bad options name the breaker's first); Duration.infinity stays no deadline (D-06a)
+- [Phase 45]: ADR-QD-158: a refused sink option is a typed InvalidAuditSinkOption (config), unlike BEH-QD-166's defect (code constant); Duration.infinity stays accepted
+- [Phase QD-45]: 45-07: the CCR-QD-436 row lists changed files by full path, because its check matches each changed path as a substring
+- [Phase 45]: 45-08: mutation held without a survivor test round; CircuitBreaker.ts 0.8496 vs base 0.8051, AuditDecisionSinkLive.ts 1
+- [Phase 46]: 46-01: a sink whose name getter throws is reported once as unnamed (E7); an empty-string name is annotated as given (E11)
+- [Phase 46]: 46-01: mutation baseline re-measured on the base; scores equal RESEARCH Q7 (SinkEmit 1, DecisionSinkForwarding 0.8065, DecisionLog 0.9275, EvaluationEnvironment 1, AuditDecisionSinkLive 1)
+- [Phase 46]: 46-02: N4 reads the shadow sink with Effect.serviceOption(DecisionSink), since evaluationEnvironment's declared outputs omit DecisionSink
+- [Phase 46]: 46-03: reportSinkFailure is a plain untraced function and sinkName uses ?? so an empty name is kept; both live in SinkEmit.ts, sinkName package-private for 46-04
+- [Phase 46]: 46-04: the forwarder's outer catch is removed; a throwing onFailure is reported once by the emitter naming decisionSinkForwarding
+- [Phase 46]: 46-04: DecisionLog's isolate catches stay; the publish half is kept though unreachable by any test, so the append half's catch cannot mislabel a publish defect
+- [Phase 46]: 46-05: ADR-QD-159 records the metric as declined and deferred (ADR-QD-123), log flood and log forging as accepted consequences, and the change as not breaking
+- [Phase 46]: 46-05: the CCR-QD-437 row lists Task 1's files only; the overview, upgrade guide and changesets are added by 46-06 with the Used/Unused ids
+- [Phase 46]: 46-06: BEH-QD-566..570 and INV-QD-337/338 state the emitter's report; INV-QD-035 keeps its heading, restated; CCR-QD-437 closed with Used ids and Unused: none
+- [Phase QD-46]: 46-07: all five touched files met or beat their mutation base on the first measurement (DecisionLog 0.9857, DecisionSinkForwarding 0.9118, others 1); no test round or fix commit needed
+- [Phase 47]: 47-01: Stryker base scores stored unrounded from fresh runs of both configs (PortDerivation 0.98, the other five 1); RED rows committed on the untouched base
+- [Phase QD-47]: 47-02: every services-panel reading is a whole-string strictEqual on the row's first span, pinned on the base; the captured-default row guards decoratePorts' carry (D-17)
+- [Phase 47]: 47-03: the default's mark is a package-private unique Symbol(qadi.PortDefault) holding the PortName; isPortDefault reads the own property only
+- [Phase 47]: 47-04: ROWS built by monomorphic rowOf (R6, D-18); PortCall derived from the registry (D-19)
+- [Phase 47]: 47-05: the sixth port's devtools cost measured at four src files (PortReading, PortCalls, SimulationFields, SimulationSource), scratch reverted; ADR-QD-160 names BEH/INV in plain text until 47-06; changesets core minor and devtools patch, none Breaking
+- [Phase 47]: 47-06: BEH-QD-574 is placed in 30-port-calls.md beside BEH-QD-228; BEH-QD-573 and 575 stay in 28-devtools-screens.md
+- [Phase 47]: 47-07: mutation after the phase keeps every touched file at its base score; the new files PortDefault.ts and PortReading.ts score 1; the CCR-QD-438 row names the evidence
+- [Phase QD-48]: 48-01: ADR-QD-054/056 do not forbid @qadi/audit reporting core's SinkRecordNotEncodable (quoted ADR check); mutation base committed alone d1428895
+- [Phase QD-48]: 48-03: AuditEntryNotEncodable deleted with no alias; audit reports core's SinkRecordNotEncodable (D-01, D-02)
+- [Phase QD-48]: 48-04: one package-private row per unwritten staging decides lost-ness (D-05/D-05a); tags declared structurally to avoid an import cycle
+- [Phase QD-48]: 48-05 D-09/D-10: StageResult is a closed unexported Data.TaggedEnum; writtenStaging, evaluationIdOf, outcomePath and the refusal dispatch are exhaustive matches
+- [Phase QD-48]: ADR-QD-161 records the audit refusal as core's SinkRecordNotEncodable and lost decided once; ADR-QD-056/095 amended, Breaking changeset
+- [Phase QD-48]: BEH-QD-579 scopes the warning leg to the six unwritten leaves; Written.CommitFailed and Refused warn without being lost
+- [Phase QD-48]: 48-08: the overview's historical Change History row naming the deleted class stays (history exempt); the scope check excluded only that row
+- [Phase QD-49]: 49-01: no ADR forbids the gates-as-eighth-store design; ADR-QD-053's one-shot-prop and useGateInstances sentences become historical, noted (not reversed) by ADR-QD-162
+- [Phase QD-49]: 49-02: the characterisation hands guards through gatesProp in a panelMarkup(props, guards?) helper, so no gates prop and an empty one stay distinct and 49-05 flips one line
+- [Phase QD-49]: 49-03: GateState rows stay empty in core; display words (Error, Deny, Allow) live only in devtools (D-02)
+- [Phase QD-49]: 49-04: a throwing registry instances() is not caught in the questions store; the dock model's subscription is scope-owned (closed flag + finalizer) and re-subscribes only on a registry identity change
+- [Phase QD-49]: 49-05: the feed hands over the gate registry, the dock's gates prop is GateRegistryLike only, and D-12a is the one copy change, committed after the tracer
+- [Phase QD-49]: GateRegistryLike joins GateInstanceLike on the devtools root entry only; joinQuestions, the views and the snapshot stay model-private
+- [Phase QD-49]: ADR-QD-162 states the dock model's store count once (seven before, questions the eighth, sightings a thunk); ADR-QD-053 is noted, not reversed
+- [Phase QD-49]: 49-08: the five BEH records stay at five and the new listings are ts fences (package-private); AGENTS.md section 13 and devtools-spec 02-screens.md re-read and unchanged
+- [Phase QD-49]: 49-09: mutation holds every touched file at its base score; no survivor round needed; check:pr green, nothing released
+- [Phase QD-50]: 50-01: survivor identity is textual (mutator, status, replacement, mutated text, line text); 50-06 compares sorted lists
+- [Phase QD-50]: 50-02: matrix expectations are base-captured literals plus a hand-written D-05 oracle; no leaf-needs table or leafTags read
+- [Phase QD-50]: Bench gate passed (slower 0 of 35, geomean +2.75%, worst +8.7% inside band): the leaf-needs table is pursued, 50-04..50-08 run
+- [Phase QD-50]: 50-04: LeafNeeds.ts ships as the gate-measured P1 module (D-01); Walk's leaf arms read it
+- [Phase QD-50]: 50-05: D-08a applied, toPredicate's MissingAction has no own expected key when no action was named; readScoped builds MissingResourceId through errorOf after annotateQuestion
+- [Phase QD-50]: 50-06: after-run gate pass (0/35 slower, geomean +1.87%); mutation holds, Walk.ts by D-13, LeafNeeds.ts sole survivor equivalent
+- [Phase QD-50]: ADR-QD-163 records both bench runs from the committed analysis.tsv files; the after-run's worst row (+9.3%) is stated as 0.7 points inside its band
+- [Phase QD-51]: 51-01: Stryker baseline of Policy.ts and Decision.ts measured once on the untouched base and committed alone as the phase's first commit; never re-baselined
+- [Phase QD-51]: 51-02: TraceShape EXPECTED is hand-written and never reads the arity record; base experiment: 32/32 moves compile, table catches 32/32, Decision.test.ts 8/32
+- [Phase QD-51]: 51-03: POLICY_ARITY lives in package-private PolicyArity.ts; Policy.ts closes it over its tag union via module-local ArityRecord/TagsOfArity; Many type carries { readonly 0?: never }
+- [Phase QD-51]: ADR-QD-164: renderTrace and diffTraces keep their own walks and read no arity; foldTrace stays public and unchanged
+- [Phase QD-52]: 52-03: Prisma's D-06a rationale lives in a body comment, not the doc comment, so the emitted declaration stays byte-identical to the base
+- [Phase QD-52]: INV-QD-350 stays unused: a defect counting neither outcome is part of INV-QD-349
 
 ### Pending Todos
 
+- v1.5: Phase 43 (`@qadi/core`) and Phase 48 (`@qadi/audit`) are **Breaking**; Phase 50 opens on a `pnpm bench` measurement and may end in a recorded rejection (ADR-QD-163); Phase 48's first plan checks ADR-QD-054 and ADR-QD-056 before any code; soft edges 45 → 48, 47 → 49 and 50 → 51 (same files; serial order covers them).
 - v1.4: research-phase before planning Phases 40 and 42 (37, 38, 39, 40, 41, 42 done) (`/gsd-plan-phase --research-phase <N>`); 38, 39 and 41 are standard. Phase 40 opens on the compatibility decision for `onMalformed`/`qadi.reason`; Phase 41 opens on RED first plus the non-JSON display decision; Phase 42 opens on a human checkpoint (evidence, then one `AskUserQuestion`).
 - v1.2: phases open on a `checkpoint:decision` (23-01, 25-01, 28-01; see ROADMAP); answer each once when its phase starts. 22-01's two were already answered in `_DECISIONS-v1.2.md` (done 2026-11-11).
 - v1.2: v1.1's phase dirs (10-20) are not yet archived to `.planning/milestones/v1.1-phases/`; do it with /gsd-complete-milestone when v1.1 is released or explicitly closed.
@@ -433,6 +584,16 @@ Last activity: 2026-11-14 — Milestone v1.4 completed and archived
 - [Phase 40] Review (40-REVIEW-DISPOSITION.md): 0 critical; WR-01 (a throwing `onMalformed` ended the devtools stream, pre-existing) and IN-01..03 fixed, an iteration-2 info (`thrownName` hardened) fixed, iteration 3 clean; mutation re-run after the fixes holds (SinkCodec 0.97546, SinkWire 1 at 60/60, Source 1 at 80/80, AuditEntry 1); post-review `pnpm check:pr` green. User decision: D-03 amended (counted `Schema.decodeTo`, SinkCodec.ts 1 → 2). Commits from 40-05 onward carry a Sonnet co-author trailer (recorded in 40-05..40-09 SUMMARYs). `spec-revise.mjs` drops its first positional argument unless `--date` is passed (index filter against `dateFlag + 1` when `dateFlag` is -1).
 - [Phase 41] Review (41-REVIEW-DISPOSITION.md): 0 critical; WR-01 (label rule written twice) fixed by a second core export `valueLabel`, WR-03 (`In` fallback walk could throw) fixed, IN-02 fixed; WR-02 (an object whose `toJSON` gives nothing changed label, against D-07's wording) and IN-01/IN-03 skipped; iteration 2 clean; mutation re-run holds (Explanation 0.98701 vs base 0.98673, ValueText 1 at 13/13, Remedies/Filters 1, SimulationForm 0.98367); post-review `pnpm check:pr` green. User decision: one primitive, a public core export (D-13..D-16), after planning found core's `explain` threw too.
 - [Phase 42] Review (42-REVIEW-DISPOSITION.md): 0 critical; WR-01 (stale spec placing the seed logic in `HydrationEngine.ts`) fixed by dated amendments to ADR-QD-093, ADR-QD-041 and BEH-QD-151, WR-02 (late-seed test could pass vacuously) fixed, IN-01 (`isMismatch` unused export) and IN-02 fixed; iteration 2 left one whitespace info, fixed; mutation re-run holds (HydrationEngine 1, QadiAtoms 0.9, SeededQuestion 57/62 with the five base survivors); post-review `pnpm check:pr` green. User decision: option 1b.
+- [Phase 43] Review (43-REVIEW-DISPOSITION.md): 0 critical; WR-01 (the facade's `Omit<FacadeOptions, "resource">` refused only fresh literals, so a `FacadeOptions` variable still had its `resource` dropped) fixed in 9c0bef1d (`resource?: never` on `filter`, `filterProjected` and `projected`, RED-then-GREEN tstyche on a variable), records aligned in 39faed5a; iteration 2 had 0 warnings. IN-01 (`Verdict`/`Admitted` names reused from `Compare.ts`/`Admission.ts`), IN-02 (`Handover.test.ts` header says "public surface only, green on the base", but it imports `verdictOf`), IN-03 (`resourceFree` doc overstates its monopoly: `enforce`/`assert` keep `options.resource`) and IN-04 (wall-clock ordering test; `guard` arrow mis-indented) open, info. Post-review `pnpm check:pr` green; verification passed 5/5. `phase.complete`'s "file not on disk" warnings are false positives (relative spec paths and a command string).
+- [Phase 44] Review (44-REVIEW-DISPOSITION.md): 0 critical; three successive WR-01 warnings fixed — 0e05e184 (the byte golden cannot see a new optional wire field: a key-set pin of `DecisionWireAllow/Deny.fields`, spec reworded), 623edb09 (the pin tied to the engine's `ALLOW_WITHHELD`/`DENY_WITHHELD`), 3b340636 (spec names both guards); the auto loop hit its 3-iteration cap with the last fix applied, iteration backups kept untracked. IN-01 (plan-local ids `D-04`, `HYDF-03/04` in source and test titles) and IN-02 ("pinned on the phase base" describe title) open, info. Post-review `pnpm check:pr` green at 9e63b00f; verification passed 4/4; `phase.complete`'s "file not on disk" warnings are false positives (command strings and a relative link). ROADMAP's Phase 44 Records line corrected from "patch" to minor (Breaking).
+- [Phase 45] Review (45-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 10 findings — iteration 1 WR-01 (a `1e300` threshold or `1e21` cooldown still never tripped or reset; `Number.isSafeInteger`, a raw non-whole cooldown refused, 4883eb09), IN-01..04 (Success on a zero-failure Closed breaker answers its state, a runtime-break note, option rows, wrapping); iteration 2 (refusal message and docs said "whole number", d3bb6271); iteration 3 (a string or `Duration` cooldown is read to the nanosecond, the 0.13 upgrade entry synced, 4e413439); cap reached, backups untracked. Post-review mutation CircuitBreaker.ts 0.853, `pnpm check:pr` green (5266 tests, BDD 568); security 18/18 closed; verification passed 5/5. `phase.complete`'s "file not on disk" warnings are false positives (command strings).
+- [Phase 46] Review (46-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 8 findings — iteration 1 WR-01 (a sink that made its record unreadable before dying erased its own report; fields captured before the call, 697c076e), WR-02 (outer-interrupt rows, ab4a1496), IN-01/03 (one shared report in package-private `SinkReport.ts`, member line has the four keys, ff60679c), IN-02 (exact key set, hostile-cause row, 09ccefc3); iteration 2 (E15 claim, classification carried forward, 806ccd48/5e1c61d8); iteration 3 (ADR W0 cell, e0299678); cap reached, backups untracked. Security audit corrected ADR-QD-159's record tag to `Obligations` (9ad3da01); 19/19 closed. Post-review mutation all ≥ base (SinkReport.ts 1; DecisionSinkForwarding 0.90, its `{ discard: true }` survivors equivalent), `pnpm check:pr` green (5305 tests, BDD 568); verification passed 8/8. `phase.complete`'s "file not on disk" warnings are false positives (command strings).
+- [Phase 47] Review (47-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 10 findings — iteration 1 WR-01 (an unnamed default read "wired, unnamed", b1ce4e15), WR-02 (`isPortDefault` threw on a hostile proxy; made total, 80d56c5f), WR-03 (the mark's copy lost a class's prototype, 829be12e), WR-04 (never-marked rows for all five ports, 78ca795b), IN-01/02 (forgery wording, decorator limit stated); iteration 2 WR-01 (`#private` state lost: mark in place, 47de9c93) and MUT-01 (PortDefault.ts fell to 0.64 after iteration 1; dead guard removed, `try` narrowed, spread row, 1b14f0b1); iteration 3 WR-01 (in-place assign could throw; `Reflect.defineProperty` with copy fallback, a7d385c2), IN-01; cap reached, backups untracked. Security 26/26 closed (T-47-11 moved from accepted to mitigated by the review fixes, c02aeac7); UI audit 23/24. Post-review mutation PortDefault.ts 0.857 (two equivalent catch-block survivors named), others ≥ base; `pnpm check:pr` green (5384 tests, BDD 568); verification passed 8/8. `phase.complete`'s "file not on disk" warnings are false positives (command strings, the reverted scratch port, short paths).
+- [Phase 48] Review (48-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 16 findings — iteration 1 WR-01 (the 0.13 upgrade guide taught logging `describeEncodeRefusal`, which can carry caller text; now logs the default warning's annotations, b054bbdd), IN-01..08 (the unused `"encodeRefusal"` marker removed, the unwritten wording moved into the row, closed leaf lists, spec wording); iteration 2 WR-01 (the characterisation lost its no-hook run when IN-05 installed a hook; every leaf now runs both ways, 1d7ff083) + 3 info; iteration 3 three spec-text info. Stryker: all five audit files at 1 (AuditWriteReport.ts base 0.9659); `check:pr` exit 0 after the fixes.
+- [Phase 49] Review (49-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 16 findings — iteration 1 WR-01 (a throwing gate registry escaped into the host and other stores; guarded read, closed `GatesView.Failed`, rows make no claim, 0d9c2071/e4fc69d2), WR-02 (react-integration appendix), IN-01..04; iteration 2 WR-01 (a throwing unsubscribe left `configure` half-applied, 8aceb349) + IN-01..03 (stale "plain prop" headers, failure keyed by name and message, `configure` retries a failed watch); iteration 3 six info (total `reasonOf`, release failure of a left registry swallowed, neutral copy, swap before `remerge`, spec text; 91db923b..365b82a8). Stryker DockModel.ts 123/123, Gates.ts 66/66 (verifier re-ran); `check:pr` exit 0 (coverage 99.57/98.39); security 24/24; UI 22/24 (the `qadi-gates-failed` arm postdates the UI audit — look at it next time the dock is opened); verification passed 5/5. `phase.complete`'s "file not on disk" warnings are false positives (command strings, short paths).
+- [Phase 50] Bench gate first (D-03a): pursue at 0/35 beyond band (geomean +2.75%); after-run of the final source 0/35 (geomean +1.87%, worst +9.3% on `anyOf First — 8, last allows`, 0.7 points inside its band). Mutation: Walk.ts 95.05→94.81% passes by D-13 (survivors identical), LeafNeeds.ts 98.11% (one equivalent survivor). Review (50-REVIEW-DISPOSITION.md): 0 open; three iterations, 13 findings, 12 fixed, IN-05 skipped by D-06 — all type-level or wording, no measured line changed (closed classification lists with `never` defaults and a disjointness check; ab.sh signal/revert handling).
+- [Phase 51] Base experiment recorded first: all 32 single-tag arity moves compiled on the base (the existing tests caught 8, the new all-tags `TraceShape.test.ts` 32); after the change each is a compile error. Mutation: Decision.ts 0.9586→0.9639 at close, 0.9677 post-review (`51-mutation-review.json`), Policy.ts 0.9865 unchanged, `PolicyArity.ts` no mutant. Review (51-REVIEW-DISPOSITION.md): 0 open; three iterations, 15 findings fixed — notably a total per-arity dispatch (a fourth arity word does not compile), the tools' restore on every exit, and a foreign tag now throwing a TypeError before any arm (was Match's absurd; both fail-closed). The 51-05 close scan now reports three expected review-fix items.
+- [Phase 52] Characterisation first (sql 47, prisma 21 tests green on the base, byte-identical since); `compilePredicate` RED by import then GREEN; both dialects converted with `.d.ts` hash-identical to the base; gates 935/523. Mutation by D-09a (user): core 0.98148→0.98214, each dialect index.ts fell by exactly its 4 moved shell mutants, all killed in core, survivors unchanged; post-review record identical. Review: 2 iterations, WR-01 (`rules` closed against `identifiers`/`maxInValues`) and 3 info fixed, IN-03 skipped to keep the characterisation evidence byte-identical. D-06a: Prisma counts `compiled` after render.
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
@@ -447,11 +608,12 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-14T18:57:50.249Z
-Stopped at: Phase QD-42 complete — all phases complete
+Last session: 2026-11-16T18:33:36.630Z
+Stopped at: Phase QD-52 complete — all phases complete
 Resume file: None
 
 ## Operator Next Steps
+
 
 
 

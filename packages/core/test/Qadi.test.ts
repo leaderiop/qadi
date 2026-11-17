@@ -454,15 +454,18 @@ describe("Qadi.guard", () => {
       assert.strictEqual(r.failure._tag, "AccessDenied");
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
-  it.effect("the guarded resource overrides one passed in options", () =>
+  it.effect("the guarded resource is the one evaluated, even when an untyped caller passes another", () =>
     Effect.gen(function* () {
       // Two channels for one value is what caused the defect. The positional
       // resource is the one the handler and the witness describe, so it is the
-      // one evaluated — anything else lets the three disagree.
+      // one evaluated — anything else lets the three disagree. `JSON.parse` is
+      // untyped, standing for a JavaScript caller the type cannot stop.
       const ownedByMe = P.hasResourceAttribute("ownerId", M.eq(M.subjectId()));
-      const out = yield* Qadi.guard(read, ownedByMe, {
-        resource: { ownerId: "someone-else" },
-      })({ ownerId: "u1" }, (_a, resource) => Effect.succeed(resource.ownerId));
+      const out = yield* Qadi.guard(
+        read,
+        ownedByMe,
+        JSON.parse('{"resource":{"ownerId":"someone-else"}}'),
+      )({ ownerId: "u1" }, (_a, resource) => Effect.succeed(resource.ownerId));
       assert.strictEqual(out, "u1");
     }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))));
 
@@ -717,6 +720,34 @@ describe("Qadi.filterStream — concurrency across items", () => {
           items.length,
           "concurrent filterStream should have every item's lookup in flight before any completes",
         );
+        yield* Deferred.succeed(gate, undefined);
+        yield* Fiber.join(fiber);
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({}), { AttributeResolver: blockingResolver(invocations, gate) }),
+        ),
+      );
+    }));
+});
+
+describe("Qadi.filterStreamProjected — concurrency across items", () => {
+  const policy = P.hasAttribute("clearance", M.gte(1));
+  const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+  it.effect("with concurrency: 'unbounded', every item's lookup is in flight at once", () =>
+    Effect.gen(function* () {
+      const invocations = yield* Ref.make(0);
+      const gate = yield* Deferred.make<void>();
+
+      yield* Effect.gen(function* () {
+        const fiber = yield* forkAndSettle(
+          Stream.runCollect(
+            Qadi.filterStreamProjected(policy, Stream.fromIterable(items), {
+              concurrency: "unbounded",
+            }),
+          ),
+        );
+        assert.strictEqual(yield* Ref.get(invocations), items.length);
         yield* Deferred.succeed(gate, undefined);
         yield* Fiber.join(fiber);
       }).pipe(

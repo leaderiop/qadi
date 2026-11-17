@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-053                                   |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-10-07                                     |
-> | Status         | Accepted — amended by ADR-QD-080, ADR-QD-093, ADR-QD-103, ADR-QD-111, ADR-QD-140; amended 2026-10-08 (the devtools feed) |
+> | Status         | Accepted — amended by ADR-QD-080, ADR-QD-093, ADR-QD-103, ADR-QD-111, ADR-QD-140; amended 2026-10-08 (the devtools feed); amended 2026-11-16 (the dock subscribes, ADR-QD-162) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.6 (2026-11-12): Amendment: useGates moved from GateWriter.ts to useGate.ts (ADR-QD-140, CCR-QD-427)<br>1.5 (2026-11-08): Amended by ADR-QD-111 — registration goes through one internal useGates over a writer the provider resolves once (ARCH-49, CCR-QD-388)<br>1.4 (2026-10-08): amendment — `@qadi/react` produces the devtools feed, built runtime included; devtools still consumes it structurally (BEH-QD-327, CCR-QD-240)<br>1.3 (2026-10-07): `GateKind` gains `usePolicies` and `useQuestions`; a hook asking several questions registers one instance per question (ADR-QD-103, CCR-QD-201)<br>1.2 (2026-10-05): `GateRenderState` is derived from `DecisionOutcome`'s tag, not restated; amended by ADR-QD-093 (CCR-QD-175)<br>1.1 (2026-10-04): the registry is no longer module-scope; amended by ADR-QD-080 (CCR-QD-160)<br>1.0 (2026-08-24): Initial release (CCR-QD-073) |
+> | Change History | 1.7 (2026-11-16): Amended: the dock's model subscribes to the registry, and the feed hands it over (ADR-QD-162, CCR-QD-440)<br>1.6 (2026-11-12): Amendment: useGates moved from GateWriter.ts to useGate.ts (ADR-QD-140, CCR-QD-427)<br>1.5 (2026-11-08): Amended by ADR-QD-111 — registration goes through one internal useGates over a writer the provider resolves once (ARCH-49, CCR-QD-388)<br>1.4 (2026-10-08): amendment — `@qadi/react` produces the devtools feed, built runtime included; devtools still consumes it structurally (BEH-QD-327, CCR-QD-240)<br>1.3 (2026-10-07): `GateKind` gains `usePolicies` and `useQuestions`; a hook asking several questions registers one instance per question (ADR-QD-103, CCR-QD-201)<br>1.2 (2026-10-05): `GateRenderState` is derived from `DecisionOutcome`'s tag, not restated; amended by ADR-QD-093 (CCR-QD-175)<br>1.1 (2026-10-04): the registry is no longer module-scope; amended by ADR-QD-080 (CCR-QD-160)<br>1.0 (2026-08-24): Initial release (CCR-QD-073) |
 
 ---
 
@@ -234,3 +234,9 @@ evidence, and the first draft of `gateIdAt` had already made the mistake.
 > structural. Devtools gained no API: a second `context` input beside `layer` was
 > rejected as two inputs that can disagree, and would have needed a raw `AsyncResult`
 > read in `@qadi/react`, which `DECISION_READ_BUDGET` refuses.
+
+> **Amended 2026-11-16 (ADR-QD-162, CCR-QD-440).** The host no longer subscribes for the dock. The dock's model subscribes to the
+> registry in its own scope, and `useDevtoolsFeed` hands the registry over as `gates` instead of reading it through
+> `useGateInstances`, so the two wiring sentences above ("a plain, one-shot prop, not a subscription" and `gates` "read through
+> `useGateInstances`") are history. The decision stands: `@qadi/devtools` takes the registry structurally, as
+> `GateRegistryLike`, with no dependency on `@qadi/react`.

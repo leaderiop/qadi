@@ -20,9 +20,11 @@
  * has something to point at. `react/Lens.ts` is where that becomes an `Element`.
  */
 import * as Arr from "effect/Array";
+import * as Data from "effect/Data";
 import * as Equal from "effect/Equal";
 import * as Record from "effect/Record";
-import type { Policy, Resource } from "@qadi/core";
+import { gateStates, isGateState } from "@qadi/core";
+import type { GateState, Policy, Resource } from "@qadi/core";
 import { policyLabel } from "./Catalogue.ts";
 import type { DisplayState } from "./Verdict.ts";
 
@@ -49,7 +51,8 @@ export interface AskedQuestionLike {
  *
  * Structurally identical to that package's `GateInstance` and deliberately not
  * imported from it, exactly as `AskedQuestionLike` is not: `@qadi/devtools` does
- * not depend on `@qadi/react`. A host passes `useGateInstances()` or `atoms.gates.instances()` straight in.
+ * not depend on `@qadi/react`. A host hands the registry that lists them, `atoms.gates`, as a
+ * {@link GateRegistryLike}, and never the instances themselves.
  *
  * `kind` and `state` are `string` rather than the unions that produced them, for
  * the reason `PortCalls.ts` gives about span attributes and `Hydration.ts` gives
@@ -68,22 +71,13 @@ export interface GateInstanceLike {
 }
 
 /**
- * The five render states a guard reports, restating `DecisionOutcome`'s tags.
- *
- * Restated rather than imported because this package does not depend on
- * `@qadi/react`, which is why `GateInstanceLike.state` stays a `string`: a
- * state outside this union is a newer build's, and is shown, not refused.
- */
-type GateRenderState = "Failed" | "Denied" | "Rechecking" | "Pending" | "Allowed";
-
-/**
  * How each render state is shown, worst news first.
  *
- * Closed over the five states, so a sixth added to the union is a compile error
- * here rather than a guard drawn like some other one. `Failed` is an `Error`,
- * never a `Deny` (INV-QD-006).
+ * Keyed by `@qadi/core`'s {@link GateState}, so a sixth state added there is a
+ * compile error here rather than a guard drawn like some other one. `Failed` is
+ * an `Error`, never a `Deny` (INV-QD-006).
  */
-const GATE_DISPLAY: { readonly [K in GateRenderState]: DisplayState } = {
+const GATE_DISPLAY: { readonly [K in GateState]: DisplayState } = {
   Failed: "Error",
   Denied: "Deny",
   Rechecking: "Rechecking",
@@ -94,24 +88,21 @@ const GATE_DISPLAY: { readonly [K in GateRenderState]: DisplayState } = {
 /**
  * The render states, in the order a panel should show them.
  *
- * Typed as plain strings, so a state this build does not know sorts after these
- * rather than vanishing. The order is *worst-news-first*: a reader opens this
- * panel because something is missing. Derived from `GATE_DISPLAY`, so the list
- * and the map cannot disagree.
+ * Core's `gateStates`, typed as plain strings, so a state this build does not
+ * know sorts after these rather than vanishing. The order is *worst-news-first*:
+ * a reader opens this panel because something is missing.
  */
-export const GATE_STATES: ReadonlyArray<string> = Object.keys(GATE_DISPLAY);
-
-const isGateRenderState = (state: string): state is GateRenderState =>
-  Object.hasOwn(GATE_DISPLAY, state);
+export const GATE_STATES: ReadonlyArray<string> = gateStates;
 
 /**
  * How a guard's render state is shown.
  *
- * A state this build does not know is `Unrecognised`: muted, and labelled with
- * its own name by the panel, never coloured as though it were an answer.
+ * A state this build does not know, a newer `@qadi/react`'s, is `Unrecognised`:
+ * muted, and labelled with its own name by the panel, never coloured as though
+ * it were an answer, and shown rather than refused.
  */
 export const displayOfGateState = (state: string): DisplayState =>
-  isGateRenderState(state) ? GATE_DISPLAY[state] : "Unrecognised";
+  isGateState(state) ? GATE_DISPLAY[state] : "Unrecognised";
 
 /** How many instances are in one state. */
 export interface GateStateCount {
@@ -242,3 +233,127 @@ export const instancesAsking = (
   groups.find(
     (group) => Equal.equals(group.policy, policy) && Equal.equals(group.resource, resource),
   )?.instances ?? [];
+
+/**
+ * A registry of live guards, as the dock model reads it.
+ *
+ * Structurally `@qadi/react`'s `GateRegistry`, and deliberately not imported from
+ * it, for the reason `GateInstanceLike` is not (ADR-QD-053). The model subscribes
+ * to it in its own scope, so a host hands the registry and wires nothing.
+ *
+ * `instances` must return the same array until something changed, as react's
+ * registry does: the questions store keeps its snapshot by comparing that reference.
+ */
+export interface GateRegistryLike {
+  readonly instances: () => ReadonlyArray<GateInstanceLike>;
+  readonly subscribe: (listener: () => void) => () => void;
+}
+
+/**
+ * One asked question and the guards asking it right now; none is a real and common state.
+ *
+ * `asking` is `undefined` while the registry could not be read: the row then makes no claim
+ * about who is asking, neither a list nor "nothing mounted".
+ */
+export interface QuestionRow {
+  readonly question: AskedQuestionLike;
+  readonly asking: ReadonlyArray<GateInstanceLike> | undefined;
+}
+
+/**
+ * What the panel says about the registry: none handed over, none mounted, the guards, or a read that failed.
+ *
+ * `Failed` carries the reason the registry threw, as `DiagnosticsStatus.Stopped` and
+ * `WiringRead.Failed` carry theirs: a host's registry that throws is stated and not swallowed.
+ */
+export type GatesView = Data.TaggedEnum<{
+  Absent: {};
+  Empty: {};
+  Listed: {};
+  Failed: { readonly reason: string };
+}>;
+
+export const GatesView = Data.taggedEnum<GatesView>();
+
+/**
+ * What the panel says about the questions asked.
+ *
+ * `Unsampled` is the case where no sample has been taken yet, which the panel
+ * renders as nothing at all; `Absent` is a sample that was taken and carried no
+ * question source.
+ */
+export type QuestionsView = Data.TaggedEnum<{
+  Unsampled: {};
+  Absent: {};
+  Empty: {};
+  Rows: { readonly rows: ReadonlyArray<QuestionRow> };
+}>;
+
+export const QuestionsView = Data.taggedEnum<QuestionsView>();
+
+/** The one value the questions store holds: the two views, and every guard for the lens. */
+export interface QuestionsSnapshot {
+  readonly gates: GatesView;
+  readonly questions: QuestionsView;
+  /** Every guard the registry lists: its own array, never a copy, or one constant when absent or unread. */
+  readonly instances: ReadonlyArray<GateInstanceLike>;
+}
+
+/** What `joinQuestions` reads: both sources, taken at one moment. */
+export interface JoinInput {
+  readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
+  readonly gates: ReadonlyArray<GateInstanceLike> | undefined;
+  /** Why the registry could not be read; when set it wins, and `gates` is ignored. */
+  readonly failed: string | undefined;
+  /** Already reduced to "no sample yet and no questions": the only case the view needs. */
+  readonly unsampled: boolean;
+}
+
+const NO_INSTANCES: ReadonlyArray<GateInstanceLike> = [];
+const GATES_ABSENT = GatesView.Absent();
+const GATES_EMPTY = GatesView.Empty();
+const GATES_LISTED = GatesView.Listed();
+const QUESTIONS_UNSAMPLED = QuestionsView.Unsampled();
+const QUESTIONS_ABSENT = QuestionsView.Absent();
+const QUESTIONS_EMPTY = QuestionsView.Empty();
+
+/** The registry's view: a failed read first, then absent, empty or listed. */
+const gatesViewOf = (input: JoinInput): GatesView =>
+  input.failed !== undefined
+    ? GatesView.Failed({ reason: input.failed })
+    : input.gates === undefined
+      ? GATES_ABSENT
+      : Arr.isReadonlyArrayNonEmpty(input.gates)
+        ? GATES_LISTED
+        : GATES_EMPTY;
+
+/**
+ * Joins the asked questions to the guards asking them: the one place the panel's rows are decided.
+ *
+ * The panel used to pair a polled list with a `gates` prop in the view, so a row
+ * could join two moments. This is pure over one input, and the store that calls it
+ * reads both sources in the same step. A failed read leaves each row's `asking`
+ * undefined and lists no guard, so no row claims "nothing mounted" about a registry
+ * nobody could read.
+ */
+export const joinQuestions = (input: JoinInput): QuestionsSnapshot => {
+  const instances = input.failed === undefined ? (input.gates ?? NO_INSTANCES) : NO_INSTANCES;
+  const groups = gateGroups(instances);
+  const rowOf = (question: AskedQuestionLike): QuestionRow => ({
+    question,
+    asking:
+      input.failed === undefined ? instancesAsking(groups, question.policy, question.resource) : undefined,
+  });
+  return {
+    gates: gatesViewOf(input),
+    questions:
+      input.questions === undefined
+        ? input.unsampled
+          ? QUESTIONS_UNSAMPLED
+          : QUESTIONS_ABSENT
+        : Arr.isReadonlyArrayNonEmpty(input.questions)
+          ? QuestionsView.Rows({ rows: input.questions.map(rowOf) })
+          : QUESTIONS_EMPTY,
+    instances,
+  };
+};

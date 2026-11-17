@@ -19,8 +19,7 @@
  */
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
-import * as Metric from "effect/Metric";
-import { DEFAULT_MAX_IN_VALUES, toRenderable } from "@qadi/core";
+import { compilePredicate } from "@qadi/core";
 import type {
   ColumnFiniteness,
   FiniteGuard,
@@ -28,7 +27,6 @@ import type {
   NullGuard,
   Predicate,
   RenderableNode,
-  RenderRules,
   SafeLiteral,
 } from "@qadi/core";
 import { compiledTotal } from "./CompileMetrics.ts";
@@ -316,29 +314,26 @@ export const compileSql = Effect.fn("qadi.predicateSql.compileSql")(function* (
   predicate: Predicate,
   options: CompileSqlOptions,
 ) {
-  const rules: RenderRules = {
-    identifiers: options.identifiers ?? "Ascii",
-    reservedColumns: NO_RESERVED_COLUMNS,
-    maxInValues: options.maxInValues ?? DEFAULT_MAX_IN_VALUES,
-    nullability:
-      options.nullable === undefined
-        ? { _tag: "Unknown" }
-        : { _tag: "Declared", nullable: options.nullable },
-    // `Not` renders `CASE WHEN`, which makes it two-valued itself.
-    negation: "TwoValued",
-    finiteness: FINITENESS[options.dialect],
-    // `col - col = 0` (`FINITE_GUARDED`) expresses the guard on every dialect.
-    finiteExclusion: "Expressible",
-  };
-
-  const node = yield* toRenderable(predicate, rules).pipe(
-    Effect.tapError(() => Metric.update(compiledTotal.refused, 1)),
-  );
-
-  const params: Array<SqlSafeValue> = [];
-  const text = renderNode(node, SYNTAX[options.dialect], params);
-
-  yield* Metric.update(compiledTotal.compiled, 1);
-
-  return { text, params };
+  return yield* compilePredicate(predicate, {
+    rules: {
+      reservedColumns: NO_RESERVED_COLUMNS,
+      nullability:
+        options.nullable === undefined
+          ? { _tag: "Unknown" }
+          : { _tag: "Declared", nullable: options.nullable },
+      // `Not` renders `CASE WHEN`, which makes it two-valued itself.
+      negation: "TwoValued",
+      finiteness: FINITENESS[options.dialect],
+      // `col - col = 0` (`FINITE_GUARDED`) expresses the guard on every dialect.
+      finiteExclusion: "Expressible",
+    },
+    identifiers: options.identifiers,
+    maxInValues: options.maxInValues,
+    outcomes: compiledTotal,
+    // The accumulator is per run of the Effect, not per construction of it.
+    render: (node) => {
+      const params: Array<SqlSafeValue> = [];
+      return { text: renderNode(node, SYNTAX[options.dialect], params), params };
+    },
+  });
 });

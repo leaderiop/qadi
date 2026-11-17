@@ -19,15 +19,13 @@
  */
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
-import * as Metric from "effect/Metric";
 import * as P from "effect/Predicate";
-import { DEFAULT_MAX_IN_VALUES, toRenderable } from "@qadi/core";
+import { compilePredicate } from "@qadi/core";
 import type {
   IdentifierRule,
   NullGuard,
   Predicate,
   RenderableNode,
-  RenderRules,
 } from "@qadi/core";
 import { compiledTotal } from "./CompileMetrics.ts";
 
@@ -431,22 +429,23 @@ const renderNode: (node: RenderableNode) => PrismaWhereInput = Match.type<Render
  */
 export const compilePrismaWhere = Effect.fn("qadi.predicatePrisma.compilePrismaWhere")(
   function* (predicate: Predicate, options: CompilePrismaWhereOptions) {
-    const rules: RenderRules = {
-      identifiers: options.identifiers ?? "Ascii",
-      reservedColumns: RESERVED_PRISMA_KEYS,
-      maxInValues: options.maxInValues ?? DEFAULT_MAX_IN_VALUES,
-      nullability: { _tag: "Declared", nullable: options.nullable },
-      // Prisma's `{NOT: inner}` is the target's own, three-valued `NOT`.
-      negation: "ThreeValued",
-      // Only the declared `Float`/`Decimal` columns can hold a non-finite
-      // number, and Prisma cannot exclude one from a range (see `floating`).
-      finiteness: { _tag: "Declared", floating: options.floating },
-      finiteExclusion: "Inexpressible",
-    };
-    const node = yield* toRenderable(predicate, rules).pipe(
-      Effect.tapError(() => Metric.update(compiledTotal.refused, 1)),
-    );
-    yield* Metric.update(compiledTotal.compiled, 1);
-    return renderNode(node);
+    // `compiled` is counted only after `render` returns, so a renderer defect
+    // counts neither outcome (BEH-QD-597, ADR-QD-165).
+    return yield* compilePredicate(predicate, {
+      rules: {
+        reservedColumns: RESERVED_PRISMA_KEYS,
+        nullability: { _tag: "Declared", nullable: options.nullable },
+        // Prisma's `{NOT: inner}` is the target's own, three-valued `NOT`.
+        negation: "ThreeValued",
+        // Only the declared `Float`/`Decimal` columns can hold a non-finite
+        // number, and Prisma cannot exclude one from a range (see `floating`).
+        finiteness: { _tag: "Declared", floating: options.floating },
+        finiteExclusion: "Inexpressible",
+      },
+      identifiers: options.identifiers,
+      maxInValues: options.maxInValues,
+      outcomes: compiledTotal,
+      render: renderNode,
+    });
   },
 );

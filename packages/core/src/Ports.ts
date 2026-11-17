@@ -26,6 +26,7 @@ import { attributeResolverFromRecord, attributeResolverPort } from "./AttributeR
 import { customPredicateFromRecord, customPredicatePort } from "./CustomPredicate.ts";
 import { decisionHistoryFromEvents, decisionHistoryPort } from "./DecisionHistory.ts";
 import type { ActedEventInput } from "./DecisionHistory.ts";
+import { carryDefault } from "./PortDefault.ts";
 import { nonePort } from "./PortDerivation.ts";
 import type { LeafRequests, PortDescription, PortShape } from "./PortDescription.ts";
 import type { PortName } from "./PortName.ts";
@@ -320,6 +321,9 @@ export const fixturePortsLayer = (setups: PortFixtures = {}): Layer.Layer<PortSe
  * a `ports` layer with a side effect at construction (opening a connection)
  * would run it five times (the reason `@qadi/devtools`' `capturing` gave for
  * the same shape before it moved here).
+ *
+ * A decorated default stays its port's default: the decorated shape carries the
+ * mark of the inner one (D-17, ARCH-94).
  */
 export const decoratePorts = (
   ports: Layer.Layer<PortServices>,
@@ -328,7 +332,10 @@ export const decoratePorts = (
   Layer.unwrap(
     Effect.map(Layer.build(ports), (context) =>
       mergePorts(
-        tabulatePorts((d) => Layer.succeed(d.service, f(d, Context.get(context, d.service)))),
+        tabulatePorts((d) => {
+          const inner = Context.get(context, d.service);
+          return Layer.succeed(d.service, carryDefault(d.port, inner, f(d, inner)));
+        }),
       ),
     ),
   );

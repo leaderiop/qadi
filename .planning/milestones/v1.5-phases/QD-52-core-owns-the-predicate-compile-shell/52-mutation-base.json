@@ -1,0 +1,141 @@
+{
+ "measured": {
+  "packages/core/src/RenderablePredicate.ts": 0.9814814814814815,
+  "packages/predicate-sql/src/index.ts": 0.9558823529411765,
+  "packages/predicate-prisma/src/index.ts": 0.9262295081967213
+ },
+ "counts": {
+  "packages/core/src/RenderablePredicate.ts": {
+   "killed": 159,
+   "timeout": 0,
+   "survived": 3,
+   "noCoverage": 0,
+   "ignored": 60
+  },
+  "packages/predicate-sql/src/index.ts": {
+   "killed": 65,
+   "timeout": 0,
+   "survived": 2,
+   "noCoverage": 1,
+   "ignored": 43
+  },
+  "packages/predicate-prisma/src/index.ts": {
+   "killed": 113,
+   "timeout": 0,
+   "survived": 4,
+   "noCoverage": 5,
+   "ignored": 32
+  }
+ },
+ "survivors": {
+  "packages/core/src/RenderablePredicate.ts": [
+   "ArrowFunction | Survived | () => undefined | () => false | Unrepresentable: () => () => false,",
+   "MethodExpression | Survived | NON_FINITE.every(value => !evaluatePredicate(leaf, { [column]: value })) | NON_FINITE.some((value) => !evaluatePredicate(leaf, { [column]: value })) | NON_FINITE.some((value) => !evaluatePredicate(leaf, { [column]: value }))",
+   "ObjectLiteral | Survived | {} | { [column]: value } | NON_FINITE.some((value) => !evaluatePredicate(leaf, { [column]: value }))"
+  ],
+  "packages/predicate-sql/src/index.ts": [
+   "ObjectLiteral | Survived | {} | { _tag: \"Unknown\" } | ? { _tag: \"Unknown\" }",
+   "StringLiteral | NoCoverage | `` | `(${expression} AND ${column} IS NOT NULL)` | ExcludeNull: (column, expression) => `(${expression} AND ${column} IS NOT NULL)`,",
+   "StringLiteral | Survived | \"\" | \"Unknown\" | ? { _tag: \"Unknown\" }"
+  ],
+  "packages/predicate-prisma/src/index.ts": [
+   "ArrayDeclaration | NoCoverage | [] | [{ [column]: filter }, { [column]: { not: null } }] | if (\"not\" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };",
+   "ConditionalExpression | Survived | false | \"not\" in filter | if (\"not\" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };",
+   "ConditionalExpression | Survived | true | keys.length === 1 | return keys.length === 1 && Array.isArray(where.AND) && where.AND.length === 0;",
+   "ConditionalExpression | Survived | true | keys.length === 1 | return keys.length === 1 && Array.isArray(where.OR) && where.OR.length === 0;",
+   "ObjectLiteral | NoCoverage | {} | { AND: [{ [column]: filter }, { [column]: { not: null } }] } | if (\"not\" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };",
+   "ObjectLiteral | NoCoverage | {} | { [column]: filter } | if (\"not\" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };",
+   "ObjectLiteral | NoCoverage | {} | { [column]: { not: null } } | if (\"not\" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };",
+   "ObjectLiteral | NoCoverage | {} | { not: null } | if (\"not\" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };",
+   "StringLiteral | Survived | \"\" | \"not\" | if (\"not\" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };"
+  ]
+ },
+ "unmeasured": {
+  "packages/predicate-sql/src/CompileMetrics.ts": "no scored mutant: all 8 ignored (ignoreStatic: true; module-scope declarations only)",
+  "packages/predicate-prisma/src/CompileMetrics.ts": "no scored mutant: all 8 ignored (ignoreStatic: true; module-scope declarations only)"
+ },
+ "movedShell": {
+  "packages/predicate-sql/src/index.ts": {
+   "lines": [
+    320,
+    322,
+    335,
+    341
+   ],
+   "detected": 4,
+   "survived": 0,
+   "ignored": 0,
+   "mutants": [
+    {
+     "line": 320,
+     "mutator": "LogicalOperator",
+     "status": "Killed",
+     "replacement": "options.identifiers && \"Ascii\"",
+     "text": "options.identifiers ?? \"Ascii\""
+    },
+    {
+     "line": 320,
+     "mutator": "StringLiteral",
+     "status": "Killed",
+     "replacement": "\"\"",
+     "text": "\"Ascii\""
+    },
+    {
+     "line": 322,
+     "mutator": "LogicalOperator",
+     "status": "Killed",
+     "replacement": "options.maxInValues && DEFAULT_MAX_IN_VALUES",
+     "text": "options.maxInValues ?? DEFAULT_MAX_IN_VALUES"
+    },
+    {
+     "line": 335,
+     "mutator": "ArrowFunction",
+     "status": "Killed",
+     "replacement": "() => undefined",
+     "text": "() => Metric.update(compiledTotal.refused, 1)"
+    }
+   ]
+  },
+  "packages/predicate-prisma/src/index.ts": {
+   "lines": [
+    435,
+    437,
+    447,
+    449
+   ],
+   "detected": 4,
+   "survived": 0,
+   "ignored": 0,
+   "mutants": [
+    {
+     "line": 435,
+     "mutator": "LogicalOperator",
+     "status": "Killed",
+     "replacement": "options.identifiers && \"Ascii\"",
+     "text": "options.identifiers ?? \"Ascii\""
+    },
+    {
+     "line": 435,
+     "mutator": "StringLiteral",
+     "status": "Killed",
+     "replacement": "\"\"",
+     "text": "\"Ascii\""
+    },
+    {
+     "line": 447,
+     "mutator": "ArrowFunction",
+     "status": "Killed",
+     "replacement": "() => undefined",
+     "text": "() => Metric.update(compiledTotal.refused, 1)"
+    },
+    {
+     "line": 437,
+     "mutator": "LogicalOperator",
+     "status": "Killed",
+     "replacement": "options.maxInValues && DEFAULT_MAX_IN_VALUES",
+     "text": "options.maxInValues ?? DEFAULT_MAX_IN_VALUES"
+    }
+   ]
+  }
+ }
+}

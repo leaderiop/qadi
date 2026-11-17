@@ -71,8 +71,11 @@ When the policy reads the resource — `hasResourceAttribute`, `hasRelationship`
 custom predicate — use `enforceLoaded` or `enforceProjectedLoaded`. They run the
 effect first and decide against the value it produced, so what is decided and what
 is handed over are one record. `enforce` and `enforceProjected` decide before the
-effect runs and can see no resource; `enforceProjected` refuses `options.resource`
-for that reason. Because the loader runs before the decision, its side effects and
+effect runs and can see no resource. Every entry point that hands over a value
+(`enforceProjected`, `enforceLoaded`, `enforceProjectedLoaded`, `guard` and the four
+`filter*`) takes `HandoverOptions`, which refuses `options.resource`: the value
+handed over is the resource decided on, so a second one cannot be written. `enforce`
+and `assert` hand over no value and keep `options.resource`. Because the loader runs before the decision, its side effects and
 failures are visible to a caller who is then denied; gate it first with
 `enforce(canReadAny)` when that matters.
 
@@ -164,6 +167,6 @@ const removed = guard(deleteDoc, canDelete)({ id: "doc-1" }, handler);
 // Effect<void, EnforcementError, EvaluationServices>
 ```
 
-For the full requirements — field-projection edge cases, and why a guarded
-resource can never be overridden by `EnforceOptions` — see
+For the full requirements — field-projection edge cases, and why a second
+resource cannot be written on an entry point that hands over a value — see
 [07 — Enforcement](https://github.com/leaderiop/qadi/blob/main/spec/behaviors/07-enforcement.md).

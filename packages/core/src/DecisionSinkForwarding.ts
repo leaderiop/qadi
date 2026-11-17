@@ -26,6 +26,7 @@ import type { DecisionSinkShape } from "./DecisionSink.ts";
 import type { SinkRecordNotEncodable } from "./Errors.ts";
 import { encodeSinkRecord } from "./SinkCodec.ts";
 import type { SinkRecordJson } from "./SinkCodec.ts";
+import { handedOver, reportSinkFailure } from "./SinkReport.ts";
 
 /**
  * A sink that encodes each record for the wire and hands it to `send`.
@@ -61,7 +62,9 @@ import type { SinkRecordJson } from "./SinkCodec.ts";
  * [INV-QD-035](../../../spec/invariants.md#inv-qd-035-a-sink-cannot-change-a-decision)
  * says an observer cannot change a decision, and a devtools page being
  * unreachable is the most ordinary thing that can go wrong here — an
- * authorization request must not fail because nobody is watching.
+ * authorization request must not fail because nobody is watching. A hook that
+ * throws is not this sink's to contain: the emitter reports it once, naming this
+ * sink (ADR-QD-159).
  *
  * Reported rather than silent, though: a forwarder dropping every record while
  * looking healthy is the same defect `dehydrateDecisions` had before `onDropped`
@@ -108,28 +111,25 @@ export const decisionSinkForwarding = (options: {
         Effect.sync(() => onFailure(Cause.squash(cause)));
 
   return Layer.succeed(DecisionSink, {
+    name: "decisionSinkForwarding",
     record: (record) =>
       Effect.sync(() => encodeSinkRecord(record)).pipe(
         Effect.flatMap(
           Result.match({
             onFailure: reportRefusal,
-            // `catchCause`, not `catchAll`: `send` is a caller's function, so it
-            // can die as easily as it can fail, and either would otherwise reach
-            // the decision through a sink that promised it never could.
-            onSuccess: (json) => options.send(json).pipe(Effect.catchCause(reportSendFailure)),
+            // `catchCause`, not `catchAll`, and suspended: `send` is a caller's
+            // function, so it can die or throw before returning an effect as
+            // easily as it can fail, and any of those would otherwise reach the
+            // decision through a sink that promised it never could (BEH-QD-187).
+            onSuccess: (json) =>
+              Effect.suspend(() => options.send(json)).pipe(Effect.catchCause(reportSendFailure)),
           }),
-        ),
-        // Defence in depth for INV-QD-035: the encode never throws and `send`'s
-        // failures are caught above, but `onFailure` is a caller's callback too,
-        // and one that throws must not become this decision's defect.
-        Effect.catchCause((cause) =>
-          Effect.logWarning("qadi: a decision record could not be forwarded").pipe(
-            Effect.annotateLogs({ "qadi.cause": String(cause) }),
-          ),
         ),
       ),
   });
 };
+
+const MEMBER_FAILED = "qadi: a fanned-out decision sink failed unexpectedly";
 
 /**
  * One sink that writes to all of them, in order.
@@ -148,11 +148,14 @@ export const decisionSinkForwarding = (options: {
  * (JA-02, corrected — this previously said the `never` error channel alone
  * was enough, which is a documented contract each member is *supposed* to
  * uphold, not a mechanism that holds if one doesn't). Each member's
- * `record(record)` call is individually wrapped in `Effect.catchCause` below,
- * so a member that dies anyway — a bug in its own `record`, not the ordinary
- * delivery failure `never` already promises it swallows — is reported and
- * skipped rather than stopping `Effect.forEach` and, with it, every sink
- * after it in `sinks`.
+ * `record(record)` call is individually suspended and caught below, so a member
+ * that throws or dies anyway — a bug in its own `record`, not the ordinary
+ * delivery failure `never` already promises it swallows — is reported, naming
+ * the member, and skipped rather than stopping `Effect.forEach` and, with it,
+ * every sink after it in `sinks`.
+ *
+ * A member's failure is reported here, so the emitter sees success and does not
+ * report it again (ADR-QD-159).
  */
 export const decisionSinkAll = (
   sinks: ReadonlyArray<Layer.Layer<DecisionSink>>,
@@ -167,31 +170,28 @@ export const decisionSinkAll = (
       );
 
       return {
-        record: (record: SinkRecord) =>
+        name: "decisionSinkAll",
+        record: (record: SinkRecord) => {
+          // Read before any member runs, so every member's line names the record as
+          // it was handed over, however a member treats it (WR-01).
+          const handed = handedOver(record);
           // `discard` because every result is `void`; it changes allocation,
           // not behaviour, so mutation testing reports it as equivalent.
-          Effect.forEach(
+          return Effect.forEach(
             shapes,
             (shape) =>
-              shape.record(record).pipe(
-                // Each member's `record` is *documented* — by `never` in its
-                // own error channel — to swallow its own failures, but a
-                // documented contract is not a mechanism: a member that dies
-                // anyway (a bug in its own `record`, not the ordinary
-                // delivery failure it already catches) must not stop this
-                // `forEach` and, with it, delivery to every sink after it in
-                // `sinks` (JA-02). Report-and-continue, the same shape
-                // `decisionSinkForwarding`'s own `send` handler above uses,
-                // for the identical reason: one member's fate must not
-                // become every member's fate.
-                Effect.catchCause((cause) =>
-                  Effect.logWarning("qadi: a fanned-out decision sink failed unexpectedly").pipe(
-                    Effect.annotateLogs({ "qadi.cause": String(cause) }),
-                  ),
-                ),
+              // A member's `never` error channel is a contract, not a mechanism
+              // (JA-02): a member that throws before returning an effect or dies
+              // anyway must not stop delivery to the members after it. So each
+              // call is suspended and caught, reported once naming the member, and
+              // the report is itself contained so a throwing logger or name getter
+              // cannot stop the `forEach` either (D-10).
+              Effect.suspend(() => shape.record(record)).pipe(
+                Effect.catchCause((cause) => reportSinkFailure(MEMBER_FAILED, shape, handed, cause)),
               ),
             { discard: true },
-          ),
+          );
+        },
       };
     }),
   );

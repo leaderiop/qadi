@@ -15,6 +15,8 @@ import type { SubjectId } from "./Identity.ts";
 import { Obligation } from "./Obligation.ts";
 import { DEFAULT_MAX_DEPTH, POLICY_TAGS } from "./Policy.ts";
 import type { Policy } from "./Policy.ts";
+import { POLICY_ARITY } from "./PolicyArity.ts";
+import type { Arity } from "./PolicyArity.ts";
 import type { Resource } from "./Resource.ts";
 import { foldTreeBy } from "./TreeFold.ts";
 import { defaultTerm, fieldsClause } from "./Wording.ts";
@@ -407,43 +409,35 @@ export interface TraceCases<R> {
 
 type TraceStep = <R>(cases: TraceCases<R>, children: ReadonlyArray<R>) => R;
 
+/** A tag's arity, read from the record `childrenOf` is typed against (ARCH-98). */
+const traceShapeOf = (tag: Trace["policyTag"]): Arity => POLICY_ARITY[tag];
+
 /**
- * The children a trace node is folded through, by its tag's shape: none for a
- * leaf, its first child for a wrapper, every child otherwise.
+ * The children a trace node is folded through, per arity: none for a leaf, its
+ * first child for a wrapper, every child for a many.
+ *
+ * One row per `Arity` word, so a fourth word is a missing row and not a node
+ * silently handed every child (ADR-QD-164).
+ */
+const traceChildrenByArity = {
+  Leaf: () => [],
+  Wrapper: (self) => self.children.slice(0, 1),
+  Many: (self) => self.children,
+} as const satisfies { readonly [A in Arity]: (self: Trace) => ReadonlyArray<Trace> };
+
+/**
+ * The children a trace node is folded through, by its tag's arity.
  *
  * Read by `traceStep` below, which hands exactly these results to the arm; a
  * leaf's `children` are not walked, so a foreign leaf that carries some cannot
- * reach a fold that was told it has none.
+ * reach a fold that was told it has none. A tag outside the union has no row, so
+ * the fold throws on opening its node, before any child's arm runs, at the same
+ * point as the `Match.exhaustive` this replaced; the error is now a `TypeError`,
+ * not that match's, and callers should not rely on its class (pinned by
+ * `PolicyArity.test.ts`).
  */
-const leafTags = [
-  "HasPermission",
-  "HasRole",
-  "HasAttribute",
-  "HasResourceAttribute",
-  "HasRelationship",
-  "HasAction",
-  "HasActed",
-  "HasNotActed",
-  "HasCustom",
-  "HasSignature",
-] as const;
-
-/** How a tag's trace node is folded: nothing beneath it, one child, or all of them. */
-type TraceShape = "Leaf" | "Wrapper" | "Many";
-
-const traceShapeOf: (tag: Trace["policyTag"]) => TraceShape = Match.type<
-  Trace["policyTag"]
->().pipe(
-  Match.whenOr(...leafTags, (): TraceShape => "Leaf"),
-  Match.whenOr("Not", "Obliged", "Labeled", (): TraceShape => "Wrapper"),
-  Match.whenOr("AllOf", "AnyOf", "Rules", (): TraceShape => "Many"),
-  Match.exhaustive,
-);
-
-const traceChildrenOf = (self: Trace): ReadonlyArray<Trace> => {
-  const shape = traceShapeOf(self.policyTag);
-  return shape === "Leaf" ? [] : shape === "Wrapper" ? self.children.slice(0, 1) : self.children;
-};
+const traceChildrenOf = (self: Trace): ReadonlyArray<Trace> =>
+  traceChildrenByArity[traceShapeOf(self.policyTag)](self);
 
 const traceStep: (node: Trace) => TraceStep = (node) =>
   Match.value(node.policyTag).pipe(

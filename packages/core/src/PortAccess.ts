@@ -41,8 +41,9 @@ import { customPredicatePort } from "./CustomPredicate.ts";
 import type { ActedResult, DecisionHistory } from "./DecisionHistory.ts";
 import { decisionHistoryPort } from "./DecisionHistory.ts";
 import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors.ts";
-import { MissingResourceId } from "./Errors.ts";
+import type { MissingResourceId } from "./Errors.ts";
 import type { ResourceId } from "./Identity.ts";
+import { errorOf } from "./LeafNeeds.ts";
 import type { LeafOf } from "./PortDescription.ts";
 import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "./PortMetrics.ts";
 import type { PortName } from "./PortName.ts";
@@ -286,7 +287,7 @@ const readScoped = <K extends ScopedPort>(
         scope: "Resource",
         interpreter,
       });
-      return yield* Effect.fail(new MissingResourceId({ relation }));
+      return yield* Effect.fail(errorOf({ _tag: "ResourceId", relation }));
     }
     return yield* readPort(d, interpreter, completeRequest[d.port](request, resourceId));
   });

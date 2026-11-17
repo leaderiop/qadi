@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-GLOSSARY                                  |
-> | Revision       | 1.10                                            |
+> | Revision       | 1.11                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.10 (2026-11-10): Role walk added (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.9 (2026-10-07): Simulation session added (BEH-QD-322, CCR-QD-199)<br>1.8 (2026-10-07): Question added (ADR-QD-100, CCR-QD-189)<br>1.7 (2026-09-06): Policy variant count corrected from fourteen to sixteen (`HasCustom`/`HasSignature` postdate the earlier count); Value reference corrected from three kinds to the actual five (`subjectId`/`action` were missing) (CCR-QD-101)<br>1.6 (2026-09-06): Service count corrected — said four, sixteen exist across three packages; the entry now names the pattern rather than a count that drifts every time a service is added (CCR-QD-093)<br>1.5 (2026-08-22): Witness and Guard added; the Revision field corrected to match the latest entry, which had drifted since CCR-QD-019 (CCR-QD-043)<br>1.4 (2026-07-26): Predicate, translatable subset and reference interpreter added (CCR-QD-020)<br>1.3 (2026-07-26): Rule table, rule effect and combining algorithm added; the variant count corrected (CCR-QD-019)<br>1.2 (2026-07-26): Subject set and review query added (CCR-QD-018)<br>1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.11 (2026-11-15): Witness guard: guard shares enforce's handover module (ARCH-90, CCR-QD-434)<br>1.10 (2026-11-10): Role walk added (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.9 (2026-10-07): Simulation session added (BEH-QD-322, CCR-QD-199)<br>1.8 (2026-10-07): Question added (ADR-QD-100, CCR-QD-189)<br>1.7 (2026-09-06): Policy variant count corrected from fourteen to sixteen (`HasCustom`/`HasSignature` postdate the earlier count); Value reference corrected from three kinds to the actual five (`subjectId`/`action` were missing) (CCR-QD-101)<br>1.6 (2026-09-06): Service count corrected — said four, sixteen exist across three packages; the entry now names the pattern rather than a count that drifts every time a service is added (CCR-QD-093)<br>1.5 (2026-08-22): Witness and Guard added; the Revision field corrected to match the latest entry, which had drifted since CCR-QD-019 (CCR-QD-043)<br>1.4 (2026-07-26): Predicate, translatable subset and reference interpreter added (CCR-QD-020)<br>1.3 (2026-07-26): Rule table, rule effect and combining algorithm added; the variant count corrected (CCR-QD-019)<br>1.2 (2026-07-26): Subject set and review query added (CCR-QD-018)<br>1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -429,8 +429,9 @@ evaluation succeeded. See [ADR-QD-035](decisions/035-witness-guard-primitive.md)
 ## Guard
 
 The combinator that produces a [Witness](#witness):
-`guard(permission, policy)(resource, handler)`. Built on `enforce`, sharing
-its obligation-discharge and denial handling, but shaped differently — it
+`guard(permission, policy)(resource, handler)`. It shares `enforce`'s handover
+module (`Handover.ts`: the same obligation discharge and denial handling), but is
+shaped differently — it
 takes a resource and a handler function rather than wrapping an existing
 effect, since a witness needs somewhere to go once the check succeeds. Not
 folded into the [Aspect](#aspect) entry above: an aspect wraps an `Effect`

@@ -254,3 +254,12 @@ contributed by the allow that was actually returned" is unchanged and is why the
 source of the duties. The library mints no retry idempotency key: the evaluation id is per
 attempt, and the caller's own request id, captured by the `onObligations` closure, is the honest
 source of one.
+
+## Amendment (2026-11-15, ADR-QD-156, CCR-QD-434)
+
+The sentence "All four route through one internal `permitted`" now reads: all ten entry points that run work or hand
+back data reach `verdictOf` and `discharge` in `Handover.ts`
+([ADR-QD-156](./156-a-handed-over-value-is-decided-through-one-module.md)), and the collections no longer keep a path of their own. That is what makes
+[INV-QD-013](../invariants.md#inv-qd-013-enforcement-never-proceeds-on-an-undischarged-obligation) an invariant rather
+than ten independent habits (its paragraph on the two paths is restated in the same change). The decision itself is
+unchanged: an allow carrying a binding obligation with no handler fails rather than proceeding.

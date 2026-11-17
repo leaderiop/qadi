@@ -1,0 +1,37 @@
+kind	subject	edit	tsc_exit	TraceShape_failed	Decision_failed	Policy_failed	Explanation_failed	first_tsc_error
+control	-	none	0	0	0	0	0	
+move	HasPermission	Leaf->Wrapper	0	1	0	0	0	
+move	HasPermission	Leaf->Many	0	1	0	0	0	
+move	HasRole	Leaf->Wrapper	0	1	1	0	0	
+move	HasRole	Leaf->Many	0	1	1	0	0	
+move	HasAttribute	Leaf->Wrapper	0	1	0	0	0	
+move	HasAttribute	Leaf->Many	0	1	0	0	0	
+move	HasResourceAttribute	Leaf->Wrapper	0	1	0	0	0	
+move	HasResourceAttribute	Leaf->Many	0	1	0	0	0	
+move	HasRelationship	Leaf->Wrapper	0	1	0	0	0	
+move	HasRelationship	Leaf->Many	0	1	0	0	0	
+move	HasAction	Leaf->Wrapper	0	1	0	0	0	
+move	HasAction	Leaf->Many	0	1	0	0	0	
+move	HasActed	Leaf->Wrapper	0	1	0	0	0	
+move	HasActed	Leaf->Many	0	1	0	0	0	
+move	HasNotActed	Leaf->Wrapper	0	1	0	0	0	
+move	HasNotActed	Leaf->Many	0	1	0	0	0	
+move	HasCustom	Leaf->Wrapper	0	1	0	0	0	
+move	HasCustom	Leaf->Many	0	1	0	0	0	
+move	HasSignature	Leaf->Wrapper	0	1	0	0	0	
+move	HasSignature	Leaf->Many	0	1	0	0	0	
+move	Not	Wrapper->Leaf	0	1	4	0	0	
+move	Not	Wrapper->Many	0	1	1	0	0	
+move	Obliged	Wrapper->Leaf	0	1	0	0	0	
+move	Obliged	Wrapper->Many	0	1	0	0	0	
+move	Labeled	Wrapper->Leaf	0	1	0	0	0	
+move	Labeled	Wrapper->Many	0	1	0	0	0	
+move	AllOf	Many->Leaf	0	1	3	0	0	
+move	AllOf	Many->Wrapper	0	1	3	0	0	
+move	AnyOf	Many->Leaf	0	1	0	0	0	
+move	AnyOf	Many->Wrapper	0	1	0	0	0	
+move	Rules	Many->Leaf	0	1	1	0	0	
+move	Rules	Many->Wrapper	0	1	1	0	0	
+arm	Not	Not: () => [],	0	0	0	5	9	
+arm	Not	Not: (p) => [p.policy, p.policy],	0	0	0	1	0	
+arm	AllOf	AllOf: () => [],	0	0	0	2	15	

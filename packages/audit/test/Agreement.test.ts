@@ -14,6 +14,7 @@ import { DecisionSink } from "@qadi/core";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
 import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
+import type { InvalidAuditSinkOption } from "../src/InvalidAuditSinkOption.ts";
 import { decisionRecord, obligationRecord } from "./helpers.ts";
 import type { SinkRecord } from "@qadi/core";
 
@@ -29,7 +30,7 @@ const records: FastCheck.Arbitrary<SinkRecord> = FastCheck.oneof(
 const runPipeline = (
   sequence: ReadonlyArray<SinkRecord>,
   wireStaging: boolean,
-): Effect.Effect<ReadonlyArray<{ readonly evaluationId: string; readonly _tag: string }>> =>
+): Effect.Effect<ReadonlyArray<{ readonly evaluationId: string; readonly _tag: string }>, InvalidAuditSinkOption> =>
   Effect.gen(function* () {
     const { layer: trail, written } = AuditTrailPortTest();
     const staging = AuditStagingPortTest();

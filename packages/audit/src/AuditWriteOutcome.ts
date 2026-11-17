@@ -18,8 +18,10 @@
 import * as Data from "effect/Data";
 import type * as Cause from "effect/Cause";
 import * as Match from "effect/Match";
-import type { AuditEntry, AuditEntryNotEncodable } from "./AuditEntry.ts";
+import type { SinkRecordNotEncodable } from "@qadi/core";
+import type { AuditEntry } from "./AuditEntry.ts";
 import type { AuditStagingError } from "./AuditStagingPort.ts";
+import { unwrittenRow } from "./UnwrittenRow.ts";
 
 /**
  * The staging result of a record whose trail write **succeeded**.
@@ -76,7 +78,7 @@ export const UnwrittenStaging = Data.taggedEnum<UnwrittenStaging>();
  * itself. The library writes none.
  */
 export type AuditWriteOutcome = Data.TaggedEnum<{
-  Refused: { readonly refusal: AuditEntryNotEncodable };
+  Refused: { readonly refusal: SinkRecordNotEncodable };
   Written: { readonly entry: AuditEntry; readonly staging: WrittenStaging };
   WriteFailed: { readonly entry: AuditEntry; readonly staging: UnwrittenStaging };
   Skipped: { readonly entry: AuditEntry; readonly staging: UnwrittenStaging };
@@ -95,29 +97,21 @@ export const AuditWriteOutcome = Data.taggedEnum<AuditWriteOutcome>();
  */
 export type Durability = "Trail" | "StagingOnly" | "Lost" | "Refused";
 
-// A helper, not a literal: a `Match` arm returning `"Lost"` infers `string`.
+// A helper, not a literal: a `Match` arm returning `"Trail"` infers `string`.
 const durability = (d: Durability): Durability => d;
-
-const unwrittenDurability: (self: UnwrittenStaging) => Durability = Match.type<UnwrittenStaging>().pipe(
-  Match.tagsExhaustive({
-    NotWired: () => durability("Lost"),
-    Staged: () => durability("StagingOnly"),
-    StageFailed: () => durability("Lost"),
-  }),
-);
 
 /**
  * Whether an outcome's entry survives, and where.
  *
- * The single place "lost or not" is decided: the lost-entry counter, the
- * warning-versus-info choice and a caller's dead-letter decision all read it,
- * so they cannot disagree.
+ * An unwritten entry's answer is its staging's row (`UnwrittenRow.ts`), the same
+ * row the lost-entry counter's label and the unwritten line's level and wording
+ * read, so they cannot disagree (ARCH-95, ADR-QD-161).
  */
 export const durabilityOf: (self: AuditWriteOutcome) => Durability = Match.type<AuditWriteOutcome>().pipe(
   Match.tagsExhaustive({
     Refused: () => durability("Refused"),
     Written: () => durability("Trail"),
-    WriteFailed: (o) => unwrittenDurability(o.staging),
-    Skipped: (o) => unwrittenDurability(o.staging),
+    WriteFailed: (o) => unwrittenRow(o.staging).durability,
+    Skipped: (o) => unwrittenRow(o.staging).durability,
   }),
 );

@@ -20,6 +20,7 @@
  * `Qadi.ts`'s `ObligationHandler`, not `DecisionSink`.
  */
 import * as Cause from "effect/Cause";
+import * as Data from "effect/Data";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -27,10 +28,10 @@ import * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as Result from "effect/Result";
-import type { SinkRecord } from "@qadi/core";
+import type { SinkRecord, SinkRecordNotEncodable } from "@qadi/core";
 import { DecisionSink } from "@qadi/core";
 import { encodeAuditEntry } from "./AuditEntry.ts";
-import type { AuditEntry, AuditEntryNotEncodable } from "./AuditEntry.ts";
+import type { AuditEntry } from "./AuditEntry.ts";
 import { AuditTrailPort, AuditWriteError } from "./AuditTrailPort.ts";
 import { AuditStagingPort } from "./AuditStagingPort.ts";
 import { AuditStagingError } from "./AuditStagingPort.ts";
@@ -38,13 +39,23 @@ import { AuditWriteOutcome, durabilityOf, UnwrittenStaging, WrittenStaging } fro
 import { emitWriteOutcome, outcomePath } from "./AuditWriteReport.ts";
 import { makeCircuitBreaker } from "./CircuitBreaker.ts";
 import type { Permit } from "./CircuitBreaker.ts";
+import type { InvalidAuditSinkOption } from "./InvalidAuditSinkOption.ts";
+import { checkStoreCallTimeout } from "./SinkOptionChecks.ts";
 
 export interface AuditDecisionSinkOptions {
-  /** Consecutive `AuditWriteError`s before the breaker trips. Defaults to 5. */
+  /**
+   * Consecutive `AuditWriteError`s before the breaker trips. Defaults to 5.
+   * Must be a positive safe integer; any other value is refused with
+   * `InvalidAuditSinkOption` when the layer is built.
+   */
   readonly failureThreshold?: number;
   /**
    * How long a tripped breaker stays open before allowing one probe write.
-   * Defaults to 30 000 (milliseconds).
+   * Defaults to 30 000 (milliseconds). Must be a finite, positive, whole number
+   * of milliseconds, at most `Number.MAX_SAFE_INTEGER`; any other value is
+   * refused with `InvalidAuditSinkOption` when the layer is built. A plain
+   * number is tested for being whole; a string or `Duration` is read to the
+   * nanosecond, as `Duration` keeps it, and must come to whole milliseconds.
    *
    * `Duration.Input`, not a bare `number` — see `CircuitBreaker.ts`'s
    * `CircuitBreakerOptions.resetTimeoutMs` doc comment (issue #107). A plain
@@ -53,7 +64,9 @@ export interface AuditDecisionSinkOptions {
   readonly resetTimeoutMs?: Duration.Input;
   /**
    * How long one call to the audit store may take before the sink counts it
-   * as failed. Defaults to 5 seconds; `Duration.infinity` opts out.
+   * as failed. Defaults to 5 seconds; `Duration.infinity` opts out. Must be a
+   * positive duration; any other value is refused with `InvalidAuditSinkOption`
+   * when the layer is built.
    *
    * `evaluate` awaits `DecisionSink.record`, so a store call that never
    * settled held the decision with it, and the breaker — which only counts
@@ -75,7 +88,7 @@ export interface AuditDecisionSinkOptions {
    * `qadi_audit_writes_total{outcome="encode_failed"}` counter increments
    * either way. A hook that throws is logged, never a defect (INV-QD-035).
    */
-  readonly onRefused?: (refusal: AuditEntryNotEncodable) => void;
+  readonly onRefused?: (refusal: SinkRecordNotEncodable) => void;
   /**
    * Called once per record with what became of it, after its metrics are
    * updated and its line is logged. Never replaces either; `onRefused` still
@@ -96,20 +109,43 @@ const DEFAULT_RESET_TIMEOUT_MS: Duration.Input = Duration.millis(30_000);
 const DEFAULT_STORE_CALL_TIMEOUT: Duration.Input = Duration.seconds(5);
 
 /**
- * How a stage attempt went and — only when it succeeded — how to commit it.
- * One value rather than a handle plus a `stagingPort !== undefined` check that
- * must always agree: `commit` is defined exactly when `staging` is `Staged`.
+ * How a stage attempt went, and the commit only a staged entry has.
+ *
+ * `commit` exists on `Staged` alone, so a check that must agree with the tag
+ * cannot drift from it: a handle plus an optional commit needed two checks that
+ * a new variant would pass silently (ARCH-95, ADR-QD-161).
  */
-interface StageResult {
-  readonly staging: UnwrittenStaging;
-  readonly commit: (() => Effect.Effect<void, AuditStagingError>) | undefined;
-}
+type StageResult = Data.TaggedEnum<{
+  NotWired: {};
+  StageFailed: {};
+  Staged: { readonly commit: () => Effect.Effect<void, AuditStagingError> };
+}>;
+
+const StageResult = Data.taggedEnum<StageResult>();
+
+// A staged copy is committed only once the trail write succeeded; a commit that
+// fails or dies is the staging store's bookkeeping, never the entry.
+const writtenStaging: (self: StageResult) => Effect.Effect<WrittenStaging> = Match.type<StageResult>().pipe(
+  Match.tagsExhaustive({
+    NotWired: () => Effect.succeed(WrittenStaging.NotWired()),
+    StageFailed: () => Effect.succeed(WrittenStaging.StageFailed()),
+    Staged: (s) =>
+      s.commit().pipe(
+        Effect.as(WrittenStaging.Committed()),
+        Effect.catchCause((cause) => Effect.succeed(WrittenStaging.CommitFailed({ cause }))),
+      ),
+  }),
+);
+
+/** The unwritten staging of a stage result: the tags are the same three, so nothing is restated and `commit` is never carried. */
+const unwrittenOf = (self: StageResult): UnwrittenStaging => UnwrittenStaging[self._tag]();
 
 /**
- * `Layer.Layer<DecisionSink, never, AuditTrailPort>` — requires `AuditTrailPort`,
- * reads `AuditStagingPort` optionally via `Effect.serviceOption`, never as a
- * `Layer` dependency, so a caller who never wires staging pays nothing for it
- * — the same shape `DecisionSink` itself is read in `SinkEmit.ts`.
+ * `Layer.Layer<DecisionSink, InvalidAuditSinkOption, AuditTrailPort>` — requires
+ * `AuditTrailPort`, reads `AuditStagingPort` optionally via `Effect.serviceOption`,
+ * never as a `Layer` dependency, so a caller who never wires staging pays nothing
+ * for it — the same shape `DecisionSink` itself is read in `SinkEmit.ts`. The layer
+ * fails with {@link InvalidAuditSinkOption} when an option cannot work (ARCH-92).
  *
  * Each record has exactly one {@link AuditWriteOutcome}: the port calls below
  * produce it and report nothing; `AuditWriteReport.ts` turns it into metrics,
@@ -117,7 +153,7 @@ interface StageResult {
  */
 export const AuditDecisionSinkLive = (
   options?: AuditDecisionSinkOptions,
-): Layer.Layer<DecisionSink, never, AuditTrailPort> =>
+): Layer.Layer<DecisionSink, InvalidAuditSinkOption, AuditTrailPort> =>
   Layer.effect(
     DecisionSink,
     Effect.gen(function* () {
@@ -134,7 +170,7 @@ export const AuditDecisionSinkLive = (
       // interrupted and fails with the port's own error for `entry`, its
       // cause a `TimeoutError`. Both ports' errors share the `{ entry, cause }`
       // shape, so the one constructor call here serves all three call sites.
-      const storeCallTimeout = Duration.fromInputUnsafe(options?.storeCallTimeout ?? DEFAULT_STORE_CALL_TIMEOUT);
+      const storeCallTimeout = yield* checkStoreCallTimeout(options?.storeCallTimeout ?? DEFAULT_STORE_CALL_TIMEOUT);
       const bounded = <A, E>(
         call: Effect.Effect<A, E>,
         entry: AuditEntry,
@@ -162,33 +198,17 @@ export const AuditDecisionSinkLive = (
       const stageEntry = (entry: AuditEntry): Effect.Effect<StageResult> =>
         Effect.gen(function* () {
           if (stagingPort === undefined) {
-            return { staging: UnwrittenStaging.NotWired(), commit: undefined };
+            return StageResult.NotWired();
           }
           const staged = yield* Effect.exit(
             bounded(stagingPort.stage(entry), entry, AuditStagingError),
           );
           if (Exit.isFailure(staged)) {
-            return { staging: UnwrittenStaging.StageFailed(), commit: undefined };
+            return StageResult.StageFailed();
           }
           const handle = staged.value;
-          return {
-            staging: UnwrittenStaging.Staged(),
-            commit: () => bounded(stagingPort.commit(handle), entry, AuditStagingError),
-          };
+          return StageResult.Staged({ commit: () => bounded(stagingPort.commit(handle), entry, AuditStagingError) });
         });
-
-      // A staged copy is committed only once the trail write succeeded; a
-      // commit that fails or dies is the staging store's bookkeeping, never the
-      // entry.
-      const writtenStaging = (staged: StageResult): Effect.Effect<WrittenStaging> =>
-        staged.commit === undefined
-          ? Effect.succeed(
-              staged.staging._tag === "StageFailed" ? WrittenStaging.StageFailed() : WrittenStaging.NotWired(),
-            )
-          : staged.commit().pipe(
-              Effect.as(WrittenStaging.Committed()),
-              Effect.catchCause((cause) => Effect.succeed(WrittenStaging.CommitFailed({ cause }))),
-            );
 
       // The port calls, and nothing else: no metric is updated and no line is
       // logged here. `attempt` runs the write under `Effect.exit` and records
@@ -205,12 +225,12 @@ export const AuditDecisionSinkLive = (
           const staged = yield* stageEntry(entry);
           return yield* Match.value(permit).pipe(
             Match.tagsExhaustive({
-              Refused: () => Effect.succeed(AuditWriteOutcome.Skipped({ entry, staging: staged.staging })),
+              Refused: () => Effect.succeed(AuditWriteOutcome.Skipped({ entry, staging: unwrittenOf(staged) })),
               Admitted: (admitted) =>
                 Effect.gen(function* () {
                   const written = yield* admitted.attempt(bounded(trailPort.write(entry), entry, AuditWriteError));
                   if (Exit.isFailure(written)) {
-                    return AuditWriteOutcome.WriteFailed({ entry, staging: staged.staging });
+                    return AuditWriteOutcome.WriteFailed({ entry, staging: unwrittenOf(staged) });
                   }
                   return AuditWriteOutcome.Written({ entry, staging: yield* writtenStaging(staged) });
                 }),
@@ -234,6 +254,6 @@ export const AuditDecisionSinkLive = (
         });
       });
 
-      return { record };
+      return { name: "AuditDecisionSinkLive", record };
     }),
   );

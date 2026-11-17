@@ -26,51 +26,24 @@
  * Built on `@qadi/core`'s own wire schema rather than re-deriving
  * `Policy`/`Trace`/`Obligation` a second time: a wire form for a value crossing
  * a process boundary is exactly what an audit row is. Duplicating it here would
- * be the drift ADR-QD-002's own reasoning warns against, not an instance of
- * "each companion package owns its shape" — that principle covers *error*
- * types (ADR-QD-054), not re-deriving a schema `@qadi/core` already publishes
- * for this exact purpose.
+ * be the drift ADR-QD-002's own reasoning warns against; for the same reason a
+ * refusal is `@qadi/core`'s `SinkRecordNotEncodable`, the error `encodeSinkRecord`
+ * returns, not an audit copy of it (ADR-QD-161).
  */
-import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
-import type { EncodeRefusal, SinkRecord } from "@qadi/core";
+import type { SinkRecord } from "@qadi/core";
 import {
   DecodeRefusal,
   decodeRefusalOf,
   decodeSinkRecordWithJson,
-  describeEncodeRefusal,
   encodeSinkRecord,
   SinkRecordJson,
   SinkRecordNotDecodable,
   untrustedDecoder,
 } from "@qadi/core";
-
-/**
- * A `SinkRecord` this package refuses to persist, and why.
- *
- * `refusal` is `@qadi/core`'s `EncodeRefusal`: a value with no safe durable
- * representation — a function, a `Symbol`, a `bigint`, a circular reference, a
- * `Map`/`Set`/`RegExp`/binary array JSON renders as `{}`, a policy deeper than a
- * reader will decode — anywhere in the record, with the path it was found at.
- * `reason` is that refusal as a sentence (`@qadi/core`'s `describeEncodeRefusal`),
- * for a log line. `evaluationId` is the refused record's, so a hook holds the
- * correlation handle the same way `SinkRecordNotEncodable` gives it. A resolver error's
- * `cause` is never a reason: it crosses through `Schema.Defect()`.
- *
- * Never thrown; a typed `Effect` failure, the same shape
- * `@qadi/predicate-sql`'s `PredicateNotRenderable` uses, declared here rather
- * than shared, per ADR-QD-054: `@qadi/core` has no reason to know this error
- * exists.
- */
-export class AuditEntryNotEncodable extends Data.TaggedError("AuditEntryNotEncodable")<{
-  readonly recordTag: SinkRecord["_tag"];
-  readonly evaluationId: string;
-  readonly refusal: EncodeRefusal;
-  readonly reason: string;
-}> {}
 
 /**
  * The optional gap-detection field, declared once for the row schema and the
@@ -120,7 +93,8 @@ export type AuditEntry = typeof AuditEntry.Type;
  * closes the defect where a cyclic resolver `cause` reached the store, threw,
  * counted as a write failure and tripped the breaker during an outage
  * (ARCH-09). Refuses rather than approximates: an unsafe record fails
- * `AuditEntryNotEncodable`, never partially written or silently dropped.
+ * with `@qadi/core`'s `SinkRecordNotEncodable`, exactly as `encodeSinkRecord`
+ * returns it, never partially written or silently dropped (ADR-QD-161).
  *
  * Written as wire version 2 (ADR-QD-096), which every reader since 0.10.0
  * reads; a reader of the store older than 0.10 must upgrade first.
@@ -128,17 +102,7 @@ export type AuditEntry = typeof AuditEntry.Type;
 export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(function* (
   record: SinkRecord,
 ) {
-  const json = yield* Effect.fromResult(encodeSinkRecord(record)).pipe(
-    Effect.mapError(
-      (error) =>
-        new AuditEntryNotEncodable({
-          recordTag: record._tag,
-          evaluationId: record.evaluationId,
-          refusal: error.refusal,
-          reason: describeEncodeRefusal(error.refusal),
-        }),
-    ),
-  );
+  const json = yield* Effect.fromResult(encodeSinkRecord(record));
   const entry: AuditEntry = { record: json, sequenceNumber: undefined };
   return entry;
 });

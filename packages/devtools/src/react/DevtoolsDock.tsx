@@ -22,7 +22,7 @@ import type { DiagnosticsDockOptions, DiagnosticsStatus } from "../model/Diagnos
 import type { Diagnostics, DiagnosticsReading } from "../model/DiagnosticsStore.ts";
 import type { DockModel } from "../model/DockModel.ts";
 import type { DockSnapshot, TabId } from "../model/DockSession.ts";
-import type { GateInstanceLike } from "../model/Gates.ts";
+import type { GateRegistryLike } from "../model/Gates.ts";
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
 import type { TimelineStatus } from "../model/TimelineFeed.ts";
 import { DecisionLog } from "./DecisionLog.tsx";
@@ -98,8 +98,8 @@ export interface DevtoolsDockProps {
    * them changes identity. The dock's model polls in its own scope, so a
    * hidden-then-shown dock samples afresh, from its first sample.
    *
-   * Gates are not in it: they are pushed by `@qadi/react`'s registry through the
-   * host's subscription, and stay the plain `gates` prop below.
+   * Gates are not in it: they come from the registry the `gates` prop below
+   * hands over, which the dock's model subscribes to in its own scope.
    */
   readonly diagnostics?: DiagnosticsDockOptions;
   /**
@@ -116,12 +116,14 @@ export interface DevtoolsDockProps {
    */
   readonly reading?: DiagnosticsReading;
   /**
-   * The live guards, usually `useGateInstances()` or `atoms.gates.instances()` from `@qadi/react`.
+   * The registry of live guards, usually the feed's `gates` or `atoms.gates` from `@qadi/react`.
    *
-   * Needs `instrument` on the `QadiProvider`, so it is opt-in twice over — a
-   * host has to ask for the registry and then hand it here.
+   * Needs `instrument` on the `QadiProvider` to list anyone, so it is opt-in
+   * twice over — a host has to ask for the registry and then hand it here. The
+   * dock's model subscribes to it in its own scope, so the host does not
+   * re-render when a guard mounts or goes (ADR-QD-162).
    */
-  readonly gates?: ReadonlyArray<GateInstanceLike>;
+  readonly gates?: GateRegistryLike;
   /** Parent names `resolveRoleGraph` dropped. */
   readonly unknownParents?: ReadonlyArray<string>;
   /** Usually `useInvalidate()`. */
@@ -137,7 +139,7 @@ export interface DevtoolsDockProps {
 }
 
 /** What the dock hands its screens untouched: the host's own, not the model's. */
-type HostProps = Pick<DevtoolsDockProps, "gates" | "unknownParents" | "onInvalidate">;
+type HostProps = Pick<DevtoolsDockProps, "unknownParents" | "onInvalidate">;
 
 export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   source,
@@ -146,6 +148,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   diagnostics,
   reading,
   ports,
+  gates,
   ...host
 }) => {
   /**
@@ -158,7 +161,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
    * It is built in a scope this component owns, so it does not exist on the first
    * pass, and the frame below, whose hooks read it once, is not rendered until it does.
    */
-  const model = useDockModel({ source, capacity, catalogue, ports, diagnostics, reading });
+  const model = useDockModel({ source, capacity, catalogue, ports, diagnostics, reading, gates });
 
   return model === undefined ? null : <DockFrame model={model} host={host} />;
 };
@@ -335,8 +338,7 @@ const Screen: FC<{
     simulator: () => <Simulator session={props.model.simulation} />,
     questions: () => (
       <QuestionsPanel
-        questions={props.shown.questions}
-        gates={props.host.gates}
+        questions={props.model.questions}
         hydration={props.shown.hydration}
         onInvalidate={props.host.onInvalidate}
         diagnostics={notice}

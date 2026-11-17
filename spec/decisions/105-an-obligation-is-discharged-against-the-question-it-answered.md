@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-105                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — amends ADR-QD-019, ADR-QD-057, ADR-QD-058, ADR-QD-096 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-12): Revision note: the option and service types live in leaves below the Lifecycle split (ARCH-80, CCR-QD-423)<br>1.1 (2026-11-10): amendment — the ledger is a keyed store, and a discharge on a resource without a string id is refused (ARCH-59, ADR-QD-117, CCR-QD-395)<br>1.0 (2026-10-08): Initial (ARCH-30, CCR-QD-220) |
+> | Change History | 1.3 (2026-11-15): Amendment: verdictOf passes the question it asked to discharge (ADR-QD-156, CCR-QD-434)<br>1.2 (2026-11-12): Revision note: the option and service types live in leaves below the Lifecycle split (ARCH-80, CCR-QD-423)<br>1.1 (2026-11-10): amendment — the ledger is a keyed store, and a discharge on a resource without a string id is refused (ARCH-59, ADR-QD-117, CCR-QD-395)<br>1.0 (2026-10-08): Initial (ARCH-30, CCR-QD-220) |
 
 ---
 
@@ -115,3 +115,11 @@ question would ignore, and `ask` takes `EvaluateOptions` and requires
 `EvaluationServices` by name. `Evaluate.ts` declares only `evaluate`. Public names
 and shapes are unchanged, pinned through the barrel by `EvaluationShapes.tst.ts`.
 No new ADR is written; ADR-QD-145, reserved for this, is unused.
+
+## Amendment (2026-11-15, ADR-QD-156, CCR-QD-434)
+
+Where this record says `permitted` and `decideOne` keep both the question and the decision and pass them to `discharge`,
+read `verdictOf` in `Handover.ts` ([ADR-QD-156](./156-a-handed-over-value-is-decided-through-one-module.md)): the one
+function that `ask`s, discharges an allow's obligations against the question it answered, and returns a verdict, which
+every entry point that runs work or hands back data reaches. `permitted` and `decideOne` no longer exist. The decision
+itself is unchanged: the discharge is handed the question the allow answered, and `discharge` does not call `questionOf`.

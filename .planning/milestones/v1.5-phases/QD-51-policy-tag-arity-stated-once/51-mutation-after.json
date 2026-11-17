@@ -1,0 +1,39 @@
+{
+ "measured": {
+  "packages/core/src/Decision.ts": 0.963855421686747,
+  "packages/core/src/Policy.ts": 0.9864864864864865
+ },
+ "counts": {
+  "packages/core/src/Decision.ts": {
+   "killed": 158,
+   "timeout": 2,
+   "survived": 5,
+   "noCoverage": 1,
+   "ignored": 17
+  },
+  "packages/core/src/Policy.ts": {
+   "killed": 146,
+   "timeout": 0,
+   "survived": 2,
+   "noCoverage": 0,
+   "ignored": 141
+  }
+ },
+ "survivors": {
+  "packages/core/src/Decision.ts": [
+   "ArithmeticOperator | Survived | node.children.length + 1 | node.children.length - 1 | for (let i = node.children.length - 1; i >= 0; i--) {",
+   "BooleanLiteral | NoCoverage | trace.allowed | !trace.allowed | export const isDenyingTrace = (trace: Trace): trace is DenyingTrace => !trace.allowed;",
+   "BooleanLiteral | Survived | false | true | configurable: true,",
+   "BooleanLiteral | Survived | false | true | writable: true,",
+   "ConditionalExpression | Survived | true | child !== undefined | if (child !== undefined) pending.push({ node: child, depth: depth + 1 });",
+   "ConditionalExpression | Survived | true | isFieldOf(data, field) | if (isFieldOf(data, field)) {"
+  ],
+  "packages/core/src/Policy.ts": [
+   "EqualityOperator | Survived | value >= max | value > max | for (const value of values) if (value > max) max = value;",
+   "StringLiteral | Survived | \"\" | \"AnyOf\" | fieldStrategy: options?.fieldStrategy ?? defaultFieldStrategy(\"AnyOf\"),"
+  ]
+ },
+ "unmeasured": {
+  "packages/core/src/PolicyArity.ts": "no mutant: absent from the report (ignoreStatic: true; the module holds only static declarations)"
+ }
+}

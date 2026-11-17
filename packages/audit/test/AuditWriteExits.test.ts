@@ -170,15 +170,17 @@ describe("AuditDecisionSinkLive — every exit of record has one outcome, and re
         assert.strictEqual(observed.lost, report.lost === undefined ? 0 : 1);
         assert.strictEqual(report.lost !== undefined, durabilityOf(observed.outcome) === "Lost");
 
-        // And the observed log is exactly its line: none, the encode refusal's
-        // own report, or one message at one level naming the evaluation.
+        // And the observed log is exactly its line: the encode refusal's own
+        // report (core's, so the projection carries no line), none, or one
+        // message at one level naming the evaluation.
         const line = report.log;
-        if (line === undefined) {
-          assert.strictEqual(observed.logs.length, 0);
-        } else if (line === "encodeRefusal") {
+        if (report.writes === "encode_failed") {
+          assert.isUndefined(line);
           assert.strictEqual(observed.logs.length, 1);
           assert.include(observed.logs[0]?.message, "could not be encoded for the audit trail");
           assert.strictEqual(observed.logs[0]?.evaluationId, "target");
+        } else if (line === undefined) {
+          assert.strictEqual(observed.logs.length, 0);
         } else {
           assert.strictEqual(observed.logs.length, 1);
           assert.strictEqual(observed.logs[0]?.message, line.message);

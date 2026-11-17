@@ -14,7 +14,7 @@ import type { AuditEntry } from "./AuditEntry.ts";
 
 /**
  * Encoding succeeded, but the caller's store rejected the write — a real I/O
- * failure, distinct from `AuditEntryNotEncodable`.
+ * failure, distinct from an encode refusal (`@qadi/core`'s `SinkRecordNotEncodable`).
  *
  * Kept as its own type rather than folded into one error with a `reason`
  * discriminant: a caller — and the circuit breaker

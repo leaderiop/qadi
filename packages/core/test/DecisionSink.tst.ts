@@ -39,20 +39,31 @@ test("evaluationId is optional and does not widen the requirement", () => {
   >();
 });
 
-test("a sink that can fail is unrepresentable", () => {
+test("a sink that can fail is unrepresentable without a type escape", () => {
   // The `never` error channel does more than oblige an implementor to handle
   // its own failures — it makes a failing sink un-writable. This was found by
   // the merge gate rejecting a test that tried to build one, which is a
   // stronger guarantee than the one originally claimed for it.
   //
   // What it does NOT stop is a defect: `Effect.die` and a body that throws are
-  // both assignable, which is why `evaluate` also guards with `Effect.catchCause`
-  // and why `DecisionSink.test.ts` exercises both.
+  // both assignable. Nor does it stop a typed failure smuggled through a type
+  // predicate that claims `never` (the escape `SinkEmitReport.test.ts` row E4
+  // uses). That is why the one emitter contains and reports whatever `record`
+  // does, and why `DecisionSink.test.ts` exercises both.
   expect<Effect.Effect<void, string>>().type.not.toBeAssignableTo<
     ReturnType<DecisionSinkShape["record"]>
   >();
   expect<Effect.Effect<never, never>>().type.toBeAssignableTo<
     ReturnType<DecisionSinkShape["record"]>
+  >();
+});
+
+test("a sink may name itself, and need not", () => {
+  // The name is a label a report carries, never an input to a decision (D-05):
+  // optional, so a sink written before it existed still compiles.
+  expect<DecisionSinkShape["name"]>().type.toBe<string | undefined>();
+  expect<{ readonly record: () => Effect.Effect<void> }>().type.toBeAssignableTo<
+    DecisionSinkShape
   >();
 });
 

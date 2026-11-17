@@ -436,6 +436,35 @@ describe("untranslatable fails loudly and never widens", () => {
       assert.strictEqual(r.failure.expected, "publish");
     }));
 
+  it.effect("D-08a: an action absence that names no action carries no expected key, in both interpreters", () =>
+    Effect.gen(function* () {
+      // The three cells where toPredicate built `expected: undefined` and evaluate
+      // omitted the key: a matcher that references the action, with no action given.
+      const policies: ReadonlyArray<readonly [string, P.Policy]> = [
+        ["HasAttribute[ref action]", P.hasAttribute("department", M.eq(M.action()))],
+        [
+          "HasAttribute[nested ref action]",
+          P.hasAttribute("department", M.fieldMatch("x", M.eq(M.action()))),
+        ],
+        ["HasResourceAttribute[ref action]", P.hasResourceAttribute("owner", M.eq(M.action()))],
+      ];
+      for (const [label, policy] of policies) {
+        const translated = yield* Effect.result(translate(policy));
+        assert.strictEqual(translated._tag, "Failure", `toPredicate ${label}`);
+        if (translated._tag !== "Failure") return;
+        assert.strictEqual(translated.failure._tag, "MissingAction", `toPredicate ${label}`);
+        assert.isFalse(Object.hasOwn(translated.failure, "expected"), `toPredicate ${label}`);
+
+        const evaluated = yield* Effect.result(
+          evaluate(policy, { resource: { owner: "u-1" } }).pipe(Effect.provide(layer)),
+        );
+        assert.strictEqual(evaluated._tag, "Failure", `evaluate ${label}`);
+        if (evaluated._tag !== "Failure") return;
+        assert.strictEqual(evaluated.failure._tag, "MissingAction", `evaluate ${label}`);
+        assert.isFalse(Object.hasOwn(evaluated.failure, "expected"), `evaluate ${label}`);
+      }
+    }));
+
   it.effect("a tree deeper than the bound fails", () =>
     Effect.gen(function* () {
       let policy: P.Policy = P.hasRole("editor");

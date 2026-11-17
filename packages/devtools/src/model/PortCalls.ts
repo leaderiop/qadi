@@ -26,7 +26,15 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Tracer from "effect/Tracer";
 import { decodePortSpan, forEveryPort, PORTS } from "@qadi/core";
-import type { DescriptionOf, PortInterpreter, PortName, PortSpanName, PortSpanRowOf } from "@qadi/core";
+import type {
+  DescriptionOf,
+  PortInterpreter,
+  PortName,
+  PortSpanAttributes,
+  PortSpanName,
+  PortSpanRowOf,
+  SpanFields,
+} from "@qadi/core";
 
 /** The five ports an evaluation can touch, named as `wiringReport` names them. */
 export type PortCallPort = PortCall["_tag"];
@@ -125,14 +133,10 @@ export type SignatureHistoryCall = PortCallOf<"SignatureHistory">;
  *
  * A union rather than a flat row with an `asked` string, because the five ports
  * genuinely ask different questions: a scope and a depth have nowhere to live in
- * a shape built for the union of their names.
+ * a shape built for the union of their names. Derived from the registry, so a
+ * sixth port is a member without an edit here.
  */
-export type PortCall =
-  | AttributeCall
-  | ActedCall
-  | RelationshipCall
-  | CustomPredicateCall
-  | SignatureHistoryCall;
+export type PortCall = { readonly [K in PortName]: PortCallOf<K> }[PortName];
 
 export interface PortCallLog {
   /**
@@ -242,40 +246,37 @@ const baseOf = (span: Tracer.Span): PortCallBase => ({
 });
 
 /**
+ * One port's row builder, from its description.
+ *
+ * Monomorphic per call site, so every entry of `ROWS` is checked against
+ * `PortCallOf<K>` with no widened implementation type (ARCH-94, D-18). A
+ * registry-wide builder cannot be typed without one: `PortCallOf<K>` for a
+ * generic `K` holds a deferred conditional no generic expression is assignable to.
+ */
+const rowOf = <N extends PortName, Q extends SpanFields, Ans extends SpanFields, O>(d: {
+  readonly port: N;
+  readonly attributes: PortSpanAttributes<Q, Ans, O>;
+}) => (span: Tracer.Span) => ({
+  ...baseOf(span),
+  _tag: d.port,
+  ...decodePortSpan(d, span.attributes),
+});
+
+/**
  * One span as a row, per port.
  *
- * A mapped type over `PortName`, so a port without a line here is a compile
+ * A mapped type over `PortName`, so a port without an entry here is a compile
  * error; and no key appears — each field is read through the port's own
- * description (`decodePortSpan`), the one statement of what its span says.
- * Built once, and indexed rather than matched: this runs once per span read out
- * of the collector's bounded log, not on an evaluation's hot path.
+ * description (`decodePortSpan`), the one statement of what its span says. Each
+ * entry is one line. Built once, and indexed rather than matched: this runs once
+ * per span read out of the collector's bounded log, not on an evaluation's hot path.
  */
 const ROWS: { readonly [K in PortName]: (span: Tracer.Span) => PortCallOf<K> } = {
-  AttributeResolver: (span) => ({
-    ...baseOf(span),
-    _tag: "AttributeResolver",
-    ...decodePortSpan(PORTS.AttributeResolver, span.attributes),
-  }),
-  DecisionHistory: (span) => ({
-    ...baseOf(span),
-    _tag: "DecisionHistory",
-    ...decodePortSpan(PORTS.DecisionHistory, span.attributes),
-  }),
-  RelationshipResolver: (span) => ({
-    ...baseOf(span),
-    _tag: "RelationshipResolver",
-    ...decodePortSpan(PORTS.RelationshipResolver, span.attributes),
-  }),
-  CustomPredicate: (span) => ({
-    ...baseOf(span),
-    _tag: "CustomPredicate",
-    ...decodePortSpan(PORTS.CustomPredicate, span.attributes),
-  }),
-  SignatureHistory: (span) => ({
-    ...baseOf(span),
-    _tag: "SignatureHistory",
-    ...decodePortSpan(PORTS.SignatureHistory, span.attributes),
-  }),
+  AttributeResolver: rowOf(PORTS.AttributeResolver),
+  DecisionHistory: rowOf(PORTS.DecisionHistory),
+  RelationshipResolver: rowOf(PORTS.RelationshipResolver),
+  CustomPredicate: rowOf(PORTS.CustomPredicate),
+  SignatureHistory: rowOf(PORTS.SignatureHistory),
 };
 
 /** Nanoseconds to milliseconds, and `undefined` while the span is open. */

@@ -1,0 +1,8 @@
+{
+ "packages/devtools/src/model/DockModel.ts": 1,
+ "packages/devtools/src/model/Gates.ts": 1,
+ "packages/react/src/DecisionOutcome.ts": 1,
+ "packages/react/src/DevtoolsFeed.ts": 0.7777777777777778,
+ "packages/react/src/GateWriter.ts": 0.9795918367346939,
+ "packages/core/src/GateState.ts": 1
+}

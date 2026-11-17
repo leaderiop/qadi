@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-30                                    |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.10                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-11-11): BEH-QD-227 — a missing resource id leaves the port's span and nothing else; BEH-QD-445 (a missing resource id fails the same way on every scoped port) (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.6 (2026-11-08): BEH-QD-227 — a span's question is the description's pose and its answer disclose, written by one read body; a local and a served span agree apart from the interpreter; onFile is on neither (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.5 (2026-10-08): BEH-QD-227 — `qadi.interpreter` gains `"remote"` for a served read; `PortCall.interpreter` follows (ARCH-31, CCR-QD-382)<br>1.4 (2026-10-07): BEH-QD-227 — each span's attributes are stated once, by its port's description (`attributes`: a question annotated before the call, an answer annotated after, and `disclose`), and `PortAccess.ts` writes through that statement; `qadi.attempts` joins the listing; the list of ports whose answers are closed is corrected (four, not two); BEH-QD-228 — `@qadi/devtools` reads a span through the same description (`decodePortSpan`), a value outside a field's closed union reads as absent, and a row carries `attempts`, and a signature row its `scope` and `resourceId` (ARCH-21, CCR-QD-198)<br>1.3 (2026-10-05): BEH-QD-227 — each span's name is read from its port's description (`span`, `PortSpanName`) by both `PortAccess.ts` and `@qadi/devtools`' collector; BEH-QD-229 — the Services screen shows timeouts beside retries (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-04): BEH-QD-227/BEH-QD-228 — the spans move to `PortAccess.ts` and gain `qadi.interpreter`; BEH-QD-267 — `toPredicate`'s port reads are spans too (CCR-QD-153, ADR-QD-077)<br>1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
+> | Change History | 1.10 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.9 (2026-11-16): BEH-QD-588 new: the leaf-needs table states which leaves ask about one resource, and readScoped enforces it (ARCH-97, CCR-QD-441)<br>1.8 (2026-11-16): BEH-QD-574 new: one checked row builder, PortCall derived from the registry; BEH-QD-228's listing shows the derived form (ARCH-94, CCR-QD-438)<br>1.7 (2026-11-11): BEH-QD-227 — a missing resource id leaves the port's span and nothing else; BEH-QD-445 (a missing resource id fails the same way on every scoped port) (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.6 (2026-11-08): BEH-QD-227 — a span's question is the description's pose and its answer disclose, written by one read body; a local and a served span agree apart from the interpreter; onFile is on neither (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.5 (2026-10-08): BEH-QD-227 — `qadi.interpreter` gains `"remote"` for a served read; `PortCall.interpreter` follows (ARCH-31, CCR-QD-382)<br>1.4 (2026-10-07): BEH-QD-227 — each span's attributes are stated once, by its port's description (`attributes`: a question annotated before the call, an answer annotated after, and `disclose`), and `PortAccess.ts` writes through that statement; `qadi.attempts` joins the listing; the list of ports whose answers are closed is corrected (four, not two); BEH-QD-228 — `@qadi/devtools` reads a span through the same description (`decodePortSpan`), a value outside a field's closed union reads as absent, and a row carries `attempts`, and a signature row its `scope` and `resourceId` (ARCH-21, CCR-QD-198)<br>1.3 (2026-10-05): BEH-QD-227 — each span's name is read from its port's description (`span`, `PortSpanName`) by both `PortAccess.ts` and `@qadi/devtools`' collector; BEH-QD-229 — the Services screen shows timeouts beside retries (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-04): BEH-QD-227/BEH-QD-228 — the spans move to `PortAccess.ts` and gain `qadi.interpreter`; BEH-QD-267 — `toPredicate`'s port reads are spans too (CCR-QD-153, ADR-QD-077)<br>1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
 
 _Previous: [29 — The Subject Simulator](./29-devtools-simulator.md)_
 
@@ -203,13 +203,13 @@ no-value requirements are properties of the read, not of who asked.
 
 ```ts
 export const collectPortCalls: (options?: { capacity?: number }) => PortCallCollector;
-export type PortCall =
-  | AttributeCall
-  | ActedCall
-  | RelationshipCall
-  | CustomPredicateCall
-  | SignatureHistoryCall;
+export type PortCall = { readonly [K in PortName]: PortCallOf<K> }[PortName];
 ```
+
+`PortCall` is derived from the registry, so a sixth port is a member without an
+edit here; the five named aliases (`AttributeCall`, `ActedCall`, `RelationshipCall`,
+`CustomPredicateCall`, `SignatureHistoryCall`) are each `PortCallOf<…>` of their
+port and stay.
 
 Every `PortCall` carries an `interpreter` — `"evaluate"`, `"toPredicate"`, `"remote"`, or
 `undefined` when the span did not record one (an older `@qadi/core`, or a value
@@ -275,6 +275,26 @@ Both were written and not read before ARCH-21. The Services screen says which
 resource a signature lookup was about (or that it was about any), and how many
 times a retried call ran.
 
+## BEH-QD-574: Call rows are built by one checked row builder, and PortCall is derived from the registry
+
+```
+REQUIREMENT: `ROWS` MUST hold one entry per port, each built by one monomorphic,
+             fully type-checked row builder from the port's description, with
+             no implementation type widened to `unknown`. `PortCall` MUST be
+             derived from the registry, and the five named call aliases MUST
+             stay.
+```
+
+A registry-wide builder cannot be typed without a widened implementation type:
+`PortCallOf<K>` for a generic `K` holds a deferred conditional that no generic
+expression is assignable to, and the way around it is an `unknown` the compiler
+then stops checking. The builder is monomorphic per call site instead
+(`rowOf(PORTS.AttributeResolver)`), so every entry is checked against its own
+`PortCallOf<K>`. The five aliases stay because a caller names the call it
+handles. A sixth port is one compiler-flagged line in `ROWS`
+([BEH-QD-575](./28-devtools-screens.md#beh-qd-575-a-new-port-asks-devtools-only-for-what-the-compiler-names)).
+Pinned by `PortCalls.test.ts` and the typecheck.
+
 ## BEH-QD-229: The panel shows the counts and the calls, and says which is which
 
 ```
@@ -301,3 +321,33 @@ REQUIREMENT: A port's card MUST show its timeouts (`qadi_port_timeouts_total`)
 
 With every port able to carry a deadline, a timeout is the signal that tells a
 slow store from a down one; until ARCH-10 nothing read the metric at all.
+
+## BEH-QD-588: The leaf-needs table states which leaves ask about one resource; readScoped enforces it
+
+> **See:** [ADR-QD-163](../decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md),
+> [ADR-QD-134](../decisions/134-a-resource-scoped-port-read-is-one-read.md)
+>
+> **Invariant:** [INV-QD-288](../invariants.md#inv-qd-288-a-scoped-port-read-never-reaches-its-port-without-a-resource-id)
+
+```
+REQUIREMENT: `LEAF_NEEDS` MUST state, per leaf, whether it asks a port about one
+             resource: `HasRelationship` always, `HasActed`, `HasNotActed` and
+             `HasSignature` when their scope is Resource, no other leaf. A leaf
+             the table says asks about one resource MUST fail with
+             `MissingResourceId` when its resource has no id, as
+             `readScoped` decides.
+
+REQUIREMENT: `readScoped` MUST remain the one point that enforces it: it records
+             the question on the port's own span first, then fails with the
+             `MissingResourceId` that `errorOf` builds, so the read still leaves
+             that one span and nothing else
+             ([BEH-QD-445](#beh-qd-445-a-missing-resource-id-fails-the-same-way-on-every-scoped-port)).
+```
+
+The table is the statement and `readScoped` is the enforcement, so the question
+is on the span before the failure, which a check in the leaf's arm would have
+lost. `LeafNeeds.test.ts` ties each row's `resourceId` to what `readScoped` does,
+and `LeafNeedOf` ties it to the leaf's tag: a row's `resourceId` comes from closed
+tag lists in which an unlisted tag gets `never`, so a row that states the wrong
+one, or a leaf no list names, does not compile (`LeafNeeds.tst.ts`). `readScoped`
+does not read the column.

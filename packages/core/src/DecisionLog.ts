@@ -163,11 +163,19 @@ const presented = (entries: Chunk.Chunk<LogEntry>): ReadonlyArray<LogEntry> =>
   Chunk.toReadonlyArray(entries).toSorted(byRecord);
 
 /**
- * A log's half died: reported, and the other half still runs (INV-QD-035).
+ * Reports which half of a log's record path failed, and swallows it (INV-QD-035).
  *
- * The `decisionSinkAll` member-isolation shape. Neither half can fail by its
- * type, so this catches only a defect — a library bug — that would otherwise
- * end the evaluation that called `record`.
+ * It does not let the other half run: `isolate("publish")` sits inside
+ * `isolate("append")`, so an append defect skips the publish and a publish defect
+ * comes after the append. Neither half can fail by its type, so this catches only
+ * a defect — a library bug — that would otherwise end the evaluation that called
+ * `record`.
+ *
+ * The publish half is reachable by no test (`PubSub.publish` on the sliding pubsub
+ * this module builds neither fails nor dies) and is kept because without it the
+ * append half's catch would report a publish defect as the append half. The half's
+ * name is what the emitter cannot say, which is why these catches stay when the
+ * emitter reports everything else (ADR-QD-159).
  */
 const isolate = (half: "append" | "publish") =>
   Effect.catchCause((cause) =>
@@ -281,6 +289,7 @@ export const makeDecisionLog = (options: {
       environment: options.environment,
       capacity,
       layer: Layer.succeed(DecisionSink, {
+        name: "decisionLog",
         record: (record) => accept(record, options.environment),
       }),
       ingest: (record, environment) => accept(record, environment ?? options.environment),

@@ -5,10 +5,9 @@ import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
 import * as Tracer from "effect/Tracer";
 import * as TestClock from "effect/testing/TestClock";
-import { DecisionSink } from "@qadi/core";
+import { DecisionSink, describeEncodeRefusal, SinkRecordNotEncodable } from "@qadi/core";
 import { collectingLogger } from "@qadi/testing";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
-import type { AuditEntryNotEncodable } from "../src/AuditEntry.ts";
 import { AuditPortReply } from "../src/AuditPortReply.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
 import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
@@ -507,7 +506,7 @@ describe("AuditDecisionSinkLive — an encode refusal is observable", () => {
     Effect.gen(function* () {
       const { layer: trail, written } = AuditTrailPortTest();
       const { lines: logs, layer: logger } = collectingLogger();
-      const seen: Array<AuditEntryNotEncodable> = [];
+      const seen: Array<SinkRecordNotEncodable> = [];
 
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
@@ -523,7 +522,12 @@ describe("AuditDecisionSinkLive — an encode refusal is observable", () => {
       assert.strictEqual(seen.length, 1);
       assert.strictEqual(seen[0]?.evaluationId, "poisoned");
       assert.strictEqual(seen[0]?.refusal._tag, "Opaque");
-      assert.strictEqual(seen[0]?.reason, "resource.tags: a Set has no JSON form");
+      const first = seen[0];
+      assert.instanceOf(first, SinkRecordNotEncodable);
+      if (first !== undefined) {
+        assert.isFalse(Object.hasOwn(first, "reason"));
+        assert.strictEqual(describeEncodeRefusal(first.refusal), "resource.tags: a Set has no JSON form");
+      }
     }));
 
   it.effect("a throwing onRefused is logged, and the next healthy record is still written", () =>
@@ -691,7 +695,7 @@ describe("AuditDecisionSinkLive — onOutcome and the record span", () => {
   it.effect("onRefused replaces the warning but onOutcome still sees the refusal", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest();
-      const refusals: Array<AuditEntryNotEncodable> = [];
+      const refusals: Array<SinkRecordNotEncodable> = [];
       const seen: Array<AuditWriteOutcome> = [];
 
       yield* Effect.gen(function* () {
@@ -792,5 +796,15 @@ describe("AuditDecisionSinkLive — onOutcome and the record span", () => {
       assert.isDefined(span);
       assert.strictEqual(span?.attributes.get("qadi.audit.outcome"), "WriteFailed.NotWired");
       assert.strictEqual(span?.attributes.get("qadi.audit.durability"), "Lost");
+    }));
+});
+
+describe("AuditDecisionSinkLive names itself (ARCH-93)", () => {
+  it.effect("AuditDecisionSinkLive names itself", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest();
+      yield* Effect.gen(function* () {
+        assert.propertyVal(yield* DecisionSink, "name", "AuditDecisionSinkLive");
+      }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail)));
     }));
 });

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-25                                    |
-> | Revision       | 1.28                                           |
+> | Revision       | 1.38                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.28 (2026-11-14): BEH-QD-536 and BEH-QD-537 new: core describes a decode refusal, and one strict decode gives a record and its JSON form (ADR-QD-153, CCR-QD-431)<br>1.27 (2026-11-14): BEH-QD-199 listing restated: WIRE_VERSION added, WIRE_VERSIONS is readonly [2] (CCR-QD-429)<br>1.26 (2026-11-12): BEH-QD-198 restated: a seed is not lost to a registry's idle removal (CCR-QD-427)<br>1.25 (2026-11-12): The sweep runs within a few macrotasks of the pressure, not one: after an unmount the registry removes its node a macrotask later and only then does the book signal (CCR-QD-426)<br>1.24 (2026-11-12): BEH-QD-511 new (an atom set holds its own bound wherever it runs); BEH-QD-198 restated: the atom set's own sweep, one macrotask after the pressure (ARCH-83, CCR-QD-426)<br>1.23 (2026-11-12): the record wire decodes through untrustedDecoder, not an exported options constant (ARCH-78, CCR-QD-421)<br>1.22 (2026-11-11): BEH-QD-450 added: a record's wire envelope is its fields plus a version, stated once; the BEH-QD-195 note names decisionRecordFor (ARCH-71, ADR-QD-135, CCR-QD-413)<br>1.21 (2026-11-10): BEH-QD-400 added: the role walk (roleWalk, RoleStep) visits each reachable role once, by identity, pre-order, first path wins, revisits reported; BEH-QD-192's diamond sentence names it (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.20 (2026-11-10): BEH-QD-368 added — every `qadi_*` metric is declared once and read through its export, and the metric table lists all 22 (ADR-QD-123, ARCH-61, CCR-QD-401)<br>1.19 (2026-11-09): BEH-QD-195 note — the obligation projection is made once before the handler runs (obligationRecordFor; ARCH-54, CCR-QD-393)<br>1.18 (2026-11-09): BEH-QD-195 — an obligation record is projected by obligationRecord (SinkEmit.ts) from the question its allow answered, beside the decision record's projections (ARCH-54, CCR-QD-393)<br>1.17 (2026-10-08): BEH-QD-199 — `decodeSinkRecord` refuses a decision that contradicts its own trace, or a record whose ids or policy tag contradict its decision, as `Inconsistent` naming the first disagreement; BEH-QD-200 unchanged (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.16 (2026-10-08): BEH-QD-195 — the handler receives one `ObligationDischarge` (the question and the allow), and the `ObligationRecord` names `subjectId`, `action` and `resourceId` (ADR-QD-105, CCR-QD-220)<br>1.15 (2026-10-08): BEH-QD-194 — a field change is judged by the lattice (`sameVisibleFields`), not by text (ARCH-45, CCR-QD-264)<br>1.14 (2026-10-07): BEH-QD-198 — `asked` MUST NOT list one question twice, MUST bound itself to `maxTrackedQuestions` cold questions, MUST NOT drop a question any reader holds open (including across a recompute), and a question asked again after eviction reappears; the question book (`QuestionBook.ts`) is its home, and a collection no longer splits one question into two (ADR-QD-103, INV-QD-105, CCR-QD-201)<br>1.13 (2026-10-07): BEH-QD-194 — `diffTraces` is stack-safe, and `tracePathKey` is a path's one text form (ADR-QD-101, CCR-QD-191)<br>1.12 (2026-10-07): BEH-QD-318 added — `foldPolicyCases`, each arm receiving its children in the tag's own shape; BEH-QD-300's closing sentence names which consumers use which form (ADR-QD-090 amendment, CCR-QD-190)<br>1.11 (2026-10-06): BEH-QD-199 — version 2 only: a record with no `version` (version 1) or any other is refused as `UnsupportedVersion`, `SinkRecordJson` is the version-2 encoded type, `WireVersion`/`WIRE_VERSIONS` are `2`/`[2]`; BEH-QD-200 — "both outcomes" is only sayable in refused version-1 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.10 (2026-10-05): BEH-QD-199 — the wire is versioned: version 1 read for good, version 2 carries one tagged `outcome` and is what the encoder writes, any other version refused as `UnsupportedVersion`; the reader ignores an unknown top-level envelope key and still refuses one at any nested position (GH-01, ADR-QD-096); BEH-QD-200 — a decision record naming neither outcome, or both, is refused rather than given an invented `MissingResource` or a silently chosen `decided` (tickets 96, 155, CCR-QD-180)<br>1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-095, CCR-QD-179)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.38 (2026-11-16): BEH-QD-592: a fixed-size Many arm returns a non-literal array (ARCH-98, review iteration 1 IN-04)<br>1.37 (2026-11-16): BEH-QD-591, BEH-QD-592 and BEH-QD-594: every policy tag has one arity, stated once; LeafPolicy's listing shows the derived type (ARCH-98, CCR-QD-442)<br>1.36 (2026-11-16): BEH-QD-571: marked in place when the object accepts the property, otherwise copied; a shared result keeps the mark (ARCH-94 review WR-01, IN-01)<br>1.35 (2026-11-16): BEH-QD-571: an extensible shape is marked in place, a non-extensible one copied (ARCH-94 review WR-01)<br>1.34 (2026-11-16): BEH-QD-571: decoratePorts marks by the slot, so a decorator that replaces a default still reads defaulted (ARCH-94 review IN-02)<br>1.33 (2026-11-16): BEH-QD-572: the mark's key cannot be minted but can be read off a default; it guards nothing (ARCH-94 review IN-01)<br>1.32 (2026-11-16): BEH-QD-571: the never-marked list is pinned for every port (ARCH-94 review WR-04)<br>1.31 (2026-11-16): BEH-QD-571: marking keeps the shape's prototype and descriptors (ARCH-94 review WR-03)<br>1.30 (2026-11-16): BEH-QD-571: the reader's totality names a throwing or revoked proxy (ARCH-94 review WR-02)<br>1.29 (2026-11-16): BEH-QD-571 and BEH-QD-572 new: a port's fail-closed default is a fact its service carries, kept by a spread; BEH-QD-196's composed name is display only (ARCH-94, CCR-QD-438)<br>1.28 (2026-11-14): BEH-QD-536 and BEH-QD-537 new: core describes a decode refusal, and one strict decode gives a record and its JSON form (ADR-QD-153, CCR-QD-431)<br>1.27 (2026-11-14): BEH-QD-199 listing restated: WIRE_VERSION added, WIRE_VERSIONS is readonly [2] (CCR-QD-429)<br>1.26 (2026-11-12): BEH-QD-198 restated: a seed is not lost to a registry's idle removal (CCR-QD-427)<br>1.25 (2026-11-12): The sweep runs within a few macrotasks of the pressure, not one: after an unmount the registry removes its node a macrotask later and only then does the book signal (CCR-QD-426)<br>1.24 (2026-11-12): BEH-QD-511 new (an atom set holds its own bound wherever it runs); BEH-QD-198 restated: the atom set's own sweep, one macrotask after the pressure (ARCH-83, CCR-QD-426)<br>1.23 (2026-11-12): the record wire decodes through untrustedDecoder, not an exported options constant (ARCH-78, CCR-QD-421)<br>1.22 (2026-11-11): BEH-QD-450 added: a record's wire envelope is its fields plus a version, stated once; the BEH-QD-195 note names decisionRecordFor (ARCH-71, ADR-QD-135, CCR-QD-413)<br>1.21 (2026-11-10): BEH-QD-400 added: the role walk (roleWalk, RoleStep) visits each reachable role once, by identity, pre-order, first path wins, revisits reported; BEH-QD-192's diamond sentence names it (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.20 (2026-11-10): BEH-QD-368 added — every `qadi_*` metric is declared once and read through its export, and the metric table lists all 22 (ADR-QD-123, ARCH-61, CCR-QD-401)<br>1.19 (2026-11-09): BEH-QD-195 note — the obligation projection is made once before the handler runs (obligationRecordFor; ARCH-54, CCR-QD-393)<br>1.18 (2026-11-09): BEH-QD-195 — an obligation record is projected by obligationRecord (SinkEmit.ts) from the question its allow answered, beside the decision record's projections (ARCH-54, CCR-QD-393)<br>1.17 (2026-10-08): BEH-QD-199 — `decodeSinkRecord` refuses a decision that contradicts its own trace, or a record whose ids or policy tag contradict its decision, as `Inconsistent` naming the first disagreement; BEH-QD-200 unchanged (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.16 (2026-10-08): BEH-QD-195 — the handler receives one `ObligationDischarge` (the question and the allow), and the `ObligationRecord` names `subjectId`, `action` and `resourceId` (ADR-QD-105, CCR-QD-220)<br>1.15 (2026-10-08): BEH-QD-194 — a field change is judged by the lattice (`sameVisibleFields`), not by text (ARCH-45, CCR-QD-264)<br>1.14 (2026-10-07): BEH-QD-198 — `asked` MUST NOT list one question twice, MUST bound itself to `maxTrackedQuestions` cold questions, MUST NOT drop a question any reader holds open (including across a recompute), and a question asked again after eviction reappears; the question book (`QuestionBook.ts`) is its home, and a collection no longer splits one question into two (ADR-QD-103, INV-QD-105, CCR-QD-201)<br>1.13 (2026-10-07): BEH-QD-194 — `diffTraces` is stack-safe, and `tracePathKey` is a path's one text form (ADR-QD-101, CCR-QD-191)<br>1.12 (2026-10-07): BEH-QD-318 added — `foldPolicyCases`, each arm receiving its children in the tag's own shape; BEH-QD-300's closing sentence names which consumers use which form (ADR-QD-090 amendment, CCR-QD-190)<br>1.11 (2026-10-06): BEH-QD-199 — version 2 only: a record with no `version` (version 1) or any other is refused as `UnsupportedVersion`, `SinkRecordJson` is the version-2 encoded type, `WireVersion`/`WIRE_VERSIONS` are `2`/`[2]`; BEH-QD-200 — "both outcomes" is only sayable in refused version-1 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.10 (2026-10-05): BEH-QD-199 — the wire is versioned: version 1 read for good, version 2 carries one tagged `outcome` and is what the encoder writes, any other version refused as `UnsupportedVersion`; the reader ignores an unknown top-level envelope key and still refuses one at any nested position (GH-01, ADR-QD-096); BEH-QD-200 — a decision record naming neither outcome, or both, is refused rather than given an invented `MissingResource` or a silently chosen `decided` (tickets 96, 155, CCR-QD-180)<br>1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-095, CCR-QD-179)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
@@ -181,10 +181,8 @@ Either way each keeps only its per-tag semantics and none writes its own travers
 > **See:** [ADR-QD-090](../decisions/090-a-tree-is-folded-through-one-seam.md)
 
 ```ts
-export type LeafPolicy = Exclude<
-  Policy,
-  { readonly _tag: "AllOf" | "AnyOf" | "Rules" | "Not" | "Obliged" | "Labeled" }
->;
+// `TagsOfArity` reads the package-private arity record (`PolicyArity.ts`, BEH-QD-591).
+export type LeafPolicy = Extract<Policy, { readonly _tag: TagsOfArity<"Leaf"> }>;
 
 export interface RuleResult<R> {
   readonly rule: Rule;
@@ -261,6 +259,72 @@ const negations = foldPolicyCases<number>(policy, {
 
 console.log(negations); // 3
 ```
+
+## BEH-QD-591: Every policy tag has exactly one arity, stated once
+
+> **Invariant:** [INV-QD-347](../invariants.md#inv-qd-347-every-policy-tag-has-exactly-one-arity-and-every-reader-agrees-with-it)
+> **See:** [ADR-QD-164](../decisions/164-policy-tag-arity-is-stated-once.md),
+> [ADR-QD-152](../decisions/152-each-hydration-drop-reason-is-stated-once-with-its-kind.md)
+
+```
+REQUIREMENT: The arity record MUST name every `Policy` tag exactly once, as `Leaf`,
+             `Wrapper` or `Many`. A tag it lacks, a tag the `Policy` union lacks
+             and an arity word other than those three MUST NOT compile. Every
+             reader of a tag's arity MUST read the record, and none MAY restate it.
+```
+
+`POLICY_ARITY` is `PolicyArity.ts`'s one keyed record, package-private (ADR-QD-099): `index.ts`
+re-exports `Policy.ts` whole, so a record declared there would be public. The module
+imports nothing, so `Policy.ts` closes the record over its own tag union
+(`TagsOfArity`'s constrained default), and a tag moved there and not where it is read is
+a compile error and not a fold that drops or invents a child. The readers are
+`childrenOf`, `LeafPolicy` and `Decision.ts`'s trace shape; `PolicyCases` and
+`TraceCases` are tied to it (BEH-QD-594). Pinned by `PolicyArity.test.ts` (the record
+names every tag once, the barrel does not carry it), `PolicyArity.tst.ts` and the
+typecheck.
+
+## BEH-QD-592: LeafPolicy is the tags the record calls Leaf, and childrenOf is typed by arity
+
+> **Invariant:** [INV-QD-347](../invariants.md#inv-qd-347-every-policy-tag-has-exactly-one-arity-and-every-reader-agrees-with-it)
+> **See:** [ADR-QD-164](../decisions/164-policy-tag-arity-is-stated-once.md)
+
+```
+REQUIREMENT: `LeafPolicy` MUST be exactly the `Policy` variants whose tag the arity
+             record calls `Leaf`. Each `childrenOf` arm MUST return no child for a
+             `Leaf` tag, exactly one for a `Wrapper` and an existing array, never a
+             tuple literal, for a `Many`. An arm and a record that disagree MUST NOT
+             compile.
+```
+
+The derived `LeafPolicy` is the same type the hand-written `Exclude` was, and
+`childrenOf`'s signature is unchanged. A `Many` arm's type carries
+`{ readonly 0?: never }`, so a one-element tuple, the `Wrapper` shape, is refused for
+it; an empty array is a valid `Many`, so the one move `childrenOf` cannot see is `Leaf`
+to `Many`, which `LeafPolicy`'s readers refuse (ADR-QD-164). A `Many` arm with a fixed
+number of children therefore returns a non-literal array, e.g. `Array.of(a, b)`: a literal
+`[a, b]` is a tuple and is refused with "not assignable to type 'never'". Pinned by
+`PolicyArity.test.ts` (`childrenOf`, `foldPolicyCases` and `foldTrace` agree with the
+record for each of the 16 tags), `PolicyArity.tst.ts` (the derived type equals the old
+one; both tuple and array directions are refused, as checked `@ts-expect-error`
+negatives) and the typecheck.
+
+## BEH-QD-594: PolicyCases and TraceCases arms agree with the record
+
+> **Invariant:** [INV-QD-347](../invariants.md#inv-qd-347-every-policy-tag-has-exactly-one-arity-and-every-reader-agrees-with-it)
+> **See:** [ADR-QD-164](../decisions/164-policy-tag-arity-is-stated-once.md)
+
+```
+REQUIREMENT: Each `PolicyCases` and `TraceCases` arm's parameters MUST state its
+             tag's arity: the node only for a `Leaf`, one child for a `Wrapper`, an
+             array or rows for a `Many`. Any single-tag move of the record MUST
+             disagree with each of the two at exactly that tag.
+```
+
+Both stay hand-written, because their arms are not a function of arity alone: a `Rules`
+arm receives `RuleResult` rows and a trace wrapper's child is `R | undefined`. The tie is
+a type-level test and not a generated type. Pinned by `PolicyArity.tst.ts`: every arm
+states its record arity, all 32 single-tag moves disagree at exactly the moved tag for
+each of the two, and a negative control per interface shows the check can fail.
 
 ## BEH-QD-301: A node reports its own field restriction
 
@@ -604,6 +668,103 @@ branches on it**. It is a label a reader sees, in the same category as
 `StoredRecord.environment`, never an input to a decision. A wrapper composes —
 `"attributeResolverFromRecord (retrying)"` — because losing the base
 implementation's identity is losing the part that matters.
+
+The composed name is a **display string only**. Nothing parses it, and whether a
+service is its port's fail-closed default is not a reading of this name but the
+structural fact [BEH-QD-571](#beh-qd-571-a-ports-fail-closed-default-is-a-fact-its-service-carries-through-every-derived-wrapper)
+states (ARCH-94).
+
+## BEH-QD-571: A port's fail-closed default is a fact its service carries, through every derived wrapper
+
+```ts
+export const isPortDefault: (d: { readonly port: PortName }, service: unknown) => boolean;
+```
+
+```
+REQUIREMENT: `nonePort` MUST mark the default it builds with the port it
+             defaults.
+```
+
+```
+REQUIREMENT: Every derived wrapper — `…Retrying`, `…Bounded`, `…TimingOut` and
+             the `recordingPort` decorator — and `decoratePorts` MUST carry the
+             mark exactly when the inner shape has it.
+```
+
+```
+REQUIREMENT: `isPortDefault` MUST answer true exactly when the service carries,
+             as an own property, the mark naming `d.port`, and MUST be total
+             over any value (a proxy whose trap throws, or a revoked one,
+             reads not defaulted).
+```
+
+```
+REQUIREMENT: A scripted double, a remote asker, a replay and a fixture MUST NOT
+             carry the mark.
+```
+
+`decoratePorts` carries the mark by the slot it decorates, not by what its
+decorator returns: when the slot held a default, whatever `f` returns is marked,
+so a decorator that replaces the default with a real implementation still reads
+defaulted. A result that accepts the property is marked in place, the very object
+`f` returned, so a decorator that hands back an object it shares with the host
+leaves the mark on that object: wherever the host also uses it, it reads as
+defaulted. Return a fresh object (`d.make(...)`, a spread of `inner`) to keep the
+host's own object unmarked.
+
+Until ARCH-94 a reader decided "is this the default?" by parsing the display name
+[BEH-QD-196](#beh-qd-196-a-port-says-which-implementation-it-is) composes, and
+the parse misread both directions: a renamed wrapper that spread a default read
+as a real adapter, and a fresh object a host named after a default read as one.
+The first rows of `WiringDefaulted.test.ts` were red on the phase base for
+exactly that reason.
+
+The mark is a package-private, symbol-keyed own property set by `nonePort` and
+copied by the derivations. It is invisible to `Object.keys` and to JSON, it is
+never exported, and no evaluation path reads it: an authorization decision does
+not depend on whether a port is a default. An extensible shape is marked in
+place when it accepts the property, and keeps its identity, so a class instance
+with `#private` fields or an internal slot (a `Map`) and a delegating object all
+keep working. A shape that does not accept it (a frozen, sealed or otherwise
+non-extensible one, or a proxy whose define trap refuses or throws) is copied
+with its prototype and own descriptors: prototype methods and getters survive,
+but state outside own properties (`#private` fields, internal slots) does not, so
+a decorator that returns such an object with such state must return one that
+accepts the property instead. An extensible object that inherits a read-only mark
+accepts its own, so it is marked in place. `isPortDefault` is the one reader,
+and `@qadi/devtools`' `wiringReport` is its caller.
+
+Pinned by `PortDefault.test.ts` (every port's default, a real adapter, a scripted
+double, a replay and a remote asker for every port, a record fixture, a spread copy and a hand-written spread of every port's default, an inherited mark, a hostile or revoked proxy, the derived
+wrappers in every order, `decoratePorts`, a decorated shape with a prototype, an extensible instance with a `#private` field marked in place, a frozen shape copied, an object inheriting a read-only mark and a proxy that refuses or throws on the define),
+`PortDefault.tst.ts` for the reader's signature, and
+`Capture.test.ts`'s captured-default row.
+
+## BEH-QD-572: A hand-written wrapper keeps the default only by spreading it
+
+```
+REQUIREMENT: A hand-written wrapper that spreads the inner shape
+             (`{ ...inner, … }`) MUST read as its port's default when the
+             inner is, whatever it is called. One that builds a fresh object,
+             or delegates through `Object.create`, MUST read as a real adapter
+             whatever it is called.
+```
+
+The fact is "built from the default's shape", not "behaves like the default",
+and its limits are stated rather than hidden:
+
+- A spread that **replaces the method** still reads defaulted, because the mark
+  is carried by the spread and the reader looks no further.
+- `Object.create(inner)` and a fresh object read as a real adapter: an inherited
+  mark is not an own property.
+- A **duplicate install** of `@qadi/core` mints a second, distinct symbol, so the
+  other copy's defaults read as real adapters. The mark is never `Symbol.for`, so
+  nobody can mint its key; but it can be read off an existing default with
+  `Object.getOwnPropertySymbols`, so copying it onto another object is possible
+  and deliberate. It labels a diagnostic and guards nothing.
+
+A wrapper author who wants the report to see through the wrapper spreads `inner`.
+Pinned by `PortDefault.test.ts` (M3 to M5) and `WiringDefaulted.test.ts`.
 
 ## BEH-QD-197: Port activity is counted
 

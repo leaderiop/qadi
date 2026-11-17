@@ -1,5 +1,43 @@
 # Milestones
 
+## v1.5 Arch Wave 10 (Phases 43-52) (Completed: 2026-11-16; not released)
+
+**Phases completed:** 10 phases, 71 plans
+**Closeout:** verified_closeout. All 10 phases `passed`. Phases 43, 44, 45, 46 and 48 were re-verified at the
+final head on 2026-11-16, because later phases (and the audit's own fixes) edited files their reports covered;
+each goal still held. Milestone audit: `tech_debt`, accepted by the user (52/52 requirements, 10/10 phases, 6/6
+integration seams, 3/3 flows, Nyquist 10/10). Archived as `milestones/v1.5-MILESTONE-AUDIT.md`.
+**Known verification overrides:** 0 (2 items acknowledged at an earlier close still suppressed).
+**Git range:** `dfac377c` → this archive commit on `arch-wave-10` (510 commits before the archive, 2026-11-15 →
+2026-11-16); 198 files changed outside `.planning`, +14,406 / −1,559.
+**Merge gate:** `pnpm check:pr` exit 0 at the end of every phase; full `pnpm check` (with mutation) exit 0 at the
+final head, every Stryker run above the break threshold of 80.
+**Records:** ARCH-90..99, ADR-QD-156..165, CCR-QD-434..443.
+**Release:** none. The branch is not merged and nothing was published. Changesets are pending, unconsumed:
+`@qadi/core` minor (**Breaking**: Phase 43's handover options) and patch, `@qadi/audit` minor (**Breaking**:
+Phases 45, 48) and patch, `@qadi/react` minor (**Breaking**: Phases 44, 49), `@qadi/devtools` minor
+(**Breaking**: Phase 49) and patch, `@qadi/promise` minor (**Breaking**: Phase 43), `@qadi/predicate-sql` and
+`@qadi/predicate-prisma` patch.
+
+**Key accomplishments:**
+- **ARCH-90 (Phase 43):** one package-private `Handover.ts` owns ask → discharge → release behind every
+  enforcement entry point; `guard` and `filter*` refuse a caller's second `resource` at the type level
+  (ADR-QD-156).
+- **ARCH-91 (Phase 44):** the hydration seed's fields are stated once, derived from core's wire form, so a field
+  the wire gains reaches the seed with no edit in `@qadi/react` (ADR-QD-157).
+- **ARCH-92 (Phase 45):** the audit circuit breaker is one pure `step(state, event, now)`; a `NaN`, zero or
+  negative threshold, cooldown or store-call timeout is refused at construction with `InvalidAuditSinkOption`
+  (ADR-QD-158).
+- **ARCH-93 (Phase 46):** `sinkEmitter` contains and reports a failing or dying sink with exactly one warning
+  naming it (ADR-QD-159).
+- **ARCH-94/95 (Phases 47, 48):** port defaultedness is a mark carried through every wrapper, not a display
+  name; audit reports core's `SinkRecordNotEncodable` and derives "lost" from durability (ADR-QD-160, 161).
+- **ARCH-96..99 (Phases 49-52):** one gate-state vocabulary in core and gates as the dock model's eighth store;
+  what a leaf needs from the request stated once (benchmarked within noise); policy tag arity stated once; core's
+  `compilePredicate` owns the compile shell for both SQL dialects (ADR-QD-162..165).
+
+---
+
 ## v1.4 Arch Wave 9 (Phases 37-42) (Completed: 2026-11-14; not released)
 
 **Phases completed:** 6 phases, 38 plans

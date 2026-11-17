@@ -59,6 +59,7 @@ import {
 import { simulate } from "../../src/model/Simulation.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { live, snapshot } from "../../src/model/SimulationSource.ts";
+import { wiringReport } from "../../src/model/Wiring.ts";
 
 /** A request key's text; a refusal fails the test, since these requests are all keyable. */
 const keyText = (key: Result.Result<string, KeyRefusal>): string => {
@@ -333,6 +334,29 @@ describe("what a capture records", () => {
         "CustomPredicateNone (capturing)",
       );
     }).pipe(Effect.scoped));
+
+  // The name parse makes this pass on the base; after ARCH-94 only `decoratePorts`' carry does.
+  it.effect("a captured port reads defaulted exactly when what it captured is the default (D-17)", () =>
+    Effect.gen(function* () {
+      const defaultedOf = Effect.map(wiringReport, (report) =>
+        report.ports.slice(0, 5).map((p) => [p.port, p.defaulted]),
+      );
+
+      assert.deepStrictEqual(yield* defaultedOf.pipe(Effect.provide(capturing(portsLayer()).layer)), [
+        ["AttributeResolver", true],
+        ["DecisionHistory", true],
+        ["RelationshipResolver", true],
+        ["CustomPredicate", true],
+        ["SignatureHistory", true],
+      ]);
+      assert.deepStrictEqual(yield* defaultedOf.pipe(Effect.provide(capturing(realPorts).layer)), [
+        ["AttributeResolver", false],
+        ["DecisionHistory", false],
+        ["RelationshipResolver", false],
+        ["CustomPredicate", true],
+        ["SignatureHistory", true],
+      ]);
+    }));
 
   it.effect("builds the wrapped ports exactly once, no matter how many of the ports a run reaches", () =>
     Effect.gen(function* () {

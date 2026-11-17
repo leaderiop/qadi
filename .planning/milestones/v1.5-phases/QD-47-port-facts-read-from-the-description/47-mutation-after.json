@@ -1,0 +1,10 @@
+{
+ "packages/core/src/PortDerivation.ts": 0.98,
+ "packages/core/src/PortDescription.ts": 1,
+ "packages/core/src/PortDoubles.ts": 1,
+ "packages/core/src/Ports.ts": 1,
+ "packages/devtools/src/model/PortCalls.ts": 1,
+ "packages/devtools/src/model/Wiring.ts": 1,
+ "packages/core/src/PortDefault.ts": 1,
+ "packages/devtools/src/model/PortReading.ts": 1
+}

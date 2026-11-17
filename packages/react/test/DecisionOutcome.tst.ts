@@ -7,7 +7,7 @@
  * compiler can show tomorrow's cannot be wrong (ADR-QD-017).
  */
 import { expect, test } from "tstyche";
-import type { Allow, Deny, EvaluationError } from "@qadi/core";
+import type { Allow, Deny, EvaluationError, GateState } from "@qadi/core";
 import type * as AsyncResult from "effect/reactivity/AsyncResult";
 import type { DecisionOutcome, DecisionResult } from "../src/DecisionOutcome.ts";
 import { currentDecision, outcomeOf } from "../src/DecisionOutcome.ts";
@@ -37,8 +37,11 @@ test("the outcome is the closed union of five cases", () => {
   >();
 });
 
-test("a gate's render state is the outcome's tag, not a restatement of it", () => {
-  expect<GateRenderState>().type.toBe<DecisionOutcome["_tag"]>();
+test("a gate's render state is core's GateState, and core's states are the outcome's tags, both ways", () => {
+  expect<GateRenderState>().type.toBe<GateState>();
+  expect<GateState>().type.toBe<DecisionOutcome["_tag"]>();
+  expect<Exclude<GateState, DecisionOutcome["_tag"]>>().type.toBe<never>();
+  expect<Exclude<DecisionOutcome["_tag"], GateState>>().type.toBe<never>();
 });
 
 test("a decision atom holds a ClientDecision, read through outcomeOf or currentDecision", () => {

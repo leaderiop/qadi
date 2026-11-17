@@ -21,6 +21,7 @@ import { DecisionSink } from "./DecisionSink.ts";
 import type { CacheOutcome } from "./EvaluationMetrics.ts";
 import type { Question } from "./Question.ts";
 import { resourceIdOf } from "./Resource.ts";
+import { handedOver, reportSinkFailure } from "./SinkReport.ts";
 
 /** What an evaluation stamps on every record it makes. */
 export interface Stamp {
@@ -28,9 +29,11 @@ export interface Stamp {
   readonly at: number;
 }
 
+const SINK_FAILED = "qadi: a decision sink failed; the record was not delivered";
+
 /**
- * Reads the sink once and returns a function that hands it one record and
- * swallows everything; a no-op when no sink is wired.
+ * Reads the sink once and returns a function that hands it one record, containing
+ * and reporting any failure; a no-op when no sink is wired.
  *
  * Optional by construction: `serviceOption` adds nothing to the requirements,
  * and ADR-QD-009 deleted four always-on observability ports, so an optional
@@ -38,8 +41,12 @@ export interface Stamp {
  *
  * `catchCause` rather than `catchAll` because the shape's `never` error
  * channel is not on its own enough — BEH-QD-175 recorded exactly how that gets
- * subverted, by `Effect.die`, and a dying sink would otherwise take the
+ * subverted, by `Effect.die` — and a dying sink would otherwise take the
  * decision with it.
+ *
+ * `Effect.suspend` contains a `record` that throws before returning an effect,
+ * which on the base made `evaluate` die. Every cause it contains is reported
+ * once (ADR-QD-159, INV-QD-337, INV-QD-338).
  *
  * This is the inverse of the `Effect.orDie` AGENTS.md §4 forbids on this path,
  * not an instance of it: that turns a failure into a defect, this stops a
@@ -50,7 +57,13 @@ export const sinkEmitter: Effect.Effect<(record: SinkRecord) => Effect.Effect<vo
   Effect.serviceOption(DecisionSink),
   (sink) =>
     Option.isSome(sink)
-      ? (record) => Effect.catchCause(sink.value.record(record), () => Effect.void)
+      ? (record) => {
+          const handed = handedOver(record);
+          return Effect.catchCause(
+            Effect.suspend(() => sink.value.record(record)),
+            (cause) => reportSinkFailure(SINK_FAILED, sink.value, handed, cause),
+          );
+        }
       : () => Effect.void,
 );
 

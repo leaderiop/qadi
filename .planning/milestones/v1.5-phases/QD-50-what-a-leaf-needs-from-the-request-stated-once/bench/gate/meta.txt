@@ -1,0 +1,9 @@
+head: 4b5098bfa48839d788671b76517f5759573a3a81
+patch: /Users/mohammadalmechkor/Projects/Perso/qadi/.planning/phases/QD-50-what-a-leaf-needs-from-the-request-stated-once/research-probes/proto-p1.patch.txt
+patch_sha256: 109f2545ae36374046f8abf6d7cf07604f4b8abc9b4158ba05a7c09595e98e78
+head_label: base
+patched_label: proto
+rounds: 3
+node: v26.13.0
+cpu: Apple M3 Pro
+start: 2026-11-16T12:53:29Z

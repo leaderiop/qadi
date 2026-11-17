@@ -1,0 +1,59 @@
+// SKETCH for packages/core/test/LeafNeeds.test.ts. Imports LeafNeeds.ts, so it is RED on the phase base (module not found).
+import { assert, describe, it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import { evaluate } from "../src/Evaluate.ts";
+import { MissingAction, MissingResourceId } from "../src/Errors.ts";
+import { LEAF_NEEDS, absenceOf, errorOf } from "../src/LeafNeeds.ts";
+import * as P from "../src/Policy.ts";
+import { FIXTURES, SHAPES, labelOf, layer, oracle } from "./LeafMatrix.test.ts";
+
+describe("LEAF_NEEDS", () => {
+  it("has one row per leaf tag (and the type says so: a missing row is TS2741)", () => {
+    assert.deepStrictEqual(Object.keys(LEAF_NEEDS).sort(), Object.keys(P.leafCases(() => 0)).sort());
+  });
+
+  it("absenceOf says what the oracle says, for every leaf, action and resource (the port-read cell is not its business)", () => {
+    for (const fixtures of Object.values(FIXTURES)) {
+      for (const f of fixtures) {
+        for (const action of [false, true]) {
+          for (const shape of ["none", "id"] as const) {
+            const a = absenceOf(f.policy as never, { action, resource: shape !== "none" });
+            const got = a === undefined ? "ok" : labelOf(errorOf(a));
+            const want = oracle({ ...f, scoped: false }, action, shape);
+            assert.strictEqual(got, want, `${f.policy._tag} action=${action} resource=${shape}`);
+          }
+        }
+      }
+    }
+  });
+
+  it.effect("a row's resourceId is what readScoped does: Never / Always / ByScope", () =>
+    Effect.gen(function* () {
+      for (const fixtures of Object.values(FIXTURES)) {
+        for (const f of fixtures) {
+          const need = LEAF_NEEDS[f.tag].resourceId;
+          for (const shape of ["none", "no-id", "id"] as const) {
+            const resource = SHAPES[shape];
+            const exit = yield* Effect.exit(
+              evaluate(f.policy, { action: "read", ...(resource === undefined ? {} : { resource }) }).pipe(Effect.provide(layer)),
+            );
+            const refused = Exit.isFailure(exit) && Cause.squash(exit.cause) instanceof MissingResourceId;
+            const claimed = need === "Always" || (need === "ByScope" && f.scoped);
+            const earlier = Exit.isFailure(exit) && !(Cause.squash(exit.cause) instanceof MissingResourceId);
+            if (!earlier) assert.strictEqual(refused, claimed && shape !== "id", `${f.policy._tag} ${need} ${shape}`);
+          }
+        }
+      }
+    }),
+  );
+
+  it("an absence becomes its error, and an Action absence that names no action carries no `expected` key", () => {
+    assert.instanceOf(errorOf({ _tag: "Action" }), MissingAction);
+    assert.isFalse(Object.hasOwn(errorOf({ _tag: "Action" }), "expected"));
+    assert.strictEqual(errorOf({ _tag: "Action", expected: "read" }).expected, "read");
+    assert.strictEqual(errorOf({ _tag: "Resource", attribute: "a" }).attribute, "a");
+    assert.strictEqual(errorOf({ _tag: "ResourceId", relation: "r" }).relation, "r");
+  });
+});

@@ -16,6 +16,7 @@ import { colors } from "../../src/react/theme.ts";
 import { VerdictTag } from "../../src/react/VerdictTag.tsx";
 import { treatmentOf } from "../../src/react/VerdictTreatment.ts";
 import { liveNotice } from "../helpers.ts";
+import { panelInput } from "./questionsPanelInput.ts";
 
 const node = (status: InspectNode["status"]): InspectNode => ({
   path: "$",
@@ -150,11 +151,13 @@ describe("QuestionsPanel", () => {
   it("names each guard's treatment, and shows an unknown state as itself", () => {
     render(
       <QuestionsPanel diagnostics={liveNotice}
-        questions={[{ policy: canRead }]}
-        gates={[
-          { id: "a", kind: "Can", policy: canRead, state: "Failed" },
-          { id: "b", kind: "Can", policy: canRead, state: "Suspended" },
-        ]}
+        {...panelInput({
+          questions: [{ policy: canRead }],
+          gates: [
+            { id: "a", kind: "Can", policy: canRead, state: "Failed" },
+            { id: "b", kind: "Can", policy: canRead, state: "Suspended" },
+          ],
+        })}
       />,
     );
     const states = screen.getAllByTestId("qadi-instance-state");

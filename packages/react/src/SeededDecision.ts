@@ -16,17 +16,12 @@
  *
  * No `"use client"`: this must also run under a server render.
  */
-import type {
-  Allow,
-  Deny,
-  Obligation,
-  SubjectId,
-  VisibleFields,
-} from "@qadi/core";
+import type { Allow, Deny, SubjectId } from "@qadi/core";
 import { DecisionWireAllow, DecisionWireDeny } from "@qadi/core";
 import * as Data from "effect/Data";
 import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
+import * as Struct from "effect/Struct";
 
 
 /** The trace and reason were left out of the payload, as they are by default. */
@@ -66,30 +61,65 @@ export const DenyDisclosure = Schema.Union([
 export type DenyDisclosure = typeof DenyDisclosure.Type;
 
 /**
+ * The `DecisionWire` fields an allow entry and its seed do not carry.
+ *
+ * The subject lives on the envelope and on the seed's own `subjectId`, and the
+ * trace is replaced by a `disclosure`.
+ */
+export const ALLOW_WITHHELD = ["subjectId", "trace"] as const;
+
+/**
+ * A deny entry withholds what an allow does, plus the two fields a denial
+ * discloses only under `includeTrace`, inside its `disclosure`.
+ *
+ * A denial's `obligations` are always empty (BEH-QD-081, ADR-QD-019), so they are not carried.
+ */
+export const DENY_WITHHELD = [...ALLOW_WITHHELD, "obligations", "reason"] as const;
+
+/**
+ * An allow seed's fields, stated once: the wire's allow minus what it withholds, plus its disclosure.
+ *
+ * `_tag` is omitted because the class carries its own (ADR-QD-078). The payload
+ * entry is built from these same fields, so the entry and the seed cannot
+ * disagree (ARCH-91, ADR-QD-157, the ADR-QD-135 pattern). `visibleFields` is the
+ * wire's optional key, absent when the server sent none, which means every
+ * field (see `VisibleFields`).
+ */
+export const AllowSeedFields = Schema.Struct({
+  ...Struct.omit(DecisionWireAllow.fields, ["_tag", ...ALLOW_WITHHELD]),
+  disclosure: AllowDisclosure,
+});
+
+/**
+ * A denial seed's fields, stated once: the wire's denial minus what it withholds, plus its disclosure.
+ *
+ * See {@link AllowSeedFields}; a denial carries no `visibleFields`, `obligations` or `reason` outside its disclosure.
+ */
+export const DenySeedFields = Schema.Struct({
+  ...Struct.omit(DecisionWireDeny.fields, ["_tag", ...DENY_WITHHELD]),
+  disclosure: DenyDisclosure,
+});
+
+/**
  * The server's allow, as this client received it.
  *
  * Not an `Allow`: there is no evaluation tree here unless the server disclosed
  * one, and `_tag: "SeededAllow"` is distinct from `"Allow"` so
  * `Match.tagsExhaustive` (ADR-QD-003) and `Equal` cannot confuse the two. Read
- * its verdict with {@link permits}.
+ * its verdict with {@link permits}. Its fields are {@link AllowSeedFields} plus
+ * the subject.
  */
-export class SeededAllow extends Data.TaggedClass("SeededAllow")<{
-  readonly evaluationId: string;
-  readonly subjectId: SubjectId;
-  readonly durationMillis: number;
-  /** See `VisibleFields` for what `undefined` means here. */
-  readonly visibleFields: VisibleFields;
-  readonly obligations: ReadonlyArray<Obligation>;
-  readonly disclosure: AllowDisclosure;
-}> {}
+export class SeededAllow extends Data.TaggedClass("SeededAllow")<
+  typeof AllowSeedFields.Type & { readonly subjectId: SubjectId }
+> {}
 
-/** The server's denial, as this client received it. See {@link SeededAllow}. */
-export class SeededDeny extends Data.TaggedClass("SeededDeny")<{
-  readonly evaluationId: string;
-  readonly subjectId: SubjectId;
-  readonly durationMillis: number;
-  readonly disclosure: DenyDisclosure;
-}> {}
+/**
+ * The server's denial, as this client received it. See {@link SeededAllow}.
+ * Its fields are {@link DenySeedFields} plus the subject.
+ */
+export class SeededDeny extends Data.TaggedClass("SeededDeny")<
+  typeof DenySeedFields.Type & { readonly subjectId: SubjectId }
+> {}
 
 /** A decision rebuilt from a payload, which is a projection and not an evaluation. */
 export type SeededDecision = SeededAllow | SeededDeny;

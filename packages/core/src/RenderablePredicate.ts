@@ -32,6 +32,7 @@
 import * as Arr from "effect/Array";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
+import * as Metric from "effect/Metric";
 import * as Result from "effect/Result";
 import { PredicateNotRenderable } from "./Errors.ts";
 import type { RenderRefusal } from "./Errors.ts";
@@ -519,3 +520,69 @@ export const toRenderable = Effect.fn("qadi.predicate.toRenderable")(function* (
 ) {
   return yield* Effect.fromResult(classify(predicate, { rules, polarity: "Positive" }));
 });
+
+/**
+ * The two counter series a compile reports to, one per outcome.
+ *
+ * Each dialect package declares its own counter once (ADR-QD-123) and hands its
+ * two tagged series here, so core counts without owning a metric id.
+ */
+export interface CompileOutcomes {
+  readonly compiled: Metric.Counter<number>;
+  readonly refused: Metric.Counter<number>;
+}
+
+/** What `compilePredicate` takes beside the predicate. */
+export interface CompilePredicateOptions<A> {
+  /**
+   * The dialect's `RenderRules` minus the two fields core defaults.
+   *
+   * A value carrying either field is refused by type, not dropped at runtime: a
+   * full `RenderRules` would otherwise type-check here and have its own
+   * `maxInValues` silently replaced by the default.
+   */
+  readonly rules: Omit<RenderRules, "identifiers" | "maxInValues"> & {
+    readonly identifiers?: never;
+    readonly maxInValues?: never;
+  };
+  /** How strictly a column name is constrained. Default `"Ascii"`, for `undefined` too. */
+  readonly identifiers?: IdentifierRule | undefined;
+  /** A `MemberOf` with more members is refused. Default {@link DEFAULT_MAX_IN_VALUES}, for `undefined` too. */
+  readonly maxInValues?: number | undefined;
+  /**
+   * Prints a classified tree into the dialect's output.
+   *
+   * Runs once per run of the returned Effect, and only after classification has
+   * succeeded, so per-run state (a parameter list, say) is allocated inside it. A
+   * throw from it is a defect and counts neither outcome.
+   */
+  readonly render: (node: RenderableNode) => A;
+  /** The dialect's own counter series, declared once in its package (ADR-QD-123). */
+  readonly outcomes: CompileOutcomes;
+}
+
+/**
+ * Compiles a `Predicate` with a dialect's rules and renderer, counting the outcome.
+ *
+ * Plain function, no span of its own: the caller's `Effect.fn` span stays the root
+ * and `toRenderable`'s the child. It applies the two defaults, counts a refusal on
+ * `outcomes.refused`, renders, and only then counts `outcomes.compiled`, so a
+ * defect in classification or in `render` counts neither outcome (BEH-QD-596,
+ * ADR-QD-165).
+ *
+ * Nothing runs until the returned Effect does, and each run classifies, renders
+ * and counts again: a reused program calls `render` once per run.
+ */
+export const compilePredicate = <A>(
+  predicate: Predicate,
+  options: CompilePredicateOptions<A>,
+): Effect.Effect<A, PredicateNotRenderable> =>
+  toRenderable(predicate, {
+    ...options.rules,
+    identifiers: options.identifiers ?? "Ascii",
+    maxInValues: options.maxInValues ?? DEFAULT_MAX_IN_VALUES,
+  }).pipe(
+    Effect.tapError(() => Metric.update(options.outcomes.refused, 1)),
+    Effect.map(options.render),
+    Effect.tap(() => Metric.update(options.outcomes.compiled, 1)),
+  );

@@ -1,0 +1,33 @@
+// node analyze2.mjs <outdir> : per-workload robust comparison. stat = latency.min and latency.p50 per run (ns);
+// arm value = median of the 3 per-run values; spread = (max-min)/median over the base runs; band = max(10%, spread).
+import { readFileSync } from "node:fs";
+const dir = process.argv[2];
+const load = (arm, i) => {
+  const j = JSON.parse(readFileSync(`${dir}/${arm}-${i}.json`, "utf8"));
+  const m = new Map();
+  for (const a of j.testResults[0].assertionResults) for (const b of a.benchmarks) for (const t of b.tasks)
+    m.set(`${b.name} :: ${t.name}`, { min: t.latency.min * 1e6, p50: t.latency.p50 * 1e6 });
+  return m;
+};
+const runs = { base: [1, 2, 3].map((i) => load("base", i)), proto: [1, 2, 3].map((i) => load("proto", i)) };
+const med = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+const spread = (xs) => (Math.max(...xs) - Math.min(...xs)) / med(xs);
+const out = [];
+for (const k of runs.base[0].keys()) {
+  const row = { k };
+  for (const stat of ["min", "p50"]) {
+    const b = runs.base.map((m) => m.get(k)[stat]), p = runs.proto.map((m) => m.get(k)[stat]);
+    const bm = med(b), pm = med(p), band = Math.max(0.1, spread(b));
+    row[stat] = { bm, pm, d: (pm - bm) / bm, bs: spread(b), band, bad: (pm - bm) / bm > band };
+  }
+  out.push(row);
+}
+const f = (x, n = 1) => x.toFixed(n);
+console.log("workload\tbase_min_ns\tproto_min_ns\tdmin%\tbase_min_spread%\tbadmin\tbase_p50_ns\tproto_p50_ns\tdp50%\tbase_p50_spread%\tbadp50");
+for (const r of out) console.log([r.k, f(r.min.bm, 0), f(r.min.pm, 0), f(r.min.d * 100), f(r.min.bs * 100), r.min.bad ? "SLOWER" : "ok", f(r.p50.bm, 0), f(r.p50.pm, 0), f(r.p50.d * 100), f(r.p50.bs * 100), r.p50.bad ? "SLOWER" : "ok"].join("\t"));
+const n = out.length;
+console.log(`\nworkloads=${n}; slower-than-band on min: ${out.filter((r) => r.min.bad).length}; on p50: ${out.filter((r) => r.p50.bad).length}`);
+console.log(`workloads with base min-spread <=10%: ${out.filter((r) => r.min.bs <= 0.1).length}; p50-spread <=10%: ${out.filter((r) => r.p50.bs <= 0.1).length}`);
+const g = (s) => f((Math.exp(out.reduce((a, r) => a + Math.log(1 + r[s].d), 0) / n) - 1) * 100, 2);
+console.log(`geomean d(min)%=${g("min")} d(p50)%=${g("p50")}`);
+console.log(`worst d(min)%=${f(Math.max(...out.map((r) => r.min.d)) * 100)} (${out.reduce((a, r) => (r.min.d > a.min.d ? r : a)).k})`);
