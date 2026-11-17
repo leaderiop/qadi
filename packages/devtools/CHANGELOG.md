@@ -1,5 +1,47 @@
 # @qadi/devtools
 
+## 0.13.0
+
+### Minor Changes
+
+- 0f96ec5: **Breaking.** `sourceFromEventSource`'s `onMalformed(frame, refusal)` receives `@qadi/core`'s `DecodeRefusal` as decoded, not a word. Each word maps to a tag:
+
+  - `not-json` → `NotJson`
+  - `too-deep` → `TooDeep`
+  - `not-a-record` → `Malformed`
+  - `unsupported-version` → `UnsupportedVersion`
+  - `inconsistent` → `Inconsistent`
+
+  `not-a-record` named both a bare record and a record the wire does not describe; both are now `Malformed`, told apart by its `message`. Match on `refusal._tag`, or show `describeDecodeRefusal(refusal)`.
+
+  **Breaking.** `MalformedReason` is removed, with no alias. The default warning keeps its message, `qadi/devtools: a frame was not a decision record`, and is annotated `qadi.refusal` (the tag) instead of `qadi.reason`; a log query filtering on `qadi.reason` filters on `qadi.refusal` by tag.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 4451011: **Breaking.** `DevtoolsDock`'s `gates` prop takes the gate registry (`GateRegistryLike`: `instances()` and `subscribe()`), usually `atoms.gates` or the feed's `gates`, where it took an array of instances. An array no longer compiles. The dock subscribes to the registry in its own scope for as long as it is mounted, and pairs each asked question with the guards asking it at one moment, so a host no longer re-renders to feed the dock.
+
+  `GateRegistryLike` is a new type export. The React panel's message for a missing registry now names `atoms.gates`: "Pass gates — usually atoms.gates, from @qadi/react — to list who is asking."
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+### Patch Changes
+
+- 4451011: The wiring report and the services panel read whether a port is defaulted from `@qadi/core`'s `isPortDefault`, not from the port's name. A wrapper that spreads a default now reads defaulted whatever it is called, and one that builds a fresh object reads as a real adapter even when its name starts with a default's. The panel's wording is unchanged.
+- 0f96ec5: The simulator's remedy table and its session commands (`choosePolicy`, `edit`), the policy rail and the inspector no longer throw when a policy compares an attribute with a bigint or a circular value. Such a remedy is still offered, labelled with the bigint's digits and `n` (`10n`) or, for a value with no JSON form, with the words `a value with no JSON form`, which carry none of the value. An object whose `toJSON` gives nothing, labelled `undefined` before, now takes those words. The remedy label reads through `@qadi/core`'s `valueLabel`, and the search text and the simulator form through its `valueText`.
+- 0f96ec5: The simulator session, the timeline feed and the diagnostics feed now run through one internal module, so a restart issued from inside a feed's own notification, or from a run's synchronous start, leaves the newest run live where before it could leave the feed or the session idle with a stale run behind it. A stop with no run in flight does nothing a host can see. No exported name, type or behaviour otherwise changes, so no code needs to change.
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+  - @qadi/core@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes
