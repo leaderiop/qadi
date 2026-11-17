@@ -1,5 +1,38 @@
 # @qadi/react
 
+## 0.13.0
+
+### Minor Changes
+
+- 4451011: **Breaking.** `useDevtoolsFeed().gates` is now the provider's gate registry (`GateRegistry`: the provider's `gates` prop, else `atoms.gates`), not the array of guard instances it was. `<DevtoolsDock {...feed} />` is unchanged, because the dock's `gates` prop takes the registry now. Code that read the array reads `feed.gates.instances()`.
+
+  No guard renders differently, and `useGateInstances` is unchanged for a component that wants the list itself. `GateRenderState` is now `@qadi/core`'s `GateState`, the same five words.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 4451011: **Breaking.** `SeededAllow`'s `visibleFields` is now an optional key, as it is on the decision's wire form. A seed rebuilt from a payload that sent no `visibleFields` has no `visibleFields` key, where it held `visibleFields: undefined`. Reading `seed.visibleFields` is unchanged (`undefined` still means every field), and building a `SeededAllow` with or without the key compiles. What breaks is assigning a `SeededAllow` to a type that requires `visibleFields`, and code that checks for the key: `"visibleFields" in seed`, `Object.keys`, or `Equal.equals` against a seed built with an explicit `undefined`.
+
+  A seed's fields are now stated once, from `@qadi/core`'s decision wire form, so a field the wire gains reaches the seed with no edit in `@qadi/react`. The payload's version and bytes are unchanged.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+### Patch Changes
+
+- 0f96ec5: `PayloadRefusalReason` and `EntryDropReason` are now read off `@qadi/core`'s drop-reason table with `HydrationDropReasonOf` instead of being written out. Their members are unchanged, and a new per-entry reason in core does not compile until the engine has a bucket for it.
+- 0f96ec5: A hydrated question's seed, the atom that computes its decision and the atom a guard reads now live together in one package-private module, `SeededQuestion.ts`, instead of being split across `HydrationEngine.ts` and `QadiAtoms.ts`. No export, render sequence or hydration behaviour changes.
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+  - @qadi/core@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes

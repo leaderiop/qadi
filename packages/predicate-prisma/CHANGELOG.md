@@ -1,5 +1,23 @@
 # @qadi/predicate-prisma
 
+## 0.13.0
+
+### Patch Changes
+
+- 4451011: `compilePrismaWhere` now runs through `@qadi/core`'s `compilePredicate`, keeping only its rules, its renderer and its own counter. No public type, export or output changes. `compiled` is now counted after the where object is rendered, so a compile whose render fails is no longer counted `compiled`.
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+  - @qadi/core@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes
