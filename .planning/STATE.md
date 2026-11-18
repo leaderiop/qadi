@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 55
 current_phase_name: A port card is a model row, not a view join
 status: executing
-stopped_at: Completed QD-55-03-PLAN.md
-last_updated: "2026-11-18T16:20:04.966Z"
+stopped_at: Completed QD-55-04-PLAN.md
+last_updated: "2026-11-18T16:24:12.253Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase 55 execution started
-state_head: da77b3e6ab5d6d431fbbefd69e6db00a8dfa75e7
+state_head: 02d9431e6a512ac940e354d4c2c9078ecf5c93dd
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 25
-  completed_plans: 19
+  completed_plans: 20
   percent: 22
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-18)
 ## Current Position
 
 Phase: 55 (A port card is a model row, not a view join) — EXECUTING
-Plan: 4 of 9
+Plan: 5 of 9
 Status: Ready to execute
 Last activity: 2026-11-18 — Phase 55 execution started
 
@@ -347,6 +347,7 @@ Last activity: 2026-11-18 — Phase 55 execution started
 | Phase QD-55 P01 | 8 min | 2 tasks | 2 files |
 | Phase QD-55 P02 | 6min | 2 tasks | 1 files |
 | Phase QD-55 P03 | 6 min | 2 tasks | 7 files |
+| Phase QD-55 P04 | 7min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -592,6 +593,7 @@ Last activity: 2026-11-18 — Phase 55 execution started
 - [Phase QD-55]: 55-01: MOVED is empty; a fall in DockModel.ts or Wiring.ts at the close is closed with a test, never explained as a move. Base: DockModel 123/123, Wiring 50/50, no survivors.
 - [Phase QD-55]: 55-02: Services panel characterisation fixtures are top-level annotated consts so PortActivity.port narrowing compiles the file unchanged
 - [Phase QD-55]: 55-03: the services store keys on four references (wiring, activity, portCalls, unsampled); isPortName lives in PortCards.ts so Wiring.ts changes only by D-05/D-06
+- [Phase QD-55]: 55-04: Hidden covers both no collector while unsampled and a collector that saw nothing for a row, so the view never inspects an empty list or the unsampled flag
 
 ### Pending Todos
 
@@ -651,8 +653,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-18T16:20:04.891Z
-Stopped at: Completed QD-55-03-PLAN.md
+Last session: 2026-11-18T16:24:12.176Z
+Stopped at: Completed QD-55-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
