@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (last completed: v1.5 Arch Wave 10)
+# Qadi — Architecture Waves (current: v1.6 Arch Wave 11)
 
 ## What This Is
 
@@ -13,7 +13,27 @@ module was a shallow pass-through.
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
 
-## Previous Milestone: v1.5 Arch Wave 10 (completed 2026-11-16; not released)
+## Current Milestone: v1.6 Arch Wave 11
+
+**Goal:** Resolve all nine candidates of the 2026-11-16 architecture review, closing the live fail-open in the predicate
+reference interpreter first, then the "stated once" deepenings, then one benchmark-gated and two speculative phases.
+
+**Target features (Phases 53–61, ARCH-100…108, strictly serial):**
+- 53: One module owns "the value a leaf compares" (own-property reads only); fixes `evaluatePredicate`'s unguarded
+  `row[p.column]` that allows a row `evaluate` denies (core; live defect)
+- 54: `LeafNeeds` turns every leaf's answer into a verdict, finishing ADR-QD-163 (core)
+- 55: A port card is a model row, not a view join; one `PortName` key for all three readings (devtools)
+- 56: The gate-registry watch becomes the dock model's third scoped feed (devtools)
+- 57: `untrustedDecoder` states the envelope's unknown-key policy; both `SinkCodec` envelopes go through it (core, audit, react)
+- 58: A stored record is its envelope in memory too (core, http, devtools; Breaking)
+- 59: Admission produces the one walk environment; opens on a benchmark gate and may end in a recorded rejection (core)
+- 60: Devtools' headless interface is the feeds, not the store/runner pairs; human checkpoint, amends ADR-QD-047 1.6 (Breaking)
+- 61: `DecisionCache` is asked only the question; human checkpoint, touches ADR-QD-031
+
+**Source review and evidence:** `.planning/phases/_WAVE11-CONTEXT.md` (the review HTML is session-scoped and may be gone).
+Branch `arch-wave-11`, based on `main` at `44510112` (v1.5 merged as #162). No merge, no release.
+
+## Previous Milestone: v1.5 Arch Wave 10 (completed 2026-11-16; merged as #162; not released)
 
 **Goal:** Resolve all ten candidates of the 2026-11-15 architecture review, closing the four silent defects first
 (a caller's `resource` dropped by `guard`/`filter*`, a wire field dropped by hydration's `rebuild`, a `NaN` breaker
@@ -42,8 +62,8 @@ outside `.planning`): ARCH-90 to ARCH-99, ADR-QD-156..165, CCR-QD-434..443. All 
 and 48 were re-verified at the final head after later phases (and the audit's own fixes) edited files they cover. The
 milestone audit is `tech_debt`, accepted by the user: 52/52 requirements, 6/6 integration seams, 3/3 flows, Nyquist
 10/10. The full `pnpm check` (with mutation) exited 0 at the final head. Breaking changes in `@qadi/core`,
-`@qadi/promise`, `@qadi/react`, `@qadi/audit` and `@qadi/devtools`, pending as changesets. **Not merged and not
-released.** The branch builds on `arch-wave-9` (v1.4, also unmerged). Archive: `.planning/milestones/v1.5-ROADMAP.md`,
+`@qadi/promise`, `@qadi/react`, `@qadi/audit` and `@qadi/devtools`, pending as changesets. Merged to `main` as #162
+(`44510112`; v1.4 as #160) and **not released**. Archive: `.planning/milestones/v1.5-ROADMAP.md`,
 `v1.5-REQUIREMENTS.md`, `v1.5-MILESTONE-AUDIT.md`.
 
 v1.4 Arch Wave 9 completed 2026-11-14 on branch `arch-wave-9` (228 commits, 95 files, +6,124 / −1,115
@@ -207,6 +227,7 @@ logged, counted or spanned.
 
 ### Active
 
+- [ ] ARCH-100..108: the nine candidates of the 2026-11-16 architecture review (v1.6, Phases 53–61); see `.planning/REQUIREMENTS.md`
 
 ### Out of Scope
 
@@ -413,4 +434,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-16 after v1.5 milestone*
+*Last updated: 2026-11-18 after starting v1.6 milestone*

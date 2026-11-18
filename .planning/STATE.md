@@ -1,37 +1,33 @@
 ---
 gsd_state_version: "1.0"
-milestone: v1.5
-status: Awaiting next milestone
-stopped_at: Phase QD-52 complete — all phases complete
-last_updated: "2026-11-16T19:51:11.650Z"
-last_activity: 2026-11-16
-last_activity_desc: "Milestone v1.5 shipped as PR #162"
-state_head: 10d621c0e82d8720519b904b9beef5706e53a853
+milestone: v1.6
+milestone_name: Arch Wave 11
+status: planning
+last_updated: "2026-11-18T03:28:31.862Z"
+last_activity: 2026-11-18
 progress:
-  total_phases: 10
-  completed_phases: 10
-  total_plans: 71
-  completed_plans: 71
-  percent: 100
-milestone_name: Arch Wave 10
-current_phase: 52
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-16)
+See: .planning/PROJECT.md (updated 2026-11-18)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** v1.5 Arch Wave 10 complete and archived (2026-11-16; not merged, not released) — next: `/gsd-new-milestone`
+**Current focus:** v1.6 Arch Wave 11 — defining requirements (Phases 53–61, evidence in `.planning/phases/_WAVE11-CONTEXT.md`)
 
 ## Current Position
 
-Phase: Milestone v1.5 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-11-16 -- Milestone v1.5 shipped as PR #162
+Status: Defining requirements
+Last activity: 2026-11-18 — Milestone v1.6 started
 
 
 ## Performance Metrics
