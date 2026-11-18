@@ -25,11 +25,11 @@
 
 ### A port card is a model row, not a view join (Phase 55, ARCH-102, devtools)
 
-- [ ] **CARD-01**: A characterisation of every port card's text and `data-testid`s is written on the phase base and stays byte-identical.
-- [ ] **CARD-02**: One pure model function takes the wiring read, the port activity, the call log and the unsampled flag, and returns one row per `PortName`: its state, activity line, recent calls with the count beyond them, and consequence voice.
-- [ ] **CARD-03**: All three readings are keyed by `PortName`. A misspelt or unknown port is a compile error, and no `string` key comparison remains in the join.
-- [ ] **CARD-04**: `ServicesPanel.tsx` renders rows only. Most of its ≈30 render cases move to model tests, and a short render test keeps the `data-testid`s.
-- [ ] **CARD-05**: ADR-QD-168 follows ADR-162's precedent, and ADR-047 ("the panel renders that model and computes nothing") is restated for the Services tab.
+- [x] **CARD-01**: A characterisation of every port card's text and `data-testid`s is written on the phase base and stays byte-identical.
+- [x] **CARD-02**: One pure model function takes the wiring read, the port activity, the call log and the unsampled flag, and returns one row per `PortName`: its state, activity line, recent calls with the count beyond them, and consequence voice.
+- [x] **CARD-03**: All three readings are keyed by `PortName`. A misspelt or unknown port is a compile error, and no `string` key comparison remains in the join.
+- [x] **CARD-04**: `ServicesPanel.tsx` renders rows only. Most of its ≈30 render cases move to model tests, and a short render test keeps the `data-testid`s.
+- [x] **CARD-05**: ADR-QD-168 follows ADR-162's precedent, and ADR-047 ("the panel renders that model and computes nothing") is restated for the Services tab.
 
 ### The gate-registry watch becomes the dock model's third feed (Phase 56, ARCH-103, devtools)
 
@@ -120,11 +120,11 @@ The seven WX rows apply to every phase 53 to 61, so each phase's Requirements li
 | VERD-02 | Phase 54 | Complete |
 | VERD-03 | Phase 54 | Complete |
 | VERD-04 | Phase 54 | Complete |
-| CARD-01 | Phase 55 | Pending |
-| CARD-02 | Phase 55 | Pending |
-| CARD-03 | Phase 55 | Pending |
-| CARD-04 | Phase 55 | Pending |
-| CARD-05 | Phase 55 | Pending |
+| CARD-01 | Phase 55 | Complete |
+| CARD-02 | Phase 55 | Complete |
+| CARD-03 | Phase 55 | Complete |
+| CARD-04 | Phase 55 | Complete |
+| CARD-05 | Phase 55 | Complete |
 | GFED-01 | Phase 56 | Pending |
 | GFED-02 | Phase 56 | Pending |
 | GFED-03 | Phase 56 | Pending |

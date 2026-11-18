@@ -4,17 +4,17 @@ milestone: v1.6
 milestone_name: Arch Wave 11
 current_phase: 55
 current_phase_name: A port card is a model row, not a view join
-status: executing
-stopped_at: Completed QD-55-08-PLAN.md
-last_updated: "2026-11-18T16:41:07.940Z"
+status: verifying
+stopped_at: Completed QD-55-09-PLAN.md
+last_updated: "2026-11-18T16:45:35.014Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase 55 execution started
-state_head: 3a267526e5c3c35a286b0338e180ec39ebabb1aa
+state_head: c0eb208e2ad7b82087c9673e9ebef32b5e798324
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 25
-  completed_plans: 24
+  completed_plans: 25
   percent: 22
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-18)
 
 Phase: 55 (A port card is a model row, not a view join) — EXECUTING
 Plan: 9 of 9
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-18 — Phase 55 execution started
 
 
@@ -352,6 +352,7 @@ Last activity: 2026-11-18 — Phase 55 execution started
 | Phase QD-55 P06 | 6min | 2 tasks | 2 files |
 | Phase QD-55 P07 | 15 min | 2 tasks | 4 files |
 | Phase QD-55 P08 | 14 min | 2 tasks | 5 files |
+| Phase QD-55 P09 | 15 min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -601,6 +602,7 @@ Last activity: 2026-11-18 — Phase 55 execution started
 - [Phase QD-55]: 55-05: M54 pins Live to Stopped(sampled) keeping the services view; Off to Live is only structurally equal because configure publishes Starting between
 - [Phase QD-55]: 55-07: ADR-QD-168 states the services store's rule as the identity of its four inputs (Off to Live passes through Starting and notifies twice; M54 pins Live to Stopped), and records that a metric word outside the registry is no longer reported (PortActivity.port narrowing)
 - [Phase QD-55]: 55-08: INV-QD-356 enforcement is the characterisation and render test; no gate scans the panel source
+- [Phase QD-55]: 55-09: WX-01..07 stay Pending (span every v1.6 phase); only CARD-01..05 closed with phase 55
 
 ### Pending Todos
 
@@ -660,8 +662,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-18T16:41:07.864Z
-Stopped at: Completed QD-55-08-PLAN.md
+Last session: 2026-11-18T16:45:34.831Z
+Stopped at: Completed QD-55-09-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

@@ -475,7 +475,7 @@ Plans:
 
 **Planning notes**: Re-verify the evidence against the base (`ServicesPanel.tsx`, `model/Wiring.ts`, `model/PortCalls.ts`, `model/PortReading.ts`). Plan shape, RED first: the mutation base and the byte-identical characterisation first; then the model function and its tests; then the panel reads it; then records.
 **UI hint**: yes
-**Plans**: 8/9 plans executed
+**Plans**: 9/9 plans executed
 
 Plans:
 - [x] 55-01 (W1): base facts, reserved ids and API surface base; mutation baseline for DockModel and Wiring, the phase's first commit
@@ -486,7 +486,7 @@ Plans:
 - [x] 55-06 (W6): Stryker after-run and static evidence; D-15 comparison holds
 - [x] 55-07 (W7): ADR-QD-168 and the ADR-QD-047 amendment; BEH-QD-611..615 and the BEH-QD-465/573/575/216 notes
 - [x] 55-08 (W8): INV-QD-355..356 and traceability; CCR-QD-446, the @qadi/devtools minor changeset (one Breaking entry) and the upgrading.md 0.13 note; spec gates green
-- [ ] 55-09 (W9): phase scan, D-08 grep, panel scan, D-15 recheck, check:pr, release check; CARD-01..05 complete
+- [x] 55-09 (W9): phase scan, D-08 grep, panel scan, D-15 recheck, check:pr, release check; CARD-01..05 complete
 
 ### Phase 56: The gate-registry watch becomes the dock model's third feed
 
@@ -611,7 +611,7 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 |-------|----------------|--------|-----------|
 | 53. One module owns "the value a leaf compares" | 8/8 | Complete    | 2026-11-18 |
 | 54. LeafNeeds turns every leaf's answer into a verdict | 8/8 | Complete    | 2026-11-18 |
-| 55. A port card is a model row, not a view join | 8/9 | In Progress | - |
+| 55. A port card is a model row, not a view join | 9/9 | In Progress | - |
 | 56. The gate-registry watch becomes the dock model's third feed | 0/TBD | Not started | - |
 | 57. untrustedDecoder states the envelope's unknown-key policy | 0/TBD | Not started | - |
 | 58. A stored record is its envelope in memory too | 0/TBD | Not started | - |
