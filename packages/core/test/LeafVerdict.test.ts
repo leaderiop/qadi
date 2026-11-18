@@ -11,6 +11,8 @@ import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import { PortReply } from "../src/PortDescription.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
+import type { Predicate } from "../src/Predicate.ts";
+import { evaluatePredicate, toPredicate } from "../src/Predicate.ts";
 import type { RelatedResult } from "../src/RelationshipResolver.ts";
 import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
 import { signatureHistoryFromSignatures } from "../src/SignatureHistory.ts";
@@ -352,4 +354,147 @@ describe("every leaf's answer through evaluate", () => {
       }),
     );
   });
+});
+
+describe("every leaf that folds, through toPredicate", () => {
+  /** The compiled predicate, or the leaf's refusal as `[policyTag, reason]`. */
+  const fold = (
+    policy: P.Policy,
+    subject: typeof u1,
+    overrides?: Parameters<typeof testLayer>[1],
+    options?: { readonly action?: string },
+  ) => toPredicate(policy, options).pipe(Effect.provide(testLayer(subject, overrides)));
+
+  const expectFold = (cell: string, p: Predicate, tag: "True" | "False"): void => {
+    assert.strictEqual(p._tag, tag, `${cell}: folds to ${tag}`);
+    assert.strictEqual(evaluatePredicate(p, {}), tag === "True", `${cell}: evaluatePredicate`);
+  };
+
+  /** Folding `policy` fails with `PolicyNotTranslatable` carrying exactly `tag` and `reason`. */
+  const expectRefusal = (cell: string, policy: P.Policy, tag: string, reason: string) =>
+    Effect.gen(function* () {
+      const r = yield* Effect.result(fold(policy, u1));
+      assert.strictEqual(r._tag, "Failure", `${cell}: fails`);
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "PolicyNotTranslatable", `${cell}: error tag`);
+      if (r.failure._tag !== "PolicyNotTranslatable") return;
+      assert.strictEqual(r.failure.policyTag, tag, `${cell}: policyTag`);
+      assert.strictEqual(r.failure.reason, reason, `${cell}: reason`);
+    });
+
+  it.effect("role and permission fold to the same answer evaluate gives", () =>
+    Effect.gen(function* () {
+      const holder = subjectWith({ roles: ["editor"], permissions: ["doc:read"] });
+      const nothing = subjectWith({});
+      const role = P.hasRole("editor");
+      const perm = P.hasPermission(permission("doc", "read"));
+
+      expectFold("HasRole/held", yield* fold(role, holder), "True");
+      expectFold("HasRole/not held", yield* fold(role, nothing), "False");
+      expectFold("HasPermission/held", yield* fold(perm, holder), "True");
+      expectFold("HasPermission/not held", yield* fold(perm, nothing), "False");
+
+      for (const [cell, policy] of [["HasRole", role], ["HasPermission", perm]] as const) {
+        for (const subject of [holder, nothing]) {
+          const decided = yield* evaluate(policy).pipe(Effect.provide(testLayer(subject)));
+          const folded = yield* fold(policy, subject);
+          assert.strictEqual(evaluatePredicate(folded, {}), isAllowed(decided), `${cell}: agrees with evaluate`);
+        }
+      }
+    }),
+  );
+
+  it.effect("action folds against the request's action", () =>
+    Effect.gen(function* () {
+      expectFold("HasAction/held", yield* fold(P.hasAction("write"), u1, undefined, { action: "write" }), "True");
+      expectFold("HasAction/not held", yield* fold(P.hasAction("write"), u1, undefined, { action: "read" }), "False");
+    }),
+  );
+
+  it.effect("a subject attribute folds True only for Held", () =>
+    Effect.gen(function* () {
+      const level = P.hasAttribute("level", M.gte(3));
+
+      expectFold("HasAttribute/Held", yield* fold(level, subjectWith({ attributes: { level: 5 } })), "True");
+      expectFold("HasAttribute/NotHeld", yield* fold(level, subjectWith({ attributes: { level: 1 } })), "False");
+      expectFold("HasAttribute/ValueAbsent", yield* fold(level, subjectWith({ attributes: {} })), "False");
+      expectFold("HasAttribute/Incomparable", yield* fold(level, subjectWith({ attributes: { level: "5" } })), "False");
+      expectFold(
+        "HasAttribute/ReferenceAbsent",
+        yield* fold(P.hasAttribute("tenant", M.eq(M.subject("missing"))), subjectWith({ attributes: { tenant: "t-1" } })),
+        "False",
+      );
+    }),
+  );
+
+  it.effect("scope Any history folds True exactly when the answer is the polarity's own", () =>
+    Effect.gen(function* () {
+      const answered = (policy: P.Policy, answer: ActedResult) =>
+        fold(policy, u1, { DecisionHistory: history(answer) });
+      const acted = P.hasActed("approve", { scope: "Any" });
+      const notActed = P.hasNotActed("approve", { scope: "Any" });
+
+      expectFold("HasActed/Any/Acted", yield* answered(acted, "Acted"), "True");
+      expectFold("HasActed/Any/NotActed", yield* answered(acted, "NotActed"), "False");
+      expectFold("HasActed/Any/Unknown", yield* answered(acted, "Unknown"), "False");
+      expectFold("HasNotActed/Any/NotActed", yield* answered(notActed, "NotActed"), "True");
+      expectFold("HasNotActed/Any/Acted", yield* answered(notActed, "Acted"), "False");
+      expectFold("HasNotActed/Any/Unknown", yield* answered(notActed, "Unknown"), "False");
+    }),
+  );
+
+  it.effect("a leaf keyed by the row or by an external lookup is refused with its reason", () =>
+    Effect.gen(function* () {
+      yield* expectRefusal(
+        "HasActed/Resource",
+        P.hasActed("approve"),
+        "HasActed",
+        "a resource-scoped history question is keyed by the row",
+      );
+      yield* expectRefusal(
+        "HasNotActed/Resource",
+        P.hasNotActed("approve"),
+        "HasNotActed",
+        "a resource-scoped history question is keyed by the row",
+      );
+      yield* expectRefusal(
+        "HasRelationship",
+        P.hasRelationship("owner"),
+        "HasRelationship",
+        "a relationship is keyed by the row's id and cannot fold",
+      );
+      yield* expectRefusal(
+        "HasCustom",
+        P.hasCustom("c"),
+        "HasCustom",
+        "'c' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression",
+      );
+      yield* expectRefusal(
+        "HasSignature",
+        P.hasSignature("approved"),
+        "HasSignature",
+        "a signature is looked up through an external port and cannot fold into a resource-independent expression",
+      );
+    }),
+  );
+
+  it.effect("a resource attribute compiles to a row filter that admits the rows evaluate allows", () =>
+    Effect.gen(function* () {
+      const policy = P.hasResourceAttribute("state", M.eq(M.literal("open")));
+      const compiled = yield* fold(policy, u1);
+      const rows = [{ state: "open" }, { state: "closed" }, {}];
+
+      for (const row of rows) {
+        const decided = yield* evaluate(policy, { resource: row }).pipe(Effect.provide(testLayer(u1)));
+        assert.strictEqual(
+          evaluatePredicate(compiled, row),
+          isAllowed(decided),
+          `HasResourceAttribute/${JSON.stringify(row)}: row filter agrees with evaluate`,
+        );
+      }
+      assert.isTrue(evaluatePredicate(compiled, { state: "open" }), "admits the open row");
+      assert.isFalse(evaluatePredicate(compiled, { state: "closed" }), "refuses the closed row");
+      assert.isFalse(evaluatePredicate(compiled, {}), "refuses the row with no state");
+    }),
+  );
 });
