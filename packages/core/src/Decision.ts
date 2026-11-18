@@ -13,6 +13,7 @@ import type { VisibleFields } from "./FieldLattice.ts";
 import { project as projectPaths } from "./FieldPath.ts";
 import type { SubjectId } from "./Identity.ts";
 import { Obligation } from "./Obligation.ts";
+import { isOwnKey } from "./Operand.ts";
 import { DEFAULT_MAX_DEPTH, POLICY_TAGS } from "./Policy.ts";
 import type { Policy } from "./Policy.ts";
 import { POLICY_ARITY } from "./PolicyArity.ts";
@@ -277,18 +278,6 @@ export const decisionDisagreement = (
 export const isAllowed = (self: Decision): self is Allow => self._tag === "Allow";
 
 /**
- * A runtime field name is a member of `A`'s keys exactly when `data` actually
- * has it — that fact lives at runtime, not in `A`'s type, so a user-defined
- * type predicate is what turns it into a compile-time one. This is the single
- * place the boundary between "`visibleFields` is a `ReadonlyArray<string>`"
- * and "`A`'s keys" gets crossed; everywhere downstream of it is fully typed.
- */
-const isFieldOf = <A extends Resource>(
-  data: A,
-  field: string,
-): field is keyof A & string => Object.hasOwn(data, field);
-
-/**
  * Projects a record down to the fields the decision makes visible.
  *
  * A denial exposes nothing. An allow with no field restriction exposes
@@ -353,7 +342,7 @@ export const projectVisible = <A extends Resource>(
   // property directly, whatever `field` is.
   const out: Partial<A> = {};
   for (const field of Object.keys(projected)) {
-    if (isFieldOf(data, field)) {
+    if (isOwnKey(data, field)) {
       Object.defineProperty(out, field, {
         value: projected[field],
         enumerable: true,
