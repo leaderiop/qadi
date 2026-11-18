@@ -475,11 +475,11 @@ Plans:
 
 **Planning notes**: Re-verify the evidence against the base (`ServicesPanel.tsx`, `model/Wiring.ts`, `model/PortCalls.ts`, `model/PortReading.ts`). Plan shape, RED first: the mutation base and the byte-identical characterisation first; then the model function and its tests; then the panel reads it; then records.
 **UI hint**: yes
-**Plans**: 1/9 plans executed
+**Plans**: 2/9 plans executed
 
 Plans:
 - [x] 55-01 (W1): base facts, reserved ids and API surface base; mutation baseline for DockModel and Wiring, the phase's first commit
-- [ ] 55-02 (W2): ServicesPanel.characterisation.test.tsx pins every card, call list and note through the public dock, on the base
+- [x] 55-02 (W2): ServicesPanel.characterisation.test.tsx pins every card, call list and note through the public dock, on the base
 - [ ] 55-03 (W3): tracer — PortCards.ts and the dock model's ninth store `services` (RED by import first); PortActivity.port is a PortName (RED first), with the two type-only test edits
 - [ ] 55-04 (W4): every card's recent calls as model rows (call twins RED first); PortCards.tst.ts pins the misspelt-port compile errors; D-08 grep
 - [ ] 55-05 (W5): M49..M54 pin the services store's reference; the panel renders the store and computes nothing; render cases deleted only beside green twins
@@ -611,7 +611,7 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 |-------|----------------|--------|-----------|
 | 53. One module owns "the value a leaf compares" | 8/8 | Complete    | 2026-11-18 |
 | 54. LeafNeeds turns every leaf's answer into a verdict | 8/8 | Complete    | 2026-11-18 |
-| 55. A port card is a model row, not a view join | 1/9 | In Progress | - |
+| 55. A port card is a model row, not a view join | 2/9 | In Progress | - |
 | 56. The gate-registry watch becomes the dock model's third feed | 0/TBD | Not started | - |
 | 57. untrustedDecoder states the envelope's unknown-key policy | 0/TBD | Not started | - |
 | 58. A stored record is its envelope in memory too | 0/TBD | Not started | - |
