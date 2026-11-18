@@ -328,12 +328,7 @@ const Screen: FC<{
       <RoleViewer choice={props.model.roles} unknownParents={props.host.unknownParents} />
     ),
     services: () => (
-      <ServicesPanel
-        wiring={props.shown.wiring}
-        activity={props.shown.activity}
-        portCalls={props.shown.portCalls}
-        diagnostics={notice}
-      />
+      <ServicesPanel services={props.model.services} diagnostics={notice} />
     ),
     simulator: () => <Simulator session={props.model.simulation} />,
     questions: () => (

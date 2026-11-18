@@ -12,45 +12,28 @@
  * nine are in `EvaluationServices`, so a program that has not provided them
  * does not run; what a card can truthfully say is *defaulted to a fail-closed
  * implementation*.
+ *
+ * The cards are the dock model's `services` store, rendered without a decision
+ * of their own (ADR-QD-168): every word, count and tone arrives in the row.
  */
 import type { CSSProperties, FC, ReactNode } from "react";
 import * as Match from "effect/Match";
-import { isUnsampled } from "../model/DiagnosticsFeed.ts";
-import type { WiringRead } from "../model/DiagnosticsStore.ts";
-import type { PortCall, PortCallLog } from "../model/PortCalls.ts";
-import { describeCall } from "../model/PortReading.ts";
-import type { CacheReport, PortActivity, PortReport } from "../model/Wiring.ts";
+import type { ExternalStore } from "../model/ExternalStore.ts";
+import type { CallsView, CardTone, PortCardRow, ServicesView } from "../model/PortCards.ts";
 import { DiagnosticsNotice, diagnosticsRootProps } from "./DiagnosticsNotice.tsx";
 import type { DiagnosticsNoticeProps } from "./DiagnosticsNotice.tsx";
 import { colors, font, muted } from "./theme.ts";
-
-/** What a port's activity reads before any sample was taken: not "never called", which would be a claim. */
-const NO_ACTIVITY_READING = "no activity reading";
-
-/**
- * How many recent calls a card shows.
- *
- * A card, not a page: the question this screen answers is "was my store asked,
- * and about what", and the last few answer it. The collector's own bound is
- * larger, and the card says when there is more behind it.
- */
-const SHOWN_PER_PORT = 5;
+import { useStoreSnapshot } from "./useStoreSnapshot.ts";
 
 export interface ServicesPanelProps {
   /**
-   * What the wiring read produced: no layer handed over, a layer that failed to
-   * build, or the report. Each is stated rather than left blank.
-   */
-  readonly wiring: WiringRead;
-  readonly activity: ReadonlyArray<PortActivity>;
-  /**
-   * Recent calls, read from `collectPortCalls`.
+   * The dock model's `services` store: no layer handed over, a layer that failed to
+   * build, or the cards, each stated rather than left blank.
    *
-   * Absent by default and absent in most deployments — it needs a tracer layer
-   * the host provides. Without it the cards still show counts, and say what the
-   * detail would need.
+   * It holds a view and not a reading, so the panel has no wording rule, count or
+   * filter of its own to keep in step with the model's.
    */
-  readonly portCalls?: PortCallLog | undefined;
+  readonly services: Pick<ExternalStore<ServicesView>, "subscribe" | "getSnapshot">;
   /**
    * The dock's diagnostics status and restart, stated by the shared notice.
    *
@@ -66,129 +49,95 @@ const card: CSSProperties = {
   marginBottom: 6,
 };
 
-/**
- * One state of the wiring read, in words, built once at module scope (AGENTS.md
- * §5a). The first two are not error screens of the panel's own: the metrics
- * below need no wiring at all, so the screen is still useful without it.
- */
-interface Shown {
-  readonly activity: ReadonlyArray<PortActivity>;
-  readonly portCalls: PortCallLog | undefined;
-  /** No sample has been taken, so a missing field is not yet a statement about the host. */
-  readonly unsampled: boolean;
-}
+/** What a card's tone looks like, keyed by the closed `CardTone` so a new tone is a compile error here. */
+const TONE_STYLE: { readonly [K in CardTone]: CSSProperties } = {
+  // A fail-closed default is a warning, not an error (00-overview's
+  // vocabulary rules), so it takes the amber the dock uses for one.
+  Warning: { color: colors.error },
+  Plain: {},
+};
 
-const wiringView: (self: WiringRead) => (shown: Shown) => ReactNode = Match.type<WiringRead>().pipe(
+/**
+ * One state of the services view, built once at module scope (AGENTS.md §5a). The
+ * first two are not error screens of the panel's own: the metrics below need no
+ * wiring at all, so the screen is still useful without it.
+ */
+const screenOf: (self: ServicesView) => ReactNode = Match.type<ServicesView>().pipe(
   Match.tagsExhaustive({
-    NotHanded: () => ({ unsampled }: Shown) =>
-      unsampled ? null : (
-        <p style={muted} data-testid="qadi-wiring-absent">
-          No layer was handed to the dock, so which implementation is behind each
-          port cannot be shown. Pass <code>{"diagnostics={{ layer }}"}</code>, or a{" "}
-          <code>wiring</code> report read elsewhere.
-        </p>
-      ),
-    Failed: ({ reason }) => () => (
+    Withheld: () => null,
+    NotHanded: () => (
+      <p style={muted} data-testid="qadi-wiring-absent">
+        No layer was handed to the dock, so which implementation is behind each
+        port cannot be shown. Pass <code>{"diagnostics={{ layer }}"}</code>, or a{" "}
+        <code>wiring</code> report read elsewhere.
+      </p>
+    ),
+    Failed: ({ reason }) => (
       <p style={{ ...muted, color: colors.error }} data-testid="qadi-wiring-failed">
         The layer handed to the dock failed to build, so which implementation is
         behind each port cannot be shown: {reason}
       </p>
     ),
-    Read: ({ report }) =>
-      ({ activity, portCalls, unsampled }: Shown) => (
-        <>
-          {report.ports.map((port) => (
-            <PortCard
-              key={port.port}
-              port={port}
-              activity={activityFor(activity, port.port)}
-              calls={callsFor(portCalls, port.port)}
-              collecting={portCalls !== undefined}
-              unsampled={unsampled}
-              noActivityReading={unsampled && activity.length === 0}
-            />
-          ))}
-          <CacheCard cache={report.cache} />
-        </>
-      ),
+    Read: ({ rows, cache }) => (
+      <>
+        {rows.map((row) => (
+          <PortCard key={row.port} row={row} />
+        ))}
+        <CacheCard size={cache} />
+      </>
+    ),
   }),
 );
 
-export const ServicesPanel: FC<ServicesPanelProps> = ({
-  wiring,
-  activity,
-  portCalls,
-  diagnostics,
-}) => (
-  <div {...diagnosticsRootProps(diagnostics.status)} data-testid="qadi-services">
-    <DiagnosticsNotice {...diagnostics} />
-    {wiringView(wiring)({ activity, portCalls, unsampled: isUnsampled(diagnostics.status) })}
+export const ServicesPanel: FC<ServicesPanelProps> = ({ services, diagnostics }) => {
+  const view = useStoreSnapshot(services);
+  return (
+    <div {...diagnosticsRootProps(diagnostics.status)} data-testid="qadi-services">
+      <DiagnosticsNotice {...diagnostics} />
+      {screenOf(view)}
 
-    <p
-      style={{ ...muted, fontSize: font.sizeSmall, marginBottom: 0 }}
-      data-testid="qadi-activity-scope"
-    >
-      {/* Still true, and now only half the story — so it says which half. The
-          counts come from metrics and are process-wide; the calls beneath each
-          card come from spans and are the recent ones this reader collected. */}
-      Call counts are process-wide aggregates — not per request, and not per
-      decision. Correlating a call with one evaluation would mean threading a
-      collector through the evaluator, which risks the short-circuit guarantee
-      for a debug view. The listed calls are read from spans instead, and are
-      the recent ones rather than all of them.
-    </p>
-  </div>
-);
+      <p
+        style={{ ...muted, fontSize: font.sizeSmall, marginBottom: 0 }}
+        data-testid="qadi-activity-scope"
+      >
+        {/* Still true, and now only half the story — so it says which half. The
+            counts come from metrics and are process-wide; the calls beneath each
+            card come from spans and are the recent ones this reader collected. */}
+        Call counts are process-wide aggregates — not per request, and not per
+        decision. Correlating a call with one evaluation would mean threading a
+        collector through the evaluator, which risks the short-circuit guarantee
+        for a debug view. The listed calls are read from spans instead, and are
+        the recent ones rather than all of them.
+      </p>
+    </div>
+  );
+};
 
-const PortCard: FC<{
-  readonly port: PortReport;
-  readonly activity: PortActivity | undefined;
-  readonly calls: ReadonlyArray<PortCall>;
-  readonly collecting: boolean;
-  readonly unsampled: boolean;
-  readonly noActivityReading: boolean;
-}> = ({ port, activity, calls, collecting, unsampled, noActivityReading }) => (
+const PortCard: FC<{ readonly row: PortCardRow }> = ({ row }) => (
   <section
     style={card}
     data-testid="qadi-port"
-    data-port={port.port}
-    data-defaulted={port.defaulted === undefined ? undefined : String(port.defaulted)}
+    data-port={row.port}
+    data-defaulted={row.defaulted}
   >
     <div style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-      <strong>{port.port}</strong>
+      <strong>{row.port}</strong>
       <span data-testid="qadi-port-state" style={{ fontSize: font.sizeSmall }}>
-        {stateOf(port)}
+        {row.state}
       </span>
       <span style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-port-activity">
-        {activity === undefined
-          // Distinct from absent: this port is wired, and nothing has reached it.
-          ? noActivityReading
-            ? NO_ACTIVITY_READING
-            : "never called"
-          : `${activity.calls} call${activity.calls === 1 ? "" : "s"}${
-            activity.translationCalls === 0
-              ? ""
-              : ` · ${activity.translationCalls} from translation`
-          }${activity.retries === 0 ? "" : ` · ${activity.retries} retried`}${
-            activity.timeouts === 0 ? "" : ` · ${activity.timeouts} timed out`
-          }`}
+        {row.activity}
       </span>
     </div>
     <div
-      style={{
-        ...muted,
-        fontSize: font.sizeSmall,
-        // A fail-closed default is a warning, not an error (00-overview's
-        // vocabulary rules), so it takes the amber the dock uses for one.
-        ...(port.defaulted === true ? { color: colors.error } : {}),
-      }}
+      style={{ ...muted, fontSize: font.sizeSmall, ...TONE_STYLE[row.tone] }}
       data-testid="qadi-port-consequence"
     >
       {/* Said for every card, but in its own voice: a defaulted port is paying
           this cost now, and a wired one is only exposed to it. */}
-      {port.defaulted === false ? `if defaulted: ${port.consequence}` : port.consequence}
+      {row.consequence}
     </div>
-    <RecentCalls calls={calls} collecting={collecting} unsampled={unsampled} />
+    {callsOf(row.calls)}
   </section>
 );
 
@@ -199,15 +148,10 @@ const PortCard: FC<{
  * exactly like a port nothing asked, and the two are the difference between a
  * finding and a missing tracer.
  */
-const RecentCalls: FC<{
-  readonly calls: ReadonlyArray<PortCall>;
-  readonly collecting: boolean;
-  readonly unsampled: boolean;
-}> = ({ calls, collecting, unsampled }) => {
-  if (!collecting) {
-    // A collector may be configured and not yet sampled, and the dock cannot tell which.
-    if (unsampled) return null;
-    return (
+const callsOf: (self: CallsView) => ReactNode = Match.type<CallsView>().pipe(
+  Match.tagsExhaustive({
+    Hidden: () => null,
+    Uncollected: () => (
       <div
         style={{ ...muted, fontSize: font.sizeSmall, marginTop: 4 }}
         data-testid="qadi-calls-uncollected"
@@ -215,77 +159,35 @@ const RecentCalls: FC<{
         What each call asked is not shown — pass <code>portCalls</code> from{" "}
         <code>collectPortCalls</code> to read it from the spans.
       </div>
-    );
-  }
-  if (calls.length === 0) return null;
-
-  // Newest first, which is the opposite of the log's own order: a card shows a
-  // handful, and the handful worth showing is the recent end.
-  const shown = [...calls].reverse().slice(0, SHOWN_PER_PORT);
-
-  return (
-    <div style={{ marginTop: 4 }} data-testid="qadi-port-calls">
-      {shown.map((call) => (
-        <div
-          key={`${call.span}-${String(call.at)}-${describe(call)}`}
-          style={{ fontSize: font.sizeSmall, display: "flex", gap: 8 }}
-          data-testid="qadi-port-call"
-        >
-          <span>{describe(call)}</span>
-          {call.interpreter === "toPredicate" || call.interpreter === "remote" ? (
-            // Only the two that are not an evaluation are labelled: an
-            // evaluation is the default reading, and an unrecorded interpreter
-            // is not guessed at. `remote` is a read this host made to answer
-            // another process (ARCH-31).
-            <span style={muted} data-testid="qadi-port-call-interpreter">
-              {call.interpreter === "remote" ? "served" : "translation"}
+    ),
+    Listed: ({ calls, earlier }) => (
+      <div style={{ marginTop: 4 }} data-testid="qadi-port-calls">
+        {calls.map((call) => (
+          <div
+            key={call.key}
+            style={{ fontSize: font.sizeSmall, display: "flex", gap: 8 }}
+            data-testid="qadi-port-call"
+          >
+            <span>{call.text}</span>
+            {call.interpreter === undefined ? null : (
+              <span style={muted} data-testid="qadi-port-call-interpreter">
+                {call.interpreter}
+              </span>
+            )}
+            <span style={muted} data-testid="qadi-port-call-duration">
+              {call.duration}
             </span>
-          ) : null}
-          <span style={muted} data-testid="qadi-port-call-duration">
-            {call.durationMillis === undefined
-              // Not zero. A zero is a call that finished instantly.
-              ? "in flight"
-              : `${call.durationMillis.toFixed(1)} ms`}
-          </span>
-        </div>
-      ))}
-      {calls.length > shown.length ? (
-        <div style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-port-calls-more">
-          and {calls.length - shown.length} earlier
-        </div>
-      ) : null}
-    </div>
-  );
-};
-
-/**
- * One call in a sentence, with how many times it ran when a retrying wrapper
- * made it more than once — the per-call count a process-wide `retried` total
- * cannot give (`qadi.attempts`).
- */
-const describe = (call: PortCall): string =>
-  call.attempts !== undefined && call.attempts > 1
-    ? `${describeCall(call)} · ${String(call.attempts)} attempts`
-    : describeCall(call);
-
-const callsFor = (log: PortCallLog | undefined, port: string): ReadonlyArray<PortCall> =>
-  log === undefined ? [] : log.calls.filter((call) => call._tag === port);
-
-/**
- * The wording that keeps the seven required ports honest.
- *
- * A required port cannot be "unwired" — the program would not have started —
- * so an unnamed one is reported as unnamed, and the consequence line carries
- * what being defaulted actually costs.
- */
-const stateOf = (port: PortReport): string => {
-  if (!port.present) return port.required ? "not provided to this reader" : "absent";
-  // The name, and the fact: a default reads as just another implementation
-  // otherwise, which is exactly what it must not look like. `defaulted` is read
-  // from the mark, not the name, so it is checked before the name can hide it.
-  if (port.defaulted === true) return `defaulted — ${port.name ?? "unnamed"}`;
-  return port.name ?? "wired, unnamed";
-};
+          </div>
+        ))}
+        {earlier === undefined ? null : (
+          <div style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-port-calls-more">
+            {earlier}
+          </div>
+        )}
+      </div>
+    ),
+  }),
+);
 
 /**
  * The cache card, which must not be confused with the record log.
@@ -304,12 +206,12 @@ const stateOf = (port: PortReport): string => {
  * entries are evicted by insertion order rather than by age. Offering a TTL
  * control would imply a cache design the library does not have.
  */
-const CacheCard: FC<{ readonly cache: CacheReport }> = ({ cache }) => (
+const CacheCard: FC<{ readonly size: string }> = ({ size }) => (
   <section style={card} data-testid="qadi-cache-card">
     <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
       <strong>DecisionCache</strong>
       <span style={{ fontSize: font.sizeSmall }} data-testid="qadi-cache-size">
-        {cache.present ? `${cache.size ?? 0} completed entries` : "absent"}
+        {size}
       </span>
     </div>
     <div style={{ ...muted, fontSize: font.sizeSmall }}>
@@ -318,8 +220,3 @@ const CacheCard: FC<{ readonly cache: CacheReport }> = ({ cache }) => (
     </div>
   </section>
 );
-
-const activityFor = (
-  activity: ReadonlyArray<PortActivity>,
-  port: string,
-): PortActivity | undefined => activity.find((entry) => entry.port === port);
