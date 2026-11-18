@@ -25,7 +25,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-18)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 53 — One module owns "the value a leaf compares"
+**Current focus:** Phase 54 — LeafNeeds turns every leaf's answer into a verdict
 
 ## Current Position
 
@@ -567,6 +567,7 @@ Last activity: 2026-11-18 — Phase 53 complete, transitioned to Phase 54
 - [Phase QD-53]: 53-06: WX-05 holds (D-14) on the first compare; only Matcher.ts fell (217->194 detected, survivors unchanged), Operand.ts detects 31/31, no test added
 - [Phase 53]: ADR-QD-166 records D-02's fixture-builder probe and D-14's mutation table; BEH-QD-601..605 placed in 04/16/06/32; the CCR-QD-444 register row is left to 53-08, so spec:verify:strict fails on CCR drift until then
 - [Phase QD-53]: 53-08: CCR-QD-444 row says Unused: none; changeset is @qadi/core patch only, no Breaking; check:pr green (16 of 17 steps, mutation skipped, 53-06 is the mutation evidence)
+- [Phase 53]: review WR-01 fixed test-only (09f16437, `neq` makes the inherited-member ref cases fail without the own-key guard); IN-01..04 skipped (info); verification passed 4/4; phase.complete flips WX-01..07 to Complete each phase and is reverted, as they close with the milestone
 
 ### Pending Todos
 
@@ -626,7 +627,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-18T05:20:18.953Z
+Last session: 2026-11-18T07:15:00.000Z
 Stopped at: Phase 53 complete, ready to plan Phase 54
 Resume file: None
 
@@ -635,4 +636,4 @@ Resume file: None
 
 
 
-- Discuss Phase 53 with /gsd-discuss-phase 53 (or plan it directly with /gsd-plan-phase 53)
+- Discuss Phase 54 with /gsd-discuss-phase 54 (or plan it directly with /gsd-plan-phase 54)
