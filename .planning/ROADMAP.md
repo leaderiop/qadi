@@ -463,7 +463,7 @@ Plans:
 **Goal**: A port card is one row of a pure devtools model keyed by `PortName`, so a misspelt or renamed port is a compile error instead of rendering "never called", and `ServicesPanel.tsx` renders rows and computes nothing.
 **Depends on**: Phase 54 (serial order only; no shared source).
 **Requirements**: CARD-01, CARD-02, CARD-03, CARD-04, CARD-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
-**Packages**: `@qadi/devtools`
+**Packages**: `@qadi/devtools`, `@qadi/react` (**Breaking** in both: `questions` becomes a dock input)
 **Records**: ARCH-102; ADR-QD-168 (follows ADR-QD-162's precedent; ADR-QD-047's "the panel renders that model and computes nothing" restated for the Services tab; ADR-QD-160 kept); CCR-QD-446; BEH-QD-611 to 615; INV-QD-355 to 356
 **Settled by the review check**: `ServicesPanel.tsx` pairs each `report.ports` row with `activityFor` and `callsFor` through three differently typed keys (`PortReport.port: WiredServiceName`, `PortActivity.port: string`, `PortCall["_tag"]`); state wording, "never called" vs "no activity reading" vs "absent", the retries/timeouts suffixes, newest-first with five shown and "N earlier", and the uncollected/unsampled note all live in the view. The consequence text is already model (`PORT_READING`, ADR-QD-160). Two test files hold about 30 cases, all render.
 
