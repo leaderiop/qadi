@@ -111,11 +111,59 @@ The seven WX rows apply to every phase 53 to 61, so each phase's Requirements li
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| OPND-01 | Phase 53 | Pending |
+| OPND-02 | Phase 53 | Pending |
+| OPND-03 | Phase 53 | Pending |
+| OPND-04 | Phase 53 | Pending |
+| OPND-05 | Phase 53 | Pending |
+| VERD-01 | Phase 54 | Pending |
+| VERD-02 | Phase 54 | Pending |
+| VERD-03 | Phase 54 | Pending |
+| VERD-04 | Phase 54 | Pending |
+| CARD-01 | Phase 55 | Pending |
+| CARD-02 | Phase 55 | Pending |
+| CARD-03 | Phase 55 | Pending |
+| CARD-04 | Phase 55 | Pending |
+| CARD-05 | Phase 55 | Pending |
+| GFED-01 | Phase 56 | Pending |
+| GFED-02 | Phase 56 | Pending |
+| GFED-03 | Phase 56 | Pending |
+| GFED-04 | Phase 56 | Pending |
+| GFED-05 | Phase 56 | Pending |
+| KEYP-01 | Phase 57 | Pending |
+| KEYP-02 | Phase 57 | Pending |
+| KEYP-03 | Phase 57 | Pending |
+| KEYP-04 | Phase 57 | Pending |
+| KEYP-05 | Phase 57 | Pending |
+| STOR-01 | Phase 58 | Pending |
+| STOR-02 | Phase 58 | Pending |
+| STOR-03 | Phase 58 | Pending |
+| STOR-04 | Phase 58 | Pending |
+| WENV-01 | Phase 59 | Pending |
+| WENV-02 | Phase 59 | Pending |
+| WENV-03 | Phase 59 | Pending |
+| WENV-04 | Phase 59 | Pending |
+| HDLS-01 | Phase 60 | Pending |
+| HDLS-02 | Phase 60 | Pending |
+| HDLS-03 | Phase 60 | Pending |
+| HDLS-04 | Phase 60 | Pending |
+| CASK-01 | Phase 61 | Pending |
+| CASK-02 | Phase 61 | Pending |
+| CASK-03 | Phase 61 | Pending |
+| CASK-04 | Phase 61 | Pending |
+| WX-01 | All v1.6 phases | Pending |
+| WX-02 | All v1.6 phases | Pending |
+| WX-03 | All v1.6 phases | Pending |
+| WX-04 | All v1.6 phases | Pending |
+| WX-05 | All v1.6 phases | Pending |
+| WX-06 | All v1.6 phases | Pending |
+| WX-07 | All v1.6 phases | Pending |
 
 **Coverage:**
 - v1.6 requirements: 47 total (40 phase-specific + 7 cross-cutting)
-- Mapped to phases: 0 (filled by the roadmapper)
+- Mapped to phases: 47 (40 phase-specific, each to exactly one of Phases 53 to 61; 7 cross-cutting, each applying to all nine)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-11-18*
-*Last updated: 2026-11-18 after initial definition*
+*Last updated: 2026-11-18 after roadmap creation (traceability filled)*

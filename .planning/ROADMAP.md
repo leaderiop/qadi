@@ -8,6 +8,7 @@
 - ✅ **v1.3 Arch Wave 8** — Phases 30-36 (completed 2026-11-13; not released) — [archive](milestones/v1.3-ROADMAP.md)
 - ✅ **v1.4 Arch Wave 9** — Phases 37-42 (completed 2026-11-14; not released) — [archive](milestones/v1.4-ROADMAP.md)
 - ✅ **v1.5 Arch Wave 10** — Phases 43-52 (completed 2026-11-16; not released) — [archive](milestones/v1.5-ROADMAP.md)
+- 🚧 **v1.6 Arch Wave 11** — Phases 53-61 (in progress)
 
 ## Phases
 
@@ -346,3 +347,243 @@ Full details: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · requir
 [milestones/v1.5-MILESTONE-AUDIT.md](milestones/v1.5-MILESTONE-AUDIT.md)
 
 </details>
+
+## 🚧 v1.6 Arch Wave 11 (Phases 53-61)
+
+### Overview
+
+Wave 11 resolves the nine candidates of the 2026-11-16 architecture review. The first is a live fail-open, so it comes first: `evaluatePredicate`, the reference interpreter the SQL and Prisma engines are differential-tested against, reads `row[p.column]` without the own-property rule that six other readers apply, so `hasResourceAttribute("constructor", neq(literal("x")))` on `{ id: "r1" }` is denied by `evaluate` and allowed by the reference (53). Five "stated once" deepenings follow: every leaf's answer-to-verdict step in `LeafNeeds.ts` (54); a port card as a model row keyed by `PortName` (55); the gate-registry watch as the dock model's third feed (56), which opens on a user decision about the `questions` thunk; the envelope's unknown-key policy as one `untrustedDecoder` option (57), which opens on a user decision about the record's `TooDeep` answer; and a stored record that is its envelope in memory too (58, Breaking). Phase 59 opens on a benchmark and may end in a recorded rejection. Phases 60 and 61 are the two speculative ones, each behind a human checkpoint, and either may end in a recorded rejection ADR. Base commit `44510112` (the head of `main`; v1.5 merged as #162), branch `arch-wave-11`. Read `.planning/phases/_SHARED-CONTEXT.md`, then `.planning/phases/_WAVE11-CONTEXT.md`, which overrides it only where it names the source review, the base, the numbering and the per-phase evidence. Each planner re-verifies that evidence against `44510112` before planning.
+
+**The nine phases and their order are fixed (2026-11-18).** Nothing is added, merged, split or reordered.
+
+**Standing direction (user, unchanged):** the cleanest design wins, not the simplest, and the project is not in production, so breaking changes are allowed. Keeping a public name, avoiding a Breaking changeset or keeping source compatibility is never the reason to pick a design. Every break is recorded (changeset marked **Breaking**, `apps/website/.../reference/upgrading.md`). Nothing is released or published, no version-packages PR is merged, and the branch is not merged.
+
+Order: the defect first (53), then the "stated once" deepenings (54-58), then the benchmark-gated phase (59), then the two speculative phases (60-61). **Execution order: phases run strictly one at a time, in numeric order (53 → 61).** Every records plan edits the same spec registers (CCR tail, invariants, traceability, `index.yaml`, `overview.md`, behaviour docs) and `use_worktrees` is false. The per-phase "Depends on" lines name the soft content edges; serial order is the operational rule.
+
+**Every phase** carries the seven cross-cutting requirements (WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07): `pnpm check:pr < /dev/null` green at the end (ten silent minutes means hung); ADR (or "Unused" in its CCR row), CCR, BEH/INV and traceability records using only reserved numbers, never `node scripts/next-id.mjs`; `spec/overview.md` names every added export and drops every removed one (gate 13 checks names only, so a moved declaration's module column is corrected by hand); no new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await` or ambient `console`/`process.env`/clock, and a budget changes only together with its AGENTS.md table; coverage held (core at least 95 percent, the others at least 90) and per-file Stryker scores recorded in the first plan (`NN-mutation-base.json`, the same invocation at the base and the close) and compared in the last, a drop closed with a test and never re-baselined; a characterisation or regression test written on the phase base before any behaviour change (RED for a defect, green for preserved behaviour); every public break recorded as **Breaking** in its package's changeset and in `upgrading.md`. Re-run `pnpm circular` after the first source edit of every phase that moves a declaration, and `pnpm spec:website-examples` explicitly for any phase that edits a website page.
+
+**Soft edges** (from `_WAVE11-CONTEXT.md`; none is a hard edge, serial order covers all of them):
+
+| Edge | Strength | Reason |
+|------|----------|--------|
+| 53 → 54 | soft | both edit `Walk.ts`, `Predicate.ts` and `LeafNeeds.ts`; 54 starts from 53's version |
+| 53, 54 → 59 | soft | 59 edits `Walk.ts` again; it starts from whatever 53 and 54 left |
+| 55 → 56 | soft | both edit devtools' `DockModel` and panels; 56 starts from 55's version |
+| 56 → 60 | soft | both edit the feeds and devtools' `index.ts`; 60 starts from 56's version |
+| 57 → 58 | soft | both edit `SinkCodec.ts`; 58 starts from 57's version |
+
+**Numbering reserved for v1.6** (the whole block is held in the shared reservation file, set to CCR 452, ADR 174, BEH 645, INV 368 on 2026-11-18; confirm a number is free by grepping `spec/`, `packages/`, `.changeset/` and `AGENTS.md` before using it; name an unused reservation "Unused:" in the phase's CCR row). Next free on `44510112`: ADR-QD-166, CCR-QD-444, BEH-QD-601, INV-QD-351. Highest ARCH is ARCH-99; ARCH ids below 100 are never reused. ADR Document IDs equal the file number (gate 10).
+
+| Phase | ARCH | ADR-QD | CCR-QD | BEH-QD | INV-QD |
+|---|---|---|---|---|---|
+| 53 | 100 | 166 | 444 | 601–605 | 351–352 |
+| 54 | 101 | 167 | 445 | 606–610 | 353–354 |
+| 55 | 102 | 168 | 446 | 611–615 | 355–356 |
+| 56 | 103 | 169 | 447 | 616–620 | 357–358 |
+| 57 | 104 | 170 | 448 | 621–625 | 359–360 |
+| 58 | 105 | 171 | 449 | 626–630 | 361–362 |
+| 59 | 106 | 172 | 450 | 631–635 | 363–364 |
+| 60 | 107 | 173 | 451 | 636–640 | 365–366 |
+| 61 | 108 | 174 | 452 | 641–645 | 367–368 |
+
+**Already deep, not re-planned** (`_WAVE11-CONTEXT.md`): `Ports.ts`/`PortAccess.ts`/`PortDerivation.ts` (ADR-QD-094/160), `Compare.ts` (ADR-QD-091; Phase 53's module sits beside it), audit `CircuitBreaker.ts`, http `AuthorizeRequest.ts`, `Handover.ts`/`Qadi.ts`, the audit outcome/report trio, devtools `model/Source.ts` and `model/Remedies.ts`, react `SeededQuestion.ts`, `HydrationEvent.ts` and devtools `model/Hydration.ts`. Settled by an ADR and not re-proposed: the decision stream's record codec parameter (ADR-QD-097 amendment 1.4), `QadiProvider`'s registry lifetime, "encode, then report a refusal" in each sink adapter (ADR-QD-095 D-09-e), QadiHttpError's `…Response` aliases (ADR-QD-102), `devtoolsPath`/`portPath` prefix joining, and a shared child-walk driver and the three `fnUntraced` functions (ADR-QD-073 addendum).
+
+### Phases
+
+- [ ] **Phase 53: One module owns "the value a leaf compares"** - One own-property-only operand read for every interpreter; `evaluatePredicate` can no longer allow a row `evaluate` denies (ARCH-100, core; live defect)
+- [ ] **Phase 54: LeafNeeds turns every leaf's answer into a verdict** - The acted leaf's polarity map and verdict rule, and every other leaf's answer-to-verdict step, written once and read by `Walk` and `toPredicate` (ARCH-101, core)
+- [ ] **Phase 55: A port card is a model row, not a view join** - One pure model function returns a row per `PortName`; `ServicesPanel` renders rows only (ARCH-102, devtools)
+- [ ] **Phase 56: The gate-registry watch becomes the dock model's third feed** - Opens on a user decision; one scoped feed module owns the watch and `DockModel` composes three feeds (ARCH-103, devtools)
+- [ ] **Phase 57: untrustedDecoder states the envelope's unknown-key policy** - Opens on a user decision; one stated option (refuse | ignore without walking) for both `SinkCodec` envelopes and the audit and hydration seams (ARCH-104, core, audit, react)
+- [ ] **Phase 58: A stored record is its envelope in memory too** - The in-memory stored record is the producer's `environment` next to a `SinkRecord`; two classes and two stamp functions are deleted (ARCH-105, Breaking, core, http, devtools)
+- [ ] **Phase 59: Admission produces the one walk environment** - Opens on a benchmark; recursion passes `(policy, env, depth)`, or a recorded rejection (ARCH-106, core)
+- [ ] **Phase 60: Devtools' headless interface is the feeds** - Opens on a human checkpoint; the feeds replace the store/runner pairs in the barrel, or a recorded rejection (ARCH-107, Breaking, devtools)
+- [ ] **Phase 61: DecisionCache is asked only the question** - Opens on a human checkpoint; core supplies the matching walk so no caller can pair a key with an unrelated computation, or a recorded rejection (ARCH-108, core)
+
+### Phase Details
+
+### Phase 53: One module owns "the value a leaf compares"
+
+**Goal**: A decoded key is read as an own property by exactly one package-private module that every interpreter uses, so the reference interpreter `evaluatePredicate` can no longer allow a row that `evaluate` denies, and INV-QD-091's "cannot disagree by construction" holds for the operand read as well as for the verdict.
+**Depends on**: Nothing in v1.6 (first phase; serial order).
+**Requirements**: OPND-01, OPND-02, OPND-03, OPND-04, OPND-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/core` (the predicate-sql and predicate-prisma suites are run, not edited)
+**Records**: ARCH-100; ADR-QD-166 (extends ADR-QD-091 and ADR-QD-024); CCR-QD-444; BEH-QD-601 to 605; INV-QD-351 to 352 (INV-QD-091 restated in place to cover the operand read)
+**Settled by the review check**: the rule is restated at six call sites, each with a comment saying it mirrors the others (`Walk.ts` `HasResourceAttribute`, `PortAccess.ts` `readAttribute`, `Matcher.ts` `getByPath` and FieldMatch, `FieldPath.ts` `projectAt`, `Decision.ts`); the seventh reader, `Predicate.ts:163-164`, never got it. Probe (built `lib` of arch-wave-10, same source): `evaluate` denies, `evaluatePredicate` on the same row returns `true`; the unguarded read is verified on `44510112`.
+
+**Success Criteria** (what must be TRUE):
+  1. A regression test committed on the phase base is RED: for `hasResourceAttribute("constructor", neq(literal("x")))` on `{ id: "r1" }`, `evaluate` denies and `evaluatePredicate(toPredicate(…))` allows. After the phase the same test is GREEN, and both deny.
+  2. One package-private module beside `Compare.ts` owns reading the value a leaf compares: a single-key cell read and a dot-path read, both own-property only. The walk, the port attribute read, matcher refs (`getByPath`), FieldMatch, `evaluatePredicate`, field projection and `Decision.ts` read leaf values only through it; no other `Object.hasOwn` read on a decoded key remains in those files, and the "mirroring" comments are gone (scoped grep).
+  3. An agreement property over keys that include prototype names (`constructor`, `toString`, `__proto__`, `hasOwnProperty`, `valueOf`) shows `evaluate` ≡ `evaluatePredicate ∘ toPredicate`, and the predicate-sql and predicate-prisma engine-agreement suites stay green.
+  4. ADR-QD-166 extends ADR-QD-091 and ADR-QD-024 (two walks stay two), INV-QD-091 is restated to cover the operand read, and the `SWITCH_BUDGET` switches in `Matcher.ts` (`judgeMatcher`, `resolveRef`) are unchanged.
+
+**Planning notes**: Re-verify the line numbers in `_WAVE11-CONTEXT.md` against `44510112`. Plan shape, RED first: the mutation base for the touched files and the RED probe, committed first; then the module with one reader converted at a time; then records. Re-run `pnpm circular` after the first move.
+**Plans**: TBD
+
+### Phase 54: LeafNeeds turns every leaf's answer into a verdict
+
+**Goal**: Every leaf's answer-to-verdict step lives in `LeafNeeds.ts` (or a sibling), finishing ADR-QD-163, so `Walk` keeps only its reason sentence and `toPredicate` keeps only constant folding.
+**Depends on**: Phase 53 (soft: both edit `Walk.ts`, `Predicate.ts` and `LeafNeeds.ts`; start from 53's version).
+**Requirements**: VERD-01, VERD-02, VERD-03, VERD-04, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/core`
+**Records**: ARCH-101; ADR-QD-167 (extends ADR-QD-163; ADR-QD-024 and ADR-QD-020 kept); CCR-QD-445; BEH-QD-606 to 610; INV-QD-353 to 354
+**Settled by the review check**: ADR-QD-163 moved `holdsRole`, `holdsPermission` and `holdsAction` into `LeafNeeds.ts` and left the acted leaf out: the polarity map (`_tag === "HasActed" ? "Acted" : "NotActed"`) is at `Walk.ts:181` and `Predicate.ts:383`, and the verdict (`answer === wanted`, where `Unknown` denies both polarities, ADR-QD-020) at `Walk.ts:186` and `Predicate.ts:592`.
+
+**Success Criteria** (what must be TRUE):
+  1. The acted leaf's polarity mapping (`HasActed` → `Acted`, `HasNotActed` → `NotActed`) and its verdict rule (`answer === wanted`, `Unknown` denying both polarities) are each written once, in `LeafNeeds.ts` or a sibling, and both `Walk` and `toPredicate` read them; the second copy of each is gone from the phase's added code (scoped grep).
+  2. Every leaf's answer-to-verdict step lives in that one place: the walk keeps only its reason sentence, and the translator keeps only constant folding.
+  3. A per-leaf verdict table test (answer × polarity → verdict) covers every leaf tag, written on the phase base and green before and after, and the existing evaluate/`toPredicate` agreement for `scope: "Any"` acted leaves stays green.
+  4. ADR-QD-167 extends ADR-QD-163, and `SWITCH_BUDGET` and `UNTRACED_BUDGET` are both unchanged (the AGENTS.md tables and the budgets agree).
+
+**Planning notes**: Re-verify the line numbers against the base left by Phase 53 (the cell read moved there). Plan shape, RED first: the mutation base and the verdict table on the base, then the move, then records.
+**Plans**: TBD
+
+### Phase 55: A port card is a model row, not a view join
+
+**Goal**: A port card is one row of a pure devtools model keyed by `PortName`, so a misspelt or renamed port is a compile error instead of rendering "never called", and `ServicesPanel.tsx` renders rows and computes nothing.
+**Depends on**: Phase 54 (serial order only; no shared source).
+**Requirements**: CARD-01, CARD-02, CARD-03, CARD-04, CARD-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/devtools`
+**Records**: ARCH-102; ADR-QD-168 (follows ADR-QD-162's precedent; ADR-QD-047's "the panel renders that model and computes nothing" restated for the Services tab; ADR-QD-160 kept); CCR-QD-446; BEH-QD-611 to 615; INV-QD-355 to 356
+**Settled by the review check**: `ServicesPanel.tsx` pairs each `report.ports` row with `activityFor` and `callsFor` through three differently typed keys (`PortReport.port: WiredServiceName`, `PortActivity.port: string`, `PortCall["_tag"]`); state wording, "never called" vs "no activity reading" vs "absent", the retries/timeouts suffixes, newest-first with five shown and "N earlier", and the uncollected/unsampled note all live in the view. The consequence text is already model (`PORT_READING`, ADR-QD-160). Two test files hold about 30 cases, all render.
+
+**Success Criteria** (what must be TRUE):
+  1. A characterisation of every port card's text and `data-testid`s is written on the phase base and stays byte-identical after the phase.
+  2. One pure model function, `joinQuestions`' counterpart, takes the wiring read, the port activity, the call log and the unsampled flag and returns one row per `PortName`: its state, activity line, recent calls with the count beyond them, and consequence voice.
+  3. All three readings are keyed by `PortName`: a misspelt or unknown port is a compile error (shown by a type-level test), and no `string` key comparison remains in the join.
+  4. `ServicesPanel.tsx` renders rows only. Most of its ≈30 render cases move to headless model tests, a short render test keeps the `data-testid`s, and ADR-QD-168 restates ADR-QD-047's "renders that model and computes nothing" for the Services tab.
+
+**Planning notes**: Re-verify the evidence against the base (`ServicesPanel.tsx`, `model/Wiring.ts`, `model/PortCalls.ts`, `model/PortReading.ts`). Plan shape, RED first: the mutation base and the byte-identical characterisation first; then the model function and its tests; then the panel reads it; then records.
+**UI hint**: yes
+**Plans**: TBD
+
+### Phase 56: The gate-registry watch becomes the dock model's third feed
+
+**Goal**: The gate-registry watch is a scoped feed module shaped like the timeline and diagnostics feeds, so `DockModel` composes three feeds and no longer holds the watch's subscription, guarded reads, failure keying and finalizer inline.
+**Depends on**: Phase 55 (soft: both edit devtools' `DockModel` and panels; start from 55's version).
+**Requirements**: GFED-01, GFED-02, GFED-03, GFED-04, GFED-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/devtools`
+**Records**: ARCH-103; ADR-QD-169 (applies ADR-QD-137 and records the user's decision below; ADR-QD-162 left intact, ADR-QD-150 kept); CCR-QD-447; BEH-QD-616 to 620; INV-QD-357 to 358; **Breaking** (the `@qadi/devtools` changeset and `upgrading.md`) only if the user moves the `questions` thunk
+**Opens on a user decision**: whether the feed also owns the `questions` thunk, giving one failure policy for the panel's two host inputs (today a throwing `questions` thunk ends the whole diagnostics poll while a throwing registry becomes only `GatesView.Failed`). Yes takes `questions` out of `DiagnosticsDockOptions` (Breaking for `useDevtoolsFeed`, amends ADR-QD-047's 2026-11-12 amendment). The planner surfaces it, and it is settled before the feed's interface is planned.
+**Settled by the review check**: `DockModel.ts` (294 lines) reads two host inputs through `TimelineFeed.ts` and `DiagnosticsFeed.ts` and the third inline: `reasonOf`/`keyOf`, `readGates`, `rejoin`, `watchGates`, the finalizer, the `configure` branch and eight mutable `let`s. ADR-QD-162 decision 5 was revised three times on the day it was written, all about this guard. About 650 lines of `DockModel.test.ts` ("the questions store") build the whole model to exercise the watch.
+
+**Success Criteria** (what must be TRUE):
+  1. Before planning the user decides whether the feed also owns the `questions` thunk, and the decision and its reason are recorded in ADR-QD-169, which applies ADR-QD-137 and leaves ADR-QD-162 intact. The remaining criteria hold on either answer; on "yes", `questions` leaves `DiagnosticsDockOptions` and the Breaking change is recorded.
+  2. One package-private scoped feed module owns the gate-registry watch (the subscription, the guarded reads, failure keying, re-subscription on `configure`, release in a finalizer) and exposes one snapshot (instances or failure) and `subscribe`, in the shape of the timeline and diagnostics feeds. `DockModel` composes three feeds and calls `joinQuestions`, and no mutable gate-watch state is left in `DockModel.ts` (eight `let`s at the base).
+  3. The watch's cases (M31 to M47 and P2) run against the feed alone with `gateRegistryDouble.ts`: a throwing `instances` or `subscribe`, a swapped registry, a throwing release, a closed scope, and one failure arriving from two paths published once. `DockModel.test.ts` keeps one test showing that the join moves first.
+  4. The questions panel's observable behaviour is unchanged, pinned by characterisation tests written on the phase base and green before and after, and the lifetime stays the scope (ADR-QD-137, ADR-QD-150).
+
+**Planning notes**: The user decision is the first thing settled. Plan shape, RED first: the mutation base for `DockModel.ts` and the new feed, and the panel characterisation, committed first; then the feed with the watch moved out of the model; then the tests rewritten against the feed alone; then records.
+**UI hint**: yes
+**Plans**: TBD
+
+### Phase 57: untrustedDecoder states the envelope's unknown-key policy
+
+**Goal**: `untrustedDecoder` takes an envelope's unknown top-level key policy as one stated option (refuse, or ignore without walking), so both `SinkCodec` envelopes stop building the rule by hand and the five modules that wrap an envelope state the same policy the same way.
+**Depends on**: Phase 56 (serial order only; no shared source).
+**Requirements**: KEYP-01, KEYP-02, KEYP-03, KEYP-04, KEYP-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/core`, `@qadi/audit`, `@qadi/react`
+**Records**: ARCH-104; ADR-QD-170 (records the user's decision below; ADR-QD-096 D-15-c and its ADR-QD-143 amendment, ADR-QD-143 and ADR-QD-153 kept); CCR-QD-448; BEH-QD-621 to 625; INV-QD-359 to 360; `UNTRUSTED_DECODE_BUDGET` and AGENTS.md §7a's table move together (a budget edit, not a removal)
+**Opens on a user decision**: is the record's `TooDeep` answer for a deep unknown key intended? Today `UntrustedSeams.test.ts:195` pins it (the guard walks before `prepare` drops the key) while `:249` pins the opposite for the stored envelope (a 60,000-deep unknown key succeeds). The user settles which way the policy goes before planning.
+**Settled by the review check**: the record wire hand-writes its tolerance in a `prepare` step (`envelopeOf`, `ownValue`); the stored envelope bypasses the decoder with its own `isPlainObject`, `Object.hasOwn`, `ownValue` and `JSON.parse`; the audit row, the archive and hydration use `unwalked` and refuse an unknown top-level key. `UntrustedDecode.ts` has no option for "ignore an unknown top-level key".
+
+**Success Criteria** (what must be TRUE):
+  1. Before planning the user decides whether a record envelope's deep unknown key is `TooDeep` (today) or ignored, and the decision is recorded in ADR-QD-170.
+  2. `untrustedDecoder` takes the envelope's unknown top-level key policy as one stated option (refuse, or ignore without walking). Both `SinkCodec` envelopes (the record wire and the stored record) decode through it; `ownValue`, `envelopeOf` and the hand-rolled stored reader are deleted; `UNTRUSTED_DECODE_BUDGET` and AGENTS.md §7a's table move together, checked in both directions.
+  3. The audit row, the archive and hydration state their policy through the same option, with no hand-built partial walk left.
+  4. The `UntrustedSeams` matrix runs per policy (a shallow unknown key, a deep unknown key, an excess key inside the payload, non-object input). Every seam's answer is unchanged except where the decision in criterion 1 changed it, and each changed answer has a RED test written on the phase base.
+
+**Planning notes**: The user decision is the first thing settled. Plan shape, RED first: the mutation base for `SinkCodec.ts`, `UntrustedDecode.ts`, `AuditEntry.ts`, `AuditArchive.ts` and `HydrationEngine.ts`, and the per-policy matrix characterised on the base; then the option; then each envelope converted; then records. Keep ADR-QD-096 D-15-c's order (guard, version, project, decode).
+**Plans**: TBD
+
+### Phase 58: A stored record is its envelope in memory too
+
+**Goal**: In memory a stored record is what it is on the wire, the producer's `environment` next to a `SinkRecord`, so the two flattened classes and the stamping that translates between the two shapes are gone and a new `SinkRecord` kind needs no stored class, stamp arm or decode re-stamp.
+**Depends on**: Phase 57 (soft: both edit `SinkCodec.ts`; start from 57's version).
+**Requirements**: STOR-01, STOR-02, STOR-03, STOR-04, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/core`, `@qadi/http`, `@qadi/devtools` (**Breaking** for devtools' timeline and the http encoders; 11 `src` files name `StoredRecord`)
+**Records**: ARCH-105; ADR-QD-171 (makes ADR-QD-097 D-11-e true in memory as well as on the wire); CCR-QD-449; BEH-QD-626 to 630; INV-QD-361 to 362; a **Breaking** changeset for each affected package and an `upgrading.md` entry
+**Settled by the review check**: on the wire a stored record is `{ environment, record }` (`StoredRecordJson`); in memory `StoredDecisionRecord`, `StoredObligationRecord`, `stampRecord` and `stampRecordMatch` flatten it (`DecisionRecord.ts:118-186`), the codec flattens on decode and nests on encode, about 20 lines of doc explain the prototype-loss trap the flattening creates, and devtools writes a third spelling, `ObligationRecord & { environment: string }`.
+
+**Success Criteria** (what must be TRUE):
+  1. In memory the stored record is the envelope, the producer's `environment` next to a `SinkRecord`. `StoredDecisionRecord`, `StoredObligationRecord`, `stampRecord`, `stampRecordMatch` and the prototype-loss doc are deleted, and devtools' third spelling (`ObligationRecord & { environment }`) is gone.
+  2. The stored codec is the record codec plus one field, and the stored byte goldens committed on the base are unchanged.
+  3. `DecisionLog`'s backlog stamping, `storedRecordOrder` (which reads the record's `at`), the http encoders and devtools' timeline all read the envelope, pinned by a SinkCodec stored round trip, a backlog-stamping test and an order test written on the phase base and green before and after.
+  4. ADR-QD-171 makes ADR-QD-097 D-11-e true in memory as well as on the wire, and the break is recorded as **Breaking** in each affected package's changeset and in `upgrading.md`.
+
+**Planning notes**: Re-verify the 11 `src` files that name `StoredRecord` against the base Phase 57 leaves. Plan shape, RED first: the mutation base and the characterisation tests (stored round trip, backlog stamping, order, byte goldens) first; then core's envelope; then http and devtools; then records and changesets.
+**Plans**: TBD
+
+### Phase 59: Admission produces the one walk environment
+
+**Goal**: Admission produces the one walk environment (subject, resource, action, `supplied`, matcher context, `maxDepth`) that both interpreters read, so recursion passes `(policy, env, depth)`, each fact is carried once and `depth` and `maxDepth` can no longer be swapped and still compile. Or, if a benchmark shows the change costs more than run-to-run noise, the phase ends with a measured rejection recorded in ADR-QD-172.
+**Depends on**: Phase 58 (serial order only). Soft edge to Phases 53 and 54 (all edit `Walk.ts` and `Predicate.ts`; start from whatever they left).
+**Requirements**: WENV-01, WENV-02, WENV-03, WENV-04, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/core`
+**Records**: ARCH-106; ADR-QD-172 (the benchmark numbers, and the rejection if it ends in one); CCR-QD-450; BEH-QD-631 to 635; INV-QD-363 to 364; a changeset only if code changes
+**Opens on a benchmark** (AGENTS.md §5a requires `pnpm bench` before a change near budgeted switch #1, `evaluateNode`): a prototype in which recursion passes `(policy, env, depth)` is measured against the phase base with Phase 50's method (interleaved runs, median of per-run minima), and the numbers go in ADR-QD-172. If any workload regresses beyond run-to-run noise, the phase ends with a recorded rejection, no source change, and WENV-02 to WENV-04 marked "Not pursued (measured)". Not the shared child-walk driver (ADR-QD-073 addendum); the three `fnUntraced` functions stay.
+**Settled by the review check**: `evaluateNode` takes `(policy, subject, request, matcherContext, depth, maxDepth)`; `resource` and `action` sit in both the `Evaluation` bundle and `MatcherContext`; the subject is carried three times; `matcherContext, depth, maxDepth` is threaded through 11 call sites; swapping `depth` and `maxDepth` still typechecks (Walk.ts's own comment says so). `Admission.ts`'s `Admitted` already holds the question plus the matcher context, yet `walk` builds `supplied` itself and `compileTree` builds a different one (`resource: true`) by hand (`Predicate.ts:358-362`).
+
+**Success Criteria** (what must be TRUE):
+  1. `pnpm bench` numbers for the `(policy, env, depth)` prototype against the phase base, per workload, are recorded in ADR-QD-172 with the noise band, and the outcome (pursue or reject) follows from them. On a rejection no source file changes, ADR-QD-172 records the rejection and its numbers, and WENV-02 to WENV-04 are annotated "Not pursued (measured)".
+  2. If pursued: admission produces the one walk environment (subject, resource, action, `supplied`, matcher context, `maxDepth`) and each interpreter states only what differs (for `toPredicate`, that the row is always supplied); `admit(question)` gives the environment with each interpreter's `supplied` checked.
+  3. If pursued: the subject, resource and action are each carried once, and `depth` and `maxDepth` can no longer be swapped and still compile (a tstyche negative).
+  4. If pursued: `RolesAndDepth.test.ts`'s depth agreement test stays green, the three `Effect.fnUntraced` functions and `SWITCH_BUDGET` are unchanged (the AGENTS.md tables and the budgets agree), and `pnpm bench` after the change shows no workload regressed beyond noise against the phase base.
+
+**Planning notes**: **The benchmark is the first plan, and it gates the rest.** Prototype on a scratch branch or an unmerged commit, run `pnpm bench` against the base the way Phase 50 did, and record the table before writing any source that stays. If pursued, plan shape, RED first: the mutation base for `Walk.ts`, `Predicate.ts` and `Admission.ts` and the `admit(question)` characterisation first; then the environment; then each interpreter; then records.
+**Plans**: TBD
+
+### Phase 60: Devtools' headless interface is the feeds
+
+**Goal**: A headless devtools consumer gets the timeline and diagnostics feeds (and the gate feed, if the user chooses) from the package root, instead of pairing, forking, superseding and watching `makeTimelineStore`/`runSource` and `makeDiagnosticsStore`/`runDiagnostics` itself. Or, if the user decides no headless consumer is real, the phase ends with a recorded rejection ADR so a later review does not re-suggest it.
+**Depends on**: Phase 59 (serial order only). Soft edge to Phase 56 (both touch the feeds and devtools' `index.ts`; start from 56's version).
+**Requirements**: HDLS-01, HDLS-02, HDLS-03, HDLS-04, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/devtools` (**Breaking** if pursued)
+**Records**: ARCH-107; ADR-QD-173 (amends ADR-QD-047 amendment 1.6 and ADR-QD-099's closed entry list, or records the rejection); CCR-QD-451; BEH-QD-636 to 640; INV-QD-365 to 366; if pursued, **Breaking** in the `@qadi/devtools` changeset and in `upgrading.md`
+**Gate (human checkpoint)**: the user decides before planning whether a headless consumer is real and the feeds should be the headless interface. "No" ends the phase with a recorded rejection in ADR-QD-173, no source change, and HDLS-02 to HDLS-04 marked "Not pursued (decided)".
+**Settled by the review check**: `index.ts` exports `makeTimelineStore` + `runSource` and `makeDiagnosticsStore` + `runDiagnostics`; the modules that pair, fork, supersede and watch them are package-private (`model/TimelineFeed.ts`, `model/DiagnosticsFeed.ts`). `README.md:139` calls `runDiagnostics` "the same loop without React" but it lacks the stop detection whose absence was the ADR-QD-047 amendment 1.13 defect; two option shapes (`DiagnosticsOptions`, `DiagnosticsDockOptions`) configure one poll, translated by `runOptions`. The root interface was fixed by amendment 1.6 (2026-10-08), before the feeds existed (1.13/1.15, 2026-11-12).
+
+**Success Criteria** (what must be TRUE):
+  1. Before planning the user decides whether to make the feeds the headless interface. "No" ends the phase with a recorded rejection in ADR-QD-173 and HDLS-02 to HDLS-04 annotated "Not pursued (decided)"; no source file changes.
+  2. If pursued: the timeline and diagnostics feeds (and the gate feed, if the user chooses) are exported from devtools' root, and `makeTimelineStore`/`runSource` and `makeDiagnosticsStore`/`runDiagnostics` are retired from the barrel.
+  3. If pursued: one option shape configures the diagnostics poll, and the README's headless example uses the feeds (with the stop detection `runDiagnostics` lacks).
+  4. If pursued: the feed tests run against the public entry, and `surface.test.ts`, `spec/overview.md` (gate 13), ADR-QD-047 amendment 1.6 and ADR-QD-099's entry list are updated; the break is **Breaking** in the changeset and in `upgrading.md`.
+
+**Planning notes**: **The checkpoint is the first thing settled, before any plan.** If pursued, plan shape, RED first: the mutation base and the public-entry tests (`TimelineFeed.test.ts`, `DiagnosticsFeed.test.ts` moved to the root export) first; then the export change and the option shape; then README, docs and records. Check the packed `exports` map (gate 14).
+**Plans**: TBD
+
+### Phase 61: DecisionCache is asked only the question
+
+**Goal**: `DecisionCache` is asked only the question and core supplies the matching walk, so no caller can pair a key with an unrelated computation and "this trace answers this key" no longer rests on one call site in `Lifecycle.ts`. Or, if the user decides not to pursue it, the phase ends with a recorded rejection ADR so a later review does not re-suggest it.
+**Depends on**: Phase 60 (serial order only; no shared source).
+**Requirements**: CASK-01, CASK-02, CASK-03, CASK-04, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/core`
+**Records**: ARCH-108; ADR-QD-174 (brushes ADR-QD-031 and ADR-QD-132, or records the rejection); CCR-QD-452; BEH-QD-641 to 645; INV-QD-367 to 368; a changeset only if code changes
+**Gate (human checkpoint)**: the user decides before planning whether to pursue it. It brushes ADR-QD-031 (the key is the security boundary) and ADR-QD-132, and wave 10 recorded `DecisionCache`/`SharedComputation` as already deep; `concurrency` is deliberately not part of the key, so it needs another route to the walk. "No" ends the phase with a recorded rejection in ADR-QD-174, no source change, and CASK-02 to CASK-04 marked "Not pursued (decided)".
+**Settled by the review check**: `DecisionCache.getOrCompute(question, compute)` accepts any `compute` for any `question`; ADR-QD-031 makes the key the security boundary, so the pairing holds only because `Lifecycle.ts:118-121` passes `walk(question, …)`. `SharedComputation.ts` (418 lines) has one adapter and is not exported.
+
+**Success Criteria** (what must be TRUE):
+  1. Before planning the user decides whether to pursue this. "No" ends the phase with a recorded rejection in ADR-QD-174 and CASK-02 to CASK-04 annotated "Not pursued (decided)"; no source file changes.
+  2. If pursued: the cache's interface takes the question alone and core supplies the matching walk, so no caller can pair a key with an unrelated computation (a type-level negative shows an arbitrary `compute` is refused).
+  3. If pursued: `concurrency` still reaches the walk and still does not join the key (ADR-QD-031): the same question asked with a different `concurrency` is one cache entry.
+  4. If pursued: `DecisionCache.test.ts`'s coalescing and interruption tests are driven through a question alone and stay green, and `SharedComputation`'s rules (ADR-QD-132, ARCH-79) are unchanged.
+
+**Planning notes**: **The checkpoint is the first thing settled, before any plan.** If pursued, plan shape, RED first: the mutation base for `DecisionCache.ts`, `Lifecycle.ts` and `SharedComputation.ts` and the existing coalescing and interruption tests characterised through a question alone first; then the interface; then records.
+**Plans**: TBD
+
+### Progress (v1.6)
+
+**Execution Order:**
+Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 → 60 → 61
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 53. One module owns "the value a leaf compares" | 0/TBD | Not started | - |
+| 54. LeafNeeds turns every leaf's answer into a verdict | 0/TBD | Not started | - |
+| 55. A port card is a model row, not a view join | 0/TBD | Not started | - |
+| 56. The gate-registry watch becomes the dock model's third feed | 0/TBD | Not started | - |
+| 57. untrustedDecoder states the envelope's unknown-key policy | 0/TBD | Not started | - |
+| 58. A stored record is its envelope in memory too | 0/TBD | Not started | - |
+| 59. Admission produces the one walk environment | 0/TBD | Not started | - |
+| 60. Devtools' headless interface is the feeds | 0/TBD | Not started | - |
+| 61. DecisionCache is asked only the question | 0/TBD | Not started | - |
