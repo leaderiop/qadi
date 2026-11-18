@@ -1663,8 +1663,164 @@ describe("the questions store (M31, M32, M33, M36..M47, P2)", () => {
     }));
 });
 
+describe("the join of the three feeds (J1..J8)", () => {
+  const guard = (id: string, policy: Policy): GateInstanceLike => ({ id, kind: "Can", policy, state: "Allowed" });
+
+  /** The ids asking each asked question, row by row; empty when the view carries no rows. */
+  const askingIds = (snapshot: QuestionsSnapshot): ReadonlyArray<ReadonlyArray<string>> =>
+    snapshot.questions._tag === "Rows" ? snapshot.questions.rows.map((row) => row.asking?.map((one) => one.id) ?? []) : [];
+
+  /** What each row claims about who is asking; `undefined` is no claim at all. */
+  const claims = (snapshot: QuestionsSnapshot): ReadonlyArray<ReadonlyArray<GateInstanceLike> | undefined> =>
+    snapshot.questions._tag === "Rows" ? snapshot.questions.rows.map((row) => row.asking) : [];
+
+  /** The reason a `Failed` questions view carries, or `undefined` when the view is any other. */
+  const failedReason = (snapshot: QuestionsSnapshot): string | undefined =>
+    snapshot.questions._tag === "Failed" ? snapshot.questions.reason : undefined;
+
+  /** Settles every fiber, steps the clock one poll interval, settles again. */
+  const tick = Effect.gen(function* () {
+    yield* settleTurns;
+    yield* TestClock.adjust("2 seconds");
+    yield* settleTurns;
+  });
+
+  const down = (): ReadonlyArray<AskedQuestionLike> => {
+    throw new Error("questions down");
+  };
+
+  it.effect("J1: the join moves first on either side, so a host listener reads a joined snapshot", () =>
+    Effect.gen(function* () {
+      const double = makeGateRegistryDouble();
+      const model = yield* makeDockModel({ gates: double.registry, reading: { questions: [{ policy: readPolicy }] } });
+
+      const onRegistry: Array<ReadonlyArray<ReadonlyArray<string>>> = [];
+      double.registry.subscribe(() => {
+        onRegistry.push(askingIds(model.questions.getSnapshot()));
+      });
+      double.add(guard("a", readPolicy));
+      assert.deepStrictEqual(onRegistry, [[["a"]]]);
+
+      const onDiagnostics: Array<ReadonlyArray<ReadonlyArray<string>>> = [];
+      model.diagnostics.subscribe(() => {
+        onDiagnostics.push(askingIds(model.questions.getSnapshot()));
+      });
+      model.configure({
+        gates: double.registry,
+        reading: { questions: [{ policy: readPolicy }, { policy: writePolicy }] },
+      });
+      assert.deepStrictEqual(onDiagnostics, [[["a"], []]]);
+    }));
+
+  it.effect("J2: a questions input that throws is stated as Failed, and the poll stays Live and keeps sampling", () =>
+    Effect.gen(function* () {
+      const probe = makeCollectorDouble();
+      const model = yield* makeDockModel({ diagnostics: { collector: probe.collector }, questions: down });
+      yield* settleTurns;
+
+      assert.include(failedReason(model.questions.getSnapshot()) ?? "", "questions down");
+
+      yield* tick;
+      yield* tick;
+
+      assert.isTrue(DiagnosticsStatus.$is("Live")(model.diagnostics.getSnapshot().status));
+      assert.strictEqual(probe.state.calls, 3);
+      assert.include(failedReason(model.questions.getSnapshot()) ?? "", "questions down");
+    }));
+
+  it.effect("J3: a questions input with no diagnostics is read at once", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel({ questions: () => [{ policy: readPolicy }] });
+
+      assert.isTrue(DiagnosticsStatus.$is("Off")(model.diagnostics.getSnapshot().status));
+      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [[]]);
+    }));
+
+  it.effect("J4: a Starting poll withholds the thunk's rows but states its failure", () =>
+    Effect.gen(function* () {
+      const layer = Layer.effectDiscard(Effect.sleep("1 second"));
+
+      const answering = yield* makeDockModel({ diagnostics: { layer }, questions: () => [{ policy: readPolicy }] });
+      assert.isTrue(DiagnosticsStatus.$is("Starting")(answering.diagnostics.getSnapshot().status));
+      assert.strictEqual(answering.questions.getSnapshot().questions._tag, "Unsampled");
+
+      const throwing = yield* makeDockModel({ diagnostics: { layer }, questions: down });
+      assert.isTrue(DiagnosticsStatus.$is("Starting")(throwing.diagnostics.getSnapshot().status));
+      assert.strictEqual(throwing.questions.getSnapshot().questions._tag, "Failed");
+    }));
+
+  it.effect("J5: a supplied list wins over the thunk, whose failure is then not stated", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel({ questions: down, reading: { questions: [{ policy: writePolicy }] } });
+
+      const view = model.questions.getSnapshot().questions;
+      assert.strictEqual(view._tag, "Rows");
+      if (view._tag === "Rows") {
+        assert.strictEqual(view.rows.length, 1);
+        assert.isTrue(Equal.equals(view.rows[0]?.question.policy, writePolicy));
+      }
+    }));
+
+  it.effect("J6: diagnostics.intervalMillis paces the questions input", () =>
+    Effect.gen(function* () {
+      const read = { calls: 0 };
+      yield* makeDockModel({
+        diagnostics: { intervalMillis: 500 },
+        questions: () => {
+          read.calls += 1;
+          return [];
+        },
+      });
+      yield* settleTurns;
+      assert.strictEqual(read.calls, 1);
+
+      yield* TestClock.adjust("499 millis");
+      yield* settleTurns;
+      assert.strictEqual(read.calls, 1);
+
+      yield* TestClock.adjust("1 millis");
+      yield* settleTurns;
+      assert.strictEqual(read.calls, 2);
+    }));
+
+  it.effect("J7: a failed registry still reaches the rows, as no claim", () =>
+    Effect.gen(function* () {
+      const double = makeGateRegistryDouble([guard("a", readPolicy)]);
+      double.failReads(new Error("registry down"));
+
+      const model = yield* makeDockModel({ gates: double.registry, questions: () => [{ policy: readPolicy }] });
+      yield* settleTurns;
+
+      const snapshot = model.questions.getSnapshot();
+      assert.strictEqual(snapshot.gates._tag, "Failed");
+      assert.deepStrictEqual(claims(snapshot), [undefined]);
+    }));
+
+  it.effect("J8: one configure that moves the registry, the thunk and the reading publishes one join", () =>
+    Effect.gen(function* () {
+      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const b = makeGateRegistryDouble([guard("b", readPolicy)]);
+      const diagnostics = {};
+      const model = yield* makeDockModel({ diagnostics, gates: a.registry, questions: () => [{ policy: readPolicy }] });
+      yield* settleTurns;
+      const seen: Array<ReadonlyArray<ReadonlyArray<string>>> = [];
+      model.questions.subscribe(() => {
+        seen.push(askingIds(model.questions.getSnapshot()));
+      });
+
+      model.configure({
+        diagnostics,
+        gates: b.registry,
+        questions: () => [{ policy: readPolicy }, { policy: writePolicy }],
+        reading: { activity: [{ port: "AttributeResolver", calls: 1, retries: 0, timeouts: 0, translationCalls: 0 }] },
+      });
+
+      assert.deepStrictEqual(seen, [[["b"], []]]);
+    }));
+});
+
 describe("the services store", () => {
-  it.effect("M48: the services store holds the port cards of the shown reading from the first snapshot", () =>
+  it.effect("M48:the services store holds the port cards of the shown reading from the first snapshot", () =>
     Effect.gen(function* () {
       const supplied = yield* makeDockModel({
         reading: {
