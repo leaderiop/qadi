@@ -33,11 +33,11 @@
 
 ### The gate-registry watch becomes the dock model's third feed (Phase 56, ARCH-103, devtools)
 
-- [ ] **GFED-01**: One package-private scoped feed module owns the gate-registry watch: the subscription, the guarded reads, failure keying, re-subscription on `configure`, and release in a finalizer. It exposes one snapshot (instances or failure) and `subscribe`, in the shape of the timeline and diagnostics feeds.
-- [ ] **GFED-02**: `DockModel` composes three feeds and calls `joinQuestions`. No mutable gate-watch state is left in `DockModel.ts`.
-- [ ] **GFED-03**: The watch's cases are tested against the feed alone with `gateRegistryDouble.ts`: a throwing `instances` or `subscribe`, a swapped registry, a throwing release, a closed scope, and one failure arriving from two paths published once. `DockModel` keeps one test showing that the join moves first.
-- [ ] **GFED-04**: The questions panel's observable behaviour is unchanged, pinned by characterisation on the phase base.
-- [ ] **GFED-05**: Whether the feed also owns the `questions` thunk (one failure policy for both of the panel's host inputs; Breaking for `useDevtoolsFeed`) is a user decision recorded in ADR-QD-169, which applies ADR-137 and leaves ADR-162 intact.
+- [x] **GFED-01**: One package-private scoped feed module owns the gate-registry watch: the subscription, the guarded reads, failure keying, re-subscription on `configure`, and release in a finalizer. It exposes one snapshot (instances or failure) and `subscribe`, in the shape of the timeline and diagnostics feeds.
+- [x] **GFED-02**: `DockModel` composes three feeds and calls `joinQuestions`. No mutable gate-watch state is left in `DockModel.ts`.
+- [x] **GFED-03**: The watch's cases are tested against the feed alone with `gateRegistryDouble.ts`: a throwing `instances` or `subscribe`, a swapped registry, a throwing release, a closed scope, and one failure arriving from two paths published once. `DockModel` keeps one test showing that the join moves first.
+- [x] **GFED-04**: The questions panel's observable behaviour is unchanged, pinned by characterisation on the phase base.
+- [x] **GFED-05**: Whether the feed also owns the `questions` thunk (one failure policy for both of the panel's host inputs; Breaking for `useDevtoolsFeed`) is a user decision recorded in ADR-QD-169, which applies ADR-137 and leaves ADR-162 intact.
 
 ### untrustedDecoder states the envelope's unknown-key policy (Phase 57, ARCH-104, core + audit + react)
 
@@ -125,11 +125,11 @@ The seven WX rows apply to every phase 53 to 61, so each phase's Requirements li
 | CARD-03 | Phase 55 | Complete |
 | CARD-04 | Phase 55 | Complete |
 | CARD-05 | Phase 55 | Complete |
-| GFED-01 | Phase 56 | Pending |
-| GFED-02 | Phase 56 | Pending |
-| GFED-03 | Phase 56 | Pending |
-| GFED-04 | Phase 56 | Pending |
-| GFED-05 | Phase 56 | Pending |
+| GFED-01 | Phase 56 | Complete |
+| GFED-02 | Phase 56 | Complete |
+| GFED-03 | Phase 56 | Complete |
+| GFED-04 | Phase 56 | Complete |
+| GFED-05 | Phase 56 | Complete |
 | KEYP-01 | Phase 57 | Pending |
 | KEYP-02 | Phase 57 | Pending |
 | KEYP-03 | Phase 57 | Pending |
