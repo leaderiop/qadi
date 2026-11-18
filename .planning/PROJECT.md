@@ -229,9 +229,11 @@ logged, counted or spanned.
 
 - ✓ ARCH-101 LeafNeeds turns every leaf's answer into a verdict (VERD-01..04): package-private `LEAF_VERDICTS` in `LeafNeeds.ts` is one closed per-tag record (`satisfies LeafVerdicts`, read through `isHeld`) holding every leaf's answer-to-verdict step, acted polarity included; `Walk` keeps only its deny sentences (`ACTED_DENIAL`, `RELATIONSHIP_DENIAL`, `SIGNATURE_DENIAL`) and `toPredicate` only constant folding, `AskActed` no longer carries `wanted`. Decisions and sentences byte-identical; no export changed (935) — Phase 54, ADR-QD-167
 
+- ✓ ARCH-102 A port card is a model row, not a view join (CARD-01..05): pure `portCards` in `@qadi/devtools`' `model/PortCards.ts` returns a closed `ServicesView` (`Withheld | NotHanded | Failed | Read`), one `PortCardRow` per wired port with state, activity, consequence voice and a `CallsView` (`Hidden | Uncollected | Listed`, newest five plus `earlier`); activity and calls are `{ [K in PortName]: … }` records built by `tabulatePorts`, so a misspelt port is a compile error (`PortCards.tst.ts`). `DockModel.services` is the ninth store, recomputed only when one of its four inputs moves; `ServicesPanel.tsx` maps tags to JSX and computes nothing (INV-QD-356). Markup byte-identical (16-cell characterisation written on the base). Breaking: `PortActivity.port` is `PortName`, `portActivity` reads one entry per registry port. Mutation DockModel 145/145, Wiring 48/48, PortCards 126/126 (D-15) — Phase 55, ADR-QD-168
+
 ### Active
 
-- [ ] ARCH-102..108: the remaining seven candidates of the 2026-11-16 architecture review (v1.6, Phases 53–61); see `.planning/REQUIREMENTS.md`
+- [ ] ARCH-103..108: the remaining six candidates of the 2026-11-16 architecture review (v1.6, Phases 53–61); see `.planning/REQUIREMENTS.md`
 
 ### Out of Scope
 
@@ -421,6 +423,7 @@ logged, counted or spanned.
 | The predicate compile shell (defaults, renderability, outcome counting) is one core function every dialect calls with its rules, renderer and own counter series | `@qadi/predicate-sql` and `@qadi/predicate-prisma` repeated it, and had already drifted: Prisma counted `compiled` before rendering, SQL after | Accepted (Phase 52, ADR-QD-165; each package keeps its own metric declaration, ADR-QD-123; mutation judged by D-09a: a dialect's fall is only the shell's killed mutants moving to core) |
 | A decoded key is read as an own property by one package-private module that every interpreter, fixture and projection uses | `evaluatePredicate` read `row[p.column]` while `evaluate` read own properties only, so the reference interpreter could allow a row the engine denied; six hand-written `Object.hasOwn` mirrors kept the rest in step by comment | Accepted (Phase 53, ADR-QD-166; `Operand.ts` import-free and out of the barrel; `@qadi/core` patch, no Breaking) |
 | Each leaf's answer-to-verdict step is one row of a closed per-tag record that both interpreters read through `isHeld` | The walk and `toPredicate` each restated how an answer (acted polarity, relationship `Unknown`, custom, signature) becomes allow/deny, so a change to one could leave the row filter admitting what the walk denies | Accepted (Phase 54, ADR-QD-167; D-10 credits static-ignored mutants only when an `ignoreStatic:false` run kills each — accepted by the owner at UAT) |
+| A devtools tab's wording is a pure model function over closed unions; the panel renders tags | `ServicesPanel.tsx` joined three readings through three differently typed keys (`WiredServiceName`, `string`, a call `_tag`), so a renamed port rendered "never called" instead of failing to compile | Accepted (Phase 55, ADR-QD-168; follows ADR-QD-162, restates ADR-QD-047 for the Services tab) |
 
 ## Evolution
 
@@ -440,4 +443,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-18 after Phase 54*
+*Last updated: 2026-11-18 after Phase 55*

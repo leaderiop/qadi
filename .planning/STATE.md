@@ -604,6 +604,7 @@ Last activity: 2026-11-18 — Phase QD-55 complete, transitioned to Phase 56
 - [Phase QD-55]: 55-07: ADR-QD-168 states the services store's rule as the identity of its four inputs (Off to Live passes through Starting and notifies twice; M54 pins Live to Stopped), and records that a metric word outside the registry is no longer reported (PortActivity.port narrowing)
 - [Phase QD-55]: 55-08: INV-QD-356 enforcement is the characterisation and render test; no gate scans the panel source
 - [Phase QD-55]: 55-09: WX-01..07 stay Pending (span every v1.6 phase); only CARD-01..05 closed with phase 55
+- [Phase 55]: review WR-01 (weak misspelt-port tstyche pin) fixed 6eb2522c, IN-01..03 deferred; regression 5766/5766; verification passed 4/4; WX-01..07 reverted to Pending after phase.complete
 
 ### Pending Todos
 
