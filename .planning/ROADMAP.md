@@ -446,7 +446,7 @@ Plans:
   4. ADR-QD-167 extends ADR-QD-163, and `SWITCH_BUDGET` and `UNTRACED_BUDGET` are both unchanged (the AGENTS.md tables and the budgets agree).
 
 **Planning notes**: Re-verify the line numbers against the base left by Phase 53 (the cell read moved there). Plan shape, RED first: the mutation base and the verdict table on the base, then the move, then records.
-**Plans**: 5/8 plans executed
+**Plans**: 6/8 plans executed
 
 Plans:
 - [x] 54-01 (W1): mutation baseline for LeafNeeds, Predicate and Walk, plus base facts, verdict-step baselines and the bench base
@@ -454,7 +454,7 @@ Plans:
 - [x] 54-03 (W3): tracer — the LEAF_VERDICTS record (RED unit test first) and the acted path through it in Walk and Predicate; type pins
 - [x] 54-04 (W4): every other leaf decided through its row; the walk keeps its sentences, the translator its folds
 - [x] 54-05 (W5): bench after (information) and the Stryker after-run; D-10 comparison holds
-- [ ] 54-06 (W6): ADR-QD-167 with amendment pointers in ADR-QD-163, 020 and 024; BEH-QD-606..610
+- [x] 54-06 (W6): ADR-QD-167 with amendment pointers in ADR-QD-163, 020 and 024; BEH-QD-606..610
 - [ ] 54-07 (W7): INV-QD-353..354 and traceability; CCR-QD-445 and the @qadi/core patch changeset; spec gates green
 - [ ] 54-08 (W8): phase scan, verdict-step checks, check:pr, release check; VERD-01..04 complete
 
@@ -599,7 +599,7 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 53. One module owns "the value a leaf compares" | 8/8 | Complete    | 2026-11-18 |
-| 54. LeafNeeds turns every leaf's answer into a verdict | 5/8 | In Progress | - |
+| 54. LeafNeeds turns every leaf's answer into a verdict | 6/8 | In Progress | - |
 | 55. A port card is a model row, not a view join | 0/TBD | Not started | - |
 | 56. The gate-registry watch becomes the dock model's third feed | 0/TBD | Not started | - |
 | 57. untrustedDecoder states the envelope's unknown-key policy | 0/TBD | Not started | - |

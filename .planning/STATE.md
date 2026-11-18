@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 54
 current_phase_name: LeafNeeds turns every leaf's answer into a verdict
 status: executing
-stopped_at: Completed QD-54-05-PLAN.md
-last_updated: "2026-11-18T13:52:58.702Z"
+stopped_at: Completed QD-54-06-PLAN.md
+last_updated: "2026-11-18T13:56:41.784Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase QD-54 execution started
-state_head: 0824e7d02ab23a57d2c9e26da1b838c95d117a87
+state_head: 6be4d7a65bc21fe20fe4de31b881f813849d559a
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 16
-  completed_plans: 13
+  completed_plans: 14
   percent: 11
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-18)
 ## Current Position
 
 Phase: QD-54 (LeafNeeds turns every leaf's answer into a verdict) — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8
 Status: Executing Phase QD-54
 Last activity: 2026-11-18 — Phase QD-54 execution started
 
@@ -340,6 +340,7 @@ Last activity: 2026-11-18 — Phase QD-54 execution started
 | Phase QD-54 P03 | 9 min | 2 tasks | 5 files |
 | Phase QD-54 P04 | 8 min | 2 tasks | 2 files |
 | Phase QD-54 P05 | 11 min | 2 tasks | 4 files |
+| Phase QD-54 P06 | 14 min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -578,6 +579,7 @@ Last activity: 2026-11-18 — Phase QD-54 execution started
 - [Phase QD-54]: 54-03: LEAF_VERDICTS is satisfies LeafVerdicts without as const; role and permission rows take (leaf, subject)
 - [Phase QD-54]: 54-04: custom arm keeps its one inline sentence; only relationship and signature get denial tables
 - [Phase QD-54]: 54-05: D-10's comparison credits static-ignored mutants only when an ignoreStatic:false run kills each (orchestrator ruling, not a re-baseline)
+- [Phase QD-54]: ADR-QD-167 records the orchestrator-authorised D-10 static-ignored credit as its own section, open to user review
 
 ### Pending Todos
 
@@ -637,8 +639,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-18T13:52:58.620Z
-Stopped at: Completed QD-54-05-PLAN.md
+Last session: 2026-11-18T13:56:41.696Z
+Stopped at: Completed QD-54-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
