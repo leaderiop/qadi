@@ -23,7 +23,7 @@ import {
   memberVerdict,
 } from "./Compare.ts";
 import type { Verdict } from "./Compare.ts";
-import { getByPath } from "./Operand.ts";
+import { getByPath, ownValue } from "./Operand.ts";
 import { foldTree, foldTreeBy } from "./TreeFold.ts";
 
 // ---------------------------------------------------------------------------
@@ -638,6 +638,7 @@ const atLeastLocal = atLeastVerdict;
 const belowLocal = belowVerdict;
 const holdsLocal = holds;
 const getByPathLocal = getByPath;
+const ownValueLocal = ownValue;
 
 /**
  * How a matcher came out against a value: a `Verdict`, not just whether it held.
@@ -691,12 +692,6 @@ export const judgeMatcher = (self: Matcher, value: unknown, context: MatcherCont
           : containsValue(value, self.value)
             ? "Held"
             : "NotHeld";
-    // `Object.hasOwn` rather than `value[self.field]` alone, for the same
-    // reason `getByPath` above needs it: `field` is attacker-writable in a
-    // decoded policy, and without the guard `self.field` naming
-    // `__proto__`/`constructor`/etc. would read the prototype chain instead
-    // of reporting the field absent. A genuinely missing own property still
-    // evaluates the inner matcher against `undefined`, exactly as before.
     case "FieldMatch":
       return value === undefined
         ? "ValueAbsent"
@@ -704,11 +699,7 @@ export const judgeMatcher = (self: Matcher, value: unknown, context: MatcherCont
           ? "Incomparable"
           : heldOrNot(
               holdsLocal(
-                judgeMatcher(
-                  self.matcher,
-                  Object.hasOwn(value, self.field) ? value[self.field] : undefined,
-                  context,
-                ),
+                judgeMatcher(self.matcher, ownValueLocal(value, self.field), context),
               ),
             );
     case "SomeMatch":
