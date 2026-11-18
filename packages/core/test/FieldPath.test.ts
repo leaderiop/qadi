@@ -317,6 +317,14 @@ describe("project", () => {
     assert.isUndefined(probe["polluted"]);
   });
 
+  it("keeps an own key holding undefined and skips an inherited name", () => {
+    // Own is present even when the value is `undefined`; a name only the
+    // prototype chain supplies is absent (D-12, pinned before `projectAt`
+    // reads through `Operand.ts`).
+    assert.deepStrictEqual(Object.keys(project({ a: undefined, b: 1 }, ["a"])), ["a"]);
+    assert.deepStrictEqual(Object.keys(project({ b: 1 }, ["constructor", "b"])), ["b"]);
+  });
+
   it("a field spec with more dot-segments than the call stack has frames does not overflow it", () => {
     // The finding this pins (issue #66): `projectAt` used real function-call
     // recursion, one frame per matching segment, over two inputs a policy

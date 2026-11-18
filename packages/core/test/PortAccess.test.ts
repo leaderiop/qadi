@@ -731,3 +731,43 @@ describe("a scoped read reaches its port only with the id its leaf's scope calls
     }
   }
 });
+
+/**
+ * Whether an attribute is the subject's own decides whether the resolver is
+ * asked at all (INV-QD-091). An own key holding `undefined` is present; a
+ * missing key and a name only the prototype chain supplies are absent. Pinned
+ * before the reader moves to `Operand.ts` and kept through it (D-12).
+ */
+describe("readAttribute consults the resolver only for a key the subject does not own", () => {
+  const read = (attributes: Readonly<Record<string, unknown>>, name: string) =>
+    Effect.gen(function* () {
+      const subject = makeSubject({ id: "u-1", roles: [], permissions: [], attributes });
+      const port = scriptedPort(attributeResolverPort, () => PortReply.answer("resolved"));
+      const value = yield* readAttribute("evaluate", subject, attributeLeaf(name)).pipe(
+        Effect.provide(portsLayer({ AttributeResolver: port.layer })),
+      );
+      return { subject, value, calls: port.calls };
+    });
+
+  it.effect("an own key, even one holding undefined, never reaches the resolver", () =>
+    Effect.gen(function* () {
+      const undefinedOwn = yield* read({ clearance: undefined }, "clearance");
+      assert.isUndefined(undefinedOwn.value);
+      assert.strictEqual(undefinedOwn.calls.length, 0);
+
+      // JSON.parse makes an own `constructor` key, the shape an untrusted decode produces.
+      const named: Readonly<Record<string, unknown>> = JSON.parse('{"constructor":"own"}');
+      const protoNamed = yield* read(named, "constructor");
+      assert.strictEqual(protoNamed.value, "own");
+      assert.strictEqual(protoNamed.calls.length, 0);
+    }));
+
+  it.effect("a missing key and an inherited name each reach the resolver once", () =>
+    Effect.gen(function* () {
+      for (const name of ["clearance", "constructor"]) {
+        const missing = yield* read({}, name);
+        assert.strictEqual(missing.value, "resolved", name);
+        assert.deepStrictEqual(missing.calls, [[missing.subject.id, name]], name);
+      }
+    }));
+});
