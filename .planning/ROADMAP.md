@@ -506,7 +506,7 @@ Plans:
 
 **Planning notes**: The user decision is the first thing settled. Plan shape, RED first: the mutation base for `DockModel.ts` and the new feed, and the panel characterisation, committed first; then the feed with the watch moved out of the model; then the tests rewritten against the feed alone; then records.
 **UI hint**: yes
-**Plans**: 7/13 plans executed
+**Plans**: 8/13 plans executed
 
 Plans:
 - [x] 56-01 (W1): base facts, reserved ids and API surface base; mutation baseline for DiagnosticsFeed, DiagnosticsStore, DockModel and Gates, the phase's first commit
@@ -516,7 +516,7 @@ Plans:
 - [x] 56-05 (W5): the remaining twins G38..G47, G42 b and GP2 against the feed alone
 - [x] 56-06 (W6): QuestionsView.Failed, the join's precedence and the qadi-questions-failed paragraph (RED first)
 - [x] 56-07 (W7): DockModel composes three feeds and joins purely (J1..J8 first); questions is a dock input; the watch cases deleted beside green twins; the poll takes no thunk
-- [ ] 56-08 (W8): useDevtoolsFeed returns questions beside gates (RED first); the newsroom example's prose
+- [x] 56-08 (W8): useDevtoolsFeed returns questions beside gates (RED first); the newsroom example's prose
 - [ ] 56-09 (W9): Stryker after-run and static evidence; D-11 comparison holds
 - [ ] 56-10 (W10): ADR-QD-169 and the ADR-QD-047 amendment; BEH-QD-616..620 and the corrected BEH-QD-323/465/506/507/583/584/585 and BEH-QD-327
 - [ ] 56-11 (W11): INV-QD-357..358, INV-QD-343/313 corrected, traceability; the four overview rows, exports unchanged
@@ -627,7 +627,7 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 | 53. One module owns "the value a leaf compares" | 8/8 | Complete    | 2026-11-18 |
 | 54. LeafNeeds turns every leaf's answer into a verdict | 8/8 | Complete    | 2026-11-18 |
 | 55. A port card is a model row, not a view join | 9/9 | Complete    | 2026-11-18 |
-| 56. The gate-registry watch becomes the dock model's third feed | 7/13 | In Progress | - |
+| 56. The gate-registry watch becomes the dock model's third feed | 8/13 | In Progress | - |
 | 57. untrustedDecoder states the envelope's unknown-key policy | 0/TBD | Not started | - |
 | 58. A stored record is its envelope in memory too | 0/TBD | Not started | - |
 | 59. Admission produces the one walk environment | 0/TBD | Not started | - |
