@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-32                                    |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-10-08): the worked example decides against the draft it returns (CCR-QD-207)<br>1.0 (2026-08-25): Initial release (CCR-QD-082) |
+> | Change History | 1.2 (2026-11-18): BEH-QD-605 added: customPredicateFromRecord fails on a name its table does not own, never dies (ARCH-100, CCR-QD-444)<br>1.1 (2026-10-08): the worked example decides against the draft it returns (CCR-QD-207)<br>1.0 (2026-08-25): Initial release (CCR-QD-082) |
 
 _Previous: [31 — Predicate Compilation](./31-predicate-compilation.md)_
 
@@ -124,6 +124,23 @@ denial would send whoever reads the decision to audit permissions instead of
 the typo — exactly the confusion
 [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial) exists to
 prevent, applied to a misconfigured registry rather than a broken store.
+
+## BEH-QD-605: `customPredicateFromRecord` fails on a name its table does not own, never dies
+
+> **Invariant:** [INV-QD-049](../invariants.md#inv-qd-049-an-unregistered-custom-predicate-name-is-an-error-never-a-denial), [INV-QD-352](../invariants.md#inv-qd-352-an-inherited-member-reads-as-absent)
+> **See:** [ADR-QD-166](../decisions/166-one-module-owns-the-value-a-leaf-compares.md)
+
+[BEH-QD-247](#beh-qd-247-a-registered-predicates-own-failure-and-an-unrecognised-name-are-errors--never-denials)'s
+"no entry in the table" includes a name the table inherits. `customPredicateFromRecord` reads its table through
+`Operand.ts`, so `hasCustom("constructor")` and `hasCustom("toString")` fail like any unregistered name; before
+ARCH-100 they died ("Not a valid effect") and `hasCustom("hasOwnProperty")` failed with a `TypeError` message.
+An authorization decision never becomes a defect.
+
+```
+REQUIREMENT: `customPredicateFromRecord`'s `evaluate` MUST fail with `CustomPredicateError`
+             (reason "no predicate is registered under this name") for a name the table
+             does not own, an inherited member included, and MUST NOT die.
+```
 
 ## BEH-QD-248: `toPredicate` refuses a `HasCustom` node
 

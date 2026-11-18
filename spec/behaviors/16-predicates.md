@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-16                                    |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-10-05): BEH-QD-122 — a `Compare`/`MemberOf` leaf is `Compare.ts`'s verdict, the function `judgeMatcher` applies (ADR-QD-091, CCR-QD-173); BEH-QD-127 — the generated rows include non-finite values, where `toPredicate` failed open until CCR-QD-172<br>1.5 (2026-10-04): BEH-QD-121/122 cross-reference BEH-QD-271 — core still emits no dialect, but now says what is renderable (`toRenderable`) (ADR-QD-079, CCR-QD-158)<br>1.4 (2026-10-04): BEH-QD-266 — an over-deep policy is `PolicyTooDeep` before the fields refusal whatever the child order, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-10-04): BEH-QD-123 — a failing port fails the translation with its own typed error; BEH-QD-264/265/266 — a defecting port fails typed, translation stops where the evaluator stops, a refusal depends on the tree alone; BEH-QD-127 — points at INV-QD-058 for faulty ports (CCR-QD-153, ADR-QD-077)<br>1.2 (2026-09-08): BEH-QD-123 — add missing `HasCustom`/`HasSignature` rows to the translation-subset table (CCR-QD-130)<br>1.1 (2026-08-25): BEH-QD-121 — a companion package may compile the predicate (ADR-QD-054, CCR-QD-079)<br>1.0 (2026-07-26): Initial release (CCR-QD-020) |
+> | Change History | 1.7 (2026-11-18): BEH-QD-602, BEH-QD-603 added: the reference interpreter's column read; agreement on prototype-named keys (ARCH-100, CCR-QD-444)<br>1.6 (2026-10-05): BEH-QD-122 — a `Compare`/`MemberOf` leaf is `Compare.ts`'s verdict, the function `judgeMatcher` applies (ADR-QD-091, CCR-QD-173); BEH-QD-127 — the generated rows include non-finite values, where `toPredicate` failed open until CCR-QD-172<br>1.5 (2026-10-04): BEH-QD-121/122 cross-reference BEH-QD-271 — core still emits no dialect, but now says what is renderable (`toRenderable`) (ADR-QD-079, CCR-QD-158)<br>1.4 (2026-10-04): BEH-QD-266 — an over-deep policy is `PolicyTooDeep` before the fields refusal whatever the child order, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-10-04): BEH-QD-123 — a failing port fails the translation with its own typed error; BEH-QD-264/265/266 — a defecting port fails typed, translation stops where the evaluator stops, a refusal depends on the tree alone; BEH-QD-127 — points at INV-QD-058 for faulty ports (CCR-QD-153, ADR-QD-077)<br>1.2 (2026-09-08): BEH-QD-123 — add missing `HasCustom`/`HasSignature` rows to the translation-subset table (CCR-QD-130)<br>1.1 (2026-08-25): BEH-QD-121 — a companion package may compile the predicate (ADR-QD-054, CCR-QD-079)<br>1.0 (2026-07-26): Initial release (CCR-QD-020) |
 
 _Previous: [15 — Rule Tables](./15-rules.md)_
 
@@ -367,6 +367,37 @@ which states it and whose properties enforce it.
 It is the first test in the library comparing two independent implementations of
 the same semantics, and it is the only evidence that would make a second
 interpreter trustworthy rather than merely plausible.
+
+## BEH-QD-602: The reference interpreter reads a column as an own property
+
+> **Invariant:** [INV-QD-351](../invariants.md#inv-qd-351-every-interpreter-and-both-fixture-builders-read-a-decoded-key-only-through-operandts), [INV-QD-352](../invariants.md#inv-qd-352-an-inherited-member-reads-as-absent)
+> **See:** [ADR-QD-166](../decisions/166-one-module-owns-the-value-a-leaf-compares.md)
+
+`evaluatePredicate` reads a row's cell for a `Compare` or `MemberOf` leaf through `Operand.ts`, as
+`judgeMatcher` reads a value for the matcher the leaf came from. A row that is a class instance has prototype
+getters, and those read as absent here exactly as they do in `evaluate`.
+
+```
+REQUIREMENT: `evaluatePredicate`'s `Compare` and `MemberOf` MUST read `row[column]`
+             only when the row owns the column, and `undefined` otherwise.
+```
+
+## BEH-QD-603: The two interpreters agree on prototype-named keys
+
+> **Invariant:** [INV-QD-018](../invariants.md#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows), [INV-QD-091](../invariants.md#inv-qd-091-a-primitive-matcher-and-its-predicate-leaf-are-one-function)
+> **See:** [ADR-QD-166](../decisions/166-one-module-owns-the-value-a-leaf-compares.md)
+
+[BEH-QD-127](#beh-qd-127-the-two-interpreters-agree)'s "every translatable policy and row" includes columns,
+attributes, paths and fields named `constructor`, `toString`, `__proto__`, `hasOwnProperty` and `valueOf`, on rows
+that lack them and on rows that own them (a `JSON.parse`d row owns `__proto__` as data). Until ARCH-100 the property
+did not generate such a name, and `hasResourceAttribute("constructor", neq(literal("x")))` on `{ id: "r1" }` was denied
+by `evaluate` and admitted by the reference interpreter.
+
+```
+REQUIREMENT: For every translatable policy P and row R, evaluatePredicate(toPredicate(P), R)
+             MUST equal isAllowed(evaluate(P, { resource: R })) when P's leaves name a
+             prototype-named key, whether R lacks it or owns it.
+```
 
 ## BEH-QD-128: Worked example
 
