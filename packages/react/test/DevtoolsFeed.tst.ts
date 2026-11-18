@@ -1,8 +1,8 @@
 /**
  * Pins what a host may add to the devtools feed, at the type level.
  *
- * The feed owns `layer` and `questions`; everything else in `extra` is the
- * host's and keeps its type on the way through. A collision has to be a compile
+ * The feed owns `layer`, in `diagnostics`, and hands `questions` beside `gates`;
+ * everything else in `extra` is the host's and keeps its type on the way through. A collision has to be a compile
  * error rather than a quiet override, and the constraint that makes it one is a
  * self-referential mapped type, which is exactly the kind of thing a refactor
  * to something tidier would loosen without any runtime test noticing.
@@ -31,11 +31,12 @@ test("anything else in extra is allowed, including nothing", () => {
   expect(useDevtoolsFeed).type.toBeCallableWith({ collector, intervalMillis: 5 });
 });
 
-test("extra keeps its types on diagnostics, next to the two fields the feed owns", () => {
+test("extra keeps its types on diagnostics, next to the layer the feed owns", () => {
   const feed = useDevtoolsFeed({ collector });
   expect(feed.diagnostics.collector).type.toBe<{ readonly calls: number }>();
   expect(feed.diagnostics.layer).type.toBe<Layer.Layer<QadiRuntimeServices>>();
-  expect(feed.diagnostics.questions).type.toBe<() => ReadonlyArray<AskedQuestion>>();
+  expect(feed.questions).type.toBe<() => ReadonlyArray<AskedQuestion>>();
+  expect(feed.diagnostics).type.not.toHaveProperty("questions");
   expect(feed.diagnostics).type.toBeAssignableTo<DevtoolsDiagnosticsFeed>();
 });
 
