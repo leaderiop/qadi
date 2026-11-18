@@ -3,8 +3,8 @@
  * What a devtools panel reads from this provider, in one call.
  *
  * {@link useDevtoolsFeed} returns the atom-set half of a dock's wiring —
- * `gates` (the provider's effective gate registry), `onInvalidate`, and
- * `diagnostics` (`layer` and `questions`) — as a value a host spreads onto
+ * `gates` (the provider's effective gate registry), `onInvalidate`, `questions`
+ * and `diagnostics` (`layer`) — as a value a host spreads onto
  * `<DevtoolsDock {...feed} />`. {@link runtimeLayer}
  * is the headless function it is built on, for a tool that holds a registry but
  * no React tree.
@@ -68,12 +68,10 @@ export const runtimeLayer = (
     }),
   );
 
-/** The two diagnostics fields this feed owns. */
+/** The one diagnostics field this feed owns. */
 export interface DevtoolsDiagnosticsFeed {
   /** The provider's own runtime context, as a layer ({@link runtimeLayer}). */
   readonly layer: Layer.Layer<QadiRuntimeServices>;
-  /** `atoms.asked`: every question this provider's atom set has been asked. */
-  readonly questions: () => ReadonlyArray<AskedQuestion>;
 }
 
 /**
@@ -82,25 +80,34 @@ export interface DevtoolsDiagnosticsFeed {
  * `gates` is the provider's effective registry: its `gates` prop if given, else
  * `atoms.gates`. The dock subscribes to it in its own scope, so the host no
  * longer re-renders on every guard change (ADR-QD-162). With `instrument` off the
- * registry lists nothing. `diagnostics` is the caller's `Extra` plus the two
- * fields the feed owns.
+ * registry lists nothing. `questions` is `atoms.asked`, beside `gates` because the
+ * dock reads it on its own cadence and not in its diagnostics poll (ADR-QD-169).
+ * `diagnostics` is the caller's `Extra` plus the `layer` the feed owns.
  */
 export interface DevtoolsFeed<Extra> {
   readonly gates: GateRegistry;
   readonly onInvalidate: () => void;
+  /** `atoms.asked`: every question this provider's atom set has been asked; the dock reads it on its own cadence. */
+  readonly questions: () => ReadonlyArray<AskedQuestion>;
   readonly diagnostics: Extra & DevtoolsDiagnosticsFeed;
 }
 
-/** The keys of `diagnostics` the feed owns, which `extra` may therefore not set. */
-type FeedOwnedKey = keyof DevtoolsDiagnosticsFeed;
+/**
+ * The keys `extra` may not set: `layer`, which the feed owns in `diagnostics`, and
+ * `questions`, which it hands at the top level, where a copy in `extra` would
+ * sit unread by the dock.
+ */
+type FeedOwnedKey = "layer" | "questions";
 
 /**
  * Everything a devtools dock needs from this provider's atom set, in one hook.
  *
  * `extra` carries the host's own diagnostics fields — a `collector`, an
  * `intervalMillis` — and comes back unchanged on `diagnostics`, with the feed's
- * `layer` and `questions` added. Setting either of those in `extra` is a compile
- * error, so a merge cannot silently override the feed. Pass `{}` for none.
+ * `layer` added. `questions` is a field of its own, because the dock reads it
+ * beside the gates and not in its poll (ADR-QD-169). Setting `layer` or
+ * `questions` in `extra` is a compile error, so a merge cannot silently override
+ * the feed. Pass `{}` for none.
  *
  * Hold `extra` at module scope: `useDiagnostics` keys its run on field
  * identity, and the returned `diagnostics` is memoised on `extra`, so a fresh
@@ -120,9 +127,6 @@ export const useDevtoolsFeed = <
   const onInvalidate = useInvalidate();
   const layer = useMemo(() => runtimeLayer(atoms, registry), [atoms, registry]);
   const questions = atoms.asked;
-  const diagnostics = useMemo(
-    () => ({ ...extra, layer, questions }),
-    [extra, layer, questions],
-  );
-  return { gates, onInvalidate, diagnostics };
+  const diagnostics = useMemo(() => ({ ...extra, layer }), [extra, layer]);
+  return { gates, onInvalidate, questions, diagnostics };
 };
