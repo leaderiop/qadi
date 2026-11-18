@@ -59,7 +59,7 @@ created: "2026-11-18"
 
 | Risk | Rationale | Owner / Review |
 |------|-----------|----------------|
-| D-10 comparer credits static-ignored mutants (0c917fdf) | `LeafNeeds.ts` gained 26 detected mutants vs 28 that left `Walk.ts`; the gap is Stryker's `ignoreStatic` reclassifying mutants in module-scope tables. An evidence-only run (`ignoreStatic: false`, same mutate list, config untouched) killed all 72 after-run ignored mutants (23/23, 22/22, 27/27). The credit is granted only when that evidence matches every ignored mutant. Recorded in 54-05-SUMMARY, ADR-QD-167 and CCR-QD-445 | Orchestrator-authorised; open to user review |
+| D-10 comparer credits static-ignored mutants (0c917fdf) | `LeafNeeds.ts` gained 26 detected mutants vs 28 that left `Walk.ts`; the gap is Stryker's `ignoreStatic` reclassifying mutants in module-scope tables. An evidence-only run (`ignoreStatic: false`, same mutate list, config untouched) killed all 72 after-run ignored mutants (23/23, 22/22, 27/27). The credit is granted only when that evidence matches every ignored mutant. Recorded in 54-05-SUMMARY, ADR-QD-167 and CCR-QD-445 | Orchestrator-authorised; accepted by the project owner 2026-11-18 (54-UAT.md) |
 
 ---
 

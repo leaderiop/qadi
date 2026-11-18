@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-167                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-18                                     |
 > | Status         | Accepted — extends ADR-QD-163; keeps ADR-QD-020, ADR-QD-024 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-18): Initial release (ARCH-101, CCR-QD-445) |
+> | Change History | 1.1 (2026-11-18): Static-ignored credit (D-10 refinement) accepted by the project owner at human verification (CCR-QD-445)<br>1.0 (2026-11-18): Initial release (ARCH-101, CCR-QD-445) |
 
 ---
 
@@ -93,10 +93,10 @@ D-10's comparison held: `node 54-mutation.mjs compare 54-mutation-static.json` p
 (`gained 26 + static 27 = 53 >= left 28`). It held under the refinement the next section records, not under the rule as
 first committed.
 
-### The static-ignored credit (orchestrator-authorised refinement of D-10)
+### The static-ignored credit (refinement of D-10, accepted)
 
-This section records a ruling made during execution, as an orchestrator-authorised refinement of D-10. It is open to the
-user's review and can be overturned; it is not a re-baseline.
+This section records a ruling made during execution as an orchestrator-authorised refinement of D-10. The project owner
+reviewed and accepted it on 2026-11-18 at the phase's human verification; it is not a re-baseline.
 
 D-10 reads: a touched file whose score drops passes only when its survivor set is unchanged and the drop is exactly the
 killed mutants that moved into `LeafNeeds.ts`, where they are still killed. Applied as written, the first `compare` failed:
