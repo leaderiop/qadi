@@ -199,6 +199,8 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
     return {
       questions: reading.questions,
       ...readGates(),
+      // The diagnostics poll still owns the thunk in this commit, so no thunk failure reaches the model.
+      questionsFailed: undefined,
       unsampled: reading.questions === undefined && isUnsampled(status),
     };
   };
