@@ -10,8 +10,8 @@
 
 ### One module owns "the value a leaf compares" (Phase 53, ARCH-100, core; live defect)
 
-- [ ] **OPND-01**: A regression test written on the phase base is RED: for `hasResourceAttribute("constructor", neq(literal("x")))` on `{ id: "r1" }`, `evaluate` denies but `evaluatePredicate(toPredicate(…))` allows. It is GREEN after the change.
-- [ ] **OPND-02**: One package-private module, beside `Compare.ts`, owns reading the value a leaf compares: a single-key cell read and a dot-path read, both own-property only.
+- [x] **OPND-01**: A regression test written on the phase base is RED: for `hasResourceAttribute("constructor", neq(literal("x")))` on `{ id: "r1" }`, `evaluate` denies but `evaluatePredicate(toPredicate(…))` allows. It is GREEN after the change.
+- [x] **OPND-02**: One package-private module, beside `Compare.ts`, owns reading the value a leaf compares: a single-key cell read and a dot-path read, both own-property only.
 - [ ] **OPND-03**: Every interpreter reads leaf values only through that module: the walk, the port attribute read, matcher refs (`getByPath`), FieldMatch, `evaluatePredicate`, field projection and `Decision.ts`. No other `Object.hasOwn` key read on a decoded key remains in those files, and the "mirroring" comments are gone.
 - [ ] **OPND-04**: An agreement property over keys that include prototype names (`constructor`, `toString`, `__proto__`, `hasOwnProperty`, `valueOf`) shows `evaluate` ≡ `evaluatePredicate ∘ toPredicate`. The predicate-sql and predicate-prisma engine-agreement suites stay green.
 - [ ] **OPND-05**: ADR-QD-166 extends ADR-091 and ADR-024. INV-QD-091 is restated to cover the operand read.
@@ -111,8 +111,8 @@ The seven WX rows apply to every phase 53 to 61, so each phase's Requirements li
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OPND-01 | Phase 53 | Pending |
-| OPND-02 | Phase 53 | Pending |
+| OPND-01 | Phase 53 | Complete |
+| OPND-02 | Phase 53 | Complete |
 | OPND-03 | Phase 53 | Pending |
 | OPND-04 | Phase 53 | Pending |
 | OPND-05 | Phase 53 | Pending |
