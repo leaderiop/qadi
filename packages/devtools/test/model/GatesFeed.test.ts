@@ -9,11 +9,13 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
 import * as Scope from "effect/Scope";
 import * as TestClock from "effect/testing/TestClock";
+import * as FastCheck from "fast-check";
 import { hasPermission, hasRole, permission } from "@qadi/core";
-import type { Policy } from "@qadi/core";
+import type { Policy, Resource } from "@qadi/core";
 import type { AskedQuestionLike, GateInstanceLike } from "../../src/model/Gates.ts";
 import { AskedRead, RegistryRead, makeGatesFeed } from "../../src/model/GatesFeed.ts";
 import type { GatesFeed, GatesSnapshot } from "../../src/model/GatesFeed.ts";
@@ -22,7 +24,11 @@ import { readPolicy, settleTurns } from "../helpers.ts";
 
 const writePolicy: Policy = hasPermission(permission("doc", "write"));
 
-const guard = (id: string, policy: Policy): GateInstanceLike => ({ id, kind: "Can", policy, state: "Allowed" });
+const guard = (
+  id: string,
+  policy: Policy,
+  fields?: { readonly state?: string; readonly resource?: Resource | undefined },
+): GateInstanceLike => ({ id, kind: "Can", policy, state: fields?.state ?? "Allowed", resource: fields?.resource });
 
 /** Settles every fiber, steps the clock one default interval, settles again. */
 const tick = Effect.gen(function* () {
@@ -717,5 +723,117 @@ describe("the gates feed", () => {
       assert.strictEqual(published.length, 2);
       assert.strictEqual(instancesOf(feed), a.registry.instances());
       assert.strictEqual(questionsOf(feed)?.length, 2);
+    }));
+
+  type Command =
+    | { readonly kind: "add"; readonly id: number; readonly policy: number; readonly resource: number; readonly state: number }
+    | { readonly kind: "remove"; readonly id: number }
+    | { readonly kind: "update"; readonly id: number; readonly state: number }
+    | { readonly kind: "ask"; readonly questions: ReadonlyArray<number> }
+    | { readonly kind: "tick" };
+
+  const policies: ReadonlyArray<Policy> = [readPolicy, writePolicy, hasRole("admin")];
+  // One state outside the vocabulary, so the unknown path runs through the join.
+  const states: ReadonlyArray<string> = ["Allowed", "Denied", "Failed", "Pending", "Rechecking", "Suspended"];
+  const GUARDS = 4;
+  const RESOURCES = 3;
+
+  const nth = <A>(pool: ReadonlyArray<A>, index: number): A => {
+    const one = pool[index];
+    if (one === undefined) throw new Error(`no pool entry ${index}`);
+    return one;
+  };
+  const resourceOf = (index: number): Resource | undefined => (index === 0 ? undefined : { id: `r${index}` });
+  const questionOf = (index: number): AskedQuestionLike => ({
+    policy: nth(policies, index % policies.length),
+    resource: resourceOf(Math.floor(index / policies.length)),
+  });
+
+  const pick = (size: number) => FastCheck.integer({ min: 0, max: size - 1 });
+  const commands = FastCheck.oneof(
+    FastCheck.record({
+      id: pick(GUARDS),
+      policy: pick(policies.length),
+      resource: pick(RESOURCES),
+      state: pick(states.length),
+    }).map((fields): Command => ({ kind: "add", ...fields })),
+    pick(GUARDS).map((id): Command => ({ kind: "remove", id })),
+    FastCheck.record({ id: pick(GUARDS), state: pick(states.length) }).map(
+      (fields): Command => ({ kind: "update", ...fields }),
+    ),
+    FastCheck.array(pick(policies.length * RESOURCES), { maxLength: 3 }).map(
+      (questions): Command => ({ kind: "ask", questions }),
+    ),
+    FastCheck.constant<Command>({ kind: "tick" }),
+  );
+
+  it.effect("GP2 (twin of P2): whatever the registry and the thunk do, each snapshot is the registry's own array and the last tick's answer", () =>
+    Effect.gen(function* () {
+      const sequences = FastCheck.sample(FastCheck.array(commands, { maxLength: 25 }), { numRuns: 60, seed: 56 });
+
+      for (const sequence of sequences) {
+        const where = JSON.stringify(sequence);
+        let asked: ReadonlyArray<AskedQuestionLike> = [];
+        // What the thunk answered at the last tick: the build reads it once, and only a tick reads it again.
+        let lastTick: ReadonlyArray<AskedQuestionLike> = [];
+        const double = makeGateRegistryDouble();
+        const scope = yield* Scope.make();
+        const feed = yield* Scope.provide(makeGatesFeed({ gates: double.registry, questions: () => asked }), scope);
+
+        /** What is wrong with the snapshot now, read against both sources at this very moment. */
+        const disagreements = (moment: string): ReadonlyArray<string> => {
+          const { registry, asked: read } = feed.getSnapshot();
+          const problems: Array<string> = [];
+          if (!RegistryRead.$is("Read")(registry)) problems.push(`${moment}: registry is ${registry._tag}, wanted Read`);
+          else if (registry.instances !== double.registry.instances())
+            problems.push(`${moment}: instances is not the registry's own array`);
+          if (!AskedRead.$is("Read")(read)) problems.push(`${moment}: asked is ${read._tag}, wanted Read`);
+          else if (!Equal.equals(read.questions, lastTick))
+            problems.push(`${moment}: asked ${JSON.stringify(read.questions)}, last tick ${JSON.stringify(lastTick)}`);
+          return problems;
+        };
+
+        const heard: Array<string> = [];
+        feed.subscribe(() => {
+          heard.push(...disagreements("on notify"));
+        });
+        const agrees = (moment: string) => {
+          assert.deepStrictEqual(disagreements(moment), [], where);
+          assert.deepStrictEqual(heard, [], where);
+        };
+
+        yield* settleTurns;
+        agrees("start");
+        for (const command of sequence) {
+          const before = feed.getSnapshot();
+          if (command.kind === "add") {
+            double.add(
+              guard(`g${command.id}`, nth(policies, command.policy), {
+                state: nth(states, command.state),
+                resource: resourceOf(command.resource),
+              }),
+            );
+            yield* settleTurns;
+          } else if (command.kind === "remove") {
+            double.remove(`g${command.id}`);
+            yield* settleTurns;
+          } else if (command.kind === "update") {
+            double.update(`g${command.id}`, nth(states, command.state));
+            yield* settleTurns;
+          } else if (command.kind === "ask") {
+            // The tick reads the answer and notifies from inside it, so the oracle moves first.
+            asked = command.questions.map(questionOf);
+            lastTick = asked;
+            yield* tick;
+          } else {
+            yield* tick;
+            assert.strictEqual(feed.getSnapshot(), before, `a tick that changed nothing keeps the reference: ${where}`);
+          }
+          agrees(command.kind);
+        }
+
+        yield* Scope.close(scope, Exit.void);
+        assert.strictEqual(double.listeners(), 0, `closing the scope released the registry subscription: ${where}`);
+      }
     }));
 });
