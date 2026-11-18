@@ -392,7 +392,7 @@ Order: the defect first (53), then the "stated once" deepenings (54-58), then th
 
 - [x] **Phase 53: One module owns "the value a leaf compares"** - One own-property-only operand read for every interpreter; `evaluatePredicate` can no longer allow a row `evaluate` denies (ARCH-100, core; live defect) (completed 2026-11-18)
 - [x] **Phase 54: LeafNeeds turns every leaf's answer into a verdict** - The acted leaf's polarity map and verdict rule, and every other leaf's answer-to-verdict step, written once and read by `Walk` and `toPredicate` (ARCH-101, core) (completed 2026-11-18)
-- [ ] **Phase 55: A port card is a model row, not a view join** - One pure model function returns a row per `PortName`; `ServicesPanel` renders rows only (ARCH-102, devtools)
+- [x] **Phase 55: A port card is a model row, not a view join** - One pure model function returns a row per `PortName`; `ServicesPanel` renders rows only (ARCH-102, devtools) (completed 2026-11-18)
 - [ ] **Phase 56: The gate-registry watch becomes the dock model's third feed** - Opens on a user decision; one scoped feed module owns the watch and `DockModel` composes three feeds (ARCH-103, devtools)
 - [ ] **Phase 57: untrustedDecoder states the envelope's unknown-key policy** - Opens on a user decision; one stated option (refuse | ignore without walking) for both `SinkCodec` envelopes and the audit and hydration seams (ARCH-104, core, audit, react)
 - [ ] **Phase 58: A stored record is its envelope in memory too** - The in-memory stored record is the producer's `environment` next to a `SinkRecord`; two classes and two stamp functions are deleted (ARCH-105, Breaking, core, http, devtools)
@@ -475,7 +475,7 @@ Plans:
 
 **Planning notes**: Re-verify the evidence against the base (`ServicesPanel.tsx`, `model/Wiring.ts`, `model/PortCalls.ts`, `model/PortReading.ts`). Plan shape, RED first: the mutation base and the byte-identical characterisation first; then the model function and its tests; then the panel reads it; then records.
 **UI hint**: yes
-**Plans**: 9/9 plans executed
+**Plans**: 9/9 plans complete
 
 Plans:
 - [x] 55-01 (W1): base facts, reserved ids and API surface base; mutation baseline for DockModel and Wiring, the phase's first commit
@@ -611,7 +611,7 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 |-------|----------------|--------|-----------|
 | 53. One module owns "the value a leaf compares" | 8/8 | Complete    | 2026-11-18 |
 | 54. LeafNeeds turns every leaf's answer into a verdict | 8/8 | Complete    | 2026-11-18 |
-| 55. A port card is a model row, not a view join | 9/9 | In Progress | - |
+| 55. A port card is a model row, not a view join | 9/9 | Complete    | 2026-11-18 |
 | 56. The gate-registry watch becomes the dock model's third feed | 0/TBD | Not started | - |
 | 57. untrustedDecoder states the envelope's unknown-key policy | 0/TBD | Not started | - |
 | 58. A stored record is its envelope in memory too | 0/TBD | Not started | - |
