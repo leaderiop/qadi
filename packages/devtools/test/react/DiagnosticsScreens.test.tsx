@@ -15,6 +15,8 @@ import { WiringRead, type DiagnosticsReading } from "../../src/model/Diagnostics
 import type { DiagnosticsDockOptions } from "../../src/model/DiagnosticsFeed.ts";
 import type { PortActivity, WiringReport } from "../../src/model/Wiring.ts";
 import { DevtoolsDock } from "../../src/react/DevtoolsDock.tsx";
+import { makeCollectorDouble } from "../collectorDouble.ts";
+import { questionsProp } from "./questionsProp.ts";
 
 const counting = (build: Effect.Effect<void>) => {
   const counts = { builds: 0, releases: 0 };
@@ -63,16 +65,12 @@ const assertOnlyEmptyRegion = (container: HTMLElement) => {
   assert.strictEqual(found[0]?.textContent, "");
 };
 
-/** A question source that throws on its first call and answers nothing after. */
-const throwsFirst = () => {
-  const state = { calls: 0 };
-  const questions = (): ReadonlyArray<never> => {
-    state.calls += 1;
-    if (state.calls === 1) throw new Error("questions blew up");
-    return [];
-  };
-  return { state, questions };
-};
+/** A collector that throws on its first call and answers an empty log after. */
+const throwsFirst = () =>
+  makeCollectorDouble((call) => {
+    if (call === 1) throw new Error("the collector blew up");
+    return { calls: [], dropped: 0, capacity: 10 };
+  });
 
 const activityOf = (calls: number): ReadonlyArray<PortActivity> => [
   { port: "AttributeResolver", calls, retries: 0, timeouts: 0, translationCalls: 0 },
@@ -177,8 +175,8 @@ describe("the dock's diagnostics screens", () => {
   });
 
   it("D4 a stopped poll is stated on Services with its reason, and a restart brings the screen back", async () => {
-    const { questions } = throwsFirst();
-    const held: DiagnosticsDockOptions = { questions };
+    const { collector } = throwsFirst();
+    const held: DiagnosticsDockOptions = { collector };
     render(<DevtoolsDock diagnostics={held} />);
     services();
 
@@ -192,7 +190,7 @@ describe("the dock's diagnostics screens", () => {
     assert.strictEqual(notice.getAttribute("data-sampled"), "false");
     assert.strictEqual(notice.getAttribute("data-announce"), "alert");
     assert.strictEqual(notice.getAttribute("role"), "alert");
-    assert.include(screen.getByTestId("qadi-diagnostics-reason").textContent ?? "", "questions blew up");
+    assert.include(screen.getByTestId("qadi-diagnostics-reason").textContent ?? "", "the collector blew up");
     assert.isNull(screen.queryByTestId("qadi-wiring-absent"));
 
     act(() => {
@@ -212,8 +210,8 @@ describe("the dock's diagnostics screens", () => {
   });
 
   it("D5 on the React tab a poll stopped before any sample states the stop and withholds the not-handed copy", async () => {
-    const { questions } = throwsFirst();
-    const held: DiagnosticsDockOptions = { questions };
+    const { collector } = throwsFirst();
+    const held: DiagnosticsDockOptions = { collector };
     render(<DevtoolsDock diagnostics={held} />);
     reactTab();
 
@@ -230,14 +228,12 @@ describe("the dock's diagnostics screens", () => {
   });
 
   it("D6 a poll stopped after a sample restores the messages the sample makes true", async () => {
-    let calls = 0;
-    const questions = (): ReadonlyArray<never> => {
-      calls += 1;
-      if (calls > 1) throw new Error("questions blew up later");
-      return [];
-    };
-    const held: DiagnosticsDockOptions = { questions, intervalMillis: 10 };
-    render(<DevtoolsDock diagnostics={held} />);
+    const { collector } = makeCollectorDouble((call) => {
+      if (call > 1) throw new Error("the collector blew up later");
+      return { calls: [], dropped: 0, capacity: 10 };
+    });
+    const held: DiagnosticsDockOptions = { collector, intervalMillis: 10 };
+    render(<DevtoolsDock {...questionsProp({ diagnostics: held }, () => [])} />);
     services();
 
     await vi.waitFor(() => {
@@ -251,8 +247,8 @@ describe("the dock's diagnostics screens", () => {
   });
 
   it("D7 a stop is alerted on the first screen that shows it and silent on every revisit", async () => {
-    const { questions } = throwsFirst();
-    const held: DiagnosticsDockOptions = { questions };
+    const { collector } = throwsFirst();
+    const held: DiagnosticsDockOptions = { collector };
     render(<DevtoolsDock diagnostics={held} />);
     services();
     await vi.waitFor(() => {
@@ -270,8 +266,8 @@ describe("the dock's diagnostics screens", () => {
   });
 
   it("D8 a stop that happened on a screen with no notice alerts on the first visit to one", async () => {
-    const { state, questions } = throwsFirst();
-    const held: DiagnosticsDockOptions = { questions };
+    const { state, collector } = throwsFirst();
+    const held: DiagnosticsDockOptions = { collector };
     render(<DevtoolsDock diagnostics={held} />);
     await vi.waitFor(() => {
       assert.strictEqual(state.calls, 1);
@@ -321,8 +317,8 @@ describe("the dock's diagnostics screens", () => {
 
   it("D11 a rebuilt dock shows the Starting notice, not the stop it held before it was hidden", async () => {
     const { layer } = slowCounted();
-    const { questions } = throwsFirst();
-    const held: DiagnosticsDockOptions = { layer, questions };
+    const { collector } = throwsFirst();
+    const held: DiagnosticsDockOptions = { layer, collector };
     const App = ({ mode }: { readonly mode: "visible" | "hidden" }) => (
       <Activity mode={mode}>
         <DevtoolsDock diagnostics={held} />

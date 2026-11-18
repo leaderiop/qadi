@@ -43,6 +43,7 @@ import {
   attributeResolverPort,
 } from "@qadi/core";
 import type { Policy, Resource, StoredRecord } from "@qadi/core";
+import { makeCollectorDouble } from "../collectorDouble.ts";
 import { catalogueOf, policyLabel } from "../../src/model/Catalogue.ts";
 import type { Catalogue } from "../../src/model/Catalogue.ts";
 import { DiagnosticsStatus, diagnosticsOff } from "../../src/model/DiagnosticsFeed.ts";
@@ -722,17 +723,17 @@ describe("the stores never disagree about the timeline (P1, INV-QD-296)", () => 
 });
 
 describe("the diagnostics store (M18..M27)", () => {
-  it.effect("M18: a throwing questions source stops the diagnostics store visibly, keeps the last reading, and restart() resumes it", () =>
+  it.effect("M18: a throwing collector stops the diagnostics store visibly, keeps the last reading, and restart() resumes it", () =>
     Effect.gen(function* () {
       let fail = false;
-      const questions = () => {
-        if (fail) throw new Error("questions blew up");
-        return [];
-      };
-      const model = yield* makeDockModel({ diagnostics: { questions } });
+      const { collector } = makeCollectorDouble(() => {
+        if (fail) throw new Error("the collector blew up");
+        return { calls: [], dropped: 0, capacity: 10 };
+      });
+      const model = yield* makeDockModel({ diagnostics: { collector } });
       const live = model.diagnostics.getSnapshot();
       assert.isTrue(DiagnosticsStatus.$is("Live")(live.status));
-      assert.deepStrictEqual(live.reading.questions, []);
+      assert.deepStrictEqual(live.reading.portCalls, { calls: [], dropped: 0, capacity: 10 });
       const kept = live.reading;
 
       fail = true;
@@ -741,7 +742,7 @@ describe("the diagnostics store (M18..M27)", () => {
       const stopped = model.diagnostics.getSnapshot();
       if (!DiagnosticsStatus.$is("Stopped")(stopped.status)) return assert.fail("expected Stopped");
       assert.isTrue(stopped.status.sampled);
-      assert.include(stopped.status.reason, "questions blew up");
+      assert.include(stopped.status.reason, "the collector blew up");
       assert.strictEqual(stopped.reading, kept);
 
       fail = false;
@@ -927,16 +928,18 @@ describe("the diagnostics store (M18..M27)", () => {
 
   it.effect("M27: replacing a poll field and the reading together never pairs the new reading with the old run's status", () =>
     Effect.gen(function* () {
-      const model = yield* makeDockModel({ diagnostics: { questions: () => [] } });
+      const first = makeCollectorDouble().collector;
+      const answer = { calls: [], dropped: 3, capacity: 10 };
+      const second = makeCollectorDouble(() => answer).collector;
+      const model = yield* makeDockModel({ diagnostics: { collector: first } });
       const seen = recordingOf(model);
-      const answer = [{ policy: readPolicy }];
 
-      model.configure({ diagnostics: { questions: () => answer }, reading: { activity: suppliedActivity } });
+      model.configure({ diagnostics: { collector: second }, reading: { activity: suppliedActivity } });
 
       const { status, reading } = model.diagnostics.getSnapshot();
       assert.isTrue(DiagnosticsStatus.$is("Live")(status));
       assert.strictEqual(reading.activity, suppliedActivity);
-      assert.deepStrictEqual(reading.questions, answer);
+      assert.deepStrictEqual(reading.portCalls, answer);
       assert.deepStrictEqual(
         seen.map((one) => one.tag),
         ["Starting", "Live"],
@@ -1844,12 +1847,12 @@ describe("the services store", () => {
   it.effect("M54: a status change that leaves the sampled flag alone keeps the services view (Live to a Stopped that had sampled, and Off to Live)", () =>
     Effect.gen(function* () {
       let fail = false;
-      const questions = () => {
-        if (fail) throw new Error("questions blew up");
-        return [];
-      };
+      const { collector } = makeCollectorDouble(() => {
+        if (fail) throw new Error("the collector blew up");
+        return { calls: [], dropped: 0, capacity: 10 };
+      });
       const reading = { wiring: wiringNamed("one"), activity: activityOf(1), portCalls: logOf("tier") };
-      const model = yield* makeDockModel({ diagnostics: { questions }, reading });
+      const model = yield* makeDockModel({ diagnostics: { collector }, reading });
       const before = model.services.getSnapshot();
       const heard = heardOf(model);
 
