@@ -1,5 +1,5 @@
 // Phase 54's mutation evidence (D-10, WX-05): `base` and `after` write a scoped Stryker report's scores and survivors;
-// `compare` applies D-10 (Phase 53's D-14 rule). Run from the repository root: node <phase dir>/54-mutation.mjs base|after|compare
+// `compare` applies D-10 (Phase 53's D-14 rule). Run from the repository root: node <phase dir>/54-mutation.mjs base|after|compare [static evidence json]
 import fs from "node:fs";
 import p from "node:path";
 import { pathToFileURL } from "node:url";
@@ -51,7 +51,7 @@ const write = async (out) => {
   for (const [k, v] of Object.entries(readJson(RP).files)) rep[p.isAbsolute(k) ? p.relative(process.cwd(), k) : k] = v;
   const keys = Object.keys(rep).sort().join(",");
   if (keys !== FILES.join(",")) bad.push(RP + " holds " + keys + ", not exactly " + FILES.join(","));
-  const o = { counts: {}, measured: {}, survivors: {} };
+  const o = { counts: {}, measured: {}, survivors: {}, ignored: {} };
   for (const f of FILES) {
     const v = rep[f];
     if (!v) {
@@ -65,6 +65,9 @@ const write = async (out) => {
     o.measured[f] = n ? det(o.counts[f]) / n : 1;
     const sv = v.mutants.filter((m) => m.status === "Survived" || m.status === "NoCoverage");
     o.survivors[f] = sv.map((m) => idOf(v.source, m)).sort();
+    o.ignored[f] = v.mutants
+      .filter((m) => m.status === "Ignored")
+      .map((m) => ({ mutator: m.mutatorName, line: m.location.start.line, column: m.location.start.column, replacement: m.replacement }));
     console.log(f + " " + o.measured[f] + " (" + det(o.counts[f]) + "/" + n + ") ignored " + c("Ignored"));
     for (const m of sv) console.log("  survivor " + f + ":" + m.location.start.line + ":" + m.location.start.column + " " + idOf(v.source, m).slice(0, 160));
   }
@@ -108,7 +111,33 @@ const compare = () => {
   }
   const gained = det(a.counts[LN]) - det(b.counts[LN]);
   console.log(LN + " detects " + det(b.counts[LN]) + " -> " + det(a.counts[LN]) + " (+" + gained + "); detected mutants that left the fallen files: " + left);
-  if (gained < left) bad.push(LN + " gained " + gained + " detected mutants, fewer than the " + left + " that left the fallen files");
+  // Added by the orchestrator's D-10 ruling (54-05): a mutant the gate run ignores as static (a module-scope table) is
+  // still a mutant the move put under test. It earns credit only when an ignoreStatic:false run of the same tree, given
+  // as the explicit evidence path, killed every ignored mutant of the three files, matched on mutator, line, column
+  // and replacement. Without the path, or with one unmatched mutant, no credit is granted.
+  let credit = 0;
+  const evidence = process.argv[3];
+  if (evidence) {
+    const ev = readJson(evidence);
+    const key = (m) => [m.mutator, m.line, m.column, m.replacement].join("|");
+    const unmatched = [];
+    let proven = 0;
+    for (const f of FILES) {
+      const killed = new Set((ev[f] || []).filter((m) => m.status === "Killed").map(key));
+      for (const m of a.ignored?.[f] || []) {
+        if (killed.has(key(m))) proven++;
+        else unmatched.push(f + ":" + m.line + ":" + m.column + " " + m.mutator + " -> " + m.replacement);
+      }
+    }
+    const total = (x) => FILES.reduce((n, f) => n + x.counts[f].ignored, 0);
+    if (unmatched.length) bad.push("no static credit, " + unmatched.length + " ignored mutants not Killed in " + evidence + ":\n  " + unmatched.join("\n  "));
+    else if (proven !== total(a)) bad.push("no static credit: the after report lists " + proven + " ignored mutants, its counts say " + total(a));
+    else {
+      credit = total(a) - total(b);
+      console.log("static " + credit + " (ignored " + total(b) + " -> " + total(a) + " in the three files); all " + proven + " after-run ignored mutants are Killed in " + evidence);
+    }
+  }
+  if (gained + credit < left) bad.push(LN + " gained " + gained + " detected mutants (+" + credit + " static), fewer than the " + left + " that left the fallen files");
   if (bad.length) fail(bad);
   console.log("WX-05 holds (D-10)");
 };
