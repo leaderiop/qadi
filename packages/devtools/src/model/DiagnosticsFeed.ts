@@ -1,7 +1,7 @@
 /**
  * One diagnostics poll, owned by a scope, with a closed status a panel can state.
  *
- * A sample that dies (a throwing `questions`) ends the poll fiber, and a fiber
+ * A sample that dies (a collector whose snapshot throws) ends the poll fiber, and a fiber
  * handle drops a dead fiber without a word, so the panel used to freeze on its
  * last reading with nothing said. The feed watches its own run's exit, states
  * the stop with its reason, keeps the last reading, and restarts on a changed
@@ -34,7 +34,6 @@ import {
   type DiagnosticsStore,
 } from "./DiagnosticsStore.ts";
 import { makeExternalStore } from "./ExternalStore.ts";
-import type { AskedQuestionLike } from "./Gates.ts";
 import type { PortCallCollector } from "./PortCalls.ts";
 import { makeSupersedingRun } from "./SupersedingRun.ts";
 
@@ -71,8 +70,9 @@ export interface DiagnosticsSnapshot {
  * What a host hands over to have its diagnostics sampled: things it already
  * owns, and no Effects.
  *
- * Gates are not here. They are the dock model's own input (`DockModelInputs.gates`),
- * a registry the model subscribes to (ADR-QD-162).
+ * Gates and questions are not here. They are the dock model's own inputs
+ * (`DockModelInputs.gates` and `DockModelInputs.questions`), read by the gates feed
+ * (ADR-QD-162, ADR-QD-169).
  */
 export interface DiagnosticsDockOptions {
   /**
@@ -91,8 +91,6 @@ export interface DiagnosticsDockOptions {
   readonly layer?: Layer.Layer<never, unknown>;
   /** The collector whose `layer` is wired where evaluations run, for the recent port calls. */
   readonly collector?: PortCallCollector;
-  /** Where the questions asked so far come from, usually `() => atoms.asked()`. */
-  readonly questions?: () => ReadonlyArray<AskedQuestionLike>;
   /** How often to sample, in milliseconds. Defaults to `DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS`. */
   readonly intervalMillis?: number;
 }
@@ -180,7 +178,6 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
   const runOptions = (next: DiagnosticsDockOptions) => ({
     ...(next.layer === undefined ? {} : { layer: next.layer }),
     ...(next.collector === undefined ? {} : { collector: next.collector }),
-    ...(next.questions === undefined ? {} : { questions: next.questions }),
     schedule: Schedule.spaced(next.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS),
   });
 
@@ -227,7 +224,6 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
       before === undefined ||
       next.layer !== before.layer ||
       next.collector !== before.collector ||
-      next.questions !== before.questions ||
       next.intervalMillis !== before.intervalMillis
     ) {
       start(next);

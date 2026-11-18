@@ -25,9 +25,9 @@ export type { DiagnosticsDockOptions } from "../model/DiagnosticsFeed.ts";
  * that sampled by default would give every mounted dock a fiber it never asked
  * for. `{}` is the one-token opt-in for the metric reads.
  *
- * **The run restarts when one of the four fields changes identity, never when
- * the `options` object does**, so an inline literal does not tear the layer
- * down on every render. Hold the fields at module scope, or in a `useMemo`, as
+ * **The run restarts when one of the three fields (`layer`, `collector`,
+ * `intervalMillis`) changes identity, never when the `options` object does**, so
+ * an inline literal does not tear the layer down on every render. Hold the fields at module scope, or in a `useMemo`, as
  * `useTimeline` asks of a source.
  *
  * The status is `Off` with no options, `Starting` until the first sample (also on

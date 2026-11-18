@@ -24,7 +24,6 @@ import {
   type DiagnosticsReadout,
 } from "../../src/model/DiagnosticsFeed.ts";
 import { noDiagnostics } from "../../src/model/DiagnosticsStore.ts";
-import type { AskedQuestionLike } from "../../src/model/Gates.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
 import { makeCollectorDouble } from "../collectorDouble.ts";
 import { settleTurns } from "../helpers.ts";
@@ -65,16 +64,6 @@ const slowLayer = () => {
     ),
   );
   return { counts, layer };
-};
-
-/** A question source that counts its calls and answers by call number: F13 still hands one, and F2 reads none. */
-const source = (script: (call: number) => ReadonlyArray<AskedQuestionLike>) => {
-  const state = { calls: 0 };
-  const questions = () => {
-    state.calls += 1;
-    return script(state.calls);
-  };
-  return { state, questions };
 };
 
 /** A log that has dropped `n` calls, so two of them differ when `n` does. */
@@ -302,16 +291,14 @@ describe("the diagnostics feed", () => {
     }),
   );
 
-  it.effect("F13 a changed layer, collector, questions or intervalMillis each restarts exactly once", () =>
+  it.effect("F13 a changed layer, collector or intervalMillis each restarts exactly once", () =>
     Effect.gen(function* () {
       const layer = counted().layer;
       const collector = collectorOf();
-      const questions = source(() => []).questions;
-      const base: DiagnosticsDockOptions = { layer, collector, questions, intervalMillis: 5_000 };
+      const base: DiagnosticsDockOptions = { layer, collector, intervalMillis: 5_000 };
       const changes: ReadonlyArray<readonly [string, DiagnosticsDockOptions]> = [
         ["layer", { ...base, layer: counted().layer }],
         ["collector", { ...base, collector: collectorOf() }],
-        ["questions", { ...base, questions: source(() => []).questions }],
         ["intervalMillis", { ...base, intervalMillis: 5_001 }],
       ];
       for (const [field, changed] of changes) {

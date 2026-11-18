@@ -74,7 +74,10 @@ export interface Diagnostics {
   readonly hydration: HydrationActivity | undefined;
   /** `undefined` when no collector was handed over. */
   readonly portCalls: PortCallLog | undefined;
-  /** `undefined` when no question source was handed over. */
+  /**
+   * `undefined` unless a supplied reading carries questions: the poll samples none, since the
+   * gates feed reads the questions thunk (ADR-QD-169).
+   */
   readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
 }
 
@@ -191,13 +194,6 @@ export interface DiagnosticsOptions<ROut = never, E = never> {
   readonly layer?: Layer.Layer<ROut, E>;
   /** The collector whose `layer` is wired where evaluations run. Absent: no calls are read. */
   readonly collector?: PortCallCollector;
-  /**
-   * Where the questions asked so far come from, usually `() => atoms.asked()`.
-   *
-   * A plain function, so a host needs no dependency on `@qadi/react` to pass it,
-   * and anything that can list its questions can satisfy it.
-   */
-  readonly questions?: () => ReadonlyArray<AskedQuestionLike>;
   /** The cadence. Defaults to `Schedule.spaced(DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS)`. */
   readonly schedule?: Schedule.Schedule<unknown>;
 }
@@ -208,8 +204,8 @@ export interface DiagnosticsOptions<ROut = never, E = never> {
  * Reads once at the start and then once per schedule step. The error channel is
  * `never`: a layer that fails to build is reported as `WiringRead.Failed` while
  * the other reads carry on, because a run that died would leave every panel
- * blank. A defect in a sample, such as a throwing `questions`, ends the run as
- * it ends `runSource`.
+ * blank. A defect in a sample, such as a collector whose snapshot throws, ends the
+ * run as it ends `runSource`.
  */
 export const runDiagnostics = Effect.fn("qadi.devtools.runDiagnostics")(function* <
   ROut = never,
@@ -220,17 +216,12 @@ export const runDiagnostics = Effect.fn("qadi.devtools.runDiagnostics")(function
       const wiring: Effect.Effect<WiringRead> = yield* wiringReader(options?.layer);
       const portCalls: Effect.Effect<PortCallLog | undefined> =
         options?.collector === undefined ? Effect.undefined : options.collector.snapshot;
-      const questionsThunk = options?.questions;
-      const questions: Effect.Effect<ReadonlyArray<AskedQuestionLike> | undefined> =
-        questionsThunk === undefined ? Effect.undefined : Effect.sync(questionsThunk);
-
       const sample = Effect.all({
         wiring,
         activity: portActivity,
         hydration: hydrationActivity,
         portCalls,
-        questions,
-      }).pipe(Effect.tap((reading) => Effect.sync(() => store.accept(reading))));
+      }).pipe(Effect.tap((reading) => Effect.sync(() => store.accept({ ...reading, questions: undefined }))));
 
       yield* Effect.repeat(
         sample,

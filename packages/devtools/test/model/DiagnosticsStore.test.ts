@@ -15,7 +15,6 @@ import {
   AttributeResolver,
   decisionCacheLayer,
   hasRole,
-  type Policy,
 } from "@qadi/core";
 import {
   DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS,
@@ -267,33 +266,6 @@ describe("runDiagnostics", () => {
           : undefined;
       assert.strictEqual(row?.name, "my-resolver");
       assert.strictEqual(row?.present, true);
-      yield* Fiber.interrupt(fiber);
-    }),
-  );
-
-  it.effect("questions are re-read every tick and keep their identity while equal", () =>
-    Effect.gen(function* () {
-      const asked: Array<{ readonly policy: Policy }> = [];
-      const store = makeDiagnosticsStore();
-      const fiber = yield* start(store, {
-        // A fresh array of fresh, structurally built policies on every read,
-        // the way `atoms.asked()` answers.
-        questions: () => asked.map((question) => ({ policy: question.policy })),
-      });
-      const first = store.getSnapshot().questions;
-      assert.deepStrictEqual(first, []);
-      yield* TestClock.adjust("2 seconds");
-      assert.strictEqual(store.getSnapshot().questions, first);
-
-      asked.push({ policy: hasRole("Editor") });
-      yield* TestClock.adjust("2 seconds");
-      const second = store.getSnapshot().questions;
-      assert.notStrictEqual(second, first);
-      assert.strictEqual(second?.length, 1);
-
-      asked[0] = { policy: hasRole("Editor") };
-      yield* TestClock.adjust("2 seconds");
-      assert.strictEqual(store.getSnapshot().questions, second);
       yield* Fiber.interrupt(fiber);
     }),
   );

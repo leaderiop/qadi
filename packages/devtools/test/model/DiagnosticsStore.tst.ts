@@ -13,6 +13,7 @@ import {
   type DiagnosticsStore,
   type WiringRead,
 } from "../../src/model/DiagnosticsStore.ts";
+import type { DiagnosticsDockOptions } from "../../src/model/DiagnosticsFeed.ts";
 import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import type { WiringReport } from "../../src/model/Wiring.ts";
 
@@ -32,6 +33,11 @@ test("a layer's typed failure is not the run's failure", () => {
 
 test("a run with no options has nothing to fail with either", () => {
   expect(runDiagnostics(store)).type.toBe<Effect.Effect<void, never, never>>();
+});
+
+test("the poll takes no questions thunk: the gates feed reads it", () => {
+  expect(runDiagnostics).type.not.toBeCallableWith(store, { questions: () => [] });
+  expect<DiagnosticsDockOptions>().type.not.toHaveProperty("questions");
 });
 
 test("WiringRead narrows by its tag", () => {
