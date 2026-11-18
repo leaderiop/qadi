@@ -4203,21 +4203,23 @@ describe("nesting depth is a property of the policy (ARCH-02 D-02-e, D-02-g)", (
 
 /**
  * A ref path reads own keys only: a name the prototype chain supplies is
- * absent, and an own `__proto__` from JSON.parse is a real key. Pinned before
- * the readers move to `Operand.ts` and kept through it (D-12).
+ * absent, and an own `__proto__` from JSON.parse is a real key. The inherited
+ * cases use `neq`, which an inherited function would satisfy (it differs from
+ * the id) while an absent value fails closed, so a regressed guard flips them.
+ * Pinned before the readers move to `Operand.ts` and kept through it (D-12).
  */
 describe("a ref path that names an inherited member reads as absent", () => {
   type Row = Readonly<Record<string, unknown>>;
   const cases: ReadonlyArray<readonly [string, P.Policy, Row, boolean]> = [
     [
       "resource('constructor') is inherited",
-      P.hasResourceAttribute("id", M.eq(M.resource("constructor"))),
+      P.hasResourceAttribute("id", M.neq(M.resource("constructor"))),
       { id: "r1" },
       false,
     ],
     [
       "resource('a.constructor') is inherited below an own key",
-      P.hasResourceAttribute("id", M.eq(M.resource("a.constructor"))),
+      P.hasResourceAttribute("id", M.neq(M.resource("a.constructor"))),
       { id: "r1", a: {} },
       false,
     ],
@@ -4229,7 +4231,7 @@ describe("a ref path that names an inherited member reads as absent", () => {
     ],
     [
       "subject('toString') is inherited",
-      P.hasResourceAttribute("id", M.eq(M.subject("toString"))),
+      P.hasResourceAttribute("id", M.neq(M.subject("toString"))),
       { id: "r1" },
       false,
     ],
