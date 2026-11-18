@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 56
 current_phase_name: The gate-registry watch becomes the dock model's third feed
 status: executing
-stopped_at: Completed QD-56-04-PLAN.md
-last_updated: "2026-11-18T19:53:47.785Z"
+stopped_at: Completed 56-05-PLAN.md
+last_updated: "2026-11-18T19:58:02.649Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase QD-55 complete, transitioned to Phase 56
-state_head: e5dec438033265fc82bb854c57cd6c8ef6be9f46
+state_head: 7ce2f20e1ae798f50451d769dcacac9456165484
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 38
-  completed_plans: 29
+  completed_plans: 30
   percent: 33
 ---
 
@@ -358,6 +358,7 @@ Last activity: 2026-11-18 — Phase QD-55 complete, transitioned to Phase 56
 | Phase QD-56 P02 | 3 min | 2 tasks | 2 files |
 | Phase QD-56 P03 | 6 min | 3 tasks | 7 files |
 | Phase QD-56 P04 | 6 min | 2 tasks | 3 files |
+| Phase QD-56 P05 | 3 min | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -613,6 +614,7 @@ Last activity: 2026-11-18 — Phase QD-55 complete, transitioned to Phase 56
 - [Phase QD-56]: 56-02: the questions panel's Stopped cells empty qadi-diagnostics-reason (the stack trace), not qadi-diagnostics-region, which is already empty
 - [Phase QD-56]: 56-03: Q4 of the D-03 test flips a flag after the failure shows instead of throwing on calls 1 and 2, so a 20 ms failure cannot slip between vi.waitFor ticks
 - [Phase QD-56]: 56-04: the gates feed holds its previous halves in its own snapshot and keeps a failure key only beside a Failed half, so a Read keeps its reference by array identity (registry) or Equal.equals (thunk)
+- [Phase QD-56]: 56-05: GP2's oracle moves before its tick, because the gates feed notifies from inside the tick
 
 ### Pending Todos
 
@@ -672,8 +674,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-18T19:53:47.695Z
-Stopped at: Completed QD-56-04-PLAN.md
+Last session: 2026-11-18T19:58:02.443Z
+Stopped at: Completed 56-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
