@@ -199,6 +199,9 @@ export { drawLens } from "../src/react/index.ts";
 export { makeDiagnosticsFeed } from "../src/index.ts";
 
 // @ts-expect-error no exported member
+export { makeGatesFeed } from "../src/index.ts";
+
+// @ts-expect-error no exported member
 export { makeTimelineFeed } from "../src/index.ts";
 
 // @ts-expect-error no exported member
