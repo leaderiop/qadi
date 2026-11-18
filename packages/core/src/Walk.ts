@@ -8,7 +8,6 @@
  */
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
-import * as Match from "effect/Match";
 import * as Record from "effect/Record";
 import * as Result from "effect/Result";
 import type { Concurrency } from "effect/Types";
@@ -30,7 +29,12 @@ import {
   holdsRole,
   isHeld,
 } from "./LeafNeeds.ts";
-import type { ActedOutcome, Supplied } from "./LeafNeeds.ts";
+import type {
+  ActedOutcome,
+  RelationshipOutcome,
+  SignatureOutcome,
+  Supplied,
+} from "./LeafNeeds.ts";
 import { judgeMatcher } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
@@ -210,6 +214,48 @@ const evaluateActed = (
       : deny(policy._tag, ACTED_DENIAL[outcome](subject, policy.event));
   });
 
+/**
+ * The sentence each way a relationship leaf denies, keyed by the outcome that says which.
+ *
+ * Not "has no relation" for `Unknown`: nothing confirmed one. `"Unknown"` does not
+ * mean "unwired" specifically — `RelationshipResolverNever` is the common source,
+ * but a wired resolver may answer it too (a graph store with no namespace for this
+ * relation, say; `RelationshipResolver.ts`'s `RelatedResult` doc says so). The port
+ * cannot tell the two apart, so the sentence does not claim wiring is the cause —
+ * that would be exactly the kind of unverified claim about a store INV-QD-029
+ * forbids, the same defect this arm was added to fix in the first place
+ * (BEH-QD-045).
+ */
+const RELATIONSHIP_DENIAL: Record<
+  Exclude<RelationshipOutcome, "Held">,
+  (
+    subject: AuthSubject,
+    policy: Extract<Policy, { _tag: "HasRelationship" }>,
+    resourceId: string | undefined,
+  ) => string
+> = {
+  Unrelated: (subject, policy, resourceId) =>
+    `subject '${subject.id}' has no '${policy.relation}' relation to '${resourceId}'`,
+  Unknown: (_subject, policy, resourceId) =>
+    `no relationship resolver could confirm the '${policy.relation}' relation to '${resourceId}'`,
+};
+
+/**
+ * The sentence each way a signature leaf denies, keyed by the outcome that says which.
+ *
+ * The two are told apart at no extra cost, since the port returns the full list
+ * before `askSignature` filters it.
+ */
+const SIGNATURE_DENIAL: Record<
+  Exclude<SignatureOutcome, "Held">,
+  (subject: AuthSubject, policy: Extract<Policy, { _tag: "HasSignature" }>) => string
+> = {
+  NoneOnFile: (subject) => `no signatures are on file for subject '${subject.id}'`,
+  NoneMatching: (subject, policy) =>
+    `subject '${subject.id}' has no signature matching meaning '${policy.meaning}'` +
+    (policy.signerRole === undefined ? "" : ` and signer role '${policy.signerRole}'`),
+};
+
 /** `HasRelationship`'s arm, extracted for the same reason `evaluateActed` is. */
 const evaluateHasRelationship = (
   policy: Extract<Policy, { _tag: "HasRelationship" }>,
@@ -217,36 +263,12 @@ const evaluateHasRelationship = (
   resource: Resource | undefined,
 ) => {
   const resourceId = resourceIdOf(resource);
-  return Effect.map(askRelationship(subject, policy, resource), (related) =>
-    // `Match.value` rather than a hoisted `Match.type` (§5a's preferred form):
-    // the arms close over `policy`, `subject` and `resourceId`, so there is
-    // nothing to hoist. The rebuild is also noise against the service call, which
-    // may be a graph traversal or a network round trip.
-    Match.value(related).pipe(
-      Match.when("Related", () => allow("HasRelationship", policy.fields)),
-      Match.when("Unrelated", () =>
-        deny(
-          "HasRelationship",
-          `subject '${subject.id}' has no '${policy.relation}' relation to '${resourceId}'`,
-        ),
-      ),
-      // Not "has no relation": nothing confirmed one. `"Unknown"` does not mean
-      // "unwired" specifically — `RelationshipResolverNever` is the common source,
-      // but a wired resolver may answer it too (a graph store with no namespace
-      // for this relation, say; `RelationshipResolver.ts`'s `RelatedResult` doc
-      // says so). The port cannot tell the two apart, so the sentence does not
-      // claim wiring is the cause — that would be exactly the kind of unverified
-      // claim about a store INV-QD-029 forbids, the same defect this arm was
-      // added to fix in the first place (BEH-QD-045).
-      Match.when("Unknown", () =>
-        deny(
-          "HasRelationship",
-          `no relationship resolver could confirm the '${policy.relation}' relation to '${resourceId}'`,
-        ),
-      ),
-      Match.exhaustive,
-    ),
-  );
+  return Effect.map(askRelationship(subject, policy, resource), (related) => {
+    const outcome = LEAF_VERDICTS.HasRelationship(related);
+    return isHeld(outcome)
+      ? allow("HasRelationship", policy.fields)
+      : deny("HasRelationship", RELATIONSHIP_DENIAL[outcome](subject, policy, resourceId));
+  });
 };
 
 /**
@@ -259,7 +281,7 @@ const evaluateHasCustom = (
   resource: Resource | undefined,
 ) =>
   Effect.map(askCustom(subject, policy, resource), (allowed) =>
-    allowed
+    isHeld(LEAF_VERDICTS.HasCustom(allowed))
       ? allow("HasCustom", policy.fields)
       : deny("HasCustom", `custom predicate '${policy.name}' returned false`),
   );
@@ -268,30 +290,20 @@ const evaluateHasCustom = (
  * `HasSignature`'s arm, extracted for the same reason `evaluateActed`,
  * `evaluateHasRelationship` and `evaluateHasCustom` are.
  *
- * The deny reason distinguishes "no signatures on file at all" from
- * "signatures exist but none match" at no extra cost, since the port returns the
- * full list before `askSignature` filters it.
+ * The row says whether a signature was found, and if not whether any were on file
+ * at all; this arm chooses the sentence.
  */
 const evaluateHasSignature = (
   policy: Extract<Policy, { _tag: "HasSignature" }>,
   subject: AuthSubject,
   resource: Resource | undefined,
 ) =>
-  Effect.map(
-    askSignature(subject, policy, resource),
-    ({ matched, onFile }) =>
-      matched
-        ? allow("HasSignature", policy.fields)
-        : deny(
-            "HasSignature",
-            onFile === 0
-              ? `no signatures are on file for subject '${subject.id}'`
-              : `subject '${subject.id}' has no signature matching meaning '${policy.meaning}'` +
-                (policy.signerRole === undefined
-                  ? ""
-                  : ` and signer role '${policy.signerRole}'`),
-          ),
-  );
+  Effect.map(askSignature(subject, policy, resource), (answer) => {
+    const outcome = LEAF_VERDICTS.HasSignature(answer);
+    return isHeld(outcome)
+      ? allow("HasSignature", policy.fields)
+      : deny("HasSignature", SIGNATURE_DENIAL[outcome](subject, policy));
+  });
 
 /**
  * Dispatches a single policy node to its verdict, recursing into composites.
