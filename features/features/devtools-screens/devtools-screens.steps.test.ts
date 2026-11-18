@@ -415,9 +415,7 @@ describeFeature(feature, World.layer, ({ AfterAllScenarios, Before, Given, When,
     // scenarios in this suite have already counted calls into it. A test that
     // assumed an empty registry would be asserting the opposite of the
     // documented behaviour.
-    assert.equal(
-      activity.find((entry) => entry.port === "EvaluationId"),
-      undefined,
-    );
+    const ports: ReadonlyArray<string> = activity.map((entry) => entry.port);
+    assert.equal(ports.includes("EvaluationId"), false);
   });
 });

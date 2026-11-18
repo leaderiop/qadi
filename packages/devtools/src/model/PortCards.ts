@@ -84,7 +84,7 @@ export const isPortName = (name: WiredServiceName): name is PortName => Object.h
  * A `Map` holds the grouping, so a host-supplied word such as `__proto__` is a key of nothing.
  */
 export const activityByPort = (list: ReadonlyArray<PortActivity>): ActivityByPort => {
-  const grouped = new Map<string, PortActivity>();
+  const grouped = new Map<PortName, PortActivity>();
   for (const entry of list) {
     if (!grouped.has(entry.port)) grouped.set(entry.port, entry);
   }

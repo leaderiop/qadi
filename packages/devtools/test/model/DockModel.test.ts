@@ -55,6 +55,7 @@ import type { AskedQuestionLike, GateInstanceLike, QuestionsSnapshot } from "../
 import type { Source } from "../../src/model/Source.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { countsOf } from "../../src/model/Verdict.ts";
+import type { PortActivity } from "../../src/model/Wiring.ts";
 import { allow, decisionRecord, deny, failedRecord, obligationRecord, read, readPolicy } from "../helpers.ts";
 import { settleTurns } from "../helpers.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
@@ -784,7 +785,7 @@ describe("the diagnostics store (M18..M27)", () => {
     return seen;
   };
 
-  const suppliedActivity = [
+  const suppliedActivity: ReadonlyArray<PortActivity> = [
     { port: "AttributeResolver", calls: 1, translationCalls: 0, retries: 0, timeouts: 0 },
   ];
 
