@@ -1052,7 +1052,7 @@ describe("what onMalformed receives, one frame per drop", () => {
       const frame = Result.getOrThrow(encodeSinkRecordString(decisionRecord({ evaluationId: "old" })));
       const { reported, delivered } = yield* droppedFrame(frame);
       assert.deepStrictEqual(reported, [
-        [frame, DecodeRefusal.Malformed({ message: "a bare record, not a stored-record envelope { environment, record }" })],
+        [frame, DecodeRefusal.Malformed({ message: 'Missing key\n  at ["environment"]' })],
       ]);
       assert.strictEqual(delivered, "after");
     }));

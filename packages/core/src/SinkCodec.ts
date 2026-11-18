@@ -87,6 +87,7 @@ import {
   obligationRecordFields,
 } from "./SinkRecordFields.ts";
 import { DecodeRefusal, decodeRefusalOf, WIRE_VERSION, WIRE_VERSIONS } from "./SinkWire.ts";
+import type { UntrustedRefusal } from "./UntrustedDecode.ts";
 import { MAX_DECODE_DEPTH, untrustedDecoder } from "./UntrustedDecode.ts";
 
 /**
@@ -409,9 +410,6 @@ export const encodeSinkRecordString = (record: SinkRecord): Result.Result<string
 
 const notDecodable = (refusal: DecodeRefusal) => Result.fail(new SinkRecordNotDecodable({ refusal }));
 
-/** An own property's value, or `undefined`: never one inherited from a prototype. */
-const ownValue = (input: object, key: string): unknown => Object.getOwnPropertyDescriptor(input, key)?.value;
-
 /**
  * What the strict decode accepted, as a record and as its JSON form.
  *
@@ -462,7 +460,8 @@ type UnsupportedVersion = Extract<DecodeRefusal, { readonly _tag: "UnsupportedVe
  */
 const checkVersion = (input: unknown): Result.Result<unknown, UnsupportedVersion> => {
   if (!isPlainObject(input)) return Result.succeed(input);
-  const version = ownValue(input, "version");
+  // An own property only: never one inherited from a prototype.
+  const version = Object.getOwnPropertyDescriptor(input, "version")?.value;
   return isReadVersion(version)
     ? Result.succeed(input)
     : Result.fail(DecodeRefusal.UnsupportedVersion({ version, supported: WIRE_VERSIONS }));
@@ -582,26 +581,59 @@ export const encodeStoredRecordString = (
 ): Result.Result<string, SinkRecordNotEncodable> =>
   Result.map(encodeStoredRecord(stored), (json) => JSON.stringify(json));
 
-const notAnEnvelope = (message: string) => notDecodable(DecodeRefusal.Malformed({ message }));
+/**
+ * What the stored envelope declares: the producer's label and the record, still
+ * `unknown`.
+ *
+ * `record` is guarded from its own root by {@link decodeSinkRecord}, which is why
+ * {@link storedWire} leaves it unwalked.
+ */
+const StoredEnvelopeWire = Schema.Struct({ environment: Schema.String, record: Schema.Unknown });
+
+/**
+ * The untrusted decoder for the stored envelope, built once.
+ *
+ * `ignore` drops an undeclared top-level key before the guard, so a newer
+ * server's additive metadata is ignored however deep (ADR-QD-096 D-15-c,
+ * ADR-QD-170). `record` is `unwalked`: the guard leaves it out, because
+ * {@link decodeSinkRecord} guards it from its own root (INV-QD-306).
+ * `environment` is declared and walked, so one nested past the bound is `TooDeep`.
+ */
+const storedWire = untrustedDecoder(StoredEnvelopeWire, { unknownKeys: "ignore", unwalked: ["record"] });
+
+/**
+ * An envelope decoder's result as a stored record, or the refusal it carries.
+ *
+ * The one isolated `stampRecord` call: the environment is the decoded envelope's
+ * own, never the reader's.
+ */
+const fromEnvelope = (
+  read: Result.Result<typeof StoredEnvelopeWire.Type, UntrustedRefusal>,
+): Result.Result<StoredRecord, SinkRecordNotDecodable> =>
+  Result.isFailure(read)
+    ? notDecodable(decodeRefusalOf(read.failure))
+    : Result.map(decodeSinkRecord(read.success.record), (record) => stampRecord(record, read.success.environment));
 
 /**
  * Untrusted input as a stored record, or the reason it is not one.
  *
- * The envelope is read first — an own `environment` that must be a string, an
- * own `record` — and `record` then goes through {@link decodeSinkRecord}, so
- * every rule about the record (depth, version, strictness inside the policy) is
- * that function's. A top-level envelope key this reader does not declare is
- * ignored, as {@link decodeSinkRecord} ignores one on the record (ADR-QD-096
- * D-15-c): a newer server's additive metadata must not refuse every frame for
+ * The envelope is read by the untrusted decoder ({@link storedWire}) with
+ * `ignore` and `record` unwalked, and `record` then goes through
+ * {@link decodeSinkRecord}, so every rule about the record (depth, version,
+ * strictness inside the policy) is that function's. A top-level envelope key
+ * this reader does not declare is ignored however deep and never walked, as
+ * {@link decodeSinkRecord} ignores one on the record (ADR-QD-096 D-15-c,
+ * ADR-QD-170): a newer server's additive metadata must not refuse every frame for
  * the length of a rolling deploy.
  *
- * **Not a decoder of its own.** It reads the envelope with `ownValue` and hands
- * `record` to {@link decodeSinkRecord}, which is guarded; walking the envelope
- * too would refuse a deep unknown envelope key that D-15-c says is ignored.
+ * **A refusal carries the strict decoder's message** (ADR-QD-170 D-17): `Expected
+ * object` for a non-object, `Missing key` at `environment` or `record`,
+ * `Expected string` at `environment`. An `environment` nested past the bound is
+ * `TooDeep`, because it is declared and so walked (D-18). The tags are unchanged.
  *
  * **Only an envelope is read.** A bare record — what a server older than 0.10,
- * which predates the envelope, sends — is refused as `Malformed`, naming
- * itself as bare, so an older server is reported rather than silently
+ * which predates the envelope, sends — is refused as `Malformed` for its missing
+ * `environment`, so an older server is reported rather than silently
  * mislabelled. 0.10 accepted one under a deprecated `legacyEnvironment` label
  * for one minor (ARCH-11 D-11-e); 0.11.0 removed it (ADR-QD-097's 2026-10-06
  * amendment), and with it the only reason this function took options.
@@ -609,24 +641,12 @@ const notAnEnvelope = (message: string) => notDecodable(DecodeRefusal.Malformed(
  * The record is rebuilt and stamped here, with `stampRecord`, so the
  * environment is the producer's, never the reader's. Never throws.
  */
-export const decodeStoredRecord = (input: unknown): Result.Result<StoredRecord, SinkRecordNotDecodable> => {
-  if (!isPlainObject(input)) return notAnEnvelope("a stored record is a JSON object { environment, record }");
-  if (!Object.hasOwn(input, "environment") && !Object.hasOwn(input, "record")) {
-    return notAnEnvelope("a bare record, not a stored-record envelope { environment, record }");
-  }
-  const environment = ownValue(input, "environment");
-  if (typeof environment !== "string") return notAnEnvelope("a stored record's environment is not a string");
-  if (!Object.hasOwn(input, "record")) return notAnEnvelope("a stored record names no record");
-  return Result.map(decodeSinkRecord(ownValue(input, "record")), (record) => stampRecord(record, environment));
-};
+export const decodeStoredRecord = (input: unknown): Result.Result<StoredRecord, SinkRecordNotDecodable> =>
+  fromEnvelope(storedWire.decode(input));
 
 /**
  * JSON text as a stored record, or the reason it is not one: `NotJson` when
  * the text does not parse, otherwise whatever {@link decodeStoredRecord} says.
  */
-export const decodeStoredRecordString = (text: string): Result.Result<StoredRecord, SinkRecordNotDecodable> => {
-  // Not `decodeText`: the envelope must not be walked, since an unknown envelope key is
-  // ignored however deep (ADR-QD-096 D-15-c). `record` is guarded from its own root.
-  const parsed = Result.try((): unknown => JSON.parse(text));
-  return Result.isFailure(parsed) ? notDecodable(DecodeRefusal.NotJson()) : decodeStoredRecord(parsed.success);
-};
+export const decodeStoredRecordString = (text: string): Result.Result<StoredRecord, SinkRecordNotDecodable> =>
+  fromEnvelope(storedWire.decodeText(text));

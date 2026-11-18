@@ -514,8 +514,11 @@ shared `Schema.suspend` ref; `parseJson(s)` → `fromJsonString(s)`;
 Untrusted JSON is decoded only through `@qadi/core`'s `untrustedDecoder`
 (`UntrustedDecode.ts`).
 
-It runs one fixed recipe: `JSON.parse` for text, the depth guard, an optional
-seam-supplied `prepare`, then a strict decode (`onExcessProperty: "error"`), and it
+It runs one fixed recipe: `JSON.parse` for text, the projection the decoder's
+required `unknownKeys` states (`refuse` keeps every key, `ignore` drops an
+undeclared top-level key before the guard, so it is never walked, ADR-QD-170), the
+depth guard, an optional seam-supplied `prepare` that receives the projection,
+then a strict decode (`onExcessProperty: "error"`), and it
 answers with a `Result` whose refusal is a closed `UntrustedRefusal` (`NotJson`,
 `TooDeep`, `Malformed`) that the seam maps into its own error with
 `Match.tagsExhaustive`. A top-level key a second decoder guards from its own root
@@ -540,7 +543,7 @@ makes of an input.
 | `packages/core/src/UntrustedDecode.ts` | 5 | The decoder itself: the depth-guard import and call, the strict option, its one `Schema.decodeUnknownResult`, and `decodeText`'s `JSON.parse`. |
 | `packages/core/src/DecodeDepthGuard.ts` | 1 | The depth walk's declaration, package-private and reached only from the decoder. |
 | `packages/core/src/PortSpanEncode.ts` | 2 | `spanStruct` reads only its own named keys, and every leaf is a `SpanValue` primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map. |
-| `packages/core/src/SinkCodec.ts` | 2 | `decodeStoredRecordString` parses the stored envelope itself and must not walk it: an unknown envelope key is ignored, however deep (ADR-QD-096 D-15-c). `record` reaches the guarded `decodeSinkRecord` from its own root. `SinkRecordWithJson`'s `Schema.decodeTo` is the transformation that gives `decodeSinkRecordWithJson` the record and its JSON form from one strict decode, run only through `untrustedDecoder` (ADR-QD-153). |
+| `packages/core/src/SinkCodec.ts` | 1 | `SinkRecordWithJson`'s `Schema.decodeTo` is the transformation that gives `decodeSinkRecordWithJson` the record and its JSON form from one strict decode, run only through `untrustedDecoder` (ADR-QD-153); the stored envelope is read by `untrustedDecoder` itself (ADR-QD-170). |
 | `packages/devtools/src/model/SimulationForm.ts` | 1 | `parseJson` parses the simulation form's own typed text for the form's own validation; nothing crosses a trust boundary. |
 
 Enforced by `UNTRUSTED_DECODE_BUDGET` in `scripts/check-house-style.mjs`, checked

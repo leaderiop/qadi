@@ -2208,15 +2208,13 @@ describe("the stored-record envelope (ARCH-11 D-11-e)", () => {
       return Result.isFailure(back) && back.failure.refusal._tag === "Malformed" ? back.failure.refusal.message : undefined;
     };
     for (const input of ["text", [1], null]) {
-      assert.strictEqual(reasonOf(input), "a stored record is a JSON object { environment, record }");
+      assert.strictEqual(reasonOf(input), "Expected object");
     }
-    for (const input of [{}, { cursor: "x" }]) {
-      assert.strictEqual(reasonOf(input), "a bare record, not a stored-record envelope { environment, record }");
+    for (const input of [{}, { cursor: "x" }, { record }]) {
+      assert.strictEqual(reasonOf(input), 'Missing key\n  at ["environment"]');
     }
-    for (const input of [{ environment: 1, record }, { record }]) {
-      assert.strictEqual(reasonOf(input), "a stored record's environment is not a string");
-    }
-    assert.strictEqual(reasonOf({ environment: "Edge" }), "a stored record names no record");
+    assert.strictEqual(reasonOf({ environment: 1, record }), 'Expected string\n  at ["environment"]');
+    assert.strictEqual(reasonOf({ environment: "Edge" }), 'Missing key\n  at ["record"]');
   });
 
   it("a record the envelope carries is decoded by decodeSinkRecord's rules", () => {
@@ -2235,7 +2233,7 @@ describe("the stored-record envelope (ARCH-11 D-11-e)", () => {
       assert.isTrue(Result.isFailure(refused) && refused.failure.refusal._tag === "Malformed", JSON.stringify(bare));
       assert.include(
         Result.isFailure(refused) && refused.failure.refusal._tag === "Malformed" ? refused.failure.refusal.message : "",
-        "bare record",
+        'Missing key\n  at ["environment"]',
       );
     }
     const viaText = decodeStoredRecordString(V2.V2_OBLIGATIONS);
